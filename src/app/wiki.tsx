@@ -505,12 +505,12 @@ function WikiLegacy() {
             knowledge graph so the store feels alive before any tap. */}
         {stats !== null && pages.length > 0 ? (
           <View style={styles.pulseStrip}>
-            <PulseStat label={locale === "ko" ? "조각" : "Pieces"} value={stats.pageCount} />
+            <PulseStat label={locale === "ko" ? "별가루" : "Pieces"} value={stats.pageCount} />
             <View style={styles.pulseDivider} />
             <PulseStat label={locale === "ko" ? "연결" : "Links"} value={stats.edgeCount} accent />
             <View style={styles.pulseDivider} />
             <PulseStat
-              label={locale === "ko" ? "외딴 조각" : "Orphans"}
+              label={locale === "ko" ? "외딴 별가루" : "Orphans"}
               value={stats.orphans.length}
             />
           </View>
@@ -522,7 +522,7 @@ function WikiLegacy() {
             value={query}
             onChangeText={setQuery}
             placeholder={
-              locale === "ko" ? "조각 검색: 제목이나 저장 이름" : "Search pieces by title or saved name"
+              locale === "ko" ? "별가루 검색: 제목이나 저장 이름" : "Search pieces by title or saved name"
             }
             accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
           />
@@ -782,26 +782,26 @@ function WikiLegacy() {
         {activeTags.length > 0
           ? t("emptyForTags")
           : locale === "ko"
-            ? "아직 창고가 조용해요. 오늘의 조각이나 링크를 저장하면 여기서 다시 찾아볼 수 있어요."
+            ? "아직 창고가 조용해요. 오늘의 별가루나 링크를 저장하면 여기서 다시 찾아볼 수 있어요."
             : "The store is quiet for now. Save a piece or a link and you'll find it here again."}
       </Text>
       {activeTags.length === 0 ? (
         <View style={styles.emptyCtaRow}>
           <Link href="/capture" asChild>
             <Button
-              label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+              label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
               variant="primary"
               accessibilityHint={
-                locale === "ko" ? "캡처 화면을 열어 오늘의 조각을 저장합니다." : "Opens capture to save today's piece."
+                locale === "ko" ? "캡처 화면을 열어 오늘의 별가루를 저장합니다." : "Opens capture to save today's piece."
               }
             />
           </Link>
           <Link href="/capture" asChild>
             <Button
-              label={locale === "ko" ? "조각 담기" : "Capture a piece"}
+              label={locale === "ko" ? "별가루 담기" : "Capture a piece"}
               variant="secondary"
               accessibilityHint={
-                locale === "ko" ? "캡처 화면을 열어 새 조각을 저장합니다." : "Opens capture to save a new piece."
+                locale === "ko" ? "캡처 화면을 열어 새 별가루를 저장합니다." : "Opens capture to save a new piece."
               }
             />
           </Link>
@@ -812,7 +812,7 @@ function WikiLegacy() {
     <View style={styles.emptyCard}>
       <Text variant="body" color="textMuted" style={styles.emptyText}>
         {locale === "ko"
-          ? `'${query.trim()}'에 맞는 조각이 없어요.`
+          ? `'${query.trim()}'에 맞는 별가루가 없어요.`
           : `No pieces match '${query.trim()}'.`}
       </Text>
     </View>

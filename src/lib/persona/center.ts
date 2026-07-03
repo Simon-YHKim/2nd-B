@@ -5,7 +5,7 @@
 //
 //   1) 지금 가장 밝은 방향   — the trait burning brightest right now
 //   2) 요즘 불 켜진 동네     — the area we've returned to most
-//   3) 이걸 만든 조각        — the pieces (assessments/records) behind it
+//   3) 이걸 만든 별가루        — the pieces (assessments/records) behind it
 //
 // This is a PURE derivation over an already-built PersonaCard, so it's
 // trivially testable and never touches the network. The persona screen
@@ -60,7 +60,7 @@ function brightestTrait(traits: PersonaTraits): keyof PersonaTraits {
 
 /** Join a list with locale-appropriate separators ("a, b, and c" / "a, b, c"). */
 function joinSources(parts: string[], locale: "en" | "ko"): string {
-  if (parts.length === 0) return locale === "ko" ? "첫 조각들" : "your first pieces";
+  if (parts.length === 0) return locale === "ko" ? "첫 별가루들" : "your first pieces";
   if (parts.length === 1) return parts[0];
   if (locale === "ko") return parts.join(", ");
   return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
@@ -97,7 +97,7 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
     accent: cosmic.signalBlue,
   };
 
-  // 3) 이걸 만든 조각 — name the signals that fed the model.
+  // 3) 이걸 만든 별가루 — name the signals that fed the model.
   const sources: string[] = [];
   sources.push(
     isMeasuredSource(persona.traitsSource)
@@ -116,9 +116,9 @@ export function buildCenterCards(persona: PersonaCard, locale: "en" | "ko"): Cen
   }
   const pieces: CenterCard = {
     id: "pieces",
-    title: ko ? "이걸 만든 조각" : "The pieces behind this",
+    title: ko ? "이걸 만든 별가루" : "The pieces behind this",
     body: ko
-      ? `지금 이 모습은 ${joinSources(sources, locale)}에서 모은 조각이에요.`
+      ? `지금 이 모습은 ${joinSources(sources, locale)}에서 모은 별가루예요.`
       : `This shape is pieced together from ${joinSources(sources, locale)}.`,
     accent: cosmic.pixelLamp,
   };

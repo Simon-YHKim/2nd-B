@@ -193,19 +193,19 @@ export const MENU_NODES: readonly NavNode[] = [
   // former "imagine" core was removed: 공상 is now SecondB's Divergent mode.
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
     label: { en: "Growth Core", ko: "그로스 코어" },
-    description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 조각들이 모이는 곳이에요." } },
+    description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 별가루들이 모이는 곳이에요." } },
   { id: "relation", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "relation" } },
     label: { en: "Bond Core", ko: "본드 코어" },
-    description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 조각이 이어지는 곳이에요." } },
+    description: { en: "Where memories, promises, and conversations with people connect.", ko: "사람들과의 기억, 약속, 대화 별가루가 이어지는 곳이에요." } },
   { id: "knowledge", tier: 2, parentId: "core", href: "/wiki", bubbleAction: "upload",
     label: { en: "Wisdom Core", ko: "위즈덤 코어" },
-    description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 조각으로 쌓이는 곳이에요." } },
+    description: { en: "Where what you've learned and understood stacks up as knowledge.", ko: "배우고 이해한 것들이 지식 별가루로 쌓이는 곳이에요." } },
   { id: "records", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "records" } },
     label: { en: "Narrative Core", ko: "내러티브 코어" },
-    description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 조각이 다시 찾아볼 수 있게 모이는 곳이에요." } },
+    description: { en: "Where every piece you've kept gathers so you can find it again.", ko: "남긴 모든 별가루가 다시 찾아볼 수 있게 모이는 곳이에요." } },
   { id: "taste", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "taste" } },
     label: { en: "Muse Core", ko: "뮤즈 코어" },
-    description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 조각이 모이는 곳이에요." } },
+    description: { en: "Where the things you like, are drawn to, and find inspiring gather.", ko: "좋아하는 것, 끌리는 것, 영감의 별가루가 모이는 곳이에요." } },
   // O-R3 assistant ops axis. Art/accent/worker are provisional (G1: Simon's
   // color-wheel pass) - swap the rhythm_core placeholder PNGs to restyle.
   { id: "rhythm", tier: 2, parentId: "core", href: "/ops",
@@ -255,7 +255,7 @@ export const CENTER_NODE: NavNode = {
   // owns the cells. Surface this everywhere the user lands first.
   description: {
     en: "Center of you. The small ones and I keep your pieces in order.",
-    ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 조각들을 정리해두고 있어.",
+    ko: "여기가 너의 중심이야. 작은 친구들이랑 함께 별가루들을 정리해두고 있어.",
   },
 };
 
@@ -1838,11 +1838,11 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
                 onPress={() => handleNodeTap(id)}
                 hitSlop={14}
                 accessibilityRole="button"
-                accessibilityLabel={piece?.title ?? (locale === "ko" ? "조각" : "piece")}
+                accessibilityLabel={piece?.title ?? (locale === "ko" ? "별가루" : "piece")}
                 accessibilityHint={
                   isDrilldownData
                     ? t("navGraph.drilldown.dataDetailHint")
-                    : locale === "ko" ? "조각 요약과 해시태그를 엽니다" : "Opens this piece summary and tags"
+                    : locale === "ko" ? "별가루 요약과 해시태그를 엽니다" : "Opens this piece summary and tags"
                 }
                 accessibilityState={{ selected: activeId === id || drilldownSelectedDataId === id }}
               >
@@ -1917,7 +1917,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
                 hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={n.label[locale]}
-                accessibilityHint={locale === "ko" ? "이 마을 조각을 엽니다" : "Opens this village node"}
+                accessibilityHint={locale === "ko" ? "이 마을 별가루를 엽니다" : "Opens this village node"}
                 accessibilityState={{ selected: activeId === n.id }}
                 style={StyleSheet.absoluteFill}
               />
@@ -2200,14 +2200,14 @@ function NodeSheet({
         <Text variant="caption" style={[styles.sheetType, { color: accent }]}>{type}</Text>
         {connectedCount > 0 ? (
           <Text variant="subtle" color="textMuted">
-            {locale === "ko" ? `내가 연결한 조각 ${connectedCount}개` : `${connectedCount} pieces I connected`}
+            {locale === "ko" ? `내가 연결한 별가루 ${connectedCount}개` : `${connectedCount} pieces I connected`}
           </Text>
         ) : null}
       </View>
       <Text variant="body" color="textMuted" style={styles.sheetDesc}>{description}</Text>
       {connectedCount > 0 ? (
         <View style={styles.sheetStats}>
-          <StatTile value={connectedCount} label={locale === "ko" ? "내가 연결한 조각" : "pieces I connected"} accent={cosmic.signalMint} />
+          <StatTile value={connectedCount} label={locale === "ko" ? "내가 연결한 별가루" : "pieces I connected"} accent={cosmic.signalMint} />
         </View>
       ) : null}
       <View style={styles.sheetActions}>
@@ -2423,7 +2423,7 @@ function DataNodeSheet({
           hitSlop={16}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
-          accessibilityHint={locale === "ko" ? "조각 상세 패널을 닫습니다" : "Closes the piece detail panel"}
+          accessibilityHint={locale === "ko" ? "별가루 상세 패널을 닫습니다" : "Closes the piece detail panel"}
         >
           <Text style={styles.sheetClose}>✕</Text>
         </Pressable>

@@ -194,7 +194,7 @@ function AuditLegacy() {
               onPress={() => router.replace("/persona")}
             />
             <Button
-              label={locale === "ko" ? "조각 담기로 돌아가기" : "Back to capture"}
+              label={locale === "ko" ? "별가루 담기로 돌아가기" : "Back to capture"}
               variant="secondary"
               onPress={() => router.replace("/capture")}
             />

@@ -62,7 +62,7 @@ const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko:
   { ko: "다음 한 걸음", en: "Next step", prompt: { ko: "지금 할 수 있는 다음 한 걸음으로 줄여줘.", en: "Narrow this to one next step I can take today." } },
   { ko: "새 관점으로", en: "New angle", mode: "divergent", prompt: { ko: "이 생각을 전혀 다른 관점에서 펼쳐줘.", en: "Unfold this from a completely different angle." } },
   { ko: "위키에 저장", en: "Save to wiki", prompt: { ko: "이 답을 위키에 저장할 수 있게 한 단락으로 정리해줘.", en: "Sum this up in one paragraph I can save to my wiki." } },
-  { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 조각을 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
+  { ko: "왜 이렇게 봤어?", en: "Why this?", prompt: { ko: "왜 그렇게 봤는지 참고한 별가루를 들어 설명해줘.", en: "Explain why you saw it that way, citing the pieces you used." } },
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
@@ -580,12 +580,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         accessibilityRole="button"
                         accessibilityLabel={
                           locale === "ko"
-                            ? `이 답변은 참고한 조각 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
+                            ? `이 답변은 참고한 별가루 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
                             : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
                         }
                       >
                         <Text style={ds.chipRowLead}>
-                          {locale === "ko" ? `참고한 조각 ${turn.chips.length}` : `${turn.chips.length} pieces`}
+                          {locale === "ko" ? `참고한 별가루 ${turn.chips.length}` : `${turn.chips.length} pieces`}
                         </Text>
                         {turn.chips.slice(0, 3).map((slug) => (
                           <View key={slug} style={ds.chip}>
@@ -784,20 +784,20 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           <Pressable
             style={ds.modalBackdrop}
             onPress={() => setRefDrawer(null)}
-            accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close referenced pieces"}
-            accessibilityHint={locale === "ko" ? "참고 조각 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
+            accessibilityLabel={locale === "ko" ? "참고 별가루 닫기" : "Close referenced pieces"}
+            accessibilityHint={locale === "ko" ? "참고 별가루 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
           >
             <Pressable
               style={ds.drawer}
               onPress={(e) => e.stopPropagation()}
               accessibilityViewIsModal
-              accessibilityLabel={locale === "ko" ? "참고한 조각들" : "Pieces referenced"}
+              accessibilityLabel={locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}
             >
               <View style={ds.drawerHandle} />
-              <Text style={ds.drawerTitle}>{locale === "ko" ? "참고한 조각들" : "Pieces referenced"}</Text>
+              <Text style={ds.drawerTitle}>{locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}</Text>
               <Text style={ds.drawerSubtle}>
                 {locale === "ko"
-                  ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
+                  ? "답변에 영향을 준 별가루들이에요. 필요하면 하나씩 열어볼 수 있어요."
                   : "The pieces that shaped this answer. Open any one if you like."}
               </Text>
               <ScrollView
@@ -1071,7 +1071,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       {turn.text}
                     </Text>
                   </Pressable>
-                  {/* Grounding strip — "이 답변은 참고한 조각 N개를 봤어요"; tap to
+                  {/* Grounding strip — "이 답변은 참고한 별가루 N개를 봤어요"; tap to
                       open the reference drawer (chat pack §5/§6). */}
                   {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
                     <Pressable
@@ -1080,12 +1080,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       accessibilityRole="button"
                       accessibilityLabel={
                         locale === "ko"
-                          ? `이 답변은 참고한 조각 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
+                          ? `이 답변은 참고한 별가루 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
                           : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
                       }
                     >
                       <Text variant="caption" color="textSubtle">
-                        {locale === "ko" ? `참고한 조각 ${turn.chips.length}` : `${turn.chips.length} pieces`}
+                        {locale === "ko" ? `참고한 별가루 ${turn.chips.length}` : `${turn.chips.length} pieces`}
                       </Text>
                       {turn.chips.slice(0, 3).map((slug) => (
                         <View key={slug} style={styles.chip}>
@@ -1196,20 +1196,20 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           style={styles.modalBackdrop}
           onPress={() => setRefDrawer(null)}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "참고 조각 닫기" : "Close referenced pieces"}
-          accessibilityHint={locale === "ko" ? "참고 조각 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
+          accessibilityLabel={locale === "ko" ? "참고 별가루 닫기" : "Close referenced pieces"}
+          accessibilityHint={locale === "ko" ? "참고 별가루 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
         >
           <Pressable
             style={styles.drawer}
             onPress={(e) => e.stopPropagation()}
             accessibilityViewIsModal
-            accessibilityLabel={locale === "ko" ? "참고한 조각들" : "Pieces referenced"}
+            accessibilityLabel={locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}
           >
             <View style={styles.drawerHandle} />
-            <Text variant="heading">{locale === "ko" ? "참고한 조각들" : "Pieces referenced"}</Text>
+            <Text variant="heading">{locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}</Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
               {locale === "ko"
-                ? "답변에 영향을 준 조각들이에요. 필요하면 하나씩 열어볼 수 있어요."
+                ? "답변에 영향을 준 별가루들이에요. 필요하면 하나씩 열어볼 수 있어요."
                 : "The pieces that shaped this answer. Open any one if you like."}
             </Text>
             {/* List scrolls within the capped (62%) drawer so the Close button

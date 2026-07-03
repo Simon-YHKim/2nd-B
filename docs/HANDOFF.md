@@ -3,7 +3,111 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-03 (게이트 해제 세션) / T5 E2E·통화회고·DDS분할 + 네이티브 사이클 0.0.7 완주
+## Latest — 2026-07-03 (오전 2차) / 🔒 레퍼런스=정본 확정(Simon) → imagine 복원 #734 + 별가루 어휘 정렬 #735
+
+> **Simon 확정 지시(08:56)**: 업로드 zip(2ndB_proto_rev2_Copy — r3와 바이트 동일 확인)
+> = "모든 용어와 디자인 기준은 클로드 디자인이 제공한 자료를 따름".
+> → 감사 라운드의 "결정 대기 7건" 중 용어·디자인 건 **해소**, 작업 큐로 승격됨.
+
+### 확정된 정본 규칙 (영구)
+1. **용어**: 기록 1건 = **별가루** (ref README/CONTEXT "기록 하나하나 = 별가루"). **조각**은
+   도메인 대시보드 집계 표면 전용(sb-audit 동형: home values.domain*Count, deepspace domains.*)
+   + 관용구("막힌 조각", "기억/공상 한 조각")만 생존. 판정 기준 = **표면**, 산문/카운트 아님.
+2. 레퍼런스 원문의 조사 오류(별가루이/별가루을)는 복제하지 않음 — 모음종결 정조사(가/를/로).
+3. 예외 존치: 정직성(서명됨→로컬 생성), 로케일 em-dash 금지, consent 문구는 법무-인접이라 Simon 명시 확인 후.
+
+### 이번 세션 랜딩 (2차)
+- **#734 (c85f0f67, [ota])** imagine 공상-갈래 화면 복원 — ref ImagineScreen 1:1(시드 3종 확장/반전/연결
+  + 다음 한 걸음 + 담기 프리필/Divergent 딥링크), 시드=imagine-seeds.ts(canon 테스트 4), ds.imagine 5로케일,
+  Fabric 가드(외곽 View 비주얼) 준수. OTA 그룹 `3bfe1d08-8ac3-456d-b45f-e615bfe6e000`.
+  ⚠️ 인트로 그라디언트는 SVG 수평 근사(135deg 미지원) — 에뮬 육안 QA 1회 권장.
+- **#735 (6c2a28a5, [ota])** 별가루/조각 어휘 정렬 — 184곳(로케일 63·src 121, 조사 교정), KEEP=표면 규칙,
+  가드 핀 공진화(check-constraints Onboarding J4·WikiHeroI18nCopy) + 테스트 어서션 동기화.
+  OTA 그룹 `45bcbea1-900b-48a0-a023-b62b1e42600b`.
+  스윕 도구: 세션 스크래치패드 term-sweep.js / 매핑 정본: term-map-report.md (Explore 에이전트 산출).
+- 병렬 세션 랜딩(참고): #733 Seen empty state.
+
+### 다음 작업 큐 (레퍼런스 재정렬 트랙 — Simon 정본 확정으로 전부 작업化)
+| # | 작업 | 크기 | 비고 |
+|---|---|---|---|
+| K | star insight 스트립("세컨비 한 줄 해석") + 공통 버튼(채워 넣기/세컨비와 대화) | large | 실데이터 훅 설계 필요 |
+| L | ops 본문 3섹션(오늘의 종합 의견·이번 주 패턴 분석·비서 도구 그리드) + 시간행·undo | large | 데이터 모델 설계 선행 |
+| M | capture 담은뒤 별-분류 스텝(잘 모르겠어요=세컨비 분류로 기존 AI 파이프 재사용) + 왜(Why) 필드 | medium | fourw 스키마 터치 |
+| N | 뮤지엄 사진추가 칩 + ShareCard 배경사진 슬롯(image-picker 기존 dep) | medium | |
+| O | 근거 드로어 명사 → ref 어휘 '근거 기록' 리네임 패스 | small | #735 후속 |
+| G | Fabric Pressable 42곳 스윕 | large | 감사 라운드 발견분 |
+| H | 에뮬 육안 QA: 뮤지엄 레인라벨·NOW·settings 헤더 + **imagine 신규 화면** | small | ⭐ 최우선 |
+- 게이트 유지: `이미지 저장`(expo-media-library, 0.0.8 네이티브 사이클) · consent 문구 · E(plans)/F(0.0.7 폰 QA).
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# H(에뮬 육안 QA)부터, 그다음 K~O 재정렬 트랙. 레퍼런스 정본 = Downloads\2ndB-proto-rev2-r3\ (Copy본은 동일 스냅샷).
+```
+
+---
+
+## 2026-07-03 (오전) / 컨텍스트-포화 세션 전수 감사 → 결함 8건 픽스 (#730) + A·C 큐 소화
+
+> Simon 지시: 직전 /loop 세션(컨텍스트 포화 상태로 15 PR 처리)의 todo 클레임이 실제 구현됐는지
+> 상세 점검하고 미비 시 개선. 5 KO-카피 에이전트 + 6 클레임-검증 에이전트 병렬 감사.
+
+### 감사 결론 — 26클레임 중 24 실증, 2 반증 (기능 구현은 견실, 전칭 클레임이 깨짐)
+- **7/7 #706 홈** · **4/4 #709/#710/#711 IDEN·ShareCard** · **5/5 #713/#725 축** · **#721 plans IAP 불변 확실**
+  · 셸 3종/코호트/DOCK_PATHS 등재 누락 0 · require-cycle 가드 CLEAN · 로케일 em-dash CLEAN(U+2013 오탐 주의).
+- **반증 1 (#715)**: settings 컴패니언 헤더가 트랙 게이트 없이 caption으로 강등 → **라이브 핀(legacy) 화면 실변경**.
+- **반증 2 (컴패니언 규칙)**: "capture/chat/records만"은 코호트 화면 한정 참 — 미변환 fullbleed 13개+(뮤지엄 포함)에 companion 잔존.
+- **#723 미완**: DeepSpaceViews 픽셀폰트 5곳 잔존(IDEN 뷰 포함).
+- 패턴 교훈: 컨텍스트-포화 세션의 **기능 클레임은 대체로 참, "전부/불변/만" 전칭 클레임이 깨지는 지점** — 감사는 전칭부터 치라.
+
+### 이번 세션 랜딩
+- **#730 (eb0a01c1, [ota], verify 2208 green)** — 감사 픽스 8건:
+  ① settings 레거시 헤더 원형 복원(caption은 deep-space 전용, 배럴 우회 임포트)
+  ② back→home 규칙을 탭 ROOT 라우트로 한정(usePathname×TAB_ROUTE — capture-full/call-reflection pop 회복)
+  ③ 픽셀폰트 5곳→RobotoMono ④ 뮤지엄 레인 라벨=한글 세로쓰기+악센트 도트(sb-museum 1:1)
+  ⑤ 뮤지엄 NOW 배지 ⑥ `자료 · 논문` 띄어쓰기+직선 따옴표 2건 ⑦ 뮤지엄 companion 제거(header="none")
+  ⑧ ShareCard 서명줄=`2nd-Brain · N개 별가루`(신설 countUserPieces, 핸들은 공유시트 텍스트로만)
+  + capture 제출 버튼 `담기`/`담는 중…`(브랜드어 정합).
+- **큐 A 완료**: #725 OTA는 Simon 수동 dispatch(run 28626302617, headSha=1e7e78f3)로 배달 확인 —
+  그룹 `40033b66-caf4-4ff2-942d-2a0eac7ab1dc`, preview/0.0.7. gh CLI dispatch 403은 여전(수동 UI는 됨).
+- **큐 C 완료(병렬 세션)**: AxisCheck aliveRef 가드 15a64c01 + #729(StrictMode-safe).
+- **#730 OTA**: run 28628643228 ✔ Published — 그룹 `cee46a3a-45f3-4234-9d87-569d1acf1217`, preview/0.0.7.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 비고 |
+|---|---|---|---|
+| G | **Fabric Pressable 함수형 style 42곳/17파일 스윕**(#680 패턴: View 래퍼+plain style+ripple) | large | HIGH 목록은 PR #730 본문 — 컨테이너 비주얼 소실 리스크 |
+| H | 에뮬 육안 QA 1회: 뮤지엄 레인 라벨 세로 스택 위치·NOW 배지 + settings 레거시 헤더 | small | ⭐ 다음 에뮬 루프에 편승 |
+| I | companion 잔존 fullbleed 12개+ 코호트 전환(account/big-five/core-brain/attachment/esm/persona/rlss/peer-invites/ipip-neo/career-drilldown 등) | large | 셸 코호트 연장전 |
+| J | 데드코드 정리: OpsHomeScreen(ops/kit.tsx 미배선)·DeepSpaceDock 렌더러+stale 주석·records 아웃라이어(로컬 Shell) | small | |
+| D | motivation 파이프 잔여 2종(확신%·게이지) | large | 설계 선행(기존 큐) |
+| E | plans 3티어 카드 | medium | 🔒 Simon 수익화 게이트 |
+| F | 0.0.7 새 빌드 폰 설치 후 소셜 로그인·Sentry 실기기 QA | medium | 네이티브 게이트 |
+
+### 제품 결정 대기 (Simon — 감사에서 구조 발산으로 확정, 코드 결함 아님)
+1. **imagine**: 레퍼런스 공상-갈래(seeds 3종) 화면 복원 vs 현행 "미래의 나" lens 유지(worldview v-final 의도).
+2. **capture-full**: 레퍼런스 5모드+담은뒤 별-분류 스텝 vs 현행 8모드+AI 자동분류 재설계 유지. (+4W1H `왜` 필드 부재)
+3. **star 렌즈**: 레퍼런스 세컨비 insight 스트립+렌즈 목업 vs 현행 실데이터 화면. (`성과 담기` vs ref `성과 입력`도 여기)
+4. **ops 본문**: 오늘의 종합 의견·주간 패턴 분석·비서 도구 그리드·undo 미구현(설계 상이) — 이식 여부.
+5. **어휘**: 레퍼런스 `별가루` vs 앱 `조각` — ShareCard는 이제 별가루(레퍼런스 원문), 전앱 통일 방향 결정 필요.
+6. **ShareCard**: `이미지 저장` 버튼=expo-media-library 네이티브 게이트(0.0.8 후보) · 별자리 배경사진 슬롯(image-picker는 이미 있음) 구현 여부.
+7. **axis_estimate 과금**: 현재 전 티어 무과금 개방(northstar와 동일) — 스펜드 게이트 의도 확인.
+
+### 검증
+```bash
+npm run verify; echo EXIT=$?   # 파이프 금지(gh watch도 tail 붙이면 exit 가려짐 — 이번 세션 2회 재확인)
+# jest 캐시 경합(공유 Temp) 시: --cacheDirectory 전용 폴더로 단독 재실행해 플레이크 판별
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# H(에뮬 육안 QA) 또는 G(Pressable 스윕)부터. 결정 대기 7건은 Simon 회신 후.
+```
+
+---
+
+## 2026-07-03 (게이트 해제 세션) / T5 E2E·통화회고·DDS분할 + 네이티브 사이클 0.0.7 완주
 
 ### 어디까지 왔나
 - main HEAD: `9d825fce` 기준 이 세션 머지: **#717** 통화 직후 회고(call_reflection structured) · **#718** 승인원장 무변화 접기 · **#719** DDS 분할 1차(4264→3616줄, dds-styles.ts + dds-auth-screens.tsx 순수이동) · **#638** 네이티브 Google/Kakao 로그인 · **#619** Sentry 네이티브 · **#722** runtime 0.0.7 범프. (같은 날 병렬 세션 = 아래 픽셀 클로닝 블록.)

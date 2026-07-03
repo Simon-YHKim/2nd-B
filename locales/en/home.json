@@ -107,13 +107,27 @@
         "assistant": "Assistant"
       },
       "star": {
-        "career": { "line": "What have you built and gathered?" },
-        "finance": { "line": "What does money say about me?" },
-        "relation": { "line": "How am I with the people close to me?" },
-        "growth": { "line": "Which period shaped who I am now?" },
-        "health": { "line": "How are my condition and rhythm these days?" },
-        "recreation": { "line": "What lets me rest?" },
-        "museum": { "line": "Walk the path AI has taken, and learn how SecondB understands you." }
+        "career": {
+          "line": "What have you built and gathered?"
+        },
+        "finance": {
+          "line": "What does money say about me?"
+        },
+        "relation": {
+          "line": "How am I with the people close to me?"
+        },
+        "growth": {
+          "line": "Which period shaped who I am now?"
+        },
+        "health": {
+          "line": "How are my condition and rhythm these days?"
+        },
+        "recreation": {
+          "line": "What lets me rest?"
+        },
+        "museum": {
+          "line": "Walk the path AI has taken, and learn how SecondB understands you."
+        }
       }
     },
     "capture": {
@@ -252,6 +266,14 @@
       "domain3Count": "37 pieces",
       "conclusion": "You've built the most in Career. Finance is still empty - shall we put more in?",
       "addData": "+ Add data"
+    },
+    "imagine": {
+      "title": "Imagine",
+      "introBody": "Throw far, no right answers. Pick a branch you like and we'll narrow it into a next step.",
+      "sectionAngles": "Branches SecondB threw",
+      "sectionSteps": "Next-step candidates",
+      "toCapture": "Move to Capture",
+      "more": "More with SecondB"
     }
   }
 }

@@ -23,13 +23,14 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
-import { SegBtn } from "@/components/m3";
+import { MdButton, SegBtn } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, FOURW_LABEL, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callGemini } from "@/lib/llm/gemini";
+import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ export function CaptureView() {
             : saved
               ? locale === "ko" ? "저장 완료" : "Saved"
               : captureMode === "fourw"
-                ? locale === "ko" ? "조각 저장" : "Save piece"
+                ? locale === "ko" ? "별가루 저장" : "Save piece"
                 : locale === "ko" ? "첫 기록 저장" : "Save first note"
         }
         onPress={saveFirstPiece}
@@ -455,7 +456,7 @@ export function IdenView({
               : "Finish one tool and your IDEN starts to take shape."}
           </Text>
           <GradientButton
-            label={isKo ? "조각 담기 시작" : "Start gathering"}
+            label={isKo ? "별가루 담기 시작" : "Start gathering"}
             onPress={onSend}
           />
         </View>
@@ -677,11 +678,26 @@ export function SeenLensView() {
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
         </Svg>
-        <Text style={styles.stateTitle}>{isKo ? "아직 비교할 peer 응답이 없어요" : "No peer responses to compare yet"}</Text>
+        {/* Two honest empty states: when the aggregate IS in but the user has no
+            Big Five self-report, saying "no peer responses" would misattribute the
+            missing half (live QA 2026-07-03: 3 responses in, copy claimed none). */}
+        <Text style={styles.stateTitle}>
+          {aggregate.length > 0
+            ? isKo
+              ? "지인 " + informantCount + "명의 응답이 도착해 있어요"
+              : "Responses from " + informantCount + " people are in"
+            : isKo
+              ? "아직 비교할 peer 응답이 없어요"
+              : "No peer responses to compare yet"}
+        </Text>
         <Text style={styles.stateBody}>
-          {isKo
-            ? "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
-            : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
+          {aggregate.length > 0
+            ? isKo
+              ? "내 Big Five 자기 점검을 마치면, 내가 보는 나와 남이 보는 나를 나란히 보여드려요."
+              : "Finish your own Big Five check and you'll see the me you see beside the me they see."
+            : isKo
+              ? "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
+              : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
         </Text>
       </View>
       )}
@@ -817,6 +833,126 @@ export function PossibleLensView({
   );
 }
 
+// ── 공상하기 / Imagine — divergent seeds (sb-more ImagineScreen 1:1) ─────────
+// Seed content lives in ./imagine-seeds (canon-testable .ts module).
+
+// Inline Material-glyph approximations (the app has no icon font — TabIcon /
+// ModeGlyph precedent). Small single-path marks, not pixel icon art.
+function ImagineGlyph({ kind, color, size = 19 }: { kind: ImagineSeedIcon; color: string; size?: number }) {
+  const paths: Record<ImagineSeedIcon, string> = {
+    // open_in_full: outward diagonal arrows ("확장")
+    expand: "M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10L21 11z",
+    // cached: circular arrows ("반전")
+    cached:
+      "M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z",
+    // hub: center node + three spokes ("연결")
+    hub: "M12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM5 4a2 2 0 100 4 2 2 0 000-4zm14 0a2 2 0 100 4 2 2 0 000-4zm-7 12.5l-.9 3.1a2 2 0 102 0l-.9-3.1h-.2zM6.4 7.6l3.2 2.6.9-1.1-3.2-2.6-.9 1.1zm11.2 0l-.9-1.1-3.2 2.6.9 1.1 3.2-2.6z",
+  };
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={paths[kind]} fill={color} />
+    </Svg>
+  );
+}
+
+export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
+  const { t } = useTranslation("home");
+  const [picked, setPicked] = useState<string | null>(null);
+  const lang = isKo ? "ko" : "en";
+  const seed = IMAGINE_SEEDS.find((s) => s.ko.angle === picked) ?? null;
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      {/* intro card — ref: linear-gradient(135deg, tertiary-container → surface-container-low);
+          GradientFill is the sanctioned SVG primitive (horizontal run ≈ the ref diagonal). */}
+      <View style={styles.imgIntro}>
+        <GradientFill colors={[m3.color.tertiaryContainer, m3.color.surfaceContainerLow]} radius={12} />
+        <View style={styles.imgIntroRow}>
+          <Svg width={24} height={24} viewBox="0 0 24 24">
+            <Path
+              d="M9 21h6v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"
+              fill={m3.color.tertiary}
+            />
+          </Svg>
+          <View style={styles.imgIntroCol}>
+            <Text style={styles.imgIntroTitle}>{t("ds.imagine.title")}</Text>
+            <Text style={styles.imgIntroBody}>{t("ds.imagine.introBody")}</Text>
+          </View>
+        </View>
+      </View>
+
+      <Text style={styles.imgSection}>{t("ds.imagine.sectionAngles")}</Text>
+      <View style={styles.imgSeedList}>
+        {IMAGINE_SEEDS.map((s) => {
+          const c = s[lang];
+          const on = picked === s.ko.angle;
+          return (
+            // Fabric guard (MdChip LAYOUT NOTE): the outer View owns the
+            // container visual (border/bg incl. the selected state); the inner
+            // Pressable carries hit target + a11y + ripple only.
+            <View key={s.ko.angle} style={[styles.imgSeed, on && styles.imgSeedOn]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={c.title}
+                accessibilityState={{ selected: on }}
+                android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                onPress={() => setPicked(on ? null : s.ko.angle)}
+                style={styles.imgSeedPress}
+              >
+                <View style={styles.imgSeedIcon}>
+                  <ImagineGlyph kind={s.icon} color={m3.color.onTertiaryContainer} />
+                </View>
+                <View style={styles.imgSeedCol}>
+                  <Text style={styles.imgSeedAngle}>{c.angle}</Text>
+                  <Text style={styles.imgSeedTitle}>{c.title}</Text>
+                  <Text style={styles.imgSeedBody}>{c.body}</Text>
+                </View>
+                <Svg width={20} height={20} viewBox="0 0 24 24">
+                  <Path
+                    d={on ? "M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z" : "M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"}
+                    fill={m3.color.onSurfaceVariant}
+                  />
+                </Svg>
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+
+      {seed ? (
+        <>
+          <Text style={styles.imgSection}>{t("ds.imagine.sectionSteps")}</Text>
+          <View style={styles.imgStepList}>
+            {seed[lang].steps.map((step, i) => (
+              <View key={step} style={styles.imgStep}>
+                <View style={styles.imgStepNum}>
+                  <Text style={styles.imgStepNumText}>{i + 1}</Text>
+                </View>
+                <Text style={styles.imgStepText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.imgBtnRow}>
+            <MdButton
+              variant="filled"
+              label={t("ds.imagine.toCapture")}
+              style={styles.imgBtnFlex}
+              onPress={() =>
+                // secondb.tsx twiby-branch precedent: /capture reads `text` as a draft prefill.
+                router.push({ pathname: "/capture", params: { text: `${seed[lang].title} · ${seed[lang].body}` } })
+              }
+            />
+            <MdButton
+              variant="outlined"
+              label={t("ds.imagine.more")}
+              onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
+            />
+          </View>
+        </>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 // ── 관계·지식 / Relational (RELATIONS) ───────────────────────────────────────
 
 export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddData?: () => void } = {}) {
@@ -891,7 +1027,7 @@ export function ValuesLensView({
       <LensHead title={t("ds.values.title")} tag={t("ds.values.tag")} eyebrow={t("ds.values.eyebrow")} />
       {!demo && loading ? (
         <View style={styles.centerState}>
-          <Text style={styles.stateBody}>{isKo ? "조각을 세는 중이에요" : "Counting your pieces"}</Text>
+          <Text style={styles.stateBody}>{isKo ? "별가루를 세는 중이에요" : "Counting your pieces"}</Text>
         </View>
       ) : !demo && hasError ? (
         <View style={styles.centerState}>
@@ -1108,10 +1244,10 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.soul, 0.07),
     gap: 7,
   },
-  idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: fontFamilies.mono },
+  idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: m3.font.mono },
   idBadges: { flexDirection: "row", gap: 5 },
   idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: 5, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
-  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 9, fontFamily: fontFamilies.mono },
+  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 9, fontFamily: m3.font.mono },
   idBadgeSigned: { backgroundColor: withAlpha(deepSpace.mint, 0.1) },
   idBadgeSignedText: { color: deepSpace.mint, fontSize: 9, fontFamily: fontFamilies.readable },
   idenRowNorth: {
@@ -1137,7 +1273,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 9,
     backgroundColor: deepSpace.card,
   },
-  idenFiveValue: { color: deepSpace.accentSoft, fontSize: 10, marginTop: 6, fontFamily: fontFamilies.mono },
+  idenFiveValue: { color: deepSpace.accentSoft, fontSize: 10, marginTop: 6, fontFamily: m3.font.mono },
 
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
@@ -1179,7 +1315,7 @@ const styles = StyleSheet.create({
   // seen - compare rows
   compareList: { gap: 18 },
   compareRow: { gap: 4 },
-  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.mono },
+  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
   compareTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
   compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
   compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
@@ -1256,5 +1392,29 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: fontFamilies.mono },
+  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: m3.font.mono },
+
+  // ── imagine (divergent seeds) — ref sb-more ImagineScreen tokens ────────────
+  imgIntro: { borderRadius: 12, overflow: "hidden", marginTop: 4 },
+  imgIntroRow: { flexDirection: "row", gap: 12, alignItems: "flex-start", padding: 16 },
+  imgIntroCol: { flex: 1, minWidth: 0 },
+  imgIntroTitle: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
+  imgIntroBody: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant, marginTop: 3, fontFamily: fontFamilies.readable },
+  imgSection: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: m3.color.onSurfaceVariant, marginTop: 20, marginBottom: 10, fontFamily: fontFamilies.readable },
+  imgSeedList: { gap: 10 },
+  imgSeed: { borderRadius: 12, borderWidth: 1, borderColor: m3.color.outlineVariant, overflow: "hidden" },
+  imgSeedOn: { borderWidth: 1.5, borderColor: m3.color.tertiary, backgroundColor: m3.color.surfaceContainerLow },
+  imgSeedPress: { flexDirection: "row", gap: 12, alignItems: "flex-start", padding: 14 },
+  imgSeedIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.tertiaryContainer },
+  imgSeedCol: { flex: 1, minWidth: 0 },
+  imgSeedAngle: { fontSize: 11, lineHeight: 16, fontWeight: "700", color: m3.color.tertiary, fontFamily: fontFamilies.readable },
+  imgSeedTitle: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
+  imgSeedBody: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant, marginTop: 4, fontFamily: fontFamilies.readable },
+  imgStepList: { gap: 8 },
+  imgStep: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: m3.color.outlineVariant },
+  imgStepNum: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.secondaryContainer },
+  imgStepNumText: { fontFamily: m3.font.mono, fontSize: 12, fontWeight: "700", color: m3.color.onSecondaryContainer },
+  imgStepText: { flex: 1, fontSize: 14, lineHeight: 20, color: m3.color.onSurface, fontFamily: fontFamilies.readable },
+  imgBtnRow: { flexDirection: "row", gap: 8, marginTop: 16 },
+  imgBtnFlex: { flex: 1 },
 });

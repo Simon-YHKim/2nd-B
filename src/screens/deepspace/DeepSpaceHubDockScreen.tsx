@@ -111,7 +111,7 @@ function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured }: 
       <SmallRow icon="🔗" title="디자인 레퍼런스 아티클" time="어제" />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="현재 조각 담기"
+        accessibilityLabel="현재 별가루 담기"
         onPress={() => setCaptured(true)}
         style={({ pressed }) => [styles.primaryButton, pressed && styles.pressedButton]}
       >

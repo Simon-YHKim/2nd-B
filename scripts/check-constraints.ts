@@ -1121,7 +1121,7 @@ results.push(
       onboarding.includes("기록 보관소") &&
       onboarding.includes('cta: { ko: "첫 기록 저장", en: "Save my first note" }') &&
       onboarding.includes('params: { entry: "firstRun" }') &&
-      onboarding.includes("저장한 조각은 기록 보관소에 모이고") &&
+      onboarding.includes("저장한 별가루는 기록 보관소에 모이고") &&
       onboarding.includes("const STEP: Step =") &&
       !onboarding.includes("STEPS") &&
       !onboarding.includes("progressText") &&
@@ -2391,7 +2391,7 @@ results.push(
       wiki.includes('t("hero.subtitle")') &&
       wiki.includes('t("hero.speech")') &&
       en.includes("Find the pieces you saved to SecondB") &&
-      ko.includes("2nd-Brain에 저장한 조각을 다시 찾아보는 곳") &&
+      ko.includes("2nd-Brain에 저장한 별가루를 다시 찾아보는 곳") &&
       forbidden.every((term) => !wiki.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "WikiHeroI18nCopy",

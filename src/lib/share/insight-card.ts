@@ -29,8 +29,11 @@ const SHARE_LINK = "2ndb.app";
 export interface ShareInsightOptions {
   variant: "A" | "B";
   insight: string;
+  /** Share-sheet text/dialog only — the card itself shows the piece count. */
   handle: string;
   litCount?: number;
+  /** Total captured pieces for the card's "N개 별가루" signature line. */
+  pieceCount?: number | null;
 }
 
 /**
@@ -76,7 +79,7 @@ export function captureCardProps(opts: ShareInsightOptions): ShareCardProps {
   return {
     variant: opts.variant,
     insight: opts.insight,
-    handle: opts.handle,
+    pieceCount: opts.pieceCount,
     litCount: opts.litCount ?? FALLBACK_LIT_COUNT,
     size: CAPTURE_SIZE,
   };

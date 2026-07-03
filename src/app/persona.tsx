@@ -90,7 +90,7 @@ function PersonaLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "당신을 이루는 조각들을 모으는 중이에요..." : "Gathering the pieces of you..."} />
+          <PremiumLoadingState message={locale === "ko" ? "당신을 이루는 별가루들을 모으는 중이에요..." : "Gathering the pieces of you..."} />
         </View>
       </PremiumAppShell>
     );
@@ -105,7 +105,7 @@ function PersonaLegacy() {
             title={locale === "ko" ? "자기 모델을 만들지 못했어요" : "Couldn't build your self-model"}
             body={
               locale === "ko"
-                ? "조각을 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
+                ? "별가루를 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
                 : "Something interrupted gathering your pieces. Please try again in a moment."
             }
             retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
@@ -116,7 +116,7 @@ function PersonaLegacy() {
           />
           <View style={styles.errorActions}>
             <Button
-              label={locale === "ko" ? "조각 담기로" : "Back to capture"}
+              label={locale === "ko" ? "별가루 담기로" : "Back to capture"}
               variant="secondary"
               onPress={() => router.replace("/capture")}
             />
@@ -154,7 +154,7 @@ function PersonaLegacy() {
         <ScrollView contentContainerStyle={styles.emptyScroll}>
           <SceneHero
             eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
-            title={locale === "ko" ? "아직 모을 조각이 부족해요" : "Not enough pieces yet"}
+            title={locale === "ko" ? "아직 모을 별가루가 부족해요" : "Not enough pieces yet"}
             subtitle={
               locale === "ko"
                 ? "도구 하나만 마쳐도 자기 모델 v1을 만들 수 있어요"
@@ -409,7 +409,7 @@ function PersonaLegacy() {
             onPress={() => router.replace("/attachment")}
           />
           <Button
-            label={locale === "ko" ? "조각 담기로 돌아가기" : "Back to capture"}
+            label={locale === "ko" ? "별가루 담기로 돌아가기" : "Back to capture"}
             variant="secondary"
             onPress={() => router.replace("/capture")}
           />

@@ -204,7 +204,7 @@ function TrinityLegacy() {
               : "I grouped tagged records into four areas. Want to inspect the quietest one?"
           }
           primaryAction={{
-            label: locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece",
+            label: locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece",
             onPress: () => router.push("/capture"),
           }}
         />
@@ -230,7 +230,7 @@ function TrinityLegacy() {
                 }
               >
                 <Text variant="caption" color="brand">
-                  {locale === "ko" ? "조각 담기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in capture"}
+                  {locale === "ko" ? "별가루 담기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in capture"}
                 </Text>
               </Pressable>
             </Link>

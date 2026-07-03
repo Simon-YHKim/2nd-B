@@ -253,10 +253,10 @@ function ManualLegacy() {
           {userId ? (
             <Link href="/capture" asChild>
               <Button
-                label={locale === "ko" ? "오늘의 조각 남기기" : "Leave today's piece"}
+                label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
                 variant="primary"
                 accessibilityHint={
-                  locale === "ko" ? "캡처 화면을 열어 오늘의 조각을 저장합니다." : "Opens capture to save today's piece."
+                  locale === "ko" ? "캡처 화면을 열어 오늘의 별가루를 저장합니다." : "Opens capture to save today's piece."
                 }
               />
             </Link>
