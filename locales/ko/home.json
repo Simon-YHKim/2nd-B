@@ -341,6 +341,21 @@
       "toCapture": "담기로 옮기기",
       "more": "세컨비와 더"
     },
+    "audit": {
+      "title": "과거의 나",
+      "subtitle": "시기를 골라 그때의 당신을 다시 떠올려봐요.",
+      "vividness": "또렷함 L{{level}}",
+      "eraInfancy": "유아기",
+      "eraChild": "아동기",
+      "eraTeen": "청소년기",
+      "eraYoung": "청년기",
+      "eraNow": "현재",
+      "rangeInfancy": "0–6세",
+      "rangeChild": "7–12세",
+      "rangeTeen": "13–18세",
+      "rangeYoung": "19–28세",
+      "rangeNow": "지금"
+    },
     "me": {
       "title": "북극성",
       "eyebrow": "북극성 · 7별 종합",

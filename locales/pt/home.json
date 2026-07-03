@@ -341,6 +341,21 @@
       "toCapture": "Levar para o Capturar",
       "more": "Mais com o SecondB"
     },
+    "audit": {
+      "title": "O eu do passado",
+      "subtitle": "Escolha uma época e relembre quem você era naquela fase.",
+      "vividness": "Nitidez L{{level}}",
+      "eraInfancy": "Primeira infância",
+      "eraChild": "Infância",
+      "eraTeen": "Adolescência",
+      "eraYoung": "Juventude",
+      "eraNow": "Agora",
+      "rangeInfancy": "0–6 anos",
+      "rangeChild": "7–12 anos",
+      "rangeTeen": "13–18 anos",
+      "rangeYoung": "19–28 anos",
+      "rangeNow": "Agora mesmo"
+    },
     "me": {
       "title": "Estrela Polar",
       "eyebrow": "Estrela Polar · síntese de 7",

@@ -341,6 +341,21 @@
       "toCapture": "Move to Capture",
       "more": "More with SecondB"
     },
+    "audit": {
+      "title": "Past me",
+      "subtitle": "Pick a period and bring that version of you back to mind.",
+      "vividness": "Vividness L{{level}}",
+      "eraInfancy": "Early childhood",
+      "eraChild": "Childhood",
+      "eraTeen": "Adolescence",
+      "eraYoung": "Young adulthood",
+      "eraNow": "Now",
+      "rangeInfancy": "Ages 0–6",
+      "rangeChild": "Ages 7–12",
+      "rangeTeen": "Ages 13–18",
+      "rangeYoung": "Ages 19–28",
+      "rangeNow": "Right now"
+    },
     "me": {
       "title": "North Star",
       "eyebrow": "North Star · synthesis of 7",

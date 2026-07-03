@@ -341,6 +341,21 @@
       "toCapture": "Pindahkan ke Capture",
       "more": "Lainnya bersama SecondB"
     },
+    "audit": {
+      "title": "Diriku di masa lalu",
+      "subtitle": "Pilih satu masa dan kenang lagi dirimu saat itu.",
+      "vividness": "Kejelasan L{{level}}",
+      "eraInfancy": "Masa balita",
+      "eraChild": "Masa kanak-kanak",
+      "eraTeen": "Masa remaja",
+      "eraYoung": "Masa muda",
+      "eraNow": "Sekarang",
+      "rangeInfancy": "0–6 tahun",
+      "rangeChild": "7–12 tahun",
+      "rangeTeen": "13–18 tahun",
+      "rangeYoung": "19–28 tahun",
+      "rangeNow": "Saat ini"
+    },
     "me": {
       "title": "Bintang Utara",
       "eyebrow": "Bintang Utara · sintesis 7",

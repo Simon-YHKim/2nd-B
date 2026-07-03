@@ -1501,6 +1501,72 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
   );
 }
 
+// ── 성장·과거의 나 / Past-me era timeline (clone-audit 17-audit) ──────────────
+// Reference AuditScreen (sb-screens-know.jsx): a "과거의 나" headline + subtitle
+// over a left-rail timeline of 5 life eras. Each era is a filled MdCard with a
+// brightness Dots row + "또렷함 L{n}" label + chevron; tapping opens the
+// open-ended interview (reference go('interview')). Static by design — matches
+// the reference (no fabricated per-user data). m3.* tokens only.
+const AUDIT_ERAS: { key: string; eraKey: string; rangeKey: string; level: 1 | 2 | 3 | 4 | 5 }[] = [
+  { key: "infancy", eraKey: "ds.audit.eraInfancy", rangeKey: "ds.audit.rangeInfancy", level: 1 },
+  { key: "child", eraKey: "ds.audit.eraChild", rangeKey: "ds.audit.rangeChild", level: 2 },
+  { key: "teen", eraKey: "ds.audit.eraTeen", rangeKey: "ds.audit.rangeTeen", level: 3 },
+  { key: "young", eraKey: "ds.audit.eraYoung", rangeKey: "ds.audit.rangeYoung", level: 4 },
+  { key: "now", eraKey: "ds.audit.eraNow", rangeKey: "ds.audit.rangeNow", level: 3 },
+];
+
+const AUDIT_DOTS = 5;
+function AuditDots({ level }: { level: number }) {
+  return (
+    <View style={styles.auditDotRow}>
+      {Array.from({ length: AUDIT_DOTS }).map((_, i) => (
+        <View key={i} style={[styles.auditDot, i < level ? styles.auditDotOn : styles.auditDotOff]} />
+      ))}
+    </View>
+  );
+}
+
+export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
+  const { t } = useTranslation("home");
+  void isKo; // copy is t()-driven; prop kept for caller-convention parity
+  return (
+    <ScrollView contentContainerStyle={styles.body}>
+      <Text style={styles.auditTitle}>{t("ds.audit.title")}</Text>
+      <Text style={styles.auditSubtitle}>{t("ds.audit.subtitle")}</Text>
+      <View style={styles.auditTimeline}>
+        <View style={styles.auditRail} />
+        <View style={styles.auditEraList}>
+          {AUDIT_ERAS.map((e) => (
+            <View key={e.key} style={styles.auditEraRow}>
+              <View style={styles.auditNode} />
+              <MdCard
+                variant="filled"
+                accessibilityLabel={t(e.eraKey)}
+                onPress={() => router.push("/interview")}
+                style={styles.auditCard}
+              >
+                <View style={styles.auditCardRow}>
+                  <View style={styles.auditEraCol}>
+                    <Text style={styles.auditEraName}>{t(e.eraKey)}</Text>
+                    <Text style={styles.auditEraRange}>{t(e.rangeKey)}</Text>
+                  </View>
+                  <View style={styles.auditEraMeta}>
+                    <AuditDots level={e.level} />
+                    <Text style={styles.auditVivid}>{t("ds.audit.vividness", { level: e.level })}</Text>
+                  </View>
+                  <Svg width={20} height={20} viewBox="0 0 24 24">
+                    <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />
+                  </Svg>
+                </View>
+              </MdCard>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
 // ── 관계·지식 / Relational (RELATIONS) ───────────────────────────────────────
 
 export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddData?: () => void } = {}) {
@@ -2231,6 +2297,26 @@ const styles = StyleSheet.create({
   imgStepNumText: { fontFamily: m3.font.mono, fontSize: 12, fontWeight: "700", color: m3.color.onSecondaryContainer },
   imgStepText: { flex: 1, fontSize: 14, lineHeight: 20, color: m3.color.onSurface, fontFamily: fontFamilies.readable },
   imgBtnRow: { flexDirection: "row", gap: 8, marginTop: 16 },
+
+  // ── 과거의 나 era timeline (clone-audit 17-audit) ──────────────────────────
+  auditTitle: { fontSize: 24, lineHeight: 32, fontWeight: "500", color: m3.color.onSurface, marginTop: 8, marginBottom: 4, fontFamily: fontFamilies.readable },
+  auditSubtitle: { fontSize: 14, lineHeight: 20, color: m3.color.onSurfaceVariant, marginBottom: 18, fontFamily: fontFamilies.readable },
+  auditTimeline: { position: "relative", paddingLeft: 20 },
+  auditRail: { position: "absolute", left: 5, top: 6, bottom: 6, width: 2, backgroundColor: m3.color.outlineVariant },
+  auditEraList: { gap: 10 },
+  auditEraRow: { position: "relative" },
+  auditNode: { position: "absolute", left: -19, top: 18, width: 12, height: 12, borderRadius: 6, backgroundColor: m3.color.primary, borderWidth: 2, borderColor: m3.color.surface, zIndex: 1 },
+  auditCard: { padding: 14 },
+  auditCardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  auditEraCol: { flex: 1, minWidth: 0 },
+  auditEraName: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
+  auditEraRange: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable },
+  auditEraMeta: { alignItems: "flex-end" },
+  auditDotRow: { flexDirection: "row", gap: 3 },
+  auditDot: { width: 6, height: 6, borderRadius: 3 },
+  auditDotOn: { backgroundColor: m3.color.primary },
+  auditDotOff: { backgroundColor: m3.color.surfaceVariant },
+  auditVivid: { fontSize: 11, lineHeight: 16, fontWeight: "500", color: m3.color.onSurfaceVariant, marginTop: 4, fontFamily: fontFamilies.readable },
   imgBtnFlex: { flex: 1 },
 
   // ── 북극성 종합 / me synthesis (10-me) ──────────────────────────────────────
