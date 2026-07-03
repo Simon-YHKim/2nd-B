@@ -157,16 +157,20 @@ Too much at once is as bad as overlap. Every screen earns attention with ONE thi
 
 ## Worktrees & branches (Simon standing rule)
 
-The canonical checkout is `C:\2ndB` on `main`. ALL git worktrees live INSIDE this
-repo under `.worktrees/<name>` (gitignored). Never create a worktree as a sibling
-folder (e.g. `C:\2ndB-dev`) or under `C:\Coding Infra\_worktrees\`. This applies to
-every agent: Claude, Codex, Antigravity, Grok.
+The canonical checkout is the **repository root wherever it is cloned** — Simon works
+across machines and the cloud, so there is NO fixed absolute path (the earlier machine
+used `C:\2ndB`; treat any absolute path in old handoffs as that machine's local detail,
+not a rule). Work on `main` via PRs. ALL git worktrees live INSIDE the repo under
+`.worktrees/<name>` (gitignored). Never create a worktree OUTSIDE the repo root — no
+sibling folder (e.g. the old `C:\2ndB-dev`) and none under a shared worktrees dir
+(e.g. the old `C:\Coding Infra\_worktrees\`). This applies to every agent: Claude,
+Codex, Antigravity, Grok.
 
 - Create from the repo root: `git worktree add .worktrees/<name> -b <branch>`.
   Remove: `git worktree remove .worktrees/<name>`. Move an existing one in:
-  `git worktree move <old-path> C:/2ndB/.worktrees/<name>`.
-- Share the install: symlink the worktree's `node_modules` to the canonical
-  `C:\2ndB\node_modules` rather than a per-worktree `npm ci`.
+  `git worktree move <old-path> <repo-root>/.worktrees/<name>`.
+- Share the install: symlink the worktree's `node_modules` to the repo root's
+  `node_modules` rather than a per-worktree `npm ci`.
 - Tooling already excludes `.worktrees/` (gitignore, jest, metro, tsconfig,
   eslint). Keep those excludes: they stop the nested copies from polluting
   `npm run verify` and the Metro bundler.
@@ -174,8 +178,9 @@ every agent: Claude, Codex, Antigravity, Grok.
 ## What never to do in this repo
 
 - Commit `.env`. (gitignored — verify before staging.)
-- Create git worktrees outside `.worktrees/` (no sibling folders, none under
-  `C:\Coding Infra\_worktrees\`). See **Worktrees & branches** above.
+- Create git worktrees outside the repo root's `.worktrees/` (no sibling folders,
+  no shared worktrees dir like the old `C:\Coding Infra\_worktrees\`). See
+  **Worktrees & branches** above.
 - Push to `main` directly. Always PR.
 - Use `git rebase -i` or `git push --force` without explicit user confirmation.
 - Add a dependency without checking the free-tier impact (blueprint §5 promises $0/mo).
