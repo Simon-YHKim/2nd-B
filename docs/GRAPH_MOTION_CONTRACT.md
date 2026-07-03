@@ -1,5 +1,7 @@
 # Graph Motion Contract
 
+> ⚠️ tier 명칭 `Soul Core` / `Pattern Cores` 는 **옛 이름**이다. 현재 = **북극성(root)** + **북두칠성 7 도메인 별**. 모션 *원리*(root near-still, 하위 노드일수록 active)는 유지 — 명칭만 매핑. 정본: CLAUDE.md Visual Tier System · `DESIGN.md`.
+
 This file locks the P11 graph feel after the 2026-06-13 AG native QA pass. It is intentionally short and test-oriented.
 
 ## Motion Rules
