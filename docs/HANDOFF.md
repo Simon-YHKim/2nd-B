@@ -45,7 +45,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
+## 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
 
 > 두 웨이브: ① 직전 컨텍스트-포화 /loop 세션(15 PR) 전수 감사 → 결함 픽스, ② Simon "레퍼런스=정본" 확정 → 용어·디자인 재정렬.
 > 상세 감사 findings는 바로 아래 `## 2026-07-03 (오전)` 블록에 보존.
@@ -145,7 +145,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 | G | **Fabric Pressable 함수형 style 42곳/17파일 스윕**(#680 패턴: View 래퍼+plain style+ripple) | large | HIGH 목록은 PR #730 본문 — 컨테이너 비주얼 소실 리스크 |
 | H | 에뮬 육안 QA 1회: 뮤지엄 레인 라벨 세로 스택 위치·NOW 배지 + settings 레거시 헤더 | small | ⭐ 다음 에뮬 루프에 편승 |
 | I | companion 잔존 fullbleed 12개+ 코호트 전환(account/big-five/core-brain/attachment/esm/persona/rlss/peer-invites/ipip-neo/career-drilldown 등) | large | 셸 코호트 연장전 |
-| J | 데드코드 정리: OpsHomeScreen(ops/kit.tsx 미배선)·DeepSpaceDock 렌더러+stale 주석·records 아웃라이어(로컬 Shell) | small | |
+| J | 데드코드 정리: OpsHomeScreen(src/screens/deepspace/ops/screens.tsx 미배선)·DeepSpaceDock 렌더러+stale 주석·records 아웃라이어(로컬 Shell) | small | |
 | D | motivation 파이프 잔여 2종(확신%·게이지) | large | 설계 선행(기존 큐) |
 | E | plans 3티어 카드 | medium | 🔒 Simon 수익화 게이트 |
 | F | 0.0.7 새 빌드 폰 설치 후 소셜 로그인·Sentry 실기기 QA | medium | 네이티브 게이트 |
@@ -221,7 +221,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-07-03 / rev2 r3 픽셀 클로닝 /loop — 15 PR + 핫픽스 (홈 1:1 · 셸 3종 완성 · 폰트 규율 · 축 추정)
+## 2026-07-03 / rev2 r3 픽셀 클로닝 /loop — 15 PR + 핫픽스 (홈 1:1 · 셸 3종 완성 · 폰트 규율 · 축 추정)
 
 > Simon /loop 지시: r3 디자인 핸드오프(`Downloads\2ndB-proto-rev2-r3\design_handoff_2nd_brain\`)와
 > **완벽하게 똑같을 때까지** 에뮬레이터 검증 반복. 판정 기준 = **라이브 레퍼런스**(동봉 37캡처는
@@ -320,7 +320,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-07-03 / Simon 결정 6건 전면 이행 + T5 peer-review F2~F4 랜딩
+## 2026-07-03 / Simon 결정 6건 전면 이행 + T5 peer-review F2~F4 랜딩
 
 ### 결정 이행 (전부 랜딩)
 - **요금제 캐논 확정**: 별바라기(free)/항해자(cortex, soma=평생판)/북극성(brain) — reasoning-cap.ts FIXED 매핑 그대로, 5로케일 표시명 교체 (#703). 결제 enum·스토어 상품 불변.
@@ -339,7 +339,9 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 ### 통화 녹음 — 설계 노트 발행 (docs/CALL-RECORDING-SPEC.md)
 - KR 일방동의 합법이나 v1은 **통화 직후 회고 플로우**(call-log 권한+voice 캡처+0066 structured call_reflection)로 법 표면 최소화. 실 통화녹음은 OEM/iOS 제약+별도 법무로 v2. 다음 네이티브 사이클 후보.
 
-## Latest — 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) + 에뮬 육안 QA 2라운드 (픽스 3 PR)
+---
+
+## 2026-07-02 (오전 2차) / rev2 P2-cont~P6 일괄 랜딩 (12 머지) + 에뮬 육안 QA 2라운드 (픽스 3 PR)
 
 ### 🔎 에뮬 육안 QA 결과 (Pixel 9 Pro XL, debug 빌드 + Metro, 전 표면 순회)
 - **PASS (스크린샷 픽셀 판정)**: 로그인 → 온보딩 skip → **별자리 홈**(북극성+7별, Rest 개명, M3 dock pill) · **세컨비 3-persona 셀렉터**(2nd-B violet/Meta-B cyan/Twi-B lavender, 트위비 선택 시 New-angle 모드 자동 전환+펄스) · **북극성 deck**(9카드 스와이프·dots·실통계 11 pieces·tier-shift 넛지) · **TraitRadar**(펜타곤+근사치 고지) · **/brightness**(8주 히트맵+정직미터 35 obs) · **/career**(2026 연도 그룹+실레코드) · **/people**(사람 추가 → 방사 맵 실렌더, relation_people 첫 실데이터 개통) · **담기 4W1H**(One line↔4W1H 토글, 5박스) · wiki/assistant dock 셸.
@@ -833,7 +835,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-27 / DB user-profiling: 실제 evidence-id citations + 리서치 백로그 라이브 적재 + 넛지 evidence 노출
+## 2026-06-27 / DB user-profiling: 실제 evidence-id citations + 리서치 백로그 라이브 적재 + 넛지 evidence 노출
 
 ### 어디까지 왔나
 - main HEAD: `#615` 머지 직후. 이번 세션 머지 PR: **#611** (실제 record-id citations) · **#615** (D9 re-check 넛지 evidence 수 노출). 앞서 #604/#606/#607/#608도 머지됨.
@@ -905,7 +907,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-26 / DB user-profiling 진단 + 7별 근거 기반 대확장 (knowledge_sources 95→140 live)
+## 2026-06-26 / DB user-profiling 진단 + 7별 근거 기반 대확장 (knowledge_sources 95→140 live)
 
 > 별개 세션. 위 크래시 핫픽스와 무관하게 PR **#595**(draft, OPEN — 아직 미머지)에서
 > "근거 깊이 확장"만 진행. main 은 건드리지 않음.
@@ -1034,7 +1036,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-26 / 별자리 키스톤 lib 체인 완성 + proto rev2 감사 (PR #586 docs · #587 keystone, 둘 다 draft)
+## 2026-06-26 / 별자리 키스톤 lib 체인 완성 + proto rev2 감사 (PR #586 docs · #587 keystone, 둘 다 draft)
 
 ### 어디까지 왔나
 - main HEAD: `37d63ac7` (이번 세션 산출은 두 draft PR에, 아직 main 미머지)
@@ -1092,7 +1094,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-25 / 개념 재설계: core 폐기 → 별자리(7 삶-도메인 별 → 북극성 페르소나) + 5-Phase 계획 (실행 전)
+## 2026-06-25 / 개념 재설계: core 폐기 → 별자리(7 삶-도메인 별 → 북극성 페르소나) + 5-Phase 계획 (실행 전)
 
 > ⚠️ 이번 세션은 **전부 개념·계획** (코드 변경·기능 PR 0). 다음 세션은 사용자 지시대로
 > **"계획을 더 디벨롭"하는 것부터** 시작할 것 — 정본화/실행 전에 7별 스펙 + 산출로직을 더 단단히.
@@ -1187,7 +1189,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-24 (deep-space 살아있는 세컨비 머리 + 도크칩 + EAS Update) / PR #579 머지, #580 오픈
+## 2026-06-24 (deep-space 살아있는 세컨비 머리 + 도크칩 + EAS Update) / PR #579 머지, #580 오픈
 
 도크 백버튼 칩 겹침 제거 + 세컨비 머리를 **정본대로 살아있는 얼굴**(깜빡임·터치추적 시안 눈,
 감정별 표정, 머리 위 녹색 오브 제거)로 재구현 + 액션 반응(저장→미소/실패→걱정) + 디자인 정본
@@ -1341,7 +1343,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-22 (/goal cont.) / BLOCKED 큐 코드-클로저블 일소 (batch 6-8)
+## 2026-06-22 (/goal cont.) / BLOCKED 큐 코드-클로저블 일소 (batch 6-8)
 
 PR #561 (`claude/repo-sync-verify-nkz86x`), CI green, `verify` 241 suites / 1813 tests.
 이전 라운드 BLOCKED 큐에서 **코드로 닫을 수 있는 것은 전부 처리**:
@@ -1362,7 +1364,7 @@ PR #561 (`claude/repo-sync-verify-nkz86x`), CI green, `verify` 241 suites / 1813
 - **insights 더 풍부한 신호**: 현재 WoW 레코드 카운트. 별 밝기/스트릭 통합은 growth/weekly 확장 시.
 
 
-## Latest — 2026-06-21 (/goal) / SCREEN_TREE_SPEC 정본 6-에이전트 감사 + 죽은 버튼 일소 + 독 정본 정렬 + interview/trinity 딥스페이스 이식
+## 2026-06-21 (/goal) / SCREEN_TREE_SPEC 정본 6-에이전트 감사 + 죽은 버튼 일소 + 독 정본 정렬 + interview/trinity 딥스페이스 이식
 
 `handoff-spec/SCREEN_TREE_SPEC.md`(정본) 대비 딥스페이스 전 화면을 6개 병렬 에이전트로 감사 후
 빠진 연결을 채움. branch `claude/repo-sync-verify-nkz86x`, `npm run verify` green (240 suites /
@@ -1404,7 +1406,7 @@ git fetch origin && git checkout claude/repo-sync-verify-nkz86x && npm ci --lega
 
 ---
 
-## Latest — 2026-06-21 (심야) / 전체 화면 트리 감사 + 죽은 버튼 0 + AI 뮤지엄 이미지 (#560)
+## 2026-06-21 (심야) / 전체 화면 트리 감사 + 죽은 버튼 0 + AI 뮤지엄 이미지 (#560)
 
 SCREEN_TREE_SPEC 정본 대비 딥스페이스 전 화면 감사. **#560 main 머지**, `npm run verify`
 green (240 suites / 1809 tests). 전 구간 deepSpace 토큰만·hex 0·비주얼 티어 무회귀.
@@ -1447,7 +1449,7 @@ npm ci --legacy-peer-deps && npm run verify   # 240 suites green 기대
 
 ---
 
-## Latest — 2026-06-21 (밤) / 엣지함수 인증 하드닝 스윕 — #524 배포 + delete/export-account anon-JWT 차단
+## 2026-06-21 (밤) / 엣지함수 인증 하드닝 스윕 — #524 배포 + delete/export-account anon-JWT 차단
 
 #524(gemini-proxy role-체크)를 **라이브 배포**하고, 같은 취약점 클래스(verify_jwt=true는 토큰
 유효성만 증명 → 공개 anon/publishable 키도 유효 토큰)를 전 엣지함수로 **스윕**. inbound JWT의
@@ -1491,7 +1493,7 @@ npm run verify   # green (237 suites / 1792 tests)
 
 ---
 
-## Latest — 2026-06-21 (저녁·인프라) / AI 허브 모니터 복구 + 런치팩 워커 자율루프 + AG 네이티브-QA 라이브 픽스
+## 2026-06-21 (저녁·인프라) / AI 허브 모니터 복구 + 런치팩 워커 자율루프 + AG 네이티브-QA 라이브 픽스
 
 (인터랙티브 세션 — 같은 날 디렉터 /loop 세션들과 병행. 아래 "(저녁) D-25" / "(오후) deep-space" 블록은 디렉터 작업.) AI Hub 모니터 `stale-run?` + `BACKLOG ALARM` 해소(근본=git 신원 불일치) → 런치팩 워커 자율루프 1급화(양 문서) → AG stranded QA를 framework-aware로 선별해 라이브 픽스(#506). **대부분의 AG 보고가 legacy 死코드**였음을 Claude 최종패스가 걸러냄. device-QA는 3중 블로커로 AG 레인 보류.
 
@@ -1536,7 +1538,7 @@ cd E:/2ndB && npm run verify
 
 ---
 
-## Latest — 2026-06-21 (저녁) / D-25 포지셔닝·UX 정제 — 4AI 토론→페르소나 검증→구현
+## 2026-06-21 (저녁) / D-25 포지셔닝·UX 정제 — 4AI 토론→페르소나 검증→구현
 
 그록의 5개 포지셔닝/UX 제안을 **4-AI 토론 + 페르소나 시뮬**로 검증(D-25, `AI Infra/Communication/DECISIONS.md`)하고 구현까지 닫은 트랙. `/goal 모든 phase 완료` 하네스로 Phase 0~3을 끝까지 밀었다. **Phase 0·1·2 = 100%, Phase 3 = D-21 + pull digest + #540 + #542 + #544.** (이 트랙의 #537~#544는 아래 "오후" 블록과 같은 세션 — 거기서 O-31 렌즈 배선까지 함께 머지됨.) 전 PR `npm run verify` green (236 suites / 1786 tests).
 
@@ -1717,7 +1719,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-20 / 비서(Ops) 완성 + 개인 데이터 임포트 + 성장 피드백 루프 (15 PR)
+## 2026-06-20 / 비서(Ops) 완성 + 개인 데이터 임포트 + 성장 피드백 루프 (15 PR)
 
 이번 세션은 비전 3축을 코드로 닫았다: (1)알아가기↔(2)비서 연결 + (2)비서 전면 구축 +
 개인 데이터 임포트. 클로드 디자인 정본 4종(ops-assistant / ops-ia / import-hub /
@@ -1792,7 +1794,7 @@ npm run verify               # 222 suites / 1704 tests green
 
 ---
 
-## Latest — 2026-06-19 / Phase A — ops 관리 레이어 (루틴 저장 + 로컬 알람 + 오늘의 루틴/완료 추적)
+## 2026-06-19 / Phase A — ops 관리 레이어 (루틴 저장 + 로컬 알람 + 오늘의 루틴/완료 추적)
 
 브랜치 `claude/ops-routines-82evat`. SUGGEST 엔진(`recommend.ts`) 위에 MANAGE 레이어를 추가: 이미 게이트된 추천을 영속 루틴으로 저장하고, 기존 로컬 알람 스케줄러로 리마인더를 걸고, 오늘 due한 루틴을 체크박스로 완료 추적.
 
@@ -1809,7 +1811,7 @@ npm run verify               # 222 suites / 1704 tests green
 
 ---
 
-## Latest — 2026-06-19 (cont.) / Wiki-graph upgrade A–E + deep-space data wiring + i18n (PR #464)
+## 2026-06-19 (cont.) / Wiki-graph upgrade A–E + deep-space data wiring + i18n (PR #464)
 
 ### 어디까지 왔나
 - 브랜치 `claude/ultracode-handoff-docs-82evat`, PR **#464** (draft). 모든 커밋 `npm run verify` green (현재 1465 tests, i18n 26 namespaces / 1339 keys).
@@ -1856,7 +1858,7 @@ npm run verify   # green (1465 tests)
 ---
 
 
-## Latest — 2026-06-19 / Deep-space UI conversion complete; wiki-graph upgrade next (STEP 1a)
+## 2026-06-19 / Deep-space UI conversion complete; wiki-graph upgrade next (STEP 1a)
 
 ### 어디까지 왔나
 - main HEAD (이 핸드오프 머지 전): `8ad4f01`
@@ -1931,7 +1933,7 @@ cat docs/wiki-system-upgrade.md
 
 ---
 
-## Latest -- 2026-06-16 (cont.4) / 전체 앱 총망라 핸드오프 레퍼런스 7종 (docs/handoff/) + IDEN main 머지 완료 (생각정리 출발점)
+## 2026-06-16 (cont.4) / 전체 앱 총망라 핸드오프 레퍼런스 7종 (docs/handoff/) + IDEN main 머지 완료 (생각정리 출발점)
 
 ### 어디까지 왔나
 - main HEAD: `9cf57cf` (IDEN UI #398 squash-merge 결과; 이 핸드오프 머지 후 갱신됨)
@@ -1994,7 +1996,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest -- 2026-06-16 (cont.3) / IDEN 정체성 내보내기 포맷 + CV 렌더러 (스키마 구동, verify green, PR #396)
+## 2026-06-16 (cont.3) / IDEN 정체성 내보내기 포맷 + CV 렌더러 (스키마 구동, verify green, PR #396)
 
 ### 무엇을 / 왜
 - **IDEN** = 사용자의 정체성을 하나의 포터블 파일(`.iden`)로. *AI가 읽는 데이터 + 사람이 보는 이력서* (한 데이터, 두 독자). VISION 축 (2) 개인 비서 기반.
@@ -2052,7 +2054,7 @@ cat docs/HANDOFF.md       # 이 블록
 
 ---
 
-## Latest -- 2026-06-16 (cont.2) / §6 Personal Context Pack (내보내기 2층 재설계) — moat 구현 (verify green, PR #396)
+## 2026-06-16 (cont.2) / §6 Personal Context Pack (내보내기 2층 재설계) — moat 구현 (verify green, PR #396)
 
 ### 무엇을 / 왜
 - **축**: (1) 알아가기의 출력 + (2) 개인 비서 — AI-OS §6 "내보내기 = 제품의 해자(moat)". 로드맵 #3(★★★, "심사 차별점", 사용자 핵심 우려). §1 다음으로 가장 가치 높고 **외부 게이트 없이 자율 완결 가능**한 단위라 선택.
@@ -2076,7 +2078,7 @@ cat docs/HANDOFF.md       # 이 블록
 
 ---
 
-## Latest -- 2026-06-16 (cont.) / §1 인제스트 게이트 A·B·C·E + D-core 완료 (verify green, PR #396)
+## 2026-06-16 (cont.) / §1 인제스트 게이트 A·B·C·E + D-core 완료 (verify green, PR #396)
 
 ### 어디까지 왔나
 - 작업 브랜치 **`claude/korean-greeting-rja3uh`** (이전 세션 `claude/ai-os-architecture-ul1uy0`를 fast-forward로 흡수 → 동일 컨텍스트) → **PR #396 (draft)**, base = `claude/ai-os-architecture-ul1uy0`(#395)로 스택 → diff = §1 증분만. 머지는 Simon.
@@ -2104,7 +2106,7 @@ npm ci --legacy-peer-deps && npm run verify
 
 ---
 
-## Latest -- 2026-06-16 / AI-OS Personal Context Layer 설계 + §1 인제스트 첫 증분 (phase1 스키마 확장)
+## 2026-06-16 / AI-OS Personal Context Layer 설계 + §1 인제스트 첫 증분 (phase1 스키마 확장)
 
 ### 어디까지 왔나
 - 작업 브랜치 **`claude/ai-os-architecture-ul1uy0`** → **PR #395 (draft)**. main 대비 3 커밋 ahead. 머지는 Simon (자동머지 안 함).
@@ -2158,7 +2160,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest -- 2026-06-04 (cont.) / gstack 갱신 + L/I 위생 PR #206 + L8 미성년 라우팅 + gemini-proxy v11(M6) 배포
+## 2026-06-04 (cont.) / gstack 갱신 + L/I 위생 PR #206 + L8 미성년 라우팅 + gemini-proxy v11(M6) 배포
 
 ### 어디까지 왔나
 - 작업 브랜치 **`claude/sharp-brahmagupta-r29oW`** -> **PR #206 (draft, CI green)**. 머지는 Simon (draft 유지, 자동머지 안 함).
@@ -2195,7 +2197,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Earlier -- 2026-06-04 / 재감사 4~6라운드 PERFECT 수렴 (HIGH/MED 전부 닫음)
+## 2026-06-04 / 재감사 4~6라운드 PERFECT 수렴 (HIGH/MED 전부 닫음)
 
 ### 어디까지 왔나
 - main HEAD: `0d4914f` (이 핸드오프 머지 후 갱신). verify **821/821 (91 suites)** green, working tree clean.
@@ -2257,7 +2259,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Earlier -- 2026-06-03 (eve) / 애널리틱스 + Android QA + 재감사 2라운드 + prod 배포
+## 2026-06-03 (eve) / 애널리틱스 + Android QA + 재감사 2라운드 + prod 배포
 
 ### 어디까지 왔나
 - main HEAD: `c12774b` (이 핸드오프 머지 후 갱신). verify **808/808 (88 suites)** green, working tree clean.
@@ -2329,7 +2331,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Earlier -- 2026-06-03 / 3 PR 통합 머지 + Naver 취약점 수정 + 감사 루프 (HIGH 전부 닫음)
+## 2026-06-03 / 3 PR 통합 머지 + Naver 취약점 수정 + 감사 루프 (HIGH 전부 닫음)
 
 ### 어디까지 왔나
 - main HEAD: `9cb8ac2` (이 핸드오프 머지 후 갱신). 통합 main verify green **803/803 (87 suites)**.
@@ -2385,7 +2387,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest -- 2026-06-02 / Worldview v-final 완결 + Soul Core v3 아트 wiring (플래그 게이트)
+## 2026-06-02 / Worldview v-final 완결 + Soul Core v3 아트 wiring (플래그 게이트)
 
 ### 어디까지 왔나
 - main HEAD: `f16a464` (이 핸드오프 머지 후 갱신)
@@ -2548,7 +2550,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-06-02 / 클리퍼 형식(양식·AI추가) + 그래프 조각 + 저장 점검
+## 2026-06-02 / 클리퍼 형식(양식·AI추가) + 그래프 조각 + 저장 점검
 
 ### 어디까지 왔나
 - main HEAD: `017e18d`
@@ -3101,7 +3103,7 @@ src/components/graph/NavGraph.tsx     메인 그래프 (마을 이름표·연관
 
 ---
 
-## Earlier — 2026-05-30 / premium closeout v3 머지 + reference-assetization audit 진행 중 (미완료)
+## 2026-05-30 / premium closeout v3 머지 + reference-assetization audit 진행 중 (미완료)
 
 ### 어디까지 왔나
 - **main HEAD**: `f6cc931`
@@ -3178,7 +3180,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-05-29 / v2 design-pack integration — 10 packs + onboarding (PR #41–#51)
+## 2026-05-29 / v2 design-pack integration — 10 packs + onboarding (PR #41–#51)
 
 ### 어디까지 왔나
 - **main HEAD**: `3570a8b`
@@ -3255,7 +3257,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-05-29 / Cosmic Pixel Graph Village Phase 1 (PR #39 merged)
+## 2026-05-29 / Cosmic Pixel Graph Village Phase 1 (PR #39 merged)
 
 ### 어디까지 왔나
 - **main HEAD**: `6df18d1` ([PR #39](https://github.com/Simon-YHKim/2nd-B/pull/39))
@@ -3369,7 +3371,7 @@ cat docs/HANDOFF.md
 
 ---
 
-## Latest — 2026-05-27 / Constellation v2 + 세컨비 + Capture v2
+## 2026-05-27 / Constellation v2 + 세컨비 + Capture v2
 
 ### 어디까지 왔나
 `main` 의 `61e784f` 까지 4개 PR 머지 (#31 → #34). **471/471 tests green**, working tree clean, gemini-proxy **v5 ACTIVE** (multimodal OCR enabled).
@@ -3451,7 +3453,7 @@ cat docs/HANDOFF.md
 
 ## Sprint 0 (historic) — 2026-05-25
 
-## 1. What is live right now
+### 1. What is live right now
 
 | Artifact | Status | Link |
 |---|---|---|
@@ -3466,7 +3468,7 @@ The deployed Pages build runs with **demo Supabase placeholders** (`demo.invalid
 
 ---
 
-## 2. The 12 hard constraints — never weaken these
+### 2. The 12 hard constraints — never weaken these
 
 CI-enforced via `npm run check:constraints`. C1–C10 + C12 PASS; C11 PARTIAL.
 
@@ -3489,7 +3491,7 @@ CI-enforced via `npm run check:constraints`. C1–C10 + C12 PASS; C11 PARTIAL.
 
 ---
 
-## 3. RAG engines — all 6 wired
+### 3. RAG engines — all 6 wired
 
 `src/lib/knowledge/` + `src/lib/llm/`. 121/121 tests pass.
 
@@ -3506,7 +3508,7 @@ Cross-engine feedback loop: journal entry → callAdvisor → memorize → `memo
 
 ---
 
-## 4. Three CSO audit findings closed this sprint
+### 4. Three CSO audit findings closed this sprint
 
 | # | Severity | File | Fix |
 |---|---|---|---|
@@ -3518,7 +3520,7 @@ Finding #4 (anonymous-callable Edge Function `seed-knowledge-base`) is functiona
 
 ---
 
-## 5. What needs to happen next — ordered by impact
+### 5. What needs to happen next — ordered by impact
 
 ### 5.1 To make the live URL functional (not just a UI preview)
 
@@ -3553,7 +3555,7 @@ Currently README has SLA text + GitHub workflow skeleton at `.github/workflows/i
 
 ---
 
-## 6. Pending Sprint 1 work surfaced this session
+### 6. Pending Sprint 1 work surfaced this session
 
 | Item | Notes |
 |---|---|
@@ -3566,7 +3568,7 @@ Currently README has SLA text + GitHub workflow skeleton at `.github/workflows/i
 
 ---
 
-## 7. How to resume work in cowork
+### 7. How to resume work in cowork
 
 ```bash
 git clone https://github.com/Simon-YHKim/2nd-B.git
@@ -3604,7 +3606,7 @@ DESIGN.md                      # design source of truth — read before any UI c
 
 ---
 
-## 8. Skills invoked this session (with artifacts)
+### 8. Skills invoked this session (with artifacts)
 
 10 skills, each produced something durable:
 
@@ -3635,7 +3637,7 @@ Skills NOT invoked because they don't apply in this environment:
 
 ---
 
-## 9. Open questions / decisions waiting on you
+### 9. Open questions / decisions waiting on you
 
 | # | Question | Default if no decision |
 |---|---|---|
@@ -3648,7 +3650,7 @@ Skills NOT invoked because they don't apply in this environment:
 
 ---
 
-## 10. Two things never to commit
+### 10. Two things never to commit
 
 - `.env` (gitignored, but verify before `git add`)
 - `.claude/settings.local.json` (per-user, gitignored)
