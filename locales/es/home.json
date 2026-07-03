@@ -352,6 +352,104 @@
       "hiddenTitle": "Fibra oculta · validación",
       "hiddenBody": "Tus datos por dominio triangulan marcos como Big Five y el apego. La luz de estrella es cuánto aportas, la confianza es cuánto se ha validado. No son lo mismo.",
       "viewValidation": "Ver validación"
+    },
+    "axisCheck": {
+      "values": {
+        "headline": "Valores",
+        "level": "L2",
+        "subtitle": "Grano oculto (capa B) · lo que más valoras",
+        "coreLabel": "CORE VALUES",
+        "spectrum": "Espectro de valores",
+        "insight": "La autodirección es la más alta. Una serie de registros donde elegiste 'decidir por ti' en el trabajo y las relaciones respalda esta lectura.",
+        "actionPrimary": "Entrevista de valores",
+        "actionSecondary": "Otras validaciones",
+        "rows": {
+          "selfDirection": {
+            "name": "Autodirección",
+            "note": "Eres más tú cuando decides y actúas por tu cuenta"
+          },
+          "stimulation": {
+            "name": "Crecimiento",
+            "note": "La novedad y el aprendizaje te impulsan"
+          },
+          "authenticity": {
+            "name": "Autenticidad",
+            "note": "Quieres que tu interior y exterior coincidan"
+          },
+          "benevolence": {
+            "name": "Cuidado",
+            "note": "El deseo de cuidar a los cercanos"
+          },
+          "achievement": {
+            "name": "Logro",
+            "note": "Te gusta la sensación de haberlo conseguido"
+          },
+          "security": {
+            "name": "Estabilidad",
+            "note": "La previsibilidad es una prioridad menor para ti"
+          }
+        }
+      },
+      "motivation": {
+        "headline": "Motivación",
+        "level": "L2",
+        "confidence": "Confianza 61%",
+        "subtitle": "Grano oculto (capa B) · qué te mueve",
+        "balanceTitle": "Intrínseca ↔ extrínseca",
+        "balanceIntrinsic": "Intrínseca 68%",
+        "balanceExtrinsic": "Extrínseca 32%",
+        "balanceNote": "En general te mueves porque quieres. El sentido y la curiosidad te impulsan más que la recompensa.",
+        "spectrum": "Tres necesidades · autodeterminación",
+        "insight": "La autonomía es el núcleo de tu motivación. Llegas más lejos cuando el trabajo es 'a tu manera', no 'porque te lo mandaron'.",
+        "actionPrimary": "Ver fortalezas",
+        "actionSecondary": "Otras validaciones",
+        "rows": {
+          "autonomy": {
+            "name": "Autonomía",
+            "note": "La motivación sube cuando decides por ti"
+          },
+          "competence": {
+            "name": "Competencia",
+            "note": "La sensación de que puedes hacerlo te sostiene"
+          },
+          "relatedness": {
+            "name": "Relación",
+            "note": "Te mueves un poco más cuando estás con otros"
+          }
+        }
+      },
+      "strengths": {
+        "headline": "Fortalezas",
+        "level": "L2",
+        "confidence": "Confianza 66%",
+        "subtitle": "Grano oculto (capa B) · lo que te hace tú",
+        "spectrum": "Espectro de fortalezas",
+        "insight": "Tu curiosidad por lo desconocido parece la fortaleza que te lleva más lejos.",
+        "actionPrimary": "Aprovechar fortalezas",
+        "actionSecondary": "Ver motivación",
+        "rows": {
+          "curiosity": {
+            "name": "Curiosidad",
+            "note": "El impulso de indagar en lo nuevo"
+          },
+          "grit": {
+            "name": "Perseverancia",
+            "note": "Cuando te aferras, no sueltas"
+          },
+          "honesty": {
+            "name": "Honestidad",
+            "note": "Intentas alinear tu interior y exterior"
+          },
+          "empathy": {
+            "name": "Empatía",
+            "note": "Lees bien el grano de los demás"
+          },
+          "aesthetics": {
+            "name": "Sentido estético",
+            "note": "Reconoces lo que es bueno"
+          }
+        }
+      }
     }
   }
 }

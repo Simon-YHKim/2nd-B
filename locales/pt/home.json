@@ -352,6 +352,104 @@
       "hiddenTitle": "Fibra oculta · validação",
       "hiddenBody": "Os teus dados por domínio triangulam quadros como Big Five e o apego. A luz da estrela é quanto colocas, a confiança é quanto foi validado. Não são a mesma coisa.",
       "viewValidation": "Ver validação"
+    },
+    "axisCheck": {
+      "values": {
+        "headline": "Valores",
+        "level": "L2",
+        "subtitle": "Grão oculto (camada B) · o que você mais valoriza",
+        "coreLabel": "CORE VALUES",
+        "spectrum": "Espectro de valores",
+        "insight": "A autodireção é a mais alta. Uma série de registros em que você escolheu 'decidir por si' no trabalho e nas relações sustenta essa leitura.",
+        "actionPrimary": "Entrevista de valores",
+        "actionSecondary": "Outras validações",
+        "rows": {
+          "selfDirection": {
+            "name": "Autodireção",
+            "note": "Você é mais você quando decide e age por conta própria"
+          },
+          "stimulation": {
+            "name": "Crescimento",
+            "note": "A novidade e o aprendizado te puxam para a frente"
+          },
+          "authenticity": {
+            "name": "Autenticidade",
+            "note": "Você quer que o interior e o exterior combinem"
+          },
+          "benevolence": {
+            "name": "Cuidado",
+            "note": "O desejo de cuidar de quem é próximo"
+          },
+          "achievement": {
+            "name": "Realização",
+            "note": "Você gosta da sensação de ter conseguido"
+          },
+          "security": {
+            "name": "Estabilidade",
+            "note": "A previsibilidade é uma prioridade menor para você"
+          }
+        }
+      },
+      "motivation": {
+        "headline": "Motivação",
+        "level": "L2",
+        "confidence": "Confiança 61%",
+        "subtitle": "Grão oculto (camada B) · o que move você",
+        "balanceTitle": "Intrínseca ↔ extrínseca",
+        "balanceIntrinsic": "Intrínseca 68%",
+        "balanceExtrinsic": "Extrínseca 32%",
+        "balanceNote": "Em geral você se move porque quer. Sentido e curiosidade te alimentam mais que a recompensa.",
+        "spectrum": "Três necessidades · autodeterminação",
+        "insight": "A autonomia é o núcleo da sua motivação. Você vai mais longe quando o trabalho é 'do seu jeito', não 'porque mandaram'.",
+        "actionPrimary": "Ver forças",
+        "actionSecondary": "Outras validações",
+        "rows": {
+          "autonomy": {
+            "name": "Autonomia",
+            "note": "A motivação sobe quando você decide por si"
+          },
+          "competence": {
+            "name": "Competência",
+            "note": "A sensação de que consegue te sustenta"
+          },
+          "relatedness": {
+            "name": "Relação",
+            "note": "Você se move um pouco mais quando está com outros"
+          }
+        }
+      },
+      "strengths": {
+        "headline": "Forças",
+        "level": "L2",
+        "confidence": "Confiança 66%",
+        "subtitle": "Grão oculto (camada B) · o que faz você ser você",
+        "spectrum": "Espectro de forças",
+        "insight": "Sua curiosidade pelo desconhecido parece a força que te leva mais longe.",
+        "actionPrimary": "Aproveitar forças",
+        "actionSecondary": "Ver motivação",
+        "rows": {
+          "curiosity": {
+            "name": "Curiosidade",
+            "note": "O impulso de investigar o novo"
+          },
+          "grit": {
+            "name": "Perseverança",
+            "note": "Quando você agarra, não solta"
+          },
+          "honesty": {
+            "name": "Honestidade",
+            "note": "Você tenta alinhar interior e exterior"
+          },
+          "empathy": {
+            "name": "Empatia",
+            "note": "Você lê bem o grão dos outros"
+          },
+          "aesthetics": {
+            "name": "Olhar estético",
+            "note": "Você reconhece o que é bom"
+          }
+        }
+      }
     }
   }
 }

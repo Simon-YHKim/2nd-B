@@ -352,6 +352,104 @@
       "hiddenTitle": "Serat tersembunyi · validasi",
       "hiddenBody": "Data domainmu menyilangkan kerangka seperti Big Five dan kelekatan. Cahaya bintang adalah seberapa banyak yang kamu masukkan, keyakinan adalah seberapa tervalidasi. Keduanya berbeda.",
       "viewValidation": "Lihat validasi"
+    },
+    "axisCheck": {
+      "values": {
+        "headline": "Nilai",
+        "level": "L2",
+        "subtitle": "Serat tersembunyi (lapis B) · apa yang paling kamu junjung",
+        "coreLabel": "CORE VALUES",
+        "spectrum": "Spektrum nilai",
+        "insight": "Kemandirian paling tinggi. Rangkaian catatan saat kamu memilih 'memutuskan sendiri' dalam kerja dan hubungan menopang bacaan ini.",
+        "actionPrimary": "Wawancara nilai",
+        "actionSecondary": "Validasi lain",
+        "rows": {
+          "selfDirection": {
+            "name": "Kemandirian",
+            "note": "Kamu paling menjadi dirimu saat memutuskan dan bergerak sendiri"
+          },
+          "stimulation": {
+            "name": "Pertumbuhan",
+            "note": "Hal baru dan belajar menarikmu maju"
+          },
+          "authenticity": {
+            "name": "Autentisitas",
+            "note": "Kamu ingin luar dan dalam selaras"
+          },
+          "benevolence": {
+            "name": "Kepedulian",
+            "note": "Hati untuk menjaga orang terdekat"
+          },
+          "achievement": {
+            "name": "Pencapaian",
+            "note": "Kamu suka rasa berhasil menuntaskan"
+          },
+          "security": {
+            "name": "Kestabilan",
+            "note": "Keterdugaan bukan prioritas utamamu"
+          }
+        }
+      },
+      "motivation": {
+        "headline": "Motivasi",
+        "level": "L2",
+        "confidence": "Keyakinan 61%",
+        "subtitle": "Serat tersembunyi (lapis B) · apa yang menggerakkanmu",
+        "balanceTitle": "Intrinsik ↔ ekstrinsik",
+        "balanceIntrinsic": "Intrinsik 68%",
+        "balanceExtrinsic": "Ekstrinsik 32%",
+        "balanceNote": "Umumnya kamu bergerak karena ingin. Makna dan rasa ingin tahu jadi bahan bakar lebih besar daripada imbalan.",
+        "spectrum": "Tiga kebutuhan · determinasi diri",
+        "insight": "Otonomi adalah inti motivasimu. Kamu bertahan paling lama saat kerja bisa 'dengan caraku', bukan 'karena disuruh'.",
+        "actionPrimary": "Lihat kekuatan",
+        "actionSecondary": "Validasi lain",
+        "rows": {
+          "autonomy": {
+            "name": "Otonomi",
+            "note": "Motivasi naik saat kamu memutuskan sendiri"
+          },
+          "competence": {
+            "name": "Kompetensi",
+            "note": "Rasa bahwa kamu bisa menopangmu"
+          },
+          "relatedness": {
+            "name": "Keterhubungan",
+            "note": "Kamu bergerak sedikit lebih saat bersama orang lain"
+          }
+        }
+      },
+      "strengths": {
+        "headline": "Kekuatan",
+        "level": "L2",
+        "confidence": "Keyakinan 66%",
+        "subtitle": "Serat tersembunyi (lapis B) · yang membuatmu jadi kamu",
+        "spectrum": "Spektrum kekuatan",
+        "insight": "Rasa ingin tahumu pada hal asing tampak seperti kekuatan yang membawamu paling jauh.",
+        "actionPrimary": "Manfaatkan kekuatan",
+        "actionSecondary": "Lihat motivasi",
+        "rows": {
+          "curiosity": {
+            "name": "Rasa ingin tahu",
+            "note": "Dorongan menggali hal baru"
+          },
+          "grit": {
+            "name": "Keuletan",
+            "note": "Sekali menggenggam, kamu tak melepas"
+          },
+          "honesty": {
+            "name": "Kejujuran",
+            "note": "Kamu berusaha menyelaraskan luar dan dalam"
+          },
+          "empathy": {
+            "name": "Empati",
+            "note": "Kamu membaca serat orang lain dengan baik"
+          },
+          "aesthetics": {
+            "name": "Mata estetika",
+            "note": "Kamu mengenali yang baik"
+          }
+        }
+      }
     }
   }
 }
