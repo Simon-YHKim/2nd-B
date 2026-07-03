@@ -2,6 +2,7 @@
 
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
+> ⚠️ 경로 주의: 이 로그의 절대경로(`C:\2ndB` · `E:\2ndB` · `E:\Coding Infra\...` · `C:\Users\...\Downloads\...` 등)는 **로컬·과거 머신 기준 기록**이다. 로컬 + 클라우드 + 다중 AI 가 섞여 작업하므로 신규 작업은 **repo-상대 경로/명령**(예: `git fetch origin main`)을 쓰고 위 절대경로는 비정본으로 취급. worktree 위치는 CLAUDE.md 'Worktrees & branches'(`<repo>/.worktrees/<name>`)가 SoT.
 
 ## Latest — 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
 
@@ -85,7 +86,7 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 2. **가드 공진화**: 카피 정본 변경 시 `check-constraints` 핀·테스트 어서션 같은 PR에서 동시 수정.
 3. **감사 휴리스틱**: 컨텍스트-포화 세션은 기능 클레임 대체로 참 — **"전부/불변/만" 전칭 클레임부터** 검증.
 4. **머지 게이트**: 필수=verify×2+lint(Vercel=노이즈). BEHIND→`gh pr update-branch`→재green→일반 머지(**--admin 금지**). exit 가림 주의(verify·`gh …--watch`에 tail 파이프 금지).
-5. **격리**: 공유 클론 C:/2ndB HEAD 직접 편집 금지(stale/하이재킹). origin/main 위 worktree(C:/2ndB-dev)+node_modules 정션. 명시 경로만 stage(`git add -A` 금지).
+5. **격리**: worktree 위치 = CLAUDE.md 'Worktrees & branches' 규칙(`<repo>/.worktrees/<name>`, sibling 폴더 금지 — 과거 세션이 쓴 `C:/2ndB-dev`는 이 규칙 위반이니 신규 작업은 `.worktrees/` 사용), node_modules는 정본에 심링크. 공유 클론이 stale면 직접 편집 금지(하이재킹 위험) — origin/main 위 worktree에서 작업. 명시 경로만 stage(`git add -A` 금지).
 6. 무확인 게이트: 파괴/비용/secrets/임상/법무 + 수익화 레이아웃(Simon).
 
 ### 핵심 파일 위치
