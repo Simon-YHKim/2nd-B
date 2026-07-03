@@ -3,46 +3,70 @@
 > 가장 최신 섹션이 맨 위. 오래된 sprint 핸드오프는 아래로 밀어둠.
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-03 (오전 2차) / 🔒 레퍼런스=정본 확정(Simon) → imagine 복원 #734 + 별가루 어휘 정렬 #735
+## Latest — 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
 
-> **Simon 확정 지시(08:56)**: 업로드 zip(2ndB_proto_rev2_Copy — r3와 바이트 동일 확인)
-> = "모든 용어와 디자인 기준은 클로드 디자인이 제공한 자료를 따름".
-> → 감사 라운드의 "결정 대기 7건" 중 용어·디자인 건 **해소**, 작업 큐로 승격됨.
+> 두 웨이브: ① 직전 컨텍스트-포화 /loop 세션(15 PR) 전수 감사 → 결함 픽스, ② Simon "레퍼런스=정본" 확정 → 용어·디자인 재정렬.
+> 상세 감사 findings는 바로 아래 `## 2026-07-03 (오전)` 블록에 보존.
 
-### 확정된 정본 규칙 (영구)
-1. **용어**: 기록 1건 = **별가루** (ref README/CONTEXT "기록 하나하나 = 별가루"). **조각**은
-   도메인 대시보드 집계 표면 전용(sb-audit 동형: home values.domain*Count, deepspace domains.*)
-   + 관용구("막힌 조각", "기억/공상 한 조각")만 생존. 판정 기준 = **표면**, 산문/카운트 아님.
-2. 레퍼런스 원문의 조사 오류(별가루이/별가루을)는 복제하지 않음 — 모음종결 정조사(가/를/로).
-3. 예외 존치: 정직성(서명됨→로컬 생성), 로케일 em-dash 금지, consent 문구는 법무-인접이라 Simon 명시 확인 후.
+### 어디까지 왔나
+- main HEAD: `8288da3a` (#737 DDS megafile split — **병렬 DDS-split 세션** 작업). 내 코드 랜딩=#730/#734/#735, 마지막 문서 머지=#736.
+- 이번 세션 머지 PR: **#730** 감사 픽스 8건 · **#734** imagine 화면 복원 · **#735** 별가루 어휘 184곳 · #731/#736 핸드오프 (병렬 #733/#737).
+- 테스트: `npm run verify` EXIT=0 (#735 시점 295 suites / 2212 tests; #737 이후 카운트 변동 가능 — 재확인).
+- working tree: 내 worktree(C:/2ndB-dev) clean. ⚠️ **공유 클론 C:/2ndB 는 stale**(origin/main보다 뒤) — 거기 직접 편집 금지, origin/main 위 worktree에서 작업.
+- OTA 배달(전부 preview/0.0.7 ✔): #730 `cee46a3a…` · #734 `3bfe1d08…` · #735 `45bcbea1…` · #725(Simon 수동) `40033b66…`.
 
-### 이번 세션 랜딩 (2차)
-- **#734 (c85f0f67, [ota])** imagine 공상-갈래 화면 복원 — ref ImagineScreen 1:1(시드 3종 확장/반전/연결
-  + 다음 한 걸음 + 담기 프리필/Divergent 딥링크), 시드=imagine-seeds.ts(canon 테스트 4), ds.imagine 5로케일,
-  Fabric 가드(외곽 View 비주얼) 준수. OTA 그룹 `3bfe1d08-8ac3-456d-b45f-e615bfe6e000`.
-  ⚠️ 인트로 그라디언트는 SVG 수평 근사(135deg 미지원) — 에뮬 육안 QA 1회 권장.
-- **#735 (6c2a28a5, [ota])** 별가루/조각 어휘 정렬 — 184곳(로케일 63·src 121, 조사 교정), KEEP=표면 규칙,
-  가드 핀 공진화(check-constraints Onboarding J4·WikiHeroI18nCopy) + 테스트 어서션 동기화.
-  OTA 그룹 `45bcbea1-900b-48a0-a023-b62b1e42600b`.
-  스윕 도구: 세션 스크래치패드 term-sweep.js / 매핑 정본: term-map-report.md (Explore 에이전트 산출).
-- 병렬 세션 랜딩(참고): #733 Seen empty state.
+### 활성 인프라
+- 라이브 웹 = GitHub Pages(simon-yhkim.github.io/2nd-B). Vercel PR 체크 = rate-limit 노이즈(비필수, 무시).
+- OTA = push 경유 `[ota]` 마커, runtime **0.0.7/preview** 채널. 폰 반영은 0.0.7 네이티브 빌드 설치(F 게이트) 후 일괄.
+- 레퍼런스 정본 = `C:\Users\Soha.Bae\Downloads\2ndB-proto-rev2-r3\design_handoff_2nd_brain\` (업로드 Copy zip = 바이트 동일 스냅샷).
 
-### 다음 작업 큐 (레퍼런스 재정렬 트랙 — Simon 정본 확정으로 전부 작업化)
-| # | 작업 | 크기 | 비고 |
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
 |---|---|---|---|
-| K | star insight 스트립("세컨비 한 줄 해석") + 공통 버튼(채워 넣기/세컨비와 대화) | large | 실데이터 훅 설계 필요 |
-| L | ops 본문 3섹션(오늘의 종합 의견·이번 주 패턴 분석·비서 도구 그리드) + 시간행·undo | large | 데이터 모델 설계 선행 |
-| M | capture 담은뒤 별-분류 스텝(잘 모르겠어요=세컨비 분류로 기존 AI 파이프 재사용) + 왜(Why) 필드 | medium | fourw 스키마 터치 |
+| H | 에뮬 육안 QA 1회: **imagine 신규 화면** + 뮤지엄 레인라벨/NOW + settings 레거시 헤더 | small | ⭐ 최우선(라이브 미검증분) |
+| K | star insight 스트립("세컨비 한 줄 해석") + 공통 버튼(채워 넣기/세컨비와 대화) | large | 실데이터 훅 설계 |
+| L | ops 본문 3섹션(종합 의견·주간 패턴·비서 도구 그리드)+시간행·undo | large | 데이터 모델 선행 |
+| M | capture 담은뒤 별-분류 스텝 + 왜(Why) 필드 | medium | fourw 스키마 |
 | N | 뮤지엄 사진추가 칩 + ShareCard 배경사진 슬롯(image-picker 기존 dep) | medium | |
-| O | 근거 드로어 명사 → ref 어휘 '근거 기록' 리네임 패스 | small | #735 후속 |
-| G | Fabric Pressable 42곳 스윕 | large | 감사 라운드 발견분 |
-| H | 에뮬 육안 QA: 뮤지엄 레인라벨·NOW·settings 헤더 + **imagine 신규 화면** | small | ⭐ 최우선 |
-- 게이트 유지: `이미지 저장`(expo-media-library, 0.0.8 네이티브 사이클) · consent 문구 · E(plans)/F(0.0.7 폰 QA).
+| O | 근거 드로어 명사 → ref '근거 기록' 리네임 | small | #735 후속 |
+| G | Fabric Pressable 함수형 style 42곳/17파일 스윕(#680 패턴) | large | 감사 발견분, HIGH 목록=PR #730 본문 |
+| I | companion 잔존 fullbleed 12개+ 코호트 전환 | large | 셸 연장전 |
+| J | 데드코드: OpsHomeScreen 미배선·DeepSpaceDock 렌더러·records 아웃라이어 | small | |
+
+### 🔒 Simon 결정 대기 (게이트)
+1. **axis_estimate 과금**: 현재 전 티어 무과금 개방(northstar 동일) — 스펜드 게이트 의도?
+2. **consent 문구**: 법무-인접 → 레퍼런스 복원 전 명시 확인.
+3. **E** plans 3티어 카드 수익화 레이아웃 · **F** 0.0.7 폰 QA(네이티브 게이트).
+
+### 적용 중인 정책 (영구)
+1. **레퍼런스=정본**: 기록 1건=**별가루**, 조각=도메인 대시보드 표면+관용구만(판정=표면). 조사 교정(을→를/이→가/이에요→예요). 예외 존치: 정직성(서명됨→로컬 생성), 로케일 em-dash 금지, consent=Simon 확인.
+2. **가드 공진화**: 카피 정본 변경 시 `check-constraints` 핀·테스트 어서션 같은 PR에서 동시 수정.
+3. **감사 휴리스틱**: 컨텍스트-포화 세션은 기능 클레임 대체로 참 — **"전부/불변/만" 전칭 클레임부터** 검증.
+4. **머지 게이트**: 필수=verify×2+lint(Vercel=노이즈). BEHIND→`gh pr update-branch`→재green→일반 머지(**--admin 금지**). exit 가림 주의(verify·`gh …--watch`에 tail 파이프 금지).
+5. **격리**: 공유 클론 C:/2ndB HEAD 직접 편집 금지(stale/하이재킹). origin/main 위 worktree(C:/2ndB-dev)+node_modules 정션. 명시 경로만 stage(`git add -A` 금지).
+6. 무확인 게이트: 파괴/비용/secrets/임상/법무 + 수익화 레이아웃(Simon).
+
+### 핵심 파일 위치
+```
+src/app/imagine.tsx                                    imagine 라우트(deep-space=seeds / legacy=Divergent 리다이렉트)
+src/components/deep-space/imagine-seeds.ts             공상 시드 3종 정본(canon 테스트 대상)
+src/components/deep-space/DeepSpaceViews.tsx            ImagineDivergentView + 렌즈 뷰
+src/components/deep-space/DeepSpaceScreen.tsx           셸 3 variant + back→home(탭 ROOT 한정)
+src/screens/deepspace/museum/MuseumTimelineScreen.tsx  뮤지엄(세로 레인라벨·NOW 배지)
+src/lib/share/piece-count.ts + components/deepspace/ShareCard.tsx   별가루 서명줄
+scripts/check-constraints.ts                           카피 정본 핀(canon 변경 시 공진화)
+locales/ko/*.json · home.json ds.imagine               i18n(별가루 정렬 완료)
+```
+
+### 검증
+```bash
+npm run verify; echo EXIT=$?   # 파이프 금지(tail이 exit 가림). jest 캐시 경합 시 --cacheDirectory 전용 폴더로 단독 재실행
+```
 
 ### 다음 세션 시작하는 법
 ```bash
 git fetch origin main && git pull origin main && cat docs/HANDOFF.md
-# H(에뮬 육안 QA)부터, 그다음 K~O 재정렬 트랙. 레퍼런스 정본 = Downloads\2ndB-proto-rev2-r3\ (Copy본은 동일 스냅샷).
+# H(에뮬 육안 QA)부터, 그다음 K~O 재정렬 트랙. 결정 대기 3건은 Simon 회신 후.
 ```
 
 ---
