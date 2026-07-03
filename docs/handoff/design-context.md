@@ -1,3 +1,5 @@
+> ⚠️ **SUPERSEDED — 2026-06-16 스냅샷 (rev2 → Material 3 마이그레이션, 2026-07-01 이전).** 이 파일은 **legacy 롤백 스킨**(`EXPO_PUBLIC_UI=legacy` — Cosmic Pixel Graph Village / "Soul Core" / Pattern Core ×5) 기준이다. **현행 디자인 지침으로 붙여넣지 말 것.** 현행 정본 개념 = deep-space 별자리 · 7 도메인 별 → 북극성(Polaris; "Soul Core" 명칭 폐기) · 세컨비 personas · Material 3 + deep-space. 레포 접근 시 정본: `docs/CONCEPT.md` · `docs/PRD.md` · `docs/REV2-MIGRATION.md` · `docs/CONSTELLATION-DESIGN.md` · `DESIGN.md`.
+
 # 2nd-Brain · Design Context (portable)
 
 > Self-contained design source-of-truth. Paste into a Claude Project (or any Claude session) to continue design work **without the repo**. Distilled from `src/lib/theme/tokens.ts` + `DESIGN.md` (434 lines) + `docs/VISION.md` (worldview v-final).
