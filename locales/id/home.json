@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "Tangkap",
-      "placeholder": "Pikiran, sesuatu yang kamu baca, sebuah perasaan… apa saja, dalam satu baris.",
-      "chipText": "Teks",
-      "chipLink": "Tautan",
-      "chipVoice": "Suara",
-      "tip": "Begitu disimpan, SecondB langsung menandai dan merapikannya."
+      "subtitle": "Tangkap dalam sebuah format dan SecondB merangkainya ke bintang yang tepat.",
+      "modes": {
+        "text": "Teks",
+        "link": "Tautan",
+        "photo": "Foto",
+        "voice": "Suara",
+        "todo": "Tugas"
+      },
+      "fields": {
+        "what": {
+          "label": "Apa",
+          "hint": "Tuliskan inti pikiran atau momen"
+        },
+        "when": {
+          "label": "Kapan",
+          "hint": "Pagi ini"
+        },
+        "where": {
+          "label": "Di mana",
+          "hint": "Di kantor"
+        },
+        "who": {
+          "label": "Siapa",
+          "hint": "Saya, bersama tim"
+        },
+        "how": {
+          "label": "Bagaimana & mengapa",
+          "hint": "Apa yang ada di benak Anda"
+        }
+      },
+      "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "Buka kamera atau album",
+      "photoCaption": "Deskripsikan foto",
+      "voiceOpen": "Buka perekam",
+      "voiceHint": "Tulis apa yang Anda katakan",
+      "todoHint": "Tugas",
+      "todoAdd": "Tambah tugas",
+      "banner": "Begitu Anda menyimpannya, SecondB memilahnya ke bintang dan tag yang tepat.",
+      "save": "Tangkap",
+      "saving": "Menyimpan",
+      "saved": "Tersimpan",
+      "openRecords": "Buka catatan",
+      "saveError": "Tidak dapat menyimpan. Coba lagi sebentar."
     },
     "chat": {
       "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",

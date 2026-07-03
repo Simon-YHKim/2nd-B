@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "담기",
-      "placeholder": "오늘 떠오른 생각, 읽은 것, 느낀 것… 무엇이든 한 줄로.",
-      "chipText": "글",
-      "chipLink": "링크",
-      "chipVoice": "음성",
-      "tip": "담는 순간 세컨비가 자동으로 태그·분류해요."
+      "subtitle": "형식에 맞게 담으면, 세컨비가 알맞은 별로 엮어요.",
+      "modes": {
+        "text": "글",
+        "link": "링크",
+        "photo": "사진",
+        "voice": "음성",
+        "todo": "할 일"
+      },
+      "fields": {
+        "what": {
+          "label": "무엇을",
+          "hint": "떠오른 생각·사건의 핵심을 적어요"
+        },
+        "when": {
+          "label": "언제",
+          "hint": "오늘 아침"
+        },
+        "where": {
+          "label": "어디서",
+          "hint": "회사"
+        },
+        "who": {
+          "label": "누가",
+          "hint": "나 · 팀원과"
+        },
+        "how": {
+          "label": "어떻게 · 왜",
+          "hint": "어떤 마음이었는지"
+        }
+      },
+      "linkHint": "링크를 붙여넣으면 세컨비가 제목·요약을 가져와요.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "카메라·앨범 열기",
+      "photoCaption": "사진에 대한 설명을 적어요",
+      "voiceOpen": "녹음 열기",
+      "voiceHint": "말한 내용을 적어요",
+      "todoHint": "할 일",
+      "todoAdd": "할 일 추가",
+      "banner": "담는 순간 세컨비가 어울리는 별과 태그로 자동 분류해요.",
+      "save": "담기",
+      "saving": "저장 중",
+      "saved": "저장 완료",
+      "openRecords": "기록 보관소에서 보기",
+      "saveError": "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."
     },
     "chat": {
       "user": "나 요즘 너무 지치는데 왜 그럴까?",

@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "Capturar",
-      "placeholder": "Un pensamiento, algo que leíste, una emoción… lo que sea, en una línea.",
-      "chipText": "Texto",
-      "chipLink": "Enlace",
-      "chipVoice": "Voz",
-      "tip": "En cuanto lo guardas, SecondB lo etiqueta y lo ordena."
+      "subtitle": "Captúralo en un formato y SecondB lo teje en la estrella correcta.",
+      "modes": {
+        "text": "Texto",
+        "link": "Enlace",
+        "photo": "Foto",
+        "voice": "Voz",
+        "todo": "Tarea"
+      },
+      "fields": {
+        "what": {
+          "label": "Qué",
+          "hint": "Anota lo esencial del pensamiento o momento"
+        },
+        "when": {
+          "label": "Cuándo",
+          "hint": "Esta mañana"
+        },
+        "where": {
+          "label": "Dónde",
+          "hint": "En el trabajo"
+        },
+        "who": {
+          "label": "Quién",
+          "hint": "Yo, con el equipo"
+        },
+        "how": {
+          "label": "Cómo y por qué",
+          "hint": "Qué tenías en mente"
+        }
+      },
+      "linkHint": "Pega un enlace y SecondB obtiene el título y el resumen.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "Abrir cámara o álbum",
+      "photoCaption": "Describe la foto",
+      "voiceOpen": "Abrir grabadora",
+      "voiceHint": "Escribe lo que dijiste",
+      "todoHint": "Tarea",
+      "todoAdd": "Añadir una tarea",
+      "banner": "En cuanto lo guardas, SecondB lo clasifica en la estrella y las etiquetas adecuadas.",
+      "save": "Capturar",
+      "saving": "Guardando",
+      "saved": "Guardado",
+      "openRecords": "Abrir registros",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo en un momento."
     },
     "chat": {
       "user": "Últimamente estoy agotado. ¿Por qué será?",

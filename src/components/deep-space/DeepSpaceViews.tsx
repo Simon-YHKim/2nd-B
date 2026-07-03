@@ -13,18 +13,18 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { useEffect, useId, useState, type ReactNode } from "react";
-import { type DimensionValue, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Path, Rect, Stop, SvgXml } from "react-native-svg";
 
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
-import { MdButton, SegBtn } from "@/components/m3";
-import { composeFourWBody, EMPTY_FOURW, FOURW_KEYS, FOURW_LABEL, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
+import { MdButton, MdChip } from "@/components/m3";
+import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
@@ -103,44 +103,153 @@ function Chip({ label }: { label: string }) {
 
 // ── 담기 / Capture ───────────────────────────────────────────────────────────
 
+// Material-Symbols glyphs the 담기 screen needs, transcribed 1:1 from the
+// reference-app ICON_SVG (sb-data.jsx) — same stroke idiom as SbIcon (2dp
+// currentColor, round caps). Kept local so the shell's SbIcon set stays lean.
+const CAPTURE_ICON_INNER: Record<string, string> = {
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
+  link: '<path d="M9 15 15 9" transform="rotate(0 12 12)"/><path d="M8.5 12H6.5a3 3 0 1 1 0-6h3M15.5 6h2a3 3 0 1 1 0 6h-3" transform="rotate(45 12 12)"/>',
+  photo_camera: '<rect x="3" y="7.5" width="18" height="12.5" rx="2.4"/><circle cx="12" cy="13.7" r="3.3"/><path d="M8.5 7.5 10 4.5h4l1.5 3"/>',
+  mic: '<rect x="9.4" y="3.5" width="5.2" height="11" rx="2.6"/><path d="M6 11.2a6 6 0 0 0 12 0M12 17.2V20.5"/>',
+  check_circle: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
+  check: '<path d="M5 12.5 10 17 19 7"/>',
+  edit_note: '<path d="M4 7h12M4 12h7M4 17h5M14.5 16l4.2-4.2 2.5 2.5L17 18.5h-2.5z"/>',
+  calendar_today: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/>',
+  north_east: '<path d="M7 17 17 7M9 7h8v8"/>',
+  person: '<circle cx="12" cy="8" r="3.7"/><path d="M5.4 20c0-3.6 3-5.8 6.6-5.8s6.6 2.2 6.6 5.8"/>',
+  bolt: '<path d="M13 3 5 13.2h5L10.5 21l8.5-10.8H13z"/>',
+  auto_awesome: '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
+  radio_unchecked: '<circle cx="12" cy="12" r="8"/>',
+  add: '<path d="M12 5v14M5 12h14"/>',
+};
+
+function CaptureIcon({ name, color, size = 18 }: { name: keyof typeof CAPTURE_ICON_INNER; color: string; size?: number }) {
+  const xml =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
+    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `${CAPTURE_ICON_INNER[name]}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+}
+
+// A W4H1 field: leading icon + label, then a filled input box (reference Field
+// in sb-screens-core.jsx). All colors route through m3.* (this screen is on the
+// migrated M3 track — no cosmic tokens, no hex literals).
+function CaptureField({
+  icon,
+  label,
+  hint,
+  value,
+  onChange,
+  multiline = false,
+}: {
+  icon: keyof typeof CAPTURE_ICON_INNER;
+  label: string;
+  hint: string;
+  value: string;
+  onChange: (next: string) => void;
+  multiline?: boolean;
+}) {
+  return (
+    <View>
+      <View style={styles.capFieldHead}>
+        <CaptureIcon name={icon} color={m3.color.onSurfaceVariant} size={15} />
+        <Text style={styles.capFieldLabel}>{label}</Text>
+      </View>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={hint}
+        placeholderTextColor={m3.color.onSurfaceVariant}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+        style={[styles.capFieldInput, multiline && styles.capFieldInputTall]}
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+}
+
+type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
+const CAPTURE_MODE_ROW: { id: CaptureMode; icon: keyof typeof CAPTURE_ICON_INNER }[] = [
+  { id: "text", icon: "edit" },
+  { id: "link", icon: "link" },
+  { id: "photo", icon: "photo_camera" },
+  { id: "voice", icon: "mic" },
+  { id: "todo", icon: "check_circle" },
+];
+
 export function CaptureView() {
   const { t, i18n } = useTranslation("home");
   const { userId, isMinor } = useAuth();
-  const [draft, setDraft] = useState("");
-  // rev2 P4a on the canon track (device QA 2026-07-02): the deep-space 담기 only
-  // offered the one-line box, so the 4W1H format boxes never showed on device.
-  // A SegBtn toggles between them; both save through the same createRecord path.
-  const [captureMode, setCaptureMode] = useState<"line" | "fourw">("line");
+  const locale = i18n.language === "ko" ? "ko" : "en";
+  // rev2 P4a (device QA 2026-07-02) + clone-audit 06-capture: the deep-space 담기
+  // matches the reference — 5 format modes, and 글(text) opens the W4H1 form as
+  // the default. All modes save through the same createRecord(kind:"note") path.
+  const [mode, setMode] = useState<CaptureMode>("text");
   const [fourw, setFourw] = useState<FourWFields>(EMPTY_FOURW);
+  const [text, setText] = useState(""); // link / photo caption / voice transcript
+  const [todos, setTodos] = useState<string[]>(["", ""]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
-  const locale = i18n.language === "ko" ? "ko" : "en";
-  const hasContent = captureMode === "fourw" ? fourWHasContent(fourw) : draft.trim().length > 0;
+
+  const cleanTodos = todos.map((v) => v.trim()).filter((v) => v.length > 0);
+  const hasContent =
+    mode === "text"
+      ? fourWHasContent(fourw)
+      : mode === "todo"
+        ? cleanTodos.length > 0
+        : text.trim().length > 0;
   const canSave = userId != null && hasContent && !saving;
 
-  async function saveFirstPiece() {
+  const dirty = () => {
+    if (saved) setSaved(false);
+    if (error) setError(false);
+  };
+  const setField = (key: keyof FourWFields, next: string) => {
+    setFourw((prev) => ({ ...prev, [key]: next }));
+    dirty();
+  };
+  const setTodoAt = (i: number, next: string) => {
+    setTodos((prev) => prev.map((v, idx) => (idx === i ? next : v)));
+    dirty();
+  };
+
+  async function savePiece() {
     if (!userId || !canSave) return;
     setSaving(true);
     setError(false);
     try {
-      const body = captureMode === "fourw" ? composeFourWBody(fourw, locale) : draft.trim();
+      let body: string;
+      let topic: string | undefined;
+      let tag: string;
+      if (mode === "text") {
+        body = composeFourWBody(fourw, locale);
+        topic = fourw.what.trim().slice(0, 80);
+        tag = "fourw";
+      } else if (mode === "todo") {
+        body = cleanTodos.map((v) => `- ${v}`).join("\n");
+        topic = cleanTodos[0]?.slice(0, 80);
+        tag = "todo";
+      } else {
+        body = text.trim();
+        topic = body.slice(0, 80);
+        tag = mode; // link / photo / voice
+      }
       await createRecord({
         userId,
         locale,
         kind: "note",
         body,
-        topic:
-          captureMode === "fourw"
-            ? fourw.what.trim().slice(0, 80)
-            : locale === "ko" ? "첫 기록" : "First note",
-        tags: captureMode === "fourw" ? ["fourw"] : ["first-piece"],
+        topic,
+        tags: [tag],
         withFollowup: false,
         minor: isMinor === true,
       });
       setSaved(true);
-      setDraft("");
       setFourw(EMPTY_FOURW);
+      setText("");
+      setTodos(["", ""]);
     } catch (e) {
       setError(true);
       if (typeof console !== "undefined") console.warn("[deepspace-capture] save failed", (e as Error).message);
@@ -149,99 +258,202 @@ export function CaptureView() {
     }
   }
 
+  const f = (key: string) => t("ds.capture." + key);
+  const saveLabel = saving ? f("saving") : saved ? f("saved") : f("save");
+
   return (
-    <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <Text style={styles.pixelTitle}>{t("ds.capture.title")}</Text>
-      <SegBtn
-        segments={[
-          { key: "line", label: locale === "ko" ? "한 줄" : "One line" },
-          { key: "fourw", label: "4W1H" },
-        ]}
-        selected={[captureMode]}
-        onSelect={(key) => setCaptureMode(key === "fourw" ? "fourw" : "line")}
-        style={styles.captureModeToggle}
-      />
-      {captureMode === "line" ? (
-        <>
+    <ScrollView contentContainerStyle={styles.capBody} keyboardShouldPersistTaps="handled">
+      <Text style={styles.capTitle}>{f("title")}</Text>
+      <Text style={styles.capSubtitle}>{f("subtitle")}</Text>
+
+      {/* format selector — 5 M3 filter chips */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.capChipScroll}
+        contentContainerStyle={styles.capChipRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        {CAPTURE_MODE_ROW.map((m) => {
+          const on = mode === m.id;
+          const fg = on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant;
+          return (
+            <MdChip
+              key={m.id}
+              kind="filter"
+              selected={on}
+              label={t("ds.capture.modes." + m.id)}
+              icon={<CaptureIcon name={on ? "check" : m.icon} color={fg} size={18} />}
+              onPress={() => {
+                setMode(m.id);
+                dirty();
+              }}
+            />
+          );
+        })}
+      </ScrollView>
+
+      {/* mode-specific input */}
+      {mode === "text" ? (
+        <View style={styles.capForm}>
+          <CaptureField
+            icon="edit_note"
+            label={f("fields.what.label")}
+            hint={f("fields.what.hint")}
+            value={fourw.what}
+            onChange={(v) => setField("what", v)}
+            multiline
+          />
+          <View style={styles.capFieldRow}>
+            <View style={styles.capFieldCol}>
+              <CaptureField
+                icon="calendar_today"
+                label={f("fields.when.label")}
+                hint={f("fields.when.hint")}
+                value={fourw.when}
+                onChange={(v) => setField("when", v)}
+              />
+            </View>
+            <View style={styles.capFieldCol}>
+              <CaptureField
+                icon="north_east"
+                label={f("fields.where.label")}
+                hint={f("fields.where.hint")}
+                value={fourw.where}
+                onChange={(v) => setField("where", v)}
+              />
+            </View>
+          </View>
+          <CaptureField
+            icon="person"
+            label={f("fields.who.label")}
+            hint={f("fields.who.hint")}
+            value={fourw.who}
+            onChange={(v) => setField("who", v)}
+          />
+          <CaptureField
+            icon="bolt"
+            label={f("fields.how.label")}
+            hint={f("fields.how.hint")}
+            value={fourw.how}
+            onChange={(v) => setField("how", v)}
+          />
+        </View>
+      ) : mode === "link" ? (
+        <View style={styles.capForm}>
+          <Text style={styles.capHint}>{f("linkHint")}</Text>
           <TextInput
-            value={draft}
-            onChangeText={(next) => {
-              setDraft(next);
-              if (saved) setSaved(false);
-              if (error) setError(false);
+            value={text}
+            onChangeText={(v) => {
+              setText(v);
+              dirty();
             }}
+            placeholder={f("linkPlaceholder")}
+            placeholderTextColor={m3.color.onSurfaceVariant}
+            autoCapitalize="none"
+            keyboardType="url"
+            style={[styles.capFieldInput, styles.capMono]}
+            accessibilityLabel={t("ds.capture.modes.link")}
+          />
+        </View>
+      ) : mode === "photo" ? (
+        <View style={styles.capForm}>
+          <MdButton
+            variant="outlined"
+            icon={<CaptureIcon name="photo_camera" color={m3.color.primary} size={18} />}
+            label={f("photoOpen")}
+            onPress={() => router.push("/capture-full")}
+            style={styles.capFullWidth}
+          />
+          <TextInput
+            value={text}
+            onChangeText={(v) => {
+              setText(v);
+              dirty();
+            }}
+            placeholder={f("photoCaption")}
+            placeholderTextColor={m3.color.onSurfaceVariant}
+            style={styles.capFieldInput}
+            accessibilityLabel={f("photoCaption")}
+          />
+        </View>
+      ) : mode === "voice" ? (
+        <View style={styles.capForm}>
+          <MdButton
+            variant="outlined"
+            icon={<CaptureIcon name="mic" color={m3.color.primary} size={18} />}
+            label={f("voiceOpen")}
+            onPress={() => router.push("/capture-full")}
+            style={styles.capFullWidth}
+          />
+          <TextInput
+            value={text}
+            onChangeText={(v) => {
+              setText(v);
+              dirty();
+            }}
+            placeholder={f("voiceHint")}
+            placeholderTextColor={m3.color.onSurfaceVariant}
             multiline
             textAlignVertical="top"
-            placeholder={t("ds.capture.placeholder")}
-            placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
-            style={styles.inputBoxText}
-            accessibilityLabel={t("ds.capture.title")}
+            style={[styles.capFieldInput, styles.capFieldInputTall]}
+            accessibilityLabel={f("voiceHint")}
           />
-          <View style={styles.chipRow}>
-            <Chip label={t("ds.capture.chipText")} />
-            <Chip label={t("ds.capture.chipLink")} />
-            <Chip label={t("ds.capture.chipVoice")} />
-          </View>
-        </>
+        </View>
       ) : (
-        <View style={styles.fourwCol}>
-          {FOURW_KEYS.map((key) => (
-            <View key={key}>
-              <Text style={[styles.fourwLabel, key === "what" && styles.fourwLabelRequired]}>
-                {FOURW_LABEL[locale][key]}
-                {key === "what" ? (locale === "ko" ? " (필수)" : " (required)") : ""}
-              </Text>
+        <View style={styles.capTodoCol}>
+          {todos.map((v, i) => (
+            <View key={i} style={styles.capTodoRow}>
+              <CaptureIcon name="radio_unchecked" color={m3.color.outline} size={20} />
               <TextInput
-                value={fourw[key]}
-                onChangeText={(text) => {
-                  setFourw((prev) => ({ ...prev, [key]: text }));
-                  if (saved) setSaved(false);
-                  if (error) setError(false);
-                }}
-                multiline={key === "what" || key === "how"}
-                textAlignVertical={key === "what" || key === "how" ? "top" : "center"}
-                placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
-                style={[styles.inputBoxText, styles.fourwInput, (key === "what" || key === "how") && styles.fourwInputTall]}
-                accessibilityLabel={FOURW_LABEL[locale][key]}
+                value={v}
+                onChangeText={(next) => setTodoAt(i, next)}
+                placeholder={`${f("todoHint")} ${i + 1}`}
+                placeholderTextColor={m3.color.onSurfaceVariant}
+                style={styles.capTodoInput}
+                accessibilityLabel={`${f("todoHint")} ${i + 1}`}
               />
             </View>
           ))}
+          <MdButton
+            variant="text"
+            icon={<CaptureIcon name="add" color={m3.color.primary} size={18} />}
+            label={f("todoAdd")}
+            onPress={() => setTodos((prev) => [...prev, ""])}
+            style={styles.capTodoAdd}
+          />
         </View>
       )}
-      <GradientButton
-        label={
-          saving
-            ? locale === "ko" ? "저장 중" : "Saving"
-            : saved
-              ? locale === "ko" ? "저장 완료" : "Saved"
-              : captureMode === "fourw"
-                ? locale === "ko" ? "별가루 저장" : "Save piece"
-                : locale === "ko" ? "첫 기록 저장" : "Save first note"
-        }
-        onPress={saveFirstPiece}
-        full
+
+      {/* auto-classify banner (tertiary tonal) */}
+      <View style={styles.capBanner}>
+        <CaptureIcon name="auto_awesome" color={m3.color.onTertiaryContainer} size={18} />
+        <Text style={styles.capBannerText}>{f("banner")}</Text>
+      </View>
+
+      <MdButton
+        variant="filled"
+        icon={saving ? undefined : <CaptureIcon name="add" color={m3.color.onPrimary} size={18} />}
+        label={saveLabel}
+        loading={saving}
+        disabled={!canSave}
+        onPress={savePiece}
+        style={styles.capSubmit}
       />
+
       {saved ? (
-        <Pressable accessibilityRole="button" onPress={() => router.push("/records")} style={styles.ghostBtn}>
-          <Text style={styles.ghostLabel}>{locale === "ko" ? "기록 보관소에서 보기" : "Open records"}</Text>
-        </Pressable>
+        <MdButton
+          variant="text"
+          label={f("openRecords")}
+          onPress={() => router.push("/records")}
+          style={styles.capFullWidth}
+        />
       ) : null}
       {error ? (
-        <View style={styles.noteCard}>
-          <Text style={styles.noteText}>{locale === "ko" ? "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요." : "Could not save. Try again in a moment."}</Text>
+        <View style={styles.capErrorCard}>
+          <Text style={styles.capErrorText}>{f("saveError")}</Text>
         </View>
-      ) : (
-        <View style={styles.noteCard}>
-          <Text style={styles.noteText}>{t("ds.capture.tip")}</Text>
-        </View>
-      )}
-      {/* The full multi-mode intake (링크/클립/OCR/파일) lives on /capture-full —
-          the proven legacy pipes reused under the deep-space shell (QA F1). */}
-      <Pressable accessibilityRole="button" onPress={() => router.push("/capture-full")} style={styles.ghostBtn}>
-        <Text style={styles.ghostLabel}>
-          {locale === "ko" ? "링크·사진·파일로 담기" : "Add by link, photo, or file"}
-        </Text>
-      </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
@@ -1085,6 +1297,67 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28, gap: 0 },
   chatBody: { gap: 10 },
   pixelTitle: { color: deepSpace.accentBright, fontSize: 16, fontFamily: fontFamilies.readable, fontWeight: "700" },
+
+  // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
+  capBody: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
+  capTitle: { color: m3.color.onSurface, fontSize: 24, lineHeight: 30, fontFamily: m3.font.brand, fontWeight: "700" },
+  capSubtitle: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 20, fontFamily: m3.font.brand, marginTop: 4 },
+  capChipScroll: { marginTop: 16, marginHorizontal: -16 },
+  capChipRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 4 },
+  capForm: { gap: 14, marginTop: 16 },
+  capFieldHead: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  capFieldLabel: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 16, fontFamily: m3.font.brand, fontWeight: "500" },
+  capFieldInput: {
+    borderWidth: 1,
+    borderColor: m3.color.outlineVariant,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    backgroundColor: m3.color.surfaceContainerHighest,
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+    fontSize: 15,
+  },
+  capFieldInputTall: { minHeight: 96 },
+  capMono: { fontFamily: m3.font.mono, fontSize: 13 },
+  capFieldRow: { flexDirection: "row", gap: 12 },
+  capFieldCol: { flex: 1 },
+  capHint: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
+  capTodoCol: { gap: 8, marginTop: 16 },
+  capTodoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: m3.color.outlineVariant,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: m3.color.surfaceContainerHighest,
+  },
+  capTodoInput: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, fontSize: 15, padding: 0 },
+  capTodoAdd: { alignSelf: "flex-start" },
+  capBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: m3.color.tertiaryContainer,
+  },
+  capBannerText: { flex: 1, color: m3.color.onTertiaryContainer, fontSize: 12.5, lineHeight: 18, fontFamily: m3.font.brand },
+  capSubmit: { alignSelf: "stretch", marginTop: 14 },
+  capFullWidth: { alignSelf: "stretch", marginTop: 8 },
+  capErrorCard: {
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: m3.color.errorContainer,
+  },
+  capErrorText: { color: m3.color.onErrorContainer, fontSize: 12.5, lineHeight: 18, fontFamily: m3.font.brand },
 
   // shared gradient button
   gButton: {

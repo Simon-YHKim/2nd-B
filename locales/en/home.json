@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "Capture",
-      "placeholder": "A thought, something you read, a feeling… anything, in one line.",
-      "chipText": "Text",
-      "chipLink": "Link",
-      "chipVoice": "Voice",
-      "tip": "The moment you save it, SecondB tags and sorts it."
+      "subtitle": "Capture it in a format and SecondB weaves it into the right star.",
+      "modes": {
+        "text": "Text",
+        "link": "Link",
+        "photo": "Photo",
+        "voice": "Voice",
+        "todo": "To-do"
+      },
+      "fields": {
+        "what": {
+          "label": "What",
+          "hint": "Jot the heart of the thought or moment"
+        },
+        "when": {
+          "label": "When",
+          "hint": "This morning"
+        },
+        "where": {
+          "label": "Where",
+          "hint": "At work"
+        },
+        "who": {
+          "label": "Who",
+          "hint": "Me, with the team"
+        },
+        "how": {
+          "label": "How & why",
+          "hint": "What was on your mind"
+        }
+      },
+      "linkHint": "Paste a link and SecondB pulls the title and summary.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "Open camera or album",
+      "photoCaption": "Describe the photo",
+      "voiceOpen": "Open recorder",
+      "voiceHint": "Write what you said",
+      "todoHint": "To-do",
+      "todoAdd": "Add a to-do",
+      "banner": "The moment you save it, SecondB sorts it into the right star and tags.",
+      "save": "Capture",
+      "saving": "Saving",
+      "saved": "Saved",
+      "openRecords": "Open records",
+      "saveError": "Could not save. Try again in a moment."
     },
     "chat": {
       "user": "I've been so worn out lately. Why is that?",
