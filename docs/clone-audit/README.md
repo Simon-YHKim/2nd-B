@@ -28,3 +28,19 @@ Next step to unblock: capture the exact value gotrue writes under `supabase.auth
 real in-app login and match that shape when injecting (or add a dev-only design-preview flag that
 seeds AuthContext synchronously). Until then, gated screens are cloned from the reference
 source+capture and self-verified against `reference-captures/NN.png`.
+
+## Progress
+- ✅ Shell primitives (`src/components/deepspace/shell/`): starfield · status bar · 5-tab nav · window/immersive/museumLike layout.
+- ✅ `05-home` cloned + live-verified (2 rounds).
+- ✅ `01-auth` cloned + live-verified (social-first Korean, 5-locale i18n).
+- ⏳ 35 screens remaining — see `gap-backlog.json` (each maps to its real RN module + concrete gaps).
+
+## Repeatable loop (per screen / batch)
+1. Pick screen(s) from `gap-backlog.json` (verdict + topGaps + realScreenModule).
+2. Clone agent reads: `reference-captures/NN.png` (target) + reference source jsx in `reference-handoff/reference-app/` + the real RN module; rebuilds it on the shared shell using tokens; verbatim Korean copy; tsc/eslint/i18n clean; NO commit.
+3. `npx expo export --platform web`
+4. `PW_PATH=/opt/node22/lib/node_modules/playwright PW_CHROME=/opt/pw-browsers/chromium-1194/chrome-linux/chrome node scripts/clone-fidelity.mjs NN-name`
+5. Read `current/NN.png` vs `reference-captures/NN.png`; send diffs back to the agent; repeat to ~0.
+6. `npm run verify` → commit → push. Non-gated screens verify live; gated ones (see auth blocker above) self-verify vs capture until the blocker is resolved.
+
+Batch order suggestion: finish the 5 root tabs (capture · chat/secondb · records · settings), then Screen-Spec numeric order.
