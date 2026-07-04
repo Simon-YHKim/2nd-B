@@ -50,12 +50,7 @@ function PeerScreen({ t, go }) {
   const C = window.SB.C;
   const [copied, setCopied] = useGp(false);
   // self vs peer per trait (peer = 남이 본 평균)
-  const pairs = [
-    { k: '외향성', self: 41, peer: 60, note: '남들은 당신을 더 활발하게 봐요' },
-    { k: '우호성', self: 67, peer: 74, note: '비슷하게 따뜻한 사람으로 보여요' },
-    { k: '성실성', self: 58, peer: 55, note: '거의 같게 보여요' },
-    { k: '개방성', self: 72, peer: 63, note: '스스로를 더 열린 사람으로 느껴요' },
-  ];
+  const pairs = window.SB_DATA.gaps.peerPairs; // → data/screens/gaps.json
   return (
     <ScreenPad>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '8px 0 2px' }}>
@@ -120,13 +115,8 @@ function PeerScreen({ t, go }) {
 /* ===================== 정리함 (triage) ===================== */
 function TriageScreen({ t, go }) {
   const C = window.SB.C;
-  const seed = [
-    { id: 't1', icon: 'mic', title: '산책하며 떠오른 생각 (0:42)', sub: '음성 · 오전 9:14', tag: '리듬', why: '"혼자", "걷다" 표현이 리듬 별 신호와 겹쳐요.' },
-    { id: 't2', icon: 'edit_note', title: '요즘 사람들 앞에서 덜 긴장된다', sub: '글 · 어제', tag: '관계', why: '관계·외향성 신호. 최근 통화 기록과도 이어져요.' },
-    { id: 't3', icon: 'link', title: '딥워크 관련 아티클', sub: '링크 · 어제', tag: '성장', why: '학습·몰입 주제가 성장 별로 모여요.' },
-    { id: 't4', icon: 'photo_camera', title: '새로 산 러닝화', sub: '사진 · 2일 전', tag: '건강', why: '운동 루틴 신호로 보여요.' },
-  ];
-  const stars = ['커리어', '재정', '성장', '관계', '건강', '휴식', '담아내기'];
+  const seed = window.SB_DATA.gaps.triageSeed.map((r) => ({ ...r })); // → data/screens/gaps.json (clone per mount)
+  const stars = window.SB_DATA.gaps.triageStars; // → data/screens/gaps.json
   const [queue, setQueue] = useGp(seed);
   const [idx, setIdx] = useGp(0);
   const [tagFor, setTagFor] = useGp(null);
@@ -207,14 +197,7 @@ function TriageScreen({ t, go }) {
 /* ===================== 연결 찾기 (research) ===================== */
 function ResearchScreen({ t, go }) {
   const C = window.SB.C;
-  const clusters = [
-    { id: 'c1', title: '몰입과 회복의 균형', star: '리듬 · 건강', icon: 'bubble_chart',
-      members: ['딥워크 아티클', '"쫓기듯 산다"는 메모', '러닝화 사진'], evd: 5,
-      why: '몰입을 좇는 기록과 지친다는 신호가 번갈아 나타나요. 회복 루틴이 비는 시기와 겹쳐요.' },
-    { id: 'c2', title: '먼저 말 꺼내는 나', star: '관계 · 외향성', icon: 'forum',
-      members: ['회의에서 먼저 말함', '덜 긴장된다는 메모', '엄마에게 전화'], evd: 4,
-      why: '최근 한 달, 먼저 다가가는 행동이 늘었어요. 외향성 신호가 모여요.' },
-  ];
+  const clusters = window.SB_DATA.gaps.researchClusters; // → data/screens/gaps.json
   const [accepted, setAccepted] = useGp({});
   return (
     <ScreenPad>
@@ -439,18 +422,10 @@ function DobGateScreen({ t, go }) {
 /* ===================== 권한 관리 ===================== */
 function PermissionsScreen({ t, go }) {
   const C = window.SB.C;
-  const [p, setP] = useGp({ notify: true, mic: true, camera: false, calendar: true, location: false, contacts: false });
+  const [p, setP] = useGp({ ...window.SB_DATA.gaps.permissionDefaults }); // → data/screens/gaps.json
   const set = (k, v) => setP((s) => ({ ...s, [k]: v }));
-  const rows = [
-    { k: 'notify', icon: 'bubble_chart', label: '알림', sub: '새 통찰·연속기록·완료를 알려요' },
-    { k: 'mic', icon: 'mic', label: '마이크', sub: '음성 메모·통화 녹음 받아쓰기' },
-    { k: 'camera', icon: 'photo_camera', label: '카메라', sub: '사진으로 별가루 담기' },
-    { k: 'calendar', icon: 'today', label: '캘린더', sub: '비서가 보낸 루틴을 일정으로' },
-  ];
-  const sensitive = [
-    { k: 'location', icon: 'workspaces', label: '위치', sub: '맥락 신호 (선택) · 기본 꺼짐' },
-    { k: 'contacts', icon: 'forum', label: '통신·연락처', sub: '관계 신호 (선택) · 기본 꺼짐' },
-  ];
+  const rows = window.SB_DATA.gaps.permissionRows; // → data/screens/gaps.json
+  const sensitive = window.SB_DATA.gaps.permissionSensitive; // → data/screens/gaps.json
   return (
     <ScreenPad>
       <div className="md-body-medium" style={{ color: C('on-surface-variant'), margin: '10px 0 4px', wordBreak: 'keep-all' }}>
@@ -499,12 +474,7 @@ function PermissionsScreen({ t, go }) {
 /* ===================== 개인정보·약관·데이터 주권 ===================== */
 function PrivacyScreen({ t, go }) {
   const C = window.SB.C;
-  const facts = [
-    { icon: 'badge', label: '온디바이스 우선', v: '원문은 기기에서 분석하고, 파생 신호만 암호화해 남겨요.' },
-    { icon: 'inbox', label: '수집 항목', v: '담은 별가루·렌즈 점수·사용 패턴. 위치·통신은 동의 시에만.' },
-    { icon: 'schedule', label: '보관 기간', v: '계정이 살아있는 동안 · 탈퇴 시 30일 내 완전 삭제.' },
-    { icon: 'delete', label: '삭제권', v: '언제든 항목·전체를 삭제할 수 있어요.' },
-  ];
+  const facts = window.SB_DATA.gaps.privacyFacts; // → data/screens/gaps.json
   return (
     <ScreenPad>
       <SectionLabel>한눈에</SectionLabel>
@@ -536,16 +506,8 @@ function PrivacyScreen({ t, go }) {
 function SupportScreen({ t, go }) {
   const C = window.SB.C;
   const [open, setOpen] = useGp(null);
-  const faqs = [
-    { q: '밝기(별빛)와 확신은 뭐가 다른가요?', a: '별빛은 그 영역을 얼마나 많이 담았는지, 확신은 세컨비의 추정이 얼마나 검증됐는지예요. 둘은 따로 움직여요.' },
-    { q: '유료가 더 똑똑한가요?', a: '아니요. 답의 질은 모든 요금제가 같아요. 횟수·보관·내보내기 한도만 달라요.' },
-    { q: '통화 녹음은 안전한가요?', a: '녹음은 기기에서 받아쓰고 즉시 삭제해요. 텍스트와 신호만 암호화해 남겨요.' },
-  ];
-  const notices = [
-    { t: '세컨비 3모드 출시', d: '06. 20', tag: '새 기능' },
-    { t: 'AI 뮤지엄 8개 컬렉션 공개', d: '06. 12', tag: '콘텐츠' },
-    { t: '온디바이스 STT 개선', d: '06. 02', tag: '개선' },
-  ];
+  const faqs = window.SB_DATA.gaps.faqs; // → data/screens/gaps.json
+  const notices = window.SB_DATA.gaps.notices; // → data/screens/gaps.json
   return (
     <ScreenPad>
       <SectionLabel>문의</SectionLabel>
@@ -588,14 +550,7 @@ function SupportScreen({ t, go }) {
 /* ===================== 사용 매뉴얼 ===================== */
 function ManualScreen({ t, go }) {
   const C = window.SB.C;
-  const concepts = [
-    { icon: 'auto_awesome', title: '별 = 삶의 영역', body: '북두칠성 7별은 커리어·재정·성장·관계·건강·휴식·담아내기예요. 별을 눌러 그 영역의 나를 봐요.' },
-    { icon: 'workspaces', title: '북극성 = 나의 종합', body: '7별을 모아 정체성 한 문장으로 비춰요. 별이 고르게 밝아질수록 또렷해져요.' },
-    { icon: 'bubble_chart', title: '별빛 ≠ 확신', body: '별빛은 얼마나 담았는지, 확신은 얼마나 검증됐는지. 모르면 모른다고 말해요.' },
-    { icon: 'task_alt', title: '비준(propose→ratify)', body: '세컨비의 추정은 제안일 뿐이에요. "맞아요"로 비준한 것만 나에게 반영돼요.' },
-    { icon: 'inbox', title: '담기', body: '글·링크·사진·음성·할 일을 흘려보내지 말고 담아요. 분류는 세컨비가 도와요.' },
-    { icon: 'forum', title: '세컨비 3모드', body: '세컨비(나를 아는)·메타비(객관적)·트위비(창의적). 필요에 따라 바꿔 대화해요.' },
-  ];
+  const concepts = window.SB_DATA.gaps.manualConcepts; // → data/screens/gaps.json
   return (
     <ScreenPad>
       <div style={{ display: 'flex', gap: 10, margin: '10px 0 6px' }}>

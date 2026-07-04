@@ -1,3 +1,161 @@
 {
-  "__stub": true
+  "types": [
+    {
+      "icon": "directions_run",
+      "k": "활동 · 운동",
+      "on": true,
+      "items": [
+        "걸음",
+        "거리",
+        "활동 칼로리",
+        "총 칼로리",
+        "층수",
+        "운동 세션",
+        "VO₂max"
+      ]
+    },
+    {
+      "icon": "monitor_weight",
+      "k": "신체 조성",
+      "src": "인바디",
+      "on": true,
+      "items": [
+        "체중",
+        "키",
+        "체지방률",
+        "제지방량",
+        "BMI"
+      ]
+    },
+    {
+      "icon": "cardiology",
+      "k": "바이탈",
+      "on": true,
+      "items": [
+        "심박수",
+        "안정시 심박",
+        "HRV",
+        "산소포화도",
+        "호흡수",
+        "체온",
+        "혈압",
+        "혈당"
+      ]
+    },
+    {
+      "icon": "bedtime",
+      "k": "수면",
+      "on": true,
+      "items": [
+        "수면 단계 (렘·얕은·깊은)",
+        "수면 시간"
+      ]
+    },
+    {
+      "icon": "restaurant",
+      "k": "영양 · 수분",
+      "on": false,
+      "items": [
+        "섭취 칼로리",
+        "영양소",
+        "수분"
+      ]
+    },
+    {
+      "icon": "self_improvement",
+      "k": "마음챙김",
+      "on": false,
+      "items": [
+        "명상 세션"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "icon": "monitor_heart",
+      "k": "삼성 헬스",
+      "sub": "걸음 · 수면 · 심박",
+      "on": true
+    },
+    {
+      "icon": "favorite",
+      "k": "Apple 건강",
+      "sub": "활동 · 바이탈",
+      "on": true
+    },
+    {
+      "icon": "monitor_weight",
+      "k": "인바디",
+      "sub": "체성분 · 체지방",
+      "on": true
+    },
+    {
+      "icon": "devices",
+      "k": "Galaxy Watch",
+      "sub": "실시간 센서",
+      "on": true
+    },
+    {
+      "icon": "fitness_center",
+      "k": "Fitbit",
+      "sub": "아직 연결 안 됨",
+      "on": false
+    }
+  ],
+  "sleepDays": [
+    {
+      "d": "월",
+      "h": 6.5,
+      "cond": "low"
+    },
+    {
+      "d": "화",
+      "h": 7,
+      "cond": "ok"
+    },
+    {
+      "d": "수",
+      "h": 5.5,
+      "cond": "low"
+    },
+    {
+      "d": "목",
+      "h": 7.5,
+      "cond": "good"
+    },
+    {
+      "d": "금",
+      "h": 6,
+      "cond": "ok"
+    },
+    {
+      "d": "토",
+      "h": 8.5,
+      "cond": "good"
+    },
+    {
+      "d": "일",
+      "h": 7,
+      "cond": "ok"
+    }
+  ],
+  "bodyFat": {
+    "series": [
+      23.4,
+      23,
+      22.6,
+      21.8,
+      21.4,
+      20.9,
+      20.4,
+      20,
+      19.7,
+      19.4,
+      19.2,
+      19.1
+    ],
+    "max": 24,
+    "min": 17.5,
+    "goal": 18
+  }
 }

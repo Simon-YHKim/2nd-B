@@ -59,7 +59,7 @@ function VoiceField({ value, onChange, rec, setRec, placeholder, C }) {
 
 function HealthInputScreen({ t, go, param }) {
   const C = window.SB.C;
-  const HEAD = 'assets/deepspace/secondb-head-front.png';
+  const HEAD = window.SB_DATA.healthinput.headAsset; // → data/screens/healthinput.json
 
   const [mood, setMood] = React.useState(2);    // 0..4
   const [energy, setEnergy] = React.useState(0); // 0..5 (0=미선택)
@@ -71,20 +71,10 @@ function HealthInputScreen({ t, go, param }) {
   const [whyRec, setWhyRec] = React.useState(false);
   const [done, setDone] = React.useState(false);
 
-  const MOODS = [
-    { ic: 'sentiment_very_dissatisfied', l: '많이 지침' },
-    { ic: 'sentiment_dissatisfied', l: '지침' },
-    { ic: 'sentiment_neutral', l: '보통' },
-    { ic: 'sentiment_satisfied', l: '좋음' },
-    { ic: 'sentiment_very_satisfied', l: '아주 좋음' },
-  ];
-  const CTX = ['수면', '운동', '영양', '스트레스', '통증', '휴식', '카페인', '음주'];
-  const CAUSES = ['업무 스트레스', '늦은 취침', '갈등', '음주', '카페인', '과로', '컨디션 난조'];
-  const SHORTCUTS = [
-    { id: 'meal', icon: 'restaurant', label: '식단' },
-    { id: 'workout', icon: 'fitness_center', label: '운동' },
-    { id: 'sleep', icon: 'bedtime', label: '수면' },
-  ];
+  const MOODS = window.SB_DATA.healthinput.moods; // → data/screens/healthinput.json
+  const CTX = window.SB_DATA.healthinput.contexts; // → data/screens/healthinput.json
+  const CAUSES = window.SB_DATA.healthinput.causes; // → data/screens/healthinput.json
+  const SHORTCUTS = window.SB_DATA.healthinput.shortcuts; // → data/screens/healthinput.json
   const toggle = (arr, set, v) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const healthStar = (window.SB.STARS || []).find((s) => s.id === 'health');
 

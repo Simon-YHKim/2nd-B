@@ -13,36 +13,9 @@ function JournalScreen({ t, go }) {
   const [filter, setFilter] = useDs('전체');
 
   // day-grouped diary entries. mood: 0 dim → 1 bright
-  const DAYS = [
-    { date: '6월 24일', wd: '화', mood: 0.72, items: [
-      { time: '오후 9:14', type: 'voice', icon: 'mic', dom: '휴식', tone: 'tertiary',
-        text: '산책하며 떠오른 생각 — 혼자 걷는 시간이 제일 정리가 잘 된다.' },
-      { time: '오후 3:02', type: 'link', icon: 'link', dom: '성장', tone: 'primary',
-        text: '담아둔 아티클: 몰입과 회복의 균형에 대해' },
-      { time: '오전 8:40', type: 'text', icon: 'edit_note', dom: '건강', tone: 'secondary',
-        text: '어제 6시간 반 잤는데 컨디션은 의외로 괜찮음.' },
-    ] },
-    { date: '6월 23일', wd: '월', mood: 0.48, items: [
-      { time: '오후 7:55', type: 'chat', icon: 'auto_awesome', dom: '관계', tone: 'primary',
-        text: '세컨비와 대화: 엄마에게 먼저 전화한 일에 대해' },
-      { time: '오후 1:20', type: 'text', icon: 'edit_note', dom: '커리어', tone: 'secondary',
-        text: '회의에서 의견을 먼저 꺼냈다. 작지만 평소와 달랐다.' },
-    ] },
-    { date: '6월 21일', wd: '토', mood: 0.61, items: [
-      { time: '오후 5:30', type: 'photo', icon: 'photo_camera', dom: '휴식', tone: 'tertiary',
-        text: '러닝 후 한강. 오랜만에 멀리 봤다.' },
-      { time: '오전 11:08', type: 'link', icon: 'link', dom: '재정', tone: 'secondary',
-        text: '담아둔 링크: 30대 자산 배분 기본기' },
-      { time: '오전 9:00', type: 'voice', icon: 'mic', dom: '성장', tone: 'primary',
-        text: '주말 아침 음성 메모 — 이번 달 돌아보기' },
-    ] },
-  ];
+  const DAYS = window.SB_DATA.digest.journalDays; // → data/screens/digest.json
 
-  const FILTERS = [
-    { k: '전체', icon: 'apps' }, { k: '글', icon: 'edit_note', type: 'text' },
-    { k: '링크', icon: 'link', type: 'link' }, { k: '음성', icon: 'mic', type: 'voice' },
-    { k: '대화', icon: 'auto_awesome', type: 'chat' },
-  ];
+  const FILTERS = window.SB_DATA.digest.journalFilters; // → data/screens/digest.json
   const match = (it) => filter === '전체' || FILTERS.find(f => f.k === filter)?.type === it.type;
   const days = DAYS.map(d => ({ ...d, items: d.items.filter(match) })).filter(d => d.items.length);
 
@@ -129,7 +102,7 @@ function JournalScreen({ t, go }) {
 /* ===================== 리워드 광고 (opt-in) ===================== */
 function RewardScreen({ t, go }) {
   const C = window.SB.C;
-  const head = 'assets/deepspace/secondb-head-front.png';
+  const head = window.SB_DATA.digest.headAsset; // → data/screens/digest.json
   const [balance, setBalance] = useDs(() => {
     try { return parseInt(localStorage.getItem('sb.boost') || '5', 10); } catch (e) { return 5; }
   });
@@ -155,11 +128,7 @@ function RewardScreen({ t, go }) {
   };
   useDe(() => () => clearInterval(tref.current), []);
 
-  const GUARANTEES = [
-    { icon: 'verified', t: '분석 품질은 그대로예요', s: '광고를 봐도 세컨비가 더 똑똑해지지 않아요. 횟수만 늘어요.' },
-    { icon: 'shield', t: '민감한 화면엔 안 띄워요', s: '통화 녹음·심층 인터뷰·정체성 화면에서는 광고가 없어요.' },
-    { icon: 'sentiment_satisfied', t: '안 봐도 다 쓸 수 있어요', s: '광고는 선택이에요. 핵심 기능은 광고 없이 그대로 동작해요.' },
-  ];
+  const GUARANTEES = window.SB_DATA.digest.rewardGuarantees; // → data/screens/digest.json
 
   return (
     <ScreenPad>
@@ -250,27 +219,7 @@ function DigestScreen({ t, go }) {
   const C = window.SB.C;
   const [period, setPeriod] = useDs('이번 주');
 
-  const DATA = {
-    '이번 주': {
-      range: '6월 23일 – 6월 29일', captured: 18, chats: 6,
-      tops: [ { dom: '휴식', n: 6, tone: 'tertiary' }, { dom: '성장', n: 5, tone: 'primary' }, { dom: '건강', n: 4, tone: 'secondary' } ],
-      trend: { claim: '요즘 ‘회복’과 ‘쉼’에 대한 관심이 올라온 것 같아요', conf: 64, ev: 7 },
-      pattern: { claim: '몰입이 높았던 날일수록 다음 날 수면이 짧았어요', conf: 58, ev: 5 },
-      next: [
-        { icon: 'self_improvement', t: '쉼을 일정으로', s: '이번 주 회복 신호가 약했어요. 30분 산책을 한 칸 잡아둘까요?', route: 'reminders' },
-        { icon: 'bedtime', t: '몰입 다음 날 보호', s: '집중한 날 밤은 알림을 줄여 수면을 지킬게요.', route: 'focus' },
-      ],
-    },
-    '지난 주': {
-      range: '6월 16일 – 6월 22일', captured: 14, chats: 4,
-      tops: [ { dom: '커리어', n: 5, tone: 'secondary' }, { dom: '관계', n: 4, tone: 'primary' }, { dom: '재정', n: 3, tone: 'secondary' } ],
-      trend: { claim: '관계에서 먼저 다가서는 시도가 늘었어요', conf: 71, ev: 6 },
-      pattern: { claim: '재정 기록은 주로 주말 아침에 담았어요', conf: 52, ev: 4 },
-      next: [
-        { icon: 'group', t: '관계 모멘텀 잇기', s: '먼저 연락한 흐름이 좋았어요. 한 명 더 떠올려볼까요?', route: 'star' },
-      ],
-    },
-  };
+  const DATA = window.SB_DATA.digest.digestData; // → data/screens/digest.json
   const d = DATA[period];
   const maxN = Math.max(...d.tops.map(x => x.n));
 
@@ -279,7 +228,7 @@ function DigestScreen({ t, go }) {
       {/* period segmented */}
       <div style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 9999, background: C('surface-container'),
         border: `1px solid ${C('outline-variant')}`, margin: '6px 0 14px' }}>
-        {['이번 주', '지난 주'].map(p => {
+        {window.SB_DATA.digest.periods.map(p => { // → data/screens/digest.json
           const on = period === p;
           return (
             <button key={p} onClick={() => setPeriod(p)}

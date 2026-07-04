@@ -2,34 +2,28 @@
    '활동 나열'이 아니라 왜·얼마나·어떤 맥락으로 하는지(=페르소나 신호)를 담는다.
    휴식 별 → '채워 넣기' 진입. (attached hobby-input-ui.html 의 앱 내 포팅) */
 
-const HOBBY_CATS = ['운동', '창작', '학습', '수집', '게임', '소셜', '휴식·힐링', '탐험·여행', '요리·음식', '기타'];
-const HOBBY_STATUS = [['active', '지속중'], ['dormant', '휴면'], ['aspirational', '하고싶음']];
+const HOBBY_CATS = window.SB_DATA.hobby.cats; // → data/screens/hobby.json
+const HOBBY_STATUS = window.SB_DATA.hobby.statuses; // → data/screens/hobby.json
 
+const HB_INTENSITY_LABELS = window.SB_DATA.hobby.intensityLabels; // → data/screens/hobby.json
+const HB_SOCIAL_LABELS = window.SB_DATA.hobby.socialLabels; // → data/screens/hobby.json
+function hbLookupLabel(table, v) {
+  for (const row of table) { if (row.max !== null && v <= row.max) return row.label; }
+  return table[table.length - 1].label;
+}
 function hbIntensity(v) {
-  if (v <= 2) return '가볍게 (1~2)';
-  if (v <= 4) return '취미 수준 (3~4)';
-  if (v <= 6) return '진지함 (5~6)';
-  if (v <= 8) return '깊이 몰입 (7~8)';
-  return '과몰입·정체성 (9~10)';
+  return hbLookupLabel(HB_INTENSITY_LABELS, v);
 }
 function hbSocial(v) {
-  if (v <= 2) return '철저히 혼자';
-  if (v <= 4) return '혼자 선호';
-  if (v <= 6) return '반반';
-  if (v <= 8) return '함께 선호';
-  return '무조건 함께';
+  return hbLookupLabel(HB_SOCIAL_LABELS, v);
 }
 
 let HB_UID = 1;
 function hbBlank() {
-  return { id: HB_UID++, name: '', cat: '', freq: '', intensity: 5, social: 5, status: 'active', motiv: '', detail: '', focus: '', cost: '' };
+  return { id: HB_UID++, ...window.SB_DATA.hobby.blankDefaults }; // → data/screens/hobby.json
 }
 function hbSample() {
-  return { id: HB_UID++, name: '클라이밍 (볼더링)', cat: '운동', freq: '2년차 · 주2회(화·일)',
-    intensity: 8, social: 4, status: 'active',
-    motiv: '문제풀이 쾌감 > 운동효과. 한 수씩 베타 짜는 게 코드 디버깅이랑 같은 뇌를 씀.',
-    detail: '지구력보다 파워무브 선호. 실내 위주, 자연암장은 연 2~3회.',
-    focus: 'V5 정체 구간 돌파, 손가락 부상 관리.', cost: '월 15만원 · 주 4시간' };
+  return { id: HB_UID++, ...window.SB_DATA.hobby.sample }; // → data/screens/hobby.json
 }
 
 const hbInput = (C) => ({
@@ -234,11 +228,7 @@ function HobbyInputScreen({ t, go, param }) {
           </button>
           {tipsOpen &&
           <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {[
-              ['동기가 1순위', '같은 “독서”도 지식 수집이냐 현실 도피냐로 사람이 갈려요.'],
-              ['대조 쌍을 적어요', '“X는 좋은데 Y는 싫다”가 단독 서술보다 정보량 2배예요.'],
-              ['욕구로 매핑', '이 활동이 채우는 게 자율성·유능감·관계성 중 무엇인지 떠올려요.'],
-              ['상태도 신호', '“하고 싶은데 못 하는 것(휴면·희망)”도 당신을 설명해요.']].
+              {window.SB_DATA.hobby.tips. // → data/screens/hobby.json
               map(([h, b]) =>
               <div key={h} style={{ display: 'flex', gap: 8 }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: C('tertiary'), flex: '0 0 auto', marginTop: 7 }} />

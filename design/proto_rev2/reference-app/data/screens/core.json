@@ -1,3 +1,131 @@
 {
-  "__stub": true
+  "chatAnswers": {
+    "2nd": {
+      "text": "최근 2주 기록을 보면 ‘쉼’ 없이 일만 늘었어요. 당신은 사람을 만나야 충전되는 편인데, 그 시간이 부쩍 줄었네요.",
+      "cites": [
+        "근거 · 기록 8건",
+        "관계 별 ↓"
+      ],
+      "sugg": [
+        "쉼을 한 줄 담기",
+        "관계 별 보기"
+      ]
+    },
+    "meta": {
+      "text": "데이터만 보면: 일 기록 +38%, 휴식 태그 0건, 평균 수면 5.6시간. 외향성 지표가 2주째 하락 추세예요.",
+      "cites": [
+        "지표 · 4종",
+        "추세 14일"
+      ],
+      "sugg": [
+        "지표 자세히",
+        "검증틀 열기"
+      ]
+    },
+    "twi": {
+      "text": "당신 기록을 다르게 이어 보면 — ‘쉼’ 별과 ‘성장’ 별이 늘 따로 놀았어요. 둘을 묶으면? 혼자 걷는 30분을 ‘배우는 산책’으로 바꿔, 듣고 싶던 강연을 흘려보는 거예요. 쉬면서 자라는 시간이 생겨요.",
+      "cites": [
+        "엮은 별 · 2개",
+        "안 해본 조합"
+      ],
+      "sugg": [
+        "이 아이디어 담기",
+        "다른 조합 더 보기"
+      ]
+    }
+  },
+  "chatStorageKey": "sb_chat_v3",
+  "captureCategories": [
+    {
+      "id": "career",
+      "label": "커리어",
+      "icon": "badge",
+      "accent": "primary"
+    },
+    {
+      "id": "finance",
+      "label": "재정",
+      "icon": "sell",
+      "accent": "primary"
+    },
+    {
+      "id": "relation",
+      "label": "관계",
+      "icon": "group",
+      "accent": "tertiary"
+    },
+    {
+      "id": "growth",
+      "label": "성장",
+      "icon": "self_improvement",
+      "accent": "primary"
+    },
+    {
+      "id": "health",
+      "label": "건강",
+      "icon": "bedtime",
+      "accent": "tertiary"
+    },
+    {
+      "id": "leisure",
+      "label": "휴식",
+      "icon": "lightbulb",
+      "accent": "tertiary"
+    }
+  ],
+  "chatPersonas": {
+    "2nd": "너는 사용자를 잘 아는 “세컨비”. 사용자의 기록(별)을 근거로 따뜻하게, 그러나 솔직하게 답한다.",
+    "meta": "너는 객관적인 “메타비”. 감정을 빼고 데이터·지표·추세로만 간결하게 답한다.",
+    "twi": "너는 창의적인 “트위비”. 사용자의 기록(별)을 근거로, 사용자가 미처 생각 못 한 엉뚱하고 신선한 가능성·조합·아이디어를 제안한다. 비판이 아니라 영감을 준다."
+  },
+  "dictationPhrases": [
+    "오늘 ",
+    "오늘 회의에서 ",
+    "오늘 회의에서 느낀 점을 ",
+    "오늘 회의에서 느낀 점을 담아줘"
+  ],
+  "chatSuggestions": [
+    "요즘 나 어때?",
+    "나 왜 지칠까?",
+    "뭘 더 담으면 좋아?"
+  ],
+  "ocrSample": "몰입(flow)은 행위와 의식이 하나로 합쳐지는 상태다. 시간 감각이 사라지고, 자아에 대한 의식이 옅어진다. 이 상태에 자주 드는 사람일수록 삶의 만족도가 높았다.\n— 미하이 칙센트미하이, 《몰입》 p.84",
+  "captureIntents": [
+    [
+      "moment",
+      "photo_camera",
+      "순간 기록"
+    ],
+    [
+      "ocr",
+      "document_scanner",
+      "글 추출 (OCR)"
+    ]
+  ],
+  "captureIntentHelp": {
+    "moment": "그 순간을 사진 그대로 남겨요. 이미지가 기록과 함께 저장돼요.",
+    "ocr": "이미지 속 글자만 뽑아 담아요. 무거운 원본 사진은 저장하지 않아 용량을 아껴요."
+  },
+  "structuredToggle": [
+    {
+      "k": false,
+      "label": "자유 양식",
+      "icon": "edit_note"
+    },
+    {
+      "k": true,
+      "label": "W4H1 양식",
+      "icon": "view_agenda"
+    }
+  ],
+  "voiceWaveform": [
+    10,
+    18,
+    26,
+    16,
+    22,
+    12,
+    20,
+    14
+  ]
 }

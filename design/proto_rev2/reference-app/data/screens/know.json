@@ -1,3 +1,36 @@
 {
-  "__stub": true
+  "starColors": {
+    "지금의 나": "primary",
+    "리듬": "tertiary",
+    "관계 · 지식": "secondary",
+    "일 · 성장": "primary",
+    "회상": "tertiary",
+    "미래의 나": "secondary"
+  },
+  "typeLabels": {
+    "text": "글",
+    "link": "링크",
+    "voice": "음성",
+    "photo": "사진",
+    "todo": "할 일"
+  },
+  "typeIcons": {
+    "text": "edit_note",
+    "link": "link",
+    "voice": "mic",
+    "photo": "photo_camera",
+    "todo": "check_circle"
+  },
+  "ratifyProposals": [
+    { "lens": "지금의 나 · 외향성", "from": "L3", "to": "L4", "delta": "+6" },
+    { "lens": "리듬", "from": "L2", "to": "L3", "delta": "명확" }
+  ],
+  "questions": [
+    "요즘 사람들과 함께 있을 때, 에너지가 차오르나요 빠져나가나요?",
+    "혼자 있는 저녁과 약속이 있는 저녁 중, 어느 쪽이 더 당신답나요?",
+    "처음 만난 자리에서 먼저 말을 거는 편인가요?",
+    "지친 하루의 끝, 누군가에게 연락하고 싶어지나요?",
+    "돌아보면, 당신을 가장 살아있게 한 순간은 혼자였나요 함께였나요?"
+  ],
+  "likertOptions": ["그렇다", "조금 그렇다", "중간", "조금 아니다", "아니다"]
 }

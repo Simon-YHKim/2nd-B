@@ -10,95 +10,19 @@
   const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
 
   /* ---- domain palette (그래프에서 도메인 구분용 distinct hue) ---- */
-  const DOMAINS = [
-    { id: 'career',   name: '커리어',   color: '#6FB1FF', level: 3, line: '무엇을 만들고 쌓아왔나요?' },
-    { id: 'finance',  name: '재정',     color: '#5BD6B0', level: 2, line: '돈은 나의 무엇을 말해주나요?' },
-    { id: 'relation', name: '관계',     color: '#FF9DB0', level: 3, line: '가까운 사람들과 나는 어떤가요?' },
-    { id: 'growth',   name: '성장',     color: '#A78BFA', level: 3, line: '어느 시기가 지금의 나를 만들었나요?' },
-    { id: 'health',   name: '건강',     color: '#7BE0A3', level: 2, line: '요즘 내 컨디션과 리듬은요?' },
-    { id: 'leisure',  name: '휴식',     color: '#FFCF6E', level: 2, line: '무엇이 나를 쉬게 하나요?' },
-    { id: 'catchall', name: '담아내기', color: '#9AA7C7', level: 4, line: '아직 어디에도 못 담은 것들.' },
-  ];
+  const DOMAINS = window.SB_DATA.wiki.domains; // → data/screens/wiki.json
   const DCOLOR = Object.fromEntries(DOMAINS.map((d) => [d.id, d.color]));
   const DNAME = Object.fromEntries(DOMAINS.map((d) => [d.id, d.name]));
 
-  const TYPE_ICON = { text: 'edit_note', link: 'link', voice: 'mic', photo: 'photo_camera', todo: 'check_circle' };
-  const TYPE_LABEL = { text: '글', link: '링크', voice: '음성', photo: '사진', todo: '할 일' };
-  const TYPE_ORDER = ['text', 'link', 'voice', 'photo', 'todo'];
+  const TYPE_ICON = window.SB_DATA.wiki.typeIcon; // → data/screens/wiki.json
+  const TYPE_LABEL = window.SB_DATA.wiki.typeLabel; // → data/screens/wiki.json
+  const TYPE_ORDER = window.SB_DATA.wiki.typeOrder; // → data/screens/wiki.json
 
   /* ---- 별가루(기록) — 태그가 도메인을 넘어 겹치며 연결을 만든다 ---- */
-  const RECS = [
-    // 커리어
-    { id: 'c1', d: 'career', type: 'text', date: '2026-06-26', title: '회의에서 먼저 제안을 꺼냈다', tags: ['주도성', '몰입', '발표'],
-      body: '기획 회의에서 평소 같으면 묻어뒀을 의견을 먼저 꺼냈다. 손은 떨렸는데, 말하고 나니 의외로 후련했다. 다음엔 좀 더 일찍 손을 들어봐야지.',
-      summary: '먼저 의견을 낸 순간을 외향성·주도성 신호로 읽었어요. 최근 2주 ‘먼저 말 꺼냄’ 기록이 3건으로 늘었어요.' },
-    { id: 'c2', d: 'career', type: 'todo', date: '2026-06-18', title: '사이드 프로젝트 첫 배포', tags: ['몰입', '성취', '개발'],
-      body: '두 달 붙잡고 있던 사이드 프로젝트를 드디어 배포했다. 새벽 두 시. 아무도 안 보지만, 내 손으로 끝까지 밀어붙여 끝냈다는 게 좋다.',
-      summary: '몰입해서 끝까지 밀어붙인 작업이에요. ‘성장·몰입’ 태그와 이어져, 일에서 자율성이 높을 때 에너지가 난다는 패턴을 받쳐줘요.' },
-    { id: 'c3', d: 'career', type: 'link', date: '2026-06-05', title: '이직 제안 메일 정리', tags: ['커리어', '돈', '선택'],
-      body: '헤드헌터 메일을 정리했다. 연봉은 오르는데 하는 일이 지금보다 좁아진다. 돈이냐 의미냐… 일단 적어두고 며칠 더 두고 보기로 했다.',
-      summary: '보상(돈)과 의미 사이의 저울질이 담겨 있어요. 재정 별의 ‘여행 적금’ 기록과 같은 ‘돈’ 맥락으로 묶었어요.' },
-    // 재정
-    { id: 'f1', d: 'finance', type: 'todo', date: '2026-06-20', title: '구독 6개 점검·2개 해지', tags: ['돈', '정리'],
-      body: '안 쓰는 구독 여섯 개를 들여다보고 두 개를 해지했다. 월 이만 원 정도. 작지만 새는 걸 스스로 막았다는 감각이 좋다.',
-      summary: '새는 지출을 스스로 점검한 기록이에요. 성실성 신호로 읽었고, ‘정리’ 태그가 담아내기 별과도 닿아요.' },
-    { id: 'f2', d: 'finance', type: 'text', date: '2026-06-12', title: '6월 지출 회고', tags: ['돈', '회고'],
-      body: '이번 달은 카페랑 여가에 평소보다 많이 썼다. 스트레스를 돈으로 푸는 버릇이 있는 것 같다. 다음 달은 항목별 한도를 정해보자.',
-      summary: '한 달의 돈 흐름을 돌아본 메모예요. 카페·여가 지출이 늘어, 휴식 별의 기록들과 같은 시기에 몰려 있어요.' },
-    { id: 'f3', d: 'finance', type: 'todo', date: '2026-05-30', title: '여행 적금 시작', tags: ['돈', '여행', '계획'],
-      body: '매달 이십만 원씩 여행 적금을 시작했다. 일 년 뒤 어딘가로 떠날 나를 위해. 미래의 나에게 미리 보내두는 돈이라고 생각하니 덜 아깝다.',
-      summary: '미래의 나를 위한 준비예요. 휴식 별의 ‘등산·여행’ 기록과 ‘여행’ 태그로 이어져요.' },
-    // 관계
-    { id: 'r1', d: 'relation', type: 'todo', date: '2026-06-27', title: '엄마에게 전화하기', tags: ['가족', '사람'],
-      body: '엄마한테 전화했다. 별일 없냐는 말에 그냥 목소리 들으려고 했다니까 웃으셨다. 용건 없이 거는 전화를 더 자주 해야지.',
-      summary: '가까운 사람에게 먼저 다가간 기록이에요. 관계 별이 어두워질 때 이런 행동이 별을 다시 밝혀요.' },
-    { id: 'r2', d: 'relation', type: 'photo', date: '2026-06-15', title: '오랜 친구와 커피', tags: ['사람', '카페'],
-      body: '오랜만에 본 친구. 두 시간이 십 분처럼 지나갔다. 사람한테 충전된다는 게 이런 거구나, 오랜만에 느꼈다.',
-      summary: '사람을 만나 충전된 시간이에요. ‘카페’ 태그로 휴식 별의 ‘멍 때리기’와 닿아, 쉼의 결이 사람과 함께일 때 더 깊다는 신호예요.' },
-    { id: 'r3', d: 'relation', type: 'text', date: '2026-06-08', title: '팀 동료와 갈등 정리', tags: ['사람', '불안'],
-      body: '불편했던 동료와 결국 마주 앉아 얘기했다. 피하고만 싶었는데, 막상 꺼내니 별일 아니었다. 며칠 마음에 얹혀 있던 게 풀렸다.',
-      summary: '불편을 회피하지 않고 마주한 기록이에요. 건강 별의 ‘불안’ 기록과 같은 감정선을 공유해요.' },
-    // 성장
-    { id: 'g1', d: 'growth', type: 'link', date: '2026-06-22', title: '칼 뉴포트 ‘몰입’ 글 메모', tags: ['독서', '몰입'],
-      body: '딥 워크에 관한 글. 방해 없는 구십 분이 산만한 하루보다 낫다는 문장에 밑줄. 생각해보면 내 배포 작업도 그런 구십 분들이 모인 거였다.',
-      summary: '몰입을 다룬 글에서 밑줄 친 부분이에요. 커리어 별의 ‘배포·제안’ 기록과 ‘몰입’으로 강하게 연결돼요.' },
-    { id: 'g2', d: 'growth', type: 'text', date: '2026-06-19', title: '새벽 글쓰기 7일째', tags: ['글쓰기', '루틴'],
-      body: '새벽 글쓰기 이레째. 잘 써지진 않지만 안 빠지고 책상에 앉는다는 것 자체가 중요한 것 같다. 꾸준함이 천천히 쌓이는 느낌.',
-      summary: '꾸준함이 쌓이는 루틴이에요. 성실성·개방성 신호가 함께 또렷해지는 중이에요.' },
-    { id: 'g3', d: 'growth', type: 'photo', date: '2026-06-10', title: '서점에서 산 책 표지', tags: ['독서', '영감'],
-      body: '충동적으로 산 책. 내용도 모르고 표지가 좋아서 집었다. 아직 안 읽었지만, 이 끌림이 다음 관심사의 씨앗일지도 모르겠다.',
-      summary: '새 관심사의 씨앗이에요. ‘독서’ 태그로 다른 학습 기록과 군집을 이뤄요.' },
-    // 건강
-    { id: 'h1', d: 'health', type: 'text', date: '2026-06-25', title: '수면 5.6시간 기록', tags: ['수면', '컨디션'],
-      body: '또 여섯 시간을 못 잤다. 이렇게 이 주째다. 머리가 멍하고 사소한 일에도 예민해진다. 알면서도 자꾸 늦게 눕는다.',
-      summary: '2주째 평균 수면이 6시간 아래예요. 휴식 별의 ‘쉼’ 기록과 함께 보면 회복이 부족한 신호로 읽혀요.' },
-    { id: 'h2', d: 'health', type: 'todo', date: '2026-06-17', title: '달리기 3km', tags: ['운동', '컨디션'],
-      body: '오랜만에 삼 킬로미터를 뛰었다. 숨은 찼지만 끝나고 나니 머리가 맑아졌다. 몸을 움직이면 잡생각이 확실히 줄어든다.',
-      summary: '몸을 움직여 컨디션을 끌어올린 기록이에요. ‘운동’ 태그로 휴식 별의 등산과 이어져요.' },
-    { id: 'h3', d: 'health', type: 'voice', date: '2026-06-09', title: '요즘 자주 불안하다', tags: ['불안', '마음'],
-      body: '(음성 메모) 요즘 이유 없이 불안하다. 가슴이 답답하고 잠도 얕다. 일 때문인지 사람 때문인지, 뭐가 먼저인지도 잘 모르겠다.',
-      summary: '신경성 신호예요. 관계 별의 ‘갈등 정리’와 같은 시기에 모여, 사람 사이 긴장이 마음에 남았을 수 있어요.' },
-    // 휴식
-    { id: 'l1', d: 'leisure', type: 'photo', date: '2026-06-21', title: '주말 등산 사진', tags: ['운동', '여행', '쉼'],
-      body: '주말 등산. 정상에서 본 능선이 좋았다. 가만히 누워 쉬는 것보다, 몸을 쓰고 나서 쉬는 게 나한텐 더 맞는 것 같다.',
-      summary: '몸을 쓰며 쉰 하루예요. 건강 별의 달리기, 재정 별의 여행 적금과 태그가 겹쳐 ‘활동적인 쉼’을 좋아하는 결을 보여줘요.' },
-    { id: 'l2', d: 'leisure', type: 'link', date: '2026-06-14', title: '새 플레이리스트', tags: ['음악', '쉼'],
-      body: '요즘 듣는 곡들을 모아 플레이리스트를 만들었다. 일할 때도, 걸을 때도 이걸 튼다. 나한텐 소리로 쉬는 방식이 따로 있는 모양이다.',
-      summary: '소리로 쉬는 방식이에요. 혼자 회복하는 쉼의 한 갈래로 묶었어요.' },
-    { id: 'l3', d: 'leisure', type: 'text', date: '2026-06-07', title: '카페에서 멍 때리기', tags: ['카페', '쉼', '수면'],
-      body: '카페 구석에서 한 시간을 멍하니 보냈다. 아무것도 안 했는데 이상하게 채워졌다. 가끔은 이런 텅 빈 시간이 필요한 것 같다.',
-      summary: '아무것도 안 하며 채운 시간이에요. ‘카페’로 관계 별과, ‘수면’으로 건강 별과 닿는 교차점이에요.' },
-    // 담아내기
-    { id: 'x1', d: 'catchall', type: 'voice', date: '2026-06-24', title: '산책하며 떠오른 생각 (0:42)', tags: ['미분류', '영감'],
-      body: '(음성 0:42) 걷다가 문득 떠오른 생각인데, 지금 정리하긴 어렵고… 흘려보내기엔 아까워서 일단 남겨둔다. 나중에 다시 들어보자.',
-      summary: '아직 어느 별에도 닿지 못한 조각이에요. ‘영감’ 태그로 성장 별의 책 기록과 묶일 가능성이 보여요.' },
-    { id: 'x2', d: 'catchall', type: 'link', date: '2026-06-11', title: '스크랩: 우주 사진', tags: ['미분류', '영감'],
-      body: '왜 저장했는지 모르겠는 우주 사진. 그냥 끌려서 담았다. 이런 정체 모를 끌림이 쌓이다 보면 언젠가 뭔가 보이지 않을까.',
-      summary: '왜 저장했는지 아직 모를 조각이에요. 정리하면 성장이나 휴식 별로 옮겨갈 수 있어요.' },
-  ];
+  const RECS = window.SB_DATA.wiki.records; // → data/screens/wiki.json
 
   const fmtDate = (iso) => { const [y, m, d] = iso.split('-'); return `${+m}월 ${+d}일`; };
-  const today = new Date('2026-06-28');
+  const today = new Date(window.SB_DATA.wiki.refDate); // → data/screens/wiki.json
   const daysAgo = (n) => { const d = new Date(today); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
 
   /* ---- deterministic radial seed layout (시뮬레이션 시작 위치) ---- */
@@ -135,8 +59,8 @@
   }
 
   /* ---- graph physics/display config ---- */
-  const DEFAULT_CFG = { centerF: 0.45, repelF: 0.45, linkF: 0.55, linkDist: 0.45, nodeScale: 1, linkScale: 1, arrows: false };
-  const CFG_KEY = 'sb-graph-cfg-v1';
+  const DEFAULT_CFG = window.SB_DATA.wiki.defaultCfg; // → data/screens/wiki.json
+  const CFG_KEY = window.SB_DATA.wiki.cfgKey; // → data/screens/wiki.json
   function loadCfg() {
     try { const j = JSON.parse(localStorage.getItem(CFG_KEY)); if (j && typeof j === 'object') return { ...DEFAULT_CFG, ...j }; } catch (e) {}
     return { ...DEFAULT_CFG };

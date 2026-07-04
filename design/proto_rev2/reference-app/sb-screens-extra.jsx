@@ -10,29 +10,7 @@ const { useState: useSt, useEffect: useEf } = React;
 
 /* ---- per-domain detail metadata. 별빛(cov)=얼마나 담았나, 확신(conf)=얼마나 검증됐나.
    The two are intentionally different — that is the PRD's 밝기 정직성 rule. ---- */
-const DOMAIN_META = {
-  career: { icon: 'workspaces', cov: 70, conf: 52, related: '성실성 · 외향성',
-    insight: '최근 3주, 일 관련 기록이 전체의 64%예요. 몰입은 깊은데 회복 신호가 적어요.',
-    recs: [0, 3], next: { label: '이 도메인에 담기', route: 'capture' } },
-  finance: { icon: 'savings', cov: 30, conf: 24, related: '신경성',
-    insight: '이번 달 예산의 68%를 썼어요. 고정지출은 안정적인데, 여가 지출이 지난달보다 22% 늘었어요.',
-    recs: [5], next: { label: '지출 한 줄 담기', route: 'capture' } },
-  growth: { icon: 'auto_stories', cov: 58, conf: 61, related: '개방성',
-    insight: '청년기의 전환점들이 지금의 호기심을 잘 설명해요. 회상으로 더 또렷해져요.',
-    recs: [1, 3], next: { label: '회상으로 더 캐기', route: 'audit' } },
-  relation: { icon: 'forum', cov: 64, conf: 55, related: '우호성 · 애착',
-    insight: '가까운 사람에게 먼저 다가가는 패턴이 또렷해지고 있어요.',
-    recs: [4, 0], next: { label: '관계 인터뷰', route: 'interview' } },
-  health: { icon: 'bedtime', cov: 38, conf: 30, related: '신경성',
-    insight: '수면·컨디션 기록이 들쭉날쭉해요. 리듬이 흔들릴 때 신경성 신호가 올라가요.',
-    recs: [5], next: { label: '오늘 컨디션 담기', route: 'capture' } },
-  leisure: { icon: 'lightbulb', cov: 36, conf: 31, related: '개방성',
-    insight: '쉼은 대부분 \u2018혼자\u2019였어요. 그게 정말 회복인지 같이 살펴볼까요?',
-    recs: [2], next: { label: '트위비로 아이디어 얻기', route: 'chat' } },
-  catchall: { icon: 'inbox', cov: 82, conf: 18, related: '—',
-    insight: '아직 어느 별에도 닿지 못한 별가루이 8개예요. 정리하면 다른 별이 밝아져요.',
-    recs: [2], next: { label: '정리함 열기', route: 'records' } }
-};
+const DOMAIN_META = window.SB_DATA.domainMeta.domains; // → data/screens/domain-meta.json
 
 /* ===================== reusable state pieces ===================== */
 /* Loading: 세컨비 머리 둘레를 도는 스피너 + 한 줄 문장 (스켈레톤 없음) */
@@ -148,7 +126,7 @@ function HonestyMeter({ label, sub, value, color }) {
 }
 
 /* ---- cosmic backdrop shared by the 7-star detail screen (matches the AI 뮤지엄 sky) ---- */
-const STAR_BG = 'radial-gradient(120% 62% at 50% 1%, rgba(40,86,150,.40), transparent 56%), radial-gradient(86% 56% at 85% 13%, rgba(120,96,210,.22), transparent 58%), #05070F';
+const STAR_BG = window.SB_DATA.domainMeta.starBg; // → data/screens/domain-meta.json
 
 const CosmicStars = React.memo(function CosmicStars() {
   const stars = React.useMemo(() => {
@@ -166,22 +144,14 @@ const CosmicStars = React.memo(function CosmicStars() {
 
 /* ===================== 재정 전용 렌즈: 돈이 비추는 마음 ===================== */
 function FinanceLens({ C }) {
-  const budget = 1800000,spent = 1224000; // 이번 달 예산 대비 지출
+  const budget = window.SB_DATA.starLenses.financeLens.budget,spent = window.SB_DATA.starLenses.financeLens.spent; // 이번 달 예산 대비 지출 → data/screens/star-lenses.json
   const pct = Math.round(spent / budget * 100);
   const won = (n) => '₩' + n.toLocaleString('ko-KR');
-  const cats = [
-  { k: '생활/식비', amt: 412000, pct: 34, color: C('primary') },
-  { k: '고정지출', amt: 360000, pct: 29, color: C('tertiary') },
-  { k: '여가/취미', amt: 238000, pct: 19, color: '#F7B955' },
-  { k: '기타', amt: 214000, pct: 18, color: C('outline') }];
+  const cats = window.SB_DATA.starLenses.financeLens.cats; // → data/screens/star-lenses.json
 
-  const flow = [
-  { t: '월급', amt: 2950000, kind: 'in' },
-  { t: '적금 자동이체', amt: -500000, kind: 'save' },
-  { t: '카드값', amt: -612000, kind: 'out' },
-  { t: '기계식 키보드', amt: -159000, kind: 'out' }];
+  const flow = window.SB_DATA.starLenses.financeLens.flow; // → data/screens/star-lenses.json
 
-  const saveRate = 17;
+  const saveRate = window.SB_DATA.starLenses.financeLens.saveRate; // → data/screens/star-lenses.json
   return (
     <React.Fragment>
       {/* ── 1. 이번 달 지출 vs 예산 (돈이 먼저) ── */}
@@ -246,7 +216,7 @@ function FinanceLens({ C }) {
           숫자 너머의 결도 함께 봐요. 큰 지출엔 <b style={{ color: C('on-surface') }}>‘불안’</b>의 언어가 자주 따라왔어요.
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {[{ k: '불안', pct: 40, c: '#F7B955' }, { k: '충동', pct: 25, c: '#FF8A5B' }, { k: '즐거움', pct: 20, c: C('primary') }, { k: '계획', pct: 15, c: C('tertiary') }].map((s) =>
+          {window.SB_DATA.starLenses.financeLens.emotionChips.map((s) => // → data/screens/star-lenses.json
           <span key={s.k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
             padding: '4px 10px', borderRadius: 9999, background: `${s.c}1f`, color: s.c }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.c }} />{s.k} {s.pct}%
@@ -268,55 +238,16 @@ function RelationLens({ C, go }) {
 function CareerLens({ C }) {
   // 이력서/CV 전체 타임라인 — 학력·병역·수상·자격·경력을 한 줄기로.
   // 탭(공통/메인/개인)으로 관점을 바꾸고, 경력 노드는 프로젝트를 메인·개인 하위 트리로 구분한다.
-  const KIND = {
-    edu: { label: '학력', icon: 'school', color: C('primary') },
-    mil: { label: '병역', icon: 'shield', color: '#5FD0C5' },
-    award: { label: '수상', icon: 'emoji_events', color: '#F7B955' },
-    cert: { label: '자격', icon: 'verified', color: '#9A86FF' },
-    job: { label: '경력', icon: 'badge', color: C('tertiary') } };
+  const KIND = window.SB_DATA.starLenses.careerLens.kind; // → data/screens/star-lenses.json
 
   // 트랙: 경력 하위 프로젝트와 비-경력 항목을 '메인(회사 업무)·개인(사이드)'으로 나눈다.
-  const TRACK = {
-    main: { label: '메인', color: C('tertiary') },
-    personal: { label: '사이드', color: '#F2A6C2' } };
-  const TRACK_ORDER = ['main', 'personal'];
+  const TRACK = window.SB_DATA.starLenses.careerLens.track; // → data/screens/star-lenses.json
+  const TRACK_ORDER = window.SB_DATA.starLenses.careerLens.trackOrder; // → data/screens/star-lenses.json
 
-  const TABS = [
-    { id: 'main', label: '메인' },
-    { id: 'personal', label: '사이드' }];
+  const TABS = window.SB_DATA.starLenses.careerLens.tabs; // → data/screens/star-lenses.json
 
   // track: 비-경력 항목의 소속(공통 탭은 전부, 메인/개인 탭은 해당 트랙만). 경력은 projects 트랙으로 판단.
-  const ITEMS = [
-    { id: 'e1', kind: 'edu', track: 'main', period: '2012–2015', title: '한빛고등학교', sub: '이과 · 졸업', chip: '졸업',
-      details: [{ name: '미술 동아리 부장' }, { name: '교내 디자인 경진대회 입상' }] },
-    { id: 'e2', kind: 'edu', track: 'main', period: '2015.03', title: '한국대학교 시각디자인학과', sub: '학사 입학', chip: '학사',
-      details: [] },
-    { id: 'm1', kind: 'mil', track: 'main', period: '2016.06–2018.03', title: '대한민국 육군', sub: '정보통신병 · 만기전역', chip: '병장',
-      details: [{ name: '대대 정보통신 운용' }, { name: '모범용사 표창', note: '사단장 표창' }] },
-    { id: 'a1', kind: 'award', track: 'main', period: '2019', title: '교내 디자인 우수상', sub: '한국대학교 디자인대학', chip: '우수상',
-      details: [] },
-    { id: 'a2', kind: 'award', track: 'personal', period: '2020', title: '전국 대학생 UX 공모전 대상', sub: '자발적 도전 · 한국디자인진흥원', chip: '대상',
-      details: [{ name: '팀 리더 · 4인' }, { name: '서비스 앱 프로토타입 제작' }] },
-    { id: 'e3', kind: 'edu', track: 'main', period: '2021.02', title: '한국대학교 학사 졸업', sub: '시각디자인학과 · 학점 3.8/4.5', chip: '학사',
-      details: [{ name: '졸업작품 전시 선정' }] },
-    { id: 'c1', kind: 'cert', track: 'main', period: '2021', title: 'GTQ 그래픽기술자격 1급', sub: '한국생산성본부', chip: '1급',
-      details: [] },
-    { id: 'j1', kind: 'job', period: '2021–2022', title: '스타트업 루멘', sub: '프로덕트 디자이너', chip: '주니어',
-      projects: [
-        { name: '온보딩 리디자인', note: '가입 전환 +18%', track: 'main' },
-        { name: '모바일 결제 플로우', note: '3단계 → 1단계로 단축', track: 'main' },
-        { name: '디자인 QA 자동화 토이툴', note: '사내 해커톤', track: 'personal' }] },
-    { id: 'j2', kind: 'job', period: '2023–2024', title: '테크컴퍼니 노바', sub: '프로덕트 디자이너', chip: '미드레벨',
-      projects: [
-        { name: '디자인 시스템 v1', note: '컴포넌트 120개 구축', track: 'main' },
-        { name: '검색 경험 개편', note: '리텐션 +9%', track: 'main' },
-        { name: '사이드 프로젝트 앱', note: '누적 1만 다운로드', track: 'personal' }] },
-    { id: 'j3', kind: 'job', period: '지금', title: '테크컴퍼니 노바', sub: '프로덕트 디자이너', chip: '시니어 · 팀 리드 제안', now: true,
-      projects: [
-        { name: '디자인 시스템 v2', note: '토큰 · 다크모드 정비', track: 'main' },
-        { name: '신규 온보딩 여정', note: '진행 중', track: 'main' },
-        { name: '주니어 2인 멘토링', note: '', track: 'personal' },
-        { name: '디자인 아카이브 블로그', note: '주 1회 연재', track: 'personal' }] }];
+  const ITEMS = window.SB_DATA.starLenses.careerLens.items; // → data/screens/star-lenses.json
 
   const [tab, setTab] = useSt('main');
   const [open, setOpen] = useSt('j3'); // 기본은 현재 경력 펼침
@@ -455,7 +386,7 @@ function CareerLens({ C }) {
 /* ===================== 성장 전용 렌즈: 인생의 장 ===================== */
 function GrowthLens({ C, go }) {
   // 사용자 생년월일(1996-04-12) 기준 — 나이를 먹으면 10년 단위 '장'이 자동으로 늘어난다.
-  const BIRTH = new Date('1996-04-12T00:00:00');
+  const BIRTH = new Date(window.SB_DATA.starLenses.growthLens.birth); // → data/screens/star-lenses.json
   const BORN = BIRTH.getFullYear();
   const now = new Date();
   let age = now.getFullYear() - BORN;
@@ -464,12 +395,8 @@ function GrowthLens({ C, go }) {
   const curDec = Math.floor(age / 10); // 30세 → 3 (30대)
 
   // 분류별 진행도(%) — 담긴 별가루로 그 시기가 얼마나 채워졌나(예시값)
-  const FILL = { 0: 32, 1: 58, 2: 84, 3: 26, 4: 0, 5: 0, 6: 0 };
-  const SUB_HINT = {
-    0: ['첫 기억과 가족', '유치원·놀이', '초등 입학'],
-    1: ['사춘기의 시작', '교우관계·취향', '진로의 첫 고민'],
-    2: ['독립과 첫 도전', '일·사랑의 본격화', '나만의 방식 정립'],
-    3: ['지금 여기', '', ''] };
+  const FILL = window.SB_DATA.starLenses.growthLens.fill; // → data/screens/star-lenses.json
+  const SUB_HINT = window.SB_DATA.starLenses.growthLens.subHint; // → data/screens/star-lenses.json
 
   const decLabel = (d) => d === 0 ? '유년기' : `${d * 10}대`;
   const decAges = (d) => d === 0 ? '0–9세' : d === curDec ? `${d * 10}세~` : `${d * 10}–${d * 10 + 9}세`;
@@ -477,7 +404,7 @@ function GrowthLens({ C, go }) {
     const ys = BORN + d * 10;
     return d === curDec ? `${ys}–` : `${ys}–${ys + 9}`;
   };
-  const subs = [{ k: '초반', span: [0, 3] }, { k: '중반', span: [4, 6] }, { k: '후반', span: [7, 9] }];
+  const subs = window.SB_DATA.starLenses.growthLens.subs; // → data/screens/star-lenses.json
 
   const decades = [];
   for (let d = 0; d <= 9; d++) decades.push(d); // 유년기~90대
@@ -592,15 +519,9 @@ function LeisureSpark({ hist, color, dot }) {
 }
 
 function LeisureLens({ C }) {
-  const LEAK = C('error'),ANCHOR = '#FFCF6E';
+  const LEAK = C('error'),ANCHOR = window.SB_DATA.starLenses.leisureLens.anchor; // → data/screens/star-lenses.json
   // s=기록 시작, e=지금 키프레임 [x, y, fw, joy]
-  const acts = [
-  { id: 'game', nm: '게임', s: [.34, .72, .78, 70], e: [.30, .80, .78, 82], freq: '주 2~3회', hist: [70, 74, 68, 80, 85, 82], note: '몰입하면 잡생각이 사라져요. 끝나고도 여운이 좋은 편이에요.' },
-  { id: 'talk', nm: '친구 수다', s: [.70, .70, .55, 75], e: [.82, .83, .60, 86], freq: '주 1회', hist: [78, 80, 84, 82, 88, 86], note: '만나기 전엔 귀찮은데, 끝나면 거의 항상 채워져 있어요.' },
-  { id: 'read', nm: '독서', s: [.20, .54, .60, 62], e: [.18, .56, .60, 64], freq: '주 1회', hist: [60, 58, 66, 62, 68, 64], note: '조용히 채워지지만 컨디션 따라 기쁨 편차가 커요.' },
-  { id: 'cafe', nm: '카페 나들이', s: [.55, .40, .40, 58], e: [.68, .40, .42, 60], freq: '격주', hist: [55, 58, 52, 64, 61, 60], note: '분위기로 환기되지만, 길어지면 도로 비워지기도 해요.' },
-  { id: 'walk', nm: '산책', s: [.26, .32, .58, 56], e: [.26, .30, .60, 56], freq: '주 1회', hist: [50, 54, 58, 52, 57, 56], note: '가볍게 비우는 활동. 함께 걸으면 효과가 더 커져요.' },
-  { id: 'netflix', nm: '넷플릭스', s: [.45, .42, .45, 50], e: [.40, .22, 1.00, 38], freq: '거의 매일', hist: [48, 44, 40, 42, 37, 38], note: '쉽게 손이 가지만, 끝나고 나면 조금 공허할 때가 많아요.' }];
+  const acts = window.SB_DATA.starLenses.leisureLens.acts; // → data/screens/star-lenses.json
 
 
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -725,7 +646,7 @@ function LeisureLens({ C }) {
 
           })}
         </div>
-        {[['채움', { top: 6, left: '50%', transform: 'translateX(-50%)' }], ['비움', { bottom: 6, left: '50%', transform: 'translateX(-50%)' }], ['혼자', { left: 6, top: '50%', transform: 'translateY(-50%)' }], ['함께', { right: 6, top: '50%', transform: 'translateY(-50%)' }]].map(([tx, s]) =>
+        {window.SB_DATA.starLenses.leisureLens.axisLabels /* → data/screens/star-lenses.json */.map(([tx, s]) =>
         <span key={tx} style={{ position: 'absolute', fontSize: 11, fontWeight: 600, color: C('on-surface-variant'), pointerEvents: 'none', ...s }}>{tx}</span>)}
         <div style={{ position: 'absolute', right: 8, bottom: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button type="button" onClick={() => zCtr(1.4)} style={ctrlBtn}>+</button>
@@ -795,7 +716,7 @@ function LeisureLens({ C }) {
           <Icon name="auto_awesome" size={15} style={{ color: C('primary') }} />추천 · 함께 채우기
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {[['보드게임 모임', '게임+함께'], ['원데이 쿠킹', '새 채움'], ['러닝 크루', '산책→함께']].map(([h, why]) =>
+          {window.SB_DATA.starLenses.leisureLens.recChips /* → data/screens/star-lenses.json */.map(([h, why]) =>
           <span key={h} style={{ fontSize: 12.5, fontWeight: 600, color: C('on-secondary-container'), padding: '6px 12px', borderRadius: 9999, background: C('secondary-container') }}>{h} <span style={{ color: C('on-surface-variant'), fontWeight: 500 }}>· {why}</span></span>)}
         </div>
       </div>
@@ -805,10 +726,7 @@ function LeisureLens({ C }) {
 
 /* ===================== 담아내기 전용 렌즈: 정리 대기 큐 ===================== */
 function CatchallLens({ C, go }) {
-  const queue = [
-  { txt: '문득 떠오른 사업 아이디어', to: '커리어' },
-  { txt: '그 사람 말이 계속 맴돈다', to: '관계' },
-  { txt: '요즘 허리가 자꾸 결린다', to: '건강' }];
+  const queue = window.SB_DATA.starLenses.catchallLens.queue; // → data/screens/star-lenses.json
 
   return (
     <React.Fragment>
@@ -930,15 +848,9 @@ function IdenScreen({ t, go }) {
   const [fmt, setFmt] = useSt('Markdown');
   const [incl, setIncl] = useSt({ northstar: true, bigfive: true, domains: true, raw: false });
   const [rawWarn, setRawWarn] = useSt(false);
-  const targets = [
-  { k: 'ChatGPT', c: '#10A37F' }, { k: 'Claude', c: '#D97757' },
-  { k: 'Gemini', c: '#4285F4' }, { k: 'Notion', c: '#111' }];
+  const targets = window.SB_DATA.starLenses.idenScreen.targets; // → data/screens/star-lenses.json
 
-  const rows = [
-  { id: 'northstar', label: '북극성 문장', sub: '나를 한 줄로' },
-  { id: 'bigfive', label: 'Big Five 검증', sub: 'O72 C58 E41 A67 N39' },
-  { id: 'domains', label: '7 도메인 요약', sub: '별빛·확신 수치' },
-  { id: 'raw', label: '원문 기록', sub: '민감 — 기본 제외' }];
+  const rows = window.SB_DATA.starLenses.idenScreen.rows; // → data/screens/star-lenses.json
 
   return (
     <ScreenPad>
@@ -978,7 +890,7 @@ function IdenScreen({ t, go }) {
 
       <SectionLabel>형식</SectionLabel>
       <div style={{ display: 'flex', gap: 8 }}>
-        {['Markdown', 'JSON', 'PDF'].map((f) => <MdChip key={f} variant="filter" selected={fmt === f} onClick={() => setFmt(f)}>{f}</MdChip>)}
+        {window.SB_DATA.starLenses.idenScreen.formats /* → data/screens/star-lenses.json */.map((f) => <MdChip key={f} variant="filter" selected={fmt === f} onClick={() => setFmt(f)}>{f}</MdChip>)}
       </div>
 
       <SectionLabel>AI에 전달</SectionLabel>
@@ -1014,12 +926,7 @@ function IdenScreen({ t, go }) {
 function ConnectScreen({ t, go }) {
   const C = window.SB.C;
   const [conn, setConn] = useSt({ cal: false, health: true, notion: false, photos: false, gpt: false });
-  const sources = [
-  { id: 'cal', icon: 'forum', k: 'Google 캘린더', sub: '일정에서 리듬·관계 신호' },
-  { id: 'health', icon: 'bedtime', k: 'Apple 건강', sub: '수면·활동으로 건강 별' },
-  { id: 'notion', icon: 'auto_stories', k: 'Notion', sub: '메모·문서 가져오기' },
-  { id: 'photos', icon: 'photo_camera', k: '사진 앨범', sub: '장면에서 휴식·관계' },
-  { id: 'gpt', icon: 'bubble_chart', k: 'ChatGPT 내보내기', sub: '대화 기록 불러오기' }];
+  const sources = window.SB_DATA.starLenses.connectScreen.sources; // → data/screens/star-lenses.json
 
   const toggle = (id) => setConn((s) => ({ ...s, [id]: !s[id] }));
   return (
@@ -1068,10 +975,7 @@ function ConnectScreen({ t, go }) {
 /* ===================== PLANS 요금제 ===================== */
 function PlansScreen({ t, go }) {
   const C = window.SB.C;
-  const tiers = [
-  { k: '별바라기', price: '무료', sub: '시작하는 사람', feats: ['7 도메인 별', '월 100별가루', 'IDEN 1개'], cur: false },
-  { k: '항해자', price: '₩6,900/월', sub: '꾸준한 항해자', feats: ['무제한 별가루', '심층 인터뷰', '데이터 연동 5종', 'IDEN 버전 관리'], cur: true },
-  { k: '북극성', price: '₩12,900/월', sub: '깊이 파는 사람', feats: ['항해자 전체', '장기 보관 무제한', '가족 공유', '우선 분석'], cur: false }];
+  const tiers = window.SB_DATA.starLenses.plansScreen.tiers; // → data/screens/star-lenses.json
 
   return (
     <ScreenPad>
@@ -1154,10 +1058,7 @@ function SettingsScreen({ t, go, env }) {
   const conn = e.connections || {};
   const setConn = e.setConnection || (() => {});
   const [confirm, setConfirm] = useSt(null);
-  const sources = [
-  { id: 'cal', icon: 'forum', k: 'Google 캘린더', sub: '일정에서 리듬·관계 신호' },
-  { id: 'health', icon: 'bedtime', k: 'Apple 건강', sub: '수면·활동으로 건강 별' },
-  { id: 'notion', icon: 'auto_stories', k: 'Notion', sub: '메모·문서 가져오기' }];
+  const sources = window.SB_DATA.starLenses.settingsScreen.sources; // → data/screens/star-lenses.json
 
   return (
     <div style={{ overflowY: 'auto', height: '100%' }}>

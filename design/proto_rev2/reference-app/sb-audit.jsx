@@ -7,15 +7,7 @@
    ============================================================ */
 
 /* per-domain aggregate — aligned with DOMAIN_META(별 상세) & STARS levels */
-const AUDIT_DOMAINS = [
-  { id: 'career',   name: '커리어',   icon: 'workspaces',        level: 3, cov: 70, conf: 52, count: 24, last: '오늘',   themes: ['몰입', '이직 고민', '성취'],   q: '무엇을 만들고 쌓고 있나요?' },
-  { id: 'finance',  name: '재정',     icon: 'workspace_premium', level: 2, cov: 30, conf: 24, count: 6,  last: '5일 전', themes: ['불안', '구독 정리'],          q: '돈은 나의 무엇을 말하나요?' },
-  { id: 'relation', name: '관계',     icon: 'forum',             level: 3, cov: 64, conf: 55, count: 18, last: '어제',   themes: ['가족', '먼저 다가가기'],      q: '가까운 사람들과 나는 어떤가요?' },
-  { id: 'growth',   name: '성장',     icon: 'auto_stories',      level: 3, cov: 58, conf: 61, count: 15, last: '2일 전', themes: ['호기심', '전환점', '독서'],  q: '무엇이 지금의 나를 만들었나요?' },
-  { id: 'health',   name: '건강',     icon: 'bedtime',           level: 2, cov: 38, conf: 30, count: 9,  last: '3일 전', themes: ['수면', '컨디션'],             q: '요즘 내 리듬은 어떤가요?' },
-  { id: 'leisure',  name: '휴식',     icon: 'lightbulb',         level: 2, cov: 36, conf: 31, count: 7,  last: '4일 전', themes: ['혼자', '쉼'],                 q: '무엇이 나를 쉬게 하나요?' },
-  { id: 'catchall', name: '담아내기', icon: 'inbox',             level: 4, cov: 82, conf: 18, count: 8,  last: '방금',   themes: ['미분류'],                     q: '아직 못 담은 것들' },
-];
+const AUDIT_DOMAINS = window.SB_DATA.audit.domains; // → data/screens/audit.json
 
 const starOf = (id) => (window.SB.STARS || []).find((s) => s.id === id);
 const lightStatus = (cov) => (cov >= 60 ? { k: '밝음', c: 'primary' } : cov >= 40 ? { k: '보통', c: 'tertiary' } : { k: '어두움', c: 'on-surface-variant' });
@@ -169,7 +161,7 @@ function DomainDashScreen({ t, go }) {
 
       {/* sort */}
       <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-        {['활동', '조각수', '밝기'].map((s) => (
+        {window.SB_DATA.audit.sortOptions.map((s) => ( // → data/screens/audit.json
           <MdChip key={s} variant="filter" selected={sort === s} onClick={() => setSort(s)}>{s} 순</MdChip>
         ))}
       </div>
@@ -211,40 +203,7 @@ function DomainDashScreen({ t, go }) {
 }
 
 /* ===================== ③ 생활영역 전용 입력 ===================== */
-const INPUT_TEMPLATES = [
-  { id: 'reading', icon: 'auto_stories', label: '독서', domain: '성장', star: 'growth', accent: 'primary',
-    fields: [
-      { k: 'title', icon: 'book', label: '책 제목', hint: '예) 딥 워크' },
-      { k: 'author', icon: 'person', label: '저자', hint: '칼 뉴포트' },
-      { k: 'quote', icon: 'format_quote', label: '인상 깊은 구절', hint: '밑줄 친 문장을 적어요', multi: true },
-      { k: 'thought', icon: 'lightbulb', label: '내 생각', hint: '나에게 무엇이 남았나요?', multi: true },
-    ], rating: '별점' },
-  { id: 'goal', icon: 'flag', label: '학습 목표', domain: '커리어 · 성장', star: 'career', accent: 'primary',
-    fields: [
-      { k: 'goal', icon: 'flag', label: '목표', hint: '예) RN 앱 출시' },
-      { k: 'why', icon: 'lightbulb', label: '왜 (동기)', hint: '이 목표가 나에게 의미 있는 이유', multi: true },
-      { k: 'due', icon: 'calendar_today', label: '마감', hint: '8월 말', date: true, futureOnly: true },
-    ], slider: { k: 'progress', label: '진행률', unit: '%' } },
-  { id: 'meal', icon: 'restaurant', label: '식단', domain: '건강', star: 'health', accent: 'tertiary',
-    fields: [
-      { k: 'menu', icon: 'restaurant', label: '무엇을 먹었나요', hint: '메뉴', multi: true },
-    ], chips: { k: 'time', label: '끼니', opts: ['아침', '점심', '저녁', '간식'] }, mood: '먹고 난 기분' },
-  { id: 'workout', icon: 'fitness_center', label: '운동', domain: '건강', star: 'health', accent: 'tertiary',
-    fields: [
-      { k: 'kind', icon: 'fitness_center', label: '종류', hint: '달리기 · 헬스 · 요가' },
-      { k: 'dur', icon: 'timer', label: '시간(분)', hint: '40' },
-    ], chips: { k: 'intensity', label: '강도', opts: ['가볍게', '적당히', '빡세게'] } },
-  { id: 'spend', icon: 'workspace_premium', label: '지출', domain: '재정', star: 'finance', accent: 'primary',
-    fields: [
-      { k: 'item', icon: 'shopping_bag', label: '무엇에', hint: '항목' },
-      { k: 'amount', icon: 'payments', label: '금액', hint: '₩' },
-    ], chips: { k: 'cat', label: '분류', opts: ['생활', '식비', '문화', '구독', '기타'] }, mood: '쓰고 난 마음' },
-  { id: 'sleep', icon: 'bedtime', label: '수면', domain: '건강', star: 'health', accent: 'tertiary',
-    fields: [
-      { k: 'bed', icon: 'dark_mode', label: '취침', hint: '23:30' },
-      { k: 'wake', icon: 'wb_sunny', label: '기상', hint: '07:10' },
-    ], slider: { k: 'quality', label: '수면의 질', unit: '점', max: 10 } },
-];
+const INPUT_TEMPLATES = window.SB_DATA.audit.inputTemplates; // → data/screens/audit.json
 
 function DomainInputScreen({ t, go, param }) {
   const C = window.SB.C;
@@ -258,7 +217,7 @@ function DomainInputScreen({ t, go, param }) {
   const [mood, setMood] = React.useState('');
   const [done, setDone] = React.useState(false);
   const setV = (k, v) => setVals((s) => ({ ...s, [k]: v }));
-  const MOODS = [['sentiment_satisfied', '좋음'], ['sentiment_neutral', '보통'], ['sentiment_dissatisfied', '아쉬움']];
+  const MOODS = window.SB_DATA.audit.moods; // → data/screens/audit.json
 
   /* picker */
   if (!tpl) {

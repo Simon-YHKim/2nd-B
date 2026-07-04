@@ -13,7 +13,7 @@ const { useState: useSf } = React;
 function GrowthTrendScreen({ t, go }) {
   const C = window.SB.C;
   // overall brightness over 8 weeks (0~100)
-  const series = [28, 31, 30, 38, 44, 47, 55, 62];
+  const series = window.SB_DATA.surfaces.trendSeries; // → data/screens/surfaces.json
   const W = 300, H = 120, pad = 6;
   const max = 70, min = 20;
   const pts = series.map((v, i) => {
@@ -24,12 +24,7 @@ function GrowthTrendScreen({ t, go }) {
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
   const area = `${line} L${pts[pts.length - 1][0].toFixed(1)} ${H} L${pts[0][0].toFixed(1)} ${H} Z`;
 
-  const events = [
-    { w: '이번 주', star: '관계', from: 'L2', to: 'L3', why: '통화 녹음 3건 반영', up: true },
-    { w: '2주 전', star: '커리어', from: 'L2', to: 'L3', why: '인터뷰로 몰입 패턴 확인', up: true },
-    { w: '4주 전', star: '건강', from: 'L2', to: 'L1', why: '기록 공백 · 밝기 감소', up: false },
-    { w: '6주 전', star: '성장', from: 'L1', to: 'L2', why: '회상 인터뷰 시작', up: true },
-  ];
+  const events = window.SB_DATA.surfaces.trendEvents; // → data/screens/surfaces.json
 
   return (
     <ScreenPad>
@@ -60,7 +55,7 @@ function GrowthTrendScreen({ t, go }) {
           ))}
         </svg>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-          {['8주', '', '', '4주', '', '', '', '지금'].map((l, i) => (
+          {window.SB_DATA.surfaces.trendAxisLabels.map((l, i) => ( // → data/screens/surfaces.json
             <span key={i} className="md-label-small" style={{ color: C('on-surface-variant'), fontSize: 11 }}>{l}</span>
           ))}
         </div>
@@ -70,7 +65,7 @@ function GrowthTrendScreen({ t, go }) {
       <SectionLabel>별마다 변화</SectionLabel>
       <MdCard variant="filled" style={{ padding: 14 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[['커리어', 3, 4], ['관계', 2, 4], ['성장', 2, 3], ['건강', 2, 2], ['재정', 1, 2]].map(([k, was, now]) => (
+          {window.SB_DATA.surfaces.starSpark.map(([k, was, now]) => ( // → data/screens/surfaces.json
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="md-body-medium" style={{ color: C('on-surface'), width: 52, flex: '0 0 auto' }}>{k}</span>
               <div style={{ flex: 1 }}><ProgressLinear value={(now / 5) * 100} color={now > was ? C('primary') : '#F7B955'} /></div>
@@ -108,11 +103,7 @@ function GrowthTrendScreen({ t, go }) {
 /* ===================== B6 · 동기 검증틀 (SDT) ===================== */
 function MotivationScreen({ t, go }) {
   const C = window.SB.C;
-  const sdt = [
-    { k: '자율성', en: 'Autonomy', v: 74, note: '스스로 정할 때 동기가 솟아요' },
-    { k: '유능감', en: 'Competence', v: 61, note: '해낼 수 있다는 감각이 받쳐줘요' },
-    { k: '관계성', en: 'Relatedness', v: 52, note: '함께일 때 조금 더 움직여요' },
-  ];
+  const sdt = window.SB_DATA.surfaces.sdt; // → data/screens/surfaces.json
   return (
     <ScreenPad>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '8px 0 4px' }}>
@@ -163,13 +154,7 @@ function MotivationScreen({ t, go }) {
 /* ===================== B6 · 강점 검증틀 ===================== */
 function StrengthsScreen({ t, go }) {
   const C = window.SB.C;
-  const strengths = [
-    { k: '호기심', icon: 'lightbulb', v: 82, note: '새로운 걸 파고드는 힘' },
-    { k: '끈기', icon: 'trending_up', v: 74, note: '한번 잡으면 오래 가요' },
-    { k: '정직함', icon: 'task_alt', v: 69, note: '겉과 속을 맞추려 해요' },
-    { k: '공감', icon: 'forum', v: 63, note: '상대의 결을 잘 읽어요' },
-    { k: '심미안', icon: 'auto_awesome', v: 58, note: '좋은 것을 알아봐요' },
-  ];
+  const strengths = window.SB_DATA.surfaces.strengths; // → data/screens/surfaces.json
   return (
     <ScreenPad>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '8px 0 4px' }}>

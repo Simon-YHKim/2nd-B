@@ -11,16 +11,7 @@ const { useState: useFS, useEffect: useFE, useRef: useFR } = React;
 function OnboardingScreen({ onDone }) {
   const C = window.SB.C;
   const [step, setStep] = useFS(0);
-  const slides = [
-    { tag: '2ND-BRAIN', title: '나를 알아가는 AI', icon: 'bubble_chart',
-      body: '세컨비는 당신을 구성하는\n별가루들이 궁금해요.\n당신의 별가루를 보여주고,\n어떤사람인지 알려주세요!' },
-    { tag: '알아가기', title: '흩어진 일상이\n별자리가 돼요', icon: 'star_shine',
-      body: '커리어·재정·관계·건강·성장·휴식. 일곱 영역의 별로 지금의 나를 한눈에 봐요.' },
-    { tag: '곁에서 돕기', title: '아는 만큼\n도와줘요', icon: 'lightbulb',
-      body: '당신을 알게 된 만큼 비서가 돼요. 돈 쓰는 결, 쉬는 법, 하루 계획까지 당신에게 맞는 조언을 건네요.' },
-    { tag: '함께 배우기', title: 'AI의 원리도\n같이 배워요', icon: 'school',
-      body: '세컨비가 어떻게 당신을 이해하는지, AI 뮤지엄에서 그 원리를 쉽고 재미있게 풀어줘요.' },
-  ];
+  const slides = window.SB_DATA.flows.onboardingSlides; // → data/screens/flows.json
   const last = step === slides.length;
 
   if (last) {
@@ -74,12 +65,7 @@ function OnboardingScreen({ onDone }) {
 function Coachmark({ onDone }) {
   const C = window.SB.C;
   const [i, setI] = useFS(0);
-  const steps = [
-    { title: '여기는 당신의 별자리예요', body: '일곱 개 별은 삶의 영역(커리어·재정·관계…)이에요. 밝을수록 더 많이 담긴 거예요.', ring: { top: '24%', left: '50%', w: 262, h: 210 }, arrow: 'up' },
-    { title: '별을 눌러보세요', body: '세컨비가 그 별을 소개하고, 여행할지 물어봐요. 누른다고 바로 들어가진 않아요.', ring: { top: '28%', left: '62%', w: 108, h: 108 }, arrow: 'up' },
-    { title: '떠오르면 담기', body: '글·링크·사진·음성·할 일을 형식에 맞게 담으면, 세컨비가 알맞은 별로 엮어요.', ring: { bottom: 6, left: '30%', w: 74, h: 72 }, arrow: 'down' },
-    { title: '세컨비와 대화해요', body: '나를 아는 세컨비, 객관적인 메타비, 창의적인 트위비. 세 모드로 생각을 넓혀요.', ring: { bottom: 6, left: '50%', w: 74, h: 72 }, arrow: 'down' },
-  ];
+  const steps = window.SB_DATA.flows.coachmarkSteps; // → data/screens/flows.json
   const s = steps[i];
   const last = i === steps.length - 1;
   const r = s.ring;
@@ -126,11 +112,7 @@ function CallRecScreen({ t, go }) {
   if (phase === 'stt') return <LoadingState label="통화를 받아 적는 중" sub="기기 안에서 음성을 텍스트로 바꾸고 있어요. 녹음 파일은 곧 삭제돼요." />;
 
   if (phase === 'result') {
-    const transcript = [
-      { who: '상대', text: '이번 주말에 시간 괜찮아? 오랜만에 얼굴 보자.' },
-      { who: '나', text: '응 좋아. 요즘 일이 많아서 사람 보는 게 좀 줄었더라.' },
-      { who: '상대', text: '너 원래 사람 만나면 충전되는 스타일이잖아.' },
-    ];
+    const transcript = window.SB_DATA.flows.callrec.transcript; // → data/screens/flows.json
     return (
       <div style={{ overflowY: 'auto', height: '100%' }}>
         <ScreenPad>
@@ -160,7 +142,7 @@ function CallRecScreen({ t, go }) {
             </div>
           </MdCard>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            {['관계', '건강', '사람과 충전'].map((tg) => <MdChip key={tg} variant="input" icon="sell">{tg}</MdChip>)}
+            {window.SB_DATA.flows.callrec.tags.map((tg) => <MdChip key={tg} variant="input" icon="sell">{tg}</MdChip>)}{/* → data/screens/flows.json */}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
@@ -190,7 +172,7 @@ function CallRecScreen({ t, go }) {
           <>
             <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 30, fontWeight: 700, color: C('on-surface') }}>{mmss}</div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: 30 }}>
-              {[14, 24, 32, 20, 28, 16, 26, 18, 30, 14].map((h, i) => (
+              {window.SB_DATA.flows.callrec.waveform.map((h, i) => ( // → data/screens/flows.json
                 <span key={i} style={{ width: 3, height: h, borderRadius: 2, background: C('error'), animation: `sb-pulse 0.8s ${i * 0.08}s ease-in-out infinite` }} />
               ))}
             </div>
@@ -201,11 +183,7 @@ function CallRecScreen({ t, go }) {
             <div className="md-title-large" style={{ color: C('on-surface') }}>통화 녹음</div>
             <div className="md-body-medium" style={{ color: C('on-surface-variant'), maxWidth: 264, wordBreak: 'keep-all' }}>통화를 기기 안에서 받아 적고, 세컨비가 어울리는 별로 엮어요.</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 290, marginTop: 4, textAlign: 'left' }}>
-              {[
-                ['graphic_eq', '받아 적은 뒤 음성 파일은 곳바로 삭제돼요'],
-                ['lock', '통화 내용은 이 기기를 벗어나지 않아요'],
-                ['campaign', '상대에게 녹음 사실을 먼저 알려 주세요'],
-              ].map(([ic, d]) => (
+              {window.SB_DATA.flows.callrec.privacy.map(([ic, d]) => ( // → data/screens/flows.json
                 <div key={ic} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 12px', borderRadius: 10, background: C('surface-container-highest') }}>
                   <Icon name={ic} size={18} style={{ color: C('primary'), flex: '0 0 auto' }} />
                   <span className="md-body-small" style={{ color: C('on-surface'), wordBreak: 'keep-all' }}>{d}</span>
@@ -237,7 +215,7 @@ function CallRecScreen({ t, go }) {
 function AttachmentScreen({ t, go }) {
   const C = window.SB.C;
   // 회피(avoidance) low, 불안(anxiety) mid → 안정에 가까움
-  const avoid = 32, anx = 48;
+  const { avoid, anx } = window.SB_DATA.flows.attachment; // → data/screens/flows.json
   const x = avoid, y = anx; // 0..100 grid
   return (
     <ScreenPad>
@@ -289,11 +267,7 @@ function AttachmentScreen({ t, go }) {
 function NorthStarEditor({ t, go }) {
   const C = window.SB.C;
   const [val, setVal] = useFS('나를 깊이 이해해 더 나답게 산다.');
-  const suggests = [
-    '나를 깊이 이해해 더 나답게 산다.',
-    '흩어진 나를 모아, 매일 한 뼘 더 또렷해진다.',
-    '남의 속도가 아닌 나의 리듬으로 산다.',
-  ];
+  const suggests = window.SB_DATA.flows.northstarSuggests; // → data/screens/flows.json
   return (
     <ScreenPad>
       <div className="md-headline-small" style={{ color: C('on-surface'), margin: '8px 0 4px' }}>북극성 문장</div>
@@ -341,13 +315,7 @@ function NorthStarEditor({ t, go }) {
 /* ===================== INBOX · 알림·제안 ===================== */
 function InboxScreen({ t, go }) {
   const C = window.SB.C;
-  const items = [
-    { icon: 'auto_awesome', accent: C('primary'), title: '살펴볼 변화가 보여요', body: '관계·휴식 별에서 새 신호가 보여요. 맞는지 확인해 주실래요?', time: '방금', route: 'bigfive', cta: '확인하기' },
-    { icon: 'calendar_today', accent: C('tertiary'), title: '주간 다이제스트가 도착했어요', body: '이번 주 많이 담은 영역과 떠오른 관심을 정리했어요. 비준 전 제안이에요.', time: '월 오전 9:00', route: 'digest', cta: '읽어보기' },
-    { icon: 'forum', accent: C('tertiary'), title: '관계 별이 인터뷰를 기다려요', body: '최근 통화 3건에서 새 신호가 보여요. 3분이면 또렷해져요.', time: '1시간 전', route: 'interview', cta: '인터뷰 하기' },
-    { icon: 'inbox', accent: C('secondary'), title: '정리함에 8개가 쌓였어요', body: '미분류 별가루을 태그·보관·삭제로 정리해요.', time: '오늘', route: 'records', cta: '정리하기' },
-    { icon: 'mic', accent: C('primary'), title: '통화 녹음 1건 분석 대기', body: '받아 적은 통화의 반영 여부를 정해주세요.', time: '어제', route: 'callrec', cta: '검토하기' },
-  ];
+  const items = window.SB_DATA.flows.inboxItems; // → data/screens/flows.json (accent = var(--md-sys-color-*) strings)
   return (
     <ScreenPad>
       <div className="md-headline-small" style={{ color: C('on-surface'), margin: '8px 0 12px' }}>알림</div>

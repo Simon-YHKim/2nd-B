@@ -9,20 +9,9 @@
 
   // Health Connect ∩ HealthKit 교집합 — 아이폰·갤럭시 양쪽에서 동일하게 읽히는 타입.
   // on: 현재 연동으로 수집 중 → 녹색 체크 / false: 연동 시 수집(아직 미수집)
-  const HEALTH_TYPES = [
-    { icon: 'directions_run', k: '활동 · 운동', on: true, items: ['걸음', '거리', '활동 칼로리', '총 칼로리', '층수', '운동 세션', 'VO₂max'] },
-    { icon: 'monitor_weight', k: '신체 조성', src: '인바디', on: true, items: ['체중', '키', '체지방률', '제지방량', 'BMI'] },
-    { icon: 'cardiology', k: '바이탈', on: true, items: ['심박수', '안정시 심박', 'HRV', '산소포화도', '호흡수', '체온', '혈압', '혈당'] },
-    { icon: 'bedtime', k: '수면', on: true, items: ['수면 단계 (렘·얕은·깊은)', '수면 시간'] },
-    { icon: 'restaurant', k: '영양 · 수분', on: false, items: ['섭취 칼로리', '영양소', '수분'] },
-    { icon: 'self_improvement', k: '마음챙김', on: false, items: ['명상 세션'] }];
+  const HEALTH_TYPES = window.SB_DATA.health.types; // → data/screens/health.json
 
-  const HEALTH_SOURCES = [
-    { icon: 'monitor_heart', k: '삼성 헬스', sub: '걸음 · 수면 · 심박', on: true },
-    { icon: 'favorite', k: 'Apple 건강', sub: '활동 · 바이탈', on: true },
-    { icon: 'monitor_weight', k: '인바디', sub: '체성분 · 체지방', on: true },
-    { icon: 'devices', k: 'Galaxy Watch', sub: '실시간 센서', on: true },
-    { icon: 'fitness_center', k: 'Fitbit', sub: '아직 연결 안 됨', on: false }];
+  const HEALTH_SOURCES = window.SB_DATA.health.sources; // → data/screens/health.json
 
   /* 회복 링 */
   function RecoveryRing({ C, value = 72 }) {
@@ -96,17 +85,15 @@
 
   function HealthLens({ C }) {
     // 이번 주 수면 리듬
-    const days = [
-    { d: '월', h: 6.5, cond: 'low' }, { d: '화', h: 7, cond: 'ok' }, { d: '수', h: 5.5, cond: 'low' },
-    { d: '목', h: 7.5, cond: 'good' }, { d: '금', h: 6, cond: 'ok' }, { d: '토', h: 8.5, cond: 'good' }, { d: '일', h: 7, cond: 'ok' }];
+    const days = window.SB_DATA.health.sleepDays; // → data/screens/health.json
     const condColor = { good: C('primary'), ok: C('tertiary'), low: '#F7B955' };
     const avg = (days.reduce((s, x) => s + x.h, 0) / days.length).toFixed(1);
 
     // 체지방률 12주 (예시) — 23.4 → 19.1, 목표 18
-    const fat = [23.4, 23.0, 22.6, 21.8, 21.4, 20.9, 20.4, 20.0, 19.7, 19.4, 19.2, 19.1];
-    const fMax = 24,fMin = 17.5,fpX = (i) => 16 + i * (268 / (fat.length - 1));
+    const fat = window.SB_DATA.health.bodyFat.series; // → data/screens/health.json
+    const fMax = window.SB_DATA.health.bodyFat.max,fMin = window.SB_DATA.health.bodyFat.min,fpX = (i) => 16 + i * (268 / (fat.length - 1));
     const fpY = (v) => 12 + (fMax - v) / (fMax - fMin) * 80;
-    const goalY = fpY(18);
+    const goalY = fpY(window.SB_DATA.health.bodyFat.goal);
     const fatPts = fat.map((v, i) => `${fpX(i).toFixed(1)},${fpY(v).toFixed(1)}`).join(' ');
 
 

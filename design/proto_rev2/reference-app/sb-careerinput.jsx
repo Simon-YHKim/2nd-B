@@ -62,7 +62,7 @@ function TagInput({ C, icon, label, hint, tags, setTags }) {
 
 function CareerInputScreen({ t, go, param }) {
   const C = window.SB.C;
-  const HEAD = 'assets/deepspace/secondb-head-front.png';
+  const HEAD = window.SB_DATA.careerinput.headAsset; // → data/screens/careerinput.json
   const careerStar = (window.SB.STARS || []).find((s) => s.id === 'career');
 
   const [wp, setWp] = React.useState({ industry: '', company: '', dept: '', team: '' });
@@ -87,15 +87,7 @@ function CareerInputScreen({ t, go, param }) {
   const setR = (k, v) => setRole((s) => ({ ...s, [k]: v }));
 
   // 고용24 직무 KPI 추천 — 직무(프로덕트 디자이너) 기반으로 불러온 카드 목록(목업)
-  const SUGGEST = [
-    { name: '전환율 (CVR)', unit: '%' },
-    { name: '리텐션 (D30)', unit: '%' },
-    { name: '과업 성공률', unit: '%' },
-    { name: '사용성 점수 (SUS)', unit: '점' },
-    { name: '순추천지수 (NPS)', unit: '' },
-    { name: '출시 리드타임', unit: '일' },
-    { name: '디자인 QA 통과율', unit: '%' },
-  ];
+  const SUGGEST = window.SB_DATA.careerinput.suggest; // → data/screens/careerinput.json
   const added = (name) => kpis.some((k) => k.name === name);
   const addKpi = (name, unit = '') => { if (!name || added(name)) return; cnt.current += 1; setKpis((xs) => [...xs, { id: 'k' + cnt.current, name, unit, value: '' }]); };
   const setKpiVal = (id, v) => setKpis((xs) => xs.map((k) => k.id === id ? { ...k, value: v } : k));

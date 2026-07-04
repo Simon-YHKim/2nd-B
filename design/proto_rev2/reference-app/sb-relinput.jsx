@@ -3,39 +3,14 @@
    '세컨비와 대화' = 주소록의 사람을 골라 → 그 사람에 대해 드릴다운 대화.
    관계 노드 그래프(sb-relgraph)와 같은 카테고리·색 언어를 공유한다. */
 
-const REL_CATS = [
-  { id: 'love',   name: '연인', color: '#FF9DB0' },
-  { id: 'family', name: '가족', color: '#FFCF6E' },
-  { id: 'friend', name: '친구', color: '#6FB1FF' },
-  { id: 'work',   name: '동료', color: '#5BD6B0' },
-  { id: 'acq',    name: '지인', color: '#A78BFA' },
-];
+const REL_CATS = window.SB_DATA.relations.input.cats; // → data/screens/relations.json
 const REL_CCOLOR = Object.fromEntries(REL_CATS.map((c) => [c.id, c.color]));
 const REL_CNAME = Object.fromEntries(REL_CATS.map((c) => [c.id, c.name]));
-const REL_TIERS = [['0', '가까움'], ['1', '보통'], ['2', '느슨함']];
+const REL_TIERS = window.SB_DATA.relations.input.tiers; // → data/screens/relations.json
 
 /* 핸드폰 주소록 — 관계 그래프에 이미 담은 사람(tracked) + 아직 안 담은 사람.
    tracked 는 sb-relgraph 의 PEOPLE 과 같은 id·관계로 맞춘다. */
-const REL_CONTACTS = [
-  { id: 'jimin',   name: '지민',   cat: 'love',   tier: 0, last: '2026-06-26', tracked: true,  phone: '010-2840-1173' },
-  { id: 'mom',     name: '엄마',   cat: 'family', tier: 0, last: '2026-06-27', tracked: true,  phone: '010-9921-0042' },
-  { id: 'dad',     name: '아빠',   cat: 'family', tier: 1, last: '2026-06-20', tracked: true,  phone: '010-9921-0043' },
-  { id: 'sis',     name: '동생',   cat: 'family', tier: 1, last: '2026-06-18', tracked: true,  phone: '010-3370-5589' },
-  { id: 'hyunwoo', name: '현우',   cat: 'friend', tier: 1, last: '2026-06-14', tracked: true,  phone: '010-5512-7781' },
-  { id: 'seyoung', name: '세영',   cat: 'friend', tier: 1, last: '2026-06-10', tracked: true,  phone: '010-4408-2290' },
-  { id: 'lead',    name: '리드',   cat: 'work',   tier: 1, last: '2026-06-25', tracked: true,  phone: '010-7781-3340' },
-  { id: 'dongju',  name: '동주',   cat: 'work',   tier: 2, last: '2026-06-05', tracked: true,  phone: '010-2231-8890' },
-  { id: 'jay',     name: 'J',      cat: 'acq',    tier: 2, last: '2026-05-28', tracked: true,  phone: '010-6650-1120' },
-  // --- 아직 담지 않은 주소록의 다른 사람들 ---
-  { id: 'c_gusang', name: '구상 팀장', cat: null, tier: null, last: '2026-06-22', tracked: false, phone: '010-3019-7782' },
-  { id: 'c_naeun',  name: '나은',    cat: null, tier: null, last: '2026-06-19', tracked: false, phone: '010-8845-2201' },
-  { id: 'c_minho',  name: '민호 선배', cat: null, tier: null, last: '2026-06-02', tracked: false, phone: '010-2204-5567' },
-  { id: 'c_yuna',   name: '유나',    cat: null, tier: null, last: '2026-05-30', tracked: false, phone: '010-7790-3312' },
-  { id: 'c_sam',    name: 'Sam',    cat: null, tier: null, last: '2026-05-21', tracked: false, phone: '010-1102-8830' },
-  { id: 'c_imo',    name: '이모',    cat: null, tier: null, last: '2026-05-15', tracked: false, phone: '010-9930-4471' },
-  { id: 'c_hana',   name: '하나 선생님', cat: null, tier: null, last: '2026-04-29', tracked: false, phone: '010-4471-2230' },
-  { id: 'c_doyun',  name: '도윤',    cat: null, tier: null, last: '2026-04-12', tracked: false, phone: '010-5560-9981' },
-];
+const REL_CONTACTS = window.SB_DATA.relations.input.contacts; // → data/screens/relations.json (앞 9명 tracked, 뒤 8명 아직 담지 않은 주소록의 다른 사람들)
 
 function relDaysAgo(iso) {
   try {

@@ -34,11 +34,11 @@ function DdGroup({ C, icon, title, children }) {
 }
 
 /* 경험 유형 — 선택 팝업 옵션 */
-const DD_EXP_TYPES = ['학업', '학교 프로젝트', '교내 동아리', '대외활동 (교외 동아리)', '연구/개발', '공모전/대회', '인턴', '아르바이트', '계약직/파견직', '정규 입사 경험', '개인 사업/창업/사이드 프로젝트'];
+const DD_EXP_TYPES = window.SB_DATA.audit.expTypes; // → data/screens/audit.json
 
 function DrillDownScreen({ t, go, param }) {
   const C = window.SB.C;
-  const HEAD = 'assets/deepspace/secondb-head-front.png';
+  const HEAD = window.SB_DATA.audit.headAsset; // → data/screens/audit.json
 
   // 경험 개요 — 3C4P 이전, 이 경험이 무엇인지 먼저
   const [summary, setSummary] = React.useState('');

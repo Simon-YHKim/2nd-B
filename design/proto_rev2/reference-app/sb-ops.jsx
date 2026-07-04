@@ -77,13 +77,9 @@ function Toast({ toast, onAction, onClose }) {
 function PushSheet({ rec, env, onClose }) {
   const C = window.SB.C;
   const [target, setTarget] = useO('cal');
-  const targets = [
-  { id: 'cal', icon: 'event', label: '기기 캘린더', note: '캘린더 앱에 일정 추가' },
-  { id: 'gcal', icon: 'calendar_today', label: 'Google 캘린더', note: '연동된 계정에 추가' },
-  { id: 'ics', icon: 'description', label: '.ics 파일', note: '내려받아 어디서든 열기' },
-  { id: 'check', icon: 'checklist', label: '체크리스트', note: '미리 알림 앱으로' }];
+  const targets = window.SB_DATA.ops.pushTargets; // → data/screens/ops.json
 
-  const sentMsg = { cal: '기기 캘린더에 추가했어요', gcal: 'Google 캘린더에 추가했어요', ics: '.ics 파일을 내려받았어요', check: '미리 알림에 추가했어요' };
+  const sentMsg = window.SB_DATA.ops.sentMessages; // → data/screens/ops.json
   const send = () => {onClose();env.showToast({ msg: sentMsg[target], action: '실행 취소' });};
 
   return (
@@ -139,38 +135,13 @@ function PushSheet({ rec, env, onClose }) {
 /* ============ 오늘의 비서 (추천 홈) ============ */
 /* 여러 카드로 쪼개지 않고, 데이터를 모아 하나의 「종합 의견」으로 조언한다.
    각 의견은 여러 별을 가로지르는 근본 하나를 짚고, 앱에서 바로 실행할 수 있는 기능으로 연결한다. */
-const OPS_ADVICE = [
-{ id: 'sleep', star: '건강',
-  headline: '잠이 부족해요. 오늘은 23시에 잠자리에 들어볼까요?',
-  read: '이번 주를 모아보면 가장 흔들린 건 수면이에요. 평균 5.6시간으로 2주째 줄었고, 리듬이 무너지니 오후 집중도 관계 연락도 같이 흐려졌어요.',
-  detail: '다른 걸 더 늘리기보다, 오늘은 일찍 자는 것 하나에만 집중해요. 그 하나로 내일의 별 여러 개가 같이 밝아져요.',
-  evidence: ['평균 수면 5.6h', '취침 시간 매일 지연', '오후 집중도 ↓'],
-  action: { label: '23:00 취침 알림 맞추기', icon: 'notifications_active',
-    reminder: { title: '밤 11시 전 잠자리 들기', when: '매일 23:00', star: '건강', repeat: '매일' } } },
-{ id: 'relation', star: '관계',
-  headline: '관계 별이 어두워요. 한 사람에게 안부 한 통 어때요?',
-  read: '관계 별이 2주째 어두워졌어요. 지민·엄마와는 촌촌하지만, 느슨해진 사람들과의 텀이 점점 길어지고 있어요.',
-  detail: '거창한 약속 말고, 짧은 안부 하나면 충분해요. 가장 뜰했던 한 사람부터요.',
-  evidence: ['관계 별 2주째 ↓', '느슨한 연결 3명', '마지막 연락 한 달+'],
-  action: { label: '저녁 8시 안부 알림 맞추기', icon: 'notifications_active',
-    reminder: { title: '가까운 사람에게 안부 전하기', when: '오늘 저녁 8:00', star: '관계', repeat: '한 번' } } },
-{ id: 'focus', star: '성장',
-  headline: '오후 집중이 자꾸 끊겨요. 딱 25분만 몰입해볼까요?',
-  read: '오후가 되면 집중이 흔어지는 패턴이 반복돼요. 담아둔 「몰입」 글도 세 번째 미뤄지고 있고요.',
-  detail: '길게 말고 25분 한 세트. 타이머가 끝나면 멈춰도 돼요. 시작이 제일 어려운 거예요.',
-  evidence: ['오후 집중 끊김 반복', '미룬 독서 3회', '성장 별 정체'],
-  action: { label: '25분 집중 시작하기', icon: 'play_arrow', route: 'focus' } }];
+const OPS_ADVICE = window.SB_DATA.ops.advice; // → data/screens/ops.json
 
 
 function OpsScreen({ t, go, env }) {
   const C = window.SB.C;
   const [ai, setAi] = useO(0);
-  const [routines, setRoutines] = useO([
-  { id: 1, label: '아침 10분 글쓰기', star: '성장', done: true },
-  { id: 2, label: '물 8잔 마시기', star: '건강', done: true },
-  { id: 3, label: '가까운 사람에게 안부', star: '관계', done: false },
-  { id: 4, label: '30분 산책', star: '건강', done: false }]
-  );
+  const [routines, setRoutines] = useO(() => window.SB_DATA.ops.routines.map((r) => ({ ...r }))); // → data/screens/ops.json (clone: fresh per mount, state mutates)
   const toggle = (id) => setRoutines((rs) => rs.map((r) => r.id === id ? { ...r, done: !r.done } : r));
   const doneN = routines.filter((r) => r.done).length;
   const pct = Math.round(doneN / routines.length * 100);
@@ -201,7 +172,7 @@ function OpsScreen({ t, go, env }) {
           <div style={{ textAlign: 'center' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#FF8A5B' }}>
               <Icon name="local_fire_department" fill size={22} />
-              <span style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 22, fontWeight: 800 }}>12</span>
+              <span style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 22, fontWeight: 800 }}>{window.SB_DATA.ops.streak}</span>{/* → data/screens/ops.json */}
             </div>
             <div className="md-label-small" style={{ color: C('on-surface-variant') }}>일 연속</div>
           </div>
@@ -277,11 +248,7 @@ function OpsScreen({ t, go, env }) {
       {/* 비서 도구 — 맨 아래 */}
       <SectionLabel>비서 도구</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {[
-        { icon: 'timer', label: '일일 집중', sub: '포모도로', route: 'focus' },
-        { icon: 'schedule', label: '예약 리마인더', sub: '알림 일정', route: 'reminders' },
-        { icon: 'lightbulb', label: '공상하기', sub: '멀리 던지기', route: 'imagine' },
-        { icon: 'ios_share', label: '공유 카드', sub: '1080 카드', route: 'share' }].
+        {window.SB_DATA.ops.tools. /* → data/screens/ops.json */
         map((tool) =>
         <MdCard key={tool.route} variant="filled" onClick={() => go(tool.route)} style={{ padding: 13 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -348,9 +315,7 @@ function FirstInsight({ onDone }) {
             </button>
             {showWhy &&
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' }}>
-                {[
-            { q: '가입 질문 · 사람을 만나면?', a: '“만나고 나면 에너지가 차는 편이에요”' },
-            { q: '가입 질문 · 고민이 생기면?', a: '“가까운 사람한테 먼저 털어놔요”' }].
+                {window.SB_DATA.ops.firstInsightEvidence. /* → data/screens/ops.json */
             map((e, i) =>
             <div key={i} style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(127,182,255,.1)', border: '1px solid rgba(127,182,255,.2)' }}>
                     <div style={{ fontFamily: 'var(--md-ref-typeface-mono)', fontSize: 11, letterSpacing: '.04em', color: '#7FB6FF', marginBottom: 3 }}>{e.q}</div>

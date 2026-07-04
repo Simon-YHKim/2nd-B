@@ -7,10 +7,7 @@
 
 const { useState } = React;
 
-const STAR_COLORS = {
-  '지금의 나': 'primary', '리듬': 'tertiary', '관계 · 지식': 'secondary',
-  '일 · 성장': 'primary', '회상': 'tertiary', '미래의 나': 'secondary',
-};
+const STAR_COLORS = window.SB_DATA.know.starColors; // → data/screens/know.json
 
 function Dots({ level, max = 5, color }) {
   const C = window.SB.C;
@@ -52,8 +49,8 @@ function GraphRecordDetail({ g, go, C }) {
   const WR = window.SB.WIKI_RECS || [];
   const dom = DOMS.find((d) => d.id === g.d) || {};
   const accent = dom.color || C('primary');
-  const TL = { text: '글', link: '링크', voice: '음성', photo: '사진', todo: '할 일' };
-  const TI = { text: 'edit_note', link: 'link', voice: 'mic', photo: 'photo_camera', todo: 'check_circle' };
+  const TL = window.SB_DATA.know.typeLabels; // → data/screens/know.json
+  const TI = window.SB_DATA.know.typeIcons; // → data/screens/know.json
   const fmt = (iso) => { const p = (iso || '').split('-'); return p.length === 3 ? `${+p[1]}월 ${+p[2]}일` : (g.time || ''); };
   const links = WR.filter((o) => o.id !== g.id && o.tags.some((tg) => g.tags.includes(tg)));
   const dur = ((g.title || '').match(/\(([0-9]+:[0-9]{2})\)/) || [])[1] || '0:42';
@@ -225,10 +222,7 @@ function InterviewScreen({ t, go }) {
         <div className="md-body-medium" style={{ color: C('on-surface-variant'), marginBottom: 14 }}>
           답을 종합한 변경 제안이에요. <b>승인한 것만</b> 렌즈에 반영돼요.
         </div>
-        {[
-          { lens: '지금의 나 · 외향성', from: 'L3', to: 'L4', delta: '+6' },
-          { lens: '리듬', from: 'L2', to: 'L3', delta: '명확' },
-        ].map((d) => (
+        {window.SB_DATA.know.ratifyProposals.map((d) => ( // → data/screens/know.json
           <MdCard key={d.lens} variant="outlined" style={{ marginBottom: 10, padding: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="md-title-small" style={{ color: C('on-surface') }}>{d.lens}</span>
@@ -246,13 +240,7 @@ function InterviewScreen({ t, go }) {
       </ScreenPad>
     );
   }
-  const QS = [
-    '요즘 사람들과 함께 있을 때, 에너지가 차오르나요 빠져나가나요?',
-    '혼자 있는 저녁과 약속이 있는 저녁 중, 어느 쪽이 더 당신답나요?',
-    '처음 만난 자리에서 먼저 말을 거는 편인가요?',
-    '지친 하루의 끝, 누군가에게 연락하고 싶어지나요?',
-    '돌아보면, 당신을 가장 살아있게 한 순간은 혼자였나요 함께였나요?',
-  ];
+  const QS = window.SB_DATA.know.questions; // → data/screens/know.json
   return (
     <ScreenPad>
       <div style={{ margin: '6px 0 4px' }}>
@@ -265,7 +253,7 @@ function InterviewScreen({ t, go }) {
       </div>
       <div className="md-body-small" style={{ color: C('tertiary'), margin: '10px 0 18px' }}>같은 핵심을 조금씩 다르게 되물어요. 더 또렷해지려고요.</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {['그렇다', '조금 그렇다', '중간', '조금 아니다', '아니다'].map((a) => (
+        {window.SB_DATA.know.likertOptions.map((a) => ( /* → data/screens/know.json */
           <MdCard key={a} variant="outlined" onClick={() => setStep(step + 1)} style={{ padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="md-body-large" style={{ color: C('on-surface') }}>{a}</span>

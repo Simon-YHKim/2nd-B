@@ -13,7 +13,7 @@ const { useState: useM, useRef: useMR, useEffect: useME } = React;
 /* ===================== 일일 집중 (포모도로) ===================== */
 function FocusScreen({ t, go }) {
   const C = window.SB.C;
-  const PRESETS = [25, 15, 50];
+  const PRESETS = window.SB_DATA.more.focusPresets; // → data/screens/more.json
   const [mins, setMins] = useM(25);
   const [left, setLeft] = useM(25 * 60);
   const [running, setRunning] = useM(false);
@@ -39,7 +39,7 @@ function FocusScreen({ t, go }) {
   const ss = String(left % 60).padStart(2, '0');
   const frac = 1 - left / (mins * 60);
   const R = 120, CIRC = 2 * Math.PI * R;
-  const stars = ['성장', '커리어', '학습', '관계', '건강'];
+  const stars = window.SB_DATA.more.focusStars; // → data/screens/more.json
 
   return (
     <ScreenPad>
@@ -100,12 +100,7 @@ function FocusScreen({ t, go }) {
 /* ===================== 예약 리마인더 ===================== */
 function RemindersScreen({ t, go, param }) {
   const C = window.SB.C;
-  const [items, setItems] = useM([
-    { id: 1, title: '가까운 사람에게 안부 전하기', when: '오늘 저녁 8:00', star: '관계', src: '오늘의 비서', on: true, repeat: '한 번' },
-    { id: 2, title: '밤 12시 전 화면 끄기', when: '매일 23:30', star: '건강', src: '루틴', on: true, repeat: '매일' },
-    { id: 3, title: '담아둔 「몰입」 마저 읽기', when: '내일 오전 9:00', star: '성장', src: '세컨비 제안', on: false, repeat: '한 번' },
-    { id: 4, title: '이번 달 구독 점검', when: '6월 28일 10:00', star: '재정', src: '오늘의 비서', on: true, repeat: '매월' },
-  ]);
+  const [items, setItems] = useM(window.SB_DATA.more.reminders.map((r) => ({ ...r }))); // → data/screens/more.json (clone per mount)
   const [timeEdit, setTimeEdit] = useM(null);   // id of reminder whose time is being edited
   const [justId, setJustId] = useM(null);       // 새로 맞춘 알림 강조
   useME(() => {
@@ -181,10 +176,7 @@ function RemindersScreen({ t, go, param }) {
 }
 
 /* ===================== 외부 가져오기 임포트 ===================== */
-const IMPORT_HISTORY = [
-  { id: 1, src: 'ChatGPT 대화 내보내기', when: '6월 20일', items: 142, status: '반영됨' },
-  { id: 2, src: 'Apple 건강 (걸음·수면)', when: '6월 12일', items: 30, status: '반영됨' },
-];
+const IMPORT_HISTORY = window.SB_DATA.more.importHistory; // → data/screens/more.json
 function ImportScreen({ t, go, env }) {
   const C = window.SB.C;
   const [mode, setMode] = useM('file');     // file · account
@@ -204,11 +196,7 @@ function ImportScreen({ t, go, env }) {
   };
   const ratify = () => { env.showToast({ msg: '가져온 신호를 별에 반영했어요', action: '승인 이력', goTo: 'ratify' }); go('ratify'); };
 
-  const consents = [
-    { icon: 'upload_file', label: '원문 데이터', note: '내가 올린 파일/계정의 기록만 읽어요' },
-    { icon: 'memory', label: '기기 내 처리', note: '파싱·요약은 기기 안에서 먼저 일어나요' },
-    { icon: 'lock', label: '철회 가능', note: '언제든 가져온 데이터를 통째로 지울 수 있어요' },
-  ];
+  const consents = window.SB_DATA.more.consents; // → data/screens/more.json
 
   return (
     <ScreenPad>
@@ -220,7 +208,7 @@ function ImportScreen({ t, go, env }) {
 
           {/* mode toggle */}
           <div style={{ display: 'flex', gap: 8 }}>
-            {[['file', 'upload_file', '파일로'], ['account', 'link', '계정 연동']].map(([id, ic, lb]) => (
+            {window.SB_DATA.more.importModes.map(([id, ic, lb]) => ( // → data/screens/more.json
               <button key={id} onClick={() => setMode(id)} className="md-interactive"
                 style={{ position: 'relative', flex: 1, padding: '14px 10px', borderRadius: 14, cursor: 'pointer',
                   border: `1.5px solid ${mode === id ? C('primary') : C('outline-variant')}`,
@@ -243,7 +231,7 @@ function ImportScreen({ t, go, env }) {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[['ChatGPT', 'bubble_chart'], ['Notion', 'description'], ['Google 캘린더', 'event'], ['Apple 건강', 'favorite']].map(([k, ic]) => (
+              {window.SB_DATA.more.accountSources.map(([k, ic]) => ( // → data/screens/more.json
                 <MdCard key={k} variant="outlined" onClick={startParse} style={{ padding: 13 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Icon name={ic} size={20} style={{ color: C('on-surface-variant') }} />
@@ -317,7 +305,7 @@ function ImportScreen({ t, go, env }) {
 
           <SectionLabel>반영 후보 (비준 필요)</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[['관계', 23, 'L2 → L3'], ['성장', 31, 'L2 → L3'], ['커리어', 18, 'L3 유지'], ['건강', 15, 'L1 → L2']].map(([s, n, chg]) => (
+            {window.SB_DATA.more.ratifyCandidates.map(([s, n, chg]) => ( // → data/screens/more.json
               <MdCard key={s} variant="outlined" style={{ padding: 13 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <Icon name="star_shine" fill size={18} style={{ color: C('primary') }} />
@@ -346,16 +334,8 @@ function ImportScreen({ t, go, env }) {
 function DataReviewScreen({ t, go, env }) {
   const C = window.SB.C;
   const [confirm, setConfirm] = React.useState(null);
-  const stores = [
-    { icon: 'inventory_2', label: '원문 별가루', n: '124개', sub: '내가 직접 담은 기록', tone: 'primary' },
-    { icon: 'hub', label: '파생 신호', n: '38개', sub: '분석이 만든 추정·연결', tone: 'tertiary' },
-    { icon: 'cloud_sync', label: '연동 캐시', n: '2.4MB', sub: '가져오기·연동 임시 데이터', tone: 'secondary' },
-  ];
-  const signals = [
-    { from: '통화·메모 12건', to: '먼저 다가가는 성향 (관계)', conf: '확신 52%' },
-    { from: '캘린더 야간 일정', to: '수면 리듬 불규칙 (건강)', conf: '확신 41%' },
-    { from: '독서 메모 8건', to: '개방성 높음 (성장)', conf: '확신 63%' },
-  ];
+  const stores = window.SB_DATA.more.stores; // → data/screens/more.json
+  const signals = window.SB_DATA.more.signals; // → data/screens/more.json
 
   return (
     <ScreenPad>
@@ -433,13 +413,8 @@ function DataReviewScreen({ t, go, env }) {
 function ShareCardScreen({ t, go, env }) {
   const C = window.SB.C;
   const [variant, setVariant] = useM('insight');   // insight · constellation
-  const stars = [
-    { k: '커리어', x: 50, y: 16, on: true }, { k: '재정', x: 80, y: 34, on: false },
-    { k: '성장', x: 86, y: 66, on: true }, { k: '관계', x: 60, y: 84, on: true },
-    { k: '건강', x: 32, y: 80, on: false }, { k: '휴식', x: 16, y: 56, on: true },
-    { k: '담기', x: 22, y: 26, on: true },
-  ];
-  const CARD = 330;  // preview px; exports at 1080
+  const stars = window.SB_DATA.more.shareStars; // → data/screens/more.json
+  const CARD = window.SB_DATA.more.cardSize;  // preview px; exports at 1080 · → data/screens/more.json
 
   return (
     <ScreenPad>
@@ -449,7 +424,7 @@ function ShareCardScreen({ t, go, env }) {
 
       {/* variant toggle */}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
-        {[['insight', '통찰 카드'], ['constellation', '별자리 카드']].map(([id, lb]) => (
+        {window.SB_DATA.more.shareVariants.map(([id, lb]) => ( // → data/screens/more.json
           <MdChip key={id} variant="filter" selected={variant === id} onClick={() => setVariant(id)}>{lb}</MdChip>
         ))}
       </div>
@@ -512,14 +487,7 @@ function ShareCardScreen({ t, go, env }) {
 }
 
 /* ===================== 공상 → 탐색 ===================== */
-const IMAGINE_SEEDS = [
-  { angle: '확장', icon: 'expand', title: '1년 안식년을 떠난다면', body: '돈·일·관계 제약을 잠깐 지우면, 가장 먼저 하고 싶은 건 뭘까요?',
-    steps: ['하고 싶은 3가지를 적어보기', '그중 이번 달 1시간으로 맛보기', '관계 별에 동행할 사람 떠올리기'] },
-  { angle: '반전', icon: 'cached', title: '지금과 정반대로 산다면', body: '계획 대신 즉흥, 혼자 대신 함께. 반대편에서 끌리는 한 가지는?',
-    steps: ['평소 안 하던 것 하나 이번 주에 시도', '어색했던 점을 세컨비와 기록', '휴식 별로 담아 패턴 보기'] },
-  { angle: '연결', icon: 'hub', title: '커리어 × 휴식을 합치면', body: '두 별을 억지로 이으면 어떤 엉뚱한 아이디어가 나올까요?',
-    steps: ['두 키워드로 프로젝트 1줄 써보기', '주말 2시간 프로토타입', '성장 별에 실험으로 기록'] },
-];
+const IMAGINE_SEEDS = window.SB_DATA.more.imagineSeeds; // → data/screens/more.json
 function ImagineScreen({ t, go }) {
   const C = window.SB.C;
   const [picked, setPicked] = useM(null);

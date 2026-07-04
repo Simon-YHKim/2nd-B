@@ -11,44 +11,19 @@
   const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
 
   /* ---- 관계 카테고리(별 색 대신 '관계 유형' 색) ---- */
-  const CATS = [
-    { id: 'love',   name: '연인', color: '#FF9DB0' },
-    { id: 'family', name: '가족', color: '#FFCF6E' },
-    { id: 'friend', name: '친구', color: '#6FB1FF' },
-    { id: 'work',   name: '동료', color: '#5BD6B0' },
-    { id: 'acq',    name: '지인', color: '#A78BFA' },
-  ];
+  const CATS = window.SB_DATA.relations.graph.cats; // → data/screens/relations.json
   const CCOLOR = Object.fromEntries(CATS.map((c) => [c.id, c.color]));
   const CNAME = Object.fromEntries(CATS.map((c) => [c.id, c.name]));
 
-  const TIER_LABEL = ['가까움', '보통', '느슨함']; // 친밀도 (0 가까움 → 2 느슨함)
+  const TIER_LABEL = window.SB_DATA.relations.graph.tierLabels; // 친밀도 (0 가까움 → 2 느슨함) — → data/screens/relations.json
 
   /* ---- 사람 노드 ---- */
-  const PEOPLE = [
-    { id: 'jimin',   name: '지민', cat: 'love',   tier: 0, last: '2026-06-26', recs: 18, note: '용건 없이도 가장 자주 닿는 사람. 최근 연락 결이 가장 촘촘해요.' },
-    { id: 'mom',     name: '엄마', cat: 'family', tier: 0, last: '2026-06-27', recs: 24, note: '목소리만 들어도 안심이 되는 관계. 관계 별이 어두워질 때 먼저 밝혀줘요.' },
-    { id: 'dad',     name: '아빠', cat: 'family', tier: 1, last: '2026-06-20', recs: 11, note: '말수는 적지만 늘 같은 자리에 있는 분. 먼저 안부를 건네면 대화가 길게 이어져요.' },
-    { id: 'sis',     name: '동생', cat: 'family', tier: 1, last: '2026-06-18', recs: 9,  note: '편하게 투닥대는 사이. 요즘은 각자 바빠 연락이 조금 뜸해졌어요.' },
-    { id: 'hyunwoo', name: '현우', cat: 'friend', tier: 1, last: '2026-06-14', recs: 9,  note: '텀이 길어도 금세 가까워지는 오랜 친구. 한 번 약속을 잡아볼 때예요.' },
-    { id: 'seyoung', name: '세영', cat: 'friend', tier: 1, last: '2026-06-10', recs: 7,  note: '취향이 잘 맞는 친구. 최근 함께 본 전시 기록이 남아 있어요.' },
-    { id: 'lead',    name: '리드', cat: 'work',   tier: 1, last: '2026-06-25', recs: 12, note: '일로 만났지만 신뢰가 쌓이는 중. 최근 갈등을 마주해 푼 기록이 있어요.' },
-    { id: 'dongju',  name: '동주', cat: 'work',   tier: 2, last: '2026-06-05', recs: 5,  note: '같은 팀이지만 깊은 얘긴 아직. 가볍게 점심을 청해볼 만해요.' },
-    { id: 'jay',     name: 'J',   cat: 'acq',    tier: 2, last: '2026-05-28', recs: 3,  note: '한동안 뜸했던 사이. 가볍게 안부를 건네면 다시 이어질 결이에요.' },
-  ];
+  const PEOPLE = window.SB_DATA.relations.graph.people; // → data/screens/relations.json
 
   /* ---- 사람↔사람 관계(연줄) — 나를 거치지 않는, 사람 사이의 직접 관계 ---- */
-  const BONDS = [
-    { a: 'mom',     b: 'dad',     label: '부부' },
-    { a: 'mom',     b: 'sis',     label: '가족' },
-    { a: 'dad',     b: 'sis',     label: '가족' },
-    { a: 'jimin',   b: 'mom',     label: '인사한 사이' },
-    { a: 'hyunwoo', b: 'seyoung', label: '친구 무리' },
-    { a: 'hyunwoo', b: 'jay',     label: '대학 동기' },
-    { a: 'seyoung', b: 'jimin',   label: '서로 아는 사이' },
-    { a: 'lead',    b: 'dongju',  label: '같은 팀' },
-  ];
+  const BONDS = window.SB_DATA.relations.graph.bonds; // → data/screens/relations.json
 
-  const today = new Date('2026-06-28');
+  const today = new Date(window.SB_DATA.relations.graph.refDate); // → data/screens/relations.json
   const daysAgo = (n) => { const d = new Date(today); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
   const lastText = (iso) => {
     const d = new Date(iso); const days = Math.round((today - d) / 86400000);
@@ -73,12 +48,11 @@
     return { W, H, cx, cy, nodes, edges, pos };
   }
 
-  const SPINE_W = [2, 1.5, 1.1], SPINE_O = [0.85, 0.6, 0.42], NODE_D = [19, 16, 14];
+  const SPINE_W = window.SB_DATA.relations.graph.spineW, SPINE_O = window.SB_DATA.relations.graph.spineO, NODE_D = window.SB_DATA.relations.graph.nodeD; // → data/screens/relations.json
 
   /* ---- physics/display config (위키와 동일 구조 · 별도 저장키) ---- */
-  const DEFAULT_CFG = { centerF: 0.5, repelF: 0.5, linkF: 0.5, linkDist: 0.5, nodeScale: 1, linkScale: 1,
-    showBonds: true, showBondLabels: false, arrows: false, labelMode: 'zoom', labelThreshold: 1.0 };
-  const CFG_KEY = 'sb-relgraph-cfg-v1';
+  const DEFAULT_CFG = window.SB_DATA.relations.graph.defaultCfg; // → data/screens/relations.json
+  const CFG_KEY = window.SB_DATA.relations.graph.cfgKey; // → data/screens/relations.json
   function loadCfg() {
     try { const j = JSON.parse(localStorage.getItem(CFG_KEY)); if (j && typeof j === 'object') return { ...DEFAULT_CFG, ...j }; } catch (e) {}
     return { ...DEFAULT_CFG };

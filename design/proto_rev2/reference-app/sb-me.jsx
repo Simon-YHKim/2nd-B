@@ -95,12 +95,7 @@ function MeScreen({ t, go }) {
         {/* settings rows */}
         <SectionLabel>계정</SectionLabel>
         <MdCard variant="filled" style={{ padding: 4 }}>
-          {[
-            { icon: 'workspaces', label: '데이터 연동', sub: '캘린더 · 건강 · Notion', route: 'connect' },
-            { icon: 'workspace_premium', label: '요금제 · 항해자', sub: '횟수·보관·내보내기 한도', route: 'plans' },
-            { icon: 'tune', label: '설정', sub: '테마 · 권한 · 개인정보', route: 'settings' },
-            { icon: 'auto_stories', label: 'AI 뮤지엄', sub: 'AI 발전사 8 카테고리', route: 'museum' },
-          ].map((row, i) => (
+          {window.SB_DATA.me.accountRows.map((row, i) => ( /* → data/screens/me.json */
             <div key={row.label} className="md-interactive" onClick={() => go(row.route)}
               style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, padding: '12px 12px', borderRadius: 10,
                 borderTop: i ? `1px solid ${C('outline-variant')}` : 'none', cursor: 'pointer' }}>

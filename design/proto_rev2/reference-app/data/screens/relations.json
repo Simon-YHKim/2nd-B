@@ -1,3 +1,389 @@
 {
-  "__stub": true
+  "graph": {
+    "cats": [
+      {
+        "id": "love",
+        "name": "연인",
+        "color": "#FF9DB0"
+      },
+      {
+        "id": "family",
+        "name": "가족",
+        "color": "#FFCF6E"
+      },
+      {
+        "id": "friend",
+        "name": "친구",
+        "color": "#6FB1FF"
+      },
+      {
+        "id": "work",
+        "name": "동료",
+        "color": "#5BD6B0"
+      },
+      {
+        "id": "acq",
+        "name": "지인",
+        "color": "#A78BFA"
+      }
+    ],
+    "tierLabels": [
+      "가까움",
+      "보통",
+      "느슨함"
+    ],
+    "people": [
+      {
+        "id": "jimin",
+        "name": "지민",
+        "cat": "love",
+        "tier": 0,
+        "last": "2026-06-26",
+        "recs": 18,
+        "note": "용건 없이도 가장 자주 닿는 사람. 최근 연락 결이 가장 촘촘해요."
+      },
+      {
+        "id": "mom",
+        "name": "엄마",
+        "cat": "family",
+        "tier": 0,
+        "last": "2026-06-27",
+        "recs": 24,
+        "note": "목소리만 들어도 안심이 되는 관계. 관계 별이 어두워질 때 먼저 밝혀줘요."
+      },
+      {
+        "id": "dad",
+        "name": "아빠",
+        "cat": "family",
+        "tier": 1,
+        "last": "2026-06-20",
+        "recs": 11,
+        "note": "말수는 적지만 늘 같은 자리에 있는 분. 먼저 안부를 건네면 대화가 길게 이어져요."
+      },
+      {
+        "id": "sis",
+        "name": "동생",
+        "cat": "family",
+        "tier": 1,
+        "last": "2026-06-18",
+        "recs": 9,
+        "note": "편하게 투닥대는 사이. 요즘은 각자 바빠 연락이 조금 뜸해졌어요."
+      },
+      {
+        "id": "hyunwoo",
+        "name": "현우",
+        "cat": "friend",
+        "tier": 1,
+        "last": "2026-06-14",
+        "recs": 9,
+        "note": "텀이 길어도 금세 가까워지는 오랜 친구. 한 번 약속을 잡아볼 때예요."
+      },
+      {
+        "id": "seyoung",
+        "name": "세영",
+        "cat": "friend",
+        "tier": 1,
+        "last": "2026-06-10",
+        "recs": 7,
+        "note": "취향이 잘 맞는 친구. 최근 함께 본 전시 기록이 남아 있어요."
+      },
+      {
+        "id": "lead",
+        "name": "리드",
+        "cat": "work",
+        "tier": 1,
+        "last": "2026-06-25",
+        "recs": 12,
+        "note": "일로 만났지만 신뢰가 쌓이는 중. 최근 갈등을 마주해 푼 기록이 있어요."
+      },
+      {
+        "id": "dongju",
+        "name": "동주",
+        "cat": "work",
+        "tier": 2,
+        "last": "2026-06-05",
+        "recs": 5,
+        "note": "같은 팀이지만 깊은 얘긴 아직. 가볍게 점심을 청해볼 만해요."
+      },
+      {
+        "id": "jay",
+        "name": "J",
+        "cat": "acq",
+        "tier": 2,
+        "last": "2026-05-28",
+        "recs": 3,
+        "note": "한동안 뜸했던 사이. 가볍게 안부를 건네면 다시 이어질 결이에요."
+      }
+    ],
+    "bonds": [
+      {
+        "a": "mom",
+        "b": "dad",
+        "label": "부부"
+      },
+      {
+        "a": "mom",
+        "b": "sis",
+        "label": "가족"
+      },
+      {
+        "a": "dad",
+        "b": "sis",
+        "label": "가족"
+      },
+      {
+        "a": "jimin",
+        "b": "mom",
+        "label": "인사한 사이"
+      },
+      {
+        "a": "hyunwoo",
+        "b": "seyoung",
+        "label": "친구 무리"
+      },
+      {
+        "a": "hyunwoo",
+        "b": "jay",
+        "label": "대학 동기"
+      },
+      {
+        "a": "seyoung",
+        "b": "jimin",
+        "label": "서로 아는 사이"
+      },
+      {
+        "a": "lead",
+        "b": "dongju",
+        "label": "같은 팀"
+      }
+    ],
+    "refDate": "2026-06-28",
+    "spineW": [
+      2,
+      1.5,
+      1.1
+    ],
+    "spineO": [
+      0.85,
+      0.6,
+      0.42
+    ],
+    "nodeD": [
+      19,
+      16,
+      14
+    ],
+    "defaultCfg": {
+      "centerF": 0.5,
+      "repelF": 0.5,
+      "linkF": 0.5,
+      "linkDist": 0.5,
+      "nodeScale": 1,
+      "linkScale": 1,
+      "showBonds": true,
+      "showBondLabels": false,
+      "arrows": false,
+      "labelMode": "zoom",
+      "labelThreshold": 1
+    },
+    "cfgKey": "sb-relgraph-cfg-v1"
+  },
+  "input": {
+    "cats": [
+      {
+        "id": "love",
+        "name": "연인",
+        "color": "#FF9DB0"
+      },
+      {
+        "id": "family",
+        "name": "가족",
+        "color": "#FFCF6E"
+      },
+      {
+        "id": "friend",
+        "name": "친구",
+        "color": "#6FB1FF"
+      },
+      {
+        "id": "work",
+        "name": "동료",
+        "color": "#5BD6B0"
+      },
+      {
+        "id": "acq",
+        "name": "지인",
+        "color": "#A78BFA"
+      }
+    ],
+    "tiers": [
+      [
+        "0",
+        "가까움"
+      ],
+      [
+        "1",
+        "보통"
+      ],
+      [
+        "2",
+        "느슨함"
+      ]
+    ],
+    "contacts": [
+      {
+        "id": "jimin",
+        "name": "지민",
+        "cat": "love",
+        "tier": 0,
+        "last": "2026-06-26",
+        "tracked": true,
+        "phone": "010-2840-1173"
+      },
+      {
+        "id": "mom",
+        "name": "엄마",
+        "cat": "family",
+        "tier": 0,
+        "last": "2026-06-27",
+        "tracked": true,
+        "phone": "010-9921-0042"
+      },
+      {
+        "id": "dad",
+        "name": "아빠",
+        "cat": "family",
+        "tier": 1,
+        "last": "2026-06-20",
+        "tracked": true,
+        "phone": "010-9921-0043"
+      },
+      {
+        "id": "sis",
+        "name": "동생",
+        "cat": "family",
+        "tier": 1,
+        "last": "2026-06-18",
+        "tracked": true,
+        "phone": "010-3370-5589"
+      },
+      {
+        "id": "hyunwoo",
+        "name": "현우",
+        "cat": "friend",
+        "tier": 1,
+        "last": "2026-06-14",
+        "tracked": true,
+        "phone": "010-5512-7781"
+      },
+      {
+        "id": "seyoung",
+        "name": "세영",
+        "cat": "friend",
+        "tier": 1,
+        "last": "2026-06-10",
+        "tracked": true,
+        "phone": "010-4408-2290"
+      },
+      {
+        "id": "lead",
+        "name": "리드",
+        "cat": "work",
+        "tier": 1,
+        "last": "2026-06-25",
+        "tracked": true,
+        "phone": "010-7781-3340"
+      },
+      {
+        "id": "dongju",
+        "name": "동주",
+        "cat": "work",
+        "tier": 2,
+        "last": "2026-06-05",
+        "tracked": true,
+        "phone": "010-2231-8890"
+      },
+      {
+        "id": "jay",
+        "name": "J",
+        "cat": "acq",
+        "tier": 2,
+        "last": "2026-05-28",
+        "tracked": true,
+        "phone": "010-6650-1120"
+      },
+      {
+        "id": "c_gusang",
+        "name": "구상 팀장",
+        "cat": null,
+        "tier": null,
+        "last": "2026-06-22",
+        "tracked": false,
+        "phone": "010-3019-7782"
+      },
+      {
+        "id": "c_naeun",
+        "name": "나은",
+        "cat": null,
+        "tier": null,
+        "last": "2026-06-19",
+        "tracked": false,
+        "phone": "010-8845-2201"
+      },
+      {
+        "id": "c_minho",
+        "name": "민호 선배",
+        "cat": null,
+        "tier": null,
+        "last": "2026-06-02",
+        "tracked": false,
+        "phone": "010-2204-5567"
+      },
+      {
+        "id": "c_yuna",
+        "name": "유나",
+        "cat": null,
+        "tier": null,
+        "last": "2026-05-30",
+        "tracked": false,
+        "phone": "010-7790-3312"
+      },
+      {
+        "id": "c_sam",
+        "name": "Sam",
+        "cat": null,
+        "tier": null,
+        "last": "2026-05-21",
+        "tracked": false,
+        "phone": "010-1102-8830"
+      },
+      {
+        "id": "c_imo",
+        "name": "이모",
+        "cat": null,
+        "tier": null,
+        "last": "2026-05-15",
+        "tracked": false,
+        "phone": "010-9930-4471"
+      },
+      {
+        "id": "c_hana",
+        "name": "하나 선생님",
+        "cat": null,
+        "tier": null,
+        "last": "2026-04-29",
+        "tracked": false,
+        "phone": "010-4471-2230"
+      },
+      {
+        "id": "c_doyun",
+        "name": "도윤",
+        "cat": null,
+        "tier": null,
+        "last": "2026-04-12",
+        "tracked": false,
+        "phone": "010-5560-9981"
+      }
+    ]
+  }
 }

@@ -90,14 +90,14 @@ function PhotoCapture({ C, caption, setCaption }) {
   const [intent, setIntent] = useState('moment');   // moment · ocr
   const [ocr, setOcr] = useState('idle');           // idle · running · done
   const [text, setText] = useState('');
-  const SAMPLE = '몰입(flow)은 행위와 의식이 하나로 합쳐지는 상태다. 시간 감각이 사라지고, 자아에 대한 의식이 옅어진다. 이 상태에 자주 드는 사람일수록 삶의 만족도가 높았다.\n— 미하이 칙센트미하이, 《몰입》 p.84';
+  const SAMPLE = window.SB_DATA.core.ocrSample; // → data/screens/core.json
   const runOcr = () => { setOcr('running'); setTimeout(() => { setText(SAMPLE); setOcr('done'); }, 1900); };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* intent segmented control */}
       <div style={{ display: 'flex', gap: 8 }}>
-        {[['moment', 'photo_camera', '순간 기록'], ['ocr', 'document_scanner', '글 추출 (OCR)']].map(([id, ic, lb]) => {
+        {window.SB_DATA.core.captureIntents.map(([id, ic, lb]) => { // → data/screens/core.json
           const on = intent === id;
           return (
             <button key={id} onClick={() => setIntent(id)} className="md-interactive"
@@ -113,8 +113,8 @@ function PhotoCapture({ C, caption, setCaption }) {
       </div>
       <div className="md-body-small" style={{ color: C('on-surface-variant'), wordBreak: 'keep-all', marginTop: -4 }}>
         {intent === 'moment'
-          ? '그 순간을 사진 그대로 남겨요. 이미지가 기록과 함께 저장돼요.'
-          : '이미지 속 글자만 뽑아 담아요. 무거운 원본 사진은 저장하지 않아 용량을 아껴요.'}
+          ? window.SB_DATA.core.captureIntentHelp.moment /* → data/screens/core.json */
+          : window.SB_DATA.core.captureIntentHelp.ocr}
       </div>
 
       {/* photo dropzone (user fills) */}
@@ -176,14 +176,7 @@ function CaptureScreen({ t, go, env }) {
   const setW = (k, v) => setW4((s) => ({ ...s, [k]: v }));
 
   // categories for the post-담기 classification step (the 7 life-area stars)
-  const CATEGORIES = [
-    { id: 'career',   label: '커리어',   icon: 'badge',            accent: 'primary'  },
-    { id: 'finance',  label: '재정',     icon: 'sell',             accent: 'primary'  },
-    { id: 'relation', label: '관계',     icon: 'group',            accent: 'tertiary' },
-    { id: 'growth',   label: '성장',     icon: 'self_improvement', accent: 'primary'  },
-    { id: 'health',   label: '건강',     icon: 'bedtime',          accent: 'tertiary' },
-    { id: 'leisure',  label: '휴식',     icon: 'lightbulb',        accent: 'tertiary' },
-  ];
+  const CATEGORIES = window.SB_DATA.core.captureCategories; // → data/screens/core.json
 
   const pasteInto = async (i) => {
     let txt = '';
@@ -282,7 +275,7 @@ function CaptureScreen({ t, go, env }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* 자유 양식 ↔ W4H1 양식 토글 */}
               <div style={{ display: 'flex', padding: 3, borderRadius: 9999, background: C('surface-container-highest'), border: `1px solid ${C('outline-variant')}` }}>
-                {[{ k: false, label: '자유 양식', icon: 'edit_note' }, { k: true, label: 'W4H1 양식', icon: 'view_agenda' }].map((o) => (
+                {window.SB_DATA.core.structuredToggle.map((o) => ( // → data/screens/core.json
                   <button key={o.label} onClick={() => setStructured(o.k)} className="md-interactive"
                     style={{ position: 'relative', flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                       height: 36, borderRadius: 9999, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
@@ -345,7 +338,7 @@ function CaptureScreen({ t, go, env }) {
               <div className="md-body-medium" style={{ color: C('on-surface-variant') }}>{recording ? '듣고 있어요… 다시 누르면 멈춰요' : '탭하고 말하면 자동으로 받아 적어요'}</div>
               {recording && (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center', height: 28 }}>
-                  {[10, 18, 26, 16, 22, 12, 20, 14].map((h, i) => (
+                  {window.SB_DATA.core.voiceWaveform.map((h, i) => ( // → data/screens/core.json
                     <span key={i} style={{ width: 3, height: h, borderRadius: 2, background: C('primary'), animation: `sb-pulse 0.9s ${i * 0.1}s ease-in-out infinite` }} />
                   ))}
                 </div>
@@ -377,17 +370,10 @@ function CaptureScreen({ t, go, env }) {
 }
 
 /* ===================== CHAT 세컨비 (3 modes) ===================== */
-const CHAT_ANSWERS = {
-  '2nd': { text: '최근 2주 기록을 보면 ‘쉼’ 없이 일만 늘었어요. 당신은 사람을 만나야 충전되는 편인데, 그 시간이 부쩍 줄었네요.',
-    cites: ['근거 · 기록 8건', '관계 별 ↓'], sugg: ['쉼을 한 줄 담기', '관계 별 보기'] },
-  meta: { text: '데이터만 보면: 일 기록 +38%, 휴식 태그 0건, 평균 수면 5.6시간. 외향성 지표가 2주째 하락 추세예요.',
-    cites: ['지표 · 4종', '추세 14일'], sugg: ['지표 자세히', '검증틀 열기'] },
-  twi: { text: '당신 기록을 다르게 이어 보면 — ‘쉼’ 별과 ‘성장’ 별이 늘 따로 놀았어요. 둘을 묶으면? 혼자 걷는 30분을 ‘배우는 산책’으로 바꿔, 듣고 싶던 강연을 흘려보는 거예요. 쉬면서 자라는 시간이 생겨요.',
-    cites: ['엮은 별 · 2개', '안 해본 조합'], sugg: ['이 아이디어 담기', '다른 조합 더 보기'] },
-};
+const CHAT_ANSWERS = window.SB_DATA.core.chatAnswers; // → data/screens/core.json
 
 // ── chat: multi-conversation persistence (survives navigation + refresh) ──
-const CHAT_LS = 'sb_chat_v3';
+const CHAT_LS = window.SB_DATA.core.chatStorageKey; // → data/screens/core.json
 let _cseq = 0;
 function newConv(mode = '2nd') {
   _cseq += 1;
@@ -517,11 +503,7 @@ function ChatDrawer({ open, convs, activeId, MODES, C, onSelect, onNew, onDelete
 // uses window.claude.complete when available (real test), else the mode's canned answer.
 async function sbReply(modeId, question, history) {
   const base = CHAT_ANSWERS[modeId] || CHAT_ANSWERS['2nd'];
-  const persona = {
-    '2nd': '너는 사용자를 잘 아는 \u201c세컨비\u201d. 사용자의 기록(별)을 근거로 따뜻하게, 그러나 솔직하게 답한다.',
-    meta: '너는 객관적인 \u201c메타비\u201d. 감정을 빼고 데이터·지표·추세로만 간결하게 답한다.',
-    twi: '너는 창의적인 \u201c트위비\u201d. 사용자의 기록(별)을 근거로, 사용자가 미처 생각 못 한 엉뚱하고 신선한 가능성·조합·아이디어를 제안한다. 비판이 아니라 영감을 준다.',
-  }[modeId];
+  const persona = window.SB_DATA.core.chatPersonas[modeId]; // → data/screens/core.json
   try {
     if (window.claude && window.claude.complete) {
       const ctx = history.filter((x) => x.text).slice(-6)
@@ -578,7 +560,7 @@ function ChatScreen({ t, go, env, param, onBack }) {
   // mic dictation — simulate a growing transcript while listening
   React.useEffect(() => {
     if (!listening) return;
-    const phrases = ['오늘 ', '오늘 회의에서 ', '오늘 회의에서 느낀 점을 ', '오늘 회의에서 느낀 점을 담아줘'];
+    const phrases = window.SB_DATA.core.dictationPhrases; // → data/screens/core.json
     let i = 0;
     const id = setInterval(() => {
       i = Math.min(i + 1, phrases.length);
@@ -729,7 +711,7 @@ function ChatScreen({ t, go, env, param, onBack }) {
               {m.name}에게 무엇이든 물어보세요. 당신의 7개 별에서 근거를 찾아 답할게요.
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
-              {['요즘 나 어때?', '나 왜 지칠까?', '뭘 더 담으면 좋아?'].map((s) => <MdChip key={s} onClick={() => send(s)}>{s}</MdChip>)}
+              {window.SB_DATA.core.chatSuggestions.map((s) => <MdChip key={s} onClick={() => send(s)}>{s}</MdChip>)}{/* → data/screens/core.json */}
             </div>
           </div>
         ) : (

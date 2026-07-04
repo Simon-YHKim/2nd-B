@@ -28,9 +28,11 @@ cd reference-app && python3 -m http.server 8000
 
 ## 2. 어디에 뭐가 있나
 
+- `reference-app/data/` — **앱 구동 데이터 정본(JSON)**: 화면 레지스트리(`app/screens.json` — id·component·layout·companion·title), nav, 별하늘, 아이콘 131개, 화면별 콘텐츠 팩(`screens/*.json`). `sb-boot.js`가 모든 스크립트 전에 동기 로드(`window.SB_DATA`). **카피·좌표·색 = 픽셀 계약이므로 JSON 값 수정 = 디자인 변경.** 상세 규칙: `data/README.md`.
 - `reference-app/m3-theme.css` — **모든 디자인 토큰** (타입 스케일, shape, elevation, state layer, spacing, motion, 팔레트 4세트, 딥스페이스 액센트, keyframes). 클로닝 1순위.
-- `reference-app/sb-data.jsx` — 공유 데이터(`window.SB`: STARS 좌표, NAV, CHAT_MODES, COMPANION 대사, RECORDS…) + M3 프리미티브(Icon, MdButton, MdCard, MdChip, SbHead, 캘린더/시간 픽커, ConfirmDialog).
-- `reference-app/sb-app.jsx` — 폰 프레임, 상태바, 컴패니언 헤더, TopAppBar, NavBar, 라우터(루트 5탭 + 스택), 화면 레지스트리(ScreenBody), 잡/토스트/시트, 온보딩 게이트.
+- `reference-app/sb-data.jsx` — `window.SB_DATA`를 기존 `window.SB` 형태로 재부착(C 함수 포함) + M3 프리미티브(Icon, MdButton, MdCard, MdChip, SbHead, 캘린더/시간 픽커, ConfirmDialog).
+- `reference-app/sb-app.jsx` — 폰 프레임, 상태바, 컴패니언 헤더, TopAppBar, NavBar, 라우터(루트 5탭 + 스택), 화면 레지스트리(screens.json 구동, `window[component]` 해석), 잡/토스트/시트, 온보딩 게이트.
+- `tools/validate-data.mjs` — 데이터 무결성 검사 · `tools/capture-proto.mjs`+`compare-shots.mjs` — 37화면 결정적 캡처·픽셀 회귀.
 - 나머지 `sb-*.jsx` — 화면별 구현. 파일→화면 매핑은 `README.md` §Files 참조.
 - `docs/PRD (standalone).html` — 제품 요구사항(왜 이렇게 생겼는지). 브라우저로 열어 읽기.
 - `docs/Screen-Spec/2nd-Brain-Screen-Spec.html` — 37개 대표 화면 명세 + `captures/`(390px 캡처, **픽셀 비교 기준 이미지**).
