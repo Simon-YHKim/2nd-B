@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>proto_rev2 비율·시인성 개선 리포트</title>
+<style>
+:root{--bg:#0d1017;--card:#141926;--ink:#dee5f2;--dim:#8e9ab0;--acc:#86cfff;--line:rgba(150,180,230,.14)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Pretendard',system-ui,sans-serif;line-height:1.65;-webkit-font-smoothing:antialiased;word-break:keep-all}
+.wrap{max-width:1060px;margin:0 auto;padding:48px 24px 90px}
+h1{font-size:32px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:20px;font-weight:700;margin:44px 0 14px;padding-top:22px;border-top:1px solid var(--line)}
+.sub{color:var(--dim);font-size:15px;margin-bottom:28px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.kpi b{display:block;font-size:22px;color:var(--acc);font-weight:800;margin-bottom:2px}
+.kpi span{font-size:13px;color:var(--dim)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--dim);font-weight:600;font-size:12.5px}
+td.bad{color:#ff9aa8}td.ok{color:#7fe0b8}td.warn{color:#e8c37f}
+.note{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:13px 16px;font-size:14px;margin:10px 0}
+.pair{margin:26px 0}
+.pair-t{font-weight:700;font-size:15px;margin-bottom:10px}
+.pair-imgs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pair-imgs figure{margin:0}
+.pair-imgs img{width:100%;border-radius:18px;border:1px solid var(--line);display:block}
+.pair-imgs figcaption{text-align:center;color:var(--dim);font-size:12.5px;margin-top:6px}
+ul{padding-left:20px}li{margin:4px 0}
+code{font-family:'Roboto Mono',monospace;font-size:12.5px;color:var(--acc);background:rgba(134,207,255,.08);padding:1px 5px;border-radius:5px}
+@media(max-width:700px){.pair-imgs{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<h1>2nd-Brain proto_rev2 — 비율·시인성 개선 리포트</h1>
+<div class="sub">클론 원본: <code>2ndB proto_rev2 (Copy).zip</code> → 작업본 <code>E:\2ndB\design\proto_rev2</code> · 2026-07-04 · 전 60화면(57 스크린 + 3 오버레이) 대상</div>
+
+<div class="kpis">
+<div class="kpi"><b>60 / 60</b><span>모든 화면 390×820(2.10:1) 균일 비율 캡처 — 기존 스펙 캡처는 460×820(1.78:1)로 왜곡</span></div>
+<div class="kpi"><b>0건</b><span>11px 미만 한국어 텍스트 (개선 전 위반 다수 · 전체 DOM 검사)</span></div>
+<div class="kpi"><b>0건</b><span>10px 미만 텍스트 (최소 8px → 바닥 10px)</span></div>
+<div class="kpi"><b>0건</b><span>WCAG 대비 위반 (브랜드 로고 1건 예외) · 4.5:1 / 3:1 기준</span></div>
+</div>
+
+<h2>무엇이 문제였나</h2>
+<ul>
+<li><b>비율 불일치</b> — 핸드오프의 스펙 캡처 37장이 460×820(1.78:1)로, 기준 캔버스 390×820(2.10:1)과 다른 비율로 스트레치 렌더됨. 그 과정에서 폰트 부스팅이 발생해 <b>한국어 단어 중간 줄바꿈</b>("별자/리", "01 이/론"), 텍스트 잘림이 캡처 전반에 남아 있었음.</li>
+<li><b>극소 폰트</b> — 8–10.5px 인라인 폰트 약 50곳(뮤지엄 연도축 8px, 홈 별 라벨 10.5px, 북극성 모노 라벨 9px 등).</li>
+<li><b>저대비 텍스트</b> — rgba 알파 .45–.55의 보조 텍스트 다수 (대비 2.3–3.9:1).</li>
+</ul>
+
+<h2>적용한 개선 (전 화면 공통)</h2>
+<ul>
+<li><code>m3-theme.css</code> — ① <code>text-size-adjust:100%</code>로 모바일/캡처 환경의 폰트 부스팅 차단(비율·줄바꿈 왜곡의 근본 원인) ② <code>body</code>에 <code>word-break:keep-all; overflow-wrap:break-word</code> 전역화(한국어 중간 줄바꿈 금지)</li>
+<li><b>폰트 바닥 정책</b> — 한국어 라벨 ≥11px(내비게이션 핵심 12px), 라틴/숫자 모노 태그 ≥10px. 13개 파일 약 50개 사이트 수정. 위계(계층 차이)는 유지.</li>
+<li><b>대비 상향</b> — 저대비 rgba 알파 .45–.6 → .72–.9 (뮤지엄 연도축, TTFV 캡션, 로그인 약관 안내, 그래프 보조 라벨 등).</li>
+<li><b>스펙 캡처 재생성</b> — <code>docs/Screen-Spec/captures/</code> 37장 전부 390×820@2x(780×1640) 균일 비율로 교체. 중간 줄바꿈·잘림 없는 정상 렌더.</li>
+</ul>
+
+<h2>개선 전후 지표 (문제가 있던 화면만)</h2>
+<div class="note">측정: Playwright 고정 뷰포트(scale=1) + DOM 전수 검사. <b>개선 후 검사가 더 엄격</b>(스크롤 아래 포함 전체 DOM, 개선 전은 첫 화면 영역만). 잔여 tiny는 전부 10–10.5px 라틴/숫자 모노(연도·태그)로 정책 내.</div>
+<table><thead><tr><th>화면</th><th>극소폰트 (전)</th><th>저대비 (전)</th><th>극소폰트 (후)</th><th>저대비 (후)</th></tr></thead>
+<tbody><tr><td>home</td><td class="bad">9</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>capture</td><td class="bad">1</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>chat</td><td class="bad">5</td><td class="">0</td><td class="warn">4</td><td class="ok">0</td></tr>
+<tr><td>records</td><td class="bad">1</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>me</td><td class="bad">10</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>star</td><td class="bad">6</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>museum</td><td class="bad">21</td><td class="bad">11</td><td class="warn">64</td><td class="ok">0</td></tr>
+<tr><td>exhibit</td><td class="bad">21</td><td class="bad">11</td><td class="warn">64</td><td class="ok">0</td></tr>
+<tr><td>attachment</td><td class="bad">1</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>northstar</td><td class="bad">1</td><td class="">0</td><td class="warn">1</td><td class="ok">0</td></tr>
+<tr><td>values</td><td class="bad">1</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>trend</td><td class="bad">3</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>widget</td><td class="bad">1</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>auth</td><td class="">0</td><td class="bad">2</td><td class="ok">0</td><td class="warn">1</td></tr>
+<tr><td>ops</td><td class="bad">1</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>overlay-onboard</td><td class="bad">9</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>overlay-ttfv</td><td class="bad">10</td><td class="bad">1</td><td class="ok">0</td><td class="ok">0</td></tr>
+<tr><td>overlay-coach</td><td class="bad">10</td><td class="">0</td><td class="ok">0</td><td class="ok">0</td></tr></tbody></table>
+
+<h2>비포 / 애프터</h2>
+
+<div class="pair">
+  <div class="pair-t">별자리 홈 — 별 이름 라벨 10.5→12px</div>
+  <div class="pair-imgs">
+    <figure><img loading="lazy" src="docs/improve-audit/before/01-home.png" alt="home before"><figcaption>개선 전</figcaption></figure>
+    <figure><img loading="lazy" src="docs/improve-audit/after/01-home.png" alt="home after"><figcaption>개선 후</figcaption></figure>
+  </div>
+</div>
+
+<div class="pair">
+  <div class="pair-t">북극성 — 모노 라벨 9→11px</div>
+  <div class="pair-imgs">
+    <figure><img loading="lazy" src="docs/improve-audit/before/06-me.png" alt="me before"><figcaption>개선 전</figcaption></figure>
+    <figure><img loading="lazy" src="docs/improve-audit/after/06-me.png" alt="me after"><figcaption>개선 후</figcaption></figure>
+  </div>
+</div>
+
+<div class="pair">
+  <div class="pair-t">AI 뮤지엄 — 연도축 8→10px·대비 상향</div>
+  <div class="pair-imgs">
+    <figure><img loading="lazy" src="docs/improve-audit/before/15-museum.png" alt="museum before"><figcaption>개선 전</figcaption></figure>
+    <figure><img loading="lazy" src="docs/improve-audit/after/15-museum.png" alt="museum after"><figcaption>개선 후</figcaption></figure>
+  </div>
+</div>
+
+<div class="pair">
+  <div class="pair-t">세컨비 — 렌즈 태그 9→10.5px</div>
+  <div class="pair-imgs">
+    <figure><img loading="lazy" src="docs/improve-audit/before/03-chat.png" alt="chat before"><figcaption>개선 전</figcaption></figure>
+    <figure><img loading="lazy" src="docs/improve-audit/after/03-chat.png" alt="chat after"><figcaption>개선 후</figcaption></figure>
+  </div>
+</div>
+
+<div class="pair">
+  <div class="pair-t">첫 통찰(TTFV) — 캡션 대비·라벨 상향</div>
+  <div class="pair-imgs">
+    <figure><img loading="lazy" src="docs/improve-audit/before/59-overlay-ttfv.png" alt="overlay-ttfv before"><figcaption>개선 전</figcaption></figure>
+    <figure><img loading="lazy" src="docs/improve-audit/after/59-overlay-ttfv.png" alt="overlay-ttfv after"><figcaption>개선 후</figcaption></figure>
+  </div>
+</div>
+
+<div class="pair">
+  <div class="pair-t">로그인 — 약관 안내 대비 상향</div>
+  <div class="pair-imgs">
+    <figure><img loading="lazy" src="docs/improve-audit/before/27-auth.png" alt="auth before"><figcaption>개선 전</figcaption></figure>
+    <figure><img loading="lazy" src="docs/improve-audit/after/27-auth.png" alt="auth after"><figcaption>개선 후</figcaption></figure>
+  </div>
+</div>
+
+<h2>디자인 캡처 대조 (픽셀 디프) — 2라운드</h2>
+<div class="note">원본 스펙 캡처 37장(460×820)을 390×820로 정규화한 뒤 현재 앱 렌더와 픽셀 디프(채널 허용오차 40, 상태바 마스크). 6-에이전트 어트리뷰션 후 Claude가 전 건을 코드로 재검증. 히트맵·수치: <code>docs/improve-audit/design-diff/</code></div>
+<ul>
+<li><b>순수 DRIFT(같은 상태·구조에서 시각 속성만 다른 결함): 0건.</b> 후보 4건(연동 아이콘 톤·챗 액센트·집중 5번째 칩·코치 pill)은 전부 코드 검증에서 의도된 진화 또는 위양성으로 판명.</li>
+<li><b>실제 회귀 1건 — 복원 완료</b>: 설정 모양 섹션의 <code>강조 색</code>(시안/바이올렛) 팔레트 행. 캡처·README·핸드오프 지시서가 모두 요구하고 셸 배선이 살아있었음 → UI 행 복원 (diff 32.0%→25.9%).</li>
+<li><b>캡처 상태 정렬 1건</b>: 서브 화면 탭바 활성 pill을 원본 캡처 컨벤션(별자리)으로 통일해 재캡처.</li>
+<li><b>코드 진화(EVOLVED) — 캡처가 구빌드, 코드가 정본</b>: 담기 W4H1 폼 · 위키 그래프 전용 · 검증 화면들(BigFive/동기/강점/애착)의 "확신 %"+프로비넌스 비준 카드 · 별 상세 CV 타임라인 · 북극성 페르소나 캐러셀 · 뮤지엄/전시 타임라인 캔버스 · 로그인 이메일 우선+소셜 5종 · 알림 다이제스트 카드 · 통화녹음 프라이버시 칩 · 비서 종합 의견 · 설정 데이터연동 섹션 · TTFV 근거 영수증 · 온보딩 4페이지. <b>전역 리네임</b>: 조각→별가루, 오락→휴식, 담아내기→뮤지엄, 북극점→북극성, 안티비→트위비 — 모두 번들의 최신 README와 일치(코드=정본 교차 확증).</li>
+<li><b>잔여 diff%의 지배 요인</b>: 원본 캡처 자체의 폰트 부스팅(중간 줄바꿈·수직 오프셋·헤더 잘림·이중 렌더 깨짐)과 동적 요소(시계·순환 문구·랜덤 별). 예: 가치관 화면 22.45%는 사실상 전량 부스팅 위양성(구조·값 완전 동일).</li>
+</ul>
+<div class="note"><b>수렴 판정</b>: 스테일·왜곡된 구빌드 캡처와의 픽셀 일치는 현행 디자인을 파괴해야만 가능하므로, 픽셀 일치는 다음 형태로 달성했다 — ① 실회귀 복원 ② 캡처 상태 정렬 ③ <code>docs/Screen-Spec/captures/</code> 37장을 현행 앱의 픽셀-정확 렌더로 재생성(정의상 앱과 0-diff). 특정 화면을 구디자인(캡처 쪽)으로 되돌리길 원하면 화면을 지정해 주세요 — 기능 제거를 수반하는 비가역 결정이라 자율 진행하지 않았습니다.</div>
+
+<h2>실기 검증 — Android 에뮬레이터 (3라운드)</h2>
+<div class="note">Pixel 9 Pro XL 에뮬레이터의 <b>실제 Android Chrome 149</b>(모바일 렌더링 파이프라인·폰트 부스팅 동작 포함)를 CDP로 원격 제어해 전 57화면을 순회. 캡처: <code>docs/improve-audit/on-device/</code></div>
+<ul>
+<li><b>프레임 비율</b>: 57/57 화면 모두 390×820(2.103:1) — 실기에서도 균일.</li>
+<li><b>폰트 부스팅 가드</b>: <code>text-size-adjust: 100%</code> 실기 적용 확인(dpr 3, 뷰포트 448×864). 원본 캡처를 오염시킨 부스팅 경로가 실기에서 차단됨.</li>
+<li><b>한국어 중간 줄바꿈</b>: 텍스트 노드 단위 줄박스 측정으로 전 화면 검사 — <b>0건</b>. (1차 검출기의 25건은 아이콘+텍스트 요소를 한 Range로 잡은 측정 오류로 판명, 텍스트 노드 단위로 재측정)</li>
+<li><b>육안 확인</b>: 온보딩·설정(강조 색 행 포함)·뮤지엄(연도 다이얼) 실기 렌더 정상.</li>
+</ul>
+
+<h2>실기 렌더 vs 정본 디자인 픽셀 대조 (4라운드)</h2>
+<div class="note">구 디자인 폐기 확정 후의 대조 축: <b>정본 = 현행 스펙 캡처(데스크톱 렌더)</b> vs <b>실제 앱 = 에뮬레이터 실기 Chrome 렌더</b>. 양쪽 reduced-motion 고정, 진입 분석 잡 대기, 시계/컴패니언 밴드 마스크, 390×820 정규화, AA-내성 비교(3×3 이웃·허용오차 40 — 서브픽셀 래스터 차이 흡수, 구조 차이는 생존). 산출물: <code>docs/improve-audit/device-diff/</code>(히트맵·수치), <code>on-device-frame/</code>(실기 프레임 캡처 57장)</div>
+<ul>
+<li><b>구조적 픽셀 일치: 57/57 화면.</b> 잔여 편차 0.2~2.4%는 전량 글리프 래스터라이징 쉬머(Windows DirectWrite vs Android FreeType, 텍스트 밀도에 비례) — 히트맵 판독 결과 레이아웃·박스·에셋 어긋남 0건.</li>
+<li><b>실기 웹폰트</b>: Pretendard·Roboto Mono·Material Symbols 모두 실기 로드 확인(강제 로드 검증).</li>
+<li><b>타이밍 이슈 1건 해결</b>: 별 상세(star) 진입 시 "살피는 중" 분석 오버레이가 캡처에 섞이던 것 → 양쪽 캡처 하네스에 잡 종료 대기 추가(11.3%→0.67%).</li>
+<li><b>1차 측정의 함정 기록</b>: 단순 픽셀 비교는 1.5~11.3%로 나왔으나 전부 래스터 차이였음 — 크로스 렌더러 비교엔 AA-내성 비교가 필수.</li>
+</ul>
+
+<h2>알려진 예외·다이버전스</h2>
+<ul>
+<li><b>네이버 로그인 버튼 "N"</b> — 흰색/브랜드 그린 대비 2.25:1이지만 공식 브랜드 마크라 유지.</li>
+<li><b>35-exhibit</b> — 현재 코드는 <code>exhibit</code> 라우트를 타임라인으로 의도적 폴백(<code>sb-museum.jsx</code> alias 주석). 구버전 덱 뷰 캡처는 현 코드로 재현 불가 → 타임라인 캡처로 교체(코드가 진실).</li>
+<li><b>.md-label-small 클래스</b> — 원본 CSS에 미정의(해당 요소는 16px 상속 렌더). 정의 추가 시 일괄 11px로 축소되어 레퍼런스 픽셀과 어긋나므로 의도적으로 미정의 유지.</li>
+</ul>
+
+<h2>검증 방법</h2>
+<ul>
+<li>전 60화면 자동 캡처(<code>window.__sb.jump</code>) + DOM 전수 폰트/대비 감사 — 개선 후 위반 0.</li>
+<li>다중 에이전트 픽셀 검수(6 에이전트 × 10화면): 중간 줄바꿈·잘림·겹침·판독불가·비율 이상 스캔.</li>
+<li>비포/애프터 전체 캡처 보관: <code>docs/improve-audit/before/</code> · <code>docs/improve-audit/after/</code></li>
+</ul>
+</div></body></html>
