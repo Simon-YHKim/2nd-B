@@ -1118,16 +1118,23 @@ results.push(
       "노드는 장소",
       "기록은 조각",
     ];
+    // KO slide copy is now sourced VERBATIM from the canon flows pack (pixel
+    // contract), so the verbatim-copy pins assert the canon JSON plus the app
+    // wiring to it (canonFlows.onboardingSlides) instead of KO literals living
+    // inside the component file.
+    const flows = read("public/proto/data/screens/flows.json");
     const ok =
       // render-broken fix: gate on the onboarding flag, never on userId.
       !onboarding.includes("if (!userId) return <Redirect") &&
       onboarding.includes("useOnboardingComplete") &&
       onboarding.includes("markOnboardingComplete") &&
-      // 4-slide carousel with the reference icon + verbatim slide copy.
+      // 4-slide carousel sourced from the canon flows pack (verbatim KO copy).
       onboarding.includes("const SLIDES: Slide[]") &&
-      onboarding.includes('icon: "bubble_chart"') &&
-      onboarding.includes("흩어진 일상이") &&
-      onboarding.includes("별자리가 돼요") &&
+      onboarding.includes("canonFlows.onboardingSlides") &&
+      flows.includes('"icon": "bubble_chart"') &&
+      flows.includes("나를 알아가는 AI") &&
+      flows.includes("흩어진 일상이") &&
+      flows.includes("별자리가 돼요") &&
       // top-right skip jumps to the final (auth) slide.
       onboarding.includes("건너뛰기") &&
       onboarding.includes("AUTH_STEP") &&
@@ -1138,8 +1145,8 @@ results.push(
       id: "Onboarding",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "pre-auth 4-slide onboarding carousel (gated on the onboarding flag, verbatim reference copy, hand-off through the real age-tiered sign-in) with no village/node metaphor copy"
-        : "onboarding must be a PRE-AUTH carousel (J4/rev2): gated on useOnboardingComplete (never !userId→/sign-in), SLIDES with the reference copy + bubble_chart icon, a 건너뛰기 skip to the auth slide, and a final hand-off to the real /sign-in (C10 age-gating intact); no multi-step metaphor copy",
+        ? "pre-auth 4-slide onboarding carousel (gated on the onboarding flag, KO copy verbatim from the canon flows pack via canonFlows.onboardingSlides, hand-off through the real age-tiered sign-in) with no village/node metaphor copy"
+        : "onboarding must be a PRE-AUTH carousel (J4/rev2): gated on useOnboardingComplete (never !userId→/sign-in), SLIDES sourced from canonFlows.onboardingSlides with the canon copy (bubble_chart icon, 나를 알아가는 AI, 흩어진 일상이/별자리가 돼요 in flows.json), a 건너뛰기 skip to the auth slide, and a final hand-off to the real /sign-in (C10 age-gating intact); no multi-step metaphor copy",
     };
   }),
 );
