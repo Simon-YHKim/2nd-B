@@ -1,17 +1,21 @@
 // AI 뮤지엄 — rev2 2-axis timeline (P5). A horizontal time canvas
 // (X = years, 100px/yr) split by one shared axis: WORLD lane above, AI lane
-// below. Nodes are the 25 curated events; bezier connectors draw the `rel`
-// links; tapping a node opens the detail sheet (prev/next steps chronologically,
-// the `here` terminal node routes home). M2 interactions: dragging the year
-// dial seeks the canvas (two-way bound via onScroll), swiping the sheet
-// horizontally steps through events (prototype ±60px threshold).
+// below. Nodes are the full 43-event canon (25 base + 18 MZ_EXTRA, merged in
+// museum-timeline-data.ts); bezier connectors draw the `rel` links; tapping a
+// node opens the detail sheet (prev/next steps chronologically, the `here`
+// terminal node routes home). The sheet renders the MZ_DETAIL canon: long copy,
+// fact rows, cause/effect (배경/영향) and refs with refIcon glyphs + refKo
+// labels. M2 interactions: dragging the year dial seeks the canvas (two-way
+// bound via onScroll), swiping the sheet horizontally steps through events
+// (prototype ±60px threshold).
 //
-// Prototype source of truth: rev2 `sb-museum.jsx` (geometry MZ, data 1:1 in
-// museum-timeline-data.ts). Deep-space track only.
-import { useCallback, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+// Prototype source of truth: rev2 `sb-museum.jsx` (geometry MZ + mzPlace, data
+// 1:1 in museum-timeline-data.ts). Deep-space track only.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, PanResponder, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import Svg, { Line, Path } from "react-native-svg";
+import { SvgXml } from "react-native-svg";
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
@@ -23,39 +27,40 @@ import { canonMuseum } from "@/lib/canon";
 import {
   MUSEUM,
   MUSEUM_BY_YEAR,
+  MUSEUM_REF_ICON,
   MUSEUM_REF_LABEL,
   MZ,
   MZ_CANVAS_W,
   MZ_LANES,
+  museumDetailById,
   museumEventById,
   mzX,
-  type MuseumEvent,
+  placeMuseumNodes,
 } from "./museum-timeline-data";
 
-// Lane row Ys (prototype mzPlace bands): world stacks ABOVE the axis, ai BELOW.
-const ROW_Y: Record<"world" | "ai", [number, number]> = {
-  world: [2, 96],
-  ai: [212, 306],
+// Material-Symbols glyphs the detail sheet needs (prototype refIcon set +
+// south/north_east for 배경/영향 + open_in_new trailing mark), redrawn in the
+// app's inline-SVG idiom (2dp currentColor strokes, round caps) — same pattern
+// as DeepSpaceViews' CAPTURE_ICON_INNER. `link` is the prototype fallback for
+// unknown ref kinds.
+const MUSEUM_GLYPH_INNER: Record<string, string> = {
+  article: '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/>',
+  devices: '<path d="M4.5 17.5v-9A1.8 1.8 0 0 1 6.3 6.7H17.5"/><path d="M2.5 17.5H13"/><rect x="15.5" y="9.5" width="6" height="10.5" rx="1.6"/>',
+  event: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/><circle cx="14.8" cy="15.2" r="1.7"/>',
+  movie: '<rect x="3" y="5.5" width="18" height="13.5" rx="2"/><path d="m4.5 5.5 2.4 4.2m2.7-4.2 2.4 4.2m2.7-4.2 2.4 4.2M3 9.7h18"/>',
+  link: '<path d="M9.8 14.2 14.2 9.8"/><path d="m11.2 7.4 1.5-1.5a3.3 3.3 0 0 1 4.7 4.7l-1.6 1.6M12.8 16.6l-1.5 1.5a3.3 3.3 0 0 1-4.7-4.7l1.6-1.6"/>',
+  south: '<path d="M12 4.5v15M6.5 14l5.5 5.5L17.5 14"/>',
+  north_east: '<path d="M7 17 17 7M9 7h8v8"/>',
+  open_in_new: '<path d="M13.5 4.5H19.5v6M19.5 4.5l-8 8"/><path d="M16.5 13.5V18a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V9A1.5 1.5 0 0 1 6 7.5h4.5"/>',
 };
 
-/** Assign each lane's events to near/far rows so neighbors don't overlap
- *  (prototype mzPlace: nudge to the other row when Xs collide). */
-function placeNodes(events: MuseumEvent[]): Map<string, { x: number; y: number }> {
-  const placed = new Map<string, { x: number; y: number }>();
-  const minGap = MZ.NODE_W + 8;
-  (["world", "ai"] as const).forEach((lane) => {
-    let lastX = [-Infinity, -Infinity];
-    events
-      .filter((e) => e.lane === lane)
-      .sort((a, b) => a.year - b.year)
-      .forEach((e) => {
-        const x = mzX(e.year) - MZ.NODE_W / 2;
-        const row = x - lastX[0] >= minGap ? 0 : 1;
-        lastX[row] = x;
-        placed.set(e.id, { x, y: ROW_Y[lane][row] });
-      });
-  });
-  return placed;
+function MuseumGlyph({ name, color, size = 17 }: { name: string; color: string; size?: number }) {
+  const inner = MUSEUM_GLYPH_INNER[name] ?? MUSEUM_GLYPH_INNER.link;
+  const xml =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
+    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `${inner}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
 }
 
 // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
@@ -69,9 +74,27 @@ export function MuseumTimelineScreen() {
   const [selId, setSelId] = useState<string | null>(null);
   const [year, setYear] = useState(2022);
 
-  const placed = useMemo(() => placeNodes(MUSEUM), []);
+  const placed = useMemo(() => placeMuseumNodes(MUSEUM), []);
   const sel = selId ? museumEventById(selId) : null;
   const selIdx = sel ? MUSEUM_BY_YEAR.findIndex((e) => e.id === sel.id) : -1;
+  // MZ_DETAIL canon lookup — guarded: an event without a detail entry still
+  // renders the base sheet (body/tags/rel/refs) and just skips the deep dive.
+  const selDetail = sel ? museumDetailById(sel.id) : undefined;
+
+  // Sheet entrance: prototype `sb-graph-sheet-up` / `mz-card-*` — one smooth
+  // ease-out slide+fade, re-run per event so prev/next stepping reads as a
+  // card change. No bounce (DESIGN.md motion rule).
+  const sheetAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!selId) return;
+    sheetAnim.setValue(0);
+    Animated.timing(sheetAnim, {
+      toValue: 1,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [selId, sheetAnim]);
 
   // Connectors: dedupe rel pairs, color by the earlier (source) node's lane.
   const connectors = useMemo(() => {
@@ -291,7 +314,21 @@ export function MuseumTimelineScreen() {
 
         {/* detail sheet */}
         {sel ? (
-          <View style={styles.sheet} accessibilityViewIsModal {...sheetPan.panHandlers}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                opacity: sheetAnim,
+                transform: [
+                  {
+                    translateY: sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [36, 0] }),
+                  },
+                ],
+              },
+            ]}
+            accessibilityViewIsModal
+            {...sheetPan.panHandlers}
+          >
             <View style={styles.sheetHead}>
               <Pressable onPress={() => step(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={isKo ? "이전 사건" : "Previous"} style={styles.stepBtn}>
                 <Text style={styles.stepGlyph}>‹</Text>
@@ -322,6 +359,65 @@ export function MuseumTimelineScreen() {
               </View>
 
               <Text style={styles.bodyText}>{sel.body}</Text>
+
+              {/* MZ_DETAIL: deeper explanation (canon KO copy verbatim) */}
+              {selDetail?.long ? <Text style={styles.longText}>{selDetail.long}</Text> : null}
+
+              {/* MZ_DETAIL: key facts — prototype 2-column [label, value] grid */}
+              {selDetail?.facts && selDetail.facts.length > 0 ? (
+                <View style={styles.factsGrid}>
+                  {selDetail.facts.map((f, i) => (
+                    <View
+                      key={`${f[0]}-${i}`}
+                      style={[
+                        styles.factCell,
+                        {
+                          backgroundColor: MZ_LANES[sel.lane].tint,
+                          borderColor: withAlpha(MZ_LANES[sel.lane].accent, 0.13),
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.factLabel, { color: MZ_LANES[sel.lane].accent }]}>{f[0]}</Text>
+                      <Text style={styles.factValue}>{f[1]}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              {/* MZ_DETAIL: cause → effect (prototype 배경/영향 card) */}
+              {selDetail?.cause || selDetail?.effect ? (
+                <View style={[styles.causeCard, { borderColor: withAlpha(MZ_LANES[sel.lane].accent, 0.15) }]}>
+                  {selDetail.cause ? (
+                    <View style={styles.causeRow}>
+                      <View style={styles.causeIcon}>
+                        <MuseumGlyph name="south" color={MZ_LANES[sel.lane].accent} size={15} />
+                      </View>
+                      <View style={styles.causeText}>
+                        <Text style={[styles.causeLabel, { color: MZ_LANES[sel.lane].accent }]}>
+                          {isKo ? "배경" : "Background"}
+                        </Text>
+                        <Text style={styles.causeBody}>{selDetail.cause}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  {selDetail.cause && selDetail.effect ? (
+                    <View style={[styles.causeDivider, { backgroundColor: withAlpha(MZ_LANES[sel.lane].accent, 0.12) }]} />
+                  ) : null}
+                  {selDetail.effect ? (
+                    <View style={styles.causeRow}>
+                      <View style={styles.causeIcon}>
+                        <MuseumGlyph name="north_east" color={MZ_LANES[sel.lane].accent} size={15} />
+                      </View>
+                      <View style={styles.causeText}>
+                        <Text style={[styles.causeLabel, { color: MZ_LANES[sel.lane].accent }]}>
+                          {isKo ? "영향" : "Impact"}
+                        </Text>
+                        <Text style={styles.causeBody}>{selDetail.effect}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
 
               {sel.tags.length > 0 ? (
                 <View style={styles.tagRow}>
@@ -354,9 +450,20 @@ export function MuseumTimelineScreen() {
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>{isKo ? "자료 · 논문" : "References"}</Text>
                   {sel.refs.map((r) => (
-                    <View key={r.label} style={styles.refRow}>
-                      <Text style={styles.refKind}>{MUSEUM_REF_LABEL[r.kind]}</Text>
-                      <Text style={styles.refLabel} numberOfLines={2}>{r.label}</Text>
+                    <View
+                      key={r.label}
+                      style={styles.refRow}
+                      accessible
+                      accessibilityLabel={`${MUSEUM_REF_LABEL[r.kind]} ${r.label}`}
+                    >
+                      <View style={[styles.refIconBox, { backgroundColor: MZ_LANES[sel.lane].tint }]}>
+                        <MuseumGlyph name={MUSEUM_REF_ICON[r.kind]} color={MZ_LANES[sel.lane].accent} size={17} />
+                      </View>
+                      <View style={styles.refBody}>
+                        <Text style={styles.refLabel} numberOfLines={2}>{r.label}</Text>
+                        <Text style={styles.refKind}>{MUSEUM_REF_LABEL[r.kind]}</Text>
+                      </View>
+                      <MuseumGlyph name="open_in_new" color="rgba(255,255,255,0.32)" size={15} />
                     </View>
                   ))}
                 </View>
@@ -371,7 +478,7 @@ export function MuseumTimelineScreen() {
                 />
               ) : null}
             </ScrollView>
-          </View>
+          </Animated.View>
         ) : null}
       </View>
     </DeepSpaceScreen>
@@ -465,6 +572,27 @@ const styles = StyleSheet.create({
   plateTitle: { color: "#EAF2FF" },
   plateSub: { fontSize: 13, color: withAlpha(deepSpace.accentSoft, 0.85) },
   bodyText: { fontSize: 13.5, lineHeight: 21, color: "#D7E4F5" },
+  // MZ_DETAIL sections (prototype MzSheet: long copy, facts grid, 배경/영향)
+  longText: { fontSize: 13, lineHeight: 22, color: "rgba(199,213,240,0.72)" },
+  factsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  factCell: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 3,
+  },
+  factLabel: { fontFamily: m3.font.mono, fontSize: 10.5, letterSpacing: 1.1 },
+  factValue: { fontSize: 13.5, fontWeight: "700", color: "#EAF2FF", lineHeight: 17.5 },
+  causeCard: { borderWidth: 1, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.02)", overflow: "hidden" },
+  causeRow: { flexDirection: "row", gap: 11, paddingHorizontal: 13, paddingVertical: 11 },
+  causeIcon: { marginTop: 1 },
+  causeText: { flex: 1, gap: 3 },
+  causeLabel: { fontFamily: m3.font.mono, fontSize: 10.5, letterSpacing: 1.3 },
+  causeBody: { fontSize: 13, lineHeight: 19.5, color: "rgba(214,226,248,0.82)" },
+  causeDivider: { height: 1, marginHorizontal: 13 },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   tagChip: { borderRadius: 9999, borderWidth: 1, borderColor: withAlpha(deepSpace.accent, 0.3), paddingHorizontal: 10, paddingVertical: 4 },
   tagText: { fontSize: 11, color: withAlpha(deepSpace.accentSoft, 0.9) },
@@ -474,7 +602,20 @@ const styles = StyleSheet.create({
   relYear: { fontFamily: m3.font.mono, fontSize: 10, minWidth: 44 },
   relTitle: { flex: 1, fontSize: 13, color: "#EAF2FF" },
   relGo: { fontSize: 14, color: deepSpace.textHi },
-  refRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  refKind: { fontFamily: m3.font.mono, fontSize: 10, color: withAlpha(deepSpace.accentSoft, 0.7), minWidth: 30 },
-  refLabel: { flex: 1, fontSize: 12.5, color: "#D7E4F5" },
+  // refs — prototype rows: 32px tinted glyph box, label over refKo kind, dim open_in_new
+  refRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  refIconBox: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  refBody: { flex: 1, gap: 1 },
+  refKind: { fontFamily: m3.font.mono, fontSize: 10.5, color: withAlpha(deepSpace.accentSoft, 0.8) },
+  refLabel: { fontSize: 13.5, fontWeight: "500", color: "#EAF2FF" },
 });
