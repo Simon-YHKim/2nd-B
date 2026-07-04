@@ -325,6 +325,35 @@ export async function loadLatestIpip(
   }
 }
 
+// D-26 backlog #5 — narrative summary cache + input windowing.
+// The LLM summary used to be rebuilt on EVERY mount of persona / core-brain /
+// iden (3+ identical flash calls minutes apart) with ALL audit_response bodies
+// plus whole interview transcripts as input (unbounded token growth). The
+// summary is now cached in personas.patterns keyed by a staleness signature
+// (row count + newest created_at + locale), and its input is windowed.
+const SUMMARY_SIG_VERSION = "v1";
+const MAX_SUMMARY_ROWS = 120;
+const MAX_SUMMARY_BODY_CHARS = 500;
+// The edge proxy caps the `user` channel at 8000 chars (gemini-proxy
+// MAX_USER_LEN) — an unbudgeted join would 413 on the web build and kill the
+// whole persona build for heavy users. Budget with margin.
+const MAX_SUMMARY_INPUT_CHARS = 7400;
+// Explicit fetch bound for the records query. PostgREST silently truncates
+// unbounded selects at the server's max_rows (default 1000); fetching
+// newest-first with an explicit limit makes truncation keep the NEWEST rows,
+// so the cache signature keeps moving as records are added.
+const MAX_PERSONA_ROWS = 1000;
+
+/** Staleness signature for the cached narrative summary. Pure (exported for
+ *  tests). Any new/removed record or locale switch changes it. */
+export function personaSummarySig(
+  locale: "en" | "ko",
+  rowCount: number,
+  lastCreatedAt: string,
+): string {
+  return `${SUMMARY_SIG_VERSION}:${locale}:${rowCount}:${lastCreatedAt}`;
+}
+
 export async function buildPersona(
   userId: string,
   locale: "en" | "ko",
@@ -338,9 +367,12 @@ export async function buildPersona(
     .select("id, prompt, body, created_at, tags")
     .eq("user_id", userId)
     .eq("kind", "audit_response")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(MAX_PERSONA_ROWS);
   if (error) throw error;
-  const rows = (data ?? []) as AuditResponseRow[];
+  // Newest-first fetch (truncation-safe), restored to ascending for the
+  // consumers below (numbering, values ranking, evidenceRefs slice(-N)).
+  const rows = ((data ?? []) as AuditResponseRow[]).slice().reverse();
 
   // Big Five proxy: exclude drill-interview transcripts. They share
   // kind="audit_response" but carry the "interview" tag and pack a 50-turn
@@ -387,23 +419,80 @@ export async function buildPersona(
   // MBTI, and attachment still surface from their own assessments above; only
   // this narrative slot is gated. (Also avoids a needless paid call.)
   let summaryText: string;
+  let summarySig: string | null = null;
   if (rows.length > 0) {
-    const summaryInput = rows
-      .map((r, i) => `${i + 1}. Q: ${r.prompt ?? "(audit)"}\n   A: ${r.body}`)
-      .join("\n");
-    // This still goes through callGemini, so C9 + C3 hold.
-    const summaryRes = await callGemini({
-      userId,
+    // Input basis: interview transcripts excluded (like the trait heuristic);
+    // fall back to the full set when ONLY interview rows exist, so the input
+    // is never empty while records exist.
+    const summaryBase = proxyRows.length > 0 ? proxyRows : rows;
+    // Sign the basis actually summarized — signing ALL rows would force a
+    // paid re-summarize on byte-identical input after every interview
+    // session (interview rows are excluded from the input below).
+    summarySig = personaSummarySig(
       locale,
-      purpose: "persona_narrative",
-      // Guide the synthesis toward an honest, grounded, balanced mirror (was
-      // unguided). Trusted system channel; the entries still ride `user` and stay
-      // crisis-scanned, so C9/C3 are unaffected.
-      system: personaSynthesisSystem(locale),
-      user: summaryInput,
-      minor,
-    });
-    summaryText = summaryRes.text;
+      summaryBase.length,
+      summaryBase[summaryBase.length - 1]?.created_at ?? "",
+    );
+    // Read-back cache: personas.patterns carries the last summary + its
+    // signature. A fresh signature means no records changed since the last
+    // build — reuse the summary and skip the LLM call entirely (this is what
+    // turns the 3-screen mount storm into one call per data change).
+    let cachedSummary: string | null = null;
+    try {
+      const { data: personaRow } = await supabase
+        .from("personas")
+        .select("patterns")
+        .eq("user_id", userId)
+        .eq("version", 1)
+        .maybeSingle();
+      const pat = (personaRow as { patterns?: Record<string, unknown> } | null)?.patterns;
+      if (
+        pat &&
+        pat.__summary_sig === summarySig &&
+        typeof pat.summary === "string" &&
+        pat.summary.length > 0
+      ) {
+        cachedSummary = pat.summary;
+      }
+    } catch {
+      // Cache read is best-effort — a miss just means one LLM call.
+    }
+
+    if (cachedSummary != null) {
+      summaryText = cachedSummary;
+    } else {
+      // Input windowing: newest rows first under BOTH a row cap and a
+      // character budget (the summary is a 2-3 sentence mirror, not an
+      // archive read — and the proxy's 8000-char user cap would 413 an
+      // unbudgeted join). Restored to ascending for the numbering.
+      const picked: typeof summaryBase = [];
+      let budget = MAX_SUMMARY_INPUT_CHARS;
+      for (let i = summaryBase.length - 1; i >= 0 && picked.length < MAX_SUMMARY_ROWS; i--) {
+        const r = summaryBase[i];
+        const lineLen =
+          (r.prompt ?? "(audit)").length + Math.min(r.body.length, MAX_SUMMARY_BODY_CHARS) + 16;
+        if (lineLen > budget) break;
+        budget -= lineLen;
+        picked.push(r);
+      }
+      picked.reverse();
+      const summaryInput = picked
+        .map((r, i) => `${i + 1}. Q: ${r.prompt ?? "(audit)"}\n   A: ${r.body.slice(0, MAX_SUMMARY_BODY_CHARS)}`)
+        .join("\n");
+      // This still goes through callGemini, so C9 + C3 hold.
+      const summaryRes = await callGemini({
+        userId,
+        locale,
+        purpose: "persona_narrative",
+        // Guide the synthesis toward an honest, grounded, balanced mirror (was
+        // unguided). Trusted system channel; the entries still ride `user` and stay
+        // crisis-scanned, so C9/C3 are unaffected.
+        system: personaSynthesisSystem(locale),
+        user: summaryInput,
+        minor,
+      });
+      summaryText = summaryRes.text;
+    }
   } else {
     summaryText =
       locale === "ko"
@@ -412,6 +501,9 @@ export async function buildPersona(
   }
 
   const patterns: Record<string, string> = { summary: summaryText };
+  // Cache key for the summary (double-underscore prefix: the persona screen
+  // only renders `summary` and `top_*` keys, so this never reaches the UI).
+  if (summarySig) patterns.__summary_sig = summarySig;
   // Surface the top-3 memorized pattern kinds as their own patterns entries
   // so the persona screen can show "you've been writing about attachment
   // (8x), career (3x)" beneath the LLM summary.

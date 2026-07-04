@@ -805,7 +805,13 @@ async function advisorProxyCrisisResult(
 
 // --- Embeddings (wiki STEP 4) ---------------------------------------------
 
-export const EMBED_MODEL = "text-embedding-004";
+// P0-2 (D-26 A19): text-embedding-004 was SHUT DOWN 2026-01-14 — the old live
+// path was dead. gemini-embedding-2 with outputDimensionality=768 keeps the
+// pgvector column shape (MRL; non-default dims are auto-normalized by the
+// model). Vectors from the two models are DIFFERENT SPACES — migration 0068
+// nulls every stored 004 vector so old and new never mix in kNN; re-populate
+// via the deep-space Data screen backfill.
+export const EMBED_MODEL = "gemini-embedding-2";
 export const EMBED_DIM = 768;
 
 // Deterministic offline-preview embedding: a unit vector seeded from the text,
@@ -847,15 +853,17 @@ export interface EmbedTextsResult {
 const zeroVector = (): number[] => new Array<number>(EMBED_DIM).fill(0);
 
 /**
- * Embed texts via text-embedding-004 (wiki STEP 4).
+ * Embed texts via gemini-embedding-2 (wiki STEP 4).
  *
  * Constraints held the same way as callGemini:
  *   C1   only this file imports @google/genai (embedContent lives here).
  *   C9   each text is classified first; a red-zone text is NEVER embedded
  *        (zero vector) so crisis content never leaves the device for the model.
  *   C3   one ai_audit_log row per batch (mock + live).
- *   Cost live API-key egress is rejected (assertDirectEgressAllowed); mock and
- *        Vertex are the only permitted paths, so the $0/mo promise holds.
+ *   Cost live egress goes through gemini-proxy when the edge flag is on
+ *        (spend-capped, the only path that works on the keyless web build) or
+ *        the Vertex client; a direct API-key path is rejected
+ *        (assertDirectEgressAllowed), so the $0/mo promise holds.
  */
 export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResult> {
   throwIfAborted(input.signal);
@@ -876,16 +884,22 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
   }
 
   const t0 = Date.now();
-  // C9: classify each text; red ones are skipped (never embedded).
+  // C9: classify each text; red ones are skipped (never embedded). Scans BOTH
+  // locales: wiki pages carry mixed-language content and the proxy's server
+  // gate checks the EN+KO lists on every text — a single-locale client scan
+  // would let a cross-locale term through only to have the proxy 422 the
+  // whole batch (one poisoned page would wedge every backfill run).
   const skip = input.texts.map(
-    (text) => classifyInput(text, input.locale, { minor: input.minor }).zone === "red",
+    (text) =>
+      classifyInput(text, "en", { minor: input.minor }).zone === "red" ||
+      classifyInput(text, "ko", { minor: input.minor }).zone === "red",
   );
   const anyRed = skip.some(Boolean);
 
   if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
     const vectors = input.texts.map((text, i) => (skip[i] ? zeroVector() : mockEmbedding(text)));
     const audit: AuditMeta = {
-      promptHash: djb2(input.texts.join(" ")),
+      promptHash: djb2(input.texts.join(" ")),
       outputHash: djb2(String(vectors.length)),
       modelUsed: `mock:${EMBED_MODEL}`,
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
@@ -896,27 +910,61 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
     return { vectors, audit };
   }
 
-  // Live: only Vertex (or any non-direct-API-key) egress passes the cost guard.
-  assertDirectEgressAllowed(env);
-  const { client, vertex } = getClient();
   const toEmbed = input.texts.filter((_, i) => !skip[i]);
   let embedded: number[][] = [];
-  if (toEmbed.length > 0) {
-    const res = await client.models.embedContent({ model: EMBED_MODEL, contents: toEmbed });
-    embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
+  let vertexBackend = false;
+  let modelUsedForAudit: string = EMBED_MODEL;
+  let proxyAudited = false;
+
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+    // Edge path (P0-2): the proxy owns the key + spend cap; this is the ONLY
+    // live embedding route on the keyless web build. One batch = one call.
+    if (toEmbed.length > 0) {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+        body: { op: "embed", texts: toEmbed, purpose: "embed_index" },
+        signal: input.signal,
+      });
+      if (error) throw error;
+      const payload = data as { vectors?: number[][]; modelUsed?: string; audited?: boolean } | null;
+      embedded = Array.isArray(payload?.vectors) ? payload.vectors : [];
+      modelUsedForAudit = payload?.modelUsed ?? EMBED_MODEL;
+      proxyAudited = payload?.audited === true;
+    }
+  } else {
+    // Direct path: Vertex-only live egress passes the cost guard.
+    assertDirectEgressAllowed(env);
+    const { client, vertex } = getClient();
+    vertexBackend = vertex;
+    if (toEmbed.length > 0) {
+      const res = await client.models.embedContent({
+        model: EMBED_MODEL,
+        contents: toEmbed,
+        // 768-dim MRL slice - keeps the pgvector column shape (0047) unchanged.
+        config: { outputDimensionality: EMBED_DIM },
+      });
+      embedded = (res.embeddings ?? []).map((e) => e.values ?? []);
+    }
   }
+
   // Re-interleave: red-zone texts get zeros, the rest take the next live vector.
   let k = 0;
   const vectors = input.texts.map((_, i) => (skip[i] ? zeroVector() : embedded[k++] ?? zeroVector()));
   const audit: AuditMeta = {
-    promptHash: djb2(input.texts.join(" ")),
+    promptHash: djb2(input.texts.join(" ")),
     outputHash: djb2(String(vectors.length)),
-    modelUsed: EMBED_MODEL,
-    vertexBackend: vertex,
+    modelUsed: modelUsedForAudit,
+    vertexBackend,
     safetyZone: anyRed ? "red" : "green",
     latencyMs: Date.now() - t0,
   };
-  await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed");
+  // C3: skip the client insert when the proxy already audited the batch —
+  // UNLESS the batch carried withheld red-zone texts: the proxy only saw the
+  // green remainder and audits 'green', so the client row is the only honest
+  // record that crisis content was withheld from embedding.
+  if (!proxyAudited || anyRed) {
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed");
+  }
   return { vectors, audit };
 }
 
