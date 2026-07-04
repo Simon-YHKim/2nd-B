@@ -48,9 +48,36 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const MODELS_ALLOWED = new Set(['gemini-2.5-flash', 'gemini-2.5-pro']);
+// P0-3 (D-26, docs/LLM-ROUTING.md): the allowlist previously held only
+// {2.5-flash, 2.5-pro}, so the client's LITE tier (clipper_classify ->
+// gemini-2.5-flash-lite) 400'd on every edge-routed call and silently
+// degraded captures to the URL-derived default. Lite + the 3.x generation
+// (the free-tier RPD upgrade path) are now allowed; the client env flip
+// (EXPO_PUBLIC_MODEL_*) stays a separate, lockstep operator decision.
+// GEMINI_MODELS_ALLOWED (comma-separated env) extends without a deploy.
+const MODELS_ALLOWED = new Set([
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
+  'gemini-3.5-flash',
+  'gemini-3.1-flash-lite',
+  ...((Deno.env.get('GEMINI_MODELS_ALLOWED') ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter((m) => m.length > 0)),
+]);
 const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+// P0-2 (D-26 A19): embeddings — text-embedding-004 shut down 2026-01-14; the
+// replacement rides this proxy so the WEB build (edge-only, no client key)
+// gets a live embedding path at all. 768-dim MRL (matches the pgvector
+// column; embedding-2 auto-normalizes non-default dims).
+const EMBED_MODEL = (Deno.env.get('GEMINI_EMBED_MODEL') ?? '').trim() || 'gemini-embedding-2';
+const EMBED_DIM = 768;
+const MAX_EMBED_TEXTS = 50;
+const MAX_EMBED_TEXT_LEN = 2000;
+const EMBED_ENDPOINT = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents`;
 
 const MAX_USER_LEN = 8000;
 // A curated/assembled prompt (e.g. the journal Advisor's RAG) can exceed a chat
@@ -251,11 +278,139 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; purpose?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; purpose?: unknown; op?: unknown; texts?: unknown };
   try {
     body = await req.json();
   } catch {
     return jsonResponse(req, { error: 'invalid_json' }, 400);
+  }
+
+  // --- P0-2: embedding op ---------------------------------------------------
+  // { op: 'embed', texts: string[] } -> { vectors: number[][], modelUsed,
+  // latencyMs, audited }. Same auth (above), same shared per-user/day spend
+  // counter (one batch = one call), same crisis backstop, own audit row.
+  if (body?.op === 'embed') {
+    const rawTexts = body?.texts;
+    if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
+      return jsonResponse(req, { error: 'texts_required' }, 400);
+    }
+    if (rawTexts.length > MAX_EMBED_TEXTS) {
+      return jsonResponse(req, { error: 'too_many_texts', max: MAX_EMBED_TEXTS, got: rawTexts.length }, 413);
+    }
+    const texts: string[] = [];
+    for (const t of rawTexts) {
+      if (typeof t !== 'string' || t.trim().length === 0) {
+        return jsonResponse(req, { error: 'invalid_text' }, 400);
+      }
+      if (t.length > MAX_EMBED_TEXT_LEN) {
+        return jsonResponse(req, { error: 'text_too_long', max: MAX_EMBED_TEXT_LEN, got: t.length }, 413);
+      }
+      // R1-A parity: red-zone text never reaches the embedding model. The
+      // client already zero-vectors these before sending (C9); this is the
+      // bypassed-client backstop, same no-oracle 422 as the chat path.
+      if (hasCrisisTerm(t)) {
+        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+      }
+      texts.push(t);
+    }
+
+    // Spend cap — identical rank-stepped ceiling; embeddings are cheap but the
+    // counter exists to stop replay loops, and a batch of 50 counts as ONE call.
+    let tierRank: number | null = null;
+    {
+      const { data: tierRow, error: tierErr } = await supabaseAdmin
+        .from('users')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .maybeSingle();
+      if (tierErr) {
+        console.error('[gemini-proxy] tier lookup failed (embed):', tierErr.message ?? String(tierErr));
+      } else {
+        const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+        tierRank = TIER_RANK[t] ?? 0;
+      }
+    }
+    const brainCap = Number(Deno.env.get('GEMINI_DAILY_CALL_CAP')) || DEFAULT_DAILY_CALL_CAP;
+    const subCap = Number(Deno.env.get('GEMINI_SUB_DAILY_CALL_CAP')) || DEFAULT_SUB_DAILY_CALL_CAP;
+    const freeCap = Number(Deno.env.get('GEMINI_FREE_DAILY_CALL_CAP')) || DEFAULT_FREE_DAILY_CALL_CAP;
+    const dailyCap =
+      tierRank === null
+        ? freeCap
+        : tierRank >= BRAIN_RANK
+          ? brainCap
+          : tierRank >= TIER_RANK.soma
+            ? subCap
+            : freeCap;
+    const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCap,
+    });
+    if (spendErr) {
+      const msg = spendErr.message ?? '';
+      if (msg.includes('gemini_spend_exceeded')) {
+        return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
+      }
+      const code = (spendErr as { code?: string }).code ?? '';
+      const rpcMissing =
+        code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
+      if (rpcMissing) {
+        console.error('[gemini-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
+      } else {
+        console.error('[gemini-proxy][ALERT] spend check unavailable — failing closed:', msg);
+        return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+      }
+    }
+
+    const t0 = Date.now();
+    let upstream: Response;
+    try {
+      upstream = await fetch(EMBED_ENDPOINT(EMBED_MODEL), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          requests: texts.map((text) => ({
+            model: `models/${EMBED_MODEL}`,
+            content: { parts: [{ text }] },
+            outputDimensionality: EMBED_DIM,
+          })),
+        }),
+      });
+    } catch (e) {
+      return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
+    }
+    const latencyMs = Date.now() - t0;
+    if (!upstream.ok) {
+      const errBody = await upstream.text();
+      return jsonResponse(req, {
+        error: 'upstream_error',
+        status: upstream.status,
+        detail: errBody.slice(0, UPSTREAM_DETAIL_TRUNCATE),
+      }, 502);
+    }
+    const data = await upstream.json();
+    const vectors: number[][] = (Array.isArray(data?.embeddings) ? data.embeddings : []).map(
+      (e: { values?: unknown }) => (Array.isArray(e?.values) ? (e.values as number[]) : []),
+    );
+
+    let audited = false;
+    try {
+      const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+        user_id: userId,
+        prompt_hash: djb2(texts.join(' ')),
+        output_hash: djb2(String(vectors.length)),
+        model_used: EMBED_MODEL,
+        vertex_backend: false,
+        safety_zone: 'green',
+        latency_ms: latencyMs,
+      });
+      audited = !auditErr;
+      if (auditErr) console.warn('[gemini-proxy] embed audit insert failed:', auditErr.message);
+    } catch (e) {
+      console.warn('[gemini-proxy] embed audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+    }
+
+    return jsonResponse(req, { vectors, modelUsed: EMBED_MODEL, latencyMs, audited });
   }
 
   const userText: string = typeof body?.user === 'string' ? body.user : '';
@@ -368,14 +523,16 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
   }
 
-  // Sub-brain calls are pinned to flash: pro is the expensive half of the
-  // worst-case call and no sub-brain surface needs it. Silent downgrade (not
-  // 403) keeps a mislabeled-but-honest caller working. Lookup-error (null
-  // rank) keeps the requested model — availability for an unknown brain user.
+  // Sub-brain calls are pinned to flash: pro-class is the expensive half of
+  // the worst-case call and no sub-brain surface needs it. Pinned by FAMILY
+  // pattern (not a literal id) so a pro-class model added later via
+  // GEMINI_MODELS_ALLOWED can't silently escape the downgrade. Silent
+  // downgrade (not 403) keeps a mislabeled-but-honest caller working.
+  // Lookup-error (null rank) keeps the requested model — availability for an
+  // unknown brain user.
+  const isProClass = /-pro(\b|$|-)/.test(model);
   const effectiveModel =
-    tierRank !== null && tierRank < BRAIN_RANK && model === 'gemini-2.5-pro'
-      ? 'gemini-2.5-flash'
-      : model;
+    tierRank !== null && tierRank < BRAIN_RANK && isProClass ? 'gemini-2.5-flash' : model;
 
   // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
   // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day

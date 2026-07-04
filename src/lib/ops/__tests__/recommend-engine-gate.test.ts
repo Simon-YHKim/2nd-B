@@ -9,7 +9,7 @@ jest.mock("../../wiki/export", () => ({ exportUserWiki: jest.fn() }));
 jest.mock("../signals", () => ({ gatherAdherenceSignal: jest.fn(() => Promise.resolve("")) }));
 jest.mock("../../growth/lens-signal", () => ({ gatherLensSignal: jest.fn(() => Promise.resolve("")) }));
 
-import { recommendForDomain } from "../recommend";
+import { recommendForDomain, resetOpsRecommendCacheForTests } from "../recommend";
 import { callGemini } from "../../llm/gemini";
 import { exportUserWiki } from "../../wiki/export";
 
@@ -21,7 +21,10 @@ const base = {
 };
 
 describe("recommendForDomain engine gate (D-2)", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    resetOpsRecommendCacheForTests();
+  });
 
   test.each([
     ["undefined (pref never resolved)", undefined],
@@ -50,5 +53,28 @@ describe("recommendForDomain engine gate (D-2)", () => {
     expect(exportUserWiki).toHaveBeenCalledTimes(1);
     expect(callGemini).toHaveBeenCalledTimes(1);
     expect(out).toEqual([{ title: "Walk 10 min", reason: "you already jog weekly" }]);
+  });
+
+  test("TTL cache: a repeat run within the TTL reuses the result (no 2nd snapshot/LLM call)", async () => {
+    (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
+    (callGemini as jest.Mock).mockResolvedValue({
+      text: JSON.stringify([{ title: "Walk 10 min", reason: "you already jog weekly" }]),
+    });
+    const first = await recommendForDomain({ ...base, recommendationsPref: true });
+    // OpsHomeScreen tab-flip refire: same user/domain/locale seconds later.
+    const second = await recommendForDomain({ ...base, recommendationsPref: true });
+    expect(second).toEqual(first);
+    expect(exportUserWiki).toHaveBeenCalledTimes(1);
+    expect(callGemini).toHaveBeenCalledTimes(1);
+  });
+
+  test("TTL cache never bypasses the privacy gate: pref flip to OFF returns []", async () => {
+    (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
+    (callGemini as jest.Mock).mockResolvedValue({
+      text: JSON.stringify([{ title: "Walk 10 min", reason: "you already jog weekly" }]),
+    });
+    await recommendForDomain({ ...base, recommendationsPref: true });
+    const afterOptOut = await recommendForDomain({ ...base, recommendationsPref: false });
+    expect(afterOptOut).toEqual([]);
   });
 });

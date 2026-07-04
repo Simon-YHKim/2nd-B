@@ -49,7 +49,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callGemini } from "../gemini";
+import { callGemini, embedTexts } from "../gemini";
 import { insertAiAuditLog } from "../../supabase/audit";
 import { insertCrisisEvent } from "../../supabase/crisis-events";
 import { resetAuditWriteOutboxForTests } from "../audit-write-outbox";
@@ -177,6 +177,22 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     const audit = r.audit as AuditMeta;
     expect(audit.effort).toBeUndefined();
     expect(audit.reasoningProvider).toBeUndefined();
+  });
+
+  test("embedTexts routes via gemini-proxy op:embed on the edge build (one batched call)", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: { vectors: [[0.1, 0.2], [0.3, 0.4]], modelUsed: "gemini-embedding-2", audited: true },
+      error: null,
+    });
+
+    const r = await embedTexts({ userId: "u1", texts: ["alpha", "beta"], locale: "en" });
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    const [fn, opts] = mockInvoke.mock.calls[0]!;
+    expect(fn).toBe("gemini-proxy");
+    expect(opts.body).toEqual({ op: "embed", texts: ["alpha", "beta"], purpose: "embed_index" });
+    expect(r.vectors).toEqual([[0.1, 0.2], [0.3, 0.4]]);
+    expect(r.audit.modelUsed).toBe("gemini-embedding-2");
   });
 
   test("owner pin: capture_ocr goes to gemini-proxy even in Phase 2", async () => {

@@ -107,7 +107,7 @@ import { generateSourcePage } from "@/lib/wiki/phase2";
 import { runPhase1 } from "@/lib/wiki/phase1";
 import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
-import { proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
+import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
 import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
@@ -1063,6 +1063,13 @@ export function DeepSpaceResearchScreen() {
     if (!userId || proposing) return;
     setProposing(true);
     try {
+      // P0-2 (D-26 A19): build the index before reading it. Pages without a
+      // vector (all of them right after migration 0068 nulled the dead
+      // text-embedding-004 space) are embedded here in one batched call —
+      // this button is the wired regeneration path for the semantic layer.
+      await backfillEmbeddings(userId, { locale: i18n.language === "ko" ? "ko" : "en" }).catch(() => {
+        /* best-effort: propose still runs over whatever vectors exist */
+      });
       await proposeAllRelatedLinks(userId);
       await loadProposals(userId);
     } catch {
@@ -1505,6 +1512,8 @@ export function DeepSpaceOpsScreen() {
         domainLabel: tEn(`domains.${domain}`),
         minor: isMinor === true,
         recommendationsPref: recommendations,
+        // Explicit user run (and a quota bump below) - never serve the cache.
+        forceFresh: true,
       });
       const used = await bumpOpsUsage(userId);
       setUsedToday(used);
