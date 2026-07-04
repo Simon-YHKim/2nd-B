@@ -17,6 +17,7 @@ import knowPack from "../../../public/proto/data/screens/know.json";
 import surfacesPack from "../../../public/proto/data/screens/surfaces.json";
 import validatePack from "../../../public/proto/data/screens/validate.json";
 import starLensesPack from "../../../public/proto/data/screens/star-lenses.json";
+import flowsPack from "../../../public/proto/data/screens/flows.json";
 
 export type CanonLayout = "immersive" | "museumLike" | "windowed";
 
@@ -179,4 +180,26 @@ export const canonCaptureModes = captureModesPack.modes as { id: string; icon: s
 export const canonIden = {
   targets: starLensesPack.idenScreen.targets as { k: string; c: string }[],
   formats: starLensesPack.idenScreen.formats as string[],
+};
+
+export interface CanonOnboardingSlide {
+  tag: string;
+  title: string;
+  icon: string;
+  body: string;
+}
+
+export interface CanonInboxItem {
+  icon: string;
+  accent: string;
+  title: string;
+  body: string;
+  time: string;
+  route: string;
+  cta: string;
+}
+
+export const canonFlows = {
+  onboardingSlides: flowsPack.onboardingSlides as CanonOnboardingSlide[],
+  inboxItems: flowsPack.inboxItems as CanonInboxItem[],
 };
