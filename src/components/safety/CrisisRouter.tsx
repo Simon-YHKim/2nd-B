@@ -80,30 +80,37 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
             <Text variant="heading" style={{ flexShrink: 1 }}>{t("red.title")}</Text>
           </View>
           <Text variant="body" color="textMuted">{t("red.body")}</Text>
-          <Pressable
-            onPress={handleCall}
-            accessibilityRole="button"
-            accessibilityHint={isKorean ? "전화 걸기" : "Place a call"}
-            accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
-            style={({ pressed }) => [styles.hotlineBox, pressed && styles.hotlineBoxPressed]}
-          >
-            <Text variant="body" style={styles.hotline}>
-              {t(`red.hotline.${hotline}`)}
-            </Text>
-            <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-              {isKorean ? "탭하여 전화 걸기" : "Tap to call"}
-            </Text>
-          </Pressable>
-          {hotline === "GLOBAL_988" ? (
+          {/* Safety-critical: visuals live on the wrapper View, NOT the
+              Pressable — Fabric Android drops function-form Pressable styles
+              (#680), which can render the hotline box invisible. */}
+          <View style={styles.hotlineBox}>
             <Pressable
-              onPress={handleDirectory}
-              accessibilityRole="link"
-              accessibilityLabel={t("red.directoryLabel")}
-              accessibilityHint={t("red.directoryHint")}
-              style={({ pressed }) => [styles.directoryRow, pressed && styles.hotlineBoxPressed]}
+              onPress={handleCall}
+              accessibilityRole="button"
+              accessibilityHint={isKorean ? "전화 걸기" : "Place a call"}
+              accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
+              style={({ pressed }) => [styles.hotlinePress, pressed && styles.hotlineBoxPressed]}
             >
-              <Text variant="caption" color="brand">{t("red.directoryLabel")}</Text>
+              <Text variant="body" style={styles.hotline}>
+                {t(`red.hotline.${hotline}`)}
+              </Text>
+              <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
+                {isKorean ? "탭하여 전화 걸기" : "Tap to call"}
+              </Text>
             </Pressable>
+          </View>
+          {hotline === "GLOBAL_988" ? (
+            <View style={styles.directoryRow}>
+              <Pressable
+                onPress={handleDirectory}
+                accessibilityRole="link"
+                accessibilityLabel={t("red.directoryLabel")}
+                accessibilityHint={t("red.directoryHint")}
+                style={({ pressed }) => [styles.directoryPress, pressed && styles.hotlineBoxPressed]}
+              >
+                <Text variant="caption" color="brand">{t("red.directoryLabel")}</Text>
+              </Pressable>
+            </View>
           ) : null}
           <Button label={t("red.dismiss")} variant="secondary" onPress={onClose} />
         </View>
@@ -147,10 +154,14 @@ const styles = StyleSheet.create({
   hotlineBox: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
     borderStartWidth: 3,
     borderStartColor: semantic.brand,
+    overflow: "hidden",
+  },
+  // bare touch surface inside the styled wrapper (#680 Fabric-safe)
+  hotlinePress: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   hotlineBoxPressed: {
     backgroundColor: semantic.surface,
@@ -159,6 +170,9 @@ const styles = StyleSheet.create({
   directoryRow: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
+    overflow: "hidden",
+  },
+  directoryPress: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
   },
