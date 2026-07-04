@@ -203,25 +203,32 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               ) : null}
             </View>
 
-            {/* Two answers, side by side. Both ratify (조금 달라요 = soft ratify). */}
+            {/* Two answers, side by side. Both ratify (조금 달라요 = soft ratify).
+                Visuals live on wrapper Views — Fabric Android drops styles given
+                to Pressable (PR 680), which rendered both pills invisible and
+                killed the primary consent CTA. The Pressable is a bare surface. */}
             <View style={styles.answerRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={ko ? "맞아요" : "That's right"}
-                onPress={() => ratify(false)}
-                style={({ pressed }) => [styles.answerBtn, styles.affirmBtn, pressed && styles.pressed]}
-              >
-                <SbIcon name="check" size={18} color={deepSpace.onAccent} />
-                <Text variant="caption" style={styles.affirmText}>{ko ? "맞아요" : "That's right"}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={ko ? "조금 달라요" : "A little different"}
-                onPress={() => ratify(true)}
-                style={({ pressed }) => [styles.answerBtn, styles.differBtn, pressed && styles.pressed]}
-              >
-                <Text variant="caption" style={styles.differText}>{ko ? "조금 달라요" : "A little different"}</Text>
-              </Pressable>
+              <View style={[styles.answerBtn, styles.affirmBtn]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={ko ? "맞아요" : "That's right"}
+                  onPress={() => ratify(false)}
+                  style={styles.answerPress}
+                >
+                  <SbIcon name="check" size={18} color={deepSpace.onAccent} />
+                  <Text variant="caption" style={styles.affirmText}>{ko ? "맞아요" : "That's right"}</Text>
+                </Pressable>
+              </View>
+              <View style={[styles.answerBtn, styles.differBtn]}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={ko ? "조금 달라요" : "A little different"}
+                  onPress={() => ratify(true)}
+                  style={styles.answerPress}
+                >
+                  <Text variant="caption" style={styles.differText}>{ko ? "조금 달라요" : "A little different"}</Text>
+                </Pressable>
+              </View>
             </View>
 
             <Text variant="caption" style={styles.consent}>
@@ -248,15 +255,17 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
             <Text variant="body" style={styles.sub}>
               {ko ? "담을수록 별이 또렷해지고, 7개가 모이면 북극성이 켜져요." : "The more you capture, the clearer the stars, and seven of them light the north star."}
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={ko ? "별자리로 들어가기" : "Enter your constellation"}
-              onPress={() => router.replace("/")}
-              style={({ pressed }) => [styles.enterBtn, pressed && styles.pressed]}
-            >
-              <SbIcon name="star_shine" size={18} color={deepSpace.onAccent} fill />
-              <Text variant="caption" style={styles.affirmText}>{ko ? "별자리로 들어가기" : "Enter your constellation"}</Text>
-            </Pressable>
+            <View style={styles.enterBtn}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={ko ? "별자리로 들어가기" : "Enter your constellation"}
+                onPress={() => router.replace("/")}
+                style={styles.answerPress}
+              >
+                <SbIcon name="star_shine" size={18} color={deepSpace.onAccent} fill />
+                <Text variant="caption" style={styles.affirmText}>{ko ? "별자리로 들어가기" : "Enter your constellation"}</Text>
+              </Pressable>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -308,7 +317,9 @@ const styles = StyleSheet.create({
   whyFootnote: { fontSize: 11, lineHeight: 16, color: withAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
 
   answerRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", maxWidth: 320, width: "100%", marginTop: 16 },
-  answerBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50, borderRadius: deepSpaceRadii.md },
+  answerBtn: { flex: 1, minHeight: 50, borderRadius: deepSpaceRadii.md, overflow: "hidden" },
+  // bare touch surface inside the styled wrapper (Fabric-safe)
+  answerPress: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 },
   affirmBtn: { backgroundColor: deepSpace.accent },
   differBtn: { borderWidth: 1, borderColor: withAlpha(m3.accent.starCaption, 0.4), backgroundColor: "transparent" },
   affirmText: { fontSize: 15, color: deepSpace.onAccent },
@@ -328,7 +339,7 @@ const styles = StyleSheet.create({
   },
   levelChipText: { fontSize: 13, fontWeight: "700", color: m3.accent.starCaption },
   ratifyTitle: { fontSize: 18, lineHeight: 26, fontWeight: "700", color: deepSpace.textHi, textAlign: "center", maxWidth: 280 },
-  enterBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: 20 },
+  enterBtn: { alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: 20, overflow: "hidden" },
 
   pressed: { opacity: 0.85 },
 });

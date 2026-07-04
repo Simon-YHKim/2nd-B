@@ -6,22 +6,35 @@
 //
 // Values (coords, gradients, glow, radii, copy) are pulled 1:1 from the
 // reference source — never generic M3 — and expressed through m3.* tokens.
+//
+// Interactions (canonical wiring, same targets as deep-space/DeepSpaceShell):
+//   · domain star → /records?tags=domain:<slug> (the 리스트업 view)
+//   · 북극성 → /core-brain · head tap → 챗봇/비서 menu (sb-home HeadBubble)
+//   · star brightness ← loadDomainLevels (no-LLM coverage path), gated on the
+//     session restore like DeepSpaceShell (deep-space-shell-brightness-gate).
 
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { SecondbHead } from "@/components/deepspace";
 import { PhoneShell, SbIcon } from "@/components/deepspace/shell";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
+import { type DomainId } from "@/lib/persona/domain-stars";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 
 // sb-data.jsx STARS (coords on a 280×230 viewBox). polaris = layer C output
 // (violet, dominant); the rest = layer A 7 domain stars (cyan). Labels follow
 // the canonical 7 도메인 (커리어·재정·관계·성장·건강·휴식·담아내기) — the "Soul Core"
-// name is dropped: the root is simply 북극성.
+// name is dropped: the root is simply 북극성. ids are the DomainId slugs so the
+// records filter tag (domain:<slug>) matches what capture writes (휴식 =
+// recreation per domain-stars.ts rev2 rename).
 interface HomeStar {
-  id: string;
+  id: DomainId | "polaris";
   x: number;
   y: number;
   label: string;
@@ -35,7 +48,7 @@ const STARS: HomeStar[] = [
   { id: "relation", x: 174, y: 152, label: "관계", level: 3 },
   { id: "growth", x: 151, y: 126, label: "성장", level: 3 },
   { id: "health", x: 108, y: 135, label: "건강", level: 2 },
-  { id: "leisure", x: 76, y: 143, label: "휴식", level: 2 },
+  { id: "recreation", x: 76, y: 143, label: "휴식", level: 2 },
   { id: "collect", x: 50, y: 187, label: "담아내기", level: 4 },
 ];
 
@@ -51,15 +64,17 @@ const DOT = 10;
 const BIG_DOT = 15;
 const GLOW = 26;
 const BIG_GLOW = 42;
+// Minimum touch target for a star (§20 UX: ≥44dp).
+const HIT = 44;
 
 // sb-home starOpacity: big -> 1, else 0.36 + level/5 * 0.64.
-function starOpacity(s: HomeStar): number {
+function starOpacity(s: HomeStar, liveLevel?: number): number {
   if (s.big) return 1;
-  const lv = s.level ?? 3;
+  const lv = liveLevel ?? s.level ?? 3;
   return 0.36 + (lv / 5) * 0.64;
 }
 
-function StarDot({ star, cx, cy }: { star: HomeStar; cx: number; cy: number }) {
+function StarDot({ star, cx, cy, liveLevel, onPress }: { star: HomeStar; cx: number; cy: number; liveLevel?: number; onPress: () => void }) {
   const dot = star.big ? BIG_DOT : DOT;
   const glow = star.big ? BIG_GLOW : GLOW;
   const core = `core-${star.id}`;
@@ -70,7 +85,7 @@ function StarDot({ star, cx, cy }: { star: HomeStar; cx: number; cy: number }) {
     <>
       <View
         pointerEvents="none"
-        style={{ position: "absolute", left: cx - c, top: cy - c, width: glow, height: glow, opacity: starOpacity(star) }}
+        style={{ position: "absolute", left: cx - c, top: cy - c, width: glow, height: glow, opacity: starOpacity(star, liveLevel) }}
       >
         <Svg width={glow} height={glow}>
           <Defs>
@@ -110,13 +125,50 @@ function StarDot({ star, cx, cy }: { star: HomeStar; cx: number; cy: number }) {
       >
         {star.label}
       </Text>
+      {/* bare touch surface ON TOP — visuals stay on sibling Views because
+          Fabric Android drops styles handed to Pressable (PR 680 pattern). */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${star.label} 별`}
+        onPress={onPress}
+        hitSlop={6}
+        style={{ position: "absolute", left: cx - HIT / 2, top: cy - HIT / 2, width: HIT, height: HIT }}
+      />
     </>
   );
 }
 
 export function DeepSpaceHomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { userId, loading } = useAuth();
   const { width, height } = useWindowDimensions();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [levels, setLevels] = useState<Partial<Record<DomainId, number>> | null>(null);
+
+  // Live brightness — same no-LLM coverage path + session-restore gate as
+  // DeepSpaceShell (firing on userId alone raced the token attach at boot).
+  useEffect(() => {
+    if (loading || !userId) return;
+    let alive = true;
+    loadDomainLevels(userId)
+      .then((b) => {
+        if (alive) setLevels(b.domainLevels);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [loading, userId]);
+
+  // Canonical star targets (DeepSpaceShell wiring): a domain star opens that
+  // domain's records (리스트업) via the domain: tag filter; 북극성 opens the
+  // persona aggregate.
+  const travel = (id: HomeStar["id"]) => {
+    if (id === "polaris") router.push("/core-brain");
+    else router.push({ pathname: "/records", params: { tags: `domain:${id}` } });
+  };
+
   // Compact dipper anchored high (fidelity pass): smaller box + top-anchored so it
   // sits in the top ~45% and leaves the lower half for the head + bubble.
   const boxW = Math.min(width - 44, 330);
@@ -126,7 +178,7 @@ export function DeepSpaceHomeScreen() {
 
   return (
     <PhoneShell variant="immersive" activeNav="home">
-      <View style={styles.stage}>
+      <View style={[styles.stage, { paddingTop: insets.top + 10 }]}>
         {/* deep-space neural field — a single FULL-BLEED radial wash + vignette.
             Sized to the window (not "100%") so react-native-svg fills edge-to-edge
             with no intrinsic-size seam. */}
@@ -148,16 +200,20 @@ export function DeepSpaceHomeScreen() {
           <Rect x={0} y={0} width={width} height={height} fill="url(#home-vignette)" />
         </Svg>
 
-        {/* home inbox bell — top-left, alert dot; no stray back button, no 9:41 */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="알림"
-          style={styles.bell}
-          onPress={() => router.push("/inbox")}
-        >
-          <SbIcon name="notifications" size={20} color={m3.accent.bellGlyph} />
-          <View style={styles.bellDot} />
-        </Pressable>
+        {/* home inbox bell — top-left, alert dot; no stray back button, no 9:41.
+            Chip visuals on the View (Fabric drops Pressable styles). */}
+        <View style={[styles.bell, { top: insets.top + 8 }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="알림"
+            style={styles.bellPress}
+            hitSlop={8}
+            onPress={() => router.push("/inbox")}
+          >
+            <SbIcon name="notifications" size={20} color={m3.accent.bellGlyph} />
+          </Pressable>
+          <View pointerEvents="none" style={styles.bellDot} />
+        </View>
 
         {/* constellation — top-anchored block */}
         <View style={styles.constellationRegion}>
@@ -176,18 +232,65 @@ export function DeepSpaceHomeScreen() {
               <Path d={POLARIS_GUIDE} fill="none" stroke={withAlpha(m3.accent.moodNeutral, 0.45)} strokeWidth={1} strokeDasharray="2 5" />
             </Svg>
             {STARS.map((s) => (
-              <StarDot key={s.id} star={s} cx={s.x * sx} cy={s.y * sy} />
+              <StarDot
+                key={s.id}
+                star={s}
+                cx={s.x * sx}
+                cy={s.y * sy}
+                liveLevel={s.id === "polaris" ? undefined : levels?.[s.id]}
+                onPress={() => travel(s.id)}
+              />
             ))}
           </View>
         </View>
 
-        {/* head + speech bubble — lower ~55% */}
+        {/* head + speech bubble — lower ~55%. Head tap toggles the sb-home
+            HeadBubble menu (챗봇 / 비서); the intro copy promises exactly this. */}
         <View style={styles.headRegion}>
-          <SecondbHead mood="neutral" size={160} accessibilityLabel="세컨비" />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="세컨비에게 물어보기"
+            onPress={() => setMenuOpen((v) => !v)}
+            hitSlop={4}
+          >
+            <SecondbHead mood="neutral" size={160} accessibilityLabel="세컨비" />
+          </Pressable>
           <View style={styles.bubble}>
             <View style={styles.caret} />
             <Text style={styles.eyebrow}>소개</Text>
             <Text style={styles.bubbleBody}>안녕하세요, 저는 세컨비예요. 머리를 누르면 도와드릴게요.</Text>
+            {menuOpen ? (
+              <View style={styles.menuRow}>
+                <View style={styles.menuBtnWrap}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="챗봇"
+                    onPress={() => {
+                      setMenuOpen(false);
+                      router.push("/secondb");
+                    }}
+                    style={styles.menuPress}
+                  >
+                    <SbIcon name="forum" size={16} color={m3.color.onPrimary} />
+                    <Text style={styles.menuBtnFilledText}>챗봇</Text>
+                  </Pressable>
+                </View>
+                <View style={[styles.menuBtnWrap, styles.menuBtnTonal]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="비서"
+                    onPress={() => {
+                      setMenuOpen(false);
+                      router.push("/ops");
+                    }}
+                    style={styles.menuPress}
+                  >
+                    <SbIcon name="today" size={16} color={m3.color.onSecondaryContainer} />
+                    <Text style={styles.menuBtnTonalText}>비서</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </View>
         </View>
       </View>
@@ -196,10 +299,9 @@ export function DeepSpaceHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  stage: { flex: 1, minHeight: 0, paddingTop: 44 },
+  stage: { flex: 1, minHeight: 0 },
   bell: {
     position: "absolute",
-    top: 48,
     left: 16,
     width: 40,
     height: 40,
@@ -209,6 +311,7 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
     zIndex: 8,
   },
+  bellPress: { width: "100%", height: "100%", alignItems: "center", justifyContent: "center" },
   bellDot: {
     position: "absolute",
     top: 9,
@@ -268,4 +371,22 @@ const styles = StyleSheet.create({
     color: m3.accent.bubbleText,
     fontFamily: m3.font.plain,
   },
+  // Head-tap menu (sb-home HeadBubble 챗봇/비서). Visuals on wrapper Views —
+  // Fabric Android drops Pressable styles (PR 680) — the Pressable stays bare.
+  menuRow: { flexDirection: "row", gap: 8, marginTop: 12 },
+  menuBtnWrap: {
+    borderRadius: m3.shape.full,
+    backgroundColor: m3.color.primary,
+    overflow: "hidden",
+  },
+  menuBtnTonal: { backgroundColor: m3.color.secondaryContainer },
+  menuPress: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    height: 36,
+  },
+  menuBtnFilledText: { fontSize: 13, fontWeight: "700", color: m3.color.onPrimary, fontFamily: m3.font.plain },
+  menuBtnTonalText: { fontSize: 13, fontWeight: "700", color: m3.color.onSecondaryContainer, fontFamily: m3.font.plain },
 });
