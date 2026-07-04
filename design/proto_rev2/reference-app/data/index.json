@@ -31,6 +31,7 @@
     "hobby": "data/screens/hobby.json",
     "persona": "data/screens/persona.json",
     "careerinput": "data/screens/careerinput.json",
-    "me": "data/screens/me.json"
+    "me": "data/screens/me.json",
+    "tokens": "data/app/tokens.json"
   }
 }
