@@ -30,6 +30,7 @@ const ICON_PATHS = {
   battery_full: '<rect x="3.5" y="8" width="16" height="9" rx="2.2"/><path d="M21.2 11v3"/>',
   notifications: '<path d="M6 16V10a6 6 0 0 1 12 0v6l2 2.5H4z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
   arrow_back: '<path d="M15 5 8 12l7 7M8 12h11"/>',
+  today: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/><rect x="7.5" y="12.5" width="3" height="3" rx="0.6"/>',
 } as const;
 
 export type SbIconName = keyof typeof ICON_PATHS;

@@ -179,16 +179,20 @@ export default function Onboarding() {
               />
             ))}
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={ko ? "다음" : "Next"}
-            accessibilityHint={nextHint}
-            onPress={() => setStep((s) => s + 1)}
-            style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
-          >
-            <Text variant="caption" style={styles.nextText}>{ko ? "다음" : "Next"}</Text>
-            <SbIcon name="arrow_forward" size={18} color={deepSpace.onAccent} />
-          </Pressable>
+          {/* visuals on the wrapper View — Fabric Android drops function-form
+              Pressable styles (#680), which erased this primary CTA */}
+          <View style={styles.nextBtn}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={ko ? "다음" : "Next"}
+              accessibilityHint={nextHint}
+              onPress={() => setStep((s) => s + 1)}
+              style={({ pressed }) => [styles.nextPress, pressed && styles.pressed]}
+            >
+              <Text variant="caption" style={styles.nextText}>{ko ? "다음" : "Next"}</Text>
+              <SbIcon name="arrow_forward" size={18} color={deepSpace.onAccent} />
+            </Pressable>
+          </View>
         </View>
       )}
     </SafeAreaView>
@@ -254,13 +258,17 @@ const styles = StyleSheet.create({
   dots: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7 },
   dot: { height: 7, borderRadius: 9999 },
   nextBtn: {
+    borderRadius: 9999,
+    backgroundColor: deepSpace.accent,
+    overflow: "hidden",
+  },
+  // bare touch surface inside the styled wrapper (#680 Fabric-safe)
+  nextPress: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     minHeight: 48,
     paddingHorizontal: 22,
-    borderRadius: 9999,
-    backgroundColor: deepSpace.accent,
   },
   nextText: { color: deepSpace.onAccent, fontSize: 15 },
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
