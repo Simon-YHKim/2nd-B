@@ -1,8 +1,9 @@
 // rev2 M3 clones of 27-inbox (알림) + 29-import (외부 가져오기). Both render as
 // windowed sub-screens (radius-24 card over the shared sky) with an MdTopAppBar,
 // transcribed 1:1 from the reference-app screens (sb-flows.jsx InboxScreen /
-// sb-more.jsx ImportScreen). Copy is inline ko/en ternary — the same pattern as
-// the connect/datareview clones — so no new i18n keys are added (C7 parity stays
+// sb-more.jsx ImportScreen). Inbox KO copy is sourced from the canon flows pack
+// (canonFlows.inboxItems) with app-side EN mirrors; import copy stays inline
+// ko/en ternary — either way no new i18n keys are added (C7 parity stays
 // safe). All colors route through m3.* tokens (no hex literals). The real
 // file-import pipeline (pickImportFiles → captureFromMarkdown) and the health
 // opt-in/ingest wiring are preserved behind the reference layout.
@@ -14,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { SvgXml } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
+import { canonFlows } from "@/lib/canon";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -64,6 +66,66 @@ function Loading() {
 // ── 27-inbox / reference InboxScreen (sb-flows.jsx) ─────────────────────────
 // A windowed 알림 list: filled cards with a tinted icon box, title + timestamp,
 // body, and a text CTA. Each card routes to the real surface behind it.
+// KO copy comes VERBATIM from the canon flows pack (canonFlows.inboxItems,
+// public/proto/data/screens/flows.json — 5 items, pixel contract; the canon
+// "별가루을" particle typo is kept as-is). Only the app-side mappings live
+// here: canon route/icon/accent ids → expo routes, local GLYPH keys, and m3
+// tokens, plus index-aligned EN mirrors.
+const INBOX_ROUTE: Record<string, string> = {
+  bigfive: "/big-five",
+  digest: "/digest",
+  interview: "/interview",
+  records: "/records",
+  callrec: "/call-reflection",
+};
+
+const INBOX_ICON: Record<string, keyof typeof GLYPH> = {
+  auto_awesome: "sparkle",
+  calendar_today: "calendar",
+  forum: "forum",
+  mic: "mic",
+  inbox: "box",
+};
+
+const INBOX_ACCENT: Record<string, string> = {
+  "var(--md-sys-color-primary)": m3.color.primary,
+  "var(--md-sys-color-tertiary)": m3.color.tertiary,
+  "var(--md-sys-color-secondary)": m3.color.secondary,
+};
+
+const INBOX_EN: { title: string; body: string; time: string; cta: string }[] = [
+  {
+    title: "Changes worth a look",
+    body: "New signals in your relationships and rest stars. Would you confirm them?",
+    time: "Just now",
+    cta: "Confirm",
+  },
+  {
+    title: "Your weekly digest has arrived",
+    body: "A recap of the areas you filled most this week and rising interests. A proposal, pending your ratification.",
+    time: "Mon 9:00 AM",
+    cta: "Read it",
+  },
+  {
+    title: "Your relationships star is ready for an interview",
+    body: "New signals from 3 recent calls. Three minutes brings it into focus.",
+    time: "1 hour ago",
+    cta: "Start interview",
+  },
+  {
+    title: "8 pieces are waiting in your inbox",
+    body: "Sort unfiled stardust by tagging, keeping, or deleting.",
+    time: "Today",
+    cta: "Sort them",
+  },
+  {
+    title: "1 call recording waiting for review",
+    body: "Decide whether the transcribed call should be reflected.",
+    time: "Yesterday",
+    cta: "Review it",
+  },
+];
+
 export function DeepSpaceInboxScreen() {
   const { i18n } = useTranslation();
   const { userId, loading: authLoading } = useAuth();
@@ -87,44 +149,15 @@ export function DeepSpaceInboxScreen() {
     time: string;
     route: string;
     cta: string;
-  }[] = [
-    {
-      icon: "sparkle",
-      accent: m3.color.primary,
-      title: ko ? "주간 분석이 끝났어요" : "Your weekly analysis is ready",
-      body: ko ? "외향성이 6p 올랐어요. 관계·휴식 별이 함께 밝아졌어요." : "Extraversion rose 6 points. Your relationships and rest stars brightened together.",
-      time: ko ? "방금" : "Just now",
-      route: "/big-five",
-      cta: ko ? "변화 보기" : "See the change",
-    },
-    {
-      icon: "forum",
-      accent: m3.color.tertiary,
-      title: ko ? "관계 별이 인터뷰를 기다려요" : "Your relationships star is ready for an interview",
-      body: ko ? "최근 통화 3건에서 새 신호가 보여요. 3건이면 또렷해져요." : "New signals from 3 recent calls. Three of them bring it into focus.",
-      time: ko ? "1시간" : "1 hour",
-      route: "/interview",
-      cta: ko ? "인터뷰 하기" : "Start interview",
-    },
-    {
-      icon: "box",
-      accent: m3.color.secondary,
-      title: ko ? "정리함에 8개가 쌓였어요" : "8 pieces are waiting in your inbox",
-      body: ko ? "미분류 조각을 태그·보관·삭제로 정리해요." : "Sort unfiled pieces by tagging, keeping, or deleting.",
-      time: ko ? "오늘" : "Today",
-      route: "/records",
-      cta: ko ? "정리하기" : "Sort them",
-    },
-    {
-      icon: "mic",
-      accent: m3.color.primary,
-      title: ko ? "통화 녹음 1건 분석 대기" : "1 call recording waiting for review",
-      body: ko ? "받아 적은 통화의 반영 여부를 정해주세요." : "Decide whether the transcribed call should be reflected.",
-      time: ko ? "어제" : "Yesterday",
-      route: "/call-reflection",
-      cta: ko ? "검토하기" : "Review it",
-    },
-  ];
+  }[] = canonFlows.inboxItems.map((it, i) => ({
+    icon: INBOX_ICON[it.icon] ?? "sparkle",
+    accent: INBOX_ACCENT[it.accent] ?? m3.color.primary,
+    title: ko ? it.title : INBOX_EN[i]?.title ?? it.title,
+    body: ko ? it.body : INBOX_EN[i]?.body ?? it.body,
+    time: ko ? it.time : INBOX_EN[i]?.time ?? it.time,
+    route: INBOX_ROUTE[it.route] ?? "/",
+    cta: ko ? it.cta : INBOX_EN[i]?.cta ?? it.cta,
+  }));
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
