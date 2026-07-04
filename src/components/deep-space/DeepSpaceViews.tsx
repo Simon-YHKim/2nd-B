@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop, SvgXml } from "react-native-svg";
 
+import { canonCaptureModes } from "@/lib/canon";
 import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
@@ -177,13 +178,10 @@ function CaptureField({
 }
 
 type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
-const CAPTURE_MODE_ROW: { id: CaptureMode; icon: keyof typeof CAPTURE_ICON_INNER }[] = [
-  { id: "text", icon: "edit" },
-  { id: "link", icon: "link" },
-  { id: "photo", icon: "photo_camera" },
-  { id: "voice", icon: "mic" },
-  { id: "todo", icon: "check_circle" },
-];
+// Mode ids + icons sourced from the design canon (src/lib/canon → public/proto/data);
+// labels stay on the i18n path (t("ds.capture.modes." + id)) below.
+const CAPTURE_MODE_ROW: { id: CaptureMode; icon: keyof typeof CAPTURE_ICON_INNER }[] =
+  canonCaptureModes.map((m) => ({ id: m.id as CaptureMode, icon: m.icon }));
 
 export function CaptureView() {
   const { t, i18n } = useTranslation("home");

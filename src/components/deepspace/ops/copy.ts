@@ -6,6 +6,8 @@
 
 import { useTranslation } from "react-i18next";
 
+import { canonMore } from "@/lib/canon";
+
 /** A demo/fallback reminder shown when the account has no scheduled routines
  *  yet (sb-more RemindersScreen static data, verbatim). */
 export interface OpsDemoReminder {
@@ -228,12 +230,8 @@ const ko: OpsCopy = {
   addFromAssistant: "오늘의 비서에서 추가",
   assistantSource: "오늘의 비서",
   starWord: "별",
-  demoReminders: [
-    { title: "가까운 사람에게 안부 전하기", when: "오늘 저녁 8:00", repeat: "한 번", src: "오늘의 비서", star: "관계" },
-    { title: "밤 12시 전 화면 끄기", when: "매일 23:30", repeat: "매일", src: "루틴", star: "건강" },
-    { title: "담아둔 「몰입」 마저 읽기", when: "내일 오전 9:00", repeat: "한 번", src: "세컨비 제안", star: "성장" },
-    { title: "이번 달 구독 점검", when: "6월 28일 10:00", repeat: "매월", src: "오늘의 비서", star: "재정" },
-  ],
+  // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+  demoReminders: canonMore.reminders.map(({ title, when, repeat, src, star }) => ({ title, when, repeat, src, star })),
   emptyTitle: "아직 추천이 없어요",
   emptyBody: "기록이 쌓이면 걸음을 골라줄게요",
   emptyCta: "기록 담기",

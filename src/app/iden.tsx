@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
 import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast, SceneHero } from "@/components/premium";
+import { canonIden } from "@/lib/canon";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { type IdenViewData } from "@/components/deep-space/DeepSpaceViews";
@@ -34,14 +35,13 @@ type Toast = { tone: "info" | "success" | "danger"; message: string };
 // rev2 IdenScreen (sb-screens-extra) — the "AI에 전달" target cards. Brand marks
 // are letter avatars tinted with each product's brand color; every card routes
 // to the integrations surface (reference: go('connect')).
-const AI_TARGETS = [
-  { k: "ChatGPT", c: "#10A37F" },
-  { k: "Claude", c: "#D97757" },
-  { k: "Gemini", c: "#4285F4" },
-  { k: "Notion", c: "#111111" },
-] as const;
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+const AI_TARGETS = canonIden.targets;
 
 type IdenFormat = "Markdown" | "JSON" | "PDF";
+// Same three values as the IdenFormat union above — the canon array is the
+// render order, the union stays the compile-time contract for `fmt`.
+const IDEN_FORMATS = canonIden.formats as IdenFormat[];
 
 // Honest source line under each include row (IDEN's trust layer, types.ts):
 // shows WHERE a field's value came from, never a fabricated confidence.
@@ -302,7 +302,7 @@ function IdenExportScreenDeepSpace() {
           {/* 형식 */}
           <Text style={dsIden.sectionLabel}>{isKo ? "형식" : "Format"}</Text>
           <View style={dsIden.chips}>
-            {(["Markdown", "JSON", "PDF"] as const).map((f) => (
+            {IDEN_FORMATS.map((f) => (
               <MdChip key={f} kind="filter" label={f} selected={fmt === f} onPress={() => setFmt(f)} />
             ))}
           </View>
