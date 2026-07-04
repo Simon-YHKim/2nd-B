@@ -4,37 +4,35 @@
    ============================================================ */
 const { useState: useS, useRef: useR, useEffect: useE } = React;
 
-const PHONE_W = 390,PHONE_H = 820;
-const ROOTS = ['home', 'capture', 'chat', 'records', 'settings'];
-const TITLES = { me: '북극성', record: '별가루 상세', interview: '심층 인터뷰', bigfive: '검증 · Big Five', audit: '성장 · 과거의 나',
-  star: '별', iden: 'IDEN · 포터블 정체성', connect: '데이터 연동', plans: '요금제', museum: 'AI 뮤지엄', exhibit: 'AI 뮤지엄',
-  callrec: '통화 녹음', attachment: '애착 유형', northstar: '북극성 문장', inbox: '알림', values: '가치관', ratify: '승인 이력',
-  trend: '밝기 변화', motivation: '동기', strengths: '강점', widget: '앱 밖에서', auth: '로그인', ops: '오늘의 비서',
-  focus: '일일 집중', reminders: '예약 리마인더', import: '외부 가져오기', datareview: '내 데이터 리뷰', share: '공유 카드', imagine: '공상하기',
-  peer: '보여지는 나', triage: '정리함', research: '연결 찾기', pwreset: '비밀번호 재설정', profilesetup: '프로필 완성',
-  journal: '저널', reward: '담기 가속', digest: '주간 다이제스트',
-  'audit-full': '라이프 오딧', domains: '내 영역', lifeinput: '영역 기록', hobbyinput: '취미·여가 기록', healthinput: '건강 기록', careerinput: '성과 입력', drilldown: 'Drill Down', healthdata: '건강 데이터 항목',
-  relcontacts: '주소록', relperson: '사람 기록',
-  dobgate: '생년월일 확인', permissions: '권한 관리', privacy: '개인정보 · 약관', support: '지원 · 공지', manual: '사용 매뉴얼' };
+/* ---- screen registry: id → { component, layout, root, companion, title, label }
+   comes from data/app/screens.json (via sb-boot.js). The derived consts below
+   keep the original shapes (ROOTS array, TITLES map) so the router code and
+   every consumer read identical values. ---- */
+const SCREENS_DEF = window.SB_DATA.screens;
+const PHONE_W = SCREENS_DEF.canvas.w,PHONE_H = SCREENS_DEF.canvas.h;
+const SCREENS = {};
+SCREENS_DEF.screens.forEach((s) => {SCREENS[s.id] = s;});
+const ROOTS = SCREENS_DEF.screens.filter((s) => s.root).map((s) => s.id);
+const TITLES = {};
+SCREENS_DEF.screens.forEach((s) => {if (s.title) TITLES[s.id] = s.title;});
 
-/* ---- shared constellation wallpaper (common backdrop behind every screen) ---- */
-const SB_SKY = { w: 390, h: 820 };
-const SB_COSMIC = 'radial-gradient(122% 72% at 50% -6%, rgba(40,86,150,.34), transparent 60%), radial-gradient(86% 54% at 86% 12%, rgba(120,96,210,.20), transparent 58%), #060912';
+/* ---- shared constellation wallpaper (common backdrop behind every screen)
+   geometry/colors → data/app/sky.json; the seeded-PRNG star generation stays
+   in code (algorithm, not content — same seed ⇒ same star positions). ---- */
+const SB_SKY_DATA = window.SB_DATA.sky;
+const SB_SKY = SB_SKY_DATA.size;
+const SB_COSMIC = SB_SKY_DATA.cosmic;
 function sbSkyRng(seed) {let s = seed >>> 0;return () => {s = s * 1664525 + 1013904223 >>> 0;return s / 4294967296;};}
 const SB_SKY_STARS = (() => {
-  const r = sbSkyRng(70730219),cols = ['#CFE0FF', '#CFE0FF', '#C9BEFF', '#FFFFFF'],out = [];
-  for (let i = 0; i < 96; i++) out.push({
+  const r = sbSkyRng(SB_SKY_DATA.starfield.seed),cols = SB_SKY_DATA.starfield.colors,out = [];
+  for (let i = 0; i < SB_SKY_DATA.starfield.count; i++) out.push({
     x: +(r() * SB_SKY.w).toFixed(1), y: +(r() * SB_SKY.h).toFixed(1),
     r: +(0.6 + r() * 1.7).toFixed(2), o: +(0.28 + r() * 0.62).toFixed(2),
     tw: r() < 0.3, dly: +(r() * 4.6).toFixed(2), c: cols[r() * cols.length | 0]
   });
   return out;
 })();
-const SB_SKY_CONST = [
-{ c: '#5B9DFF', o: 0.5, pts: [[40, 120], [86, 150], [120, 118], [168, 160], [120, 118], [104, 206]] },
-{ c: '#9A86FF', o: 0.42, pts: [[300, 92], [342, 134], [316, 196], [268, 166], [342, 134], [372, 108]] },
-{ c: '#7FA8FF', o: 0.4, pts: [[58, 642], [112, 612], [150, 662], [212, 628]] },
-{ c: '#8FB6FF', o: 0.34, pts: [[252, 470], [300, 500], [286, 558], [332, 540]] }];
+const SB_SKY_CONST = SB_SKY_DATA.constellations;
 
 function SbStarfield() {
   return (
@@ -162,67 +160,16 @@ function NavBar({ active, onNav }) {
 }
 
 /* ---- screen registry ---- */
+/* ---- screen body: resolved from the JSON registry — screens.json names the
+   component, window[component] resolves it (every screen file exports its
+   components to window). All screens receive the same prop superset; each
+   original switch case passed a strict subset of these, and components only
+   destructure what they use, so rendering is unchanged. ---- */
 function ScreenBody({ name, t, go, param, active, env, onBack }) {
-  switch (name) {
-    case 'home':return <ConstellationHome t={t} onStar={go} active={active} />;
-    case 'capture':return <CaptureScreen t={t} go={go} env={env} />;
-    case 'chat':return <ChatScreen t={t} go={go} env={env} param={param} onBack={onBack} />;
-    case 'records':return <RecordsScreen t={t} go={go} env={env} />;
-    case 'me':return <MeScreen t={t} go={go} />;
-    case 'star':return <StarScreen t={t} go={go} param={param} onBack={onBack} />;
-    case 'record':return <RecordDetailScreen t={t} go={go} param={param} />;
-    case 'interview':return <InterviewScreen t={t} go={go} />;
-    case 'bigfive':return <BigFiveScreen t={t} go={go} />;
-    case 'audit':return <AuditScreen t={t} go={go} />;
-    case 'iden':return <IdenScreen t={t} go={go} />;
-    case 'connect':return <ConnectScreen t={t} go={go} />;
-    case 'plans':return <PlansScreen t={t} go={go} />;
-    case 'settings':return <SettingsScreen t={t} go={go} env={env} />;
-    case 'museum':return <MuseumScreen t={t} go={go} />;
-    case 'exhibit':return <MuseumDeck t={t} go={go} param={param} />;
-    case 'callrec':return <CallRecScreen t={t} go={go} />;
-    case 'attachment':return <AttachmentScreen t={t} go={go} />;
-    case 'northstar':return <NorthStarEditor t={t} go={go} />;
-    case 'inbox':return <InboxScreen t={t} go={go} />;
-    case 'values':return <ValuesScreen t={t} go={go} />;
-    case 'ratify':return <RatifyScreen t={t} go={go} />;
-    case 'trend':return <GrowthTrendScreen t={t} go={go} />;
-    case 'motivation':return <MotivationScreen t={t} go={go} />;
-    case 'strengths':return <StrengthsScreen t={t} go={go} />;
-    case 'widget':return <WidgetScreen t={t} go={go} />;
-    case 'auth':return <AuthScreen t={t} go={go} />;
-    case 'ops':return <OpsScreen t={t} go={go} env={env} />;
-    case 'focus':return <FocusScreen t={t} go={go} />;
-    case 'reminders':return <RemindersScreen t={t} go={go} param={param} />;
-    case 'import':return <ImportScreen t={t} go={go} env={env} />;
-    case 'datareview':return <DataReviewScreen t={t} go={go} env={env} />;
-    case 'share':return <ShareCardScreen t={t} go={go} env={env} />;
-    case 'imagine':return <ImagineScreen t={t} go={go} />;
-    case 'peer':return <PeerScreen t={t} go={go} />;
-    case 'triage':return <TriageScreen t={t} go={go} />;
-    case 'research':return <ResearchScreen t={t} go={go} />;
-    case 'pwreset':return <PwResetScreen t={t} go={go} />;
-    case 'profilesetup':return <ProfileSetupScreen t={t} go={go} />;
-    case 'dobgate':return <DobGateScreen t={t} go={go} />;
-    case 'permissions':return <PermissionsScreen t={t} go={go} />;
-    case 'privacy':return <PrivacyScreen t={t} go={go} />;
-    case 'support':return <SupportScreen t={t} go={go} />;
-    case 'audit-full':return <LifeAuditScreen t={t} go={go} />;
-    case 'domains':return <DomainDashScreen t={t} go={go} />;
-    case 'lifeinput':return <DomainInputScreen t={t} go={go} param={param} />;
-    case 'hobbyinput':return <HobbyInputScreen t={t} go={go} param={param} />;
-    case 'healthinput':return <HealthInputScreen t={t} go={go} param={param} />;
-    case 'careerinput':return <CareerInputScreen t={t} go={go} param={param} />;
-    case 'drilldown':return <DrillDownScreen t={t} go={go} param={param} />;
-    case 'relcontacts':return <RelContactsScreen t={t} go={go} param={param} />;
-    case 'relperson':return <RelPersonScreen t={t} go={go} param={param} />;
-    case 'healthdata':return <HealthDataScreen t={t} go={go} />;
-    case 'manual':return <ManualScreen t={t} go={go} />;
-    case 'journal':return <JournalScreen t={t} go={go} />;
-    case 'reward':return <RewardScreen t={t} go={go} />;
-    case 'digest':return <DigestScreen t={t} go={go} />;
-    default:return null;
-  }
+  const def = SCREENS[name];
+  const Comp = def && window[def.component];
+  if (!Comp) return null;
+  return <Comp t={t} go={go} param={param} env={env} onBack={onBack} active={active} onStar={go} />;
 }
 
 const EXPR = { '긍정': 'positive', '중립': 'neutral', '부정': 'negative' };
@@ -350,9 +297,14 @@ function App() {
   const current = stack.length ? stack[stack.length - 1] : root;
   const isHome = current === 'home';
   const isSub = !ROOTS.includes(current);
-  const immersive = isHome || current === 'records'; // full-bleed graph screen
-  const museumLike = current === 'museum' || current === 'exhibit' || current === 'star'; // full-bleed cosmic; bars float over its OWN starfield so the background is continuous
-  const windowed = !immersive && !museumLike; // every non-immersive screen floats as a window over the shared sky
+  /* layout class per screen comes from screens.json:
+     immersive = full-bleed graph screens (home/records)
+     museumLike = full-bleed cosmic; bars float over its OWN starfield so the background is continuous
+     windowed = every other screen floats as a window over the shared sky */
+  const layoutKind = (SCREENS[current] || {}).layout || 'windowed';
+  const immersive = layoutKind === 'immersive';
+  const museumLike = layoutKind === 'museumLike';
+  const windowed = !immersive && !museumLike;
 
   // mapped tweaks for screens
   const t = {
@@ -372,14 +324,14 @@ function App() {
     openSheet: (node) => setSheet(node), closeSheet: () => setSheet(null)
   };
   const C = window.SB.C;
-  const showCompanion = ['capture', 'chat', 'records'].includes(current);
+  const showCompanion = !!(SCREENS[current] && SCREENS[current].companion); // screens.json
 
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center',
-      background: 'radial-gradient(120% 90% at 50% 0%, #11151c, #05070b 70%)', overflow: 'hidden' }}>
+      background: SB_SKY_DATA.outerBg, overflow: 'hidden' }}>
       <div data-phone-frame style={{ width: PHONE_W, height: PHONE_H, transform: `scale(${scale})`, transformOrigin: 'center',
         borderRadius: 44, padding: 5, background: '#05070b', boxShadow: '0 0 0 8px #14181f, 0 40px 90px rgba(0,0,0,.6)', flex: '0 0 auto' }}>
-        <div data-screen-label={isHome ? '홈 · 별자리' : TITLES[current] || current}
+        <div data-screen-label={(SCREENS[current] && SCREENS[current].label) || TITLES[current] || current}
         style={{ position: 'relative', width: '100%', height: '100%', borderRadius: 40, overflow: 'hidden', isolation: 'isolate',
           background: tw.dark ? SB_COSMIC : C('surface'), color: C('on-surface'), display: 'flex', flexDirection: 'column' }}>
 

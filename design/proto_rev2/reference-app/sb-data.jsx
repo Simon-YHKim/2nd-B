@@ -5,120 +5,49 @@
     Companion, MoodDot, SegBtn, ProgressLinear)
    ============================================================ */
 
+/* All shared data below now lives in data/*.json — loaded synchronously into
+   window.SB_DATA by sb-boot.js before any sb-*.jsx executes, so these consts
+   keep their original names and byte-identical values for every consumer. */
+const SB_D = window.SB_DATA;
 const C = (v) => `var(--md-sys-color-${v})`;
 
 /* ---- Layer A: 7 life-domain stars (북두칠성) + 북극성 (Polaris, layer C output).
    The 7 visible stars are LIFE DOMAINS (입력), not psychology constructs — those
    moved to the hidden validation layer B (see BIGFIVE / 북극성 종합). Polaris keeps
    its synthesis role; the 'Soul Core' name is dropped (PRD §4). ---- */
-const STARS = [
-{ id: 'polaris', x: 140, y: -16, big: true, label: '북극성', kind: '북극성', star: 'Polaris',
-  line: '7개의 별을 모으면, 내가 또렷해져요.', route: 'me' },
-{ id: 'career', x: 228, y: 90, domain: '커리어', kind: '도메인', star: 'Dubhe', level: 3,
-  line: '무엇을 만들고 쌓아왔나요?', route: 'star' },
-{ id: 'finance', x: 230, y: 131, domain: '재정', kind: '도메인', star: 'Merak', level: 2,
-  line: '돈은 나의 무엇을 말해주나요?', route: 'star' },
-{ id: 'relation', x: 174, y: 152, domain: '관계', kind: '도메인', star: 'Phecda', level: 3,
-  line: '가까운 사람들과 나는 어떤가요?', route: 'star' },
-{ id: 'growth', x: 151, y: 126, domain: '성장', kind: '도메인', star: 'Megrez', level: 3,
-  line: '어느 시기가 지금의 나를 만들었나요?', route: 'star' },
-{ id: 'health', x: 108, y: 135, domain: '건강', kind: '도메인', star: 'Alioth', level: 2,
-  line: '요즘 내 컨디션과 리듬은요?', route: 'star' },
-{ id: 'leisure', x: 76, y: 143, domain: '휴식', kind: '도메인', star: 'Mizar', level: 2,
-  line: '무엇이 나를 쉬게 하나요?', route: 'star' },
-{ id: 'museum', x: 50, y: 187, domain: '뮤지엄', kind: '함께 배우기', star: 'Alkaid', level: 4,
-  line: 'AI가 걸어온 길을 거닐며, 세컨비가 나를 이해하는 원리도 함께 배워요.', route: 'museum' }];
-
+const STARS = SB_D.constellation.stars; // → data/core/constellation.json
 
 /* dipper outline: bowl quad (closed) + handle polyline. Pointer→Polaris drawn in home. */
-const STAR_LINES = [
-'M228,90 L230,131 L174,152 L151,126 Z',
-'M151,126 L108,135 L76,143 L50,187'];
+const STAR_LINES = SB_D.constellation.lines;
 
-const POLARIS_GUIDE = 'M230,131 L228,90 L140,-16';
+const POLARIS_GUIDE = SB_D.constellation.polarisGuide;
 
 /* ---- Bottom navigation. Constellation is the canonical home (PRD §9); the
    other tabs are the persistent entry points (담기 · 세컨비 · 위키 · 북극성 종합). ---- */
-const NAV = [
-{ id: 'home', label: '별자리', icon: 'star_shine' },
-{ id: 'capture', label: '담기', icon: 'add_circle' },
-{ id: 'chat', label: '세컨비', icon: 'forum' },
-{ id: 'records', label: '위키', icon: 'inventory_2' },
-{ id: 'settings', label: '설정', icon: 'tune' }];
+const NAV = SB_D.nav.tabs; // → data/app/nav.json
 
 
 /* ---- 3 conversation lenses. Each recolors the chat UI (PRD: no 공상모드). ---- */
-const CHAT_MODES = [
-{ id: '2nd', name: '세컨비', tag: '2nd-B', desc: '나를 가장 잘 아는 두 번째 뇌',
-  face: 'assets/deepspace/secondb-head-front.png', blank: 'assets/deepspace/secondb-head-blank.png',
-  accent: '#A78BFA', soft: 'rgba(167,139,250,.16)', onSoft: '#E2D6FF', glow: 'rgba(167,139,250,.5)' },
-{ id: 'meta', name: '메타비', tag: 'Meta-B', desc: '나를 객관적으로 들여다보는 뇌',
-  face: 'assets/deepspace/secondb-meta-face.png', blank: 'assets/deepspace/secondb-meta-blank.png',
-  accent: '#46B6FF', soft: 'rgba(70,182,255,.16)', onSoft: '#BFE7FF', glow: 'rgba(70,182,255,.5)' },
-{ id: 'twi', name: '트위비', tag: 'Twi-B', desc: '내 데이터로 엉뚱한 가능성을 여는 뇌',
-  face: 'assets/deepspace/secondb-twi-face.png', blank: 'assets/deepspace/secondb-twi-blank.png',
-  accent: '#CFC4E8', soft: 'rgba(207,196,232,.16)', onSoft: '#EDE7F7', glow: 'rgba(245,230,190,.55)' }];
+const CHAT_MODES = SB_D.chatModes.modes; // → data/core/chat-modes.json
 
 
 /* ---- Companion (small head) context lines per screen ---- */
-const COMPANION = {
-  home: { t: '오늘도 왔네요. 7개의 삶 별이 당신을 비추고 있어요.', tip: '가장 어두운 도메인부터 채워보면 좋아요.', mood: 'positive' },
-  capture: { t: '방금 떠오른 걸 흘려보내지 말아요.', tip: '한 줄이면 충분해요. 정리는 제가 할게요.', mood: 'neutral' },
-  chat: { t: '무엇이든 물어봐요. 당신 기록에서 찾아 답할게요.', tip: '"요즘 나 어때?"처럼 물어도 돼요.', mood: 'neutral' },
-  records: { t: '담은 별가루이 124개, 위키로 엮였어요.', tip: '받은항목에 미분류 8개가 기다리고 있어요.', mood: 'neutral' },
-  me: { t: '7개 별을 모아 지금의 당신을 그렸어요.', tip: '더 고르게 채울수록 북극성이 또렷해져요.', mood: 'positive' },
-  settings: { t: '필요한 것만 켜고, 나머지는 꺼두세요.', tip: '연동과 권한은 언제든 바꿀 수 있어요.', mood: 'neutral' },
-  bigfive: { t: '외향성은 관계·휴식 별이 함께 받쳐줘요.', tip: '여러 도메인이 같이 가리키면 더 또렷해져요.', mood: 'positive' },
-  audit: { t: '시기를 하나 고르면 그때의 당신을 같이 떠올려봐요.', tip: '기억은 또렷하지 않아도 괜찮아요.', mood: 'neutral' },
-  interview: { t: '같은 걸 여러 번 되물을게요. 더 또렷해지려고요.', tip: '답이 매번 달라도 괜찮아요.', mood: 'neutral' },
-  record: { t: '이 별가루은 \'관계\' 별과 이어져요.', tip: '태그를 직접 고치면 더 잘 분류해요.', mood: 'neutral' }
-};
+const COMPANION = SB_D.companion.perScreen; // → data/core/companion.json
 
 /* ---- Companion observations: simple read-outs on the user's current state,
    cycled in constellation (dipper) order — career → finance → relation →
    growth → health → leisure → catchall. Shown ~10s each, then advances. ---- */
-const OBSERVATIONS = [
-{ star: '커리어', mood: 'positive', t: '이번 주 커리어 별이 가장 밝았어요. 새로 시도한 일이 3건 쌓였네요.' },
-{ star: '재정', mood: 'neutral', t: '재정 기록이 2주째 잠잠해요. 구독 점검을 미뤄두셨더라고요.' },
-{ star: '관계', mood: 'thinking', t: '관계 별이 조금 어두워졌어요. 가까운 사람에게 안부를 전한 지 6일째예요.' },
-{ star: '성장', mood: 'positive', t: '성장 별엔 독서 메모가 꾸준히 쌓이는 중이에요. 개방성 신호가 또렷해요.' },
-{ star: '건강', mood: 'thinking', t: '요즘 평균 수면이 5.6시간이에요. 건강 별이 작은 신호를 보내고 있어요.' },
-{ star: '휴식', mood: 'neutral', t: '이번 주 \'쉼\' 태그가 0건이에요. 휴식 별이 비어 가고 있어요.' },
-{ star: '담아내기', mood: 'neutral', t: '아직 어디에도 못 담은 별가루이 8개 있어요. 정리하면 별이 더 또렷해져요.' }];
+const OBSERVATIONS = SB_D.companion.observations;
 
 
 /* ---- Mock records ---- */
-const RECORDS = [
-{ id: 'r1', type: 'text', icon: 'edit_note', title: '오늘 회의에서 내가 먼저 말을 꺼냈다', time: '방금', tags: ['외향성', '일'], star: '지금의 나' },
-{ id: 'r2', type: 'link', icon: 'link', title: '몰입에 대한 칼 뉴포트 글', time: '2시간 전', tags: ['리듬', '학습'], star: '리듬' },
-{ id: 'r3', type: 'voice', icon: 'mic', title: '산책하며 떠오른 생각 (0:42)', time: '오전 9:14', tags: ['미분류'], star: null },
-{ id: 'r4', type: 'photo', icon: 'photo_camera', title: '서점에서 찍은 책 표지', time: '어제', tags: ['독서'], star: '일 · 성장' },
-{ id: 'r5', type: 'todo', icon: 'check_circle', title: '엄마에게 전화하기', time: '어제', tags: ['관계'], star: '관계 · 지식' },
-{ id: 'r6', type: 'text', icon: 'edit_note', title: '요즘 너무 쫓기듯 산다는 느낌', time: '2일 전', tags: ['리듬', '신경성'], star: '리듬' }];
+const RECORDS = SB_D.mock.records; // → data/core/mock.json
 
+const BIGFIVE = SB_D.mock.bigfive;
 
-const BIGFIVE = [
-{ k: '개방성', v: 72 },
-{ k: '성실성', v: 58 },
-{ k: '외향성', v: 41, delta: 6 },
-{ k: '우호성', v: 67 },
-{ k: '신경성', v: 39 }];
+const ERAS = SB_D.mock.eras;
 
-
-const ERAS = [
-{ k: '유아기', range: '0–6세', level: 1 },
-{ k: '아동기', range: '7–12세', level: 2 },
-{ k: '청소년기', range: '13–18세', level: 3 },
-{ k: '청년기', range: '19–28세', level: 4 },
-{ k: '현재', range: '지금', level: 3 }];
-
-
-const CAPTURE_MODES = [
-{ id: 'text', icon: 'edit', label: '글' },
-{ id: 'link', icon: 'link', label: '링크' },
-{ id: 'photo', icon: 'photo_camera', label: '사진' },
-{ id: 'voice', icon: 'mic', label: '음성' },
-{ id: 'todo', icon: 'check_circle', label: '할 일' }];
+const CAPTURE_MODES = SB_D.captureModes.modes; // → data/core/capture-modes.json
 
 
 window.SB = { C, STARS, STAR_LINES, POLARIS_GUIDE, NAV, CHAT_MODES, COMPANION, OBSERVATIONS, RECORDS, BIGFIVE, ERAS, CAPTURE_MODES };
@@ -132,141 +61,7 @@ const { useState, useRef, useEffect } = React;
    Material Symbols names so the rest of the code reads as canonical M3. Inline
    SVG (not the Symbols webfont) keeps icons as glyphs in html-to-image, PDF and
    PPTX export, where the variable webfont falls back to ligature text. */
-const ICON_SVG = {
-  star_shine: '<path d="M12 3c.5 3.8 2.7 6 6.5 6.5-3.8.5-6 2.7-6.5 6.5-.5-3.8-2.7-6-6.5-6.5 3.8-.5 6-2.7 6.5-6.5Z"/>',
-  auto_awesome: '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
-  add_circle: '<circle cx="12" cy="12" r="8.4"/><path d="M12 8.2v7.6M8.2 12h7.6"/>',
-  add: '<path d="M12 5v14M5 12h14"/>',
-  forum: '<path d="M3 5h12v8H7l-4 3.2z"/><path d="M8 13.2V15h9l3 2.4V9.5h-2.5"/>',
-  inventory_2: '<path d="M3.5 7.5h17V20h-17z"/><path d="M3.5 7.5 5.5 4h13l2 3.5M12 7.5v4M9.5 11.5h5"/>',
-  person: '<circle cx="12" cy="8" r="3.7"/><path d="M5.4 20c0-3.6 3-5.8 6.6-5.8s6.6 2.2 6.6 5.8"/>',
-  signal_cellular_alt: '<path d="M6 20v-4.5M12 20v-8.5M18 20V7"/>',
-  wifi: '<path d="M4.5 10.5a11 11 0 0 1 15 0M7.8 14a6 6 0 0 1 8.4 0"/><circle cx="12" cy="17.6" r="1.1"/>',
-  battery_full: '<rect x="3.5" y="8" width="16" height="9" rx="2.2"/><path d="M21.2 11v3"/>',
-  arrow_back: '<path d="M15 5 8 12l7 7M8 12h11"/>',
-  arrow_forward: '<path d="M5 12h14M13 6l6 6-6 6"/>',
-  north_east: '<path d="M7 17 17 7M9 7h8v8"/>',
-  chevron_right: '<path d="m9 6 6 6-6 6"/>',
-  chevron_left: '<path d="m15 6-6 6 6 6"/>',
-  document_scanner: '<path d="M5 7V4h3M19 7V4h-3M5 17v3h3M19 17v3h-3M4 12h16"/>',
-  expand_more: '<path d="m6 9 6 6 6-6"/>',
-  expand_less: '<path d="m6 15 6-6 6 6"/>',
-  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>',
-  edit: '<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
-  edit_note: '<path d="M4 7h12M4 12h7M4 17h5M14.5 16l4.2-4.2 2.5 2.5L17 18.5h-2.5z"/>',
-  link: '<path d="M9 15 15 9" transform="rotate(0 12 12)"/><path d="M8.5 12H6.5a3 3 0 1 1 0-6h3M15.5 6h2a3 3 0 1 1 0 6h-3" transform="rotate(45 12 12)"/>',
-  photo_camera: '<rect x="3" y="7.5" width="18" height="12.5" rx="2.4"/><circle cx="12" cy="13.7" r="3.3"/><path d="M8.5 7.5 10 4.5h4l1.5 3"/>',
-  mic: '<rect x="9.4" y="3.5" width="5.2" height="11" rx="2.6"/><path d="M6 11.2a6 6 0 0 0 12 0M12 17.2V20.5"/>',
-  check_circle: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
-  check: '<path d="M5 12.5 10 17 19 7"/>',
-  send: '<path d="M4.5 12 20 5l-3 14.5-4.8-4.8-4.7 2z"/><path d="M12.2 16.7 17 7"/>',
-  bedtime: '<path d="M20 14.2A8 8 0 1 1 10.2 4.4 6.8 6.8 0 0 0 20 14.2Z"/>',
-  lightbulb: '<path d="M9.2 17h5.6M10 20h4M8.6 14.2a5 5 0 1 1 6.8 0c-.8.7-1.2 1.4-1.4 2.1h-4c-.2-.7-.6-1.4-1.4-2.1Z"/>',
-  bubble_chart: '<circle cx="9" cy="10" r="4"/><circle cx="17" cy="8" r="2.3"/><circle cx="16.4" cy="15.6" r="3"/>',
-  search: '<circle cx="11" cy="11" r="6"/><path d="m16 16 4.2 4.2"/>',
-  inbox: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 14h4a3 3 0 0 0 8 0h4"/>',
-  sell: '<path d="M4 11V4h7l9 9-7 7z"/><circle cx="8" cy="8" r="1.4"/>',
-  drive_file_move: '<path d="M3 6h6l2 2h10v11H3z"/><path d="M10 13.5h6m0 0-2.4-2.4M16 13.5l-2.4 2.4"/>',
-  delete: '<path d="M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13"/>',
-  task_alt: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
-  cloud_off: '<path d="M3 3l18 18M7.3 8.4A5.5 5.5 0 0 1 18 9.2a4 4 0 0 1 1.3 7.6M6.2 10A4 4 0 0 0 6.5 18h9"/>',
-  radio_button_unchecked: '<circle cx="12" cy="12" r="8"/>',
-  trending_up: '<path d="M4 16l5-5 3 3 8-8M15 6h5v5"/>',
-  replay: '<path d="M6 12a6 6 0 1 0 1.8-4.3M7 4v4h4"/>',
-  badge: '<rect x="3" y="6" width="18" height="13" rx="2.2"/><path d="M9.5 4h5v2.8h-5z"/><circle cx="9" cy="12.5" r="1.8"/><path d="M14 11.5h4M14 14.5h4M6.2 16.3h6.5"/>',
-  ios_share: '<path d="M12 3.5 8.5 7M12 3.5 15.5 7M12 3.5v11.5"/><path d="M7 10.5H5.5v9.5h13v-9.5H17"/>',
-  visibility: '<path d="M2.5 12s3.8-6.5 9.5-6.5S21.5 12 21.5 12 17.7 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>',
-  lock: '<rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
-  warning: '<path d="M12 4 21 19.5H3L12 4Z"/><path d="M12 10.5v4"/><path d="M12 16.8v.4"/>',
-  workspace_premium: '<circle cx="12" cy="9" r="5.4"/><path d="m9.2 13.2-2 7.3 4.8-2.8 4.8 2.8-2-7.3"/>',
-  tune: '<path d="M4 7h9M17.5 7H20M4 17h2.5M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/>',
-  auto_stories: '<path d="M12 6.2C9.8 4.8 6.8 4.4 4 5v12.5c2.8-.6 5.8-.2 8 1.2 2.2-1.4 5.2-1.8 8-1.2V5c-2.8-.6-5.8-.2-8 1.2Z"/><path d="M12 6.2v12.5"/>',
-  workspaces: '<circle cx="12" cy="6" r="2.6"/><circle cx="6.5" cy="16" r="2.6"/><circle cx="17.5" cy="16" r="2.6"/>',
-  notifications: '<path d="M6 16V10a6 6 0 0 1 12 0v6l2 2.5H4z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
-  bolt: '<path d="M13 3 5 13h6l-1 8 8-10h-6z"/>',
-  play_circle: '<circle cx="12" cy="12" r="8.4"/><path d="M10.3 8.8 15.5 12l-5.2 3.2z"/>',
-  verified: '<path d="m12 3 2 1.8 2.7-.3.9 2.6 2.5 1-.8 2.6.8 2.6-2.5 1-.9 2.6-2.7-.3L12 21l-2-1.8-2.7.3-.9-2.6-2.5-1 .8-2.6-.8-2.6 2.5-1 .9-2.6 2.7.3z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/>',
-  shield: '<path d="M12 3.5 19 6v5c0 4.6-3 7.9-7 9.5-4-1.6-7-4.9-7-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
-  sentiment_satisfied: '<circle cx="12" cy="12" r="8.4"/><path d="M8.4 14a4.4 4.4 0 0 0 7.2 0"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
-  insights: '<path d="M4 5v14h16"/><path d="M7 15l3.2-3.2 2.4 2.4L17 9.6"/><path d="m18.6 5.4.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5L16.6 8l1.5-.6z"/>',
-  self_improvement: '<circle cx="12" cy="5.6" r="2.1"/><path d="M12 9v3.2M5 13.5c2-1 4.5-1 7 1 2.5-2 5-2 7-1M8 18.5h8"/>',
-  group: '<circle cx="9" cy="9" r="3"/><path d="M3.6 18.8a5.4 5.4 0 0 1 10.8 0M16 6.2a3 3 0 0 1 0 5.6M17 12.4a5.4 5.4 0 0 1 3.4 6.4"/>',
-  apps: '<circle cx="6" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/><circle cx="6" cy="18" r="1.5"/><circle cx="12" cy="18" r="1.5"/><circle cx="18" cy="18" r="1.5"/>',
-  filter_list: '<path d="M4 6h16M7 12h10M10 18h4"/>',
-  block: '<circle cx="12" cy="12" r="8.4"/><path d="m6.3 6.3 11.4 11.4"/>',
-  close: '<path d="M6 6l12 12M18 6 6 18"/>',
-  calendar_today: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/>',
-  event: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/><path d="M9 13.5h3v3H9z"/>',
-  today: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/><circle cx="12" cy="15" r="1.6"/>',
-  schedule: '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.4V12l3.2 1.9"/>',
-  alarm: '<circle cx="12" cy="13" r="6.8"/><path d="M12 9.6V13l2.6 1.6M4.6 6 7.5 3.4M19.4 6l-2.9-2.6"/>',
-  local_fire_department: '<path d="M12 3.5c2.4 3 4.3 5 4.3 8.4a4.3 4.3 0 1 1-8.6 0c0-1.5.5-2.6 1.3-3.6.3 1 .9 1.6 1.7 1.9.8-1.6-.5-3.4 1.3-6.7Z"/>',
-  school: '<path d="M3 9.2 12 5l9 4.2-9 4.2-9-4.2Z"/><path d="M7 11.4v3.8c0 1 2.2 2.1 5 2.1s5-1.1 5-2.1v-3.8M21 9.2v5.2"/>',
-  fitness_center: '<path d="M3.5 9.5v5M6 8v8M18 8v8M20.5 9.5v5M6 12h12"/>',
-  directions_run: '<circle cx="14" cy="4.8" r="2"/><path d="M5.5 20.5 9 15.5l.6-4.6-3 1.5-1 3M9.6 10.9 13 12.4l2.2 4M13.4 12 17 13"/>',
-  cardiology: '<path d="M12 20s-7-4.4-7-9.4A3.6 3.6 0 0 1 12 7a3.6 3.6 0 0 1 7 3.6C19 15.6 12 20 12 20Z"/><path d="M5.2 12.3h3l1.4-2.8 2 5 1.5-2.6h3.7"/>',
-  monitor_weight: '<rect x="4" y="4" width="16" height="16" rx="3.2"/><path d="M9 12.4a3 3 0 0 1 6 0"/><path d="M12 12.4 13.6 9.6"/>',
-  monitor_heart: '<rect x="3.5" y="5.5" width="17" height="13" rx="2.6"/><path d="M5.5 12.2h3l1.3-2.6 2 4.6 1.4-2.4h4.3"/>',
-  devices: '<rect x="3" y="6" width="11" height="8" rx="1.6"/><path d="M2 16.5h13"/><rect x="15.5" y="9" width="6.5" height="9.2" rx="1.4"/>',
-  water_drop: '<path d="M12 3.6c3.5 4 5.5 6.6 5.5 9.6a5.5 5.5 0 1 1-11 0c0-3 2-5.6 5.5-9.6Z"/>',
-  restaurant: '<path d="M6 3v7M8.5 3v4.2a2.5 2.5 0 0 1-5 0V3M6 10v11M16.5 3c-1.6 0-2.6 2.2-2.6 5.2s1 4 2.6 4m0-9.2V21"/>',
-  code: '<path d="M9 8 5 12l4 4M15 8l4 4-4 4"/>',
-  menu_book: '<path d="M12 6.2C9.6 4.8 6.6 4.6 4 5.4v12.4c2.6-.8 5.6-.6 8 .8 2.4-1.4 5.4-1.6 8-.8V5.4c-2.6-.8-5.6-.6-8 .8Zm0 0v12.8"/>',
-  description: '<path d="M6 3h8l4 4v14H6z"/><path d="M13.5 3v4.2H18M9 12.5h6M9 16h6"/>',
-  checklist: '<path d="M10 7h10M10 12.5h10M10 18h10M4 7l1.4 1.4L8 6M4 17l1.4 1.4L8 16"/>',
-  savings: '<path d="M4.5 13a6 5.5 0 0 1 11.5-2.2c1.2.3 2 1.3 2 2.5v1.7h-1.8M16 16.5V19M7 16.5V19M12.5 8.3A3 3 0 0 0 8 8.8"/><circle cx="13.5" cy="11.5" r="0.9"/>',
-  pause: '<path d="M9 5v14M15 5v14"/>',
-  image: '<rect x="3.5" y="5" width="17" height="14" rx="2.2"/><circle cx="8.5" cy="10" r="1.6"/><path d="m5 18 5-5 3 3 3-2.5 4 4"/>',
-  calendar_today_alt: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/>',
-  star: '<path d="M12 4 14.6 9.2 20.3 10 16.2 14.1 17.2 19.7 12 17 6.8 19.7 7.8 14.1 3.7 10 9.4 9.2z"/>',
-  flag: '<path d="M6 21V4M6 4.5h11l-2 3.4 2 3.4H6"/>',
-  format_quote: '<path d="M6 14c0-2.6 1.3-4.2 3.8-4.6M6 14h3.6v-2.6H6zM14 14c0-2.6 1.3-4.2 3.8-4.6M14 14h3.6v-2.6H14z"/>',
-  shopping_bag: '<path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/>',
-  payments: '<rect x="3" y="6.5" width="13.5" height="9" rx="1.6"/><circle cx="9.7" cy="11" r="2"/><path d="M19.5 9.2v8.3H6.5"/>',
-  dark_mode: '<path d="M20 14.2A8 8 0 1 1 10.2 4.4 6.8 6.8 0 0 0 20 14.2Z"/>',
-  wb_sunny: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/>',
-  timer: '<circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V9.2M9.5 3.5h5"/>',
-  label: '<path d="M4 6.5h10.2l4.8 5.5-4.8 5.5H4z"/>',
-  favorite: '<path d="M12 20s-7-4.4-7-9.4A3.6 3.6 0 0 1 12 7a3.6 3.6 0 0 1 7 3.6C19 15.6 12 20 12 20Z"/>',
-  dashboard: '<rect x="4" y="4" width="6.8" height="9" rx="1.4"/><rect x="13.2" y="4" width="6.8" height="5" rx="1.4"/><rect x="4" y="15" width="6.8" height="5" rx="1.4"/><rect x="13.2" y="11" width="6.8" height="9" rx="1.4"/>',
-  sentiment_neutral: '<circle cx="12" cy="12" r="8.4"/><path d="M8.6 14.6h6.8"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
-  sentiment_dissatisfied: '<circle cx="12" cy="12" r="8.4"/><path d="M8.4 15.4a4.4 4.4 0 0 1 7.2 0"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
-  sentiment_very_satisfied: '<circle cx="12" cy="12" r="8.4"/><path d="M7.6 13a5 5 0 0 0 8.8 0"/><circle cx="9" cy="9.6" r="1"/><circle cx="15" cy="9.6" r="1"/>',
-  sentiment_very_dissatisfied: '<circle cx="12" cy="12" r="8.4"/><path d="M8 16.2a4.6 4.6 0 0 1 8 0"/><circle cx="9" cy="10.2" r="1"/><circle cx="15" cy="10.2" r="1"/>',
-  book: '<path d="M12 6.2C9.6 4.8 6.6 4.6 4 5.4v12.4c2.6-.8 5.6-.6 8 .8 2.4-1.4 5.4-1.6 8-.8V5.4c-2.6-.8-5.6-.6-8 .8Zm0 0v12.8"/>',
-  military_tech: '<circle cx="12" cy="8.5" r="4.3"/><path d="m12 6.5.6 1.4 1.5.2-1.1 1 .3 1.5-1.3-.7-1.3.7.3-1.5-1.1-1 1.5-.2z"/><path d="M9.4 12.5 8 21l4-2.3L16 21l-1.4-8.5"/>',
-  satellite_alt: '<rect x="9.4" y="9.4" width="5.2" height="5.2" rx="0.8" transform="rotate(45 12 12)"/><path d="m7.2 7.2-2.4-.7.6-2.1 2.4 1.8M16.8 16.8l2.4.7-.6 2.1-2.4-1.8M16.5 7.5 19 5M7.5 16.5 5 19"/>',
-  rocket_launch: '<path d="M12 3c2.5 1.6 3.8 4.2 3.8 7.4L14.5 15h-5l-1.3-4.6C8.2 7.2 9.5 4.6 12 3Z"/><circle cx="12" cy="9" r="1.5"/><path d="M9.6 15.4 7.6 21M14.4 15.4 16.4 21M12 15.5V21"/>',
-  memory: '<rect x="7" y="7" width="10" height="10" rx="1.4"/><rect x="10" y="10" width="4" height="4" rx="0.6"/><path d="M9.5 4.5v2.5M14.5 4.5v2.5M9.5 17v2.5M14.5 17v2.5M4.5 9.5H7M4.5 14.5H7M17 9.5h2.5M17 14.5h2.5"/>',
-  travel_explore: '<circle cx="11" cy="11" r="6.5"/><path d="M4.5 11h13M11 4.5c2 1.8 2 11.2 0 13M11 4.5c-2 1.8-2 11.2 0 13M15.8 15.8 20 20"/>',
-  trending_down: '<path d="M4 8l5 5 3-3 8 8M15 18h5v-5"/>',
-  smartphone: '<rect x="7" y="3" width="10" height="18" rx="2.4"/><path d="M10.5 18h3"/>',
-  account_balance: '<path d="M4 9.5 12 4.5l8 5M5 9.5h14M7 9.5V17M11 9.5V17M13 9.5V17M17 9.5V17M4.5 17.5h15"/>',
-  coronavirus: '<circle cx="12" cy="12" r="3.5"/><path d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20M6.3 6.3 8 8M16 16l1.7 1.7M17.7 6.3 16 8M8 16l-1.7 1.7"/>',
-  palette: '<path d="M12 4a8 8 0 1 0 0 16c1.3 0 1.8-1 1.8-1.9 0-1.3 1-1.9 2.2-1.9H18a3 3 0 0 0 3-3c0-4.5-4-7-9-7Z"/><circle cx="8.5" cy="11.5" r="1"/><circle cx="12" cy="8.7" r="1"/><circle cx="15.5" cy="11.5" r="1"/>',
-  gavel: '<path d="m13.4 8.6-6 6 2 2 6-6zM14 6l4 4M16 4l4 4M5 20h7"/>',
-  psychology: '<path d="M15.5 20v-2.8c1.8-1 3-2.9 3-5.2A6 6 0 0 0 6.6 11c0 1.5.7 2.6.7 3.8V20"/><path d="M12 12.5c0-1 .8-1.3.8-2.1A1 1 0 0 0 11 9.7"/>',
-  groups: '<circle cx="9" cy="9.5" r="2.6"/><path d="M3.8 18a5.2 5.2 0 0 1 10.4 0M16 7.5a2.6 2.6 0 0 1 0 5M17 12.5a5 5 0 0 1 3.2 5.5"/>',
-  hub: '<circle cx="12" cy="12" r="2.2"/><circle cx="5" cy="7" r="1.6"/><circle cx="19" cy="7" r="1.6"/><circle cx="5" cy="17" r="1.6"/><circle cx="19" cy="17" r="1.6"/><path d="m6.4 8 4 2.8M17.6 8l-4 2.8M6.4 16l4-2.8M17.6 16l-4-2.8"/>',
-  ac_unit: '<path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5 4.2 16.5M9.8 8 12 6l2.2 2M14.2 16 12 18l-2.2-2"/>',
-  cached: '<path d="M6 12a6 6 0 0 1 10-4.5M18 12a6 6 0 0 1-10 4.5M16 4v3.5h-3.5M8 20v-3.5h3.5"/>',
-  emoji_events: '<path d="M8 4.5h8V8a4 4 0 0 1-8 0zM8 6H5.5v1.2A2.5 2.5 0 0 0 8 9.7M16 6h2.5v1.2A2.5 2.5 0 0 1 16 9.7M10 12.8h4M9.5 19.5h5M12 12.8v6.7"/>',
-  layers: '<path d="m12 4 8 4.5-8 4.5-8-4.5zM4 13l8 4.5L20 13"/>',
-  grid_on: '<rect x="4.5" y="4.5" width="15" height="15" rx="1.2"/><path d="M9.3 4.5v15M14.7 4.5v15M4.5 9.3h15M4.5 14.7h15"/>',
-  transform: '<path d="M4 7h10M14 7l-3-2.5M14 7l-3 2.5M20 17H10M10 17l3-2.5M10 17l3 2.5"/>',
-  open_in_full: '<path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/>',
-  smart_toy: '<rect x="5" y="8" width="14" height="10" rx="2.4"/><path d="M12 5v3M3.5 12V14.5M20.5 12V14.5M9 18.5v1.5M15 18.5v1.5"/><circle cx="9.5" cy="13" r="1"/><circle cx="14.5" cy="13" r="1"/>',
-  neurology: '<path d="M9.2 5.5A3 3 0 0 0 6 8.4a3 3 0 0 0-.8 5.5l.3.2v1.4a3 3 0 0 0 4 2.8M14.8 5.5A3 3 0 0 1 18 8.4a3 3 0 0 1 .8 5.5l-.3.2v1.4a3 3 0 0 1-4 2.8M12 5.2v13.6"/>',
-  search: '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/>',
-  lan: '<rect x="9" y="3.5" width="6" height="4.5" rx="1"/><rect x="3.5" y="15.5" width="6" height="5" rx="1"/><rect x="14.5" y="15.5" width="6" height="5" rx="1"/><path d="M12 8v3.5M6.5 15.5v-2.5h11v2.5M12 11.5v4"/>',
-  database: '<ellipse cx="12" cy="5.8" rx="6.8" ry="2.6"/><path d="M5.2 5.8v12.4c0 1.4 3 2.6 6.8 2.6s6.8-1.2 6.8-2.6V5.8M5.2 12c0 1.4 3 2.6 6.8 2.6s6.8-1.2 6.8-2.6"/>',
-  chat: '<path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v7.5A1.5 1.5 0 0 1 19 16h-7l-4 3.3V16H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5Z"/><path d="M8 9.8h8M8 12.6h5"/>',
-  rule: '<path d="m4.5 7 1.6 1.6L9.3 5.3M4.5 16l1.6 1.6 3.2-3.3M12.5 8h7M12.5 16.5h7"/>',
-  photo_library: '<rect x="6.5" y="3.5" width="14" height="13" rx="2"/><path d="M3.5 7.5v11A1.5 1.5 0 0 0 5 20h11"/><circle cx="11" cy="8" r="1.5"/><path d="m6.8 13 3.4-2.9 3 2.5 2.3-2.2 4 3.6"/>',
-  bolt: '<path d="M13 3 5 13.2h5L10.5 21l8.5-10.8H13z"/>',
-  south: '<path d="M12 4v14M6.5 12.5 12 18l5.5-5.5"/>',
-  add_a_photo: '<path d="M20.5 8.5V18a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2H8l1.5-2.5h4M12 16.5a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M18.5 4v4M16.5 6h4"/>'
-};
+const ICON_SVG = SB_D.icons.icons; // → data/core/icons.json (131 icons, duplicate keys deduped: later wins)
 
 function Icon({ name, fill, size = 24, weight, grade, style }) {
   const path = ICON_SVG[name] || ICON_SVG.workspaces;
@@ -371,19 +166,11 @@ function ProgressLinear({ value, color, track, height = 8 }) {
 
 }
 
-const MOOD = {
-  positive: 'var(--sb-mood-positive)',
-  neutral: 'var(--sb-mood-neutral)',
-  negative: 'var(--sb-mood-negative)'
-};
+const MOOD = SB_D.theme.mood; // → data/app/theme.json
 
 /* ── Brand glyphs for social login (inline SVG, brand-accurate marks) ── */
 function BrandGlyph({ name, size = 20 }) {
-  const P = {
-    apple: '<path d="M16.7 12.8c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.8-3.5.8-.7 0-1.8-.8-3-.8-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.7 2.3 1.1 0 1.5-.7 2.8-.7 1.3 0 1.6.7 2.8.7 1.2 0 1.9-1.1 2.6-2.2.8-1.2 1.2-2.4 1.2-2.5-.1 0-2.3-.9-2.3-3.6zM14.5 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/>',
-    github: '<path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49l-.01-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05a9.36 9.36 0 0 1 5 0c1.91-1.32 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9l-.01 2.81c0 .27.18.6.69.49A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"/>',
-    kakao: '<path d="M12 3.4C6.9 3.4 2.8 6.7 2.8 10.7c0 2.6 1.7 4.8 4.3 6.1-.2.7-.7 2.5-.8 2.9-.1.5.2.5.4.4.2-.1 2.5-1.7 3.5-2.4.6.1 1.2.1 1.8.1 5.1 0 9.2-3.3 9.2-7.2S17.1 3.4 12 3.4z"/>'
-  };
+  const P = SB_D.icons.brand; // → data/core/icons.json (brand marks)
   return <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor"
   style={{ flex: '0 0 auto' }} dangerouslySetInnerHTML={{ __html: P[name] }} />;
 }
