@@ -19,6 +19,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { canonMuseum } from "@/lib/canon";
 import {
   MUSEUM,
   MUSEUM_BY_YEAR,
@@ -57,7 +58,8 @@ function placeNodes(events: MuseumEvent[]): Map<string, { x: number; y: number }
   return placed;
 }
 
-const DECADES = [1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+const DECADES = canonMuseum.decades;
 
 export function MuseumTimelineScreen() {
   const { i18n } = useTranslation();

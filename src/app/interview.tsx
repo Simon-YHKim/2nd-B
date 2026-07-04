@@ -25,6 +25,7 @@ import { PremiumModal, PremiumToast, PremiumLoadingState } from "@/components/pr
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canonKnow } from "@/lib/canon";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 
@@ -47,17 +48,12 @@ function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: str
   return <SvgXml xml={xml} width={size} height={size} color={color} />;
 }
 
-// Fixed question set + answers, transcribed 1:1 from the reference (ko) with a
-// faithful en mirror (locale-inline copy keeps EN↔KO parity without new i18n
-// keys). The capture is Korean, so ko renders verbatim.
+// Fixed question set + answers: ko comes from the canon 1:1, with a faithful
+// en mirror kept in code (locale-inline copy keeps EN↔KO parity without new
+// i18n keys). The capture is Korean, so ko renders verbatim.
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
 const QS: Record<"ko" | "en", string[]> = {
-  ko: [
-    "요즘 사람들과 함께 있을 때, 에너지가 차오르나요 빠져나가나요?",
-    "혼자 있는 저녁과 약속이 있는 저녁 중, 어느 쪽이 더 당신답나요?",
-    "처음 만난 자리에서 먼저 말을 거는 편인가요?",
-    "지친 하루의 끝, 누군가에게 연락하고 싶어지나요?",
-    "돌아보면, 당신을 가장 살아있게 한 순간은 혼자였나요 함께였나요?",
-  ],
+  ko: canonKnow.questions,
   en: [
     "Lately, when you're with people, does your energy fill up or drain away?",
     "An evening alone or an evening with plans — which is more you?",
@@ -67,16 +63,27 @@ const QS: Record<"ko" | "en", string[]> = {
   ],
 };
 
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
 const ANSWERS: Record<"ko" | "en", string[]> = {
-  ko: ["그렇다", "조금 그렇다", "중간", "조금 아니다", "아니다"],
+  ko: canonKnow.likertOptions,
   en: ["Yes", "Somewhat", "Neutral", "Not really", "No"],
 };
 
-// The ratify proposals, transcribed 1:1 from the reference ratify view.
-const DELTAS: { ko: string; en: string; from: string; to: string; delta: { ko: string; en: string } }[] = [
-  { ko: "지금의 나 · 외향성", en: "The me now · Extraversion", from: "L3", to: "L4", delta: { ko: "+6", en: "+6" } },
-  { ko: "리듬", en: "Rhythm", from: "L2", to: "L3", delta: { ko: "명확", en: "clearer" } },
+// The ratify proposals: ko/from/to come from the canon ratify view 1:1; the
+// en mirror stays in code, keyed by index against canonKnow.ratifyProposals.
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+const DELTA_EN: { en: string; delta: string }[] = [
+  { en: "The me now · Extraversion", delta: "+6" },
+  { en: "Rhythm", delta: "clearer" },
 ];
+const DELTAS: { ko: string; en: string; from: string; to: string; delta: { ko: string; en: string } }[] =
+  canonKnow.ratifyProposals.map((p, i) => ({
+    ko: p.lens,
+    en: DELTA_EN[i]?.en ?? p.lens,
+    from: p.from,
+    to: p.to,
+    delta: { ko: p.delta, en: DELTA_EN[i]?.delta ?? p.delta },
+  }));
 
 function InterviewScreen() {
   const { i18n } = useTranslation();

@@ -12,10 +12,12 @@ import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg"
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canonSurfaces } from "@/lib/canon";
 import { m3 } from "@/lib/theme/m3";
 
 // Overall brightness over 8 weeks (0..100), transcribed 1:1 from the reference.
-const SERIES = [28, 31, 30, 38, 44, 47, 55, 62];
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+const SERIES: number[] = canonSurfaces.trendSeries;
 const W = 300;
 const H = 120;
 const PAD = 6;
@@ -46,22 +48,36 @@ export function TrendsScreen() {
   const { line, area, last } = chartPaths();
 
   // [label, was, now]. Amber when the star did NOT rise (건강 2→2).
-  const stars: { ko: string; en: string; was: number; now: number }[] = [
-    { ko: "커리어", en: "Career", was: 3, now: 4 },
-    { ko: "관계", en: "Relationships", was: 2, now: 4 },
-    { ko: "성장", en: "Growth", was: 2, now: 3 },
-    { ko: "건강", en: "Health", was: 2, now: 2 },
-    { ko: "재정", en: "Finance", was: 1, now: 2 },
-  ];
+  // KO copy sourced from the design canon (src/lib/canon → public/proto/data);
+  // English mirrors stay in code, keyed by index against canonSurfaces.starSpark.
+  const starEn = ["Career", "Relationships", "Growth", "Health", "Finance"];
+  const stars: { ko: string; en: string; was: number; now: number }[] = canonSurfaces.starSpark.map(
+    ([koLabel, was, now], i) => ({ ko: koLabel, en: starEn[i], was, now }),
+  );
 
-  const events: { ko: string; en: string; from: string; to: string; whyKo: string; whyEn: string; wKo: string; wEn: string; up: boolean }[] = [
-    { ko: "관계", en: "Relationships", from: "L2", to: "L3", whyKo: "통화 녹음 3건 반영", whyEn: "3 call recordings reflected", wKo: "이번 주", wEn: "This week", up: true },
-    { ko: "커리어", en: "Career", from: "L2", to: "L3", whyKo: "인터뷰로 몰입 패턴 확인", whyEn: "Focus pattern confirmed via interview", wKo: "2주 전", wEn: "2 wks ago", up: true },
-    { ko: "건강", en: "Health", from: "L2", to: "L1", whyKo: "기록 공백 · 밝기 감소", whyEn: "Record gap · brightness dipped", wKo: "4주 전", wEn: "4 wks ago", up: false },
-    { ko: "성장", en: "Growth", from: "L1", to: "L2", whyKo: "회상 인터뷰 시작", whyEn: "Started recall interviews", wKo: "6주 전", wEn: "6 wks ago", up: true },
+  // KO copy sourced from the design canon (src/lib/canon → public/proto/data);
+  // English mirrors stay in code, keyed by index against canonSurfaces.trendEvents.
+  const eventEn = [
+    { en: "Relationships", whyEn: "3 call recordings reflected", wEn: "This week" },
+    { en: "Career", whyEn: "Focus pattern confirmed via interview", wEn: "2 wks ago" },
+    { en: "Health", whyEn: "Record gap · brightness dipped", wEn: "4 wks ago" },
+    { en: "Growth", whyEn: "Started recall interviews", wEn: "6 wks ago" },
   ];
+  const events: { ko: string; en: string; from: string; to: string; whyKo: string; whyEn: string; wKo: string; wEn: string; up: boolean }[] =
+    canonSurfaces.trendEvents.map((e, i) => ({
+      ko: e.star,
+      en: eventEn[i].en,
+      from: e.from,
+      to: e.to,
+      whyKo: e.why,
+      whyEn: eventEn[i].whyEn,
+      wKo: e.w,
+      wEn: eventEn[i].wEn,
+      up: e.up,
+    }));
 
-  const xLabels = ko ? ["8주", "", "", "4주", "", "", "", "지금"] : ["8w", "", "", "4w", "", "", "", "now"];
+  // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+  const xLabels = ko ? canonSurfaces.trendAxisLabels : ["8w", "", "", "4w", "", "", "", "now"];
 
   return (
     <DeepSpaceScreen

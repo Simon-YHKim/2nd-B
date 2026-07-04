@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
+import { canonMore } from "@/lib/canon";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
@@ -1893,8 +1894,9 @@ function formatClock(ms: number): string {
 // complete-choice screen and a session-length bottom sheet. Tokens only, no hex.
 const RING_R = 120;
 const RING_C = 2 * Math.PI * RING_R; // circumference for the dasharray
-const FOCUS_PRESETS = [25, 15, 50];
-const FOCUS_STARS = ["성장", "커리어", "학습", "관계", "건강"];
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+const FOCUS_PRESETS = canonMore.focusPresets;
+const FOCUS_STARS = canonMore.focusStars;
 const FOCUS_STARS_EN = ["Growth", "Career", "Learning", "Relations", "Health"];
 
 // rev2 clone (25-focus / reference FocusScreen): windowed 일일 집중 timer. The

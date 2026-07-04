@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
+import { canonSurfaces, canonValidateValues } from "@/lib/canon";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
@@ -59,32 +60,28 @@ const BAR_TITLE: Record<AxisCheckId, { ko: string; en: string }> = {
   strengths: { ko: "강점", en: "Strengths" },
 };
 
-// Ranked spectrum values, transcribed 1:1 from the reference (VALUES / sdt /
+// Ranked spectrum values, sourced from the reference canon (VALUES / sdt /
 // strengths arrays). `en` = the mono framework label shown on the right (values
 // & SDT needs); strengths show the score instead and a leading icon. Display
 // names + notes come from i18n (ds.axisCheck.<axis>.rows.<key>).
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data):
+// scores (v), framework labels (en), and icons come from canonValidateValues /
+// canonSurfaces.sdt / canonSurfaces.strengths; the i18n row keys stay in code,
+// matched by array order (canon order == render order, verified 1:1).
 type RowDef = { key: string; v: number; en?: string; icon?: keyof typeof ICON };
+const ROW_KEYS: Record<AxisCheckId, string[]> = {
+  values: ["selfDirection", "stimulation", "authenticity", "benevolence", "achievement", "security"],
+  motivation: ["autonomy", "competence", "relatedness"],
+  strengths: ["curiosity", "grit", "honesty", "empathy", "aesthetics"],
+};
 const ROWS: Record<AxisCheckId, RowDef[]> = {
-  values: [
-    { key: "selfDirection", en: "Self-Direction", v: 78 },
-    { key: "stimulation", en: "Stimulation", v: 71 },
-    { key: "authenticity", en: "Authenticity", v: 66 },
-    { key: "benevolence", en: "Benevolence", v: 58 },
-    { key: "achievement", en: "Achievement", v: 49 },
-    { key: "security", en: "Security", v: 37 },
-  ],
-  motivation: [
-    { key: "autonomy", en: "Autonomy", v: 74 },
-    { key: "competence", en: "Competence", v: 61 },
-    { key: "relatedness", en: "Relatedness", v: 52 },
-  ],
-  strengths: [
-    { key: "curiosity", icon: "lightbulb", v: 82 },
-    { key: "grit", icon: "trending_up", v: 74 },
-    { key: "honesty", icon: "task_alt", v: 69 },
-    { key: "empathy", icon: "forum", v: 63 },
-    { key: "aesthetics", icon: "auto_awesome", v: 58 },
-  ],
+  values: canonValidateValues.map((r, i) => ({ key: ROW_KEYS.values[i], en: r.en, v: r.v })),
+  motivation: canonSurfaces.sdt.map((r, i) => ({ key: ROW_KEYS.motivation[i], en: r.en, v: r.v })),
+  strengths: canonSurfaces.strengths.map((r, i) => ({
+    key: ROW_KEYS.strengths[i],
+    icon: r.icon as keyof typeof ICON,
+    v: r.v,
+  })),
 };
 
 // Sibling-check action pair (reference bottom buttons): a tonal primary + an

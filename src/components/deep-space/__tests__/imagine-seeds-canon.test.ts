@@ -1,6 +1,9 @@
 // Canon guard for the restored reference ImagineScreen (sb-more IMAGINE_SEEDS):
-// three divergent seeds, three next-steps each, KO copy pinned to the design
-// handoff verbatim, EN mirror complete.
+// three divergent seeds, three next-steps each, KO copy now SOURCED from the
+// design canon pack — this suite pins module <-> pack equality (drift guard)
+// plus the structural invariants and complete EN mirror.
+// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
+import { canonMore } from "@/lib/canon";
 import { IMAGINE_SEEDS } from "../imagine-seeds";
 
 describe("IMAGINE_SEEDS canon", () => {
@@ -15,10 +18,17 @@ describe("IMAGINE_SEEDS canon", () => {
     }
   });
 
-  test("KO copy matches the design handoff verbatim", () => {
-    expect(IMAGINE_SEEDS[0].ko.title).toBe("1년 안식년을 떠난다면");
-    expect(IMAGINE_SEEDS[1].ko.body).toBe("계획 대신 즉흥, 혼자 대신 함께. 반대편에서 끌리는 한 가지는?");
-    expect(IMAGINE_SEEDS[2].ko.steps[2]).toBe("성장 별에 실험으로 기록");
+  test("KO copy and icons match the canon pack verbatim (module <-> pack drift guard)", () => {
+    expect(canonMore.imagineSeeds).toHaveLength(3);
+    expect(IMAGINE_SEEDS.map((s) => ({ icon: s.icon, ...s.ko }))).toEqual(
+      canonMore.imagineSeeds.map((c) => ({
+        icon: c.icon,
+        angle: c.angle,
+        title: c.title,
+        body: c.body,
+        steps: c.steps,
+      })),
+    );
   });
 
   test("no em-dash sneaks into seed copy (CI locale guard parity)", () => {
