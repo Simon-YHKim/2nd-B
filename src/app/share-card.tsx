@@ -30,6 +30,7 @@ export default function ShareCardScreen() {
   const [litStars, setLitStars] = useState<number | null>(null);
   const [pieceCount, setPieceCount] = useState<number | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const captureRef = useRef<View>(null);
 
   useEffect(() => {
@@ -69,7 +70,7 @@ export default function ShareCardScreen() {
   const card = deriveCardProps({ litStars });
 
   async function handleShare() {
-    if (sharing) return;
+    if (sharing || saving) return;
     setSharing(true);
     try {
       await shareInsightCard({
@@ -81,6 +82,25 @@ export default function ShareCardScreen() {
       });
     } finally {
       setSharing(false);
+    }
+  }
+
+  // "이미지 저장": capture the 1080 card and hand it to the OS export sheet, which
+  // surfaces Save-to-Photos/Download. Same off-screen capture ref as 공유; without
+  // an added media-library dep the OS sheet is the honest save affordance.
+  async function handleSave() {
+    if (sharing || saving) return;
+    setSaving(true);
+    try {
+      await shareInsightCard({
+        variant,
+        insight: card.insight,
+        handle: card.handle,
+        litCount: card.litCount,
+        viewRef: captureRef.current ?? undefined,
+      });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -108,12 +128,23 @@ export default function ShareCardScreen() {
           <ShareCard variant={variant} insight={card.insight} pieceCount={pieceCount} litCount={card.litCount} size={330} isKo={isKo} />
         </View>
 
-        <MdButton
-          variant="filled"
-          disabled={sharing}
-          label={sharing ? (isKo ? "여는 중…" : "Opening…") : isKo ? "공유" : "Share"}
-          onPress={handleShare}
-        />
+        {/* sb-more L503-506: two side-by-side actions — filled 이미지 저장 + tonal 공유. */}
+        <View style={styles.actionRow}>
+          <MdButton
+            variant="filled"
+            disabled={saving || sharing}
+            label={saving ? (isKo ? "저장 중…" : "Saving…") : isKo ? "이미지 저장" : "Save image"}
+            onPress={handleSave}
+            style={styles.actionBtn}
+          />
+          <MdButton
+            variant="tonal"
+            disabled={sharing || saving}
+            label={sharing ? (isKo ? "여는 중…" : "Opening…") : isKo ? "공유" : "Share"}
+            onPress={handleShare}
+            style={styles.actionBtn}
+          />
+        </View>
         <Text variant="caption" color="textSubtle" style={styles.introCopy}>
           {isKo
             ? "기록 원문·수치는 카드에 포함되지 않아요. 보여줄 문장만 골라 담아요."
@@ -142,6 +173,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   preview: { alignItems: "center" },
+  actionRow: { flexDirection: "row", gap: 8 },
+  actionBtn: { flex: 1 },
   chipRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   introCopy: { textAlign: "center" },
   captureHost: { position: "absolute", left: -4000, top: 0, opacity: 0 },

@@ -270,6 +270,12 @@ export const deepSpace = {
   dangerLine: "rgba(255,150,150,0.30)",
   dangerBg: "rgba(255,120,120,0.05)",
   danger: cosmic.guardRose, // functional-color exception only
+  // Auth provider pill — the white "Apple/Google로 계속" surface from the auth
+  // canon (sb-surfaces AuthScreen). White is a brand-provider requirement, not a
+  // decorative fill, so it is exempt from the cyan-only palette like `danger`.
+  providerLightBg: "#FFFFFF", // white provider pill surface (Apple / Google)
+  providerLightFg: "#111318", // near-black label/glyph on the white pill
+  providerLightLine: "rgba(180,205,255,0.16)", // hairline edge on the white pill
 } as const;
 
 // Deep-space radius + spacing scales (design handoff 2026-06-17). Softer/rounder

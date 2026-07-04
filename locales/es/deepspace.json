@@ -51,16 +51,30 @@
   },
   "records": {
     "title": "Archivo",
-    "headerCount": "Has guardado {{count}} piezas hasta ahora.",
+    "headerCount": "Has entretejido {{count}} piezas en tu wiki.",
     "headerEmpty": "Aún no has guardado ninguna pieza.",
-    "tip": "Acota por tipo o tiempo.",
+    "tip": "{{count}} piezas sin clasificar te esperan en la bandeja.",
     "lead": "Todo lo que has guardado, en una sola línea de tiempo",
     "filterAll": "Todo",
     "filterJournal": "Diario",
     "filterNote": "Nota",
     "filterAudit": "Revisión",
     "emptyAll": "El archivo está vacío. Guarda la pieza de hoy y se reunirá en una sola línea de tiempo.",
-    "emptyKind": "Aún no hay registros de este tipo."
+    "emptyKind": "Aún no hay registros de este tipo.",
+    "tipClear": "Todo está clasificado.",
+    "wikiTitle": "Wiki",
+    "viewList": "Lista",
+    "viewGraph": "Grafo",
+    "triageTitle": "{{count}} por clasificar",
+    "triageBody": "Etiqueta, guarda o elimina piezas sin clasificar",
+    "typeText": "Texto",
+    "typeLink": "Enlace",
+    "typeVoice": "Voz",
+    "typePhoto": "Foto",
+    "typeUnfiled": "Sin clasificar",
+    "unfiledBadge": "Sin clasificar",
+    "fallbackTitle": "Sin título",
+    "graphEmpty": "Aún no hay conocimiento que conectar."
   },
   "domains": {
     "title": "Mis áreas",
@@ -127,7 +141,20 @@
     "haveAccount": "¿Ya tienes una cuenta? Inicia sesión",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "or": "o",
-    "ageNotice": "Puedes registrarte desde los 14 años. Menores de 14 necesitan un tutor."
+    "ageNotice": "Puedes registrarte desde los 14 años. Menores de 14 necesitan un tutor.",
+    "brandLabel": "2ND-BRAIN",
+    "signInTitle": "Qué bueno verte de nuevo",
+    "signInEncrypt": "Tus registros se cifran primero en tu dispositivo.",
+    "emailContinue": "Continuar con correo",
+    "signUpPrompt": "¿Primera vez?",
+    "legalConsent": "Al continuar, aceptas las Condiciones del servicio y la Política de privacidad.",
+    "continueShort": {
+      "google": "Continuar con Google",
+      "apple": "Continuar con Apple",
+      "kakao": "Continuar con Kakao",
+      "facebook": "Continuar con Facebook",
+      "github": "Continuar con GitHub"
+    }
   },
   "account": {
     "title": "Cuenta",

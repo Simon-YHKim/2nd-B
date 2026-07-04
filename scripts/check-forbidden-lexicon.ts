@@ -37,6 +37,9 @@ const IGNORE_DIRS = new Set([
   "coverage",
   ".git",
   "__tests__",
+  // Vendored rev2 design reference bundle (web prototype source) — foreign
+  // deliverable, not app copy; its strings are not product surfaces to lint.
+  "clone-audit",
 ]);
 
 function walk(dir: string, out: string[]): void {

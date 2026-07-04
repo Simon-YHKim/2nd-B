@@ -161,9 +161,10 @@ export function MuseumTimelineScreen() {
   const yearFrac = (year - MZ.START) / (MZ.END - MZ.START);
 
   return (
-    // sb-museum owns its full chrome (range bar, dial, back-to-constellation) —
-    // no companion header over the timeline (sb-app §4).
-    <DeepSpaceScreen active="lens" header="none">
+    // sb-app §4 museumLike chrome: the blurred top app bar (back + centered
+    // "AI 뮤지엄") floats over the self-owned sky; DeepSpaceScreen reserves the
+    // ~60px top inset. The range bar, dial and back-to-constellation stay in-body.
+    <DeepSpaceScreen active="lens" variant="museumLike" title={isKo ? "AI 뮤지엄" : "AI Museum"} onBack={() => router.back()}>
       <View style={styles.body}>
         {/* range / hint bar */}
         <View style={styles.rangeRow}>
@@ -246,14 +247,18 @@ export function MuseumTimelineScreen() {
                   accessibilityLabel={`${e.ylabel} ${e.title}`}
                   style={[
                     styles.node,
-                    { left: p.x, top: p.y, borderColor: active ? lane.accent : withAlpha(lane.accent, 0.35) },
-                    active && { backgroundColor: lane.tint },
+                    // sb-museum MzPlate: a faint lane-accent plate fill (RN
+                    // approximation of the 135deg gradient) so the node reads as
+                    // its lane's colour, brighter when selected.
+                    { left: p.x, top: p.y, borderColor: active ? lane.accent : withAlpha(lane.accent, 0.35), backgroundColor: active ? lane.tint : withAlpha(lane.accent, 0.1) },
                     e.here && styles.nodeHere,
                   ]}
                 >
+                  {/* bottom scrim so the title stays legible over the plate */}
+                  <View pointerEvents="none" style={styles.nodeScrim} />
+                  {/* sb-museum small node: year (mono) + title only — no sub line */}
                   <Text style={[styles.nodeYear, { color: lane.accent }]}>{e.ylabel}</Text>
                   <Text style={styles.nodeTitle} numberOfLines={1}>{e.title}</Text>
-                  <Text style={styles.nodeSub} numberOfLines={1}>{e.sub}</Text>
                   {/* sb-museum: the here-node carries a mono NOW badge top-right */}
                   {e.here ? <Text style={[styles.nodeNow, { color: lane.accent }]}>NOW</Text> : null}
                 </Pressable>
@@ -415,13 +420,14 @@ const styles = StyleSheet.create({
     backgroundColor: SHEET_SURFACE,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    gap: 2,
+    overflow: "hidden",
+    justifyContent: "space-between",
   },
+  nodeScrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: "62%", backgroundColor: withAlpha(SHEET_SURFACE, 0.72) },
   nodeHere: { shadowColor: MZ_LANES.ai.accent, shadowOpacity: 0.7, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
   nodeNow: { position: "absolute", top: 7, right: 9, fontFamily: m3.font.mono, fontSize: 8.5, fontWeight: "800", letterSpacing: 1 },
   nodeYear: { fontFamily: m3.font.mono, fontSize: 9 },
   nodeTitle: { fontSize: 12.5, fontWeight: "700", color: "#EAF2FF" },
-  nodeSub: { fontSize: 10, color: withAlpha(deepSpace.accentSoft, 0.75) },
   dialBlock: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },
   dialHead: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   dialYear: { fontFamily: m3.font.mono, fontSize: 26, color: "#CFFAFF" },

@@ -74,6 +74,8 @@ export const m3Accent = {
   moodPositive: "#5FF0C0",
   moodNeutral: "#A78BFA",
   moodNegative: "#FF7A90",
+  /** Amber for a flat / receding brightness bar (밝기 변화 non-rising star). */
+  trendFlat: "#F7B955",
   /** Sky copy on the deep-space background: body cyan / emphasized near-white. */
   skyText: "#5FD4FF",
   skyTextHi: "#E8F7FF",
@@ -81,6 +83,8 @@ export const m3Accent = {
   skySurface: "#0B2142",
   /** App-wide deepest background behind the nebula (m3-theme.css `body`). */
   spaceBody: "#05070B",
+  /** Dark ink placed on a bright persona-accent fill (chat send/mic glyph). */
+  onAccentInk: "#06121f",
 
   // ---- rev2 constellation home (reference-app sb-home.jsx / sb-app.jsx).
   // Values transcribed 1:1 from the prototype; alpha is applied at the callsite
@@ -133,19 +137,38 @@ export const m3Accent = {
   shareStarOn: "#BFE9FF",
   /** Card background radial top stop (→ stageFloor). */
   shareBgTop: "#16203A",
+
+  // ---- rev2 entry flow (onboarding carousel + TTFV first-light). Transcribed
+  // 1:1 from sb-flows.jsx OnboardingScreen + sb-ops.jsx FirstInsight.
+  /** Onboarding mono tag + TTFV evidence accent rgb(127,182,255). */
+  entryTag: "#7FB6FF",
+  /** Onboarding body copy rgb(214,230,255) (applied at .72 alpha). */
+  entryBody: "#D6E6FF",
+  /** TTFV insight phrase highlight (‘먼저 다가가는’). */
+  insightHi: "#82D8F6",
+  /** 북극성 caption + outlined-button ink rgb(207,230,255). */
+  starCaption: "#CFE6FF",
+  /** TTFV consent footer rgb(200,210,240) (applied at .5 alpha). */
+  consentFootnote: "#C8D2F0",
 } as const;
 
 /**
  * 세컨비 — one character, three personas (PRD §02 / §05). Each shares the head
  * silhouette; only the accent + top signature differ.
  */
+// `soft` = the light on-accent ink (reference CHAT_MODES.onSoft — text/glyph on
+// a tinted lens fill). `softBg` = the translucent lens fill behind chips /
+// banners / selected toggles (reference CHAT_MODES.soft). `glow` = the accent
+// bloom under the persona status dot (reference CHAT_MODES.glow). Values
+// transcribed 1:1 from reference-app/sb-data.jsx CHAT_MODES so the chat surface
+// recolors per selected lens exactly like the prototype.
 export const m3Persona = {
   /** 2nd-B (공감) — empathetic main lens. */
-  secondb: { accent: "#A78BFA", soft: "#E2D6FF" },
+  secondb: { accent: "#A78BFA", soft: "#E2D6FF", softBg: "rgba(167,139,250,0.16)", glow: "rgba(167,139,250,0.5)" },
   /** 메타비 / Meta-B (객관) — objective mirror. */
-  meta: { accent: "#46B6FF", soft: "#BFE7FF" },
-  /** 트위비 / Twi-B (공상) — creative wild-card. */
-  twi: { accent: "#CFC4E8", soft: "#EDE7F7" },
+  meta: { accent: "#46B6FF", soft: "#BFE7FF", softBg: "rgba(70,182,255,0.16)", glow: "rgba(70,182,255,0.5)" },
+  /** 트위비·안티비 / Anti-B (공상) — creative wild-card. */
+  twi: { accent: "#CFC4E8", soft: "#EDE7F7", softBg: "rgba(207,196,232,0.16)", glow: "rgba(245,230,190,0.55)" },
 } as const;
 
 /** Typefaces (PRD §13): Pretendard KO body + Roboto M3 chrome; Roboto Mono numerics. */

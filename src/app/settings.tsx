@@ -1,19 +1,40 @@
-// Settings screen — primarily the "Danger zone" for data deletion.
-// Three modes per user requirement: select-only (handled inline on
-// /journal etc.), partial (per-kind / per-tag), and full (everything).
+// Settings screen — rev2 M3 toggle-card top (모양 / 기능 / 데이터 연동, cloned
+// 1:1 from reference-app SettingsScreen + docs/clone-audit capture 09-settings)
+// over the retained functional settings surface (account nav, language,
+// decorative crew, the one-area-at-a-time data-delete danger zone, sign-out).
+// The M3 rows are the capture-matching visuals; the sections below carry the
+// account/data/language/danger-zone behavior and localized helper copy.
 
 import { type ReactNode, useEffect, useState } from "react";
-import { ActivityIndicator, TouchableOpacity, ScrollView, StyleSheet, View, type AccessibilityRole, type StyleProp, type ViewStyle, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  ActivityIndicator,
+  TouchableOpacity,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text as RNText,
+  View,
+  type AccessibilityRole,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { SvgXml } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
 import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
+import { MdButton } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { deepSpace, deepSpaceRadii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 import { signOut } from "@/lib/supabase/auth";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
@@ -21,6 +42,12 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // known require cycle that crashed the /settings path once already (PR 711).
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
+import {
+  useAppFeatures,
+  type AccentPalette,
+  type ConnectionKey,
+  type FeatureKey,
+} from "@/lib/settings/app-features";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import {
@@ -45,6 +72,142 @@ const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
   ko: { none: "없음", few: "적게", some: "보통", many: "많이" },
 };
+
+// ── M3 toggle-card kit (rev2 clone) ─────────────────────────────────────────
+// Icons: 1:1 stroke idiom from reference-app sb-data.jsx ICON_SVG (currentColor
+// stroke 2dp; 1.4dp + fill when `fill`).
+const ICON_PATHS: Record<string, string> = {
+  bedtime: '<path d="M20 14.2A8 8 0 1 1 10.2 4.4 6.8 6.8 0 0 0 20 14.2Z"/>',
+  auto_awesome:
+    '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
+  bubble_chart: '<circle cx="9" cy="10" r="4"/><circle cx="17" cy="8" r="2.3"/><circle cx="16.4" cy="15.6" r="3"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  badge:
+    '<rect x="3" y="6" width="18" height="13" rx="2.2"/><path d="M9.5 4h5v2.8h-5z"/><circle cx="9" cy="12.5" r="1.8"/><path d="M14 11.5h4M14 14.5h4M6.2 16.3h6.5"/>',
+  mic: '<rect x="9.4" y="3.5" width="5.2" height="11" rx="2.6"/><path d="M6 11.2a6 6 0 0 0 12 0M12 17.2V20.5"/>',
+  forum: '<path d="M3 5h12v8H7l-4 3.2z"/><path d="M8 13.2V15h9l3 2.4V9.5h-2.5"/>',
+  auto_stories:
+    '<path d="M12 6.2C9.8 4.8 6.8 4.4 4 5v12.5c2.8-.6 5.8-.2 8 1.2 2.2-1.4 5.2-1.8 8-1.2V5c-2.8-.6-5.8-.2-8 1.2Z"/><path d="M12 6.2v12.5"/>',
+  check: '<path d="M5 12.5 10 17 19 7"/>',
+};
+
+function M3Icon({ name, color, size = 20, fill = false }: { name: string; color: string; size?: number; fill?: boolean }) {
+  const inner = ICON_PATHS[name] ?? ICON_PATHS.auto_awesome;
+  const xml =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
+    `fill="${fill ? "currentColor" : "none"}" stroke="currentColor" stroke-width="${fill ? 1.4 : 2}" ` +
+    `stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+}
+
+// M3 Switch (1:1 from reference-app MdSwitch): 52×32 track, 2dp border, thumb
+// 16→24. Colors via m3.color tokens (no hex). Announces switch role + checked.
+function M3Switch({ checked, onChange, accessibilityLabel }: { checked: boolean; onChange: (v: boolean) => void; accessibilityLabel?: string }) {
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityState={{ checked }}
+      accessibilityLabel={accessibilityLabel}
+      onPress={() => onChange(!checked)}
+      hitSlop={8}
+      style={[
+        m3Styles.switchTrack,
+        { borderColor: checked ? m3.color.primary : m3.color.outline, backgroundColor: checked ? m3.color.primary : m3.color.surfaceContainerHighest },
+      ]}
+    >
+      <View
+        style={[
+          m3Styles.switchThumb,
+          checked
+            ? { width: 24, height: 24, right: 2, backgroundColor: m3.color.onPrimary }
+            : { width: 16, height: 16, left: 7, backgroundColor: m3.color.outline },
+        ]}
+      />
+    </Pressable>
+  );
+}
+
+function M3IconBadge({ icon, active }: { icon: string; active: boolean }) {
+  return (
+    <View style={[m3Styles.iconBadge, { backgroundColor: active ? m3.color.primary : m3.color.surfaceContainerHighest }]}>
+      <M3Icon name={icon} fill={active} color={active ? m3.color.onPrimary : m3.color.onSurfaceVariant} />
+    </View>
+  );
+}
+
+function M3SectionLabel({ children, action }: { children: string; action?: ReactNode }) {
+  return (
+    <View style={m3Styles.sectionLabelRow}>
+      <RNText style={m3Styles.sectionLabel}>{children}</RNText>
+      {action}
+    </View>
+  );
+}
+
+function M3Group({ children }: { children: ReactNode }) {
+  return <View style={m3Styles.card}>{children}</View>;
+}
+function M3Divider() {
+  return <View style={m3Styles.divider} />;
+}
+
+function M3ToggleRow({ icon, label, sub, checked, onChange }: { icon: string; label: string; sub: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <View style={m3Styles.row}>
+      <M3IconBadge icon={icon} active={checked} />
+      <View style={m3Styles.rowText}>
+        <RNText style={m3Styles.rowLabel}>{label}</RNText>
+        <RNText style={m3Styles.rowSub}>{sub}</RNText>
+      </View>
+      <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
+    </View>
+  );
+}
+
+function M3ConnectRow({ icon, label, sub, connected, connectLabel, connectedLabel, onToggle }: { icon: string; label: string; sub: string; connected: boolean; connectLabel: string; connectedLabel: string; onToggle: () => void }) {
+  return (
+    <View style={m3Styles.row}>
+      <M3IconBadge icon={icon} active={connected} />
+      <View style={m3Styles.rowText}>
+        <RNText style={m3Styles.rowLabel}>{label}</RNText>
+        <RNText style={m3Styles.rowSub}>{connected ? connectedLabel : sub}</RNText>
+      </View>
+      <MdButton
+        label={connected ? connectLabel : label}
+        variant={connected ? "tonal" : "outlined"}
+        icon={connected ? <M3Icon name="check" size={16} color={m3.color.onSecondaryContainer} /> : undefined}
+        onPress={onToggle}
+        accessibilityLabel={`${label} ${connectLabel}`}
+        style={m3Styles.connectBtn}
+      />
+    </View>
+  );
+}
+
+// 강조 색 (별빛 팔레트) — the segmented 시안/바이올렛 control from the capture.
+function M3PaletteSeg({ palette, onSelect, labels }: { palette: AccentPalette; onSelect: (p: AccentPalette) => void; labels: Record<AccentPalette, string> }) {
+  const opts: AccentPalette[] = ["cyan", "violet"];
+  return (
+    <View style={m3Styles.seg} accessibilityRole="radiogroup">
+      {opts.map((key, i) => {
+        const on = palette === key;
+        return (
+          <Pressable
+            key={key}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={labels[key]}
+            onPress={() => onSelect(key)}
+            style={[m3Styles.segBtn, i > 0 && m3Styles.segDivider, on && m3Styles.segBtnOn]}
+          >
+            {on ? <M3Icon name="check" size={16} color={m3.color.onSecondaryContainer} /> : null}
+            <RNText style={[m3Styles.segLabel, { color: on ? m3.color.onSecondaryContainer : m3.color.onSurface }]}>{labels[key]}</RNText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 type SettingsActionButtonProps = {
   label: string;
@@ -162,7 +325,10 @@ export default function Settings() {
   const { t, i18n } = useTranslation("settings");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const { mode, setMode } = useTheme();
+  const dark = mode === "dark";
   const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
+  const { features, setFeature, connections, setConnection, palette, setPalette } = useAppFeatures();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -240,6 +406,10 @@ export default function Settings() {
   function toggleDisclosure(key: SettingsDisclosureKey): void {
     setOpenDisclosures((current) => ({ ...current, [key]: !current[key] }));
   }
+
+  const featureOn = (key: FeatureKey): boolean => features[key];
+  const toggleFeature = (key: FeatureKey) => setFeature(key, !features[key]);
+  const toggleConnection = (key: ConnectionKey) => setConnection(key, !connections[key]);
 
   async function runDeleteKind(kind: "journal" | "note" | "audit_response", label: string) {
     if (!userId) return;
@@ -389,6 +559,11 @@ export default function Settings() {
       </View>
     );
 
+  const paletteLabels: Record<AccentPalette, string> = {
+    cyan: locale === "ko" ? "시안" : "Cyan",
+    violet: locale === "ko" ? "바이올렛" : "Violet",
+  };
+
   return (
     <Chrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -406,7 +581,7 @@ export default function Settings() {
             }
           />
         )}
-        <Text variant="heading" style={styles.title}>{locale === "ko" ? "설정" : "Settings"}</Text>
+        <RNText style={m3Styles.headline}>{locale === "ko" ? "설정" : "Settings"}</RNText>
         {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
             pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
         {isDeepSpaceUI() && (
@@ -417,7 +592,60 @@ export default function Settings() {
           </Text>
         )}
 
-        {/* Navigation hub (A-to-Z Phase 12) — the settings sub-screens. */}
+        {/* ── rev2 M3 toggle-card clone (모양 / 기능 / 데이터 연동) ── */}
+        {/* 모양 */}
+        <M3SectionLabel>{locale === "ko" ? "모양" : "Appearance"}</M3SectionLabel>
+        <M3Group>
+          <M3ToggleRow
+            icon="bedtime"
+            label={locale === "ko" ? "다크 모드" : "Dark mode"}
+            sub={locale === "ko" ? "딥스페이스 톤" : "Deep-space tone"}
+            checked={dark}
+            onChange={(v) => setMode(v ? "dark" : "light")}
+          />
+          <M3Divider />
+          <View style={m3Styles.row}>
+            <M3IconBadge icon="auto_awesome" active={false} />
+            <View style={m3Styles.rowText}>
+              <RNText style={m3Styles.rowLabel}>{locale === "ko" ? "강조 색" : "Accent color"}</RNText>
+              <RNText style={m3Styles.rowSub}>{locale === "ko" ? "별빛 팔레트" : "Starlight palette"}</RNText>
+            </View>
+            <M3PaletteSeg palette={palette} onSelect={setPalette} labels={paletteLabels} />
+          </View>
+        </M3Group>
+
+        {/* 기능 */}
+        <M3SectionLabel>{locale === "ko" ? "기능" : "Features"}</M3SectionLabel>
+        <M3Group>
+          <M3ToggleRow icon="auto_awesome" label={locale === "ko" ? "자동 분류" : "Auto-tagging"} sub={locale === "ko" ? "담는 즉시 별·태그로 정리" : "Sort into stars and tags on capture"} checked={featureOn("autotag")} onChange={() => toggleFeature("autotag")} />
+          <M3Divider />
+          <M3ToggleRow icon="bubble_chart" label={locale === "ko" ? "제안 알림" : "Suggestion alerts"} sub={locale === "ko" ? "새 통찰이 생기면 알려줘요" : "Ping me when a new insight lands"} checked={featureOn("notify")} onChange={() => toggleFeature("notify")} />
+          <M3Divider />
+          <M3ToggleRow icon="lock" label={locale === "ko" ? "앱 잠금" : "App lock"} sub={locale === "ko" ? "생체 인증으로 보호" : "Protect with biometrics"} checked={featureOn("applock")} onChange={() => toggleFeature("applock")} />
+          <M3Divider />
+          <M3ToggleRow icon="badge" label={locale === "ko" ? "온디바이스 우선 처리" : "On-device first"} sub={locale === "ko" ? "원문은 기기에서만 분석" : "Analyze raw text only on device"} checked={featureOn("ondevice")} onChange={() => toggleFeature("ondevice")} />
+          <M3Divider />
+          <M3ToggleRow
+            icon="mic"
+            label={locale === "ko" ? "통화 녹음 → 텍스트 → 분석" : "Call recording → text → analysis"}
+            sub={locale === "ko" ? "통화 내용을 기기에서 받아 적고, 세컨비가 별로 엮어요." : "Transcribe calls on device; SecondB weaves them into stars."}
+            checked={featureOn("callrec")}
+            onChange={() => toggleFeature("callrec")}
+          />
+        </M3Group>
+
+        {/* 데이터 연동 */}
+        <M3SectionLabel action={<MdButton label={locale === "ko" ? "전체" : "All"} variant="text" onPress={() => router.push("/integrations")} accessibilityLabel={locale === "ko" ? "데이터 연동 전체" : "All integrations"} />}>
+          {locale === "ko" ? "데이터 연동" : "Data connections"}
+        </M3SectionLabel>
+        <M3Group>
+          <M3ConnectRow icon="forum" label={locale === "ko" ? "Google 캘린더" : "Google Calendar"} sub={locale === "ko" ? "일정에서 리듬·관계 신호" : "Rhythm and relationship signals from events"} connected={connections.cal} connectLabel={locale === "ko" ? "연결됨" : "Connected"} connectedLabel={locale === "ko" ? "연결됨 · 동기화 중" : "Connected · syncing"} onToggle={() => toggleConnection("cal")} />
+          <M3Divider />
+          <M3ConnectRow icon="bedtime" label={locale === "ko" ? "Apple 건강" : "Apple Health"} sub={locale === "ko" ? "수면·활동으로 건강 별" : "Sleep and activity for the health star"} connected={connections.health} connectLabel={locale === "ko" ? "연결됨" : "Connected"} connectedLabel={locale === "ko" ? "연결됨 · 동기화 중" : "Connected · syncing"} onToggle={() => toggleConnection("health")} />
+          <M3Divider />
+          <M3ConnectRow icon="auto_stories" label="Notion" sub={locale === "ko" ? "메모·문서 가져오기" : "Import notes and docs"} connected={connections.notion} connectLabel={locale === "ko" ? "연결됨" : "Connected"} connectedLabel={locale === "ko" ? "연결됨 · 동기화 중" : "Connected · syncing"} onToggle={() => toggleConnection("notion")} />
+        </M3Group>
+
         {/* Destructive op in flight: a persistent banner explains why actions
             and sign-out are disabled, instead of letting the user escape a
             half-finished wipe by navigating away or signing out. */}
@@ -917,6 +1145,41 @@ export default function Settings() {
     </Chrome>
   );
 }
+
+const koType = (size: number, line: number, tracking: number, weight: TextStyle["fontWeight"]): TextStyle => ({
+  fontFamily: fontFamilies.sans,
+  fontSize: size,
+  lineHeight: line,
+  letterSpacing: tracking,
+  fontWeight: weight,
+});
+
+const m3Styles = StyleSheet.create({
+  headline: { ...koType(24, 32, 0, "600"), color: m3.color.onSurface, marginTop: m3.spacing.s2, marginBottom: m3.spacing.s1 },
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: m3.spacing.s5,
+    marginBottom: m3.spacing.s3,
+  },
+  sectionLabel: { ...koType(14, 20, 0.1, "500"), color: m3.color.onSurfaceVariant },
+  card: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: m3.spacing.s1 },
+  divider: { height: 1, backgroundColor: m3.color.outlineVariant, marginHorizontal: m3.spacing.s3 },
+  row: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, paddingVertical: m3.spacing.s3, paddingHorizontal: m3.spacing.s3 },
+  rowText: { flex: 1, minWidth: 0 },
+  rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
+  rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
+  iconBadge: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  switchTrack: { width: 52, height: 32, borderRadius: 9999, borderWidth: 2, justifyContent: "center" },
+  switchThumb: { position: "absolute", borderRadius: 9999 },
+  connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
+  seg: { flexDirection: "row", borderWidth: 1, borderColor: m3.color.outline, borderRadius: m3.shape.small, overflow: "hidden" },
+  segBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 8, minHeight: 36 },
+  segBtnOn: { backgroundColor: m3.color.secondaryContainer },
+  segDivider: { borderLeftWidth: 1, borderLeftColor: m3.color.outline },
+  segLabel: { ...koType(13, 16, 0.1, "500") },
+});
 
 const styles = StyleSheet.create({
   // Deep-space shell (replaces the legacy PremiumAppShell light cosmic body).

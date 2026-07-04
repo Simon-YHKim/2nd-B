@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "Capturar",
-      "placeholder": "Um pensamento, algo que você leu, um sentimento… qualquer coisa, em uma linha.",
-      "chipText": "Texto",
-      "chipLink": "Link",
-      "chipVoice": "Voz",
-      "tip": "Assim que você salva, o SecondB etiqueta e organiza."
+      "subtitle": "Capture em um formato e o SecondB o tece na estrela certa.",
+      "modes": {
+        "text": "Texto",
+        "link": "Link",
+        "photo": "Foto",
+        "voice": "Voz",
+        "todo": "Tarefa"
+      },
+      "fields": {
+        "what": {
+          "label": "O quê",
+          "hint": "Anote o essencial do pensamento ou momento"
+        },
+        "when": {
+          "label": "Quando",
+          "hint": "Esta manhã"
+        },
+        "where": {
+          "label": "Onde",
+          "hint": "No trabalho"
+        },
+        "who": {
+          "label": "Quem",
+          "hint": "Eu, com a equipe"
+        },
+        "how": {
+          "label": "Como e por quê",
+          "hint": "O que estava em sua mente"
+        }
+      },
+      "linkHint": "Cole um link e o SecondB busca o título e o resumo.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "Abrir câmera ou álbum",
+      "photoCaption": "Descreva a foto",
+      "voiceOpen": "Abrir gravador",
+      "voiceHint": "Escreva o que você disse",
+      "todoHint": "Tarefa",
+      "todoAdd": "Adicionar uma tarefa",
+      "banner": "No momento em que você salva, o SecondB classifica na estrela e nas tags certas.",
+      "save": "Capturar",
+      "saving": "Salvando",
+      "saved": "Salvo",
+      "openRecords": "Abrir registros",
+      "saveError": "Não foi possível salvar. Tente novamente em instantes."
     },
     "chat": {
       "user": "Ando muito esgotado ultimamente. Por que será?",
@@ -163,7 +202,34 @@
       "traitConscientiousness": "Conscienciosidade",
       "traitExtraversion": "Extroversão",
       "traitAgreeableness": "Amabilidade",
-      "traitNeuroticism": "Neuroticismo"
+      "traitNeuroticism": "Neuroticismo",
+      "headline": "Verificar · Big Five",
+      "confidence": "Confiança 64%",
+      "subtitle": "Fibras ocultas (camada B) · uma proposta triangulada a partir do seu comportamento por domínios",
+      "extraFrameworks": "Outros modelos · ver estilo de apego",
+      "retake": "Refazer",
+      "addData": "Adicionar dados"
+    },
+    "attachment": {
+      "headline": "Estilo de apego",
+      "level": "L3",
+      "subtitle": "Textura oculta (camada B) · seu domínio de relações visto pela escala ECR",
+      "quadrant_secure": "Seguro",
+      "quadrant_preoccupied": "Preocupado",
+      "quadrant_avoidant": "Evitativo",
+      "quadrant_fearful": "Amedrontado",
+      "axisFooter": "← Evitação baixa · alta →",
+      "resultNear": "Próximo de {{style}}",
+      "scoreLine": "· Evitação {{avoid}} · Ansiedade {{anx}}",
+      "insight": "Você se aproxima primeiro de quem é próximo, mas mantém distância quando está ocupado. 12 registros da estrela de relações apoiam esta leitura.",
+      "interview": "Entrevista de relações",
+      "bigfive": "Ver Big Five",
+      "emptyTitle": "Esta estrela ainda está escura",
+      "emptyBody": "Conclua o teste de apego uma vez e sua estrela do Eu Relacional acende.",
+      "emptyCta": "Iniciar o teste",
+      "errorTitle": "Não foi possível carregar",
+      "errorBody": "Tente novamente em um instante.",
+      "errorCta": "Tentar de novo"
     },
     "iden": {
       "signed": "Assinado",
@@ -274,6 +340,131 @@
       "sectionSteps": "Candidatos a próximo passo",
       "toCapture": "Levar para o Capturar",
       "more": "Mais com o SecondB"
+    },
+    "audit": {
+      "title": "O eu do passado",
+      "subtitle": "Escolha uma época e relembre quem você era naquela fase.",
+      "vividness": "Nitidez L{{level}}",
+      "eraInfancy": "Primeira infância",
+      "eraChild": "Infância",
+      "eraTeen": "Adolescência",
+      "eraYoung": "Juventude",
+      "eraNow": "Agora",
+      "rangeInfancy": "0–6 anos",
+      "rangeChild": "7–12 anos",
+      "rangeTeen": "13–18 anos",
+      "rangeYoung": "19–28 anos",
+      "rangeNow": "Agora mesmo"
+    },
+    "me": {
+      "title": "Estrela Polar",
+      "eyebrow": "Estrela Polar · síntese de 7",
+      "headline": "Entender-me a fundo para viver mais como eu sou.",
+      "synthMeta": "Síntese de 7 estrelas · confiança",
+      "refine": "Refinar a frase",
+      "domainsTitle": "7 estrelas da vida · domínios",
+      "toConstellation": "Para a constelação",
+      "hiddenTitle": "Fibra oculta · validação",
+      "hiddenBody": "Os teus dados por domínio triangulam quadros como Big Five e o apego. A luz da estrela é quanto colocas, a confiança é quanto foi validado. Não são a mesma coisa.",
+      "viewValidation": "Ver validação"
+    },
+    "axisCheck": {
+      "values": {
+        "headline": "Valores",
+        "level": "L2",
+        "subtitle": "Grão oculto (camada B) · o que você mais valoriza",
+        "coreLabel": "CORE VALUES",
+        "spectrum": "Espectro de valores",
+        "insight": "A autodireção é a mais alta. Uma série de registros em que você escolheu 'decidir por si' no trabalho e nas relações sustenta essa leitura.",
+        "actionPrimary": "Entrevista de valores",
+        "actionSecondary": "Outras validações",
+        "rows": {
+          "selfDirection": {
+            "name": "Autodireção",
+            "note": "Você é mais você quando decide e age por conta própria"
+          },
+          "stimulation": {
+            "name": "Crescimento",
+            "note": "A novidade e o aprendizado te puxam para a frente"
+          },
+          "authenticity": {
+            "name": "Autenticidade",
+            "note": "Você quer que o interior e o exterior combinem"
+          },
+          "benevolence": {
+            "name": "Cuidado",
+            "note": "O desejo de cuidar de quem é próximo"
+          },
+          "achievement": {
+            "name": "Realização",
+            "note": "Você gosta da sensação de ter conseguido"
+          },
+          "security": {
+            "name": "Estabilidade",
+            "note": "A previsibilidade é uma prioridade menor para você"
+          }
+        }
+      },
+      "motivation": {
+        "headline": "Motivação",
+        "level": "L2",
+        "confidence": "Confiança 61%",
+        "subtitle": "Grão oculto (camada B) · o que move você",
+        "balanceTitle": "Intrínseca ↔ extrínseca",
+        "balanceIntrinsic": "Intrínseca 68%",
+        "balanceExtrinsic": "Extrínseca 32%",
+        "balanceNote": "Em geral você se move porque quer. Sentido e curiosidade te alimentam mais que a recompensa.",
+        "spectrum": "Três necessidades · autodeterminação",
+        "insight": "A autonomia é o núcleo da sua motivação. Você vai mais longe quando o trabalho é 'do seu jeito', não 'porque mandaram'.",
+        "actionPrimary": "Ver forças",
+        "actionSecondary": "Outras validações",
+        "rows": {
+          "autonomy": {
+            "name": "Autonomia",
+            "note": "A motivação sobe quando você decide por si"
+          },
+          "competence": {
+            "name": "Competência",
+            "note": "A sensação de que consegue te sustenta"
+          },
+          "relatedness": {
+            "name": "Relação",
+            "note": "Você se move um pouco mais quando está com outros"
+          }
+        }
+      },
+      "strengths": {
+        "headline": "Forças",
+        "level": "L2",
+        "confidence": "Confiança 66%",
+        "subtitle": "Grão oculto (camada B) · o que faz você ser você",
+        "spectrum": "Espectro de forças",
+        "insight": "Sua curiosidade pelo desconhecido parece a força que te leva mais longe.",
+        "actionPrimary": "Aproveitar forças",
+        "actionSecondary": "Ver motivação",
+        "rows": {
+          "curiosity": {
+            "name": "Curiosidade",
+            "note": "O impulso de investigar o novo"
+          },
+          "grit": {
+            "name": "Perseverança",
+            "note": "Quando você agarra, não solta"
+          },
+          "honesty": {
+            "name": "Honestidade",
+            "note": "Você tenta alinhar interior e exterior"
+          },
+          "empathy": {
+            "name": "Empatia",
+            "note": "Você lê bem o grão dos outros"
+          },
+          "aesthetics": {
+            "name": "Olhar estético",
+            "note": "Você reconhece o que é bom"
+          }
+        }
+      }
     }
   }
 }

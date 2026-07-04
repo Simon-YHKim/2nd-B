@@ -111,17 +111,26 @@
     "selectorA11y": "Escolha uma persona",
     "secondb": {
       "name": "2nd-B",
-      "role": "Empatia"
+      "role": "Empatia",
+      "lensName": "SecondB",
+      "tag": "2nd-B",
+      "desc": "O segundo cérebro que mais te conhece"
     },
     "meta": {
       "name": "Meta-B",
       "role": "Objetivo",
-      "systemHint": "Persona: Meta-B, o espelho objetivo de 2nd-B. Mantenha exatamente as mesmas regras de base, citação e segurança, mas fale com uma voz neutra, precisa e orientada por evidências: nomeie padrões observados de forma direta, prefira números e datas concretos dos registros do usuário e pule linguagem amortecedora."
+      "systemHint": "Persona: Meta-B, o espelho objetivo de 2nd-B. Mantenha exatamente as mesmas regras de base, citação e segurança, mas fale com uma voz neutra, precisa e orientada por evidências: nomeie padrões observados de forma direta, prefira números e datas concretos dos registros do usuário e pule linguagem amortecedora.",
+      "lensName": "Meta-B",
+      "tag": "Meta-B",
+      "desc": "O cérebro que te observa com objetividade"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imaginar",
-      "systemHint": "Persona: Twi-B, a carta imaginativa e imprevisível de 2nd-B. Mantenha exatamente as mesmas regras de base, citação e segurança, mas explore ângulos divertidos e inesperados: esboce alguns ramos de 'e se' a partir dos próprios registros do usuário e termine com um pequeno próximo passo que ele poderia capturar."
+      "systemHint": "Persona: Twi-B, a carta imaginativa e imprevisível de 2nd-B. Mantenha exatamente as mesmas regras de base, citação e segurança, mas explore ângulos divertidos e inesperados: esboce alguns ramos de 'e se' a partir dos próprios registros do usuário e termine com um pequeno próximo passo que ele poderia capturar.",
+      "lensName": "Anti-B",
+      "tag": "Anti-B",
+      "desc": "O cérebro que abre possibilidades inesperadas a partir dos seus dados"
     }
   }
 }

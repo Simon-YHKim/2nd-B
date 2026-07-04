@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, Text as RNText, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-import { colors } from "@/theme/tokens";
+import { colors, radius, spacing } from "@/theme/tokens";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
+import {
+  DOMAIN_STARS,
+  DOMAIN_TAG_PREFIX,
+  getDomainStar,
+  isDomainId,
+  isDomainTag,
+  stripDomainTags,
+} from "@/lib/persona/domain-stars";
 import { ddsStyles as styles } from "./dds-styles";
 import { parseStructured } from "@/lib/capture/structured";
 import { Text } from "@/components/ui/Text";
-import { DeepSpaceLoader, SecondbStatusHeader } from "@/components/deepspace";
+import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { SegBtn } from "@/components/m3";
@@ -83,7 +93,7 @@ function GraphLoading() {
 
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
   return (
-    <DeepSpaceScreen active="lens" title={title ?? ""} onBack={() => router.back()}>
+    <DeepSpaceScreen active="home" variant="windowed" header="none" title={title ?? ""} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
@@ -122,27 +132,6 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
   return <View style={chipStyle}>{inner}</View>;
 }
 
-function TimelineRow({ title, time, tag, dim, onPress }: { title: string; time?: string; tag?: string; dim?: boolean; onPress?: () => void }) {
-  const content = (
-    <View style={{ gap: 5 }}>
-      <View style={styles.tlRow}>
-        <View style={[styles.tlDot, dim && styles.tlDotDim]} />
-        <Text variant="body" style={[styles.tlTitle, dim && styles.tlTitleDim]} numberOfLines={1}>{title}</Text>
-        {time ? <Text variant="subtle" style={styles.tlTime}>{time}</Text> : null}
-      </View>
-      {tag ? <View style={styles.tlTagRow}><Text variant="caption" pixelEn style={styles.tlTag}>{tag}</Text></View> : null}
-    </View>
-  );
-  if (!onPress) return content;
-  // Tappable timeline row (SCREEN_TREE_SPEC §4: 항목→/record/[id]). Wrap, not
-  // restyle - the row visual is unchanged; only a ≥44px hit target is added.
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [{ minHeight: 44, justifyContent: "center" }, pressed ? { opacity: 0.6 } : null]}>
-      {content}
-    </Pressable>
-  );
-}
-
 function TrashGlyph() {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24">
@@ -151,15 +140,117 @@ function TrashGlyph() {
   );
 }
 
-const RECORD_KIND_FILTERS: { id: TimelineRecord["kind"] | null; labelKey: string }[] = [
-  { id: null, labelKey: "records.filterAll" },
-  { id: "journal", labelKey: "records.filterJournal" },
-  { id: "note", labelKey: "records.filterNote" },
-  { id: "audit_response", labelKey: "records.filterAudit" },
+// rev2 위키(records) — display type derived from a record's kind/tags/body so the
+// list can carry the reference's 5 content-type icons (글·링크·음성·사진·할 일)
+// without a dedicated column in the DB. Purely presentational.
+type RType = "text" | "link" | "voice" | "photo" | "todo";
+const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
+  { id: "all", labelKey: "records.filterAll" },
+  { id: "text", labelKey: "records.typeText" },
+  { id: "link", labelKey: "records.typeLink" },
+  { id: "voice", labelKey: "records.typeVoice" },
+  { id: "photo", labelKey: "records.typePhoto" },
+  { id: "unfiled", labelKey: "records.typeUnfiled" },
 ];
+const URL_RE = /https?:\/\//;
+const DUR_RE = /\(\d+:\d{2}\)/;
+
+function recordType(r: TimelineRecord): RType {
+  const tags = (r.tags ?? []).map((s) => s.toLowerCase());
+  const has = (...k: string[]) => k.some((x) => tags.includes(x));
+  if (r.kind === "audit_response") return "todo";
+  const hay = `${r.topic ?? ""} ${r.summary ?? ""} ${r.body ?? ""}`;
+  if (has("link", "링크", "url") || URL_RE.test(hay)) return "link";
+  if (has("voice", "음성") || DUR_RE.test(hay)) return "voice";
+  if (has("photo", "사진", "image", "이미지")) return "photo";
+  return "text";
+}
+function isUnfiled(r: TimelineRecord): boolean {
+  return stripDomainTags(r.tags ?? []).length === 0;
+}
+function timelineTitle(r: TimelineRecord, fallback: string): string {
+  const s = r.summary?.trim() || r.topic?.trim();
+  if (s) return s;
+  const body = r.body?.trim();
+  if (body) {
+    const line = body.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+    if (line) return line.length > 80 ? `${line.slice(0, 80).trimEnd()}…` : line;
+  }
+  return fallback;
+}
+
+// Static Material-symbol-style glyphs (inline SVG, no animation) — Android-safe
+// per ANDROID_QA_GUIDELINES (no rAF, no dynamic SVG churn).
+function TypeGlyph({ type }: { type: RType }) {
+  const s = colors.cyanSoft;
+  const p = { stroke: s, strokeWidth: 1.7, fill: "none" as const, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  return (
+    <Svg width={19} height={19} viewBox="0 0 24 24">
+      {type === "text" && (
+        <>
+          <Path {...p} d="M4 6.5h11M4 11h11M4 15.5h7" />
+          <Path {...p} d="M15.4 15.6l3.1-3.1a1.4 1.4 0 0 1 2 2l-3.1 3.1-2.7.7z" />
+        </>
+      )}
+      {type === "link" && (
+        <>
+          <Path {...p} d="M9.2 14.8l5.6-5.6" />
+          <Path {...p} d="M8.6 10.6l-2 2a3 3 0 0 0 4.2 4.2l2-2" />
+          <Path {...p} d="M15.4 13.4l2-2a3 3 0 0 0-4.2-4.2l-2 2" />
+        </>
+      )}
+      {type === "voice" && (
+        <>
+          <Rect {...p} x={9.5} y={3.5} width={5} height={9.5} rx={2.5} />
+          <Path {...p} d="M6.5 11a5.5 5.5 0 0 0 11 0M12 16.5V20M9.2 20h5.6" />
+        </>
+      )}
+      {type === "photo" && (
+        <>
+          <Path {...p} d="M4 8.5h3l1.4-2h7.2L18 8.5h2a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z" />
+          <Circle {...p} cx={12} cy={13.5} r={3} />
+        </>
+      )}
+      {type === "todo" && (
+        <>
+          <Circle {...p} cx={12} cy={12} r={8} />
+          <Path {...p} d="M8.4 12.2l2.5 2.5 4.6-5" />
+        </>
+      )}
+    </Svg>
+  );
+}
+
+function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: () => void }) {
+  const { t } = useTranslation("deepspace");
+  const title = timelineTitle(r, t("records.fallbackTitle"));
+  const tags = stripDomainTags(r.tags ?? []).slice(0, 2);
+  return (
+    <Pressable style={({ pressed }) => [rStyles.card, pressed && rStyles.cardPressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+      <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
+      <View style={rStyles.body}>
+        <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
+        <View style={rStyles.metaRow}>
+          {time ? <RNText style={rStyles.time}>{time}</RNText> : null}
+          {unfiled ? (
+            <View style={rStyles.badge}><RNText style={rStyles.badgeTxt}>{t("records.unfiledBadge")}</RNText></View>
+          ) : (
+            tags.map((tag, i) => (
+              <View key={tag} style={rStyles.metaTagWrap}>
+                {(time || i > 0) ? <RNText style={rStyles.metaDot}>·</RNText> : null}
+                <RNText style={rStyles.metaTag}>{tag}</RNText>
+              </View>
+            ))
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 export function DeepSpaceRecordsScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const isKo = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
   // ?tags=a,b filters to pieces whose tags intersect the set (trinity 영역 drilldown).
   const recordsParams = useLocalSearchParams<{ tags?: string }>();
@@ -173,7 +264,11 @@ export function DeepSpaceRecordsScreen() {
   );
   const [records, setRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kind, setKind] = useState<TimelineRecord["kind"] | null>(null);
+  const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
+  const [view, setView] = useState<"list" | "graph">("list");
+  // Graph mode reuses the deterministic knowledge-graph view (wiki pages/edges).
+  const { pages, edges } = useWikiGraphData();
+  const graphPages = useMemo(() => pages.map((p) => ({ id: p.id, title: p.title.trim() || p.slug, kind: p.kind })), [pages]);
 
   useEffect(() => {
     if (!userId) return;
@@ -194,61 +289,198 @@ export function DeepSpaceRecordsScreen() {
     };
   }, [userId]);
 
-  const groups = useMemo(() => {
-    let filtered = kind === null ? records : records.filter((r) => r.kind === kind);
-    if (tagFilter.length > 0) {
-      filtered = filtered.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
-    }
-    return buildRecordsTimeline(filtered, { labels: dsTimeLabels(t) });
-  }, [records, kind, tagFilter, t]);
+  // Per-record time label reuses the tested timeline bucketer (방금 / N시간 전 / 어제 …).
+  const timeById = useMemo(() => {
+    const m = new Map<string, string>();
+    buildRecordsTimeline(records, { labels: dsTimeLabels(t) }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
+    return m;
+  }, [records, t]);
+
+  const scoped = useMemo(() => {
+    if (tagFilter.length === 0) return records;
+    return records.filter((r) => (r.tags ?? []).some((tag) => tagFilter.includes(tag.toLowerCase())));
+  }, [records, tagFilter]);
+  const unfiledCount = useMemo(() => scoped.filter(isUnfiled).length, [scoped]);
+  const filtered = useMemo(() => {
+    if (typeFilter === "all") return scoped;
+    if (typeFilter === "unfiled") return scoped.filter(isUnfiled);
+    return scoped.filter((r) => recordType(r) === typeFilter);
+  }, [scoped, typeFilter]);
 
   if (authLoading) {
-    return <Shell title={t("records.title")}><GraphLoading /></Shell>;
+    return (
+      <DeepSpaceScreen active="wiki" header="none">
+        <View style={styles.wikiFloatClear}><GraphLoading /></View>
+      </DeepSpaceScreen>
+    );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const total = records.length;
+  const total = scoped.length;
   return (
-    <Shell title={t("records.title")}>
-      <SecondbStatusHeader
-        text={total > 0 ? t("records.headerCount", { count: total }) : t("records.headerEmpty")}
-        tip={t("records.tip")}
-      />
-      <Text variant="body" style={styles.lead}>{t("records.lead")}</Text>
-      <View style={styles.filterRow}>
-        {RECORD_KIND_FILTERS.map((f) => (
-          <FilterChip
-            key={f.labelKey}
-            label={t(f.labelKey)}
-            active={kind === f.id}
-            onPress={() => setKind(f.id)}
-          />
-        ))}
+    <DeepSpaceScreen active="wiki" header="none">
+      {/* rev2 위키: companion FLOATS over the immersive surface (sb-app §4). */}
+      <View pointerEvents="box-none" style={rStyles.floatHeader}>
+        <SecondbStatusHeader
+          text={total > 0 ? t("records.headerCount", { count: total }) : t("records.headerEmpty")}
+          tip={unfiledCount > 0 ? t("records.tip", { count: unfiledCount }) : t("records.tipClear")}
+        />
       </View>
-      {loading ? (
-        <GraphLoading />
-      ) : groups.length === 0 ? (
-        <View style={styles.wikiPageOpen}>
-          <Text variant="body" style={styles.wikiBody}>{kind === null ? t("records.emptyAll") : t("records.emptyKind")}</Text>
-          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        groups.map((g) => (
-          <View key={g.label}>
-            <Text variant="caption" pixelEn style={styles.tlLabel}>{g.label}</Text>
-            <View style={styles.tlGroup}>
-              {g.items.map((it) => (
-                <TimelineRow key={it.id} title={it.title} time={it.timeLabel || undefined} tag={it.tag} dim={it.dim} onPress={() => router.push({ pathname: "/record/[id]", params: { id: it.id } })} />
-              ))}
-            </View>
+      <View style={styles.wikiFloatClear}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={rStyles.titleRow}>
+            <RNText style={rStyles.wikiTitle}>{t("records.wikiTitle")}</RNText>
+            <SegBtn
+              segments={[
+                { key: "list", label: t("records.viewList") },
+                { key: "graph", label: t("records.viewGraph") },
+              ]}
+              selected={[view]}
+              onSelect={(key) => setView(key === "graph" ? "graph" : "list")}
+              style={rStyles.viewToggle}
+            />
           </View>
-        ))
-      )}
-    </Shell>
+
+          <Pressable
+            style={({ pressed }) => [rStyles.triageCard, pressed && rStyles.cardPressed]}
+            onPress={() => router.push("/inbox")}
+            accessibilityRole="button"
+            accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
+          >
+            <View style={rStyles.triageIcon}>
+              <Svg width={20} height={20} viewBox="0 0 24 24">
+                <Path d="M3 13h4l2 3h6l2-3h4M5 6h14l1 7v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4z" stroke={colors.soul} strokeWidth={1.7} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+              </Svg>
+            </View>
+            <View style={rStyles.triageCol}>
+              <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
+              <RNText style={rStyles.triageBody}>{t("records.triageBody")}</RNText>
+            </View>
+            <RNText style={rStyles.triageChev}>›</RNText>
+          </Pressable>
+
+          {view === "list" ? (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={rStyles.chipStrip}
+              >
+                {TYPE_CHIPS.map((c) => (
+                  <FilterChip key={c.id} label={t(c.labelKey)} active={typeFilter === c.id} onPress={() => setTypeFilter(c.id)} />
+                ))}
+              </ScrollView>
+
+              {loading ? (
+                <GraphLoading />
+              ) : filtered.length === 0 ? (
+                <View style={styles.wikiPageOpen}>
+                  <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" ? t("records.emptyAll") : t("records.emptyKind")}</Text>
+                  <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+                    <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={rStyles.list}>
+                  {filtered.map((r) => (
+                    <RecordCard
+                      key={r.id}
+                      r={r}
+                      type={recordType(r)}
+                      time={timeById.get(r.id) || undefined}
+                      unfiled={isUnfiled(r)}
+                      onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          ) : graphPages.length > 0 ? (
+            <WikiGraph pages={graphPages} edges={edges} isKo={isKo} onOpenPage={(id) => router.push({ pathname: "/record/[id]", params: { id } })} />
+          ) : (
+            <View style={styles.wikiPageOpen}>
+              <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>
+              <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+                <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+              </Pressable>
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    </DeepSpaceScreen>
   );
 }
+
+const rStyles = StyleSheet.create({
+  floatHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md },
+  wikiTitle: { color: colors.textTitle, fontSize: 26, fontWeight: "800", flexShrink: 1 },
+  viewToggle: { width: 148, flexShrink: 0 },
+  triageCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderWidth: 1,
+    borderColor: colors.soulLine,
+    borderRadius: radius.lg,
+    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  cardPressed: { opacity: 0.6 },
+  triageIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(deepSpace.soul, 0.16),
+  },
+  triageCol: { flex: 1, gap: 2 },
+  triageTitle: { color: colors.textTitle, fontSize: 13.5, fontWeight: "700" },
+  triageBody: { color: colors.textMid, fontSize: 11.5 },
+  triageChev: { color: colors.soul, fontSize: 22, marginLeft: 4 },
+  chipStrip: { flexDirection: "row", gap: 6, paddingVertical: spacing.xs, paddingRight: spacing.lg },
+  list: { gap: spacing.sm },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.cardBg,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+  },
+  iconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bgDeep,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  body: { flex: 1, gap: 5 },
+  title: { color: colors.textTitle, fontSize: 13.5 },
+  metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  time: { color: colors.cyanDim, fontSize: 10.5, fontFamily: m3.font.mono },
+  metaTagWrap: { flexDirection: "row", alignItems: "center" },
+  metaDot: { color: colors.textLo, fontSize: 10.5, paddingHorizontal: 5 },
+  metaTag: { color: colors.textLo, fontSize: 10.5 },
+  badge: {
+    marginLeft: 8,
+    backgroundColor: colors.clay,
+    borderRadius: radius.sm,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  badgeTxt: { color: colors.textTitle, fontSize: 9, fontWeight: "700" },
+});
 
 interface DetailRecord {
   id: string;
@@ -262,12 +494,6 @@ interface DetailRecord {
   created_at: string;
 }
 
-const RECORD_KIND_KEY: Record<string, string> = {
-  journal: "recordDetail.kindJournal",
-  note: "recordDetail.kindNote",
-  audit_response: "recordDetail.kindAudit",
-};
-
 function recordTitle(r: DetailRecord, fallback: string): string {
   const s = r.summary?.trim() || r.topic?.trim();
   if (s) return s;
@@ -279,8 +505,26 @@ function recordTitle(r: DetailRecord, fallback: string): string {
   return fallback;
 }
 
+const RTYPE_KO: Record<RType, string> = { text: "글", link: "링크", voice: "음성", photo: "사진", todo: "할 일" };
+const RTYPE_EN: Record<RType, string> = { text: "Text", link: "Link", voice: "Voice", photo: "Photo", todo: "To-do" };
+
+// The 세컨비 line names the domain star this piece connects to. Derived from the
+// record's own tags (domain: tag or a plain 도메인 name), never invented.
+function pickDomainStar(tags: string[] | null, ko: boolean): string {
+  for (const tag of tags ?? []) {
+    if (isDomainTag(tag)) {
+      const id = tag.slice(DOMAIN_TAG_PREFIX.length);
+      if (isDomainId(id)) return ko ? getDomainStar(id).nameKo : getDomainStar(id).nameEn;
+    }
+    const hit = DOMAIN_STARS.find((d) => d.nameKo === tag || d.nameEn.toLowerCase() === tag.toLowerCase());
+    if (hit) return ko ? hit.nameKo : hit.nameEn;
+  }
+  return ko ? "관계" : "Relationships";
+}
+
 export function DeepSpaceRecordDetailScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language === "ko";
   const { userId, loading: authLoading } = useAuth();
   const params = useLocalSearchParams();
   const idParam = params.id;
@@ -348,24 +592,30 @@ export function DeepSpaceRecordDetailScreen() {
   }
 
   const related = relatedByTag(record.id, record.tags, all);
-  const kindKey = RECORD_KIND_KEY[record.kind];
-  const kindLabel = kindKey ? t(kindKey) : t("recordDetail.kindFallback");
   const recencyOpts = { labels: dsRecencyLabels(t) };
+  const rtype = recordType(record as unknown as TimelineRecord);
+  const typeLabel = ko ? RTYPE_KO[rtype] : RTYPE_EN[rtype];
+  const timeLabel = recencyLabel(record.created_at, recencyOpts) || (ko ? "방금" : "Just now");
+  const linkedStar = pickDomainStar(record.tags, ko);
+  const secondbLine =
+    related.length > 0
+      ? ko
+        ? `이 조각은 '${linkedStar}' 별과 이어져요. 비슷한 기록 ${related.length}건이 같은 시간대에 모여 있어요.`
+        : `This piece links to your '${linkedStar}' star. ${related.length} similar records sit in the same window.`
+      : ko
+        ? "이 조각은 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+        : "This piece isn't linked to a star yet. We'll connect it soon.";
 
   return (
     <Shell title={t("recordDetail.title")}>
-      <SecondbStatusHeader
-        text={related.length > 0 ? t("recordDetail.headerLinked", { count: related.length }) : t("recordDetail.headerAlone")}
-        tip={t("recordDetail.tip")}
-      />
-      <View style={styles.recMetaRow}>
-        <Text variant="subtle" style={styles.recMetaType}>{kindLabel}</Text>
-        <RNText style={styles.recMetaDot}>·</RNText>
-        <Text variant="subtle" style={styles.recMeta}>{recencyLabel(record.created_at, recencyOpts) || t("recordDetail.kindFallback")}</Text>
-        <RNText style={styles.recMetaDot}>·</RNText>
-        <Text variant="subtle" style={styles.recMeta}>{t("recordDetail.author")}</Text>
+      {/* type chip + relative time (reference RecordDetail 별가루 상세 → 조각 상세) */}
+      <View style={rd.typeRow}>
+        <View style={rStyles.iconBox}><TypeGlyph type={rtype} /></View>
+        <RNText style={rd.typeLabel}>{typeLabel} · {timeLabel}</RNText>
       </View>
+
       <Text variant="heading" style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
+
       {record.body && record.body.trim().length > 0 ? (
         <View style={styles.recBody}>
           <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
@@ -388,37 +638,60 @@ export function DeepSpaceRecordDetailScreen() {
           </View>
         );
       })()}
-      {record.tags && record.tags.length > 0 ? (
-        <View style={styles.filterRow}>
-          {record.tags.slice(0, 5).map((tag) => (
-            <FilterChip key={tag} label={`#${tag}`} active />
-          ))}
+
+      {/* 세컨비 한 줄 — which star this connects to + why (tertiary container) */}
+      <View style={rd.sbCard}>
+        <SecondbHead size={30} mood="neutral" track={false} />
+        <View style={rd.sbBody}>
+          <RNText style={rd.sbText}>{secondbLine}</RNText>
+          {related.length > 0 ? (
+            <Pressable onPress={() => router.push("/core-brain")} accessibilityRole="button" hitSlop={6}>
+              <RNText style={rd.sbLink}>{ko ? "근거 기록 보기 ↗" : "See evidence ↗"}</RNText>
+            </Pressable>
+          ) : null}
         </View>
-      ) : null}
-      {record.conclusion && record.conclusion.trim().length > 0 ? (
-        <View style={styles.insightViolet}>
-          <Text variant="body" style={styles.insightVioletText}>{record.conclusion}</Text>
-        </View>
-      ) : null}
+      </View>
+
+      <RNText style={rd.section}>{ko ? "태그" : "Tags"}</RNText>
+      <View style={rd.tagRow}>
+        {(record.tags ?? []).slice(0, 6).map((tag) => (
+          <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
+        ))}
+        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" accessibilityLabel={ko ? "태그 추가" : "Add tag"}>
+          <RNText style={rd.tagTxt}>+ {ko ? "태그 추가" : "Add tag"}</RNText>
+        </Pressable>
+      </View>
+
       {related.length > 0 ? (
         <>
-          <Text variant="caption" pixelEn style={styles.tlLabel}>{t("recordDetail.linkedRecords")}</Text>
-          <View style={styles.tlGroup}>
-            {related.map((r) => (
-              <TimelineRow
-                key={r.id}
-                title={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
-                time={recencyLabel(r.created_at, recencyOpts) || undefined}
-                dim
-                onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
-              />
-            ))}
+          <RNText style={rd.section}>{ko ? "연결된 기록" : "Linked records"}</RNText>
+          <View style={rd.linkCol}>
+            {related.map((r) => {
+              const lt = recordType(r);
+              return (
+                <Pressable
+                  key={r.id}
+                  style={({ pressed }) => [rd.linkCard, pressed && rStyles.cardPressed]}
+                  onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
+                >
+                  <TypeGlyph type={lt} />
+                  <RNText numberOfLines={1} style={rd.linkTitle}>{recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}</RNText>
+                  <RNText style={rd.linkChev}>›</RNText>
+                </Pressable>
+              );
+            })}
           </View>
         </>
       ) : null}
+
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary} onPress={() => router.push("/capture")}>
-          <Text variant="caption" style={styles.secondaryText}>{t("recordDetail.newRecord")}</Text>
+        <Pressable style={styles.secondary} onPress={() => router.push("/capture")} accessibilityRole="button">
+          <Text variant="caption" style={styles.secondaryText}>{ko ? "편집" : "Edit"}</Text>
+        </Pressable>
+        <Pressable style={styles.secondary} onPress={() => router.push("/records")} accessibilityRole="button">
+          <Text variant="caption" style={styles.secondaryText}>{ko ? "이동" : "Move"}</Text>
         </Pressable>
         <Pressable
           style={[styles.iconBtn, styles.iconBtnDanger]}
@@ -433,6 +706,47 @@ export function DeepSpaceRecordDetailScreen() {
     </Shell>
   );
 }
+
+const rd = StyleSheet.create({
+  typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, marginBottom: 10 },
+  typeLabel: { color: colors.textMid, fontSize: 11 },
+  sbCard: {
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: m3.color.tertiaryContainer,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+  },
+  sbBody: { flex: 1, gap: 6 },
+  sbText: { color: m3.color.onTertiaryContainer, fontSize: 13, lineHeight: 19 },
+  sbLink: { color: m3.color.primary, fontSize: 13, fontWeight: "600" },
+  section: { color: colors.textTitle, fontSize: 13, marginTop: spacing.md, marginBottom: spacing.xs },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tag: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  tagTxt: { color: colors.cyanSoft, fontSize: 12 },
+  linkCol: { gap: 8, marginTop: spacing.xs },
+  linkCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.cardBg,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  linkTitle: { flex: 1, color: colors.textTitle, fontSize: 13 },
+  linkChev: { color: colors.cyanSoft, fontSize: 20 },
+});
 
 export function DeepSpaceWikiScreen() {
   const { t, i18n } = useTranslation("deepspace");

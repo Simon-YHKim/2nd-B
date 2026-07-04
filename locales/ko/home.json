@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "담기",
-      "placeholder": "오늘 떠오른 생각, 읽은 것, 느낀 것… 무엇이든 한 줄로.",
-      "chipText": "글",
-      "chipLink": "링크",
-      "chipVoice": "음성",
-      "tip": "담는 순간 세컨비가 자동으로 태그·분류해요."
+      "subtitle": "형식에 맞게 담으면, 세컨비가 알맞은 별로 엮어요.",
+      "modes": {
+        "text": "글",
+        "link": "링크",
+        "photo": "사진",
+        "voice": "음성",
+        "todo": "할 일"
+      },
+      "fields": {
+        "what": {
+          "label": "무엇을",
+          "hint": "떠오른 생각·사건의 핵심을 적어요"
+        },
+        "when": {
+          "label": "언제",
+          "hint": "오늘 아침"
+        },
+        "where": {
+          "label": "어디서",
+          "hint": "회사"
+        },
+        "who": {
+          "label": "누가",
+          "hint": "나 · 팀원과"
+        },
+        "how": {
+          "label": "어떻게 · 왜",
+          "hint": "어떤 마음이었는지"
+        }
+      },
+      "linkHint": "링크를 붙여넣으면 세컨비가 제목·요약을 가져와요.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "카메라·앨범 열기",
+      "photoCaption": "사진에 대한 설명을 적어요",
+      "voiceOpen": "녹음 열기",
+      "voiceHint": "말한 내용을 적어요",
+      "todoHint": "할 일",
+      "todoAdd": "할 일 추가",
+      "banner": "담는 순간 세컨비가 어울리는 별과 태그로 자동 분류해요.",
+      "save": "담기",
+      "saving": "저장 중",
+      "saved": "저장 완료",
+      "openRecords": "기록 보관소에서 보기",
+      "saveError": "저장하지 못했어요. 잠시 뒤 다시 시도해 주세요."
     },
     "chat": {
       "user": "나 요즘 너무 지치는데 왜 그럴까?",
@@ -163,7 +202,34 @@
       "traitConscientiousness": "성실성",
       "traitExtraversion": "외향성",
       "traitAgreeableness": "우호성",
-      "traitNeuroticism": "신경성"
+      "traitNeuroticism": "신경성",
+      "headline": "검증 · Big Five",
+      "confidence": "확신 64%",
+      "subtitle": "숨은 결(레이어 B) · 도메인 행동을 삼각측량해 추정한 제안이에요",
+      "extraFrameworks": "다른 검증틀 · 애착 유형 보기",
+      "retake": "다시 측정",
+      "addData": "데이터 추가"
+    },
+    "attachment": {
+      "headline": "애착 유형",
+      "level": "L3",
+      "subtitle": "숨은 결(레이어 B) · 관계 도메인을 ECR 척도로 본 모습",
+      "quadrant_secure": "안정",
+      "quadrant_preoccupied": "몰입",
+      "quadrant_avoidant": "회피",
+      "quadrant_fearful": "혼란",
+      "axisFooter": "← 회피 낮음 · 높음 →",
+      "resultNear": "{{style}}에 가까움",
+      "scoreLine": "· 회피 {{avoid}} · 불안 {{anx}}",
+      "insight": "가까운 사람에게 먼저 다가가되, 바쁠 땐 거리를 두는 편이에요. 관계 별 기록 12건이 이 추정을 받쳐요.",
+      "interview": "관계 인터뷰",
+      "bigfive": "Big Five 보기",
+      "emptyTitle": "아직 이 별은 어두워요",
+      "emptyBody": "애착 검사를 한 번 마치면 관계의 나 별이 켜져요.",
+      "emptyCta": "검사 시작",
+      "errorTitle": "불러오지 못했어요",
+      "errorBody": "잠시 후 다시 시도해 주세요.",
+      "errorCta": "다시 시도"
     },
     "iden": {
       "signed": "서명됨",
@@ -274,6 +340,131 @@
       "sectionSteps": "다음 한 걸음 후보",
       "toCapture": "담기로 옮기기",
       "more": "세컨비와 더"
+    },
+    "audit": {
+      "title": "과거의 나",
+      "subtitle": "시기를 골라 그때의 당신을 다시 떠올려봐요.",
+      "vividness": "또렷함 L{{level}}",
+      "eraInfancy": "유아기",
+      "eraChild": "아동기",
+      "eraTeen": "청소년기",
+      "eraYoung": "청년기",
+      "eraNow": "현재",
+      "rangeInfancy": "0–6세",
+      "rangeChild": "7–12세",
+      "rangeTeen": "13–18세",
+      "rangeYoung": "19–28세",
+      "rangeNow": "지금"
+    },
+    "me": {
+      "title": "북극성",
+      "eyebrow": "북극성 · 7별 종합",
+      "headline": "나를 깊이 이해해 더 나답게 산다.",
+      "synthMeta": "7개 별의 종합 · 신뢰도",
+      "refine": "문장 다듬기",
+      "domainsTitle": "7개의 삶 별 · 도메인",
+      "toConstellation": "별자리로",
+      "hiddenTitle": "숨은 결 · 검증틀",
+      "hiddenBody": "도메인 데이터가 Big Five·애착 같은 검증틀을 삼각측량해요. 별빛은 얼마나 넣었는지, 확신은 얼마나 검증됐는지. 둘은 달라요.",
+      "viewValidation": "검증 보기"
+    },
+    "axisCheck": {
+      "values": {
+        "headline": "가치관",
+        "level": "L2",
+        "subtitle": "숨은 결(레이어 B) · 무엇을 중요하게 여기는지",
+        "coreLabel": "CORE VALUES · 핵심 가치",
+        "spectrum": "가치 스펙트럼",
+        "insight": "자율성이 가장 높아요. 일·관계에서 '스스로 정하는' 선택을 반복해 온 기록이 이 추정을 받쳐요.",
+        "actionPrimary": "가치 인터뷰",
+        "actionSecondary": "다른 검증틀",
+        "rows": {
+          "selfDirection": {
+            "name": "자율성",
+            "note": "스스로 정하고 움직일 때 가장 나다워요"
+          },
+          "stimulation": {
+            "name": "성장",
+            "note": "새로움과 배움이 당신을 끌어당겨요"
+          },
+          "authenticity": {
+            "name": "진정성",
+            "note": "겉과 속이 같기를 바라요"
+          },
+          "benevolence": {
+            "name": "관계·돌봄",
+            "note": "가까운 사람을 챙기는 마음"
+          },
+          "achievement": {
+            "name": "성취",
+            "note": "해냈다는 감각을 좋아해요"
+          },
+          "security": {
+            "name": "안정",
+            "note": "예측 가능함은 우선순위가 낮아요"
+          }
+        }
+      },
+      "motivation": {
+        "headline": "동기",
+        "level": "L2",
+        "confidence": "확신 61%",
+        "subtitle": "숨은 결(레이어 B) · 무엇이 당신을 움직이나",
+        "balanceTitle": "내적 ↔ 외적 동기",
+        "balanceIntrinsic": "내적 68%",
+        "balanceExtrinsic": "외적 32%",
+        "balanceNote": "대체로 '하고 싶어서' 움직여요. 보상보다 의미와 호기심이 더 큰 연료예요.",
+        "spectrum": "세 가지 욕구 · 자기결정성",
+        "insight": "자율성이 동기의 핵심이에요. 일을 '시켜서'가 아니라 '내 방식으로' 할 수 있을 때 가장 오래 가요.",
+        "actionPrimary": "강점 보기",
+        "actionSecondary": "다른 검증틀",
+        "rows": {
+          "autonomy": {
+            "name": "자율성",
+            "note": "스스로 정할 때 동기가 솟아요"
+          },
+          "competence": {
+            "name": "유능감",
+            "note": "해낼 수 있다는 감각이 받쳐줘요"
+          },
+          "relatedness": {
+            "name": "관계성",
+            "note": "함께일 때 조금 더 움직여요"
+          }
+        }
+      },
+      "strengths": {
+        "headline": "강점",
+        "level": "L2",
+        "confidence": "확신 66%",
+        "subtitle": "숨은 결(레이어 B) · 당신을 당신답게 하는 것",
+        "spectrum": "강점 스펙트럼",
+        "insight": "낯선 걸 파고드는 호기심이 당신을 가장 멀리 데려가는 힘 같아요.",
+        "actionPrimary": "강점 살리기",
+        "actionSecondary": "동기 보기",
+        "rows": {
+          "curiosity": {
+            "name": "호기심",
+            "note": "새로운 걸 파고드는 힘"
+          },
+          "grit": {
+            "name": "끈기",
+            "note": "한번 잡으면 오래 가요"
+          },
+          "honesty": {
+            "name": "정직함",
+            "note": "겉과 속을 맞추려 해요"
+          },
+          "empathy": {
+            "name": "공감",
+            "note": "상대의 결을 잘 읽어요"
+          },
+          "aesthetics": {
+            "name": "심미안",
+            "note": "좋은 것을 알아봐요"
+          }
+        }
+      }
     }
   }
 }

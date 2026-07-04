@@ -1,0 +1,1915 @@
+[
+  {
+    "screen": "01-auth",
+    "fidelityScore": 20,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/dds-auth-screens.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-surfaces.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "copy",
+        "reference": "All copy is Korean: mono label 2ND-BRAIN, title 다시 만나 반가워요, subtitle 기록은 기기에서 먼저 암호화돼요., buttons Apple로 계속 / Google로 계속 / 이메일로 계속하기, 처음이신가요? 가입하기, footer 계속하면 서비스 약관과 개인정보 처리방침에 동의하게 돼요.",
+        "current": "Entire screen renders in English: '2nd-Brain', 'Build up your most valuable asset in the AI era: yourself.', EMAIL / PASSWORD / Show password / Sign in / New here? Create an account / Jot a line first / OR / Continue with Google / Forgot password?",
+        "fix": "Force locale to ko for parity with the reference; drive all strings through i18n ko keys. Do not ship the EN default for this clone. Replace lead string with signInLead=기록은 기기에서 먼저 암호화돼요. and appName rendered as small mono label, not big heading."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab NavBar is present: 별자리 / 담기 / 세컨비 / 위키 / 설정 (별자리 tab active as pill).",
+        "current": "No bottom navbar at all — form scrolls to screen edge.",
+        "fix": "Auth in the reference renders as a 'windowed' screen inside the app shell (sb-app.jsx) which always shows StatusBar + NavBar. Wrap the screen in the shell so the 5-tab navbar renders beneath it, or reproduce the navbar per docs/deep-space-nav-contract.md."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Top OS status bar shown (real clock e.g. 22:29 + signal/wifi/battery) as part of the phone frame.",
+        "current": "No status bar region — screen begins with a bare floating star dot at top.",
+        "fix": "Render the shell StatusBar (real-time clock, not hardcoded) above the auth content per sb-app.jsx StatusBar spec."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Top app bar with back chevron ← and title 로그인 (truncated '로...' in capture).",
+        "current": "No top app bar / no back affordance.",
+        "fix": "Add a TopAppBar with a back chevron and title t('auth:signIn.title') so the screen reads as a pushed/windowed route."
+      },
+      {
+        "aspect": "component",
+        "reference": "Auth method block is social-first (capture): full-width white 'Apple로 계속' pill, dark 'Google로 계속' pill, then an input-style ' 이메일로 계속하기' row with a → trailing arrow. No visible email/password fields on first paint.",
+        "current": "Email/password form-first: EMAIL + PASSWORD labeled TextInputs, a filled 'Sign in' button, and only a single 'Continue with Google' outline button below.",
+        "fix": "Rebuild the method block to match the capture: two full-width provider pills (Apple white bg #fff/fg #111, Google), plus an '이메일로 계속하기' entry row with a chevron/arrow that expands to the email flow. Move the raw email/password fields behind that entry instead of showing them upfront."
+      },
+      {
+        "aspect": "asset",
+        "reference": "세컨비 character head (secondb-head-front.png) is small, ~72px, sitting directly above the 2ND-BRAIN mono label with a gentle sb-bob float.",
+        "current": "SecondbHead rendered at 132px — nearly 2x the reference size, dominating the hero.",
+        "fix": "Reduce SecondbHead size from 132 to ~72 and place it tight above a small mono '2ND-BRAIN' label (11px, letterSpacing .16em, color #7FD0FF)."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Hero hierarchy = mono label 2ND-BRAIN (11px cyan) → title 다시 만나 반가워요 (22px/700 #EAF7FF) → subtitle (14px rgba(190,225,255,.7)).",
+        "current": "Hero uses appName as the LARGE heading ('2nd-Brain' ~28px) and the lead as subtitle; the small mono brand label is absent.",
+        "fix": "Split the hero into three rows: small mono brand label, bold 22px KO title 다시 만나 반가워요, muted 14px subtitle. Do not use appName as the big heading."
+      },
+      {
+        "aspect": "color",
+        "reference": "Background is a top radial glow: radial-gradient(120% 80% at 50% 0%, #16203a, #05070b 75%) over the shared seeded starfield, lit from the top center.",
+        "current": "Flat near-black navy (#05070b-ish) with a few sparse star dots; no top-center radial glow.",
+        "fix": "Apply the deep-space radial top-glow gradient behind the auth content via deepSpaceGradients tokens; ensure the shared starfield background is present."
+      },
+      {
+        "aspect": "component",
+        "reference": "Buttons float directly on the gradient background (no card wrapper).",
+        "current": "Form is wrapped in a bordered Card with a cyan glow/elevation.",
+        "fix": "Remove the Card wrapper for the auth method block so the pills sit on the gradient, matching the capture's cardless layout."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Bottom legal footer: 계속하면 서비스 약관과 개인정보 처리방침에 동의하게 돼요. (11px, rgba(190,225,255,.45), centered).",
+        "current": "No legal/consent footer text.",
+        "fix": "Add the centered consent footer string at the bottom of the screen."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Reset link reads 비밀번호를 잊으셨나요? (KO, underlined); sign-up prompt reads 처음이신가요? 가입하기 as one inline line.",
+        "current": "'Forgot password?' and a two-line 'New here? Create an account' plus an extra 'Jot a line first' link — both English and structurally different.",
+        "fix": "Use KO strings; collapse sign-up prompt to inline 처음이신가요? 가입하기. Confirm whether 'Jot a line first / 먼저 한 줄 적어보기' belongs here — it is absent from the reference auth capture; remove it for fidelity."
+      }
+    ]
+  },
+  {
+    "screen": "02-onboard",
+    "fidelityScore": 5,
+    "verdict": "needs-full-rebuild",
+    "renderBroken": true,
+    "realScreenModule": "src/app/onboarding.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-flows.jsx",
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Onboarding carousel renders first (no auth required); auth is the LAST slide of the flow.",
+        "current": "Route shows the sign-in/auth screen (email/password, Continue with Google, 'Jot a line first'). onboarding.tsx line 41 does `if (!userId) return <Redirect href=\"/sign-in\" />`, so the onboarding UI never renders for a signed-out user.",
+        "fix": "Remove the !userId redirect. Render the onboarding carousel unauthenticated, matching sb-flows.jsx OnboardingScreen where slides 0-3 need no auth and the final slide embeds AuthProviders. Gate on localStorage `sb_onboarded` equivalent, not on userId."
+      },
+      {
+        "aspect": "component",
+        "reference": "4-slide swipeable carousel: skip button top-right, centered icon card, mono tag, headline title, body, then bottom row = pagination dots (left) + filled '다음 →' button (right). Slide 4 = auth.",
+        "current": "Single static step with a mint full-width '첫 기록 저장' primary + outlined '건너뛰고 둘러보기' secondary. No carousel, no slide state, no dots.",
+        "fix": "Rebuild as a multi-step carousel with step state (0..3 + auth). Bottom bar: flex row, dots on left (flex:1), filled MdButton with trailingIcon arrow_forward on right, label '다음'."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Slide 1 in source: tag '2ND-BRAIN', title '나를 알아가는 AI', body '세컨비는 당신을 구성하는 별가루들이 궁금해요. 당신의 별가루를 보여주고, 어떤사람인지 알려주세요!'. (Capture shows an earlier variant: title '나를 아는 두 번째 나', body '세상을 아는 AI를 넘어, 당신을 아는 AI. 기록이 쌓일수록 더 또렷이 당신을 비춰요.')",
+        "current": "title '먼저 한 문장만 저장해요', body '오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요...'. Completely different strings.",
+        "fix": "Replace STEP with the 4-slide array from sb-flows.jsx (verbatim tag/title/body per slide). Match capture copy exactly if the capture is the pixel target; otherwise use source strings. Do not paraphrase."
+      },
+      {
+        "aspect": "component",
+        "reference": "Skip affordance '건너뛰기' top-right, color rgba(159,228,255,.7), fontSize 14, jumps to last (auth) slide.",
+        "current": "No top-right skip. Secondary action is a full-width bordered button '건너뛰고 둘러보기' at the bottom.",
+        "fix": "Add a top-right text button '건너뛰기' (paddingTop 20, justify flex-end) that advances step to the auth slide."
+      },
+      {
+        "aspect": "component",
+        "reference": "Pagination dots row: active dot width 22 / others 7, height 7, radius 9999; active #46B6FF, inactive rgba(255,255,255,.45), transition all .3s.",
+        "current": "No pagination indicator at all.",
+        "fix": "Add a dots row mapping over slides; active pill 22px azure, inactive 7px semi-white."
+      },
+      {
+        "aspect": "component",
+        "reference": "Icon card = 96x96, borderRadius 28, bg rgba(70,182,255,.14), 1px border rgba(70,182,255,.3), centered Material Symbol icon (bubble_chart/star_shine/lightbulb/school) size 44 color #7FD0FF.",
+        "current": "A 132x132 'soulCard' rendering a legacy plus-shape (soulCrossH/V) + spark lines — the deprecated Soul Core art, not the reference icon card. Also renders SecondbHead(112) on top.",
+        "fix": "Replace soulCard cross/spark with a 96x96 radius-28 cyan-tinted card containing a single centered icon per slide. Drop the legacy soul-cross primitives. SecondbHead only appears on the final auth slide (168px, sb-bob animation)."
+      },
+      {
+        "aspect": "color",
+        "reference": "Primary CTA is azure filled (M3 primary; deep-space accent #46B6FF / #86CFFF). Deep-space radial bg: radial-gradient(120% 80% at 50% 16%, #173659, #070A13 74%), #070A13.",
+        "current": "CTA uses deepSpace.mint (off-palette green) full-width. Background uses deepSpace.bgEdge flat with a topGlow blob, not the reference radial.",
+        "fix": "CTA → azure primary token, pill/rounded, not mint. Background → deep-space radial gradient centered 50% 16% (#173659→#070A13). Remove mint from this screen."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Title = md-headline-medium (Roboto/brand typeface, weight 400, lineHeight 1.22), whiteSpace pre-line for multi-line titles; tag = mono 11px letterSpacing .2em #7FB6FF; body = md-body-large color rgba(214,230,255,.72), maxWidth 270, wordBreak keep-all.",
+        "current": "Title fontSize 30 with a hard pixel-style textShadow offset (2,2,0) in accent color — legacy cosmic-pixel look. No mono tag label. Body fontSize 18 maxWidth 620.",
+        "fix": "Remove title textShadow; use Roboto headline-medium scale. Add the mono tag label above the title. Constrain body maxWidth to ~270 with wordBreak keep-all."
+      },
+      {
+        "aspect": "spacing",
+        "reference": "hero content centered with gap 18; bottom bar paddingBottom 28; horizontal padding 24 (0 24px).",
+        "current": "paddingHorizontal deepSpaceSpacing.lg, hero gap lg, actions gap sm — different rhythm, and a two-stacked-button action block instead of a single bottom control row.",
+        "fix": "Match: 24px horizontal, hero gap 18, single bottom row (dots + next) paddingBottom 28."
+      }
+    ]
+  },
+  {
+    "screen": "03-ttfv",
+    "fidelityScore": 27,
+    "verdict": "major-gaps",
+    "realScreenModule": "src/screens/deepspace/onboarding/TTFVScreen.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-ops.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "copy",
+        "reference": "Entire screen is Korean (당신의 첫 별이 켜졌어요, 먼저 다가가는, 맞아요, 조금 달라요).",
+        "current": "Renders entirely in English (Today your first star showed itself, reaching-out attentive, That's right, A little different).",
+        "fix": "The reference target is Korean. Force ko=true for this onboarding screen (i18n.language 'ko' at render) or hardcode the KO COPY branch. The COPY() KO strings already exist — the bug is i18n.language resolving to non-ko."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Top = mono eyebrow 'FIRST LIGHT · 첫 빛' (#7FD0FF, letter-spacing .2em) then title 'md-title-medium' 당신의 첫 별이 켜졌어요 (#EAF2FF), centered. No back button, no top companion speech bubble.",
+        "current": "Top = a large rounded-square back button (‹) top-left, then a SecondbStatusHeader companion speech bubble with head+tip. No eyebrow, no page title.",
+        "fix": "Remove the top back button + SecondbStatusHeader from the propose state. Add a centered mono eyebrow 'FIRST LIGHT · 첫 빛' and a centered title '당신의 첫 별이 켜졌어요' at the top of the scroll."
+      },
+      {
+        "aspect": "component",
+        "reference": "Constellation is a single 북극성 star: 15px white dot with violet bloom (boxShadow rgba(207,189,255,.85), sb-pulse 2.4s) and a mono '북극성' label directly below. Positioned high, small (220x92 box). (The capture also shows a 관계 star + faint link triangle from an earlier build.)",
+        "current": "Full Big Dipper: large violet 북극성 (top center, 46px bloom) + 7 dipper stars + one lit cyan star + vertical dashed link, filling the center ~300px. No '북극성' text label.",
+        "fix": "Replace the dipper Svg with the reference's single 북극성 (small white core + violet glow + pulse) plus a mono '북극성' caption. Move it near the top, shrink it. If keeping the lit 관계 star, add its '관계' label and match the small triangle scale, not a full dipper."
+      },
+      {
+        "aspect": "component",
+        "reference": "SecondBHead character (purple robot) sits in the MIDDLE, directly above the insight question, with a gentle sb-bob 4s bob animation.",
+        "current": "Robot head appears only inside the top companion speech bubble (48px, left of bubble). No standalone bobbing head above the question.",
+        "fix": "Render the companion head (SbHead/SecondBHead 'positive' expression) centered above the insight line with a subtle bob, matching reference marginBottom:8."
+      },
+      {
+        "aspect": "component",
+        "reference": "Primary actions are two buttons SIDE-BY-SIDE in one row (flex gap 10): filled '✓ 맞아요' (check icon) + outlined '조금 달라요' (borderColor rgba(180,200,255,.4), color #CFE6FF).",
+        "current": "Two buttons STACKED vertically full-width: filled 'That's right' then outlined 'A little different'. No check icon on primary.",
+        "fix": "Lay the two buttons in a horizontal row (flexDirection row, flex:1 each, gap 10). Add a check icon to the filled 맞아요. Cap the row maxWidth 320 centered."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Insight line: '당신은 ‘먼저 다가가는’ 사람일지도 몰라요.' with sub '가입 답변에서 관계 별의 첫 신호를 봤어요. 맞나요?'. Phrase is '먼저 다가가는'.",
+        "current": "Insight line: 'A reaching-out, attentive pattern shows in you.' with caption 'Your relationship star lit up'. KO phrase in code is '먼저 다가가 살피는' (not the reference '먼저 다가가는').",
+        "fix": "Use the exact reference sentence structure: '당신은 [phrase] 사람일지도 몰라요.' + sub '가입 답변에서 관계 별의 첫 신호를 봤어요. 맞나요?'. Change phraseKo to '먼저 다가가는'. Drop the 'Your relationship star lit up' caption."
+      },
+      {
+        "aspect": "component",
+        "reference": "Between the question and buttons: an expandable '이렇게 본 근거 2가지' toggle (target icon + expand chevron) revealing two evidence cards (가입 질문 Q/A) plus '아직 가입 답변뿐이라 ‘첫 신호’예요. 담을수록 근거가 늘어요.'",
+        "current": "No evidence/근거 toggle in the propose state at all (evidence only appears in the ratify state as a WHY card).",
+        "fix": "Add the collapsible 근거 toggle in the propose state with the two hardcoded evidence cards and the footnote, matching the reference (rgba(127,182,255,.1) card bg, .2 border, 12px radius)."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Footer line under the buttons: '어떤 답이든, 별은 당신의 동의로만 밝아져요.' (rgba(200,210,240,.5)).",
+        "current": "No footer line in the propose state.",
+        "fix": "Add the centered footer consent line below the button row with the exact reference copy and muted color."
+      },
+      {
+        "aspect": "asset",
+        "reference": "Full-bleed NeuralBg animated star-field behind the overlay (NeuralBg focusY 0.46).",
+        "current": "Plain deepSpace.bg with a single static top glow band (height 220, opacity .5).",
+        "fix": "Replace the flat bg/top-glow with the shared deep-space star-field background so the screen reads as an in-space overlay, matching NeuralBg density and focal position."
+      },
+      {
+        "aspect": "color",
+        "reference": "Eyebrow #7FD0FF, titles #EAF2FF, phrase highlight #82D8F6, violet star glow rgba(207,189,255,.85); evidence accent #7FB6FF.",
+        "current": "Uses deepSpace.* tokens: highlight = accentSoft, titles = textHi, star bloom = deepSpace.soul violet. Close family but not the exact reference hexes.",
+        "fix": "Verify deepSpace tokens resolve to the reference hexes (accentSoft ≈ #82D8F6, textHi ≈ #EAF2FF, soul glow ≈ rgba(207,189,255)). Adjust tokens or use the exact values so the eyebrow cyan and highlight cyan match."
+      }
+    ]
+  },
+  {
+    "screen": "05-home (/deepspace-home)",
+    "fidelityScore": 17,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/DeepSpaceHomeScreen.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-home.jsx (shell: sb-app.jsx, data: sb-data.jsx)",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab NavBar always present: 별자리(active) · 담기 · 세컨비 · 위키 · 설정 with icons star_shine/add_circle/forum/inventory_2/tune (sb-app.jsx NavBar, NAV in sb-data.jsx).",
+        "current": "No bottom navbar at all. Screen ends at the character with empty space below.",
+        "fix": "Render the shared 5-tab NavBar (별자리/담기/세컨비/위키/설정) fixed at bottom; mark 별자리 active. This is shell chrome — belongs in the route/layout, not the screen body."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Speech bubble below the character: kind badge '소개' + line '안녕하세요, 저는 세컨비예요. 어떤 별을 함께 여행해볼까요?' (bubble sits under the head, arrow pointing up).",
+        "current": "Top status header (SecondbStatusHeader) reads '오늘도 왔네요. 지금의 당신이 별 7개로 빛나고 있어요.' + TIP '가장 어두운 별부터 채워보면 좋아요.' — wrong text, wrong position (top vs below head), wrong TIP layout.",
+        "fix": "Remove SecondbStatusHeader. Add a bubble rendered directly below the SecondB head with a '소개' mono kind-label (9px, letterSpacing .14em, color rgba(167,139,250,.9)) and body line '안녕하세요, 저는 세컨비예요. 어떤 별을 함께 여행해볼까요?' (13.5px #A7E0FF, keep-all)."
+      },
+      {
+        "aspect": "copy",
+        "reference": "7 domain stars each carry a text label under the dot: 커리어 · 재정 · 관계 · 성장 · 건강 · 오락 · 담아내기, plus 북극성 label for the big violet star (sb-home.jsx renders {s.domain||s.label}).",
+        "current": "Constellation dots have NO labels. Only one label present: '북극성 · 소울코어'.",
+        "fix": "Render a per-star label span (10.5px, 600, rgba(190,225,255,.78)) under each domain dot with the 7 domain names; keep 북극성 label only for the big star."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Big star label is '북극성' only ('Soul Core'/'소울코어' name is dropped per canonical concept).",
+        "current": "Label reads '북극성 · 소울코어' — uses the DEPRECATED/forbidden legacy 'Soul Core' name.",
+        "fix": "Change polarisLabel to '북극성' (remove ' · 소울코어')."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Full-bleed immersive layout: constellation occupies the TOP region, the SecondB head is CENTERED lower-middle with the bubble floating directly beneath it. No hint line. (sb-home.jsx: Constellation then HeadBubble stacked in a flex column.)",
+        "current": "Constellation in a mid circle, character pinned to bottom (secondbHero bottom:54), a separate top header, and an extra hint line '별 7개를 눌러 자기이해 렌즈를 열어보세요'.",
+        "fix": "Restructure to flex column: constellation block on top (padding 84px 12px 0), then centered head with bubble below. Delete the standalone hint text."
+      },
+      {
+        "aspect": "component",
+        "reference": "Animated deep-space neural field background (canvas: ~24 drifting nodes + 46 twinkle stars + curved links) over radial gradient 'radial-gradient(120% 70% at 50% 26%, rgba(26,72,120,.5), rgba(11,33,66,.3) 42%, #070A13 76%)'. No bordered circle around the constellation.",
+        "current": "Flat bgDeep with 4 static micro-stars and a hard-bordered circle ring (constellationGlow, borderRadius 134 + border) enclosing the stars.",
+        "fix": "Remove the constellationGlow ring. Add the radial-gradient background; approximate the neural field with a subtle animated star layer (or static twinkle if perf-bound). Stars should sit on open sky, not inside a ring."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Home overlay chrome: top-right bell (notifications icon) in a 40px rounded rgba(20,30,52,.7) button with an orange #FF8A5B dot badge; capture also shows a top-left calendar '오늘' shortcut with an orange '3' badge.",
+        "current": "Neither present — no bell, no 오늘/badge shortcut.",
+        "fix": "Add the home inbox bell button (rounded, notifications icon, #CFE6FF, orange #FF8A5B dot) as a top overlay; add the 오늘 + '3' badge shortcut per capture."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Real status bar with actual time and real signal/wifi/battery icons, tint #CCFAFF on immersive home (sb-app StatusBar, onHome).",
+        "current": "Hardcoded '9:41' and glyph text '●●● ▮' in pixelKo font, color textMid.",
+        "fix": "Use the real StatusBar component (live time + proper status icons), tinted #CCFAFF; drop the pixel-font glyph placeholders."
+      },
+      {
+        "aspect": "color",
+        "reference": "北극성 dot is a white→violet radial gradient (#FFFFFF, #D6C4FF 48%, #A78BFA 84%) with violet bloom; domain dots cyan radial (#CCFAFF→#46B6FF); constellation lines rgba(127,227,255,.34); Polaris guide dashed rgba(167,139,250,.45) '2 5'.",
+        "current": "Polaris is a solid pinkish colors.soul circle; domain stars flat cyanSoft/cyanDim; lines colors.borderHi. Gradients and violet bloom missing.",
+        "fix": "Give Polaris a white→violet radial gradient + violet glow; give domain dots the cyan radial gradient; set line stroke to rgba(127,227,255,.34) and the dashed pointer to rgba(167,139,250,.45)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Screen renders full-viewport (immersive, no device frame — the phone frame is only the outer mockup shell in sb-app).",
+        "current": "Screen draws its own fake phone frame (phoneShadow 320x680 + bordered phone container), so content is boxed and centered with visible border.",
+        "fix": "Remove phoneShadow/phone wrapper; let the screen fill the viewport (flex:1) as the real app device provides the frame."
+      },
+      {
+        "aspect": "typography",
+        "reference": "M3 typeface stack (Pretendard/Roboto) with mono kind-label var(--md-ref-typeface-mono); star labels 10.5px/600, bubble body 13.5px.",
+        "current": "Uses fontFamilies.pixelKo for status/labels; caption/subtle variants for labels.",
+        "fix": "Switch all text to the M3/Pretendard token typography; use mono only for the bubble kind badge."
+      }
+    ]
+  },
+  {
+    "screen": "06-capture",
+    "fidelityScore": 22,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/components/deep-space/DeepSpaceViews.tsx",
+    "refSourceFile": "reference-app/sb-screens-core.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "copy",
+        "reference": "Entire screen in Korean: title 담기, companion bubble 방금 떠오른 걸 흘려보내지 말아요. / TIP 한 줄이면 충분해요. 정리는 제가 할게요.",
+        "current": "Rendered in English (Capture, Don't let that thought slip away., Save first note, navbar Home/Capture/SecondB/Wiki/Settings).",
+        "fix": "Render with locale=ko. The screen uses t() but the capture ns and DeepSpaceScreen navbar are resolving EN. Force/verify ko so all strings match reference; navbar must read 별자리·담기·세컨비·위키·설정 (NAV in sb-data.jsx)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Horizontal M3 filter-chip row of 5 capture modes with Material icons: 글(edit)·링크(link)·사진(photo_camera)·음성(mic)·할 일(check_circle); 글 selected shows a check. Below it a secondary 자유 양식 / W4H1 양식 pill toggle.",
+        "current": "Only a 2-segment pill 'One line / 4W1H'. No 5-mode chip row; Link/Photo/Voice/Todo modes unreachable from this shell.",
+        "fix": "Replace the SegBtn with the 5-mode filter-chip row driven by CAPTURE_MODES (sb-data.jsx). Keep 자유/W4H1 as a secondary toggle inside the 글 mode only (matches sb-screens-core.jsx lines 273-307)."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Default 글 mode shows structured W4H1 fields with icon+label: 무엇을 (large textarea, hint '떠오른 생각·사건의 핵심을 적어요'), then 언제(오늘 아침)+어디서(회사) as a 2-column row, 누가(나·팀원과), 어떻게·왜(어떤 마음이었는지). Each is an M3 filled/outlined text field.",
+        "current": "Single one-line multiline box with placeholder 'A thought, something you read, a feeling… anything, in one line.' plus 3 outline chips Text/Link/Voice. No structured fields, no field icons/labels, no 2-column row.",
+        "fix": "Build the W4H1 field group with leading Material icon + label per Field (icons edit_note/calendar_today/north_east/person/bolt/lightbulb), 언제·어디서 in a gridTemplateColumns:'1fr 1fr' row, and the exact Korean hints from sb-screens-core.jsx lines 298-306. Remove the Text/Link/Voice chip triplet."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Sub-headline under 담기 title: '형식에 맞게 담으면, 세컨비가 알맞은 별로 엮어요.' in M3 body/on-surface-variant.",
+        "current": "No subtitle at all — title jumps straight to the toggle.",
+        "fix": "Add the subtitle line beneath the title using the readable (Pretendard) body style, on-surface-variant color."
+      },
+      {
+        "aspect": "component",
+        "reference": "Violet/tertiary tonal banner with a sparkle (auto_awesome) icon: '담는 순간 세컨비가 어울리는 별과 태그로 자동 분류해요.' sits just above the submit button.",
+        "current": "Plain low-contrast note card 'The moment you save it, SecondB tags and sorts it.' — no tertiary tint, no icon, English.",
+        "fix": "Restyle the tip card to tertiary-container background with on-tertiary-container text + leading auto_awesome icon, Korean copy. Use M3 tertiary token (dark #D4BBFF / container #523B8B)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Full-width M3 filled button labelled 담기 with a leading arrow_forward/add icon; primary azure fill.",
+        "current": "Full-width cyan gradient GradientButton labelled 'Save first note' (or 'Save piece' for 4W1H).",
+        "fix": "Change label to 담기 (offline: '큐에 담기 (동기화 대기)'), add leading icon, and use flat M3 primary fill (dark primary #86CFFF / on-primary #00344C) instead of the cosmic cyan gradient."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 deep-space palette: azure primary (#00658F light / #86CFFF dark), violet tertiary (#6B4FA4 / #D4BBFF), surface-container cards. Windowed card on shared star-sky.",
+        "current": "Legacy cosmic deep-space tokens — cyan gradients, muted slate fills, no M3 primary/tertiary distinction.",
+        "fix": "Port m3-theme.css --md-sys-color-* tokens and route this screen's fills/text through them instead of deepSpace.* cosmic tokens (this screen has not been migrated to M3 yet)."
+      },
+      {
+        "aspect": "component",
+        "reference": "No standalone 'add by link/photo/file' ghost button — link/photo/voice/todo are reachable via the top mode chip row.",
+        "current": "Extra ghost button 'Add by link, photo, or file' → /capture-full, plus an 'Open records' ghost button after save.",
+        "fix": "Remove the /capture-full escape hatch once the 5-mode chip row is in place; the modes should live inline as in the reference."
+      }
+    ]
+  },
+  {
+    "screen": "07-chat",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/secondb.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-core.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "statusbar",
+        "reference": "Chat screen: companion header, persona banner, message thread, persona toggle, input bar, bottom nav.",
+        "current": "Renders the /sign-in auth screen (2nd-Brain logo, email/password, Sign in, Continue with Google). The chat is never shown.",
+        "fix": "secondb.tsx returns <Redirect href=\"/sign-in\" /> when !userId (and /complete-profile when hasProfile===false). The QA capture ran unauthenticated. Re-capture after signing in with the committed .env.test QA account (qa.ai.b18807@example.com) so the real chat renders. No screen code change; this is a capture/session-auth problem that blocks all fidelity comparison."
+      },
+      {
+        "aspect": "component",
+        "reference": "Material 3 chat: full-bleed windowed shell, one 세컨비 conversation, M3 tokens (surface-container-high bubbles, primary user bubble).",
+        "current": "Screen module implements the DEPRECATED deep-space cosmic branch (DeepSpaceScreen + deepSpace.* cyan tokens) via isDeepSpaceUI(); persona ids are 2nd-B/메타비/트위비 (rev2-personas), not the reference roster.",
+        "fix": "The whole screen needs rebuilding against the M3 reference (ChatScreen in sb-screens-core.jsx). Port m3-theme.css --md-sys-color-* tokens; drop the deepSpace.* branch as the render path for this route."
+      },
+      {
+        "aspect": "component",
+        "reference": "Companion header inside the chat window: 세컨비 robot head (48px) + speech bubble radius '4px 14px 14px 14px': '무엇이든 물어봐요. 당신 기록에서 찾아 답할게요.' and a TIP row '\"요즘 나 어때?\"처럼 물어도 돼요.' (COMPANION.chat in sb-data.jsx; shell adds it for capture/chat/records only).",
+        "current": "No companion header at all in the deep-space branch — only a compact header row (title · usage · mode · clear).",
+        "fix": "Add a Companion header block above the thread (head asset + speech bubble + TIP line) using the exact COMPANION.chat strings; render only on this screen."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab M3 NavBar: 별자리 / 담기 / 세컨비(active, forum icon) / 위키 / 설정 (NAV in sb-data.jsx).",
+        "current": "Not present in the captured render (sign-in has no nav); the deep-space branch supplies its own DeepSpaceScreen nav, not the M3 5-tab NavBar.",
+        "fix": "Ensure the shared M3 NavBar (5 tabs, 세컨비 active) renders under the chat, matching NAV labels/icons and active-tint from m3-theme.css."
+      },
+      {
+        "aspect": "component",
+        "reference": "Persona toggle row: 3 equal buttons, each = name + mono tag: 세컨비/2nd-B, 메타비/Meta-B, 안티비/Anti-B. Selected = accent border + soft-tint fill (violet for 세컨비).",
+        "current": "Deep-space branch renders rev2PersonaName chips (2nd-B/메타비/트위비 — 트위비 not 안티비) as small pill chips with accent fill, plus a separate analysis/new-angle affordance; layout and copy differ.",
+        "fix": "Replace with a 3-up equal-width persona toggle (border 1.5px accent, soft bg when on) using name + monospace tag; the capture's third persona is 안티비 / Anti-B (source still says 트위비/Twi-B — follow the capture)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Message bubbles: user right, background primary (azure), radius '16px 16px 4px 16px'; SB left, background surface-container-high, borderLeft 3px persona accent, radius '4px 16px 16px 16px'. Citation chips ('근거 · 기록 8건', '관계 별 ↓') with bubble_chart icon; suggestion chips ('쉼을 한 줄 담기', '관계 별 보기').",
+        "current": "Deep-space bubbles use deepSpace.* cyan tokens and different radii; citation strip reads '참고한 별가루 N' with slug chips, not '근거 · 기록 8건'. Suggestion chips come from QUICK_ACTIONS ('다음 한 걸음' etc.), not the reference's data-driven cites/sugg.",
+        "fix": "Match bubble bg to primary / surface-container-high with the exact asymmetric radii + 3px accent left border on SB bubbles; render cites as m.soft chips with bubble_chart icon and the reference sugg copy."
+      },
+      {
+        "aspect": "component",
+        "reference": "Input bar: pill (radius 9999) surface-container-high, placeholder '세컨비에게 물어보기…', inline mic button (right), then a separate 48px round send button (accent fill, send icon).",
+        "current": "Deep-space composer is a rectangular multiline TextInput + a text send button (t('send')); no pill, no mic button; placeholder from t('placeholder').",
+        "fix": "Rebuild the input as a rounded pill container with an inline mic icon-button and a separate 48px circular send button (send icon, accent fill when canSend); placeholder '{personaName}에게 물어보기…'."
+      },
+      {
+        "aspect": "typography",
+        "reference": "M3 type scale + Roboto/Roboto Mono (mono for persona tags), Pretendard for Korean; azure primary + violet tertiary palette from m3-theme.css.",
+        "current": "Deep-space branch uses fontFamilies + deepSpace cyan tokens; tag/label typography and palette do not match the M3 tokens.",
+        "fix": "Adopt m3-theme.css typography classes (md-body-medium, md-title-*, --md-ref-typeface-mono for tags) and the cyan/violet M3 palette tokens instead of deepSpace.*."
+      }
+    ]
+  },
+  {
+    "screen": "08-records",
+    "fidelityScore": 5,
+    "verdict": "needs-full-rebuild",
+    "renderBroken": true,
+    "realScreenModule": "src/screens/deepspace/dds-wiki-records-screens.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-know.jsx",
+    "topGaps": [
+      {
+        "aspect": "renderBroken",
+        "reference": "Records screen: deep-space bg, companion header, 위키 title, list of pieces, bottom navbar with 위키 active.",
+        "current": "The current capture is the SIGN-IN screen (2nd-Brain logo, email/password, 'Sign in', 'Continue with Google'). The route rendered an unauthenticated redirect (`if (!userId) return <Redirect href='/sign-in' />`), so none of the records UI is shown.",
+        "fix": "Authenticate the QA session before capturing. Sign in with .env.test QA_TEST_EMAIL / QA_TEST_PASSWORD so DeepSpaceRecordsScreen actually mounts. Every gap below is unverifiable until the capture shows the real screen."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar: 별자리 / 담기 / 세컨비 / 위키(active, bright) / 설정, on deep-space chrome.",
+        "current": "No navbar at all (sign-in screen has none).",
+        "fix": "Ensure DeepSpaceScreen shell (DeepSpaceRecordsScreen wraps in `Shell` -> DeepSpaceScreen active='lens') renders its bottom nav once authed; verify the active tab highlight matches 위키/lens."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Top status bar over deep-space: real clock (e.g. 22:27) left, signal/wifi/battery right, tinted for dark bg.",
+        "current": "Absent — sign-in screen shows no status bar.",
+        "fix": "N/A once authed; confirm SecondbStatusHeader / shell status bar appears and uses live time, not hardcoded."
+      },
+      {
+        "aspect": "component",
+        "reference": "Companion header (세컨비 head + speech bubble): '담은 조각이 124개, 위키로 엮었어요.' with a 'TIP 받은항목에 미분류 8개가 기다리고 있어요.' line.",
+        "current": "Not rendered (sign-in).",
+        "fix": "Verify SecondbStatusHeader text uses records.headerCount / records.tip i18n keys and that the KO copy matches the capture exactly (조사 포함). Reference SoT string in sb-data.jsx is '담은 별가루이 124개, 위키로 엮였어요.' — reconcile 조각 vs 별가루 wording with the canonical copy."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Body = wiki list view: a 목록/그래프 segmented toggle, a violet '정리함에 8개 / 미분류 조각을 태그·보관·삭제로 정리해요 >' card, a type-filter chip row (전체·글·링크·음성·사진·미분류), then a vertical list of piece rows with a type icon, title, and '시간 · 태그 · 태그' meta (미분류 shown as a red badge).",
+        "current": "Not rendered. Note the real DeepSpaceRecordsScreen (dds-wiki-records-screens.tsx) is a plain grouped timeline with 전체/일기/노트/검사 kind filters and NO 목록/그래프 toggle and NO 정리함 card — structurally it matches DeepSpaceWikiScreen more than this capture.",
+        "fix": "After auth, decide whether /records should render the wiki list layout shown here (목록/그래프 toggle + 정리함 card + 글/링크/음성/사진 type filters) rather than the current kind-filter timeline. This is a layout/IA mismatch to reconcile against the capture, likely by aligning /records with DeepSpaceWikiScreen's list mode."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 dark-cyan palette via --md-sys-color tokens: primary azure #86CFFF, tertiary violet #D4BBFF, deep-space bg; violet 정리함 card = secondary/tertiary container.",
+        "current": "Unverifiable (sign-in). records.tsx RecordsLegacy still imports legacy `cosmic.*` accents (pixelLamp/signalMint/soulViolet) for type accents; deep-space path uses @/theme/tokens colors.",
+        "fix": "Confirm the deep-space screen sources all color from @/theme/tokens (M3), not cosmic.* literals, and that the 정리함 card / type-icons map to the token accents in the capture."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Roboto / Roboto Mono + Pretendard (M3 type scale); mono used for durations/counts.",
+        "current": "Unverifiable (sign-in uses the auth screen fonts).",
+        "fix": "Once authed, verify list titles/meta use the M3 body/label scale and that pixelEn/mono usage matches (e.g. time labels), per DESIGN.md M3 migration."
+      }
+    ]
+  },
+  {
+    "screen": "09-settings",
+    "fidelityScore": 3,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/settings.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-extra.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Fully rendered 설정 screen: 설정 title, 모양/기능/데이터 연동/데이터 cards, bottom 5-tab navbar.",
+        "current": "Renders the SIGN-IN screen (2nd-Brain logo, email/password, Sign in, Continue with Google). No settings UI at all.",
+        "fix": "settings.tsx returns `<Redirect href=\"/sign-in\" />` when `!userId`. The QA capture is unauthenticated so the whole screen is an auth redirect. Capture must be taken while signed in with the .env.test QA account, OR gate the redirect. Nothing else can be compared until the real screen renders."
+      },
+      {
+        "aspect": "component",
+        "reference": "M3 structure = SectionLabel + MdCard(variant=filled, padding 4) containing ToggleRow rows (leading rounded icon badge + label + md-body-small sub + MdSwitch on right), rows split by 1px outline-variant dividers. Sections: 모양(다크 모드), 기능(자동 분류/제안 알림/앱 잠금/온디바이스 우선 처리/통화 녹음), 데이터 연동(Google 캘린더/Apple 건강/Notion connect rows), 데이터(외부 가져오기/건강 데이터 항목/내 데이터 리뷰).",
+        "current": "RN screen is a completely different IA: nav-button list (내 계정/앱 groups with 프로필·개인정보·계정·테마 etc.), DeepSpaceLinks grid, and collapsible DisclosureSection blocks (언어/그래프 크루/데이터 삭제 danger zone with DELETE-typed full wipe). No toggle switches, no filled cards.",
+        "fix": "Rebuild settings.tsx to the M3 toggle-card model: build a ToggleRow (icon badge + title + sub + Switch) and MdCard filled container, then render 모양/기능/데이터 연동/데이터 sections in the reference order. Move the data-deletion danger zone off this screen (reference puts it under 데이터 → 내 데이터 리뷰 route)."
+      },
+      {
+        "aspect": "copy",
+        "reference": "모양: 다크 모드 / 딥스페이스 톤; 강조 색 / 별빛 팔레트 (시안 · 바이올렛). 기능: 자동 분류 / 담는 즉시 별·태그로 정리; 제안 알림 / 새 통찰이 생기면 알려줘요; 앱 잠금 / 생체 인증으로 보호; 온디바이스 우선 처리 / 원문은 기기에서만 분석; 통화 녹음 → 텍스트 → 분석 / 통화 내용을 기기에서 받아 적고, 세컨비가 별로 엮어요.",
+        "current": "None of these strings exist in the RN screen; current copy is nav labels (프로필/개인정보/계정/테마) and delete-data wizard text.",
+        "fix": "Copy the exact Korean strings verbatim from sb-screens-extra.jsx SettingsScreen (lines 1168-1215). Do not paraphrase — including the 강조 색/별빛 팔레트 segmented (시안/바이올렛) row shown in the reference capture."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab M3 navbar visible: 별자리 · 담기 · 세컨비 · 위키 · 설정 (설정 active), deep-space bg.",
+        "current": "No navbar — sign-in screen has no dock. (When authed, DeepSpaceScreen variant=windowed does supply the dock, so this resolves once the redirect is fixed.)",
+        "fix": "Ensure the authed path renders `<DeepSpaceScreen active=\"settings\" variant=\"windowed\">` with the 5-tab dock; verify tab labels/order match 별자리·담기·세컨비·위키·설정."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Title uses md-headline-small (Roboto/Pretendard). Row labels md-body-large, subs md-body-small — standard M3 sans, no pixel font.",
+        "current": "Title styles.title = 20px pixelKo; settingsButtonLabel fontFamily = fontFamilies.pixelKo (legacy Galmuri/pixel chrome).",
+        "fix": "Per rev2 M3 migration, drop fontFamilies.pixelKo on this screen; use Roboto/Pretendard body + headline scale. Title → M3 headline-small size/weight."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 tokens: card = surface-container filled, dividers = outline-variant, active toggle/icon badge = primary (azure) / on-primary, text = on-surface / on-surface-variant. Palette switch cyan/violet via data-palette.",
+        "current": "Uses deepSpace.* legacy tokens (card, cardLine, mint primary, zoneRed danger) — not the m3-theme.css --md-sys-color-* set; mint/green accent instead of azure primary.",
+        "fix": "Route colors through the M3 semantic tokens (primary=azure, tertiary=violet, surface-container, outline-variant, on-surface-variant) instead of deepSpace mint/cardLine."
+      },
+      {
+        "aspect": "component",
+        "reference": "Right-aligned MdSwitch (Material 3 switch: track + thumb, checked shows filled thumb) on every feature row; some ON (다크 모드/자동 분류/온디바이스), some OFF (제안 알림/앱 잠금/통화 녹음).",
+        "current": "No switch primitive present; RN uses full-width SettingsActionButton nav buttons and segmented radio-style buttons only.",
+        "fix": "Add an M3 Switch component (or RN Switch styled to M3 spec) and wire to the feature flags (autotag/notify/applock/ondevice/callrec) mirroring the reference default states."
+      }
+    ]
+  },
+  {
+    "screen": "10-me (/persona)",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/components/deep-space/DeepSpaceViews.tsx (SeenLensView, dispatched by src/app/persona.tsx → DeepSpaceScreen active=\"lens\")",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-me.jsx (composes PersonaDeck from sb-persona.jsx)",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "screen-identity",
+        "reference": "북극성 7별 종합 (MeScreen): purple 북극성 hero + 7개의 삶 별 도메인 grid + 숨은 결 검증틀 + 포터블 정체성(IDEN) + 계정 rows.",
+        "current": "Renders the 'Seen self / 보여지는 나' peer-comparison LENS empty state ('No peer responses to compare yet', View survey / Share). This is a sub-route (peer), not the me screen.",
+        "fix": "persona.tsx currently returns <DeepSpaceScreen active=\"lens\"><SeenLensView/></DeepSpaceScreen>. The /persona (10-me) route must render the 북극성 종합 me screen (PersonaDeck hero + domain grid + validation layer), NOT SeenLensView. SeenLensView belongs behind the '보여지는 나' (peer) entry only. Point /persona at the correct MeScreen module or build it."
+      },
+      {
+        "aspect": "copy-language",
+        "reference": "All Korean: '북극성 · 7별 종합', '나를 깊이 이해해 더 나답게 산다.', '7개 별의 종합 · 신뢰도', '문장 다듬기', '7개의 삶 별 · 도메인', '별자리로', '검증 보기'.",
+        "current": "All English: 'Seen self', 'How close is the me others see to the me I see', 'Me I see / Me others see', 'No peer responses to compare yet', 'View survey', 'Share'.",
+        "fix": "Locale is resolving to EN and the wrong view. Force ko copy and use exact reference strings verbatim (조사 포함). SeenLensView must also derive ko, but primarily the correct KO me-screen copy from sb-me.jsx/sb-persona.jsx must render."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "5-tab bottom nav with Korean labels: 별자리 / 담기 / 세컨비 / 위키 / 설정 (icons star_shine, add_circle, forum, inventory_2, tune).",
+        "current": "5-tab nav present but English labels: Home / Capture / SecondB / Wiki / Settings, and mismatched icons (pencil for Capture, chat bubble, open-book).",
+        "fix": "Set nav labels from SB.NAV: 별자리/담기/세컨비/위키/설정. Swap icons to match (star_shine, add_circle/plus, forum, inventory_2, tune). The active tab (별자리) shows a filled sparkle."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Real-time status bar at top: '22:27' left, signal+wifi+battery glyphs right, on deep-space bg.",
+        "current": "No status bar rendered; screen content starts at the very top edge (companion header).",
+        "fix": "Render the shell StatusBar (live time, not hardcoded) above the screen body per sb-app.jsx. It is missing from this DeepSpaceScreen render."
+      },
+      {
+        "aspect": "topappbar",
+        "reference": "TopAppBar with back arrow (←) and title '북극성' (shown truncated '북...').",
+        "current": "No top app bar / back affordance. Companion head + speech bubble occupies the top instead.",
+        "fix": "Add the windowed TopAppBar with back arrow + title '북극성'. Remove the companion header from this screen (companion header is only for capture/chat/records per handoff §4)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Purple gradient hero banner: 북극성 star circle (glow), heading '북극성 · 7별 종합', large title '나를 깊이 이해해 더 나답게 산다.', subline '7개 별의 종합 · 신뢰도 ●●●○○', edit action '✎ 문장 다듬기'.",
+        "current": "No hero. A large cyan 4-point empty-state star sits mid-screen with 'No peer responses' text.",
+        "fix": "Build the PersonaDeck/북극성 hero card (violet gradient bg per sb-persona PUR #B794F6, radial halo, 46px star, confidence dots, '문장 다듬기' filled button)."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Below hero: section label '7개의 삶 별 · 도메인' + right link '별자리로', then a 2-column grid of 7 domain star cards (커리어 L3, 재정 L2, 관계 L3, 성장 L3, 건강 L2, 오락 L2, 담아내기 L4), each with dot + level badge + name + brightness dots; then '숨은 결 · 검증틀' + '검증 보기'.",
+        "current": "None of this exists — the screen is a single empty-state lens with two CTA buttons (View survey outlined, Share filled violet).",
+        "fix": "Implement the 7-domain star grid cards + the layer-B '숨은 결 · 검증틀' filled card and tonal instrument buttons (Big Five/애착/가치관/동기/강점/보여지는 나) from sb-me.jsx."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 tokens: violet/tertiary accent on hero (#B794F6 family) over deep-space bg; domain dots cyan; brightness dots.",
+        "current": "Cyan-dominant empty state (cyan star, cyan legend swatch 'Me I see'), violet only on the 'Share' button; overall palette and token usage do not match the me screen.",
+        "fix": "Once correct screen renders, source all color via m3-theme --md-sys-color tokens (tertiary/violet for 북극성 hero, primary/cyan for links), no ad-hoc hex."
+      }
+    ]
+  },
+  {
+    "screen": "12-record",
+    "fidelityScore": 8,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/dds-wiki-records-screens.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-know.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Full record-detail screen: icon chip + '글·방금' header, title, violet secondb card, 태그 chips, 연결된 기록 list, 편집/이동/삭제 row, bottom 5-tab navbar.",
+        "current": "CURRENT render is the SIGN-IN screen (2nd-Brain logo, email/password, 'Sign in', 'Continue with Google'). The route redirected to /sign-in because the session is unauthenticated (userId null → <Redirect href=\"/sign-in\">). Record detail never renders.",
+        "fix": "QA must sign in with the committed .env.test account (QA_TEST_EMAIL/QA_TEST_PASSWORD) before capturing /record/r1. No screen code change needed for the redirect itself; re-capture authenticated. All gaps below are latent structural diffs in DeepSpaceRecordDetailScreen that surface once authenticated."
+      },
+      {
+        "aspect": "component",
+        "reference": "Type header is a 40×40 rounded (radius 10) icon chip filled with secondary-container bg + on-secondary-container 'edit_note' icon, followed by md-label-large '글 · 방금'.",
+        "current": "No icon chip. recMetaRow renders plain subtle text 'kindLabel · time · author' (three-part with an extra author segment).",
+        "fix": "In DeepSpaceRecordDetailScreen add a leading 40×40 radius-10 icon box (secondary-container / on-secondary-container tokens) with the kind icon; render label as '<kind> · <time>' and drop the third 'author' segment to match reference."
+      },
+      {
+        "aspect": "component",
+        "reference": "Secondb insight is a filled MdCard (tertiary-container / violet) placed BELOW the title: 30px secondb-head-front.png + body '이 조각은 ‘관계’ 별과 이어져요. 비슷한 기록 5건이 같은 시간대에 모여 있어요.' + a text button '근거 기록 보기' (trailing north_east icon).",
+        "current": "Uses SecondbStatusHeader at the TOP of the screen (above meta row) with i18n copy headerLinked/headerAlone and a tip; no head-image card below title, no '근거 기록 보기' action button.",
+        "fix": "Replace the top SecondbStatusHeader with a violet tertiary-container card positioned after the title: secondb head 30px + the exact reference copy + a '근거 기록 보기' text button linking to the evidence view."
+      },
+      {
+        "aspect": "component",
+        "reference": "편집 / 이동 / 삭제 action row: two outlined MdButtons '편집'(edit icon) and '이동'(drive_file_move icon) each flex:1, plus a standalone error-colored trash MdIconButton.",
+        "current": "ctaRow only has a secondary 'newRecord' (담기) button + a trash icon button. Missing 편집 and 이동 buttons entirely.",
+        "fix": "Rebuild ctaRow as [편집 outlined][이동 outlined][trash icon]; remove/relocate the 'newRecord' CTA. Match reference labels and icons exactly."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Tag section has a 'sell' (label) icon on each input chip showing raw tag text (외향성, 일) PLUS an '＋ 태그 추가' add chip. Section is preceded by SectionLabel '태그'.",
+        "current": "Tags rendered as FilterChip '#외향성', '#일' (hashtag prefix, active-filter style); no 'sell' icon, no '태그 추가' add chip, and no '태그' section label.",
+        "fix": "Render tags as input chips with a leading tag/sell glyph and raw text (no '#'), add a trailing '＋ 태그 추가' chip, and add a '태그' section label above the row."
+      },
+      {
+        "aspect": "component",
+        "reference": "연결된 기록: outlined MdCards (radius, padding 12) each = leading type icon + single-line ellipsized title + trailing chevron_right, showing '산책하며 떠오른 생각 (0:42)' and '서점에서 찍은 책 표지'.",
+        "current": "Related records rendered via TimelineRow (dim) — different card shape, no leading type icon + trailing chevron affordance matching the reference outlined card.",
+        "fix": "Render linked records as outlined cards with leading kind icon + title + trailing chevron to match reference; keep the '연결된 기록' section label styled as SectionLabel (not the pixel-En tlLabel)."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Section labels use SectionLabel; title uses md-title-large with wordBreak keep-all; meta uses md-label-large. Font stack Roboto/Pretendard per m3-theme.",
+        "current": "Uses pixelEn styling on section labels (tlLabel) and generic variant='heading'/'subtle' — risks pixel/mono chrome that the M3 migration replaced.",
+        "fix": "Use M3 title-large for title and standard SectionLabel typography (Pretendard/Roboto) for '태그'/'연결된 기록'; avoid pixelEn on these labels."
+      }
+    ]
+  },
+  {
+    "screen": "13-interview",
+    "fidelityScore": 3,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/interview.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-know.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "render",
+        "reference": "A Material 3 Likert screener: TopAppBar '심층 인터뷰' + back arrow, progress bar, question card, 5 answer cards, bottom 5-tab navbar.",
+        "current": "The sign-in / auth screen is rendered instead (2nd-Brain logo, EMAIL/PASSWORD fields, Sign in, Continue with Google). interview.tsx does `if (!userId) return <Redirect href=\"/sign-in\" />` and the QA session is unauthenticated, so the screen never mounts.",
+        "fix": "Sign in with the committed QA account (.env.test QA_TEST_EMAIL/PASSWORD) before capturing, or stub auth so the interview mounts. This gap must be fixed before any visual comparison is meaningful."
+      },
+      {
+        "aspect": "component",
+        "reference": "Fixed 5-question Likert screener (BigFive-style). Per step: linear progress, one headline question, subtitle, and 5 tappable outlined cards ['그렇다','조금 그렇다','중간','조금 아니다','아니다'] each with a radio_button_unchecked icon; after 5 steps a ratify ('이렇게 반영할까요?') card view.",
+        "current": "Completely different concept — a free-form LLM drill interview: life-period selection grid (childhood/teens/…), 5-layer coverage matrix (DrillProgress), chat bubbles, a multiline text composer with 보내기/그만하기 buttons. No Likert cards, no fixed question set.",
+        "fix": "Rebuild /interview to match InterviewScreen in sb-screens-know.jsx: QS array of 5 Korean questions, step state 0..5, ProgressLinear, 5 answer MdCards that advance step, then a ratify view. This is a full rewrite, not a tweak."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Question 1 verbatim: '요즘 사람들과 함께 있을 때, 에너지가 차오르나요 빠져나가나요?'; label '질문 1 / 5 · 회상 인터뷰'; subtitle '같은 핵심을 조금씩 다르게 되물어요. 더 또렷해지려고요.'; answers 그렇다/조금 그렇다/중간/조금 아니다/아니다.",
+        "current": "None of this copy exists in the RN screen (its strings are seedQuestion()/probe LLM text and '솔직하게 답해 주세요.').",
+        "fix": "Copy the exact QS[] array, the '질문 N / 5 · 회상 인터뷰' label, and the subtitle string verbatim from sb-screens-know.jsx lines 249-266."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab Material 3 navbar present: 별자리 / 담기 / 세컨비 / 위키 / 설정 with icons; interview is a windowed screen over the shared star background.",
+        "current": "No navbar at all (sign-in screen). Even the real InterviewBody wraps in DeepSpaceScreen active='lens' — need to confirm it renders the 5-tab NavBar from sb-app.jsx.",
+        "fix": "Ensure the interview mounts inside the app shell with the persistent 5-tab NavBar (sb-app.jsx NAV), matching the reference tab labels/icons."
+      },
+      {
+        "aspect": "asset",
+        "reference": "Companion head asset 'assets/deepspace/secondb-head-front.png' 36x36px sits left of the question headline (md-headline-small, wordBreak keep-all, line-height 1.35).",
+        "current": "Not shown (auth screen). RN screen uses SceneHero/VILLAGE_UI worker art on the period-select view, not the 36px inline head beside the question.",
+        "fix": "Render the 36px secondb-head-front.png inline-left of the question headline, flex row gap 10, per reference lines 262-264."
+      },
+      {
+        "aspect": "typography",
+        "reference": "M3 type scale + tokens: label-medium for progress label (on-surface-variant), headline-small for question (on-surface), body-small tertiary for subtitle, body-large for answers; Roboto/Pretendard.",
+        "current": "Auth screen typography; the real screen uses project semantic.* tokens and Text variants (caption/body/subtle), not the M3 headline-small/body-large scale or tertiary color.",
+        "fix": "Map to M3 tokens from m3-theme.css: on-surface / on-surface-variant / tertiary / outline; use headline-small for the question and body-large for answer cards."
+      },
+      {
+        "aspect": "color",
+        "reference": "Answer cards = M3 outlined cards (transparent fill, --md-sys-color-outline border), radio icon uses outline color, subtitle uses tertiary token, deep-space dark bg.",
+        "current": "Auth screen colors. Real RN cards use semantic.surface fill + semantic.border, no M3 outlined/tertiary distinction.",
+        "fix": "Use MdCard variant='outlined' equivalent (transparent bg, outline-color border, radius per m3 shape) and tertiary-token subtitle."
+      }
+    ]
+  },
+  {
+    "screen": "14-bigfive (/big-five)",
+    "fidelityScore": 9,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/big-five.tsx (renders BigFiveDeepSpace → LensView in src/components/deep-space/DeepSpaceViews.tsx)",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-know.jsx (BigFiveScreen, lines 282-325)",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "design-system",
+        "reference": "Material 3 windowed screen: azure primary bars, L4 chip in primary-container, filled/tonal M3 buttons, surface backgrounds, M3 type scale (md-headline-small etc.)",
+        "current": "Legacy deep-space cosmic skin: full-bleed starfield backdrop, cyan/mint accent tokens (deepSpace.*), pixel/gradient buttons. Entirely different visual language.",
+        "fix": "Route /big-five must render an M3 BigFiveScreen, not BigFiveDeepSpace/LensView. Build a new M3 screen using m3 tokens + MdCard/MdButton/ProgressLinear per sb-screens-know.jsx BigFiveScreen; retire the deep-space LensView path for this route."
+      },
+      {
+        "aspect": "state",
+        "reference": "FILLED results: 5 trait bars with values, insight/ratify block, extra-frameworks card, action buttons.",
+        "current": "EMPTY state — star glyph + 'This star is still dark' + 'Start the check' CTA. LensView shows empty because loadLatestBfi returned no record for the QA account.",
+        "fix": "Reference target is the filled state. Seed the QA account with a BFI record (or the sample O72 C58 E41 A67 N39) so the filled layout renders; the reference screen has no empty-state variant shown here."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Korean throughout: header '검증 · Big Five', chip 'L4', '확신 64%', subtitle '숨은 결(레이어 B) · 도메인 행동을 삼각측량해 추정한 제안이에요'.",
+        "current": "English empty-state copy: 'This star is still dark', 'Finish the trait check once and your Trait State star lights up.', 'Start the check'.",
+        "fix": "App locale must be Korean (i18n.language='ko'). Rebuild copy from the reference: title '검증 · Big Five', L4 chip, '확신 64%', and the exact Korean subtitle string."
+      },
+      {
+        "aspect": "component",
+        "reference": "Five ProgressLinear trait bars: 개방성 72, 성실성 58, 외향성 41 ↑6 (delta, tertiary/violet fill), 우호성 67, 신경성 39; each row = label left, value right (delta value in primary color).",
+        "current": "No trait bars rendered at all (empty state).",
+        "fix": "Render window.SB.BIGFIVE rows: full labels 개방성/성실성/외향성/우호성/신경성 (NOT truncated), value + '↑N' when delta, ProgressLinear color=tertiary for delta rows else primary."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "5-tab M3 bottom nav in Korean: 별자리 · 담기 · 세컨비 · 위키 · 설정, with M3 secondary-container active pill.",
+        "current": "5-tab nav in English: Home · Capture · SecondB · Wiki · Settings, deep-space styling.",
+        "fix": "Localize nav labels to ko per sb-data.jsx NAV (별자리/담기/세컨비/위키/설정) and use the M3 nav shell, not the deep-space dock."
+      },
+      {
+        "aspect": "component",
+        "reference": "RatifyBlock insight card ('세컨비의 추정 · 아직 반영 안 됨' with estimate text) + a filled MdCard '다른 검증틀 · 애착 유형 보기' with forum + chevron_right icons.",
+        "current": "Neither present. Only a speech-bubble tip is shown.",
+        "fix": "Add the RatifyBlock (confidence 64, evidence 23 '관계·휴식 기록', estimate string) and the tappable '다른 검증틀 · 애착 유형 보기' MdCard routing to attachment."
+      },
+      {
+        "aspect": "component",
+        "reference": "Bottom action row: MdButton tonal icon=replay '다시 측정' + MdButton filled icon=add '데이터 추가', two flex:1 buttons.",
+        "current": "Single gradient 'Start the check' button (empty state).",
+        "fix": "Add the two-button row '다시 측정' (tonal) and '데이터 추가' (filled) matching sb-screens-know.jsx lines 319-322."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Top area is a plain TopAppBar with back arrow only (windowed screen; companion header appears ONLY on capture/chat/records).",
+        "current": "Companion character head (세컨비 robot art) + speech bubble occupies the top — an EXTRA component that should not be on this screen.",
+        "fix": "Remove the companion header from /big-five; use an M3 TopAppBar (arrow_back + title) instead. Companion is not part of the windowed BigFive screen."
+      },
+      {
+        "aspect": "color",
+        "reference": "Bars/accents use m3 azure primary (#86CFFF dark) and violet tertiary (#D4BBFF dark) for the delta trait; L4 chip = primary-container #004C6D on on-primary-container.",
+        "current": "Cyan/mint deepSpace accents; delta uses deepSpaceGradients.ctaPositive (green/mint), not M3 violet tertiary.",
+        "fix": "Swap to m3.color tokens: primary bars, tertiary for delta row, primary-container chip. No gradient fills on bars — ProgressLinear solid color per reference."
+      }
+    ]
+  },
+  {
+    "screen": "15-attachment",
+    "fidelityScore": 6,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/attachment.tsx",
+    "refSourceFile": "reference-app/sb-flows.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "render",
+        "reference": "Attachment RESULT screen (애착 유형 map + ratify card + nav).",
+        "current": "Current capture is the SIGN-IN screen (email/password, 2nd-Brain robot). attachment.tsx does `if (!userId) return <Redirect href=\"/sign-in\"/>`, so the QA capture was taken unauthenticated and never reached the screen.",
+        "fix": "Sign in with the committed QA account (.env.test QA_TEST_EMAIL/PASSWORD) before capturing so the real screen renders; the capture is not comparable until then."
+      },
+      {
+        "aspect": "concept",
+        "reference": "A finished-result view: 2-axis anxiety/avoidance MAP with the user's point plotted, headline result, and a ratify/evidence card. No questionnaire.",
+        "current": "attachment.tsx renders an ECR SURVEY flow instead — QuantIntroModal then QuantPager with 12 Likert items across 3 pages. Completely different screen.",
+        "fix": "Rebuild the screen to match sb-flows.jsx AttachmentScreen(237-286): drop the survey UI (intro modal + pager) as the primary view; render the attachment-type result layout. The survey can live behind a separate route/CTA, not this screen."
+      },
+      {
+        "aspect": "component",
+        "reference": "Header row: headline `애착 유형` + violet L3 badge (tertiary-container bg / on-tertiary-container text, radius 6, 2px 8px) + `확신 58%` label-small; subtitle `숨은 결(레이어 B) · 관계 도메인을 ECR 척도로 본 모습` (on-surface-variant, marginBottom 16).",
+        "current": "No such header. RN header shows `ECR-S · 12문항` caption in a pink-left-border card.",
+        "fix": "Add a baseline-aligned flex row (gap 8) with headline-small title, L3 pill using tertiary tokens, and a 확신 58% label; below it the subtitle line in on-surface-variant."
+      },
+      {
+        "aspect": "component",
+        "reference": "Outlined MdCard containing a square (aspectRatio 1/1) 2-axis map: gradient bg linear-gradient(135deg, primary-container55, surface-container), 4 quadrant labels 안정/몰입/회피/혼란 (label-medium, opacity .7, corner-anchored), center cross axes in outline-variant (1px), user point at left 32% / top 48% — 18px circle in `primary` with dual glow (0 0 0 6px primary33, 0 0 16px primary), and centered footer `← 회피 낮음 · 높음 →` (10px). Below card: `안정형에 가까움` (title-medium) + `· 회피 32 · 불안 48` (body-small).",
+        "current": "None of this exists — RN shows Likert choice rows.",
+        "fix": "Build the map card as an outlined card wrapping a 1:1 aspect View with absolute-positioned quadrant labels, cross-axis dividers, and the plotted point at (avoid%, anx%); render the result label + `· 회피 32 · 불안 48` row underneath."
+      },
+      {
+        "aspect": "component",
+        "reference": "RatifyBlock (sb-data.jsx 570): filled card, secondary-container bg, padding 14, marginTop 16. Row: 30px secondb-head-front.png avatar + `세컨비의 추정 · 아직 반영 안 됨` label + estimate body `가까운 사람에겐 먼저 다가가되, 바쁠 땐 거리를 두시는 것 같아요.`. Then a `확신 58%` pill (dot + text, tertiary color) and `관계 별 기록 12건 근거` link button, plus lock line `비준하기 전엔 북극성에 반영되지 않아요.`",
+        "current": "RN has an unrelated companion note only in an alt code path; the shown render has none. No ratify/evidence affordance, no 확신 pill, no evidence link.",
+        "fix": "Add the RatifyBlock component (secondary-container card, 30px 세컨비 head, estimate text verbatim, 확신% pill + evidence link + lock line, propose→ratify state). Reuse the shared primitive rather than the survey toast."
+      },
+      {
+        "aspect": "component",
+        "reference": "Bottom action row (marginTop 18, gap 8): `관계 인터뷰` tonal MdButton with forum icon (flex 1) + `Big Five 보기` outlined MdButton (flex 1).",
+        "current": "RN shows survey pager controls / no such buttons on this view.",
+        "fix": "Add a two-button flex row: tonal button label `관계 인터뷰` (forum icon) → interview route, outlined button `Big Five 보기` → bigfive route."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Reference is a `windowed` screen with the shared 5-tab bottom NavBar visible: 별자리 / 담기 / 세컨비 / 위키 / 설정 (별자리 active).",
+        "current": "attachment.tsx wraps in DeepSpaceScreen active=\"lens\" — `lens` is not one of the 5 canonical tabs, so the tab highlight/labels won't match; and the sign-in render shows no navbar at all.",
+        "fix": "Render inside the standard 5-tab shell with the correct active tab (별자리/담기 family per SCREEN_TREE_SPEC), not an ad-hoc `lens` key."
+      },
+      {
+        "aspect": "color",
+        "reference": "All colors via M3 --md-sys-color tokens (primary=azure for point/glow, tertiary/violet for L3 badge + confidence, secondary-container for ratify card, surface-container/outline-variant for map).",
+        "current": "RN uses deep-space/cosmic tokens: semantic.surface, cosmic.dreamPink left border + pink shadow on cards. Off-palette pink accent not in reference.",
+        "fix": "Replace cosmic.dreamPink accents with M3 semantic tokens; map primary→azure point, tertiary→violet badge, secondary-container→ratify bg per m3-theme.css."
+      },
+      {
+        "aspect": "typography",
+        "reference": "M3 type scale: headline-small (title), title-medium (result label), body-medium/label-small/label-medium/body-small; Roboto/Pretendard.",
+        "current": "RN uses generic Text variants (caption/subtle/body/heading) with no M3 scale mapping.",
+        "fix": "Map to M3 roles: headline-small for 애착 유형, title-medium for 안정형에 가까움, body-medium for subtitle/estimate, label-small/medium for badges & quadrant labels."
+      }
+    ]
+  },
+  {
+    "screen": "16-values (/values)",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/components/deep-space/AxisCheck.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-validate.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Values results screen: 가치관 title + L2 badge, CORE VALUES top-3 card, 가치 스펙트럼 6 ranked bars, 세컨비 head card, 2 action buttons, 5-tab navbar.",
+        "current": "Renders the sign-in / auth screen (2nd-Brain logo, email/password fields, Sign in / Continue with Google). The values screen is not shown at all.",
+        "fix": "Render is broken via auth redirect. AxisCheck.tsx:225 `if (!userId) return <Redirect href=\"/sign-in\" />` fires because the QA session is unauthenticated. Authenticate the QA test account (.env.test QA_TEST_EMAIL/PASSWORD) before capturing, or gate the capture harness past auth. Nothing on this screen can be compared until it renders."
+      },
+      {
+        "aspect": "component",
+        "reference": "A DISPLAY screen: ranked Schwartz values spectrum (자율성 78 / 성장 71 / 진정성 66 / 관계·돌봄 58 / 성취 49 / 안정 37) with tertiary progress bars, per-value English anchor + Korean note.",
+        "current": "The real module (AxisCheckScreen) is a self-check FLOW: free-text prompt-per-step reflection with a signal-count spectrum, estimate/ratify block, and start button — not a ranked values display. Architecturally different from the reference.",
+        "fix": "This is a deliberate divergence (code comment: prototype spectrum renders 'later'). To pixel-match sb-validate.jsx ValuesScreen, build the ranked static VALUES list (self-direction etc.) with top-3 highlight card + tertiary bars, OR confirm with Simon that the check-flow is the intended replacement and the reference target should change."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Title '가치관' + 'L2' tertiary-container badge; subtitle '숨은 결(레이어 B) · 무엇을 중요하게 여기는지'; section label '가치 스펙트럼'; buttons '가치 인터뷰' / '다른 검증틀'.",
+        "current": "Bar title '가치관' matches, but body is check-flow copy ('자기 점검이에요…', '시작하기 · N문항') and cross-links are '동기 보기' / '강점 보기'. No L2 badge, no subtitle, no 가치 스펙트럼 label.",
+        "fix": "Add the L2 badge next to the heading (tertiaryContainer bg, radius 6, 2x8 pad), the subtitle '숨은 결(레이어 B) · 무엇을 중요하게 여기는지', section label '가치 스펙트럼', and buttons '가치 인터뷰'(tonal, forum icon) / '다른 검증틀'(outlined) per sb-validate.jsx."
+      },
+      {
+        "aspect": "component",
+        "reference": "CORE VALUES top-3 card: primary-container bg, mono label 'CORE VALUES · 핵심 가치', 3 equal cells; rank-1 cell uses primary bg + on-primary text, others surface bg.",
+        "current": "Not present (screen is the auth page; and the real module has a signal top-3 card only conditionally, driven by record counts, not the fixed 자율성/성장/진정성 set).",
+        "fix": "Build the top-3 highlight card exactly: outer primaryContainer bg radius 16 pad 18, mono 10px letterSpacing .14em label, 3 flex cells radius 12, first cell primary/on-primary, ranks 1/2/3 in mono."
+      },
+      {
+        "aspect": "color",
+        "reference": "Spectrum bars use C('tertiary') (violet). Top-3 first card uses primary. L2 badge uses tertiary-container. Deep-space dark bg with shared starfield.",
+        "current": "Auth screen palette (azure Sign-in button, dark bg) — spectrum/tertiary usage not visible. Real module bars use m3.color.tertiary which is correct once rendered.",
+        "fix": "Once rebuilt, keep bars = m3 tertiary and top-3 accent = m3 primary via tokens; verify against m3-theme.css --md-sys-color-tertiary rather than hardcoding."
+      },
+      {
+        "aspect": "component",
+        "reference": "세컨비 head card near bottom: secondary-container filled MdCard, 30px secondb-head-front.png + estimate sentence ('자율성이 가장 높아요…').",
+        "current": "No 세컨비 head card. Real module has an evidence/estimate card but text-only, no character head asset, and gated behind the check flow.",
+        "fix": "Add the secondary-container MdCard with the 30px secondb-head-front.png asset and the estimate copy from sb-validate.jsx line 64."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar (별자리 / 담기 / 세컨비 / 위키 / 설정) present.",
+        "current": "No navbar — auth screen has none. (DeepSpaceScreen active='lens' would provide it once authenticated.)",
+        "fix": "Confirm the 5-tab navbar renders via DeepSpaceScreen once auth is fixed; verify active tab highlighting matches reference."
+      }
+    ]
+  },
+  {
+    "screen": "17-audit",
+    "fidelityScore": 8,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/audit.tsx (isDeepSpaceUI branch → AuditDeepSpace, renders src/components/deep-space/DeepSpaceViews.tsx ValuesLensView inside DeepSpaceScreen)",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-know.jsx (AuditScreen, lines 327-360)",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "component",
+        "reference": "AuditScreen = '과거의 나' life-era timeline: a headline + subtitle then a vertical timeline (2px outline-variant line) with 5 filled era cards, each showing era name, age range, level Dots, '또렷함 L{n}' label, and a chevron.",
+        "current": "Renders the deep-space ValuesLensView empty state instead ('Work·growth / DOMAIN / Nothing built up here yet / Add records… / + Add data'). Completely different screen — no era list, no timeline, no Dots.",
+        "fix": "The DeepSpace branch of audit.tsx points /audit at ValuesLensView, which is the wrong screen. Build a new era-timeline screen matching AuditScreen: map an ERAS array to filled cards inside a left-rail timeline. Do not render ValuesLensView here."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Headline '과거의 나'; subtitle '시기를 골라 그때의 당신을 다시 떠올려봐요.' Era rows: 유아기 0–6세 · 아동기 7–12세 · 청소년기 13–18세 · 청년기 19–28세 · 현재 지금, each with '또렷함 L{level}'.",
+        "current": "Shows 'Nothing built up here yet', 'Add records and you'll see which areas you've grown the most.', '+ Add data', 'Work·growth', 'What have I built up in this area', 'DOMAIN' — none of the reference copy is present.",
+        "fix": "Replace all body copy with the exact Korean strings above. Add ERAS data: [{k:'유아기',range:'0–6세',level:1},{k:'아동기',range:'7–12세',level:2},{k:'청소년기',range:'13–18세',level:3},{k:'청년기',range:'19–28세',level:4},{k:'현재',range:'지금',level:3}]."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar in Korean: 별자리 / 담기 / 세컨비 / 위키 / 설정 with icons star_shine, add_circle, forum, inventory_2, tune.",
+        "current": "Navbar labels are English (Home / Capture / SecondB / Wiki / Settings) with different icons (star, pencil, speech-bubble, open-book, sliders).",
+        "fix": "Force KO locale (or fix the render locale) so navbar labels render Korean, and align tab icons/labels to the reference NAV set (별자리·담기·세컨비·위키·설정)."
+      },
+      {
+        "aspect": "typography",
+        "reference": "TopAppBar title in Korean '성장 · 과거의 나' (truncates to '성장 · 과거...'). Screen headline uses md-headline-small, subtitle md-body-medium, era name md-title-medium, range md-body-small, level md-label-small.",
+        "current": "Title renders English 'Growth · Past me' (app is in EN locale). No era typography present since the screen content is wrong.",
+        "fix": "Render in KO. Apply M3 type roles: headline-small for '과거의 나', body-medium for subtitle, title-medium for era name, body-small for range, label-small for '또렷함 L{n}'."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Status bar shows real time (22:27) plus signal/wifi/battery glyphs at top of the window.",
+        "current": "No status bar row visible; top of the windowed frame is blank above the title.",
+        "fix": "Render the shared StatusBar (real clock + signal/wifi/battery) at the top of the windowed frame, per sb-app.jsx."
+      },
+      {
+        "aspect": "component",
+        "reference": "Each era card is a filled MdCard (surface-variant fill, radius, padding 14) with a right-aligned Dots row: 5 dots of 6px (gap 3), first {level} filled with primary color, rest surface-variant. A primary timeline node dot (12px, 2px surface border + primary ring) sits on the left rail beside each card.",
+        "current": "No cards, no Dots, no timeline rail rendered at all.",
+        "fix": "Implement a Dots component (5×6px dots, gap 3, filled=primary up to level, else surface-variant) and a left vertical rail (2px outline-variant) with a 12px primary node per row; wrap each era in a filled card, chevron_right on the right."
+      },
+      {
+        "aspect": "color",
+        "reference": "Timeline node + filled dots use --md-sys-color-primary; rail + unfilled dots use outline-variant / surface-variant; text uses on-surface / on-surface-variant tokens.",
+        "current": "Uses deep-space cyan accent for the + Add data button and star glyph (ValuesLensView palette) — off-target because the whole screen is wrong.",
+        "fix": "Once rebuilt, source all colors from m3-theme.css tokens via semantic.* (primary, surface-variant, outline-variant, on-surface, on-surface-variant) — no cyan empty-state styling."
+      }
+    ]
+  },
+  {
+    "screen": "18-trend",
+    "fidelityScore": 6,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/trends/TrendsScreen.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-surfaces.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "component",
+        "reference": "Reference 18-trend is GrowthTrendScreen (별 밝기 변화 추이, B5): a filled brightness-trend surface with an 8-week SVG line/area chart, per-star sparkbars, and a milestone timeline. Uses static demo data.",
+        "current": "RN /trends renders a completely different feature — a 'rising interests' surface (gatherRisingInterests) showing an empty-state card 'No clear interest shift yet' + 'Capture a record' button. No chart, no sparkbars, no timeline.",
+        "fix": "This route is wired to the wrong screen. Either point /trends at a new GrowthTrendScreen port or rebuild TrendsScreen to match sb-surfaces.jsx GrowthTrendScreen. The rising-interest OpsFrame content must be replaced entirely."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Title '밝기 변화' (md-headline-small), subtitle '지난 8주, 당신의 별자리는 꾸준히 또렷해지고 있어요.' (md-body-medium, on-surface-variant).",
+        "current": "Title 'Trends'; empty-state title 'No clear interest shift yet'; body 'Fill in this week's records and rising interests will show here.' — all English, wrong strings.",
+        "fix": "Render Korean copy verbatim. Header title '밝기 변화'; subtitle string exactly as reference. App is defaulting to EN locale — reference is KO-only for this screen."
+      },
+      {
+        "aspect": "component",
+        "reference": "Elevated MdCard 'trend chart': header row '전체 밝기' (md-label-large) + '+34% · 8주' with trending_up icon in primary color; SVG line chart of series [28,31,30,38,44,47,55,62], primary stroke 2.5, area gradient primary 0.32→0, end-point circle r4.5; x-axis labels '8주 / 4주 / 지금'.",
+        "current": "No chart of any kind.",
+        "fix": "Build an elevated card with react-native-svg: Path line (stroke = deepSpace primary/cyan, width 2.5, round caps), area Path with a vertical LinearGradient (primary 0.32→0), final-point Circle. Add header row with label + '+34% · 8주' pill and axis labels row (8주/4주/지금)."
+      },
+      {
+        "aspect": "component",
+        "reference": "SectionLabel '별마다 변화' + filled MdCard with 5 rows: 커리어 L3→L4, 관계 L2→L4, 성장 L2→L3, 건강 L2→L2, 재정 L1→L2. Each row = label (w52) + ProgressLinear(value now/5*100, color primary if now>was else amber #F7B955) + mono 'L{was}→L{now}' (w56, right-aligned).",
+        "current": "Absent.",
+        "fix": "Add filled card, gap 12 column. Per row: Text label fixed 52px, flex-1 linear progress bar (track = surface-container, fill = cyan or #F7B955 when no increase), mono-font L-delta text 56px right-aligned. Use Roboto Mono / deepSpace mono token."
+      },
+      {
+        "aspect": "component",
+        "reference": "SectionLabel '밝기 이력' + vertical timeline (left rail 2px outline-variant) with 4 events: 관계 L2→L3 '통화 녹음 3건 반영' 이번 주; 커리어 L2→L3 '인터뷰로 몰입 패턴 확인' 2주 전; 건강 L2→L1 '기록 공백 · 밝기 감소' 4주 전; 성장 L1→L2 '회상 인터뷰 시작' 6주 전. Node dots glow primary (up) or #F7B955 (down).",
+        "current": "Absent (the reference capture cuts off mid-timeline showing '관 L2→L3 / 통화 녹음 3건 반영 / 이번 주' and '커리 L2→L3 / 2주').",
+        "fix": "Add timeline: absolutely-positioned 2px left rail, per-event glowing dot (boxShadow → RN shadow/elevation on colored View), title (md-title-small) + mono from→to + week label right-aligned + why line (md-body-small, on-surface-variant)."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar labels in Korean: 별자리 / 담기 / 세컨비 / 위키 / 설정 (icons star_shine, add_circle, forum, inventory_2, tune).",
+        "current": "Bottom navbar labels in English: Home / Capture / SecondB / Wiki / Settings.",
+        "fix": "Locale is falling back to EN. Fix i18n so navbar renders KO labels 별자리/담기/세컨비/위키/설정. (Icon set also differs — verify against NAV in sb-data.jsx.)"
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Top status bar shows real time '22:27' at left with signal / wifi / battery icons at right, on deep-space bg.",
+        "current": "No status bar; top of frame shows only a floating rounded back button + 'Trends' title and a stray starfield dot.",
+        "fix": "Render the shared StatusBar (real current time, not hardcoded, + signal/wifi/battery glyphs) above the app bar, per sb-app.jsx shell."
+      },
+      {
+        "aspect": "layout",
+        "reference": "App bar: back arrow + truncated title '밝기 ...' as a standard TopAppBar; content is a windowed scroll surface with cards stacked vertically, comfortable padding.",
+        "current": "Large glowing rounded-square back button overlapping the title, oversized 'Trends' heading, and a mostly-empty black window frame (single empty-state card near top).",
+        "fix": "Use the standard windowed OpsFrame/TopAppBar layout: small back IconButton, headline title, then the three stacked content cards. Remove the oversized floating back-button treatment."
+      },
+      {
+        "aspect": "component",
+        "reference": "Bottom tonal MdButton full-width 'ios_share' icon + '이 변화를 카드로 공유' below the timeline.",
+        "current": "Absent — only a green 'Capture a record' pill button inside the empty-state card.",
+        "fix": "Add a full-width tonal button with share icon and label '이 변화를 카드로 공유'; remove the empty-state CTA. Note button color: reference tonal uses M3 secondary-container, not the bright mint-green currently shown."
+      },
+      {
+        "aspect": "color",
+        "reference": "Accent = M3 primary (deep-space cyan) for line, bars, +34% badge, up-dots; amber #F7B955 for no-gain/down states. Green not used as a CTA.",
+        "current": "Prominent mint-green '#5EEAD4'-ish CTA button; cyan sparkle icon only. No amber, no cyan chart accents.",
+        "fix": "Drop the mint-green CTA. Route all accents through deepSpace primary (cyan) via semantic.* tokens; reserve #F7B955 for non-increasing star rows/down milestones only."
+      }
+    ]
+  },
+  {
+    "screen": "19-motivation",
+    "fidelityScore": 6,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/components/deep-space/AxisCheck.tsx",
+    "refSourceFile": "reference-app/sb-surfaces.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "statusbar",
+        "reference": "Renders the /motivation (동기) SDT screen with content and a bottom 5-tab navbar.",
+        "current": "App is showing the sign-in / auth screen (2nd-Brain login form: EMAIL/PASSWORD, Sign in, Continue with Google). Nothing about the motivation screen is rendered.",
+        "fix": "AxisCheckScreen returns <Redirect href=\"/sign-in\" /> when !userId. Provide an authenticated session for the capture (sign in with the committed QA account from .env.test) so /motivation actually mounts before re-capturing."
+      },
+      {
+        "aspect": "component",
+        "reference": "A STATIC SDT data-display screen: intrinsic/extrinsic split bar (68/32), three need sliders (자율성/유능감/관계성 = 74/61/52), a RatifyBlock estimate card, and two cross-link buttons.",
+        "current": "The RN screen is a completely different paradigm: a free-text reflective 'check' flow (start screen -> one prompt per step -> done). It shows no fixed bars/sliders/estimate unless the user already has records; the whole SDT display is absent.",
+        "fix": "Rebuild AxisCheckScreen's default (non-started) view to match MotivationScreen in sb-surfaces.jsx: render the 내적↔외적 bar, the three SDT ProgressLinear rows, and the RatifyBlock, instead of the generic start-screen + signal-spectrum. Keep the free-text flow behind an explicit action."
+      },
+      {
+        "aspect": "component",
+        "reference": "'내적 ↔ 외적 동기' outlined MdCard: a 38px-high split bar, left 68% width = primary bg '内적 68%' (on-primary, 700), right 32% = surface-container-highest '외적 32%'; caption \"대체로 '하고 싶어서' 움직여요. 보상보다 의미와 호기심이 더 큰 연료예요.\"",
+        "current": "No intrinsic/extrinsic split bar or card exists in the RN screen.",
+        "fix": "Add an outlined card with a horizontal flex split bar (68% primary / 32% surfaceContainerHighest, radius 10, height 38), inner centered labels '내적 68%' / '외적 32%', plus the exact caption copy below."
+      },
+      {
+        "aspect": "component",
+        "reference": "'세 가지 욕구 · 자기결정성' section: three rows, each with KO name (left, 600) + EN mono label (right: Autonomy/Competence/Relatedness), a tertiary-color ProgressLinear at 74/61/52, and a note line ('스스로 정할 때 동기가 솟아요' / '해낼 수 있다는 감각이 받쳐줘요' / '함께일 때 조금 더 움직여요').",
+        "current": "RN shows a 'signals so far' spectrum built from live record counts (framework labels, ×N counts) only when records exist — not the three fixed SDT need bars with EN labels and notes.",
+        "fix": "Render the three fixed SDT rows verbatim (자율성/유능감/관계성, en mono right-aligned, ProgressLinear color=m3.color.tertiary, values 74/61/52, exact notes) under a 'SectionLabel' 세 가지 욕구 · 자기결정성."
+      },
+      {
+        "aspect": "component",
+        "reference": "RatifyBlock: confidence 61%, evidence 18 '담긴 기록', estimate sentence '누가 시켜서보다, 내 방식대로 정할 수 있을 때 가장 오래 가시는 것 같아요.' with a companion (세컨비) head avatar; onEvidence->ratify, onRefine->interview.",
+        "current": "RN evidenceCard shows generic propose->ratify copy and only fills the estimate sentence after a live Gemini call; different layout, no fixed 61%/18 numbers, avatar placement differs.",
+        "fix": "Match RatifyBlock layout: companion head + tinted estimate card, hardcoded/parametrized confidence 61% and '담긴 기록 18건', the exact estimate sentence, and the same action affordances."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Header block: headline '동기' + tertiary-container 'L2' chip + '확신 61%' label, then subtitle '숨은 결(레이어 B) · 무엇이 당신을 움직이나'.",
+        "current": "RN uses a windowed top-app-bar title '동기' plus a body-heading = check.title and a generic intro; no L2 chip, no '확신 61%', no '숨은 결(레이어 B) · 무엇이 당신을 움직이나' subtitle. (In the capture this header is also clipped/overlapping.)",
+        "fix": "Add the baseline-aligned header row: heading 동기 + L2 chip (tertiaryContainer bg / onTertiaryContainer text, radius 6) + '확신 61%' label-small, and the subtitle line verbatim. Ensure line height prevents the observed overlap."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar (별자리 / 담기 / 세컨비 / 위키 / 설정) is present under the windowed card.",
+        "current": "Current render (sign-in screen) has no navbar at all; and AxisCheckScreen uses DeepSpaceScreen active=\"lens\" which is a sub-screen, so tab state/nav must be verified once it actually renders.",
+        "fix": "After fixing auth, confirm the windowed DeepSpaceScreen shows the 5-tab navbar with the correct active tab, matching the reference."
+      },
+      {
+        "aspect": "component",
+        "reference": "Bottom cross-link row: '강점 보기' (tonal, auto_awesome icon) -> strengths; '다른 검증틀' (outlined) -> bigfive.",
+        "current": "RN CROSS_LINKS renders '강점 보기' (tonal) and '다른 검증틀' (outlined) but only on the start screen and without the auto_awesome leading icon.",
+        "fix": "Keep both buttons always visible at the bottom of the display; add the auto_awesome leading icon to '강점 보기'."
+      }
+    ]
+  },
+  {
+    "screen": "20-strengths",
+    "fidelityScore": 3,
+    "verdict": "needs-full-rebuild",
+    "renderBroken": true,
+    "realScreenModule": "src/components/deep-space/AxisCheck.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-surfaces.jsx",
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Renders the 강점 검증틀 screen: heading + L2 badge + spectrum bars over deep-space windowed shell.",
+        "current": "Renders the 2nd-Brain SIGN-IN screen (email/password/Google). Auth redirect fired.",
+        "fix": "AxisCheck.tsx line 225 returns <Redirect href='/sign-in'/> when !userId. Capture was taken unauthenticated. Sign in with the committed QA account (.env.test QA_TEST_EMAIL/QA_TEST_PASSWORD) before capturing so the actual screen renders."
+      },
+      {
+        "aspect": "component",
+        "reference": "Static strengths DISPLAY: 3 signature strength cards (호기심/끈기/정직함) with icons, then a 5-row 강점 스펙트럼 with fixed values, a RatifyBlock, and 강점 살리기 / 동기 보기 buttons.",
+        "current": "An interactive multi-question reflective CHECK flow (intro → 시작하기·N문항 → per-question free-text → done). Wrong screen paradigm entirely.",
+        "fix": "The reference StrengthsScreen (sb-surfaces.jsx B6) is a read-only summary, not the question-runner. Either rebuild AxisCheckScreen's default (start) view to match the reference display, or point /strengths at a new screen that reproduces the cards + spectrum + ratify + button row."
+      },
+      {
+        "aspect": "component",
+        "reference": "Three signature-strength cards in a row: card 0 (호기심) elevated with 2px primary border + primary-filled icon chip; cards 1-2 (끈기/정직함) filled with secondary-container icon chips. Icons lightbulb/trending_up/task_alt, title-small labels.",
+        "current": "No signature cards. Only the top-3 'topCard' row derived from live record counts (labels vary, no fixed strengths, no per-card icon glyphs).",
+        "fix": "Add the 3-card row from sb-surfaces.jsx lines 183-193: strengths.slice(0,3), first card elevated w/ primary border, MdCard flex:1, 40x40 radius-12 icon chip, Icon size 22, md-title-small label."
+      },
+      {
+        "aspect": "component",
+        "reference": "강점 스펙트럼: 5 fixed rows, each = tertiary-colored icon + name(bold) + mono value + ProgressLinear(tertiary) + note. Values 호기심 82 / 끈기 74 / 정직함 69 / 공감 63 / 심미안 58; notes '새로운 걸 파고드는 힘' etc.",
+        "current": "Signal bars are per-framework RECORD COUNTS (×N), not the 0-100 spectrum values, and use different anchor names. No leading icon per row is guaranteed, no descriptive note line.",
+        "fix": "Reproduce the 5-row spectrum from sb-surfaces.jsx lines 197-211: leading Icon (tertiary), row header name(fontWeight 600)+mono value, ProgressLinear color=tertiary, note line md-body-small on-surface-variant. Use the exact 5 items/values/notes."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Header row: '강점' (headline-small) + 'L2' badge (tertiary-container bg) + '확신 66%' (label-small). Subtitle: '숨은 결(레이어 B) · 당신을 당신답게 하는 것'.",
+        "current": "Only a heading (check.title) + generic intro copy. No L2 badge, no 확신 66% label. Capture even shows the shell bar title truncated to '강...'.",
+        "fix": "Add the header row from lines 175-180: title + L2 pill (padding 2px 8px, radius 6, tertiary-container/on-tertiary-container) + '확신 66%' + the exact subtitle string '숨은 결(레이어 B) · 당신을 당신답게 하는 것'."
+      },
+      {
+        "aspect": "component",
+        "reference": "RatifyBlock: confidence=66, evidence=20, label '담긴 기록', estimate sentence '낯선 걸 파고드는 호기심이 당신을 가장 멀리 데려가는 힘 같아요.', onEvidence→ratify, onRefine→interview.",
+        "current": "evidenceCard shows live record total + get-estimate/keep/log/refine buttons; no confidence%, no preseeded estimate sentence, different button set.",
+        "fix": "Match the reference RatifyBlock shape (confidence badge 66%, evidence '담긴 기록 20건', the estimate sentence, evidence + refine actions). Reference at sb-surfaces.jsx line 213."
+      },
+      {
+        "aspect": "component",
+        "reference": "Bottom action row: MdButton tonal icon=forum '강점 살리기' (→chat) + MdButton outlined '동기 보기' (→motivation), flex:1 each, gap 8, marginTop 18.",
+        "current": "'시작하기 · N문항' filled button + cross-link row (강점 살리기 label absent; has 동기 보기 tonal + 다른 검증틀). No forum icon on 강점 살리기.",
+        "fix": "Replace start/cross-link buttons with the two-button row from lines 217-219: tonal '강점 살리기' (forum icon) → chat, outlined '동기 보기' → /motivation."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "5-tab deep-space bottom navbar visible: 별자리 / 담기 / 세컨비 / 위키 / 설정, 별자리 active.",
+        "current": "Sign-in screen shows NO navbar. Cannot confirm the RN screen renders the 5-tab bar until auth is fixed.",
+        "fix": "After auth fix, verify DeepSpaceScreen active='lens' renders the 5-tab bar matching 별자리/담기/세컨비/위키/설정 order and active state."
+      },
+      {
+        "aspect": "color",
+        "reference": "Spectrum bars + row icons use m3 tertiary (violet). Signature card 0 uses primary. L2 badge uses tertiary-container.",
+        "current": "Not verifiable (sign-in render). RN signalRow uses m3.color.tertiary for ProgressLinear which is correct, but topCardFirst uses primary vs reference elevated card border.",
+        "fix": "Ensure bars/icons = m3 tertiary, signature card 0 = 2px primary border + primary icon chip, per reference tokens."
+      }
+    ]
+  },
+  {
+    "screen": "21-northstar",
+    "fidelityScore": 5,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/northstar.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-flows.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Renders the North-star editor: back top app bar '북극성 ...', headline, violet 'NORTH STAR' hero card, 3 suggestion cards, cancel/save row, bottom 5-tab navbar.",
+        "current": "Renders the sign-in screen (2nd-Brain logo, EMAIL/PASSWORD fields, Sign in, Continue with Google). The northstar screen is not shown at all.",
+        "fix": "Current render is an auth redirect (`if (!userId) return <Redirect href=\"/sign-in\" />`, line 88). Re-capture after signing in with the committed QA account (.env.test QA_TEST_EMAIL/QA_TEST_PASSWORD). No screen comparison is possible until the authed render is captured; all gaps below are code-level vs the reference source."
+      },
+      {
+        "aspect": "component",
+        "reference": "Current sentence is a single violet radial-gradient hero card (radial-gradient 120% 100% at 50% 0%, rgba(167,139,250,.22)→rgba(10,15,26,.6); border rgba(167,139,250,.3); radius 16; pad 18) containing a glowing dot + mono 'NORTH STAR' label (#D6C4FF) + an inline editable textarea (20px, weight 600, #EAF2FF). The card IS the editor.",
+        "current": "Splits this into TWO components: a separate MdCard 'current/지금 문장' block (line 104) AND a distinct labeled Field '문장 편집' editor (line 116). No violet gradient, no 'NORTH STAR' mono label, no glowing dot.",
+        "fix": "Merge into one hero card matching the ref: violet radial gradient bg, radius 16, pad 18; add glowing dot + mono 'NORTH STAR' label in #D6C4FF; make the textarea inline inside the card (20px/600/#EAF2FF), drop the separate 지금 문장 card and standalone Field."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Subhead: '일곱 별을 종합해 세컨비가 제안한 문장이에요. 당신의 언어로 다듬어보세요.'",
+        "current": "Subhead: '나를 한 줄로. 저장한 문장만 별자리의 북극성에 걸려요.'",
+        "fix": "Replace styles.sub text (line 100) with the exact reference string."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Primary CTA label: '이 문장으로 저장' (filled, check icon, flex 2), paired with an outlined '취소' (flex 1) in a bottom button row.",
+        "current": "Single filled button '이 문장으로 확정' (line 129); no 취소 button, no bottom two-button row.",
+        "fix": "Change label to '이 문장으로 저장' with a check icon; add an outlined '취소' button beside it (flex 1 vs 2) as a bottom row, matching the ref go('me') back behavior."
+      },
+      {
+        "aspect": "component",
+        "reference": "Suggestion rows are MdCards: selected = outlined with primary 1.5px border + filled check_circle icon (primary); unselected = filled variant with auto_awesome icon (tertiary/violet). No per-row action text.",
+        "current": "Suggestions are custom Pressables with a right-aligned '쓰기'/Use text label (line 156), accent border, no leading icon, no selected-state distinction.",
+        "fix": "Render suggestions as MdCards; add leading icon (check_circle when selected / auto_awesome otherwise), colored primary vs tertiary; highlight the row matching current draft with an outlined primary border; remove the '쓰기' trailing label."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Regenerate control is a text button '다른 제안 받기' with a replay icon, placed BELOW the 3 suggestion cards, left-aligned.",
+        "current": "Regenerate is in the section header row as a text button labeled '제안 받기'/'재생성'/'생각 중' (line 138), placed to the RIGHT of the '세컨비 제안' label.",
+        "fix": "Use label '다른 제안 받기' with a replay icon and place it below the suggestion list, left-aligned; move it out of the section-label header row."
+      },
+      {
+        "aspect": "component",
+        "reference": "No footer disclaimer text below the buttons.",
+        "current": "Adds a footer line '확정한 문장은 기록으로 남아요. 언제든 다시 고칠 수 있어요.' (line 170) not present in the reference.",
+        "fix": "Remove the styles.footer Text to match the reference, or confirm it is an intentional product addition."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Uses M3 type classes: 'md-headline-small' for title, 'md-body-medium' for body/suggestions, mono ref typeface for the NORTH STAR label; sentence text 20px/600.",
+        "current": "Uses ad-hoc fontSize literals (sub 13, currentText 16, suggestionText 14) and hex literals (#EAF2FF, #0B1120) directly in styles, not M3 token sizes.",
+        "fix": "Map to M3 type scale via m3 tokens; the hero sentence should be ~20px/600, body ~14 body-medium; route colors through semantic tokens instead of raw hex (DESIGN.md forbids hex literals in components)."
+      }
+    ]
+  },
+  {
+    "screen": "22-ratify",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/ratifications.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-validate.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Ratify screen: '승인 이력' title, subtitle, summary stat card, filter chips, timeline cards, 5-tab navbar.",
+        "current": "Current render shows the SIGN-IN screen (email/password/Sign in/Continue with Google) — an auth redirect, not the ratifications screen at all.",
+        "fix": "The route returns <Redirect href=\"/sign-in\"> when !userId (ratifications.tsx:64). Capture must be taken while authenticated with the committed QA account (.env.test QA_TEST_EMAIL/QA_TEST_PASSWORD) so the screen actually renders. Nothing on-screen is comparable until this is fixed."
+      },
+      {
+        "aspect": "component",
+        "reference": "A filled MdCard summary strip with 4 columns (제안/승인/보류/거절), mono numbers, colored per-decision (제안 on-surface, 승인 primary, 보류 #F7B955, 거절 error), vertical divider between columns.",
+        "current": "RN screen has NO summary stat card at all.",
+        "fix": "Add a filled MdCard above the list with 4 flex columns: 제안=total, 승인/보류/거절 counts. Mono font, 22px/700 numbers, md-label-medium labels, borderLeft outline-variant divider on columns 2-4."
+      },
+      {
+        "aspect": "component",
+        "reference": "Filter chip row: 전체 / 승인 / 보류 / 거절 (filter chips, selected state).",
+        "current": "RN screen has NO decision filter chips (only a 'show unchanged recomputes' text button).",
+        "fix": "Add an MdChip filter row [전체, 승인, 보류, 거절] with selected state driving a decision filter over the list."
+      },
+      {
+        "aspect": "component",
+        "reference": "Each card: 32px rounded icon box (source icon: mic/forum/inventory_2), source label (통화 녹음/심층 인터뷰/기록 분석), a decision pill badge (승인/보류/거절 with check_circle/replay/close icon, colored bg), target star name, from→to with arrow_forward, relative time (방금/1시간 전), a note line, and action buttons (되돌리기 for 승인; 지금 승인 + 근거 더 보기 for 보류).",
+        "current": "RN cards show only: star name + ISO date, an 'L2 → L3' delta, an assist MdChip (origin label), and optional 'cited N' — no icon box, no decision badge, no source label, no note, no per-decision action buttons.",
+        "fix": "Rebuild MdCard body to match: leading icon box (surface-container-highest bg), source label row + decision pill (top-right), then target + from→to(arrow_forward)+relativeTime row, then note line, then conditional 되돌리기 / 지금 승인+근거 더 보기 buttons."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Subtitle: '세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요.' Title '승인 이력' rendered as headline-small IN the body (top app bar shows companion/back only).",
+        "current": "Subtitle copy is different: '별의 밝기가 바뀐 모든 기록이에요. 자동 반영은 없어요. 제안을 승인한 것만 남아요.' and the title is only in the windowed top app bar, not a body headline.",
+        "fix": "Change subtitle string to the reference verbatim. Render '승인 이력' as an in-body headline-small (margin 8/4) matching reference; keep header layout consistent with other windowed screens."
+      },
+      {
+        "aspect": "color",
+        "reference": "Decision colors: 승인=primary/primary-container, 보류=#F7B955 with rgba(247,185,85,.18) bg, 거절=error/error-container. Numbers/badges use these M3 tokens.",
+        "current": "No decision colors present; delta text uses skyTextHi cyan alpha only.",
+        "fix": "Map decision → M3 tokens exactly (primary / #F7B955 / error) for badges, summary numbers, and the 'to' value on 승인 rows; go through semantic tokens, no raw hex except the amber #F7B955 warning color as in reference."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Mono typeface (var(--md-ref-typeface-mono), Roboto Mono) for summary numbers (22px) and from/to values (13px); labels use md-label-medium/small.",
+        "current": "Delta uses default body variant, no mono; no summary numbers.",
+        "fix": "Apply Roboto Mono to numeric values (counts, from→to). Match sizes: 22px summary, 13px from/to."
+      },
+      {
+        "aspect": "component",
+        "reference": "Timeline uses seeded mock data (통화 녹음/심층 인터뷰/기록 분석/캘린더 연동 with L-deltas, decisions, notes, relative time).",
+        "current": "RN screen is data-driven from real loadTierObservations (empty for QA account → likely empty state), so even when rendered it will not match the reference's populated mock list.",
+        "fix": "For clone fidelity, seed the same demo RATIFY records (or a fixture) so the populated timeline matches the reference capture; otherwise the screen shows the empty '아직 승인한 변화가 없어요' card, not the reference layout."
+      }
+    ]
+  },
+  {
+    "screen": "23-iden",
+    "fidelityScore": 14,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/iden.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-extra.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "state",
+        "reference": "Fully filled export screen: violet hero plate (simon.iden), 4-row include card, 형식 chips, AI에 전달 grid, 내보내기/미리보기 buttons.",
+        "current": "Empty state only — 'Nothing gathered yet. Gather a little of yourself first?' + a single 'Start gathering' button. None of the real screen renders.",
+        "fix": "The QA account has no IdenDoc so buildIdenDoc() yields empty -> stateBody short-circuits. Seed the QA account with self-knowledge (or force a mock doc in dev) so the capture exercises the filled branch (line 249+). Without data this screen can never match the reference."
+      },
+      {
+        "aspect": "copy",
+        "reference": "All Korean: header '별자리/담기/세컨비/위키/설정' navbar, section labels '무엇을 담을까요 / 형식 / AI에 전달', rows '북극성 문장·나를 한 줄로', 'Big Five 검증·O72 C58 E41 A67 N39', '7 도메인 요약·별빛·확신 수치', '원문 기록·민감 — 기본 제외'.",
+        "current": "Rendered in English (header 'IDEN · Portable identity', navbar Home/Capture/SecondB/Wiki/Settings, empty-state EN string).",
+        "fix": "Capture must run with i18n.language='ko' (isKo=true). The RN code already has correct KO strings; the render is just in the wrong locale."
+      },
+      {
+        "aspect": "component",
+        "reference": "Hero plate: tertiary-container (violet) rounded card, 56px surface tile with badge/file icon, mono 'simon.iden' 18px, then two chips: 'v2.1' (surface) + lock-icon '서명됨' (primary bg).",
+        "current": "No hero rendered (empty state). RN hero exists but the chip copy diverges: uses '로컬 생성'/'On-device' instead of reference '서명됨'.",
+        "fix": "After seeding data, verify hero renders; change localChip label from '로컬 생성'/'On-device' to '서명됨'/'Signed' (line 269) to match reference copy exactly."
+      },
+      {
+        "aspect": "component",
+        "reference": "'무엇을 담을까요' filled card with 4 toggle rows separated by outline-variant dividers; the '원문 기록' subtitle is error-colored and its switch is OFF by default.",
+        "current": "Not rendered (empty state).",
+        "fix": "Seed data so doc.fields populate the rows card (line 276+). Confirm the sensitive/raw row renders its sub in error color and defaults OFF, matching reference."
+      },
+      {
+        "aspect": "component",
+        "reference": "'형식' filter chips (Markdown selected / JSON / PDF), 'AI에 전달' 2-col grid of outlined brand cards (ChatGPT green, Claude orange, Gemini blue, Notion black), then filled '내보내기' + outlined '미리보기' row, plus centered lock footnote '내 기기에서 서명돼요. 원문은 동의 없이 나가지 않아요.'",
+        "current": "Not rendered. RN footnote copy also differs: '내 기기에서 만들어져요.' vs reference '내 기기에서 서명돼요.'",
+        "fix": "Seed data to render the format chips / target grid / action buttons; align lock footnote copy (line 348) to reference '서명돼요' wording."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Full status bar visible: time 22:27 (left) + signal/wifi/battery icons (right) above the windowed frame.",
+        "current": "No status bar time/icons rendered; frame top shows only a faint companion dot.",
+        "fix": "Ensure DeepSpaceScreen windowed shell renders the StatusBar row in the capture harness (matches sb-app.jsx real-clock status bar)."
+      }
+    ]
+  },
+  {
+    "screen": "24-ops",
+    "fidelityScore": 5,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/DeepSpaceDesignScreens.tsx (DeepSpaceOpsScreen, exported via src/app/ops.tsx → isDeepSpaceUI())",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-ops.jsx (OpsScreen)",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "render",
+        "reference": "The /ops screen: TopAppBar '오늘의 ...', 오늘의 루틴 hero card, 4 routine rows, 패턴 분석 card, 비서 도구 grid, bottom 5-tab navbar.",
+        "current": "The sign-in screen is rendered instead: 2nd-Brain logo, 세컨비 head, EMAIL/PASSWORD fields, 'Sign in', 'Continue with Google'. The ops screen never mounted.",
+        "fix": "Capture is an auth redirect — DeepSpaceOpsScreen does `if (!userId) return <Redirect href=\"/sign-in\" />`. Re-run the capture signed in with the committed QA account (.env.test QA_TEST_EMAIL/QA_TEST_PASSWORD) so /ops actually renders before any pixel comparison is meaningful."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar present (별자리 / 담기 / 세컨비 / 위키 / 설정) with the ops window floating above it.",
+        "current": "No navbar — full-screen sign-in with no tab bar.",
+        "fix": "Not a screen bug; consequence of the auth redirect. Verify the navbar renders once authenticated (DeepSpaceScreen active=\"ops\")."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Reference capture shows a device status bar (22:27, signal/wifi/battery) above TopAppBar '오늘의 ...'.",
+        "current": "Current capture has no status bar / TopAppBar — it is the standalone sign-in layout.",
+        "fix": "Re-capture authenticated; DeepSpaceOpsScreen wraps content in DeepSpaceScreen which provides the status bar + windowed frame."
+      },
+      {
+        "aspect": "content",
+        "reference": "sb-ops.jsx OpsScreen: hero '오늘의 루틴' 2/4 완료 w/ circular progress ring + '12 일 연속' flame; 4 routine toggle rows (아침 10분 글쓰기·성장, 물 8잔 마시기·건강, 가까운 사람에게 안부·관계, 30분 산책·건강); '이번 주 패턴 분석' filled card w/ 돌리기 tonal button; '오늘의 종합 의견' 세컨비 advice card; '비서 도구' 2x2 grid (일일 집중/포모도로, 예약 리마인더/알림 일정, 공상하기/멀리 던지기, 공유 카드/1080 카드).",
+        "current": "None of this rendered (auth redirect). Cannot assess fidelity of DeepSpaceOpsScreen's actual output against reference from this capture.",
+        "fix": "After re-capturing signed in, diff DeepSpaceOpsScreen against sb-ops.jsx: confirm the hero routine ring, 4 routine rows with star labels, weekly-analysis dock card, 종합 의견 advice card, and 비서 도구 2x2 grid match copy/layout exactly."
+      }
+    ]
+  },
+  {
+    "screen": "25-focus",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "2nd-B/src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+    "refSourceFile": "2nd-B/docs/clone-audit/reference-handoff/reference-app/sb-more.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "render",
+        "reference": "Focus timer screen: title 일일 집중, ring timer 25:00, presets, 집중 시작/리셋, star chips, today-summary card, bottom 5-tab navbar (as seen in the reference capture itself)",
+        "current": "Renders the 2nd-Brain email/password AUTH/LOGIN screen — the /focus route redirected to sign-in because the capture session was unauthenticated. None of the focus UI is shown.",
+        "fix": "Capture /focus while signed in with the committed QA account (.env.test QA_TEST_EMAIL/QA_TEST_PASSWORD). Fix/verify the auth gate + expo-router redirect so DeepSpaceFocusScreen actually mounts; re-run the render before any pixel diffing."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Header title 일일 집중; subtitle 한 가지에만 집중하는 시간이에요. 끝나면 {성장} 별에 한 걸음.",
+        "current": "Not verifiable (auth screen). Reference-capture PNG shows header truncated as 일일 … and subtitle line-wrapping — RN screen must set full title 일일 집중 and allow the subtitle to wrap without ellipsis.",
+        "fix": "In DeepSpaceFocusScreen set header title to 일일 집중 (no ellipsis truncation) and render the exact subtitle string with the linked star name bolded; use wordBreak keep-all equivalent so it wraps cleanly."
+      },
+      {
+        "aspect": "component",
+        "reference": "Presets are exactly [25, 15, 50]분 as filter chips, selected=25; controls row = filled 집중 시작 (flex 2) + outlined 리셋; running toggles to tonal 일시정지.",
+        "current": "Cannot confirm; reference capture shows 25분/15분/50분 chips and 집중 시작 + 리셋 buttons.",
+        "fix": "Ensure PRESETS = [25,15,50], default mins=25; primary button label toggles 집중 시작 ↔ 일시정지, secondary outlined button label 리셋 (icon replay)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Timer ring: 280x280 SVG, R=120, strokeWidth 14, track=surface-container-highest, progress=primary with drop-shadow glow; center mono 56px 700 weight time (mm:ss) + label 준비됨/집중 중.",
+        "current": "Not verifiable.",
+        "fix": "Render an SVG progress ring (280px, r120, 14 stroke) using semantic tokens (track surfaceContainerHighest, progress primary + primary glow); center time in mono font 56px/700 and status label 준비됨 when idle, 집중 중 when running."
+      },
+      {
+        "aspect": "component",
+        "reference": "Linked-star section: SectionLabel 어떤 별을 위해? then horizontal-scroll filter chips [성장,커리어,학습,관계,건강] with star_shine icon, selected=성장.",
+        "current": "Not verifiable.",
+        "fix": "Add section label 어떤 별을 위해? and a horizontally scrollable chip row of those 5 stars, star icon, single-select default 성장."
+      },
+      {
+        "aspect": "component",
+        "reference": "Today summary MdCard (filled): 4 dots (filled up to sessions count in primary, rest surface-variant) + 오늘 {n}회 집중 / 약 {n*25}분 · 목표 4회 + local_fire_department icon in #FF8A5B.",
+        "current": "Not verifiable.",
+        "fix": "Add filled card with 4 progress dots, body 오늘 {sessions}회 집중, caption 약 {sessions*25}분 · 목표 4회, and a fire icon tinted #FF8A5B (allowed off-palette accent per reference)."
+      },
+      {
+        "aspect": "color",
+        "reference": "Material 3 deep-space tokens: primary (azure), on-surface, on-surface-variant, surface-container-highest, surface-variant; timer progress uses primary glow.",
+        "current": "Auth screen palette only visible; focus-screen token mapping unverified.",
+        "fix": "Map all colors through semantic.* tokens (no hex literals except the sanctioned #FF8A5B fire accent) matching m3-theme.css deep-space cyan palette."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar present (별자리·담기·세컨비·위키·설정) as in the reference capture.",
+        "current": "Auth screen has no navbar.",
+        "fix": "Once authenticated the expo-router tab layout should provide the 5-tab bottom navbar; verify /focus is inside the tab navigator shell."
+      }
+    ]
+  },
+  {
+    "screen": "26-reminders",
+    "fidelityScore": 14,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/ops/screens.tsx (RemindersScreen, line 795; routed via src/app/reminders.tsx → @/screens/deepspace/ops)",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-more.jsx (RemindersScreen, line 101)",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "component",
+        "reference": "4 reminder cards rendered from hardcoded demo data (안부 전하기 / 화면 끄기 / 몰입 마저 읽기 / 구독 점검), one toggled off at .55 opacity.",
+        "current": "Empty state only: pixel-star icon + 'No suggestions yet' — listActiveRoutines() returns 0 reminder routines for QA account so withReminder.length===0 short-circuits to OpsState empty.",
+        "fix": "Seed the reference's 4 demo reminders as fallback content (or fixtures) so the list state renders. Reference RemindersScreen uses static useM([...]) data, not a DB fetch. Match its 4 items exactly."
+      },
+      {
+        "aspect": "copy",
+        "reference": "TopAppBar title '예약 리마인더' (Korean).",
+        "current": "Title 'Scheduled reminders' (English) from c.scheduledReminders.",
+        "fix": "Set OpsFrame title to Korean '예약 리마인더'. Fix i18n so ops copy resolves to KO on this device (EN keys leaking through)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Filled info card at top: schedule icon (primary) + '예약된 리마인더 3개' (md-body-large) + '기기 알림으로만 보내요. 내용은 기기를 떠나지 않아요.' (md-body-small, on-surface-variant).",
+        "current": "No info/header card; the empty-state card replaces everything.",
+        "fix": "Add the filled MdCard header with schedule icon, dynamic '예약된 리마인더 {onCount}개' count (on-items only), and the two-line device-notification note. wordBreak keep-all."
+      },
+      {
+        "aspect": "component",
+        "reference": "Each row: 38x38 radius-11 secondary-container box w/ notifications_active icon; title (md-title-small); a rounded pill button (secondary-container) = schedule icon + time (e.g. '오늘 저녁 8:00'); 3px dot; repeat label (한 번/매일/매월); a source chip (surface-container-highest) = bubble_chart tertiary icon + '{src} · {star} 별'; MdSwitch on right.",
+        "current": "Cannot compare — rows not rendered. RN OpsReminderRow shows title/schedule/statusLabel/toggle but NO source-chip ('출처 · star 별'), no time-pill button, no repeat dot separator, no notifications_active leading icon box.",
+        "fix": "Rebuild OpsReminderRow to match: leading 38px icon box, tappable time pill, dot + repeat, source+star chip with bubble_chart. Add src/star/repeat fields to the data model."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab labels Korean: 별자리 / 담기 / 세컨비 / 위키 / 설정 with M3 filled active-star tab.",
+        "current": "Labels English: Home / Capture / SecondB / Wiki / Settings; outline star icon.",
+        "fix": "Localize navbar labels to KO (shell-level, sb-app.jsx NAV). Active tab (별자리) should use filled star + primary color."
+      },
+      {
+        "aspect": "component",
+        "reference": "Tonal button 'add' icon + '오늘의 비서에서 추가' full-width at bottom (marginTop 16).",
+        "current": "Absent.",
+        "fix": "Add full-width tonal MdButton with add icon and exact copy '오늘의 비서에서 추가' below the list, routing to ops."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Status bar shows real time (22:27) + signal/wifi/battery glyphs.",
+        "current": "No status bar in the render.",
+        "fix": "Render the shared StatusBar (real clock, not 9:41) at top of the windowed frame per sb-app.jsx."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Windowed screen: content floats as a radius-24 'window' card over the fixed starfield (seed 70730219), shadow 0 20px 52px rgba(0,0,0,.5). Cards use M3 outlined/filled variants, gap 10, marginTop 14.",
+        "current": "Flat near-black panel, no starfield window framing, deepSpace tokens not M3.",
+        "fix": "Wrap in the windowed layout (radius 24, padding 12/12/14, starfield behind). Port M3 tokens (m3-theme.css --md-sys-color-*) instead of deepSpace.* for this migrated screen."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 tokens: primary (azure) icons, secondary-container pill/icon-box, surface-container-highest source chip, tertiary bubble_chart, on-surface-variant subtext.",
+        "current": "deepSpace palette (cyan pixel accents), off-token; empty-state uses pixel-star cyan.",
+        "fix": "Replace deepSpace tokens with the M3 semantic tokens referenced in sb-more.jsx (C('primary'), C('secondary-container'), C('tertiary'), etc.)."
+      }
+    ]
+  },
+  {
+    "screen": "27-inbox",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "2nd-B/src/screens/deepspace/dds-import-inbox-screens.tsx",
+    "refSourceFile": "reference-app/sb-flows.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "M3 '알림' screen: headline '알림' then a vertical stack (gap 10) of 5 filled notification cards, over the deep-space star background inside a windowed 'creating' surface, with a 5-tab bottom navbar.",
+        "current": "Renders the sign-in / auth screen (2nd-Brain logo, email/password, Sign in, Continue with Google). The inbox is never shown because the session is unauthenticated and inbox.tsx returns <Redirect href=\"/sign-in\">.",
+        "fix": "Sign in with the committed QA account (.env.test QA_TEST_EMAIL/QA_TEST_PASSWORD) before capturing so the route actually renders. The current capture is unusable for fidelity comparison."
+      },
+      {
+        "aspect": "component",
+        "reference": "InboxScreen (sb-flows.jsx) = an ALERTS/제안 feed: icon-tile + title + relative time + body + text CTA with arrow_forward, 5 cards routing to bigfive/digest/interview/records/callrec.",
+        "current": "Route /inbox delegates (isDeepSpaceUI) to DeepSpaceInboxScreen — a single-source TRIAGE queue (promote/discard/tag one SourceRow at a time from listSources), a completely different concept and IA.",
+        "fix": "Rebuild the /inbox screen as the M3 alerts feed: map over the 5 notification items (icon, accent, title, body, time, route, cta) rendering MdCard-style rows. The source-triage screen belongs on a different route (records/정리함), not /inbox."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar: 별자리 · 담기 · 세컨비 · 위키 · 설정, each with an M3 icon and label; 별자리 active.",
+        "current": "No navbar (sign-in screen has none).",
+        "fix": "Ensure /inbox mounts inside the tab shell so the 5-tab bottom navbar is present."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Card titles/bodies exact per capture: '주간 분석이 끝났어요' (외향성 6p / '변화 보기'), '관계 별이 인터뷰를 기다려요' (통화 3건 / '인터뷰 하기'), '정리함에 8개가 쌓였어요' ('정리하기'), '통화 녹음 1건 분석 대기' ('검토하기'); times 방금/1시간 전/오늘/어제.",
+        "current": "None of this copy is present (sign-in screen). Note the vendored sb-flows.jsx list differs slightly from the capture (has extra '주간 다이제스트가 도착했어요' card and item0 '살펴볼 변화가 보여요'); build to the capture strings.",
+        "fix": "Hard-code the notification items with the exact Korean strings and relative-time labels shown in the reference capture; do not paraphrase (keep '별가루', 조사 그대로)."
+      },
+      {
+        "aspect": "component",
+        "reference": "Each card: leading 40x40 rounded-12 tile, background surface-container, icon (auto_awesome/forum/inbox/mic) filled at 22px tinted by accent (primary/tertiary/secondary); title md-title-small on-surface; time md-label-small on-surface-variant right-aligned baseline; body md-body-small; text button CTA with trailing arrow_forward, paddingLeft 0.",
+        "current": "Absent.",
+        "fix": "Recreate the icon-tile + two-column header (title flex:1, time flex:0) + body + trailing-arrow text CTA structure using semantic M3 tokens; no hex literals."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Real-time status bar (e.g. 22:28) with signal/wifi/battery glyphs at top of the phone frame.",
+        "current": "No app status bar rendered on the sign-in view.",
+        "fix": "Confirm the SecondB status bar / SafeArea chrome renders on this route once inside the authenticated shell."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 deep-space dark: surface bg, surface-container cards, on-surface / on-surface-variant text, primary(azure)/tertiary(violet)/secondary accents on icon tiles via --md-sys-color-* tokens.",
+        "current": "Not comparable (sign-in). The deep-space triage screen uses legacy cosmic tokens (colors.cyanDim, SOURCE_KIND_TINT), not the M3 alert accents.",
+        "fix": "Use M3 semantic tokens for card surface, text, and per-item accent; match the primary/tertiary/secondary tinting of the icon tiles."
+      }
+    ]
+  },
+  {
+    "screen": "28-connect",
+    "fidelityScore": 8,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/DeepSpaceDesignScreens.tsx (DeepSpaceIntegrationsScreen, L273-317)",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-extra.jsx (ConnectScreen, L1013-1066)",
+    "topGaps": [
+      {
+        "aspect": "language/copy",
+        "reference": "Entire screen in Korean: title '데이터 연동', body '연결하면 별이 더 빨리 밝아져요. 모든 처리는 기기 안에서 먼저 일어나요.'",
+        "current": "English throughout: 'App integrations', companion 'You always confirm external apps before importing.', 'Connect AI assistant', 'Capture sources'",
+        "fix": "Force ko copy. Rebuild content to match ConnectScreen: headline '데이터 연동' + body '연결하면 별이 더 빨리 밝아져요. 모든 처리는 기기 안에서 먼저 일어나요.' Do not gate copy on i18n.language — the reference is Korean-only here."
+      },
+      {
+        "aspect": "component",
+        "reference": "5 outlined MdCards, each = 42px radius-12 icon tile (icon fills + primary bg when connected) + title(md-title-small) + subtitle(md-body-small) + right-side connect button. Button = filled '연결' or tonal '✓ 연결됨'.",
+        "current": "Two grouped list cards ('Connect AI assistant' with Export-to-IDEN rows; 'Capture sources' with on/off Toggle switches + Disconnect row).",
+        "fix": "Replace Toggle/Action list with 5 discrete outlined cards mapping the `sources` array: Google 캘린더, Apple 건강(connected), Notion, 사진 앨범, ChatGPT 내보내기. Each card has left icon tile + 2-line text + trailing MdButton ('연결' filled / '연결됨' tonal with check). Remove the ChatGPT/Claude/Gemini IDEN section and the Obsidian row entirely — not in reference."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab M3 NavBar present: 별자리 / 담기 / 세컨비 / 위키 / 설정 with icons.",
+        "current": "No bottom navigation bar at all.",
+        "fix": "Render this route inside the persistent deep-space/M3 chrome (like DeepSpaceAccountDesignScreen uses DeepSpaceScreen) so the 5-tab dock shows, OR add the shared NavBar. Currently Shell omits it."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Top status bar visible: time (22:28) left, signal/wifi/battery icons right.",
+        "current": "No status bar; content starts at very top with a floating back button overlapping.",
+        "fix": "Add the shared StatusBar row at top (real clock + status icons) per sb-app.jsx shell."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "M3 TopAppBar: back arrow + title '데이터 …' (truncated) on a flat bar.",
+        "current": "Floating rounded-square back button (glowing) top-left with no title bar; separate large 'App integrations' heading below.",
+        "fix": "Use a proper top app bar (back chevron + title) instead of the floating square button; the large headline '데이터 연동' sits in the scroll body below it."
+      },
+      {
+        "aspect": "component",
+        "reference": "Consent card: filled MdCard with secondary-container background, lock icon (20px) + text '원문은 저장하지 않아요. 도출된 신호만 암호화해 남기고, 언제든 연결을 끊고 지울 수 있어요.'",
+        "current": "No consent card. Instead a companion (세컨비 head) speech bubble with English TIP text — not in reference.",
+        "fix": "Remove the SecondbStatusHeader/companion bubble (this screen has none in reference). Add the filled secondary-container consent card with lock icon + exact Korean copy above the source list."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 tokens: outlined cards on surface, connected tile = primary/on-primary, consent card = secondary-container/on-secondary-container, azure primary button.",
+        "current": "Deep-space near-black bg, cyan-glow accents, hairline-bordered translucent cards, cyan link text for 'Export to IDEN'.",
+        "fix": "Switch to m3-theme.css --md-sys-color-* tokens (surface, surface-container-highest, primary, on-primary, secondary-container). Drop the cyan-glow deep-space card styling for this windowed M3 screen."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Source subtitles exact: Google 캘린더='일정에서 리듬·관계 신호', Apple 건강='수면·활동으로 건강 별', Notion='메모·문서 가져오기', 사진 앨범='장면에서 오락·관계', ChatGPT 내보내기='대화 기록 불러오기'. (source JSX now says '휴식·관계' for photos; capture shows '오락·관계'.)",
+        "current": "Notion 'Pages and databases', Obsidian 'Local markdown', 'Health · Calendar / Permission needed' — different set and English.",
+        "fix": "Use the exact 5 sources + Korean subtitles from the `sources` array. Match the capture ground-truth for photos ('오락·관계') unless honoring the newer source (휴식·관계) per migration."
+      },
+      {
+        "aspect": "layout",
+        "reference": "No footer sentence; content ends with the 5th source card.",
+        "current": "Footer subtle text 'You review integration data before importing, and can disconnect anytime.'",
+        "fix": "Remove the footer line — ConnectScreen has none."
+      }
+    ]
+  },
+  {
+    "screen": "29-import",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/dds-import-inbox-screens.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-more.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Import screen: back-arrow TopAppBar '외부 가져오기', lead text, file/account mode toggle, dashed dropzone, 3-row consent card, import-history list, bottom 5-tab navbar.",
+        "current": "Renders the SIGN-IN / auth screen (2nd-Brain robot, email/password, Sign in button). Wrong screen entirely — auth redirect fired.",
+        "fix": "QA session is unauthenticated so `if (!userId) return <Redirect href=\"/sign-in\" />` (dds-import-inbox-screens.tsx:406) fires. Re-capture signed in with the committed .env.test QA account before any pixel comparison."
+      },
+      {
+        "aspect": "component",
+        "reference": "Two-button mode toggle at top: '파일로' (upload_file icon, selected = primary border + secondary-container fill) and '계정 연동' (link icon). Drives file-picker vs account-connect flows.",
+        "current": "No mode toggle. RN screen has none — it is a single paste-textarea flow.",
+        "fix": "Add the 2-up mode toggle row (파일로 / 계정 연동) with M3 selected-state styling per sb-more.jsx:222-233."
+      },
+      {
+        "aspect": "component",
+        "reference": "Dashed dropzone card: cloud_upload icon 40px, '여기에 파일을 놓거나 선택', subtext '.json · .zip · .txt · .md · .csv', tonal button '파일 선택' with attach_file icon. Section label '파일 선택' above it.",
+        "current": "Plain multiline TextInput paste box with a 'detected notes' preview list. No dropzone, no file-type hint, no tonal button.",
+        "fix": "Replace paste-box with the dashed-border dropzone (1.5px dashed outline, radius 16, surface-container bg) + tonal '파일 선택' button wired to handlePickFiles per sb-more.jsx:236-243."
+      },
+      {
+        "aspect": "component",
+        "reference": "Account mode alt-content: outlined cards for ChatGPT / Notion / Google 캘린더 / Apple 건강, each with icon + link trailing icon.",
+        "current": "Absent. Current health-import opt-in card exists but is a different construct (consent_records/health only).",
+        "fix": "Add the 4 outlined account-connect cards shown when mode==='account' per sb-more.jsx:246-254."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Lead: '다른 곳에 흩어진 나를 가져와요. 가져온 것도 당신의 비준으로만 별에 반영돼요.' Consent rows: 원문 데이터 / 기기 내 처리 / 철회 가능 with exact notes.",
+        "current": "Uses t('import.lead') and different i18n strings; not the reference copy. Consent card is health-only, not the 3-block promise.",
+        "fix": "Port exact strings verbatim: lead + section labels ('파일 선택'/'가져오기 전 약속'/'가져오기 이력') + 3 consent rows from sb-more.jsx:207-211,217-218,259."
+      },
+      {
+        "aspect": "component",
+        "reference": "'가져오기 전 약속' filled card with 3 rows (upload_file/memory/lock icons in tertiary color, title + body-small note, top-divider between rows).",
+        "current": "No equivalent 3-block consent card in reference form.",
+        "fix": "Add M3 filled card with the 3 consent rows, tertiary-tinted icons, outline-variant top dividers per sb-more.jsx:260-271."
+      },
+      {
+        "aspect": "component",
+        "reference": "'가져오기 이력' section: outlined cards per past import (source, when · N개 별가루, text '철회' button in error color).",
+        "current": "Absent — current screen shows an import result tally instead.",
+        "fix": "Add import-history list from IMPORT_HISTORY with delete/철회 text button per sb-more.jsx:274-288."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Material 3 type scale (md-body-medium/large, md-title-small) + Roboto/Pretendard per rev2 migration; SectionLabel component.",
+        "current": "Legacy deep-space Text variants (pixelEn caption labels) — cosmic-pixel chrome, not M3.",
+        "fix": "Migrate to M3 type tokens; replace pixelEn caption labels with SectionLabel; use md-sys-color tokens instead of colors.textLo etc."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar: 별자리 / 담기 / 세컨비 / 위키 / 설정.",
+        "current": "No navbar (sign-in screen has none).",
+        "fix": "Ensure signed-in render mounts the app Shell with the 5-tab bottom navbar; verify Shell wraps this route."
+      }
+    ]
+  },
+  {
+    "screen": "30-datareview",
+    "fidelityScore": 8,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "/home/user/2nd-B/src/screens/deepspace/DeepSpaceDesignScreens.tsx (DeepSpaceDataDesignScreen, line 695; routed via src/app/data.tsx → isDeepSpaceUI())",
+    "refSourceFile": "/home/user/2nd-B/docs/clone-audit/reference-handoff/reference-app/sb-more.jsx (DataReviewScreen, line 346)",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "copy",
+        "reference": "Entire screen is Korean: title 내 데이터, body 내 데이터가 어떻게 쓰이는지 전부 보여줘요. 무엇이든 열람하고 지울 수 있어요.",
+        "current": "English screen: title My data, subtitle What's piled up, and where it's used. Completely different data model and strings.",
+        "fix": "Scrap DeepSpaceDataDesignScreen content. Rebuild against DataReviewScreen: TopAppBar title 내 데이터, intro body copy above, all Korean. Force locale ko / use the reference i18n strings verbatim."
+      },
+      {
+        "aspect": "component",
+        "reference": "3 filled stat cards in a 1fr 1fr 1fr grid: icon (inventory_2/hub/cloud_sync) + mono-font number + label. 124개 원문 조각, 38개 파생 신호, 2.4MB 연동 캐시.",
+        "current": "Only 2 large outlined boxes: 412 Saved pieces, 7 Checks done. Wrong count, wrong labels, no icons, no third card.",
+        "fix": "Replace statRow with a 3-column grid of MdCard filled: each = Icon(color=primary/tertiary/secondary) + mono 700 number + md-label-small label. Use exact values 124개/38개/2.4MB and labels 원문 조각·파생 신호·연동 캐시."
+      },
+      {
+        "aspect": "component",
+        "reference": "Section 파생 신호 · 무엇을 추정했나 with 3 outlined signal cards: from → to (bold, domain in parens) + 확신 NN% (tertiary) + 근거 text button + 삭제 delete button (error color).",
+        "current": "Entirely missing. Current shows a Storage location card (On device/Cloud sync) instead.",
+        "fix": "Add SectionLabel 파생 신호 · 무엇을 추정했나 then map 3 signals (통화·메모 12건→먼저 다가가는 성향 (관계) 확신 52%; 캘린더 야간 일정→수면 리듬 불규칙 (건강) 41%; 독서 메모 8건→개방성 높음 (성장) 63%) into outlined cards with arrow_forward icon, 근거/삭제 text buttons."
+      },
+      {
+        "aspect": "component",
+        "reference": "Section 내 권리: single filled card listing 3 rows with leading icon + label + sub + chevron_right: 내 데이터 전체 내보내기 (IDEN · 원문 · 파생 신호), 파생 신호만 초기화 (원문은 두고 추정만 지우기), 계정·데이터 영구 삭제 (되돌릴 수 없어요, error color).",
+        "current": "Second card has Build semantic index / Import / Export all data / Delete all data — English single-line rows, no sub text, wrong labels, no danger styling.",
+        "fix": "Replace with SectionLabel 내 권리 + one filled MdCard containing the 3 reference rows (icon download/cloud_off/delete_forever, label + sub two-line, chevron), last row in error color. Divider borderTop between rows."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Persistent bottom 5-tab NavBar: 별자리 · 담기 · 세컨비 · 위키 · 설정 (star_shine/add_circle/forum/inventory_2/tune icons).",
+        "current": "No bottom navbar at all — screen scrolls to full height with nothing pinned.",
+        "fix": "Render the shared NavBar (from sb-app shell) below the scroll content. Note: /data is a stack (windowed) screen, so per reference it keeps the 5-tab bar; ensure the app shell mounts it."
+      },
+      {
+        "aspect": "component",
+        "reference": "No companion head / speech bubble on this screen — DataReview is a windowed stack screen; companion header appears only on capture/chat/records.",
+        "current": "Large robot companion head + big speech bubble I show where your data is and how it's used + TIP line dominates the top third.",
+        "fix": "Remove SecondbStatusHeader from this screen. It does not exist in the reference DataReview layout and eats vertical space."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Real status bar at top (time e.g. 22:28 + signal/wifi icons).",
+        "current": "No status bar; content starts at the very top edge under a floating back button.",
+        "fix": "Ensure the app shell status bar renders above this screen (live time, not hardcoded)."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "TopAppBar = left-aligned back arrow + inline title 내 데이터 on one row, compact.",
+        "current": "Oversized floating rounded back button in a box, then title My data on a separate line below it — bespoke SceneHero-style header.",
+        "fix": "Use the standard M3 TopAppBar (SbHead/back-arrow + title row), not a boxed floating chevron; title sits beside the arrow."
+      },
+      {
+        "aspect": "color",
+        "reference": "M3 tokens: stat numbers on-surface, icons primary/tertiary/secondary, 확신% in tertiary, danger rows in error. Palette switches cyan/violet × light/dark via data-palette/data-theme.",
+        "current": "Deep-space blue (#4EA8FF-ish) numbers, generic muted grays, single dark palette. No M3 tone mapping.",
+        "fix": "Route all colors through m3-theme.css --md-sys-color-* tokens (C('primary'/'tertiary'/'error'/'on-surface-variant')). Remove ad-hoc deep-space blues."
+      },
+      {
+        "aspect": "typography",
+        "reference": "Numbers use var(--md-ref-typeface-mono) (Roboto Mono) 18px 700; labels md-label-small; body md-body-medium/small per M3 scale.",
+        "current": "Large sans display numbers (~48px), generic heading/subtle variants — not the M3 mono/label scale.",
+        "fix": "Apply Roboto Mono to stat numbers at the reference 18px/700, and map text to md-body/label variants rather than the current oversized heading sizes."
+      }
+    ]
+  },
+  {
+    "screen": "31-callrec (/call-reflection)",
+    "fidelityScore": 4,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/call-reflection.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-flows.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Renders the 통화 녹음 call-recording idle screen (mic hero + info + CTA + bottom 5-tab navbar).",
+        "current": "Renders the sign-in screen instead — the screen short-circuits via `if (!userId) return <Redirect href=\"/sign-in\" />` because the QA session is unauthenticated.",
+        "fix": "QA harness must authenticate with the committed .env.test QA account before capturing this route; the screen is auth-gated so nothing of the target is visible until signed in. Re-capture after login."
+      },
+      {
+        "aspect": "component",
+        "reference": "Whole-screen concept = a 통화 녹음 recorder: centered 120px mic circle (surface-container-highest bg, 52px mic icon), phase toggle idle/rec, waveform bars + mmss timer in rec phase.",
+        "current": "The RN screen is a text-form '통화 회고' (call reflection): 4 stacked text Fields (who/gist/feeling/followup) inside an outlined MdCard. No mic hero, no recorder, no phase state — a completely different feature UI.",
+        "fix": "Rebuild call-reflection.tsx to mirror sb-flows.jsx CallRec: centered flex column with a 150px positioning box, inner 120px circular mic badge (background semantic surfaceContainerHighest), Icon mic size 52 in onSurfaceVariant; add idle/rec/stt phase state."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Title '통화 녹음' (md-title-large); body '통화를 기기 안에서 받아 적고, 세컨비가 어울리는 별로 엮어요.' (capture variant appends '원본 음성은 저장하지 않아요.'); primary CTA '녹음 시작' with mic icon; secondary text button '다음에 할게요'.",
+        "current": "Uses i18n keys callReflection.title/intro/saveCta etc. — different strings (field labels 누구/무슨 이야기/느낌/할 일, save CTA). None of the reference copy is present.",
+        "fix": "Replace copy with exact reference strings: heading '통화 녹음', body '통화를 기기 안에서 받아 적고, 세컨비가 어울리는 별로 엮어요.', filled button '녹음 시작' (icon mic), text button '다음에 할게요'. Keep 조사 verbatim per clone rules."
+      },
+      {
+        "aspect": "component",
+        "reference": "Three info rows below body (max-width 290, gap 8): each row = 10px 12px padding, radius 10, surface-container-highest bg, primary-colored 18px icon + md-body-small onSurface text: [graphic_eq]'받아 적은 뒤 음성 파일은 곳바로 삭제돼요' / [lock]'통화 내용은 이 기기를 벗어나지 않아요' / [campaign]'상대에게 녹음 사실을 먼저 알려 주세요' + label-small footnote 'Android · iOS 모두 기기에 맞는 방식으로 안전하게 녹음해요'. (Capture shows a 2-chip Android/iOS variant.)",
+        "current": "No info rows at all — only form fields exist.",
+        "fix": "Add the three icon+text info rows (map array as in reference) with the label-small footnote; use semantic tokens surfaceContainerHighest bg + primary icon color. If matching the capture exactly, use the Android/iOS 2-chip variant with 'Android' / 'iOS' leading chips."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab M3 navbar present (별자리 / 담기 / 세컨비 / 위키 / 설정) with 별자리(capture: 담기?) active; screen is a windowed child within the app shell.",
+        "current": "Cannot verify (sign-in has no navbar). DeepSpaceScreen active=\"capture\" is wired, so a navbar should appear once authed — verify tab labels/order match 별자리·담기·세컨비·위키·설정 exactly.",
+        "fix": "After auth, confirm DeepSpaceScreen renders the 5-tab navbar with the reference labels and highlights the 담기/capture tab; align icon set and label copy to sb-app.jsx NAV."
+      },
+      {
+        "aspect": "spacing",
+        "reference": "Vertical-centered content region (flex:1, center, gap 20, horizontal padding 28) with a fixed bottom action stack (padding 12/16/18, gap 8). Hero is vertically centered, CTA pinned bottom.",
+        "current": "ScrollView with padding spacing.lg, gap spacing.md, content top-aligned; CTA sits inline inside the card, not pinned.",
+        "fix": "Use flex:1 centered content + a pinned bottom button stack rather than a top-aligned ScrollView; match gap 20 in hero region and the bottom action padding."
+      },
+      {
+        "aspect": "color",
+        "reference": "Mic circle idle = surface-container-highest; mic icon = on-surface-variant; rec phase swaps to error-container / error red, ping ring rgba(255,90,90,.4). All via --md-sys-color tokens.",
+        "current": "No mic element exists; card uses outlined variant tokens only.",
+        "fix": "Pull semantic.surfaceContainerHighest / onSurfaceVariant / errorContainer / error from tokens.ts for the mic badge and rec-phase states; no hex literals."
+      },
+      {
+        "aspect": "typography",
+        "reference": "rec-phase timer uses mono typeface (var(--md-ref-typeface-mono)) 30px/700; title uses md-title-large; body md-body-medium; footnote md-label-small.",
+        "current": "Uses Text variant heading/caption/body — not mapped to the M3 title-large/body-medium/label-small scale, and no mono timer.",
+        "fix": "Map Text variants to M3 scale (title-large for '통화 녹음', body-medium for description, label-small for footnote) and use Roboto Mono for the mmss timer per rev2 M3 fonts."
+      }
+    ]
+  },
+  {
+    "screen": "32-share",
+    "fidelityScore": 6,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/app/share-card.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-more.jsx",
+    "renderBroken": true,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "Share-card screen: TopAppBar '공유', intro copy, chip toggle, 1080 preview card, action buttons, footer, bottom 5-tab navbar.",
+        "current": "Sign-in screen (2nd-Brain logo, email/password form, Google button). Route redirected to /sign-in.",
+        "fix": "Current capture was taken unauthenticated — `if (!userId) return <Redirect href=\"/sign-in\">`. Re-capture signed in with the QA account (.env.test QA_TEST_EMAIL/PASSWORD) so the actual ShareCardScreen renders. Fidelity cannot be judged until then."
+      },
+      {
+        "aspect": "component",
+        "reference": "TWO action buttons side by side (flex, gap 8): filled '이미지 저장' (download icon) + tonal '공유' (ios_share icon).",
+        "current": "Only ONE button in the RN screen — filled '공유'. The '이미지 저장' (save image) button is entirely missing.",
+        "fix": "Add a filled MdButton '이미지 저장' with download icon before the '공유' button; make '공유' variant='tonal' with a share icon. Wrap both in a flexDirection:'row' gap:8 container so each flex:1, matching sb-more.jsx L503-506."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar present with tabs 별자리 / 담기 / 세컨비 / 위키 / 설정, none highlighted (stack screen).",
+        "current": "DeepSpaceScreen is called with active=\"lens\", which is not one of the 5 canonical nav tabs — risks highlighting nothing or a wrong tab.",
+        "fix": "Confirm DeepSpaceScreen renders the 5-tab navbar for windowed stack screens and pass an active value that matches the tab this screen lives under (share is reached from 설정/more, so active should map to 설정 or no-highlight, not 'lens')."
+      },
+      {
+        "aspect": "copy",
+        "reference": "TopAppBar title '공유' (reference shows '공유 ...' truncated).",
+        "current": "barTitle = '공유 카드'.",
+        "fix": "Reference bar label is '공유'; the trailing '...' is overflow. Set barTitle to '공유' to match, or verify truncation behavior matches the reference."
+      },
+      {
+        "aspect": "component",
+        "reference": "Constellation (variant B / '별자리 카드') card renders a 7-star scatter + central Polaris, 'MY CONSTELLATION' mono label, '5개 별이 빛나는 중', '2nd-Brain · 124개 별가루'.",
+        "current": "Cannot verify — screen not rendered. RN ShareCard component takes variant prop but the B variant fidelity is unconfirmed.",
+        "fix": "After re-capture, verify the RN ShareCard variant B reproduces the star coordinates (sb-more.jsx L436-441), Polaris glow, and exact copy including '별가루'."
+      }
+    ]
+  },
+  {
+    "screen": "33-plans",
+    "fidelityScore": 15,
+    "verdict": "needs-full-rebuild",
+    "realScreenModule": "src/screens/deepspace/dds-plans-screen.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-screens-extra.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "layout",
+        "reference": "M3 plans list: headline '요금제' → tertiary-container honesty card (lock icon) → 3 tier cards each with an in-card full-width M3 button → SectionLabel '결제 없이 늘리기' → reward-ad row. Flat M3 surface.",
+        "current": "Deep-space windowed paywall: hero eyebrow 'JOURNEY TO YOUR NORTH STAR' + big title 'Want to understand yourself more?' + subtitle, then 3 cards with NO per-card buttons, then a single bottom CTA/trust block. No honesty card, no reward-ad row.",
+        "fix": "Rebuild the screen to the M3 structure. This is the wrong design entirely — replace the hero/DockShell paywall with: headline, honesty card, tier cards (each with its own CTA button), section label, reward-ad button. Drop the JOURNEY hero block."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Korean tier data: 별바라기/무료/시작하는 사람 [7 도메인 별·월 100별가루·IDEN 1개]; 항해자/₩6,900/월/꾸준한 항해자 [무제한 별가루·심층 인터뷰·데이터 연동 5종·IDEN 버전 관리]; 북극성/₩12,900/월/깊이 파는 사람 [항해자 전체·장기 보관 무제한·가족 공유·우선 분석].",
+        "current": "English tiers: Stargazer/₩0 [8 deep asks a month·Start with 3 lenses·Memory stays 30 days]; Voyager/₩6,900/mo [60 deep asks·Open all 7 lenses·Memory stays forever·Export and connect]; North Star/₩11,900/mo [Open every path·Journey with family·Deeper export].",
+        "fix": "Replace all tier names, subtitles, prices and feature bullets with the exact Korean strings from PlansScreen tiers[]. Note 북극성 price is ₩12,900/월 (current shows ₩11,900) and use '/월' not '/mo'."
+      },
+      {
+        "aspect": "component",
+        "reference": "Honesty card: MdCard variant=filled, background tertiary-container, lock icon + body ' 요금은 횟수·보관·내보내기 한도만 달라요. 더 비싸다고 더 ‘나은 나’를 주지 않아요.' ( 한도만 bold).",
+        "current": "No honesty card. A mono eyebrow + hero headline occupy that region instead.",
+        "fix": "Add a tertiary-container filled card at top with a lock Icon (on-tertiary-container) and the exact Korean body copy, 한도만 bold, wordBreak keep-all."
+      },
+      {
+        "aspect": "component",
+        "reference": "Each tier card contains a full-width M3 button: filled '별바라기 시작' / tonal '현재 요금제' (current tier) / filled '북극성 시작'.",
+        "current": "No per-card buttons; a single shared bottom CTA ('Set out as Voyager') + trust row + restore link.",
+        "fix": "Add an MdButton inside each card: current tier → tonal '현재 요금제', others → filled '{tier} 시작'. Remove the shared bottom CTA/trust/restore block."
+      },
+      {
+        "aspect": "component",
+        "reference": "Current-tier emphasis: 항해자 is the current tier → elevated card with 2px solid primary border + an '이용 중' pill (primary bg, on-primary text, radius 6, 11px/700) beside the name. No '추천/PICK' tag anywhere.",
+        "current": "Voyager card has a 'PICK' pill tag + cyan glow border; '이용 중' rendering shows Stargazer as current (free test account). Different tier flagged, wrong marker style.",
+        "fix": "Emphasize the CURRENT tier with 2px primary border + elevated surface and the '이용 중' primary pill. Remove the PICK/추천 tag. (State: reference capture shows 항해자 as current; app account is free — marker will land on whichever tier is current, but style/copy must match.)"
+      },
+      {
+        "aspect": "component",
+        "reference": "Bullet marks: uniform check Icon in primary (cyan) for every feature in every tier.",
+        "current": "Three different bullet styles — cyan outline circle (free), mint check (voyager), violet diamond (north star).",
+        "fix": "Use a single M3 check Icon (primary color, size 16) for all feature rows across all tiers."
+      },
+      {
+        "aspect": "component",
+        "reference": "Reward-ad section: SectionLabel '결제 없이 늘리기' + interactive row with bolt Icon (tertiary), title '광고로 담기 가속 충전', sub '30초 영상 = +5회 · 분석 품질은 그대로', chevron_right, routes to 'reward'.",
+        "current": "Entirely missing. Instead a store-notice card / trust row appears.",
+        "fix": "Add the section label + reward-ad interactive row (surface-container bg, outline-variant border, radius 16) with bolt icon and exact copy, navigating to the reward route."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar labels in Korean: 별자리 · 담기 · 세컨비 · 위키 · 설정.",
+        "current": "Labels in English: Home · Capture · SecondB · Wiki · Settings.",
+        "fix": "Render the shell navbar in Korean locale (별자리/담기/세컨비/위키/설정). Screen is rendering EN i18n — reference target is KO."
+      },
+      {
+        "aspect": "typography",
+        "reference": "M3 type: headline '요금제' = md-headline-small; tier name = md-title-large; price = md-title-medium (primary color); features = md-body-medium; subtitle = md-body-small (on-surface-variant). Roboto/Pretendard.",
+        "current": "Deep-space Text variants; mono eyebrow; hero title very large; price styles vary (strikethrough ₩0, violet ₩ for pro).",
+        "fix": "Adopt M3 type scale + Pretendard/Roboto per rev2 migration; price uniformly primary md-title-medium; drop the mono eyebrow and oversized hero title."
+      },
+      {
+        "aspect": "color",
+        "reference": "Flat M3 dark surface background; card borders via outline/primary tokens; no decorative sky nebula.",
+        "current": "Deep-space gradient sky + purple nebula at top + rounded windowed card frame with heavy shadow.",
+        "fix": "Use the M3 surface background for this migrated screen (flat), drop the windowed sky-frame chrome, and pull all colors from --md-sys-color-* tokens (primary, tertiary-container, on-surface-variant, outline-variant)."
+      }
+    ]
+  },
+  {
+    "screen": "34-museum",
+    "fidelityScore": 70,
+    "verdict": "minor-gaps",
+    "realScreenModule": "src/screens/deepspace/museum/MuseumTimelineScreen.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-museum.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "STALE-CAPTURE (read first)",
+        "reference": "The provided capture 34-museum.png is an OUTDATED GT7-style gallery card-rail ('지능의 역사를 걸어서 지나기', 6 전시실 이론/컴퓨팅/머신러닝, N점 scores). This layout no longer exists in the finalized source.",
+        "current": "Current render is a 2-axis horizontal timeline (WORLD lane above / AI lane below, year dial). This MATCHES the finalized source sb-museum.jsx, which was rewritten to a timeline (sb-screens-extra.jsx:1313 'MUSEUM — moved to sb-museum.jsx'). The gallery is the documented legacy rollback (AiMuseumScreen, per museum.tsx).",
+        "fix": "Do NOT rebuild toward the gallery capture. Regenerate 34-museum.png from the current sb-museum.jsx timeline so the audit baseline is correct. The current screen is on-spec against the finalized prototype; only the chrome gaps below remain."
+      },
+      {
+        "aspect": "navbar/top-app-bar",
+        "reference": "sb-app museumLike screens get a blurred TopAppBar with a back arrow + 'AI 뮤지엄' title over the self-owned starfield; source reserves paddingTop:92 for it.",
+        "current": "MuseumTimelineScreen renders DeepSpaceScreen header=\"none\" — no back button and no 'AI 뮤지엄' title bar; the range row sits flush to the top edge.",
+        "fix": "Render the museumLike blurred top app bar (back → previous route, centered 'AI 뮤지엄' title) above the canvas and add ~92px top inset, matching sb-app §4 museumLike chrome."
+      },
+      {
+        "aspect": "copy/i18n",
+        "reference": "Source chrome is Korean: swipe hint '좌우로 시간 탐색'; bottom nav 별자리 / 담기 / 세컨비 / 위키 / 설정.",
+        "current": "Rendered in English: hint 'Swipe through time'; nav Home / Capture / SecondB / Wiki / Settings. Code has the KO strings gated on i18n.language==='ko', so the QA capture ran in EN locale.",
+        "fix": "Capture QA in the ko locale (or default i18n to ko) so museum + navbar copy matches the source exactly; verify against the KO strings in code, don't add literals."
+      },
+      {
+        "aspect": "node-styling",
+        "reference": "Source nodes use MzPlate: a lane-accent 135deg gradient fill + radial highlight + a large watermark Material glyph (ev.icon) bleeding bottom-right, plus a bottom black scrim; node shows only ylabel (mono) + title.",
+        "current": "Nodes are flat #0B1120 navy with a thin accent border only — no gradient plate, no icon glyph, no scrim; and they render an EXTRA sub line (nodeSub) the source node omits.",
+        "fix": "Add the lane-tinted gradient plate + faint icon watermark + bottom scrim to each node; drop the sub line from the small node (year + title only) to match sb-museum Node."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "App shell shows a real-time status bar (clock/signal/battery) above every screen; on museum it sits over the blurred top bar.",
+        "current": "No status bar visible; canvas content starts at the very top of the frame.",
+        "fix": "Ensure the shared StatusBar renders above the museum canvas (part of restoring the museumLike shell chrome in gap #2)."
+      }
+    ]
+  },
+  {
+    "screen": "36-imagine",
+    "fidelityScore": 60,
+    "verdict": "major-gaps",
+    "realScreenModule": "src/components/deep-space/DeepSpaceViews.tsx",
+    "refSourceFile": "docs/clone-audit/reference-handoff/reference-app/sb-more.jsx",
+    "renderBroken": false,
+    "topGaps": [
+      {
+        "aspect": "copy",
+        "reference": "Entire screen is Korean: TopAppBar '공상하기', intro title '공상하기' + body '정답 없이 멀리 던져봐요. 마음에 드는 갈래를 고르면 다음 한 걸음으로 좁혀줄게요.', section '세컨비가 던진 갈래', seeds 확장 '1년 안식년을 떠난다면' / 반전 '지금과 정반대로 산다면' / 연결 '커리어 × 휴식을 합치면'.",
+        "current": "Everything renders in English: 'Imagine', 'Throw far, no right answers. Pick a branch you like and we'll narrow it into a next step.', 'Branches SecondB threw', Expand 'If you took a year off' / Reverse 'If you lived the exact opposite' / Connect 'Career × rest, combined'.",
+        "fix": "Render with i18n.language='ko'. imagine.tsx already passes isKo based on language; the capture env is defaulting to EN. Force KO locale for the clone capture (or set device locale). The KO strings already exist in the home namespace ds.imagine.* — no code copy change needed, just locale."
+      },
+      {
+        "aspect": "statusbar",
+        "reference": "Mock status bar at very top: '22:28' left, signal/wifi/battery icons right, sitting flush above the back arrow (no gap).",
+        "current": "No status-bar row rendered; the top of the window shows only faint starfield dots (shell peeking through) instead of a time/battery bar.",
+        "fix": "DeepSpaceScreen is called with header='none'; ensure the windowed shell still renders the StatusBar (22:28 + battery/wifi glyphs) per sb-app.jsx shell. Add/enable the status bar element in the windowed variant so it sits flush at top."
+      },
+      {
+        "aspect": "navbar",
+        "reference": "Bottom 5-tab navbar in Korean: 별자리 / 담기 / 세컨비 / 위키 / 설정; 담기 tab icon is a plus-in-circle (add_circle).",
+        "current": "Navbar labels in English: Home / Capture / SecondB / Wiki / Settings; the Capture tab icon is a pencil (edit) rather than a plus-circle.",
+        "fix": "Cascades from the KO locale fix for labels. Separately, swap the 담기/Capture tab glyph from the pencil to the add_circle (plus-in-circle) icon used in the reference NAV (sb-data.jsx NAV)."
+      },
+      {
+        "aspect": "layout",
+        "reference": "Windowed content sits essentially flush under the status bar; minimal starfield gutter at top, content fills the frame.",
+        "current": "Heavier windowed inset — a visible starfield gap and floating rounded-window top edge push the back arrow / TopAppBar down, and a stray centered dot shows above the window.",
+        "fix": "Reduce the top inset of the windowed variant so the TopAppBar sits directly under the status bar (match sb-app.jsx windowed padding 12px 12px 14px); trim the starfield peek above the window in DeepSpaceScreen variant='windowed'."
+      },
+      {
+        "aspect": "typography",
+        "reference": "TopAppBar/title and body use Roboto + Pretendard (M3 title-medium / body-small scale) with keep-all Korean wrapping.",
+        "current": "System default font weights/sizes; English text so wrapping and glyph metrics differ from the KO Pretendard target.",
+        "fix": "Confirm m3 title-medium (title) and body-small (intro/body) token sizes are applied via styles.imgIntroTitle/imgIntroBody, and that Pretendard is the loaded font once KO renders; apply wordBreak keep-all equivalent (no mid-word breaks) to Korean lines."
+      },
+      {
+        "aspect": "copy",
+        "reference": "Connect seed reads '커리어 × 휴식을 합치면' in the reference SOURCE (sb-more.jsx), though the stale capture image still shows '오락'; migration note renames 오락→휴식.",
+        "current": "Connect seed EN 'Career × rest, combined' maps to 휴식 — already correct against source.",
+        "fix": "No change needed for the word choice (RN already uses rest/휴식). Do NOT copy the capture's stale '오락'; keep 휴식 per source and CLAUDE.md migration note."
+      }
+    ]
+  }
+]

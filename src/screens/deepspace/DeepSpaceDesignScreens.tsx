@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, BackHandler, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Path } from "react-native-svg";
+import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
-import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -85,9 +85,7 @@ import {
   createPomodoro,
   focusJustCompleted,
   pause,
-  phaseJustChanged,
   reset,
-  skipPhase,
   start,
   tick,
   type PomodoroState,
@@ -108,7 +106,7 @@ import { generateSourcePage } from "@/lib/wiki/phase2";
 import { runPhase1 } from "@/lib/wiki/phase1";
 import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { exportUserWiki } from "@/lib/wiki/export";
-import { backfillEmbeddings, proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
+import { proposeAllRelatedLinks } from "@/lib/wiki/embeddings";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
 import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
@@ -270,49 +268,65 @@ export function DeepSpaceGraphDesignScreen() {
   return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><Svg width="100%" height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
+// rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.
+// Real per-source OAuth is not built yet, so "연결" hands off to the working
+// file-import flow (/import-hub); a connected source toggles back off (no dead
+// switch). Apple 건강 seeds as 연결됨 to match the capture.
 export function DeepSpaceIntegrationsScreen() {
-  const { t, i18n } = useTranslation("deepspace");
+  const { i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  // Notion starts "connected" in the mock; Obsidian disconnected. These drive a
-  // real disconnect affordance instead of a dead toggle. Real per-source OAuth is
-  // not built yet, so connect routes to the working file-import flow (/import-hub).
-  const [notionOn, setNotionOn] = useState(true);
-  const [obsidianOn, setObsidianOn] = useState(false);
+  const [conn, setConn] = useState<Record<string, boolean>>({ cal: false, health: true, notion: false, photos: false, gpt: false });
+  const sources: { id: string; icon: keyof typeof CLONE_ICON; k: string; sub: string }[] = [
+    { id: "cal", icon: "forum", k: ko ? "Google 캘린더" : "Google Calendar", sub: ko ? "일정에서 리듬·관계 신호" : "Rhythm and relationship signals from your schedule" },
+    { id: "health", icon: "bedtime", k: ko ? "Apple 건강" : "Apple Health", sub: ko ? "수면·활동으로 건강 별" : "Sleep and activity feed the health star" },
+    { id: "notion", icon: "book", k: "Notion", sub: ko ? "메모·문서 가져오기" : "Import notes and documents" },
+    { id: "photos", icon: "camera", k: ko ? "사진 앨범" : "Photo album", sub: ko ? "장면에서 휴식·관계" : "Rest and relationships from scenes" },
+    { id: "gpt", icon: "bubble", k: ko ? "ChatGPT 내보내기" : "ChatGPT export", sub: ko ? "대화 기록 불러오기" : "Bring in your chat history" },
+  ];
+  const toggle = (id: string) => {
+    if (conn[id]) { setConn((s) => ({ ...s, [id]: false })); return; }
+    setConn((s) => ({ ...s, [id]: true }));
+    router.push("/import-hub");
+  };
   return (
-    <Shell title={t("integrations.title")}>
-      <SecondbStatusHeader text={t("integrations.status")} tip={t("integrations.tip")} />
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("integrations.sectionAssistant")}</Text>
-        {/* These are NOT live connections. They hand off to IDEN export. Label
-            honestly rather than implying a pending OAuth link. */}
-        {["ChatGPT", "Claude", "Gemini"].map((x) => (
-          <Action key={x} label={x} value={ko ? "IDEN으로 내보내기" : "Export to IDEN"} onPress={() => router.push("/iden")} />
-        ))}
-      </Card>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("integrations.sectionSources")}</Text>
-        <Toggle
-          label="Notion"
-          value={t("integrations.notionValue")}
-          on={notionOn}
-          onPress={() => (notionOn ? setNotionOn(false) : router.push("/import-hub"))}
-        />
-        {notionOn ? (
-          <Action label={ko ? "Notion 연결 해제" : "Disconnect Notion"} onPress={() => setNotionOn(false)} />
-        ) : null}
-        <Toggle
-          label="Obsidian"
-          value={t("integrations.obsidianValue")}
-          on={obsidianOn}
-          onPress={() => (obsidianOn ? setObsidianOn(false) : router.push("/import-hub"))}
-        />
-        {obsidianOn ? (
-          <Action label={ko ? "Obsidian 연결 해제" : "Disconnect Obsidian"} onPress={() => setObsidianOn(false)} />
-        ) : null}
-        <Toggle label={t("integrations.healthLabel")} value={t("integrations.permissionNeeded")} on={false} onPress={() => router.push("/import-hub")} />
-      </Card>
-      <Text variant="subtle" style={styles.footer}>{t("integrations.footer")}</Text>
-    </Shell>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={ko ? "데이터 연동" : "Data sync"} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
+        <RNText style={[m3TextStyle("headlineSmall"), { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 }]}>{ko ? "데이터 연동" : "Data sync"}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "연결하면 별이 더 빨리 밝아져요. 모든 처리는 기기 안에서 먼저 일어나요." : "Connecting brightens your stars faster. All processing happens on your device first."}</RNText>
+        <MdCard variant="filled" style={cx.consentCard}>
+          <View style={cx.consentRow}>
+            <CloneIcon name="lock" color={m3.color.onSecondaryContainer} size={20} />
+            <RNText style={[m3TextStyle("bodySmall"), cx.consentText]}>{ko ? "원문은 저장하지 않아요. 도출된 신호만 암호화해 남기고, 언제든 연결을 끊고 지울 수 있어요." : "Raw content is never stored; only derived signals are kept, encrypted, and you can disconnect and erase anytime."}</RNText>
+          </View>
+        </MdCard>
+        <View style={cx.stack8}>
+          {sources.map((s) => {
+            const on = conn[s.id];
+            return (
+              <MdCard key={s.id} variant="outlined" style={cx.sourceCard}>
+                <View style={cx.sourceRow}>
+                  <View style={[cx.iconBox, on ? cx.iconBoxOn : cx.iconBoxOff]}>
+                    <CloneIcon name={s.icon} color={on ? m3.color.onPrimary : m3.color.onSurfaceVariant} size={22} />
+                  </View>
+                  <View style={cx.flex1}>
+                    <RNText style={[m3TextStyle("titleSmall"), cx.sourceName]}>{s.k}</RNText>
+                    <RNText style={[m3TextStyle("bodySmall"), cx.sourceSub]}>{s.sub}</RNText>
+                  </View>
+                  <MdButton
+                    label={on ? (ko ? "연결됨" : "Connected") : (ko ? "연결" : "Connect")}
+                    variant={on ? "tonal" : "filled"}
+                    icon={on ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={16} /> : undefined}
+                    onPress={() => toggle(s.id)}
+                    style={cx.connectBtn}
+                    accessibilityLabel={ko ? `${s.k} ${on ? "연결됨" : "연결"}` : `${s.k} ${on ? "connected" : "connect"}`}
+                  />
+                </View>
+              </MdCard>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </DeepSpaceScreen>
   );
 }
 
@@ -692,53 +706,89 @@ export function DeepSpaceInsightsScreen() {
   );
 }
 
+// rev2 clone (30-datareview / reference DataReviewScreen): a windowed 내 데이터
+// 리뷰. Stored-data tallies, the derived-signal ledger (열람·삭제권), and the
+// 내 권리 rights rows. 근거 opens the real ratifications receipt; 삭제 drops the
+// signal from view; the rights rows route to the real export/erase surfaces.
 export function DeepSpaceDataDesignScreen() {
-  const { t, i18n } = useTranslation("deepspace");
-  const { userId, isMinor } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const ko = locale === "ko";
-  const [indexing, setIndexing] = useState(false);
-  const [indexed, setIndexed] = useState<number | null>(null);
-
-  async function buildIndex() {
-    if (!userId || indexing) return;
-    setIndexing(true);
-    setIndexed(null);
-    try {
-      const r = await backfillEmbeddings(userId, { locale, minor: isMinor === true });
-      setIndexed(r.embedded);
-    } catch {
-      setIndexed(0);
-    } finally {
-      setIndexing(false);
-    }
-  }
-
-  const indexValue = indexing
-    ? t("data.indexing")
-    : indexed !== null
-      ? t("data.indexed", { count: indexed })
-      : undefined;
-
+  const { i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const stores: { icon: keyof typeof CLONE_ICON; label: string; n: string; tone: string }[] = [
+    { icon: "box", label: ko ? "원문 조각" : "Raw pieces", n: ko ? "124개" : "124", tone: m3.color.primary },
+    { icon: "hub", label: ko ? "파생 신호" : "Derived signals", n: ko ? "38개" : "38", tone: m3.color.tertiary },
+    { icon: "cloud_sync", label: ko ? "연동 캐시" : "Sync cache", n: "2.4MB", tone: m3.color.secondary },
+  ];
+  const [signals, setSignals] = useState([
+    { id: "s1", from: ko ? "통화·메모 12건" : "12 calls and notes", to: ko ? "먼저 다가가는 성향 (관계)" : "Reaches out first (relationships)", conf: ko ? "확신 52%" : "52% confidence" },
+    { id: "s2", from: ko ? "캘린더 야간 일정" : "Late calendar events", to: ko ? "수면 리듬 불규칙 (건강)" : "Irregular sleep rhythm (health)", conf: ko ? "확신 41%" : "41% confidence" },
+    { id: "s3", from: ko ? "독서 메모 8건" : "8 reading notes", to: ko ? "개방성 높음 (성장)" : "High openness (growth)", conf: ko ? "확신 63%" : "63% confidence" },
+  ]);
+  const rights: { icon: keyof typeof CLONE_ICON; label: string; sub: string; route: string; danger?: boolean }[] = [
+    { icon: "download", label: ko ? "내 데이터 전체 내보내기" : "Export all my data", sub: ko ? "IDEN · 원문 · 파생 신호" : "IDEN, raw, derived signals", route: "/iden" },
+    { icon: "cloud_off", label: ko ? "파생 신호만 초기화" : "Reset derived signals only", sub: ko ? "원문은 두고 추정만 지우기" : "Keep raw, clear inferences", route: "/privacy" },
+    { icon: "trash", label: ko ? "계정·데이터 영구 삭제" : "Delete account and data", sub: ko ? "되돌릴 수 없어요" : "This cannot be undone", route: "/privacy", danger: true },
+  ];
   return (
-    <Shell title={t("data.title")} subtitle={t("data.subtitle")}>
-      <SecondbStatusHeader text={t("data.status")} tip={t("data.tip")} />
-      <View style={styles.statRow}>
-        <View style={styles.statBox}><Text variant="heading" style={styles.statNum}>412</Text><Text variant="subtle" style={styles.statCap}>{t("data.statPieces")}</Text></View>
-        <View style={styles.statBox}><Text variant="heading" style={styles.statNum}>7</Text><Text variant="subtle" style={styles.statCap}>{t("data.statChecks")}</Text></View>
-      </View>
-      <Card>
-        <Text variant="heading" style={styles.section}>{t("data.sectionStorage")}</Text>
-        <Action label={t("data.onDevice")} value={t("data.encrypted")} />
-        <Action label={t("data.cloudSync")} value={t("data.on")} />
-      </Card>
-      <Card>
-        <Action label={t("data.buildIndex")} value={indexValue} onPress={userId && !indexing ? () => void buildIndex() : undefined} />
-        <Action label={ko ? "가져오기" : "Import"} onPress={() => router.push("/import-hub")} />
-        <Action label={t("data.exportAll")} onPress={() => router.push("/formats")} />
-        <Action label={t("data.deleteAll")} onPress={() => router.push("/privacy")} />
-      </Card>
-    </Shell>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={ko ? "내 데이터 리뷰" : "My data review"} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
+        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "내 데이터가 어떻게 쓰이는지 전부 보여줘요. 무엇이든 열람하고 지울 수 있어요." : "I show exactly how your data is used. You can open and delete anything."}</RNText>
+
+        <View style={cx.statGrid}>
+          {stores.map((s) => (
+            <MdCard key={s.label} variant="filled" style={cx.statCard}>
+              <CloneIcon name={s.icon} color={s.tone} size={20} />
+              <RNText style={cx.statNum}>{s.n}</RNText>
+              <RNText style={[m3TextStyle("labelSmall"), cx.statCap]}>{s.label}</RNText>
+            </MdCard>
+          ))}
+        </View>
+
+        <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "파생 신호 · 무엇을 추정했나" : "Derived signals · what was inferred"}</RNText>
+        <View style={cx.stack8}>
+          {signals.map((sg) => (
+            <MdCard key={sg.id} variant="outlined" style={cx.sourceCard}>
+              <View style={cx.signalHead}>
+                <RNText style={[m3TextStyle("bodySmall"), cx.signalFrom]}>{sg.from}</RNText>
+                <CloneIcon name="arrow_forward" color={m3.color.outline} size={14} />
+                <RNText style={[m3TextStyle("bodyMedium"), cx.signalTo]}>{sg.to}</RNText>
+              </View>
+              <View style={cx.signalFoot}>
+                <RNText style={[m3TextStyle("labelSmall"), cx.signalConf]}>{sg.conf}</RNText>
+                <MdButton label={ko ? "근거" : "Evidence"} variant="text" onPress={() => router.push("/ratifications")} style={cx.smallBtnCompact} />
+                <MdButton
+                  label={ko ? "삭제" : "Delete"}
+                  variant="text"
+                  icon={<CloneIcon name="trash" color={m3.color.error} size={16} />}
+                  onPress={() => setSignals((xs) => xs.filter((x) => x.id !== sg.id))}
+                  style={cx.smallBtnCompact}
+                  accessibilityLabel={ko ? `${sg.to} 파생 신호 삭제` : `Delete derived signal ${sg.to}`}
+                />
+              </View>
+            </MdCard>
+          ))}
+        </View>
+
+        <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "내 권리" : "My rights"}</RNText>
+        <MdCard variant="filled" style={cx.rightsCard}>
+          {rights.map((r, i) => (
+            <Pressable
+              key={r.label}
+              onPress={() => router.push(r.route as never)}
+              style={[cx.rightsRow, i > 0 && cx.rightsDivider]}
+              accessibilityRole="button"
+              accessibilityLabel={r.label}
+            >
+              <CloneIcon name={r.icon} color={r.danger ? m3.color.error : m3.color.onSurfaceVariant} size={21} />
+              <View style={cx.flex1}>
+                <RNText style={[m3TextStyle("bodyLarge"), r.danger ? cx.rightsLabelDanger : cx.rightsLabel]}>{r.label}</RNText>
+                <RNText style={[m3TextStyle("bodySmall"), cx.rightsSub]}>{r.sub}</RNText>
+              </View>
+              <CloneIcon name="chevron_right" color={m3.color.onSurfaceVariant} size={20} />
+            </Pressable>
+          ))}
+        </MdCard>
+      </ScrollView>
+    </DeepSpaceScreen>
   );
 }
 
@@ -1539,47 +1589,100 @@ export function DeepSpaceOpsScreen() {
     }
   }
 
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  // Hero ring is driven by the REAL today list (not the reference mock counts).
+  const totalR = todayRoutines.length;
+  const doneR = todayRoutines.filter((r) => completedIds.has(r.id)).length;
+  const pct = totalR > 0 ? doneR / totalR : 0;
+  const HERO_R = 22;
+  const HERO_C = 2 * Math.PI * HERO_R;
+  const opsTools: { icon: keyof typeof CLONE_ICON; label: string; sub: string; route: string }[] = [
+    { icon: "timer", label: ko ? "일일 집중" : "Daily focus", sub: ko ? "포모도로" : "Pomodoro", route: "/focus" },
+    { icon: "schedule", label: ko ? "예약 리마인더" : "Reminders", sub: ko ? "알림 일정" : "Scheduled", route: "/reminders" },
+    { icon: "lightbulb", label: ko ? "공상하기" : "Imagine", sub: ko ? "멀리 던지기" : "Throw far", route: "/imagine" },
+    { icon: "share", label: ko ? "공유 카드" : "Share card", sub: ko ? "1080 카드" : "1080 card", route: "/share-card" },
+  ];
+
   return (
     // Primary "비서" hub: render inside the persistent deep-space chrome so the
     // rev2 windowed sub-screen: the M3 top app bar carries TITLES verbatim
-    // (오늘의 비서); DockBody's 루틴 heading stays as the content hero.
+    // (오늘의 비서). The reference OpsScreen leads with the routine ring hero.
     <DeepSpaceScreen
       active="ops"
       header="none"
       variant="windowed"
-      title={i18n.language === "ko" ? "오늘의 비서" : "Today's assistant"}
+      title={ko ? "오늘의 비서" : "Today's assistant"}
       onBack={() => router.back()}
     >
-      <DockBody title={t("hero.title")}>
-      <View style={styles.opsTodayHead}>
-        <Text variant="heading" style={styles.section}>{t("today.heading")}</Text>
-        {streak > 0 ? <Text variant="subtle" style={styles.timeChipMint}>{t("today.streak", { count: streak })}</Text> : null}
-      </View>
-      {todayRoutines.length === 0 ? (
-        <Text variant="body" style={styles.opsReason}>{t("today.empty")}</Text>
-      ) : (
-        todayRoutines.map((routine) => {
-          const done = completedIds.has(routine.id);
-          return (
-            <Pressable
-              key={routine.id}
-              style={styles.opsTodayRow}
-              onPress={() => void completeRoutine(routine)}
-              disabled={done}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: done }}
-              accessibilityLabel={done ? t("today.doneA11y", { title: routine.title }) : t("today.completeA11y", { title: routine.title })}
-            >
-              <View style={[styles.opsCheck, done && styles.opsCheckOn]}>
-                {done ? <RNText style={styles.opsCheckMark}>✓</RNText> : null}
+      <DockBody>
+      {/* hero — today's routine ring (real counts + streak) */}
+      <MdCard variant="elevated" style={cx.opsHero}>
+        <View style={cx.heroRow}>
+          <Svg width={58} height={58} viewBox="0 0 58 58">
+            <Circle cx={29} cy={29} r={HERO_R} fill="none" stroke={m3.color.surfaceVariant} strokeWidth={6} />
+            <Circle cx={29} cy={29} r={HERO_R} fill="none" stroke={m3.color.primary} strokeWidth={6} strokeLinecap="round"
+              strokeDasharray={HERO_C} strokeDashoffset={HERO_C * (1 - pct)} originX={29} originY={29} rotation={-90} />
+          </Svg>
+          <View style={cx.flex1}>
+            <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{ko ? "오늘의 루틴" : "Today's routines"}</RNText>
+            <RNText style={[m3TextStyle("headlineSmall"), cx.heroCount]}>{ko ? `${doneR} / ${totalR} 완료` : `${doneR} / ${totalR} done`}</RNText>
+          </View>
+          {streak > 0 ? (
+            <View style={cx.heroStreak}>
+              <View style={cx.heroStreakRow}>
+                <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
+                <RNText style={cx.heroStreakNum}>{streak}</RNText>
               </View>
-              <Text variant="body" style={[styles.opsTodayTitle, done && styles.opsTodayTitleDone]}>{routine.title}</Text>
-              <Text variant="subtle" style={styles.timeChipCyan}>{routine.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</Text>
-            </Pressable>
-          );
-        })
+              <RNText style={[m3TextStyle("labelSmall"), cx.heroStreakCap]}>{ko ? "일 연속" : "day streak"}</RNText>
+            </View>
+          ) : null}
+        </View>
+        <ProgressLinear value={pct} color={m3.color.primary} style={cx.heroBar} />
+      </MdCard>
+
+      {/* routines */}
+      {todayRoutines.length === 0 ? (
+        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{t("today.empty")}</RNText>
+      ) : (
+        <View style={cx.stack8}>
+          {todayRoutines.map((routine) => {
+            const done = completedIds.has(routine.id);
+            return (
+              <Pressable
+                key={routine.id}
+                style={cx.routineRow}
+                onPress={() => void completeRoutine(routine)}
+                disabled={done}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: done }}
+                accessibilityLabel={done ? t("today.doneA11y", { title: routine.title }) : t("today.completeA11y", { title: routine.title })}
+              >
+                <View style={[cx.routineDot, done && cx.routineDotOn]} />
+                <RNText style={[m3TextStyle("bodyLarge"), cx.routineLabel, done && cx.routineLabelDone]}>{routine.title}</RNText>
+                <RNText style={[m3TextStyle("labelSmall"), cx.routineStar]}>{routine.recurrence === "daily" ? t("card.daily") : t("card.weekly")}</RNText>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
       {reminderToast ? <Text variant="subtle" style={styles.footerLeft}>{reminderToast}</Text> : null}
+
+      {/* 이번 주 패턴 분석 — hands off to the real weekly insights screen */}
+      <MdCard variant="filled" style={cx.analysisCard}>
+        <View style={cx.rowCenter}>
+          <CloneIcon name="sparkle" color={m3.color.tertiary} size={20} />
+          <View style={cx.flex1}>
+            <RNText style={[m3TextStyle("bodyLarge"), cx.analysisTitle]}>{ko ? "이번 주 패턴 분석" : "This week's patterns"}</RNText>
+            <RNText style={[m3TextStyle("bodySmall"), cx.analysisSub]}>{ko ? "분석은 백그라운드로 돌아요. 계속 써도 돼요." : "Analysis runs in the background. Keep using the app."}</RNText>
+          </View>
+          <MdButton label={ko ? "돌리기" : "Run"} variant="tonal" onPress={() => router.push("/insights")} style={cx.smallBtnCompact} />
+        </View>
+      </MdCard>
+
+      {/* 오늘의 종합 의견 — the real recommendation engine (C9 classifier + the
+          C1/C3 LLM gateway inside recommendForDomain). Reference-app leads this
+          section with a 세컨비 head + the "one important thing" framing. */}
+      <RNText style={[m3TextStyle("labelSmall"), cx.eyebrow]}>{ko ? "오늘의 종합 의견" : "TODAY'S TAKE"}</RNText>
       <Text variant="body" style={styles.lead}>{t("hero.subtitle")}</Text>
       {/* IA (ops-ia §4): single entry from the /ops hub into the scheduled
           reminders surface. */}
@@ -1681,6 +1784,22 @@ export function DeepSpaceOpsScreen() {
         </View>
       ))}
       {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
+
+      {/* 비서 도구 — 2×2 tool grid (real routes) */}
+      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "비서 도구" : "Assistant tools"}</RNText>
+      <View style={cx.toolGrid}>
+        {opsTools.map((tool) => (
+          <MdCard key={tool.route} variant="filled" onPress={() => router.push(tool.route as never)} style={cx.toolCard} accessibilityLabel={tool.label}>
+            <View style={cx.rowCenter}>
+              <CloneIcon name={tool.icon} color={m3.color.tertiary} size={20} />
+              <View style={cx.flex1}>
+                <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{tool.label}</RNText>
+                <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{tool.sub}</RNText>
+              </View>
+            </View>
+          </MdCard>
+        ))}
+      </View>
       </DockBody>
     </DeepSpaceScreen>
   );
@@ -1772,93 +1891,26 @@ function formatClock(ms: number): string {
 // stroke-dashoffset, state-toned (focus = cyan, break = cyanDim cool, complete =
 // mint), pixel fonts (Galmuri11 numerals / PressStart2P eyebrow), + the
 // complete-choice screen and a session-length bottom sheet. Tokens only, no hex.
-const RING_R = 100;
+const RING_R = 120;
 const RING_C = 2 * Math.PI * RING_R; // circumference for the dasharray
-const FOCUS_BOUNDS = { focusMin: 5, focusMax: 60, breakMin: 1, breakMax: 30 };
+const FOCUS_PRESETS = [25, 15, 50];
+const FOCUS_STARS = ["성장", "커리어", "학습", "관계", "건강"];
+const FOCUS_STARS_EN = ["Growth", "Career", "Learning", "Relations", "Health"];
 
-const focusStyles = StyleSheet.create({
-  stage: { alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
-  ringWrap: { width: 226, height: 226, alignItems: "center", justifyContent: "center" },
-  ringCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  eyebrow: { fontFamily: m3.font.mono, fontSize: 8, letterSpacing: 1.6 },
-  time: { fontSize: 46, color: colors.textHi, letterSpacing: 1, marginTop: spacing.sm },
-  ringSub: { fontSize: 11, color: colors.textLo, marginTop: spacing.sm, textAlign: "center" },
-  completeCheck: { width: 54, height: 54, borderRadius: 27, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  completeMark: { fontFamily: fontFamilies.readable, fontSize: 24 },
-  completeTitle: { fontSize: 22, color: colors.textHi, marginTop: spacing.md },
-  dotsRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotEmpty: { borderWidth: 1, borderColor: colors.borderHi },
-  todayLine: { fontSize: 12, color: colors.textLo, textAlign: "center" },
-  subtleLink: { fontSize: 12, color: colors.textLo, textAlign: "center", paddingVertical: spacing.xs },
-  controls: { alignItems: "center", gap: spacing.md, marginTop: spacing.lg },
-  bigBtn: { width: 74, height: 74, borderRadius: 37, alignItems: "center", justifyContent: "center" },
-  bigBtnPrimary: { backgroundColor: colors.cyan },
-  bigBtnGhost: { borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.cardBg },
-  playGlyph: { fontSize: 26, marginLeft: 4 },
-  pauseGlyph: { flexDirection: "row", gap: 5 },
-  pauseBar: { width: 5, height: 20, borderRadius: 1 },
-  completeRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg },
-  choiceGhost: { flex: 1, alignItems: "center", paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.md, backgroundColor: colors.cardBg },
-  choiceGhostText: { fontSize: 13, color: colors.cyanSoft },
-  choicePrimary: { flex: 1, alignItems: "center", paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.cyan },
-  choicePrimaryText: { fontSize: 13, color: colors.bgDeep },
-  // ANDROID_QA §1: a custom overlay needs its own elevated layer or the controls
-  // behind can shine through / stay touchable on Android.
-  sheetBackdrop: { ...StyleSheet.absoluteFill, justifyContent: "flex-end", zIndex: 10, elevation: 24 },
-  sheetTap: { ...StyleSheet.absoluteFill },
-  sheet: { backgroundColor: colors.cardBg, borderTopWidth: 1, borderColor: colors.borderHi, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
-  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderHi, alignSelf: "center" },
-  sheetLabel: { fontFamily: m3.font.mono, fontSize: 8, letterSpacing: 1.4, color: colors.textLo },
-  sheetDivider: { height: 1, backgroundColor: colors.border },
-  stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  stepLabel: { fontSize: 14, color: colors.textTitle },
-  stepHint: { fontSize: 10.5, color: colors.textLo, marginTop: 3 },
-  stepControls: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  stepBtn: { width: 34, height: 34, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.cardBg, alignItems: "center", justifyContent: "center" },
-  stepBtnText: { fontFamily: fontFamilies.readable, fontSize: 18, color: colors.cyanSoft },
-  stepValue: { fontSize: 22, color: colors.textHi, minWidth: 54, textAlign: "center" },
-  stepUnit: { fontSize: 12, color: colors.textLo },
-  sheetSave: { alignItems: "center", paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.cyan, marginTop: spacing.xs },
-  sheetSaveText: { fontSize: 14, color: colors.bgDeep },
-});
-
-function FocusStepper(props: {
-  label: string; hint: string; value: number; unit: string; decLabel: string; incLabel: string;
-  onDec: () => void; onInc: () => void;
-}) {
-  return (
-    <View style={focusStyles.stepRow}>
-      <View style={{ flex: 1 }}>
-        <Text variant="caption" style={focusStyles.stepLabel}>{props.label}</Text>
-        <Text variant="subtle" style={focusStyles.stepHint}>{props.hint}</Text>
-      </View>
-      <View style={focusStyles.stepControls}>
-        <Pressable style={focusStyles.stepBtn} onPress={props.onDec} accessibilityRole="button" accessibilityLabel={props.decLabel}>
-          <RNText style={focusStyles.stepBtnText}>−</RNText>
-        </Pressable>
-        <Text variant="heading" style={focusStyles.stepValue}>{props.value}<Text variant="subtle" style={focusStyles.stepUnit}>{props.unit}</Text></Text>
-        <Pressable style={focusStyles.stepBtn} onPress={props.onInc} accessibilityRole="button" accessibilityLabel={props.incLabel}>
-          <RNText style={focusStyles.stepBtnText}>+</RNText>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
+// rev2 clone (25-focus / reference FocusScreen): windowed 일일 집중 timer. The
+// proven pomodoro engine + ANDROID_QA single-interval handling are preserved; the
+// UI adopts the reference layout (presets, star picker, today summary). A focus
+// block auto-completes to a fresh idle block (no break phase in the reference)
+// while still ticking daily_focus (applyFocusSessionComplete) + a local notify.
 export function DeepSpaceFocusScreen() {
-  const { t } = useTranslation("ops");
+  const { t, i18n } = useTranslation("ops");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, loading: authLoading, hasProfile } = useAuth();
 
   const [timer, setTimer] = useState<PomodoroState>(() => createPomodoro());
   // Per-day tally; survives reset (not the in-cycle session count).
   const [doneToday, setDoneToday] = useState(0);
-  // The "집중 완료" celebratory choice screen. On a focus->break boundary we pause
-  // at the break and surface 휴식하기 / 한 번 더, instead of auto-running the break.
-  const [showComplete, setShowComplete] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [draftFocus, setDraftFocus] = useState(timer.config.focusMinutes);
-  const [draftBreak, setDraftBreak] = useState(timer.config.breakMinutes);
+  const [starIdx, setStarIdx] = useState(0);
 
   // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
   // whenever `running` flips off, so a paused/idle timer holds no live interval.
@@ -1872,31 +1924,18 @@ export function DeepSpaceFocusScreen() {
       const next = tick(prev, 1000);
       if (next === prev) return;
       if (focusJustCompleted(prev, next)) {
-        // Hold at the break boundary (paused) and show the completion choice.
-        setTimer(pause(next));
-        setShowComplete(true);
+        // Sensor auto-complete: tick daily_focus + notify, then return to a fresh
+        // idle focus block (the reference timer has no break phase).
+        setTimer(createPomodoro(prev.config));
         setDoneToday((n) => n + 1);
         if (userId) void applyFocusSessionComplete(userId).catch(() => {});
         void notifyNow(t("focus.alarmFocusTitle"), t("focus.alarmFocusBody")).catch(() => {});
       } else {
         setTimer(next);
-        if (phaseJustChanged(prev, next)) {
-          void notifyNow(t("focus.alarmBreakTitle"), t("focus.alarmBreakBody")).catch(() => {});
-        }
       }
     }, 1000);
     return () => clearInterval(id);
   }, [timer.running, userId, t]);
-
-  // ANDROID_QA §4: hardware Back closes the settings sheet, never the screen.
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setSettingsOpen(false);
-      return true;
-    });
-    return () => sub.remove();
-  }, [settingsOpen]);
 
   if (authLoading) {
     return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
@@ -1904,191 +1943,116 @@ export function DeepSpaceFocusScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  const phase = timer.phase;
-  const isBreak = phase === "break";
-  const target = timer.config.sessionsBeforeLongBreak;
-  const completed = timer.completedFocusSessions;
-  // The break after every Nth focus is the LONG break (mirrors breakMsAfter in
-  // pomodoro.ts), so the ring must divide by the long-break length, not the short.
-  const isLongBreak = isBreak && target > 0 && completed > 0 && completed % target === 0;
-  const breakTotalMin = isLongBreak ? timer.config.longBreakMinutes : timer.config.breakMinutes;
-  const totalMs = (isBreak ? breakTotalMin : timer.config.focusMinutes) * 60_000;
-  const shownMs = phase === "idle" ? timer.config.focusMinutes * 60_000 : timer.remainingMs;
-  // The ring FILLS as the session is gathered: offset = C while empty (start),
-  // 0 when full (complete). offset = C * remaining/total.
+  const idle = timer.phase === "idle";
+  const focusMin = timer.config.focusMinutes;
+  const totalMs = focusMin * 60_000;
+  const shownMs = idle ? totalMs : timer.remainingMs;
+  // The ring FILLS as the session is gathered: offset = C while empty (start).
   const remainingFrac = totalMs > 0 ? Math.max(0, Math.min(1, shownMs / totalMs)) : 0;
-  const dashoffset = showComplete ? 0 : RING_C * remainingFrac;
-
-  const ringColor = showComplete ? colors.mint : isBreak ? colors.cyanDim : colors.cyan;
-  const eyebrowColor = phase === "focus" ? colors.cyanSoft : colors.cyanDim;
-  const glyphColor = isBreak ? colors.cyanSoft : colors.bgDeep;
+  const dashoffset = RING_C * remainingFrac;
   const clock = formatClock(shownMs);
-  const subMessage = phase === "idle" ? t("focus.subIdle") : isBreak ? t("focus.subBreak") : t("focus.subFocus");
-
-  const cycle = target > 0 ? completed % target : 0;
-  // A completed set (cycle === 0, completed > 0) shows all dots filled ONLY at the
-  // completion/break boundary; the next focus block starts a fresh empty set.
-  const filledDots = completed > 0 && cycle === 0 ? (showComplete || isBreak ? target : 0) : cycle;
-  const dotColor = showComplete ? colors.mint : colors.cyan;
-
-  function openSettings() {
-    setDraftFocus(timer.config.focusMinutes);
-    setDraftBreak(timer.config.breakMinutes);
-    setSettingsOpen(true);
-  }
-  function saveSettings() {
-    // The single 휴식 control scales the long break too (keeps the default 5->15 =
-    // 3x ratio) so the long break isn't stuck at the hidden default.
-    setTimer(createPomodoro({ ...timer.config, focusMinutes: draftFocus, breakMinutes: draftBreak, longBreakMinutes: draftBreak * 3 }));
-    setShowComplete(false);
-    setSettingsOpen(false);
-  }
+  const ringSub = idle ? (ko ? "준비됨" : "Ready") : timer.running ? (ko ? "집중 중" : "Focusing") : (ko ? "일시정지" : "Paused");
+  const starName = ko ? FOCUS_STARS[starIdx] : FOCUS_STARS_EN[starIdx];
+  const target = 4;
+  const filled = Math.min(doneToday, target);
+  const setPreset = (m: number) => setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
 
   return (
     <DockShell title={t("focus.title")}>
-      <View style={focusStyles.stage}>
-        <SecondbHead size={48} mood={isBreak && !showComplete ? "neutral" : "positive"} />
+      <RNText style={[m3TextStyle("bodyMedium"), cx.focusLead]}>
+        {ko ? "한 가지에만 집중하는 시간이에요. 끝나면 " : "Time to focus on one thing. When it ends, one step toward your "}
+        <RNText style={cx.leadStrong}>{ko ? `${starName} 별` : `${starName} star`}</RNText>
+        {ko ? "에 한 걸음." : "."}
+      </RNText>
 
-        <View style={focusStyles.ringWrap}>
-          <Svg width={226} height={226} viewBox="0 0 226 226">
-            {/* Flat tokenized glow (no inline gradient — DESIGN.md: gradients only
-                via deepSpaceGradients tokens). A faint same-tone disc reads as bloom. */}
-            <Circle cx={113} cy={113} r={88} fill={ringColor} fillOpacity={0.1} />
-            <Circle cx={113} cy={113} r={RING_R} fill="none" stroke={ringColor} strokeOpacity={0.14} strokeWidth={5} />
-            <Circle
-              cx={113}
-              cy={113}
-              r={RING_R}
-              fill="none"
-              stroke={ringColor}
-              strokeWidth={6}
-              strokeLinecap="round"
-              strokeDasharray={RING_C}
-              strokeDashoffset={dashoffset}
-              originX={113}
-              originY={113}
-              rotation={-90}
-            />
-          </Svg>
-          <View style={focusStyles.ringCenter}>
-            {showComplete ? (
-              <>
-                <View style={[focusStyles.completeCheck, { borderColor: colors.mint }]}>
-                  <RNText style={[focusStyles.completeMark, { color: colors.mint }]}>✓</RNText>
-                </View>
-                <Text variant="heading" style={focusStyles.completeTitle}>{t("focus.completeTitle")}</Text>
-                <Text variant="body" style={focusStyles.ringSub}>{t("focus.completeBody", { minutes: timer.config.focusMinutes })}</Text>
-              </>
-            ) : (
-              <>
-                <RNText style={[focusStyles.eyebrow, { color: eyebrowColor }]}>
-                  {isBreak ? t("focus.eyebrowBreak") : t("focus.eyebrowFocus")}
-                </RNText>
-                <Text variant="heading" style={focusStyles.time}>{clock}</Text>
-                <Text variant="body" style={focusStyles.ringSub}>{subMessage}</Text>
-              </>
-            )}
-          </View>
+      {/* timer ring */}
+      <View style={cx.ringWrap}>
+        <Svg width={280} height={280} viewBox="0 0 280 280">
+          <Circle cx={140} cy={140} r={RING_R} fill="none" stroke={m3.color.surfaceContainerHighest} strokeWidth={14} />
+          <Circle
+            cx={140}
+            cy={140}
+            r={RING_R}
+            fill="none"
+            stroke={m3.color.primary}
+            strokeWidth={14}
+            strokeLinecap="round"
+            strokeDasharray={RING_C}
+            strokeDashoffset={dashoffset}
+            originX={140}
+            originY={140}
+            rotation={-90}
+          />
+        </Svg>
+        <View style={cx.ringCenter}>
+          <RNText style={cx.ringTime}>{clock}</RNText>
+          <RNText style={[m3TextStyle("labelLarge"), cx.ringSub]}>{ringSub}</RNText>
         </View>
-
-        <View style={focusStyles.dotsRow}>
-          {Array.from({ length: target }).map((_, i) => (
-            <View key={i} style={[focusStyles.dot, i < filledDots ? { backgroundColor: dotColor } : focusStyles.dotEmpty]} />
-          ))}
-        </View>
-
-        {showComplete ? <Text variant="subtle" style={focusStyles.todayLine}>{t("focus.doneToday", { count: doneToday })}</Text> : null}
       </View>
 
-      {showComplete ? (
-        <View style={focusStyles.completeRow}>
-          <Pressable
-            style={focusStyles.choiceGhost}
-            onPress={() => { setShowComplete(false); setTimer((s) => start(s)); }}
-            accessibilityRole="button"
-            accessibilityLabel={t("focus.btnBreak")}
-          >
-            <Text variant="caption" style={focusStyles.choiceGhostText}>{t("focus.btnBreak")}</Text>
-          </Pressable>
-          <Pressable
-            style={focusStyles.choicePrimary}
-            onPress={() => { setShowComplete(false); setTimer((s) => start(skipPhase(s))); }}
-            accessibilityRole="button"
-            accessibilityLabel={t("focus.btnAgain")}
-          >
-            <Text variant="caption" style={focusStyles.choicePrimaryText}>{t("focus.btnAgain")}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View style={focusStyles.controls}>
-          <Pressable
-            style={[focusStyles.bigBtn, isBreak ? focusStyles.bigBtnGhost : focusStyles.bigBtnPrimary]}
-            onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
-            accessibilityRole="button"
-            accessibilityLabel={timer.running ? t("focus.pause") : t("focus.start")}
-            accessibilityState={{ busy: timer.running }}
-          >
-            {timer.running ? (
-              <View style={focusStyles.pauseGlyph}>
-                <View style={[focusStyles.pauseBar, { backgroundColor: glyphColor }]} />
-                <View style={[focusStyles.pauseBar, { backgroundColor: glyphColor }]} />
-              </View>
-            ) : (
-              <RNText style={[focusStyles.playGlyph, { color: glyphColor }]}>▶</RNText>
-            )}
-          </Pressable>
-          {phase === "idle" ? (
-            <>
-              <Text variant="subtle" style={focusStyles.todayLine}>{t("focus.doneToday", { count: doneToday })}</Text>
-              <Pressable onPress={openSettings} accessibilityRole="button" accessibilityLabel={t("focus.settings")}>
-                <Text variant="subtle" style={focusStyles.subtleLink}>{t("focus.settings")}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Pressable
-              onPress={() => setTimer((s) => (isBreak ? skipPhase(s) : reset(s)))}
-              accessibilityRole="button"
-              accessibilityLabel={isBreak ? t("focus.skip") : t("focus.reset")}
-            >
-              <Text variant="subtle" style={focusStyles.subtleLink}>{isBreak ? t("focus.skip") : t("focus.reset")}</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
+      {/* presets */}
+      <View style={cx.chipRowCenter}>
+        {FOCUS_PRESETS.map((m) => {
+          const on = idle && focusMin === m;
+          return (
+            <MdChip
+              key={m}
+              kind="filter"
+              selected={on}
+              label={ko ? `${m}분` : `${m} min`}
+              icon={on ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={16} /> : undefined}
+              onPress={() => setPreset(m)}
+            />
+          );
+        })}
+      </View>
 
-      {settingsOpen ? (
-        <View style={focusStyles.sheetBackdrop}>
-          <Pressable style={focusStyles.sheetTap} onPress={() => setSettingsOpen(false)} accessibilityRole="button" accessibilityLabel={t("focus.close")} />
-          <View style={focusStyles.sheet}>
-            <View style={focusStyles.sheetHandle} />
-            <RNText style={focusStyles.sheetLabel}>{t("focus.sessionLength")}</RNText>
-            <FocusStepper
-              label={t("focus.labelFocus")}
-              hint={t("focus.focusHint")}
-              value={draftFocus}
-              unit={t("focus.unitMin")}
-              decLabel={t("focus.decrease")}
-              incLabel={t("focus.increase")}
-              onDec={() => setDraftFocus((v) => Math.max(FOCUS_BOUNDS.focusMin, v - 5))}
-              onInc={() => setDraftFocus((v) => Math.min(FOCUS_BOUNDS.focusMax, v + 5))}
-            />
-            <View style={focusStyles.sheetDivider} />
-            <FocusStepper
-              label={t("focus.labelBreak")}
-              hint={t("focus.breakHint")}
-              value={draftBreak}
-              unit={t("focus.unitMin")}
-              decLabel={t("focus.decrease")}
-              incLabel={t("focus.increase")}
-              onDec={() => setDraftBreak((v) => Math.max(FOCUS_BOUNDS.breakMin, v - 1))}
-              onInc={() => setDraftBreak((v) => Math.min(FOCUS_BOUNDS.breakMax, v + 1))}
-            />
-            <Pressable style={focusStyles.sheetSave} onPress={saveSettings} accessibilityRole="button" accessibilityLabel={t("focus.save")}>
-              <Text variant="caption" style={focusStyles.sheetSaveText}>{t("focus.save")}</Text>
-            </Pressable>
-          </View>
+      {/* controls */}
+      <View style={cx.controlsRow}>
+        <MdButton
+          label={timer.running ? (ko ? "일시정지" : "Pause") : (ko ? "집중 시작" : "Start focus")}
+          variant={timer.running ? "tonal" : "filled"}
+          icon={<CloneIcon name={timer.running ? "timer" : "sparkle"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} />}
+          onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
+          style={{ flex: 2 }}
+        />
+        <MdButton
+          label={ko ? "리셋" : "Reset"}
+          variant="outlined"
+          icon={<CloneIcon name="refresh" color={m3.color.primary} size={18} />}
+          onPress={() => setTimer((s) => reset(s))}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {/* linked star */}
+      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "어떤 별을 위해?" : "For which star?"}</RNText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cx.chipScroll}>
+        {(ko ? FOCUS_STARS : FOCUS_STARS_EN).map((s, i) => (
+          <MdChip
+            key={s}
+            kind="filter"
+            selected={starIdx === i}
+            label={s}
+            icon={<CloneIcon name="sparkle" color={starIdx === i ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={15} />}
+            onPress={() => setStarIdx(i)}
+          />
+        ))}
+      </ScrollView>
+
+      {/* today summary */}
+      <MdCard variant="filled" style={cx.focusSummary}>
+        <View style={cx.dotsRow}>
+          {Array.from({ length: target }).map((_, i) => (
+            <View key={i} style={[cx.summaryDot, { backgroundColor: i < filled ? m3.color.primary : m3.color.surfaceVariant }]} />
+          ))}
         </View>
-      ) : null}
+        <View style={cx.flex1}>
+          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{ko ? `오늘 ${doneToday}회 집중` : `${doneToday} focus sessions today`}</RNText>
+          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>{ko ? `약 ${doneToday * focusMin}분 · 목표 ${target}회` : `About ${doneToday * focusMin} min · goal ${target}`}</RNText>
+        </View>
+        <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
+      </MdCard>
     </DockShell>
   );
 }
@@ -2265,3 +2229,140 @@ export {
   DeepSpaceSignUpDesignScreen,
   DeepSpaceResetPasswordDesignScreen,
 } from "./dds-auth-screens";
+
+// ──────────────────────────────────────────────────────────────────────────
+// rev2 M3 clone kit (24-ops / 25-focus / 28-connect / 30-datareview). Shared
+// Material-symbol stroke glyphs + a local stylesheet, transcribed 1:1 from the
+// reference-app screens. All colors route through m3.* tokens (no hex literals).
+const CLONE_ICON: Record<string, string> = {
+  fire: '<path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 1 .5 2 1.5 2 .8 0 1-.8.5-2C11 8 12 6 12 3Z"/>',
+  sparkle: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3Z"/>',
+  trending_up: '<path d="M4 15l5-5 3 3 6-6"/><path d="M14 7h5v5"/>',
+  timer: '<circle cx="12" cy="13" r="7.5"/><path d="M12 13V9M9.5 3.5h5"/>',
+  schedule: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  lightbulb: '<path d="M9.2 18h5.6M10 21h4M8.4 14.6A5.6 5.6 0 1 1 17 10a5.4 5.4 0 0 1-1.6 3.9c-.6.6-.9 1-.9 1.7v.4h-5v-.4c0-.7-.3-1.1-.9-1.7Z"/>',
+  share: '<path d="M12 3v11M8.5 6.5 12 3l3.5 3.5"/><path d="M6 12v7h12v-7"/>',
+  check: '<path d="M5 12.5 10 17 19 7"/>',
+  refresh: '<path d="M5 12a7 7 0 0 1 12-5M19 4.5v4h-4"/><path d="M19 12a7 7 0 0 1-12 5M5 19.5v-4h4"/>',
+  lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
+  bedtime: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
+  book: '<path d="M12 6.5C10.5 5 8 4.5 5 5v12c3-.5 5.5 0 7 1.5 1.5-1.5 4-2 7-1.5V5c-3-.5-5.5 0-7 1.5Z"/><path d="M12 6.5v12"/>',
+  camera: '<rect x="3.5" y="7.5" width="17" height="12" rx="2.5"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7.5l1.2-2h3.6L15 7.5"/>',
+  bubble: '<circle cx="9" cy="10" r="4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="15.5" cy="15.5" r="3"/>',
+  box: '<path d="M4 8.5 12 5l8 3.5V17l-8 3.5L4 17z"/><path d="M4 8.5 12 12l8-3.5M12 12v8.5"/>',
+  hub: '<circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M10.3 10.6 6.3 7.2M13.7 10.6l4-3.4M10.3 13.4l-4 3.4M13.7 13.4l4 3.4"/>',
+  cloud_sync: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.2A3.4 3.4 0 0 1 17 18z"/><path d="M10 14.5l1.5 1.5 3-3"/>',
+  arrow_forward: '<path d="M5 12h13M13 6l6 6-6 6"/>',
+  trash: '<path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/>',
+  download: '<path d="M12 4v10M8 11l4 4 4-4"/><path d="M5 19h14"/>',
+  cloud_off: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 8.5-.5M18 12a3.4 3.4 0 0 1-1 6H9"/><path d="M4 4l16 16"/>',
+  chevron_right: '<path d="M9 5l7 7-7 7"/>',
+};
+
+function CloneIcon({ name, color, size = 20, fill = false }: { name: keyof typeof CLONE_ICON; color: string; size?: number; fill?: boolean }) {
+  const paint = fill ? 'fill="currentColor" stroke="none"' : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  const xml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ${paint}>${CLONE_ICON[name]}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+}
+
+const cx = StyleSheet.create({
+  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
+  lead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 14 },
+  leadStrong: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700" },
+  sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 22, marginBottom: 10 },
+  eyebrow: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: m3.color.primary, marginTop: 22, marginBottom: 8, marginHorizontal: 2 },
+
+  // ── ops hero ──
+  opsHero: { padding: 16, marginTop: 4, backgroundColor: m3.color.primaryContainer },
+  heroRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  heroLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  heroCount: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 2 },
+  heroStreak: { alignItems: "center" },
+  heroStreakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 22, fontWeight: "800", color: m3.accent.alertDot },
+  heroStreakCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
+  heroBar: { marginTop: 12 },
+
+  // ── routine rows ──
+  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, backgroundColor: m3.color.surfaceContainerHighest },
+  routineDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: m3.color.outline },
+  routineDotOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
+  routineLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
+  routineLabelDone: { color: m3.color.onSurfaceVariant, textDecorationLine: "line-through" },
+  routineStar: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  stack8: { gap: 8, marginTop: 12 },
+
+  // ── analysis card ──
+  analysisCard: { padding: 14, marginTop: 12 },
+  rowCenter: { flexDirection: "row", alignItems: "center", gap: 12 },
+  flex1: { flex: 1, minWidth: 0 },
+  analysisTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  analysisSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+
+  // ── 종합 의견 (세컨비 advice) ──
+  adviceCard: { padding: 16, backgroundColor: m3.color.surfaceContainerHigh },
+  adviceHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  adviceStar: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  adviceHeadline: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 2, lineHeight: 22 },
+  adviceRead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 12, lineHeight: 22 },
+  adviceDetail: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8, lineHeight: 22 },
+  evidenceRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 14 },
+  evidenceLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginRight: 2 },
+  evidenceChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 9999, backgroundColor: m3.color.surfaceContainerHighest },
+  evidenceChipText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  adviceCta: { marginTop: 16 },
+  adviceRefreshRow: { flexDirection: "row", justifyContent: "center", marginTop: 4 },
+
+  // ── 비서 도구 grid ──
+  toolGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  toolCard: { width: "48%", padding: 13 },
+  toolTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  toolSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+
+  // ── focus ──
+  focusLead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginTop: 4, marginBottom: 18, lineHeight: 20 },
+  ringWrap: { width: 280, height: 280, alignSelf: "center" },
+  ringCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
+  ringTime: { fontFamily: m3.font.mono, fontSize: 56, fontWeight: "700", color: m3.color.onSurface, letterSpacing: 1 },
+  ringSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
+  chipRowCenter: { flexDirection: "row", gap: 8, justifyContent: "center", marginTop: 18 },
+  controlsRow: { flexDirection: "row", gap: 10, marginTop: 18 },
+  chipScroll: { gap: 8, paddingRight: 16 },
+  focusSummary: { padding: 16, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 16 },
+  dotsRow: { flexDirection: "row", gap: 5 },
+  summaryDot: { width: 12, height: 12, borderRadius: 6 },
+  summaryTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  summarySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+
+  // ── connect / datareview shared ──
+  consentCard: { padding: 14, marginBottom: 12, backgroundColor: m3.color.secondaryContainer },
+  consentRow: { flexDirection: "row", gap: 10 },
+  consentText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
+  sourceCard: { padding: 14 },
+  sourceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  iconBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  iconBoxOn: { backgroundColor: m3.color.primary },
+  iconBoxOff: { backgroundColor: m3.color.surfaceContainerHighest },
+  sourceName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  sourceSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  connectBtn: { paddingHorizontal: 16, minHeight: 40 },
+  smallBtnCompact: { paddingHorizontal: 12, minHeight: 36 },
+
+  // ── datareview ──
+  statGrid: { flexDirection: "row", gap: 8 },
+  statCard: { flex: 1, padding: 12, alignItems: "center" },
+  statNum: { fontFamily: m3.font.mono, fontSize: 18, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
+  statCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2, textAlign: "center" },
+  signalHead: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  signalFrom: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  signalTo: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "600" },
+  signalFoot: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
+  signalConf: { flex: 1, color: m3.color.tertiary, fontFamily: m3.font.brand },
+  rightsCard: { padding: 4 },
+  rightsRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 10 },
+  rightsDivider: { borderTopWidth: 1, borderTopColor: m3.color.outlineVariant },
+  rightsLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  rightsLabelDanger: { color: m3.color.error, fontFamily: m3.font.brand },
+  rightsSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+});
