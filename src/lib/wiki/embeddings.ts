@@ -100,8 +100,10 @@ export interface BackfillResult {
 }
 
 /**
- * Embed pages that don't have a vector yet (bounded). Best-effort per page so
- * one failure doesn't abort the batch. Returns counts for a UI summary.
+ * Embed pages that don't have a vector yet (bounded). P0-2: collects the whole
+ * batch and makes ONE embedTexts call (the old loop made up to 50 serial model
+ * calls — 50x the request-count spend for the same vectors). Stores are still
+ * best-effort per page so one failed write doesn't abort the batch.
  */
 export async function backfillEmbeddings(
   userId: string,
@@ -109,22 +111,52 @@ export async function backfillEmbeddings(
 ): Promise<BackfillResult> {
   const limit = opts.limit ?? 50;
   const pages = await listWikiPages(userId, { limit: 200 });
-  let embedded = 0;
-  let scanned = 0;
+  const targets: { page: (typeof pages)[number]; text: string }[] = [];
   for (const page of pages) {
-    if (scanned >= limit) break;
+    if (targets.length >= limit) break;
     // A page already carrying an embedding is skipped (the column is selected
     // by listWikiPages' `*`, present only after a prior backfill).
     if ((page as WikiPageRow & { embedding?: unknown }).embedding) continue;
-    scanned += 1;
-    try {
-      const ok = await embedAndStorePage(userId, page, opts.locale ?? "en", opts.minor ?? false);
-      if (ok) embedded += 1;
-    } catch {
-      // best-effort; move on
+    const text = pageEmbeddingText(page);
+    if (text.length === 0) continue;
+    targets.push({ page, text });
+  }
+  if (targets.length === 0) return { scanned: 0, embedded: 0 };
+
+  let embedded = 0;
+  try {
+    const { vectors } = await embedTexts({
+      userId,
+      texts: targets.map((t) => t.text),
+      locale: opts.locale ?? "en",
+      minor: opts.minor ?? false,
+    });
+    for (let i = 0; i < targets.length; i++) {
+      const vec = vectors[i];
+      // Red-zone texts come back as zero vectors (C9) — never stored.
+      if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) continue;
+      try {
+        await storeWikiPageEmbedding(userId, targets[i].page.id, vec);
+        embedded += 1;
+      } catch {
+        // best-effort; move on
+      }
+    }
+  } catch {
+    // Batch failure (egress error, or a server-side crisis 422 on ONE text
+    // rejecting the whole request). Fall back to per-page calls so a single
+    // poisoned/failing page can't wedge the entire index build — the old
+    // serial behavior, but only as the recovery path.
+    for (const target of targets) {
+      try {
+        const ok = await embedAndStorePage(userId, target.page, opts.locale ?? "en", opts.minor ?? false);
+        if (ok) embedded += 1;
+      } catch {
+        // best-effort; isolate and move on
+      }
     }
   }
-  return { scanned, embedded };
+  return { scanned: targets.length, embedded };
 }
 
 export interface RelatedPage {

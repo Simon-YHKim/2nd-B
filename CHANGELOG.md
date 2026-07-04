@@ -7,6 +7,23 @@ Conventional Commits.
 ## [Unreleased]
 
 ### Added
+- D-26 P0 lane: embeddings revived — `text-embedding-004` (shut down
+  2026-01-14) replaced by `gemini-embedding-2` @768 MRL; gemini-proxy gains a
+  spend-capped `op:'embed'` route so the keyless web build can embed at all;
+  backfill batches 50 serial calls into one (with per-page fallback isolation);
+  the Research screen's find-proposals button now builds the index first
+  (migration 0068 nulls the dead 004-space vectors, trigger-safe).
+- gemini-proxy model allowlist now includes flash-lite + the 3.x generation
+  (fixes the silent 400 on every edge-routed lite classify) with a
+  `GEMINI_MODELS_ALLOWED` env extension; the sub-brain cost pin now matches
+  pro-class models by family pattern, not a literal id.
+- Persona narrative summary is cached in `personas.patterns` keyed by a
+  staleness signature (skips the 3-screen mount re-summarize storm) and its
+  input is windowed (interview transcripts excluded, newest rows under a row +
+  char budget sized to the proxy's 8000-char cap).
+- Ops recommendations get an in-session TTL cache (stops OpsHomeScreen's
+  unmetered per-tab-flip LLM refires); explicit run buttons bypass it via
+  `forceFresh` so quota is never billed for a cached answer.
 - D-26 Phase 2 vendor routing (Simon GO 2026-07-04): `openai-proxy` edge
   function (gpt-5.4 seat, shared spend counter + crisis gate), upgraded
   `claude-proxy` (claude-sonnet-5 default, per-purpose opus-4-8 seats,

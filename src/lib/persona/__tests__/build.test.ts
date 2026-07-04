@@ -1,4 +1,4 @@
-// Tests for buildPersona() — verifies that MBTI and ECR-S records are surfaced
+// Tests for buildPersona() (records:select fixtures are in DB order: created_at DESC - buildPersona fetches newest-first and reverses) — verifies that MBTI and ECR-S records are surfaced
 // into the PersonaCard, and that traitsSource flips from "heuristic" to "tipi"
 // when a TIPI assessment exists. Supabase calls are mocked per-table.
 
@@ -19,6 +19,13 @@ function chainable(result: QueryResult) {
     contains: () => chain,
     order: () => chain,
     limit: () => chain,
+    // maybeSingle unwraps an array fixture to its first row (or null) — the
+    // shape the summary-cache read (personas:select) consumes.
+    maybeSingle: () =>
+      promise.then((r) => ({
+        data: Array.isArray(r.data) ? ((r.data as unknown[])[0] ?? null) : r.data,
+        error: r.error,
+      })),
     then: (...args: unknown[]) => promise.then(...(args as Parameters<typeof promise.then>)),
     catch: (...args: unknown[]) => promise.catch(...(args as Parameters<typeof promise.catch>)),
     finally: (...args: unknown[]) => promise.finally(...(args as Parameters<typeof promise.finally>)),
@@ -48,13 +55,14 @@ jest.mock("../../llm/gemini", () => ({
   ),
 }));
 
-import { buildPersona, deriveValues, instrumentLabel, isMeasuredSource, traitConfidenceFor } from "../build";
+import { buildPersona, deriveValues, instrumentLabel, isMeasuredSource, personaSummarySig, traitConfidenceFor } from "../build";
 import { callGemini } from "../../llm/gemini";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
   upsertCalls.length = 0;
+  (callGemini as jest.Mock).mockClear();
 }
 
 describe("traitConfidenceFor (SOKA per-trait confidence)", () => {
@@ -304,8 +312,8 @@ describe("buildPersona", () => {
     // ids a ratified tier change cites, never an LLM-invented label.
     tableFixtures["records:select"] = {
       data: [
-        { id: "aaaaaaaa-1111-1111-1111-111111111111", prompt: "q1", body: "older entry", created_at: "2026-05-01T00:00:00Z", tags: [] },
         { id: "bbbbbbbb-2222-2222-2222-222222222222", prompt: "q2", body: "newer entry", created_at: "2026-05-02T00:00:00Z", tags: [] },
+        { id: "aaaaaaaa-1111-1111-1111-111111111111", prompt: "q1", body: "older entry", created_at: "2026-05-01T00:00:00Z", tags: [] },
       ],
       error: null,
     };
@@ -370,5 +378,72 @@ describe("buildPersona", () => {
         system: expect.stringContaining("ONLY in the entries"),
       }),
     );
+  });
+
+  test("summary cache: fresh signature reuses the stored summary and SKIPS the LLM", async () => {
+    const rows = [
+      { id: "r2", prompt: "Q2", body: "A2", created_at: "2026-01-03T00:00:00Z", tags: [] },
+      { id: "r1", prompt: "Q1", body: "A1", created_at: "2026-01-02T00:00:00Z", tags: [] },
+    ];
+    tableFixtures["records:select"] = { data: rows, error: null };
+    tableFixtures["personas:select"] = {
+      data: [
+        {
+          patterns: {
+            summary: "cached mirror",
+            __summary_sig: personaSummarySig("en", 2, "2026-01-03T00:00:00Z"),
+          },
+        },
+      ],
+      error: null,
+    };
+    const card = await buildPersona("u1", "en");
+    expect(card.patterns.summary).toBe("cached mirror");
+    expect(callGemini).not.toHaveBeenCalled();
+  });
+
+  test("summary cache: stale signature re-summarizes and persists the fresh sig", async () => {
+    const rows = [
+      { id: "r2", prompt: "Q2", body: "A2", created_at: "2026-01-05T00:00:00Z", tags: [] },
+      { id: "r1", prompt: "Q1", body: "A1", created_at: "2026-01-02T00:00:00Z", tags: [] },
+    ];
+    tableFixtures["records:select"] = { data: rows, error: null };
+    tableFixtures["personas:select"] = {
+      data: [
+        {
+          patterns: {
+            summary: "old mirror",
+            // Signature from when only one row existed — stale now.
+            __summary_sig: personaSummarySig("en", 1, "2026-01-02T00:00:00Z"),
+          },
+        },
+      ],
+      error: null,
+    };
+    const card = await buildPersona("u1", "en");
+    expect(callGemini).toHaveBeenCalledTimes(1);
+    expect(card.patterns.summary).toBe("mock summary");
+    expect(card.patterns.__summary_sig).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
+    const personaUpsert = upsertCalls.find((u) => u.table === "personas");
+    expect(
+      (personaUpsert?.payload as { patterns?: Record<string, string> })?.patterns?.__summary_sig,
+    ).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
+  });
+
+  test("summary windowing: interview transcripts are excluded and bodies clipped", async () => {
+    const longInterview = "T".repeat(4000);
+    const rows = [
+      { id: "r3", prompt: "Q3", body: "B".repeat(900), created_at: "2026-01-04T00:00:00Z", tags: [] },
+      { id: "r2", prompt: "(interview)", body: longInterview, created_at: "2026-01-03T00:00:00Z", tags: ["interview"] },
+      { id: "r1", prompt: "Q1", body: "short answer", created_at: "2026-01-02T00:00:00Z", tags: [] },
+    ];
+    tableFixtures["records:select"] = { data: rows, error: null };
+    await buildPersona("u1", "en");
+    const arg = (callGemini as jest.Mock).mock.calls[0]![0] as { user: string };
+    expect(arg.user).not.toContain("TTTT"); // interview body excluded
+    expect(arg.user).toContain("short answer");
+    // Long non-interview bodies are clipped to the window cap (500 chars).
+    expect(arg.user).toContain("B".repeat(500));
+    expect(arg.user).not.toContain("B".repeat(501));
   });
 });

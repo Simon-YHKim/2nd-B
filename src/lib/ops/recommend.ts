@@ -127,6 +127,13 @@ export interface OpsRecommendInput {
    */
   recommendationsPref?: boolean | null;
   now?: Date;
+  /**
+   * Skip the TTL cache and force a live engine run. Button surfaces pass this
+   * (the user explicitly asked — and is charged quota — so serving a cached
+   * copy would bill them for nothing new); the OpsHomeScreen auto-run leaves
+   * it unset so tab-flips reuse the cache.
+   */
+  forceFresh?: boolean;
 }
 
 /**
@@ -150,6 +157,25 @@ export function recommendationsAllowed(
   return recommendationsPref === true;
 }
 
+// D-26 backlog #6 (partial): in-session TTL cache. OpsHomeScreen auto-runs the
+// engine on mount AND on every group-tab switch (its useAsync deps include
+// `domain`), with no quota bump — each tab flip was a fresh whole-wiki-snapshot
+// LLM call. Recommendations don't change minute-to-minute, so successful runs
+// are cached per (user, domain, locale) for a short TTL; flipping tabs back and
+// forth reuses the cache. Full fix (daily precomputed ops_daily_brief) is the
+// consolidation lane.
+const REC_CACHE_TTL_MS = 10 * 60 * 1000;
+// Empty results get a short negative-cache TTL: [] can mean a parse miss or
+// crisis copy (worth retrying soon), but a thin-wiki user's tab-flips must
+// not each fire a fresh whole-snapshot LLM call in the meantime.
+const REC_EMPTY_TTL_MS = 90 * 1000;
+const recCache = new Map<string, { at: number; recs: OpsRecommendation[] }>();
+
+/** Test hook: clear the in-session recommendation cache. */
+export function resetOpsRecommendCacheForTests(): void {
+  recCache.clear();
+}
+
 export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsRecommendation[]> {
   // D-2 (defense-in-depth): enforce the recommendations privacy gate at the
   // ENGINE, not only at the three call sites. `recommendationsAllowed` is
@@ -159,6 +185,16 @@ export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsR
   // the "off" affordance); this is the belt-and-suspenders backstop so a missing
   // call-site gate cannot leak the user's own material to the LLM.
   if (!recommendationsAllowed(input.minor, input.recommendationsPref)) return [];
+  // TTL cache — only ever consulted AFTER the privacy gate above, and only
+  // populated by gate-passing runs, so a pref flip to OFF can never serve
+  // cached material (the gate returns [] first).
+  const cacheKey = `${input.userId}:${input.domainId}:${input.locale}`;
+  const hit = recCache.get(cacheKey);
+  const nowMs = (input.now ?? new Date()).getTime();
+  if (!input.forceFresh && hit) {
+    const ttl = hit.recs.length > 0 ? REC_CACHE_TTL_MS : REC_EMPTY_TTL_MS;
+    if (nowMs - hit.at < ttl) return hit.recs;
+  }
   const snapshot = await exportUserWiki(input.userId, { bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
   const now = input.now ?? new Date();
   // Deterministic, aggregate-only behavior signal (the user's own completion
@@ -189,5 +225,9 @@ export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsR
   });
   // Red-zone short-circuits inside the gateway return crisis copy, not JSON -
   // the parser yields [] and the screen shows its safe empty state.
-  return parseOpsRecommendations(reply.text);
+  const recs = parseOpsRecommendations(reply.text);
+  // Non-empty successes cache for the full TTL; empty results take the short
+  // negative TTL above (retry stays healthy, flip-storms don't bill).
+  recCache.set(cacheKey, { at: nowMs, recs });
+  return recs;
 }

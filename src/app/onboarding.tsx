@@ -24,6 +24,7 @@ import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
 import { SbIcon, type SbIconName } from "@/components/deepspace/shell/SbIcon";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { canonFlows } from "@/lib/canon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
 
@@ -34,47 +35,41 @@ interface Slide {
   body: { ko: string; en: string };
 }
 
-// Slide copy transcribed verbatim from sb-flows.jsx OnboardingScreen. Slide 1
-// follows the 02-onboard.png capture (the pixel target carries an earlier
-// headline/body variant); slides 2-4 follow the source. Do not paraphrase.
-const SLIDES: Slide[] = [
+// KO slide copy comes VERBATIM from the canon flows pack (public/proto/data/
+// screens/flows.json via canonFlows.onboardingSlides) — the same 4 slides the
+// reference sb-flows.jsx OnboardingScreen and the 02-onboard.png capture carry
+// (slide 1 = "나를 알아가는 AI"). Canon values are a pixel contract: do not
+// paraphrase or edit them app-side. EN mirrors stay app-side below, index-
+// aligned with the canon slides.
+const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
-    icon: "bubble_chart",
-    tag: { ko: "2ND-BRAIN", en: "2ND-BRAIN" },
-    title: { ko: "나를 아는\n두 번째 나", en: "A second self\nthat knows you" },
-    body: {
-      ko: "세상을 아는 AI를 넘어, 당신을 아는 AI. 기록이 쌓일수록 더 또렷이 당신을 비춰요.",
-      en: "Beyond an AI that knows the world, one that knows you. The more you record, the more clearly it reflects you.",
-    },
+    tag: "2ND-BRAIN",
+    title: "An AI that gets\nto know you",
+    body: "SecondB is curious about the stardust that makes you up. Show your stardust and tell it who you are!",
   },
   {
-    icon: "star_shine",
-    tag: { ko: "알아가기", en: "Getting to know you" },
-    title: { ko: "흩어진 일상이\n별자리가 돼요", en: "Scattered days\nbecome a constellation" },
-    body: {
-      ko: "커리어·재정·관계·건강·성장·휴식. 일곱 영역의 별로 지금의 나를 한눈에 봐요.",
-      en: "Career, money, relationships, health, growth, rest: seven life stars show who you are at a glance.",
-    },
+    tag: "Getting to know you",
+    title: "Scattered days\nbecome a constellation",
+    body: "Career, money, relationships, health, growth, rest: seven life stars show who you are at a glance.",
   },
   {
-    icon: "lightbulb",
-    tag: { ko: "곁에서 돕기", en: "Helping alongside you" },
-    title: { ko: "아는 만큼\n도와줘요", en: "It helps\nas much as it knows" },
-    body: {
-      ko: "당신을 알게 된 만큼 비서가 돼요. 돈 쓰는 결, 쉬는 법, 하루 계획까지 당신에게 맞는 조언을 건네요.",
-      en: "The more it knows you, the better it assists: spending, rest, daily plans, all tuned to you.",
-    },
+    tag: "Helping alongside you",
+    title: "It helps\nas much as it knows",
+    body: "The more it knows you, the better it assists: spending, rest, daily plans, all tuned to you.",
   },
   {
-    icon: "school",
-    tag: { ko: "함께 배우기", en: "Learning together" },
-    title: { ko: "AI의 원리도\n같이 배워요", en: "Learn how the\nAI works, too" },
-    body: {
-      ko: "세컨비가 어떻게 당신을 이해하는지, AI 뮤지엄에서 그 원리를 쉽고 재미있게 풀어줘요.",
-      en: "See how SecondB understands you: the AI Museum unpacks the how in a simple, playful way.",
-    },
+    tag: "Learning together",
+    title: "Learn how the\nAI works, too",
+    body: "See how SecondB understands you: the AI Museum unpacks the how in a simple, playful way.",
   },
 ];
+
+const SLIDES: Slide[] = canonFlows.onboardingSlides.map((s, i) => ({
+  icon: s.icon as SbIconName,
+  tag: { ko: s.tag, en: SLIDE_EN[i]?.tag ?? s.tag },
+  title: { ko: s.title, en: SLIDE_EN[i]?.title ?? s.title },
+  body: { ko: s.body, en: SLIDE_EN[i]?.body ?? s.body },
+}));
 
 const AUTH_STEP = SLIDES.length;
 

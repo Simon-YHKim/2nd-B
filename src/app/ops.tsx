@@ -127,6 +127,8 @@ function OpsLegacy() {
         domainLabel: tEn(`domains.${domain}`),
         minor: isMinor === true,
         recommendationsPref: prefs?.recommendations,
+        // Explicit user run (and a quota bump below) - never serve the cache.
+        forceFresh: true,
       });
       const used = await bumpOpsUsage(userId);
       setUsedToday(used);
