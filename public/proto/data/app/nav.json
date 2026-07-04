@@ -1,0 +1,29 @@
+{
+  "tabs": [
+    {
+      "id": "home",
+      "label": "별자리",
+      "icon": "star_shine"
+    },
+    {
+      "id": "capture",
+      "label": "담기",
+      "icon": "add_circle"
+    },
+    {
+      "id": "chat",
+      "label": "세컨비",
+      "icon": "forum"
+    },
+    {
+      "id": "records",
+      "label": "위키",
+      "icon": "inventory_2"
+    },
+    {
+      "id": "settings",
+      "label": "설정",
+      "icon": "tune"
+    }
+  ]
+}

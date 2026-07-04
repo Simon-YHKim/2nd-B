@@ -114,3 +114,6 @@ Output/
 # root thought-dump / synthesis docs — belong in the wiki or Output/, not the live app tree.
 2ndb-thought-organization-synthesis.html
 260617생각정리.txt
+
+# proto_rev2 local-only audit captures (79MB, kept out of git)
+design/proto_rev2/docs/improve-audit/

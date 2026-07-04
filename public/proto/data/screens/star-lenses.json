@@ -1,0 +1,733 @@
+{
+  "financeLens": {
+    "budget": 1800000,
+    "spent": 1224000,
+    "saveRate": 17,
+    "cats": [
+      {
+        "k": "생활/식비",
+        "amt": 412000,
+        "pct": 34,
+        "color": "var(--md-sys-color-primary)"
+      },
+      {
+        "k": "고정지출",
+        "amt": 360000,
+        "pct": 29,
+        "color": "var(--md-sys-color-tertiary)"
+      },
+      {
+        "k": "여가/취미",
+        "amt": 238000,
+        "pct": 19,
+        "color": "#F7B955"
+      },
+      {
+        "k": "기타",
+        "amt": 214000,
+        "pct": 18,
+        "color": "var(--md-sys-color-outline)"
+      }
+    ],
+    "flow": [
+      {
+        "t": "월급",
+        "amt": 2950000,
+        "kind": "in"
+      },
+      {
+        "t": "적금 자동이체",
+        "amt": -500000,
+        "kind": "save"
+      },
+      {
+        "t": "카드값",
+        "amt": -612000,
+        "kind": "out"
+      },
+      {
+        "t": "기계식 키보드",
+        "amt": -159000,
+        "kind": "out"
+      }
+    ],
+    "emotionChips": [
+      {
+        "k": "불안",
+        "pct": 40,
+        "c": "#F7B955"
+      },
+      {
+        "k": "충동",
+        "pct": 25,
+        "c": "#FF8A5B"
+      },
+      {
+        "k": "즐거움",
+        "pct": 20,
+        "c": "var(--md-sys-color-primary)"
+      },
+      {
+        "k": "계획",
+        "pct": 15,
+        "c": "var(--md-sys-color-tertiary)"
+      }
+    ]
+  },
+  "careerLens": {
+    "kind": {
+      "edu": {
+        "label": "학력",
+        "icon": "school",
+        "color": "var(--md-sys-color-primary)"
+      },
+      "mil": {
+        "label": "병역",
+        "icon": "shield",
+        "color": "#5FD0C5"
+      },
+      "award": {
+        "label": "수상",
+        "icon": "emoji_events",
+        "color": "#F7B955"
+      },
+      "cert": {
+        "label": "자격",
+        "icon": "verified",
+        "color": "#9A86FF"
+      },
+      "job": {
+        "label": "경력",
+        "icon": "badge",
+        "color": "var(--md-sys-color-tertiary)"
+      }
+    },
+    "track": {
+      "main": {
+        "label": "메인",
+        "color": "var(--md-sys-color-tertiary)"
+      },
+      "personal": {
+        "label": "사이드",
+        "color": "#F2A6C2"
+      }
+    },
+    "trackOrder": [
+      "main",
+      "personal"
+    ],
+    "tabs": [
+      {
+        "id": "main",
+        "label": "메인"
+      },
+      {
+        "id": "personal",
+        "label": "사이드"
+      }
+    ],
+    "items": [
+      {
+        "id": "e1",
+        "kind": "edu",
+        "track": "main",
+        "period": "2012–2015",
+        "title": "한빛고등학교",
+        "sub": "이과 · 졸업",
+        "chip": "졸업",
+        "details": [
+          {
+            "name": "미술 동아리 부장"
+          },
+          {
+            "name": "교내 디자인 경진대회 입상"
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "kind": "edu",
+        "track": "main",
+        "period": "2015.03",
+        "title": "한국대학교 시각디자인학과",
+        "sub": "학사 입학",
+        "chip": "학사",
+        "details": []
+      },
+      {
+        "id": "m1",
+        "kind": "mil",
+        "track": "main",
+        "period": "2016.06–2018.03",
+        "title": "대한민국 육군",
+        "sub": "정보통신병 · 만기전역",
+        "chip": "병장",
+        "details": [
+          {
+            "name": "대대 정보통신 운용"
+          },
+          {
+            "name": "모범용사 표창",
+            "note": "사단장 표창"
+          }
+        ]
+      },
+      {
+        "id": "a1",
+        "kind": "award",
+        "track": "main",
+        "period": "2019",
+        "title": "교내 디자인 우수상",
+        "sub": "한국대학교 디자인대학",
+        "chip": "우수상",
+        "details": []
+      },
+      {
+        "id": "a2",
+        "kind": "award",
+        "track": "personal",
+        "period": "2020",
+        "title": "전국 대학생 UX 공모전 대상",
+        "sub": "자발적 도전 · 한국디자인진흥원",
+        "chip": "대상",
+        "details": [
+          {
+            "name": "팀 리더 · 4인"
+          },
+          {
+            "name": "서비스 앱 프로토타입 제작"
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "kind": "edu",
+        "track": "main",
+        "period": "2021.02",
+        "title": "한국대학교 학사 졸업",
+        "sub": "시각디자인학과 · 학점 3.8/4.5",
+        "chip": "학사",
+        "details": [
+          {
+            "name": "졸업작품 전시 선정"
+          }
+        ]
+      },
+      {
+        "id": "c1",
+        "kind": "cert",
+        "track": "main",
+        "period": "2021",
+        "title": "GTQ 그래픽기술자격 1급",
+        "sub": "한국생산성본부",
+        "chip": "1급",
+        "details": []
+      },
+      {
+        "id": "j1",
+        "kind": "job",
+        "period": "2021–2022",
+        "title": "스타트업 루멘",
+        "sub": "프로덕트 디자이너",
+        "chip": "주니어",
+        "projects": [
+          {
+            "name": "온보딩 리디자인",
+            "note": "가입 전환 +18%",
+            "track": "main"
+          },
+          {
+            "name": "모바일 결제 플로우",
+            "note": "3단계 → 1단계로 단축",
+            "track": "main"
+          },
+          {
+            "name": "디자인 QA 자동화 토이툴",
+            "note": "사내 해커톤",
+            "track": "personal"
+          }
+        ]
+      },
+      {
+        "id": "j2",
+        "kind": "job",
+        "period": "2023–2024",
+        "title": "테크컴퍼니 노바",
+        "sub": "프로덕트 디자이너",
+        "chip": "미드레벨",
+        "projects": [
+          {
+            "name": "디자인 시스템 v1",
+            "note": "컴포넌트 120개 구축",
+            "track": "main"
+          },
+          {
+            "name": "검색 경험 개편",
+            "note": "리텐션 +9%",
+            "track": "main"
+          },
+          {
+            "name": "사이드 프로젝트 앱",
+            "note": "누적 1만 다운로드",
+            "track": "personal"
+          }
+        ]
+      },
+      {
+        "id": "j3",
+        "kind": "job",
+        "period": "지금",
+        "title": "테크컴퍼니 노바",
+        "sub": "프로덕트 디자이너",
+        "chip": "시니어 · 팀 리드 제안",
+        "now": true,
+        "projects": [
+          {
+            "name": "디자인 시스템 v2",
+            "note": "토큰 · 다크모드 정비",
+            "track": "main"
+          },
+          {
+            "name": "신규 온보딩 여정",
+            "note": "진행 중",
+            "track": "main"
+          },
+          {
+            "name": "주니어 2인 멘토링",
+            "note": "",
+            "track": "personal"
+          },
+          {
+            "name": "디자인 아카이브 블로그",
+            "note": "주 1회 연재",
+            "track": "personal"
+          }
+        ]
+      }
+    ]
+  },
+  "growthLens": {
+    "birth": "1996-04-12T00:00:00",
+    "fill": {
+      "0": 32,
+      "1": 58,
+      "2": 84,
+      "3": 26,
+      "4": 0,
+      "5": 0,
+      "6": 0
+    },
+    "subHint": {
+      "0": [
+        "첫 기억과 가족",
+        "유치원·놀이",
+        "초등 입학"
+      ],
+      "1": [
+        "사춘기의 시작",
+        "교우관계·취향",
+        "진로의 첫 고민"
+      ],
+      "2": [
+        "독립과 첫 도전",
+        "일·사랑의 본격화",
+        "나만의 방식 정립"
+      ],
+      "3": [
+        "지금 여기",
+        "",
+        ""
+      ]
+    },
+    "subs": [
+      {
+        "k": "초반",
+        "span": [
+          0,
+          3
+        ]
+      },
+      {
+        "k": "중반",
+        "span": [
+          4,
+          6
+        ]
+      },
+      {
+        "k": "후반",
+        "span": [
+          7,
+          9
+        ]
+      }
+    ]
+  },
+  "leisureLens": {
+    "acts": [
+      {
+        "id": "game",
+        "nm": "게임",
+        "s": [
+          0.34,
+          0.72,
+          0.78,
+          70
+        ],
+        "e": [
+          0.3,
+          0.8,
+          0.78,
+          82
+        ],
+        "freq": "주 2~3회",
+        "hist": [
+          70,
+          74,
+          68,
+          80,
+          85,
+          82
+        ],
+        "note": "몰입하면 잡생각이 사라져요. 끝나고도 여운이 좋은 편이에요."
+      },
+      {
+        "id": "talk",
+        "nm": "친구 수다",
+        "s": [
+          0.7,
+          0.7,
+          0.55,
+          75
+        ],
+        "e": [
+          0.82,
+          0.83,
+          0.6,
+          86
+        ],
+        "freq": "주 1회",
+        "hist": [
+          78,
+          80,
+          84,
+          82,
+          88,
+          86
+        ],
+        "note": "만나기 전엔 귀찮은데, 끝나면 거의 항상 채워져 있어요."
+      },
+      {
+        "id": "read",
+        "nm": "독서",
+        "s": [
+          0.2,
+          0.54,
+          0.6,
+          62
+        ],
+        "e": [
+          0.18,
+          0.56,
+          0.6,
+          64
+        ],
+        "freq": "주 1회",
+        "hist": [
+          60,
+          58,
+          66,
+          62,
+          68,
+          64
+        ],
+        "note": "조용히 채워지지만 컨디션 따라 기쁨 편차가 커요."
+      },
+      {
+        "id": "cafe",
+        "nm": "카페 나들이",
+        "s": [
+          0.55,
+          0.4,
+          0.4,
+          58
+        ],
+        "e": [
+          0.68,
+          0.4,
+          0.42,
+          60
+        ],
+        "freq": "격주",
+        "hist": [
+          55,
+          58,
+          52,
+          64,
+          61,
+          60
+        ],
+        "note": "분위기로 환기되지만, 길어지면 도로 비워지기도 해요."
+      },
+      {
+        "id": "walk",
+        "nm": "산책",
+        "s": [
+          0.26,
+          0.32,
+          0.58,
+          56
+        ],
+        "e": [
+          0.26,
+          0.3,
+          0.6,
+          56
+        ],
+        "freq": "주 1회",
+        "hist": [
+          50,
+          54,
+          58,
+          52,
+          57,
+          56
+        ],
+        "note": "가볍게 비우는 활동. 함께 걸으면 효과가 더 커져요."
+      },
+      {
+        "id": "netflix",
+        "nm": "넷플릭스",
+        "s": [
+          0.45,
+          0.42,
+          0.45,
+          50
+        ],
+        "e": [
+          0.4,
+          0.22,
+          1,
+          38
+        ],
+        "freq": "거의 매일",
+        "hist": [
+          48,
+          44,
+          40,
+          42,
+          37,
+          38
+        ],
+        "note": "쉽게 손이 가지만, 끝나고 나면 조금 공허할 때가 많아요."
+      }
+    ],
+    "anchor": "#FFCF6E",
+    "axisLabels": [
+      [
+        "채움",
+        {
+          "top": 6,
+          "left": "50%",
+          "transform": "translateX(-50%)"
+        }
+      ],
+      [
+        "비움",
+        {
+          "bottom": 6,
+          "left": "50%",
+          "transform": "translateX(-50%)"
+        }
+      ],
+      [
+        "혼자",
+        {
+          "left": 6,
+          "top": "50%",
+          "transform": "translateY(-50%)"
+        }
+      ],
+      [
+        "함께",
+        {
+          "right": 6,
+          "top": "50%",
+          "transform": "translateY(-50%)"
+        }
+      ]
+    ],
+    "recChips": [
+      [
+        "보드게임 모임",
+        "게임+함께"
+      ],
+      [
+        "원데이 쿠킹",
+        "새 채움"
+      ],
+      [
+        "러닝 크루",
+        "산책→함께"
+      ]
+    ]
+  },
+  "catchallLens": {
+    "queue": [
+      {
+        "txt": "문득 떠오른 사업 아이디어",
+        "to": "커리어"
+      },
+      {
+        "txt": "그 사람 말이 계속 맴돈다",
+        "to": "관계"
+      },
+      {
+        "txt": "요즘 허리가 자꾸 결린다",
+        "to": "건강"
+      }
+    ]
+  },
+  "idenScreen": {
+    "targets": [
+      {
+        "k": "ChatGPT",
+        "c": "#10A37F"
+      },
+      {
+        "k": "Claude",
+        "c": "#D97757"
+      },
+      {
+        "k": "Gemini",
+        "c": "#4285F4"
+      },
+      {
+        "k": "Notion",
+        "c": "#111"
+      }
+    ],
+    "rows": [
+      {
+        "id": "northstar",
+        "label": "북극성 문장",
+        "sub": "나를 한 줄로"
+      },
+      {
+        "id": "bigfive",
+        "label": "Big Five 검증",
+        "sub": "O72 C58 E41 A67 N39"
+      },
+      {
+        "id": "domains",
+        "label": "7 도메인 요약",
+        "sub": "별빛·확신 수치"
+      },
+      {
+        "id": "raw",
+        "label": "원문 기록",
+        "sub": "민감 — 기본 제외"
+      }
+    ],
+    "formats": [
+      "Markdown",
+      "JSON",
+      "PDF"
+    ]
+  },
+  "connectScreen": {
+    "sources": [
+      {
+        "id": "cal",
+        "icon": "forum",
+        "k": "Google 캘린더",
+        "sub": "일정에서 리듬·관계 신호"
+      },
+      {
+        "id": "health",
+        "icon": "bedtime",
+        "k": "Apple 건강",
+        "sub": "수면·활동으로 건강 별"
+      },
+      {
+        "id": "notion",
+        "icon": "auto_stories",
+        "k": "Notion",
+        "sub": "메모·문서 가져오기"
+      },
+      {
+        "id": "photos",
+        "icon": "photo_camera",
+        "k": "사진 앨범",
+        "sub": "장면에서 휴식·관계"
+      },
+      {
+        "id": "gpt",
+        "icon": "bubble_chart",
+        "k": "ChatGPT 내보내기",
+        "sub": "대화 기록 불러오기"
+      }
+    ]
+  },
+  "plansScreen": {
+    "tiers": [
+      {
+        "k": "별바라기",
+        "price": "무료",
+        "sub": "시작하는 사람",
+        "feats": [
+          "7 도메인 별",
+          "월 100별가루",
+          "IDEN 1개"
+        ],
+        "cur": false
+      },
+      {
+        "k": "항해자",
+        "price": "₩6,900/월",
+        "sub": "꾸준한 항해자",
+        "feats": [
+          "무제한 별가루",
+          "심층 인터뷰",
+          "데이터 연동 5종",
+          "IDEN 버전 관리"
+        ],
+        "cur": true
+      },
+      {
+        "k": "북극성",
+        "price": "₩12,900/월",
+        "sub": "깊이 파는 사람",
+        "feats": [
+          "항해자 전체",
+          "장기 보관 무제한",
+          "가족 공유",
+          "우선 분석"
+        ],
+        "cur": false
+      }
+    ]
+  },
+  "settingsScreen": {
+    "sources": [
+      {
+        "id": "cal",
+        "icon": "forum",
+        "k": "Google 캘린더",
+        "sub": "일정에서 리듬·관계 신호"
+      },
+      {
+        "id": "health",
+        "icon": "bedtime",
+        "k": "Apple 건강",
+        "sub": "수면·활동으로 건강 별"
+      },
+      {
+        "id": "notion",
+        "icon": "auto_stories",
+        "k": "Notion",
+        "sub": "메모·문서 가져오기"
+      }
+    ]
+  }
+}

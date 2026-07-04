@@ -1,0 +1,7 @@
+{
+  "mood": {
+    "positive": "var(--sb-mood-positive)",
+    "neutral": "var(--sb-mood-neutral)",
+    "negative": "var(--sb-mood-negative)"
+  }
+}
