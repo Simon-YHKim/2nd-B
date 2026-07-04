@@ -4,8 +4,10 @@ export type GeminiModel = "lite" | "flash" | "pro";
 
 // Reasoning effort levels for the pro (reasoning) tier. Maps to a generation
 // config in gemini.ts (thinking budget where the SDK exposes it, else a
-// maxOutputTokens cap). Default is "high". Lower app tiers (Free/Plus) pass a
-// lower effort via callers; the reasoning path honors whatever it is given.
+// maxOutputTokens cap). Default is "high". Effort is a PURPOSE property, never
+// a subscription-tier property: the SAME-QUALITY invariant
+// (entitlements/tiers.ts) forbids tier-keyed model/effort/quality differences —
+// tiers differ by counts and features only. See docs/LLM-ROUTING.md.
 export type ReasoningEffort = "low" | "high" | "xhigh" | "max";
 
 export type PromptPurpose =
@@ -39,7 +41,8 @@ export interface AdvisorInput {
   // from AuthContext.isMinor by callers. Defaults to adult routing when unset.
   minor?: boolean;
   // Reasoning effort for the Advisor (pro/reasoning tier). Defaults to "high".
-  // Lower app tiers (Free/Plus) will pass a lower effort via callers later.
+  // Purpose-keyed only — never derived from the subscription tier
+  // (SAME-QUALITY invariant, entitlements/tiers.ts).
   effort?: ReasoningEffort;
 }
 
@@ -77,7 +80,8 @@ export interface PromptInput {
   signal?: AbortSignal;
   // Reasoning effort. Only honored on the pro (reasoning) tier — when this call
   // resolves to pro (explicit model:"pro" or a pro-tier purpose). Defaults to
-  // "high". Ignored on lite/flash tiers. See gemini.ts effortToConfig().
+  // "high". Ignored on lite/flash tiers. Purpose-keyed only, never
+  // subscription-tier-keyed (SAME-QUALITY). See gemini.ts effortToConfig().
   effort?: ReasoningEffort;
 }
 
@@ -150,9 +154,17 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   // 북극성 persona synthesis (layer C). v1 flash (CONSTELLATION-DESIGN §17-f);
   // promote to "pro" if persona quality needs deeper reasoning.
   persona_synthesis: "flash",
+  // Interview probe drafts ONE question per turn; the depth-layer choice is
+  // deterministic (nextLayerSuggestion), so pro-tier reasoning added cost and
+  // latency without measurable question quality (routing decision D-26,
+  // docs/LLM-ROUTING.md A4). Demoted pro -> flash.
+  interview_probe: "flash",
+  // Previously unmapped (fell through to the flash fallback in purposeToTier).
+  // Made explicit so a future default change cannot silently re-route them.
+  northstar_propose: "flash",
+  axis_estimate: "flash",
   // pro: reasoning / nuance
   advisor: "pro",
   journal_reflect: "pro",
-  interview_probe: "pro",
   imagine: "pro",
 };

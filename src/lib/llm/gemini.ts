@@ -85,6 +85,13 @@ function effortToConfig(effort: ReasoningEffort): {
   }
 }
 
+// Purposes whose direct-path calls suppress model thinking entirely.
+// Verbatim transcription gains nothing from thinking tokens: gemini-2.5-flash
+// runs dynamic thinking by default, which only adds latency + spend on OCR
+// (routing decision, docs/LLM-ROUTING.md A12). Direct/Vertex client path only —
+// the edge proxy pins its own generationConfig server-side.
+const THINKING_OFF_PURPOSES: ReadonlySet<PromptPurpose> = new Set(["capture_ocr"]);
+
 // Reasoning provider seam (C1-SAFE). EXPO_PUBLIC_REASONING_PROVIDER selects the
 // backend for the reasoning (pro) path. Default "gemini"; "claude" routes the
 // pro-tier call through the claude-proxy Edge Function (see
@@ -543,6 +550,11 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       ...(input.signal ? { abortSignal: input.signal } : {}),
       // effort -> thinking budget + output cap, pro tier only (effort is set).
       ...(effort ? effortToConfig(effort) : {}),
+      // Non-pro purposes where thinking is provably valueless (verbatim OCR):
+      // disable the default dynamic thinking to cut latency + token spend.
+      ...(!effort && THINKING_OFF_PURPOSES.has(input.purpose)
+        ? { thinkingConfig: { thinkingBudget: 0 } }
+        : {}),
     };
     const res = await client.models.generateContent({
       model,
