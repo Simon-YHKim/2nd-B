@@ -18,6 +18,7 @@ import surfacesPack from "../../../public/proto/data/screens/surfaces.json";
 import validatePack from "../../../public/proto/data/screens/validate.json";
 import starLensesPack from "../../../public/proto/data/screens/star-lenses.json";
 import flowsPack from "../../../public/proto/data/screens/flows.json";
+import tokensPack from "../../../public/proto/data/app/tokens.json";
 
 export type CanonLayout = "immersive" | "museumLike" | "windowed";
 
@@ -202,4 +203,12 @@ export interface CanonInboxItem {
 export const canonFlows = {
   onboardingSlides: flowsPack.onboardingSlides as CanonOnboardingSlide[],
   inboxItems: flowsPack.inboxItems as CanonInboxItem[],
+};
+
+/* Design-token mirror generated from m3-theme.css (design/proto_rev2/tools/gen-tokens.mjs).
+   The CSS stays the token canon; this JSON lets non-CSS consumers (native theming,
+   docs, audits) read the same values without a CSS parser. */
+export const canonTokens = {
+  palettes: tokensPack.palettes as Record<string, Record<string, string>>,
+  root: tokensPack.root as Record<string, string>,
 };
