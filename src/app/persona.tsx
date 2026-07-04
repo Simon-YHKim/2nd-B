@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { SeenLensView } from "@/components/deep-space/DeepSpaceViews";
+import { MeSynthView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
@@ -594,16 +594,28 @@ const styles = StyleSheet.create({
   },
 });
 
+function PersonaDeepSpace() {
+  const { t, i18n } = useTranslation("home");
+  const isKo = i18n.language === "ko";
+  // 10-me: the 북극성 종합 (layer C) me screen — a windowed radius-24 card over the
+  // shared sky with an M3 top app bar titled 북극성. It lives under the 별자리 tab
+  // (reached by tapping Polaris on the constellation home), so active="home".
+  return (
+    <DeepSpaceScreen
+      active="home"
+      variant="windowed"
+      header="none"
+      title={t("ds.me.title")}
+      onBack={() => router.replace("/")}
+    >
+      <MeSynthView isKo={isKo} />
+    </DeepSpaceScreen>
+  );
+}
+
 export default function Persona() {
   if (isDeepSpaceUI()) {
-    return (
-      <DeepSpaceScreen active="lens">
-        {/* 보여지는 나 (self vs peer). No peer-review data source exists yet, so
-            SeenLensView shows an honest empty state + the survey/share CTAs,
-            never fabricated self/other bars (it derives locale internally). */}
-        <SeenLensView />
-      </DeepSpaceScreen>
-    );
+    return <PersonaDeepSpace />;
   }
   return <PersonaLegacy />;
 }

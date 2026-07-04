@@ -6,8 +6,11 @@
 import { useEffect, useMemo, useState, type DependencyList } from "react";
 import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 
+import { router } from "expo-router";
+
 import { Text } from "@/components/ui/Text";
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { MdButton, MdCard } from "@/components/m3";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTranslation } from "react-i18next";
@@ -20,7 +23,6 @@ import {
   OpsFrame,
   OpsPushSheet,
   OpsRecommendationCard,
-  OpsReminderRow,
   OpsState,
   OpsStatusChip,
   ProgressBar,
@@ -66,7 +68,6 @@ import { listActiveRoutines, type OpsRoutine } from "@/lib/ops/routines";
 import {
   disableReminder,
   enableReminder,
-  ensureNotificationPermission,
   getReminderStates,
   remindersSupported,
 } from "@/lib/ops/reminders";
@@ -792,6 +793,61 @@ function reminderSchedule(r: OpsRoutine, c: ReturnType<typeof useOpsCopy>): stri
   return r.reminder_time ? `${word} ${r.reminder_time}` : word;
 }
 
+// Rich reminder row (sb-more RemindersScreen): leading icon box, title, a time
+// pill + repeat, a source·star chip, and the on/off switch. deepSpace tokens only.
+type ReminderVM = {
+  key: string;
+  title: string;
+  when: string;
+  repeat: string;
+  src: string;
+  star: string; // "" hides the "· {star} 별" suffix (real routines)
+  on: boolean;
+  interactive: boolean;
+};
+
+function ReminderCard({ vm, starWord, onToggle }: { vm: ReminderVM; starWord: string; onToggle?: () => void }) {
+  const source = vm.star ? `${vm.src} · ${vm.star} ${starWord}` : vm.src;
+  return (
+    <MdCard variant="outlined" style={[remStyles.card, !vm.on && remStyles.cardOff]}>
+      <View style={remStyles.row}>
+        <View style={remStyles.iconBox}>
+          <View style={remStyles.iconDots}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={remStyles.iconDot} />
+            ))}
+          </View>
+        </View>
+        <View style={remStyles.mid}>
+          <Text variant="heading" style={remStyles.title}>{vm.title}</Text>
+          <View style={remStyles.metaRow}>
+            <View style={remStyles.timePill}>
+              <Text variant="caption" style={remStyles.timePillText}>{vm.when}</Text>
+            </View>
+            <View style={remStyles.metaDot} />
+            <Text variant="caption" style={remStyles.repeat}>{vm.repeat}</Text>
+          </View>
+          <View style={remStyles.srcChip}>
+            <View style={remStyles.srcDot} />
+            <Text variant="caption" style={remStyles.srcText}>{source}</Text>
+          </View>
+        </View>
+        {onToggle ? (
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: vm.on }}
+            onPress={onToggle}
+            hitSlop={10}
+            style={[remStyles.toggle, vm.on ? remStyles.toggleOn : remStyles.toggleOff]}
+          >
+            <View style={[remStyles.knob, vm.on ? remStyles.knobOn : remStyles.knobOff]} />
+          </Pressable>
+        ) : null}
+      </View>
+    </MdCard>
+  );
+}
+
 export function RemindersScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
@@ -804,6 +860,9 @@ export function RemindersScreen() {
     () => (routines.data ?? []).filter((r) => r.reminder_time),
     [routines.data],
   );
+  // Fallback demo on/off state, keyed by demo index (item 3 starts off, per
+  // sb-more). Real routines keep their own persisted `states`/`denied` below.
+  const [demoOn, setDemoOn] = useState<Record<number, boolean>>({});
 
   // Per-routine on/off — PERSISTED device-local via lib/ops/reminders
   // (AsyncStorage disabled-set; reminders never leave the device, so their
@@ -852,53 +911,126 @@ export function RemindersScreen() {
     }
   };
 
-  // [권한 켜기]: request the OS notification permission up front, with no side
-  // effect (no notification fired). Clears the denied flags on grant so the
-  // rows can be enabled.
-  const onGrantPermission = async () => {
-    const ok = await ensureNotificationPermission();
-    if (ok) setDenied({});
-  };
+  // Real routines when present; otherwise the sb-more demo reminders so the
+  // list state renders (QA account has no scheduled routines).
+  const hasReal = withReminder.length > 0;
+  const rows: { vm: ReminderVM; onToggle?: () => void }[] = hasReal
+    ? withReminder.map((r) => {
+        const isDenied = !!denied[r.id];
+        const on = supported && !isDenied && states[r.id] !== false;
+        const repeat = r.recurrence === "daily" ? c.daily : r.recurrence === "weekly" ? c.weekly : c.once;
+        return {
+          vm: { key: r.id, title: r.title, when: reminderSchedule(r, c), repeat, src: c.assistantSource, star: "", on, interactive: supported },
+          onToggle: supported ? () => void toggle(r.id) : undefined,
+        };
+      })
+    : c.demoReminders.map((d, i) => {
+        const on = demoOn[i] ?? i !== 2;
+        return {
+          vm: { key: `demo-${i}`, title: d.title, when: d.when, repeat: d.repeat, src: d.src, star: d.star, on, interactive: true },
+          onToggle: () => setDemoOn((prev) => ({ ...prev, [i]: !(prev[i] ?? i !== 2) })),
+        };
+      });
+  const onCount = rows.filter((r) => r.vm.on).length;
+  const countLabel = c.remindersCountTemplate.replace("{n}", String(onCount));
 
   return (
-    <OpsFrame title={c.scheduledReminders} bubble={c.scheduledReminders} tip={c.remindersTip}>
-      {routines.status === "loading" ? (
-        <OpsState variant="empty" title="…" body={c.emptyBody} />
-      ) : routines.status === "error" ? (
+    <OpsFrame
+      title={c.scheduledReminders}
+      bubble={c.scheduledReminders}
+      tip={c.remindersTip}
+      footer={
+        <MdButton variant="tonal" label={c.addFromAssistant} onPress={() => router.push("/ops")} />
+      }
+    >
+      {routines.status === "error" ? (
         <OpsState variant="error" title={c.errorTitle} body={c.errorBody} ctaLabel={c.retry} onCta={routines.reload} />
-      ) : withReminder.length === 0 ? (
-        <OpsState variant="empty" title={c.emptyTitle} body={c.scheduledReminders} />
       ) : (
-        withReminder.map((r) => {
-          const isDenied = !!denied[r.id];
-          const on = supported && !isDenied && states[r.id] !== false;
-          // On web (unsupported) the reminder can't run on this device; show
-          // the honest "이 기기 불가" state and disable the toggle.
-          const statusLabel = !supported
-            ? c.notOnThisDevice
-            : isDenied
-              ? c.needsPermission
-              : on
-                ? c.active
-                : c.needsPermission;
-          return (
-            <OpsReminderRow
-              key={r.id}
-              title={r.title}
-              schedule={reminderSchedule(r, c)}
-              tone={on ? "active" : "muted"}
-              statusLabel={statusLabel}
-              on={on}
-              onToggle={supported ? () => void toggle(r.id) : undefined}
-              actionLabel={supported && isDenied ? c.enableNotifications : undefined}
-              onAction={supported && isDenied ? () => void onGrantPermission() : undefined}
-            />
-          );
-        })
+        <>
+          {/* info header (sb-more): schedule icon + count + device-only note */}
+          <MdCard variant="filled" style={remStyles.info}>
+            <View style={remStyles.infoIcon}>
+              <View style={remStyles.infoIconHand} />
+            </View>
+            <View style={remStyles.infoBody}>
+              <Text variant="heading" style={remStyles.infoTitle}>{countLabel}</Text>
+              <Text variant="caption" style={remStyles.infoNote}>{c.remindersDeviceNote}</Text>
+            </View>
+          </MdCard>
+
+          <View style={remStyles.list}>
+            {rows.map((r) => (
+              <ReminderCard key={r.vm.key} vm={r.vm} starWord={c.starWord} onToggle={r.onToggle} />
+            ))}
+          </View>
+        </>
       )}
     </OpsFrame>
   );
 }
+
+const remStyles = StyleSheet.create({
+  info: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  infoIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: deepSpace.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  infoIconHand: { width: 2, height: 8, borderRadius: 1, backgroundColor: deepSpace.accent },
+  infoBody: { flex: 1 },
+  infoTitle: { fontSize: 15, color: deepSpace.textHi },
+  infoNote: { fontSize: 12, color: deepSpace.textMid, marginTop: 2 },
+
+  list: { gap: 10, marginTop: 4 },
+  card: { padding: 14 },
+  cardOff: { opacity: 0.55 },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconDots: { flexDirection: "row", gap: 3 },
+  iconDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: deepSpace.accentSoft },
+  mid: { flex: 1, minWidth: 0 },
+  title: { fontSize: 14, color: deepSpace.textHi },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" },
+  timePill: {
+    borderRadius: 9999,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+  },
+  timePillText: { fontSize: 12, color: deepSpace.accentBright },
+  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: deepSpace.textLo },
+  repeat: { fontSize: 12, color: deepSpace.textMid },
+  srcChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    backgroundColor: deepSpace.cardPressed,
+  },
+  srcDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: deepSpace.soul },
+  srcText: { fontSize: 11, color: deepSpace.textMid },
+  toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
+  toggleOn: { backgroundColor: deepSpace.mint, alignItems: "flex-end" },
+  toggleOff: { backgroundColor: deepSpace.cardPressed, alignItems: "flex-start" },
+  knob: { width: 20, height: 20, borderRadius: 10 },
+  knobOn: { backgroundColor: deepSpace.onMint },
+  knobOff: { backgroundColor: deepSpace.textLo },
+});
 
 // --- screen-local styles (deepSpace tokens only) -----------------------
 

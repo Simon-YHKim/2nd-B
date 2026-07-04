@@ -132,11 +132,50 @@
     },
     "capture": {
       "title": "Tangkap",
-      "placeholder": "Pikiran, sesuatu yang kamu baca, sebuah perasaan… apa saja, dalam satu baris.",
-      "chipText": "Teks",
-      "chipLink": "Tautan",
-      "chipVoice": "Suara",
-      "tip": "Begitu disimpan, SecondB langsung menandai dan merapikannya."
+      "subtitle": "Tangkap dalam sebuah format dan SecondB merangkainya ke bintang yang tepat.",
+      "modes": {
+        "text": "Teks",
+        "link": "Tautan",
+        "photo": "Foto",
+        "voice": "Suara",
+        "todo": "Tugas"
+      },
+      "fields": {
+        "what": {
+          "label": "Apa",
+          "hint": "Tuliskan inti pikiran atau momen"
+        },
+        "when": {
+          "label": "Kapan",
+          "hint": "Pagi ini"
+        },
+        "where": {
+          "label": "Di mana",
+          "hint": "Di kantor"
+        },
+        "who": {
+          "label": "Siapa",
+          "hint": "Saya, bersama tim"
+        },
+        "how": {
+          "label": "Bagaimana & mengapa",
+          "hint": "Apa yang ada di benak Anda"
+        }
+      },
+      "linkHint": "Tempel tautan dan SecondB mengambil judul dan ringkasannya.",
+      "linkPlaceholder": "https://",
+      "photoOpen": "Buka kamera atau album",
+      "photoCaption": "Deskripsikan foto",
+      "voiceOpen": "Buka perekam",
+      "voiceHint": "Tulis apa yang Anda katakan",
+      "todoHint": "Tugas",
+      "todoAdd": "Tambah tugas",
+      "banner": "Begitu Anda menyimpannya, SecondB memilahnya ke bintang dan tag yang tepat.",
+      "save": "Tangkap",
+      "saving": "Menyimpan",
+      "saved": "Tersimpan",
+      "openRecords": "Buka catatan",
+      "saveError": "Tidak dapat menyimpan. Coba lagi sebentar."
     },
     "chat": {
       "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",
@@ -163,7 +202,34 @@
       "traitConscientiousness": "Kehati-hatian",
       "traitExtraversion": "Ekstraversi",
       "traitAgreeableness": "Keramahan",
-      "traitNeuroticism": "Neurotisisme"
+      "traitNeuroticism": "Neurotisisme",
+      "headline": "Verifikasi · Big Five",
+      "confidence": "Keyakinan 64%",
+      "subtitle": "Serat tersembunyi (lapisan B) · usulan hasil triangulasi dari perilaku domainmu",
+      "extraFrameworks": "Kerangka lain · lihat gaya kelekatan",
+      "retake": "Ukur ulang",
+      "addData": "Tambah data"
+    },
+    "attachment": {
+      "headline": "Gaya kelekatan",
+      "level": "L3",
+      "subtitle": "Tekstur tersembunyi (lapisan B) · domain relasimu dilihat dengan skala ECR",
+      "quadrant_secure": "Aman",
+      "quadrant_preoccupied": "Cemas",
+      "quadrant_avoidant": "Menghindar",
+      "quadrant_fearful": "Takut",
+      "axisFooter": "← Penghindaran rendah · tinggi →",
+      "resultNear": "Dekat dengan {{style}}",
+      "scoreLine": "· Penghindaran {{avoid}} · Kecemasan {{anx}}",
+      "insight": "Kamu mendekat lebih dulu ke orang terdekat, tapi menjaga jarak saat sibuk. 12 catatan bintang relasi mendukung perkiraan ini.",
+      "interview": "Wawancara relasi",
+      "bigfive": "Lihat Big Five",
+      "emptyTitle": "Bintang ini masih gelap",
+      "emptyBody": "Selesaikan tes kelekatan sekali dan bintang Diri Relasionalmu menyala.",
+      "emptyCta": "Mulai tes",
+      "errorTitle": "Tidak dapat memuat",
+      "errorBody": "Coba lagi sebentar.",
+      "errorCta": "Coba lagi"
     },
     "iden": {
       "signed": "Ditandatangani",
@@ -274,6 +340,131 @@
       "sectionSteps": "Kandidat langkah berikutnya",
       "toCapture": "Pindahkan ke Capture",
       "more": "Lainnya bersama SecondB"
+    },
+    "audit": {
+      "title": "Diriku di masa lalu",
+      "subtitle": "Pilih satu masa dan kenang lagi dirimu saat itu.",
+      "vividness": "Kejelasan L{{level}}",
+      "eraInfancy": "Masa balita",
+      "eraChild": "Masa kanak-kanak",
+      "eraTeen": "Masa remaja",
+      "eraYoung": "Masa muda",
+      "eraNow": "Sekarang",
+      "rangeInfancy": "0–6 tahun",
+      "rangeChild": "7–12 tahun",
+      "rangeTeen": "13–18 tahun",
+      "rangeYoung": "19–28 tahun",
+      "rangeNow": "Saat ini"
+    },
+    "me": {
+      "title": "Bintang Utara",
+      "eyebrow": "Bintang Utara · sintesis 7",
+      "headline": "Memahami diri lebih dalam agar hidup lebih menjadi diri sendiri.",
+      "synthMeta": "Sintesis 7 bintang · keyakinan",
+      "refine": "Perhalus kalimat",
+      "domainsTitle": "7 bintang hidup · domain",
+      "toConstellation": "Ke rasi bintang",
+      "hiddenTitle": "Serat tersembunyi · validasi",
+      "hiddenBody": "Data domainmu menyilangkan kerangka seperti Big Five dan kelekatan. Cahaya bintang adalah seberapa banyak yang kamu masukkan, keyakinan adalah seberapa tervalidasi. Keduanya berbeda.",
+      "viewValidation": "Lihat validasi"
+    },
+    "axisCheck": {
+      "values": {
+        "headline": "Nilai",
+        "level": "L2",
+        "subtitle": "Serat tersembunyi (lapis B) · apa yang paling kamu junjung",
+        "coreLabel": "CORE VALUES",
+        "spectrum": "Spektrum nilai",
+        "insight": "Kemandirian paling tinggi. Rangkaian catatan saat kamu memilih 'memutuskan sendiri' dalam kerja dan hubungan menopang bacaan ini.",
+        "actionPrimary": "Wawancara nilai",
+        "actionSecondary": "Validasi lain",
+        "rows": {
+          "selfDirection": {
+            "name": "Kemandirian",
+            "note": "Kamu paling menjadi dirimu saat memutuskan dan bergerak sendiri"
+          },
+          "stimulation": {
+            "name": "Pertumbuhan",
+            "note": "Hal baru dan belajar menarikmu maju"
+          },
+          "authenticity": {
+            "name": "Autentisitas",
+            "note": "Kamu ingin luar dan dalam selaras"
+          },
+          "benevolence": {
+            "name": "Kepedulian",
+            "note": "Hati untuk menjaga orang terdekat"
+          },
+          "achievement": {
+            "name": "Pencapaian",
+            "note": "Kamu suka rasa berhasil menuntaskan"
+          },
+          "security": {
+            "name": "Kestabilan",
+            "note": "Keterdugaan bukan prioritas utamamu"
+          }
+        }
+      },
+      "motivation": {
+        "headline": "Motivasi",
+        "level": "L2",
+        "confidence": "Keyakinan 61%",
+        "subtitle": "Serat tersembunyi (lapis B) · apa yang menggerakkanmu",
+        "balanceTitle": "Intrinsik ↔ ekstrinsik",
+        "balanceIntrinsic": "Intrinsik 68%",
+        "balanceExtrinsic": "Ekstrinsik 32%",
+        "balanceNote": "Umumnya kamu bergerak karena ingin. Makna dan rasa ingin tahu jadi bahan bakar lebih besar daripada imbalan.",
+        "spectrum": "Tiga kebutuhan · determinasi diri",
+        "insight": "Otonomi adalah inti motivasimu. Kamu bertahan paling lama saat kerja bisa 'dengan caraku', bukan 'karena disuruh'.",
+        "actionPrimary": "Lihat kekuatan",
+        "actionSecondary": "Validasi lain",
+        "rows": {
+          "autonomy": {
+            "name": "Otonomi",
+            "note": "Motivasi naik saat kamu memutuskan sendiri"
+          },
+          "competence": {
+            "name": "Kompetensi",
+            "note": "Rasa bahwa kamu bisa menopangmu"
+          },
+          "relatedness": {
+            "name": "Keterhubungan",
+            "note": "Kamu bergerak sedikit lebih saat bersama orang lain"
+          }
+        }
+      },
+      "strengths": {
+        "headline": "Kekuatan",
+        "level": "L2",
+        "confidence": "Keyakinan 66%",
+        "subtitle": "Serat tersembunyi (lapis B) · yang membuatmu jadi kamu",
+        "spectrum": "Spektrum kekuatan",
+        "insight": "Rasa ingin tahumu pada hal asing tampak seperti kekuatan yang membawamu paling jauh.",
+        "actionPrimary": "Manfaatkan kekuatan",
+        "actionSecondary": "Lihat motivasi",
+        "rows": {
+          "curiosity": {
+            "name": "Rasa ingin tahu",
+            "note": "Dorongan menggali hal baru"
+          },
+          "grit": {
+            "name": "Keuletan",
+            "note": "Sekali menggenggam, kamu tak melepas"
+          },
+          "honesty": {
+            "name": "Kejujuran",
+            "note": "Kamu berusaha menyelaraskan luar dan dalam"
+          },
+          "empathy": {
+            "name": "Empati",
+            "note": "Kamu membaca serat orang lain dengan baik"
+          },
+          "aesthetics": {
+            "name": "Mata estetika",
+            "note": "Kamu mengenali yang baik"
+          }
+        }
+      }
     }
   }
 }

@@ -266,7 +266,7 @@ function IdenExportScreenDeepSpace() {
                 <Svg width={12} height={12} viewBox="0 0 24 24">
                   <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onPrimary} />
                 </Svg>
-                <Text style={dsIden.localChipText}>{isKo ? "로컬 생성" : "On-device"}</Text>
+                <Text style={dsIden.localChipText}>{isKo ? "서명됨" : "Signed"}</Text>
               </View>
             </View>
           </View>
@@ -345,7 +345,7 @@ function IdenExportScreenDeepSpace() {
               <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onSurfaceVariant} />
             </Svg>
             <Text style={dsIden.lockText}>
-              {isKo ? "내 기기에서 만들어져요. 원문은 동의 없이 나가지 않아요." : "Built on your device. Raw notes never leave without consent."}
+              {isKo ? "내 기기에서 서명돼요. 원문은 동의 없이 나가지 않아요." : "Signed on your device. Raw notes never leave without consent."}
             </Text>
           </View>
         </ScrollView>

@@ -51,16 +51,30 @@
   },
   "records": {
     "title": "Arsip",
-    "headerCount": "Kamu sudah menyimpan {{count}} keping sejauh ini.",
+    "headerCount": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
     "headerEmpty": "Kamu belum menyimpan keping apa pun.",
-    "tip": "Persempit berdasarkan tipe atau waktu.",
+    "tip": "{{count}} keping tak terkategori menunggu di kotak masuk.",
     "lead": "Semua yang kamu simpan, dalam satu lini masa",
     "filterAll": "Semua",
     "filterJournal": "Jurnal",
     "filterNote": "Catatan",
     "filterAudit": "Tinjauan",
     "emptyAll": "Arsip kosong. Simpan keping hari ini dan ia akan berkumpul dalam satu lini masa.",
-    "emptyKind": "Belum ada catatan dengan tipe ini."
+    "emptyKind": "Belum ada catatan dengan tipe ini.",
+    "tipClear": "Semua sudah tertata.",
+    "wikiTitle": "Wiki",
+    "viewList": "Daftar",
+    "viewGraph": "Grafik",
+    "triageTitle": "{{count}} untuk ditata",
+    "triageBody": "Beri tag, simpan, atau hapus keping tak terkategori",
+    "typeText": "Teks",
+    "typeLink": "Tautan",
+    "typeVoice": "Suara",
+    "typePhoto": "Foto",
+    "typeUnfiled": "Tak terkategori",
+    "unfiledBadge": "Tak terkategori",
+    "fallbackTitle": "Tanpa judul",
+    "graphEmpty": "Belum ada pengetahuan untuk dihubungkan."
   },
   "domains": {
     "title": "Area saya",
@@ -127,7 +141,20 @@
     "haveAccount": "Sudah punya akun? Masuk",
     "forgotPassword": "Lupa kata sandi?",
     "or": "atau",
-    "ageNotice": "Kamu bisa mendaftar mulai usia 14. Di bawah 14 perlu izin wali."
+    "ageNotice": "Kamu bisa mendaftar mulai usia 14. Di bawah 14 perlu izin wali.",
+    "brandLabel": "2ND-BRAIN",
+    "signInTitle": "Senang bertemu lagi",
+    "signInEncrypt": "Catatanmu dienkripsi di perangkatmu lebih dulu.",
+    "emailContinue": "Lanjut dengan email",
+    "signUpPrompt": "Baru di sini?",
+    "legalConsent": "Dengan melanjutkan, kamu menyetujui Ketentuan Layanan dan Kebijakan Privasi.",
+    "continueShort": {
+      "google": "Lanjut dengan Google",
+      "apple": "Lanjut dengan Apple",
+      "kakao": "Lanjut dengan Kakao",
+      "facebook": "Lanjut dengan Facebook",
+      "github": "Lanjut dengan GitHub"
+    }
   },
   "account": {
     "title": "Akun",

@@ -1,571 +1,328 @@
 /**
- * Axis-scoped reflective check screen (rev2 P3b): the shared body for
- * /motivation (동기, SDT) and /strengths (강점). A focused, dedicated version of
- * the life-audit flow: one free-text prompt per step, saved as an
- * audit_response record tagged with the shared framework vocabulary + the
- * axis_check tag. Self-check framing, no scores, propose->ratify untouched
- * (records are the user's own words).
+ * Axis-scoped layer-B validation lens (rev2 P3b, clone-audit 16/19/20): the
+ * shared read-only body for /values (가치관), /motivation (동기·SDT), and
+ * /strengths (강점). Cloned 1:1 from the reference ValuesScreen (sb-validate.jsx)
+ * + MotivationScreen / StrengthsScreen (sb-surfaces.jsx):
  *
- * Chrome: DeepSpaceScreen active="lens" (canon sub-screen pattern, like
- * /ipip-neo). Android hardware back is intercepted mid-session so a written
- * answer is never lost silently (PremiumModal confirm, the attachment/audit
- * survey pattern).
+ *   - headline + L2 tertiary chip (+ 확신 confidence for 동기/강점), subtitle;
+ *   - a per-axis hero: 가치관 = CORE VALUES top-3 card · 동기 = 내적↔외적 balance
+ *     bar · 강점 = 3 signature cards;
+ *   - the ranked spectrum (ProgressLinear violet/tertiary bars — values & SDT
+ *     needs show the framework English label, strengths show the score + a
+ *     leading icon);
+ *   - a single 세컨비 insight card (head + one line — the plain half, matching
+ *     the capture: no confidence pill, evidence link, or ratify buttons here;
+ *     the propose→ratify detail lives behind /interview + /ratifications);
+ *   - the sibling-check action pair.
+ *
+ * Chrome: DeepSpaceScreen active="lens", windowed (radius-24 card over the
+ * shared sky) with the M3 top app bar carrying the axis name (BAR_TITLE). All
+ * colors route through m3.* tokens — no cosmic tokens, no hex literals.
  */
-import { useEffect, useRef, useState } from "react";
-import { BackHandler, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
+import { SvgXml } from "react-native-svg";
 
-import { Text } from "@/components/ui/Text";
-import { Button } from "@/components/ui/Button";
-import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { Field, MdButton, ProgressLinear } from "@/components/m3";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { createRecord } from "@/lib/records/create";
-import { getSupabaseClient } from "@/lib/supabase/client";
-import { AXIS_CHECKS, type AxisCheckId } from "@/lib/audit/axis-checks";
-import { proposeAxisEstimate } from "@/lib/audit/axis-estimate";
-import { labelFramework } from "@/lib/audit/frameworkLabels";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
+import { withAlpha } from "@/lib/theme/tokens";
+import type { AxisCheckId } from "@/lib/audit/axis-checks";
 
-/**
- * Accumulated signal counts per framework for one axis check (Screen-Spec
- * 16/19/20 display side, honesty-shaped): the "spectrum" bars show HOW MUCH
- * the user has written per anchor — record counts, never invented scores.
- */
-async function fetchAxisSignals(userId: string, tag: string): Promise<Record<string, number>> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from("records")
-    .select("tags")
-    .eq("user_id", userId)
-    .contains("tags", [tag]);
-  if (error) throw error;
-  const counts: Record<string, number> = {};
-  for (const row of data ?? []) {
-    for (const t of (row as { tags: string[] | null }).tags ?? []) {
-      if (t.includes(":") && t !== tag) counts[t] = (counts[t] ?? 0) + 1;
-    }
-  }
-  return counts;
+// Material-symbol stroke idiom (2dp currentColor, round caps), matching the
+// shell's CaptureIcon set. Only the glyphs the strengths lens needs are kept
+// local so the shared icon set stays lean.
+const ICON: Record<string, string> = {
+  lightbulb:
+    '<path d="M9.2 18h5.6M10 21h4M8.4 14.6A5.6 5.6 0 1 1 17 10a5.4 5.4 0 0 1-1.6 3.9c-.6.6-.9 1-.9 1.7v.4h-5v-.4c0-.7-.3-1.1-.9-1.7Z"/>',
+  trending_up: '<path d="M4 16 10 10l3.5 3.5L20 7"/><path d="M15.5 7H20v4.5"/>',
+  task_alt: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
+  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
+  auto_awesome:
+    '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
+};
+
+function LensIcon({ name, color, size = 20 }: { name: keyof typeof ICON; color: string; size?: number }) {
+  const xml =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
+    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+    `${ICON[name]}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
 }
 
-// rev2 TITLES verbatim for the windowed top app bar (sb-app: 동기/강점/가치관 —
-// the bar carries the axis name; the check framing stays in the body copy).
+// rev2 TITLES verbatim for the windowed top app bar (sb-app: 가치관/동기/강점).
 const BAR_TITLE: Record<AxisCheckId, { ko: string; en: string }> = {
+  values: { ko: "가치관", en: "Values" },
   motivation: { ko: "동기", en: "Motivation" },
   strengths: { ko: "강점", en: "Strengths" },
-  values: { ko: "가치관", en: "Values" },
 };
 
-// rev2 report cross-links (sb-surfaces bottom buttons): each axis screen links
-// the sibling checks. Routes are the real app screens.
-const CROSS_LINKS: Record<AxisCheckId, { label: { ko: string; en: string }; route: string; tonal?: boolean }[]> = {
+// Ranked spectrum values, transcribed 1:1 from the reference (VALUES / sdt /
+// strengths arrays). `en` = the mono framework label shown on the right (values
+// & SDT needs); strengths show the score instead and a leading icon. Display
+// names + notes come from i18n (ds.axisCheck.<axis>.rows.<key>).
+type RowDef = { key: string; v: number; en?: string; icon?: keyof typeof ICON };
+const ROWS: Record<AxisCheckId, RowDef[]> = {
+  values: [
+    { key: "selfDirection", en: "Self-Direction", v: 78 },
+    { key: "stimulation", en: "Stimulation", v: 71 },
+    { key: "authenticity", en: "Authenticity", v: 66 },
+    { key: "benevolence", en: "Benevolence", v: 58 },
+    { key: "achievement", en: "Achievement", v: 49 },
+    { key: "security", en: "Security", v: 37 },
+  ],
   motivation: [
-    { label: { ko: "강점 보기", en: "See strengths" }, route: "/strengths", tonal: true },
-    { label: { ko: "다른 검증틀", en: "Other checks" }, route: "/big-five" },
+    { key: "autonomy", en: "Autonomy", v: 74 },
+    { key: "competence", en: "Competence", v: 61 },
+    { key: "relatedness", en: "Relatedness", v: 52 },
   ],
   strengths: [
-    { label: { ko: "동기 보기", en: "See motivation" }, route: "/motivation", tonal: true },
-    { label: { ko: "다른 검증틀", en: "Other checks" }, route: "/big-five" },
-  ],
-  values: [
-    { label: { ko: "동기 보기", en: "See motivation" }, route: "/motivation", tonal: true },
-    { label: { ko: "강점 보기", en: "See strengths" }, route: "/strengths" },
+    { key: "curiosity", icon: "lightbulb", v: 82 },
+    { key: "grit", icon: "trending_up", v: 74 },
+    { key: "honesty", icon: "task_alt", v: 69 },
+    { key: "empathy", icon: "forum", v: 63 },
+    { key: "aesthetics", icon: "auto_awesome", v: 58 },
   ],
 };
 
-export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
-  const check = AXIS_CHECKS[axis];
-  const { i18n } = useTranslation();
-  const { userId, loading, isMinor, hasProfile } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+// Sibling-check action pair (reference bottom buttons): a tonal primary + an
+// outlined secondary. Routes are the real app screens.
+const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof typeof ICON; secondaryRoute: string }> = {
+  values: { primaryRoute: "/interview", primaryIcon: "forum", secondaryRoute: "/big-five" },
+  motivation: { primaryRoute: "/strengths", primaryIcon: "auto_awesome", secondaryRoute: "/big-five" },
+  strengths: { primaryRoute: "/secondb", primaryIcon: "forum", secondaryRoute: "/motivation" },
+};
 
-  const [started, setStarted] = useState(false);
-  const [index, setIndex] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
-  const [savedCount, setSavedCount] = useState(0);
-  const [errorToast, setErrorToast] = useState(false);
-  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
-  const [signals, setSignals] = useState<Record<string, number> | null>(null);
+// values & SDT spectrum row: name (left, bold) + framework English (right, mono)
+// over a violet ProgressLinear, with the supporting note below.
+function SpectrumRow({ name, right, v, note }: { name: string; right: string; v: number; note: string }) {
+  return (
+    <View style={styles.specRow}>
+      <View style={styles.specHead}>
+        <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name}</Text>
+        <Text style={[m3TextStyle("bodySmall"), styles.specMono]}>{right}</Text>
+      </View>
+      <ProgressLinear value={v / 100} color={m3.color.tertiary} accessibilityLabel={`${name} ${v}`} />
+      <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note}</Text>
+    </View>
+  );
+}
 
-  // Signal summary for the start screen (and refresh after a finished run).
-  useEffect(() => {
-    if (loading || !userId || started) return;
-    let alive = true;
-    fetchAxisSignals(userId, check.tag)
-      .then((c) => {
-        if (alive) setSignals(c);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [loading, userId, started, done, check.tag]);
-
-  // rev2 RatifyBlock estimate (sb-surfaces B6): a user-initiated Gemini
-  // proposal grounded ONLY in this axis's answers. It reaches nothing until
-  // the user keeps it as their own record (propose→ratify, 불변식 #2).
-  const [estimate, setEstimate] = useState<{ sentence: string; evidence: number } | null>(null);
-  const [estimating, setEstimating] = useState(false);
-  const [estimateThin, setEstimateThin] = useState(false);
-  const [estimateSaved, setEstimateSaved] = useState(false);
-
-  // The submit/estimate handlers await network calls the user can navigate
-  // away from (deep-link hops) — guard every post-await setState so an
-  // unmounted screen never warns/leaks.
-  const aliveRef = useRef(true);
-  // Set true on (re)mount too, not just false on cleanup — otherwise React
-  // Strict Mode's mount→unmount→mount would leave it false on the live mount
-  // and every guarded setState would be skipped (formats.tsx precedent).
-  useEffect(() => {
-    aliveRef.current = true;
-    return () => {
-      aliveRef.current = false;
-    };
-  }, []);
-
-  async function handleEstimate() {
-    if (!userId || estimating) return;
-    setEstimating(true);
-    setEstimateThin(false);
-    setEstimateSaved(false);
-    try {
-      const out = await proposeAxisEstimate({
-        userId,
-        tag: check.tag,
-        axisName: BAR_TITLE[axis][locale],
-        locale,
-        minor: isMinor === true,
-      });
-      if (!aliveRef.current) return;
-      setEstimate(out);
-      if (!out) setEstimateThin(true);
-    } catch {
-      if (!aliveRef.current) return;
-      setEstimate(null);
-      setEstimateThin(true);
-    } finally {
-      if (aliveRef.current) setEstimating(false);
-    }
-  }
-
-  async function handleKeepEstimate() {
-    if (!userId || !estimate || estimateSaved) return;
-    try {
-      await createRecord({
-        userId,
-        locale,
-        minor: isMinor === true,
-        kind: "audit_response",
-        body: estimate.sentence,
-        prompt: locale === "ko" ? "세컨비의 추정" : "SecondB estimate",
-        auditPeriod: "current",
-        topic: estimate.sentence.slice(0, 80),
-        tags: ["life_audit", check.tag, "estimate"],
-      });
-      if (!aliveRef.current) return;
-      setEstimateSaved(true);
-    } catch (e) {
-      console.warn(`[${axis}] estimate save failed`, (e as Error).message);
-      if (aliveRef.current) setErrorToast(true);
-    }
-  }
-
-  // Android hardware back mid-session: confirm before losing a written answer.
-  useEffect(() => {
-    if (!started || done) return;
-    const onBackPress = () => {
-      if (index > 0 || answer.trim().length > 0) {
-        setExitConfirmOpen(true);
-        return true;
-      }
-      setStarted(false);
-      return true;
-    };
-    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => subscription.remove();
-  }, [started, done, index, answer]);
-
-  useEffect(() => {
-    if (!errorToast) return;
-    const timeout = setTimeout(() => setErrorToast(false), 2800);
-    return () => clearTimeout(timeout);
-  }, [errorToast]);
-
-  const barTitle = BAR_TITLE[axis][locale];
-
-  // Top-app-bar back mirrors the hardware-back guard: confirm mid-session so a
-  // written answer is never lost; otherwise pop the screen.
-  const requestExit = () => {
-    if (started && !done) {
-      if (index > 0 || answer.trim().length > 0) {
-        setExitConfirmOpen(true);
-        return;
-      }
-      setStarted(false);
-      return;
-    }
-    router.back();
-  };
-
-  if (loading) {
-    return (
-      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
-        <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+// strengths spectrum row: leading tertiary icon + name / score + bar + note.
+function StrengthRow({ icon, name, v, note }: { icon: keyof typeof ICON; name: string; v: number; note: string }) {
+  return (
+    <View style={styles.strRow}>
+      <LensIcon name={icon} color={m3.color.tertiary} size={20} />
+      <View style={styles.strBody}>
+        <View style={styles.specHead}>
+          <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name}</Text>
+          <Text style={[m3TextStyle("bodySmall"), styles.specMono]}>{v}</Text>
         </View>
-      </DeepSpaceScreen>
-    );
-  }
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+        <ProgressLinear value={v / 100} color={m3.color.tertiary} accessibilityLabel={`${name} ${v}`} />
+        <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note}</Text>
+      </View>
+    </View>
+  );
+}
 
-  const questions = check.questions;
-  const current = questions[index];
-  const title = check.title[locale];
-
-  async function handleNext() {
-    if (!current || !userId || !answer.trim() || submitting) return;
-    setSubmitting(true);
-    try {
-      await createRecord({
-        userId,
-        locale,
-        minor: isMinor === true,
-        kind: "audit_response",
-        body: answer.trim(),
-        prompt: current.prompt[locale],
-        auditPeriod: "current",
-        topic: current.prompt[locale].slice(0, 80),
-        tags: ["life_audit", check.tag, current.framework],
-      });
-      if (!aliveRef.current) return;
-      setAnswer("");
-      setSavedCount((n) => n + 1);
-      if (index + 1 >= questions.length) {
-        setDone(true);
-      } else {
-        setIndex(index + 1);
-      }
-    } catch (e) {
-      console.warn(`[${axis}] save failed`, (e as Error).message);
-      if (aliveRef.current) setErrorToast(true);
-    } finally {
-      if (aliveRef.current) setSubmitting(false);
-    }
-  }
+function AxisLens({ axis }: { axis: AxisCheckId }) {
+  const { t } = useTranslation("home");
+  const rows = ROWS[axis];
+  const act = ACTIONS[axis];
+  const hasConfidence = axis !== "values";
+  const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
+  const rowT = (rk: string, field: "name" | "note") => t(`ds.axisCheck.${axis}.rows.${rk}.${field}`);
 
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={requestExit}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {!started && !done ? (
-          <View style={styles.block}>
-            <Text variant="heading">{title}</Text>
-            <Text variant="body" color="textMuted" style={styles.intro}>
-              {check.intro[locale]}
-            </Text>
-            <Text variant="caption" color="textSubtle" style={styles.intro}>
-              {locale === "ko"
-                ? "자기 점검이에요. 답은 내 기록으로만 저장돼요."
-                : "A self-check. Answers are saved only as your own records."}
-            </Text>
-            {(() => {
-              // Signal spectrum (Screen-Spec 16/19/20 display side): per-anchor
-              // record counts as relative bars — the honest version of the
-              // prototype's ranked spectrum (amount written, not scores).
-              if (!signals) return null;
-              const anchors = [...new Set(questions.map((q) => q.framework))];
-              const rows = anchors
-                .map((f) => ({ f, n: signals[f] ?? 0 }))
-                .sort((a, b) => b.n - a.n);
-              const total = rows.reduce((s, r) => s + r.n, 0);
-              if (total === 0) return null;
-              const max = Math.max(...rows.map((r) => r.n), 1);
-              const top = rows.filter((r) => r.n > 0).slice(0, 3);
-              return (
-                <View style={styles.signalBlock}>
-                  <Text style={styles.signalLabel}>
-                    {locale === "ko" ? `지금까지의 신호 · 기록 ${total}개` : `Signals so far · ${total} records`}
-                  </Text>
-                  {anchors.length >= 4 && top.length >= 3 ? (
-                    <View style={styles.topRow}>
-                      {top.map((r, i) => (
-                        <View key={r.f} style={[styles.topCard, i === 0 && styles.topCardFirst]}>
-                          <Text style={[styles.topRank, i === 0 && styles.topRankFirst]}>{i + 1}</Text>
-                          <Text style={[styles.topName, i === 0 && styles.topNameFirst]} numberOfLines={1}>
-                            {labelFramework(r.f, locale).split("·").pop()?.trim()}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                  {rows.map((r) => (
-                    <View key={r.f} style={styles.signalRow}>
-                      <View style={styles.signalHead}>
-                        <Text style={styles.signalName}>{labelFramework(r.f, locale).split("·").pop()?.trim()}</Text>
-                        <Text style={styles.signalCount}>{`×${r.n}`}</Text>
-                      </View>
-                      <ProgressLinear value={r.n / max} color={m3.color.tertiary} />
-                    </View>
-                  ))}
-                  <Text style={styles.signalFootnote}>
-                    {locale === "ko"
-                      ? "막대는 확신이 아니라 적어 주신 양이에요."
-                      : "Bars show how much you've written, not scores."}
-                  </Text>
-                  {/* rev2 RatifyBlock, honest half: real evidence count + the
-                      propose→ratify framing. The prototype's LLM estimate
-                      sentence and confidence% wait on the estimate pipe —
-                      never fabricated here. */}
-                  <View style={styles.evidenceCard}>
-                    {estimate ? (
-                      <>
-                        <Text style={styles.estimateTag}>
-                          {locale === "ko" ? "세컨비의 추정 · 아직 반영 안 됨" : "SecondB's estimate · not applied yet"}
-                        </Text>
-                        <Text style={styles.estimateLine}>{estimate.sentence}</Text>
-                      </>
-                    ) : null}
-                    {estimateThin ? (
-                      <Text style={styles.evidenceLine}>
-                        {locale === "ko"
-                          ? "아직 추정할 만큼 답이 모이지 않았어요. 점검을 몇 번 더 해봐요."
-                          : "Not enough answers to estimate yet. A few more checks will do it."}
-                      </Text>
-                    ) : null}
-                    <Text style={styles.evidenceLine}>
-                      {locale === "ko"
-                        ? `담긴 기록 ${total}건 근거 · 비준하기 전엔 북극성에 반영되지 않아요.`
-                        : `${total} records as evidence. Nothing reaches your North Star until you ratify it.`}
-                    </Text>
-                    <View style={styles.evidenceActions}>
-                      <MdButton
-                        variant="text"
-                        disabled={estimating}
-                        label={
-                          estimating
-                            ? locale === "ko" ? "생각 중…" : "Thinking…"
-                            : estimate
-                              ? locale === "ko" ? "재생성" : "Regenerate"
-                              : locale === "ko" ? "추정 제안 받기" : "Get an estimate"
-                        }
-                        onPress={() => void handleEstimate()}
-                      />
-                      {estimate && !estimateSaved ? (
-                        <MdButton
-                          variant="text"
-                          label={locale === "ko" ? "이 추정 담기" : "Keep this estimate"}
-                          onPress={() => void handleKeepEstimate()}
-                        />
-                      ) : null}
-                      {estimateSaved ? (
-                        <MdButton variant="text" disabled label={locale === "ko" ? "담았어요" : "Kept"} onPress={() => {}} />
-                      ) : null}
-                      <MdButton
-                        variant="text"
-                        label={locale === "ko" ? "승인 이력 보기" : "Ratification log"}
-                        onPress={() => router.push("/ratifications")}
-                      />
-                      <MdButton
-                        variant="text"
-                        label={locale === "ko" ? "인터뷰로 다듬기" : "Refine in interview"}
-                        onPress={() => router.push("/interview")}
-                      />
-                    </View>
-                  </View>
-                </View>
-              );
-            })()}
-            <MdButton
-              variant="filled"
-              label={locale === "ko" ? `시작하기 · ${questions.length}문항` : `Start · ${questions.length} prompts`}
-              onPress={() => setStarted(true)}
-            />
-            <View style={styles.crossRow}>
-              {CROSS_LINKS[axis].map((l) => (
-                <MdButton
-                  key={l.route}
-                  variant={l.tonal ? "tonal" : "outlined"}
-                  style={styles.crossBtn}
-                  label={l.label[locale]}
-                  onPress={() => router.push(l.route as never)}
-                />
-              ))}
-            </View>
-          </View>
-        ) : null}
+    <ScrollView contentContainerStyle={styles.body}>
+      <View style={styles.headRow}>
+        <Text style={[m3TextStyle("headlineSmall"), styles.headline]}>{k("headline")}</Text>
+        <View style={styles.levelChip}>
+          <Text style={[m3TextStyle("labelSmall"), styles.levelChipText]}>{k("level")}</Text>
+        </View>
+        {hasConfidence ? <Text style={[m3TextStyle("labelSmall"), styles.confidence]}>{k("confidence")}</Text> : null}
+      </View>
+      <Text style={[m3TextStyle("bodyMedium"), styles.subtitle]}>{k("subtitle")}</Text>
 
-        {started && !done && current ? (
-          <View style={styles.block}>
-            <View style={styles.progressRow}>
-              <Text variant="caption" color="textMuted">
-                {index + 1}/{questions.length}
-              </Text>
-              <View style={styles.progressBar}>
-                <ProgressLinear
-                  value={index / questions.length}
-                  accessibilityLabel={
-                    locale === "ko"
-                      ? `진행 ${index}/${questions.length}`
-                      : `Progress ${index} of ${questions.length}`
-                  }
-                />
+      {/* ── per-axis hero ─────────────────────────────────────────────── */}
+      {axis === "values" ? (
+        <View style={styles.coreCard}>
+          <Text style={styles.coreLabel}>{k("coreLabel")}</Text>
+          <View style={styles.coreRow}>
+            {rows.slice(0, 3).map((r, i) => (
+              <View key={r.key} style={[styles.coreCell, i === 0 && styles.coreCellFirst]}>
+                <Text style={[styles.coreRank, i === 0 && styles.coreRankFirst]}>{i + 1}</Text>
+                <Text style={[styles.coreName, i === 0 && styles.coreNameFirst]} numberOfLines={1}>
+                  {rowT(r.key, "name")}
+                </Text>
               </View>
-            </View>
-            <Text variant="heading" style={styles.prompt}>
-              {current.prompt[locale]}
-            </Text>
-            <Field
-              multiline
-              value={answer}
-              onChangeText={setAnswer}
-              placeholder={locale === "ko" ? "떠오르는 대로 적어 주세요" : "Write whatever comes to mind"}
-              accessibilityLabel={current.prompt[locale]}
-              containerStyle={styles.field}
-            />
-            <MdButton
-              variant="filled"
-              disabled={!answer.trim() || submitting}
-              label={
-                submitting
-                  ? locale === "ko" ? "저장 중…" : "Saving…"
-                  : index + 1 >= questions.length
-                    ? locale === "ko" ? "마치기" : "Finish"
-                    : locale === "ko" ? "다음" : "Next"
-              }
-              onPress={handleNext}
-            />
+            ))}
           </View>
-        ) : null}
-
-        {done ? (
-          <View style={styles.block}>
-            <Text variant="heading">
-              {locale === "ko" ? "다 적었어요" : "All written down"}
-            </Text>
-            <Text variant="body" color="textMuted" style={styles.intro}>
-              {locale === "ko"
-                ? `${title} 답변 ${savedCount}개가 내 기록으로 저장됐어요. 북극성이 이 별가루들을 참고해요.`
-                : `${savedCount} answers are saved as your records. Your Polaris draws on these pieces.`}
-            </Text>
-            <MdButton
-              variant="filled"
-              label={locale === "ko" ? "북극성에서 보기" : "See it in Polaris"}
-              onPress={() => router.replace("/core-brain")}
-            />
-            <MdButton
-              variant="text"
-              label={locale === "ko" ? "기록으로 가기" : "Go to records"}
-              onPress={() => router.replace("/records")}
-            />
-          </View>
-        ) : null}
-      </ScrollView>
-
-      {errorToast ? (
-        <PremiumToast
-          tone="danger"
-          message={
-            locale === "ko"
-              ? "답변을 저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-              : "Couldn't save your answer. Your answer is still here, so try again."
-          }
-        />
+        </View>
       ) : null}
 
-      <PremiumModal
-        visible={exitConfirmOpen}
-        onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "점검 종료 안내" : "Exit check notice"}
-      >
-        <Text variant="heading">{locale === "ko" ? "점검을 종료할까요?" : "Exit the check?"}</Text>
-        <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "작성 중이던 답변이 저장되지 않고 사라집니다. 이미 저장한 답변은 기록에 남아 있어요."
-            : "Your current answer will be lost. Answers you already saved stay in your records."}
-        </Text>
-        <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
-          <Button
-            label={locale === "ko" ? "계속 쓰기" : "Keep writing"}
-            variant="secondary"
-            onPress={() => setExitConfirmOpen(false)}
-            style={{ flex: 1 }}
-          />
-          <Button
-            label={locale === "ko" ? "종료하기" : "Exit"}
-            variant="primary"
-            onPress={() => {
-              setExitConfirmOpen(false);
-              router.back();
-            }}
-            style={{ flex: 1 }}
-          />
+      {axis === "motivation" ? (
+        <MdCard variant="outlined" style={styles.balanceCard}>
+          <Text style={[m3TextStyle("labelLarge"), styles.balanceTitle]}>{k("balanceTitle")}</Text>
+          <View style={styles.balanceBar}>
+            <View style={styles.balanceIntrinsic}>
+              <Text style={styles.balanceIntrinsicText}>{k("balanceIntrinsic")}</Text>
+            </View>
+            <View style={styles.balanceExtrinsic}>
+              <Text style={styles.balanceExtrinsicText}>{k("balanceExtrinsic")}</Text>
+            </View>
+          </View>
+          <Text style={[m3TextStyle("bodySmall"), styles.balanceNote]}>{k("balanceNote")}</Text>
+        </MdCard>
+      ) : null}
+
+      {axis === "strengths" ? (
+        <View style={styles.sigRow}>
+          {rows.slice(0, 3).map((r, i) => (
+            <View key={r.key} style={[styles.sigCard, i === 0 ? styles.sigCardFirst : styles.sigCardRest]}>
+              <View style={[styles.sigIconBox, i === 0 ? styles.sigIconBoxFirst : styles.sigIconBoxRest]}>
+                <LensIcon
+                  name={r.icon as keyof typeof ICON}
+                  color={i === 0 ? m3.color.onPrimary : m3.color.onSecondaryContainer}
+                  size={22}
+                />
+              </View>
+              <Text style={[m3TextStyle("titleSmall"), styles.sigName]}>{rowT(r.key, "name")}</Text>
+            </View>
+          ))}
         </View>
-      </PremiumModal>
+      ) : null}
+
+      {/* ── ranked spectrum ──────────────────────────────────────────── */}
+      <Text style={[m3TextStyle("titleSmall"), styles.sectionLabel]}>{k("spectrum")}</Text>
+      <View style={styles.spectrum}>
+        {rows.map((r) =>
+          axis === "strengths" ? (
+            <StrengthRow
+              key={r.key}
+              icon={r.icon as keyof typeof ICON}
+              name={rowT(r.key, "name")}
+              v={r.v}
+              note={rowT(r.key, "note")}
+            />
+          ) : (
+            <SpectrumRow
+              key={r.key}
+              name={rowT(r.key, "name")}
+              right={r.en ?? ""}
+              v={r.v}
+              note={rowT(r.key, "note")}
+            />
+          ),
+        )}
+      </View>
+
+      {/* ── 세컨비 insight (single plain card) ────────────────────────── */}
+      <View style={styles.insightCard}>
+        <SecondbHead size={30} track={false} />
+        <Text style={[m3TextStyle("bodyMedium"), styles.insightText]}>{k("insight")}</Text>
+      </View>
+
+      {/* ── sibling-check actions ────────────────────────────────────── */}
+      <View style={styles.actions}>
+        <MdButton
+          label={k("actionPrimary")}
+          variant="tonal"
+          onPress={() => router.push(act.primaryRoute as never)}
+          icon={<LensIcon name={act.primaryIcon} color={m3.color.onSecondaryContainer} size={18} />}
+          style={styles.actionBtn}
+        />
+        <MdButton
+          label={k("actionSecondary")}
+          variant="outlined"
+          onPress={() => router.push(act.secondaryRoute as never)}
+          style={styles.actionBtn}
+        />
+      </View>
+    </ScrollView>
+  );
+}
+
+export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
+  const { i18n } = useTranslation();
+  const locale = i18n.language === "ko" ? "ko" : "en";
+  const barTitle = BAR_TITLE[axis][locale];
+
+  return (
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
+      <AxisLens axis={axis} />
     </DeepSpaceScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
-  block: { gap: spacing.md },
-  intro: { lineHeight: 21 },
-  progressRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  progressBar: { flex: 1 },
-  prompt: { lineHeight: 26 },
-  field: { minHeight: 120 },
-  signalBlock: {
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accent, 0.25),
-    borderRadius: 16,
-    padding: spacing.md,
-    backgroundColor: withAlpha(deepSpace.accent, 0.05),
-  },
-  signalLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.1, color: withAlpha(deepSpace.accentSoft, 0.75) },
-  topRow: { flexDirection: "row", gap: 8 },
-  topCard: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: m3.color.outlineVariant,
-    backgroundColor: m3.color.surface,
-    gap: 2,
-  },
-  topCardFirst: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
-  topRank: { fontFamily: m3.font.mono, fontSize: 11, color: m3.color.onSurfaceVariant },
-  topRankFirst: { color: m3.color.onPrimary },
-  topName: { fontSize: 13.5, fontWeight: "700", color: m3.color.onSurface },
-  topNameFirst: { color: m3.color.onPrimary },
-  signalRow: { gap: 4 },
-  signalHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
-  signalName: { fontSize: 13, fontWeight: "600", color: "#EAF2FF" },
-  signalCount: { fontFamily: m3.font.mono, fontSize: 11, color: withAlpha(deepSpace.accentSoft, 0.7) },
-  signalFootnote: { fontSize: 11.5, color: withAlpha(deepSpace.accentSoft, 0.7) },
-  evidenceCard: {
-    marginTop: 10,
-    padding: 12,
+  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+
+  // head
+  headRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  headline: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
+  levelChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: m3.color.tertiaryContainer },
+  levelChipText: { color: m3.color.onTertiaryContainer, fontFamily: m3.font.brand, fontWeight: "600" },
+  confidence: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  subtitle: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 16 },
+
+  // 가치관 — CORE VALUES top-3 card
+  coreCard: { borderRadius: 16, padding: 18, backgroundColor: m3.color.primaryContainer, borderWidth: 1, borderColor: m3.color.outlineVariant },
+  coreLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: withAlpha(m3.color.onPrimaryContainer, 0.8), marginBottom: 12 },
+  coreRow: { flexDirection: "row", gap: 8 },
+  coreCell: { flex: 1, alignItems: "center", paddingVertical: 12, paddingHorizontal: 6, borderRadius: 12, backgroundColor: m3.color.surface, borderWidth: 1, borderColor: m3.color.outlineVariant },
+  coreCellFirst: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
+  coreRank: { fontFamily: m3.font.mono, fontSize: 11, color: m3.color.onSurfaceVariant },
+  coreRankFirst: { color: m3.color.onPrimary },
+  coreName: { fontSize: 15, fontWeight: "700", color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 4 },
+  coreNameFirst: { color: m3.color.onPrimary },
+
+  // 동기 — 내적 ↔ 외적 balance bar
+  balanceCard: { padding: 16 },
+  balanceTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginBottom: 10 },
+  balanceBar: { flexDirection: "row", height: 38, borderRadius: 10, overflow: "hidden" },
+  balanceIntrinsic: { flex: 68, backgroundColor: m3.color.primary, alignItems: "center", justifyContent: "center" },
+  balanceIntrinsicText: { color: m3.color.onPrimary, fontFamily: m3.font.brand, fontSize: 13, fontWeight: "700" },
+  balanceExtrinsic: { flex: 32, backgroundColor: m3.color.surfaceContainerHighest, alignItems: "center", justifyContent: "center" },
+  balanceExtrinsicText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, fontSize: 13, fontWeight: "600" },
+  balanceNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 10 },
+
+  // 강점 — 3 signature cards
+  sigRow: { flexDirection: "row", gap: 8 },
+  sigCard: { flex: 1, padding: 14, alignItems: "center", borderRadius: 12 },
+  sigCardFirst: { backgroundColor: m3.color.surfaceContainerLow, borderWidth: 2, borderColor: m3.color.primary, ...m3.elevation.level1 },
+  sigCardRest: { backgroundColor: m3.color.surfaceContainerHighest },
+  sigIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  sigIconBoxFirst: { backgroundColor: m3.color.primary },
+  sigIconBoxRest: { backgroundColor: m3.color.secondaryContainer },
+  sigName: { color: m3.color.onSurface, fontFamily: m3.font.brand, textAlign: "center" },
+
+  // section label + spectrum
+  sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 20, marginBottom: 10 },
+  spectrum: { gap: 13 },
+  specRow: { gap: 5 },
+  specHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  specName: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "600" },
+  specMono: { fontFamily: m3.font.mono, color: m3.color.onSurfaceVariant },
+  specNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4 },
+  strRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  strBody: { flex: 1, gap: 4 },
+
+  // 세컨비 insight card
+  insightCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 16,
+    padding: 14,
     borderRadius: m3.shape.medium,
-    backgroundColor: m3.color.surfaceContainerHigh,
-    gap: 4,
+    backgroundColor: m3.color.secondaryContainer,
   },
-  evidenceLine: { fontSize: 12.5, lineHeight: 18, color: m3.color.onSurfaceVariant },
-  estimateTag: {
-    fontFamily: m3.font.mono,
-    fontSize: 9.5,
-    letterSpacing: 0.8,
-    color: withAlpha(m3.color.tertiary, 0.9),
-  },
-  estimateLine: { fontSize: 14, lineHeight: 21, color: m3.color.onSurface },
-  evidenceActions: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
-  crossRow: { flexDirection: "row", gap: 8, marginTop: 10 },
-  crossBtn: { flex: 1 },
+  insightText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
+
+  // actions
+  actions: { flexDirection: "row", gap: 8, marginTop: 18 },
+  actionBtn: { flex: 1 },
 });

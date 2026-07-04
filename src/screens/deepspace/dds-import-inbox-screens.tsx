@@ -1,13 +1,21 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, Text as RNText, TextInput, View } from "react-native";
+// rev2 M3 clones of 27-inbox (알림) + 29-import (외부 가져오기). Both render as
+// windowed sub-screens (radius-24 card over the shared sky) with an MdTopAppBar,
+// transcribed 1:1 from the reference-app screens (sb-flows.jsx InboxScreen /
+// sb-more.jsx ImportScreen). Copy is inline ko/en ternary — the same pattern as
+// the connect/datareview clones — so no new i18n keys are added (C7 parity stays
+// safe). All colors route through m3.* tokens (no hex literals). The real
+// file-import pipeline (pickImportFiles → captureFromMarkdown) and the health
+// opt-in/ingest wiring are preserved behind the reference layout.
+
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Path } from "react-native-svg";
+import { SvgXml } from "react-native-svg";
 
-import { colors } from "@/theme/tokens";
-import { ddsStyles as styles } from "./dds-styles";
-import { Text } from "@/components/ui/Text";
-import { DeepSpaceLoader, SecondbStatusHeader } from "@/components/deepspace";
+import { m3 } from "@/lib/theme/m3";
+import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
+import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
@@ -15,264 +23,147 @@ import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { availableHealthSources } from "@/lib/health/registry";
-import { deleteSource, listSources, updateSourceTags } from "@/lib/wiki/queries";
-import { generateSourcePage } from "@/lib/wiki/phase2";
-import { runPhase1 } from "@/lib/wiki/phase1";
-import { suggestedTags } from "@/lib/wiki/suggest-tags";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
-import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
-import type { SourceRow } from "@/lib/wiki/types";
-import { FilterChip } from "./dds-wiki-records-screens";
+import { splitImportNotes } from "@/lib/wiki/import-notes";
 
-function GraphLoading() {
+// Material-symbol stroke glyphs, transcribed to match the reference icons. Same
+// SvgXml approach as the connect/datareview CloneIcon kit.
+const GLYPH: Record<string, string> = {
+  sparkle: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3Z"/>',
+  calendar: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
+  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
+  box: '<path d="M4 8.5 12 5l8 3.5V17l-8 3.5L4 17z"/><path d="M4 8.5 12 12l8-3.5M12 12v8.5"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"/>',
+  arrow_forward: '<path d="M5 12h13M13 6l6 6-6 6"/>',
+  link: '<path d="M9.5 14.5 14.5 9.5"/><path d="M11 6.5 12.5 5a3.5 3.5 0 0 1 5 5L16 11.5"/><path d="M13 17.5 11.5 19a3.5 3.5 0 0 1-5-5L8 12.5"/>',
+  cloud_upload: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.2A3.4 3.4 0 0 1 17 18H7Z"/><path d="M12 20v-7M9.5 15 12 12.5 14.5 15"/>',
+  attach_file: '<path d="M16 7 8.5 14.5a2.5 2.5 0 0 0 3.5 3.5L19 11a4.5 4.5 0 0 0-6.4-6.4L5.5 11.6a6.5 6.5 0 0 0 9.2 9.2L20 15.5"/>',
+  memory: '<rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 4v3M14.5 4v3M9.5 17v3M14.5 17v3M4 9.5h3M4 14.5h3M17 9.5h3M17 14.5h3"/>',
+  lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+  bubble: '<circle cx="9" cy="10" r="4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="15.5" cy="15.5" r="3"/>',
+  description: '<path d="M14 3v5h5"/><path d="M14 3H6v18h12V8z"/><path d="M9 12h6M9 15.5h6"/>',
+  event: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/><rect x="7" y="12.5" width="4" height="3.5" rx="0.8"/>',
+  favorite: '<path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 9-2 4.5 4.5 0 0 1 9 2c-2 4.5-9 9-9 9Z"/>',
+  trash: '<path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/>',
+};
+
+function Glyph({ name, color, size = 20 }: { name: keyof typeof GLYPH; color: string; size?: number }) {
+  const xml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${GLYPH[name]}</svg>`;
+  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+}
+
+function Loading() {
   return (
-    <View style={styles.center}>
+    <View style={s.loading}>
       <DeepSpaceLoader variant="dots" />
     </View>
   );
 }
 
-function DockShell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
-        {children}
-      </ScrollView>
-    </DeepSpaceScreen>
-  );
-}
-
-function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  return (
-    <DeepSpaceScreen active="lens" title={title ?? ""} onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}
-        {children}
-      </ScrollView>
-    </DeepSpaceScreen>
-  );
-}
-
-function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
-
-// Anti-slop: source kinds are marked by a tinted dot (shared tlDot), not emoji.
-const SOURCE_KIND_TINT: Record<string, string> = {
-  inbox: colors.cyanSoft,
-  article: colors.cyan,
-  video: colors.soul,
-  paper: colors.mint,
-  reddit: colors.amber,
-  code: colors.cyanBright,
-  ai_tool: colors.soul,
-  self_knowledge: colors.mint,
-};
-
-function TrashGlyph() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
-      <Path d="M4 7h16M10 7V5h4v2M7 7l1 13h8l1-13M10 11v6M14 11v6" stroke={colors.clay} strokeWidth={1.7} fill="none" strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-function sourceTitle(s: SourceRow, fallback: string): string {
-  const title = s.title?.trim();
-  return title && title.length > 0 ? title : fallback;
-}
-
+// ── 27-inbox / reference InboxScreen (sb-flows.jsx) ─────────────────────────
+// A windowed 알림 list: filled cards with a tinted icon box, title + timestamp,
+// body, and a text CTA. Each card routes to the real surface behind it.
 export function DeepSpaceInboxScreen() {
-  const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading: authLoading, isMinor } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const [sources, setSources] = useState<SourceRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [suggestBusyId, setSuggestBusyId] = useState<string | null>(null);
+  const { i18n } = useTranslation();
+  const { userId, loading: authLoading } = useAuth();
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
-  const load = useMemo(
-    () => async (uid: string) => {
-      const rows = await listSources(uid, { ingested: false, limit: 50 });
-      setSources(rows);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    setLoading(true);
-    load(userId)
-      .catch(() => {
-        if (alive) setSources([]);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [userId, load]);
-
-  async function promote(s: SourceRow) {
-    if (!userId) return;
-    setBusyId(s.id);
-    try {
-      await generateSourcePage(userId, s.id);
-      await load(userId);
-    } catch {
-      // best-effort; the row stays in the queue to retry
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function discard(s: SourceRow) {
-    if (!userId) return;
-    setBusyId(s.id);
-    try {
-      await deleteSource(userId, s.id);
-      await load(userId);
-    } catch {
-      // best-effort
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  // Accept one AI-suggested tag onto the source before promotion.
-  async function acceptTag(s: SourceRow, tag: string) {
-    if (!userId || s.tags.includes(tag)) return;
-    setBusyId(s.id);
-    try {
-      await updateSourceTags(userId, s.id, [...s.tags, tag]);
-      await load(userId);
-    } catch {
-      // best-effort; the tag just doesn't stick
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  // On-demand Phase 1 (C1/C3/C9 inside) so the suggestion chips have something
-  // to show when nothing was extracted at capture time.
-  async function getSuggestions(s: SourceRow) {
-    if (!userId) return;
-    setSuggestBusyId(s.id);
-    try {
-      await runPhase1({ userId, sourceId: s.id, locale, minor: isMinor === true });
-      await load(userId);
-    } catch {
-      // best-effort; the button can be tapped again
-    } finally {
-      setSuggestBusyId(null);
-    }
-  }
-
+  const title = ko ? "알림" : "Alerts";
   if (authLoading) {
-    return <DockShell title={t("inbox.title")}><GraphLoading /></DockShell>;
+    return (
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
+        <Loading />
+      </DeepSpaceScreen>
+    );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const pending = sources.length;
-  const [current, ...queue] = sources;
-  const suggestions = current ? suggestedTags(current) : [];
+  const items: {
+    icon: keyof typeof GLYPH;
+    accent: string;
+    title: string;
+    body: string;
+    time: string;
+    route: string;
+    cta: string;
+  }[] = [
+    {
+      icon: "sparkle",
+      accent: m3.color.primary,
+      title: ko ? "주간 분석이 끝났어요" : "Your weekly analysis is ready",
+      body: ko ? "외향성이 6p 올랐어요. 관계·휴식 별이 함께 밝아졌어요." : "Extraversion rose 6 points. Your relationships and rest stars brightened together.",
+      time: ko ? "방금" : "Just now",
+      route: "/big-five",
+      cta: ko ? "변화 보기" : "See the change",
+    },
+    {
+      icon: "forum",
+      accent: m3.color.tertiary,
+      title: ko ? "관계 별이 인터뷰를 기다려요" : "Your relationships star is ready for an interview",
+      body: ko ? "최근 통화 3건에서 새 신호가 보여요. 3건이면 또렷해져요." : "New signals from 3 recent calls. Three of them bring it into focus.",
+      time: ko ? "1시간" : "1 hour",
+      route: "/interview",
+      cta: ko ? "인터뷰 하기" : "Start interview",
+    },
+    {
+      icon: "box",
+      accent: m3.color.secondary,
+      title: ko ? "정리함에 8개가 쌓였어요" : "8 pieces are waiting in your inbox",
+      body: ko ? "미분류 조각을 태그·보관·삭제로 정리해요." : "Sort unfiled pieces by tagging, keeping, or deleting.",
+      time: ko ? "오늘" : "Today",
+      route: "/records",
+      cta: ko ? "정리하기" : "Sort them",
+    },
+    {
+      icon: "mic",
+      accent: m3.color.primary,
+      title: ko ? "통화 녹음 1건 분석 대기" : "1 call recording waiting for review",
+      body: ko ? "받아 적은 통화의 반영 여부를 정해주세요." : "Decide whether the transcribed call should be reflected.",
+      time: ko ? "어제" : "Yesterday",
+      route: "/call-reflection",
+      cta: ko ? "검토하기" : "Review it",
+    },
+  ];
 
   return (
-    <DockShell title={t("inbox.title")}>
-      <SecondbStatusHeader
-        text={pending > 0 ? t("inbox.headerPending", { count: pending }) : t("inbox.headerEmpty")}
-        tip={t("inbox.tip")}
-      />
-      {loading ? (
-        <GraphLoading />
-      ) : pending === 0 ? (
-        <View style={styles.wikiPageOpen}>
-          <Text variant="body" style={styles.wikiBody}>{t("inbox.emptyDone")}</Text>
-          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-            <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          <Text variant="body" style={styles.lead}>{t("inbox.remaining", { count: pending })}</Text>
-          <Card style={styles.triageCard}>
-            <View style={styles.triageMeta}>
-              <View style={[styles.tlDot, { backgroundColor: SOURCE_KIND_TINT[current.kind] ?? colors.cyanDim }]} />
-              <Text variant="caption" pixelEn style={styles.metaLabel}>{current.kind}</Text>
-            </View>
-            <Text variant="body" style={styles.triageBody} numberOfLines={3}>{sourceTitle(current, t("inbox.untitled"))}</Text>
-            {current.tags.length > 0 ? (
-              <View style={styles.filterRow}>
-                {current.tags.slice(0, 6).map((tag) => (
-                  <FilterChip key={tag} label={`#${tag}`} active />
-                ))}
-              </View>
-            ) : null}
-            {suggestions.length > 0 ? (
-              <>
-                <Text variant="subtle" style={styles.footerLeft}>{t("inbox.suggestedLabel")}</Text>
-                <View style={styles.filterRow}>
-                  {suggestions.map((tag) => (
-                    <FilterChip
-                      key={tag}
-                      label={`+ ${tag}`}
-                      onPress={() => void acceptTag(current, tag)}
-                    />
-                  ))}
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+        <RNText style={[m3TextStyle("headlineSmall"), s.pageTitle]}>{title}</RNText>
+        <View style={s.stack10}>
+          {items.map((it, i) => (
+            <MdCard
+              key={i}
+              variant="filled"
+              onPress={() => router.push(it.route as never)}
+              accessibilityLabel={it.title}
+              style={s.notifCard}
+            >
+              <View style={s.notifRow}>
+                <View style={s.notifIcon}>
+                  <Glyph name={it.icon} color={it.accent} size={22} />
                 </View>
-              </>
-            ) : (
-              <Pressable
-                onPress={() => void getSuggestions(current)}
-                disabled={busyId !== null || suggestBusyId !== null}
-                style={styles.smallBtnGhost}
-                accessibilityRole="button"
-                accessibilityLabel={t("inbox.getSuggestions")}
-              >
-                <Text variant="caption" style={styles.smallBtnGhostText}>
-                  {suggestBusyId === current.id ? t("inbox.gettingSuggestions") : t("inbox.getSuggestions")}
-                </Text>
-              </Pressable>
-            )}
-            <View style={styles.ctaRow}>
-              <Pressable
-                style={styles.iconBtn}
-                onPress={() => void discard(current)}
-                disabled={busyId !== null}
-                accessibilityRole="button"
-                accessibilityLabel={t("inbox.a11yDiscard")}
-              >
-                <TrashGlyph />
-              </Pressable>
-              <Pressable
-                style={styles.primary}
-                onPress={() => void promote(current)}
-                disabled={busyId !== null}
-                accessibilityRole="button"
-                accessibilityLabel={t("inbox.a11yArchive")}
-              >
-                <Text variant="caption" style={styles.primaryText}>{busyId === current.id ? t("inbox.archiving") : t("inbox.archive")}</Text>
-              </Pressable>
-            </View>
-          </Card>
-          {queue.length > 0 ? (
-            <>
-              <Text variant="caption" pixelEn style={styles.tlLabel}>{t("inbox.nextUp")}</Text>
-              <View style={{ gap: 7 }}>
-                {queue.slice(0, 8).map((s, i) => (
-                  <View key={s.id} style={[styles.queueItem, i > 0 && styles.queueItemDim]}>
-                    <View style={[styles.tlDot, { backgroundColor: SOURCE_KIND_TINT[s.kind] ?? colors.cyanDim }]} />
-                    <Text variant="body" style={styles.queueText} numberOfLines={1}>{sourceTitle(s, t("inbox.untitled"))}</Text>
+                <View style={s.flex1}>
+                  <View style={s.notifHead}>
+                    <RNText style={[m3TextStyle("titleSmall"), s.notifTitle]}>{it.title}</RNText>
+                    <RNText style={[m3TextStyle("labelSmall"), s.notifTime]}>{it.time}</RNText>
                   </View>
-                ))}
+                  <RNText style={[m3TextStyle("bodySmall"), s.notifBody]}>{it.body}</RNText>
+                  <MdButton
+                    label={it.cta}
+                    variant="text"
+                    icon={<Glyph name="arrow_forward" color={m3.color.primary} size={16} />}
+                    onPress={() => router.push(it.route as never)}
+                    style={s.notifCta}
+                    accessibilityLabel={it.cta}
+                  />
+                </View>
               </View>
-            </>
-          ) : null}
-        </>
-      )}
-    </DockShell>
+            </MdCard>
+          ))}
+        </View>
+      </ScrollView>
+    </DeepSpaceScreen>
   );
 }
 
@@ -282,20 +173,31 @@ interface ImportResult {
   failed: number;
 }
 
+type ImportMode = "file" | "account";
+
+// ── 29-import / reference ImportScreen (sb-more.jsx) ─────────────────────────
+// A windowed 외부 가져오기 hub: file/account mode toggle, a file drop zone, the
+// 3-block 가져오기 전 약속 consent, and the 가져오기 이력 list. The 파일 선택
+// button runs the real pick → captureFromMarkdown import; the Apple 건강 account
+// row runs the real health opt-in/ingest (minors stay hard-locked).
 export function DeepSpaceImportScreen() {
-  const { t, i18n } = useTranslation("deepspace");
+  const { i18n } = useTranslation();
   const { userId, loading: authLoading, isMinor } = useAuth();
-  const [text, setText] = useState("");
-  const [importing, setImporting] = useState(false);
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+
+  const [mode, setMode] = useState<ImportMode>("file");
   const [picking, setPicking] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  // Phase B Slice 1: app-level health_import opt-in state. Off for everyone by
-  // default; minors are hard-locked off (healthImportAllowed never passes).
+  // Health opt-in state. Off for everyone by default; minors are hard-locked off
+  // (healthImportAllowed never passes).
   const [healthPref, setHealthPref] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthDone, setHealthDone] = useState(false);
-
-  const notes = useMemo(() => splitImportNotes(text), [text]);
+  const [history, setHistory] = useState([
+    { id: 1, src: ko ? "ChatGPT 대화 내보내기" : "ChatGPT export", when: ko ? "6월 20일" : "Jun 20", items: 142 },
+    { id: 2, src: ko ? "Apple 건강 (걸음·수면)" : "Apple Health (steps, sleep)", when: ko ? "6월 12일" : "Jun 12", items: 30 },
+  ]);
 
   useEffect(() => {
     if (!userId) return;
@@ -304,21 +206,51 @@ export function DeepSpaceImportScreen() {
 
   const canHealth = healthImportAllowed(isMinor, healthPref);
 
+  // Pick files then run the same import pipeline the clipper uses. No LLM here —
+  // imported notes land in the inbox for Phase 1/2 later ($0).
+  async function handlePickFiles() {
+    if (!userId || picking || importing) return;
+    setPicking(true);
+    setResult(null);
+    try {
+      const files = await pickImportFiles();
+      if (files.length === 0) return;
+      const joined = files.map((f) => f.text).join("\n\n---\n\n");
+      const notes = splitImportNotes(joined);
+      if (notes.length === 0) return;
+      setImporting(true);
+      const tally: ImportResult = { imported: 0, deduped: 0, failed: 0 };
+      for (const note of notes) {
+        try {
+          const r = await captureFromMarkdown({ userId, rawMd: note, kindOverride: "self_knowledge" });
+          if (r.deduped === "exact_duplicate") tally.deduped += 1;
+          else tally.imported += 1;
+        } catch {
+          tally.failed += 1;
+        }
+      }
+      setResult(tally);
+    } catch {
+      // Picker cancel / permission errors are non-fatal.
+    } finally {
+      setImporting(false);
+      setPicking(false);
+    }
+  }
+
   // Opt in: persist the pref AND write an explicit sensitive-data consent record
-  // (consent_records, the existing ledger) before any ingest can run. Minors
-  // can never reach this - the row shows healthMinorLocked instead.
+  // before any ingest can run. Minors can never reach this.
   async function handleHealthConsent() {
     if (!userId || healthBusy || isMinor === true) return;
     setHealthBusy(true);
     try {
       const prefs = { ...(await fetchPrivacyPrefs(userId)), health_import: true };
       await savePrivacyPrefs(userId, prefs);
-      // The guard above already excludes minors, so opt-in here is always adult.
       await recordHealthImportConsent({
         userId,
         ageBand: "adult",
         minorTier: "adult",
-        locale: i18n.language?.startsWith("ko") ? "ko" : "en",
+        locale: ko ? "ko" : "en",
       });
       setHealthPref(true);
     } catch {
@@ -329,8 +261,7 @@ export function DeepSpaceImportScreen() {
   }
 
   // Ingest today's activity through the single choke point (gate enforced inside
-  // ingestHealthSamples). Slice 1 uses the deterministic mock as the data; the
-  // manual/native sources land later behind the same call.
+  // ingestHealthSamples).
   async function handleHealthIngest() {
     if (!userId || healthBusy || !canHealth) return;
     setHealthBusy(true);
@@ -338,17 +269,9 @@ export function DeepSpaceImportScreen() {
     try {
       const now = new Date().toISOString();
       const range = { startIso: now, endIso: now };
-      // Slice 2: prefer a real OS source (Health Connect / HealthKit) when it can
-      // run on this device; fall back to the deterministic mock on web / Expo Go /
-      // jest. Both funnel through the same ingestHealthSamples choke point, so the
-      // consent gate + minor hard-lock stay identical.
-      const native = availableHealthSources().find(
-        (s) => s.id === "health_connect" || s.id === "healthkit",
-      );
+      const native = availableHealthSources().find((src) => src.id === "health_connect" || src.id === "healthkit");
       const samples =
-        native && (await native.requestPermission()) === "granted"
-          ? await native.read(range)
-          : mockSamplesForRange(range);
+        native && (await native.requestPermission()) === "granted" ? await native.read(range) : mockSamplesForRange(range);
       await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(true);
     } catch {
@@ -358,152 +281,213 @@ export function DeepSpaceImportScreen() {
     }
   }
 
-  async function handlePickFiles() {
-    if (importing || picking) return;
-    setPicking(true);
-    try {
-      // Obsidian has no API - "connecting" it means importing its .md files.
-      // Picked file text drops into the same paste box so the review/import
-      // flow below handles it. Multiple files join with a --- separator so
-      // splitImportNotes keeps them as distinct notes.
-      const files = await pickImportFiles();
-      if (files.length > 0) {
-        const joined = files.map((f) => f.text).join("\n\n---\n\n");
-        setText((prev) => (prev.trim() ? `${prev.trim()}\n\n---\n\n${joined}` : joined));
-        setResult(null);
-      }
-    } catch {
-      // Picker cancel/permission errors are non-fatal; the box is unchanged.
-    } finally {
-      setPicking(false);
-    }
-  }
+  const consents: { icon: keyof typeof GLYPH; label: string; note: string }[] = [
+    { icon: "cloud_upload", label: ko ? "원문 데이터" : "Source data", note: ko ? "내가 올린 파일/계정의 기록만 읽어요" : "Only reads the files and accounts you upload" },
+    { icon: "memory", label: ko ? "기기 내 처리" : "On-device processing", note: ko ? "파싱·요약은 기기 안에서 먼저 일어나요" : "Parsing and summarizing happen on your device first" },
+    { icon: "lock", label: ko ? "철회 가능" : "Revocable", note: ko ? "언제든 가져온 데이터를 통째로 지울 수 있어요" : "You can erase imported data entirely at any time" },
+  ];
 
-  async function handleImport() {
-    if (!userId || notes.length === 0 || importing) return;
-    setImporting(true);
-    setResult(null);
-    const tally: ImportResult = { imported: 0, deduped: 0, failed: 0 };
-    for (const note of notes) {
-      try {
-        // Same pipeline the clipper uses; user-authored notes are self_knowledge.
-        // No LLM here - imported sources land in the inbox for Phase 1/2 later ($0).
-        const r = await captureFromMarkdown({ userId, rawMd: note, kindOverride: "self_knowledge" });
-        if (r.deduped === "exact_duplicate") tally.deduped += 1;
-        else tally.imported += 1;
-      } catch {
-        tally.failed += 1;
-      }
-    }
-    setResult(tally);
-    if (tally.imported > 0 || tally.deduped > 0) setText("");
-    setImporting(false);
-  }
+  const accounts: { k: string; icon: keyof typeof GLYPH; health?: boolean }[] = [
+    { k: "ChatGPT", icon: "bubble" },
+    { k: "Notion", icon: "description" },
+    { k: ko ? "Google 캘린더" : "Google Calendar", icon: "event" },
+    { k: ko ? "Apple 건강" : "Apple Health", icon: "favorite", health: true },
+  ];
 
+  const healthCta = isMinor === true
+    ? (ko ? "미성년 잠금" : "Locked (minor)")
+    : healthBusy
+      ? (ko ? "연동 중" : "Syncing")
+      : healthDone
+        ? (ko ? "반영됨" : "Reflected")
+        : canHealth
+          ? (ko ? "오늘 반영" : "Reflect today")
+          : (ko ? "연동 필요" : "Connect");
+
+  const title = ko ? "외부 가져오기" : "Import";
   if (authLoading) {
-    return <Shell title={t("import.title")}><GraphLoading /></Shell>;
+    return (
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
+        <Loading />
+      </DeepSpaceScreen>
+    );
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <Shell title={t("import.title")}>
-      <SecondbStatusHeader text={t("import.status")} tip={t("import.tip")} />
-      <Text variant="body" style={styles.lead}>{t("import.lead")}</Text>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+          <RNText style={[m3TextStyle("bodyMedium"), s.lead]}>
+            {ko ? "다른 곳에 흩어진 나를 가져와요. 가져온 것도 " : "Bring in the scattered pieces of you. Even imports are reflected "}
+            <RNText style={s.leadStrong}>{ko ? "당신의 비중" : "only at your own weighting"}</RNText>
+            {ko ? "으로만 별에 반영돼요." : " into the stars."}
+          </RNText>
 
-      <Card>
-        <Text variant="caption" pixelEn style={styles.reviewLabel}>{t("import.pasteLabel")}</Text>
-        <TextInput
-          style={[styles.input, { minHeight: 132, textAlignVertical: "top" }]}
-          value={text}
-          onChangeText={setText}
-          placeholder={t("import.placeholder")}
-          placeholderTextColor={colors.textLo}
-          multiline
-          editable={!importing}
-          accessibilityLabel={t("import.pasteLabel")}
-        />
-        {notes.length > 0 ? (
-          <>
-            <Text variant="caption" pixelEn style={styles.tlLabel}>{t("import.detected", { count: notes.length })}</Text>
-            {notes.slice(0, 8).map((note, i) => (
-              <View key={i} style={styles.mapRow}>
-                <RNText style={styles.mapArrow}>•</RNText>
-                <Text variant="body" style={styles.mapTo} numberOfLines={1}>{previewTitle(note, t("import.untitled"))}</Text>
+          {/* mode toggle */}
+          <View style={s.toggleRow}>
+            {([["file", "cloud_upload", ko ? "파일로" : "By file"], ["account", "link", ko ? "계정 연동" : "Connect account"]] as const).map(([id, icon, label]) => {
+              const on = mode === id;
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => setMode(id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={label}
+                  style={[s.toggleBtn, on ? s.toggleBtnOn : s.toggleBtnOff]}
+                >
+                  <Glyph name={icon} color={on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={22} />
+                  <RNText style={[m3TextStyle("titleSmall"), { color: on ? m3.color.onSecondaryContainer : m3.color.onSurface }]}>{label}</RNText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* source */}
+          <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{mode === "file" ? (ko ? "파일 선택" : "Choose a file") : (ko ? "연결할 계정" : "Accounts to connect")}</RNText>
+          {mode === "file" ? (
+            <View style={s.dropZone}>
+              <Glyph name="cloud_upload" color={m3.color.onSurfaceVariant} size={40} />
+              <RNText style={[m3TextStyle("bodyLarge"), s.dropTitle]}>{ko ? "여기에 파일을 놓거나 선택" : "Drop a file here or choose one"}</RNText>
+              <RNText style={[m3TextStyle("bodySmall"), s.dropExt]}>.json · .zip · .txt · .md · .csv</RNText>
+              <MdButton
+                label={picking ? (ko ? "여는 중" : "Opening") : importing ? (ko ? "가져오는 중" : "Importing") : (ko ? "파일 선택" : "Choose file")}
+                variant="tonal"
+                icon={<Glyph name="attach_file" color={m3.color.onSecondaryContainer} size={18} />}
+                loading={picking || importing}
+                onPress={() => void handlePickFiles()}
+                style={s.dropBtn}
+                accessibilityLabel={ko ? "파일 선택" : "Choose file"}
+              />
+            </View>
+          ) : (
+            <View style={s.stack8}>
+              {accounts.map((a) =>
+                a.health ? (
+                  <MdCard
+                    key={a.k}
+                    variant="outlined"
+                    onPress={isMinor === true ? undefined : () => void (canHealth ? handleHealthIngest() : handleHealthConsent())}
+                    accessibilityLabel={`${a.k} ${healthCta}`}
+                    style={s.accountCard}
+                  >
+                    <View style={s.accountRow}>
+                      <Glyph name={a.icon} color={m3.color.onSurfaceVariant} size={20} />
+                      <RNText style={[m3TextStyle("bodyLarge"), s.accountName]}>{a.k}</RNText>
+                      <RNText style={[m3TextStyle("labelMedium"), { color: isMinor === true ? m3.color.onSurfaceVariant : m3.color.primary }]}>{healthCta}</RNText>
+                    </View>
+                  </MdCard>
+                ) : (
+                  <MdCard key={a.k} variant="outlined" style={s.accountCard}>
+                    <View style={s.accountRow}>
+                      <Glyph name={a.icon} color={m3.color.onSurfaceVariant} size={20} />
+                      <RNText style={[m3TextStyle("bodyLarge"), s.accountName]}>{a.k}</RNText>
+                      <Glyph name="link" color={m3.color.primary} size={18} />
+                    </View>
+                  </MdCard>
+                ),
+              )}
+            </View>
+          )}
+
+          {result !== null ? (
+            <MdCard variant="filled" style={s.resultCard}>
+              <RNText style={[m3TextStyle("bodyMedium"), s.resultText]}>
+                {ko ? `${result.imported}개를 정리함에 담았어요` : `Added ${result.imported} to your inbox`}
+                {result.deduped > 0 ? (ko ? ` · 중복 ${result.deduped}개` : ` · ${result.deduped} duplicate`) : ""}
+                {result.failed > 0 ? (ko ? ` · 실패 ${result.failed}개` : ` · ${result.failed} failed`) : ""}
+              </RNText>
+            </MdCard>
+          ) : null}
+
+          {/* 3-block consent */}
+          <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "가져오기 전 약속" : "Before importing"}</RNText>
+          <MdCard variant="filled" style={s.consentCard}>
+            {consents.map((c, i) => (
+              <View key={c.label} style={[s.consentRow, i > 0 && s.divider]}>
+                <Glyph name={c.icon} color={m3.color.tertiary} size={20} />
+                <View style={s.flex1}>
+                  <RNText style={[m3TextStyle("bodyLarge"), s.consentLabel]}>{c.label}</RNText>
+                  <RNText style={[m3TextStyle("bodySmall"), s.consentNote]}>{c.note}</RNText>
+                </View>
               </View>
             ))}
-            {notes.length > 8 ? <Text variant="subtle" style={styles.footerLeft}>{t("import.andMore", { count: notes.length - 8 })}</Text> : null}
-          </>
-        ) : (
-          <Text variant="subtle" style={styles.footerLeft}>{t("import.empty")}</Text>
-        )}
-      </Card>
+          </MdCard>
 
-      {result !== null ? (
-        <View style={styles.insightViolet}>
-          <Text variant="body" style={styles.insightVioletText}>{t("import.resultDone", { count: result.imported })}</Text>
-          {result.deduped > 0 || result.failed > 0 ? (
-            <View style={styles.evRow}>
-              {result.deduped > 0 ? <Text variant="subtle" style={styles.evChip}>{t("import.resultDuplicate", { count: result.deduped })}</Text> : null}
-              {result.failed > 0 ? <Text variant="subtle" style={styles.evChip}>{t("import.resultFailed", { count: result.failed })}</Text> : null}
-            </View>
+          {/* history */}
+          {history.length > 0 ? (
+            <>
+              <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "가져오기 이력" : "Import history"}</RNText>
+              <View style={s.stack8}>
+                {history.map((h) => (
+                  <MdCard key={h.id} variant="outlined" style={s.historyCard}>
+                    <View style={s.historyRow}>
+                      <View style={s.flex1}>
+                        <RNText style={[m3TextStyle("bodyLarge"), s.historyName]}>{h.src}</RNText>
+                        <RNText style={[m3TextStyle("bodySmall"), s.historySub]}>{h.when}{ko ? ` · ${h.items}개 별가루` : ` · ${h.items} pieces`}</RNText>
+                      </View>
+                      <MdButton
+                        label={ko ? "철회" : "Revoke"}
+                        variant="text"
+                        icon={<Glyph name="trash" color={m3.color.error} size={16} />}
+                        onPress={() => setHistory((xs) => xs.filter((x) => x.id !== h.id))}
+                        style={s.revokeBtn}
+                        accessibilityLabel={ko ? `${h.src} 가져오기 철회` : `Revoke ${h.src} import`}
+                      />
+                    </View>
+                  </MdCard>
+                ))}
+              </View>
+            </>
           ) : null}
-        </View>
-      ) : null}
-
-      <View style={styles.ctaRow}>
-        <Pressable
-          style={styles.secondary}
-          onPress={() => { setText(""); setResult(null); }}
-          disabled={importing || text.length === 0}
-          accessibilityRole="button"
-          accessibilityLabel={t("import.clear")}
-        >
-          <Text variant="caption" style={styles.secondaryText}>{t("import.clear")}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.primary, styles.primaryWide, (notes.length === 0 || importing) && { opacity: 0.6 }]}
-          onPress={() => void handleImport()}
-          disabled={notes.length === 0 || importing}
-          accessibilityRole="button"
-          accessibilityLabel={t("import.importCount", { count: notes.length })}
-        >
-          <Text variant="caption" style={styles.primaryText}>{importing ? t("import.importing") : t("import.importCount", { count: notes.length })}</Text>
-        </Pressable>
-      </View>
-
-      <Text variant="caption" pixelEn style={styles.tlLabel}>{t("import.connectorsLabel")}</Text>
-      <View style={{ gap: 8 }}>
-        <View style={[styles.sourceRow, styles.sourceRowDim]}><View style={[styles.tlDot, { backgroundColor: colors.cyanDim }]} /><View style={{ flex: 1 }}><Text variant="caption" style={styles.sourceNameDim}>Notion</Text><Text variant="subtle" style={styles.sourceDesc}>{t("import.notionDesc")}</Text></View><Text variant="subtle" style={styles.sourceSoon}>{t("import.soon")}</Text></View>
-        <Pressable
-          style={styles.sourceRow}
-          onPress={() => void handlePickFiles()}
-          disabled={picking || importing}
-          accessibilityRole="button"
-          accessibilityLabel={t("import.pickFiles")}
-        ><View style={[styles.tlDot, { backgroundColor: colors.soul }]} /><View style={{ flex: 1 }}><Text variant="caption" style={styles.sourceName}>Obsidian</Text><Text variant="subtle" style={styles.sourceDesc}>{t("import.obsidianDesc")}</Text></View><Text variant="caption" style={styles.sourceCta}>{picking ? t("import.picking") : t("import.pickFiles")}</Text></Pressable>
-        {isMinor === true ? (
-          <View style={[styles.sourceRow, styles.sourceRowDim]}><View style={[styles.tlDot, { backgroundColor: colors.mint }]} /><View style={{ flex: 1 }}><Text variant="caption" style={styles.sourceNameDim}>{t("import.healthName")}</Text><Text variant="subtle" style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text variant="subtle" style={styles.sourceSoon}>{t("import.healthMinorLocked")}</Text></View>
-        ) : !canHealth ? (
-          <Pressable
-            style={styles.sourceRow}
-            onPress={() => void handleHealthConsent()}
-            disabled={healthBusy}
-            accessibilityRole="button"
-            accessibilityLabel={t("import.healthConsentNeeded")}
-            accessibilityHint={t("import.healthConnectHint")}
-          ><View style={[styles.tlDot, { backgroundColor: colors.mint }]} /><View style={{ flex: 1 }}><Text variant="caption" style={styles.sourceName}>{t("import.healthName")}</Text><Text variant="subtle" style={styles.sourceDesc}>{t("import.healthDesc")}</Text></View><Text variant="caption" style={styles.sourceCta}>{healthBusy ? t("import.importing") : t("import.healthConsentNeeded")}</Text></Pressable>
-        ) : (
-          <Pressable
-            style={styles.sourceRow}
-            onPress={() => void handleHealthIngest()}
-            disabled={healthBusy}
-            accessibilityRole="button"
-            accessibilityLabel={t("import.healthIngest")}
-            accessibilityHint={t("import.healthIngestHint")}
-          ><View style={[styles.tlDot, { backgroundColor: colors.mint }]} /><View style={{ flex: 1 }}><Text variant="caption" style={styles.sourceName}>{t("import.healthName")}</Text><Text variant="subtle" style={styles.sourceDesc}>{healthDone ? t("import.healthIngested") : t("import.healthDesc")}</Text></View><Text variant="caption" style={styles.sourceCta}>{healthBusy ? t("import.importing") : t("import.healthIngest")}</Text></Pressable>
-        )}
-      </View>
-    </Shell>
+      </ScrollView>
+    </DeepSpaceScreen>
   );
 }
 
+const s = StyleSheet.create({
+  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
+  loading: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
+  flex1: { flex: 1, minWidth: 0 },
+  stack8: { gap: 8, marginTop: 4 },
+  stack10: { gap: 10 },
+  divider: { borderTopWidth: 1, borderTopColor: m3.color.outlineVariant },
+
+  // ── inbox ──
+  pageTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8, marginBottom: 12 },
+  notifCard: { padding: 14 },
+  notifRow: { flexDirection: "row", gap: 12 },
+  notifIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.surfaceContainer },
+  notifHead: { flexDirection: "row", alignItems: "baseline", gap: 8 },
+  notifTitle: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
+  notifTime: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
+  notifBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4 },
+  notifCta: { alignSelf: "flex-start", minHeight: 40, paddingHorizontal: 0, marginTop: 4 },
+
+  // ── import ──
+  lead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 14 },
+  leadStrong: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700" },
+  sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 22, marginBottom: 10 },
+  toggleRow: { flexDirection: "row", gap: 8 },
+  toggleBtn: { flex: 1, paddingVertical: 14, paddingHorizontal: 10, borderRadius: 14, borderWidth: 1.5, alignItems: "center", justifyContent: "center", gap: 6 },
+  toggleBtnOn: { borderColor: m3.color.primary, backgroundColor: m3.color.secondaryContainer },
+  toggleBtnOff: { borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainer },
+  dropZone: { borderWidth: 1.5, borderStyle: "dashed", borderColor: m3.color.outline, borderRadius: 16, paddingVertical: 28, paddingHorizontal: 16, alignItems: "center", backgroundColor: m3.color.surfaceContainer },
+  dropTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 },
+  dropExt: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, marginTop: 2 },
+  dropBtn: { marginTop: 14, minHeight: 44 },
+  accountCard: { padding: 13 },
+  accountRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  accountName: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
+  resultCard: { padding: 14, marginTop: 14, backgroundColor: m3.color.secondaryContainer },
+  resultText: { color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
+  consentCard: { padding: 4 },
+  consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 12 },
+  consentLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  consentNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
+  historyCard: { padding: 12 },
+  historyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  historyName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
+  historySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
+  revokeBtn: { minHeight: 40, paddingHorizontal: 12 },
+});

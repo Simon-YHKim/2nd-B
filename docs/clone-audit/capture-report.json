@@ -1,0 +1,14 @@
+[
+  {
+    "name": "01-auth",
+    "route": "/sign-in",
+    "errors": [],
+    "refExists": true
+  },
+  {
+    "name": "05-home",
+    "route": "/deepspace-home",
+    "errors": [],
+    "refExists": true
+  }
+]

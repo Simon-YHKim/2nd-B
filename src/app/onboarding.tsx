@@ -1,107 +1,201 @@
-// First-run onboarding — one deep-space screen that ends at the first saved
-// record. It intentionally avoids the legacy premium/island art track.
+// First-run onboarding — a 4-slide deep-space carousel that renders PRE-AUTH
+// (no sign-in required) and ends at the real age-tiered auth path. Rebuilt 1:1
+// from the finalized reference (docs/clone-audit/reference-handoff/reference-app/
+// sb-flows.jsx · OnboardingScreen) + the 02-onboard.png capture (pixel target).
+//
+// Render-broken fix: the old screen gated on `!userId` and redirected to
+// /sign-in, so the carousel never showed for a signed-out user — the whole point
+// of onboarding is that it comes BEFORE auth. We now gate on the onboarding-
+// complete flag (onboarding/state.ts, the AsyncStorage/localStorage `sb_onboarded`
+// equivalent), never on userId. The final slide hands off to the REAL sign-in
+// screen (C10 age-tiered sign-up stays intact) — we never reimplement auth here.
 
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/Text";
+import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
+import { SbIcon, type SbIconName } from "@/components/deepspace/shell/SbIcon";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { markOnboardingComplete } from "@/lib/onboarding/state";
+import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
 
-interface Step {
-  art: "firstShard";
+interface Slide {
+  icon: SbIconName;
+  tag: { ko: string; en: string };
   title: { ko: string; en: string };
   body: { ko: string; en: string };
-  cta: { ko: string; en: string };
-  skip: { ko: string; en: string };
 }
 
-const STEP: Step = {
-  art: "firstShard",
-  title: { ko: "먼저 한 문장만 저장해요", en: "Start with one sentence" },
-  body: {
-    ko: "오늘 기억하고 싶은 일, 배운 것, 링크 하나면 충분해요. 저장한 별가루는 기록 보관소에 모이고, 세컨비의 답은 그 기록을 근거로 해요.",
-    en: "A thought, lesson, or link is enough. Your pieces collect in your records, and SecondB's answers are grounded in them.",
+// Slide copy transcribed verbatim from sb-flows.jsx OnboardingScreen. Slide 1
+// follows the 02-onboard.png capture (the pixel target carries an earlier
+// headline/body variant); slides 2-4 follow the source. Do not paraphrase.
+const SLIDES: Slide[] = [
+  {
+    icon: "bubble_chart",
+    tag: { ko: "2ND-BRAIN", en: "2ND-BRAIN" },
+    title: { ko: "나를 아는\n두 번째 나", en: "A second self\nthat knows you" },
+    body: {
+      ko: "세상을 아는 AI를 넘어, 당신을 아는 AI. 기록이 쌓일수록 더 또렷이 당신을 비춰요.",
+      en: "Beyond an AI that knows the world, one that knows you. The more you record, the more clearly it reflects you.",
+    },
   },
-  cta: { ko: "첫 기록 저장", en: "Save my first note" },
-  skip: { ko: "건너뛰고 둘러보기", en: "Skip and look around" },
-};
+  {
+    icon: "star_shine",
+    tag: { ko: "알아가기", en: "Getting to know you" },
+    title: { ko: "흩어진 일상이\n별자리가 돼요", en: "Scattered days\nbecome a constellation" },
+    body: {
+      ko: "커리어·재정·관계·건강·성장·휴식. 일곱 영역의 별로 지금의 나를 한눈에 봐요.",
+      en: "Career, money, relationships, health, growth, rest: seven life stars show who you are at a glance.",
+    },
+  },
+  {
+    icon: "lightbulb",
+    tag: { ko: "곁에서 돕기", en: "Helping alongside you" },
+    title: { ko: "아는 만큼\n도와줘요", en: "It helps\nas much as it knows" },
+    body: {
+      ko: "당신을 알게 된 만큼 비서가 돼요. 돈 쓰는 결, 쉬는 법, 하루 계획까지 당신에게 맞는 조언을 건네요.",
+      en: "The more it knows you, the better it assists: spending, rest, daily plans, all tuned to you.",
+    },
+  },
+  {
+    icon: "school",
+    tag: { ko: "함께 배우기", en: "Learning together" },
+    title: { ko: "AI의 원리도\n같이 배워요", en: "Learn how the\nAI works, too" },
+    body: {
+      ko: "세컨비가 어떻게 당신을 이해하는지, AI 뮤지엄에서 그 원리를 쉽고 재미있게 풀어줘요.",
+      en: "See how SecondB understands you: the AI Museum unpacks the how in a simple, playful way.",
+    },
+  },
+];
+
+const AUTH_STEP = SLIDES.length;
 
 export default function Onboarding() {
   const { i18n } = useTranslation();
-  const { userId, loading } = useAuth();
   const locale = i18n.language === "ko" ? "ko" : "en";
+  const ko = locale === "ko";
+  const { userId, loading } = useAuth();
+  const onboardingComplete = useOnboardingComplete();
+  const [step, setStep] = useState(0);
+
+  // Android hardware back walks the carousel back a slide instead of tearing the
+  // route down mid-flow (ANDROID_QA_GUIDELINES — hardware BackHandler wiring).
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (step > 0) {
+        setStep((s) => s - 1);
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [step]);
 
   if (loading) return <InlineLoader />;
-  if (!userId) return <Redirect href="/sign-in" />;
+  // Gate on the onboarding flag, NOT on userId: a signed-out user must see the
+  // carousel. Only bounce home once onboarding is actually finished.
+  if (onboardingComplete === true) return <Redirect href="/" />;
 
-  const openGraphHint = locale === "ko" ? "온보딩을 마치고 홈으로 이동합니다." : "Completes onboarding and opens the graph.";
-  const primaryHint =
-    locale === "ko"
-      ? "온보딩을 마치고 첫 기록 화면으로 이동합니다."
-      : "Completes onboarding and opens the first capture screen.";
+  const nextHint = ko ? "다음 소개로 넘어갑니다." : "Goes to the next slide.";
+  const skipHint = ko ? "소개를 건너뛰고 로그인 화면으로 이동합니다." : "Skips the intro and opens the sign-in screen.";
+  const authHint = ko ? "로그인 화면으로 이동합니다." : "Opens the sign-in screen.";
 
-  function finishToCapture() {
+  // The final slide hands off to the REAL auth path (age-tiered sign-up, C10).
+  // Already-signed-in users (reached onboarding post-auth) go straight home.
+  function goToAuth() {
     markOnboardingComplete();
-    router.replace({ pathname: "/capture", params: { entry: "firstRun" } });
+    if (userId) router.replace("/");
+    else router.replace("/sign-in");
   }
 
-  function finishToHome() {
-    markOnboardingComplete();
-    router.replace("/");
-  }
+  const isAuth = step >= AUTH_STEP;
+  const authLabel = ko ? "로그인하고 시작하기" : "Log in to begin";
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
-      <View pointerEvents="none" style={styles.spaceWash}>
-        <View style={styles.topGlow} />
-        <View style={[styles.star, styles.starA]} />
-        <View style={[styles.star, styles.starB]} />
-        <View style={[styles.star, styles.starC]} />
-        <View style={[styles.star, styles.starD]} />
-        <View style={[styles.star, styles.starE]} />
+      <DeepSpaceBackdrop />
+
+      <View style={styles.top}>
+        {!isAuth ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "건너뛰기" : "Skip"}
+            accessibilityHint={skipHint}
+            hitSlop={10}
+            onPress={() => setStep(AUTH_STEP)}
+          >
+            <Text variant="caption" style={styles.skip}>{ko ? "건너뛰기" : "Skip"}</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <View style={styles.hero}>
-        <View style={styles.soulCard}>
-          <View style={styles.soulCrossH} />
-          <View style={styles.soulCrossV} />
-          <View style={styles.soulSparkA} />
-          <View style={styles.soulSparkB} />
+      {isAuth ? (
+        <View style={styles.hero}>
+          <SecondbHead size={168} mood="positive" track={false} accessibilityLabel={ko ? "세컨비" : "SecondB"} />
+          <Text variant="heading" style={styles.title}>{ko ? "시작할까요?" : "Ready to begin?"}</Text>
+          <Text variant="body" style={styles.body}>
+            {ko
+              ? "로그인하면 어느 기기에서나 당신의 별자리를 이어서 볼 수 있어요."
+              : "Sign in to pick up your constellation on any device."}
+          </Text>
         </View>
-        <SecondbHead size={112} mood="positive" accessibilityLabel={locale === "ko" ? "세컨비" : "SecondB"} />
-      </View>
+      ) : (
+        <View style={styles.hero}>
+          <View style={styles.iconCard}>
+            <SbIcon name={SLIDES[step].icon} size={44} color={m3.accent.shareEyebrow} />
+          </View>
+          <Text variant="caption" style={styles.tag}>{SLIDES[step].tag[locale]}</Text>
+          <Text variant="heading" style={styles.title}>{SLIDES[step].title[locale]}</Text>
+          <Text variant="body" style={styles.body}>{SLIDES[step].body[locale]}</Text>
+        </View>
+      )}
 
-      <View style={styles.copyBlock}>
-        <Text variant="heading" style={styles.title}>{STEP.title[locale]}</Text>
-        <Text variant="body" style={styles.body}>{STEP.body[locale]}</Text>
-      </View>
-
-      <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={STEP.cta[locale]}
-          accessibilityHint={primaryHint}
-          onPress={finishToCapture}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text variant="caption" style={styles.primaryText}>{STEP.cta[locale]}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={STEP.skip[locale]}
-          accessibilityHint={openGraphHint}
-          onPress={finishToHome}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text variant="caption" style={styles.secondaryText}>{STEP.skip[locale]}</Text>
-        </Pressable>
-      </View>
+      {isAuth ? (
+        <View style={styles.authBar}>
+          <MdButton
+            variant="filled"
+            label={authLabel}
+            accessibilityLabel={authLabel}
+            accessibilityHint={authHint}
+            onPress={goToAuth}
+            style={styles.authBtn}
+          />
+        </View>
+      ) : (
+        <View style={styles.bottomBar}>
+          <View style={styles.dots}>
+            {SLIDES.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  i === step
+                    ? { width: 22, backgroundColor: deepSpace.accent }
+                    : { width: 7, backgroundColor: withAlpha(m3.accent.skyStarWhite, 0.45) },
+                ]}
+              />
+            ))}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={ko ? "다음" : "Next"}
+            accessibilityHint={nextHint}
+            onPress={() => setStep((s) => s + 1)}
+            style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
+          >
+            <Text variant="caption" style={styles.nextText}>{ko ? "다음" : "Next"}</Text>
+            <SbIcon name="arrow_forward" size={18} color={deepSpace.onAccent} />
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -110,130 +204,72 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: deepSpace.bgEdge,
-    paddingHorizontal: deepSpaceSpacing.lg,
-    paddingBottom: deepSpaceSpacing.md,
+    paddingHorizontal: 24,
   },
-  spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
-  topGlow: {
-    position: "absolute",
-    top: -120,
-    left: -80,
-    right: -80,
-    height: 340,
-    borderRadius: 170,
-    backgroundColor: deepSpace.bgGlow,
-    opacity: 0.88,
+  top: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingTop: 20,
+    minHeight: 44,
   },
-  star: {
-    position: "absolute",
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: deepSpace.accentSoft,
-    opacity: 0.7,
-  },
-  starA: { top: 70, left: "18%" },
-  starB: { top: 138, right: "25%", opacity: 0.5 },
-  starC: { top: 248, left: "50%", opacity: 0.45 },
-  starD: { bottom: 220, right: "12%", opacity: 0.85 },
-  starE: { bottom: 84, left: "30%", opacity: 0.45 },
+  skip: { color: withAlpha(deepSpace.accentSoft, 0.7), fontSize: 14 },
+
   hero: {
     flex: 1,
-    minHeight: 320,
     alignItems: "center",
     justifyContent: "center",
-    gap: deepSpaceSpacing.lg,
+    gap: 18,
   },
-  soulCard: {
-    width: 132,
-    height: 132,
-    borderRadius: deepSpaceRadii.lg,
+  iconCard: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(deepSpace.accent, 0.14),
     borderWidth: 1,
-    borderColor: deepSpace.soulLine,
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.72),
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: deepSpace.soul,
-    shadowOpacity: 0.55,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 9,
+    borderColor: withAlpha(deepSpace.accent, 0.3),
   },
-  soulCrossH: {
-    position: "absolute",
-    width: 76,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: deepSpace.soul,
-  },
-  soulCrossV: {
-    position: "absolute",
-    width: 7,
-    height: 76,
-    borderRadius: 4,
-    backgroundColor: deepSpace.soul,
-  },
-  soulSparkA: {
-    position: "absolute",
-    width: 34,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: deepSpace.accentSoft,
-    transform: [{ rotate: "45deg" }],
-  },
-  soulSparkB: {
-    position: "absolute",
-    width: 34,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: deepSpace.accentSoft,
-    transform: [{ rotate: "-45deg" }],
-  },
-  copyBlock: {
-    alignItems: "center",
-    gap: deepSpaceSpacing.sm,
-    paddingBottom: deepSpaceSpacing.lg,
+  tag: {
+    color: m3.accent.entryTag,
+    fontSize: 11,
+    letterSpacing: 2.2,
+    textAlign: "center",
   },
   title: {
     color: deepSpace.textHi,
-    fontSize: 30,
+    fontSize: 26,
+    lineHeight: 32,
     textAlign: "center",
-    textShadowColor: deepSpace.accent,
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 0,
   },
   body: {
-    maxWidth: 620,
-    color: deepSpace.textMid,
-    fontSize: 18,
+    maxWidth: 270,
+    color: withAlpha(m3.accent.entryBody, 0.72),
+    fontSize: 16,
+    lineHeight: 23,
     textAlign: "center",
   },
-  actions: {
-    gap: deepSpaceSpacing.sm,
-  },
-  primary: {
-    minHeight: 72,
-    borderRadius: deepSpaceRadii.lg,
+
+  bottomBar: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: deepSpace.mint,
+    gap: 14,
+    paddingBottom: 28,
   },
-  primaryText: {
-    color: deepSpace.bgEdge,
-    fontSize: 18,
-  },
-  secondary: {
-    minHeight: 64,
-    borderRadius: deepSpaceRadii.lg,
+  dots: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7 },
+  dot: { height: 7, borderRadius: 9999 },
+  nextBtn: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: deepSpace.cardLineStrong,
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
+    gap: 8,
+    minHeight: 48,
+    paddingHorizontal: 22,
+    borderRadius: 9999,
+    backgroundColor: deepSpace.accent,
   },
-  secondaryText: {
-    color: deepSpace.textHi,
-    fontSize: 17,
-  },
-  pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
+  nextText: { color: deepSpace.onAccent, fontSize: 15 },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+
+  authBar: { paddingBottom: 28 },
+  authBtn: { alignSelf: "stretch" },
 });

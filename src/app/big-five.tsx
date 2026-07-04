@@ -15,7 +15,7 @@ import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { LensView, type LensTraits } from "@/components/deep-space/DeepSpaceViews";
+import { BigFiveLensM3, type LensTraits } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { loadLatestBfi } from "@/lib/persona/build";
@@ -306,6 +306,7 @@ function BigFiveLegacy() {
 }
 
 function BigFiveDeepSpace() {
+  const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   const [traits, setTraits] = useState<LensTraits | null>(null);
   const [hasError, setHasError] = useState(false);
@@ -375,12 +376,20 @@ function BigFiveDeepSpace() {
   }
 
   return (
-    <DeepSpaceScreen active="lens">
-      <LensView
+    <DeepSpaceScreen
+      active="lens"
+      variant="windowed"
+      header="none"
+      title={t("ds.lens.headline")}
+      onBack={() => router.back()}
+    >
+      <BigFiveLensM3
         traits={traits}
         hasError={hasError}
         onStart={() => setTaking(true)}
         onRetry={() => setReloadKey((k) => k + 1)}
+        onAddData={() => router.push("/capture")}
+        onExtraFrameworks={() => router.push("/attachment")}
       />
     </DeepSpaceScreen>
   );

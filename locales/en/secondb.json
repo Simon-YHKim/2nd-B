@@ -111,17 +111,26 @@
     "selectorA11y": "Choose a persona",
     "secondb": {
       "name": "2nd-B",
-      "role": "Empathy"
+      "role": "Empathy",
+      "lensName": "SecondB",
+      "tag": "2nd-B",
+      "desc": "The second brain that knows you best"
     },
     "meta": {
       "name": "Meta-B",
       "role": "Objective",
-      "systemHint": "Persona: Meta-B, the objective mirror of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but speak in a neutral, precise, evidence-first voice: name observed patterns plainly, prefer concrete numbers and dates from the user's records, and skip cushioning language."
+      "systemHint": "Persona: Meta-B, the objective mirror of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but speak in a neutral, precise, evidence-first voice: name observed patterns plainly, prefer concrete numbers and dates from the user's records, and skip cushioning language.",
+      "lensName": "Meta-B",
+      "tag": "Meta-B",
+      "desc": "The brain that sees you objectively"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imagine",
-      "systemHint": "Persona: Twi-B, the imaginative wild card of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but explore playful, unexpected angles: sketch a few 'what if' branches from the user's own records and end with one small next step they could capture."
+      "systemHint": "Persona: Twi-B, the imaginative wild card of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but explore playful, unexpected angles: sketch a few 'what if' branches from the user's own records and end with one small next step they could capture.",
+      "lensName": "Anti-B",
+      "tag": "Anti-B",
+      "desc": "The brain that opens playful possibilities from your data"
     }
   }
 }

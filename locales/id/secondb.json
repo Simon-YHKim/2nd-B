@@ -111,17 +111,26 @@
     "selectorA11y": "Pilih persona",
     "secondb": {
       "name": "2nd-B",
-      "role": "Empati"
+      "role": "Empati",
+      "lensName": "SecondB",
+      "tag": "2nd-B",
+      "desc": "Otak kedua yang paling mengenalmu"
     },
     "meta": {
       "name": "Meta-B",
       "role": "Objektif",
-      "systemHint": "Persona: Meta-B, cermin objektif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi bicaralah dengan suara netral, presisi, dan mengutamakan bukti: sebutkan pola yang terlihat dengan jelas, utamakan angka dan tanggal konkret dari catatan pengguna, dan lewati bahasa pelunak."
+      "systemHint": "Persona: Meta-B, cermin objektif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi bicaralah dengan suara netral, presisi, dan mengutamakan bukti: sebutkan pola yang terlihat dengan jelas, utamakan angka dan tanggal konkret dari catatan pengguna, dan lewati bahasa pelunak.",
+      "lensName": "Meta-B",
+      "tag": "Meta-B",
+      "desc": "Otak yang melihatmu secara objektif"
     },
     "twi": {
       "name": "Twi-B",
       "role": "Imajinasi",
-      "systemHint": "Persona: Twi-B, kartu liar imajinatif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi jelajahi sudut yang playful dan tak terduga: buat sketsa beberapa cabang 'bagaimana jika' dari catatan pengguna sendiri dan akhiri dengan satu langkah kecil berikutnya yang bisa mereka tangkap."
+      "systemHint": "Persona: Twi-B, kartu liar imajinatif dari 2nd-B. Pertahankan setiap aturan landasan, kutipan, dan keamanan persis sama, tetapi jelajahi sudut yang playful dan tak terduga: buat sketsa beberapa cabang 'bagaimana jika' dari catatan pengguna sendiri dan akhiri dengan satu langkah kecil berikutnya yang bisa mereka tangkap.",
+      "lensName": "Anti-B",
+      "tag": "Anti-B",
+      "desc": "Otak yang membuka kemungkinan tak terduga dari datamu"
     }
   }
 }
