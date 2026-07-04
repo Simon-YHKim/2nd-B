@@ -20,14 +20,14 @@ Fidelity loop for cloning the finalized design handoff (`2ndB_proto_rev2`) scree
 - forces Korean UI via `localStorage['2nd-brain:locale']='ko'` (matches the all-Korean reference), and
 - fetches a real QA Supabase session (curl → `/auth/v1/token`) and injects it into `localStorage['supabase.auth.token']`.
 
-**Known blocker (gated screens):** the injected session is stored and valid, but AuthContext
-(`getSession()` → profile probe) does not adopt it in the exported web build, so the ~20
-auth-gated routes still redirect to `/sign-in`. Non-gated routes (`/deepspace-home`, `/sign-in`,
-and any preview route without an `if(!userId) Redirect` guard) verify live today.
-Next step to unblock: capture the exact value gotrue writes under `supabase.auth.token` after a
-real in-app login and match that shape when injecting (or add a dev-only design-preview flag that
-seeds AuthContext synchronously). Until then, gated screens are cloned from the reference
-source+capture and self-verified against `reference-captures/NN.png`.
+**Known blocker (gated screens) — RESOLVED 2026-07-05:** the injected session is stored and
+valid, but AuthContext (`getSession()` → profile probe) does not adopt it in the exported web
+build. Resolution: don't inject — perform a REAL sign-in through the UI. `scripts/clone-live-pass.mjs`
+drives `/sign-in` → `이메일로 계속하기` → QA email+password (`.env.test`) → `로그인` → authenticated
+redirect, then visits every gated route in the same browser context. 32/32 routes rendered live
+(0 redirects, 0 console errors). It also taps through the `LoadingScreen` intro gate that replays
+on every full page load, and resolves a real QA record id for `/record/:id` (the `r1` placeholder
+400s). Live captures: `current-live/`; findings: `live-pass-report.md` + `live-pass-report.json`.
 
 ## Progress
 - ✅ Shell primitives (`src/components/deepspace/shell/`): starfield · status bar · 5-tab nav · window/immersive/museumLike layout.
@@ -60,9 +60,12 @@ supersede the older docs/source: **조각** (was 별가루), **휴식** (was 오
 docs/CONCEPT.md / CONTEXT.md still carry the old terms; reconcile there if desired.
 
 ### Remaining polish (for a final pass)
-- **Live pixel-verify of gated screens** — still blocked by the AuthContext session-adoption issue
-  (see the auth blocker above). All gated screens were source+capture verified, not live-rendered.
-  Unblock via a dev-only design-preview auth stub, then re-export + `scripts/clone-fidelity.mjs` diff every route.
+- ~~**Live pixel-verify of gated screens**~~ — DONE 2026-07-05 via real-login flow
+  (`scripts/clone-live-pass.mjs`, see blocker note above). All 32 mapped routes captured live in
+  `current-live/`. Per-route gap notes: `live-pass-report.md`. Top follow-ups: 34-museum renders
+  the timeline view instead of the cloned intro room list; 23-iden/26-reminders green toggle
+  accent vs ref blue; 14-bigfive/15-attachment filled states need assessment data seeded on the
+  QA account to live-verify.
 - **Locale fallback** — several screens use inline `ko?…:…` copy (matching sibling files), so es/id/pt
   fall back to English on those. Move to i18n keys if full localization is wanted.
 - **big-five** trait labels use full names (개방성…) vs the capture's short (개방…) — low impact.
