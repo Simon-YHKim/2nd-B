@@ -8,7 +8,9 @@
 
 1. **라우팅 키 = purpose(상황)** — 구독 티어가 아니다. SAME-QUALITY 불변식(`src/lib/entitlements/tiers.ts` 헤더, plans 카피 "더 비싸도 더 나은 나를 주지 않는다")에 따라 티어는 COUNTS/FEATURES/HISTORY만 차등한다. 라우팅 테이블에 tier 필드는 의도적으로 없다.
 2. **품질 최우선, 비용은 구조로** (Simon 지시 2026-07-04): 자기이해 서사 표면(persona/axis/digest/ttfv/advisor/northstar)은 좋은 모델 + 높은 리즈닝. 비용 절감은 모델 다운그레이드가 아니라 캐시·통합·배치·RAG로 달성한다.
-3. **2-Phase**: Phase 1(현재→2026-08-17 XPRIZE 제출) = Gemini 백본 온리(C1/C2, $0 무료 티어). Phase 2(제출 후) = 3사(Gemini/OpenAI/Anthropic) 품질-우선 라우팅. **Phase 2 활성화는 비용 게이트(§11-5 Simon 확인) 뒤에 있다** — 신규 시크릿(OPENAI_API_KEY), Claude 트래픽 증가, Vertex 과금 레인, Batch/Tier-1 승급 전부 해당.
+3. **2-Phase**: Phase 1(현재→2026-08-17 XPRIZE 제출) = Gemini 백본 온리(C1/C2, $0 무료 티어). Phase 2(제출 후) = 3사(Gemini/OpenAI/Anthropic) 품질-우선 라우팅.
+   **Phase 2 비용 게이트 = 통과 (Simon 지시, 2026-07-04 "phase2 진행하고")** — 코드는 전부 배선 완료, 활성화는 운영 스위치: ① Supabase 시크릿 `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` 세팅 ② `claude-proxy`/`openai-proxy` 배포 ③ 클라 `EXPO_PUBLIC_LLM_PHASE=2` 플립. 스위치 전까지 기본값은 Phase 1(전량 Gemini, 행동 변화 0).
+   **OCR 핀 (Simon 지시, 2026-07-04 "OCR 작업은 무조건 gemini 사용하자")**: `capture_ocr`은 모든 Phase에서 무조건 Gemini — 벤더 failover 없음, 예외 없음. 기술적으로도 gemini-proxy만 이미지 inline-data를 통과시킨다. 코드 강제: `src/lib/llm/routing.ts` GEMINI_PINNED_PURPOSES + 이미지 입력 전역 Gemini 강제.
 4. **C1 유지**: 비-Gemini 벤더는 전부 Supabase 엣지 프록시 경유(claude-proxy 기존, openai-proxy는 claude-proxy 포크 ~1h 템플릿). 클라이언트에 타 벤더 SDK/키 절대 금지.
 5. **C9 유지**: lexicon 전 행 pre-classify + red 단락 + 출력 재분류/swap은 어떤 라우팅에서도 제거 불가. 시맨틱 레이어는 제거가 아니라 **복구**(§3 P0-1).
 6. **thinking 시맨틱 어댑터**: Phase 1 열은 Gemini 3.x `thinking_level`(minimal/low/medium/high) 기준. 2.5 세대로 스필오버 시 `thinkingBudget`으로 번역(minimal≈512, off=0). Phase 2 열은 각 벤더 네이티브(Anthropic adaptive+`output_config.effort`, OpenAI `reasoning_effort`). 추상 effort 1필드 + 벤더·세대별 번역 어댑터가 목표 구현.
@@ -109,12 +111,27 @@ PURPOSE_ROUTE[purpose] = {
 - **2.5 핀 sunset 감시**: A13/G4가 audio 검증 때문에 2.5-flash 고정 — 3.5-flash audio eval 통과를 트리거로 마이그레이션(오너 지정). 직결 Vertex 레인은 spend counter 밖 → 캡 회계 편입 필요.
 - **폐기 명시**: types.ts:42의 "티어별 낮은 effort" 계획은 SAME-QUALITY 위반으로 폐기(✅ 주석 수정). `EXPO_PUBLIC_REASONING_PROVIDER` seam은 **모델 티어**(purpose 유래) 키잉이라 위반은 아니나, purpose-키 PURPOSE_ROUTE로 대체 예정.
 
-## 6. 이 브랜치에서 구현된 것 (Phase 1 무비용 코어)
+## 6. 이 브랜치에서 구현된 것
 
+**커밋 1 (Phase 1 무비용 코어)**
 1. `PURPOSE_TIER`: interview_probe pro→flash 강등, northstar_propose/axis_estimate 명시 등재 (`src/lib/llm/types.ts`)
 2. audit_qa 시스템 프롬프트 신설 (`src/lib/records/create.ts`) — P0-4
 3. capture_ocr 직결 경로 thinking off (`src/lib/llm/gemini.ts` THINKING_OFF_PURPOSES)
-4. SAME-QUALITY 충돌 주석 정리 (`src/lib/llm/types.ts`)
-5. 이 문서 (라우팅 SoT)
+4. SAME-QUALITY 충돌 주석 정리 + 이 문서
 
-나머지(§3 백로그)는 후속 레인으로 분배한다. 모델 세대 전환(2.5→3.5/3.1)·Phase 2 활성화는 env/시크릿 변경이므로 **코드가 아닌 운영 결정**이며 비용 게이트를 거친다.
+**커밋 2 (Phase 2 배선 — Simon GO 2026-07-04)**
+1. `supabase/functions/_shared/llm-proxy-common.ts` — crisis lexicon·auth·CORS·caps·스키마 정규화 공통 모듈 (3벌 드리프트 해소 1단계; gemini-proxy 이관은 후속)
+2. `claude-proxy` 업그레이드: 기본 `claude-sonnet-5`, D-26 purpose→model 서버 맵(opus-4-8 좌석: persona_narrative/axis_estimate/persona_synthesis/digest_weekly; `ANTHROPIC_PURPOSE_MODELS` JSON env로 무코드 오버라이드 — A5 KO 파일럿 스위치), `thinking: adaptive` + `output_config.effort`, responseSchema→json_schema 정규화 통과, refusal 감지(+refusal 감사 마커), max_tokens 사다리 상향(thinking 포함 예산)
+3. `openai-proxy` 신설: gpt-5.4 기본(cluster_infer 좌석) + gpt-5.4-nano(safety outage 폴백 좌석), `reasoning_effort` 매핑, `response_format json_schema(strict:false)`, 공유 `bump_gemini_spend` 카운터 + 위기 게이트 + 감사 — config.toml 등록
+4. 클라이언트 `src/lib/llm/routing.ts`: `EXPO_PUBLIC_LLM_PHASE=2` 게이트, PHASE2_VENDOR 좌석(Claude 8석 라이브 purpose; secondb_chat은 스트리밍 착지까지 의도적 제외), PHASE2_EFFORT, **OCR/voice Gemini 핀 + 이미지 입력 전역 Gemini 강제**
+5. persona_chat 3분할: `persona_narrative`/`gap_synthesize`/`self_model_propose` (콜사이트·목·테스트 포함)
+6. `ReasoningEffort`에 `medium` 추가(전 벤더 사다리 정합), `AuditMeta.reasoningProvider`에 `openai` 추가
+7. `vendor-routing.test.ts` 신설 (Phase 게이트·좌석·핀·effort 매트릭스 검증)
+
+**Simon 잔여 운영 스텝 (Phase 2 실제 개통)**
+- [ ] Supabase Dashboard: `ANTHROPIC_API_KEY`(워크스페이스 2ndb-reasoning, 크레딧 확인) / `OPENAI_API_KEY` 시크릿 세팅
+- [ ] `supabase functions deploy claude-proxy openai-proxy` (verify_jwt 유지)
+- [ ] 웹 배포 env `EXPO_PUBLIC_LLM_PHASE=2` 플립 → 라이브 스모크(어드바이저 1건, persona 1건)
+- [ ] A5 KO-산문 파일럿(opus-4-8 vs sonnet-5) — 실패 시 `ANTHROPIC_PURPOSE_MODELS`로 무코드 전환
+
+나머지(§3 백로그 — chat 스트리밍/RAG, safety_classify 복구, 임베딩 이관, ops_daily_brief 통합, Batch 레인)는 후속 레인으로 분배한다. 모델 세대 전환(2.5→3.5/3.1)은 env 변경이며 allowlist(P0-3)와 락스텝.

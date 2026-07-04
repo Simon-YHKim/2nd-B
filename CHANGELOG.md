@@ -7,6 +7,16 @@ Conventional Commits.
 ## [Unreleased]
 
 ### Added
+- D-26 Phase 2 vendor routing (Simon GO 2026-07-04): `openai-proxy` edge
+  function (gpt-5.4 seat, shared spend counter + crisis gate), upgraded
+  `claude-proxy` (claude-sonnet-5 default, per-purpose opus-4-8 seats,
+  adaptive thinking + effort, structured-output passthrough, refusal guard),
+  shared `_shared/llm-proxy-common.ts`, and client `src/lib/llm/routing.ts`
+  gated by `EXPO_PUBLIC_LLM_PHASE=2` (default Phase 1 = all-Gemini, zero
+  behavior change). `capture_ocr`/`capture_voice` are Gemini-pinned by owner
+  directive; image-bearing calls always route Gemini.
+- persona_chat 3-way taxonomy split: `persona_narrative` / `gap_synthesize` /
+  `self_model_propose` (per-situation routing + honest audit attribution).
 - `docs/LLM-ROUTING.md` — purpose-키 LLM 라우팅 정본 (D-26): Phase 1
   Gemini-only / Phase 2 3-vendor 매트릭스, 26-purpose 택소노미, 구조 최적화
   백로그, P0 결함 목록 (embedding 모델 셧다운, proxy lite allowlist 400,

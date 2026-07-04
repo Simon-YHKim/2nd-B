@@ -72,7 +72,10 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     expect(PURPOSE_TIER.capture_classify).toBe("lite");
     expect(PURPOSE_TIER.clipper_classify).toBe("lite");
     expect(PURPOSE_TIER.secondb_chat).toBe("flash");
-    expect(PURPOSE_TIER.persona_chat).toBe("flash");
+    // D-26 taxonomy split of the old persona_chat catch-all.
+    expect(PURPOSE_TIER.persona_narrative).toBe("flash");
+    expect(PURPOSE_TIER.gap_synthesize).toBe("flash");
+    expect(PURPOSE_TIER.self_model_propose).toBe("flash");
     expect(PURPOSE_TIER.advisor).toBe("pro");
     expect(PURPOSE_TIER.journal_reflect).toBe("pro");
     // Routing decisions (docs/LLM-ROUTING.md): interview_probe demoted to

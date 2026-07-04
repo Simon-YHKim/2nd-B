@@ -2,19 +2,27 @@ import type { SafetyResult, SafetyZone } from "../safety/classifier";
 
 export type GeminiModel = "lite" | "flash" | "pro";
 
-// Reasoning effort levels for the pro (reasoning) tier. Maps to a generation
-// config in gemini.ts (thinking budget where the SDK exposes it, else a
-// maxOutputTokens cap). Default is "high". Effort is a PURPOSE property, never
-// a subscription-tier property: the SAME-QUALITY invariant
-// (entitlements/tiers.ts) forbids tier-keyed model/effort/quality differences —
-// tiers differ by counts and features only. See docs/LLM-ROUTING.md.
-export type ReasoningEffort = "low" | "high" | "xhigh" | "max";
+// Reasoning effort levels. On the Gemini pro tier this maps to a generation
+// config in gemini.ts (thinking budget + maxOutputTokens); on D-26 Phase 2
+// vendor seats the edge proxies translate it to the vendor's native ladder
+// (Anthropic output_config.effort / OpenAI reasoning_effort). Default is
+// "high". Effort is a PURPOSE property, never a subscription-tier property:
+// the SAME-QUALITY invariant (entitlements/tiers.ts) forbids tier-keyed
+// model/effort/quality differences — tiers differ by counts and features
+// only. See docs/LLM-ROUTING.md.
+export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type PromptPurpose =
   | "journal_reflect"
   | "audit_qa"
   | "knowledge_lookup"
-  | "persona_chat"
+  // D-26 taxonomy split: the old catch-all "persona_chat" covered three
+  // semantically different call-sites with different Phase 2 seats. Split so
+  // routing + audit attribution are per-situation. Old audit rows keep the
+  // historical label (text column; no migration needed).
+  | "persona_narrative" // 2-3 sentence anti-Barnum persona summary (build.ts)
+  | "gap_synthesize" // self-vs-others gap note (seen-lens; numeric input only)
+  | "self_model_propose" // propose->ratify self-model change JSON
   | "advisor"
   | "secondb_chat"
   | "interview_probe"
@@ -92,14 +100,17 @@ export interface AuditMeta {
   vertexBackend: boolean;
   safetyZone: SafetyZone;
   latencyMs: number;
-  // Reasoning effort recorded for traceability (C3). Set only on the pro
-  // (reasoning) tier where effort applies; undefined on lite/flash and on
-  // crisis-routed / classifier paths where no reasoning effort was used.
+  // Reasoning effort recorded for traceability (C3). Set on the pro
+  // (reasoning) tier AND on D-26 Phase 2 vendor-seat calls (where the proxy
+  // maps it to the vendor's native ladder); undefined on plain Gemini
+  // lite/flash calls and on crisis-routed / classifier paths where no
+  // reasoning effort was used.
   effort?: ReasoningEffort;
-  // Reasoning provider for the call ("gemini" default; "claude" reserved for the
-  // deferred Claude seam — see EXPO_PUBLIC_REASONING_PROVIDER). Recorded so the
-  // audit trail shows which backend produced a reasoning answer.
-  reasoningProvider?: "gemini" | "claude";
+  // Vendor backend for the call ("gemini" default). "claude"/"openai" when a
+  // D-26 Phase 2 purpose seat (or the legacy EXPO_PUBLIC_REASONING_PROVIDER
+  // seam) routed the call through claude-proxy / openai-proxy. Recorded so the
+  // audit trail shows which backend produced the answer.
+  reasoningProvider?: "gemini" | "claude" | "openai";
 }
 
 export interface GeminiResult<T = string> {
@@ -143,7 +154,9 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   clipper_classify: "lite",
   // flash: interactive / structured-but-not-deep
   secondb_chat: "flash",
-  persona_chat: "flash",
+  persona_narrative: "flash",
+  gap_synthesize: "flash",
+  self_model_propose: "flash",
   capture_ocr: "flash",
   capture_voice: "flash",
   ops_recommend: "flash",

@@ -12,6 +12,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
+import { phase2EffortFor, proxyFnForVendor, resolveVendorForPurpose } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, crisisHotlines, type SafetyResult } from "../safety/classifier";
@@ -74,6 +75,10 @@ function effortToConfig(effort: ReasoningEffort): {
   switch (effort) {
     case "low":
       return { thinkingConfig: { thinkingBudget: 512 }, maxOutputTokens: 1024 };
+    case "medium":
+      // D-26 added the medium rung (used by Phase 2 vendor seats; mapped here
+      // for the direct-Gemini path too so the ladder stays total).
+      return { thinkingConfig: { thinkingBudget: 1024 }, maxOutputTokens: 1536 };
     case "xhigh":
       return { thinkingConfig: { thinkingBudget: 8192 }, maxOutputTokens: 4096 };
     case "max":
@@ -103,14 +108,14 @@ function resolveReasoningProvider(): "gemini" | "claude" {
   return raw === "claude" ? "claude" : "gemini";
 }
 
-// The reasoning provider routes to its own Supabase Edge Function; both keep the
-// client SDK-free (C1). Claude has no client-side path (no key on the device), so
-// a "claude" reasoning call ALWAYS goes through the edge function even when
-// EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off for the direct Gemini path.
+// Each vendor routes to its own Supabase Edge Function; all keep the client
+// SDK-free (C1). Claude/OpenAI have no client-side path (no key on the
+// device), so a non-Gemini call ALWAYS goes through its edge function even
+// when EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off for the direct Gemini path.
 function reasoningProxyFn(
-  reasoningProvider: "gemini" | "claude" | undefined,
-): "gemini-proxy" | "claude-proxy" {
-  return reasoningProvider === "claude" ? "claude-proxy" : "gemini-proxy";
+  reasoningProvider: "gemini" | "claude" | "openai" | undefined,
+): "gemini-proxy" | "claude-proxy" | "openai-proxy" {
+  return proxyFnForVendor(reasoningProvider);
 }
 
 let cachedClient: GoogleGenAI | null = null;
@@ -184,7 +189,7 @@ async function writeCrisisEvent(
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_chat" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -199,9 +204,15 @@ const MOCK_RESPONSES: Record<
     en: "This is an offline preview. Curated references will appear here when you go online.",
     ko: "지금은 오프라인 미리보기예요. 온라인으로 연결하면 검증된 자료가 여기에 표시됩니다.",
   },
-  persona_chat: {
+  persona_narrative: {
     en: "I'm noticing a pattern across your recent entries. Tell me more about how you decided.",
     ko: "최근 기록에서 반복되는 흐름이 보여요. 그 결정을 어떻게 내렸는지 더 들려주세요.",
+  },
+  // Seen-lens self-vs-others gap note (D-26 split of the old persona_chat key)
+  // so the offline-preview build keeps a purpose-flavored line on that surface.
+  gap_synthesize: {
+    en: "The two pictures mostly agree, with one gentle gap: others seem to read you as a bit more outgoing than you describe yourself. It might be worth asking one of them what they see.",
+    ko: "두 그림은 대체로 겹치는데, 한 가지 부드러운 간극이 보여요. 다른 사람들은 스스로 묘사하신 것보다 조금 더 활발한 모습으로 보고 있는 것 같아요. 가까운 한 분께 어떻게 보이는지 물어봐도 좋겠어요.",
   },
   secondb_chat: {
     en: "This is an offline preview. When you go online I'll consult your captured pages and answer with citations. For now I'm following the same prompt structure.",
@@ -438,13 +449,32 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // callers preserved (historical default was flash; unmapped purposes -> flash).
   const tier = resolveTier(input);
   const model = MODELS[tier];
-  // effort applies only on the reasoning (pro) tier. On lite/flash it stays
-  // undefined so the audit row doesn't imply a reasoning budget that wasn't used.
+  // D-26 Phase 2: purpose-keyed vendor seat (EXPO_PUBLIC_LLM_PHASE=2). The
+  // proxy owns the actual model id; image-bearing calls and the OCR/voice
+  // pins always stay Gemini. Phase 1 (default) resolves "gemini" everywhere.
+  const vendorSeat = resolveVendorForPurpose(input.purpose, input.image != null);
+  // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
+  // (the proxy maps it to the vendor's native reasoning ladder). On Gemini
+  // lite/flash it stays undefined so the audit row doesn't imply a reasoning
+  // budget that wasn't used.
   const effort: ReasoningEffort | undefined =
-    tier === "pro" ? input.effort ?? DEFAULT_EFFORT : undefined;
-  // Reasoning provider seam (C1-safe). Only meaningful on the pro tier; resolves
-  // to "gemini" today (warns + falls back if the flag asks for claude).
-  const reasoningProvider = tier === "pro" ? resolveReasoningProvider() : undefined;
+    tier === "pro"
+      ? input.effort ?? DEFAULT_EFFORT
+      : vendorSeat !== "gemini"
+        ? input.effort ?? phase2EffortFor(input.purpose) ?? DEFAULT_EFFORT
+        : undefined;
+  // Vendor for the call: a Phase 2 seat wins; otherwise the legacy pro-tier
+  // reasoning-provider seam (EXPO_PUBLIC_REASONING_PROVIDER) applies.
+  const reasoningProvider =
+    vendorSeat !== "gemini"
+      ? vendorSeat
+      : tier === "pro"
+        ? resolveReasoningProvider()
+        : undefined;
+  // Which backend actually served the answer — reassigned when the D-26
+  // outage failover drops a vendor seat back to the Gemini Phase 1 route.
+  // Audit rows record THIS, not the intended seat (C3 honesty).
+  let servedByProvider = reasoningProvider;
 
   // Offline-preview mode: skip network. Useful for offline dev, CI, and demos
   // without a live model connection. C3 audit log + C9 safety classifier still
@@ -467,8 +497,11 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
       safetyZone: outputSafety.zone,
       latencyMs,
-      ...(effort ? { effort } : {}),
-      ...(reasoningProvider ? { reasoningProvider } : {}),
+      // Mock never egresses, so vendor-seat effort/provider would be a lie in
+      // the row (mock:gemini-* + "claude"). Record them only for the pro tier
+      // (pre-D-26 semantics, where they describe the local thinking config).
+      ...(tier === "pro" && effort ? { effort } : {}),
+      ...(tier === "pro" && reasoningProvider ? { reasoningProvider } : {}),
     };
     await writeAiAuditLog(input.userId, audit, "[ai_audit_log] insert failed (mock)");
     return { text: text as unknown as T, safety: outputSafety, audit };
@@ -484,34 +517,66 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // returns audited:true and we skip the client insert to avoid double-logging.
   let proxyAudited = false;
 
-  // Route through an edge function when configured, OR whenever the reasoning
-  // provider is Claude (which has no client-side path — the key lives only in
-  // claude-proxy). reasoningProxyFn picks the matching function.
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider === "claude") {
+  // Route through an edge function when configured, OR whenever the vendor is
+  // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
+  // their proxies). reasoningProxyFn picks the matching function.
+  if (
+    env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION ||
+    (reasoningProvider != null && reasoningProvider !== "gemini")
+  ) {
     const supabase = getSupabaseClient();
+    const proxyBody = {
+      system: input.system ?? null,
+      user: input.user,
+      model,
+      // Purpose label: lets the proxy apply purpose-aware policy (premium
+      // entitlement gate + D-26 server-owned model seats + effort ceilings)
+      // and gives server logs call attribution. Labels are self-reported, so
+      // the proxy's tier-aware cap + effort clamp are the hard ceilings.
+      purpose: input.purpose,
+      // Optional image payload for multimodal OCR / vision prompts.
+      ...(input.image ? { image: input.image } : {}),
+      // Structured-output schema (e.g. phase1). The proxy sets
+      // responseMimeType=application/json + responseSchema when present so
+      // edge-routed callers reach parity with the direct-client path.
+      ...(input.responseSchema ? { responseSchema: input.responseSchema } : {}),
+      // Reasoning effort (pro tier / vendor seats). Each proxy maps it to its
+      // vendor's native ladder server-side and clamps per purpose.
+      ...(effort ? { effort } : {}),
+    };
+    const primaryFn = reasoningProxyFn(reasoningProvider);
     const t0 = Date.now();
-    const { data, error } = await supabase.functions.invoke(reasoningProxyFn(reasoningProvider), {
-      body: {
-        system: input.system ?? null,
-        user: input.user,
-        model,
-        // Purpose label: lets the proxy apply purpose-aware policy (premium
-        // entitlement gate) and gives server logs call attribution. Labels are
-        // self-reported, so the proxy's tier-aware cap is the hard ceiling.
-        purpose: input.purpose,
-        // Optional image payload for multimodal OCR / vision prompts.
-        ...(input.image ? { image: input.image } : {}),
-        // Structured-output schema (e.g. phase1). The proxy sets
-        // responseMimeType=application/json + responseSchema when present so
-        // edge-routed callers reach parity with the direct-client path.
-        ...(input.responseSchema ? { responseSchema: input.responseSchema } : {}),
-        // Reasoning effort (pro tier only). The proxy maps it to thinkingConfig/
-        // maxOutputTokens server-side (parity with effortToConfig); self-reported,
-        // so the proxy's tier-aware cap remains the hard ceiling.
-        ...(effort ? { effort } : {}),
-      },
+    let { data, error } = await supabase.functions.invoke(primaryFn, {
+      body: proxyBody,
       signal: input.signal,
     });
+    // D-26 outage failover: a vendor seat that fails for any NON-CRISIS reason
+    // falls back ONCE to its Phase 1 assignment (gemini-proxy) — "each vendor
+    // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
+    // handled below and never retried (all proxies share the same gate, so a
+    // retry would just re-reject — and must not look like an outage).
+    if (error && primaryFn !== "gemini-proxy") {
+      const vendorCrisis = await inspectProxyCrisisRejection(error);
+      if (vendorCrisis.route) {
+        return (await routeCrisis(
+          proxyCrisisSafetyResult(input.locale, input.minor),
+          input.locale,
+          input.userId,
+          promptHash,
+          input.minor,
+          vendorCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
+          { recordCrisisEvent: vendorCrisis.confirmedMarker },
+        )) as unknown as GeminiResult<T>;
+      }
+      if (typeof console !== "undefined") {
+        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} — falling back to gemini-proxy`);
+      }
+      servedByProvider = "gemini";
+      ({ data, error } = await supabase.functions.invoke("gemini-proxy", {
+        body: proxyBody,
+        signal: input.signal,
+      }));
+    }
     latencyMs = Date.now() - t0;
     if (error) {
       // C9 fallback: the server gate caught what the client lexicon missed —
@@ -617,7 +682,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       safetyZone: "red" as const,
       latencyMs,
       ...(effort ? { effort } : {}),
-      ...(reasoningProvider ? { reasoningProvider } : {}),
+      ...(servedByProvider ? { reasoningProvider: servedByProvider } : {}),
     };
     if (!proxyAudited) {
       await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] output-swap insert failed");
@@ -651,7 +716,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     safetyZone: outputSafety.zone,
     latencyMs,
     ...(effort ? { effort } : {}),
-    ...(reasoningProvider ? { reasoningProvider } : {}),
+    ...(servedByProvider ? { reasoningProvider: servedByProvider } : {}),
   };
 
   // C3: best-effort audit. We must not block UX on logging failure. Skip when
@@ -695,6 +760,10 @@ async function advisorProxyCrisisResult(
   promptHash: string,
   vertexBackend: boolean,
   confirmedMarker: boolean,
+  // The vendor whose server gate fired — threaded from callAdvisor's resolved
+  // routing (Phase 2 seat or legacy seam), NOT re-derived from the env, so the
+  // restricted trail attributes the catch to the proxy that actually rejected.
+  reasoningProvider: "gemini" | "claude" | "openai",
 ): Promise<AdvisorResult> {
   const fixed = fixedCrisisResponse(input.locale, input.minor);
   const proxyTrigger = confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed";
@@ -706,7 +775,7 @@ async function advisorProxyCrisisResult(
     safetyZone: "red" as const,
     latencyMs: 0,
     // Advisor is the reasoning path; record the provider for a complete trail.
-    reasoningProvider: resolveReasoningProvider(),
+    reasoningProvider,
   };
   await writeAiAuditLog(input.userId, audit, "[advisor] proxy-crisis audit failed");
   if (confirmedMarker) {
@@ -1000,11 +1069,13 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
 export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const env = getEnv();
   const promptHash = djb2(input.userMessage);
-  // Advisor is the reasoning (pro) path: honor effort (default high) and the
-  // C1-safe reasoning-provider seam (resolves to gemini today, warns+falls back
-  // if the flag asks for claude). Recorded in every advisor audit row (C3).
+  // Advisor is the reasoning (pro) path: honor effort (default high). Vendor:
+  // the D-26 Phase 2 advisor seat (claude, when EXPO_PUBLIC_LLM_PHASE=2) wins;
+  // otherwise the legacy C1-safe reasoning-provider seam applies. Recorded in
+  // every advisor audit row (C3).
   const effort: ReasoningEffort = input.effort ?? DEFAULT_EFFORT;
-  const reasoningProvider = resolveReasoningProvider();
+  const advisorSeat = resolveVendorForPurpose("advisor", false);
+  const reasoningProvider = advisorSeat !== "gemini" ? advisorSeat : resolveReasoningProvider();
 
   // Layer 1+2 safety: lexicon backstop + Gemini Flash classifier (semantic).
   const safety = await classifySafety(input.userMessage, input.locale, { userId: input.userId });
@@ -1115,35 +1186,59 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   let text: string;
   let latencyMs: number;
   let vertex: boolean;
+  // Which backend actually served the answer + the model it reported — both
+  // reassigned by the D-26 outage failover / proxy response so the audit rows
+  // never attribute a Claude answer to a Gemini id (or vice versa).
+  let servedByProvider = reasoningProvider;
+  let modelUsedForAudit: string = model;
   // When the proxy writes the audit row itself (C3 server-authoritative) it
   // returns audited:true; we then skip the client insert to avoid double-logging
   // (parity with callGemini).
   let proxyAudited = false;
-  // Edge path when configured, OR whenever the reasoning provider is Claude
-  // (server-side only). reasoningProxyFn picks gemini-proxy vs claude-proxy.
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider === "claude") {
+  // Edge path when configured, OR whenever the vendor is non-Gemini
+  // (server-side only). reasoningProxyFn picks the matching proxy.
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider !== "gemini") {
     const supabase = getSupabaseClient();
+    // The curated RAG prompt rides in `system` (trusted, NOT crisis-scanned —
+    // it legitimately quotes crisis-detection reference text); the genuine
+    // journal entry rides in `user`, which the proxy DOES crisis-scan. This
+    // fixes the prior false 422 AND keeps the server-side crisis gate effective
+    // (a bypassed client can't smuggle crisis content through an unscanned
+    // `user` channel — the gate scans exactly what is forwarded as the turn).
+    // purpose:"advisor" puts this call behind the proxy's server-side
+    // entitlement gate (brain tier) — the client's canUsePremium gate
+    // mirrored on the server (#312 punch item).
+    const proxyBody = {
+      system: systemPrompt,
+      user: input.userMessage,
+      model,
+      purpose: "advisor",
+      // Reasoning effort -> each proxy maps it to its vendor's native ladder
+      // server-side and clamps per purpose. The tier cap stays the ceiling.
+      effort,
+    };
+    const primaryFn = reasoningProxyFn(reasoningProvider);
     const t0 = Date.now();
-    const { data, error } = await supabase.functions.invoke(reasoningProxyFn(reasoningProvider), {
-      // The curated RAG prompt rides in `system` (trusted, NOT crisis-scanned —
-      // it legitimately quotes crisis-detection reference text); the genuine
-      // journal entry rides in `user`, which the proxy DOES crisis-scan. This
-      // fixes the prior false 422 AND keeps the server-side crisis gate effective
-      // (a bypassed client can't smuggle crisis content through an unscanned
-      // `user` channel — the gate scans exactly what is forwarded as the turn).
-      // purpose:"advisor" puts this call behind the proxy's server-side
-      // entitlement gate (brain tier) — the client's canUsePremium gate
-      // mirrored on the server (#312 punch item).
-      body: {
-        system: systemPrompt,
-        user: input.userMessage,
-        model,
-        purpose: "advisor",
-        // Reasoning effort -> proxy maps to thinkingConfig/maxOutputTokens server-
-        // side (parity with effortToConfig). The proxy's tier cap stays the ceiling.
-        effort,
-      },
-    });
+    let { data, error } = await supabase.functions.invoke(primaryFn, { body: proxyBody });
+    // D-26 outage failover (parity with callGemini): a vendor-seat failure that
+    // is NOT a crisis 422 retries ONCE on the Phase 1 route (gemini-proxy).
+    if (error && primaryFn !== "gemini-proxy") {
+      const vendorCrisis = await inspectProxyCrisisRejection(error);
+      if (vendorCrisis.route) {
+        return advisorProxyCrisisResult(
+          input,
+          promptHash,
+          env.EXPO_PUBLIC_USE_VERTEX,
+          vendorCrisis.confirmedMarker,
+          reasoningProvider,
+        );
+      }
+      if (typeof console !== "undefined") {
+        console.warn(`[advisor] ${primaryFn} failed — falling back to gemini-proxy`);
+      }
+      servedByProvider = "gemini";
+      ({ data, error } = await supabase.functions.invoke("gemini-proxy", { body: proxyBody }));
+    }
     latencyMs = Date.now() - t0;
     if (error) {
       // C9 fallback, Advisor surface: mirror the input-RED UX (fixed template)
@@ -1156,12 +1251,17 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
           promptHash,
           env.EXPO_PUBLIC_USE_VERTEX,
           proxyCrisis.confirmedMarker,
+          servedByProvider,
         );
       }
       throw error;
     }
-    const payload = data as { text?: string; audited?: boolean } | null;
+    const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
     text = payload?.text ?? "";
+    // C3 honesty: the proxy reports which vendor model actually answered
+    // (claude-sonnet-5 / claude-opus-4-8 / gemini-*). Falling back to the
+    // client-side Gemini id would attribute Claude answers to Gemini.
+    modelUsedForAudit = payload?.modelUsed ?? model;
     proxyAudited = payload?.audited === true;
     vertex = false;
   } else {
@@ -1193,12 +1293,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     const audit = {
       promptHash: djb2(systemPrompt + input.userMessage),
       outputHash: djb2(fixed.text),
-      modelUsed: `${model}+swap:${fixed.version}`,
+      modelUsed: `${modelUsedForAudit}+swap:${fixed.version}`,
       vertexBackend: vertex,
       safetyZone: "red" as const,
       latencyMs,
       effort,
-      reasoningProvider,
+      reasoningProvider: servedByProvider,
     };
     // Skip when the proxy already wrote the row (proxyAudited); the swap itself
     // is still recorded in crisis_events below regardless.
@@ -1235,12 +1335,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const audit = {
     promptHash: djb2(systemPrompt + input.userMessage),
     outputHash: djb2(text),
-    modelUsed: model,
+    modelUsed: modelUsedForAudit,
     vertexBackend: vertex,
     safetyZone: finalZone,
     latencyMs,
     effort,
-    reasoningProvider,
+    reasoningProvider: servedByProvider,
   };
   if (!proxyAudited) {
     await writeAiAuditLog(input.userId, audit, "[advisor] audit failed");

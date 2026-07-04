@@ -8,10 +8,20 @@ project_id = "zoacryukmdeivmolvyhj"
 verify_jwt = true
 
 [functions.claude-proxy]
-# Reasoning (pro-tier) backend behind EXPO_PUBLIC_REASONING_PROVIDER=claude.
-# Mirrors gemini-proxy's security boundary; the ANTHROPIC_API_KEY stays in
-# Edge Function Secrets (never the client bundle). verify_jwt=true so only
-# signed-in users reach the paid model.
+# Anthropic backend for D-26 Phase 2 purpose-keyed vendor routing (and the
+# legacy EXPO_PUBLIC_REASONING_PROVIDER=claude seam). Mirrors gemini-proxy's
+# security boundary; the ANTHROPIC_API_KEY stays in Edge Function Secrets
+# (never the client bundle). verify_jwt=true so only signed-in users reach
+# the paid model.
+verify_jwt = true
+
+[functions.openai-proxy]
+# OpenAI backend for D-26 Phase 2. Serves ONLY its seated purposes
+# (cluster_infer, safety_classify — both purpose-allowlisted 400 otherwise;
+# note neither seat is client-wired yet, so all legitimate traffic is future).
+# Fork of claude-proxy: same crisis gate, same SHARED per-user/day spend
+# counter (bump_gemini_spend), same premium gate + audit. OPENAI_API_KEY
+# stays in Edge Function Secrets. Never deploy --no-verify-jwt.
 verify_jwt = true
 
 [functions.delete-account]
