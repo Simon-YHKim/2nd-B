@@ -10,6 +10,13 @@ import manifest from "../../../public/proto/data/index.json";
 import screensPack from "../../../public/proto/data/app/screens.json";
 import navPack from "../../../public/proto/data/app/nav.json";
 import constellationPack from "../../../public/proto/data/core/constellation.json";
+import captureModesPack from "../../../public/proto/data/core/capture-modes.json";
+import museumPack from "../../../public/proto/data/screens/museum.json";
+import morePack from "../../../public/proto/data/screens/more.json";
+import knowPack from "../../../public/proto/data/screens/know.json";
+import surfacesPack from "../../../public/proto/data/screens/surfaces.json";
+import validatePack from "../../../public/proto/data/screens/validate.json";
+import starLensesPack from "../../../public/proto/data/screens/star-lenses.json";
 
 export type CanonLayout = "immersive" | "museumLike" | "windowed";
 
@@ -78,3 +85,98 @@ export function canonStats(): {
     packs: Object.keys(canonManifestFiles).length,
   };
 }
+
+/* ── Content packs ─────────────────────────────────────────────
+   Korean copy and data below are the design canon (pixel contract) —
+   screens source their KO content here; EN mirrors stay app-side.
+   Values that must track LIVE state (prices via TIER_PRICE_KRW,
+   real ratification rows, live reminders) are intentionally NOT
+   exported: the entitlement/data layer stays the source of truth. */
+
+export interface CanonMuseumEvent {
+  id: string;
+  icon: string;
+  lane: string;
+  year: number;
+  ylabel: string;
+  title: string;
+  sub: string;
+  body: string;
+  tags?: string[];
+  rel?: string[];
+  refs?: { kind: string; label: string }[];
+  here?: boolean;
+}
+
+export interface CanonMuseumDetail {
+  long?: string;
+  facts?: string[][];
+  cause?: string;
+  effect?: string;
+}
+
+export const canonMuseum = {
+  lanes: museumPack.lanes as Record<string, { label: string; en: string; icon: string; accent: string; tint: string; ink: string }>,
+  events: museumPack.events as CanonMuseumEvent[],
+  extra: museumPack.extra as CanonMuseumEvent[],
+  detail: museumPack.detail as Record<string, CanonMuseumDetail>,
+  refKo: museumPack.refKo as Record<string, string>,
+  refIcon: museumPack.refIcon as Record<string, string>,
+  decades: museumPack.decades as number[],
+};
+
+export interface CanonImagineSeed {
+  angle: string;
+  icon: string;
+  title: string;
+  body: string;
+  steps: string[];
+}
+
+export interface CanonReminder {
+  id: number;
+  title: string;
+  when: string;
+  star: string;
+  src: string;
+  on: boolean;
+  repeat: string;
+}
+
+export const canonMore = {
+  imagineSeeds: morePack.imagineSeeds as CanonImagineSeed[],
+  reminders: morePack.reminders as CanonReminder[],
+  focusPresets: morePack.focusPresets as number[],
+  focusStars: morePack.focusStars as string[],
+};
+
+export const canonKnow = {
+  questions: knowPack.questions as string[],
+  likertOptions: knowPack.likertOptions as string[],
+  ratifyProposals: knowPack.ratifyProposals as { lens: string; from: string; to: string; delta: string }[],
+};
+
+export interface CanonAxisRow {
+  k: string;
+  en: string;
+  v: number;
+  note: string;
+}
+
+export const canonSurfaces = {
+  trendSeries: surfacesPack.trendSeries as number[],
+  trendEvents: surfacesPack.trendEvents as { w: string; star: string; from: string; to: string; why: string; up: boolean }[],
+  trendAxisLabels: surfacesPack.trendAxisLabels as string[],
+  starSpark: surfacesPack.starSpark as [string, number, number][],
+  sdt: surfacesPack.sdt as CanonAxisRow[],
+  strengths: surfacesPack.strengths as (CanonAxisRow & { icon: string })[],
+};
+
+export const canonValidateValues = validatePack.values as CanonAxisRow[];
+
+export const canonCaptureModes = captureModesPack.modes as { id: string; icon: string; label: string }[];
+
+export const canonIden = {
+  targets: starLensesPack.idenScreen.targets as { k: string; c: string }[],
+  formats: starLensesPack.idenScreen.formats as string[],
+};
