@@ -72,8 +72,18 @@ const SPEC = [
   ['36-imagine', 'jump', 'imagine'],
   ['37-widget', 'jump', 'widget'],
 ];
+// registered screens NOT in the 37-shot spec — EXTRA=1 appends them so every
+// screens.json entry gets regression coverage (param screens jump with null).
+const EXTRA = [
+  'peer', 'triage', 'research', 'pwreset', 'profilesetup', 'dobgate', 'permissions',
+  'privacy', 'support', 'audit-full', 'domains', 'lifeinput', 'hobbyinput',
+  'healthinput', 'careerinput', 'drilldown', 'relcontacts', 'relperson',
+  'healthdata', 'manual', 'journal', 'reward', 'digest',
+].map((id) => ['x-' + id, 'jump', id]);
+
+const ALL = process.env.EXTRA ? SPEC.concat(EXTRA) : SPEC;
 const only = process.env.SCREENS ? process.env.SCREENS.split(',').map((s) => s.trim()) : null;
-const SHOTS = only ? SPEC.filter(([n]) => only.some((o) => n.includes(o))) : SPEC;
+const SHOTS = only ? ALL.filter(([n]) => only.some((o) => n.includes(o))) : ALL;
 
 mkdirSync(OUT, { recursive: true });
 const report = { baseUrl: BASE_URL, consoleErrors: [], pageErrors: [], shots: [] };
