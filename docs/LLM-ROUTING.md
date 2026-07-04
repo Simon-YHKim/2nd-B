@@ -19,9 +19,9 @@
 
 | # | 결함 | 위치 | 상태 |
 |---|---|---|---|
-| P0-1 | **prod 시맨틱 위기분류 무음 사망**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 조용히 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:83-91` | 백로그 #1 — proxy 경유 `safety_classify` purpose 신설로 복구 |
-| P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/gemini.ts` EMBED_MODEL | 백로그 #3 — gemini-embedding-2(768 MRL)로 이관 + 전량 재임베드 |
-| P0-3 | **엣지 경유 lite 콜 400**: gemini-proxy MODELS_ALLOWED={2.5-flash, 2.5-pro}뿐 → lite 티어(clipper_classify)가 엣지 빌드에서 model_not_allowed | `supabase/functions/gemini-proxy/index.ts` | 백로그 #2 — allowlist 확장 |
+| P0-1 | **prod 시맨틱 위기분류 무음 사망**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 조용히 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:83-91` | 백로그 #1 — 잔여 (위기 eval set + 세이프티 승인 게이트 선행) |
+| P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/gemini.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
+| P0-3 | **엣지 경유 lite 콜 400**: gemini-proxy MODELS_ALLOWED={2.5-flash, 2.5-pro}뿐 → lite 티어(clipper_classify)가 엣지 빌드에서 model_not_allowed | `supabase/functions/gemini-proxy/index.ts` | ✅ P0 레인에서 수리 — allowlist에 lite+3.x, GEMINI_MODELS_ALLOWED env, pro-클래스 패턴 핀 |
 | P0-4 | **audit_qa 시스템 프롬프트 전무** — 라이브 무유도 출력 | `src/lib/records/create.ts` | ✅ 이 브랜치에서 수정 |
 
 ## 2. 라우팅 매트릭스 (최종 병합판)
@@ -73,11 +73,11 @@
 ## 3. 구조 최적화 백로그 (임팩트 순)
 
 1. **safety_classify 복구+스코핑+에스컬레이션** (P0-1): 직결 클라이언트 폐기→proxy purpose, 입력 시맨틱=자유텍스트 purpose만·출력=산문 purpose만(lexicon은 전 행 유지), 2단 에스컬레이션, 폴백 체인+메트릭, spend-cap 예약 버킷. **선행: 위기 eval set + 세이프티 오너 승인.**
-2. **proxy allowlist·서버소유 라우팅** (P0-3): {3.5-flash, 3.1-flash-lite, gemini-embedding-2, 2.5 스필오버} env-enum 허용, PURPOSE_ROUTE 서버 정본화, per-purpose rpdBudget, sub-brain pro→flash 무언 다운그레이드 제거. **클라 env(EXPO_PUBLIC_MODEL_*) 갱신과 락스텝 배포**(스테일 시 무음 2.5 트래픽).
-3. **임베딩 마이그레이션** (P0-2): 004→gemini-embedding-2 768 MRL(`outputDimensionality:768` + 정규화 주의), 배열 배치, 자동 임베드, 전량 재임베드.
+2. △(allowlist·env·pro핀은 P0 레인에서 착지; 서버소유 PURPOSE_ROUTE·rpdBudget은 잔여) **proxy allowlist·서버소유 라우팅** (P0-3): {3.5-flash, 3.1-flash-lite, gemini-embedding-2, 2.5 스필오버} env-enum 허용, PURPOSE_ROUTE 서버 정본화, per-purpose rpdBudget, sub-brain pro→flash 무언 다운그레이드 제거. **클라 env(EXPO_PUBLIC_MODEL_*) 갱신과 락스텝 배포**(스테일 시 무음 2.5 트래픽).
+3. ✅(P0 레인) **임베딩 마이그레이션** (P0-2): 004→gemini-embedding-2 768 MRL(`outputDimensionality:768` + 정규화 주의), 배열 배치, 자동 임베드, 전량 재임베드.
 4. **프롬프트·주입면 일제 수리**: audit_qa 시스템(✅), 인터뷰 트랜스크립트/phase1 원문/persona 엔트리 펜싱, phase1·import 입력 캡, URL sanitize, import KO 시스템, `[SYSTEM]` user-turn 핵 대신 네이티브 systemInstruction.
-5. **persona read-back 캐시 + 입력 윈도잉**: personas 테이블 읽기 복원(staleness key=count+max created_at), 인터뷰 전문 제외/요약. Phase 2 opus 경제성의 열쇠.
-6. **ops_daily_brief 통합 + refire 버그 픽스**: G2×7+G3×7+A17 → 일 1콜 JSON, OpsHomeScreen 탭전환 무과금 auto-refire 차단.
+5. ✅(P0 레인) **persona read-back 캐시 + 입력 윈도잉**: personas 테이블 읽기 복원(staleness key=count+max created_at), 인터뷰 전문 제외/요약. Phase 2 opus 경제성의 열쇠.
+6. △(TTL 캐시+forceFresh는 P0 레인에서 착지; daily-brief 통합은 잔여) **ops_daily_brief 통합 + refire 버그 픽스**: G2×7+G3×7+A17 → 일 1콜 JSON, OpsHomeScreen 탭전환 무과금 auto-refire 차단.
 7. **chat RAG + 히스토리 윈도 + 컨텍스트 캐싱**: blind first-50 스냅샷→kNN top-8+recency, 최근 6턴(현행 0턴), **정적 시스템+persona 프리픽스(캐시 경계) 뒤에 RAG 블록**(캐시 적중률 보호).
 8. **responseSchema 전면화 + conf 시스템 계산**: A7/A8/A9/A11/A15/A16/A17/G1/G9에 persona_synthesis 계약(closed vocab+grounding filter+lexicon 게이트) 이식; parse실패 vs thin-data UX 분리.
 9. **Batch/선계산 레인**: digest·daily-brief·classify·ingest·cluster·trend·embeds → Batch API(-50%)+아침 선계산. **Batch의 free-tier 가용성 실측 필요**(불가 시 오프피크 sync 트리클).
