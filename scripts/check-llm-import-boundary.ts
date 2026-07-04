@@ -19,6 +19,10 @@ const GEMINI_TESTS = [
   ["src", "lib", "llm", "__tests__", "advisor-edge.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "gemini-output-swap.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "proxy-crisis-fallback.test.ts"].join("/"),
+  // D-26 Phase 2 vendor-routing wiring suite: mocks the audit/crisis writers
+  // to assert C3 rows on the claude-proxy path + outage failover (same pattern
+  // as proxy-crisis-fallback.test.ts).
+  ["src", "lib", "llm", "__tests__", "vendor-routing-live.test.ts"].join("/"),
 ];
 
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [

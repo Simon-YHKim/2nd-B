@@ -72,9 +72,18 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     expect(PURPOSE_TIER.capture_classify).toBe("lite");
     expect(PURPOSE_TIER.clipper_classify).toBe("lite");
     expect(PURPOSE_TIER.secondb_chat).toBe("flash");
-    expect(PURPOSE_TIER.persona_chat).toBe("flash");
+    // D-26 taxonomy split of the old persona_chat catch-all.
+    expect(PURPOSE_TIER.persona_narrative).toBe("flash");
+    expect(PURPOSE_TIER.gap_synthesize).toBe("flash");
+    expect(PURPOSE_TIER.self_model_propose).toBe("flash");
     expect(PURPOSE_TIER.advisor).toBe("pro");
     expect(PURPOSE_TIER.journal_reflect).toBe("pro");
+    // Routing decisions (docs/LLM-ROUTING.md): interview_probe demoted to
+    // flash (deterministic layer choice; LLM only drafts one question), and
+    // the two previously-unmapped estimate purposes pinned explicitly.
+    expect(PURPOSE_TIER.interview_probe).toBe("flash");
+    expect(PURPOSE_TIER.northstar_propose).toBe("flash");
+    expect(PURPOSE_TIER.axis_estimate).toBe("flash");
   });
 
   test("classify purpose routes to the lite model id", async () => {
@@ -133,7 +142,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "interview_probe",
+      purpose: "journal_reflect",
       user: "go on",
     });
     const audit = r.audit as AuditMeta;
@@ -146,11 +155,23 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "interview_probe",
+      purpose: "journal_reflect",
       user: "go on",
       effort: "max",
     });
     expect((r.audit as AuditMeta).effort).toBe("max");
+  });
+
+  test("interview_probe (demoted) routes flash and records no effort", async () => {
+    const r = await callGemini({
+      userId: "u1",
+      locale: "en",
+      purpose: "interview_probe",
+      user: "go on",
+    });
+    const audit = r.audit as AuditMeta;
+    expect(audit.modelUsed).toBe(`mock:${MODELS.flash}`);
+    expect(audit.effort).toBeUndefined();
   });
 
   test("lite/flash tiers do NOT record an effort (reasoning-only field)", async () => {

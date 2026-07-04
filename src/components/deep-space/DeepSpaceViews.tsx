@@ -1148,7 +1148,7 @@ export function SeenLensView() {
       const res = await callGemini({
         userId,
         locale,
-        purpose: "persona_chat",
+        purpose: "gap_synthesize",
         system:
           locale === "ko"
             ? "당신은 자기이해 앱의 세컨비. 아래는 사용자의 자기보고와 지인 " + informantCount + "명의 합산 관찰(비식별 수치)이다. 두 그림의 간극을 2~3문장으로, 따뜻하고 검증적인 톤으로 짚어라. 진단이나 단정은 금지, 수치 나열 금지, 존중하는 제안 하나로 끝내라.\n" + lines

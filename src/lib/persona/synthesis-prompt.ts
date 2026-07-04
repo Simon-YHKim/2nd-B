@@ -2,7 +2,8 @@
 // in buildPersona that summarizes a person's own entries back to them.
 //
 // WHY (2026-06-28 AI-rigor research): build.ts previously passed NO system prompt
-// for purpose "persona_chat", so the model ran UNGUIDED on the raw entries. That
+// for this call (then labeled "persona_chat", now "persona_narrative" after the
+// D-26 taxonomy split), so the model ran UNGUIDED on the raw entries. That
 // is exactly where the documented failure modes bite a self-knowledge app:
 //   - fabrication / post-rationalization — inventing traits or causes the entries
 //     don't support ("grounded in your data" is not self-proving),

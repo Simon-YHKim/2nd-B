@@ -366,7 +366,7 @@ describe("buildPersona", () => {
     // synthesis system instruction (it was previously unguided).
     expect(callGemini).toHaveBeenCalledWith(
       expect.objectContaining({
-        purpose: "persona_chat",
+        purpose: "persona_narrative",
         system: expect.stringContaining("ONLY in the entries"),
       }),
     );

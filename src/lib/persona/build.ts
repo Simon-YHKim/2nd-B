@@ -395,7 +395,7 @@ export async function buildPersona(
     const summaryRes = await callGemini({
       userId,
       locale,
-      purpose: "persona_chat",
+      purpose: "persona_narrative",
       // Guide the synthesis toward an honest, grounded, balanced mirror (was
       // unguided). Trusted system channel; the entries still ride `user` and stay
       // crisis-scanned, so C9/C3 are unaffected.

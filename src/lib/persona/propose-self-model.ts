@@ -90,6 +90,6 @@ export async function proposeSelfModelChange(
 ): Promise<SelfModelProposal | null> {
   if (evidence.trim().length === 0) return null;
   const { system, user } = buildSelfModelProposalPrompt(target, before, evidence, locale);
-  const reply = await callGemini({ userId, locale, purpose: "persona_chat", system, user, minor });
+  const reply = await callGemini({ userId, locale, purpose: "self_model_propose", system, user, minor });
   return parseSelfModelProposal(reply.text, target, before, targetLevel);
 }
