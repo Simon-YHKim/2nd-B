@@ -1071,9 +1071,11 @@ function LensHead({ title, tag, eyebrow }: { title: string; tag: string; eyebrow
 
 export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
-  // TODO(data): not reachable from any live route/dock yet; per-period recall
-  // coverage (interview-coverage by life period) is non-trivial and unwired, so
-  // this renders an honest empty state instead of fabricated dot meters.
+  // UNWIRED ON PURPOSE — era-recall now lives in /audit (PastMeErasView). This
+  // variant is kept as a reference for a future per-period recall-coverage view
+  // (interview-coverage by life period, still non-trivial + no data pipeline);
+  // do NOT wire it to a route as-is — it would duplicate /audit. Renders an
+  // honest empty state, never fabricated dot meters, if ever mounted.
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.recall.title")} tag={t("ds.recall.tag")} eyebrow={t("ds.recall.eyebrow")} />
@@ -1578,9 +1580,11 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
 
 export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddData?: () => void } = {}) {
   const { t } = useTranslation("home");
-  // TODO(data): not reachable from any live route/dock yet; the people +
-  // knowledge graph (relations-graph + wiki concepts) is non-trivial and
-  // unwired, so this renders an honest empty state instead of fabricated chips.
+  // UNWIRED ON PURPOSE — relational insight is covered by /attachment (attachment
+  // style) plus the people + wiki graphs. This variant is a reference for a
+  // future dedicated relations-graph view (relations-graph + wiki concepts, no
+  // data pipeline yet); do NOT wire it as-is — it would duplicate /attachment.
+  // Renders an honest empty state, never fabricated chips, if ever mounted.
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.relational.title")} tag={t("ds.relational.tag")} eyebrow={t("ds.relational.eyebrow")} />
@@ -1637,6 +1641,12 @@ export function ValuesLensView({
   onRetry?: () => void;
 } = {}) {
   const { t } = useTranslation("home");
+  // UNWIRED ON PURPOSE — the values spectrum ships in /values (AxisCheckScreen).
+  // This lens variant is not wired to a route; doing so would duplicate /values.
+  // It is kept because it accepts a real `domains` prop: if values ever move to
+  // a data-driven spectrum, deriveValues gives a framework RANKING but no per-
+  // framework SCORE yet, so a real ValuesDomain[] loader is still owed before
+  // this could replace the canon preview honestly (no fabricated scores).
   // No `domains` prop (undefined) = design preview: keep the sample rows. A
   // provided value drives real states from the user's audit-response records,
   // grouped by framework family; counts scale the bars relative to the top one.
