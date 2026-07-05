@@ -1,25 +1,38 @@
-// 통화 녹음 (call recording flow, docs/CALL-RECORDING-SPEC.md §5). A clone of the
-// reference CallRecScreen (reference-app/sb-flows.jsx) reshaped to the finalized
-// 31-callrec capture: an on-device transcription flow that never keeps the audio.
-// idle → rec → stt → result. The result's "승인하고 위키에 담기" persists a real
-// call_reflection note via createRecord (the app's real record path) so the flow
-// is wired, not a mock. m3.* tokens only; static mic glyph + a 1s timer (no rAF
-// loops) per ANDROID_QA_GUIDELINES.
+// 통화 녹음 (call recording flow, docs/CALL-RECORDING-SPEC.md §5). Real on-device
+// capture → transcript: the user records their OWN call (speakerphone so both
+// voices reach the mic), the audio is transcribed via transcribeAudio and then
+// DROPPED — only the text is kept, saved as a call_reflection record.
+// idle → rec → stt → result. Reuses the exact capture(음성) pipeline
+// (useAudioRecorder + recordingUriToBase64 + transcribeAudio, C9 red-zone gate).
+//
+// Platform reality (CALL-RECORDING-SPEC §legal-safe): Android/iOS block third-
+// party capture of the call's own audio stream, so there is NO silent auto-
+// record. The sanctioned path is speakerphone mic capture the user starts — the
+// UI says so honestly rather than promising an impossible call-audio API.
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import Svg, { Path } from "react-native-svg";
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { createRecord } from "@/lib/records/create";
 import { composeStructured } from "@/lib/capture/structured";
+import { transcribeAudio } from "@/lib/llm/gemini";
+import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { m3 } from "@/lib/theme/m3";
 
 type Phase = "idle" | "rec" | "stt" | "result";
+
+function hotlineFor(ko: boolean, minor: boolean): HotlineId {
+  return ko ? (minor ? "KR_1388" : "KR_109") : "GLOBAL_988";
+}
 
 function MicGlyph({ color, size = 52 }: { color: string; size?: number }) {
   return (
@@ -36,10 +49,17 @@ export default function CallReflection() {
   const locale = ko ? "ko" : "en";
   const { userId, isMinor, loading } = useAuth();
   const progression = useProgression();
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [secs, setSecs] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
 
   // Recording timer — a plain 1s interval (not an animation frame loop).
   useEffect(() => {
@@ -48,46 +68,84 @@ export default function CallReflection() {
     return () => clearInterval(id);
   }, [phase]);
 
-  // On-device transcription is simulated (the reference is a prototype); the
-  // audio never leaves the device and is never persisted.
-  useEffect(() => {
-    if (phase !== "stt") return;
-    const id = setTimeout(() => setPhase("result"), 1800);
-    return () => clearTimeout(id);
-  }, [phase]);
-
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
 
   const mmss = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
 
-  const transcript = ko
-    ? [
-        { who: "상대", text: "이번 주말에 시간 괜찮아? 오랜만에 얼굴 보자." },
-        { who: "나", text: "응 좋아. 요즘 일이 많아서 사람 보는 게 좀 줄었더라." },
-        { who: "상대", text: "너 원래 사람 만나면 충전되는 스타일이잖아." },
-      ]
-    : [
-        { who: "Them", text: "Free this weekend? Let's finally catch up." },
-        { who: "Me", text: "Sure. Work's been busy so I've been seeing people less." },
-        { who: "Them", text: "You always recharge from being around people, though." },
-      ];
-  const meLabel = ko ? "나" : "Me";
+  // ---- start recording (idle → rec) ----
+  async function startRecording() {
+    setNotice(null);
+    if (Platform.OS === "web") {
+      setNotice(ko ? "웹에서는 녹음이 불안정해요. 앱에서 이용해 주세요." : "Recording is unreliable on web; please use the app.");
+      return;
+    }
+    try {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        setNotice(ko ? "마이크 권한이 필요해요." : "Microphone permission is needed.");
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setSecs(0);
+      setPhase("rec");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[call-reflection] start failed", (e as Error).message);
+      setPhase("idle");
+      setNotice(ko ? "녹음을 시작하지 못했어요." : "Couldn't start recording.");
+    }
+  }
+
+  // ---- stop + transcribe (rec → stt → result) ----
+  async function stopAndTranscribe() {
+    if (!userId || phase !== "rec") return;
+    setPhase("stt");
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri) {
+        setPhase("idle");
+        setNotice(ko ? "녹음 파일을 찾지 못했어요." : "Couldn't find the recording.");
+        return;
+      }
+      const { base64, mimeType } = await recordingUriToBase64(uri);
+      const reply = await transcribeAudio({ userId, locale, base64, mimeType, minor: isMinor === true });
+      // C9: a red-zone transcript was swapped server-side for the fixed crisis
+      // template — route to the hotline instead of keeping it.
+      if (reply.safety?.zone === "red") {
+        setPhase("idle");
+        setCrisis({ visible: true, hotline: hotlineFor(ko, isMinor === true) });
+        return;
+      }
+      const text = reply.text.trim();
+      if (text.length === 0) {
+        setPhase("idle");
+        setNotice(ko ? "받아 적을 말이 없었어요." : "Nothing intelligible to transcribe.");
+        return;
+      }
+      setTranscript(text);
+      setPhase("result");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
+      setPhase("idle");
+      setNotice(ko ? "받아 적기에 실패했어요." : "Transcription failed.");
+    }
+  }
 
   async function approve() {
-    if (!userId || busy) return;
+    if (!userId || busy || transcript.length === 0) return;
     setBusy(true);
     try {
-      const gist = ko ? "사람을 만나면 충전되는 결이 한 번 더 보인 통화" : "A call showing again that people recharge me";
-      const fields = { who_label: "", gist, feeling: "", followup: "" };
-      const body = transcript.map((l) => `${l.who}: ${l.text}`).join("\n");
+      const fields = { who_label: "", gist: transcript.slice(0, 80), feeling: "", followup: "" };
       await createRecord({
         userId,
         locale,
         kind: "note",
-        body,
-        topic: ko ? "통화 녹음" : "Call recording",
-        tags: ["call_reflection", "관계", "건강"],
+        body: transcript,
+        topic: ko ? "통화 기록" : "Call reflection",
+        tags: ["call_reflection", "voice"],
         tier: progression.tier,
         minor: isMinor === true,
         structured: composeStructured("call_reflection", fields) ?? undefined,
@@ -99,6 +157,14 @@ export default function CallReflection() {
     }
   }
 
+  const crisisModal = (
+    <CrisisRouter
+      visible={crisis.visible}
+      hotline={crisis.hotline}
+      onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+    />
+  );
+
   // ---- STT (loading) ----
   if (phase === "stt") {
     return (
@@ -107,9 +173,10 @@ export default function CallReflection() {
           <ActivityIndicator size="large" color={m3.color.primary} />
           <RNText style={s.loadingTitle}>{ko ? "통화를 받아 적는 중" : "Transcribing the call"}</RNText>
           <RNText style={s.loadingSub}>
-            {ko ? "기기 안에서 음성을 텍스트로 바꾸고 있어요. 녹음 파일은 곧 삭제돼요." : "Turning speech into text on your device. The recording is deleted shortly."}
+            {ko ? "음성을 텍스트로 바꾸고 있어요. 원본 녹음은 곧 삭제돼요." : "Turning speech into text. The recording is deleted shortly."}
           </RNText>
         </View>
+        {crisisModal}
       </DeepSpaceScreen>
     );
   }
@@ -124,36 +191,12 @@ export default function CallReflection() {
               <Path d="M12 3a9 9 0 1 0 9 9" stroke={m3.color.primary} strokeWidth={1.9} fill="none" strokeLinecap="round" />
               <Path d="M8.4 12.2l2.5 2.5L20 6" stroke={m3.color.primary} strokeWidth={1.9} fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
-            <RNText style={s.resultTitle}>{ko ? "녹음을 분석했어요" : "The recording is analysed"}</RNText>
+            <RNText style={s.resultTitle}>{ko ? "받아 적었어요" : "Transcribed"}</RNText>
           </View>
 
-          <RNText style={s.section}>{ko ? "받아 적은 통화 · 3분 12초" : "Transcript · 3m 12s"}</RNText>
+          <RNText style={s.section}>{ko ? "받아 적은 통화" : "Transcript"}</RNText>
           <View style={s.transcriptCard}>
-            {transcript.map((l, i) => {
-              const me = l.who === meLabel;
-              return (
-                <View key={i} style={s.line}>
-                  <View style={[s.whoBadge, me ? s.whoMe : s.whoThem]}>
-                    <RNText style={[s.whoTxt, me ? s.whoTxtMe : s.whoTxtThem]}>{l.who}</RNText>
-                  </View>
-                  <RNText style={s.lineTxt}>{l.text}</RNText>
-                </View>
-              );
-            })}
-          </View>
-
-          <RNText style={s.section}>{ko ? "세컨비의 제안 · 반영할까요?" : "세컨비's suggestion · reflect it?"}</RNText>
-          <View style={s.sbCard}>
-            <RNText style={s.sbText}>
-              {ko
-                ? "관계·건강 별과 이어지는 통화예요. 사람을 만나면 충전되는 결이 한 번 더 보였어요."
-                : "This call links to your Relationships and Health stars. It showed again that people recharge you."}
-            </RNText>
-          </View>
-          <View style={s.chipRow}>
-            {(ko ? ["관계", "건강", "사람과 충전"] : ["Relationships", "Health", "Recharged by people"]).map((c) => (
-              <View key={c} style={s.chip}><RNText style={s.chipTxt}>{c}</RNText></View>
-            ))}
+            <RNText style={s.transcriptText}>{transcript}</RNText>
           </View>
 
           <View style={s.resultBtns}>
@@ -167,11 +210,12 @@ export default function CallReflection() {
             <RNText style={s.privacyTxt}>{ko ? "원본 음성은 저장하지 않았어요. 텍스트만 남아요." : "The original audio was never saved. Only text remains."}</RNText>
           </View>
         </ScrollView>
+        {crisisModal}
       </DeepSpaceScreen>
     );
   }
 
-  // ---- idle / rec (31-callrec) ----
+  // ---- idle / rec ----
   const recording = phase === "rec";
   return (
     <DeepSpaceScreen active="home" variant="windowed" header="none" title={ko ? "통화 녹음" : "Call recording"} onBack={() => router.back()}>
@@ -184,44 +228,48 @@ export default function CallReflection() {
           {recording ? (
             <>
               <RNText style={s.timer}>{mmss}</RNText>
-              <RNText style={s.desc}>{ko ? "통화를 녹음하고 있어요. 끝나면 자동으로 받아 적어요." : "Recording the call. It transcribes automatically when you stop."}</RNText>
+              <RNText style={s.desc}>{ko ? "통화를 녹음하고 있어요. 끝나면 자동으로 받아 적어요." : "Recording. It transcribes automatically when you stop."}</RNText>
             </>
           ) : (
             <>
               <RNText style={s.title}>{ko ? "통화 녹음" : "Call recording"}</RNText>
               <RNText style={s.desc}>
                 {ko
-                  ? "통화 내용을 기기에서 받아 적고, 세컨비가 어울리는 별로 엮어요. 원본 음성은 저장하지 않아요."
-                  : "We transcribe the call on your device and 세컨비 links it to the right stars. The original audio is never saved."}
+                  ? "내 통화를 받아 적어 세컨비가 어울리는 별로 엮어요. 원본 음성은 저장하지 않아요."
+                  : "Transcribe your own call so 세컨비 can link it to the right stars. The original audio is never saved."}
               </RNText>
+              {/* Honest platform note: the OS blocks silent call-audio capture, so
+                  this is user-started speakerphone mic capture, party-to-the-call only. */}
               <View style={s.platformCol}>
                 <View style={s.platformRow}>
-                  <View style={[s.osBadge, s.osAndroid]}><RNText style={s.osAndroidTxt}>Android</RNText></View>
-                  <RNText style={s.platformTxt}>{ko ? "통화 녹음 API로 자동 녹음" : "Auto-records via the call-recording API"}</RNText>
+                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{ko ? "방법" : "How"}</RNText></View>
+                  <RNText style={s.platformTxt}>{ko ? "통화를 스피커폰으로 두고 녹음을 시작하면 양쪽 목소리가 함께 담겨요." : "Put the call on speakerphone, then start recording — both voices reach the mic."}</RNText>
                 </View>
                 <View style={s.platformRow}>
-                  <View style={[s.osBadge, s.osIos]}><RNText style={s.osIosTxt}>iOS</RNText></View>
-                  <RNText style={s.platformTxt}>{ko ? "스피커폰 동시 녹음으로 우회" : "Falls back to simultaneous speakerphone capture"}</RNText>
+                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{ko ? "예의" : "Fair"}</RNText></View>
+                  <RNText style={s.platformTxt}>{ko ? "내가 낀 통화만 녹음돼요. 상대에게 녹음을 알려 주세요." : "Only calls you're part of. Please let the other person know."}</RNText>
                 </View>
               </View>
             </>
           )}
+          {notice ? <RNText style={s.notice}>{notice}</RNText> : null}
         </View>
 
         <View style={s.footer}>
           {recording ? (
             <>
-              <MdButton variant="filled" label={ko ? "녹음 멈추고 분석" : "Stop and analyse"} onPress={() => setPhase("stt")} style={s.stopBtn} />
-              <MdButton variant="text" label={ko ? "취소 · 저장 안 함" : "Cancel · don't save"} onPress={() => { setSecs(0); setPhase("idle"); }} />
+              <MdButton variant="filled" label={ko ? "녹음 멈추고 분석" : "Stop and analyse"} onPress={() => void stopAndTranscribe()} style={s.stopBtn} />
+              <MdButton variant="text" label={ko ? "취소 · 저장 안 함" : "Cancel · don't save"} onPress={() => { void audioRecorder.stop().catch(() => {}); setSecs(0); setPhase("idle"); }} />
             </>
           ) : (
             <>
-              <MdButton variant="filled" label={ko ? "녹음 시작" : "Start recording"} onPress={() => { setSecs(0); setPhase("rec"); }} />
+              <MdButton variant="filled" label={ko ? "녹음 시작" : "Start recording"} onPress={() => void startRecording()} />
               <MdButton variant="text" label={ko ? "다음에 할게요" : "Maybe later"} onPress={() => router.push("/settings")} />
             </>
           )}
         </View>
       </View>
+      {crisisModal}
     </DeepSpaceScreen>
   );
 }
@@ -238,14 +286,12 @@ const s = StyleSheet.create({
   platformCol: { alignSelf: "stretch", gap: 8, marginTop: 4 },
   platformRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: m3.color.surfaceContainerHighest },
   osBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  osAndroid: { backgroundColor: m3.accent.moodPositive },
-  osAndroidTxt: { color: m3.accent.onAccentInk, fontSize: 11, fontWeight: "700" },
-  osIos: { backgroundColor: m3.color.surfaceContainerLow },
-  osIosTxt: { color: m3.color.onSurface, fontSize: 11, fontWeight: "700" },
+  osHint: { backgroundColor: m3.color.secondaryContainer },
+  osHintTxt: { color: m3.color.onSecondaryContainer, fontSize: 11, fontWeight: "700" },
   platformTxt: { flex: 1, color: m3.color.onSurface, fontSize: 12, lineHeight: 16 },
+  notice: { color: m3.color.error, fontSize: 13, textAlign: "center", marginTop: 4 },
   footer: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 18, gap: 8 },
   stopBtn: { backgroundColor: m3.color.error },
-  // result
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, paddingHorizontal: 32 },
   loadingTitle: { color: m3.color.onSurface, fontSize: 16, fontWeight: "500", textAlign: "center" },
   loadingSub: { color: m3.color.onSurfaceVariant, fontSize: 13, lineHeight: 19, textAlign: "center" },
@@ -253,20 +299,8 @@ const s = StyleSheet.create({
   resultHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 8 },
   resultTitle: { color: m3.color.onSurface, fontSize: 22, fontWeight: "500" },
   section: { color: m3.color.onSurface, fontSize: 13, fontWeight: "500", marginTop: 12, marginBottom: 2 },
-  transcriptCard: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: 14, gap: 10 },
-  line: { flexDirection: "row", gap: 8 },
-  whoBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, alignSelf: "flex-start" },
-  whoMe: { backgroundColor: m3.color.primary },
-  whoThem: { backgroundColor: m3.color.surfaceContainerHigh },
-  whoTxt: { fontSize: 11, fontWeight: "700" },
-  whoTxtMe: { color: m3.color.onPrimary },
-  whoTxtThem: { color: m3.color.onSurfaceVariant },
-  lineTxt: { flex: 1, color: m3.color.onSurface, fontSize: 14, lineHeight: 20 },
-  sbCard: { backgroundColor: m3.color.tertiaryContainer, borderRadius: m3.shape.medium, padding: 14 },
-  sbText: { color: m3.color.onTertiaryContainer, fontSize: 14, lineHeight: 20 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  chip: { borderWidth: 1, borderColor: m3.color.outlineVariant, borderRadius: m3.shape.small, paddingHorizontal: 11, paddingVertical: 6 },
-  chipTxt: { color: m3.color.onSurfaceVariant, fontSize: 12 },
+  transcriptCard: { backgroundColor: m3.color.surfaceContainerHighest, borderRadius: m3.shape.medium, padding: 14 },
+  transcriptText: { color: m3.color.onSurface, fontSize: 14, lineHeight: 21 },
   resultBtns: { flexDirection: "row", gap: 8, marginTop: 22 },
   btnFlex1: { flex: 1 },
   btnFlex2: { flex: 2 },
