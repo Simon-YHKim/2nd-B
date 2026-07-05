@@ -53,6 +53,8 @@ export default function CareerTimelineScreen() {
   const [role, setRole] = useState("");
   const [impact, setImpact] = useState("");
   const [year, setYear] = useState("");
+  // 쌓아온 길 track (rev2 11-star): 메인 = real achievements, 사이드 = official records.
+  const [track, setTrack] = useState<"main" | "side">("main");
 
   const refresh = useCallback(() => {
     if (!userId) return;
@@ -181,7 +183,55 @@ export default function CareerTimelineScreen() {
           </MdCard>
         ) : null}
 
-        {rows === null ? (
+        {/* 쌓아온 길 (rev2 11-star): 메인 = 직접 담은 성과 실기록, 사이드 = 공식 이력
+            (학력/병역/수상/자격/경력). 공식 이력은 연동으로 채워지는 트랙이라, mock
+            데이터 없이 중립 안내를 두어 레퍼런스 구성/의도를 정직하게 클론한다. */}
+        <View style={styles.pathHead}>
+          <Text variant="heading">{locale === "ko" ? "쌓아온 길" : "The path you've built"}</Text>
+        </View>
+        <View style={styles.trackRow}>
+          {(["main", "side"] as const).map((tk) => {
+            const on = track === tk;
+            const lbl = tk === "main" ? (locale === "ko" ? "메인" : "Main") : locale === "ko" ? "사이드" : "Side";
+            return (
+              <Pressable
+                key={tk}
+                onPress={() => setTrack(tk)}
+                style={[styles.trackTab, on && styles.trackTabOn]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text variant="body" style={on ? styles.trackTxtOn : styles.trackTxt}>
+                  {lbl}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {track === "side" ? (
+          <View style={styles.sideBlock}>
+            <View style={styles.chipRow}>
+              {(locale === "ko"
+                ? ["학력", "병역", "수상", "자격", "경력"]
+                : ["Education", "Military", "Awards", "Licenses", "Experience"]
+              ).map((c) => (
+                <View key={c} style={styles.credChip}>
+                  <Text variant="caption" color="textMuted">
+                    {c}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <MdCard variant="outlined" style={styles.cardPad}>
+              <Text variant="body" color="textMuted">
+                {locale === "ko"
+                  ? "학력·병역·수상·자격·경력 같은 공식 이력은 연동하면 여기에 자동으로 정리돼요. 지금은 메인에서 직접 담은 성과가 쌓여요."
+                  : "Official records like education, military, awards, licenses, and experience organize here once you connect a source. For now, your own achievements build up under Main."}
+              </Text>
+            </MdCard>
+          </View>
+        ) : rows === null ? (
           <PremiumLoadingState message={t("deepspace:career.opening")} />
         ) : loadFailed ? (
           <MdCard variant="outlined" style={styles.cardPad}>
@@ -240,6 +290,15 @@ const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
   headRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   cardPad: { padding: spacing.md, gap: spacing.sm },
+  pathHead: { marginTop: spacing.xs },
+  trackRow: { flexDirection: "row", gap: spacing.sm },
+  trackTab: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: 999, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.35) },
+  trackTabOn: { backgroundColor: withAlpha(m3.accent.starCore, 0.18), borderColor: withAlpha(m3.accent.starCore, 0.5) },
+  trackTxt: { color: withAlpha(m3.accent.skyTextHi, 0.7) },
+  trackTxtOn: { color: m3.accent.skyTextHi },
+  sideBlock: { gap: spacing.sm },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  credChip: { paddingVertical: 6, paddingHorizontal: 11, borderRadius: 999, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.3) },
   yearBlock: { gap: spacing.sm },
   yearRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   yearLabel: { color: withAlpha(m3.accent.skyTextHi, 0.9) },
