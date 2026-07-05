@@ -21,9 +21,11 @@ import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
+import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
@@ -285,8 +287,10 @@ export function DeepSpaceRecordsScreen() {
   // two lines (the previous fixed clearance under-reserved it). Falls back to 88.
   const [headerH, setHeaderH] = useState(88);
   // Graph mode reuses the deterministic knowledge-graph view (wiki pages/edges).
-  const { pages, edges } = useWikiGraphData();
-  const graphPages = useMemo(() => pages.map((p) => ({ id: p.id, title: p.title.trim() || p.slug, kind: p.kind })), [pages]);
+  // D-27 Phase 1b: the /records graph runs on the user's RECORDS (the canonical
+  // node-set), connected by shared tags — not the near-empty wiki_pages track
+  // that left the graph blank for a normal user.
+  const recordsGraph = useMemo(() => buildRecordsGraph(records, { locale: isKo ? "ko" : "en" }), [records, isKo]);
 
   useEffect(() => {
     if (!userId) return;
@@ -459,8 +463,8 @@ export function DeepSpaceRecordsScreen() {
                 </View>
               )}
             </>
-          ) : graphPages.length > 0 ? (
-            <WikiGraph pages={graphPages} edges={edges} isKo={isKo} onOpenPage={(id) => router.push({ pathname: "/record/[id]", params: { id } })} />
+          ) : records.length > 0 ? (
+            <RecordsGraph graph={recordsGraph} isKo={isKo} onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: { id } })} />
           ) : (
             <View style={styles.wikiPageOpen}>
               <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>
