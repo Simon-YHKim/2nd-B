@@ -1,0 +1,21 @@
+{
+  "loading": "Memuat…",
+  "periodTitle": "Diriku yang dulu: pilih periode",
+  "back": "Kembali",
+  "done": "SELESAI",
+  "complete": "Diriku yang dulu selesai",
+  "viewPersona": "Lihat persona",
+  "backToCapture": "Kembali menyimpan",
+  "interviewTitle": "Diriku yang dulu: wawancara diri",
+  "question": "Pertanyaan {{n}} / {{total}}",
+  "placeholder": "Jujurlah pada dirimu sendiri.",
+  "later": "Lanjutkan nanti",
+  "exit": {
+    "notice": "Pemberitahuan keluar evaluasi",
+    "title": "Keluar dari evaluasi?",
+    "cancel": "Batal",
+    "cancelHint": "Lanjutkan evaluasi.",
+    "confirm": "Keluar",
+    "confirmHint": "Keluar dari evaluasi dan kembali ke pilihan."
+  }
+}
