@@ -224,7 +224,7 @@ Deno.serve(async (req: Request) => {
     const code = (spendErr as { code?: string }).code ?? '';
     const rpcMissing =
       code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing) {
+    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
       console.error('[openai-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
     } else {
       console.error('[openai-proxy][ALERT] spend check unavailable — failing closed:', msg);

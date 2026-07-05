@@ -354,7 +354,7 @@ Deno.serve(async (req: Request) => {
       const code = (spendErr as { code?: string }).code ?? '';
       const rpcMissing =
         code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-      if (rpcMissing) {
+      if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
         console.error('[gemini-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
       } else {
         console.error('[gemini-proxy][ALERT] spend check unavailable — failing closed:', msg);
@@ -563,13 +563,15 @@ Deno.serve(async (req: Request) => {
     // error (timeout, pool exhaustion) fell through to a paid upstream call with
     // only a console.warn — an uncapped-spend hole. The ONLY tolerated case is
     // "the RPC/counter does not exist yet" (migration not applied): PGRST202 (RPC
-    // not found) / 42883 (undefined_function). There we allow + alert loudly so
-    // the operator restores the cap. Every other error → 503, no upstream spend.
+    // not found) / 42883 (undefined_function). G4 (2026-07-05): even that case now FAILS CLOSED by default, because
+    // PGRST202 also fires on transient schema-cache staleness after any deploy
+    // (a routine window that must never silently uncap billing). A deliberate
+    // bootstrap escape is GEMINI_SPEND_FAILOPEN=1 (default OFF). Every other error → 503, no upstream spend.
     const code = (spendErr as { code?: string }).code ?? '';
     const rpcMissing =
       code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
-    if (rpcMissing) {
-      console.error('[gemini-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
+    if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
+      console.error('[gemini-proxy][ALERT] spend RPC missing — GEMINI_SPEND_FAILOPEN=1, allowing WITHOUT a cap:', msg);
     } else {
       console.error('[gemini-proxy][ALERT] spend check unavailable — failing closed:', msg);
       return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
