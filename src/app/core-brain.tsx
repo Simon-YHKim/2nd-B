@@ -549,7 +549,7 @@ function CoreBrainScreen() {
             <MdButton
               variant="filled"
               label={t("reviewProposal")}
-              onPress={() => router.push("/digest")}
+              onPress={() => router.push("/review")}
             />
             <MdButton
               variant="text"
@@ -713,7 +713,7 @@ function CoreBrainScreen() {
           <Button
             label={t("reviewProposal")}
             variant="primary"
-            onPress={() => router.push("/digest")}
+            onPress={() => router.push("/review")}
           />
         </Section>
 
