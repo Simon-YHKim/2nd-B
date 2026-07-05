@@ -831,22 +831,16 @@ export function DeepSpaceInsightsScreen() {
 }
 
 // rev2 clone (30-datareview / reference DataReviewScreen): a windowed 내 데이터
-// 리뷰. Stored-data tallies, the derived-signal ledger (열람·삭제권), and the
-// 내 권리 rights rows. 근거 opens the real ratifications receipt; 삭제 drops the
-// signal from view; the rights rows route to the real export/erase surfaces.
+// 리뷰 with the 내 권리 rights rows routing to the real export/erase surfaces.
+// HONESTY: the reference fills this with example stored-data tallies (124 원문,
+// 38 파생) and fabricated derived signals ("먼저 다가가는 성향, 확신 52%"). None
+// of that is wired to real data, so rendering it would fabricate a data-rights
+// report; until a real data-usage pipeline lands we show a neutral empty state
+// and keep only the rights rows, which are real (same real-or-neutral pattern
+// as AxisCheck.tsx, canon:186-190).
 export function DeepSpaceDataDesignScreen() {
   const { i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const stores: { icon: keyof typeof CLONE_ICON; label: string; n: string; tone: string }[] = [
-    { icon: "box", label: ko ? "원문 별가루" : "Raw pieces", n: ko ? "124개" : "124", tone: m3.color.primary },
-    { icon: "hub", label: ko ? "파생 신호" : "Derived signals", n: ko ? "38개" : "38", tone: m3.color.tertiary },
-    { icon: "cloud_sync", label: ko ? "연동 캐시" : "Sync cache", n: "2.4MB", tone: m3.color.secondary },
-  ];
-  const [signals, setSignals] = useState([
-    { id: "s1", from: ko ? "통화·메모 12건" : "12 calls and notes", to: ko ? "먼저 다가가는 성향 (관계)" : "Reaches out first (relationships)", conf: ko ? "확신 52%" : "52% confidence" },
-    { id: "s2", from: ko ? "캘린더 야간 일정" : "Late calendar events", to: ko ? "수면 리듬 불규칙 (건강)" : "Irregular sleep rhythm (health)", conf: ko ? "확신 41%" : "41% confidence" },
-    { id: "s3", from: ko ? "독서 메모 8건" : "8 reading notes", to: ko ? "개방성 높음 (성장)" : "High openness (growth)", conf: ko ? "확신 63%" : "63% confidence" },
-  ]);
   const rights: { icon: keyof typeof CLONE_ICON; label: string; sub: string; route: string; danger?: boolean }[] = [
     { icon: "download", label: ko ? "내 데이터 전체 내보내기" : "Export all my data", sub: ko ? "IDEN · 원문 · 파생 신호" : "IDEN, raw, derived signals", route: "/iden" },
     { icon: "cloud_off", label: ko ? "파생 신호만 초기화" : "Reset derived signals only", sub: ko ? "원문은 두고 추정만 지우기" : "Keep raw, clear inferences", route: "/privacy" },
@@ -857,40 +851,16 @@ export function DeepSpaceDataDesignScreen() {
       <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
         <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "내 데이터가 어떻게 쓰이는지 전부 보여줘요. 무엇이든 열람하고 지울 수 있어요." : "I show exactly how your data is used. You can open and delete anything."}</RNText>
 
-        <View style={cx.statGrid}>
-          {stores.map((s) => (
-            <MdCard key={s.label} variant="filled" style={cx.statCard}>
-              <CloneIcon name={s.icon} color={s.tone} size={20} />
-              <RNText style={cx.statNum}>{s.n}</RNText>
-              <RNText style={[m3TextStyle("labelSmall"), cx.statCap]}>{s.label}</RNText>
-            </MdCard>
-          ))}
-        </View>
-
-        <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "파생 신호 · 무엇을 추정했나" : "Derived signals · what was inferred"}</RNText>
-        <View style={cx.stack8}>
-          {signals.map((sg) => (
-            <MdCard key={sg.id} variant="outlined" style={cx.sourceCard}>
-              <View style={cx.signalHead}>
-                <RNText style={[m3TextStyle("bodySmall"), cx.signalFrom]}>{sg.from}</RNText>
-                <CloneIcon name="arrow_forward" color={m3.color.outline} size={14} />
-                <RNText style={[m3TextStyle("bodyMedium"), cx.signalTo]}>{sg.to}</RNText>
-              </View>
-              <View style={cx.signalFoot}>
-                <RNText style={[m3TextStyle("labelSmall"), cx.signalConf]}>{sg.conf}</RNText>
-                <MdButton label={ko ? "근거" : "Evidence"} variant="text" onPress={() => router.push("/ratifications")} style={cx.smallBtnCompact} />
-                <MdButton
-                  label={ko ? "삭제" : "Delete"}
-                  variant="text"
-                  icon={<CloneIcon name="trash" color={m3.color.error} size={16} />}
-                  onPress={() => setSignals((xs) => xs.filter((x) => x.id !== sg.id))}
-                  style={cx.smallBtnCompact}
-                  accessibilityLabel={ko ? `${sg.to} 파생 신호 삭제` : `Delete derived signal ${sg.to}`}
-                />
-              </View>
-            </MdCard>
-          ))}
-        </View>
+        <MdCard variant="outlined" style={cx.sourceCard}>
+          <RNText style={[m3TextStyle("titleSmall"), cx.signalTo]}>
+            {ko ? "아직 모아둔 데이터가 없어요" : "No data gathered yet"}
+          </RNText>
+          <RNText style={[m3TextStyle("bodySmall"), cx.lead]}>
+            {ko
+              ? "기록이 쌓이면 원문 조각과 파생 신호를 여기서 열람하고 지울 수 있어요."
+              : "As your records build up, you can review and delete the raw pieces and derived signals here."}
+          </RNText>
+        </MdCard>
 
         <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "내 권리" : "My rights"}</RNText>
         <MdCard variant="filled" style={cx.rightsCard}>
