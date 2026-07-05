@@ -22,6 +22,14 @@ const sql0050 = readFileSync(
   "utf8",
 );
 
+// 0072 (D5) forward-extends the clamp again with the records_embedding locked
+// key, so it — not 0050 — is now the authoritative "every locked key is clamped"
+// definition. 0033/0050 stay as shipped.
+const sql0072 = readFileSync(
+  join(__dirname, "..", "..", "..", "..", "db", "migrations", "0072_records_embedding_minor_clamp.sql"),
+  "utf8",
+);
+
 describe("0033_minor_privacy_enforcement.sql — structure", () => {
   test("age-gate function is recreated with a fixed (empty) search_path", () => {
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION enforce_user_age_tier\(\)/);
@@ -50,7 +58,9 @@ describe("0033_minor_privacy_enforcement.sql — structure", () => {
     // full key set (incl. health_import). Forward-only — 0033 stays as shipped.
     expect(sql0050).toMatch(/CREATE OR REPLACE FUNCTION clamp_minor_privacy_prefs\(\)/);
     expect(sql0050).toMatch(/CREATE OR REPLACE FUNCTION enforce_user_age_tier\(\)/);
-    const clampBlock = sql0050.slice(sql0050.indexOf("clamp_minor_privacy_prefs"));
+    // 0072 is the authoritative clamp now (adds records_embedding); read it.
+    expect(sql0072).toMatch(/CREATE OR REPLACE FUNCTION clamp_minor_privacy_prefs\(\)/);
+    const clampBlock = sql0072.slice(sql0072.indexOf("clamp_minor_privacy_prefs"));
     for (const key of PRIVACY_PREF_KEYS) {
       if (MINOR_PROMOTABLE_KEYS.includes(key)) {
         // long_term_memory must NOT be clamped (a minor may promote it)

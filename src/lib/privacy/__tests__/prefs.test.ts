@@ -42,6 +42,10 @@ describe("privacy prefs (task D)", () => {
       "long_term_memory",
       "ops_push",
       "health_import",
+      // D5: records semantic-embedding consent. Enforced (records-embeddings.ts
+      // recordsEmbeddingAllowed), NOT yet visible (no toggle until consent copy
+      // ships) — so it is an intentional, read/enforced key, not a false promise.
+      "records_embedding",
     ]);
   });
 

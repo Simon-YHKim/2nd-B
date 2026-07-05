@@ -15,6 +15,19 @@
 import { embedTexts, EMBED_DIM } from "../llm/gemini";
 import { getSupabaseClient } from "../supabase/client";
 
+// D5 consent gate for records (journal) embedding — the MOST sensitive corpus.
+// Adults must explicitly opt in (the `records_embedding` privacy pref, OFF by
+// default; privacy/prefs.ts). Minors are hard-blocked here (not merely
+// server-locked) because journal text is the highest-sensitivity data. NOTHING
+// in this module embeds a record unless this returns true: the write primitives
+// take the resolved consent and fail closed (no-op) without it.
+export function recordsEmbeddingAllowed(
+  isMinor: boolean | null | undefined,
+  recordsEmbeddingPref: boolean | null | undefined,
+): boolean {
+  return isMinor !== true && recordsEmbeddingPref === true;
+}
+
 /** Minimal record shape this module embeds — the semantic-ish text fields. */
 export interface EmbeddableRecord {
   id: string;
@@ -67,7 +80,10 @@ export async function embedAndStoreRecord(
   record: EmbeddableRecord,
   locale: "en" | "ko" = "en",
   minor = false,
+  consented = false,
 ): Promise<boolean> {
+  // D5: fail closed — never embed journal content without explicit consent.
+  if (!recordsEmbeddingAllowed(minor, consented)) return false;
   const text = recordEmbeddingText(record);
   if (text.length === 0) return false;
   const { vectors } = await embedTexts({ userId, texts: [text], locale, minor });
@@ -128,8 +144,10 @@ export interface BackfillResult {
  */
 export async function backfillRecordEmbeddings(
   userId: string,
-  opts: { locale?: "en" | "ko"; minor?: boolean; limit?: number } = {},
+  opts: { locale?: "en" | "ko"; minor?: boolean; limit?: number; consented?: boolean } = {},
 ): Promise<BackfillResult> {
+  // D5: fail closed — never batch-embed journal content without explicit consent.
+  if (!recordsEmbeddingAllowed(opts.minor, opts.consented)) return { scanned: 0, embedded: 0 };
   const limit = opts.limit ?? 50;
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
