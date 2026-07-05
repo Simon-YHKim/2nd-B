@@ -167,7 +167,7 @@ export const m3Persona = {
   secondb: { accent: "#A78BFA", soft: "#E2D6FF", softBg: "rgba(167,139,250,0.16)", glow: "rgba(167,139,250,0.5)" },
   /** 메타비 / Meta-B (객관) — objective mirror. */
   meta: { accent: "#46B6FF", soft: "#BFE7FF", softBg: "rgba(70,182,255,0.16)", glow: "rgba(70,182,255,0.5)" },
-  /** 트위비·안티비 / Anti-B (공상) — creative wild-card. */
+  /** 트위비 / Twi-B (공상) — creative wild-card. */
   twi: { accent: "#CFC4E8", soft: "#EDE7F7", softBg: "rgba(207,196,232,0.16)", glow: "rgba(245,230,190,0.55)" },
 } as const;
 

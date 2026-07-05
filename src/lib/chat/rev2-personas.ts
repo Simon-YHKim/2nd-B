@@ -61,13 +61,13 @@ export function rev2PersonaGlow(id: Rev2PersonaId): string {
 
 /**
  * Display name shown on the lens toggle (reference ChatScreen: KO 세컨비/메타비/
- * 안티비). Distinct from rev2PersonaName (the brand tag "2nd-B" used elsewhere).
+ * 트위비). Distinct from rev2PersonaName (the brand tag "2nd-B" used elsewhere).
  */
 export function rev2PersonaLensName(id: Rev2PersonaId, locale: SystemLocale): string {
   return tLocale(locale, "secondb", `rev2.${id}.lensName`);
 }
 
-/** Monospace brand tag under the lens name (2nd-B / Meta-B / Anti-B). */
+/** Monospace brand tag under the lens name (2nd-B / Meta-B / Twi-B). */
 export function rev2PersonaTag(id: Rev2PersonaId, locale: SystemLocale): string {
   return tLocale(locale, "secondb", `rev2.${id}.tag`);
 }
