@@ -75,7 +75,7 @@ export function OpsActionRow({ primaryLabel, onPrimary, secondaryLabel, onSecond
         accessibilityRole="button"
         onPress={onPrimary}
         hitSlop={8}
-        style={({ pressed }) => [styles.primaryBtn, pressed ? styles.pressed : null]}
+        style={styles.primaryBtn}
       >
         <Text variant="caption" style={styles.primaryBtnText}>{primaryLabel}</Text>
       </Pressable>
@@ -84,7 +84,7 @@ export function OpsActionRow({ primaryLabel, onPrimary, secondaryLabel, onSecond
           accessibilityRole="button"
           onPress={onSecondary}
           hitSlop={8}
-          style={({ pressed }) => [styles.secondaryBtn, pressed ? styles.pressed : null]}
+          style={styles.secondaryBtn}
         >
           <Text variant="caption" style={styles.secondaryBtnText}>{secondaryLabel}</Text>
         </Pressable>
@@ -197,7 +197,7 @@ export function OpsReminderRow(props: OpsReminderRowProps) {
           accessibilityRole="button"
           onPress={props.onAction}
           hitSlop={8}
-          style={({ pressed }) => [styles.warnBtn, pressed ? styles.pressed : null]}
+          style={styles.warnBtn}
         >
           <Text variant="caption" style={styles.warnBtnText}>{props.actionLabel}</Text>
         </Pressable>
@@ -249,11 +249,7 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
               accessibilityRole="button"
               onPress={o.onPress}
               hitSlop={6}
-              style={({ pressed }) => [
-                styles.pushOption,
-                o.recommended ? styles.pushOptionRec : null,
-                pressed ? styles.pressed : null,
-              ]}
+              style={[styles.pushOption, o.recommended ? styles.pushOptionRec : null]}
             >
               <View style={styles.pushOptionBody}>
                 <Text variant="caption" style={styles.pushOptionLabel}>{o.label}</Text>
@@ -268,7 +264,7 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
             accessibilityRole="button"
             onPress={props.onConfirm}
             hitSlop={6}
-            style={({ pressed }) => [styles.primaryBtn, styles.sheetConfirm, pressed ? styles.pressed : null]}
+            style={[styles.primaryBtn, styles.sheetConfirm]}
           >
             <Text variant="caption" style={styles.primaryBtnText}>{props.confirmLabel}</Text>
           </Pressable>
@@ -316,11 +312,7 @@ export function OpsState(props: OpsStateProps) {
           accessibilityRole="button"
           onPress={props.onCta}
           hitSlop={8}
-          style={({ pressed }) => [
-            props.variant === "error" ? styles.secondaryBtn : styles.primaryBtn,
-            styles.stateCta,
-            pressed ? styles.pressed : null,
-          ]}
+          style={[props.variant === "error" ? styles.secondaryBtn : styles.primaryBtn, styles.stateCta]}
         >
           <Text variant="caption" style={props.variant === "error" ? styles.secondaryBtnText : styles.primaryBtnText}>
             {props.ctaLabel}
