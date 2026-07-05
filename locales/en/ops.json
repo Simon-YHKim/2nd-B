@@ -98,7 +98,7 @@
     "autoCompletedHint": "A logged workout or steps over your goal ticked this off."
   },
   "focus": {
-    "title": "Focus timer",
+    "title": "Daily focus",
     "status": "Run one focus session.",
     "tip": "Finishing a focus block checks off your daily focus routine.",
     "phaseIdle": "Ready",
