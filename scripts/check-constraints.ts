@@ -893,9 +893,11 @@ results.push(
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
       manual.includes("Manual language: switch to English") &&
       manual.includes("Manual language: switch to Korean") &&
-      manual.includes("Opens capture to save today's piece.") &&
-      manual.includes("Opens the sign-up screen.") &&
-      manual.includes("Opens the app permissions guide.") &&
+      // These a11y hints moved to the `manual` locale namespace (QA #1 t()
+      // conversion) — assert the t() calls, mirroring capture.tsx's migration.
+      manual.includes('t("leavePieceHint")') &&
+      manual.includes('t("getStartedHint")') &&
+      manual.includes('t("permissionsHint")') &&
       manual.includes("Opens the curated research library.") &&
       wiki.includes("Opens capture from the knowledge store.") &&
       wiki.includes("Opens capture to save today's piece.") &&
