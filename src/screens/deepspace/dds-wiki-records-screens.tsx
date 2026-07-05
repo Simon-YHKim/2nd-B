@@ -600,10 +600,10 @@ export function DeepSpaceRecordDetailScreen() {
   const secondbLine =
     related.length > 0
       ? ko
-        ? `이 조각은 '${linkedStar}' 별과 이어져요. 비슷한 기록 ${related.length}건이 같은 시간대에 모여 있어요.`
+        ? `이 별가루는 '${linkedStar}' 별과 이어져요. 비슷한 기록 ${related.length}건이 같은 시간대에 모여 있어요.`
         : `This piece links to your '${linkedStar}' star. ${related.length} similar records sit in the same window.`
       : ko
-        ? "이 조각은 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+        ? "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
         : "This piece isn't linked to a star yet. We'll connect it soon.";
 
   return (

@@ -838,7 +838,7 @@ export function DeepSpaceDataDesignScreen() {
   const { i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const stores: { icon: keyof typeof CLONE_ICON; label: string; n: string; tone: string }[] = [
-    { icon: "box", label: ko ? "원문 조각" : "Raw pieces", n: ko ? "124개" : "124", tone: m3.color.primary },
+    { icon: "box", label: ko ? "원문 별가루" : "Raw pieces", n: ko ? "124개" : "124", tone: m3.color.primary },
     { icon: "hub", label: ko ? "파생 신호" : "Derived signals", n: ko ? "38개" : "38", tone: m3.color.tertiary },
     { icon: "cloud_sync", label: ko ? "연동 캐시" : "Sync cache", n: "2.4MB", tone: m3.color.secondary },
   ];
