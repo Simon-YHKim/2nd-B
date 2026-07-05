@@ -79,6 +79,64 @@
 
 ---
 
+## Latest — 2026-07-05 / 실앱 개선 웨이브 — 홈 별 배선·#680 CTA·Seen 렌즈·통화녹음 실제구현·orphan 문서화 (5 PR)
+
+### 어디까지 왔나
+- main HEAD: `1743e743`
+- 이번 세션 머지된 PR:
+  - **#750** 홈 별자리 7별 탭 배선(별→기록 필터, 북극성→코어브레인) + TTFV 동의·위기 핫라인·온보딩 CTA Fabric-safe + 가짜 인앱 상태바 제거
+  - **#760** MdCard 등 #680 Fabric Pressable style-drop 잔여 일괄(앱 전역)
+  - **#769** Seen 렌즈(보여지는 나) 실데이터 라우트 배선(/seen + profile 허브)
+  - **#771** 통화녹음 실제 구현(가짜 목업 → useAudioRecorder+transcribeAudio STT, 오디오 폐기, C9 위기 게이트, 거짓 "통화API 자동녹음" 약속 → 정직한 스피커폰 안내)
+  - **#773** orphan 렌즈 3종 "unwired-on-purpose" 문서화(중복 배선 방지)
+- 테스트 상태: **2276/2276 green** (npm run verify)
+- working tree: dirty (untracked 에셋/design 산물 12 — 커밋 대상 아님)
+
+### 활성 인프라
+- Supabase(2nd-B) · Gemini STT(`transcribeAudio`, C9 2층 세이프티) · QA 계정 `.env.test`(qa.ai.b18807@example.com) · 라이브 GitHub Pages(simon-yhkim.github.io/2nd-B) · 프로드 UI=deep-space
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | A2 통화녹음 **실기기** 검증 — 에뮬은 마이크 없어 녹음/STT 오디오 파이프라인 검증 불가(하드웨어 제약) | small | ⭐ 실기기서 녹음→STT→저장 흐름 확인 |
+| B | orphan 렌즈 3종(Recall/Relational/Values LensView) **삭제 여부** — 참조 0 죽은 코드, 기능은 /audit·/attachment·/values가 대체 | small | ⭐ Simon 결정: 삭제 정리 vs 미래참고 유지 |
+| C | Values 실데이터 스펙트럼 로더 — deriveValues는 framework 순위(count)만, per-framework SCORE 부재 | large | brightness-honesty 주의(가짜 점수 금지), 데이터 아키텍처 |
+| D | records 브리핑 버블 ↔ 목록/그래프 토글 경미 겹침 | small | 공유 컴포넌트(SecondbStatusHeader) 회귀 주의, 실기 확인 후 |
+| E | es/pt/id 삼항 폴백 영어(i18n 부채, 944곳) | large | ko/en은 100% 완성, 별도 |
+
+### 적용 중인 정책 (영구)
+1. 게이트(파괴/비용/secrets/안전임상/법무)만 확인 — 그 외 개발은 무확인 ship, 사이클 끝나도 안 멈춤.
+2. CI green 후 auto-merge; `mergeState=BEHIND`면 `gh pr update-branch <n>`로 최신화(고속 머지 환경).
+3. 워크트리 격리 = `E:\2ndB\.worktrees\<name>` (레포 내부, sibling 금지) + `mklink /J node_modules` 정션(재설치 없이 verify).
+4. **최신 origin/main 재검증 필수** — 핸드오프/서브에이전트 조사를 맹신 말 것. 이번 세션서 lens-arch 조사가 부정확(orphan을 "배선하자" → 실은 죽은 코드)했음이 최신 코드로 판명.
+5. #680 Fabric: Android가 함수형 `style={({pressed})=>...}` Pressable 스타일을 드랍 → 시각은 wrapper View, 터치는 bare Pressable.
+6. verify exit는 단독 명령 `npm run verify > log; echo $?`로 확인(tail 파이프 금지 — tail exit이 마스킹).
+
+### 핵심 파일 위치
+```
+src/screens/deepspace/DeepSpaceHomeScreen.tsx   홈 별자리 탭 배선(44dp, 도메인→records)
+src/app/call-reflection.tsx                     통화녹음(실제 녹음+STT+CrisisRouter)
+src/lib/audio/recording-uri.ts                  공유 오디오 헬퍼(capture 음성 모드와 공유)
+src/app/seen.tsx                                Seen 렌즈 라우트
+src/components/deep-space/DeepSpaceViews.tsx     렌즈들(orphan 3종 UNWIRED 주석)
+src/components/m3/MdCard.tsx                     #680 wrapper-View 패턴(앱 전역)
+docs/CALL-RECORDING-SPEC.md                     통화녹음 법적·기술 스펙(안드로이드 자동녹음 불가)
+```
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # 2276 tests, exit 0 확인
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A(실기기 통화녹음 검증) 또는 B(orphan 삭제 결정)부터
+```
+
+---
+
 ## Latest — 2026-07-05 / proto_rev2 JSON 캐논 시스템 — 단일 정본 + 라이브 + 클론화면 dedup + gaps 배선
 
 ### 어디까지 왔나
