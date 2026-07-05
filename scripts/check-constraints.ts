@@ -1248,10 +1248,10 @@ results.push(
       "Sources (inbox) stay",
     ];
     const ok =
-      settings.includes("페이지 간 연결") &&
-      settings.includes("받은편지함 자료") &&
-      settings.includes("page-to-page links") &&
-      settings.includes("Inbox sources stay") &&
+      read("locales/ko/settings.json").includes("페이지 간 연결") &&
+      read("locales/ko/settings.json").includes("받은편지함 자료") &&
+      read("locales/en/settings.json").includes("page-to-page links") &&
+      read("locales/en/settings.json").includes("Inbox sources stay") &&
       forbiddenUserLanguage.every((term) => !settings.includes(term));
     return {
       id: "SettingsLanguage",
@@ -2438,8 +2438,8 @@ results.push(
       manual.includes("ask SecondB for a reflection") &&
       manual.includes("sources SecondB cites") &&
       manual.includes("세컨비의 되묻기") &&
-      settings.includes("Tune your settings") &&
-      settings.includes("설정을 정리해요") &&
+      read("locales/en/settings.json").includes("Tune your settings") &&
+      read("locales/ko/settings.json").includes("설정을 정리해요") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
       forbiddenSettings.every((term) => !settings.includes(term));

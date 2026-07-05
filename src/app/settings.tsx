@@ -416,15 +416,13 @@ export default function Settings() {
     setBusy(label);
     try {
       const n = await deleteRecordsByKind(userId, kind);
-      showSuccess(locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
+      showSuccess(t("deletedN", { n }));
     } catch (e) {
       showActionError(
         `deleteRecordsByKind(${kind})`,
         e,
-        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
-        locale === "ko"
-          ? "기록을 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-          : "Something went wrong while clearing these records. Please try again in a moment.",
+        t("couldntDelete"),
+        t("clearRecordsError"),
         () => void runDeleteKind(kind, label),
       );
     } finally {
@@ -437,15 +435,13 @@ export default function Settings() {
     setBusy(label);
     try {
       const n = await deleteRecordsByTag(userId, tags);
-      showSuccess(locale === "ko" ? `${n}개 삭제됨` : `Deleted ${n}`);
+      showSuccess(t("deletedN", { n }));
     } catch (e) {
       showActionError(
         `deleteRecordsByTag(${tags.join(",")})`,
         e,
-        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
-        locale === "ko"
-          ? "결과를 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-          : "Something went wrong while clearing these results. Please try again in a moment.",
+        t("couldntDelete"),
+        t("clearResultsError"),
         () => void runDeleteByTag(tags, label),
       );
     } finally {
@@ -458,15 +454,13 @@ export default function Settings() {
     setBusy("wikiPages");
     try {
       const n = await deleteAllWikiPages(userId);
-      showSuccess(locale === "ko" ? `${n}개 위키 페이지 삭제됨` : `Deleted ${n} wiki pages`);
+      showSuccess(t("deletedNWiki", { n }));
     } catch (e) {
       showActionError(
         "deleteAllWikiPages",
         e,
-        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
-        locale === "ko"
-          ? "위키 페이지를 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-          : "Something went wrong while clearing your wiki pages. Please try again in a moment.",
+        t("couldntDelete"),
+        t("clearWikiError"),
         () => void runDeleteWikiPages(),
       );
     } finally {
@@ -479,15 +473,13 @@ export default function Settings() {
     setBusy("sources");
     try {
       const n = await deleteUningestedSources(userId);
-      showSuccess(locale === "ko" ? `${n}개 캡처 삭제됨` : `Deleted ${n} captures`);
+      showSuccess(t("deletedNCaptures", { n }));
     } catch (e) {
       showActionError(
         "deleteUningestedSources",
         e,
-        locale === "ko" ? "삭제하지 못했어요" : "Couldn't delete",
-        locale === "ko"
-          ? "캡처를 지우는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-          : "Something went wrong while clearing these captures. Please try again in a moment.",
+        t("couldntDelete"),
+        t("clearCapturesError"),
         () => void runDeleteUningestedSources(),
       );
     } finally {
@@ -500,15 +492,13 @@ export default function Settings() {
     setBusy("chat");
     try {
       const n = await deleteAllChatUsage(userId);
-      showSuccess(locale === "ko" ? `${n}일치 사용량 리셋됨` : `Reset ${n} days of usage`);
+      showSuccess(t("resetNDays", { n }));
     } catch (e) {
       showActionError(
         "deleteAllChatUsage",
         e,
-        locale === "ko" ? "리셋하지 못했어요" : "Couldn't reset",
-        locale === "ko"
-          ? "사용량을 리셋하는 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-          : "Something went wrong while resetting usage. Please try again in a moment.",
+        t("couldntReset"),
+        t("resetUsageError"),
         () => void runResetChatUsage(),
       );
     } finally {
@@ -523,9 +513,7 @@ export default function Settings() {
     try {
       const result = await deleteAllUserData(userId);
       showSuccess(
-        locale === "ko"
-          ? `전체 삭제 완료: 기록 ${result.records} · 캡처 ${result.sources} · 위키 ${result.wikiPages} · 사용량 ${result.chatUsage}`
-          : `Full wipe complete: records ${result.records} · sources ${result.sources} · wiki ${result.wikiPages} · usage ${result.chatUsage}`,
+        t("wipeComplete", { r: result.records, s: result.sources, w: result.wikiPages, u: result.chatUsage }),
       );
       setFullDeleteConfirm("");
       routingAfterWipe = true;
@@ -534,10 +522,8 @@ export default function Settings() {
       showActionError(
         "deleteAllUserData",
         e,
-        locale === "ko" ? "전체 삭제를 끝내지 못했어요" : "Couldn't finish the full wipe",
-        locale === "ko"
-          ? "일부 데이터가 남아 있을 수 있어요. 잠시 후 다시 시도하면 남은 데이터를 마저 정리합니다."
-          : "Some data may remain. Try again in a moment to finish clearing what's left.",
+        t("couldntWipe"),
+        t("wipeRemainBody"),
         () => void runFullWipe(),
       );
     } finally {
@@ -560,8 +546,8 @@ export default function Settings() {
     );
 
   const paletteLabels: Record<AccentPalette, string> = {
-    cyan: locale === "ko" ? "시안" : "Cyan",
-    violet: locale === "ko" ? "바이올렛" : "Violet",
+    cyan: t("cyan"),
+    violet: t("violet"),
   };
 
   return (
@@ -573,33 +559,29 @@ export default function Settings() {
             caption below (sb-app §4: no companion outside capture/chat/records). */}
         {!isDeepSpaceUI() && (
           <SecondbStatusHeader
-            text={locale === "ko" ? "설정을 정리해요." : "Tune your settings."}
+            text={t("tuneSettings")}
             tip={
-              locale === "ko"
-                ? "삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
-                : "Deletion cannot be undone. Export anything you need first."
+              t("deletionUndo")
             }
           />
         )}
-        <RNText style={m3Styles.headline}>{locale === "ko" ? "설정" : "Settings"}</RNText>
+        <RNText style={m3Styles.headline}>{t("settings")}</RNText>
         {/* Guidance line (kept from the companion era — OldGuidanceCopyResidue
             pins this SecondB-voiced wording; rev2 drops the header, not the copy). */}
         {isDeepSpaceUI() && (
           <Text variant="caption" color="textMuted" style={styles.guidance}>
-            {locale === "ko"
-              ? "설정을 정리해요. 삭제는 되돌릴 수 없어요. 필요한 건 먼저 내보내기로."
-              : "Tune your settings. Deletion cannot be undone. Export anything you need first."}
+            {t("subtitleFull")}
           </Text>
         )}
 
         {/* ── rev2 M3 toggle-card clone (모양 / 기능 / 데이터 연동) ── */}
         {/* 모양 */}
-        <M3SectionLabel>{locale === "ko" ? "모양" : "Appearance"}</M3SectionLabel>
+        <M3SectionLabel>{t("appearance")}</M3SectionLabel>
         <M3Group>
           <M3ToggleRow
             icon="bedtime"
-            label={locale === "ko" ? "다크 모드" : "Dark mode"}
-            sub={locale === "ko" ? "딥스페이스 톤" : "Deep-space tone"}
+            label={t("darkMode")}
+            sub={t("deepSpaceTone")}
             checked={dark}
             onChange={(v) => setMode(v ? "dark" : "light")}
           />
@@ -607,43 +589,43 @@ export default function Settings() {
           <View style={m3Styles.row}>
             <M3IconBadge icon="auto_awesome" active={false} />
             <View style={m3Styles.rowText}>
-              <RNText style={m3Styles.rowLabel}>{locale === "ko" ? "강조 색" : "Accent color"}</RNText>
-              <RNText style={m3Styles.rowSub}>{locale === "ko" ? "별빛 팔레트" : "Starlight palette"}</RNText>
+              <RNText style={m3Styles.rowLabel}>{t("accentColor")}</RNText>
+              <RNText style={m3Styles.rowSub}>{t("starlightPalette")}</RNText>
             </View>
             <M3PaletteSeg palette={palette} onSelect={setPalette} labels={paletteLabels} />
           </View>
         </M3Group>
 
         {/* 기능 */}
-        <M3SectionLabel>{locale === "ko" ? "기능" : "Features"}</M3SectionLabel>
+        <M3SectionLabel>{t("features")}</M3SectionLabel>
         <M3Group>
-          <M3ToggleRow icon="auto_awesome" label={locale === "ko" ? "자동 분류" : "Auto-tagging"} sub={locale === "ko" ? "담는 즉시 별·태그로 정리" : "Sort into stars and tags on capture"} checked={featureOn("autotag")} onChange={() => toggleFeature("autotag")} />
+          <M3ToggleRow icon="auto_awesome" label={t("autoTagging")} sub={t("autoTaggingDesc")} checked={featureOn("autotag")} onChange={() => toggleFeature("autotag")} />
           <M3Divider />
-          <M3ToggleRow icon="bubble_chart" label={locale === "ko" ? "제안 알림" : "Suggestion alerts"} sub={locale === "ko" ? "새 통찰이 생기면 알려줘요" : "Ping me when a new insight lands"} checked={featureOn("notify")} onChange={() => toggleFeature("notify")} />
+          <M3ToggleRow icon="bubble_chart" label={t("suggestionAlerts")} sub={t("suggestionAlertsDesc")} checked={featureOn("notify")} onChange={() => toggleFeature("notify")} />
           <M3Divider />
-          <M3ToggleRow icon="lock" label={locale === "ko" ? "앱 잠금" : "App lock"} sub={locale === "ko" ? "생체 인증으로 보호" : "Protect with biometrics"} checked={featureOn("applock")} onChange={() => toggleFeature("applock")} />
+          <M3ToggleRow icon="lock" label={t("appLock")} sub={t("appLockDesc")} checked={featureOn("applock")} onChange={() => toggleFeature("applock")} />
           <M3Divider />
-          <M3ToggleRow icon="badge" label={locale === "ko" ? "온디바이스 우선 처리" : "On-device first"} sub={locale === "ko" ? "원문은 기기에서만 분석" : "Analyze raw text only on device"} checked={featureOn("ondevice")} onChange={() => toggleFeature("ondevice")} />
+          <M3ToggleRow icon="badge" label={t("onDeviceFirst")} sub={t("onDeviceFirstDesc")} checked={featureOn("ondevice")} onChange={() => toggleFeature("ondevice")} />
           <M3Divider />
           <M3ToggleRow
             icon="mic"
-            label={locale === "ko" ? "통화 녹음 → 텍스트 → 분석" : "Call recording → text → analysis"}
-            sub={locale === "ko" ? "통화 내용을 기기에서 받아 적고, 세컨비가 별로 엮어요." : "Transcribe calls on device; SecondB weaves them into stars."}
+            label={t("callRecording")}
+            sub={t("callRecordingDesc")}
             checked={featureOn("callrec")}
             onChange={() => toggleFeature("callrec")}
           />
         </M3Group>
 
         {/* 데이터 연동 */}
-        <M3SectionLabel action={<MdButton label={locale === "ko" ? "전체" : "All"} variant="text" onPress={() => router.push("/integrations")} accessibilityLabel={locale === "ko" ? "데이터 연동 전체" : "All integrations"} />}>
-          {locale === "ko" ? "데이터 연동" : "Data connections"}
+        <M3SectionLabel action={<MdButton label={t("all")} variant="text" onPress={() => router.push("/integrations")} accessibilityLabel={t("allIntegrations")} />}>
+          {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>
-          <M3ConnectRow icon="forum" label={locale === "ko" ? "Google 캘린더" : "Google Calendar"} sub={locale === "ko" ? "일정에서 리듬·관계 신호" : "Rhythm and relationship signals from events"} connected={connections.cal} connectLabel={locale === "ko" ? "연결됨" : "Connected"} connectedLabel={locale === "ko" ? "연결됨 · 동기화 중" : "Connected · syncing"} onToggle={() => toggleConnection("cal")} />
+          <M3ConnectRow icon="forum" label={t("googleCalendar")} sub={t("googleCalendarDesc")} connected={connections.cal} connectLabel={t("connected")} connectedLabel={t("connectedSyncing")} onToggle={() => toggleConnection("cal")} />
           <M3Divider />
-          <M3ConnectRow icon="bedtime" label={locale === "ko" ? "Apple 건강" : "Apple Health"} sub={locale === "ko" ? "수면·활동으로 건강 별" : "Sleep and activity for the health star"} connected={connections.health} connectLabel={locale === "ko" ? "연결됨" : "Connected"} connectedLabel={locale === "ko" ? "연결됨 · 동기화 중" : "Connected · syncing"} onToggle={() => toggleConnection("health")} />
+          <M3ConnectRow icon="bedtime" label={t("appleHealth")} sub={t("appleHealthDesc")} connected={connections.health} connectLabel={t("connected")} connectedLabel={t("connectedSyncing")} onToggle={() => toggleConnection("health")} />
           <M3Divider />
-          <M3ConnectRow icon="auto_stories" label="Notion" sub={locale === "ko" ? "메모·문서 가져오기" : "Import notes and docs"} connected={connections.notion} connectLabel={locale === "ko" ? "연결됨" : "Connected"} connectedLabel={locale === "ko" ? "연결됨 · 동기화 중" : "Connected · syncing"} onToggle={() => toggleConnection("notion")} />
+          <M3ConnectRow icon="auto_stories" label="Notion" sub={t("importNotes")} connected={connections.notion} connectLabel={t("connected")} connectedLabel={t("connectedSyncing")} onToggle={() => toggleConnection("notion")} />
         </M3Group>
 
         {/* Destructive op in flight: a persistent banner explains why actions
@@ -652,9 +634,7 @@ export default function Settings() {
         {busy !== null ? (
           <View style={styles.busyBanner} accessibilityRole="alert" accessibilityLiveRegion="polite">
             <Text variant="caption" color="textMuted">
-              {locale === "ko"
-                ? "작업을 처리하는 중이에요. 끝날 때까지 다른 작업과 로그아웃은 잠시 멈춰둘게요."
-                : "Working on it. Other actions and sign-out are paused until this finishes."}
+              {t("workingPaused")}
             </Text>
           </View>
         ) : null}
@@ -666,7 +646,7 @@ export default function Settings() {
             /theme page button two rows above it (same action, two places). */}
         <View style={styles.section}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "내 계정" : "My account"}
+            {t("myAccount")}
           </Text>
           <Button
             label={t("nav.profile")}
@@ -690,7 +670,7 @@ export default function Settings() {
 
         <View style={styles.section}>
           <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
-            {locale === "ko" ? "앱" : "App"}
+            {t("app")}
           </Text>
           <Button
             label={t("nav.theme")}
@@ -701,9 +681,9 @@ export default function Settings() {
           {/* Screen-Spec 09: 코치마크 리셋 — clears the seen flag and returns
               home so the 4-step guide plays again immediately. */}
           <Button
-            label={locale === "ko" ? "코치마크 리셋" : "Reset coachmarks"}
+            label={t("resetCoachmarks")}
             accessibilityHint={
-              locale === "ko" ? "홈 사용 가이드를 처음부터 다시 봐요" : "Replay the home guide from the start"
+              t("resetCoachmarksDesc")
             }
             variant="secondary"
             onPress={() => {
@@ -739,19 +719,19 @@ export default function Settings() {
           <DeepSpaceLinks
             groups={[
               {
-                title: locale === "ko" ? "설정" : "Settings",
+                title: t("settings"),
                 items: [
-                  { key: "account", label: locale === "ko" ? "계정" : "Account", route: "/account" },
-                  { key: "plans", label: locale === "ko" ? "요금제" : "Plans", route: "/plans" },
-                  { key: "privacy", label: locale === "ko" ? "개인정보" : "Privacy", route: "/privacy" },
-                  { key: "permissions", label: locale === "ko" ? "권한" : "Permissions", route: "/permissions" },
-                  { key: "data", label: locale === "ko" ? "데이터" : "Data", route: "/data" },
-                  { key: "theme", label: locale === "ko" ? "테마" : "Theme", route: "/theme" },
-                  { key: "support", label: locale === "ko" ? "지원" : "Support", route: "/support" },
-                  { key: "manual", label: locale === "ko" ? "매뉴얼" : "Manual", route: "/manual" },
-                  { key: "integrations", label: locale === "ko" ? "연동" : "Integrations", route: "/integrations" },
-                  { key: "museum", label: locale === "ko" ? "AI 뮤지엄" : "AI Museum", route: "/museum" },
-                  { key: "ops", label: locale === "ko" ? "운영 진단" : "Routines", route: "/ops" },
+                  { key: "account", label: t("account"), route: "/account" },
+                  { key: "plans", label: t("plans"), route: "/plans" },
+                  { key: "privacy", label: t("privacy"), route: "/privacy" },
+                  { key: "permissions", label: t("permissions"), route: "/permissions" },
+                  { key: "data", label: t("data"), route: "/data" },
+                  { key: "theme", label: t("theme"), route: "/theme" },
+                  { key: "support", label: t("support"), route: "/support" },
+                  { key: "manual", label: t("manual"), route: "/manual" },
+                  { key: "integrations", label: t("integrations"), route: "/integrations" },
+                  { key: "museum", label: t("aiMuseum"), route: "/museum" },
+                  { key: "ops", label: t("routines"), route: "/ops" },
                 ],
               },
             ]}
@@ -762,7 +742,7 @@ export default function Settings() {
           // O-R2 (2) language-pack infra: first in-app language switch for
           // signed-in users (auth screens had a toggle, settings had none).
           // Renders from AVAILABLE_UI_LOCALES - options appear as packs ship.
-          title={locale === "ko" ? "언어" : "Language"}
+          title={t("language")}
           expanded={openDisclosures.language}
           onToggle={() => toggleDisclosure("language")}
         >
@@ -799,14 +779,12 @@ export default function Settings() {
         </DisclosureSection>
 
         <DisclosureSection
-          title={locale === "ko" ? "그래프 크루 (장식 로봇)" : "Graph crew (decorative)"}
+          title={t("graphCrew")}
           expanded={openDisclosures.crew}
           onToggle={() => toggleDisclosure("crew")}
         >
           <Text variant="subtle" color="textMuted">
-            {locale === "ko"
-              ? "기록 보관소 크루가 그래프를 돌아다니는 양. 노드 수에 비례하며, 없음~많이로 조절하거나 완전히 끌 수 있어요."
-              : "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many."}
+            {t("graphCrewDesc")}
           </Text>
           <View style={styles.crewRow}>
             {CREW_DENSITY_ORDER.map((d) => (
@@ -826,7 +804,7 @@ export default function Settings() {
         <DisclosureSection
           // Was titled identically to the nav.data button above (two controls,
           // same name, different destinations — audit confusion finding).
-          title={locale === "ko" ? "데이터 삭제 (위험 구역)" : "Delete data (danger zone)"}
+          title={t("deleteData")}
           expanded={openDisclosures.data}
           onToggle={() => toggleDisclosure("data")}
           tone="warning"
@@ -866,45 +844,43 @@ export default function Settings() {
           {dataDeleteStep === "records" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-              {locale === "ko" ? "부분 삭제: 종류별" : "Partial: by kind"}
+              {t("partialByKind")}
             </Text>
             <Text variant="subtle" color="textMuted">
-              {locale === "ko"
-                ? "특정 종류의 기록만 삭제. 다른 종류와 위키는 그대로 둡니다."
-                : "Delete one kind only. Other kinds and your wiki stay."}
+              {t("partialByKindDesc")}
             </Text>
             <Button
-              label={locale === "ko" ? "모든 일기 삭제" : "Delete all journals"}
+              label={t("delAllJournals")}
               accessibilityHint={t("actions.deleteJournalsHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "모든 일기를 삭제합니다." : "Delete every journal entry.",
+                  t("delAllJournalsDesc"),
                   () => runDeleteKind("journal", "journal"),
                 )
               }
             />
             <Button
-              label={locale === "ko" ? "모든 노트 삭제" : "Delete all notes"}
+              label={t("delAllNotes")}
               accessibilityHint={t("actions.deleteNotesHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "모든 노트를 삭제합니다 (평가 결과 포함)." : "Delete every note (assessments included).",
+                  t("delAllNotesDesc"),
                   () => runDeleteKind("note", "note"),
                 )
               }
             />
             <Button
-              label={locale === "ko" ? "과거의 나 응답 삭제" : "Delete audit responses"}
+              label={t("delAudit")}
               accessibilityHint={t("actions.deleteAuditHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "모든 과거의 나 응답을 삭제합니다." : "Delete every audit response.",
+                  t("delAuditDesc"),
                   () => runDeleteKind("audit_response", "audit"),
                 )
               }
@@ -915,42 +891,40 @@ export default function Settings() {
           {dataDeleteStep === "assessments" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-              {locale === "ko" ? "부분 삭제: 평가 결과" : "Partial: by assessment"}
+              {t("partialByAssessment")}
             </Text>
             <Button
-              label={locale === "ko" ? "Big Five (BFI-44) 결과 삭제" : "Delete Big Five (BFI-44) results"}
+              label={t("delBigFive")}
               accessibilityHint={t("actions.deleteBfiHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko"
-                    ? "저장된 모든 BFI-44 결과를 삭제합니다. 이전 TIPI 결과가 있으면 함께 삭제합니다."
-                    : "Delete every saved BFI-44 result. Include older TIPI records if present.",
+                  t("delBigFiveDesc"),
                   () => runDeleteByTag(["bfi", "tipi"], "bfi"),
                 )
               }
             />
             <Button
-              label={locale === "ko" ? "애착 (ECR) 결과 삭제" : "Delete Attachment (ECR) results"}
+              label={t("delEcr")}
               accessibilityHint={t("actions.deleteEcrHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "저장된 모든 ECR 결과를 삭제합니다." : "Delete every saved ECR result.",
+                  t("delEcrDesc"),
                   () => runDeleteByTag(["ecr"], "ecr"),
                 )
               }
             />
             <Button
-              label={locale === "ko" ? "MBTI 참고 결과 삭제" : "Delete MBTI reference results"}
+              label={t("delMbti")}
               accessibilityHint={t("actions.deleteMbtiHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "저장된 모든 MBTI 참고 결과를 삭제합니다." : "Delete every saved MBTI reference result.",
+                  t("delMbtiDesc"),
                   () => runDeleteByTag(["mbti"], "mbti"),
                 )
               }
@@ -961,42 +935,40 @@ export default function Settings() {
           {dataDeleteStep === "library" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="warning" style={styles.sectionEyebrow}>
-              {locale === "ko" ? "부분 삭제: 위키/캡처/사용량" : "Partial: wiki / captures / usage"}
+              {t("partialWiki")}
             </Text>
             <Button
-              label={locale === "ko" ? "모든 위키 페이지 삭제" : "Delete all wiki pages"}
+              label={t("delAllWiki")}
               accessibilityHint={t("actions.deleteWikiHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko"
-                    ? "위키 페이지와 페이지 간 연결이 모두 삭제됩니다. 받은편지함 자료는 남아요."
-                    : "Wiki pages and their page-to-page links are wiped. Inbox sources stay.",
+                  t("delAllWikiDesc"),
                   () => runDeleteWikiPages(),
                 )
               }
             />
             <Button
-              label={locale === "ko" ? "미발전 캡처 삭제 (받은편지함의 미정리분)" : "Delete un-ingested captures"}
+              label={t("delUningested")}
               accessibilityHint={t("actions.deleteUningestedHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "위키로 발전시키지 않은 캡처만 삭제합니다." : "Only sources that haven't been promoted to a wiki page.",
+                  t("delUningestedDesc"),
                   () => runDeleteUningestedSources(),
                 )
               }
             />
             <Button
-              label={locale === "ko" ? "세컨비 일일 사용량 리셋" : "Reset SecondB daily usage"}
+              label={t("resetDaily")}
               accessibilityHint={t("actions.resetUsageHint")}
               variant="danger"
               disabled={busy !== null}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "오늘과 과거 모든 사용량 카운터를 비웁니다." : "Clear today's and all past usage counters.",
+                  t("resetDailyDesc"),
                   () => runResetChatUsage(),
                 )
               }
@@ -1007,20 +979,16 @@ export default function Settings() {
           {dataDeleteStep === "full" ? (
           <View style={styles.destructiveGroup}>
             <Text variant="caption" color="danger" style={styles.sectionEyebrow}>
-              {locale === "ko" ? "위험: 전체 삭제" : "Danger: full wipe"}
+              {t("dangerFullWipe")}
             </Text>
             <Text variant="subtle" color="textMuted">
-              {locale === "ko"
-                ? "기록 · 캡처 · 위키 페이지 · 세컨비 사용량을 한 번에 모두 삭제합니다. 계정은 유지되지만 0부터 다시 시작합니다."
-                : "Wipes records, sources, wiki pages, and SecondB usage in one shot. The account stays but you start from zero."}
+              {t("dangerFullWipeDesc")}
             </Text>
             <Text variant="subtle" color="textMuted">
               {t("dataWizard.full.retained")}
             </Text>
             <Text variant="subtle" color="danger">
-              {locale === "ko"
-                ? "이 작업은 되돌릴 수 없어요. 필요한 내용은 먼저 내보내기로 챙겨두세요."
-                : "This cannot be undone. Export anything you need first."}
+              {t("cannotUndoExport")}
             </Text>
             <Text variant="subtle" color="textMuted">
               {locale === "ko" ? `진행하려면 "${CONFIRM_PHRASE}" 라고 입력하세요.` : `To proceed, type "${CONFIRM_PHRASE}" below.`}
@@ -1034,14 +1002,14 @@ export default function Settings() {
               accessibilityLabel={t("actions.fullWipeInputLabel", { phrase: CONFIRM_PHRASE })}
             />
             <Button
-              label={locale === "ko" ? "전체 데이터 삭제" : "Delete everything"}
+              label={t("deleteEverything")}
               accessibilityHint={t("actions.fullWipeHint")}
               variant="danger"
               disabled={fullDeleteConfirm !== CONFIRM_PHRASE || busy !== null}
               loading={busy === "full"}
               onPress={() =>
                 confirm(
-                  locale === "ko" ? "마지막 확인: 모든 데이터가 사라집니다. 익스포트는 미리 받으셨나요?" : "Final check: everything will be gone. Did you export first?",
+                  t("finalCheck"),
                   () => runFullWipe(),
                 )
               }
@@ -1052,7 +1020,7 @@ export default function Settings() {
 
         <View style={styles.actions}>
           <Button
-            label={locale === "ko" ? "로그아웃" : "Sign out"}
+            label={t("signOut")}
             accessibilityHint={t("actions.signOutHint")}
             variant="secondary"
             disabled={busy !== null}
@@ -1066,10 +1034,8 @@ export default function Settings() {
                 showActionError(
                   "signOut",
                   e,
-                  locale === "ko" ? "로그아웃하지 못했어요" : "Couldn't sign out",
-                  locale === "ko"
-                    ? "로그아웃 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-                    : "Something went wrong while signing out. Please try again in a moment.",
+                  t("couldntSignOut"),
+                  t("signOutError"),
                 );
               }
             }}
@@ -1077,7 +1043,7 @@ export default function Settings() {
         </View>
 
         <Text variant="caption" color="textMuted" style={styles.buildMarker}>
-          {locale === "ko" ? "빌드 0.0.6 · OTA ota-2026-06-27a" : "Build 0.0.6 · OTA ota-2026-06-27a"}
+          {t("buildInfo")}
         </Text>
       </ScrollView>
 </KeyboardAvoidingView>
