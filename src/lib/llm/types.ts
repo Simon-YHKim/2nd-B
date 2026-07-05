@@ -37,7 +37,15 @@ export type PromptPurpose =
   | "ops_daily_brief" // D-26 A17: all-domain ops recommendations in ONE daily call
   | "persona_synthesis"
   | "northstar_propose"
-  | "axis_estimate";
+  | "axis_estimate"
+  // Proto rev2 (docs/LLM-ROUTING.md §2) AI surfaces declared in the routing
+  // matrix so a Phase-2 flip delivers the FULL proto matrix instead of a partial
+  // one. Call-site wiring (LLM digest narrative, semantic cluster rationale, TTFV
+  // first-insight precompute) is a separate feature per purpose; these are the
+  // routing seats they will use.
+  | "digest_weekly" // weekly two-signal causal pattern (highest-stakes claim)
+  | "cluster_infer" // semantic wiki connection rationale (activates the OpenAI seat)
+  | "ttfv_first_insight"; // first-day self-understanding, evidence-backed
 
 export interface AdvisorInput {
   userId: string;
@@ -182,4 +190,10 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   advisor: "pro",
   journal_reflect: "pro",
   imagine: "pro",
+  // Proto rev2 routing seats (call-sites pending). digest_weekly is the
+  // highest-stakes causal claim -> pro on the Gemini backbone; cluster_infer and
+  // ttfv_first_insight are structured/precompute -> flash.
+  digest_weekly: "pro",
+  cluster_infer: "flash",
+  ttfv_first_insight: "flash",
 };
