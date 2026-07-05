@@ -1,0 +1,15 @@
+{
+  "loading": "안내서를 불러오는 중이에요…",
+  "eyebrow": "안내서",
+  "title": "내 중심을 읽는 짧은 지도",
+  "subtitle": "루틴 · 캡처 · 위키 · 안전",
+  "glossary": "용어 한 줄 정리",
+  "recentlyAdded": "최근 추가된 기능",
+  "leavePiece": "오늘의 별가루 남기기",
+  "leavePieceHint": "캡처 화면을 열어 오늘의 별가루를 저장합니다.",
+  "getStarted": "시작하기",
+  "getStartedHint": "회원가입 화면을 엽니다.",
+  "permissions": "권한 사용 안내",
+  "permissionsHint": "앱이 사용하는 권한 안내 화면을 엽니다.",
+  "curated": "큐레이션된 자료"
+}

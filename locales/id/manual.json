@@ -1,0 +1,15 @@
+{
+  "loading": "Memuat panduan…",
+  "eyebrow": "Panduan",
+  "title": "Peta ringkas inti dirimu",
+  "subtitle": "Rutinitas · tangkapan · wiki · keamanan",
+  "glossary": "Glosarium satu baris",
+  "recentlyAdded": "Baru ditambahkan",
+  "leavePiece": "Tinggalkan serpihan hari ini",
+  "leavePieceHint": "Membuka tangkapan untuk menyimpan serpihan hari ini.",
+  "getStarted": "Mulai",
+  "getStartedHint": "Membuka layar pendaftaran.",
+  "permissions": "Apa yang diakses aplikasi",
+  "permissionsHint": "Membuka panduan izin aplikasi.",
+  "curated": "Riset terkurasi"
+}
