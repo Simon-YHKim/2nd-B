@@ -877,13 +877,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                     key={slug}
                     style={ds.drawerCard}
                     onPress={() => {
-                      // Citations are wiki-page slugs, not record ids, and no
-                      // slug->record-id mapping is available here. Route to the
-                      // records browser as an honest landing (parity with legacy).
-                      // TODO: once a slug->record-id resolver exists, route to
-                      // /record/[id] (deep-space visual polish follow-up).
+                      // Citations are wiki-page slugs. Route to the 위키 tab (which
+                      // lists the wiki pages) rather than the /records browser, so
+                      // the user lands where the cited page actually lives.
+                      // TODO: once a slug->page resolver exists, deep-link the page.
                       setRefDrawer(null);
-                      router.push("/records");
+                      router.push("/wiki");
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={formatSourceCitationLabel(slug)}
@@ -1284,14 +1283,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   title={formatSourceCitationLabel(slug)}
                   meta={t("reference_piece_meta")}
                   onPress={() => {
-                    // Citations are wiki-page slugs, not record ids, and no
-                    // slug->record-id mapping is available in this screen.
-                    // Route to the records browser as an honest landing rather
-                    // than a dead chip.
-                    // TODO: once a slug->record-id resolver exists (e.g. via
-                    // getWikiPage -> source record), route to /record/[id].
+                    // Citations are wiki-page slugs. Route to the 위키 tab (which
+                    // lists the wiki pages) rather than /records, so the user lands
+                    // where the cited page actually lives.
+                    // TODO: once a slug->page resolver exists, deep-link the page.
                     setRefDrawer(null);
-                    router.push("/records");
+                    router.push("/wiki");
                   }}
                 />
               ))}
