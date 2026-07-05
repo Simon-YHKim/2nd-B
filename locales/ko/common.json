@@ -112,5 +112,10 @@
   "facet30": "세부 특질 30가지",
   "facetRetakeLabel": "다시 검사하기",
   "facetRetake": "다시 검사하기",
-  "reflectDismiss": "닫기"
+  "reflectDismiss": "닫기",
+  "drillLayerPeriod": "층 / 시기",
+  "charSelfTalk": "짧은 혼잣말 말풍선을 엽니다.",
+  "backToGraph": "그래프로 돌아가기",
+  "backToGraphHint": "그래프 홈 화면으로 이동합니다.",
+  "clearContext": "컨텍스트 지우기"
 }

@@ -112,5 +112,10 @@
   "facet30": "30 faset kamu",
   "facetRetakeLabel": "Ulangi asesmen",
   "facetRetake": "Ulangi",
-  "reflectDismiss": "Tutup"
+  "reflectDismiss": "Tutup",
+  "drillLayerPeriod": "lapisan / periode",
+  "charSelfTalk": "Membuka gelembung monolog singkat penghuni ini.",
+  "backToGraph": "Kembali ke grafik",
+  "backToGraphHint": "Membuka layar beranda grafik.",
+  "clearContext": "Bersihkan konteks"
 }

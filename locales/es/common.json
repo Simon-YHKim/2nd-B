@@ -112,5 +112,10 @@
   "facet30": "Tus 30 facetas",
   "facetRetakeLabel": "Repetir la evaluación",
   "facetRetake": "Repetir",
-  "reflectDismiss": "Cerrar"
+  "reflectDismiss": "Cerrar",
+  "drillLayerPeriod": "capa / periodo",
+  "charSelfTalk": "Abre la breve burbuja de monólogo de este residente.",
+  "backToGraph": "Volver al gráfico",
+  "backToGraphHint": "Abre la pantalla de inicio del gráfico.",
+  "clearContext": "Borrar contexto"
 }

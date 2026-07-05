@@ -112,5 +112,10 @@
   "facet30": "Your 30 facets",
   "facetRetakeLabel": "Retake the assessment",
   "facetRetake": "Retake",
-  "reflectDismiss": "Dismiss"
+  "reflectDismiss": "Dismiss",
+  "drillLayerPeriod": "layer / period",
+  "charSelfTalk": "Opens this resident's short self-talk bubble.",
+  "backToGraph": "Return to graph",
+  "backToGraphHint": "Opens the graph home screen.",
+  "clearContext": "Clear context"
 }

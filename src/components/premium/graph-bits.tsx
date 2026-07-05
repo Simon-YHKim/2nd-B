@@ -130,9 +130,10 @@ export function CharacterBadge({ id, size = 48, label, glow = true }: { id: Char
 
 /** Context pill — "○○에서 질문" when chat is entered from a node. */
 export function ContextPill({ label, onClose }: { label: string; onClose?: () => void }) {
+  const { t } = useTranslation("common");
   const locale = useCurrentLocale();
   const contextLabel = locale === "ko" ? `${label}에서 질문` : `Question from ${label}`;
-  const clearLabel = locale === "ko" ? "컨텍스트 지우기" : "Clear context";
+  const clearLabel = t("clearContext");
   return (
     <View style={styles.pill} accessibilityLabel={contextLabel}>
       <View style={[styles.chipDot, { backgroundColor: cosmic.soulViolet }]} />
