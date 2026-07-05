@@ -427,5 +427,159 @@
   "reviewRatifiedMoved": "Confirmado. Movido para acionável (L{{level}}).",
   "reviewOpenRecord": "Abrir o registro {{title}}",
   "connectionConfirmed": "Conexão confirmada.",
-  "suggestionDismissed": "Sugestão dispensada."
+  "suggestionDismissed": "Sugestão dispensada.",
+  "career": {
+    "screenTitle": "Carreira",
+    "loading": "Carregando…",
+    "timelineTitle": "Linha do tempo da carreira",
+    "close": "Fechar",
+    "addAchievement": "Adicionar conquista",
+    "fieldAchievement": "Conquista (obrigatório)",
+    "placeholderAchievement": "O que você realizou?",
+    "fieldRole": "Papel",
+    "placeholderRole": "Seu papel na época",
+    "fieldImpact": "Impacto",
+    "placeholderImpact": "O que mudou? Números são bem-vindos",
+    "fieldYear": "Ano",
+    "placeholderYear": "ex.: 2023 (vazio = hoje)",
+    "yearError": "Use um ano de quatro dígitos",
+    "saveFailed": "Não foi possível salvar. Tente de novo.",
+    "saving": "Salvando…",
+    "save": "Salvar",
+    "opening": "Abrindo a linha do tempo…",
+    "loadError": "Não conseguimos carregar a linha do tempo agora. Suas peças estão seguras; tente de novo.",
+    "retry": "Tentar de novo",
+    "empty": "Ainda não há peças de carreira. Comece com uma conquista passada; a estrela da carreira se acende.",
+    "pieceFallback": "Peça de carreira",
+    "untitled": "(sem título)"
+  },
+  "people": {
+    "title": "Relações",
+    "mapTitle": "Mapa de pessoas",
+    "loading": "Carregando…",
+    "close": "Fechar",
+    "addPerson": "Adicionar pessoa",
+    "nameLabel": "Nome ou como você o chama",
+    "namePlaceholder": "ex.: Mãe, Alex",
+    "relationLabel": "Relação",
+    "closeness": "Proximidade {{closeness}}/5",
+    "saveFailed": "Não foi possível salvar. Tente novamente.",
+    "saving": "Salvando…",
+    "save": "Salvar",
+    "privacyNote": "Apenas o mínimo sobre outras pessoas, para a sua própria memória. Fica salvo somente na sua conta.",
+    "openingMap": "Abrindo o mapa…",
+    "empty": "Ainda não há ninguém aqui. Adicione as pessoas próximas, uma a uma; a estrela das relações se acende.",
+    "me": "eu",
+    "kind": {
+      "family": "Família",
+      "partner": "Parceiro",
+      "friend": "Amigo",
+      "colleague": "Colega",
+      "mentor": "Mentor",
+      "other": "Outro"
+    },
+    "contactSuffix": " · contato {{cadence}}",
+    "lastSuffix": " · última vez {{date}}"
+  },
+  "rest": {
+    "title": "Descanso",
+    "loading": "Carregando…",
+    "close": "Fechar",
+    "addRest": "Adicionar descanso",
+    "whatLabel": "O que é? (obrigatório)",
+    "whatPlaceholder": "ex.: Zelda, viagem a Jeju, piano",
+    "categoryLabel": "Categoria",
+    "statusLabel": "Status",
+    "saveFailed": "Não foi possível salvar. Tente novamente.",
+    "saving": "Salvando…",
+    "save": "Salvar",
+    "opening": "Abrindo…",
+    "empty": "Ainda não há nada aqui. Comece pelo que te recarrega nestes dias; a estrela do descanso se ilumina.",
+    "category": {
+      "game": "Jogo",
+      "movie": "Filme",
+      "music": "Música",
+      "travel": "Viagem",
+      "show": "Espetáculo",
+      "hobby": "Hobby",
+      "other": "Outro"
+    },
+    "status": {
+      "want": "Quero fazer",
+      "active": "Em andamento",
+      "done": "Feito"
+    }
+  },
+  "careerDrilldown": {
+    "summaryFallback": "uma experiência profissional",
+    "intro": "Vamos destrinchar sua conquista: 3C para o porquê e 4P para o quê e o como. Quando você preencher, farei as perguntas mais profundas a partir disso.",
+    "summaryLabel": "Resumo em uma linha",
+    "summaryPlaceholder": "O que você fez e qual foi o resultado - em uma linha",
+    "expTypeA11y": "Tipo de experiência",
+    "expTypePlaceholder": "Escolha um tipo de experiência",
+    "submit": "Aprofunde com o SecondB"
+  },
+  "shareCard": {
+    "barTitle": "Cartão para compartilhar",
+    "loading": "Carregando…",
+    "introExport": "Exporta como um cartão quadrado de 1080×1080. As notas originais ficam de fora; entra só a linha que você escolher.",
+    "variantInsight": "Cartão de percepção",
+    "variantConstellation": "Cartão de constelação",
+    "saving": "Salvando…",
+    "saveImage": "Salvar imagem",
+    "opening": "Abrindo…",
+    "share": "Compartilhar",
+    "introPrivacy": "Os registros originais e os números nunca vão no cartão. Só a frase que você escolher.",
+    "starsFallback": "Não conseguimos ler suas estrelas; desenhamos o padrão."
+  },
+  "coachmarks": {
+    "step1": "Esta é a sua constelação",
+    "step2": "Toque em uma estrela",
+    "step3": "Quando algo vier à mente, guarde",
+    "step4": "Há mais ferramentas nas configurações",
+    "secondbName": "SecondB",
+    "dontShowAgain": "Não mostrar novamente",
+    "start": "Começar",
+    "next": "Próximo"
+  },
+  "museum": {
+    "title": "Museu da IA",
+    "rangeHint": "Deslize pelo tempo",
+    "seekYear": "Buscar ano",
+    "prevEvent": "Anterior",
+    "nextEvent": "Próximo",
+    "close": "Fechar",
+    "youAreHere": "Você está aqui",
+    "background": "Contexto",
+    "impact": "Impacto",
+    "connected": "Conectados",
+    "references": "Referências",
+    "backToConstellation": "Voltar à constelação"
+  },
+  "polaris": {
+    "cardDeck": "Baralho de cartões da Estrela Polar"
+  },
+  "wikiGraph": {
+    "a11yGraph": "Grafo de nós da wiki",
+    "a11yZoomOut": "Diminuir zoom",
+    "a11yZoomIn": "Aumentar zoom",
+    "hintSelected": "{{title}} · toque novamente para abrir",
+    "hintDefault": "Toque para selecionar um nó, toque novamente para abrir",
+    "kindConcept": "Conceito",
+    "kindEntity": "Entidade",
+    "kindSource": "Fonte"
+  },
+  "quant": {
+    "progressLabel": "Progresso das respostas {{percent}}%",
+    "pageCounter": "Página {{current}} / {{total}}",
+    "answered": "{{answered}} / {{total}} respondidas",
+    "readySuffix": " · pronto para salvar",
+    "rangeNote": "Esta página: itens {{from}} – {{to}}"
+  },
+  "shareCardImg": {
+    "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "footerWeek": "Uma semana vista ao lado do SecondB",
+    "starsLit": "{{count}} estrelas brilhando",
+    "signature": "2nd-Brain · {{count}} fagulhas de estrela"
+  }
 }

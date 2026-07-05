@@ -427,5 +427,159 @@
   "reviewRatifiedMoved": "Dikonfirmasi. Dipindahkan ke dapat ditindaklanjuti (L{{level}}).",
   "reviewOpenRecord": "Buka catatan {{title}}",
   "connectionConfirmed": "Koneksi dikonfirmasi.",
-  "suggestionDismissed": "Saran diabaikan."
+  "suggestionDismissed": "Saran diabaikan.",
+  "career": {
+    "screenTitle": "Karier",
+    "loading": "Memuat…",
+    "timelineTitle": "Lini masa karier",
+    "close": "Tutup",
+    "addAchievement": "Tambah pencapaian",
+    "fieldAchievement": "Pencapaian (wajib)",
+    "placeholderAchievement": "Apa yang kamu capai?",
+    "fieldRole": "Peran",
+    "placeholderRole": "Peranmu saat itu",
+    "fieldImpact": "Dampak",
+    "placeholderImpact": "Apa yang berubah? Angka boleh disertakan",
+    "fieldYear": "Tahun",
+    "placeholderYear": "mis. 2023 (kosong = hari ini)",
+    "yearError": "Tulis tahun dengan empat digit",
+    "saveFailed": "Tidak bisa menyimpan. Coba lagi.",
+    "saving": "Menyimpan…",
+    "save": "Simpan",
+    "opening": "Membuka lini masa…",
+    "loadError": "Kami belum bisa memuat lini masa saat ini. Kepinganmu tetap aman; coba lagi.",
+    "retry": "Coba lagi",
+    "empty": "Belum ada kepingan karier. Mulai dari satu pencapaian masa lalu; bintang karier pun bersinar.",
+    "pieceFallback": "Kepingan karier",
+    "untitled": "(tanpa judul)"
+  },
+  "people": {
+    "title": "Hubungan",
+    "mapTitle": "Peta orang",
+    "loading": "Memuat…",
+    "close": "Tutup",
+    "addPerson": "Tambah orang",
+    "nameLabel": "Nama atau panggilannya",
+    "namePlaceholder": "mis. Ibu, Alex",
+    "relationLabel": "Hubungan",
+    "closeness": "Kedekatan {{closeness}}/5",
+    "saveFailed": "Tidak dapat menyimpan. Coba lagi.",
+    "saving": "Menyimpan…",
+    "save": "Simpan",
+    "privacyNote": "Cukup seperlunya tentang orang lain, demi ingatanmu sendiri. Disimpan hanya di akunmu.",
+    "openingMap": "Membuka peta…",
+    "empty": "Belum ada siapa pun di sini. Tambahkan orang-orang terdekatmu satu per satu; bintang relasi pun menyala.",
+    "me": "aku",
+    "kind": {
+      "family": "Keluarga",
+      "partner": "Pasangan",
+      "friend": "Teman",
+      "colleague": "Rekan",
+      "mentor": "Mentor",
+      "other": "Lainnya"
+    },
+    "contactSuffix": " · kontak {{cadence}}",
+    "lastSuffix": " · terakhir {{date}}"
+  },
+  "rest": {
+    "title": "Istirahat",
+    "loading": "Memuat…",
+    "close": "Tutup",
+    "addRest": "Tambah istirahat",
+    "whatLabel": "Apa itu? (wajib)",
+    "whatPlaceholder": "mis. Zelda, jalan-jalan ke Jeju, piano",
+    "categoryLabel": "Kategori",
+    "statusLabel": "Status",
+    "saveFailed": "Tidak bisa menyimpan. Coba lagi.",
+    "saving": "Menyimpan…",
+    "save": "Simpan",
+    "opening": "Membuka…",
+    "empty": "Belum ada apa pun di sini. Mulai dari yang membuatmu segar akhir-akhir ini; bintang istirahat pun bersinar.",
+    "category": {
+      "game": "Game",
+      "movie": "Film",
+      "music": "Musik",
+      "travel": "Perjalanan",
+      "show": "Pertunjukan",
+      "hobby": "Hobi",
+      "other": "Lainnya"
+    },
+    "status": {
+      "want": "Ingin coba",
+      "active": "Sedang dijalani",
+      "done": "Selesai"
+    }
+  },
+  "careerDrilldown": {
+    "summaryFallback": "sebuah pengalaman karier",
+    "intro": "Mari kita uraikan pencapaianmu - 3C untuk 'kenapa', 4P untuk 'apa dan bagaimana'. Setelah terisi, aku akan menanyakan hal-hal yang lebih dalam dari situ.",
+    "summaryLabel": "Ringkasan satu baris",
+    "summaryPlaceholder": "Apa yang kamu lakukan dan hasilnya - dalam satu baris",
+    "expTypeA11y": "Jenis pengalaman",
+    "expTypePlaceholder": "Pilih jenis pengalaman",
+    "submit": "Telusuri bersama SecondB"
+  },
+  "shareCard": {
+    "barTitle": "Kartu untuk dibagikan",
+    "loading": "Memuat…",
+    "introExport": "Diekspor sebagai kartu persegi 1080×1080. Catatan aslinya tetap di luar; hanya satu baris yang kamu pilih yang masuk.",
+    "variantInsight": "Kartu wawasan",
+    "variantConstellation": "Kartu rasi bintang",
+    "saving": "Menyimpan…",
+    "saveImage": "Simpan gambar",
+    "opening": "Membuka…",
+    "share": "Bagikan",
+    "introPrivacy": "Catatan asli dan angka tidak pernah masuk ke kartu. Hanya kalimat yang kamu pilih.",
+    "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
+  },
+  "coachmarks": {
+    "step1": "Ini rasi bintangmu",
+    "step2": "Ketuk sebuah bintang",
+    "step3": "Saat sesuatu terlintas, simpanlah",
+    "step4": "Ada lebih banyak alat di pengaturan",
+    "secondbName": "SecondB",
+    "dontShowAgain": "Jangan tampilkan lagi",
+    "start": "Mulai",
+    "next": "Berikutnya"
+  },
+  "museum": {
+    "title": "Museum AI",
+    "rangeHint": "Geser untuk menjelajahi waktu",
+    "seekYear": "Cari tahun",
+    "prevEvent": "Sebelumnya",
+    "nextEvent": "Berikutnya",
+    "close": "Tutup",
+    "youAreHere": "Kamu di sini",
+    "background": "Latar belakang",
+    "impact": "Dampak",
+    "connected": "Terhubung",
+    "references": "Referensi",
+    "backToConstellation": "Kembali ke rasi bintang"
+  },
+  "polaris": {
+    "cardDeck": "Dek kartu Bintang Utara"
+  },
+  "wikiGraph": {
+    "a11yGraph": "Grafik simpul wiki",
+    "a11yZoomOut": "Perkecil",
+    "a11yZoomIn": "Perbesar",
+    "hintSelected": "{{title}} · ketuk lagi untuk membuka",
+    "hintDefault": "Ketuk untuk memilih simpul, ketuk lagi untuk membuka",
+    "kindConcept": "Konsep",
+    "kindEntity": "Entitas",
+    "kindSource": "Sumber"
+  },
+  "quant": {
+    "progressLabel": "Progres jawaban {{percent}}%",
+    "pageCounter": "Halaman {{current}} / {{total}}",
+    "answered": "{{answered}} / {{total}} terjawab",
+    "readySuffix": " · siap disimpan",
+    "rangeNote": "Halaman ini: butir {{from}} – {{to}}"
+  },
+  "shareCardImg": {
+    "eyebrowWeek": "2ND-BRAIN · MINGGU INI",
+    "footerWeek": "Seminggu yang dilihat bersama SecondB",
+    "starsLit": "{{count}} bintang bersinar",
+    "signature": "2nd-Brain · {{count}} serpihan bintang"
+  }
 }

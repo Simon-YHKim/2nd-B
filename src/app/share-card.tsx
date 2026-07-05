@@ -22,7 +22,7 @@ import { deriveCardProps, shareInsightCard } from "@/lib/share/insight-card";
 import { countUserPieces } from "@/lib/share/piece-count";
 
 export default function ShareCardScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
   const isKo = i18n.language === "ko";
 
@@ -54,13 +54,13 @@ export default function ShareCardScreen() {
     };
   }, [userId]);
 
-  const barTitle = isKo ? "공유 카드" : "Share card";
+  const barTitle = t("deepspace:shareCard.barTitle");
 
   if (loading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
-          <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("deepspace:shareCard.loading")} />
         </View>
       </DeepSpaceScreen>
     );
@@ -109,16 +109,14 @@ export default function ShareCardScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* rev2 sb-more copy verbatim */}
         <Text variant="caption" color="textSubtle" style={styles.introCopy}>
-          {isKo
-            ? "1080×1080 정사각 카드로 내보내요. 원문은 빼고, 보여줄 한 줄만 담겨요."
-            : "Exports as a 1080×1080 square card. Raw notes stay out; only the one line you choose goes in."}
+          {t("deepspace:shareCard.introExport")}
         </Text>
 
         <View style={styles.chipRow}>
-          <MdChip kind="filter" label={isKo ? "통찰 카드" : "Insight card"} selected={variant === "A"} onPress={() => setVariant("A")} />
+          <MdChip kind="filter" label={t("deepspace:shareCard.variantInsight")} selected={variant === "A"} onPress={() => setVariant("A")} />
           <MdChip
             kind="filter"
-            label={isKo ? "별자리 카드" : "Constellation card"}
+            label={t("deepspace:shareCard.variantConstellation")}
             selected={variant === "B"}
             onPress={() => setVariant("B")}
           />
@@ -133,26 +131,24 @@ export default function ShareCardScreen() {
           <MdButton
             variant="filled"
             disabled={saving || sharing}
-            label={saving ? (isKo ? "저장 중…" : "Saving…") : isKo ? "이미지 저장" : "Save image"}
+            label={saving ? t("deepspace:shareCard.saving") : t("deepspace:shareCard.saveImage")}
             onPress={handleSave}
             style={styles.actionBtn}
           />
           <MdButton
             variant="tonal"
             disabled={sharing || saving}
-            label={sharing ? (isKo ? "여는 중…" : "Opening…") : isKo ? "공유" : "Share"}
+            label={sharing ? t("deepspace:shareCard.opening") : t("deepspace:shareCard.share")}
             onPress={handleShare}
             style={styles.actionBtn}
           />
         </View>
         <Text variant="caption" color="textSubtle" style={styles.introCopy}>
-          {isKo
-            ? "기록 원문·수치는 카드에 포함되지 않아요. 보여줄 문장만 골라 담아요."
-            : "Raw records and numbers never go on the card. Only the sentence you pick."}
+          {t("deepspace:shareCard.introPrivacy")}
         </Text>
         {litStars === null ? (
           <Text variant="caption" color="textSubtle" style={styles.introCopy}>
-            {isKo ? "별 개수를 못 읽어 기본값으로 그렸어요." : "Could not read your stars; drew the default."}
+            {t("deepspace:shareCard.starsFallback")}
           </Text>
         ) : null}
 

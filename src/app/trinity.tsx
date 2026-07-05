@@ -347,7 +347,7 @@ function TrinityLegacy() {
 const DS_AREA_ORDER: TrinityDomain[] = ["health", "app", "brain", "finance"];
 
 function TrinityDeepSpace() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("trinity");
   const { userId, loading: authLoading } = useAuth();
   const isKo = i18n.language === "ko";
   const locale = (isKo ? "ko" : "en") as "en" | "ko";
@@ -430,20 +430,20 @@ function TrinityDeepSpace() {
       </View>
       <ScrollView contentContainerStyle={ds.scroll} keyboardShouldPersistTaps="handled">
         <View style={ds.titleRow}>
-          <Pressable onPress={() => router.back()} hitSlop={14} accessibilityRole="button" accessibilityLabel={isKo ? "뒤로" : "Back"}>
+          <Pressable onPress={() => router.back()} hitSlop={14} accessibilityRole="button" accessibilityLabel={t("trinity:ds.back")}>
             <RNText style={ds.back}>‹</RNText>
           </Pressable>
           <View>
-            <Text variant="heading" style={ds.title}>{isKo ? "내 영역" : "My areas"}</Text>
-            <Text variant="subtle" style={ds.subtitle}>{isKo ? "건강 · 앱 · 뇌 · 재정" : "Health · app · brain · finance"}</Text>
+            <Text variant="heading" style={ds.title}>{t("trinity:ds.myAreas")}</Text>
+            <Text variant="subtle" style={ds.subtitle}>{t("trinity:ds.areasSubtitle")}</Text>
           </View>
         </View>
 
         <SecondbStatusHeader
           text={total > 0
-            ? (isKo ? "네 영역을 한눈에 모았어요." : "Your four areas at a glance.")
-            : (isKo ? "아직 영역에 담긴 기록이 없어요." : "No records in your areas yet.")}
-          tip={isKo ? "비어 있는 영역부터 채워볼까요?" : "Start with the quietest area?"}
+            ? t("trinity:ds.glanceSummary")
+            : t("trinity:ds.emptySummary")}
+          tip={t("trinity:ds.emptyTip")}
         />
 
         {loading ? (
@@ -453,26 +453,24 @@ function TrinityDeepSpace() {
         ) : error ? (
           <View style={ds.notice}>
             <Text variant="body" style={ds.noticeBody}>
-              {isKo ? "기록을 못 불러왔어요. 잠시 후 다시 시도해 주세요." : "Couldn't load your records. Please try again shortly."}
+              {t("trinity:ds.loadError")}
             </Text>
             <Pressable
               style={ds.primary}
               onPress={() => setReloadKey((k) => k + 1)}
               accessibilityRole="button"
-              accessibilityLabel={isKo ? "다시 시도" : "Retry"}
+              accessibilityLabel={t("trinity:ds.retry")}
             >
-              <Text variant="caption" style={ds.primaryText}>{isKo ? "다시 시도" : "Retry"}</Text>
+              <Text variant="caption" style={ds.primaryText}>{t("trinity:ds.retry")}</Text>
             </Pressable>
           </View>
         ) : total === 0 ? (
           <View style={ds.notice}>
             <Text variant="body" style={ds.noticeBody}>
-              {isKo
-                ? "건강·앱·뇌·재정 태그가 붙은 기록이 모이면 여기에서 영역별로 보여드려요."
-                : "Once records are tagged health, app, brain or finance, they show up here by area."}
+              {t("trinity:ds.emptyBody")}
             </Text>
-            <Pressable style={ds.primary} onPress={addData} accessibilityRole="button" accessibilityLabel={isKo ? "데이터 추가" : "Add data"}>
-              <Text variant="caption" style={ds.primaryText}>{isKo ? "데이터 추가" : "Add data"}</Text>
+            <Pressable style={ds.primary} onPress={addData} accessibilityRole="button" accessibilityLabel={t("trinity:ds.addData")}>
+              <Text variant="caption" style={ds.primaryText}>{t("trinity:ds.addData")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -497,20 +495,20 @@ function TrinityDeepSpace() {
                     <Text variant="caption" style={active ? ds.cardName : ds.cardNameDim} numberOfLines={1}>{labels[d]}</Text>
                     <View style={ds.cardNumRow}>
                       <Text variant="heading" style={active ? ds.cardNum : ds.cardNumDim}>{s.count}</Text>
-                      <Text variant="subtle" style={ds.cardUnit}>{isKo ? "개" : "items"}</Text>
+                      <Text variant="subtle" style={ds.cardUnit}>{t("trinity:ds.unit")}</Text>
                     </View>
                     <Text variant="subtle" style={ds.cardSub} numberOfLines={1}>
                       {last
-                        ? (isKo ? `마지막 ${last}` : `Last ${last}`)
-                        : (isKo ? "기록 없음" : "No entries")}
+                        ? t("trinity:ds.lastEntry", { date: last })
+                        : t("trinity:ds.noEntries")}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
 
-            <Pressable style={ds.primary} onPress={addData} accessibilityRole="button" accessibilityLabel={isKo ? "데이터 추가" : "Add data"}>
-              <Text variant="caption" style={ds.primaryText}>{isKo ? "데이터 추가" : "Add data"}</Text>
+            <Pressable style={ds.primary} onPress={addData} accessibilityRole="button" accessibilityLabel={t("trinity:ds.addData")}>
+              <Text variant="caption" style={ds.primaryText}>{t("trinity:ds.addData")}</Text>
             </Pressable>
           </>
         )}

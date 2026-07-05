@@ -14,5 +14,20 @@
   "dismiss": "닫기",
   "dismissHint": "안내를 닫습니다.",
   "retry": "다시 시도",
-  "retryHint": "4영역 기록을 다시 불러옵니다."
+  "retryHint": "4영역 기록을 다시 불러옵니다.",
+  "ds": {
+    "back": "뒤로",
+    "myAreas": "내 영역",
+    "areasSubtitle": "건강 · 앱 · 뇌 · 재정",
+    "glanceSummary": "네 영역을 한눈에 모았어요.",
+    "emptySummary": "아직 영역에 담긴 기록이 없어요.",
+    "emptyTip": "비어 있는 영역부터 채워볼까요?",
+    "loadError": "기록을 못 불러왔어요. 잠시 후 다시 시도해 주세요.",
+    "retry": "다시 시도",
+    "emptyBody": "건강·앱·뇌·재정 태그가 붙은 기록이 모이면 여기에서 영역별로 보여드려요.",
+    "addData": "데이터 추가",
+    "unit": "개",
+    "lastEntry": "마지막 {{date}}",
+    "noEntries": "기록 없음"
+  }
 }

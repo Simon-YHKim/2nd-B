@@ -962,6 +962,7 @@ export function IdenView({
   footer?: ReactNode;
 } = {}) {
   const { t } = useTranslation("home");
+  void isKo; // copy is now t()-driven; prop kept for caller-convention parity
   // No `data` prop (undefined) = design preview / reuse path: keep sample copy.
   // A provided value drives real states: loading -> spinner copy, hasError ->
   // retry, null -> empty (no self-knowledge yet), object -> the real IdenDoc.
@@ -970,7 +971,7 @@ export function IdenView({
     return (
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.centerState}>
-          <Text style={styles.stateBody}>{isKo ? "IDEN을 모으는 중이에요" : "Gathering your IDEN"}</Text>
+          <Text style={styles.stateBody}>{t("ds.iden.loading")}</Text>
         </View>
       </ScrollView>
     );
@@ -999,14 +1000,10 @@ export function IdenView({
           <Svg width={34} height={34} viewBox="0 0 24 24">
             <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
           </Svg>
-          <Text style={styles.stateTitle}>{isKo ? "아직 모을 IDEN이 없어요" : "No IDEN to gather yet"}</Text>
-          <Text style={styles.stateBody}>
-            {isKo
-              ? "도구 하나만 마쳐도 나를 담은 IDEN이 만들어져요."
-              : "Finish one tool and your IDEN starts to take shape."}
-          </Text>
+          <Text style={styles.stateTitle}>{t("ds.iden.emptyTitle")}</Text>
+          <Text style={styles.stateBody}>{t("ds.iden.emptyBody")}</Text>
           <GradientButton
-            label={isKo ? "별가루 담기 시작" : "Start gathering"}
+            label={t("ds.iden.emptyCta")}
             onPress={onSend}
           />
         </View>
@@ -1071,6 +1068,7 @@ function LensHead({ title, tag, eyebrow }: { title: string; tag: string; eyebrow
 
 export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
+  void isKo; // copy is now t()-driven; prop kept for caller-convention parity
   // UNWIRED ON PURPOSE — era-recall now lives in /audit (PastMeErasView). This
   // variant is kept as a reference for a future per-period recall-coverage view
   // (interview-coverage by life period, still non-trivial + no data pipeline);
@@ -1083,12 +1081,8 @@ export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
         </Svg>
-        <Text style={styles.stateTitle}>{isKo ? "아직 회상으로 채운 시기가 없어요" : "No eras recalled yet"}</Text>
-        <Text style={styles.stateBody}>
-          {isKo
-            ? "지나온 시기를 하나씩 떠올려 적으면, 어느 시절이 지금의 나를 만들었는지 여기 모여요."
-            : "Recall your past eras one by one, and which years shaped you gathers here."}
-        </Text>
+        <Text style={styles.stateTitle}>{t("ds.recall.emptyTitle")}</Text>
+        <Text style={styles.stateBody}>{t("ds.recall.emptyBody")}</Text>
       </View>
     </ScrollView>
   );
@@ -1187,15 +1181,11 @@ export function SeenLensView() {
       </View>
       {observable.length > 0 ? (
         <View style={styles.obsPanel}>
-          <Text style={styles.obsTitle}>{hasGap ? (isKo ? "내가 보는 나 · 남이 보는 나" : "The me I see, the me they see") : isKo ? "밖에서 가장 잘 보이는 나" : "Most visible from outside"}</Text>
-          <Text style={styles.obsNote}>
-            {isKo
-              ? "남이 실제로 어떻게 보는지가 아니라, 내 Big Five 자기보고에서 밖으로 가장 잘 드러나는 특질이에요."
-              : "Not what others actually think; the traits from your own Big Five that read most from outside."}
-          </Text>
+          <Text style={styles.obsTitle}>{hasGap ? t("ds.seen.obsTitleGap") : t("ds.seen.obsTitleSolo")}</Text>
+          <Text style={styles.obsNote}>{t("ds.seen.obsNote")}</Text>
           {hasGap ? (
             <Text style={styles.obsNote}>
-              {isKo ? informantCount + "명의 답을 합친 그림이에요. 개별 답은 누구의 것인지 알 수 없어요." : "A combined picture from " + informantCount + " people; no single answer is identifiable."}
+              {t("ds.seen.combinedNote", { count: informantCount })}
             </Text>
           ) : null}
           {observable.map((o) => (
@@ -1217,13 +1207,13 @@ export function SeenLensView() {
             ) : (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={isKo ? "간극 한 줄 해석" : "One-line gap read"}
+                accessibilityLabel={t("ds.seen.gapReadA11y")}
                 onPress={() => void synthesizeGap()}
                 disabled={synthBusy}
                 style={styles.ghostBtn}
               >
                 <Text style={styles.ghostLabel}>
-                  {synthBusy ? (isKo ? "읽는 중…" : "Reading…") : isKo ? "세컨비의 간극 한 줄" : "SecondB reads the gap"}
+                  {synthBusy ? t("ds.seen.gapReading") : t("ds.seen.gapReadCta")}
                 </Text>
               </Pressable>
             )
@@ -1240,21 +1230,13 @@ export function SeenLensView() {
             missing half (live QA 2026-07-03: 3 responses in, copy claimed none). */}
         <Text style={styles.stateTitle}>
           {aggregate.length > 0
-            ? isKo
-              ? "지인 " + informantCount + "명의 응답이 도착해 있어요"
-              : "Responses from " + informantCount + " people are in"
-            : isKo
-              ? "아직 비교할 peer 응답이 없어요"
-              : "No peer responses to compare yet"}
+            ? t("ds.seen.emptyTitleResponses", { count: informantCount })
+            : t("ds.seen.emptyTitleNoPeers")}
         </Text>
         <Text style={styles.stateBody}>
           {aggregate.length > 0
-            ? isKo
-              ? "내 Big Five 자기 점검을 마치면, 내가 보는 나와 남이 보는 나를 나란히 보여드려요."
-              : "Finish your own Big Five check and you'll see the me you see beside the me they see."
-            : isKo
-              ? "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
-              : "Send a short survey to someone close, and you'll see the me you see beside the me others see."}
+            ? t("ds.seen.emptyBodyFinishBigFive")
+            : t("ds.seen.emptyBodySendSurvey")}
         </Text>
       </View>
       )}
@@ -1279,6 +1261,7 @@ export function SeenLensView() {
 
 export function RhythmLensView({ isKo, onLogNow }: { isKo?: boolean; onLogNow?: () => void } = {}) {
   const { t } = useTranslation("home");
+  void isKo; // copy is now t()-driven; prop kept for caller-convention parity
   // TODO(data): not reachable from any live route/dock yet; the 7-day mood chart
   // needs per-day ESM samples (loadEsmCount only returns a total), so this
   // renders an honest empty state instead of fabricated bars.
@@ -1289,12 +1272,8 @@ export function RhythmLensView({ isKo, onLogNow }: { isKo?: boolean; onLogNow?: 
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
         </Svg>
-        <Text style={styles.stateTitle}>{isKo ? "아직 리듬을 그릴 기록이 없어요" : "No rhythm to chart yet"}</Text>
-        <Text style={styles.stateBody}>
-          {isKo
-            ? "기분을 며칠 기록하면, 내가 가장 나다운 시간이 여기 리듬으로 보여요."
-            : "Log your mood for a few days, and when you feel most yourself shows up as a rhythm here."}
-        </Text>
+        <Text style={styles.stateTitle}>{t("ds.rhythm.emptyTitle")}</Text>
+        <Text style={styles.stateBody}>{t("ds.rhythm.emptyBody")}</Text>
       </View>
       <GradientButton label={t("ds.rhythm.logNow")} full onPress={onLogNow} />
     </ScrollView>
@@ -1311,6 +1290,7 @@ export function PossibleLensView({
   isKo,
 }: { drafts?: AspirationDraft[] | null; isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
+  void isKo; // copy is now t()-driven; prop kept for caller-convention parity
   // No `drafts` prop (undefined) = design preview: keep the sample cards. A
   // provided value drives real states: aspiration drafts the user wrote, or an
   // empty state when none exist (no fabricated aspirations).
@@ -1335,12 +1315,8 @@ export function PossibleLensView({
           <Svg width={34} height={34} viewBox="0 0 24 24">
             <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
           </Svg>
-          <Text style={styles.stateTitle}>{isKo ? "아직 그려둔 미래의 나가 없어요" : "No future self sketched yet"}</Text>
-          <Text style={styles.stateBody}>
-            {isKo
-              ? "세컨비와 공상 모드로 이야기하면, 데이터가 되기 전의 내 모습을 여기 담을 수 있어요."
-              : "Talk with SecondB in divergent mode, and the you before the data fills in lands here."}
-          </Text>
+          <Text style={styles.stateTitle}>{t("ds.possible.emptyTitle")}</Text>
+          <Text style={styles.stateBody}>{t("ds.possible.emptyBody")}</Text>
         </View>
       ) : (
         <>
@@ -1580,6 +1556,7 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
 
 export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddData?: () => void } = {}) {
   const { t } = useTranslation("home");
+  void isKo; // copy is now t()-driven; prop kept for caller-convention parity
   // UNWIRED ON PURPOSE — relational insight is covered by /attachment (attachment
   // style) plus the people + wiki graphs. This variant is a reference for a
   // future dedicated relations-graph view (relations-graph + wiki concepts, no
@@ -1592,12 +1569,8 @@ export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddD
         <Svg width={34} height={34} viewBox="0 0 24 24">
           <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
         </Svg>
-        <Text style={styles.stateTitle}>{isKo ? "아직 이어진 사람과 지식이 없어요" : "No people or knowledge linked yet"}</Text>
-        <Text style={styles.stateBody}>
-          {isKo
-            ? "기록에 사람과 관심사가 쌓이면, 관계와 지식 속의 내 모습이 여기 보여요."
-            : "As people and interests build up in your records, the you inside relationships and knowledge shows here."}
-        </Text>
+        <Text style={styles.stateTitle}>{t("ds.relational.emptyTitle")}</Text>
+        <Text style={styles.stateBody}>{t("ds.relational.emptyBody")}</Text>
       </View>
       <GradientButton label={t("ds.relational.addData")} full onPress={onAddData} />
     </ScrollView>
@@ -1641,6 +1614,7 @@ export function ValuesLensView({
   onRetry?: () => void;
 } = {}) {
   const { t } = useTranslation("home");
+  void isKo; // copy is now t()-driven; prop kept for caller-convention parity
   // UNWIRED ON PURPOSE — the values spectrum ships in /values (AxisCheckScreen).
   // This lens variant is not wired to a route; doing so would duplicate /values.
   // It is kept because it accepts a real `domains` prop: if values ever move to
@@ -1658,7 +1632,7 @@ export function ValuesLensView({
       <LensHead title={t("ds.values.title")} tag={t("ds.values.tag")} eyebrow={t("ds.values.eyebrow")} />
       {!demo && loading ? (
         <View style={styles.centerState}>
-          <Text style={styles.stateBody}>{isKo ? "별가루를 세는 중이에요" : "Counting your pieces"}</Text>
+          <Text style={styles.stateBody}>{t("ds.values.loading")}</Text>
         </View>
       ) : !demo && hasError ? (
         <View style={styles.centerState}>
@@ -1673,12 +1647,8 @@ export function ValuesLensView({
           <Svg width={34} height={34} viewBox="0 0 24 24">
             <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
           </Svg>
-          <Text style={styles.stateTitle}>{isKo ? "이 영역엔 아직 쌓인 게 없어요" : "Nothing built up here yet"}</Text>
-          <Text style={styles.stateBody}>
-            {isKo
-              ? "기록을 남기면 어떤 영역을 가장 많이 키워왔는지 여기 보여요."
-              : "Add records and you'll see which areas you've grown the most."}
-          </Text>
+          <Text style={styles.stateTitle}>{t("ds.values.emptyTitle")}</Text>
+          <Text style={styles.stateBody}>{t("ds.values.emptyBody")}</Text>
         </View>
       ) : (
         <>
@@ -1694,7 +1664,7 @@ export function ValuesLensView({
                 <DomainRow
                   key={d.key}
                   label={d.label}
-                  count={isKo ? `${d.count}개` : `${d.count} pieces`}
+                  count={t("ds.values.pieceCount", { count: d.count })}
                   value={max > 0 ? Math.round((d.count / max) * 100) : 0}
                 />
               ))

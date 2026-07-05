@@ -20,6 +20,7 @@
 
 import { Fragment } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { withAlpha } from "@/lib/theme/tokens";
@@ -38,7 +39,7 @@ export interface ShareCardProps {
   litCount?: number;
   /** Rendered side length. Capture scales this to 1080. Default 330 (prototype base). */
   size?: number;
-  /** Card copy locale (KO is the prototype canonical). */
+  /** @deprecated Card copy now localizes through i18n (react-i18next); this prop is ignored. Retained for caller compatibility. */
   isKo?: boolean;
 }
 
@@ -68,7 +69,8 @@ const CARD_STARS = [
   { x: 22, y: 26 },
 ] as const;
 
-export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = BASE, isKo = true }: ShareCardProps) {
+export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = BASE }: ShareCardProps) {
+  const { t } = useTranslation("deepspace");
   const k = size / BASE;
   const lit = Math.max(0, Math.min(CARD_STARS.length, litCount));
 
@@ -99,7 +101,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
       {variant === "A" ? (
         <View style={[styles.inner, { padding: 30 * k }]}>
           <Text style={[styles.eyebrow, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
-            {isKo ? "2ND-BRAIN · 이번 주" : "2ND-BRAIN · THIS WEEK"}
+            {t("deepspace:shareCardImg.eyebrowWeek")}
           </Text>
           <View style={styles.insightWrap}>
             <Text style={[styles.insight, inkColor(), { fontSize: 27 * k, lineHeight: 27 * k * 1.4 }]}>{insight}</Text>
@@ -107,7 +109,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
           <View style={[styles.footerRow, { gap: 10 * k }]}>
             <Image source={headFront} style={{ width: 34 * k, height: 34 * k }} resizeMode="contain" />
             <Text style={[styles.footerText, softInk(0.7), { fontSize: 13 * k }]}>
-              {isKo ? "세컨비가 함께 본 한 주" : "A week seen together with SecondB"}
+              {t("deepspace:shareCardImg.footerWeek")}
             </Text>
           </View>
         </View>
@@ -150,14 +152,12 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
           </View>
           <View style={{ marginTop: 6 * k, alignItems: "center" }}>
             <Text style={[styles.litLine, inkColor(), { fontSize: 19 * k }]}>
-              {isKo ? `${lit}개 별이 빛나는 중` : `${lit} stars shining`}
+              {t("deepspace:shareCardImg.starsLit", { count: lit })}
             </Text>
             <Text style={[styles.sigLine, softInk(0.65), { fontSize: 13 * k, marginTop: 2 * k }]}>
               {pieceCount == null
                 ? "2nd-Brain"
-                : isKo
-                  ? `2nd-Brain · ${pieceCount}개 별가루`
-                  : `2nd-Brain · ${pieceCount} stardust`}
+                : t("deepspace:shareCardImg.signature", { count: pieceCount })}
             </Text>
           </View>
         </View>

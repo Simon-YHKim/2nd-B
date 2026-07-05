@@ -427,5 +427,159 @@
   "reviewRatifiedMoved": "Confirmado. Pasó a accionable (L{{level}}).",
   "reviewOpenRecord": "Abrir el registro {{title}}",
   "connectionConfirmed": "Conexión confirmada.",
-  "suggestionDismissed": "Sugerencia descartada."
+  "suggestionDismissed": "Sugerencia descartada.",
+  "career": {
+    "screenTitle": "Carrera",
+    "loading": "Cargando…",
+    "timelineTitle": "Línea de tiempo de carrera",
+    "close": "Cerrar",
+    "addAchievement": "Añadir un logro",
+    "fieldAchievement": "Logro (obligatorio)",
+    "placeholderAchievement": "¿Qué lograste?",
+    "fieldRole": "Rol",
+    "placeholderRole": "Tu rol en ese momento",
+    "fieldImpact": "Impacto",
+    "placeholderImpact": "¿Qué cambió? Si tienes cifras, mejor",
+    "fieldYear": "Año",
+    "placeholderYear": "ej. 2023 (vacío = hoy)",
+    "yearError": "Escribe un año de cuatro cifras",
+    "saveFailed": "No se pudo guardar. Inténtalo de nuevo.",
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "opening": "Abriendo la línea de tiempo…",
+    "loadError": "No pudimos cargar la línea de tiempo ahora mismo. Tus piezas están a salvo; inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "empty": "Aún no hay piezas de carrera. Empieza con un logro pasado; la estrella de carrera se ilumina.",
+    "pieceFallback": "Pieza de carrera",
+    "untitled": "(sin título)"
+  },
+  "people": {
+    "title": "Relaciones",
+    "mapTitle": "Mapa de personas",
+    "loading": "Cargando…",
+    "close": "Cerrar",
+    "addPerson": "Añadir persona",
+    "nameLabel": "Nombre o cómo le llamas",
+    "namePlaceholder": "ej.: Mamá, Alex",
+    "relationLabel": "Relación",
+    "closeness": "Cercanía {{closeness}}/5",
+    "saveFailed": "No se pudo guardar. Inténtalo de nuevo.",
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "privacyNote": "Solo lo mínimo sobre otras personas, para tu propia memoria. Se guarda únicamente en tu cuenta.",
+    "openingMap": "Abriendo el mapa…",
+    "empty": "Aún no hay nadie aquí. Añade a las personas cercanas, una a una; la estrella de las relaciones se ilumina.",
+    "me": "yo",
+    "kind": {
+      "family": "Familia",
+      "partner": "Pareja",
+      "friend": "Amigo",
+      "colleague": "Colega",
+      "mentor": "Mentor",
+      "other": "Otro"
+    },
+    "contactSuffix": " · contacto {{cadence}}",
+    "lastSuffix": " · última vez {{date}}"
+  },
+  "rest": {
+    "title": "Descanso",
+    "loading": "Cargando…",
+    "close": "Cerrar",
+    "addRest": "Añadir descanso",
+    "whatLabel": "¿Qué es? (obligatorio)",
+    "whatPlaceholder": "p. ej. Zelda, viaje a Jeju, piano",
+    "categoryLabel": "Categoría",
+    "statusLabel": "Estado",
+    "saveFailed": "No se pudo guardar. Inténtalo de nuevo.",
+    "saving": "Guardando…",
+    "save": "Guardar",
+    "opening": "Abriendo…",
+    "empty": "Aún no hay nada aquí. Empieza con lo que te recarga estos días; la estrella del descanso se ilumina.",
+    "category": {
+      "game": "Juego",
+      "movie": "Película",
+      "music": "Música",
+      "travel": "Viaje",
+      "show": "Espectáculo",
+      "hobby": "Pasatiempo",
+      "other": "Otro"
+    },
+    "status": {
+      "want": "Quiero hacerlo",
+      "active": "En curso",
+      "done": "Hecho"
+    }
+  },
+  "careerDrilldown": {
+    "summaryFallback": "una experiencia profesional",
+    "intro": "Descompongamos tu logro: 3C para el porqué y 4P para el qué y el cómo. Cuando lo completes, te haré las preguntas más profundas a partir de ahí.",
+    "summaryLabel": "Resumen en una línea",
+    "summaryPlaceholder": "Qué hiciste y cuál fue el resultado - en una línea",
+    "expTypeA11y": "Tipo de experiencia",
+    "expTypePlaceholder": "Elige un tipo de experiencia",
+    "submit": "Profundiza con SecondB"
+  },
+  "shareCard": {
+    "barTitle": "Tarjeta para compartir",
+    "loading": "Cargando…",
+    "introExport": "Se exporta como una tarjeta cuadrada de 1080×1080. Las notas originales se quedan fuera; solo entra la línea que elijas.",
+    "variantInsight": "Tarjeta de perspectiva",
+    "variantConstellation": "Tarjeta de constelación",
+    "saving": "Guardando…",
+    "saveImage": "Guardar imagen",
+    "opening": "Abriendo…",
+    "share": "Compartir",
+    "introPrivacy": "Los registros originales y las cifras nunca van en la tarjeta. Solo la frase que elijas.",
+    "starsFallback": "No pudimos leer tus estrellas; dibujamos el valor por defecto."
+  },
+  "coachmarks": {
+    "step1": "Esta es tu constelación",
+    "step2": "Toca una estrella",
+    "step3": "Cuando algo te venga a la mente, guárdalo",
+    "step4": "Hay más herramientas en los ajustes",
+    "secondbName": "SecondB",
+    "dontShowAgain": "No volver a mostrar",
+    "start": "Empezar",
+    "next": "Siguiente"
+  },
+  "museum": {
+    "title": "Museo de la IA",
+    "rangeHint": "Desliza por el tiempo",
+    "seekYear": "Buscar año",
+    "prevEvent": "Anterior",
+    "nextEvent": "Siguiente",
+    "close": "Cerrar",
+    "youAreHere": "Estás aquí",
+    "background": "Contexto",
+    "impact": "Impacto",
+    "connected": "Conectados",
+    "references": "Referencias",
+    "backToConstellation": "Volver a la constelación"
+  },
+  "polaris": {
+    "cardDeck": "Mazo de tarjetas de la Estrella Polar"
+  },
+  "wikiGraph": {
+    "a11yGraph": "Grafo de nodos de la wiki",
+    "a11yZoomOut": "Alejar",
+    "a11yZoomIn": "Acercar",
+    "hintSelected": "{{title}} · toca de nuevo para abrir",
+    "hintDefault": "Toca para seleccionar un nodo, toca de nuevo para abrir",
+    "kindConcept": "Concepto",
+    "kindEntity": "Entidad",
+    "kindSource": "Fuente"
+  },
+  "quant": {
+    "progressLabel": "Progreso de respuestas {{percent}}%",
+    "pageCounter": "Página {{current}} / {{total}}",
+    "answered": "{{answered}} / {{total}} respondidas",
+    "readySuffix": " · listo para guardar",
+    "rangeNote": "Esta página: ítems {{from}} – {{to}}"
+  },
+  "shareCardImg": {
+    "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "footerWeek": "Una semana vista junto a SecondB",
+    "starsLit": "{{count}} estrellas brillando",
+    "signature": "2nd-Brain · {{count}} motas de estrella"
+  }
 }
