@@ -18,6 +18,7 @@ import surfacesPack from "../../../public/proto/data/screens/surfaces.json";
 import validatePack from "../../../public/proto/data/screens/validate.json";
 import starLensesPack from "../../../public/proto/data/screens/star-lenses.json";
 import flowsPack from "../../../public/proto/data/screens/flows.json";
+import gapsPack from "../../../public/proto/data/screens/gaps.json";
 import tokensPack from "../../../public/proto/data/app/tokens.json";
 
 export type CanonLayout = "immersive" | "museumLike" | "windowed";
@@ -209,6 +210,47 @@ export interface CanonInboxItem {
 export const canonFlows = {
   onboardingSlides: flowsPack.onboardingSlides as CanonOnboardingSlide[],
   inboxItems: flowsPack.inboxItems as CanonInboxItem[],
+};
+
+/* ── gaps.json additive content (support / privacy / manual screens) ──
+   Content the prototype carries but the app had never wired: help FAQs, in-app
+   notices, privacy-fact rows, and the rev2 manual's six core concepts. Screens
+   render the KO copy straight from here (museum pattern) — no locale churn.
+
+   DELIBERATELY EXCLUDED: gaps.json also holds `permissionRows` / `permissionDefaults`,
+   but they are NOT exported. The app's live permission matrix (src/app/permissions.tsx
+   ENTRIES) reflects the real OS permission set and is intentionally more honest than
+   this canon mock, so the app must keep sourcing permissions from that live matrix,
+   never from this pack. */
+
+export interface CanonFaq {
+  q: string;
+  a: string;
+}
+
+export interface CanonNotice {
+  t: string;
+  d: string;
+  tag: string;
+}
+
+export interface CanonPrivacyFact {
+  icon: string;
+  label: string;
+  v: string;
+}
+
+export interface CanonManualConcept {
+  icon: string;
+  title: string;
+  body: string;
+}
+
+export const canonGaps = {
+  faqs: gapsPack.faqs as CanonFaq[],
+  notices: gapsPack.notices as CanonNotice[],
+  privacyFacts: gapsPack.privacyFacts as CanonPrivacyFact[],
+  manualConcepts: gapsPack.manualConcepts as CanonManualConcept[],
 };
 
 /* Design-token mirror generated from m3-theme.css (design/proto_rev2/tools/gen-tokens.mjs).

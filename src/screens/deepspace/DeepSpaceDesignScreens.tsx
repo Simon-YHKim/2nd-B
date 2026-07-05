@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
-import { canonMore } from "@/lib/canon";
+import { canonGaps, canonMore } from "@/lib/canon";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
@@ -331,7 +331,111 @@ export function DeepSpaceIntegrationsScreen() {
   );
 }
 
-export function DeepSpaceSupportDesignScreen() { const { t } = useTranslation("deepspace"); return <Shell title={t("support.title")}><View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View><Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card><Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text></Shell>; }
+// ── gaps.json canon content (support / privacy / manual) ──────────────────
+// KO copy renders straight from canonGaps (pixel contract, verbatim). EN mirrors
+// are index-aligned against the SAME canon arrays (museum/iden bilingual pattern),
+// so no new locale keys are added (avoids 5-locale key-parity churn).
+const GAPS_FAQ_EN: { q: string; a: string }[] = [
+  { q: "What's the difference between brightness (starlight) and confidence?", a: "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently." },
+  { q: "Does a paid plan make it smarter?", a: "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ." },
+  { q: "Is call recording safe?", a: "Recordings are transcribed on your device and deleted right away. Only the text and signals are kept, encrypted." },
+];
+const GAPS_NOTICE_EN: { t: string; tag: string }[] = [
+  { t: "SecondB three modes launched", tag: "New" },
+  { t: "AI Museum: 8 collections now open", tag: "Content" },
+  { t: "On-device speech-to-text improved", tag: "Improved" },
+];
+const GAPS_FACT_EN: { label: string; v: string }[] = [
+  { label: "On-device first", v: "Raw content is analyzed on your device; only derived signals are kept, encrypted." },
+  { label: "What we collect", v: "Captured stardust, lens scores, usage patterns. Location and comms only with consent." },
+  { label: "Retention", v: "While your account is active; fully removed within 30 days of leaving." },
+  { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
+];
+const GAPS_CONCEPT_EN: { title: string; body: string }[] = [
+  { title: "Star = an area of life", body: "The seven Big Dipper stars are career, finances, growth, relationships, health, rest, and capturing. Tap a star to see yourself in that area." },
+  { title: "North Star = your whole self", body: "It gathers the seven stars into one sentence about who you are. The more evenly they brighten, the clearer it gets." },
+  { title: "Starlight is not confidence", body: "Starlight is how much you've captured; confidence is how well it's verified. If it doesn't know, it says so." },
+  { title: "Ratify (propose then ratify)", body: "SecondB's estimates are only proposals. Only what you ratify with \"that's right\" is reflected in you." },
+  { title: "Capturing", body: "Capture notes, links, photos, voice, and to-dos instead of letting them slip by. SecondB helps sort them." },
+  { title: "SecondB three modes", body: "SecondB (knows you), MetaB (objective), TwB (creative). Switch between them as the moment needs." },
+];
+
+// Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
+// back to a sensible sparkle when a name has no glyph yet.
+function gapGlyph(name: string): keyof typeof CLONE_ICON {
+  return (name in CLONE_ICON ? name : "sparkle") as keyof typeof CLONE_ICON;
+}
+
+// Token-only styles for the gaps-pack sections (FAQ / notices / facts / concepts).
+const gap = StyleSheet.create({
+  flex1: { flex: 1 },
+  row: { paddingVertical: spacing.sm },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  qRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  answer: { marginTop: spacing.xs },
+  noticeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
+  tag: { borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  tagText: { color: colors.cyanSoft, fontSize: 11 },
+  factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
+  factText: { flex: 1, gap: 2 },
+  conceptRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
+  conceptText: { flex: 1, gap: 3 },
+});
+
+export function DeepSpaceSupportDesignScreen() {
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  return (
+    <Shell title={t("support.title")}>
+      <View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
+      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
+
+      {/* FAQ (canonGaps.faqs) — tap a question to reveal its answer. */}
+      <Card>
+        <Text variant="caption" style={styles.section}>{ko ? "자주 묻는 질문" : "FAQ"}</Text>
+        {canonGaps.faqs.map((f, i) => {
+          const q = ko ? f.q : GAPS_FAQ_EN[i]?.q ?? f.q;
+          const a = ko ? f.a : GAPS_FAQ_EN[i]?.a ?? f.a;
+          const open = openFaq === i;
+          return (
+            <View key={f.q} style={[gap.row, i < canonGaps.faqs.length - 1 && gap.rowDivider]}>
+              <Pressable
+                onPress={() => setOpenFaq(open ? null : i)}
+                style={gap.qRow}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+                accessibilityLabel={q}
+              >
+                <Text variant="body" style={[styles.actionLabel, gap.flex1]}>{q}</Text>
+                <RNText style={styles.chev}>{open ? "⌄" : "›"}</RNText>
+              </Pressable>
+              {open ? <Text variant="body" style={[styles.planFeatDim, gap.answer]}>{a}</Text> : null}
+            </View>
+          );
+        })}
+      </Card>
+
+      {/* 공지사항 / Notices (canonGaps.notices) — tag + title + date. */}
+      <Card>
+        <Text variant="caption" style={styles.section}>{ko ? "공지사항" : "Notices"}</Text>
+        {canonGaps.notices.map((n, i) => {
+          const title = ko ? n.t : GAPS_NOTICE_EN[i]?.t ?? n.t;
+          const tag = ko ? n.tag : GAPS_NOTICE_EN[i]?.tag ?? n.tag;
+          return (
+            <View key={n.t} style={[gap.noticeRow, i < canonGaps.notices.length - 1 && gap.rowDivider]}>
+              <View style={gap.tag}><Text variant="caption" style={gap.tagText}>{tag}</Text></View>
+              <Text variant="body" style={[styles.actionLabel, gap.flex1]}>{title}</Text>
+              <Text variant="subtle" style={styles.actionValue}>{n.d}</Text>
+            </View>
+          );
+        })}
+      </Card>
+
+      <Text variant="subtle" style={styles.footer}>{t("support.footer")}</Text>
+    </Shell>
+  );
+}
 
 export function DeepSpaceAccountDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
@@ -446,6 +550,25 @@ export function DeepSpacePrivacyDesignScreen() {
     <Shell title={t("privacy.title")}>
       <SecondbStatusHeader text={t("privacy.status")} tip={t("privacy.tip")} />
       <Text variant="body" style={styles.lead}>{t("privacy.lead")}</Text>
+
+      {/* 한눈에 / At a glance (canonGaps.privacyFacts) — icon + label + value. */}
+      <Card>
+        <Text variant="caption" style={styles.section}>{ko ? "한눈에" : "At a glance"}</Text>
+        {canonGaps.privacyFacts.map((f, i) => {
+          const label = ko ? f.label : GAPS_FACT_EN[i]?.label ?? f.label;
+          const v = ko ? f.v : GAPS_FACT_EN[i]?.v ?? f.v;
+          return (
+            <View key={f.label} style={[gap.factRow, i < canonGaps.privacyFacts.length - 1 && gap.rowDivider]}>
+              <CloneIcon name={gapGlyph(f.icon)} color={colors.cyanSoft} size={20} />
+              <View style={gap.factText}>
+                <Text variant="body" style={styles.actionLabel}>{label}</Text>
+                <Text variant="body" style={styles.planFeatDim}>{v}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </Card>
+
       <Card>
         <Toggle label={t("privacy.toggleAnalysis")} value={t("privacy.on")} />
         <Toggle label={t("privacy.toggleStats")} value={t("privacy.off")} on={false} />
@@ -822,7 +945,8 @@ export function DeepSpaceThemeScreen() {
 }
 
 export function DeepSpaceManualScreen() {
-  const { t } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   return (
     <Shell title={t("manual.title")}>
       <SecondbStatusHeader text={t("manual.status")} tip={t("manual.tip")} />
@@ -839,6 +963,24 @@ export function DeepSpaceManualScreen() {
         <Action label={t("manual.q5")} onPress={() => router.push("/support")} />
         <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
       </Card>
+
+      {/* 핵심 개념 / Core concepts (canonGaps.manualConcepts) — icon + title + body. */}
+      <Text variant="heading" style={styles.section}>{ko ? "핵심 개념" : "Core concepts"}</Text>
+      {canonGaps.manualConcepts.map((c, i) => {
+        const title = ko ? c.title : GAPS_CONCEPT_EN[i]?.title ?? c.title;
+        const body = ko ? c.body : GAPS_CONCEPT_EN[i]?.body ?? c.body;
+        return (
+          <Card key={c.title}>
+            <View style={gap.conceptRow}>
+              <CloneIcon name={gapGlyph(c.icon)} color={colors.cyanSoft} size={20} />
+              <View style={gap.conceptText}>
+                <Text variant="body" style={styles.actionLabel}>{title}</Text>
+                <Text variant="body" style={styles.planFeatDim}>{body}</Text>
+              </View>
+            </View>
+          </Card>
+        );
+      })}
     </Shell>
   );
 }
@@ -2269,6 +2411,14 @@ const CLONE_ICON: Record<string, string> = {
   download: '<path d="M12 4v10M8 11l4 4 4-4"/><path d="M5 19h14"/>',
   cloud_off: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 8.5-.5M18 12a3.4 3.4 0 0 1-1 6H9"/><path d="M4 4l16 16"/>',
   chevron_right: '<path d="M9 5l7 7-7 7"/>',
+  // gaps-pack canon glyphs (privacyFacts / manualConcepts icon names).
+  badge: '<rect x="3.5" y="6" width="17" height="12" rx="2"/><circle cx="9" cy="11" r="1.9"/><path d="M6 15.4a3 3 0 0 1 6 0"/><path d="M14.5 10.5h3.5M14.5 13.5h2.5"/>',
+  inbox: '<path d="M5 5h14l1.5 8v6H3.5v-6z"/><path d="M3.5 13H8l1.5 2.5h5L16 13h4.5"/>',
+  delete: '<path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/>',
+  auto_awesome: '<path d="M11 3l1.6 4.2L16.8 9l-4.2 1.8L11 15l-1.6-4.2L5.2 9l4.2-1.8L11 3Z"/><path d="M18 14l.7 1.8 1.8.7-1.8.7L18 19l-.7-1.8-1.8-.7 1.8-.7z"/>',
+  workspaces: '<circle cx="12" cy="7" r="3"/><circle cx="6.5" cy="16" r="3"/><circle cx="17.5" cy="16" r="3"/>',
+  bubble_chart: '<circle cx="9" cy="10" r="4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="15.5" cy="15.5" r="3"/>',
+  task_alt: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12l3 3 5-6"/>',
 };
 
 function CloneIcon({ name, color, size = 20, fill = false }: { name: keyof typeof CLONE_ICON; color: string; size?: number; fill?: boolean }) {
