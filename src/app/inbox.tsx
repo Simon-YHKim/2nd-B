@@ -162,7 +162,7 @@ const InboxRow = React.memo(function InboxRow({
       onPress={() => onPress(r)}
       style={styles.row}
       accessibilityRole="button"
-      accessibilityLabel={locale === "ko" ? `${r.title} 열기` : `Open ${r.title}`}
+      accessibilityLabel={t("openItem", { title: r.title })}
       accessibilityHint={
         expanded
           ? locale === "ko"
@@ -214,7 +214,7 @@ const InboxRow = React.memo(function InboxRow({
             disabled={phase1Pending}
             hitSlop={14}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? `${r.title} 요약과 질문 만들기` : `Create Source brief for ${r.title}`}
+            accessibilityLabel={t("createBriefFor", { title: r.title })}
             accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}
           >
             <Text variant="caption" color="brand">
@@ -236,10 +236,10 @@ const InboxRow = React.memo(function InboxRow({
             style={styles.generateBtn}
             hitSlop={14}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? `${r.title} 요약과 질문 보기` : `View Source brief for ${r.title}`}
+            accessibilityLabel={t("viewBriefFor", { title: r.title })}
           >
             <Text variant="caption" color="success">
-              {locale === "ko" ? "요약과 질문 보기" : "View Source brief"}
+              {t("viewBrief")}
             </Text>
           </TouchableOpacity>
         )}
@@ -253,7 +253,7 @@ const InboxRow = React.memo(function InboxRow({
             disabled={generatePending}
             hitSlop={14}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? `${r.title} 위키 페이지 생성` : `Generate wiki page for ${r.title}`}
+            accessibilityLabel={t("generateWikiFor", { title: r.title })}
             accessibilityState={{ disabled: generatePending, busy: generatePending }}
           >
             <Text variant="caption" color="brand">
@@ -273,10 +273,10 @@ const InboxRow = React.memo(function InboxRow({
               hitSlop={14}
               onPress={(e) => e.stopPropagation()}
               accessibilityRole="link"
-              accessibilityLabel={locale === "ko" ? `${r.title} 위키에서 보기` : `View ${r.title} in wiki`}
+              accessibilityLabel={t("viewInWikiFor", { title: r.title })}
             >
               <Text variant="caption" color="success">
-                {locale === "ko" ? "위키에서 보기" : "View in wiki"}
+                {t("viewInWiki")}
               </Text>
             </TouchableOpacity>
           </Link>
@@ -290,10 +290,10 @@ const InboxRow = React.memo(function InboxRow({
             style={[styles.generateBtn, styles.deleteBtn]}
             hitSlop={14}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? `${r.title} 삭제` : `Delete ${r.title}`}
+            accessibilityLabel={t("deleteItem", { title: r.title })}
           >
             <Text variant="caption" color="textSubtle">
-              {locale === "ko" ? "삭제" : "Delete"}
+              {t("delete")}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -303,7 +303,7 @@ const InboxRow = React.memo(function InboxRow({
           {metaEntries.length > 0 ? (
             <View style={styles.metaCard}>
               <Text variant="caption" color="textMuted">
-                {locale === "ko" ? "저장 정보" : "Saved details"}
+                {t("savedDetails")}
               </Text>
               {metaEntries.map((entry) => (
                   <Text key={entry.label} variant="subtle" color="textSubtle" numberOfLines={2}>
@@ -451,10 +451,10 @@ function InboxLegacy() {
       try {
         const result = await runPhase1({ userId, sourceId: row.id, locale, minor: isMinor === true });
         showFeedback(
-          locale === "ko" ? `요약 + 4개 질문 생성됨` : `Summary + 4 questions generated`,
+          t("briefGenerated"),
           result.summary +
             "\n\n" +
-            (locale === "ko" ? "성찰 질문:" : "Reflection questions:") +
+            (t("reflectionQuestions")) +
             "\n" +
             result.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
         );
@@ -463,7 +463,7 @@ function InboxLegacy() {
         // Raw error stays in logs only; user sees product-tone copy + retry.
         console.warn("[inbox] runPhase1 (summary + questions) failed", (e as Error).message);
         showFeedback(
-          locale === "ko" ? "요약과 질문을 만들지 못했어요" : "Couldn't create the summary and questions",
+          t("briefError"),
           locale === "ko"
             ? "잠시 후 요약 + 4질문을 다시 시도해 주세요. 계속 안 되면 다른 소스를 먼저 정리해 볼 수 있어요."
             : "Try generating the summary and 4 questions again in a moment. If it keeps failing, you can refine another source first.",
@@ -480,7 +480,7 @@ function InboxLegacy() {
       const p1 = readPhase1(row.frontmatter);
       if (!p1) return;
       showFeedback(
-        locale === "ko" ? "요약과 질문" : "Source brief",
+        t("sourceBrief"),
         p1.summary + "\n\n" + p1.questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
       );
     },
@@ -492,34 +492,28 @@ function InboxLegacy() {
       if (!userId) return;
       if (row.ingested) {
         showFeedback(
-          locale === "ko" ? "삭제 불가" : "Cannot delete",
-          locale === "ko"
-            ? "위키 페이지로 승격된 소스는 먼저 위키에서 페이지를 삭제해야 해요."
-            : "Promoted sources need the wiki page deleted first.",
+          t("cannotDelete"),
+          t("cannotDeleteBody"),
         );
         return;
       }
       setFeedbackModal({
-        title: locale === "ko" ? "이 캡처를 삭제할까요?" : "Delete this capture?",
-        body: locale === "ko"
-          ? "첨부된 본문 파일이 계정에 남을 수 있어요. 받은편지함 항목은 삭제됩니다."
-          : "The attached body file can remain on your account. The inbox item will be removed.",
+        title: t("deleteConfirmTitle"),
+        body: t("deleteConfirmBody"),
         confirm: {
-          label: locale === "ko" ? "삭제" : "Delete",
+          label: t("delete"),
           variant: "danger",
           onPress: async () => {
             try {
               await deleteSource(userId, row.id);
               await load(userId);
-              showToast(locale === "ko" ? "캡처를 삭제했어요." : "Capture deleted.", "success");
+              showToast(t("captureDeleted"), "success");
             } catch (e) {
               // Keep the raw error in logs only; show product-tone copy.
               console.warn("[inbox] deleteSource failed", (e as Error).message);
               showFeedback(
-                locale === "ko" ? "캡처를 삭제하지 못했어요" : "Couldn't delete the capture",
-                locale === "ko"
-                  ? "잠시 후 다시 시도해 주세요. 계속 안 되면 새로고침한 뒤 다시 삭제해 보세요."
-                  : "Please try again in a moment. If it keeps failing, refresh and delete again.",
+                t("deleteError"),
+                t("deleteErrorBody"),
               );
             }
           },
@@ -546,10 +540,8 @@ function InboxLegacy() {
         // Keep the raw error in logs only; show product-tone copy + retry.
         console.warn("[inbox] generateSourcePage failed", (e as Error).message);
         showFeedback(
-          locale === "ko" ? "위키 페이지를 만들지 못했어요" : "Couldn't create the wiki page",
-          locale === "ko"
-            ? "잠시 후 다시 시도해 주세요. 계속 안 되면 먼저 요약 + 4질문을 만든 뒤 다시 시도해 보세요."
-            : "Please try again in a moment. If it keeps failing, create the summary and 4 questions first, then retry.",
+          t("wikiError"),
+          t("wikiErrorBody"),
         );
       } finally {
         setGeneratingId(null);
@@ -594,7 +586,7 @@ function InboxLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.loadingCenter}>
-          <PremiumLoadingState message={locale === "ko" ? "받은편지함을 불러오는 중이에요…" : "Loading inbox…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -609,9 +601,9 @@ function InboxLegacy() {
   const listHeader = (
     <View style={styles.listHeader}>
       <SceneHero
-        eyebrow={locale === "ko" ? "받은편지함" : "Inbox"}
-        title={locale === "ko" ? "잡아둔 별가루를 다듬어요" : "Refine captured pieces"}
-        subtitle={locale === "ko" ? "요약 · 질문 · 위키 승격" : "Summaries · questions · wiki promotion"}
+        eyebrow={t("eyebrow")}
+        title={t("heroTitle")}
+        subtitle={t("heroSubtitle")}
         island={VILLAGE_UI.records.island}
         worker={VILLAGE_UI.records.worker}
         accent={VILLAGE_UI.records.accent}
@@ -628,7 +620,7 @@ function InboxLegacy() {
             label={t("captureMore")}
             variant="primary"
             accessibilityHint={
-              locale === "ko" ? "캡처 화면을 열어 소스를 더 저장합니다." : "Opens capture to add another source."
+              t("addSourceHint")
             }
           />
         </Link>
@@ -653,10 +645,10 @@ function InboxLegacy() {
         onPress={() => void handleRefresh()}
         style={styles.errorRetry}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? "받은편지함 다시 시도" : "Retry loading inbox"}
+        accessibilityLabel={t("retryLabel")}
       >
         <Text variant="caption" color="brand">
-          {locale === "ko" ? "다시 시도" : "Try again"}
+          {t("tryAgain")}
         </Text>
       </TouchableOpacity>
     </View>
@@ -675,13 +667,13 @@ function InboxLegacy() {
           hitSlop={14}
           style={styles.emptyLink}
           accessibilityRole="link"
-          accessibilityLabel={locale === "ko" ? "첫 캡처 시작" : "Capture your first source"}
+          accessibilityLabel={t("firstCaptureLabel")}
           accessibilityHint={
-            locale === "ko" ? "캡처 화면을 열어 첫 소스를 저장합니다." : "Opens capture to save your first source."
+            t("firstCaptureHint")
           }
         >
           <Text variant="caption" color="brand">
-            {locale === "ko" ? "첫 캡처 시작" : "Capture your first"}
+            {t("firstCapture")}
           </Text>
         </TouchableOpacity>
       </Link>

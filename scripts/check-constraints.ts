@@ -849,13 +849,13 @@ results.push(
       inboxRoles >= 8 &&
       inbox.includes("Expands the content preview") &&
       inbox.includes("Collapses the content preview") &&
-      inbox.includes("Create Source brief for") &&
-      inbox.includes("View Source brief for") &&
-      inbox.includes("Generate wiki page for") &&
-      inbox.includes("Retry loading inbox") &&
-      inbox.includes("Capture your first source") &&
-      inbox.includes("Opens capture to add another source.") &&
-      inbox.includes("Opens capture to save your first source.") &&
+      inbox.includes('t("createBriefFor"') &&
+      inbox.includes('t("viewBriefFor"') &&
+      inbox.includes('t("generateWikiFor"') &&
+      inbox.includes('t("retryLabel")') &&
+      inbox.includes('t("firstCaptureLabel")') &&
+      inbox.includes('t("addSourceHint")') &&
+      inbox.includes('t("firstCaptureHint")') &&
       inbox.includes("accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}") &&
       inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}") &&
       capture.includes('accessibilityLabel={t("proposal.dismissLabel")}') &&
@@ -1219,8 +1219,8 @@ results.push(
     const ok =
       inbox.includes("visibleMetadataEntries") &&
       inbox.includes("META_LABELS") &&
-      inbox.includes("Saved details") &&
-      inbox.includes("저장 정보") &&
+      inbox.includes('t("savedDetails")') &&
+      read("locales/ko/inbox.json").includes("저장 정보") &&
       inbox.includes("reference name") &&
       wiki.includes("Search pieces by title or saved name") &&
       wiki.includes("저장 이름") &&
@@ -1562,8 +1562,8 @@ results.push(
       "메타데이터만 저장",
     ];
     const ok =
-      inbox.includes("attached body file can remain on your account") &&
-      inbox.includes("첨부된 본문 파일이 계정에 남을 수 있어요") &&
+      inbox.includes('t("deleteConfirmBody")') &&
+      read("locales/ko/inbox.json").includes("첨부된 본문 파일이") &&
       capture.includes('t("file.attachedNoPreview")') &&
       enCapture.file?.attachedNoPreview === "File attached. Text preview is not available." &&
       koCapture.file?.attachedNoPreview === "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요." &&
