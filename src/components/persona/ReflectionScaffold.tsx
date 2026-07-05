@@ -13,8 +13,10 @@ import { router } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { reflectionScaffold } from "@/lib/persona/reflection-scaffold";
+import { useTranslation } from "react-i18next";
 
 export function ReflectionScaffold({ locale }: { locale: "en" | "ko" }) {
+  const { t } = useTranslation("common");
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
   const copy = reflectionScaffold(locale);
@@ -27,12 +29,12 @@ export function ReflectionScaffold({ locale }: { locale: "en" | "ko" }) {
         <Pressable
           onPress={() => setDismissed(true)}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "닫기" : "Dismiss"}
+          accessibilityLabel={t("reflectDismiss")}
           hitSlop={10}
           style={styles.dismiss}
         >
           <Text variant="caption" color="textSubtle">
-            {locale === "ko" ? "닫기" : "Dismiss"}
+            {t("reflectDismiss")}
           </Text>
         </Pressable>
       </View>
