@@ -611,10 +611,8 @@ export function LensView({
 // retake / add-data action pair. Empty + error reuse the existing ds.lens copy.
 // All colors route through m3.* tokens — no cosmic tokens, no hex literals.
 
-// The extraversion row's static delta, tied 1:1 to the ds.lens.insight copy
-// ("외향성이 6p 올랐어요" / "Extraversion rose 6 points"). Kept as a design
-// constant so the bar highlight and the insight card never drift apart.
-const BIGFIVE_EXTRAVERSION_DELTA = 6;
+// No static extraversion delta: the Big Five lens shows measured scores only.
+// A real prev-vs-latest delta can be plumbed later (needs the prior BFI record).
 
 function BigFiveTraitRow({
   label,
@@ -722,18 +720,9 @@ export function BigFiveLensM3({
       <View style={styles.bfTraits}>
         <BigFiveTraitRow label={t("ds.lens.traitOpenness")} value={shown.openness} />
         <BigFiveTraitRow label={t("ds.lens.traitConscientiousness")} value={shown.conscientiousness} />
-        <BigFiveTraitRow
-          label={t("ds.lens.traitExtraversion")}
-          value={shown.extraversion}
-          delta={BIGFIVE_EXTRAVERSION_DELTA}
-        />
+        <BigFiveTraitRow label={t("ds.lens.traitExtraversion")} value={shown.extraversion} />
         <BigFiveTraitRow label={t("ds.lens.traitAgreeableness")} value={shown.agreeableness} />
         <BigFiveTraitRow label={t("ds.lens.traitNeuroticism")} value={shown.neuroticism} />
-      </View>
-
-      <View style={styles.bfInsightCard}>
-        <CaptureIcon name="trending_up" color={m3.color.onSecondaryContainer} size={18} />
-        <Text style={[m3TextStyle("bodyMedium"), styles.bfInsightText]}>{t("ds.lens.insight")}</Text>
       </View>
 
       <MdCard
@@ -2045,16 +2034,6 @@ const styles = StyleSheet.create({
   bfTraitHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
   bfTraitLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   bfTraitValue: { fontFamily: m3.font.brand, fontWeight: "600" },
-  bfInsightCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginTop: 16,
-    padding: 14,
-    borderRadius: m3.shape.medium,
-    backgroundColor: m3.color.secondaryContainer,
-  },
-  bfInsightText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
   bfExtraCard: { marginTop: 12, padding: 14 },
   bfExtraRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   bfExtraLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
