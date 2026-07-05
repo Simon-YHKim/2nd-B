@@ -416,5 +416,14 @@
     "connectorsLabel": "App connectors",
     "pickFiles": "Pick files",
     "picking": "Opening…"
-  }
+  },
+  "reviewNoChange": "No change to propose right now.",
+  "reviewLoadError": "Couldn't load a proposal. Try again.",
+  "reviewLeftAsIs": "Left as is for now.",
+  "reviewGetProposal": "Get a proposal",
+  "reviewLoading": "Loading…",
+  "reviewRecordsBehind": "The records behind this",
+  "reviewTapCheck": "Tap to check the original record yourself.",
+  "reviewRatifiedMoved": "Ratified. Moved to actionable (L{{level}}).",
+  "reviewOpenRecord": "Open record {{title}}"
 }

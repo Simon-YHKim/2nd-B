@@ -1076,10 +1076,10 @@ export function DeepSpaceReviewScreen() {
         setProposal(p);
         setSheetOpen(true);
       } else {
-        setResult(locale === "ko" ? "지금은 제안할 변화가 없어요." : "No change to propose right now.");
+        setResult(t("reviewNoChange"));
       }
     } catch {
-      setResult(locale === "ko" ? "제안을 불러오지 못했어요. 다시 시도해 주세요." : "Couldn't load a proposal. Try again.");
+      setResult(t("reviewLoadError"));
     } finally {
       setLoading(false);
     }
@@ -1100,12 +1100,8 @@ export function DeepSpaceReviewScreen() {
     }
     setResult(
       decision === "ratify"
-        ? locale === "ko"
-          ? `승인됐어요. 실행가능(L${r.resultingLevel})으로 올라갔어요.`
-          : `Ratified. Moved to actionable (L${r.resultingLevel}).`
-        : locale === "ko"
-          ? "이번엔 그대로 둘게요."
-          : "Left as is for now.",
+        ? t("reviewRatifiedMoved", { level: r.resultingLevel })
+        : t("reviewLeftAsIs"),
     );
   }
 
@@ -1122,20 +1118,20 @@ export function DeepSpaceReviewScreen() {
         onPress={() => void generate()}
         disabled={loading}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? "제안 받기" : "Get a proposal"}
+        accessibilityLabel={t("reviewGetProposal")}
       >
         <Text variant="caption" style={styles.primaryText}>
-          {loading ? (locale === "ko" ? "불러오는 중…" : "Loading…") : locale === "ko" ? "제안 받기" : "Get a proposal"}
+          {loading ? (t("reviewLoading")) : t("reviewGetProposal")}
         </Text>
       </Pressable>
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
       {receipts.length > 0 ? (
         <Card>
           <Text variant="heading" style={styles.section}>
-            {locale === "ko" ? "이 제안의 근거가 된 기록" : "The records behind this"}
+            {t("reviewRecordsBehind")}
           </Text>
           <Text variant="body" style={styles.planFeatDim}>
-            {locale === "ko" ? "탭하면 원본 기록을 직접 확인할 수 있어요." : "Tap to check the original record yourself."}
+            {t("reviewTapCheck")}
           </Text>
           <View style={styles.topicCol}>
             {receipts.map((ev) => (
@@ -1144,7 +1140,7 @@ export function DeepSpaceReviewScreen() {
                 style={styles.topicRow}
                 onPress={() => router.push({ pathname: "/record/[id]", params: { id: ev.id } })}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? `${ev.title} 기록 열기` : `Open record ${ev.title}`}
+                accessibilityLabel={t("reviewOpenRecord", { title: ev.title })}
               >
                 <View style={styles.topicDot} />
                 <Text variant="body" style={styles.topicText} numberOfLines={1}>{ev.title}</Text>
