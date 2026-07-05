@@ -31,7 +31,8 @@ describe("북극성 persona deck (P3a)", () => {
   test("deep-space 북극성 screen mounts the deck with radar + validation entry", () => {
     expect(screen).toMatch(/PolarisDeck/);
     expect(screen).toMatch(/TraitRadar/);
-    expect(screen).toMatch(/북극성 · 종합/);
+    // QA #1: the "북극성 · 종합" hero label moved to the core-brain namespace.
+    expect(screen).toContain('t("polarisAggregate")');
     for (const route of ["/big-five", "/ipip-neo", "/attachment", "/motivation", "/strengths", "/mbti", "/audit"]) {
       expect(screen).toContain(`route: "${route}"`);
     }
@@ -54,8 +55,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const deepSpaceBlock = screen.slice(start, end);
+    // QA #1: naming moved to the core-brain namespace. The deep-space block
+    // must use the Polaris t() keys and never the soul-core-named ones (whose
+    // ko renders "소울 코어").
     expect(deepSpaceBlock).not.toContain("소울 코어");
     expect(deepSpaceBlock).not.toContain("Soul Core");
-    expect(deepSpaceBlock).toContain("북극성");
+    expect(deepSpaceBlock).not.toMatch(/t\("(myCenter|soulCoreEyebrow)"\)/);
+    expect(deepSpaceBlock).toMatch(/t\("polaris/);
   });
 });

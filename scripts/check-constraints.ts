@@ -716,12 +716,12 @@ results.push(
       wiki.includes("PremiumToast") &&
       wiki.includes("PremiumModal") &&
       wiki.includes("toastWrap") &&
-      wiki.includes("Delete wiki page confirmation") &&
-      wiki.includes("Wiki page deleted.") &&
-      wiki.includes("Copy failed. Select the text below manually.") &&
-      wiki.includes("Auto-copy is not supported here. Select the text below manually.") &&
-      wiki.includes("Couldn't build the source brief. Check the source and try again.") &&
-      wiki.includes("Couldn't build the export. Refresh and try again.") &&
+      wiki.includes('t("deleteConfirmLabel")') &&
+      wiki.includes('t("pageDeleted")') &&
+      wiki.includes('t("copyFailed")') &&
+      wiki.includes('t("autoCopyUnsupported")') &&
+      wiki.includes('t("briefError")') &&
+      wiki.includes('t("exportError")') &&
       wikiAlertCount === 0 &&
       trinity.includes("PremiumModal") &&
       trinity.includes('t("reloadNotice")') &&
@@ -849,13 +849,13 @@ results.push(
       inboxRoles >= 8 &&
       inbox.includes("Expands the content preview") &&
       inbox.includes("Collapses the content preview") &&
-      inbox.includes("Create Source brief for") &&
-      inbox.includes("View Source brief for") &&
-      inbox.includes("Generate wiki page for") &&
-      inbox.includes("Retry loading inbox") &&
-      inbox.includes("Capture your first source") &&
-      inbox.includes("Opens capture to add another source.") &&
-      inbox.includes("Opens capture to save your first source.") &&
+      inbox.includes('t("createBriefFor"') &&
+      inbox.includes('t("viewBriefFor"') &&
+      inbox.includes('t("generateWikiFor"') &&
+      inbox.includes('t("retryLabel")') &&
+      inbox.includes('t("firstCaptureLabel")') &&
+      inbox.includes('t("addSourceHint")') &&
+      inbox.includes('t("firstCaptureHint")') &&
       inbox.includes("accessibilityState={{ disabled: phase1Pending, busy: phase1Pending }}") &&
       inbox.includes("accessibilityState={{ disabled: generatePending, busy: generatePending }}") &&
       capture.includes('accessibilityLabel={t("proposal.dismissLabel")}') &&
@@ -899,17 +899,17 @@ results.push(
       manual.includes('t("getStartedHint")') &&
       manual.includes('t("permissionsHint")') &&
       manual.includes("Opens the curated research library.") &&
-      wiki.includes("Opens capture from the knowledge store.") &&
-      wiki.includes("Opens capture to save today's piece.") &&
-      wiki.includes("Opens capture to save a new piece.") &&
+      wiki.includes('t("opensCaptureStore")') &&
+      wiki.includes('t("leavePieceHint")') &&
+      wiki.includes('t("capturePieceHint")') &&
       wiki.includes('t("exportActionTitle")') &&
       wiki.includes('t("exportActionBody")') &&
       wiki.includes('t("exportActionExample")') &&
       wiki.includes('accessibilityHint={t("exportActionHint")}') &&
       wiki.includes('variant="primary"') &&
       wiki.includes('t("exportHelper")') &&
-      wiki.includes("Shows graph detail metrics.") &&
-      wiki.includes("Hides graph detail metrics.") &&
+      wiki.includes('t("showsMetrics")') &&
+      wiki.includes('t("hidesMetrics")') &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
       records.includes('t("filterBy"') &&
       records.includes('t("retryHint")') &&
@@ -1219,12 +1219,12 @@ results.push(
     const ok =
       inbox.includes("visibleMetadataEntries") &&
       inbox.includes("META_LABELS") &&
-      inbox.includes("Saved details") &&
-      inbox.includes("저장 정보") &&
+      inbox.includes('t("savedDetails")') &&
+      read("locales/ko/inbox.json").includes("저장 정보") &&
       inbox.includes("reference name") &&
-      wiki.includes("Search pieces by title or saved name") &&
-      wiki.includes("저장 이름") &&
-      wiki.includes("Saved as") &&
+      wiki.includes('t("searchPieces")') &&
+      read("locales/ko/wiki.json").includes("저장 이름") &&
+      wiki.includes('t("savedAs"') &&
       wiki.includes("displayPageName(h)") &&
       wiki.includes("displayPageName(o)") &&
       wiki.includes("displayPageName(b)") &&
@@ -1248,10 +1248,10 @@ results.push(
       "Sources (inbox) stay",
     ];
     const ok =
-      settings.includes("페이지 간 연결") &&
-      settings.includes("받은편지함 자료") &&
-      settings.includes("page-to-page links") &&
-      settings.includes("Inbox sources stay") &&
+      read("locales/ko/settings.json").includes("페이지 간 연결") &&
+      read("locales/ko/settings.json").includes("받은편지함 자료") &&
+      read("locales/en/settings.json").includes("page-to-page links") &&
+      read("locales/en/settings.json").includes("Inbox sources stay") &&
       forbiddenUserLanguage.every((term) => !settings.includes(term));
     return {
       id: "SettingsLanguage",
@@ -1562,8 +1562,8 @@ results.push(
       "메타데이터만 저장",
     ];
     const ok =
-      inbox.includes("attached body file can remain on your account") &&
-      inbox.includes("첨부된 본문 파일이 계정에 남을 수 있어요") &&
+      inbox.includes('t("deleteConfirmBody")') &&
+      read("locales/ko/inbox.json").includes("첨부된 본문 파일이") &&
       capture.includes('t("file.attachedNoPreview")') &&
       enCapture.file?.attachedNoPreview === "File attached. Text preview is not available." &&
       koCapture.file?.attachedNoPreview === "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요." &&
@@ -2438,8 +2438,8 @@ results.push(
       manual.includes("ask SecondB for a reflection") &&
       manual.includes("sources SecondB cites") &&
       manual.includes("세컨비의 되묻기") &&
-      settings.includes("Tune your settings") &&
-      settings.includes("설정을 정리해요") &&
+      read("locales/en/settings.json").includes("Tune your settings") &&
+      read("locales/ko/settings.json").includes("설정을 정리해요") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
       forbiddenSettings.every((term) => !settings.includes(term));
