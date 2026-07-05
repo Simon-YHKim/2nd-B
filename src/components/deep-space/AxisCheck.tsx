@@ -2,18 +2,18 @@
  * Axis-scoped layer-B validation lens (rev2 P3b, clone-audit 16/19/20): the
  * shared read-only body for /values (가치관), /motivation (동기·SDT), and
  * /strengths (강점). Cloned 1:1 from the reference ValuesScreen (sb-validate.jsx)
- * + MotivationScreen / StrengthsScreen (sb-surfaces.jsx):
+ * + MotivationScreen / StrengthsScreen (sb-surfaces.jsx): headline + subtitle +
+ * the sibling-check action pair.
  *
- *   - headline + L2 tertiary chip (+ 확신 confidence for 동기/강점), subtitle;
- *   - a per-axis hero: 가치관 = CORE VALUES top-3 card · 동기 = 내적↔외적 balance
- *     bar · 강점 = 3 signature cards;
- *   - the ranked spectrum (ProgressLinear violet/tertiary bars — values & SDT
- *     needs show the framework English label, strengths show the score + a
- *     leading icon);
- *   - a single 세컨비 insight card (head + one line — the plain half, matching
- *     the capture: no confidence pill, evidence link, or ratify buttons here;
- *     the propose→ratify detail lives behind /interview + /ratifications);
- *   - the sibling-check action pair.
+ * HONESTY (canon:186-190 + iden.tsx precedent): the reference prototype fills
+ * these axes with example scores (Self-Direction 78, 확신 61%) plus an insight
+ * claiming the user's records back the read. But no real per-axis measurement
+ * exists yet (deriveValues only ranks; no values/SDT/strengths instrument is
+ * wired), so rendering the canon numbers as the user's own read would fabricate
+ * data on a self-understanding surface. Until a real loader lands
+ * (deriveValuesScored + measured Big Five) we show a neutral "not measured yet"
+ * state with the interview CTA instead of the example scores, keeping the
+ * design shell clone-faithful while telling the truth.
  *
  * Chrome: DeepSpaceScreen active="lens", windowed (radius-24 card over the
  * shared sky) with the M3 top app bar carrying the axis name (BAR_TITLE). All
@@ -24,9 +24,8 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
-import { canonSurfaces, canonValidateValues } from "@/lib/canon";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
@@ -60,30 +59,6 @@ const BAR_TITLE: Record<AxisCheckId, { ko: string; en: string }> = {
   strengths: { ko: "강점", en: "Strengths" },
 };
 
-// Ranked spectrum values, sourced from the reference canon (VALUES / sdt /
-// strengths arrays). `en` = the mono framework label shown on the right (values
-// & SDT needs); strengths show the score instead and a leading icon. Display
-// names + notes come from i18n (ds.axisCheck.<axis>.rows.<key>).
-// KO copy sourced from the design canon (src/lib/canon → public/proto/data):
-// scores (v), framework labels (en), and icons come from canonValidateValues /
-// canonSurfaces.sdt / canonSurfaces.strengths; the i18n row keys stay in code,
-// matched by array order (canon order == render order, verified 1:1).
-type RowDef = { key: string; v: number; en?: string; icon?: keyof typeof ICON };
-const ROW_KEYS: Record<AxisCheckId, string[]> = {
-  values: ["selfDirection", "stimulation", "authenticity", "benevolence", "achievement", "security"],
-  motivation: ["autonomy", "competence", "relatedness"],
-  strengths: ["curiosity", "grit", "honesty", "empathy", "aesthetics"],
-};
-const ROWS: Record<AxisCheckId, RowDef[]> = {
-  values: canonValidateValues.map((r, i) => ({ key: ROW_KEYS.values[i], en: r.en, v: r.v })),
-  motivation: canonSurfaces.sdt.map((r, i) => ({ key: ROW_KEYS.motivation[i], en: r.en, v: r.v })),
-  strengths: canonSurfaces.strengths.map((r, i) => ({
-    key: ROW_KEYS.strengths[i],
-    icon: r.icon as keyof typeof ICON,
-    v: r.v,
-  })),
-};
-
 // Sibling-check action pair (reference bottom buttons): a tonal primary + an
 // outlined secondary. Routes are the real app screens.
 const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof typeof ICON; secondaryRoute: string }> = {
@@ -92,135 +67,34 @@ const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof ty
   strengths: { primaryRoute: "/secondb", primaryIcon: "forum", secondaryRoute: "/motivation" },
 };
 
-// values & SDT spectrum row: name (left, bold) + framework English (right, mono)
-// over a violet ProgressLinear, with the supporting note below.
-function SpectrumRow({ name, right, v, note }: { name: string; right: string; v: number; note: string }) {
-  return (
-    <View style={styles.specRow}>
-      <View style={styles.specHead}>
-        <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name}</Text>
-        <Text style={[m3TextStyle("bodySmall"), styles.specMono]}>{right}</Text>
-      </View>
-      <ProgressLinear value={v / 100} color={m3.color.tertiary} accessibilityLabel={`${name} ${v}`} />
-      <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note}</Text>
-    </View>
-  );
-}
-
-// strengths spectrum row: leading tertiary icon + name / score + bar + note.
-function StrengthRow({ icon, name, v, note }: { icon: keyof typeof ICON; name: string; v: number; note: string }) {
-  return (
-    <View style={styles.strRow}>
-      <LensIcon name={icon} color={m3.color.tertiary} size={20} />
-      <View style={styles.strBody}>
-        <View style={styles.specHead}>
-          <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name}</Text>
-          <Text style={[m3TextStyle("bodySmall"), styles.specMono]}>{v}</Text>
-        </View>
-        <ProgressLinear value={v / 100} color={m3.color.tertiary} accessibilityLabel={`${name} ${v}`} />
-        <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note}</Text>
-      </View>
-    </View>
-  );
-}
-
 function AxisLens({ axis }: { axis: AxisCheckId }) {
-  const { t } = useTranslation("home");
-  const rows = ROWS[axis];
+  const { t, i18n } = useTranslation("home");
+  const ko = i18n.language === "ko";
   const act = ACTIONS[axis];
-  const hasConfidence = axis !== "values";
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
-  const rowT = (rk: string, field: "name" | "note") => t(`ds.axisCheck.${axis}.rows.${rk}.${field}`);
 
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <View style={styles.headRow}>
         <Text style={[m3TextStyle("headlineSmall"), styles.headline]}>{k("headline")}</Text>
-        <View style={styles.levelChip}>
-          <Text style={[m3TextStyle("labelSmall"), styles.levelChipText]}>{k("level")}</Text>
-        </View>
-        {hasConfidence ? <Text style={[m3TextStyle("labelSmall"), styles.confidence]}>{k("confidence")}</Text> : null}
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.subtitle]}>{k("subtitle")}</Text>
 
-      {/* ── per-axis hero ─────────────────────────────────────────────── */}
-      {axis === "values" ? (
-        <View style={styles.coreCard}>
-          <Text style={styles.coreLabel}>{k("coreLabel")}</Text>
-          <View style={styles.coreRow}>
-            {rows.slice(0, 3).map((r, i) => (
-              <View key={r.key} style={[styles.coreCell, i === 0 && styles.coreCellFirst]}>
-                <Text style={[styles.coreRank, i === 0 && styles.coreRankFirst]}>{i + 1}</Text>
-                <Text style={[styles.coreName, i === 0 && styles.coreNameFirst]} numberOfLines={1}>
-                  {rowT(r.key, "name")}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {axis === "motivation" ? (
-        <MdCard variant="outlined" style={styles.balanceCard}>
-          <Text style={[m3TextStyle("labelLarge"), styles.balanceTitle]}>{k("balanceTitle")}</Text>
-          <View style={styles.balanceBar}>
-            <View style={styles.balanceIntrinsic}>
-              <Text style={styles.balanceIntrinsicText}>{k("balanceIntrinsic")}</Text>
-            </View>
-            <View style={styles.balanceExtrinsic}>
-              <Text style={styles.balanceExtrinsicText}>{k("balanceExtrinsic")}</Text>
-            </View>
-          </View>
-          <Text style={[m3TextStyle("bodySmall"), styles.balanceNote]}>{k("balanceNote")}</Text>
-        </MdCard>
-      ) : null}
-
-      {axis === "strengths" ? (
-        <View style={styles.sigRow}>
-          {rows.slice(0, 3).map((r, i) => (
-            <View key={r.key} style={[styles.sigCard, i === 0 ? styles.sigCardFirst : styles.sigCardRest]}>
-              <View style={[styles.sigIconBox, i === 0 ? styles.sigIconBoxFirst : styles.sigIconBoxRest]}>
-                <LensIcon
-                  name={r.icon as keyof typeof ICON}
-                  color={i === 0 ? m3.color.onPrimary : m3.color.onSecondaryContainer}
-                  size={22}
-                />
-              </View>
-              <Text style={[m3TextStyle("titleSmall"), styles.sigName]}>{rowT(r.key, "name")}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      {/* ── ranked spectrum ──────────────────────────────────────────── */}
-      <Text style={[m3TextStyle("titleSmall"), styles.sectionLabel]}>{k("spectrum")}</Text>
-      <View style={styles.spectrum}>
-        {rows.map((r) =>
-          axis === "strengths" ? (
-            <StrengthRow
-              key={r.key}
-              icon={r.icon as keyof typeof ICON}
-              name={rowT(r.key, "name")}
-              v={r.v}
-              note={rowT(r.key, "note")}
-            />
-          ) : (
-            <SpectrumRow
-              key={r.key}
-              name={rowT(r.key, "name")}
-              right={r.en ?? ""}
-              v={r.v}
-              note={rowT(r.key, "note")}
-            />
-          ),
-        )}
-      </View>
-
-      {/* ── 세컨비 insight (single plain card) ────────────────────────── */}
-      <View style={styles.insightCard}>
+      {/* Honesty: no real per-axis measurement yet, so a neutral not-measured
+          state stands in for the reference's example scores (see file header). */}
+      <MdCard variant="outlined" style={styles.emptyCard}>
         <SecondbHead size={30} track={false} />
-        <Text style={[m3TextStyle("bodyMedium"), styles.insightText]}>{k("insight")}</Text>
-      </View>
+        <View style={styles.emptyBody}>
+          <Text style={[m3TextStyle("titleSmall"), styles.emptyTitle]}>
+            {ko ? "아직 측정 전이에요" : "Not measured yet"}
+          </Text>
+          <Text style={[m3TextStyle("bodyMedium"), styles.emptyText]}>
+            {ko
+              ? "인터뷰를 마치면 내 기록을 바탕으로 여기에 채워드려요."
+              : "Finish the interview and this fills in from your own records."}
+          </Text>
+        </View>
+      </MdCard>
 
       {/* ── sibling-check actions ────────────────────────────────────── */}
       <View style={styles.actions}>
@@ -318,6 +192,12 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.secondaryContainer,
   },
   insightText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
+
+  // honesty neutral state (no real per-axis measurement yet)
+  emptyCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 16, padding: 16, borderRadius: m3.shape.medium },
+  emptyBody: { flex: 1, gap: 4 },
+  emptyTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700" },
+  emptyText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
   // actions
   actions: { flexDirection: "row", gap: 8, marginTop: 18 },
