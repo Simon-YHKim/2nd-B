@@ -184,6 +184,13 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   interview_probe: "flash",
   // Previously unmapped (fell through to the flash fallback in purposeToTier).
   // Made explicit so a future default change cannot silently re-route them.
+  //
+  // Spend policy (Simon decision 2026-07-06): both northstar_propose and
+  // axis_estimate stay INTENTIONALLY un-metered at the per-feature level — no
+  // per-user usage cap, open to every tier. They are self-understanding
+  // proposals the user must ratify, run at most a few times, and cost is already
+  // bounded by the global proxy spend cap (bump_gemini_spend / reasoning-cap
+  // RPC). Add a per-feature gate here only if abuse telemetry shows a need.
   northstar_propose: "flash",
   axis_estimate: "flash",
   // pro: reasoning / nuance
