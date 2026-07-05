@@ -70,3 +70,20 @@ docs/CONCEPT.md / CONTEXT.md still carry the old terms; reconcile there if desir
   fall back to English on those. Move to i18n keys if full localization is wanted.
 - **big-five** trait labels use full names (개방성…) vs the capture's short (개방…) — low impact.
 - **ratify** 보류 amber could reuse the new `m3.accent.trendFlat` token.
+
+## QA assessment seed (unblocks 14-bigfive / 15-attachment filled states)
+
+`scripts/seed-qa-assessments.mjs` seeds the persistent AI-QA account (see `.env.test`)
+with one synthetic BFI-44 result + one ECR-S attachment result so `/big-five` and
+`/attachment` render their filled-state lens UI live (previously empty-state only).
+
+- **Idempotent**: every seeded row carries an extra `qa_seed` tag; each run deletes only
+  the QA user's own `qa_seed` rows, then re-inserts. Real survey rows are never touched.
+- **Reader-matched**: shapes verified against `loadLatestBfi` (`tags ⊇ {bfi}`, `body.scores`
+  5 traits) and `loadLatestAttachment` (`tags ⊇ {attachment,ecr}`, `body.{style,anxiety,avoidance}`)
+  in `src/lib/persona/build.ts`.
+- **Safety**: RLS (`auth.uid() = user_id`) is the hard boundary — the password-grant session
+  can only write the QA account's own rows. Public anon key + committed test creds only; the
+  script never prints or commits secrets.
+- **Run**: `SEED_ENV_DIR=<repo-with-.env> node scripts/seed-qa-assessments.mjs`
+  (env keys: `EXPO_PUBLIC_SUPABASE_URL/ANON_KEY` from `.env`, `QA_TEST_EMAIL/PASSWORD` from `.env.test`).
