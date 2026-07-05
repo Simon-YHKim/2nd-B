@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-05 (저녁) / i18n 7-배치 완주(부분) + 전수 상태감사 → 게이트 지도 6종
 - Latest — 2026-07-05 / proto_rev2 JSON 캐논 시스템 — 단일 정본 + 라이브 + 클론화면 dedup + gaps 배선 + QA시드 (12 PR)
 - 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
 - 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
@@ -76,6 +77,68 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-05 (저녁) / i18n 7-배치 완주(부분) + 전수 상태감사 → 게이트 지도 6종
+
+### 어디까지 왔나
+- main HEAD: `20694db9` (세션 중 타 에이전트가 #773/#774로 전진)
+- 이번 세션 머지된 PR: **#767** i18n batch5(inbox·core-brain·wiki·settings), **#768** batch6(secondb·capture·privacy·DeepSpaceDesignScreens·imagine·NavGraph), **#770** batch7(quant/persona/ui leaf)
+- 테스트 상태: 배치별 `npm run verify` green(매 커밋 VERIFY_EXIT 게이트), check-i18n C7 PASS(2543 keys×44 ns×5 locale)
+- working tree: clean (격리 worktree 사용)
+
+### ⚠️ 정정 — i18n "완료"는 오판(부분완료)
+- 번들 패리티는 DONE. **화면 t() 라우팅은 미완**: 내 sweep이 `locale === "ko" ? …`만 grep하고 **`const isKo = i18n.language==="ko"` 별칭을 놓침** → 프로드(deep-space) 표면에 영어 폴백 잔존(es/pt/id).
+- 프로드 가시 잔재: `career`(10)·`people`(7)·`rest`(6)·`career-drilldown`(5)·`trinity` TrinityDeepSpace(7)·`MuseumTimelineScreen`(8)·`DeepSpaceViews`/SeenLensView(13+)·`share-card`+`ShareCard`(공유이미지)·HomeCoachmarks·WikiGraph·PolarisDeck·`QuantPager` 카운터. (framework-aware: isDeepSpaceUI fork 뒤 legacy는 제외.)
+
+### 전수 상태감사 (11-에이전트 워크플로, 라이브 코드 file:line 근거)
+Simon "남은거+내 할일" 요청 → 열린 백로그/라우팅/게이트를 라이브 코드로 병렬 검증. **글로벌 정식출시 병목은 코드 아닌 게이트 6종.** 완전성 비평이 초기 누락한 법무·수익화·스토어 3건 추가로 포착. (로컬 리포트=scratchpad HTML.)
+
+### 다음 작업 큐
+#### 🚦 Simon 게이트 (자율 불가 — 나머지 모두의 병목)
+| ID | 게이트 | 갈래 | 근거 |
+|---|---|---|---|
+| G1 | 위기 분류기 시맨틱 승격 + **eval set**(진짜 병목: Layer-2 미검증) | 안전-임상 | `safety.ts:91`(live&&!Vertex→null), `korean-corpus.test`(Layer-1만) |
+| G2 | 미성년 컴플라이언스(DPIA 0.1 DRAFT·관할신호 부재·VPC UI 없음) → **글로벌 차단** | 법무 | `consent-age.ts:8-14`, `DPIA-2ndB-minors-draft.md` |
+| G3 | Phase2 LLM 라우팅 개통(코드 100%배선, 3스텝: ANTHROPIC/OPENAI키→proxy deploy→`EXPO_PUBLIC_LLM_PHASE=2`) | 운영·비용 | `routing.ts`, `config.toml` |
+| G4 | GG3 spend fail-open(RPC missing→무제한과금, PGRST202 창) | 비용 | `gemini-proxy/index.ts:552-577` |
+| G5 | IAP 수익화("SCAFFOLD ONLY", 실매출 0, RevenueCat 키·상품·웹훅 미배선) → **글로벌 차단** | 스토어·비용 | `payments/purchases.ts:6-16` |
+| G6 | 스토어 제출(개인정보처리방침 URL **부재=반려확정**, 헬스권한, 소셜로그인 parked) | 스토어 | `app.json:27-40`, privacy URL grep 0건 |
+
+#### 🔧 자율 (승인 불요)
+| ID | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | i18n `isKo` 잔재 t()화 + 회귀방지 lint(JSX isKo/locale 삼항) | medium | ⭐ 이 세션 미완, framework-aware(fork 판정 먼저) |
+| B | deep-space 렌즈 배선 갭(탭→빈화면/dead-CTA) | medium | ⭐ P1 UX, `DeepSpaceViews.tsx:9-10,476,1074,1280,1315,1581` |
+| C | RN Image→expo-image OOM(6MB 비트맵) | small | `LoadingScreen.tsx:267`(매부팅 프로드)=최우선, 6곳 |
+| D | Sentry 관측성(소스맵 심볼리케이션·DSN 검증) | small | 프로드 크래시 raw스택 |
+| E | 임베딩 백필 1회(0068 NULL리셋→위키 kNN 빈결과) | small | Research "연결 제안 찾기" |
+| F | 스테일 husk 브랜치 프룬 + LLM 라우팅 코드후속 | small | 재머지 금지 |
+
+### 적용 중인 정책 (영구)
+1. **게이트 = 파괴/비용/secrets/안전임상/법무 = 항상 Simon 확인** (자율 위임에서도 예외).
+2. **VERIFY_EXIT 게이트 필수**: `npm run verify > out; git commit` 체이닝 금지(exit 마스킹). exit 0 확인 후 커밋.
+3. **i18n**: check-i18n은 번들 패리티만 검사 → t() 미경유는 못 잡음. `isKo`/`locale` JSX 삼항 잡는 lint 필요.
+4. **2nd-B 워크트리 = `E:\2ndB\.worktrees\<name>`**(레포 내부, node_modules는 junction). 공유 주트리(E:\2ndB)에 브랜치 금지 — 타 에이전트 미커밋과 엉킴.
+5. **git add 명시 경로만**(멀티에이전트 환경, `-A`/`.` 금지). PR 머지 전 CI green + `npm run verify` exit 0.
+6. framework-aware 검증: 프로드 표면=`EXPO_PUBLIC_UI=deep-space`, `isDeepSpaceUI()` fork 뒤 legacy 본문은 프로드 미가시.
+
+### 활성 인프라
+- Supabase project `zoacryukmdeivmolvyhj` (2nd-brain) · edge fn `gemini-proxy` v22 ACTIVE
+- 라이브 = GitHub Pages <https://simon-yhkim.github.io/2nd-B/> (Vercel 아님)
+- 프록시 3종 gemini/claude/openai (claude·openai는 Phase2 개통 대기=G3)
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # tsc + jest + check-i18n(C7) + check-constraints
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# 자율은 A(i18n isKo 잔재) 또는 B(렌즈 배선)부터. 게이트 6종은 Simon 결정 대기.
+```
 
 ---
 
