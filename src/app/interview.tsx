@@ -16,7 +16,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
@@ -76,6 +76,12 @@ const ANSWERS: Record<"ko" | "en", string[]> = {
 function InterviewScreen() {
   const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
+  // Period-scoped recall: the audit era card passes ?period=teens|20s (else this
+  // is the general "current" screener). Filed on the record so the recall lands
+  // under the era the user tapped, not always "current".
+  const { period: periodParam } = useLocalSearchParams<{ period?: string }>();
+  const auditPeriod: "current" | "20s" | "teens" =
+    periodParam === "teens" || periodParam === "20s" ? periodParam : "current";
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const kbHeight = useKeyboard();
 
@@ -146,7 +152,7 @@ function InterviewScreen() {
         topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
         summary: locale === "ko" ? "5문항 회상 인터뷰 응답" : "5-item recall interview",
         tags: ["interview", "recall", "screener"],
-        auditPeriod: "current",
+        auditPeriod,
         withFollowup: false,
       });
       setToast({
