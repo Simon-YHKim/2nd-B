@@ -1,0 +1,17 @@
+{
+  "title": "Entrevista profunda",
+  "loading": "Cargando la entrevista…",
+  "reflected": "Reflejado. Abriendo la pantalla de revisión.",
+  "retryHint": "Reintenta el resultado de la entrevista guardando de nuevo.",
+  "ratifyTitle": "¿Reflejarlo así?",
+  "ratifyBody1": "Un cambio propuesto a partir de tus respuestas. ",
+  "ratifyBodyStrong": "Solo lo que apruebes",
+  "ratifyBody2": " se refleja en la lente.",
+  "again": "De nuevo",
+  "approve": "Aprobar y reflejar",
+  "question": "Pregunta {{n}} de {{total}}",
+  "notice": "Aviso de resultado de la entrevista",
+  "reflectError": "No pudimos reflejarlo",
+  "dismiss": "Cerrar",
+  "tryAgain": "Reintentar"
+}

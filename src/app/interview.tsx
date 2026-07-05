@@ -86,7 +86,7 @@ const DELTAS: { ko: string; en: string; from: string; to: string; delta: { ko: s
   }));
 
 function InterviewScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const kbHeight = useKeyboard();
@@ -109,7 +109,7 @@ function InterviewScreen() {
         active="lens"
         header="none"
         variant="windowed"
-        title={locale === "ko" ? "심층 인터뷰" : "Deep interview"}
+        title={t("title")}
         onBack={() => router.back()}
       >
         {children}
@@ -121,7 +121,7 @@ function InterviewScreen() {
     return (
       <Frame>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "인터뷰를 준비하는 중이에요…" : "Loading interview…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </Frame>
     );
@@ -163,7 +163,7 @@ function InterviewScreen() {
       });
       setToast({
         tone: "success",
-        message: locale === "ko" ? "반영했어요. 검증 화면으로 이동할게요." : "Reflected. Opening the check screen.",
+        message: t("reflected"),
       });
       navigating = true;
       setTimeout(() => router.replace("/big-five"), 700);
@@ -176,7 +176,7 @@ function InterviewScreen() {
   }
 
   const feedbackRetryHint =
-    locale === "ko" ? "인터뷰 저장을 다시 시도합니다." : "Retry interview feedback by saving again.";
+    t("retryHint");
   const ratify = step >= TOTAL;
   const scrollStyle = [styles.body, { paddingBottom: kbHeight + spacing.sm }];
 
@@ -188,13 +188,13 @@ function InterviewScreen() {
             <View style={styles.ratifyHead}>
               <Glyph name="task_alt" color={m3.color.primary} size={22} />
               <Text style={[m3TextStyle("titleLarge"), styles.ratifyTitle]}>
-                {locale === "ko" ? "이렇게 반영할까요?" : "Reflect it like this?"}
+                {t("ratifyTitle")}
               </Text>
             </View>
             <Text style={[m3TextStyle("bodyMedium"), styles.ratifyBody]}>
-              {locale === "ko" ? "답을 종합한 변경 제안이에요. " : "A change proposed from your answers. "}
-              <Text style={styles.ratifyBodyStrong}>{locale === "ko" ? "승인한 것만" : "Only what you approve"}</Text>
-              {locale === "ko" ? " 렌즈에 반영돼요." : " is reflected in the lens."}
+              {t("ratifyBody1")}
+              <Text style={styles.ratifyBodyStrong}>{t("ratifyBodyStrong")}</Text>
+              {t("ratifyBody2")}
             </Text>
 
             {DELTAS.map((d) => (
@@ -217,13 +217,13 @@ function InterviewScreen() {
 
             <View style={styles.ratifyActions}>
               <MdButton
-                label={locale === "ko" ? "다시" : "Again"}
+                label={t("again")}
                 variant="outlined"
                 onPress={restart}
                 style={styles.ratifyRestart}
               />
               <MdButton
-                label={locale === "ko" ? "승인하고 반영" : "Approve & reflect"}
+                label={t("approve")}
                 variant="filled"
                 loading={saving}
                 onPress={approveAndReflect}
@@ -239,7 +239,7 @@ function InterviewScreen() {
                 value={step / TOTAL}
                 style={styles.progressBar}
                 accessibilityLabel={
-                  locale === "ko" ? `질문 ${step + 1} / ${TOTAL}` : `Question ${step + 1} of ${TOTAL}`
+                  t("question", { n: step + 1, total: TOTAL })
                 }
               />
               <Text style={[m3TextStyle("labelMedium"), styles.progressLabel]}>
@@ -289,10 +289,10 @@ function InterviewScreen() {
       <PremiumModal
         visible={feedbackModal}
         onClose={() => setFeedbackModal(false)}
-        accessibilityLabel={locale === "ko" ? "인터뷰 피드백 안내" : "Interview feedback notice"}
+        accessibilityLabel={t("notice")}
       >
         <Text style={[m3TextStyle("titleMedium"), styles.modalTitle]}>
-          {locale === "ko" ? "반영하지 못했어요" : "Couldn't reflect it"}
+          {t("reflectError")}
         </Text>
         <Text style={[m3TextStyle("bodyMedium"), styles.modalBody]}>
           {locale === "ko"
@@ -301,13 +301,13 @@ function InterviewScreen() {
         </Text>
         <View style={styles.modalActions}>
           <MdButton
-            label={locale === "ko" ? "닫기" : "Dismiss"}
+            label={t("dismiss")}
             variant="outlined"
             onPress={() => setFeedbackModal(false)}
             style={styles.modalButton}
           />
           <MdButton
-            label={locale === "ko" ? "다시 시도" : "Try again"}
+            label={t("tryAgain")}
             variant="filled"
             loading={saving}
             onPress={() => {

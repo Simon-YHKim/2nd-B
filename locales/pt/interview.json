@@ -1,0 +1,17 @@
+{
+  "title": "Entrevista profunda",
+  "loading": "Carregando a entrevista…",
+  "reflected": "Refletido. Abrindo a tela de verificação.",
+  "retryHint": "Tente o feedback da entrevista salvando de novo.",
+  "ratifyTitle": "Refletir assim?",
+  "ratifyBody1": "Uma mudança proposta a partir das suas respostas. ",
+  "ratifyBodyStrong": "Apenas o que você aprovar",
+  "ratifyBody2": " é refletido na lente.",
+  "again": "De novo",
+  "approve": "Aprovar e refletir",
+  "question": "Pergunta {{n}} de {{total}}",
+  "notice": "Aviso de feedback da entrevista",
+  "reflectError": "Não conseguimos refletir",
+  "dismiss": "Fechar",
+  "tryAgain": "Tentar de novo"
+}

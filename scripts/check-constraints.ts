@@ -728,7 +728,7 @@ results.push(
       trinity.includes('t("retryHint")') &&
       interview.includes("PremiumModal") &&
       interview.includes("PremiumToast") &&
-      interview.includes("Retry interview feedback") &&
+      interview.includes('t("retryHint")') &&
       account.includes("PremiumModal") &&
       account.includes('t("account.feedback.label")') &&
       account.includes('t("account.delete.confirmLabel")') &&
