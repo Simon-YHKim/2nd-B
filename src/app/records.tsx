@@ -71,7 +71,7 @@ const ShardRow = memo(function ShardRow({ shard: s, locale }: { shard: OriginSha
 });
 
 function RecordsLegacy() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("records");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -218,16 +218,16 @@ function RecordsLegacy() {
   const villageLabel = VILLAGE_LABEL[activeVillage][locale];
   const heroEyebrow =
     domainFilter === "all"
-      ? (locale === "ko" ? "05. 기록 보관소" : "05. Records")
-      : (locale === "ko" ? `${villageLabel} · 기록` : `${villageLabel} · records`);
+      ? t("eyebrowRoot")
+      : t("eyebrowVillage", { village: villageLabel });
   const heroTitle =
     domainFilter === "all"
-      ? (locale === "ko" ? "남긴 별가루를 다시 만나요" : "Revisit every piece you left")
-      : (locale === "ko" ? "이 영역의 별가루" : "Pieces in this area");
+      ? t("titleRoot")
+      : t("titleVillage");
   const heroSubtitle =
     domainFilter === "all"
-      ? (locale === "ko" ? "일기 · 담기 · 검사 · 영감까지 한곳에" : "Journal, capture, assessments, and inspiration in one place")
-      : (locale === "ko" ? "이 영역에 모인 기록만 골라 봅니다" : "Only the records gathered in this area");
+      ? t("subtitleRoot")
+      : t("subtitleVillage");
 
   // Header (hero + search + type chips) lives above the virtualized list, so it
   // scrolls with the rows instead of pinning. The map of type chips stays a
@@ -249,12 +249,12 @@ function RecordsLegacy() {
       <Input
         value={query}
         onChangeText={setQuery}
-        placeholder={locale === "ko" ? "별가루 검색" : "Search pieces"}
-        accessibilityLabel={locale === "ko" ? "기록 검색" : "Search records"}
+        placeholder={t("searchPlaceholder")}
+        accessibilityLabel={t("searchLabel")}
       />
 
       <Text variant="caption" color="textSubtle" style={styles.filterLabel}>
-        {locale === "ko" ? "종류" : "Type"}
+        {t("type")}
       </Text>
       <ScrollView
         horizontal
@@ -266,7 +266,7 @@ function RecordsLegacy() {
       >
         {TYPE_FILTERS.map((tf) => {
           const active = tf === typeFilter;
-          const label = tf === "all" ? (locale === "ko" ? "전체" : "All") : evidenceTypeLabel(tf, locale);
+          const label = tf === "all" ? t("filterAll") : evidenceTypeLabel(tf, locale);
           return (
             <TouchableOpacity
               key={tf}
@@ -275,7 +275,7 @@ function RecordsLegacy() {
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={locale === "ko" ? `${label} 기록 필터` : `Filter records by ${label}`}
+              accessibilityLabel={t("filterBy", { label })}
             >
               <Text variant="caption" color={active ? "background" : "textMuted"}>{label}</Text>
             </TouchableOpacity>
@@ -296,14 +296,14 @@ function RecordsLegacy() {
   ) : error ? (
     <View style={styles.stateBox}>
       <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-        {locale === "ko" ? "별가루를 불러오지 못했어요." : "Couldn't load your pieces."}
+        {t("loadError")}
       </Text>
       <Button
-        label={locale === "ko" ? "다시 시도" : "Try again"}
+        label={t("tryAgain")}
         variant="secondary"
         onPress={reload}
         accessibilityHint={
-          locale === "ko" ? "기록과 소스 목록을 다시 불러옵니다." : "Retries loading records and sources."
+          t("retryHint")
         }
       />
     </View>
@@ -320,11 +320,11 @@ function RecordsLegacy() {
       </Text>
       {shards.length === 0 ? (
         <Button
-          label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
+          label={t("leavePiece")}
           variant="primary"
           onPress={() => router.push("/capture")}
           accessibilityHint={
-            locale === "ko" ? "캡처 화면을 열어 오늘의 별가루를 저장합니다." : "Opens capture to save today's piece."
+            t("leaveHint")
           }
         />
       ) : null}

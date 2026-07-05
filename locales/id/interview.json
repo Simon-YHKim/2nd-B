@@ -1,0 +1,17 @@
+{
+  "title": "Wawancara mendalam",
+  "loading": "Memuat wawancara…",
+  "reflected": "Tercermin. Membuka layar pemeriksaan.",
+  "retryHint": "Coba lagi umpan balik wawancara dengan menyimpan ulang.",
+  "ratifyTitle": "Cerminkan seperti ini?",
+  "ratifyBody1": "Perubahan yang diusulkan dari jawabanmu. ",
+  "ratifyBodyStrong": "Hanya yang kamu setujui",
+  "ratifyBody2": " yang tercermin di lensa.",
+  "again": "Ulangi",
+  "approve": "Setujui & cerminkan",
+  "question": "Pertanyaan {{n}} dari {{total}}",
+  "notice": "Pemberitahuan umpan balik wawancara",
+  "reflectError": "Tidak dapat mencerminkannya",
+  "dismiss": "Tutup",
+  "tryAgain": "Coba lagi"
+}

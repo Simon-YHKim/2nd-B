@@ -1,0 +1,18 @@
+{
+  "eyebrowRoot": "05. 기록 보관소",
+  "eyebrowVillage": "{{village}} · 기록",
+  "titleRoot": "남긴 별가루를 다시 만나요",
+  "titleVillage": "이 영역의 별가루",
+  "subtitleRoot": "일기 · 담기 · 검사 · 영감까지 한곳에",
+  "subtitleVillage": "이 영역에 모인 기록만 골라 봅니다",
+  "searchPlaceholder": "별가루 검색",
+  "searchLabel": "기록 검색",
+  "type": "종류",
+  "filterAll": "전체",
+  "filterBy": "{{label}} 기록 필터",
+  "loadError": "별가루를 불러오지 못했어요.",
+  "tryAgain": "다시 시도",
+  "retryHint": "기록과 소스 목록을 다시 불러옵니다.",
+  "leavePiece": "오늘의 별가루 남기기",
+  "leaveHint": "캡처 화면을 열어 오늘의 별가루를 저장합니다."
+}

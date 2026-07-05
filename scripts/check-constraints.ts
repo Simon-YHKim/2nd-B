@@ -709,7 +709,7 @@ results.push(
       persona.includes("PremiumErrorState") &&
       persona.includes("PremiumToast") &&
       persona.includes("toastWrap") &&
-      persona.includes("Couldn't build your self-model") &&
+      persona.includes('tp("errorTitle")') &&
       persona.includes("Couldn't finish the export. Try again from the export button.") &&
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
@@ -728,7 +728,7 @@ results.push(
       trinity.includes('t("retryHint")') &&
       interview.includes("PremiumModal") &&
       interview.includes("PremiumToast") &&
-      interview.includes("Retry interview feedback") &&
+      interview.includes('t("retryHint")') &&
       account.includes("PremiumModal") &&
       account.includes('t("account.feedback.label")') &&
       account.includes('t("account.delete.confirmLabel")') &&
@@ -911,9 +911,9 @@ results.push(
       wiki.includes("Shows graph detail metrics.") &&
       wiki.includes("Hides graph detail metrics.") &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
-      records.includes("Filter records by ${label}") &&
-      records.includes("Retries loading records and sources.") &&
-      records.includes("Opens capture to save today's piece.") &&
+      records.includes('t("filterBy"') &&
+      records.includes('t("retryHint")') &&
+      records.includes('t("leaveHint")') &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes('t("addTagsHint")') &&
       signInRoles >= 7 &&

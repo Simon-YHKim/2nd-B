@@ -1,0 +1,17 @@
+{
+  "title": "Deep interview",
+  "loading": "Loading interview…",
+  "reflected": "Reflected. Opening the check screen.",
+  "retryHint": "Retry interview feedback by saving again.",
+  "ratifyTitle": "Reflect it like this?",
+  "ratifyBody1": "A change proposed from your answers. ",
+  "ratifyBodyStrong": "Only what you approve",
+  "ratifyBody2": " is reflected in the lens.",
+  "again": "Again",
+  "approve": "Approve & reflect",
+  "question": "Question {{n}} of {{total}}",
+  "notice": "Interview feedback notice",
+  "reflectError": "Couldn't reflect it",
+  "dismiss": "Dismiss",
+  "tryAgain": "Try again"
+}
