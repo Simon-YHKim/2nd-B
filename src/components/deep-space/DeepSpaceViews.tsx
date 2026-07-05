@@ -1445,12 +1445,18 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
           <Text style={styles.imgSection}>{t("ds.imagine.sectionSteps")}</Text>
           <View style={styles.imgStepList}>
             {seed[lang].steps.map((step, i) => (
-              <View key={step} style={styles.imgStep}>
+              <Pressable
+                key={step}
+                accessibilityRole="button"
+                accessibilityLabel={step}
+                onPress={() => router.push({ pathname: "/capture", params: { text: step } })}
+                style={({ pressed }) => [styles.imgStep, pressed && { opacity: 0.72 }]}
+              >
                 <View style={styles.imgStepNum}>
                   <Text style={styles.imgStepNumText}>{i + 1}</Text>
                 </View>
                 <Text style={styles.imgStepText}>{step}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
           <View style={styles.imgBtnRow}>
