@@ -105,7 +105,7 @@ export function isTabPath(pathname: string): boolean {
 export function BackArrow() {
   const pathname = usePathname();
   const params = useLocalSearchParams<{ domain?: string }>();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("common");
   const insets = useSafeAreaInsets();
   const locale = (i18n.language === "ko" ? "ko" : "en") as Locale;
 
@@ -139,8 +139,8 @@ export function BackArrow() {
         onPress={() => router.push("/")}
         hitSlop={16}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? "그래프로 돌아가기" : "Return to graph"}
-        accessibilityHint={locale === "ko" ? "그래프 홈 화면으로 이동합니다." : "Opens the graph home screen."}
+        accessibilityLabel={t("backToGraph")}
+        accessibilityHint={t("backToGraphHint")}
         style={styles.btn}
         activeOpacity={0.7}
       >

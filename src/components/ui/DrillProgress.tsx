@@ -11,6 +11,7 @@
 // signalMint active-cell glow.
 
 import { StyleSheet, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import {
@@ -55,6 +56,7 @@ function shortLayerLabel(l: DrillLayer, locale: "en" | "ko"): string {
 }
 
 export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: Props) {
+  const { t } = useTranslation("common");
   const totalAnswers = LIFE_PERIODS.reduce(
     (sum, period) => sum + DRILL_LAYERS.reduce((layerSum, layer) => layerSum + coverage[period][layer], 0),
     0,
@@ -85,7 +87,7 @@ export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: P
       {/* Header row: period names */}
       <View style={styles.row}>
         <View style={[styles.cellSide, styles.headerCell]}>
-          <Text style={styles.headerMicro}>{locale === "ko" ? "층 / 시기" : "layer / period"}</Text>
+          <Text style={styles.headerMicro}>{t("drillLayerPeriod")}</Text>
         </View>
         {LIFE_PERIODS.map((p) => (
           <View key={p} style={[styles.cell, styles.headerCell, activePeriod === p ? styles.headerCellActive : null]}>

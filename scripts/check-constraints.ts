@@ -1069,8 +1069,8 @@ results.push(
       backArrow.includes('"/imagine": { en: "New angle", ko: "새 관점" }') &&
       backArrow.includes('"/journal": { en: "Journal", ko: "일기" }') &&
       backArrow.includes('"/mbti": { en: "Persona", ko: "페르소나" }') &&
-      backArrow.includes("Opens the graph home screen.") &&
-      characterPath.includes("Opens this resident's short self-talk bubble.") &&
+      backArrow.includes('t("backToGraphHint")') &&
+      characterPath.includes('t("charSelfTalk")') &&
       characterPath.includes("accessibilityState={{ expanded: line != null }}") &&
       characterPath.includes('accessibilityLiveRegion="polite"') &&
       characterPath.includes("accessibilityLabel={text}") &&
@@ -2757,7 +2757,7 @@ results.push(
       graphBits.includes("function useCurrentLocale()") &&
       graphBits.includes("meta.name[locale]") &&
       graphBits.includes("Question from ${label}") &&
-      graphBits.includes("Clear context") &&
+      graphBits.includes('t("clearContext")') &&
       graphBits.includes('accessibilityLabel={countLabel}') &&
       graphBits.includes('accessibilityLabel={clearLabel}') &&
       !graphBits.includes("accessibilityLabel={meta.name.ko}") &&

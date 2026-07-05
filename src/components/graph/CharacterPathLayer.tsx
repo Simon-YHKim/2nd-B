@@ -19,6 +19,7 @@
 // renders nodes in. Honours prefers-reduced-motion (workers hold still).
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import ReAnimated, { cancelAnimation, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing as ReEasing, useDerivedValue, runOnJS } from "react-native-reanimated";
 
@@ -115,6 +116,7 @@ function Worker({
   onTap: () => void;
 }) {
   const { id, route } = commute;
+  const { t } = useTranslation("common");
   // Subscribed read: a lite-mode toggle must stop/restart the commute driver
   // on mounted workers (the pure function would freeze at its mount value).
   const reduced = useReducedMotionPref();
@@ -262,7 +264,7 @@ function Worker({
           style={StyleSheet.absoluteFill}
           accessibilityRole="button"
           accessibilityLabel={locale === "ko" ? `${getPersona(id).name.ko} 혼잣말 듣기` : `Hear ${getPersona(id).name.en} think aloud`}
-          accessibilityHint={locale === "ko" ? "짧은 혼잣말 말풍선을 엽니다." : "Opens this resident's short self-talk bubble."}
+          accessibilityHint={t("charSelfTalk")}
           accessibilityState={{ expanded: line != null }}
         >
           <WorkerSprite id={id} size={spriteSize} facing={facing} paused={resting} />

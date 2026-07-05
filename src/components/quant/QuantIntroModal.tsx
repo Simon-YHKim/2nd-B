@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { CompanionSprite } from "@/components/art/CompanionSprite";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { useTranslation } from "react-i18next";
 
 export interface QuantIntroProps {
   /** Storage key used to remember "don't show again" preference. */
@@ -74,6 +75,7 @@ export function QuantIntroModal({
   onStart,
   onCancel,
 }: QuantIntroProps) {
+  const { t } = useTranslation("common");
   const { visible, markSeen } = useShouldShow(toolKey);
   const [dontShow, setDontShow] = useState(false);
   const autoStartedRef = useRef(false);
@@ -113,7 +115,7 @@ export function QuantIntroModal({
               {/* KO eyebrow drops tracking to 0 (Hangul reads worse when
                   tracked); EN keeps the stylized caption tracking. */}
               <Text variant="caption" color="brand" style={{ letterSpacing: locale === "ko" ? 0 : 1.5 }}>
-                {locale === "ko" ? "시작 전 안내" : "Before you start"}
+                {t("quantBeforeStart")}
               </Text>
               <Text variant="heading" style={{ marginTop: spacing.xs }}>{title}</Text>
             </View>
@@ -121,17 +123,17 @@ export function QuantIntroModal({
 
           <View style={styles.statsRow}>
             <Stat
-              label={locale === "ko" ? "문항" : "Items"}
+              label={t("quantItems")}
               value={`${itemCount}`}
             />
             <View style={styles.statDivider} />
             <Stat
-              label={locale === "ko" ? "소요" : "Time"}
+              label={t("quantTime")}
               value={locale === "ko" ? `약 ${estimatedMinutes}분` : `~${estimatedMinutes} min`}
             />
             <View style={styles.statDivider} />
             <Stat
-              label={locale === "ko" ? "페이지" : "Pages"}
+              label={t("quantPages")}
               value={`${Math.ceil(itemCount / 5)}`}
             />
           </View>
@@ -153,23 +155,23 @@ export function QuantIntroModal({
             style={styles.dontShowRow}
             hitSlop={14}
             accessibilityRole="checkbox"
-            accessibilityLabel={locale === "ko" ? "다음부터 이 안내 건너뛰기" : "Skip this intro next time"}
+            accessibilityLabel={t("quantSkipIntro")}
             accessibilityState={{ checked: dontShow }}
           >
             <View style={[styles.checkbox, dontShow && styles.checkboxOn]} />
             <Text variant="subtle" color="textMuted">
-              {locale === "ko" ? "다음부터 이 안내 건너뛰기" : "Skip this intro next time"}
+              {t("quantSkipIntro")}
             </Text>
           </Pressable>
 
           <View style={styles.actions}>
             <Button
-              label={locale === "ko" ? "시작" : "Start"}
+              label={t("quantStart")}
               variant="primary"
               onPress={handleStart}
             />
             <Button
-              label={locale === "ko" ? "나중에" : "Not now"}
+              label={t("quantNotNow")}
               variant="secondary"
               onPress={onCancel}
             />
