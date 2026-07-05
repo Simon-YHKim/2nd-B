@@ -1,0 +1,18 @@
+{
+  "loading": "4영역을 불러오는 중이에요…",
+  "eyebrow": "09. 4영역 관리",
+  "title": "생활의 네 영역을 밝히기",
+  "subtitle": "건강 · 앱 · 뇌 · 재정",
+  "leavePiece": "오늘의 별가루 남기기",
+  "addTagsHint": "캡처에서 도메인 태그 추가하기",
+  "addTagsBody": "별가루 담기에서 #건강 같은 태그를 달아 보세요",
+  "recurringTopics": "자주 다룬 주제",
+  "recentConclusions": "최근 결론",
+  "recognizedTags": "인식하는 태그",
+  "reloadNotice": "4영역 다시 불러오기 안내",
+  "loadError": "기록을 못 불러왔어요",
+  "dismiss": "닫기",
+  "dismissHint": "안내를 닫습니다.",
+  "retry": "다시 시도",
+  "retryHint": "4영역 기록을 다시 불러옵니다."
+}
