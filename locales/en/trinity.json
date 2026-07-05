@@ -1,0 +1,18 @@
+{
+  "loading": "Loading your areas…",
+  "eyebrow": "09. My areas",
+  "title": "Light up four life areas",
+  "subtitle": "Health · app · brain · finance",
+  "leavePiece": "Leave today's piece",
+  "addTagsHint": "Add domain tags in capture",
+  "addTagsBody": "Try adding tags like #health in capture",
+  "recurringTopics": "Recurring topics",
+  "recentConclusions": "Recent conclusions",
+  "recognizedTags": "Recognized tags",
+  "reloadNotice": "Four-area reload notice",
+  "loadError": "Couldn't load records",
+  "dismiss": "Dismiss",
+  "dismissHint": "Dismisses this notice.",
+  "retry": "Retry",
+  "retryHint": "Reloads the four-area records."
+}

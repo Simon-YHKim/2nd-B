@@ -724,8 +724,8 @@ results.push(
       wiki.includes("Couldn't build the export. Refresh and try again.") &&
       wikiAlertCount === 0 &&
       trinity.includes("PremiumModal") &&
-      trinity.includes("Four-area reload notice") &&
-      trinity.includes("Reloads the four-area records.") &&
+      trinity.includes('t("reloadNotice")') &&
+      trinity.includes('t("retryHint")') &&
       interview.includes("PremiumModal") &&
       interview.includes("PremiumToast") &&
       interview.includes("Retry interview feedback") &&
@@ -915,7 +915,7 @@ results.push(
       records.includes("Retries loading records and sources.") &&
       records.includes("Opens capture to save today's piece.") &&
       trinity.includes('accessibilityRole="link"') &&
-      trinity.includes("Add domain tags in capture") &&
+      trinity.includes('t("addTagsHint")') &&
       signInRoles >= 7 &&
       signIn.includes('accessibilityLabel={t("signIn.submit")}') &&
       signIn.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting }}") &&

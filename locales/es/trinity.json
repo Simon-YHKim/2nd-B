@@ -1,0 +1,18 @@
+{
+  "loading": "Cargando tus áreas…",
+  "eyebrow": "09. Mis áreas",
+  "title": "Ilumina cuatro áreas de tu vida",
+  "subtitle": "Salud · app · mente · finanzas",
+  "leavePiece": "Deja tu fragmento de hoy",
+  "addTagsHint": "Añade etiquetas de área en la captura",
+  "addTagsBody": "Prueba a añadir etiquetas como #salud en la captura",
+  "recurringTopics": "Temas recurrentes",
+  "recentConclusions": "Conclusiones recientes",
+  "recognizedTags": "Etiquetas reconocidas",
+  "reloadNotice": "Aviso para recargar las cuatro áreas",
+  "loadError": "No pudimos cargar los registros",
+  "dismiss": "Cerrar",
+  "dismissHint": "Cierra este aviso.",
+  "retry": "Reintentar",
+  "retryHint": "Recarga los registros de las cuatro áreas."
+}

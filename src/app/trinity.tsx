@@ -119,7 +119,7 @@ function computeStats(records: RecordLite[]): Record<TrinityDomain, DomainStats>
 }
 
 function TrinityLegacy() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("trinity");
   const { userId, loading: authLoading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -176,7 +176,7 @@ function TrinityLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.shellCenter}>
-          <PremiumLoadingState message={locale === "ko" ? "4영역을 불러오는 중이에요…" : "Loading your areas…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -192,9 +192,9 @@ function TrinityLegacy() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "09. 4영역 관리" : "09. My areas"}
-          title={locale === "ko" ? "생활의 네 영역을 밝히기" : "Light up four life areas"}
-          subtitle={locale === "ko" ? "건강 · 앱 · 뇌 · 재정" : "Health · app · brain · finance"}
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          subtitle={t("subtitle")}
           island={VILLAGE_UI.work.island}
           worker={VILLAGE_UI.work.worker}
           accent={VILLAGE_UI.work.accent}
@@ -204,7 +204,7 @@ function TrinityLegacy() {
               : "I grouped tagged records into four areas. Want to inspect the quietest one?"
           }
           primaryAction={{
-            label: locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece",
+            label: t("leavePiece"),
             onPress: () => router.push("/capture"),
           }}
         />
@@ -226,11 +226,11 @@ function TrinityLegacy() {
                 style={styles.emptyLink}
                 accessibilityRole="link"
                 accessibilityLabel={
-                  locale === "ko" ? "캡처에서 도메인 태그 추가하기" : "Add domain tags in capture"
+                  t("addTagsHint")
                 }
               >
                 <Text variant="caption" color="brand">
-                  {locale === "ko" ? "별가루 담기에서 #건강 같은 태그를 달아 보세요" : "Try adding tags like #health in capture"}
+                  {t("addTagsBody")}
                 </Text>
               </Pressable>
             </Link>
@@ -262,7 +262,7 @@ function TrinityLegacy() {
                   {s.topTopics.length > 0 ? (
                     <View style={styles.cardSection}>
                       <Text variant="subtle" color="textSubtle">
-                        {locale === "ko" ? "자주 다룬 주제" : "Recurring topics"}
+                        {t("recurringTopics")}
                       </Text>
                       {s.topTopics.map((t, i) => (
                         <Text key={i} variant="subtle" color="textMuted" numberOfLines={1}>
@@ -274,7 +274,7 @@ function TrinityLegacy() {
                   {s.topConclusions.length > 0 ? (
                     <View style={styles.cardSection}>
                       <Text variant="subtle" color="textSubtle">
-                        {locale === "ko" ? "최근 결론" : "Recent conclusions"}
+                        {t("recentConclusions")}
                       </Text>
                       {s.topConclusions.map((c, i) => (
                         <Text key={i} variant="subtle" color="textMuted" numberOfLines={2}>
@@ -291,7 +291,7 @@ function TrinityLegacy() {
 
         <View style={styles.tagGuide}>
           <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
-            {locale === "ko" ? "인식하는 태그" : "Recognized tags"}
+            {t("recognizedTags")}
           </Text>
           {(["health", "app", "brain", "finance"] as TrinityDomain[]).map((d) => (
             <Text key={d} variant="subtle" color="textSubtle">
@@ -304,10 +304,10 @@ function TrinityLegacy() {
       <PremiumModal
         visible={loadErrorOpen}
         onClose={() => setLoadErrorOpen(false)}
-        accessibilityLabel={locale === "ko" ? "4영역 다시 불러오기 안내" : "Four-area reload notice"}
+        accessibilityLabel={t("reloadNotice")}
       >
         <Text variant="heading">
-          {locale === "ko" ? "기록을 못 불러왔어요" : "Couldn't load records"}
+          {t("loadError")}
         </Text>
         <Text variant="body" color="textMuted" style={styles.modalBody}>
           {locale === "ko"
@@ -316,21 +316,21 @@ function TrinityLegacy() {
         </Text>
         <View style={styles.modalActions}>
           <Button
-            label={locale === "ko" ? "닫기" : "Dismiss"}
+            label={t("dismiss")}
             variant="secondary"
             onPress={() => setLoadErrorOpen(false)}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다." : "Dismisses this notice."}
+            accessibilityHint={t("dismissHint")}
           />
           <Button
-            label={locale === "ko" ? "다시 시도" : "Retry"}
+            label={t("retry")}
             variant="primary"
             onPress={() => {
               setLoadErrorOpen(false);
               setReloadKey((k) => k + 1);
             }}
             style={styles.modalButton}
-            accessibilityHint={locale === "ko" ? "4영역 기록을 다시 불러옵니다." : "Reloads the four-area records."}
+            accessibilityHint={t("retryHint")}
           />
         </View>
       </PremiumModal>
