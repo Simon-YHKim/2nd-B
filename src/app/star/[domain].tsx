@@ -19,7 +19,7 @@ import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
+import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 
@@ -50,6 +50,14 @@ function relativeDay(iso: string, ko: boolean): string {
   if (days < 7) return ko ? `${days}일 전` : `${days}d ago`;
   if (days < 30) return ko ? `${Math.floor(days / 7)}주 전` : `${Math.floor(days / 7)}w ago`;
   return ko ? `${Math.floor(days / 30)}달 전` : `${Math.floor(days / 30)}mo ago`;
+}
+
+// The seven domain stars are a fixed set, so pre-render one static page per
+// domain in the web export. Without this, /star/<domain> has no static HTML on
+// GitHub Pages and a direct hit falls back to 404.html; pre-rendering makes each
+// lens resolve on a direct URL and keeps the route in the client route tree.
+export async function generateStaticParams(): Promise<{ domain: string }[]> {
+  return DOMAIN_STARS.map((d) => ({ domain: d.slug }));
 }
 
 export default function DomainStarScreen() {
