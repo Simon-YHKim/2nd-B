@@ -80,6 +80,27 @@
 
 ---
 
+## Latest — 2026-07-06 / Simon D1-D7 실행 + LLM Phase-2 OpenAI 재라우팅
+
+### 실행 완료 (전부 머지)
+- **D6** Twi-B/트위비 통일 #817 · **D5** records 임베딩 스키마 #819 + 생성/kNN lib #820(held, cost-guard) · **D4** Phase-1 records tag-graph=fleet #818 · **동의문구** 멀티벤더 고지(Gemini/Claude/OpenAI, 5로케일) #821 · **D1** 마이그레이션 **0070**(reasoning-cap RPC)·**0071**(records pgvector) **prod 적용**(Supabase MCP, project `zoacryukmdeivmolvyhj`, 검증 OK).
+- D2 Phase-2 키 cowork 프롬프트 HTML 전달 · D3 IAP 보류(무료출시 우선) · D7 웹 Variables(LLM_MODE=live·VIA_EDGE=true) 이미 set.
+
+### ⚠️ 미완 — LLM Phase-2 개통 (= G3, OpenAI 백엔드로 전환)
+**경위**: Anthropic 크레딧 소진(claude-proxy 라이브 probe → `502 "Your credit balance is too low"`). Simon 결정 = **OpenAI로 재라우팅**. **#829 머지**: `PHASE2_VENDOR` 9석 claude→openai, `openai-proxy` PURPOSE_MODEL/allowlist+effort ceiling을 2석→11석(전부 `gpt-5.4` high), vendor-routing 테스트 갱신.
+**현재 라이브**: `EXPO_PUBLIC_LLM_PHASE=1` (Gemini, 안전). claude-proxy 배포+키 유지 → **Anthropic 크레딧 생기면 `openai`→`claude` 1줄 revert 가능**.
+**남은 단계 (Simon 3 → Claude 2)**:
+1. (Simon) OpenAI Console 키 발급 + **크레딧 충전** ← 핵심 블로커.
+2. (Simon) ` npx supabase secrets set OPENAI_API_KEY='sk-proj-...' --project-ref zoacryukmdeivmolvyhj` (줄앞 공백=히스토리 방지).
+3. (Simon) `npx supabase functions deploy openai-proxy --project-ref zoacryukmdeivmolvyhj` (**배포된 v1은 2석만 allowlist라 필수**).
+4. (Claude) 스모크: QA(`.env.test`)+anon(`get_publishable_keys`)로 openai-proxy에 `{"user":"...","purpose":"gap_synthesize","effort":"low"}` POST → 기대 **200 + modelUsed=gpt-5.4**. (빈body→`user_required`=키set / `missing_OPENAI_API_KEY`=미설정 / `502 credit`=크레딧부족)
+5. (Claude) 통과 시 `gh variable set EXPO_PUBLIC_LLM_PHASE 2 --repo Simon-YHKim/2nd-B` → 9석 OpenAI 라이브(다음 web-deploy 반영, 빌드타임 var).
+**cowork 런북 검증 정정**: C-1 백엔드확인=`ai_audit_log.model_used`(응답에 servedByProvider 없음) · C-2 advisor=PREMIUM(brain)→무료QA=403(검증은 비프리미엄 gap_synthesize) · C-3 cluster_infer/digest_weekly/ttfv_first_insight 클라 호출 site 부재(inert).
+
+### 참고 (loose ends)
+- **가격**: `TIER_PRICE_KRW.pro=12900` 확정·코드 일관. 11,900은 **stale 감사문서 3곳뿐**(HANDOFF G-표 밖·`ui-audit/REPORT.md:22`·`clone-audit/gap-backlog.json`), 라이브 아님. IAP 가격질문 답 = **북극성 12,900**.
+- **fleet #831**(privacy policy G6, `claude/publish-privacy-policy-20260706`) 진행 중 — 법무라 내가 안 건드림.
+
 ## Latest — 2026-07-05 (저녁) / i18n 7-배치 완주(부분) + 전수 상태감사 → 게이트 지도 6종
 
 ### 어디까지 왔나
@@ -101,7 +122,7 @@ Simon "남은거+내 할일" 요청 → 열린 백로그/라우팅/게이트를 
 |---|---|---|---|
 | G1 | 위기 분류기 시맨틱 승격 + **eval set**(진짜 병목: Layer-2 미검증) | 안전-임상 | `safety.ts:91`(live&&!Vertex→null), `korean-corpus.test`(Layer-1만) |
 | G2 | 미성년 컴플라이언스(DPIA 0.1 DRAFT·관할신호 부재·VPC UI 없음) → **글로벌 차단** | 법무 | `consent-age.ts:8-14`, `DPIA-2ndB-minors-draft.md` |
-| G3 | Phase2 LLM 라우팅 개통(코드 100%배선, 3스텝: ANTHROPIC/OPENAI키→proxy deploy→`EXPO_PUBLIC_LLM_PHASE=2`) | 운영·비용 | `routing.ts`, `config.toml` |
+| G3 | **거의 완료(07-06)** — 마이그레이션 0070/0071 prod 적용·동의문구 멀티벤더 #821·**OpenAI 재라우팅 #829**(Anthropic 크레딧 소진). 남은 것 = Simon **OpenAI 크레딧 충전** + `supabase functions deploy openai-proxy` → Claude 스모크+`EXPO_PUBLIC_LLM_PHASE=2` 플립. **상세=아래 07-06 로그** | 운영·비용 | `routing.ts`(PHASE2_VENDOR=openai), claude-proxy 유지=1줄 revert |
 | G4 | GG3 spend fail-open(RPC missing→무제한과금, PGRST202 창) | 비용 | `gemini-proxy/index.ts:552-577` |
 | G5 | IAP 수익화("SCAFFOLD ONLY", 실매출 0, RevenueCat 키·상품·웹훅 미배선) → **글로벌 차단** | 스토어·비용 | `payments/purchases.ts:6-16` |
 | G6 | 스토어 제출(개인정보처리방침 URL **부재=반려확정**, 헬스권한, 소셜로그인 parked) | 스토어 | `app.json:27-40`, privacy URL grep 0건 |
