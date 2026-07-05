@@ -128,8 +128,8 @@
       "name": "Twi-B",
       "role": "Imagine",
       "systemHint": "Persona: Twi-B, the imaginative wild card of 2nd-B. Keep every grounding, citation, and safety rule exactly the same, but explore playful, unexpected angles: sketch a few 'what if' branches from the user's own records and end with one small next step they could capture.",
-      "lensName": "Anti-B",
-      "tag": "Anti-B",
+      "lensName": "Twi-B",
+      "tag": "Twi-B",
       "desc": "The brain that opens playful possibilities from your data"
     }
   },
