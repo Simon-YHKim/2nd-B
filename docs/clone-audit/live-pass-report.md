@@ -82,3 +82,32 @@ structural).
    results seeded on the QA account (or a second QA account with completed assessments).
 
 None of these were fixed in this pass (Track C is capture + report only).
+
+## Re-triage vs current canon (07-05)
+
+The original pass compared live captures against `reference-captures/` (the STALE
+460×820 bezel handoff). Re-triaged here against the CURRENT canon set
+(`design/proto_rev2/docs/Screen-Spec/captures/NN-name.png`, 780×1640) + current
+`main` code. Verdicts: **REAL-GAP** (live diverges from current canon) ·
+**STALE-REF** (live matches current canon; the old ref was a different design) ·
+**ALREADY-FIXED** (#750/#753/#754) · **HONEST-STATE** (empty/thin-data behavior,
+not a bug) · **DEFERRED** (real but out of this token-polish pass).
+
+| # | Finding | Verdict | Action |
+|---|---------|---------|--------|
+| 1 | 34-museum room-list vs timeline | STALE-REF | Canon `34-museum.png` **is** the timeline scrubber; live matches it. The room-list was the old ref. No fix. |
+| 2a | 23-iden toggle set 2 vs 4 | **REAL-GAP** | Canon shows 4 fixed export categories (북극성 문장 / Big Five 검증 / 7 도메인 요약 / 원문 기록). The live 2 rows (코어/콘텐츠) were the honest schema-field render for the empty QA account. **FIXED**: added `canonIden.rows`; rebuilt the include-toggle section to the canon 4 rows, each gating real doc fields (ROW_FIELDS). |
+| 2b | 23-iden v0.1 vs v2.1 | NOT-A-GAP | `v0.1` is the real `IdenDoc` version; canon `v2.1` is a mock chip. Kept v0.1 (honesty). |
+| 2c | 23-iden toggle accent green | **REAL-GAP** | The RN built-in `Switch` renders an off-palette green on react-native-web (track color ignored). **FIXED**: replaced with the M3 blue (`m3.color.primary`) Pressable toggle, 1:1 with the settings switch. Big Five sub now renders the account's REAL values (`data.bigFive`) or a neutral "검증 결과 포함" — never the canon's fabricated "O72 C58 …". |
+| 3 | 26-reminders toggle accent green | **REAL-GAP** | Hardcoded `deepSpace.mint`. **FIXED**: `remStyles.toggleOn/knobOn` → `deepSpace.accent`/`onAccent` (canon blue). Localized to the reminders toggle; no other mint usage touched. |
+| 4 | 05-home 오늘+N pill + bell position | STALE-REF / ALREADY-FIXED | Canon `05-home` has the bell **top-left** (matches live) and **no** 오늘+N pill; the fake status bar was already dropped (#750). No fix. |
+| 5 | 08-records toggle overlap + 정리함 card | DEFERRED / no-canon-ref | Canon `08-records` is the **graph** view — no list toggle or 정리함 card to compare. The 목록/그래프 seg overlapping the floating mascot header (list view) is a real layout issue, but it lives in the shared `SecondbStatusHeader` float owned by the `statusheader-consolidate` worktree and has no canon list reference. Left for that pass to avoid a cross-worktree conflict; not a token fix. |
+| 6 | 21-northstar card color + suggestions | HONEST-STATE | The muted card text is the empty-draft **placeholder** (QA account has no saved north-star) — not a color bug; canon shows a *saved* value. The suggestion list is honestly absent on a thin record base (`proposeNorthstarSentences`, `MIN_RECORDS_FOR_PROPOSAL`). The card's SVG right-edge band is a react-native-svg-web render quirk (web-capture only). No token fix; do not fabricate suggestions. |
+| 7 | 02/03 onboarding dots + safe-area | ALREADY-FIXED / web-artifact | Canon `02-onboard` shows **4** dots (matches live, post-#753 `SLIDES=4`). The top safe-area inset difference is a web-export artifact (native provides the inset). No fix. |
+| 8 | big-five / attachment empty states | RECLASSIFIED | The empty state was honest; the QA account is now seeded (track H), so the filled state is live-verifiable. No code gap. |
+
+**Fixes applied (token-only, minimal):** `src/lib/canon/index.ts` (+`canonIden.rows`),
+`src/app/iden.tsx` (canon 4-row include section + honest Big Five sub + M3 blue
+toggle + `raw` off by default), `src/screens/deepspace/ops/screens.tsx`
+(reminders toggle → blue). No STALE-REF / ALREADY-FIXED / HONEST-STATE item was
+"fixed".

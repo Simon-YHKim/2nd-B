@@ -181,6 +181,12 @@ export const canonCaptureModes = captureModesPack.modes as { id: string; icon: s
 export const canonIden = {
   targets: starLensesPack.idenScreen.targets as { k: string; c: string }[],
   formats: starLensesPack.idenScreen.formats as string[],
+  // rev2 IdenScreen include-toggle categories (design/proto_rev2 idenScreen.rows):
+  // the 4 fixed export sections the user chooses from. NOTE: the canon `bigfive`
+  // sub is a fabricated score line ("O72 C58 …") — screens MUST NOT render it as
+  // real data; the iden screen substitutes the account's REAL Big Five values or
+  // a neutral descriptor (see src/app/iden.tsx).
+  rows: starLensesPack.idenScreen.rows as { id: string; label: string; sub: string }[],
 };
 
 export interface CanonOnboardingSlide {
