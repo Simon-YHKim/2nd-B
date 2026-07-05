@@ -371,7 +371,7 @@ export function CaptureView() {
             variant="outlined"
             icon={<CaptureIcon name="photo_camera" color={m3.color.primary} size={18} />}
             label={f("photoOpen")}
-            onPress={() => router.push("/capture-full")}
+            onPress={() => router.push({ pathname: "/capture-full", params: { text } })}
             style={styles.capFullWidth}
           />
           <TextInput
@@ -392,7 +392,7 @@ export function CaptureView() {
             variant="outlined"
             icon={<CaptureIcon name="mic" color={m3.color.primary} size={18} />}
             label={f("voiceOpen")}
-            onPress={() => router.push("/capture-full")}
+            onPress={() => router.push({ pathname: "/capture-full", params: { text } })}
             style={styles.capFullWidth}
           />
           <TextInput
