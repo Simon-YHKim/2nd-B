@@ -572,12 +572,6 @@ export function DeepSpacePrivacyDesignScreen() {
       </Card>
 
       <Card>
-        <Toggle label={t("privacy.toggleAnalysis")} value={t("privacy.on")} />
-        <Toggle label={t("privacy.toggleStats")} value={t("privacy.off")} on={false} />
-        <Toggle label={t("privacy.toggleLock")} value={t("privacy.on")} />
-      </Card>
-
-      <Card>
         <Text variant="caption" style={styles.section}>{ko ? "맞춤 추천" : "Recommendations"}</Text>
         {minor ? (
           <Text variant="subtle" style={styles.footer}>
