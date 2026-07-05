@@ -17,10 +17,12 @@ describe("home CTA design-system wiring", () => {
 
     expect(source).toContain("PowerOnOverlay, PremiumButton, StarNoiseLayer, TAB_BAR_HEIGHT");
     expect(countMatches(source, /<PremiumButton\b/g)).toBeGreaterThanOrEqual(4);
-    expect(source).toContain(': "Leave a first piece"');
-    expect(source).toContain(': "I\'ll look around first"');
-    expect(source).toContain(': "Make it readable"');
-    expect(source).toContain(': "I like it as is"');
+    // QA #1: these CTA labels moved to the `index` locale namespace; assert the
+    // t() calls (the CTAs still render through PremiumButton with these labels).
+    expect(source).toContain('t("firstPiece")');
+    expect(source).toContain('t("lookFirst")');
+    expect(source).toContain('t("makeReadable")');
+    expect(source).toContain('t("likeAsIs")');
     expect(source).not.toContain("emptyGraphCtaText");
     expect(source).not.toContain("emptyGraphSkipText");
     expect(source).not.toContain("comfortButtonPrimary");

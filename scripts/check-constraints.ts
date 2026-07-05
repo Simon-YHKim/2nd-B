@@ -962,10 +962,10 @@ results.push(
         notFound.includes('accessibilityHint={t("destinations.persona.hint")}') &&
         notFound.includes('accessibilityHint={t("destinations.manual.hint")}') &&
       homeRoles >= 4 &&
-      home.includes("Opens capture to save your first piece") &&
-      home.includes("Look around first") &&
-      home.includes("Open today's center") &&
-      home.includes("Opens Soul Core") &&
+      home.includes('t("firstPieceHint")') &&
+      home.includes('t("lookFirstLabel")') &&
+      home.includes('t("openCenter")') &&
+      home.includes('t("openCenterHint")') &&
       jarvisButtons >= 8 &&
       jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
       jarvis.includes("Analysis mode") &&
