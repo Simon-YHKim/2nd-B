@@ -9,6 +9,7 @@ import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { facetRows } from "@/lib/persona/facet-rows";
 import { type BigFiveTrait } from "@/lib/persona/bfi";
+import { useTranslation } from "react-i18next";
 
 function Bar({ percent, accent }: { percent: number | null; accent: string }) {
   return (
@@ -29,11 +30,12 @@ export function FacetBreakdown({
   locale: "en" | "ko";
   onRetake?: () => void;
 }) {
+  const { t } = useTranslation("common");
   const groups = facetRows(facets, domains, locale);
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <Text variant="heading" style={styles.title}>
-        {locale === "ko" ? "세부 특질 30가지" : "Your 30 facets"}
+        {t("facet30")}
       </Text>
       <Text variant="subtle" color="textMuted" style={styles.note}>
         {locale === "ko"
@@ -62,9 +64,9 @@ export function FacetBreakdown({
           style={styles.retake}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "다시 검사하기" : "Retake the assessment"}
+          accessibilityLabel={t("facetRetakeLabel")}
         >
-          <Text variant="caption" color="brand">{locale === "ko" ? "다시 검사하기" : "Retake"}</Text>
+          <Text variant="caption" color="brand">{t("facetRetake")}</Text>
         </Pressable>
       ) : null}
     </ScrollView>

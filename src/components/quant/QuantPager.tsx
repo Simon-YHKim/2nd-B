@@ -9,6 +9,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { useTranslation } from "react-i18next";
 
 export interface QuantPagerProps {
   totalItems: number;
@@ -41,6 +42,7 @@ export function QuantPager({
   locale,
   submitLabel,
 }: QuantPagerProps) {
+  const { t } = useTranslation("common");
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
   const [page, setPage] = useState(0);
 
@@ -57,9 +59,9 @@ export function QuantPager({
   const onLastPage = page >= totalPages - 1;
   const isFirstPage = page === 0;
   const progressLabel = locale === "ko" ? `응답 진행률 ${progressPercent}%` : `Answer progress ${progressPercent}%`;
-  const prevHint = locale === "ko" ? "이전 문항 페이지로 이동합니다." : "Moves to the previous question page.";
-  const nextHint = locale === "ko" ? "다음 문항 페이지로 이동합니다." : "Moves to the next question page.";
-  const submitHint = locale === "ko" ? "응답을 저장하고 결과 화면으로 이동합니다." : "Saves your answers and opens the result screen.";
+  const prevHint = t("quantPrevHint");
+  const nextHint = t("quantNextHint");
+  const submitHint = t("quantSubmitHint");
 
   function next() {
     if (!onLastPage) setPage((p) => p + 1);
@@ -104,7 +106,7 @@ export function QuantPager({
 
         <View style={styles.navRow}>
           <Button
-            label={locale === "ko" ? "이전" : "Back"}
+            label={t("quantBack")}
             // O-R1 P1: mid-assessment Back must read quieter than Next/Save
             // so the forward action stays the one prominent choice.
             variant="ghost"
@@ -114,7 +116,7 @@ export function QuantPager({
           />
           {onLastPage ? (
             <Button
-              label={submitLabel ?? (locale === "ko" ? "결과 저장" : "Save result")}
+              label={submitLabel ?? (t("quantSaveResult"))}
               variant="primary"
               onPress={onSubmit}
               disabled={submitDisabled}
@@ -123,7 +125,7 @@ export function QuantPager({
             />
           ) : (
             <Button
-              label={locale === "ko" ? "다음" : "Next"}
+              label={t("quantNext")}
               variant="primary"
               onPress={next}
               accessibilityHint={nextHint}

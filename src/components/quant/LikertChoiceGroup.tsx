@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { useTranslation } from "react-i18next";
 
 export interface LikertChoice {
   value: number;
@@ -17,9 +18,10 @@ interface Props {
 }
 
 export function LikertChoiceGroup({ choices, locale, onSelect, question, value }: Props) {
+  const { t } = useTranslation("common");
   const groupLabel = locale === "ko" ? `${question} 응답 선택` : `${question} answer choices`;
-  const selectHint = locale === "ko" ? "두 번 탭해 이 답변을 선택합니다." : "Double tap to select this answer.";
-  const selectedHint = locale === "ko" ? "선택된 답변입니다." : "Selected answer.";
+  const selectHint = t("likertSelectHint");
+  const selectedHint = t("likertSelectedHint");
 
   return (
     <View style={styles.scaleRow} accessibilityRole="radiogroup" accessibilityLabel={groupLabel}>
