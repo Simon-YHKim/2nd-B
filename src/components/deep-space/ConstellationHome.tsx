@@ -144,6 +144,7 @@ export function ConstellationHome({
   onBellPress,
   starLevels = {},
   northStarBrightness = 0.2,
+  hasUnread = false,
 }: {
   /** 여행하기 on a star bubble (domains → their records lens, museum → /museum). */
   onStarTravel: (id: HomeStarId) => void;
@@ -154,6 +155,10 @@ export function ConstellationHome({
   onBellPress: () => void;
   starLevels?: Partial<Record<DomainId, LadderLevel>>;
   northStarBrightness?: number;
+  /** Real unread signal for the inbox bell dot. Defaults false so no fake
+   *  "unread" dot shows until a real unread source is wired (the inbox is
+   *  canon-seeded today, so there is no honest unread count yet). */
+  hasUnread?: boolean;
 }) {
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
@@ -279,7 +284,7 @@ export function ConstellationHome({
             />
           </Svg>
         </Pressable>
-        <View pointerEvents="none" style={styles.bellDot} />
+        {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
       </View>
 
       {/* constellation block (sb-home: flex 1, box centered, 84px top clearance) */}
