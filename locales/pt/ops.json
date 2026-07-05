@@ -98,7 +98,7 @@
     "autoCompletedHint": "Um treino registrado ou passos acima da sua meta marcaram isto."
   },
   "focus": {
-    "title": "Cronômetro de foco",
+    "title": "Foco diário",
     "status": "Faça uma sessão de foco.",
     "tip": "Terminar um bloco de foco marca sua rotina de foco do dia.",
     "phaseIdle": "Pronto",

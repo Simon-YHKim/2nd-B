@@ -98,7 +98,7 @@
     "autoCompletedHint": "Un entrenamiento registrado o pasos por encima de tu meta lo marcaron."
   },
   "focus": {
-    "title": "Temporizador de enfoque",
+    "title": "Enfoque diario",
     "status": "Haz una sesión de enfoque.",
     "tip": "Terminar un bloque de enfoque marca tu rutina de enfoque del día.",
     "phaseIdle": "Listo",
