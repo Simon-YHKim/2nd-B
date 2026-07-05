@@ -1,9 +1,12 @@
-// Read a local recording URI into base64 + mime WITHOUT expo-file-system:
-// fetch the file:// (or blob:) URI as a Blob, then FileReader.readAsDataURL
-// yields a "data:<mime>;base64,<data>" string we split. Works on native and web.
+// On-device recording helpers shared by the two voice->text flows (capture 음성
+// mode and the call-reflection recorder).
 //
-// Shared by the two on-device transcription flows (capture 음성 mode and the
-// call-reflection recorder) so both feed transcribeAudio the exact same shape.
+// recordingUriToBase64 reads a local recording URI into base64 + mime WITHOUT
+// expo-file-system: it fetches the file:// (or blob:) URI as a Blob, then
+// FileReader.readAsDataURL yields a "data:<mime>;base64,<data>" string we split.
+// Works on native and web, and feeds transcribeAudio the exact same shape.
+import { deleteAsync } from "expo-file-system/legacy";
+
 export async function recordingUriToBase64(
   uri: string,
 ): Promise<{ base64: string; mimeType: string }> {
@@ -22,4 +25,18 @@ export async function recordingUriToBase64(
   const headerMime = header.match(/^data:([^;]+)/)?.[1];
   const mimeType = headerMime || blob.type || "audio/mp4";
   return { base64, mimeType };
+}
+
+// Best-effort delete of a temp on-device recording once its text has been
+// extracted. Both voice flows promise the user the original audio is dropped
+// after transcription, so we remove the cache file here to honor that. Never
+// throws -- a failed cleanup must not break the capture flow -- and non-file://
+// URIs (e.g. web blob:) have no local file to delete.
+export async function discardRecording(uri: string | null | undefined): Promise<void> {
+  if (!uri || !uri.startsWith("file://")) return;
+  try {
+    await deleteAsync(uri, { idempotent: true });
+  } catch {
+    // The OS may have already evicted the cache file; nothing else to do.
+  }
 }
