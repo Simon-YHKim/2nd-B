@@ -16,6 +16,8 @@ import { materializeGraphFromPhase1 } from "./materialize";
 import { getSource, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { slugForTitle, toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
+import { embedAndStorePage } from "./embeddings";
+import { getEnv } from "../env";
 import type { WikiPageRow } from "./types";
 
 export interface GenerateSourcePageResult {
@@ -88,6 +90,21 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   // Phase 2 promotion implies the source is now part of the user's wiki —
   // mark it ingested so the inbox view reflects it.
   if (!source.ingested) await markSourceIngested(userId, sourceId);
+
+  // Auto-embed the new page so the semantic layer (kNN "연결 제안 찾기") populates
+  // on write, instead of staying dormant until a manual backfill tap. Migration
+  // 0068 NULLed every vector, and the only repopulation path was a user tapping
+  // the button on /research, so kNN was empty for everyone on first run. Skipped
+  // in mock mode (mock embeddings are random unit vectors that would poison
+  // cosine similarity). Best-effort: the single embedTexts call is spend-capped
+  // at the proxy, and a failure must never block wiki promotion.
+  if (getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
+    try {
+      await embedAndStorePage(userId, page);
+    } catch {
+      // best-effort: embedding failure does not fail the promotion
+    }
+  }
 
   return {
     page,
