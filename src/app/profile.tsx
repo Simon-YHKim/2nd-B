@@ -193,6 +193,7 @@ export default function Profile() {
           { key: "rlss", label: sections.know.items.rlss.label, route: "/rlss" },
           { key: "mbti", label: sections.know.items.mbti.label, route: "/mbti" },
           { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
+          { key: "seen", label: i18n.language?.toLowerCase().startsWith("ko") ? "보여지는 나" : "Seen self", route: "/seen" },
           { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },
           { key: "esm", label: sections.center.items.esm.label, route: "/esm" },
           { key: "interview", label: sections.know.items.interview.label, route: "/interview" },
