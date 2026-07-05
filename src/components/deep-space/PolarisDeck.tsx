@@ -9,6 +9,7 @@
  */
 import { useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
@@ -24,7 +25,8 @@ export interface PolarisDeckPage {
   body: ReactNode;
 }
 
-export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: boolean }) {
+export function PolarisDeck({ pages }: { pages: PolarisDeckPage[]; isKo: boolean }) {
+  const { t } = useTranslation("deepspace");
   const [pageWidth, setPageWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -49,7 +51,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
           onMomentumScrollEnd={(e) =>
             setIndex(Math.round(e.nativeEvent.contentOffset.x / Math.max(1, pageWidth)))
           }
-          accessibilityLabel={isKo ? "북극성 카드 덱" : "Polaris card deck"}
+          accessibilityLabel={t("deepspace:polaris.cardDeck")}
         >
           {pages.map((page) => (
             <View key={page.key} style={[styles.page, { width: pageWidth }]}>

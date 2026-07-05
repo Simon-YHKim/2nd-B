@@ -234,7 +234,11 @@
     "iden": {
       "signed": "Firmado",
       "northStar": "\"Entenderme a fondo, vivir más como yo.\"",
-      "send": "Enviar a la IA"
+      "send": "Enviar a la IA",
+      "loading": "Reuniendo tu IDEN",
+      "emptyTitle": "Aún no hay IDEN que reunir",
+      "emptyBody": "Completa una herramienta y tu IDEN empieza a tomar forma.",
+      "emptyCta": "Empezar a reunir"
     },
     "recall": {
       "title": "Recuerdo",
@@ -257,7 +261,9 @@
       "p7Name": "Primeros años laborales",
       "p7Age": "24–27",
       "p8Name": "Ahora",
-      "p8Age": "28–"
+      "p8Age": "28–",
+      "emptyTitle": "Aún no has recordado ninguna época",
+      "emptyBody": "Recuerda tus épocas pasadas una a una, y aquí se reúne qué años te formaron."
     },
     "seen": {
       "title": "Cómo me ven",
@@ -273,7 +279,18 @@
       "diffAgreeableness": "dif −7",
       "conclusion": "Otros te ven como alguien más vivaz. Quizá eres más extravertido de lo que crees.",
       "survey": "Ver encuesta",
-      "share": "Compartir"
+      "share": "Compartir",
+      "obsTitleGap": "El yo que veo, el yo que ven",
+      "obsTitleSolo": "Lo más visible desde fuera",
+      "obsNote": "No es lo que otros realmente piensan; son los rasgos de tu propio Big Five que más se notan desde fuera.",
+      "combinedNote": "Una imagen combinada de {{count}} personas; ninguna respuesta individual es identificable.",
+      "gapReadA11y": "Lectura del desfase en una línea",
+      "gapReading": "Leyendo…",
+      "gapReadCta": "SecondB lee el desfase",
+      "emptyTitleResponses": "Ya llegaron respuestas de {{count}} personas",
+      "emptyTitleNoPeers": "Aún no hay respuestas de otros para comparar",
+      "emptyBodyFinishBigFive": "Completa tu propio chequeo Big Five y verás el yo que ves junto al yo que ven.",
+      "emptyBodySendSurvey": "Envía una encuesta breve a alguien cercano y podrás ver el yo que ves junto al yo que ven los demás."
     },
     "rhythm": {
       "title": "Ritmo",
@@ -288,7 +305,9 @@
       "sat": "Sáb",
       "sun": "Dom",
       "caption": "Más tú: sábado por la mañana. Te sientes mejor cuando estás absorto creando algo.",
-      "logNow": "+ Registrar ánimo ahora"
+      "logNow": "+ Registrar ánimo ahora",
+      "emptyTitle": "Aún no hay ritmo que trazar",
+      "emptyBody": "Registra tu ánimo unos días y aquí aparece como ritmo cuándo eres más tú."
     },
     "possible": {
       "title": "Yo futuro",
@@ -302,7 +321,9 @@
       "a3Body": "Alguien que guarda el criterio dentro de sí",
       "footer": "Punteado = el yo antes de que los datos se llenen",
       "rewrite": "Reescribir",
-      "add": "+ Añadir"
+      "add": "+ Añadir",
+      "emptyTitle": "Aún no has esbozado tu yo futuro",
+      "emptyBody": "Habla con SecondB en modo divergente, y el tú anterior a los datos aterriza aquí."
     },
     "relational": {
       "title": "Relaciones",
@@ -318,7 +339,9 @@
       "topic2": "Psicología·autoconocimiento",
       "topic3": "IA·productividad",
       "conclusion": "En tus relaciones destaca más la profundidad que la amplitud. Pocas, seguido, por mucho tiempo.",
-      "addData": "+ Añadir datos"
+      "addData": "+ Añadir datos",
+      "emptyTitle": "Aún no hay personas ni conocimiento enlazados",
+      "emptyBody": "A medida que personas e intereses se acumulan en tus registros, aquí se muestra el tú dentro de las relaciones y el conocimiento."
     },
     "values": {
       "title": "Trabajo·crecimiento",
@@ -331,7 +354,11 @@
       "domain3": "Finanzas",
       "domain3Count": "37 piezas",
       "conclusion": "Donde más has construido es en Carrera. Finanzas sigue vacío: ¿ponemos más?",
-      "addData": "+ Añadir datos"
+      "addData": "+ Añadir datos",
+      "loading": "Contando tus piezas",
+      "emptyTitle": "Aún no has construido nada aquí",
+      "emptyBody": "Añade registros y verás qué áreas has hecho crecer más.",
+      "pieceCount": "{{count}} piezas"
     },
     "imagine": {
       "title": "Imaginar",

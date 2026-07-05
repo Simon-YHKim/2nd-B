@@ -427,5 +427,159 @@
   "reviewRatifiedMoved": "Ratified. Moved to actionable (L{{level}}).",
   "reviewOpenRecord": "Open record {{title}}",
   "connectionConfirmed": "Connection confirmed.",
-  "suggestionDismissed": "Suggestion dismissed."
+  "suggestionDismissed": "Suggestion dismissed.",
+  "career": {
+    "screenTitle": "Career",
+    "loading": "Loading…",
+    "timelineTitle": "Career timeline",
+    "close": "Close",
+    "addAchievement": "Add achievement",
+    "fieldAchievement": "Achievement (required)",
+    "placeholderAchievement": "What did you accomplish?",
+    "fieldRole": "Role",
+    "placeholderRole": "Your role at the time",
+    "fieldImpact": "Impact",
+    "placeholderImpact": "What changed? Numbers welcome",
+    "fieldYear": "Year",
+    "placeholderYear": "e.g. 2023 (empty = today)",
+    "yearError": "Use a four-digit year",
+    "saveFailed": "Could not save. Please try again.",
+    "saving": "Saving…",
+    "save": "Save",
+    "opening": "Opening the timeline…",
+    "loadError": "Could not load the timeline just now. Your pieces are safe; try again.",
+    "retry": "Try again",
+    "empty": "No career pieces yet. Start with one past achievement; the career star brightens.",
+    "pieceFallback": "Career piece",
+    "untitled": "(untitled)"
+  },
+  "people": {
+    "title": "Relationships",
+    "mapTitle": "People map",
+    "loading": "Loading…",
+    "close": "Close",
+    "addPerson": "Add person",
+    "nameLabel": "Name or how you call them",
+    "namePlaceholder": "e.g. Mom, Alex",
+    "relationLabel": "Relation",
+    "closeness": "Closeness {{closeness}}/5",
+    "saveFailed": "Could not save. Please try again.",
+    "saving": "Saving…",
+    "save": "Save",
+    "privacyNote": "Only the minimum about others, for your own memory. Stored in your account only.",
+    "openingMap": "Opening the map…",
+    "empty": "No one here yet. Add the people close to you, one by one; the relation star brightens.",
+    "me": "me",
+    "kind": {
+      "family": "Family",
+      "partner": "Partner",
+      "friend": "Friend",
+      "colleague": "Colleague",
+      "mentor": "Mentor",
+      "other": "Other"
+    },
+    "contactSuffix": " · contact {{cadence}}",
+    "lastSuffix": " · last {{date}}"
+  },
+  "rest": {
+    "title": "Rest",
+    "loading": "Loading…",
+    "close": "Close",
+    "addRest": "Add rest",
+    "whatLabel": "What is it? (required)",
+    "whatPlaceholder": "e.g. Zelda, Jeju trip, piano",
+    "categoryLabel": "Category",
+    "statusLabel": "Status",
+    "saveFailed": "Could not save. Please try again.",
+    "saving": "Saving…",
+    "save": "Save",
+    "opening": "Opening…",
+    "empty": "Nothing here yet. Start with what recharges you these days; the rest star brightens.",
+    "category": {
+      "game": "Game",
+      "movie": "Movie",
+      "music": "Music",
+      "travel": "Travel",
+      "show": "Show",
+      "hobby": "Hobby",
+      "other": "Other"
+    },
+    "status": {
+      "want": "Want to",
+      "active": "Doing",
+      "done": "Done"
+    }
+  },
+  "careerDrilldown": {
+    "summaryFallback": "a career experience",
+    "intro": "Break the achievement down - 3C for the Why, 4P for the What·How. When it's filled in, I'll ask the deeper questions from it.",
+    "summaryLabel": "One-line summary",
+    "summaryPlaceholder": "What you did and the result - one line",
+    "expTypeA11y": "Experience type",
+    "expTypePlaceholder": "Pick an experience type",
+    "submit": "Drill down with SecondB"
+  },
+  "shareCard": {
+    "barTitle": "Share card",
+    "loading": "Loading…",
+    "introExport": "Exports as a 1080×1080 square card. Raw notes stay out; only the one line you choose goes in.",
+    "variantInsight": "Insight card",
+    "variantConstellation": "Constellation card",
+    "saving": "Saving…",
+    "saveImage": "Save image",
+    "opening": "Opening…",
+    "share": "Share",
+    "introPrivacy": "Raw records and numbers never go on the card. Only the sentence you pick.",
+    "starsFallback": "Could not read your stars; drew the default."
+  },
+  "coachmarks": {
+    "step1": "This is your constellation",
+    "step2": "Tap a star",
+    "step3": "When it comes to mind, capture it",
+    "step4": "More tools live in settings",
+    "secondbName": "SecondB",
+    "dontShowAgain": "Don't show again",
+    "start": "Start",
+    "next": "Next"
+  },
+  "museum": {
+    "title": "AI Museum",
+    "rangeHint": "Swipe through time",
+    "seekYear": "Seek year",
+    "prevEvent": "Previous",
+    "nextEvent": "Next",
+    "close": "Close",
+    "youAreHere": "You are here",
+    "background": "Background",
+    "impact": "Impact",
+    "connected": "Connected",
+    "references": "References",
+    "backToConstellation": "Back to the constellation"
+  },
+  "polaris": {
+    "cardDeck": "Polaris card deck"
+  },
+  "wikiGraph": {
+    "a11yGraph": "Wiki node graph",
+    "a11yZoomOut": "Zoom out",
+    "a11yZoomIn": "Zoom in",
+    "hintSelected": "{{title}} · tap again to open",
+    "hintDefault": "Tap to select a node, tap again to open",
+    "kindConcept": "concept",
+    "kindEntity": "entity",
+    "kindSource": "source"
+  },
+  "quant": {
+    "progressLabel": "Answer progress {{percent}}%",
+    "pageCounter": "Page {{current}} / {{total}}",
+    "answered": "{{answered}} / {{total}} answered",
+    "readySuffix": " · ready to save",
+    "rangeNote": "This page: items {{from}} – {{to}}"
+  },
+  "shareCardImg": {
+    "eyebrowWeek": "2ND-BRAIN · THIS WEEK",
+    "footerWeek": "A week seen together with SecondB",
+    "starsLit": "{{count}} stars shining",
+    "signature": "2nd-Brain · {{count}} stardust"
+  }
 }

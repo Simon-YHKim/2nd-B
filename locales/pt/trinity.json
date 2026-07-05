@@ -14,5 +14,20 @@
   "dismiss": "Fechar",
   "dismissHint": "Fecha este aviso.",
   "retry": "Tentar de novo",
-  "retryHint": "Recarrega os registros das quatro áreas."
+  "retryHint": "Recarrega os registros das quatro áreas.",
+  "ds": {
+    "back": "Voltar",
+    "myAreas": "Minhas áreas",
+    "areasSubtitle": "Saúde · app · mente · finanças",
+    "glanceSummary": "Suas quatro áreas num relance.",
+    "emptySummary": "Ainda não há registros nas suas áreas.",
+    "emptyTip": "Que tal começar pela área mais silenciosa?",
+    "loadError": "Não conseguimos carregar seus registros. Tente novamente em instantes.",
+    "retry": "Tentar de novo",
+    "emptyBody": "Quando você marcar registros com as etiquetas saúde, app, mente ou finanças, eles aparecerão aqui por área.",
+    "addData": "Adicionar dados",
+    "unit": "itens",
+    "lastEntry": "Última {{date}}",
+    "noEntries": "Sem entradas"
+  }
 }

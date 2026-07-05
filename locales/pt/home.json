@@ -234,7 +234,11 @@
     "iden": {
       "signed": "Assinado",
       "northStar": "\"Me entender a fundo, viver mais do meu jeito.\"",
-      "send": "Enviar para a IA"
+      "send": "Enviar para a IA",
+      "loading": "Reunindo seu IDEN",
+      "emptyTitle": "Ainda não há IDEN para reunir",
+      "emptyBody": "Conclua uma ferramenta e seu IDEN começa a tomar forma.",
+      "emptyCta": "Começar a reunir"
     },
     "recall": {
       "title": "Lembrança",
@@ -257,7 +261,9 @@
       "p7Name": "Primeiros anos de trabalho",
       "p7Age": "24–27",
       "p8Name": "Agora",
-      "p8Age": "28–"
+      "p8Age": "28–",
+      "emptyTitle": "Nenhuma época recordada ainda",
+      "emptyBody": "Relembre suas épocas passadas uma a uma, e aqui se reúne quais anos formaram você."
     },
     "seen": {
       "title": "Como me veem",
@@ -273,7 +279,18 @@
       "diffAgreeableness": "dif −7",
       "conclusion": "Os outros veem você como alguém mais animado. Talvez você seja mais extrovertido do que pensa.",
       "survey": "Ver questionário",
-      "share": "Compartilhar"
+      "share": "Compartilhar",
+      "obsTitleGap": "O eu que vejo, o eu que veem",
+      "obsTitleSolo": "O mais visível de fora",
+      "obsNote": "Não é o que os outros realmente pensam; são os traços do seu próprio Big Five que mais se notam de fora.",
+      "combinedNote": "Uma imagem combinada de {{count}} pessoas; nenhuma resposta individual é identificável.",
+      "gapReadA11y": "Leitura da diferença em uma linha",
+      "gapReading": "Lendo…",
+      "gapReadCta": "O SecondB lê a diferença",
+      "emptyTitleResponses": "Já chegaram respostas de {{count}} pessoas",
+      "emptyTitleNoPeers": "Ainda não há respostas de outros para comparar",
+      "emptyBodyFinishBigFive": "Conclua seu próprio teste Big Five e você verá o eu que vê ao lado do eu que os outros veem.",
+      "emptyBodySendSurvey": "Envie uma pesquisa curta a alguém próximo e você poderá ver o eu que vê ao lado do eu que os outros veem."
     },
     "rhythm": {
       "title": "Ritmo",
@@ -288,7 +305,9 @@
       "sat": "Sáb",
       "sun": "Dom",
       "caption": "Mais você: sábado de manhã. Você se sente melhor quando está absorto criando algo.",
-      "logNow": "+ Registrar humor agora"
+      "logNow": "+ Registrar humor agora",
+      "emptyTitle": "Ainda não há ritmo para traçar",
+      "emptyBody": "Registre seu humor por alguns dias e aqui aparece como ritmo quando você é mais você."
     },
     "possible": {
       "title": "Eu futuro",
@@ -302,7 +321,9 @@
       "a3Body": "Alguém que guarda o critério dentro de si",
       "footer": "Tracejado = o eu antes de os dados preencherem",
       "rewrite": "Reescrever",
-      "add": "+ Adicionar"
+      "add": "+ Adicionar",
+      "emptyTitle": "Nenhum eu futuro esboçado ainda",
+      "emptyBody": "Converse com o SecondB no modo divergente, e o você antes dos dados aparece aqui."
     },
     "relational": {
       "title": "Relações",
@@ -318,7 +339,9 @@
       "topic2": "Psicologia·autoconhecimento",
       "topic3": "IA·produtividade",
       "conclusion": "Nas suas relações a profundidade se destaca mais que a amplitude. Poucas, com frequência, por muito tempo.",
-      "addData": "+ Adicionar dados"
+      "addData": "+ Adicionar dados",
+      "emptyTitle": "Nenhuma pessoa ou conhecimento vinculado ainda",
+      "emptyBody": "À medida que pessoas e interesses se acumulam nos seus registros, aqui aparece o você dentro das relações e do conhecimento."
     },
     "values": {
       "title": "Trabalho·crescimento",
@@ -331,7 +354,11 @@
       "domain3": "Finanças",
       "domain3Count": "37 peças",
       "conclusion": "Onde você mais construiu foi em Carreira. Finanças ainda está vazio: vamos guardar mais?",
-      "addData": "+ Adicionar dados"
+      "addData": "+ Adicionar dados",
+      "loading": "Contando suas peças",
+      "emptyTitle": "Nada construído aqui ainda",
+      "emptyBody": "Adicione registros e você verá quais áreas mais cultivou.",
+      "pieceCount": "{{count}} peças"
     },
     "imagine": {
       "title": "Imaginar",

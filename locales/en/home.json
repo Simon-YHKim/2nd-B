@@ -234,7 +234,11 @@
     "iden": {
       "signed": "Signed",
       "northStar": "\"Understand myself deeply, live more like myself.\"",
-      "send": "Send to AI"
+      "send": "Send to AI",
+      "loading": "Gathering your IDEN",
+      "emptyTitle": "No IDEN to gather yet",
+      "emptyBody": "Finish one tool and your IDEN starts to take shape.",
+      "emptyCta": "Start gathering"
     },
     "recall": {
       "title": "Recall",
@@ -257,7 +261,9 @@
       "p7Name": "First job years",
       "p7Age": "24–27",
       "p8Name": "Now",
-      "p8Age": "28–"
+      "p8Age": "28–",
+      "emptyTitle": "No eras recalled yet",
+      "emptyBody": "Recall your past eras one by one, and which years shaped you gathers here."
     },
     "seen": {
       "title": "Seen self",
@@ -273,7 +279,18 @@
       "diffAgreeableness": "diff −7",
       "conclusion": "Others see you as a more lively person. You may be more extraverted than you think.",
       "survey": "View survey",
-      "share": "Share"
+      "share": "Share",
+      "obsTitleGap": "The me I see, the me they see",
+      "obsTitleSolo": "Most visible from outside",
+      "obsNote": "Not what others actually think; the traits from your own Big Five that read most from outside.",
+      "combinedNote": "A combined picture from {{count}} people; no single answer is identifiable.",
+      "gapReadA11y": "One-line gap read",
+      "gapReading": "Reading…",
+      "gapReadCta": "SecondB reads the gap",
+      "emptyTitleResponses": "Responses from {{count}} people are in",
+      "emptyTitleNoPeers": "No peer responses to compare yet",
+      "emptyBodyFinishBigFive": "Finish your own Big Five check and you'll see the me you see beside the me they see.",
+      "emptyBodySendSurvey": "Send a short survey to someone close, and you'll see the me you see beside the me others see."
     },
     "rhythm": {
       "title": "Rhythm",
@@ -288,7 +305,9 @@
       "sat": "Sat",
       "sun": "Sun",
       "caption": "Most yourself: Saturday morning. You feel best when absorbed in making something.",
-      "logNow": "+ Log mood now"
+      "logNow": "+ Log mood now",
+      "emptyTitle": "No rhythm to chart yet",
+      "emptyBody": "Log your mood for a few days, and when you feel most yourself shows up as a rhythm here."
     },
     "possible": {
       "title": "Future self",
@@ -302,7 +321,9 @@
       "a3Body": "Someone who keeps the standard inside",
       "footer": "Dashed = the me before the data fills in",
       "rewrite": "Rewrite",
-      "add": "+ Add"
+      "add": "+ Add",
+      "emptyTitle": "No future self sketched yet",
+      "emptyBody": "Talk with SecondB in divergent mode, and the you before the data fills in lands here."
     },
     "relational": {
       "title": "Relations",
@@ -318,7 +339,9 @@
       "topic2": "Psychology·self-understanding",
       "topic3": "AI·productivity",
       "conclusion": "Depth stands out more than breadth in your relationships. A few, often, for a long time.",
-      "addData": "+ Add data"
+      "addData": "+ Add data",
+      "emptyTitle": "No people or knowledge linked yet",
+      "emptyBody": "As people and interests build up in your records, the you inside relationships and knowledge shows here."
     },
     "values": {
       "title": "Work·growth",
@@ -331,7 +354,11 @@
       "domain3": "Finance",
       "domain3Count": "37 pieces",
       "conclusion": "You've built the most in Career. Finance is still empty - shall we put more in?",
-      "addData": "+ Add data"
+      "addData": "+ Add data",
+      "loading": "Counting your pieces",
+      "emptyTitle": "Nothing built up here yet",
+      "emptyBody": "Add records and you'll see which areas you've grown the most.",
+      "pieceCount": "{{count}} pieces"
     },
     "imagine": {
       "title": "Imagine",

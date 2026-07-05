@@ -14,5 +14,20 @@
   "dismiss": "Dismiss",
   "dismissHint": "Dismisses this notice.",
   "retry": "Retry",
-  "retryHint": "Reloads the four-area records."
+  "retryHint": "Reloads the four-area records.",
+  "ds": {
+    "back": "Back",
+    "myAreas": "My areas",
+    "areasSubtitle": "Health · app · brain · finance",
+    "glanceSummary": "Your four areas at a glance.",
+    "emptySummary": "No records in your areas yet.",
+    "emptyTip": "Start with the quietest area?",
+    "loadError": "Couldn't load your records. Please try again shortly.",
+    "retry": "Retry",
+    "emptyBody": "Once records are tagged health, app, brain or finance, they show up here by area.",
+    "addData": "Add data",
+    "unit": "items",
+    "lastEntry": "Last {{date}}",
+    "noEntries": "No entries"
+  }
 }
