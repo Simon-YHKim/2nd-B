@@ -101,7 +101,7 @@ export default function CoreBrain() {
 }
 
 function CoreBrainScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("core-brain");
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -170,7 +170,7 @@ function CoreBrainScreen() {
     return (
       <CoreShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </CoreShell>
     );
@@ -182,7 +182,7 @@ function CoreBrainScreen() {
     return (
       <CoreShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "중심을 살펴보는 중이에요…" : "Looking at your center…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </CoreShell>
     );
@@ -197,21 +197,19 @@ function CoreBrainScreen() {
         <View style={styles.center}>
           <IslandArt id="core" size={140} />
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
-            {locale === "ko" ? "중심을 잠깐 못 불러왔어요" : "We couldn't load your center just now"}
+            {t("loadError")}
           </Text>
           <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-            {locale === "ko"
-              ? "연결이 잠깐 흔들렸어요. 별가루는 그대로 있으니 다시 시도해 주세요."
-              : "The connection wobbled for a moment. Your pieces are safe, so please try again."}
+            {t("loadErrorBody")}
           </Text>
           <View style={styles.emptyActions}>
             <Button
-              label={locale === "ko" ? "다시 시도하기" : "Try again"}
+              label={t("tryAgain")}
               variant="primary"
               onPress={() => setReloadKey((k) => k + 1)}
             />
             <Button
-              label={locale === "ko" ? "세컨비와 시작하기" : "Start with SecondB"}
+              label={t("startSecondB")}
               variant="secondary"
               onPress={() => router.push("/secondb")}
             />
@@ -244,21 +242,19 @@ function CoreBrainScreen() {
             </View>
           </View>
           <Text variant="heading" style={{ marginTop: spacing.lg, textAlign: "center" }}>
-            {locale === "ko" ? "일곱 개의 별이 당신을 기다려요" : "Seven stars are waiting"}
+            {t("sevenStars")}
           </Text>
           <Text variant="body" color="textMuted" style={{ marginTop: spacing.sm, textAlign: "center" }}>
-            {locale === "ko"
-              ? "3분이면 첫 별 하나가 켜져요. 가까운 관계 패턴부터 같이 짚어볼까요?"
-              : "Three minutes lights your first star. Shall we start with your relationship pattern?"}
+            {t("threeMin")}
           </Text>
           <View style={styles.emptyActions}>
             <Button
-              label={locale === "ko" ? "관계 체크 시작 · 3분" : "Start relationship check · 3 min"}
+              label={t("startRelCheck")}
               variant="primary"
               onPress={() => router.push("/attachment")}
             />
             <Button
-              label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
+              label={t("leavePiece")}
               variant="secondary"
               onPress={() => router.push("/capture")}
             />
@@ -288,11 +284,11 @@ function CoreBrainScreen() {
         style={styles.backdrop}
         onPress={() => setDrawerOpen(false)}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? "참고 별가루 닫기" : "Close evidence drawer"}
+        accessibilityLabel={t("closeEvidence")}
       >
         <Pressable style={styles.drawer} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
           <View style={styles.drawerHandle} />
-          <Text variant="heading">{locale === "ko" ? "이걸 만든 별가루들" : "The pieces behind this"}</Text>
+          <Text variant="heading">{t("piecesBehind")}</Text>
           <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
             {locale === "ko"
               ? isDeepSpaceUI()
@@ -311,7 +307,7 @@ function CoreBrainScreen() {
                   router.push({ pathname: "/record/[id]", params: { id: ev.id } });
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? `${ev.title} 기록 열기` : `Open record ${ev.title}`}
+                accessibilityLabel={t("openRecord", { title: ev.title })}
                 accessibilityHint={evidenceLabel(ev, locale)}
               >
                 <View style={styles.evDot} />
@@ -325,14 +321,14 @@ function CoreBrainScreen() {
             ))}
           </ScrollView>
           <Button
-            label={locale === "ko" ? "모든 기록 보기" : "See all records"}
+            label={t("seeAllRecords")}
             variant="secondary"
             onPress={() => {
               setDrawerOpen(false);
               router.push("/records");
             }}
           />
-          <Button label={locale === "ko" ? "닫기" : "Close"} variant="secondary" onPress={() => setDrawerOpen(false)} />
+          <Button label={t("close")} variant="secondary" onPress={() => setDrawerOpen(false)} />
         </Pressable>
       </Pressable>
     </Modal>
@@ -347,46 +343,46 @@ function CoreBrainScreen() {
     const band = brightnessBand(persona?.soulCoreBrightness ?? 0.2);
     const bandLabel = locale === "ko" ? SOUL_CORE_BAND_KO[band] : SOUL_CORE_BAND_EN[band];
     const askPolaris = () =>
-      router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "북극성" : "my Polaris" } });
+      router.push({ pathname: "/secondb", params: { fromNode: t("polaris") } });
     const deckPages: PolarisDeckPage[] = [
       {
         key: "polaris",
-        title: locale === "ko" ? "북극성 · 종합" : "Polaris · the aggregate you",
+        title: t("polarisAggregate"),
         accent: cosmic.soulViolet,
         body: (
           <View style={dsDeck.heroBody}>
             <Text variant="display" style={dsDeck.heroBand}>{bandLabel}</Text>
             <Text variant="caption" color="textMuted" style={dsDeck.heroCaption}>
-              {locale === "ko" ? "지금 밝기 · 아는 만큼만 밝아져요" : "Current brightness · only as bright as what you know"}
+              {t("currentBrightness")}
             </Text>
             <View style={dsDeck.heroStats}>
               <Text variant="body" color="textMuted">
-                {locale === "ko" ? `별가루 ${evidence.length}` : `${evidence.length} pieces`}
+                {t("piecesCount", { n: evidence.length })}
               </Text>
               <Text variant="body" color="textMuted">
-                {locale === "ko" ? `나의 모습 ${filledFields}/5` : `self-portrait ${filledFields}/5`}
+                {t("selfPortraitCount", { n: filledFields })}
               </Text>
               <Text variant="body" color="textMuted">
-                {locale === "ko" ? `영역 ${persona?.values.length ?? 0}` : `${persona?.values.length ?? 0} areas`}
+                {t("areasCount", { n: persona?.values.length ?? 0 })}
               </Text>
             </View>
             <Text variant="subtle" color="textSubtle" style={dsDeck.heroHint}>
-              {locale === "ko" ? "옆으로 넘겨 카드를 살펴보세요" : "Swipe to walk the cards"}
+              {t("swipeCards")}
             </Text>
             <View style={dsDeck.heroLinks}>
               <MdButton
                 variant="text"
-                label={locale === "ko" ? "밝기 변화" : "Brightness"}
+                label={t("brightness")}
                 onPress={() => router.push("/brightness")}
               />
               <MdButton
                 variant="text"
-                label={locale === "ko" ? "승인 이력" : "Ratification log"}
+                label={t("ratLog")}
                 onPress={() => router.push("/ratifications")}
               />
               <MdButton
                 variant="text"
-                label={locale === "ko" ? "공유 카드" : "Share card"}
+                label={t("shareCard")}
                 onPress={() => router.push("/share-card")}
               />
             </View>
@@ -396,7 +392,7 @@ function CoreBrainScreen() {
       ...(direction
         ? [{
             key: "direction",
-            title: locale === "ko" ? "요즘 가장 밝은 연결" : "Brightest connection now",
+            title: t("brightestConn"),
             accent: direction.accent,
             body: <Text variant="body">{direction.body}</Text>,
           }]
@@ -404,14 +400,14 @@ function CoreBrainScreen() {
       ...(neighborhood
         ? [{
             key: "neighborhood",
-            title: locale === "ko" ? "밝아진 동네" : "The lit-up neighborhood",
+            title: t("litNeighborhood"),
             accent: neighborhood.accent,
             body: <Text variant="body">{neighborhood.body}</Text>,
           }]
         : []),
       {
         key: "portrait",
-        title: locale === "ko" ? "자주 보이는 나의 모습" : "A side of me I keep seeing",
+        title: t("sideOfMe"),
         accent: cosmic.soulViolet,
         body: (
           <View>
@@ -437,15 +433,13 @@ function CoreBrainScreen() {
                     )}
                   </View>
                   {field.status === "collecting" ? (
-                    <Text variant="caption" color="brand">{locale === "ko" ? "채우기" : "Fill"}</Text>
+                    <Text variant="caption" color="brand">{t("fill")}</Text>
                   ) : null}
                 </TouchableOpacity>
               ))}
             </View>
             <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
-              {locale === "ko"
-                ? "AI가 기록에서 만든 근사치예요 · 권위적 판단이 아니라 한 가지 해석이에요."
-                : "An AI approximation from your records, one interpretation, not authoritative."}
+              {t("aiApprox")}
             </Text>
           </View>
         ),
@@ -453,7 +447,7 @@ function CoreBrainScreen() {
       ...(persona
         ? [{
             key: "radar",
-            title: locale === "ko" ? "성격 지형" : "Trait terrain",
+            title: t("traitTerrain"),
             accent: cosmic.soulViolet,
             body: (
               <View style={dsDeck.radarBody}>
@@ -462,8 +456,8 @@ function CoreBrainScreen() {
                   variant="tonal"
                   label={
                     isMeasuredSource(persona.traitsSource)
-                      ? locale === "ko" ? "자세히 살펴보기" : "Look closer"
-                      : locale === "ko" ? "검사로 정확히 재기" : "Measure it properly"
+                      ? t("lookCloser")
+                      : t("measureProperly")
                   }
                   onPress={() => router.push(isMeasuredSource(persona.traitsSource) ? "/persona" : "/big-five")}
                 />
@@ -474,7 +468,7 @@ function CoreBrainScreen() {
       ...(starLevels
         ? [{
             key: "seven",
-            title: locale === "ko" ? "나를 아는 일곱 가지" : "Seven ways to know me",
+            title: t("sevenWays"),
             accent: cosmic.soulViolet,
             body: (
               <View style={styles.starRow}>
@@ -495,14 +489,14 @@ function CoreBrainScreen() {
         : []),
       {
         key: "pieces",
-        title: locale === "ko" ? "이걸 만든 별가루들" : "The pieces behind this",
+        title: t("piecesBehind"),
         accent: cosmic.pixelLamp,
         body: (
           <View>
             {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
             <MdButton
               variant="text"
-              label={locale === "ko" ? `참고한 별가루 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
+              label={t("seePieces", { n: evidence.length })}
               onPress={() => setDrawerOpen(true)}
             />
           </View>
@@ -510,25 +504,23 @@ function CoreBrainScreen() {
       },
       {
         key: "validate",
-        title: locale === "ko" ? "나를 재는 도구들" : "Ways to measure me",
+        title: t("waysToMeasure"),
         accent: cosmic.signalMint,
         body: (
           <View style={dsDeck.validateList}>
             <Text variant="caption" color="textMuted" style={{ marginBottom: 4 }}>
-              {locale === "ko"
-                ? "검증된 검사로 별을 하나씩 밝혀요."
-                : "Validated checks light the stars one by one."}
+              {t("validatedChecks")}
             </Text>
             {([
-              { key: "bigfive", label: locale === "ko" ? "Big Five 성격 검사" : "Big Five check", route: "/big-five" },
-              { key: "ipip", label: locale === "ko" ? "정밀 성격 지도 (IPIP-NEO-120)" : "Facet map (IPIP-NEO-120)", route: "/ipip-neo" },
-              { key: "attachment", label: locale === "ko" ? "관계 패턴 체크" : "Relationship pattern check", route: "/attachment" },
-              { key: "motivation", label: locale === "ko" ? "동기 체크" : "Motivation check", route: "/motivation" },
-              { key: "strengths", label: locale === "ko" ? "강점 체크" : "Strengths check", route: "/strengths" },
-              { key: "values", label: locale === "ko" ? "가치관 체크" : "Values check", route: "/values" },
-              { key: "northstar", label: locale === "ko" ? "북극성 문장 편집" : "Edit north-star sentence", route: "/northstar" },
-              { key: "mbti", label: locale === "ko" ? "MBTI 스크리너" : "MBTI screener", route: "/mbti" },
-              { key: "audit", label: locale === "ko" ? "가치 오딧" : "Values audit", route: "/audit" },
+              { key: "bigfive", label: t("bigFiveCheck"), route: "/big-five" },
+              { key: "ipip", label: t("facetMap"), route: "/ipip-neo" },
+              { key: "attachment", label: t("relCheck"), route: "/attachment" },
+              { key: "motivation", label: t("motivationCheck"), route: "/motivation" },
+              { key: "strengths", label: t("strengthsCheck"), route: "/strengths" },
+              { key: "values", label: t("valuesCheck"), route: "/values" },
+              { key: "northstar", label: t("editNorthStar"), route: "/northstar" },
+              { key: "mbti", label: t("mbtiScreener"), route: "/mbti" },
+              { key: "audit", label: t("valuesAudit"), route: "/audit" },
             ] as const).map((tool) => (
               <MdButton
                 key={tool.key}
@@ -542,26 +534,26 @@ function CoreBrainScreen() {
       },
       {
         key: "next",
-        title: locale === "ko" ? "다음 한 걸음" : "Next step",
+        title: t("nextStep"),
         accent: cosmic.signalMint,
         body: (
           <View style={dsDeck.validateList}>
             <Text variant="body" color="textMuted">
-              {locale === "ko" ? "이 중심을 다음 한 걸음으로 줄여볼게요." : "Let's narrow this center into one next step."}
+              {t("narrowStep")}
             </Text>
             <MdButton
               variant="outlined"
-              label={locale === "ko" ? "트위비와 새 관점으로" : "New angle with Twi-B"}
+              label={t("newAngleTwi")}
               onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
             />
             <MdButton
               variant="filled"
-              label={locale === "ko" ? "제안 받고 점검하기" : "Review a proposal"}
+              label={t("reviewProposal")}
               onPress={() => router.push("/digest")}
             />
             <MdButton
               variant="text"
-              label={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
+              label={t("askAboutCenter")}
               onPress={askPolaris}
             />
           </View>
@@ -582,49 +574,49 @@ function CoreBrainScreen() {
     <CoreShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "02. 소울 코어" : "02. Soul Core"}
-          title={locale === "ko" ? "내 별가루들이 중심으로 모여요" : "Your pieces gather into a center"}
-          subtitle={locale === "ko" ? "요즘 나의 연결 상태" : "How you're connecting lately"}
+          eyebrow={t("soulCoreEyebrow")}
+          title={t("piecesGather")}
+          subtitle={t("connectingLately")}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
           speech={CORE_VILLAGE_UI.speech[locale]}
           primaryAction={{
-            label: locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB",
-            onPress: () => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "소울 코어" : "my center" } }),
+            label: t("askSecondB"),
+            onPress: () => router.push({ pathname: "/secondb", params: { fromNode: t("myCenter") } }),
           }}
         />
         <View style={styles.statRow}>
-          <StatTile value={evidence.length} label={locale === "ko" ? "별가루" : "pieces"} accent={cosmic.pixelLamp} />
-          <StatTile value={`${filledFields}/5`} label={locale === "ko" ? "나의 모습" : "self-portrait"} accent={cosmic.soulViolet} />
-          <StatTile value={persona?.values.length ?? 0} label={locale === "ko" ? "동네" : "areas"} accent={cosmic.signalMint} />
+          <StatTile value={evidence.length} label={t("piecesWord")} accent={cosmic.pixelLamp} />
+          <StatTile value={`${filledFields}/5`} label={t("selfPortrait")} accent={cosmic.soulViolet} />
+          <StatTile value={persona?.values.length ?? 0} label={t("areasWord")} accent={cosmic.signalMint} />
           <StatTile
             value={
               locale === "ko"
                 ? SOUL_CORE_BAND_KO[brightnessBand(persona?.soulCoreBrightness ?? 0.2)]
                 : SOUL_CORE_BAND_EN[brightnessBand(persona?.soulCoreBrightness ?? 0.2)]
             }
-            label={locale === "ko" ? "밝기" : "brightness"}
+            label={t("brightnessWord")}
             accent={cosmic.soulViolet}
           />
         </View>
 
         {/* 3) 요즘 가장 밝은 연결 */}
         {direction ? (
-          <Section title={locale === "ko" ? "요즘 가장 밝은 연결" : "Brightest connection now"} accent={direction.accent}>
+          <Section title={t("brightestConn")} accent={direction.accent}>
             <Text variant="body">{direction.body}</Text>
           </Section>
         ) : null}
 
         {/* 4) 밝아진 동네 / 영역 */}
         {neighborhood ? (
-          <Section title={locale === "ko" ? "밝아진 동네" : "The lit-up neighborhood"} accent={neighborhood.accent}>
+          <Section title={t("litNeighborhood")} accent={neighborhood.accent}>
             <Text variant="body">{neighborhood.body}</Text>
           </Section>
         ) : null}
 
         {/* 5) 자주 보이는 나의 모습 — 5-field self-portrait (data contract) */}
-        <Section title={locale === "ko" ? "자주 보이는 나의 모습" : "A side of me I keep seeing"} accent={cosmic.soulViolet}>
+        <Section title={t("sideOfMe")} accent={cosmic.soulViolet}>
           <View style={styles.fieldList}>
             {portrait.map((field) => (
               <TouchableOpacity
@@ -647,7 +639,7 @@ function CoreBrainScreen() {
                   )}
                 </View>
                 {field.status === "collecting" ? (
-                  <Text variant="caption" color="brand">{locale === "ko" ? "채우기" : "Fill"}</Text>
+                  <Text variant="caption" color="brand">{t("fill")}</Text>
                 ) : null}
               </TouchableOpacity>
             ))}
@@ -657,12 +649,10 @@ function CoreBrainScreen() {
               authoritative self-knowledge. The legacy persona screen says this; the
               canon soul-core did not, so it is added here on the inferred-self card. */}
           <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
-            {locale === "ko"
-              ? "AI가 기록에서 만든 근사치예요 · 권위적 판단이 아니라 한 가지 해석이에요."
-              : "An AI approximation from your records, one interpretation, not authoritative."}
+            {t("aiApprox")}
           </Text>
           <Button
-            label={locale === "ko" ? "살펴보기" : "Look around"}
+            label={t("lookAround")}
             variant="secondary"
             onPress={() => router.push("/persona")}
           />
@@ -670,7 +660,7 @@ function CoreBrainScreen() {
 
         {/* 5b) 나를 아는 일곱 가지 — 7 self-understanding stars (constellation) */}
         {starLevels ? (
-          <Section title={locale === "ko" ? "나를 아는 일곱 가지" : "Seven ways to know me"} accent={cosmic.soulViolet}>
+          <Section title={t("sevenWays")} accent={cosmic.soulViolet}>
             <View style={styles.starRow}>
               {SELF_UNDERSTANDING_STARS.map((star) => {
                 const v = brightnessVisual(starLevels[star.id]);
@@ -682,7 +672,7 @@ function CoreBrainScreen() {
                     </Text>
                     {star.status === "absent" ? (
                       <Text variant="caption" color="textSubtle" style={styles.starSoon}>
-                        {locale === "ko" ? "곧" : "soon"}
+                        {t("soon")}
                       </Text>
                     ) : null}
                   </View>
@@ -693,7 +683,7 @@ function CoreBrainScreen() {
         ) : null}
 
         {/* 6) 이걸 만든 별가루들 — evidence */}
-        <Section title={locale === "ko" ? "이걸 만든 별가루들" : "The pieces behind this"} accent={cosmic.pixelLamp}>
+        <Section title={t("piecesBehind")} accent={cosmic.pixelLamp}>
           {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -701,31 +691,27 @@ function CoreBrainScreen() {
             style={styles.evidenceBtn}
             accessibilityRole="button"
             accessibilityLabel={
-              locale === "ko"
-                ? `참고한 별가루 ${evidence.length}개 보기`
-                : `See ${evidence.length} evidence pieces`
+              t("seeEvidencePieces", { n: evidence.length })
             }
           >
             <Text variant="body" color="brand">
-              {locale === "ko" ? `참고한 별가루 ${evidence.length}개 보기` : `See ${evidence.length} pieces`}
+              {t("seePieces", { n: evidence.length })}
             </Text>
           </TouchableOpacity>
         </Section>
 
         {/* 7) 다음 한 걸음 */}
-        <Section title={locale === "ko" ? "다음 한 걸음" : "Next step"} accent={cosmic.signalMint}>
+        <Section title={t("nextStep")} accent={cosmic.signalMint}>
           <Text variant="body" color="textMuted" style={{ marginBottom: spacing.sm }}>
-            {locale === "ko"
-              ? "이 중심을 다음 한 걸음으로 줄여볼게요."
-              : "Let's narrow this center into one next step."}
+            {t("narrowStep")}
           </Text>
           <Button
-            label={locale === "ko" ? "새 관점으로 펼치기" : "Open a new angle"}
+            label={t("openNewAngle")}
             variant="secondary"
             onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
           />
           <Button
-            label={locale === "ko" ? "제안 받고 점검하기" : "Review a proposal"}
+            label={t("reviewProposal")}
             variant="primary"
             onPress={() => router.push("/digest")}
           />
@@ -733,9 +719,9 @@ function CoreBrainScreen() {
 
         {/* 8) 세컨비에게 이 중심으로 묻기 */}
         <PremiumCTA
-          label={locale === "ko" ? "세컨비에게 이 중심으로 묻기" : "Ask SecondB about this center"}
+          label={t("askAboutCenter")}
           variant="secondary"
-          onPress={() => router.push({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "소울 코어" : "my center" } })}
+          onPress={() => router.push({ pathname: "/secondb", params: { fromNode: t("myCenter") } })}
         />
       </ScrollView>
 
