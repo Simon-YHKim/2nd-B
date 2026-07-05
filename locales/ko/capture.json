@@ -331,5 +331,10 @@
     "openRecords": "기록 보관소 열기",
     "privacyLine": "내 계정에만 비공개로 저장돼요. 상대방에 대한 프로필은 만들지 않아요.",
     "topicPrefix": "통화 회고"
-  }
+  },
+  "captureTab": "담기",
+  "formatsTab": "형식",
+  "importTab": "가져오기",
+  "inboxTab": "받은 항목",
+  "manualTab": "수동 입력"
 }

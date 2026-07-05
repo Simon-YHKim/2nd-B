@@ -331,5 +331,10 @@
     "openRecords": "Open records",
     "privacyLine": "Stored privately in your account. Nothing about the other person is profiled.",
     "topicPrefix": "Call reflection"
-  }
+  },
+  "captureTab": "Capture",
+  "formatsTab": "Formats",
+  "importTab": "Import",
+  "inboxTab": "Inbox",
+  "manualTab": "Manual"
 }

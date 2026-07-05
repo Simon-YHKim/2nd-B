@@ -331,5 +331,10 @@
     "openRecords": "Buka catatan",
     "privacyLine": "Disimpan secara pribadi di akunmu. Tidak ada profil tentang orang lain.",
     "topicPrefix": "Refleksi panggilan"
-  }
+  },
+  "captureTab": "Tangkap",
+  "formatsTab": "Format",
+  "importTab": "Impor",
+  "inboxTab": "Kotak masuk",
+  "manualTab": "Manual"
 }
