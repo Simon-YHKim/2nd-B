@@ -968,23 +968,23 @@ results.push(
       home.includes('t("openCenterHint")') &&
       jarvisButtons >= 8 &&
       jarvis.includes('accessibilityHint={t("clearChatHint")}') &&
-      jarvis.includes("Analysis mode") &&
-      jarvis.includes("New angle mode") &&
+      jarvis.includes('t("analysisMode")') &&
+      jarvis.includes('t("newAngleMode")') &&
       jarvis.includes("selected: chatMode") &&
-      jarvis.includes("Long press to copy this message") &&
-      jarvis.includes("Dismisses the intro modal") &&
+      jarvis.includes('t("longPressCopyThis")') &&
+      jarvis.includes('t("closeIntroHint")') &&
       jarvis.includes('accessibilityLabel={t("intro_mute")}') &&
       jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
-      jarvis.includes("Dismisses the referenced pieces drawer") &&
+      jarvis.includes('t("closeReferencedHint")') &&
       navGraphButtons >= 7 &&
-      navGraph.includes("Opens this piece summary and tags") &&
-      navGraph.includes("Opens this village node") &&
-      navGraph.includes("Opens the center village") &&
-      navGraph.includes("Resets graph pan and zoom") &&
-      navGraph.includes("Closes the village detail panel") &&
-      navGraph.includes("Open ${name} from a new angle") &&
-      navGraph.includes("Opens this village in SecondB from a new angle") &&
-      navGraph.includes("Closes the piece detail panel") &&
+      navGraph.includes('t("navPieceSummary")') &&
+      navGraph.includes('t("navVillageNode")') &&
+      navGraph.includes('t("navCenterVillage")') &&
+      navGraph.includes('t("navResetHint")') &&
+      navGraph.includes('t("navCloseVillage")') &&
+      navGraph.includes('t("navOpenAngleName"') &&
+      navGraph.includes('t("navOpenAngleVillage")') &&
+      navGraph.includes('t("navClosePiece")') &&
       esm.includes('from("esm_responses").insert') &&
       esm.includes("prompt_kind: kind") &&
       esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&
@@ -2804,7 +2804,7 @@ results.push(
       secondbSprite.includes('accessibilityRole: "image"') &&
       home.includes("const mascotLabel") &&
       home.includes("label={mascotLabel}") &&
-      jarvis.includes('label={locale === "ko" ? "대화할 준비가 된 세컨비" : "SecondB ready to chat"}') &&
+      jarvis.includes('label={t("readyToChat")}') &&
       graphBits.includes('accessible accessibilityRole="image" accessibilityLabel={meta.name[locale]}') &&
       islandArt.includes("accessibilityElementsHidden") &&
       islandArt.includes('importantForAccessibility="no-hide-descendants"') &&

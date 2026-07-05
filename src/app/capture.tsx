@@ -1397,12 +1397,12 @@ export function CaptureLegacy() {
             <DeepSpaceLinks
               groups={[
                 {
-                  title: locale === "ko" ? "담기" : "Capture",
+                  title: t("captureTab"),
                   items: [
-                    { key: "formats", label: locale === "ko" ? "형식" : "Formats", route: "/formats" },
-                    { key: "import", label: locale === "ko" ? "가져오기" : "Import", route: "/import" },
-                    { key: "inbox", label: locale === "ko" ? "받은 항목" : "Inbox", route: "/inbox" },
-                    { key: "manual", label: locale === "ko" ? "수동 입력" : "Manual", route: "/manual" },
+                    { key: "formats", label: t("formatsTab"), route: "/formats" },
+                    { key: "import", label: t("importTab"), route: "/import" },
+                    { key: "inbox", label: t("inboxTab"), route: "/inbox" },
+                    { key: "manual", label: t("manualTab"), route: "/manual" },
                   ],
                 },
               ]}

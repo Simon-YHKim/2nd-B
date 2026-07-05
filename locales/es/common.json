@@ -66,5 +66,32 @@
       "noDataBody": "Aquí solo aparecen las piezas que escribes o guardas tú. Deja una pieza y este núcleo hará crecer un nodo copo de nieve ligero.",
       "dataDetailHint": "Abre el detalle del Pattern Data seleccionado."
     }
-  }
+  },
+  "navPiece": "fragmento",
+  "navPieceSummary": "Abre el resumen y las etiquetas de este fragmento",
+  "navVillageNode": "Abre este nodo del pueblo",
+  "navCenterVillage": "Abre el pueblo central",
+  "navResetView": "Restablecer vista",
+  "navResetHint": "Restablece el desplazamiento y el zoom del gráfico",
+  "navReset": "Restablecer",
+  "navPrevCategory": "Categoría anterior",
+  "navPrevHint": "Selecciona el pueblo anterior",
+  "navPrev": "Ant.",
+  "navOpenSettings": "Abrir opciones",
+  "navSettingsHint": "Abre la pantalla de opciones",
+  "navSettings": "Opciones",
+  "navNextCategory": "Categoría siguiente",
+  "navNextHint": "Selecciona el pueblo siguiente",
+  "navNext": "Sig.",
+  "navClose": "Cerrar",
+  "navCloseVillage": "Cierra el panel de detalle del pueblo",
+  "navPiecesConnected": "fragmentos que conecté",
+  "navLookAround": "Echar un vistazo",
+  "navOpenAngleVillage": "Abre este pueblo en SecondB desde un nuevo ángulo",
+  "navOpenNewAngle": "Abrir nuevo ángulo",
+  "navClosePiece": "Cierra el panel de detalle del fragmento",
+  "navNoSummary": "Aún no hay resumen.",
+  "navDetails": "Detalles",
+  "navConnectedCount": "{{n}} fragmentos que conecté",
+  "navOpenAngleName": "Abrir {{name}} desde un nuevo ángulo"
 }

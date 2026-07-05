@@ -18,13 +18,13 @@ function ImagineLegacy() {
 }
 
 function ImagineDeepSpace() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("imagine");
   return (
     <DeepSpaceScreen
       active="lens"
       header="none"
       variant="windowed"
-      title={i18n.language === "ko" ? "공상하기" : "Imagine"}
+      title={t("title")}
       onBack={() => router.back()}
     >
       <ImagineDivergentView isKo={i18n.language === "ko"} />

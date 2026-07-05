@@ -416,5 +416,16 @@
     "connectorsLabel": "Conectores de apps",
     "pickFiles": "Elegir archivos",
     "picking": "Abriendo…"
-  }
+  },
+  "reviewNoChange": "No hay ningún cambio que proponer ahora mismo.",
+  "reviewLoadError": "No pudimos cargar una propuesta. Inténtalo de nuevo.",
+  "reviewLeftAsIs": "Se deja como está por ahora.",
+  "reviewGetProposal": "Obtener una propuesta",
+  "reviewLoading": "Cargando…",
+  "reviewRecordsBehind": "Los registros detrás de esto",
+  "reviewTapCheck": "Toca para revisar tú mismo el registro original.",
+  "reviewRatifiedMoved": "Confirmado. Pasó a accionable (L{{level}}).",
+  "reviewOpenRecord": "Abrir el registro {{title}}",
+  "connectionConfirmed": "Conexión confirmada.",
+  "suggestionDismissed": "Sugerencia descartada."
 }

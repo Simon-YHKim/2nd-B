@@ -416,5 +416,16 @@
     "connectorsLabel": "앱 커넥터",
     "pickFiles": "파일 선택",
     "picking": "여는 중…"
-  }
+  },
+  "reviewNoChange": "지금은 제안할 변화가 없어요.",
+  "reviewLoadError": "제안을 불러오지 못했어요. 다시 시도해 주세요.",
+  "reviewLeftAsIs": "이번엔 그대로 둘게요.",
+  "reviewGetProposal": "제안 받기",
+  "reviewLoading": "불러오는 중…",
+  "reviewRecordsBehind": "이 제안의 근거가 된 기록",
+  "reviewTapCheck": "탭하면 원본 기록을 직접 확인할 수 있어요.",
+  "reviewRatifiedMoved": "승인됐어요. 실행가능(L{{level}})으로 올라갔어요.",
+  "reviewOpenRecord": "{{title}} 기록 열기",
+  "connectionConfirmed": "연결을 확인했어요.",
+  "suggestionDismissed": "제안을 보류했어요."
 }

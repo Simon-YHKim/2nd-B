@@ -33,6 +33,7 @@ import { DeepSpacePrivacyDesignScreen } from "@/screens/deepspace/DeepSpaceDesig
 
 function PrivacyLegacy() {
   const { t, i18n } = useTranslation("consent");
+  const { t: tp } = useTranslation("privacy");
   const { userId, isMinor, loading } = useAuth();
   const minor = isMinor === true;
   const locale = i18n.language === "ko" ? "ko" : "en";
@@ -126,7 +127,7 @@ function PrivacyLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "개인정보 설정을 불러오는 중이에요…" : "Loading privacy settings…"} />
+          <PremiumLoadingState message={tp("loading")} />
         </View>
       </PremiumAppShell>
     );

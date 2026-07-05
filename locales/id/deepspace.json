@@ -416,5 +416,16 @@
     "connectorsLabel": "Konektor aplikasi",
     "pickFiles": "Pilih file",
     "picking": "Membuka…"
-  }
+  },
+  "reviewNoChange": "Belum ada perubahan untuk diusulkan saat ini.",
+  "reviewLoadError": "Tidak dapat memuat usulan. Coba lagi.",
+  "reviewLeftAsIs": "Dibiarkan apa adanya untuk sekarang.",
+  "reviewGetProposal": "Dapatkan usulan",
+  "reviewLoading": "Memuat…",
+  "reviewRecordsBehind": "Catatan di balik ini",
+  "reviewTapCheck": "Ketuk untuk memeriksa sendiri catatan aslinya.",
+  "reviewRatifiedMoved": "Dikonfirmasi. Dipindahkan ke dapat ditindaklanjuti (L{{level}}).",
+  "reviewOpenRecord": "Buka catatan {{title}}",
+  "connectionConfirmed": "Koneksi dikonfirmasi.",
+  "suggestionDismissed": "Saran diabaikan."
 }

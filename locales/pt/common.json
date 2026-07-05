@@ -66,5 +66,32 @@
       "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e este núcleo fará crescer um nó floco de neve leve.",
       "dataDetailHint": "Abre o detalhe do Pattern Data selecionado."
     }
-  }
+  },
+  "navPiece": "fragmento",
+  "navPieceSummary": "Abre o resumo e as etiquetas deste fragmento",
+  "navVillageNode": "Abre este nó da vila",
+  "navCenterVillage": "Abre a vila central",
+  "navResetView": "Redefinir vista",
+  "navResetHint": "Redefine o deslocamento e o zoom do gráfico",
+  "navReset": "Redefinir",
+  "navPrevCategory": "Categoria anterior",
+  "navPrevHint": "Seleciona a vila anterior",
+  "navPrev": "Ant.",
+  "navOpenSettings": "Abrir opções",
+  "navSettingsHint": "Abre a tela de opções",
+  "navSettings": "Opções",
+  "navNextCategory": "Próxima categoria",
+  "navNextHint": "Seleciona a próxima vila",
+  "navNext": "Próx.",
+  "navClose": "Fechar",
+  "navCloseVillage": "Fecha o painel de detalhe da vila",
+  "navPiecesConnected": "fragmentos que conectei",
+  "navLookAround": "Dar uma olhada",
+  "navOpenAngleVillage": "Abre esta vila no SecondB por um novo ângulo",
+  "navOpenNewAngle": "Abrir novo ângulo",
+  "navClosePiece": "Fecha o painel de detalhe do fragmento",
+  "navNoSummary": "Ainda não há resumo.",
+  "navDetails": "Detalhes",
+  "navConnectedCount": "{{n}} fragmentos que conectei",
+  "navOpenAngleName": "Abrir {{name}} por um novo ângulo"
 }

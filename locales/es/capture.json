@@ -331,5 +331,10 @@
     "openRecords": "Abrir registros",
     "privacyLine": "Se guarda de forma privada en tu cuenta. No se perfila a la otra persona.",
     "topicPrefix": "Reflexion de llamada"
-  }
+  },
+  "captureTab": "Capturar",
+  "formatsTab": "Formatos",
+  "importTab": "Importar",
+  "inboxTab": "Bandeja",
+  "manualTab": "Manual"
 }

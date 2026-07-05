@@ -331,5 +331,10 @@
     "openRecords": "Abrir registros",
     "privacyLine": "Guardado de forma privada na sua conta. Nao criamos perfil da outra pessoa.",
     "topicPrefix": "Reflexao de ligacao"
-  }
+  },
+  "captureTab": "Capturar",
+  "formatsTab": "Formatos",
+  "importTab": "Importar",
+  "inboxTab": "Recebidos",
+  "manualTab": "Manual"
 }

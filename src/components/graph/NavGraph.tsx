@@ -1838,11 +1838,11 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
                 onPress={() => handleNodeTap(id)}
                 hitSlop={14}
                 accessibilityRole="button"
-                accessibilityLabel={piece?.title ?? (locale === "ko" ? "별가루" : "piece")}
+                accessibilityLabel={piece?.title ?? (t("navPiece"))}
                 accessibilityHint={
                   isDrilldownData
                     ? t("navGraph.drilldown.dataDetailHint")
-                    : locale === "ko" ? "별가루 요약과 해시태그를 엽니다" : "Opens this piece summary and tags"
+                    : t("navPieceSummary")
                 }
                 accessibilityState={{ selected: activeId === id || drilldownSelectedDataId === id }}
               >
@@ -1917,7 +1917,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
                 hitSlop={14}
                 accessibilityRole="button"
                 accessibilityLabel={n.label[locale]}
-                accessibilityHint={locale === "ko" ? "이 마을 별가루를 엽니다" : "Opens this village node"}
+                accessibilityHint={t("navVillageNode")}
                 accessibilityState={{ selected: activeId === n.id }}
                 style={StyleSheet.absoluteFill}
               />
@@ -1971,7 +1971,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
             hitSlop={20}
             accessibilityRole="button"
             accessibilityLabel={CENTER_NODE.label[locale]}
-            accessibilityHint={locale === "ko" ? "중심 마을을 엽니다" : "Opens the center village"}
+            accessibilityHint={t("navCenterVillage")}
             accessibilityState={{ selected: activeId === CENTER_NODE.id }}
             style={StyleSheet.absoluteFill}
           />
@@ -2001,10 +2001,10 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
             onPress={() => resetCamera()}
             style={styles.resetBtn}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? "원래대로" : "Reset view"}
-            accessibilityHint={locale === "ko" ? "그래프 위치와 확대를 초기화합니다" : "Resets graph pan and zoom"}
+            accessibilityLabel={t("navResetView")}
+            accessibilityHint={t("navResetHint")}
           >
-            <Text variant="caption" style={styles.resetText}>{locale === "ko" ? "원래대로" : "Reset"}</Text>
+            <Text variant="caption" style={styles.resetText}>{t("navReset")}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -2052,28 +2052,28 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
           onPress={goPrevCategory}
           style={styles.a11yBtn}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "이전 카테고리" : "Previous category"}
-          accessibilityHint={locale === "ko" ? "이전 마을을 선택합니다" : "Selects previous village"}
+          accessibilityLabel={t("navPrevCategory")}
+          accessibilityHint={t("navPrevHint")}
         >
-          <Text style={styles.a11yBtnText}>{locale === "ko" ? "이전" : "Prev"}</Text>
+          <Text style={styles.a11yBtnText}>{t("navPrev")}</Text>
         </Pressable>
         <Pressable
           onPress={() => router.push("/settings")}
           style={styles.a11yBtn}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "설정 열기" : "Open settings"}
-          accessibilityHint={locale === "ko" ? "설정 화면으로 이동합니다" : "Opens settings screen"}
+          accessibilityLabel={t("navOpenSettings")}
+          accessibilityHint={t("navSettingsHint")}
         >
-          <Text style={styles.a11yBtnText}>{locale === "ko" ? "설정" : "Settings"}</Text>
+          <Text style={styles.a11yBtnText}>{t("navSettings")}</Text>
         </Pressable>
         <Pressable
           onPress={goNextCategory}
           style={styles.a11yBtn}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "다음 카테고리" : "Next category"}
-          accessibilityHint={locale === "ko" ? "다음 마을을 선택합니다" : "Selects next village"}
+          accessibilityLabel={t("navNextCategory")}
+          accessibilityHint={t("navNextHint")}
         >
-          <Text style={styles.a11yBtnText}>{locale === "ko" ? "다음" : "Next"}</Text>
+          <Text style={styles.a11yBtnText}>{t("navNext")}</Text>
         </Pressable>
       </View>
       ) : null}
@@ -2151,6 +2151,7 @@ function NodeSheet({
   onImagine: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("common");
   const slide = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const safeBottom = Math.max(92, TAB_BAR_HEIGHT + insets.bottom + 12);
@@ -2190,8 +2191,8 @@ function NodeSheet({
           onPress={onClose}
           hitSlop={16}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
-          accessibilityHint={locale === "ko" ? "마을 상세 패널을 닫습니다" : "Closes the village detail panel"}
+          accessibilityLabel={t("navClose")}
+          accessibilityHint={t("navCloseVillage")}
         >
           <Text style={styles.sheetClose}>✕</Text>
         </Pressable>
@@ -2200,19 +2201,19 @@ function NodeSheet({
         <Text variant="caption" style={[styles.sheetType, { color: accent }]}>{type}</Text>
         {connectedCount > 0 ? (
           <Text variant="subtle" color="textMuted">
-            {locale === "ko" ? `내가 연결한 별가루 ${connectedCount}개` : `${connectedCount} pieces I connected`}
+            {t("navConnectedCount", { n: connectedCount })}
           </Text>
         ) : null}
       </View>
       <Text variant="body" color="textMuted" style={styles.sheetDesc}>{description}</Text>
       {connectedCount > 0 ? (
         <View style={styles.sheetStats}>
-          <StatTile value={connectedCount} label={locale === "ko" ? "내가 연결한 별가루" : "pieces I connected"} accent={cosmic.signalMint} />
+          <StatTile value={connectedCount} label={t("navPiecesConnected")} accent={cosmic.signalMint} />
         </View>
       ) : null}
       <View style={styles.sheetActions}>
         <PremiumButton
-          label={locale === "ko" ? "살펴보기" : "Look around"}
+          label={t("navLookAround")}
           variant="primary"
           onPress={onLook}
           style={styles.sheetActionBtn}
@@ -2234,10 +2235,10 @@ function NodeSheet({
         hitSlop={16}
         style={styles.sheetImagine}
         accessibilityRole="button"
-        accessibilityLabel={locale === "ko" ? `${name} 새 관점으로 열기` : `Open ${name} from a new angle`}
-        accessibilityHint={locale === "ko" ? "이 마을을 세컨비에서 새 관점으로 엽니다" : "Opens this village in SecondB from a new angle"}
+        accessibilityLabel={t("navOpenAngleName", { name })}
+        accessibilityHint={t("navOpenAngleVillage")}
       >
-        <Text variant="caption" style={{ color: accent }}>{locale === "ko" ? "새 관점으로 펼치기" : "Open new angle"}</Text>
+        <Text variant="caption" style={{ color: accent }}>{t("navOpenNewAngle")}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -2399,6 +2400,7 @@ function DataNodeSheet({
   onDetail: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("common");
   const slide = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const safeBottom = Math.max(92, TAB_BAR_HEIGHT + insets.bottom + 12);
@@ -2422,8 +2424,8 @@ function DataNodeSheet({
           onPress={onClose}
           hitSlop={16}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
-          accessibilityHint={locale === "ko" ? "별가루 상세 패널을 닫습니다" : "Closes the piece detail panel"}
+          accessibilityLabel={t("navClose")}
+          accessibilityHint={t("navClosePiece")}
         >
           <Text style={styles.sheetClose}>✕</Text>
         </Pressable>
@@ -2432,7 +2434,7 @@ function DataNodeSheet({
         <Text variant="body" color="textMuted" style={styles.sheetDesc} numberOfLines={5}>{summary}</Text>
       ) : (
         <Text variant="subtle" color="textSubtle" style={styles.sheetDesc}>
-          {locale === "ko" ? "아직 요약이 없어요." : "No summary yet."}
+          {t("navNoSummary")}
         </Text>
       )}
       {tags.length > 0 ? (
@@ -2446,7 +2448,7 @@ function DataNodeSheet({
       ) : null}
       <View style={styles.sheetActions}>
         <PremiumButton
-          label={locale === "ko" ? "자세히" : "Details"}
+          label={t("navDetails")}
           variant="primary"
           onPress={onDetail}
           style={styles.sheetActionBtn}
