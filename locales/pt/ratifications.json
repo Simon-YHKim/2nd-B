@@ -1,0 +1,15 @@
+{
+  "barTitle": "Registro de confirmações",
+  "loading": "Carregando…",
+  "openingLedger": "Abrindo o registro…",
+  "goPolaris": "Ir para a Estrela Polar",
+  "all": "Todos",
+  "proposed": "Proposto",
+  "ratified": "Confirmado",
+  "held": "Em espera",
+  "declined": "Recusado",
+  "cited": "{{n}} citados",
+  "undo": "Desfazer",
+  "hideUnchanged": "Ocultar recálculos sem mudanças",
+  "showUnchanged": "Ver {{n}} recálculos sem mudanças"
+}

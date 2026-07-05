@@ -8,7 +8,7 @@
 // runtimes with deps already in the app.
 
 import { useCallback, useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView, Platform, Share, Switch, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Platform, Share, Pressable } from "react-native";
 import Svg, { Path, Rect as SvgRect, Circle as SvgCircle } from "react-native-svg";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
@@ -43,28 +43,25 @@ type IdenFormat = "Markdown" | "JSON" | "PDF";
 // render order, the union stays the compile-time contract for `fmt`.
 const IDEN_FORMATS = canonIden.formats as IdenFormat[];
 
-// Honest source line under each include row (IDEN's trust layer, types.ts):
-// shows WHERE a field's value came from, never a fabricated confidence.
-function sourceSub(kind: string, instrument: string | undefined, isKo: boolean): string {
-  const inst = instrument ? ` · ${instrument}` : "";
-  switch (kind) {
-    case "measured":
-    case "instrument":
-      return (isKo ? "측정됨" : "Measured") + inst;
-    case "assessment":
-      return isKo ? "자기 평가" : "Self-assessment";
-    case "self_report":
-      return isKo ? "직접 입력" : "Self-reported";
-    case "count":
-      return isKo ? "기록 수 기반" : "From record counts";
-    case "derived":
-      return isKo ? "기록에서 도출" : "Derived from records";
-    case "ai_summary":
-      return isKo ? "AI 요약" : "AI summary";
-    default:
-      return isKo ? "수집 중" : "Collecting";
-  }
-}
+// rev2 IdenScreen include-toggle categories = the 4 fixed canon export sections
+// (canonIden.rows). Each category gates a set of REAL IdenDoc field keys so a
+// toggle is never decorative: turning a category off drops its fields from every
+// export artifact (.iden / JSON / PDF). `raw` maps to no field — raw source text
+// is never composed into the doc — and is off by default (canon "기본 제외").
+const ROW_FIELDS: Record<string, string[]> = {
+  northstar: ["patterns", "type", "attachment"], // interpretive identity signals behind the one-liner
+  bigfive: ["traits"], // Big Five trait scores
+  domains: ["cores", "contents", "drivers"], // pattern cores + vault domains + value drivers
+  raw: [], // raw notes: not in the doc, sensitive, off by default
+};
+
+// English mirrors for the KO-only canon row labels/subs (iden supports en/ko).
+const ROW_EN: Record<string, { label: string; sub: string }> = {
+  northstar: { label: "North-star sentence", sub: "You in one line" },
+  bigfive: { label: "Big Five", sub: "Big Five included" },
+  domains: { label: "7-domain summary", sub: "Starlight · confidence" },
+  raw: { label: "Raw notes", sub: "Sensitive — off by default" },
+};
 
 // Open the rendered CV sheet in a new tab so the browser print dialog can save
 // it as an A4 PDF. Web-only; reached through globalThis so no DOM lib types or
@@ -96,10 +93,11 @@ function IdenExportScreenDeepSpace() {
   const [data, setData] = useState<IdenViewData | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  // rev2 P5a data sovereignty: the loaded doc's fields drive include-toggles;
-  // an excluded field never leaves the device in ANY export format.
+  // rev2 P5a data sovereignty: the canon include-toggles (canonIden.rows) gate
+  // real doc fields; an excluded category never leaves the device in ANY export
+  // format. `excluded` holds canon ROW ids (not field keys). `raw` starts off.
   const [doc, setDoc] = useState<IdenDoc | null>(null);
-  const [excluded, setExcluded] = useState<string[]>([]);
+  const [excluded, setExcluded] = useState<string[]>(["raw"]);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -151,11 +149,14 @@ function IdenExportScreenDeepSpace() {
   // "Send to AI" exports the real `.iden` text and opens the share sheet (queue
   // C export/share path). When there's no IDEN yet, the empty-state CTA instead
   // routes the user to start gathering, so the action always advances them.
-  // Include = every doc field minus the user's exclusions (P5a toggles).
-  const includeKeys = useCallback(
-    () => (doc ? doc.fields.map((f) => f.key).filter((k) => !excluded.includes(k)) : undefined),
-    [doc, excluded],
-  );
+  // Include = every doc field whose canon category is enabled. Excluded ROW ids
+  // expand to their gated field keys (ROW_FIELDS); those keys are dropped.
+  const includeKeys = useCallback(() => {
+    if (!doc) return undefined;
+    const dropped = new Set<string>();
+    for (const rowId of excluded) for (const k of ROW_FIELDS[rowId] ?? []) dropped.add(k);
+    return doc.fields.map((f) => f.key).filter((k) => !dropped.has(k));
+  }, [doc, excluded]);
 
   const handleSend = useCallback(async () => {
     if (!userId) return;
@@ -271,26 +272,43 @@ function IdenExportScreenDeepSpace() {
             </View>
           </View>
 
-          {/* 무엇을 담을까요 — include switches over the schema-driven fields */}
+          {/* 무엇을 담을까요 — the 4 fixed canon export categories (canonIden.rows).
+              Deliberate canon deviation: the canon `bigfive` sub is a fabricated
+              score line ("O72 C58 …"); we render the account's REAL Big Five values
+              (data.bigFive, derived from measured/derived traits) or a neutral
+              descriptor when absent — never a faked score. Toggle = canon blue
+              (m3.color.primary), matching the settings M3 switch. */}
           <Text style={dsIden.sectionLabel}>{isKo ? "무엇을 담을까요" : "What goes in"}</Text>
           <View style={dsIden.rowsCard}>
-            {doc!.fields.map((field, i) => {
-              const on = !excluded.includes(field.key);
+            {canonIden.rows.map((row, i) => {
+              const on = !excluded.includes(row.id);
+              const label = isKo ? row.label : ROW_EN[row.id]?.label ?? row.label;
+              const sub =
+                row.id === "bigfive"
+                  ? data!.bigFive ?? (isKo ? "검증 결과 포함" : ROW_EN.bigfive.sub)
+                  : isKo
+                    ? row.sub
+                    : ROW_EN[row.id]?.sub ?? row.sub;
+              const sensitive = row.id === "raw";
               return (
-                <View key={field.key} style={[dsIden.row, i > 0 && dsIden.rowDivider]}>
+                <View key={row.id} style={[dsIden.row, i > 0 && dsIden.rowDivider]}>
                   <View style={dsIden.rowText}>
-                    <Text style={dsIden.rowLabel}>{field.label}</Text>
-                    <Text style={dsIden.rowSub}>{sourceSub(field.source.kind, field.source.instrument, isKo)}</Text>
+                    <Text style={dsIden.rowLabel}>{label}</Text>
+                    <Text style={[dsIden.rowSub, sensitive && dsIden.rowSubSensitive]}>{sub}</Text>
                   </View>
-                  <Switch
-                    value={on}
-                    onValueChange={(v) =>
-                      setExcluded((prev) => (v ? prev.filter((k) => k !== field.key) : [...prev, field.key]))
-                    }
-                    trackColor={{ false: m3.color.surfaceVariant, true: m3.color.primary }}
-                    thumbColor={on ? m3.color.onPrimary : m3.color.outline}
-                    accessibilityLabel={field.label}
-                  />
+                  <Pressable
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={label}
+                    onPress={() => setExcluded((prev) => (on ? [...prev, row.id] : prev.filter((k) => k !== row.id)))}
+                    hitSlop={8}
+                    style={[
+                      dsIden.switchTrack,
+                      { borderColor: on ? m3.color.primary : m3.color.outline, backgroundColor: on ? m3.color.primary : m3.color.surfaceContainerHighest },
+                    ]}
+                  >
+                    <View style={[dsIden.switchThumb, on ? dsIden.switchThumbOn : dsIden.switchThumbOff]} />
+                  </Pressable>
                 </View>
               );
             })}
@@ -413,6 +431,15 @@ const dsIden = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   rowLabel: { fontSize: 16, lineHeight: 22, color: m3.color.onSurface },
   rowSub: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant },
+  // Sensitive (raw notes) sub reads as a caution, matching the canon tertiary tint.
+  rowSubSensitive: { color: m3.color.tertiary },
+  // M3 include-switch (1:1 with the settings M3Switch): 52×32 track, 2dp border,
+  // thumb 16→24, canon blue (primary) when on. Guarantees the reference accent on
+  // web too (the RN built-in Switch renders an off-palette green on react-native-web).
+  switchTrack: { width: 52, height: 32, borderRadius: 9999, borderWidth: 2, justifyContent: "center" },
+  switchThumb: { position: "absolute", borderRadius: 9999 },
+  switchThumbOn: { width: 24, height: 24, right: 2, backgroundColor: m3.color.onPrimary },
+  switchThumbOff: { width: 16, height: 16, left: 7, backgroundColor: m3.color.outline },
   rowsFootnote: { fontSize: 12, color: m3.color.onSurfaceVariant, marginTop: 2 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   targetGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

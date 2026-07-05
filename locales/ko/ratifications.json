@@ -1,0 +1,15 @@
+{
+  "barTitle": "승인 이력",
+  "loading": "불러오는 중이에요…",
+  "openingLedger": "장부를 펴는 중…",
+  "goPolaris": "북극성으로 가기",
+  "all": "전체",
+  "proposed": "제안",
+  "ratified": "승인",
+  "held": "보류",
+  "declined": "거절",
+  "cited": "근거 {{n}}개",
+  "undo": "되돌리기",
+  "hideUnchanged": "변화 없는 재계산 접기",
+  "showUnchanged": "변화 없는 재계산 {{n}}건 보기"
+}

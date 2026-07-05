@@ -66,15 +66,19 @@ function GradientButton({
   full?: boolean;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [styles.gButton, full && styles.gButtonFull, pressed && styles.pressed]}
-    >
+    // visuals on the wrapper View — Fabric Android drops function-form
+    // Pressable styles (#680); the Pressable is a bare touch surface.
+    <View style={[styles.gButton, full && styles.gButtonFull]}>
       <GradientFill colors={colors} radius={12} />
-      <Text style={styles.gButtonLabel}>{label}</Text>
-    </Pressable>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        style={styles.gButtonPress}
+      >
+        <Text style={styles.gButtonLabel}>{label}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -1341,7 +1345,7 @@ export function PossibleLensView({
                 accessibilityLabel={c.name}
                 accessibilityState={{ selected: selected === i }}
                 onPress={() => setSelected(i)}
-                style={({ pressed }) => [styles.dashedCard, selected === i && styles.dashedCardOn, pressed && styles.pressed]}
+                style={[styles.dashedCard, selected === i && styles.dashedCardOn]}
               >
                 <Text style={styles.dashedName}>{c.name}</Text>
                 <Text style={styles.dashedBody}>{c.body}</Text>
@@ -1748,7 +1752,7 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
             accessibilityRole="button"
             accessibilityLabel={t("ds.me.refine")}
             onPress={() => router.push("/northstar")}
-            style={({ pressed }) => [styles.meRefine, pressed && styles.pressed]}
+            style={styles.meRefine}
           >
             <CaptureIcon name="edit" color={deepSpace.textHi} size={14} />
             <Text style={styles.meRefineLabel}>{t("ds.me.refine")}</Text>
@@ -1778,7 +1782,7 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
               accessibilityRole="button"
               accessibilityLabel={name}
               onPress={() => router.replace("/")}
-              style={({ pressed }) => [styles.meCard, pressed && styles.pressed]}
+              style={styles.meCard}
             >
               <View style={styles.meCardTop}>
                 <View style={styles.meCardDot} />
@@ -1807,7 +1811,7 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
         accessibilityRole="button"
         accessibilityLabel={t("ds.me.viewValidation")}
         onPress={() => router.push("/big-five")}
-        style={({ pressed }) => [styles.meValidateCard, pressed && styles.pressed]}
+        style={[styles.meValidateCard]}
       >
         <Text style={styles.meValidateText}>{t("ds.me.hiddenBody")}</Text>
       </Pressable>
@@ -1885,12 +1889,15 @@ const styles = StyleSheet.create({
   gButton: {
     overflow: "hidden",
     borderRadius: 12,
+    alignSelf: "flex-start",
+    marginTop: 18,
+  },
+  // bare touch surface inside the gradient shell (#680 Fabric-safe)
+  gButtonPress: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "flex-start",
-    marginTop: 18,
   },
   gButtonFull: { alignSelf: "stretch" },
   // width+textAlign keep the label centered on Android regardless of how the
