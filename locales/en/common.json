@@ -66,5 +66,32 @@
       "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this core will grow a light snowflake node.",
       "dataDetailHint": "Opens the selected Pattern Data detail."
     }
-  }
+  },
+  "navPiece": "piece",
+  "navPieceSummary": "Opens this piece summary and tags",
+  "navVillageNode": "Opens this village node",
+  "navCenterVillage": "Opens the center village",
+  "navResetView": "Reset view",
+  "navResetHint": "Resets graph pan and zoom",
+  "navReset": "Reset",
+  "navPrevCategory": "Previous category",
+  "navPrevHint": "Selects previous village",
+  "navPrev": "Prev",
+  "navOpenSettings": "Open settings",
+  "navSettingsHint": "Opens settings screen",
+  "navSettings": "Settings",
+  "navNextCategory": "Next category",
+  "navNextHint": "Selects next village",
+  "navNext": "Next",
+  "navClose": "Close",
+  "navCloseVillage": "Closes the village detail panel",
+  "navPiecesConnected": "pieces I connected",
+  "navLookAround": "Look around",
+  "navOpenAngleVillage": "Opens this village in SecondB from a new angle",
+  "navOpenNewAngle": "Open new angle",
+  "navClosePiece": "Closes the piece detail panel",
+  "navNoSummary": "No summary yet.",
+  "navDetails": "Details",
+  "navConnectedCount": "{{n}} pieces I connected",
+  "navOpenAngleName": "Open {{name}} from a new angle"
 }

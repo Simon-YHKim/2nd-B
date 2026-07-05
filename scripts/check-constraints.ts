@@ -977,14 +977,14 @@ results.push(
       jarvis.includes('accessibilityLabel={t("intro_ok")}') &&
       jarvis.includes('t("closeReferencedHint")') &&
       navGraphButtons >= 7 &&
-      navGraph.includes("Opens this piece summary and tags") &&
-      navGraph.includes("Opens this village node") &&
-      navGraph.includes("Opens the center village") &&
-      navGraph.includes("Resets graph pan and zoom") &&
-      navGraph.includes("Closes the village detail panel") &&
-      navGraph.includes("Open ${name} from a new angle") &&
-      navGraph.includes("Opens this village in SecondB from a new angle") &&
-      navGraph.includes("Closes the piece detail panel") &&
+      navGraph.includes('t("navPieceSummary")') &&
+      navGraph.includes('t("navVillageNode")') &&
+      navGraph.includes('t("navCenterVillage")') &&
+      navGraph.includes('t("navResetHint")') &&
+      navGraph.includes('t("navCloseVillage")') &&
+      navGraph.includes('t("navOpenAngleName"') &&
+      navGraph.includes('t("navOpenAngleVillage")') &&
+      navGraph.includes('t("navClosePiece")') &&
       esm.includes('from("esm_responses").insert') &&
       esm.includes("prompt_kind: kind") &&
       esm.includes('scale_value: kind === "energy" ? scaleValue : null') &&

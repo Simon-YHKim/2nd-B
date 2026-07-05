@@ -66,5 +66,32 @@
       "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan core ini akan menumbuhkan node kepingan salju ringan.",
       "dataDetailHint": "Membuka detail Pattern Data yang dipilih."
     }
-  }
+  },
+  "navPiece": "serpihan",
+  "navPieceSummary": "Membuka ringkasan dan tag serpihan ini",
+  "navVillageNode": "Membuka node desa ini",
+  "navCenterVillage": "Membuka desa pusat",
+  "navResetView": "Setel ulang tampilan",
+  "navResetHint": "Menyetel ulang geser dan zoom grafik",
+  "navReset": "Setel ulang",
+  "navPrevCategory": "Kategori sebelumnya",
+  "navPrevHint": "Memilih desa sebelumnya",
+  "navPrev": "Sebelumnya",
+  "navOpenSettings": "Buka pengaturan",
+  "navSettingsHint": "Membuka layar pengaturan",
+  "navSettings": "Pengaturan",
+  "navNextCategory": "Kategori berikutnya",
+  "navNextHint": "Memilih desa berikutnya",
+  "navNext": "Berikutnya",
+  "navClose": "Tutup",
+  "navCloseVillage": "Menutup panel detail desa",
+  "navPiecesConnected": "serpihan yang kuhubungkan",
+  "navLookAround": "Lihat-lihat",
+  "navOpenAngleVillage": "Membuka desa ini di SecondB dari sudut baru",
+  "navOpenNewAngle": "Buka sudut baru",
+  "navClosePiece": "Menutup panel detail serpihan",
+  "navNoSummary": "Belum ada ringkasan.",
+  "navDetails": "Detail",
+  "navConnectedCount": "{{n}} serpihan yang kuhubungkan",
+  "navOpenAngleName": "Buka {{name}} dari sudut baru"
 }
