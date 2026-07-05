@@ -51,10 +51,12 @@ const DEFAULT_INSIGHT: TTFVInsight = {
   phraseEn: "reaching out first",
 };
 
-// The insight evidence, transcribed verbatim from the reference FirstInsight.
+// The first-star suggestion is a starting point, NOT derived from real answers
+// (sign-up collects no personality questions), so we never fabricate the user's
+// words. These honest grounds say it's a light first read that firms up over time.
 const EVIDENCE: { q: string; a: string }[] = [
-  { q: "가입 질문 · 사람을 만나면?", a: "“만나고 나면 에너지가 차는 편이에요”" },
-  { q: "가입 질문 · 고민이 생기면?", a: "“가까운 사람한테 먼저 털어놔요”" },
+  { q: "지금은", a: "첫 별을 켜는 출발점이에요" },
+  { q: "앞으로", a: "담을수록 진짜 근거가 쌓여요" },
 ];
 
 // Constellation stage (fixed box): 북극성 top-centre, the lit 관계 star bottom-
@@ -171,7 +173,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               {ko ? " 사람일지도 몰라요." : "."}
             </Text>
             <Text variant="body" style={styles.sub}>
-              {ko ? "가입 답변에서 관계 별의 첫 신호를 봤어요. 맞나요?" : "Your sign-up answers gave the first signal of your relationship star. Right?"}
+              {ko ? "관계 별부터 함께 켜볼까요? 담을수록 더 또렷해져요." : "Shall we light your Relationship star first? It sharpens as you capture."}
             </Text>
 
             {/* 근거 — progressive disclosure: the two grounds, collapsed by default. */}
@@ -197,7 +199,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
                     </View>
                   ))}
                   <Text variant="caption" style={styles.whyFootnote}>
-                    아직 가입 답변뿐이라 ‘첫 신호’예요. 담을수록 근거가 늘어요.
+                    아직 시작이라 가벼운 첫 읽기예요. 담을수록 근거가 쌓여요.
                   </Text>
                 </View>
               ) : null}
