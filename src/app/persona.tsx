@@ -11,6 +11,8 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MeSynthView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
+import { type DomainId } from "@/lib/persona/domain-stars";
 import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
@@ -598,6 +600,23 @@ const styles = StyleSheet.create({
 function PersonaDeepSpace() {
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
+  const { userId, loading } = useAuth();
+  // Real per-domain brightness (no-LLM loadDomainLevels, the same path the home
+  // constellation uses) so the 북극성 deck shows the user's actual star levels,
+  // not the reference prototype's fixed L3/L2 example numbers.
+  const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, number>>>({});
+  useEffect(() => {
+    if (loading || !userId) return;
+    let cancelled = false;
+    loadDomainLevels(userId)
+      .then((b) => {
+        if (!cancelled) setDomainLevels(b.domainLevels);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, loading]);
   // 10-me: the 북극성 종합 (layer C) me screen — a windowed radius-24 card over the
   // shared sky with an M3 top app bar titled 북극성. It lives under the 별자리 tab
   // (reached by tapping Polaris on the constellation home), so active="home".
@@ -609,7 +628,7 @@ function PersonaDeepSpace() {
       title={t("ds.me.title")}
       onBack={() => router.replace("/")}
     >
-      <MeSynthView isKo={isKo} />
+      <MeSynthView isKo={isKo} domainLevels={domainLevels} />
     </DeepSpaceScreen>
   );
 }

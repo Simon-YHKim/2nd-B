@@ -1689,8 +1689,9 @@ export function ValuesLensView({
 // (smaller, cyan-accent, no soul glow). Levels here are the L1~L5 brightness
 // ladder (coverage-driven display) — filled dots = how much of that domain is in.
 const ME_LADDER = 5;
-const ME_CONFIDENCE = 3; // 신뢰도 3/5 — synthesis confidence (distinct from star fill)
 // Capture reading order (10-me): 커리어 · 재정 · 관계 · 성장 · 건강 · 휴식 · 담아내기.
+// (level below is the prototype's example fill; the live deck ignores it and
+// reads real per-domain levels from loadDomainLevels via the domainLevels prop.)
 const ME_DOMAIN_ROWS: { id: DomainId; level: 1 | 2 | 3 | 4 | 5 }[] = [
   { id: "career", level: 3 },
   { id: "finance", level: 2 },
@@ -1711,9 +1712,13 @@ function BrightDots({ level }: { level: number }) {
   );
 }
 
-export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
+export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLevels?: Partial<Record<DomainId, number>> } = {}) {
   const { t, i18n } = useTranslation("home");
   const ko = isKo ?? i18n.language === "ko";
+  const levelFor = (id: DomainId): number => domainLevels?.[id] ?? 1;
+  // Synthesis confidence = how many domains are filled past the floor (real, not
+  // the prototype's fixed 3/5). Fresh account → 0 (honest, nothing synthesized).
+  const confidence = ME_DOMAIN_ROWS.reduce((n, r) => n + (levelFor(r.id) >= 2 ? 1 : 0), 0);
   return (
     <ScrollView contentContainerStyle={styles.meBody}>
       {/* layer C — 북극성 hero synthesis (dominant, soul glow) */}
@@ -1731,7 +1736,7 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
         <View style={styles.meHeroFoot}>
           <View style={styles.meHeroMeta}>
             <Text style={styles.meMetaLabel}>{t("ds.me.synthMeta")}</Text>
-            <BrightDots level={ME_CONFIDENCE} />
+            <BrightDots level={confidence} />
           </View>
           <Pressable
             accessibilityRole="button"
@@ -1758,15 +1763,16 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
         </Pressable>
       </View>
       <View style={styles.meGrid}>
-        {ME_DOMAIN_ROWS.map(({ id, level }) => {
+        {ME_DOMAIN_ROWS.map(({ id }) => {
           const star = getDomainStar(id);
           const name = ko ? star.nameKo : star.nameEn;
+          const level = levelFor(id);
           return (
             <Pressable
               key={id}
               accessibilityRole="button"
               accessibilityLabel={name}
-              onPress={() => router.replace("/")}
+              onPress={() => router.push({ pathname: "/records", params: { tags: `domain:${id}` } })}
               style={styles.meCard}
             >
               <View style={styles.meCardTop}>
