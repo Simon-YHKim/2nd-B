@@ -166,7 +166,8 @@ export function DeepSpaceHomeScreen() {
   // persona aggregate.
   const travel = (id: HomeStar["id"]) => {
     if (id === "polaris") router.push("/core-brain");
-    else router.push({ pathname: "/records", params: { tags: `domain:${id}` } });
+    // domain star → its rev2 11-star lens (/star/<id>), not the flat wiki list.
+    else router.push(`/star/${id}`);
   };
 
   // Compact dipper anchored high (fidelity pass): smaller box + top-anchored so it
