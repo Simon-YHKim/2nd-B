@@ -9,7 +9,7 @@
   },
   "notice": {
     "title": "Un aviso rápido antes de empezar",
-    "intro": "2nd-Brain mantiene tus entradas privadas, las guarda cifradas y usa Google Gemini solo para generar las respuestas que pides. Revisa y acepta antes de continuar.",
+    "intro": "2nd-Brain mantiene tus entradas privadas, las guarda cifradas y usa Google Gemini, Anthropic Claude u OpenAI solo para generar las respuestas que pides. Revisa y acepta antes de continuar.",
     "trustTitle": "Tus registros no están en venta",
     "trustBody": "By default, your entries are not used to train models. Optional sharing, analytics, ads, and model-improvement controls start off.",
     "purposesTitle": "Qué recopilamos y por qué",
@@ -21,7 +21,7 @@
     "optionalLabel": "Opcional",
     "agreeAll": "Aceptar todos los elementos obligatorios",
     "ackService": "Acepto la recopilación y el uso anteriores para que el servicio pueda funcionar.",
-    "ackLlm": "Entiendo que mis entradas se procesan solo cuando hace falta para generar respuestas que solicito, para revisiones automáticas de seguridad y para registros de auditoría del servicio, y que solo en esos casos pueden enviarse a Google Gemini.",
+    "ackLlm": "Entiendo que mis entradas se procesan solo cuando hace falta para generar respuestas que solicito, para revisiones automáticas de seguridad y para registros de auditoría del servicio, y que solo en esos casos pueden enviarse a Google Gemini, Anthropic Claude u OpenAI.",
     "ackOverseas": "Entiendo que los datos cifrados del servicio pueden procesarse fuera de mi país por Google o Supabase para operar la app.",
     "ackSensitive": "Entiendo que mis entradas pueden incluir detalles sensibles, y que 2nd-Brain las trata como datos privados de mi cuenta.",
     "optMarketing": "Envíenme novedades ocasionales del producto (opcional).",
