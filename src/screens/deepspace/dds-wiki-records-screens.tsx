@@ -266,6 +266,10 @@ export function DeepSpaceRecordsScreen() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
   const [view, setView] = useState<"list" | "graph">("list");
+  // Reserve exactly the floating companion header's measured height so the
+  // 목록/그래프 toggle never sits under the briefing bubble when its tip wraps to
+  // two lines (the previous fixed clearance under-reserved it). Falls back to 88.
+  const [headerH, setHeaderH] = useState(88);
   // Graph mode reuses the deterministic knowledge-graph view (wiki pages/edges).
   const { pages, edges } = useWikiGraphData();
   const graphPages = useMemo(() => pages.map((p) => ({ id: p.id, title: p.title.trim() || p.slug, kind: p.kind })), [pages]);
@@ -320,13 +324,17 @@ export function DeepSpaceRecordsScreen() {
   return (
     <DeepSpaceScreen active="wiki" header="none">
       {/* rev2 위키: companion FLOATS over the immersive surface (sb-app §4). */}
-      <View pointerEvents="box-none" style={rStyles.floatHeader}>
+      <View
+        pointerEvents="box-none"
+        style={rStyles.floatHeader}
+        onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}
+      >
         <SecondbStatusHeader
           text={total > 0 ? t("records.headerCount", { count: total }) : t("records.headerEmpty")}
           tip={unfiledCount > 0 ? t("records.tip", { count: unfiledCount }) : t("records.tipClear")}
         />
       </View>
-      <View style={styles.wikiFloatClear}>
+      <View style={[styles.wikiFloatClear, { paddingTop: headerH + 8 }]}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={rStyles.titleRow}>
             <RNText style={rStyles.wikiTitle}>{t("records.wikiTitle")}</RNText>
