@@ -243,7 +243,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       setTurns([{ role: "secondb", text: persona.greeting[locale], synthetic: true }]);
     }
     if (fromNode) {
-      setDraft(locale === "ko" ? `'${fromNode}'에 대해 물어볼게요: ` : `About '${fromNode}': `);
+      setDraft(t("aboutNode", { node: fromNode }));
     }
   }, [fromNode, locale, isCharacterChat, persona]);
 
@@ -421,9 +421,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       }
     } catch (e) {
       const msg =
-        locale === "ko"
-          ? "응답에 실패했어요. 잠시 후 다시 시도해 주세요."
-          : "Could not get a reply. Please try again in a moment.";
+        t("replyFailed");
       setTurns((prev) => [...prev, { role: "secondb", text: msg, synthetic: true }]);
       if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
     } finally {
@@ -558,10 +556,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       accessibilityRole="button"
                       accessibilityLabel={
                         turn.role === "user"
-                          ? locale === "ko" ? "내 메시지" : "Your message"
-                          : locale === "ko" ? "세컨비 답변" : "SecondB answer"
+                          ? t("yourMessage")
+                          : t("secondbAnswer")
                       }
-                      accessibilityHint={locale === "ko" ? "길게 눌러 복사" : "Long press to copy"}
+                      accessibilityHint={t("longPressCopy")}
                     >
                       <Text style={turn.role === "user" ? ds.userText : ds.aiText} selectable>
                         {turn.text}
@@ -575,15 +573,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         onPress={() => setRefDrawer(turn.chips ?? [])}
                         accessibilityRole="button"
                         accessibilityLabel={
-                          locale === "ko"
-                            ? `이 답변은 참고한 별가루 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
-                            : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
+                          t("drewOnPieces", { n: turn.chips.length })
                         }
                       >
                         <View style={[ds.citeChip, { backgroundColor: lensSoftBg }]}>
                           <IconCite color={lensOnSoft} size={13} />
                           <Text style={[ds.citeChipText, { color: lensOnSoft }]}>
-                            {locale === "ko" ? `근거 · 기록 ${turn.chips.length}건` : `${turn.chips.length} sources`}
+                            {t("nSources", { n: turn.chips.length })}
                           </Text>
                         </View>
                       </Pressable>
@@ -600,7 +596,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                               onPress={() => setDraft(branch)}
                               accessibilityRole="button"
                               accessibilityLabel={branch}
-                              accessibilityHint={locale === "ko" ? "입력창에 채워요" : "Fills the composer"}
+                              accessibilityHint={t("fillsComposer")}
                             >
                               <Text style={ds.branchChipText} numberOfLines={2}>
                                 {branch}
@@ -611,9 +607,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                               onPress={() => router.push({ pathname: "/capture", params: { text: branch } })}
                               hitSlop={10}
                               accessibilityRole="button"
-                              accessibilityLabel={locale === "ko" ? `담기: ${branch}` : `Capture: ${branch}`}
+                              accessibilityLabel={t("captureBranch", { branch })}
                             >
-                              <Text style={ds.branchSaveText}>{locale === "ko" ? "담기" : "Keep"}</Text>
+                              <Text style={ds.branchSaveText}>{t("keep")}</Text>
                             </Pressable>
                           </View>
                         ))}
@@ -660,9 +656,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               "다 썼어요, 더 하려면" framing; no implication of lower quality. */}
           {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
             <Text style={ds.limitLinkText} accessibilityLiveRegion="polite">
-              {locale === "ko"
-                ? "이번 주 깊이 묻기 횟수를 다 썼어요"
-                : "You've used this week's deep questions"}
+              {t("usedDeepQuestions")}
             </Text>
           ) : null}
 
@@ -721,10 +715,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: chatMode === "analytic" }}
-                accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
+                accessibilityLabel={t("analysisMode")}
               >
                 <Text style={[ds.lensName, { color: chatMode === "analytic" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {locale === "ko" ? "분석" : "Analysis"}
+                  {t("analysisChip")}
                 </Text>
               </Pressable>
               <Pressable
@@ -736,10 +730,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: chatMode === "divergent" }}
-                accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
+                accessibilityLabel={t("newAngleMode")}
               >
                 <Text style={[ds.lensName, { color: chatMode === "divergent" ? lensOnSoft : m3.color.onSurfaceVariant }]}>
-                  {locale === "ko" ? "새 관점" : "New angle"}
+                  {t("newAngleChip")}
                 </Text>
               </Pressable>
             </View>
@@ -753,7 +747,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               <TextInput
                 value={draft}
                 onChangeText={setDraft}
-                placeholder={locale === "ko" ? `${lensName}에게 물어보기…` : `Ask ${lensName}…`}
+                placeholder={t("askLens", { lens: lensName })}
                 placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
                 style={ds.pillInput}
                 accessibilityLabel={t("inputA11y")}
@@ -780,7 +774,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 style={ds.micBtn}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "음성 입력" : "Voice input"}
+                accessibilityLabel={t("voiceInput")}
               >
                 <IconMic color={m3.color.onSurfaceVariant} size={22} />
               </Pressable>
@@ -814,8 +808,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           <Pressable
             style={ds.modalBackdrop}
             onPress={() => setIntroOpen(false)}
-            accessibilityLabel={locale === "ko" ? "인사 모달 닫기" : "Close intro"}
-            accessibilityHint={locale === "ko" ? "세컨비 인사 모달을 닫습니다" : "Dismisses the intro modal"}
+            accessibilityLabel={t("closeIntro")}
+            accessibilityHint={t("closeIntroHint")}
           >
             <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
               <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
@@ -855,21 +849,19 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           <Pressable
             style={ds.modalBackdrop}
             onPress={() => setRefDrawer(null)}
-            accessibilityLabel={locale === "ko" ? "참고 별가루 닫기" : "Close referenced pieces"}
-            accessibilityHint={locale === "ko" ? "참고 별가루 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
+            accessibilityLabel={t("closeReferenced")}
+            accessibilityHint={t("closeReferencedHint")}
           >
             <Pressable
               style={ds.drawer}
               onPress={(e) => e.stopPropagation()}
               accessibilityViewIsModal
-              accessibilityLabel={locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}
+              accessibilityLabel={t("piecesReferenced")}
             >
               <View style={ds.drawerHandle} />
-              <Text style={ds.drawerTitle}>{locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}</Text>
+              <Text style={ds.drawerTitle}>{t("piecesReferenced")}</Text>
               <Text style={ds.drawerSubtle}>
-                {locale === "ko"
-                  ? "답변에 영향을 준 별가루들이에요. 필요하면 하나씩 열어볼 수 있어요."
-                  : "The pieces that shaped this answer. Open any one if you like."}
+                {t("piecesReferencedBody")}
               </Text>
               <ScrollView
                 style={{ flexShrink: 1 }}
@@ -901,9 +893,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 onPress={() => setRefDrawer(null)}
                 style={ds.drawerClose}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "닫기" : "Close"}
+                accessibilityLabel={t("closeChip")}
               >
-                <Text style={ds.drawerCloseText}>{locale === "ko" ? "닫기" : "Close"}</Text>
+                <Text style={ds.drawerCloseText}>{t("closeChip")}</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -993,9 +985,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         {/* reasoning-cap inline notice (count-only — NOT a quality message). */}
         {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
           <Text variant="caption" color="textMuted" accessibilityLiveRegion="polite" style={{ textAlign: "right", paddingHorizontal: spacing.md }}>
-            {locale === "ko"
-              ? "이번 주 깊이 묻기 횟수를 다 썼어요"
-              : "You've used this week's deep questions"}
+            {t("usedDeepQuestions")}
           </Text>
         ) : null}
 
@@ -1016,7 +1006,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
         {!hasTurns ? (
         <SceneHero
-          eyebrow={locale === "ko" ? "06. 세컨비 대화" : "06. SecondB chat"}
+          eyebrow={t("eyebrow")}
           title={isCharacterChat ? persona.name[locale] : t("title")}
           subtitle={isCharacterChat ? persona.role[locale] : t("subtitle")}
           island={chatUi.island}
@@ -1040,10 +1030,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               style={[styles.modeChip, chatMode === "analytic" ? styles.modeChipAnalytic : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "analytic" }}
-            accessibilityLabel={locale === "ko" ? "분석 모드" : "Analysis mode"}
+            accessibilityLabel={t("analysisMode")}
           >
             <Text variant="caption" color={chatMode === "analytic" ? "background" : "textMuted"}>
-              {locale === "ko" ? "분석" : "Analysis"}
+              {t("analysisChip")}
             </Text>
           </Pressable>
             <Pressable
@@ -1051,17 +1041,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               style={[styles.modeChip, chatMode === "divergent" ? styles.modeChipDivergent : null]}
             accessibilityRole="button"
             accessibilityState={{ selected: chatMode === "divergent" }}
-            accessibilityLabel={locale === "ko" ? "새 관점 모드" : "New angle mode"}
+            accessibilityLabel={t("newAngleMode")}
           >
             <Text variant="caption" color={chatMode === "divergent" ? "text" : "textMuted"}>
-              {locale === "ko" ? "새 관점" : "New angle"}
+              {t("newAngleChip")}
             </Text>
           </Pressable>
           {chatMode === "divergent" ? (
             <>
               <Animated.View style={[styles.divergentPulseDot, { opacity: divergentPulse as never }]} />
               <Text variant="caption" color="textSubtle" style={styles.modeHint} numberOfLines={1}>
-                {locale === "ko" ? "새로운 관점·가정으로" : "New perspectives & what-ifs"}
+                {t("newPerspectives")}
               </Text>
             </>
           ) : null}
@@ -1092,7 +1082,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   state="chat"
                   size={56}
                   float
-                  label={locale === "ko" ? "대화할 준비가 된 세컨비" : "SecondB ready to chat"}
+                  label={t("readyToChat")}
                 />
               </View>
               <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.md }}>
@@ -1123,15 +1113,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                     accessibilityRole="button"
                     accessibilityLabel={
                       turn.role === "user"
-                        ? locale === "ko"
-                          ? "내 메시지"
-                          : "Your message"
-                        : locale === "ko"
-                          ? "세컨비 답변"
-                          : "SecondB answer"
+                        ? t("yourMessage")
+                        : t("secondbAnswer")
                     }
                     accessibilityHint={
-                      locale === "ko" ? "길게 눌러 메시지를 복사합니다" : "Long press to copy this message"
+                      t("longPressCopyThis")
                     }
                   >
                     <Text
@@ -1150,13 +1136,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       onPress={() => setRefDrawer(turn.chips ?? [])}
                       accessibilityRole="button"
                       accessibilityLabel={
-                        locale === "ko"
-                          ? `이 답변은 참고한 별가루 ${turn.chips.length}개를 봤어요. 눌러서 자세히 보기.`
-                          : `This answer drew on ${turn.chips.length} of your pieces. Tap for detail.`
+                        t("drewOnPieces", { n: turn.chips.length })
                       }
                     >
                       <Text variant="caption" color="textSubtle">
-                        {locale === "ko" ? `참고한 별가루 ${turn.chips.length}` : `${turn.chips.length} pieces`}
+                        {t("nPieces", { n: turn.chips.length })}
                       </Text>
                       {turn.chips.slice(0, 3).map((slug) => (
                         <View key={slug} style={styles.chip}>
@@ -1215,8 +1199,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           style={styles.modalBackdrop}
           onPress={() => setIntroOpen(false)}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "인사 모달 닫기" : "Close intro"}
-          accessibilityHint={locale === "ko" ? "세컨비 인사 모달을 닫습니다" : "Dismisses the intro modal"}
+          accessibilityLabel={t("closeIntro")}
+          accessibilityHint={t("closeIntroHint")}
         >
           <Pressable
             style={styles.modalCard}
@@ -1267,21 +1251,19 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           style={styles.modalBackdrop}
           onPress={() => setRefDrawer(null)}
           accessibilityRole="button"
-          accessibilityLabel={locale === "ko" ? "참고 별가루 닫기" : "Close referenced pieces"}
-          accessibilityHint={locale === "ko" ? "참고 별가루 서랍을 닫습니다" : "Dismisses the referenced pieces drawer"}
+          accessibilityLabel={t("closeReferenced")}
+          accessibilityHint={t("closeReferencedHint")}
         >
           <Pressable
             style={styles.drawer}
             onPress={(e) => e.stopPropagation()}
             accessibilityViewIsModal
-            accessibilityLabel={locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}
+            accessibilityLabel={t("piecesReferenced")}
           >
             <View style={styles.drawerHandle} />
-            <Text variant="heading">{locale === "ko" ? "참고한 별가루들" : "Pieces referenced"}</Text>
+            <Text variant="heading">{t("piecesReferenced")}</Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-              {locale === "ko"
-                ? "답변에 영향을 준 별가루들이에요. 필요하면 하나씩 열어볼 수 있어요."
-                : "The pieces that shaped this answer. Open any one if you like."}
+              {t("piecesReferencedBody")}
             </Text>
             {/* List scrolls within the capped (62%) drawer so the Close button
                 below stays reachable even with many referenced pieces or on a
@@ -1311,7 +1293,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               ))}
             </ScrollView>
             <Button
-              label={locale === "ko" ? "닫기" : "Close"}
+              label={t("closeChip")}
               variant="secondary"
               onPress={() => setRefDrawer(null)}
             />
