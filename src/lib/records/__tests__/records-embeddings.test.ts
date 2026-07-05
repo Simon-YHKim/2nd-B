@@ -1,4 +1,23 @@
-import { recordEmbeddingText } from "../records-embeddings";
+import { recordEmbeddingText, recordsEmbeddingAllowed } from "../records-embeddings";
+
+describe("recordsEmbeddingAllowed (D5 consent gate)", () => {
+  test("adult who opted in → true", () => {
+    expect(recordsEmbeddingAllowed(false, true)).toBe(true);
+  });
+  test("adult who did NOT opt in → false (privacy-by-design default)", () => {
+    expect(recordsEmbeddingAllowed(false, false)).toBe(false);
+    expect(recordsEmbeddingAllowed(false, null)).toBe(false);
+    expect(recordsEmbeddingAllowed(false, undefined)).toBe(false);
+  });
+  test("minor is hard-blocked even if the pref is somehow true", () => {
+    expect(recordsEmbeddingAllowed(true, true)).toBe(false);
+  });
+  test("unknown minor status is treated as adult (real minors are server-locked OFF)", () => {
+    expect(recordsEmbeddingAllowed(null, true)).toBe(true);
+    expect(recordsEmbeddingAllowed(undefined, true)).toBe(true);
+    expect(recordsEmbeddingAllowed(null, false)).toBe(false);
+  });
+});
 
 describe("recordEmbeddingText", () => {
   test("joins topic + summary + body with blank lines", () => {
