@@ -23,6 +23,9 @@ import {
   proposeNorthstarSentences,
   saveNorthstar,
 } from "@/lib/persona/northstar";
+import { useProgression } from "@/lib/progression/useProgression";
+import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
 
 // Minimal Material-Symbols-style glyphs the editor needs, rendered as inline SVG
 // (same technique as AxisCheck's LensIcon). Stroke-only, colored via `color`.
@@ -54,6 +57,29 @@ export default function NorthstarSentence() {
   const [proposing, setProposing] = useState(false);
   const [thinBase, setThinBase] = useState(false);
 
+  // Reasoning-cap (count-only, mirrors the chat gate). Each 세컨비 제안 is one
+  // reasoning use; unlimited tiers (북극성/brain) are never gated. getReasoningUsage
+  // is fail-open, so a load failure leaves the user unblocked.
+  const progression = useProgression();
+  const [reasoningUsed, setReasoningUsed] = useState(0);
+  const [rewardCredits, setRewardCredits] = useState(0);
+  const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
+  const reasoningUnlimited = reasoningRemaining === Infinity;
+  useEffect(() => {
+    if (loading || !userId) return;
+    let alive = true;
+    void getReasoningUsage(userId)
+      .then(({ used, rewardCredits: rc }) => {
+        if (!alive) return;
+        setReasoningUsed(used);
+        setRewardCredits(rc);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [loading, userId]);
+
   useEffect(() => {
     if (loading || !userId) return;
     let alive = true;
@@ -70,12 +96,21 @@ export default function NorthstarSentence() {
 
   const propose = useCallback(async () => {
     if (!userId || proposing) return;
+    // Reasoning-cap gate (count-only, never a quality gate — mirrors chat). On
+    // cap, route to the paywall instead of spending another reasoning run.
+    if (!reasoningUnlimited && reasoningRemaining <= 0) {
+      router.push("/plans?from=northstar_limit");
+      return;
+    }
     setProposing(true);
     setThinBase(false);
     try {
       const out = await proposeNorthstarSentences({ userId, locale, minor: isMinor === true });
-      if (out) setSuggestions(out);
-      else {
+      if (out) {
+        setSuggestions(out);
+        setReasoningUsed((u) => u + 1);
+        void incrementReasoningUsage(userId).catch(() => {});
+      } else {
         setSuggestions(null);
         setThinBase(true);
       }
@@ -85,7 +120,7 @@ export default function NorthstarSentence() {
     } finally {
       setProposing(false);
     }
-  }, [userId, locale, isMinor, proposing]);
+  }, [userId, locale, isMinor, proposing, reasoningUnlimited, reasoningRemaining]);
 
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
