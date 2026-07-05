@@ -41,24 +41,27 @@ export const GEMINI_PINNED_PURPOSES: ReadonlySet<PromptPurpose> = new Set([
 // streaming lands (D-26 A1 interim — a blocking chat surface cannot take a
 // non-streaming proxy hop).
 export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> = {
-  advisor: "claude",
-  persona_narrative: "claude",
-  gap_synthesize: "claude",
-  self_model_propose: "claude",
-  northstar_propose: "claude",
-  axis_estimate: "claude",
-  persona_synthesis: "claude",
-  ops_recommend: "claude",
-  ops_daily_brief: "claude",
-  // Proto rev2 seats. digest_weekly + ttfv_first_insight take the Anthropic
-  // (opus/sonnet) narrative seat. cluster_infer is designed for the OpenAI
-  // (gpt-5.4) seat, but until OPENAI_API_KEY is provisioned in Supabase Secrets
-  // it is TEMPORARILY routed to Claude so Phase 2 can activate without a dead
-  // cluster path (probe 2026-07-06: ANTHROPIC key set, OPENAI key missing).
-  // Revert to "openai" (and set the key) to light the gpt-5.4 cluster seat.
-  digest_weekly: "claude",
-  ttfv_first_insight: "claude",
-  cluster_infer: "claude",
+  // Reasoning backend re-routed Claude -> OpenAI on 2026-07-06: the Anthropic
+  // account's credit balance was exhausted (claude-proxy returned 502
+  // "Your credit balance is too low"), so Simon chose the OpenAI backend. All
+  // nine live reasoning seats now land on gpt-5.4 via openai-proxy, which
+  // allowlists exactly these purposes. Revert to "claude" once Anthropic has
+  // credits (claude-proxy is still deployed + keyed).
+  advisor: "openai",
+  persona_narrative: "openai",
+  gap_synthesize: "openai",
+  self_model_propose: "openai",
+  northstar_propose: "openai",
+  axis_estimate: "openai",
+  persona_synthesis: "openai",
+  ops_recommend: "openai",
+  ops_daily_brief: "openai",
+  // Proto rev2 seats — digest_weekly, ttfv_first_insight, cluster_infer have no
+  // client call site yet (defined in types.ts, never invoked), so these are
+  // inert until wired; they share the OpenAI seat for consistency.
+  digest_weekly: "openai",
+  ttfv_first_insight: "openai",
+  cluster_infer: "openai",
 };
 
 // D-26 Phase 2 per-purpose reasoning effort. Abstract ladder; each proxy maps

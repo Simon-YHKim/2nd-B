@@ -72,6 +72,22 @@ const DEFAULT_OPENAI_MODEL = 'gpt-5.4';
 const PURPOSE_MODEL: Record<string, string> = {
   cluster_infer: 'gpt-5.4',
   safety_classify: 'gpt-5.4-nano',
+  // Phase-2 reasoning seats re-routed from Claude on 2026-07-06 (Anthropic
+  // credit balance exhausted; Simon chose the OpenAI backend). The nine live
+  // client reasoning purposes, all on the gpt-5.4 frontier; the inert proto-rev2
+  // seats (digest_weekly/ttfv_first_insight) share it. The premium gate below
+  // still holds advisor/planner to the brain tier regardless of vendor.
+  advisor: 'gpt-5.4',
+  persona_narrative: 'gpt-5.4',
+  gap_synthesize: 'gpt-5.4',
+  self_model_propose: 'gpt-5.4',
+  northstar_propose: 'gpt-5.4',
+  axis_estimate: 'gpt-5.4',
+  persona_synthesis: 'gpt-5.4',
+  ops_recommend: 'gpt-5.4',
+  ops_daily_brief: 'gpt-5.4',
+  digest_weekly: 'gpt-5.4',
+  ttfv_first_insight: 'gpt-5.4',
 };
 
 function resolveModel(purpose: string): string {
@@ -97,6 +113,19 @@ const EFFORT_RANK: Record<string, number> = { none: 0, low: 1, medium: 2, high: 
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   cluster_infer: 'medium',
   safety_classify: 'none',
+  // Re-routed reasoning seats cap at high (gpt-5.4) so a client-reported effort
+  // isn't silently downgraded; the shared daily spend cap still bounds cost.
+  advisor: 'high',
+  persona_narrative: 'high',
+  gap_synthesize: 'high',
+  self_model_propose: 'high',
+  northstar_propose: 'high',
+  axis_estimate: 'high',
+  persona_synthesis: 'high',
+  ops_recommend: 'high',
+  ops_daily_brief: 'high',
+  digest_weekly: 'high',
+  ttfv_first_insight: 'high',
 };
 
 function effortToOpenAi(effort: string | null, purpose: string): string {
