@@ -77,14 +77,12 @@ export function DeepSpaceShell() {
   return (
     <DeepSpaceScreen active="home" header="none">
       <ConstellationHome
-        // 여행하기 on a domain star opens that domain's records (the 리스트업
-        // view) via the existing /records ?tags= filter — domain:<slug> matches
-        // the tag capture writes. 뮤지엄 opens the AI museum; the 북극성 opens
-        // the persona aggregate (/core-brain). Head-tap menu: 챗봇/비서 (sb-home).
+        // 여행하기 on a domain star opens that domain's LENS (/star/<id>, the
+        // rev2 11-star per-domain screen: briefing + 담기/기록 + timeline), NOT
+        // the flat wiki list. 뮤지엄 opens the AI museum; the 북극성 opens the
+        // persona aggregate (/core-brain). Head-tap menu: 챗봇/비서 (sb-home).
         onStarTravel={(id) =>
-          id === "museum"
-            ? router.push("/museum")
-            : router.push({ pathname: "/records", params: { tags: `domain:${id}` } })
+          id === "museum" ? router.push("/museum") : router.push(`/star/${id}`)
         }
         onPolarisPress={() => router.push("/core-brain")}
         onChatPress={() => router.push("/secondb")}
