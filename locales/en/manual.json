@@ -1,0 +1,15 @@
+{
+  "loading": "Loading manual…",
+  "eyebrow": "Manual",
+  "title": "A compact map of your core",
+  "subtitle": "Routine · capture · wiki · safety",
+  "glossary": "One-line glossary",
+  "recentlyAdded": "Recently added",
+  "leavePiece": "Leave today's piece",
+  "leavePieceHint": "Opens capture to save today's piece.",
+  "getStarted": "Get started",
+  "getStartedHint": "Opens the sign-up screen.",
+  "permissions": "What the app accesses",
+  "permissionsHint": "Opens the app permissions guide.",
+  "curated": "Curated research"
+}

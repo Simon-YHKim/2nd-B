@@ -1,0 +1,21 @@
+{
+  "loading": "Carregando…",
+  "periodTitle": "Meu eu do passado: escolha um período",
+  "back": "Voltar",
+  "done": "CONCLUÍDO",
+  "complete": "Meu eu do passado, concluído",
+  "viewPersona": "Ver persona",
+  "backToCapture": "Voltar a guardar",
+  "interviewTitle": "Meu eu do passado: autoentrevista",
+  "question": "Pergunta {{n}} / {{total}}",
+  "placeholder": "Seja sincero consigo mesmo.",
+  "later": "Continuar depois",
+  "exit": {
+    "notice": "Aviso para sair da avaliação",
+    "title": "Sair da avaliação?",
+    "cancel": "Cancelar",
+    "cancelHint": "Continue a avaliação.",
+    "confirm": "Sair",
+    "confirmHint": "Saia da avaliação e volte à seleção."
+  }
+}

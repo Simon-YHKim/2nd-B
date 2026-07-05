@@ -1,0 +1,27 @@
+{
+  "loading": "Memuat asesmen…",
+  "intro": {
+    "title": "Gaya kelekatan (ECR-S)",
+    "description": "Kita akan melihat bersama pola Anda dalam hubungan dekat melalui dua sumbu: kecemasan dan penghindaran. Lalu kita lihat condong ke gaya yang mana di antara empat gaya. Pikirkan hubungan dekat secara umum, bukan satu orang tertentu. Dibagi menjadi 3 halaman, masing-masing 5 butir (halaman terakhir 2).",
+    "citation": "Wei, Russell, Mallinckrodt, & Vogel (2007) · bentuk pendek tervalidasi"
+  },
+  "survey": {
+    "counter": "ECR-S · 12 butir",
+    "instruction": "Pikirkan hubungan dekat secara umum. Jawab dari 1 (sangat tidak setuju) sampai 7 (sangat setuju)."
+  },
+  "scale": {
+    "stronglyDisagree": "Sangat tidak setuju",
+    "stronglyAgree": "Sangat setuju"
+  },
+  "saved": "Tersimpan · satu bintang menyala",
+  "saveError": "Kami tidak dapat menyimpan hasil Anda. Jawaban Anda masih ada.",
+  "exit": {
+    "notice": "Pemberitahuan keluar asesmen",
+    "title": "Keluar dari asesmen?",
+    "body": "Yakin ingin keluar? Kemajuan Anda tidak akan tersimpan.",
+    "cancel": "Batal",
+    "cancelHint": "Lanjutkan asesmen.",
+    "confirm": "Keluar",
+    "confirmHint": "Keluar dari asesmen dan kembali."
+  }
+}
