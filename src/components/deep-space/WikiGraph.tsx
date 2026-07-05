@@ -7,6 +7,7 @@
  * a node selects it, tapping it again opens the page (progressive disclosure).
  */
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 
@@ -35,7 +36,6 @@ const KIND_COLOR: Record<WikiPageKind, string> = {
 export function WikiGraph({
   pages,
   edges,
-  isKo,
   onOpenPage,
 }: {
   pages: WikiGraphPage[];
@@ -43,6 +43,7 @@ export function WikiGraph({
   isKo: boolean;
   onOpenPage: (id: string) => void;
 }) {
+  const { t } = useTranslation("deepspace");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomIdx, setZoomIdx] = useState(0);
 
@@ -86,7 +87,7 @@ export function WikiGraph({
           width="100%"
           height="100%"
           viewBox={`${vbX} ${vbY} ${span} ${span}`}
-          accessibilityLabel={isKo ? "위키 노드 그래프" : "Wiki node graph"}
+          accessibilityLabel={t("deepspace:wikiGraph.a11yGraph")}
         >
           {edges.map((e, i) => {
             const a = byId.get(e.from_page);
@@ -151,7 +152,7 @@ export function WikiGraph({
           hitSlop={10}
           style={styles.zoomBtn}
           accessibilityRole="button"
-          accessibilityLabel={isKo ? "축소" : "Zoom out"}
+          accessibilityLabel={t("deepspace:wikiGraph.a11yZoomOut")}
         >
           <Text style={styles.zoomBtnText}>-</Text>
         </Pressable>
@@ -160,18 +161,14 @@ export function WikiGraph({
           hitSlop={10}
           style={styles.zoomBtn}
           accessibilityRole="button"
-          accessibilityLabel={isKo ? "확대" : "Zoom in"}
+          accessibilityLabel={t("deepspace:wikiGraph.a11yZoomIn")}
         >
           <Text style={styles.zoomBtnText}>+</Text>
         </Pressable>
         <Text variant="caption" color="textSubtle" style={styles.hint} numberOfLines={1}>
           {selected
-            ? isKo
-              ? `${selected.title} · 한 번 더 누르면 열려요`
-              : `${selected.title} · tap again to open`
-            : isKo
-              ? "노드를 누르면 선택, 한 번 더 누르면 열려요"
-              : "Tap to select a node, tap again to open"}
+            ? t("deepspace:wikiGraph.hintSelected", { title: selected.title })
+            : t("deepspace:wikiGraph.hintDefault")}
         </Text>
       </View>
 
@@ -180,9 +177,13 @@ export function WikiGraph({
           <View key={kind} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: KIND_COLOR[kind] }]} />
             <Text variant="caption" color="textMuted">
-              {isKo
-                ? kind === "concept" ? "개념" : kind === "entity" ? "존재" : "원본"
-                : kind}
+              {t(
+                kind === "concept"
+                  ? "deepspace:wikiGraph.kindConcept"
+                  : kind === "entity"
+                    ? "deepspace:wikiGraph.kindEntity"
+                    : "deepspace:wikiGraph.kindSource",
+              )}
             </Text>
           </View>
         ))}

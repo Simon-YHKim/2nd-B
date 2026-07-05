@@ -25,24 +25,23 @@ interface Step {
   cx: number;
   cy: number;
   r: number;
-  ko: string;
-  en: string;
+  /** i18n key suffix under coachmarks. — resolves via t(`deepspace:coachmarks.${key}`). */
+  key: string;
 }
 
 const STEPS: Step[] = [
   // 1/4 the constellation itself
-  { cx: 0.5, cy: 0.32, r: 0.42, ko: "여기는 별자리예요", en: "This is your constellation" },
+  { cx: 0.5, cy: 0.32, r: 0.42, key: "step1" },
   // 2/4 a star (the upper-right region where 담아내기/관계 sit)
-  { cx: 0.62, cy: 0.3, r: 0.16, ko: "별을 눌러보세요", en: "Tap a star" },
+  { cx: 0.62, cy: 0.3, r: 0.16, key: "step2" },
   // 3/4 the dock capture tab (bottom, second slot of five)
-  { cx: 0.3, cy: 0.955, r: 0.12, ko: "떠오르면 담기", en: "When it comes to mind, capture it" },
+  { cx: 0.3, cy: 0.955, r: 0.12, key: "step3" },
   // 4/4 the dock trailing tabs (settings/tools live behind 비서·나)
-  { cx: 0.86, cy: 0.955, r: 0.12, ko: "설정엔 더 많은 도구가 있어요", en: "More tools live in settings" },
+  { cx: 0.86, cy: 0.955, r: 0.12, key: "step4" },
 ];
 
 export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
-  const { i18n } = useTranslation();
-  const isKo = i18n.language === "ko";
+  const { t } = useTranslation("deepspace");
   const { width, height } = useWindowDimensions();
   const [idx, setIdx] = useState(0);
 
@@ -74,13 +73,13 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
 
       {/* SecondB bubble */}
       <View style={[styles.bubbleWrap, step.cy > 0.6 ? styles.bubbleTop : styles.bubbleBottom]}>
-        <SecondbHead size={44} mood="positive" accessibilityLabel={isKo ? "세컨비" : "SecondB"} />
+        <SecondbHead size={44} mood="positive" accessibilityLabel={t("deepspace:coachmarks.secondbName")} />
         <View style={styles.bubble}>
           <Text style={styles.stepCount}>{`${idx + 1}/${STEPS.length}`}</Text>
-          <Text style={styles.bubbleText}>{isKo ? step.ko : step.en}</Text>
+          <Text style={styles.bubbleText}>{t(`deepspace:coachmarks.${step.key}`)}</Text>
           <View style={styles.btnRow}>
             <Pressable onPress={finish} hitSlop={8} accessibilityRole="button" style={styles.ghostBtn}>
-              <Text style={styles.ghostText}>{isKo ? "다시 보지 않기" : "Don't show again"}</Text>
+              <Text style={styles.ghostText}>{t("deepspace:coachmarks.dontShowAgain")}</Text>
             </Pressable>
             <Pressable
               onPress={() => (last ? finish() : setIdx((v) => v + 1))}
@@ -88,7 +87,7 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
               accessibilityRole="button"
               style={styles.nextBtn}
             >
-              <Text style={styles.nextText}>{last ? (isKo ? "시작하기" : "Start") : isKo ? "다음" : "Next"}</Text>
+              <Text style={styles.nextText}>{last ? t("deepspace:coachmarks.start") : t("deepspace:coachmarks.next")}</Text>
             </Pressable>
           </View>
         </View>

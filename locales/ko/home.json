@@ -234,7 +234,11 @@
     "iden": {
       "signed": "서명됨",
       "northStar": "\"나를 깊이 이해해 더 나답게 산다.\"",
-      "send": "AI에 전달"
+      "send": "AI에 전달",
+      "loading": "IDEN을 모으는 중이에요",
+      "emptyTitle": "아직 모을 IDEN이 없어요",
+      "emptyBody": "도구 하나만 마쳐도 나를 담은 IDEN이 만들어져요.",
+      "emptyCta": "별가루 담기 시작"
     },
     "recall": {
       "title": "회상",
@@ -257,7 +261,9 @@
       "p7Name": "사회초년",
       "p7Age": "24–27세",
       "p8Name": "지금",
-      "p8Age": "28세–"
+      "p8Age": "28세–",
+      "emptyTitle": "아직 회상으로 채운 시기가 없어요",
+      "emptyBody": "지나온 시기를 하나씩 떠올려 적으면, 어느 시절이 지금의 나를 만들었는지 여기 모여요."
     },
     "seen": {
       "title": "보여지는 나",
@@ -273,7 +279,18 @@
       "diffAgreeableness": "차이 −7",
       "conclusion": "남들은 당신을 더 활발한 사람으로 봅니다. 스스로 생각보다 외향적일 수 있어요.",
       "survey": "설문지 보기",
-      "share": "공유하기"
+      "share": "공유하기",
+      "obsTitleGap": "내가 보는 나 · 남이 보는 나",
+      "obsTitleSolo": "밖에서 가장 잘 보이는 나",
+      "obsNote": "남이 실제로 어떻게 보는지가 아니라, 내 Big Five 자기보고에서 밖으로 가장 잘 드러나는 특질이에요.",
+      "combinedNote": "{{count}}명의 답을 합친 그림이에요. 개별 답은 누구의 것인지 알 수 없어요.",
+      "gapReadA11y": "간극 한 줄 해석",
+      "gapReading": "읽는 중…",
+      "gapReadCta": "세컨비의 간극 한 줄",
+      "emptyTitleResponses": "지인 {{count}}명의 응답이 도착해 있어요",
+      "emptyTitleNoPeers": "아직 비교할 peer 응답이 없어요",
+      "emptyBodyFinishBigFive": "내 Big Five 자기 점검을 마치면, 내가 보는 나와 남이 보는 나를 나란히 보여드려요.",
+      "emptyBodySendSurvey": "가까운 사람에게 짧은 설문을 보내면, 내가 보는 나와 남이 보는 나를 나란히 볼 수 있어요."
     },
     "rhythm": {
       "title": "리듬",
@@ -288,7 +305,9 @@
       "sat": "토",
       "sun": "일",
       "caption": "가장 나다운 시간: 토요일 오전. 만든 것에 몰입할 때 기분이 가장 좋습니다.",
-      "logNow": "+ 지금 기분 기록"
+      "logNow": "+ 지금 기분 기록",
+      "emptyTitle": "아직 리듬을 그릴 기록이 없어요",
+      "emptyBody": "기분을 며칠 기록하면, 내가 가장 나다운 시간이 여기 리듬으로 보여요."
     },
     "possible": {
       "title": "미래의 나",
@@ -302,7 +321,9 @@
       "a3Body": "기준을 내 안에 두는 사람",
       "footer": "점선 = 데이터가 채워지기 전의 나",
       "rewrite": "다시 쓰기",
-      "add": "+ 추가"
+      "add": "+ 추가",
+      "emptyTitle": "아직 그려둔 미래의 나가 없어요",
+      "emptyBody": "세컨비와 공상 모드로 이야기하면, 데이터가 되기 전의 내 모습을 여기 담을 수 있어요."
     },
     "relational": {
       "title": "관계·지식",
@@ -318,7 +339,9 @@
       "topic2": "심리·자기이해",
       "topic3": "AI·생산성",
       "conclusion": "관계의 폭보다 깊이가 두드러집니다. 소수와 자주, 오래.",
-      "addData": "+ 데이터 추가"
+      "addData": "+ 데이터 추가",
+      "emptyTitle": "아직 이어진 사람과 지식이 없어요",
+      "emptyBody": "기록에 사람과 관심사가 쌓이면, 관계와 지식 속의 내 모습이 여기 보여요."
     },
     "values": {
       "title": "일·성장",
@@ -331,7 +354,11 @@
       "domain3": "재정",
       "domain3Count": "별가루 37",
       "conclusion": "커리어에 가장 많이 쌓였습니다. 재정은 아직 비어 있어요 - 더 담아볼까요?",
-      "addData": "+ 데이터 추가"
+      "addData": "+ 데이터 추가",
+      "loading": "별가루를 세는 중이에요",
+      "emptyTitle": "이 영역엔 아직 쌓인 게 없어요",
+      "emptyBody": "기록을 남기면 어떤 영역을 가장 많이 키워왔는지 여기 보여요.",
+      "pieceCount": "{{count}}개"
     },
     "imagine": {
       "title": "공상하기",

@@ -92,7 +92,7 @@ const BANDS: DdBand[] = [
 ];
 
 export default function CareerDrilldown() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
   const { userId, loading } = useAuth();
 
@@ -117,7 +117,7 @@ export default function CareerDrilldown() {
   // existing /secondb fromNode prefill contract. Best-effort save: a network
   // miss still opens the chat so the user's flow is never blocked.
   const submit = async () => {
-    const head = summary.trim().length > 0 ? summary.trim() : isKo ? "커리어 경험" : "a career experience";
+    const head = summary.trim().length > 0 ? summary.trim() : t("deepspace:careerDrilldown.summaryFallback");
     const seed = expType ? `Drill Down · ${head} · ${expType}` : `Drill Down · ${head}`;
     if (!saving && userId) {
       setSaving(true);
@@ -158,29 +158,27 @@ export default function CareerDrilldown() {
           {/* intro (tertiary framing, prototype copy verbatim) */}
           <MdCard variant="filled" style={styles.introCard}>
             <Text style={styles.introText}>
-              {isKo
-                ? "성과를 3C로 'Why', 4P로 'What·How'를 채워 분해해 볼게요. 다 적으면 이걸 토대로 제가 더 깊이 파고드는 질문을 드릴게요."
-                : "Break the achievement down — 3C for the Why, 4P for the What·How. When it's filled in, I'll ask the deeper questions from it."}
+              {t("deepspace:careerDrilldown.intro")}
             </Text>
           </MdCard>
 
           {/* 경험 개요 */}
           <MdCard variant="outlined" style={styles.groupCard}>
             <Field
-              label={isKo ? "경험 한 줄 요약" : "One-line summary"}
+              label={t("deepspace:careerDrilldown.summaryLabel")}
               value={summary}
               onChangeText={setSummary}
-              placeholder={isKo ? "어떻게 했고, 결과는? — 한 줄로" : "What you did and the result — one line"}
+              placeholder={t("deepspace:careerDrilldown.summaryPlaceholder")}
             />
             <Pressable
               onPress={() => setTypeOpen((v) => !v)}
               accessibilityRole="button"
               accessibilityState={{ expanded: typeOpen }}
-              accessibilityLabel={isKo ? "경험 유형" : "Experience type"}
+              accessibilityLabel={t("deepspace:careerDrilldown.expTypeA11y")}
               style={styles.typeButton}
             >
               <Text style={[styles.typeButtonText, expType == null && styles.typeButtonPlaceholder]}>
-                {expType ?? (isKo ? "경험 유형 선택" : "Pick an experience type")}
+                {expType ?? t("deepspace:careerDrilldown.expTypePlaceholder")}
               </Text>
               <Text style={styles.typeCaret}>{typeOpen ? "▴" : "▾"}</Text>
             </Pressable>
@@ -237,10 +235,10 @@ export default function CareerDrilldown() {
         <View style={styles.submitBar}>
           <MdButton
             variant="filled"
-            label={isKo ? "세컨비와 Drill Down" : "Drill down with SecondB"}
+            label={t("deepspace:careerDrilldown.submit")}
             onPress={() => void submit()}
             disabled={!filled || saving}
-            accessibilityLabel={isKo ? "세컨비와 Drill Down" : "Drill down with SecondB"}
+            accessibilityLabel={t("deepspace:careerDrilldown.submit")}
           />
         </View>
       </View>

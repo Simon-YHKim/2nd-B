@@ -67,8 +67,7 @@ function MuseumGlyph({ name, color, size = 17 }: { name: string; color: string; 
 const DECADES = canonMuseum.decades;
 
 export function MuseumTimelineScreen() {
-  const { i18n } = useTranslation();
-  const isKo = i18n.language === "ko";
+  const { t } = useTranslation("deepspace");
   const scrollRef = useRef<ScrollView>(null);
   const didInitialSeek = useRef(false);
   const [selId, setSelId] = useState<string | null>(null);
@@ -189,12 +188,12 @@ export function MuseumTimelineScreen() {
     // sb-app §4 museumLike chrome: the blurred top app bar (back + centered
     // "AI 뮤지엄") floats over the self-owned sky; DeepSpaceScreen reserves the
     // ~60px top inset. The range bar, dial and back-to-constellation stay in-body.
-    <DeepSpaceScreen active="lens" variant="museumLike" title={isKo ? "AI 뮤지엄" : "AI Museum"} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" variant="museumLike" title={t("deepspace:museum.title")} onBack={() => router.back()}>
       <View style={styles.body}>
         {/* range / hint bar */}
         <View style={styles.rangeRow}>
           <Text style={styles.rangeLabel}>{`${MZ.START} — 2026`}</Text>
-          <Text style={styles.rangeHint}>{isKo ? "좌우로 시간 탐색" : "Swipe through time"}</Text>
+          <Text style={styles.rangeHint}>{t("deepspace:museum.rangeHint")}</Text>
         </View>
 
         {/* timeline viewport */}
@@ -305,7 +304,7 @@ export function MuseumTimelineScreen() {
             }}
             {...dialPan.panHandlers}
             accessibilityRole="adjustable"
-            accessibilityLabel={isKo ? "연도 탐색" : "Seek year"}
+            accessibilityLabel={t("deepspace:museum.seekYear")}
             accessibilityValue={{ text: String(year) }}
           >
             <View pointerEvents="none" style={[styles.dialPlayhead, { left: `${Math.min(98, Math.max(0, yearFrac * 100))}%` }]} />
@@ -330,14 +329,14 @@ export function MuseumTimelineScreen() {
             {...sheetPan.panHandlers}
           >
             <View style={styles.sheetHead}>
-              <Pressable onPress={() => step(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={isKo ? "이전 사건" : "Previous"} style={styles.stepBtn}>
+              <Pressable onPress={() => step(-1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("deepspace:museum.prevEvent")} style={styles.stepBtn}>
                 <Text style={styles.stepGlyph}>‹</Text>
               </Pressable>
               <Text style={styles.sheetCount}>{`${selIdx + 1} / ${MUSEUM_BY_YEAR.length}`}</Text>
-              <Pressable onPress={() => step(1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={isKo ? "다음 사건" : "Next"} style={styles.stepBtn}>
+              <Pressable onPress={() => step(1)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("deepspace:museum.nextEvent")} style={styles.stepBtn}>
                 <Text style={styles.stepGlyph}>›</Text>
               </Pressable>
-              <Pressable onPress={() => setSelId(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel={isKo ? "닫기" : "Close"} style={[styles.stepBtn, styles.closeBtn]}>
+              <Pressable onPress={() => setSelId(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel={t("deepspace:museum.close")} style={[styles.stepBtn, styles.closeBtn]}>
                 <Text style={styles.stepGlyph}>×</Text>
               </Pressable>
             </View>
@@ -349,7 +348,7 @@ export function MuseumTimelineScreen() {
                   </View>
                   {sel.here ? (
                     <View style={[styles.laneChip, styles.hereChip]}>
-                      <Text style={[styles.laneChipText, { color: deepSpace.bgEdge }]}>{isKo ? "지금 여기" : "You are here"}</Text>
+                      <Text style={[styles.laneChipText, { color: deepSpace.bgEdge }]}>{t("deepspace:museum.youAreHere")}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -394,7 +393,7 @@ export function MuseumTimelineScreen() {
                       </View>
                       <View style={styles.causeText}>
                         <Text style={[styles.causeLabel, { color: MZ_LANES[sel.lane].accent }]}>
-                          {isKo ? "배경" : "Background"}
+                          {t("deepspace:museum.background")}
                         </Text>
                         <Text style={styles.causeBody}>{selDetail.cause}</Text>
                       </View>
@@ -410,7 +409,7 @@ export function MuseumTimelineScreen() {
                       </View>
                       <View style={styles.causeText}>
                         <Text style={[styles.causeLabel, { color: MZ_LANES[sel.lane].accent }]}>
-                          {isKo ? "영향" : "Impact"}
+                          {t("deepspace:museum.impact")}
                         </Text>
                         <Text style={styles.causeBody}>{selDetail.effect}</Text>
                       </View>
@@ -431,7 +430,7 @@ export function MuseumTimelineScreen() {
 
               {sel.rel.length > 0 ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>{isKo ? "이어진 사건" : "Connected"}</Text>
+                  <Text style={styles.sectionLabel}>{t("deepspace:museum.connected")}</Text>
                   {sel.rel.map((rid) => {
                     const r = museumEventById(rid);
                     if (!r) return null;
@@ -448,7 +447,7 @@ export function MuseumTimelineScreen() {
 
               {sel.refs.length > 0 ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>{isKo ? "자료 · 논문" : "References"}</Text>
+                  <Text style={styles.sectionLabel}>{t("deepspace:museum.references")}</Text>
                   {sel.refs.map((r) => (
                     <View
                       key={r.label}
@@ -472,9 +471,9 @@ export function MuseumTimelineScreen() {
               {sel.here ? (
                 <MdButton
                   variant="filled"
-                  label={isKo ? "별자리로 돌아가기" : "Back to the constellation"}
+                  label={t("deepspace:museum.backToConstellation")}
                   onPress={() => router.replace("/")}
-                  accessibilityLabel={isKo ? "별자리로 돌아가기" : "Back to the constellation"}
+                  accessibilityLabel={t("deepspace:museum.backToConstellation")}
                 />
               ) : null}
             </ScrollView>

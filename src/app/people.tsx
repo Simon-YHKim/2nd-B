@@ -21,15 +21,6 @@ import { layoutPeopleMap, RELATION_SECTORS } from "@/lib/relation/people-map-lay
 
 const CANVAS = 1000;
 
-const KIND_LABEL: Record<RelationKind, { en: string; ko: string }> = {
-  family: { en: "Family", ko: "가족" },
-  partner: { en: "Partner", ko: "파트너" },
-  friend: { en: "Friend", ko: "친구" },
-  colleague: { en: "Colleague", ko: "동료" },
-  mentor: { en: "Mentor", ko: "멘토" },
-  other: { en: "Other", ko: "그 밖에" },
-};
-
 const KIND_COLOR: Record<RelationKind, string> = {
   family: m3.accent.moodPositive,
   partner: m3.accent.moodNegative,
@@ -40,10 +31,8 @@ const KIND_COLOR: Record<RelationKind, string> = {
 };
 
 export default function PeopleMapScreen() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const isKo = locale === "ko";
 
   const [people, setPeople] = useState<Person[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -76,9 +65,9 @@ export default function PeopleMapScreen() {
 
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "관계" : "Relationships"} onBack={() => router.back()}>
+      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:people.title")} onBack={() => router.back()}>
         <View style={styles.center}>
-          <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("deepspace:people.loading")} />
         </View>
       </DeepSpaceScreen>
     );
@@ -103,15 +92,15 @@ export default function PeopleMapScreen() {
   }
 
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "관계" : "Relationships"} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:people.title")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headRow}>
           <Text variant="heading" style={{ flex: 1 }}>
-            {isKo ? "관계 인물맵" : "People map"}
+            {t("deepspace:people.mapTitle")}
           </Text>
           <MdButton
             variant="tonal"
-            label={adding ? (isKo ? "닫기" : "Close") : isKo ? "사람 담기" : "Add person"}
+            label={adding ? t("deepspace:people.close") : t("deepspace:people.addPerson")}
             onPress={() => setAdding((v) => !v)}
           />
         </View>
@@ -119,27 +108,27 @@ export default function PeopleMapScreen() {
         {adding ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Field
-              label={isKo ? "이름 또는 부르는 말" : "Name or how you call them"}
+              label={t("deepspace:people.nameLabel")}
               value={name}
               onChangeText={setName}
-              placeholder={isKo ? "예: 어머니, 준호" : "e.g. Mom, Alex"}
+              placeholder={t("deepspace:people.namePlaceholder")}
             />
             <Text variant="caption" color="textMuted">
-              {isKo ? "관계" : "Relation"}
+              {t("deepspace:people.relationLabel")}
             </Text>
             <View style={styles.chipWrap}>
               {RELATION_SECTORS.map((k) => (
                 <MdChip
                   key={k}
                   kind="filter"
-                  label={KIND_LABEL[k][locale]}
+                  label={t(`deepspace:people.kind.${k}`)}
                   selected={kind === k}
                   onPress={() => setKind(k)}
                 />
               ))}
             </View>
             <Text variant="caption" color="textMuted">
-              {isKo ? `가까움 ${closeness}/5` : `Closeness ${closeness}/5`}
+              {t("deepspace:people.closeness", { closeness })}
             </Text>
             <SegBtn
               segments={[1, 2, 3, 4, 5].map((c) => ({ key: String(c), label: String(c) }))}
@@ -148,31 +137,27 @@ export default function PeopleMapScreen() {
             />
             {saveFailed ? (
               <Text variant="caption" color="textSubtle">
-                {isKo ? "저장하지 못했어요. 다시 시도해 주세요." : "Could not save. Please try again."}
+                {t("deepspace:people.saveFailed")}
               </Text>
             ) : null}
             <MdButton
               variant="filled"
               disabled={!name.trim() || saving}
-              label={saving ? (isKo ? "저장 중…" : "Saving…") : isKo ? "담기" : "Save"}
+              label={saving ? t("deepspace:people.saving") : t("deepspace:people.save")}
               onPress={handleAdd}
             />
             <Text variant="caption" color="textSubtle">
-              {isKo
-                ? "타인 정보는 내 기억을 위한 최소한만. 내 계정에만 저장돼요."
-                : "Only the minimum about others, for your own memory. Stored in your account only."}
+              {t("deepspace:people.privacyNote")}
             </Text>
           </MdCard>
         ) : null}
 
         {people === null ? (
-          <PremiumLoadingState message={isKo ? "지도를 펴는 중…" : "Opening the map…"} />
+          <PremiumLoadingState message={t("deepspace:people.openingMap")} />
         ) : nodes.length === 0 ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
-              {isKo
-                ? "아직 담긴 사람이 없어요. 가까운 사람부터 하나씩 담아 보세요. 관계 별이 밝아져요."
-                : "No one here yet. Add the people close to you, one by one; the relation star brightens."}
+              {t("deepspace:people.empty")}
             </Text>
           </MdCard>
         ) : (
@@ -181,7 +166,7 @@ export default function PeopleMapScreen() {
               width="100%"
               height="100%"
               viewBox={`0 0 ${CANVAS} ${CANVAS}`}
-              accessibilityLabel={isKo ? "관계 인물맵" : "People map"}
+              accessibilityLabel={t("deepspace:people.mapTitle")}
             >
               {[0.16, 0.31, 0.46].map((r) => (
                 <Circle
@@ -213,7 +198,7 @@ export default function PeopleMapScreen() {
                 fontSize={26}
                 textAnchor="middle"
               >
-                {isKo ? "나" : "me"}
+                {t("deepspace:people.me")}
               </SvgText>
               {nodes.map((node) => {
                 const isSel = node.id === selectedId;
@@ -259,12 +244,12 @@ export default function PeopleMapScreen() {
               <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
                 {selected.display_name}
               </Text>
-              <MdChip kind="assist" label={KIND_LABEL[selected.relation_kind][locale]} />
+              <MdChip kind="assist" label={t(`deepspace:people.kind.${selected.relation_kind}`)} />
             </View>
             <Text variant="body" color="textMuted">
-              {isKo
-                ? `가까움 ${selected.closeness ?? "-"}/5${selected.contact_cadence ? ` · 연락 ${selected.contact_cadence}` : ""}${selected.last_interaction_on ? ` · 마지막 ${selected.last_interaction_on}` : ""}`
-                : `Closeness ${selected.closeness ?? "-"}/5${selected.contact_cadence ? ` · contact ${selected.contact_cadence}` : ""}${selected.last_interaction_on ? ` · last ${selected.last_interaction_on}` : ""}`}
+              {`${t("deepspace:people.closeness", { closeness: selected.closeness ?? "-" })}${
+                selected.contact_cadence ? t("deepspace:people.contactSuffix", { cadence: selected.contact_cadence }) : ""
+              }${selected.last_interaction_on ? t("deepspace:people.lastSuffix", { date: selected.last_interaction_on }) : ""}`}
             </Text>
             {selected.note ? <Text variant="body">{selected.note}</Text> : null}
           </MdCard>
@@ -275,7 +260,7 @@ export default function PeopleMapScreen() {
             <View key={k} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: KIND_COLOR[k] }]} />
               <Text variant="caption" color="textMuted">
-                {KIND_LABEL[k][locale]}
+                {t(`deepspace:people.kind.${k}`)}
               </Text>
             </View>
           ))}

@@ -39,10 +39,9 @@ export function QuantPager({
   onSubmit,
   submitDisabled,
   submitLoading,
-  locale,
   submitLabel,
 }: QuantPagerProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation(["common", "deepspace"]);
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
   const [page, setPage] = useState(0);
 
@@ -58,7 +57,7 @@ export function QuantPager({
   const progressPercent = Math.round(progressPct * 100);
   const onLastPage = page >= totalPages - 1;
   const isFirstPage = page === 0;
-  const progressLabel = locale === "ko" ? `응답 진행률 ${progressPercent}%` : `Answer progress ${progressPercent}%`;
+  const progressLabel = t("deepspace:quant.progressLabel", { percent: progressPercent });
   const prevHint = t("quantPrevHint");
   const nextHint = t("quantNextHint");
   const submitHint = t("quantSubmitHint");
@@ -75,12 +74,10 @@ export function QuantPager({
       <View style={styles.progressCard}>
         <View style={styles.progressHeader}>
           <Text variant="caption" color="textMuted">
-            {locale === "ko" ? `${page + 1} / ${totalPages} 페이지` : `Page ${page + 1} / ${totalPages}`}
+            {t("deepspace:quant.pageCounter", { current: page + 1, total: totalPages })}
           </Text>
           <Text variant="caption" color={complete ? "brand" : "textMuted"}>
-            {locale === "ko"
-              ? `${answered} / ${totalItems} 응답${complete ? " · 저장 가능" : ""}`
-              : `${answered} / ${totalItems} answered${complete ? " · ready to save" : ""}`}
+            {`${t("deepspace:quant.answered", { answered, total: totalItems })}${complete ? t("deepspace:quant.readySuffix") : ""}`}
           </Text>
         </View>
         <View
@@ -99,9 +96,7 @@ export function QuantPager({
         ))}
 
         <Text variant="subtle" color="textSubtle" style={styles.rangeNote}>
-          {locale === "ko"
-            ? `이번 페이지: ${start + 1} - ${end} 번 문항`
-            : `This page: items ${start + 1} – ${end}`}
+          {t("deepspace:quant.rangeNote", { from: start + 1, to: end })}
         </Text>
 
         <View style={styles.navRow}>

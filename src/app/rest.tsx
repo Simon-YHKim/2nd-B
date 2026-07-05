@@ -24,30 +24,12 @@ import {
   type RecreationStatus,
 } from "@/lib/recreation/items";
 
-const CATEGORY_LABEL: Record<RecreationCategory, { en: string; ko: string }> = {
-  game: { en: "Game", ko: "게임" },
-  movie: { en: "Movie", ko: "영화" },
-  music: { en: "Music", ko: "음악" },
-  travel: { en: "Travel", ko: "여행" },
-  show: { en: "Show", ko: "공연" },
-  hobby: { en: "Hobby", ko: "취미" },
-  other: { en: "Other", ko: "그 밖에" },
-};
-
-const STATUS_LABEL: Record<RecreationStatus, { en: string; ko: string }> = {
-  want: { en: "Want to", ko: "하고 싶어요" },
-  active: { en: "Doing", ko: "하는 중" },
-  done: { en: "Done", ko: "했어요" },
-};
-
 const STATUS_ORDER: readonly RecreationStatus[] = ["active", "want", "done"];
 const CATEGORIES: readonly RecreationCategory[] = ["game", "movie", "music", "travel", "show", "hobby", "other"];
 
 export default function RestScreen() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const isKo = locale === "ko";
 
   const [items, setItems] = useState<RecreationItem[] | null>(null);
   const [adding, setAdding] = useState(false);
@@ -82,9 +64,9 @@ export default function RestScreen() {
 
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "휴식" : "Rest"} onBack={() => router.back()}>
+      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:rest.title")} onBack={() => router.back()}>
         <View style={styles.center}>
-          <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("deepspace:rest.loading")} />
         </View>
       </DeepSpaceScreen>
     );
@@ -109,15 +91,15 @@ export default function RestScreen() {
   }
 
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "휴식" : "Rest"} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:rest.title")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headRow}>
           <Text variant="heading" style={{ flex: 1 }}>
-            {isKo ? "휴식" : "Rest"}
+            {t("deepspace:rest.title")}
           </Text>
           <MdButton
             variant="tonal"
-            label={adding ? (isKo ? "닫기" : "Close") : isKo ? "휴식 담기" : "Add rest"}
+            label={adding ? t("deepspace:rest.close") : t("deepspace:rest.addRest")}
             onPress={() => setAdding((v) => !v)}
           />
         </View>
@@ -125,55 +107,53 @@ export default function RestScreen() {
         {adding ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Field
-              label={isKo ? "무엇인가요? (필수)" : "What is it? (required)"}
+              label={t("deepspace:rest.whatLabel")}
               value={title}
               onChangeText={setTitle}
-              placeholder={isKo ? "예: 젤다, 제주 여행, 피아노" : "e.g. Zelda, Jeju trip, piano"}
+              placeholder={t("deepspace:rest.whatPlaceholder")}
             />
             <Text variant="caption" color="textMuted">
-              {isKo ? "종류" : "Category"}
+              {t("deepspace:rest.categoryLabel")}
             </Text>
             <View style={styles.chipWrap}>
               {CATEGORIES.map((c) => (
                 <MdChip
                   key={c}
                   kind="filter"
-                  label={CATEGORY_LABEL[c][locale]}
+                  label={t(`deepspace:rest.category.${c}`)}
                   selected={category === c}
                   onPress={() => setCategory(c)}
                 />
               ))}
             </View>
             <Text variant="caption" color="textMuted">
-              {isKo ? "상태" : "Status"}
+              {t("deepspace:rest.statusLabel")}
             </Text>
             <SegBtn
-              segments={STATUS_ORDER.map((s) => ({ key: s, label: STATUS_LABEL[s][locale] }))}
+              segments={STATUS_ORDER.map((s) => ({ key: s, label: t(`deepspace:rest.status.${s}`) }))}
               selected={[status]}
               onSelect={(key) => setStatus(key as RecreationStatus)}
             />
             {saveFailed ? (
               <Text variant="caption" color="textSubtle">
-                {isKo ? "저장하지 못했어요. 다시 시도해 주세요." : "Could not save. Please try again."}
+                {t("deepspace:rest.saveFailed")}
               </Text>
             ) : null}
             <MdButton
               variant="filled"
               disabled={!title.trim() || saving}
-              label={saving ? (isKo ? "저장 중…" : "Saving…") : isKo ? "담기" : "Save"}
+              label={saving ? t("deepspace:rest.saving") : t("deepspace:rest.save")}
               onPress={handleAdd}
             />
           </MdCard>
         ) : null}
 
         {items === null ? (
-          <PremiumLoadingState message={isKo ? "펼치는 중…" : "Opening…"} />
+          <PremiumLoadingState message={t("deepspace:rest.opening")} />
         ) : items.length === 0 ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
-              {isKo
-                ? "아직 담긴 휴식이 없어요. 요즘 나를 쉬게 하는 것부터 담아 보세요. 휴식 별이 밝아져요."
-                : "Nothing here yet. Start with what recharges you these days; the rest star brightens."}
+              {t("deepspace:rest.empty")}
             </Text>
           </MdCard>
         ) : (
@@ -183,7 +163,7 @@ export default function RestScreen() {
             return (
               <View key={s} style={styles.group}>
                 <Text variant="caption" color="textMuted" style={styles.groupLabel}>
-                  {STATUS_LABEL[s][locale]} · {group.length}
+                  {t(`deepspace:rest.status.${s}`)} · {group.length}
                 </Text>
                 {group.map((item) => (
                   <MdCard key={item.id} variant="outlined" style={styles.entry}>
@@ -193,7 +173,7 @@ export default function RestScreen() {
                         {item.title}
                       </Text>
                       <Text variant="caption" color="textMuted">
-                        {CATEGORY_LABEL[item.category][locale]}
+                        {t(`deepspace:rest.category.${item.category}`)}
                         {item.occurred_on ? ` · ${item.occurred_on}` : ""}
                         {item.rating ? ` · ${"★".repeat(Math.min(5, item.rating))}` : ""}
                       </Text>

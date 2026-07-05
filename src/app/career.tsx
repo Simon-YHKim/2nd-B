@@ -40,10 +40,9 @@ async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
 }
 
 export default function CareerTimelineScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const { userId, loading, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const isKo = locale === "ko";
 
   const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -78,9 +77,9 @@ export default function CareerTimelineScreen() {
 
   if (loading) {
     return (
-      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "커리어" : "Career"} onBack={() => router.back()}>
+      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:career.screenTitle")} onBack={() => router.back()}>
         <View style={styles.center}>
-          <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("deepspace:career.loading")} />
         </View>
       </DeepSpaceScreen>
     );
@@ -121,11 +120,11 @@ export default function CareerTimelineScreen() {
   }
 
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={isKo ? "커리어" : "Career"} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:career.screenTitle")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headRow}>
           <Text variant="heading" style={{ flex: 1 }}>
-            {isKo ? "커리어 타임라인" : "Career timeline"}
+            {t("deepspace:career.timelineTitle")}
           </Text>
           <MdButton
             variant="outlined"
@@ -134,7 +133,7 @@ export default function CareerTimelineScreen() {
           />
           <MdButton
             variant="tonal"
-            label={adding ? (isKo ? "닫기" : "Close") : isKo ? "성과 담기" : "Add achievement"}
+            label={adding ? t("deepspace:career.close") : t("deepspace:career.addAchievement")}
             onPress={() => setAdding((v) => !v)}
           />
         </View>
@@ -142,63 +141,59 @@ export default function CareerTimelineScreen() {
         {adding ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Field
-              label={isKo ? "성과 (필수)" : "Achievement (required)"}
+              label={t("deepspace:career.fieldAchievement")}
               value={title}
               onChangeText={setTitle}
-              placeholder={isKo ? "무엇을 해냈나요?" : "What did you accomplish?"}
+              placeholder={t("deepspace:career.placeholderAchievement")}
             />
             <Field
-              label={isKo ? "역할" : "Role"}
+              label={t("deepspace:career.fieldRole")}
               value={role}
               onChangeText={setRole}
-              placeholder={isKo ? "그때 나의 역할" : "Your role at the time"}
+              placeholder={t("deepspace:career.placeholderRole")}
             />
             <Field
-              label={isKo ? "임팩트" : "Impact"}
+              label={t("deepspace:career.fieldImpact")}
               value={impact}
               onChangeText={setImpact}
-              placeholder={isKo ? "무엇이 달라졌나요? 수치가 있다면 함께" : "What changed? Numbers welcome"}
+              placeholder={t("deepspace:career.placeholderImpact")}
             />
             <Field
-              label={isKo ? "연도" : "Year"}
+              label={t("deepspace:career.fieldYear")}
               value={year}
               onChangeText={setYear}
-              placeholder={isKo ? "예: 2023 (비우면 오늘 기준)" : "e.g. 2023 (empty = today)"}
+              placeholder={t("deepspace:career.placeholderYear")}
               keyboardType="number-pad"
               error={!yearValid}
-              supportingText={yearValid ? undefined : isKo ? "네 자리 연도로 적어 주세요" : "Use a four-digit year"}
+              supportingText={yearValid ? undefined : t("deepspace:career.yearError")}
             />
             {saveFailed ? (
               <Text variant="caption" color="textSubtle">
-                {isKo ? "저장하지 못했어요. 다시 시도해 주세요." : "Could not save. Please try again."}
+                {t("deepspace:career.saveFailed")}
               </Text>
             ) : null}
             <MdButton
               variant="filled"
               disabled={!title.trim() || !yearValid || saving}
-              label={saving ? (isKo ? "저장 중…" : "Saving…") : isKo ? "담기" : "Save"}
+              label={saving ? t("deepspace:career.saving") : t("deepspace:career.save")}
               onPress={handleAdd}
             />
           </MdCard>
         ) : null}
 
         {rows === null ? (
-          <PremiumLoadingState message={isKo ? "타임라인을 펴는 중…" : "Opening the timeline…"} />
+          <PremiumLoadingState message={t("deepspace:career.opening")} />
         ) : loadFailed ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
-              {isKo
-                ? "타임라인을 잠깐 못 불러왔어요. 별가루는 그대로 있으니 다시 시도해 주세요."
-                : "Could not load the timeline just now. Your pieces are safe; try again."}
+              {t("deepspace:career.loadError")}
             </Text>
-            <MdButton variant="tonal" label={isKo ? "다시 시도" : "Try again"} onPress={refresh} />
+            <MdButton variant="tonal" label={t("deepspace:career.retry")} onPress={refresh} />
           </MdCard>
         ) : groups.length === 0 ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
-              {isKo
-                ? "아직 커리어 별가루가 없어요. 지난 성과부터 하나 담아 보세요. 커리어 별이 밝아져요."
-                : "No career pieces yet. Start with one past achievement; the career star brightens."}
+              {t("deepspace:career.empty")}
             </Text>
           </MdCard>
         ) : (
@@ -215,13 +210,13 @@ export default function CareerTimelineScreen() {
                   key={item.id}
                   onPress={() => router.push({ pathname: "/record/[id]", params: { id: item.id } })}
                   accessibilityRole="button"
-                  accessibilityLabel={item.topic ?? (isKo ? "커리어 별가루" : "Career piece")}
+                  accessibilityLabel={item.topic ?? t("deepspace:career.pieceFallback")}
                 >
                   <MdCard variant="outlined" style={styles.entry}>
                     <View style={styles.entryDot} />
                     <View style={{ flex: 1 }}>
                       <Text variant="body" numberOfLines={1}>
-                        {item.topic ?? item.body?.split("\n")[0] ?? (isKo ? "(제목 없음)" : "(untitled)")}
+                        {item.topic ?? item.body?.split("\n")[0] ?? t("deepspace:career.untitled")}
                       </Text>
                       {item.body ? (
                         <Text variant="caption" color="textMuted" numberOfLines={2}>

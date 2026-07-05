@@ -427,5 +427,159 @@
   "reviewRatifiedMoved": "승인됐어요. 실행가능(L{{level}})으로 올라갔어요.",
   "reviewOpenRecord": "{{title}} 기록 열기",
   "connectionConfirmed": "연결을 확인했어요.",
-  "suggestionDismissed": "제안을 보류했어요."
+  "suggestionDismissed": "제안을 보류했어요.",
+  "career": {
+    "screenTitle": "커리어",
+    "loading": "불러오는 중이에요…",
+    "timelineTitle": "커리어 타임라인",
+    "close": "닫기",
+    "addAchievement": "성과 담기",
+    "fieldAchievement": "성과 (필수)",
+    "placeholderAchievement": "무엇을 해냈나요?",
+    "fieldRole": "역할",
+    "placeholderRole": "그때 나의 역할",
+    "fieldImpact": "임팩트",
+    "placeholderImpact": "무엇이 달라졌나요? 수치가 있다면 함께",
+    "fieldYear": "연도",
+    "placeholderYear": "예: 2023 (비우면 오늘 기준)",
+    "yearError": "네 자리 연도로 적어 주세요",
+    "saveFailed": "저장하지 못했어요. 다시 시도해 주세요.",
+    "saving": "저장 중…",
+    "save": "담기",
+    "opening": "타임라인을 펴는 중…",
+    "loadError": "타임라인을 잠깐 못 불러왔어요. 별가루는 그대로 있으니 다시 시도해 주세요.",
+    "retry": "다시 시도",
+    "empty": "아직 커리어 별가루가 없어요. 지난 성과부터 하나 담아 보세요. 커리어 별이 밝아져요.",
+    "pieceFallback": "커리어 별가루",
+    "untitled": "(제목 없음)"
+  },
+  "people": {
+    "title": "관계",
+    "mapTitle": "관계 인물맵",
+    "loading": "불러오는 중이에요…",
+    "close": "닫기",
+    "addPerson": "사람 담기",
+    "nameLabel": "이름 또는 부르는 말",
+    "namePlaceholder": "예: 어머니, 준호",
+    "relationLabel": "관계",
+    "closeness": "가까움 {{closeness}}/5",
+    "saveFailed": "저장하지 못했어요. 다시 시도해 주세요.",
+    "saving": "저장 중…",
+    "save": "담기",
+    "privacyNote": "타인 정보는 내 기억을 위한 최소한만. 내 계정에만 저장돼요.",
+    "openingMap": "지도를 펴는 중…",
+    "empty": "아직 담긴 사람이 없어요. 가까운 사람부터 하나씩 담아 보세요. 관계 별이 밝아져요.",
+    "me": "나",
+    "kind": {
+      "family": "가족",
+      "partner": "파트너",
+      "friend": "친구",
+      "colleague": "동료",
+      "mentor": "멘토",
+      "other": "그 밖에"
+    },
+    "contactSuffix": " · 연락 {{cadence}}",
+    "lastSuffix": " · 마지막 {{date}}"
+  },
+  "rest": {
+    "title": "휴식",
+    "loading": "불러오는 중이에요…",
+    "close": "닫기",
+    "addRest": "휴식 담기",
+    "whatLabel": "무엇인가요? (필수)",
+    "whatPlaceholder": "예: 젤다, 제주 여행, 피아노",
+    "categoryLabel": "종류",
+    "statusLabel": "상태",
+    "saveFailed": "저장하지 못했어요. 다시 시도해 주세요.",
+    "saving": "저장 중…",
+    "save": "담기",
+    "opening": "펼치는 중…",
+    "empty": "아직 담긴 휴식이 없어요. 요즘 나를 쉬게 하는 것부터 담아 보세요. 휴식 별이 밝아져요.",
+    "category": {
+      "game": "게임",
+      "movie": "영화",
+      "music": "음악",
+      "travel": "여행",
+      "show": "공연",
+      "hobby": "취미",
+      "other": "그 밖에"
+    },
+    "status": {
+      "want": "하고 싶어요",
+      "active": "하는 중",
+      "done": "했어요"
+    }
+  },
+  "careerDrilldown": {
+    "summaryFallback": "커리어 경험",
+    "intro": "성과를 3C로 'Why', 4P로 'What·How'를 채워 분해해 볼게요. 다 적으면 이걸 토대로 제가 더 깊이 파고드는 질문을 드릴게요.",
+    "summaryLabel": "경험 한 줄 요약",
+    "summaryPlaceholder": "어떻게 했고, 결과는? - 한 줄로",
+    "expTypeA11y": "경험 유형",
+    "expTypePlaceholder": "경험 유형 선택",
+    "submit": "세컨비와 Drill Down"
+  },
+  "shareCard": {
+    "barTitle": "공유 카드",
+    "loading": "불러오는 중이에요…",
+    "introExport": "1080×1080 정사각 카드로 내보내요. 원문은 빼고, 보여줄 한 줄만 담겨요.",
+    "variantInsight": "통찰 카드",
+    "variantConstellation": "별자리 카드",
+    "saving": "저장 중…",
+    "saveImage": "이미지 저장",
+    "opening": "여는 중…",
+    "share": "공유",
+    "introPrivacy": "기록 원문·수치는 카드에 포함되지 않아요. 보여줄 문장만 골라 담아요.",
+    "starsFallback": "별 개수를 못 읽어 기본값으로 그렸어요."
+  },
+  "coachmarks": {
+    "step1": "여기는 별자리예요",
+    "step2": "별을 눌러보세요",
+    "step3": "떠오르면 담기",
+    "step4": "설정엔 더 많은 도구가 있어요",
+    "secondbName": "세컨비",
+    "dontShowAgain": "다시 보지 않기",
+    "start": "시작하기",
+    "next": "다음"
+  },
+  "museum": {
+    "title": "AI 뮤지엄",
+    "rangeHint": "좌우로 시간 탐색",
+    "seekYear": "연도 탐색",
+    "prevEvent": "이전 사건",
+    "nextEvent": "다음 사건",
+    "close": "닫기",
+    "youAreHere": "지금 여기",
+    "background": "배경",
+    "impact": "영향",
+    "connected": "이어진 사건",
+    "references": "자료 · 논문",
+    "backToConstellation": "별자리로 돌아가기"
+  },
+  "polaris": {
+    "cardDeck": "북극성 카드 덱"
+  },
+  "wikiGraph": {
+    "a11yGraph": "위키 노드 그래프",
+    "a11yZoomOut": "축소",
+    "a11yZoomIn": "확대",
+    "hintSelected": "{{title}} · 한 번 더 누르면 열려요",
+    "hintDefault": "노드를 누르면 선택, 한 번 더 누르면 열려요",
+    "kindConcept": "개념",
+    "kindEntity": "존재",
+    "kindSource": "원본"
+  },
+  "quant": {
+    "progressLabel": "응답 진행률 {{percent}}%",
+    "pageCounter": "{{current}} / {{total}} 페이지",
+    "answered": "{{answered}} / {{total}} 응답",
+    "readySuffix": " · 저장 가능",
+    "rangeNote": "이번 페이지: {{from}} - {{to}} 번 문항"
+  },
+  "shareCardImg": {
+    "eyebrowWeek": "2ND-BRAIN · 이번 주",
+    "footerWeek": "세컨비가 함께 본 한 주",
+    "starsLit": "{{count}}개 별이 빛나는 중",
+    "signature": "2nd-Brain · {{count}}개 별가루"
+  }
 }

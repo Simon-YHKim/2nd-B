@@ -234,7 +234,11 @@
     "iden": {
       "signed": "Ditandatangani",
       "northStar": "\"Memahami diriku secara mendalam, hidup lebih seperti diriku.\"",
-      "send": "Kirim ke AI"
+      "send": "Kirim ke AI",
+      "loading": "Mengumpulkan IDEN kamu",
+      "emptyTitle": "Belum ada IDEN untuk dikumpulkan",
+      "emptyBody": "Selesaikan satu alat dan IDEN kamu mulai terbentuk.",
+      "emptyCta": "Mulai mengumpulkan"
     },
     "recall": {
       "title": "Kenangan",
@@ -257,7 +261,9 @@
       "p7Name": "Awal masa kerja",
       "p7Age": "24–27",
       "p8Name": "Sekarang",
-      "p8Age": "28–"
+      "p8Age": "28–",
+      "emptyTitle": "Belum ada masa yang diingat",
+      "emptyBody": "Ingat kembali masa-masa lalumu satu per satu, dan di sini terkumpul tahun-tahun yang membentukmu."
     },
     "seen": {
       "title": "Aku di mata orang",
@@ -273,7 +279,18 @@
       "diffAgreeableness": "selisih −7",
       "conclusion": "Orang lain melihatmu lebih ceria. Mungkin kamu lebih ekstrover dari yang kamu kira.",
       "survey": "Lihat survei",
-      "share": "Bagikan"
+      "share": "Bagikan",
+      "obsTitleGap": "Aku yang kulihat, aku yang mereka lihat",
+      "obsTitleSolo": "Yang paling terlihat dari luar",
+      "obsNote": "Bukan apa yang sebenarnya dipikirkan orang lain; ini sifat dari Big Five milikmu sendiri yang paling terbaca dari luar.",
+      "combinedNote": "Gambaran gabungan dari {{count}} orang; tidak ada satu jawaban pun yang bisa dikenali.",
+      "gapReadA11y": "Baca selisih dalam satu baris",
+      "gapReading": "Membaca…",
+      "gapReadCta": "SecondB membaca selisihnya",
+      "emptyTitleResponses": "Tanggapan dari {{count}} orang sudah masuk",
+      "emptyTitleNoPeers": "Belum ada tanggapan dari orang lain untuk dibandingkan",
+      "emptyBodyFinishBigFive": "Selesaikan pemeriksaan Big Five milikmu dan kamu akan melihat aku yang kamu lihat bersanding dengan aku yang mereka lihat.",
+      "emptyBodySendSurvey": "Kirim survei singkat ke orang terdekat, dan kamu bisa melihat aku yang kamu lihat bersanding dengan aku yang orang lain lihat."
     },
     "rhythm": {
       "title": "Ritme",
@@ -288,7 +305,9 @@
       "sat": "Sab",
       "sun": "Min",
       "caption": "Paling menjadi dirimu: Sabtu pagi. Kamu merasa paling baik saat tenggelam membuat sesuatu.",
-      "logNow": "+ Catat suasana hati sekarang"
+      "logNow": "+ Catat suasana hati sekarang",
+      "emptyTitle": "Belum ada ritme untuk digambarkan",
+      "emptyBody": "Catat suasana hatimu selama beberapa hari, dan di sini muncul sebagai ritme kapan kamu paling menjadi dirimu."
     },
     "possible": {
       "title": "Aku di masa depan",
@@ -302,7 +321,9 @@
       "a3Body": "Orang yang menyimpan ukurannya di dalam diri",
       "footer": "Garis putus = aku sebelum datanya terisi",
       "rewrite": "Tulis ulang",
-      "add": "+ Tambah"
+      "add": "+ Tambah",
+      "emptyTitle": "Belum ada gambaran diri masa depan",
+      "emptyBody": "Mengobrol dengan SecondB dalam mode divergen, dan dirimu sebelum menjadi data hadir di sini."
     },
     "relational": {
       "title": "Relasi",
@@ -318,7 +339,9 @@
       "topic2": "Psikologi·pemahaman diri",
       "topic3": "AI·produktivitas",
       "conclusion": "Dalam relasimu, kedalaman lebih menonjol daripada keluasan. Sedikit, sering, dan lama.",
-      "addData": "+ Tambah data"
+      "addData": "+ Tambah data",
+      "emptyTitle": "Belum ada orang atau pengetahuan yang terhubung",
+      "emptyBody": "Seiring orang dan minat menumpuk dalam catatanmu, di sini terlihat dirimu di dalam hubungan dan pengetahuan."
     },
     "values": {
       "title": "Kerja·pertumbuhan",
@@ -331,7 +354,11 @@
       "domain3": "Keuangan",
       "domain3Count": "37 kepingan",
       "conclusion": "Yang paling banyak kamu bangun ada di Karier. Keuangan masih kosong: mau isi lagi?",
-      "addData": "+ Tambah data"
+      "addData": "+ Tambah data",
+      "loading": "Menghitung kepinganmu",
+      "emptyTitle": "Belum ada yang terkumpul di sini",
+      "emptyBody": "Tambahkan catatan dan kamu akan melihat area mana yang paling kamu kembangkan.",
+      "pieceCount": "{{count}} keping"
     },
     "imagine": {
       "title": "Berandai",

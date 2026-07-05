@@ -14,5 +14,20 @@
   "dismiss": "Tutup",
   "dismissHint": "Menutup pemberitahuan ini.",
   "retry": "Coba lagi",
-  "retryHint": "Memuat ulang catatan empat area."
+  "retryHint": "Memuat ulang catatan empat area.",
+  "ds": {
+    "back": "Kembali",
+    "myAreas": "Area saya",
+    "areasSubtitle": "Kesehatan · app · otak · keuangan",
+    "glanceSummary": "Empat areamu dalam satu pandangan.",
+    "emptySummary": "Belum ada catatan di areamu.",
+    "emptyTip": "Mulai dari area yang paling sepi, yuk?",
+    "loadError": "Kami tidak bisa memuat catatanmu. Coba lagi sebentar lagi.",
+    "retry": "Coba lagi",
+    "emptyBody": "Setelah catatan diberi tag kesehatan, app, otak, atau keuangan, semuanya akan muncul di sini per area.",
+    "addData": "Tambah data",
+    "unit": "item",
+    "lastEntry": "Terakhir {{date}}",
+    "noEntries": "Belum ada catatan"
+  }
 }
