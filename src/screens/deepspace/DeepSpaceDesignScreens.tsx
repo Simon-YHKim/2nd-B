@@ -458,6 +458,7 @@ export function DeepSpaceAccountDesignScreen() {
           <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
           <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
           <Action label="IDEN" onPress={() => router.push("/iden")} />
+          <Action label={ko ? "앱 밖에서" : "Outside the app"} onPress={() => router.push("/beyond")} />
         </Card>
         {/* Build/OTA identifier — lets a tester confirm which bundle is live
             (embedded vs OTA), the ambiguity that prolonged the 2026-06-26 crash. */}
