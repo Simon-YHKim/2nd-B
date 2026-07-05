@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
+- Latest — 2026-07-05 / proto_rev2 JSON 캐논 시스템 — 단일 정본 + 라이브 + 클론화면 dedup + gaps 배선 + QA시드 (12 PR)
+- 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
 - 2026-07-03 / 감사 라운드(#730) + 레퍼런스=정본 재정렬(#734·#735) — Simon 정본 확정
 - 2026-07-03 (오전) / 컨텍스트-포화 세션 전수 감사 → 결함 8건 픽스 (#730) + A·C 큐 소화
 - 2026-07-03 (게이트 해제 세션) / T5 E2E·통화회고·DDS분할 + 네이티브 사이클 0.0.7 완주
@@ -78,7 +79,75 @@
 
 ---
 
-## Latest — 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
+## Latest — 2026-07-05 / proto_rev2 JSON 캐논 시스템 — 단일 정본 + 라이브 + 클론화면 dedup + gaps 배선
+
+### 어디까지 왔나
+- main HEAD: `dad90405` (핸드오프 작성 시점; 타 세션이 계속 머지 중이라 `git pull` 필수)
+- 이번 세션 머지된 PR (내 오케스트레이션, 12건):
+  - **#746 / #748** — proto_rev2 앱 구동 구조를 **JSON 데이터 계층**으로 전환 + 라이브 배포. `public/proto/data/*.json`이 단일 정본, `src/lib/canon`이 앱에서 같은 JSON을 import. 라이브: `/2nd-B/proto/`(프로토), `/2nd-B/canon`(레지스트리 뷰)
+  - **#745** — 타 세션의 33화면 rev2 픽셀 클론 draft를 main 수렴·검증·랜딩 (앱 용어 조각/안티비 정합)
+  - **#749** — 클론 화면 9곳 하드코딩 데이터를 캐논 accessor로 dedup (museum·interview·trends·axis·imagine 등, 바이트 동일 검증)
+  - **#751** — m3-theme.css → `data/app/tokens.json` 생성 미러 (`gen-tokens.mjs`, canonTokens)
+  - **#753** — 온보딩 슬라이드1 캐논 복원(#745 "캡처 충실" 주석이 거짓이었음) + inbox 5아이템 복원 + 조각→별가루 로케일 통일
+  - **#754** — 뮤지엄 43이벤트 병합 + 상세 시트 (proto mzPlace 배치 포팅 — 단순배치가 43개서 노드 겹침)
+  - **#755** — 게이트 ~20화면 **실로그인 라이브 픽셀 패스** 32/32 (#745 세션 주입 블로커를 진짜 로그인으로 우회, `scripts/clone-live-pass.mjs`)
+  - **#759** — QA 계정 Big Five + 애착 멱등 시드 (`scripts/seed-qa-assessments.mjs`) → filled-state 라이브 잠금 해제
+  - **#762** — 라이브 갭 8건 현행 캐논 재분류 → iden 토글 2→4 canon범주 + iden/reminders 토글 green→blue
+  - **#764** — canon gaps(FAQ·공지·프라이버시 팩트·핵심개념) **프로드 DeepSpace 화면** 배선 (실로그인 캡처로 검증)
+  - **#766** — 죽은 IdenView의 mock Big Five fallback → null (정직성 하드닝)
+  - 부수: 스테일 PR #741 close
+- 테스트 상태: `npm run verify` green (최종 301 suites / 2276 tests). CI verify + lint + Vercel 매 PR green
+- working tree: clean (미추적 = design/proto_rev2.pre-json-local 백업·zip·app-gap = Simon 삭제 결정 대기, 커밋 대상 아님)
+
+### 활성 인프라
+- 웹 라이브 = GitHub Pages `simon-yhkim.github.io/2nd-B` (web-deploy.yml, **EXPO_PUBLIC_UI=deep-space** 고정 = 프로드 UI 트랙)
+- Supabase = 기존 프로젝트 (env: `E:/2ndB/.env` 로컬 + repo Variables). QA 계정: `.env.test`(committed) qa.ai.b18807@example.com, RLS 자기행만
+- 캐논 데이터: `public/proto/data/` (배포 사본, 앱 import 원본) ↔ `design/proto_rev2/reference-app/data/` (핸드오프 정본) — **이중 사본**(J 항목, 아래)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **Simon 결정 게이트** — ① plans pro 가격(캐논 ₩12,900 vs SoT `TIER_PRICE_KRW` ₩11,900) ② `design/proto_rev2.pre-json-local`(~40MB)·zip(24MB) 삭제 | small | ⭐ Simon 답만 있으면 즉시 이행 |
+| B | **J 이중 사본 dedup** — `public/proto` ↔ `design/proto_rev2/reference-app` 단일화 (CI 복사 방식) | medium | ⚠️ 벤더 디자인 산출물+배포 건드림, 7MB절약/고위험 — 신중 진행, Simon 승인 권장 |
+| C | 캐논 미배선 콘텐츠 신기능 — museum detail 43종은 배선됨(#754); 남은 것 검토 | small | 대부분 소진됨 |
+| D | 타 세션 소유(내가 안 함) — records 토글 겹침=`statusheader-consolidate` 워크트리, i18n-t-conversion/native-sdk/sentry 등 진행 중 | — | single-writer, 위임 지정 시만 |
+
+### 적용 중인 정책 (영구)
+1. **프로드 UI 표면 = DeepSpace 화면** — `src/app/<route>.tsx`는 `isDeepSpaceUI()`로 `DeepSpace*DesignScreen`에 위임. legacy 본문 수정은 **verify green이어도 라이브 미가시**. 화면 작업 전 위임 grep 필수. 정본=`src/screens/deepspace/DeepSpaceDesignScreens.tsx`·`screens/deepspace/**`·`components/deep-space/**`
+2. **캐논 소비 = `src/lib/canon`** — 화면 하드코딩 데이터는 `public/proto/data` 캐논에서 accessor로 읽고 EN은 코드측 미러(museum/iden 패턴). KO는 픽셀 계약(수정 금지). locales 키 추가는 5로케일 parity churn 유발 → 데이터-렌더 선호
+3. **용어 정본 = 별가루**(8:1, constraints:2402·trust-copy 테스트 요구). 조각은 드리프트. 트위비=페르소나명 / 안티비=렌즈라벨
+4. **정직성 불변식** — mock 점수(O72 C58…)를 실 데이터처럼 렌더 금지. 계정 실값 또는 중립 표현
+5. **머지 게이트** — CI green(verify+lint) 독립 확인 후 squash 머지. `gh pr merge --admin`은 상태계산 지연(UNKNOWN)만 통과용(green 선확인 필수). 워크트리 격리 + node_modules 정션, 머지 후 즉시 정리
+6. **라이브 검증** — 프로드 가시 변경은 배포 후 실로그인 캡처로 픽셀 확인(텍스트만 신뢰 X). 배포 사이트 직접(재빌드 불요), LoadingScreen '탭해서…' 탭통과 → /sign-in 실로그인. `.env.test` 크레드
+
+### 핵심 파일 위치
+```
+public/proto/data/                 캐논 JSON 정본 (index.json 매니페스트 + app/ + core/ + screens/)
+src/lib/canon/index.ts             앱측 타입드 accessor (canonScreens/Museum/More/Know/Surfaces/Gaps/Iden/Tokens/Flows…)
+src/screens/deepspace/DeepSpaceDesignScreens.tsx  프로드 화면 다수 (support/privacy/manual/integrations…)
+design/proto_rev2/                 핸드오프 정본 (reference-app 프로토 + docs/Screen-Spec/captures = 현행 캡처 정본)
+design/proto_rev2/tools/           gen-tokens.mjs · validate-data.mjs · capture-proto.mjs · compare-shots.mjs
+scripts/seed-qa-assessments.mjs    QA 계정 Big Five/애착 멱등 시드
+scripts/clone-live-pass.mjs        게이트 화면 실로그인 라이브 캡처 하네스
+docs/clone-audit/                  live-pass-report.md (갭 재분류표) + current-live/ 캡처
+```
+
+### 검증
+```bash
+npm run verify   # lint · type-check · check:i18n · lexicon · legal · llm-boundary · constraints · emdash · anti-anthro · mascot-voice · jest
+node design/proto_rev2/tools/validate-data.mjs   # 캐논 매니페스트/레지스트리/에셋 무결성
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A(Simon 결정 게이트)부터 — 열려 있으면 즉시 이행. 아니면 B(J dedup, 신중) 또는 위임된 타 세션 브랜치
+```
+
+---
+
+## 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
 
 > 역할이 다른 핸드오프: 아래 dev 세션 블록들과 달리 이 세션은 **감시·리뷰·머지 게이트·OTA·허브 오케스트레이션**을 맡았다.
 > 같은 역할을 잇는 세션은 이 블록이 출발점.
