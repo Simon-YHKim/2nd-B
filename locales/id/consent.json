@@ -9,7 +9,7 @@
   },
   "notice": {
     "title": "Pemberitahuan singkat sebelum mulai",
-    "intro": "2nd-Brain menjaga entri kamu tetap pribadi, menyimpannya secara terenkripsi, dan menggunakan Google Gemini hanya untuk membuat respons yang kamu minta. Harap tinjau dan setujui sebelum melanjutkan.",
+    "intro": "2nd-Brain menjaga entri kamu tetap pribadi, menyimpannya secara terenkripsi, dan menggunakan Google Gemini, Anthropic Claude, atau OpenAI hanya untuk membuat respons yang kamu minta. Harap tinjau dan setujui sebelum melanjutkan.",
     "trustTitle": "Catatanmu tidak dijual",
     "trustBody": "By default, your entries are not used to train models. Optional sharing, analytics, ads, and model-improvement controls start off.",
     "purposesTitle": "Apa yang kami kumpulkan dan alasannya",
@@ -21,7 +21,7 @@
     "optionalLabel": "Opsional",
     "agreeAll": "Setujui semua item wajib",
     "ackService": "Saya setuju dengan pengumpulan dan penggunaan di atas agar layanan dapat berjalan.",
-    "ackLlm": "Saya memahami entri saya diproses hanya saat diperlukan untuk membuat respons yang saya minta, untuk pemeriksaan keamanan otomatis, dan untuk catatan audit layanan, dan hanya dalam kasus tersebut dapat dikirim ke Google Gemini.",
+    "ackLlm": "Saya memahami entri saya diproses hanya saat diperlukan untuk membuat respons yang saya minta, untuk pemeriksaan keamanan otomatis, dan untuk catatan audit layanan, dan hanya dalam kasus tersebut dapat dikirim ke Google Gemini, Anthropic Claude, atau OpenAI.",
     "ackOverseas": "Saya memahami data layanan terenkripsi dapat diproses di luar negara saya oleh Google atau Supabase untuk menjalankan app.",
     "ackSensitive": "Saya memahami entri saya mungkin berisi detail sensitif, dan 2nd-Brain memperlakukannya sebagai data akun pribadi.",
     "optMarketing": "Kirimi saya pembaruan produk sesekali (opsional).",
