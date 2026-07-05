@@ -1013,11 +1013,16 @@ export function IdenView({
       </ScrollView>
     );
   }
+  // Honesty invariant: never render a fabricated Big Five line as if real. The
+  // no-data fallback leaves bigFive null (the type's "no traits yet" state) so a
+  // placeholder mount can't surface invented scores. (This IdenView is currently
+  // unmounted — prod IDEN is IdenExportScreenDeepSpace in app/iden.tsx, which
+  // renders the account's real values — so this hardens against a future remount.)
   const shown: IdenViewData = data ?? {
     name: "simon.iden",
     version: "2.1",
     northStar: t("ds.iden.northStar"),
-    bigFive: "O72 C58 E41 A67 N39",
+    bigFive: null,
   };
   return (
     <ScrollView contentContainerStyle={styles.body}>
