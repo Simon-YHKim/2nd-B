@@ -51,11 +51,14 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   ops_recommend: "claude",
   ops_daily_brief: "claude",
   // Proto rev2 seats. digest_weekly + ttfv_first_insight take the Anthropic
-  // (opus/sonnet) narrative seat; cluster_infer is the sole OpenAI seat, so
-  // adding it is what gives openai-proxy a live routing target under Phase 2.
+  // (opus/sonnet) narrative seat. cluster_infer is designed for the OpenAI
+  // (gpt-5.4) seat, but until OPENAI_API_KEY is provisioned in Supabase Secrets
+  // it is TEMPORARILY routed to Claude so Phase 2 can activate without a dead
+  // cluster path (probe 2026-07-06: ANTHROPIC key set, OPENAI key missing).
+  // Revert to "openai" (and set the key) to light the gpt-5.4 cluster seat.
   digest_weekly: "claude",
   ttfv_first_insight: "claude",
-  cluster_infer: "openai",
+  cluster_infer: "claude",
 };
 
 // D-26 Phase 2 per-purpose reasoning effort. Abstract ladder; each proxy maps
