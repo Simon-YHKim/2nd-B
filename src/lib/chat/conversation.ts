@@ -14,13 +14,27 @@
 // inbox.
 
 import { callGemini } from "@/lib/llm/gemini";
+import { classifyInput } from "@/lib/safety/classifier";
 import type { GeminiResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { exportUserWiki } from "../wiki/export";
+import { formatRagPages, retrieveChatContext } from "./rag";
 import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsage } from "./usage";
+
+/** One prior exchange line. `assistant` is the model's own earlier reply. */
+export interface ChatHistoryTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
+// D-26 A1: conversation window. 6 turns (~3 exchanges) is enough for
+// pronoun/thread continuity without growing the prompt unboundedly; each
+// turn's text is clipped so one long paste can't blow the budget.
+const HISTORY_MAX_TURNS = 6;
+const HISTORY_TURN_CHAR_LIMIT = 500;
 
 export interface SendMessageInput {
   userId: string;
@@ -43,6 +57,18 @@ export interface SendMessageInput {
   mode?: "analytic" | "divergent";
   // C10 safety: minor flag forwarded to callGemini for youth crisis routing.
   minor?: boolean;
+  /**
+   * Prior turns of THIS conversation, oldest first (D-26 A1: 최근 6턴).
+   * Component-local state in v1 — the screen passes its own turn list; only
+   * the last HISTORY_MAX_TURNS are used, each clipped. History rides the
+   * system channel fenced as untrusted. C9: each turn is re-classified here
+   * and any red-zone turn is DROPPED before it reaches the prompt — a prior
+   * crisis turn was withheld from the model when it was sent, and replaying
+   * it through the system channel (which callGemini does NOT crisis-scan)
+   * would silently re-egress it. Filtering at the engine, not trusting the
+   * screen to pre-strip.
+   */
+  history?: ChatHistoryTurn[];
 }
 
 export interface SendMessageBlocked {
@@ -147,18 +173,35 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     };
   }
 
-  // RAG context: compact wiki snapshot. Capped so the chat stays inside the
-  // Gemini Flash context window even for users with hundreds of pages.
+  // Context assembly (D-26 A1): try query-relevant retrieval first — embed the
+  // message and pull the top-8 semantically relevant pages (RAG). On a hit the
+  // prompt carries ONLY those pages plus a slim recent-sources list (~10x
+  // smaller than the old whole-wiki dump, and better grounded). On any miss
+  // (no index yet, embed failure, red-zone query) fall back to the legacy
+  // whole-wiki snapshot so chat never breaks on RAG.
   // 0066: newest structured form captures (4W1H, career 3C4P) ride along so
   // the model reads the form data as structure, not prose. Small, fail-soft,
   // sanitized + fenced with the snapshot below.
   const structuredBlock = await loadStructuredContext(input.userId, 5);
-  const snapshot = await exportUserWiki(input.userId, {
-    locale: input.locale,
-    bodyCharLimit: 600,
-    pageLimit: 50,
-    sourceLimit: 100,
-  });
+  let ragBlock: string | null = null;
+  try {
+    const ragPages = await retrieveChatContext(input.userId, input.message, input.locale, {
+      k: 8,
+      bodyCharLimit: 600,
+      minor: input.minor,
+    });
+    if (ragPages.length > 0) ragBlock = formatRagPages(ragPages, input.locale);
+  } catch {
+    // fail-soft: RAG must never take chat down — fall back to the snapshot.
+  }
+  const snapshot = await exportUserWiki(
+    input.userId,
+    ragBlock
+      ? // RAG hit: pages come from retrieval; keep only a slim sources list so
+        // "what did I clip" questions still see the inbox.
+        { locale: input.locale, bodyCharLimit: 600, pageLimit: 0, sourceLimit: 40 }
+      : { locale: input.locale, bodyCharLimit: 600, pageLimit: 50, sourceLimit: 100 },
+  );
 
   // Atomic check-and-bump (codex R2): the RPC inserts/increments the row
   // ONLY if the existing count is below `limit`. It remains the final gate
@@ -190,10 +233,14 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
 
   const personaLine = input.personaHint ? `${input.personaHint}\n\n` : "";
   const modeLine = `${MODE_INSTRUCTION[input.mode ?? "analytic"][input.locale]}\n\n`;
-  // The wiki snapshot is untrusted user content (clipped page bodies + source
-  // titles). Run it through sanitizeUntrusted, wrap it in <UNTRUSTED>, and
-  // prepend the injection-guard preamble so a clipped "ignore previous
-  // instructions" cannot hijack the system prompt (mirrors the Advisor path).
+  // The wiki snapshot / RAG pages are untrusted user content (clipped page
+  // bodies + source titles). Run them through sanitizeUntrusted, wrap in
+  // <UNTRUSTED>, and prepend the injection-guard preamble so a clipped
+  // "ignore previous instructions" cannot hijack the system prompt (mirrors
+  // the Advisor path).
+  const fencedRag = ragBlock
+    ? `<UNTRUSTED type="wiki_rag">\n${sanitizeUntrusted(ragBlock)}\n</UNTRUSTED>\n`
+    : "";
   const fencedSnapshot = `<UNTRUSTED type="wiki_snapshot">\n${sanitizeUntrusted(snapshot.prompt)}\n</UNTRUSTED>`;
   const fencedStructured = structuredBlock
     ? `
@@ -201,8 +248,30 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
 ${sanitizeUntrusted(structuredBlock)}
 </UNTRUSTED>`
     : "";
+  // D-26 A1: 최근 6턴. Prior turns (the model's own replies included) ride the
+  // system channel as fenced, sanitized data — never as instructions. C9:
+  // drop any red-zone turn FIRST (both locales, minor-aware — same guard
+  // embedTexts uses) so a previously-withheld crisis turn can't re-egress via
+  // history; slice AFTER filtering so a dropped turn doesn't silently shrink
+  // the window mid-stream.
+  const historyTurns = (input.history ?? [])
+    .filter(
+      (t) =>
+        classifyInput(t.text, "en", { minor: input.minor }).zone !== "red" &&
+        classifyInput(t.text, "ko", { minor: input.minor }).zone !== "red",
+    )
+    .slice(-HISTORY_MAX_TURNS);
+  const fencedHistory =
+    historyTurns.length > 0
+      ? `\n<UNTRUSTED type="chat_history">\n${historyTurns
+          .map(
+            (t) =>
+              `${t.role === "user" ? "User" : "SecondB"}: ${sanitizeUntrusted(t.text).slice(0, HISTORY_TURN_CHAR_LIMIT)}`,
+          )
+          .join("\n")}\n</UNTRUSTED>`
+      : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${guardLine}${modeLine}${personaLine}${fencedSnapshot}${fencedStructured}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${guardLine}${modeLine}${personaLine}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
   // happens inside callGemini; we just no longer adjust the counter
