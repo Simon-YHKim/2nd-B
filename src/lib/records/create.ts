@@ -13,8 +13,11 @@ import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gem
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
+import { fetchPrivacyPrefs } from "../supabase/privacy";
+import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
 import { withDomainTag } from "./detect-domain";
+import { embedAndStoreRecord, recordsEmbeddingAllowed } from "./records-embeddings";
 import type { RecordFollowup } from "./followup";
 
 export type RecordKind = "journal" | "note" | "audit_response";
@@ -265,6 +268,31 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // Quest XP — best-effort, never blocks the capture. The server (award_xp
   // RPC) decides the amount from xp_rules; we only name the action.
   await awardXpSafe(XP_ACTION_FOR_KIND[args.kind]);
+
+  // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
+  // OFF by default, privacy/prefs.ts), embed the new record so the semantic
+  // "연결된 기록" surface stays fresh. Best-effort, gated, and skipped in mock mode
+  // (mock embeddings are random vectors that would poison cosine similarity).
+  // Journal text is embedded ONLY under explicit consent: recordsEmbeddingAllowed
+  // hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
+  // closed on top of that. Minors skip without even reading prefs; a failure never
+  // affects the save (which already returned its row).
+  if (args.minor !== true && getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
+    try {
+      const prefs = await fetchPrivacyPrefs(args.userId);
+      if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
+        await embedAndStoreRecord(
+          args.userId,
+          { id: data.id, topic: args.topic ?? null, summary: args.summary ?? null, body: args.body },
+          args.locale,
+          false,
+          true,
+        );
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
+    }
+  }
 
   return { id: data.id, followup: aiFollowup ?? undefined };
 }
