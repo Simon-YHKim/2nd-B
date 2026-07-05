@@ -272,11 +272,12 @@ export function DeepSpaceGraphDesignScreen() {
 // rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.
 // Real per-source OAuth is not built yet, so "연결" hands off to the working
 // file-import flow (/import-hub); a connected source toggles back off (no dead
-// switch). Apple 건강 seeds as 연결됨 to match the capture.
+// switch). No provider is seeded as 연결됨 — every row starts disconnected until
+// a real connection exists, so the screen never claims a link that isn't there.
 export function DeepSpaceIntegrationsScreen() {
   const { i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const [conn, setConn] = useState<Record<string, boolean>>({ cal: false, health: true, notion: false, photos: false, gpt: false });
+  const [conn, setConn] = useState<Record<string, boolean>>({ cal: false, health: false, notion: false, photos: false, gpt: false });
   const sources: { id: string; icon: keyof typeof CLONE_ICON; k: string; sub: string }[] = [
     { id: "cal", icon: "forum", k: ko ? "Google 캘린더" : "Google Calendar", sub: ko ? "일정에서 리듬·관계 신호" : "Rhythm and relationship signals from your schedule" },
     { id: "health", icon: "bedtime", k: ko ? "Apple 건강" : "Apple Health", sub: ko ? "수면·활동으로 건강 별" : "Sleep and activity feed the health star" },

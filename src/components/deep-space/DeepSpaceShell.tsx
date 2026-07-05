@@ -61,10 +61,13 @@ export function DeepSpaceShell() {
   }, [loading, userId]);
 
   if (loading) return <InlineLoader />;
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // Sell before signup: a first-launcher who hasn't onboarded sees /onboarding
+  // first (it renders pre-auth), then routes to sign-up. Only after onboarding
+  // do we gate on auth + profile.
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
+  if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
   return (
     <DeepSpaceScreen active="home" header="none">
