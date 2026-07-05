@@ -24,7 +24,7 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
 type AuditToast = { message: string; tone: "info" | "success" | "danger" };
 
 function AuditLegacy() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -68,7 +68,7 @@ function AuditLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -125,7 +125,7 @@ function AuditLegacy() {
 <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-              {locale === "ko" ? "과거의 나: 시기 선택" : "Past me: choose a period"}
+              {t("periodTitle")}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
@@ -148,7 +148,7 @@ function AuditLegacy() {
               />
             ))}
             <Button
-              label={locale === "ko" ? "뒤로" : "Back"}
+              label={t("back")}
               variant="secondary"
               onPress={() => router.push("/")}
             />
@@ -165,11 +165,11 @@ function AuditLegacy() {
         <View style={styles.center}>
           <View style={styles.completeBadge}>
             <Text variant="subtle" style={styles.completeBadgeText}>
-              {locale === "ko" ? "완료" : "DONE"}
+              {t("done")}
             </Text>
           </View>
           <Text variant="heading" style={{ marginTop: spacing.md, textAlign: "center" }}>
-            {locale === "ko" ? "과거의 나 인터뷰를 마쳤어요" : "Past me complete"}
+            {t("complete")}
           </Text>
           <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.sm }}>
             {locale === "ko"
@@ -178,12 +178,12 @@ function AuditLegacy() {
           </Text>
           <View style={styles.actions}>
             <Button
-              label={locale === "ko" ? "페르소나 보기" : "View persona"}
+              label={t("viewPersona")}
               variant="primary"
               onPress={() => router.replace("/persona")}
             />
             <Button
-              label={locale === "ko" ? "별가루 담기로 돌아가기" : "Back to capture"}
+              label={t("backToCapture")}
               variant="secondary"
               onPress={() => router.replace("/capture")}
             />
@@ -204,7 +204,7 @@ function AuditLegacy() {
         {index === 0 ? (
           <View style={styles.introCard}>
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
-              {locale === "ko" ? "과거의 나: 자기 인터뷰" : "Past me: self interview"}
+              {t("interviewTitle")}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
               {locale === "ko"
@@ -215,7 +215,7 @@ function AuditLegacy() {
         ) : null}
         <View style={styles.progressWrap}>
           <Text variant="caption" color="brand">
-            {locale === "ko" ? `질문 ${index + 1} / ${questions.length}` : `Question ${index + 1} / ${questions.length}`}
+            {t("question", { n: index + 1, total: questions.length })}
           </Text>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${((index + 1) / questions.length) * 100}%` }]} />
@@ -242,7 +242,7 @@ function AuditLegacy() {
         <Input
           value={answer}
           onChangeText={setAnswer}
-          placeholder={locale === "ko" ? "솔직하게 적어주세요." : "Be honest with yourself."}
+          placeholder={t("placeholder")}
           multiline
           numberOfLines={6}
           style={styles.textarea}
@@ -277,7 +277,7 @@ function AuditLegacy() {
           loading={submitting}
         />
         <Button
-          label={locale === "ko" ? "나중에 하기" : "Continue later"}
+          label={t("later")}
           variant="secondary"
           onPress={() => router.replace("/capture")}
         />
@@ -292,10 +292,10 @@ function AuditLegacy() {
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "진단 종료 안내" : "Exit audit notice"}
+        accessibilityLabel={t("exit.notice")}
       >
         <Text variant="heading">
-          {locale === "ko" ? "진단을 종료할까요?" : "Exit audit?"}
+          {t("exit.title")}
         </Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
           {locale === "ko"
@@ -304,14 +304,14 @@ function AuditLegacy() {
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "취소" : "Cancel"}
+            label={t("exit.cancel")}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
-            accessibilityHint={locale === "ko" ? "진단을 계속 진행합니다." : "Continue the audit."}
+            accessibilityHint={t("exit.cancelHint")}
           />
           <Button
-            label={locale === "ko" ? "종료하기" : "Exit"}
+            label={t("exit.confirm")}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
@@ -320,7 +320,7 @@ function AuditLegacy() {
               setAnswer("");
             }}
             style={{ flex: 1 }}
-            accessibilityHint={locale === "ko" ? "진단을 종료하고 질문 선택 화면으로 돌아갑니다." : "Exit the audit and return to selection."}
+            accessibilityHint={t("exit.confirmHint")}
           />
         </View>
       </PremiumModal>

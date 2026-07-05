@@ -31,7 +31,7 @@ const starName = (starId: StarId, locale: "en" | "ko"): string => {
 const CELL_OPACITY: Record<number, number> = { 1: 0.16, 2: 0.32, 3: 0.5, 4: 0.72, 5: 1 };
 
 export default function BrightnessTimelineScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("brightness");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -58,13 +58,13 @@ export default function BrightnessTimelineScreen() {
   );
 
   // rev2 TITLES verbatim: 밝기 변화 (the windowed top app bar carries it).
-  const barTitle = locale === "ko" ? "밝기 변화" : "Brightness";
+  const barTitle = t("barTitle");
 
   if (loading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </DeepSpaceScreen>
     );
@@ -76,10 +76,10 @@ export default function BrightnessTimelineScreen() {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text variant="heading">{locale === "ko" ? "8주 타임라인" : "8-week timeline"}</Text>
+        <Text variant="heading">{t("timeline")}</Text>
 
         {timeline === null ? (
-          <PremiumLoadingState message={locale === "ko" ? "하늘을 살펴보는 중…" : "Reading the sky…"} />
+          <PremiumLoadingState message={t("readingSky")} />
         ) : empty ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
@@ -89,7 +89,7 @@ export default function BrightnessTimelineScreen() {
             </Text>
             <MdButton
               variant="tonal"
-              label={locale === "ko" ? "북극성으로 가기" : "Go to Polaris"}
+              label={t("goPolaris")}
               onPress={() => router.replace("/core-brain")}
             />
           </MdCard>
@@ -99,7 +99,7 @@ export default function BrightnessTimelineScreen() {
             <MdCard variant="outlined" style={styles.cardPad}>
               <View style={styles.gridRow}>
                 <Text variant="caption" color="textMuted" style={styles.rowLabel} numberOfLines={1}>
-                  {locale === "ko" ? "북극성" : "Polaris"}
+                  {t("polaris")}
                 </Text>
                 {timeline.polaris.map((v, i) => (
                   <View
@@ -134,10 +134,10 @@ export default function BrightnessTimelineScreen() {
               ))}
               <View style={styles.axisRow}>
                 <Text variant="caption" color="textSubtle">
-                  {locale === "ko" ? "8주 전" : "8w ago"}
+                  {t("weeksAgo")}
                 </Text>
                 <Text variant="caption" color="textSubtle">
-                  {locale === "ko" ? "이번 주" : "this week"}
+                  {t("thisWeek")}
                 </Text>
               </View>
             </MdCard>
@@ -151,7 +151,7 @@ export default function BrightnessTimelineScreen() {
             {/* Honesty meter: what this light is made of (별빛 != 확신). */}
             <MdCard variant="outlined" style={styles.cardPad}>
               <Text variant="caption" color="textMuted">
-                {locale === "ko" ? "이 별빛의 근거" : "What this light is made of"}
+                {t("evidence")}
               </Text>
               <Text variant="body" style={styles.honestyLine}>
                 {locale === "ko"
@@ -173,7 +173,7 @@ export default function BrightnessTimelineScreen() {
               </Text>
               <MdButton
                 variant="text"
-                label={locale === "ko" ? "승인 이력 보기" : "See the ratification log"}
+                label={t("ratLog")}
                 onPress={() => router.push("/ratifications")}
               />
             </MdCard>

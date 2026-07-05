@@ -13,6 +13,7 @@
 import { callGemini } from "../llm/gemini";
 import type { SystemLocale } from "../i18n/locales";
 import { exportUserWiki } from "../wiki/export";
+import { buildOpsDailyBrief, getOpsDailyBrief } from "./daily-brief";
 import type { OpsDomainId } from "./domains";
 import { gatherAdherenceSignal } from "./signals";
 import { gatherLensSignal } from "../growth/lens-signal";
@@ -176,6 +177,50 @@ export function resetOpsRecommendCacheForTests(): void {
   recCache.clear();
 }
 
+/**
+ * Try the D-26 A17 daily brief for a passive recommendForDomain call.
+ * Returns:
+ *   - the domain's recs (possibly []) when today's brief covers this domain,
+ *   - []                when the brief was built but genuinely had nothing here
+ *     (still a valid "no suggestions today" — avoids a redundant single call),
+ *   - null              when there is no usable brief for this domain, so the
+ *     caller falls through to the on-demand single-domain call.
+ * Best-effort: any read/build failure returns null (fall through), so the
+ * brief layer can never take the ops surface down.
+ */
+async function serveFromDailyBrief(
+  input: OpsRecommendInput,
+  now: Date,
+): Promise<OpsRecommendation[] | null> {
+  try {
+    const cached = await getOpsDailyBrief(input.userId, now);
+    if (cached) {
+      // Own the key: a present-but-empty domain slice means "brief covered
+      // this domain, nothing to suggest" -> serve [] (no extra call). A domain
+      // absent from the brief -> null (fall through / self-correct).
+      return Object.prototype.hasOwnProperty.call(cached, input.domainId)
+        ? cached[input.domainId] ?? []
+        : null;
+    }
+    // No brief yet today -> build the whole thing once (shared in-flight), then
+    // serve this domain's slice. recommendationsPref forwarded for the brief
+    // engine's own D-2 gate (we're already past the gate here; belt-and-braces).
+    const brief = await buildOpsDailyBrief({
+      userId: input.userId,
+      locale: input.locale,
+      minor: input.minor,
+      recommendationsPref: input.recommendationsPref,
+      now,
+    });
+    if (Object.keys(brief).length === 0) return null; // build miss -> on-demand
+    return Object.prototype.hasOwnProperty.call(brief, input.domainId)
+      ? brief[input.domainId] ?? []
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsRecommendation[]> {
   // D-2 (defense-in-depth): enforce the recommendations privacy gate at the
   // ENGINE, not only at the three call sites. `recommendationsAllowed` is
@@ -190,13 +235,29 @@ export async function recommendForDomain(input: OpsRecommendInput): Promise<OpsR
   // cached material (the gate returns [] first).
   const cacheKey = `${input.userId}:${input.domainId}:${input.locale}`;
   const hit = recCache.get(cacheKey);
-  const nowMs = (input.now ?? new Date()).getTime();
+  const now = input.now ?? new Date();
+  const nowMs = now.getTime();
   if (!input.forceFresh && hit) {
     const ttl = hit.recs.length > 0 ? REC_CACHE_TTL_MS : REC_EMPTY_TTL_MS;
     if (nowMs - hit.at < ttl) return hit.recs;
   }
+
+  // D-26 A17 daily-brief consolidation (the passive path only — an explicit
+  // forceFresh run keeps its rich, adherence/lens-tailored single-domain call
+  // below). One brief per KST day covers ALL domains, so the first ops visit
+  // of the day builds it once and every later visit/tab-flip serves from it
+  // (0 LLM) — the "-1,700 RPD" lever.
+  if (!input.forceFresh) {
+    const briefRecs = await serveFromDailyBrief(input, now);
+    if (briefRecs) {
+      recCache.set(cacheKey, { at: nowMs, recs: briefRecs });
+      return briefRecs;
+    }
+    // brief exists but had nothing for this domain -> fall through to the
+    // on-demand single-domain call below (self-correct for a partial brief).
+  }
+
   const snapshot = await exportUserWiki(input.userId, { bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
-  const now = input.now ?? new Date();
   // Deterministic, aggregate-only behavior signal (the user's own completion
   // ledger). Best-effort: "" on any read failure so it never blocks the run.
   // Passed as a TRUSTED fact line — it carries no third-party text to inject.

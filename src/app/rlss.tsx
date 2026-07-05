@@ -49,7 +49,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // wraps it in DeepSpaceScreen, legacy in PremiumAppShell. onComplete fires after
 // the save celebration (caller decides where to go); onCancel backs out of intro.
 function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("rlss");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -70,7 +70,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+        <PremiumLoadingState message={t("loading")} />
       </View>
     );
   }
@@ -127,7 +127,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
       {!started ? (
         <QuantIntroModal
           toolKey="rlss"
-          title={locale === "ko" ? "삶의 만족도 (RLSS)" : "Life Satisfaction (RLSS)"}
+          title={t("title")}
           itemCount={RLSS_ITEMS.length}
           estimatedMinutes={2}
           description={
@@ -146,7 +146,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "삶의 만족도 · RLSS" : "Life Satisfaction · RLSS"}
+              {t("counter")}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
@@ -199,7 +199,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
+          message={t("saved")}
           onDone={onComplete}
         />
       ) : null}

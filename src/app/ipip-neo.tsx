@@ -49,7 +49,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // PremiumAppShell). The only writer of the "ipip_neo"-tagged record. Stores the
 // 5 domain means + 30 facet means so the lenses can read either level.
 function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ipip-neo");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -70,7 +70,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+        <PremiumLoadingState message={t("loading")} />
       </View>
     );
   }
@@ -127,7 +127,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       {!started ? (
         <QuantIntroModal
           toolKey="ipip"
-          title={locale === "ko" ? "성격 정밀검사 (IPIP-NEO-120)" : "Personality, in depth (IPIP-NEO-120)"}
+          title={t("title")}
           itemCount={IPIP_NEO_120_ITEMS.length}
           estimatedMinutes={15}
           description={
@@ -150,7 +150,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "정밀검사 · IPIP-NEO-120" : "In depth · IPIP-NEO-120"}
+              {t("counter")}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
@@ -196,7 +196,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
+          message={t("saved")}
           onDone={onComplete}
         />
       ) : null}

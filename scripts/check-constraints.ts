@@ -724,8 +724,8 @@ results.push(
       wiki.includes("Couldn't build the export. Refresh and try again.") &&
       wikiAlertCount === 0 &&
       trinity.includes("PremiumModal") &&
-      trinity.includes("Four-area reload notice") &&
-      trinity.includes("Reloads the four-area records.") &&
+      trinity.includes('t("reloadNotice")') &&
+      trinity.includes('t("retryHint")') &&
       interview.includes("PremiumModal") &&
       interview.includes("PremiumToast") &&
       interview.includes("Retry interview feedback") &&
@@ -893,9 +893,11 @@ results.push(
       capture.includes('accessibilityLabel={t("feedback.accessibilityLabel")}') &&
       manual.includes("Manual language: switch to English") &&
       manual.includes("Manual language: switch to Korean") &&
-      manual.includes("Opens capture to save today's piece.") &&
-      manual.includes("Opens the sign-up screen.") &&
-      manual.includes("Opens the app permissions guide.") &&
+      // These a11y hints moved to the `manual` locale namespace (QA #1 t()
+      // conversion) — assert the t() calls, mirroring capture.tsx's migration.
+      manual.includes('t("leavePieceHint")') &&
+      manual.includes('t("getStartedHint")') &&
+      manual.includes('t("permissionsHint")') &&
       manual.includes("Opens the curated research library.") &&
       wiki.includes("Opens capture from the knowledge store.") &&
       wiki.includes("Opens capture to save today's piece.") &&
@@ -913,7 +915,7 @@ results.push(
       records.includes("Retries loading records and sources.") &&
       records.includes("Opens capture to save today's piece.") &&
       trinity.includes('accessibilityRole="link"') &&
-      trinity.includes("Add domain tags in capture") &&
+      trinity.includes('t("addTagsHint")') &&
       signInRoles >= 7 &&
       signIn.includes('accessibilityLabel={t("signIn.submit")}') &&
       signIn.includes("accessibilityState={{ disabled: !canSubmit, busy: submitting }}") &&

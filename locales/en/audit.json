@@ -1,0 +1,21 @@
+{
+  "loading": "Loading…",
+  "periodTitle": "Past me: choose a period",
+  "back": "Back",
+  "done": "DONE",
+  "complete": "Past me complete",
+  "viewPersona": "View persona",
+  "backToCapture": "Back to capture",
+  "interviewTitle": "Past me: self interview",
+  "question": "Question {{n}} / {{total}}",
+  "placeholder": "Be honest with yourself.",
+  "later": "Continue later",
+  "exit": {
+    "notice": "Exit audit notice",
+    "title": "Exit audit?",
+    "cancel": "Cancel",
+    "cancelHint": "Continue the audit.",
+    "confirm": "Exit",
+    "confirmHint": "Exit the audit and return to selection."
+  }
+}

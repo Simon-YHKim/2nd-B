@@ -32,7 +32,7 @@ function starName(id: TierShift["starId"], locale: "en" | "ko"): string {
 }
 
 function ReviewScreenLegacy() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("review");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { userId, isMinor } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -82,7 +82,7 @@ function ReviewScreenLegacy() {
         setProposal(p);
         setSheetOpen(true);
       } else {
-        setResult(locale === "ko" ? "지금은 제안할 변화가 없어요." : "No change to propose right now.");
+        setResult(t("noProposal"));
       }
     } catch {
       setResult(
@@ -128,9 +128,9 @@ function ReviewScreenLegacy() {
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text variant="caption" color="textMuted">{locale === "ko" ? "08. 점검" : "08. Review"}</Text>
+        <Text variant="caption" color="textMuted">{t("eyebrow")}</Text>
         <Text variant="body" style={styles.title}>
-          {locale === "ko" ? "내가 달라졌다면 별자리도 함께 점검" : "If you've changed, review your constellation"}
+          {t("headline")}
         </Text>
         <Text variant="subtle" color="textMuted" style={styles.lede}>
           {locale === "ko"
@@ -140,7 +140,7 @@ function ReviewScreenLegacy() {
         {nudge ? (
           <Text variant="subtle" color="brand" style={styles.shifts}>{nudge}</Text>
         ) : null}
-        <Button label={locale === "ko" ? "제안 받기" : "Get a proposal"} variant="primary" onPress={generate} />
+        <Button label={t("cta")} variant="primary" onPress={generate} />
         {loading ? <ActivityIndicator color={cosmic.soulViolet} style={styles.spinner} /> : null}
         {result ? (
           <Text variant="body" color="textMuted" style={styles.result}>{result}</Text>
