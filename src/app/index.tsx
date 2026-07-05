@@ -240,7 +240,7 @@ export default function Index() {
 }
 
 export function GraphScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("index");
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
   const autoTriggerTTFV = useAutoTriggerTTFV();
@@ -566,7 +566,7 @@ export function GraphScreen() {
               </View>
               <View style={styles.emptyGraphCopy}>
                 <Text variant="heading" style={styles.emptyGraphTitle}>
-                  {locale === "ko" ? "아직 마을이 조용해요" : "The village is quiet"}
+                  {t("villageQuiet")}
                 </Text>
                 <Text variant="body" style={styles.emptyGraphBody}>
                   {locale === "ko"
@@ -576,26 +576,26 @@ export function GraphScreen() {
               </View>
             </View>
             <PremiumButton
-              label={locale === "ko" ? "첫 별가루 남기기" : "Leave a first piece"}
+              label={t("firstPiece")}
               onPress={() => router.push({ pathname: "/capture", params: { entry: "firstRun" } })}
               full
               style={styles.emptyGraphCta}
               accessibilityRole="button"
-              accessibilityLabel={locale === "ko" ? "첫 별가루 남기기" : "Leave a first piece"}
+              accessibilityLabel={t("firstPiece")}
               accessibilityHint={
-                locale === "ko" ? "캡처 화면으로 이동합니다" : "Opens capture to save your first piece"
+                t("firstPieceHint")
               }
             />
             <PremiumButton
-              label={locale === "ko" ? "먼저 둘러볼게요" : "I'll look around first"}
+              label={t("lookFirst")}
               variant="ghost"
               onPress={dismissEmptyCard}
               full
               style={styles.emptyGraphSkip}
               accessibilityRole="button"
-              accessibilityLabel={locale === "ko" ? "먼저 둘러보기" : "Look around first"}
+              accessibilityLabel={t("lookFirstLabel")}
               accessibilityHint={
-                locale === "ko" ? "첫 화면 카드를 닫고 마을을 둘러봅니다" : "Dismisses the first-run card"
+                t("dismissFirstRun")
               }
             />
           </View>
@@ -636,27 +636,27 @@ export function GraphScreen() {
             </Text>
             <View style={styles.comfortActions}>
               <PremiumButton
-                label={locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
+                label={t("makeReadable")}
                 onPress={() => {
                   setFontStyle("readable");
                   dismissComfortOffer();
                 }}
                 style={styles.comfortButton}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "읽기 쉽게 보기" : "Make it readable"}
+                accessibilityLabel={t("makeReadable")}
                 accessibilityHint={
-                  locale === "ko" ? "글꼴이 지금 바로 바뀝니다." : "The font changes right away."
+                  t("fontChanges")
                 }
               />
               <PremiumButton
-                label={locale === "ko" ? "지금이 좋아요" : "I like it as is"}
+                label={t("likeAsIs")}
                 variant="ghost"
                 onPress={dismissComfortOffer}
                 style={styles.comfortButton}
                 accessibilityRole="button"
-                accessibilityLabel={locale === "ko" ? "지금이 좋아요" : "I like it as is"}
+                accessibilityLabel={t("likeAsIs")}
                 accessibilityHint={
-                  locale === "ko" ? "이 안내를 닫습니다." : "Closes this offer."
+                  t("closesOffer")
                 }
               />
             </View>
@@ -681,8 +681,8 @@ export function GraphScreen() {
             onPress={dismissCoreHint}
             style={[styles.insightCard, styles.coreHintCard]}
             accessibilityRole="button"
-            accessibilityLabel={locale === "ko" ? "그래프 안내" : "Graph hint"}
-            accessibilityHint={locale === "ko" ? "안내를 닫습니다" : "Closes this hint"}
+            accessibilityLabel={t("graphHint")}
+            accessibilityHint={t("closesHint")}
           >
             <Text variant="body" style={styles.insightCardBody}>
               {locale === "ko"
@@ -709,7 +709,7 @@ export function GraphScreen() {
             style={styles.insightCard}
             accessibilityRole="button"
             accessibilityLabel={`${spotlightCoreName} Touch`}
-            accessibilityHint={locale === "ko" ? "이 패턴 코어를 자세히 봅니다" : "Opens this Pattern Core in detail"}
+            accessibilityHint={t("openPatternCore")}
           >
             <View style={styles.insightCardAvatar}>
               <IslandArt id={spotlightIsland} size={46} />
@@ -761,25 +761,17 @@ export function GraphScreen() {
           style={{ flex: 1 }}
           accessibilityRole="button"
           accessibilityLabel={
-            dataLoadFailed
-              ? locale === "ko" ? "다시 불러오기" : "Retry loading"
-              : recordsOnly
-                ? locale === "ko" ? "기록 보관소 보기" : "Open my records"
-                : locale === "ko" ? "오늘의 중심 보기" : "Open today's center"
+            dataLoadFailed ? t("retryLoad") : recordsOnly ? t("openRecords") : t("openCenter")
           }
           accessibilityHint={
-            dataLoadFailed
-              ? locale === "ko" ? "그래프 데이터를 다시 불러옵니다" : "Retries loading your graph data"
-              : recordsOnly
-                ? locale === "ko" ? "기록 보관소 화면으로 이동합니다" : "Opens the records archive"
-                : locale === "ko" ? "소울 코어 화면으로 이동합니다" : "Opens Soul Core"
+            dataLoadFailed ? t("retryLoadHint") : recordsOnly ? t("openRecordsHint") : t("openCenterHint")
           }
         >
           {/* KO "오늘의 중심" reads worse when tracked + uppercased, so KO drops
               tracking to 0 and stays sentence-case; EN keeps the stylized
               uppercase eyebrow. */}
           <Text variant="caption" style={[styles.insightEyebrow, locale === "ko" ? styles.insightEyebrowKo : styles.insightEyebrowEn]}>
-            {locale === "ko" ? "오늘의 중심" : "Today's center"}
+            {t("todaysCenter")}
           </Text>
           {/* P2-11: at 200% font scale the 2-line clamp ellipsized exactly the
               actionable clause of the records-only/offline lines. Three lines
@@ -803,21 +795,21 @@ export function GraphScreen() {
           <DeepSpaceLinks
             groups={[
               {
-                title: locale === "ko" ? "그래프" : "Graph",
+                title: t("navGraph"),
                 items: [
-                  { key: "wiki", label: locale === "ko" ? "위키" : "Wiki", route: "/wiki" },
-                  { key: "records", label: locale === "ko" ? "기록" : "Records", route: "/records" },
-                  { key: "research", label: locale === "ko" ? "리서치" : "Research", route: "/research" },
+                  { key: "wiki", label: t("navWiki"), route: "/wiki" },
+                  { key: "records", label: t("navRecords"), route: "/records" },
+                  { key: "research", label: t("navResearch"), route: "/research" },
                 ],
               },
               {
                 // IA (ops-ia §1): single home entry into the assistant (Ops).
                 // /ops is the hub; no duplicate entry (dedup).
-                title: locale === "ko" ? "비서" : "Assistant",
+                title: t("navAssistant"),
                 items: [
-                  { key: "ops", label: locale === "ko" ? "오늘의 루틴" : "Today", route: "/ops" },
-                  { key: "growth", label: locale === "ko" ? "나의 변화" : "My change", route: "/growth" },
-                  { key: "import", label: locale === "ko" ? "가져오기" : "Import", route: "/import-hub" },
+                  { key: "ops", label: t("navToday"), route: "/ops" },
+                  { key: "growth", label: t("navMyChange"), route: "/growth" },
+                  { key: "import", label: t("navImport"), route: "/import-hub" },
                 ],
               },
             ]}
