@@ -85,8 +85,37 @@ const MAX_USER_LEN = 8000;
 // turn (the genuine utterance, which IS crisis-scanned) keeps MAX_USER_LEN.
 const MAX_ASSEMBLED_LEN = 24000;
 const MAX_SYSTEM_LEN = 4000;
-const MAX_OUTPUT_TOKENS = 1024;
 const UPSTREAM_DETAIL_TRUNCATE = 80;
+
+// P1 (2026-07-05): server-side mirror of the client effortToConfig ladder
+// (src/lib/llm/gemini.ts). The edge path previously pinned a flat 1024-token
+// output cap with no thinking budget, so Phase-1 pro-tier surfaces routed
+// through the proxy (advisor, imagine, journal_reflect, ops_daily_brief) got
+// zero reasoning budget and truncated large structured outputs. Mirror the
+// ladder so the edge honors per-call effort. capture_ocr suppresses thinking
+// (verbatim transcription gains nothing from it); image calls keep a 4096
+// output floor so a full receipt/page transcription does not truncate.
+type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+function normalizeEffort(raw: unknown): Effort {
+  return raw === 'low' || raw === 'medium' || raw === 'xhigh' || raw === 'max' ? raw : 'high';
+}
+function geminiGenLadder(
+  effort: Effort,
+  hasImage: boolean,
+  purpose: string | null,
+): { maxOutputTokens: number; thinkingConfig: { thinkingBudget: number } } {
+  const ladder: Record<Effort, { out: number; think: number }> = {
+    low: { out: 1024, think: 512 },
+    medium: { out: 1536, think: 1024 },
+    high: { out: 2048, think: 2048 },
+    xhigh: { out: 4096, think: 8192 },
+    max: { out: 8192, think: -1 },
+  };
+  const rung = ladder[effort];
+  const thinkingBudget = purpose === 'capture_ocr' ? 0 : rung.think;
+  const maxOutputTokens = hasImage ? Math.max(rung.out, 4096) : rung.out;
+  return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
+}
 
 // Audit HIGH (spend cap): per-user/day ceiling on TOTAL proxy calls (all
 // purposes), a cost backstop distinct from the product-level Jarvis chat cap
@@ -278,7 +307,7 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; purpose?: unknown; op?: unknown; texts?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -417,6 +446,7 @@ Deno.serve(async (req: Request) => {
   const systemText: string | null = typeof body?.system === 'string' ? body.system : null;
   const model: string = typeof body?.model === 'string' ? body.model : 'gemini-2.5-flash';
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
+  const effort = normalizeEffort(body?.effort);
   // Structured-output schema (parity with the direct-client path). Threaded
   // into generationConfig below so edge-routed callers (e.g. phase1) get JSON.
   const responseSchema =
@@ -475,13 +505,14 @@ Deno.serve(async (req: Request) => {
   }
   userParts.push({ text: userText });
 
+  const genLadder = geminiGenLadder(effort, Boolean(imagePart), purpose);
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: userParts }],
     generationConfig: {
-      // OCR/vision benefits from a higher output budget than the chat
-      // default; cap a bit higher when an image is present so a full
-      // receipt / page transcription doesn't truncate.
-      maxOutputTokens: imagePart ? Math.min(4096, MAX_OUTPUT_TOKENS * 4) : MAX_OUTPUT_TOKENS,
+      // P1: effort-mapped output + thinking budget (mirrors the client ladder).
+      // Image-bearing OCR/vision keeps a 4096 output floor for full-page text.
+      maxOutputTokens: genLadder.maxOutputTokens,
+      thinkingConfig: genLadder.thinkingConfig,
       temperature: imagePart ? 0.2 : 0.7,
     },
   };
@@ -604,7 +635,28 @@ Deno.serve(async (req: Request) => {
   }
 
   const data = await upstream.json();
-  const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  // P1: an HTTP 200 can still carry a bad result. Surface input blocks,
+  // safety/recitation blocks, truncation, and empty-candidate responses as 502
+  // so callers take their existing fail-soft/failover path instead of rendering
+  // an empty bubble or parsing truncated JSON as if it were complete (parity
+  // with claude/openai proxies). A normal completion is finishReason 'STOP' and
+  // passes straight through.
+  const blockReason = data?.promptFeedback?.blockReason;
+  if (blockReason) {
+    return jsonResponse(req, { error: 'upstream_blocked', reason: String(blockReason).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
+  }
+  const candidate = data?.candidates?.[0];
+  if (!candidate) {
+    return jsonResponse(req, { error: 'upstream_empty', reason: 'no_candidates' }, 502);
+  }
+  const finishReason: string | undefined = candidate?.finishReason;
+  if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+    return jsonResponse(req, { error: 'upstream_blocked', reason: finishReason }, 502);
+  }
+  if (finishReason === 'MAX_TOKENS') {
+    return jsonResponse(req, { error: 'upstream_truncated', reason: 'max_tokens' }, 502);
+  }
+  const text: string = candidate?.content?.parts?.[0]?.text ?? '';
   const modelUsed: string = data?.modelVersion ?? effectiveModel;
 
   // C3: write the audit row server-side so a bypassed/replayed POST is still
