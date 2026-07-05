@@ -75,7 +75,7 @@ import {
   type CaptureDrafts,
 } from "@/lib/capture/draft";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/gemini";
-import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -1079,15 +1079,16 @@ export function CaptureLegacy() {
   async function handleStopRecording() {
     if (!userId || voicePhase !== "recording") return;
     setVoicePhase("transcribing");
+    let recordingUri: string | null = null;
     try {
       await audioRecorder.stop();
-      const uri = audioRecorder.uri;
-      if (!uri) {
+      recordingUri = audioRecorder.uri;
+      if (!recordingUri) {
         setVoicePhase("idle");
         setVoiceNotice(t("voice.recordFailed"));
         return;
       }
-      const { base64, mimeType } = await recordingUriToBase64(uri);
+      const { base64, mimeType } = await recordingUriToBase64(recordingUri);
       const reply = await transcribeAudio({
         userId,
         locale,
@@ -1118,6 +1119,10 @@ export function CaptureLegacy() {
       if (typeof console !== "undefined") console.warn("[capture] transcription failed", (e as Error).message);
       setVoicePhase("idle");
       setVoiceNotice(t("voice.transcribeFailed"));
+    } finally {
+      // Privacy parity with call-reflection: drop the temp audio once the text
+      // has been extracted (runs on the crisis / empty / error paths too).
+      await discardRecording(recordingUri);
     }
   }
 

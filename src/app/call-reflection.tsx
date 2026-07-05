@@ -25,7 +25,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { createRecord } from "@/lib/records/create";
 import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/gemini";
-import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { m3 } from "@/lib/theme/m3";
 
 type Phase = "idle" | "rec" | "stt" | "result";
@@ -102,15 +102,16 @@ export default function CallReflection() {
   async function stopAndTranscribe() {
     if (!userId || phase !== "rec") return;
     setPhase("stt");
+    let recordingUri: string | null = null;
     try {
       await audioRecorder.stop();
-      const uri = audioRecorder.uri;
-      if (!uri) {
+      recordingUri = audioRecorder.uri;
+      if (!recordingUri) {
         setPhase("idle");
         setNotice(ko ? "녹음 파일을 찾지 못했어요." : "Couldn't find the recording.");
         return;
       }
-      const { base64, mimeType } = await recordingUriToBase64(uri);
+      const { base64, mimeType } = await recordingUriToBase64(recordingUri);
       const reply = await transcribeAudio({ userId, locale, base64, mimeType, minor: isMinor === true });
       // C9: a red-zone transcript was swapped server-side for the fixed crisis
       // template — route to the hotline instead of keeping it.
@@ -131,6 +132,10 @@ export default function CallReflection() {
       if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
       setPhase("idle");
       setNotice(ko ? "받아 적기에 실패했어요." : "Transcription failed.");
+    } finally {
+      // Honor the "원본 녹음은 곧 삭제돼요" promise: drop the temp audio once the
+      // text has been extracted (runs on the crisis / empty / error paths too).
+      await discardRecording(recordingUri);
     }
   }
 
