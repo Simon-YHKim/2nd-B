@@ -31,6 +31,8 @@ import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, recencyLabel, type RecencyLabels, type WikiEdge } from "./wiki-graph-view";
 import { buildRecordsTimeline, relatedByTag, type TimelineLabels, type TimelineRecord } from "./records-timeline";
+import { relatedRecordsByEmbedding, recordsEmbeddingAllowed } from "@/lib/records/records-embeddings";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 
 type Tx = (key: string, options?: Record<string, unknown>) => string;
 function dsTimeLabels(t: Tx): TimelineLabels {
@@ -601,6 +603,10 @@ export function DeepSpaceRecordDetailScreen() {
   const [all, setAll] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  // D5 (J3): semantic neighbours of this record (embedding kNN), merged into the
+  // tag-based "연결된 기록" below with a badge. Only fetched when the user opted in
+  // (records_embedding); empty otherwise, so the section stays tag-only.
+  const [semanticIds, setSemanticIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -621,6 +627,27 @@ export function DeepSpaceRecordDetailScreen() {
       .finally(() => {
         if (alive) setLoading(false);
       });
+    return () => {
+      alive = false;
+    };
+  }, [userId, recordId]);
+
+  // D5 (J3): pull embedding kNN neighbours, gated by the records_embedding opt-in
+  // (a minor's pref is server-locked false, so recordsEmbeddingAllowed short-
+  // circuits). Best-effort read; the focal record returns [] until it is embedded.
+  useEffect(() => {
+    if (!userId || !recordId) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const prefs = await fetchPrivacyPrefs(userId);
+        if (!recordsEmbeddingAllowed(false, prefs.records_embedding)) return;
+        const neighbours = await relatedRecordsByEmbedding(userId, recordId, 6);
+        if (alive) setSemanticIds(new Set(neighbours.map((n) => n.id)));
+      } catch {
+        /* best-effort — the tag-based section still renders */
+      }
+    })();
     return () => {
       alive = false;
     };
@@ -658,7 +685,17 @@ export function DeepSpaceRecordDetailScreen() {
     );
   }
 
-  const related = relatedByTag(record.id, record.tags, all);
+  const relatedTag = relatedByTag(record.id, record.tags, all);
+  const tagIds = new Set(relatedTag.map((r) => r.id));
+  // J3: tag-based first, then embedding-semantic-only neighbours, each flagged so
+  // the render badges the semantic ones. semanticIds is empty unless opted in.
+  const related = [
+    ...relatedTag.map((r) => ({ rec: r, semantic: false })),
+    ...all
+      .filter((r) => r.id !== record.id && semanticIds.has(r.id) && !tagIds.has(r.id))
+      .slice(0, 5)
+      .map((r) => ({ rec: r, semantic: true })),
+  ];
   const recencyOpts = { labels: dsRecencyLabels(t) };
   const rtype = recordType(record as unknown as TimelineRecord);
   const typeLabel = ko ? RTYPE_KO[rtype] : RTYPE_EN[rtype];
@@ -733,7 +770,7 @@ export function DeepSpaceRecordDetailScreen() {
         <>
           <RNText style={rd.section}>{ko ? "연결된 기록" : "Linked records"}</RNText>
           <View style={rd.linkCol}>
-            {related.map((r) => {
+            {related.map(({ rec: r, semantic }) => {
               const lt = recordType(r);
               return (
                 <Pressable
@@ -745,6 +782,9 @@ export function DeepSpaceRecordDetailScreen() {
                 >
                   <TypeGlyph type={lt} />
                   <RNText numberOfLines={1} style={rd.linkTitle}>{recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}</RNText>
+                  {semantic ? (
+                    <View style={rd.semBadge}><RNText style={rd.semBadgeTxt}>{ko ? "의미" : "meaning"}</RNText></View>
+                  ) : null}
                   <RNText style={rd.linkChev}>›</RNText>
                 </Pressable>
               );
@@ -813,6 +853,8 @@ const rd = StyleSheet.create({
   },
   linkTitle: { flex: 1, color: colors.textTitle, fontSize: 13 },
   linkChev: { color: colors.cyanSoft, fontSize: 20 },
+  semBadge: { borderWidth: 1, borderColor: colors.cyanSoft, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, opacity: 0.7 },
+  semBadgeTxt: { color: colors.cyanSoft, fontSize: 10, fontWeight: "700" },
 });
 
 export function DeepSpaceWikiScreen() {

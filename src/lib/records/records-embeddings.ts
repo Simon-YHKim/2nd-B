@@ -71,6 +71,22 @@ export async function storeRecordEmbedding(
 }
 
 /**
+ * D5: forget the user's records semantic index — null out every stored vector.
+ * Called when the user turns records embedding OFF (consent revoked) so the
+ * toggle's "turning it off deletes the stored vectors" promise is honest. RLS
+ * scopes to the user; only rows that actually carry a vector are touched.
+ */
+export async function clearRecordEmbeddings(userId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("records")
+    .update({ embedding: null })
+    .eq("user_id", userId)
+    .not("embedding", "is", null);
+  if (error) throw error;
+}
+
+/**
  * Embed one record and persist its vector. Returns false (no write) when the
  * record has no text or the model produced nothing usable (red-zone → zero
  * vector, or live-key egress refused by the cost guard upstream).
