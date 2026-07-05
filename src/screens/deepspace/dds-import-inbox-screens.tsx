@@ -15,7 +15,6 @@ import { useTranslation } from "react-i18next";
 import { SvgXml } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
-import { canonFlows } from "@/lib/canon";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -66,65 +65,9 @@ function Loading() {
 // ── 27-inbox / reference InboxScreen (sb-flows.jsx) ─────────────────────────
 // A windowed 알림 list: filled cards with a tinted icon box, title + timestamp,
 // body, and a text CTA. Each card routes to the real surface behind it.
-// KO copy comes VERBATIM from the canon flows pack (canonFlows.inboxItems,
-// public/proto/data/screens/flows.json — 5 items, pixel contract; the canon
-// "별가루을" particle typo is kept as-is). Only the app-side mappings live
-// here: canon route/icon/accent ids → expo routes, local GLYPH keys, and m3
-// tokens, plus index-aligned EN mirrors.
-const INBOX_ROUTE: Record<string, string> = {
-  bigfive: "/big-five",
-  digest: "/digest",
-  interview: "/interview",
-  records: "/records",
-  callrec: "/call-reflection",
-};
-
-const INBOX_ICON: Record<string, keyof typeof GLYPH> = {
-  auto_awesome: "sparkle",
-  calendar_today: "calendar",
-  forum: "forum",
-  mic: "mic",
-  inbox: "box",
-};
-
-const INBOX_ACCENT: Record<string, string> = {
-  "var(--md-sys-color-primary)": m3.color.primary,
-  "var(--md-sys-color-tertiary)": m3.color.tertiary,
-  "var(--md-sys-color-secondary)": m3.color.secondary,
-};
-
-const INBOX_EN: { title: string; body: string; time: string; cta: string }[] = [
-  {
-    title: "Changes worth a look",
-    body: "New signals in your relationships and rest stars. Would you confirm them?",
-    time: "Just now",
-    cta: "Confirm",
-  },
-  {
-    title: "Your weekly digest has arrived",
-    body: "A recap of the areas you filled most this week and rising interests. A proposal, pending your ratification.",
-    time: "Mon 9:00 AM",
-    cta: "Read it",
-  },
-  {
-    title: "Your relationships star is ready for an interview",
-    body: "New signals from 3 recent calls. Three minutes brings it into focus.",
-    time: "1 hour ago",
-    cta: "Start interview",
-  },
-  {
-    title: "8 pieces are waiting in your inbox",
-    body: "Sort unfiled stardust by tagging, keeping, or deleting.",
-    time: "Today",
-    cta: "Sort them",
-  },
-  {
-    title: "1 call recording waiting for review",
-    body: "Decide whether the transcribed call should be reflected.",
-    time: "Yesterday",
-    cta: "Review it",
-  },
-];
+// The inbox shows real notifications once a signal source is wired. Until then it
+// renders an honest empty state instead of the reference's 5 canned pixel-contract
+// cards (those were placeholders presented as real state to zero-data users).
 
 export function DeepSpaceInboxScreen() {
   const { i18n } = useTranslation();
@@ -149,15 +92,7 @@ export function DeepSpaceInboxScreen() {
     time: string;
     route: string;
     cta: string;
-  }[] = canonFlows.inboxItems.map((it, i) => ({
-    icon: INBOX_ICON[it.icon] ?? "sparkle",
-    accent: INBOX_ACCENT[it.accent] ?? m3.color.primary,
-    title: ko ? it.title : INBOX_EN[i]?.title ?? it.title,
-    body: ko ? it.body : INBOX_EN[i]?.body ?? it.body,
-    time: ko ? it.time : INBOX_EN[i]?.time ?? it.time,
-    route: INBOX_ROUTE[it.route] ?? "/",
-    cta: ko ? it.cta : INBOX_EN[i]?.cta ?? it.cta,
-  }));
+  }[] = [];
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
@@ -194,6 +129,11 @@ export function DeepSpaceInboxScreen() {
               </View>
             </MdCard>
           ))}
+          {items.length === 0 ? (
+            <RNText style={[m3TextStyle("bodyMedium"), s.notifBody]}>
+              {ko ? "새 알림이 없어요. 담고 정리하면 여기에 쌓여요." : "No notifications yet — they appear here as you capture and organize."}
+            </RNText>
+          ) : null}
         </View>
       </ScrollView>
     </DeepSpaceScreen>
