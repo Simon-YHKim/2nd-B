@@ -1767,7 +1767,6 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.toConstellation")}
           onPress={() => router.replace("/")}
-          style={({ pressed }) => pressed && styles.pressed}
         >
           <Text style={styles.meLink}>{t("ds.me.toConstellation")}</Text>
         </Pressable>
@@ -1802,7 +1801,6 @@ export function MeSynthView({ isKo }: { isKo?: boolean } = {}) {
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.viewValidation")}
           onPress={() => router.push("/big-five")}
-          style={({ pressed }) => pressed && styles.pressed}
         >
           <Text style={styles.meLink}>{t("ds.me.viewValidation")}</Text>
         </Pressable>
