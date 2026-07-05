@@ -17,7 +17,6 @@ import { Text } from "@/components/ui/Text";
 import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
 import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { canonGaps } from "@/lib/canon";
 import {
   VISIBLE_PRIVACY_KEYS,
   defaultPrivacyPrefs,
@@ -156,22 +155,6 @@ function PrivacyLegacy() {
           </Text>
         </View>
 
-        {/* Canon (proto rev2) "한눈에" summary — the prototype's PrivacyScreen led
-            with four plain-language privacy facts (gaps.json) the app never wired.
-            Additive: the enforced PrivacyPrefs controls below are untouched. KO
-            copy rendered straight from canon (museum pattern) to avoid locale churn. */}
-        <View style={styles.factsCard}>
-          <Text variant="caption" color="brand" style={[styles.sectionEyebrow, eyebrowTracking]}>
-            {locale === "ko" ? "한눈에" : "At a glance"}
-          </Text>
-          {canonGaps.privacyFacts.map((f) => (
-            <View key={f.label} style={styles.factRow}>
-              <Text variant="caption" color="text" style={styles.factLabel}>{f.label}</Text>
-              <Text variant="subtle" color="textMuted" style={styles.factValue}>{f.v}</Text>
-            </View>
-          ))}
-        </View>
-
         {minor ? (
           <View style={styles.minorBanner}>
             <Text variant="subtle" color="text">
@@ -253,17 +236,6 @@ const styles = StyleSheet.create({
   // not over-spaced (caption is 14px); EN keeps the light caption tracking.
   sectionEyebrow: { fontWeight: "700" },
   localFirstNote: { marginTop: spacing.sm },
-  factsCard: {
-    backgroundColor: semantic.surface,
-    borderColor: semantic.border,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  factRow: { gap: 2 },
-  factLabel: { fontWeight: "700" },
-  factValue: { lineHeight: 18 },
 });
 
 export default function Privacy() {

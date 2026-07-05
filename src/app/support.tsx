@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { canonGaps } from "@/lib/canon";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
@@ -80,31 +79,6 @@ function SupportLegacy() {
           ))}
         </View>
 
-        {/* Canon (proto rev2) additive help content — the prototype's SupportScreen
-            carried concept FAQs + notices the app never wired (gaps.json). Rendered
-            KO-from-canon (museum pattern) to avoid 5-locale churn; the existing
-            locale-sourced sections above are untouched. */}
-        <View style={[styles.section, { borderStartColor: semantic.brand }]}>
-          <Text variant="caption" color="textMuted" style={styles.eyebrow}>개념 도움말</Text>
-          {canonGaps.faqs.map((item, i) => (
-            <View key={item.q} style={i > 0 ? styles.faqItem : undefined}>
-              <Text variant="body" color="text" style={styles.faqQuestion}>{item.q}</Text>
-              <Text variant="subtle" color="textMuted">{item.a}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={[styles.section, { borderStartColor: semantic.info }]}>
-          <Text variant="caption" color="textMuted" style={styles.eyebrow}>공지사항</Text>
-          {canonGaps.notices.map((n, i) => (
-            <View key={n.t} style={[styles.noticeRow, i > 0 ? styles.faqItem : undefined]}>
-              <Text variant="caption" color="brand" style={styles.noticeTag}>{n.tag}</Text>
-              <Text variant="body" color="text" style={styles.noticeTitle}>{n.t}</Text>
-              <Text variant="subtle" color="textMuted">{n.d}</Text>
-            </View>
-          ))}
-        </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </PremiumAppShell>
@@ -136,9 +110,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   faqQuestion: { marginBottom: spacing.xs },
-  noticeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  noticeTag: { flexShrink: 0 },
-  noticeTitle: { flex: 1, minWidth: 0 },
 });
 
 export default function Support() {
