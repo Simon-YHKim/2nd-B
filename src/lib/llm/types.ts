@@ -34,6 +34,7 @@ export type PromptPurpose =
   | "import_ingest"
   | "imagine"
   | "ops_recommend"
+  | "ops_daily_brief" // D-26 A17: all-domain ops recommendations in ONE daily call
   | "persona_synthesis"
   | "northstar_propose"
   | "axis_estimate";
@@ -160,6 +161,7 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   capture_ocr: "flash",
   capture_voice: "flash",
   ops_recommend: "flash",
+  ops_daily_brief: "flash",
   audit_qa: "flash",
   knowledge_lookup: "flash",
   import_ingest: "flash",

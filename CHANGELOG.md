@@ -7,6 +7,14 @@ Conventional Commits.
 ## [Unreleased]
 
 ### Added
+- Ops recommendations consolidated into a once-per-day brief (D-26 A17).
+  The first ops visit of the day builds ONE brief covering all life domains
+  in a single LLM call (cached per KST day in ops_daily_brief); every later
+  passive visit/tab-flip serves its domain from the cache at zero LLM cost.
+  The explicit "run again" button keeps its rich, per-domain, adherence-
+  tailored call. Opted-out/minor users build nothing (engine-level privacy
+  gate); domains the brief covers with no suggestion serve empty without a
+  re-call, and only genuinely missing domains fall back to an on-demand call.
 - SecondB chat: query-relevant retrieval (RAG) + conversation history
   (D-26 A1). Each turn now embeds the message and pulls the top-8
   semantically relevant wiki pages via pgvector kNN instead of shipping the

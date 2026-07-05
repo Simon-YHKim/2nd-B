@@ -49,6 +49,7 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   axis_estimate: "claude",
   persona_synthesis: "claude",
   ops_recommend: "claude",
+  ops_daily_brief: "claude",
 };
 
 // D-26 Phase 2 per-purpose reasoning effort. Abstract ladder; each proxy maps
@@ -64,6 +65,7 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   axis_estimate: "high",
   persona_synthesis: "xhigh",
   ops_recommend: "medium",
+  ops_daily_brief: "medium",
 };
 
 /**
