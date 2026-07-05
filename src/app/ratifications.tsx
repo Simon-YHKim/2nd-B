@@ -212,7 +212,6 @@ export default function RatificationLogScreen() {
               {entry.citedCount > 0 ? (
                 <Text style={styles.note}>{t("cited", { n: entry.citedCount })}</Text>
               ) : null}
-              <MdButton variant="text" label={t("undo")} style={styles.undo} onPress={() => setShowUnchanged((v) => v)} />
             </MdCard>
           ))
         )}
@@ -267,5 +266,4 @@ const styles = StyleSheet.create({
   arrow: { fontSize: 13, color: m3.color.onSurfaceVariant },
   when: { fontSize: m3.type.labelSmall.size, color: m3.color.onSurfaceVariant },
   note: { fontSize: m3.type.bodySmall.size, color: m3.color.onSurfaceVariant },
-  undo: { alignSelf: "flex-start", marginTop: 2 },
 });
