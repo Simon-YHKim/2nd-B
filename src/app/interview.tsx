@@ -69,21 +69,9 @@ const ANSWERS: Record<"ko" | "en", string[]> = {
   en: ["Yes", "Somewhat", "Neutral", "Not really", "No"],
 };
 
-// The ratify proposals: ko/from/to come from the canon ratify view 1:1; the
-// en mirror stays in code, keyed by index against canonKnow.ratifyProposals.
-// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
-const DELTA_EN: { en: string; delta: string }[] = [
-  { en: "The me now · Extraversion", delta: "+6" },
-  { en: "Rhythm", delta: "clearer" },
-];
-const DELTAS: { ko: string; en: string; from: string; to: string; delta: { ko: string; en: string } }[] =
-  canonKnow.ratifyProposals.map((p, i) => ({
-    ko: p.lens,
-    en: DELTA_EN[i]?.en ?? p.lens,
-    from: p.from,
-    to: p.to,
-    delta: { ko: p.delta, en: DELTA_EN[i]?.delta ?? p.delta },
-  }));
+// The interview saves each answer as a record; it does NOT compute tier deltas
+// yet, so the ratify block below shows an honest "saved" note instead of the
+// prototype's fabricated "+6 · 근거 4건 · L2→L3" proposal cards.
 
 function InterviewScreen() {
   const { t, i18n } = useTranslation("interview");
@@ -197,23 +185,13 @@ function InterviewScreen() {
               {t("ratifyBody2")}
             </Text>
 
-            {DELTAS.map((d) => (
-              <MdCard key={d.ko} variant="outlined" style={styles.deltaCard}>
-                <View style={styles.deltaTop}>
-                  <Text style={[m3TextStyle("titleSmall"), styles.deltaLens]}>{locale === "ko" ? d.ko : d.en}</Text>
-                  <View style={styles.deltaMove}>
-                    <Text style={[m3TextStyle("labelLarge"), styles.deltaLevel]}>{d.from}</Text>
-                    <Glyph name="arrow_forward" color={m3.color.primary} size={14} />
-                    <Text style={[m3TextStyle("labelLarge"), styles.deltaLevel]}>{d.to}</Text>
-                  </View>
-                </View>
-                <Text style={[m3TextStyle("bodySmall"), styles.deltaNote]}>
-                  {locale === "ko"
-                    ? `변화 ${d.delta.ko} · 근거 4건`
-                    : `Change ${d.delta.en} · 4 evidence`}
-                </Text>
-              </MdCard>
-            ))}
+            <MdCard variant="outlined" style={styles.deltaCard}>
+              <Text style={[m3TextStyle("bodySmall"), styles.deltaNote]}>
+                {locale === "ko"
+                  ? "답변은 그대로 저장돼요. 지금 추정치를 지어내지 않고, 기록이 쌓이면 별 밝기에 반영돼요."
+                  : "Your answers are saved as-is. We don't invent an estimate now — your stars brighten as records accumulate."}
+              </Text>
+            </MdCard>
 
             <View style={styles.ratifyActions}>
               <MdButton
@@ -345,10 +323,6 @@ const styles = StyleSheet.create({
   ratifyBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginBottom: 14 },
   ratifyBodyStrong: { color: m3.color.onSurface, fontWeight: "700" },
   deltaCard: { marginBottom: 10 },
-  deltaTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  deltaLens: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
-  deltaMove: { flexDirection: "row", alignItems: "center", gap: 4 },
-  deltaLevel: { color: m3.color.primary },
   deltaNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4 },
   ratifyActions: { flexDirection: "row", gap: 8, marginTop: 18 },
   ratifyRestart: { flex: 1 },
