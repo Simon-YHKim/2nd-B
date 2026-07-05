@@ -7,6 +7,15 @@ Conventional Commits.
 ## [Unreleased]
 
 ### Added
+- SecondB chat: query-relevant retrieval (RAG) + conversation history
+  (D-26 A1). Each turn now embeds the message and pulls the top-8
+  semantically relevant wiki pages via pgvector kNN instead of shipping the
+  whole 50-page snapshot — better grounded and ~10x smaller per-turn prompt.
+  On any miss (no index, embed failure, red-zone query) it falls back to the
+  legacy whole-wiki snapshot, so chat never breaks on RAG. The last 6 turns
+  ride the prompt as fenced, sanitized history; C9 re-classifies each and
+  DROPS any red-zone turn so a prior crisis message can't re-egress through
+  the system channel.
 - D-26 P0 lane: embeddings revived — `text-embedding-004` (shut down
   2026-01-14) replaced by `gemini-embedding-2` @768 MRL; gemini-proxy gains a
   spend-capped `op:'embed'` route so the keyless web build can embed at all;
