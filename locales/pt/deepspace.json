@@ -425,5 +425,7 @@
   "reviewRecordsBehind": "Os registros por trás disso",
   "reviewTapCheck": "Toque para verificar você mesmo o registro original.",
   "reviewRatifiedMoved": "Confirmado. Movido para acionável (L{{level}}).",
-  "reviewOpenRecord": "Abrir o registro {{title}}"
+  "reviewOpenRecord": "Abrir o registro {{title}}",
+  "connectionConfirmed": "Conexão confirmada.",
+  "suggestionDismissed": "Sugestão dispensada."
 }

@@ -1223,7 +1223,7 @@ export function DeepSpaceResearchScreen() {
     setActingKey(key);
     try {
       await ratifyLink(userId, p.from_page, p.to_page);
-      setAnnounce(i18n.language === "ko" ? "연결을 확인했어요." : "Connection confirmed.");
+      setAnnounce(t("connectionConfirmed"));
       await loadProposals(userId);
     } catch {
       // best-effort
@@ -1238,7 +1238,7 @@ export function DeepSpaceResearchScreen() {
     setActingKey(key);
     try {
       await rejectInferredLink(userId, p.from_page, p.to_page);
-      setAnnounce(i18n.language === "ko" ? "제안을 보류했어요." : "Suggestion dismissed.");
+      setAnnounce(t("suggestionDismissed"));
       await loadProposals(userId);
     } catch {
       // best-effort
@@ -1612,7 +1612,7 @@ export function DeepSpaceOpsScreen() {
         active="ops"
         header="none"
         variant="windowed"
-        title={i18n.language === "ko" ? "오늘의 비서" : "Today's assistant"}
+        title={t("todaysAssistant")}
         onBack={() => router.back()}
       >
         <DockBody title={t("hero.title")}><GraphLoading /></DockBody>

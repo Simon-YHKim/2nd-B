@@ -425,5 +425,7 @@
   "reviewRecordsBehind": "The records behind this",
   "reviewTapCheck": "Tap to check the original record yourself.",
   "reviewRatifiedMoved": "Ratified. Moved to actionable (L{{level}}).",
-  "reviewOpenRecord": "Open record {{title}}"
+  "reviewOpenRecord": "Open record {{title}}",
+  "connectionConfirmed": "Connection confirmed.",
+  "suggestionDismissed": "Suggestion dismissed."
 }
