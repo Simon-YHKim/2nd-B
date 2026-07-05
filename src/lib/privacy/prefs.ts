@@ -22,6 +22,14 @@ export const PRIVACY_PREF_KEYS = [
   "long_term_memory",
   "ops_push",
   "health_import",
+  // D5 (2026-07-06): opt-in consent to build a semantic (embedding/kNN) index of
+  // the user's records. Journal text is the most sensitive corpus, so this is OFF
+  // by default, adults-only (hard-blocked for minors: NOT in MINOR_PROMOTABLE_KEYS),
+  // and deliberately NOT in VISIBLE_PRIVACY_KEYS yet — no settings toggle ships
+  // until the enforcer + consent copy land together (D-12 honesty rule). The
+  // enforcer already exists: records-embeddings.ts recordsEmbeddingAllowed reads
+  // this pref and the embedding write primitives fail closed without it.
+  "records_embedding",
 ] as const;
 
 export type PrivacyPrefKey = (typeof PRIVACY_PREF_KEYS)[number];
