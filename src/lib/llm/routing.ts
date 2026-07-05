@@ -50,6 +50,12 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   persona_synthesis: "claude",
   ops_recommend: "claude",
   ops_daily_brief: "claude",
+  // Proto rev2 seats. digest_weekly + ttfv_first_insight take the Anthropic
+  // (opus/sonnet) narrative seat; cluster_infer is the sole OpenAI seat, so
+  // adding it is what gives openai-proxy a live routing target under Phase 2.
+  digest_weekly: "claude",
+  ttfv_first_insight: "claude",
+  cluster_infer: "openai",
 };
 
 // D-26 Phase 2 per-purpose reasoning effort. Abstract ladder; each proxy maps
@@ -66,6 +72,11 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   persona_synthesis: "xhigh",
   ops_recommend: "medium",
   ops_daily_brief: "medium",
+  // Proto rev2 seats: digest_weekly + ttfv_first_insight are high-stakes ->
+  // xhigh; cluster_infer's rationale is lighter -> medium.
+  digest_weekly: "xhigh",
+  ttfv_first_insight: "xhigh",
+  cluster_infer: "medium",
 };
 
 /**
