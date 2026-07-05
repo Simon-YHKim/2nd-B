@@ -3,7 +3,7 @@
 // Pure-unit suite over the routing module — no network, no gateway. The
 // invariants under test:
 //   - Phase 1 (default): EVERY purpose resolves to the Gemini backbone.
-//   - Phase 2: only the D-26 Anthropic seats move; everything else stays.
+//   - Phase 2: the reasoning seats move to OpenAI (re-routed 2026-07-06); rest stay.
 //   - Owner pin (Simon 2026-07-04): capture_ocr is Gemini UNCONDITIONALLY,
 //     and any image-bearing call is forced to Gemini regardless of seat.
 //   - secondb_chat stays Gemini in Phase 2 (streaming interim, D-26 A1).
@@ -20,7 +20,7 @@ import {
 } from "../routing";
 import type { PromptPurpose } from "../types";
 
-const CLAUDE_SEATS: PromptPurpose[] = [
+const OPENAI_SEATS: PromptPurpose[] = [
   "advisor",
   "persona_narrative",
   "gap_synthesize",
@@ -69,16 +69,16 @@ describe("D-26 vendor routing", () => {
 
   test("Phase 1: every purpose (seats included) resolves to gemini", () => {
     withPhase(undefined, () => {
-      for (const p of [...CLAUDE_SEATS, ...GEMINI_STAYERS]) {
+      for (const p of [...OPENAI_SEATS, ...GEMINI_STAYERS]) {
         expect(resolveVendorForPurpose(p, false)).toBe("gemini");
       }
     });
   });
 
-  test("Phase 2: the Anthropic seats move to claude", () => {
+  test("Phase 2: the reasoning seats move to openai", () => {
     withPhase("2", () => {
-      for (const p of CLAUDE_SEATS) {
-        expect(resolveVendorForPurpose(p, false)).toBe("claude");
+      for (const p of OPENAI_SEATS) {
+        expect(resolveVendorForPurpose(p, false)).toBe("openai");
       }
     });
   });
@@ -101,7 +101,7 @@ describe("D-26 vendor routing", () => {
     });
   });
 
-  test("image-bearing calls force gemini even on a claude seat", () => {
+  test("image-bearing calls force gemini even on an openai seat", () => {
     withPhase("2", () => {
       expect(resolveVendorForPurpose("advisor", true)).toBe("gemini");
       expect(resolveVendorForPurpose("persona_narrative", true)).toBe("gemini");

@@ -3,7 +3,7 @@
 // vendor-routing.test.ts covers the pure routing module; this suite pins the
 // gemini.ts wiring itself (the part verify-green says nothing about):
 //   - a Phase 2 seat call actually reaches supabase.functions.invoke with
-//     "claude-proxy" and carries the D-26 effort in the body,
+//     "openai-proxy" and carries the D-26 effort in the body,
 //   - the D-26 outage failover retries ONCE via gemini-proxy on a non-crisis
 //     vendor error, and the audit row records the backend that actually
 //     served (reasoningProvider:"gemini", proxy-reported model id),
@@ -88,8 +88,8 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     delete process.env.EXPO_PUBLIC_LLM_PHASE;
   });
 
-  test("Phase 2 seat call reaches claude-proxy with the D-26 effort", async () => {
-    mockInvoke.mockResolvedValueOnce(okPayload("claude-sonnet-5"));
+  test("Phase 2 seat call reaches openai-proxy with the D-26 effort", async () => {
+    mockInvoke.mockResolvedValueOnce(okPayload("gpt-5.4"));
 
     const r = await callGemini({
       userId: "u1",
@@ -100,14 +100,14 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     const [fn, opts] = mockInvoke.mock.calls[0]!;
-    expect(fn).toBe("claude-proxy");
+    expect(fn).toBe("openai-proxy");
     expect(opts.body.purpose).toBe("gap_synthesize");
     expect(opts.body.effort).toBe("low");
     const audit = r.audit as AuditMeta;
-    expect(audit.reasoningProvider).toBe("claude");
+    expect(audit.reasoningProvider).toBe("openai");
     // C3 honesty: the row carries the proxy-reported vendor model, never the
     // client-side Gemini id.
-    expect(audit.modelUsed).toBe("claude-sonnet-5");
+    expect(audit.modelUsed).toBe("gpt-5.4");
     expect(audit.effort).toBe("low");
   });
 
@@ -125,7 +125,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     });
 
     expect(mockInvoke).toHaveBeenCalledTimes(2);
-    expect(mockInvoke.mock.calls[0]![0]).toBe("claude-proxy");
+    expect(mockInvoke.mock.calls[0]![0]).toBe("openai-proxy");
     expect(mockInvoke.mock.calls[1]![0]).toBe("gemini-proxy");
     // Same body on the retry (the Phase 1 route serves the same contract).
     expect(mockInvoke.mock.calls[1]![1].body).toEqual(mockInvoke.mock.calls[0]![1].body);
@@ -134,7 +134,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     expect(audit.modelUsed).toBe("gemini-2.5-flash");
   });
 
-  test("a claude-proxy crisis 422 routes to the hotline and is NEVER retried", async () => {
+  test("an openai-proxy crisis 422 routes to the hotline and is NEVER retried", async () => {
     mockInvoke.mockResolvedValueOnce({
       data: null,
       error: {
