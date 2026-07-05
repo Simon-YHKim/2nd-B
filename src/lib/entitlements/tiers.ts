@@ -78,7 +78,7 @@ export const TIERS: Record<Tier, TierLimits> = {
 export const TIER_PRICE_KRW: Record<Tier, number> = {
   free: 0,
   plus: 6900,
-  pro: 11900,
+  pro: 12900,
 };
 
 // ──────────────────────────────────────────────────────────────────────────
