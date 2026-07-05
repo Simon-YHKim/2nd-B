@@ -46,7 +46,7 @@ describe('TIERS table', () => {
 
 describe('TIER_PRICE_KRW', () => {
   it('maps each tier to its monthly KRW price', () => {
-    expect(TIER_PRICE_KRW).toEqual({ free: 0, plus: 6900, pro: 11900 });
+    expect(TIER_PRICE_KRW).toEqual({ free: 0, plus: 6900, pro: 12900 });
   });
 
   it('keeps free at zero', () => {
