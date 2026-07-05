@@ -1489,6 +1489,10 @@ const AUDIT_ERAS: { key: string; eraKey: string; rangeKey: string; level: 1 | 2 
   { key: "now", eraKey: "ds.audit.eraNow", rangeKey: "ds.audit.rangeNow", level: 3 },
 ];
 
+// Map each era to the interview's period-scoped question set (AuditPeriod:
+// current | 20s | teens). Eras earlier than the teen set fall back to teens.
+const ERA_PERIOD: Record<string, string> = { infancy: "teens", child: "teens", teen: "teens", young: "20s", now: "current" };
+
 const AUDIT_DOTS = 5;
 function AuditDots({ level }: { level: number }) {
   return (
@@ -1516,7 +1520,7 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
               <MdCard
                 variant="filled"
                 accessibilityLabel={t(e.eraKey)}
-                onPress={() => router.push("/interview")}
+                onPress={() => router.push({ pathname: "/interview", params: { period: ERA_PERIOD[e.key] ?? "current" } })}
                 style={styles.auditCard}
               >
                 <View style={styles.auditCardRow}>
