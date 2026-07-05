@@ -75,6 +75,7 @@ import {
   type CaptureDrafts,
 } from "@/lib/capture/draft";
 import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/gemini";
+import { recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";
 import { saveTemplate } from "@/lib/wiki/template-queries";
@@ -144,28 +145,8 @@ const CHECK_PATH = "M 3 7 L 7 11 L 13 5";
 // Voice recording phases drive the record/stop control + indicator.
 type VoicePhase = "idle" | "recording" | "transcribing";
 
-// Read a local recording URI into base64 + mime WITHOUT expo-file-system:
-// fetch the file:// (or blob:) URI as a Blob, then FileReader.readAsDataURL
-// yields a "data:<mime>;base64,<data>" string we split. Works on native and web.
-async function recordingUriToBase64(
-  uri: string,
-): Promise<{ base64: string; mimeType: string }> {
-  const blob = await (await fetch(uri)).blob();
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error ?? new Error("voice_read_failed"));
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.readAsDataURL(blob);
-  });
-  const comma = dataUrl.indexOf(",");
-  const header = comma >= 0 ? dataUrl.slice(0, comma) : "";
-  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
-  // header looks like "data:audio/mp4;base64" — pull the mime, fall back to the
-  // blob's own type, then a safe default Gemini accepts.
-  const headerMime = header.match(/^data:([^;]+)/)?.[1];
-  const mimeType = headerMime || blob.type || "audio/mp4";
-  return { base64, mimeType };
-}
+// recordingUriToBase64 now lives in src/lib/audio/recording-uri.ts (shared with
+// the call-reflection recorder). Imported above.
 
 function PathGlyph({ path, color, size = 16 }: { path: string; color: string; size?: number }) {
   return (
