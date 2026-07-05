@@ -13,6 +13,7 @@ import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/pr
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canonGaps } from "@/lib/canon";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -117,6 +118,36 @@ const SECTIONS: ManualSection[] = [
   },
 ];
 
+// EN mirrors for the canon (proto rev2) "핵심 개념" cards. Aligned by index to
+// canonGaps.manualConcepts (KO is verbatim from canon). Kept app-side to match
+// this screen's inline-bilingual SECTIONS pattern and to avoid locale churn.
+const CONCEPT_EN: { title: string; body: string }[] = [
+  {
+    title: "A star = a life area",
+    body: "The seven stars are career, finances, growth, relationships, health, rest, and capturing. Tap a star to see yourself in that area.",
+  },
+  {
+    title: "The North Star = your whole self",
+    body: "It gathers all seven stars into one sentence about who you are. The more evenly your stars brighten, the clearer it gets.",
+  },
+  {
+    title: "Starlight is not confidence",
+    body: "Starlight shows how much you have captured; confidence shows how well it has been checked. When it does not know, it says so.",
+  },
+  {
+    title: "Ratify (propose then ratify)",
+    body: "SecondB's guesses are only proposals. Only what you confirm is reflected in you.",
+  },
+  {
+    title: "Capturing",
+    body: "Do not let notes, links, photos, voice, and to-dos slip away; capture them. SecondB helps sort them.",
+  },
+  {
+    title: "SecondB's three modes",
+    body: "SecondB (knows you), MetaB (objective), TwiB (creative). Switch between them as you need.",
+  },
+];
+
 function ManualLegacy() {
   const { t, i18n } = useTranslation("manual");
   const { userId, loading } = useAuth();
@@ -184,6 +215,28 @@ function ManualLegacy() {
               </Text>
             </View>
           ))}
+        </View>
+
+        {/* Canon (proto rev2) core concepts — the rev2 manual's six-card "핵심 개념"
+            set (gaps.json) the app never wired. Augments the legacy sections above
+            (whose copy is pinned by check-constraints) rather than replacing them. */}
+        <View style={styles.cards}>
+          <Text variant="caption" color="textMuted" style={styles.glossaryTitle}>
+            {locale === "ko" ? "핵심 개념" : "Core concepts"}
+          </Text>
+          {canonGaps.manualConcepts.map((c, i) => {
+            const en = CONCEPT_EN[i];
+            return (
+              <View key={c.title} style={styles.card}>
+                <Text variant="body" style={styles.cardTitle}>
+                  {locale === "ko" ? c.title : en.title}
+                </Text>
+                <Text variant="body" color="textMuted" style={styles.cardBody}>
+                  {locale === "ko" ? c.body : en.body}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.glossary}>
