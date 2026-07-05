@@ -136,10 +136,90 @@ import koDeepspace from "../../../locales/ko/deepspace.json";
 import esDeepspace from "../../../locales/es/deepspace.json";
 import ptDeepspace from "../../../locales/pt/deepspace.json";
 import idDeepspace from "../../../locales/id/deepspace.json";
+import enAttachment from "../../../locales/en/attachment.json";
+import enAudit from "../../../locales/en/audit.json";
+import enBigFive from "../../../locales/en/big-five.json";
+import enBrightness from "../../../locales/en/brightness.json";
+import enCoreBrain from "../../../locales/en/core-brain.json";
+import enImagine from "../../../locales/en/imagine.json";
+import enInterview from "../../../locales/en/interview.json";
+import enIpipNeo from "../../../locales/en/ipip-neo.json";
+import enManual from "../../../locales/en/manual.json";
+import enPersona from "../../../locales/en/persona.json";
+import enPrivacy from "../../../locales/en/privacy.json";
+import enRatifications from "../../../locales/en/ratifications.json";
+import enRecords from "../../../locales/en/records.json";
+import enReview from "../../../locales/en/review.json";
+import enRlss from "../../../locales/en/rlss.json";
+import enTrinity from "../../../locales/en/trinity.json";
+import koAttachment from "../../../locales/ko/attachment.json";
+import koAudit from "../../../locales/ko/audit.json";
+import koBigFive from "../../../locales/ko/big-five.json";
+import koBrightness from "../../../locales/ko/brightness.json";
+import koCoreBrain from "../../../locales/ko/core-brain.json";
+import koImagine from "../../../locales/ko/imagine.json";
+import koInterview from "../../../locales/ko/interview.json";
+import koIpipNeo from "../../../locales/ko/ipip-neo.json";
+import koManual from "../../../locales/ko/manual.json";
+import koPersona from "../../../locales/ko/persona.json";
+import koPrivacy from "../../../locales/ko/privacy.json";
+import koRatifications from "../../../locales/ko/ratifications.json";
+import koRecords from "../../../locales/ko/records.json";
+import koReview from "../../../locales/ko/review.json";
+import koRlss from "../../../locales/ko/rlss.json";
+import koTrinity from "../../../locales/ko/trinity.json";
+import esAttachment from "../../../locales/es/attachment.json";
+import esAudit from "../../../locales/es/audit.json";
+import esBigFive from "../../../locales/es/big-five.json";
+import esBrightness from "../../../locales/es/brightness.json";
+import esCoreBrain from "../../../locales/es/core-brain.json";
+import esImagine from "../../../locales/es/imagine.json";
+import esInterview from "../../../locales/es/interview.json";
+import esIpipNeo from "../../../locales/es/ipip-neo.json";
+import esManual from "../../../locales/es/manual.json";
+import esPersona from "../../../locales/es/persona.json";
+import esPrivacy from "../../../locales/es/privacy.json";
+import esRatifications from "../../../locales/es/ratifications.json";
+import esRecords from "../../../locales/es/records.json";
+import esReview from "../../../locales/es/review.json";
+import esRlss from "../../../locales/es/rlss.json";
+import esTrinity from "../../../locales/es/trinity.json";
+import ptAttachment from "../../../locales/pt/attachment.json";
+import ptAudit from "../../../locales/pt/audit.json";
+import ptBigFive from "../../../locales/pt/big-five.json";
+import ptBrightness from "../../../locales/pt/brightness.json";
+import ptCoreBrain from "../../../locales/pt/core-brain.json";
+import ptImagine from "../../../locales/pt/imagine.json";
+import ptInterview from "../../../locales/pt/interview.json";
+import ptIpipNeo from "../../../locales/pt/ipip-neo.json";
+import ptManual from "../../../locales/pt/manual.json";
+import ptPersona from "../../../locales/pt/persona.json";
+import ptPrivacy from "../../../locales/pt/privacy.json";
+import ptRatifications from "../../../locales/pt/ratifications.json";
+import ptRecords from "../../../locales/pt/records.json";
+import ptReview from "../../../locales/pt/review.json";
+import ptRlss from "../../../locales/pt/rlss.json";
+import ptTrinity from "../../../locales/pt/trinity.json";
+import idAttachment from "../../../locales/id/attachment.json";
+import idAudit from "../../../locales/id/audit.json";
+import idBigFive from "../../../locales/id/big-five.json";
+import idBrightness from "../../../locales/id/brightness.json";
+import idCoreBrain from "../../../locales/id/core-brain.json";
+import idImagine from "../../../locales/id/imagine.json";
+import idInterview from "../../../locales/id/interview.json";
+import idIpipNeo from "../../../locales/id/ipip-neo.json";
+import idManual from "../../../locales/id/manual.json";
+import idPersona from "../../../locales/id/persona.json";
+import idPrivacy from "../../../locales/id/privacy.json";
+import idRatifications from "../../../locales/id/ratifications.json";
+import idRecords from "../../../locales/id/records.json";
+import idReview from "../../../locales/id/review.json";
+import idRlss from "../../../locales/id/rlss.json";
+import idTrinity from "../../../locales/id/trinity.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 // Keyed by AVAILABLE_UI_LOCALES (locales.ts is the single source of truth):
@@ -147,22 +227,22 @@ export type Namespace = (typeof NAMESPACES)[number];
 // and the `satisfies` below fails the build if either side is missed.
 export const resources = {
   en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki,
-    peer: enPeer, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, ops: enOps, profile: enProfile, permissions: enPermissions, settings: enSettings, iden: enIden, home: enHome, deepspace: enDeepspace },
+    peer: enPeer, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, ops: enOps, profile: enProfile, permissions: enPermissions, settings: enSettings, iden: enIden, home: enHome, deepspace: enDeepspace, attachment: enAttachment, audit: enAudit, "big-five": enBigFive, brightness: enBrightness, "core-brain": enCoreBrain, imagine: enImagine, interview: enInterview, "ipip-neo": enIpipNeo, manual: enManual, persona: enPersona, privacy: enPrivacy, ratifications: enRatifications, records: enRecords, review: enReview, rlss: enRlss, trinity: enTrinity },
   ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki,
-    peer: koPeer, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, ops: koOps, profile: koProfile, permissions: koPermissions, settings: koSettings, iden: koIden, home: koHome, deepspace: koDeepspace },
+    peer: koPeer, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, ops: koOps, profile: koProfile, permissions: koPermissions, settings: koSettings, iden: koIden, home: koHome, deepspace: koDeepspace, attachment: koAttachment, audit: koAudit, "big-five": koBigFive, brightness: koBrightness, "core-brain": koCoreBrain, imagine: koImagine, interview: koInterview, "ipip-neo": koIpipNeo, manual: koManual, persona: koPersona, privacy: koPrivacy, ratifications: koRatifications, records: koRecords, review: koReview, rlss: koRlss, trinity: koTrinity },
   // ES pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies on purpose: crisis and legal copy is never machine-translated
   // (gate policy 2026-06-11) - they ship localized only after human review.
   es: { common: esCommon, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki,
-    peer: esPeer, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, ops: esOps, profile: esProfile, permissions: esPermissions, settings: esSettings, iden: esIden, home: esHome, deepspace: esDeepspace },
+    peer: esPeer, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, ops: esOps, profile: esProfile, permissions: esPermissions, settings: esSettings, iden: esIden, home: esHome, deepspace: esDeepspace, attachment: esAttachment, audit: esAudit, "big-five": esBigFive, brightness: esBrightness, "core-brain": esCoreBrain, imagine: esImagine, interview: esInterview, "ipip-neo": esIpipNeo, manual: esManual, persona: esPersona, privacy: esPrivacy, ratifications: esRatifications, records: esRecords, review: esReview, rlss: esRlss, trinity: esTrinity },
   // PT pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies by policy - localized only after human review.
   pt: { common: ptCommon, auth: ptAuth, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki,
-    peer: ptPeer, support: ptSupport, data: ptData, esm: ptEsm, formats: ptFormats, insights: ptInsights, research: ptResearch, recordDetail: ptRecordDetail, theme: ptTheme, import: ptImport, notFound: ptNotFound, ops: ptOps, profile: ptProfile, permissions: ptPermissions, settings: ptSettings, iden: ptIden, home: ptHome, deepspace: ptDeepspace },
+    peer: ptPeer, support: ptSupport, data: ptData, esm: ptEsm, formats: ptFormats, insights: ptInsights, research: ptResearch, recordDetail: ptRecordDetail, theme: ptTheme, import: ptImport, notFound: ptNotFound, ops: ptOps, profile: ptProfile, permissions: ptPermissions, settings: ptSettings, iden: ptIden, home: ptHome, deepspace: ptDeepspace, attachment: ptAttachment, audit: ptAudit, "big-five": ptBigFive, brightness: ptBrightness, "core-brain": ptCoreBrain, imagine: ptImagine, interview: ptInterview, "ipip-neo": ptIpipNeo, manual: ptManual, persona: ptPersona, privacy: ptPrivacy, ratifications: ptRatifications, records: ptRecords, review: ptReview, rlss: ptRlss, trinity: ptTrinity },
   // ID pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies by policy - localized only after human review.
   id: { common: idCommon, auth: idAuth, safety: idSafety, consent: idConsent, capture: idCapture, inbox: idInbox, secondb: idSecondb, plans: idPlans, wiki: idWiki,
-    peer: idPeer, support: idSupport, data: idData, esm: idEsm, formats: idFormats, insights: idInsights, research: idResearch, recordDetail: idRecordDetail, theme: idTheme, import: idImport, notFound: idNotFound, ops: idOps, profile: idProfile, permissions: idPermissions, settings: idSettings, iden: idIden, home: idHome, deepspace: idDeepspace },
+    peer: idPeer, support: idSupport, data: idData, esm: idEsm, formats: idFormats, insights: idInsights, research: idResearch, recordDetail: idRecordDetail, theme: idTheme, import: idImport, notFound: idNotFound, ops: idOps, profile: idProfile, permissions: idPermissions, settings: idSettings, iden: idIden, home: idHome, deepspace: idDeepspace, attachment: idAttachment, audit: idAudit, "big-five": idBigFive, brightness: idBrightness, "core-brain": idCoreBrain, imagine: idImagine, interview: idInterview, "ipip-neo": idIpipNeo, manual: idManual, persona: idPersona, privacy: idPrivacy, ratifications: idRatifications, records: idRecords, review: idReview, rlss: idRlss, trinity: idTrinity },
 } as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 
 let initialized = false;
