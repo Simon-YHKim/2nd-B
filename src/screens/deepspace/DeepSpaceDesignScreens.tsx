@@ -4,6 +4,7 @@ import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, radius, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
@@ -2051,6 +2052,25 @@ export function DeepSpaceFocusScreen() {
     }, 1000);
     return () => clearInterval(id);
   }, [timer.running, userId, t]);
+
+  // Per-day tally persists across app restarts (keyed by today's date), so the
+  // count reflects all of today's focus sessions, not just this mount's — the
+  // previous useState(0) reset the tally to zero every time the screen remounted.
+  useEffect(() => {
+    let alive = true;
+    void AsyncStorage.getItem(`focus_done_${new Date().toISOString().slice(0, 10)}`)
+      .then((v) => {
+        if (alive && v) setDoneToday(Number(v) || 0);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (doneToday <= 0) return;
+    void AsyncStorage.setItem(`focus_done_${new Date().toISOString().slice(0, 10)}`, String(doneToday)).catch(() => {});
+  }, [doneToday]);
 
   if (authLoading) {
     return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
