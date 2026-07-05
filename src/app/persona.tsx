@@ -31,6 +31,7 @@ const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "f
 
 function PersonaLegacy() {
   const { t, i18n } = useTranslation("secondb");
+  const { t: tp } = useTranslation("persona");
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const [persona, setPersona] = useState<PersonaCard | null>(null);
@@ -90,7 +91,7 @@ function PersonaLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "당신을 이루는 별가루들을 모으는 중이에요..." : "Gathering the pieces of you..."} />
+          <PremiumLoadingState message={tp("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -102,13 +103,13 @@ function PersonaLegacy() {
       <PremiumAppShell>
         <View style={styles.center}>
           <PremiumErrorState
-            title={locale === "ko" ? "자기 모델을 만들지 못했어요" : "Couldn't build your self-model"}
+            title={tp("errorTitle")}
             body={
               locale === "ko"
                 ? "별가루를 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
                 : "Something interrupted gathering your pieces. Please try again in a moment."
             }
-            retryLabel={locale === "ko" ? "다시 시도" : "Try again"}
+            retryLabel={tp("tryAgain")}
             onRetry={() => {
               setBuildError(false);
               setRetryKey((k) => k + 1);
@@ -116,7 +117,7 @@ function PersonaLegacy() {
           />
           <View style={styles.errorActions}>
             <Button
-              label={locale === "ko" ? "별가루 담기로" : "Back to capture"}
+              label={tp("backToCapture")}
               variant="secondary"
               onPress={() => router.replace("/capture")}
             />
@@ -153,8 +154,8 @@ function PersonaLegacy() {
       <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.emptyScroll}>
           <SceneHero
-            eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
-            title={locale === "ko" ? "아직 모을 별가루가 부족해요" : "Not enough pieces yet"}
+            eyebrow={tp("eyebrow")}
+            title={tp("notEnough")}
             subtitle={
               locale === "ko"
                 ? "도구 하나만 마쳐도 자기 모델 v1을 만들 수 있어요"
@@ -169,7 +170,7 @@ function PersonaLegacy() {
                 : "Three minutes on your relationship pattern lights your first star right away. Shall we start here?"
             }
             primaryAction={{
-              label: locale === "ko" ? "관계 체크 시작 · 3분" : "Start relationship check · 3 min",
+              label: tp("startRelCheck"),
               onPress: () => router.push("/attachment"),
             }}
           />
@@ -184,7 +185,7 @@ function PersonaLegacy() {
                   <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>{tc.sub}</Text>
                 </View>
                 <Button
-                  label={locale === "ko" ? "시작" : "Start"}
+                  label={tp("start")}
                   variant={tc.fast ? "primary" : "secondary"}
                   onPress={() => router.push(tc.route)}
                 />
@@ -217,8 +218,8 @@ function PersonaLegacy() {
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
         <SceneHero
-          eyebrow={locale === "ko" ? "07. 나의 모습" : "07. Self model"}
-          title={locale === "ko" ? "자기 모델이 하나로 모였어요" : "Your self-model is gathered"}
+          eyebrow={tp("eyebrow")}
+          title={tp("gathered")}
           subtitle={
             isMeasuredSource(persona.traitsSource)
               ? locale === "ko"
@@ -233,11 +234,11 @@ function PersonaLegacy() {
           accent={CORE_VILLAGE_UI.accent}
           speech={t("personaHero.speech")}
           primaryAction={{
-            label: locale === "ko" ? "소울 코어 보기" : "Open my center",
+            label: tp("openCenter"),
             onPress: () => router.push("/core-brain"),
           }}
           secondaryAction={{
-            label: locale === "ko" ? "내보내기" : "Export",
+            label: tp("export"),
             variant: "secondary",
             onPress: handleExport,
           }}
@@ -248,7 +249,7 @@ function PersonaLegacy() {
             (mint / signal-blue / pixel-lamp), per DESIGN.md accent budget. */}
         <View style={styles.centerSection}>
           <Text variant="caption" color="textMuted" style={{ letterSpacing: 0 }}>
-            {locale === "ko" ? "소울 코어" : "Soul Core"}
+            {tp("soulCore")}
           </Text>
           {persona.soulCoreBrightness != null ? (
             <Text variant="subtle" color="brand" style={{ marginTop: 2 }}>
@@ -282,7 +283,7 @@ function PersonaLegacy() {
                   color={aboveMean ? "brand" : "textMuted"}
                   style={{ width: 64, textAlign: "right" }}
                 >
-                  {locale === "ko" ? (aboveMean ? "평균 위" : "평균 아래") : aboveMean ? "above" : "below"}
+                  {aboveMean ? tp("above") : tp("below")}
                 </Text>
               </View>
             );
@@ -296,7 +297,7 @@ function PersonaLegacy() {
 
         <View style={styles.narrativeCard}>
           <Text variant="caption" color="textMuted">
-            {locale === "ko" ? "AI 요약" : "AI summary"}
+            {tp("aiSummary")}
           </Text>
           <Text variant="body" style={{ marginTop: spacing.xs }}>{persona.patterns.summary}</Text>
         </View>
@@ -308,7 +309,7 @@ function PersonaLegacy() {
         {Object.entries(persona.patterns).filter(([k]) => k.startsWith("top_")).length > 0 ? (
           <View style={styles.patternsCard}>
             <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "관찰된 패턴 (최근)" : "Observed patterns (recent)"}
+              {tp("observedPatterns")}
             </Text>
             {Object.entries(persona.patterns)
               .filter(([k]) => k.startsWith("top_"))
@@ -319,7 +320,7 @@ function PersonaLegacy() {
                     <View style={styles.patternDot} />
                     <Text variant="body" style={{ flex: 1 }}>{kind}</Text>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? `${count}회` : `${count}×`}
+                      {tp("countTimes", { n: count })}
                     </Text>
                   </View>
                 );
@@ -335,7 +336,7 @@ function PersonaLegacy() {
         {persona.mbti ? (
           <View style={styles.mbtiCard}>
             <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "MBTI 참고값" : "MBTI reference"}
+              {tp("mbtiRef")}
             </Text>
             <View style={styles.mbtiRow}>
               <Text variant="heading" color="text" style={styles.mbtiType}>
@@ -358,7 +359,7 @@ function PersonaLegacy() {
         {persona.attachment ? (
           <View style={styles.attachmentCard}>
             <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "애착 스타일 (ECR-S)" : "Attachment style (ECR-S)"}
+              {tp("attachmentStyle")}
             </Text>
             <Text variant="body" style={{ marginTop: spacing.xs, fontWeight: "600" }}>
               {STYLE_LABEL[locale][persona.attachment.style]}
@@ -368,12 +369,12 @@ function PersonaLegacy() {
             </Text>
             <View style={styles.attachmentDims}>
               <AttachmentDimBar
-                label={locale === "ko" ? "불안" : "Anxiety"}
+                label={tp("anxiety")}
                 value={persona.attachment.anxiety}
                 locale={locale}
               />
               <AttachmentDimBar
-                label={locale === "ko" ? "회피" : "Avoidance"}
+                label={tp("avoidance")}
                 value={persona.attachment.avoidance}
                 locale={locale}
               />
@@ -384,7 +385,7 @@ function PersonaLegacy() {
         {persona.values.length > 0 ? (
           <View style={styles.valuesCard}>
             <Text variant="caption" color="textMuted">
-              {locale === "ko" ? "관련 프레임워크" : "Relevant frameworks"}
+              {tp("relevantFrameworks")}
             </Text>
             <Text variant="body" style={{ marginTop: spacing.xs }}>
               {persona.values.map((f) => labelFramework(f as Framework, locale)).join(" · ")}
@@ -394,17 +395,17 @@ function PersonaLegacy() {
 
         <View style={styles.actions}>
           <Button
-            label={locale === "ko" ? "Markdown으로 내보내기" : "Export as Markdown"}
+            label={tp("exportMd")}
             variant="primary"
             onPress={handleExport}
           />
           <Button
-            label={locale === "ko" ? "Big Five 다시 평가" : "Retake Big Five"}
+            label={tp("retakeBigFive")}
             variant="secondary"
             onPress={() => router.replace("/big-five")}
           />
           <Button
-            label={locale === "ko" ? "애착 스타일 평가" : "Attachment style test"}
+            label={tp("attachmentTest")}
             variant="secondary"
             onPress={() => router.replace("/attachment")}
           />

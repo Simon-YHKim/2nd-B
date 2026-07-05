@@ -709,7 +709,7 @@ results.push(
       persona.includes("PremiumErrorState") &&
       persona.includes("PremiumToast") &&
       persona.includes("toastWrap") &&
-      persona.includes("Couldn't build your self-model") &&
+      persona.includes('tp("errorTitle")') &&
       persona.includes("Couldn't finish the export. Try again from the export button.") &&
       insights.includes("PremiumErrorState") &&
       research.includes("PremiumErrorState") &&
