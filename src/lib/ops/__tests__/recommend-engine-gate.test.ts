@@ -8,10 +8,19 @@ jest.mock("../../llm/gemini", () => ({ callGemini: jest.fn() }));
 jest.mock("../../wiki/export", () => ({ exportUserWiki: jest.fn() }));
 jest.mock("../signals", () => ({ gatherAdherenceSignal: jest.fn(() => Promise.resolve("")) }));
 jest.mock("../../growth/lens-signal", () => ({ gatherLensSignal: jest.fn(() => Promise.resolve("")) }));
+// D-26 A17: mock the daily brief so these tests exercise the on-demand path
+// deterministically. getOpsDailyBrief null + buildOpsDailyBrief {} => no brief,
+// so recommendForDomain falls through to the single-domain call. A dedicated
+// brief-serving test overrides these per-test.
+jest.mock("../daily-brief", () => ({
+  getOpsDailyBrief: jest.fn(() => Promise.resolve(null)),
+  buildOpsDailyBrief: jest.fn(() => Promise.resolve({})),
+}));
 
 import { recommendForDomain, resetOpsRecommendCacheForTests } from "../recommend";
 import { callGemini } from "../../llm/gemini";
 import { exportUserWiki } from "../../wiki/export";
+import { buildOpsDailyBrief, getOpsDailyBrief } from "../daily-brief";
 
 const base = {
   userId: "u1",
@@ -76,5 +85,52 @@ describe("recommendForDomain engine gate (D-2)", () => {
     await recommendForDomain({ ...base, recommendationsPref: true });
     const afterOptOut = await recommendForDomain({ ...base, recommendationsPref: false });
     expect(afterOptOut).toEqual([]);
+  });
+
+  test("A17: a passive run serves this domain from today's brief — NO snapshot, NO LLM call", async () => {
+    (getOpsDailyBrief as jest.Mock).mockResolvedValue({
+      exercise_routine: [{ title: "Walk 15 min", reason: "from the daily brief" }],
+    });
+    const out = await recommendForDomain({ ...base, recommendationsPref: true });
+    expect(out).toEqual([{ title: "Walk 15 min", reason: "from the daily brief" }]);
+    expect(exportUserWiki).not.toHaveBeenCalled();
+    expect(callGemini).not.toHaveBeenCalled();
+    expect(buildOpsDailyBrief).not.toHaveBeenCalled(); // brief already existed
+  });
+
+  test("A17: no brief yet -> builds it once, then serves the domain slice", async () => {
+    (getOpsDailyBrief as jest.Mock).mockResolvedValue(null);
+    (buildOpsDailyBrief as jest.Mock).mockResolvedValue({
+      exercise_routine: [{ title: "Stretch", reason: "built brief" }],
+    });
+    const out = await recommendForDomain({ ...base, recommendationsPref: true });
+    expect(out).toEqual([{ title: "Stretch", reason: "built brief" }]);
+    expect(buildOpsDailyBrief).toHaveBeenCalledTimes(1);
+    expect(callGemini).not.toHaveBeenCalled(); // the build IS the day's one call
+  });
+
+  test("A17: brief covers other domains but not this one -> self-corrects via on-demand call", async () => {
+    (getOpsDailyBrief as jest.Mock).mockResolvedValue({ reading_list: [{ title: "Read", reason: "x" }] });
+    (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
+    (callGemini as jest.Mock).mockResolvedValue({
+      text: JSON.stringify([{ title: "Walk", reason: "on-demand" }]),
+    });
+    const out = await recommendForDomain({ ...base, recommendationsPref: true });
+    expect(out).toEqual([{ title: "Walk", reason: "on-demand" }]);
+    expect(callGemini).toHaveBeenCalledTimes(1); // fell through
+  });
+
+  test("A17: an explicit forceFresh run BYPASSES the brief (rich per-domain call)", async () => {
+    (getOpsDailyBrief as jest.Mock).mockResolvedValue({
+      exercise_routine: [{ title: "cached", reason: "brief" }],
+    });
+    (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
+    (callGemini as jest.Mock).mockResolvedValue({
+      text: JSON.stringify([{ title: "fresh", reason: "forced" }]),
+    });
+    const out = await recommendForDomain({ ...base, recommendationsPref: true, forceFresh: true });
+    expect(out).toEqual([{ title: "fresh", reason: "forced" }]);
+    expect(getOpsDailyBrief).not.toHaveBeenCalled(); // brief skipped on forceFresh
+    expect(callGemini).toHaveBeenCalledTimes(1);
   });
 });

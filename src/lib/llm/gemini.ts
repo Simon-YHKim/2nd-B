@@ -189,7 +189,7 @@ async function writeCrisisEvent(
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend",
+  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "ops_daily_brief",
   Record<"en" | "ko", string>
 > = {
   journal_reflect: {
@@ -284,6 +284,33 @@ const MOCK_RESPONSES: Record<
         recurrence: "weekly",
       },
     ]),
+  },
+  // All-domain brief (D-26 A17) for the default offline-preview build: a few
+  // group-lead domains carry a suggestion, the rest are explicitly empty so the
+  // present-empty "serve [] at 0 LLM" path is exercised end-to-end.
+  ops_daily_brief: {
+    en: JSON.stringify({
+      exercise_routine: [
+        { title: "10-minute walk after lunch", reason: "Offline preview: an easy daily anchor.", durationMinutes: 10, recurrence: "daily" },
+      ],
+      reading_list: [
+        { title: "Read 5 pages tonight", reason: "Offline preview: small, repeatable progress.", durationMinutes: 10, recurrence: "daily" },
+      ],
+      daily_focus: [{ title: "Pick one focus for today", reason: "Offline preview: a single anchor beats a long list." }],
+      career_check: [],
+      side_project: [],
+    }),
+    ko: JSON.stringify({
+      exercise_routine: [
+        { title: "점심 후 10분 걷기", reason: "오프라인 미리보기: 매일 넣기 쉬운 작은 닻이에요.", durationMinutes: 10, recurrence: "daily" },
+      ],
+      reading_list: [
+        { title: "오늘 밤 5쪽 읽기", reason: "오프라인 미리보기: 작고 반복되는 진전이에요.", durationMinutes: 10, recurrence: "daily" },
+      ],
+      daily_focus: [{ title: "오늘의 집중 한 가지 고르기", reason: "오프라인 미리보기: 긴 목록보다 하나의 닻이 나아요." }],
+      career_check: [],
+      side_project: [],
+    }),
   },
   import_ingest: {
     en: JSON.stringify({
