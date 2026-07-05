@@ -20,6 +20,8 @@ import { PremiumLoadingState } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { DOMAIN_STARS, getDomainStar, isDomainId, domainTagFor, type DomainId } from "@/lib/persona/domain-stars";
+import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
+import type { LadderLevel } from "@/lib/persona/brightness";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 
@@ -29,6 +31,20 @@ interface DomainRecordRow {
   body: string | null;
   created_at: string;
 }
+
+// The life-domain ↔ Big Five trait association from the design canon
+// (public/proto/data/screens/domain-meta.json `related`). A general design
+// statement about each domain, NOT the user's measured data — shown as a small
+// header caption to match the reference 11-star ("성실성 · 외향성"). collect has
+// none.
+const DOMAIN_TRAIT: Partial<Record<DomainId, string>> = {
+  career: "성실성 · 외향성",
+  finance: "신경성",
+  growth: "개방성",
+  relation: "우호성 · 애착",
+  health: "신경성",
+  recreation: "개방성",
+};
 
 async function listDomainRecords(userId: string, domain: DomainId): Promise<DomainRecordRow[]> {
   const { data, error } = await getSupabaseClient()
@@ -68,6 +84,7 @@ export default function DomainStarScreen() {
 
   const [rows, setRows] = useState<DomainRecordRow[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [level, setLevel] = useState<LadderLevel | null>(null);
 
   const valid = typeof domain === "string" && isDomainId(domain);
   const domainId = valid ? (domain as DomainId) : null;
@@ -84,6 +101,10 @@ export default function DomainStarScreen() {
         setRows([]);
         setFailed(true);
       });
+    // Real record-based domain level (L1–L5) — no LLM, no fabrication.
+    loadDomainLevels(userId)
+      .then((b) => setLevel(b.domainLevels[domainId] ?? null))
+      .catch(() => setLevel(null));
   }, [userId, domainId]);
 
   useEffect(() => {
@@ -113,7 +134,22 @@ export default function DomainStarScreen() {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={name} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-        <RNText style={[m3TextStyle("headlineSmall"), s.headline]}>{name}</RNText>
+        <View style={s.headRow}>
+          <RNText style={[m3TextStyle("headlineSmall"), s.headline]}>{name}</RNText>
+          {level != null ? (
+            <View style={s.levelWrap}>
+              <View style={s.dots}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <View key={n} style={[s.dot, n <= level ? s.dotOn : s.dotOff]} />
+                ))}
+              </View>
+              <RNText style={[m3TextStyle("labelMedium"), s.levelText]}>{`L${level}`}</RNText>
+            </View>
+          ) : null}
+        </View>
+        {ko && DOMAIN_TRAIT[domainId] ? (
+          <RNText style={[m3TextStyle("bodySmall"), s.traitCaption]}>{`숨은 결 · ${DOMAIN_TRAIT[domainId]}`}</RNText>
+        ) : null}
 
         {/* 세컨비 briefing (honest) */}
         <MdCard variant="outlined" style={s.briefCard}>
@@ -193,7 +229,15 @@ export default function DomainStarScreen() {
 
 const s = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 28 },
-  headline: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginBottom: 10 },
+  headRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 },
+  headline: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
+  levelWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dots: { flexDirection: "row", gap: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  dotOn: { backgroundColor: m3.color.primary },
+  dotOff: { backgroundColor: withAlpha(m3.color.onSurface, 0.18) },
+  levelText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, fontWeight: "700" },
+  traitCaption: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: -4, marginBottom: 2 },
   briefCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 14, borderRadius: 16 },
   briefText: { flex: 1, color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, lineHeight: 20 },
   actions: { flexDirection: "row", gap: 8, marginTop: 14 },
