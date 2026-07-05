@@ -12,7 +12,7 @@
 | Android package | `com.simonk.secondbrain` |
 | version | `0.0.1` |
 | 내부 티어 키 | free(별바라기) / cortex(항해자) / brain(북극성) / soma(평생) |
-| 가격(원) | free 0 / 항해자 6,900 / 북극성 11,900 |
+| 가격(원) | free 0 / 항해자 6,900 / 북극성 12,900 |
 | repo | `Simon-YHKim/2nd-B` |
 
 ## 🔒 모든 프롬프트 공통 가드레일 (반드시 포함)
@@ -174,7 +174,7 @@ seam(src/lib/ads/rewarded.ts)이 받는다. 광고 노출 자격(성인 + 광고
 
 ```
 너는 chrome-use 가능한 Claude Cowork다. 2nd-Brain 의 구독 결제(항해자=cortex ₩6,900,
-북극성=brain ₩11,900)를 RevenueCat 으로 셋업하라. 공통 가드레일을 따른다. 비용이 드는 모든
+북극성=brain ₩12,900)를 RevenueCat 으로 셋업하라. 공통 가드레일을 따른다. 비용이 드는 모든
 단계(개발자 계정 가입비, 결제) 직전에는 멈추고 사용자에게 확인받는다.
 
 선행 조건(없으면 사용자에게 보고만 하고 멈춤):
@@ -186,7 +186,7 @@ RevenueCat 단계(스토어 계정이 준비된 경우):
 1. https://app.revenuecat.com 로그인/가입. 프로젝트 `2nd-Brain` 생성.
 2. App 추가: Play(package `com.simonk.secondbrain`) / App Store(bundle `com.simonk.secondbrain`).
 3. Entitlements 생성: `cortex`, `brain` (앱 내부 티어 키와 동일하게).
-4. App Store Connect / Play Console 에서 구독 상품 생성(월 구독, ₩6,900 / ₩11,900) 후 RevenueCat
+4. App Store Connect / Play Console 에서 구독 상품 생성(월 구독, ₩6,900 / ₩12,900) 후 RevenueCat
    Products 에 매핑하고 위 entitlement 에 연결. Offering/Package 구성.
 5. RevenueCat Public SDK Key(`appl_...`, `goog_...`) 수집 → 공개값이므로 GitHub repo Variables:
    `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`.
