@@ -1025,10 +1025,12 @@ const remStyles = StyleSheet.create({
   srcDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: deepSpace.soul },
   srcText: { fontSize: 11, color: deepSpace.textMid },
   toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
-  toggleOn: { backgroundColor: deepSpace.mint, alignItems: "flex-end" },
+  // Canon reminder toggles are blue/primary (accent), not mint — matches the
+  // settings + iden M3 switches (design canon 09-settings / 23-iden / 26-reminders).
+  toggleOn: { backgroundColor: deepSpace.accent, alignItems: "flex-end" },
   toggleOff: { backgroundColor: deepSpace.cardPressed, alignItems: "flex-start" },
   knob: { width: 20, height: 20, borderRadius: 10 },
-  knobOn: { backgroundColor: deepSpace.onMint },
+  knobOn: { backgroundColor: deepSpace.onAccent },
   knobOff: { backgroundColor: deepSpace.textLo },
 });
 
