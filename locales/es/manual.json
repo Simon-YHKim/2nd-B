@@ -1,0 +1,15 @@
+{
+  "loading": "Cargando el manual…",
+  "eyebrow": "Manual",
+  "title": "Un mapa breve de tu núcleo",
+  "subtitle": "Rutina · captura · wiki · seguridad",
+  "glossary": "Glosario en una línea",
+  "recentlyAdded": "Añadido recientemente",
+  "leavePiece": "Deja tu fragmento de hoy",
+  "leavePieceHint": "Abre la captura para guardar el fragmento de hoy.",
+  "getStarted": "Empezar",
+  "getStartedHint": "Abre la pantalla de registro.",
+  "permissions": "A qué accede la app",
+  "permissionsHint": "Abre la guía de permisos de la app.",
+  "curated": "Investigación curada"
+}

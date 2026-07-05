@@ -41,9 +41,21 @@ jest.mock("../../records/load-structured", () => ({
   loadStructuredContext: jest.fn(async () => ""),
 }));
 
+jest.mock("../rag", () => {
+  const actual = jest.requireActual("../rag");
+  return {
+    ...actual,
+    retrieveChatContext: jest.fn((userId: string, query: string, locale: string, opts: unknown) => {
+      captured.push({ fn: "retrieveChatContext", args: [userId, query, locale, opts], ret: fixtures.ragPages ?? [] });
+      if (fixtures.ragError) return Promise.reject(fixtures.ragError);
+      return Promise.resolve(fixtures.ragPages ?? []);
+    }),
+  };
+});
+
 jest.mock("../../wiki/export", () => ({
-  exportUserWiki: jest.fn(() => {
-    captured.push({ fn: "exportUserWiki", args: [], ret: fixtures.exportPrompt });
+  exportUserWiki: jest.fn((userId: string, opts: unknown) => {
+    captured.push({ fn: "exportUserWiki", args: [userId, opts], ret: fixtures.exportPrompt });
     if (fixtures.exportError) return Promise.reject(fixtures.exportError);
     return Promise.resolve({
       prompt: fixtures.exportPrompt ?? "stub wiki",
@@ -114,7 +126,7 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(0); // 2 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsage", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);
+    expect(callNames).toEqual(["readChatUsage", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callGemini");
@@ -151,7 +163,7 @@ describe("sendChatMessage", () => {
     );
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsage", "exportUserWiki"]);
+    expect(callNames).toEqual(["readChatUsage", "retrieveChatContext", "exportUserWiki"]);
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callGemini");
   });
@@ -163,5 +175,78 @@ describe("sendChatMessage", () => {
     const geminiCall = captured.find((c) => c.fn === "callGemini");
     const geminiArgs = geminiCall?.args[0] as { system: string };
     expect(geminiArgs.system).toContain("WIKI BUNDLE: pages + sources here");
+  });
+
+  test("RAG hit: system carries the fenced top-k pages and export shrinks to sources-only", async () => {
+    fixtures.used = 0;
+    fixtures.ragPages = [
+      { slug: "sleep-habits", title: "Sleep habits", body: "notes about sleep", similarity: 0.82 },
+    ];
+    await sendChatMessage({ userId: "u1", message: "how do I sleep better?", locale: "en", tier: "soma" });
+    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
+    expect(geminiArgs.system).toContain('<UNTRUSTED type="wiki_rag">');
+    expect(geminiArgs.system).toContain("[[sleep-habits]]");
+    expect(geminiArgs.system).toContain("notes about sleep");
+    const exportOpts = captured.find((c) => c.fn === "exportUserWiki")?.args[1] as { pageLimit: number };
+    expect(exportOpts.pageLimit).toBe(0); // pages come from RAG, snapshot = slim sources list
+  });
+
+  test("RAG miss: falls back to the legacy whole-wiki snapshot (no rag fence)", async () => {
+    fixtures.used = 0;
+    fixtures.ragPages = [];
+    await sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" });
+    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
+    expect(geminiArgs.system).not.toContain('type="wiki_rag"');
+    const exportOpts = captured.find((c) => c.fn === "exportUserWiki")?.args[1] as { pageLimit: number };
+    expect(exportOpts.pageLimit).toBe(50);
+  });
+
+  test("RAG failure is fail-soft: chat still answers on the snapshot path", async () => {
+    fixtures.used = 0;
+    fixtures.ragError = new Error("embed egress down");
+    const r = await sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" });
+    expect(r.status).toBe("ok");
+    const exportOpts = captured.find((c) => c.fn === "exportUserWiki")?.args[1] as { pageLimit: number };
+    expect(exportOpts.pageLimit).toBe(50);
+  });
+
+  test("history: last 6 turns ride fenced in the system prompt, clipped and role-labeled", async () => {
+    fixtures.used = 0;
+    const history = Array.from({ length: 8 }, (_, i) => ({
+      role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      text: `turn-${i} ${i === 6 ? "x".repeat(600) : ""}`.trim(),
+    }));
+    await sendChatMessage({ userId: "u1", message: "and then?", locale: "en", tier: "soma", history });
+    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
+    expect(geminiArgs.system).toContain('<UNTRUSTED type="chat_history">');
+    expect(geminiArgs.system).not.toContain("turn-0"); // only the last 6 survive
+    expect(geminiArgs.system).not.toContain("turn-1");
+    expect(geminiArgs.system).toContain("User: turn-2");
+    expect(geminiArgs.system).toContain("SecondB: turn-7");
+    // per-turn clipping: the 600-char turn is cut to the 500 budget
+    expect(geminiArgs.system).not.toContain("x".repeat(501));
+  });
+
+  test("no history -> no chat_history fence", async () => {
+    fixtures.used = 0;
+    await sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" });
+    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
+    expect(geminiArgs.system).not.toContain('type="chat_history"');
+  });
+
+  test("C9: a red-zone history turn is DROPPED, never re-egressed via the system channel", async () => {
+    fixtures.used = 0;
+    // Real classifier (not mocked): the KO lexicon flags 자살 as red. The prior
+    // crisis turn was withheld from the model when sent; it must not reappear.
+    const history = [
+      { role: "user" as const, text: "지난번에 자살 생각이 들었어" },
+      { role: "assistant" as const, text: "여기 도움을 받을 수 있는 곳이 있어요" },
+      { role: "user" as const, text: "오늘은 좀 나아졌어" },
+    ];
+    await sendChatMessage({ userId: "u1", message: "고마워", locale: "ko", tier: "soma", history });
+    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
+    expect(geminiArgs.system).toContain('<UNTRUSTED type="chat_history">');
+    expect(geminiArgs.system).not.toContain("자살"); // red turn dropped
+    expect(geminiArgs.system).toContain("오늘은 좀 나아졌어"); // green turn kept
   });
 });

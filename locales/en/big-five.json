@@ -1,0 +1,14 @@
+{
+  "loading": "Loading assessment…",
+  "title": "Big Five (BFI-44)",
+  "counter": "Big Five · BFI-44",
+  "saved": "Saved · see it on your Persona",
+  "exit": {
+    "notice": "Exit survey notice",
+    "title": "Exit survey?",
+    "cancel": "Cancel",
+    "cancelHint": "Continue the survey.",
+    "confirm": "Exit",
+    "confirmHint": "Exit the survey and return."
+  }
+}

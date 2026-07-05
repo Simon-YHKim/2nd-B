@@ -113,7 +113,7 @@ function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured }: 
         accessibilityRole="button"
         accessibilityLabel="현재 별가루 담기"
         onPress={() => setCaptured(true)}
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.pressedButton]}
+        style={styles.primaryButton}
       >
         <Text variant="caption" style={styles.primaryButtonText}>{captured ? "담겼어요" : "담기"}</Text>
       </Pressable>
@@ -144,7 +144,7 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
           accessibilityLabel="세컨비에게 보내기"
           disabled={chatDraft.trim().length === 0}
           onPress={() => setChatSent(true)}
-          style={({ pressed }) => [styles.sendCircle, pressed && styles.pressedButton, chatDraft.trim().length === 0 && styles.disabledButton]}
+          style={[styles.sendCircle, chatDraft.trim().length === 0 && styles.disabledButton]}
         >
           <RNText style={styles.sendText}>↑</RNText>
         </Pressable>
@@ -177,8 +177,8 @@ function ReviewContent({ reviewDecision, setReviewDecision }: HubState) {
       <Text variant="subtle" style={styles.reviewNote}>승인해야만 반영됩니다 · 모든 제안은 기록에 남습니다</Text>
       {reviewDecision ? <Text variant="subtle" style={styles.sentNote}>{reviewDecision === "approve" ? "승인됨" : "보류됨"}</Text> : null}
       <View style={styles.actionRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel="제안 보류" onPress={() => setReviewDecision("hold")} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedButton]}><Text variant="caption" style={styles.secondaryButtonText}>보류</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="제안 승인" onPress={() => setReviewDecision("approve")} style={({ pressed }) => [styles.soulButton, pressed && styles.pressedButton]}><Text variant="caption" style={styles.soulButtonText}>승인</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="제안 보류" onPress={() => setReviewDecision("hold")} style={styles.secondaryButton}><Text variant="caption" style={styles.secondaryButtonText}>보류</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="제안 승인" onPress={() => setReviewDecision("approve")} style={styles.soulButton}><Text variant="caption" style={styles.soulButtonText}>승인</Text></Pressable>
       </View>
       <Pressable accessibilityRole="link" accessibilityLabel="오늘의 정리 열기" onPress={() => router.push("/digest")} style={{ marginTop: spacing.sm, alignSelf: "center" }}>
         <Text variant="caption" color="brand">오늘의 정리 열기 →</Text>
@@ -192,7 +192,7 @@ function SmallRow({ icon, title, time }: { icon: string; title: string; time: st
 }
 
 function TrendCard({ title, delta, body, onPress }: { title: string; delta: string; body: string; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${title} 제안 열기`} onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressedButton]}><View style={styles.cardHead}><Text variant="heading" style={styles.cardTitle}>{title}</Text><Text variant="subtle" style={styles.delta}>{delta}</Text></View><Text variant="body" style={styles.cardBody}>{body}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${title} 제안 열기`} onPress={onPress} style={styles.card}><View style={styles.cardHead}><Text variant="heading" style={styles.cardTitle}>{title}</Text><Text variant="subtle" style={styles.delta}>{delta}</Text></View><Text variant="body" style={styles.cardBody}>{body}</Text></Pressable>;
 }
 
 function Score({ label, value }: { label: string; value: string }) {

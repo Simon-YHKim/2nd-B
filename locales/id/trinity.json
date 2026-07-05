@@ -1,0 +1,18 @@
+{
+  "loading": "Memuat area kamu…",
+  "eyebrow": "09. Area saya",
+  "title": "Nyalakan empat area kehidupan",
+  "subtitle": "Kesehatan · aplikasi · pikiran · keuangan",
+  "leavePiece": "Tinggalkan serpihan hari ini",
+  "addTagsHint": "Tambahkan tag area di tangkapan",
+  "addTagsBody": "Coba tambahkan tag seperti #kesehatan di tangkapan",
+  "recurringTopics": "Topik yang berulang",
+  "recentConclusions": "Kesimpulan terbaru",
+  "recognizedTags": "Tag yang dikenali",
+  "reloadNotice": "Pemberitahuan muat ulang empat area",
+  "loadError": "Tidak dapat memuat catatan",
+  "dismiss": "Tutup",
+  "dismissHint": "Menutup pemberitahuan ini.",
+  "retry": "Coba lagi",
+  "retryHint": "Memuat ulang catatan empat area."
+}

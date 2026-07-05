@@ -1,0 +1,14 @@
+{
+  "loading": "Cargando la evaluación…",
+  "title": "Big Five (BFI-44)",
+  "counter": "Big Five · BFI-44",
+  "saved": "Guardado · lo verás en tu Persona",
+  "exit": {
+    "notice": "Aviso para salir de la evaluación",
+    "title": "¿Salir de la evaluación?",
+    "cancel": "Cancelar",
+    "cancelHint": "Continúa con la evaluación.",
+    "confirm": "Salir",
+    "confirmHint": "Sal de la evaluación y vuelve atrás."
+  }
+}

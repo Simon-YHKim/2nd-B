@@ -29,6 +29,7 @@ const CLAUDE_SEATS: PromptPurpose[] = [
   "axis_estimate",
   "persona_synthesis",
   "ops_recommend",
+  "ops_daily_brief",
 ];
 
 const GEMINI_STAYERS: PromptPurpose[] = [

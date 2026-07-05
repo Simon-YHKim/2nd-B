@@ -54,7 +54,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // loadLatestAttachment reads. onComplete fires after the save celebration so the
 // caller decides where to go next; onCancel backs out of the intro / exit modal.
 function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("attachment");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -90,7 +90,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+        <PremiumLoadingState message={t("loading")} />
       </View>
     );
   }
@@ -132,10 +132,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
       if (typeof console !== "undefined") console.warn("[attachment] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "검사 결과를 저장하지 못했어요. 답변은 그대로 남아 있어요."
-            : "We couldn't save your results. Your answers are still here.",
+        message: t("saveError"),
       });
     } finally {
       setSubmitting(false);
@@ -147,19 +144,11 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
       {!started ? (
         <QuantIntroModal
           toolKey="ecr"
-          title={locale === "ko" ? "애착 스타일 (ECR-S)" : "Attachment style (ECR-S)"}
+          title={t("intro.title")}
           itemCount={ECR_ITEMS.length}
           estimatedMinutes={3}
-          description={
-            locale === "ko"
-              ? "가까운 관계에서의 패턴을 불안과 회피 두 축으로 함께 살펴보고, 어느 스타일에 가까운지 같이 짚어볼게요. 답할 때는 한 명의 특정 관계가 아니라 ‘가까운 관계 전반’ 을 떠올려 주세요. 한 페이지 5문항씩, 3페이지로 나눠집니다."
-              : "We'll look together at your pattern in close relationships across two axes: anxiety and avoidance. Then we'll see which of four styles you lean toward. Think of close relationships in general, not one specific person. Split across 3 pages, 5 items each (last page has 2)."
-          }
-          citation={
-            locale === "ko"
-              ? "Wei, Russell, Mallinckrodt, & Vogel (2007) · 검증된 단축형"
-              : "Wei, Russell, Mallinckrodt, & Vogel (2007) · validated short form"
-          }
+          description={t("intro.description")}
+          citation={t("intro.citation")}
           locale={locale}
           onStart={() => setStarted(true)}
           onCancel={onCancel}
@@ -170,7 +159,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "ECR-S · 12문항" : "ECR-S · 12 items"}
+              {t("survey.counter")}
             </Text>
             {result.style ? (
               <Text variant="subtle" color="textMuted">
@@ -180,9 +169,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
               </Text>
             ) : (
               <Text variant="body" color="textMuted">
-                {locale === "ko"
-                  ? "가까운 관계 전반을 떠올리며 1(전혀 아니다) ~ 7(매우 그렇다)로 답해 주세요."
-                  : "Think of close relationships in general. Rate 1 (strongly disagree) to 7 (strongly agree)."}
+                {t("survey.instruction")}
               </Text>
             )}
           </View>
@@ -216,10 +203,10 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
                   />
                   <View style={styles.scaleLegend}>
                     <Text variant="subtle" color="textSubtle">
-                      {locale === "ko" ? "전혀 아니다" : "Strongly disagree"}
+                      {t("scale.stronglyDisagree")}
                     </Text>
                     <Text variant="subtle" color="textSubtle">
-                      {locale === "ko" ? "매우 그렇다" : "Strongly agree"}
+                      {t("scale.stronglyAgree")}
                     </Text>
                   </View>
                 </View>
@@ -231,7 +218,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "저장됐어요 · 별 하나가 켜졌어요" : "Saved · one star is lit"}
+          message={t("saved")}
           onDone={() => {
             // First star lit ever -> steer into one SecondB chat (activation
             // target). After the first nudge, every later save returns via
@@ -258,33 +245,31 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "검사 종료 안내" : "Exit survey notice"}
+        accessibilityLabel={t("exit.notice")}
       >
         <Text variant="heading">
-          {locale === "ko" ? "검사를 종료할까요?" : "Exit survey?"}
+          {t("exit.title")}
         </Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 애착 스타일 검사를 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {t("exit.body")}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "취소" : "Cancel"}
+            label={t("exit.cancel")}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
-            accessibilityHint={locale === "ko" ? "검사를 계속 진행합니다." : "Continue the survey."}
+            accessibilityHint={t("exit.cancelHint")}
           />
           <Button
-            label={locale === "ko" ? "종료하기" : "Exit"}
+            label={t("exit.confirm")}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
               onCancel();
             }}
             style={{ flex: 1 }}
-            accessibilityHint={locale === "ko" ? "검사를 종료하고 이전 화면으로 돌아갑니다." : "Exit the survey and return."}
+            accessibilityHint={t("exit.confirmHint")}
           />
         </View>
       </PremiumModal>

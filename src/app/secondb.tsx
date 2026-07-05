@@ -112,6 +112,10 @@ interface ChatTurn {
   chips?: string[];
   /** 트위비 next-step candidates (P5f) — trailing → lines lifted from the reply. */
   branches?: string[];
+  /** Client-generated line (greeting, limit hint, error) — NOT a model reply.
+   *  Excluded from the conversation history sent back to the model so it isn't
+   *  mis-grounded as something SecondB actually said. */
+  synthetic?: boolean;
 }
 
 type ChatMode = "analytic" | "divergent";
@@ -236,7 +240,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (seededRef.current) return;
     seededRef.current = true;
     if (isCharacterChat) {
-      setTurns([{ role: "secondb", text: persona.greeting[locale] }]);
+      setTurns([{ role: "secondb", text: persona.greeting[locale], synthetic: true }]);
     }
     if (fromNode) {
       setDraft(locale === "ko" ? `'${fromNode}'에 대해 물어볼게요: ` : `About '${fromNode}': `);
@@ -350,11 +354,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         locale,
         tier: progression.tier,
         personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
+        // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
+        // red-zone turns). Synthetic lines (greeting/limit/error) are not model
+        // replies, so they're excluded here.
+        history: turns
+          .filter((t) => !t.synthetic)
+          .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
         mode: chatMode,
         minor: isMinor === true,
       });
       if (result.status === "blocked") {
-        setTurns((prev) => [...prev, { role: "secondb", text: result.hint }]);
+        setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
         setUsedToday(result.used);
         if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
         captureEvent(
@@ -414,7 +424,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         locale === "ko"
           ? "응답에 실패했어요. 잠시 후 다시 시도해 주세요."
           : "Could not get a reply. Please try again in a moment.";
-      setTurns((prev) => [...prev, { role: "secondb", text: msg }]);
+      setTurns((prev) => [...prev, { role: "secondb", text: msg, synthetic: true }]);
       if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
     } finally {
       setSending(false);

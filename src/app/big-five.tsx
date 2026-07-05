@@ -51,7 +51,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // returns to its results lens and reloads; legacy routes to /persona); onCancel
 // backs out of the intro.
 function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("big-five");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -87,7 +87,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "검사를 불러오는 중이에요…" : "Loading assessment…"} />
+        <PremiumLoadingState message={t("loading")} />
       </View>
     );
   }
@@ -143,7 +143,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       {!started ? (
         <QuantIntroModal
           toolKey="bfi"
-          title={locale === "ko" ? "Big Five (BFI-44)" : "Big Five (BFI-44)"}
+          title={t("title")}
           itemCount={BFI_ITEMS.length}
           estimatedMinutes={8}
           description={
@@ -166,7 +166,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "Big Five · BFI-44" : "Big Five · BFI-44"}
+              {t("counter")}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
@@ -219,7 +219,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "저장됐어요 · 페르소나에서 다시 만나요" : "Saved · see it on your Persona"}
+          message={t("saved")}
           onDone={onComplete}
         />
       ) : null}
@@ -233,10 +233,10 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "검사 종료 안내" : "Exit survey notice"}
+        accessibilityLabel={t("exit.notice")}
       >
         <Text variant="heading">
-          {locale === "ko" ? "검사를 종료할까요?" : "Exit survey?"}
+          {t("exit.title")}
         </Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
           {locale === "ko"
@@ -245,21 +245,21 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "취소" : "Cancel"}
+            label={t("exit.cancel")}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
-            accessibilityHint={locale === "ko" ? "검사를 계속 진행합니다." : "Continue the survey."}
+            accessibilityHint={t("exit.cancelHint")}
           />
           <Button
-            label={locale === "ko" ? "종료하기" : "Exit"}
+            label={t("exit.confirm")}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
               onCancel();
             }}
             style={{ flex: 1 }}
-            accessibilityHint={locale === "ko" ? "검사를 종료하고 이전 화면으로 돌아갑니다." : "Exit the survey and return."}
+            accessibilityHint={t("exit.confirmHint")}
           />
         </View>
       </PremiumModal>

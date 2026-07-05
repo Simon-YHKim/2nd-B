@@ -79,7 +79,7 @@ function CheckIcon({ color }: { color: string }) {
 }
 
 export default function RatificationLogScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("ratifications");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -98,13 +98,13 @@ export default function RatificationLogScreen() {
     };
   }, [userId]);
 
-  const barTitle = locale === "ko" ? "승인 이력" : "Ratification log";
+  const barTitle = t("barTitle");
 
   if (loading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "불러오는 중이에요…" : "Loading…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </DeepSpaceScreen>
     );
@@ -122,18 +122,18 @@ export default function RatificationLogScreen() {
 
   const filters = ["전체", "승인", "보류", "거절"] as const;
   const filterLabel: Record<(typeof filters)[number], string> = {
-    전체: locale === "ko" ? "전체" : "All",
-    승인: locale === "ko" ? "승인" : "Ratified",
-    보류: locale === "ko" ? "보류" : "Held",
-    거절: locale === "ko" ? "거절" : "Declined",
+    전체: t("all"),
+    승인: t("ratified"),
+    보류: t("held"),
+    거절: t("declined"),
   };
   // Honest summary: 제안 = total records, 승인 = same (all persisted = accepted),
   // 보류 / 거절 = 0 (never persist a tier change).
   const counts = [
-    { key: "제안", label: locale === "ko" ? "제안" : "Proposed", n: all.length, color: m3.color.onSurface },
-    { key: "승인", label: locale === "ko" ? "승인" : "Ratified", n: all.length, color: m3.color.primary },
-    { key: "보류", label: locale === "ko" ? "보류" : "Held", n: 0, color: HOLD_AMBER },
-    { key: "거절", label: locale === "ko" ? "거절" : "Declined", n: 0, color: m3.color.error },
+    { key: "제안", label: t("proposed"), n: all.length, color: m3.color.onSurface },
+    { key: "승인", label: t("ratified"), n: all.length, color: m3.color.primary },
+    { key: "보류", label: t("held"), n: 0, color: HOLD_AMBER },
+    { key: "거절", label: t("declined"), n: 0, color: m3.color.error },
   ];
 
   return (
@@ -165,7 +165,7 @@ export default function RatificationLogScreen() {
 
         {/* timeline */}
         {entries === null ? (
-          <PremiumLoadingState message={locale === "ko" ? "장부를 펴는 중…" : "Opening the ledger…"} />
+          <PremiumLoadingState message={t("openingLedger")} />
         ) : visible.length === 0 && unchanged.length === 0 ? (
           <MdCard variant="outlined" style={styles.emptyCard}>
             <Text style={styles.emptyText}>
@@ -173,7 +173,7 @@ export default function RatificationLogScreen() {
                 ? "아직 승인한 변화가 없어요. 북극성에서 제안을 점검하고 승인하면 여기 남아요."
                 : "No ratified changes yet. Review a proposal in Polaris and it lands here."}
             </Text>
-            <MdButton variant="tonal" label={locale === "ko" ? "북극성으로 가기" : "Go to Polaris"} onPress={() => router.replace("/core-brain")} />
+            <MdButton variant="tonal" label={t("goPolaris")} onPress={() => router.replace("/core-brain")} />
           </MdCard>
         ) : visible.length === 0 ? (
           <MdCard variant="outlined" style={styles.emptyCard}>
@@ -195,7 +195,7 @@ export default function RatificationLogScreen() {
                 </Text>
                 <View style={styles.pill}>
                   <CheckIcon color={m3.color.onPrimaryContainer} />
-                  <Text style={styles.pillText}>{locale === "ko" ? "승인" : "Ratified"}</Text>
+                  <Text style={styles.pillText}>{t("ratified")}</Text>
                 </View>
               </View>
               <View style={styles.entryMeta}>
@@ -210,9 +210,9 @@ export default function RatificationLogScreen() {
                 <Text style={styles.when}>{relativeTime(entry.recordedAt, locale)}</Text>
               </View>
               {entry.citedCount > 0 ? (
-                <Text style={styles.note}>{locale === "ko" ? `근거 ${entry.citedCount}개` : `${entry.citedCount} cited`}</Text>
+                <Text style={styles.note}>{t("cited", { n: entry.citedCount })}</Text>
               ) : null}
-              <MdButton variant="text" label={locale === "ko" ? "되돌리기" : "Undo"} style={styles.undo} onPress={() => setShowUnchanged((v) => v)} />
+              <MdButton variant="text" label={t("undo")} style={styles.undo} onPress={() => setShowUnchanged((v) => v)} />
             </MdCard>
           ))
         )}
@@ -222,10 +222,8 @@ export default function RatificationLogScreen() {
             variant="text"
             label={
               showUnchanged
-                ? locale === "ko" ? "변화 없는 재계산 접기" : "Hide unchanged recomputes"
-                : locale === "ko"
-                  ? `변화 없는 재계산 ${unchanged.length}건 보기`
-                  : `Show ${unchanged.length} unchanged recomputes`
+                ? t("hideUnchanged")
+                : t("showUnchanged", { n: unchanged.length })
             }
             onPress={() => setShowUnchanged((v) => !v)}
           />

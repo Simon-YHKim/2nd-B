@@ -1,0 +1,15 @@
+{
+  "barTitle": "Catatan konfirmasi",
+  "loading": "Memuat…",
+  "openingLedger": "Membuka catatan…",
+  "goPolaris": "Ke Bintang Utara",
+  "all": "Semua",
+  "proposed": "Diusulkan",
+  "ratified": "Dikonfirmasi",
+  "held": "Ditahan",
+  "declined": "Ditolak",
+  "cited": "{{n}} dikutip",
+  "undo": "Urungkan",
+  "hideUnchanged": "Sembunyikan penghitungan ulang yang tetap",
+  "showUnchanged": "Lihat {{n}} penghitungan ulang yang tetap"
+}

@@ -118,7 +118,7 @@ const SECTIONS: ManualSection[] = [
 ];
 
 function ManualLegacy() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("manual");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -126,7 +126,7 @@ function ManualLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.center}>
-          <PremiumLoadingState message={locale === "ko" ? "안내서를 불러오는 중이에요…" : "Loading manual…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -155,9 +155,9 @@ function ManualLegacy() {
         </View>
 
         <SceneHero
-          eyebrow={locale === "ko" ? "안내서" : "Manual"}
-          title={locale === "ko" ? "내 중심을 읽는 짧은 지도" : "A compact map of your core"}
-          subtitle={locale === "ko" ? "루틴 · 캡처 · 위키 · 안전" : "Routine · capture · wiki · safety"}
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          subtitle={t("subtitle")}
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
           accent={CORE_VILLAGE_UI.accent}
@@ -188,7 +188,7 @@ function ManualLegacy() {
 
         <View style={styles.glossary}>
           <Text variant="caption" color="textMuted" style={styles.glossaryTitle}>
-            {locale === "ko" ? "용어 한 줄 정리" : "One-line glossary"}
+            {t("glossary")}
           </Text>
           {(locale === "ko"
             ? [
@@ -224,7 +224,7 @@ function ManualLegacy() {
 
         <View style={styles.recentList}>
           <Text variant="caption" color="textMuted" style={styles.glossaryTitle}>
-            {locale === "ko" ? "최근 추가된 기능" : "Recently added"}
+            {t("recentlyAdded")}
           </Text>
           {(locale === "ko"
             ? [
@@ -253,34 +253,34 @@ function ManualLegacy() {
           {userId ? (
             <Link href="/capture" asChild>
               <Button
-                label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
+                label={t("leavePiece")}
                 variant="primary"
                 accessibilityHint={
-                  locale === "ko" ? "캡처 화면을 열어 오늘의 별가루를 저장합니다." : "Opens capture to save today's piece."
+                  t("leavePieceHint")
                 }
               />
             </Link>
           ) : (
             <Link href="/sign-up" asChild>
               <Button
-                label={locale === "ko" ? "시작하기" : "Get started"}
+                label={t("getStarted")}
                 variant="primary"
-                accessibilityHint={locale === "ko" ? "회원가입 화면을 엽니다." : "Opens the sign-up screen."}
+                accessibilityHint={t("getStartedHint")}
               />
             </Link>
           )}
           <Link href="/permissions" asChild>
             <Button
-              label={locale === "ko" ? "권한 사용 안내" : "What the app accesses"}
+              label={t("permissions")}
               variant="secondary"
               accessibilityHint={
-                locale === "ko" ? "앱이 사용하는 권한 안내 화면을 엽니다." : "Opens the app permissions guide."
+                t("permissionsHint")
               }
             />
           </Link>
           <Link href="/research" asChild>
             <Button
-              label={locale === "ko" ? "큐레이션된 자료" : "Curated research"}
+              label={t("curated")}
               variant="secondary"
               accessibilityHint={
                 locale === "ko"

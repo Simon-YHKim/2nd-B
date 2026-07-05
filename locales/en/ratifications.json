@@ -1,0 +1,15 @@
+{
+  "barTitle": "Ratification log",
+  "loading": "Loading…",
+  "openingLedger": "Opening the ledger…",
+  "goPolaris": "Go to Polaris",
+  "all": "All",
+  "proposed": "Proposed",
+  "ratified": "Ratified",
+  "held": "Held",
+  "declined": "Declined",
+  "cited": "{{n}} cited",
+  "undo": "Undo",
+  "hideUnchanged": "Hide unchanged recomputes",
+  "showUnchanged": "Show {{n}} unchanged recomputes"
+}
