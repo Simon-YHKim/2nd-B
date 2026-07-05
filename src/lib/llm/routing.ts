@@ -17,11 +17,32 @@ import type { PromptPurpose, ReasoningEffort } from "./types";
 export type LlmVendor = "gemini" | "claude" | "openai";
 export type LlmProxyFn = "gemini-proxy" | "claude-proxy" | "openai-proxy";
 
+// A global backbone selector: a single vendor for all reasoning seats, or
+// "perPurpose" to defer to the PHASE2_VENDOR map.
+export type LlmVendorMode = LlmVendor | "perPurpose";
+
 // Read at call time (Expo inlines EXPO_PUBLIC_* literals at build time, same
 // pattern as resolveReasoningProvider in gemini.ts).
 export function llmPhase(): 1 | 2 {
   const raw = (process.env.EXPO_PUBLIC_LLM_PHASE ?? "1").trim();
   return raw === "2" ? 2 : 1;
+}
+
+// EXPO_PUBLIC_LLM_VENDOR — the operator's one-env backbone switch. Lets Simon
+// pick which vendor serves the reasoning seats without a code edit:
+//   gemini | claude | openai  → that vendor for EVERY reasoning seat
+//   perPurpose                → use the per-seat PHASE2_VENDOR map
+//   unset / unrecognized      → null (back-compat: Phase-1 = Gemini,
+//                               Phase-2 = PHASE2_VENDOR map)
+// Only the reasoning seats (PHASE2_VENDOR keys) are switchable; the Gemini
+// backbone stayers (chat/classification/interview) and the OCR/voice/image pins
+// are never routed to a reasoning proxy by this switch. Default posture is
+// 100% Gemini ($0), unchanged.
+export function llmVendorOverride(): LlmVendorMode | null {
+  const raw = (process.env.EXPO_PUBLIC_LLM_VENDOR ?? "").trim().toLowerCase();
+  if (raw === "gemini" || raw === "claude" || raw === "openai") return raw;
+  if (raw === "perpurpose") return "perPurpose";
+  return null;
 }
 
 // Owner directive (Simon, 2026-07-04): OCR runs on Gemini UNCONDITIONALLY —
@@ -91,7 +112,26 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
  * inline data).
  */
 export function resolveVendorForPurpose(purpose: PromptPurpose, hasImage: boolean): LlmVendor {
+  // 1) Image / OCR / voice pin — ALWAYS Gemini, highest priority. Beats the
+  //    global switch too (only gemini-proxy forwards inline data / audio).
   if (hasImage || GEMINI_PINNED_PURPOSES.has(purpose)) return "gemini";
+
+  // Only the reasoning SEATS are vendor-switchable. Every other purpose
+  // (secondb_chat streaming, high-volume classification, interview probes)
+  // stays on the Gemini backbone regardless of the switch, so the operator can
+  // never accidentally route streaming chat or a cheap classifier through a
+  // reasoning proxy.
+  const isSeat = purpose in PHASE2_VENDOR;
+
+  // 2) EXPO_PUBLIC_LLM_VENDOR global override, when set.
+  const override = llmVendorOverride();
+  if (override) {
+    if (!isSeat) return "gemini";
+    if (override === "perPurpose") return PHASE2_VENDOR[purpose] ?? "gemini";
+    return override; // gemini | claude | openai — applied to every seat
+  }
+
+  // 3) Unset → back-compat: Phase-1 = 100% Gemini; Phase-2 = per-seat map.
   if (llmPhase() !== 2) return "gemini";
   return PHASE2_VENDOR[purpose] ?? "gemini";
 }

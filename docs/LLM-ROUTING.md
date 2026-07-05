@@ -135,3 +135,27 @@ PURPOSE_ROUTE[purpose] = {
 - [ ] A5 KO-산문 파일럿(opus-4-8 vs sonnet-5) — 실패 시 `ANTHROPIC_PURPOSE_MODELS`로 무코드 전환
 
 나머지(§3 백로그 — chat 스트리밍/RAG, safety_classify 복구, 임베딩 이관, ops_daily_brief 통합, Batch 레인)는 후속 레인으로 분배한다. 모델 세대 전환(2.5→3.5/3.1)은 env 변경이며 allowlist(P0-3)와 락스텝.
+
+## 6.1 벤더 백본 스위치 — `EXPO_PUBLIC_LLM_VENDOR` (2026-07-06)
+
+> ⚠️ 위 §6 커밋2의 "Claude 8석 라이브"·§2의 좌석 요약은 **STALE**. **#829(2026-07-06)** 로 9개 추론 좌석의 `PHASE2_VENDOR`가 **OpenAI(gpt-5.4)** 로 재지정됨(Anthropic 크레딧 소진). 그러나 현재 OpenAI도 미펀딩(크레딧 $0)이라 **실사용 백본 = Gemini(`EXPO_PUBLIC_LLM_PHASE=1`)**. 정본은 `src/lib/llm/routing.ts`.
+
+코드 수술 없이 **env 하나로** 추론 좌석의 벤더를 고른다. `resolveVendorForPurpose` 우선순위:
+
+| 순위 | 조건 | 결과 |
+|---|---|---|
+| 1 | `hasImage` 또는 OCR/voice 핀(`GEMINI_PINNED_PURPOSES`) | **항상 Gemini** (스위치도 못 이김) |
+| 2 | `EXPO_PUBLIC_LLM_VENDOR` ∈ {gemini, openai, claude} | 그 벤더로 **전 추론 좌석**. 비-좌석(챗·분류·인터뷰)은 Gemini 유지 |
+| 2 | `EXPO_PUBLIC_LLM_VENDOR` = perPurpose | 좌석별 `PHASE2_VENDOR` 맵 |
+| 3 | 미설정 | 후방호환: `EXPO_PUBLIC_LLM_PHASE`≠2 → 전량 Gemini, =2 → `PHASE2_VENDOR` 맵 |
+
+- **기본값(미설정/`=gemini`) = 100% Gemini($0)** — 현재 상태.
+- **롤백(즉시 $0)**: `EXPO_PUBLIC_LLM_VENDOR=gemini`.
+- 모델 선택은 서버 env(`ANTHROPIC_MODEL`/`OPENAI_MODEL` + `*_PURPOSE_MODELS`)로 이미 가능 — 클라 스위치는 벤더(프록시)만 고른다(C1).
+- outage failover(벤더 오류 → gemini-proxy 1회 재시도)는 유지 → 벤더 미펀딩이어도 fail-safe.
+- 테스트: `vendor-routing.test.ts`(스위치 전 분기) + `vendor-routing-live.test.ts`(=claude → claude-proxy 배선).
+
+**나중에 유료 벤더 켤 때 (전환 런북 — 지금 실행 X):**
+- **claude**: Anthropic 크레딧 충전 → `EXPO_PUBLIC_LLM_VENDOR=claude` → 웹 재배포. (claude-proxy 이미 배포/키.)
+- **openai**: OpenAI 결제수단+크레딧 → `OPENAI_API_KEY` 시크릿 주입 → openai-proxy 재배포(v1이 #829 이전) → `EXPO_PUBLIC_LLM_VENDOR=openai`.
+- 저한도 검증(QA `.env.test`): 해당 프록시 `gap_synthesize`→200 + `modelUsed` 접두어. 경계 422/403/401.

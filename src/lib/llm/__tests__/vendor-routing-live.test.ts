@@ -111,6 +111,21 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     expect(audit.effort).toBe("low");
   });
 
+  test("EXPO_PUBLIC_LLM_VENDOR=claude routes a seat through claude-proxy", async () => {
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
+    try {
+      mockInvoke.mockResolvedValueOnce(okPayload("claude-sonnet-5"));
+      const r = await callGemini({ userId: "u1", locale: "en", purpose: "gap_synthesize", user: BENIGN });
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+      expect(mockInvoke.mock.calls[0]![0]).toBe("claude-proxy");
+      const audit = r.audit as AuditMeta;
+      expect(audit.reasoningProvider).toBe("claude");
+      expect(audit.modelUsed).toBe("claude-sonnet-5");
+    } finally {
+      delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    }
+  });
+
   test("vendor outage fails over ONCE to gemini-proxy and audits the real backend", async () => {
     const boom = { context: { status: 500, json: async () => ({ error: "upstream" }) } };
     mockInvoke

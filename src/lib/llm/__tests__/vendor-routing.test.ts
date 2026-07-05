@@ -14,6 +14,7 @@ import {
   PHASE2_EFFORT,
   PHASE2_VENDOR,
   llmPhase,
+  llmVendorOverride,
   phase2EffortFor,
   proxyFnForVendor,
   resolveVendorForPurpose,
@@ -55,6 +56,18 @@ function withPhase<T>(phase: string | undefined, fn: () => T): T {
   } finally {
     if (prev === undefined) delete process.env.EXPO_PUBLIC_LLM_PHASE;
     else process.env.EXPO_PUBLIC_LLM_PHASE = prev;
+  }
+}
+
+function withVendor<T>(vendor: string | undefined, fn: () => T): T {
+  const prev = process.env.EXPO_PUBLIC_LLM_VENDOR;
+  if (vendor === undefined) delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+  else process.env.EXPO_PUBLIC_LLM_VENDOR = vendor;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    else process.env.EXPO_PUBLIC_LLM_VENDOR = prev;
   }
 }
 
@@ -105,6 +118,74 @@ describe("D-26 vendor routing", () => {
     withPhase("2", () => {
       expect(resolveVendorForPurpose("advisor", true)).toBe("gemini");
       expect(resolveVendorForPurpose("persona_narrative", true)).toBe("gemini");
+    });
+  });
+
+  // ── EXPO_PUBLIC_LLM_VENDOR global backbone switch ──────────────────────────
+  describe("EXPO_PUBLIC_LLM_VENDOR switch", () => {
+    test("override parses gemini/claude/openai/perPurpose (case-insensitive), else null", () => {
+      withVendor("gemini", () => expect(llmVendorOverride()).toBe("gemini"));
+      withVendor("CLAUDE", () => expect(llmVendorOverride()).toBe("claude"));
+      withVendor("OpenAI", () => expect(llmVendorOverride()).toBe("openai"));
+      withVendor("perPurpose", () => expect(llmVendorOverride()).toBe("perPurpose"));
+      withVendor("perpurpose", () => expect(llmVendorOverride()).toBe("perPurpose"));
+      withVendor(undefined, () => expect(llmVendorOverride()).toBeNull());
+      withVendor("", () => expect(llmVendorOverride()).toBeNull());
+      withVendor("bogus", () => expect(llmVendorOverride()).toBeNull());
+    });
+
+    test("=gemini → 100% Gemini for every purpose, even with Phase 2 set", () => {
+      withPhase("2", () =>
+        withVendor("gemini", () => {
+          for (const p of [...OPENAI_SEATS, ...GEMINI_STAYERS]) {
+            expect(resolveVendorForPurpose(p, false)).toBe("gemini");
+          }
+        }),
+      );
+    });
+
+    test("=openai → every reasoning seat to openai; non-seats stay gemini", () => {
+      withPhase("1", () =>
+        withVendor("openai", () => {
+          for (const p of OPENAI_SEATS) expect(resolveVendorForPurpose(p, false)).toBe("openai");
+          for (const p of GEMINI_STAYERS) expect(resolveVendorForPurpose(p, false)).toBe("gemini");
+        }),
+      );
+    });
+
+    test("=claude → every reasoning seat to claude; non-seats stay gemini", () => {
+      withVendor("claude", () => {
+        for (const p of OPENAI_SEATS) expect(resolveVendorForPurpose(p, false)).toBe("claude");
+        for (const p of GEMINI_STAYERS) expect(resolveVendorForPurpose(p, false)).toBe("gemini");
+      });
+    });
+
+    test("=perPurpose → seats follow the PHASE2_VENDOR map, regardless of phase", () => {
+      withPhase("1", () =>
+        withVendor("perPurpose", () => {
+          for (const seat of Object.keys(PHASE2_VENDOR) as PromptPurpose[]) {
+            expect(resolveVendorForPurpose(seat, false)).toBe(PHASE2_VENDOR[seat]);
+          }
+          expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini");
+        }),
+      );
+    });
+
+    test("the switch never overrides the OCR/voice/image pin", () => {
+      for (const v of ["openai", "claude", "gemini", "perPurpose"]) {
+        withVendor(v, () => {
+          expect(resolveVendorForPurpose("capture_ocr", false)).toBe("gemini");
+          expect(resolveVendorForPurpose("capture_voice", false)).toBe("gemini");
+          expect(resolveVendorForPurpose("advisor", true)).toBe("gemini"); // image
+        });
+      }
+    });
+
+    test("unset → back-compat unchanged (phase drives routing)", () => {
+      withVendor(undefined, () => {
+        withPhase("1", () => expect(resolveVendorForPurpose("advisor", false)).toBe("gemini"));
+        withPhase("2", () => expect(resolveVendorForPurpose("advisor", false)).toBe("openai"));
+      });
     });
   });
 
