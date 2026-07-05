@@ -262,6 +262,19 @@ export function DeepSpaceRecordsScreen() {
         .filter(Boolean),
     [recordsParams.tags],
   );
+  // When viewing a single domain (?tags=domain:X), offer a "채워넣기" CTA to that
+  // domain's real input screen so the read-only records view isn't a dead end.
+  // (career/relation/leisure have dedicated writers; others fall through to none.)
+  const domainWriter = useMemo(() => {
+    for (const tag of tagFilter) {
+      if (!tag.startsWith("domain:")) continue;
+      const slug = tag.slice(7);
+      if (slug === "relation") return "/people";
+      if (slug === "recreation") return "/rest";
+      if (slug === "career") return "/career";
+    }
+    return null;
+  }, [tagFilter]);
   const [records, setRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
@@ -348,6 +361,21 @@ export function DeepSpaceRecordsScreen() {
               style={rStyles.viewToggle}
             />
           </View>
+
+          {domainWriter ? (
+            <Pressable
+              style={({ pressed }) => [rStyles.triageCard, pressed && rStyles.cardPressed]}
+              onPress={() => router.push(domainWriter)}
+              accessibilityRole="button"
+              accessibilityLabel={isKo ? "이 별 채워넣기" : "Fill in this star"}
+            >
+              <View style={rStyles.triageCol}>
+                <RNText style={rStyles.triageTitle}>{isKo ? "이 별 채워넣기" : "Fill in this star"}</RNText>
+                <RNText style={rStyles.triageBody}>{isKo ? "이 영역의 정보를 직접 추가해요." : "Add information for this domain."}</RNText>
+              </View>
+              <RNText style={rStyles.triageChev}>›</RNText>
+            </Pressable>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [rStyles.triageCard, pressed && rStyles.cardPressed]}
