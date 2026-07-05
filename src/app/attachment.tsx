@@ -314,6 +314,7 @@ function AttachmentDeepSpace() {
   const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   const [result, setResult] = useState<AttachmentLensResult | null>(null);
+  const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [taking, setTaking] = useState(false);
 
@@ -321,16 +322,21 @@ function AttachmentDeepSpace() {
     if (loading) return;
     if (!userId) {
       setResult(null);
+      setHasError(false);
       return;
     }
     let cancelled = false;
     loadLatestAttachment(getSupabaseClient(), userId)
       .then((r) => {
         if (cancelled) return;
+        setHasError(false);
         setResult(r ? { avoidance: r.avoidance, anxiety: r.anxiety, style: r.style } : null);
       })
       .catch(() => {
-        if (!cancelled) setResult(null);
+        if (!cancelled) {
+          setHasError(true);
+          setResult(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -361,6 +367,7 @@ function AttachmentDeepSpace() {
     >
       <AttachmentLensM3
         result={result}
+        hasError={hasError}
         onStart={() => setTaking(true)}
         onInterview={() => router.push("/interview")}
         onBigFive={() => router.push("/big-five")}

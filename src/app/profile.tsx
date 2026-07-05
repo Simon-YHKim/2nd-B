@@ -178,7 +178,7 @@ export default function Profile() {
           { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
           { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
           { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
-          { key: "trends", label: i18n.language?.toLowerCase().startsWith("ko") ? "트렌드" : "Trends", route: "/trends" },
+          { key: "trends", label: i18n.language?.toLowerCase().startsWith("ko") ? "트렌드" : "Trends", route: "/brightness" },
         ],
       },
     },
