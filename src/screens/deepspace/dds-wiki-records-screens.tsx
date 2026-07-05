@@ -24,6 +24,7 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, recencyLabel, type RecencyLabels, type WikiEdge } from "./wiki-graph-view";
@@ -291,16 +292,42 @@ export function DeepSpaceRecordsScreen() {
     if (!userId) return;
     let alive = true;
     setLoading(true);
-    listRecentRecords(userId)
-      .then((rows) => {
-        if (alive) setRecords(rows as TimelineRecord[]);
-      })
-      .catch(() => {
-        if (alive) setRecords([]);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+    // /records shows EVERY saved piece — including non-journal Capture/Import
+    // (글/링크/사진/file) that land in `sources`, not just `records` — so a
+    // source-only user no longer sees a false-empty list. Sources are
+    // best-effort: a sources failure degrades to records-only and never blanks
+    // the screen (mirrors core-brain's merged evidence read). Source rows carry
+    // no record detail, so tapping one lands on the graceful notFound state.
+    (async () => {
+      const recs = (await listRecentRecords(userId).catch(() => [])) as TimelineRecord[];
+      let srcRecs: TimelineRecord[] = [];
+      try {
+        const { data } = await getSupabaseClient()
+          .from("sources")
+          .select("id, title, captured_at, tags")
+          .eq("user_id", userId)
+          .order("captured_at", { ascending: false })
+          .limit(200);
+        srcRecs = ((data ?? []) as { id: string; title: string | null; captured_at: string; tags: string[] | null }[]).map(
+          (r) =>
+            ({
+              id: `src-${r.id}`,
+              kind: "note",
+              summary: r.title,
+              topic: r.title,
+              body: null,
+              tags: r.tags,
+              created_at: r.captured_at,
+            }) as TimelineRecord,
+        );
+      } catch {
+        // records-only fallback
+      }
+      if (!alive) return;
+      const merged = [...recs, ...srcRecs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+      setRecords(merged);
+      setLoading(false);
+    })();
     return () => {
       alive = false;
     };
