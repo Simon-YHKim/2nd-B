@@ -16,6 +16,7 @@ import { type LadderLevel } from "@/lib/persona/brightness";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
+import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
 import { ConstellationHome } from "./ConstellationHome";
@@ -24,6 +25,9 @@ import { HomeCoachmarks } from "./HomeCoachmarks";
 export function DeepSpaceShell() {
   const { userId, hasProfile, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
+  // First-day activation: once onboarded + signed in, a first-launcher is sent
+  // to the TTFV "첫 별 점등" once (the gate self-clears after the screen is seen).
+  const autoTriggerTTFV = useAutoTriggerTTFV();
 
   // Live brightness for the home constellation: the no-LLM loadDomainLevels path
   // derives per-domain L1-L5 levels + the 북극성 aggregate from the user's real
@@ -68,6 +72,7 @@ export function DeepSpaceShell() {
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
 
   return (
     <DeepSpaceScreen active="home" header="none">
