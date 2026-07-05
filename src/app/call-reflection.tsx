@@ -71,6 +71,29 @@ export default function CallReflection() {
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
 
+  // Jurisdiction + age gate (Simon decision 2026-07-06): call recording is
+  // offered only to ADULT users on the KR locale. Korea permits one-party-consent
+  // recording of a call you are part of, but many jurisdictions (US two-party
+  // states, Germany, etc.) require all-party consent, so we scope the feature to
+  // the KR locale rather than open it globally, and exclude minors. Locale is the
+  // only jurisdiction signal available (no geolocation) — revisit if a region
+  // signal is added. The "notify the other party" disclosure lives in the idle UI.
+  if (!ko || isMinor === true) {
+    return (
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={ko ? "통화 녹음" : "Call recording"} onBack={() => router.back()}>
+        <View style={s.blockedWrap}>
+          <RNText style={s.blockedTitle}>{ko ? "지금은 이용할 수 없어요" : "Not available"}</RNText>
+          <RNText style={s.blockedBody}>
+            {ko
+              ? "통화 녹음은 녹음 관련 법규가 지역마다 달라, 현재 한국 지역의 성인 이용자에게만 제공돼요."
+              : "Call recording laws differ by region, so this feature is currently available only to adult users in Korea."}
+          </RNText>
+          <MdButton variant="tonal" label={ko ? "돌아가기" : "Go back"} onPress={() => router.back()} style={s.blockedBtn} />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+
   const mmss = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
 
   // ---- start recording (idle → rec) ----
@@ -297,6 +320,10 @@ const s = StyleSheet.create({
   notice: { color: m3.color.error, fontSize: 13, textAlign: "center", marginTop: 4 },
   footer: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 18, gap: 8 },
   stopBtn: { backgroundColor: m3.color.error },
+  blockedWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14, paddingHorizontal: 32 },
+  blockedTitle: { color: m3.color.onSurface, fontSize: 18, fontWeight: "600", textAlign: "center" },
+  blockedBody: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 21, textAlign: "center", maxWidth: 300 },
+  blockedBtn: { marginTop: 6 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, paddingHorizontal: 32 },
   loadingTitle: { color: m3.color.onSurface, fontSize: 16, fontWeight: "500", textAlign: "center" },
   loadingSub: { color: m3.color.onSurfaceVariant, fontSize: 13, lineHeight: 19, textAlign: "center" },
