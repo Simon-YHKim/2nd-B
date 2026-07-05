@@ -860,9 +860,8 @@ export function RemindersScreen() {
     () => (routines.data ?? []).filter((r) => r.reminder_time),
     [routines.data],
   );
-  // Fallback demo on/off state, keyed by demo index (item 3 starts off, per
-  // sb-more). Real routines keep their own persisted `states`/`denied` below.
-  const [demoOn, setDemoOn] = useState<Record<number, boolean>>({});
+  // (No fallback demo reminders — a zero-reminder account shows an honest empty
+  // list + the "add from assistant" footer, never fake toggled demo rows.)
 
   // Per-routine on/off — PERSISTED device-local via lib/ops/reminders
   // (AsyncStorage disabled-set; reminders never leave the device, so their
@@ -924,13 +923,7 @@ export function RemindersScreen() {
           onToggle: supported ? () => void toggle(r.id) : undefined,
         };
       })
-    : c.demoReminders.map((d, i) => {
-        const on = demoOn[i] ?? i !== 2;
-        return {
-          vm: { key: `demo-${i}`, title: d.title, when: d.when, repeat: d.repeat, src: d.src, star: d.star, on, interactive: true },
-          onToggle: () => setDemoOn((prev) => ({ ...prev, [i]: !(prev[i] ?? i !== 2) })),
-        };
-      });
+    : [];
   const onCount = rows.filter((r) => r.vm.on).length;
   const countLabel = c.remindersCountTemplate.replace("{n}", String(onCount));
 
