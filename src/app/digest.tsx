@@ -188,6 +188,8 @@ export default function Digest() {
               const key = `${p.from_page}|${p.to_page}`;
               const busy = actingKey === key;
               return (
+                // visuals on the wrapper View — Fabric Android drops
+                // function-form Pressable styles (#680).
                 <Pressable
                   key={key}
                   onPress={() =>
@@ -197,7 +199,7 @@ export default function Digest() {
                   accessibilityLabel={
                     ko ? `${p.from_title} 상세 보기` : `Open ${p.from_title}`
                   }
-                  style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
+                  style={styles.row}
                 >
                   <Text variant="body" numberOfLines={2}>
                     {p.from_title} <Text variant="body" color="textMuted">↔</Text> {p.to_title}
