@@ -1,0 +1,18 @@
+{
+  "eyebrowRoot": "05. Registros",
+  "eyebrowVillage": "{{village}} · registros",
+  "titleRoot": "Vuelve a cada fragmento que dejaste",
+  "titleVillage": "Fragmentos de esta área",
+  "subtitleRoot": "Diario, capturas, evaluaciones e inspiración en un solo lugar",
+  "subtitleVillage": "Solo los registros reunidos en esta área",
+  "searchPlaceholder": "Buscar fragmentos",
+  "searchLabel": "Buscar registros",
+  "type": "Tipo",
+  "filterAll": "Todos",
+  "filterBy": "Filtrar registros por {{label}}",
+  "loadError": "No pudimos cargar tus fragmentos.",
+  "tryAgain": "Reintentar",
+  "retryHint": "Reintenta cargar los registros y las fuentes.",
+  "leavePiece": "Deja tu fragmento de hoy",
+  "leaveHint": "Abre la captura para guardar el fragmento de hoy."
+}

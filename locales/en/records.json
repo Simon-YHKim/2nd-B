@@ -1,0 +1,18 @@
+{
+  "eyebrowRoot": "05. Records",
+  "eyebrowVillage": "{{village}} · records",
+  "titleRoot": "Revisit every piece you left",
+  "titleVillage": "Pieces in this area",
+  "subtitleRoot": "Journal, capture, assessments, and inspiration in one place",
+  "subtitleVillage": "Only the records gathered in this area",
+  "searchPlaceholder": "Search pieces",
+  "searchLabel": "Search records",
+  "type": "Type",
+  "filterAll": "All",
+  "filterBy": "Filter records by {{label}}",
+  "loadError": "Couldn't load your pieces.",
+  "tryAgain": "Try again",
+  "retryHint": "Retries loading records and sources.",
+  "leavePiece": "Leave today's piece",
+  "leaveHint": "Opens capture to save today's piece."
+}

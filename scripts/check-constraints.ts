@@ -911,9 +911,9 @@ results.push(
       wiki.includes("Shows graph detail metrics.") &&
       wiki.includes("Hides graph detail metrics.") &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
-      records.includes("Filter records by ${label}") &&
-      records.includes("Retries loading records and sources.") &&
-      records.includes("Opens capture to save today's piece.") &&
+      records.includes('t("filterBy"') &&
+      records.includes('t("retryHint")') &&
+      records.includes('t("leaveHint")') &&
       trinity.includes('accessibilityRole="link"') &&
       trinity.includes('t("addTagsHint")') &&
       signInRoles >= 7 &&

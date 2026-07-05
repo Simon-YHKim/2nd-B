@@ -1,0 +1,18 @@
+{
+  "eyebrowRoot": "05. Catatan",
+  "eyebrowVillage": "{{village}} · catatan",
+  "titleRoot": "Kunjungi lagi setiap serpihan yang kamu tinggalkan",
+  "titleVillage": "Serpihan di area ini",
+  "subtitleRoot": "Jurnal, tangkapan, asesmen, dan inspirasi dalam satu tempat",
+  "subtitleVillage": "Hanya catatan yang terkumpul di area ini",
+  "searchPlaceholder": "Cari serpihan",
+  "searchLabel": "Cari catatan",
+  "type": "Jenis",
+  "filterAll": "Semua",
+  "filterBy": "Saring catatan menurut {{label}}",
+  "loadError": "Tidak dapat memuat serpihanmu.",
+  "tryAgain": "Coba lagi",
+  "retryHint": "Mencoba memuat catatan dan sumber lagi.",
+  "leavePiece": "Tinggalkan serpihan hari ini",
+  "leaveHint": "Membuka tangkapan untuk menyimpan serpihan hari ini."
+}
