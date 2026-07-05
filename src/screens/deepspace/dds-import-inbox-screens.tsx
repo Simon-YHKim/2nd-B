@@ -227,10 +227,8 @@ export function DeepSpaceImportScreen() {
   const [healthPref, setHealthPref] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthDone, setHealthDone] = useState(false);
-  const [history, setHistory] = useState([
-    { id: 1, src: ko ? "ChatGPT 대화 내보내기" : "ChatGPT export", when: ko ? "6월 20일" : "Jun 20", items: 142 },
-    { id: 2, src: ko ? "Apple 건강 (걸음·수면)" : "Apple Health (steps, sleep)", when: ko ? "6월 12일" : "Jun 12", items: 30 },
-  ]);
+  // Import history starts empty — no seeded fake rows shown as real imports.
+  const [history, setHistory] = useState<{ id: number; src: string; when: string; items: number }[]>([]);
 
   useEffect(() => {
     if (!userId) return;
@@ -411,11 +409,17 @@ export function DeepSpaceImportScreen() {
                     </View>
                   </MdCard>
                 ) : (
-                  <MdCard key={a.k} variant="outlined" style={s.accountCard}>
+                  <MdCard
+                    key={a.k}
+                    variant="outlined"
+                    onPress={() => void handlePickFiles()}
+                    accessibilityLabel={ko ? `${a.k} 내보내기 파일 가져오기` : `Import ${a.k} export file`}
+                    style={s.accountCard}
+                  >
                     <View style={s.accountRow}>
                       <Glyph name={a.icon} color={m3.color.onSurfaceVariant} size={20} />
                       <RNText style={[m3TextStyle("bodyLarge"), s.accountName]}>{a.k}</RNText>
-                      <Glyph name="link" color={m3.color.primary} size={18} />
+                      <RNText style={[m3TextStyle("labelMedium"), { color: m3.color.primary }]}>{ko ? "파일로 가져오기" : "Import file"}</RNText>
                     </View>
                   </MdCard>
                 ),
