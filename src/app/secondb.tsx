@@ -25,6 +25,7 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, deepSpace, deepSpaceRadii, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { adsConfigured } from "@/lib/ads/policy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -330,12 +331,15 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
     // Pre-send reasoning-cap gate (count-only — never a quality gate). Each send
     // is one "깊이 묻기" reasoning use. Unlimited tiers (북극성/brain → Infinity)
-    // are never gated. On cap: free adults get the rewarded sheet (top up via a
-    // watch); everyone else routes to the paywall. The chat engine / C9 / C3
-    // path below is untouched — we only decide whether to reach it.
+    // are never gated. On cap: free adults get the rewarded sheet ONLY when ads
+    // are actually configured (adsConfigured() — watch-to-earn needs a real ad to
+    // watch); otherwise, and for everyone else, we route to the paywall. This
+    // stops the placeholder ad from paying out reasoning credits while ads are
+    // OFF by default (ads/policy.ts). The chat engine / C9 / C3 path below is
+    // untouched — we only decide whether to reach it.
     if (!reasoningUnlimited && reasoningRemaining <= 0) {
       setCapNotice(true);
-      if (progression.tier === "free" && isMinor !== true) {
+      if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
         setRewardVisible(true);
       } else {
         router.push("/plans?from=ai_limit");
