@@ -182,7 +182,7 @@ function WikiLegacy() {
     setHandledFocusSourceId(focusSourceId);
     setToast({
       tone: "success",
-      message: locale === "ko" ? `${pageName} 페이지를 열었어요` : `Opened ${pageName}`,
+      message: t("opened", { name: pageName }),
     });
     if (userId && backlinksById[page.id] === undefined) {
       void getBacklinks(userId, page.id)
@@ -293,7 +293,7 @@ function WikiLegacy() {
       setPendingDeletePage(null);
       setToast({
         tone: "success",
-        message: locale === "ko" ? "위키 페이지를 삭제했어요." : "Wiki page deleted.",
+        message: t("pageDeleted"),
       });
       await load(userId, activeTags);
     } catch (e) {
@@ -303,9 +303,7 @@ function WikiLegacy() {
       setToast({
         tone: "danger",
         message:
-          locale === "ko"
-            ? "페이지를 삭제하지 못했어요. 새로고침한 뒤 다시 시도해 주세요."
-            : "Couldn't delete the page. Refresh and try again.",
+          t("pageDeleteError"),
       });
     } finally {
       setDeletingPageId(null);
@@ -331,7 +329,7 @@ function WikiLegacy() {
         companion.fire("wikiSaved");
         setToast({
           tone: "success",
-          message: locale === "ko" ? "요약과 질문이 준비됐어요." : "Source brief is ready.",
+          message: t("briefReady"),
         });
       } catch (e) {
         // Keep the raw implementation error in logs only; show product-tone copy + retry.
@@ -340,9 +338,7 @@ function WikiLegacy() {
         setToast({
           tone: "danger",
           message:
-            locale === "ko"
-              ? "요약과 질문을 만들지 못했어요. 원본을 확인한 뒤 다시 시도해 주세요."
-              : "Couldn't build the source brief. Check the source and try again.",
+            t("briefError"),
         });
       } finally {
         setPhase1RunningId(null);
@@ -369,9 +365,7 @@ function WikiLegacy() {
       setToast({
         tone: "danger",
         message:
-          locale === "ko"
-            ? "내보내기를 만들지 못했어요. 새로고침한 뒤 다시 시도해 주세요."
-            : "Couldn't build the export. Refresh and try again.",
+          t("exportError"),
       });
     } finally {
       setExporting(false);
@@ -429,7 +423,7 @@ function WikiLegacy() {
     return (
       <PremiumAppShell>
         <View style={styles.shellCenter}>
-          <PremiumLoadingState message={locale === "ko" ? "서재를 불러오는 중이에요…" : "Loading wiki…"} />
+          <PremiumLoadingState message={t("loading")} />
         </View>
       </PremiumAppShell>
     );
@@ -505,12 +499,12 @@ function WikiLegacy() {
             knowledge graph so the store feels alive before any tap. */}
         {stats !== null && pages.length > 0 ? (
           <View style={styles.pulseStrip}>
-            <PulseStat label={locale === "ko" ? "별가루" : "Pieces"} value={stats.pageCount} />
+            <PulseStat label={t("pieces")} value={stats.pageCount} />
             <View style={styles.pulseDivider} />
-            <PulseStat label={locale === "ko" ? "연결" : "Links"} value={stats.edgeCount} accent />
+            <PulseStat label={t("links")} value={stats.edgeCount} accent />
             <View style={styles.pulseDivider} />
             <PulseStat
-              label={locale === "ko" ? "외딴 별가루" : "Orphans"}
+              label={t("orphans")}
               value={stats.orphans.length}
             />
           </View>
@@ -522,9 +516,9 @@ function WikiLegacy() {
             value={query}
             onChangeText={setQuery}
             placeholder={
-              locale === "ko" ? "별가루 검색: 제목이나 저장 이름" : "Search pieces by title or saved name"
+              t("searchPieces")
             }
-            accessibilityLabel={locale === "ko" ? "지식 창고 검색" : "Search the knowledge store"}
+            accessibilityLabel={t("searchStore")}
           />
         ) : null}
 
@@ -558,12 +552,8 @@ function WikiLegacy() {
           <Button
             label={
               statsVisible
-                ? locale === "ko"
-                  ? "통계 접기"
-                  : "Hide detail"
-                : locale === "ko"
-                  ? "통계 자세히"
-                  : "Graph detail"
+                ? t("hideDetail")
+                : t("graphDetail")
             }
             variant="secondary"
             style={styles.actionBtn}
@@ -571,12 +561,8 @@ function WikiLegacy() {
             disabled={pages.length === 0}
             accessibilityHint={
               statsVisible
-                ? locale === "ko"
-                  ? "지식 그래프 세부 통계를 숨깁니다."
-                  : "Hides graph detail metrics."
-                : locale === "ko"
-                  ? "지식 그래프 세부 통계를 보여줍니다."
-                  : "Shows graph detail metrics."
+                ? t("hidesMetrics")
+                : t("showsMetrics")
             }
             accessibilityState={{ expanded: statsVisible }}
           />
@@ -586,7 +572,7 @@ function WikiLegacy() {
               variant="secondary"
               style={styles.actionBtn}
               accessibilityHint={
-                locale === "ko" ? "캡처 화면으로 돌아갑니다." : "Opens capture from the knowledge store."
+                t("opensCaptureStore")
               }
             />
           </Link>
@@ -595,23 +581,21 @@ function WikiLegacy() {
         {statsVisible && stats !== null ? (
           <View style={styles.statsCard}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "지식 그래프 한눈에" : "Knowledge graph at a glance"}
+              {t("graphGlance")}
             </Text>
             <View style={styles.statsTopRow}>
               <View style={styles.statsBlock}>
                 <Text variant="caption" color="textSubtle">
-                  {locale === "ko" ? "페이지" : "Pages"}
+                  {t("pages")}
                 </Text>
                 <Text variant="heading">{stats.pageCount}</Text>
                 <Text variant="subtle" color="textSubtle">
-                  {locale === "ko"
-                    ? `자료 ${stats.countByKind.source} · 이름 ${stats.countByKind.entity} · 아이디어 ${stats.countByKind.concept}`
-                    : `${stats.countByKind.source} sources · ${stats.countByKind.entity} names · ${stats.countByKind.concept} ideas`}
+                  {t("kindBreakdown", { s: stats.countByKind.source, e: stats.countByKind.entity, c: stats.countByKind.concept })}
                 </Text>
               </View>
               <View style={styles.statsBlock}>
                 <Text variant="caption" color="textSubtle">
-                  {locale === "ko" ? "연결" : "Edges"}
+                  {t("edges")}
                 </Text>
                 <Text variant="heading">{stats.edgeCount}</Text>
                 <Text variant="subtle" color="textSubtle">
@@ -624,7 +608,7 @@ function WikiLegacy() {
             {stats.topHubs.length > 0 ? (
               <View>
                 <Text variant="caption" color="textSubtle" style={styles.statsSectionHead}>
-                  {locale === "ko" ? "가장 많이 인용된 페이지" : "Most-cited pages"}
+                  {t("mostCited")}
                 </Text>
                 {stats.topHubs.map((h) => (
                   <Text key={h.id} variant="subtle" color="textMuted">
@@ -636,7 +620,7 @@ function WikiLegacy() {
             {stats.topTags.length > 0 ? (
               <View>
                 <Text variant="caption" color="textSubtle" style={styles.statsSectionHead}>
-                  {locale === "ko" ? "자주 쓰인 태그" : "Top tags"}
+                  {t("topTags")}
                 </Text>
                 <Text variant="subtle" color="textMuted">
                   {stats.topTags.map((t) => `#${t.tag} (${t.count})`).join("  ")}
@@ -646,7 +630,7 @@ function WikiLegacy() {
             {stats.orphans.length > 0 ? (
               <View>
                 <Text variant="caption" color="textSubtle" style={styles.statsSectionHead}>
-                  {locale === "ko" ? "연결 없는 페이지" : "Orphan pages"}
+                  {t("orphanPages")}
                 </Text>
                 <Text variant="subtle" color="textMuted" numberOfLines={3}>
                   {stats.orphans
@@ -664,7 +648,7 @@ function WikiLegacy() {
             <View style={styles.exportHeader}>
               <Text variant="caption" color="textMuted">
                 {t("exportTitle")} ({exportText.length.toLocaleString()}{" "}
-                {locale === "ko" ? "자" : "chars"})
+                {t("chars")})
               </Text>
               <View style={{ flexDirection: "row", gap: spacing.md }}>
                 <Pressable
@@ -674,34 +658,30 @@ function WikiLegacy() {
                         await navigator.clipboard.writeText(exportText);
                         setToast({
                           tone: "success",
-                          message: locale === "ko" ? "클립보드에 복사했어요." : "Copied to clipboard.",
+                          message: t("copied"),
                         });
                       } catch {
                         setToast({
                           tone: "danger",
                           message:
-                            locale === "ko"
-                              ? "복사하지 못했어요. 아래 텍스트를 직접 선택해 주세요."
-                              : "Copy failed. Select the text below manually.",
+                            t("copyFailed"),
                         });
                       }
                     } else {
                       setToast({
                         tone: "info",
                         message:
-                          locale === "ko"
-                            ? "자동 복사가 지원되지 않아요. 아래 텍스트를 직접 선택해 주세요."
-                            : "Auto-copy is not supported here. Select the text below manually.",
+                          t("autoCopyUnsupported"),
                       });
                     }
                   }}
                   hitSlop={14}
                   style={styles.exportTextLink}
                   accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? "내보낸 지식 창고 복사" : "Copy exported knowledge store"}
+                  accessibilityLabel={t("copyExport")}
                 >
                   <Text variant="caption" color="brand">
-                    {locale === "ko" ? "복사" : "Copy"}
+                    {t("copy")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -709,10 +689,10 @@ function WikiLegacy() {
                   hitSlop={14}
                   style={styles.exportTextLink}
                   accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? "내보내기 미리보기 닫기" : "Close export preview"}
+                  accessibilityLabel={t("closeExport")}
                 >
                   <Text variant="caption" color="brand">
-                    {locale === "ko" ? "닫기" : "Close"}
+                    {t("close")}
                   </Text>
                 </Pressable>
               </View>
@@ -743,7 +723,7 @@ function WikiLegacy() {
                     style={[styles.tagChip, active && styles.tagChipActive]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    accessibilityLabel={locale === "ko" ? `${tag} 태그 필터` : `Filter by tag ${tag}`}
+                    accessibilityLabel={t("filterByTagAria", { tag })}
                   >
                     <Text variant="subtle" color={active ? "background" : "textMuted"}>
                       #{tag}
@@ -756,7 +736,7 @@ function WikiLegacy() {
                   onPress={() => setActiveTags([])}
                   style={styles.clearChip}
                   accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? "태그 필터 모두 지우기" : "Clear all tag filters"}
+                  accessibilityLabel={t("clearTags")}
                 >
                   <Text variant="subtle" color="textMuted">
                     {t("clear")}
@@ -781,27 +761,25 @@ function WikiLegacy() {
       <Text variant="body" color="textMuted" style={styles.emptyText}>
         {activeTags.length > 0
           ? t("emptyForTags")
-          : locale === "ko"
-            ? "아직 창고가 조용해요. 오늘의 별가루나 링크를 저장하면 여기서 다시 찾아볼 수 있어요."
-            : "The store is quiet for now. Save a piece or a link and you'll find it here again."}
+          : t("emptyStore")}
       </Text>
       {activeTags.length === 0 ? (
         <View style={styles.emptyCtaRow}>
           <Link href="/capture" asChild>
             <Button
-              label={locale === "ko" ? "오늘의 별가루 남기기" : "Leave today's piece"}
+              label={t("leavePiece")}
               variant="primary"
               accessibilityHint={
-                locale === "ko" ? "캡처 화면을 열어 오늘의 별가루를 저장합니다." : "Opens capture to save today's piece."
+                t("leavePieceHint")
               }
             />
           </Link>
           <Link href="/capture" asChild>
             <Button
-              label={locale === "ko" ? "별가루 담기" : "Capture a piece"}
+              label={t("capturePiece")}
               variant="secondary"
               accessibilityHint={
-                locale === "ko" ? "캡처 화면을 열어 새 별가루를 저장합니다." : "Opens capture to save a new piece."
+                t("capturePieceHint")
               }
             />
           </Link>
@@ -811,9 +789,7 @@ function WikiLegacy() {
   ) : (
     <View style={styles.emptyCard}>
       <Text variant="body" color="textMuted" style={styles.emptyText}>
-        {locale === "ko"
-          ? `'${query.trim()}'에 맞는 별가루가 없어요.`
-          : `No pieces match '${query.trim()}'.`}
+        {t("noMatch", { query: query.trim() })}
       </Text>
     </View>
   );
@@ -850,15 +826,13 @@ function WikiLegacy() {
         onClose={() => {
           if (deletingPageId === null) setPendingDeletePage(null);
         }}
-        accessibilityLabel={locale === "ko" ? "위키 페이지 삭제 확인" : "Delete wiki page confirmation"}
+        accessibilityLabel={t("deleteConfirmLabel")}
       >
         <Text variant="heading">
-          {locale === "ko" ? "위키 페이지를 삭제할까요?" : "Delete this wiki page?"}
+          {t("deleteConfirmTitle")}
         </Text>
         <Text variant="body" color="textMuted" style={styles.deleteModalBody}>
-          {locale === "ko"
-            ? "이 페이지와 연결된 정보도 함께 정리돼요. 되돌릴 수 없습니다."
-            : "Related links to this page are cleaned up too. This cannot be undone."}
+          {t("deleteConfirmBody")}
         </Text>
         {pendingDeletePage ? (
           <Text variant="subtle" color="textSubtle" numberOfLines={2}>
@@ -867,24 +841,22 @@ function WikiLegacy() {
         ) : null}
         <View style={styles.deleteModalActions}>
           <Button
-            label={locale === "ko" ? "취소" : "Cancel"}
+            label={t("cancel")}
             variant="secondary"
             onPress={() => setPendingDeletePage(null)}
             disabled={deletingPageId !== null}
             style={styles.deleteModalButton}
-            accessibilityHint={locale === "ko" ? "삭제하지 않고 닫습니다." : "Closes without deleting."}
+            accessibilityHint={t("cancelHint")}
           />
           <Button
-            label={locale === "ko" ? "삭제" : "Delete"}
+            label={t("delete")}
             variant="danger"
             onPress={() => void confirmDeletePage()}
             loading={deletingPageId !== null}
             disabled={deletingPageId !== null}
             style={styles.deleteModalButton}
             accessibilityHint={
-              locale === "ko"
-                ? "이 위키 페이지와 연결 정보를 삭제합니다."
-                : "Deletes this wiki page and its related links."
+              t("deleteHint")
             }
           />
         </View>
@@ -941,15 +913,11 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                     { borderStartColor: semantic[KIND_BORDER[p.kind]], borderStartWidth: 3 },
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 열기` : `Open wiki page ${p.title}`}
+                  accessibilityLabel={t("openPage", { title: p.title })}
                   accessibilityHint={
                     expanded
-                      ? locale === "ko"
-                        ? "본문과 연결 정보를 닫습니다"
-                        : "Collapses body and link details"
-                      : locale === "ko"
-                        ? "본문과 연결 정보를 엽니다"
-                        : "Expands body and link details"
+                      ? t("collapseDetails")
+                      : t("expandDetails")
                   }
                 >
                   <View style={styles.rowHeader}>
@@ -964,7 +932,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                       numberOfLines={1}
                       style={styles.rowSlug}
                     >
-                      {locale === "ko" ? `저장 이름: ${savedName(p.slug)}` : `Saved as ${savedName(p.slug)}`}
+                      {t("savedAs", { name: savedName(p.slug) })}
                     </Text>
                     {inDeg > 0 ? (
                       <Text
@@ -994,7 +962,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           }}
                           style={styles.inlineTagChip}
                           accessibilityRole="button"
-                          accessibilityLabel={locale === "ko" ? `${tag} 태그 필터 추가` : `Add tag filter ${tag}`}
+                          accessibilityLabel={t("addTagFilter", { tag })}
                         >
                           <Text variant="subtle" color="textSubtle">
                             #{tag}
@@ -1007,7 +975,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                     <View style={styles.expandedSection}>
                       {typeof p.frontmatter.url === "string" && p.frontmatter.url.length > 0 ? (
                         <Text variant="subtle" color="textSubtle" numberOfLines={1}>
-                          {locale === "ko" ? "원본: " : "Source: "}
+                          {t("sourceLabel")}
                           {p.frontmatter.url}
                         </Text>
                       ) : null}
@@ -1027,20 +995,14 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                               hitSlop={14}
                               accessibilityRole="button"
                               accessibilityLabel={
-                                locale === "ko"
-                                  ? `${p.title} 요약과 질문 만들기`
-                                  : `Build source brief for ${p.title}`
+                                t("buildBriefFor", { title: p.title })
                               }
                               accessibilityState={{ disabled: phase1Running, busy: phase1Running }}
                             >
                               <Text variant="caption" color="brand">
                                 {phase1Running
-                                  ? locale === "ko"
-                                    ? "요약 중…"
-                                    : "Summarizing…"
-                                  : locale === "ko"
-                                    ? "요약과 질문 만들기 (요약 + 4질문)"
-                                    : "Build source brief (summary + 4 questions)"}
+                                  ? t("summarizing")
+                                  : t("buildBrief")}
                               </Text>
                             </Pressable>
                           );
@@ -1049,7 +1011,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           <View style={styles.phase1Card}>
                             <View style={styles.phase1Header}>
                               <Text variant="caption" color="brand">
-                                {locale === "ko" ? "요약과 질문" : "Source brief"}
+                                {t("sourceBrief")}
                               </Text>
                               <Text variant="subtle" color="textSubtle">
                                 {new Date(p1.generated_at).toLocaleDateString(
@@ -1058,9 +1020,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                                 )}
                                 {" · "}
                                 {p1.model.startsWith("mock:")
-                                  ? locale === "ko"
-                                    ? "샘플"
-                                    : "Sample"
+                                  ? t("sample")
                                   : (p1.model.split("-").slice(-2, -1)[0] ?? p1.model)}
                               </Text>
                             </View>
@@ -1072,7 +1032,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                                 {p1.entities.length > 0 ? (
                                   <Text variant="subtle" color="textSubtle" numberOfLines={2}>
                                     <Text variant="subtle" color="textMuted">
-                                      {locale === "ko" ? "엔티티: " : "Entities: "}
+                                      {t("entitiesLabel")}
                                     </Text>
                                     {p1.entities.join(", ")}
                                   </Text>
@@ -1080,7 +1040,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                                 {p1.concepts.length > 0 ? (
                                   <Text variant="subtle" color="textSubtle" numberOfLines={2}>
                                     <Text variant="subtle" color="textMuted">
-                                      {locale === "ko" ? "개념: " : "Concepts: "}
+                                      {t("conceptsLabel")}
                                     </Text>
                                     {p1.concepts.join(", ")}
                                   </Text>
@@ -1090,7 +1050,7 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                             {p1.questions.length > 0 ? (
                               <>
                                 <Text variant="caption" color="brand" style={styles.phase1QHeader}>
-                                  {locale === "ko" ? "성찰 질문" : "Reflection questions"}
+                                  {t("reflectionQuestions")}
                                 </Text>
                                 {p1.questions.map((q, i) => (
                                   <Text key={i} variant="subtle" color="textMuted">
@@ -1132,10 +1092,10 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           hitSlop={14}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
-                          accessibilityLabel={locale === "ko" ? `${p.title} 그래프에서 보기` : `See ${p.title} in graph`}
+                          accessibilityLabel={t("seeInGraphFor", { title: p.title })}
                         >
                           <Text variant="caption" color="brand">
-                            {locale === "ko" ? "그래프에서 보기" : "See in graph"}
+                            {t("seeInGraph")}
                           </Text>
                         </Pressable>
                         <Pressable
@@ -1146,10 +1106,10 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                           hitSlop={14}
                           style={styles.pageHandoffBtn}
                           accessibilityRole="button"
-                          accessibilityLabel={locale === "ko" ? `${p.title}에 대해 세컨비에게 묻기` : `Ask SecondB about ${p.title}`}
+                          accessibilityLabel={t("askAbout", { title: p.title })}
                         >
                           <Text variant="caption" color="brand">
-                            {locale === "ko" ? "세컨비에게 묻기" : "Ask SecondB"}
+                            {t("askSecondB")}
                           </Text>
                         </Pressable>
                       </View>
@@ -1161,10 +1121,10 @@ const WikiPageListRow = React.memo(function WikiPageListRow({
                         hitSlop={14}
                         style={styles.deletePageLink}
                         accessibilityRole="button"
-                        accessibilityLabel={locale === "ko" ? `${p.title} 위키 페이지 삭제` : `Delete wiki page ${p.title}`}
+                        accessibilityLabel={t("deletePageFor", { title: p.title })}
                       >
                         <Text variant="caption" color="textSubtle">
-                          {locale === "ko" ? "이 페이지 삭제" : "Delete page"}
+                          {t("deletePage")}
                         </Text>
                       </Pressable>
                     </View>

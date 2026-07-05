@@ -716,12 +716,12 @@ results.push(
       wiki.includes("PremiumToast") &&
       wiki.includes("PremiumModal") &&
       wiki.includes("toastWrap") &&
-      wiki.includes("Delete wiki page confirmation") &&
-      wiki.includes("Wiki page deleted.") &&
-      wiki.includes("Copy failed. Select the text below manually.") &&
-      wiki.includes("Auto-copy is not supported here. Select the text below manually.") &&
-      wiki.includes("Couldn't build the source brief. Check the source and try again.") &&
-      wiki.includes("Couldn't build the export. Refresh and try again.") &&
+      wiki.includes('t("deleteConfirmLabel")') &&
+      wiki.includes('t("pageDeleted")') &&
+      wiki.includes('t("copyFailed")') &&
+      wiki.includes('t("autoCopyUnsupported")') &&
+      wiki.includes('t("briefError")') &&
+      wiki.includes('t("exportError")') &&
       wikiAlertCount === 0 &&
       trinity.includes("PremiumModal") &&
       trinity.includes('t("reloadNotice")') &&
@@ -899,17 +899,17 @@ results.push(
       manual.includes('t("getStartedHint")') &&
       manual.includes('t("permissionsHint")') &&
       manual.includes("Opens the curated research library.") &&
-      wiki.includes("Opens capture from the knowledge store.") &&
-      wiki.includes("Opens capture to save today's piece.") &&
-      wiki.includes("Opens capture to save a new piece.") &&
+      wiki.includes('t("opensCaptureStore")') &&
+      wiki.includes('t("leavePieceHint")') &&
+      wiki.includes('t("capturePieceHint")') &&
       wiki.includes('t("exportActionTitle")') &&
       wiki.includes('t("exportActionBody")') &&
       wiki.includes('t("exportActionExample")') &&
       wiki.includes('accessibilityHint={t("exportActionHint")}') &&
       wiki.includes('variant="primary"') &&
       wiki.includes('t("exportHelper")') &&
-      wiki.includes("Shows graph detail metrics.") &&
-      wiki.includes("Hides graph detail metrics.") &&
+      wiki.includes('t("showsMetrics")') &&
+      wiki.includes('t("hidesMetrics")') &&
       wiki.includes("accessibilityState={{ expanded: statsVisible }}") &&
       records.includes('t("filterBy"') &&
       records.includes('t("retryHint")') &&
@@ -1222,9 +1222,9 @@ results.push(
       inbox.includes('t("savedDetails")') &&
       read("locales/ko/inbox.json").includes("저장 정보") &&
       inbox.includes("reference name") &&
-      wiki.includes("Search pieces by title or saved name") &&
-      wiki.includes("저장 이름") &&
-      wiki.includes("Saved as") &&
+      wiki.includes('t("searchPieces")') &&
+      read("locales/ko/wiki.json").includes("저장 이름") &&
+      wiki.includes('t("savedAs"') &&
       wiki.includes("displayPageName(h)") &&
       wiki.includes("displayPageName(o)") &&
       wiki.includes("displayPageName(b)") &&
