@@ -1,0 +1,27 @@
+{
+  "loading": "Loading assessment…",
+  "intro": {
+    "title": "Attachment style (ECR-S)",
+    "description": "We'll look together at your pattern in close relationships across two axes: anxiety and avoidance. Then we'll see which of four styles you lean toward. Think of close relationships in general, not one specific person. Split across 3 pages, 5 items each (last page has 2).",
+    "citation": "Wei, Russell, Mallinckrodt, & Vogel (2007) · validated short form"
+  },
+  "survey": {
+    "counter": "ECR-S · 12 items",
+    "instruction": "Think of close relationships in general. Rate 1 (strongly disagree) to 7 (strongly agree)."
+  },
+  "scale": {
+    "stronglyDisagree": "Strongly disagree",
+    "stronglyAgree": "Strongly agree"
+  },
+  "saved": "Saved · one star is lit",
+  "saveError": "We couldn't save your results. Your answers are still here.",
+  "exit": {
+    "notice": "Exit survey notice",
+    "title": "Exit survey?",
+    "body": "Are you sure you want to exit? Your progress will not be saved.",
+    "cancel": "Cancel",
+    "cancelHint": "Continue the survey.",
+    "confirm": "Exit",
+    "confirmHint": "Exit the survey and return."
+  }
+}

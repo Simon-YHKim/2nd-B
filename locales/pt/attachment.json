@@ -1,0 +1,27 @@
+{
+  "loading": "Carregando a avaliação…",
+  "intro": {
+    "title": "Estilo de apego (ECR-S)",
+    "description": "Vamos observar juntos o seu padrão nos relacionamentos próximos em dois eixos: ansiedade e evitação. Depois veremos para qual dos quatro estilos você tende. Pense nos seus relacionamentos próximos em geral, não em uma pessoa específica. Dividido em 3 páginas, 5 itens cada (a última tem 2).",
+    "citation": "Wei, Russell, Mallinckrodt e Vogel (2007) · forma curta validada"
+  },
+  "survey": {
+    "counter": "ECR-S · 12 itens",
+    "instruction": "Pense nos seus relacionamentos próximos em geral. Responda de 1 (discordo totalmente) a 7 (concordo totalmente)."
+  },
+  "scale": {
+    "stronglyDisagree": "Discordo totalmente",
+    "stronglyAgree": "Concordo totalmente"
+  },
+  "saved": "Salvo · uma estrela se acendeu",
+  "saveError": "Não conseguimos salvar seus resultados. Suas respostas continuam aqui.",
+  "exit": {
+    "notice": "Aviso para sair da avaliação",
+    "title": "Sair da avaliação?",
+    "body": "Tem certeza de que deseja sair? Seu progresso não será salvo.",
+    "cancel": "Cancelar",
+    "cancelHint": "Continue a avaliação.",
+    "confirm": "Sair",
+    "confirmHint": "Saia da avaliação e volte."
+  }
+}
