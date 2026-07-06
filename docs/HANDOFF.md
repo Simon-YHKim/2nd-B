@@ -107,7 +107,7 @@ Simon 폰(네이티브 0.0.7)이 **모든 별을 "기록하기 화면"** 으로 
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
 | A | Simon 폰: 기존앱 삭제 → run 28773688077 APK 설치 → 별 렌즈 육안 확인 | - | ⭐ 진단 마무리 (미확인) |
-| B | orphan 화면 네비 배선: `/trends`(트렌드 버튼이 `/brightness`로 오배선 `profile.tsx:181`), `/call-reflection`(진입점 無), `/import`(→ `/import-hub` dead dup) | medium | ⭐ 실사용자 도달 불가 |
+| B | ~~orphan 화면 네비 배선~~ → **대부분 오탐(framework-aware 재검증, 07-07 후속)**. ①`/trends`=정적 캐논 목업(`canonSurfaces.trendSeries`)이라 미배선이 정답; `/brightness`(실데이터 `loadTierObservations`)가 프로필 "트렌드" 정본 — 재배선하면 mock-as-real 안티패턴. trends.tsx 주석 truth-harden(UNWIRED ON PURPOSE) 완료. ②`/import`=의도적 레거시(마크다운) 별도 유지(dup 아님, `import-hub.tsx` 주석 명시). ③`/call-reflection`=`CALL-RECORDING-SPEC` 상 진입점은 "OS 통화맥락 내부"+KR-only 리전플래그+네이티브사이클, 글로벌 네비 배선은 법적 설계 위반. **잔여 결정만**: import 표면 일관성(capture=/import vs index=/import-hub) | done/decision | ✅ 오탐 규명, 배선 안 함 |
 | C | 영구 keystore 시크릿 `ANDROID_KEYSTORE_BASE64` → APK in-place 설치(uninstall 불요) | small | 재발 방지 |
 | D | 평가 클러스터 de-burial + MBTI→`/persona` 리다이렉트 정리 (8화면이 PolarisDeck "측정하는 방법들" 카드 1개에 매몰, `core-brain.tsx:514`) | medium | |
 | E | G3 OpenAI 개통(키 주입+STOP), G5 IAP(§B5 값) | - | Simon/Cowork 대기 |
