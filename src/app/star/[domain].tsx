@@ -46,6 +46,18 @@ const DOMAIN_TRAIT: Partial<Record<DomainId, string>> = {
   recreation: "개방성",
 };
 
+// Per-domain secondary action (the reference 11-star's Drill Down), sourced from
+// the design canon domain-meta.json `next`. Each star gets a distinct drill:
+// growth → 회상, relation → 관계 인터뷰, recreation → 세컨비, career → 쌓아온 길.
+// Domains whose canon action is just "담기" (finance/health) or the catch-all
+// (collect) fall back to their filtered record list.
+const DOMAIN_DRILL: Partial<Record<DomainId, { ko: string; en: string; route: string }>> = {
+  career: { ko: "쌓아온 길", en: "Your path", route: "/career" },
+  growth: { ko: "회상으로 더 캐기", en: "Recall more", route: "/audit" },
+  relation: { ko: "관계 인터뷰", en: "Relationship interview", route: "/interview" },
+  recreation: { ko: "아이디어 얻기", en: "Get ideas", route: "/secondb" },
+};
+
 async function listDomainRecords(userId: string, domain: DomainId): Promise<DomainRecordRow[]> {
   const { data, error } = await getSupabaseClient()
     .from("records")
@@ -167,10 +179,18 @@ export default function DomainStarScreen() {
           />
           <MdButton
             variant="outlined"
-            label={domainId === "career" ? (ko ? "쌓아온 길" : "Your path") : ko ? "기록 보기" : "See records"}
+            label={
+              DOMAIN_DRILL[domainId]
+                ? ko
+                  ? DOMAIN_DRILL[domainId]!.ko
+                  : DOMAIN_DRILL[domainId]!.en
+                : ko
+                  ? "기록 보기"
+                  : "See records"
+            }
             onPress={() =>
-              domainId === "career"
-                ? router.push("/career")
+              DOMAIN_DRILL[domainId]
+                ? router.push(DOMAIN_DRILL[domainId]!.route as never)
                 : router.push({ pathname: "/records", params: { tags: `domain:${domainId}` } })
             }
             style={s.actionBtn}
