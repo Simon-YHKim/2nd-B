@@ -5,6 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-07 / 별 렌즈 7종 매칭 완주 + 네이티브 전달 갭 근본원인 (OTA 채널·서명·ABI)
+- Latest — 2026-07-06 / Simon D1-D7 실행 + LLM Phase-2 OpenAI 재라우팅
 - Latest — 2026-07-05 (저녁) / i18n 7-배치 완주(부분) + 전수 상태감사 → 게이트 지도 6종
 - Latest — 2026-07-05 / proto_rev2 JSON 캐논 시스템 — 단일 정본 + 라이브 + 클론화면 dedup + gaps 배선 + QA시드 (12 PR)
 - 2026-07-03 (오후) / QA·머지·OTA 오케스트레이터 세션 — 17건 머지 보장 + 4-AI 닫힌 루프 가동
@@ -77,6 +79,68 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-07 / 별 렌즈 7종 매칭 완주 + 네이티브 전달 갭 근본원인 (star lens + OTA delivery)
+
+### 어디까지 왔나
+- main HEAD: `a96fda4e` (#839)
+- 이번 세션 머지 PR (7): **#833** LLM 벤더 스위치(`EXPO_PUBLIC_LLM_VENDOR`, gemini 기본) · **#834** 별 탭→도메인 렌즈(위키 리스트 제거) · **#835** 7 도메인 정적 프리렌더 · **#836** 별 헤더(실레벨 ●●○○○ + 트레잇 캡션) · **#837** 도메인별 드릴 액션(캐논 domain-meta) · **#838** audit 노드 ring · **#839** OTA preview 채널 bake
+- 테스트: 2330/2330 green · working tree: clean
+
+### 🔴 이번 세션 최대 발견 — 웹 검증 ≠ 네이티브 진실 (정직 반성)
+Simon 폰(네이티브 0.0.7)이 **모든 별을 "기록하기 화면"** 으로 표시. 나는 웹(`/deepspace-home` 프리뷰)만 캡처하고 "네이티브도 매칭" 단정 → 실수. 원인 체인(전부 코드+에뮬로 확인):
+1. **stale 바이너리**: 0.0.7이 #834 이전 → 옛 별 탭 = `/records?tags=domain:X`(빈 리스트→담기버튼=기록화면). 리치 렌즈는 머지됐지만 폰 JS는 빌드시점 고정 (웹은 항상 최신 서빙 → 그래서 웹만 맞아 보임).
+2. **재설치 실패**: android-release가 매 빌드 **임시 keystore** 서명 → install-over 거부(`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) → 옛 앱 잔류. **uninstall-first 필수**.
+3. **OTA 무효**: gradle APK에 EAS 채널 미포함(`Updates.channel="—"`) → preview OTA 구조적 도달 불가. **#839로 `app.json` `expo-channel-name=preview` bake** (eas production은 eas.json이 override).
+4. **에뮬 크래시**: arm64-only APK(`ANDROID_ABI_FILTER=arm64-v8a`)를 x86_64 에뮬에 올려 `libreactnative.so` DSO 크래시 = ABI, **실 ARM 폰 무관**. 에뮬 네이티브 검증은 `expo run:android`.
+- QA 계정 `/`가 온보딩 리다이렉트라 **live `ConstellationHome` 별 탭(여행하기→onStarTravel→/star/id)을 한 번도 웹검증 못 함** — 늘 프리뷰만 봤음.
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` (Seoul ap-northeast-2), 엣지 gemini v23
+- 앱 0.0.7, runtimeVersion=appVersion, OTA 채널=preview(#839 이후 bake)
+- **별 렌즈 + OTA채널 포함 APK 준비됨**: android-release **run 28773688077 (success)** → Simon이 기존앱 **삭제 후** 이거 설치 → 별 렌즈 + 이후 OTA 자동
+- Live web: <https://simon-yhkim.github.io/2nd-B/> (Pages; 머지 후 web-deploy 강제 + 번들해시 변경 확인 필수 — stale CDN)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | Simon 폰: 기존앱 삭제 → run 28773688077 APK 설치 → 별 렌즈 육안 확인 | - | ⭐ 진단 마무리 (미확인) |
+| B | orphan 화면 네비 배선: `/trends`(트렌드 버튼이 `/brightness`로 오배선 `profile.tsx:181`), `/call-reflection`(진입점 無), `/import`(→ `/import-hub` dead dup) | medium | ⭐ 실사용자 도달 불가 |
+| C | 영구 keystore 시크릿 `ANDROID_KEYSTORE_BASE64` → APK in-place 설치(uninstall 불요) | small | 재발 방지 |
+| D | 평가 클러스터 de-burial + MBTI→`/persona` 리다이렉트 정리 (8화면이 PolarisDeck "측정하는 방법들" 카드 1개에 매몰, `core-brain.tsx:514`) | medium | |
+| E | G3 OpenAI 개통(키 주입+STOP), G5 IAP(§B5 값) | - | Simon/Cowork 대기 |
+
+### 적용 중인 정책 (영구)
+1. **웹 검증 ≠ 네이티브** — 네이티브 화면은 `expo run:android`(에뮬 ABI 빌드)나 실기기로 검증. 웹 캡처로 "네이티브 매칭" 단정 금지.
+2. **정직성 불변식** — 레퍼런스의 날조 점수(64%·82 등) 렌더 금지, real-or-neutral (values/motivation/strengths/data = 정직 중립 = 정답).
+3. **APK 설치 = uninstall-first** (임시 keystore 서명 불일치). 데이터는 Supabase라 재로그인 안전.
+4. 격리 worktree(`E:/2ndB/.worktrees/<n>`) + `node_modules` junction, 공유 `E:/2ndB` 트리 미침범.
+5. 머지 후 `web-deploy.yml` 강제 + 번들해시 변경 확인. git add 명시 경로만(`-A` 금지).
+6. 게이트(파괴/비용/secrets/임상/법무)만 Simon 확인, 나머지 개발 무확인.
+
+### 핵심 파일 위치
+```
+src/components/deep-space/ConstellationHome.tsx   live 홈: 별 탭→bubble→여행하기→onStarTravel
+src/components/deep-space/DeepSpaceShell.tsx:84    onStarTravel = /star/<id> (뮤지엄만 /museum)
+src/app/star/[domain].tsx                          도메인 별 렌즈(헤더+레벨+트레잇+브리핑+드릴+타임라인)
+src/lib/persona/load-domain-levels.ts              실 레코드 기반 도메인 레벨(L1-5)
+public/proto/data/screens/domain-meta.json         캐논: 도메인→related 트레잇 + next 액션
+src/lib/ui-mode.ts                                 isDeepSpaceUI() (EXPO_PUBLIC_UI, 기본 deep-space)
+.github/workflows/{android-release,eas-update,web-deploy}.yml  APK / OTA / Pages
+```
+
+### 검증
+```bash
+npm run verify   # 2330 tests, tsc + lint + jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(Simon 폰 확인) 대기 중이면 B(orphan 네비 배선)부터 시작
+```
 
 ---
 
