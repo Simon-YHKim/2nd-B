@@ -13,7 +13,10 @@
     },
     "updates": {
       "url": "https://u.expo.dev/439c4c86-39a7-4a47-8bfa-0426f9fe18c9",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     },
     "ios": {
       "bundleIdentifier": "com.simonk.secondbrain",
