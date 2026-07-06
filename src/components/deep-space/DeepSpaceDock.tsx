@@ -26,22 +26,24 @@ export interface DockItem {
 
 export function TabIcon({ tab, color, size = 18 }: { tab: DeepSpaceTab; color: string; size?: number }) {
   switch (tab) {
-    case "home": // four-point star
+    case "home": // 별자리 — star_shine (rev2 sb-data NAV)
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={color} />
+          <Path d="M12 3c.5 3.8 2.7 6 6.5 6.5-3.8.5-6 2.7-6.5 6.5-.5-3.8-2.7-6-6.5-6.5 3.8-.5 6-2.7 6.5-6.5Z" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
-    case "capture": // pencil
+    case "capture": // 담기 — add_circle (rev2 sb-data NAV)
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M4 20l4-1L19 8l-3-3L5 16zM17 4l3 3" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx={12} cy={12} r={8.4} stroke={color} strokeWidth={2} fill="none" />
+          <Path d="M12 8.2v7.6M8.2 12h7.6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" />
         </Svg>
       );
-    case "chat": // speech bubble
+    case "chat": // 세컨비 — forum (rev2 sb-data NAV)
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M4 5h16v11H9l-4 4V5z" stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
+          <Path d="M3 5h12v8H7l-4 3.2z" stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
+          <Path d="M8 13.2V15h9l3 2.4V9.5h-2.5" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     case "ops": // 비서 — recommendation/routine list
@@ -50,17 +52,11 @@ export function TabIcon({ tab, color, size = 18 }: { tab: DeepSpaceTab; color: s
           <Path d="M5 7h14M5 12h14M5 17h9" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
         </Svg>
       );
-    case "wiki": // 위키 — open book / knowledge
+    case "wiki": // 위키 — inventory_2 (rev2 sb-data NAV)
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path
-            d="M12 6C10 4.6 6.5 4.6 4 5.2v13c2.5-.6 6-.6 8 1 2-1.6 5.5-1.6 8-1v-13c-2.5-.6-6-.6-8 1zM12 6v13"
-            stroke={color}
-            strokeWidth={2}
-            fill="none"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          <Path d="M3.5 7.5h17V20h-17z" stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
+          <Path d="M3.5 7.5 5.5 4h13l2 3.5M12 7.5v4M9.5 11.5h5" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     case "account": // 나 — person
@@ -85,13 +81,12 @@ export function TabIcon({ tab, color, size = 18 }: { tab: DeepSpaceTab; color: s
           <Path d="M13 9h5M13 13h5" stroke={color} strokeWidth={2} strokeLinecap="round" />
         </Svg>
       );
-    case "settings": // 설정 — tune sliders (rev2 NAV icon 'tune')
+    case "settings": // 설정 — tune (rev2 sb-data NAV, 2-track)
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M4 7h9M19 7h1M4 12h3M13 12h7M4 17h11M21 17h-1" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
-          <Circle cx={15.5} cy={7} r={2.2} stroke={color} strokeWidth={2} fill="none" />
-          <Circle cx={9.5} cy={12} r={2.2} stroke={color} strokeWidth={2} fill="none" />
-          <Circle cx={17.5} cy={17} r={2.2} stroke={color} strokeWidth={2} fill="none" />
+          <Path d="M4 7h9M17.5 7H20M4 17h2.5M11 17h9" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
+          <Circle cx={15.5} cy={7} r={2.3} stroke={color} strokeWidth={2} fill="none" />
+          <Circle cx={8.5} cy={17} r={2.3} stroke={color} strokeWidth={2} fill="none" />
         </Svg>
       );
   }
