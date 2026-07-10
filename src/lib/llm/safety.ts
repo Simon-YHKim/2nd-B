@@ -105,6 +105,33 @@ function getFlashClient(): GoogleGenAI | null {
   }
 }
 
+// Observability for audit H1 / decision D4: on a LIVE non-Vertex build the Flash
+// client is null, so crisis detection is permanently lexicon-only - a silent
+// degradation. Surface it once per session (console.warn is captured by Sentry)
+// so the gap is visible until the server-side classifier is wired. This only
+// logs; it does NOT change any classification. (Full server-side safety_classify
+// routing is the flag-gated clinical follow-up, gated on a crisis eval set +
+// safety-owner sign-off.)
+let _semanticDarkWarned = false;
+function noteSemanticUnavailable(): void {
+  if (_semanticDarkWarned) return;
+  try {
+    const env = getEnv();
+    if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) {
+      _semanticDarkWarned = true;
+      if (typeof console !== "undefined") {
+        console.warn(
+          "[safety] Layer-2 semantic classifier UNAVAILABLE on this live build " +
+            "(keyless/non-Vertex): crisis detection is lexicon-only. Wire server-side " +
+            "safety_classify to restore it (audit H1, D4).",
+        );
+      }
+    }
+  } catch {
+    // The safety path must never throw.
+  }
+}
+
 function lexiconToResult(text: string, locale: "en" | "ko"): SafetyResult {
   const r = lexiconClassify(text, locale);
   return {
@@ -174,6 +201,7 @@ export async function classifySafety(
   // Layer 2: Gemini Flash, only when we have a real client.
   const client = getFlashClient();
   if (!client) {
+    noteSemanticUnavailable();
     return lex;
   }
 
