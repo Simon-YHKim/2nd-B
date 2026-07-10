@@ -134,7 +134,7 @@ export default function Onboarding() {
 
       {isAuth ? (
         <View style={styles.hero}>
-          <SecondbHead size={168} mood="positive" track={false} accessibilityLabel={ko ? "세컨비" : "SecondB"} />
+          <SecondbHead size={168} mood="neutral" track={false} accessibilityLabel={ko ? "세컨비" : "SecondB"} />
           <Text variant="heading" style={styles.title}>{ko ? "시작할까요?" : "Ready to begin?"}</Text>
           <Text variant="body" style={styles.body}>
             {ko

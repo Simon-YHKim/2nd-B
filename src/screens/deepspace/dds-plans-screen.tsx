@@ -6,12 +6,11 @@
 // Free/Plus/Pro in the UI.
 //
 // Wiring preserved exactly: RevenueCat (getOfferings / purchasePackage /
-// getProStatus / restorePurchases) drives the CTAs; prices come from the single
-// pricing SoT (src/lib/progression/pricing.ts) - KRW for ko, USD for every other
-// locale - so on-card copy can never drift from what enforcement charges (the
-// 항해자=cortex / 북극성=brain mapping is fixed in reasoning-cap.ts). Per the
-// entitlements HARD invariant, money buys MORE/LONGER memory + MORE features -
-// never a better answer; this surface must never imply a pricier tier reasons better.
+// getProStatus / restorePurchases) drives the CTAs; the entitlement engine
+// (src/lib/entitlements/tiers.ts → TIER_PRICE_KRW) is the price SoT so on-card
+// copy can never drift from what is actually granted. Per that file's HARD
+// invariant, money buys MORE/LONGER memory + MORE features - never a better
+// answer; this surface must never imply a pricier tier reasons better.
 // revenue_events logging stays server-side via a RevenueCat webhook (C4 schema
 // untouched). The rewarded row tops up COUNTS only, never quality.
 // ──────────────────────────────────────────────────────────────────────────
@@ -22,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
-import { TIER_PRICING } from "@/lib/progression/pricing";
+import { TIER_PRICE_KRW, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
@@ -51,14 +50,9 @@ function DockShell({ children, title }: { children: ReactNode; title?: string })
   );
 }
 
-// Format a KRW integer as ₩9,900 without a hardcoded currency literal in copy.
+// Format a KRW integer as ₩6,900 without a hardcoded currency literal in copy.
 function krw(n: number): string {
   return `₩${n.toLocaleString("ko-KR")}`;
-}
-
-// Format a USD price as $9.99 (2 decimals) without a hardcoded currency literal.
-function usd(n: number): string {
-  return `$${n.toFixed(2)}`;
 }
 
 function LockIcon({ color }: { color: string }) {
@@ -106,7 +100,7 @@ interface TierCopy {
 }
 
 export function DeepSpacePlansScreen() {
-  const { i18n } = useTranslation("deepspace");
+  const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
 
   const { userId } = useAuth();
@@ -140,7 +134,7 @@ export function DeepSpacePlansScreen() {
         setPackages(pkgs);
         setIsPro(pro);
       } catch {
-        if (alive) setError(ko ? "플랜을 불러오지 못했어요. 다시 시도해 주세요." : "Couldn't load plans. Try again.");
+        if (alive) setError(t("ds.plans.loadError"));
       } finally {
         if (alive) setLoading(false);
       }
@@ -194,7 +188,7 @@ export function DeepSpacePlansScreen() {
     const outcome = await purchasePackage(pkg);
     if (outcome.status === "purchased") setIsPro(outcome.isPro);
     else if (outcome.status === "error" || outcome.status === "unavailable")
-      setError(ko ? "결제가 완료되지 않았어요. 다시 시도해 주세요." : "The purchase didn't go through. Try again.");
+      setError(t("ds.plans.purchaseError"));
     setBusyAction(null);
   }
 
@@ -205,9 +199,9 @@ export function DeepSpacePlansScreen() {
     const outcome = await restorePurchases();
     if (outcome.status === "restored") {
       setIsPro(outcome.isPro);
-      if (!outcome.isPro) setError(ko ? "복원할 이전 구매가 없어요." : "No previous purchase found to restore.");
+      if (!outcome.isPro) setError(t("ds.plans.restoredNone"));
     } else {
-      setError(ko ? "구매를 복원하지 못했어요. 다시 시도해 주세요." : "Couldn't restore purchases. Try again.");
+      setError(t("ds.plans.restoreError"));
     }
     setBusyAction(null);
   }
@@ -222,43 +216,53 @@ export function DeepSpacePlansScreen() {
   // dead checkout. Kept below the cards so it never disturbs the tier layout.
   const showStoreNotice = !available || (!loading && packages.length === 0);
 
-  // ── Tier copy (reference PlansScreen tiers[]). Prices from the pricing SoT
-  // (progression/pricing.ts): plus = cortex, pro = brain; KRW for ko, USD else. ──
-  const per = ko ? "/월" : "/mo";
-  const tiers: TierCopy[] = ko
-    ? [
-        { key: "free", name: "별바라기", sub: "시작하는 사람", price: "무료", feats: ["7 도메인 별", "월 100별가루", "IDEN 1개"] },
-        { key: "plus", name: "항해자", sub: "꾸준한 항해자", price: `${krw(TIER_PRICING.cortex.krwMonthly)}${per}`, feats: ["무제한 별가루", "심층 인터뷰", "데이터 연동 5종", "IDEN 버전 관리"] },
-        { key: "pro", name: "북극성", sub: "깊이 파는 사람", price: `${krw(TIER_PRICING.brain.krwMonthly)}${per}`, feats: ["항해자 전체", "장기 보관 무제한", "가족 공유", "우선 분석"] },
-      ]
-    : [
-        { key: "free", name: "Stargazer", sub: "Just starting out", price: "Free", feats: ["7 domain stars", "100 stardust a month", "1 IDEN"] },
-        { key: "plus", name: "Voyager", sub: "A steady voyager", price: `${usd(TIER_PRICING.cortex.usdMonthly)}${per}`, feats: ["Unlimited stardust", "Deep interviews", "5 data integrations", "IDEN version history"] },
-        { key: "pro", name: "North Star", sub: "For the deep divers", price: `${usd(TIER_PRICING.brain.usdMonthly)}${per}`, feats: ["Everything in Voyager", "Unlimited long-term storage", "Family sharing", "Priority analysis"] },
-      ];
+  // ── Tier copy (reference PlansScreen tiers[]). Prices from TIER_PRICE_KRW so
+  // display can never drift from the entitlement SoT. ──
+  const per = t("ds.plans.per");
+  const tiers: TierCopy[] = [
+    {
+      key: "free",
+      name: t("ds.plans.freeName"),
+      sub: t("ds.plans.freeSub"),
+      price: t("ds.plans.freePrice"),
+      feats: [t("ds.plans.freeFeat1"), t("ds.plans.freeFeat2"), t("ds.plans.freeFeat3")],
+    },
+    {
+      key: "plus",
+      name: t("ds.plans.plusName"),
+      sub: t("ds.plans.plusSub"),
+      price: `${krw(TIER_PRICE_KRW.plus)}${per}`,
+      feats: [t("ds.plans.plusFeat1"), t("ds.plans.plusFeat2"), t("ds.plans.plusFeat3"), t("ds.plans.plusFeat4")],
+    },
+    {
+      key: "pro",
+      name: t("ds.plans.proName"),
+      sub: t("ds.plans.proSub"),
+      price: `${krw(TIER_PRICE_KRW.pro)}${per}`,
+      feats: [t("ds.plans.proFeat1"), t("ds.plans.proFeat2"), t("ds.plans.proFeat3"), t("ds.plans.proFeat4")],
+    },
+  ];
 
   function onStart(key: TierKey) {
     if (busy) return;
     if (key === "plus" && plusPkg) void buy(plusPkg);
     else if (key === "pro" && proPkg) void buy(proPkg);
-    else if (key !== "free") setError(ko ? "결제가 완료되지 않았어요. 다시 시도해 주세요." : "The purchase didn't go through. Try again.");
+    else if (key !== "free") setError(t("ds.plans.purchaseError"));
     // free → nothing to buy (reference no-op).
   }
 
   return (
-    <DockShell title={ko ? "요금제" : "Plans"}>
-      <Text style={s.headline}>{ko ? "요금제" : "Plans"}</Text>
+    <DockShell title={t("ds.plans.title")}>
+      <Text style={s.headline}>{t("ds.plans.title")}</Text>
 
       {/* honesty note (tertiary-container) */}
       <MdCard variant="filled" style={s.honesty}>
         <View style={s.honestyRow}>
           <LockIcon color={m3.color.onTertiaryContainer} />
           <Text style={s.honestyText}>
-            {ko ? "요금은 횟수·보관·내보내기 " : "Plans differ only "}
-            <Text style={s.honestyStrong}>{ko ? "한도만" : "in limits"}</Text>
-            {ko
-              ? " 달라요. 더 비싸다고 더 ‘나은 나’를 주지 않아요."
-              : ": how many, how long, how much you export. Paying more never gives you a ‘better you’."}
+            {t("ds.plans.honestyLead")}
+            <Text style={s.honestyStrong}>{t("ds.plans.honestyStrong")}</Text>
+            {t("ds.plans.honestyTail")}
           </Text>
         </View>
       </MdCard>
@@ -274,7 +278,7 @@ export function DeepSpacePlansScreen() {
                   <Text style={s.tierName}>{tr.name}</Text>
                   {cur ? (
                     <View style={s.currentPill}>
-                      <Text style={s.currentPillText}>{ko ? "이용 중" : "Active"}</Text>
+                      <Text style={s.currentPillText}>{t("ds.plans.active")}</Text>
                     </View>
                   ) : null}
                 </View>
@@ -295,9 +299,9 @@ export function DeepSpacePlansScreen() {
                 disabled={busy}
                 label={
                   cur
-                    ? ko ? "현재 요금제" : "Current plan"
+                    ? t("ds.plans.currentPlan")
                     : busyAction === "buy"
-                      ? ko ? "구매 중…" : "Purchasing…"
+                      ? t("ds.plans.purchasing")
                       : ko ? `${tr.name} 시작` : `Start ${tr.name}`
                 }
                 onPress={cur ? undefined : () => onStart(tr.key)}
@@ -310,44 +314,42 @@ export function DeepSpacePlansScreen() {
       {loading ? (
         <View style={s.loadingRow}>
           <ActivityIndicator color={m3.color.primary} />
-          <Text style={s.dim}>{ko ? "플랜을 불러오는 중이에요…" : "Loading plans…"}</Text>
+          <Text style={s.dim}>{t("ds.plans.loading")}</Text>
         </View>
       ) : null}
       {error ? <Text style={s.error}>{error}</Text> : null}
 
       {/* free top-up via opt-in rewarded ad (COUNTS only, never quality) */}
-      <Text style={s.sectionLabel}>{ko ? "결제 없이 늘리기" : "Grow without paying"}</Text>
+      <Text style={s.sectionLabel}>{t("ds.plans.growWithoutPaying")}</Text>
       <Pressable
         style={s.rewardRow}
         onPress={() => setRewardVisible(true)}
         accessibilityRole="button"
-        accessibilityLabel={ko ? "광고로 담기 가속 충전" : "Speed up with an ad"}
+        accessibilityLabel={t("ds.plans.rewardTitle")}
       >
         <BoltIcon color={m3.color.tertiary} />
         <View style={s.rewardText}>
-          <Text style={s.rewardTitle}>{ko ? "광고로 담기 가속 충전" : "Speed up with an ad"}</Text>
-          <Text style={s.rewardSub}>{ko ? "30초 영상 = +5회 · 분석 품질은 그대로" : "30s video = +5 asks · quality unchanged"}</Text>
+          <Text style={s.rewardTitle}>{t("ds.plans.rewardTitle")}</Text>
+          <Text style={s.rewardSub}>{t("ds.plans.rewardSub", { n: REWARD_PER_WATCH })}</Text>
         </View>
         <ChevronRight color={m3.color.onSurfaceVariant} />
       </Pressable>
 
       {showStoreNotice ? (
         <MdCard variant="outlined" style={s.notice}>
-          <Text style={s.noticeTitle}>{ko ? "모바일 앱에서 업그레이드" : "Upgrade in the mobile app"}</Text>
+          <Text style={s.noticeTitle}>{t("ds.plans.noticeTitle")}</Text>
           <Text style={s.noticeBody}>
-            {ko
-              ? "유료 플랜은 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 두번째 뇌 앱을 열어 업그레이드해 주세요."
-              : "Paid plans are purchased through the app stores on iOS and Android. Open 2nd-Brain on your phone to upgrade."}
+            {t("ds.plans.noticeBody")}
           </Text>
-          <Pressable onPress={() => router.push("/support")} accessibilityRole="button" accessibilityLabel={ko ? "문의하기" : "Contact support"}>
-            <Text style={s.supportLink}>{ko ? "문의하기" : "Contact support"}</Text>
+          <Pressable onPress={() => router.push("/support")} accessibilityRole="button" accessibilityLabel={t("ds.plans.contactSupport")}>
+            <Text style={s.supportLink}>{t("ds.plans.contactSupport")}</Text>
           </Pressable>
         </MdCard>
       ) : null}
 
       {available ? (
-        <Pressable onPress={() => void restore()} disabled={busy} accessibilityRole="button" accessibilityLabel={ko ? "구매 복원" : "Restore purchase"} style={busy ? s.dimPress : undefined}>
-          <Text style={s.restore}>{busyAction === "restore" ? (ko ? "복원 중…" : "Restoring…") : ko ? "구매 복원" : "Restore purchase"}</Text>
+        <Pressable onPress={() => void restore()} disabled={busy} accessibilityRole="button" accessibilityLabel={t("ds.plans.restore")} style={busy ? s.dimPress : undefined}>
+          <Text style={s.restore}>{busyAction === "restore" ? t("ds.plans.restoring") : t("ds.plans.restore")}</Text>
         </Pressable>
       ) : null}
 

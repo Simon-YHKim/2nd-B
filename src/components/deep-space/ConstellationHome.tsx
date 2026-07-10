@@ -18,7 +18,7 @@ import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react
 import { withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
-import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
+import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { soulCoreOpacity } from "@/lib/persona/constellation-brightness";
 import { MdButton } from "@/components/m3";
@@ -58,11 +58,6 @@ const MUSEUM_LEVEL: LadderLevel = 4;
 function rev2StarOpacity(level: LadderLevel): number {
   return 0.36 + (level / 5) * 0.64;
 }
-
-const NAME = Object.fromEntries(DOMAIN_STARS.map((s) => [s.id, { ko: s.nameKo, en: s.nameEn }])) as Record<
-  DomainId,
-  { ko: string; en: string }
->;
 
 type BubbleState = { kind: "intro" } | { kind: "menu" } | { kind: "star"; id: HomeStarId };
 
@@ -160,8 +155,7 @@ export function ConstellationHome({
    *  canon-seeded today, so there is no honest unread count yet). */
   hasUnread?: boolean;
 }) {
-  const { t, i18n } = useTranslation("home");
-  const isKo = i18n.language === "ko";
+  const { t } = useTranslation("home");
   const { width: winW } = useWindowDimensions();
   const [bubble, setBubble] = useState<BubbleState>({ kind: "intro" });
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
@@ -183,7 +177,7 @@ export function ConstellationHome({
   const levelOf = (id: HomeStarId): LadderLevel =>
     id === "museum" ? MUSEUM_LEVEL : ((starLevels[id] ?? 1) as LadderLevel);
   const starName = (id: HomeStarId) =>
-    id === "museum" ? t("ds.home.museumName") : isKo ? NAME[id as DomainId].ko : NAME[id as DomainId].en;
+    id === "museum" ? t("ds.home.museumName") : t(`ds.home.domainName.${id}`);
   const kindOf = (id: HomeStarId) => (id === "museum" ? t("ds.home.kind.museum") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;
@@ -401,7 +395,7 @@ export function ConstellationHome({
             accessibilityRole="button"
             accessibilityLabel={t("ds.home.headA11y")}
           >
-            <SecondbHead size={headSize} mood="positive" track />
+            <SecondbHead size={headSize} mood="neutral" track />
           </Pressable>
         </View>
         <View style={[styles.bubbleAnchor, { marginTop: -104 + headSize / 2 - 6 }]}>

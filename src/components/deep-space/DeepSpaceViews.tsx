@@ -38,12 +38,14 @@ import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
-function GradientFill({ colors, radius = 0 }: { colors: readonly string[]; radius?: number }) {
+function GradientFill({ colors, radius = 0, diagonal = false }: { colors: readonly string[]; radius?: number; diagonal?: boolean }) {
   const id = "ds-grad-" + useId().replace(/[^a-zA-Z0-9]/g, "");
+  // diagonal=true → 135° run (top-left → bottom-right), matching the rev2
+  // reference cards' `linear-gradient(135deg, …)`. Default stays horizontal.
   return (
     <Svg style={StyleSheet.absoluteFill}>
       <Defs>
-        <LinearGradient id={id} x1="0" y1="0" x2="1" y2="0">
+        <LinearGradient id={id} x1="0" y1="0" x2="1" y2={diagonal ? "1" : "0"}>
           {colors.map((c, i) => (
             <Stop key={i} offset={colors.length === 1 ? 0 : i / (colors.length - 1)} stopColor={c} />
           ))}
@@ -1384,10 +1386,9 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
   const seed = IMAGINE_SEEDS.find((s) => s.ko.angle === picked) ?? null;
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      {/* intro card — ref: linear-gradient(135deg, tertiary-container → surface-container-low);
-          GradientFill is the sanctioned SVG primitive (horizontal run ≈ the ref diagonal). */}
+      {/* intro card — ref: linear-gradient(135deg, tertiary-container → surface-container-low). */}
       <View style={styles.imgIntro}>
-        <GradientFill colors={[m3.color.tertiaryContainer, m3.color.surfaceContainerLow]} radius={12} />
+        <GradientFill colors={[m3.color.tertiaryContainer, m3.color.surfaceContainerLow]} radius={12} diagonal />
         <View style={styles.imgIntroRow}>
           <Svg width={24} height={24} viewBox="0 0 24 24">
             <Path
@@ -1527,7 +1528,6 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
                 variant="filled"
                 accessibilityLabel={t(e.eraKey)}
                 onPress={() => router.push({ pathname: "/interview", params: { period: ERA_PERIOD[e.key] ?? "current" } })}
-                style={styles.auditCard}
               >
                 <View style={styles.auditCardRow}>
                   <View style={styles.auditEraCol}>
@@ -2290,8 +2290,10 @@ const styles = StyleSheet.create({
   auditRail: { position: "absolute", left: 5, top: 6, bottom: 6, width: 2, backgroundColor: m3.color.outlineVariant },
   auditEraList: { gap: 10 },
   auditEraRow: { position: "relative" },
-  auditNode: { position: "absolute", left: -20, top: 17, width: 14, height: 14, borderRadius: 7, backgroundColor: m3.color.surface, borderWidth: 2.5, borderColor: m3.color.primary, zIndex: 1 },
-  auditCard: { padding: 14 },
+  // rev2 AuditScreen era node: filled primary center + surface ring (bullseye),
+  // matching sb-screens-know.jsx (bg primary, 2px surface border). The prior
+  // dark-center hollow ring inverted the reference's bright core.
+  auditNode: { position: "absolute", left: -20, top: 17, width: 14, height: 14, borderRadius: 7, backgroundColor: m3.color.primary, borderWidth: 2, borderColor: m3.color.surface, zIndex: 1 },
   auditCardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   auditEraCol: { flex: 1, minWidth: 0 },
   auditEraName: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },

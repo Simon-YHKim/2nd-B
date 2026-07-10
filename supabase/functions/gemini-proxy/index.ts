@@ -47,6 +47,10 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+// D-27: (vendor × model × effort) axis key attribution — the ONLY symbol this
+// live-critical $0 backbone imports from _shared (a pure env reader; no crisis/
+// auth/cap logic is migrated here — that stays inlined per the _shared note).
+import { resolveApiKey } from '../_shared/llm-proxy-common.ts';
 
 // P0-3 (D-26, docs/LLM-ROUTING.md): the allowlist previously held only
 // {2.5-flash, 2.5-pro}, so the client's LITE tier (clipper_classify ->
@@ -477,6 +481,10 @@ Deno.serve(async (req: Request) => {
         vertex_backend: false,
         safety_zone: 'green',
         latency_ms: latencyMs,
+        // D-27: embeds stay on the base key; tag the vendor for re-decomposition.
+        purpose: 'embed',
+        reasoning_vendor: 'gemini',
+        key_combo: 'GEMINI_API_KEY',
       });
       audited = !auditErr;
       if (auditErr) console.warn('[gemini-proxy] embed audit insert failed:', auditErr.message);
@@ -667,6 +675,18 @@ Deno.serve(async (req: Request) => {
 
   // (D6 consent gate is hoisted above to cover both embed + generateContent.)
 
+  // D-27: (model × effort) combo key for the main generation path; embeds stay
+  // on the base key. effectiveModel already reflects the sub-brain pro->flash
+  // downgrade, so attribution matches what actually runs. max folds to xhigh.
+  const effortSlug = effort === 'max' ? 'xhigh' : effort;
+  const resolvedKey = resolveApiKey('GEMINI', effectiveModel, effortSlug, apiKey);
+  if (!resolvedKey.usedCombo) {
+    console.warn(
+      `[gemini-proxy] combo key ${resolvedKey.secretName} absent — using base GEMINI_API_KEY (usage attributes to base)`,
+    );
+  }
+  const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'GEMINI_API_KEY';
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -674,7 +694,7 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-goog-api-key': apiKey,
+        'x-goog-api-key': resolvedKey.apiKey,
       },
       body: JSON.stringify(geminiBody),
     });
@@ -723,6 +743,9 @@ Deno.serve(async (req: Request) => {
   // purpose. On success we tell the client (audited:true) so it skips its own
   // insert; on failure the client falls back to writing the row itself. The
   // prompt hash mirrors the client (system+user only, excluding the preamble).
+  // D-27: usage tokens (Gemini usageMetadata.totalTokenCount).
+  const geminiTotalTokens =
+    Number((data?.usageMetadata as { totalTokenCount?: number } | undefined)?.totalTokenCount) || null;
   let audited = false;
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
@@ -733,6 +756,12 @@ Deno.serve(async (req: Request) => {
       vertex_backend: false,
       safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
       latency_ms: latencyMs,
+      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+      purpose,
+      reasoning_vendor: 'gemini',
+      reasoning_effort: effortSlug,
+      key_combo: keyCombo,
+      total_tokens: geminiTotalTokens,
     });
     audited = !auditErr;
     if (auditErr) console.warn('[gemini-proxy] audit insert failed:', auditErr.message);

@@ -11,6 +11,9 @@
 // assessments). emotional_stability ↔ neuroticism is inverted.
 
 import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
+import type { ValueId } from "./values-survey";
+import type { StrengthId } from "./strengths-survey";
+import type { MotivationNeedKey } from "./motivation-survey";
 import { callGemini } from "../llm/gemini";
 import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
@@ -277,6 +280,166 @@ export async function loadLatestBfi(
       agreeableness: s.agreeableness,
       neuroticism: s.neuroticism,
     };
+  } catch {
+    return null;
+  }
+}
+
+export interface LoadedValues {
+  /** Per-value 0-100 scores, sorted descending (highest first). */
+  scores: { value: ValueId; score: number }[];
+  /** 0..1 honest confidence stored with the self-report. */
+  confidence: number;
+}
+
+export async function loadLatestValues(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<LoadedValues | null> {
+  // Values self-report (values-survey.ts). The /values survey writes a record
+  // tagged ["values", "assessment"] whose body carries { values_responses,
+  // scores, confidence }. Mirrors loadLatestBfi: newest row, JSON.parse(body).
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["values", "assessment"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      scores?: { value?: string; score?: number }[];
+      confidence?: number;
+    };
+    if (!Array.isArray(parsed.scores) || parsed.scores.length === 0) return null;
+    const scores = parsed.scores
+      .filter(
+        (s): s is { value: ValueId; score: number } =>
+          !!s && typeof s.value === "string" && typeof s.score === "number" && Number.isFinite(s.score),
+      )
+      .map((s) => ({ value: s.value, score: s.score }));
+    if (scores.length === 0) return null;
+    // Newest-first already, but the writer sorts descending too — re-sort so a
+    // hand-edited or legacy row can't render an out-of-order spectrum.
+    scores.sort((a, b) => b.score - a.score);
+    const confidence =
+      typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+        ? parsed.confidence
+        : 0;
+    return { scores, confidence };
+  } catch {
+    return null;
+  }
+}
+
+export interface LoadedStrengths {
+  /** Per-strength 0-100 scores, sorted descending (highest first). */
+  scores: { strength: StrengthId; score: number }[];
+  /** 0..1 honest confidence stored with the self-report. */
+  confidence: number;
+}
+
+export async function loadLatestStrengths(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<LoadedStrengths | null> {
+  // Strengths self-report (strengths-survey.ts). The /strengths survey writes a
+  // record tagged ["strengths", "assessment"] whose body carries {
+  // strengths_responses, scores, confidence }. Mirrors loadLatestValues: newest
+  // row, JSON.parse(body).
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["strengths", "assessment"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      scores?: { strength?: string; score?: number }[];
+      confidence?: number;
+    };
+    if (!Array.isArray(parsed.scores) || parsed.scores.length === 0) return null;
+    const scores = parsed.scores
+      .filter(
+        (s): s is { strength: StrengthId; score: number } =>
+          !!s && typeof s.strength === "string" && typeof s.score === "number" && Number.isFinite(s.score),
+      )
+      .map((s) => ({ strength: s.strength, score: s.score }));
+    if (scores.length === 0) return null;
+    // Newest-first already, but the writer sorts descending too — re-sort so a
+    // hand-edited or legacy row can't render an out-of-order spectrum.
+    scores.sort((a, b) => b.score - a.score);
+    const confidence =
+      typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+        ? parsed.confidence
+        : 0;
+    return { scores, confidence };
+  } catch {
+    return null;
+  }
+}
+
+export interface LoadedMotivation {
+  /** Per-SDT-need 0-100 scores (autonomy/competence/relatedness), sorted descending. */
+  needs: { key: MotivationNeedKey; score: number }[];
+  /** Intrinsic share of the intrinsic↔extrinsic balance, 0-100. */
+  intrinsicPct: number;
+  /** Extrinsic share, 0-100 (complement of intrinsicPct). */
+  extrinsicPct: number;
+  /** 0..1 honest confidence stored with the self-report. */
+  confidence: number;
+}
+
+export async function loadLatestMotivation(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<LoadedMotivation | null> {
+  // Motivation self-report (motivation-survey.ts). The /motivation survey writes
+  // a record tagged ["motivation", "assessment"] whose body carries {
+  // motivation_responses, needs, intrinsicPct, extrinsicPct, confidence }. Mirrors
+  // loadLatestStrengths: newest row, JSON.parse(body).
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["motivation", "assessment"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      needs?: { key?: string; score?: number }[];
+      intrinsicPct?: number;
+      extrinsicPct?: number;
+      confidence?: number;
+    };
+    if (!Array.isArray(parsed.needs) || parsed.needs.length === 0) return null;
+    const needs = parsed.needs
+      .filter(
+        (n): n is { key: MotivationNeedKey; score: number } =>
+          !!n && typeof n.key === "string" && typeof n.score === "number" && Number.isFinite(n.score),
+      )
+      .map((n) => ({ key: n.key, score: n.score }));
+    if (needs.length === 0) return null;
+    // Newest-first already, but the writer sorts descending too — re-sort so a
+    // hand-edited or legacy row can't render an out-of-order spectrum.
+    needs.sort((a, b) => b.score - a.score);
+    const intrinsicPct =
+      typeof parsed.intrinsicPct === "number" && Number.isFinite(parsed.intrinsicPct)
+        ? parsed.intrinsicPct
+        : 50;
+    const extrinsicPct =
+      typeof parsed.extrinsicPct === "number" && Number.isFinite(parsed.extrinsicPct)
+        ? parsed.extrinsicPct
+        : 100 - intrinsicPct;
+    const confidence =
+      typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+        ? parsed.confidence
+        : 0;
+    return { needs, intrinsicPct, extrinsicPct, confidence };
   } catch {
     return null;
   }

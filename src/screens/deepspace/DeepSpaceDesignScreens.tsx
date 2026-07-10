@@ -2239,14 +2239,14 @@ export function DeepSpaceFocusScreen() {
         <MdButton
           label={timer.running ? (ko ? "일시정지" : "Pause") : (ko ? "집중 시작" : "Start focus")}
           variant={timer.running ? "tonal" : "filled"}
-          icon={<CloneIcon name={timer.running ? "timer" : "sparkle"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} />}
+          icon={<CloneIcon name={timer.running ? "pause" : "play_arrow"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} fill={!timer.running} />}
           onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
           style={{ flex: 2 }}
         />
         <MdButton
           label={ko ? "리셋" : "Reset"}
           variant="outlined"
-          icon={<CloneIcon name="refresh" color={m3.color.primary} size={18} />}
+          icon={<CloneIcon name="replay" color={m3.color.primary} size={18} />}
           onPress={() => setTimer((s) => reset(s))}
           style={{ flex: 1 }}
         />
@@ -2261,7 +2261,7 @@ export function DeepSpaceFocusScreen() {
             kind="filter"
             selected={starIdx === i}
             label={s}
-            icon={<CloneIcon name="sparkle" color={starIdx === i ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={15} />}
+            icon={<CloneIcon name={starIdx === i ? "check" : "star_shine"} color={starIdx === i ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={15} />}
             onPress={() => setStarIdx(i)}
           />
         ))}
@@ -2470,6 +2470,14 @@ const CLONE_ICON: Record<string, string> = {
   lightbulb: '<path d="M9.2 18h5.6M10 21h4M8.4 14.6A5.6 5.6 0 1 1 17 10a5.4 5.4 0 0 1-1.6 3.9c-.6.6-.9 1-.9 1.7v.4h-5v-.4c0-.7-.3-1.1-.9-1.7Z"/>',
   share: '<path d="M12 3v11M8.5 6.5 12 3l3.5 3.5"/><path d="M6 12v7h12v-7"/>',
   check: '<path d="M5 12.5 10 17 19 7"/>',
+  // rev2 FocusScreen glyphs (sb-data.jsx ICON_SVG). play_arrow is rendered filled
+  // (reference sb-more.jsx uses it filled); the reference's own ICON_SVG omits
+  // play_arrow so its render falls back to `workspaces` (3 circles) — an upstream
+  // glyph gap, not a design choice, so we honor the declared intent (a play mark).
+  play_arrow: '<path d="M9 6.5v11l9-5.5z"/>',
+  pause: '<path d="M9 5v14M15 5v14"/>',
+  replay: '<path d="M6 12a6 6 0 1 0 1.8-4.3M7 4v4h4"/>',
+  star_shine: '<path d="M12 3c.5 3.8 2.7 6 6.5 6.5-3.8.5-6 2.7-6.5 6.5-.5-3.8-2.7-6-6.5-6.5 3.8-.5 6-2.7 6.5-6.5Z"/>',
   refresh: '<path d="M5 12a7 7 0 0 1 12-5M19 4.5v4h-4"/><path d="M19 12a7 7 0 0 1-12 5M5 19.5v-4h4"/>',
   lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
   forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',

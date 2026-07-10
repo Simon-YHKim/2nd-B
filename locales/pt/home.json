@@ -90,6 +90,15 @@
       "polaris": "Estrela Polar",
       "hint": "Toque nas sete estrelas para abrir suas sete áreas da vida",
       "museumName": "Museu",
+      "domainName": {
+        "career": "Carreira",
+        "finance": "Finanças",
+        "growth": "Crescimento",
+        "relation": "Relações",
+        "health": "Saúde",
+        "recreation": "Descanso",
+        "collect": "Coletar"
+      },
       "inbox": "Notificações",
       "headA11y": "Perguntar ao SecondB",
       "kind": {
@@ -396,6 +405,8 @@
       "viewValidation": "Ver validação"
     },
     "axisCheck": {
+      "emptyTitle": "Ainda não medido",
+      "emptyText": "Ao concluir a entrevista, isto será preenchido com os seus próprios registos.",
       "values": {
         "headline": "Valores",
         "level": "L2",
@@ -465,6 +476,7 @@
         "level": "L2",
         "confidence": "Confiança 66%",
         "subtitle": "Grão oculto (camada B) · o que faz você ser você",
+        "coreLabel": "SIGNATURE STRENGTHS",
         "spectrum": "Espectro de forças",
         "insight": "Sua curiosidade pelo desconhecido parece a força que te leva mais longe.",
         "actionPrimary": "Aproveitar forças",

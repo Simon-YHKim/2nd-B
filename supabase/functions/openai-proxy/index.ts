@@ -49,6 +49,7 @@ import {
   hasCrisisTerm,
   jsonResponse,
   normalizeResponseSchema,
+  resolveApiKey,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
@@ -285,6 +286,16 @@ Deno.serve(async (req: Request) => {
 
   const openaiModel = resolveModel(purpose);
   const clampedEffort = effortToOpenAi(effort, purpose);
+  // D-27: sign with the (model × effort) combo key when provisioned, else base
+  // OPENAI_API_KEY (fallback keeps calls working; that usage attributes to
+  // base). Only changes WHICH key signs the already-server-owned request.
+  const resolvedKey = resolveApiKey('OPENAI', openaiModel, clampedEffort, apiKey);
+  if (!resolvedKey.usedCombo) {
+    console.warn(
+      `[openai-proxy] combo key ${resolvedKey.secretName} absent — using base OPENAI_API_KEY (usage attributes to base)`,
+    );
+  }
+  const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'OPENAI_API_KEY';
   const systemPrompt =
     systemText && systemText.length > 0 ? `${SAFETY_PREAMBLE}\n\n${systemText}` : SAFETY_PREAMBLE;
   const openaiBody = {
@@ -318,7 +329,7 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'authorization': `Bearer ${apiKey}`,
+        'authorization': `Bearer ${resolvedKey.apiKey}`,
       },
       body: JSON.stringify(openaiBody),
     });
@@ -352,6 +363,8 @@ Deno.serve(async (req: Request) => {
   const truncated = choice?.finish_reason === 'length';
 
   // C3: write the audit row server-side (parity with the sibling proxies).
+  // D-27: usage tokens (OpenAI returns usage.total_tokens incl. reasoning).
+  const openaiTotalTokens = Number(data?.usage?.total_tokens) || null;
   let audited = false;
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
@@ -362,6 +375,12 @@ Deno.serve(async (req: Request) => {
       vertex_backend: false,
       safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
       latency_ms: latencyMs,
+      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+      purpose,
+      reasoning_vendor: 'openai',
+      reasoning_effort: clampedEffort,
+      key_combo: keyCombo,
+      total_tokens: openaiTotalTokens,
     });
     audited = !auditErr;
     if (auditErr) console.warn('[openai-proxy] audit insert failed:', auditErr.message);

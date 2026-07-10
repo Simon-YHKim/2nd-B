@@ -90,6 +90,15 @@
       "polaris": "Bintang Utara",
       "hint": "Ketuk tujuh bintang untuk membuka tujuh area hidupmu",
       "museumName": "Museum",
+      "domainName": {
+        "career": "Karier",
+        "finance": "Keuangan",
+        "growth": "Pertumbuhan",
+        "relation": "Hubungan",
+        "health": "Kesehatan",
+        "recreation": "Istirahat",
+        "collect": "Kumpulkan"
+      },
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
       "kind": {
@@ -396,6 +405,8 @@
       "viewValidation": "Lihat validasi"
     },
     "axisCheck": {
+      "emptyTitle": "Belum diukur",
+      "emptyText": "Setelah wawancara selesai, ini akan terisi dari catatanmu sendiri.",
       "values": {
         "headline": "Nilai",
         "level": "L2",
@@ -465,6 +476,7 @@
         "level": "L2",
         "confidence": "Keyakinan 66%",
         "subtitle": "Serat tersembunyi (lapis B) · yang membuatmu jadi kamu",
+        "coreLabel": "SIGNATURE STRENGTHS",
         "spectrum": "Spektrum kekuatan",
         "insight": "Rasa ingin tahumu pada hal asing tampak seperti kekuatan yang membawamu paling jauh.",
         "actionPrimary": "Manfaatkan kekuatan",

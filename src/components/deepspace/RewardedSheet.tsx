@@ -18,7 +18,6 @@ import { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
-  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -26,6 +25,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
@@ -139,7 +139,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale }:
 
           {/* character head, neutral-friendly */}
           <View style={styles.headWrap}>
-            <Image source={HEAD_IMAGE} style={styles.head} resizeMode="contain" accessibilityLabel="" />
+            <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
           </View>
 
           <Text style={styles.title}>
@@ -298,9 +298,13 @@ const styles = StyleSheet.create({
   laterText: { fontSize: 13, color: withAlpha(deepSpace.accentSoft, 0.55) },
   privacy: {
     textAlign: "center",
-    fontSize: 11,
-    color: withAlpha(deepSpace.accentSoft, 0.4),
+    // Consent/privacy disclosure (ads only to consenting adults, never on
+    // sensitive screens) — the trust-critical line, so it must be legible, not
+    // de-emphasized fine print. Was fontSize 11 @ 0.4 alpha (below AA contrast);
+    // raised to 12 @ 0.7 so it reads as reassurance rather than disclaimer.
+    fontSize: 12,
+    color: withAlpha(deepSpace.accentSoft, 0.7),
     marginTop: 14,
-    lineHeight: 17,
+    lineHeight: 18,
   },
 });

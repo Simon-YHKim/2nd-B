@@ -72,6 +72,11 @@ export function DeepSpaceShell() {
   if (!onboardingComplete) return <Redirect href="/onboarding" />;
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  // autoTriggerTTFV hydrates from AsyncStorage on native and is null until the
+  // read resolves. Without this guard, null is falsy so the shell renders
+  // ConstellationHome (and coachmarks) for one frame, then bounces to /ttfv once
+  // storage resolves — a home flash on the very first run. Mirrors index.tsx.
+  if (autoTriggerTTFV === null) return <InlineLoader />;
   if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
 
   return (

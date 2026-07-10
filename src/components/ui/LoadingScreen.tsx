@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
 import { deepSpace, typography } from "@/lib/theme/tokens";
@@ -264,11 +265,9 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       accessibilityState={{ busy: phase !== "ready", disabled: phase === "zooming" }}
     >
       <DeepSpaceBackdrop />
-      <Animated.Image
-        source={logo}
-        style={[styles.logo, { opacity, transform: [{ scale }] }]}
-        resizeMode="contain"
-      />
+      <Animated.View style={[styles.logo, { opacity, transform: [{ scale }] }]}>
+        <ExpoImage source={logo} style={styles.logoImg} contentFit="contain" />
+      </Animated.View>
       {phase === "typing" ? (
         <Text style={styles.text}>
           {typed}
@@ -293,6 +292,7 @@ const styles = StyleSheet.create({
     gap: 32,
   },
   logo: { width: 220, height: 220 },
+  logoImg: { width: "100%", height: "100%" },
   text: {
     color: deepSpace.textHi,
     fontSize: typography.sizes.md,
