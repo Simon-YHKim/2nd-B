@@ -117,35 +117,20 @@ function geminiGenLadder(
   return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
 }
 
-// D-26 per-purpose EFFORT CEILING (server-owned). `effort` is client-reported
-// and cost = model x effort x max_tokens, so without this clamp a tampered
-// client could pin gemini-2.5-pro at "max" (thinkingBudget -1 = UNBOUNDED) on
-// every call. Mirrors claude-proxy / openai-proxy: "max" is never honored (it
-// folds to "xhigh", a bounded thinking budget) and unknown / unseated purposes
-// clamp to the conservative default. Tune PURPOSE_EFFORT_MAX per gemini-specific
-// purpose as needed. (audit H2, decision D2)
-const EFFORT_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, xhigh: 3 };
-const DEFAULT_EFFORT_CEILING = 'high';
-const PURPOSE_EFFORT_MAX: Record<string, string> = {
-  advisor: 'high',
-  secondb_chat: 'low',
-  gap_synthesize: 'low',
-  self_model_propose: 'high',
-  northstar_propose: 'high',
-  ops_recommend: 'medium',
-  ops_daily_brief: 'medium',
-  ttfv_first_insight: 'xhigh',
-  persona_narrative: 'high',
-  axis_estimate: 'high',
-  persona_synthesis: 'xhigh',
-  digest_weekly: 'xhigh',
-  capture_ocr: 'xhigh',
-};
-function clampEffortToPurpose(effort: Effort, purpose: string | null): Effort {
-  // "max" always folds to "xhigh" - no seat is approved for an unbounded budget.
-  const requested = effort === 'max' ? 'xhigh' : effort;
-  const ceiling = (purpose && PURPOSE_EFFORT_MAX[purpose]) || DEFAULT_EFFORT_CEILING;
-  return (EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling) as Effort;
+// D-26 EFFORT CEILING (server-owned). `effort` is client-reported and cost =
+// model x effort x max_tokens; the abuse vector (audit H2) is effort='max',
+// which maps to thinkingBudget -1 (UNBOUNDED). Fold 'max' to 'xhigh' (bounded
+// 8192 thinking, the top legitimate rung) so a tampered client cannot pin an
+// unbounded budget.
+//
+// We deliberately do NOT impose lower per-purpose ceilings here: honest
+// flash-tier purposes (secondb_chat, gap_synthesize, ...) OMIT `effort`, so
+// normalizeEffort defaults them to 'high' server-side; a claude-proxy-style
+// low ceiling would then TRUNCATE legitimate replies (e.g. chat 2048->1024),
+// a regression beyond the security goal. Per-purpose ceilings need
+// gemini-specific usage data and are a follow-up. (decision D2)
+function clampEffort(effort: Effort): Effort {
+  return effort === 'max' ? 'xhigh' : effort;
 }
 
 // Audit HIGH (spend cap): per-user/day ceiling on TOTAL proxy calls (all
@@ -536,9 +521,9 @@ Deno.serve(async (req: Request) => {
   }
   userParts.push({ text: userText });
 
-  // Server-owned per-purpose ceiling: a tampered client cannot pin "max"
-  // (unbounded thinking) or exceed its seat's approved effort. (audit H2, D2)
-  const clampedEffort = clampEffortToPurpose(effort, purpose);
+  // Fold a client-reported "max" to a bounded "xhigh" so a tampered client
+  // cannot pin an unbounded thinking budget. (audit H2, D2)
+  const clampedEffort = clampEffort(effort);
   const genLadder = geminiGenLadder(clampedEffort, Boolean(imagePart), purpose);
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: userParts }],
