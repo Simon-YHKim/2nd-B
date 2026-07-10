@@ -18,8 +18,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const VERIFIER_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.json';
-const REWARD_MONTHLY_CAP = 20; // must match src/lib/entitlements/tiers.ts
-const REWARD_PER_WATCH = 2; //     REWARD_PER_WATCH
+// The monthly cap + clamp are enforced server-side in migration 0079
+// (grant_reward_credits_ssv); this file only forwards one watch's worth.
+const REWARD_PER_WATCH = 2; // must match src/lib/entitlements/tiers.ts REWARD_PER_WATCH
 
 type VerifierKey = { keyId: number; pem?: string; base64: string };
 let keyCache: { at: number; keys: VerifierKey[] } | null = null;
@@ -29,7 +30,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 function b64urlToBytes(s: string): Uint8Array {
-  const b64 = s.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((s.length + 3) % 4);
+  let b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4;
+  if (pad) b64 += '='.repeat(4 - pad);
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -66,9 +69,9 @@ function derToRawEcdsa(der: Uint8Array): Uint8Array | null {
   }
 }
 
-async function getVerifierKeys(): Promise<VerifierKey[]> {
-  // Cache 1h; refetch on a key-id miss handled by the caller.
-  if (keyCache && Date.now() - keyCache.at < 3_600_000) return keyCache.keys;
+async function getVerifierKeys(force = false): Promise<VerifierKey[]> {
+  // Cache 1h; the caller force-refetches on a key-id miss (Google rotates keys).
+  if (!force && keyCache && Date.now() - keyCache.at < 3_600_000) return keyCache.keys;
   const res = await fetch(VERIFIER_KEYS_URL);
   if (!res.ok) throw new Error(`verifier keys ${res.status}`);
   const data = (await res.json()) as { keys: VerifierKey[] };
@@ -87,8 +90,14 @@ async function signatureValid(rawQuery: string): Promise<{ ok: boolean; params: 
   const keyId = params.get('key_id');
   if (!signature || !keyId) return { ok: false, params };
 
-  const keys = await getVerifierKeys();
-  const key = keys.find((k) => String(k.keyId) === keyId);
+  let keys = await getVerifierKeys();
+  let key = keys.find((k) => String(k.keyId) === keyId);
+  if (!key) {
+    // Key rotation: the new key_id may be absent from the 1h cache. Force one
+    // refetch before rejecting (still fail closed if genuinely absent).
+    keys = await getVerifierKeys(true);
+    key = keys.find((k) => String(k.keyId) === keyId);
+  }
   if (!key) return { ok: false, params };
 
   const raw = derToRawEcdsa(b64urlToBytes(signature));
@@ -122,39 +131,32 @@ Deno.serve(async (req: Request) => {
     // The user id is carried in custom_data (set when the client requests the ad).
     const userId = params.get('custom_data') ?? params.get('user_id');
     if (!userId) return json({ error: 'no_user' }, 400);
+    // AdMob's unique impression id = the idempotency key (replay + retry defense).
+    const txnId = params.get('transaction_id');
+    if (!txnId) return json({ error: 'no_transaction_id' }, 400);
 
-    // Grant server-side, capped. Trusted service-role write (the caller is a
-    // verified AdMob callback, not the user), mirroring 0075's clamp. GREATEST
-    // avoids clawing back an over-cap balance.
+    // Grant via the atomic, idempotent, service-role-only RPC (0079): it dedups on
+    // transaction_id and clamps to the server-owned monthly cap in one statement-set,
+    // so a replayed or AdMob-retried callback grants at most once.
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { persistSession: false } },
     );
-    const now = new Date();
-    const kst = new Date(now.getTime() + 9 * 3600_000);
+    const kst = new Date(Date.now() + 9 * 3600_000);
     const monthBucket = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`;
-    const grant = Math.min(REWARD_PER_WATCH, REWARD_MONTHLY_CAP);
 
-    const { data: row } = await admin
-      .from('usage_counters')
-      .select('reward_credits')
-      .eq('user_id', userId)
-      .eq('month_bucket', monthBucket)
-      .maybeSingle();
-    const current = Number(row?.reward_credits) || 0;
-    const next = Math.max(current, Math.min(current + grant, REWARD_MONTHLY_CAP));
-    const { error: wErr } = await admin
-      .from('usage_counters')
-      .upsert(
-        { user_id: userId, month_bucket: monthBucket, reward_credits: next, updated_at: now.toISOString() },
-        { onConflict: 'user_id,month_bucket' },
-      );
-    if (wErr) {
-      console.error('[rewarded-ssv] grant failed:', wErr.message);
+    const { data: credits, error: gErr } = await admin.rpc('grant_reward_credits_ssv', {
+      p_user_id: userId,
+      p_month: monthBucket,
+      p_grant: REWARD_PER_WATCH,
+      p_txn_id: txnId,
+    });
+    if (gErr) {
+      console.error('[rewarded-ssv] grant failed:', gErr.message);
       return json({ error: 'grant_failed' }, 500);
     }
-    return json({ ok: true, reward_credits: next });
+    return json({ ok: true, reward_credits: credits ?? null });
   } catch (e) {
     console.error('[rewarded-ssv] error:', String(e));
     return json({ error: 'server_error' }, 500);
