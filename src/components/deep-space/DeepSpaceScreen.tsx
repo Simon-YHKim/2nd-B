@@ -85,12 +85,12 @@ export function DeepSpaceScreen({
   action?: ReactNode;
   children: ReactNode;
 }) {
-  const { t, i18n } = useTranslation("home");
-  const isKo = i18n.language === "ko";
+  const { t } = useTranslation("home");
 
-  // Character a11y label stays an inline isKo ternary (deep-space-shell-a11y guard
-  // pins this pattern + bans non-ASCII string literals in accessibilityLabel).
-  const characterLabel = isKo ? "세컨드 브레인 캐릭터" : "Second Brain character";
+  // Character a11y label resolves through i18next so every shipped locale gets its
+  // own string (the deep-space-shell-a11y guard pins the t() call + bans non-ASCII
+  // string literals in accessibilityLabel).
+  const characterLabel = t("character.a11y");
 
   // rev2 back() (sb-app): hardware back on a non-home ROOT tab returns to the
   // constellation home instead of exiting the app. Screens with their own back

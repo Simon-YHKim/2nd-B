@@ -472,7 +472,7 @@ export function DeepSpaceRecordsScreen() {
               )}
             </>
           ) : records.length > 0 ? (
-            <RecordsGraph graph={recordsGraph} isKo={isKo} onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: { id } })} />
+            <RecordsGraph graph={recordsGraph} onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: { id } })} />
           ) : (
             <View style={styles.wikiPageOpen}>
               <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>

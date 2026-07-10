@@ -559,6 +559,13 @@
   "polaris": {
     "cardDeck": "Baralho de cartões da Estrela Polar"
   },
+  "recordsGraph": {
+    "a11yGraph": "Grafo de conexão de registros",
+    "a11yZoomOut": "Diminuir zoom",
+    "a11yZoomIn": "Aumentar zoom",
+    "hintSelected": "{{label}} · toque novamente para abrir",
+    "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir"
+  },
   "wikiGraph": {
     "a11yGraph": "Grafo de nós da wiki",
     "a11yZoomOut": "Diminuir zoom",
@@ -625,6 +632,7 @@
       "active": "Ativo",
       "currentPlan": "Plano atual",
       "purchasing": "Comprando…",
+      "startTier": "Começar {{name}}",
       "loading": "Carregando planos…",
       "growWithoutPaying": "Cresça sem pagar",
       "rewardTitle": "Acelere com um anúncio",
@@ -706,6 +714,10 @@
     "ttfv": {
       "pageTitle": "Sua primeira estrela acabou de se acender",
       "stageA11y": "A estrela polar e sua primeira estrela acesa",
+      "defaultInsight": {
+        "star": "Relações",
+        "phrase": "dá o primeiro passo"
+      },
       "secondbName": "SecondB",
       "insightLead": "Você pode ser alguém que ",
       "insightTail": ".",
@@ -715,6 +727,7 @@
       "differ": "Um pouco diferente",
       "consent": "De qualquer forma, uma estrela só brilha com o seu consentimento.",
       "ratifySoft": "Suas palavras deixaram a estrela mais precisa.",
+      "ratifyTitle": "Sua estrela de {{star}} ficou um passo mais brilhante.",
       "ratifySub": "Quanto mais você registra, mais nítidas ficam as estrelas, e sete delas acendem a estrela polar.",
       "enter": "Entrar na sua constelação",
       "evidence1": {
