@@ -84,11 +84,12 @@
 
 ---
 
-## Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 7 PR
+## Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 10 PR
 
 ### 어디까지 왔나
-- main HEAD: `c475946c`
-- 이번 세션(저녁) 머지 PR (7): #863 핸드오프 · #864 TTFV null 홈플래시 가드 · #866 authLabel 7→12px · #865 리워드 +5/+2 카피 보간 · #867 Likert 앵커 대비(자기이해 4화면) · #868 RewardedSheet privacy AA 대비 · **#869 Kakao Maven repo(네이티브빌드 언블록)**
+- main HEAD: `8cc5141a`
+- 이번 세션(저녁) 머지 PR (10): #863 핸드오프 · #864 TTFV null 홈플래시 가드 · #866 authLabel 7→12px · #865 리워드 +5/+2 카피 보간 · #867 Likert 앵커 대비 · #868 RewardedSheet privacy AA 대비 · **#869 Kakao Maven repo(네이티브빌드 언블록)** · #872 RewardedSheet 시트 카피 i18n(es/pt/id 영어폴백 해소) · #873 TTFV eyebrow i18n+L1→L2 은어제거 · #874 capture subtitle 자동분류 3중중복 정리
+- 참고: **#871(타 에이전트)=systemic audit remediation**(server-enforced caps·safety/consent wiring·a11y·data-integrity·perf) — persona-sim 게이트(안전/수익화 등) 일부와 겹칠 수 있음, 게이트 착수 전 이미 반영됐는지 확인
 - 테스트: `npm run verify` green (각 PR CI 통과)
 - working tree: clean. 작업=격리 워크트리 `.worktrees/clone-rev2`
 
@@ -110,7 +111,7 @@
 ### 다음 작업 큐
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
-| A | 남은 persona-sim 클린픽스 ship: ⑦RewardedSheet 미번역 ko/en삼항→5로케일 i18n·capture 3중 자동분류중복→1개·③TTFV eyebrow/L1→L2 i18n(star/phrase Claude번역) | small~medium | ⭐ 근거명확·에뮬 시각검증 가능 |
+| A | 남은 persona-sim 클린픽스 ship: 구매CTA ko/en삼항(dds-plans-screen:305→ds.plans.startTier {{name}})·a11y라벨 ko/en삼항(RecordsGraph:68/138/141·DeepSpaceScreen:93)→i18n·③TTFV DEFAULT_INSIGHT star/phrase es/pt/id(Claude번역, i18n레이어 ds.ttfv.defaultInsight)+ratify affirm 인라인영어(251-253) | small~medium | ⭐ 근거명확 |
 | B | ⑥ 픽셀폰트 a11y(dock 9px·numLabel 7px·TIP 9px) — 딥스페이스 미학 존중, 에뮬 시각확인 후 신중 | small | 디자인민감 |
 | C | 나머지 populated 화면(big-five/attachment/records) 레퍼런스 대조 fidelity | small | |
 | G | 🔒 게이트 4건(위 persona-sim) — Simon 결정 후 착수 | — | Simon |
