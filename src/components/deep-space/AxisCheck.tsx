@@ -68,8 +68,7 @@ const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof ty
 };
 
 function AxisLens({ axis }: { axis: AxisCheckId }) {
-  const { t, i18n } = useTranslation("home");
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("home");
   const act = ACTIONS[axis];
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
 
@@ -86,12 +85,10 @@ function AxisLens({ axis }: { axis: AxisCheckId }) {
         <SecondbHead size={30} track={false} />
         <View style={styles.emptyBody}>
           <Text style={[m3TextStyle("titleSmall"), styles.emptyTitle]}>
-            {ko ? "아직 측정 전이에요" : "Not measured yet"}
+            {t("ds.axisCheck.emptyTitle")}
           </Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.emptyText]}>
-            {ko
-              ? "인터뷰를 마치면 내 기록을 바탕으로 여기에 채워드려요."
-              : "Finish the interview and this fills in from your own records."}
+            {t("ds.axisCheck.emptyText")}
           </Text>
         </View>
       </MdCard>

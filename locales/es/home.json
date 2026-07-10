@@ -396,6 +396,8 @@
       "viewValidation": "Ver validación"
     },
     "axisCheck": {
+      "emptyTitle": "Aún sin medir",
+      "emptyText": "Cuando termines la entrevista, esto se completará con tus propios registros.",
       "values": {
         "headline": "Valores",
         "level": "L2",

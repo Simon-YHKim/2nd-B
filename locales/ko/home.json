@@ -396,6 +396,8 @@
       "viewValidation": "검증 보기"
     },
     "axisCheck": {
+      "emptyTitle": "아직 측정 전이에요",
+      "emptyText": "인터뷰를 마치면 내 기록을 바탕으로 여기에 채워드려요.",
       "values": {
         "headline": "가치관",
         "level": "L2",
