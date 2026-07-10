@@ -73,7 +73,7 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
 
       {/* SecondB bubble */}
       <View style={[styles.bubbleWrap, step.cy > 0.6 ? styles.bubbleTop : styles.bubbleBottom]}>
-        <SecondbHead size={44} mood="positive" accessibilityLabel={t("deepspace:coachmarks.secondbName")} />
+        <SecondbHead size={44} mood="neutral" accessibilityLabel={t("deepspace:coachmarks.secondbName")} />
         <View style={styles.bubble}>
           <Text style={styles.stepCount}>{`${idx + 1}/${STEPS.length}`}</Text>
           <Text style={styles.bubbleText}>{t(`deepspace:coachmarks.${step.key}`)}</Text>

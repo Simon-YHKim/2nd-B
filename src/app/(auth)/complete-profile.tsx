@@ -181,7 +181,7 @@ export default function CompleteProfile() {
         >
         <View style={styles.header}>
           <View accessibilityRole="image" accessibilityLabel={t("common.entryArtwork")}>
-            <SecondbHead size={96} mood="positive" />
+            <SecondbHead size={96} mood="neutral" />
           </View>
           <Text variant="heading" style={styles.title}>
             {t("completeProfile.title")}

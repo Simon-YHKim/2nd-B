@@ -134,7 +134,7 @@ export default function Digest() {
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.header}>
-          <SecondbHead size={48} mood="positive" />
+          <SecondbHead size={48} mood="neutral" />
           <View style={styles.flex}>
             <Text variant="heading">{ko ? "오늘의 정리" : "Today's review"}</Text>
             <Text variant="subtle" color="textMuted" style={styles.intro}>

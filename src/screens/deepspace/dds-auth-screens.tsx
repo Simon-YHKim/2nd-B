@@ -217,7 +217,7 @@ export function DeepSpaceSignInDesignScreen() {
   return (
     <AuthShell>
       <View style={styles.authHero}>
-        <SecondbHead size={72} mood="positive" />
+        <SecondbHead size={72} mood="neutral" />
         <Text variant="caption" pixelEn style={styles.authBrand}>{t("deepspace:auth.brandLabel")}</Text>
         <Text variant="heading" style={styles.authTitle}>{t("deepspace:auth.signInTitle")}</Text>
         <Text variant="body" style={styles.authSub}>{t("deepspace:auth.signInEncrypt")}</Text>
