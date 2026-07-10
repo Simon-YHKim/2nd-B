@@ -16,8 +16,9 @@
  * design shell clone-faithful while telling the truth.
  *
  * Chrome: DeepSpaceScreen active="lens", windowed (radius-24 card over the
- * shared sky) with the M3 top app bar carrying the axis name (BAR_TITLE). All
- * colors route through m3.* tokens — no cosmic tokens, no hex literals.
+ * shared sky) with the M3 top app bar carrying the axis name (the same
+ * ds.axisCheck.<axis>.headline key the body uses, so all 5 locales localize).
+ * All colors route through m3.* tokens — no cosmic tokens, no hex literals.
  */
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -51,13 +52,6 @@ function LensIcon({ name, color, size = 20 }: { name: keyof typeof ICON; color: 
     `${ICON[name]}</svg>`;
   return <SvgXml xml={xml} width={size} height={size} color={color} />;
 }
-
-// rev2 TITLES verbatim for the windowed top app bar (sb-app: 가치관/동기/강점).
-const BAR_TITLE: Record<AxisCheckId, { ko: string; en: string }> = {
-  values: { ko: "가치관", en: "Values" },
-  motivation: { ko: "동기", en: "Motivation" },
-  strengths: { ko: "강점", en: "Strengths" },
-};
 
 // Sibling-check action pair (reference bottom buttons): a tonal primary + an
 // outlined secondary. Routes are the real app screens.
@@ -114,9 +108,9 @@ function AxisLens({ axis }: { axis: AxisCheckId }) {
 }
 
 export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
-  const { i18n } = useTranslation();
-  const locale = i18n.language === "ko" ? "ko" : "en";
-  const barTitle = BAR_TITLE[axis][locale];
+  const { t } = useTranslation("home");
+  // Bar title reuses the axis body's headline key so es/pt/id localize too.
+  const barTitle = t(`ds.axisCheck.${axis}.headline`);
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
