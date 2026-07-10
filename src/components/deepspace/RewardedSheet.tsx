@@ -298,9 +298,13 @@ const styles = StyleSheet.create({
   laterText: { fontSize: 13, color: withAlpha(deepSpace.accentSoft, 0.55) },
   privacy: {
     textAlign: "center",
-    fontSize: 11,
-    color: withAlpha(deepSpace.accentSoft, 0.4),
+    // Consent/privacy disclosure (ads only to consenting adults, never on
+    // sensitive screens) — the trust-critical line, so it must be legible, not
+    // de-emphasized fine print. Was fontSize 11 @ 0.4 alpha (below AA contrast);
+    // raised to 12 @ 0.7 so it reads as reassurance rather than disclaimer.
+    fontSize: 12,
+    color: withAlpha(deepSpace.accentSoft, 0.7),
     marginTop: 14,
-    lineHeight: 17,
+    lineHeight: 18,
   },
 });
