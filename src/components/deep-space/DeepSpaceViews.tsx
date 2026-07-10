@@ -1527,7 +1527,6 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
                 variant="filled"
                 accessibilityLabel={t(e.eraKey)}
                 onPress={() => router.push({ pathname: "/interview", params: { period: ERA_PERIOD[e.key] ?? "current" } })}
-                style={styles.auditCard}
               >
                 <View style={styles.auditCardRow}>
                   <View style={styles.auditEraCol}>
@@ -2290,8 +2289,10 @@ const styles = StyleSheet.create({
   auditRail: { position: "absolute", left: 5, top: 6, bottom: 6, width: 2, backgroundColor: m3.color.outlineVariant },
   auditEraList: { gap: 10 },
   auditEraRow: { position: "relative" },
-  auditNode: { position: "absolute", left: -20, top: 17, width: 14, height: 14, borderRadius: 7, backgroundColor: m3.color.surface, borderWidth: 2.5, borderColor: m3.color.primary, zIndex: 1 },
-  auditCard: { padding: 14 },
+  // rev2 AuditScreen era node: filled primary center + surface ring (bullseye),
+  // matching sb-screens-know.jsx (bg primary, 2px surface border). The prior
+  // dark-center hollow ring inverted the reference's bright core.
+  auditNode: { position: "absolute", left: -20, top: 17, width: 14, height: 14, borderRadius: 7, backgroundColor: m3.color.primary, borderWidth: 2, borderColor: m3.color.surface, zIndex: 1 },
   auditCardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   auditEraCol: { flex: 1, minWidth: 0 },
   auditEraName: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
