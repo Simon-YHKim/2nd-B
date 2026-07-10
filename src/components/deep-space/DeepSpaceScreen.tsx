@@ -22,7 +22,6 @@ import { m3, type M3Persona } from "@/lib/theme/m3";
 import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import { SbStarfield } from "./SbStarfield";
-import type { SecondbMood } from "./SecondbHead";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
 
 const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
@@ -35,18 +34,6 @@ const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   lens: "/core-brain",
   iden: "/iden",
   settings: "/settings",
-};
-
-const VIEW_MOOD: Record<DeepSpaceTab, SecondbMood> = {
-  home: "positive",
-  capture: "neutral",
-  chat: "neutral",
-  ops: "neutral",
-  account: "positive",
-  wiki: "neutral",
-  lens: "positive",
-  iden: "neutral",
-  settings: "neutral",
 };
 
 // Primary order (rev2 SoT, sb-data NAV): 별자리 · 담기 · [중앙 세컨비] · 위키 · 설정.
@@ -144,7 +131,6 @@ export function DeepSpaceScreen({
               <SecondbStatusHeader
                 text={t("ds.head." + active + ".text")}
                 tip={t("ds.head." + active + ".tip")}
-                mood={VIEW_MOOD[active]}
                 persona={personaTint}
                 accessibilityLabel={characterLabel}
               />
@@ -160,7 +146,6 @@ export function DeepSpaceScreen({
             <SecondbStatusHeader
               text={t("ds.head." + active + ".text")}
               tip={t("ds.head." + active + ".tip")}
-              mood={VIEW_MOOD[active]}
               persona={personaTint}
               accessibilityLabel={characterLabel}
             />
@@ -175,7 +160,6 @@ export function DeepSpaceScreen({
                 <SecondbStatusHeader
                   text={t("ds.head." + active + ".text")}
                   tip={t("ds.head." + active + ".tip")}
-                  mood={VIEW_MOOD[active]}
                   persona={personaTint}
                   accessibilityLabel={characterLabel}
                 />

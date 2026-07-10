@@ -11,7 +11,7 @@
 // <SecondbHeadTrackProvider>; smaller header heads only bob + blink (canon §0.1:
 // the status-bar head does not track). Override with `track`.
 //
-//   <SecondbHead size={158} mood="positive" />   // big: track + bob + blink + face
+//   <SecondbHead size={158} mood="neutral" />    // big: track + bob + blink + face
 //   <SecondbHead size={48}  mood="neutral" />     // small: bob + blink + face only
 //   <SecondbHead size={158} track={false} />      // big but opt out of tracking
 //
