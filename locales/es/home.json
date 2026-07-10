@@ -141,7 +141,7 @@
     },
     "capture": {
       "title": "Capturar",
-      "subtitle": "Captúralo en un formato y SecondB lo teje en la estrella correcta.",
+      "subtitle": "Captura un momento en el formato que prefieras.",
       "modes": {
         "text": "Texto",
         "link": "Enlace",
