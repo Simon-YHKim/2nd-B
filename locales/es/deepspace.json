@@ -212,7 +212,10 @@
   },
   "insights": {
     "title": "Perspectivas",
-    "status": "Esta semana guardaste más que la pasada.",
+    "statusUp": "Esta semana guardaste más que la pasada.",
+    "statusDown": "Esta semana guardaste menos que la pasada.",
+    "statusFlat": "Esta semana guardaste casi lo mismo que la pasada.",
+    "statusFirstWeek": "Tu primera semana empieza a llenarse.",
     "tip": "Toca tu tema más guardado para ver el flujo.",
     "sectionNow": "Tú últimamente",
     "lead": "Comparado con la semana pasada, esta semana",
@@ -220,8 +223,12 @@
     "lastWeek": "Semana pasada",
     "thisWeek": "Esta semana",
     "delta": "▲ {{percent}}% más guardado",
+    "deltaDown": "▼ {{percent}}% menos guardado",
+    "deltaFlat": "Igual que la semana pasada",
     "sectionFinding": "Hallazgo clave de la semana",
-    "finding": "Los registros sobre 'crear cosas' pasaron la mitad. La misma dirección que tu yo futuro."
+    "findingMajority": "El {{percent}}% de tus registros de esta semana fueron sobre {{domain}}.",
+    "findingSpread": "Ningún área ocupó más de la mitad de tus registros de esta semana.",
+    "findingEmpty": "Aún no has guardado nada esta semana."
   },
   "data": {
     "title": "Mis datos",

@@ -8,8 +8,13 @@
 // "Last week"  = the window immediately before that.
 // Both windows have equal length, so the comparison is apples-to-apples.
 
+import { recordDomain } from "../records/records-graph";
+import type { DomainId } from "../persona/domain-stars";
+
 export interface InsightRecordRow {
   created_at: string; // ISO timestamp
+  /** Reserved `domain:<slug>` tags, used only by weeklyDomainFocus. */
+  tags?: readonly string[] | null;
 }
 
 export interface WeeklyInsightSummary {
@@ -22,6 +27,12 @@ export interface WeeklyInsightSummary {
   /** True only when there is no prior-week data to compare against. */
   isFirstWeek: boolean;
 }
+
+/** This week's domain concentration, at the strength the counts actually support. */
+export type WeeklyDomainFocus =
+  | { kind: "empty" }
+  | { kind: "spread"; total: number }
+  | { kind: "majority"; domain: DomainId; percent: number; total: number };
 
 /**
  * Summarize week-over-week record counts. Pure: pass already-fetched rows.
@@ -64,4 +75,45 @@ export function summarizeWeeklyInsights(
     thisWeek > lastWeek ? "up" : thisWeek < lastWeek ? "down" : "flat";
 
   return { thisWeek, lastWeek, deltaPct, direction, isFirstWeek };
+}
+
+/**
+ * What this week's records concentrate on, stated only as strongly as the data allows.
+ *
+ * "majority" is claimed exactly when one domain star holds MORE THAN HALF of the week's
+ * records — the same threshold the /insights finding card has always asserted, except now
+ * it is measured instead of assumed. Anything weaker is reported as "spread", and a week
+ * with no records is "empty". There is no fourth branch: the card must never say more than
+ * the counts support (real-or-neutral, as in AxisCheck).
+ */
+export function weeklyDomainFocus(
+  records: ReadonlyArray<InsightRecordRow>,
+  now: Date = new Date(),
+  windowDays = 7,
+): WeeklyDomainFocus {
+  const thisStart = now.getTime() - windowDays * 24 * 60 * 60 * 1000;
+
+  const counts = new Map<DomainId, number>();
+  let total = 0;
+  for (const r of records) {
+    const t = Date.parse(r?.created_at ?? "");
+    if (!Number.isFinite(t) || t <= thisStart || t > now.getTime()) continue;
+    const domain = recordDomain(r.tags);
+    counts.set(domain, (counts.get(domain) ?? 0) + 1);
+    total += 1;
+  }
+
+  if (total === 0) return { kind: "empty" };
+
+  let top: DomainId | null = null;
+  let topCount = 0;
+  for (const [domain, count] of counts) {
+    if (count > topCount) {
+      top = domain;
+      topCount = count;
+    }
+  }
+
+  if (top === null || topCount * 2 <= total) return { kind: "spread", total };
+  return { kind: "majority", domain: top, percent: Math.round((topCount / total) * 100), total };
 }
