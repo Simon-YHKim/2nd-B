@@ -6,11 +6,12 @@
 // Free/Plus/Pro in the UI.
 //
 // Wiring preserved exactly: RevenueCat (getOfferings / purchasePackage /
-// getProStatus / restorePurchases) drives the CTAs; the entitlement engine
-// (src/lib/entitlements/tiers.ts → TIER_PRICE_KRW) is the price SoT so on-card
-// copy can never drift from what is actually granted. Per that file's HARD
-// invariant, money buys MORE/LONGER memory + MORE features - never a better
-// answer; this surface must never imply a pricier tier reasons better.
+// getProStatus / restorePurchases) drives the CTAs; prices come from the single
+// pricing SoT (src/lib/progression/pricing.ts) - KRW for ko, USD for every other
+// locale - so on-card copy can never drift from what enforcement charges (the
+// 항해자=cortex / 북극성=brain mapping is fixed in reasoning-cap.ts). Per the
+// entitlements HARD invariant, money buys MORE/LONGER memory + MORE features -
+// never a better answer; this surface must never imply a pricier tier reasons better.
 // revenue_events logging stays server-side via a RevenueCat webhook (C4 schema
 // untouched). The rewarded row tops up COUNTS only, never quality.
 // ──────────────────────────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
-import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
+import { TIER_PRICING } from "@/lib/progression/pricing";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
@@ -50,9 +51,14 @@ function DockShell({ children, title }: { children: ReactNode; title?: string })
   );
 }
 
-// Format a KRW integer as ₩6,900 without a hardcoded currency literal in copy.
+// Format a KRW integer as ₩9,900 without a hardcoded currency literal in copy.
 function krw(n: number): string {
   return `₩${n.toLocaleString("ko-KR")}`;
+}
+
+// Format a USD price as $9.99 (2 decimals) without a hardcoded currency literal.
+function usd(n: number): string {
+  return `$${n.toFixed(2)}`;
 }
 
 function LockIcon({ color }: { color: string }) {
@@ -216,19 +222,19 @@ export function DeepSpacePlansScreen() {
   // dead checkout. Kept below the cards so it never disturbs the tier layout.
   const showStoreNotice = !available || (!loading && packages.length === 0);
 
-  // ── Tier copy (reference PlansScreen tiers[]). Prices from TIER_PRICE_KRW so
-  // display can never drift from the entitlement SoT. ──
+  // ── Tier copy (reference PlansScreen tiers[]). Prices from the pricing SoT
+  // (progression/pricing.ts): plus = cortex, pro = brain; KRW for ko, USD else. ──
   const per = ko ? "/월" : "/mo";
   const tiers: TierCopy[] = ko
     ? [
         { key: "free", name: "별바라기", sub: "시작하는 사람", price: "무료", feats: ["7 도메인 별", "월 100별가루", "IDEN 1개"] },
-        { key: "plus", name: "항해자", sub: "꾸준한 항해자", price: `${krw(TIER_PRICE_KRW.plus)}${per}`, feats: ["무제한 별가루", "심층 인터뷰", "데이터 연동 5종", "IDEN 버전 관리"] },
-        { key: "pro", name: "북극성", sub: "깊이 파는 사람", price: `${krw(TIER_PRICE_KRW.pro)}${per}`, feats: ["항해자 전체", "장기 보관 무제한", "가족 공유", "우선 분석"] },
+        { key: "plus", name: "항해자", sub: "꾸준한 항해자", price: `${krw(TIER_PRICING.cortex.krwMonthly)}${per}`, feats: ["무제한 별가루", "심층 인터뷰", "데이터 연동 5종", "IDEN 버전 관리"] },
+        { key: "pro", name: "북극성", sub: "깊이 파는 사람", price: `${krw(TIER_PRICING.brain.krwMonthly)}${per}`, feats: ["항해자 전체", "장기 보관 무제한", "가족 공유", "우선 분석"] },
       ]
     : [
         { key: "free", name: "Stargazer", sub: "Just starting out", price: "Free", feats: ["7 domain stars", "100 stardust a month", "1 IDEN"] },
-        { key: "plus", name: "Voyager", sub: "A steady voyager", price: `${krw(TIER_PRICE_KRW.plus)}${per}`, feats: ["Unlimited stardust", "Deep interviews", "5 data integrations", "IDEN version history"] },
-        { key: "pro", name: "North Star", sub: "For the deep divers", price: `${krw(TIER_PRICE_KRW.pro)}${per}`, feats: ["Everything in Voyager", "Unlimited long-term storage", "Family sharing", "Priority analysis"] },
+        { key: "plus", name: "Voyager", sub: "A steady voyager", price: `${usd(TIER_PRICING.cortex.usdMonthly)}${per}`, feats: ["Unlimited stardust", "Deep interviews", "5 data integrations", "IDEN version history"] },
+        { key: "pro", name: "North Star", sub: "For the deep divers", price: `${usd(TIER_PRICING.brain.usdMonthly)}${per}`, feats: ["Everything in Voyager", "Unlimited long-term storage", "Family sharing", "Priority analysis"] },
       ];
 
   function onStart(key: TierKey) {

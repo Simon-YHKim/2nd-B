@@ -1,3 +1,4 @@
+import { TIER_PRICING } from '../../progression/pricing';
 import {
   TIERS,
   TIER_PRICE_KRW,
@@ -45,8 +46,14 @@ describe('TIERS table', () => {
 });
 
 describe('TIER_PRICE_KRW', () => {
-  it('maps each tier to its monthly KRW price', () => {
-    expect(TIER_PRICE_KRW).toEqual({ free: 0, plus: 6900, pro: 12900 });
+  it('derives monthly KRW from the pricing SoT via the fixed label mapping', () => {
+    // plus = 항해자 = Voyager = cortex; pro = 북극성 = North Star = brain.
+    // Guards the mapping so a wrong price can only originate in pricing.ts.
+    expect(TIER_PRICE_KRW).toEqual({
+      free: 0,
+      plus: TIER_PRICING.cortex.krwMonthly,
+      pro: TIER_PRICING.brain.krwMonthly,
+    });
   });
 
   it('keeps free at zero', () => {
