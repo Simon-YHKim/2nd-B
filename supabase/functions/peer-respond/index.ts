@@ -97,14 +97,20 @@ Deno.serve(async (req) => {
   if (action === 'withdraw') {
     // Informant-side revocation (spec §3.4): mark consent + observation
     // withdrawn; the aggregate drops them immediately (0064 filters on
-    // withdrawn_at IS NULL).
+    // withdrawn_at IS NULL). Check every write: a silent failure here would
+    // report "withdrawn" while the informant's ratings stay live in the
+    // aggregate — a fail-open consent revocation.
     const now = new Date().toISOString();
-    await admin.from('informant_consents').update({ withdrawn_at: now })
+    const { error: icErr } = await admin.from('informant_consents').update({ withdrawn_at: now })
       .eq('invitation_id', invite.id).is('withdrawn_at', null);
-    await admin.from('peer_observations').update({ withdrawn_at: now })
+    const { error: poErr } = await admin.from('peer_observations').update({ withdrawn_at: now })
       .eq('invitation_id', invite.id).is('withdrawn_at', null);
-    await admin.from('peer_invitations').update({ status: 'withdrawn', responded_at: now })
+    const { error: piErr } = await admin.from('peer_invitations').update({ status: 'withdrawn', responded_at: now })
       .eq('id', invite.id);
+    if (icErr || poErr || piErr) {
+      console.warn('[peer-respond] withdraw failed:', icErr?.message, poErr?.message, piErr?.message);
+      return jsonResponse(req, { error: 'withdraw_failed' }, 500);
+    }
     return jsonResponse(req, { ok: true, status: 'withdrawn' });
   }
 
