@@ -54,9 +54,9 @@ const DEFAULT_INSIGHT: TTFVInsight = {
 // The first-star suggestion is a starting point, NOT derived from real answers
 // (sign-up collects no personality questions), so we never fabricate the user's
 // words. These honest grounds say it's a light first read that firms up over time.
-const EVIDENCE: { q: string; a: string }[] = [
-  { q: "지금은", a: "첫 별을 켜는 출발점이에요" },
-  { q: "앞으로", a: "담을수록 진짜 근거가 쌓여요" },
+const EVIDENCE: { qKey: string; aKey: string }[] = [
+  { qKey: "ds.ttfv.evidence1.q", aKey: "ds.ttfv.evidence1.a" },
+  { qKey: "ds.ttfv.evidence2.q", aKey: "ds.ttfv.evidence2.a" },
 ];
 
 // Constellation stage (fixed box): 북극성 top-centre, the lit 관계 star bottom-
@@ -74,7 +74,7 @@ interface TTFVScreenProps {
 }
 
 export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
 
@@ -133,11 +133,11 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
         {/* Eyebrow + page title (centred, no back button / no companion bubble). */}
         <Text variant="caption" style={styles.eyebrow}>FIRST LIGHT · 첫 빛</Text>
         <Text variant="heading" style={styles.pageTitle}>
-          {ko ? "당신의 첫 별이 켜졌어요" : "Your first star just lit up"}
+          {t("ds.ttfv.pageTitle")}
         </Text>
 
         {/* ONE graphic: the small constellation IS the explanation. */}
-        <View style={styles.stage} accessible accessibilityLabel={ko ? "북극성과 첫 별이 켜진 별자리" : "The north star and your first lit star"}>
+        <View style={styles.stage} accessible accessibilityLabel={t("ds.ttfv.stageA11y")}>
           <Animated.View style={[styles.polarisPulse, pulseStyle]} pointerEvents="none" />
           <Svg width={STAGE_W} height={STAGE_H} viewBox={`0 0 ${STAGE_W} ${STAGE_H}`}>
             {/* Cyan links (all links cyan). */}
@@ -165,15 +165,15 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
         {phase === "propose" ? (
           <View style={styles.block}>
             {/* 세컨비 head sits in the middle, above the question (gentle bob). */}
-            <SecondbHead size={84} mood="positive" track={false} accessibilityLabel={ko ? "세컨비" : "SecondB"} />
+            <SecondbHead size={84} mood="positive" track={false} accessibilityLabel={t("ds.ttfv.secondbName")} />
 
             <Text variant="body" style={styles.insight}>
-              {ko ? "당신은 " : "You might be someone who "}
+              {t("ds.ttfv.insightLead")}
               <Text variant="body" style={styles.insightHi}>{ko ? `‘${phrase}’` : phrase}</Text>
-              {ko ? " 사람일지도 몰라요." : "."}
+              {t("ds.ttfv.insightTail")}
             </Text>
             <Text variant="body" style={styles.sub}>
-              {ko ? "관계 별부터 함께 켜볼까요? 담을수록 더 또렷해져요." : "Shall we light your Relationship star first? It sharpens as you capture."}
+              {t("ds.ttfv.sub")}
             </Text>
 
             {/* 근거 — progressive disclosure: the two grounds, collapsed by default. */}
@@ -181,25 +181,25 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: showWhy }}
-                accessibilityLabel={ko ? "이렇게 본 근거 2가지" : "Two grounds for this read"}
+                accessibilityLabel={t("ds.ttfv.grounds")}
                 onPress={() => setShowWhy((v) => !v)}
                 style={styles.whyToggle}
                 hitSlop={8}
               >
                 <SbIcon name="target" size={15} color={withAlpha(deepSpace.accentSoft, 0.85)} />
-                <Text variant="caption" style={styles.whyToggleText}>{ko ? "이렇게 본 근거 2가지" : "Two grounds for this read"}</Text>
+                <Text variant="caption" style={styles.whyToggleText}>{t("ds.ttfv.grounds")}</Text>
                 <SbIcon name={showWhy ? "expand_less" : "expand_more"} size={16} color={withAlpha(deepSpace.accentSoft, 0.85)} />
               </Pressable>
               {showWhy ? (
                 <View style={styles.whyBody}>
                   {EVIDENCE.map((e, i) => (
                     <View key={i} style={styles.evidenceCard}>
-                      <Text variant="caption" style={styles.evidenceQ}>{e.q}</Text>
-                      <Text variant="body" style={styles.evidenceA}>{e.a}</Text>
+                      <Text variant="caption" style={styles.evidenceQ}>{t(e.qKey)}</Text>
+                      <Text variant="body" style={styles.evidenceA}>{t(e.aKey)}</Text>
                     </View>
                   ))}
                   <Text variant="caption" style={styles.whyFootnote}>
-                    아직 시작이라 가벼운 첫 읽기예요. 담을수록 근거가 쌓여요.
+                    {t("ds.ttfv.whyFootnote")}
                   </Text>
                 </View>
               ) : null}
@@ -213,28 +213,28 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
               <View style={[styles.answerBtn, styles.affirmBtn]}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={ko ? "맞아요" : "That's right"}
+                  accessibilityLabel={t("ds.ttfv.affirm")}
                   onPress={() => ratify(false)}
                   style={styles.answerPress}
                 >
                   <SbIcon name="check" size={18} color={deepSpace.onAccent} />
-                  <Text variant="caption" style={styles.affirmText}>{ko ? "맞아요" : "That's right"}</Text>
+                  <Text variant="caption" style={styles.affirmText}>{t("ds.ttfv.affirm")}</Text>
                 </Pressable>
               </View>
               <View style={[styles.answerBtn, styles.differBtn]}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={ko ? "조금 달라요" : "A little different"}
+                  accessibilityLabel={t("ds.ttfv.differ")}
                   onPress={() => ratify(true)}
                   style={styles.answerPress}
                 >
-                  <Text variant="caption" style={styles.differText}>{ko ? "조금 달라요" : "A little different"}</Text>
+                  <Text variant="caption" style={styles.differText}>{t("ds.ttfv.differ")}</Text>
                 </Pressable>
               </View>
             </View>
 
             <Text variant="caption" style={styles.consent}>
-              {ko ? "어떤 답이든, 별은 당신의 동의로만 밝아져요." : "Either way, a star only brightens with your consent."}
+              {t("ds.ttfv.consent")}
             </Text>
           </View>
         ) : (
@@ -247,25 +247,23 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
             </View>
             <Text variant="body" style={styles.ratifyTitle}>
               {soft
-                ? ko
-                  ? "당신 말이 별을 더 정확하게 만들었어요."
-                  : "Your words made the star more accurate."
+                ? t("ds.ttfv.ratifySoft")
                 : ko
                   ? `${star} 별이 한 단계 밝아졌어요.`
                   : `Your ${star.toLowerCase()} star brightened one step.`}
             </Text>
             <Text variant="body" style={styles.sub}>
-              {ko ? "담을수록 별이 또렷해지고, 7개가 모이면 북극성이 켜져요." : "The more you capture, the clearer the stars, and seven of them light the north star."}
+              {t("ds.ttfv.ratifySub")}
             </Text>
             <View style={styles.enterBtn}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={ko ? "별자리로 들어가기" : "Enter your constellation"}
+                accessibilityLabel={t("ds.ttfv.enter")}
                 onPress={() => router.replace("/")}
                 style={styles.answerPress}
               >
                 <SbIcon name="star_shine" size={18} color={deepSpace.onAccent} fill />
-                <Text variant="caption" style={styles.affirmText}>{ko ? "별자리로 들어가기" : "Enter your constellation"}</Text>
+                <Text variant="caption" style={styles.affirmText}>{t("ds.ttfv.enter")}</Text>
               </Pressable>
             </View>
           </View>

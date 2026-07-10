@@ -632,6 +632,24 @@
       "consentTitle": "Before importing",
       "historyTitle": "Import history",
       "revoke": "Revoke"
+    },
+    "ttfv": {
+      "pageTitle": "Your first star just lit up",
+      "stageA11y": "The north star and your first lit star",
+      "secondbName": "SecondB",
+      "insightLead": "You might be someone who ",
+      "insightTail": ".",
+      "sub": "Shall we light your Relationship star first? It sharpens as you capture.",
+      "grounds": "Two grounds for this read",
+      "affirm": "That's right",
+      "differ": "A little different",
+      "consent": "Either way, a star only brightens with your consent.",
+      "ratifySoft": "Your words made the star more accurate.",
+      "ratifySub": "The more you capture, the clearer the stars, and seven of them light the north star.",
+      "enter": "Enter your constellation",
+      "evidence1": { "q": "Right now", "a": "It's the starting point for lighting your first star" },
+      "evidence2": { "q": "Going forward", "a": "The more you capture, the more real grounds build up" },
+      "whyFootnote": "It's still early, so this is a light first read. The more you capture, the more grounds build up."
     }
   }
 }
