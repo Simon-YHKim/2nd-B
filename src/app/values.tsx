@@ -206,10 +206,10 @@ function ValuesSurvey({ onComplete, onCancel }: { onComplete: () => void; onCanc
                     value={value}
                   />
                   <View style={styles.scaleLegend}>
-                    <Text variant="subtle" color="textSubtle">
+                    <Text variant="subtle" color="textMuted">
                       {locale === "ko" ? SCALE[0].ko : SCALE[0].en}
                     </Text>
-                    <Text variant="subtle" color="textSubtle">
+                    <Text variant="subtle" color="textMuted">
                       {locale === "ko" ? SCALE[5].ko : SCALE[5].en}
                     </Text>
                   </View>
