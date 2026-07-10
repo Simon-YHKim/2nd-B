@@ -506,7 +506,11 @@ Deno.serve(async (req: Request) => {
   // the curated/RAG prompt via `system`; the SAFETY preamble below guards the
   // system channel against a bypassed attacker. The body intentionally does NOT
   // echo the matched term (no "what word triggered it" oracle).
-  if (hasCrisisTerm(userText)) {
+  // The safety_classify seat (D4) MUST run the classifier even on crisis input -
+  // classifying crisis is its whole job - so it is exempt from this short-circuit.
+  // It returns a classification JSON (not a generation), and the output still gets
+  // the SAFETY_PREAMBLE + audit row below.
+  if (purpose !== 'safety_classify' && hasCrisisTerm(userText)) {
     return jsonResponse(req, {
       error: 'safety_red_zone',
       reason: 'crisis_term_detected',

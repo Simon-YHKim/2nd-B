@@ -17,6 +17,7 @@ import { GoogleGenAI } from "@google/genai";
 
 import { getEnv } from "../env";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
+import { getSupabaseClient } from "../supabase/client";
 // C3: the Flash classifier makes a real Gemini call client-side (not via the
 // gemini-proxy), so the proxy never logs it. This module audits its own call.
 // safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
@@ -190,6 +191,66 @@ function sanitizeCssrsLevel(v: unknown): SafetyResult["cssrsLevel"] {
   return r >= 1 && r <= 6 ? (r as SafetyResult["cssrsLevel"]) : null;
 }
 
+// D4 (audit H1): flag-gated server-side Layer-2 classifier. On a keyless build
+// getFlashClient() is null and the semantic layer is otherwise dark; when
+// EXPO_PUBLIC_SERVER_SAFETY === "true" we route the classification through the
+// gemini-proxy safety_classify seat (the server holds the key + is exempt from
+// the proxy's crisis short-circuit), restoring semantic crisis detection without
+// an uncapped client-side egress. OFF BY DEFAULT and DELIBERATELY so: enabling it
+// requires a crisis eval set + safety-owner sign-off, because a wrong classifier
+// on this path affects vulnerable users. Returns null to fall back to lexicon;
+// NEVER throws.
+async function classifyViaProxy(
+  userMessage: string,
+  locale: "en" | "ko",
+): Promise<SafetyResult | null> {
+  try {
+    // Direct process.env read so babel-preset-expo inlines the flag at build time
+    // (default undefined -> off). Do not route through getEnv (not in its schema).
+    if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
+    const { data, error } = await getSupabaseClient().functions.invoke("gemini-proxy", {
+      body: {
+        purpose: "safety_classify",
+        system: `${SYSTEM_PROMPT}\n\nClassify the user message below. Output JSON only, no prose.`,
+        user: `User message (locale=${locale}):\n"""\n${userMessage}\n"""`,
+        responseSchema: {
+          type: "object",
+          required: ["zone", "triggers", "confidence"],
+          properties: {
+            zone: { type: "string", enum: ["red", "yellow", "green"] },
+            triggers: { type: "array", items: { type: "string" } },
+            confidence: { type: "number" },
+            cssrsLevel: { type: ["number", "null"] },
+          },
+        },
+      },
+    });
+    if (error || !data) return null;
+    const text = String((data as { text?: unknown }).text ?? "").trim();
+    if (!text) return null;
+    const parsed = JSON.parse(text) as {
+      zone: SafetyZone;
+      triggers?: string[];
+      confidence?: number;
+      cssrsLevel?: number | null;
+    };
+    if (parsed.zone !== "red" && parsed.zone !== "yellow" && parsed.zone !== "green") return null;
+    return {
+      zone: parsed.zone,
+      triggers: parsed.triggers ?? [],
+      confidence:
+        typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+          ? Math.min(1, Math.max(0, parsed.confidence))
+          : 0.5,
+      cssrsLevel: sanitizeCssrsLevel(parsed.cssrsLevel),
+      source: "llm",
+      routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
+    };
+  } catch {
+    return null; // the safety path must never throw
+  }
+}
+
 export async function classifySafety(
   userMessage: string,
   locale: "en" | "ko",
@@ -201,6 +262,9 @@ export async function classifySafety(
   // Layer 2: Gemini Flash, only when we have a real client.
   const client = getFlashClient();
   if (!client) {
+    // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
+    const viaProxy = await classifyViaProxy(userMessage, locale);
+    if (viaProxy) return mergeResults(lex, viaProxy);
     noteSemanticUnavailable();
     return lex;
   }
