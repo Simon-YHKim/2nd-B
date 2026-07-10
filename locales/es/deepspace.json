@@ -597,6 +597,41 @@
       "fillStarBody": "Añade información de este dominio.",
       "secondbLinked": "Este fragmento se conecta con tu estrella '{{star}}'. {{n}} registros similares están en el mismo periodo.",
       "secondbUnlinked": "Este fragmento aún no está conectado a ninguna estrella. Lo conectaremos pronto."
+    },
+    "inbox": {
+      "title": "Alertas",
+      "empty": "Aún no hay notificaciones: aparecerán aquí a medida que captures y organices."
+    },
+    "import": {
+      "title": "Importar",
+      "consentSourceLabel": "Datos de origen",
+      "consentSourceNote": "Solo lee los archivos y las cuentas que subes",
+      "consentDeviceLabel": "Procesamiento en el dispositivo",
+      "consentDeviceNote": "El análisis y el resumen ocurren primero en tu dispositivo",
+      "consentRevocableLabel": "Revocable",
+      "consentRevocableNote": "Puedes borrar por completo los datos importados en cualquier momento",
+      "providerGoogleCalendar": "Google Calendar",
+      "providerAppleHealth": "Apple Salud",
+      "healthCtaMinorLocked": "Bloqueado (menor)",
+      "healthCtaSyncing": "Sincronizando",
+      "healthCtaReflected": "Reflejado",
+      "healthCtaReflectToday": "Reflejar hoy",
+      "healthCtaConnect": "Conectar",
+      "leadStart": "Reúne las piezas de ti que están dispersas. Incluso lo importado se refleja ",
+      "leadStrong": "solo según tu propio peso",
+      "leadEnd": " en las estrellas.",
+      "toggleFile": "Por archivo",
+      "toggleAccount": "Conectar cuenta",
+      "sectionChooseFile": "Elige un archivo",
+      "sectionAccounts": "Cuentas para conectar",
+      "dropTitle": "Suelta un archivo aquí o elige uno",
+      "btnOpening": "Abriendo",
+      "btnImporting": "Importando",
+      "btnChooseFile": "Elegir archivo",
+      "accountImportFile": "Importar archivo",
+      "consentTitle": "Antes de importar",
+      "historyTitle": "Historial de importación",
+      "revoke": "Revocar"
     }
   }
 }

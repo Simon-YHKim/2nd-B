@@ -597,6 +597,41 @@
       "fillStarBody": "이 영역의 정보를 직접 추가해요.",
       "secondbLinked": "이 별가루는 '{{star}}' 별과 이어져요. 비슷한 기록 {{n}}건이 같은 시간대에 모여 있어요.",
       "secondbUnlinked": "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+    },
+    "inbox": {
+      "title": "알림",
+      "empty": "새 알림이 없어요. 담고 정리하면 여기에 쌓여요."
+    },
+    "import": {
+      "title": "외부 가져오기",
+      "consentSourceLabel": "원문 데이터",
+      "consentSourceNote": "내가 올린 파일/계정의 기록만 읽어요",
+      "consentDeviceLabel": "기기 내 처리",
+      "consentDeviceNote": "파싱·요약은 기기 안에서 먼저 일어나요",
+      "consentRevocableLabel": "철회 가능",
+      "consentRevocableNote": "언제든 가져온 데이터를 통째로 지울 수 있어요",
+      "providerGoogleCalendar": "Google 캘린더",
+      "providerAppleHealth": "Apple 건강",
+      "healthCtaMinorLocked": "미성년 잠금",
+      "healthCtaSyncing": "연동 중",
+      "healthCtaReflected": "반영됨",
+      "healthCtaReflectToday": "오늘 반영",
+      "healthCtaConnect": "연동 필요",
+      "leadStart": "다른 곳에 흩어진 나를 가져와요. 가져온 것도 ",
+      "leadStrong": "당신의 비중",
+      "leadEnd": "으로만 별에 반영돼요.",
+      "toggleFile": "파일로",
+      "toggleAccount": "계정 연동",
+      "sectionChooseFile": "파일 선택",
+      "sectionAccounts": "연결할 계정",
+      "dropTitle": "여기에 파일을 놓거나 선택",
+      "btnOpening": "여는 중",
+      "btnImporting": "가져오는 중",
+      "btnChooseFile": "파일 선택",
+      "accountImportFile": "파일로 가져오기",
+      "consentTitle": "가져오기 전 약속",
+      "historyTitle": "가져오기 이력",
+      "revoke": "철회"
     }
   }
 }
