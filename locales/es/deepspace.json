@@ -717,9 +717,25 @@
       "ratifySoft": "Tus palabras hicieron la estrella más precisa.",
       "ratifySub": "Cuanto más registras, más nítidas son las estrellas, y siete de ellas encienden la estrella polar.",
       "enter": "Entrar en tu constelación",
-      "evidence1": { "q": "Ahora mismo", "a": "Es el punto de partida para encender tu primera estrella" },
-      "evidence2": { "q": "De ahora en adelante", "a": "Cuanto más registras, más motivos reales se acumulan" },
+      "evidence1": {
+        "q": "Ahora mismo",
+        "a": "Es el punto de partida para encender tu primera estrella"
+      },
+      "evidence2": {
+        "q": "De ahora en adelante",
+        "a": "Cuanto más registras, más motivos reales se acumulan"
+      },
       "whyFootnote": "Aún es el comienzo, así que es una primera lectura ligera. Cuanto más registras, más motivos se acumulan."
+    },
+    "reward": {
+      "titleA": "Mira 30s y gana ",
+      "titleCount": "+{{n}}",
+      "sub": "Mira un anuncio para reponer tus consultas de autoconocimiento de esta semana.\nLa calidad de las respuestas no cambia.",
+      "remaining": "restantes",
+      "afterLabel": "tras +{{n}}",
+      "cta": "Ver anuncio y ganar +{{n}}",
+      "later": "Ahora no",
+      "privacy": "Solo adultos con consentimiento · nunca en pantallas sensibles"
     }
   }
 }
