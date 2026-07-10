@@ -26,11 +26,13 @@ import { router } from "expo-router";
 import { SvgXml } from "react-native-svg";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
+import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
+import type { LoadedValues } from "@/lib/persona/build";
+import { VALUE_ROW_KEY, type ValueId } from "@/lib/persona/values-survey";
 
 // Material-symbol stroke idiom (2dp currentColor, round caps), matching the
 // shell's CaptureIcon set. Only the glyphs the strengths lens needs are kept
@@ -61,31 +63,114 @@ const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof ty
   strengths: { primaryRoute: "/secondb", primaryIcon: "forum", secondaryRoute: "/motivation" },
 };
 
-function AxisLens({ axis }: { axis: AxisCheckId }) {
-  const { t } = useTranslation("home");
+// Populated 가치관 body — the reference ValuesScreen layout (sb-validate.jsx),
+// but driven ONLY by the user's real values self-report (never the prototype's
+// example numbers). Renders the CORE VALUES top-3 highlight, the 6-bar 가치
+// 스펙트럼, and a 세컨비 insight generated from the ACTUAL top value. Confidence
+// is shown next to the headline (honest, sub-max). Scoring/labels: values-survey.ts.
+function ValuesPopulated({ result }: { result: LoadedValues }) {
+  const { t, i18n } = useTranslation("home");
+  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+
+  const rowKey = (v: ValueId) => VALUE_ROW_KEY[v] ?? v;
+  const name = (v: ValueId) => t(`ds.axisCheck.values.rows.${rowKey(v)}.name`);
+  const note = (v: ValueId) => t(`ds.axisCheck.values.rows.${rowKey(v)}.note`);
+
+  const sorted = [...result.scores].sort((a, b) => b.score - a.score);
+  const top3 = sorted.slice(0, 3);
+  const topName = name(sorted[0].value);
+  // Honest insight — grounded in the user's actual highest self-report value,
+  // framed as an estimate that can shift, never a medical verdict or a claim that
+  // records "prove" it (the reference's hardcoded 자율성 line is not reused).
+  const insight =
+    locale === "ko"
+      ? `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`
+      : `Right now ${topName} comes out highest. This is an estimate from the self-report you just answered, and it can shift over time.`;
+
+  return (
+    <>
+      {/* ── CORE VALUES top-3 highlight ─────────────────────────────── */}
+      <View style={styles.coreCard}>
+        <Text style={styles.coreLabel}>{t("ds.axisCheck.values.coreLabel")}</Text>
+        <View style={styles.coreRow}>
+          {top3.map((s, i) => (
+            <View key={s.value} style={[styles.coreCell, i === 0 && styles.coreCellFirst]}>
+              <Text style={[styles.coreRank, i === 0 && styles.coreRankFirst]}>{i + 1}</Text>
+              <Text style={[styles.coreName, i === 0 && styles.coreNameFirst]}>{name(s.value)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* ── 가치 스펙트럼 — 6 ranked bars ───────────────────────────── */}
+      <Text style={[m3TextStyle("titleSmall"), styles.sectionLabel]}>
+        {t("ds.axisCheck.values.spectrum")}
+      </Text>
+      <View style={styles.spectrum}>
+        {sorted.map((s) => (
+          <View key={s.value} style={styles.specRow}>
+            <View style={styles.specHead}>
+              <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name(s.value)}</Text>
+              <Text style={[m3TextStyle("labelMedium"), styles.specMono]}>{s.score}</Text>
+            </View>
+            <ProgressLinear
+              value={Math.max(0, Math.min(1, s.score / 100))}
+              color={m3.color.tertiary}
+              accessibilityLabel={`${name(s.value)} ${s.score}`}
+            />
+            <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note(s.value)}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── 세컨비 insight (grounded in the real top value) ─────────── */}
+      <View style={styles.insightCard}>
+        <SecondbHead size={30} track={false} />
+        <Text style={[m3TextStyle("bodyMedium"), styles.insightText]}>{insight}</Text>
+      </View>
+    </>
+  );
+}
+
+function AxisLens({ axis, valuesResult }: { axis: AxisCheckId; valuesResult?: LoadedValues | null }) {
+  const { t, i18n } = useTranslation("home");
   const act = ACTIONS[axis];
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
+  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+
+  // Populated only when THIS axis is values AND a real self-report result is in
+  // hand (>=3 scores for the top-3 card). Otherwise the honest not-measured
+  // state stands in for the reference's example scores (see file header).
+  const populated = axis === "values" && !!valuesResult && valuesResult.scores.length >= 3;
+  const confPct = populated ? Math.round((valuesResult as LoadedValues).confidence * 100) : 0;
 
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <View style={styles.headRow}>
         <Text style={[m3TextStyle("headlineSmall"), styles.headline]}>{k("headline")}</Text>
+        {populated ? (
+          <Text style={[m3TextStyle("labelMedium"), styles.confidence]}>
+            {locale === "ko" ? `확신 ${confPct}%` : `${confPct}% confidence`}
+          </Text>
+        ) : null}
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.subtitle]}>{k("subtitle")}</Text>
 
-      {/* Honesty: no real per-axis measurement yet, so a neutral not-measured
-          state stands in for the reference's example scores (see file header). */}
-      <MdCard variant="outlined" style={styles.emptyCard}>
-        <SecondbHead size={30} track={false} />
-        <View style={styles.emptyBody}>
-          <Text style={[m3TextStyle("titleSmall"), styles.emptyTitle]}>
-            {t("ds.axisCheck.emptyTitle")}
-          </Text>
-          <Text style={[m3TextStyle("bodyMedium"), styles.emptyText]}>
-            {t("ds.axisCheck.emptyText")}
-          </Text>
-        </View>
-      </MdCard>
+      {populated ? (
+        <ValuesPopulated result={valuesResult as LoadedValues} />
+      ) : (
+        <MdCard variant="outlined" style={styles.emptyCard}>
+          <SecondbHead size={30} track={false} />
+          <View style={styles.emptyBody}>
+            <Text style={[m3TextStyle("titleSmall"), styles.emptyTitle]}>
+              {t("ds.axisCheck.emptyTitle")}
+            </Text>
+            <Text style={[m3TextStyle("bodyMedium"), styles.emptyText]}>
+              {t("ds.axisCheck.emptyText")}
+            </Text>
+          </View>
+        </MdCard>
+      )}
 
       {/* ── sibling-check actions ────────────────────────────────────── */}
       <View style={styles.actions}>
@@ -107,14 +192,22 @@ function AxisLens({ axis }: { axis: AxisCheckId }) {
   );
 }
 
-export function AxisCheckScreen({ axis }: { axis: AxisCheckId }) {
+export function AxisCheckScreen({
+  axis,
+  valuesResult,
+}: {
+  axis: AxisCheckId;
+  /** Real values self-report result — when present (and axis is "values"),
+   *  AxisLens renders the populated layout instead of the not-measured state. */
+  valuesResult?: LoadedValues | null;
+}) {
   const { t } = useTranslation("home");
   // Bar title reuses the axis body's headline key so es/pt/id localize too.
   const barTitle = t(`ds.axisCheck.${axis}.headline`);
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
-      <AxisLens axis={axis} />
+      <AxisLens axis={axis} valuesResult={valuesResult} />
     </DeepSpaceScreen>
   );
 }
