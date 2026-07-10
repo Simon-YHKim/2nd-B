@@ -131,7 +131,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
       <DeepSpaceBackdrop />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Eyebrow + page title (centred, no back button / no companion bubble). */}
-        <Text variant="caption" style={styles.eyebrow}>FIRST LIGHT · 첫 빛</Text>
+        <Text variant="caption" style={styles.eyebrow}>{t("ds.ttfv.eyebrow")}</Text>
         <Text variant="heading" style={styles.pageTitle}>
           {t("ds.ttfv.pageTitle")}
         </Text>
@@ -242,8 +242,11 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
             {/* Ratify: the lit star rose one level. Softened when the user
                 answered 조금 달라요 (their correction is the signal, spec 03). */}
             <View style={styles.levelChip}>
+              {/* trending_up icon + star name convey "this star went up" without
+                  the internal L1→L2 ladder jargon; the ratify title below states
+                  the change in plain language. */}
               <SbIcon name="trending_up" size={16} color={m3.accent.insightHi} />
-              <Text variant="caption" style={styles.levelChipText}>{`${star} · L1 → L2`}</Text>
+              <Text variant="caption" style={styles.levelChipText}>{star}</Text>
             </View>
             <Text variant="body" style={styles.ratifyTitle}>
               {soft
