@@ -39,6 +39,10 @@ export default [
       // Vendored design-asset packs (reference SVGs / example components) —
       // static deliverables served as-is, not project source to lint.
       "public/**",
+      // Generated reports and prototype exports. Already in .gitignore, so CI
+      // never sees them, but a populated Output/ made `npm run verify` fail
+      // locally on a tree CI called green.
+      "Output/**",
       "web-build/**",
       "ios/**",
       "android/**",
