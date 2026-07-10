@@ -70,7 +70,11 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
   srsRatingBtn:{flex:1,alignItems:'center',justifyContent:'center',borderColor:colors.borderHi,borderWidth:1,borderRadius:radius.md,paddingVertical:spacing.md},
   srsRatingText:{color:colors.cyanSoft,fontSize:12},
   // --- auth (sign-in / sign-up / reset) deep-space presentation ---
-  authLabel:{color:colors.textMid,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginBottom:4},
+  // Field labels (EMAIL / PASSWORD / BIRTHDATE) sit on the auth gate every user
+  // passes; 7px was the smallest text in the app and illegible for low-vision /
+  // elderly (the BIRTHDATE label also drives minor-consent gating). Raised to a
+  // legible size in line with the surrounding auth text (eyeText 11, helper 11.5).
+  authLabel:{color:colors.textMid,fontSize:12,letterSpacing:0.7,textTransform:'uppercase',marginBottom:4},
   authLabelRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
   eyeBtn:{minWidth:44,minHeight:36,alignItems:'flex-end',justifyContent:'center'},
   eyeText:{color:colors.cyanSoft,fontSize:11},
@@ -81,7 +85,7 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
   btnDisabled:{opacity:0.45},
   authDividerRow:{flexDirection:'row',alignItems:'center',gap:spacing.md,marginVertical:spacing.xs},
   authDividerLine:{flex:1,height:StyleSheet.hairlineWidth,backgroundColor:colors.border},
-  authDividerLabel:{color:colors.textLo,fontSize:7,letterSpacing:0.7,textTransform:'uppercase'},
+  authDividerLabel:{color:colors.textLo,fontSize:11,letterSpacing:0.7,textTransform:'uppercase'},
   authDanger:{color:colors.clay,fontSize:12,},
   authHelper:{color:colors.textMid,fontSize:11.5,},
   authLinkRow:{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6},
