@@ -198,7 +198,7 @@ export function WeeklyGrowthScreen() {
 
         <View style={styles.obsCard}>
           <View style={styles.obsHead}>
-            <SecondbHead size={22} mood="positive" />
+            <SecondbHead size={22} mood="neutral" />
             <Text variant="body" style={styles.obsText}>{ko ? step.obsKo : step.obsEn}</Text>
           </View>
           <Pressable

@@ -392,7 +392,7 @@ export function DeepSpaceSupportDesignScreen() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   return (
     <Shell title={t("support.title")}>
-      <View style={styles.center}><SecondbHead size={104} mood="positive" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
+      <View style={styles.center}><SecondbHead size={104} mood="neutral" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
       <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
 
       {/* FAQ (canonGaps.faqs) — tap a question to reveal its answer. */}
@@ -874,7 +874,7 @@ export function DeepSpaceInsightsScreen() {
 
   return (
     <Shell title={t("insights.title")}>
-      <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="positive" />
+      <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="neutral" />
       <Pressable
         onPress={() => router.push("/records")}
         style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
@@ -1066,7 +1066,7 @@ export function DeepSpaceDiscoverScreen() {
   const { t } = useTranslation("deepspace");
   return (
     <Shell title={t("discover.title")}>
-      <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="positive" />
+      <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="neutral" />
       <Text variant="body" style={styles.lead}>{t("discover.lead")}</Text>
       <Pressable
         onPress={() => router.push("/attachment")}
@@ -1319,7 +1319,7 @@ export function DeepSpaceResearchScreen() {
 
   return (
     <Shell title={t("research.title")}>
-      <SecondbStatusHeader text={headerText} tip={t("research.tip")} mood="positive" />
+      <SecondbStatusHeader text={headerText} tip={t("research.tip")} mood="neutral" />
       <Text variant="body" style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
@@ -2437,7 +2437,8 @@ export function DeepSpaceSrsScreen() {
         </>
       ) : (
         <View style={styles.center}>
-          <SecondbHead size={104} mood="positive" />
+          {/* The smile belongs to the cleared queue, not to the spinner before it. */}
+          <SecondbHead size={104} mood={queue === null ? "neutral" : "positive"} />
           <Text variant="heading" style={styles.prompt}>{queue === null ? t("srs.loading") : t("srs.cleared")}</Text>
         </View>
       )}

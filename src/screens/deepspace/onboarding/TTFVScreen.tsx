@@ -162,7 +162,7 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
         {phase === "propose" ? (
           <View style={styles.block}>
             {/* 세컨비 head sits in the middle, above the question (gentle bob). */}
-            <SecondbHead size={84} mood="positive" track={false} accessibilityLabel={t("ds.ttfv.secondbName")} />
+            <SecondbHead size={84} mood="neutral" track={false} accessibilityLabel={t("ds.ttfv.secondbName")} />
 
             <Text variant="body" style={styles.insight}>
               {t("ds.ttfv.insightLead")}
