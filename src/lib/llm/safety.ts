@@ -256,8 +256,14 @@ export async function classifySafety(
   locale: "en" | "ko",
   opts?: { userId?: string },
 ): Promise<SafetyResult> {
-  // Layer 1: lexicon. Always runs synchronously.
-  const lex = lexiconToResult(userMessage, locale);
+  // Layer 1: lexicon. Always runs synchronously. Dual-locale: catch a crisis
+  // term written in the other language than the UI locale (mirrors the proxy
+  // EN+KO gate + classifyInputAnyLocale) - the largest single-locale blind spot.
+  let lex = lexiconToResult(userMessage, locale);
+  if (lex.zone !== "red") {
+    const lexOther = lexiconToResult(userMessage, locale === "ko" ? "en" : "ko");
+    if (lexOther.zone === "red") lex = lexOther;
+  }
 
   // Layer 2: Gemini Flash, only when we have a real client.
   const client = getFlashClient();

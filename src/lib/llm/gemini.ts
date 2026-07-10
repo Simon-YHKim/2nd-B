@@ -15,7 +15,7 @@ import { getEnv } from "../env";
 import { phase2EffortFor, proxyFnForVendor, resolveVendorForPurpose } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
-import { classifyInput, crisisHotlines, type SafetyResult } from "../safety/classifier";
+import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
 import type { CrisisEventInsert } from "../supabase/crisis-events";
 import { enqueueAuditWrite } from "./audit-write-outbox";
@@ -459,7 +459,10 @@ async function routeCrisis(
 export async function callGemini<T = string>(input: PromptInput): Promise<GeminiResult<T>> {
   throwIfAborted(input.signal);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
-  const inputSafety = classifyInput(input.user, input.locale, { minor: input.minor });
+  // Dual-locale: catch a crisis term written in the other language than the UI
+  // locale, matching embedTexts + the proxy gate (the direct/Vertex path has no
+  // proxy backstop, so this is the only input short-circuit there).
+  const inputSafety = classifyInputAnyLocale(input.user, input.locale, { minor: input.minor });
   const promptHash = djb2(`${input.system ?? ""}${input.user}`);
   if (inputSafety.zone === "red") {
     return (await routeCrisis(
