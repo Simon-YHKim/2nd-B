@@ -581,5 +581,22 @@
     "footerWeek": "A week seen together with SecondB",
     "starsLit": "{{count}} stars shining",
     "signature": "2nd-Brain · {{count}} stardust"
+  },
+  "ds": {
+    "wikiRecords": {
+      "relationships": "Relationships",
+      "justNow": "Just now",
+      "seeEvidence": "See evidence ↗",
+      "tags": "Tags",
+      "addTag": "Add tag",
+      "linkedRecords": "Linked records",
+      "meaning": "meaning",
+      "edit": "Edit",
+      "move": "Move",
+      "fillStar": "Fill in this star",
+      "fillStarBody": "Add information for this domain.",
+      "secondbLinked": "This piece links to your '{{star}}' star. {{n}} similar records sit in the same window.",
+      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon."
+    }
   }
 }

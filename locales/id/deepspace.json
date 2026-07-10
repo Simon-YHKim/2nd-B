@@ -581,5 +581,22 @@
     "footerWeek": "Seminggu yang dilihat bersama SecondB",
     "starsLit": "{{count}} bintang bersinar",
     "signature": "2nd-Brain · {{count}} serpihan bintang"
+  },
+  "ds": {
+    "wikiRecords": {
+      "relationships": "Hubungan",
+      "justNow": "Baru saja",
+      "seeEvidence": "Lihat bukti ↗",
+      "tags": "Tag",
+      "addTag": "Tambah tag",
+      "linkedRecords": "Catatan tertaut",
+      "meaning": "makna",
+      "edit": "Edit",
+      "move": "Pindahkan",
+      "fillStar": "Isi bintang ini",
+      "fillStarBody": "Tambahkan informasi untuk domain ini.",
+      "secondbLinked": "Serpihan ini terhubung dengan bintang '{{star}}' kamu. {{n}} catatan serupa berada di rentang waktu yang sama.",
+      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera."
+    }
   }
 }
