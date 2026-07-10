@@ -231,7 +231,7 @@ function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; ty
   const title = timelineTitle(r, t("records.fallbackTitle"));
   const tags = stripDomainTags(r.tags ?? []).slice(0, 2);
   return (
-    <Pressable style={({ pressed }) => [rStyles.card, pressed && rStyles.cardPressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
       <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
       <View style={rStyles.body}>
         <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
@@ -403,7 +403,8 @@ export function DeepSpaceRecordsScreen() {
 
           {domainWriter ? (
             <Pressable
-              style={({ pressed }) => [rStyles.triageCard, pressed && rStyles.cardPressed]}
+              style={rStyles.triageCard}
+              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
               onPress={() => router.push(domainWriter)}
               accessibilityRole="button"
               accessibilityLabel={t("ds.wikiRecords.fillStar")}
@@ -417,7 +418,8 @@ export function DeepSpaceRecordsScreen() {
           ) : null}
 
           <Pressable
-            style={({ pressed }) => [rStyles.triageCard, pressed && rStyles.cardPressed]}
+            style={rStyles.triageCard}
+            android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
             onPress={() => router.push("/inbox")}
             accessibilityRole="button"
             accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
@@ -503,7 +505,6 @@ const rStyles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
-  cardPressed: { opacity: 0.6 },
   triageIcon: {
     width: 38,
     height: 38,
@@ -777,7 +778,8 @@ export function DeepSpaceRecordDetailScreen() {
               return (
                 <Pressable
                   key={r.id}
-                  style={({ pressed }) => [rd.linkCard, pressed && rStyles.cardPressed]}
+                  style={rd.linkCard}
+                  android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
                   onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
                   accessibilityRole="button"
                   accessibilityLabel={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}
