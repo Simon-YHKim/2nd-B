@@ -90,6 +90,15 @@
       "polaris": "Estrella Polar",
       "hint": "Toca las siete estrellas para abrir tus siete áreas de vida",
       "museumName": "Museo",
+      "domainName": {
+        "career": "Carrera",
+        "finance": "Finanzas",
+        "growth": "Crecimiento",
+        "relation": "Relaciones",
+        "health": "Salud",
+        "recreation": "Descanso",
+        "collect": "Recopilar"
+      },
       "inbox": "Notificaciones",
       "headA11y": "Preguntar a SecondB",
       "kind": {
