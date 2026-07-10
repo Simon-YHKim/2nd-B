@@ -581,5 +581,22 @@
     "footerWeek": "Uma semana vista ao lado do SecondB",
     "starsLit": "{{count}} estrelas brilhando",
     "signature": "2nd-Brain · {{count}} fagulhas de estrela"
+  },
+  "ds": {
+    "wikiRecords": {
+      "relationships": "Relacionamentos",
+      "justNow": "Agora mesmo",
+      "seeEvidence": "Ver evidências ↗",
+      "tags": "Tags",
+      "addTag": "Adicionar tag",
+      "linkedRecords": "Registros vinculados",
+      "meaning": "significado",
+      "edit": "Editar",
+      "move": "Mover",
+      "fillStar": "Preencher esta estrela",
+      "fillStarBody": "Adicione informações deste domínio.",
+      "secondbLinked": "Este fragmento se conecta à sua estrela '{{star}}'. {{n}} registros similares estão no mesmo período.",
+      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve."
+    }
   }
 }

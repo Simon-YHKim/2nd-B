@@ -581,5 +581,22 @@
     "footerWeek": "세컨비가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
     "signature": "2nd-Brain · {{count}}개 별가루"
+  },
+  "ds": {
+    "wikiRecords": {
+      "relationships": "관계",
+      "justNow": "방금",
+      "seeEvidence": "근거 기록 보기 ↗",
+      "tags": "태그",
+      "addTag": "태그 추가",
+      "linkedRecords": "연결된 기록",
+      "meaning": "의미",
+      "edit": "편집",
+      "move": "이동",
+      "fillStar": "이 별 채워넣기",
+      "fillStarBody": "이 영역의 정보를 직접 추가해요.",
+      "secondbLinked": "이 별가루는 '{{star}}' 별과 이어져요. 비슷한 기록 {{n}}건이 같은 시간대에 모여 있어요.",
+      "secondbUnlinked": "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+    }
   }
 }
