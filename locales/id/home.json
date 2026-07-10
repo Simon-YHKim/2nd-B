@@ -90,6 +90,15 @@
       "polaris": "Bintang Utara",
       "hint": "Ketuk tujuh bintang untuk membuka tujuh area hidupmu",
       "museumName": "Museum",
+      "domainName": {
+        "career": "Karier",
+        "finance": "Keuangan",
+        "growth": "Pertumbuhan",
+        "relation": "Hubungan",
+        "health": "Kesehatan",
+        "recreation": "Istirahat",
+        "collect": "Kumpulkan"
+      },
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
       "kind": {
