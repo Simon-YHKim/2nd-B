@@ -7,6 +7,10 @@
 // own deploy verification). Until then: KEEP IN SYNC with
 // supabase/functions/gemini-proxy/index.ts AND src/lib/safety/lexicon.ts.
 
+// D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
+// are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
+import { pickApiKey } from './axis-key-name.ts';
+
 // --- crisis gate (R1-A) ------------------------------------------------------
 
 export const CRISIS_TERMS_EN: readonly string[] = [
@@ -188,4 +192,23 @@ export function normalizeResponseSchema(node: unknown): Record<string, unknown> 
     if (n) out.items = n;
   }
   return Object.keys(out).length > 0 ? out : null;
+}
+
+// --- (vendor × model × effort) axis API-key attribution (D-27) ----------------
+//
+// Each (vendor, model, effort) combo can carry a DEDICATED upstream key. Once
+// routing has decided model + clampedEffort, the proxy signs the (already
+// server-owned) request with that combo's key, so the vendor billing/usage
+// dashboard separates spend by key == by combo. If the combo secret is absent,
+// the vendor BASE key ({PREFIX}_API_KEY) is used so calls NEVER break (that
+// call's usage then attributes to the base key). This only changes WHICH key
+// signs an already-decided request: C1 (model is server-owned) and C3 (audit
+// row) are untouched. Naming + the pure resolver live in ./axis-key-name.ts
+// (Deno-free, unit-tested); this is the thin Deno env-reading wrapper.
+//
+// Secret naming: {PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}
+//   e.g. ANTHROPIC_API_KEY__SONNET5__HIGH, OPENAI_API_KEY__GPT54__MEDIUM
+// See docs/LLM-ROUTING.md "Axis key attribution".
+export function resolveApiKey(prefix: string, model: string, effort: string, baseKey: string) {
+  return pickApiKey((key) => Deno.env.get(key), prefix, model, effort, baseKey);
 }

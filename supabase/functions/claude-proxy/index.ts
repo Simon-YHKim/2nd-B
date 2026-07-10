@@ -51,6 +51,7 @@ import {
   hasCrisisTerm,
   jsonResponse,
   normalizeResponseSchema,
+  resolveApiKey,
   userIdFromJwt,
   utcDay,
 } from '../_shared/llm-proxy-common.ts';
@@ -259,6 +260,16 @@ Deno.serve(async (req: Request) => {
 
   const claudeModel = resolveModel(purpose);
   const clampedEffort = effortToAnthropic(effort, purpose);
+  // D-27: sign with the (model × effort) combo key when provisioned, else base
+  // ANTHROPIC_API_KEY (fallback keeps calls working; that usage attributes to
+  // base). Only changes WHICH key signs the already-server-owned request.
+  const resolvedKey = resolveApiKey('ANTHROPIC', claudeModel, clampedEffort, apiKey);
+  if (!resolvedKey.usedCombo) {
+    console.warn(
+      `[claude-proxy] combo key ${resolvedKey.secretName} absent — using base ANTHROPIC_API_KEY (usage attributes to base)`,
+    );
+  }
+  const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'ANTHROPIC_API_KEY';
   const systemPrompt =
     systemText && systemText.length > 0 ? `${SAFETY_PREAMBLE}\n\n${systemText}` : SAFETY_PREAMBLE;
   const anthropicBody = {
@@ -283,7 +294,7 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': apiKey,
+        'x-api-key': resolvedKey.apiKey,
         'anthropic-version': ANTHROPIC_VERSION,
       },
       body: JSON.stringify(anthropicBody),
@@ -325,6 +336,11 @@ Deno.serve(async (req: Request) => {
 
   // C3: write the audit row server-side (parity with gemini-proxy). vertex_backend
   // is false; model_used carries the claude model so the trail shows the backend.
+  // D-27: usage tokens for per-combo re-decomposition (Anthropic returns
+  // usage.input_tokens + usage.output_tokens).
+  const claudeUsage = (data?.usage ?? {}) as { input_tokens?: number; output_tokens?: number };
+  const claudeTotalTokens =
+    (Number(claudeUsage.input_tokens) || 0) + (Number(claudeUsage.output_tokens) || 0) || null;
   let audited = false;
   try {
     const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
@@ -335,6 +351,12 @@ Deno.serve(async (req: Request) => {
       vertex_backend: false,
       safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
       latency_ms: latencyMs,
+      // D-27 re-decomposition axes (nullable; NULL on legacy/native-path rows).
+      purpose,
+      reasoning_vendor: 'claude',
+      reasoning_effort: clampedEffort,
+      key_combo: keyCombo,
+      total_tokens: claudeTotalTokens,
     });
     audited = !auditErr;
     if (auditErr) console.warn('[claude-proxy] audit insert failed:', auditErr.message);

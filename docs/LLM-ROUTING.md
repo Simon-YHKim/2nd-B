@@ -159,3 +159,55 @@ PURPOSE_ROUTE[purpose] = {
 - **claude**: Anthropic 크레딧 충전 → `EXPO_PUBLIC_LLM_VENDOR=claude` → 웹 재배포. (claude-proxy 이미 배포/키.)
 - **openai**: OpenAI 결제수단+크레딧 → `OPENAI_API_KEY` 시크릿 주입 → openai-proxy 재배포(v1이 #829 이전) → `EXPO_PUBLIC_LLM_VENDOR=openai`.
 - 저한도 검증(QA `.env.test`): 해당 프록시 `gap_synthesize`→200 + `modelUsed` 접두어. 경계 422/403/401.
+
+## Axis key attribution (D-27) — (벤더 × 모델 × 리즈닝) 축별 API 키
+
+라우팅이 `purpose → vendor → model → clampedEffort` 를 정한 뒤, 프록시는 그 **조합 전용 키**로 벤더를 호출한다. → 벤더 청구/사용량 대시보드에서 **키별 = 조합별**로 사용량·비용이 분리 집계된다. (모든 키가 같은 결제 계정에 청구됨 — 분리는 "귀속"이지 별도 결제계정이 아니다.)
+
+**시크릿 네이밍** (env-var 안전: 대문자+언더스코어): `{PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}`
+
+- `PREFIX` ∈ {`ANTHROPIC`, `OPENAI`, `GEMINI`}. 모델 슬러그: `claude-sonnet-5→SONNET5`, `claude-opus-4-8→OPUS48`, `gpt-5.4→GPT54`, `gpt-5.4-nano→GPT54NANO`, `gemini-2.5-flash→G25FLASH` 등. 미등록 모델은 대문자+영숫자 압축으로 자동 슬러그(코드 변경 없이 조합명 획득).
+- `EFFORT` = 프록시가 실제 upstream에 보내는 **clamped effort**(대문자). `max`는 `xhigh`로 접힘.
+- **정본 구현**: `supabase/functions/_shared/axis-key-name.ts`(순수·Deno-free·단위테스트) + `llm-proxy-common.ts:resolveApiKey`(Deno env 래퍼). 각 프록시가 model+clampedEffort 계산 직후 호출.
+
+**폴백 규칙(호출 불파손)**: 조합 전용 시크릿이 없거나 비어 있으면 벤더 **BASE 키**(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`)로 폴백하고 `console.warn` 1줄. 그 호출 사용량은 base 키에 잡힌다. base 키는 반드시 유지(프록시는 base 없으면 500).
+
+**전체 매트릭스**(벤더별 모델 × effort ladder 전수 — Simon 결정: 모델 유동성 + 모델·리즈닝별 통계). `현재 도달` = 현 코드가 실제로 그 조합을 upstream에 보낼 수 있는지(나머지는 상한 상향/모델 이동 대비 선발급):
+
+| 시크릿명 | model | effort | 현재 도달 | 대표 purpose |
+|---|---|---|---|---|
+| `ANTHROPIC_API_KEY__SONNET5__LOW` | claude-sonnet-5 | low | ✅ | gap_synthesize |
+| `ANTHROPIC_API_KEY__SONNET5__MEDIUM` | claude-sonnet-5 | medium | ✅ | ops_recommend, ops_daily_brief |
+| `ANTHROPIC_API_KEY__SONNET5__HIGH` | claude-sonnet-5 | high | ✅ | advisor, self_model_propose, northstar_propose |
+| `ANTHROPIC_API_KEY__SONNET5__XHIGH` | claude-sonnet-5 | xhigh | ✅ | ttfv_first_insight |
+| `ANTHROPIC_API_KEY__OPUS48__LOW` | claude-opus-4-8 | low | ⛔ 선발급 | — |
+| `ANTHROPIC_API_KEY__OPUS48__MEDIUM` | claude-opus-4-8 | medium | ⛔ 선발급 | — |
+| `ANTHROPIC_API_KEY__OPUS48__HIGH` | claude-opus-4-8 | high | ✅ | persona_narrative, axis_estimate |
+| `ANTHROPIC_API_KEY__OPUS48__XHIGH` | claude-opus-4-8 | xhigh | ✅ | persona_synthesis, digest_weekly |
+| `OPENAI_API_KEY__GPT54__NONE` | gpt-5.4 | none | ⛔ 선발급 | — |
+| `OPENAI_API_KEY__GPT54__LOW` | gpt-5.4 | low | ✅ | gap_synthesize |
+| `OPENAI_API_KEY__GPT54__MEDIUM` | gpt-5.4 | medium | ✅ | ops_recommend, ops_daily_brief, cluster_infer |
+| `OPENAI_API_KEY__GPT54__HIGH` | gpt-5.4 | high | ✅ | advisor·persona_narrative·self_model_propose·northstar_propose·axis_estimate·persona_synthesis†·digest_weekly†·ttfv_first_insight† |
+| `OPENAI_API_KEY__GPT54__XHIGH` | gpt-5.4 | xhigh | ⛔ 선발급 | — (openai-proxy가 reasoning 좌석을 high로 clamp) |
+| `OPENAI_API_KEY__GPT54NANO__NONE` | gpt-5.4-nano | none | ✅ | safety_classify |
+| `OPENAI_API_KEY__GPT54NANO__{LOW..XHIGH}` | gpt-5.4-nano | low/medium/high/xhigh | ⛔ 선발급 | — |
+
+† = `PHASE2_EFFORT`는 xhigh 요청이지만 `openai-proxy`의 `PURPOSE_EFFORT_MAX`가 `high`로 clamp → 실제 upstream = high. 그래서 `GPT54__XHIGH`는 현재 **도달 불가**.
+
+- **Anthropic 전체 8** (2 모델 × 4 effort) / **OpenAI 전체 10** (2 모델 × 5 effort). 유료 총 **18**.
+- **Gemini**($0 백본): 코드 배선은 3프록시 동일(uniform). **운영 결정(Simon, 2026-07-10) — Gemini는 `gemini-3.5-flash`(슬러그 `G35FLASH`) 하나만 사용.** 따라서 조합 키는 `GEMINI_API_KEY__G35FLASH__{LOW,MEDIUM,HIGH,XHIGH}` **4개만 발급·등록(완료)**. 다른 Gemini 모델(2.5-flash/-flash-lite/-pro, 3.1-flash-lite)은 미사용 → 조합 키 없음(호출 시 base `GEMINI_API_KEY` 폴백). ($0라 벤더-대시보드 비용 귀속 실익은 작고, 모델·리즈닝별 통계는 아래 감사로그 컬럼으로 커버.)
+
+  > **→ Claude Code 인계 명시:** **Gemini 좌석 = `gemini-3.5-flash` 전용.** 위 4개 조합 키가 실제로 쓰이려면 **앱의 Gemini 라우팅이 `gemini-3.5-flash`로 가야** 한다 — `EXPO_PUBLIC_MODEL_LITE/_FLASH/_PRO`(또는 `types.ts`의 `PURPOSE_TIER`→`MODELS` 매핑)를 `gemini-3.5-flash`로 핀할 것. 아니면 다른 모델 슬러그(`G25FLASH` 등)로 조회돼 base 키로 폴백된다. `gemini-proxy`의 `MODELS_ALLOWED`에는 `gemini-3.5-flash`가 이미 포함돼 있어 프록시단 변경은 불필요.
+
+**감사로그 재분해(0073)** — 키가 못 나누는 축(purpose·user·time)까지 SQL로 재분해. `ai_audit_log`에 nullable 컬럼 추가: `purpose`, `reasoning_vendor`(gemini/claude/openai), `reasoning_effort`(clamped), `key_combo`(사용 시크릿명 또는 base), `total_tokens`(벤더 usage). 서비스롤 프록시가 기록(네이티브 `log_ai_audit` RPC 경로는 미변경 → NULL). 예:
+
+```sql
+-- 조합별(벤더×모델×effort) 호출·토큰 집계 (최근 30일)
+select reasoning_vendor, model_used, reasoning_effort, key_combo,
+       count(*) calls, sum(total_tokens) tokens
+from ai_audit_log
+where created_at >= now() - interval '30 days' and reasoning_vendor is not null
+group by 1,2,3,4 order by tokens desc nulls last;
+```
+
+**결제 선행(현 블로커)**: OpenAI org $0·결제수단 없음, Anthropic 크레딧 소진. 키를 넣어도 펀딩 전엔 429/402→502. **발급·저장·배선·문서는 지금 가능(무과금)**, 실사용은 펀딩 후. 앱 기본은 Gemini($0) 유지, 유료 벤더 플립은 별건 승인(위 전환 런북).
