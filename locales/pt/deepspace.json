@@ -632,6 +632,24 @@
       "consentTitle": "Antes de importar",
       "historyTitle": "Histórico de importação",
       "revoke": "Revogar"
+    },
+    "ttfv": {
+      "pageTitle": "Sua primeira estrela acabou de se acender",
+      "stageA11y": "A estrela polar e sua primeira estrela acesa",
+      "secondbName": "SecondB",
+      "insightLead": "Você pode ser alguém que ",
+      "insightTail": ".",
+      "sub": "Vamos acender primeiro sua estrela de Relações? Ela fica mais nítida conforme você registra.",
+      "grounds": "Dois motivos para esta leitura",
+      "affirm": "É isso mesmo",
+      "differ": "Um pouco diferente",
+      "consent": "De qualquer forma, uma estrela só brilha com o seu consentimento.",
+      "ratifySoft": "Suas palavras deixaram a estrela mais precisa.",
+      "ratifySub": "Quanto mais você registra, mais nítidas ficam as estrelas, e sete delas acendem a estrela polar.",
+      "enter": "Entrar na sua constelação",
+      "evidence1": { "q": "Agora", "a": "É o ponto de partida para acender sua primeira estrela" },
+      "evidence2": { "q": "Daqui em diante", "a": "Quanto mais você registra, mais motivos reais se acumulam" },
+      "whyFootnote": "Ainda é o começo, então esta é uma primeira leitura leve. Quanto mais você registra, mais motivos se acumulam."
     }
   }
 }
