@@ -59,7 +59,7 @@ const STEP: Record<StarId, { obsKo: string; obsEn: string; stepKo: string; stepE
 };
 
 export function WeeklyGrowthScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId } = useAuth();
 
@@ -85,9 +85,8 @@ export function WeeklyGrowthScreen() {
     };
   }, [userId]);
 
-  const t = (k: string) => COPY(ko)[k] ?? k;
   const top = data?.topStar ?? null;
-  const tip = data?.hasPriorWeek ? t("comparedLast") : t("firstWeekTip");
+  const tip = data?.hasPriorWeek ? t("ds.growth.comparedLast") : t("ds.growth.firstWeekTip");
 
   // Loading-system demo (loading.dc.html): re-reading the stars is a genuine
   // multi-table read, so run it in the BACKGROUND — the user keeps using the app,
@@ -96,8 +95,8 @@ export function WeeklyGrowthScreen() {
   const reanalyze = () => {
     if (!userId) return;
     startTask({
-      title: ko ? "별을 다시 살펴보는 중" : "Re-reading your stars",
-      tip: ko ? "끝나면 알려줄게요. 앱은 그대로 써도 돼요." : "We'll let you know when it's done.",
+      title: t("ds.growth.reanalyzing"),
+      tip: t("ds.growth.reanalyzingTip"),
       mode: "background",
       etaSec: 8,
       resultHref: "/growth",
@@ -125,11 +124,11 @@ export function WeeklyGrowthScreen() {
   };
 
   return (
-    <OpsFrame title={t("title")} bubble={t("bubble")} tip={tip} onBack={() => router.back()}>
+    <OpsFrame title={t("ds.growth.title")} bubble={t("ds.growth.bubble")} tip={tip} onBack={() => router.back()}>
       {status === "error" ? (
-        <OpsState variant="error" title={t("errTitle")} body={t("errBody")} />
+        <OpsState variant="error" title={t("ds.growth.errTitle")} body={t("ds.growth.errBody")} />
       ) : status === "loading" || !data ? (
-        <OpsState variant="empty" title="…" body={t("loading")} />
+        <OpsState variant="empty" title="…" body={t("ds.growth.loading")} />
       ) : !data.hasPriorWeek || !top ? (
         renderFirstWeek()
       ) : (
@@ -143,10 +142,10 @@ export function WeeklyGrowthScreen() {
     return (
       <>
         <View style={styles.heroBox}>
-          <Text variant="caption" pixelEn style={styles.heroLabel}>{t("thisWeeksStar")}</Text>
+          <Text variant="caption" pixelEn style={styles.heroLabel}>{t("ds.growth.thisWeeksStar")}</Text>
           <Text variant="heading" style={styles.heroName}>{ko ? hero.nameKo : hero.nameEn}</Text>
           <Text variant="body" style={styles.heroDelta}>
-            {hero.delta > 0 ? t("brightened").replace("{n}", String(hero.delta)) : t("brightestNow")}
+            {hero.delta > 0 ? t("ds.growth.brightened").replace("{n}", String(hero.delta)) : t("ds.growth.brightestNow")}
           </Text>
         </View>
 
@@ -181,20 +180,20 @@ export function WeeklyGrowthScreen() {
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={styles.legendHollow} />
-              <Text variant="subtle" style={styles.legendText}>{t("lastWeek")}</Text>
+              <Text variant="subtle" style={styles.legendText}>{t("ds.growth.lastWeek")}</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={styles.legendFill} />
-              <Text variant="subtle" style={styles.legendText}>{t("thisWeek")}</Text>
+              <Text variant="subtle" style={styles.legendText}>{t("ds.growth.thisWeek")}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.chipRow}>
-          <MetaChip label={`${t("records")} ${g.metrics.records}`} />
-          <MetaChip label={`${t("streak")} ${g.metrics.streak}${t("days")}`} />
-          <MetaChip label={`${t("rate")} ${g.metrics.completionRate}%`} color={deepSpace.mint} />
-          <MetaChip label={`${t("milestone")} +${g.metrics.milestoneDelta}`} />
+          <MetaChip label={`${t("ds.growth.records")} ${g.metrics.records}`} />
+          <MetaChip label={`${t("ds.growth.streak")} ${g.metrics.streak}${t("ds.growth.days")}`} />
+          <MetaChip label={`${t("ds.growth.rate")} ${g.metrics.completionRate}%`} color={deepSpace.mint} />
+          <MetaChip label={`${t("ds.growth.milestone")} +${g.metrics.milestoneDelta}`} />
         </View>
 
         <View style={styles.obsCard}>
@@ -214,19 +213,19 @@ export function WeeklyGrowthScreen() {
           </Pressable>
           <View style={styles.obsActions}>
             <Pressable onPress={saveStep} hitSlop={6} style={[styles.primaryBtn, saved ? styles.disabled : null]} disabled={saved}>
-              <Text variant="caption" style={styles.primaryText}>{saved ? t("saved") : t("addRoutine")}</Text>
+              <Text variant="caption" style={styles.primaryText}>{saved ? t("ds.growth.saved") : t("ds.growth.addRoutine")}</Text>
             </Pressable>
           </View>
         </View>
 
         <Pressable onPress={() => router.push("/imagine")} hitSlop={6} style={styles.dreamRow}>
           <RNText style={styles.dreamIcon}>✨</RNText>
-          <Text variant="body" style={styles.dreamText}>{t("dreamToStep")}</Text>
+          <Text variant="body" style={styles.dreamText}>{t("ds.growth.dreamToStep")}</Text>
           <RNText style={styles.dreamCaret}>›</RNText>
         </Pressable>
 
         <Pressable onPress={reanalyze} hitSlop={6} style={styles.ghostBtn}>
-          <Text variant="caption" style={styles.ghostText}>{t("reanalyze")}</Text>
+          <Text variant="caption" style={styles.ghostText}>{t("ds.growth.reanalyze")}</Text>
         </Pressable>
       </>
     );
@@ -241,43 +240,17 @@ export function WeeklyGrowthScreen() {
             <Circle key={i} cx={cx} cy={cy} r={4} fill="none" stroke={deepSpace.accentDim} strokeWidth={1} opacity={0.4} />
           ))}
         </Svg>
-        <Text variant="heading" style={styles.firstTitle}>{t("firstTitle")}</Text>
-        <Text variant="body" style={styles.firstBody}>{t("firstBody")}</Text>
+        <Text variant="heading" style={styles.firstTitle}>{t("ds.growth.firstTitle")}</Text>
+        <Text variant="body" style={styles.firstBody}>{t("ds.growth.firstBody")}</Text>
         <Pressable onPress={() => router.push("/capture")} hitSlop={6} style={styles.primaryBtn}>
-          <Text variant="caption" style={styles.primaryText}>{t("captureToday")}</Text>
+          <Text variant="caption" style={styles.primaryText}>{t("ds.growth.captureToday")}</Text>
         </Pressable>
         <Pressable onPress={() => router.push("/ops")} hitSlop={6} style={styles.ghostBtn}>
-          <Text variant="caption" style={styles.ghostText}>{t("startRoutine")}</Text>
+          <Text variant="caption" style={styles.ghostText}>{t("ds.growth.startRoutine")}</Text>
         </Pressable>
       </View>
     );
   }
-}
-
-function COPY(ko: boolean): Record<string, string> {
-  return ko
-    ? {
-        title: "나의 변화", bubble: "이번 주, 너는 여기가 자랐어요.", comparedLast: "지난주와 비교했어요.",
-        firstWeekTip: "한 주만 채우면 변화가 보여요.", loading: "변화를 모으는 중…",
-        errTitle: "잠시 불러오지 못했어요", errBody: "조금 뒤에 다시 볼게요",
-        thisWeeksStar: "이번 주의 별", brightened: "밝기 +{n}단계", brightestNow: "가장 환한 별",
-        lastWeek: "지난주", thisWeek: "이번주",
-        records: "기록", streak: "루틴 연속", days: "일", rate: "완료율", milestone: "마일스톤",
-        addRoutine: "루틴으로 담기", saved: "담았어요", dreamToStep: "이번 주 공상 한 조각을 첫 걸음으로?",
-        firstTitle: "첫 변화는 다음 주에", firstBody: "이번 주 기록과 루틴을 채우면 일요일에 너의 별이 얼마나 밝아졌는지 보여줄게요.",
-        captureToday: "오늘 기록 담기", startRoutine: "루틴 하나 시작하기", reanalyze: "별 다시 살펴보기",
-      }
-    : {
-        title: "My change", bubble: "This week, you grew here.", comparedLast: "Compared with last week.",
-        firstWeekTip: "Fill one week and you'll see change.", loading: "Gathering your change…",
-        errTitle: "Couldn't load just now", errBody: "We'll show it again shortly",
-        thisWeeksStar: "THIS WEEK'S STAR", brightened: "Brightened +{n}", brightestNow: "Your brightest star",
-        lastWeek: "Last week", thisWeek: "This week",
-        records: "Records", streak: "Streak", days: "d", rate: "Done", milestone: "Milestone",
-        addRoutine: "Add as routine", saved: "Saved", dreamToStep: "Turn a daydream into a first step?",
-        firstTitle: "First change comes next week", firstBody: "Fill this week with records and routines, and on Sunday we'll show how much your star brightened.",
-        captureToday: "Capture today", startRoutine: "Start a routine", reanalyze: "Re-read my stars",
-      };
 }
 
 const styles = StyleSheet.create({
