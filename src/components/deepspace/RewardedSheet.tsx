@@ -18,7 +18,6 @@ import { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
-  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -26,6 +25,7 @@ import {
   View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
@@ -139,7 +139,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale }:
 
           {/* character head, neutral-friendly */}
           <View style={styles.headWrap}>
-            <Image source={HEAD_IMAGE} style={styles.head} resizeMode="contain" accessibilityLabel="" />
+            <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
           </View>
 
           <Text style={styles.title}>
