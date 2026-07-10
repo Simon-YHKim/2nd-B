@@ -78,6 +78,13 @@ jobs:
           # inlined into the public web bundle. REQUIRED for live web: set repo
           # Variable EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true alongside LLM_MODE=live.
           EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: ${{ vars.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || 'false' }}
+          # D-27 axis-key pin: route every Gemini seat to gemini-3.5-flash so live
+          # calls resolve the dedicated GEMINI_API_KEY__G35FLASH__{effort} combo
+          # keys (a G25* slug would fall back to the base key). Overridable via a
+          # repo Variable of the same name.
+          EXPO_PUBLIC_MODEL_LITE: ${{ vars.EXPO_PUBLIC_MODEL_LITE || 'gemini-3.5-flash' }}
+          EXPO_PUBLIC_MODEL_FLASH: ${{ vars.EXPO_PUBLIC_MODEL_FLASH || 'gemini-3.5-flash' }}
+          EXPO_PUBLIC_MODEL_PRO: ${{ vars.EXPO_PUBLIC_MODEL_PRO || 'gemini-3.5-flash' }}
           # Naver social sign-up (code + oauth-naver edge function are already
           # in-repo, OFF by default). To go live: register the app at
           # developers.naver.com (callback: <origin>/2nd-B/oauth-callback),
