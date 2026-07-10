@@ -396,6 +396,8 @@
       "viewValidation": "Lihat validasi"
     },
     "axisCheck": {
+      "emptyTitle": "Belum diukur",
+      "emptyText": "Setelah wawancara selesai, ini akan terisi dari catatanmu sendiri.",
       "values": {
         "headline": "Nilai",
         "level": "L2",
