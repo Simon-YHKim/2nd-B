@@ -54,7 +54,7 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { readChatUsage } from "@/lib/chat/usage";
-import { CHAT_DAILY_LIMIT } from "@/lib/chat/limits";
+import { CHAT_DAILY_LIMIT, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, incrementReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
@@ -130,7 +130,7 @@ function readIntroDismissed(): "off" | "today" | "permanent" {
     if (v === "permanent") return "permanent";
     if (v && v.startsWith("today:")) {
       const day = v.slice("today:".length);
-      const today = new Date().toISOString().slice(0, 10);
+      const today = kstDateToday();
       if (day === today) return "today";
     }
     return "off";
@@ -142,7 +142,7 @@ function readIntroDismissed(): "off" | "today" | "permanent" {
 function writeIntroDismissed(kind: "today" | "permanent"): void {
   try {
     if (typeof localStorage === "undefined") return;
-    const v = kind === "permanent" ? "permanent" : `today:${new Date().toISOString().slice(0, 10)}`;
+    const v = kind === "permanent" ? "permanent" : `today:${kstDateToday()}`;
     localStorage.setItem(INTRO_DISMISS_KEY, v);
   } catch {
     // ignore — private mode, native

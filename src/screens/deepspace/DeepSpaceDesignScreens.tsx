@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
+import { kstDateToday } from "@/lib/chat/limits";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
@@ -2149,7 +2150,7 @@ export function DeepSpaceFocusScreen() {
   // previous useState(0) reset the tally to zero every time the screen remounted.
   useEffect(() => {
     let alive = true;
-    void AsyncStorage.getItem(`focus_done_${new Date().toISOString().slice(0, 10)}`)
+    void AsyncStorage.getItem(`focus_done_${kstDateToday()}`)
       .then((v) => {
         if (alive && v) setDoneToday(Number(v) || 0);
       })
@@ -2160,7 +2161,7 @@ export function DeepSpaceFocusScreen() {
   }, []);
   useEffect(() => {
     if (doneToday <= 0) return;
-    void AsyncStorage.setItem(`focus_done_${new Date().toISOString().slice(0, 10)}`, String(doneToday)).catch(() => {});
+    void AsyncStorage.setItem(`focus_done_${kstDateToday()}`, String(doneToday)).catch(() => {});
   }, [doneToday]);
 
   if (authLoading) {

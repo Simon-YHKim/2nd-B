@@ -292,7 +292,13 @@ export function DeepSpaceRecordsScreen() {
   // D-27 Phase 1b: the /records graph runs on the user's RECORDS (the canonical
   // node-set), connected by shared tags — not the near-empty wiki_pages track
   // that left the graph blank for a normal user.
-  const recordsGraph = useMemo(() => buildRecordsGraph(records, { locale: isKo ? "ko" : "en" }), [records, isKo]);
+  // Only run the O(n^2) shared-tag graph build when the graph view is actually
+  // open; passing [] otherwise yields the same-shaped empty graph at ~0 cost, so
+  // list-only users stop paying the full compute on every data load (audit wave-3).
+  const recordsGraph = useMemo(
+    () => buildRecordsGraph(view === "graph" ? records : [], { locale: isKo ? "ko" : "en" }),
+    [records, isKo, view],
+  );
 
   useEffect(() => {
     if (!userId) return;
