@@ -204,8 +204,17 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
 
   // Persist to sources.frontmatter.__phase1__ so the inbox/detail UI can
   // render it without re-running the LLM.
+  // Re-read the frontmatter immediately before writing. The multi-second callGemini
+  // above is a wide window in which another writer (e.g. promote-pending clearing
+  // _storage_pending after a successful re-upload) may have changed
+  // sources.frontmatter; spreading the pre-LLM snapshot would resurrect the keys
+  // they cleared and re-mark the source storage-pending forever (audit wave-3
+  // concurrency fix). Merging into a fresh read shrinks the race to the tiny
+  // read->write gap instead of the whole LLM latency.
   const supabase = getSupabaseClient();
-  const nextFrontmatter = { ...source.frontmatter, __phase1__: result };
+  const fresh = await getSource(input.userId, input.sourceId);
+  const baseFrontmatter = fresh?.frontmatter ?? source.frontmatter;
+  const nextFrontmatter = { ...baseFrontmatter, __phase1__: result };
   const { error } = await supabase
     .from("sources")
     .update({ frontmatter: nextFrontmatter })

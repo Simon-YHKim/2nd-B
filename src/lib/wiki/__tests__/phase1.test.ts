@@ -165,6 +165,9 @@ describe("runPhase1 — orchestration", () => {
       "getSource",
       "downloadRawClipping",
       "callGemini",
+      // Re-read the frontmatter right before the write (wave-3 concurrency fix)
+      // so the pre-LLM snapshot can't clobber a concurrent frontmatter update.
+      "getSource",
       "update",
     ]);
     expect(r.summary).toBe("A summary.");
