@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 7 PR
 - Latest — 2026-07-10 / 레퍼런스 진짜구현 — 자기이해 3 instrument + QA 시딩검증 + 세컨비 중립 + persona-sim
 - Latest — 2026-07-07 / 별 렌즈 7종 매칭 완주 + 네이티브 전달 갭 근본원인 (OTA 채널·서명·ABI)
 - Latest — 2026-07-06 / Simon D1-D7 실행 + LLM Phase-2 OpenAI 재라우팅
@@ -80,6 +81,71 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 7 PR
+
+### 어디까지 왔나
+- main HEAD: `c475946c`
+- 이번 세션(저녁) 머지 PR (7): #863 핸드오프 · #864 TTFV null 홈플래시 가드 · #866 authLabel 7→12px · #865 리워드 +5/+2 카피 보간 · #867 Likert 앵커 대비(자기이해 4화면) · #868 RewardedSheet privacy AA 대비 · **#869 Kakao Maven repo(네이티브빌드 언블록)**
+- 테스트: `npm run verify` green (각 PR CI 통과)
+- working tree: clean. 작업=격리 워크트리 `.worktrees/clone-rev2`
+
+### 🎉 에뮬 네이티브 실기 검증 완료 (Simon 명시 요청)
+- **Pixel_9_Pro_XL에 앱 실기 실행** → QA 로그인 → 프로드 화면 전부 시드 데이터로 populated 렌더 확인(스샷 7장 Simon 전달, scratchpad/emu-shots).
+- 검증됨: 별자리 홈(North Star+7도메인)·사인인·**values/strengths/motivation instrument 전부 시드값대로 populated**(64% 확신도·비진단 정직 프레이밍)·세컨비 중립(#858)·authLabel legible(#866)·독(#842).
+- **근본 블로커=Kakao SDK Maven repo 누락**(#869 config-plugin 픽스, EAS도 언블록). metro는 워크트리(blockList) 아닌 **메인 E:\2ndB서** 실행. 전체 재현 레시피=`~/.claude memory tool_2ndb_native_emulator_working_recipe`("에뮬=black렌더" 통념 정정).
+
+### persona-simulation 결과 (완료·리포트 전달)
+- 4축 27발견 전부 file:line·거짓양성0. 리포트=`scratchpad/persona-sim-report.html`(세션-로컬).
+- **🔒 Simon 게이트 결정 4건(미해결)**: ①P0 안전 위기시 비-한국 전원 미국988(lexicon.ts:90·classifier.ts:66) ②P0 법무 자기동의연령 KR14→EU GDPR16(auth.ts:24) ③P1 수익화 advisor Brain전용(entitlements.ts:32) ④P2 수익화 전티어 ₩ 하드코딩(dds-plans-screen.tsx:54).
+- ⑤ audit '진단'=프로드 부분 거짓양성(AuditLegacy 전용, isDeepSpaceUI 위임)→SKIP.
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj`(Seoul). 라이브=GitHub Pages `simon-yhkim.github.io/2nd-B`(deep-space 프로드).
+- QA계정 시드(`qa.ai.b18807@example.com`, `.env.test` committed-public·RLS): 도메인 records + Big Five/애착 + values/strengths/motivation. 재시드=`node scripts/seed-qa-records.mjs`+`seed-qa-assessments.mjs`.
+- 에뮬: `Pixel_9_Pro_XL`, `ANDROID_HOME=C:\Users\202502\AppData\Local\Android\Sdk`. 앱 설치됨(`com.simonk.secondbrain`). 화면이동=`adb shell am start -d "secondbrain:///<route>"`.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 남은 persona-sim 클린픽스 ship: ⑦RewardedSheet 미번역 ko/en삼항→5로케일 i18n·capture 3중 자동분류중복→1개·③TTFV eyebrow/L1→L2 i18n(star/phrase Claude번역) | small~medium | ⭐ 근거명확·에뮬 시각검증 가능 |
+| B | ⑥ 픽셀폰트 a11y(dock 9px·numLabel 7px·TIP 9px) — 딥스페이스 미학 존중, 에뮬 시각확인 후 신중 | small | 디자인민감 |
+| C | 나머지 populated 화면(big-five/attachment/records) 레퍼런스 대조 fidelity | small | |
+| G | 🔒 게이트 4건(위 persona-sim) — Simon 결정 후 착수 | — | Simon |
+
+### 적용 중인 정책 (영구)
+1. **세컨비 머리 = 중립 디폴트**(#858). 긍정/부정은 상황별 순간반응(save→smile/error→concern). 정적 `mood="positive"` 금지.
+2. **자기이해 instrument = 정직 실측 self-report**: 정당 문항·"자기보고 추정(진단 아님)" 프레이밍·확신도 상한 ~0.64·mock 점수 하드코딩 금지·insight는 실데이터에서만. 안전-임상=Claude 직접 설계/리뷰.
+3. **framework-aware 필수**: 프로드=deep-space만. src/app/*.tsx는 `isDeepSpaceUI()`로 DeepSpace*Screen에 위임 → legacy 본문은 프로드 비가시(예: audit 진단모달=AuditLegacy 전용). finding 적용 전 위임 grep으로 프로드/legacy 갈래 확인. "N confirmed"라도 재검증.
+4. 격리 워크트리 `.worktrees/clone-rev2` + node_modules junction(**junction을 worktree remove 전 삭제**). `git add` 명시경로만(never -A, `.pr-body.md` stray 제외). CI green + BEHIND→`gh pr update-branch` 후 auto-merge.
+5. **네이티브빌드**: Kakao Maven repo 필수(#869). metro는 메인서(워크트리 blockList). 백그라운드 빌드는 killed→foreground `gradlew installDebug`. 상세=memory `tool_2ndb_native_emulator_working_recipe`.
+6. 게이트(파괴/비용/secrets/임상방법론/법무)만 Simon 확인. 나머지 무확인 ship.
+
+### 핵심 파일 위치
+```
+src/lib/persona/{values,strengths,motivation}-survey.ts   자기이해 instrument
+src/components/deep-space/AxisCheck.tsx   {Values,Strengths,Motivation}Populated 렌더
+src/components/deepspace/SecondbHead.tsx  마스코트(mood 기본 neutral)
+src/components/deep-space/DeepSpaceShell.tsx  프로드 홈 셸(#864 TTFV null 가드)
+src/screens/deepspace/dds-styles.ts  auth 스타일(#866 authLabel)
+app.json  expo-build-properties extraMavenRepos(#869 Kakao)
+scripts/seed-qa-records.mjs  QA 데이터 시드
+scratchpad/{persona-sim-report.html,emu-shots/,cap-live.mjs}  ※세션-로컬
+```
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # tests green
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(남은 클린픽스) → C(fidelity). 에뮬 재사용은 memory tool_2ndb_native_emulator_working_recipe.
+# 게이트 4건은 Simon 결정 후.
+```
 
 ---
 
