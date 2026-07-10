@@ -628,7 +628,7 @@
       "loading": "플랜을 불러오는 중이에요…",
       "growWithoutPaying": "결제 없이 늘리기",
       "rewardTitle": "광고로 담기 가속 충전",
-      "rewardSub": "30초 영상 = +5회 · 분석 품질은 그대로",
+      "rewardSub": "30초 영상 = +{{n}}회 · 분석 품질은 그대로",
       "noticeTitle": "모바일 앱에서 업그레이드",
       "noticeBody": "유료 플랜은 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 두번째 뇌 앱을 열어 업그레이드해 주세요.",
       "contactSupport": "문의하기",

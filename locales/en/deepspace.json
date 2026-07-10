@@ -628,7 +628,7 @@
       "loading": "Loading plans…",
       "growWithoutPaying": "Grow without paying",
       "rewardTitle": "Speed up with an ad",
-      "rewardSub": "30s video = +5 asks · quality unchanged",
+      "rewardSub": "30s video = +{{n}} asks · quality unchanged",
       "noticeTitle": "Upgrade in the mobile app",
       "noticeBody": "Paid plans are purchased through the app stores on iOS and Android. Open 2nd-Brain on your phone to upgrade.",
       "contactSupport": "Contact support",

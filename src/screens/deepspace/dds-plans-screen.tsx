@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
-import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
+import { TIER_PRICE_KRW, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
@@ -330,7 +330,7 @@ export function DeepSpacePlansScreen() {
         <BoltIcon color={m3.color.tertiary} />
         <View style={s.rewardText}>
           <Text style={s.rewardTitle}>{t("ds.plans.rewardTitle")}</Text>
-          <Text style={s.rewardSub}>{t("ds.plans.rewardSub")}</Text>
+          <Text style={s.rewardSub}>{t("ds.plans.rewardSub", { n: REWARD_PER_WATCH })}</Text>
         </View>
         <ChevronRight color={m3.color.onSurfaceVariant} />
       </Pressable>
