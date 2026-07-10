@@ -529,14 +529,15 @@ results.push(
 results.push(
   check("C9", () => {
     const wrapper = read("src/lib/llm/gemini.ts");
-    // crude AST check: classifyInput must appear before generateContent.
-    const classifyIdx = wrapper.indexOf("classifyInput(input.user");
+    // crude AST check: the input classifier (classifyInput or the dual-locale
+    // classifyInputAnyLocale) must appear before generateContent.
+    const classifyIdx = wrapper.search(/classifyInput(?:AnyLocale)?\(input\.user/);
     const generateIdx = wrapper.indexOf("generateContent");
     const ok = classifyIdx >= 0 && generateIdx >= 0 && classifyIdx < generateIdx;
     return {
       id: "C9",
       status: ok ? "PASS" : "FAIL",
-      note: ok ? "classifyInput precedes generateContent in wrapper" : "safety classifier not enforced before LLM call",
+      note: ok ? "input classifier precedes generateContent in wrapper" : "safety classifier not enforced before LLM call",
     };
   }),
 );

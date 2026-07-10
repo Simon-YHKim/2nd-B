@@ -215,8 +215,13 @@ Deno.serve(async (req: Request) => {
   }
 
   // R1-A: server-side crisis classifier — reject before any paid OpenAI call.
-  // Scans ONLY the `user` turn, never the curated `system` channel.
-  if (hasCrisisTerm(userText)) {
+  // Scans ONLY the `user` turn, never the curated `system` channel. The
+  // safety_classify seat is exempt (flag-gated by LLM_SERVER_SAFETY_SEAT, default
+  // off) so a cross-vendor safety fallback wired to this seat can actually see the
+  // crisis text it must classify, instead of 422-ing it (mirrors gemini-proxy).
+  const safetyClassifySeat =
+    purpose === 'safety_classify' && Deno.env.get('LLM_SERVER_SAFETY_SEAT') === '1';
+  if (!safetyClassifySeat && hasCrisisTerm(userText)) {
     return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
   }
 

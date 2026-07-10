@@ -103,6 +103,28 @@ export function classifyInput(text: string, locale: Locale, opts: ClassifyOption
   return { zone: "green", matched: [], categories: [] };
 }
 
+// Cross-locale crisis backstop. A user in one UI locale commonly writes crisis
+// terms in the OTHER language (very common in KR: English UI, Korean feelings).
+// A single-locale input scan misses that, and the direct/Vertex client path has
+// no proxy backstop to catch it. This scans BOTH lexicons (mirroring embedTexts
+// and the proxies' EN+KO hasCrisisTerm) but keeps the UI locale's hotline so the
+// routed help matches what the user reads. Strictly additive to crisis coverage.
+export function classifyInputAnyLocale(text: string, uiLocale: Locale, opts: ClassifyOptions = {}): SafetyResult {
+  const primary = classifyInput(text, uiLocale, opts);
+  if (primary.zone === "red") return primary;
+  const other = classifyInput(text, uiLocale === "ko" ? "en" : "ko", opts);
+  if (other.zone === "red") {
+    const h = pickCrisisHotline(uiLocale, opts.minor);
+    return {
+      zone: "red",
+      matched: other.matched,
+      categories: ["crisis"],
+      crisisRouting: { hotline: h.id, label: h.label, number: h.number },
+    };
+  }
+  return primary;
+}
+
 // Returns true if any forbidden lexicon term appears in `text` for the
 // given locale. Used by the CI scanner with deduplicated matching logic.
 export function containsForbiddenLexicon(text: string, locale: Locale): string[] {
