@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-10 (심야) / persona-sim 큐 A 완주 + 세컨비 중립 스윕 마무리 + insights 정직성 (4 PR)
 - Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 7 PR
 - Latest — 2026-07-10 / 레퍼런스 진짜구현 — 자기이해 3 instrument + QA 시딩검증 + 세컨비 중립 + persona-sim
 - Latest — 2026-07-07 / 별 렌즈 7종 매칭 완주 + 네이티브 전달 갭 근본원인 (OTA 채널·서명·ABI)
@@ -81,6 +82,88 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-10 (심야) / persona-sim 큐 A 완주 + 세컨비 중립 스윕 마무리 + insights 정직성
+
+### 어디까지 왔나
+- main HEAD: `e6ad5986`
+- 이번 세션 머지 PR (4): **#876** 프로드 딥스페이스 마지막 로케일 삼항 4곳 → `t()` · **#877** TTFV 영어 히어로 문장 비문 수정 · **#878** #858 세컨비 중립 스윕 마무리 + 회귀 가드 · **#879** insights 화면 정직성(날조 헤더/발견 카드 제거)
+- 테스트: `npm run verify` green (318 suites / **2392 tests**)
+- working tree: clean. 워크트리는 매 PR마다 만들고 머지 후 정리(junction 먼저 삭제)
+
+### ✅ 큐 A(persona-sim 클린픽스) 완료
+`#876`으로 4곳 전부 t() 라우팅: `dds-plans-screen` 구매CTA · `RecordsGraph` a11y 3 + 힌트 2 · `DeepSpaceScreen` 캐릭터 a11y · `TTFVScreen` DEFAULT_INSIGHT + ratify 타이틀.
+ko/en 렌더는 **바이트 동일**함을 시뮬레이션으로 검증했고, es/pt/id가 처음으로 자기 언어를 받습니다.
+
+발견 3가지(다음 세션이 알아야 할 것):
+1. `home.character.a11y`는 **5개 로케일에 이미 번역돼 있었지만 아무도 안 읽는 orphan 키**였다. 새 키 만들지 말고 orphan부터 grep할 것.
+2. `recordsGraph.hintSelected`는 `{{label}}`, 형제 `wikiGraph.hintSelected`는 `{{title}}`. 형제 블록 복붙했으면 레코드 이름이 조용히 사라졌다.
+3. **`check-i18n`은 로케일끼리만 비교한다.** 코드가 부르는 키가 5개 로케일 전부에 없어도 parity는 통과하고 화면엔 raw 키가 뜬다. `t()` 새로 부를 땐 키 존재를 직접 확인할 것.
+
+### 🎭 #858 세컨비 중립 스윕은 미완이었다 (#878이 마무리)
+`mood`는 **평상시 얼굴**이고(`effMood = reactMood ?? mood`), `subscribeExpression`만 순간 반응을 준다. #858은 JSX 리터럴 7곳만 grep해서 **프로드 8곳을 놓쳤다**: `VIEW_MOOD` 맵(account·lens 상시 미소) · support · insights(채워진 분기, 841행 형제는 이미 neutral) · discover · research(연결 0개일 때도 미소) · SRS(로딩 중 미소) · WeeklyGrowth · TTFV(질문하는 동안 미소).
+
+- `VIEW_MOOD`는 세 값을 중립화하면 9개 전부 neutral → 죽은 설정이라 **삭제**했다(`SecondbStatusHeader`가 이미 neutral 기본값).
+- **SRS만 `queue === null ? "neutral" : "positive"`로 살렸다** — 복습 큐를 다 비운 건 진짜 순간. blanket neutral로 밀었으면 정당한 축하를 없앨 뻔했다.
+- `home: "positive"`는 **원래 렌더된 적이 없었다**(모든 홈 호출부가 `header="none"`). 처음 가설이 틀렸고 델리게이션 체인 확인으로 정정.
+- 가드 `src/lib/__tests__/mascot-neutral-default.test.ts` 추가. 리터럴만 잡고 상태 기반 mood는 통과. 면제는 DevOnly 2개뿐이고 **면제가 낡으면 테스트가 실패**한다. 한계(정직히): `VIEW_MOOD` 같은 간접 참조는 정적 스캔으로 못 잡는다.
+
+### 🔍 insights 화면 정직성 (#879)
+- `insights.status`("지난주보다 이번주, 더 많이 담았어요")가 **첫 주 분기(비교할 지난주 없음)와 하락 주 분기(`▼ 25% 적게 저장` 배지 바로 위)** 에 그대로 걸려 있었다 → `direction`별 4분기로 분리.
+- `insights.finding`("'만드는 일' 관련 기록이 절반을 넘었어요. 미래의 나와 같은 방향이에요")는 **아무것도 계산하지 않는 하드코딩**이었다. 앱에 '만드는 일' 영역은 없다. 같은 파일 아래 `DeepSpaceDataDesignScreen`엔 정반대의 HONESTY 주석이 달려 있다.
+- `weeklyDomainFocus()` 순수 함수로 실제 측정: `majority`(한 영역 **절반 초과**) / `spread`(동률 포함) / `empty`. 임계값은 원래 카피가 주장하던 바로 그 "절반". 테스트 8개.
+- 한국어 함정: `‘{{domain}}’이었어요`는 받침 없는 이름(커리어·관계·담아내기)에서 비문. 7개 이름 받침이 제각각이라 불변 명사 `영역`에 계사를 붙였다.
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj`(Seoul). 라이브=GitHub Pages `simon-yhkim.github.io/2nd-B`(deep-space 프로드).
+- QA계정 시드(`qa.ai.b18807@example.com`, `.env.test` committed-public·RLS). 재시드=`node scripts/seed-qa-records.mjs`+`seed-qa-assessments.mjs`.
+- 에뮬: `Pixel_9_Pro_XL`. 레시피=memory `tool_2ndb_native_emulator_working_recipe`.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **`03-ttfv.png` 레퍼런스 재촬영** — #878로 TTFV 마스코트가 neutral이 됨. 픽셀 하네스는 자동 diff가 없어 CI는 안 깨지지만 레퍼런스가 낡음 | small | ⭐ #878 후속 |
+| B | TTFV `first_light` **기록 본문** ko/en 삼항(`TTFVScreen.tsx:113-115`) — 줄바꿈 때문에 grep을 빠져나갔던 진짜 누락. **DB 저장 콘텐츠**이고 record `locale` 컬럼 + C9 한국어 코퍼스 안전 분류기와 얽힘 → 라벨 교체 아닌 **데이터 결정** 필요 | medium | ⚠️ 안전-임상 인접, 설계 선행 |
+| C | insights 에러 분기 + 첫 주 본문 인라인 삼항 → `t()` (기존 i18n 백로그 조각) | small | |
+| D | 픽셀폰트 a11y(dock 9px·numLabel 7px·TIP 9px) — 딥스페이스 미학 존중, 에뮬 시각확인 후 | small | 旧 B, 디자인민감 |
+| E | 나머지 populated 화면(big-five/attachment/records) 레퍼런스 대조 fidelity | small | 旧 C |
+| G | 🔒 게이트 4건(persona-sim) — Simon 결정 후 착수 | — | Simon |
+
+### 🔒 Simon 결정 대기 (변동 없음)
+①P0 안전 위기시 비-한국 전원 미국988(`lexicon.ts:90`·`classifier.ts:66`) ②P0 법무 자기동의연령 KR14→EU GDPR16(`auth.ts:24`) ③P1 수익화 advisor Brain전용(`entitlements.ts:32`) ④P2 수익화 전티어 ₩ 하드코딩(`dds-plans-screen.tsx:54`).
+
+### 적용 중인 정책 (영구)
+1. **세컨비 머리 = 중립 디폴트**(#858/#878). 정적 `mood="positive"` 금지 — 이제 `mascot-neutral-default.test.ts`가 강제. 긍정/부정은 상태 기반이거나 `subscribeExpression` 순간반응.
+2. **정직성 불변식**: 계산하지 않은 것을 계산한 척 렌더 금지. 데이터가 뒷받침하는 만큼만 말한다(real-or-neutral, `AxisCheck`/`DeepSpaceDataDesignScreen`/`weeklyDomainFocus` 패턴).
+3. **framework-aware 필수**: 프로드=deep-space만. `isDeepSpaceUI()` 위임 grep 먼저. "N confirmed"라도 재검증.
+4. **i18n**: 로케일 JSON은 CRLF + 정확히 2-space. `JSON.parse` → 수정 → `JSON.stringify(j,null,2)` → CRLF 치환이 바이트 왕복 일치라 스크립트 편집이 안전하다(포맷 churn 0).
+5. 격리 워크트리 `.worktrees/<name>` + node_modules junction(**junction을 worktree remove 전에 삭제**). `git add` 명시경로만(never `-A`). CI green(verify+lint) 확인 후 머지, BEHIND면 `gh pr update-branch`.
+6. 게이트(파괴/비용/secrets/임상방법론/법무)만 Simon 확인. 나머지 무확인 ship.
+
+### 핵심 파일 위치
+```
+src/lib/insights/weekly.ts                    summarizeWeeklyInsights + weeklyDomainFocus(순수)
+src/lib/__tests__/mascot-neutral-default.test.ts   정적 mood 리터럴 가드
+src/lib/__tests__/deep-space-shell-a11y.test.ts    characterLabel = t() 가드
+src/components/deep-space/DeepSpaceScreen.tsx      공용 크롬(VIEW_MOOD 삭제됨)
+src/components/deep-space/RecordsGraph.tsx         isKo prop 제거, deepspace:recordsGraph.*
+src/screens/deepspace/DeepSpaceDesignScreens.tsx   insights/support/discover/research/srs
+src/screens/deepspace/onboarding/TTFVScreen.tsx    ds.ttfv.defaultInsight.* + ratifyTitle
+locales/*/deepspace.json                           ds.plans.startTier · recordsGraph.* · insights.*
+```
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # 318 suites / 2392 tests, exit 0 확인(단독 실행)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(03-ttfv 재촬영) 또는 C(작은 i18n 조각)부터. B는 설계 선행. 게이트 4건은 Simon 결정 후.
+```
 
 ---
 
