@@ -325,6 +325,62 @@ const VALUE_LABEL_KO = {
 };
 
 // ---------------------------------------------------------------------------
+// STRENGTHS self-report seed (8th block). Mirrors src/lib/persona/strengths-survey.ts:
+// 10 items, 2 per strength, 6-point Likert (1..6). Per-strength = mean of its 2
+// items, normalized (mean-1)/5*100 → 0-100, sorted desc. Confidence = answered-
+// fraction × 0.64, capped 0.7 (honest sub-max, NOT 100%). Plain .mjs can't import
+// the TS module, so the item→strength map and scorer are replicated here EXACTLY.
+//
+// HONESTY: the scores are COMPUTED from the synthetic responses below with the
+// app's exact rule — never hardcoded, never the reference prototype's example
+// numbers. The row is tagged qa_seed so it lives with the other assessment seeds
+// (bfi/ecr/values), and labeled clearly synthetic in topic/conclusion.
+const STRENGTHS_ITEM = [
+  [1, "curiosity"], [2, "curiosity"],
+  [3, "grit"], [4, "grit"],
+  [5, "honesty"], [6, "honesty"],
+  [7, "empathy"], [8, "empathy"],
+  [9, "aesthetics"], [10, "aesthetics"],
+];
+// Synthetic, internally consistent 1..6 answers producing a clearly ranked
+// spectrum (curiosity highest → aesthetics lowest). Scores derive from these.
+const STRENGTHS_RESPONSES = {
+  1: 6, 2: 5,   // curiosity  → mean 5.5 → 90
+  3: 5, 4: 4,   // grit       → mean 4.5 → 70
+  5: 4, 6: 4,   // honesty    → mean 4.0 → 60
+  7: 4, 8: 3,   // empathy    → mean 3.5 → 50
+  9: 3, 10: 2,  // aesthetics → mean 2.5 → 30
+};
+
+function scoreStrengths(resp) {
+  const sums = {};
+  let answered = 0;
+  for (const [id, strength] of STRENGTHS_ITEM) {
+    const raw = resp[id];
+    if (typeof raw !== "number" || raw < 1 || raw > 6 || !Number.isFinite(raw)) continue;
+    answered += 1;
+    sums[strength] = sums[strength] || { sum: 0, count: 0 };
+    sums[strength].sum += raw;
+    sums[strength].count += 1;
+  }
+  const scores = Object.entries(sums)
+    .map(([strength, { sum, count }]) => {
+      const mean = count > 0 ? sum / count : 0;
+      const score = count > 0 ? Math.round(((mean - 1) / 5) * 100) : 0;
+      return { strength, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  const CEILING = 0.64, HARD_CAP = 0.7;
+  const confidence = Math.min(HARD_CAP, Math.round((answered / STRENGTHS_ITEM.length) * CEILING * 100) / 100);
+  return { scores, confidence, answered };
+}
+
+const STRENGTH_LABEL_KO = {
+  curiosity: "호기심", grit: "끈기", honesty: "정직함",
+  empathy: "공감", aesthetics: "심미안",
+};
+
+// ---------------------------------------------------------------------------
 async function api(path, init = {}, token = ANON_KEY) {
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     ...init,
@@ -496,6 +552,59 @@ async function main() {
   );
   if (!Array.isArray(valuesVerify) || valuesVerify.length === 0) throw new Error("VERIFY FAILED: no values self-report row");
   console.log(`VERIFY values: ${valuesVerify[0].id} · ${valuesVerify[0].topic}`);
+
+  // 6b. Strengths self-report seed (8th block). Idempotency: delete ONLY rows
+  //     carrying BOTH "strengths" AND "qa_seed" — precise to this seed row (the
+  //     bfi/ecr assessment rows carry qa_seed but NOT strengths; the values row
+  //     carries qa_seed but NOT strengths; domain rows carry neither), so re-runs
+  //     replace exactly one strengths row and never touch anything else.
+  const strengthsDelQuery = `user_id=eq.${userId}&tags=cs.%7Bstrengths,${ASSESSMENT_TAG}%7D`;
+  const strengthsDeleted = await api(`/rest/v1/records?${strengthsDelQuery}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=representation" },
+  }, token);
+  console.log(`\nRemoved ${Array.isArray(strengthsDeleted) ? strengthsDeleted.length : 0} previous strengths self-report row(s)`);
+
+  const strengths = scoreStrengths(STRENGTHS_RESPONSES);
+  const strengthsSummary = strengths.scores
+    .slice(0, 3)
+    .map((s) => `${STRENGTH_LABEL_KO[s.strength] ?? s.strength}: ${s.score}`)
+    .join("  ·  ");
+  const strengthsRow = {
+    user_id: userId,
+    kind: "note", // no AI call — safe
+    body: JSON.stringify({
+      strengths_responses: STRENGTHS_RESPONSES,
+      scores: strengths.scores,
+      confidence: strengths.confidence,
+    }),
+    topic: "강점 자기보고 · QA seed",
+    summary: strengthsSummary,
+    conclusion: `자기보고 추정 (진단 아님) · ${CONCLUSION}`,
+    // qa_seed (not qa_seed_domain) so it lives with the other assessment seeds.
+    tags: ["strengths", "assessment", ASSESSMENT_TAG],
+    created_at: new Date().toISOString(),
+    prompt: null,
+    audit_period: null,
+    ai_followup: null,
+    structured: null,
+  };
+  const strengthsInserted = await api("/rest/v1/records", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify([strengthsRow]),
+  }, token);
+  const sId = Array.isArray(strengthsInserted) && strengthsInserted[0] ? strengthsInserted[0].id : "(none)";
+  console.log(`Inserted strengths self-report ${sId}: confidence ${Math.round(strengths.confidence * 100)}% · ${strengthsSummary}`);
+
+  // Verify the strengths row reads back via the same contains-filter the app uses.
+  const strengthsVerify = await api(
+    `/rest/v1/records?user_id=eq.${userId}&tags=cs.%7Bstrengths,assessment%7D&select=id,topic,tags,created_at&order=created_at.desc&limit=1`,
+    {},
+    token,
+  );
+  if (!Array.isArray(strengthsVerify) || strengthsVerify.length === 0) throw new Error("VERIFY FAILED: no strengths self-report row");
+  console.log(`VERIFY strengths: ${strengthsVerify[0].id} · ${strengthsVerify[0].topic}`);
 
   // 7. Prove the Big Five / ECR assessment seed is untouched. Count the "bfi"
   //    tag — the values row does NOT carry it, so this stays a clean, stable
