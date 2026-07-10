@@ -90,6 +90,15 @@
       "polaris": "North Star",
       "hint": "Tap the seven stars to open your seven life areas",
       "museumName": "Museum",
+      "domainName": {
+        "career": "Career",
+        "finance": "Finance",
+        "growth": "Growth",
+        "relation": "Relationships",
+        "health": "Health",
+        "recreation": "Rest",
+        "collect": "Collect"
+      },
       "inbox": "Notifications",
       "headA11y": "Ask SecondB",
       "kind": {
@@ -396,6 +405,8 @@
       "viewValidation": "See validation"
     },
     "axisCheck": {
+      "emptyTitle": "Not measured yet",
+      "emptyText": "Finish the interview and this fills in from your own records.",
       "values": {
         "headline": "Values",
         "level": "L2",

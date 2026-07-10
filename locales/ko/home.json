@@ -90,6 +90,15 @@
       "polaris": "북극성",
       "hint": "별 7개를 눌러 7가지 삶의 영역을 열어보세요",
       "museumName": "뮤지엄",
+      "domainName": {
+        "career": "커리어",
+        "finance": "재정",
+        "growth": "성장",
+        "relation": "관계",
+        "health": "건강",
+        "recreation": "휴식",
+        "collect": "담아내기"
+      },
       "inbox": "알림",
       "headA11y": "세컨비에게 물어보기",
       "kind": {
@@ -396,6 +405,8 @@
       "viewValidation": "검증 보기"
     },
     "axisCheck": {
+      "emptyTitle": "아직 측정 전이에요",
+      "emptyText": "인터뷰를 마치면 내 기록을 바탕으로 여기에 채워드려요.",
       "values": {
         "headline": "가치관",
         "level": "L2",

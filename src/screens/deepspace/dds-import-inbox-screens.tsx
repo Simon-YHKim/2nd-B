@@ -70,11 +70,10 @@ function Loading() {
 // cards (those were placeholders presented as real state to zero-data users).
 
 export function DeepSpaceInboxScreen() {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation("deepspace");
   const { userId, loading: authLoading } = useAuth();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
-  const title = ko ? "알림" : "Alerts";
+  const title = t("ds.inbox.title");
   if (authLoading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
@@ -131,7 +130,7 @@ export function DeepSpaceInboxScreen() {
           ))}
           {items.length === 0 ? (
             <RNText style={[m3TextStyle("bodyMedium"), s.notifBody]}>
-              {ko ? "새 알림이 없어요. 담고 정리하면 여기에 쌓여요." : "No notifications yet — they appear here as you capture and organize."}
+              {t("ds.inbox.empty")}
             </RNText>
           ) : null}
         </View>
@@ -154,7 +153,7 @@ type ImportMode = "file" | "account";
 // button runs the real pick → captureFromMarkdown import; the Apple 건강 account
 // row runs the real health opt-in/ingest (minors stay hard-locked).
 export function DeepSpaceImportScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const { userId, loading: authLoading, isMinor } = useAuth();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
 
@@ -253,29 +252,29 @@ export function DeepSpaceImportScreen() {
   }
 
   const consents: { icon: keyof typeof GLYPH; label: string; note: string }[] = [
-    { icon: "cloud_upload", label: ko ? "원문 데이터" : "Source data", note: ko ? "내가 올린 파일/계정의 기록만 읽어요" : "Only reads the files and accounts you upload" },
-    { icon: "memory", label: ko ? "기기 내 처리" : "On-device processing", note: ko ? "파싱·요약은 기기 안에서 먼저 일어나요" : "Parsing and summarizing happen on your device first" },
-    { icon: "lock", label: ko ? "철회 가능" : "Revocable", note: ko ? "언제든 가져온 데이터를 통째로 지울 수 있어요" : "You can erase imported data entirely at any time" },
+    { icon: "cloud_upload", label: t("ds.import.consentSourceLabel"), note: t("ds.import.consentSourceNote") },
+    { icon: "memory", label: t("ds.import.consentDeviceLabel"), note: t("ds.import.consentDeviceNote") },
+    { icon: "lock", label: t("ds.import.consentRevocableLabel"), note: t("ds.import.consentRevocableNote") },
   ];
 
   const accounts: { k: string; icon: keyof typeof GLYPH; health?: boolean }[] = [
     { k: "ChatGPT", icon: "bubble" },
     { k: "Notion", icon: "description" },
-    { k: ko ? "Google 캘린더" : "Google Calendar", icon: "event" },
-    { k: ko ? "Apple 건강" : "Apple Health", icon: "favorite", health: true },
+    { k: t("ds.import.providerGoogleCalendar"), icon: "event" },
+    { k: t("ds.import.providerAppleHealth"), icon: "favorite", health: true },
   ];
 
   const healthCta = isMinor === true
-    ? (ko ? "미성년 잠금" : "Locked (minor)")
+    ? t("ds.import.healthCtaMinorLocked")
     : healthBusy
-      ? (ko ? "연동 중" : "Syncing")
+      ? t("ds.import.healthCtaSyncing")
       : healthDone
-        ? (ko ? "반영됨" : "Reflected")
+        ? t("ds.import.healthCtaReflected")
         : canHealth
-          ? (ko ? "오늘 반영" : "Reflect today")
-          : (ko ? "연동 필요" : "Connect");
+          ? t("ds.import.healthCtaReflectToday")
+          : t("ds.import.healthCtaConnect");
 
-  const title = ko ? "외부 가져오기" : "Import";
+  const title = t("ds.import.title");
   if (authLoading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
@@ -289,14 +288,14 @@ export function DeepSpaceImportScreen() {
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           <RNText style={[m3TextStyle("bodyMedium"), s.lead]}>
-            {ko ? "다른 곳에 흩어진 나를 가져와요. 가져온 것도 " : "Bring in the scattered pieces of you. Even imports are reflected "}
-            <RNText style={s.leadStrong}>{ko ? "당신의 비중" : "only at your own weighting"}</RNText>
-            {ko ? "으로만 별에 반영돼요." : " into the stars."}
+            {t("ds.import.leadStart")}
+            <RNText style={s.leadStrong}>{t("ds.import.leadStrong")}</RNText>
+            {t("ds.import.leadEnd")}
           </RNText>
 
           {/* mode toggle */}
           <View style={s.toggleRow}>
-            {([["file", "cloud_upload", ko ? "파일로" : "By file"], ["account", "link", ko ? "계정 연동" : "Connect account"]] as const).map(([id, icon, label]) => {
+            {([["file", "cloud_upload", t("ds.import.toggleFile")], ["account", "link", t("ds.import.toggleAccount")]] as const).map(([id, icon, label]) => {
               const on = mode === id;
               return (
                 <Pressable
@@ -315,20 +314,20 @@ export function DeepSpaceImportScreen() {
           </View>
 
           {/* source */}
-          <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{mode === "file" ? (ko ? "파일 선택" : "Choose a file") : (ko ? "연결할 계정" : "Accounts to connect")}</RNText>
+          <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{mode === "file" ? t("ds.import.sectionChooseFile") : t("ds.import.sectionAccounts")}</RNText>
           {mode === "file" ? (
             <View style={s.dropZone}>
               <Glyph name="cloud_upload" color={m3.color.onSurfaceVariant} size={40} />
-              <RNText style={[m3TextStyle("bodyLarge"), s.dropTitle]}>{ko ? "여기에 파일을 놓거나 선택" : "Drop a file here or choose one"}</RNText>
+              <RNText style={[m3TextStyle("bodyLarge"), s.dropTitle]}>{t("ds.import.dropTitle")}</RNText>
               <RNText style={[m3TextStyle("bodySmall"), s.dropExt]}>.json · .zip · .txt · .md · .csv</RNText>
               <MdButton
-                label={picking ? (ko ? "여는 중" : "Opening") : importing ? (ko ? "가져오는 중" : "Importing") : (ko ? "파일 선택" : "Choose file")}
+                label={picking ? t("ds.import.btnOpening") : importing ? t("ds.import.btnImporting") : t("ds.import.btnChooseFile")}
                 variant="tonal"
                 icon={<Glyph name="attach_file" color={m3.color.onSecondaryContainer} size={18} />}
                 loading={picking || importing}
                 onPress={() => void handlePickFiles()}
                 style={s.dropBtn}
-                accessibilityLabel={ko ? "파일 선택" : "Choose file"}
+                accessibilityLabel={t("ds.import.btnChooseFile")}
               />
             </View>
           ) : (
@@ -359,7 +358,7 @@ export function DeepSpaceImportScreen() {
                     <View style={s.accountRow}>
                       <Glyph name={a.icon} color={m3.color.onSurfaceVariant} size={20} />
                       <RNText style={[m3TextStyle("bodyLarge"), s.accountName]}>{a.k}</RNText>
-                      <RNText style={[m3TextStyle("labelMedium"), { color: m3.color.primary }]}>{ko ? "파일로 가져오기" : "Import file"}</RNText>
+                      <RNText style={[m3TextStyle("labelMedium"), { color: m3.color.primary }]}>{t("ds.import.accountImportFile")}</RNText>
                     </View>
                   </MdCard>
                 ),
@@ -378,7 +377,7 @@ export function DeepSpaceImportScreen() {
           ) : null}
 
           {/* 3-block consent */}
-          <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "가져오기 전 약속" : "Before importing"}</RNText>
+          <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("ds.import.consentTitle")}</RNText>
           <MdCard variant="filled" style={s.consentCard}>
             {consents.map((c, i) => (
               <View key={c.label} style={[s.consentRow, i > 0 && s.divider]}>
@@ -394,7 +393,7 @@ export function DeepSpaceImportScreen() {
           {/* history */}
           {history.length > 0 ? (
             <>
-              <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "가져오기 이력" : "Import history"}</RNText>
+              <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("ds.import.historyTitle")}</RNText>
               <View style={s.stack8}>
                 {history.map((h) => (
                   <MdCard key={h.id} variant="outlined" style={s.historyCard}>
@@ -404,7 +403,7 @@ export function DeepSpaceImportScreen() {
                         <RNText style={[m3TextStyle("bodySmall"), s.historySub]}>{h.when}{ko ? ` · ${h.items}개 별가루` : ` · ${h.items} pieces`}</RNText>
                       </View>
                       <MdButton
-                        label={ko ? "철회" : "Revoke"}
+                        label={t("ds.import.revoke")}
                         variant="text"
                         icon={<Glyph name="trash" color={m3.color.error} size={16} />}
                         onPress={() => setHistory((xs) => xs.filter((x) => x.id !== h.id))}

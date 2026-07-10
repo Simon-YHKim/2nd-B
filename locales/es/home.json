@@ -90,6 +90,15 @@
       "polaris": "Estrella Polar",
       "hint": "Toca las siete estrellas para abrir tus siete áreas de vida",
       "museumName": "Museo",
+      "domainName": {
+        "career": "Carrera",
+        "finance": "Finanzas",
+        "growth": "Crecimiento",
+        "relation": "Relaciones",
+        "health": "Salud",
+        "recreation": "Descanso",
+        "collect": "Recopilar"
+      },
       "inbox": "Notificaciones",
       "headA11y": "Preguntar a SecondB",
       "kind": {
@@ -396,6 +405,8 @@
       "viewValidation": "Ver validación"
     },
     "axisCheck": {
+      "emptyTitle": "Aún sin medir",
+      "emptyText": "Cuando termines la entrevista, esto se completará con tus propios registros.",
       "values": {
         "headline": "Valores",
         "level": "L2",

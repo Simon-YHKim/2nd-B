@@ -581,5 +581,57 @@
     "footerWeek": "A week seen together with SecondB",
     "starsLit": "{{count}} stars shining",
     "signature": "2nd-Brain · {{count}} stardust"
+  },
+  "ds": {
+    "wikiRecords": {
+      "relationships": "Relationships",
+      "justNow": "Just now",
+      "seeEvidence": "See evidence ↗",
+      "tags": "Tags",
+      "addTag": "Add tag",
+      "linkedRecords": "Linked records",
+      "meaning": "meaning",
+      "edit": "Edit",
+      "move": "Move",
+      "fillStar": "Fill in this star",
+      "fillStarBody": "Add information for this domain.",
+      "secondbLinked": "This piece links to your '{{star}}' star. {{n}} similar records sit in the same window.",
+      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon."
+    },
+    "inbox": {
+      "title": "Alerts",
+      "empty": "No notifications yet - they appear here as you capture and organize."
+    },
+    "import": {
+      "title": "Import",
+      "consentSourceLabel": "Source data",
+      "consentSourceNote": "Only reads the files and accounts you upload",
+      "consentDeviceLabel": "On-device processing",
+      "consentDeviceNote": "Parsing and summarizing happen on your device first",
+      "consentRevocableLabel": "Revocable",
+      "consentRevocableNote": "You can erase imported data entirely at any time",
+      "providerGoogleCalendar": "Google Calendar",
+      "providerAppleHealth": "Apple Health",
+      "healthCtaMinorLocked": "Locked (minor)",
+      "healthCtaSyncing": "Syncing",
+      "healthCtaReflected": "Reflected",
+      "healthCtaReflectToday": "Reflect today",
+      "healthCtaConnect": "Connect",
+      "leadStart": "Bring in the scattered pieces of you. Even imports are reflected ",
+      "leadStrong": "only at your own weighting",
+      "leadEnd": " into the stars.",
+      "toggleFile": "By file",
+      "toggleAccount": "Connect account",
+      "sectionChooseFile": "Choose a file",
+      "sectionAccounts": "Accounts to connect",
+      "dropTitle": "Drop a file here or choose one",
+      "btnOpening": "Opening",
+      "btnImporting": "Importing",
+      "btnChooseFile": "Choose file",
+      "accountImportFile": "Import file",
+      "consentTitle": "Before importing",
+      "historyTitle": "Import history",
+      "revoke": "Revoke"
+    }
   }
 }

@@ -400,11 +400,11 @@ export function DeepSpaceRecordsScreen() {
               style={({ pressed }) => [rStyles.triageCard, pressed && rStyles.cardPressed]}
               onPress={() => router.push(domainWriter)}
               accessibilityRole="button"
-              accessibilityLabel={isKo ? "이 별 채워넣기" : "Fill in this star"}
+              accessibilityLabel={t("ds.wikiRecords.fillStar")}
             >
               <View style={rStyles.triageCol}>
-                <RNText style={rStyles.triageTitle}>{isKo ? "이 별 채워넣기" : "Fill in this star"}</RNText>
-                <RNText style={rStyles.triageBody}>{isKo ? "이 영역의 정보를 직접 추가해요." : "Add information for this domain."}</RNText>
+                <RNText style={rStyles.triageTitle}>{t("ds.wikiRecords.fillStar")}</RNText>
+                <RNText style={rStyles.triageBody}>{t("ds.wikiRecords.fillStarBody")}</RNText>
               </View>
               <RNText style={rStyles.triageChev}>›</RNText>
             </Pressable>
@@ -579,7 +579,7 @@ const RTYPE_EN: Record<RType, string> = { text: "Text", link: "Link", voice: "Vo
 
 // The 세컨비 line names the domain star this piece connects to. Derived from the
 // record's own tags (domain: tag or a plain 도메인 name), never invented.
-function pickDomainStar(tags: string[] | null, ko: boolean): string {
+function pickDomainStar(tags: string[] | null, ko: boolean, t: Tx): string {
   for (const tag of tags ?? []) {
     if (isDomainTag(tag)) {
       const id = tag.slice(DOMAIN_TAG_PREFIX.length);
@@ -588,7 +588,7 @@ function pickDomainStar(tags: string[] | null, ko: boolean): string {
     const hit = DOMAIN_STARS.find((d) => d.nameKo === tag || d.nameEn.toLowerCase() === tag.toLowerCase());
     if (hit) return ko ? hit.nameKo : hit.nameEn;
   }
-  return ko ? "관계" : "Relationships";
+  return t("ds.wikiRecords.relationships");
 }
 
 export function DeepSpaceRecordDetailScreen() {
@@ -699,16 +699,12 @@ export function DeepSpaceRecordDetailScreen() {
   const recencyOpts = { labels: dsRecencyLabels(t) };
   const rtype = recordType(record as unknown as TimelineRecord);
   const typeLabel = ko ? RTYPE_KO[rtype] : RTYPE_EN[rtype];
-  const timeLabel = recencyLabel(record.created_at, recencyOpts) || (ko ? "방금" : "Just now");
-  const linkedStar = pickDomainStar(record.tags, ko);
+  const timeLabel = recencyLabel(record.created_at, recencyOpts) || t("ds.wikiRecords.justNow");
+  const linkedStar = pickDomainStar(record.tags, ko, t);
   const secondbLine =
     related.length > 0
-      ? ko
-        ? `이 별가루는 '${linkedStar}' 별과 이어져요. 비슷한 기록 ${related.length}건이 같은 시간대에 모여 있어요.`
-        : `This piece links to your '${linkedStar}' star. ${related.length} similar records sit in the same window.`
-      : ko
-        ? "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
-        : "This piece isn't linked to a star yet. We'll connect it soon.";
+      ? t("ds.wikiRecords.secondbLinked", { star: linkedStar, n: related.length })
+      : t("ds.wikiRecords.secondbUnlinked");
 
   return (
     <Shell title={t("recordDetail.title")}>
@@ -750,25 +746,25 @@ export function DeepSpaceRecordDetailScreen() {
           <RNText style={rd.sbText}>{secondbLine}</RNText>
           {related.length > 0 ? (
             <Pressable onPress={() => router.push("/core-brain")} accessibilityRole="button" hitSlop={6}>
-              <RNText style={rd.sbLink}>{ko ? "근거 기록 보기 ↗" : "See evidence ↗"}</RNText>
+              <RNText style={rd.sbLink}>{t("ds.wikiRecords.seeEvidence")}</RNText>
             </Pressable>
           ) : null}
         </View>
       </View>
 
-      <RNText style={rd.section}>{ko ? "태그" : "Tags"}</RNText>
+      <RNText style={rd.section}>{t("ds.wikiRecords.tags")}</RNText>
       <View style={rd.tagRow}>
         {(record.tags ?? []).slice(0, 6).map((tag) => (
           <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
         ))}
-        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" accessibilityLabel={ko ? "태그 추가" : "Add tag"}>
-          <RNText style={rd.tagTxt}>+ {ko ? "태그 추가" : "Add tag"}</RNText>
+        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" accessibilityLabel={t("ds.wikiRecords.addTag")}>
+          <RNText style={rd.tagTxt}>+ {t("ds.wikiRecords.addTag")}</RNText>
         </Pressable>
       </View>
 
       {related.length > 0 ? (
         <>
-          <RNText style={rd.section}>{ko ? "연결된 기록" : "Linked records"}</RNText>
+          <RNText style={rd.section}>{t("ds.wikiRecords.linkedRecords")}</RNText>
           <View style={rd.linkCol}>
             {related.map(({ rec: r, semantic }) => {
               const lt = recordType(r);
@@ -783,7 +779,7 @@ export function DeepSpaceRecordDetailScreen() {
                   <TypeGlyph type={lt} />
                   <RNText numberOfLines={1} style={rd.linkTitle}>{recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}</RNText>
                   {semantic ? (
-                    <View style={rd.semBadge}><RNText style={rd.semBadgeTxt}>{ko ? "의미" : "meaning"}</RNText></View>
+                    <View style={rd.semBadge}><RNText style={rd.semBadgeTxt}>{t("ds.wikiRecords.meaning")}</RNText></View>
                   ) : null}
                   <RNText style={rd.linkChev}>›</RNText>
                 </Pressable>
@@ -795,10 +791,10 @@ export function DeepSpaceRecordDetailScreen() {
 
       <View style={styles.ctaRow}>
         <Pressable style={styles.secondary} onPress={() => router.push("/capture")} accessibilityRole="button">
-          <Text variant="caption" style={styles.secondaryText}>{ko ? "편집" : "Edit"}</Text>
+          <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.edit")}</Text>
         </Pressable>
         <Pressable style={styles.secondary} onPress={() => router.push("/records")} accessibilityRole="button">
-          <Text variant="caption" style={styles.secondaryText}>{ko ? "이동" : "Move"}</Text>
+          <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.move")}</Text>
         </Pressable>
         <Pressable
           style={[styles.iconBtn, styles.iconBtnDanger]}
