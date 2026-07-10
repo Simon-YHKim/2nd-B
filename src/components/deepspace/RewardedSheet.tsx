@@ -261,16 +261,20 @@ const styles = StyleSheet.create({
   },
   numBefore: { fontFamily: fontFamilies.pixelKo, fontSize: 30, color: deepSpace.accentBright },
   numAfter: { fontFamily: fontFamilies.pixelKo, fontSize: 34, color: deepSpace.mint },
+  // These label the two counters the user weighs before watching an ad ("left"
+  // and "after +N"). At 7px they were the least legible text on the sheet even
+  // though the decision hinges on them, so the size is raised while the pixel
+  // face (deep-space canon) is kept; numLabel's alpha matches its mint sibling.
   numLabel: {
     fontFamily: fontFamilies.pixelEn,
-    fontSize: 7,
+    fontSize: 11,
     letterSpacing: 0.7,
-    color: withAlpha(deepSpace.accentSoft, 0.5),
+    color: withAlpha(deepSpace.accentSoft, 0.7),
     marginTop: 4,
   },
   numLabelMint: {
     fontFamily: fontFamilies.pixelEn,
-    fontSize: 7,
+    fontSize: 11,
     letterSpacing: 0.7,
     color: withAlpha(deepSpace.mint, 0.7),
     marginTop: 4,
