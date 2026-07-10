@@ -717,9 +717,25 @@
       "ratifySoft": "Your words made the star more accurate.",
       "ratifySub": "The more you capture, the clearer the stars, and seven of them light the north star.",
       "enter": "Enter your constellation",
-      "evidence1": { "q": "Right now", "a": "It's the starting point for lighting your first star" },
-      "evidence2": { "q": "Going forward", "a": "The more you capture, the more real grounds build up" },
+      "evidence1": {
+        "q": "Right now",
+        "a": "It's the starting point for lighting your first star"
+      },
+      "evidence2": {
+        "q": "Going forward",
+        "a": "The more you capture, the more real grounds build up"
+      },
       "whyFootnote": "It's still early, so this is a light first read. The more you capture, the more grounds build up."
+    },
+    "reward": {
+      "titleA": "Watch 30s, get ",
+      "titleCount": "+{{n}}",
+      "sub": "Watch an ad to top up this week's self-understanding count.\nThe quality of answers stays the same.",
+      "remaining": "left",
+      "afterLabel": "after +{{n}}",
+      "cta": "Watch and get +{{n}}",
+      "later": "Later",
+      "privacy": "Adults with consent only · never on sensitive screens"
     }
   }
 }

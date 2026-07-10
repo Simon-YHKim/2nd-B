@@ -717,9 +717,25 @@
       "ratifySoft": "Kata-katamu membuat bintang itu lebih akurat.",
       "ratifySub": "Semakin banyak kamu simpan, semakin jelas bintangnya, dan tujuh di antaranya menyalakan bintang utara.",
       "enter": "Masuk ke konstelasimu",
-      "evidence1": { "q": "Saat ini", "a": "Ini titik awal untuk menyalakan bintang pertamamu" },
-      "evidence2": { "q": "Ke depannya", "a": "Semakin banyak kamu simpan, semakin banyak alasan nyata yang terkumpul" },
+      "evidence1": {
+        "q": "Saat ini",
+        "a": "Ini titik awal untuk menyalakan bintang pertamamu"
+      },
+      "evidence2": {
+        "q": "Ke depannya",
+        "a": "Semakin banyak kamu simpan, semakin banyak alasan nyata yang terkumpul"
+      },
       "whyFootnote": "Ini masih awal, jadi ini pembacaan pertama yang ringan. Semakin banyak kamu simpan, semakin banyak alasan yang terkumpul."
+    },
+    "reward": {
+      "titleA": "Tonton 30 dtk, dapat ",
+      "titleCount": "+{{n}}",
+      "sub": "Tonton iklan untuk mengisi jatah pemahaman diri minggu ini.\nKualitas jawaban tetap sama.",
+      "remaining": "tersisa",
+      "afterLabel": "setelah +{{n}}",
+      "cta": "Tonton iklan & dapat +{{n}}",
+      "later": "Nanti",
+      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
     }
   }
 }
