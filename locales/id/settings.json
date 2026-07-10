@@ -17,7 +17,15 @@
     "support": "Dukungan",
     "supportHint": "Membuka opsi dukungan."
   },
-  "language": "Bahasa",
+  "language": {
+    "title": "Bahasa",
+    "body": "Bahasa tampilan aplikasi. Catatan yang kamu simpan tidak berubah.",
+    "betaTag": "(beta)",
+    "optionA11yLabel": "{{label}}, pilihan {{index}} dari {{total}}, {{state}}",
+    "stateSelected": "dipilih",
+    "stateAvailable": "tersedia",
+    "useLanguageHint": "Mengganti bahasa aplikasi ke {{label}}"
+  },
   "actions": {
     "signOutHint": "Keluar dan kembali ke layar masuk.",
     "crewDensityHint": "Mengatur kepadatan kru graf dekoratif ke {{density}}.",

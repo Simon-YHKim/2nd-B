@@ -17,7 +17,15 @@
     "support": "Soporte",
     "supportHint": "Abre las opciones de soporte."
   },
-  "language": "Idioma",
+  "language": {
+    "title": "Idioma",
+    "body": "El idioma en que se muestra la app. Lo que has guardado no cambia.",
+    "betaTag": "(beta)",
+    "optionA11yLabel": "{{label}}, opción {{index}} de {{total}}, {{state}}",
+    "stateSelected": "seleccionado",
+    "stateAvailable": "disponible",
+    "useLanguageHint": "Cambia el idioma de la app a {{label}}"
+  },
   "actions": {
     "signOutHint": "Cierra sesión y regresa a la pantalla de inicio de sesión.",
     "crewDensityHint": "Ajusta la densidad decorativa de la tripulación del grafo a {{density}}.",

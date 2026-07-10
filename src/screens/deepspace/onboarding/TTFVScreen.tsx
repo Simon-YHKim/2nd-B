@@ -155,8 +155,8 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
             <Circle cx={POLARIS.x} cy={POLARIS.y} r={9} fill={m3.accent.polaris} opacity={0.26} />
             <Circle cx={POLARIS.x} cy={POLARIS.y} r={6} fill={deepSpace.textHi} />
           </Svg>
-          <Text variant="caption" style={[styles.starLabel, styles.polarisLabel]}>북극성</Text>
-          <Text variant="caption" style={[styles.starLabel, styles.gwangeLabel]}>{star}</Text>
+          <Text variant="caption" style={[styles.starLabel, styles.polarisLabel]}>{t("home:ds.home.polaris")}</Text>
+          <Text variant="caption" numberOfLines={1} style={[styles.starLabel, styles.gwangeLabel]}>{star}</Text>
         </View>
 
         {phase === "propose" ? (
@@ -290,7 +290,9 @@ const styles = StyleSheet.create({
   },
   starLabel: { position: "absolute", fontSize: 11, color: m3.accent.starCaption, letterSpacing: 0.6, textAlign: "center" },
   polarisLabel: { left: 0, right: 0, top: POLARIS.y + 14 },
-  gwangeLabel: { left: GWANGE.x - 24, width: 48, top: GWANGE.y + 12 },
+  // 96px keeps every shipped locale's star name on one line ("Relationship",
+  // "Relaciones", "Hubungan"); the old 48px box wrapped EN mid-word ("Relation/ship").
+  gwangeLabel: { left: GWANGE.x - 48, width: 96, top: GWANGE.y + 12 },
 
   block: { alignItems: "center", gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.sm, alignSelf: "stretch" },
   insight: { fontSize: 18, lineHeight: 27, color: deepSpace.textHi, textAlign: "center", maxWidth: 280, marginTop: 4 },
