@@ -8,6 +8,7 @@
  * it; tapping again opens it. Mirrors WikiGraph's SVG/zoom conventions.
  */
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 
@@ -23,13 +24,12 @@ const POLARIS_COLOR = m3.accent.polaris;
 
 export function RecordsGraph({
   graph,
-  isKo,
   onOpenRecord,
 }: {
   graph: RecordsGraphData;
-  isKo: boolean;
   onOpenRecord: (id: string) => void;
 }) {
+  const { t } = useTranslation("deepspace");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomIdx, setZoomIdx] = useState(0);
 
@@ -65,7 +65,7 @@ export function RecordsGraph({
           width="100%"
           height="100%"
           viewBox={`${vbX} ${vbY} ${span} ${span}`}
-          accessibilityLabel={isKo ? "기록 연결 그래프" : "Records connection graph"}
+          accessibilityLabel={t("deepspace:recordsGraph.a11yGraph")}
         >
           {/* edges — draw links (dashed) under nodes; spine/branch faint */}
           {graph.edges.map((e, i) => {
@@ -135,16 +135,16 @@ export function RecordsGraph({
       </View>
 
       <View style={styles.controls}>
-        <Pressable onPress={() => setZoomIdx((z) => Math.max(0, z - 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={isKo ? "축소" : "Zoom out"}>
+        <Pressable onPress={() => setZoomIdx((z) => Math.max(0, z - 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={t("deepspace:recordsGraph.a11yZoomOut")}>
           <Text style={styles.zoomBtnText}>-</Text>
         </Pressable>
-        <Pressable onPress={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={isKo ? "확대" : "Zoom in"}>
+        <Pressable onPress={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={t("deepspace:recordsGraph.a11yZoomIn")}>
           <Text style={styles.zoomBtnText}>+</Text>
         </Pressable>
         <Text variant="caption" color="textSubtle" style={styles.hint} numberOfLines={1}>
           {selected && selected.kind === "record"
-            ? isKo ? `${selected.label} · 한 번 더 누르면 열려요` : `${selected.label} · tap again to open`
-            : isKo ? "점선 = 태그로 이어진 기록. 누르면 선택, 한 번 더 누르면 열려요" : "Dashed = records linked by a shared tag. Tap to select, tap again to open"}
+            ? t("deepspace:recordsGraph.hintSelected", { label: selected.label })
+            : t("deepspace:recordsGraph.hintDefault")}
         </Text>
       </View>
 

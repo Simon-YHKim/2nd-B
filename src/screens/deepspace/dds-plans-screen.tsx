@@ -302,7 +302,7 @@ export function DeepSpacePlansScreen() {
                     ? t("ds.plans.currentPlan")
                     : busyAction === "buy"
                       ? t("ds.plans.purchasing")
-                      : ko ? `${tr.name} 시작` : `Start ${tr.name}`
+                      : t("ds.plans.startTier", { name: tr.name })
                 }
                 onPress={cur ? undefined : () => onStart(tr.key)}
               />

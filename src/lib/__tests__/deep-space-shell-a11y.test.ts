@@ -8,7 +8,9 @@ describe("deep-space shell accessibility labels", () => {
   test("keeps the character accessibility label locale-aware", () => {
     const shell = readShell();
 
-    expect(shell).toMatch(/const characterLabel = isKo \? /);
+    // Resolving through i18next is stronger than the isKo ternary this replaced:
+    // that only ever produced ko or en, so es/pt/id screen readers got English.
+    expect(shell).toMatch(/const characterLabel = t\("character\.a11y"\)/);
     expect(shell).toContain("accessibilityLabel={characterLabel}");
     expect(shell).not.toMatch(/accessibilityLabel="[^"]*[^\x00-\x7F]/);
   });

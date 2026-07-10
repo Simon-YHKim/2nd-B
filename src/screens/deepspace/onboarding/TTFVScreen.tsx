@@ -44,12 +44,9 @@ export interface TTFVInsight {
   phraseEn: string;
 }
 
-const DEFAULT_INSIGHT: TTFVInsight = {
-  starKo: "관계",
-  starEn: "Relationship",
-  phraseKo: "먼저 다가가는",
-  phraseEn: "reaching out first",
-};
+// With no `insight` prop the screen falls back to ds.ttfv.defaultInsight.*, which
+// ships in all five locales. The prop still carries its own starKo/starEn pair for
+// the day real per-user scoring supplies one.
 
 // The first-star suggestion is a starting point, NOT derived from real answers
 // (sign-up collects no personality questions), so we never fabricate the user's
@@ -73,7 +70,7 @@ interface TTFVScreenProps {
   insight?: TTFVInsight;
 }
 
-export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
+export function TTFVScreen({ insight }: TTFVScreenProps) {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
@@ -104,7 +101,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
     setSoft(softAnswer);
     setPhase("ratify");
     if (!userId) return;
-    const phraseText = ko ? insight.phraseKo : insight.phraseEn;
+    const phraseText = insight ? (ko ? insight.phraseKo : insight.phraseEn) : t("ds.ttfv.defaultInsight.phrase");
     void createRecord({
       userId,
       locale: ko ? "ko" : "en",
@@ -118,8 +115,8 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
     }).catch(() => {});
   };
 
-  const star = ko ? insight.starKo : insight.starEn;
-  const phrase = ko ? insight.phraseKo : insight.phraseEn;
+  const star = insight ? (ko ? insight.starKo : insight.starEn) : t("ds.ttfv.defaultInsight.star");
+  const phrase = insight ? (ko ? insight.phraseKo : insight.phraseEn) : t("ds.ttfv.defaultInsight.phrase");
 
   const pulseStyle = {
     opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.75] }),
@@ -251,9 +248,7 @@ export function TTFVScreen({ insight = DEFAULT_INSIGHT }: TTFVScreenProps) {
             <Text variant="body" style={styles.ratifyTitle}>
               {soft
                 ? t("ds.ttfv.ratifySoft")
-                : ko
-                  ? `${star} 별이 한 단계 밝아졌어요.`
-                  : `Your ${star.toLowerCase()} star brightened one step.`}
+                : t("ds.ttfv.ratifyTitle", { star: star.toLowerCase() })}
             </Text>
             <Text variant="body" style={styles.sub}>
               {t("ds.ttfv.ratifySub")}

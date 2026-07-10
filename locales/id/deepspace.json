@@ -559,6 +559,13 @@
   "polaris": {
     "cardDeck": "Dek kartu Bintang Utara"
   },
+  "recordsGraph": {
+    "a11yGraph": "Grafik koneksi catatan",
+    "a11yZoomOut": "Perkecil",
+    "a11yZoomIn": "Perbesar",
+    "hintSelected": "{{label}} · ketuk lagi untuk membuka",
+    "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka"
+  },
   "wikiGraph": {
     "a11yGraph": "Grafik simpul wiki",
     "a11yZoomOut": "Perkecil",
@@ -625,6 +632,7 @@
       "active": "Aktif",
       "currentPlan": "Paket saat ini",
       "purchasing": "Membeli…",
+      "startTier": "Mulai {{name}}",
       "loading": "Memuat paket…",
       "growWithoutPaying": "Berkembang tanpa membayar",
       "rewardTitle": "Percepat dengan iklan",
@@ -706,15 +714,20 @@
     "ttfv": {
       "pageTitle": "Bintang pertamamu baru saja menyala",
       "stageA11y": "Bintang utara dan bintang pertamamu yang menyala",
+      "defaultInsight": {
+        "star": "Hubungan",
+        "phrase": "lebih dulu mendekati"
+      },
       "secondbName": "SecondB",
       "insightLead": "Kamu mungkin orang yang ",
       "insightTail": ".",
-      "sub": "Mari nyalakan dulu bintang Relasimu? Semakin banyak kamu simpan, semakin jelas.",
+      "sub": "Mari nyalakan dulu bintang Hubunganmu? Semakin banyak kamu simpan, semakin jelas.",
       "grounds": "Dua alasan untuk pembacaan ini",
       "affirm": "Benar",
       "differ": "Sedikit berbeda",
       "consent": "Bagaimanapun, bintang hanya menyala dengan persetujuanmu.",
       "ratifySoft": "Kata-katamu membuat bintang itu lebih akurat.",
+      "ratifyTitle": "Bintang {{star}} menyala satu tingkat lebih terang.",
       "ratifySub": "Semakin banyak kamu simpan, semakin jelas bintangnya, dan tujuh di antaranya menyalakan bintang utara.",
       "enter": "Masuk ke konstelasimu",
       "evidence1": {

@@ -559,6 +559,13 @@
   "polaris": {
     "cardDeck": "북극성 카드 덱"
   },
+  "recordsGraph": {
+    "a11yGraph": "기록 연결 그래프",
+    "a11yZoomOut": "축소",
+    "a11yZoomIn": "확대",
+    "hintSelected": "{{label}} · 한 번 더 누르면 열려요",
+    "hintDefault": "점선 = 태그로 이어진 기록. 누르면 선택, 한 번 더 누르면 열려요"
+  },
   "wikiGraph": {
     "a11yGraph": "위키 노드 그래프",
     "a11yZoomOut": "축소",
@@ -625,6 +632,7 @@
       "active": "이용 중",
       "currentPlan": "현재 요금제",
       "purchasing": "구매 중…",
+      "startTier": "{{name}} 시작",
       "loading": "플랜을 불러오는 중이에요…",
       "growWithoutPaying": "결제 없이 늘리기",
       "rewardTitle": "광고로 담기 가속 충전",
@@ -706,6 +714,10 @@
     "ttfv": {
       "pageTitle": "당신의 첫 별이 켜졌어요",
       "stageA11y": "북극성과 첫 별이 켜진 별자리",
+      "defaultInsight": {
+        "star": "관계",
+        "phrase": "먼저 다가가는"
+      },
       "secondbName": "세컨비",
       "insightLead": "당신은 ",
       "insightTail": " 사람일지도 몰라요.",
@@ -715,6 +727,7 @@
       "differ": "조금 달라요",
       "consent": "어떤 답이든, 별은 당신의 동의로만 밝아져요.",
       "ratifySoft": "당신 말이 별을 더 정확하게 만들었어요.",
+      "ratifyTitle": "{{star}} 별이 한 단계 밝아졌어요.",
       "ratifySub": "담을수록 별이 또렷해지고, 7개가 모이면 북극성이 켜져요.",
       "enter": "별자리로 들어가기",
       "evidence1": {

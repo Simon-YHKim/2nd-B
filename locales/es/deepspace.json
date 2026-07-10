@@ -559,6 +559,13 @@
   "polaris": {
     "cardDeck": "Mazo de tarjetas de la Estrella Polar"
   },
+  "recordsGraph": {
+    "a11yGraph": "Grafo de conexión de registros",
+    "a11yZoomOut": "Alejar",
+    "a11yZoomIn": "Acercar",
+    "hintSelected": "{{label}} · toca de nuevo para abrir",
+    "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir"
+  },
   "wikiGraph": {
     "a11yGraph": "Grafo de nodos de la wiki",
     "a11yZoomOut": "Alejar",
@@ -625,6 +632,7 @@
       "active": "Activo",
       "currentPlan": "Plan actual",
       "purchasing": "Comprando…",
+      "startTier": "Empezar {{name}}",
       "loading": "Cargando planes…",
       "growWithoutPaying": "Crece sin pagar",
       "rewardTitle": "Acelera con un anuncio",
@@ -706,6 +714,10 @@
     "ttfv": {
       "pageTitle": "Tu primera estrella acaba de encenderse",
       "stageA11y": "La estrella polar y tu primera estrella encendida",
+      "defaultInsight": {
+        "star": "Relaciones",
+        "phrase": "da el primer paso"
+      },
       "secondbName": "SecondB",
       "insightLead": "Podrías ser alguien que ",
       "insightTail": ".",
@@ -715,6 +727,7 @@
       "differ": "Un poco diferente",
       "consent": "En cualquier caso, una estrella solo brilla con tu consentimiento.",
       "ratifySoft": "Tus palabras hicieron la estrella más precisa.",
+      "ratifyTitle": "Tu estrella de {{star}} se volvió un paso más brillante.",
       "ratifySub": "Cuanto más registras, más nítidas son las estrellas, y siete de ellas encienden la estrella polar.",
       "enter": "Entrar en tu constelación",
       "evidence1": {
