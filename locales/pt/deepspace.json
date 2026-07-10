@@ -628,7 +628,7 @@
       "loading": "Carregando planos…",
       "growWithoutPaying": "Cresça sem pagar",
       "rewardTitle": "Acelere com um anúncio",
-      "rewardSub": "Vídeo de 30s = +5 perguntas · qualidade inalterada",
+      "rewardSub": "Vídeo de 30s = +{{n}} perguntas · qualidade inalterada",
       "noticeTitle": "Faça upgrade no app móvel",
       "noticeBody": "Os planos pagos são comprados nas lojas de aplicativos do iOS e Android. Abra o 2nd-Brain no seu telefone para fazer upgrade.",
       "contactSupport": "Falar com o suporte",

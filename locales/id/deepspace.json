@@ -628,7 +628,7 @@
       "loading": "Memuat paket…",
       "growWithoutPaying": "Berkembang tanpa membayar",
       "rewardTitle": "Percepat dengan iklan",
-      "rewardSub": "Video 30 detik = +5 pertanyaan · kualitas tetap",
+      "rewardSub": "Video 30 detik = +{{n}} pertanyaan · kualitas tetap",
       "noticeTitle": "Tingkatkan di aplikasi seluler",
       "noticeBody": "Paket berbayar dibeli melalui toko aplikasi di iOS dan Android. Buka 2nd-Brain di ponsel Anda untuk meningkatkan.",
       "contactSupport": "Hubungi dukungan",
