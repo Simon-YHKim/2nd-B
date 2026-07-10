@@ -48,7 +48,7 @@ export function rankBySimilarity(
 }
 
 /** The text we embed for a page: title + body, whitespace-trimmed and capped
- *  (text-embedding-004 counts input tokens; 2k chars is plenty for a page). */
+ *  (gemini-embedding-2 counts input tokens; 2k chars is plenty for a page). */
 export function pageEmbeddingText(page: Pick<WikiPageRow, "title" | "body_md">, max = 2000): string {
   const text = `${page.title}\n\n${page.body_md}`.trim();
   return text.length > max ? text.slice(0, max) : text;
