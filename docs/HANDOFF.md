@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-10 / 레퍼런스 진짜구현 — 자기이해 3 instrument + QA 시딩검증 + 세컨비 중립 + persona-sim
 - Latest — 2026-07-07 / 별 렌즈 7종 매칭 완주 + 네이티브 전달 갭 근본원인 (OTA 채널·서명·ABI)
 - Latest — 2026-07-06 / Simon D1-D7 실행 + LLM Phase-2 OpenAI 재라우팅
 - Latest — 2026-07-05 (저녁) / i18n 7-배치 완주(부분) + 전수 상태감사 → 게이트 지도 6종
@@ -79,6 +80,80 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-10 / 레퍼런스 진짜 구현 — 자기이해 3 instrument + QA 시딩검증 + 세컨비 중립
+
+### 어디까지 왔나
+- main HEAD: `42da4baf` (#862 motivation instrument)
+- 이번 세션 머지 PR (23개, 롤업):
+  - **clone-fidelity 정리** (rev2 웹 레퍼런스 localhost:8000 대조): #841 trends truth-harden · #842 dock 아이콘(sb-data NAV) · #843 focus 컨트롤 · #844 audit 타임라인 · #845 imagine 그라데이션
+  - **i18n 스윕** (deepspace ds.* 통일 · es/pt/id 영어폴백 해소): #846 AxisCheck · #847 홈도메인 · #848 wiki · #849 inbox+import · #851 TTFV · #852 plans · #853 growth · #856 AxisCheck bar-title
+  - **perf**: #855 RewardedSheet · #857 LoadingScreen (RN Image→expo-image, 6MB 디코드 회피)
+  - **🎯 새 방향 (Simon 07-10)**: #858 세컨비 머리 중립 디폴트 · #859 seed-qa-records(QA 데이터 시딩) · **#860 values · #861 strengths · #862 motivation** 자기이해 3화면 인터뷰 실측 instrument
+- 테스트: `npm run verify` green (2342 tests, 3 instrument PR 각각 통과)
+- working tree: clean. 작업은 격리 워크트리 `.worktrees/clone-rev2` (+ node_modules junction)
+
+### 이번 세션 핵심 (방향 전환)
+- rev2 클론이 **"클론 정리 → 진짜 기능 구현"**으로 전환. Simon 피드백: "정리는 인정하나 내 계정에 데이터가 없어 진짜 구현됐는지 모르겠다."
+- **QA 시딩으로 입증**: 빈상태=미구현 아님, 데이터만 없었음 → records/home/bigfive는 시드하니 레퍼런스처럼 렌더. 진짜 미구현 3화면(strengths/values/motivation)만 파생 instrument 부재였음.
+- **자기이해 3 instrument 진짜 구현**: mock 대신 **정직한 실측 자기보고 설문**(BFI-44 패턴 착안). 3화면 모두 라이브 populated 렌더 확인 — /motivation 내적71%/외적29% balance + 3need · /strengths SIGNATURE top-3+스펙트럼 · /values CORE VALUES top-3. 전부 실데이터·확신도 칩·비진단 프레이밍.
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` (Seoul). 라이브 = GitHub Pages `simon-yhkim.github.io/2nd-B` (deep-space 프로드).
+- **QA계정 시드 완료** (`qa.ai.b18807@example.com`, `.env.test` committed-public·RLS-scoped): 도메인 records 102 + Big Five/애착 + values/strengths/motivation. 재시드 = `node scripts/seed-qa-records.mjs` (tag qa_seed_domain) + `seed-qa-assessments.mjs`.
+- 캡처 하네스 (scratchpad, 세션-로컬): `cap-live.mjs`(라이브 QA로그인 390×844) · `cap-ref.mjs`(레퍼런스 __sb.jump). playwright @ scratchpad/pw. 레퍼런스 소스 = `scratchpad/ref_rev2` (rev2 zip 추출).
+- **에뮬 준비**: `Pixel_9_Pro_XL` AVD, `ANDROID_HOME=C:\Users\202502\AppData\Local\Android\Sdk`, adb.
+
+### persona-simulation 결과 (✅ 완료 — 리포트 Simon 전달)
+- 4축 페르소나(연령·소득·문화·접근성) 워크플로가 **실제 프로드 소스**를 걸어 **27 발견**(전부 file:line 근거). Claude가 상위 11건 재확인 → **거짓양성 0**(프레임워크 인지: 프로드 deep-space만, 세컨비 중립 반영 확인). 심각도: A11Y 10·CONFUSION 8·DISTRUST 7·DROPOUT 2.
+- 리포트: `scratchpad/persona-sim-report.html` (세션-로컬, Simon 전달됨). 워크플로 journal = `subagents/workflows/wf_ab685735-1e2/journal.jsonl`.
+- **관통 패턴**: 결함 대부분이 **글로벌(비-한국) 사용자**에 집중된 카피·i18n·글자크기. 구조 결함 없음.
+- **🔒 Simon 게이트 결정 4건** (안전/법무/수익화 — 미해결):
+  1. **P0 안전**: 위기 레드존 시 비-한국 전원 미국 988(해외 통화불가)로 라우팅. `src/lib/safety/lexicon.ts:90`·`classifier.ts:66`. 관할 해석→현지 위기라인. **임상방법론 게이트**.
+  2. **P0 법무**: 자기동의 연령 KR 14 하드코딩→EU(GDPR 16) 적용. `src/lib/supabase/auth.ts:24`(코드 주석 스스로 KR-가정 인정). consent-age.ts는 EU=16 이미 지원. **법무 게이트**.
+  3. **P1 수익화**: advisor(핵심가치)가 Brain 티어 전용 → 무료·중간 플랜 TTFV=영영없음. `src/lib/progression/entitlements.ts:32`. first-N-free 검토. **수익화 게이트**.
+  4. **P2 수익화**: 전 티어 가격 ₩ 하드코딩(로케일 무관). `dds-plans-screen.tsx:54`. RevenueCat priceString 표시로. **가격표시 게이트**.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **persona-sim 클린 픽스 순차 ship** (게이트 무관, 격리워크트리·verify·CI green·머지): ①리워드 +5/+2 불일치(deepspace.json:631 vs REWARD_PER_WATCH=2, 상수 보간) ②TTFV null 홈플래시(DeepSpaceShell.tsx:75에 `=== null` 가드 1줄, index.tsx:461 미러) ③TTFV 인사이트/이브로우 es/pt/id 영어(i18n) ④Big Five Likert 숫자만→앵커라벨(**Claude 설계**, 측정정확도) ⑤audit '진단'→'인터뷰'(ko/audit.json, 무-임상 규칙 정합) ⑥a11y 배치(7px auth·9px dock·ui/Text 1.3x캡·별라벨·리워드7px·TIP9px) ⑦i18n/명료성 배치(삼항 a11y라벨·구매CTA·L1→L2 은어·담기 3중 중복·프로드auth 언어전환) | medium | ⭐ 검증완료·근거명확 |
+| B | **에뮬 네이티브 정확도** — `emulator -avd Pixel_9_Pro_XL` + `expo run:android`(footgun: keystore/ABI/adb reverse 8081 → tool_2ndb_native_delivery_gap·tool_emulator_native_run) + adb screencap 실기확인 | large | Simon 명시요청 |
+| C | populated 화면(values/strengths/motivation/records/home) 레퍼런스 대조 **fidelity 미세조정** | small | |
+| G | 🔒 게이트 4건(위 persona-sim 결과) — Simon 결정 후 착수 | — | Simon |
+
+### 적용 중인 정책 (영구)
+1. **세컨비 머리 = 중립 디폴트** (#858). 긍정/부정은 상황별 순간반응(`SecondbHead.subscribeExpression`, save→smile/error→concern). 정적 `mood="positive"` 금지.
+2. **자기이해 instrument = 정직 실측 self-report**: 정당 문항(BFI/PVQ/VIA/SDT 착안·verbatim·reverse 없음)·"자기보고 추정(진단 아님)" 프레이밍·확신도 상한 ~0.64·**mock 점수 하드코딩 금지·insight는 실데이터에서만**. 안전-임상 표면 = **Claude가 문항·프레이밍 직접 설계/리뷰**, 서브에이전트는 기계배선만.
+3. **mock-as-real 코드날조 금지** + 검증은 시드데이터. baseline stale 주의(소스+라이브렌더가 정본). EXPO-AHEAD(앱이 레퍼런스보다 앞선 부분) 클론다운 금지.
+4. 격리 워크트리 `.worktrees/clone-rev2` + node_modules junction — **junction을 worktree remove 전에 먼저 삭제**(안 그러면 공유 node_modules 비워짐 → npm ci 복구). `git add` 명시경로만(never -A, `.pr-body.md` stray 제외). CI green + BEHIND→`gh pr update-branch` 후 머지.
+5. 게이트(파괴/비용/secrets/임상방법론/법무)만 Simon 확인. 나머지 무확인 ship.
+
+### 핵심 파일 위치
+```
+src/lib/persona/{values,strengths,motivation}-survey.ts   자기이해 instrument (문항+채점, bfi.ts 패턴)
+src/lib/persona/build.ts    loadLatest{Values,Strengths,Motivation}    결과 로더
+src/app/{values,strengths,motivation}.tsx    설문(QuantIntroModal→Likert)/populated 플로우
+src/components/deep-space/AxisCheck.tsx    {Values,Strengths,Motivation}Populated 렌더
+src/components/deepspace/SecondbHead.tsx    마스코트 (mood 기본 neutral)
+scripts/seed-qa-records.mjs    QA 도메인/instrument 데이터 시드
+scratchpad/CLONE_PROGRESS.md    세션 작업 정본 (방법론+진행)   ※scratchpad는 세션-로컬
+scratchpad/{cap-live,cap-ref}.mjs    캡처 하네스   ※세션-로컬
+```
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # 2342 tests green
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(persona-sim 종합) 워크플로 journal 확인 → 미완/유실이면 persona-simulation 재실행,
+#   완료면 발견 적대검증→HTML리포트→우선순위 개선 PR. 이후 B(에뮬 네이티브).
+```
 
 ---
 
