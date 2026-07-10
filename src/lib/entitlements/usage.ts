@@ -12,7 +12,6 @@
  */
 
 import { getSupabaseClient } from '../supabase/client';
-import { REWARD_MONTHLY_CAP } from './tiers';
 
 const TABLE = 'usage_counters';
 
@@ -101,8 +100,9 @@ export async function incrementReasoningUsage(userId: string): Promise<void> {
 
 /**
  * Add rewarded watch-to-earn credits to the current-month counter, via the
- * atomic SECURITY DEFINER RPC (0075) so the grant is clamped to REWARD_MONTHLY_CAP
- * server-side and cannot be raced or self-granted past the ceiling (audit M4).
+ * atomic SECURITY DEFINER RPC (0075). The monthly cap + per-call max are enforced
+ * SERVER-SIDE inside the RPC (not passed by the client), so the grant cannot be
+ * raced or self-granted past the ceiling even by a tampered client (audit M4).
  * Fails gracefully (warn, no throw). Signature unchanged for callers.
  */
 export async function addRewardCredits(userId: string, credits: number): Promise<void> {
@@ -112,7 +112,6 @@ export async function addRewardCredits(userId: string, credits: number): Promise
       p_user_id: userId,
       p_month: bucket,
       p_credits: credits,
-      p_cap: REWARD_MONTHLY_CAP,
     });
     if (error) {
       console.warn('[usage] addRewardCredits RPC failed:', error.message);
