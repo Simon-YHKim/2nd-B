@@ -98,6 +98,13 @@ export async function incrementReasoningUsage(userId: string): Promise<void> {
  * Fails gracefully (warn, no throw). Signature unchanged for callers.
  */
 export async function addRewardCredits(userId: string, credits: number): Promise<void> {
+  // D2: when AdMob SSV is the grant authority (EXPO_PUBLIC_REWARD_SSV=true), the
+  // server grants reward credits from the verified SSV callback (rewarded-ssv +
+  // grant_reward_credits_ssv). The client must NOT also grant here, or a single
+  // watch double-counts. The UI refetches the counter after the watch, which
+  // reflects the server grant once the callback lands. Off by default (direct
+  // process.env read so babel inlines it) -> unchanged dev-seam behavior.
+  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") return;
   const bucket = monthBucket();
   try {
     const { error } = await getSupabaseClient().rpc('bump_reward_credits_if_under_cap', {
