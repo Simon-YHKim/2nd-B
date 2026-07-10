@@ -129,22 +129,34 @@ Deno.serve(async (req: Request) => {
   // from the start (the deleted page is gone, so the next list surfaces the
   // remainder) until a short/empty page — so users with >1000 clippings are
   // fully erased, not just the first page.
+  // Best-effort by design (the account is already erased, so a Storage hiccup
+  // must not fail the request) — but report whether the PII was actually erased
+  // instead of unconditionally claiming success, so a partial failure is
+  // observable and an operator can re-run cleanup.
+  let rawClippingsErased = true;
   try {
     const PAGE = 1000;
     for (;;) {
-      const { data: objs } = await admin.storage.from('raw-clippings').list(userId, { limit: PAGE });
+      const { data: objs, error: listErr } = await admin.storage.from('raw-clippings').list(userId, { limit: PAGE });
+      if (listErr) {
+        console.warn('[delete-account] raw-clippings list failed:', listErr.message);
+        rawClippingsErased = false;
+        break;
+      }
       if (!objs || objs.length === 0) break;
       const paths = objs.map((o) => `${userId}/${o.name}`);
       const { error: rmErr } = await admin.storage.from('raw-clippings').remove(paths);
       if (rmErr) {
         console.warn('[delete-account] raw-clippings remove failed:', rmErr.message);
+        rawClippingsErased = false;
         break;
       }
       if (objs.length < PAGE) break;
     }
   } catch (e) {
     console.warn('[delete-account] raw-clippings cleanup threw:', String(e));
+    rawClippingsErased = false;
   }
 
-  return jsonResponse(req, { deleted: true });
+  return jsonResponse(req, { deleted: true, raw_clippings_erased: rawClippingsErased });
 });
