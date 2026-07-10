@@ -13,6 +13,7 @@
 import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import type { ValueId } from "./values-survey";
 import type { StrengthId } from "./strengths-survey";
+import type { MotivationNeedKey } from "./motivation-survey";
 import { callGemini } from "../llm/gemini";
 import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
@@ -376,6 +377,69 @@ export async function loadLatestStrengths(
         ? parsed.confidence
         : 0;
     return { scores, confidence };
+  } catch {
+    return null;
+  }
+}
+
+export interface LoadedMotivation {
+  /** Per-SDT-need 0-100 scores (autonomy/competence/relatedness), sorted descending. */
+  needs: { key: MotivationNeedKey; score: number }[];
+  /** Intrinsic share of the intrinsic↔extrinsic balance, 0-100. */
+  intrinsicPct: number;
+  /** Extrinsic share, 0-100 (complement of intrinsicPct). */
+  extrinsicPct: number;
+  /** 0..1 honest confidence stored with the self-report. */
+  confidence: number;
+}
+
+export async function loadLatestMotivation(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<LoadedMotivation | null> {
+  // Motivation self-report (motivation-survey.ts). The /motivation survey writes
+  // a record tagged ["motivation", "assessment"] whose body carries {
+  // motivation_responses, needs, intrinsicPct, extrinsicPct, confidence }. Mirrors
+  // loadLatestStrengths: newest row, JSON.parse(body).
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["motivation", "assessment"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      needs?: { key?: string; score?: number }[];
+      intrinsicPct?: number;
+      extrinsicPct?: number;
+      confidence?: number;
+    };
+    if (!Array.isArray(parsed.needs) || parsed.needs.length === 0) return null;
+    const needs = parsed.needs
+      .filter(
+        (n): n is { key: MotivationNeedKey; score: number } =>
+          !!n && typeof n.key === "string" && typeof n.score === "number" && Number.isFinite(n.score),
+      )
+      .map((n) => ({ key: n.key, score: n.score }));
+    if (needs.length === 0) return null;
+    // Newest-first already, but the writer sorts descending too — re-sort so a
+    // hand-edited or legacy row can't render an out-of-order spectrum.
+    needs.sort((a, b) => b.score - a.score);
+    const intrinsicPct =
+      typeof parsed.intrinsicPct === "number" && Number.isFinite(parsed.intrinsicPct)
+        ? parsed.intrinsicPct
+        : 50;
+    const extrinsicPct =
+      typeof parsed.extrinsicPct === "number" && Number.isFinite(parsed.extrinsicPct)
+        ? parsed.extrinsicPct
+        : 100 - intrinsicPct;
+    const confidence =
+      typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+        ? parsed.confidence
+        : 0;
+    return { needs, intrinsicPct, extrinsicPct, confidence };
   } catch {
     return null;
   }
