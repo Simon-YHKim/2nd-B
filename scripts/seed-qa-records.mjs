@@ -102,9 +102,15 @@ for (const [name, val] of [
   }
 }
 
-// DISTINCT from the assessment seed's "qa_seed" so this seed can never delete it.
+// DISTINCT from the assessment seed's "qa_seed" so the DOMAIN rows can never
+// delete it. The VALUES self-report row (7th block, added below) DOES join the
+// shared "qa_seed" assessment family and is deleted/reinserted by its own
+// precise {values,qa_seed} filter, never by SEED_TAG.
 const SEED_TAG = "qa_seed_domain";
 const ASSESSMENT_TAG = "qa_seed";
+// The BFI assessment row carries "bfi"; the values row does not. Counting this
+// tag proves the domain + values seeding never nukes the BFI/ECR assessment seed.
+const ASSESSMENT_PROOF_TAG = "bfi";
 const CONCLUSION = "합성 QA 시드 (실제 응답 아님) · scripts/seed-qa-records.mjs";
 
 // ---------------------------------------------------------------------------
@@ -261,6 +267,64 @@ function summaryOf(body) {
 }
 
 // ---------------------------------------------------------------------------
+// VALUES self-report seed (7th block). Mirrors src/lib/persona/values-survey.ts:
+// 12 items, 2 per value, 6-point Likert (1..6). Per-value = mean of its 2 items,
+// normalized (mean-1)/5*100 → 0-100, sorted desc. Confidence = answered-fraction
+// × 0.64, capped 0.7 (honest sub-max, NOT 100%). Plain .mjs can't import the TS
+// module, so the item→value map and scorer are replicated here EXACTLY.
+//
+// HONESTY: the scores are COMPUTED from the synthetic responses below with the
+// app's exact rule — never hardcoded, never the reference prototype's example
+// numbers. The row is tagged qa_seed so it lives with the other assessment seeds
+// (bfi/ecr), and labeled clearly synthetic in topic/conclusion.
+const VALUES_ITEM = [
+  [1, "self_direction"], [2, "self_direction"],
+  [3, "stimulation"], [4, "stimulation"],
+  [5, "authenticity"], [6, "authenticity"],
+  [7, "benevolence"], [8, "benevolence"],
+  [9, "achievement"], [10, "achievement"],
+  [11, "security"], [12, "security"],
+];
+// Synthetic, internally consistent 1..6 answers producing a clearly ranked
+// spectrum (self_direction highest → security lowest). Scores derive from these.
+const VALUES_RESPONSES = {
+  1: 6, 2: 5,   // self_direction → mean 5.5 → 90
+  3: 4, 4: 4,   // stimulation    → mean 4.0 → 60
+  5: 5, 6: 5,   // authenticity   → mean 5.0 → 80
+  7: 5, 8: 4,   // benevolence    → mean 4.5 → 70
+  9: 4, 10: 3,  // achievement    → mean 3.5 → 50
+  11: 3, 12: 2, // security       → mean 2.5 → 30
+};
+
+function scoreValues(resp) {
+  const sums = {};
+  let answered = 0;
+  for (const [id, value] of VALUES_ITEM) {
+    const raw = resp[id];
+    if (typeof raw !== "number" || raw < 1 || raw > 6 || !Number.isFinite(raw)) continue;
+    answered += 1;
+    sums[value] = sums[value] || { sum: 0, count: 0 };
+    sums[value].sum += raw;
+    sums[value].count += 1;
+  }
+  const scores = Object.entries(sums)
+    .map(([value, { sum, count }]) => {
+      const mean = count > 0 ? sum / count : 0;
+      const score = count > 0 ? Math.round(((mean - 1) / 5) * 100) : 0;
+      return { value, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  const CEILING = 0.64, HARD_CAP = 0.7;
+  const confidence = Math.min(HARD_CAP, Math.round((answered / VALUES_ITEM.length) * CEILING * 100) / 100);
+  return { scores, confidence, answered };
+}
+
+const VALUE_LABEL_KO = {
+  self_direction: "자율성", stimulation: "새로움", authenticity: "진정성",
+  benevolence: "돌봄", achievement: "성취", security: "안정",
+};
+
+// ---------------------------------------------------------------------------
 async function api(path, init = {}, token = ANON_KEY) {
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     ...init,
@@ -293,9 +357,10 @@ async function main() {
   if (!token || !userId) throw new Error("Login succeeded but no access_token/user id in response");
   console.log(`Logged in as QA user ${userId}`);
 
-  // Snapshot the assessment seed count BEFORE, to prove it stays untouched.
-  const assessmentBefore = await countTag(userId, ASSESSMENT_TAG, token);
-  console.log(`Assessment seed (${ASSESSMENT_TAG}) rows before: ${assessmentBefore}`);
+  // Snapshot the BFI/ECR assessment seed count BEFORE, to prove it stays
+  // untouched by the domain + values seeding below.
+  const assessmentBefore = await countTag(userId, ASSESSMENT_PROOF_TAG, token);
+  console.log(`BFI/ECR assessment seed (tag ${ASSESSMENT_PROOF_TAG}) rows before: ${assessmentBefore}`);
 
   // 2. Idempotency: delete ONLY this user's previous qa_seed_domain rows.
   const delQuery = `user_id=eq.${userId}&tags=cs.%7B${SEED_TAG}%7D`;
@@ -380,9 +445,63 @@ async function main() {
     `(${new Date(minTs).toISOString().slice(0, 10)} .. ${new Date(maxTs).toISOString().slice(0, 10)})`);
   console.log(`created_at settable on insert: ${settable ? "YES (override honored)" : "NO (DB set its own now())"}`);
 
-  // 6. Prove the assessment seed is untouched.
-  const assessmentAfter = await countTag(userId, ASSESSMENT_TAG, token);
-  console.log(`\nAssessment seed (${ASSESSMENT_TAG}) rows after: ${assessmentAfter} ` +
+  // 6. Values self-report seed (7th block). Idempotency: delete ONLY rows that
+  //    carry BOTH "values" AND "qa_seed" — precise to this seed row (the bfi/ecr
+  //    assessment rows carry qa_seed but NOT values; domain rows carry neither),
+  //    so re-runs replace exactly one values row and never touch anything else.
+  const valuesDelQuery = `user_id=eq.${userId}&tags=cs.%7Bvalues,${ASSESSMENT_TAG}%7D`;
+  const valuesDeleted = await api(`/rest/v1/records?${valuesDelQuery}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=representation" },
+  }, token);
+  console.log(`\nRemoved ${Array.isArray(valuesDeleted) ? valuesDeleted.length : 0} previous values self-report row(s)`);
+
+  const values = scoreValues(VALUES_RESPONSES);
+  const valuesSummary = values.scores
+    .slice(0, 3)
+    .map((s) => `${VALUE_LABEL_KO[s.value] ?? s.value}: ${s.score}`)
+    .join("  ·  ");
+  const valuesRow = {
+    user_id: userId,
+    kind: "note", // no AI call — safe
+    body: JSON.stringify({
+      values_responses: VALUES_RESPONSES,
+      scores: values.scores,
+      confidence: values.confidence,
+    }),
+    topic: "가치 자기보고 · QA seed",
+    summary: valuesSummary,
+    conclusion: `자기보고 추정 (진단 아님) · ${CONCLUSION}`,
+    // qa_seed (not qa_seed_domain) so it lives with the other assessment seeds.
+    tags: ["values", "assessment", ASSESSMENT_TAG],
+    created_at: new Date().toISOString(),
+    prompt: null,
+    audit_period: null,
+    ai_followup: null,
+    structured: null,
+  };
+  const valuesInserted = await api("/rest/v1/records", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify([valuesRow]),
+  }, token);
+  const vId = Array.isArray(valuesInserted) && valuesInserted[0] ? valuesInserted[0].id : "(none)";
+  console.log(`Inserted values self-report ${vId}: confidence ${Math.round(values.confidence * 100)}% · ${valuesSummary}`);
+
+  // Verify the values row reads back via the same contains-filter the app uses.
+  const valuesVerify = await api(
+    `/rest/v1/records?user_id=eq.${userId}&tags=cs.%7Bvalues,assessment%7D&select=id,topic,tags,created_at&order=created_at.desc&limit=1`,
+    {},
+    token,
+  );
+  if (!Array.isArray(valuesVerify) || valuesVerify.length === 0) throw new Error("VERIFY FAILED: no values self-report row");
+  console.log(`VERIFY values: ${valuesVerify[0].id} · ${valuesVerify[0].topic}`);
+
+  // 7. Prove the Big Five / ECR assessment seed is untouched. Count the "bfi"
+  //    tag — the values row does NOT carry it, so this stays a clean, stable
+  //    proof that domain + values seeding never deletes the real assessment rows.
+  const assessmentAfter = await countTag(userId, ASSESSMENT_PROOF_TAG, token);
+  console.log(`\nBFI/ECR assessment seed (tag ${ASSESSMENT_PROOF_TAG}) rows after: ${assessmentAfter} ` +
     `(${assessmentAfter === assessmentBefore ? "UNCHANGED — not touched" : "CHANGED — investigate!"})`);
   console.log("Seed complete.");
 }

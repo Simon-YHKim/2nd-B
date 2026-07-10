@@ -18,7 +18,7 @@ import { useTranslation } from "react-i18next";
 
 export interface QuantIntroProps {
   /** Storage key used to remember "don't show again" preference. */
-  toolKey: "bfi" | "mbti" | "ecr" | "ipip" | "rlss";
+  toolKey: "bfi" | "mbti" | "ecr" | "ipip" | "rlss" | "values";
   title: string;
   itemCount: number;
   estimatedMinutes: number;
