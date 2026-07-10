@@ -395,7 +395,7 @@ export function ConstellationHome({
             accessibilityRole="button"
             accessibilityLabel={t("ds.home.headA11y")}
           >
-            <SecondbHead size={headSize} mood="positive" track />
+            <SecondbHead size={headSize} mood="neutral" track />
           </Pressable>
         </View>
         <View style={[styles.bubbleAnchor, { marginTop: -104 + headSize / 2 - 6 }]}>

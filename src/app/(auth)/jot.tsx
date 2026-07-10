@@ -80,7 +80,7 @@ export default function Jot() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <SecondbHead size={48} mood="positive" />
+            <SecondbHead size={48} mood="neutral" />
             <View style={styles.flex}>
               <Text variant="heading">{ko ? "한 줄 적어보기" : "Jot a line"}</Text>
               <Text variant="subtle" color="textMuted" style={styles.honest}>
