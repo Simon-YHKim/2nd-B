@@ -212,7 +212,10 @@
   },
   "insights": {
     "title": "Wawasan",
-    "status": "Minggu ini kamu menyimpan lebih banyak daripada minggu lalu.",
+    "statusUp": "Minggu ini kamu menyimpan lebih banyak daripada minggu lalu.",
+    "statusDown": "Minggu ini kamu menyimpan lebih sedikit daripada minggu lalu.",
+    "statusFlat": "Minggu ini kamu menyimpan kira-kira sama dengan minggu lalu.",
+    "statusFirstWeek": "Minggu pertamamu mulai terisi.",
     "tip": "Ketuk topik yang paling sering kamu simpan untuk melihat alurnya.",
     "sectionNow": "Kamu belakangan ini",
     "lead": "Dibanding minggu lalu, minggu ini kamu",
@@ -220,8 +223,12 @@
     "lastWeek": "Minggu lalu",
     "thisWeek": "Minggu ini",
     "delta": "▲ {{percent}}% lebih banyak tersimpan",
+    "deltaDown": "▼ {{percent}}% lebih sedikit tersimpan",
+    "deltaFlat": "Sama seperti minggu lalu",
     "sectionFinding": "Temuan utama minggu ini",
-    "finding": "Catatan tentang 'membuat sesuatu' melewati setengahnya. Arah yang sama dengan dirimu di masa depan."
+    "findingMajority": "{{percent}}% catatanmu minggu ini tentang {{domain}}.",
+    "findingSpread": "Tidak ada satu area pun yang mengisi lebih dari setengah catatanmu minggu ini.",
+    "findingEmpty": "Belum ada yang kamu simpan minggu ini."
   },
   "data": {
     "title": "Data saya",

@@ -212,7 +212,10 @@
   },
   "insights": {
     "title": "Percepções",
-    "status": "Esta semana você salvou mais do que na semana passada.",
+    "statusUp": "Esta semana você salvou mais do que na semana passada.",
+    "statusDown": "Esta semana você salvou menos do que na semana passada.",
+    "statusFlat": "Esta semana você salvou quase o mesmo que na semana passada.",
+    "statusFirstWeek": "Sua primeira semana está começando a encher.",
     "tip": "Toque no seu tema mais salvo para ver o fluxo.",
     "sectionNow": "Você ultimamente",
     "lead": "Comparado à semana passada, esta semana você",
@@ -220,8 +223,12 @@
     "lastWeek": "Semana passada",
     "thisWeek": "Esta semana",
     "delta": "▲ {{percent}}% mais salvo",
+    "deltaDown": "▼ {{percent}}% menos salvo",
+    "deltaFlat": "Igual à semana passada",
     "sectionFinding": "Descoberta principal da semana",
-    "finding": "Os registros sobre 'criar coisas' passaram da metade. A mesma direção do seu eu futuro."
+    "findingMajority": "{{percent}}% dos seus registros desta semana foram sobre {{domain}}.",
+    "findingSpread": "Nenhuma área ocupou mais da metade dos seus registros desta semana.",
+    "findingEmpty": "Você ainda não salvou nada esta semana."
   },
   "data": {
     "title": "Meus dados",

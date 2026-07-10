@@ -212,7 +212,10 @@
   },
   "insights": {
     "title": "Insights",
-    "status": "You saved more this week than last week.",
+    "statusUp": "You saved more this week than last week.",
+    "statusDown": "You saved less this week than last week.",
+    "statusFlat": "You saved about as much as last week.",
+    "statusFirstWeek": "Your first week is starting to fill in.",
     "tip": "Tap your most-saved topic to see the flow.",
     "sectionNow": "You lately",
     "lead": "Compared to last week, this week you",
@@ -220,8 +223,12 @@
     "lastWeek": "Last week",
     "thisWeek": "This week",
     "delta": "▲ {{percent}}% more saved",
+    "deltaDown": "▼ {{percent}}% less saved",
+    "deltaFlat": "Same as last week",
     "sectionFinding": "This week's key finding",
-    "finding": "Records about 'making things' passed the halfway mark. Same direction as your future self."
+    "findingMajority": "{{percent}}% of this week's records were about {{domain}}.",
+    "findingSpread": "No single area took up more than half of this week's records.",
+    "findingEmpty": "Nothing saved this week yet."
   },
   "data": {
     "title": "My data",

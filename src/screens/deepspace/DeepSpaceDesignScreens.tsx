@@ -117,7 +117,7 @@ import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
-import { summarizeWeeklyInsights } from "@/lib/insights/weekly";
+import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
   buildDeepResearchView,
@@ -802,6 +802,10 @@ export function DeepSpaceInsightsScreen() {
     () => (rows ? summarizeWeeklyInsights(rows) : null),
     [rows],
   );
+  const focus = useMemo(
+    () => (rows ? weeklyDomainFocus(rows) : null),
+    [rows],
+  );
 
   if (authLoading) {
     return <Shell title={t("insights.title")}><GraphLoading /></Shell>;
@@ -838,7 +842,7 @@ export function DeepSpaceInsightsScreen() {
   if (summary.isFirstWeek) {
     return (
       <Shell title={t("insights.title")}>
-        <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="neutral" />
+        <SecondbStatusHeader text={t("insights.statusFirstWeek")} tip={t("insights.tip")} mood="neutral" />
         <View style={styles.wikiPageOpen}>
           <Text variant="body" style={styles.wikiBody}>
             {ko
@@ -869,12 +873,34 @@ export function DeepSpaceInsightsScreen() {
     summary.direction === "up"
       ? t("insights.delta", { percent: summary.deltaPct })
       : summary.direction === "down"
-        ? (ko ? `▼ ${Math.abs(summary.deltaPct)}% 적게 저장` : `▼ ${Math.abs(summary.deltaPct)}% less saved`)
-        : (ko ? "지난주와 같은 양" : "Same as last week");
+        ? t("insights.deltaDown", { percent: Math.abs(summary.deltaPct) })
+        : t("insights.deltaFlat");
+
+  // The header restates the delta, so it has to move with it. It used to say "you saved
+  // more this week" on every branch, including the down week the bars right below it show.
+  const statusText =
+    summary.direction === "up"
+      ? t("insights.statusUp")
+      : summary.direction === "down"
+        ? t("insights.statusDown")
+        : t("insights.statusFlat");
+
+  // The finding card claimed a majority ("records about making things passed the halfway
+  // mark") that nothing ever computed. weeklyDomainFocus measures it, and says less when
+  // the counts support less. Domain names come from the constellation's own labels.
+  const findingText =
+    focus === null || focus.kind === "empty"
+      ? t("insights.findingEmpty")
+      : focus.kind === "majority"
+        ? t("insights.findingMajority", {
+            percent: focus.percent,
+            domain: t(`home:ds.home.domainName.${focus.domain}`),
+          })
+        : t("insights.findingSpread");
 
   return (
     <Shell title={t("insights.title")}>
-      <SecondbStatusHeader text={t("insights.status")} tip={t("insights.tip")} mood="neutral" />
+      <SecondbStatusHeader text={statusText} tip={t("insights.tip")} mood="neutral" />
       <Pressable
         onPress={() => router.push("/records")}
         style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
@@ -912,7 +938,7 @@ export function DeepSpaceInsightsScreen() {
       >
         <Card>
           <Text variant="heading" style={styles.section}>{t("insights.sectionFinding")}</Text>
-          <Text variant="body" style={styles.lead}>{t("insights.finding")}</Text>
+          <Text variant="body" style={styles.lead}>{findingText}</Text>
         </Card>
       </Pressable>
     </Shell>
