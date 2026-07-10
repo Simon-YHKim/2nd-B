@@ -48,9 +48,8 @@ export interface RewardedSheetProps {
 }
 
 export function RewardedSheet({ visible, onClose, remaining, onEarned, locale }: RewardedSheetProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const lang = locale ?? i18n.language ?? "ko";
-  const ko = lang.toLowerCase().startsWith("ko");
   const { height } = useWindowDimensions();
 
   // Slide-up: fade veil + rise from the bottom edge. NO bounce/elastic.
@@ -103,27 +102,21 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale }:
     }
   };
 
-  const C = ko
-    ? {
-        titleA: "30초만 보면 리즈닝 ",
-        titleB: `+${REWARD_PER_WATCH}회`,
-        sub: "광고를 보고 이번 주 자기이해 횟수를 채워요.\n답의 질은 그대로예요.",
-        remaining: "남은 횟수",
-        afterLabel: `+${REWARD_PER_WATCH}회 후`,
-        cta: `광고 보고 +${REWARD_PER_WATCH}회 받기`,
-        later: "나중에",
-        privacy: "성인·동의 시에만 · 민감한 화면에선 안 보여요",
-      }
-    : {
-        titleA: "Watch 30s, get ",
-        titleB: `+${REWARD_PER_WATCH}`,
-        sub: "Watch an ad to top up this week's self-understanding count.\nThe quality of answers stays the same.",
-        remaining: "left",
-        afterLabel: `after +${REWARD_PER_WATCH}`,
-        cta: `Watch and get +${REWARD_PER_WATCH}`,
-        later: "Later",
-        privacy: "Adults with consent only · never on sensitive screens",
-      };
+  // Sheet copy is i18n'd (ds.reward.*) across all 5 locales — previously a
+  // ko/en ternary that fell back to English for es/pt/id on the free top-up flow.
+  // { lng: lang } preserves the optional locale-override prop; {{n}} interpolates
+  // the real reward count so it can never drift from REWARD_PER_WATCH.
+  const n = REWARD_PER_WATCH;
+  const C = {
+    titleA: t("ds.reward.titleA", { lng: lang }),
+    titleB: t("ds.reward.titleCount", { lng: lang, n }),
+    sub: t("ds.reward.sub", { lng: lang }),
+    remaining: t("ds.reward.remaining", { lng: lang }),
+    afterLabel: t("ds.reward.afterLabel", { lng: lang, n }),
+    cta: t("ds.reward.cta", { lng: lang, n }),
+    later: t("ds.reward.later", { lng: lang }),
+    privacy: t("ds.reward.privacy", { lng: lang }),
+  };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
