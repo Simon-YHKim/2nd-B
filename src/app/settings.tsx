@@ -742,7 +742,7 @@ export default function Settings() {
           // O-R2 (2) language-pack infra: first in-app language switch for
           // signed-in users (auth screens had a toggle, settings had none).
           // Renders from AVAILABLE_UI_LOCALES - options appear as packs ship.
-          title={t("language")}
+          title={t("language.title")}
           expanded={openDisclosures.language}
           onToggle={() => toggleDisclosure("language")}
         >

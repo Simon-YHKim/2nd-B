@@ -17,7 +17,15 @@
     "support": "지원",
     "supportHint": "지원 옵션 화면으로 이동합니다."
   },
-  "language": "언어",
+  "language": {
+    "title": "언어",
+    "body": "앱 화면에 쓰는 언어예요. 담은 기록의 내용은 바뀌지 않아요.",
+    "betaTag": "(베타)",
+    "optionA11yLabel": "{{label}}, {{total}}개 중 {{index}}번째, {{state}}",
+    "stateSelected": "선택됨",
+    "stateAvailable": "선택 가능",
+    "useLanguageHint": "앱 언어를 {{label}}(으)로 바꿔요"
+  },
   "actions": {
     "signOutHint": "로그아웃한 뒤 로그인 화면으로 돌아갑니다.",
     "crewDensityHint": "장식 그래프 크루 밀도를 {{density}}로 설정합니다.",
