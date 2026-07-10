@@ -381,6 +381,81 @@ const STRENGTH_LABEL_KO = {
 };
 
 // ---------------------------------------------------------------------------
+// MOTIVATION self-report seed (9th block). Mirrors src/lib/persona/motivation-survey.ts:
+// 9 items — 2 per SDT need (autonomy/competence/relatedness) + 3 extrinsic — 6-point
+// Likert (1..6), all positively keyed. Per SDT need = mean of its 2 items normalized
+// (mean-1)/5*100 → 0-100. intrinsicRaw = scaled mean of the 6 need items; extrinsicRaw
+// = scaled mean of the 3 extrinsic items; intrinsicPct = round(intrinsicRaw/(sum)*100)
+// (→50 if both zero), extrinsicPct = 100 - intrinsicPct. Confidence = answered-fraction
+// × 0.64, capped 0.7 (honest sub-max, NOT 100%). Plain .mjs can't import the TS module,
+// so the item→key map and scorer are replicated here EXACTLY.
+//
+// HONESTY: intrinsicPct/extrinsicPct and need scores are COMPUTED from the synthetic
+// responses below with the app's exact rule — never hardcoded, never the reference
+// prototype's example numbers (내적 68 / 외적 32). The row is tagged qa_seed so it lives
+// with the other assessment seeds (bfi/ecr/values/strengths), and labeled clearly
+// synthetic in topic/conclusion.
+const MOTIVATION_ITEM = [
+  [1, "autonomy"], [2, "autonomy"],
+  [3, "competence"], [4, "competence"],
+  [5, "relatedness"], [6, "relatedness"],
+  [7, "extrinsic"], [8, "extrinsic"], [9, "extrinsic"],
+];
+const MOTIVATION_NEED_KEYS = ["autonomy", "competence", "relatedness"];
+// Synthetic, internally consistent 1..6 answers producing an intrinsic-leaning
+// balance and a clearly ranked need spectrum (autonomy highest → relatedness lowest).
+// Scores derive from these; nothing is hardcoded.
+const MOTIVATION_RESPONSES = {
+  1: 6, 2: 5,       // autonomy    → mean 5.5 → 90
+  3: 5, 4: 5,       // competence  → mean 5.0 → 80
+  5: 5, 6: 4,       // relatedness → mean 4.5 → 70
+  7: 3, 8: 3, 9: 2, // extrinsic   → mean ~2.67
+};
+
+function scoreMotivation(resp) {
+  const sums = {};
+  let answered = 0;
+  for (const [id, key] of MOTIVATION_ITEM) {
+    const raw = resp[id];
+    if (typeof raw !== "number" || raw < 1 || raw > 6 || !Number.isFinite(raw)) continue;
+    answered += 1;
+    sums[key] = sums[key] || { sum: 0, count: 0 };
+    sums[key].sum += raw;
+    sums[key].count += 1;
+  }
+  const needs = MOTIVATION_NEED_KEYS.map((key) => {
+    const s = sums[key] || { sum: 0, count: 0 };
+    const mean = s.count > 0 ? s.sum / s.count : 0;
+    const score = s.count > 0 ? Math.round(((mean - 1) / 5) * 100) : 0;
+    return { key, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const intr = MOTIVATION_NEED_KEYS.reduce(
+    (acc, key) => {
+      const s = sums[key] || { sum: 0, count: 0 };
+      acc.sum += s.sum; acc.count += s.count; return acc;
+    },
+    { sum: 0, count: 0 },
+  );
+  const intrinsicMean = intr.count > 0 ? intr.sum / intr.count : 0;
+  const intrinsicRaw = intr.count > 0 ? ((intrinsicMean - 1) / 5) * 100 : 0;
+  const ext = sums.extrinsic || { sum: 0, count: 0 };
+  const extMean = ext.count > 0 ? ext.sum / ext.count : 0;
+  const extrinsicRaw = ext.count > 0 ? ((extMean - 1) / 5) * 100 : 0;
+  const denom = intrinsicRaw + extrinsicRaw;
+  const intrinsicPct = denom > 0 ? Math.round((intrinsicRaw / denom) * 100) : 50;
+  const extrinsicPct = 100 - intrinsicPct;
+
+  const CEILING = 0.64, HARD_CAP = 0.7;
+  const confidence = Math.min(HARD_CAP, Math.round((answered / MOTIVATION_ITEM.length) * CEILING * 100) / 100);
+  return { needs, intrinsicPct, extrinsicPct, confidence, answered };
+}
+
+const MOTIVATION_LABEL_KO = {
+  autonomy: "자율성", competence: "유능감", relatedness: "관계성", extrinsic: "외적 동기",
+};
+
+// ---------------------------------------------------------------------------
 async function api(path, init = {}, token = ANON_KEY) {
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     ...init,
@@ -605,6 +680,61 @@ async function main() {
   );
   if (!Array.isArray(strengthsVerify) || strengthsVerify.length === 0) throw new Error("VERIFY FAILED: no strengths self-report row");
   console.log(`VERIFY strengths: ${strengthsVerify[0].id} · ${strengthsVerify[0].topic}`);
+
+  // 6c. Motivation self-report seed (9th block). Idempotency: delete ONLY rows
+  //     carrying BOTH "motivation" AND "qa_seed" — precise to this seed row (the
+  //     bfi/ecr/values/strengths assessment rows carry qa_seed but NOT motivation;
+  //     domain rows carry neither), so re-runs replace exactly one motivation row
+  //     and never touch anything else.
+  const motivationDelQuery = `user_id=eq.${userId}&tags=cs.%7Bmotivation,${ASSESSMENT_TAG}%7D`;
+  const motivationDeleted = await api(`/rest/v1/records?${motivationDelQuery}`, {
+    method: "DELETE",
+    headers: { Prefer: "return=representation" },
+  }, token);
+  console.log(`\nRemoved ${Array.isArray(motivationDeleted) ? motivationDeleted.length : 0} previous motivation self-report row(s)`);
+
+  const motivation = scoreMotivation(MOTIVATION_RESPONSES);
+  const topNeed = motivation.needs[0];
+  const motivationSummary =
+    `내적 ${motivation.intrinsicPct}%  ·  외적 ${motivation.extrinsicPct}%` +
+    (topNeed ? `  ·  ${MOTIVATION_LABEL_KO[topNeed.key] ?? topNeed.key}: ${topNeed.score}` : "");
+  const motivationRow = {
+    user_id: userId,
+    kind: "note", // no AI call — safe
+    body: JSON.stringify({
+      motivation_responses: MOTIVATION_RESPONSES,
+      needs: motivation.needs,
+      intrinsicPct: motivation.intrinsicPct,
+      extrinsicPct: motivation.extrinsicPct,
+      confidence: motivation.confidence,
+    }),
+    topic: "동기 자기보고 · QA seed",
+    summary: motivationSummary,
+    conclusion: `자기보고 추정 (진단 아님) · ${CONCLUSION}`,
+    // qa_seed (not qa_seed_domain) so it lives with the other assessment seeds.
+    tags: ["motivation", "assessment", ASSESSMENT_TAG],
+    created_at: new Date().toISOString(),
+    prompt: null,
+    audit_period: null,
+    ai_followup: null,
+    structured: null,
+  };
+  const motivationInserted = await api("/rest/v1/records", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify([motivationRow]),
+  }, token);
+  const mId = Array.isArray(motivationInserted) && motivationInserted[0] ? motivationInserted[0].id : "(none)";
+  console.log(`Inserted motivation self-report ${mId}: confidence ${Math.round(motivation.confidence * 100)}% · ${motivationSummary}`);
+
+  // Verify the motivation row reads back via the same contains-filter the app uses.
+  const motivationVerify = await api(
+    `/rest/v1/records?user_id=eq.${userId}&tags=cs.%7Bmotivation,assessment%7D&select=id,topic,tags,created_at&order=created_at.desc&limit=1`,
+    {},
+    token,
+  );
+  if (!Array.isArray(motivationVerify) || motivationVerify.length === 0) throw new Error("VERIFY FAILED: no motivation self-report row");
+  console.log(`VERIFY motivation: ${motivationVerify[0].id} · ${motivationVerify[0].topic}`);
 
   // 7. Prove the Big Five / ECR assessment seed is untouched. Count the "bfi"
   //    tag — the values row does NOT carry it, so this stays a clean, stable

@@ -31,9 +31,10 @@ import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
-import type { LoadedValues, LoadedStrengths } from "@/lib/persona/build";
+import type { LoadedValues, LoadedStrengths, LoadedMotivation } from "@/lib/persona/build";
 import { VALUE_ROW_KEY, type ValueId } from "@/lib/persona/values-survey";
 import { STRENGTH_ROW_KEY, type StrengthId } from "@/lib/persona/strengths-survey";
+import { MOTIVATION_ROW_KEY, type MotivationNeedKey } from "@/lib/persona/motivation-survey";
 
 // Material-symbol stroke idiom (2dp currentColor, round caps), matching the
 // shell's CaptureIcon set. Only the glyphs the strengths lens needs are kept
@@ -133,6 +134,94 @@ function ValuesPopulated({ result }: { result: LoadedValues }) {
   );
 }
 
+// Populated 동기 body — the reference MotivationScreen layout (sb-surfaces.jsx),
+// but driven ONLY by the user's real motivation self-report (never the prototype's
+// example 내적 68% / 외적 32% numbers). Renders the INTRINSIC↔EXTRINSIC balance bar
+// with the ACTUAL intrinsicPct/extrinsicPct, a 3-bar SDT-need spectrum
+// (autonomy/competence/relatedness), and a 세컨비 insight grounded in whichever side
+// (intrinsic/extrinsic) is higher plus the top need. Confidence is shown next to the
+// headline (honest, sub-max). Scoring/labels: motivation-survey.ts.
+function MotivationPopulated({ result }: { result: LoadedMotivation }) {
+  const { t, i18n } = useTranslation("home");
+  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+
+  const rowKey = (k: MotivationNeedKey) => MOTIVATION_ROW_KEY[k] ?? k;
+  const name = (k: MotivationNeedKey) => t(`ds.axisCheck.motivation.rows.${rowKey(k)}.name`);
+  const note = (k: MotivationNeedKey) => t(`ds.axisCheck.motivation.rows.${rowKey(k)}.note`);
+
+  const needs = [...result.needs].sort((a, b) => b.score - a.score);
+  const topNeedName = name(needs[0].key);
+  const intrinsicHigher = result.intrinsicPct >= result.extrinsicPct;
+
+  // Balance-bar labels built from the user's REAL percentages — NEVER the i18n
+  // example strings (내적 68% / 외적 32%), which are prototype placeholders.
+  const intrinsicLabel = locale === "ko" ? `내적 ${result.intrinsicPct}%` : `Intrinsic ${result.intrinsicPct}%`;
+  const extrinsicLabel = locale === "ko" ? `외적 ${result.extrinsicPct}%` : `Extrinsic ${result.extrinsicPct}%`;
+
+  // Balance note + insight grounded in which side is actually higher and which
+  // need is top — framed as an estimate that can shift, never a verdict and never
+  // the reference's hardcoded 자율성 claim.
+  const balanceNote =
+    locale === "ko"
+      ? intrinsicHigher
+        ? "지금은 '하고 싶어서' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요."
+        : "지금은 '보상·평가' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요."
+      : intrinsicHigher
+        ? "Right now the 'because I want to' side is a bit larger. This is an estimate from the self-report you just answered."
+        : "Right now the 'reward/recognition' side is a bit larger. This is an estimate from the self-report you just answered.";
+  const insight =
+    locale === "ko"
+      ? `${intrinsicHigher ? "내적 동기" : "외적 동기"}가 조금 더 크게 나왔고, 세 욕구 중에서는 ${topNeedName} 쪽이 가장 높아요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`
+      : `${intrinsicHigher ? "Intrinsic" : "Extrinsic"} motivation comes out a bit higher, and among the three needs ${topNeedName} is highest. This is an estimate from the self-report you just answered, and it can shift over time.`;
+
+  return (
+    <>
+      {/* ── 내적 ↔ 외적 balance bar (real percentages) ───────────────── */}
+      <MdCard variant="outlined" style={styles.balanceCard}>
+        <Text style={[m3TextStyle("labelLarge"), styles.balanceTitle]}>
+          {t("ds.axisCheck.motivation.balanceTitle")}
+        </Text>
+        <View style={styles.balanceBar}>
+          <View style={[styles.balanceIntrinsic, { flex: Math.max(result.intrinsicPct, 0) }]}>
+            <Text style={styles.balanceIntrinsicText} numberOfLines={1}>{intrinsicLabel}</Text>
+          </View>
+          <View style={[styles.balanceExtrinsic, { flex: Math.max(result.extrinsicPct, 0) }]}>
+            <Text style={styles.balanceExtrinsicText} numberOfLines={1}>{extrinsicLabel}</Text>
+          </View>
+        </View>
+        <Text style={[m3TextStyle("bodySmall"), styles.balanceNote]}>{balanceNote}</Text>
+      </MdCard>
+
+      {/* ── 세 가지 욕구 · 자기결정성 — 3 SDT-need bars ─────────────── */}
+      <Text style={[m3TextStyle("titleSmall"), styles.sectionLabel]}>
+        {t("ds.axisCheck.motivation.spectrum")}
+      </Text>
+      <View style={styles.spectrum}>
+        {needs.map((n) => (
+          <View key={n.key} style={styles.specRow}>
+            <View style={styles.specHead}>
+              <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name(n.key)}</Text>
+              <Text style={[m3TextStyle("labelMedium"), styles.specMono]}>{n.score}</Text>
+            </View>
+            <ProgressLinear
+              value={Math.max(0, Math.min(1, n.score / 100))}
+              color={m3.color.tertiary}
+              accessibilityLabel={`${name(n.key)} ${n.score}`}
+            />
+            <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note(n.key)}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── 세컨비 insight (grounded in the real balance + top need) ── */}
+      <View style={styles.insightCard}>
+        <SecondbHead size={30} track={false} />
+        <Text style={[m3TextStyle("bodyMedium"), styles.insightText]}>{insight}</Text>
+      </View>
+    </>
+  );
+}
+
 // Populated 강점 body — mirrors ValuesPopulated (sb-surfaces.jsx StrengthsScreen),
 // driven ONLY by the user's real strengths self-report (never the prototype's
 // example numbers). Renders the SIGNATURE strengths top-3 highlight, the 5-bar 강점
@@ -206,28 +295,35 @@ function AxisLens({
   axis,
   valuesResult,
   strengthsResult,
+  motivationResult,
 }: {
   axis: AxisCheckId;
   valuesResult?: LoadedValues | null;
   strengthsResult?: LoadedStrengths | null;
+  motivationResult?: LoadedMotivation | null;
 }) {
   const { t, i18n } = useTranslation("home");
   const act = ACTIONS[axis];
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
 
-  // Populated only when THIS axis has a real self-report result in hand (>=3
-  // scores for the top-3 card): values → ValuesPopulated, strengths →
-  // StrengthsPopulated. Otherwise the honest not-measured state stands in for the
-  // reference's example scores (see file header).
+  // Populated only when THIS axis has a real self-report result in hand: values →
+  // ValuesPopulated (>=3 scores for the top-3 card), strengths → StrengthsPopulated
+  // (>=3), motivation → MotivationPopulated (>=1 SDT need + a balance split).
+  // Otherwise the honest not-measured state stands in for the reference's example
+  // scores (see file header).
   const valuesPopulated = axis === "values" && !!valuesResult && valuesResult.scores.length >= 3;
   const strengthsPopulated = axis === "strengths" && !!strengthsResult && strengthsResult.scores.length >= 3;
-  const populated = valuesPopulated || strengthsPopulated;
+  const motivationPopulated =
+    axis === "motivation" && !!motivationResult && motivationResult.needs.length >= 1;
+  const populated = valuesPopulated || strengthsPopulated || motivationPopulated;
   const activeConfidence = valuesPopulated
     ? valuesResult!.confidence
     : strengthsPopulated
       ? strengthsResult!.confidence
-      : 0;
+      : motivationPopulated
+        ? motivationResult!.confidence
+        : 0;
   const confPct = populated ? Math.round(activeConfidence * 100) : 0;
 
   return (
@@ -244,6 +340,8 @@ function AxisLens({
 
       {valuesPopulated ? (
         <ValuesPopulated result={valuesResult as LoadedValues} />
+      ) : motivationPopulated ? (
+        <MotivationPopulated result={motivationResult as LoadedMotivation} />
       ) : strengthsPopulated ? (
         <StrengthsPopulated result={strengthsResult as LoadedStrengths} />
       ) : (
@@ -284,6 +382,7 @@ export function AxisCheckScreen({
   axis,
   valuesResult,
   strengthsResult,
+  motivationResult,
 }: {
   axis: AxisCheckId;
   /** Real values self-report result — when present (and axis is "values"),
@@ -292,6 +391,9 @@ export function AxisCheckScreen({
   /** Real strengths self-report result — when present (and axis is "strengths"),
    *  AxisLens renders the populated layout instead of the not-measured state. */
   strengthsResult?: LoadedStrengths | null;
+  /** Real motivation self-report result — when present (and axis is "motivation"),
+   *  AxisLens renders the populated balance + SDT-need layout. */
+  motivationResult?: LoadedMotivation | null;
 }) {
   const { t } = useTranslation("home");
   // Bar title reuses the axis body's headline key so es/pt/id localize too.
@@ -299,7 +401,12 @@ export function AxisCheckScreen({
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
-      <AxisLens axis={axis} valuesResult={valuesResult} strengthsResult={strengthsResult} />
+      <AxisLens
+        axis={axis}
+        valuesResult={valuesResult}
+        strengthsResult={strengthsResult}
+        motivationResult={motivationResult}
+      />
     </DeepSpaceScreen>
   );
 }
