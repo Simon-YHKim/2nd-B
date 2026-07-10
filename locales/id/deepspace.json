@@ -597,6 +597,41 @@
       "fillStarBody": "Tambahkan informasi untuk domain ini.",
       "secondbLinked": "Serpihan ini terhubung dengan bintang '{{star}}' kamu. {{n}} catatan serupa berada di rentang waktu yang sama.",
       "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera."
+    },
+    "inbox": {
+      "title": "Notifikasi",
+      "empty": "Belum ada notifikasi - akan muncul di sini saat kamu menyimpan dan mengatur."
+    },
+    "import": {
+      "title": "Impor",
+      "consentSourceLabel": "Data sumber",
+      "consentSourceNote": "Hanya membaca file dan akun yang kamu unggah",
+      "consentDeviceLabel": "Pemrosesan di perangkat",
+      "consentDeviceNote": "Penguraian dan peringkasan terjadi lebih dulu di perangkatmu",
+      "consentRevocableLabel": "Dapat dicabut",
+      "consentRevocableNote": "Kamu bisa menghapus seluruh data yang diimpor kapan saja",
+      "providerGoogleCalendar": "Google Kalender",
+      "providerAppleHealth": "Apple Kesehatan",
+      "healthCtaMinorLocked": "Terkunci (di bawah umur)",
+      "healthCtaSyncing": "Menyinkronkan",
+      "healthCtaReflected": "Diterapkan",
+      "healthCtaReflectToday": "Terapkan hari ini",
+      "healthCtaConnect": "Hubungkan",
+      "leadStart": "Kumpulkan bagian dirimu yang tersebar. Bahkan yang diimpor pun tercermin ",
+      "leadStrong": "hanya sesuai bobotmu sendiri",
+      "leadEnd": " ke dalam bintang-bintang.",
+      "toggleFile": "Lewat file",
+      "toggleAccount": "Hubungkan akun",
+      "sectionChooseFile": "Pilih file",
+      "sectionAccounts": "Akun untuk dihubungkan",
+      "dropTitle": "Letakkan file di sini atau pilih satu",
+      "btnOpening": "Membuka",
+      "btnImporting": "Mengimpor",
+      "btnChooseFile": "Pilih file",
+      "accountImportFile": "Impor file",
+      "consentTitle": "Sebelum mengimpor",
+      "historyTitle": "Riwayat impor",
+      "revoke": "Cabut"
     }
   }
 }
