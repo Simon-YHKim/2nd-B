@@ -12,6 +12,7 @@
 
 import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import type { ValueId } from "./values-survey";
+import type { StrengthId } from "./strengths-survey";
 import { callGemini } from "../llm/gemini";
 import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
@@ -317,6 +318,55 @@ export async function loadLatestValues(
           !!s && typeof s.value === "string" && typeof s.score === "number" && Number.isFinite(s.score),
       )
       .map((s) => ({ value: s.value, score: s.score }));
+    if (scores.length === 0) return null;
+    // Newest-first already, but the writer sorts descending too — re-sort so a
+    // hand-edited or legacy row can't render an out-of-order spectrum.
+    scores.sort((a, b) => b.score - a.score);
+    const confidence =
+      typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+        ? parsed.confidence
+        : 0;
+    return { scores, confidence };
+  } catch {
+    return null;
+  }
+}
+
+export interface LoadedStrengths {
+  /** Per-strength 0-100 scores, sorted descending (highest first). */
+  scores: { strength: StrengthId; score: number }[];
+  /** 0..1 honest confidence stored with the self-report. */
+  confidence: number;
+}
+
+export async function loadLatestStrengths(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  userId: string,
+): Promise<LoadedStrengths | null> {
+  // Strengths self-report (strengths-survey.ts). The /strengths survey writes a
+  // record tagged ["strengths", "assessment"] whose body carries {
+  // strengths_responses, scores, confidence }. Mirrors loadLatestValues: newest
+  // row, JSON.parse(body).
+  const { data, error } = await supabase
+    .from("records")
+    .select("body, created_at")
+    .eq("user_id", userId)
+    .contains("tags", ["strengths", "assessment"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+  try {
+    const parsed = JSON.parse((data[0] as { body: string }).body) as {
+      scores?: { strength?: string; score?: number }[];
+      confidence?: number;
+    };
+    if (!Array.isArray(parsed.scores) || parsed.scores.length === 0) return null;
+    const scores = parsed.scores
+      .filter(
+        (s): s is { strength: StrengthId; score: number } =>
+          !!s && typeof s.strength === "string" && typeof s.score === "number" && Number.isFinite(s.score),
+      )
+      .map((s) => ({ strength: s.strength, score: s.score }));
     if (scores.length === 0) return null;
     // Newest-first already, but the writer sorts descending too — re-sort so a
     // hand-edited or legacy row can't render an out-of-order spectrum.

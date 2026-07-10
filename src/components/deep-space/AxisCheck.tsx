@@ -31,8 +31,9 @@ import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
-import type { LoadedValues } from "@/lib/persona/build";
+import type { LoadedValues, LoadedStrengths } from "@/lib/persona/build";
 import { VALUE_ROW_KEY, type ValueId } from "@/lib/persona/values-survey";
+import { STRENGTH_ROW_KEY, type StrengthId } from "@/lib/persona/strengths-survey";
 
 // Material-symbol stroke idiom (2dp currentColor, round caps), matching the
 // shell's CaptureIcon set. Only the glyphs the strengths lens needs are kept
@@ -132,17 +133,102 @@ function ValuesPopulated({ result }: { result: LoadedValues }) {
   );
 }
 
-function AxisLens({ axis, valuesResult }: { axis: AxisCheckId; valuesResult?: LoadedValues | null }) {
+// Populated 강점 body — mirrors ValuesPopulated (sb-surfaces.jsx StrengthsScreen),
+// driven ONLY by the user's real strengths self-report (never the prototype's
+// example numbers). Renders the SIGNATURE strengths top-3 highlight, the 5-bar 강점
+// 스펙트럼, and a 세컨비 insight generated from the ACTUAL top strength. Confidence
+// is shown next to the headline (honest, sub-max). Scoring/labels: strengths-survey.ts.
+function StrengthsPopulated({ result }: { result: LoadedStrengths }) {
+  const { t, i18n } = useTranslation("home");
+  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+
+  const rowKey = (s: StrengthId) => STRENGTH_ROW_KEY[s] ?? s;
+  const name = (s: StrengthId) => t(`ds.axisCheck.strengths.rows.${rowKey(s)}.name`);
+  const note = (s: StrengthId) => t(`ds.axisCheck.strengths.rows.${rowKey(s)}.note`);
+
+  const sorted = [...result.scores].sort((a, b) => b.score - a.score);
+  const top3 = sorted.slice(0, 3);
+  const topName = name(sorted[0].strength);
+  // Honest insight — grounded in the user's actual highest self-report strength,
+  // framed as an estimate that can shift, never a verdict or a claim that records
+  // "prove" it (the reference's hardcoded 호기심 line is not reused).
+  const insight =
+    locale === "ko"
+      ? `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`
+      : `Right now ${topName} comes out highest. This is an estimate from the self-report you just answered, and it can shift over time.`;
+
+  return (
+    <>
+      {/* ── SIGNATURE strengths top-3 highlight ─────────────────────── */}
+      <View style={styles.coreCard}>
+        <Text style={styles.coreLabel}>{t("ds.axisCheck.strengths.coreLabel")}</Text>
+        <View style={styles.coreRow}>
+          {top3.map((s, i) => (
+            <View key={s.strength} style={[styles.coreCell, i === 0 && styles.coreCellFirst]}>
+              <Text style={[styles.coreRank, i === 0 && styles.coreRankFirst]}>{i + 1}</Text>
+              <Text style={[styles.coreName, i === 0 && styles.coreNameFirst]}>{name(s.strength)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* ── 강점 스펙트럼 — 5 ranked bars ──────────────────────────── */}
+      <Text style={[m3TextStyle("titleSmall"), styles.sectionLabel]}>
+        {t("ds.axisCheck.strengths.spectrum")}
+      </Text>
+      <View style={styles.spectrum}>
+        {sorted.map((s) => (
+          <View key={s.strength} style={styles.specRow}>
+            <View style={styles.specHead}>
+              <Text style={[m3TextStyle("bodyMedium"), styles.specName]}>{name(s.strength)}</Text>
+              <Text style={[m3TextStyle("labelMedium"), styles.specMono]}>{s.score}</Text>
+            </View>
+            <ProgressLinear
+              value={Math.max(0, Math.min(1, s.score / 100))}
+              color={m3.color.tertiary}
+              accessibilityLabel={`${name(s.strength)} ${s.score}`}
+            />
+            <Text style={[m3TextStyle("bodySmall"), styles.specNote]}>{note(s.strength)}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── 세컨비 insight (grounded in the real top strength) ──────── */}
+      <View style={styles.insightCard}>
+        <SecondbHead size={30} track={false} />
+        <Text style={[m3TextStyle("bodyMedium"), styles.insightText]}>{insight}</Text>
+      </View>
+    </>
+  );
+}
+
+function AxisLens({
+  axis,
+  valuesResult,
+  strengthsResult,
+}: {
+  axis: AxisCheckId;
+  valuesResult?: LoadedValues | null;
+  strengthsResult?: LoadedStrengths | null;
+}) {
   const { t, i18n } = useTranslation("home");
   const act = ACTIONS[axis];
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
   const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
 
-  // Populated only when THIS axis is values AND a real self-report result is in
-  // hand (>=3 scores for the top-3 card). Otherwise the honest not-measured
-  // state stands in for the reference's example scores (see file header).
-  const populated = axis === "values" && !!valuesResult && valuesResult.scores.length >= 3;
-  const confPct = populated ? Math.round((valuesResult as LoadedValues).confidence * 100) : 0;
+  // Populated only when THIS axis has a real self-report result in hand (>=3
+  // scores for the top-3 card): values → ValuesPopulated, strengths →
+  // StrengthsPopulated. Otherwise the honest not-measured state stands in for the
+  // reference's example scores (see file header).
+  const valuesPopulated = axis === "values" && !!valuesResult && valuesResult.scores.length >= 3;
+  const strengthsPopulated = axis === "strengths" && !!strengthsResult && strengthsResult.scores.length >= 3;
+  const populated = valuesPopulated || strengthsPopulated;
+  const activeConfidence = valuesPopulated
+    ? valuesResult!.confidence
+    : strengthsPopulated
+      ? strengthsResult!.confidence
+      : 0;
+  const confPct = populated ? Math.round(activeConfidence * 100) : 0;
 
   return (
     <ScrollView contentContainerStyle={styles.body}>
@@ -156,8 +242,10 @@ function AxisLens({ axis, valuesResult }: { axis: AxisCheckId; valuesResult?: Lo
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.subtitle]}>{k("subtitle")}</Text>
 
-      {populated ? (
+      {valuesPopulated ? (
         <ValuesPopulated result={valuesResult as LoadedValues} />
+      ) : strengthsPopulated ? (
+        <StrengthsPopulated result={strengthsResult as LoadedStrengths} />
       ) : (
         <MdCard variant="outlined" style={styles.emptyCard}>
           <SecondbHead size={30} track={false} />
@@ -195,11 +283,15 @@ function AxisLens({ axis, valuesResult }: { axis: AxisCheckId; valuesResult?: Lo
 export function AxisCheckScreen({
   axis,
   valuesResult,
+  strengthsResult,
 }: {
   axis: AxisCheckId;
   /** Real values self-report result — when present (and axis is "values"),
    *  AxisLens renders the populated layout instead of the not-measured state. */
   valuesResult?: LoadedValues | null;
+  /** Real strengths self-report result — when present (and axis is "strengths"),
+   *  AxisLens renders the populated layout instead of the not-measured state. */
+  strengthsResult?: LoadedStrengths | null;
 }) {
   const { t } = useTranslation("home");
   // Bar title reuses the axis body's headline key so es/pt/id localize too.
@@ -207,7 +299,7 @@ export function AxisCheckScreen({
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
-      <AxisLens axis={axis} valuesResult={valuesResult} />
+      <AxisLens axis={axis} valuesResult={valuesResult} strengthsResult={strengthsResult} />
     </DeepSpaceScreen>
   );
 }
