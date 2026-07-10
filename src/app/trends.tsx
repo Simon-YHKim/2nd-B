@@ -10,8 +10,13 @@
 // canon/mock-as-real anti-pattern). Only reachable via the dev flow map
 // (/deepspace-flowmap). Keep as clone-fidelity reference until a real-data
 // rising-interest surface exists.
+import { DevOnlyRoute } from "@/components/ui/DevOnlyRoute";
 import { TrendsScreen } from "@/screens/deepspace/trends/TrendsScreen";
 
 export default function Trends() {
-  return <TrendsScreen />;
+  return (
+    <DevOnlyRoute>
+      <TrendsScreen />
+    </DevOnlyRoute>
+  );
 }

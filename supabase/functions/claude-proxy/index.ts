@@ -258,6 +258,28 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
+  // (default off) — enable once legal finalizes the consent copy/versions. When
+  // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
+  // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
+  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
+    let consentOk = false;
+    try {
+      const { data: consentRow, error: consentErr } = await supabaseAdmin
+        .from('consent_records')
+        .select('llm_processing_ack, overseas_transfer_ack')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      consentOk = !consentErr && !!consentRow &&
+        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
+    } catch (_e) {
+      consentOk = false;
+    }
+    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
+  }
+
   const claudeModel = resolveModel(purpose);
   const clampedEffort = effortToAnthropic(effort, purpose);
   // D-27: sign with the (model × effort) combo key when provisioned, else base

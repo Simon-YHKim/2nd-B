@@ -20,9 +20,13 @@
  *     ALL tiers — most importantly Free, so the free experience can partly
  *     self-fund without ever feeling degraded.
  *
- * Pure module: no I/O, no React, no external dependencies. Every export is a
- * value or a deterministic function of its arguments.
+ * Pure module: no I/O, no React, no npm dependencies. Prices are derived from
+ * the single pricing SoT (progression/pricing.ts) so this table can never drift
+ * from what enforcement actually charges. Every export is a value or a
+ * deterministic function of its arguments.
  */
+
+import { TIER_PRICING } from '../progression/pricing';
 
 export type Tier = 'free' | 'plus' | 'pro';
 
@@ -74,11 +78,17 @@ export const TIERS: Record<Tier, TierLimits> = {
   },
 };
 
-/** Monthly price per tier in KRW (₩). free is always 0. */
+/**
+ * Monthly price per tier in KRW (₩). free is always 0. Derived from the pricing
+ * SoT via the FIXED label mapping (see entitlements/reasoning-cap.ts):
+ *   plus = 항해자 = Voyager   = cortex
+ *   pro  = 북극성 = North Star = brain
+ * so a wrong price can only be introduced in one place (pricing.ts). (audit M2, D3)
+ */
 export const TIER_PRICE_KRW: Record<Tier, number> = {
   free: 0,
-  plus: 6900,
-  pro: 12900,
+  plus: TIER_PRICING.cortex.krwMonthly,
+  pro: TIER_PRICING.brain.krwMonthly,
 };
 
 // ──────────────────────────────────────────────────────────────────────────

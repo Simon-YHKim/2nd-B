@@ -121,6 +121,22 @@ function geminiGenLadder(
   return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
 }
 
+// D-26 EFFORT CEILING (server-owned). `effort` is client-reported and cost =
+// model x effort x max_tokens; the abuse vector (audit H2) is effort='max',
+// which maps to thinkingBudget -1 (UNBOUNDED). Fold 'max' to 'xhigh' (bounded
+// 8192 thinking, the top legitimate rung) so a tampered client cannot pin an
+// unbounded budget.
+//
+// We deliberately do NOT impose lower per-purpose ceilings here: honest
+// flash-tier purposes (secondb_chat, gap_synthesize, ...) OMIT `effort`, so
+// normalizeEffort defaults them to 'high' server-side; a claude-proxy-style
+// low ceiling would then TRUNCATE legitimate replies (e.g. chat 2048->1024),
+// a regression beyond the security goal. Per-purpose ceilings need
+// gemini-specific usage data and are a follow-up. (decision D2)
+function clampEffort(effort: Effort): Effort {
+  return effort === 'max' ? 'xhigh' : effort;
+}
+
 // Audit HIGH (spend cap): per-user/day ceiling on TOTAL proxy calls (all
 // purposes), a cost backstop distinct from the product-level Jarvis chat cap
 // (chat_usage). Generous so it never blocks legitimate use; it exists to stop
@@ -318,6 +334,35 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'invalid_json' }, 400);
   }
 
+  // D6 (audit M5): consent egress gate, HOISTED to cover BOTH the embed and the
+  // generateContent overseas egress paths (gemini-proxy has two). Flag-gated by
+  // LLM_REQUIRE_CONSENT (default off) - enable once legal finalizes the consent
+  // copy/versions. When on, require a current consent row (llm_processing_ack +
+  // overseas_transfer_ack) before any overseas vendor call; fail CLOSED if it
+  // cannot be verified.
+  // NOTE (pre-deploy review P2): consent_records is an append-only GRANT ledger
+  // (0031). If overseas_transfer_ack / llm_processing_ack are WITHDRAWABLE
+  // (consent_changes/0062 + users.privacy_prefs treat overseas transfer as
+  // withdrawable per PIPA 37 / GDPR 7(3)), this grant-only read must ALSO honor
+  // withdrawal before the flag is enabled - resolve with legal/data-model first.
+  if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
+    let consentOk = false;
+    try {
+      const { data: consentRow, error: consentErr } = await supabaseAdmin
+        .from('consent_records')
+        .select('llm_processing_ack, overseas_transfer_ack')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      consentOk = !consentErr && !!consentRow &&
+        consentRow.llm_processing_ack === true && consentRow.overseas_transfer_ack === true;
+    } catch (_e) {
+      consentOk = false;
+    }
+    if (!consentOk) return jsonResponse(req, { error: 'consent_required' }, 403);
+  }
+
   // --- P0-2: embedding op ---------------------------------------------------
   // { op: 'embed', texts: string[] } -> { vectors: number[][], modelUsed,
   // latencyMs, audited }. Same auth (above), same shared per-user/day spend
@@ -498,7 +543,15 @@ Deno.serve(async (req: Request) => {
   // the curated/RAG prompt via `system`; the SAFETY preamble below guards the
   // system channel against a bypassed attacker. The body intentionally does NOT
   // echo the matched term (no "what word triggered it" oracle).
-  if (hasCrisisTerm(userText)) {
+  // The safety_classify seat (D4) MUST run the classifier even on crisis input -
+  // classifying crisis is its whole job - so it is exempt from this short-circuit.
+  // It returns a classification JSON (not a generation), and the output still gets
+  // the SAFETY_PREAMBLE + audit row below. The exemption is itself server-gated by
+  // LLM_SERVER_SAFETY_SEAT (default off, pre-deploy review P2): until the seat is
+  // enabled a client cannot use purpose=safety_classify to bypass the crisis gate.
+  const safetyClassifySeat =
+    purpose === 'safety_classify' && Deno.env.get('LLM_SERVER_SAFETY_SEAT') === '1';
+  if (!safetyClassifySeat && hasCrisisTerm(userText)) {
     return jsonResponse(req, {
       error: 'safety_red_zone',
       reason: 'crisis_term_detected',
@@ -513,7 +566,10 @@ Deno.serve(async (req: Request) => {
   }
   userParts.push({ text: userText });
 
-  const genLadder = geminiGenLadder(effort, Boolean(imagePart), purpose);
+  // Fold a client-reported "max" to a bounded "xhigh" so a tampered client
+  // cannot pin an unbounded thinking budget. (audit H2, D2)
+  const clampedEffort = clampEffort(effort);
+  const genLadder = geminiGenLadder(clampedEffort, Boolean(imagePart), purpose);
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: userParts }],
     generationConfig: {
@@ -616,6 +672,8 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
     }
   }
+
+  // (D6 consent gate is hoisted above to cover both embed + generateContent.)
 
   // D-27: (model × effort) combo key for the main generation path; embeds stay
   // on the base key. effectiveModel already reflects the sub-brain pro->flash

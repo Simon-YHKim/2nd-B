@@ -66,6 +66,28 @@ jobs:
       # URL (anon keys are public by design - RLS guards the data).
       EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || 'https://zoacryukmdeivmolvyhj.supabase.co' }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs' }}
+      # Mirror eas.json's production profile so the gradle/prebuild artifact is
+      # the SAME app EAS builds. Without these, babel-preset-expo inlines env.ts
+      # defaults and EXPO_PUBLIC_LLM_MODE falls back to "mock", shipping a native
+      # release whose AI harness is dead (templated responses) and whose social
+      # login is hidden. All values are EXPO_PUBLIC_* (public by design, already
+      # committed in eas.json); the harness routes through the edge proxy so no
+      # model key is needed in the build. (audit B1)
+      EXPO_PUBLIC_LLM_MODE: "live"
+      EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
+      EXPO_PUBLIC_REASONING_PROVIDER: "claude"
+      EXPO_PUBLIC_UI: "deep-space"
+      EXPO_PUBLIC_CHARACTER: "fallback"
+      EXPO_PUBLIC_FORCE_TIER: "off"
+      EXPO_PUBLIC_ENABLE_KAKAO: "true"
+      EXPO_PUBLIC_NATIVE_SOCIAL_SDK: "true"
+      EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com' }}
+      EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN || 'https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808' }}
+      EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID || 'G-VF514NK1WS' }}
+      EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID || 'xb3qenit2h' }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || 'phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A' }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

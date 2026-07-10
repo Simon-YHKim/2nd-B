@@ -37,7 +37,7 @@ export interface EmbeddableRecord {
 }
 
 /** The text we embed for a record: topic + summary + body, blank-line joined,
- *  trimmed and capped (text-embedding-004 counts input tokens; 2k chars is
+ *  trimmed and capped (gemini-embedding-2 counts input tokens; 2k chars is
  *  plenty). Null/blank fields are dropped so a bare-body record still embeds. */
 export function recordEmbeddingText(
   record: Pick<EmbeddableRecord, "topic" | "summary" | "body">,

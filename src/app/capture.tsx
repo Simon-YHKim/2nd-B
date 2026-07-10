@@ -1128,9 +1128,13 @@ export function CaptureLegacy() {
 
   async function handleSubmit() {
     if (!userId) return;
+    // In-flight guard must precede the journal/note-like delegations. Those
+    // handlers manage `submitting` themselves but were reached *before* this
+    // check, so a double-tap fired two paid callAdvisor calls + inserted a
+    // duplicate record. Guarding at entry blocks re-entry for every mode.
+    if (submitting) return;
     if (mode === "journal") return handleJournalSubmit();
     if (mode === "voice" || mode === "todo" || mode === "fourw") return handleNoteLikeSubmit(mode);
-    if (submitting) return;
     const submittedMode = mode;
     submitAbortRef.current?.abort();
     const submitController = new AbortController();

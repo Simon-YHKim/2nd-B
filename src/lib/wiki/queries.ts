@@ -365,10 +365,15 @@ export interface OutgoingEdge {
 /** All wiki_links rows for the user. Used by the graph stats view. */
 export async function listAllWikiLinks(userId: string): Promise<{ from_page: string; to_page: string }[]> {
   const supabase = getSupabaseClient();
+  // Bound the fetch: wiki_links grows super-linearly with pages while the graph
+  // only shows a capped node set, so an unbounded pull was a full-table client
+  // read for large personal wikis (audit wave-3). 4000 edges is generous for the
+  // 200-page cap yet stops the pathological case.
   const { data, error } = await supabase
     .from("wiki_links")
     .select("from_page, to_page")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .limit(4000);
   if (error) throw error;
   return (data ?? []) as { from_page: string; to_page: string }[];
 }

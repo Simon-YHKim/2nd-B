@@ -66,32 +66,24 @@ export async function getReasoningUsage(userId: string): Promise<ReasoningUsage>
 }
 
 /**
- * Increment the current-month reasoning_used by 1. Select-then-upsert so we do
- * not depend on a server-side RPC. Fails gracefully (warn, no throw).
+ * Increment the current-month reasoning_used by 1 via the atomic SECURITY DEFINER
+ * RPC (0077). The cap is derived server-side from the user's tier and the bump is
+ * atomic + cap-gated, so the honest client path can no longer spoof its own cap or
+ * fail open on a read error (audit M1). A returned error (P0001 =
+ * reasoning_limit_exceeded) means the atomic gate rejected an over-cap run; the
+ * client already checks remaining before calling, so that is a race/backstop.
+ * Fails gracefully (warn, no throw).
  */
 export async function incrementReasoningUsage(userId: string): Promise<void> {
   const bucket = monthBucket();
   try {
-    const client = getSupabaseClient();
-    const { data, error: readError } = await client
-      .from(TABLE)
-      .select('reasoning_used')
-      .eq('user_id', userId)
-      .eq('month_bucket', bucket)
-      .maybeSingle();
-    if (readError) {
-      console.warn('[usage] incrementReasoningUsage read failed:', readError.message);
-      return;
-    }
-    const next = (Number(data?.reasoning_used) || 0) + 1;
-    const { error: writeError } = await client
-      .from(TABLE)
-      .upsert(
-        { user_id: userId, month_bucket: bucket, reasoning_used: next, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id,month_bucket' },
-      );
-    if (writeError) {
-      console.warn('[usage] incrementReasoningUsage write failed:', writeError.message);
+    const { error } = await getSupabaseClient().rpc('bump_reasoning_usage_if_under_cap', {
+      p_user_id: userId,
+      p_month: bucket,
+      p_cap: 0, // ignored server-side; the RPC derives the cap from the user's tier
+    });
+    if (error) {
+      console.warn('[usage] incrementReasoningUsage RPC failed:', error.message);
     }
   } catch (e) {
     console.warn('[usage] incrementReasoningUsage threw:', e);
@@ -99,32 +91,29 @@ export async function incrementReasoningUsage(userId: string): Promise<void> {
 }
 
 /**
- * Add rewarded watch-to-earn credits to the current-month counter.
- * Select-then-upsert. Fails gracefully (warn, no throw).
+ * Add rewarded watch-to-earn credits to the current-month counter, via the
+ * atomic SECURITY DEFINER RPC (0075). The monthly cap + per-call max are enforced
+ * SERVER-SIDE inside the RPC (not passed by the client), so the grant cannot be
+ * raced or self-granted past the ceiling even by a tampered client (audit M4).
+ * Fails gracefully (warn, no throw). Signature unchanged for callers.
  */
 export async function addRewardCredits(userId: string, credits: number): Promise<void> {
+  // D2: when AdMob SSV is the grant authority (EXPO_PUBLIC_REWARD_SSV=true), the
+  // server grants reward credits from the verified SSV callback (rewarded-ssv +
+  // grant_reward_credits_ssv). The client must NOT also grant here, or a single
+  // watch double-counts. The UI refetches the counter after the watch, which
+  // reflects the server grant once the callback lands. Off by default (direct
+  // process.env read so babel inlines it) -> unchanged dev-seam behavior.
+  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") return;
   const bucket = monthBucket();
   try {
-    const client = getSupabaseClient();
-    const { data, error: readError } = await client
-      .from(TABLE)
-      .select('reward_credits')
-      .eq('user_id', userId)
-      .eq('month_bucket', bucket)
-      .maybeSingle();
-    if (readError) {
-      console.warn('[usage] addRewardCredits read failed:', readError.message);
-      return;
-    }
-    const next = (Number(data?.reward_credits) || 0) + credits;
-    const { error: writeError } = await client
-      .from(TABLE)
-      .upsert(
-        { user_id: userId, month_bucket: bucket, reward_credits: next, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id,month_bucket' },
-      );
-    if (writeError) {
-      console.warn('[usage] addRewardCredits write failed:', writeError.message);
+    const { error } = await getSupabaseClient().rpc('bump_reward_credits_if_under_cap', {
+      p_user_id: userId,
+      p_month: bucket,
+      p_credits: credits,
+    });
+    if (error) {
+      console.warn('[usage] addRewardCredits RPC failed:', error.message);
     }
   } catch (e) {
     console.warn('[usage] addRewardCredits threw:', e);
