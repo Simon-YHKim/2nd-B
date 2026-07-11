@@ -11,5 +11,11 @@
   "cited": "{{n}} citados",
   "undo": "Deshacer",
   "hideUnchanged": "Ocultar recálculos sin cambios",
-  "showUnchanged": "Ver {{n}} recálculos sin cambios"
+  "showUnchanged": "Ver {{n}} recálculos sin cambios",
+  "originRatify": "Lo confirmaste",
+  "originRebuild": "Recalculado",
+  "originRecorded": "Registrado",
+  "emptyAll": "Aún no hay cambios confirmados. Revisa una propuesta en Polaris y quedará aquí.",
+  "emptyFilter": "No hay registros en este filtro. Todo registro aplicado está confirmado.",
+  "subtitle": "SecondB propone; tú siempre decides. Ningún análisis llega a una estrella sin tu consentimiento."
 }

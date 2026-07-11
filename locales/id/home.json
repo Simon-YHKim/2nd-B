@@ -99,6 +99,15 @@
         "recreation": "Istirahat",
         "collect": "Kumpulkan"
       },
+      "starName": {
+        "now": "Keadaan kepribadian",
+        "recall": "Kenangan",
+        "seen": "Aku di mata orang",
+        "rhythm": "Ritme",
+        "relational": "Aku dalam hubungan",
+        "possible": "Aku di masa depan",
+        "values": "Nilai dan aspirasi"
+      },
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
       "kind": {

@@ -11,5 +11,11 @@
   "cited": "{{n}} cited",
   "undo": "Undo",
   "hideUnchanged": "Hide unchanged recomputes",
-  "showUnchanged": "Show {{n}} unchanged recomputes"
+  "showUnchanged": "Show {{n}} unchanged recomputes",
+  "originRatify": "You ratified",
+  "originRebuild": "Recomputed",
+  "originRecorded": "Recorded",
+  "emptyAll": "No ratified changes yet. Review a proposal in Polaris and it lands here.",
+  "emptyFilter": "No records in this filter. Every landed record is ratified.",
+  "subtitle": "SecondB proposes; you always decide. Nothing reaches a star without your consent."
 }

@@ -4,6 +4,7 @@
     "yesterday": "Ayer",
     "daysAgo": "hace {{count}} días",
     "hoursAgo": "hace {{count}} horas",
+    "minsAgo": "hace {{count}} min",
     "now": "Ahora mismo",
     "recordFallback": "Registro",
     "monthDay": "{{day}}/{{month}}"

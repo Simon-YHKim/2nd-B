@@ -99,6 +99,15 @@
         "recreation": "Rest",
         "collect": "Collect"
       },
+      "starName": {
+        "now": "Trait state",
+        "recall": "Narrative origins",
+        "seen": "Other-view",
+        "rhythm": "Momentary state",
+        "relational": "Relational self",
+        "possible": "Possible self",
+        "values": "Values & strivings"
+      },
       "inbox": "Notifications",
       "headA11y": "Ask SecondB",
       "kind": {

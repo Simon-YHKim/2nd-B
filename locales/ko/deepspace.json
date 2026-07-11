@@ -4,6 +4,7 @@
     "yesterday": "어제",
     "daysAgo": "{{count}}일 전",
     "hoursAgo": "{{count}}시간 전",
+    "minsAgo": "{{count}}분 전",
     "now": "방금",
     "recordFallback": "기록",
     "monthDay": "{{month}}월 {{day}}일"

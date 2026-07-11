@@ -4,6 +4,7 @@
     "yesterday": "Kemarin",
     "daysAgo": "{{count}} hari lalu",
     "hoursAgo": "{{count}} jam lalu",
+    "minsAgo": "{{count}} mnt lalu",
     "now": "Baru saja",
     "recordFallback": "Catatan",
     "monthDay": "{{day}}/{{month}}"
