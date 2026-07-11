@@ -107,9 +107,15 @@
 | A | ✅ **완료(18회차)**: #907 실기 PASS (blocked 분기 + iden, 법무 플래그 인라인 렌더 확인) | done | ✅ |
 | B | ✅ **완료(#908)**: 출처 불명 변경 2건을 에뮬 대조로 **둘 다 실결함 확인** → 근거 PR 재구현·머지·재캡처 PASS (insights 캡션↔숫자 겹침, growth caret 줄바꿈) | done | ✅ |
 | C | ~~배치4~~ **게이트 대기로 재분류**: 잔여 41삼항 = 전부 Privacy(34)+Data(7) 법무분. 비게이트 물량 소진 | — | 🔒 Simon |
-| D | records 그래프 125레코드 링크 과밀(모아레) · 마이크로 타이포(9~11px) — ~~FOCUS_STARS~~ ✅ #913 | small~med | ⭐ P2/P3 |
-| E | KST 하드코딩(`records-timeline.ts:7`) 타임존 설계 | medium | 설계 선행 |
+| D | **wiki Graph 태그링크 토글 구현** (스펙 확보, 아래 메모) — ~~마이크로 타이포~~ 23회차 판정 종결(레퍼런스 정합 우선) · ~~FOCUS_STARS~~ ✅ #913 | medium | ⭐ 다음 세션 1순위 |
+| E | ✅ **완료(#919)**: 타임라인 날짜 버킷 디바이스 타임존화 (쿼터 리셋 KST 2곳은 수익화 게이트로 이관) | done | ✅ |
 | G | 🔒 게이트(Simon): 수익화 6건 · Privacy/Data es/pt/id 번역(법무) · attachment 임상 어휘 · ratify 되돌리기 · **법무 플래그 5건**(위) · 988/동의연령/advisor/₩ | — | Simon |
+
+### 메모 — 큐 D: wiki Graph 태그링크 토글 스펙 (37회차, 레퍼런스 판정 완료)
+- **증상(실기 재현)**: /records → Graph 토글, QA 계정 125페이지에서 태그-공유 dashed 엣지 수백 개가 전량 상시 렌더 → 중앙 판독 불가(모아레). 캡처 it36-wikigraph.png.
+- **렌더 지점**: `src/components/deep-space/RecordsGraph.tsx:71` `graph.edges.map` (상한/게이팅 없음). 엣지 생성 = `src/lib/records/records-graph.ts`.
+- **레퍼런스 정본** (`reference-app/sb-wikigraph.jsx`): ①`showTagLinks` state (기본 true, :163) ②link-kind 엣지 opacity `!showTagLinks ? 0 : vis ? 0.42 : 0.05` (:416) ③필터 패널에 ToggleRow "태그 연결선 표시 / 별가루끼리 공유 태그를 잇는 점선" (:507) ④도메인/타입/키워드/날짜 필터로 vis 축소, 비가시 엣지 0.05.
+- **구현 지시**: 레퍼런스와 동일한 토글 추가(i18n 5로케일 신 키), link 엣지만 게이팅(spine/branch 유지). 대량 데이터 사용성을 위해 링크 엣지 수 임계(예: >150) 시 초기값 off 시작을 제안 — 이 적응만 레퍼런스와 다르므로 PR 본문에 명시. 판단 근거: 레퍼런스는 캐논 ~20레코드 기준 설계.
 
 ### 메모 — 출처 불명 변경 2건 (큐 B 재구현용 diff 요지)
 1. `src/screens/deepspace/dds-styles.ts` insightsBars: `height:132` 제거 + `paddingTop:spacing.sm→md` (막대 차트 클리핑 의심)
