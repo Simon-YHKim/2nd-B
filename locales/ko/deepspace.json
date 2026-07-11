@@ -588,7 +588,8 @@
     "a11yZoomOut": "축소",
     "a11yZoomIn": "확대",
     "hintSelected": "{{label}} · 한 번 더 누르면 열려요",
-    "hintDefault": "점선 = 태그로 이어진 기록. 누르면 선택, 한 번 더 누르면 열려요"
+    "hintDefault": "점선 = 태그로 이어진 기록. 누르면 선택, 한 번 더 누르면 열려요",
+    "untitled": "(제목 없음)"
   },
   "wikiGraph": {
     "a11yGraph": "위키 노드 그래프",

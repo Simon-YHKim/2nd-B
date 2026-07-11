@@ -2,12 +2,10 @@
   "time": {
     "today": "Today",
     "yesterday": "Yesterday",
-    "daysAgo": "{{count}} days ago",
-    "hoursAgo": "{{count}} hours ago",
-    "minsAgo": "{{count}}m ago",
     "daysAgo": "{{count}} day ago",
-    "daysAgo_plural": "{{count}} days ago",
     "hoursAgo": "{{count}} hour ago",
+    "minsAgo": "{{count}}m ago",
+    "daysAgo_plural": "{{count}} days ago",
     "hoursAgo_plural": "{{count}} hours ago",
     "now": "Just now",
     "recordFallback": "Record",
@@ -590,7 +588,8 @@
     "a11yZoomOut": "Zoom out",
     "a11yZoomIn": "Zoom in",
     "hintSelected": "{{label}} · tap again to open",
-    "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open"
+    "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open",
+    "untitled": "(untitled)"
   },
   "wikiGraph": {
     "a11yGraph": "Wiki node graph",

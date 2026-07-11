@@ -588,7 +588,8 @@
     "a11yZoomOut": "Perkecil",
     "a11yZoomIn": "Perbesar",
     "hintSelected": "{{label}} · ketuk lagi untuk membuka",
-    "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka"
+    "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka",
+    "untitled": "(tanpa judul)"
   },
   "wikiGraph": {
     "a11yGraph": "Grafik simpul wiki",

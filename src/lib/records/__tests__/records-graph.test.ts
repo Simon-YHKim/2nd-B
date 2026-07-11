@@ -87,3 +87,33 @@ describe("buildRecordsGraph", () => {
     expect(g.nodes.find((n) => n.domain === "career" && n.kind === "domain")!.label).toBe("커리어");
   });
 });
+
+describe("injected labels", () => {
+  test("labels option overrides polaris, star, and untitled fallbacks", () => {
+    const g = buildRecordsGraph(
+      [
+        { id: "r1", tags: ["domain:career"] },
+        { id: "r2", topic: "달리기", tags: ["domain:health"] },
+      ],
+      {
+        labels: {
+          polaris: "Estrella Polar",
+          star: (id) => `estrella:${id}`,
+          untitled: "(sin título)",
+        },
+      },
+    );
+    const byId = new Map(g.nodes.map((n) => [n.id, n.label]));
+    expect(byId.get("polaris")).toBe("Estrella Polar");
+    expect(byId.get("domain:career")).toBe("estrella:career");
+    expect(byId.get("r1")).toBe("(sin título)");
+    expect(byId.get("r2")).toBe("달리기");
+  });
+
+  test("without labels the ko/en fallback is unchanged", () => {
+    const g = buildRecordsGraph([{ id: "r1", tags: ["domain:career"] }], { locale: "ko" });
+    const byId = new Map(g.nodes.map((n) => [n.id, n.label]));
+    expect(byId.get("polaris")).toBe("북극성");
+    expect(byId.get("r1")).toBe("(제목 없음)");
+  });
+});
