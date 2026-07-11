@@ -109,6 +109,14 @@ function useAsync<T>(fn: () => Promise<T>, deps: DependencyList): Async<T> {
   return { status, data, reload: () => setNonce((n) => n + 1) };
 }
 
+// Localized labels for the OPS_GROUP_IDS domain-picker tabs (routine groups).
+// Without this the picker rendered the raw group ids ("body"/"learning"/...) as
+// tab labels to BOTH locales via OpsDomainPicker.
+const OPS_GROUP_LABEL: Record<"en" | "ko", Record<OpsGroupId, string>> = {
+  en: { body: "Body", learning: "Learning", worklife: "Work", living: "Living", creative: "Creative" },
+  ko: { body: "몸", learning: "배움", worklife: "일", living: "생활", creative: "창작" },
+};
+
 const EN_DOMAIN_LABEL: Record<OpsDomainId, string> = {
   exercise_routine: "Exercise routine",
   exercise_ideas: "Exercise ideas",
@@ -191,7 +199,11 @@ export function OpsHomeScreen() {
     [userId, domain, locale, recPref, isMinor],
   );
 
-  const tabs: DomainTab[] = OPS_GROUP_IDS.map((g) => ({ id: g, label: g, color: domainColor(g) }));
+  const tabs: DomainTab[] = OPS_GROUP_IDS.map((g) => ({
+    id: g,
+    label: OPS_GROUP_LABEL[i18n.language?.toLowerCase().startsWith("ko") ? "ko" : "en"][g],
+    color: domainColor(g),
+  }));
 
   const eventFor = (r: OpsRecommendation): OpsEventInput => ({
     title: r.title,
