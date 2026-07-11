@@ -193,9 +193,7 @@ function InterviewScreen() {
 
             <MdCard variant="outlined" style={styles.deltaCard}>
               <Text style={[m3TextStyle("bodySmall"), styles.deltaNote]}>
-                {locale === "ko"
-                  ? "답변은 그대로 저장돼요. 지금 추정치를 지어내지 않고, 기록이 쌓이면 별 밝기에 반영돼요."
-                  : "Your answers are saved as-is. We don't invent an estimate now — your stars brighten as records accumulate."}
+                {t("ratifyDeltaNote")}
               </Text>
             </MdCard>
 
@@ -227,9 +225,7 @@ function InterviewScreen() {
                 }
               />
               <Text style={[m3TextStyle("labelMedium"), styles.progressLabel]}>
-                {locale === "ko"
-                  ? `질문 ${step + 1} / ${TOTAL} · 회상 인터뷰`
-                  : `Question ${step + 1} / ${TOTAL} · Recall interview`}
+                {t("progressLabel", { n: step + 1, total: TOTAL })}
               </Text>
             </View>
 
@@ -239,9 +235,7 @@ function InterviewScreen() {
             </View>
 
             <Text style={[m3TextStyle("bodySmall"), styles.subtitle]}>
-              {locale === "ko"
-                ? "같은 핵심을 조금씩 다르게 되물어요. 더 또렷해지려고요."
-                : "We circle the same core a little differently each time — to see it more clearly."}
+              {t("screenerSubtitle")}
             </Text>
 
             <View style={styles.answers}>
@@ -279,9 +273,7 @@ function InterviewScreen() {
           {t("reflectError")}
         </Text>
         <Text style={[m3TextStyle("bodyMedium"), styles.modalBody]}>
-          {locale === "ko"
-            ? "인터뷰 답변은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요."
-            : "Your answers are still here. Give it another try in a moment."}
+          {t("reflectErrorBody")}
         </Text>
         <View style={styles.modalActions}>
           <MdButton

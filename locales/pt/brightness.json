@@ -8,5 +8,9 @@
   "weeksAgo": "8 sem atrás",
   "thisWeek": "esta semana",
   "evidence": "Do que esta luz é feita",
-  "ratLog": "Ver o registro de confirmações"
+  "ratLog": "Ver o registro de confirmações",
+  "emptyBody": "Ainda não há histórico suficiente para desenhar. Conclua uma verificação e aprove uma proposta, e o rastro vai se acumulando aqui.",
+  "honestyLine": "{{obs}} observações · {{cited}} com evidência · {{stars}} estrelas",
+  "citedRatioLabel": "Proporção com evidência {{cited}} de {{obs}}",
+  "honestyCaption": "O brilho é o quanto está registrado, não certeza. As citações o tornam mais confiável."
 }
