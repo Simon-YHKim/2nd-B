@@ -193,7 +193,8 @@
       "saving": "Menyimpan",
       "saved": "Tersimpan",
       "openRecords": "Buka catatan",
-      "saveError": "Tidak dapat menyimpan. Coba lagi sebentar."
+      "saveError": "Tidak dapat menyimpan. Coba lagi sebentar.",
+      "saveHint": "Isi apa yang terjadi untuk mengaktifkan Tangkap."
     },
     "chat": {
       "user": "Akhir-akhir ini aku capek banget. Kenapa ya?",
