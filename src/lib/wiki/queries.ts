@@ -573,7 +573,12 @@ export async function syncWikiLinks(
       .from("wiki_links")
       .delete()
       .eq("from_page", fromPage.id)
-      .in("to_page", diff.toRemoveIds);
+      .in("to_page", diff.toRemoveIds)
+      // Only reconcile literal [[wikilink]] edges. getOutgoingLinks returns edges
+      // of every relation_type, so without this filter a body that no longer names
+      // a page would also delete that page's inferred (AI-proposed) / ratified
+      // (user-accepted) / materialized edges — permanent loss of real connections.
+      .eq("relation_type", "wikilink");
     if (error) throw error;
   }
 
