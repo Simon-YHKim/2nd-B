@@ -9,6 +9,7 @@
 // Vocabulary stays lifestyle-neutral (closeness / contact cadence), never clinical.
 
 import { getSupabaseClient } from "../supabase/client";
+import { invalidateDomainLevels } from "../persona/load-domain-levels";
 
 // Must match the CHECK constraints in db/migrations/0058_relation_people.sql.
 export type RelationKind = "family" | "partner" | "friend" | "colleague" | "mentor" | "other";
@@ -117,6 +118,9 @@ export async function createPerson(userId: string, input: NewPerson): Promise<Pe
     .select()
     .single();
   if (error) throw error;
+  // A new person lifts the 관계 (relation) domain star, so the home sky's cached
+  // levels are stale for this user.
+  invalidateDomainLevels(userId);
   return rowToPerson(data as Record<string, unknown>);
 }
 
@@ -156,6 +160,9 @@ export async function updatePerson(
     .select()
     .single();
   if (error) throw error;
+  // last_interaction_on / count changed → the relation star's recency/coverage
+  // may shift, so refresh the cached home levels.
+  invalidateDomainLevels(userId);
   return rowToPerson(data as Record<string, unknown>);
 }
 
@@ -164,4 +171,5 @@ export async function deletePerson(userId: string, id: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.from("relation_people").delete().eq("user_id", userId).eq("id", id);
   if (error) throw error;
+  invalidateDomainLevels(userId);
 }

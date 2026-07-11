@@ -48,9 +48,9 @@
           "label": "Apego",
           "hint": "Abre la evaluación de estilo de apego."
         },
-        "mbti": {
-          "label": "MBTI",
-          "hint": "Abre la prueba de referencia MBTI."
+        "growth": {
+          "label": "Mi evolución",
+          "hint": "Abre la revisión semanal de crecimiento."
         },
         "audit": {
           "label": "Yo del pasado",

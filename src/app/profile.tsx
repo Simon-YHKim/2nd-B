@@ -42,6 +42,18 @@ const PRIMARY_HUB_ITEMS: HubRoute[] = [
   { sectionKey: "account", key: "inbox", route: "/inbox", accent: cosmic.signalMint },
 ];
 
+// M3 back arrow (same path as MdTopAppBar) — the deep-space profile renders
+// PremiumAppShell with no dock, no tab bar (PremiumTabBar returns null in
+// deep-space) and a hidden floating chip (isPrimaryTabPath), so without this
+// leading control the screen was a navigation dead end on iOS.
+function BackGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" accessibilityElementsHidden>
+      <Path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z" fill={color} />
+    </Svg>
+  );
+}
+
 function SettingsGlyph({ color }: { color: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 22 22" accessibilityElementsHidden>
@@ -110,6 +122,7 @@ function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
 export default function Profile() {
   const { t, i18n } = useTranslation("profile");
   const { t: tPlans } = useTranslation("plans");
+  const { t: tCommon } = useTranslation("common");
   const { userId, loading } = useAuth();
   const progression = useProgression();
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
@@ -179,6 +192,10 @@ export default function Profile() {
           { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
           { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
           { key: "trends", label: i18n.language?.toLowerCase().startsWith("ko") ? "트렌드" : "Trends", route: "/brightness" },
+          // a2z audit 2026-07-11: /growth (주간 변화 리뷰) shipped fully
+          // data-wired but had ZERO reachable entry on the deep-space surface
+          // (its only links lived in the legacy-only GraphScreen strip).
+          { key: "growth", label: sections.know.items.growth.label, route: "/growth" },
         ],
       },
     },
@@ -191,7 +208,9 @@ export default function Profile() {
           { key: "big-five", label: sections.know.items.bigFive.label, route: "/big-five" },
           { key: "ipip", label: sections.know.items.ipip.label, route: "/ipip-neo" },
           { key: "rlss", label: sections.know.items.rlss.label, route: "/rlss" },
-          { key: "mbti", label: sections.know.items.mbti.label, route: "/mbti" },
+          // MBTI was retired (weak validity — see src/app/mbti.tsx); /mbti is a
+          // deep-link redirect to /persona, which has its own entry above, so a
+          // menu item promising an MBTI screener was a broken promise.
           { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
           { key: "seen", label: i18n.language?.toLowerCase().startsWith("ko") ? "보여지는 나" : "Seen self", route: "/seen" },
           { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },
@@ -208,8 +227,22 @@ export default function Profile() {
   return (
     <PremiumAppShell>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.topBar} accessible accessibilityLabel={profileTitle}>
-          <View style={{ flex: 1 }}>
+        <View style={styles.topBar}>
+          {deepSpaceMode ? (
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.push("/"))}
+              hitSlop={14}
+              activeOpacity={0.7}
+              style={[styles.settingsButton, styles.deepSpaceIconButton]}
+              accessibilityRole="button"
+              accessibilityLabel={tCommon("back")}
+            >
+              <BackGlyph color={semantic.deepSpaceText} />
+            </TouchableOpacity>
+          ) : null}
+          {/* The a11y label sits on the title view (not the whole row) so the
+              back/settings buttons stay individually reachable to readers. */}
+          <View style={{ flex: 1 }} accessible accessibilityLabel={profileTitle}>
             <Text variant="caption" color="textMuted" style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceMutedText]}>
               {t("hero.eyebrow")}
             </Text>

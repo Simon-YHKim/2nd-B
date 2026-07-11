@@ -44,4 +44,20 @@ describe("deep-space dock routes", () => {
     // Stack routes without a dock keep the floating back arrow.
     expect(isDeepSpaceDockPath("/privacy")).toBe(false);
   });
+
+  test("covers the delegated/multiline dock screens the 4th drift shipped unregistered", () => {
+    for (const route of ["/records", "/data", "/integrations", "/import", "/growth", "/seen", "/beyond", "/trends", "/import-hub"]) {
+      expect(isDeepSpaceDockPath(route)).toBe(true);
+    }
+  });
+
+  test("matches dynamic dock routes by prefix (star lens / record detail render their own top bar)", () => {
+    expect(isDeepSpaceDockPath("/star/career")).toBe(true);
+    expect(isDeepSpaceDockPath("/star/rest")).toBe(true);
+    expect(isDeepSpaceDockPath("/record/3f9a2c9e-0000-4000-8000-000000000000")).toBe(true);
+    // The records LIST route is a static entry, not a prefix artifact.
+    expect(isDeepSpaceDockPath("/record")).toBe(false);
+    // Prefixes must not swallow unrelated routes.
+    expect(isDeepSpaceDockPath("/starship")).toBe(false);
+  });
 });
