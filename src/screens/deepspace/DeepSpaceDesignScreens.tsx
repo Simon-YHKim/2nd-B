@@ -226,7 +226,10 @@ function Shell({ children, title, subtitle }: { children: ReactNode; title?: str
   return (
     <View style={styles.root}>
       <View pointerEvents="none" style={styles.stars}><View style={[styles.star,{left:"12%",top:42}]} /><View style={[styles.star,{right:"18%",top:118,opacity:.55}]} /><View style={[styles.star,{left:"42%",bottom:92,opacity:.5}]} /></View>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 52 }]} keyboardShouldPersistTaps="handled">
+      {/* Shell has no dock/SafeAreaView, so it must reserve BOTH insets: the top
+          was handled but the Android bottom nav-bar inset was omitted, clipping
+          bottom-anchored CTAs under the 3-button nav on edge-to-edge. */}
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 52, paddingBottom: 40 + insets.bottom }]} keyboardShouldPersistTaps="handled">
         {title ? <View style={styles.titleRow}><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
         {children}
       </ScrollView>

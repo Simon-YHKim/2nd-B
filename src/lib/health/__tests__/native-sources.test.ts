@@ -119,6 +119,30 @@ describe("health_connect source", () => {
     expect(byType).toEqual(["heart_rate:70", "steps:8500", "workout:30"].sort());
   });
 
+  test("on RN runtime: one denied record-type does not zero out the granted types", async () => {
+    setNavigatorProduct("ReactNative");
+    // Health Connect grants are per-type: HeartRate denied → its read rejects
+    // (SecurityException) while Steps is granted. The rejected read must not
+    // discard the granted Steps data (regression guard for the allSettled fix;
+    // Promise.all would have returned []).
+    hcReadRecords.mockImplementation((type: string) => {
+      if (type === "Steps") {
+        return Promise.resolve({
+          records: [
+            { count: 8500, startTime: range.startIso, endTime: range.endIso, metadata: { id: "s1" } },
+          ],
+        });
+      }
+      if (type === "HeartRate") {
+        return Promise.reject(new Error("SecurityException: HeartRate permission not granted"));
+      }
+      return Promise.resolve({ records: [] });
+    });
+
+    const out = await healthConnectSource.read(range);
+    expect(out.map((s) => `${s.metricType}:${s.value}`)).toEqual(["steps:8500"]);
+  });
+
   test("requestPermission returns granted only when a permission is returned", async () => {
     setNavigatorProduct("ReactNative");
     hcGetSdkStatus.mockResolvedValue(3);

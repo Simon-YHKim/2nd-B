@@ -302,7 +302,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const insets = useSafeAreaInsets();
-  const keyboardBehavior = Platform.OS === "ios" ? "padding" : "height";
+  // iOS uses "padding"; Android relies on native adjustResize (app.json
+  // softwareKeyboardLayoutMode="resize"), so the KAV must stay inert — layering
+  // behavior="height" on top of adjustResize double-shrinks the composer and
+  // opens a dead gap above the keyboard. Matches jot/settings/dds-auth.
+  const keyboardBehavior = Platform.OS === "ios" ? "padding" : undefined;
   const keyboardVerticalOffset = Platform.OS === "ios" ? insets.top : 0;
   const messageListBottomPadding = Math.max(styles.scroll.paddingBottom, insets.bottom + spacing.md);
 

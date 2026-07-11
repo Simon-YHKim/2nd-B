@@ -350,7 +350,10 @@ export function ConstellationHome({
                 numberOfLines={1}
                 style={[
                   styles.starLabel,
-                  { left: px(s.x) - 40, top: py(s.y) + (6 * k + 8), fontSize: 10.5 * k },
+                  // lineHeight (~1.34x) gives the Korean domain names room for
+                  // their 받침 descenders — Android clips the last line of a
+                  // numberOfLines Text without a padded line box.
+                  { left: px(s.x) - 40, top: py(s.y) + (6 * k + 8), fontSize: 10.5 * k, lineHeight: Math.round(14 * k) },
                   on && { color: m3.accent.starFocus },
                 ]}
               >
@@ -360,7 +363,7 @@ export function ConstellationHome({
           })}
           <Text
             numberOfLines={1}
-            style={[styles.polarisLabel, { left: px(POLARIS.x) - 60, top: py(POLARIS.y) + (9 * k + 8), fontSize: 10.5 * k }]}
+            style={[styles.polarisLabel, { left: px(POLARIS.x) - 60, top: py(POLARIS.y) + (9 * k + 8), fontSize: 10.5 * k, lineHeight: Math.round(14 * k) }]}
           >
             {t("ds.home.polaris")}
           </Text>

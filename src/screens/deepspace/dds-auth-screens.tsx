@@ -67,11 +67,18 @@ function AuthBackdrop() {
 }
 
 function AuthShell({ children }: { children: ReactNode }) {
+  // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
+  // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
+  // sign-up/reset form draw under the 3-button nav bar. insets.bottom clears it.
+  const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
       <AuthBackdrop />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
+          keyboardShouldPersistTaps="handled"
+        >
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -613,6 +620,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
   }
 
   const helperDanger = helperKey !== "resetPassword.passwordHelper";
+  const confirmRef = useRef<TextInput>(null);
 
   return (
     <AuthShell>
@@ -646,10 +654,14 @@ export function DeepSpaceResetPasswordDesignScreen() {
               placeholder="••••••••"
               placeholderTextColor={colors.textLo}
               accessibilityLabel={t("auth:resetPassword.newPassword")}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => confirmRef.current?.focus()}
               style={styles.input}
             />
             <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.confirmPassword")}</Text>
             <TextInput
+              ref={confirmRef}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
