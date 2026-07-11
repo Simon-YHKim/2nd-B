@@ -24,6 +24,7 @@ import Svg, { Circle, Line } from "react-native-svg";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
@@ -79,9 +80,15 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
   const [soft, setSoft] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
   const pulse = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotionPref();
 
   // Gentle 북극성 pulse (reference sb-pulse 2.4s). Single node, native driver.
+  // Reduce-motion (OS pref or lite mode): hold a static mid-frame, no loop.
   useEffect(() => {
+    if (reduceMotion) {
+      pulse.setValue(0.5);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
@@ -90,7 +97,7 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, reduceMotion]);
 
   // Spec 03: both answers ratify (the star lights either way — a correction is
   // still a signal). The answer is kept as a first_light-tagged record so the
