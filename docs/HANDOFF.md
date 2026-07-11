@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-11 (밤) / 게이트 실행 라운드 — W1 무료캡 라이브 + 8 PR + 게이트 5건 결정시트 (루프 중단, 결정 대기)
 - Latest — 2026-07-11 (오후) / 루프 17회차 + 세션 인수인계 — LOOP-PLAYBOOK.md 신설 (운영 매뉴얼 정본)
 - Latest — 2026-07-11 / 클론 /loop 16회차 — 실기 갭 픽스 15 PR + 가드 3종 + i18n 대소탕 (에뮬 실기 사이클 확립)
 - Latest — 2026-07-10 (심야) / persona-sim 큐 A 완주 + 세컨비 중립 스윕 마무리 + insights 정직성 (4 PR)
@@ -84,6 +85,57 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-11 (밤) / 게이트 실행 라운드 — W1 무료캡 라이브 + 8 PR + 게이트 5건 결정 대기 (루프 중단)
+
+### 어디까지 왔나
+- main HEAD: `be94058a`
+- **이번 세션 = Simon 클론 /loop → 게이트 실행 전환**. 에뮬 ~46화면 순회 + 4축 페르소나 시뮬로 겹침/a11y 결함 전부 수정 후, Simon "모두 권장대로 진행" 승인으로 수익화/법무/디자인 게이트 착수.
+- 이번 세션 머지 PR (8): **#908** insights 캡션겹침·growth caret · **#910** drilldown CTA 비침·벨 터치타깃·trends a11y · **#914** TTFV reduce-motion·graph노드 라벨 · **#915** 밸런스바 클립 · **#921** 동의헤더 7→12px · **#922** 보상행 adsConfigured 가드 · **#929** AdSlot 광고실패 붕괴 · **#920** 무료캡 5/30.
+- **🎯 W1 무료 티어 완화 프로드 라이브**: 일일 챗 2→5, 월 추론 8→30. 서버강제 DB 함수(0076/0077)를 **Supabase MCP로 프로드 반영**(before 2/8→after 5/30 `pg_get_functiondef` 검증) + #920 클라 머지 = 클라·서버 일치. 순서=프로드 먼저→클라(불일치 방지).
+- 재검증 **거짓양성 2건**(프레임워크 인지): W4-A 위기라인(CrisisRouter가 findahelpline.com 디렉터리 이미 렌더, Simon 06-11 승인) · ops-reset(ops.json "They reset tomorrow" 이미 존재). 임의 변경 안 함.
+- 테스트: `npm run verify` green. working tree: clean.
+
+### 🔴 결정 대기 — 게이트 5건 (루프가 여기서 멈춤)
+**결정 시트(옵션별 복붙 프롬프트 + 복사버튼)**: <https://claude.ai/code/artifact/5d0d50a3-aa42-4ea5-a3bc-21aa4f255b95>
+→ Simon이 시트에서 옵션 프롬프트를 복사→새 세션에 붙여넣으면 그 결정으로 루프 재개.
+1. **W4-B 자기동의 14→16** (법무 P0, 글로벌 출시 병목, `auth.ts:24`): ⓐ관할감지 구축 / ⓑ16-글로벌(KR14~15차단, 권장) / ⓒ14유지+출시보류. 풀스택+DB마이그(minor-privacy)+5로케일 카피+프로드.
+2. **W2 가격 ₩→RevenueCat** (스토어, `dds-plans-screen.tsx:54`): 스토어 상품/키 설정 선행.
+3. **W5 뮤지엄 한국어전용** (콘텐츠, `museum-timeline-data.ts`): 9이벤트 en/es/pt/id=톤 리뷰 필요. Claude초안+Simon리뷰(권장)/사람번역.
+4. **advisor Brain전용** (수익화, `entitlements.ts:32`): 무료/중간 TTFV 없음 → first-N-free?
+5. **폰트 가독성** (디자인): dock 9px·메타 10.5px 상향 vs 픽셀미학. (동의헤더 7px는 #921로 처리됨.)
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj`(Seoul). 라이브=GitHub Pages `simon-yhkim.github.io/2nd-B`.
+- **프로드 DB 함수 반영 = Supabase MCP `apply_migration`** (memory [[tool_2ndb_supabase_mcp_prod_apply]]). 엣지 TS deploy만 CLI byte-safe.
+- 에뮬 `Pixel_9_Pro_XL`, QA계정 `.env.test`(committed public·RLS).
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | Simon 게이트 결정 5건 중 하나 착수 (결정시트 프롬프트) | 각기 다름 | ⭐ 루프 재개점 |
+| B | 신규 결함/에뮬 재순회 (Simon 지시 시) | — | |
+| C | 워크트리 정리(gate-w1/w3/w2ad/w4b·loop-emu-17 등 누적, junction 먼저 rmdir) | small | housekeeping |
+
+### 적용 중인 정책 (영구, 이 세션 추가분)
+1. **게이트=Simon 확인**: 비용/프로드/스토어/안전임상/법무 반영은 전권위임에서도 확인. W1 프로드도 Simon "승인" 후 실행.
+2. **서버강제 캡 변경 = 프로드 먼저 → 클라 머지** (불일치 방지). 프로드=MCP apply_migration, before/after `pg_get_functiondef` 대조.
+3. **프레임워크 인지 재검증**: 페르소나/감사 finding도 모달·i18n 계층까지 확인(위기라인·ops-reset 거짓양성). "N confirmed" 안 믿기.
+4. 격리 워크트리 + node_modules junction, `git add` 명시경로. "branch exists" 실패=플릿점유→새 브랜치명(gate-w*).
+5. 루프 케이던스: Simon 메시지는 즉시 인터럽트 → 유휴 시 1분 폴링은 busywork라 넓힘.
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # 단독 실행, exit 0
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# → 결정 시트(위 artifact URL)에서 게이트 옵션 프롬프트 복사 → 붙여넣기 → /loop 재개
+```
 
 ---
 
