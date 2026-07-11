@@ -12,7 +12,7 @@
  * (DESIGN.md adoption 2026-06-17). Unique SVG gradient ids via useId() so web
  * (document-global svg ids) never clashes across instances.
  */
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
@@ -148,21 +148,21 @@ function CaptureIcon({ name, color, size = 18 }: { name: keyof typeof CAPTURE_IC
 // A W4H1 field: leading icon + label, then a filled input box (reference Field
 // in sb-screens-core.jsx). All colors route through m3.* (this screen is on the
 // migrated M3 track — no cosmic tokens, no hex literals).
-function CaptureField({
-  icon,
-  label,
-  hint,
-  value,
-  onChange,
-  multiline = false,
-}: {
+const CaptureField = forwardRef<TextInput, {
   icon: keyof typeof CAPTURE_ICON_INNER;
   label: string;
   hint: string;
   value: string;
   onChange: (next: string) => void;
   multiline?: boolean;
-}) {
+  // Android keyboard flow (ANDROID_QA_GUIDELINES §2): single-line fields relay
+  // focus to the next via returnKeyType="next" + onSubmitEditing.
+  returnKeyType?: "next" | "done";
+  onSubmitEditing?: () => void;
+}>(function CaptureField(
+  { icon, label, hint, value, onChange, multiline = false, returnKeyType, onSubmitEditing },
+  ref,
+) {
   return (
     <View>
       <View style={styles.capFieldHead}>
@@ -170,18 +170,22 @@ function CaptureField({
         <Text style={styles.capFieldLabel}>{label}</Text>
       </View>
       <TextInput
+        ref={ref}
         value={value}
         onChangeText={onChange}
         placeholder={hint}
         placeholderTextColor={m3.color.onSurfaceVariant}
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
+        returnKeyType={returnKeyType}
+        blurOnSubmit={returnKeyType === "next" ? false : undefined}
+        onSubmitEditing={onSubmitEditing}
         style={[styles.capFieldInput, multiline && styles.capFieldInputTall]}
         accessibilityLabel={label}
       />
     </View>
   );
-}
+});
 
 type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
 // Mode ids + icons sourced from the design canon (src/lib/canon → public/proto/data);
@@ -269,6 +273,12 @@ export function CaptureView() {
     }
   }
 
+  // 4W1H single-line fields relay focus what→when→where→who→how on Android.
+  const whenRef = useRef<TextInput>(null);
+  const whereRef = useRef<TextInput>(null);
+  const whoRef = useRef<TextInput>(null);
+  const howRef = useRef<TextInput>(null);
+
   const f = (key: string) => t("ds.capture." + key);
   const saveLabel = saving ? f("saving") : saved ? f("saved") : f("save");
 
@@ -318,36 +328,47 @@ export function CaptureView() {
           <View style={styles.capFieldRow}>
             <View style={styles.capFieldCol}>
               <CaptureField
+                ref={whenRef}
                 icon="calendar_today"
                 label={f("fields.when.label")}
                 hint={f("fields.when.hint")}
                 value={fourw.when}
                 onChange={(v) => setField("when", v)}
+                returnKeyType="next"
+                onSubmitEditing={() => whereRef.current?.focus()}
               />
             </View>
             <View style={styles.capFieldCol}>
               <CaptureField
+                ref={whereRef}
                 icon="north_east"
                 label={f("fields.where.label")}
                 hint={f("fields.where.hint")}
                 value={fourw.where}
                 onChange={(v) => setField("where", v)}
+                returnKeyType="next"
+                onSubmitEditing={() => whoRef.current?.focus()}
               />
             </View>
           </View>
           <CaptureField
+            ref={whoRef}
             icon="person"
             label={f("fields.who.label")}
             hint={f("fields.who.hint")}
             value={fourw.who}
             onChange={(v) => setField("who", v)}
+            returnKeyType="next"
+            onSubmitEditing={() => howRef.current?.focus()}
           />
           <CaptureField
+            ref={howRef}
             icon="bolt"
             label={f("fields.how.label")}
             hint={f("fields.how.hint")}
             value={fourw.how}
             onChange={(v) => setField("how", v)}
+            returnKeyType="done"
           />
         </View>
       ) : mode === "link" ? (

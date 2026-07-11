@@ -110,22 +110,29 @@ export const healthConnectSource: HealthSource = {
       },
     };
     const out: HealthSample[] = [];
+    // Health Connect grants are PER-record-type: reading a type the user did NOT
+    // grant throws a SecurityException for THAT read only. Promise.all would let
+    // one rejection abort the whole batch — importing nothing while the permission
+    // gate already reported "granted" (length > 0), a silent zero-data import.
+    // allSettled keeps every granted type's data instead.
+    const [steps, exercise, sleep, heart] = await Promise.allSettled([
+      mod.readRecords("Steps", filter),
+      mod.readRecords("ExerciseSession", filter),
+      mod.readRecords("SleepSession", filter),
+      mod.readRecords("HeartRate", filter),
+    ]);
     try {
-      const [steps, exercise, sleep, heart] = await Promise.all([
-        mod.readRecords("Steps", filter),
-        mod.readRecords("ExerciseSession", filter),
-        mod.readRecords("SleepSession", filter),
-        mod.readRecords("HeartRate", filter),
-      ]);
-      for (const r of steps.records as HCStepsRecordLike[]) out.push(mapHealthConnectSteps(r));
-      for (const r of exercise.records as HCExerciseRecordLike[]) out.push(mapHealthConnectExercise(r));
-      for (const r of sleep.records as HCSleepRecordLike[]) out.push(mapHealthConnectSleep(r));
-      for (const r of heart.records as HCHeartRateRecordLike[]) {
-        out.push(...mapHealthConnectHeartRate(r));
-      }
+      if (steps.status === "fulfilled")
+        for (const r of steps.value.records as HCStepsRecordLike[]) out.push(mapHealthConnectSteps(r));
+      if (exercise.status === "fulfilled")
+        for (const r of exercise.value.records as HCExerciseRecordLike[]) out.push(mapHealthConnectExercise(r));
+      if (sleep.status === "fulfilled")
+        for (const r of sleep.value.records as HCSleepRecordLike[]) out.push(mapHealthConnectSleep(r));
+      if (heart.status === "fulfilled")
+        for (const r of heart.value.records as HCHeartRateRecordLike[]) out.push(...mapHealthConnectHeartRate(r));
     } catch {
-      // A read failure (revoked permission, provider gone) yields whatever was
-      // collected so far rather than throwing into the ingest path.
+      // Defensive: a malformed record throwing in a pure mapper still yields the
+      // samples collected so far rather than throwing into the ingest path.
     }
     return dedupeByExternalId(out);
   },

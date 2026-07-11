@@ -438,9 +438,11 @@ const styles = StyleSheet.create({
   balanceTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginBottom: 10 },
   balanceBar: { flexDirection: "row", height: 38, borderRadius: 10, overflow: "hidden" },
   balanceIntrinsic: { flex: 68, backgroundColor: m3.color.primary, alignItems: "center", justifyContent: "center" },
-  balanceIntrinsicText: { color: m3.color.onPrimary, fontFamily: m3.font.brand, fontSize: 13, fontWeight: "700" },
+  // lineHeight (~1.38x) — the bar is overflow:hidden height 38, so a Korean
+  // 내적/외적 %  numberOfLines Text with no line box gets its 받침 clipped on Android.
+  balanceIntrinsicText: { color: m3.color.onPrimary, fontFamily: m3.font.brand, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   balanceExtrinsic: { flex: 32, backgroundColor: m3.color.surfaceContainerHighest, alignItems: "center", justifyContent: "center" },
-  balanceExtrinsicText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, fontSize: 13, fontWeight: "600" },
+  balanceExtrinsicText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   balanceNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 10 },
 
   // 강점 — 3 signature cards

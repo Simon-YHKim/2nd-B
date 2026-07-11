@@ -5,7 +5,7 @@
 // the Supabase-native providers (Google/Apple/Kakao) don't use this route.
 
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
@@ -21,7 +21,11 @@ export default function OAuthCallback() {
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      if (typeof window === "undefined") {
+      // Native RN defines a global `window` (so `typeof window` is never
+      // "undefined"), but has no `window.location` — reading `.search` there
+      // would throw. This route is web-only (Naver custom-OAuth return); guard
+      // on the platform, not on `window`, so native cleanly bounces home.
+      if (Platform.OS !== "web" || typeof window === "undefined" || !window.location) {
         router.replace("/");
         return;
       }

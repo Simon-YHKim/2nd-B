@@ -10,8 +10,8 @@
 // shipped (native+legal gate) — pointing a first-run guide at an unshipped
 // feature breaks the honesty register, so the step points at settings/tools
 // generically until 통화 녹음 ships.
-import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { BackHandler, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
@@ -49,6 +49,21 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
     markCoachmarksSeen();
     onDone();
   }, [onDone]);
+
+  // Android hardware/gesture back must dismiss the first-run coachmark, not exit
+  // the app. This overlay is a custom View (not a RN <Modal>, so no onRequestClose)
+  // mounted on the home tab, where DeepSpaceScreen's back handler early-returns —
+  // so without this, back reaches the root `/` with nothing to pop and the OS
+  // sends the app to background (predictiveBackGestureEnabled). Stepping through
+  // finish() also persists markCoachmarksSeen() so it doesn't recur next launch.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (idx > 0) setIdx((v) => v - 1);
+      else finish();
+      return true;
+    });
+    return () => sub.remove();
+  }, [idx, finish]);
 
   const step = STEPS[idx];
   const last = idx === STEPS.length - 1;
