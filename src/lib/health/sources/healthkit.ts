@@ -32,6 +32,10 @@ import {
 const STEP_COUNT = "HKQuantityTypeIdentifierStepCount";
 const HEART_RATE = "HKQuantityTypeIdentifierHeartRate";
 const SLEEP_ANALYSIS = "HKCategoryTypeIdentifierSleepAnalysis";
+// HKWorkoutType is a distinct HealthKit object type: read() queries it via
+// queryWorkoutSamples, so it MUST be in the read-authorization set or every
+// workout query returns empty on a real device (silent zero-workout imports).
+const WORKOUT_TYPE = "HKWorkoutTypeIdentifier";
 
 // A minimal structural view of the @kingstinct/react-native-healthkit surface we
 // use. The real module is loaded lazily; this type only describes the calls we
@@ -106,8 +110,9 @@ export const healthKitSource: HealthSource = {
     if (!mod) return "unavailable";
     try {
       if (!mod.isHealthDataAvailable()) return "unavailable";
-      // Read-only: no share (write) types requested.
-      const ok = await mod.requestAuthorization([], [STEP_COUNT, HEART_RATE, SLEEP_ANALYSIS]);
+      // Read-only: no share (write) types requested. WORKOUT_TYPE is included so
+      // the workout query in read() is actually authorized (see const above).
+      const ok = await mod.requestAuthorization([], [STEP_COUNT, HEART_RATE, SLEEP_ANALYSIS, WORKOUT_TYPE]);
       return ok ? "granted" : "denied";
     } catch {
       return "denied";
@@ -121,20 +126,28 @@ export const healthKitSource: HealthSource = {
       filter: { startDate: new Date(range.startIso), endDate: new Date(range.endIso) },
     };
     const out: HealthSample[] = [];
+    // Promise.allSettled (mirrors health-connect.ts): one query rejecting must NOT
+    // discard the samples the other authorized queries already returned — otherwise
+    // a single transient HealthKit error (or an unauthorized type) silently zeroes
+    // the whole sync even though steps/heart-rate/sleep were granted and had data.
+    const [steps, heart, workouts, sleep] = await Promise.allSettled([
+      mod.queryQuantitySamples(STEP_COUNT, filter),
+      mod.queryQuantitySamples(HEART_RATE, filter),
+      mod.queryWorkoutSamples(filter),
+      mod.queryCategorySamples(SLEEP_ANALYSIS, filter),
+    ]);
     try {
-      const [steps, heart, workouts, sleep] = await Promise.all([
-        mod.queryQuantitySamples(STEP_COUNT, filter),
-        mod.queryQuantitySamples(HEART_RATE, filter),
-        mod.queryWorkoutSamples(filter),
-        mod.queryCategorySamples(SLEEP_ANALYSIS, filter),
-      ]);
-      for (const s of steps as HKQuantitySampleLike[]) out.push(mapHealthKitSteps(s));
-      for (const s of heart as HKQuantitySampleLike[]) out.push(mapHealthKitHeartRate(s));
-      for (const s of workouts as HKWorkoutSampleLike[]) out.push(mapHealthKitWorkout(s));
-      for (const s of sleep as HKCategorySampleLike[]) out.push(mapHealthKitSleep(s));
+      if (steps.status === "fulfilled")
+        for (const s of steps.value as HKQuantitySampleLike[]) out.push(mapHealthKitSteps(s));
+      if (heart.status === "fulfilled")
+        for (const s of heart.value as HKQuantitySampleLike[]) out.push(mapHealthKitHeartRate(s));
+      if (workouts.status === "fulfilled")
+        for (const s of workouts.value as HKWorkoutSampleLike[]) out.push(mapHealthKitWorkout(s));
+      if (sleep.status === "fulfilled")
+        for (const s of sleep.value as HKCategorySampleLike[]) out.push(mapHealthKitSleep(s));
     } catch {
-      // A query failure yields whatever was collected rather than throwing into
-      // the ingest path.
+      // Defensive: a malformed sample throwing in a pure mapper still yields the
+      // samples collected so far rather than throwing into the ingest path.
     }
     return dedupeByExternalId(out);
   },

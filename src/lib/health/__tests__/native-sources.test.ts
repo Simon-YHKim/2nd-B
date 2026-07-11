@@ -202,4 +202,33 @@ describe("healthkit source", () => {
     const byType = out.map((s) => `${s.metricType}:${s.value}`).sort();
     expect(byType).toEqual(["heart_rate:66", "sleep:360", "steps:9000", "workout:30"].sort());
   });
+
+  test("on RN runtime: requestPermission authorizes the workout type", async () => {
+    setNavigatorProduct("ReactNative");
+    hkIsAvailable.mockReturnValue(true);
+    hkRequestAuthorization.mockResolvedValue(true);
+    await healthKitSource.requestPermission();
+    // Without HKWorkoutTypeIdentifier in the read set, queryWorkoutSamples returns
+    // empty on a real device and workouts are silently never imported.
+    const readTypes = hkRequestAuthorization.mock.calls[0][1] as string[];
+    expect(readTypes).toContain("HKWorkoutTypeIdentifier");
+  });
+
+  test("on RN runtime: one query rejection does not zero out the other samples", async () => {
+    setNavigatorProduct("ReactNative");
+    hkIsAvailable.mockReturnValue(true);
+    // Steps succeed, the workout query rejects (transient HealthKit error). The
+    // rejected query must not discard the granted steps (allSettled regression
+    // guard; Promise.all would have returned []).
+    hkQueryQuantitySamples.mockImplementation((id: string) =>
+      id === "HKQuantityTypeIdentifierStepCount"
+        ? Promise.resolve([{ uuid: "st1", quantity: 9000, startDate: range.startIso, endDate: range.endIso }])
+        : Promise.resolve([]),
+    );
+    hkQueryWorkoutSamples.mockRejectedValue(new Error("HealthKit query failed"));
+    hkQueryCategorySamples.mockResolvedValue([]);
+
+    const out = await healthKitSource.read(range);
+    expect(out.map((s) => `${s.metricType}:${s.value}`)).toEqual(["steps:9000"]);
+  });
 });
