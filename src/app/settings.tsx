@@ -198,7 +198,7 @@ function M3PaletteSeg({ palette, onSelect, labels }: { palette: AccentPalette; o
           <Pressable
             key={key}
             accessibilityRole="radio"
-            accessibilityState={{ selected: on }}
+            accessibilityState={{ selected: on, checked: on }}
             accessibilityLabel={labels[key]}
             onPress={() => onSelect(key)}
             style={[m3Styles.segBtn, i > 0 && m3Styles.segDivider, on && m3Styles.segBtnOn]}

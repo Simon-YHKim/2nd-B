@@ -3,7 +3,9 @@
     "today": "오늘",
     "yesterday": "어제",
     "daysAgo": "{{count}}일 전",
+    "daysAgo_plural": "{{count}}일 전",
     "hoursAgo": "{{count}}시간 전",
+    "hoursAgo_plural": "{{count}}시간 전",
     "now": "방금",
     "recordFallback": "기록",
     "monthDay": "{{month}}월 {{day}}일"
@@ -27,6 +29,7 @@
   "research": {
     "title": "연결 찾기",
     "headerFound": "흩어진 기록 사이에서 {{count}}개의 연결을 찾았어요.",
+    "headerFound_plural": "흩어진 기록 사이에서 {{count}}개의 연결을 찾았어요.",
     "headerNone": "기록이 쌓이면 사이의 연결을 찾아 보여드려요.",
     "tip": "태그를 누르면 군집이 보여요.",
     "lead": "흩어진 기록이 이렇게 이어져요",
@@ -52,8 +55,10 @@
   "records": {
     "title": "기록 보관소",
     "headerCount": "담은 별가루가 {{count}}개, 위키로 엮었어요.",
+    "headerCount_plural": "담은 별가루가 {{count}}개, 위키로 엮었어요.",
     "headerEmpty": "아직 담은 별가루가 없어요.",
     "tip": "받은항목에 미분류 {{count}}개가 기다리고 있어요.",
+    "tip_plural": "받은항목에 미분류 {{count}}개가 기다리고 있어요.",
     "lead": "담은 모든 것이 하나의 시간으로",
     "filterAll": "전체",
     "filterJournal": "일기",
@@ -203,7 +208,7 @@
     "viewManual": "매뉴얼 보기",
     "emailUs": "이메일 문의",
     "reportBug": "버그 신고",
-    "footer": "2nd-Brain v1.0.0 · 2 business days KST"
+    "footer": "2nd-Brain v1.0.0 · 답변까지 영업일 2일 (KST)"
   },
   "integrations": {
     "title": "다른 앱 연동",

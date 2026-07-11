@@ -2,8 +2,10 @@
   "time": {
     "today": "Today",
     "yesterday": "Yesterday",
-    "daysAgo": "{{count}} days ago",
-    "hoursAgo": "{{count}} hours ago",
+    "daysAgo": "{{count}} day ago",
+    "daysAgo_plural": "{{count}} days ago",
+    "hoursAgo": "{{count}} hour ago",
+    "hoursAgo_plural": "{{count}} hours ago",
     "now": "Just now",
     "recordFallback": "Record",
     "monthDay": "{{month}}/{{day}}"
@@ -26,7 +28,8 @@
   },
   "research": {
     "title": "Find connections",
-    "headerFound": "Found {{count}} connections among your scattered records.",
+    "headerFound": "Found {{count}} connection among your scattered records.",
+    "headerFound_plural": "Found {{count}} connections among your scattered records.",
     "headerNone": "As records pile up, I'll find and show the links between them.",
     "tip": "Tap a tag to see its cluster.",
     "lead": "Here's how your scattered records connect",
@@ -51,9 +54,11 @@
   },
   "records": {
     "title": "Archive",
-    "headerCount": "You've woven {{count}} pieces into your wiki.",
+    "headerCount": "You've woven {{count}} piece into your wiki.",
+    "headerCount_plural": "You've woven {{count}} pieces into your wiki.",
     "headerEmpty": "You haven't saved any pieces yet.",
-    "tip": "{{count}} unfiled pieces are waiting in your inbox.",
+    "tip": "{{count}} unfiled piece is waiting in your inbox.",
+    "tip_plural": "{{count}} unfiled pieces are waiting in your inbox.",
     "lead": "Everything you've saved, on one timeline",
     "filterAll": "All",
     "filterJournal": "Journal",

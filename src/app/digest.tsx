@@ -195,7 +195,11 @@ export default function Digest() {
                   onPress={() =>
                     router.push({ pathname: "/record/[id]", params: { id: p.from_page } })
                   }
-                  accessibilityRole="button"
+                  // accessible={false}: this row nests confirm/dismiss buttons —
+                  // an accessible parent collapses them into one node, leaving the
+                  // actions unreachable under VoiceOver. Opening it out lets the
+                  // title text and both buttons surface as separate a11y elements.
+                  accessible={false}
                   accessibilityLabel={
                     ko ? `${p.from_title} 상세 보기` : `Open ${p.from_title}`
                   }
