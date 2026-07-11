@@ -138,6 +138,19 @@ describe("syncWikiLinks", () => {
     expect(del?.filters.to_page__in).toEqual(["p-old"]);
   });
 
+  test("delete is scoped to relation_type=wikilink so inferred/ratified edges survive", async () => {
+    // getOutgoingLinks returns edges of EVERY relation_type; syncWikiLinks must
+    // only remove literal [[wikilink]] edges, never the AI-proposed (inferred) or
+    // user-accepted (ratified) connections that the body simply no longer names.
+    tableRows.wiki_links = [{ to_page: "p-inferred", wiki_pages: { slug: "brainstorm" } }];
+    tableRows.wiki_pages = [];
+
+    await syncWikiLinks("user-1", { id: "p-src", body_md: "no wikilinks here" });
+
+    const del = findFirst("wiki_links", "delete");
+    expect(del?.filters.relation_type).toBe("wikilink");
+  });
+
   test("body has unresolved slug → reported as dangling, no insert", async () => {
     tableRows.wiki_links = [];
     tableRows.wiki_pages = [];
