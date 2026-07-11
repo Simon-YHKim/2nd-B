@@ -104,10 +104,10 @@
 ### 다음 작업 큐 (18회차부터)
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
-| A | #907 실기 확인: call-reflection·iden 화면 에뮬 캡처 (딥링크 `/call-reflection`, `/iden`) | small | ⭐ 머지분 재검증 관례 |
+| A | ✅ **완료(18회차)**: #907 실기 PASS (blocked 분기 + iden, 법무 플래그 인라인 렌더 확인) | done | ✅ |
 | B | ✅ **완료(#908)**: 출처 불명 변경 2건을 에뮬 대조로 **둘 다 실결함 확인** → 근거 PR 재구현·머지·재캡처 PASS (insights 캡션↔숫자 겹침, growth caret 줄바꿈) | done | ✅ |
-| C | DeepSpaceDesignScreens 잔여 삼항 (Privacy 37·Data 7 = 법무 게이트 제외분) | medium | 배치4 위임 |
-| D | records 그래프 125레코드 링크 과밀(모아레) · FOCUS_STARS ko/en 한계 · 마이크로 타이포(9~11px) | small~med | P2/P3 |
+| C | ~~배치4~~ **게이트 대기로 재분류**: 잔여 41삼항 = 전부 Privacy(34)+Data(7) 법무분. 비게이트 물량 소진 | — | 🔒 Simon |
+| D | records 그래프 125레코드 링크 과밀(모아레) · 마이크로 타이포(9~11px) — ~~FOCUS_STARS~~ ✅ #913 | small~med | ⭐ P2/P3 |
 | E | KST 하드코딩(`records-timeline.ts:7`) 타임존 설계 | medium | 설계 선행 |
 | G | 🔒 게이트(Simon): 수익화 6건 · Privacy/Data es/pt/id 번역(법무) · attachment 임상 어휘 · ratify 되돌리기 · **법무 플래그 5건**(위) · 988/동의연령/advisor/₩ | — | Simon |
 
