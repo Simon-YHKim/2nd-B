@@ -18,8 +18,12 @@ const MAX_BRANCHES = 3;
 export function parseTwiBranches(text: string): TwiBranchParse {
   const lines = text.split("\n");
 
-  // Walk up from the bottom collecting consecutive branch lines (blank lines
-  // between them are tolerated). Anything above the run stays display text.
+  // Walk up from the bottom collecting EVERY consecutive branch line (blank lines
+  // between them are tolerated). Anything above the run stays display text. The cap
+  // is applied after collection, not inside the loop: if 트위비 emits 4+ candidates
+  // (violating the "up to three" instruction), stopping the walk at three would leave
+  // the topmost arrow line stranded in `display` as raw text and keep the LAST three
+  // instead of the first. Collect all so `cut` clears them all, then slice.
   const branchesReversed: string[] = [];
   let cut = lines.length;
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -28,7 +32,7 @@ export function parseTwiBranches(text: string): TwiBranchParse {
       cut = i;
       continue;
     }
-    if (BRANCH_PREFIX.test(line) && branchesReversed.length < MAX_BRANCHES) {
+    if (BRANCH_PREFIX.test(line)) {
       branchesReversed.push(line.replace(BRANCH_PREFIX, "").trim());
       cut = i;
       continue;
@@ -41,6 +45,9 @@ export function parseTwiBranches(text: string): TwiBranchParse {
   }
   return {
     display: lines.slice(0, cut).join("\n").trim(),
-    branches: branchesReversed.reverse().filter((b) => b.length > 0),
+    branches: branchesReversed
+      .reverse()
+      .filter((b) => b.length > 0)
+      .slice(0, MAX_BRANCHES),
   };
 }
