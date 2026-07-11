@@ -123,7 +123,7 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
   authLegal:{color:colors.textLo,fontSize:11,textAlign:'center',marginTop:spacing.xl,paddingHorizontal:spacing.md},
   authPrimary:{backgroundColor:colors.cyan,marginTop:2},
   authPrimaryText:{color:colors.bgDeep,fontSize:15,fontWeight:'700'},
-  consentGroupLabel:{color:colors.cyanBright,fontSize:7,letterSpacing:0.7,textTransform:'uppercase',marginTop:spacing.xs},
+  consentGroupLabel:{color:colors.cyanBright,fontSize:12,letterSpacing:0.7,textTransform:'uppercase',marginTop:spacing.xs},
   consentIntro:{color:colors.textMid,fontSize:11.5,},
   consentRow:{flexDirection:'row',alignItems:'flex-start',gap:spacing.sm,minHeight:40,paddingVertical:spacing.xs},
   consentCheckbox:{width:22,height:22,borderRadius:radius.sm,borderWidth:1,borderColor:colors.borderHi,alignItems:'center',justifyContent:'center',marginTop:1},

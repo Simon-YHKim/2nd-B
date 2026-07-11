@@ -13,5 +13,9 @@
   "notice": "Pemberitahuan umpan balik wawancara",
   "reflectError": "Tidak dapat mencerminkannya",
   "dismiss": "Tutup",
-  "tryAgain": "Coba lagi"
+  "tryAgain": "Coba lagi",
+  "ratifyDeltaNote": "Jawabanmu disimpan apa adanya. Kami tidak mengarang perkiraan sekarang; bintang-bintangmu makin terang seiring catatanmu bertambah.",
+  "progressLabel": "Pertanyaan {{n}} / {{total}} · Wawancara kenangan",
+  "screenerSubtitle": "Kami memutari inti yang sama dengan cara sedikit berbeda tiap kali, supaya lebih jernih terlihat.",
+  "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi."
 }

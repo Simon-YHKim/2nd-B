@@ -11,16 +11,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Platform, View, StyleSheet } from "react-native";
-import { usePathname, router } from "expo-router";
-import { Text } from "@/components/ui/Text";
-import { Pressable } from "react-native";
+import { usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { getEnv } from "@/lib/env";
 import { canShowAds } from "@/lib/ads/policy";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
-import { semantic, radii, spacing } from "@/lib/theme/tokens";
+import { spacing } from "@/lib/theme/tokens";
 
 declare global {
   interface Window {
@@ -47,9 +45,9 @@ export function AdSlot({ slotEnvKey }: { slotEnvKey: "EXPO_PUBLIC_ADSENSE_SLOT_R
   const hostRef = useRef<View | null>(null);
   // users.privacy_prefs.ads — null until resolved (policy fails closed).
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
-  // AdBlock / load-failure fallback: when the ad never fills, show the quiet
-  // subscription upsell instead of a blank box (ads → "remove ads with a
-  // subscription" loop).
+  // AdBlock / load-failure state: when the ad never fills (blocked script, no
+  // inventory, throttled connection) the slot collapses to nothing rather than
+  // pushing a subscription upsell at the low-data users least able to pay.
   const [fallback, setFallback] = useState(false);
 
   const env = getEnv();
@@ -106,7 +104,7 @@ export function AdSlot({ slotEnvKey }: { slotEnvKey: "EXPO_PUBLIC_ADSENSE_SLOT_R
       setFallback(true);
     }
     // If nothing filled within a grace window (blocked script, no inventory),
-    // collapse to the upsell line rather than leaving dead space.
+    // collapse the slot to nothing rather than leaving dead space or an upsell.
     const check = setTimeout(() => {
       if (ins.getAttribute("data-ad-status") !== "filled") setFallback(true);
     }, 4000);
@@ -115,34 +113,14 @@ export function AdSlot({ slotEnvKey }: { slotEnvKey: "EXPO_PUBLIC_ADSENSE_SLOT_R
 
   if (!allowed) return null;
 
-  if (fallback) {
-    return (
-      <Pressable
-        onPress={() => router.push("/plans")}
-        style={styles.fallback}
-        accessibilityRole="button"
-        accessibilityLabel={t("ads.removeUpsell")}
-      >
-        <Text variant="subtle" color="textMuted">
-          {t("ads.removeUpsell")}
-        </Text>
-      </Pressable>
-    );
-  }
+  // Ad failed to fill: collapse to nothing. Turning missing inventory into a
+  // "remove ads with a subscription" pitch pressures exactly the low-data /
+  // low-income users least able to pay (persona-sim, Simon-approved 2026-07-11).
+  if (fallback) return null;
 
   return <View ref={hostRef} style={styles.host} accessibilityLabel={t("ads.label")} />;
 }
 
 const styles = StyleSheet.create({
   host: { width: "100%", minHeight: 50, marginTop: spacing.md },
-  fallback: {
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: semantic.border,
-    alignItems: "center",
-    minHeight: 44,
-    justifyContent: "center",
-  },
 });

@@ -17,7 +17,7 @@ import type { SubscriptionTier } from '../progression/entitlements';
 
 /**
  * Monthly reasoning-run cap for a tier. null = unlimited.
- *   free   -> 8
+ *   free   -> 30
  *   soma   -> 60
  *   cortex -> 60
  *   brain  -> null (unlimited)
@@ -25,7 +25,7 @@ import type { SubscriptionTier } from '../progression/entitlements';
 export function reasoningCapForTier(tier: SubscriptionTier): number | null {
   switch (tier) {
     case 'free':
-      return 8;
+      return 30;
     case 'soma':
       return 60;
     case 'cortex':

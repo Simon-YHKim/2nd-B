@@ -1862,7 +1862,7 @@ const ds = StyleSheet.create({
 
   thinking: { paddingVertical: deepSpaceSpacing.md, alignItems: "center" },
 
-  quickRow: { gap: deepSpaceSpacing.sm, paddingHorizontal: 18, paddingVertical: deepSpaceSpacing.sm },
+  quickRow: { alignItems: "center", gap: deepSpaceSpacing.sm, paddingHorizontal: 18, paddingVertical: deepSpaceSpacing.sm },
   quickChip: {
     minHeight: 44,
     justifyContent: "center",

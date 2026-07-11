@@ -755,6 +755,10 @@ export function DeepSpacePrivacyDesignScreen() {
           autoCorrect={false}
           style={styles.input}
           accessibilityLabel={ko ? "삭제 확인 입력" : "Deletion confirmation"}
+          returnKeyType="done"
+          onSubmitEditing={() => {
+            if (delConfirm === "DELETE" && !deleting) void runDeleteAccount();
+          }}
         />
         <Pressable
           style={[styles.danger, (delConfirm !== "DELETE" || deleting) && { opacity: 0.5 }]}
@@ -2462,6 +2466,7 @@ export function DeepSpaceSrsScreen() {
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [busy, setBusy] = useState(false);
+  const backRef = useRef<TextInput>(null);
 
   // Load the due queue once auth resolves. A null queue = still loading; an
   // empty array = nothing due (the cleared state).
@@ -2534,15 +2539,21 @@ export function DeepSpaceSrsScreen() {
             placeholder={t("srs.frontPlaceholder")}
             placeholderTextColor={colors.textLo}
             accessibilityLabel={t("srs.frontLabel")}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => backRef.current?.focus()}
           />
           <Text variant="caption" pixelEn style={styles.authLabel}>{t("srs.backLabel")}</Text>
           <TextInput
+            ref={backRef}
             style={styles.input}
             value={back}
             onChangeText={setBack}
             placeholder={t("srs.backPlaceholder")}
             placeholderTextColor={colors.textLo}
             accessibilityLabel={t("srs.backLabel")}
+            returnKeyType="done"
+            onSubmitEditing={() => void addCard()}
           />
         </Card>
         <View style={styles.focusControls}>
