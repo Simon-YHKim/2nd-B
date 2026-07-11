@@ -74,7 +74,9 @@
     "typeUnfiled": "미분류",
     "unfiledBadge": "미분류",
     "fallbackTitle": "제목 없음",
-    "graphEmpty": "아직 연결할 지식이 없어요."
+    "graphEmpty": "아직 연결할 지식이 없어요.",
+    "loadError": "지금은 보관소를 불러오지 못했어요. 담은 별가루는 안전해요. 다시 시도해 주세요.",
+    "retry": "다시 시도"
   },
   "domains": {
     "title": "내 영역",
@@ -722,7 +724,9 @@
       "accountImportFile": "파일로 가져오기",
       "consentTitle": "가져오기 전 약속",
       "historyTitle": "가져오기 이력",
-      "revoke": "철회"
+      "revoke": "철회",
+      "fileSource": "파일 가져오기",
+      "revokeFailed": "철회하지 못했어요. 잠시 후 다시 시도해 주세요."
     },
     "ttfv": {
       "pageTitle": "당신의 첫 별이 켜졌어요",

@@ -74,7 +74,9 @@
     "typeUnfiled": "Tak terkategori",
     "unfiledBadge": "Tak terkategori",
     "fallbackTitle": "Tanpa judul",
-    "graphEmpty": "Belum ada pengetahuan untuk dihubungkan."
+    "graphEmpty": "Belum ada pengetahuan untuk dihubungkan.",
+    "loadError": "Tidak bisa memuat arsipmu saat ini. Semua catatanmu aman; coba lagi.",
+    "retry": "Coba lagi"
   },
   "domains": {
     "title": "Area saya",
@@ -722,7 +724,9 @@
       "accountImportFile": "Impor file",
       "consentTitle": "Sebelum mengimpor",
       "historyTitle": "Riwayat impor",
-      "revoke": "Cabut"
+      "revoke": "Cabut",
+      "fileSource": "Impor file",
+      "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi."
     },
     "ttfv": {
       "pageTitle": "Bintang pertamamu baru saja menyala",

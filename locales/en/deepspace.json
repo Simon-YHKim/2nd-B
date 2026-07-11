@@ -74,7 +74,9 @@
     "typeUnfiled": "Unfiled",
     "unfiledBadge": "Unfiled",
     "fallbackTitle": "Untitled",
-    "graphEmpty": "No knowledge to connect yet."
+    "graphEmpty": "No knowledge to connect yet.",
+    "loadError": "Couldn't load your archive just now. Your pieces are safe; try again.",
+    "retry": "Try again"
   },
   "domains": {
     "title": "My areas",
@@ -722,7 +724,9 @@
       "accountImportFile": "Import file",
       "consentTitle": "Before importing",
       "historyTitle": "Import history",
-      "revoke": "Revoke"
+      "revoke": "Revoke",
+      "fileSource": "File import",
+      "revokeFailed": "Couldn't withdraw. Try again shortly."
     },
     "ttfv": {
       "pageTitle": "Your first star just lit up",

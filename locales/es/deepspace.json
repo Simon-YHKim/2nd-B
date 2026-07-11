@@ -74,7 +74,9 @@
     "typeUnfiled": "Sin clasificar",
     "unfiledBadge": "Sin clasificar",
     "fallbackTitle": "Sin título",
-    "graphEmpty": "Aún no hay conocimiento que conectar."
+    "graphEmpty": "Aún no hay conocimiento que conectar.",
+    "loadError": "No se pudo cargar tu archivo ahora mismo. Tus piezas están a salvo; inténtalo de nuevo.",
+    "retry": "Reintentar"
   },
   "domains": {
     "title": "Mis áreas",
@@ -722,7 +724,9 @@
       "accountImportFile": "Importar archivo",
       "consentTitle": "Antes de importar",
       "historyTitle": "Historial de importación",
-      "revoke": "Revocar"
+      "revoke": "Revocar",
+      "fileSource": "Importación de archivo",
+      "revokeFailed": "No se pudo revocar. Inténtalo de nuevo en un momento."
     },
     "ttfv": {
       "pageTitle": "Tu primera estrella acaba de encenderse",
