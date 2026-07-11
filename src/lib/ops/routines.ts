@@ -106,6 +106,14 @@ export function weekStreak(
   const done = new Set(logs.map((l) => l.completed_on));
   let streak = 0;
   const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Grace day (mirrors journal/streak.ts): if TODAY has no completion yet, start
+  // counting from yesterday. Otherwise a user who kept the routine for days but
+  // hasn't logged today yet (e.g. opened the app at 9am) reads as streak 0 -
+  // mislabeling a consistent user as "slipping" and feeding the recommender LLM a
+  // wrong "no streak" signal. An empty/broken set still yields 0 (yesterday absent).
+  if (!done.has(localDayKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
   // Cap the walk so a malformed set can't spin: a "week streak" tops out at 7.
   for (let i = 0; i < 7; i++) {
     if (!done.has(localDayKey(cursor))) break;
