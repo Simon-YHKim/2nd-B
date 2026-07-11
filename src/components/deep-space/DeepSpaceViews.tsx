@@ -24,6 +24,8 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { type HotlineId } from "@/lib/safety/lexicon";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -207,6 +209,13 @@ export function CaptureView() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  // Crisis safety net (parity with the journal path): createRecord runs the
+  // local crisis lexicon on every note save; a red zone must surface the same
+  // locale/minor-aware hotline here as everywhere else, not a silent "saved".
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
 
   const cleanTodos = todos.map((v) => v.trim()).filter((v) => v.length > 0);
   const hasContent =
@@ -251,7 +260,7 @@ export function CaptureView() {
         topic = body.slice(0, 80);
         tag = mode; // link / photo / voice
       }
-      await createRecord({
+      const res = await createRecord({
         userId,
         locale,
         kind: "note",
@@ -261,6 +270,13 @@ export function CaptureView() {
         withFollowup: false,
         minor: isMinor === true,
       });
+      // createRecord ran the local crisis lexicon on this note (withFollowup:false
+      // → llmPathWillClassify=false). A red zone means the text tripped crisis
+      // detection — surface the hotline exactly like the journal path
+      // (capture.tsx handleJournalSubmit) instead of discarding the result.
+      if (res.followup?.zone === "red") {
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      }
       setSaved(true);
       setFourw(EMPTY_FOURW);
       setText("");
@@ -486,6 +502,12 @@ export function CaptureView() {
           <Text style={styles.capErrorText}>{f("saveError")}</Text>
         </View>
       ) : null}
+
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </ScrollView>
   );
 }
