@@ -79,7 +79,9 @@
     "typeUnfiled": "Unfiled",
     "unfiledBadge": "Unfiled",
     "fallbackTitle": "Untitled",
-    "graphEmpty": "No knowledge to connect yet."
+    "graphEmpty": "No knowledge to connect yet.",
+    "loadError": "Couldn't load your archive just now. Your pieces are safe; try again.",
+    "retry": "Try again"
   },
   "domains": {
     "title": "My areas",
@@ -227,6 +229,9 @@
     "statusDown": "You saved less this week than last week.",
     "statusFlat": "You saved about as much as last week.",
     "statusFirstWeek": "Your first week is starting to fill in.",
+    "errorBody": "Could not load this week's data.",
+    "retry": "Try again",
+    "firstWeekBody": "Fill one week and I'll compare this week with last week.",
     "tip": "Tap your most-saved topic to see the flow.",
     "sectionNow": "You lately",
     "lead": "Compared to last week, this week you",
@@ -727,7 +732,9 @@
       "accountImportFile": "Import file",
       "consentTitle": "Before importing",
       "historyTitle": "Import history",
-      "revoke": "Revoke"
+      "revoke": "Revoke",
+      "fileSource": "File import",
+      "revokeFailed": "Couldn't withdraw. Try again shortly."
     },
     "ttfv": {
       "pageTitle": "Your first star just lit up",
@@ -758,6 +765,17 @@
       },
       "whyFootnote": "It's still early, so this is a light first read. The more you capture, the more grounds build up.",
       "eyebrow": "FIRST LIGHT"
+    },
+    "northstar": {
+      "title": "North-star sentence",
+      "sub": "SecondB drafted this from your seven stars. Reshape it in your own words.",
+      "placeholder": "Understand myself deeply, live more like myself.",
+      "suggestLabel": "SecondB drafts",
+      "thinking": "Thinking",
+      "propose": "Get other drafts",
+      "cancel": "Cancel",
+      "save": "Save this sentence",
+      "thinBase": "Your record base is still thin. Capture about {{count}} pieces and I'll draw drafts from them."
     },
     "reward": {
       "titleA": "Watch 30s, get ",

@@ -79,7 +79,9 @@
     "typeUnfiled": "Não classificado",
     "unfiledBadge": "Não classificado",
     "fallbackTitle": "Sem título",
-    "graphEmpty": "Ainda não há conhecimento para conectar."
+    "graphEmpty": "Ainda não há conhecimento para conectar.",
+    "loadError": "Não foi possível carregar seu arquivo agora. Suas peças estão seguras; tente novamente.",
+    "retry": "Tentar de novo"
   },
   "domains": {
     "title": "Minhas áreas",
@@ -227,6 +229,9 @@
     "statusDown": "Esta semana você salvou menos do que na semana passada.",
     "statusFlat": "Esta semana você salvou quase o mesmo que na semana passada.",
     "statusFirstWeek": "Sua primeira semana está começando a encher.",
+    "errorBody": "Não foi possível carregar os dados desta semana.",
+    "retry": "Tentar novamente",
+    "firstWeekBody": "Complete uma semana e compararei esta semana com a anterior.",
     "tip": "Toque no seu tema mais salvo para ver o fluxo.",
     "sectionNow": "Você ultimamente",
     "lead": "Comparado à semana passada, esta semana você",
@@ -727,7 +732,9 @@
       "accountImportFile": "Importar arquivo",
       "consentTitle": "Antes de importar",
       "historyTitle": "Histórico de importação",
-      "revoke": "Revogar"
+      "revoke": "Revogar",
+      "fileSource": "Importação de arquivo",
+      "revokeFailed": "Não foi possível revogar. Tente novamente em instantes."
     },
     "ttfv": {
       "pageTitle": "Sua primeira estrela acabou de se acender",
@@ -758,6 +765,17 @@
       },
       "whyFootnote": "Ainda é o começo, então esta é uma primeira leitura leve. Quanto mais você registra, mais motivos se acumulam.",
       "eyebrow": "PRIMEIRA LUZ"
+    },
+    "northstar": {
+      "title": "Frase da Estrela Polar",
+      "sub": "O SecondB a esboçou a partir de suas sete estrelas. Molde com suas próprias palavras.",
+      "placeholder": "Entender-me a fundo e viver mais como eu.",
+      "suggestLabel": "Rascunhos do SecondB",
+      "thinking": "Pensando",
+      "propose": "Ver outros rascunhos",
+      "cancel": "Cancelar",
+      "save": "Salvar esta frase",
+      "thinBase": "Sua base de registros ainda é rasa. Salve cerca de {{count}} peças e tirarei rascunhos delas."
     },
     "reward": {
       "titleA": "Assista 30s e ganhe ",

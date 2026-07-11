@@ -27,6 +27,13 @@ import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
 import { splitImportNotes } from "@/lib/wiki/import-notes";
+import {
+  addImportHistory,
+  getImportHistory,
+  removeImportHistory,
+  type ImportHistoryEntry,
+} from "@/lib/import/history";
+import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 
 // Material-symbol stroke glyphs, transcribed to match the reference icons. Same
 // SvgXml approach as the connect/datareview CloneIcon kit.
@@ -166,12 +173,18 @@ export function DeepSpaceImportScreen() {
   const [healthPref, setHealthPref] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthDone, setHealthDone] = useState(false);
-  // Import history starts empty — no seeded fake rows shown as real imports.
-  const [history, setHistory] = useState<{ id: number; src: string; when: string; items: number }[]>([]);
+  // Import history = the persistent device-local log (import-hub 철회 store), so
+  // file imports here show up in the same withdrawal list. No seeded fake rows.
+  const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
+  const [revokeErr, setRevokeErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     void fetchPrivacyPrefs(userId).then((p) => setHealthPref(p.health_import === true));
+  }, [userId]);
+
+  useEffect(() => {
+    void getImportHistory().then(setHistory);
   }, [userId]);
 
   const canHealth = healthImportAllowed(isMinor, healthPref);
@@ -190,22 +203,61 @@ export function DeepSpaceImportScreen() {
       if (notes.length === 0) return;
       setImporting(true);
       const tally: ImportResult = { imported: 0, deduped: 0, failed: 0 };
+      // Ids of the source rows this import newly created — logged below so the
+      // rows are revocable. Deduped notes reuse an existing (already-logged) row,
+      // so they are not collected here.
+      const createdIds: string[] = [];
       for (const note of notes) {
         try {
           const r = await captureFromMarkdown({ userId, rawMd: note, kindOverride: "self_knowledge" });
           if (r.deduped === "exact_duplicate") tally.deduped += 1;
-          else tally.imported += 1;
+          else {
+            tally.imported += 1;
+            createdIds.push(r.source.id);
+          }
         } catch {
           tally.failed += 1;
         }
       }
       setResult(tally);
+      // Record the import in the withdrawal log. Without this the file import
+      // created source rows that the "철회 가능" consent card promised were
+      // revocable, but nothing pointed at them — leaving them unrevokable.
+      if (createdIds.length > 0) {
+        await addImportHistory({
+          id: `${Date.now()}`,
+          sourceKey: "file",
+          name: t("ds.import.fileSource"),
+          atIso: new Date().toISOString(),
+          summary: ko ? `별가루 ${tally.imported}개` : `${tally.imported} pieces`,
+          sourceIds: createdIds,
+        });
+        setHistory(await getImportHistory());
+      }
     } catch {
       // Picker cancel / permission errors are non-fatal.
     } finally {
       setImporting(false);
       setPicking(false);
     }
+  }
+
+  // 철회 = full removal: delete the imported source rows, THEN the log entry.
+  // On delete failure keep the entry and surface an error so the withdrawal can
+  // be retried — never drop the only pointer to rows that still exist.
+  async function revokeImport(entry: ImportHistoryEntry) {
+    if (!userId) return;
+    setRevokeErr(null);
+    if (entry.sourceIds.length > 0) {
+      try {
+        await deleteSourcesByIds(userId, entry.sourceIds);
+      } catch {
+        setRevokeErr(t("ds.import.revokeFailed"));
+        return;
+      }
+    }
+    await removeImportHistory(entry.id);
+    setHistory(await getImportHistory());
   }
 
   // Opt in: persist the pref AND write an explicit sensitive-data consent record
@@ -394,21 +446,22 @@ export function DeepSpaceImportScreen() {
           {history.length > 0 ? (
             <>
               <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("ds.import.historyTitle")}</RNText>
+              {revokeErr ? <RNText style={[m3TextStyle("bodySmall"), s.revokeErr]}>{revokeErr}</RNText> : null}
               <View style={s.stack8}>
                 {history.map((h) => (
                   <MdCard key={h.id} variant="outlined" style={s.historyCard}>
                     <View style={s.historyRow}>
                       <View style={s.flex1}>
-                        <RNText style={[m3TextStyle("bodyLarge"), s.historyName]}>{h.src}</RNText>
-                        <RNText style={[m3TextStyle("bodySmall"), s.historySub]}>{h.when}{ko ? ` · ${h.items}개 별가루` : ` · ${h.items} pieces`}</RNText>
+                        <RNText style={[m3TextStyle("bodyLarge"), s.historyName]}>{h.name}</RNText>
+                        <RNText style={[m3TextStyle("bodySmall"), s.historySub]}>{h.atIso.slice(0, 10)}{h.summary ? ` · ${h.summary}` : ""}</RNText>
                       </View>
                       <MdButton
                         label={t("ds.import.revoke")}
                         variant="text"
                         icon={<Glyph name="trash" color={m3.color.error} size={16} />}
-                        onPress={() => setHistory((xs) => xs.filter((x) => x.id !== h.id))}
+                        onPress={() => void revokeImport(h)}
                         style={s.revokeBtn}
-                        accessibilityLabel={ko ? `${h.src} 가져오기 철회` : `Revoke ${h.src} import`}
+                        accessibilityLabel={ko ? `${h.name} 가져오기 철회` : `Revoke ${h.name} import`}
                       />
                     </View>
                   </MdCard>
@@ -465,5 +518,6 @@ const s = StyleSheet.create({
   historyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   historyName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   historySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
+  revokeErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 8 },
   revokeBtn: { minHeight: 40, paddingHorizontal: 12 },
 });

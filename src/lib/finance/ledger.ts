@@ -9,6 +9,7 @@
 // the same discipline as ops/routines.ts.
 
 import { getSupabaseClient } from "../supabase/client";
+import { invalidateDomainLevels } from "../persona/load-domain-levels";
 
 export type LedgerKind = "income" | "expense";
 
@@ -117,6 +118,8 @@ export async function createLedgerEntry(userId: string, entry: NewLedgerEntry): 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.from("ops_ledger").insert(insert).select().single();
   if (error) throw error;
+  // A ledger row lifts the 재정 (finance) domain star; drop the stale home cache.
+  invalidateDomainLevels(userId);
   return rowToEntry(data as Record<string, unknown>);
 }
 

@@ -76,6 +76,16 @@ jobs:
       EXPO_PUBLIC_LLM_MODE: "live"
       EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
       EXPO_PUBLIC_REASONING_PROVIDER: "claude"
+      # D-27 axis-key pins (parity with eas.json production + web-deploy.yml):
+      # without these the bundle falls back to the types.ts gemini-2.5 defaults,
+      # so live calls bypass the dedicated GEMINI_API_KEY__G35FLASH__{effort}
+      # combo keys the proxy provisions and land on the base-key/legacy path.
+      EXPO_PUBLIC_MODEL_LITE: ${{ vars.EXPO_PUBLIC_MODEL_LITE || 'gemini-3.5-flash' }}
+      EXPO_PUBLIC_MODEL_FLASH: ${{ vars.EXPO_PUBLIC_MODEL_FLASH || 'gemini-3.5-flash' }}
+      EXPO_PUBLIC_MODEL_PRO: ${{ vars.EXPO_PUBLIC_MODEL_PRO || 'gemini-3.5-flash' }}
+      # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
+      # change); flip the repo Variable to "2" to activate Phase 2 routing.
+      EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
       EXPO_PUBLIC_UI: "deep-space"
       EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"

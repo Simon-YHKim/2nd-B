@@ -48,9 +48,9 @@
           "label": "Attachment",
           "hint": "Opens the attachment style assessment."
         },
-        "mbti": {
-          "label": "MBTI",
-          "hint": "Opens the MBTI reference check."
+        "growth": {
+          "label": "My growth",
+          "hint": "Opens the weekly growth review."
         },
         "audit": {
           "label": "Past me",

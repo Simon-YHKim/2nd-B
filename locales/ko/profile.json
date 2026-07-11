@@ -48,9 +48,9 @@
           "label": "애착 유형",
           "hint": "애착 유형 검사를 엽니다."
         },
-        "mbti": {
-          "label": "MBTI",
-          "hint": "MBTI 참고 검사를 엽니다."
+        "growth": {
+          "label": "나의 변화",
+          "hint": "주간 변화 리뷰를 엽니다."
         },
         "audit": {
           "label": "과거의 나",

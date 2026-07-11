@@ -519,7 +519,8 @@ function CoreBrainScreen() {
               { key: "strengths", label: t("strengthsCheck"), route: "/strengths" },
               { key: "values", label: t("valuesCheck"), route: "/values" },
               { key: "northstar", label: t("editNorthStar"), route: "/northstar" },
-              { key: "mbti", label: t("mbtiScreener"), route: "/mbti" },
+              // MBTI retired (src/app/mbti.tsx is a redirect to /persona) — a
+              // 스크리너 button that lands on a different screen erodes trust.
               { key: "audit", label: t("valuesAudit"), route: "/audit" },
             ] as const).map((tool) => (
               <MdButton

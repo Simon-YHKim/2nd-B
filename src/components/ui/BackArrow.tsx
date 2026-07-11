@@ -15,13 +15,10 @@ import { useTranslation } from "react-i18next";
 import { hasOwnBack, subscribeOwnBack } from "@/lib/nav/own-back";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
-import { isPrimaryTabPath, isDeepSpaceDockPath } from "@/lib/nav/tabs";
+import { isPrimaryTabPath, isDeepSpaceDockPath, BACK_ARROW_HIDDEN_PATHS } from "@/lib/nav/tabs";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
-
-// Landing + pre-auth routes that hide the arrow (no "back to graph" there yet).
-const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-callback"];
 
 // Routes that hide the back arrow entirely: the pre-auth flow plus the graph
 // home ("/") itself - "/" IS the back target, so it gets no arrow. Every other
@@ -29,12 +26,13 @@ const PRE_AUTH_PATHS = ["/sign-in", "/sign-up", "/complete-profile", "/oauth-cal
 // destinations (그래프/담기/세컨비/나), per the 2026-06-02 directive ("every
 // village needs a back button"). On a tab screen the arrow is nudged right of
 // the brand chip (see below) so the two don't overlap.
-// /onboarding (J5): the arrow pushed "/" which index immediately bounced back
-// to /onboarding - a visible control whose only effect was resetting the
-// stepper to step 0. The in-screen Skip is the designed exit.
+// /onboarding (J5) and /ttfv: the arrow pushed "/" over a one-shot onboarding
+// flow whose in-screen CTA is the designed exit.
 // /deepspace-home is a home root (the cloned deep-space 별자리 shell renders its
 // own bottom nav + inbox bell); it IS a back target, so it gets no floating arrow.
-const HIDDEN_PATHS = new Set<string>([...PRE_AUTH_PATHS, "/", "/onboarding", "/deepspace-home"]);
+// The list itself lives in @/lib/nav/tabs (single nav source of truth — the
+// dock-drift guard reads it too).
+const HIDDEN_PATHS = new Set<string>(BACK_ARROW_HIDDEN_PATHS);
 const BACK_ARROW_BG = withAlpha(cosmic.soulViolet, 0.16);
 const BACK_ARROW_BORDER = withAlpha(cosmic.signalMint, 0.42);
 const BACK_LABEL_BG = withAlpha(cosmic.space950, 0.74);

@@ -92,12 +92,14 @@ export function ImportHubScreen() {
   const [errored, setErrored] = useState(false);
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
   const [gErr, setGErr] = useState<string | null>(null);
+  const [histErr, setHistErr] = useState<string | null>(null);
   const googleClientId = getEnv().EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
   const t = (k: string) => COPY(ko)[k] ?? k;
   const name = (s: ImportSource) => (ko ? s.nameKo : s.nameEn);
 
   useEffect(() => {
+    setHistErr(null);
     void getImportHistory().then(setHistory);
   }, [step]);
 
@@ -214,13 +216,19 @@ export function ImportHubScreen() {
     });
 
   const removeHistory = async (id: string) => {
-    // 철회 = full removal: delete the source rows this import created, then the log.
+    // 철회 = full removal: delete the source rows this import created, THEN the
+    // log entry. The history entry is the only pointer to those rows, so if the
+    // delete fails we must KEEP it and surface an error — dropping it would
+    // strand the imported rows as unrevokable while telling the user they were
+    // withdrawn (the exact false-assurance this screen exists to prevent).
+    setHistErr(null);
     const entry = history.find((h) => h.id === id);
     if (entry && userId && entry.sourceIds.length > 0) {
       try {
         await deleteSourcesByIds(userId, entry.sourceIds);
       } catch {
-        /* best-effort; the history entry is still removed below */
+        setHistErr(t("revokeFailed"));
+        return;
       }
     }
     await removeImportHistory(id);
@@ -438,6 +446,7 @@ export function ImportHubScreen() {
   function renderHistory() {
     return (
       <View style={styles.section}>
+        {histErr ? <OpsState variant="error" title={t("errTitle")} body={histErr} /> : null}
         {history.length === 0 ? (
           <OpsState variant="empty" title={t("emptyTitle")} body={t("emptyBody")} ctaLabel={t("pickSource")} onCta={() => setStep("hub")} />
         ) : (
@@ -493,6 +502,7 @@ function COPY(ko: boolean): Record<string, string> {
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
         delete: "삭제", historyFine: "삭제는 파생 신호까지 완전 제거해요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
+        revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.",
       }
     : {
         import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
@@ -514,6 +524,7 @@ function COPY(ko: boolean): Record<string, string> {
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
         delete: "Delete", historyFine: "Delete removes the derived signals too. Comms/location import is server-locked for minor accounts.",
+        revokeFailed: "Couldn't withdraw. Try again shortly.",
       };
 }
 
