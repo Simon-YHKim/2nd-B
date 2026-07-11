@@ -115,6 +115,7 @@ export function RecordsGraph({
                   r={r}
                   fill={withAlpha(fill, alpha)}
                   onPress={() => selectNode(node.id, node.kind === "record")}
+                  accessibilityLabel={node.label}
                 />
                 {showLabel ? (
                   <SvgText
