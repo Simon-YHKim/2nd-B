@@ -5,6 +5,7 @@
     "daysAgo": "hace {{count}} días",
     "daysAgo_plural": "hace {{count}} días",
     "hoursAgo": "hace {{count}} horas",
+    "minsAgo": "hace {{count}} min",
     "hoursAgo_plural": "hace {{count}} horas",
     "now": "Ahora mismo",
     "recordFallback": "Registro",

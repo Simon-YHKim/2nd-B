@@ -5,6 +5,7 @@
     "daysAgo": "{{count}}일 전",
     "daysAgo_plural": "{{count}}일 전",
     "hoursAgo": "{{count}}시간 전",
+    "minsAgo": "{{count}}분 전",
     "hoursAgo_plural": "{{count}}시간 전",
     "now": "방금",
     "recordFallback": "기록",

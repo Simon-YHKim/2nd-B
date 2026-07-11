@@ -11,5 +11,11 @@
   "cited": "근거 {{n}}개",
   "undo": "되돌리기",
   "hideUnchanged": "변화 없는 재계산 접기",
-  "showUnchanged": "변화 없는 재계산 {{n}}건 보기"
+  "showUnchanged": "변화 없는 재계산 {{n}}건 보기",
+  "originRatify": "내가 승인",
+  "originRebuild": "재계산",
+  "originRecorded": "기록",
+  "emptyAll": "아직 승인한 변화가 없어요. 북극성에서 제안을 점검하고 승인하면 여기 남아요.",
+  "emptyFilter": "이 갈래에 해당하는 기록이 없어요. 반영된 기록은 모두 ‘승인’이에요.",
+  "subtitle": "세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요."
 }

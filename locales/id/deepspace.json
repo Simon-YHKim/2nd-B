@@ -5,6 +5,7 @@
     "daysAgo": "{{count}} hari lalu",
     "daysAgo_plural": "{{count}} hari lalu",
     "hoursAgo": "{{count}} jam lalu",
+    "minsAgo": "{{count}} mnt lalu",
     "hoursAgo_plural": "{{count}} jam lalu",
     "now": "Baru saja",
     "recordFallback": "Catatan",
