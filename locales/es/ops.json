@@ -171,7 +171,14 @@
     "resetBtn": "Reiniciar",
     "forWhichStar": "¿Para qué estrella?",
     "todayCount": "{{sessions}} sesiones de enfoque hoy",
-    "todaySub": "Unos {{min}} min · meta {{goal}}"
+    "todaySub": "Unos {{min}} min · meta {{goal}}",
+    "stars": {
+      "s0": "Crecimiento",
+      "s1": "Carrera",
+      "s2": "Aprendizaje",
+      "s3": "Relaciones",
+      "s4": "Salud"
+    }
   },
   "srs": {
     "title": "Repaso de idioma",

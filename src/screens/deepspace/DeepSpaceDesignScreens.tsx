@@ -2254,7 +2254,6 @@ const RING_C = 2 * Math.PI * RING_R; // circumference for the dasharray
 // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
 const FOCUS_PRESETS = canonMore.focusPresets;
 const FOCUS_STARS = canonMore.focusStars;
-const FOCUS_STARS_EN = ["Growth", "Career", "Learning", "Relations", "Health"];
 
 // rev2 clone (25-focus / reference FocusScreen): windowed 일일 집중 timer. The
 // proven pomodoro engine + ANDROID_QA single-interval handling are preserved; the
@@ -2330,7 +2329,9 @@ export function DeepSpaceFocusScreen() {
   const dashoffset = RING_C * remainingFrac;
   const clock = formatClock(shownMs);
   const ringSub = idle ? t("focus.ringReady") : timer.running ? t("focus.ringFocusing") : t("focus.ringPaused");
-  const starName = ko ? FOCUS_STARS[starIdx] : FOCUS_STARS_EN[starIdx];
+  // ko stays on the canon array; other locales resolve focus.stars.s{i} keys.
+  const focusStarLabel = (i: number) => (ko ? FOCUS_STARS[i] : t(`focus.stars.s${i}`));
+  const starName = focusStarLabel(starIdx);
   const target = 4;
   const filled = Math.min(doneToday, target);
   const setPreset = (m: number) => setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
@@ -2406,12 +2407,12 @@ export function DeepSpaceFocusScreen() {
       {/* linked star */}
       <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("focus.forWhichStar")}</RNText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cx.chipScroll}>
-        {(ko ? FOCUS_STARS : FOCUS_STARS_EN).map((s, i) => (
+        {FOCUS_STARS.map((_, i) => (
           <MdChip
-            key={s}
+            key={i}
             kind="filter"
             selected={starIdx === i}
-            label={s}
+            label={focusStarLabel(i)}
             icon={<CloneIcon name={starIdx === i ? "check" : "star_shine"} color={starIdx === i ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant} size={15} />}
             onPress={() => setStarIdx(i)}
           />

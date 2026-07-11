@@ -171,7 +171,14 @@
     "resetBtn": "리셋",
     "forWhichStar": "어떤 별을 위해?",
     "todayCount": "오늘 {{sessions}}회 집중",
-    "todaySub": "약 {{min}}분 · 목표 {{goal}}회"
+    "todaySub": "약 {{min}}분 · 목표 {{goal}}회",
+    "stars": {
+      "s0": "성장",
+      "s1": "커리어",
+      "s2": "학습",
+      "s3": "관계",
+      "s4": "건강"
+    }
   },
   "srs": {
     "title": "언어 복습",
