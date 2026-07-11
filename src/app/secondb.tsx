@@ -62,7 +62,7 @@ import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
-import { captureEvent, secondBSession, aiLimitHit } from "@/lib/analytics";
+import { captureEvent, secondBSession, aiLimitHit } from "@/lib/analytics";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
@@ -818,7 +818,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           >
             <Pressable style={ds.modalCard} onPress={(e) => e.stopPropagation()} accessibilityViewIsModal>
               <Text style={ds.modalEyebrow}>{t("intro_title")}</Text>
-              <Text style={ds.modalBody}>{t("intro_body")}</Text>
+              {/* keepAllKo joins Hangul words with U+2060 so they wrap at spaces; the
+                  screen reader gets the untouched string (joiners disorient braille and
+                  character-by-character review). */}
+              <Text style={ds.modalBody} accessibilityLabel={t("intro_body")}>{keepAllKo(t("intro_body"))}</Text>
               <View style={ds.modalActions}>
                 <Pressable
                   onPress={() => { writeIntroDismissed("today"); setIntroOpen(false); }}
@@ -1215,7 +1218,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             <Text variant="caption" color="brand" style={{ letterSpacing: 0 }}>
               {t("intro_title")}
             </Text>
-            <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }}>
+            <Text variant="body" color="text" style={{ marginTop: spacing.sm, lineHeight: 20 }} accessibilityLabel={t("intro_body")}>
               {keepAllKo(t("intro_body"))}
             </Text>
             <View style={styles.modalActions}>

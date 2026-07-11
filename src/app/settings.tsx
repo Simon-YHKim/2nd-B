@@ -152,13 +152,15 @@ function M3Divider() {
   return <View style={m3Styles.divider} />;
 }
 
-function M3ToggleRow({ icon, label, sub, checked, onChange }: { icon: string; label: string; sub: string; checked: boolean; onChange: (v: boolean) => void }) {
+function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChange }: { icon: string; label: string; sub: string; subAccessibilityLabel?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <View style={m3Styles.row}>
       <M3IconBadge icon={icon} active={checked} />
       <View style={m3Styles.rowText}>
         <RNText style={m3Styles.rowLabel}>{label}</RNText>
-        <RNText style={m3Styles.rowSub}>{sub}</RNText>
+        {/* subAccessibilityLabel: when sub went through keepAllKo, screen readers
+            get the raw string (U+2060 joiners disorient braille / char review). */}
+        <RNText style={m3Styles.rowSub} accessibilityLabel={subAccessibilityLabel}>{sub}</RNText>
       </View>
       <M3Switch checked={checked} onChange={onChange} accessibilityLabel={label} />
     </View>
@@ -612,6 +614,7 @@ export default function Settings() {
             icon="mic"
             label={t("callRecording")}
             sub={keepAllKo(t("callRecordingDesc"))}
+            subAccessibilityLabel={t("callRecordingDesc")}
             checked={featureOn("callrec")}
             onChange={() => toggleFeature("callrec")}
           />

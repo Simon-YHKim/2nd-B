@@ -751,7 +751,7 @@
     "reward": {
       "titleA": "Mira 30s y gana ",
       "titleCount": "+{{n}}",
-      "sub": "Mira un anuncio para reponer tus consultas de autoconocimiento de esta semana.\nLa calidad de las respuestas no cambia.",
+      "sub": "Mira un anuncio para reponer tus consultas de autoconocimiento de este mes.\nLa calidad de las respuestas no cambia.",
       "remaining": "restantes",
       "afterLabel": "tras +{{n}}",
       "cta": "Ver anuncio y ganar +{{n}}",
