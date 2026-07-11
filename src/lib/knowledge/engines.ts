@@ -63,8 +63,14 @@ export function distillContext(text: string, maxChars: number): string {
   }
   kept.push(last);
   if (kept.length < sentences.length) {
-    // Insert ellipsis between non-contiguous segments.
-    return kept[0] + " … " + kept.slice(1, -1).join(" ") + " … " + kept[kept.length - 1];
+    // Insert an ellipsis between non-contiguous segments. Collapse the empty-middle
+    // case (only first + last survived, e.g. their combined length already blows the
+    // budget) to a single gap so the result is never "first …  … last", and hard-cap
+    // to maxChars — the two 3-char " … " separators otherwise let the output run a
+    // few chars past the budget the caller (and DB column) sized for.
+    const mid = kept.slice(1, -1).join(" ");
+    const out = mid ? `${first} … ${mid} … ${last}` : `${first} … ${last}`;
+    return out.length > maxChars ? out.slice(0, maxChars - 1) + "…" : out;
   }
   return kept.join(" ");
 }
