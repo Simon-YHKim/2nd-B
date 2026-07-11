@@ -184,13 +184,21 @@ async function main() {
   if (!token || !userId) throw new Error("Login succeeded but no access_token/user id in response");
   console.log(`Logged in as QA user ${userId}`);
 
-  // 2. Idempotency: delete ONLY this user's previous qa_seed rows.
-  const delQuery = `user_id=eq.${userId}&tags=cs.%7B${SEED_TAG}%7D`;
-  const deleted = await api(`/rest/v1/records?${delQuery}`, {
-    method: "DELETE",
-    headers: { Prefer: "return=representation" },
-  }, token);
-  console.log(`Removed ${Array.isArray(deleted) ? deleted.length : 0} previous ${SEED_TAG} row(s)`);
+  // 2. Idempotency: delete ONLY this script's own BFI + ECR seed rows. A single
+  //    tags=cs.{qa_seed} delete also matched the values/strengths/motivation rows
+  //    that seed-qa-records.mjs tags with the SAME qa_seed, silently wiping them
+  //    whenever this script ran after it. Scope each delete to its family tag
+  //    (bfi/ecr rows carry it; the sibling self-report rows do not) so they survive.
+  let removed = 0;
+  for (const family of ["bfi", "ecr"]) {
+    const delQuery = `user_id=eq.${userId}&tags=cs.%7B${family},${SEED_TAG}%7D`;
+    const deleted = await api(`/rest/v1/records?${delQuery}`, {
+      method: "DELETE",
+      headers: { Prefer: "return=representation" },
+    }, token);
+    removed += Array.isArray(deleted) ? deleted.length : 0;
+  }
+  console.log(`Removed ${removed} previous ${SEED_TAG} assessment row(s)`);
 
   // 3. Build the two rows (shapes mirror the app writers in big-five.tsx /
   //    attachment.tsx; readers only require body JSON + tags).
