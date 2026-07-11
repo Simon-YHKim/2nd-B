@@ -208,8 +208,7 @@ export function WeeklyGrowthScreen() {
             style={({ pressed }) => [styles.reasonChip, pressed ? styles.reasonChipPressed : null]}
           >
             <View style={[styles.dot, { backgroundColor: deepSpace.soul }]} />
-            <Text variant="caption" style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑`}</Text>
-            <RNText style={styles.reasonCaret}>›</RNText>
+            <Text variant="caption" style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑ `}<RNText style={styles.reasonCaret}>›</RNText></Text>
           </Pressable>
           <View style={styles.obsActions}>
             <Pressable onPress={saveStep} hitSlop={6} style={[styles.primaryBtn, saved ? styles.disabled : null]} disabled={saved}>
