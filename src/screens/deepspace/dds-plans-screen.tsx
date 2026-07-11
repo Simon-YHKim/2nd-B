@@ -24,6 +24,7 @@ import { m3 } from "@/lib/theme/m3";
 import { TIER_PRICE_KRW, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
+import { adsConfigured } from "@/lib/ads/policy";
 import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -319,21 +320,28 @@ export function DeepSpacePlansScreen() {
       ) : null}
       {error ? <Text style={s.error}>{error}</Text> : null}
 
-      {/* free top-up via opt-in rewarded ad (COUNTS only, never quality) */}
-      <Text style={s.sectionLabel}>{t("ds.plans.growWithoutPaying")}</Text>
-      <Pressable
-        style={s.rewardRow}
-        onPress={() => setRewardVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel={t("ds.plans.rewardTitle")}
-      >
-        <BoltIcon color={m3.color.tertiary} />
-        <View style={s.rewardText}>
-          <Text style={s.rewardTitle}>{t("ds.plans.rewardTitle")}</Text>
-          <Text style={s.rewardSub}>{t("ds.plans.rewardSub", { n: REWARD_PER_WATCH })}</Text>
-        </View>
-        <ChevronRight color={m3.color.onSurfaceVariant} />
-      </Pressable>
+      {/* free top-up via opt-in rewarded ad (COUNTS only, never quality).
+          Guarded by adsConfigured(): with ads OFF (the shipping default) there
+          is no ad to watch, so showing "watch an ad for +N" is a lever that
+          can never pay out — hide it entirely rather than fake a completion. */}
+      {adsConfigured() ? (
+        <>
+          <Text style={s.sectionLabel}>{t("ds.plans.growWithoutPaying")}</Text>
+          <Pressable
+            style={s.rewardRow}
+            onPress={() => setRewardVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t("ds.plans.rewardTitle")}
+          >
+            <BoltIcon color={m3.color.tertiary} />
+            <View style={s.rewardText}>
+              <Text style={s.rewardTitle}>{t("ds.plans.rewardTitle")}</Text>
+              <Text style={s.rewardSub}>{t("ds.plans.rewardSub", { n: REWARD_PER_WATCH })}</Text>
+            </View>
+            <ChevronRight color={m3.color.onSurfaceVariant} />
+          </Pressable>
+        </>
+      ) : null}
 
       {showStoreNotice ? (
         <MdCard variant="outlined" style={s.notice}>
