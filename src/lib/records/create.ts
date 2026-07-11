@@ -341,6 +341,18 @@ export async function getRecordById(userId: string, id: string) {
   return data;
 }
 
+/** Replace a record's tags column. Owner-only via the records_owner_all RLS
+ *  policy (0009); the explicit user_id keeps the index-friendly WHERE first. */
+export async function updateRecordTags(userId: string, id: string, tags: string[]): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("records")
+    .update({ tags })
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // Delete a single record by id. RLS scopes to auth.uid(), so users can
 // only delete their own rows; we still pass userId explicitly so the
 // index-friendly WHERE fires first.
