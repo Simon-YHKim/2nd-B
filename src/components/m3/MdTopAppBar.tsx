@@ -5,11 +5,12 @@
 // LAYOUT NOTE (PR 680): Fabric Android drops function-form Pressable styles,
 // so the 40dp chip layout lives on a View and the Pressable inside is a bare
 // touch surface with an android_ripple state layer.
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
+import { registerOwnBack } from "@/lib/nav/own-back";
 
 import { m3TextStyle } from "./typeface";
 
@@ -24,6 +25,10 @@ export function MdTopAppBar({
   action?: ReactNode;
   backAccessibilityLabel?: string;
 }) {
+  // This bar carries its own back icon; announce it so the root-mounted
+  // floating BackArrow chip stands down (the two rendered overlapping in the
+  // same top-left corner on windowed sub-screens).
+  useEffect(() => registerOwnBack(), []);
   return (
     <View style={styles.bar}>
       <View style={styles.backChip}>
