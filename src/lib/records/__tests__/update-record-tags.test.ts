@@ -5,6 +5,7 @@
 jest.mock("../../supabase/client", () => {
   const calls: { table?: string; update?: unknown; eqs: [string, unknown][] } = { eqs: [] };
   let errorToReturn: { message: string } | null = null;
+  let dataToReturn: unknown[] = [{ id: "rec-1" }];
   const chain: Record<string, unknown> = {
     update: (payload: unknown) => {
       calls.update = payload;
@@ -14,8 +15,9 @@ jest.mock("../../supabase/client", () => {
       calls.eqs.push([col, val]);
       return chain;
     },
-    // thenable so `await from(t).update(...).eq(...).eq(...)` resolves to { error }
-    then: (resolve: (v: { error: unknown }) => unknown) => resolve({ error: errorToReturn }),
+    select: () => chain,
+    // thenable so `await from(t).update(...).eq(...).eq(...).select(...)` resolves to { data, error }
+    then: (resolve: (v: { data: unknown; error: unknown }) => unknown) => resolve({ data: dataToReturn, error: errorToReturn }),
   };
   const from = jest.fn((table: string) => {
     calls.table = table;
@@ -27,11 +29,15 @@ jest.mock("../../supabase/client", () => {
     __setError: (e: { message: string } | null) => {
       errorToReturn = e;
     },
+    __setEmpty: () => {
+      dataToReturn = [];
+    },
     __reset: () => {
       calls.table = undefined;
       calls.update = undefined;
       calls.eqs.length = 0;
       errorToReturn = null;
+      dataToReturn = [{ id: "rec-1" }];
     },
   };
 });
@@ -41,6 +47,7 @@ import { updateRecordTags } from "../create";
 const clientMock = require("../../supabase/client") as {
   __calls: { table?: string; update?: unknown; eqs: [string, unknown][] };
   __setError: (e: { message: string } | null) => void;
+  __setEmpty: () => void;
   __reset: () => void;
 };
 
@@ -62,5 +69,10 @@ describe("updateRecordTags", () => {
   test("throws when the update returns an error (e.g. RLS denies)", async () => {
     clientMock.__setError({ message: "rls denied" });
     await expect(updateRecordTags("u1", "rec-1", ["x"])).rejects.toBeDefined();
+  });
+
+  test("throws on a 0-row no-op (stale/unauthorized id returns success + no rows)", async () => {
+    clientMock.__setEmpty();
+    await expect(updateRecordTags("u1", "gone", ["x"])).rejects.toBeDefined();
   });
 });
