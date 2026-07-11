@@ -120,6 +120,8 @@
     "deleteConfirmBody": "Esto no se puede deshacer.",
     "deleteCancel": "Cancelar",
     "deleteConfirm": "Eliminar",
+    "assessmentBody": "Las respuestas sin procesar de un cuestionario de autoinforme. El resultado organizado está en su propia pantalla.",
+    "assessmentCta": "Ver resultado",
     "kindJournal": "Diario",
     "kindNote": "Nota",
     "kindAudit": "Revisión",

@@ -7,6 +7,7 @@
 // calls so they are node-testable, the same discipline as ops/routines.ts.
 
 import { getSupabaseClient } from "../supabase/client";
+import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import type { BookResult } from "./books";
 
 export type ReadingStatus = "want" | "reading" | "done";
@@ -96,6 +97,8 @@ export async function addToShelf(
     .select()
     .single();
   if (error) throw error;
+  // A shelf entry lifts the 성장 (growth) domain star; drop the stale home cache.
+  invalidateDomainLevels(userId);
   return rowToEntry(data as Record<string, unknown>);
 }
 

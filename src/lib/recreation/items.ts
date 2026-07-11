@@ -7,6 +7,7 @@
 // module is the missing WRITE path so a user can log leisure/taste items.
 
 import { getSupabaseClient } from "../supabase/client";
+import { invalidateDomainLevels } from "../persona/load-domain-levels";
 
 // Must match the CHECK constraints in db/migrations/0059_recreation_items.sql.
 export type RecreationCategory =
@@ -112,6 +113,8 @@ export async function createRecreationItem(
     .select()
     .single();
   if (error) throw error;
+  // A new item lifts the 휴식 (recreation) domain star; drop the stale home cache.
+  invalidateDomainLevels(userId);
   return rowToItem(data as Record<string, unknown>);
 }
 
@@ -132,4 +135,5 @@ export async function deleteRecreationItem(userId: string, id: string): Promise<
   const supabase = getSupabaseClient();
   const { error } = await supabase.from("recreation_items").delete().eq("user_id", userId).eq("id", id);
   if (error) throw error;
+  invalidateDomainLevels(userId);
 }

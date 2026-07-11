@@ -13,6 +13,7 @@ import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gem
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
+import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { fetchPrivacyPrefs } from "../supabase/privacy";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
@@ -264,6 +265,10 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     .single();
   if (error) throw error;
   if (!data) throw new Error("Insert returned no row");
+
+  // The new record carries a domain: tag, so this user's cached home-constellation
+  // domain levels are now stale — drop them so the next read reflects the save.
+  invalidateDomainLevels(args.userId);
 
   // Quest XP — best-effort, never blocks the capture. The server (award_xp
   // RPC) decides the amount from xp_rules; we only name the action.
