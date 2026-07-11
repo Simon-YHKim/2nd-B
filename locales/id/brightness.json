@@ -8,5 +8,9 @@
   "weeksAgo": "8 mgg lalu",
   "thisWeek": "minggu ini",
   "evidence": "Terbuat dari apa cahaya ini",
-  "ratLog": "Lihat catatan konfirmasi"
+  "ratLog": "Lihat catatan konfirmasi",
+  "emptyBody": "Belum cukup riwayat untuk digambar. Selesaikan pemeriksaan dan setujui usulan, lalu jejaknya akan terkumpul di sini.",
+  "honestyLine": "{{obs}} observasi · {{cited}} berdasar bukti · {{stars}} bintang",
+  "citedRatioLabel": "Rasio berdasar bukti {{cited}} dari {{obs}}",
+  "honestyCaption": "Kecerahan adalah seberapa banyak yang tercatat, bukan kepastian. Kutipan membuatnya lebih tepercaya."
 }
