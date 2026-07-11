@@ -69,6 +69,24 @@ describe("buildRecordsTimeline", () => {
     expect(relatedByTag("self", [], [rec({ id: "a", created_at: "x", tags: ["감정"] })])).toEqual([]);
   });
 
+  test("labelEveryItem gives older items their day label instead of an empty string", () => {
+    const groups = buildRecordsTimeline(
+      [
+        rec({ id: "today", created_at: "2026-06-19T01:00:00Z", summary: "a" }),
+        rec({ id: "yday", created_at: "2026-06-18T05:00:00Z", summary: "b" }),
+        rec({ id: "older", created_at: "2026-06-10T05:00:00Z", summary: "c" }),
+      ],
+      { now: NOW, labelEveryItem: true },
+    );
+    const byId = new Map(groups.flatMap((g) => g.items.map((it) => [it.id, it.timeLabel] as const)));
+    expect(byId.get("today")).toBe("2시간 전");
+    expect(byId.get("yday")).toBe("어제");
+    expect(byId.get("older")).toBe("6월 10일");
+    // Default stays blank for non-today (the grouped timeline view relies on it).
+    const plain = buildRecordsTimeline([rec({ id: "older", created_at: "2026-06-10T05:00:00Z", summary: "c" })], { now: NOW });
+    expect(plain[0].items[0].timeLabel).toBe("");
+  });
+
   test("ignores unparseable timestamps and respects maxGroups", () => {
     const groups = buildRecordsTimeline(
       [

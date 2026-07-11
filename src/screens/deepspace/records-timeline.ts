@@ -107,6 +107,14 @@ export interface BuildTimelineOpts {
   maxGroups?: number;
   /** Localized labels; defaults to KO so existing callers/tests are unchanged. */
   labels?: TimelineLabels;
+  /**
+   * Give non-today items their day label (어제 / M월 D일) instead of "".
+   * The grouped timeline view leaves this off - its group headers already carry
+   * the date, so a per-item copy would be redundant. The flat records LIST has
+   * no group headers, so without this every older row lost its time entirely
+   * (the reference shows a time on every row).
+   */
+  labelEveryItem?: boolean;
 }
 
 export function buildRecordsTimeline(
@@ -145,7 +153,11 @@ export function buildRecordsTimeline(
         return {
           id: r.id,
           title: titleOf(r, labels.fallbackTitle),
-          timeLabel: isToday ? todayTimeLabel(ms, nowMs, labels) : "",
+          timeLabel: isToday
+            ? todayTimeLabel(ms, nowMs, labels)
+            : opts.labelEveryItem
+              ? groupLabel(dayKey, todayKey, ms, labels)
+              : "",
           tag,
           dim: !isToday,
         };
