@@ -313,7 +313,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 // M1 (round-4): gate product analytics on the SERVER decision, not the
 // localStorage cache (initAnalytics no longer auto-loads from it). Once auth
 // resolves, load GA4/Clarity/PostHog only when the user's stored
-// external_analytics pref is on, they are not in the 14-17 high-privacy band,
+// external_analytics pref is on, they are not in the 16-17 high-privacy band,
 // and their birth date is not below the KR/PIPA self-consent floor. A minor's
 // privacy lock (0033/0038) already forces external_analytics false server-side,
 // so this is defense-in-depth against a stale/forged client cache. Renders

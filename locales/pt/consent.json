@@ -25,7 +25,7 @@
     "ackOverseas": "Entendo que dados criptografados do serviço podem ser processados fora do meu país pelo Google ou Supabase para operar o app.",
     "ackSensitive": "Entendo que minhas entradas podem incluir detalhes sensíveis, e que 2nd-Brain as trata como dados privados da conta.",
     "optMarketing": "Envie-me atualizações ocasionais do produto (opcional).",
-    "minorBanner": "Você está se cadastrando como adolescente (14 a 17). A alta privacidade fica ativa por padrão: compartilhamento, anúncios, análises, treinamento de modelos e análise externa permanecem desativados."
+    "minorBanner": "Você está se cadastrando como adolescente (16 a 17). A alta privacidade fica ativa por padrão: compartilhamento, anúncios, análises, treinamento de modelos e análise externa permanecem desativados."
   },
   "privacy": {
     "eyebrow": "Privacidade",

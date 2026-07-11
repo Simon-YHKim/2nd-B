@@ -10,7 +10,7 @@ import { ageInYears } from "../supabase/auth";
 import { preserveKnownMinorForMissingProfile, type ProfileProbe } from "./profile-probe";
 
 // A signed-in user counts as a minor for safety routing when under 18 (in
-// practice 14-17, since <14 cannot register — C10). Crisis routing uses this
+// practice 16-17, since <16 cannot register — C10). Crisis routing uses this
 // to point minors at a youth-appropriate hotline (KO -> 1388).
 const MINOR_AGE_CEILING = 18;
 

@@ -10,7 +10,7 @@ describe("dob correction (task C)", () => {
     expect(dobCorrectionStatus(null, "20100101")).toBe("malformed");
   });
 
-  test("under-14 is blocked (mirrors the 0030 server gate)", () => {
+  test("under-16 is blocked (mirrors the server gate floor)", () => {
     const tooYoung = new Date();
     tooYoung.setFullYear(tooYoung.getFullYear() - 10);
     const iso = tooYoung.toISOString().slice(0, 10);
@@ -26,9 +26,9 @@ describe("dob correction (task C)", () => {
     expect(canSubmitDobCorrection(null, iso)).toBe(true);
   });
 
-  test("a valid 14-17 date clears the floor", () => {
+  test("a valid 16-17 date clears the floor", () => {
     const teen = new Date();
-    teen.setFullYear(teen.getFullYear() - 15);
+    teen.setFullYear(teen.getFullYear() - 17);
     const iso = teen.toISOString().slice(0, 10);
     expect(dobCorrectionStatus(null, iso)).toBe("ok");
   });

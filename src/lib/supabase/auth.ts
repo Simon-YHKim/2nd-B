@@ -1,6 +1,6 @@
 // C6/C10: client-side guards for sign-up (fast UX fail). The AUTHORITATIVE age
 // gate is server-side: the BEFORE INSERT trigger in 0030_server_age_gate.sql
-// rejects under-14 and derives minor_tier / account_status from birth_date, so a
+// rejects under-16 and derives minor_tier / account_status from birth_date, so a
 // direct-API insert can't bypass the floor or inject a false tier. The
 // users_birth_date_sane CHECK (0028) is a further backstop.
 
@@ -12,18 +12,18 @@ import { getEnv } from "../env";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
 
-// C10 age tiers: adult users and 14-17 minors self-consent and register
-// directly. Under PIPA, legal-representative consent is mandatory only below 14
-// (Article 22-2); users 14+ may consent themselves under the general provisions
-// (Articles 15/17/22) with age-appropriate notice. Under 14 requires verifiable
-// guardian consent (added in a later PR); until then they are blocked here.
-// Sourced from the jurisdiction matrix (task F); KR-assumed until country
-// detection exists, so the live floor is the KR value (14).
-export const MIN_SELF_CONSENT_AGE = digitalConsentAge("KR");
+// C10 age tiers: adult users and 16-17 minors self-consent and register
+// directly. PIPA would let KR 14+ self-consent, but with no reliable country
+// signal we adopt the conservative 16 floor (GDPR Art.8 ceiling) for everyone,
+// valid across KR/US/EU and unblocking the global launch. Under 16 requires
+// verifiable guardian consent (a later PR); until then they are blocked here.
+// Per the jurisdiction matrix (task F); when a country signal lands, thread it
+// through digitalConsentAge() to relax KR/US back to their local floors.
+export const MIN_SELF_CONSENT_AGE = digitalConsentAge();
 
 export class AgeGateError extends Error {
   constructor() {
-    super("Users under 14 cannot register without guardian consent.");
+    super("Users under 16 cannot register without guardian consent.");
     this.name = "AgeGateError";
   }
 }
@@ -31,7 +31,7 @@ export class AgeGateError extends Error {
 // M2 (round-4): the only credential strength check was length >= 8, and the
 // Supabase leaked-password (HIBP) protection is a Pro-plan dashboard toggle the
 // $0/mo free tier can't enable. This is the code-side backstop, and it matters
-// most for the 14-17 minors who register through the same flow.
+// most for the 16-17 minors who register through the same flow.
 export class BreachedPasswordError extends Error {
   constructor() {
     super("This password appeared in a known data breach. Please choose a different one.");

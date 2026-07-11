@@ -1,7 +1,7 @@
 // task C: DOB correction validation. A user may fix a mistyped birth date, but
 // the corrected value must still be a valid ISO date and clear the self-consent
 // floor (MIN_SELF_CONSENT_AGE). The 0030 trigger re-derives minor_tier and
-// re-rejects under-14 server-side on UPDATE OF birth_date; this mirrors that as
+// re-rejects under-16 server-side on UPDATE OF birth_date; this mirrors that as
 // a fast UX guard and also blocks a no-op save (same value).
 
 import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";

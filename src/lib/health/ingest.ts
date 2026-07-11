@@ -3,7 +3,7 @@
 // Every sample that enters health_samples passes through ingestHealthSamples.
 // This is the single place where the consent + minor gate lives:
 //   - healthImportAllowed(isMinor, pref) MUST pass or the call is rejected.
-//     A 14-17 minor only passes when the pref is explicitly true, which is
+//     A 16-17 minor only passes when the pref is explicitly true, which is
 //     structurally impossible (health_import is server-seeded OFF in 0050 and
 //     non-promotable in privacy/prefs.ts) — so minors never ingest. Adults
 //     opt in (pref true).

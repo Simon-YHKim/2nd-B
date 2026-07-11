@@ -544,9 +544,9 @@ results.push(
 
 results.push(
   check("C10", () => {
-    // C10 redefined: age-tiered registration. Under-14 require verifiable
-    // legal-representative consent (PIPA Article 22-2 / COPPA); 14+ self-consent
-    // under the general provisions (Articles 15/17/22). Replaces the legacy adult-only
+    // C10 redefined: age-tiered registration. The self-consent floor is a
+    // conservative 16 GLOBAL value (GDPR Art.8 ceiling); under-16 require
+    // verifiable guardian consent (unbuilt). Replaces the legacy adult-only
     // CHECK (0002).
     const sql = read("db/migrations/0028_minor_consent.sql");
     const auth = read("src/lib/supabase/auth.ts");
@@ -558,13 +558,16 @@ results.push(
       lock.includes("DROP POLICY IF EXISTS guardian_consents_select_own") &&
       lock.includes("DROP POLICY IF EXISTS guardian_consents_insert_own") &&
       lock.includes("NOT IN USE");
-    // Server-side age gate (0030): a BEFORE INSERT trigger derives minor_tier /
-    // account_status and rejects under-14, so the floor is not client-only.
+    // Server-side age gate: a BEFORE INSERT trigger (0030) derives minor_tier /
+    // account_status; 0086 raised the rejected floor to under-16 (conservative
+    // global floor), so the floor is not client-only.
     const serverGate = read("db/migrations/0030_server_age_gate.sql");
+    const floorRaise = read("db/migrations/0086_raise_age_floor_16.sql");
     const serverEnforced =
       serverGate.includes("enforce_user_age_tier") &&
-      serverGate.includes("age_years < 14") &&
-      serverGate.includes("BEFORE INSERT");
+      serverGate.includes("BEFORE INSERT") &&
+      floorRaise.includes("enforce_user_age_tier") &&
+      floorRaise.includes("age_years < 16");
     const ok =
       sql.includes("guardian_consents") &&
       sql.includes("pending_guardian_consent") &&
@@ -576,7 +579,7 @@ results.push(
       id: "C10",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "age-tier schema + client age logic; server trigger enforces >=14 (0030); guardian_consents locked (0029)"
+        ? "age-tier schema + client age logic; server trigger enforces >=16 (0086 raised 0030's floor); guardian_consents locked (0029)"
         : "age-tier / server gate / guardian-consent lockdown incomplete",
     };
   }),

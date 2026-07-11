@@ -80,7 +80,7 @@ export type AnalyticsEvent =
   | PurchaseAnalyticsEvent;
 
 export interface AnalyticsSubjectGate {
-  /** True for 14-17 high-privacy users. Product analytics stay off. */
+  /** True for 16-17 high-privacy users. Product analytics stay off. */
   isMinor?: boolean | null;
   /** True below the KR/PIPA self-consent floor. Product analytics and ads stay off. */
   underDigitalConsentAge?: boolean | null;
@@ -275,7 +275,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   }
 
   // M1 (round-4): do NOT trust the localStorage cache to auto-load product
-  // analytics at boot - a stale "granted", or a 14-17 minor who set the key in
+  // analytics at boot - a stale "granted", or a 16-17 minor who set the key in
   // devtools, would load GA4/Clarity/PostHog without re-checking the SERVER
   // decision. Product analytics now load ONLY from an explicit, server-derived
   // decision: initAnalytics({analyticsConsent}) or setAnalyticsConsent() once

@@ -8,7 +8,7 @@
 //      way ("remove ads with a subscription"). Unknown tier (still loading)
 //      fails CLOSED: a subscriber must never see an ad flash while their
 //      tier resolves.
-//   2. Minors (14-17, C10 band) NEVER see ads at all. Non-personalized ads
+//   2. Minors (16-17, C10 band) NEVER see ads at all. Non-personalized ads
 //      would be the legal minimum (AdMob child-directed ad settings / KR
 //      정보통신망법), but a self-knowledge app showing ads to minors burns
 //      trust for negligible revenue — full suppression is the product call.

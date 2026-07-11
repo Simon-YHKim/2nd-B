@@ -3,7 +3,7 @@
 // - fetchBirthDate: fail-soft read of the current DOB to prefill the correction
 //   field (a read error resolves to null — the field just starts empty).
 // - updateBirthDate: corrects a mistyped DOB. The 0030 BEFORE UPDATE OF
-//   birth_date trigger re-validates server-side (rejects <14, re-derives
+//   birth_date trigger re-validates server-side (rejects <16, re-derives
 //   minor_tier / account_status), so a tampered value can't bypass the floor.
 //   Throws on error so the screen can surface it.
 //

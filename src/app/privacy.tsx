@@ -1,7 +1,7 @@
 // C10 (task B1): high-privacy settings screen. Binds the privacy_prefs key set
 // (src/lib/privacy/prefs.ts) to per-pref switches over users.privacy_prefs.
 //
-// Privacy-by-design: every key starts OFF. 14-17 minors are held at high
+// Privacy-by-design: every key starts OFF. 16-17 minors are held at high
 // privacy — outward-sharing / profiling / external-processing keys are locked
 // and only long_term_memory can be promoted (isPrivacyPrefEditable). Reads are
 // fail-soft (defaults before the 0032 migration applies); a failed write

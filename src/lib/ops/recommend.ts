@@ -140,7 +140,7 @@ export interface OpsRecommendInput {
 /**
  * D-20 gate (PROTOCOL §36): may this account run /ops recommendations?
  * `recommendations` is OFF by default for everyone (privacy-by-design, privacy/prefs.ts)
- * and server-clamped + non-promotable for 14-17 minors (migration 0032; not in
+ * and server-clamped + non-promotable for 16-17 minors (migration 0032; not in
  * MINOR_PROMOTABLE_KEYS). runRecommend previously ignored the pref entirely, so a minor's
  * wiki snapshot reached callGemini ungated. This gate honors the minor lock: a minor only
  * runs when recommendations is explicitly true (which it cannot be while server-locked), so

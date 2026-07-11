@@ -106,7 +106,7 @@ function OpsLegacy() {
   async function runRecommend(): Promise<void> {
     if (!userId || !domain || runState === "working") return;
     // D-20 / PROTOCOL §36: honor the minor recommendations lock at the gate. `recommendations`
-    // is server-clamped OFF and non-promotable for 14-17 minors (privacy/prefs.ts); without this
+    // is server-clamped OFF and non-promotable for 16-17 minors (privacy/prefs.ts); without this
     // the wiki snapshot reached the recommend LLM call ungated. Adults are unaffected.
     if (!recommendationsAllowed(isMinor, prefs?.recommendations)) {
       setRunState("off");

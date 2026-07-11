@@ -28,7 +28,7 @@ export type MinorTier = "adult" | "minor_self" | "minor_guardian";
 
 export interface RecordConsentArgs {
   userId: string;
-  /** Coarse band the consent was given under. 14-17 -> minor_self, >=18 -> adult. */
+  /** Coarse band the consent was given under. 16-17 -> minor_self, >=18 -> adult. */
   ageBand: ConsentAgeBand;
   /** Server-derived tier at consent time (from the age-gate trigger), if known. */
   minorTier?: MinorTier | null;

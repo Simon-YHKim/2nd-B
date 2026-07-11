@@ -70,7 +70,7 @@ describe("analytics — no-op when no keys configured", () => {
     );
   });
 
-  test("PIPA/C10 gate blocks product analytics for minors and under-14 users", () => {
+  test("PIPA/C10 gate blocks product analytics for minors and under-consent-age users", () => {
     expect(canLoadProductAnalytics(true)).toBe(true);
     expect(canLoadProductAnalytics(false)).toBe(false);
     expect(canLoadProductAnalytics(true, { isMinor: true })).toBe(false);

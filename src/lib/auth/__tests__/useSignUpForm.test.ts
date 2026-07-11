@@ -17,7 +17,7 @@ jest.mock("@/lib/supabase/auth", () => ({
   isNaverEnabled: jest.fn().mockReturnValue(false),
   isProviderEnabled: jest.fn().mockReturnValue(true),
   ageInYears: jest.fn().mockReturnValue(20),
-  MIN_SELF_CONSENT_AGE: 14,
+  MIN_SELF_CONSENT_AGE: 16,
   AgeGateError: class AgeGateError extends Error {},
   BreachedPasswordError: class BreachedPasswordError extends Error {},
   ExistingAccountLikelyError: class ExistingAccountLikelyError extends Error {},
@@ -73,7 +73,7 @@ describe("startSignUpProvider — provider dispatch", () => {
 
 // The hook constructs recordConsent from buildSignUpConsentArgs with the
 // isMinorAge band it derives. These pin that the same mapping the hook uses
-// stamps the correct C10 consent band for adult vs 14-17 minor sign-ups.
+// stamps the correct C10 consent band for adult vs 16-17 minor sign-ups.
 describe("C10 consent ledger mapping (the args the hook hands to recordConsent)", () => {
   test("adult sign-up → adult band, all required acks recorded", () => {
     const selections = { ...emptyConsentSelections(), service: true, llmProcessing: true, overseasTransfer: true, sensitiveData: true };
@@ -89,7 +89,7 @@ describe("C10 consent ledger mapping (the args the hook hands to recordConsent)"
     });
   });
 
-  test("14-17 minor sign-up → minor_self band (the high-privacy tier)", () => {
+  test("16-17 minor sign-up → minor_self band (the high-privacy tier)", () => {
     const selections = { ...emptyConsentSelections(), service: true, llmProcessing: true, overseasTransfer: true, sensitiveData: true };
     const args = buildSignUpConsentArgs({ userId: "u-teen", isMinor: true, locale: "ko", selections });
     expect(args.ageBand).toBe("minor_self");

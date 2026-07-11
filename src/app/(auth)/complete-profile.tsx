@@ -129,7 +129,7 @@ export default function CompleteProfile() {
         // null and the guard above would unmount it instantly).
         setToast({ tone: "danger", message: t("errors.ageGate") });
         await new Promise((resolve) => setTimeout(resolve, 900));
-        // C10: now sign the under-14 session out and settle the context, then
+        // C10: now sign the under-16 session out and settle the context, then
         // land on /sign-in directly — routing via "/" with a not-yet-settled
         // session is what redirect-warred with IntroGate (E2E-2). If the
         // sign-out failed the session is still live, so stay on the form.

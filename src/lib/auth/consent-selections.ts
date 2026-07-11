@@ -56,7 +56,7 @@ export function setAllRequiredAcks(sel: ConsentSelections, next: boolean): Conse
 
 export interface BuildConsentArgsInput {
   userId: string;
-  /** 14-17 at consent time -> minor_self band; otherwise adult. */
+  /** 16-17 at consent time -> minor_self band; otherwise adult. */
   isMinor: boolean;
   locale: "en" | "ko";
   selections: ConsentSelections;

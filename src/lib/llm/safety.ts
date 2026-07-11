@@ -360,7 +360,7 @@ export async function classifySafety(
 // Hotline numbers come from crisisHotlines() (single source of truth) so KO
 // routing stays current (109 since 2024) and minors get the youth line (1388).
 // Versions are referenced in the audit log: red-ko-v2 (adult), red-ko-minor-v1
-// (14-17), red-en-v1 (988, all ages).
+// (16-17), red-en-v1 (988, all ages).
 export function fixedCrisisResponse(
   locale: "en" | "ko",
   minor = false,

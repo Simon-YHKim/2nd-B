@@ -1,6 +1,6 @@
 // C10 / task D: privacy-preference contract.
 //
-// 14-17 minors are seeded to high privacy (everything OFF) server-side by the
+// 16-17 minors are seeded to high privacy (everything OFF) server-side by the
 // age-gate trigger (0032); adults default to the same privacy-by-design
 // baseline and opt in via the (UI) toggles. This module is the single source of
 // the key set + default resolution, shared by the server defaults, the app, and
@@ -56,7 +56,7 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
   return base;
 }
 
-// 14-17 self-consent minors are held at high privacy: every outward-sharing,
+// 16-17 self-consent minors are held at high privacy: every outward-sharing,
 // profiling, or external-processing pref stays locked OFF and cannot be turned
 // on from the settings UI. The single exception is long_term_memory — a minor
 // may *explicitly* promote it (off by default, opt-in allowed). Adults may

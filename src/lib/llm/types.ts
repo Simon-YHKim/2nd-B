@@ -53,7 +53,7 @@ export interface AdvisorInput {
   locale: "en" | "ko";
   userAgeRange?: "young_adult" | "adult" | "midlife" | "elderly";
   conversationContext?: string;
-  // C10 safety: when the signed-in user is a minor (<18; in practice 14-17),
+  // C10 safety: when the signed-in user is a minor (<18; in practice 16-17),
   // crisis routing surfaces the youth line (KO -> 1388 alongside 109). Threaded
   // from AuthContext.isMinor by callers. Defaults to adult routing when unset.
   minor?: boolean;
@@ -87,7 +87,7 @@ export interface PromptInput {
   // no `data:` URL prefix. Mime allowlist + size cap enforced server-side by
   // the gemini-proxy Edge Function.
   image?: { mimeType: string; data: string };
-  // C10 safety: when the signed-in user is a minor (<18; in practice 14-17),
+  // C10 safety: when the signed-in user is a minor (<18; in practice 16-17),
   // crisis routing points to a youth-appropriate hotline (KO -> 1388). Defaults
   // to adult routing when unset. Threaded from AuthContext.isMinor by callers.
   minor?: boolean;

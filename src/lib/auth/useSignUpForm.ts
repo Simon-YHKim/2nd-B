@@ -121,7 +121,7 @@ export function useSignUpForm(): UseSignUpForm {
   }, []);
 
   const judge = useMemo(() => isJudgeEmail(email), [email]);
-  // A valid DOB in the 14-17 band drives the high-privacy notice variant and
+  // A valid DOB in the 16-17 band drives the high-privacy notice variant and
   // the minor_self consent band.
   const age = ageInYears(birthDate);
   const isMinorAge = age >= MIN_SELF_CONSENT_AGE && age < ADULT_AGE;

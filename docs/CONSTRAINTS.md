@@ -74,8 +74,8 @@ The jest suite asserts the call order via mock spy.
 ## C10 — Age-tiered registration + guardian consent (phased)
 
 Sign-up requires `birth_date`, which sets an **age tier**:
-- **Adult (≥18)** and **self-consent minor (14–17)** register directly. Under PIPA, legal-representative consent is mandated only *below 14* (Article 22-2); users 14+ self-consent under the general provisions (Articles 15/17/22) with age-appropriate notice.
-- **Under-14** require **verifiable guardian consent** (PIPA Article 22-2; the US COPPA
+- **Adult (≥18)** and **self-consent minor (16–17)** register directly. The self-consent floor is a conservative **16 global** value (GDPR Art.8 ceiling): with no reliable country signal, one 16 floor is valid across KR/US/EU. PIPA (KR) would permit 14+ and COPPA (US) 13+, but we take the stricter 16 for everyone until a country signal lands.
+- **Under-16** (the self-consent floor) require **verifiable guardian consent** (PIPA Article 22-2; the US COPPA
   threshold is separately *under-13* — global rollout branches by jurisdiction via the
   matrix in `src/lib/auth/consent-age.ts`): the account starts in
   `account_status = 'pending_guardian_consent'`, held until a guardian verifies via the
@@ -86,9 +86,9 @@ Enforcement (phased rollout):
   CHECK with `users_birth_date_sane` and adds `account_status`, `minor_tier`, and the
   `guardian_consents` table (per-user RLS); `0029` locks `guardian_consents`; **`0030`
   adds the authoritative `enforce_user_age_tier()` BEFORE INSERT trigger that rejects
-  under-14 server-side — the real gate. `users_birth_date_sane` (0028) is only a sanity backstop.**
-- **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (14). 14-17
-  self-consent minors and adults register directly; under-14 still throw `AgeGateError`
+  under-16 server-side (0086 raised 0030's 14 floor) — the real gate. `users_birth_date_sane` (0028) is only a sanity backstop.**
+- **Client — done:** `auth.ts` gates at `MIN_SELF_CONSENT_AGE` (16). 16-17
+  self-consent minors and adults register directly; under-16 still throw `AgeGateError`
   pending the guardian-consent flow.
 - **Safety — done (#134):** the minor flag threads from `AuthContext.isMinor`
   through the record/chat/interview/LLM chain. KO minors route to 1388 + 109,
@@ -96,9 +96,9 @@ Enforcement (phased rollout):
 
 **Jurisdiction (current limitation):** the app does not yet collect a reliable
 country/jurisdiction signal (locale `en`/`ko` is not a country). Until country
-detection lands, **all users are gated on the KR rule (self-consent floor 14,
-PIPA Article 22-2)** via `digitalConsentAge("KR")` in
-`src/lib/auth/consent-age.ts`. This is valid for the KR-first launch and remains
+detection lands, **all users are gated on a conservative 16 global floor (GDPR Art.8
+ceiling)** via `digitalConsentAge()` in
+`src/lib/auth/consent-age.ts`. This is valid for the global launch and remains
 in effect until a country-detection landing. Accurate non-KR age gates (US COPPA
 under-13, EU GDPR Art.8 13-16) require the jurisdiction signal plus legal
 sign-off and ship in a follow-up PR; the per-jurisdiction values already exist in
