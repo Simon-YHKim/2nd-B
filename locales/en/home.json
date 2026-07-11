@@ -193,7 +193,8 @@
       "saving": "Saving",
       "saved": "Saved",
       "openRecords": "Open records",
-      "saveError": "Could not save. Try again in a moment."
+      "saveError": "Could not save. Try again in a moment.",
+      "saveHint": "Add what happened to enable Capture."
     },
     "chat": {
       "user": "I've been so worn out lately. Why is that?",

@@ -193,7 +193,8 @@
       "saving": "Salvando",
       "saved": "Salvo",
       "openRecords": "Abrir registros",
-      "saveError": "Não foi possível salvar. Tente novamente em instantes."
+      "saveError": "Não foi possível salvar. Tente novamente em instantes.",
+      "saveHint": "Adicione o que aconteceu para ativar Capturar."
     },
     "chat": {
       "user": "Ando muito esgotado ultimamente. Por que será?",
