@@ -336,5 +336,16 @@
   "formatsTab": "형식",
   "importTab": "가져오기",
   "inboxTab": "받은 항목",
-  "manualTab": "수동 입력"
+  "manualTab": "수동 입력",
+  "jot": {
+    "title": "한 줄 적어보기",
+    "deviceNote": "이 기기에 임시로 저장돼요. 계정을 만들면 두번째 뇌로 가져올 수 있어요.",
+    "placeholder": "지금 떠오르는 한 줄",
+    "inputA11y": "한 줄 입력",
+    "save": "저장",
+    "saving": "저장 중…",
+    "nearFull": "이 기기 임시 저장이 거의 찼어요. 계정을 만들면 안전하게 옮겨드려요.",
+    "savedOnDevice": "이 기기에 저장됨 ({{n}})",
+    "createAccount": "계정 만들기"
+  }
 }

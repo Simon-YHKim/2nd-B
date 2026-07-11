@@ -32,8 +32,7 @@ import {
 } from "@/lib/capture/preauth-pending";
 
 export default function Jot() {
-  const { i18n } = useTranslation();
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("capture");
   const [text, setText] = useState("");
   const kbHeight = useKeyboard();
   const [items, setItems] = useState<PendingCapture[]>([]);
@@ -82,11 +81,9 @@ export default function Jot() {
           <View style={styles.header}>
             <SecondbHead size={48} mood="neutral" />
             <View style={styles.flex}>
-              <Text variant="heading">{ko ? "한 줄 적어보기" : "Jot a line"}</Text>
+              <Text variant="heading">{t("jot.title")}</Text>
               <Text variant="subtle" color="textMuted" style={styles.honest}>
-                {ko
-                  ? "이 기기에 임시로 저장돼요. 계정을 만들면 두번째 뇌로 가져올 수 있어요."
-                  : "Saved on this device for now. Make an account to bring it into your second brain."}
+                {t("jot.deviceNote")}
               </Text>
             </View>
           </View>
@@ -96,10 +93,10 @@ export default function Jot() {
             onChangeText={setText}
             multiline
             maxLength={PREAUTH_PENDING_MAX_CHARS}
-            placeholder={ko ? "지금 떠오르는 한 줄" : "A line on your mind"}
+            placeholder={t("jot.placeholder")}
             placeholderTextColor={deepSpace.textLo}
             style={styles.input}
-            accessibilityLabel={ko ? "한 줄 입력" : "Jot input"}
+            accessibilityLabel={t("jot.inputA11y")}
             editable={!status.full}
           />
 
@@ -108,26 +105,24 @@ export default function Jot() {
             onPress={() => void onSave()}
             disabled={!canSave}
             accessibilityRole="button"
-            accessibilityLabel={ko ? "저장" : "Save"}
+            accessibilityLabel={t("jot.save")}
             style={[styles.saveBtn, !canSave && styles.saveBtnOff]}
           >
             <Text variant="body" style={styles.saveText}>
-              {saving ? (ko ? "저장 중…" : "Saving…") : ko ? "저장" : "Save"}
+              {saving ? t("jot.saving") : t("jot.save")}
             </Text>
           </Pressable>
 
           {status.nearFull ? (
             <Text variant="subtle" color="textMuted" style={styles.warn} accessibilityRole="alert">
-              {ko
-                ? "이 기기 임시 저장이 거의 찼어요. 계정을 만들면 안전하게 옮겨드려요."
-                : "This device's temporary space is almost full. Make an account to move them safely."}
+              {t("jot.nearFull")}
             </Text>
           ) : null}
 
           {items.length > 0 ? (
             <View style={styles.list}>
               <Text variant="caption" color="textSubtle">
-                {ko ? `이 기기에 저장됨 (${items.length})` : `Saved on this device (${items.length})`}
+                {t("jot.savedOnDevice", { n: items.length })}
               </Text>
               {items.map((it) => (
                 <View key={it.localId} style={styles.row}>
@@ -143,11 +138,11 @@ export default function Jot() {
             hitSlop={14}
             onPress={() => router.push("/sign-up")}
             accessibilityRole="button"
-            accessibilityLabel={ko ? "계정 만들기" : "Create account"}
+            accessibilityLabel={t("jot.createAccount")}
             style={styles.cta}
           >
             <Text variant="body" style={styles.ctaText}>
-              {ko ? "계정 만들기" : "Create account"}
+              {t("jot.createAccount")}
             </Text>
           </Pressable>
         </ScrollView>

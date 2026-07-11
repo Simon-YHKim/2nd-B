@@ -38,7 +38,7 @@ function chartPaths() {
 }
 
 export function TrendsScreen() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, loading } = useAuth();
 
@@ -84,25 +84,25 @@ export function TrendsScreen() {
       active="home"
       variant="windowed"
       header="none"
-      title={ko ? "밝기 변화" : "Brightness trend"}
+      title={t("trends.title")}
       onBack={() => router.back()}
     >
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <RNText style={s.headline}>{ko ? "밝기 변화" : "Brightness trend"}</RNText>
+        <RNText style={s.headline}>{t("trends.title")}</RNText>
         <RNText style={s.subtitle}>
-          {ko ? "지난 8주, 당신의 별자리는 꾸준히 또렷해지고 있어요." : "Over the last 8 weeks your constellation has been getting steadily clearer."}
+          {t("trends.subtitle")}
         </RNText>
 
         {/* overall brightness chart */}
         <MdCard variant="elevated" style={s.chartCard}>
           <View style={s.chartHead}>
-            <RNText style={s.chartLabel}>{ko ? "전체 밝기" : "Overall brightness"}</RNText>
+            <RNText style={s.chartLabel}>{t("trends.overall")}</RNText>
             <View style={s.deltaRow}>
               <Svg width={15} height={11} viewBox="0 0 15 11">
                 <Path d="M1 9 L6 4 L9 7 L14 2" stroke={m3.color.primary} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
                 <Path d="M14 2 L14 5 M14 2 L11 2" stroke={m3.color.primary} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </Svg>
-              <RNText style={s.delta}>{ko ? "+34% · 8주" : "+34% · 8 wks"}</RNText>
+              <RNText style={s.delta}>{t("trends.delta8w")}</RNText>
             </View>
           </View>
           <Svg viewBox={`0 0 ${W} ${H}`} width="100%" height={124} preserveAspectRatio="none">
@@ -124,7 +124,7 @@ export function TrendsScreen() {
         </MdCard>
 
         {/* per-star change */}
-        <RNText style={s.section}>{ko ? "별마다 변화" : "Per-star change"}</RNText>
+        <RNText style={s.section}>{t("trends.perStar")}</RNText>
         <MdCard variant="filled" style={s.starCard}>
           {stars.map((st) => (
             <View key={st.ko} style={s.starRow}>
@@ -138,7 +138,7 @@ export function TrendsScreen() {
         </MdCard>
 
         {/* brightness log */}
-        <RNText style={s.section}>{ko ? "밝기 이력" : "Brightness log"}</RNText>
+        <RNText style={s.section}>{t("trends.log")}</RNText>
         <View style={s.timeline}>
           <View style={s.timelineLine} />
           {events.map((e, i) => (
@@ -157,7 +157,7 @@ export function TrendsScreen() {
 
         <MdButton
           variant="tonal"
-          label={ko ? "이 변화를 카드로 공유" : "Share this change as a card"}
+          label={t("trends.shareCta")}
           onPress={() => router.push("/share-card")}
           style={s.share}
         />

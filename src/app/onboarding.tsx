@@ -74,8 +74,10 @@ const SLIDES: Slide[] = canonFlows.onboardingSlides.map((s, i) => ({
 const AUTH_STEP = SLIDES.length;
 
 export default function Onboarding() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const locale = i18n.language === "ko" ? "ko" : "en";
+  // Skip label stays an inline ko/en ternary: the J4/rev2 onboarding contract
+  // (check-constraints.ts) pins the literal "건너뛰기" in this file.
   const ko = locale === "ko";
   const { userId, loading } = useAuth();
   const onboardingComplete = useOnboardingComplete();
@@ -99,9 +101,9 @@ export default function Onboarding() {
   // carousel. Only bounce home once onboarding is actually finished.
   if (onboardingComplete === true) return <Redirect href="/" />;
 
-  const nextHint = ko ? "다음 소개로 넘어갑니다." : "Goes to the next slide.";
-  const skipHint = ko ? "소개를 건너뛰고 로그인 화면으로 이동합니다." : "Skips the intro and opens the sign-in screen.";
-  const authHint = ko ? "로그인 화면으로 이동합니다." : "Opens the sign-in screen.";
+  const nextHint = t("onboarding.nextHint");
+  const skipHint = t("onboarding.skipHint");
+  const authHint = t("onboarding.authHint");
 
   // The final slide hands off to the REAL auth path (age-tiered sign-up, C10).
   // Already-signed-in users (reached onboarding post-auth) go straight home.
@@ -112,7 +114,7 @@ export default function Onboarding() {
   }
 
   const isAuth = step >= AUTH_STEP;
-  const authLabel = ko ? "로그인하고 시작하기" : "Log in to begin";
+  const authLabel = t("onboarding.authLabel");
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
@@ -134,12 +136,10 @@ export default function Onboarding() {
 
       {isAuth ? (
         <View style={styles.hero}>
-          <SecondbHead size={168} mood="neutral" track={false} accessibilityLabel={ko ? "세컨비" : "SecondB"} />
-          <Text variant="heading" style={styles.title}>{ko ? "시작할까요?" : "Ready to begin?"}</Text>
+          <SecondbHead size={168} mood="neutral" track={false} accessibilityLabel={t("onboarding.secondbName")} />
+          <Text variant="heading" style={styles.title}>{t("onboarding.authTitle")}</Text>
           <Text variant="body" style={styles.body}>
-            {ko
-              ? "로그인하면 어느 기기에서나 당신의 별자리를 이어서 볼 수 있어요."
-              : "Sign in to pick up your constellation on any device."}
+            {t("onboarding.authBody")}
           </Text>
         </View>
       ) : (
@@ -184,12 +184,12 @@ export default function Onboarding() {
           <View style={styles.nextBtn}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={ko ? "다음" : "Next"}
+              accessibilityLabel={t("onboarding.next")}
               accessibilityHint={nextHint}
               onPress={() => setStep((s) => s + 1)}
               style={({ pressed }) => [styles.nextPress, pressed && styles.pressed]}
             >
-              <Text variant="caption" style={styles.nextText}>{ko ? "다음" : "Next"}</Text>
+              <Text variant="caption" style={styles.nextText}>{t("onboarding.next")}</Text>
               <SbIcon name="arrow_forward" size={18} color={deepSpace.onAccent} />
             </Pressable>
           </View>

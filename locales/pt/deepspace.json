@@ -827,5 +827,65 @@
       "later": "Agora não",
       "privacy": "Somente adultos com consentimento · nunca em telas sensíveis"
     }
+  },
+  "beyond": {
+    "preview": "Prévia",
+    "title": "Fora do app",
+    "lead": "Mesmo com o app fechado, SecondB continua ao seu lado.",
+    "widgetsSection": "Widgets da tela inicial",
+    "todaysStar": "Estrela de hoje",
+    "brightestStar": "Sua estrela mais brilhante",
+    "tapToOpen": "Toque para abrir a estrela de hoje",
+    "captureTitle": "Guarde o que está na sua cabeça",
+    "capture": "Guardar",
+    "captureByVoice": "Guardar por voz",
+    "lockSection": "Tela de bloqueio",
+    "lockNotif": "Quer deixar uma linha sobre hoje?",
+    "pushSection": "Notificações push",
+    "pushHead": "SecondB · agora",
+    "pushBody": "Uma nova percepção aguarda sua revisão. Aprove e ela se reflete na sua estrela.",
+    "notifSettings": "Configurações de notificação"
+  },
+  "star": {
+    "capture": "Guardar",
+    "seeRecords": "Ver registros",
+    "loading": "Carregando…",
+    "loadError": "Não deu para carregar agora. Tente de novo.",
+    "retry": "Tentar de novo",
+    "empty": "Guarde seu primeiro registro para acender esta estrela.",
+    "recordFallback": "registro",
+    "untitled": "(sem título)",
+    "briefingOpening": "Abrindo esta estrela…",
+    "briefingEmpty": "Ainda não há registros nesta estrela. Guarde algo e SecondB lê o padrão.",
+    "briefingCountOne": "{{n}} registro nesta estrela, primeiro o mais recente.",
+    "briefingCount": "{{n}} registros nesta estrela, primeiro os mais recentes.",
+    "drillCareer": "Seu caminho",
+    "drillGrowth": "Relembrar mais",
+    "drillRelation": "Entrevista de relacionamento",
+    "drillRecreation": "Buscar ideias",
+    "relToday": "hoje",
+    "relYesterday": "ontem",
+    "relDays": "há {{n}} d",
+    "relWeeks": "há {{n}} sem",
+    "relMonths": "há {{n}} mês"
+  },
+  "onboarding": {
+    "nextHint": "Vai para o próximo slide.",
+    "skipHint": "Pula a introdução e abre a tela de login.",
+    "authHint": "Abre a tela de login.",
+    "authLabel": "Entre para começar",
+    "secondbName": "SecondB",
+    "authTitle": "Vamos começar?",
+    "authBody": "Entre para retomar sua constelação em qualquer dispositivo.",
+    "next": "Próximo"
+  },
+  "trends": {
+    "title": "Tendência de brilho",
+    "subtitle": "Nas últimas 8 semanas sua constelação foi ficando cada vez mais nítida.",
+    "overall": "Brilho geral",
+    "delta8w": "+34% · 8 sem",
+    "perStar": "Mudança por estrela",
+    "log": "Histórico de brilho",
+    "shareCta": "Compartilhe esta mudança como cartão"
   }
 }

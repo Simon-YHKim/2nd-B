@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -51,11 +52,11 @@ const DOMAIN_TRAIT: Partial<Record<DomainId, string>> = {
 // growth → 회상, relation → 관계 인터뷰, recreation → 세컨비, career → 쌓아온 길.
 // Domains whose canon action is just "담기" (finance/health) or the catch-all
 // (collect) fall back to their filtered record list.
-const DOMAIN_DRILL: Partial<Record<DomainId, { ko: string; en: string; route: string }>> = {
-  career: { ko: "쌓아온 길", en: "Your path", route: "/career" },
-  growth: { ko: "회상으로 더 캐기", en: "Recall more", route: "/audit" },
-  relation: { ko: "관계 인터뷰", en: "Relationship interview", route: "/interview" },
-  recreation: { ko: "아이디어 얻기", en: "Get ideas", route: "/secondb" },
+const DOMAIN_DRILL: Partial<Record<DomainId, { labelKey: string; route: string }>> = {
+  career: { labelKey: "star.drillCareer", route: "/career" },
+  growth: { labelKey: "star.drillGrowth", route: "/audit" },
+  relation: { labelKey: "star.drillRelation", route: "/interview" },
+  recreation: { labelKey: "star.drillRecreation", route: "/secondb" },
 };
 
 async function listDomainRecords(userId: string, domain: DomainId): Promise<DomainRecordRow[]> {
@@ -70,14 +71,14 @@ async function listDomainRecords(userId: string, domain: DomainId): Promise<Doma
   return (data ?? []) as DomainRecordRow[];
 }
 
-function relativeDay(iso: string, ko: boolean): string {
+function relativeDay(iso: string, t: TFunction<"deepspace">): string {
   const then = new Date(iso).getTime();
   const days = Math.floor((Date.now() - then) / 86_400_000);
-  if (days <= 0) return ko ? "오늘" : "today";
-  if (days === 1) return ko ? "어제" : "yesterday";
-  if (days < 7) return ko ? `${days}일 전` : `${days}d ago`;
-  if (days < 30) return ko ? `${Math.floor(days / 7)}주 전` : `${Math.floor(days / 7)}w ago`;
-  return ko ? `${Math.floor(days / 30)}달 전` : `${Math.floor(days / 30)}mo ago`;
+  if (days <= 0) return t("star.relToday");
+  if (days === 1) return t("star.relYesterday");
+  if (days < 7) return t("star.relDays", { n: days });
+  if (days < 30) return t("star.relWeeks", { n: Math.floor(days / 7) });
+  return t("star.relMonths", { n: Math.floor(days / 30) });
 }
 
 // The seven domain stars are a fixed set, so pre-render one static page per
@@ -90,7 +91,7 @@ export async function generateStaticParams(): Promise<{ domain: string }[]> {
 
 export default function DomainStarScreen() {
   const { domain } = useLocalSearchParams<{ domain: string }>();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, loading } = useAuth();
 
@@ -134,14 +135,12 @@ export default function DomainStarScreen() {
   // "N% was work" analysis.
   const briefing =
     rows === null
-      ? ko ? "이 별을 펼치는 중이에요…" : "Opening this star…"
+      ? t("star.briefingOpening")
       : count === 0
-        ? ko
-          ? "이 별엔 아직 기록이 없어요. 담으면 세컨비가 흐름을 읽어드려요."
-          : "No records on this star yet. Capture something and 세컨비 reads the pattern."
-        : ko
-          ? `이 별에 ${count}개의 기록이 담겼어요. 최근 기록부터 정리했어요.`
-          : `${count} record${count === 1 ? "" : "s"} on this star, newest first.`;
+        ? t("star.briefingEmpty")
+        : count === 1
+          ? t("star.briefingCountOne", { n: count })
+          : t("star.briefingCount", { n: count });
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={name} onBack={() => router.back()}>
@@ -173,21 +172,13 @@ export default function DomainStarScreen() {
         <View style={s.actions}>
           <MdButton
             variant="tonal"
-            label={ko ? "담기" : "Capture"}
+            label={t("star.capture")}
             onPress={() => router.push("/capture")}
             style={s.actionBtn}
           />
           <MdButton
             variant="outlined"
-            label={
-              DOMAIN_DRILL[domainId]
-                ? ko
-                  ? DOMAIN_DRILL[domainId]!.ko
-                  : DOMAIN_DRILL[domainId]!.en
-                : ko
-                  ? "기록 보기"
-                  : "See records"
-            }
+            label={DOMAIN_DRILL[domainId] ? t(DOMAIN_DRILL[domainId]!.labelKey) : t("star.seeRecords")}
             onPress={() =>
               DOMAIN_DRILL[domainId]
                 ? router.push(DOMAIN_DRILL[domainId]!.route as never)
@@ -199,18 +190,18 @@ export default function DomainStarScreen() {
 
         {/* domain record timeline */}
         {rows === null ? (
-          <PremiumLoadingState message={ko ? "불러오는 중…" : "Loading…"} />
+          <PremiumLoadingState message={t("star.loading")} />
         ) : failed ? (
           <MdCard variant="outlined" style={s.stateCard}>
             <RNText style={[m3TextStyle("bodyMedium"), s.stateText]}>
-              {ko ? "잠깐 못 불러왔어요. 다시 시도해 주세요." : "Couldn't load just now. Try again."}
+              {t("star.loadError")}
             </RNText>
-            <MdButton variant="text" label={ko ? "다시 시도" : "Retry"} onPress={refresh} />
+            <MdButton variant="text" label={t("star.retry")} onPress={refresh} />
           </MdCard>
         ) : count === 0 ? (
           <MdCard variant="outlined" style={s.stateCard}>
             <RNText style={[m3TextStyle("bodyMedium"), s.stateText]}>
-              {ko ? "첫 기록을 담아 이 별을 밝혀보세요." : "Capture your first record to light this star."}
+              {t("star.empty")}
             </RNText>
           </MdCard>
         ) : (
@@ -220,16 +211,16 @@ export default function DomainStarScreen() {
                 key={r.id}
                 onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
                 accessibilityRole="button"
-                accessibilityLabel={r.topic ?? (ko ? "기록" : "record")}
+                accessibilityLabel={r.topic ?? t("star.recordFallback")}
               >
                 <MdCard variant="outlined" style={s.entry}>
                   <View style={s.entryDot} />
                   <View style={s.entryBody}>
                     <View style={s.entryHead}>
                       <RNText style={[m3TextStyle("bodyMedium"), s.entryTitle]} numberOfLines={1}>
-                        {r.topic ?? r.body?.split("\n")[0] ?? (ko ? "(제목 없음)" : "(untitled)")}
+                        {r.topic ?? r.body?.split("\n")[0] ?? t("star.untitled")}
                       </RNText>
-                      <RNText style={[m3TextStyle("labelSmall"), s.entryTime]}>{relativeDay(r.created_at, ko)}</RNText>
+                      <RNText style={[m3TextStyle("labelSmall"), s.entryTime]}>{relativeDay(r.created_at, t)}</RNText>
                     </View>
                     {r.body ? (
                       <RNText style={[m3TextStyle("bodySmall"), s.entrySub]} numberOfLines={2}>

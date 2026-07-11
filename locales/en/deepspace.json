@@ -827,5 +827,65 @@
       "later": "Later",
       "privacy": "Adults with consent only · never on sensitive screens"
     }
+  },
+  "beyond": {
+    "preview": "Preview",
+    "title": "Outside the app",
+    "lead": "Even when the app is closed, 세컨비 stays with you.",
+    "widgetsSection": "Home-screen widgets",
+    "todaysStar": "Today's star",
+    "brightestStar": "Your brightest star",
+    "tapToOpen": "Tap to open today's star",
+    "captureTitle": "Capture what's on your mind",
+    "capture": "Capture",
+    "captureByVoice": "Capture by voice",
+    "lockSection": "Lock screen",
+    "lockNotif": "Want to leave one line about today?",
+    "pushSection": "Push notifications",
+    "pushHead": "세컨비 · now",
+    "pushBody": "A new insight is waiting for your review. Approve it and it reflects on your star.",
+    "notifSettings": "Notification settings"
+  },
+  "star": {
+    "capture": "Capture",
+    "seeRecords": "See records",
+    "loading": "Loading…",
+    "loadError": "Couldn't load just now. Try again.",
+    "retry": "Retry",
+    "empty": "Capture your first record to light this star.",
+    "recordFallback": "record",
+    "untitled": "(untitled)",
+    "briefingOpening": "Opening this star…",
+    "briefingEmpty": "No records on this star yet. Capture something and 세컨비 reads the pattern.",
+    "briefingCountOne": "{{n}} record on this star, newest first.",
+    "briefingCount": "{{n}} records on this star, newest first.",
+    "drillCareer": "Your path",
+    "drillGrowth": "Recall more",
+    "drillRelation": "Relationship interview",
+    "drillRecreation": "Get ideas",
+    "relToday": "today",
+    "relYesterday": "yesterday",
+    "relDays": "{{n}}d ago",
+    "relWeeks": "{{n}}w ago",
+    "relMonths": "{{n}}mo ago"
+  },
+  "onboarding": {
+    "nextHint": "Goes to the next slide.",
+    "skipHint": "Skips the intro and opens the sign-in screen.",
+    "authHint": "Opens the sign-in screen.",
+    "authLabel": "Log in to begin",
+    "secondbName": "SecondB",
+    "authTitle": "Ready to begin?",
+    "authBody": "Sign in to pick up your constellation on any device.",
+    "next": "Next"
+  },
+  "trends": {
+    "title": "Brightness trend",
+    "subtitle": "Over the last 8 weeks your constellation has been getting steadily clearer.",
+    "overall": "Overall brightness",
+    "delta8w": "+34% · 8 wks",
+    "perStar": "Per-star change",
+    "log": "Brightness log",
+    "shareCta": "Share this change as a card"
   }
 }

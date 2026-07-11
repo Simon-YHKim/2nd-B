@@ -17,5 +17,28 @@
   "originRecorded": "Registrado",
   "emptyAll": "Aún no hay cambios confirmados. Revisa una propuesta en Polaris y quedará aquí.",
   "emptyFilter": "No hay registros en este filtro. Todo registro aplicado está confirmado.",
-  "subtitle": "SecondB propone; tú siempre decides. Ningún análisis llega a una estrella sin tu consentimiento."
+  "subtitle": "SecondB propone; tú siempre decides. Ningún análisis llega a una estrella sin tu consentimiento.",
+  "digest": {
+    "title": "Repaso de hoy",
+    "intro": "Conexiones reunidas a partir de tus registros. Tú confirmas qué es verdad.",
+    "loadError": "No se pudo cargar tu repaso. Inténtalo de nuevo en un momento.",
+    "retry": "Reintentar",
+    "empty": "Nada que repasar aún. Guarda más y las conexiones aparecerán.",
+    "goCapture": "Ir a guardar",
+    "toReview": "{{n}} por repasar",
+    "a11yOpen": "Abrir {{title}}",
+    "dismiss": "Descartar",
+    "confirm": "Confirmar",
+    "band": {
+      "strong": "conexión fuerte",
+      "likely": "conexión probable",
+      "weak": "conexión débil"
+    },
+    "reminder": {
+      "label": "Recuérdamelo a las 9:00",
+      "desc": "Suena solo en este dispositivo. Puedes desactivarlo cuando quieras.",
+      "notifBody": "¿Repasamos las conexiones reunidas de tus registros?",
+      "denied": "Las notificaciones están desactivadas para esta app. Actívalas en Ajustes."
+    }
+  }
 }
