@@ -273,7 +273,7 @@ export function ConstellationHome({
           onPress={onBellPress}
           accessibilityRole="button"
           accessibilityLabel={t("ds.home.inbox")}
-          hitSlop={8}
+          hitSlop={14}
         >
           <Svg width={20} height={20} viewBox="0 0 24 24">
             <Path
