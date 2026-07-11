@@ -171,7 +171,14 @@
     "resetBtn": "Reset",
     "forWhichStar": "For which star?",
     "todayCount": "{{sessions}} focus sessions today",
-    "todaySub": "About {{min}} min · goal {{goal}}"
+    "todaySub": "About {{min}} min · goal {{goal}}",
+    "stars": {
+      "s0": "Growth",
+      "s1": "Career",
+      "s2": "Learning",
+      "s3": "Relations",
+      "s4": "Health"
+    }
   },
   "srs": {
     "title": "Language review",
