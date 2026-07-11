@@ -617,7 +617,7 @@ export function SideProjectScreen() {
           value={username}
           onChangeText={setUsername}
           onSubmitEditing={onConnect}
-          placeholder="GitHub @username"
+          placeholder={c.githubHandle}
           placeholderTextColor={deepSpace.textLo}
           style={styles.searchInput}
           autoCapitalize="none"
@@ -638,7 +638,7 @@ export function SideProjectScreen() {
             </Text>
             <View style={styles.ghChips}>
               <MetaChip label={`${summary.activeDays}d`} />
-              <MetaChip label={`${summary.repos.length} repos`} />
+              <MetaChip label={`${summary.repos.length} ${c.repos}`} />
             </View>
             <View style={styles.heatRow}>
               {heatmap.map((d) => (

@@ -86,12 +86,14 @@ export interface OpsCopy {
   record: string;
   byCategory: string;
   fxNote: string;
-  // github (5)
+  // github (7)
   sideProject: string;
   thisWeek: string;
   commits: string;
   githubLinked: string;
   manage: string;
+  repos: string;
+  githubHandle: string;
   // foods (6)
   weeklyMeals: string;
   whatToEatNow: string;
@@ -182,6 +184,8 @@ const en: OpsCopy = {
   commits: "commits",
   githubLinked: "GitHub linked",
   manage: "Manage",
+  repos: "repos",
+  githubHandle: "GitHub @username",
   weeklyMeals: "This week's meals",
   whatToEatNow: "What should I eat now?",
   quickMode: "Quick mode",
@@ -266,6 +270,8 @@ const ko: OpsCopy = {
   commits: "커밋",
   githubLinked: "GitHub 연결됨",
   manage: "관리",
+  repos: "저장소",
+  githubHandle: "GitHub @사용자명",
   weeklyMeals: "이번 주 식단",
   whatToEatNow: "지금 뭐 먹지?",
   quickMode: "간단 모드",
