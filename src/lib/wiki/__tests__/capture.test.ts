@@ -68,7 +68,7 @@ Body content with [[some link]].`;
 
     const upload = captured[0];
     expect(upload.args[0]).toBe("u1");
-    expect(upload.args[1]).toBe("foo"); // slug from title
+    expect(upload.args[1]).toMatch(/^foo-[0-9a-f]{12}$/); // slug from title + content-hash suffix
     // The body uploaded to Storage has the frontmatter stripped.
     expect(upload.args[2]).not.toContain("---");
     expect(upload.args[2]).toContain("# Foo");
@@ -80,14 +80,14 @@ Body content with [[some link]].`;
       kind: "article",
       title: "Foo",
       source_url: "https://example.com/foo",
-      storage_path: "u1/foo.md",
+      storage_path: expect.stringMatching(/^u1\/foo-[0-9a-f]{12}\.md$/),
       tags: ["psychology"],
       simon_relevance: 4,
     });
 
     expect(r.hadFrontmatter).toBe(true);
     expect(r.suggested_slug).toBe("foo");
-    expect(r.storage_path).toBe("u1/foo.md");
+    expect(r.storage_path).toMatch(/^u1\/foo-[0-9a-f]{12}\.md$/);
   });
 
   test("fallback URL drives kind detection when frontmatter has no url", async () => {
@@ -138,16 +138,26 @@ Body.`;
     expect((insert.args[0] as { tags: string[] }).tags).toEqual([]);
   });
 
-  test("storage_path uses suggested_slug (Hangul-safe)", async () => {
+  test("storage_path = suggested_slug + content-hash suffix (Hangul-safe, collision-free)", async () => {
     fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "self_knowledge", title: "T" };
     const r = await captureFromMarkdown({
       userId: "u1",
       rawMd: "# 민지의 성장 노트\n\n자기 노트.",
     });
+    // The human-facing slug is unchanged; only the physical storage path carries
+    // the 12-hex content-hash suffix so same-title captures never overwrite.
     expect(r.suggested_slug).toBe("민지의-성장-노트");
-    expect(r.storage_path).toBe("u1/민지의-성장-노트.md");
+    expect(r.storage_path).toMatch(/^u1\/민지의-성장-노트-[0-9a-f]{12}\.md$/);
     const upload = captured.find((c) => c.fn === "uploadRawClipping")!;
-    expect(upload.args[1]).toBe("민지의-성장-노트");
+    expect(upload.args[1]).toMatch(/^민지의-성장-노트-[0-9a-f]{12}$/);
+  });
+
+  test("same-title captures with different bodies get distinct storage paths (regression: no overwrite)", async () => {
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "inbox", title: "Note" };
+    const a = await captureFromMarkdown({ userId: "u1", rawMd: "# Note\n\nthe first body." });
+    const b = await captureFromMarkdown({ userId: "u1", rawMd: "# Note\n\na completely different second body." });
+    expect(a.suggested_slug).toBe(b.suggested_slug); // same title -> same human slug
+    expect(a.storage_path).not.toBe(b.storage_path); // but distinct storage paths (no collision)
   });
 
   test("userTags merged with frontmatter tags, deduped + lowercased", async () => {
@@ -233,8 +243,8 @@ Body.`;
     const insert = captured.find((c) => c.fn === "createSource");
     expect(insert).toBeDefined();
     const arg = insert!.args[0] as { storage_path: string; frontmatter: Record<string, unknown> };
-    // Row saved with the canonical path; body preserved in frontmatter.
-    expect(arg.storage_path).toBe("u1/t.md");
+    // Row saved with the canonical (hash-suffixed) path; body preserved in frontmatter.
+    expect(arg.storage_path).toMatch(/^u1\/t-[0-9a-f]{12}\.md$/);
     expect(arg.frontmatter._storage_pending).toBe(true);
     expect(arg.frontmatter._body_fallback).toContain("Important body.");
     expect(r.source).toBe(fixtures.sourceRow);
