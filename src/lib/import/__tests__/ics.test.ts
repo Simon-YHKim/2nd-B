@@ -6,7 +6,10 @@ describe("parseIcsDate", () => {
     expect(parseIcsDate("20240105T154200").dateOnly).toBe(false);
     const d = parseIcsDate("20240105");
     expect(d.dateOnly).toBe(true);
-    expect(d.iso).not.toBeNull();
+    // date-only anchors at UTC midnight so the calendar date is preserved in ANY
+    // timezone. Regression: local midnight rolled the ISO date back a day in
+    // positive-offset zones (KST +9), importing an all-day event as the day before.
+    expect(d.iso).toBe("2024-01-05T00:00:00.000Z");
     expect(parseIcsDate("garbage").iso).toBeNull();
   });
 });
@@ -36,6 +39,7 @@ describe("parseIcs", () => {
     expect(out[0].allDay).toBe(false);
     expect(out[1].title).toBe("Holiday");
     expect(out[1].allDay).toBe(true);
+    expect(out[1].startIso).toBe("2024-01-06T00:00:00.000Z"); // date preserved, not rolled back
   });
 
   test("untitled fallback + empty input", () => {
