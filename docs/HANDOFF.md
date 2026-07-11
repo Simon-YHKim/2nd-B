@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-11 (오후) / 루프 17회차 + 세션 인수인계 — LOOP-PLAYBOOK.md 신설 (운영 매뉴얼 정본)
 - Latest — 2026-07-11 / 클론 /loop 16회차 — 실기 갭 픽스 15 PR + 가드 3종 + i18n 대소탕 (에뮬 실기 사이클 확립)
 - Latest — 2026-07-10 (심야) / persona-sim 큐 A 완주 + 세컨비 중립 스윕 마무리 + insights 정직성 (4 PR)
 - Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 7 PR
@@ -83,6 +84,47 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-11 (오후) / 루프 17회차 + 세션 인수인계 — LOOP-PLAYBOOK.md 신설
+
+> **새 세션은 이 블록 → [`docs/LOOP-PLAYBOOK.md`](LOOP-PLAYBOOK.md) 순서로 읽는다.**
+> PLAYBOOK = 루프 운영 매뉴얼 정본 (루프 원문 프롬프트·ScheduleWakeup 케이던스·에뮬 레시피·서브에이전트 위임 템플릿과 실전 예제·워크트리 규율·i18n 컨벤션·스킬 활용법·함정 사전). 이 블록은 상태만 담는다.
+
+### 어디까지 왔나
+- main HEAD: `74fc6d9d` (#907)
+- 17회차 완주 (16회차 블록에 이어): **#906**(i18n 배치2 — digest·beyond·star·onboarding·trends·jot 69삼항) 머지 + 실기 4/4 PASS, **#904 실기 3면 PASS**(focus·integrations·ops), **#907**(i18n 배치3 — call-reflection·iden) 머지. 에뮬 offline 1회 → 콜드부트 복구 (앱 패키지명 정본 = `com.simonk.secondbrain`).
+- 법무 플래그 5건은 **인라인 보존** 확인: call-reflection(녹음삭제 약속·음성미저장 약속·통화녹음 상대고지) + iden(반출차단 약속·기기서명/동의 약속) — 번역/추출 금지, Simon 게이트.
+- 테스트: verify green (325 suites / 2432 tests). working tree clean (untracked 로컬 자산/레퍼런스 zip만).
+- **루프 상태**: 계속 진행 중이던 것을 세션 마감으로 인계. 새 세션은 PLAYBOOK §1의 원문 프롬프트로 `/loop` 재개.
+
+### 다음 작업 큐 (18회차부터)
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | #907 실기 확인: call-reflection·iden 화면 에뮬 캡처 (딥링크 `/call-reflection`, `/iden`) | small | ⭐ 머지분 재검증 관례 |
+| B | **출처 불명 변경 2건 판정**: insights 막대 고정높이(height:132) 클리핑, WeeklyGrowth caret(›) 분리 줄바꿈 — 에뮬로 결함 실재 확인 후, 실재하면 근거 있는 PR 재구현 (diff 내용은 아래 "메모") | small | ⭐ 17회차 잔건 |
+| C | DeepSpaceDesignScreens 잔여 삼항 (Privacy 37·Data 7 = 법무 게이트 제외분) | medium | 배치4 위임 |
+| D | records 그래프 125레코드 링크 과밀(모아레) · FOCUS_STARS ko/en 한계 · 마이크로 타이포(9~11px) | small~med | P2/P3 |
+| E | KST 하드코딩(`records-timeline.ts:7`) 타임존 설계 | medium | 설계 선행 |
+| G | 🔒 게이트(Simon): 수익화 6건 · Privacy/Data es/pt/id 번역(법무) · attachment 임상 어휘 · ratify 되돌리기 · **법무 플래그 5건**(위) · 988/동의연령/advisor/₩ | — | Simon |
+
+### 메모 — 출처 불명 변경 2건 (큐 B 재구현용 diff 요지)
+1. `src/screens/deepspace/dds-styles.ts` insightsBars: `height:132` 제거 + `paddingTop:spacing.sm→md` (막대 차트 클리핑 의심)
+2. `src/screens/deepspace/growth/WeeklyGrowthScreen.tsx` ~L208 reasonChip: 별도 `<RNText>›</RNText>` caret을 앞 Text 런 안으로 병합 (caret 단독 줄바꿈 의심)
+- 17회차 배치 워크트리에 생성 직후부터 존재(에이전트 작업 아님 — mtime 판별). 현재 어디에도 미적용. **에뮬 확인으로 결함 실재 판정 후에만** 적용.
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # 단독 실행, exit 0 확인 (파이프 마스킹 금지)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md            # 이 블록
+cat docs/LOOP-PLAYBOOK.md      # 운영 매뉴얼 정독 후 /loop 재개 (§1 원문 프롬프트)
+```
 
 ---
 
