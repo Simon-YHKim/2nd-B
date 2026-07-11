@@ -2,9 +2,10 @@
 // progress breakdown, and subscription tier. Reads users.total_xp +
 // users.subscription_tier (added in migrations 0019 / 0020).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../auth/AuthContext";
+import { createLatestWins } from "../async/latest-wins";
 import { getEnv } from "../env";
 import { getSupabaseClient } from "../supabase/client";
 import { levelForXp, levelProgress, type LevelProgress } from "./levels";
@@ -25,12 +26,17 @@ export function useProgression(): Progression {
   const [totalXp, setTotalXp] = useState(0);
   const [tier, setTier] = useState<SubscriptionTier>("free");
   const [loading, setLoading] = useState(true);
+  // refresh() is exposed so screens re-pull after a stage completes; two calls (or a
+  // userId A->B switch) can overlap, and the slower/older response must not overwrite
+  // the newer one, regressing XP/tier. Latest-wins guard drops superseded results.
+  const guardRef = useRef(createLatestWins());
 
   const refresh = useCallback(async () => {
     if (!userId) {
       setLoading(false);
       return;
     }
+    const token = guardRef.current.begin();
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
@@ -39,12 +45,13 @@ export function useProgression(): Progression {
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
+      if (guardRef.current.isStale(token)) return;
       setTotalXp(data?.total_xp ?? 0);
       setTier(((data?.subscription_tier as SubscriptionTier) ?? "free"));
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[progression] load failed", e);
     } finally {
-      setLoading(false);
+      if (!guardRef.current.isStale(token)) setLoading(false);
     }
   }, [userId]);
 
