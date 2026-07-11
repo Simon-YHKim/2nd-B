@@ -103,8 +103,15 @@ describe("ops routines pure helpers (O-R3 P3)", () => {
       expect(weekStreak([{ completed_on: key(0) }, { completed_on: key(2) }], now)).toBe(1);
     });
 
-    test("missing today → 0 even with prior days", () => {
-      expect(weekStreak([{ completed_on: key(1) }, { completed_on: key(2) }], now)).toBe(0);
+    test("grace day: an active streak that hasn't logged TODAY yet still counts (not 0)", () => {
+      // Yesterday + the day before, nothing today yet -> still a live 2-day streak,
+      // matching journal/streak.ts. (Previously this returned 0, mislabeling a
+      // consistent user as slipping before they had a chance to log today.)
+      expect(weekStreak([{ completed_on: key(1) }, { completed_on: key(2) }], now)).toBe(2);
+    });
+
+    test("no completion today or yesterday -> 0 (streak genuinely broken)", () => {
+      expect(weekStreak([{ completed_on: key(2) }, { completed_on: key(3) }], now)).toBe(0);
     });
 
     test("caps at 7", () => {
