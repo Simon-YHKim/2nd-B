@@ -16,7 +16,7 @@
 -- non-atomic / fail-open holes now.
 --
 -- Caps MUST match src/lib/entitlements/reasoning-cap.ts reasoningCapForTier:
---   free 8, soma 60, cortex 60, brain unlimited. The effective limit adds the
+--   free 30, soma 60, cortex 60, brain unlimited. The effective limit adds the
 --   row's rewarded credits (capped separately by 0075). p_month is the KST
 --   'YYYY-MM' bucket from usage.ts monthBucket().
 
@@ -46,7 +46,7 @@ BEGIN
     WHEN 'brain'  THEN NULL   -- unlimited
     WHEN 'cortex' THEN 60
     WHEN 'soma'   THEN 60
-    ELSE 8                    -- free
+    ELSE 30                   -- free (30/mo, Simon 2026-07-11)
   END;
 
   -- Unlimited tier: increment without a cap gate.
