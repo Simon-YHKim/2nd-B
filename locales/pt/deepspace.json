@@ -224,6 +224,9 @@
     "statusDown": "Esta semana você salvou menos do que na semana passada.",
     "statusFlat": "Esta semana você salvou quase o mesmo que na semana passada.",
     "statusFirstWeek": "Sua primeira semana está começando a encher.",
+    "errorBody": "Não foi possível carregar os dados desta semana.",
+    "retry": "Tentar novamente",
+    "firstWeekBody": "Complete uma semana e compararei esta semana com a anterior.",
     "tip": "Toque no seu tema mais salvo para ver o fluxo.",
     "sectionNow": "Você ultimamente",
     "lead": "Comparado à semana passada, esta semana você",
@@ -757,6 +760,17 @@
       },
       "whyFootnote": "Ainda é o começo, então esta é uma primeira leitura leve. Quanto mais você registra, mais motivos se acumulam.",
       "eyebrow": "PRIMEIRA LUZ"
+    },
+    "northstar": {
+      "title": "Frase da Estrela Polar",
+      "sub": "O SecondB a esboçou a partir de suas sete estrelas. Molde com suas próprias palavras.",
+      "placeholder": "Entender-me a fundo e viver mais como eu.",
+      "suggestLabel": "Rascunhos do SecondB",
+      "thinking": "Pensando",
+      "propose": "Ver outros rascunhos",
+      "cancel": "Cancelar",
+      "save": "Salvar esta frase",
+      "thinBase": "Sua base de registros ainda é rasa. Salve cerca de {{count}} peças e tirarei rascunhos delas."
     },
     "reward": {
       "titleA": "Assista 30s e ganhe ",

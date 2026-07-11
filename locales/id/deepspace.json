@@ -224,6 +224,9 @@
     "statusDown": "Minggu ini kamu menyimpan lebih sedikit daripada minggu lalu.",
     "statusFlat": "Minggu ini kamu menyimpan kira-kira sama dengan minggu lalu.",
     "statusFirstWeek": "Minggu pertamamu mulai terisi.",
+    "errorBody": "Data minggu ini tidak dapat dimuat.",
+    "retry": "Coba lagi",
+    "firstWeekBody": "Isi satu minggu dan aku akan membandingkan minggu ini dengan minggu lalu.",
     "tip": "Ketuk topik yang paling sering kamu simpan untuk melihat alurnya.",
     "sectionNow": "Kamu belakangan ini",
     "lead": "Dibanding minggu lalu, minggu ini kamu",
@@ -757,6 +760,17 @@
       },
       "whyFootnote": "Ini masih awal, jadi ini pembacaan pertama yang ringan. Semakin banyak kamu simpan, semakin banyak alasan yang terkumpul.",
       "eyebrow": "CAHAYA PERTAMA"
+    },
+    "northstar": {
+      "title": "Kalimat Bintang Utara",
+      "sub": "SecondB menyusunnya dari tujuh bintangmu. Ubah dengan kata-katamu sendiri.",
+      "placeholder": "Memahami diriku secara mendalam dan hidup lebih seperti diriku.",
+      "suggestLabel": "Draf SecondB",
+      "thinking": "Berpikir",
+      "propose": "Lihat draf lain",
+      "cancel": "Batal",
+      "save": "Simpan kalimat ini",
+      "thinBase": "Catatanmu masih sedikit. Simpan sekitar {{count}} butir dan aku akan menyusun draf darinya."
     },
     "reward": {
       "titleA": "Tonton 30 dtk, dapat ",

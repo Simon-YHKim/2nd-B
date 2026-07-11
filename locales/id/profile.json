@@ -48,9 +48,9 @@
           "label": "Ikatan",
           "hint": "Membuka asesmen gaya attachment."
         },
-        "mbti": {
-          "label": "MBTI",
-          "hint": "Membuka tes referensi MBTI."
+        "growth": {
+          "label": "Perkembangan saya",
+          "hint": "Membuka tinjauan pertumbuhan mingguan."
         },
         "audit": {
           "label": "Aku masa lalu",

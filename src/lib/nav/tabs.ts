@@ -97,12 +97,57 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/side-project",
   // 요금제 — DockShell 경유(윈도우+탑바); 카드 구성/IAP 로직은 불변(수익화 게이트).
   "/plans",
+  // 4th drift recurrence (a2z audit 2026-07-11): these render DeepSpaceScreen
+  // through delegated modules or multiline JSX, both of which the old
+  // single-line same-file guard scan missed — the drift test now follows
+  // delegation, so new ones fail loudly instead of shipping a double back
+  // affordance.
+  "/records",
+  "/data",
+  "/integrations",
+  "/import",
+  "/growth",
+  "/seen",
+  "/beyond",
+  "/trends",
+  // /import-hub renders no dock but carries its own step-aware in-screen back
+  // button (hub → router.back(), history → hub), which the floating chip
+  // (→ home) contradicted; the chip yields to the in-screen control.
+  "/import-hub",
 ] as const;
 
 export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
 
+// Dynamic dock routes: expo-router paths like /star/career or /record/<uuid>
+// can never equal an entry in the static list above, yet both render
+// DeepSpaceScreen (museumLike star lens / windowed record detail) with their
+// own M3 top-app-bar back — without the prefix match the floating BackArrow
+// chip stacked a second, conflicting back control over that top bar.
+export const DEEP_SPACE_DOCK_PREFIXES = ["/star/", "/record/"] as const;
+
+// Routes that hide the floating BackArrow chip ENTIRELY (not because a dock or
+// top bar replaces it, but because no back-to-home affordance belongs there):
+// the pre-auth flow, the home roots, and one-shot onboarding flows whose
+// in-screen CTA is the designed exit (/onboarding since J5, /ttfv same
+// pattern — its 시작하기 CTA router.replace("/") is the exit). Lives here (not
+// in BackArrow.tsx) so nav visibility has ONE source of truth the dock-drift
+// guard can check against.
+export const BACK_ARROW_HIDDEN_PATHS = [
+  "/sign-in",
+  "/sign-up",
+  "/complete-profile",
+  "/oauth-callback",
+  "/",
+  "/onboarding",
+  "/ttfv",
+  "/deepspace-home",
+] as const;
+
 /** True when the route renders the deep-space bottom dock (DeepSpaceScreen).
  *  Gate behind isDeepSpaceUI() — legacy mode has no dock. */
 export function isDeepSpaceDockPath(pathname: string): boolean {
-  return (DEEP_SPACE_DOCK_PATHS as readonly string[]).includes(pathname);
+  return (
+    (DEEP_SPACE_DOCK_PATHS as readonly string[]).includes(pathname) ||
+    DEEP_SPACE_DOCK_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
 }

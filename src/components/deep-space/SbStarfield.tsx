@@ -11,7 +11,7 @@
  * between .28 and .95 opacity; here they sit at the midpoint so a screenshot
  * matches the reference's average frame without a per-star animation cost.
  */
-import { Fragment } from "react";
+import { Fragment, memo } from "react";
 import { StyleSheet } from "react-native";
 import Svg, { Circle, Defs, Polyline, RadialGradient, Rect, Stop } from "react-native-svg";
 
@@ -62,7 +62,12 @@ const SKY_CONST: { c: string; o: number; pts: [number, number][] }[] = [
 // Prototype twinkle range is .28–.95; static stand-in sits at the midpoint.
 const TWINKLE_STATIC_OPACITY = 0.62;
 
-export function SbStarfield({ cosmic = false }: { cosmic?: boolean }) {
+// The whole 96-star + 4-constellation sky is derived from module-level constants
+// (seed-locked), so `cosmic` is its only input. Memoize it: DeepSpaceScreen and
+// ConstellationHome re-render on every keystroke / star tap, and without memo
+// this ~120-node SVG re-reconciles each time. React.memo skips it while `cosmic`
+// is unchanged.
+export const SbStarfield = memo(function SbStarfield({ cosmic = false }: { cosmic?: boolean }) {
   return (
     <Svg
       pointerEvents="none"
@@ -106,4 +111,4 @@ export function SbStarfield({ cosmic = false }: { cosmic?: boolean }) {
       ))}
     </Svg>
   );
-}
+});

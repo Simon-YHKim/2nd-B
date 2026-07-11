@@ -47,12 +47,9 @@ function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: str
 }
 
 export default function NorthstarSentence() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const isKo = locale === "ko";
-  const subText = isKo
-    ? "일곱 별을 종합해 세컨비가 제안한 문장이에요. 당신의 언어로 다듬어보세요."
-    : "SecondB drafted this from your seven stars. Reshape it in your own words.";
+  const subText = t("ds.northstar.sub");
   const { userId, loading, isMinor } = useAuth();
 
   const [draft, setDraft] = useState("");
@@ -145,11 +142,11 @@ export default function NorthstarSentence() {
       active="lens"
       header="none"
       variant="windowed"
-      title={isKo ? "북극성 문장" : "North-star sentence"}
+      title={t("ds.northstar.title")}
       onBack={() => router.back()}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-      <Text style={styles.headline}>{isKo ? "북극성 문장" : "North-star sentence"}</Text>
+      <Text style={styles.headline}>{t("ds.northstar.title")}</Text>
       {/* Screen readers get the raw string: keepAllKo's U+2060 joiners disorient
           braille output and character-by-character review. */}
       <Text style={styles.sub} accessibilityLabel={subText}>
@@ -175,13 +172,13 @@ export default function NorthstarSentence() {
           value={draft}
           onChangeText={setDraft}
           multiline
-          placeholder={isKo ? "나를 깊이 이해해 더 나답게 산다." : "Understand myself deeply, live more like myself."}
+          placeholder={t("ds.northstar.placeholder")}
           placeholderTextColor={withAlpha(m3.color.onSurface, 0.4)}
           style={styles.heroInput}
         />
       </View>
 
-      <Text style={styles.suggestLabel}>{isKo ? "세컨비 제안" : "SecondB drafts"}</Text>
+      <Text style={styles.suggestLabel}>{t("ds.northstar.suggestLabel")}</Text>
       <View style={styles.suggestList}>
         {suggestions?.map((s) => {
           const on = s === draft;
@@ -203,15 +200,13 @@ export default function NorthstarSentence() {
         {thinBase ? (
           <MdCard variant="outlined" style={styles.suggestCard}>
             <Text style={styles.emptyText}>
-              {isKo
-                ? `아직 기록이 얕아서 제안하기 조심스러워요. 별가루 ${MIN_RECORDS_FOR_PROPOSAL}개쯤 담기면 기록에서 문장을 길어올게요.`
-                : `Your record base is still thin. Capture about ${MIN_RECORDS_FOR_PROPOSAL} pieces and I'll draw drafts from them.`}
+              {t("ds.northstar.thinBase", { count: MIN_RECORDS_FOR_PROPOSAL })}
             </Text>
           </MdCard>
         ) : null}
         <MdButton
           variant="text"
-          label={proposing ? (isKo ? "생각 중" : "Thinking") : isKo ? "다른 제안 받기" : "Get other drafts"}
+          label={proposing ? t("ds.northstar.thinking") : t("ds.northstar.propose")}
           icon={<Glyph name="replay" color={m3.color.primary} size={18} />}
           onPress={() => void propose()}
           disabled={proposing}
@@ -222,13 +217,13 @@ export default function NorthstarSentence() {
       <View style={styles.actions}>
         <MdButton
           variant="outlined"
-          label={isKo ? "취소" : "Cancel"}
+          label={t("ds.northstar.cancel")}
           onPress={() => router.back()}
           style={styles.cancelBtn}
         />
         <MdButton
           variant="filled"
-          label={isKo ? "이 문장으로 저장" : "Save this sentence"}
+          label={t("ds.northstar.save")}
           icon={<Glyph name="check" color={m3.color.onPrimary} size={18} />}
           loading={saving}
           onPress={() => void save()}

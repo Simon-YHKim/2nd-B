@@ -224,6 +224,9 @@
     "statusDown": "Esta semana guardaste menos que la pasada.",
     "statusFlat": "Esta semana guardaste casi lo mismo que la pasada.",
     "statusFirstWeek": "Tu primera semana empieza a llenarse.",
+    "errorBody": "No se pudieron cargar los datos de esta semana.",
+    "retry": "Reintentar",
+    "firstWeekBody": "Completa una semana y compararé esta semana con la anterior.",
     "tip": "Toca tu tema más guardado para ver el flujo.",
     "sectionNow": "Tú últimamente",
     "lead": "Comparado con la semana pasada, esta semana",
@@ -757,6 +760,17 @@
       },
       "whyFootnote": "Aún es el comienzo, así que es una primera lectura ligera. Cuanto más registras, más motivos se acumulan.",
       "eyebrow": "PRIMERA LUZ"
+    },
+    "northstar": {
+      "title": "Frase de la Estrella Polar",
+      "sub": "SecondB la redactó a partir de tus siete estrellas. Dale forma con tus propias palabras.",
+      "placeholder": "Entenderme a fondo y vivir más como yo.",
+      "suggestLabel": "Borradores de SecondB",
+      "thinking": "Pensando",
+      "propose": "Ver otros borradores",
+      "cancel": "Cancelar",
+      "save": "Guardar esta frase",
+      "thinBase": "Tu base de registros aún es escasa. Guarda unas {{count}} piezas y sacaré borradores de ellas."
     },
     "reward": {
       "titleA": "Mira 30s y gana ",
