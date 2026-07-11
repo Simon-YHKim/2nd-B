@@ -6,11 +6,13 @@
 // back there. Mounted once at root (`_layout.tsx`) as an overlay, so
 // individual screens don't need to remember to render it.
 
+import { useSyncExternalStore } from "react";
 import { TouchableOpacity, StyleSheet, View, I18nManager } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
+import { hasOwnBack, subscribeOwnBack } from "@/lib/nav/own-back";
 import { Text } from "@/components/ui/Text";
 import { VILLAGE_IDS, VILLAGE_LABEL, type VillageId } from "@/lib/graph/relatedness";
 import { isPrimaryTabPath, isDeepSpaceDockPath } from "@/lib/nav/tabs";
@@ -108,7 +110,12 @@ export function BackArrow() {
   const { t, i18n } = useTranslation("common");
   const insets = useSafeAreaInsets();
   const locale = (i18n.language === "ko" ? "ko" : "en") as Locale;
+  // Screens that carry their own back affordance (MdTopAppBar) register while
+  // mounted. Rendering the floating chip on top of them stacked two overlapping
+  // back arrows in the same corner (emulator, windowed record-detail screen).
+  const screenHasOwnBack = useSyncExternalStore(subscribeOwnBack, hasOwnBack, hasOwnBack);
 
+  if (screenHasOwnBack) return null;
   if (HIDDEN_PATHS.has(pathname)) return null;
 
   // Primary tab roots (/, /capture, /secondb, /profile) render the full-width
