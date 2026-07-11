@@ -144,5 +144,5 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, alignItems: "center", gap: 3, minHeight: 44, justifyContent: "center" },
   iconWrap: { height: 18, justifyContent: "center" },
-  label: { fontSize: 9, lineHeight: 13, fontFamily: fontFamilies.pixelKo },
+  label: { fontSize: 11, lineHeight: 14, fontFamily: fontFamilies.pixelKo },
 });
