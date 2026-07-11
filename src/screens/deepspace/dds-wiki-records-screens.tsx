@@ -346,9 +346,11 @@ export function DeepSpaceRecordsScreen() {
   }, [userId]);
 
   // Per-record time label reuses the tested timeline bucketer (방금 / N시간 전 / 어제 …).
+  // labelEveryItem: this flat list has no date-group headers, so older rows need
+  // their own day label - without it every non-today record showed no time at all.
   const timeById = useMemo(() => {
     const m = new Map<string, string>();
-    buildRecordsTimeline(records, { labels: dsTimeLabels(t) }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
+    buildRecordsTimeline(records, { labels: dsTimeLabels(t), labelEveryItem: true }).forEach((g) => g.items.forEach((it) => m.set(it.id, it.timeLabel)));
     return m;
   }, [records, t]);
 
