@@ -18,6 +18,8 @@ import {
 import { ddsStyles as styles } from "./dds-styles";
 import { parseStructured } from "@/lib/capture/structured";
 import { Text } from "@/components/ui/Text";
+import { Button } from "@/components/ui/Button";
+import { PremiumModal } from "@/components/premium";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
@@ -612,6 +614,10 @@ export function DeepSpaceRecordDetailScreen() {
   const [all, setAll] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  // deleteRecord is a hard DB DELETE with no undo, and the trash button sits in
+  // the same ctaRow as 편집/이동 - a mis-tap destroyed the record silently. The
+  // confirm modal mirrors inbox's delete-confirm pattern.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   // D5 (J3): semantic neighbours of this record (embedding kNN), merged into the
   // tag-based "연결된 기록" below with a badge. Only fetched when the user opted in
   // (records_embedding); empty otherwise, so the section stays tag-only.
@@ -808,7 +814,7 @@ export function DeepSpaceRecordDetailScreen() {
         </Pressable>
         <Pressable
           style={[styles.iconBtn, styles.iconBtnDanger]}
-          onPress={() => void handleDelete()}
+          onPress={() => setConfirmingDelete(true)}
           disabled={deleting}
           accessibilityRole="button"
           accessibilityLabel={t("recordDetail.a11yDelete")}
@@ -816,11 +822,42 @@ export function DeepSpaceRecordDetailScreen() {
           <TrashGlyph />
         </Pressable>
       </View>
+
+      <PremiumModal
+        visible={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
+        accessibilityLabel={t("recordDetail.deleteConfirmTitle")}
+      >
+        <Text variant="heading">{t("recordDetail.deleteConfirmTitle")}</Text>
+        <Text variant="body" color="textMuted" style={rd.confirmBody}>
+          {t("recordDetail.deleteConfirmBody")}
+        </Text>
+        <View style={rd.confirmActions}>
+          <Button
+            label={t("recordDetail.deleteCancel")}
+            variant="secondary"
+            onPress={() => setConfirmingDelete(false)}
+            style={rd.confirmBtn}
+          />
+          <Button
+            label={t("recordDetail.deleteConfirm")}
+            variant="danger"
+            onPress={() => {
+              setConfirmingDelete(false);
+              void handleDelete();
+            }}
+            style={rd.confirmBtn}
+          />
+        </View>
+      </PremiumModal>
     </Shell>
   );
 }
 
 const rd = StyleSheet.create({
+  confirmBody: { marginTop: 8, marginBottom: 4 },
+  confirmActions: { flexDirection: "row", gap: 10, marginTop: 16 },
+  confirmBtn: { flex: 1 },
   typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, marginBottom: 10 },
   typeLabel: { color: colors.textMid, fontSize: 11 },
   sbCard: {
