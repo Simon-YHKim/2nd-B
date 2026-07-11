@@ -18,7 +18,7 @@ import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deepspace";
 
@@ -208,7 +208,8 @@ export function DeepSpaceLoader({
             accessibilityRole="button"
             onPress={onSendToBackground}
             hitSlop={8}
-            style={({ pressed }) => [styles.bgBtn, pressed ? styles.pressed : null]}
+            style={styles.bgBtn}
+            android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
           >
             <Text variant="caption" style={styles.bgBtnText}>{bg}</Text>
           </Pressable>
@@ -272,5 +273,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   bgBtnText: { fontSize: 14, color: deepSpace.accentSoft },
-  pressed: { opacity: 0.7 },
+
 });

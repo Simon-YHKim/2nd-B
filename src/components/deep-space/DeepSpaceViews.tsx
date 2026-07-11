@@ -1472,7 +1472,8 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
                 accessibilityRole="button"
                 accessibilityLabel={step}
                 onPress={() => router.push({ pathname: "/capture", params: { text: step } })}
-                style={({ pressed }) => [styles.imgStep, pressed && { opacity: 0.72 }]}
+                style={styles.imgStep}
+                android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
               >
                 <View style={styles.imgStepNum}>
                   <Text style={styles.imgStepNumText}>{i + 1}</Text>
@@ -1777,7 +1778,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.toConstellation")}
           onPress={() => router.replace("/")}
-          style={({ pressed }) => pressed && styles.pressed}
+          android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.toConstellation")}</Text>
         </Pressable>
@@ -1813,7 +1814,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.viewValidation")}
           onPress={() => router.push("/big-five")}
-          style={({ pressed }) => pressed && styles.pressed}
+          android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.viewValidation")}</Text>
         </Pressable>
@@ -1921,7 +1922,7 @@ const styles = StyleSheet.create({
   fourwLabelRequired: { color: deepSpace.textHi },
   fourwInput: { minHeight: 48, marginTop: 0 },
   fourwInputTall: { minHeight: 84 },
-  pressed: { opacity: 0.85 },
+
 
   // chips
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 14 },

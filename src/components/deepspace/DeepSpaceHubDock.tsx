@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, spacing } from "@/theme/tokens";
+import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 export type DeepSpaceHubTab = "capture" | "secondb" | "trend" | "review";
@@ -34,7 +35,8 @@ export function DeepSpaceHubDock({ active, onChange }: DeepSpaceHubDockProps) {
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             onPress={() => onChange(item.key)}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+            style={styles.item}
+            android_ripple={{ color: withAlpha(colors.cyan, 0.12) }}
           >
             <Text style={[styles.icon, selected ? styles.activeIcon : styles.inactiveIcon]}>{item.icon}</Text>
             <Text style={[styles.label, selected ? styles.activeLabel : styles.inactiveLabel]}>{item.label}</Text>
@@ -68,9 +70,7 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingVertical: spacing.xs,
   },
-  pressed: {
-    opacity: 0.72,
-  },
+
   icon: {
     fontSize: 16,
     lineHeight: 20,

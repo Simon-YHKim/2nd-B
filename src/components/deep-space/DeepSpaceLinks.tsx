@@ -16,7 +16,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
 
-import { deepSpace } from "@/lib/theme/tokens";
+import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 
 export interface DeepSpaceLinkGroup {
   /** Section heading (already locale-resolved by the caller). */
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44, // >= 44px touch target (a11y)
   },
-  itemPressed: { borderColor: deepSpace.accent, backgroundColor: deepSpace.cardPressed },
+
   itemLabel: { color: deepSpace.text, fontSize: 14, textAlign: "center" },
 });
 
@@ -63,7 +63,8 @@ export function DeepSpaceLinks({ groups }: { groups: DeepSpaceLinkGroup[] }) {
             {group.items.map((item) => (
               <Pressable
                 key={item.key}
-                style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+                style={styles.item}
+                android_ripple={{ color: withAlpha(deepSpace.accent, 0.12) }}
                 onPress={() => router.push(item.route)}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}

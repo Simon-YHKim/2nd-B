@@ -6,6 +6,7 @@ import { SecondbStatusHeader } from "@/components/deepspace";
 import { startTask } from "@/lib/tasks/store";
 import { Text } from "@/components/ui/Text";
 import { colors, radius, spacing } from "@/theme/tokens";
+import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 interface FlowColumn {
@@ -128,7 +129,8 @@ export function DeepSpaceFlowMapScreen() {
           accessibilityRole="button"
           accessibilityLabel="로딩 시스템 미리보기"
           onPress={runLoadingDemo}
-          style={({ pressed }) => [styles.chip, styles.demoChip, pressed && styles.pressed]}
+          style={[styles.chip, styles.demoChip]}
+          android_ripple={{ color: withAlpha(colors.cyan, 0.12) }}
         >
           <Text variant="caption" style={styles.chipLabel}>로딩 시스템 미리보기</Text>
           <Text variant="subtle" style={styles.chipNote}>백그라운드 도크 + 완료 토스트 데모</Text>
@@ -144,7 +146,8 @@ export function DeepSpaceFlowMapScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${item.label} 열기`}
                   onPress={() => router.push(item.path)}
-                  style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+                  style={styles.chip}
+                  android_ripple={{ color: withAlpha(colors.cyan, 0.12) }}
                 >
                   <Text variant="caption" style={styles.chipLabel}>{item.label}</Text>
                   <Text variant="subtle" style={styles.chipNote}>{item.note}</Text>
@@ -178,5 +181,4 @@ const styles = StyleSheet.create({
   chipLabel: { color: colors.textTitle, fontSize: 11 },
   chipNote: { marginTop: 2, color: colors.textLo, fontSize: 10.5 },
   demoChip: { marginHorizontal: 20, marginTop: spacing.md },
-  pressed: { opacity: 0.72 },
 });

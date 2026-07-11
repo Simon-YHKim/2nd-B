@@ -344,11 +344,8 @@ export function PixelIconButton({
       hitSlop={14}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.iconBtn,
-        { shadowColor: accent },
-        pressed ? styles.iconBtnPressed : null,
-      ]}
+      style={[styles.iconBtn, { shadowColor: accent }]}
+      android_ripple={{ color: withAlpha(accent, 0.15) }}
     >
       {children}
     </Pressable>
@@ -485,11 +482,7 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(cosmic.space800, 0.48),
     ...pixelShadowStyle(),
   },
-  iconBtnPressed: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    transform: [{ translateX: PRESSED_OFFSET }, { translateY: PRESSED_OFFSET }],
-  },
+
   input: {
     minHeight: 46,
     color: cosmic.moonWhite,
