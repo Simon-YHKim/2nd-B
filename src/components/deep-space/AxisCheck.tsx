@@ -184,10 +184,10 @@ function MotivationPopulated({ result }: { result: LoadedMotivation }) {
         </Text>
         <View style={styles.balanceBar}>
           <View style={[styles.balanceIntrinsic, { flex: Math.max(result.intrinsicPct, 0) }]}>
-            <Text style={styles.balanceIntrinsicText} numberOfLines={1}>{intrinsicLabel}</Text>
+            <Text style={styles.balanceIntrinsicText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{intrinsicLabel}</Text>
           </View>
           <View style={[styles.balanceExtrinsic, { flex: Math.max(result.extrinsicPct, 0) }]}>
-            <Text style={styles.balanceExtrinsicText} numberOfLines={1}>{extrinsicLabel}</Text>
+            <Text style={styles.balanceExtrinsicText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{extrinsicLabel}</Text>
           </View>
         </View>
         <Text style={[m3TextStyle("bodySmall"), styles.balanceNote]}>{balanceNote}</Text>
