@@ -129,6 +129,7 @@
     "deleteCancel": "Cancel",
     "deleteConfirm": "Delete",
     "editSave": "Save",
+    "actionFailed": "Couldn't save your change. Check your connection and try again.",
     "assessmentBody": "The raw responses from a self-report survey. The organized result lives on its own screen.",
     "assessmentCta": "View result",
     "kindJournal": "Journal",

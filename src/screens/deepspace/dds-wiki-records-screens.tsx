@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
@@ -764,6 +764,21 @@ export function DeepSpaceRecordDetailScreen() {
   const [all, setAll] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  // Every write on this screen is optimistic-with-revert; a silent revert on a
+  // failed write read as "the app ate my reflection" — the #1 cross-panel finding
+  // in the persona-validate pass. Surface a dismissible banner + a screen-reader
+  // announce so a failure is never silent. Cleared on the next attempt + after 5s.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const reportActionError = useCallback(() => {
+    const msg = t("recordDetail.actionFailed");
+    setActionError(msg);
+    AccessibilityInfo.announceForAccessibility(msg);
+  }, [t]);
+  useEffect(() => {
+    if (!actionError) return;
+    const h = setTimeout(() => setActionError(null), 5000);
+    return () => clearTimeout(h);
+  }, [actionError]);
   // deleteRecord is a hard DB DELETE with no undo, and the trash button sits in
   // the same ctaRow as 편집/이동 - a mis-tap destroyed the record silently. The
   // confirm modal mirrors inbox's delete-confirm pattern.
@@ -781,16 +796,22 @@ export function DeepSpaceRecordDetailScreen() {
     setAddingTag(false);
     setTagDraft("");
     if (!tag || !userId || !record || !recordId) return;
+    // Reserved domain: tags drive star membership and are managed by Move, not
+    // free-text — a hand-typed "domain:career" would double-file the record and
+    // break moveTo's single-domain assumption (persona-validate: tag-injection).
+    if (isDomainTag(tag)) return;
     const existing = record.tags ?? [];
     if (existing.includes(tag)) return;
+    setActionError(null);
     const next = [...existing, tag];
     setRecord({ ...record, tags: next });
     try {
       await updateRecordTags(userId, recordId, next);
     } catch {
       setRecord({ ...record, tags: existing });
+      reportActionError();
     }
-  }, [tagDraft, userId, record, recordId]);
+  }, [tagDraft, userId, record, recordId, reportActionError]);
   // 이동: re-file this record to another domain star by swapping its reserved
   // domain: tag (the star lens filters by the domain: tag). Same optimistic
   // updateRecordTags path as add-tag; reverts on failure.
@@ -802,14 +823,16 @@ export function DeepSpaceRecordDetailScreen() {
       const currentTags = record.tags ?? [];
       if (currentTags.includes(domainTagFor(target))) return;
       const next = [...stripDomainTags(currentTags), domainTagFor(target)];
+      setActionError(null);
       setRecord({ ...record, tags: next });
       try {
         await updateRecordTags(userId, recordId, next);
       } catch {
         setRecord({ ...record, tags: currentTags });
+        reportActionError();
       }
     },
-    [userId, record, recordId],
+    [userId, record, recordId, reportActionError],
   );
   // 편집: inline-edit this record's body text in place. The Edit CTA used to
   // route to /capture, which has no edit mode, so the labelled action did
@@ -836,13 +859,15 @@ export function DeepSpaceRecordDetailScreen() {
       return;
     }
     setEditing(false);
+    setActionError(null);
     setRecord({ ...record, body: next });
     try {
       await updateRecord(userId, recordId, { body: next });
     } catch {
       setRecord({ ...record, body: prevBody });
+      reportActionError();
     }
-  }, [bodyDraft, userId, record, recordId]);
+  }, [bodyDraft, userId, record, recordId, reportActionError]);
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -891,12 +916,14 @@ export function DeepSpaceRecordDetailScreen() {
 
   async function handleDelete() {
     if (!userId || !record) return;
+    setActionError(null);
     setDeleting(true);
     try {
       await deleteRecord(userId, record.id);
       router.back();
     } catch {
       setDeleting(false);
+      reportActionError();
     }
   }
 
@@ -949,6 +976,12 @@ export function DeepSpaceRecordDetailScreen() {
         <View style={rStyles.iconBox}><TypeGlyph type={rtype} /></View>
         <RNText style={rd.typeLabel}>{typeLabel} · {timeLabel}</RNText>
       </View>
+
+      {actionError ? (
+        <View style={rd.errorBanner} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+          <RNText style={rd.errorBannerTxt}>{actionError}</RNText>
+        </View>
+      ) : null}
 
       <Text variant="heading" style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
 
@@ -1047,7 +1080,7 @@ export function DeepSpaceRecordDetailScreen() {
             placeholderTextColor={colors.textLo}
             returnKeyType="done"
             onSubmitEditing={() => void submitTag()}
-            onBlur={() => void submitTag()}
+            onBlur={() => { setAddingTag(false); setTagDraft(""); }}
             accessibilityLabel={t("ds.wikiRecords.addTag")}
           />
         ) : (
@@ -1095,9 +1128,10 @@ export function DeepSpaceRecordDetailScreen() {
           <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.move")}</Text>
         </Pressable>
         <Pressable
-          style={[styles.iconBtn, styles.iconBtnDanger]}
+          style={[styles.iconBtn, styles.iconBtnDanger, { minHeight: 44 }]}
           onPress={() => setConfirmingDelete(true)}
           disabled={deleting}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t("recordDetail.a11yDelete")}
         >
@@ -1161,6 +1195,8 @@ const rd = StyleSheet.create({
   assessmentCta: { alignSelf: "flex-start", marginTop: 10, minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.md, backgroundColor: colors.bgDeep },
   assessmentCtaText: { color: colors.cyanSoft, fontSize: 12.5 },
   confirmBody: { marginTop: 8, marginBottom: 4 },
+  errorBanner: { borderWidth: 1, borderColor: colors.clay, borderRadius: radius.md, backgroundColor: colors.cardBg, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+  errorBannerTxt: { color: colors.clay, fontSize: 13, lineHeight: 18 },
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   confirmBtn: { flex: 1 },
   moveList: { gap: 8, marginTop: 12 },
