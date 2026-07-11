@@ -120,6 +120,8 @@
     "deleteConfirmBody": "Ini tidak bisa dibatalkan.",
     "deleteCancel": "Batal",
     "deleteConfirm": "Hapus",
+    "assessmentBody": "Jawaban mentah dari survei laporan diri. Hasil yang tertata ada di layarnya sendiri.",
+    "assessmentCta": "Lihat hasil",
     "kindJournal": "Jurnal",
     "kindNote": "Catatan",
     "kindAudit": "Tinjauan",
