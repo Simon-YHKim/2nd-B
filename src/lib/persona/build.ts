@@ -145,18 +145,21 @@ export const DEFAULT_TRAITS: PersonaTraits = {
 
 // Per-trait keyword sets used for v1 heuristic scoring. Each hit nudges the
 // corresponding trait up; the dampening factor keeps a single keyword from
-// dominating. KO and EN markers share a regex so the same scorer handles
-// both locales.
-const TRAIT_KEYWORDS: Record<keyof PersonaTraits, RegExp> = {
+// dominating. ASCII and Korean markers are checked SEPARATELY (mirroring
+// detect-domain.ts): \b word boundaries are defined against \w=[A-Za-z0-9_], so
+// Hangul has no boundary and \b-wrapped Korean can NEVER match — the Korean
+// markers must be plain substring includes() instead, or the whole KR audience's
+// heuristic Big Five silently stays pinned to the base value.
+const TRAIT_KEYWORDS: Record<keyof PersonaTraits, { ascii: RegExp; korean: string[] }> = {
   // Length-driven; regex is a fallback that catches explicit curiosity cues.
-  openness: /\b(curious|imagine|new idea|wonder|호기심|상상|새로운|궁금|배우고)\b/i,
-  conscientiousness: /\b(habit|routine|every day|discipline|plan|매일|꾸준히|루틴|습관|계획)\b/i,
+  openness: { ascii: /\b(curious|imagine|new idea|wonder)\b/i, korean: ["호기심", "상상", "새로운", "궁금", "배우고"] },
+  conscientiousness: { ascii: /\b(habit|routine|every day|discipline|plan)\b/i, korean: ["매일", "꾸준히", "루틴", "습관", "계획"] },
   // "we", "people", "friend"-style cues lift extraversion mildly.
-  extraversion: /\b(friend|together|party|met up|talked|친구|만났|모임|어울)\b/i,
+  extraversion: { ascii: /\b(friend|together|party|met up|talked)\b/i, korean: ["친구", "만났", "모임", "어울"] },
   // Empathy / care cues for agreeableness.
-  agreeableness: /\b(help|kind|forgive|care for|sorry|도왔|배려|용서|미안|챙겼)\b/i,
-  // Distress markers for neuroticism (yellow-zone equivalents — not crisis).
-  neuroticism: /\b(anxious|worried|stressed|overwhelmed|lonely|불안|걱정|스트레스|외로워|지쳤)\b/i,
+  agreeableness: { ascii: /\b(help|kind|forgive|care for|sorry)\b/i, korean: ["도왔", "배려", "용서", "미안", "챙겼"] },
+  // Distress markers for neuroticism (yellow-zone equivalents, not crisis).
+  neuroticism: { ascii: /\b(anxious|worried|stressed|overwhelmed|lonely)\b/i, korean: ["불안", "걱정", "스트레스", "외로워", "지쳤"] },
 };
 
 // Lightweight heuristic: longer answers nudge openness up; per-trait keyword
@@ -168,14 +171,18 @@ function scoreFromAnswers(rows: AuditResponseRow[]): PersonaTraits {
   const avgLen = rows.reduce((s, r) => s + r.body.length, 0) / rows.length;
   traits.openness = Math.min(0.95, 0.4 + avgLen / 600);
   for (const key of Object.keys(TRAIT_KEYWORDS) as (keyof PersonaTraits)[]) {
-    const pattern = TRAIT_KEYWORDS[key];
-    const hits = rows.filter((r) => pattern.test(r.body)).length;
-    // Skip openness here — already set above. Skipping avoids double-counting.
+    // Openness is length-driven above; skip its keyword match (avoids double-counting).
     if (key === "openness") continue;
+    const { ascii, korean } = TRAIT_KEYWORDS[key];
+    const hits = rows.filter((r) => ascii.test(r.body) || korean.some((k) => r.body.includes(k))).length;
     traits[key] = Math.min(0.95, 0.4 + hits * 0.12);
   }
   return traits;
 }
+
+// Exported for unit testing the locale-aware heuristic scorer (KO markers must
+// match via substring, not \b regex). Not part of the public build API.
+export const __test_scoreFromAnswers = scoreFromAnswers;
 
 // Reads the memorize Engine's output and rolls it up into a {pattern_kind:
 // count} histogram. Used to enrich the persona patterns dict beyond a
