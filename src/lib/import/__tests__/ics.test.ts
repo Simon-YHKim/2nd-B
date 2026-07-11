@@ -47,4 +47,23 @@ describe("parseIcs", () => {
     expect(parseIcs(ics)[0].title).toBe("(untitled)");
     expect(parseIcs("")).toEqual([]);
   });
+
+  test("unescapes RFC 5545 TEXT escapes in SUMMARY", () => {
+    const ics = [
+      "BEGIN:VEVENT",
+      "SUMMARY:Lunch\\, then gym\\; bring water",
+      "DTSTART:20240105T090000Z",
+      "END:VEVENT",
+    ].join("\n");
+    expect(parseIcs(ics)[0].title).toBe("Lunch, then gym; bring water");
+  });
+
+  test("SUMMARY \\n becomes a newline and \\\\ stays a single backslash", () => {
+    const ics = "BEGIN:VEVENT\nSUMMARY:Call\\nAgenda\nEND:VEVENT";
+    expect(parseIcs(ics)[0].title).toBe("Call\nAgenda");
+    // An escaped backslash followed by a literal comma must not collapse to a bare
+    // comma: "\\," => backslash + comma, not ",".
+    const ics2 = "BEGIN:VEVENT\nSUMMARY:path C:\\\\, next\nEND:VEVENT";
+    expect(parseIcs(ics2)[0].title).toBe("path C:\\, next");
+  });
 });
