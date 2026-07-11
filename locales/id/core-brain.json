@@ -60,5 +60,6 @@
   "selfPortraitCount": "potret diri {{n}}/5",
   "areasCount": "{{n}} area",
   "seePieces": "Lihat {{n}} serpihan",
-  "seeEvidencePieces": "Lihat {{n}} serpihan bukti"
+  "seeEvidencePieces": "Lihat {{n}} serpihan bukti",
+  "piecesBehindSub": "Catatan yang menjadi acuan SecondB dan Bintang Utaramu."
 }

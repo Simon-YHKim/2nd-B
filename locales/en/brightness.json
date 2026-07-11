@@ -8,5 +8,9 @@
   "weeksAgo": "8w ago",
   "thisWeek": "this week",
   "evidence": "What this light is made of",
-  "ratLog": "See the ratification log"
+  "ratLog": "See the ratification log",
+  "emptyBody": "Not enough history to draw yet. Finish a check and ratify a proposal, and the trail builds up here.",
+  "honestyLine": "{{obs}} observations · {{cited}} cited · {{stars}} stars",
+  "citedRatioLabel": "Cited ratio {{cited}} of {{obs}}",
+  "honestyCaption": "Brightness is how much is on record, not certainty. Citations make it trustworthy."
 }

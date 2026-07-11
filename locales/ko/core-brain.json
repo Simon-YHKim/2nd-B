@@ -60,5 +60,6 @@
   "selfPortraitCount": "나의 모습 {{n}}/5",
   "areasCount": "영역 {{n}}",
   "seePieces": "참고한 별가루 {{n}}개 보기",
-  "seeEvidencePieces": "참고한 별가루 {{n}}개 보기"
+  "seeEvidencePieces": "참고한 별가루 {{n}}개 보기",
+  "piecesBehindSub": "세컨비와 북극성이 참고한 기록이에요."
 }

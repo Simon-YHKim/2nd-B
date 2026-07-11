@@ -83,9 +83,7 @@ export default function BrightnessTimelineScreen() {
         ) : empty ? (
           <MdCard variant="outlined" style={styles.cardPad}>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "아직 변화를 그릴 기록이 부족해요. 점검을 마치고 제안을 승인하면 별의 궤적이 여기 쌓여요."
-                : "Not enough history to draw yet. Finish a check and ratify a proposal, and the trail builds up here."}
+              {t("emptyBody")}
             </Text>
             <MdButton
               variant="tonal"
@@ -154,22 +152,21 @@ export default function BrightnessTimelineScreen() {
                 {t("evidence")}
               </Text>
               <Text variant="body" style={styles.honestyLine}>
-                {locale === "ko"
-                  ? `관측 ${timeline.honesty.observations}번 · 근거 있는 관측 ${timeline.honesty.cited}번 · 별 ${timeline.honesty.observedStars}개`
-                  : `${timeline.honesty.observations} observations · ${timeline.honesty.cited} cited · ${timeline.honesty.observedStars} stars`}
+                {t("honestyLine", {
+                  obs: timeline.honesty.observations,
+                  cited: timeline.honesty.cited,
+                  stars: timeline.honesty.observedStars,
+                })}
               </Text>
               <ProgressLinear
                 value={timeline.honesty.observations > 0 ? timeline.honesty.cited / timeline.honesty.observations : 0}
-                accessibilityLabel={
-                  locale === "ko"
-                    ? `근거 비율 ${timeline.honesty.cited}/${timeline.honesty.observations}`
-                    : `Cited ratio ${timeline.honesty.cited} of ${timeline.honesty.observations}`
-                }
+                accessibilityLabel={t("citedRatioLabel", {
+                  cited: timeline.honesty.cited,
+                  obs: timeline.honesty.observations,
+                })}
               />
               <Text variant="caption" color="textSubtle" style={styles.honestyCaption}>
-                {locale === "ko"
-                  ? "밝기는 확신이 아니라 기록의 양이에요. 근거가 붙을수록 믿을 만해져요."
-                  : "Brightness is how much is on record, not certainty. Citations make it trustworthy."}
+                {t("honestyCaption")}
               </Text>
               <MdButton
                 variant="text"
