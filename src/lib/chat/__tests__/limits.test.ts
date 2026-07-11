@@ -57,4 +57,18 @@ describe("kstDateToday", () => {
   test("UTC midnight exactly = KST 09:00 same day", () => {
     expect(kstDateToday(new Date("2026-05-25T00:00:00Z"))).toBe("2026-05-25");
   });
+
+  test("KST day is device-timezone-independent (ignores getTimezoneOffset, DST-proof)", () => {
+    // The old implementation mixed getTimezoneOffset() (at `now`) with dayjs-local
+    // formatting (at now+9h); across a DST transition those offsets disagreed and the
+    // KST day flipped near the reset boundary. Delegating to the absolute-epoch
+    // kstDayKey means a nonzero device offset must not change the answer.
+    const spy = jest.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(420); // e.g. PDT
+    try {
+      expect(kstDateToday(new Date("2026-05-25T16:00:00Z"))).toBe("2026-05-26"); // KST 01:00 → 26th
+      expect(kstDateToday(new Date("2026-05-25T14:30:00Z"))).toBe("2026-05-25"); // KST 23:30 → 25th
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
