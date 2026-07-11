@@ -28,5 +28,22 @@
     "body": "Turn what you've learned about yourself into one portable file any AI can read, plus a one-page profile.",
     "button": "Open identity export",
     "accessibilityHint": "Opens the IDEN identity export screen."
+  },
+  "ds": {
+    "screenTitle": "IDEN · Portable identity",
+    "loading": "Loading…",
+    "loadError": "Could not load your IDEN.",
+    "retry": "Retry",
+    "empty": "Nothing gathered yet. Gather a little of yourself first?",
+    "startGathering": "Start gathering",
+    "signed": "Signed",
+    "whatGoesIn": "What goes in",
+    "format": "Format",
+    "sendToAi": "Send to an AI",
+    "export": "Export",
+    "preview": "Preview",
+    "jsonCopied": "JSON copied",
+    "copyFailed": "Could not copy",
+    "previewWebOnly": "The preview sheet opens on web"
   }
 }

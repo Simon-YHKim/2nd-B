@@ -28,5 +28,22 @@
     "body": "Ubah apa yang Anda pelajari tentang diri sendiri menjadi satu berkas portabel yang dapat dibaca AI mana pun, plus profil satu halaman.",
     "button": "Buka ekspor identitas",
     "accessibilityHint": "Membuka layar ekspor identitas IDEN."
+  },
+  "ds": {
+    "screenTitle": "IDEN · Identitas portabel",
+    "loading": "Memuat…",
+    "loadError": "Tidak bisa memuat IDEN kamu.",
+    "retry": "Coba lagi",
+    "empty": "Belum ada yang terkumpul. Kumpulkan sedikit tentang dirimu dulu, yuk?",
+    "startGathering": "Mulai mengumpulkan",
+    "signed": "Ditandatangani",
+    "whatGoesIn": "Apa yang disertakan",
+    "format": "Format",
+    "sendToAi": "Kirim ke AI",
+    "export": "Ekspor",
+    "preview": "Pratinjau",
+    "jsonCopied": "JSON disalin",
+    "copyFailed": "Tidak bisa menyalin",
+    "previewWebOnly": "Lembar pratinjau terbuka di web"
   }
 }
