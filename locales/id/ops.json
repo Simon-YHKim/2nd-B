@@ -171,7 +171,14 @@
     "resetBtn": "Atur ulang",
     "forWhichStar": "Untuk bintang apa?",
     "todayCount": "{{sessions}} sesi fokus hari ini",
-    "todaySub": "Sekitar {{min}} mnt · target {{goal}}"
+    "todaySub": "Sekitar {{min}} mnt · target {{goal}}",
+    "stars": {
+      "s0": "Pertumbuhan",
+      "s1": "Karier",
+      "s2": "Belajar",
+      "s3": "Relasi",
+      "s4": "Kesehatan"
+    }
   },
   "srs": {
     "title": "Tinjau bahasa",
