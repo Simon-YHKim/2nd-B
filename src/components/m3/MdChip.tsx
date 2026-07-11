@@ -55,7 +55,17 @@ export function MdChip({
         accessibilityLabel={accessibilityLabel ?? label}
         style={styles.hit}
       >
-        {icon ? <View style={styles.icon}>{icon}</View> : null}
+        {/* M3 filter chip: selection swaps the leading slot for a check glyph
+            (reference sb-data.jsx MdChip renders the same 18dp check when selected). */}
+        {on ? (
+          <View style={styles.icon}>
+            <Svg width={18} height={18} viewBox="0 0 24 24">
+              <Path d="M5 12.5 10 17 19 7" stroke={fg} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </Svg>
+          </View>
+        ) : icon ? (
+          <View style={styles.icon}>{icon}</View>
+        ) : null}
         <Text style={[m3TextStyle("labelLarge"), { color: fg }]} numberOfLines={1}>
           {label}
         </Text>
