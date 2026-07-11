@@ -901,11 +901,14 @@ export function DeepSpaceInsightsScreen() {
   return (
     <Shell title={t("insights.title")}>
       <SecondbStatusHeader text={statusText} tip={t("insights.tip")} mood="neutral" />
+      {/* No explicit accessibilityLabel: an explicit label REPLACES the flattened
+          child text, so TalkBack announced only "지금 상태, button" and never the
+          week counts, delta, or honesty copy. Without it, RN concatenates the
+          children - which is the full card content. */}
       <Pressable
         onPress={() => router.push("/records")}
         style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
         accessibilityRole="button"
-        accessibilityLabel={t("insights.sectionNow")}
       >
         <Card>
           <Text variant="heading" style={styles.section}>{t("insights.sectionNow")}</Text>
@@ -934,7 +937,6 @@ export function DeepSpaceInsightsScreen() {
         onPress={() => router.push("/research")}
         style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
         accessibilityRole="button"
-        accessibilityLabel={t("insights.sectionFinding")}
       >
         <Card>
           <Text variant="heading" style={styles.section}>{t("insights.sectionFinding")}</Text>
