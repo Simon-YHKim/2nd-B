@@ -50,6 +50,9 @@ on:
       - "metro.config.js"
       - "package.json"
       - "package-lock.json"
+      # The publish step mirrors its EXPO_PUBLIC_* env from eas.json — an env
+      # change there must be able to reach the OTA channel too.
+      - "eas.json"
   workflow_dispatch:
     inputs:
       channel:
@@ -115,13 +118,6 @@ jobs:
         env:
           # eas-cli authenticates non-interactively from EXPO_TOKEN.
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          # 2026-06-26 HOTFIX: `eas update` inlines EXPO_PUBLIC_* into the JS bundle at
-          # export time. These lived ONLY in eas.json build profiles, never in this OTA
-          # job — so every published OTA fell back to the env.ts DEMO Supabase placeholder
-          # (app boots but auth/data are dead). The anon key is public (same value as
-          # eas.json, already committed) so inlining it here is safe.
-          EXPO_PUBLIC_SUPABASE_URL: https://zoacryukmdeivmolvyhj.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
@@ -129,6 +125,31 @@ jobs:
             exit 0
           fi
           CHANNEL="${{ needs.gate.outputs.channel }}"
+          # a2z audit 2026-07-11 (P0): `eas update` inlines EXPO_PUBLIC_* into the
+          # JS bundle at export time. This job used to inject ONLY the Supabase
+          # pair (the 06-26 hotfix), so every published OTA silently DOWNGRADED
+          # the installed build — EXPO_PUBLIC_LLM_MODE fell back to mock (dead AI
+          # harness), the edge-function route + D-27 model pins disappeared, and
+          # the social SDK / Sentry / analytics flags went dark. Mirror the FULL
+          # build-profile env from eas.json — the single source of truth the
+          # installed binary was built with — keyed by channel (channel names ==
+          # profile names), so this job can never drift from the build again.
+          # Every mirrored value is EXPO_PUBLIC_* (public by design, already
+          # committed in eas.json).
+          eval "$(node -e '
+            const eas = require("./eas.json");
+            const env = (eas.build[process.argv[1]] || {}).env || {};
+            for (const [k, v] of Object.entries(env)) {
+              if (!k.startsWith("EXPO_PUBLIC_")) continue;
+              console.log("export " + k + "=" + JSON.stringify(String(v)));
+            }
+          ' "$CHANNEL")"
+          if [ "$CHANNEL" != "development" ] && [ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" ]; then
+            echo "::error::eas.json build profile '$CHANNEL' exposes no EXPO_PUBLIC_* env — refusing to publish an OTA that would downgrade installed builds."
+            exit 1
+          fi
+          echo "Mirrored EXPO_PUBLIC_* env from eas.json profile '$CHANNEL':"
+          env | grep -o '^EXPO_PUBLIC_[A-Z0-9_]*' | sort
           MESSAGE="$(git log -1 --pretty=%s)"
           echo "Publishing OTA to channel '$CHANNEL' — \"$MESSAGE\""
           # --environment is required by newer eas-cli in --non-interactive mode; the

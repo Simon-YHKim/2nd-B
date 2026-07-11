@@ -15,19 +15,10 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci --legacy-peer-deps
-      - name: Lint (C1)
-        run: npm run lint
-      - name: Type-check
-        run: npm run type-check
-      - name: i18n key parity (C7)
-        run: npm run check:i18n
-      - name: Forbidden lexicon scan
-        run: npm run check:lexicon
-      - name: LLM import boundary (C1)
-        run: npm run check:llm-boundary
-      - name: Constraints aggregate (C1~C12)
-        run: npm run check:constraints
-      - name: No em dashes
-        run: npm run check:emdash
-      - name: Unit tests (C9 ordering, C3 audit)
-        run: npm test -- --ci
+      # a2z audit 2026-07-11: this job used to hand-copy the verify steps and
+      # had drifted — check:legal-review, check:anti-anthro and
+      # check:mascot-voice ran locally but NOT here, so those regressions
+      # merged on green CI. Running the package.json `verify` script verbatim
+      # makes the two pipelines structurally unable to drift again.
+      - name: Full verify gauntlet (same command as local `npm run verify`)
+        run: npm run verify
