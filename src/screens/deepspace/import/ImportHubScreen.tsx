@@ -195,7 +195,7 @@ export function ImportHubScreen() {
         sourceKey: active.key,
         name: name(active),
         atIso: new Date().toISOString(),
-        summary: `${t("appts")} ${s.appointments} · ${t("places")} ${s.places} · ${t("raw")} 0`,
+        summary: `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
         sourceIds: [result.source.id],
       });
     } catch {
