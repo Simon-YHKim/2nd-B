@@ -3,8 +3,10 @@
     "today": "Hari ini",
     "yesterday": "Kemarin",
     "daysAgo": "{{count}} hari lalu",
+    "daysAgo_plural": "{{count}} hari lalu",
     "hoursAgo": "{{count}} jam lalu",
     "minsAgo": "{{count}} mnt lalu",
+    "hoursAgo_plural": "{{count}} jam lalu",
     "now": "Baru saja",
     "recordFallback": "Catatan",
     "monthDay": "{{day}}/{{month}}"
@@ -28,6 +30,7 @@
   "research": {
     "title": "Temukan koneksi",
     "headerFound": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
+    "headerFound_plural": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
     "headerNone": "Saat catatan menumpuk, aku akan menemukan dan menunjukkan tautan di antaranya.",
     "tip": "Ketuk sebuah tag untuk melihat klasternya.",
     "lead": "Beginilah catatanmu yang tersebar saling terhubung",
@@ -53,8 +56,10 @@
   "records": {
     "title": "Arsip",
     "headerCount": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
+    "headerCount_plural": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
     "headerEmpty": "Kamu belum menyimpan keping apa pun.",
     "tip": "{{count}} keping tak terkategori menunggu di kotak masuk.",
+    "tip_plural": "{{count}} keping tak terkategori menunggu di kotak masuk.",
     "lead": "Semua yang kamu simpan, dalam satu lini masa",
     "filterAll": "Semua",
     "filterJournal": "Jurnal",
@@ -75,7 +80,9 @@
     "typeUnfiled": "Tak terkategori",
     "unfiledBadge": "Tak terkategori",
     "fallbackTitle": "Tanpa judul",
-    "graphEmpty": "Belum ada pengetahuan untuk dihubungkan."
+    "graphEmpty": "Belum ada pengetahuan untuk dihubungkan.",
+    "loadError": "Tidak bisa memuat arsipmu saat ini. Semua catatanmu aman; coba lagi.",
+    "retry": "Coba lagi"
   },
   "domains": {
     "title": "Area saya",
@@ -726,7 +733,9 @@
       "accountImportFile": "Impor file",
       "consentTitle": "Sebelum mengimpor",
       "historyTitle": "Riwayat impor",
-      "revoke": "Cabut"
+      "revoke": "Cabut",
+      "fileSource": "Impor file",
+      "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi."
     },
     "ttfv": {
       "pageTitle": "Bintang pertamamu baru saja menyala",

@@ -85,6 +85,13 @@ jobs:
           EXPO_PUBLIC_MODEL_LITE: ${{ vars.EXPO_PUBLIC_MODEL_LITE || 'gemini-3.5-flash' }}
           EXPO_PUBLIC_MODEL_FLASH: ${{ vars.EXPO_PUBLIC_MODEL_FLASH || 'gemini-3.5-flash' }}
           EXPO_PUBLIC_MODEL_PRO: ${{ vars.EXPO_PUBLIC_MODEL_PRO || 'gemini-3.5-flash' }}
+          # Reasoning-seat provider parity with the native builds (eas.json +
+          # android-release.yml pin "claude"): left unset, the live web silently
+          # served the reasoning seat from the Gemini backbone instead.
+          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'claude' }}
+          # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
+          # change); flip the repo Variable to "2" to activate Phase 2 routing.
+          EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
           # Naver social sign-up (code + oauth-naver edge function are already
           # in-repo, OFF by default). To go live: register the app at
           # developers.naver.com (callback: <origin>/2nd-B/oauth-callback),

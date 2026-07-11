@@ -30,6 +30,7 @@ import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
 import type { LoadedValues, LoadedStrengths, LoadedMotivation } from "@/lib/persona/build";
 import { VALUE_ROW_KEY, type ValueId } from "@/lib/persona/values-survey";
@@ -336,7 +337,7 @@ function AxisLens({
           </Text>
         ) : null}
       </View>
-      <Text style={[m3TextStyle("bodyMedium"), styles.subtitle]}>{k("subtitle")}</Text>
+      <Text style={[m3TextStyle("bodyMedium"), styles.subtitle]} accessibilityLabel={k("subtitle")}>{keepAllKo(k("subtitle"))}</Text>
 
       {valuesPopulated ? (
         <ValuesPopulated result={valuesResult as LoadedValues} />

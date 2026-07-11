@@ -3,8 +3,10 @@
     "today": "Hoy",
     "yesterday": "Ayer",
     "daysAgo": "hace {{count}} días",
+    "daysAgo_plural": "hace {{count}} días",
     "hoursAgo": "hace {{count}} horas",
     "minsAgo": "hace {{count}} min",
+    "hoursAgo_plural": "hace {{count}} horas",
     "now": "Ahora mismo",
     "recordFallback": "Registro",
     "monthDay": "{{day}}/{{month}}"
@@ -28,6 +30,7 @@
   "research": {
     "title": "Encontrar conexiones",
     "headerFound": "Se encontraron {{count}} conexiones entre tus registros dispersos.",
+    "headerFound_plural": "Se encontraron {{count}} conexiones entre tus registros dispersos.",
     "headerNone": "A medida que se acumulen los registros, encontraré y mostraré los enlaces entre ellos.",
     "tip": "Toca una etiqueta para ver su grupo.",
     "lead": "Así se conectan tus registros dispersos",
@@ -53,8 +56,10 @@
   "records": {
     "title": "Archivo",
     "headerCount": "Has entretejido {{count}} piezas en tu wiki.",
+    "headerCount_plural": "Has entretejido {{count}} piezas en tu wiki.",
     "headerEmpty": "Aún no has guardado ninguna pieza.",
     "tip": "{{count}} piezas sin clasificar te esperan en la bandeja.",
+    "tip_plural": "{{count}} piezas sin clasificar te esperan en la bandeja.",
     "lead": "Todo lo que has guardado, en una sola línea de tiempo",
     "filterAll": "Todo",
     "filterJournal": "Diario",
@@ -75,7 +80,9 @@
     "typeUnfiled": "Sin clasificar",
     "unfiledBadge": "Sin clasificar",
     "fallbackTitle": "Sin título",
-    "graphEmpty": "Aún no hay conocimiento que conectar."
+    "graphEmpty": "Aún no hay conocimiento que conectar.",
+    "loadError": "No se pudo cargar tu archivo ahora mismo. Tus piezas están a salvo; inténtalo de nuevo.",
+    "retry": "Reintentar"
   },
   "domains": {
     "title": "Mis áreas",
@@ -726,7 +733,9 @@
       "accountImportFile": "Importar archivo",
       "consentTitle": "Antes de importar",
       "historyTitle": "Historial de importación",
-      "revoke": "Revocar"
+      "revoke": "Revocar",
+      "fileSource": "Importación de archivo",
+      "revokeFailed": "No se pudo revocar. Inténtalo de nuevo en un momento."
     },
     "ttfv": {
       "pageTitle": "Tu primera estrella acaba de encenderse",
