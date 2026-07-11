@@ -352,6 +352,9 @@ export async function deleteRecord(userId: string, recordId: string): Promise<vo
     .eq("user_id", userId)
     .eq("id", recordId);
   if (error) throw error;
+  // Deletes shift domain levels just like saves do (createRecord above) — drop
+  // the cached constellation so the sky dims honestly instead of after the TTL.
+  invalidateDomainLevels(userId);
 }
 
 // Exact count of a user's records of one kind. Used by the free-tier usage

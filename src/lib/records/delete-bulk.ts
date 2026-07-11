@@ -4,6 +4,7 @@
 // can show 'Deleted N records'.
 
 import { getSupabaseClient } from "../supabase/client";
+import { invalidateDomainLevels } from "../persona/load-domain-levels";
 
 /** Delete every record belonging to the user. Returns affected count. */
 export async function deleteAllRecords(userId: string): Promise<number> {
@@ -13,6 +14,9 @@ export async function deleteAllRecords(userId: string): Promise<number> {
     .delete({ count: "exact" })
     .eq("user_id", userId);
   if (error) throw error;
+  // Records shift domain levels — drop this user's cached constellation
+  // (same contract as createRecord/deleteRecord in create.ts).
+  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
   return count ?? 0;
 }
 
@@ -28,6 +32,9 @@ export async function deleteRecordsByKind(
     .eq("user_id", userId)
     .eq("kind", kind);
   if (error) throw error;
+  // Records shift domain levels — drop this user's cached constellation
+  // (same contract as createRecord/deleteRecord in create.ts).
+  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
   return count ?? 0;
 }
 
@@ -41,6 +48,9 @@ export async function deleteRecordsByTag(userId: string, tags: string[]): Promis
     .eq("user_id", userId)
     .overlaps("tags", tags);
   if (error) throw error;
+  // Records shift domain levels — drop this user's cached constellation
+  // (same contract as createRecord/deleteRecord in create.ts).
+  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
   return count ?? 0;
 }
 
@@ -54,6 +64,9 @@ export async function deleteRecordsByIds(userId: string, ids: string[]): Promise
     .eq("user_id", userId)
     .in("id", ids);
   if (error) throw error;
+  // Records shift domain levels — drop this user's cached constellation
+  // (same contract as createRecord/deleteRecord in create.ts).
+  if ((count ?? 0) > 0) invalidateDomainLevels(userId);
   return count ?? 0;
 }
 
