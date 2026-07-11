@@ -10,10 +10,12 @@ import { m3 } from "@/lib/theme/m3";
 import {
   DOMAIN_STARS,
   DOMAIN_TAG_PREFIX,
+  domainTagFor,
   getDomainStar,
   isDomainId,
   isDomainTag,
   stripDomainTags,
+  type DomainId,
 } from "@/lib/persona/domain-stars";
 import { ddsStyles as styles } from "./dds-styles";
 import { parseStructured } from "@/lib/capture/structured";
@@ -789,6 +791,26 @@ export function DeepSpaceRecordDetailScreen() {
       setRecord({ ...record, tags: existing });
     }
   }, [tagDraft, userId, record, recordId]);
+  // 이동: re-file this record to another domain star by swapping its reserved
+  // domain: tag (the star lens filters by the domain: tag). Same optimistic
+  // updateRecordTags path as add-tag; reverts on failure.
+  const [moving, setMoving] = useState(false);
+  const moveTo = useCallback(
+    async (target: DomainId) => {
+      setMoving(false);
+      if (!userId || !record || !recordId) return;
+      const currentTags = record.tags ?? [];
+      if (currentTags.includes(domainTagFor(target))) return;
+      const next = [...stripDomainTags(currentTags), domainTagFor(target)];
+      setRecord({ ...record, tags: next });
+      try {
+        await updateRecordTags(userId, recordId, next);
+      } catch {
+        setRecord({ ...record, tags: currentTags });
+      }
+    },
+    [userId, record, recordId],
+  );
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -1009,7 +1031,7 @@ export function DeepSpaceRecordDetailScreen() {
         <Pressable style={styles.secondary} onPress={() => router.push("/capture")} accessibilityRole="button">
           <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.edit")}</Text>
         </Pressable>
-        <Pressable style={styles.secondary} onPress={() => router.push("/records")} accessibilityRole="button">
+        <Pressable style={styles.secondary} onPress={() => setMoving(true)} accessibilityRole="button">
           <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.move")}</Text>
         </Pressable>
         <Pressable
@@ -1050,6 +1072,27 @@ export function DeepSpaceRecordDetailScreen() {
           />
         </View>
       </PremiumModal>
+
+      <PremiumModal
+        visible={moving}
+        onClose={() => setMoving(false)}
+        accessibilityLabel={t("ds.wikiRecords.move")}
+      >
+        <Text variant="heading">{t("ds.wikiRecords.move")}</Text>
+        <View style={rd.moveList}>
+          {DOMAIN_STARS.filter(
+            (d) => !(record?.tags ?? []).includes(domainTagFor(d.id)),
+          ).map((d) => (
+            <Button
+              key={d.id}
+              label={ko ? d.nameKo : d.nameEn}
+              variant="secondary"
+              onPress={() => void moveTo(d.id)}
+              style={rd.moveBtn}
+            />
+          ))}
+        </View>
+      </PremiumModal>
     </Shell>
   );
 }
@@ -1060,6 +1103,8 @@ const rd = StyleSheet.create({
   confirmBody: { marginTop: 8, marginBottom: 4 },
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   confirmBtn: { flex: 1 },
+  moveList: { gap: 8, marginTop: 12 },
+  moveBtn: { alignSelf: "stretch" },
   typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, marginBottom: 10 },
   typeLabel: { color: colors.textMid, fontSize: 11 },
   sbCard: {
