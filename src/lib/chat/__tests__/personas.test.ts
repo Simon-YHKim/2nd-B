@@ -40,4 +40,11 @@ describe("getPersona", () => {
     expect(getPersona(null).id).toBe("secondb");
     expect(getPersona("nope").id).toBe("secondb");
   });
+  test("falls back to SecondB for Object.prototype keys (no prototype-chain leak)", () => {
+    // `id` is a raw external string (deep-link param); prototype keys must not
+    // resolve to Object.prototype members via the `in` operator.
+    for (const key of ["toString", "constructor", "hasOwnProperty", "__proto__", "valueOf"]) {
+      expect(getPersona(key).id).toBe("secondb");
+    }
+  });
 });
