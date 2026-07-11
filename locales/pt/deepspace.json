@@ -3,7 +3,9 @@
     "today": "Hoje",
     "yesterday": "Ontem",
     "daysAgo": "há {{count}} dias",
+    "daysAgo_plural": "há {{count}} dias",
     "hoursAgo": "há {{count}} horas",
+    "hoursAgo_plural": "há {{count}} horas",
     "now": "Agora mesmo",
     "recordFallback": "Registro",
     "monthDay": "{{day}}/{{month}}"
@@ -27,6 +29,7 @@
   "research": {
     "title": "Encontrar conexões",
     "headerFound": "Encontradas {{count}} conexões entre seus registros espalhados.",
+    "headerFound_plural": "Encontradas {{count}} conexões entre seus registros espalhados.",
     "headerNone": "À medida que os registros se acumulam, vou encontrar e mostrar os vínculos entre eles.",
     "tip": "Toque numa etiqueta para ver seu grupo.",
     "lead": "É assim que seus registros espalhados se conectam",
@@ -52,8 +55,10 @@
   "records": {
     "title": "Arquivo",
     "headerCount": "Você teceu {{count}} peças na sua wiki.",
+    "headerCount_plural": "Você teceu {{count}} peças na sua wiki.",
     "headerEmpty": "Você ainda não salvou nenhuma peça.",
     "tip": "{{count}} peças não classificadas aguardam na caixa de entrada.",
+    "tip_plural": "{{count}} peças não classificadas aguardam na caixa de entrada.",
     "lead": "Tudo o que você salvou, em uma única linha do tempo",
     "filterAll": "Tudo",
     "filterJournal": "Diário",

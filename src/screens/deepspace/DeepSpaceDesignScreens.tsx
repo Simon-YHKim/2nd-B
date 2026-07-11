@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
@@ -17,6 +18,9 @@ import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
+import { useTheme } from "@/lib/theme/ThemeContext";
+import { useFontStyle } from "@/lib/settings/readable-font";
+import { useLiteMode } from "@/lib/settings/lite-mode";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
@@ -244,7 +248,20 @@ function DockBody({ children, title, subtitle }: { children: ReactNode; title?: 
 }
 
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
-function Action({ label, value, onPress }: Row) { return <Pressable onPress={onPress} style={styles.action}><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : <RNText style={styles.chev}>›</RNText>}</Pressable>; }
+function Action({ label, value, onPress }: Row) {
+  return (
+    // label carries the value too (an explicit label replaces flattened children
+    // for screen readers, #891), and the decorative chevron is hidden from a11y.
+    <Pressable onPress={onPress} style={styles.action} accessibilityRole="button" accessibilityLabel={value ? `${label}, ${value}` : label}>
+      <Text variant="body" style={styles.actionLabel}>{label}</Text>
+      {value ? (
+        <Text variant="body" style={styles.actionValue}>{value}</Text>
+      ) : (
+        <RNText style={styles.chev} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">›</RNText>
+      )}
+    </Pressable>
+  );
+}
 function Toggle({ label, value, on = true, onPress }: Row) {
   const body = (
     <>
@@ -1003,29 +1020,50 @@ export function DeepSpaceDataDesignScreen() {
   );
 }
 
+// Radio-style select row: reflects the real setting, tap changes it, and marks
+// the active choice with the reference ✓. Used by the theme + font pickers.
+function SelectRow({ selected, label, onPress }: { selected: boolean; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      style={styles.action}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
+    >
+      <Text variant="body" style={styles.actionLabel}>{label}</Text>
+      {selected ? <Text variant="body" style={styles.actionValue}>✓</Text> : null}
+    </Pressable>
+  );
+}
+
 export function DeepSpaceThemeScreen() {
   const { t } = useTranslation("deepspace");
+  // Same hooks the legacy ThemeScreenLegacy (src/app/theme.tsx) drives, so the
+  // deep-space rows read and write the real settings. Theme labels map to the
+  // ThemeContext modes: 딥스페이스 = dark (default), 미드나잇 = light.
+  const { mode, setMode } = useTheme();
+  const { fontStyle, setFontStyle } = useFontStyle();
+  const { liteMode, setLiteMode } = useLiteMode();
   return (
     <Shell title={t("theme.title")}>
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionTheme")}</Text>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.themeDeepspace")}</Text><Text variant="body" style={styles.actionValue}>✓</Text></View>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.themeMidnight")}</Text></View>
+        <SelectRow selected={mode === "dark"} label={t("theme.themeDeepspace")} onPress={() => setMode("dark")} />
+        <SelectRow selected={mode === "light"} label={t("theme.themeMidnight")} onPress={() => setMode("light")} />
       </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionFont")}</Text>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.fontPixel")}</Text><Text variant="body" style={styles.actionValue}>✓</Text></View>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.fontReadable")}</Text></View>
+        <SelectRow selected={fontStyle === "pixel"} label={t("theme.fontPixel")} onPress={() => setFontStyle("pixel")} />
+        <SelectRow selected={fontStyle === "readable"} label={t("theme.fontReadable")} onPress={() => setFontStyle("readable")} />
       </Card>
+      {/* The reference "글자 크기" slider had no backing setting (no in-app
+          font-scale exists — OS Dynamic Type drives size, capped in ui/Text),
+          so the dead painted knob is dropped rather than faked. Reduce-motion is
+          the one real control here, wired to lite mode (motion chokepoint). */}
       <Card>
-        <Text variant="heading" style={styles.section}>{t("theme.sectionSize")}</Text>
-        <View style={styles.sizeRow}>
-          <Text variant="subtle" style={styles.sizeCap}>{t("theme.small")}</Text>
-          <View style={styles.sizeTrack}><View style={styles.sizeKnob} /></View>
-          <Text variant="body" style={styles.sizeCapLg}>{t("theme.large")}</Text>
-        </View>
-        <Toggle label={t("theme.reduceMotion")} on={false} />
+        <Toggle label={t("theme.reduceMotion")} on={liteMode} onPress={() => setLiteMode(!liteMode)} />
       </Card>
     </Shell>
   );
@@ -1075,17 +1113,104 @@ export function DeepSpaceManualScreen() {
 // ──────────────────────────────────────────────────────────────────────────
 export { DeepSpacePlansScreen } from "./dds-plans-screen";
 
+// ── Deep-space permissions: real OS status + request ───────────────────────
+// The rows now reflect the ACTUAL permission state and act on tap. Notifications
+// and image-picker are lazy-required (never evaluated in the web bundle, and
+// Expo Go throws on require of expo-notifications — same guarded pattern as
+// src/lib/ops/daily-review.ts and wiki/capture-image.ts); expo-audio ships a
+// web build so its permission fns import directly. Rows render on native only.
+type PermStatus = { granted: boolean; canAskAgain: boolean };
+
+function loadNotifications(): typeof import("expo-notifications") | null {
+  try {
+    return require("expo-notifications") as typeof import("expo-notifications");
+  } catch {
+    return null;
+  }
+}
+function loadImagePicker(): typeof import("expo-image-picker") | null {
+  try {
+    return require("expo-image-picker") as typeof import("expo-image-picker");
+  } catch {
+    return null;
+  }
+}
+
+const permissionAdapters = {
+  notif: {
+    get: async (): Promise<PermStatus | null> => loadNotifications()?.getPermissionsAsync() ?? null,
+    request: async (): Promise<PermStatus | null> => loadNotifications()?.requestPermissionsAsync() ?? null,
+  },
+  photo: {
+    get: async (): Promise<PermStatus | null> => loadImagePicker()?.getCameraPermissionsAsync() ?? null,
+    request: async (): Promise<PermStatus | null> => loadImagePicker()?.requestCameraPermissionsAsync() ?? null,
+  },
+  mic: {
+    get: (): Promise<PermStatus> => getRecordingPermissionsAsync(),
+    request: (): Promise<PermStatus> => requestRecordingPermissionsAsync(),
+  },
+} as const;
+
+function PermissionRow({ kind, label, value }: { kind: keyof typeof permissionAdapters; label: string; value: string }) {
+  const adapter = permissionAdapters[kind];
+  const [status, setStatus] = useState<PermStatus | null>(null);
+
+  const refresh = useCallback(() => {
+    void Promise.resolve(adapter.get())
+      .then((s) => setStatus(s ? { granted: s.granted, canAskAgain: s.canAskAgain } : null))
+      .catch(() => setStatus(null));
+  }, [adapter]);
+
+  // Real status on mount + on every foreground return — the user may flip the
+  // permission in OS Settings while away, so the toggle never shows a stale on/off.
+  useEffect(() => {
+    refresh();
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") refresh();
+    });
+    return () => sub.remove();
+  }, [refresh]);
+
+  const onPress = useCallback(() => {
+    // Granted, or denied with no re-prompt left → OS Settings is the only lever.
+    // Otherwise fire the real permission prompt.
+    if (status?.granted || (status && !status.canAskAgain)) {
+      void Linking.openSettings();
+      return;
+    }
+    void Promise.resolve(adapter.request())
+      .then((s) => {
+        if (s) setStatus({ granted: s.granted, canAskAgain: s.canAskAgain });
+      })
+      .catch(() => {});
+  }, [adapter, status]);
+
+  return <Toggle label={label} value={value} on={status?.granted ?? false} onPress={onPress} />;
+}
+
 export function DeepSpacePermissionsScreen() {
   const { t } = useTranslation("deepspace");
+  // Web has no equivalent OS permission model for these capture features, so the
+  // rows are hidden there rather than shown as controls that cannot act.
+  const native = Platform.OS !== "web";
   return (
     <Shell title={t("permissions.title")}>
       <SecondbStatusHeader text={t("permissions.status")} tip={t("permissions.tip")} />
-      <Card>
-        <Toggle label={t("permissions.notif")} value={t("permissions.notifValue")} />
-        <Toggle label={t("permissions.photo")} value={t("permissions.photoValue")} on={false} />
-        <Toggle label={t("permissions.mic")} value={t("permissions.micValue")} on={false} />
-      </Card>
-      <Pressable style={styles.primary} onPress={() => router.back()}><Text variant="caption" style={styles.primaryText}>{t("permissions.continue")}</Text></Pressable>
+      {native ? (
+        <Card>
+          <PermissionRow kind="notif" label={t("permissions.notif")} value={t("permissions.notifValue")} />
+          <PermissionRow kind="photo" label={t("permissions.photo")} value={t("permissions.photoValue")} />
+          <PermissionRow kind="mic" label={t("permissions.mic")} value={t("permissions.micValue")} />
+        </Card>
+      ) : null}
+      <Pressable
+        style={styles.primary}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel={t("permissions.continue")}
+      >
+        <Text variant="caption" style={styles.primaryText}>{t("permissions.continue")}</Text>
+      </Pressable>
     </Shell>
   );
 }

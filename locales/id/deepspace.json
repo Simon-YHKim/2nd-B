@@ -3,7 +3,9 @@
     "today": "Hari ini",
     "yesterday": "Kemarin",
     "daysAgo": "{{count}} hari lalu",
+    "daysAgo_plural": "{{count}} hari lalu",
     "hoursAgo": "{{count}} jam lalu",
+    "hoursAgo_plural": "{{count}} jam lalu",
     "now": "Baru saja",
     "recordFallback": "Catatan",
     "monthDay": "{{day}}/{{month}}"
@@ -27,6 +29,7 @@
   "research": {
     "title": "Temukan koneksi",
     "headerFound": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
+    "headerFound_plural": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
     "headerNone": "Saat catatan menumpuk, aku akan menemukan dan menunjukkan tautan di antaranya.",
     "tip": "Ketuk sebuah tag untuk melihat klasternya.",
     "lead": "Beginilah catatanmu yang tersebar saling terhubung",
@@ -52,8 +55,10 @@
   "records": {
     "title": "Arsip",
     "headerCount": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
+    "headerCount_plural": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
     "headerEmpty": "Kamu belum menyimpan keping apa pun.",
     "tip": "{{count}} keping tak terkategori menunggu di kotak masuk.",
+    "tip_plural": "{{count}} keping tak terkategori menunggu di kotak masuk.",
     "lead": "Semua yang kamu simpan, dalam satu lini masa",
     "filterAll": "Semua",
     "filterJournal": "Jurnal",

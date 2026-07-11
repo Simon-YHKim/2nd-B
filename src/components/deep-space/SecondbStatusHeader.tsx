@@ -19,6 +19,7 @@ import { usePathname } from "expo-router";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import type { M3Persona } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 import { backArrowVisible } from "@/components/ui/BackArrow";
 import { SecondbHead, type SecondbMood } from "./SecondbHead";
 
@@ -47,11 +48,11 @@ export function SecondbStatusHeader({
       <SecondbHead size={48} mood={mood} persona={persona} accessibilityLabel={accessibilityLabel} />
       <View style={styles.bubble}>
         <View style={styles.tail} />
-        <Text variant="body" style={styles.text}>{text}</Text>
+        <Text variant="body" style={styles.text} accessibilityLabel={text}>{keepAllKo(text)}</Text>
         {tip ? (
           <View style={styles.tipRow}>
             <Text variant="caption" pixelEn style={styles.tipLabel}>{tipLabel}</Text>
-            <Text variant="body" style={styles.tip}>{tip}</Text>
+            <Text variant="body" style={styles.tip} accessibilityLabel={tip}>{keepAllKo(tip)}</Text>
           </View>
         ) : null}
       </View>
