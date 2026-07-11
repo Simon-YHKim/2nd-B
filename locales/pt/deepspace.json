@@ -182,7 +182,11 @@
     "labelLinked": "Conta vinculada",
     "labelLanguage": "Idioma",
     "valueLanguage": "Português",
-    "delete": "Excluir conta"
+    "delete": "Excluir conta",
+    "navProfile": "Perfil",
+    "navSettings": "Configurações",
+    "navData": "Meus dados",
+    "navBeyond": "Fora do app"
   },
   "privacy": {
     "title": "Privacidade",
@@ -209,7 +213,9 @@
     "viewManual": "Ver o manual",
     "emailUs": "Fale conosco",
     "reportBug": "Relatar um erro",
-    "footer": "2nd-Brain v1.0.0 · 2 dias úteis KST"
+    "footer": "2nd-Brain v1.0.0 · 2 dias úteis KST",
+    "faqTitle": "Perguntas frequentes",
+    "noticesTitle": "Avisos"
   },
   "integrations": {
     "title": "Integrações de apps",
@@ -223,6 +229,37 @@
     "healthLabel": "Saúde · Calendário",
     "permissionNeeded": "Permissão necessária",
     "footer": "Você revisa os dados de integração antes de importar e pode desconectar quando quiser."
+  },
+  "connect": {
+    "title": "Sincronização de dados",
+    "lead": "Conectar acende suas estrelas mais rápido. Todo o processamento acontece primeiro no seu dispositivo.",
+    "consent": "O conteúdo original nunca é guardado; apenas os sinais derivados ficam salvos, criptografados, e você pode desconectar e apagar quando quiser.",
+    "connected": "Conectado",
+    "connect": "Conectar",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "conectado",
+    "a11yConnect": "conectar",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Sinais de ritmo e relacionamentos da sua agenda"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "Sono e atividade alimentam sua estrela da saúde"
+      },
+      "notion": {
+        "sub": "Importe notas e documentos"
+      },
+      "photos": {
+        "name": "Álbum de fotos",
+        "sub": "Descanso e relacionamentos a partir das suas cenas"
+      },
+      "gpt": {
+        "name": "Exportação do ChatGPT",
+        "sub": "Traga seu histórico de conversas"
+      }
+    }
   },
   "insights": {
     "title": "Percepções",
@@ -292,7 +329,8 @@
     "sectionData": "Dados · Privacidade",
     "q4": "O que é um arquivo IDEN?",
     "q5": "Onde meus dados são armazenados?",
-    "askDirect": "Perguntar diretamente ao SecondB"
+    "askDirect": "Perguntar diretamente ao SecondB",
+    "conceptsTitle": "Conceitos principais"
   },
   "plans": {
     "title": "Planos",

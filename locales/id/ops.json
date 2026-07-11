@@ -82,6 +82,33 @@
     "doneA11y": "{{title}} selesai hari ini",
     "streak": "Rentetan {{count}} hari"
   },
+  "home": {
+    "ringCount": "{{done}} / {{total}} selesai",
+    "streakLabel": "hari beruntun",
+    "patternsTitle": "Pola minggu ini",
+    "patternsSub": "Analisis berjalan di latar belakang. Terus gunakan aplikasinya.",
+    "patternsRun": "Jalankan",
+    "takeEyebrow": "RANGKUMAN HARI INI",
+    "toolsLabel": "Alat asisten"
+  },
+  "tools": {
+    "focus": {
+      "label": "Fokus harian",
+      "sub": "Pomodoro"
+    },
+    "reminders": {
+      "label": "Pengingat",
+      "sub": "Terjadwal"
+    },
+    "imagine": {
+      "label": "Berimajinasi",
+      "sub": "Lempar jauh"
+    },
+    "shareCard": {
+      "label": "Kartu berbagi",
+      "sub": "Kartu 1080"
+    }
+  },
   "states": {
     "emptyDomain": "Pilih area di atas untuk memulai."
   },
@@ -132,7 +159,19 @@
     "unitMin": "mnt",
     "decrease": "Kurangi",
     "increase": "Tambah",
-    "save": "Simpan"
+    "save": "Simpan",
+    "ringReady": "Siap",
+    "ringFocusing": "Sedang fokus",
+    "ringPaused": "Dijeda",
+    "leadPre": "Waktunya fokus pada satu hal. Saat selesai, satu langkah menuju ",
+    "leadStar": "bintang {{star}}",
+    "leadPost": ".",
+    "preset": "{{min}} mnt",
+    "startFocus": "Mulai fokus",
+    "resetBtn": "Atur ulang",
+    "forWhichStar": "Untuk bintang apa?",
+    "todayCount": "{{sessions}} sesi fokus hari ini",
+    "todaySub": "Sekitar {{min}} mnt · target {{goal}}"
   },
   "srs": {
     "title": "Tinjau bahasa",

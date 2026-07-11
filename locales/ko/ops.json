@@ -82,6 +82,33 @@
     "doneA11y": "{{title}} 오늘 완료",
     "streak": "{{count}}일 연속"
   },
+  "home": {
+    "ringCount": "{{done}} / {{total}} 완료",
+    "streakLabel": "일 연속",
+    "patternsTitle": "이번 주 패턴 분석",
+    "patternsSub": "분석은 백그라운드로 돌아요. 계속 써도 돼요.",
+    "patternsRun": "돌리기",
+    "takeEyebrow": "오늘의 종합 의견",
+    "toolsLabel": "비서 도구"
+  },
+  "tools": {
+    "focus": {
+      "label": "일일 집중",
+      "sub": "포모도로"
+    },
+    "reminders": {
+      "label": "예약 리마인더",
+      "sub": "알림 일정"
+    },
+    "imagine": {
+      "label": "공상하기",
+      "sub": "멀리 던지기"
+    },
+    "shareCard": {
+      "label": "공유 카드",
+      "sub": "1080 카드"
+    }
+  },
   "states": {
     "emptyDomain": "위에서 영역을 골라 시작해요."
   },
@@ -132,7 +159,19 @@
     "unitMin": "분",
     "decrease": "줄이기",
     "increase": "늘리기",
-    "save": "저장"
+    "save": "저장",
+    "ringReady": "준비됨",
+    "ringFocusing": "집중 중",
+    "ringPaused": "일시정지",
+    "leadPre": "한 가지에만 집중하는 시간이에요. 끝나면 ",
+    "leadStar": "{{star}} 별",
+    "leadPost": "에 한 걸음.",
+    "preset": "{{min}}분",
+    "startFocus": "집중 시작",
+    "resetBtn": "리셋",
+    "forWhichStar": "어떤 별을 위해?",
+    "todayCount": "오늘 {{sessions}}회 집중",
+    "todaySub": "약 {{min}}분 · 목표 {{goal}}회"
   },
   "srs": {
     "title": "언어 복습",
