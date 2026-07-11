@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
@@ -26,6 +26,7 @@ import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -228,7 +229,7 @@ function TypeGlyph({ type }: { type: RType }) {
   );
 }
 
-function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: () => void }) {
+const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: (id: string) => void }) {
   const { t } = useTranslation("deepspace");
   const title = timelineTitle(r, t("records.fallbackTitle"));
   const tags = stripDomainTags(r.tags ?? []).slice(0, 2);
@@ -236,7 +237,7 @@ function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; ty
   // text, so TalkBack heard only the title and never the time label, tags, or the
   // 미분류 badge. Without it, RN concatenates the children in render order.
   return (
-    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={onPress} accessibilityRole="button">
+    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r.id)} accessibilityRole="button">
       <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
       <View style={rStyles.body}>
         <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
@@ -256,6 +257,11 @@ function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; ty
       </View>
     </Pressable>
   );
+});
+
+// FlatList inter-row spacing (reproduces the old rStyles.list gap between cards).
+function RecordSeparator() {
+  return <View style={rStyles.rowSep} />;
 }
 
 export function DeepSpaceRecordsScreen() {
@@ -287,6 +293,11 @@ export function DeepSpaceRecordsScreen() {
   }, [tagFilter]);
   const [records, setRecords] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
+  // error-state retry. The effect's alive-flag cleanup cancels any in-flight
+  // read before the next one commits, so overlapping loads never race.
+  const [reloadKey, setReloadKey] = useState(0);
   const [typeFilter, setTypeFilter] = useState<RType | "all" | "unfiled">("all");
   const [view, setView] = useState<"list" | "graph">("list");
   // Reserve exactly the floating companion header's measured height so the
@@ -309,6 +320,7 @@ export function DeepSpaceRecordsScreen() {
     if (!userId) return;
     let alive = true;
     setLoading(true);
+    setLoadError(false);
     // /records shows EVERY saved piece — including non-journal Capture/Import
     // (글/링크/사진/file) that land in `sources`, not just `records` — so a
     // source-only user no longer sees a false-empty list. Sources are
@@ -316,7 +328,19 @@ export function DeepSpaceRecordsScreen() {
     // the screen (mirrors core-brain's merged evidence read). Source rows carry
     // no record detail, so tapping one lands on the graceful notFound state.
     (async () => {
-      const recs = (await listRecentRecords(userId).catch(() => [])) as TimelineRecord[];
+      // The canonical records read is NOT coerced to [] on failure. Doing so
+      // rendered the genuine-empty state ("아직 기록이 없어요" + 담기 CTA) to a
+      // user whose network/Supabase call merely failed — telling someone with
+      // records that they have none. A records-read failure is a distinct error
+      // state (retry) instead. Sources stay best-effort (source-only users still
+      // merge in below), so only the primary records read gates the error.
+      let recs: TimelineRecord[] = [];
+      let recordsFailed = false;
+      try {
+        recs = (await listRecentRecords(userId)) as TimelineRecord[];
+      } catch {
+        recordsFailed = true;
+      }
       let srcRecs: TimelineRecord[] = [];
       try {
         const { data } = await getSupabaseClient()
@@ -338,9 +362,14 @@ export function DeepSpaceRecordsScreen() {
             }) as TimelineRecord,
         );
       } catch {
-        // records-only fallback
+        // records-only fallback (sources stay best-effort)
       }
       if (!alive) return;
+      if (recordsFailed) {
+        setLoadError(true);
+        setLoading(false);
+        return;
+      }
       const merged = [...recs, ...srcRecs].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
       setRecords(merged);
       setLoading(false);
@@ -348,7 +377,19 @@ export function DeepSpaceRecordsScreen() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, reloadKey]);
+
+  // Reload on focus re-entry so a delete on the record detail (then router.back)
+  // is reflected here; the shared helper skips the initial mount, so this never
+  // double-loads on first render.
+  useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
+
+  // Stable across renders so the memoized RecordCard's onPress prop does not
+  // change (React.memo keeps unchanged rows from re-rendering on filter taps).
+  const openRecord = useCallback(
+    (id: string) => router.push({ pathname: "/record/[id]", params: { id } }),
+    [],
+  );
 
   // Per-record time label reuses the tested timeline bucketer (방금 / N시간 전 / 어제 …).
   // labelEveryItem: this flat list has no date-group headers, so older rows need
@@ -370,6 +411,19 @@ export function DeepSpaceRecordsScreen() {
     return scoped.filter((r) => recordType(r) === typeFilter);
   }, [scoped, typeFilter]);
 
+  const renderRecord = useCallback(
+    ({ item }: { item: TimelineRecord }) => (
+      <RecordCard
+        r={item}
+        type={recordType(item)}
+        time={timeById.get(item.id) || undefined}
+        unfiled={isUnfiled(item)}
+        onPress={openRecord}
+      />
+    ),
+    [timeById, openRecord],
+  );
+
   if (authLoading) {
     return (
       <DeepSpaceScreen active="wiki" header="none">
@@ -380,6 +434,88 @@ export function DeepSpaceRecordsScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   const total = scoped.length;
+
+  // Header pieces are shared by the list (as FlatList ListHeaderComponent) and
+  // the graph view (inside its ScrollView). Only one view renders at a time, so
+  // reusing the same elements across the two branches is safe.
+  const viewToggleRow = (
+    <View style={rStyles.titleRow}>
+      <RNText style={rStyles.wikiTitle}>{t("records.wikiTitle")}</RNText>
+      <SegBtn
+        segments={[
+          { key: "list", label: t("records.viewList") },
+          { key: "graph", label: t("records.viewGraph") },
+        ]}
+        selected={[view]}
+        onSelect={(key) => setView(key === "graph" ? "graph" : "list")}
+        style={rStyles.viewToggle}
+      />
+    </View>
+  );
+
+  const triageCards = (
+    <>
+      {domainWriter ? (
+        <Pressable
+          style={rStyles.triageCard}
+          android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+          onPress={() => router.push(domainWriter)}
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.wikiRecords.fillStar")}
+        >
+          <View style={rStyles.triageCol}>
+            <RNText style={rStyles.triageTitle}>{t("ds.wikiRecords.fillStar")}</RNText>
+            <RNText style={rStyles.triageBody}>{t("ds.wikiRecords.fillStarBody")}</RNText>
+          </View>
+          <RNText style={rStyles.triageChev}>›</RNText>
+        </Pressable>
+      ) : null}
+
+      <Pressable
+        style={rStyles.triageCard}
+        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        onPress={() => router.push("/inbox")}
+        accessibilityRole="button"
+        accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
+      >
+        <View style={rStyles.triageIcon}>
+          <Svg width={20} height={20} viewBox="0 0 24 24">
+            <Path d="M3 13h4l2 3h6l2-3h4M5 6h14l1 7v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4z" stroke={colors.soul} strokeWidth={1.7} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+          </Svg>
+        </View>
+        <View style={rStyles.triageCol}>
+          <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
+          <RNText style={rStyles.triageBody}>{t("records.triageBody")}</RNText>
+        </View>
+        <RNText style={rStyles.triageChev}>›</RNText>
+      </Pressable>
+    </>
+  );
+
+  const chipStrip = (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={rStyles.chipStrip}
+    >
+      {TYPE_CHIPS.map((c) => (
+        <FilterChip key={c.id} label={t(c.labelKey)} active={typeFilter === c.id} onPress={() => setTypeFilter(c.id)} />
+      ))}
+    </ScrollView>
+  );
+
+  // Honest error state (records read failed) with a retry, distinct from the
+  // genuine-empty state so a user with records is never told they have none.
+  const errorState = (
+    <View style={styles.wikiPageOpen}>
+      <Text variant="body" style={styles.wikiBody}>{t("records.loadError")}</Text>
+      <Pressable style={styles.primary} onPress={() => setReloadKey((k) => k + 1)} accessibilityRole="button">
+        <Text variant="caption" style={styles.primaryText}>{t("records.retry")}</Text>
+      </Pressable>
+    </View>
+  );
+
   return (
     <DeepSpaceScreen active="wiki" header="none">
       {/* rev2 위키: companion FLOATS over the immersive surface (sb-app §4). */}
@@ -394,103 +530,65 @@ export function DeepSpaceRecordsScreen() {
         />
       </View>
       <View style={[styles.wikiFloatClear, { paddingTop: headerH + 8 }]}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={rStyles.titleRow}>
-            <RNText style={rStyles.wikiTitle}>{t("records.wikiTitle")}</RNText>
-            <SegBtn
-              segments={[
-                { key: "list", label: t("records.viewList") },
-                { key: "graph", label: t("records.viewGraph") },
-              ]}
-              selected={[view]}
-              onSelect={(key) => setView(key === "graph" ? "graph" : "list")}
-              style={rStyles.viewToggle}
-            />
-          </View>
-
-          {domainWriter ? (
-            <Pressable
-              style={rStyles.triageCard}
-              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              onPress={() => router.push(domainWriter)}
-              accessibilityRole="button"
-              accessibilityLabel={t("ds.wikiRecords.fillStar")}
-            >
-              <View style={rStyles.triageCol}>
-                <RNText style={rStyles.triageTitle}>{t("ds.wikiRecords.fillStar")}</RNText>
-                <RNText style={rStyles.triageBody}>{t("ds.wikiRecords.fillStarBody")}</RNText>
+        {view === "list" ? (
+          // The records list is virtualized (FlatList) and is the ONLY vertical
+          // scroller here — the deep-space shell's fullbleed body is a plain flex
+          // View (no outer ScrollView), so there is no nested-VirtualizedList
+          // conflict. The header/triage/filter chips ride as ListHeaderComponent;
+          // the chip strip is a cross-axis (horizontal) scroller, safe to nest.
+          <FlatList
+            data={loadError ? [] : filtered}
+            keyExtractor={(r) => r.id}
+            renderItem={renderRecord}
+            ListHeaderComponent={
+              <View style={rStyles.listHeader}>
+                {viewToggleRow}
+                {triageCards}
+                {chipStrip}
               </View>
-              <RNText style={rStyles.triageChev}>›</RNText>
-            </Pressable>
-          ) : null}
-
-          <Pressable
-            style={rStyles.triageCard}
-            android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-            onPress={() => router.push("/inbox")}
-            accessibilityRole="button"
-            accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
-          >
-            <View style={rStyles.triageIcon}>
-              <Svg width={20} height={20} viewBox="0 0 24 24">
-                <Path d="M3 13h4l2 3h6l2-3h4M5 6h14l1 7v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4z" stroke={colors.soul} strokeWidth={1.7} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-              </Svg>
-            </View>
-            <View style={rStyles.triageCol}>
-              <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
-              <RNText style={rStyles.triageBody}>{t("records.triageBody")}</RNText>
-            </View>
-            <RNText style={rStyles.triageChev}>›</RNText>
-          </Pressable>
-
-          {view === "list" ? (
-            <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={rStyles.chipStrip}
-              >
-                {TYPE_CHIPS.map((c) => (
-                  <FilterChip key={c.id} label={t(c.labelKey)} active={typeFilter === c.id} onPress={() => setTypeFilter(c.id)} />
-                ))}
-              </ScrollView>
-
-              {loading ? (
+            }
+            ListEmptyComponent={
+              loadError ? (
+                errorState
+              ) : loading ? (
                 <GraphLoading />
-              ) : filtered.length === 0 ? (
+              ) : (
                 <View style={styles.wikiPageOpen}>
                   <Text variant="body" style={styles.wikiBody}>{typeFilter === "all" ? t("records.emptyAll") : t("records.emptyKind")}</Text>
-                  <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+                  <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
                     <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
                   </Pressable>
                 </View>
-              ) : (
-                <View style={rStyles.list}>
-                  {filtered.map((r) => (
-                    <RecordCard
-                      key={r.id}
-                      r={r}
-                      type={recordType(r)}
-                      time={timeById.get(r.id) || undefined}
-                      unfiled={isUnfiled(r)}
-                      onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
-                    />
-                  ))}
-                </View>
-              )}
-            </>
-          ) : records.length > 0 ? (
-            <RecordsGraph graph={recordsGraph} onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: { id } })} />
-          ) : (
-            <View style={styles.wikiPageOpen}>
-              <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>
-              <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
-                <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
-              </Pressable>
-            </View>
-          )}
-        </ScrollView>
+              )
+            }
+            ItemSeparatorComponent={RecordSeparator}
+            contentContainerStyle={rStyles.listContent}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews
+          />
+        ) : (
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            {viewToggleRow}
+            {triageCards}
+            {loadError ? (
+              errorState
+            ) : loading ? (
+              <GraphLoading />
+            ) : records.length > 0 ? (
+              <RecordsGraph graph={recordsGraph} onOpenRecord={openRecord} />
+            ) : (
+              <View style={styles.wikiPageOpen}>
+                <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>
+                <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
+                  <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
+                </Pressable>
+              </View>
+            )}
+          </ScrollView>
+        )}
       </View>
     </DeepSpaceScreen>
   );
@@ -525,7 +623,13 @@ const rStyles = StyleSheet.create({
   triageBody: { color: colors.textMid, fontSize: 11.5 },
   triageChev: { color: colors.soul, fontSize: 22, marginLeft: 4 },
   chipStrip: { flexDirection: "row", gap: 6, paddingVertical: spacing.xs, paddingRight: spacing.lg },
-  list: { gap: spacing.sm },
+  // FlatList outer padding (mirrors styles.scroll minus its gap — inter-row
+  // spacing is the separator, header spacing is listHeader below).
+  listContent: { padding: spacing.lg, paddingBottom: 40 },
+  // Reproduces the old ScrollView's gap between the header rows and before the
+  // first record now that the header rides as a single ListHeaderComponent.
+  listHeader: { gap: spacing.md, marginBottom: spacing.md },
+  rowSep: { height: spacing.sm },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -725,7 +829,7 @@ export function DeepSpaceRecordDetailScreen() {
       <Shell title={t("recordDetail.title")}>
         <View style={styles.wikiPageOpen}>
           <Text variant="body" style={styles.wikiBody}>{t("recordDetail.notFound")}</Text>
-          <Pressable style={styles.primary} onPress={() => router.replace("/records")}>
+          <Pressable style={styles.primary} onPress={() => router.replace("/records")} accessibilityRole="button">
             <Text variant="caption" style={styles.primaryText}>{t("recordDetail.toArchive")}</Text>
           </Pressable>
         </View>
@@ -811,7 +915,7 @@ export function DeepSpaceRecordDetailScreen() {
         <View style={rd.sbBody}>
           <RNText style={rd.sbText}>{secondbLine}</RNText>
           {related.length > 0 ? (
-            <Pressable onPress={() => router.push("/core-brain")} accessibilityRole="button" hitSlop={6}>
+            <Pressable onPress={() => router.push("/core-brain")} accessibilityRole="button" hitSlop={12}>
               <RNText style={rd.sbLink}>{t("ds.wikiRecords.seeEvidence")}</RNText>
             </Pressable>
           ) : null}
@@ -823,7 +927,7 @@ export function DeepSpaceRecordDetailScreen() {
         {(record.tags ?? []).slice(0, 6).map((tag) => (
           <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
         ))}
-        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" accessibilityLabel={t("ds.wikiRecords.addTag")}>
+        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.wikiRecords.addTag")}>
           <RNText style={rd.tagTxt}>+ {t("ds.wikiRecords.addTag")}</RNText>
         </Pressable>
       </View>
@@ -1035,7 +1139,7 @@ export function DeepSpaceWikiScreen() {
       ) : view.pages.length === 0 ? (
         <View style={styles.wikiPageOpen}>
           <Text variant="body" style={styles.wikiBody}>{activeTag !== null ? t("wiki.emptyTag") : t("wiki.emptyAll")}</Text>
-          <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
+          <Pressable style={styles.primary} onPress={() => router.push("/capture")} accessibilityRole="button">
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
@@ -1064,6 +1168,7 @@ export function DeepSpaceWikiScreen() {
                     <Pressable
                       onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.id } })}
                       accessibilityRole="button"
+                      hitSlop={12}
                       accessibilityLabel={t("wiki.backlinks", { count: p.connections })}
                     >
                       <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
