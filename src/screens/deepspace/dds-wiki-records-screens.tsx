@@ -666,10 +666,10 @@ const rStyles = StyleSheet.create({
   body: { flex: 1, gap: 5 },
   title: { color: colors.textTitle, fontSize: 13.5 },
   metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
-  time: { color: colors.cyanDim, fontSize: 10.5, fontFamily: m3.font.mono },
+  time: { color: colors.cyanDim, fontSize: 12, fontFamily: m3.font.mono },
   metaTagWrap: { flexDirection: "row", alignItems: "center" },
-  metaDot: { color: colors.textLo, fontSize: 10.5, paddingHorizontal: 5 },
-  metaTag: { color: colors.textLo, fontSize: 10.5 },
+  metaDot: { color: colors.textLo, fontSize: 12, paddingHorizontal: 5 },
+  metaTag: { color: colors.textLo, fontSize: 12 },
   badge: {
     marginLeft: 8,
     backgroundColor: colors.clay,
