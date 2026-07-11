@@ -1,5 +1,5 @@
 // Daily AI chat limits per monetization v2 (Simon-approved 2026-06-10).
-// The free tier is a deliberate taste (Rosebud-style 2/day) — journaling
+// The free tier is a deliberate taste (5/day, raised from 2 per Simon 2026-07-11) — journaling
 // stays unlimited; the conversion gate sits on AI usage only. Limits reset
 // at KST midnight via the `day` column stored in chat_usage — callers
 // compute the KST date with kstDateToday(). Prices live in
@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 export const CHAT_DAILY_LIMIT: Record<SubscriptionTier, number> = {
-  free: 2,
+  free: 5,
   soma: 30,
   cortex: 80,
   brain: 250,

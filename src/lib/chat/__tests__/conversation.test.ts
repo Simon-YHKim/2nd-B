@@ -91,14 +91,14 @@ describe("sendChatMessage", () => {
   beforeEach(reset);
 
   test("blocked when over the tier limit → returns hint without calling Gemini", async () => {
-    fixtures.used = 2; // free tier max (monetization v2)
+    fixtures.used = 5; // free tier max (5/day, Simon 2026-07-11)
     const r = await sendChatMessage({ userId: "u1", message: "hi", locale: "en", tier: "free" });
     expect(r.status).toBe("blocked");
     if (r.status !== "blocked") throw new Error("type narrowing");
-    expect(r.limit).toBe(2);
-    expect(r.used).toBe(2);
+    expect(r.limit).toBe(5);
+    expect(r.used).toBe(5);
     expect(r.upgradeTo).toBe("soma");
-    expect(r.hint).toContain("chat limit (2)");
+    expect(r.hint).toContain("chat limit (5)");
     expect(r.hint).toContain("Soma");
 
     const callNames = captured.map((c) => c.fn);
@@ -123,7 +123,7 @@ describe("sendChatMessage", () => {
     expect(r.status).toBe("ok");
     if (r.status !== "ok") throw new Error("type narrowing");
     expect(r.used).toBe(2); // post-bump
-    expect(r.remaining).toBe(0); // 2 - 2
+    expect(r.remaining).toBe(3); // 5 - 2
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toEqual(["readChatUsage", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);

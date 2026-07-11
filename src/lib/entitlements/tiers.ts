@@ -53,7 +53,7 @@ export interface TierLimits {
 
 export const TIERS: Record<Tier, TierLimits> = {
   free: {
-    reasoningPerMonth: 8,
+    reasoningPerMonth: 30,
     lenses: 3,
     historyDays: 30,
     exportEnabled: false,
