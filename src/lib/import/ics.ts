@@ -44,7 +44,11 @@ export function parseIcsDate(value: string): { iso: string | null; dateOnly: boo
   const dOnly = /^(\d{4})(\d{2})(\d{2})$/.exec(v);
   if (dOnly) {
     const [, y, mo, d] = dOnly;
-    const date = new Date(+y, +mo - 1, +d);
+    // Date-only (all-day) values carry no time or zone. Anchor at UTC midnight so
+    // toISOString() preserves the calendar date. new Date(y,mo,d) uses LOCAL
+    // midnight, which in a positive-offset zone (e.g. KST, +9) rolls the ISO date
+    // back a day — an all-day event on the 15th would import as the 14th.
+    const date = new Date(Date.UTC(+y, +mo - 1, +d));
     return { iso: Number.isNaN(date.getTime()) ? null : date.toISOString(), dateOnly: true };
   }
   return { iso: null, dateOnly: false };
