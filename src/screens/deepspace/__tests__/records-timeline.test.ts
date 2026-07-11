@@ -3,6 +3,7 @@
 import { buildRecordsTimeline, relatedByTag, type TimelineRecord } from "../records-timeline";
 
 // A fixed "now": 2026-06-19 12:00 KST == 03:00 UTC.
+const KST = 9 * 60 * 60 * 1000; // tests pin the boundary; the runtime default is the device offset
 const NOW = new Date("2026-06-19T03:00:00Z");
 
 function rec(p: Partial<TimelineRecord> & { id: string; created_at: string }): TimelineRecord {
@@ -17,7 +18,7 @@ describe("buildRecordsTimeline", () => {
         rec({ id: "y1", created_at: "2026-06-18T05:00:00Z", summary: "어제 낮" }), // yesterday
         rec({ id: "o1", created_at: "2026-06-10T05:00:00Z", summary: "지난 기록" }), // older
       ],
-      { now: NOW },
+      { now: NOW, utcOffsetMs: KST },
     );
     expect(groups.map((g) => g.label)).toEqual(["오늘", "어제", "6월 10일"]);
     expect(groups[0].items[0].title).toBe("오늘 아침 메모");
@@ -28,7 +29,7 @@ describe("buildRecordsTimeline", () => {
   test("today rows get a relative time label; older rows do not", () => {
     const groups = buildRecordsTimeline(
       [rec({ id: "t1", created_at: "2026-06-19T01:00:00Z", summary: "x" })],
-      { now: NOW },
+      { now: NOW, utcOffsetMs: KST },
     );
     expect(groups[0].items[0].timeLabel).toBe("2시간 전");
   });
@@ -40,7 +41,7 @@ describe("buildRecordsTimeline", () => {
         rec({ id: "b", created_at: "2026-06-19T01:00:00Z", body: "본문 첫 줄\n둘째 줄" }),
         rec({ id: "c", created_at: "2026-06-19T01:00:00Z" }),
       ],
-      { now: NOW },
+      { now: NOW, utcOffsetMs: KST },
     );
     const titles = groups[0].items.map((i) => i.title);
     expect(titles).toEqual(["주제만", "본문 첫 줄", "기록"]);
@@ -49,7 +50,7 @@ describe("buildRecordsTimeline", () => {
   test("surfaces the first tag as the chip", () => {
     const groups = buildRecordsTimeline(
       [rec({ id: "a", kind: "audit_response", created_at: "2026-06-19T01:00:00Z", summary: "s", tags: ["성장", "기록"] })],
-      { now: NOW },
+      { now: NOW, utcOffsetMs: KST },
     );
     expect(groups[0].items[0].tag).toBe("#성장");
   });
@@ -76,14 +77,14 @@ describe("buildRecordsTimeline", () => {
         rec({ id: "yday", created_at: "2026-06-18T05:00:00Z", summary: "b" }),
         rec({ id: "older", created_at: "2026-06-10T05:00:00Z", summary: "c" }),
       ],
-      { now: NOW, labelEveryItem: true },
+      { now: NOW, labelEveryItem: true, utcOffsetMs: KST },
     );
     const byId = new Map(groups.flatMap((g) => g.items.map((it) => [it.id, it.timeLabel] as const)));
     expect(byId.get("today")).toBe("2시간 전");
     expect(byId.get("yday")).toBe("어제");
     expect(byId.get("older")).toBe("6월 10일");
     // Default stays blank for non-today (the grouped timeline view relies on it).
-    const plain = buildRecordsTimeline([rec({ id: "older", created_at: "2026-06-10T05:00:00Z", summary: "c" })], { now: NOW });
+    const plain = buildRecordsTimeline([rec({ id: "older", created_at: "2026-06-10T05:00:00Z", summary: "c" })], { now: NOW, utcOffsetMs: KST });
     expect(plain[0].items[0].timeLabel).toBe("");
   });
 
@@ -99,4 +100,14 @@ describe("buildRecordsTimeline", () => {
     );
     expect(groups).toHaveLength(2);
   });
+});
+
+test("day boundary follows the injected offset (UTC user sees a different split)", () => {
+  const NOW_UTC = new Date("2026-06-19T03:00:00Z");
+  const groups = buildRecordsTimeline(
+    [rec({ id: "a", created_at: "2026-06-18T23:30:00Z", summary: "late-night note" })],
+    { now: NOW_UTC, utcOffsetMs: 0 },
+  );
+  // 23:30Z is 어제 for a UTC user - under the old KST hardcoding it was 오늘 (08:30 KST).
+  expect(groups[0].label).toBe("어제");
 });

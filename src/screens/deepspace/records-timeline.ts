@@ -1,10 +1,17 @@
 // Pure view-model for the deep-space /records ("기록 보관소") timeline.
-// Groups a user's records into KST day buckets (오늘 / 어제 / M월 D일) so the
-// screen stays a thin renderer. Tested without rendering or a DB.
+// Groups a user's records into local-timezone day buckets (오늘 / 어제 / M월 D일)
+// so the screen stays a thin renderer. The day boundary follows the device's
+// current UTC offset by default (a fixed offset, so DST transitions within the
+// window can drift an hour); tests pin utcOffsetMs. Quota-reset day boundaries
+// (lib/chat/limits.ts, lib/entitlements/usage.ts) stay KST on purpose - they
+// must match the server's reset policy (monetization gate, not display).
 
 import { stripDomainTags } from "../../lib/persona/domain-stars";
 
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+/** Device UTC offset in ms at call time (east of UTC = positive). */
+function deviceUtcOffsetMs(): number {
+  return -new Date().getTimezoneOffset() * 60_000;
+}
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type RecordKind = "journal" | "note" | "audit_response" | string;
@@ -50,8 +57,8 @@ export function relatedByTag(
     .slice(0, max);
 }
 
-function kstDayKey(ms: number): number {
-  return Math.floor((ms + KST_OFFSET_MS) / DAY_MS);
+function dayKeyOf(ms: number, utcOffsetMs: number): number {
+  return Math.floor((ms + utcOffsetMs) / DAY_MS);
 }
 
 export interface TimelineLabels {
@@ -95,10 +102,10 @@ function todayTimeLabel(createdMs: number, nowMs: number, labels: TimelineLabels
   return labels.hoursAgo(diffH);
 }
 
-function groupLabel(dayKey: number, todayKey: number, sampleMs: number, labels: TimelineLabels): string {
+function groupLabel(dayKey: number, todayKey: number, sampleMs: number, labels: TimelineLabels, utcOffsetMs: number): string {
   if (dayKey === todayKey) return labels.today;
   if (dayKey === todayKey - 1) return labels.yesterday;
-  const d = new Date(sampleMs + KST_OFFSET_MS);
+  const d = new Date(sampleMs + utcOffsetMs);
   return labels.monthDay(d.getUTCMonth() + 1, d.getUTCDate());
 }
 
@@ -115,6 +122,8 @@ export interface BuildTimelineOpts {
    * (the reference shows a time on every row).
    */
   labelEveryItem?: boolean;
+  /** Day-boundary UTC offset in ms; defaults to the device's current offset. */
+  utcOffsetMs?: number;
 }
 
 export function buildRecordsTimeline(
@@ -122,7 +131,8 @@ export function buildRecordsTimeline(
   opts: BuildTimelineOpts = {},
 ): TimelineGroup[] {
   const nowMs = (opts.now ?? new Date()).getTime();
-  const todayKey = kstDayKey(nowMs);
+  const utcOffsetMs = opts.utcOffsetMs ?? deviceUtcOffsetMs();
+  const todayKey = dayKeyOf(nowMs, utcOffsetMs);
   const maxGroups = opts.maxGroups ?? 8;
   const labels = opts.labels ?? KO_TIMELINE;
 
@@ -132,7 +142,7 @@ export function buildRecordsTimeline(
   for (const r of records) {
     const ms = new Date(r.created_at).getTime();
     if (Number.isNaN(ms)) continue;
-    const key = kstDayKey(ms);
+    const key = dayKeyOf(ms, utcOffsetMs);
     const arr = buckets.get(key);
     if (arr) arr.push(r);
     else buckets.set(key, [r]);
@@ -144,7 +154,7 @@ export function buildRecordsTimeline(
     const isToday = dayKey === todayKey;
     const sampleMs = new Date(rows[0].created_at).getTime();
     groups.push({
-      label: groupLabel(dayKey, todayKey, sampleMs, labels),
+      label: groupLabel(dayKey, todayKey, sampleMs, labels, utcOffsetMs),
       items: rows.map((r) => {
         const ms = new Date(r.created_at).getTime();
         // First USER tag (the domain: tag rides on every record and isn't a chip).
@@ -156,7 +166,7 @@ export function buildRecordsTimeline(
           timeLabel: isToday
             ? todayTimeLabel(ms, nowMs, labels)
             : opts.labelEveryItem
-              ? groupLabel(dayKey, todayKey, ms, labels)
+              ? groupLabel(dayKey, todayKey, ms, labels, utcOffsetMs)
               : "",
           tag,
           dim: !isToday,
