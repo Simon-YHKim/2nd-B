@@ -126,12 +126,17 @@ export async function createLedgerEntry(userId: string, entry: NewLedgerEntry): 
 /** All entries booked within the given YYYY-MM month, newest first. */
 export async function listEntriesForMonth(userId: string, month: string): Promise<LedgerEntry[]> {
   const supabase = getSupabaseClient();
+  // Upper bound = first day of the NEXT month (exclusive). Never build `${month}-31`:
+  // for Feb/Apr/Jun/Sep/Nov that is an invalid calendar date, and Postgres raises
+  // 22008 (date/time field out of range) instead of clamping, so the query throws.
+  const [y, m] = month.split("-").map(Number);
+  const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
   const { data, error } = await supabase
     .from("ops_ledger")
     .select("*")
     .eq("user_id", userId)
     .gte("occurred_on", `${month}-01`)
-    .lte("occurred_on", `${month}-31`)
+    .lt("occurred_on", `${nextMonth}-01`)
     .order("occurred_on", { ascending: false });
   if (error) throw error;
   return (data ?? []).map((r) => rowToEntry(r as Record<string, unknown>));
