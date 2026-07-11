@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
@@ -577,6 +577,36 @@ interface DetailRecord {
   created_at: string;
 }
 
+// Instrument records persist a JSON payload as their body (build.ts loaders
+// JSON.parse it). Map the instrument tag to the screen that renders the result
+// properly; null = not an assessment payload, show the body as prose.
+const ASSESSMENT_ROUTES: Record<string, string> = {
+  motivation: "/motivation",
+  strengths: "/strengths",
+  values: "/values",
+  big_five: "/big-five",
+  bfi: "/big-five",
+  attachment: "/attachment",
+  ecr: "/attachment",
+};
+
+function assessmentRoute(r: DetailRecord): string | null {
+  const tags = (r.tags ?? []).map((s) => s.toLowerCase());
+  if (!tags.includes("assessment")) return null;
+  const body = r.body?.trim() ?? "";
+  if (!body.startsWith("{")) return null;
+  try {
+    JSON.parse(body);
+  } catch {
+    return null;
+  }
+  for (const tag of tags) {
+    const route = ASSESSMENT_ROUTES[tag];
+    if (route) return route;
+  }
+  return null;
+}
+
 function recordTitle(r: DetailRecord, fallback: string): string {
   const s = r.summary?.trim() || r.topic?.trim();
   if (s) return s;
@@ -735,9 +765,27 @@ export function DeepSpaceRecordDetailScreen() {
       <Text variant="heading" style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
 
       {record.body && record.body.trim().length > 0 ? (
-        <View style={styles.recBody}>
-          <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
-        </View>
+        assessmentRoute(record) ? (
+          // Self-understanding instruments persist their responses as a JSON body
+          // (the loaders JSON.parse it back). Dumping that machine payload here
+          // read as a broken screen; the instrument's own populated screen is the
+          // canonical renderer, so link there instead.
+          <View style={styles.recBody}>
+            <Text variant="body" style={styles.recBodyText}>{t("recordDetail.assessmentBody")}</Text>
+            <Pressable
+              style={rd.assessmentCta}
+              onPress={() => router.push(assessmentRoute(record) as Href)}
+              accessibilityRole="button"
+              accessibilityLabel={t("recordDetail.assessmentCta")}
+            >
+              <Text variant="caption" style={rd.assessmentCtaText}>{t("recordDetail.assessmentCta")}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.recBody}>
+            <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
+          </View>
+        )
       ) : null}
       {(() => {
         // 0066: form-shaped captures render their machine-readable fields as a
@@ -858,6 +906,8 @@ export function DeepSpaceRecordDetailScreen() {
 }
 
 const rd = StyleSheet.create({
+  assessmentCta: { alignSelf: "flex-start", marginTop: 10, minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.md, backgroundColor: colors.bgDeep },
+  assessmentCtaText: { color: colors.cyanSoft, fontSize: 12.5 },
   confirmBody: { marginTop: 8, marginBottom: 4 },
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   confirmBtn: { flex: 1 },

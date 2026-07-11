@@ -120,6 +120,8 @@
     "deleteConfirmBody": "This cannot be undone.",
     "deleteCancel": "Cancel",
     "deleteConfirm": "Delete",
+    "assessmentBody": "The raw responses from a self-report survey. The organized result lives on its own screen.",
+    "assessmentCta": "View result",
     "kindJournal": "Journal",
     "kindNote": "Note",
     "kindAudit": "Check",
