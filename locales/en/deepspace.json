@@ -751,7 +751,7 @@
     "reward": {
       "titleA": "Watch 30s, get ",
       "titleCount": "+{{n}}",
-      "sub": "Watch an ad to top up this week's self-understanding count.\nThe quality of answers stays the same.",
+      "sub": "Watch an ad to top up this month's self-understanding count.\nThe quality of answers stays the same.",
       "remaining": "left",
       "afterLabel": "after +{{n}}",
       "cta": "Watch and get +{{n}}",

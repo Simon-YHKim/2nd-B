@@ -184,8 +184,12 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
                     value={value}
                   />
                   <View style={styles.scaleLegend}>
-                    <Text variant="subtle" color="textSubtle">{locale === "ko" ? SCALE[0].ko : SCALE[0].en}</Text>
-                    <Text variant="subtle" color="textSubtle">{locale === "ko" ? SCALE[4].ko : SCALE[4].en}</Text>
+                    {/* textMuted, not textSubtle: Likert endpoint anchors must stay
+                        readable or a low-vision taker answers all 120 items in the
+                        wrong direction (#867 fixed the four sibling instruments;
+                        this screen was missed). */}
+                    <Text variant="subtle" color="textMuted">{locale === "ko" ? SCALE[0].ko : SCALE[0].en}</Text>
+                    <Text variant="subtle" color="textMuted">{locale === "ko" ? SCALE[4].ko : SCALE[4].en}</Text>
                   </View>
                 </View>
               );

@@ -751,7 +751,7 @@
     "reward": {
       "titleA": "Assista 30s e ganhe ",
       "titleCount": "+{{n}}",
-      "sub": "Assista a um anúncio para repor suas perguntas de autoconhecimento desta semana.\nA qualidade das respostas continua a mesma.",
+      "sub": "Assista a um anúncio para repor suas perguntas de autoconhecimento deste mês.\nA qualidade das respostas continua a mesma.",
       "remaining": "restantes",
       "afterLabel": "após +{{n}}",
       "cta": "Ver anúncio e ganhar +{{n}}",

@@ -25,7 +25,7 @@ import {
 } from "@/lib/persona/northstar";
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
 // Minimal Material-Symbols-style glyphs the editor needs, rendered as inline SVG
@@ -50,6 +50,9 @@ export default function NorthstarSentence() {
   const { i18n } = useTranslation();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const isKo = locale === "ko";
+  const subText = isKo
+    ? "일곱 별을 종합해 세컨비가 제안한 문장이에요. 당신의 언어로 다듬어보세요."
+    : "SecondB drafted this from your seven stars. Reshape it in your own words.";
   const { userId, loading, isMinor } = useAuth();
 
   const [draft, setDraft] = useState("");
@@ -147,12 +150,10 @@ export default function NorthstarSentence() {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <Text style={styles.headline}>{isKo ? "북극성 문장" : "North-star sentence"}</Text>
-      <Text style={styles.sub}>
-        {keepAllKo(
-          isKo
-            ? "일곱 별을 종합해 세컨비가 제안한 문장이에요. 당신의 언어로 다듬어보세요."
-            : "SecondB drafted this from your seven stars. Reshape it in your own words.",
-        )}
+      {/* Screen readers get the raw string: keepAllKo's U+2060 joiners disorient
+          braille output and character-by-character review. */}
+      <Text style={styles.sub} accessibilityLabel={subText}>
+        {keepAllKo(subText)}
       </Text>
 
       {/* Violet NORTH STAR hero card = the inline editor */}

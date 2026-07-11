@@ -23,7 +23,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
 import { loadTierObservations } from "@/lib/persona/load-tier-observations";
-import { buildRatificationLog, type RatificationEntry } from "@/lib/persona/brightness-timeline";
+import { buildRatificationLog, type RatificationEntry } from "@/lib/persona/brightness-timeline";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
 // Amber warning tone for the 보류 column — the one raw literal, transcribed 1:1
@@ -100,6 +100,10 @@ export default function RatificationLogScreen() {
   }, [userId]);
 
   const barTitle = t("barTitle");
+  const subtitleText =
+    locale === "ko"
+      ? "세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요."
+      : "SecondB proposes; you always decide. Nothing reaches a star without your consent.";
 
   if (loading) {
     return (
@@ -141,12 +145,10 @@ export default function RatificationLogScreen() {
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.headline}>{barTitle}</Text>
-        <Text style={styles.subtitle}>
-          {keepAllKo(
-            locale === "ko"
-              ? "세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요."
-              : "SecondB proposes; you always decide. Nothing reaches a star without your consent.",
-          )}
+        {/* Screen readers get the raw string: keepAllKo's U+2060 joiners disorient
+            braille output and character-by-character review. */}
+        <Text style={styles.subtitle} accessibilityLabel={subtitleText}>
+          {keepAllKo(subtitleText)}
         </Text>
 
         {/* summary strip */}

@@ -43,6 +43,9 @@ export function MdChip({
   style,
 }: MdChipProps) {
   const isFilter = kind === "filter";
+  // checked only belongs on filter chips (role checkbox): leaking it onto
+  // assist/suggestion buttons made TalkBack announce plain chips as untoggled
+  // controls the user thinks they must toggle.
   const on = isFilter && selected;
   const fg = on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant;
   return (
@@ -51,7 +54,7 @@ export function MdChip({
         android_ripple={{ color: m3.color.secondaryContainer }}
         onPress={onPress}
         accessibilityRole={isFilter ? "checkbox" : "button"}
-        accessibilityState={{ selected, checked: selected }}
+        accessibilityState={isFilter ? { selected, checked: selected } : undefined}
         accessibilityLabel={accessibilityLabel ?? label}
         style={styles.hit}
       >
