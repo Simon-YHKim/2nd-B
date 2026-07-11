@@ -82,6 +82,33 @@
     "doneA11y": "{{title}} feito hoje",
     "streak": "Sequência de {{count}} dias"
   },
+  "home": {
+    "ringCount": "{{done}} / {{total}} feitas",
+    "streakLabel": "dias seguidos",
+    "patternsTitle": "Padrões desta semana",
+    "patternsSub": "A análise roda em segundo plano. Continue usando o app.",
+    "patternsRun": "Rodar",
+    "takeEyebrow": "RESUMO DE HOJE",
+    "toolsLabel": "Ferramentas do assistente"
+  },
+  "tools": {
+    "focus": {
+      "label": "Foco diário",
+      "sub": "Pomodoro"
+    },
+    "reminders": {
+      "label": "Lembretes",
+      "sub": "Agendados"
+    },
+    "imagine": {
+      "label": "Imaginar",
+      "sub": "Lançar longe"
+    },
+    "shareCard": {
+      "label": "Cartão para compartilhar",
+      "sub": "Cartão 1080"
+    }
+  },
   "states": {
     "emptyDomain": "Escolha uma área acima para começar."
   },
@@ -132,7 +159,19 @@
     "unitMin": "min",
     "decrease": "Diminuir",
     "increase": "Aumentar",
-    "save": "Salvar"
+    "save": "Salvar",
+    "ringReady": "Pronto",
+    "ringFocusing": "Concentrando",
+    "ringPaused": "Pausado",
+    "leadPre": "Hora de focar em uma só coisa. Ao terminar, um passo rumo à sua ",
+    "leadStar": "estrela {{star}}",
+    "leadPost": ".",
+    "preset": "{{min}} min",
+    "startFocus": "Iniciar foco",
+    "resetBtn": "Reiniciar",
+    "forWhichStar": "Para qual estrela?",
+    "todayCount": "{{sessions}} sessões de foco hoje",
+    "todaySub": "Cerca de {{min}} min · meta {{goal}}"
   },
   "srs": {
     "title": "Revisão de idioma",

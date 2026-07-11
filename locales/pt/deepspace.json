@@ -3,7 +3,10 @@
     "today": "Hoje",
     "yesterday": "Ontem",
     "daysAgo": "há {{count}} dias",
+    "daysAgo_plural": "há {{count}} dias",
     "hoursAgo": "há {{count}} horas",
+    "minsAgo": "há {{count}} min",
+    "hoursAgo_plural": "há {{count}} horas",
     "now": "Agora mesmo",
     "recordFallback": "Registro",
     "monthDay": "{{day}}/{{month}}"
@@ -27,6 +30,7 @@
   "research": {
     "title": "Encontrar conexões",
     "headerFound": "Encontradas {{count}} conexões entre seus registros espalhados.",
+    "headerFound_plural": "Encontradas {{count}} conexões entre seus registros espalhados.",
     "headerNone": "À medida que os registros se acumulam, vou encontrar e mostrar os vínculos entre eles.",
     "tip": "Toque numa etiqueta para ver seu grupo.",
     "lead": "É assim que seus registros espalhados se conectam",
@@ -52,8 +56,10 @@
   "records": {
     "title": "Arquivo",
     "headerCount": "Você teceu {{count}} peças na sua wiki.",
+    "headerCount_plural": "Você teceu {{count}} peças na sua wiki.",
     "headerEmpty": "Você ainda não salvou nenhuma peça.",
     "tip": "{{count}} peças não classificadas aguardam na caixa de entrada.",
+    "tip_plural": "{{count}} peças não classificadas aguardam na caixa de entrada.",
     "lead": "Tudo o que você salvou, em uma única linha do tempo",
     "filterAll": "Tudo",
     "filterJournal": "Diário",
@@ -176,7 +182,11 @@
     "labelLinked": "Conta vinculada",
     "labelLanguage": "Idioma",
     "valueLanguage": "Português",
-    "delete": "Excluir conta"
+    "delete": "Excluir conta",
+    "navProfile": "Perfil",
+    "navSettings": "Configurações",
+    "navData": "Meus dados",
+    "navBeyond": "Fora do app"
   },
   "privacy": {
     "title": "Privacidade",
@@ -203,7 +213,9 @@
     "viewManual": "Ver o manual",
     "emailUs": "Fale conosco",
     "reportBug": "Relatar um erro",
-    "footer": "2nd-Brain v1.0.0 · 2 dias úteis KST"
+    "footer": "2nd-Brain v1.0.0 · 2 dias úteis KST",
+    "faqTitle": "Perguntas frequentes",
+    "noticesTitle": "Avisos"
   },
   "integrations": {
     "title": "Integrações de apps",
@@ -217,6 +229,37 @@
     "healthLabel": "Saúde · Calendário",
     "permissionNeeded": "Permissão necessária",
     "footer": "Você revisa os dados de integração antes de importar e pode desconectar quando quiser."
+  },
+  "connect": {
+    "title": "Sincronização de dados",
+    "lead": "Conectar acende suas estrelas mais rápido. Todo o processamento acontece primeiro no seu dispositivo.",
+    "consent": "O conteúdo original nunca é guardado; apenas os sinais derivados ficam salvos, criptografados, e você pode desconectar e apagar quando quiser.",
+    "connected": "Conectado",
+    "connect": "Conectar",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "conectado",
+    "a11yConnect": "conectar",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Sinais de ritmo e relacionamentos da sua agenda"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "Sono e atividade alimentam sua estrela da saúde"
+      },
+      "notion": {
+        "sub": "Importe notas e documentos"
+      },
+      "photos": {
+        "name": "Álbum de fotos",
+        "sub": "Descanso e relacionamentos a partir das suas cenas"
+      },
+      "gpt": {
+        "name": "Exportação do ChatGPT",
+        "sub": "Traga seu histórico de conversas"
+      }
+    }
   },
   "insights": {
     "title": "Percepções",
@@ -286,7 +329,8 @@
     "sectionData": "Dados · Privacidade",
     "q4": "O que é um arquivo IDEN?",
     "q5": "Onde meus dados são armazenados?",
-    "askDirect": "Perguntar diretamente ao SecondB"
+    "askDirect": "Perguntar diretamente ao SecondB",
+    "conceptsTitle": "Conceitos principais"
   },
   "plans": {
     "title": "Planos",
@@ -582,7 +626,8 @@
     "a11yZoomOut": "Diminuir zoom",
     "a11yZoomIn": "Aumentar zoom",
     "hintSelected": "{{label}} · toque novamente para abrir",
-    "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir"
+    "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir",
+    "untitled": "(sem título)"
   },
   "wikiGraph": {
     "a11yGraph": "Grafo de nós da wiki",

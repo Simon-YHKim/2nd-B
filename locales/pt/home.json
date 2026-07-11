@@ -99,6 +99,15 @@
         "recreation": "Descanso",
         "collect": "Coletar"
       },
+      "starName": {
+        "now": "Estado dos traços",
+        "recall": "Lembrança",
+        "seen": "Como me veem",
+        "rhythm": "Ritmo",
+        "relational": "Eu relacional",
+        "possible": "Eu futuro",
+        "values": "Valores e aspirações"
+      },
       "inbox": "Notificações",
       "headA11y": "Perguntar ao SecondB",
       "kind": {

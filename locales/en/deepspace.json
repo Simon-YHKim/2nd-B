@@ -2,8 +2,11 @@
   "time": {
     "today": "Today",
     "yesterday": "Yesterday",
-    "daysAgo": "{{count}} days ago",
-    "hoursAgo": "{{count}} hours ago",
+    "daysAgo": "{{count}} day ago",
+    "hoursAgo": "{{count}} hour ago",
+    "minsAgo": "{{count}}m ago",
+    "daysAgo_plural": "{{count}} days ago",
+    "hoursAgo_plural": "{{count}} hours ago",
     "now": "Just now",
     "recordFallback": "Record",
     "monthDay": "{{month}}/{{day}}"
@@ -26,7 +29,8 @@
   },
   "research": {
     "title": "Find connections",
-    "headerFound": "Found {{count}} connections among your scattered records.",
+    "headerFound": "Found {{count}} connection among your scattered records.",
+    "headerFound_plural": "Found {{count}} connections among your scattered records.",
     "headerNone": "As records pile up, I'll find and show the links between them.",
     "tip": "Tap a tag to see its cluster.",
     "lead": "Here's how your scattered records connect",
@@ -51,9 +55,11 @@
   },
   "records": {
     "title": "Archive",
-    "headerCount": "You've woven {{count}} pieces into your wiki.",
+    "headerCount": "You've woven {{count}} piece into your wiki.",
+    "headerCount_plural": "You've woven {{count}} pieces into your wiki.",
     "headerEmpty": "You haven't saved any pieces yet.",
-    "tip": "{{count}} unfiled pieces are waiting in your inbox.",
+    "tip": "{{count}} unfiled piece is waiting in your inbox.",
+    "tip_plural": "{{count}} unfiled pieces are waiting in your inbox.",
     "lead": "Everything you've saved, on one timeline",
     "filterAll": "All",
     "filterJournal": "Journal",
@@ -176,7 +182,11 @@
     "labelLinked": "Linked account",
     "labelLanguage": "Language",
     "valueLanguage": "English",
-    "delete": "Delete account"
+    "delete": "Delete account",
+    "navProfile": "Profile",
+    "navSettings": "Settings",
+    "navData": "My data",
+    "navBeyond": "Outside the app"
   },
   "privacy": {
     "title": "Privacy",
@@ -203,7 +213,9 @@
     "viewManual": "View the manual",
     "emailUs": "Email us",
     "reportBug": "Report a bug",
-    "footer": "2nd-Brain v1.0.0 · 2 business days KST"
+    "footer": "2nd-Brain v1.0.0 · 2 business days KST",
+    "faqTitle": "FAQ",
+    "noticesTitle": "Notices"
   },
   "integrations": {
     "title": "App integrations",
@@ -217,6 +229,37 @@
     "healthLabel": "Health · Calendar",
     "permissionNeeded": "Permission needed",
     "footer": "You review integration data before importing, and can disconnect anytime."
+  },
+  "connect": {
+    "title": "Data sync",
+    "lead": "Connecting brightens your stars faster. All processing happens on your device first.",
+    "consent": "Raw content is never stored; only derived signals are kept, encrypted, and you can disconnect and erase anytime.",
+    "connected": "Connected",
+    "connect": "Connect",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "connected",
+    "a11yConnect": "connect",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Rhythm and relationship signals from your schedule"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "Sleep and activity feed the health star"
+      },
+      "notion": {
+        "sub": "Import notes and documents"
+      },
+      "photos": {
+        "name": "Photo album",
+        "sub": "Rest and relationships from scenes"
+      },
+      "gpt": {
+        "name": "ChatGPT export",
+        "sub": "Bring in your chat history"
+      }
+    }
   },
   "insights": {
     "title": "Insights",
@@ -286,7 +329,8 @@
     "sectionData": "Data · Privacy",
     "q4": "What is an IDEN file?",
     "q5": "Where is my data stored?",
-    "askDirect": "Ask SecondB directly"
+    "askDirect": "Ask SecondB directly",
+    "conceptsTitle": "Core concepts"
   },
   "plans": {
     "title": "Plans",
@@ -582,7 +626,8 @@
     "a11yZoomOut": "Zoom out",
     "a11yZoomIn": "Zoom in",
     "hintSelected": "{{label}} · tap again to open",
-    "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open"
+    "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open",
+    "untitled": "(untitled)"
   },
   "wikiGraph": {
     "a11yGraph": "Wiki node graph",

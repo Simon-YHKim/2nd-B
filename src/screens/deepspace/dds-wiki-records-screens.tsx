@@ -312,8 +312,19 @@ export function DeepSpaceRecordsScreen() {
   // open; passing [] otherwise yields the same-shaped empty graph at ~0 cost, so
   // list-only users stop paying the full compute on every data load (audit wave-3).
   const recordsGraph = useMemo(
-    () => buildRecordsGraph(view === "graph" ? records : [], { locale: isKo ? "ko" : "en" }),
-    [records, isKo, view],
+    () =>
+      buildRecordsGraph(view === "graph" ? records : [], {
+        locale: isKo ? "ko" : "en",
+        // Localized node labels: the same names the home constellation uses, so
+        // one star never carries two names across screens (es saw "Relaciones"
+        // on home but "Relationship" here before this).
+        labels: {
+          polaris: t("home:ds.home.polaris"),
+          star: (id) => t(`home:ds.home.domainName.${id}`),
+          untitled: t("deepspace:recordsGraph.untitled"),
+        },
+      }),
+    [records, isKo, view, t],
   );
 
   useEffect(() => {

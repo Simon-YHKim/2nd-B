@@ -15,6 +15,7 @@ import { BackHandler, Pressable, StyleSheet, View, useWindowDimensions } from "r
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -68,6 +69,7 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
   const step = STEPS[idx];
   const last = idx === STEPS.length - 1;
   const ringSize = Math.min(width, height) * step.r * 2;
+  const bubbleText = t(`deepspace:coachmarks.${step.key}`);
 
   return (
     <View style={styles.overlay} accessibilityViewIsModal pointerEvents="auto">
@@ -91,7 +93,7 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
         <SecondbHead size={44} mood="neutral" accessibilityLabel={t("deepspace:coachmarks.secondbName")} />
         <View style={styles.bubble}>
           <Text style={styles.stepCount}>{`${idx + 1}/${STEPS.length}`}</Text>
-          <Text style={styles.bubbleText}>{t(`deepspace:coachmarks.${step.key}`)}</Text>
+          <Text style={styles.bubbleText} accessibilityLabel={bubbleText}>{keepAllKo(bubbleText)}</Text>
           <View style={styles.btnRow}>
             <Pressable onPress={finish} hitSlop={8} accessibilityRole="button" style={styles.ghostBtn}>
               <Text style={styles.ghostText}>{t("deepspace:coachmarks.dontShowAgain")}</Text>

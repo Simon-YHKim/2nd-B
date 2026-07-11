@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text as RNText, TextInput, View } from "react-native";
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
@@ -17,6 +18,9 @@ import { TIERS, TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
+import { useTheme } from "@/lib/theme/ThemeContext";
+import { useFontStyle } from "@/lib/settings/readable-font";
+import { useLiteMode } from "@/lib/settings/lite-mode";
 import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
@@ -247,7 +251,20 @@ function DockBody({ children, title, subtitle }: { children: ReactNode; title?: 
 }
 
 function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
-function Action({ label, value, onPress }: Row) { return <Pressable onPress={onPress} style={styles.action}><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : <RNText style={styles.chev}>›</RNText>}</Pressable>; }
+function Action({ label, value, onPress }: Row) {
+  return (
+    // label carries the value too (an explicit label replaces flattened children
+    // for screen readers, #891), and the decorative chevron is hidden from a11y.
+    <Pressable onPress={onPress} style={styles.action} accessibilityRole="button" accessibilityLabel={value ? `${label}, ${value}` : label}>
+      <Text variant="body" style={styles.actionLabel}>{label}</Text>
+      {value ? (
+        <Text variant="body" style={styles.actionValue}>{value}</Text>
+      ) : (
+        <RNText style={styles.chev} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">›</RNText>
+      )}
+    </Pressable>
+  );
+}
 function Toggle({ label, value, on = true, onPress }: Row) {
   const body = (
     <>
@@ -281,15 +298,14 @@ export function DeepSpaceGraphDesignScreen() {
 // switch). No provider is seeded as 연결됨 — every row starts disconnected until
 // a real connection exists, so the screen never claims a link that isn't there.
 export function DeepSpaceIntegrationsScreen() {
-  const { i18n } = useTranslation("deepspace");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { t } = useTranslation("deepspace");
   const [conn, setConn] = useState<Record<string, boolean>>({ cal: false, health: false, notion: false, photos: false, gpt: false });
   const sources: { id: string; icon: keyof typeof CLONE_ICON; k: string; sub: string }[] = [
-    { id: "cal", icon: "forum", k: ko ? "Google 캘린더" : "Google Calendar", sub: ko ? "일정에서 리듬·관계 신호" : "Rhythm and relationship signals from your schedule" },
-    { id: "health", icon: "bedtime", k: ko ? "Apple 건강" : "Apple Health", sub: ko ? "수면·활동으로 건강 별" : "Sleep and activity feed the health star" },
-    { id: "notion", icon: "book", k: "Notion", sub: ko ? "메모·문서 가져오기" : "Import notes and documents" },
-    { id: "photos", icon: "camera", k: ko ? "사진 앨범" : "Photo album", sub: ko ? "장면에서 휴식·관계" : "Rest and relationships from scenes" },
-    { id: "gpt", icon: "bubble", k: ko ? "ChatGPT 내보내기" : "ChatGPT export", sub: ko ? "대화 기록 불러오기" : "Bring in your chat history" },
+    { id: "cal", icon: "forum", k: t("connect.sources.cal.name"), sub: t("connect.sources.cal.sub") },
+    { id: "health", icon: "bedtime", k: t("connect.sources.health.name"), sub: t("connect.sources.health.sub") },
+    { id: "notion", icon: "book", k: "Notion", sub: t("connect.sources.notion.sub") },
+    { id: "photos", icon: "camera", k: t("connect.sources.photos.name"), sub: t("connect.sources.photos.sub") },
+    { id: "gpt", icon: "bubble", k: t("connect.sources.gpt.name"), sub: t("connect.sources.gpt.sub") },
   ];
   const toggle = (id: string) => {
     if (conn[id]) { setConn((s) => ({ ...s, [id]: false })); return; }
@@ -297,14 +313,14 @@ export function DeepSpaceIntegrationsScreen() {
     router.push("/import-hub");
   };
   return (
-    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={ko ? "데이터 연동" : "Data sync"} onBack={() => router.back()}>
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("connect.title")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
-        <RNText style={[m3TextStyle("headlineSmall"), { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 }]}>{ko ? "데이터 연동" : "Data sync"}</RNText>
-        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{ko ? "연결하면 별이 더 빨리 밝아져요. 모든 처리는 기기 안에서 먼저 일어나요." : "Connecting brightens your stars faster. All processing happens on your device first."}</RNText>
+        <RNText style={[m3TextStyle("headlineSmall"), { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 }]}>{t("connect.title")}</RNText>
+        <RNText style={[m3TextStyle("bodyMedium"), cx.lead]}>{t("connect.lead")}</RNText>
         <MdCard variant="filled" style={cx.consentCard}>
           <View style={cx.consentRow}>
             <CloneIcon name="lock" color={m3.color.onSecondaryContainer} size={20} />
-            <RNText style={[m3TextStyle("bodySmall"), cx.consentText]}>{ko ? "원문은 저장하지 않아요. 도출된 신호만 암호화해 남기고, 언제든 연결을 끊고 지울 수 있어요." : "Raw content is never stored; only derived signals are kept, encrypted, and you can disconnect and erase anytime."}</RNText>
+            <RNText style={[m3TextStyle("bodySmall"), cx.consentText]}>{t("connect.consent")}</RNText>
           </View>
         </MdCard>
         <View style={cx.stack8}>
@@ -321,12 +337,12 @@ export function DeepSpaceIntegrationsScreen() {
                     <RNText style={[m3TextStyle("bodySmall"), cx.sourceSub]}>{s.sub}</RNText>
                   </View>
                   <MdButton
-                    label={on ? (ko ? "연결됨" : "Connected") : (ko ? "연결" : "Connect")}
+                    label={on ? t("connect.connected") : t("connect.connect")}
                     variant={on ? "tonal" : "filled"}
                     icon={on ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={16} /> : undefined}
                     onPress={() => toggle(s.id)}
                     style={cx.connectBtn}
-                    accessibilityLabel={ko ? `${s.k} ${on ? "연결됨" : "연결"}` : `${s.k} ${on ? "connected" : "connect"}`}
+                    accessibilityLabel={t("connect.a11yStatus", { name: s.k, status: on ? t("connect.a11yConnected") : t("connect.a11yConnect") })}
                   />
                 </View>
               </MdCard>
@@ -400,7 +416,7 @@ export function DeepSpaceSupportDesignScreen() {
 
       {/* FAQ (canonGaps.faqs) — tap a question to reveal its answer. */}
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "자주 묻는 질문" : "FAQ"}</Text>
+        <Text variant="caption" style={styles.section}>{t("support.faqTitle")}</Text>
         {canonGaps.faqs.map((f, i) => {
           const q = ko ? f.q : GAPS_FAQ_EN[i]?.q ?? f.q;
           const a = ko ? f.a : GAPS_FAQ_EN[i]?.a ?? f.a;
@@ -425,7 +441,7 @@ export function DeepSpaceSupportDesignScreen() {
 
       {/* 공지사항 / Notices (canonGaps.notices) — tag + title + date. */}
       <Card>
-        <Text variant="caption" style={styles.section}>{ko ? "공지사항" : "Notices"}</Text>
+        <Text variant="caption" style={styles.section}>{t("support.noticesTitle")}</Text>
         {canonGaps.notices.map((n, i) => {
           const title = ko ? n.t : GAPS_NOTICE_EN[i]?.t ?? n.t;
           const tag = ko ? n.tag : GAPS_NOTICE_EN[i]?.tag ?? n.tag;
@@ -445,8 +461,7 @@ export function DeepSpaceSupportDesignScreen() {
 }
 
 export function DeepSpaceAccountDesignScreen() {
-  const { t, i18n } = useTranslation("deepspace");
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { t } = useTranslation("deepspace");
   // The "나" hub (SCREEN_TREE_SPEC §8): four working nav rows. Was a static
   // mockup with hardcoded PII and dead rows; now every row routes.
   return (
@@ -461,11 +476,11 @@ export function DeepSpaceAccountDesignScreen() {
           <Text variant="heading" style={styles.prompt}>{t("account.title")}</Text>
         </View>
         <Card>
-          <Action label={ko ? "프로필" : "Profile"} onPress={() => router.push("/profile")} />
-          <Action label={ko ? "설정" : "Settings"} onPress={() => router.push("/settings")} />
-          <Action label={ko ? "내 데이터" : "My data"} onPress={() => router.push("/data")} />
+          <Action label={t("account.navProfile")} onPress={() => router.push("/profile")} />
+          <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
+          <Action label={t("account.navData")} onPress={() => router.push("/data")} />
           <Action label="IDEN" onPress={() => router.push("/iden")} />
-          <Action label={ko ? "앱 밖에서" : "Outside the app"} onPress={() => router.push("/beyond")} />
+          <Action label={t("account.navBeyond")} onPress={() => router.push("/beyond")} />
         </Card>
         {/* Build/OTA identifier — lets a tester confirm which bundle is live
             (embedded vs OTA), the ambiguity that prolonged the 2026-06-26 crash. */}
@@ -1004,29 +1019,50 @@ export function DeepSpaceDataDesignScreen() {
   );
 }
 
+// Radio-style select row: reflects the real setting, tap changes it, and marks
+// the active choice with the reference ✓. Used by the theme + font pickers.
+function SelectRow({ selected, label, onPress }: { selected: boolean; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      style={styles.action}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
+    >
+      <Text variant="body" style={styles.actionLabel}>{label}</Text>
+      {selected ? <Text variant="body" style={styles.actionValue}>✓</Text> : null}
+    </Pressable>
+  );
+}
+
 export function DeepSpaceThemeScreen() {
   const { t } = useTranslation("deepspace");
+  // Same hooks the legacy ThemeScreenLegacy (src/app/theme.tsx) drives, so the
+  // deep-space rows read and write the real settings. Theme labels map to the
+  // ThemeContext modes: 딥스페이스 = dark (default), 미드나잇 = light.
+  const { mode, setMode } = useTheme();
+  const { fontStyle, setFontStyle } = useFontStyle();
+  const { liteMode, setLiteMode } = useLiteMode();
   return (
     <Shell title={t("theme.title")}>
       <SecondbStatusHeader text={t("theme.status")} tip={t("theme.tip")} />
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionTheme")}</Text>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.themeDeepspace")}</Text><Text variant="body" style={styles.actionValue}>✓</Text></View>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.themeMidnight")}</Text></View>
+        <SelectRow selected={mode === "dark"} label={t("theme.themeDeepspace")} onPress={() => setMode("dark")} />
+        <SelectRow selected={mode === "light"} label={t("theme.themeMidnight")} onPress={() => setMode("light")} />
       </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionFont")}</Text>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.fontPixel")}</Text><Text variant="body" style={styles.actionValue}>✓</Text></View>
-        <View style={styles.action}><Text variant="body" style={styles.actionLabel}>{t("theme.fontReadable")}</Text></View>
+        <SelectRow selected={fontStyle === "pixel"} label={t("theme.fontPixel")} onPress={() => setFontStyle("pixel")} />
+        <SelectRow selected={fontStyle === "readable"} label={t("theme.fontReadable")} onPress={() => setFontStyle("readable")} />
       </Card>
+      {/* The reference "글자 크기" slider had no backing setting (no in-app
+          font-scale exists — OS Dynamic Type drives size, capped in ui/Text),
+          so the dead painted knob is dropped rather than faked. Reduce-motion is
+          the one real control here, wired to lite mode (motion chokepoint). */}
       <Card>
-        <Text variant="heading" style={styles.section}>{t("theme.sectionSize")}</Text>
-        <View style={styles.sizeRow}>
-          <Text variant="subtle" style={styles.sizeCap}>{t("theme.small")}</Text>
-          <View style={styles.sizeTrack}><View style={styles.sizeKnob} /></View>
-          <Text variant="body" style={styles.sizeCapLg}>{t("theme.large")}</Text>
-        </View>
-        <Toggle label={t("theme.reduceMotion")} on={false} />
+        <Toggle label={t("theme.reduceMotion")} on={liteMode} onPress={() => setLiteMode(!liteMode)} />
       </Card>
     </Shell>
   );
@@ -1053,7 +1089,7 @@ export function DeepSpaceManualScreen() {
       </Card>
 
       {/* 핵심 개념 / Core concepts (canonGaps.manualConcepts) — icon + title + body. */}
-      <Text variant="heading" style={styles.section}>{ko ? "핵심 개념" : "Core concepts"}</Text>
+      <Text variant="heading" style={styles.section}>{t("manual.conceptsTitle")}</Text>
       {canonGaps.manualConcepts.map((c, i) => {
         const title = ko ? c.title : GAPS_CONCEPT_EN[i]?.title ?? c.title;
         const body = ko ? c.body : GAPS_CONCEPT_EN[i]?.body ?? c.body;
@@ -1076,17 +1112,104 @@ export function DeepSpaceManualScreen() {
 // ──────────────────────────────────────────────────────────────────────────
 export { DeepSpacePlansScreen } from "./dds-plans-screen";
 
+// ── Deep-space permissions: real OS status + request ───────────────────────
+// The rows now reflect the ACTUAL permission state and act on tap. Notifications
+// and image-picker are lazy-required (never evaluated in the web bundle, and
+// Expo Go throws on require of expo-notifications — same guarded pattern as
+// src/lib/ops/daily-review.ts and wiki/capture-image.ts); expo-audio ships a
+// web build so its permission fns import directly. Rows render on native only.
+type PermStatus = { granted: boolean; canAskAgain: boolean };
+
+function loadNotifications(): typeof import("expo-notifications") | null {
+  try {
+    return require("expo-notifications") as typeof import("expo-notifications");
+  } catch {
+    return null;
+  }
+}
+function loadImagePicker(): typeof import("expo-image-picker") | null {
+  try {
+    return require("expo-image-picker") as typeof import("expo-image-picker");
+  } catch {
+    return null;
+  }
+}
+
+const permissionAdapters = {
+  notif: {
+    get: async (): Promise<PermStatus | null> => loadNotifications()?.getPermissionsAsync() ?? null,
+    request: async (): Promise<PermStatus | null> => loadNotifications()?.requestPermissionsAsync() ?? null,
+  },
+  photo: {
+    get: async (): Promise<PermStatus | null> => loadImagePicker()?.getCameraPermissionsAsync() ?? null,
+    request: async (): Promise<PermStatus | null> => loadImagePicker()?.requestCameraPermissionsAsync() ?? null,
+  },
+  mic: {
+    get: (): Promise<PermStatus> => getRecordingPermissionsAsync(),
+    request: (): Promise<PermStatus> => requestRecordingPermissionsAsync(),
+  },
+} as const;
+
+function PermissionRow({ kind, label, value }: { kind: keyof typeof permissionAdapters; label: string; value: string }) {
+  const adapter = permissionAdapters[kind];
+  const [status, setStatus] = useState<PermStatus | null>(null);
+
+  const refresh = useCallback(() => {
+    void Promise.resolve(adapter.get())
+      .then((s) => setStatus(s ? { granted: s.granted, canAskAgain: s.canAskAgain } : null))
+      .catch(() => setStatus(null));
+  }, [adapter]);
+
+  // Real status on mount + on every foreground return — the user may flip the
+  // permission in OS Settings while away, so the toggle never shows a stale on/off.
+  useEffect(() => {
+    refresh();
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") refresh();
+    });
+    return () => sub.remove();
+  }, [refresh]);
+
+  const onPress = useCallback(() => {
+    // Granted, or denied with no re-prompt left → OS Settings is the only lever.
+    // Otherwise fire the real permission prompt.
+    if (status?.granted || (status && !status.canAskAgain)) {
+      void Linking.openSettings();
+      return;
+    }
+    void Promise.resolve(adapter.request())
+      .then((s) => {
+        if (s) setStatus({ granted: s.granted, canAskAgain: s.canAskAgain });
+      })
+      .catch(() => {});
+  }, [adapter, status]);
+
+  return <Toggle label={label} value={value} on={status?.granted ?? false} onPress={onPress} />;
+}
+
 export function DeepSpacePermissionsScreen() {
   const { t } = useTranslation("deepspace");
+  // Web has no equivalent OS permission model for these capture features, so the
+  // rows are hidden there rather than shown as controls that cannot act.
+  const native = Platform.OS !== "web";
   return (
     <Shell title={t("permissions.title")}>
       <SecondbStatusHeader text={t("permissions.status")} tip={t("permissions.tip")} />
-      <Card>
-        <Toggle label={t("permissions.notif")} value={t("permissions.notifValue")} />
-        <Toggle label={t("permissions.photo")} value={t("permissions.photoValue")} on={false} />
-        <Toggle label={t("permissions.mic")} value={t("permissions.micValue")} on={false} />
-      </Card>
-      <Pressable style={styles.primary} onPress={() => router.back()}><Text variant="caption" style={styles.primaryText}>{t("permissions.continue")}</Text></Pressable>
+      {native ? (
+        <Card>
+          <PermissionRow kind="notif" label={t("permissions.notif")} value={t("permissions.notifValue")} />
+          <PermissionRow kind="photo" label={t("permissions.photo")} value={t("permissions.photoValue")} />
+          <PermissionRow kind="mic" label={t("permissions.mic")} value={t("permissions.micValue")} />
+        </Card>
+      ) : null}
+      <Pressable
+        style={styles.primary}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel={t("permissions.continue")}
+      >
+        <Text variant="caption" style={styles.primaryText}>{t("permissions.continue")}</Text>
+      </Pressable>
     </Shell>
   );
 }
@@ -1825,7 +1948,6 @@ export function DeepSpaceOpsScreen() {
     }
   }
 
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   // Hero ring is driven by the REAL today list (not the reference mock counts).
   const totalR = todayRoutines.length;
   const doneR = todayRoutines.filter((r) => completedIds.has(r.id)).length;
@@ -1833,10 +1955,10 @@ export function DeepSpaceOpsScreen() {
   const HERO_R = 22;
   const HERO_C = 2 * Math.PI * HERO_R;
   const opsTools: { icon: keyof typeof CLONE_ICON; label: string; sub: string; route: string }[] = [
-    { icon: "timer", label: ko ? "일일 집중" : "Daily focus", sub: ko ? "포모도로" : "Pomodoro", route: "/focus" },
-    { icon: "schedule", label: ko ? "예약 리마인더" : "Reminders", sub: ko ? "알림 일정" : "Scheduled", route: "/reminders" },
-    { icon: "lightbulb", label: ko ? "공상하기" : "Imagine", sub: ko ? "멀리 던지기" : "Throw far", route: "/imagine" },
-    { icon: "share", label: ko ? "공유 카드" : "Share card", sub: ko ? "1080 카드" : "1080 card", route: "/share-card" },
+    { icon: "timer", label: t("tools.focus.label"), sub: t("tools.focus.sub"), route: "/focus" },
+    { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },
+    { icon: "lightbulb", label: t("tools.imagine.label"), sub: t("tools.imagine.sub"), route: "/imagine" },
+    { icon: "share", label: t("tools.shareCard.label"), sub: t("tools.shareCard.sub"), route: "/share-card" },
   ];
 
   return (
@@ -1847,7 +1969,7 @@ export function DeepSpaceOpsScreen() {
       active="ops"
       header="none"
       variant="windowed"
-      title={ko ? "오늘의 비서" : "Today's assistant"}
+      title={t("todaysAssistant")}
       onBack={() => router.back()}
     >
       <DockBody>
@@ -1860,8 +1982,8 @@ export function DeepSpaceOpsScreen() {
               strokeDasharray={HERO_C} strokeDashoffset={HERO_C * (1 - pct)} originX={29} originY={29} rotation={-90} />
           </Svg>
           <View style={cx.flex1}>
-            <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{ko ? "오늘의 루틴" : "Today's routines"}</RNText>
-            <RNText style={[m3TextStyle("headlineSmall"), cx.heroCount]}>{ko ? `${doneR} / ${totalR} 완료` : `${doneR} / ${totalR} done`}</RNText>
+            <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{t("today.heading")}</RNText>
+            <RNText style={[m3TextStyle("headlineSmall"), cx.heroCount]}>{t("home.ringCount", { done: doneR, total: totalR })}</RNText>
           </View>
           {streak > 0 ? (
             <View style={cx.heroStreak}>
@@ -1869,7 +1991,7 @@ export function DeepSpaceOpsScreen() {
                 <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
                 <RNText style={cx.heroStreakNum}>{streak}</RNText>
               </View>
-              <RNText style={[m3TextStyle("labelSmall"), cx.heroStreakCap]}>{ko ? "일 연속" : "day streak"}</RNText>
+              <RNText style={[m3TextStyle("labelSmall"), cx.heroStreakCap]}>{t("home.streakLabel")}</RNText>
             </View>
           ) : null}
         </View>
@@ -1908,17 +2030,17 @@ export function DeepSpaceOpsScreen() {
         <View style={cx.rowCenter}>
           <CloneIcon name="sparkle" color={m3.color.tertiary} size={20} />
           <View style={cx.flex1}>
-            <RNText style={[m3TextStyle("bodyLarge"), cx.analysisTitle]}>{ko ? "이번 주 패턴 분석" : "This week's patterns"}</RNText>
-            <RNText style={[m3TextStyle("bodySmall"), cx.analysisSub]}>{ko ? "분석은 백그라운드로 돌아요. 계속 써도 돼요." : "Analysis runs in the background. Keep using the app."}</RNText>
+            <RNText style={[m3TextStyle("bodyLarge"), cx.analysisTitle]}>{t("home.patternsTitle")}</RNText>
+            <RNText style={[m3TextStyle("bodySmall"), cx.analysisSub]}>{t("home.patternsSub")}</RNText>
           </View>
-          <MdButton label={ko ? "돌리기" : "Run"} variant="tonal" onPress={() => router.push("/insights")} style={cx.smallBtnCompact} />
+          <MdButton label={t("home.patternsRun")} variant="tonal" onPress={() => router.push("/insights")} style={cx.smallBtnCompact} />
         </View>
       </MdCard>
 
       {/* 오늘의 종합 의견 — the real recommendation engine (C9 classifier + the
           C1/C3 LLM gateway inside recommendForDomain). Reference-app leads this
           section with a 세컨비 head + the "one important thing" framing. */}
-      <RNText style={[m3TextStyle("labelSmall"), cx.eyebrow]}>{ko ? "오늘의 종합 의견" : "TODAY'S TAKE"}</RNText>
+      <RNText style={[m3TextStyle("labelSmall"), cx.eyebrow]}>{t("home.takeEyebrow")}</RNText>
       <Text variant="body" style={styles.lead}>{t("hero.subtitle")}</Text>
       {/* IA (ops-ia §4): single entry from the /ops hub into the scheduled
           reminders surface. */}
@@ -2022,7 +2144,7 @@ export function DeepSpaceOpsScreen() {
       {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
 
       {/* 비서 도구 — 2×2 tool grid (real routes) */}
-      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "비서 도구" : "Assistant tools"}</RNText>
+      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("home.toolsLabel")}</RNText>
       <View style={cx.toolGrid}>
         {opsTools.map((tool) => (
           <MdCard key={tool.route} variant="filled" onPress={() => router.push(tool.route as never)} style={cx.toolCard} accessibilityLabel={tool.label}>
@@ -2207,7 +2329,7 @@ export function DeepSpaceFocusScreen() {
   const remainingFrac = totalMs > 0 ? Math.max(0, Math.min(1, shownMs / totalMs)) : 0;
   const dashoffset = RING_C * remainingFrac;
   const clock = formatClock(shownMs);
-  const ringSub = idle ? (ko ? "준비됨" : "Ready") : timer.running ? (ko ? "집중 중" : "Focusing") : (ko ? "일시정지" : "Paused");
+  const ringSub = idle ? t("focus.ringReady") : timer.running ? t("focus.ringFocusing") : t("focus.ringPaused");
   const starName = ko ? FOCUS_STARS[starIdx] : FOCUS_STARS_EN[starIdx];
   const target = 4;
   const filled = Math.min(doneToday, target);
@@ -2216,9 +2338,9 @@ export function DeepSpaceFocusScreen() {
   return (
     <DockShell title={t("focus.title")}>
       <RNText style={[m3TextStyle("bodyMedium"), cx.focusLead]}>
-        {ko ? "한 가지에만 집중하는 시간이에요. 끝나면 " : "Time to focus on one thing. When it ends, one step toward your "}
-        <RNText style={cx.leadStrong}>{ko ? `${starName} 별` : `${starName} star`}</RNText>
-        {ko ? "에 한 걸음." : "."}
+        {t("focus.leadPre")}
+        <RNText style={cx.leadStrong}>{t("focus.leadStar", { star: starName })}</RNText>
+        {t("focus.leadPost")}
       </RNText>
 
       {/* timer ring */}
@@ -2255,7 +2377,7 @@ export function DeepSpaceFocusScreen() {
               key={m}
               kind="filter"
               selected={on}
-              label={ko ? `${m}분` : `${m} min`}
+              label={t("focus.preset", { min: m })}
               icon={on ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={16} /> : undefined}
               onPress={() => setPreset(m)}
             />
@@ -2266,14 +2388,14 @@ export function DeepSpaceFocusScreen() {
       {/* controls */}
       <View style={cx.controlsRow}>
         <MdButton
-          label={timer.running ? (ko ? "일시정지" : "Pause") : (ko ? "집중 시작" : "Start focus")}
+          label={timer.running ? t("focus.pause") : t("focus.startFocus")}
           variant={timer.running ? "tonal" : "filled"}
           icon={<CloneIcon name={timer.running ? "pause" : "play_arrow"} color={timer.running ? m3.color.onSecondaryContainer : m3.color.onPrimary} size={18} fill={!timer.running} />}
           onPress={() => setTimer((s) => (s.running ? pause(s) : start(s)))}
           style={{ flex: 2 }}
         />
         <MdButton
-          label={ko ? "리셋" : "Reset"}
+          label={t("focus.resetBtn")}
           variant="outlined"
           icon={<CloneIcon name="replay" color={m3.color.primary} size={18} />}
           onPress={() => setTimer((s) => reset(s))}
@@ -2282,7 +2404,7 @@ export function DeepSpaceFocusScreen() {
       </View>
 
       {/* linked star */}
-      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{ko ? "어떤 별을 위해?" : "For which star?"}</RNText>
+      <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("focus.forWhichStar")}</RNText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={cx.chipScroll}>
         {(ko ? FOCUS_STARS : FOCUS_STARS_EN).map((s, i) => (
           <MdChip
@@ -2304,8 +2426,8 @@ export function DeepSpaceFocusScreen() {
           ))}
         </View>
         <View style={cx.flex1}>
-          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{ko ? `오늘 ${doneToday}회 집중` : `${doneToday} focus sessions today`}</RNText>
-          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>{ko ? `약 ${doneToday * focusMin}분 · 목표 ${target}회` : `About ${doneToday * focusMin} min · goal ${target}`}</RNText>
+          <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{t("focus.todayCount", { sessions: doneToday })}</RNText>
+          <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>{t("focus.todaySub", { min: doneToday * focusMin, goal: target })}</RNText>
         </View>
         <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
       </MdCard>

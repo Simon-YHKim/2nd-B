@@ -3,7 +3,10 @@
     "today": "Hoy",
     "yesterday": "Ayer",
     "daysAgo": "hace {{count}} días",
+    "daysAgo_plural": "hace {{count}} días",
     "hoursAgo": "hace {{count}} horas",
+    "minsAgo": "hace {{count}} min",
+    "hoursAgo_plural": "hace {{count}} horas",
     "now": "Ahora mismo",
     "recordFallback": "Registro",
     "monthDay": "{{day}}/{{month}}"
@@ -27,6 +30,7 @@
   "research": {
     "title": "Encontrar conexiones",
     "headerFound": "Se encontraron {{count}} conexiones entre tus registros dispersos.",
+    "headerFound_plural": "Se encontraron {{count}} conexiones entre tus registros dispersos.",
     "headerNone": "A medida que se acumulen los registros, encontraré y mostraré los enlaces entre ellos.",
     "tip": "Toca una etiqueta para ver su grupo.",
     "lead": "Así se conectan tus registros dispersos",
@@ -52,8 +56,10 @@
   "records": {
     "title": "Archivo",
     "headerCount": "Has entretejido {{count}} piezas en tu wiki.",
+    "headerCount_plural": "Has entretejido {{count}} piezas en tu wiki.",
     "headerEmpty": "Aún no has guardado ninguna pieza.",
     "tip": "{{count}} piezas sin clasificar te esperan en la bandeja.",
+    "tip_plural": "{{count}} piezas sin clasificar te esperan en la bandeja.",
     "lead": "Todo lo que has guardado, en una sola línea de tiempo",
     "filterAll": "Todo",
     "filterJournal": "Diario",
@@ -176,7 +182,11 @@
     "labelLinked": "Cuenta vinculada",
     "labelLanguage": "Idioma",
     "valueLanguage": "Español",
-    "delete": "Eliminar cuenta"
+    "delete": "Eliminar cuenta",
+    "navProfile": "Perfil",
+    "navSettings": "Ajustes",
+    "navData": "Mis datos",
+    "navBeyond": "Fuera de la app"
   },
   "privacy": {
     "title": "Privacidad",
@@ -203,7 +213,9 @@
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "2nd-Brain v1.0.0 · 2 días hábiles KST"
+    "footer": "2nd-Brain v1.0.0 · 2 días hábiles KST",
+    "faqTitle": "Preguntas frecuentes",
+    "noticesTitle": "Avisos"
   },
   "integrations": {
     "title": "Integraciones de apps",
@@ -217,6 +229,37 @@
     "healthLabel": "Salud · Calendario",
     "permissionNeeded": "Permiso necesario",
     "footer": "Revisas los datos de integración antes de importar y puedes desconectarlos cuando quieras."
+  },
+  "connect": {
+    "title": "Sincronización de datos",
+    "lead": "Conectar ilumina tus estrellas más rápido. Todo el procesamiento ocurre primero en tu dispositivo.",
+    "consent": "El contenido original nunca se guarda; solo se conservan las señales derivadas, cifradas, y puedes desconectar y borrar cuando quieras.",
+    "connected": "Conectado",
+    "connect": "Conectar",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "conectado",
+    "a11yConnect": "conectar",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Señales de ritmo y relaciones desde tu agenda"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "El sueño y la actividad alimentan tu estrella de salud"
+      },
+      "notion": {
+        "sub": "Importa notas y documentos"
+      },
+      "photos": {
+        "name": "Álbum de fotos",
+        "sub": "Descanso y relaciones a partir de tus escenas"
+      },
+      "gpt": {
+        "name": "Exportación de ChatGPT",
+        "sub": "Trae tu historial de conversaciones"
+      }
+    }
   },
   "insights": {
     "title": "Perspectivas",
@@ -286,7 +329,8 @@
     "sectionData": "Datos · Privacidad",
     "q4": "¿Qué es un archivo IDEN?",
     "q5": "¿Dónde se almacenan mis datos?",
-    "askDirect": "Preguntar directamente a SecondB"
+    "askDirect": "Preguntar directamente a SecondB",
+    "conceptsTitle": "Conceptos clave"
   },
   "plans": {
     "title": "Planes",
@@ -582,7 +626,8 @@
     "a11yZoomOut": "Alejar",
     "a11yZoomIn": "Acercar",
     "hintSelected": "{{label}} · toca de nuevo para abrir",
-    "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir"
+    "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir",
+    "untitled": "(sin título)"
   },
   "wikiGraph": {
     "a11yGraph": "Grafo de nodos de la wiki",

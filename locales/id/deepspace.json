@@ -3,7 +3,10 @@
     "today": "Hari ini",
     "yesterday": "Kemarin",
     "daysAgo": "{{count}} hari lalu",
+    "daysAgo_plural": "{{count}} hari lalu",
     "hoursAgo": "{{count}} jam lalu",
+    "minsAgo": "{{count}} mnt lalu",
+    "hoursAgo_plural": "{{count}} jam lalu",
     "now": "Baru saja",
     "recordFallback": "Catatan",
     "monthDay": "{{day}}/{{month}}"
@@ -27,6 +30,7 @@
   "research": {
     "title": "Temukan koneksi",
     "headerFound": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
+    "headerFound_plural": "Menemukan {{count}} koneksi di antara catatanmu yang tersebar.",
     "headerNone": "Saat catatan menumpuk, aku akan menemukan dan menunjukkan tautan di antaranya.",
     "tip": "Ketuk sebuah tag untuk melihat klasternya.",
     "lead": "Beginilah catatanmu yang tersebar saling terhubung",
@@ -52,8 +56,10 @@
   "records": {
     "title": "Arsip",
     "headerCount": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
+    "headerCount_plural": "Kamu sudah menganyam {{count}} keping ke wiki-mu.",
     "headerEmpty": "Kamu belum menyimpan keping apa pun.",
     "tip": "{{count}} keping tak terkategori menunggu di kotak masuk.",
+    "tip_plural": "{{count}} keping tak terkategori menunggu di kotak masuk.",
     "lead": "Semua yang kamu simpan, dalam satu lini masa",
     "filterAll": "Semua",
     "filterJournal": "Jurnal",
@@ -176,7 +182,11 @@
     "labelLinked": "Akun tertaut",
     "labelLanguage": "Bahasa",
     "valueLanguage": "Indonesia",
-    "delete": "Hapus akun"
+    "delete": "Hapus akun",
+    "navProfile": "Profil",
+    "navSettings": "Pengaturan",
+    "navData": "Dataku",
+    "navBeyond": "Di luar aplikasi"
   },
   "privacy": {
     "title": "Privasi",
@@ -203,7 +213,9 @@
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "2nd-Brain v1.0.0 · 2 hari kerja KST"
+    "footer": "2nd-Brain v1.0.0 · 2 hari kerja KST",
+    "faqTitle": "Pertanyaan umum",
+    "noticesTitle": "Pengumuman"
   },
   "integrations": {
     "title": "Integrasi aplikasi",
@@ -217,6 +229,37 @@
     "healthLabel": "Kesehatan · Kalender",
     "permissionNeeded": "Perlu izin",
     "footer": "Kamu meninjau data integrasi sebelum mengimpor, dan bisa memutuskan kapan saja."
+  },
+  "connect": {
+    "title": "Sinkronisasi data",
+    "lead": "Menghubungkan membuat bintangmu menyala lebih cepat. Semua pemrosesan terjadi di perangkatmu dulu.",
+    "consent": "Konten asli tidak pernah disimpan; hanya sinyal turunan yang disimpan, terenkripsi, dan kamu bisa memutus dan menghapusnya kapan saja.",
+    "connected": "Terhubung",
+    "connect": "Hubungkan",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "terhubung",
+    "a11yConnect": "hubungkan",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Sinyal ritme dan hubungan dari jadwalmu"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "Tidur dan aktivitas mengisi bintang kesehatanmu"
+      },
+      "notion": {
+        "sub": "Impor catatan dan dokumen"
+      },
+      "photos": {
+        "name": "Album foto",
+        "sub": "Istirahat dan hubungan dari momen-momenmu"
+      },
+      "gpt": {
+        "name": "Ekspor ChatGPT",
+        "sub": "Bawa masuk riwayat obrolanmu"
+      }
+    }
   },
   "insights": {
     "title": "Wawasan",
@@ -286,7 +329,8 @@
     "sectionData": "Data · Privasi",
     "q4": "Apa itu berkas IDEN?",
     "q5": "Di mana dataku disimpan?",
-    "askDirect": "Tanya SecondB langsung"
+    "askDirect": "Tanya SecondB langsung",
+    "conceptsTitle": "Konsep inti"
   },
   "plans": {
     "title": "Paket",
@@ -582,7 +626,8 @@
     "a11yZoomOut": "Perkecil",
     "a11yZoomIn": "Perbesar",
     "hintSelected": "{{label}} · ketuk lagi untuk membuka",
-    "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka"
+    "hintDefault": "Putus-putus = catatan yang terhubung oleh tag yang sama. Ketuk untuk memilih, ketuk lagi untuk membuka",
+    "untitled": "(tanpa judul)"
   },
   "wikiGraph": {
     "a11yGraph": "Grafik simpul wiki",

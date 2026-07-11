@@ -62,6 +62,17 @@ export interface BuildRecordsGraphOptions {
   includeEmptyDomains?: boolean;
   /** cap on cross-domain link edges (O(n^2) worst case) to bound huge corpora. */
   maxLinks?: number;
+  /**
+   * Localized node labels, injected by the screen (this module is pure and has
+   * no i18n). Without them the graph fell back to nameKo/nameEn, so an es user
+   * saw "Relaciones" on the home constellation but "Relationship" on the same
+   * star here. Screens pass home:ds.home.domainName.* / ds.home.polaris.
+   */
+  labels?: {
+    polaris: string;
+    star: (id: DomainId) => string;
+    untitled: string;
+  };
 }
 
 const POLARIS_ID = "polaris";
@@ -83,10 +94,13 @@ function starLabel(id: DomainId, locale: "en" | "ko"): string {
   return locale === "ko" ? s.nameKo : s.nameEn;
 }
 
-function recordLabel(r: GraphRecord, locale: "en" | "ko"): string {
+function recordTitleOf(r: GraphRecord): string | null {
   const t = (r.topic ?? r.summary ?? "").trim();
-  if (t.length > 0) return t;
-  return locale === "ko" ? "(제목 없음)" : "(untitled)";
+  return t.length > 0 ? t : null;
+}
+
+function recordLabel(r: GraphRecord, locale: "en" | "ko"): string {
+  return recordTitleOf(r) ?? (locale === "ko" ? "(제목 없음)" : "(untitled)");
 }
 
 export function buildRecordsGraph(
@@ -95,9 +109,10 @@ export function buildRecordsGraph(
 ): RecordsGraph {
   const locale = opts.locale ?? "en";
   const maxLinks = opts.maxLinks ?? DEFAULT_MAX_LINKS;
+  const starName = (id: DomainId) => (opts.labels ? opts.labels.star(id) : starLabel(id, locale));
 
   const nodes: RecordsGraphNode[] = [
-    { id: POLARIS_ID, kind: "polaris", label: locale === "ko" ? "북극성" : "North Star" },
+    { id: POLARIS_ID, kind: "polaris", label: opts.labels?.polaris ?? (locale === "ko" ? "북극성" : "North Star") },
   ];
   const edges: RecordsGraphEdge[] = [];
 
@@ -114,13 +129,18 @@ export function buildRecordsGraph(
   for (const star of DOMAIN_STARS) {
     if (!opts.includeEmptyDomains && !used.has(star.id)) continue;
     const domId = `domain:${star.id}`;
-    nodes.push({ id: domId, kind: "domain", label: starLabel(star.id, locale), domain: star.id });
+    nodes.push({ id: domId, kind: "domain", label: starName(star.id), domain: star.id });
     edges.push({ a: POLARIS_ID, b: domId, kind: "spine" });
   }
 
   // Record nodes + their branch edge to the owning domain star.
   for (const a of annotated) {
-    nodes.push({ id: a.r.id, kind: "record", label: recordLabel(a.r, locale), domain: a.domain });
+    nodes.push({
+      id: a.r.id,
+      kind: "record",
+      label: recordTitleOf(a.r) ?? (opts.labels ? opts.labels.untitled : recordLabel(a.r, locale)),
+      domain: a.domain,
+    });
     edges.push({ a: `domain:${a.domain}`, b: a.r.id, kind: "branch" });
   }
 

@@ -30,30 +30,35 @@ import { keepAllKo } from "@/lib/i18n/keep-all";
 // from the reference RatifyScreen DEC map (#F7B955) as its M3 caution accent.
 const HOLD_AMBER = "#F7B955";
 
-const starName = (starId: StarId, locale: "en" | "ko"): string => {
+type Tx = (key: string, options?: Record<string, unknown>) => string;
+
+// Star names resolve through home:ds.home.starName.<id> (all five locales);
+// the SELF_UNDERSTANDING_STARS nameKo/nameEn pair only ever covered two.
+const starName = (starId: StarId, t: Tx): string => {
   const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === starId);
-  return star ? (locale === "ko" ? star.nameKo : star.nameEn) : starId;
+  return star ? t(`home:ds.home.starName.${star.id}`) : starId;
 };
 
-function originLabel(origin: string | null, locale: "en" | "ko"): string {
-  if (origin === "ratify") return locale === "ko" ? "내가 승인" : "You ratified";
-  if (origin === "rebuild") return locale === "ko" ? "재계산" : "Recomputed";
-  if (!origin) return locale === "ko" ? "기록" : "Recorded";
+function originLabel(origin: string | null, t: Tx): string {
+  if (origin === "ratify") return t("originRatify");
+  if (origin === "rebuild") return t("originRebuild");
+  if (!origin) return t("originRecorded");
   return origin;
 }
 
 // Relative time from an ISO timestamp — 방금 / N분 전 / N시간 전 / N일 전, else
-// the date. Keeps the reference's terse "when" column without a date library.
-function relativeTime(iso: string, locale: "en" | "ko"): string {
+// the date. Keeps the reference's terse "when" column without a date library;
+// labels come from the shared deepspace:time.* set so all five locales resolve.
+function relativeTime(iso: string, t: Tx): string {
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return iso.slice(0, 10);
   const mins = Math.floor((Date.now() - then) / 60000);
-  if (mins < 1) return locale === "ko" ? "방금" : "just now";
-  if (mins < 60) return locale === "ko" ? `${mins}분 전` : `${mins}m ago`;
+  if (mins < 1) return t("deepspace:time.now");
+  if (mins < 60) return t("deepspace:time.minsAgo", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return locale === "ko" ? `${hrs}시간 전` : `${hrs}h ago`;
+  if (hrs < 24) return t("deepspace:time.hoursAgo", { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 7) return locale === "ko" ? `${days}일 전` : `${days}d ago`;
+  if (days < 7) return t("deepspace:time.daysAgo", { count: days });
   return iso.slice(0, 10);
 }
 
@@ -80,9 +85,8 @@ function CheckIcon({ color }: { color: string }) {
 }
 
 export default function RatificationLogScreen() {
-  const { t, i18n } = useTranslation("ratifications");
+  const { t } = useTranslation("ratifications");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [showUnchanged, setShowUnchanged] = useState(false);
   const [filter, setFilter] = useState<"전체" | "승인" | "보류" | "거절">("전체");
@@ -100,10 +104,7 @@ export default function RatificationLogScreen() {
   }, [userId]);
 
   const barTitle = t("barTitle");
-  const subtitleText =
-    locale === "ko"
-      ? "세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요."
-      : "SecondB proposes; you always decide. Nothing reaches a star without your consent.";
+  const subtitleText = t("subtitle");
 
   if (loading) {
     return (
@@ -174,18 +175,14 @@ export default function RatificationLogScreen() {
         ) : visible.length === 0 && unchanged.length === 0 ? (
           <MdCard variant="outlined" style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              {locale === "ko"
-                ? "아직 승인한 변화가 없어요. 북극성에서 제안을 점검하고 승인하면 여기 남아요."
-                : "No ratified changes yet. Review a proposal in Polaris and it lands here."}
+              {t("emptyAll")}
             </Text>
             <MdButton variant="tonal" label={t("goPolaris")} onPress={() => router.replace("/core-brain")} />
           </MdCard>
         ) : visible.length === 0 ? (
           <MdCard variant="outlined" style={styles.emptyCard}>
             <Text style={styles.emptyText}>
-              {locale === "ko"
-                ? "이 갈래에 해당하는 기록이 없어요. 반영된 기록은 모두 ‘승인’이에요."
-                : "No records in this filter. Every landed record is ratified."}
+              {t("emptyFilter")}
             </Text>
           </MdCard>
         ) : (
@@ -196,7 +193,7 @@ export default function RatificationLogScreen() {
                   <StarGlyph color={m3.color.onSurfaceVariant} />
                 </View>
                 <Text style={styles.source} numberOfLines={1}>
-                  {originLabel(entry.origin, locale)}
+                  {originLabel(entry.origin, t)}
                 </Text>
                 <View style={styles.pill}>
                   <CheckIcon color={m3.color.onPrimaryContainer} />
@@ -205,7 +202,7 @@ export default function RatificationLogScreen() {
               </View>
               <View style={styles.entryMeta}>
                 <Text style={styles.target} numberOfLines={1}>
-                  {starName(entry.starId, locale)}
+                  {starName(entry.starId, t)}
                 </Text>
                 <View style={styles.delta}>
                   {/* No prior level = first observation; the reference marks it "—".
@@ -214,7 +211,7 @@ export default function RatificationLogScreen() {
                   <Text style={styles.arrow}>→</Text>
                   <Text style={[styles.deltaText, styles.deltaTo]}>{`L${entry.level}`}</Text>
                 </View>
-                <Text style={styles.when}>{relativeTime(entry.recordedAt, locale)}</Text>
+                <Text style={styles.when}>{relativeTime(entry.recordedAt, t)}</Text>
               </View>
               {entry.citedCount > 0 ? (
                 <Text style={styles.note}>{t("cited", { n: entry.citedCount })}</Text>

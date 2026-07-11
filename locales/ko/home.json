@@ -99,6 +99,15 @@
         "recreation": "휴식",
         "collect": "담아내기"
       },
+      "starName": {
+        "now": "지금의 나",
+        "recall": "회상",
+        "seen": "보여지는 나",
+        "rhythm": "리듬",
+        "relational": "관계의 나",
+        "possible": "될 수 있는 나",
+        "values": "가치의 나"
+      },
       "inbox": "알림",
       "headA11y": "세컨비에게 물어보기",
       "kind": {
