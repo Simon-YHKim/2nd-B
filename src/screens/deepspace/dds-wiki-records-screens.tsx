@@ -29,7 +29,7 @@ import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { deleteRecord, getRecordById, listRecentRecords, updateRecordTags } from "@/lib/records/create";
+import { deleteRecord, getRecordById, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -811,6 +811,38 @@ export function DeepSpaceRecordDetailScreen() {
     },
     [userId, record, recordId],
   );
+  // 편집: inline-edit this record's body text in place. The Edit CTA used to
+  // route to /capture, which has no edit mode, so the labelled action did
+  // nothing to the record. Optimistic + revert, same shape as add-tag/move.
+  // Only the body column is written; the domain: tag (star membership) and the
+  // structured payload are left untouched — the editor is gated to plain-body
+  // records so a machine JSON body is never overwritten with prose.
+  const [editing, setEditing] = useState(false);
+  const [bodyDraft, setBodyDraft] = useState("");
+  const startEdit = useCallback(() => {
+    if (!record) return;
+    setBodyDraft(record.body ?? "");
+    setEditing(true);
+  }, [record]);
+  const submitEdit = useCallback(async () => {
+    const next = bodyDraft.trim();
+    if (!userId || !record || !recordId) {
+      setEditing(false);
+      return;
+    }
+    const prevBody = record.body ?? "";
+    if (next.length === 0 || next === prevBody.trim()) {
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+    setRecord({ ...record, body: next });
+    try {
+      await updateRecord(userId, recordId, { body: next });
+    } catch {
+      setRecord({ ...record, body: prevBody });
+    }
+  }, [bodyDraft, userId, record, recordId]);
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -937,6 +969,32 @@ export function DeepSpaceRecordDetailScreen() {
               <Text variant="caption" style={rd.assessmentCtaText}>{t("recordDetail.assessmentCta")}</Text>
             </Pressable>
           </View>
+        ) : editing ? (
+          <View style={styles.recBody}>
+            <TextInput
+              value={bodyDraft}
+              onChangeText={setBodyDraft}
+              multiline
+              autoFocus
+              textAlignVertical="top"
+              style={rd.editInput}
+              accessibilityLabel={t("ds.wikiRecords.edit")}
+            />
+            <View style={rd.editActions}>
+              <Button
+                label={t("recordDetail.deleteCancel")}
+                variant="secondary"
+                onPress={() => setEditing(false)}
+                style={rd.confirmBtn}
+              />
+              <Button
+                label={t("recordDetail.editSave")}
+                variant="primary"
+                onPress={() => void submitEdit()}
+                style={rd.confirmBtn}
+              />
+            </View>
+          </View>
         ) : (
           <View style={styles.recBody}>
             <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
@@ -1028,9 +1086,11 @@ export function DeepSpaceRecordDetailScreen() {
       ) : null}
 
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary} onPress={() => router.push("/capture")} accessibilityRole="button">
-          <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.edit")}</Text>
-        </Pressable>
+        {record.body && record.body.trim().length > 0 && !assessmentRoute(record) && !parseStructured(record.structured) && !editing ? (
+          <Pressable style={styles.secondary} onPress={startEdit} accessibilityRole="button">
+            <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.edit")}</Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.secondary} onPress={() => setMoving(true)} accessibilityRole="button">
           <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.move")}</Text>
         </Pressable>
@@ -1105,6 +1165,19 @@ const rd = StyleSheet.create({
   confirmBtn: { flex: 1 },
   moveList: { gap: 8, marginTop: 12 },
   moveBtn: { alignSelf: "stretch" },
+  editInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: colors.borderHi,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgDeep,
+    color: colors.textTitle,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  editActions: { flexDirection: "row", gap: 10, marginTop: 10 },
   typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, marginBottom: 10 },
   typeLabel: { color: colors.textMid, fontSize: 11 },
   sbCard: {

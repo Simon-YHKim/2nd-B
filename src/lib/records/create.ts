@@ -353,6 +353,25 @@ export async function updateRecordTags(userId: string, id: string, tags: string[
   if (error) throw error;
 }
 
+/** Patch a record's editable content columns (body / topic / conclusion).
+ *  Owner-only via the records_owner_all RLS policy (0009); the explicit user_id
+ *  keeps the index-friendly WHERE first. Domain classification (the domain: tag)
+ *  is intentionally left untouched — editing prose should not silently re-file
+ *  the record to another star (that is what Move is for). */
+export async function updateRecord(
+  userId: string,
+  id: string,
+  patch: { body?: string; topic?: string; conclusion?: string },
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("records")
+    .update(patch)
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // Delete a single record by id. RLS scopes to auth.uid(), so users can
 // only delete their own rows; we still pass userId explicitly so the
 // index-friendly WHERE fires first.
