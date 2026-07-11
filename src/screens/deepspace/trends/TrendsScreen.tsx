@@ -105,7 +105,7 @@ export function TrendsScreen() {
               <RNText style={s.delta}>{t("trends.delta8w")}</RNText>
             </View>
           </View>
-          <Svg viewBox={`0 0 ${W} ${H}`} width="100%" height={124} preserveAspectRatio="none">
+          <Svg viewBox={`0 0 ${W} ${H}`} width="100%" height={124} preserveAspectRatio="none" accessible accessibilityLabel={`${t("trends.overall")}, ${t("trends.delta8w")}`}>
             <Defs>
               <LinearGradient id="sbTrend" x1="0" y1="0" x2="0" y2="1">
                 <Stop offset="0%" stopColor={m3.color.primary} stopOpacity={0.32} />
