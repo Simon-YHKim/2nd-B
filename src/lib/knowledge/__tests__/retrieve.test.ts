@@ -4,6 +4,9 @@
 
 // The retrieve module pulls in supabase client + env. Mock both so the
 // router can run pure-function-style.
+// Configurable candidate rows the mocked knowledge_sources query returns. Defaults to
+// [] so the routing tests below are unaffected; the grounding-integrity test sets it.
+let mockKnowledgeRows: unknown[] = [];
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from: () => ({
@@ -11,7 +14,7 @@ jest.mock("../../supabase/client", () => ({
         in: function () { return this; },
         eq: function () { return this; },
         or: function () { return this; },
-        limit: function () { return Promise.resolve({ data: [], error: null }); },
+        limit: function () { return Promise.resolve({ data: mockKnowledgeRows, error: null }); },
       }),
     }),
   }),
@@ -221,6 +224,38 @@ describe("retrieveEvidence — routing table", () => {
     const r = await retrieveEvidence({ userMessage: "hi", userLocale: "en" });
     expect(r.assembledPrompt).toMatch(/INJECTION GUARD/);
     expect(r.assembledPrompt).toMatch(/<UNTRUSTED>.*<\/UNTRUSTED>/);
+  });
+});
+
+describe("retrieveEvidence — grounding integrity", () => {
+  afterEach(() => {
+    mockKnowledgeRows = [];
+  });
+
+  test("returned/displayed evidence never exceeds what the model was shown", async () => {
+    // 8 same-framework candidates → fuseFrameworks returns 8, but the prompt grounds
+    // on only PROMPT_EVIDENCE_LIMIT rows. callAdvisor surfaces the returned rows to the
+    // user as "what grounded this answer", so any returned row absent from the prompt
+    // is a source the model never saw. Every returned row must appear in the prompt.
+    mockKnowledgeRows = Array.from({ length: 8 }, (_, i) => ({
+      id: `ev${i}`,
+      title: `Evidence row number ${i}`,
+      authors: [],
+      doi: null,
+      url: null,
+      framework: "self_knowledge",
+      age_range: "lifespan",
+      locale: "both",
+      verified_at: null,
+      summary_ko: null,
+      summary_en: `summary ${i}`,
+      application_notes: null,
+    }));
+    const r = await retrieveEvidence({ userMessage: "who am I really", userLocale: "en" });
+    expect(r.rows.length).toBeLessThanOrEqual(6);
+    for (const row of r.rows) {
+      expect(r.assembledPrompt).toContain(row.title);
+    }
   });
 });
 
