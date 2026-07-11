@@ -10,13 +10,14 @@
  * Star brightness stays live (starLevels/northStarBrightness from
  * loadDomainLevels); the opacity curve is the prototype's 0.36 + L/5×0.64.
  */
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 import { fontFamilies } from "@/theme/typography";
 import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
@@ -131,6 +132,66 @@ function buildNeuralField(w: number, h: number) {
   return { nodes: nodes.map((n) => ({ ...n, fade: near(n) ? 1 : 0.16 })), stars, links };
 }
 
+// The stage washes + static neural field are a pure function of the stage
+// dimensions (no per-tap props), so they must not re-reconcile the ~100-element
+// SVG every time a star/head tap flips `bubble` in ConstellationHome. Extracted
+// and memoized on the w/h primitives: it re-renders only on a real stage resize.
+const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: number; h: number }) {
+  const neural = useMemo(() => buildNeuralField(w, h), [w, h]);
+  return (
+    <Svg width={w} height={h} style={StyleSheet.absoluteFill}>
+      <Defs>
+        <RadialGradient id="ds-stage" cx="50%" cy="26%" rx="120%" ry="70%">
+          <Stop offset="0" stopColor={m3.accent.stageGlow} stopOpacity={0.5} />
+          <Stop offset="0.42" stopColor={m3.accent.skySurface} stopOpacity={0.3} />
+          <Stop offset="0.76" stopColor={m3.accent.stageFloor} stopOpacity={1} />
+          <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={1} />
+        </RadialGradient>
+        <RadialGradient id="ds-vignette" cx="50%" cy="30%" rx="72%" ry="72%">
+          <Stop offset="0" stopColor={m3.accent.stageFloor} stopOpacity={0} />
+          <Stop offset="0.4" stopColor={m3.accent.stageFloor} stopOpacity={0} />
+          <Stop offset="0.72" stopColor={m3.accent.stageFloor} stopOpacity={0.3} />
+          <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={0.62} />
+        </RadialGradient>
+        <RadialGradient id="ds-node" cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={m3.accent.star} stopOpacity={0.3} />
+          <Stop offset="0.4" stopColor={m3.accent.skyText} stopOpacity={0.1} />
+          <Stop offset="1" stopColor={m3.accent.starCore} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x={0} y={0} width={w} height={h} fill="url(#ds-stage)" />
+      {neural.links.map((l, i) => (
+        <Path
+          key={`l${i}`}
+          d={`M${l.ax},${l.ay} Q${l.mx},${l.my} ${l.bx},${l.by}`}
+          fill="none"
+          stroke={withAlpha(m3.accent.starCore, l.a)}
+          strokeWidth={l.wln}
+          strokeLinecap="round"
+        />
+      ))}
+      {neural.nodes.map((n, i) => {
+        const pulse = 0.72 + Math.sin(n.phase) * 0.24;
+        return (
+          <Fragment key={`n${i}`}>
+            <Circle cx={n.x} cy={n.y} r={n.r * (3.4 + pulse)} fill="url(#ds-node)" opacity={n.depth * n.fade} />
+            <Circle
+              cx={n.x}
+              cy={n.y}
+              r={n.r * pulse}
+              fill={withAlpha(m3.accent.star, Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
+            />
+          </Fragment>
+        );
+      })}
+      {neural.stars.map((s, i) => (
+        <Circle key={`t${i}`} cx={s.x} cy={s.y} r={s.r} fill={withAlpha(m3.accent.star, Math.max(0, s.a))} />
+      ))}
+      <Rect x={0} y={0} width={w} height={h} fill="url(#ds-vignette)" />
+    </Svg>
+  );
+});
+
 export function ConstellationHome({
   onStarTravel,
   onPolarisPress,
@@ -172,8 +233,6 @@ export function ConstellationHome({
   const pathOf = (ids: HomeStarId[], close = false) =>
     ids.map((id, i) => `${i === 0 ? "M" : "L"}${px(starAt(id).x)},${py(starAt(id).y)}`).join(" ") + (close ? " Z" : "");
 
-  const neural = useMemo(() => (stage ? buildNeuralField(stage.w, stage.h) : null), [stage]);
-
   const levelOf = (id: HomeStarId): LadderLevel =>
     id === "museum" ? MUSEUM_LEVEL : ((starLevels[id] ?? 1) as LadderLevel);
   const starName = (id: HomeStarId) =>
@@ -202,58 +261,7 @@ export function ConstellationHome({
           static neural field, then the edge vignette. */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <SbStarfield />
-        {stage ? (
-          <Svg width={stage.w} height={stage.h} style={StyleSheet.absoluteFill}>
-            <Defs>
-              <RadialGradient id="ds-stage" cx="50%" cy="26%" rx="120%" ry="70%">
-                <Stop offset="0" stopColor={m3.accent.stageGlow} stopOpacity={0.5} />
-                <Stop offset="0.42" stopColor={m3.accent.skySurface} stopOpacity={0.3} />
-                <Stop offset="0.76" stopColor={m3.accent.stageFloor} stopOpacity={1} />
-                <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={1} />
-              </RadialGradient>
-              <RadialGradient id="ds-vignette" cx="50%" cy="30%" rx="72%" ry="72%">
-                <Stop offset="0" stopColor={m3.accent.stageFloor} stopOpacity={0} />
-                <Stop offset="0.4" stopColor={m3.accent.stageFloor} stopOpacity={0} />
-                <Stop offset="0.72" stopColor={m3.accent.stageFloor} stopOpacity={0.3} />
-                <Stop offset="1" stopColor={m3.accent.stageFloor} stopOpacity={0.62} />
-              </RadialGradient>
-              <RadialGradient id="ds-node" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={m3.accent.star} stopOpacity={0.3} />
-                <Stop offset="0.4" stopColor={m3.accent.skyText} stopOpacity={0.1} />
-                <Stop offset="1" stopColor={m3.accent.starCore} stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Rect x={0} y={0} width={stage.w} height={stage.h} fill="url(#ds-stage)" />
-            {neural?.links.map((l, i) => (
-              <Path
-                key={`l${i}`}
-                d={`M${l.ax},${l.ay} Q${l.mx},${l.my} ${l.bx},${l.by}`}
-                fill="none"
-                stroke={withAlpha(m3.accent.starCore, l.a)}
-                strokeWidth={l.wln}
-                strokeLinecap="round"
-              />
-            ))}
-            {neural?.nodes.map((n, i) => {
-              const pulse = 0.72 + Math.sin(n.phase) * 0.24;
-              return (
-                <Fragment key={`n${i}`}>
-                  <Circle cx={n.x} cy={n.y} r={n.r * (3.4 + pulse)} fill="url(#ds-node)" opacity={n.depth * n.fade} />
-                  <Circle
-                    cx={n.x}
-                    cy={n.y}
-                    r={n.r * pulse}
-                    fill={withAlpha(m3.accent.star, Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
-                  />
-                </Fragment>
-              );
-            })}
-            {neural?.stars.map((s, i) => (
-              <Circle key={`t${i}`} cx={s.x} cy={s.y} r={s.r} fill={withAlpha(m3.accent.star, Math.max(0, s.a))} />
-            ))}
-            <Rect x={0} y={0} width={stage.w} height={stage.h} fill="url(#ds-vignette)" />
-          </Svg>
-        ) : null}
+        {stage ? <NeuralFieldBackdrop w={stage.w} h={stage.h} /> : null}
       </View>
 
       {/* home inbox bell (sb-app "home inbox bell": 40dp chip, 4dp under the
@@ -402,8 +410,13 @@ export function ConstellationHome({
           <View style={styles.bubble}>
             <View style={styles.bubbleCaret} />
             <Text style={styles.bubbleTag}>{bubbleTag}</Text>
-            {bubbleTitle ? <Text style={styles.bubbleTitle}>{bubbleTitle}</Text> : null}
-            <Text style={styles.bubbleLine}>{bubbleLine}</Text>
+            {/* keepAllKo joins Hangul words with U+2060 so the short bubble copy
+                wraps at spaces (Android breaks mid-word otherwise); the screen
+                reader gets the untouched string as accessibilityLabel. */}
+            {bubbleTitle ? (
+              <Text style={styles.bubbleTitle} accessibilityLabel={bubbleTitle}>{keepAllKo(bubbleTitle)}</Text>
+            ) : null}
+            <Text style={styles.bubbleLine} accessibilityLabel={bubbleLine}>{keepAllKo(bubbleLine)}</Text>
             {bubble.kind === "menu" ? (
               <View style={styles.bubbleActions}>
                 <MdButton label={t("ds.home.bubble.chatbot")} variant="filled" onPress={onChatPress} />

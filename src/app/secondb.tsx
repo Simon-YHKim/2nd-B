@@ -13,7 +13,7 @@
 //     buttons. The modal is dismissed via localStorage so it doesn't
 //     reappear every session.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
@@ -158,6 +158,139 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 // byte-identical for both variants — there is NO logic fork.
 type ChatVariant = "deep-space" | "legacy";
 
+interface ChatComposerHandle {
+  /** Push text into the composer (quick-action / branch / node-entry prefill). */
+  prefill: (text: string) => void;
+}
+
+interface ChatComposerProps {
+  variant: ChatVariant;
+  /** A send is in flight — drives the send-button spinner and blocks re-send. */
+  sending: boolean;
+  /** The non-draft half of canSend: not sending and under the daily cap. */
+  sendEnabled: boolean;
+  /** Commit a message. Returns true when accepted (composer clears its draft),
+   *  false when the send was refused (e.g. reasoning cap) so the draft is kept. */
+  onSend: (text: string) => boolean;
+  /** Node-entry seed (?fromNode=): pre-fills the draft once on first mount. */
+  fromNode?: string | null;
+  /** deep-space lens tint + placeholder subject (unused by the legacy chrome). */
+  lensAccent?: string;
+  lensName?: string;
+  inkOnAccent?: string;
+}
+
+// The chat composer owns its own draft so a keystroke re-renders ONLY this
+// subtree. Previously draft lived in SecondBChatBody, whose deep-space branch
+// returns the whole DeepSpaceScreen, so every character re-reconciled the
+// starfield, status header, dock, and every message bubble. Prefill from
+// quick-actions / branches / node entry comes in through the imperative handle;
+// onSend is a stable useCallback so this memo holds across parent renders.
+const ChatComposer = memo(
+  forwardRef<ChatComposerHandle, ChatComposerProps>(function ChatComposer(
+    {
+      variant,
+      sending,
+      sendEnabled,
+      onSend,
+      fromNode,
+      // Deep-space always passes these; the defaults only satisfy the type for
+      // the legacy chrome (which never reads them).
+      lensAccent = deepSpace.accent,
+      lensName = "",
+      inkOnAccent = m3.accent.onAccentInk,
+    },
+    ref,
+  ) {
+    const { t } = useTranslation("secondb");
+    // Node entry seeds the composer once (mirrors the old seeding effect); the
+    // initializer runs only on mount, so a later param change never re-seeds.
+    const [draft, setDraft] = useState(() => (fromNode ? t("aboutNode", { node: fromNode }) : ""));
+    useImperativeHandle(ref, () => ({ prefill: (text: string) => setDraft(text) }), []);
+    const canSend = draft.trim().length > 0 && sendEnabled;
+    const submit = () => {
+      if (!canSend) return;
+      // Clear only when the send was accepted, so a cap-blocked send keeps the
+      // typed text (the old handleSend returned before clearing on a cap hit).
+      if (onSend(draft.trim())) setDraft("");
+    };
+
+    if (variant === "deep-space") {
+      return (
+        <View style={ds.composer}>
+          <View style={ds.inputPill}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t("askLens", { lens: lensName })}
+              placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+              style={ds.pillInput}
+              accessibilityLabel={t("inputA11y")}
+              onSubmitEditing={submit}
+              returnKeyType="send"
+              onKeyPress={(e) => {
+                // Web: Enter sends, Shift+Enter inserts a newline.
+                if (Platform.OS !== "web") return;
+                const we = e as unknown as {
+                  key?: string;
+                  shiftKey?: boolean;
+                  nativeEvent: { key: string; shiftKey?: boolean };
+                  preventDefault?: () => void;
+                };
+                const key = we.nativeEvent?.key ?? we.key;
+                const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
+                if (key === "Enter" && !shift) {
+                  we.preventDefault?.();
+                  submit();
+                }
+              }}
+            />
+            <Pressable
+              style={ds.micBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("voiceInput")}
+            >
+              <IconMic color={m3.color.onSurfaceVariant} size={22} />
+            </Pressable>
+          </View>
+          <Pressable
+            onPress={submit}
+            disabled={!canSend}
+            style={[
+              ds.sendBtn,
+              { borderColor: lensAccent, backgroundColor: canSend ? lensAccent : "transparent" },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t("send")}
+            accessibilityState={{ disabled: !canSend }}
+          >
+            {sending ? (
+              <ActivityIndicator color={inkOnAccent} />
+            ) : (
+              <IconSend color={canSend ? inkOnAccent : lensAccent} size={22} />
+            )}
+          </Pressable>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.composerPrimary}>
+        <Input
+          value={draft}
+          onChangeText={setDraft}
+          placeholder={t("placeholder")}
+          multiline
+          style={styles.composerInput}
+          accessibilityLabel={t("inputA11y")}
+        />
+        <Button label={t("send")} variant="primary" onPress={submit} disabled={!canSend} loading={sending} />
+      </View>
+    );
+  }),
+);
+
 export default function SecondBChat() {
   return <SecondBChatBody variant={isDeepSpaceUI() ? "deep-space" : "legacy"} />;
 }
@@ -184,7 +317,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
-  const [draft, setDraft] = useState("");
+  // The draft now lives inside ChatComposer (keystroke isolation); the parent
+  // reaches it only to prefill (quick-actions / branches) via this handle.
+  const composerRef = useRef<ChatComposerHandle>(null);
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
@@ -244,9 +379,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (isCharacterChat) {
       setTurns([{ role: "secondb", text: persona.greeting[locale], synthetic: true }]);
     }
-    if (fromNode) {
-      setDraft(t("aboutNode", { node: fromNode }));
-    }
+    // The fromNode draft seed is now the ChatComposer's initial state (it reads
+    // the fromNode prop), so it survives the composer mounting after the auth
+    // gates resolve.
   }, [fromNode, locale, isCharacterChat, persona]);
 
   const limit = useMemo(() => CHAT_DAILY_LIMIT[progression.tier], [progression.tier]);
@@ -315,6 +450,139 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     divergentPulse.setValue(0.6);
   }, [chatMode, sending, divergentPulse]);
 
+  // The composer owns the draft now, so it hands the trimmed text to onSend.
+  // Returns true when the send is committed (composer clears the draft) and
+  // false when the reasoning-cap gate refuses it (composer keeps the draft).
+  // Stable across renders (useCallback) so the memoized ChatComposer holds.
+  // Kept ABOVE the early returns so this hook always runs (rules-of-hooks).
+  const handleSend = useCallback(
+    (message: string): boolean => {
+      if (!userId) return false;
+      const msg = message.trim();
+      if (msg.length === 0) return false;
+
+      // Pre-send reasoning-cap gate (count-only — never a quality gate). Each send
+      // is one "깊이 묻기" reasoning use. Unlimited tiers (북극성/brain → Infinity)
+      // are never gated. On cap: free adults get the rewarded sheet ONLY when ads
+      // are actually configured (adsConfigured() — watch-to-earn needs a real ad to
+      // watch); otherwise, and for everyone else, we route to the paywall. This
+      // stops the placeholder ad from paying out reasoning credits while ads are
+      // OFF by default (ads/policy.ts). The chat engine / C9 / C3 path below is
+      // untouched — we only decide whether to reach it.
+      if (!reasoningUnlimited && reasoningRemaining <= 0) {
+        setCapNotice(true);
+        if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
+          setRewardVisible(true);
+        } else {
+          router.push("/plans?from=ai_limit");
+        }
+        return false;
+      }
+      setCapNotice(false);
+
+      setSending(true);
+      setTurns((prev) => [...prev, { role: "user", text: msg }]);
+      void (async () => {
+        try {
+          const result = await sendChatMessage({
+            userId,
+            message: msg,
+            locale,
+            tier: progression.tier,
+            personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
+            // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
+            // red-zone turns). Synthetic lines (greeting/limit/error) are not model
+            // replies, so they're excluded here.
+            history: turns
+              .filter((t) => !t.synthetic)
+              .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
+            mode: chatMode,
+            minor: isMinor === true,
+          });
+          if (result.status === "blocked") {
+            setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
+            setUsedToday(result.used);
+            if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
+            captureEvent(
+              secondBSession({
+                action: "message_sent",
+                mode: chatMode,
+                outcome: "blocked",
+                used: result.used,
+                limit,
+                tier: progression.tier,
+              }),
+            );
+            // 가디 steps in with a soft stop (companion pack §3 / C9).
+            companion.fire("safetySoftStop");
+            wasBlockedRef.current = true;
+          } else {
+            const { display, chips } = parseSourceCitations(result.reply.text);
+            // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
+            // to three '→ ' next-step lines — lift them into tappable chips.
+            const twi =
+              !isCharacterChat && chatMode === "divergent"
+                ? parseTwiBranches(display)
+                : { display, branches: [] as string[] };
+            setTurns((prev) => [
+              ...prev,
+              { role: "secondb", text: twi.display, chips, branches: twi.branches },
+            ]);
+            setUsedToday(result.used);
+            // SUCCESS only (not blocked / not crisis): this send consumed one
+            // reasoning use. Count it (count-only, never quality). Optimistically
+            // bump local used so the gate is live before the server round-trip
+            // resolves; still increment unlimited tiers for analytics (they never
+            // block). Fail-open: a failed increment must not break the answer.
+            setReasoningUsed((u) => u + 1);
+            void incrementReasoningUsage(userId).catch((e) => {
+              if (typeof console !== "undefined") console.warn("[secondb] incrementReasoningUsage failed", (e as Error).message);
+            });
+            captureEvent(
+              secondBSession({
+                action: "message_sent",
+                mode: chatMode,
+                outcome: "ok",
+                turn_count: turns.length + 1,
+                used: result.used,
+                limit,
+                tier: progression.tier,
+              }),
+            );
+            // 가디 gives the all-clear the first time we flow freely after a stop.
+            if (wasBlockedRef.current) {
+              companion.fire("safetyClear");
+              wasBlockedRef.current = false;
+            }
+          }
+        } catch (e) {
+          const failText = t("replyFailed");
+          setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true }]);
+          if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
+        } finally {
+          setSending(false);
+        }
+      })();
+      return true;
+    },
+    [
+      userId,
+      reasoningUnlimited,
+      reasoningRemaining,
+      progression.tier,
+      isMinor,
+      locale,
+      chatMode,
+      rev2Persona,
+      isCharacterChat,
+      persona,
+      turns,
+      limit,
+      companion,
+      t,
+    ],
+  );
+
   if (authLoading || progression.loading) return <InlineLoader />;
   if (!userId) {
     return <Redirect href="/sign-in" />;
@@ -325,119 +593,12 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // which keys off isMinor that is null until the birth date is on file).
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  async function handleSend(): Promise<void> {
-    if (!userId) return;
-    const msg = draft.trim();
-    if (msg.length === 0) return;
-
-    // Pre-send reasoning-cap gate (count-only — never a quality gate). Each send
-    // is one "깊이 묻기" reasoning use. Unlimited tiers (북극성/brain → Infinity)
-    // are never gated. On cap: free adults get the rewarded sheet ONLY when ads
-    // are actually configured (adsConfigured() — watch-to-earn needs a real ad to
-    // watch); otherwise, and for everyone else, we route to the paywall. This
-    // stops the placeholder ad from paying out reasoning credits while ads are
-    // OFF by default (ads/policy.ts). The chat engine / C9 / C3 path below is
-    // untouched — we only decide whether to reach it.
-    if (!reasoningUnlimited && reasoningRemaining <= 0) {
-      setCapNotice(true);
-      if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
-        setRewardVisible(true);
-      } else {
-        router.push("/plans?from=ai_limit");
-      }
-      return;
-    }
-    setCapNotice(false);
-
-    setSending(true);
-    setTurns((prev) => [...prev, { role: "user", text: msg }]);
-    setDraft("");
-    try {
-      const result = await sendChatMessage({
-        userId,
-        message: msg,
-        locale,
-        tier: progression.tier,
-        personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
-        // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
-        // red-zone turns). Synthetic lines (greeting/limit/error) are not model
-        // replies, so they're excluded here.
-        history: turns
-          .filter((t) => !t.synthetic)
-          .map((t) => ({ role: t.role === "user" ? ("user" as const) : ("assistant" as const), text: t.text })),
-        mode: chatMode,
-        minor: isMinor === true,
-      });
-      if (result.status === "blocked") {
-        setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
-        setUsedToday(result.used);
-        if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
-        captureEvent(
-          secondBSession({
-            action: "message_sent",
-            mode: chatMode,
-            outcome: "blocked",
-            used: result.used,
-            limit,
-            tier: progression.tier,
-          }),
-        );
-        // 가디 steps in with a soft stop (companion pack §3 / C9).
-        companion.fire("safetySoftStop");
-        wasBlockedRef.current = true;
-      } else {
-        const { display, chips } = parseSourceCitations(result.reply.text);
-        // 트위비 3-branch (P5f): Divergent replies on the main chat end with up
-        // to three '→ ' next-step lines — lift them into tappable chips.
-        const twi =
-          !isCharacterChat && chatMode === "divergent"
-            ? parseTwiBranches(display)
-            : { display, branches: [] as string[] };
-        setTurns((prev) => [
-          ...prev,
-          { role: "secondb", text: twi.display, chips, branches: twi.branches },
-        ]);
-        setUsedToday(result.used);
-        // SUCCESS only (not blocked / not crisis): this send consumed one
-        // reasoning use. Count it (count-only, never quality). Optimistically
-        // bump local used so the gate is live before the server round-trip
-        // resolves; still increment unlimited tiers for analytics (they never
-        // block). Fail-open: a failed increment must not break the answer.
-        setReasoningUsed((u) => u + 1);
-        void incrementReasoningUsage(userId).catch((e) => {
-          if (typeof console !== "undefined") console.warn("[secondb] incrementReasoningUsage failed", (e as Error).message);
-        });
-        captureEvent(
-          secondBSession({
-            action: "message_sent",
-            mode: chatMode,
-            outcome: "ok",
-            turn_count: turns.length + 1,
-            used: result.used,
-            limit,
-            tier: progression.tier,
-          }),
-        );
-        // 가디 gives the all-clear the first time we flow freely after a stop.
-        if (wasBlockedRef.current) {
-          companion.fire("safetyClear");
-          wasBlockedRef.current = false;
-        }
-      }
-    } catch (e) {
-      const msg =
-        t("replyFailed");
-      setTurns((prev) => [...prev, { role: "secondb", text: msg, synthetic: true }]);
-      if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  // Disable send once the daily AI limit is reached (the server also rejects via
-  // ChatLimitExceededError, but the UI should not look actionable). usedToday===null
-  // means the count is still loading, so allow until we know.
-  const canSend = draft.trim().length > 0 && !sending && (usedToday === null || usedToday < limit);
+  // The non-draft half of the composer's send gate: not already sending and
+  // under the daily AI limit (server also rejects via ChatLimitExceededError,
+  // but the UI should not look actionable). usedToday===null means the count is
+  // still loading, so allow until we know. ChatComposer ANDs this with a
+  // non-empty draft.
+  const sendEnabled = !sending && (usedToday === null || usedToday < limit);
   const usedDisplay = usedToday === null ? "..." : String(usedToday);
   const chatUiByWorker = {
     secondb: CORE_VILLAGE_UI,
@@ -598,7 +759,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                           <View key={branch} style={ds.branchRow}>
                             <Pressable
                               style={ds.branchChip}
-                              onPress={() => setDraft(branch)}
+                              onPress={() => composerRef.current?.prefill(branch)}
                               accessibilityRole="button"
                               accessibilityLabel={branch}
                               accessibilityHint={t("fillsComposer")}
@@ -646,7 +807,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                   onPress={() => {
                     if (qa.mode === "divergent" && !isCharacterChat) selectRev2Persona("twi");
                     else if (qa.mode) setChatMode(qa.mode);
-                    setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+                    composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={locale === "ko" ? qa.ko : qa.en}
@@ -746,62 +907,20 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
           {/* input bar (reference ChatScreen): a rounded pill holding the text
               field + inline mic, then a separate 48px round send button that
-              fills with the lens accent when there is something to send. */}
-          <View style={ds.composer}>
-            <View style={ds.inputPill}>
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder={t("askLens", { lens: lensName })}
-                placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
-                style={ds.pillInput}
-                accessibilityLabel={t("inputA11y")}
-                onSubmitEditing={() => { if (canSend) void handleSend(); }}
-                returnKeyType="send"
-                onKeyPress={(e) => {
-                  // Web: Enter sends, Shift+Enter inserts a newline.
-                  if (Platform.OS !== "web") return;
-                  const we = e as unknown as {
-                    key?: string;
-                    shiftKey?: boolean;
-                    nativeEvent: { key: string; shiftKey?: boolean };
-                    preventDefault?: () => void;
-                  };
-                  const key = we.nativeEvent?.key ?? we.key;
-                  const shift = we.shiftKey ?? we.nativeEvent?.shiftKey ?? false;
-                  if (key === "Enter" && !shift) {
-                    we.preventDefault?.();
-                    if (canSend) void handleSend();
-                  }
-                }}
-              />
-              <Pressable
-                style={ds.micBtn}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("voiceInput")}
-              >
-                <IconMic color={m3.color.onSurfaceVariant} size={22} />
-              </Pressable>
-            </View>
-            <Pressable
-              onPress={handleSend}
-              disabled={!canSend}
-              style={[
-                ds.sendBtn,
-                { borderColor: lensAccent, backgroundColor: canSend ? lensAccent : "transparent" },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t("send")}
-              accessibilityState={{ disabled: !canSend }}
-            >
-              {sending ? (
-                <ActivityIndicator color={inkOnAccent} />
-              ) : (
-                <IconSend color={canSend ? inkOnAccent : lensAccent} size={22} />
-              )}
-            </Pressable>
-          </View>
+              fills with the lens accent when there is something to send. Draft
+              state lives inside ChatComposer so a keystroke re-renders only the
+              composer, not this whole DeepSpaceScreen (starfield/header/dock). */}
+          <ChatComposer
+            ref={composerRef}
+            variant="deep-space"
+            sending={sending}
+            sendEnabled={sendEnabled}
+            onSend={handleSend}
+            fromNode={fromNode}
+            lensAccent={lensAccent}
+            lensName={lensName}
+            inkOnAccent={inkOnAccent}
+          />
         </KeyboardAvoidingView>
 
         {/* 첫 진입 인사 모달 */}
@@ -977,17 +1096,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           ) : null}
         </View>
 
-        <View style={styles.composerPrimary}>
-          <Input
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t("placeholder")}
-            multiline
-            style={styles.composerInput}
-            accessibilityLabel={t("inputA11y")}
-          />
-          <Button label={t("send")} variant="primary" onPress={handleSend} disabled={!canSend} loading={sending} />
-        </View>
+        <ChatComposer
+          ref={composerRef}
+          variant="legacy"
+          sending={sending}
+          sendEnabled={sendEnabled}
+          onSend={handleSend}
+          fromNode={fromNode}
+        />
 
         {/* reasoning-cap inline notice (count-only — NOT a quality message). */}
         {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
@@ -1187,7 +1303,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 style={styles.quickChip}
                 onPress={() => {
                   if (qa.mode) setChatMode(qa.mode);
-                  setDraft(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
+                  composerRef.current?.prefill(locale === "ko" ? qa.prompt.ko : qa.prompt.en);
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={locale === "ko" ? qa.ko : qa.en}

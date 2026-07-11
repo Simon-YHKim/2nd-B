@@ -67,7 +67,7 @@ interface StructuredRow {
   updated_at?: string | null;
 }
 
-export async function loadDomainLevels(userId: string): Promise<DomainBrightness> {
+async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
   const supabase = getSupabaseClient();
   const [recordsRes, relationRes, recreationRes, ledgerRes, readingRes, healthDeviceRes] =
     await Promise.all([
@@ -169,4 +169,72 @@ export async function loadDomainLevels(userId: string): Promise<DomainBrightness
   // pure and every other caller is unchanged.
   const domainLevels = domainStarLevels(entriesByDomain, opts, Date.now());
   return { domainLevels, northStarBrightness: northStarBrightness(domainLevels) };
+}
+
+// ── Per-user TTL cache + in-flight dedup ───────────────────────────────
+// The six-table scan above runs on every home mount (DeepSpaceShell), again on
+// every star tap (/star/[domain]), and serially inside every advisor chat reply
+// (gemini.ts) where it lands on the time-to-first-token path. None of that data
+// changes second-to-second, so a short per-userId cache collapses the repeat
+// scans while keeping the sky honest: any domain-affecting write calls
+// invalidateDomainLevels(userId) so the next read refetches. In-flight dedup
+// makes concurrent callers (home + advisor firing together) share one scan.
+const CACHE_TTL_MS = 45_000;
+
+interface CacheEntry {
+  expiresAt: number;
+  value: DomainBrightness;
+}
+
+const cache = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<DomainBrightness>>();
+
+/**
+ * Cheap, cached, deduped read of the seven DOMAIN-star levels + 북극성 brightness.
+ * Same signature as the underlying scan so every caller benefits transparently:
+ * a hit inside the TTL returns the memoized value, concurrent misses share one
+ * in-flight scan, and a stale/failed scan is never cached (retried next call).
+ */
+export function loadDomainLevels(userId: string): Promise<DomainBrightness> {
+  const cached = cache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+
+  const pending = inflight.get(userId);
+  if (pending) return pending;
+
+  const promise = fetchDomainLevels(userId).then(
+    (value) => {
+      // Only publish/clear if this is still the current in-flight scan. An
+      // invalidateDomainLevels() during the read replaces the slot, so a scan
+      // that started before the write must not re-populate the cache with stale
+      // data.
+      if (inflight.get(userId) === promise) {
+        cache.set(userId, { expiresAt: Date.now() + CACHE_TTL_MS, value });
+        inflight.delete(userId);
+      }
+      return value;
+    },
+    (err) => {
+      if (inflight.get(userId) === promise) inflight.delete(userId);
+      throw err;
+    },
+  );
+  inflight.set(userId, promise);
+  return promise;
+}
+
+/**
+ * Drop cached domain levels so the next loadDomainLevels() refetches. Called
+ * from the domain-affecting write paths (record save, relation/recreation/ops
+ * writers) so the home constellation is not stale right after the user adds
+ * data. No argument clears every user (e.g. on sign-out / test reset).
+ */
+export function invalidateDomainLevels(userId?: string): void {
+  if (userId === undefined) {
+    cache.clear();
+    inflight.clear();
+    return;
+  }
+  cache.delete(userId);
+  inflight.delete(userId);
 }

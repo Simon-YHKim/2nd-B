@@ -33,10 +33,15 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 
-import { loadDomainLevels } from "../load-domain-levels";
+import { invalidateDomainLevels, loadDomainLevels } from "../load-domain-levels";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
+  // loadDomainLevels now memoizes per userId, so every fixture swap (beforeEach
+  // and the in-test resets that reuse "u1") must also drop the cache — otherwise
+  // the next call returns the previous case's cached result instead of scanning
+  // the new fixtures.
+  invalidateDomainLevels();
 }
 
 // Recent (always inside the 60-day recency window) so the §4.5 ④ staleness gate —
