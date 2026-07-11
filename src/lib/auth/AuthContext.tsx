@@ -170,8 +170,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({ userId, hasProfile: probe.hasProfile, isMinor: probe.isMinor, loading: false });
     }
 
-    supabase.auth
-      .getSession()
+    // withTimeout the BOOT getSession too, not just fetchProfile: getSession can
+    // make an in-lock network token refresh when the stored token is expired, and
+    // if THAT hangs (blocked CORS / connected-but-no-response) it never resolves
+    // nor rejects, so .catch never fires and loading stays true forever — the exact
+    // stuck-on-the-loader failure this helper exists to prevent.
+    withTimeout(
+      supabase.auth.getSession(),
+      PROFILE_PROBE_TIMEOUT_MS,
+      { data: { session: null }, error: null } as Awaited<ReturnType<typeof supabase.auth.getSession>>,
+    )
       .then(({ data }) => {
         void resolveSession(data.session?.user.id ?? null);
       })
@@ -200,7 +208,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const gen = ++probeGenRef.current;
     let uid: string | null = null;
     try {
-      const { data } = await supabase.auth.getSession();
+      // Same hang guard as boot: a wedged getSession would otherwise stall
+      // submitSignUp/submitCompleteProfile (which await refresh() before
+      // navigating) with the submit spinner stuck on.
+      const { data } = await withTimeout(
+        supabase.auth.getSession(),
+        PROFILE_PROBE_TIMEOUT_MS,
+        { data: { session: null }, error: null } as Awaited<ReturnType<typeof supabase.auth.getSession>>,
+      );
       uid = data.session?.user.id ?? null;
     } catch {
       uid = null;
