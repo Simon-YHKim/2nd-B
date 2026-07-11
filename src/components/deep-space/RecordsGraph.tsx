@@ -13,9 +13,11 @@ import { Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
+import { MdChip } from "@/components/m3";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import type { RecordsGraph as RecordsGraphData } from "@/lib/records/records-graph";
+import { initialTagLinksVisible, linkEdgeCount } from "@/lib/records/records-graph";
 import { DOMAIN_COLOR, layoutRecordsGraph } from "@/lib/records/records-graph-layout";
 
 const CANVAS = 1000;
@@ -32,6 +34,11 @@ export function RecordsGraph({
   const { t } = useTranslation("deepspace");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoomIdx, setZoomIdx] = useState(0);
+  // Adaptive default: a dense corpus (125+ records → hundreds of dashed links)
+  // starts with the tag-link overlay OFF so the center stays readable; a small
+  // corpus keeps the proto's default (ON). Initial only — a manual toggle wins.
+  const linkCount = useMemo(() => linkEdgeCount(graph), [graph]);
+  const [showTagLinks, setShowTagLinks] = useState(() => initialTagLinksVisible(linkCount));
 
   const pos = useMemo(() => layoutRecordsGraph(graph), [graph]);
   const nodeById = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph]);
@@ -73,6 +80,8 @@ export function RecordsGraph({
             const b = pos[e.b];
             if (!a || !b) return null;
             const link = e.kind === "link";
+            // Gate ONLY the tag-shared dashed overlay; spine/branch always draw.
+            if (link && !showTagLinks) return null;
             const dom = link ? undefined : nodeById.get(e.b)?.domain ?? nodeById.get(e.a)?.domain;
             return (
               <Line
@@ -142,6 +151,15 @@ export function RecordsGraph({
         <Pressable onPress={() => setZoomIdx((z) => Math.min(ZOOMS.length - 1, z + 1))} hitSlop={10} style={styles.zoomBtn} accessibilityRole="button" accessibilityLabel={t("deepspace:recordsGraph.a11yZoomIn")}>
           <Text style={styles.zoomBtnText}>+</Text>
         </Pressable>
+        {/* Tag-link overlay toggle — no filter panel here (unlike the proto), so it
+            rides beside the zoom controls as an M3 filter chip (checkbox role). */}
+        <MdChip
+          kind="filter"
+          label={t("deepspace:recordsGraph.tagLinks")}
+          selected={showTagLinks}
+          onPress={() => setShowTagLinks((v) => !v)}
+          style={styles.tagChip}
+        />
         <Text variant="caption" color="textSubtle" style={styles.hint} numberOfLines={1}>
           {selected && selected.kind === "record"
             ? t("deepspace:recordsGraph.hintSelected", { label: selected.label })
@@ -175,6 +193,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: "row", alignItems: "center", gap: 8 },
   zoomBtn: { minWidth: 44, minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.4), alignItems: "center", justifyContent: "center" },
   zoomBtnText: { color: deepSpace.textHi, fontSize: 18, lineHeight: 22 },
+  tagChip: { flexShrink: 0 },
   hint: { flex: 1, minWidth: 0 },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, rowGap: 6 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },

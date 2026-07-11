@@ -627,7 +627,8 @@
     "a11yZoomIn": "Aumentar zoom",
     "hintSelected": "{{label}} · toque novamente para abrir",
     "hintDefault": "Tracejada = registros ligados por uma tag em comum. Toque para selecionar, toque novamente para abrir",
-    "untitled": "(sem título)"
+    "untitled": "(sem título)",
+    "tagLinks": "Vínculos de tags"
   },
   "wikiGraph": {
     "a11yGraph": "Grafo de nós da wiki",
