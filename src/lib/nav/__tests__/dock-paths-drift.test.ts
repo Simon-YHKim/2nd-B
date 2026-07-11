@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { DEEP_SPACE_DOCK_PATHS, PRIMARY_TAB_PATHS } from "../tabs";
+import { BACK_ARROW_HIDDEN_PATHS, DEEP_SPACE_DOCK_PATHS, PRIMARY_TAB_PATHS } from "../tabs";
 
 /**
  * Dock-registration drift guard.
@@ -14,13 +14,43 @@ import { DEEP_SPACE_DOCK_PATHS, PRIMARY_TAB_PATHS } from "../tabs";
  * /ratifications /rlss /share-card (this guard's first catch). A spot-pin test
  * can't keep up, so this derives the truth from the source instead.
  *
- * Scope: routes whose OWN file contains `<DeepSpaceScreen active=` (the pattern
- * every recurrence used). Screens that mount the shell indirectly through a
- * component (e.g. `/` via DeepSpaceShell, /wiki via DeepSpaceWikiScreen) are
- * covered by the spot pins in tabs.test.ts — this guard only ever ADDS
- * detection, so indirect misses never make it weaker than before.
+ * Scope (4th recurrence upgrade, a2z audit 2026-07-11): the old scan matched
+ * the single-line literal `<DeepSpaceScreen active=` in the route's OWN file,
+ * which missed (a) multiline JSX — seen.tsx/beyond.tsx put `active=` on the
+ * next line — and (b) delegated renders (/records → DeepSpaceRecordsScreen,
+ * /growth → WeeklyGrowthScreen, ...). Both slipped seven live dock screens
+ * past the registry. The scan now matches `<DeepSpaceScreen` multiline-safe
+ * AND treats "imports from @/screens/deepspace/** and renders a *Screen
+ * component" as a dock render. Routes that import those modules without
+ * rendering a dock shell (e.g. /privacy: bare-window sub-screen by design)
+ * are listed in NON_DOCK_ROUTES with the reason.
  */
 const APP_DIR = path.resolve(__dirname, "../../../app");
+
+// Routes the delegation heuristic flags that intentionally do NOT hide the
+// floating BackArrow chip. Keep each entry justified — an unjustified entry
+// here recreates the double-back-control bug this guard exists to prevent.
+const NON_DOCK_ROUTES = new Set<string>([
+  // Shell-wrapped design sub-screens (DeepSpaceDesignScreens.tsx `Shell`):
+  // a bare radius window with NO dock and NO top bar that reserves
+  // insets.top + 52 headroom precisely so the floating chip can sit there —
+  // the chip IS their back affordance.
+  "/discover",
+  "/formats",
+  "/insights",
+  "/manual",
+  "/permissions",
+  "/privacy",
+  "/research",
+  "/review",
+  "/srs",
+  "/support",
+  "/theme",
+  // Dev-facing mock phone-frame galleries (own ScrollView, no dock): the chip
+  // is their only way back.
+  "/deepspace-flowmap",
+  "/deepspace-hub",
+]);
 
 function dockRenderingRoutes(): string[] {
   return fs
@@ -28,14 +58,25 @@ function dockRenderingRoutes(): string[] {
     .filter((f) => f.endsWith(".tsx"))
     .filter((f) => {
       const src = fs.readFileSync(path.join(APP_DIR, f), "utf8");
-      return src.includes("<DeepSpaceScreen active=");
+      if (/<DeepSpaceScreen[\s/>]/.test(src)) return true;
+      const importsDeepSpaceScreens = /from\s+["']@\/screens\/deepspace\//.test(src);
+      const rendersScreenJsx = /<[A-Z]\w*Screen[\s/>]/.test(src);
+      return importsDeepSpaceScreens && rendersScreenJsx;
     })
-    .map((f) => (f === "index.tsx" ? "/" : `/${f.replace(/\.tsx$/, "")}`));
+    .map((f) => (f === "index.tsx" ? "/" : `/${f.replace(/\.tsx$/, "")}`))
+    .filter((route) => !NON_DOCK_ROUTES.has(route));
 }
 
 describe("deep-space dock registration drift guard", () => {
   test("every route file that renders DeepSpaceScreen is registered as a tab or dock path", () => {
-    const registered = new Set<string>([...PRIMARY_TAB_PATHS, ...DEEP_SPACE_DOCK_PATHS]);
+    // BACK_ARROW_HIDDEN_PATHS counts as registered: the chip is hidden there
+    // outright (home roots / pre-auth / one-shot onboarding), so a dock render
+    // on those routes can't produce the double-back-control bug.
+    const registered = new Set<string>([
+      ...PRIMARY_TAB_PATHS,
+      ...DEEP_SPACE_DOCK_PATHS,
+      ...BACK_ARROW_HIDDEN_PATHS,
+    ]);
     const missing = dockRenderingRoutes().filter((route) => !registered.has(route));
     expect(missing).toEqual([]);
   });

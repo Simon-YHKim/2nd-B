@@ -33,9 +33,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toMatch(/TraitRadar/);
     // QA #1: the "북극성 · 종합" hero label moved to the core-brain namespace.
     expect(screen).toContain('t("polarisAggregate")');
-    for (const route of ["/big-five", "/ipip-neo", "/attachment", "/motivation", "/strengths", "/mbti", "/audit"]) {
+    for (const route of ["/big-five", "/ipip-neo", "/attachment", "/motivation", "/strengths", "/audit"]) {
       expect(screen).toContain(`route: "${route}"`);
     }
+    // MBTI is retired (src/app/mbti.tsx is a deep-link redirect to /persona) —
+    // the deck must not promise a screener that lands somewhere else.
+    expect(screen).not.toContain('route: "/mbti"');
     // History surfaces hang off the hero card (P3c/P3d).
     expect(screen).toContain('router.push("/brightness")');
     expect(screen).toContain('router.push("/ratifications")');
