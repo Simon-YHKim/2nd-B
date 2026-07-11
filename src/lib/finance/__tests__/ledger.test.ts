@@ -1,4 +1,16 @@
-import { monthBucket, summarizeMonth } from "../ledger";
+const mockLedgerCalls: unknown[][] = [];
+jest.mock("@/lib/supabase/client", () => {
+  const builder: Record<string, unknown> = {};
+  const rec = (m: string) => (...a: unknown[]) => {
+    mockLedgerCalls.push([m, ...a]);
+    return builder;
+  };
+  for (const m of ["from", "select", "eq", "gte", "lt", "lte", "order"]) builder[m] = rec(m);
+  builder.then = (res: (v: unknown) => unknown) => res({ data: [], error: null });
+  return { getSupabaseClient: () => builder };
+});
+
+import { listEntriesForMonth, monthBucket, summarizeMonth } from "../ledger";
 
 describe("monthBucket", () => {
   test("from a YYYY-MM-DD key and a Date", () => {
@@ -39,5 +51,26 @@ describe("summarizeMonth (pure income/expense/net + per-category)", () => {
   test("income rows never appear in byCategory", () => {
     const s = summarizeMonth(entries, "2026-06");
     expect(s.byCategory.find((c) => c.category === "급여")).toBeUndefined();
+  });
+});
+
+describe("listEntriesForMonth date bounds (regression: no invalid YYYY-MM-31)", () => {
+  beforeEach(() => {
+    mockLedgerCalls.length = 0;
+  });
+
+  test("uses an exclusive first-of-next-month upper bound, not the invalid -31 date", async () => {
+    // 2026-02-31 does not exist; Postgres raises 22008 instead of clamping, so the
+    // query must bound on [2026-02-01, 2026-03-01) rather than <= 2026-02-31.
+    await listEntriesForMonth("u1", "2026-02");
+    expect(mockLedgerCalls.find((c) => c[0] === "gte")).toEqual(["gte", "occurred_on", "2026-02-01"]);
+    expect(mockLedgerCalls.find((c) => c[0] === "lt")).toEqual(["lt", "occurred_on", "2026-03-01"]);
+    expect(mockLedgerCalls.some((c) => c[0] === "lte")).toBe(false);
+    expect(mockLedgerCalls.some((c) => typeof c[2] === "string" && c[2].endsWith("-31"))).toBe(false);
+  });
+
+  test("rolls the year over at December", async () => {
+    await listEntriesForMonth("u1", "2026-12");
+    expect(mockLedgerCalls.find((c) => c[0] === "lt")).toEqual(["lt", "occurred_on", "2027-01-01"]);
   });
 });
