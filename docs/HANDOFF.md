@@ -92,8 +92,10 @@
 > **새 세션은 이 블록 → [`docs/LOOP-PLAYBOOK.md`](LOOP-PLAYBOOK.md) 순서로 읽는다.**
 > PLAYBOOK = 루프 운영 매뉴얼 정본 (루프 원문 프롬프트·ScheduleWakeup 케이던스·에뮬 레시피·서브에이전트 위임 템플릿과 실전 예제·워크트리 규율·i18n 컨벤션·스킬 활용법·함정 사전). 이 블록은 상태만 담는다.
 
-### 어디까지 왔나
-- main HEAD: `74fc6d9d` (#907)
+### 어디까지 왔나 (21회차까지 갱신 — 2026-07-11 저녁)
+- main HEAD: `6fe434e1` (#916)
+- **18~21회차 추가분**: #907 실기 PASS(blocked 분기+iden, 플래그 인라인 렌더 확인) · "출처 불명 변경" 미스터리 해소=플릿 #908이 동일 픽스 선머지(실기 1.0x/1.7x 검증됨) · **#912**(growth reason chip Fabric row 드롭 — dot 고아 줄바꿈 실기 확증→수정→재검증 PASS) · **#913**(focus 별 칩 es/pt/id — ko는 canon 유지+byte-match 가드) · **persona-sim r3**: 회귀 5/5 HOLDS + R4가 #680 클래스 잔존 21건 발굴(위기 핫라인 버튼·온보딩 CTA·허브 도크 포함) → **#916** 전건 static+ripple 전환 + `no-function-form-pressable-style.test.ts` 가드 영구화(326 suites/2434 tests). #916 실기 스팟체크(discover 카드·허브 도크) PASS.
+- **삼항 대소탕 종결**: 프로드 카피 삼항 잔존 = Privacy(34)+Data(7) 법무 게이트분 뿐. 산발 3건은 locale 파생(비카피).
 - 17회차 완주 (16회차 블록에 이어): **#906**(i18n 배치2 — digest·beyond·star·onboarding·trends·jot 69삼항) 머지 + 실기 4/4 PASS, **#904 실기 3면 PASS**(focus·integrations·ops), **#907**(i18n 배치3 — call-reflection·iden) 머지. 에뮬 offline 1회 → 콜드부트 복구 (앱 패키지명 정본 = `com.simonk.secondbrain`).
 - 법무 플래그 5건은 **인라인 보존** 확인: call-reflection(녹음삭제 약속·음성미저장 약속·통화녹음 상대고지) + iden(반출차단 약속·기기서명/동의 약속) — 번역/추출 금지, Simon 게이트.
 - 테스트: verify green (325 suites / 2432 tests). working tree clean (untracked 로컬 자산/레퍼런스 zip만).
