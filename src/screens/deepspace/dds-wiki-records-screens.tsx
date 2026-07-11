@@ -232,8 +232,11 @@ function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; ty
   const { t } = useTranslation("deepspace");
   const title = timelineTitle(r, t("records.fallbackTitle"));
   const tags = stripDomainTags(r.tags ?? []).slice(0, 2);
+  // No explicit accessibilityLabel: an explicit label REPLACES the flattened child
+  // text, so TalkBack heard only the title and never the time label, tags, or the
+  // 미분류 badge. Without it, RN concatenates the children in render order.
   return (
-    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
+    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={onPress} accessibilityRole="button">
       <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
       <View style={rStyles.body}>
         <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
