@@ -11,7 +11,7 @@ import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
 import { SecondbHead } from "@/components/deepspace";
@@ -205,7 +205,8 @@ export function WeeklyGrowthScreen() {
             accessibilityRole="button"
             onPress={() => router.push(LENS_ROUTE[hero.id] as never)}
             hitSlop={6}
-            style={({ pressed }) => [styles.reasonChip, pressed ? styles.reasonChipPressed : null]}
+            style={styles.reasonChip}
+            android_ripple={{ color: withAlpha(deepSpace.soul, 0.12) }}
           >
             <View style={[styles.dot, { backgroundColor: deepSpace.soul }]} />
             <Text variant="caption" style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑ `}<RNText style={styles.reasonCaret}>›</RNText></Text>
@@ -277,7 +278,6 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 44,
     paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: deepSpaceRadii.sm,
   },
-  reasonChipPressed: { opacity: 0.7 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   reasonText: { fontSize: 12, color: deepSpace.soul },
   reasonCaret: { fontSize: 14, color: deepSpace.soul },
