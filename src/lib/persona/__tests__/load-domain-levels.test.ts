@@ -8,6 +8,9 @@ interface QueryResult {
 }
 
 const tableFixtures: Record<string, QueryResult> = {};
+// Records the args of every .order() call so a test can assert the records scan
+// is newest-first (regression: ascending kept the OLDEST rows under a max-rows cap).
+const mockOrderCalls: unknown[][] = [];
 
 function chainable(result: QueryResult) {
   const promise = Promise.resolve(result);
@@ -16,7 +19,10 @@ function chainable(result: QueryResult) {
     eq: () => chain,
     contains: () => chain,
     in: () => chain,
-    order: () => chain,
+    order: (...a: unknown[]) => {
+      mockOrderCalls.push(a);
+      return chain;
+    },
     limit: () => chain,
     then: (...args: unknown[]) => promise.then(...(args as Parameters<typeof promise.then>)),
     catch: (...args: unknown[]) => promise.catch(...(args as Parameters<typeof promise.catch>)),
@@ -79,6 +85,18 @@ function staleOrganizedRows(domain: string, n: number, isoDate: string) {
     tags: [`domain:${domain}`, "mytag"],
   }));
 }
+
+describe("loadDomainLevels records scan order (regression)", () => {
+  test("scans records newest-first so a max-rows cap keeps recent history", async () => {
+    reset();
+    mockOrderCalls.length = 0;
+    tableFixtures["records:select"] = { data: organizedRows("career", 3), error: null };
+    await loadDomainLevels("u-order");
+    // Ascending would silently keep the OLDEST rows under truncation, freezing the
+    // recency signal (§4.5 ④) in the past.
+    expect(mockOrderCalls).toContainEqual(["created_at", { ascending: false }]);
+  });
+});
 
 describe("loadDomainLevels (cheap, no-Gemini)", () => {
   beforeEach(reset);

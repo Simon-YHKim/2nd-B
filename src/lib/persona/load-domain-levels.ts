@@ -75,7 +75,11 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
         .from("records")
         .select("id, created_at, tags")
         .eq("user_id", userId)
-        .order("created_at", { ascending: true }),
+        // Newest first: if PostgREST's max-rows cap truncates a heavy user's
+        // history, keep the MOST RECENT records so the §4.5 ④ recency signal (a
+        // domain fed today vs. abandoned months ago) stays correct. Ascending
+        // would silently keep the OLDEST rows and freeze the home sky in the past.
+        .order("created_at", { ascending: false }),
       // Structured backing for the relation/recreation stars. Read-only here; the
       // manage-layer writers (mirroring ops_*) own inserts. A failed/absent table
       // must never blank the home sky, so these degrade to [] independently.
