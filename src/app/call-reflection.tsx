@@ -44,7 +44,7 @@ function MicGlyph({ color, size = 52 }: { color: string; size?: number }) {
 }
 
 export default function CallReflection() {
-  const { i18n } = useTranslation("capture");
+  const { t, i18n } = useTranslation("capture");
   const ko = i18n.language === "ko";
   const locale = ko ? "ko" : "en";
   const { userId, isMinor, loading } = useAuth();
@@ -80,15 +80,11 @@ export default function CallReflection() {
   // signal is added. The "notify the other party" disclosure lives in the idle UI.
   if (!ko || isMinor === true) {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={ko ? "통화 녹음" : "Call recording"} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
         <View style={s.blockedWrap}>
-          <RNText style={s.blockedTitle}>{ko ? "지금은 이용할 수 없어요" : "Not available"}</RNText>
-          <RNText style={s.blockedBody}>
-            {ko
-              ? "통화 녹음은 녹음 관련 법규가 지역마다 달라, 현재 한국 지역의 성인 이용자에게만 제공돼요."
-              : "Call recording laws differ by region, so this feature is currently available only to adult users in Korea."}
-          </RNText>
-          <MdButton variant="tonal" label={ko ? "돌아가기" : "Go back"} onPress={() => router.back()} style={s.blockedBtn} />
+          <RNText style={s.blockedTitle}>{t("callReflection.blockedTitle")}</RNText>
+          <RNText style={s.blockedBody}>{t("callReflection.blockedBody")}</RNText>
+          <MdButton variant="tonal" label={t("callReflection.goBack")} onPress={() => router.back()} style={s.blockedBtn} />
         </View>
       </DeepSpaceScreen>
     );
@@ -100,13 +96,13 @@ export default function CallReflection() {
   async function startRecording() {
     setNotice(null);
     if (Platform.OS === "web") {
-      setNotice(ko ? "웹에서는 녹음이 불안정해요. 앱에서 이용해 주세요." : "Recording is unreliable on web; please use the app.");
+      setNotice(t("callReflection.webUnreliable"));
       return;
     }
     try {
       const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
-        setNotice(ko ? "마이크 권한이 필요해요." : "Microphone permission is needed.");
+        setNotice(t("callReflection.micPermission"));
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
@@ -117,7 +113,7 @@ export default function CallReflection() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[call-reflection] start failed", (e as Error).message);
       setPhase("idle");
-      setNotice(ko ? "녹음을 시작하지 못했어요." : "Couldn't start recording.");
+      setNotice(t("callReflection.startFailed"));
     }
   }
 
@@ -131,7 +127,7 @@ export default function CallReflection() {
       recordingUri = audioRecorder.uri;
       if (!recordingUri) {
         setPhase("idle");
-        setNotice(ko ? "녹음 파일을 찾지 못했어요." : "Couldn't find the recording.");
+        setNotice(t("callReflection.noRecording"));
         return;
       }
       const { base64, mimeType } = await recordingUriToBase64(recordingUri);
@@ -146,7 +142,7 @@ export default function CallReflection() {
       const text = reply.text.trim();
       if (text.length === 0) {
         setPhase("idle");
-        setNotice(ko ? "받아 적을 말이 없었어요." : "Nothing intelligible to transcribe.");
+        setNotice(t("callReflection.nothingToTranscribe"));
         return;
       }
       setTranscript(text);
@@ -154,7 +150,7 @@ export default function CallReflection() {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[call-reflection] transcribe failed", (e as Error).message);
       setPhase("idle");
-      setNotice(ko ? "받아 적기에 실패했어요." : "Transcription failed.");
+      setNotice(t("callReflection.transcribeFailed"));
     } finally {
       // Honor the "원본 녹음은 곧 삭제돼요" promise: drop the temp audio once the
       // text has been extracted (runs on the crisis / empty / error paths too).
@@ -172,7 +168,7 @@ export default function CallReflection() {
         locale,
         kind: "note",
         body: transcript,
-        topic: ko ? "통화 기록" : "Call reflection",
+        topic: t("callReflection.recordTopic"),
         tags: ["call_reflection", "voice"],
         tier: progression.tier,
         minor: isMinor === true,
@@ -196,10 +192,10 @@ export default function CallReflection() {
   // ---- STT (loading) ----
   if (phase === "stt") {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={ko ? "통화 녹음" : "Call recording"} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={m3.color.primary} />
-          <RNText style={s.loadingTitle}>{ko ? "통화를 받아 적는 중" : "Transcribing the call"}</RNText>
+          <RNText style={s.loadingTitle}>{t("callReflection.transcribing")}</RNText>
           <RNText style={s.loadingSub}>
             {ko ? "음성을 텍스트로 바꾸고 있어요. 원본 녹음은 곧 삭제돼요." : "Turning speech into text. The recording is deleted shortly."}
           </RNText>
@@ -212,24 +208,24 @@ export default function CallReflection() {
   // ---- Result ----
   if (phase === "result") {
     return (
-      <DeepSpaceScreen active="home" variant="windowed" header="none" title={ko ? "통화 녹음" : "Call recording"} onBack={() => router.back()}>
+      <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
         <ScrollView contentContainerStyle={s.resultScroll} showsVerticalScrollIndicator={false}>
           <View style={s.resultHead}>
             <Svg width={22} height={22} viewBox="0 0 24 24">
               <Path d="M12 3a9 9 0 1 0 9 9" stroke={m3.color.primary} strokeWidth={1.9} fill="none" strokeLinecap="round" />
               <Path d="M8.4 12.2l2.5 2.5L20 6" stroke={m3.color.primary} strokeWidth={1.9} fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
-            <RNText style={s.resultTitle}>{ko ? "받아 적었어요" : "Transcribed"}</RNText>
+            <RNText style={s.resultTitle}>{t("callReflection.transcribed")}</RNText>
           </View>
 
-          <RNText style={s.section}>{ko ? "받아 적은 통화" : "Transcript"}</RNText>
+          <RNText style={s.section}>{t("callReflection.transcriptLabel")}</RNText>
           <View style={s.transcriptCard}>
             <RNText style={s.transcriptText}>{transcript}</RNText>
           </View>
 
           <View style={s.resultBtns}>
-            <MdButton variant="outlined" label={ko ? "버리기" : "Discard"} onPress={() => router.push("/")} style={s.btnFlex1} />
-            <MdButton variant="filled" label={ko ? "승인하고 위키에 담기" : "Approve and save"} loading={busy} onPress={() => void approve()} style={s.btnFlex2} />
+            <MdButton variant="outlined" label={t("callReflection.discard")} onPress={() => router.push("/")} style={s.btnFlex1} />
+            <MdButton variant="filled" label={t("callReflection.approve")} loading={busy} onPress={() => void approve()} style={s.btnFlex2} />
           </View>
           <View style={s.privacyRow}>
             <Svg width={14} height={14} viewBox="0 0 24 24">
@@ -246,7 +242,7 @@ export default function CallReflection() {
   // ---- idle / rec ----
   const recording = phase === "rec";
   return (
-    <DeepSpaceScreen active="home" variant="windowed" header="none" title={ko ? "통화 녹음" : "Call recording"} onBack={() => router.back()}>
+    <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
       <View style={s.frame}>
         <View style={s.hero}>
           <View style={[s.circle, recording ? s.circleRec : s.circleIdle]}>
@@ -256,25 +252,21 @@ export default function CallReflection() {
           {recording ? (
             <>
               <RNText style={s.timer}>{mmss}</RNText>
-              <RNText style={s.desc}>{ko ? "통화를 녹음하고 있어요. 끝나면 자동으로 받아 적어요." : "Recording. It transcribes automatically when you stop."}</RNText>
+              <RNText style={s.desc}>{t("callReflection.recordingDesc")}</RNText>
             </>
           ) : (
             <>
-              <RNText style={s.title}>{ko ? "통화 녹음" : "Call recording"}</RNText>
-              <RNText style={s.desc}>
-                {ko
-                  ? "내 통화를 받아 적어 세컨비가 어울리는 별로 엮어요. 원본 음성은 저장하지 않아요."
-                  : "Transcribe your own call so 세컨비 can link it to the right stars. The original audio is never saved."}
-              </RNText>
+              <RNText style={s.title}>{t("callReflection.title")}</RNText>
+              <RNText style={s.desc}>{t("callReflection.idleDesc")}</RNText>
               {/* Honest platform note: the OS blocks silent call-audio capture, so
                   this is user-started speakerphone mic capture, party-to-the-call only. */}
               <View style={s.platformCol}>
                 <View style={s.platformRow}>
-                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{ko ? "방법" : "How"}</RNText></View>
-                  <RNText style={s.platformTxt}>{ko ? "통화를 스피커폰으로 두고 녹음을 시작하면 양쪽 목소리가 함께 담겨요." : "Put the call on speakerphone, then start recording — both voices reach the mic."}</RNText>
+                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{t("callReflection.howBadge")}</RNText></View>
+                  <RNText style={s.platformTxt}>{t("callReflection.howText")}</RNText>
                 </View>
                 <View style={s.platformRow}>
-                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{ko ? "예의" : "Fair"}</RNText></View>
+                  <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{t("callReflection.fairBadge")}</RNText></View>
                   <RNText style={s.platformTxt}>{ko ? "내가 낀 통화만 녹음돼요. 상대에게 녹음을 알려 주세요." : "Only calls you're part of. Please let the other person know."}</RNText>
                 </View>
               </View>
@@ -286,13 +278,13 @@ export default function CallReflection() {
         <View style={s.footer}>
           {recording ? (
             <>
-              <MdButton variant="filled" label={ko ? "녹음 멈추고 분석" : "Stop and analyse"} onPress={() => void stopAndTranscribe()} style={s.stopBtn} />
-              <MdButton variant="text" label={ko ? "취소 · 저장 안 함" : "Cancel · don't save"} onPress={() => { void audioRecorder.stop().catch(() => {}); setSecs(0); setPhase("idle"); }} />
+              <MdButton variant="filled" label={t("callReflection.stopAnalyse")} onPress={() => void stopAndTranscribe()} style={s.stopBtn} />
+              <MdButton variant="text" label={t("callReflection.cancelNoSave")} onPress={() => { void audioRecorder.stop().catch(() => {}); setSecs(0); setPhase("idle"); }} />
             </>
           ) : (
             <>
-              <MdButton variant="filled" label={ko ? "녹음 시작" : "Start recording"} onPress={() => void startRecording()} />
-              <MdButton variant="text" label={ko ? "다음에 할게요" : "Maybe later"} onPress={() => router.push("/settings")} />
+              <MdButton variant="filled" label={t("callReflection.startRecording")} onPress={() => void startRecording()} />
+              <MdButton variant="text" label={t("callReflection.maybeLater")} onPress={() => router.push("/settings")} />
             </>
           )}
         </View>

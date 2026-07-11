@@ -28,5 +28,22 @@
     "body": "나에 대해 알게 된 것을 어떤 AI든 읽는 하나의 포터블 파일과 한 장 프로필로 만들어요.",
     "button": "정체성 내보내기 열기",
     "accessibilityHint": "IDEN 정체성 내보내기 화면을 열어요."
+  },
+  "ds": {
+    "screenTitle": "IDEN · 포터블 정체성",
+    "loading": "불러오는 중이에요…",
+    "loadError": "IDEN을 불러오지 못했어요.",
+    "retry": "다시 시도",
+    "empty": "아직 담긴 내가 없어요. 먼저 나를 조금 담아볼까요?",
+    "startGathering": "담으러 가기",
+    "signed": "서명됨",
+    "whatGoesIn": "무엇을 담을까요",
+    "format": "형식",
+    "sendToAi": "AI에 전달",
+    "export": "내보내기",
+    "preview": "미리보기",
+    "jsonCopied": "JSON을 복사했어요",
+    "copyFailed": "복사하지 못했어요",
+    "previewWebOnly": "미리보기 시트는 웹에서 열려요"
   }
 }
