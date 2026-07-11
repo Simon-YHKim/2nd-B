@@ -23,7 +23,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
 import { loadTierObservations } from "@/lib/persona/load-tier-observations";
-import { buildRatificationLog, type RatificationEntry } from "@/lib/persona/brightness-timeline";
+import { buildRatificationLog, type RatificationEntry } from "@/lib/persona/brightness-timeline";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 
 // Amber warning tone for the 보류 column — the one raw literal, transcribed 1:1
 // from the reference RatifyScreen DEC map (#F7B955) as its M3 caution accent.
@@ -141,9 +142,11 @@ export default function RatificationLogScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.headline}>{barTitle}</Text>
         <Text style={styles.subtitle}>
-          {locale === "ko"
-            ? "세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요."
-            : "SecondB proposes; you always decide. Nothing reaches a star without your consent."}
+          {keepAllKo(
+            locale === "ko"
+              ? "세컨비는 제안하고, 반영은 늘 당신이 정해요. 어떤 분석도 동의 없이 별에 반영되지 않아요."
+              : "SecondB proposes; you always decide. Nothing reaches a star without your consent.",
+          )}
         </Text>
 
         {/* summary strip */}
@@ -203,7 +206,9 @@ export default function RatificationLogScreen() {
                   {starName(entry.starId, locale)}
                 </Text>
                 <View style={styles.delta}>
-                  <Text style={styles.deltaText}>{entry.prevLevel === null ? `L${entry.level}` : `L${entry.prevLevel}`}</Text>
+                  {/* No prior level = first observation; the reference marks it "—".
+                      Duplicating the level rendered "L1 → L1", which reads as no change. */}
+                  <Text style={styles.deltaText}>{entry.prevLevel === null ? "—" : `L${entry.prevLevel}`}</Text>
                   <Text style={styles.arrow}>→</Text>
                   <Text style={[styles.deltaText, styles.deltaTo]}>{`L${entry.level}`}</Text>
                 </View>

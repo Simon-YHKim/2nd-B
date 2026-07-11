@@ -49,6 +49,7 @@ import {
   type FeatureKey,
 } from "@/lib/settings/app-features";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import {
   deleteAllChatUsage,
@@ -610,7 +611,7 @@ export default function Settings() {
           <M3ToggleRow
             icon="mic"
             label={t("callRecording")}
-            sub={t("callRecordingDesc")}
+            sub={keepAllKo(t("callRecordingDesc"))}
             checked={featureOn("callrec")}
             onChange={() => toggleFeature("callrec")}
           />
