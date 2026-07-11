@@ -55,7 +55,7 @@ jest.mock("../../llm/gemini", () => ({
   ),
 }));
 
-import { buildPersona, deriveValues, instrumentLabel, isMeasuredSource, personaSummarySig, traitConfidenceFor } from "../build";
+import { __test_scoreFromAnswers, buildPersona, deriveValues, instrumentLabel, isMeasuredSource, personaSummarySig, traitConfidenceFor, type AuditResponseRow } from "../build";
 import { callGemini } from "../../llm/gemini";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
 
@@ -445,5 +445,30 @@ describe("buildPersona", () => {
     // Long non-interview bodies are clipped to the window cap (500 chars).
     expect(arg.user).toContain("B".repeat(500));
     expect(arg.user).not.toContain("B".repeat(501));
+  });
+});
+
+describe("scoreFromAnswers locale-aware keyword matching", () => {
+  const row = (body: string): AuditResponseRow => ({
+    id: "r",
+    prompt: null,
+    body,
+    created_at: "2026-01-01T00:00:00Z",
+    tags: null,
+  });
+
+  // Regression: markers were \b-wrapped, and \b is defined against \w=[A-Za-z0-9_],
+  // so Hangul had no word boundary and Korean keywords could NEVER match — the KR
+  // audience's four keyword-driven traits stayed pinned to the 0.4 base.
+  test("Korean distress text lifts neuroticism above the base", () => {
+    expect(__test_scoreFromAnswers([row("나는 요즘 너무 불안하고 걱정이 많다")]).neuroticism).toBeGreaterThan(0.4);
+  });
+
+  test("Korean routine text lifts conscientiousness above the base", () => {
+    expect(__test_scoreFromAnswers([row("매일 꾸준히 루틴을 지키려 한다")]).conscientiousness).toBeGreaterThan(0.4);
+  });
+
+  test("English distress still matches via the ascii path", () => {
+    expect(__test_scoreFromAnswers([row("I feel so anxious and stressed lately")]).neuroticism).toBeGreaterThan(0.4);
   });
 });
