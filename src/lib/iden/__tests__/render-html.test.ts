@@ -48,6 +48,23 @@ describe("renderIdenHtml", () => {
     expect(html).toContain('class="dtotal">90</text>'); // donut total (48+30+12)
   });
 
+  it("shows 0 (not the divisor guard 1) in an empty-vault donut center", () => {
+    // The donut divisor is guarded against division-by-zero, but the center number
+    // must stay the REAL total: an empty vault whose heading reads "0 items" must
+    // not show "1" in the middle of the ring.
+    const emptyVault: IdenDoc = {
+      ...SAMPLE_IDEN,
+      fields: SAMPLE_IDEN.fields.map((f): IdenDoc["fields"][number] =>
+        f.key === "contents" && f.viz === "donut"
+          ? { ...f, data: { Sources: 0, Records: 0, Concepts: 0 } }
+          : f,
+      ),
+    };
+    const out = renderIdenHtml(emptyVault);
+    expect(out).toContain('class="dtotal">0</text>'); // real total, not the guard
+    expect(out).not.toContain('class="dtotal">1</text>');
+  });
+
   it("shows honest provenance for every measured value", () => {
     expect(html).toContain("BFI-44"); // measured instrument
     expect(html).toContain("ECR-S"); // attachment instrument
