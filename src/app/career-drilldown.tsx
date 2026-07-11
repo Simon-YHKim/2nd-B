@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     padding: spacing.md,
-    backgroundColor: withAlpha(deepSpace.bgEdge, 0.92),
+    backgroundColor: deepSpace.bgEdge,
     borderTopWidth: 1,
     borderTopColor: withAlpha(m3.color.outlineVariant, 0.4),
   },
