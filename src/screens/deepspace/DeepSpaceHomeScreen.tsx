@@ -266,6 +266,7 @@ export function DeepSpaceHomeScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="챗봇"
+                    hitSlop={10}
                     onPress={() => {
                       setMenuOpen(false);
                       router.push("/secondb");
@@ -280,6 +281,7 @@ export function DeepSpaceHomeScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="비서"
+                    hitSlop={10}
                     onPress={() => {
                       setMenuOpen(false);
                       router.push("/ops");
