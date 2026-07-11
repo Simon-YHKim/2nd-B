@@ -260,6 +260,12 @@ const DOMAIN_TO_BATCH: Record<string, string> = {
 // should proactively surface that domain's evidence. L1/L2 = barely fed.
 const DIM_LEVEL_MAX = 2;
 
+// The advisor prompt grounds on at most this many evidence rows. The returned rows
+// (which callAdvisor surfaces to the user as "what grounded this answer") are capped
+// to the SAME number so the displayed sources are never a superset of what the model
+// actually saw — a grounding-integrity requirement for an evidence-honest product.
+const PROMPT_EVIDENCE_LIMIT = 6;
+
 function frameworksForBatches(slugs: string[]): string[] {
   const set = new Set<string>();
   for (const s of slugs) for (const f of SLUG_TO_FRAMEWORK[s] ?? []) set.add(f);
@@ -291,7 +297,11 @@ export async function retrieveEvidence(input: RetrieveInput): Promise<RetrieveRe
   // Pipeline: rank by relevance, then fuse across frameworks so the top-N
   // is balanced rather than dominated by a single framework's rows.
   const ranked = rankRows(candidateRows, input.userMessage, input.userLocale);
-  const rows = fuseFrameworks(ranked, 8);
+  // Fuse across frameworks for a balanced top set, then cap to exactly what the
+  // prompt will ground on (assembleAdvisorPrompt uses the same limit) so the returned
+  // rows never over-claim sources the model was not shown. Fusing to 8 first keeps the
+  // prompt's first-N selection byte-identical to before this cap.
+  const rows = fuseFrameworks(ranked, 8).slice(0, PROMPT_EVIDENCE_LIMIT);
 
   // Conversation context gets distilled to keep the prompt tight (Pro tokens
   // are not cheap, and the LLM degrades with crufty inputs).
@@ -392,7 +402,7 @@ function sanitizeUntrusted(s: string | null | undefined): string {
 // Per build-rag-wiki §7 prompt template.
 function assembleAdvisorPrompt(input: AssembleInput): string {
   const evidenceBlocks = input.rows
-    .slice(0, 6)
+    .slice(0, PROMPT_EVIDENCE_LIMIT)
     .map((r) => {
       const summary = input.userLocale === "ko" ? r.summary_ko : r.summary_en;
       const cite = r.doi ? `DOI ${r.doi}` : r.url ?? "no source link";
