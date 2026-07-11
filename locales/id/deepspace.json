@@ -129,6 +129,7 @@
     "deleteCancel": "Batal",
     "deleteConfirm": "Hapus",
     "editSave": "Simpan",
+    "actionFailed": "Perubahan gagal disimpan. Periksa koneksi Anda dan coba lagi.",
     "assessmentBody": "Jawaban mentah dari survei laporan diri. Hasil yang tertata ada di layarnya sendiri.",
     "assessmentCta": "Lihat hasil",
     "kindJournal": "Jurnal",

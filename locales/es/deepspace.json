@@ -129,6 +129,7 @@
     "deleteCancel": "Cancelar",
     "deleteConfirm": "Eliminar",
     "editSave": "Guardar",
+    "actionFailed": "No se pudo guardar el cambio. Revisa tu conexión e inténtalo de nuevo.",
     "assessmentBody": "Las respuestas sin procesar de un cuestionario de autoinforme. El resultado organizado está en su propia pantalla.",
     "assessmentCta": "Ver resultado",
     "kindJournal": "Diario",
