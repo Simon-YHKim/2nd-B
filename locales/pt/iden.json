@@ -28,5 +28,22 @@
     "body": "Transforme o que você aprendeu sobre si mesmo em um arquivo portátil que qualquer IA pode ler, e um perfil de uma página.",
     "button": "Abrir exportação de identidade",
     "accessibilityHint": "Abre a tela de exportação de identidade IDEN."
+  },
+  "ds": {
+    "screenTitle": "IDEN · Identidade portátil",
+    "loading": "Carregando…",
+    "loadError": "Não foi possível carregar seu IDEN.",
+    "retry": "Tentar de novo",
+    "empty": "Nada reunido ainda. Que tal reunir um pouco de você primeiro?",
+    "startGathering": "Começar a reunir",
+    "signed": "Assinado",
+    "whatGoesIn": "O que entra",
+    "format": "Formato",
+    "sendToAi": "Enviar para uma IA",
+    "export": "Exportar",
+    "preview": "Pré-visualizar",
+    "jsonCopied": "JSON copiado",
+    "copyFailed": "Não foi possível copiar",
+    "previewWebOnly": "A folha de pré-visualização abre na web"
   }
 }

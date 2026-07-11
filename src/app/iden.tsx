@@ -86,7 +86,7 @@ export default function IdenExportScreen() {
 // IdenDoc (buildIdenDoc — persona + vault counts) and feeds IdenView; renders a
 // proper loading/empty/error state instead of the prior hardcoded "simon.iden".
 function IdenExportScreenDeepSpace() {
-  const { i18n } = useTranslation("iden");
+  const { t, i18n } = useTranslation("iden");
   const isKo = i18n.language === "ko";
   const locale = (isKo ? "ko" : "en") as "en" | "ko";
   const { userId, loading, isMinor } = useAuth();
@@ -177,10 +177,10 @@ function IdenExportScreenDeepSpace() {
     try {
       const result = await exportIden(userId, { locale, minor: isMinor === true, include: includeKeys() });
       await Clipboard.setStringAsync(result.json);
-      setNotice(isKo ? "JSON을 복사했어요" : "JSON copied");
+      setNotice(t("ds.jsonCopied"));
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] json copy failed", (e as Error).message);
-      setNotice(isKo ? "복사하지 못했어요" : "Could not copy");
+      setNotice(t("ds.copyFailed"));
     }
   }, [userId, hasData, locale, isMinor, includeKeys, isKo]);
 
@@ -196,7 +196,7 @@ function IdenExportScreenDeepSpace() {
       if (Platform.OS === "web") {
         openSheetInNewTab(result.html);
       } else {
-        setNotice(isKo ? "미리보기 시트는 웹에서 열려요" : "The preview sheet opens on web");
+        setNotice(t("ds.previewWebOnly"));
       }
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[iden] preview failed", (e as Error).message);
@@ -220,20 +220,20 @@ function IdenExportScreenDeepSpace() {
   const stateBody = !hasData ? (
     <View style={dsIden.center}>
       {!hasError && data === undefined ? (
-        <PremiumLoadingState message={isKo ? "불러오는 중이에요…" : "Loading…"} />
+        <PremiumLoadingState message={t("ds.loading")} />
       ) : hasError ? (
         <View style={dsIden.stateBlock}>
           <Text variant="body" color="textMuted">
-            {isKo ? "IDEN을 불러오지 못했어요." : "Could not load your IDEN."}
+            {t("ds.loadError")}
           </Text>
-          <MdButton variant="tonal" label={isKo ? "다시 시도" : "Retry"} onPress={() => setReloadKey((k) => k + 1)} />
+          <MdButton variant="tonal" label={t("ds.retry")} onPress={() => setReloadKey((k) => k + 1)} />
         </View>
       ) : (
         <View style={dsIden.stateBlock}>
           <Text variant="body" color="textMuted">
-            {isKo ? "아직 담긴 내가 없어요. 먼저 나를 조금 담아볼까요?" : "Nothing gathered yet. Gather a little of yourself first?"}
+            {t("ds.empty")}
           </Text>
-          <MdButton variant="filled" label={isKo ? "담으러 가기" : "Start gathering"} onPress={() => router.push("/interview")} />
+          <MdButton variant="filled" label={t("ds.startGathering")} onPress={() => router.push("/interview")} />
         </View>
       )}
     </View>
@@ -244,7 +244,7 @@ function IdenExportScreenDeepSpace() {
       active="iden"
       header="none"
       variant="windowed"
-      title={isKo ? "IDEN · 포터블 정체성" : "IDEN · Portable identity"}
+      title={t("ds.screenTitle")}
       onBack={() => router.back()}
     >
       {stateBody ?? (
@@ -267,7 +267,7 @@ function IdenExportScreenDeepSpace() {
                 <Svg width={12} height={12} viewBox="0 0 24 24">
                   <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onPrimary} />
                 </Svg>
-                <Text style={dsIden.localChipText}>{isKo ? "서명됨" : "Signed"}</Text>
+                <Text style={dsIden.localChipText}>{t("ds.signed")}</Text>
               </View>
             </View>
           </View>
@@ -278,7 +278,7 @@ function IdenExportScreenDeepSpace() {
               (data.bigFive, derived from measured/derived traits) or a neutral
               descriptor when absent — never a faked score. Toggle = canon blue
               (m3.color.primary), matching the settings M3 switch. */}
-          <Text style={dsIden.sectionLabel}>{isKo ? "무엇을 담을까요" : "What goes in"}</Text>
+          <Text style={dsIden.sectionLabel}>{t("ds.whatGoesIn")}</Text>
           <View style={dsIden.rowsCard}>
             {canonIden.rows.map((row, i) => {
               const on = !excluded.includes(row.id);
@@ -318,7 +318,7 @@ function IdenExportScreenDeepSpace() {
           </Text>
 
           {/* 형식 */}
-          <Text style={dsIden.sectionLabel}>{isKo ? "형식" : "Format"}</Text>
+          <Text style={dsIden.sectionLabel}>{t("ds.format")}</Text>
           <View style={dsIden.chips}>
             {IDEN_FORMATS.map((f) => (
               <MdChip key={f} kind="filter" label={f} selected={fmt === f} onPress={() => setFmt(f)} />
@@ -326,7 +326,7 @@ function IdenExportScreenDeepSpace() {
           </View>
 
           {/* AI에 전달 */}
-          <Text style={dsIden.sectionLabel}>{isKo ? "AI에 전달" : "Send to an AI"}</Text>
+          <Text style={dsIden.sectionLabel}>{t("ds.sendToAi")}</Text>
           <View style={dsIden.targetGrid}>
             {AI_TARGETS.map((tg) => (
               <Pressable
@@ -348,10 +348,10 @@ function IdenExportScreenDeepSpace() {
             <MdButton
               variant="filled"
               style={dsIden.actionMain}
-              label={isKo ? "내보내기" : "Export"}
+              label={t("ds.export")}
               onPress={handleExport}
             />
-            <MdButton variant="outlined" label={isKo ? "미리보기" : "Preview"} onPress={handlePreview} />
+            <MdButton variant="outlined" label={t("ds.preview")} onPress={handlePreview} />
           </View>
           {notice ? (
             <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite" style={dsIden.notice}>
