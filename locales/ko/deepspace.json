@@ -827,5 +827,65 @@
       "later": "나중에",
       "privacy": "성인·동의 시에만 · 민감한 화면에선 안 보여요"
     }
+  },
+  "beyond": {
+    "preview": "미리보기",
+    "title": "앱 밖에서",
+    "lead": "앱을 열지 않아도, 세컨비는 당신 곁에 있어요.",
+    "widgetsSection": "홈 화면 위젯",
+    "todaysStar": "오늘의 별",
+    "brightestStar": "가장 밝은 별",
+    "tapToOpen": "탭하면 오늘의 별로 이동해요",
+    "captureTitle": "지금 떠오른 거 담기",
+    "capture": "담기",
+    "captureByVoice": "음성으로 담기",
+    "lockSection": "잠금화면",
+    "lockNotif": "오늘 떠오른 걸 한 줄 남겨볼까요?",
+    "pushSection": "푸시 알림",
+    "pushHead": "세컨비 · 지금",
+    "pushBody": "새 통찰이 검토를 기다려요. 동의하면 별에 반영할게요.",
+    "notifSettings": "알림 설정"
+  },
+  "star": {
+    "capture": "담기",
+    "seeRecords": "기록 보기",
+    "loading": "불러오는 중…",
+    "loadError": "잠깐 못 불러왔어요. 다시 시도해 주세요.",
+    "retry": "다시 시도",
+    "empty": "첫 기록을 담아 이 별을 밝혀보세요.",
+    "recordFallback": "기록",
+    "untitled": "(제목 없음)",
+    "briefingOpening": "이 별을 펼치는 중이에요…",
+    "briefingEmpty": "이 별엔 아직 기록이 없어요. 담으면 세컨비가 흐름을 읽어드려요.",
+    "briefingCountOne": "이 별에 {{n}}개의 기록이 담겼어요. 최근 기록부터 정리했어요.",
+    "briefingCount": "이 별에 {{n}}개의 기록이 담겼어요. 최근 기록부터 정리했어요.",
+    "drillCareer": "쌓아온 길",
+    "drillGrowth": "회상으로 더 캐기",
+    "drillRelation": "관계 인터뷰",
+    "drillRecreation": "아이디어 얻기",
+    "relToday": "오늘",
+    "relYesterday": "어제",
+    "relDays": "{{n}}일 전",
+    "relWeeks": "{{n}}주 전",
+    "relMonths": "{{n}}달 전"
+  },
+  "onboarding": {
+    "nextHint": "다음 소개로 넘어갑니다.",
+    "skipHint": "소개를 건너뛰고 로그인 화면으로 이동합니다.",
+    "authHint": "로그인 화면으로 이동합니다.",
+    "authLabel": "로그인하고 시작하기",
+    "secondbName": "세컨비",
+    "authTitle": "시작할까요?",
+    "authBody": "로그인하면 어느 기기에서나 당신의 별자리를 이어서 볼 수 있어요.",
+    "next": "다음"
+  },
+  "trends": {
+    "title": "밝기 변화",
+    "subtitle": "지난 8주, 당신의 별자리는 꾸준히 또렷해지고 있어요.",
+    "overall": "전체 밝기",
+    "delta8w": "+34% · 8주",
+    "perStar": "별마다 변화",
+    "log": "밝기 이력",
+    "shareCta": "이 변화를 카드로 공유"
   }
 }

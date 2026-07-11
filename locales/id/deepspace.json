@@ -827,5 +827,65 @@
       "later": "Nanti",
       "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
     }
+  },
+  "beyond": {
+    "preview": "Pratinjau",
+    "title": "Di luar aplikasi",
+    "lead": "Bahkan saat aplikasi tertutup, SecondB tetap menemanimu.",
+    "widgetsSection": "Widget layar utama",
+    "todaysStar": "Bintang hari ini",
+    "brightestStar": "Bintang paling terangmu",
+    "tapToOpen": "Ketuk untuk membuka bintang hari ini",
+    "captureTitle": "Simpan yang ada di pikiranmu",
+    "capture": "Simpan",
+    "captureByVoice": "Simpan dengan suara",
+    "lockSection": "Layar kunci",
+    "lockNotif": "Mau menuliskan satu baris tentang hari ini?",
+    "pushSection": "Notifikasi push",
+    "pushHead": "SecondB · sekarang",
+    "pushBody": "Ada wawasan baru menunggu ulasanmu. Setujui dan itu akan tampil di bintangmu.",
+    "notifSettings": "Pengaturan notifikasi"
+  },
+  "star": {
+    "capture": "Simpan",
+    "seeRecords": "Lihat catatan",
+    "loading": "Memuat…",
+    "loadError": "Belum bisa memuat sekarang. Coba lagi.",
+    "retry": "Coba lagi",
+    "empty": "Simpan catatan pertamamu untuk menyalakan bintang ini.",
+    "recordFallback": "catatan",
+    "untitled": "(tanpa judul)",
+    "briefingOpening": "Membuka bintang ini…",
+    "briefingEmpty": "Belum ada catatan di bintang ini. Simpan sesuatu dan SecondB membaca polanya.",
+    "briefingCountOne": "{{n}} catatan di bintang ini, yang terbaru dulu.",
+    "briefingCount": "{{n}} catatan di bintang ini, yang terbaru dulu.",
+    "drillCareer": "Perjalananmu",
+    "drillGrowth": "Ingat lebih banyak",
+    "drillRelation": "Wawancara hubungan",
+    "drillRecreation": "Dapatkan ide",
+    "relToday": "hari ini",
+    "relYesterday": "kemarin",
+    "relDays": "{{n}} hr lalu",
+    "relWeeks": "{{n}} mgg lalu",
+    "relMonths": "{{n}} bln lalu"
+  },
+  "onboarding": {
+    "nextHint": "Ke slide berikutnya.",
+    "skipHint": "Melewati intro dan membuka layar masuk.",
+    "authHint": "Membuka layar masuk.",
+    "authLabel": "Masuk untuk memulai",
+    "secondbName": "SecondB",
+    "authTitle": "Siap memulai?",
+    "authBody": "Masuk untuk melanjutkan rasi bintangmu di perangkat mana pun.",
+    "next": "Berikutnya"
+  },
+  "trends": {
+    "title": "Tren kecerahan",
+    "subtitle": "Selama 8 minggu terakhir rasi bintangmu makin jelas secara stabil.",
+    "overall": "Kecerahan keseluruhan",
+    "delta8w": "+34% · 8 mgg",
+    "perStar": "Perubahan tiap bintang",
+    "log": "Riwayat kecerahan",
+    "shareCta": "Bagikan perubahan ini sebagai kartu"
   }
 }

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Redirect, router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
@@ -31,16 +32,15 @@ import {
   setDailyReviewEnabledPref,
 } from "@/lib/ops/daily-review";
 
-function bandLabel(confidence: number, ko: boolean): string {
-  if (confidence >= 0.6) return ko ? "강한 연결" : "strong link";
-  if (confidence >= 0.4) return ko ? "그럴듯한 연결" : "likely link";
-  return ko ? "약한 연결" : "weak link";
+function bandLabel(confidence: number, t: TFunction<"ratifications">): string {
+  if (confidence >= 0.6) return t("digest.band.strong");
+  if (confidence >= 0.4) return t("digest.band.likely");
+  return t("digest.band.weak");
 }
 
 export default function Digest() {
   const { userId, loading } = useAuth();
-  const { i18n } = useTranslation();
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("ratifications");
   const [items, setItems] = useState<InferredLinkDetail[] | null>(null);
   const [actingKey, setActingKey] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -106,8 +106,8 @@ export default function Digest() {
       setReminderDenied(false);
       try {
         if (next) {
-          const title = ko ? "오늘의 정리" : "Today's review";
-          const body = ko ? "기록에서 모인 연결을 검토해 볼까요?" : "Review the connections gathered from your records?";
+          const title = t("digest.title");
+          const body = t("digest.reminder.notifBody");
           const res = await scheduleDailyReview(9, 0, title, body);
           if (res === "scheduled") {
             setReminderOn(true);
@@ -124,7 +124,7 @@ export default function Digest() {
         setReminderBusy(false);
       }
     },
-    [ko],
+    [t],
   );
 
   if (loading) return <InlineLoader />;
@@ -136,11 +136,9 @@ export default function Digest() {
         <View style={styles.header}>
           <SecondbHead size={48} mood="neutral" />
           <View style={styles.flex}>
-            <Text variant="heading">{ko ? "오늘의 정리" : "Today's review"}</Text>
+            <Text variant="heading">{t("digest.title")}</Text>
             <Text variant="subtle" color="textMuted" style={styles.intro}>
-              {ko
-                ? "기록에서 모인 연결 제안이에요. 무엇이 맞는지 당신이 확인하세요."
-                : "Connections gathered from your records. You confirm what's true."}
+              {t("digest.intro")}
             </Text>
           </View>
         </View>
@@ -148,17 +146,15 @@ export default function Digest() {
         {error ? (
           <View style={styles.empty}>
             <Text variant="body" color="textMuted" style={styles.center}>
-              {ko
-                ? "정리를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."
-                : "Couldn't load your review. Please try again in a moment."}
+              {t("digest.loadError")}
             </Text>
             <Pressable
               onPress={() => void refresh()}
               accessibilityRole="button"
-              accessibilityLabel={ko ? "다시 시도" : "Try again"}
+              accessibilityLabel={t("digest.retry")}
               style={styles.cta}
             >
-              <Text variant="body" style={styles.ctaText}>{ko ? "다시 시도" : "Try again"}</Text>
+              <Text variant="body" style={styles.ctaText}>{t("digest.retry")}</Text>
             </Pressable>
           </View>
         ) : items === null ? (
@@ -166,23 +162,21 @@ export default function Digest() {
         ) : items.length === 0 ? (
           <View style={styles.empty}>
             <Text variant="body" color="textMuted" style={styles.center}>
-              {ko
-                ? "지금 검토할 제안이 없어요. 더 담으면 연결이 보이기 시작해요."
-                : "Nothing to review yet. Capture more and connections will appear."}
+              {t("digest.empty")}
             </Text>
             <Pressable
               onPress={() => router.push("/capture")}
               accessibilityRole="button"
-              accessibilityLabel={ko ? "담으러 가기" : "Go capture"}
+              accessibilityLabel={t("digest.goCapture")}
               style={styles.cta}
             >
-              <Text variant="body" style={styles.ctaText}>{ko ? "담으러 가기" : "Go capture"}</Text>
+              <Text variant="body" style={styles.ctaText}>{t("digest.goCapture")}</Text>
             </Pressable>
           </View>
         ) : (
           <>
             <Text variant="caption" color="textSubtle">
-              {ko ? `검토할 제안 ${items.length}개` : `${items.length} to review`}
+              {t("digest.toReview", { n: items.length })}
             </Text>
             {items.map((p) => {
               const key = `${p.from_page}|${p.to_page}`;
@@ -200,35 +194,33 @@ export default function Digest() {
                   // actions unreachable under VoiceOver. Opening it out lets the
                   // title text and both buttons surface as separate a11y elements.
                   accessible={false}
-                  accessibilityLabel={
-                    ko ? `${p.from_title} 상세 보기` : `Open ${p.from_title}`
-                  }
+                  accessibilityLabel={t("digest.a11yOpen", { title: p.from_title })}
                   style={styles.row}
                 >
                   <Text variant="body" numberOfLines={2}>
                     {p.from_title} <Text variant="body" color="textMuted">↔</Text> {p.to_title}
                   </Text>
                   <Text variant="subtle" color="textMuted" style={styles.band}>
-                    {bandLabel(p.confidence, ko)}
+                    {bandLabel(p.confidence, t)}
                   </Text>
                   <View style={styles.actions}>
                     <Pressable
                       onPress={() => void decide(p, false)}
                       disabled={busy}
                       accessibilityRole="button"
-                      accessibilityLabel={ko ? "보류" : "Dismiss"}
+                      accessibilityLabel={t("digest.dismiss")}
                       style={[styles.btn, styles.btnGhost]}
                     >
-                      <Text variant="caption" style={styles.btnGhostText}>{ko ? "보류" : "Dismiss"}</Text>
+                      <Text variant="caption" style={styles.btnGhostText}>{t("digest.dismiss")}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => void decide(p, true)}
                       disabled={busy}
                       accessibilityRole="button"
-                      accessibilityLabel={ko ? "확인" : "Confirm"}
+                      accessibilityLabel={t("digest.confirm")}
                       style={[styles.btn, styles.btnPrimary]}
                     >
-                      <Text variant="caption" style={styles.btnPrimaryText}>{ko ? "확인" : "Confirm"}</Text>
+                      <Text variant="caption" style={styles.btnPrimaryText}>{t("digest.confirm")}</Text>
                     </Pressable>
                   </View>
                 </Pressable>
@@ -240,8 +232,8 @@ export default function Digest() {
         {remindersOk ? (
           <View style={styles.reminder}>
             <PreferenceToggleRow
-              label={ko ? "매일 오전 9시에 알림" : "Remind me at 9:00 AM"}
-              description={ko ? "이 기기에서만 울려요. 언제든 끌 수 있어요." : "Rings on this device only. Turn it off anytime."}
+              label={t("digest.reminder.label")}
+              description={t("digest.reminder.desc")}
               value={reminderOn}
               disabled={reminderBusy}
               onValueChange={(v) => {
@@ -250,7 +242,7 @@ export default function Digest() {
             />
             {reminderDenied ? (
               <Text variant="subtle" color="textMuted" style={styles.center}>
-                {ko ? "기기 알림 권한이 꺼져 있어요. 설정에서 켜 주세요." : "Notifications are off for this app. Turn them on in Settings."}
+                {t("digest.reminder.denied")}
               </Text>
             ) : null}
           </View>

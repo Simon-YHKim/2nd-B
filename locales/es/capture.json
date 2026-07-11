@@ -336,5 +336,16 @@
   "formatsTab": "Formatos",
   "importTab": "Importar",
   "inboxTab": "Bandeja",
-  "manualTab": "Manual"
+  "manualTab": "Manual",
+  "jot": {
+    "title": "Anota una línea",
+    "deviceNote": "Por ahora se guarda en este dispositivo. Crea una cuenta para llevarlo a tu segundo cerebro.",
+    "placeholder": "Una línea que tengas en mente",
+    "inputA11y": "Campo de nota",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "nearFull": "El espacio temporal de este dispositivo está casi lleno. Crea una cuenta para moverlos con seguridad.",
+    "savedOnDevice": "Guardado en este dispositivo ({{n}})",
+    "createAccount": "Crear cuenta"
+  }
 }

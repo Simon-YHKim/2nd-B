@@ -36,36 +36,35 @@ function MicGlyph({ color, size = 22 }: { color: string; size?: number }) {
 }
 
 export default function BeyondScreen() {
-  const { i18n } = useTranslation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { t } = useTranslation("deepspace");
   const { userId, loading } = useAuth();
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const previewTag = ko ? "미리보기" : "Preview";
+  const previewTag = t("beyond.preview");
 
   return (
     <DeepSpaceScreen
       active="account"
       header="none"
       variant="windowed"
-      title={ko ? "앱 밖에서" : "Outside the app"}
+      title={t("beyond.title")}
       onBack={() => router.back()}
     >
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
-        <RNText style={[m3TextStyle("headlineSmall"), s.headline]}>{ko ? "앱 밖에서" : "Outside the app"}</RNText>
+        <RNText style={[m3TextStyle("headlineSmall"), s.headline]}>{t("beyond.title")}</RNText>
         <RNText style={[m3TextStyle("bodyMedium"), s.lead]}>
-          {ko ? "앱을 열지 않아도, 세컨비는 당신 곁에 있어요." : "Even when the app is closed, 세컨비 stays with you."}
+          {t("beyond.lead")}
         </RNText>
 
         {/* ── 홈 화면 위젯 ─────────────────────────────────────────────── */}
-        <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "홈 화면 위젯" : "Home-screen widgets"}</RNText>
+        <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("beyond.widgetsSection")}</RNText>
         <View style={s.widgetRow}>
           {/* 오늘의 별 — illustrative preview, no asserted level */}
           <MdCard variant="filled" style={[s.widgetCard, s.starWidget]}>
             <View style={s.widgetHead}>
-              <RNText style={s.widgetKicker}>{ko ? "오늘의 별" : "Today's star"}</RNText>
+              <RNText style={s.widgetKicker}>{t("beyond.todaysStar")}</RNText>
               <View style={s.tag}><RNText style={s.tagTxt}>{previewTag}</RNText></View>
             </View>
             <View style={s.starGlowWrap}>
@@ -75,22 +74,22 @@ export default function BeyondScreen() {
                 <Circle cx={32} cy={32} r={7} fill={m3.color.primary} />
               </Svg>
             </View>
-            <RNText style={s.widgetStarName}>{ko ? "가장 밝은 별" : "Your brightest star"}</RNText>
-            <RNText style={s.widgetStarSub}>{ko ? "탭하면 오늘의 별로 이동해요" : "Tap to open today's star"}</RNText>
+            <RNText style={s.widgetStarName}>{t("beyond.brightestStar")}</RNText>
+            <RNText style={s.widgetStarSub}>{t("beyond.tapToOpen")}</RNText>
           </MdCard>
 
           {/* 지금 떠오른 거 담기 — real capture entry */}
           <MdCard variant="filled" style={s.widgetCard}>
             <View style={s.captureHead}>
               <SecondbHead size={26} track={false} />
-              <RNText style={s.captureTitle}>{ko ? "지금 떠오른 거 담기" : "Capture what's on your mind"}</RNText>
+              <RNText style={s.captureTitle}>{t("beyond.captureTitle")}</RNText>
             </View>
             <View style={s.captureBtns}>
               <Pressable
                 style={[s.captureBtn, s.captureBtnPrimary]}
                 onPress={() => router.push("/capture")}
                 accessibilityRole="button"
-                accessibilityLabel={ko ? "담기" : "Capture"}
+                accessibilityLabel={t("beyond.capture")}
               >
                 <PlusGlyph color={m3.color.onPrimary} />
               </Pressable>
@@ -98,7 +97,7 @@ export default function BeyondScreen() {
                 style={[s.captureBtn, s.captureBtnGhost]}
                 onPress={() => router.push("/capture")}
                 accessibilityRole="button"
-                accessibilityLabel={ko ? "음성으로 담기" : "Capture by voice"}
+                accessibilityLabel={t("beyond.captureByVoice")}
               >
                 <MicGlyph color={m3.color.onSurfaceVariant} />
               </Pressable>
@@ -107,7 +106,7 @@ export default function BeyondScreen() {
         </View>
 
         {/* ── 잠금화면 ─────────────────────────────────────────────────── */}
-        <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "잠금화면" : "Lock screen"}</RNText>
+        <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("beyond.lockSection")}</RNText>
         <MdCard variant="outlined" style={s.lockCard}>
           <View style={s.lockTag}><RNText style={s.tagTxt}>{previewTag}</RNText></View>
           <RNText style={s.lockTime}>9:41</RNText>
@@ -115,19 +114,19 @@ export default function BeyondScreen() {
             <SecondbHead size={28} track={false} />
             <View style={s.notifBody}>
               <RNText style={s.notifTitle}>2nd-Brain</RNText>
-              <RNText style={s.notifText}>{ko ? "오늘 떠오른 걸 한 줄 남겨볼까요?" : "Want to leave one line about today?"}</RNText>
+              <RNText style={s.notifText}>{t("beyond.lockNotif")}</RNText>
             </View>
           </View>
         </MdCard>
 
         {/* ── 푸시 알림 ────────────────────────────────────────────────── */}
-        <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{ko ? "푸시 알림" : "Push notifications"}</RNText>
+        <RNText style={[m3TextStyle("titleSmall"), s.sectionLabel]}>{t("beyond.pushSection")}</RNText>
         <MdCard variant="filled" style={s.notifPreview}>
           <SecondbHead size={30} track={false} />
           <View style={s.notifBody}>
-            <RNText style={s.notifHead}>{ko ? "세컨비 · 지금" : "세컨비 · now"}</RNText>
+            <RNText style={s.notifHead}>{t("beyond.pushHead")}</RNText>
             <RNText style={s.notifText}>
-              {ko ? "새 통찰이 검토를 기다려요. 동의하면 별에 반영할게요." : "A new insight is waiting for your review. Approve it and it reflects on your star."}
+              {t("beyond.pushBody")}
             </RNText>
           </View>
         </MdCard>
@@ -135,7 +134,7 @@ export default function BeyondScreen() {
         <View style={s.actions}>
           <MdButton
             variant="tonal"
-            label={ko ? "알림 설정" : "Notification settings"}
+            label={t("beyond.notifSettings")}
             onPress={() => router.push("/settings")}
             style={s.actionBtn}
           />

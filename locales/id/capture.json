@@ -336,5 +336,16 @@
   "formatsTab": "Format",
   "importTab": "Impor",
   "inboxTab": "Kotak masuk",
-  "manualTab": "Manual"
+  "manualTab": "Manual",
+  "jot": {
+    "title": "Tulis satu baris",
+    "deviceNote": "Untuk sekarang tersimpan di perangkat ini. Buat akun untuk membawanya ke otak keduamu.",
+    "placeholder": "Satu baris yang ada di pikiranmu",
+    "inputA11y": "Kolom tulisan",
+    "save": "Simpan",
+    "saving": "Menyimpan…",
+    "nearFull": "Ruang sementara di perangkat ini hampir penuh. Buat akun untuk memindahkannya dengan aman.",
+    "savedOnDevice": "Tersimpan di perangkat ini ({{n}})",
+    "createAccount": "Buat akun"
+  }
 }

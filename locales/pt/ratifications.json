@@ -17,5 +17,28 @@
   "originRecorded": "Registrado",
   "emptyAll": "Ainda não há mudanças confirmadas. Revise uma proposta na Polaris e ela ficará aqui.",
   "emptyFilter": "Não há registros neste filtro. Todo registro aplicado está confirmado.",
-  "subtitle": "O SecondB propõe; você sempre decide. Nenhuma análise chega a uma estrela sem o seu consentimento."
+  "subtitle": "O SecondB propõe; você sempre decide. Nenhuma análise chega a uma estrela sem o seu consentimento.",
+  "digest": {
+    "title": "Revisão de hoje",
+    "intro": "Conexões reunidas a partir dos seus registros. Você confirma o que é verdade.",
+    "loadError": "Não foi possível carregar sua revisão. Tente de novo em um instante.",
+    "retry": "Tentar de novo",
+    "empty": "Nada para revisar ainda. Guarde mais e as conexões vão aparecer.",
+    "goCapture": "Ir guardar",
+    "toReview": "{{n}} para revisar",
+    "a11yOpen": "Abrir {{title}}",
+    "dismiss": "Dispensar",
+    "confirm": "Confirmar",
+    "band": {
+      "strong": "conexão forte",
+      "likely": "conexão provável",
+      "weak": "conexão fraca"
+    },
+    "reminder": {
+      "label": "Lembre-me às 9:00",
+      "desc": "Toca só neste aparelho. Você pode desativar quando quiser.",
+      "notifBody": "Vamos revisar as conexões reunidas dos seus registros?",
+      "denied": "As notificações estão desativadas para este app. Ative-as nas Configurações."
+    }
+  }
 }

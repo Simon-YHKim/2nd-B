@@ -17,5 +17,28 @@
   "originRecorded": "Recorded",
   "emptyAll": "No ratified changes yet. Review a proposal in Polaris and it lands here.",
   "emptyFilter": "No records in this filter. Every landed record is ratified.",
-  "subtitle": "SecondB proposes; you always decide. Nothing reaches a star without your consent."
+  "subtitle": "SecondB proposes; you always decide. Nothing reaches a star without your consent.",
+  "digest": {
+    "title": "Today's review",
+    "intro": "Connections gathered from your records. You confirm what's true.",
+    "loadError": "Couldn't load your review. Please try again in a moment.",
+    "retry": "Try again",
+    "empty": "Nothing to review yet. Capture more and connections will appear.",
+    "goCapture": "Go capture",
+    "toReview": "{{n}} to review",
+    "a11yOpen": "Open {{title}}",
+    "dismiss": "Dismiss",
+    "confirm": "Confirm",
+    "band": {
+      "strong": "strong link",
+      "likely": "likely link",
+      "weak": "weak link"
+    },
+    "reminder": {
+      "label": "Remind me at 9:00 AM",
+      "desc": "Rings on this device only. Turn it off anytime.",
+      "notifBody": "Review the connections gathered from your records?",
+      "denied": "Notifications are off for this app. Turn them on in Settings."
+    }
+  }
 }

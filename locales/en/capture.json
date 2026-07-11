@@ -336,5 +336,16 @@
   "formatsTab": "Formats",
   "importTab": "Import",
   "inboxTab": "Inbox",
-  "manualTab": "Manual"
+  "manualTab": "Manual",
+  "jot": {
+    "title": "Jot a line",
+    "deviceNote": "Saved on this device for now. Make an account to bring it into your second brain.",
+    "placeholder": "A line on your mind",
+    "inputA11y": "Jot input",
+    "save": "Save",
+    "saving": "Saving…",
+    "nearFull": "This device's temporary space is almost full. Make an account to move them safely.",
+    "savedOnDevice": "Saved on this device ({{n}})",
+    "createAccount": "Create account"
+  }
 }

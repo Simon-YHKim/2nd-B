@@ -17,5 +17,28 @@
   "originRecorded": "Tercatat",
   "emptyAll": "Belum ada perubahan yang disetujui. Tinjau usulan di Polaris dan akan tercatat di sini.",
   "emptyFilter": "Tidak ada catatan di filter ini. Semua catatan yang masuk sudah disetujui.",
-  "subtitle": "SecondB mengusulkan; kamu yang selalu memutuskan. Tidak ada analisis yang masuk ke bintang tanpa persetujuanmu."
+  "subtitle": "SecondB mengusulkan; kamu yang selalu memutuskan. Tidak ada analisis yang masuk ke bintang tanpa persetujuanmu.",
+  "digest": {
+    "title": "Ulasan hari ini",
+    "intro": "Koneksi yang terkumpul dari catatanmu. Kamu yang memastikan mana yang benar.",
+    "loadError": "Tidak bisa memuat ulasanmu. Coba lagi sebentar lagi.",
+    "retry": "Coba lagi",
+    "empty": "Belum ada yang perlu diulas. Simpan lebih banyak dan koneksi akan muncul.",
+    "goCapture": "Mulai simpan",
+    "toReview": "{{n}} untuk diulas",
+    "a11yOpen": "Buka {{title}}",
+    "dismiss": "Abaikan",
+    "confirm": "Konfirmasi",
+    "band": {
+      "strong": "koneksi kuat",
+      "likely": "koneksi mungkin",
+      "weak": "koneksi lemah"
+    },
+    "reminder": {
+      "label": "Ingatkan aku pukul 9:00",
+      "desc": "Berbunyi hanya di perangkat ini. Bisa kamu matikan kapan saja.",
+      "notifBody": "Yuk ulas koneksi yang terkumpul dari catatanmu?",
+      "denied": "Notifikasi untuk aplikasi ini nonaktif. Aktifkan di Pengaturan."
+    }
+  }
 }
