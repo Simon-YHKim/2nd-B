@@ -103,7 +103,7 @@
 | # | 작업 | 크기 | 권장 |
 |---|---|---|---|
 | A | #907 실기 확인: call-reflection·iden 화면 에뮬 캡처 (딥링크 `/call-reflection`, `/iden`) | small | ⭐ 머지분 재검증 관례 |
-| B | **출처 불명 변경 2건 판정**: insights 막대 고정높이(height:132) 클리핑, WeeklyGrowth caret(›) 분리 줄바꿈 — 에뮬로 결함 실재 확인 후, 실재하면 근거 있는 PR 재구현 (diff 내용은 아래 "메모") | small | ⭐ 17회차 잔건 |
+| B | ✅ **완료(#908)**: 출처 불명 변경 2건을 에뮬 대조로 **둘 다 실결함 확인** → 근거 PR 재구현·머지·재캡처 PASS (insights 캡션↔숫자 겹침, growth caret 줄바꿈) | done | ✅ |
 | C | DeepSpaceDesignScreens 잔여 삼항 (Privacy 37·Data 7 = 법무 게이트 제외분) | medium | 배치4 위임 |
 | D | records 그래프 125레코드 링크 과밀(모아레) · FOCUS_STARS ko/en 한계 · 마이크로 타이포(9~11px) | small~med | P2/P3 |
 | E | KST 하드코딩(`records-timeline.ts:7`) 타임존 설계 | medium | 설계 선행 |
@@ -112,7 +112,13 @@
 ### 메모 — 출처 불명 변경 2건 (큐 B 재구현용 diff 요지)
 1. `src/screens/deepspace/dds-styles.ts` insightsBars: `height:132` 제거 + `paddingTop:spacing.sm→md` (막대 차트 클리핑 의심)
 2. `src/screens/deepspace/growth/WeeklyGrowthScreen.tsx` ~L208 reasonChip: 별도 `<RNText>›</RNText>` caret을 앞 Text 런 안으로 병합 (caret 단독 줄바꿈 의심)
-- 17회차 배치 워크트리에 생성 직후부터 존재(에이전트 작업 아님 — mtime 판별). 현재 어디에도 미적용. **에뮬 확인으로 결함 실재 판정 후에만** 적용.
+- 17회차 배치 워크트리에 생성 직후부터 존재(에이전트 작업 아님 — mtime 판별). → **#908로 둘 다 에뮬 실결함 확인·근거 재구현·머지·재캡처 PASS** (큐 B 완료).
+
+### 17회차 이어서 (에뮬 순회 + persona-sim → PR #908·#910)
+- **#908**: 위 메모 2건을 에뮬 대조로 실결함 확인 후 근거 PR 재구현·머지 (insights 캡션↔숫자 겹침 = `dds-styles.ts` insightsBars, growth caret 줄바꿈 = `WeeklyGrowthScreen.tsx`). 재캡처 PASS.
+- **#910**: 에뮬 순회 추가발견 겹침/a11y 3건 — career-drilldown 스티키 CTA 반투명 뒤 폼글자 비침(`career-drilldown.tsx:293` 불투명화, 에뮬확인) · 홈 알림벨 터치타깃 36→48px(`ConstellationHome.tsx:276` hitSlop 8→14) · trends 차트 Svg accessibilityLabel.
+- **4축 페르소나 시뮬**(연령·소득·문화·접근성, 전부 file:line, 프레임워크 인지 검증): clean 3건 #910 ship, 22건 분류 → 🎨폰트가독(Simon 미학: dock 9px `DeepSpaceDock.tsx:147` · **동의헤더 7px** `dds-styles.ts:126` · 11~13px 다수) · 🔒수익화 7건(무료챗 2/일캡 `chat/limits.ts:13` · 캡도달시 보상경로 도달불가 `secondb.tsx:605` · 월추론캡 페이월 모순 `:476` · 보상행 허위지급 `dds-plans-screen.tsx:324` 등) · 🌏i18n 백로그(뮤지엄 한국어전용 `museum-timeline-data.ts:39`=최대 · 코어루프 AxisCheck/Trends/WeeklyGrowth/attachment/ops es/pt/id). 리포트=세션-로컬 `scratchpad/persona-sim-loop17.html`(Simon 전달).
+- 후속(비게이트, 신중): RecordsGraph SVG노드 a11y(`:117`, List폴백 존재→보류) · AxisCheck 밸런스바 극단분할 클립(`:189`) · TTFV 펄스 reduce-motion(`:85`). 방법론: stale 워크트리 WIP가 verify 오염(새 브랜치명 clean 워크트리로 격리) · 에뮬 순회 페이싱(딥링크 연사=메모리압박 앱kill, pid점검+배치≤6).
 
 ### 검증
 ```bash
