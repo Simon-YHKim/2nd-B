@@ -923,7 +923,7 @@ export function DeepSpaceInsightsScreen() {
           children - which is the full card content. */}
       <Pressable
         onPress={() => router.push("/records")}
-        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -951,7 +951,7 @@ export function DeepSpaceInsightsScreen() {
       </Pressable>
       <Pressable
         onPress={() => router.push("/research")}
-        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1222,7 +1222,7 @@ export function DeepSpaceDiscoverScreen() {
       <Text variant="body" style={styles.lead}>{t("discover.lead")}</Text>
       <Pressable
         onPress={() => router.push("/attachment")}
-        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
         accessibilityLabel={t("discover.card1Head")}
       >
@@ -1233,7 +1233,7 @@ export function DeepSpaceDiscoverScreen() {
       </Pressable>
       <Pressable
         onPress={() => router.push("/capture")}
-        style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
         accessibilityLabel={t("discover.card2Head")}
       >
@@ -1515,7 +1515,8 @@ export function DeepSpaceResearchScreen() {
           </View>
           {view.headline !== null ? (
             <Pressable
-              style={({ pressed }) => [styles.insightViolet, pressed ? { opacity: 0.6 } : null]}
+              style={styles.insightViolet}
+              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
               onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.headline!.id } })}
               accessibilityRole="button"
               accessibilityLabel={view.headline.title}
@@ -1534,7 +1535,8 @@ export function DeepSpaceResearchScreen() {
           )}
           {view.surprise !== null ? (
             <Pressable
-              style={({ pressed }) => [styles.insightViolet, pressed ? { opacity: 0.6 } : null]}
+              style={styles.insightViolet}
+              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
               onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
               accessibilityRole="button"
               accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
@@ -1570,7 +1572,8 @@ export function DeepSpaceResearchScreen() {
               return (
                 <View key={key} style={styles.opsStep}>
                   <Pressable
-                    style={({ pressed }) => [styles.mapRow, { minHeight: 44 }, pressed ? { opacity: 0.6 } : null]}
+                    style={[styles.mapRow, { minHeight: 44 }]}
+                    android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
                     onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.from_page } })}
                     accessibilityRole="button"
                     accessibilityLabel={`${p.from_title} ↔ ${p.to_title}`}

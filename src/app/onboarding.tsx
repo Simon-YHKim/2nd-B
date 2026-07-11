@@ -187,7 +187,8 @@ export default function Onboarding() {
               accessibilityLabel={t("onboarding.next")}
               accessibilityHint={nextHint}
               onPress={() => setStep((s) => s + 1)}
-              style={({ pressed }) => [styles.nextPress, pressed && styles.pressed]}
+              style={styles.nextPress}
+              android_ripple={{ color: withAlpha(deepSpace.onAccent, 0.12) }}
             >
               <Text variant="caption" style={styles.nextText}>{t("onboarding.next")}</Text>
               <SbIcon name="arrow_forward" size={18} color={deepSpace.onAccent} />
@@ -271,7 +272,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   nextText: { color: deepSpace.onAccent, fontSize: 15 },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
 
   authBar: { paddingBottom: 28 },
   authBtn: { alignSelf: "stretch" },

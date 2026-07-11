@@ -38,7 +38,8 @@ export const ReferenceShardCard = memo(function ReferenceShardCard({
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={title}
-      style={({ pressed }) => [styles.shard, pressed && onPress ? { opacity: 0.8 } : null]}
+      style={styles.shard}
+      android_ripple={onPress ? { color: withAlpha(accent, 0.15) } : undefined}
     >
       <View style={[styles.shardGem, { backgroundColor: accent }, pixelShadowStyle(accent)]} />
       <View style={styles.shardText}>
@@ -78,14 +79,14 @@ export const GraphNodeChip = memo(function GraphNodeChip({
       disabled={!onPress}
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={countLabel}
-      style={({ pressed }) => [
+      style={[
         styles.chip,
         { borderColor: active ? accent : gameboy.border },
         active ? styles.chipActive : null,
         active ? pixelShadowStyle(accent) : null,
-        pressed && onPress ? { opacity: 0.82 } : null,
         style,
       ]}
+      android_ripple={onPress ? { color: withAlpha(accent, 0.15) } : undefined}
     >
       <View style={[styles.chipDot, { backgroundColor: accent }]} />
       <Text variant="caption" numberOfLines={2} style={styles.chipLabel}>{label}</Text>

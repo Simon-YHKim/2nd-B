@@ -12,7 +12,7 @@
 import { useCallback } from "react";
 import { Modal, View, StyleSheet, Pressable, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { WorkerSprite } from "@/components/art/WorkerSprite";
@@ -89,7 +89,8 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
               accessibilityRole="button"
               accessibilityHint={isKorean ? "전화 걸기" : "Place a call"}
               accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
-              style={({ pressed }) => [styles.hotlinePress, pressed && styles.hotlineBoxPressed]}
+              style={styles.hotlinePress}
+              android_ripple={{ color: withAlpha(semantic.danger, 0.12) }}
             >
               <Text variant="body" style={styles.hotline}>
                 {t(`red.hotline.${hotline}`)}
@@ -106,7 +107,8 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
                 accessibilityRole="link"
                 accessibilityLabel={t("red.directoryLabel")}
                 accessibilityHint={t("red.directoryHint")}
-                style={({ pressed }) => [styles.directoryPress, pressed && styles.hotlineBoxPressed]}
+                style={styles.directoryPress}
+                android_ripple={{ color: withAlpha(semantic.danger, 0.12) }}
               >
                 <Text variant="caption" color="brand">{t("red.directoryLabel")}</Text>
               </Pressable>
@@ -163,10 +165,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  hotlineBoxPressed: {
-    backgroundColor: semantic.surface,
-    opacity: 0.85,
-  },
+
   directoryRow: {
     backgroundColor: semantic.surfaceAlt,
     borderRadius: radii.md,
