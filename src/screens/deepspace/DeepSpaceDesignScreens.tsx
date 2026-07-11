@@ -823,15 +823,15 @@ export function DeepSpaceInsightsScreen() {
       <Shell title={t("insights.title")}>
         <View style={styles.wikiPageOpen}>
           <Text variant="body" style={styles.wikiBody}>
-            {ko ? "이번 주 데이터를 불러오지 못했어요." : "Could not load this week's data."}
+            {t("insights.errorBody")}
           </Text>
           <Pressable
             style={styles.primary}
             onPress={() => setReloadKey((k) => k + 1)}
             accessibilityRole="button"
-            accessibilityLabel={ko ? "다시 시도" : "Try again"}
+            accessibilityLabel={t("insights.retry")}
           >
-            <Text variant="caption" style={styles.primaryText}>{ko ? "다시 시도" : "Try again"}</Text>
+            <Text variant="caption" style={styles.primaryText}>{t("insights.retry")}</Text>
           </Pressable>
         </View>
       </Shell>
@@ -845,9 +845,7 @@ export function DeepSpaceInsightsScreen() {
         <SecondbStatusHeader text={t("insights.statusFirstWeek")} tip={t("insights.tip")} mood="neutral" />
         <View style={styles.wikiPageOpen}>
           <Text variant="body" style={styles.wikiBody}>
-            {ko
-              ? "한 주만 채우면 지난주와 이번주를 비교해 드릴게요."
-              : "Fill one week and I'll compare this week with last week."}
+            {t("insights.firstWeekBody")}
           </Text>
           <Pressable
             style={styles.primary}
