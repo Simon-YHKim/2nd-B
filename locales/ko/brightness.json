@@ -8,5 +8,9 @@
   "weeksAgo": "8주 전",
   "thisWeek": "이번 주",
   "evidence": "이 별빛의 근거",
-  "ratLog": "승인 이력 보기"
+  "ratLog": "승인 이력 보기",
+  "emptyBody": "아직 변화를 그릴 기록이 부족해요. 점검을 마치고 제안을 승인하면 별의 궤적이 여기 쌓여요.",
+  "honestyLine": "관측 {{obs}}번 · 근거 있는 관측 {{cited}}번 · 별 {{stars}}개",
+  "citedRatioLabel": "근거 비율 {{cited}}/{{obs}}",
+  "honestyCaption": "밝기는 확신이 아니라 기록의 양이에요. 근거가 붙을수록 믿을 만해져요."
 }

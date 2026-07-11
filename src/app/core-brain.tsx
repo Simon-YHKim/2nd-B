@@ -290,11 +290,7 @@ function CoreBrainScreen() {
           <View style={styles.drawerHandle} />
           <Text variant="heading">{t("piecesBehind")}</Text>
           <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-            {locale === "ko"
-              ? isDeepSpaceUI()
-                ? "세컨비와 북극성이 참고한 기록이에요."
-                : "세컨비와 소울 코어이 참고한 기록이에요."
-              : "The records SecondB and your center drew on."}
+            {t("piecesBehindSub")}
           </Text>
           <ScrollView style={{ marginTop: spacing.md }} contentContainerStyle={{ gap: spacing.sm }}>
             {evidence.map((ev) => (

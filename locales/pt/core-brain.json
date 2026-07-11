@@ -60,5 +60,6 @@
   "selfPortraitCount": "autorretrato {{n}}/5",
   "areasCount": "{{n}} áreas",
   "seePieces": "Ver {{n}} fragmentos",
-  "seeEvidencePieces": "Ver {{n}} fragmentos de evidência"
+  "seeEvidencePieces": "Ver {{n}} fragmentos de evidência",
+  "piecesBehindSub": "Os registros em que SecondB e sua Estrela Polar se apoiaram."
 }

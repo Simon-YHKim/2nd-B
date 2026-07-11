@@ -60,5 +60,6 @@
   "selfPortraitCount": "self-portrait {{n}}/5",
   "areasCount": "{{n}} areas",
   "seePieces": "See {{n}} pieces",
-  "seeEvidencePieces": "See {{n}} evidence pieces"
+  "seeEvidencePieces": "See {{n}} evidence pieces",
+  "piecesBehindSub": "The records SecondB and your center drew on."
 }

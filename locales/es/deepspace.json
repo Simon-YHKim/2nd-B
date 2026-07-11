@@ -627,7 +627,8 @@
     "a11yZoomIn": "Acercar",
     "hintSelected": "{{label}} · toca de nuevo para abrir",
     "hintDefault": "Discontinua = registros unidos por una etiqueta compartida. Toca para seleccionar, toca de nuevo para abrir",
-    "untitled": "(sin título)"
+    "untitled": "(sin título)",
+    "tagLinks": "Enlaces de etiqueta"
   },
   "wikiGraph": {
     "a11yGraph": "Grafo de nodos de la wiki",

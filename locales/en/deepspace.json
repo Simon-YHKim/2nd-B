@@ -627,7 +627,8 @@
     "a11yZoomIn": "Zoom in",
     "hintSelected": "{{label}} · tap again to open",
     "hintDefault": "Dashed = records linked by a shared tag. Tap to select, tap again to open",
-    "untitled": "(untitled)"
+    "untitled": "(untitled)",
+    "tagLinks": "Tag links"
   },
   "wikiGraph": {
     "a11yGraph": "Wiki node graph",

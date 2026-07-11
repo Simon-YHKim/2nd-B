@@ -13,5 +13,9 @@
   "notice": "인터뷰 피드백 안내",
   "reflectError": "반영하지 못했어요",
   "dismiss": "닫기",
-  "tryAgain": "다시 시도"
+  "tryAgain": "다시 시도",
+  "ratifyDeltaNote": "답변은 그대로 저장돼요. 지금 추정치를 지어내지 않고, 기록이 쌓이면 별 밝기에 반영돼요.",
+  "progressLabel": "질문 {{n}} / {{total}} · 회상 인터뷰",
+  "screenerSubtitle": "같은 핵심을 조금씩 다르게 되물어요. 더 또렷해지려고요.",
+  "reflectErrorBody": "인터뷰 답변은 그대로 남아 있어요. 잠시 후 다시 시도해 주세요."
 }

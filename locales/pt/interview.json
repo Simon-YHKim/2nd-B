@@ -13,5 +13,9 @@
   "notice": "Aviso de feedback da entrevista",
   "reflectError": "Não conseguimos refletir",
   "dismiss": "Fechar",
-  "tryAgain": "Tentar de novo"
+  "tryAgain": "Tentar de novo",
+  "ratifyDeltaNote": "Suas respostas são salvas como estão. Não inventamos uma estimativa agora; suas estrelas se iluminam conforme seus registros se acumulam.",
+  "progressLabel": "Pergunta {{n}} / {{total}} · Entrevista de lembranças",
+  "screenerSubtitle": "Voltamos ao mesmo ponto de um jeito um pouco diferente a cada vez, para vê-lo com mais clareza.",
+  "reflectErrorBody": "Suas respostas continuam aqui. Tente novamente em um instante."
 }
