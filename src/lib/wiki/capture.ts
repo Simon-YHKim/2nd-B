@@ -129,10 +129,17 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   // never let it abort the save. We use the canonical path regardless, and when
   // the upload didn't land we stash the body in frontmatter (_body_fallback) so
   // nothing is lost and a re-upload can recover it later.
-  const path = rawClippingPath(input.userId, built.suggested_slug);
+  // Storage key = title-slug + a content-hash suffix so two DIFFERENT captures
+  // that happen to share a title no longer collide on one path (the second upload
+  // would otherwise overwrite the first source's body, corrupting it). Exact
+  // duplicates already returned above, so every distinct capture here has a
+  // distinct content hash. suggested_slug (the human-facing wiki slug) is left
+  // untouched — only the physical storage path is disambiguated.
+  const storageSlug = `${built.suggested_slug}-${hash.slice(0, 12)}`;
+  const path = rawClippingPath(input.userId, storageSlug);
   let storedToStorage = true;
   try {
-    await uploadRawClipping(input.userId, built.suggested_slug, built.body);
+    await uploadRawClipping(input.userId, storageSlug, built.body);
   } catch (e) {
     throwIfAborted(input.signal);
     storedToStorage = false;
