@@ -24,6 +24,20 @@ describe("classifyInput", () => {
     expect(r.categories).toContain("crisis");
   });
 
+  test("EN multi-word crisis term still matches across non-space whitespace", () => {
+    // The words split by a newline / double space / nbsp must not slip RED->GREEN.
+    expect(classifyInput("I just want to\ndie", "en").zone).toBe("red");
+    expect(classifyInput("i want to  die", "en").zone).toBe("red");
+    expect(classifyInput("i want to die", "en").zone).toBe("red");
+  });
+
+  test("KO crisis term matches NFD-decomposed Hangul (pasted/imported input)", () => {
+    // iOS/macOS clipboard and third-party clips can arrive NFD-decomposed while the
+    // lexicon is authored NFC; both must classify RED.
+    expect(classifyInput("죽고 싶어요".normalize("NFD"), "ko").zone).toBe("red");
+    expect(classifyInput("죽고 싶어요".normalize("NFC"), "ko").zone).toBe("red");
+  });
+
   test("KR adult crisis routes to KR_109 (1393 merged into 109 in 2024)", () => {
     const r = classifyInput("요즘 자살에 대해 자주 생각해요.", "ko");
     expect(r.zone).toBe("red");
