@@ -92,8 +92,11 @@
 > **새 세션은 이 블록 → [`docs/LOOP-PLAYBOOK.md`](LOOP-PLAYBOOK.md) 순서로 읽는다.**
 > PLAYBOOK = 루프 운영 매뉴얼 정본 (루프 원문 프롬프트·ScheduleWakeup 케이던스·에뮬 레시피·서브에이전트 위임 템플릿과 실전 예제·워크트리 규율·i18n 컨벤션·스킬 활용법·함정 사전). 이 블록은 상태만 담는다.
 
-### 어디까지 왔나 (21회차까지 갱신 — 2026-07-11 저녁)
-- main HEAD: `6fe434e1` (#916)
+### 어디까지 왔나 (42회차까지 갱신 — 2026-07-11 밤)
+- main HEAD: `0b1e5f64` (#927)
+- **22~42회차 추가분**: **#918**(그래프 Me/Knowledge 라벨 겹침 — SVG viewBox↔absolute px 좌표계 불일치, 300×310 스테이지 래퍼, 실기 재검증 PASS) · **#919**(타임라인 디바이스 타임존, 쿼터 KST 2곳은 게이트 이관) · **#923**(locale===\"ko\" 변형 삼항 배치5 — 9변환+6파일 0-yield 감사, 문항 카피 ~71 = 측정등가성 게이트 신설, 실기 PASS) · **#926**(wiki Graph 태그링크 토글 — 레퍼런스 sb-wikigraph showTagLinks 정합, 적응 기본 OFF>150, 실기 왕복 검증 PASS: 모아레 해소) · **#927**(챗 quick-action 칩 세로 stretch — quickRow alignItems 누락 1줄 픽스; **실기 재검증은 챗 쿼터 리셋(KST 자정) 후 이월**).
+- **42회차 판정 2건**: ①챗 한도 도달 "조용 차단"은 오탐 — 3중 고지 배선 확인(danger 카운터·disabled 버튼·View plans CTA) ②기존 게이트 항목 "?from=ai_limit 무시"는 현재 코드에서 배선돼 해소된 것으로 확인.
+- 이 세션 실기 검증 누적 30+면, 머지 PR 24건. AI 기동 실전 검증: 전송 파이프라인 정상(버블·쿼터 카운터·Clear), 에뮬 환경 응답은 정직한 오프라인 프리뷰 폴백(fail-open 아님).
 - **18~21회차 추가분**: #907 실기 PASS(blocked 분기+iden, 플래그 인라인 렌더 확인) · "출처 불명 변경" 미스터리 해소=플릿 #908이 동일 픽스 선머지(실기 1.0x/1.7x 검증됨) · **#912**(growth reason chip Fabric row 드롭 — dot 고아 줄바꿈 실기 확증→수정→재검증 PASS) · **#913**(focus 별 칩 es/pt/id — ko는 canon 유지+byte-match 가드) · **persona-sim r3**: 회귀 5/5 HOLDS + R4가 #680 클래스 잔존 21건 발굴(위기 핫라인 버튼·온보딩 CTA·허브 도크 포함) → **#916** 전건 static+ripple 전환 + `no-function-form-pressable-style.test.ts` 가드 영구화(326 suites/2434 tests). #916 실기 스팟체크(discover 카드·허브 도크) PASS.
 - **삼항 대소탕 종결**: 프로드 카피 삼항 잔존 = Privacy(34)+Data(7) 법무 게이트분 뿐. 산발 3건은 locale 파생(비카피).
 - 17회차 완주 (16회차 블록에 이어): **#906**(i18n 배치2 — digest·beyond·star·onboarding·trends·jot 69삼항) 머지 + 실기 4/4 PASS, **#904 실기 3면 PASS**(focus·integrations·ops), **#907**(i18n 배치3 — call-reflection·iden) 머지. 에뮬 offline 1회 → 콜드부트 복구 (앱 패키지명 정본 = `com.simonk.secondbrain`).
@@ -107,7 +110,7 @@
 | A | ✅ **완료(18회차)**: #907 실기 PASS (blocked 분기 + iden, 법무 플래그 인라인 렌더 확인) | done | ✅ |
 | B | ✅ **완료(#908)**: 출처 불명 변경 2건을 에뮬 대조로 **둘 다 실결함 확인** → 근거 PR 재구현·머지·재캡처 PASS (insights 캡션↔숫자 겹침, growth caret 줄바꿈) | done | ✅ |
 | C | ~~배치4~~ **게이트 대기로 재분류**: 잔여 41삼항 = 전부 Privacy(34)+Data(7) 법무분. 비게이트 물량 소진 | — | 🔒 Simon |
-| D | **wiki Graph 태그링크 토글 구현** (스펙 확보, 아래 메모) — ~~마이크로 타이포~~ 23회차 판정 종결(레퍼런스 정합 우선) · ~~FOCUS_STARS~~ ✅ #913 | medium | ⭐ 다음 세션 1순위 |
+| D | ✅ **완료(#926, 38~39회차)**: 태그링크 토글 구현+실기 왕복 검증 (모아레 해소). 신규 이월: #927 칩 픽스 실기 재검증(챗 쿼터 리셋 후) + 문항 카피 게이트 (motivation 17·values 15·strengths 15·big-five 7·ipip 6·rlss 6·attachment 5 = 측정등가성, CrisisRouter 4 = 안전) | — | ✅ / 🔒 |
 | E | ✅ **완료(#919)**: 타임라인 날짜 버킷 디바이스 타임존화 (쿼터 리셋 KST 2곳은 수익화 게이트로 이관) | done | ✅ |
 | G | 🔒 게이트(Simon): 수익화 6건 · Privacy/Data es/pt/id 번역(법무) · attachment 임상 어휘 · ratify 되돌리기 · **법무 플래그 5건**(위) · 988/동의연령/advisor/₩ | — | Simon |
 
