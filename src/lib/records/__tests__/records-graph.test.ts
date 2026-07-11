@@ -1,6 +1,9 @@
 import {
   buildRecordsGraph,
+  initialTagLinksVisible,
+  linkEdgeCount,
   recordDomain,
+  TAG_LINK_DENSITY_LIMIT,
   type GraphRecord,
 } from "../records-graph";
 
@@ -85,6 +88,29 @@ describe("buildRecordsGraph", () => {
     const g = buildRecordsGraph([rec("r1", "career")], { locale: "ko" });
     expect(g.nodes.find((n) => n.kind === "polaris")!.label).toBe("북극성");
     expect(g.nodes.find((n) => n.domain === "career" && n.kind === "domain")!.label).toBe("커리어");
+  });
+});
+
+describe("tag-link overlay default", () => {
+  it("linkEdgeCount counts only link-kind edges (not spine/branch)", () => {
+    const g = buildRecordsGraph([
+      rec("r1", "career", ["burnout"]),
+      rec("r2", "health", ["burnout"]),
+    ]);
+    // 2 spine + 2 branch + 1 cross-domain link → count is the single link.
+    expect(linkEdgeCount(g)).toBe(1);
+    expect(linkEdgeCount(buildRecordsGraph([]))).toBe(0);
+  });
+
+  it("starts ON at or below the density limit (proto default)", () => {
+    expect(initialTagLinksVisible(0)).toBe(true);
+    expect(initialTagLinksVisible(TAG_LINK_DENSITY_LIMIT - 1)).toBe(true);
+    expect(initialTagLinksVisible(TAG_LINK_DENSITY_LIMIT)).toBe(true);
+  });
+
+  it("starts OFF above the density limit (hundreds of dashed links → moiré)", () => {
+    expect(initialTagLinksVisible(TAG_LINK_DENSITY_LIMIT + 1)).toBe(false);
+    expect(initialTagLinksVisible(400)).toBe(false);
   });
 });
 
