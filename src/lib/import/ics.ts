@@ -59,6 +59,29 @@ function propName(key: string): string {
   return key.split(";")[0].toUpperCase();
 }
 
+/**
+ * Unescape an RFC 5545 §3.3.11 TEXT value: `\\`→`\`, `\,`→`,`, `\;`→`;`,
+ * `\n`/`\N`→newline. Single left-to-right pass so `\\,` stays `\,` (an escaped
+ * backslash then a literal comma), not a bare comma. Real exporters (Google
+ * Takeout, Apple Calendar) emit these escapes, so without this a SUMMARY like
+ * `Lunch\, then gym` would keep the literal backslash in the title.
+ */
+function unescapeIcsText(value: string): string {
+  let out = "";
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === "\\" && i + 1 < value.length) {
+      const next = value[i + 1];
+      if (next === "n" || next === "N") out += "\n";
+      else out += next; // \\ \, \; → the literal char; unknown escape → drop the slash
+      i++;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
 /** Parse an .ics document into events. Pure. */
 export function parseIcs(raw: string): CalendarEvent[] {
   if (typeof raw !== "string" || raw.length === 0) return [];
@@ -89,7 +112,7 @@ export function parseIcs(raw: string): CalendarEvent[] {
       }
       cur = null;
     } else if (cur) {
-      if (name === "SUMMARY") cur.title = val;
+      if (name === "SUMMARY") cur.title = unescapeIcsText(val);
       else if (name === "DTSTART") cur.start = parseIcsDate(val);
       else if (name === "DTEND") cur.end = parseIcsDate(val);
     }
