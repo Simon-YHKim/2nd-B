@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-11 / 클론 /loop 16회차 — 실기 갭 픽스 15 PR + 가드 3종 + i18n 대소탕 (에뮬 실기 사이클 확립)
 - Latest — 2026-07-10 (심야) / persona-sim 큐 A 완주 + 세컨비 중립 스윕 마무리 + insights 정직성 (4 PR)
 - Latest — 2026-07-10 (저녁) / 에뮬 네이티브 실기 검증 완료 + persona-sim 클린픽스 7 PR
 - Latest — 2026-07-10 / 레퍼런스 진짜구현 — 자기이해 3 instrument + QA 시딩검증 + 세컨비 중립 + persona-sim
@@ -82,6 +83,54 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-11 / 클론 /loop 16회차 — 실기 갭 픽스 15 PR + 가드 3종 + i18n 대소탕
+
+### 어디까지 왔나
+- main HEAD: `30839128` (#902, 플릿)
+- **이번 세션 = Simon의 클론 /loop** (머지 후 5분 재가동, 16회차 완주): 레퍼런스 zip(`design/2ndB proto_rev2 (Copy)_rev2.zip` → scratchpad 추출) 대비 **에뮬 실기 화면**을 대조해 갭을 메우는 루프. 이 세션 머지 PR 15개:
+  - **실기 시각 갭**: #883(TTFV 라벨 wrap+북극성 리터럴+settings 원시키) · #885(records 카드 해체=#680 Fabric) · #886(과거 행 시간라벨 전멸) · #892(뒤로가기 화살표 2개 겹침→own-back 레지스트리) · #893(assessment JSON 덤프→결과보기 CTA)
+  - **한국어/i18n**: #887(keepAllKo 유틸+4곳) · #897(northstar 편집기 전면+insights 분기) · #900(승인 원장 완결+starName 7종 신설) · #903(records-graph 라벨 주입="한 별 한 이름") · #904(6화면 44삼항 배치)
+  - **persona-sim 라운드2**: #889(keep-all 프로드모달 회귀+ipip 앵커+칩 checked 누수+리워드 주간→월간 허위) · #890(무확인 하드삭제 BLOCKER→확인모달) · #891(TalkBack 라벨 override)
+  - 기타: #888(M3 체크칩) · #881(eslint Output/ 로컬 verify 깨짐)
+- 테스트: `npm run verify` green (마지막 확인 325 suites / 2431 tests). **실기 검증**: 각 픽스를 머지 후 에뮬 재캡처로 육안 확인(전건 PASS).
+- working tree: clean. ⚠️ **진행 중 워크트리 1개**: `.worktrees/loop-emu-16`(브랜치 `claude/loop-emu-fixes-16`) — i18n 배치2(digest·beyond·star/[domain]·onboarding·trends·jot, 69삼항) **변환 완료·verify 중**이던 위임 에이전트 산출물. 회수: 그 워크트리에서 `npm run verify` exit 0 확인 → 명시경로 add → 커밋 → PR → 머지. 버리려면 junction 먼저 rmdir 후 worktree remove.
+
+### 이 세션이 확립한 방법론 (다음 세션 필독)
+1. **레퍼런스 정본 = zip 안의 reference-app 소스** (`scratchpad/ref_rev2/`에 추출했었음, 재추출 필요). **캡처(docs/Screen-Spec/captures)는 소스보다 구버전** — 캡처-온리 갭은 소스 재대조 없이 수정 금지 (홈 5건 전부 이걸로 오탐 판명).
+2. **에뮬 실기 사이클**: 딥링크 순회(`secondbrain:///<route>`)→screencap→레퍼런스 대조→픽스→머지→metro 리로드→재캡처 검증. dev 토스트가 독 아이콘을 가림(✕ 먼저). 에뮬 불안정 시 딥링크가 조용히 실패해 직전 화면이 찍힘 → P0 "엉뚱한 화면"은 재캡처 먼저.
+3. **metro는 파이프 금지**: `npx expo start | head -N`은 N줄 도달 시 SIGPIPE로 죽는다(3회 낭비). 파일 리다이렉트+run_in_background. 캐시 에러는 `--clear`.
+4. **에뮬 함정**: arm64 APK 덮어씌움(플릿) → "keeps stopping"=SoLoader ABI 크래시 → 전 ABI debug APK로 uninstall-first 재설치+QA 재로그인(Skip→email→`.env.test`→Never). adb 행→kill-server, 그래도 offline→콜드부트.
+5. **신설 가드 3종**: `i18n-static-keys.test.ts`(코드→en번들 키 존재, check-i18n 사각지대) · `mascot-neutral-default.test.ts`(정적 mood 리터럴) · keep-all은 `keepAllKo()`+원본 accessibilityLabel 쌍이 관례.
+6. **i18n 배치 규칙**: ko/en byte 보존, 보간 변수에 `count` 금지(plural 조회), 로케일 JSON은 CRLF+2space 재구성 스크립트, canon-bilingual 미러/로케일 배열 선택은 보존, 별 이름은 `ds.home.{domainName,starName}.*` 재사용.
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | `.worktrees/loop-emu-16` 회수 → verify → PR → 머지 (69삼항 배치2) | small | ⭐ 산출물 대기 중 |
+| B | call-reflection(31삼항, **안전임상 카피 선별 필수**) + iden(19삼항, 권리 카피 선별) 변환 | medium | 선별 후 배치 |
+| C | 실기 확인 잔여: #904 ops/connect 화면, 배치2 화면들 | small | 에뮬 순회 |
+| D | KST 하드코딩(`records-timeline.ts:7`) — 비-KST 사용자 날짜 왜곡, 타임존 설계 | medium | 설계 선행 |
+| E | records 그래프 125레코드 링크 과밀(모아레) · FOCUS_STARS ko/en 한계 · 마이크로 타이포(9~11px, 에뮬 확인 선행) | small~medium | P2/P3 |
+| G | 🔒 게이트: 수익화 6건(rewarded promise≠grant·유료티어 "0 남음"·soma/lifetime 부재·"월 100별가루" 허위·한도 미표시·`?from=ai_limit` 무시) · Privacy/Data 화면 es/pt/id 번역=법무 검토 · attachment 임상 어휘 · ratify 되돌리기 · persona-sim 4건(988·동의연령·advisor·₩) | — | Simon |
+
+### 적용 중인 정책 (영구, 이 세션 추가분)
+1. 정책 스윕은 "grep 몇 곳 수정"으로 끝내지 않는다 — 인벤토리→적대검증→가드테스트→회귀주입 증명 (#858 미완 사례).
+2. 워크트리 정리: junction rmdir와 worktree remove를 **분리**하고 각각 확인 (한 루프+출력억제로 node_modules 전멸 사고 1회).
+3. Vercel 프리뷰 rate-limit fail은 게이트 아님 — verify×2+lint green 독립 확인 후 머지.
+
+### 검증
+```bash
+cd /e/2ndB && npm run verify   # 단독 실행, exit 0 확인
+```
+
+### 다음 세션 시작하는 법 (루프 재개)
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A(배치2 회수)부터. 루프 재개는 Simon이 /loop + 원문 프롬프트(위 "이번 세션 = Simon의 클론 /loop" 참조)로.
+```
 
 ---
 
