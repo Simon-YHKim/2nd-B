@@ -182,7 +182,11 @@
     "labelLinked": "Akun tertaut",
     "labelLanguage": "Bahasa",
     "valueLanguage": "Indonesia",
-    "delete": "Hapus akun"
+    "delete": "Hapus akun",
+    "navProfile": "Profil",
+    "navSettings": "Pengaturan",
+    "navData": "Dataku",
+    "navBeyond": "Di luar aplikasi"
   },
   "privacy": {
     "title": "Privasi",
@@ -209,7 +213,9 @@
     "viewManual": "Lihat manual",
     "emailUs": "Email kami",
     "reportBug": "Laporkan bug",
-    "footer": "2nd-Brain v1.0.0 · 2 hari kerja KST"
+    "footer": "2nd-Brain v1.0.0 · 2 hari kerja KST",
+    "faqTitle": "Pertanyaan umum",
+    "noticesTitle": "Pengumuman"
   },
   "integrations": {
     "title": "Integrasi aplikasi",
@@ -223,6 +229,37 @@
     "healthLabel": "Kesehatan · Kalender",
     "permissionNeeded": "Perlu izin",
     "footer": "Kamu meninjau data integrasi sebelum mengimpor, dan bisa memutuskan kapan saja."
+  },
+  "connect": {
+    "title": "Sinkronisasi data",
+    "lead": "Menghubungkan membuat bintangmu menyala lebih cepat. Semua pemrosesan terjadi di perangkatmu dulu.",
+    "consent": "Konten asli tidak pernah disimpan; hanya sinyal turunan yang disimpan, terenkripsi, dan kamu bisa memutus dan menghapusnya kapan saja.",
+    "connected": "Terhubung",
+    "connect": "Hubungkan",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "terhubung",
+    "a11yConnect": "hubungkan",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Sinyal ritme dan hubungan dari jadwalmu"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "Tidur dan aktivitas mengisi bintang kesehatanmu"
+      },
+      "notion": {
+        "sub": "Impor catatan dan dokumen"
+      },
+      "photos": {
+        "name": "Album foto",
+        "sub": "Istirahat dan hubungan dari momen-momenmu"
+      },
+      "gpt": {
+        "name": "Ekspor ChatGPT",
+        "sub": "Bawa masuk riwayat obrolanmu"
+      }
+    }
   },
   "insights": {
     "title": "Wawasan",
@@ -292,7 +329,8 @@
     "sectionData": "Data · Privasi",
     "q4": "Apa itu berkas IDEN?",
     "q5": "Di mana dataku disimpan?",
-    "askDirect": "Tanya SecondB langsung"
+    "askDirect": "Tanya SecondB langsung",
+    "conceptsTitle": "Konsep inti"
   },
   "plans": {
     "title": "Paket",

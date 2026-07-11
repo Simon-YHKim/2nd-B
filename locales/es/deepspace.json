@@ -182,7 +182,11 @@
     "labelLinked": "Cuenta vinculada",
     "labelLanguage": "Idioma",
     "valueLanguage": "Español",
-    "delete": "Eliminar cuenta"
+    "delete": "Eliminar cuenta",
+    "navProfile": "Perfil",
+    "navSettings": "Ajustes",
+    "navData": "Mis datos",
+    "navBeyond": "Fuera de la app"
   },
   "privacy": {
     "title": "Privacidad",
@@ -209,7 +213,9 @@
     "viewManual": "Ver el manual",
     "emailUs": "Escríbenos",
     "reportBug": "Reportar un error",
-    "footer": "2nd-Brain v1.0.0 · 2 días hábiles KST"
+    "footer": "2nd-Brain v1.0.0 · 2 días hábiles KST",
+    "faqTitle": "Preguntas frecuentes",
+    "noticesTitle": "Avisos"
   },
   "integrations": {
     "title": "Integraciones de apps",
@@ -223,6 +229,37 @@
     "healthLabel": "Salud · Calendario",
     "permissionNeeded": "Permiso necesario",
     "footer": "Revisas los datos de integración antes de importar y puedes desconectarlos cuando quieras."
+  },
+  "connect": {
+    "title": "Sincronización de datos",
+    "lead": "Conectar ilumina tus estrellas más rápido. Todo el procesamiento ocurre primero en tu dispositivo.",
+    "consent": "El contenido original nunca se guarda; solo se conservan las señales derivadas, cifradas, y puedes desconectar y borrar cuando quieras.",
+    "connected": "Conectado",
+    "connect": "Conectar",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "conectado",
+    "a11yConnect": "conectar",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Señales de ritmo y relaciones desde tu agenda"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "El sueño y la actividad alimentan tu estrella de salud"
+      },
+      "notion": {
+        "sub": "Importa notas y documentos"
+      },
+      "photos": {
+        "name": "Álbum de fotos",
+        "sub": "Descanso y relaciones a partir de tus escenas"
+      },
+      "gpt": {
+        "name": "Exportación de ChatGPT",
+        "sub": "Trae tu historial de conversaciones"
+      }
+    }
   },
   "insights": {
     "title": "Perspectivas",
@@ -292,7 +329,8 @@
     "sectionData": "Datos · Privacidad",
     "q4": "¿Qué es un archivo IDEN?",
     "q5": "¿Dónde se almacenan mis datos?",
-    "askDirect": "Preguntar directamente a SecondB"
+    "askDirect": "Preguntar directamente a SecondB",
+    "conceptsTitle": "Conceptos clave"
   },
   "plans": {
     "title": "Planes",

@@ -82,6 +82,33 @@
     "doneA11y": "{{title}} done for today",
     "streak": "{{count}} day streak"
   },
+  "home": {
+    "ringCount": "{{done}} / {{total}} done",
+    "streakLabel": "day streak",
+    "patternsTitle": "This week's patterns",
+    "patternsSub": "Analysis runs in the background. Keep using the app.",
+    "patternsRun": "Run",
+    "takeEyebrow": "TODAY'S TAKE",
+    "toolsLabel": "Assistant tools"
+  },
+  "tools": {
+    "focus": {
+      "label": "Daily focus",
+      "sub": "Pomodoro"
+    },
+    "reminders": {
+      "label": "Reminders",
+      "sub": "Scheduled"
+    },
+    "imagine": {
+      "label": "Imagine",
+      "sub": "Throw far"
+    },
+    "shareCard": {
+      "label": "Share card",
+      "sub": "1080 card"
+    }
+  },
   "states": {
     "emptyDomain": "Pick an area above to get started."
   },
@@ -132,7 +159,19 @@
     "unitMin": "min",
     "decrease": "Decrease",
     "increase": "Increase",
-    "save": "Save"
+    "save": "Save",
+    "ringReady": "Ready",
+    "ringFocusing": "Focusing",
+    "ringPaused": "Paused",
+    "leadPre": "Time to focus on one thing. When it ends, one step toward your ",
+    "leadStar": "{{star}} star",
+    "leadPost": ".",
+    "preset": "{{min}} min",
+    "startFocus": "Start focus",
+    "resetBtn": "Reset",
+    "forWhichStar": "For which star?",
+    "todayCount": "{{sessions}} focus sessions today",
+    "todaySub": "About {{min}} min · goal {{goal}}"
   },
   "srs": {
     "title": "Language review",

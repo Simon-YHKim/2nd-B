@@ -182,7 +182,11 @@
     "labelLinked": "Linked account",
     "labelLanguage": "Language",
     "valueLanguage": "English",
-    "delete": "Delete account"
+    "delete": "Delete account",
+    "navProfile": "Profile",
+    "navSettings": "Settings",
+    "navData": "My data",
+    "navBeyond": "Outside the app"
   },
   "privacy": {
     "title": "Privacy",
@@ -209,7 +213,9 @@
     "viewManual": "View the manual",
     "emailUs": "Email us",
     "reportBug": "Report a bug",
-    "footer": "2nd-Brain v1.0.0 · 2 business days KST"
+    "footer": "2nd-Brain v1.0.0 · 2 business days KST",
+    "faqTitle": "FAQ",
+    "noticesTitle": "Notices"
   },
   "integrations": {
     "title": "App integrations",
@@ -223,6 +229,37 @@
     "healthLabel": "Health · Calendar",
     "permissionNeeded": "Permission needed",
     "footer": "You review integration data before importing, and can disconnect anytime."
+  },
+  "connect": {
+    "title": "Data sync",
+    "lead": "Connecting brightens your stars faster. All processing happens on your device first.",
+    "consent": "Raw content is never stored; only derived signals are kept, encrypted, and you can disconnect and erase anytime.",
+    "connected": "Connected",
+    "connect": "Connect",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "connected",
+    "a11yConnect": "connect",
+    "sources": {
+      "cal": {
+        "name": "Google Calendar",
+        "sub": "Rhythm and relationship signals from your schedule"
+      },
+      "health": {
+        "name": "Apple Health",
+        "sub": "Sleep and activity feed the health star"
+      },
+      "notion": {
+        "sub": "Import notes and documents"
+      },
+      "photos": {
+        "name": "Photo album",
+        "sub": "Rest and relationships from scenes"
+      },
+      "gpt": {
+        "name": "ChatGPT export",
+        "sub": "Bring in your chat history"
+      }
+    }
   },
   "insights": {
     "title": "Insights",
@@ -292,7 +329,8 @@
     "sectionData": "Data · Privacy",
     "q4": "What is an IDEN file?",
     "q5": "Where is my data stored?",
-    "askDirect": "Ask SecondB directly"
+    "askDirect": "Ask SecondB directly",
+    "conceptsTitle": "Core concepts"
   },
   "plans": {
     "title": "Plans",

@@ -182,7 +182,11 @@
     "labelLinked": "연결 계정",
     "labelLanguage": "언어",
     "valueLanguage": "한국어",
-    "delete": "계정 삭제"
+    "delete": "계정 삭제",
+    "navProfile": "프로필",
+    "navSettings": "설정",
+    "navData": "내 데이터",
+    "navBeyond": "앱 밖에서"
   },
   "privacy": {
     "title": "개인정보",
@@ -209,7 +213,9 @@
     "viewManual": "매뉴얼 보기",
     "emailUs": "이메일 문의",
     "reportBug": "버그 신고",
-    "footer": "2nd-Brain v1.0.0 · 답변까지 영업일 2일 (KST)"
+    "footer": "2nd-Brain v1.0.0 · 답변까지 영업일 2일 (KST)",
+    "faqTitle": "자주 묻는 질문",
+    "noticesTitle": "공지사항"
   },
   "integrations": {
     "title": "다른 앱 연동",
@@ -223,6 +229,37 @@
     "healthLabel": "건강 · 캘린더",
     "permissionNeeded": "권한 필요",
     "footer": "연동 데이터는 가져오기 전에 검토하고, 언제든 끊을 수 있어요."
+  },
+  "connect": {
+    "title": "데이터 연동",
+    "lead": "연결하면 별이 더 빨리 밝아져요. 모든 처리는 기기 안에서 먼저 일어나요.",
+    "consent": "원문은 저장하지 않아요. 도출된 신호만 암호화해 남기고, 언제든 연결을 끊고 지울 수 있어요.",
+    "connected": "연결됨",
+    "connect": "연결",
+    "a11yStatus": "{{name}} {{status}}",
+    "a11yConnected": "연결됨",
+    "a11yConnect": "연결",
+    "sources": {
+      "cal": {
+        "name": "Google 캘린더",
+        "sub": "일정에서 리듬·관계 신호"
+      },
+      "health": {
+        "name": "Apple 건강",
+        "sub": "수면·활동으로 건강 별"
+      },
+      "notion": {
+        "sub": "메모·문서 가져오기"
+      },
+      "photos": {
+        "name": "사진 앨범",
+        "sub": "장면에서 휴식·관계"
+      },
+      "gpt": {
+        "name": "ChatGPT 내보내기",
+        "sub": "대화 기록 불러오기"
+      }
+    }
   },
   "insights": {
     "title": "인사이트",
@@ -292,7 +329,8 @@
     "sectionData": "데이터 · 프라이버시",
     "q4": "IDEN 파일은 무엇인가요?",
     "q5": "내 데이터는 어디에 저장되나요?",
-    "askDirect": "세컨비에게 직접 물어보기"
+    "askDirect": "세컨비에게 직접 물어보기",
+    "conceptsTitle": "핵심 개념"
   },
   "plans": {
     "title": "요금제",
