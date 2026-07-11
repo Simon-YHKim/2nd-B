@@ -44,7 +44,7 @@ BEGIN
     WHEN 'brain'  THEN 250
     WHEN 'cortex' THEN 80
     WHEN 'soma'   THEN 30
-    ELSE 2
+    ELSE 5                    -- free (5/day, Simon 2026-07-11)
   END;
 
   IF v_cap <= 0 THEN

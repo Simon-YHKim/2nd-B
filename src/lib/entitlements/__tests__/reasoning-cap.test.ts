@@ -7,7 +7,7 @@ import { monthBucket } from '../usage';
 
 describe('reasoningCapForTier', () => {
   it('maps each tier to its monthly cap', () => {
-    expect(reasoningCapForTier('free')).toBe(8);
+    expect(reasoningCapForTier('free')).toBe(30);
     expect(reasoningCapForTier('soma')).toBe(60);
     expect(reasoningCapForTier('cortex')).toBe(60);
     expect(reasoningCapForTier('brain')).toBeNull();
@@ -21,18 +21,18 @@ describe('remainingReasoning', () => {
   });
 
   it('adds reward credits to the cap before subtracting usage', () => {
-    // free cap 8 + 2 credits - 5 used = 5
-    expect(remainingReasoning('free', 5, 2)).toBe(5);
+    // free cap 30 + 2 credits - 5 used = 27
+    expect(remainingReasoning('free', 5, 2)).toBe(27);
   });
 
   it('defaults reward credits to 0', () => {
-    expect(remainingReasoning('free', 3)).toBe(5);
+    expect(remainingReasoning('free', 3)).toBe(27);
     expect(remainingReasoning('cortex', 10)).toBe(50);
   });
 
   it('floors at 0 and never goes negative', () => {
-    expect(remainingReasoning('free', 20)).toBe(0);
-    expect(remainingReasoning('free', 20, 2)).toBe(0);
+    expect(remainingReasoning('free', 40)).toBe(0);
+    expect(remainingReasoning('free', 40, 2)).toBe(0);
     expect(remainingReasoning('cortex', 100)).toBe(0);
   });
 });

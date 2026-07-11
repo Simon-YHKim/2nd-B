@@ -16,7 +16,7 @@ import {
 describe('TIERS table', () => {
   it('encodes the launch strategy for free', () => {
     expect(TIERS.free).toEqual({
-      reasoningPerMonth: 8,
+      reasoningPerMonth: 30,
       lenses: 3,
       historyDays: 30,
       exportEnabled: false,
@@ -62,13 +62,13 @@ describe('TIER_PRICE_KRW', () => {
 });
 
 describe('remainingReasoning', () => {
-  it('free: cap 8 plus 2x2=4 earned, 0 used -> 12', () => {
+  it('free: cap 30 plus 2x2=4 earned, 0 used -> 34', () => {
     const earned = earnRewardCredits(0, 2); // 4
-    expect(remainingReasoning('free', 0, earned)).toBe(12);
+    expect(remainingReasoning('free', 0, earned)).toBe(34);
   });
 
   it('free: subtracts usage and never goes negative', () => {
-    expect(remainingReasoning('free', 3)).toBe(5);
+    expect(remainingReasoning('free', 3)).toBe(27);
     expect(remainingReasoning('free', 99)).toBe(0);
   });
 
@@ -85,8 +85,8 @@ describe('remainingReasoning', () => {
 
 describe('canUseReasoning', () => {
   it('free: true while remaining, false when exhausted', () => {
-    expect(canUseReasoning('free', 7)).toBe(true);
-    expect(canUseReasoning('free', 8)).toBe(false);
+    expect(canUseReasoning('free', 29)).toBe(true);
+    expect(canUseReasoning('free', 30)).toBe(false);
   });
 
   it('free: earned credits extend availability', () => {
