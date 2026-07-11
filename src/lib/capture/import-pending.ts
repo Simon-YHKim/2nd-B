@@ -33,7 +33,25 @@ export interface ImportPendingSummary {
 /** Creates one record from a pending capture. Injected so tests need no Supabase/LLM. */
 export type PendingRecordCreator = (item: PendingCapture, ctx: ImportPendingContext) => Promise<void>;
 
-export async function importPendingCaptures(
+// Module-level single-flight lock. The queue is loaded up front and only cleared
+// at the very end, so two overlapping runs would each read the same uncleared
+// queue and import every capture twice. The hook's guard is a per-instance useRef
+// that a remount resets, so it does NOT prevent this; a durable module-scoped lock
+// does — concurrent callers share the one in-flight run.
+let inFlight: Promise<ImportPendingSummary> | null = null;
+
+export function importPendingCaptures(
+  ctx: ImportPendingContext,
+  createOne: PendingRecordCreator,
+): Promise<ImportPendingSummary> {
+  if (inFlight) return inFlight;
+  inFlight = runImport(ctx, createOne).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function runImport(
   ctx: ImportPendingContext,
   createOne: PendingRecordCreator,
 ): Promise<ImportPendingSummary> {
