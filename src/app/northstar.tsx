@@ -25,7 +25,8 @@ import {
 } from "@/lib/persona/northstar";
 import { useProgression } from "@/lib/progression/useProgression";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
+import { keepAllKo } from "@/lib/i18n/keep-all";
 
 // Minimal Material-Symbols-style glyphs the editor needs, rendered as inline SVG
 // (same technique as AxisCheck's LensIcon). Stroke-only, colored via `color`.
@@ -147,9 +148,11 @@ export default function NorthstarSentence() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <Text style={styles.headline}>{isKo ? "북극성 문장" : "North-star sentence"}</Text>
       <Text style={styles.sub}>
-        {isKo
-          ? "일곱 별을 종합해 세컨비가 제안한 문장이에요. 당신의 언어로 다듬어보세요."
-          : "SecondB drafted this from your seven stars. Reshape it in your own words."}
+        {keepAllKo(
+          isKo
+            ? "일곱 별을 종합해 세컨비가 제안한 문장이에요. 당신의 언어로 다듬어보세요."
+            : "SecondB drafted this from your seven stars. Reshape it in your own words.",
+        )}
       </Text>
 
       {/* Violet NORTH STAR hero card = the inline editor */}
