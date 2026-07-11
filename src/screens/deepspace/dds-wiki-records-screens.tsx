@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
@@ -27,7 +27,7 @@ import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import { deleteRecord, getRecordById, listRecentRecords, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -770,6 +770,25 @@ export function DeepSpaceRecordDetailScreen() {
   // tag-based "연결된 기록" below with a badge. Only fetched when the user opted in
   // (records_embedding); empty otherwise, so the section stays tag-only.
   const [semanticIds, setSemanticIds] = useState<Set<string>>(() => new Set());
+  // Inline "+ 태그 추가": tapping the chip reveals a field that appends a tag to
+  // THIS record via updateRecordTags (records_owner_all RLS); optimistic + revert.
+  const [addingTag, setAddingTag] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const submitTag = useCallback(async () => {
+    const tag = tagDraft.trim();
+    setAddingTag(false);
+    setTagDraft("");
+    if (!tag || !userId || !record || !recordId) return;
+    const existing = record.tags ?? [];
+    if (existing.includes(tag)) return;
+    const next = [...existing, tag];
+    setRecord({ ...record, tags: next });
+    try {
+      await updateRecordTags(userId, recordId, next);
+    } catch {
+      setRecord({ ...record, tags: existing });
+    }
+  }, [tagDraft, userId, record, recordId]);
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -938,9 +957,24 @@ export function DeepSpaceRecordDetailScreen() {
         {(record.tags ?? []).slice(0, 6).map((tag) => (
           <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
         ))}
-        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.wikiRecords.addTag")}>
-          <RNText style={rd.tagTxt}>+ {t("ds.wikiRecords.addTag")}</RNText>
-        </Pressable>
+        {addingTag ? (
+          <TextInput
+            style={[rd.tag, { minWidth: 120, color: colors.textTitle, fontSize: 12, paddingVertical: 4 }]}
+            value={tagDraft}
+            onChangeText={setTagDraft}
+            autoFocus
+            placeholder={t("ds.wikiRecords.addTag")}
+            placeholderTextColor={colors.textLo}
+            returnKeyType="done"
+            onSubmitEditing={() => void submitTag()}
+            onBlur={() => void submitTag()}
+            accessibilityLabel={t("ds.wikiRecords.addTag")}
+          />
+        ) : (
+          <Pressable style={rd.tag} onPress={() => setAddingTag(true)} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.wikiRecords.addTag")}>
+            <RNText style={rd.tagTxt}>+ {t("ds.wikiRecords.addTag")}</RNText>
+          </Pressable>
+        )}
       </View>
 
       {related.length > 0 ? (
