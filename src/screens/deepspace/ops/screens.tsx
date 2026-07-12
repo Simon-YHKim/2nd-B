@@ -727,11 +727,11 @@ export function MealsScreen() {
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
       <View style={styles.weekNav}>
-        <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow}>
+        <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
         </Pressable>
         <Text variant="caption" style={[styles.weekLabel, weekStart === thisWeek ? styles.weekLabelNow : null]}>{weekStart}</Text>
-        <Pressable onPress={() => shiftWeek(7)} hitSlop={10} style={styles.weekArrow}>
+        <Pressable onPress={() => shiftWeek(7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.nextWeek}>
           <RNText style={styles.weekArrowText}>›</RNText>
         </Pressable>
       </View>
