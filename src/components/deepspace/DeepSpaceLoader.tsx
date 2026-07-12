@@ -20,7 +20,7 @@ import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
-import { SecondbHead } from "@/components/deepspace";
+import { SecondbHead } from "@/components/deepspace/SecondbHead";
 
 export type DeepSpaceLoaderVariant = "dots" | "ring" | "analysis";
 
