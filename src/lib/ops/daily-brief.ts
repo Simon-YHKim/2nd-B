@@ -25,7 +25,7 @@ import { getSupabaseClient } from "../supabase/client";
 import { exportUserWiki } from "../wiki/export";
 import { kstDayKey } from "../journal/streak";
 import { OPS_DOMAIN_IDS, type OpsDomainId } from "./domains";
-import { type OpsRecommendation, parseOpsRecommendations } from "./recommend";
+import { type OpsRecommendation, parseOpsRecommendations } from "./recommend-parse";
 
 const SNAPSHOT_CHAR_LIMIT = 600;
 /** Cap recommendations kept per domain in the brief (the passive home shows a
