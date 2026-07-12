@@ -391,7 +391,12 @@ export async function classifyRecordTextForCrisis(
   userId: string,
   minor = false,
 ): Promise<GeminiResult<string> | null> {
-  const safety = classifyInput(text, locale, { minor });
+  // Dual-locale, same as the chat input path (callGemini): catch a crisis term
+  // written in a language other than the UI locale (a ko-UI user typing English
+  // self-harm text, or vice versa). The note-save path previously used the
+  // single-locale classifier, so cross-locale crisis captures were missed here
+  // while the chat path caught them (persona-validate: crisis-lexicon parity).
+  const safety = classifyInputAnyLocale(text, locale, { minor });
   if (safety.zone !== "red") return null;
   return routeCrisis(safety, locale, userId, djb2(text), minor, "record_save_red");
 }
