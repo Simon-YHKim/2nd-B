@@ -1,4 +1,4 @@
-import { composeStructured, parseStructured, renderStructuredForContext } from "../structured";
+import { composeStructured, parseStructured, renderStructuredForContext, structuredFieldLabel } from "../structured";
 
 describe("structured form payloads (0066)", () => {
   test("compose drops empty fields and returns null when nothing is filled", () => {
@@ -26,5 +26,25 @@ describe("structured form payloads (0066)", () => {
     expect(lines).toHaveLength(3);
     expect(lines[1].length).toBeLessThanOrEqual("o_goal: ".length + 51);
     expect(out).toContain("x_subject: 동종 앱 3종");
+  });
+});
+
+describe("structuredFieldLabel (grid labels, not raw machine keys)", () => {
+  test("4W1H keys use the canonical localized labels", () => {
+    expect(structuredFieldLabel("fourw", "who", "ko")).toBe("누가");
+    expect(structuredFieldLabel("fourw", "who", "en")).toBe("Who");
+    expect(structuredFieldLabel("fourw", "what", "ko")).toBe("무엇을");
+  });
+
+  test("call-reflection keys use their own localized labels", () => {
+    expect(structuredFieldLabel("call_reflection", "gist", "ko")).toBe("요지");
+    expect(structuredFieldLabel("call_reflection", "feeling", "en")).toBe("Feeling");
+  });
+
+  test("unmapped keys (career 3C4P, or a stray key) humanize instead of showing raw snake_case", () => {
+    expect(structuredFieldLabel("career_3c4p", "exp_type", "en")).toBe("Exp type");
+    expect(structuredFieldLabel("career_3c4p", "r_productivity", "ko")).toBe("R productivity");
+    // a fourw payload carrying an unexpected key still degrades gracefully
+    expect(structuredFieldLabel("fourw", "some_extra", "en")).toBe("Some extra");
   });
 });

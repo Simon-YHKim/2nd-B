@@ -18,7 +18,7 @@ import {
   type DomainId,
 } from "@/lib/persona/domain-stars";
 import { ddsStyles as styles } from "./dds-styles";
-import { parseStructured } from "@/lib/capture/structured";
+import { parseStructured, structuredFieldLabel } from "@/lib/capture/structured";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumModal } from "@/components/premium";
@@ -1044,7 +1044,7 @@ export function DeepSpaceRecordDetailScreen() {
             <Text variant="caption" pixelEn style={styles.tlLabel}>{sp.form === "fourw" ? "4W1H" : "3C4P"}</Text>
             {Object.entries(sp.fields).map(([k, v]) => (
               <View key={k} style={{ marginTop: 6 }}>
-                <Text variant="caption" style={styles.metaLabel}>{k}</Text>
+                <Text variant="caption" style={styles.metaLabel}>{structuredFieldLabel(sp.form, k, ko ? "ko" : "en")}</Text>
                 <Text variant="body" style={styles.recBodyText}>{v}</Text>
               </View>
             ))}
