@@ -7,6 +7,8 @@
 // Pure module: no I/O, no React. records.structured (migration 0066) stores
 // exactly the StructuredPayload shape below.
 
+import { FOURW_LABEL, type FourWKey } from "./fourw";
+
 export const STRUCTURED_FORMS = ["fourw", "career_3c4p", "call_reflection"] as const;
 export type StructuredForm = (typeof STRUCTURED_FORMS)[number];
 
@@ -61,4 +63,30 @@ export function renderStructuredForContext(
     lines.push(`${key}: ${v}`);
   }
   return lines.join("\n");
+}
+
+// Human-readable field label for the structured-payload grid (record detail).
+// Before this the grid printed the raw machine key (who / when / exp_type) as
+// the label in EVERY locale. 4W1H reuses the canonical FOURW_LABEL; call-
+// reflection has its own small map; everything else (career 3C4P's many keys)
+// degrades to a humanized key (snake_case -> "Title case") rather than a raw
+// identifier.
+const CALL_REFLECTION_LABEL: Record<"en" | "ko", Record<string, string>> = {
+  ko: { who_label: "누구", gist: "요지", feeling: "감정", followup: "후속" },
+  en: { who_label: "Who", gist: "Gist", feeling: "Feeling", followup: "Follow-up" },
+};
+
+function humanizeKey(key: string): string {
+  const spaced = key.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+export function structuredFieldLabel(form: StructuredForm, key: string, locale: "en" | "ko"): string {
+  if (form === "fourw" && key in FOURW_LABEL[locale]) {
+    return FOURW_LABEL[locale][key as FourWKey];
+  }
+  if (form === "call_reflection" && key in CALL_REFLECTION_LABEL[locale]) {
+    return CALL_REFLECTION_LABEL[locale][key];
+  }
+  return humanizeKey(key);
 }
