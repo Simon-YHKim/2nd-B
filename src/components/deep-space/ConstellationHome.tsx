@@ -12,7 +12,7 @@
  */
 import { Fragment, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { withAlpha } from "@/lib/theme/tokens";
@@ -347,6 +347,8 @@ export function ConstellationHome({
             return (
               <Text
                 key={`label-${s.id}`}
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
                 numberOfLines={1}
                 style={[
                   styles.starLabel,
@@ -362,6 +364,8 @@ export function ConstellationHome({
             );
           })}
           <Text
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             numberOfLines={1}
             style={[styles.polarisLabel, { left: px(POLARIS.x) - 60, top: py(POLARIS.y) + (9 * k + 8), fontSize: 10.5 * k, lineHeight: Math.round(14 * k) }]}
           >
@@ -387,9 +391,18 @@ export function ConstellationHome({
               style={[styles.hit, { left: px(s.x) - 22, top: py(s.y) - 22, width: 44, height: 44 }]}
             >
               <Pressable
-                onPress={() => setBubble({ kind: "star", id: s.id })}
+                onPress={() => {
+                  setBubble({ kind: "star", id: s.id });
+                  // The domain card opens at the BOTTOM of the screen with no
+                  // focus move; announce so a screen-reader user knows the tap
+                  // registered and which star it selected (WCAG 4.1.3).
+                  AccessibilityInfo.announceForAccessibility(starName(s.id));
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={starName(s.id)}
+                // Level (the brightness signal) is otherwise conveyed by opacity
+                // alone; expose it so a blind user hears the domain's progress.
+                accessibilityValue={{ min: 1, max: 5, now: levelOf(s.id) }}
                 style={StyleSheet.absoluteFill}
               />
             </View>
@@ -422,8 +435,22 @@ export function ConstellationHome({
             <Text style={styles.bubbleLine} accessibilityLabel={bubbleLine}>{keepAllKo(bubbleLine)}</Text>
             {bubble.kind === "menu" ? (
               <View style={styles.bubbleActions}>
-                <MdButton label={t("ds.home.bubble.chatbot")} variant="filled" onPress={onChatPress} />
-                <MdButton label={t("ds.home.bubble.assistant")} variant="tonal" onPress={onOpsPress} />
+                <MdButton
+                  label={t("ds.home.bubble.chatbot")}
+                  variant="filled"
+                  onPress={() => {
+                    setBubble({ kind: "intro" });
+                    onChatPress();
+                  }}
+                />
+                <MdButton
+                  label={t("ds.home.bubble.assistant")}
+                  variant="tonal"
+                  onPress={() => {
+                    setBubble({ kind: "intro" });
+                    onOpsPress();
+                  }}
+                />
               </View>
             ) : null}
             {bubble.kind === "star" ? (
