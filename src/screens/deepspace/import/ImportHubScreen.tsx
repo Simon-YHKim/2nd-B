@@ -245,7 +245,7 @@ export function ImportHubScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
         <View style={styles.titleRow}>
-          <Pressable accessibilityRole="button" onPress={back} hitSlop={10} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t("back")} onPress={back} hitSlop={10} style={styles.backBtn}>
             <RNText style={styles.backIcon}>‹</RNText>
           </Pressable>
           <Text variant="heading" style={styles.title}>{step === "history" ? t("imported") : t("import")}</Text>
@@ -330,7 +330,14 @@ export function ImportHubScreen() {
           <MetaChip label={t("deleteAnytime")} />
         </View>
 
-        <Pressable onPress={() => setOnDevice((v) => !v)} hitSlop={6} style={styles.toggleRow}>
+        <Pressable
+          onPress={() => setOnDevice((v) => !v)}
+          hitSlop={6}
+          style={styles.toggleRow}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: onDevice }}
+          accessibilityLabel={t("onDeviceOnly")}
+        >
           <Text variant="body" style={styles.toggleText}>{t("onDeviceOnly")}</Text>
           <View style={[styles.toggle, onDevice ? styles.toggleOn : styles.toggleOff]}>
             <View style={[styles.knob, onDevice ? styles.knobOn : styles.knobOff]} />
@@ -483,7 +490,7 @@ function Summary({ n, label, dim }: { n: number; label: string; dim?: boolean })
 function COPY(ko: boolean): Record<string, string> {
   return ko
     ? {
-        import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남아요.",
+        back: "뒤로", import: "가져오기", imported: "가져온 데이터", hubBubble: "무엇을 들여올까요?", hubTip: "네가 승인한 것만 기록에 남아요.",
         tier_critical: "최민감 · 명시 동의 필요", tier_sensitive: "민감", tier_normal: "보통",
         needsConsent: "동의 필요", notLinked: "미연결", locked: "잠김", linked: "연결됨",
         what: "무엇을", where: "어디에", whereBody: "이 기기에서 분석하고 원문은 버려요. 파생 신호만 암호화해 보관해요.",
@@ -505,7 +512,7 @@ function COPY(ko: boolean): Record<string, string> {
         revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.",
       }
     : {
-        import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
+        back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
         tier_critical: "Most sensitive · consent required", tier_sensitive: "Sensitive", tier_normal: "Normal",
         needsConsent: "Needs consent", notLinked: "Not linked", locked: "Locked", linked: "Linked",
         what: "WHAT", where: "WHERE", whereBody: "Parsed on this device; the raw is discarded. Only derived signals are kept, encrypted.",
