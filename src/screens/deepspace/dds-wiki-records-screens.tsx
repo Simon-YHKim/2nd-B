@@ -1286,7 +1286,13 @@ export function DeepSpaceWikiScreen() {
     setExpandedId(focusPageId);
   }, [focusPageId, expandedId, pages]);
 
-  const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
+  // The page the user asked to open is pinned into the list: the graph draws every page but
+  // the list keeps only the top 12 by connection count, so opening a sparsely-linked node
+  // used to land on a list that did not contain it.
+  const view = useMemo(
+    () => buildDeepWikiView(pages, edges, { activeTag, pinnedId: expandedId }),
+    [pages, edges, activeTag, expandedId],
+  );
   const graphPages = useMemo(
     () =>
       pages

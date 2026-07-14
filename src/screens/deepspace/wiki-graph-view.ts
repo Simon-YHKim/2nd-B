@@ -60,6 +60,32 @@ export interface BuildDeepWikiOpts {
   activeTag?: string | null;
   maxPages?: number;
   maxTagChips?: number;
+  /**
+   * A page the user explicitly asked to open -- a graph node tap, or a ?focusPageId deep
+   * link. Always present in the result, even when its connection count would rank it
+   * outside the top `maxPages`.
+   */
+  pinnedId?: string | null;
+}
+
+/**
+ * The top `maxPages` by connection count, but never without `pinnedId`.
+ *
+ * A pinned page that would have ranked outside the cut takes the top slot and displaces the
+ * last one, so the list length is unchanged. A pinned id that is not in `ranked` at all
+ * (filtered out by the active tag, say) is simply absent -- there is nothing to pin.
+ */
+function pinToView(
+  ranked: DeepWikiPageView[],
+  maxPages: number,
+  pinnedId: string | null,
+): DeepWikiPageView[] {
+  const top = ranked.slice(0, maxPages);
+  if (!pinnedId || maxPages < 1) return top;
+  if (top.some((v) => v.id === pinnedId)) return top;
+  const pinned = ranked.find((v) => v.id === pinnedId);
+  if (!pinned) return top;
+  return [pinned, ...top.slice(0, maxPages - 1)];
 }
 
 export function buildDeepWikiView(
@@ -75,7 +101,7 @@ export function buildDeepWikiView(
   const activeTag = opts.activeTag ?? null;
   const filtered = activeTag ? pages.filter((p) => p.tags.includes(activeTag)) : pages;
 
-  const views: DeepWikiPageView[] = filtered
+  const ranked: DeepWikiPageView[] = filtered
     .map((p) => ({
       id: p.id,
       title: displayName(p),
@@ -83,8 +109,16 @@ export function buildDeepWikiView(
       tags: p.tags,
       connections: conn.get(p.id) ?? 0,
     }))
-    .sort((a, b) => b.connections - a.connections)
-    .slice(0, maxPages);
+    .sort((a, b) => b.connections - a.connections);
+
+  // The list keeps only the most-connected `maxPages`. The GRAPH does not truncate -- it
+  // draws every page. So a sparsely-connected page was visible as a node, and tapping it
+  // switched to the list and expanded an id that was not in the list: the user landed on a
+  // list where the page they had just asked for did not appear, and nothing was open.
+  //
+  // A page the user explicitly asked to open is always in the list, ranking be damned.
+  // That is the whole point of asking.
+  const views = pinToView(ranked, maxPages, opts.pinnedId ?? null);
 
   return {
     pageCount: stats.pageCount,
