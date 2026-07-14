@@ -66,7 +66,6 @@ import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { clearRecordEmbeddings } from "@/lib/records/records-embeddings";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
-import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { availableHealthSources } from "@/lib/health/registry";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";

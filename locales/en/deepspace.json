@@ -777,7 +777,11 @@
       "historyTitle": "Import history",
       "revoke": "Revoke",
       "fileSource": "File import",
-      "revokeFailed": "Couldn't withdraw. Try again shortly."
+      "revokeFailed": "Couldn't withdraw. Try again shortly.",
+      "healthErrUnavailable": "This device can't connect to a health app. Nothing was recorded.",
+      "healthErrDenied": "Health access was declined, so nothing was recorded. You can allow it in your device settings.",
+      "healthErrEmpty": "No health activity to reflect today.",
+      "healthErrFailed": "Couldn't reflect your health data. Try again shortly."
     },
     "ttfv": {
       "pageTitle": "Your first star just lit up",
