@@ -34,7 +34,7 @@ import { buildPersona, isMeasuredSource, type PersonaCard } from "@/lib/persona/
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
-import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
+import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
 import { buildSelfPortrait } from "@/lib/persona/self-portrait";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { IslandArt } from "@/components/art/IslandArt";
@@ -45,7 +45,7 @@ import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
 const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
 
-async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<EvidenceShard[]> {
+async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promise<OriginShard[]> {
   const supabase = getSupabaseClient();
   // Core must count ALL saved pieces the user sees in /records, not just
   // `records`: non-journal Capture/Import/Wiki land in `sources`. Reading
@@ -106,7 +106,7 @@ function CoreBrainScreen() {
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [persona, setPersona] = useState<PersonaCard | null>(null);
-  const [evidence, setEvidence] = useState<EvidenceShard[]>([]);
+  const [evidence, setEvidence] = useState<OriginShard[]>([]);
   const [building, setBuilding] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -300,7 +300,13 @@ function CoreBrainScreen() {
                 activeOpacity={0.7}
                 onPress={() => {
                   setDrawerOpen(false);
-                  router.push({ pathname: "/record/[id]", params: { id: ev.id } });
+                  // Carry the origin. An evidence shard can be a `records` row or a
+                  // `sources` row (mergeEvidence keeps the raw uuid and tags the shard with
+                  // `origin`), and the detail screen has to know which table to look in.
+                  // Without it, every source-origin shard -- every link, clip and import --
+                  // opened a detail screen that searched `records`, found nothing, and said
+                  // "찾을 수 없어요".
+                  router.push({ pathname: "/record/[id]", params: { id: ev.id, origin: ev.origin } });
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t("openRecord", { title: ev.title })}
