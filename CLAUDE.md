@@ -6,7 +6,12 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 - **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화. Build with Gemini XPRIZE (Education & Human Potential) 출품작.
 - **Deadline**: 2026-08-17 06:00 KST.
-- **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, Vercel (web), GitHub Actions.
+- **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
+- **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
+  Expo static export to the `gh-pages` branch; live at <https://simon-yhkim.github.io/2nd-B/>, and
+  `app.json` pins `baseUrl: "/2nd-B"` to that subpath. A Vercel project is still connected and
+  builds PRs, but nothing ships from it and the `baseUrl` makes a Vercel root deploy wrong. Root
+  `vercel.json` is an unused Sprint-0 leftover. Do not treat Vercel as the web target.
 - **Solo build**: Simon Kim. Evenings + weekends only.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
@@ -83,10 +88,22 @@ The single source of truth for both runtime classification and CI scan is `src/l
 
 **Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
 
-**Canonical reference design (always honor):** the deep-space visual canon lives in `design/*.dc.html` (open in a browser — 1:1 visual source of truth). The reference trio in `docs/ui-audit/` governs how to use it:
-- `DESIGN_INDEX.md` — which `.dc.html` maps to which route + the 3-color/3-font/anti-slop system summary.
-- `SCREEN_TREE_SPEC.md` — per-screen role, buttons→destinations, interactions, and the 4 states (empty/loading/error/filled). The source of truth for behavior + navigation.
-- `CLONE_PROTOCOL.md` — the fidelity loop (read canon → build → compare side-by-side → diff to 0) and responsive rules (`.dc.html` phone frames are scaled mockups; reproduce layout INTENT with flex/%/gap, never the literal px).
+**Canonical reference design (always honor): `design/proto_rev2/reference-app/`.** The rev2/M3
+canon is the reference app there — `m3-theme.css` (tokens) plus `data/index.json` +
+`data/{app,core,screens}/*.json` (per-screen spec). It is not a document you read and reproduce by
+hand: **the code already consumes it.** `src/lib/canon/` loads those JSONs, 13 source files import
+them, and `src/lib/canon/__tests__/canon.test.ts` + `canon-tokens.test.ts` fail the build if the
+code drifts from the canon. So a visual change means changing the canon JSON and the code together,
+not eyeballing a mockup.
+
+- `design/proto_rev2/reference-app/README.md` — how the reference app is structured.
+- `design/proto_rev2/reference-app/data/index.json` — which screen spec maps to which route.
+
+**STALE — do not use as the reference for new work:** `design/*.dc.html` and the `docs/ui-audit/`
+trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
+(2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
+kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
+40 routes; the app has 85).
 
 - Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
 - Do not add glassmorphism, pill chips, or em dashes in UI strings. Gradients are allowed only within the deep-space cyan/soul identity via `deepSpaceGradients` (`src/lib/theme/tokens.ts`); off-palette or decorative gradients stay forbidden. See DESIGN.md "Color rules".
