@@ -5,6 +5,7 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-14 / P0 전멸 + 제품 무결성 3건 + 결함 41건 재검증 (7 PR, prod 마이그레이션 5건, 엣지 배포)
 - Latest — 2026-07-11 (밤) / 게이트 실행 라운드 — W1 무료캡 라이브 + 8 PR + 게이트 5건 결정시트 (루프 중단, 결정 대기)
 - Latest — 2026-07-11 (오후) / 루프 17회차 + 세션 인수인계 — LOOP-PLAYBOOK.md 신설 (운영 매뉴얼 정본)
 - Latest — 2026-07-11 / 클론 /loop 16회차 — 실기 갭 픽스 15 PR + 가드 3종 + i18n 대소탕 (에뮬 실기 사이클 확립)
@@ -85,6 +86,136 @@
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## Latest — 2026-07-14 / P0 전멸 + 제품 무결성 3건 + 결함 41건 재검증 (7 PR, prod 마이그레이션 5건, 엣지 배포)
+
+> **다음 세션은 여기부터.** 승인된 트랙 = **결함 41건 수리** (M3 리스킨 아님 — 아래 §"방향이 바뀐 이유" 참조).
+
+### 1. 닫힌 P0 — 전부 프로덕션에서 실증됨
+
+| P0 | 무엇이었나 | 어떻게 확인했나 |
+|---|---|---|
+| 위기 게이트 (클라 + **서버 프록시 3종**) | `matchesTerm()`이 정규화를 안 해서 `"i want to\ndie"`·NBSP·전각공백·NFD 한글이 RED→GREEN으로 조용히 떨어짐. 취약 사용자에게 핫라인 미표시 | **배포된 프록시에 QA JWT로 직접 POST → 9/9.** 5가지 분리 케이스 + NFD 전부 422 차단, benign("spending it")은 200 통과 |
+| 라이브 웹 `?tier=` 페이월 우회 | `web-deploy.yml`이 `ALLOW_DEV_TIER: "true"` 하드코딩. 그 워크플로의 push 트리거가 **곧 공개 사이트** | 배포 번들에서 `EXPO_PUBLIC_ALLOW_DEV_TIER:_("false")` 인라인 확인 |
+| `usage_counters` 캡 우회 | anon/authenticated가 테이블 레벨 INSERT/UPDATE 보유 → anon 키로 `reasoning_used = 0` 직접 UPDATE 가능 | prod `role_table_grants` 쿼리로 회수 확인 (0078) |
+| 리텐션 purge cron **72회 연속 실패** | `purge_unreflected_import_data() does not exist` — 0067이 스케줄만 켜고 함수 생성 마이그레이션(0056/0063/0065)은 prod에 없었음 | cron과 **동일한 `postgres` 롤**로 purge 함수 6개 직접 호출 성공. **삭제 0건** (데이터 최고령 50일 < 보유기간 90~730일) |
+| 미성년 `records_embedding` 클램프 | 0072 미적용 | 마이그레이션 적용 |
+
+**prod 마이그레이션 적용**: `0078` · `0072` · `0056` · `0063` · `0065`.
+**보류**: `0068` (wiki 임베딩 전체 NULL 초기화 — 재임베딩 비용, Simon 판단 대기).
+**엣지 함수 재배포**: gemini-proxy v49→50, claude-proxy v28→29, openai-proxy v28→29.
+
+### 2. 제품 무결성 P0 3건 — "거짓을 사실처럼 말하던" 것들
+
+심사위원이 제일 먼저 찾을 것들. 셋 다 캐치프레이즈(**정직한 밝기**)를 정면으로 깼다.
+
+- **#978** — 건강 연동에서 **OS 권한을 거부하면** 앱이 `mockSamplesForRange()`로 떨어져 **걸음수 9000·수면 420분을 사용자 데이터로 DB에 기록**하고 "반영됨"을 띄웠다. `source === 'mock'` 필터가 어디에도 없어서 그 가짜 행이 `load-domain-levels.ts`를 통해 **건강 별을 밝히고** 루틴을 자동완료시켰다.
+- **#979** — `callPeerRespond`가 `res.ok`를 안 봐서, 정보제공자의 **동의 철회가 서버에서 실패해도 "철회됐어요"**가 떴다. `withdrawn_at`은 NULL로 남고 관찰은 집계에 계속 살아있었다. **제3자의 동의 철회 fail-open.**
+- **#980** — `/discover`의 `+32%` / `+18%`가 **리터럴**. 신규 계정도 같은 숫자. 아이러니하게 **엔진(`lib/trends/rising.ts`)은 이미 완성돼 있었고 아무도 import하지 않는 고아**였다 → 배선만 했다.
+
+### 3. P1 첫 배치 — #981 (레버리지 최대)
+
+`src/lib/persona/build.ts`의 로더 8개가 전부:
+
+```ts
+if (error || !data || data.length === 0) return null;
+```
+
+**supabase-js는 쿼리 에러를 throw하지 않고 `{ error }`로 resolve한다.** 그래서 "읽지 못했다"가 "없다"로 접혔다 — 오프라인 사용자가 **이미 마친 검사를 "안 했다"고 듣고 별이 어두워졌다.** `values.tsx`/`strengths.tsx`는 한술 더 떠 **설문을 다시 내밀었다.**
+
+그리고 `attachment.tsx:335`·`big-five.tsx`의 `.catch(() => setHasError(true))`는 **처음부터 죽은 코드**였다 (아무것도 reject하지 않았으니). 조건 하나 쪼개니 두 화면이 공짜로 살아났다.
+
+### 4. CI 게이트 신설 — #977 `check:cycles`
+
+7/03에 OTA로 나간 redbox(`775439be`, #711)의 크래시 클래스를 **0으로 고정**. 요지:
+
+- 런타임 require cycle은 **현재 0개**. `madge --circular`가 보고하는 10개는 **전부 `import type` 아티팩트** (컴파일 시 지워지므로 런타임 사이클 불가). `skipTypeImports`로 재야 참값이 나온다.
+- 그런데 **35개 파일이 여전히 `StyleSheet.create` 안에서 모듈 스코프 `m3.*`를 참조**한다. 화약은 그대로고 불씨만 치웠다. 사이클 하나가 다시 들어오면 35개가 한꺼번에 재무장된다.
+- `npm run verify`에 편입 (CI는 verify를 직접 호출하므로 워크플로 수정 0줄).
+
+### 5. 방향이 바뀐 이유 — 내가 틀렸던 것
+
+**"M3는 20%, 홈은 M3 참조 0건"이라는 내 보고가 틀렸다.** 그 수치는 "파일 안에 `m3` 문자열이 있는가"를 센 것이다. 실제로는 `index.tsx:238`이 `if (isDeepSpaceUI()) return <DeepSpaceShell />`로 조기반환하고, `DeepSpaceShell → ConstellationHome`이 `m3`를 쓴다. **홈은 이미 M3다.** 새로 클론할 라우트는 4개뿐이고, 나머지 "legacy 49개"의 상당수는 **도달 불가능한 죽은 코드**다 (`index.tsx`의 `GraphScreen` 780줄은 importer 0개).
+
+그 오보 위에서 "M3 전면 완주"가 결정됐다가, 정정 후 **결함 41건 수리**로 방향이 확정됐다.
+
+> **교훈 (반드시 기억):** 이 레포에서 grep으로 UI 채택률을 세면 틀린다. 라우트가 셸로 조기반환하므로 **렌더 체인을 따라가야** 한다. importer 0인 코드는 "미이행"이 아니라 "삭제 대상"이다.
+
+### 6. 결함 41건 재검증 결과 — **실제로는 35건**
+
+7배치 병렬 재검증. 문서 앵커는 단서로만 쓰고 실제 위치를 코드에서 직접 찾게 했다.
+
+| 판정 | 건수 |
+|---|---|
+| REAL | 18 |
+| WRONG_ANCHOR_BUT_REAL | **17** |
+| NOT_REPRODUCIBLE (오탐) | **6** |
+| ALREADY_FIXED | 0 |
+
+**오탐 6건**(#3 #12 #16 #23 #26 #31)은 전부 `docs/flow-map.json`의 `failureModes` **산문을 결함으로 오독**한 것이다 — "실패하면 오류 카드가 뜬다"는 결함 서술이 아니라 **올바른 동작의 서술**이다.
+
+**앵커가 틀린 17건은 전부 같은 실수다:**
+
+> `flow-map.json`의 **`impl` 필드**(= 호출되는 lib 함수)를 결함 앵커로 인용했다. 정작 맞는 앵커인 **`file` 필드**(= 화면 핸들러)는 flow-map 안에 이미 정확히 들어 있다.
+>
+> **lib 레이어는 거의 항상 옳다** (`if (error) throw error`). **삼키는 건 언제나 호출하는 화면이다.** 그러니 `impl`을 앵커로 쓰면 구조적으로 항상 틀린다.
+
+예: 건강 결함 → 문서는 `src/lib/health/ingest.ts:62`, 실제는 `dds-import-inbox-screens.tsx:294`. peer 결함 → 문서는 `src/lib/peer/invite.ts:86`, 실제는 `src/app/peer/[token].tsx`.
+
+**감사가 놓친 신규 결함 3건**도 나왔다 (아래 B2).
+
+### 7. 다음 작업 — 우선순위대로
+
+**B1 · 조용한 저장 실패 (6건, P1, ~80줄)** — 빈 `catch`로 "저장했다고 믿게 만들고 아무것도 안 남기는" 것들.
+`ops/screens.tsx:409·423·514` · `ImportHubScreen.tsx:201` · `peer-invites.tsx:68`(catch 자체가 없음) · `career-drilldown.tsx:143`(console.warn 후 무조건 화면 전환).
+주석의 `/* surfaced on reload */`는 **세 곳 모두 거짓말** — reload가 try 안에만 있어서 실패 경로에선 호출조차 안 된다.
+가드: `no-silent-catch.test.ts` — `src/app/**`·`src/screens/**`에서 본문이 비었거나 주석뿐인 `catch` 금지 (fire-and-forget이 정당한 곳만 allowlist).
+
+**B2 · 고아 링크 (P1, ~60줄)** — `/record/[id]` 호출부가 **8곳인데 `origin`을 넘기는 건 `records.tsx:67` 하나뿐**이다. 감사는 3건만 찾았고, 놓친 3곳:
+- `src/app/digest.tsx:190` — `p.from_page`(**위키 페이지 id**)를 `/record/[id]`로 보냄 → 100% "찾을 수 없어요"
+- `DeepSpaceDesignScreens.tsx:1581` — 같은 `p.from_page`
+- `dds-wiki-records-screens.tsx:1368` — 위키 백링크가 `p.id`(위키 페이지 id)를 보냄
+
+(`DeepSpaceDesignScreens.tsx:1356`은 **정상** — `loadEvidenceShards`가 `records`만 읽으므로 origin 불필요. 오탐 방지용 기록.)
+
+**수정은 grep 가드가 아니라 타입 강제로**: `src/lib/records/nav.ts`에 `pushRecord(router, { id, origin })` 헬퍼를 만들고 `/record/[id]` params 타입에서 `origin`을 **필수**로. 그러면 `tsc --noEmit`(이미 verify에 있음)이 8개 호출부를 전부 컴파일 에러로 세운다. 위키 페이지 id 4곳은 origin을 댈 수 없으므로 작성자가 `/wiki?page=<id>`로 보낼 수밖에 없다 — **구조적으로 재발 불가**. 가드 15줄, 이 배치에서 제일 남는 장사.
+
+**B3 · `docs/flow-map.json` 정정 (한 저녁)** — `FLOW-HANDOFF.md`는 **생성물**이므로 손으로 고치면 안 된다. 고칠 곳은 `flow-map.json`이고 셋이다: ① 오탐 6건의 `knownBug`를 `false`로 ② 남은 35건에 **`bugAnchor` 필드 신설**해 인용할 앵커를 하나로 못 박기(`impl` 재오독 차단) ③ 빈 catch 위에 "오류 카드가 떠요"라고 써둔 거짓 `failureModes`를 실제 catch 본문과 대조해 수정.
+**이걸 먼저 해야 다음 AI 배치가 같은 오독을 반복하지 않는다.**
+
+**P2 15건 · P3 2건** — 그 다음.
+
+### 8. 함정 — 이 세션에서 나를 4번 물었다
+
+1. **grep으로 UI 채택률 세기** → 틀린다 (§5).
+2. **`madge --circular` 그대로 믿기** → `import type` 엣지 때문에 10 vs 실제 0.
+3. **가드의 판별식이 죽어 있었다** — `"components/"`로 매칭했는데 madge는 `"src/components/"`를 뱉는다. 가드가 **영원히 PASS만 보고**했을 것. → 이제 가드가 자기 판별식을 **자가검사**한다 (`uiLayerSelfTest()`).
+4. **CRLF가 소스 스캔 가드를 두 번 무력화** — 한 번은 `"\n}\n"` 슬라이스가 -1을 반환해 `body`가 **2글자**가 됐고(모든 `toMatch`가 조용히 통과), 한 번은 되돌리기가 **no-op** 돼 "테스트 통과"를 증명으로 착각할 뻔했다.
+   → **모든 소스 스캔 가드는 `.replace(/\r\n/g, "\n")` 먼저.** 그리고 되돌리기로 가드를 증명할 땐 **되돌리기가 실제로 적용됐는지 먼저 확인**할 것.
+
+**공통 교훈: 가드가 자기 대상을 못 읽으면 가드 없는 것보다 나쁘다. PASS를 영원히 보고하니까.**
+
+### 9. 이 세션의 PR
+
+| PR | 내용 |
+|---|---|
+| #944 | 위기 게이트 정규화 — 클라 + **프록시 사본 2곳** (`_shared`는 테스트가 0이라 버그가 살아남았음) |
+| #975 | 라이브 웹 `?tier=` 페이월 우회 제거 + 재발 방지 가드 |
+| #976 | 문서 정본 포인터 — 배포 타깃(**GitHub Pages, Vercel 아님**), 시각 정본(`design/proto_rev2/reference-app/`), 가격(**코드가 SoT: ₩9,900/₩19,900**) |
+| #977 | `check:cycles` 게이트 |
+| #978 | 가짜 건강 데이터 주입 제거 |
+| #979 | 동의 철회 fail-open |
+| #980 | `/discover` 실데이터 배선 |
+| #981 | persona 로더 error≠null |
+
+### 10. 알아둘 것
+
+- **`.claude/settings.local.json`**(gitignore)에 `gh pr merge` + Supabase MCP + `supabase functions deploy` 허용 규칙을 넣어뒀다. 없으면 하네스가 막는다.
+- **`madge`가 공유 `node_modules`에서 사라지는 일이 있다** (fleet의 다른 에이전트가 옛 lock으로 `npm ci`). `npm run verify`가 `Cannot find module 'madge'`로 죽으면 `npm i --legacy-peer-deps`.
+- **`fe6d23aa`가 PR 없이 main에 직접 푸시됐다** (fleet의 다른 Claude 세션, flow-map 관련). CLAUDE.md의 "main 직접 푸시 금지"에 어긋난다.
+- 미해결 게이트: **자기동의 연령 14→16**(`auth.ts:22`가 KR 값 14로 하드 고정, 글로벌 출시 법무 P0), **RevenueCat 웹훅 부재**(결제해도 티어 안 열림, `revenue_events` INSERT 0건 = C4 증빙 없음).
 
 ---
 
