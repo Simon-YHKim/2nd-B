@@ -421,7 +421,6 @@
     "idenDesc": "Berkas identitas portabel",
     "markdownDesc": "Ramah Obsidian",
     "jsonDesc": "Pengembang · API",
-    "pdfDesc": "Untuk membaca · mencetak",
     "scopeLabel": "Cakupan termasuk",
     "scope1": "Kepribadian · model kelekatan",
     "scope2": "Kenangan · narasi",
@@ -435,7 +434,8 @@
     "share": "Bagikan",
     "exportError": "Gagal membuat ekspor. Coba lagi.",
     "previewChars": "{{count}} karakter",
-    "close": "Tutup"
+    "close": "Tutup",
+    "htmlDesc": "Halaman siap cetak. Buka lalu cetak, atau simpan sebagai PDF, dari peramban."
   },
   "import": {
     "title": "Impor",

@@ -421,7 +421,6 @@
     "idenDesc": "포터블 정체성 파일",
     "markdownDesc": "Obsidian 친화",
     "jsonDesc": "개발자 · API",
-    "pdfDesc": "읽기 · 인쇄용",
     "scopeLabel": "포함 범위",
     "scope1": "성격 · 애착 모델",
     "scope2": "회상 · 내러티브",
@@ -435,7 +434,8 @@
     "share": "공유",
     "exportError": "내보내기를 만들지 못했어요. 다시 시도해 주세요.",
     "previewChars": "{{count}}자",
-    "close": "닫기"
+    "close": "닫기",
+    "htmlDesc": "인쇄용 페이지예요. 브라우저에서 열어 인쇄하거나 PDF로 저장할 수 있어요."
   },
   "import": {
     "title": "외부 가져오기",
