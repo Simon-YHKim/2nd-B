@@ -7,11 +7,12 @@
 // in the intro).
 
 import { useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
-import { PremiumAppShell, PremiumLoadingState, PremiumToast } from "@/components/premium";
+import { PremiumAppShell, PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
+import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
@@ -56,10 +57,29 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
   const [responses, setResponses] = useState<IpipResponses>({});
   const [submitting, setSubmitting] = useState(false);
   const [started, setStarted] = useState(false);
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
 
   const result = useMemo(() => scoreIpipNeo(responses), [responses]);
+
+
+  // Android hardware back, guarded -- the five sibling surveys (values / strengths /
+  // big-five / motivation / attachment) all do this and these two were missed. A back press
+  // mid-survey used to close the screen with no confirmation and lose every answer. IPIP-NEO
+  // is 120 items; that is about fifteen minutes of someone's self-report, gone to one tap.
+  //
+  // ANDROID_QA_GUIDELINES: the subscription MUST be removed on unmount, or the handler leaks
+  // and keeps swallowing back presses on later screens.
+  useEffect(() => {
+    if (!started || Object.keys(responses).length === 0 || saved) return;
+    const onBackPress = () => {
+      setExitConfirmOpen(true);
+      return true;
+    };
+    const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => subscription.remove();
+  }, [started, responses, saved]);
 
   useEffect(() => {
     if (!toast) return;
@@ -210,6 +230,37 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           <PremiumToast message={toast.message} tone={toast.tone} />
         </View>
       ) : null}
+
+      <PremiumModal
+        visible={exitConfirmOpen}
+        onClose={() => setExitConfirmOpen(false)}
+        accessibilityLabel={locale === "ko" ? "종료 확인" : "Exit confirmation"}
+      >
+        <Text variant="heading">{locale === "ko" ? "그만두시겠어요?" : "Leave the survey?"}</Text>
+        <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
+          {locale === "ko"
+            ? "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
+            : "Are you sure you want to exit? Your progress will not be saved."}
+        </Text>
+        <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
+          <Button
+            label={locale === "ko" ? "계속하기" : "Keep going"}
+            variant="secondary"
+            onPress={() => setExitConfirmOpen(false)}
+            style={{ flex: 1 }}
+          />
+          <Button
+            label={locale === "ko" ? "종료" : "Exit"}
+            variant="primary"
+            onPress={() => {
+              setExitConfirmOpen(false);
+              onCancel();
+            }}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </PremiumModal>
+
     </>
   );
 }
