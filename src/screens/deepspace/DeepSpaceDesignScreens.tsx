@@ -122,6 +122,7 @@ import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
+import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
 import {
@@ -793,7 +794,7 @@ export function DeepSpaceInsightsScreen() {
   // Real week-over-week data. We reuse listRecentRecords (the same client other
   // deep-space screens use) — it returns a ~90-day window of the user's records,
   // which covers both comparison weeks — and feed the rows to the pure summary.
-  const [rows, setRows] = useState<Array<{ created_at: string }> | null>(null);
+  const [rows, setRows] = useState<Array<{ created_at: string; tags?: string[] | null }> | null>(null);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -803,9 +804,20 @@ export function DeepSpaceInsightsScreen() {
     let alive = true;
     setLoading(true);
     setErrored(false);
-    listRecentRecords(userId)
-      .then((data) => {
-        if (alive) setRows((data ?? []) as Array<{ created_at: string }>);
+    // Count BOTH tables. A "piece" lives in `records` (typed notes, journal, 4W1H, todos)
+    // or in `sources` (links, clips, imports) purely as an artifact of how it was captured
+    // -- nothing the user would ever think about. /records already shows both. This screen
+    // read only `records`, so a user who captures links and clips saw their pieces in the
+    // list and then read here that it was their "first week". The app reported less than
+    // they put in.
+    Promise.all([listRecentRecords(userId), listSourcePieces(userId)])
+      .then(([recs, srcs]) => {
+        if (!alive) return;
+        const merged = [
+          ...((recs ?? []) as Array<{ created_at: string; tags?: string[] | null }>),
+          ...srcs.map((s) => ({ created_at: s.created_at, tags: s.tags })),
+        ].sort((a, b) => b.created_at.localeCompare(a.created_at));
+        setRows(merged);
       })
       .catch(() => {
         if (alive) {

@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { deleteRecord, getRecordById, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
+import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
@@ -354,24 +355,21 @@ export function DeepSpaceRecordsScreen() {
       } catch {
         recordsFailed = true;
       }
+      // Same source of truth as /insights. This read used to live here inline, and
+      // /insights had no equivalent at all -- which is exactly how the two screens came to
+      // disagree about how much the user had captured.
       let srcRecs: TimelineRecord[] = [];
       try {
-        const { data } = await getSupabaseClient()
-          .from("sources")
-          .select("id, title, captured_at, tags")
-          .eq("user_id", userId)
-          .order("captured_at", { ascending: false })
-          .limit(200);
-        srcRecs = ((data ?? []) as { id: string; title: string | null; captured_at: string; tags: string[] | null }[]).map(
-          (r) =>
+        srcRecs = (await listSourcePieces(userId)).map(
+          (s) =>
             ({
-              id: `src-${r.id}`,
+              id: s.id,
               kind: "note",
-              summary: r.title,
-              topic: r.title,
+              summary: s.title,
+              topic: s.title,
               body: null,
-              tags: r.tags,
-              created_at: r.captured_at,
+              tags: s.tags,
+              created_at: s.created_at,
             }) as TimelineRecord,
         );
       } catch {
