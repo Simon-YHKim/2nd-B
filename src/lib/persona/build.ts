@@ -1,3 +1,20 @@
+// LOADER CONTRACT (all seven loadLatest* below):
+//   throws   -> we could not read. Say so.
+//   null     -> we read fine, and there is genuinely no result yet.
+//   a value  -> the user's real result.
+//
+// These used to collapse the first two: `if (error || !data || data.length === 0)
+// return null`. supabase-js does not throw on a query error -- it RESOLVES with
+// { error } -- so an offline user who had completed the assessment was told they had
+// not taken it, and their star stayed dark. That is precisely the 정직한 밝기 invariant
+// inverted: the sky must reflect what the user actually put in, and here it reported
+// less than they put in because we could not look.
+//
+// Worse, every screen above these had already written the honest branch and it was
+// dead code -- attachment.tsx:335 and big-five.tsx both carry
+// `.catch(() => setHasError(true))` that could never fire, because nothing rejected.
+// Splitting the condition is what makes those live.
+//
 // Inference Engine v1: synthesize a coarse persona from audit_response
 // records + TIPI Big Five assessments. v1 is intentionally lightweight —
 // no LLM extraction yet, just frequency counting + length heuristics over
@@ -196,10 +213,10 @@ export async function loadMemorizedHistogram(
     .select("pattern_kind")
     .eq("user_id", userId)
     .limit(500);
-  if (error) {
-    if (typeof console !== "undefined") console.warn("[persona] memorized read failed", error);
-    return {};
-  }
+  // Same contract as the loadLatest* loaders: `{}` used to mean BOTH "no memorized
+  // patterns" and "we could not read them", so a network blip quietly built the persona
+  // from a thinner histogram than the user had actually earned.
+  if (error) throw error;
   const hist: Record<string, number> = {};
   for (const row of data ?? []) {
     const kind = (row as { pattern_kind: string }).pattern_kind;
@@ -219,7 +236,8 @@ async function loadLatestMbti(
     .contains("tags", ["mbti", "assessment"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body);
     if (!isValidMbtiResult(parsed)) return null;
@@ -240,7 +258,8 @@ export async function loadLatestAttachment(
     .contains("tags", ["attachment", "ecr"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       style?: PersonaAttachment["style"];
@@ -273,7 +292,8 @@ export async function loadLatestBfi(
     .contains("tags", ["bfi"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       scores?: Partial<BfiScores>;
@@ -313,7 +333,8 @@ export async function loadLatestValues(
     .contains("tags", ["values", "assessment"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       scores?: { value?: string; score?: number }[];
@@ -362,7 +383,8 @@ export async function loadLatestStrengths(
     .contains("tags", ["strengths", "assessment"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       scores?: { strength?: string; score?: number }[];
@@ -415,7 +437,8 @@ export async function loadLatestMotivation(
     .contains("tags", ["motivation", "assessment"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       needs?: { key?: string; score?: number }[];
@@ -467,7 +490,8 @@ export async function loadLatestIpip(
     .contains("tags", ["ipip_neo"])
     .order("created_at", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw error;                      // read failed != no result (see header)
+  if (!data || data.length === 0) return null;
   try {
     const parsed = JSON.parse((data[0] as { body: string }).body) as {
       domains?: Partial<Record<"openness" | "conscientiousness" | "extraversion" | "agreeableness" | "neuroticism", number>>;
