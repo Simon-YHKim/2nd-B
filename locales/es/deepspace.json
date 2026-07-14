@@ -421,7 +421,6 @@
     "idenDesc": "Archivo de identidad portátil",
     "markdownDesc": "Compatible con Obsidian",
     "jsonDesc": "Desarrollador · API",
-    "pdfDesc": "Para leer · imprimir",
     "scopeLabel": "Alcance incluido",
     "scope1": "Personalidad · modelo de apego",
     "scope2": "Recuerdo · narrativa",
@@ -435,7 +434,8 @@
     "share": "Compartir",
     "exportError": "No se pudo crear la exportación. Inténtalo de nuevo.",
     "previewChars": "{{count}} caracteres",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "htmlDesc": "Página lista para imprimir. Ábrela e imprime, o guárdala como PDF, desde tu navegador."
   },
   "import": {
     "title": "Importar",
