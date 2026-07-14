@@ -117,9 +117,18 @@ This document contains hard-learned prevention measures for Android runtime cras
 
 ## Verification
 
-`npm run verify` runs the full gauntlet: lint + type-check + i18n + lexicon + LLM boundary + constraints + jest.
+`npm run verify` runs the full gauntlet: lint + type-check + i18n + lexicon + legal-review +
+LLM boundary + constraints + em dash + anti-anthro + mascot-voice + **require cycles** + jest.
 
-Always run `npm run verify` before pushing. CI runs the same suite plus `supabase-dry-run.yml`.
+Always run `npm run verify` before pushing. CI calls `npm run verify` directly (not a copy of the
+steps), so a new check added there is automatically enforced in CI.
+
+**`check:cycles` is a zero-tolerance gate, not a ratchet.** The repo has 0 runtime require cycles
+and must keep it that way: a cycle lets a component evaluate before `lib/theme/m3`, and 35 files
+still dereference `m3.*` at module scope inside `StyleSheet.create` — so one cycle re-arms all of
+them. That is exactly what shipped to users on 2026-07-03 (#711 `[ota]`, live redbox on
+`/settings`). Note the gate excludes `import type` edges: they are erased at compile time and
+cannot cycle at runtime, which is why `madge --circular` reports 10 while the true count is 0.
 
 ## Skill routing (SimonK Stack / gstack)
 

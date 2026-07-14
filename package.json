@@ -20,10 +20,11 @@
     "check:emdash": "tsx scripts/check-no-emdash.ts",
     "check:anti-anthro": "tsx scripts/check-anti-anthro.ts",
     "check:mascot-voice": "tsx scripts/check-mascot-voice.ts",
+    "check:cycles": "tsx scripts/check-require-cycles.ts",
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:legal-review && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm test -- --ci"
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:legal-review && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:cycles && npm test -- --ci"
   },
   "dependencies": {
     "@expo-google-fonts/press-start-2p": "^0.4.1",
@@ -90,6 +91,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
+    "@types/madge": "^5.0.3",
     "@types/node": "^25.9.1",
     "@types/react": "~19.2.2",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
@@ -99,6 +101,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globby": "^14.0.0",
     "jest": "^29.0.0",
+    "madge": "^8.0.0",
     "patch-package": "^8.0.1",
     "prettier": "^3.4.0",
     "react-native-svg-transformer": "^1.5.3",
