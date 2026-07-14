@@ -2460,7 +2460,8 @@
             "담고 돌아왔는데 이 별의 목록에 그 기록이 없어요 (다른 별로 붙었어요)",
             "특징적인 단어가 없는 글은 '담아내기' 별로 가버려요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/star/[domain].tsx:176"
         },
         {
           "action": "한 걸음 더 들어가기 버튼 누르기",
@@ -2643,7 +2644,8 @@
             "느릴 수 있고, 누를 때마다 다른 문장이 나와요",
             "무료 사용량을 다 쓰면 문장을 못 받고 요금제 화면으로 넘어가요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/northstar.tsx:98"
         },
         {
           "action": "제안 문장 탭해서 편집칸에 넣기",
@@ -3349,7 +3351,10 @@
             "미성년 계정은 숫자 변환이 아예 안 돌아요 (설정을 켜도 막혀 있어요)",
             "안전 기록 쓰기가 실패하면 기기에 모아뒀다가 다음에 다시 보내요. 화면에는 티가 안 나요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/capture.tsx:988",
+          "notABug": "The catch calls showFeedback(t('alerts.pieceSave.title')) and reactExpression('negative') -- the failure IS surfaced, and the body is preserved. The failureModes text describes that correct behaviour; it was read as a defect.",
+          "notABugVerifiedOn": "2026-07-14"
         },
         {
           "action": "링크·클립·메모·사진 글자·파일 담기 (위험 신호면 안전 기록도 남아요)",
@@ -3509,7 +3514,8 @@
             "마이크 권한을 거부하면 '마이크 접근이 꺼져 있어요…' 안내가 뜨고 글로 적는 칸만 남아요",
             "받아쓰기가 성공한 경우, 말한 내용이 위험 신호면 받아쓴 글 대신 도움받을 연락처 창이 떠요 (단, 그 뒤에 '담기'로 저장할 때는 연락처 창이 다시 뜨지 않아요)"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/capture.tsx:1079"
         },
         {
           "action": "사진에서 뽑은 글 '확인했어요' 누르기 (이걸 눌러야 담기가 켜져요)",
@@ -3833,7 +3839,8 @@
             "담아둔 자료를 누르면 상세 내용이 없어서 '찾을 수 없어요' 화면이 떠요 (목록에는 보이는데 열리지 않는 진짜 결함이에요)",
             "이미 지워진 기록을 누르면 '찾을 수 없어요' 화면이 떠요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:402"
         },
         {
           "action": "분류함 열기",
@@ -4026,7 +4033,8 @@
             "약점: 인터넷이 끊겨서 못 불러온 것과 진짜로 지워진 것을 구분하지 않아요. 둘 다 똑같이 '찾을 수 없어요' 화면이 떠서, 멀쩡한 내 기록이 사라진 줄 알고 놀랄 수 있어요. 다시 시도 버튼도 없어요",
             "화면을 다시 열어도 새로 불러오지 않아요. 다른 곳에서 바꾼 내용이 바로 안 보일 수 있어요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:879"
         },
         {
           "action": "본문 고치기",
@@ -4211,7 +4219,8 @@
             "그 상태에서는 '편집' 버튼까지 살아나서, 실수로 저장하면 검사 응답 데이터가 글로 덮어써져 결과 화면이 깨질 수 있어요",
             "넘어간 검사 화면에서 결과를 못 불러오면 그쪽 화면에서 오류가 떠요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:998"
         }
       ]
     },
@@ -4397,7 +4406,11 @@
             "그 상태에서 다시 검사하면 기존 결과를 고치는 게 아니라 기록이 하나 더 쌓여요 (지도에는 가장 최근 것만 보여요)",
             "저장된 내용이 깨져 있을 때도 똑같이 빈 화면이 나와요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/attachment.tsx:329",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "loader folded a query error into null; the .catch that sets hasError was dead code"
         },
         {
           "action": "검사 시작하기",
@@ -4513,7 +4526,8 @@
             "버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때 세컨비로 또 끌려가요 — 이때 결과 지도는 새로 고쳐지지 않아요",
             "세컨비 화면에서 대화 한도에 걸리면 답을 못 받을 수 있어요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/attachment.tsx:227"
         },
         {
           "action": "인터뷰로 이동",
@@ -4677,7 +4691,8 @@
             "검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요)",
             "화면이 비어 보이면 앱 언어 설정이나 번역 파일이 빠진 경우예요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074"
         },
         {
           "action": "'시작하기' 질문 누르기",
@@ -4809,7 +4824,8 @@
             "실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가 Markdown 경로에만 이 값을 넘겨요",
             "실제 결함: 위의 두 스위치는 켜진 스위치처럼 보이지만 누를 수 없어요. 눌러도 안 바뀌는 게 고장이 아니라 원래 그래요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722"
         },
         {
           "action": "내보내기 실행",
@@ -4848,7 +4864,10 @@
             "실제 결함: PDF를 골라도 PDF가 아니라 html 파일이 만들어져요. 코드가 r.html과 .html 이름을 그대로 써요",
             "기록이 하나도 없으면 요약할 내용이 없다는 정직한 문장이 대신 들어가요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1635",
+          "triageVerdict": "NOT_REPRODUCIBLE",
+          "triageNote": "The 2026-07-14 re-triage could not reproduce this and believes the failureModes text describes correct behaviour. NOT independently confirmed -- read the code before acting."
         },
         {
           "action": "복사하거나 공유하기",
@@ -5328,7 +5347,8 @@
             "AI 의미 색인만 실패하면 조용히 넘어가고 기록은 정상 저장돼요",
             "위험 신호가 담긴 문장을 적어도 이 화면에서는 도움 연락처가 안 떠요 (기록과 안전 기록에는 남아요)"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/career-drilldown.tsx:119"
         }
       ]
     },
@@ -6101,7 +6121,8 @@
             "지난달 불러오기만 실패해도 똑같이 퍼센트 없는 '지출 ↑' 딱지가 떠요 (오류 안내는 안 떠요)",
             "지출이 지난달과 똑같을 때만 변화 딱지가 안 보여요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:484"
         },
         {
           "action": "빠른 기록 추가하기 (0원 자리표시 줄만 생김)",
@@ -6134,7 +6155,8 @@
             "저장에 실패해도 화면에 아무 오류가 안 떠요 (실패하면 목록 새로고침 자체가 실행되지 않아 오류 화면이 뜰 수 없어요)",
             "0원짜리 줄만 있으면 분류별 막대 길이가 0 ÷ 0 계산이 돼서 막대가 채워지지 않고 빈 칸으로 보여요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:504"
         },
         {
           "action": "불러오기 실패했을 때 다시 시도 누르기",
@@ -6164,7 +6186,10 @@
             "지난달 내역만 실패한 경우엔 오류 안내가 아예 안 뜨고, 대신 퍼센트 없는 '지출 ↑' 딱지가 잘못 떠요 (지출이 늘었다고 오해하게 돼요)",
             "'다시 시도' 를 눌러도 지난달 내역은 다시 불러오지 않아서 잘못된 딱지가 그대로 남아요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:549",
+          "notABug": "Renders OpsState variant='error' with a retry CTA on entries.status === 'error'. Correct handling, read as a defect.",
+          "notABugVerifiedOn": "2026-07-14"
         },
         {
           "action": "뒤로 가기",
@@ -6426,7 +6451,8 @@
             "'오늘은 그만 볼래요' 는 오늘 하루만 숨겨요. 내일 다시 들어오면 또 떠요",
             "횟수 불러오기에 실패하면 조용히 0으로 표시돼서, 실제로는 다 썼는데 남은 것처럼 보일 수 있어요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/secondb.tsx:400"
         },
         {
           "action": "메시지 보내기",
@@ -6548,7 +6574,8 @@
             "누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 TODO로 남아 있는 미완성 부분)",
             "위키 목록에서 그 기록을 사람이 직접 다시 찾아야 해요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/secondb.tsx:743"
         },
         {
           "action": "트위비가 준 갈래 담기 (기록으로 넘기기)",
@@ -6656,7 +6683,8 @@
             "복사에 성공해도 실패해도 안내(토스트)가 없어서, 됐는지 안 됐는지 알 수 없어요 (:720 의 빈 catch)",
             "답변 전체를 저장하거나 내보내는 버튼은 없어요. 트위비 답변의 갈래만 '담기' 로 기록에 넘길 수 있어요 (:777)"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/secondb.tsx:716"
         }
       ]
     },
@@ -7180,7 +7208,8 @@
             "담기 화면에서 '음성' 모드를 직접 손으로 골라야 해요",
             "버튼 이름만 '음성으로 담기' 라서, 눌러 보기 전엔 안 되는 줄 몰라요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/beyond.tsx:98"
         },
         {
           "action": "알림 설정 열기",
@@ -7262,7 +7291,11 @@
             "'최근 3주간 가장 자주 담은 주제', '기분이 좋은 날의 공통점' 같은 문장도 실제로 계산한 게 아니라 미리 써둔 고정 문장이에요",
             "이 화면으로 들어가는 버튼이 앱 안에 아직 없어요. 주소를 직접 치거나 링크로만 들어올 수 있어요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1220",
+          "fixedIn": "#980",
+          "fixedOn": "2026-07-14",
+          "wasBug": "/discover's +32% / +18% were literals; now reads the real rising interests"
         },
         {
           "action": "관계 검사 시작 (첫 번째 카드)",
@@ -7543,7 +7576,8 @@
             "위키 페이지 번호를 기록 화면에 그대로 넘겨요 — 두 번호는 서로 다른 체계라 거의 항상 '찾을 수 없음' 화면이 떠요 (실제 결함)",
             "인터넷이 끊기면 열린 화면이 오류 상태로 남아요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1523"
         }
       ]
     },
@@ -7723,7 +7757,10 @@
             "연결이 적은 페이지를 열면 목록에 그 줄이 없어서 아무것도 안 펼쳐진 빈 목록으로 돌아와요",
             "태그를 걸어 남는 페이지가 0개면 그래프 대신 '아직 없어요' 안내가 떠서 점을 누를 수 없어요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/components/deep-space/WikiGraph.tsx:76",
+          "triageVerdict": "NOT_REPRODUCIBLE",
+          "triageNote": "The 2026-07-14 re-triage could not reproduce this and believes the failureModes text describes correct behaviour. NOT independently confirmed -- read the code before acting."
         }
       ]
     },
@@ -7765,7 +7802,11 @@
             "그래서 '불러오지 못했어요 / 다시 시도' 화면은 코드에는 있지만 실제로는 절대 뜨지 않아요 — 다시 불러올 방법이 없고, 앱을 껐다 켜는 수밖에 없어요",
             "저장된 내용이 깨져 있으면 결과가 없는 것으로 보고 같은 빈 화면이 나와요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/big-five.tsx:328",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "same loader contract; the honest branch existed and could never fire"
         },
         {
           "action": "검사 시작하기 (결과가 있으면 '다시 측정')",
@@ -8090,7 +8131,8 @@
             "버그(기본 화면에서 실제로 겪음): 답하는 중에 안드로이드 뒤로가기를 누르면 '그만둘까요?' 확인 없이 화면이 닫히고 120문항 답이 통째로 사라져요 — 다른 검사(성격 5요인 등)에는 있는 확인 창이 이 화면에만 빠져 있어요 (src/app/ipip-neo.tsx 에 BackHandler 없음, src/app/big-five.tsx:68-79 와 비교)",
             "앱을 완전히 끄면 답한 내용이 사라져요 (중간 임시 저장이 없어요)"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/ipip-neo.tsx:81"
         },
         {
           "action": "120문항 답변 저장하기",
@@ -8135,7 +8177,10 @@
             "'연결된 기록'이 켜져 있는데 AI 호출이 실패하면 기록 자체는 정상 저장되고 이어주기 표시만 조용히 빠져요 (사용자에게 아무 알림이 없어요)",
             "경험치 올리기나 설정 읽기가 실패해도 기록 저장 자체는 그대로 성공해요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/ipip-neo.tsx:85",
+          "triageVerdict": "NOT_REPRODUCIBLE",
+          "triageNote": "The 2026-07-14 re-triage could not reproduce this and believes the failureModes text describes correct behaviour. NOT independently confirmed -- read the code before acting."
         },
         {
           "action": "다시 검사하기",
@@ -8433,7 +8478,8 @@
             "답하는 중에 안드로이드 뒤로가기를 누르면 확인 창도 없이 화면이 닫히고 지금까지 고른 답이 전부 사라져요 (다른 검사 화면에는 있는 '정말 나가시겠습니까' 확인이 이 화면에만 빠져 있어요)",
             "답을 임시로 저장해 두는 기능이 없어서, 저장 전에 앱이 꺼지면 처음부터 다시 해야 해요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/rlss.tsx:81"
         },
         {
           "action": "6문항 답변 저장하기",
@@ -8527,7 +8573,11 @@
             "버그(기본 화면에서 실제로 겪음): 불러오기가 실패해도 오류 표시나 다시 시도 버튼 없이 '결과 없음'으로 처리돼서, 결과가 있는데도 설문을 처음부터 다시 하라고 해요 (src/lib/persona/build.ts:316 이 오류를 그냥 '없음'으로 바꿔요)",
             "저장된 내용이 깨져 있으면 결과가 없는 것으로 보고 설문 화면이 떠요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/values.tsx:286",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "a read failure was reported as 'no result yet' and re-offered the completed survey"
         },
         {
           "action": "설문 시작하기",
@@ -8750,7 +8800,11 @@
             "로그인 세션이 끊기면 결과 대신 로그인 화면이 떠요",
             "저장된 내용이 깨져 있으면 결과가 없는 것으로 보고 설문 화면이 떠요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/strengths.tsx:287",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "same as /values"
         },
         {
           "action": "설문 시작하기",
@@ -8901,7 +8955,8 @@
             "버그: '다음'이 빈 문항을 막지 않아서, 마지막 장에서 저장 버튼이 계속 회색인데 어느 문항이 비었는지 알려주지 않아요",
             "버그: 안내 창의 페이지 수(2)가 실제 페이지 수(3)와 달라요 (src/components/quant/QuantIntroModal.tsx:137)"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/components/quant/QuantPager.tsx:65"
         },
         {
           "action": "설문 그만두기 ('나중에' 또는 뒤로가기 후 '종료')",
@@ -9533,7 +9588,10 @@
             "링크·메모·클립으로 담은 자료만 있으면 이 화면은 그걸 세지 않아서, 기록 목록에는 자료가 보이는데 여기서는 '첫 주'처럼 텅 비어 보여요 (실제 결함)",
             "90일보다 오래된 기록만 있으면 아무것도 없는 것처럼 보여요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:804",
+          "triageVerdict": "NOT_REPRODUCIBLE",
+          "triageNote": "The 2026-07-14 re-triage could not reproduce this and believes the failureModes text describes correct behaviour. NOT independently confirmed -- read the code before acting."
         },
         {
           "action": "다시 시도 버튼 누르기",
@@ -10278,7 +10336,8 @@
             "이름을 바꿀 방법이 없어서 '새 목표'가 계속 쌓여 어떤 게 뭔지 구분이 안 돼요",
             "＋를 빠르게 여러 번 누르면 busy 잠금이 풀리는 사이에 중복 목표가 생겨요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:403"
         },
         {
           "action": "상태 칩 눌러 진행 상태 바꾸기",
@@ -10310,7 +10369,8 @@
             "저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈 catch)",
             "실수로 한 번 더 누르면 '완료'가 '계획'으로 돌아가고 진행률이 다시 내려가요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:417"
         },
         {
           "action": "오류 카드에서 다시 시도 누르기",
@@ -11036,7 +11096,8 @@
             "고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요",
             "'{별} 별에 한 걸음' 문구가 지키지 못할 약속이라 사용자가 오해해요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:2423"
         },
         {
           "action": "집중 세션 완료 (자동)",
@@ -11270,7 +11331,11 @@
             "[버그] 실패해도 오류 문구가 하나도 없이 버튼만 원래대로 돌아와서, 됐는지 안 됐는지 알 수 없어요 (:299 빈 catch)",
             "[버그] 읽는 기간이 시작=끝인 0초짜리라서, 진짜 건강 앱이 연결돼 있어도 오늘 데이터가 0건으로 읽힐 수 있어요 (:292-293)"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-import-inbox-screens.tsx:297",
+          "fixedIn": "#978",
+          "fixedOn": "2026-07-14",
+          "wasBug": "denied health permission wrote fabricated 9,000 steps as the user's data"
         },
         {
           "action": "가져온 데이터 철회",
@@ -11448,7 +11513,8 @@
             "실패하면 '가져온 데이터' 목록에도 안 남아서 뭐가 잘못됐는지 알 수 없어요",
             "저장은 됐는데 기록 남기기만 실패하면 나중에 그 기록을 지울 방법이 없어요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/import/ImportHubScreen.tsx:185"
         },
         {
           "action": "가져온 데이터 목록 열기",
@@ -12297,7 +12363,8 @@
             "회수됐다고 믿은 링크가 실제로는 살아 있어서 상대가 계속 답변할 수 있어요",
             "회수 실패용 안내 문구 자체가 앱에 없어요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/peer-invites.tsx:68"
         }
       ]
     },
@@ -12400,7 +12467,11 @@
             "인터넷이 끊기면 아무 일도 안 일어나요 - 오류 메시지도 없이 버튼만 다시 켜져요",
             "철회가 실패해도 알려주는 안내 문구 자체가 앱에 없어요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/peer/[token].tsx:92",
+          "fixedIn": "#979",
+          "fixedOn": "2026-07-14",
+          "wasBug": "a failed consent withdrawal reported success"
         },
         {
           "action": "미성년(만 18세 미만) 체크 · 보호자 동의 체크",
@@ -12553,7 +12624,8 @@
             "승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요",
             "그 잘못된 빈 카드의 '북극성으로 가기'를 누르면 이 화면을 떠나게 돼요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/ratifications.tsx:168"
         },
         {
           "action": "변화 없는 기록도 보기",
@@ -13397,7 +13469,8 @@
             "요금제를 내리는 방법을 화면 어디에서도 안내하지 않습니다",
             "해지 방법을 못 찾아 결제가 계속 나간다고 오해할 수 있습니다"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/dds-plans-screen.tsx:308"
         }
       ]
     },
@@ -14507,7 +14580,8 @@
             "기록 목록(/records)에서 담은 자료를 눌러도 똑같이 못 찾아요. 이 화면만 고장 난 게 아니라 담은 자료 상세가 아직 없는 상태예요",
             "되돌리기용 옛날 화면(legacy)에서만 담은 자료 상세가 열려요. 기본 화면에서는 안 열려요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/app/core-brain.tsx:496"
         },
         {
           "action": "'다음 한 걸음' 카드의 버튼 3개",
@@ -14765,5 +14839,11 @@
         }
       ]
     }
-  ]
+  ],
+  "_anchorContract": {
+    "note": "READ THIS BEFORE CITING AN ANCHOR FOR A KNOWN BUG. Every action carries two locations, and they are not interchangeable. `impl` is the lib function the action CALLS. `file` is the screen handler that calls it. The lib layer is almost always correct -- it throws (`if (error) throw error`). The swallowing is almost always in the SCREEN. So `impl` is the wrong anchor for a bug, structurally, and citing it sends the fixer to a file that has nothing wrong with it.",
+    "evidence": "17 of the 41 knownBug entries were reported with an `impl` anchor and every one was wrong. Examples: the fabricated-health-data bug was reported at src/lib/health/ingest.ts:62 (which correctly enforces the consent gate) when it actually lived at src/screens/deepspace/dds-import-inbox-screens.tsx:294. The consent-withdrawal fail-open was reported at src/lib/peer/invite.ts:86 when it lived at src/app/peer/[token].tsx.",
+    "rule": "Cite `bugAnchor`. It is the field that means 'where the defect is'.",
+    "addedBy": "2026-07-14 defect re-triage"
+  }
 }
