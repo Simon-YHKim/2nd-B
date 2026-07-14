@@ -59,6 +59,11 @@ export interface OpsCopy {
   emptyCta: string;
   errorTitle: string;
   errorBody: string;
+  // A failed WRITE. Distinct from errorTitle/errorBody, which describe a failed READ:
+  // a read failure means we cannot show you your data; a write failure means the thing
+  // you just did did not happen. The ops screens used to say nothing at all for the
+  // second case -- the tap simply did nothing, and the user was left to guess.
+  saveFailed: string;
   unlinkedTitle: string;
   unlinkedBody: string;
   unlinkedCta: string;
@@ -157,6 +162,7 @@ const en: OpsCopy = {
   emptyCta: "Add a record",
   errorTitle: "Couldn't load just now",
   errorBody: "Please check your connection",
+  saveFailed: "Couldn't save that. Nothing was recorded. Try again.",
   unlinkedTitle: "Not connected yet",
   unlinkedBody: "Connect for automatic, or just write it yourself",
   unlinkedCta: "Connect",
@@ -244,6 +250,7 @@ const ko: OpsCopy = {
   emptyBody: "기록이 쌓이면 걸음을 골라줄게요",
   emptyCta: "기록 담기",
   errorTitle: "잠시 불러오지 못했어요",
+  saveFailed: "저장하지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
   errorBody: "네트워크를 확인해 주세요",
   unlinkedTitle: "아직 연결 안 됐어요",
   unlinkedBody: "연결하면 자동으로, 아니면 직접 적어요",
