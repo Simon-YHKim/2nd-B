@@ -7,7 +7,16 @@
 **86개 화면 · 483개 동작 · 서버/데이터 97종 · AI 14종**  
 코드 좌표 986개 전부 실제 소스와 대조: **✔ 함수까지 확인 509** · **· 파일·줄만 확인 477** · ⚠ 0
 
-**스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
+### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
+
+이 지도는 커밋 `?` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
+
+```bash
+node <flow-debugger>/scripts/check-stale.js docs/flow-map.json . --strict
+```
+- **exit 0** — 앵커한 파일 168개가 그대로다. 이 문서를 믿고 시작해도 된다.
+- **exit 1** — 바뀐 파일 목록이 그대로 출력된다. **그 화면들만** 다시 스캔하면 된다(§6 재생성).
 
 ---
 
@@ -46,7 +55,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 화면 코드엔 `createRecord(...)` 한 줄뿐인데 그 안에서 **AI를 부른다.** 화면 파일만 읽으면 절대 안 보인다.
 (이걸 안 따라가서 서버 호출 66건·AI 7건이 통째로 지도에서 빠졌었다.)
 
-**AI를 부르는 함수 27개** — 화면에 이 호출이 보이면 AI·비용·지연을 계산에 넣어라:
+**AI를 부르는 함수 26개** — 화면에 이 호출이 보이면 AI·비용·지연을 계산에 넣어라:
 
 | 함수 | 위치 | 경유 |
 |---|---|---|
@@ -56,14 +65,14 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `buildIdenDoc()` | `src/lib/iden/build-iden.ts:257` | `buildPersona` |
 | `exportIden()` | `src/lib/iden/iden-export.ts:89` | `buildIdenDoc` |
 | `nextProbe()` | `src/lib/interview/probe.ts:239` | `callGemini` |
-| `classifyRecordTextForCrisis()` | `src/lib/llm/gemini.ts:388` | 직접 |
 | `callGemini()` | `src/lib/llm/gemini.ts:464` | `callAdvisor` |
 | `embedTexts()` | `src/lib/llm/gemini.ts:903` | 직접 |
 | `transcribeAudio()` | `src/lib/llm/gemini.ts:1046` | `classifySafety` |
-| `callAdvisor()` | `src/lib/llm/gemini.ts:1152` | `retrieveEvidence` |
+| `callAdvisor()` | `src/lib/llm/gemini.ts:1152` | `classifySafety` |
 | `classifySafety()` | `src/lib/llm/safety.ts:254` | `insertAiAuditLog` |
+| `buildOpsDailyBrief()` | `src/lib/ops/daily-brief.ts:142` | `callGemini` |
 
-전체 27개: `jq '.aiHelpers | keys' docs/flow-map.json`
+전체 26개: `jq '.aiHelpers | keys' docs/flow-map.json`
 
 ---
 
@@ -101,7 +110,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/record/[id]` | 검사 결과 보러 가기 | 약점: 검사 이름표가 다섯 가지(동기·강점·가치·성격·애착) 중 하나와 정확히 맞지 않으면 버튼이 아예 안 … | `src/screens/deepspace/dds-wiki-records-screens.tsx:710 (assessmentRoute)` ✔ |
 | `/attachment` | 저장된 검사 결과 불러오기 (실패해도 빈 화면으로 보임) | 버그: 불러오기가 실패해도 오류 안내가 안 나오고 '아직 이 별은 어두워요' 빈 화면이 떠요. '불러오지 못… | `src/lib/persona/build.ts:232` · |
 | `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:227` ✔ |
-| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1075` ✔ |
+| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` ✔ |
 | `/formats` | 원본 기록 포함 스위치 | 실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가… | `src/lib/wiki/export.ts:219 (includeRecords)` ✔ |
 | `/formats` | 내보내기 실행 | 실패하면 '내보내기를 만들지 못했어요. 다시 시도해 주세요' 문구가 뜨고 미리보기는 안 나와요 | `src/lib/iden/iden-export.ts:89` · |
 | `/career-drilldown` | 드릴다운 제출하기 | 실제 결함: 저장이 실패해도 오류 안내 없이 화면은 그냥 세컨비로 넘어가서, 사용자가 기록이 날아간 걸 모른… | `src/lib/records/create.ts:100` · |
@@ -112,8 +121,8 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/secondb` | 근거 보기 (참고한 기록 열기) | 누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 … | `src/lib/chat/sources.ts:26` · |
 | `/secondb` | 답변을 길게 눌러 복사하기 | 휴대폰 앱에서는 꾹 눌러도 자동 복사가 안 돼요 — 자동 복사는 웹 브라우저에서만 동작해요 (src/app/… | `src/app/secondb.tsx:716` ✔ |
 | `/beyond` | 음성으로 담기 (마이크 버튼) | 마이크 버튼을 눌러도 녹음이 안 시작돼요 — 그냥 글 쓰는 담기 화면만 열려요 | `src/app/beyond.tsx:98` · |
-| `/discover` | 화면 열기 | 화면의 +32% / +18% 는 내 데이터로 계산한 값이 아니라 코드에 박아둔 고정 숫자예요. 모든 사용자에… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1221 (DeepSpaceDiscoverScreen)` ✔ |
-| `/research` | 페이지 열어 보기 | 위키 페이지 번호를 기록 화면에 그대로 넘겨요 — 두 번호는 서로 다른 체계라 거의 항상 '찾을 수 없음' … | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1524` ✔ |
+| `/discover` | 화면 열기 | 화면의 +32% / +18% 는 내 데이터로 계산한 값이 아니라 코드에 박아둔 고정 숫자예요. 모든 사용자에… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1220 (DeepSpaceDiscoverScreen)` ✔ |
+| `/research` | 페이지 열어 보기 | 위키 페이지 번호를 기록 화면에 그대로 넘겨요 — 두 번호는 서로 다른 체계라 거의 항상 '찾을 수 없음' … | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1523` ✔ |
 | `/wiki` | 연결 그림에서 점을 눌러 선택하고, 한 번 더 눌러 페이지 열기 | 한 번만 누르면 아무 일도 안 일어난 것처럼 보여요 (선택만 된 상태) | `src/screens/deepspace/dds-wiki-records-screens.tsx:1333 (onOpenPage)` ✔ |
 | `/big-five` | 저장된 성격 점수 불러오기 | 버그(기본 화면에서 실제로 겪음): 인터넷이 끊기거나 서버가 안 되면 오류 화면 대신 '아직 이 별은 어두워… | `src/lib/persona/build.ts:263` · |
 | `/ipip-neo` | 120문항 답하기 | 버그(기본 화면에서 실제로 겪음): 답하는 중에 안드로이드 뒤로가기를 누르면 '그만둘까요?' 확인 없이 화면… | `src/lib/persona/ipip-neo.ts:182` · |
@@ -125,7 +134,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/insights` | 화면 열기 (내 기록 불러오기) | 인터넷이 끊기면 화면 대신 오류 문구와 다시 시도 버튼만 보여요 | `src/lib/records/create.ts:309` · |
 | `/milestones` | 목표 추가 (＋ 버튼) | 저장이 실패해도 오류 문구가 전혀 안 떠요 (조용한 실패 — screens.tsx:409-411 의 빈 ca… | `src/lib/ops/milestones.ts:88` · |
 | `/milestones` | 상태 칩 눌러 진행 상태 바꾸기 | 저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈… | `src/lib/ops/milestones.ts:134` · |
-| `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2424` · |
+| `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2423` · |
 | `/import` | 오늘 건강 데이터 반영 | [버그] 폰에 건강 앱 연결이 없거나 권한을 '거부'하면, 알리지도 않고 가짜 값(걸음 9000·수면 420… | `src/lib/health/ingest.ts:62` · |
 | `/import-hub` | 고른 항목 기록에 반영 | 저장이 실패해도 오류 없이 첫 화면으로 돌아가서 성공한 것처럼 보여요 (실제 버그) | `src/lib/wiki/capture.ts:78` · |
 | `/peer-invites` | 초대 회수하기 | 회수가 실패해도 오류 안내가 전혀 없고 목록도 그대로예요 (실패했다는 걸 알 방법이 없어요) | `src/lib/peer/invite.ts:86` · |

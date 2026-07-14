@@ -26,6 +26,8 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { FilterChip } from "./dds-wiki-records-screens";
 import { buildInfoLine } from "@/lib/build-info";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { gatherRisingInterests } from "@/lib/trends/gather";
+import type { RisingInterest } from "@/lib/trends/rising";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
@@ -1217,34 +1219,75 @@ export function DeepSpacePermissionsScreen() {
   );
 }
 
+// This screen used to be a mockup wearing a data screen's clothes: two Cards with
+// hardcoded topics ("자기이해 도구", "아침 루틴") and hardcoded deltas (+32%, +18%),
+// under copy that claims "최근 3주간 가장 자주 담은 주제". A brand-new account saw the
+// same +32%. It reads as the product's central promise -- 정직한 밝기, only what you
+// actually put in -- and it was invented.
+//
+// The engine to do it honestly already existed and was orphaned: lib/trends/rising.ts
+// ranks tags whose frequency rose from the prior window to the recent one (pure,
+// deterministic, no LLM), and lib/trends/gather.ts feeds it the user's own records.
+// Nothing imported either. So this is a wiring job, not a new feature.
+//
+// Counts, not percentages: a tag that went 0 -> 3 has no meaningful percentage, and
+// inventing one would repeat the original sin in a smaller font.
 export function DeepSpaceDiscoverScreen() {
   const { t } = useTranslation("deepspace");
+  const { userId, loading: authLoading } = useAuth();
+  // undefined = still loading, null = the read failed, [] = genuinely nothing yet.
+  // Collapsing "failed" into "nothing yet" is how a screen ends up lying quietly.
+  const [rising, setRising] = useState<RisingInterest[] | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId) {
+      setRising([]);
+      return;
+    }
+    let alive = true;
+    gatherRisingInterests(userId)
+      .then((rows) => alive && setRising(rows))
+      .catch(() => alive && setRising(null));
+    return () => {
+      alive = false;
+    };
+  }, [userId, authLoading]);
+
+  const body =
+    rising === undefined ? (
+      <Text variant="body" style={styles.planFeatDim}>{t("discover.loading")}</Text>
+    ) : rising === null ? (
+      <Text variant="body" style={styles.planFeatDim} accessibilityRole="alert">{t("discover.error")}</Text>
+    ) : rising.length === 0 ? (
+      <Text variant="body" style={styles.planFeatDim}>{t("discover.empty")}</Text>
+    ) : (
+      rising.slice(0, 3).map((r) => (
+        <Pressable
+          key={r.tag}
+          onPress={() => router.push({ pathname: "/capture", params: { tag: r.tag } })}
+          android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+          accessibilityRole="button"
+          accessibilityLabel={`${r.tag} ${t("discover.cardDelta", { recent: r.recent, prior: r.prior })}`}
+        >
+          <Card>
+            <View style={styles.trendHead}>
+              <Text variant="heading" style={styles.section}>{r.tag}</Text>
+              <Text variant="body" style={styles.delta}>
+                {t("discover.cardDelta", { recent: r.recent, prior: r.prior })}
+              </Text>
+            </View>
+            <Text variant="body" style={styles.planFeatDim}>{t("discover.cardBody")}</Text>
+          </Card>
+        </Pressable>
+      ))
+    );
+
   return (
     <Shell title={t("discover.title")}>
       <SecondbStatusHeader text={t("discover.status")} tip={t("discover.tip")} mood="neutral" />
       <Text variant="body" style={styles.lead}>{t("discover.lead")}</Text>
-      <Pressable
-        onPress={() => router.push("/attachment")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-        accessibilityRole="button"
-        accessibilityLabel={t("discover.card1Head")}
-      >
-        <Card>
-          <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card1Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card1Delta", { percent: 32 })}</Text></View>
-          <Text variant="body" style={styles.planFeatDim}>{t("discover.card1Body")}</Text>
-        </Card>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push("/capture")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-        accessibilityRole="button"
-        accessibilityLabel={t("discover.card2Head")}
-      >
-        <Card>
-          <View style={styles.trendHead}><Text variant="heading" style={styles.section}>{t("discover.card2Head")}</Text><Text variant="body" style={styles.delta}>{t("discover.card2Delta", { percent: 18 })}</Text></View>
-          <Text variant="body" style={styles.planFeatDim}>{t("discover.card2Body")}</Text>
-        </Card>
-      </Pressable>
+      {body}
       <Text variant="subtle" style={styles.footer}>{t("discover.footer")}</Text>
     </Shell>
   );

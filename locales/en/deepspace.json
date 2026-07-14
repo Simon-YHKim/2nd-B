@@ -392,13 +392,12 @@
     "status": "The next step your interest is heading toward lately.",
     "tip": "Tap a suggestion to jump to a related check or record.",
     "lead": "The next step your interest is heading toward lately",
-    "card1Head": "Self-understanding tools",
-    "card1Delta": "▲ interest +{{percent}}%",
-    "card1Body": "Your most-saved topic over the last 3 weeks. Want to try the related attachment check (ECR-S)?",
-    "card2Head": "Morning routine",
-    "card2Delta": "▲ interest +{{percent}}%",
-    "card2Body": "What your good-mood days share. Want to add more records to rhythm?",
-    "footer": "As more data piles up, new suggestions appear."
+    "footer": "As more data piles up, new suggestions appear.",
+    "cardDelta": "▲ {{recent}} this week · {{prior}} last week",
+    "cardBody": "Coming up more often lately. Want to capture more on it?",
+    "empty": "Not enough captured yet to call anything a trend.",
+    "error": "Couldn't read your recent records, so there's nothing to show yet. Try again shortly.",
+    "loading": "Looking at what you've been capturing…"
   },
   "review": {
     "title": "Review",
