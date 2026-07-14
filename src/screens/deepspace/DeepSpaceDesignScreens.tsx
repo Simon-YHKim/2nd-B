@@ -1620,7 +1620,7 @@ export function DeepSpaceResearchScreen() {
                   <Pressable
                     style={[styles.mapRow, { minHeight: 44 }]}
                     android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-                    onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.from_page } })}
+                    onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: p.from_page } })}
                     accessibilityRole="button"
                     accessibilityLabel={`${p.from_title} ↔ ${p.to_title}`}
                   >
