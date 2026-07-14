@@ -16,6 +16,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumLoadingState, PremiumToast, PremiumModal } from "@/components/premium";
 import { Button } from "@/components/ui/Button";
 import { Text } from "@/components/ui/Text";
+import { MdButton } from "@/components/m3";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -271,6 +272,9 @@ export default function ValuesCheck() {
   const { userId, loading } = useAuth();
   // undefined = still loading; null = no stored result; object = has result.
   const [result, setResult] = useState<LoadedValues | null | undefined>(undefined);
+  // A failed READ is not "no result yet". Collapsing the two is how the app told a
+  // user who had taken the assessment that they had not, and offered it again.
+  const [hasError, setHasError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   // When there is no result and the user backs out of the survey intro, fall
   // back to the honest not-measured AxisCheck state instead of the survey.
@@ -285,11 +289,16 @@ export default function ValuesCheck() {
     let cancelled = false;
     loadLatestValues(getSupabaseClient(), userId)
       .then((r) => {
-        if (!cancelled) setResult(r);
+        if (cancelled) return;
+        setHasError(false);
+        setResult(r);
       })
       .catch(() => {
-        // A load failure is treated as "no result yet" — never fabricate data.
-        if (!cancelled) setResult(null);
+        // A read failure is NOT "no result yet". Saying so is what let the app hand a
+        // completed user the survey again whenever the network hiccuped.
+        if (cancelled) return;
+        setHasError(true);
+        setResult(null);
       });
     return () => {
       cancelled = true;
@@ -308,6 +317,28 @@ export default function ValuesCheck() {
       >
         <View style={styles.center}>
           <PremiumLoadingState message={t("ds.axisCheck.values.headline")} />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+
+  // Read failed. Say so, and offer a retry -- never re-offer a survey they already took.
+  if (hasError) {
+    return (
+      <DeepSpaceScreen
+        active="lens"
+        header="none"
+        variant="windowed"
+        title={t("ds.axisCheck.values.headline")}
+        onBack={() => router.back()}
+      >
+        <View style={styles.center}>
+          <Text variant="body" accessibilityRole="alert">{t("ds.axisCheck.loadError")}</Text>
+          <MdButton
+            variant="tonal"
+            label={t("ds.axisCheck.retry")}
+            onPress={() => setReloadKey((k) => k + 1)}
+          />
         </View>
       </DeepSpaceScreen>
     );
