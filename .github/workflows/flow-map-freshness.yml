@@ -1,0 +1,34 @@
+name: Flow map freshness
+
+# The flow map (docs/flow-map.json + FLOW-HANDOFF.md) gives a fresh session file:line coordinates
+# for every screen. Those are only true for the commit the map was scanned at; once the app moves
+# on they drift silently. This job re-checks the map's own fingerprint against the tree and warns
+# when it has gone stale — so the map gets refreshed before a session trusts a wrong line.
+#
+# Deliberately NON-BLOCKING: a stale map is a docs-refresh signal, not a reason to fail a PR that
+# has nothing to do with it. It never gates a merge; it leaves a warning + a job summary.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "supabase/**"
+      - "docs/flow-map.fingerprint.json"
+  pull_request:
+    paths:
+      - "src/**"
+      - "supabase/**"
+      - "docs/flow-map.fingerprint.json"
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # no install: the checker is self-contained (node stdlib only), so it cannot drift with deps
+      - name: Is the flow map still describing this code?
+        run: node scripts/check-flow-map-fresh.js

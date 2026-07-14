@@ -5,11 +5,13 @@
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
 **86개 화면 · 483개 동작 · 서버/데이터 97종 · AI 14종**  
-코드 좌표 986개 전부 실제 소스와 대조: **✔ 함수까지 확인 509** · **· 파일·줄만 확인 477** · ⚠ 0
+코드 좌표 986개 전부 실제 소스와 대조: **✔ 함수까지 확인 508** · **· 파일·줄만 확인 476** · ⚠ 2
+
+**스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `?` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `fdce07bc` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
@@ -95,53 +97,34 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 ---
 
-## 3. 알려진 문제 41건 (검증됨)
+## 3. 알려진 문제 22건
 
-스캔이 코드에서 확인한 결함이다. **손대기 전에 여기 있는지 먼저 본다.**
+손대기 전에 여기 있는지 먼저 본다. **코드 위치 = 결함이 있는 곳(화면)** — 액션이 부르는 lib(`impl`)이 아니다.
 
-| 화면 | 안 되는 것 | 증상 | 코드 |
+| 화면 | 안 되는 것 | 증상 | 결함 위치 |
 |---|---|---|---|
-| `/star/[domain]` | 담기 버튼 누르기 | 담고 돌아왔는데 이 별의 목록에 그 기록이 없어요 (다른 별로 붙었어요) | `src/lib/records/detect-domain.ts:129` · |
-| `/northstar` | 세컨비 제안 받기 | 인터넷이 끊기거나 AI가 형식에 안 맞는 답을 해도 화면은 똑같이 '기록이 부족해요'라고만 알려줘요 — 기록… | `src/lib/persona/northstar.ts:77` · |
-| `/capture-full` | 4W1H·할 일·음성 담기 | 저장이 실패하면 '별가루를 담지 못했어요' 카드가 뜨고 쓴 내용은 남아 있어요 ('다시 시도'를 누르면 돼요… | `src/lib/records/create.ts:100` · |
-| `/capture-full` | 음성 녹음하고 받아쓰기 | 현재 배포된 실제 앱에서는 받아쓰기가 항상 '녹음을 글로 바꾸지 못했어요…'로 끝나요. 음성 받아쓰기만 안전… | `src/lib/llm/gemini.ts:1046` · |
-| `/records` | 조각 하나 열기 | 담아둔 자료를 누르면 상세 내용이 없어서 '찾을 수 없어요' 화면이 떠요 (목록에는 보이는데 열리지 않는 진… | `src/screens/deepspace/dds-wiki-records-screens.tsx:402` ✔ |
-| `/record/[id]` | 조각 불러오기 | 약점: 인터넷이 끊겨서 못 불러온 것과 진짜로 지워진 것을 구분하지 않아요. 둘 다 똑같이 '찾을 수 없어요… | `src/lib/records/create.ts:332` · |
-| `/record/[id]` | 검사 결과 보러 가기 | 약점: 검사 이름표가 다섯 가지(동기·강점·가치·성격·애착) 중 하나와 정확히 맞지 않으면 버튼이 아예 안 … | `src/screens/deepspace/dds-wiki-records-screens.tsx:710 (assessmentRoute)` ✔ |
-| `/attachment` | 저장된 검사 결과 불러오기 (실패해도 빈 화면으로 보임) | 버그: 불러오기가 실패해도 오류 안내가 안 나오고 '아직 이 별은 어두워요' 빈 화면이 떠요. '불러오지 못… | `src/lib/persona/build.ts:232` · |
-| `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:227` ✔ |
-| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` ✔ |
-| `/formats` | 원본 기록 포함 스위치 | 실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가… | `src/lib/wiki/export.ts:219 (includeRecords)` ✔ |
-| `/formats` | 내보내기 실행 | 실패하면 '내보내기를 만들지 못했어요. 다시 시도해 주세요' 문구가 뜨고 미리보기는 안 나와요 | `src/lib/iden/iden-export.ts:89` · |
-| `/career-drilldown` | 드릴다운 제출하기 | 실제 결함: 저장이 실패해도 오류 안내 없이 화면은 그냥 세컨비로 넘어가서, 사용자가 기록이 날아간 걸 모른… | `src/lib/records/create.ts:100` · |
-| `/ledger` | 화면 열기 (이번 달·지난 달 내역 불러오기) | 인터넷이 끊기면 '잠시 불러오지 못했어요' 안내와 다시 시도 버튼이 떠요 (이번 달 불러오기가 실패한 경우에… | `src/lib/finance/ledger.ts:127` · |
-| `/ledger` | 빠른 기록 추가하기 (0원 자리표시 줄만 생김) | 실제 금액을 입력할 수 없어 가계부로 쓸 수 없고, 잘못 생긴 줄을 지울 수도 없어요 | `src/lib/finance/ledger.ts:109` · |
-| `/ledger` | 불러오기 실패했을 때 다시 시도 누르기 | 여전히 인터넷이 없으면 같은 오류 화면이 다시 떠요 | `src/lib/finance/ledger.ts:127` · |
-| `/secondb` | 화면 열기 (인사 모달 + 오늘 쓴 횟수 불러오기) | 휴대폰 앱에서는 '오늘은 그만 볼래요' 를 눌러도 저장이 안 돼서, 들어올 때마다 인사 창이 계속 다시 떠요… | `src/lib/chat/usage.ts:6` · |
-| `/secondb` | 근거 보기 (참고한 기록 열기) | 누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 … | `src/lib/chat/sources.ts:26` · |
-| `/secondb` | 답변을 길게 눌러 복사하기 | 휴대폰 앱에서는 꾹 눌러도 자동 복사가 안 돼요 — 자동 복사는 웹 브라우저에서만 동작해요 (src/app/… | `src/app/secondb.tsx:716` ✔ |
-| `/beyond` | 음성으로 담기 (마이크 버튼) | 마이크 버튼을 눌러도 녹음이 안 시작돼요 — 그냥 글 쓰는 담기 화면만 열려요 | `src/app/beyond.tsx:98` · |
-| `/discover` | 화면 열기 | 화면의 +32% / +18% 는 내 데이터로 계산한 값이 아니라 코드에 박아둔 고정 숫자예요. 모든 사용자에… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1220 (DeepSpaceDiscoverScreen)` ✔ |
-| `/research` | 페이지 열어 보기 | 위키 페이지 번호를 기록 화면에 그대로 넘겨요 — 두 번호는 서로 다른 체계라 거의 항상 '찾을 수 없음' … | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1523` ✔ |
-| `/wiki` | 연결 그림에서 점을 눌러 선택하고, 한 번 더 눌러 페이지 열기 | 한 번만 누르면 아무 일도 안 일어난 것처럼 보여요 (선택만 된 상태) | `src/screens/deepspace/dds-wiki-records-screens.tsx:1333 (onOpenPage)` ✔ |
-| `/big-five` | 저장된 성격 점수 불러오기 | 버그(기본 화면에서 실제로 겪음): 인터넷이 끊기거나 서버가 안 되면 오류 화면 대신 '아직 이 별은 어두워… | `src/lib/persona/build.ts:263` · |
-| `/ipip-neo` | 120문항 답하기 | 버그(기본 화면에서 실제로 겪음): 답하는 중에 안드로이드 뒤로가기를 누르면 '그만둘까요?' 확인 없이 화면… | `src/lib/persona/ipip-neo.ts:182` · |
-| `/ipip-neo` | 120문항 답변 저장하기 | 저장에 실패하면 빨간 알림이 뜨고 답변은 화면에 그대로 남아요 — 다시 저장을 누르면 돼요 (src/app/… | `src/lib/records/create.ts:100` · |
-| `/rlss` | 6문항에 1~7점으로 답하기 | 답하는 중에 안드로이드 뒤로가기를 누르면 확인 창도 없이 화면이 닫히고 지금까지 고른 답이 전부 사라져요 (… | `src/app/rlss.tsx:181` · |
-| `/values` | 화면 열기 (저장된 가치 결과 불러오기) | 버그(기본 화면에서 실제로 겪음): 불러오기가 실패해도 오류 표시나 다시 시도 버튼 없이 '결과 없음'으로 … | `src/lib/persona/build.ts:302` · |
-| `/strengths` | 화면 열기 (저장된 강점 결과 불러오기) | 버그(기본 화면에서 실제로 겪음): 불러오기가 실패해도 오류 표시가 없이 '결과 없음'으로 처리돼서, 결과가… | `src/lib/persona/build.ts:350` · |
-| `/strengths` | '다음' 눌러 다음 문항 페이지로 넘어가기 | 게이트: 마지막 장이 아니면 저장 버튼 자체가 없어서, 다 답했는데도 저장을 못 찾는 것처럼 보여요 | `src/components/quant/QuantPager.tsx:68` · |
-| `/insights` | 화면 열기 (내 기록 불러오기) | 인터넷이 끊기면 화면 대신 오류 문구와 다시 시도 버튼만 보여요 | `src/lib/records/create.ts:309` · |
-| `/milestones` | 목표 추가 (＋ 버튼) | 저장이 실패해도 오류 문구가 전혀 안 떠요 (조용한 실패 — screens.tsx:409-411 의 빈 ca… | `src/lib/ops/milestones.ts:88` · |
-| `/milestones` | 상태 칩 눌러 진행 상태 바꾸기 | 저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈… | `src/lib/ops/milestones.ts:134` · |
-| `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2423` · |
-| `/import` | 오늘 건강 데이터 반영 | [버그] 폰에 건강 앱 연결이 없거나 권한을 '거부'하면, 알리지도 않고 가짜 값(걸음 9000·수면 420… | `src/lib/health/ingest.ts:62` · |
-| `/import-hub` | 고른 항목 기록에 반영 | 저장이 실패해도 오류 없이 첫 화면으로 돌아가서 성공한 것처럼 보여요 (실제 버그) | `src/lib/wiki/capture.ts:78` · |
-| `/peer-invites` | 초대 회수하기 | 회수가 실패해도 오류 안내가 전혀 없고 목록도 그대로예요 (실패했다는 걸 알 방법이 없어요) | `src/lib/peer/invite.ts:86` · |
-| `/peer/[token]` | 내 응답 철회하기 | 서버에서 취소가 실패해도(500·404) 화면은 '철회됐어요'로 바뀌어요 - 실제로는 내 응답이 그대로 남아… | `supabase/functions/peer-respond/index.ts:97` · |
-| `/ratifications` | 결정 종류로 거르기 | 승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요 | `src/app/ratifications.tsx:168` ✔ |
-| `/plans` | 무료 요금제(별바라기) 카드의 버튼 누르기 — 유료 이용자에게만 눌리는 버튼 | 버튼을 눌러도 아무 반응이 없습니다 (앱이 멈춘 것처럼 보입니다) | `src/screens/deepspace/dds-plans-screen.tsx:308` · |
-| `/core-brain` | '참고한 별가루' 목록 열고 조각 눌러보기 | 담은 자료를 누르면 상세 화면이 '기록' 쪽에서만 찾아서 무조건 '기록을 찾을 수 없어요. 보관소로 돌아가 … | `src/app/core-brain.tsx:281` · |
+| `/star/[domain]` | 담기 버튼 누르기 | 담고 돌아왔는데 이 별의 목록에 그 기록이 없어요 (다른 별로 붙었어요) | `src/app/star/[domain].tsx:176` |
+| `/northstar` | 세컨비 제안 받기 | 인터넷이 끊기거나 AI가 형식에 안 맞는 답을 해도 화면은 똑같이 '기록이 부족해요'라고만 알려줘요 — 기록… | `src/app/northstar.tsx:98` |
+| `/capture-full` | 음성 녹음하고 받아쓰기 | 현재 배포된 실제 앱에서는 받아쓰기가 항상 '녹음을 글로 바꾸지 못했어요…'로 끝나요. 음성 받아쓰기만 안전… | `src/app/capture.tsx:1079` |
+| `/record/[id]` | 검사 결과 보러 가기 | 약점: 검사 이름표가 다섯 가지(동기·강점·가치·성격·애착) 중 하나와 정확히 맞지 않으면 버튼이 아예 안 … | `src/screens/deepspace/dds-wiki-records-screens.tsx:998` |
+| `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:227` |
+| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` |
+| `/formats` | 원본 기록 포함 스위치 | 실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722` |
+| `/ledger` | 화면 열기 (이번 달·지난 달 내역 불러오기) | 인터넷이 끊기면 '잠시 불러오지 못했어요' 안내와 다시 시도 버튼이 떠요 (이번 달 불러오기가 실패한 경우에… | `src/screens/deepspace/ops/screens.tsx:484` |
+| `/ledger` | 빠른 기록 추가하기 (0원 자리표시 줄만 생김) | 실제 금액을 입력할 수 없어 가계부로 쓸 수 없고, 잘못 생긴 줄을 지울 수도 없어요 | `src/screens/deepspace/ops/screens.tsx:504` |
+| `/secondb` | 화면 열기 (인사 모달 + 오늘 쓴 횟수 불러오기) | 휴대폰 앱에서는 '오늘은 그만 볼래요' 를 눌러도 저장이 안 돼서, 들어올 때마다 인사 창이 계속 다시 떠요… | `src/app/secondb.tsx:400` |
+| `/secondb` | 근거 보기 (참고한 기록 열기) | 누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 … | `src/app/secondb.tsx:743` |
+| `/secondb` | 답변을 길게 눌러 복사하기 | 휴대폰 앱에서는 꾹 눌러도 자동 복사가 안 돼요 — 자동 복사는 웹 브라우저에서만 동작해요 (src/app/… | `src/app/secondb.tsx:716` |
+| `/beyond` | 음성으로 담기 (마이크 버튼) | 마이크 버튼을 눌러도 녹음이 안 시작돼요 — 그냥 글 쓰는 담기 화면만 열려요 | `src/app/beyond.tsx:98` |
+| `/research` | 페이지 열어 보기 | 위키 페이지 번호를 기록 화면에 그대로 넘겨요 — 두 번호는 서로 다른 체계라 거의 항상 '찾을 수 없음' … | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1523` |
+| `/ipip-neo` | 120문항 답하기 | 버그(기본 화면에서 실제로 겪음): 답하는 중에 안드로이드 뒤로가기를 누르면 '그만둘까요?' 확인 없이 화면… | `src/app/ipip-neo.tsx:81` |
+| `/rlss` | 6문항에 1~7점으로 답하기 | 답하는 중에 안드로이드 뒤로가기를 누르면 확인 창도 없이 화면이 닫히고 지금까지 고른 답이 전부 사라져요 (… | `src/app/rlss.tsx:81` |
+| `/strengths` | '다음' 눌러 다음 문항 페이지로 넘어가기 | 게이트: 마지막 장이 아니면 저장 버튼 자체가 없어서, 다 답했는데도 저장을 못 찾는 것처럼 보여요 | `src/components/quant/QuantPager.tsx:65` |
+| `/milestones` | 목표 추가 (＋ 버튼) | 저장이 실패해도 오류 문구가 전혀 안 떠요 (조용한 실패 — screens.tsx:409-411 의 빈 ca… | `src/screens/deepspace/ops/screens.tsx:403` |
+| `/milestones` | 상태 칩 눌러 진행 상태 바꾸기 | 저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈… | `src/screens/deepspace/ops/screens.tsx:417` |
+| `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2423` |
+| `/ratifications` | 결정 종류로 거르기 | 승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요 | `src/app/ratifications.tsx:168` |
+| `/plans` | 무료 요금제(별바라기) 카드의 버튼 누르기 — 유료 이용자에게만 눌리는 버튼 | 버튼을 눌러도 아무 반응이 없습니다 (앱이 멈춘 것처럼 보입니다) | `src/screens/deepspace/dds-plans-screen.tsx:308` |
 
 ---
 
@@ -233,7 +216,7 @@ flowchart LR
   S44["트렌드"] -->|뒤로 가기 (왼쪽 위 화살표)| S2["홈 별자리"]
   S45["리서치 (연결 찾기)"] -->|첫 조각 추가하기 (빈 화면일 때)| S13["담기"]
   S45["리서치 (연결 찾기)"] -->|페이지 열어 보기| S19["조각 상세"]
-  S40["위키"] -->|원문 열어 보기| S19["조각 상세"]
+  S40["위키"] -->|원문 열어 보기| S40["위키"]
   S40["위키"] -->|담으러 가기| S13["담기"]
   S32["성격 5요인 검사"] -->|'데이터 추가' 눌러 담기 화면으로 가기| S13["담기"]
   S32["성격 5요인 검사"] -->|'다른 검증틀 · 애착 유형 보기' 카드 누르기| S30["애착 유형"]
@@ -328,9 +311,9 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 | | 수 | 뜻 |
 |---|---|---|
-| **✔** | 509 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
-| **·** | 477 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
-| **~** | 0 | 빈 줄/import/주석 — 로직은 다른 줄 |
+| **✔** | 508 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
+| **·** | 476 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
+| **~** | 2 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
 | 위임 트랩 | 0 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
 

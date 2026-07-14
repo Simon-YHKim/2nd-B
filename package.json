@@ -21,6 +21,7 @@
     "check:anti-anthro": "tsx scripts/check-anti-anthro.ts",
     "check:mascot-voice": "tsx scripts/check-mascot-voice.ts",
     "check:cycles": "tsx scripts/check-require-cycles.ts",
+    "check:flow-map-fresh": "node scripts/check-flow-map-fresh.js",
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
