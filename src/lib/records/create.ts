@@ -15,6 +15,7 @@ import { awardXpSafe, type XpAction } from "../progression/xp";
 import { getSupabaseClient } from "../supabase/client";
 import { invalidateDomainLevels } from "../persona/load-domain-levels";
 import { fetchPrivacyPrefs } from "../supabase/privacy";
+import { withTimeout } from "../async/with-timeout";
 import { getEnv } from "../env";
 import type { StructuredPayload } from "../capture/structured";
 import { withDomainTag } from "./detect-domain";
@@ -241,28 +242,38 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
     }
   }
 
-  const { data, error } = await supabase
-    .from("records")
-    .insert({
-      user_id: args.userId,
-      kind: args.kind,
-      audit_period: args.auditPeriod ?? null,
-      prompt: args.prompt ?? null,
-      body: args.body,
-      ai_followup: aiFollowup,
-      topic: args.topic ?? null,
-      summary: args.summary ?? null,
-      conclusion: args.conclusion ?? null,
-      // Constellation layer A: tag the record with its life-domain slug at
-      // insert (deterministic, no LLM) so the home's load-domain-levels can
-      // group it. Detect from the user's own text (body + topic), not the AI
-      // prompt; withDomainTag drops any user-forced domain:* tag first.
-      tags: withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
-      // 0066: machine-readable form payload for form-shaped captures.
-      structured: args.structured ?? null,
-    })
-    .select("id")
-    .single();
+  // Bounded. Neither fetch nor supabase-js times out on its own, so a STALLED connection
+  // (socket open, nothing coming back -- not the same as a failed one) left this await
+  // hanging forever. On /ipip-neo that meant a 120-item, ~15-minute assessment sat behind
+  // a spinner that never stopped and an error toast that never appeared, and the user's
+  // only move was to kill the app and lose the lot. A rejection they can retry beats a
+  // hang they cannot.
+  const { data, error } = await withTimeout(
+    supabase
+      .from("records")
+      .insert({
+        user_id: args.userId,
+        kind: args.kind,
+        audit_period: args.auditPeriod ?? null,
+        prompt: args.prompt ?? null,
+        body: args.body,
+        ai_followup: aiFollowup,
+        topic: args.topic ?? null,
+        summary: args.summary ?? null,
+        conclusion: args.conclusion ?? null,
+        // Constellation layer A: tag the record with its life-domain slug at
+        // insert (deterministic, no LLM) so the home's load-domain-levels can
+        // group it. Detect from the user's own text (body + topic), not the AI
+        // prompt; withDomainTag drops any user-forced domain:* tag first.
+        tags: withDomainTag(args.tags, [args.body, args.topic].filter(Boolean).join("\n")),
+        // 0066: machine-readable form payload for form-shaped captures.
+        structured: args.structured ?? null,
+      })
+      .select("id")
+      .single(),
+    RECORD_INSERT_TIMEOUT_MS,
+    "record insert",
+  );
   if (error) throw error;
   if (!data) throw new Error("Insert returned no row");
 
@@ -272,7 +283,15 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
 
   // Quest XP — best-effort, never blocks the capture. The server (award_xp
   // RPC) decides the amount from xp_rules; we only name the action.
-  await awardXpSafe(XP_ACTION_FOR_KIND[args.kind]);
+  //
+  // It said "never blocks the capture" and then `await`ed. It blocked. The record is
+  // already saved at this point (data.id above), so everything below is enrichment, and
+  // enrichment must not hold the save button hostage -- least of all the embedding call,
+  // which is a network round trip to an AI service. Both now run detached: they still
+  // happen, they just stop being something the user waits on.
+  void awardXpSafe(XP_ACTION_FOR_KIND[args.kind]).catch((e: unknown) => {
+    if (typeof console !== "undefined") console.warn("[records] xp award failed", (e as Error).message);
+  });
 
   // D5 (J2 auto-embed): when the ADULT user has opted in (records_embedding pref,
   // OFF by default, privacy/prefs.ts), embed the new record so the semantic
@@ -282,21 +301,28 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
   // hard-blocks minors and requires the opt-in pref, and embedAndStoreRecord fails
   // closed on top of that. Minors skip without even reading prefs; a failure never
   // affects the save (which already returned its row).
+  // Detached, for the same reason as the XP call above: the comment already promised "a
+  // failure never affects the save (which already returned its row)" -- and that was true
+  // of the ROW, but not of the CALLER, who was still awaiting this whole function. So a
+  // slow embedding round trip kept the save button spinning long after the record was
+  // safely in the database.
   if (args.minor !== true && getEnv().EXPO_PUBLIC_LLM_MODE !== "mock") {
-    try {
-      const prefs = await fetchPrivacyPrefs(args.userId);
-      if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
-        await embedAndStoreRecord(
-          args.userId,
-          { id: data.id, topic: args.topic ?? null, summary: args.summary ?? null, body: args.body },
-          args.locale,
-          false,
-          true,
-        );
+    void (async () => {
+      try {
+        const prefs = await fetchPrivacyPrefs(args.userId);
+        if (recordsEmbeddingAllowed(false, prefs.records_embedding)) {
+          await embedAndStoreRecord(
+            args.userId,
+            { id: data.id, topic: args.topic ?? null, summary: args.summary ?? null, body: args.body },
+            args.locale,
+            false,
+            true,
+          );
+        }
+      } catch (e) {
+        if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
       }
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[records] auto-embed skipped", (e as Error).message);
-    }
+    })();
   }
 
   return { id: data.id, followup: aiFollowup ?? undefined };
@@ -304,6 +330,11 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
 
 // How far back the streak query looks, in days. A streak longer than this is
 // truncated, which is acceptable: the UI shows the active run, not lifetime.
+// A save the user is WAITING on. Generous enough that a merely slow network still
+// succeeds, short enough that a stalled one becomes a retryable error rather than an
+// endless spinner. The insert is the only step the caller waits for now.
+const RECORD_INSERT_TIMEOUT_MS = 20_000;
+
 const STREAK_WINDOW_DAYS = 90;
 
 export async function listRecentRecords(userId: string, limit = 500) {
