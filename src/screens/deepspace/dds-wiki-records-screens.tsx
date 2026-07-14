@@ -1260,6 +1260,12 @@ export function DeepSpaceWikiScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const isKo = i18n.language === "ko";
   const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
+  // Deep-link to one page, by wiki_pages.id. Three screens hold a wiki page id and used
+  // to push it at /record/[id], which looks a record up by that id and always 404s -- a
+  // page id is not a record id. They send it here instead, which is where it belongs.
+  // (The legacy wiki screen has focusSourceId, keyed on source_id; this is the live
+  // deep-space screen and it read no params at all.)
+  const { focusPageId } = useLocalSearchParams<{ focusPageId?: string }>();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   // Which page row is expanded. null until the user taps; the first page renders
   // expanded by default (matching the old fixed-open-first behaviour) but any row
@@ -1268,6 +1274,18 @@ export function DeepSpaceWikiScreen() {
   // rev2 P4b: list <-> node-graph view. The graph honours the same tag filter;
   // tapping a node twice opens it back in the list (progressive disclosure).
   const [wikiView, setWikiView] = useState<"list" | "graph">("list");
+
+  // A ?focusPageId= deep link opens that page. Must sit ABOVE the early returns below --
+  // a hook after a conditional return breaks the hook order (react-hooks/rules-of-hooks
+  // caught this). Only fires once the pages have loaded and only if the id is really in
+  // the list: a stale or foreign id falls back to the default (first page) rather than
+  // leaving every row collapsed.
+  useEffect(() => {
+    if (!focusPageId || expandedId !== null) return;
+    if (!pages.some((p) => p.id === focusPageId)) return;
+    setExpandedId(focusPageId);
+  }, [focusPageId, expandedId, pages]);
+
   const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
   const graphPages = useMemo(
     () =>
@@ -1365,7 +1383,7 @@ export function DeepSpaceWikiScreen() {
                   ) : null}
                   <View style={styles.wikiBacklinkRow}>
                     <Pressable
-                      onPress={() => router.push({ pathname: "/record/[id]", params: { id: p.id } })}
+                      onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: p.id } })}
                       accessibilityRole="button"
                       hitSlop={12}
                       accessibilityLabel={t("wiki.backlinks", { count: p.connections })}
