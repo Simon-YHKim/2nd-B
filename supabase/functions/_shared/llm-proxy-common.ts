@@ -27,8 +27,17 @@ export const CRISIS_TERMS_KO: readonly string[] = [
   '영영 잠들고 싶',
 ];
 
+// Fold whitespace and Unicode composition before matching, so the crisis gate
+// cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
+// space (U+3000) between the words of a multi-word term, or with NFD-decomposed
+// Hangul (iOS/macOS clipboard, imported clips) against the NFC-authored lexicon.
+// Mirrors src/lib/safety/classifier.ts:matchesTerm — keep the two in sync.
+function normalizeForMatch(text: string): string {
+  return text.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+}
+
 function matchesTermEn(lowerHaystack: string, term: string): boolean {
-  const t = term.toLowerCase();
+  const t = term.normalize('NFC').toLowerCase();
   if (t.length === 0) return false;
   const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
   for (let idx = lowerHaystack.indexOf(t); idx !== -1; idx = lowerHaystack.indexOf(t, idx + 1)) {
@@ -40,12 +49,12 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
 }
 
 export function hasCrisisTerm(text: string): boolean {
-  const lower = text.toLowerCase();
+  const lower = normalizeForMatch(text);
   for (const term of CRISIS_TERMS_EN) {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (text.includes(term)) return true;
+    if (lower.includes(normalizeForMatch(term))) return true;
   }
   return false;
 }

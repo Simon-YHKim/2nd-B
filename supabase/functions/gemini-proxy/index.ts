@@ -241,8 +241,17 @@ const CRISIS_TERMS_KO: readonly string[] = [
 // KO terms remain substring matches (Hangul has no whitespace word
 // boundaries). KEEP THE MATCHING SEMANTICS IN SYNC with the client
 // classifier; the parity test extracts and exercises this code.
+// Fold whitespace and Unicode composition before matching, so the crisis gate
+// cannot be walked past with a newline / non-breaking space (U+00A0) / full-width
+// space (U+3000) between the words of a multi-word term, or with NFD-decomposed
+// Hangul (iOS/macOS clipboard, imported clips) against the NFC-authored lexicon.
+// Mirrors src/lib/safety/classifier.ts:matchesTerm — keep the two in sync.
+function normalizeForMatch(text: string): string {
+  return text.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+}
+
 function matchesTermEn(lowerHaystack: string, term: string): boolean {
-  const t = term.toLowerCase();
+  const t = term.normalize('NFC').toLowerCase();
   if (t.length === 0) return false;
   const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
   // Scan every occurrence: a term embedded in a larger word at its first
@@ -256,12 +265,12 @@ function matchesTermEn(lowerHaystack: string, term: string): boolean {
 }
 
 function hasCrisisTerm(text: string): boolean {
-  const lower = text.toLowerCase();
+  const lower = normalizeForMatch(text);
   for (const term of CRISIS_TERMS_EN) {
     if (matchesTermEn(lower, term)) return true;
   }
   for (const term of CRISIS_TERMS_KO) {
-    if (text.includes(term)) return true;
+    if (lower.includes(normalizeForMatch(term))) return true;
   }
   return false;
 }
