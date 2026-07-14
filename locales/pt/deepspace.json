@@ -392,13 +392,12 @@
     "status": "O próximo passo para onde seu interesse vai ultimamente.",
     "tip": "Toque numa sugestão para ir a um teste ou registro relacionado.",
     "lead": "O próximo passo para onde seu interesse vai ultimamente",
-    "card1Head": "Ferramentas de autoconhecimento",
-    "card1Delta": "▲ interesse +{{percent}}%",
-    "card1Body": "Seu tema mais salvo nas últimas 3 semanas. Quer tentar o teste de apego relacionado (ECR-S)?",
-    "card2Head": "Rotina matinal",
-    "card2Delta": "▲ interesse +{{percent}}%",
-    "card2Body": "O que seus dias de bom humor têm em comum. Quer adicionar mais registros ao ritmo?",
-    "footer": "À medida que mais dados se acumulam, novas sugestões aparecem."
+    "footer": "À medida que mais dados se acumulam, novas sugestões aparecem.",
+    "cardDelta": "▲ {{recent}} esta semana · {{prior}} na semana passada",
+    "cardBody": "Tem aparecido mais ultimamente. Quer registrar mais sobre isso?",
+    "empty": "Ainda não há registros suficientes para falar em tendência.",
+    "error": "Não foi possível ler seus registros recentes, então não há nada a mostrar. Tente novamente em instantes.",
+    "loading": "Olhando o que você tem registrado…"
   },
   "review": {
     "title": "Revisão",
