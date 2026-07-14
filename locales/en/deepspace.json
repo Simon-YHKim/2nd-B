@@ -421,7 +421,6 @@
     "idenDesc": "Portable identity file",
     "markdownDesc": "Obsidian-friendly",
     "jsonDesc": "Developer · API",
-    "pdfDesc": "For reading · printing",
     "scopeLabel": "Included scope",
     "scope1": "Personality · attachment model",
     "scope2": "Recall · narrative",
@@ -435,7 +434,8 @@
     "share": "Share",
     "exportError": "Couldn't build the export. Try again.",
     "previewChars": "{{count}} chars",
-    "close": "Close"
+    "close": "Close",
+    "htmlDesc": "Print-ready page. Open it and print, or save as PDF, from your browser."
   },
   "import": {
     "title": "Import",
