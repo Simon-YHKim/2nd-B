@@ -513,7 +513,9 @@
             "note": "Kamu mengenali yang baik"
           }
         }
-      }
+      },
+      "loadError": "Tidak dapat memuat hasil tersimpanmu. Hasilnya masih ada. Coba lagi sebentar lagi.",
+      "retry": "Coba lagi"
     }
   }
 }

@@ -513,7 +513,9 @@
             "note": "You recognize what's good"
           }
         }
-      }
+      },
+      "loadError": "Couldn't load your saved result. It's still there. Try again shortly.",
+      "retry": "Try again"
     }
   }
 }

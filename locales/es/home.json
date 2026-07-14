@@ -513,7 +513,9 @@
             "note": "Reconoces lo que es bueno"
           }
         }
-      }
+      },
+      "loadError": "No se pudo cargar tu resultado guardado. Sigue ahí. Inténtalo de nuevo en un momento.",
+      "retry": "Reintentar"
     }
   }
 }
