@@ -187,7 +187,7 @@ export default function Digest() {
                 <Pressable
                   key={key}
                   onPress={() =>
-                    router.push({ pathname: "/record/[id]", params: { id: p.from_page } })
+                    router.push({ pathname: "/wiki", params: { focusPageId: p.from_page } })
                   }
                   // accessible={false}: this row nests confirm/dismiss buttons —
                   // an accessible parent collapses them into one node, leaving the
