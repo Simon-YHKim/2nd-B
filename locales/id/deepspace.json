@@ -392,13 +392,12 @@
     "status": "Langkah berikutnya yang dituju minatmu belakangan ini.",
     "tip": "Ketuk saran untuk lompat ke tes atau catatan terkait.",
     "lead": "Langkah berikutnya yang dituju minatmu belakangan ini",
-    "card1Head": "Alat pemahaman diri",
-    "card1Delta": "▲ minat +{{percent}}%",
-    "card1Body": "Topik yang paling sering kamu simpan dalam 3 minggu terakhir. Mau coba tes kelekatan terkait (ECR-S)?",
-    "card2Head": "Rutinitas pagi",
-    "card2Delta": "▲ minat +{{percent}}%",
-    "card2Body": "Kesamaan dari hari-hari bermood baikmu. Mau menambah catatan ke ritme?",
-    "footer": "Saat lebih banyak data menumpuk, saran baru muncul."
+    "footer": "Saat lebih banyak data menumpuk, saran baru muncul.",
+    "cardDelta": "▲ {{recent}} minggu ini · {{prior}} minggu lalu",
+    "cardBody": "Makin sering muncul belakangan ini. Mau catat lebih banyak soal ini?",
+    "empty": "Belum cukup yang dicatat untuk disebut tren.",
+    "error": "Tidak dapat membaca catatan terbarumu, jadi belum ada yang bisa ditampilkan. Coba lagi sebentar lagi.",
+    "loading": "Melihat apa yang kamu catat belakangan ini…"
   },
   "review": {
     "title": "Tinjauan",
