@@ -3839,8 +3839,11 @@
             "담아둔 자료를 누르면 상세 내용이 없어서 '찾을 수 없어요' 화면이 떠요 (목록에는 보이는데 열리지 않는 진짜 결함이에요)",
             "이미 지워진 기록을 누르면 '찾을 수 없어요' 화면이 떠요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:402"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:402",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "Tapping a source piece (link/clip/import) in /records opened the record detail, which queried only the records table for a src- prefixed id and always showed 찾을 수 없어요."
         },
         {
           "action": "분류함 열기",
@@ -4033,8 +4036,11 @@
             "약점: 인터넷이 끊겨서 못 불러온 것과 진짜로 지워진 것을 구분하지 않아요. 둘 다 똑같이 '찾을 수 없어요' 화면이 떠서, 멀쩡한 내 기록이 사라진 줄 알고 놀랄 수 있어요. 다시 시도 버튼도 없어요",
             "화면을 다시 열어도 새로 불러오지 않아요. 다른 곳에서 바꾼 내용이 바로 안 보일 수 있어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:879"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:879",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "The live detail screen resolved only records. It resolves sources too now, via getPieceById."
         },
         {
           "action": "본문 고치기",
@@ -14584,8 +14590,11 @@
             "기록 목록(/records)에서 담은 자료를 눌러도 똑같이 못 찾아요. 이 화면만 고장 난 게 아니라 담은 자료 상세가 아직 없는 상태예요",
             "되돌리기용 옛날 화면(legacy)에서만 담은 자료 상세가 열려요. 기본 화면에서는 안 열려요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/core-brain.tsx:496"
+          "knownBug": false,
+          "bugAnchor": "src/app/core-brain.tsx:496",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "Same dead tap: an evidence shard that is a source piece opened the record detail, which could not find it."
         },
         {
           "action": "'다음 한 걸음' 카드의 버튼 3개",
