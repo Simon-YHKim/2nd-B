@@ -12,7 +12,7 @@
  */
 import { Fragment, memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { withAlpha } from "@/lib/theme/tokens";
@@ -45,6 +45,25 @@ const REV2_STARS: { id: HomeStarId; x: number; y: number }[] = [
   { id: "recreation", x: 76, y: 143 },
   { id: "museum", x: 50, y: 187 },
 ];
+
+// Nearest-neighbour viewBox distance per star. Each star's hit box is capped to
+// this (times the box scale u) so adjacent 44px targets never overlap on narrow
+// screens — the persona-validate panel found crowded stars (health↔recreation
+// ~40px apart on a 360dp phone) overlapped their 44px boxes and the later-painted
+// star stole the tap, mis-routing to the wrong domain.
+const NN_VIEW_DIST: Record<HomeStarId, number> = (() => {
+  const out = {} as Record<HomeStarId, number>;
+  for (const a of REV2_STARS) {
+    let min = Infinity;
+    for (const b of REV2_STARS) {
+      if (a.id === b.id) continue;
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d < min) min = d;
+    }
+    out[a.id] = min;
+  }
+  return out;
+})();
 
 // Dipper outline (bowl quad + handle) and the pointer→북극성 dashed guide,
 // expressed through the star points so the lines can never drift from the dots.
@@ -347,6 +366,8 @@ export function ConstellationHome({
             return (
               <Text
                 key={`label-${s.id}`}
+                accessible={false}
+                importantForAccessibility="no-hide-descendants"
                 numberOfLines={1}
                 style={[
                   styles.starLabel,
@@ -362,6 +383,8 @@ export function ConstellationHome({
             );
           })}
           <Text
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             numberOfLines={1}
             style={[styles.polarisLabel, { left: px(POLARIS.x) - 60, top: py(POLARIS.y) + (9 * k + 8), fontSize: 10.5 * k, lineHeight: Math.round(14 * k) }]}
           >
@@ -381,19 +404,35 @@ export function ConstellationHome({
               style={StyleSheet.absoluteFill}
             />
           </View>
-          {REV2_STARS.map((s) => (
-            <View
-              key={`hit-${s.id}`}
-              style={[styles.hit, { left: px(s.x) - 22, top: py(s.y) - 22, width: 44, height: 44 }]}
-            >
-              <Pressable
-                onPress={() => setBubble({ kind: "star", id: s.id })}
-                accessibilityRole="button"
-                accessibilityLabel={starName(s.id)}
-                style={StyleSheet.absoluteFill}
-              />
-            </View>
-          ))}
+          {REV2_STARS.map((s) => {
+            // Size the hit box to the nearest-neighbour gap (floored at 32px) so
+            // adjacent stars never overlap on narrow screens; isolated stars keep
+            // the full 44px. Prevents the wrong-domain mis-tap (persona-validate).
+            const hitSize = Math.max(32, Math.min(44, NN_VIEW_DIST[s.id] * u));
+            const half = hitSize / 2;
+            return (
+              <View
+                key={`hit-${s.id}`}
+                style={[styles.hit, { left: px(s.x) - half, top: py(s.y) - half, width: hitSize, height: hitSize }]}
+              >
+                <Pressable
+                  onPress={() => {
+                    setBubble({ kind: "star", id: s.id });
+                    // The domain card opens at the BOTTOM of the screen with no
+                    // focus move; announce so a screen-reader user knows the tap
+                    // registered and which star it selected (WCAG 4.1.3).
+                    AccessibilityInfo.announceForAccessibility(starName(s.id));
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={starName(s.id)}
+                  // Level (the brightness signal) is otherwise conveyed by opacity
+                  // alone; expose it so a blind user hears the domain's progress.
+                  accessibilityValue={{ min: 1, max: 5, now: levelOf(s.id) }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -422,8 +461,22 @@ export function ConstellationHome({
             <Text style={styles.bubbleLine} accessibilityLabel={bubbleLine}>{keepAllKo(bubbleLine)}</Text>
             {bubble.kind === "menu" ? (
               <View style={styles.bubbleActions}>
-                <MdButton label={t("ds.home.bubble.chatbot")} variant="filled" onPress={onChatPress} />
-                <MdButton label={t("ds.home.bubble.assistant")} variant="tonal" onPress={onOpsPress} />
+                <MdButton
+                  label={t("ds.home.bubble.chatbot")}
+                  variant="filled"
+                  onPress={() => {
+                    setBubble({ kind: "intro" });
+                    onChatPress();
+                  }}
+                />
+                <MdButton
+                  label={t("ds.home.bubble.assistant")}
+                  variant="tonal"
+                  onPress={() => {
+                    setBubble({ kind: "intro" });
+                    onOpsPress();
+                  }}
+                />
               </View>
             ) : null}
             {bubble.kind === "star" ? (

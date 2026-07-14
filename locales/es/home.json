@@ -193,7 +193,8 @@
       "saving": "Guardando",
       "saved": "Guardado",
       "openRecords": "Abrir registros",
-      "saveError": "No se pudo guardar. Inténtalo de nuevo en un momento."
+      "saveError": "No se pudo guardar. Inténtalo de nuevo en un momento.",
+      "saveHint": "Añade qué pasó para activar Capturar."
     },
     "chat": {
       "user": "Últimamente estoy agotado. ¿Por qué será?",

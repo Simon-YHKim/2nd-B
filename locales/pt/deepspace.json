@@ -128,6 +128,8 @@
     "deleteConfirmBody": "Isso não pode ser desfeito.",
     "deleteCancel": "Cancelar",
     "deleteConfirm": "Excluir",
+    "editSave": "Salvar",
+    "actionFailed": "Não foi possível salvar a alteração. Verifique sua conexão e tente novamente.",
     "assessmentBody": "As respostas brutas de um questionário de autorrelato. O resultado organizado está em sua própria tela.",
     "assessmentCta": "Ver resultado",
     "kindJournal": "Diário",

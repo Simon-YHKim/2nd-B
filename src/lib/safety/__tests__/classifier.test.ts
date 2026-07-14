@@ -1,4 +1,4 @@
-import { classifyInput, containsForbiddenLexicon, crisisHotlines } from "../classifier";
+import { classifyInput, classifyInputAnyLocale, containsForbiddenLexicon, crisisHotlines } from "../classifier";
 
 describe("classifyInput", () => {
   test("empty input is green", () => {
@@ -76,6 +76,31 @@ describe("classifyInput", () => {
   test("crisis takes precedence over forbidden lexicon", () => {
     const r = classifyInput("My therapy isn't helping and I want to die.", "en");
     expect(r.zone).toBe("red");
+  });
+});
+
+describe("classifyInputAnyLocale (cross-locale crisis backstop)", () => {
+  test("catches a KR crisis term written by an EN-UI user", () => {
+    // Single-locale classifyInput(en) misses the ko phrase; the any-locale
+    // backstop also checks the ko lexicon. The note-save crisis path and the
+    // chat input path both rely on this so a crisis in the other language is
+    // never dropped.
+    expect(classifyInput("요즘 자살에 대해 자주 생각해요.", "en").zone).not.toBe("red");
+    expect(classifyInputAnyLocale("요즘 자살에 대해 자주 생각해요.", "en").zone).toBe("red");
+  });
+
+  test("catches an EN crisis term written by a KR-UI user", () => {
+    expect(classifyInput("Sometimes I want to die.", "ko").zone).not.toBe("red");
+    expect(classifyInputAnyLocale("Sometimes I want to die.", "ko").zone).toBe("red");
+  });
+
+  test("primary-locale crisis still routes (no regression)", () => {
+    expect(classifyInputAnyLocale("Sometimes I want to die.", "en").zone).toBe("red");
+  });
+
+  test("ordinary content stays green (no cross-locale false positive)", () => {
+    expect(classifyInputAnyLocale("I went for a walk and felt calm.", "en").zone).toBe("green");
+    expect(classifyInputAnyLocale("오늘은 산책을 했고 기분이 차분했어요.", "ko").zone).toBe("green");
   });
 });
 

@@ -115,7 +115,11 @@ export const PERSONAS: Record<WorkerId, Persona> = {
 
 /** Resolve a persona by worker id, falling back to SecondB for unknown ids. */
 export function getPersona(id: string | null | undefined): Persona {
-  if (id && id in PERSONAS) return PERSONAS[id as WorkerId];
+  // Own-property check, not `in`: `id` is a raw external string (e.g. the
+  // ?character= deep-link param), and `in` walks the prototype chain, so
+  // "toString"/"constructor"/"__proto__" would resolve to Object.prototype
+  // members instead of falling back to SecondB.
+  if (id && Object.prototype.hasOwnProperty.call(PERSONAS, id)) return PERSONAS[id as WorkerId];
   return PERSONAS.secondb;
 }
 

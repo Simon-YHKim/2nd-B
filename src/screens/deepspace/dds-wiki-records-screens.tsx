@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { AccessibilityInfo, FlatList, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
 import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
@@ -10,13 +10,15 @@ import { m3 } from "@/lib/theme/m3";
 import {
   DOMAIN_STARS,
   DOMAIN_TAG_PREFIX,
+  domainTagFor,
   getDomainStar,
   isDomainId,
   isDomainTag,
   stripDomainTags,
+  type DomainId,
 } from "@/lib/persona/domain-stars";
 import { ddsStyles as styles } from "./dds-styles";
-import { parseStructured } from "@/lib/capture/structured";
+import { parseStructured, structuredFieldLabel } from "@/lib/capture/structured";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { PremiumModal } from "@/components/premium";
@@ -27,7 +29,7 @@ import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { deleteRecord, getRecordById, listRecentRecords } from "@/lib/records/create";
+import { deleteRecord, getRecordById, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
@@ -762,6 +764,21 @@ export function DeepSpaceRecordDetailScreen() {
   const [all, setAll] = useState<TimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  // Every write on this screen is optimistic-with-revert; a silent revert on a
+  // failed write read as "the app ate my reflection" — the #1 cross-panel finding
+  // in the persona-validate pass. Surface a dismissible banner + a screen-reader
+  // announce so a failure is never silent. Cleared on the next attempt + after 5s.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const reportActionError = useCallback(() => {
+    const msg = t("recordDetail.actionFailed");
+    setActionError(msg);
+    AccessibilityInfo.announceForAccessibility(msg);
+  }, [t]);
+  useEffect(() => {
+    if (!actionError) return;
+    const h = setTimeout(() => setActionError(null), 5000);
+    return () => clearTimeout(h);
+  }, [actionError]);
   // deleteRecord is a hard DB DELETE with no undo, and the trash button sits in
   // the same ctaRow as 편집/이동 - a mis-tap destroyed the record silently. The
   // confirm modal mirrors inbox's delete-confirm pattern.
@@ -770,6 +787,87 @@ export function DeepSpaceRecordDetailScreen() {
   // tag-based "연결된 기록" below with a badge. Only fetched when the user opted in
   // (records_embedding); empty otherwise, so the section stays tag-only.
   const [semanticIds, setSemanticIds] = useState<Set<string>>(() => new Set());
+  // Inline "+ 태그 추가": tapping the chip reveals a field that appends a tag to
+  // THIS record via updateRecordTags (records_owner_all RLS); optimistic + revert.
+  const [addingTag, setAddingTag] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const submitTag = useCallback(async () => {
+    const tag = tagDraft.trim();
+    setAddingTag(false);
+    setTagDraft("");
+    if (!tag || !userId || !record || !recordId) return;
+    // Reserved domain: tags drive star membership and are managed by Move, not
+    // free-text — a hand-typed "domain:career" would double-file the record and
+    // break moveTo's single-domain assumption (persona-validate: tag-injection).
+    if (isDomainTag(tag)) return;
+    const existing = record.tags ?? [];
+    if (existing.includes(tag)) return;
+    setActionError(null);
+    const next = [...existing, tag];
+    setRecord({ ...record, tags: next });
+    try {
+      await updateRecordTags(userId, recordId, next);
+    } catch {
+      setRecord({ ...record, tags: existing });
+      reportActionError();
+    }
+  }, [tagDraft, userId, record, recordId, reportActionError]);
+  // 이동: re-file this record to another domain star by swapping its reserved
+  // domain: tag (the star lens filters by the domain: tag). Same optimistic
+  // updateRecordTags path as add-tag; reverts on failure.
+  const [moving, setMoving] = useState(false);
+  const moveTo = useCallback(
+    async (target: DomainId) => {
+      setMoving(false);
+      if (!userId || !record || !recordId) return;
+      const currentTags = record.tags ?? [];
+      if (currentTags.includes(domainTagFor(target))) return;
+      const next = [...stripDomainTags(currentTags), domainTagFor(target)];
+      setActionError(null);
+      setRecord({ ...record, tags: next });
+      try {
+        await updateRecordTags(userId, recordId, next);
+      } catch {
+        setRecord({ ...record, tags: currentTags });
+        reportActionError();
+      }
+    },
+    [userId, record, recordId, reportActionError],
+  );
+  // 편집: inline-edit this record's body text in place. The Edit CTA used to
+  // route to /capture, which has no edit mode, so the labelled action did
+  // nothing to the record. Optimistic + revert, same shape as add-tag/move.
+  // Only the body column is written; the domain: tag (star membership) and the
+  // structured payload are left untouched — the editor is gated to plain-body
+  // records so a machine JSON body is never overwritten with prose.
+  const [editing, setEditing] = useState(false);
+  const [bodyDraft, setBodyDraft] = useState("");
+  const startEdit = useCallback(() => {
+    if (!record) return;
+    setBodyDraft(record.body ?? "");
+    setEditing(true);
+  }, [record]);
+  const submitEdit = useCallback(async () => {
+    const next = bodyDraft.trim();
+    if (!userId || !record || !recordId) {
+      setEditing(false);
+      return;
+    }
+    const prevBody = record.body ?? "";
+    if (next.length === 0 || next === prevBody.trim()) {
+      setEditing(false);
+      return;
+    }
+    setEditing(false);
+    setActionError(null);
+    setRecord({ ...record, body: next });
+    try {
+      await updateRecord(userId, recordId, { body: next });
+    } catch {
+      setRecord({ ...record, body: prevBody });
+      reportActionError();
+    }
+  }, [bodyDraft, userId, record, recordId, reportActionError]);
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -818,12 +916,14 @@ export function DeepSpaceRecordDetailScreen() {
 
   async function handleDelete() {
     if (!userId || !record) return;
+    setActionError(null);
     setDeleting(true);
     try {
       await deleteRecord(userId, record.id);
       router.back();
     } catch {
       setDeleting(false);
+      reportActionError();
     }
   }
 
@@ -877,6 +977,12 @@ export function DeepSpaceRecordDetailScreen() {
         <RNText style={rd.typeLabel}>{typeLabel} · {timeLabel}</RNText>
       </View>
 
+      {actionError ? (
+        <View style={rd.errorBanner} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+          <RNText style={rd.errorBannerTxt}>{actionError}</RNText>
+        </View>
+      ) : null}
+
       <Text variant="heading" style={styles.recTitle}>{recordTitle(record, t("recordDetail.kindFallback"))}</Text>
 
       {record.body && record.body.trim().length > 0 ? (
@@ -896,6 +1002,32 @@ export function DeepSpaceRecordDetailScreen() {
               <Text variant="caption" style={rd.assessmentCtaText}>{t("recordDetail.assessmentCta")}</Text>
             </Pressable>
           </View>
+        ) : editing ? (
+          <View style={styles.recBody}>
+            <TextInput
+              value={bodyDraft}
+              onChangeText={setBodyDraft}
+              multiline
+              autoFocus
+              textAlignVertical="top"
+              style={rd.editInput}
+              accessibilityLabel={t("ds.wikiRecords.edit")}
+            />
+            <View style={rd.editActions}>
+              <Button
+                label={t("recordDetail.deleteCancel")}
+                variant="secondary"
+                onPress={() => setEditing(false)}
+                style={rd.confirmBtn}
+              />
+              <Button
+                label={t("recordDetail.editSave")}
+                variant="primary"
+                onPress={() => void submitEdit()}
+                style={rd.confirmBtn}
+              />
+            </View>
+          </View>
         ) : (
           <View style={styles.recBody}>
             <Text variant="body" style={styles.recBodyText}>{record.body}</Text>
@@ -912,7 +1044,7 @@ export function DeepSpaceRecordDetailScreen() {
             <Text variant="caption" pixelEn style={styles.tlLabel}>{sp.form === "fourw" ? "4W1H" : "3C4P"}</Text>
             {Object.entries(sp.fields).map(([k, v]) => (
               <View key={k} style={{ marginTop: 6 }}>
-                <Text variant="caption" style={styles.metaLabel}>{k}</Text>
+                <Text variant="caption" style={styles.metaLabel}>{structuredFieldLabel(sp.form, k, ko ? "ko" : "en")}</Text>
                 <Text variant="body" style={styles.recBodyText}>{v}</Text>
               </View>
             ))}
@@ -938,9 +1070,24 @@ export function DeepSpaceRecordDetailScreen() {
         {(record.tags ?? []).slice(0, 6).map((tag) => (
           <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
         ))}
-        <Pressable style={rd.tag} onPress={() => router.push("/capture")} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.wikiRecords.addTag")}>
-          <RNText style={rd.tagTxt}>+ {t("ds.wikiRecords.addTag")}</RNText>
-        </Pressable>
+        {addingTag ? (
+          <TextInput
+            style={[rd.tag, { minWidth: 120, color: colors.textTitle, fontSize: 12, paddingVertical: 4 }]}
+            value={tagDraft}
+            onChangeText={setTagDraft}
+            autoFocus
+            placeholder={t("ds.wikiRecords.addTag")}
+            placeholderTextColor={colors.textLo}
+            returnKeyType="done"
+            onSubmitEditing={() => void submitTag()}
+            onBlur={() => { setAddingTag(false); setTagDraft(""); }}
+            accessibilityLabel={t("ds.wikiRecords.addTag")}
+          />
+        ) : (
+          <Pressable style={rd.tag} onPress={() => setAddingTag(true)} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.wikiRecords.addTag")}>
+            <RNText style={rd.tagTxt}>+ {t("ds.wikiRecords.addTag")}</RNText>
+          </Pressable>
+        )}
       </View>
 
       {related.length > 0 ? (
@@ -972,16 +1119,19 @@ export function DeepSpaceRecordDetailScreen() {
       ) : null}
 
       <View style={styles.ctaRow}>
-        <Pressable style={styles.secondary} onPress={() => router.push("/capture")} accessibilityRole="button">
-          <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.edit")}</Text>
-        </Pressable>
-        <Pressable style={styles.secondary} onPress={() => router.push("/records")} accessibilityRole="button">
+        {record.body && record.body.trim().length > 0 && !assessmentRoute(record) && !parseStructured(record.structured) && !editing ? (
+          <Pressable style={styles.secondary} onPress={startEdit} accessibilityRole="button">
+            <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.edit")}</Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.secondary} onPress={() => setMoving(true)} accessibilityRole="button">
           <Text variant="caption" style={styles.secondaryText}>{t("ds.wikiRecords.move")}</Text>
         </Pressable>
         <Pressable
-          style={[styles.iconBtn, styles.iconBtnDanger]}
+          style={[styles.iconBtn, styles.iconBtnDanger, { minHeight: 44 }]}
           onPress={() => setConfirmingDelete(true)}
           disabled={deleting}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t("recordDetail.a11yDelete")}
         >
@@ -1016,6 +1166,27 @@ export function DeepSpaceRecordDetailScreen() {
           />
         </View>
       </PremiumModal>
+
+      <PremiumModal
+        visible={moving}
+        onClose={() => setMoving(false)}
+        accessibilityLabel={t("ds.wikiRecords.move")}
+      >
+        <Text variant="heading">{t("ds.wikiRecords.move")}</Text>
+        <View style={rd.moveList}>
+          {DOMAIN_STARS.filter(
+            (d) => !(record?.tags ?? []).includes(domainTagFor(d.id)),
+          ).map((d) => (
+            <Button
+              key={d.id}
+              label={ko ? d.nameKo : d.nameEn}
+              variant="secondary"
+              onPress={() => void moveTo(d.id)}
+              style={rd.moveBtn}
+            />
+          ))}
+        </View>
+      </PremiumModal>
     </Shell>
   );
 }
@@ -1024,8 +1195,25 @@ const rd = StyleSheet.create({
   assessmentCta: { alignSelf: "flex-start", marginTop: 10, minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.md, backgroundColor: colors.bgDeep },
   assessmentCtaText: { color: colors.cyanSoft, fontSize: 12.5 },
   confirmBody: { marginTop: 8, marginBottom: 4 },
+  errorBanner: { borderWidth: 1, borderColor: colors.clay, borderRadius: radius.md, backgroundColor: colors.cardBg, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+  errorBannerTxt: { color: colors.clay, fontSize: 13, lineHeight: 18 },
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   confirmBtn: { flex: 1 },
+  moveList: { gap: 8, marginTop: 12 },
+  moveBtn: { alignSelf: "stretch" },
+  editInput: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: colors.borderHi,
+    borderRadius: radius.md,
+    backgroundColor: colors.bgDeep,
+    color: colors.textTitle,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  editActions: { flexDirection: "row", gap: 10, marginTop: 10 },
   typeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4, marginBottom: 10 },
   typeLabel: { color: colors.textMid, fontSize: 11 },
   sbCard: {

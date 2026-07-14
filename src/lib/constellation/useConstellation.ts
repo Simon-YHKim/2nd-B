@@ -8,9 +8,10 @@
 // blocked. selectConstellationLevel absorbs per-query failures internally, so
 // this hook only needs the standard try/finally for unexpected throws.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../auth/AuthContext";
+import { createLatestWins } from "../async/latest-wins";
 import {
   selectConstellationLevel,
   type ConstellationState,
@@ -30,17 +31,23 @@ export function useConstellation(): ConstellationHook {
   const { userId } = useAuth();
   const [state, setState] = useState<ConstellationState>(EMPTY);
   const [loading, setLoading] = useState(true);
+  // Overlapping refresh() calls (stage completion, or a userId A->B switch) must not
+  // let a slower/older response overwrite the newer state, snapping a lit star back to
+  // dim. Latest-wins guard drops superseded results.
+  const guardRef = useRef(createLatestWins());
 
   const refresh = useCallback(async () => {
+    const token = guardRef.current.begin();
     try {
       const next = await selectConstellationLevel(userId ?? null);
+      if (guardRef.current.isStale(token)) return;
       setState(next);
     } catch (e) {
       // selectConstellationLevel already absorbs per-stage failures; this only
       // guards a truly unexpected throw (e.g. client init). Keep last state.
       if (typeof console !== "undefined") console.warn("[constellation] load failed", e);
     } finally {
-      setLoading(false);
+      if (!guardRef.current.isStale(token)) setLoading(false);
     }
   }, [userId]);
 

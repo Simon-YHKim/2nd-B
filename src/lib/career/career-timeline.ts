@@ -4,6 +4,8 @@
 // past accomplishments land on their real year, not the capture date.
 // 3C4P drilldown + 고용24 integration stay deferred to the rev2 prototype spec.
 
+import { kstDayKey } from "@/lib/journal/streak";
+
 export interface CareerRecordRow {
   id: string;
   kind: string;
@@ -23,7 +25,13 @@ export const CAREER_YEAR_TAG_PREFIX = "year:";
 export function careerYearOf(row: CareerRecordRow): string {
   const yearTag = (row.tags ?? []).find((t) => /^year:\d{4}$/.test(t));
   if (yearTag) return yearTag.slice(CAREER_YEAR_TAG_PREFIX.length);
-  return row.created_at.slice(0, 4);
+  // Fall back to the KST year, not the raw UTC year: created_at is a timestamptz
+  // serialized as UTC, so a note captured at 08:00 KST on Jan 1 (23:00Z Dec 31) must
+  // file under the new year the user sees, matching the app's KST day convention
+  // (journal/streak, records/load-structured).
+  return Number.isNaN(Date.parse(row.created_at))
+    ? row.created_at.slice(0, 4)
+    : kstDayKey(row.created_at).slice(0, 4);
 }
 
 /** Newest year first; items inside a year newest first (by created_at). */

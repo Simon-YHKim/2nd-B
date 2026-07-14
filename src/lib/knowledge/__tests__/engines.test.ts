@@ -60,9 +60,21 @@ describe("distillContext", () => {
     const sentences = ["First sentence here.", "Middle one.", "Another middle.", "A third middle.", "Last sentence."];
     const text = sentences.join(" ");
     const out = distillContext(text, 60);
-    expect(out.length).toBeLessThanOrEqual(80); // budget + ellipsis overhead
+    expect(out.length).toBeLessThanOrEqual(60); // honors the caller/DB budget (hard-capped)
     expect(out).toContain("First sentence here.");
     expect(out).toContain("Last sentence.");
+  });
+
+  test("empty-middle case: no hollow double ellipsis and stays within budget", () => {
+    // 3+ sentences where first + last alone already blow the budget: the middle
+    // packing keeps nothing, so the non-contiguous branch must collapse to a single
+    // gap ("first … last", then truncate) rather than "first …  … last" overflowing.
+    const first = "This is a fairly long opening sentence here.";
+    const mid = "Mid.";
+    const last = "And this is the long closing sentence too.";
+    const out = distillContext([first, mid, last].join(" "), 50);
+    expect(out).not.toContain(" …  … "); // never a hollow double ellipsis
+    expect(out.length).toBeLessThanOrEqual(50); // honors the caller/DB budget
   });
 
   test("empty text returns empty", () => {

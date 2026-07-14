@@ -158,14 +158,18 @@ function barsHtml(scores: ScoreMap): string {
 
 function donutSvg(counts: CountMap): string {
   const entries = Object.entries(counts);
-  const total = entries.reduce((a, [, v]) => a + v, 0) || 1;
+  const total = entries.reduce((a, [, v]) => a + v, 0);
+  // Divisor guard only. The displayed center number must stay the REAL total (0 for
+  // an empty vault) — reusing `|| 1` for both showed "1" in the center while the
+  // heading said "0 items".
+  const divisor = total || 1;
   const r = 27;
   const C = 2 * Math.PI * r;
   const palette = [P.accent, P.donutGrey[0], P.donutGrey[1], cosmic.signalBlue, cosmic.signalMint];
   let off = 0;
   const segs = entries
     .map(([, v], i) => {
-      const len = (v / total) * C;
+      const len = (v / divisor) * C;
       const s = `<circle class="seg" cx="40" cy="40" r="${r}" stroke="${palette[i % palette.length]}" stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}"/>`;
       off += len;
       return s;

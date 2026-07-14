@@ -5,8 +5,7 @@
 // compute the KST date with kstDateToday(). Prices live in
 // src/lib/progression/pricing.ts.
 
-import dayjs from "dayjs";
-
+import { kstDayKey } from "@/lib/journal/streak";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 export const CHAT_DAILY_LIMIT: Record<SubscriptionTier, number> = {
@@ -21,14 +20,14 @@ export const CHAT_DAILY_LIMIT: Record<SubscriptionTier, number> = {
  * canonical "day" boundary — limits reset at KST midnight, so a user in
  * another timezone still sees the same cutoff.
  *
- * Implementation: dayjs UTC + a fixed +9h offset. We don't pull dayjs's
- * timezone plugin to keep the bundle small.
+ * Delegates to journal/streak.ts kstDayKey (absolute epoch + fixed +9h, read via
+ * UTC parts) so the two "same KST day" helpers can never disagree. The previous
+ * getTimezoneOffset() + dayjs-local-format approach read the device offset at two
+ * different instants and drifted by ~1h across a DST transition, flipping the KST
+ * day for non-KST users right at the reset boundary.
  */
 export function kstDateToday(now: Date = new Date()): string {
-  const KST_OFFSET_MIN = 9 * 60;
-  const utcMillis = now.getTime() + now.getTimezoneOffset() * 60_000;
-  const kst = new Date(utcMillis + KST_OFFSET_MIN * 60_000);
-  return dayjs(kst).format("YYYY-MM-DD");
+  return kstDayKey(now.toISOString());
 }
 
 export interface ChatLimitCheck {

@@ -109,6 +109,14 @@ function useAsync<T>(fn: () => Promise<T>, deps: DependencyList): Async<T> {
   return { status, data, reload: () => setNonce((n) => n + 1) };
 }
 
+// Localized labels for the OPS_GROUP_IDS domain-picker tabs (routine groups).
+// Without this the picker rendered the raw group ids ("body"/"learning"/...) as
+// tab labels to BOTH locales via OpsDomainPicker.
+const OPS_GROUP_LABEL: Record<"en" | "ko", Record<OpsGroupId, string>> = {
+  en: { body: "Body", learning: "Learning", worklife: "Work", living: "Living", creative: "Creative" },
+  ko: { body: "몸", learning: "배움", worklife: "일", living: "생활", creative: "창작" },
+};
+
 const EN_DOMAIN_LABEL: Record<OpsDomainId, string> = {
   exercise_routine: "Exercise routine",
   exercise_ideas: "Exercise ideas",
@@ -191,7 +199,11 @@ export function OpsHomeScreen() {
     [userId, domain, locale, recPref, isMinor],
   );
 
-  const tabs: DomainTab[] = OPS_GROUP_IDS.map((g) => ({ id: g, label: g, color: domainColor(g) }));
+  const tabs: DomainTab[] = OPS_GROUP_IDS.map((g) => ({
+    id: g,
+    label: OPS_GROUP_LABEL[i18n.language?.toLowerCase().startsWith("ko") ? "ko" : "en"][g],
+    color: domainColor(g),
+  }));
 
   const eventFor = (r: OpsRecommendation): OpsEventInput => ({
     title: r.title,
@@ -605,7 +617,7 @@ export function SideProjectScreen() {
           value={username}
           onChangeText={setUsername}
           onSubmitEditing={onConnect}
-          placeholder="GitHub @username"
+          placeholder={c.githubHandle}
           placeholderTextColor={deepSpace.textLo}
           style={styles.searchInput}
           autoCapitalize="none"
@@ -626,7 +638,7 @@ export function SideProjectScreen() {
             </Text>
             <View style={styles.ghChips}>
               <MetaChip label={`${summary.activeDays}d`} />
-              <MetaChip label={`${summary.repos.length} repos`} />
+              <MetaChip label={`${summary.repos.length} ${c.repos}`} />
             </View>
             <View style={styles.heatRow}>
               {heatmap.map((d) => (
@@ -715,11 +727,11 @@ export function MealsScreen() {
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
       <View style={styles.weekNav}>
-        <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow}>
+        <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
         </Pressable>
         <Text variant="caption" style={[styles.weekLabel, weekStart === thisWeek ? styles.weekLabelNow : null]}>{weekStart}</Text>
-        <Pressable onPress={() => shiftWeek(7)} hitSlop={10} style={styles.weekArrow}>
+        <Pressable onPress={() => shiftWeek(7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.nextWeek}>
           <RNText style={styles.weekArrowText}>›</RNText>
         </Pressable>
       </View>
@@ -1125,9 +1137,9 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.lg,
     backgroundColor: deepSpace.card,
   },
-  ledgerRow: { flexDirection: "row", justifyContent: "space-between" },
+  ledgerRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   trendRow: { flexDirection: "row", marginTop: deepSpaceSpacing.sm },
-  ledgerStat: { fontSize: 12, color: deepSpace.textMid },
+  ledgerStat: { fontSize: 12, color: deepSpace.textMid, flexShrink: 1 },
   catRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   catName: { fontSize: 13, color: deepSpace.textMid },
   fxNote: { fontSize: 12, color: deepSpace.textLo },

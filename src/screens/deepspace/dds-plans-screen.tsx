@@ -349,7 +349,7 @@ export function DeepSpacePlansScreen() {
           <Text style={s.noticeBody}>
             {t("ds.plans.noticeBody")}
           </Text>
-          <Pressable onPress={() => router.push("/support")} accessibilityRole="button" accessibilityLabel={t("ds.plans.contactSupport")}>
+          <Pressable onPress={() => router.push("/support")} accessibilityRole="button" hitSlop={12} accessibilityLabel={t("ds.plans.contactSupport")}>
             <Text style={s.supportLink}>{t("ds.plans.contactSupport")}</Text>
           </Pressable>
         </MdCard>

@@ -11,7 +11,7 @@ jest.mock("expo-notifications", () => ({
   AndroidImportance: { DEFAULT: 3 },
 }));
 
-import { remindersSupported, scheduleRoutineReminder } from "../reminders";
+import { remindersSupported, scheduleRoutineReminder, foregroundNotificationBehavior } from "../reminders";
 
 const originalNavigator = globalThis.navigator;
 
@@ -33,6 +33,17 @@ afterEach(() => {
 });
 
 describe("routine reminders (O-R3 P2, on-device only)", () => {
+  test("foreground handler asks the OS to actually show the banner (not suppress it)", async () => {
+    // Without setNotificationHandler, expo-notifications hides foreground banners,
+    // so a focus-timer notifyNow fired while on-screen would be invisible.
+    await expect(foregroundNotificationBehavior()).resolves.toEqual({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    });
+  });
+
   test("outside React Native scheduling reports unavailable without touching the module", async () => {
     setNavigatorProduct("Gecko");
     expect(remindersSupported()).toBe(false);

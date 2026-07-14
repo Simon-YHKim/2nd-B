@@ -341,6 +341,47 @@ export async function getRecordById(userId: string, id: string) {
   return data;
 }
 
+/** Replace a record's tags column. Owner-only via the records_owner_all RLS
+ *  policy (0009); the explicit user_id keeps the index-friendly WHERE first. */
+export async function updateRecordTags(userId: string, id: string, tags: string[]): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("records")
+    .update({ tags })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select("id");
+  if (error) throw error;
+  // A 0-row update returns error===null (a Supabase no-op success), so a stale
+  // or RLS-filtered id would read as a successful write and the optimistic UI
+  // would show a false "saved". Surface it as a failure so the caller reverts +
+  // reports (persona-validate: optimistic-revert-correctness).
+  if (!data || data.length === 0) throw new Error("updateRecordTags: no row updated (stale or unauthorized id)");
+}
+
+/** Patch a record's editable content columns (body / topic / conclusion).
+ *  Owner-only via the records_owner_all RLS policy (0009); the explicit user_id
+ *  keeps the index-friendly WHERE first. Domain classification (the domain: tag)
+ *  is intentionally left untouched — editing prose should not silently re-file
+ *  the record to another star (that is what Move is for). */
+export async function updateRecord(
+  userId: string,
+  id: string,
+  patch: { body?: string; topic?: string; conclusion?: string },
+): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("records")
+    .update(patch)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select("id");
+  if (error) throw error;
+  // See updateRecordTags: a 0-row no-op returns success, so a stale/unauthorized
+  // id must surface as a failure instead of a false "saved".
+  if (!data || data.length === 0) throw new Error("updateRecord: no row updated (stale or unauthorized id)");
+}
+
 // Delete a single record by id. RLS scopes to auth.uid(), so users can
 // only delete their own rows; we still pass userId explicitly so the
 // index-friendly WHERE fires first.

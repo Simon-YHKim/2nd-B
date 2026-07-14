@@ -40,6 +40,22 @@ describe("트위비 3-branch parser (P5f)", () => {
     expect(parsed.branches).toEqual(["후보 하나", "후보 둘"]);
   });
 
+  test("4+ candidates: keeps the first three in order, no stray arrow line in display", () => {
+    // 트위비 is asked for up to three but LLMs violate that intermittently; the
+    // parser must stay robust — clear ALL trailing arrow lines from display and keep
+    // the first three (in reply order), not the last three with a stranded line.
+    const reply = [
+      "정리하면 이렇습니다.",
+      "→ 후보 하나",
+      "→ 후보 둘",
+      "→ 후보 셋",
+      "→ 후보 넷",
+    ].join("\n");
+    const parsed = parseTwiBranches(reply);
+    expect(parsed.display).toBe("정리하면 이렇습니다."); // no leftover "→ ..." line
+    expect(parsed.branches).toEqual(["후보 하나", "후보 둘", "후보 셋"]);
+  });
+
   test("empty and whitespace input are safe", () => {
     expect(parseTwiBranches("")).toEqual({ display: "", branches: [] });
     expect(parseTwiBranches("   \n  ")).toEqual({ display: "", branches: [] });

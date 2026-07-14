@@ -128,6 +128,8 @@
     "deleteConfirmBody": "삭제하면 되돌릴 수 없어요.",
     "deleteCancel": "취소",
     "deleteConfirm": "삭제",
+    "editSave": "저장",
+    "actionFailed": "변경사항을 저장하지 못했어요. 연결을 확인하고 다시 시도해 주세요.",
     "assessmentBody": "자기보고 설문의 응답 데이터예요. 정리된 결과는 전용 화면에서 볼 수 있어요.",
     "assessmentCta": "결과 보기",
     "kindJournal": "일기",

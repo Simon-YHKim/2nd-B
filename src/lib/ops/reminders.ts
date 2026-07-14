@@ -38,6 +38,34 @@ export function remindersSupported(): boolean {
   }
 }
 
+/**
+ * Foreground presentation policy for OUR local notifications. expo-notifications
+ * suppresses banners while the app is in the foreground UNLESS a handler is
+ * registered, so the focus-timer "phase done" notifyNow (fired while the user is
+ * on-screen) would otherwise never appear. Exported so the config shape is
+ * unit-testable; the registration below is native-guarded (a no-op under jest/web
+ * and Expo Go, where the runtime or the module member is absent).
+ */
+export async function foregroundNotificationBehavior() {
+  return {
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  };
+}
+
+// Register once at module load, before any notifyNow / scheduled reminder can be
+// delivered. Guarded like remindersSupported (native runtime + module present) and
+// tolerant of a partial module (Expo Go / a test mock without setNotificationHandler).
+if (Notifications && isReactNativeRuntime() && typeof Notifications.setNotificationHandler === "function") {
+  try {
+    Notifications.setNotificationHandler({ handleNotification: foregroundNotificationBehavior });
+  } catch {
+    // best-effort: scheduling still works, foreground banners just won't show
+  }
+}
+
 // Android 8+ requires a channel; the call resolves to null elsewhere. Failure
 // must not block scheduling (the OS falls back to the default channel).
 async function ensureChannel(): Promise<void> {

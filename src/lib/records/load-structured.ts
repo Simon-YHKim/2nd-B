@@ -5,6 +5,7 @@
 
 import { getSupabaseClient } from "../supabase/client";
 import { parseStructured, renderStructuredForContext } from "../capture/structured";
+import { kstDayKey } from "../journal/streak";
 
 export async function loadStructuredContext(userId: string, limit = 5): Promise<string> {
   try {
@@ -21,7 +22,13 @@ export async function loadStructuredContext(userId: string, limit = 5): Promise<
     for (const row of data) {
       const payload = parseStructured(row.structured);
       if (!payload) continue;
-      const day = typeof row.created_at === "string" ? row.created_at.slice(0, 10) : "";
+      // KST calendar day (the app's canonical boundary), not a raw UTC slice: a
+      // record created at 08:00 KST (23:00Z the day before) must read as today, not
+      // yesterday, in the context the LLM sees.
+      const day =
+        typeof row.created_at === "string" && !Number.isNaN(Date.parse(row.created_at))
+          ? kstDayKey(row.created_at)
+          : "";
       const head = [row.topic, day].filter(Boolean).join(" · ");
       blocks.push(`${head ? head + "\n" : ""}${renderStructuredForContext(payload)}`);
     }

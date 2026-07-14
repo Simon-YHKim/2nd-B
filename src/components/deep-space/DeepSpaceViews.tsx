@@ -13,7 +13,7 @@
  * (document-global svg ids) never clashes across instances.
  */
 import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Path, Rect, Stop, SvgXml } from "react-native-svg";
@@ -24,6 +24,8 @@ import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { type HotlineId } from "@/lib/safety/lexicon";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { composeFourWBody, EMPTY_FOURW, fourWHasContent, type FourWFields } from "@/lib/capture/fourw";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -159,8 +161,9 @@ const CaptureField = forwardRef<TextInput, {
   // focus to the next via returnKeyType="next" + onSubmitEditing.
   returnKeyType?: "next" | "done";
   onSubmitEditing?: () => void;
+  required?: boolean;
 }>(function CaptureField(
-  { icon, label, hint, value, onChange, multiline = false, returnKeyType, onSubmitEditing },
+  { icon, label, hint, value, onChange, multiline = false, returnKeyType, onSubmitEditing, required },
   ref,
 ) {
   return (
@@ -168,6 +171,7 @@ const CaptureField = forwardRef<TextInput, {
       <View style={styles.capFieldHead}>
         <CaptureIcon name={icon} color={m3.color.onSurfaceVariant} size={15} />
         <Text style={styles.capFieldLabel}>{label}</Text>
+        {required ? <Text style={styles.capFieldRequired}>*</Text> : null}
       </View>
       <TextInput
         ref={ref}
@@ -207,6 +211,13 @@ export function CaptureView() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
+  // Crisis safety net (parity with the journal path): createRecord runs the
+  // local crisis lexicon on every note save; a red zone must surface the same
+  // locale/minor-aware hotline here as everywhere else, not a silent "saved".
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
 
   const cleanTodos = todos.map((v) => v.trim()).filter((v) => v.length > 0);
   const hasContent =
@@ -251,7 +262,7 @@ export function CaptureView() {
         topic = body.slice(0, 80);
         tag = mode; // link / photo / voice
       }
-      await createRecord({
+      const res = await createRecord({
         userId,
         locale,
         kind: "note",
@@ -261,12 +272,23 @@ export function CaptureView() {
         withFollowup: false,
         minor: isMinor === true,
       });
+      // createRecord ran the local crisis lexicon on this note (withFollowup:false
+      // → llmPathWillClassify=false). A red zone means the text tripped crisis
+      // detection — surface the hotline exactly like the journal path
+      // (capture.tsx handleJournalSubmit) instead of discarding the result.
+      if (res.followup?.zone === "red") {
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      }
       setSaved(true);
+      // WCAG 4.1.3 status message: the saved outcome is otherwise only a button
+      // label/state change, silent to a screen reader. Announce it.
+      AccessibilityInfo.announceForAccessibility(t("ds.capture.saved"));
       setFourw(EMPTY_FOURW);
       setText("");
       setTodos(["", ""]);
     } catch (e) {
       setError(true);
+      AccessibilityInfo.announceForAccessibility(t("ds.capture.saveError"));
       if (typeof console !== "undefined") console.warn("[deepspace-capture] save failed", (e as Error).message);
     } finally {
       setSaving(false);
@@ -324,6 +346,7 @@ export function CaptureView() {
             value={fourw.what}
             onChange={(v) => setField("what", v)}
             multiline
+            required
           />
           <View style={styles.capFieldRow}>
             <View style={styles.capFieldCol}>
@@ -469,6 +492,7 @@ export function CaptureView() {
         label={saveLabel}
         loading={saving}
         disabled={!canSave}
+        accessibilityHint={!canSave && !saving ? f("saveHint") : undefined}
         onPress={savePiece}
         style={styles.capSubmit}
       />
@@ -486,6 +510,12 @@ export function CaptureView() {
           <Text style={styles.capErrorText}>{f("saveError")}</Text>
         </View>
       ) : null}
+
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </ScrollView>
   );
 }
@@ -1845,6 +1875,7 @@ const styles = StyleSheet.create({
   capForm: { gap: 14, marginTop: 16 },
   capFieldHead: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   capFieldLabel: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 16, fontFamily: m3.font.brand, fontWeight: "500" },
+  capFieldRequired: { color: m3.color.primary, fontSize: 12, lineHeight: 16, marginLeft: 2, fontFamily: m3.font.brand, fontWeight: "700" },
   capFieldInput: {
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
