@@ -32,6 +32,7 @@ import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { deleteRecord, getRecordById, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
+import { getPieceById } from "@/lib/records/get-piece";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
@@ -757,6 +758,10 @@ export function DeepSpaceRecordDetailScreen() {
   const params = useLocalSearchParams();
   const idParam = params.id;
   const recordId = Array.isArray(idParam) ? idParam[0] : idParam;
+  // /records prefixes source ids (`src-<uuid>`), so the id alone is enough there.
+  // /core-brain keeps the raw uuid and carries the origin separately. Read both.
+  const originParam = params.origin;
+  const origin = (Array.isArray(originParam) ? originParam[0] : originParam) === "source" ? "source" : null;
 
   const [record, setRecord] = useState<DetailRecord | null>(null);
   const [all, setAll] = useState<TimelineRecord[]>([]);
@@ -874,10 +879,14 @@ export function DeepSpaceRecordDetailScreen() {
     }
     let alive = true;
     setLoading(true);
-    Promise.all([getRecordById(userId, recordId), listRecentRecords(userId)])
+    // getPieceById, not getRecordById: the list merges `records` and `sources`, and a source
+    // piece (link / clip / import) arrives here with a `src-` prefixed id. This screen used
+    // to look that id up in the records table, find nothing, and show "찾을 수 없어요" --
+    // so EVERY link, clip and import in the list was a dead tap.
+    Promise.all([getPieceById(userId, recordId, origin), listRecentRecords(userId)])
       .then(([r, rows]) => {
         if (!alive) return;
-        setRecord((r as DetailRecord) ?? null);
+        setRecord((r as DetailRecord | null) ?? null);
         setAll(rows as TimelineRecord[]);
       })
       .catch(() => {
@@ -889,7 +898,7 @@ export function DeepSpaceRecordDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [userId, recordId]);
+  }, [userId, recordId, origin]);
 
   // D5 (J3): pull embedding kNN neighbours, gated by the records_embedding opt-in
   // (a minor's pref is server-locked false, so recordsEmbeddingAllowed short-
@@ -1284,7 +1293,13 @@ export function DeepSpaceWikiScreen() {
     setExpandedId(focusPageId);
   }, [focusPageId, expandedId, pages]);
 
-  const view = useMemo(() => buildDeepWikiView(pages, edges, { activeTag }), [pages, edges, activeTag]);
+  // The page the user asked to open is pinned into the list: the graph draws every page but
+  // the list keeps only the top 12 by connection count, so opening a sparsely-linked node
+  // used to land on a list that did not contain it.
+  const view = useMemo(
+    () => buildDeepWikiView(pages, edges, { activeTag, pinnedId: expandedId }),
+    [pages, edges, activeTag, expandedId],
+  );
   const graphPages = useMemo(
     () =>
       pages
