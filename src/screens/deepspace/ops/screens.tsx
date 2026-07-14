@@ -160,6 +160,20 @@ function buildCommitHeatmap(
 
 // --- (1) Ops home / recommendations ------------------------------------
 
+// A write that failed. OpsState (variant="error") is for a failed READ -- it replaces the
+// whole body, which is right when there is nothing to show. A failed WRITE is different:
+// the list is still there and still valid, only the thing the user just did did not
+// happen. So this sits inline, above the list, and does not take the data away.
+function SaveErrorBanner({ text }: { text: string }) {
+  return (
+    <View style={styles.saveErrBanner}>
+      <Text variant="caption" style={styles.saveErrText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+        {text}
+      </Text>
+    </View>
+  );
+}
+
 export function OpsHomeScreen() {
   const c = useOpsCopy();
   const { userId, isMinor } = useAuth();
@@ -277,6 +291,10 @@ export function OpsHomeScreen() {
 export function ReadingScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
+  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
+  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
+  // just silently did nothing.
+  const [saveErr, setSaveErr] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<BookResult[]>([]);
   const shelf = useAsync<Shelf>(
@@ -298,12 +316,15 @@ export function ReadingScreen() {
       await addToShelf(userId, b, "want");
       shelf.reload();
     } catch {
-      /* ignore — surfaced by reload */
+      // The write failed. Say so: reload() lives inside the try above, so on this path
+      // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
     }
   };
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
+      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <View style={styles.searchRow}>
         <TextInput
           value={q}
@@ -381,6 +402,10 @@ const NEXT_STATUS: Record<MilestoneStatus, MilestoneStatus> = {
 export function MilestonesScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
+  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
+  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
+  // just silently did nothing.
+  const [saveErr, setSaveErr] = useState(false);
   const { i18n } = useTranslation();
   const isKo = i18n.language?.toLowerCase().startsWith("ko");
   const [domain, setDomain] = useState<OpsDomainId>("learning_goals");
@@ -403,11 +428,14 @@ export function MilestonesScreen() {
   const onAdd = async () => {
     if (!userId || busy) return;
     setBusy(true);
+    setSaveErr(false);
     try {
       await createMilestone(userId, domain, { title: isKo ? "새 목표" : "New goal" });
       ms.reload();
     } catch {
-      /* surfaced on reload */
+      // The write failed. Say so: reload() lives inside the try above, so on this path
+      // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
     } finally {
       setBusy(false);
     }
@@ -417,11 +445,14 @@ export function MilestonesScreen() {
   const onAdvance = async (m: Milestone) => {
     if (!userId || busy) return;
     setBusy(true);
+    setSaveErr(false);
     try {
       await updateMilestone(userId, m.id, { status: NEXT_STATUS[m.status] });
       ms.reload();
     } catch {
-      /* surfaced on reload */
+      // The write failed. Say so: reload() lives inside the try above, so on this path
+      // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
     } finally {
       setBusy(false);
     }
@@ -435,6 +466,7 @@ export function MilestonesScreen() {
 
   return (
     <OpsFrame title={c.goals} bubble={c.goals} tip={c.nextStep}>
+      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <OpsDomainPicker tabs={tabs} selected={domain} onSelect={(d) => setDomain(d as OpsDomainId)} />
       <View style={styles.progressHeader}>
         <Text variant="caption" style={styles.progressLabel}>
@@ -476,6 +508,10 @@ export function MilestonesScreen() {
 export function LedgerScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
+  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
+  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
+  // just silently did nothing.
+  const [saveErr, setSaveErr] = useState(false);
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const month = monthBucket(new Date());
@@ -504,6 +540,7 @@ export function LedgerScreen() {
   const onQuickRecord = async () => {
     if (!userId || busy) return;
     setBusy(true);
+    setSaveErr(false);
     try {
       await createLedgerEntry(userId, {
         kind: "expense",
@@ -512,7 +549,9 @@ export function LedgerScreen() {
       });
       entries.reload();
     } catch {
-      /* surfaced on reload */
+      // The write failed. Say so: reload() lives inside the try above, so on this path
+      // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
     } finally {
       setBusy(false);
     }
@@ -520,6 +559,7 @@ export function LedgerScreen() {
 
   return (
     <OpsFrame title={c.monthCheck} bubble={`${c.left} ${summary.net.toLocaleString()}`} tip={c.record}>
+      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <View style={styles.ledgerCard}>
         <View style={styles.ledgerRow}>
           <Text variant="body" style={styles.ledgerStat}>
@@ -678,6 +718,10 @@ const DAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export function MealsScreen() {
   const c = useOpsCopy();
   const { userId } = useAuth();
+  // A failed WRITE. The empty catches below used to claim it was "surfaced on reload",
+  // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
+  // just silently did nothing.
+  const [saveErr, setSaveErr] = useState(false);
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko");
   const dayLabels = ko ? DAYS : DAYS_EN;
@@ -719,13 +763,16 @@ export function MealsScreen() {
       await setMeal(userId, pending.date, pending.slot, draft.trim());
       week.reload();
     } catch {
-      /* surfaced on reload */
+      // The write failed. Say so: reload() lives inside the try above, so on this path
+      // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
     }
     setPending(null);
   };
 
   return (
     <OpsFrame title={c.weeklyMeals} bubble={c.weeklyMeals} tip={c.whatToEatNow}>
+      {saveErr ? <SaveErrorBanner text={c.saveFailed} /> : null}
       <View style={styles.weekNav}>
         <Pressable onPress={() => shiftWeek(-7)} hitSlop={10} style={styles.weekArrow} accessibilityRole="button" accessibilityLabel={c.prevWeek}>
           <RNText style={styles.weekArrowText}>‹</RNText>
@@ -1042,6 +1089,14 @@ const remStyles = StyleSheet.create({
 // --- screen-local styles (deepSpace tokens only) -----------------------
 
 const styles = StyleSheet.create({
+  saveErrBanner: {
+    borderRadius: deepSpaceRadii.sm,
+    backgroundColor: withAlpha(deepSpace.danger, 0.12),
+    paddingVertical: deepSpaceSpacing.xs,
+    paddingHorizontal: deepSpaceSpacing.sm,
+    marginBottom: deepSpaceSpacing.xs,
+  },
+  saveErrText: { color: deepSpace.danger },
   searchRow: { flexDirection: "row", gap: deepSpaceSpacing.sm },
   searchInput: {
     flex: 1,
