@@ -22,7 +22,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
-import { mockSamplesForRange } from "@/lib/health/sources/mock";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { pickImportFiles } from "@/lib/wiki/capture-file";
@@ -173,6 +172,7 @@ export function DeepSpaceImportScreen() {
   const [healthPref, setHealthPref] = useState(false);
   const [healthBusy, setHealthBusy] = useState(false);
   const [healthDone, setHealthDone] = useState(false);
+  const [healthErr, setHealthErr] = useState<string | null>(null);
   // Import history = the persistent device-local log (import-hub 철회 store), so
   // file imports here show up in the same withdrawal list. No seeded fake rows.
   const [history, setHistory] = useState<ImportHistoryEntry[]>([]);
@@ -284,20 +284,45 @@ export function DeepSpaceImportScreen() {
 
   // Ingest today's activity through the single choke point (gate enforced inside
   // ingestHealthSamples).
+  //
+  // HONESTY INVARIANT: if the real health source is missing or the user denies the OS
+  // permission, we write NOTHING and say so. This used to silently fall back to
+  // mockSamplesForRange() -- fabricated 9,000 steps / 7h sleep / 30min workout -- and
+  // then report success. Those rows fed the health domain star's brightness
+  // (lib/persona/load-domain-levels.ts) and auto-completed routines
+  // (lib/health/ingest.ts -> applyHealthAutoComplete), with no `source === "mock"`
+  // filter anywhere downstream. A user who denied permission got a brighter 건강 star
+  // built from data they never produced. That is the exact opposite of 정직한 밝기, the
+  // invariant this whole product rests on.
   async function handleHealthIngest() {
     if (!userId || healthBusy || !canHealth) return;
     setHealthBusy(true);
     setHealthDone(false);
+    setHealthErr(null);
     try {
       const now = new Date().toISOString();
       const range = { startIso: now, endIso: now };
       const native = availableHealthSources().find((src) => src.id === "health_connect" || src.id === "healthkit");
-      const samples =
-        native && (await native.requestPermission()) === "granted" ? await native.read(range) : mockSamplesForRange(range);
+      if (!native) {
+        // Web, Expo Go, or a device without Health Connect / HealthKit.
+        setHealthErr(t("ds.import.healthErrUnavailable"));
+        return;
+      }
+      if ((await native.requestPermission()) !== "granted") {
+        setHealthErr(t("ds.import.healthErrDenied"));
+        return;
+      }
+      const samples = await native.read(range);
+      if (samples.length === 0) {
+        // Nothing to reflect is not a failure, but it is not "reflected" either.
+        setHealthErr(t("ds.import.healthErrEmpty"));
+        return;
+      }
       await ingestHealthSamples(userId, samples, { isMinor, pref: healthPref });
       setHealthDone(true);
     } catch {
       // Gate rejection or write error: leave the affordance for retry.
+      setHealthErr(t("ds.import.healthErrFailed"));
     } finally {
       setHealthBusy(false);
     }
@@ -398,6 +423,15 @@ export function DeepSpaceImportScreen() {
                       <RNText style={[m3TextStyle("bodyLarge"), s.accountName]}>{a.k}</RNText>
                       <RNText style={[m3TextStyle("labelMedium"), { color: isMinor === true ? m3.color.onSurfaceVariant : m3.color.primary }]}>{healthCta}</RNText>
                     </View>
+                    {healthErr !== null ? (
+                      <RNText
+                        style={[m3TextStyle("bodySmall"), s.healthErr]}
+                        accessibilityRole="alert"
+                        accessibilityLiveRegion="polite"
+                      >
+                        {healthErr}
+                      </RNText>
+                    ) : null}
                   </MdCard>
                 ) : (
                   <MdCard
@@ -519,5 +553,6 @@ const s = StyleSheet.create({
   historyName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   historySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   revokeErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 8 },
+  healthErr: { color: m3.color.error, fontFamily: m3.font.brand, marginTop: 8 },
   revokeBtn: { minHeight: 40, paddingHorizontal: 12 },
 });

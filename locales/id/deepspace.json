@@ -777,7 +777,11 @@
       "historyTitle": "Riwayat impor",
       "revoke": "Cabut",
       "fileSource": "Impor file",
-      "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi."
+      "revokeFailed": "Tidak bisa mencabut. Coba lagi sebentar lagi.",
+      "healthErrUnavailable": "Perangkat ini tidak dapat terhubung ke aplikasi kesehatan. Tidak ada yang dicatat.",
+      "healthErrDenied": "Akses kesehatan ditolak, jadi tidak ada yang dicatat. Kamu bisa mengizinkannya di pengaturan perangkat.",
+      "healthErrEmpty": "Tidak ada aktivitas kesehatan untuk dicerminkan hari ini.",
+      "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi."
     },
     "ttfv": {
       "pageTitle": "Bintang pertamamu baru saja menyala",

@@ -777,7 +777,11 @@
       "historyTitle": "Histórico de importação",
       "revoke": "Revogar",
       "fileSource": "Importação de arquivo",
-      "revokeFailed": "Não foi possível revogar. Tente novamente em instantes."
+      "revokeFailed": "Não foi possível revogar. Tente novamente em instantes.",
+      "healthErrUnavailable": "Este dispositivo não consegue conectar a um app de saúde. Nada foi registrado.",
+      "healthErrDenied": "O acesso à saúde foi recusado, então nada foi registrado. Você pode permitir nas configurações do dispositivo.",
+      "healthErrEmpty": "Nenhuma atividade de saúde para refletir hoje.",
+      "healthErrFailed": "Não foi possível refletir seus dados de saúde. Tente novamente em instantes."
     },
     "ttfv": {
       "pageTitle": "Sua primeira estrela acabou de se acender",

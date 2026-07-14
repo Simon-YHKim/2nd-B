@@ -777,7 +777,11 @@
       "historyTitle": "가져오기 이력",
       "revoke": "철회",
       "fileSource": "파일 가져오기",
-      "revokeFailed": "철회하지 못했어요. 잠시 후 다시 시도해 주세요."
+      "revokeFailed": "철회하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "healthErrUnavailable": "이 기기에서는 건강 앱에 연결할 수 없어요. 아무것도 기록하지 않았어요.",
+      "healthErrDenied": "건강 접근이 거부돼서 아무것도 기록하지 않았어요. 기기 설정에서 허용할 수 있어요.",
+      "healthErrEmpty": "오늘 반영할 건강 활동이 없어요.",
+      "healthErrFailed": "건강 데이터를 반영하지 못했어요. 잠시 후 다시 시도해 주세요."
     },
     "ttfv": {
       "pageTitle": "당신의 첫 별이 켜졌어요",
