@@ -580,7 +580,8 @@
     "summaryPlaceholder": "Apa yang kamu lakukan dan hasilnya - dalam satu baris",
     "expTypeA11y": "Jenis pengalaman",
     "expTypePlaceholder": "Pilih jenis pengalaman",
-    "submit": "Telusuri bersama SecondB"
+    "submit": "Telusuri bersama SecondB",
+    "saveFailed": "Tidak dapat menyimpan. Yang kamu tulis masih ada; coba lagi."
   },
   "shareCard": {
     "barTitle": "Kartu untuk dibagikan",

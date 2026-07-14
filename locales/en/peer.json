@@ -50,5 +50,6 @@
   "revokeCta": "Revoke",
   "shareMessage": "Would you answer three quick questions about how you see me? About a minute:",
   "aggregateNote": "Answers appear only as a combined picture of three or more people, in the Seen lens.",
-  "withdrawError": "Couldn't withdraw. Your response is still shared. Try again shortly."
+  "withdrawError": "Couldn't withdraw. Your response is still shared. Try again shortly.",
+  "revokeFailed": "Couldn't revoke. The invitation link is still live. Try again."
 }
