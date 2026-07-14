@@ -10,25 +10,12 @@ import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard, SegBtn } from "@/components/m3";
 import { m3 } from "@/lib/theme/m3";
 import { deepSpace, spacing } from "@/lib/theme/tokens";
-import { getEnv } from "@/lib/env";
+import { callPeerRespond } from "@/lib/peer/peer-respond";
 
 type Phase = "loading" | "form" | "done" | "withdrawn" | "expired" | "invalid" | "already";
 
 const TRAITS = ["extraversion", "conscientiousness", "agreeableness"] as const;
 type Trait = (typeof TRAITS)[number];
-
-async function callPeerRespond(body: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const res = await fetch(`${getEnv().EXPO_PUBLIC_SUPABASE_URL}/functions/v1/peer-respond`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      apikey: getEnv().EXPO_PUBLIC_SUPABASE_ANON_KEY,
-      authorization: `Bearer ${getEnv().EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
-  return (await res.json()) as Record<string, unknown>;
-}
 
 export default function PeerInformant() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -89,12 +76,20 @@ export default function PeerInformant() {
     }
   }
 
+  // A withdrawal that fails on the server must NOT be reported as withdrawn. This
+  // used to call the endpoint and set the phase unconditionally, so a 404/500 still
+  // told the informant "철회됐어요" while their observation stayed live in the
+  // aggregate. Consent withdrawal is the one thing that must never fail open.
   async function withdraw() {
     if (!token || busy) return;
     setBusy(true);
+    setError(null);
     try {
-      await callPeerRespond({ action: "withdraw", token });
-      setPhase("withdrawn");
+      const r = await callPeerRespond({ action: "withdraw", token });
+      if (r.ok) setPhase("withdrawn");
+      else setError(t("withdrawError"));
+    } catch {
+      setError(t("withdrawError"));
     } finally {
       setBusy(false);
     }
@@ -115,7 +110,19 @@ export default function PeerInformant() {
       {phase === "already" ? (
         <MdCard variant="outlined" style={styles.card}>
           <Text variant="body">{t("alreadyNote")}</Text>
-          <MdButton variant="outlined" label={t("withdrawCta")} onPress={() => void withdraw()} disabled={busy} />
+          {/* A failed withdrawal has to be visible HERE -- the form's error slot is a
+              different phase, so before this the informant saw nothing at all. */}
+          {error ? (
+            <Text variant="caption" style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {error}
+            </Text>
+          ) : null}
+          <MdButton
+            variant="outlined"
+            label={busy ? t("submitting") : t("withdrawCta")}
+            onPress={() => void withdraw()}
+            disabled={busy}
+          />
         </MdCard>
       ) : null}
 

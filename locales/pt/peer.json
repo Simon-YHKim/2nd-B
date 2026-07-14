@@ -49,5 +49,6 @@
   },
   "revokeCta": "Revogar",
   "shareMessage": "Voce responderia tres perguntas rapidas sobre como me ve? Um minuto:",
-  "aggregateNote": "As respostas aparecem apenas como retrato combinado de tres ou mais pessoas, na lente Visto."
+  "aggregateNote": "As respostas aparecem apenas como retrato combinado de tres ou mais pessoas, na lente Visto.",
+  "withdrawError": "Não foi possível retirar. Sua resposta ainda está compartilhada. Tente novamente em instantes."
 }

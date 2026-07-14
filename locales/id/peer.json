@@ -49,5 +49,6 @@
   },
   "revokeCta": "Cabut",
   "shareMessage": "Maukah menjawab tiga pertanyaan singkat tentang bagaimana kamu melihatku? Sekitar satu menit:",
-  "aggregateNote": "Jawaban hanya muncul sebagai gambaran gabungan dari tiga orang atau lebih, di lensa Terlihat."
+  "aggregateNote": "Jawaban hanya muncul sebagai gambaran gabungan dari tiga orang atau lebih, di lensa Terlihat.",
+  "withdrawError": "Tidak dapat menarik. Jawabanmu masih dibagikan. Coba lagi sebentar lagi."
 }
