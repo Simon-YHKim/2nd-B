@@ -28,6 +28,10 @@ export default function PeerInvites() {
   const ko = i18n.language === "ko";
   const { userId, loading } = useAuth();
   const [invites, setInvites] = useState<PeerInvitation[] | null>(null);
+  // A revoke that failed used to reject into the void. For an invitation that shares the
+  // user's self-model with a third party, "did that work?" is not a question we get to
+  // leave open.
+  const [actionErr, setActionErr] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [kind, setKind] = useState<PeerRelationKind>("friend");
   const [busy, setBusy] = useState(false);
@@ -65,12 +69,20 @@ export default function PeerInvites() {
     }
   }
 
+  // No catch at all, previously. A failed revoke rejected into the void: reload() never
+  // ran, so the invitation stayed in the list, and nothing told the user it had failed.
+  // They were left looking at an invite they had just revoked, with no way to know whether
+  // the link was still live. For an invitation that shares their self-model with a third
+  // party, "did that work?" is not a question the app gets to leave open.
   async function revoke(id: string) {
     if (!userId || busy) return;
     setBusy(true);
+    setActionErr(null);
     try {
       await withdrawPeerInvite(userId, id);
       reload();
+    } catch {
+      setActionErr(t("revokeFailed"));
     } finally {
       setBusy(false);
     }
@@ -122,6 +134,11 @@ export default function PeerInvites() {
                 </Text>
                 <Text variant="caption" style={statusStyle(inv.status)}>{t(`status.${inv.status}`)}</Text>
               </View>
+              {actionErr ? (
+                <Text variant="caption" style={styles.actionErr} accessibilityRole="alert" accessibilityLiveRegion="polite">
+                  {actionErr}
+                </Text>
+              ) : null}
               <View style={styles.rowFoot}>
                 <Text variant="caption" color="textSubtle">{inv.created_at.slice(0, 10)}</Text>
                 {inv.status === "pending" ? (
@@ -149,6 +166,7 @@ function statusStyle(status: PeerInvitation["status"]) {
 }
 
 const styles = StyleSheet.create({
+  actionErr: { color: deepSpace.dangerText, marginTop: 4 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: 40 },
   card: { padding: spacing.md, gap: spacing.sm },
   rowCard: { padding: spacing.md, gap: spacing.xs },

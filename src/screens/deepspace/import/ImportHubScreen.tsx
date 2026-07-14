@@ -83,6 +83,9 @@ export function ImportHubScreen() {
   const { userId, isMinor } = useAuth();
 
   const [step, setStep] = useState<Step>("hub");
+  // A failed import used to end exactly like a successful one: back at the hub, no message,
+  // nothing kept -- after the user had walked a consent flow and picked a file for it.
+  const [importErr, setImportErr] = useState(false);
   const [active, setActive] = useState<ImportSource | null>(null);
   const [onDevice, setOnDevice] = useState(true);
   const [paste, setPaste] = useState("");
@@ -199,7 +202,13 @@ export function ImportHubScreen() {
         sourceIds: [result.source.id],
       });
     } catch {
-      /* surfaced by returning to hub; capture is idempotent */
+      // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
+      // the try, so a failed import ended exactly like a successful one: back at the hub,
+      // no message, nothing kept. The user had just walked a consent flow and picked a file
+      // for it. Send them back to the hub only when the import actually landed.
+      setImportErr(true);
+      setBusy(false);
+      return;
     }
     setBusy(false);
     setActive(null);
@@ -403,6 +412,9 @@ export function ImportHubScreen() {
           textAlignVertical="top"
         />
         {errored ? <OpsState variant="error" title={t("errTitle")} body={t("errBody")} /> : null}
+        {/* A failed IMPORT (not a failed parse): the ratify write did not land, so we stay
+            on review rather than bouncing to the hub as though it had. */}
+        {importErr ? <OpsState variant="error" title={t("errTitle")} body={t("importFailed")} /> : null}
         <Pressable
           onPress={analyze}
           hitSlop={6}
@@ -505,6 +517,7 @@ function COPY(ko: boolean): Record<string, string> {
         chooseFile: "파일 선택", orPaste: "또는 아래에 직접 붙여넣기",
         pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
         errTitle: "파일 형식을 못 읽었어요", errBody: "내보낸 형식이 맞는지 확인해 주세요",
+        importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
         done: "완료", appts: "약속", places: "장소", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
@@ -527,6 +540,7 @@ function COPY(ko: boolean): Record<string, string> {
         chooseFile: "Choose file", orPaste: "or paste it below",
         pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
         errTitle: "Couldn't read the file", errBody: "Check that the exported format is right",
+        importFailed: "Couldn't import that. Nothing was recorded. Try again.",
         done: "Done", appts: "Plans", places: "Places", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",

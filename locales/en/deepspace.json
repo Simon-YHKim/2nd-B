@@ -580,7 +580,8 @@
     "summaryPlaceholder": "What you did and the result - one line",
     "expTypeA11y": "Experience type",
     "expTypePlaceholder": "Pick an experience type",
-    "submit": "Drill down with SecondB"
+    "submit": "Drill down with SecondB",
+    "saveFailed": "Couldn't save that. Your entries are still here; try again."
   },
   "shareCard": {
     "barTitle": "Share card",
