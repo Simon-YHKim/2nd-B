@@ -1656,12 +1656,18 @@ export function DeepSpaceResearchScreen() {
   );
 }
 
-type ExportFormat = "iden" | "markdown" | "json" | "pdf";
+// This option used to be called "PDF". It has never produced a PDF: the handler calls
+// exportIden() and hands back r.html under r.htmlFilename, so picking "PDF" downloaded a
+// .html file. There is no PDF generator in the app (expo-print is not installed), so the
+// honest fix is not to fake one -- it is to say what the button actually does. The export
+// IS a print-ready HTML page; the user prints it (or saves it as PDF) from their browser,
+// which the copy now tells them.
+type ExportFormat = "iden" | "markdown" | "json" | "html";
 const FORMAT_CARDS: { id: ExportFormat; name: string; descKey: string }[] = [
   { id: "iden", name: ".iden", descKey: "formats.idenDesc" },
   { id: "markdown", name: "Markdown", descKey: "formats.markdownDesc" },
   { id: "json", name: "JSON", descKey: "formats.jsonDesc" },
-  { id: "pdf", name: "PDF", descKey: "formats.pdfDesc" },
+  { id: "html", name: "HTML", descKey: "formats.htmlDesc" },
 ];
 
 export function DeepSpaceFormatsScreen() {
@@ -1684,7 +1690,7 @@ export function DeepSpaceFormatsScreen() {
       if (format === "iden") {
         const r = await exportIden(userId, { locale });
         setResult({ text: r.iden, name: r.idenFilename });
-      } else if (format === "pdf") {
+      } else if (format === "html") {
         const r = await exportIden(userId, { locale });
         setResult({ text: r.html, name: r.htmlFilename });
       } else if (format === "markdown") {
