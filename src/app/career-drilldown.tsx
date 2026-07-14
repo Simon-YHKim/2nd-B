@@ -98,6 +98,9 @@ export default function CareerDrilldown() {
 
   const [summary, setSummary] = useState("");
   const [expType, setExpType] = useState<string | null>(null);
+  // The navigation used to run whether or not the save worked. It does not any more, so
+  // the failure has to be visible: otherwise the button simply does nothing forever.
+  const [saveErr, setSaveErr] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -142,6 +145,13 @@ export default function CareerDrilldown() {
         });
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[drilldown] save failed", (e as Error).message);
+        // The navigation below used to sit OUTSIDE the try, so it ran whether or not the
+        // save worked. A failed 3C4P drilldown -- several minutes of the user structuring
+        // their own career experience -- was logged to a console nobody reads and then the
+        // screen cheerfully moved on to 세컨비, as if it had been kept. It had not.
+        setSaveErr(true);
+        setSaving(false);
+        return;
       } finally {
         setSaving(false);
       }
@@ -232,6 +242,11 @@ export default function CareerDrilldown() {
         </ScrollView>
 
         {/* submit bar */}
+        {saveErr ? (
+          <Text variant="caption" style={styles.saveErr} accessibilityRole="alert" accessibilityLiveRegion="polite">
+            {t("deepspace:careerDrilldown.saveFailed")}
+          </Text>
+        ) : null}
         <View style={styles.submitBar}>
           <MdButton
             variant="filled"
@@ -247,6 +262,7 @@ export default function CareerDrilldown() {
 }
 
 const styles = StyleSheet.create({
+  saveErr: { color: deepSpace.dangerText, marginBottom: spacing.xs, textAlign: "center" },
   body: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: 120, gap: spacing.md },
   introCard: { backgroundColor: withAlpha(m3.color.tertiary, 0.12) },

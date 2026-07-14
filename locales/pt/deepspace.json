@@ -580,7 +580,8 @@
     "summaryPlaceholder": "O que você fez e qual foi o resultado - em uma linha",
     "expTypeA11y": "Tipo de experiência",
     "expTypePlaceholder": "Escolha um tipo de experiência",
-    "submit": "Aprofunde com o SecondB"
+    "submit": "Aprofunde com o SecondB",
+    "saveFailed": "Não foi possível salvar. O que você escreveu continua aqui; tente novamente."
   },
   "shareCard": {
     "barTitle": "Cartão para compartilhar",
