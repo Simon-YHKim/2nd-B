@@ -8902,8 +8902,11 @@
             "버그(기본 화면에서 실제로 겪음): 답하는 중에 안드로이드 뒤로가기를 누르면 '그만둘까요?' 확인 없이 화면이 닫히고 120문항 답이 통째로 사라져요 — 다른 검사(성격 5요인 등)에는 있는 확인 창이 이 화면에만 빠져 있어요 (src/app/ipip-neo.tsx 에 BackHandler 없음, src/app/big-five.tsx:69-79 와 비교)",
             "앱을 완전히 끄면 답한 내용이 사라져요 (중간 임시 저장이 없어요)"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/ipip-neo.tsx:81"
+          "knownBug": false,
+          "bugAnchor": "src/app/ipip-neo.tsx:81",
+          "fixedIn": "#991",
+          "fixedOn": "2026-07-14",
+          "wasBug": "No hardwareBackPress guard: one Android back press mid-survey closed the screen with no confirmation and lost all 120 answers."
         },
         {
           "action": "120문항 답변 저장하기",
@@ -9288,8 +9291,11 @@
             "답하는 중에 안드로이드 뒤로가기를 누르면 확인 창도 없이 화면이 닫히고 지금까지 고른 답이 전부 사라져요 (다른 검사 화면에는 있는 '검사를 종료할까요?' 확인 창이 이 화면에만 빠져 있어요)",
             "답을 임시로 저장해 두는 기능이 없어서, 저장 전에 앱이 꺼지면 처음부터 다시 해야 해요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/rlss.tsx:81"
+          "knownBug": false,
+          "bugAnchor": "src/app/rlss.tsx:81",
+          "fixedIn": "#991",
+          "fixedOn": "2026-07-14",
+          "wasBug": "Same missing back guard as ipip-neo -- the five sibling surveys all had one."
         },
         {
           "action": "6문항 답변 저장하기",
