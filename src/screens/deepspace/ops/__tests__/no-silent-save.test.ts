@@ -62,8 +62,10 @@ describe("no silent save failures in the ops screens", () => {
     const src = read(join(ROOT, "src/screens/deepspace/ops/screens.tsx"));
     // Four screens own a write: Reading, Milestones, Ledger, Meals.
     expect(src.match(/const \[saveErr, setSaveErr\] = useState\(false\);/g)?.length).toBe(4);
-    // Five writes can fail.
-    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(5);
+    // Six write sites can fail: the five original adds, plus the ledger's DELETE (added
+    // when the ledger got a real form + per-row delete). A delete is a write too, and it
+    // surfaces through the same Ledger banner.
+    expect(src.match(/setSaveErr\(true\);/g)?.length).toBe(6);
     // And the banner is actually rendered, not just stored in state.
     expect(src.match(/<SaveErrorBanner text=\{c\.saveFailed\} \/>/g)?.length).toBe(4);
   });

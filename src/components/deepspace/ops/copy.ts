@@ -91,6 +91,11 @@ export interface OpsCopy {
   record: string;
   byCategory: string;
   fxNote: string;
+  amountPlaceholder: string;
+  categoryPlaceholder: string;
+  addEntry: string;
+  entriesLabel: string;
+  deleteEntry: string;
   // github (7)
   sideProject: string;
   thisWeek: string;
@@ -187,6 +192,11 @@ const en: OpsCopy = {
   record: "Record",
   byCategory: "By category",
   fxNote: "Other currencies convert automatically (FX).",
+  amountPlaceholder: "Amount",
+  categoryPlaceholder: "Category (e.g. Food)",
+  addEntry: "Add",
+  entriesLabel: "This month's entries",
+  deleteEntry: "Delete entry",
   sideProject: "Side project",
   thisWeek: "THIS WEEK",
   commits: "commits",
@@ -276,6 +286,11 @@ const ko: OpsCopy = {
   record: "기록",
   byCategory: "분류별 지출",
   fxNote: "다통화는 자동 환산돼요 (FX).",
+  amountPlaceholder: "금액",
+  categoryPlaceholder: "분류 (예: 식비)",
+  addEntry: "추가",
+  entriesLabel: "이번 달 내역",
+  deleteEntry: "내역 삭제",
   sideProject: "사이드 프로젝트",
   thisWeek: "THIS WEEK",
   commits: "커밋",
