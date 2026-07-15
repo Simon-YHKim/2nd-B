@@ -48,9 +48,7 @@
         "edge:gemini-proxy",
         "db:knowledge_sources:select",
         "rpc:award_xp",
-        "db:users:select",
-        "rpc:log_ai_audit",
-        "db:records:update"
+        "rpc:log_ai_audit"
       ],
       "ai": true,
       "callees": [
@@ -278,7 +276,7 @@
       "via": "gatherLensSignal"
     },
     "buildPersona": {
-      "file": "src/lib/persona/build.ts:527",
+      "file": "src/lib/persona/build.ts:551",
       "apis": [
         "db:records:select",
         "db:personas:select",
@@ -341,16 +339,14 @@
       "via": "callGemini"
     },
     "createRecord": {
-      "file": "src/lib/records/create.ts:100",
+      "file": "src/lib/records/create.ts:101",
       "apis": [
         "db:memorized_patterns:insert",
         "db:records:insert",
         "edge:gemini-proxy",
         "db:knowledge_sources:select",
         "rpc:award_xp",
-        "db:users:select",
-        "rpc:log_ai_audit",
-        "db:records:update"
+        "rpc:log_ai_audit"
       ],
       "ai": true,
       "callees": [
@@ -360,13 +356,10 @@
         "callAdvisor",
         "buildMemorizedPattern",
         "callGemini",
+        "withTimeout",
         "withDomainTag",
         "invalidateDomainLevels",
-        "awardXpSafe",
-        "getEnv",
-        "fetchPrivacyPrefs",
-        "recordsEmbeddingAllowed",
-        "embedAndStoreRecord"
+        "awardXpSafe"
       ],
       "via": "callAdvisor"
     },
@@ -535,19 +528,19 @@
   },
   "trust": {
     "verified": 373,
-    "located": 621,
+    "located": 619,
     "caution": 4,
     "broken": 0,
-    "total": 998,
+    "total": 996,
     "delegationTraps": 0
   },
   "screens": [
     {
       "route": "/(auth)",
-      "title": "로그인 화면 묶음(껍데기)",
+      "title": "인증 화면 그룹 레이아웃 (필수 배관)",
       "group": "auth",
       "groupKo": "인증·시작",
-      "summary": "로그인·회원가입 같은 화면들을 담는 빈 껍데기입니다. 화면 자체는 없고, 안쪽 화면들이 헤더 없이 슬라이드로 넘어가게 해줍니다.",
+      "summary": "로그인·회원가입·비밀번호재설정·OAuth콜백·프로필완성 등 인증 화면 6개를 하나의 Stack으로 묶어 헤더 없이 슬라이드로 넘기는 필수 레이아웃입니다. 사용자에게 보이는 화면이 아니라 배관이라, 지우면 인증 화면들의 헤더·전환이 깨집니다.",
       "rendersInProduction": null,
       "gate": null,
       "actions": []
@@ -557,8 +550,8 @@
       "title": "로그인",
       "group": "auth",
       "groupKo": "인증·시작",
-      "summary": "구글·카카오 같은 소셜 계정 버튼이 먼저 보이고, '이메일로 계속하기'를 눌러야 이메일·비밀번호 칸이 나타나는 로그인 문입니다.",
-      "rendersInProduction": "src/screens/deepspace/dds-auth-screens.tsx:156",
+      "summary": "이메일·비밀번호 입력칸이 처음부터 보이고(표시/숨김 토글·비밀번호 재설정 포함), '또는' 구분선 아래에 활성화된 소셜 로그인 버튼(구글·카카오·깃허브)과 네이버 버튼, 회원가입 링크가 있는 일반 로그인 화면입니다. 이미 로그인한 사용자는 홈으로 보냅니다.",
+      "rendersInProduction": "src/screens/deepspace/dds-auth-screens.tsx:141",
       "gate": null,
       "actions": [
         {
@@ -566,7 +559,7 @@
           "raw": "On load",
           "symbol": null,
           "does": "화면을 열면 먼저 '이미 로그인 되어 있나?'를 서버에 물어봅니다. 되어 있으면 바로 홈으로 보냅니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:194",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:175",
           "fileTrust": "·",
           "impl": "src/lib/auth/AuthContext.tsx:179",
           "implTrust": "·",
@@ -593,34 +586,11 @@
           "knownBug": false
         },
         {
-          "action": "이메일로 계속하기(입력칸 펼치기)",
-          "raw": "Continue with email",
-          "symbol": null,
-          "does": "처음에는 소셜 로그인 버튼만 보입니다. 이 줄을 눌러야 이메일과 비밀번호를 적는 칸이 나타납니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:252",
-          "fileTrust": "·",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:185",
-          "implTrust": "·",
-          "implName": null,
-          "apis": [],
-          "ai": null,
-          "goesTo": null,
-          "risks": [],
-          "checklist": [
-            "이메일 칸이 안 보이면 '이메일로 계속하기'를 먼저 눌렀는지 확인",
-            "누른 뒤에도 안 펼쳐지면 앱을 껐다 켜보기"
-          ],
-          "failureModes": [
-            "화면 안에서 칸만 바꿔 보여주는 동작이라 거의 실패하지 않아요"
-          ],
-          "knownBug": false
-        },
-        {
           "action": "비밀번호 보기·가리기",
           "raw": "Show / hide the password",
           "symbol": "toggleShowPassword",
           "does": "비밀번호가 점으로 가려져 있을 때, 눌러서 잠깐 글자로 볼 수 있습니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:286 (toggleShowPassword)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:233 (toggleShowPassword)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:112",
           "implTrust": "·",
@@ -630,7 +600,7 @@
           "goesTo": null,
           "risks": [],
           "checklist": [
-            "이메일로 계속하기를 눌러 입력칸을 펼쳐야 이 버튼이 보입니다"
+            "비밀번호 입력칸 옆의 표시/숨김 토글입니다(항상 보입니다)"
           ],
           "failureModes": [
             "입력칸을 펼치기 전에는 화면에 없어요"
@@ -642,7 +612,7 @@
           "raw": "Sign in with email",
           "symbol": "handleSubmit",
           "does": "적어 넣은 이메일과 비밀번호를 서버에 보내서 맞으면 홈으로 들어갑니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:313 (handleSubmit)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:656 (handleSubmit)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:154 (handleSubmit)",
           "implTrust": "✔",
@@ -657,10 +627,7 @@
             "auth"
           ],
           "checklist": [
-            "'이메일로 계속하기'를 눌러 입력칸을 먼저 펼쳤는지",
-            "이메일과 비밀번호를 둘 다 채웠는지(비면 버튼이 흐릿하게 눌리지 않음)",
-            "대소문자·앞뒤 공백이 섞이지 않았는지",
-            "인터넷 연결 상태"
+            "이메일과 비밀번호를 모두 입력해야 로그인 버튼이 활성화됩니다"
           ],
           "failureModes": [
             "비밀번호가 틀려도 '틀렸다'고 콕 집어 말하지 않고 뭉뚱그린 오류만 떠요(보안 때문)",
@@ -673,7 +640,7 @@
           "raw": "Continue with social provider",
           "symbol": "handleOAuth",
           "does": "구글이나 카카오 같은 다른 서비스 계정을 빌려서 로그인합니다. 그 회사 로그인 창이나 계정 선택 창이 열립니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:203 (handleOAuth)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:184 (handleOAuth)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:114 (handleOAuth)",
           "implTrust": "✔",
@@ -691,10 +658,7 @@
             "gate"
           ],
           "checklist": [
-            "'이메일로 계속하기'를 이미 눌렀다면 소셜 버튼은 가려집니다(앱을 껐다 켜면 다시 보입니다). 처음 화면에서도 그 버튼이 없다면 그 제공자가 설정에서 꺼져 있는 것",
-            "계정 선택 창이나 브라우저 창이 뜨는지",
-            "구글·카카오 쪽 계정에 미리 로그인되어 있는지",
-            "되돌아오지 못하면 앱을 껐다 켜고 이메일 로그인으로 대체"
+            "소셜 버튼이 안 보이면 그 제공자가 설정(환경변수 플래그)에서 꺼져 있는 것입니다"
           ],
           "failureModes": [
             "서버에 설정되지 않은 제공자면 한 번 누른 뒤 그 버튼이 사라져 버려요",
@@ -707,7 +671,7 @@
           "raw": "Continue with Naver",
           "symbol": "handleNaver",
           "does": "네이버 로그인 페이지로 이동합니다. 네이버에서 동의하면 앱의 '로그인 처리 중' 화면으로 돌아옵니다. 웹에서만 되는 길입니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:239 (handleNaver)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:302 (handleNaver)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:142 (handleNaver)",
           "implTrust": "✔",
@@ -721,10 +685,7 @@
             "network"
           ],
           "checklist": [
-            "'이메일로 계속하기'를 이미 눌렀다면 네이버 버튼도 가려집니다(앱을 껐다 켜면 다시 보입니다). 처음 화면에서도 없다면 네이버 로그인이 꺼져 있는 것(설정값 필요)",
-            "웹 브라우저에서 열었는지(폰 앱에서는 오류 문구만 뜹니다)",
-            "네이버 계정에 미리 로그인되어 있는지",
-            "시크릿 모드면 저장이 막혀 실패할 수 있으니 일반 창으로"
+            "네이버 버튼이 없다면 네이버 로그인이 꺼져 있는 것입니다(공개 client id 설정값 필요)"
           ],
           "failureModes": [
             "폰 앱에서 누르면 '웹 전용'이라 오류 문구만 뜨고 넘어가지 않아요(설정으로 켜진 경우에만 버튼이 보임)",
@@ -737,7 +698,7 @@
           "raw": "Send password reset email",
           "symbol": "handleForgotPassword",
           "does": "비밀번호를 잊었을 때, 위 칸에 적은 이메일 주소로 재설정 링크를 보내달라고 요청합니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:324 (handleForgotPassword)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:271 (handleForgotPassword)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:171 (handleForgotPassword)",
           "implTrust": "✔",
@@ -752,10 +713,7 @@
             "auth"
           ],
           "checklist": [
-            "'이메일로 계속하기'를 눌러야 이 링크가 보입니다",
-            "이메일 칸을 먼저 채웠는지(빈칸이면 안내 문구만 뜸)",
-            "메일함의 스팸함도 확인",
-            "가입에 쓴 주소가 맞는지"
+            "비밀번호 찾기 링크는 로그인 버튼 아래에 항상 보입니다"
           ],
           "failureModes": [
             "가입되지 않은 주소여도 '보냈다'고 보일 수 있어요(보안상 구분하지 않음)",
@@ -768,9 +726,9 @@
           "raw": "Go to sign-up",
           "symbol": "router.push",
           "does": "계정이 없을 때 회원가입 화면으로 넘어갑니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:346 (router.push)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:315 (router.push)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:346",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:315",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -791,7 +749,7 @@
           "raw": "Type the email address",
           "symbol": "setEmail",
           "does": "로그인 칸에 이메일 주소를 적습니다. '@'가 들어간 주소여야만 로그인 버튼이 켜지고, 비밀번호 재설정 메일도 보낼 수 있습니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:269 (setEmail)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:217 (setEmail)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:192",
           "implTrust": "·",
@@ -803,10 +761,7 @@
             "gate"
           ],
           "checklist": [
-            "'이메일로 계속하기'를 눌러 입력칸을 먼저 펼쳤는지",
-            "주소에 '@'가 들어 있는지(아이디만 적으면 버튼이 절대 안 켜집니다)",
-            "자동완성이 앞뒤 공백이나 대문자를 섞지 않았는지",
-            "주소를 고치면 '재설정 메일 보냄' 안내가 사라지는데 정상입니다"
+            "이메일 칸에 '@'가 포함되고 비밀번호를 입력해야 로그인 버튼이 활성화됩니다"
           ],
           "failureModes": [
             "'@'가 없으면 로그인 버튼이 계속 흐릿하게 잠긴 채로 아무 반응이 없어요",
@@ -819,7 +774,7 @@
           "raw": "Type the password",
           "symbol": "setPassword",
           "does": "비밀번호 칸에 비밀번호를 적습니다. 한 글자라도 있어야 로그인 버튼이 켜지고, 키보드의 완료 키로도 바로 로그인됩니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:299 (setPassword)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:625 (setPassword)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:192",
           "implTrust": "·",
@@ -851,7 +806,7 @@
       "group": "auth",
       "groupKo": "인증·시작",
       "summary": "이메일·비밀번호·생년월일을 넣고 필수 동의에 체크해서 새 계정을 만드는 화면입니다.",
-      "rendersInProduction": "src/screens/deepspace/dds-auth-screens.tsx:405",
+      "rendersInProduction": "src/screens/deepspace/dds-auth-screens.tsx:374",
       "gate": null,
       "actions": [
         {
@@ -859,7 +814,7 @@
           "raw": "On load",
           "symbol": null,
           "does": "이미 로그인한 사람인지 먼저 확인하고, 그렇다면 홈으로 보냅니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:441",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:410",
           "fileTrust": "·",
           "impl": "src/lib/auth/AuthContext.tsx:179",
           "implTrust": "·",
@@ -890,7 +845,7 @@
           "raw": "Enter date of birth (age gate)",
           "symbol": null,
           "does": "생년월일을 적으면 나이에 따라 가입 가능 여부가 갈립니다. 만 14세 미만이면 맨 아래 '계정 만들기' 버튼이 아예 안 눌리고, 14~17세면 청소년용 동의 안내로 바뀝니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:489",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:458",
           "fileTrust": "·",
           "impl": "src/lib/auth/useSignUpForm.ts:127",
           "implTrust": "·",
@@ -917,7 +872,7 @@
           "raw": "Check the required consent boxes",
           "symbol": "setAllRequiredAcks",
           "does": "필수 동의 네 가지를 모두 체크해야 맨 아래 '계정 만들기' 버튼이 눌립니다. '선택'으로 묶인 마케팅 항목은 안 해도 됩니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:393 (setAllRequiredAcks)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:362 (setAllRequiredAcks)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/consent-selections.ts:51",
           "implTrust": "·",
@@ -944,7 +899,7 @@
           "raw": "Create account",
           "symbol": "handleSubmit",
           "does": "적어 넣은 정보로 진짜 계정을 만듭니다. 나이가 너무 어리거나 이미 유출된 비밀번호면 막습니다. 동의 내용도 함께 저장합니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:579 (handleSubmit)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:548 (handleSubmit)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignUpForm.ts:152 (handleSubmit)",
           "implTrust": "✔",
@@ -983,7 +938,7 @@
           "raw": "Sign up with social provider",
           "symbol": "handleOAuth",
           "does": "구글 같은 계정으로 가입합니다. 생일은 그 회사가 알려주지 않으니, 돌아온 뒤 생일·동의를 따로 물어봅니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:552 (handleOAuth)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:521 (handleOAuth)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignUpForm.ts:207 (handleOAuth)",
           "implTrust": "✔",
@@ -1016,7 +971,7 @@
           "raw": "Sign up with Naver",
           "symbol": "handleNaver",
           "does": "네이버 로그인 페이지로 보내고, 돌아오면 앱이 처리합니다. 웹에서만 됩니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:567 (handleNaver)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:536 (handleNaver)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignUpForm.ts:227 (handleNaver)",
           "implTrust": "✔",
@@ -1045,9 +1000,9 @@
           "raw": "Already have an account → sign in",
           "symbol": "router.push",
           "does": "로그인 화면으로 넘어갑니다. '계정 만들기'를 눌렀는데 이미 있는 이메일이면, '이미 가입하셨나요?' 안내 카드 안에도 '로그인 화면으로' 버튼이 생깁니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:589 (router.push)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:558 (router.push)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:535",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:504",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -1068,7 +1023,7 @@
           "raw": "Enter email address",
           "symbol": "setEmail",
           "does": "이메일을 적어야 '계정 만들기' 버튼이 켜집니다. 주소에 @ 가 없으면 버튼은 계속 흐린 채로 있고, 심사용 주소(@xprize.org 등)면 심사 계정으로 자동 표시됩니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:458 (setEmail)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:427 (setEmail)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignUpForm.ts:142",
           "implTrust": "·",
@@ -1097,7 +1052,7 @@
           "raw": "Enter password (8+ chars, breach-checked)",
           "symbol": "setPassword",
           "does": "비밀번호는 8자 이상이어야 '계정 만들기' 버튼이 켜집니다. 8자가 안 되면 칸 아래 체크리스트에 '비밀번호는 8자 이상이어야 해요' 라고 뜨고, 버튼은 흐린 채로 잠겨 있습니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:475 (setPassword)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:444 (setPassword)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignUpForm.ts:132",
           "implTrust": "·",
@@ -1286,7 +1241,7 @@
       "group": "auth",
       "groupKo": "인증·시작",
       "summary": "비밀번호 재설정 메일의 링크로 들어와 새 비밀번호를 정하는 화면입니다. 링크가 살아 있으면 입력칸이, 만료됐으면 안내와 로그인 복귀 버튼이 보입니다.",
-      "rendersInProduction": "src/screens/deepspace/dds-auth-screens.tsx:597",
+      "rendersInProduction": "src/screens/deepspace/dds-auth-screens.tsx:566",
       "gate": null,
       "actions": [
         {
@@ -1294,7 +1249,7 @@
           "raw": "On load",
           "symbol": "useResetPasswordForm",
           "does": "메일 링크에 들어 있는 임시 열쇠를 읽어 '지금 비밀번호를 바꿔도 되는 사람'인지 확인하고, 내 계정 정보도 함께 불러옵니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:612 (useResetPasswordForm)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:581 (useResetPasswordForm)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useResetPasswordForm.ts:60",
           "implTrust": "·",
@@ -1333,7 +1288,7 @@
           "raw": "Set new password",
           "symbol": "handleSubmit",
           "does": "새 비밀번호를 두 칸에 똑같이 적고 버튼을 누르면 서버에 저장합니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:681 (handleSubmit)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:656 (handleSubmit)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useResetPasswordForm.ts:69 (handleSubmit)",
           "implTrust": "✔",
@@ -1364,9 +1319,9 @@
           "raw": "Continue to app",
           "symbol": "router.replace",
           "does": "비밀번호를 바꾼 뒤 홈으로 들어갑니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:642 (router.replace)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:617 (router.replace)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:642",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:617",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -1387,9 +1342,9 @@
           "raw": "Back to sign-in (expired link)",
           "symbol": "router.replace",
           "does": "링크가 만료됐을 때 로그인 화면으로 돌아가 재설정 메일을 다시 요청합니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:637 (router.replace)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:612 (router.replace)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:637",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:612",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -1410,7 +1365,7 @@
           "raw": "Enter and confirm the new password",
           "symbol": null,
           "does": "새 비밀번호를 8자 이상으로 넣고 아래 칸에 똑같이 한 번 더 넣어야 '비밀번호 변경' 버튼이 켜집니다.",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:648",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:638",
           "fileTrust": "·",
           "impl": "src/lib/auth/useResetPasswordForm.ts:86",
           "implTrust": "·",
@@ -6210,7 +6165,7 @@
       "group": "domains",
       "groupKo": "삶의 영역",
       "summary": "깃허브 아이디를 넣으면 최근 14일 커밋 수와 활동한 날을 보여주는 화면이에요.",
-      "rendersInProduction": "src/screens/deepspace/ops/screens.tsx:573",
+      "rendersInProduction": "src/screens/deepspace/ops/screens.tsx:589",
       "gate": null,
       "actions": [
         {
@@ -6218,7 +6173,7 @@
           "raw": "On load",
           "symbol": null,
           "does": "예전에 넣어둔 깃허브 아이디가 폰에 저장돼 있으면 자동으로 다시 불러와요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:590",
+          "file": "src/screens/deepspace/ops/screens.tsx:660",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -6245,7 +6200,7 @@
           "raw": "Connect GitHub handle",
           "symbol": null,
           "does": "깃허브 아이디를 입력하면 공개 활동 기록을 가져와 커밋 수를 계산해요. 로그인이 아니라 공개 정보만 읽어요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:604",
+          "file": "src/screens/deepspace/ops/screens.tsx:596",
           "fileTrust": "·",
           "impl": "src/lib/projects/github.ts:115",
           "implTrust": "·",
@@ -6280,7 +6235,7 @@
       "group": "domains",
       "groupKo": "삶의 영역",
       "summary": "한 주 아침·점심·저녁 칸을 눌러 메뉴를 적어두는 식단표예요.",
-      "rendersInProduction": "src/screens/deepspace/ops/screens.tsx:678",
+      "rendersInProduction": "src/screens/deepspace/ops/screens.tsx:777",
       "gate": null,
       "actions": [
         {
@@ -6288,7 +6243,7 @@
           "raw": "On load",
           "symbol": null,
           "does": "이번 주에 이미 저장해둔 메뉴를 서버에서 불러와 표의 각 칸에 채워줘요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:691",
+          "file": "src/screens/deepspace/ops/screens.tsx:790",
           "fileTrust": "·",
           "impl": "src/lib/nutrition/meal-plan.ts:126",
           "implTrust": "·",
@@ -6318,7 +6273,7 @@
           "raw": "Change week",
           "symbol": null,
           "does": "화살표를 누르면 지난주나 다음주 식단표를 새로 불러와 보여줘요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:697",
+          "file": "src/screens/deepspace/ops/screens.tsx:796",
           "fileTrust": "·",
           "impl": "src/lib/nutrition/meal-plan.ts:126",
           "implTrust": "·",
@@ -6346,7 +6301,7 @@
           "raw": "Open a meal cell",
           "symbol": "openCell",
           "does": "칸을 누르면 메뉴를 적는 입력창이 열리고, 식약처 음식 자료에서 찾은 추천 메뉴를 몇 개 보여줘요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:747 (openCell)",
+          "file": "src/screens/deepspace/ops/screens.tsx:846 (openCell)",
           "fileTrust": "✔",
           "impl": "src/lib/nutrition/foods.ts:128",
           "implTrust": "·",
@@ -6376,7 +6331,7 @@
           "raw": "Pick a food idea chip",
           "symbol": null,
           "does": "추천 메뉴를 누르면 그 이름이 입력칸에 그대로 적혀요. 아직 저장된 건 아니에요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:833",
+          "file": "src/screens/deepspace/ops/screens.tsx:932",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -6399,7 +6354,7 @@
           "raw": "Save a meal",
           "symbol": "saveCell",
           "does": "입력한 메뉴를 그 요일·끼니 칸에 저장하고, 표를 다시 불러와 새로 그려요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:757 (saveCell)",
+          "file": "src/screens/deepspace/ops/screens.tsx:856 (saveCell)",
           "fileTrust": "✔",
           "impl": "src/lib/nutrition/meal-plan.ts:100",
           "implTrust": "·",
@@ -6431,7 +6386,7 @@
           "raw": "Type the meal name",
           "symbol": "setDraft",
           "does": "메뉴 이름을 직접 적는 칸이에요. 이 칸이 비어 있으면 저장을 눌러도 아무것도 저장되지 않고 창만 닫혀요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:732 (setDraft)",
+          "file": "src/screens/deepspace/ops/screens.tsx:831 (setDraft)",
           "fileTrust": "✔",
           "impl": "src/lib/nutrition/meal-plan.ts:111",
           "implTrust": "·",
@@ -6460,9 +6415,9 @@
           "raw": "Dismiss the meal sheet without saving",
           "symbol": null,
           "does": "창 바깥을 누르거나 뒤로가기를 하면 창이 닫히고, 적던 메뉴는 저장되지 않고 사라져요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:770",
+          "file": "src/screens/deepspace/ops/screens.tsx:869",
           "fileTrust": "·",
-          "impl": "src/screens/deepspace/ops/screens.tsx:769",
+          "impl": "src/screens/deepspace/ops/screens.tsx:725",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -6725,7 +6680,7 @@
           "raw": "Retry after a load error",
           "symbol": null,
           "does": "내역을 못 불러왔을 때 '다시 시도' 를 누르면 이번 달 내역을 한 번 더 불러와요. 지난달 내역은 이 버튼으로 다시 불러오지 않아요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:549",
+          "file": "src/screens/deepspace/ops/screens.tsx:557",
           "fileTrust": "·",
           "impl": "src/lib/finance/ledger.ts:127",
           "implTrust": "·",
@@ -13194,7 +13149,7 @@
       "group": "import",
       "groupKo": "가져오기·연결",
       "summary": "비서가 만든 반복 루틴 중 알림 시간이 있는 것만 모아 보여주고, 이 기기에서 알림을 켜고 끄는 곳이에요. 알림은 서버가 아니라 내 폰이 직접 띄워요.",
-      "rendersInProduction": "src/screens/deepspace/ops/screens.tsx:863",
+      "rendersInProduction": "src/screens/deepspace/ops/screens.tsx:962",
       "gate": null,
       "actions": [
         {
@@ -13202,7 +13157,7 @@
           "raw": "On load",
           "symbol": "routines",
           "does": "서버에서 내 반복 루틴을 가져와 알림 시간이 있는 것만 보여주고, 켜짐/꺼짐은 이 기기에 저장된 값을 읽어와요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:914 (routines)",
+          "file": "src/screens/deepspace/ops/screens.tsx:1013 (routines)",
           "fileTrust": "✔",
           "impl": "src/lib/ops/routines.ts:175",
           "implTrust": "·",
@@ -13234,7 +13189,7 @@
           "raw": "Turn a reminder on or off",
           "symbol": null,
           "does": "루틴 줄 오른쪽의 스위치를 꺼도 폰 알림은 예정대로 계속 울려요. 스위치는 '꺼짐'이라는 표시만 이 기기에 저장할 뿐, 이미 예약해 둔 폰 알림을 취소하지 않아요. 켜는 쪽도 마찬가지로 알림을 새로 예약하지 않고 알림 권한만 물어봐요. 그래서 화면에는 꺼진 것처럼 보이는데 알림은 계속 오는 상태가 됩니다. 켜짐/꺼짐 표시는 이 기기에만 저장돼요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:898",
+          "file": "src/screens/deepspace/ops/screens.tsx:997",
           "fileTrust": "·",
           "impl": "src/lib/ops/reminders.ts:268",
           "implTrust": "·",
@@ -13269,7 +13224,7 @@
           "raw": "Add from assistant",
           "symbol": null,
           "does": "새 알림을 만들려면 이 버튼으로 비서 화면에 가야 해요. 여기서는 만들 수 없어요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:948",
+          "file": "src/screens/deepspace/ops/screens.tsx:1047",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -13292,7 +13247,7 @@
           "raw": "Retry after a load error",
           "symbol": null,
           "does": "불러오기가 실패하면 오류 카드가 뜨고, '다시 시도'를 누르면 목록을 처음부터 다시 가져와요.",
-          "file": "src/screens/deepspace/ops/screens.tsx:952",
+          "file": "src/screens/deepspace/ops/screens.tsx:1051",
           "fileTrust": "·",
           "impl": "src/screens/deepspace/ops/screens.tsx:109",
           "implTrust": "·",
