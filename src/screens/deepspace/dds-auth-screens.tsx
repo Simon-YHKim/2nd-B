@@ -610,6 +610,13 @@ export function DeepSpaceResetPasswordDesignScreen() {
     canSubmit,
     handleSubmit,
   } = useResetPasswordForm();
+  // confirmRef must be created BEFORE the early loading return so the hook order
+  // is stable across renders. AuthContext starts loading:true, so a cold start
+  // from the reset-password mail link renders the spinner first (fewer hooks)
+  // then the form (one more); calling useRef after the return threw "Rendered
+  // more hooks than during the previous render" (the file-level eslint-disable
+  // is why react-hooks/rules-of-hooks never caught it).
+  const confirmRef = useRef<TextInput>(null);
 
   if (loading) {
     return (
@@ -620,7 +627,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
   }
 
   const helperDanger = helperKey !== "resetPassword.passwordHelper";
-  const confirmRef = useRef<TextInput>(null);
 
   return (
     <AuthShell>
