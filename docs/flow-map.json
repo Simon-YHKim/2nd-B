@@ -48,9 +48,7 @@
         "edge:gemini-proxy",
         "db:knowledge_sources:select",
         "rpc:award_xp",
-        "db:users:select",
-        "rpc:log_ai_audit",
-        "db:records:update"
+        "rpc:log_ai_audit"
       ],
       "ai": true,
       "callees": [
@@ -278,7 +276,7 @@
       "via": "gatherLensSignal"
     },
     "buildPersona": {
-      "file": "src/lib/persona/build.ts:527",
+      "file": "src/lib/persona/build.ts:551",
       "apis": [
         "db:records:select",
         "db:personas:select",
@@ -341,16 +339,14 @@
       "via": "callGemini"
     },
     "createRecord": {
-      "file": "src/lib/records/create.ts:100",
+      "file": "src/lib/records/create.ts:101",
       "apis": [
         "db:memorized_patterns:insert",
         "db:records:insert",
         "edge:gemini-proxy",
         "db:knowledge_sources:select",
         "rpc:award_xp",
-        "db:users:select",
-        "rpc:log_ai_audit",
-        "db:records:update"
+        "rpc:log_ai_audit"
       ],
       "ai": true,
       "callees": [
@@ -360,13 +356,10 @@
         "callAdvisor",
         "buildMemorizedPattern",
         "callGemini",
+        "withTimeout",
         "withDomainTag",
         "invalidateDomainLevels",
-        "awardXpSafe",
-        "getEnv",
-        "fetchPrivacyPrefs",
-        "recordsEmbeddingAllowed",
-        "embedAndStoreRecord"
+        "awardXpSafe"
       ],
       "via": "callAdvisor"
     },
