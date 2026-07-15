@@ -100,22 +100,26 @@ jobs:
           # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
           # change); flip the repo Variable to "2" to activate Phase 2 routing.
           EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
-          # Naver social sign-up (code + oauth-naver edge function are already
-          # in-repo, OFF by default). To go live: register the app at
-          # developers.naver.com (callback: <origin>/2nd-B/oauth-callback),
-          # deploy the oauth-naver function with its server secrets, then set
-          # repo Variables EXPO_PUBLIC_ENABLE_NAVER=true and
-          # EXPO_PUBLIC_NAVER_CLIENT_ID. The '|| false' fallback keeps an
-          # unset Variable from feeding zod an empty string.
-          EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'false' }}
-          # Supabase-native social providers. Buttons show only when the
-          # provider is actually enabled in the Supabase console AND the
-          # matching Variable is "true" (live QA 2026-06-11: Apple/Kakao were
-          # not enabled and users hit a raw JSON error - defaults are now
-          # google=true (verified working), apple/kakao=false).
+          # Naver social sign-up (custom OAuth via the oauth-naver edge function,
+          # already in-repo). Server side confirmed live 2026-07-15 (Simon):
+          # oauth-naver deployed with its secrets and the app registered at
+          # developers.naver.com (callback <origin>/2nd-B/oauth-callback), so the
+          # default is now "true". The button still needs EXPO_PUBLIC_NAVER_CLIENT_ID
+          # set below, since isNaverEnabled() gates on the id too. The '|| true'
+          # also keeps an unset Variable from feeding zod an empty string. Set the
+          # Variable to "false" to hide it on a deploy where the server is not ready.
+          EXPO_PUBLIC_ENABLE_NAVER: ${{ vars.EXPO_PUBLIC_ENABLE_NAVER || 'true' }}
+          # Supabase-native social providers. Buttons show only when the provider
+          # is actually enabled in the Supabase console AND the matching Variable
+          # is "true". Simon confirmed Google/Kakao/GitHub are enabled server-side
+          # (2026-07-15), so those default "true". Apple stays "false" pending
+          # Apple Developer / App Store review; Facebook is unset here (env.ts
+          # default "false"). A provider left "false" hides its button so users
+          # never hit a raw provider error page (the 2026-06-11 live-QA failure).
           EXPO_PUBLIC_ENABLE_GOOGLE: ${{ vars.EXPO_PUBLIC_ENABLE_GOOGLE || 'true' }}
           EXPO_PUBLIC_ENABLE_APPLE: ${{ vars.EXPO_PUBLIC_ENABLE_APPLE || 'false' }}
-          EXPO_PUBLIC_ENABLE_KAKAO: ${{ vars.EXPO_PUBLIC_ENABLE_KAKAO || 'false' }}
+          EXPO_PUBLIC_ENABLE_KAKAO: ${{ vars.EXPO_PUBLIC_ENABLE_KAKAO || 'true' }}
+          EXPO_PUBLIC_ENABLE_GITHUB: ${{ vars.EXPO_PUBLIC_ENABLE_GITHUB || 'true' }}
           EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID }}
           # Analytics (Simon directive 2026-06-11): the client code has been
           # consent-gated and wired since #258, but the build never injected
