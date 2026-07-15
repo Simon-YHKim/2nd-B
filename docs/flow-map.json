@@ -13893,8 +13893,11 @@
             "승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요",
             "그 잘못된 빈 카드의 '북극성으로 가기'를 누르면 이 화면을 떠나게 돼요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/ratifications.tsx:168"
+          "knownBug": false,
+          "bugAnchor": "src/app/ratifications.tsx:168",
+          "fixedIn": "#994",
+          "fixedOn": "2026-07-15",
+          "wasBug": "The empty-state keyed \"nothing at all\" on unchanged.length===0; with all-real-change records that is 0, so tapping 보류/거절 (visible always [] by design) showed \"기록이 하나도 없다\" over a full ratified log. Now keys on all.length via ratificationEmptyState."
         },
         {
           "action": "변화 없는 기록도 보기",

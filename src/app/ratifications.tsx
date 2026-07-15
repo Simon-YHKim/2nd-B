@@ -23,7 +23,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
 import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
 import { loadTierObservations } from "@/lib/persona/load-tier-observations";
-import { buildRatificationLog, type RatificationEntry } from "@/lib/persona/brightness-timeline";
+import { buildRatificationLog, ratificationEmptyState, type RatificationEntry } from "@/lib/persona/brightness-timeline";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
 // Amber warning tone for the 보류 column — the one raw literal, transcribed 1:1
@@ -172,14 +172,14 @@ export default function RatificationLogScreen() {
         {/* timeline */}
         {entries === null ? (
           <PremiumLoadingState message={t("openingLedger")} />
-        ) : visible.length === 0 && unchanged.length === 0 ? (
+        ) : ratificationEmptyState(all.length, visible.length) === "none" ? (
           <MdCard variant="outlined" style={styles.emptyCard}>
             <Text style={styles.emptyText}>
               {t("emptyAll")}
             </Text>
             <MdButton variant="tonal" label={t("goPolaris")} onPress={() => router.replace("/core-brain")} />
           </MdCard>
-        ) : visible.length === 0 ? (
+        ) : ratificationEmptyState(all.length, visible.length) === "filtered" ? (
           <MdCard variant="outlined" style={styles.emptyCard}>
             <Text style={styles.emptyText}>
               {t("emptyFilter")}
