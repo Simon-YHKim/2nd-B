@@ -6318,8 +6318,10 @@
             "지난달 불러오기만 실패해도 똑같이 퍼센트 없는 '지출 ↑' 딱지가 떠요 (오류 안내는 안 떠요)",
             "지출이 지난달과 똑같을 때만 변화 딱지가 안 보여요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:484"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:484",
+          "notABug": "failureModes describes CORRECT behaviour: on a failed month load it shows an error state + retry (OpsState variant=error). That is the honest handling, not a defect.",
+          "notABugVerifiedOn": "2026-07-15"
         },
         {
           "action": "빠른 기록 추가하기 (0원 자리표시 줄만 생김)",
@@ -6353,8 +6355,11 @@
             "저장에 실패해도 화면에 아무 오류가 안 떠요 (실패하면 목록 새로고침 자체가 실행되지 않아 오류 화면이 뜰 수 없어요)",
             "0원짜리 줄만 있으면 분류별 막대 길이가 0 ÷ 0 계산이 돼서 막대가 채워지지 않고 빈 칸으로 보여요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:504"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:504",
+          "fixedIn": "#993",
+          "fixedOn": "2026-07-15",
+          "wasBug": "The ＋ button inserted a hardcoded 0-won 기타 placeholder; no amount input, no delete. Wired a real amount+category+kind form and per-row delete (the lib supported both all along)."
         },
         {
           "action": "불러오기 실패했을 때 다시 시도 누르기",

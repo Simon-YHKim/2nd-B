@@ -51,7 +51,7 @@ import {
   type Milestone,
   type MilestoneStatus,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, listEntriesForMonth, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -534,23 +534,45 @@ export function LedgerScreen() {
   const maxCat = summary.byCategory[0]?.total ?? 1;
   const [busy, setBusy] = useState(false);
 
-  // 빠른 기록 [데이터 추가]: drop a small placeholder expense row the user edits
-  // later. A real amount/category form is the next step; this closes the dead
-  // "no write action" gap so the month summary reflects manual entries.
-  const onQuickRecord = async () => {
-    if (!userId || busy) return;
+  // The real entry form. This screen used to have only a ＋ button that inserted a
+  // placeholder row (amount 0, category "기타") the user could never edit -- so it could
+  // not be used as a ledger at all: no way to enter an amount, no way to delete a wrong
+  // row. The lib always supported both (createLedgerEntry takes a real amount/category,
+  // deleteLedgerEntry exists); only the UI was missing.
+  const [kind, setKind] = useState<"expense" | "income">("expense");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const amountNum = Math.floor(Number(amount.replace(/[^0-9]/g, "")));
+  const canAdd = !busy && amountNum > 0;
+
+  const onAddEntry = async () => {
+    if (!userId || !canAdd) return;
     setBusy(true);
     setSaveErr(false);
     try {
       await createLedgerEntry(userId, {
-        kind: "expense",
-        amount_krw: 0,
-        category: ko ? "기타" : "Other",
+        kind,
+        amount_krw: amountNum,
+        category: category.trim() || (ko ? "기타" : "Other"),
       });
+      setAmount("");
+      setCategory("");
       entries.reload();
     } catch {
-      // The write failed. Say so: reload() lives inside the try above, so on this path
-      // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDeleteEntry = async (id: string) => {
+    if (!userId || busy) return;
+    setBusy(true);
+    setSaveErr(false);
+    try {
+      await deleteLedgerEntry(userId, id);
+      entries.reload();
+    } catch {
       setSaveErr(true);
     } finally {
       setBusy(false);
@@ -579,9 +601,57 @@ export function LedgerScreen() {
         ) : null}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={onQuickRecord} hitSlop={6} disabled={busy} style={styles.addRow}>
-        <Text variant="caption" style={styles.addRowText}>＋ {c.record}</Text>
-      </Pressable>
+      {/* entry form — real amount + category, not a placeholder row */}
+      <View style={styles.ledgerForm}>
+        <View style={styles.kindToggle}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: kind === "expense" }}
+            onPress={() => setKind("expense")}
+            style={[styles.kindBtn, kind === "expense" && styles.kindBtnOn]}
+          >
+            <Text variant="caption" style={[styles.kindTxt, kind === "expense" && styles.kindTxtOn]}>{c.expense}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: kind === "income" }}
+            onPress={() => setKind("income")}
+            style={[styles.kindBtn, kind === "income" && styles.kindBtnOn]}
+          >
+            <Text variant="caption" style={[styles.kindTxt, kind === "income" && styles.kindTxtOn]}>{c.income}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.searchRow}>
+          <TextInput
+            value={amount}
+            onChangeText={setAmount}
+            placeholder={c.amountPlaceholder}
+            placeholderTextColor={deepSpace.textLo}
+            style={[styles.searchInput, { flex: 0, width: 118 }]}
+            keyboardType="number-pad"
+            returnKeyType="next"
+            accessibilityLabel={c.amountPlaceholder}
+          />
+          <TextInput
+            value={category}
+            onChangeText={setCategory}
+            onSubmitEditing={() => void onAddEntry()}
+            placeholder={c.categoryPlaceholder}
+            placeholderTextColor={deepSpace.textLo}
+            style={styles.searchInput}
+            returnKeyType="done"
+            accessibilityLabel={c.categoryPlaceholder}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void onAddEntry()}
+            disabled={!canAdd}
+            style={[styles.addBtn, !canAdd && styles.addBtnOff]}
+          >
+            <Text variant="caption" style={styles.addBtnTxt}>{c.addEntry}</Text>
+          </Pressable>
+        </View>
+      </View>
 
       {entries.status === "loading" ? (
         <OpsState variant="empty" title="…" body={c.emptyBody} />
@@ -603,6 +673,35 @@ export function LedgerScreen() {
           ))}
         </View>
       )}
+
+      {/* individual entries, each deletable -- the other half of "can't use it as a
+          ledger": before this there was no way to remove a wrong row. */}
+      {(entries.data ?? []).length > 0 ? (
+        <View style={styles.section}>
+          <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.entriesLabel}</Text>
+          {(entries.data ?? []).map((e) => (
+            <View key={e.id} style={styles.entryRow}>
+              <Text variant="body" style={styles.entryCat} numberOfLines={1}>
+                {e.category}
+              </Text>
+              <Text variant="body" style={[styles.entryAmt, e.kind === "income" && { color: deepSpace.mint }]}>
+                {e.kind === "expense" ? "-" : "+"}{e.amount_krw.toLocaleString()}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${e.category} ${c.deleteEntry}`}
+                onPress={() => void onDeleteEntry(e.id)}
+                disabled={busy}
+                hitSlop={8}
+                style={styles.entryDel}
+              >
+                <RNText style={styles.entryDelTxt}>✕</RNText>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <Text variant="subtle" style={styles.fxNote}>{c.fxNote}</Text>
     </OpsFrame>
   );
@@ -1198,6 +1297,29 @@ const styles = StyleSheet.create({
   catRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   catName: { fontSize: 13, color: deepSpace.textMid },
   fxNote: { fontSize: 12, color: deepSpace.textLo },
+  ledgerForm: { gap: deepSpaceSpacing.sm, marginBottom: deepSpaceSpacing.sm },
+  kindToggle: { flexDirection: "row", gap: deepSpaceSpacing.xs },
+  kindBtn: {
+    flex: 1, minHeight: 38, alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md,
+  },
+  kindBtnOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.12) },
+  kindTxt: { fontSize: 13, color: deepSpace.textLo },
+  kindTxtOn: { color: deepSpace.accent },
+  addBtn: {
+    minHeight: 44, paddingHorizontal: deepSpaceSpacing.md, alignItems: "center", justifyContent: "center",
+    borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent,
+  },
+  addBtnOff: { opacity: 0.4 },
+  addBtnTxt: { fontSize: 14, color: deepSpace.bg, fontFamily: fontFamilies.sans },
+  entryRow: {
+    flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm,
+    paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine,
+  },
+  entryCat: { flex: 1, fontSize: 13, color: deepSpace.textMid },
+  entryAmt: { fontSize: 13, color: deepSpace.textHi, fontVariant: ["tabular-nums"] },
+  entryDel: { padding: 4 },
+  entryDelTxt: { fontSize: 15, color: deepSpace.textLo },
 
   ghCard: {
     padding: deepSpaceSpacing.md,
