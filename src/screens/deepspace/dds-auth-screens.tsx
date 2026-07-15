@@ -4,7 +4,7 @@
 // DeepSpaceDesignScreens re-exports them so every route import is unchanged.
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -99,21 +99,6 @@ function AppleGlyph({ color }: { color: string }) {
   );
 }
 
-function MailGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
-      <Path
-        stroke={color}
-        strokeWidth={1.7}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-        d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"
-      />
-    </Svg>
-  );
-}
-
 function AuthToast({ message, tone }: { message: string; tone: "info" | "success" | "danger" }) {
   const toneStyle =
     tone === "success" ? styles.authToastSuccess : tone === "danger" ? styles.authToastDanger : styles.authToastInfo;
@@ -179,10 +164,6 @@ export function DeepSpaceSignInDesignScreen() {
     handleForgotPassword,
   } = useSignInForm();
   const passwordRef = useRef<TextInput>(null);
-  // Progressive disclosure: the first paint is social-first (provider pills +
-  // an "이메일로 계속하기" entry), matching the 01-auth canon. Tapping the entry
-  // reveals the email/password fields (Simon O-7 one-touch-simplifies rule).
-  const [emailOpen, setEmailOpen] = useState(false);
 
   if (loading) {
     return (
@@ -231,117 +212,105 @@ export function DeepSpaceSignInDesignScreen() {
       </View>
 
       <View style={styles.authMethods}>
-        {!emailOpen ? (
-          <>
-            {visibleProviders.map(renderProvider)}
-            {naverEnabled ? (
-              <Pressable
-                onPress={handleNaver}
-                disabled={oauthBusy}
-                style={[styles.providerPill, styles.providerPillDark, oauthBusy && styles.btnDisabled]}
-                accessibilityRole="button"
-                accessibilityLabel={t("auth:signIn.continueWithNaver")}
-              >
-                <View style={styles.providerPillRow}>
-                  <RNText style={styles.providerMarkDark}>N</RNText>
-                  <Text variant="body" style={styles.providerPillTextDark}>{t("auth:signIn.continueWithNaver")}</Text>
-                </View>
-              </Pressable>
-            ) : null}
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+          textContentType="emailAddress"
+          placeholder="email@example.com"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signIn.email")}
+          style={styles.input}
+          returnKeyType="next"
+          blurOnSubmit={false}
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+        <View style={styles.authLabelRow}>
+          <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.password")}</Text>
+          <Pressable
+            onPress={toggleShowPassword}
+            hitSlop={14}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}
+            accessibilityState={{ selected: showPassword }}
+            style={styles.eyeBtn}
+          >
+            <Text variant="body" style={styles.eyeText}>{showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}</Text>
+          </Pressable>
+        </View>
+        <TextInput
+          ref={passwordRef}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          autoComplete="current-password"
+          textContentType="password"
+          placeholder="••••••••"
+          placeholderTextColor={colors.textLo}
+          accessibilityLabel={t("auth:signIn.password")}
+          style={styles.input}
+          returnKeyType="go"
+          onSubmitEditing={() => {
+            if (canSubmit) void handleSubmit();
+          }}
+        />
+        <Pressable
+          onPress={() => void handleSubmit()}
+          disabled={!canSubmit}
+          style={[styles.providerPill, styles.authPrimary, !canSubmit && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth:signIn.submit")}
+          accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+        >
+          <Text variant="body" style={styles.authPrimaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
+        </Pressable>
 
-            <Pressable
-              onPress={() => setEmailOpen(true)}
-              style={styles.emailEntry}
-              accessibilityRole="button"
-              accessibilityLabel={t("deepspace:auth.emailContinue")}
-            >
-              <View style={styles.emailEntryLeft}>
-                <MailGlyph color={colors.cyanSoft} />
-                <Text variant="body" style={styles.emailEntryLabel}>{t("deepspace:auth.emailContinue")}</Text>
-              </View>
-              <RNText style={styles.emailEntryArrow}>{"→"}</RNText>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoFocus
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              placeholder="email@example.com"
-              placeholderTextColor={colors.textLo}
-              accessibilityLabel={t("auth:signIn.email")}
-              style={styles.input}
-              returnKeyType="next"
-              blurOnSubmit={false}
-              onSubmitEditing={() => passwordRef.current?.focus()}
-            />
-            <View style={styles.authLabelRow}>
-              <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signIn.password")}</Text>
-              <Pressable
-                onPress={toggleShowPassword}
-                hitSlop={14}
-                accessibilityRole="button"
-                accessibilityLabel={showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}
-                accessibilityState={{ selected: showPassword }}
-                style={styles.eyeBtn}
-              >
-                <Text variant="body" style={styles.eyeText}>{showPassword ? t("auth:signIn.hidePasswordLabel") : t("auth:signIn.showPasswordLabel")}</Text>
-              </Pressable>
+        <Pressable
+          onPress={() => void handleForgotPassword()}
+          disabled={resetSubmitting}
+          hitSlop={14}
+          style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t("auth:signIn.resetLabel")}
+          accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
+        >
+          <Text variant="body" style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
+        </Pressable>
+
+        {resetHelpVisible ? (
+          <View style={styles.authHelpCard} accessibilityRole="alert">
+            <Text variant="heading" style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
+            <Text variant="body" style={styles.authHelpBody}>
+              {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
+            </Text>
+          </View>
+        ) : null}
+
+        {visibleProviders.length > 0 || naverEnabled ? (
+          <View style={styles.authDividerRow}>
+            <View style={styles.authDividerLine} />
+            <Text variant="caption" pixelEn style={styles.authDividerLabel}>{t("deepspace:auth.or")}</Text>
+            <View style={styles.authDividerLine} />
+          </View>
+        ) : null}
+
+        {visibleProviders.map(renderProvider)}
+        {naverEnabled ? (
+          <Pressable
+            onPress={handleNaver}
+            disabled={oauthBusy}
+            style={[styles.providerPill, styles.providerPillDark, oauthBusy && styles.btnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t("auth:signIn.continueWithNaver")}
+          >
+            <View style={styles.providerPillRow}>
+              <RNText style={styles.providerMarkDark}>N</RNText>
+              <Text variant="body" style={styles.providerPillTextDark}>{t("auth:signIn.continueWithNaver")}</Text>
             </View>
-            <TextInput
-              ref={passwordRef}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoComplete="current-password"
-              textContentType="password"
-              placeholder="••••••••"
-              placeholderTextColor={colors.textLo}
-              accessibilityLabel={t("auth:signIn.password")}
-              style={styles.input}
-              returnKeyType="go"
-              onSubmitEditing={() => {
-                if (canSubmit) void handleSubmit();
-              }}
-            />
-            <Pressable
-              onPress={() => void handleSubmit()}
-              disabled={!canSubmit}
-              style={[styles.providerPill, styles.authPrimary, !canSubmit && styles.btnDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel={t("auth:signIn.submit")}
-              accessibilityState={{ disabled: !canSubmit, busy: submitting }}
-            >
-              <Text variant="body" style={styles.authPrimaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => void handleForgotPassword()}
-              disabled={resetSubmitting}
-              hitSlop={14}
-              style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
-              accessibilityRole="button"
-              accessibilityLabel={t("auth:signIn.resetLabel")}
-              accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
-            >
-              <Text variant="body" style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
-            </Pressable>
-
-            {resetHelpVisible ? (
-              <View style={styles.authHelpCard} accessibilityRole="alert">
-                <Text variant="heading" style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
-                <Text variant="body" style={styles.authHelpBody}>
-                  {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
-                </Text>
-              </View>
-            ) : null}
-          </>
-        )}
+          </Pressable>
+        ) : null}
 
         <Pressable onPress={() => router.push("/sign-up")} style={styles.authSignUpRow} accessibilityRole="link" accessibilityLabel={`${t("deepspace:auth.signUpPrompt")} ${t("deepspace:auth.signUp")}`}>
           <Text variant="body" style={styles.authSignUpPrompt}>{t("deepspace:auth.signUpPrompt")}</Text>
@@ -610,6 +579,13 @@ export function DeepSpaceResetPasswordDesignScreen() {
     canSubmit,
     handleSubmit,
   } = useResetPasswordForm();
+  // confirmRef must be created BEFORE the early loading return so the hook order
+  // is stable across renders. AuthContext starts loading:true, so a cold start
+  // from the reset-password mail link renders the spinner first (fewer hooks)
+  // then the form (one more); calling useRef after the return threw "Rendered
+  // more hooks than during the previous render" (the file-level eslint-disable
+  // is why react-hooks/rules-of-hooks never caught it).
+  const confirmRef = useRef<TextInput>(null);
 
   if (loading) {
     return (
@@ -620,7 +596,6 @@ export function DeepSpaceResetPasswordDesignScreen() {
   }
 
   const helperDanger = helperKey !== "resetPassword.passwordHelper";
-  const confirmRef = useRef<TextInput>(null);
 
   return (
     <AuthShell>

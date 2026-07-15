@@ -272,8 +272,15 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // false) must not reach ANY feature screen, since every one may invoke Gemini
   // before the age gate + consent are collected. Redirect to /complete-profile.
   // The (auth) group (sign-in/up, complete-profile, oauth-callback) is exempt so
-  // the user can actually finish. Per-screen redirects stay as defense-in-depth.
-  if (!loading && userId && hasProfile === false && segments[0] !== "(auth)") {
+  // the user can actually finish. /onboarding is ALSO exempt: it is a content-only
+  // welcome carousel (no Gemini/feature path) that, under login-first entry (#1000),
+  // runs right AFTER /complete-profile; yanking the just-completed user off it inside
+  // the post-refresh stale-hasProfile window re-opened the E2E-2 /onboarding <->
+  // /complete-profile "Maximum update depth exceeded" loop. The profile gate still
+  // holds: "/" (DeepSpaceShell) forces hasProfile===false to /complete-profile
+  // before onboarding, and onboarding exits back through "/". Per-screen redirects
+  // stay as defense-in-depth.
+  if (!loading && userId && hasProfile === false && segments[0] !== "(auth)" && segments[0] !== "onboarding") {
     return <Redirect href="/complete-profile" />;
   }
 

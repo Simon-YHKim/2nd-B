@@ -878,12 +878,12 @@
   },
   "onboarding": {
     "nextHint": "Goes to the next slide.",
-    "skipHint": "Skips the intro and opens the sign-in screen.",
-    "authHint": "Opens the sign-in screen.",
-    "authLabel": "Log in to begin",
+    "skipHint": "Skips the intro.",
+    "authHint": "Goes to your home.",
+    "authLabel": "Get started",
     "secondbName": "SecondB",
     "authTitle": "Ready to begin?",
-    "authBody": "Sign in to pick up your constellation on any device.",
+    "authBody": "Let's start building your constellation.",
     "next": "Next"
   },
   "trends": {

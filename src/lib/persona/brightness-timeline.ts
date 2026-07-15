@@ -113,3 +113,20 @@ export function buildRatificationLog(observations: readonly TierObservation[]): 
   }
   return entries.reverse();
 }
+
+// Which empty state (if any) the /ratifications timeline should show.
+//
+// The bug this replaced keyed "nothing at all" on the count of UNCHANGED (same-level echo)
+// rows. When every record is a real tier change -- the normal case -- that count is 0 even
+// though the user has ratified records, and the 보류/거절 filters show nothing by design (a
+// persisted ratification is always an acceptance). So tapping 보류/거절 rendered "기록이 하나도
+// 없다" over a full log. The honest signal is the TOTAL count: no records at all vs. none in
+// the current filter.
+export function ratificationEmptyState(
+  allCount: number,
+  visibleCount: number,
+): "none" | "filtered" | null {
+  if (allCount === 0) return "none";
+  if (visibleCount === 0) return "filtered";
+  return null;
+}
