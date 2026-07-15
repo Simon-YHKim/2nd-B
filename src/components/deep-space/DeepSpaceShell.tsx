@@ -65,13 +65,13 @@ export function DeepSpaceShell() {
   }, [loading, userId]);
 
   if (loading) return <InlineLoader />;
-  // Sell before signup: a first-launcher who hasn't onboarded sees /onboarding
-  // first (it renders pre-auth), then routes to sign-up. Only after onboarding
-  // do we gate on auth + profile.
-  if (onboardingComplete === null) return <InlineLoader />;
-  if (!onboardingComplete) return <Redirect href="/onboarding" />;
+  // Login wall first (Simon 2026-07-15): a signed-out visitor hits /sign-in
+  // before anything else; onboarding is now a post-login welcome. This reverses
+  // the earlier "sell before signup" order so nothing renders pre-auth.
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (onboardingComplete === null) return <InlineLoader />;
+  if (!onboardingComplete) return <Redirect href="/onboarding" />;
   // autoTriggerTTFV hydrates from AsyncStorage on native and is null until the
   // read resolves. Without this guard, null is falsy so the shell renders
   // ConstellationHome (and coachmarks) for one frame, then bounces to /ttfv once

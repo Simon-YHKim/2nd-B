@@ -105,8 +105,10 @@ export default function Onboarding() {
   const skipHint = t("onboarding.skipHint");
   const authHint = t("onboarding.authHint");
 
-  // The final slide hands off to the REAL auth path (age-tiered sign-up, C10).
-  // Already-signed-in users (reached onboarding post-auth) go straight home.
+  // Onboarding now runs AFTER login (DeepSpaceShell gates auth first), so the
+  // user is already signed in at the final slide: finish onboarding and go home.
+  // The signed-out branch stays as a defensive fallback (e.g. a direct deep-link
+  // to /onboarding while logged out).
   function goToAuth() {
     markOnboardingComplete();
     if (userId) router.replace("/");

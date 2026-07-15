@@ -878,12 +878,12 @@
   },
   "onboarding": {
     "nextHint": "다음 소개로 넘어갑니다.",
-    "skipHint": "소개를 건너뛰고 로그인 화면으로 이동합니다.",
-    "authHint": "로그인 화면으로 이동합니다.",
-    "authLabel": "로그인하고 시작하기",
+    "skipHint": "소개를 건너뜁니다.",
+    "authHint": "홈으로 이동합니다.",
+    "authLabel": "시작하기",
     "secondbName": "세컨비",
     "authTitle": "시작할까요?",
-    "authBody": "로그인하면 어느 기기에서나 당신의 별자리를 이어서 볼 수 있어요.",
+    "authBody": "이제 당신의 별자리를 만들어볼까요.",
     "next": "다음"
   },
   "trends": {
