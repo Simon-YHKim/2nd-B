@@ -1,14 +1,14 @@
 {
   "git": {
-    "head": "2287ae5cd970b53ebca38ac96029c3e19f07a0ac",
-    "branch": "main",
+    "head": "10f9a0ed93db63a527b83fdef15bfd6bcc867f6e",
+    "branch": "docs/flow-map-refresh-post-auth",
     "dirty": true,
-    "describedAt": "2026-07-15T08:27:04+09:00"
+    "describedAt": "2026-07-15T05:37:04Z"
   },
-  "at": "2026-07-15T00:31:22.849Z",
+  "at": "2026-07-15T06:25:13.582Z",
   "counts": {
     "screens": 86,
-    "actions": 519,
+    "actions": 518,
     "anchoredFiles": 164
   },
   "files": {
@@ -49,7 +49,7 @@
     "src/app/persona.tsx": "ad404cafe9baaf2a",
     "src/app/plans.tsx": "1db41c16e85f6f09",
     "src/app/profile.tsx": "16f485185ba80224",
-    "src/app/ratifications.tsx": "356b38a97251b4a0",
+    "src/app/ratifications.tsx": "c7e6d231b90b62bf",
     "src/app/rest.tsx": "be4336253d5fa7bf",
     "src/app/review.tsx": "fbac7f63b2650e05",
     "src/app/rlss.tsx": "f3781870faabfaed",
@@ -165,7 +165,7 @@
     "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx": "1d4ad0b1822ca47d",
     "src/screens/deepspace/DeepSpaceHomeScreen.tsx": "0c2b9dbfa91d5db0",
     "src/screens/deepspace/DeepSpaceHubDockScreen.tsx": "7647d79f8cc41ba2",
-    "src/screens/deepspace/dds-auth-screens.tsx": "8e69990b2d1bbad8",
+    "src/screens/deepspace/dds-auth-screens.tsx": "d8b971e8c59c0ac1",
     "src/screens/deepspace/dds-import-inbox-screens.tsx": "8bb515de6d205c22",
     "src/screens/deepspace/dds-plans-screen.tsx": "9563c2011dee199d",
     "src/screens/deepspace/dds-wiki-records-screens.tsx": "22595ecc8e4a751f",
@@ -173,7 +173,7 @@
     "src/screens/deepspace/import/ImportHubScreen.tsx": "8fdda226bdd3ec45",
     "src/screens/deepspace/museum/MuseumTimelineScreen.tsx": "fdf8633cad0fc367",
     "src/screens/deepspace/onboarding/TTFVScreen.tsx": "209d47447e31dd3c",
-    "src/screens/deepspace/ops/screens.tsx": "bd3245b257fc8177",
+    "src/screens/deepspace/ops/screens.tsx": "5f9c362cfaf16f6c",
     "src/screens/deepspace/trends/TrendsScreen.tsx": "b8840c3ddc6f22be",
     "supabase/functions/peer-respond/index.ts": "9896bc3cabad79fe"
   }

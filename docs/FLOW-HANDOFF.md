@@ -4,14 +4,14 @@
 > 개별 화면을 건드릴 땐 [`docs/flow-map.json`](docs/flow-map.json) 를 조회한다(아래 §5).
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
-**86개 화면 · 519개 동작 · 서버/데이터 96종 · AI 14종**  
-코드 좌표 998개 전부 실제 소스와 대조: **✔ 함수까지 확인 373** · **· 파일·줄만 확인 621** · ⚠ 4
+**86개 화면 · 518개 동작 · 서버/데이터 96종 · AI 14종**  
+코드 좌표 996개 전부 실제 소스와 대조: **✔ 함수까지 확인 373** · **· 파일·줄만 확인 619** · ⚠ 4
 
 **스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `2287ae5c` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `10f9a0ed` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
@@ -82,7 +82,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 | 영역 | 화면 | 동작 | 주요 화면 |
 |---|---|---|---|
-| **인증·시작** | 8 | 39 | 로그인 `/sign-in` · 회원가입 `/sign-up` · 가입 마무리(생년월일·동의) `/complete-profile` · 비밀번호 재설정 `/reset-password` |
+| **인증·시작** | 8 | 38 | 로그인 `/sign-in` · 회원가입 `/sign-up` · 가입 마무리(생년월일·동의) `/complete-profile` · 비밀번호 재설정 `/reset-password` |
 | **홈·별자리** | 10 | 47 | 홈 별자리 `/` · 허브 도크 (개발용 미리보기) `/deepspace-hub` · 도메인 별 렌즈 `/star/[domain]` · 북극성 문장 `/northstar` |
 | **담기·기록** | 5 | 49 | 전체 담기 `/capture-full` · 위키 (기록 보관소) `/records` · 담기 `/capture` · 별가루 상세 `/record/[id]` |
 | **검사·진단** | 10 | 77 | 성격 5요인 검사 `/big-five` · 동기 자기보고 `/motivation` · 애착 유형 `/attachment` · 가치 자기보고 `/values` |
@@ -97,7 +97,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 ---
 
-## 3. 알려진 문제 29건
+## 3. 알려진 문제 26건
 
 손대기 전에 여기 있는지 먼저 본다. **코드 위치 = 결함이 있는 곳(화면)** — 액션이 부르는 lib(`impl`)이 아니다.
 
@@ -111,8 +111,6 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:227` |
 | `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` |
 | `/formats` | 원본 기록 포함 스위치 | 실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722` |
-| `/ledger` | 화면 열기 (이번 달·지난 달 내역 불러오기) | 인터넷이 끊기면 '잠시 불러오지 못했어요' 안내와 다시 시도 버튼이 떠요 (이번 달 불러오기가 실패한 경우에… | `src/screens/deepspace/ops/screens.tsx:484` |
-| `/ledger` | 빠른 기록 추가하기 (0원 자리표시 줄만 생김) | 실제 금액을 입력할 수 없어 가계부로 쓸 수 없고, 잘못 생긴 줄을 지울 수도 없어요 | `src/screens/deepspace/ops/screens.tsx:504` |
 | `/secondb` | 화면 열기 (로그인·가입정보 확인 + 인사 모달 + 오늘 쓴 횟수 불러오기) | 구글 로그인만 하고 생년월일·동의를 아직 안 채웠으면 세컨비 화면이 아예 열리지 않고 정보 입력 화면(/co… | `src/app/secondb.tsx:400` |
 | `/secondb` | 음성 입력 마이크 누르기 (동작하지 않음) | 마이크 아이콘은 눌러도 아무 동작이 없어요 (핸들러가 아예 없는 미완성 버튼) | `src/app/secondb.tsx:248` |
 | `/secondb` | 근거 보기 (참고한 기록 열기) | 누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 … | `src/app/secondb.tsx:743` |
@@ -127,7 +125,6 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2423` |
 | `/import-hub` | '이 기기에서만 처리' 스위치 | 스위치를 어느 쪽에 두든 저장하면 서버 업로드는 그대로 일어나요 (스위치가 동작하지 않는 버그) | `src/screens/deepspace/import/ImportHubScreen.tsx:343` |
 | `/call-reflection` | '녹음 멈추고 분석' 누르기 — 배포본에서는 100% 실패 (다만 이 화면 자체에 들어오는 길이 없음) | 지금 배포된 앱에서는 '녹음 멈추고 분석'이 100% 실패해요. 매번 '받아 적기에 실패했어요.'만 뜨고 처… | `src/app/call-reflection.tsx:134` |
-| `/ratifications` | 결정 종류로 거르기 | 승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요 | `src/app/ratifications.tsx:168` |
 | `/settings` | 다크 모드·강조색 바꾸기, '기능' 스위치 5개 켜고 끄기 | '앱 잠금'을 켜도 앱이 잠기지 않습니다 — 남에게 폰을 건네도 그대로 열립니다 (생체 인증 기능 자체가 앱… | `src/app/settings.tsx:414` |
 | `/settings` | '데이터 연동'의 연결 버튼 누르기 (Google 캘린더 · Apple 건강 · Notion) | '연결됨 · 동기화 중'이라고 표시되지만 실제 동기화는 전혀 일어나지 않습니다 (화면이 거짓말을 합니다) | `src/app/settings.tsx:415` |
 | `/settings` | '그래프 크루 (장식 로봇)' 밀도 바꾸기 (없음/적게/보통/많이) | 밀도를 '많이'로 해도 크루가 하나도 안 보입니다 — 이 설정이 붙어 있는 그래프 화면이 기본 화면에서 안 … | `src/app/settings.tsx:801` |
@@ -307,7 +304,7 @@ flowchart LR
 
 ## 5. 필요할 때 찾아보는 법
 
-읽는 건 여기까지다. 나머지는 **찾아 쓴다** — [`docs/flow-map.json`](docs/flow-map.json) 에 519개 동작 전부 있다.
+읽는 건 여기까지다. 나머지는 **찾아 쓴다** — [`docs/flow-map.json`](docs/flow-map.json) 에 518개 동작 전부 있다.
 
 ```bash
 # 한 화면이 무슨 일을 하는가
@@ -332,7 +329,7 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 | | 수 | 뜻 |
 |---|---|---|
 | **✔** | 373 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
-| **·** | 621 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
+| **·** | 619 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
 | **~** | 4 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
 | 위임 트랩 | 0 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
@@ -341,7 +338,7 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 ```bash
 # flow-debugger 스킬 폴더에서 (scan-prompts.md "RESCAN / PATCH" 참조)
-node scripts/verify-anchors.js <graph.json> "E:\2ndB" --fix <graph.json> --strict
-node scripts/make-handoff.js <graph.json> "E:\2ndB" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
+node scripts/verify-anchors.js <graph.json> "E:\2ndB\.worktrees\flow-refresh" --fix <graph.json> --strict
+node scripts/make-handoff.js <graph.json> "E:\2ndB\.worktrees\flow-refresh" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
 ```
 
