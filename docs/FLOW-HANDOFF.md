@@ -4,20 +4,20 @@
 > 개별 화면을 건드릴 땐 [`docs/flow-map.json`](docs/flow-map.json) 를 조회한다(아래 §5).
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
-**85개 화면 · 517개 동작 · 서버/데이터 100종 · AI 14종**  
-코드 좌표 812개 전부 실제 소스와 대조: **✔ 함수까지 확인 241** · **· 파일·줄만 확인 571** · ⚠ 0
+**86개 화면 · 522개 동작 · 서버/데이터 100종 · AI 14종**  
+코드 좌표 820개 전부 실제 소스와 대조: **✔ 함수까지 확인 240** · **· 파일·줄만 확인 574** · ⚠ 6
 
 **스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `28901f14` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `7dd5bdd4` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
 node <flow-debugger>/scripts/check-stale.js docs/flow-map.json . --strict
 ```
-- **exit 0** — 앵커한 파일 159개가 그대로다. 이 문서를 믿고 시작해도 된다.
+- **exit 0** — 앵커한 파일 163개가 그대로다. 이 문서를 믿고 시작해도 된다.
 - **exit 1** — 바뀐 파일 목록이 그대로 출력된다. **그 화면들만** 다시 스캔하면 된다(§6 재생성).
 
 ---
@@ -82,7 +82,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 | 영역 | 화면 | 동작 | 주요 화면 |
 |---|---|---|---|
-| **인증·시작** | 7 | 34 | 로그인 `/sign-in` · 회원가입 `/sign-up` · 가입 마무리(생년월일·동의) `/complete-profile` · 비밀번호 재설정 `/reset-password` |
+| **인증·시작** | 8 | 39 | 회원가입 `/sign-up` · 로그인 `/sign-in` · 비밀번호 재설정 `/reset-password` · 가입 마무리(생년월일·동의) `/complete-profile` |
 | **홈·별자리** | 10 | 47 | 홈 별자리 `/` · 허브 도크 (개발용 미리보기) `/deepspace-hub` · 도메인 별 렌즈 `/star/[domain]` · 북극성 문장 `/northstar` |
 | **담기·기록** | 5 | 49 | 전체 담기 `/capture-full` · 위키 (기록 보관소) `/records` · 담기 `/capture` · 별가루 상세 `/record/[id]` |
 | **검사·진단** | 10 | 79 | 성격 5요인 검사 `/big-five` · 동기 자기보고 `/motivation` · 애착 유형 `/attachment` · 성격 정밀검사 (120문항) `/ipip-neo` |
@@ -151,7 +151,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 ## 5. 필요할 때 찾아보는 법
 
-읽는 건 여기까지다. 나머지는 **찾아 쓴다** — [`docs/flow-map.json`](docs/flow-map.json) 에 517개 동작 전부 있다.
+읽는 건 여기까지다. 나머지는 **찾아 쓴다** — [`docs/flow-map.json`](docs/flow-map.json) 에 522개 동작 전부 있다.
 
 ```bash
 # 한 화면이 무슨 일을 하는가
@@ -175,9 +175,9 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 | | 수 | 뜻 |
 |---|---|---|
-| **✔** | 241 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
-| **·** | 571 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
-| **~** | 0 | 빈 줄/import/주석 — 로직은 다른 줄 |
+| **✔** | 240 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
+| **·** | 574 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
+| **~** | 6 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
 | 위임 트랩 | 37 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
 
