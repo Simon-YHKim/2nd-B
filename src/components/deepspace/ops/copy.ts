@@ -95,6 +95,9 @@ export interface OpsCopy {
   categoryPlaceholder: string;
   addEntry: string;
   entriesLabel: string;
+  /** Booking day of a ledger row: createLedgerEntry always took occurred_on, but
+   *  the form never sent one, so yesterday's spending could not be recorded. */
+  entryDate: string;
   deleteEntry: string;
   // github (7)
   sideProject: string;
@@ -209,6 +212,7 @@ const en: OpsCopy = {
   categoryPlaceholder: "Category (e.g. Food)",
   addEntry: "Add",
   entriesLabel: "This month's entries",
+  entryDate: "Date",
   deleteEntry: "Delete entry",
   sideProject: "Side project",
   thisWeek: "THIS WEEK",
@@ -310,6 +314,7 @@ const ko: OpsCopy = {
   categoryPlaceholder: "분류 (예: 식비)",
   addEntry: "추가",
   entriesLabel: "이번 달 내역",
+  entryDate: "날짜",
   deleteEntry: "내역 삭제",
   sideProject: "사이드 프로젝트",
   thisWeek: "THIS WEEK",

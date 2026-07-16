@@ -51,7 +51,7 @@ import {
   type Milestone,
   type MilestoneStatus,
 } from "@/lib/ops/milestones";
-import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
+import { createLedgerEntry, deleteLedgerEntry, listEntriesForMonth, localDayKey, monthBucket, summarizeMonth } from "@/lib/finance/ledger";
 import { fetchPushActivity, summarizeGithubActivity, type PushActivity } from "@/lib/projects/github";
 import { searchFoods, type FoodNutrition } from "@/lib/nutrition/foods";
 import {
@@ -663,6 +663,12 @@ export function LedgerScreen() {
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  // Booking day. createLedgerEntry always accepted occurred_on and only fell back
+  // to today, but the form never sent one -- so yesterday's coffee could not be
+  // recorded. Defaults to today and is clamped to the month this screen shows
+  // (see the picker below): the list/summary are strictly `month`, so a date
+  // outside it would insert a row the user can never see.
+  const [occurredOn, setOccurredOn] = useState(localDayKey());
   const amountNum = Math.floor(Number(amount.replace(/[^0-9]/g, "")));
   const canAdd = !busy && amountNum > 0;
 
@@ -672,12 +678,14 @@ export function LedgerScreen() {
     setSaveErr(false);
     try {
       await createLedgerEntry(userId, {
+        occurred_on: occurredOn,
         kind,
         amount_krw: amountNum,
         category: category.trim() || (ko ? "기타" : "Other"),
       });
       setAmount("");
       setCategory("");
+      setOccurredOn(localDayKey());
       entries.reload();
     } catch {
       setSaveErr(true);
@@ -742,6 +750,16 @@ export function LedgerScreen() {
             <Text variant="caption" style={[styles.kindTxt, kind === "income" && styles.kindTxtOn]}>{c.income}</Text>
           </Pressable>
         </View>
+        {/* Clamped to the month this screen shows: the list + summary are strictly
+            `month`, so a row dated outside it would vanish on save. Cross-month
+            backdating needs month navigation first. */}
+        <DateField
+          value={occurredOn}
+          onChange={setOccurredOn}
+          label={c.entryDate}
+          minDate={`${month}-01`}
+          maxDate={localDayKey()}
+        />
         <View style={styles.searchRow}>
           <TextInput
             value={amount}
@@ -802,6 +820,10 @@ export function LedgerScreen() {
           <Text variant="caption" pixelEn style={styles.pixelLabel}>{c.entriesLabel}</Text>
           {(entries.data ?? []).map((e) => (
             <View key={e.id} style={styles.entryRow}>
+              {/* MM-DD: rows are now backdatable, so the day has to be visible. */}
+              <Text variant="body" style={styles.entryDay}>
+                {e.occurred_on.slice(5)}
+              </Text>
               <Text variant="body" style={styles.entryCat} numberOfLines={1}>
                 {e.category}
               </Text>
@@ -1479,6 +1501,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm,
     paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine,
   },
+  entryDay: { fontSize: 12, color: deepSpace.textLo, fontVariant: ["tabular-nums"] },
   entryCat: { flex: 1, fontSize: 13, color: deepSpace.textMid },
   entryAmt: { fontSize: 13, color: deepSpace.textHi, fontVariant: ["tabular-nums"] },
   entryDel: { padding: 4 },
