@@ -173,7 +173,11 @@ export default function DomainStarScreen() {
           <MdButton
             variant="tonal"
             label={t("star.capture")}
-            onPress={() => router.push("/capture")}
+            // med#1 (map knownBug): capturing FROM a star must carry that
+            // star's domain tag — a bare /capture push let auto-classification
+            // file the piece under a different star than the one the user was
+            // standing on.
+            onPress={() => router.push({ pathname: "/capture-full", params: { tag: `domain:${domainId}` } })}
             style={s.actionBtn}
           />
           <MdButton

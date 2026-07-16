@@ -355,15 +355,18 @@ export function DeepSpaceIntegrationsScreen() {
 const GAPS_FAQ_EN: { q: string; a: string }[] = [
   { q: "What's the difference between brightness (starlight) and confidence?", a: "Starlight is how much you've captured in that area; confidence is how well SecondB's estimate has been verified. The two move independently." },
   { q: "Does a paid plan make it smarter?", a: "No. Answer quality is the same on every plan. Only the limits on counts, retention, and export differ." },
-  { q: "Is call recording safe?", a: "Recordings are transcribed on your device and deleted right away. Only the text and signals are kept, encrypted." },
+  // HONESTY (audit follow-up): transcription is CLOUD STT (Gemini via the
+  // spend-capped proxy) — the old copy claimed on-device. What IS true: the
+  // original audio is deleted from the device right after transcription.
+  { q: "Is call recording safe?", a: "Recordings are transcribed over an encrypted connection on the AI server, and the original audio is deleted from your device right after. Only the text and signals are kept, encrypted." },
 ];
 const GAPS_NOTICE_EN: { t: string; tag: string }[] = [
   { t: "SecondB three modes launched", tag: "New" },
   { t: "AI Museum: 8 collections now open", tag: "Content" },
-  { t: "On-device speech-to-text improved", tag: "Improved" },
+  { t: "Voice transcription improved", tag: "Improved" },
 ];
 const GAPS_FACT_EN: { label: string; v: string }[] = [
-  { label: "On-device first", v: "Raw content is analyzed on your device; only derived signals are kept, encrypted." },
+  { label: "On-device first", v: "Imported raw content is analyzed on your device; only derived signals are kept, encrypted." },
   { label: "What we collect", v: "Captured stardust, lens scores, usage patterns. Location and comms only with consent." },
   { label: "Retention", v: "While your account is active; fully removed within 30 days of leaving." },
   { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
@@ -725,9 +728,16 @@ export function DeepSpacePrivacyDesignScreen() {
       </Card>
 
       <Card>
-        <Action label={t("privacy.policy")} value={t("privacy.view")}/>
-        <Action label={t("privacy.processingLog")} value={t("privacy.last7")}/>
-        <Action label={t("privacy.thirdParty")} value={t("privacy.none")}/>
+        {/* audit med#17: these rows rendered as buttons with no onPress — dead
+            taps on a privacy surface. 처리 기록 now opens the real ai_audit_log
+            viewer (/audit); 제3자 제공 "없음" is a FACT, so it renders static
+            (no button role); the 처리방침 row is dropped until a policy document
+            actually exists to open (follow-up: author + host one). */}
+        <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/audit")} />
+        <View style={styles.action} accessible accessibilityLabel={`${t("privacy.thirdParty")}, ${t("privacy.none")}`}>
+          <Text variant="body" style={styles.actionLabel}>{t("privacy.thirdParty")}</Text>
+          <Text variant="body" style={styles.actionValue}>{t("privacy.none")}</Text>
+        </View>
       </Card>
 
       <Card>
@@ -1073,6 +1083,10 @@ export function DeepSpaceThemeScreen() {
         <Text variant="heading" style={styles.section}>{t("theme.sectionTheme")}</Text>
         <SelectRow selected={mode === "dark"} label={t("theme.themeDeepspace")} onPress={() => setMode("dark")} />
         <SelectRow selected={mode === "light"} label={t("theme.themeMidnight")} onPress={() => setMode("light")} />
+        {/* audit med#19: the pick persists (ThemeContext) but deep-space
+            surfaces read the static m3 palette at module scope, so 미드나잇
+            visibly changes little today — say so instead of looking broken. */}
+        <Text variant="subtle" style={styles.footer}>{t("theme.midnightNote")}</Text>
       </Card>
       <Card>
         <Text variant="heading" style={styles.section}>{t("theme.sectionFont")}</Text>
@@ -1399,6 +1413,19 @@ export function DeepSpaceReviewScreen() {
         </Text>
       </Pressable>
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
+      {/* audit med#26: dismissing the sheet (backdrop/back) used to strand the
+          generated proposal invisibly — the AI cost was spent and the only way
+          "forward" was paying for a new generation. Reopen is free. */}
+      {proposal !== null && !sheetOpen ? (
+        <Pressable
+          style={styles.primary}
+          onPress={() => setSheetOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("reviewReopenProposal")}
+        >
+          <Text variant="caption" style={styles.primaryText}>{t("reviewReopenProposal")}</Text>
+        </Pressable>
+      ) : null}
       {receipts.length > 0 ? (
         <Card>
           <Text variant="heading" style={styles.section}>
@@ -1786,9 +1813,23 @@ export function DeepSpaceFormatsScreen() {
       </View>
       <Text variant="caption" pixelEn style={styles.tlLabel}>{t("formats.scopeLabel")}</Text>
       <Card>
-        <Toggle label={t("formats.scope1")} on />
-        <Toggle label={t("formats.scope2")} on />
-        <Toggle label={t("formats.scope3")} on={includeRecords} onPress={() => setIncludeRecords((v) => !v)} />
+        {/* audit med#12: scope1/2 were permanently-on Toggles with no onPress —
+            fake switches. They are included in every format, so they render as
+            facts. med#13: 원본 기록 포함 only affects the Markdown exporter, so
+            the real toggle appears only there instead of silently no-opping. */}
+        <View style={styles.action} accessible accessibilityLabel={`${t("formats.scope1")}, ${t("formats.included")}`}>
+          <Text variant="body" style={styles.actionLabel}>{t("formats.scope1")}</Text>
+          <Text variant="body" style={styles.actionValue}>{t("formats.included")}</Text>
+        </View>
+        <View style={styles.action} accessible accessibilityLabel={`${t("formats.scope2")}, ${t("formats.included")}`}>
+          <Text variant="body" style={styles.actionLabel}>{t("formats.scope2")}</Text>
+          <Text variant="body" style={styles.actionValue}>{t("formats.included")}</Text>
+        </View>
+        {format === "markdown" ? (
+          <Toggle label={t("formats.scope3")} on={includeRecords} onPress={() => setIncludeRecords((v) => !v)} />
+        ) : (
+          <Text variant="subtle" style={styles.footer}>{t("formats.scope3MarkdownOnly")}</Text>
+        )}
       </Card>
       <Pressable style={[styles.soulPrimary, exporting && { opacity: 0.6 }]} onPress={() => void runExport()} disabled={exporting}>
         <Text variant="caption" style={styles.primaryText}>{exporting ? t("formats.exporting") : t("formats.export")}</Text>

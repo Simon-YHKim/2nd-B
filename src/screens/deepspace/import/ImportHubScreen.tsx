@@ -231,6 +231,13 @@ export function ImportHubScreen() {
     // withdrawn (the exact false-assurance this screen exists to prevent).
     setHistErr(null);
     const entry = history.find((h) => h.id === id);
+    // med#30: signed out we cannot delete the server rows this import created —
+    // wiping only the local log would LOOK like a withdrawal while the data
+    // stays on the server (the exact false assurance documented above).
+    if (entry && entry.sourceIds.length > 0 && !userId) {
+      setHistErr(t("revokeNeedsSignIn"));
+      return;
+    }
     if (entry && userId && entry.sourceIds.length > 0) {
       try {
         await deleteSourcesByIds(userId, entry.sourceIds);
@@ -512,7 +519,7 @@ function COPY(ko: boolean): Record<string, string> {
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
         delete: "삭제", historyFine: "삭제는 파생 신호까지 완전 제거해요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
-        revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.",
+        revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
       }
     : {
         back: "Back", import: "Import", imported: "Imported data", hubBubble: "What should we bring in?", hubTip: "Only what you approve is kept.",
@@ -535,7 +542,7 @@ function COPY(ko: boolean): Record<string, string> {
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
         delete: "Delete", historyFine: "Delete removes the derived signals too. Comms/location import is server-locked for minor accounts.",
-        revokeFailed: "Couldn't withdraw. Try again shortly.",
+        revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
       };
 }
 
