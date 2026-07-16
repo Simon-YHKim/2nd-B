@@ -17,6 +17,13 @@
     "delete": "Excluir",
     "signOut": "Sair"
   },
+  "datePicker": {
+    "title": "Selecionar data",
+    "yearTitle": "Selecionar ano",
+    "confirm": "OK",
+    "placeholder": "Selecione uma data",
+    "yearPlaceholder": "Selecione um ano"
+  },
   "states": {
     "loading": "Carregando…"
   },
