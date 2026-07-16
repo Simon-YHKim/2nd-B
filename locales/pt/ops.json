@@ -107,6 +107,14 @@
     "shareCard": {
       "label": "Cartão para compartilhar",
       "sub": "Cartão 1080"
+    },
+    "srs": {
+      "label": "Revisão de cartões",
+      "sub": "Revisão espaçada"
+    },
+    "callReflection": {
+      "label": "Reflexão de chamada",
+      "sub": "Deixe falado"
     }
   },
   "states": {
@@ -137,6 +145,7 @@
     "doneToday": "Sessões de foco feitas hoje: {{count}}",
     "alarmFocusTitle": "Bloco de foco concluído",
     "alarmFocusBody": "Bom trabalho. Hora de uma pausa curta.",
+    "alarmFocusBodyStar": "Bom trabalho. Uma sessão de foco salva para {{star}}.",
     "alarmBreakTitle": "Pausa encerrada",
     "alarmBreakBody": "De volta ao seu próximo bloco de foco.",
     "subIdle": "Pronto quando você estiver",
@@ -172,6 +181,7 @@
     "forWhichStar": "Para qual estrela?",
     "todayCount": "{{sessions}} sessões de foco hoje",
     "todaySub": "Cerca de {{min}} min · meta {{goal}}",
+    "todayStarCount": "Estrela {{star}} · {{n}} hoje",
     "stars": {
       "s0": "Crescimento",
       "s1": "Carreira",

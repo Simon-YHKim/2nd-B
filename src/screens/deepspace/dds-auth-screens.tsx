@@ -23,7 +23,8 @@ import { useSignUpForm } from "@/lib/auth/useSignUpForm";
 import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supabase/auth";
 import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } from "@/lib/auth/consent-selections";
-import { formatBirthDateInput } from "@/lib/account/dob";
+import { DateField } from "@/components/m3";
+import { todayISO } from "@/components/m3/date-picker/calendar-math";
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
 // generic Shell above is for in-app graph screens and has no keyboard handling;
@@ -421,7 +422,6 @@ export function DeepSpaceSignUpDesignScreen() {
     handleNaver,
   } = useSignUpForm();
   const passwordRef = useRef<TextInput>(null);
-  const birthDateRef = useRef<TextInput>(null);
 
   if (loading) {
     return (
@@ -472,25 +472,18 @@ export function DeepSpaceSignUpDesignScreen() {
           placeholderTextColor={colors.textLo}
           accessibilityLabel={t("auth:signUp.password")}
           style={styles.input}
-          returnKeyType="next"
-          blurOnSubmit={false}
-          onSubmitEditing={() => birthDateRef.current?.focus()}
+          returnKeyType="done"
         />
         <Text variant="body" style={styles.authHelper}>{t("auth:signUp.passwordHelper")}</Text>
         <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.birthDate")}</Text>
-        <TextInput
-          ref={birthDateRef}
+        <DateField
           value={birthDate}
-          onChangeText={(next) => setBirthDate(formatBirthDateInput(next))}
-          autoCapitalize="none"
-          keyboardType="number-pad"
-          maxLength={10}
-          placeholder="2010-03-15"
-          placeholderTextColor={colors.textLo}
+          onChange={setBirthDate}
+          minDate="1900-01-01"
+          maxDate={todayISO()}
+          initialView="year"
+          initialCursorDate={`${Number(todayISO().slice(0, 4)) - 20}-01-01`}
           accessibilityLabel={t("auth:signUp.birthDate")}
-          accessibilityHint={t("auth:signUp.birthDateHelper")}
-          style={styles.input}
-          returnKeyType="done"
         />
         <Text variant="body" style={styles.authHelper}>{t("auth:signUp.birthDateHelper")}</Text>
 

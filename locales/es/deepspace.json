@@ -241,6 +241,9 @@
     "a11yStatus": "{{name}} {{status}}",
     "a11yConnected": "conectado",
     "a11yConnect": "conectar",
+    "openImport": "Importar desde archivo",
+    "openCapture": "Traer con captura",
+    "a11yGo": "Abrir importación de {{name}}",
     "sources": {
       "cal": {
         "name": "Google Calendar",
@@ -284,7 +287,9 @@
     "sectionFinding": "Hallazgo clave de la semana",
     "findingMajority": "El {{percent}}% de tus registros de esta semana fueron sobre {{domain}}.",
     "findingSpread": "Ningún área ocupó más de la mitad de tus registros de esta semana.",
-    "findingEmpty": "Aún no has guardado nada esta semana."
+    "findingEmpty": "Aún no has guardado nada esta semana.",
+    "sectionDiscover": "Qué capturar ahora",
+    "discoverLead": "Mira los intereses que crecen en tus registros recientes."
   },
   "data": {
     "title": "Mis datos",
@@ -744,7 +749,13 @@
     },
     "inbox": {
       "title": "Alertas",
-      "empty": "Aún no hay notificaciones: aparecerán aquí a medida que captures y organices."
+      "empty": "Aún no hay notificaciones: aparecerán aquí a medida que captures y organices.",
+      "proposalsTitle": "Propuestas de conexión por revisar",
+      "proposalsBody": "{{n}} conexiones propuestas esperan tu confirmación.",
+      "proposalsCta": "Revisar propuestas",
+      "peerTitle": "Respuestas de conocidos",
+      "peerBody": "{{n}} de tus invitaciones recibieron respuesta.",
+      "peerCta": "Ver respuestas"
     },
     "import": {
       "title": "Importar",

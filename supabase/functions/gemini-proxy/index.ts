@@ -39,6 +39,7 @@
 //     user: string,
 //     model: 'gemini-2.5-flash' | 'gemini-2.5-pro',
 //     image?: { mimeType: string, data: string },  // base64 (no data: URL prefix)
+//     audio?: { mimeType: string, data: string },  // base64 voice memo (transcription)
 //     purpose?: string                              // caller's PromptPurpose label
 //   }
 //
@@ -116,7 +117,8 @@ function geminiGenLadder(
     max: { out: 8192, think: -1 },
   };
   const rung = ladder[effort];
-  const thinkingBudget = purpose === 'capture_ocr' ? 0 : rung.think;
+  // Verbatim OCR/transcription gains nothing from a thinking budget.
+  const thinkingBudget = purpose === 'capture_ocr' || purpose === 'voice_transcribe' ? 0 : rung.think;
   const maxOutputTokens = hasImage ? Math.max(rung.out, 4096) : rung.out;
   return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
 }
@@ -207,6 +209,14 @@ function utcDay(): string {
 // so a single oversized OCR request can't bomb the request body cap.
 const MAX_IMAGE_BASE64_LEN = 2_700_000;
 const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+// Voice-memo transcription payload (same defensive posture as the image cap):
+// ~4.1MB base64 ≈ 3MB binary ≈ a 3-minute m4a memo. expo-audio records m4a/aac
+// on device; web MediaRecorder produces webm/ogg.
+const MAX_AUDIO_BASE64_LEN = 4_100_000;
+const ALLOWED_AUDIO_MIME = new Set([
+  'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac', 'audio/mpeg',
+  'audio/wav', 'audio/webm', 'audio/ogg', 'audio/3gpp',
+]);
 
 const ALLOWED_ORIGINS = new Set<string>([
   'https://simon-yhkim.github.io',
@@ -336,7 +346,7 @@ Deno.serve(async (req: Request) => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown };
+  let body: { user?: unknown; system?: unknown; model?: unknown; image?: unknown; audio?: unknown; responseSchema?: unknown; purpose?: unknown; effort?: unknown; op?: unknown; texts?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -532,6 +542,27 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Optional audio attachment for voice-memo transcription (the client's
+  // transcribeAudio edge path). Validated exactly like the image: mime
+  // allowlist + base64 length cap. Before this, the proxy forwarded only
+  // image inline-data, so live transcription had NO spend-capped egress and
+  // production voice capture always failed on the client cost guard.
+  let audioPart: { mimeType: string; data: string } | null = null;
+  if (body?.audio && typeof body.audio === 'object') {
+    const audObj = body.audio as Record<string, unknown>;
+    const mime = typeof audObj.mimeType === 'string' ? audObj.mimeType : '';
+    const data = typeof audObj.data === 'string' ? audObj.data : '';
+    if (mime && data) {
+      if (!ALLOWED_AUDIO_MIME.has(mime)) {
+        return jsonResponse(req, { error: 'audio_mime_not_allowed', got: mime }, 415);
+      }
+      if (data.length > MAX_AUDIO_BASE64_LEN) {
+        return jsonResponse(req, { error: 'audio_too_large', max: MAX_AUDIO_BASE64_LEN, got: data.length }, 413);
+      }
+      audioPart = { mimeType: mime, data };
+    }
+  }
+
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
     return jsonResponse(req, { error: 'user_too_long', max: MAX_USER_LEN, got: userText.length }, 413);
@@ -573,12 +604,16 @@ Deno.serve(async (req: Request) => {
   if (imagePart) {
     userParts.push({ inlineData: { mimeType: imagePart.mimeType, data: imagePart.data } });
   }
+  if (audioPart) {
+    // Media-first ordering, same as the image part.
+    userParts.push({ inlineData: { mimeType: audioPart.mimeType, data: audioPart.data } });
+  }
   userParts.push({ text: userText });
 
   // Fold a client-reported "max" to a bounded "xhigh" so a tampered client
   // cannot pin an unbounded thinking budget. (audit H2, D2)
   const clampedEffort = clampEffort(effort);
-  const genLadder = geminiGenLadder(clampedEffort, Boolean(imagePart), purpose);
+  const genLadder = geminiGenLadder(clampedEffort, Boolean(imagePart) || Boolean(audioPart), purpose);
   const geminiBody: Record<string, unknown> = {
     contents: [{ role: 'user', parts: userParts }],
     generationConfig: {
@@ -586,7 +621,8 @@ Deno.serve(async (req: Request) => {
       // Image-bearing OCR/vision keeps a 4096 output floor for full-page text.
       maxOutputTokens: genLadder.maxOutputTokens,
       thinkingConfig: genLadder.thinkingConfig,
-      temperature: imagePart ? 0.2 : 0.7,
+      // Media-grounded calls (OCR / verbatim transcription) want determinism.
+      temperature: imagePart || audioPart ? 0.2 : 0.7,
     },
   };
   // R1 (codex challenge, docs/security/2026-05-26-codex-challenge.md):

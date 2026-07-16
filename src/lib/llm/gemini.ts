@@ -1035,8 +1035,10 @@ export interface TranscribeAudioResult {
 //        swapped for the fixed crisis template + crisis_events (input is audio,
 //        so the pre-call text classifier has nothing to scan — output gating is
 //        the C9 equivalent, mirroring callGemini's output swap).
-//   Cost a live API-key direct path is rejected (assertDirectEgressAllowed);
-//        mock and Vertex are the only paths, preserving the $0/mo promise.
+//   Cost live egress rides the spend-capped gemini-proxy when
+//        EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is on (the production path); a live
+//        API-key direct call is rejected (assertDirectEgressAllowed), so mock,
+//        proxy and Vertex are the only paths, preserving the $0/mo promise.
 //
 // NOTE (device verification PENDING): the recorder + real Gemini audio
 // transcription cannot be exercised in this environment (no microphone). Mock
@@ -1071,32 +1073,65 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     return { text, safety: outputSafety, audit };
   }
 
-  // Live: only Vertex (or any non-direct-API-key) egress passes the cost guard.
-  // The gemini-proxy edge function only forwards image inline-data, so audio is
-  // sent on the direct/Vertex client path (the same inlineData mechanism the
-  // image path uses in callGemini).
-  assertDirectEgressAllowed(env);
-  const { client, vertex } = getClient();
   const prompt =
     input.locale === "ko"
       ? "이 음성 메모를 한국어로 그대로 받아쓰세요. 들은 말만 적고, 다른 설명이나 머리말은 붙이지 마세요. 알아들을 수 없으면 빈 줄로 두세요."
       : "Transcribe this voice memo verbatim in English. Write only the spoken words, no preface or commentary. If nothing is intelligible, return an empty line.";
-  const t0 = Date.now();
-  const res = await client.models.generateContent({
-    model,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { inlineData: { mimeType: input.mimeType, data: input.base64 } },
-          { text: prompt },
-        ],
+
+  let text: string;
+  let latencyMs: number;
+  let modelUsedForAudit: string = model;
+  let vertexBackend: boolean;
+  let proxyAudited = false;
+
+  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+    // Production path (eas.json ships EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true):
+    // the spend-capped gemini-proxy forwards audio inline-data exactly like the
+    // image path (same validation: mime allowlist + base64 cap, server-side).
+    // Before this branch existed, live transcription ignored the edge flag and
+    // ALWAYS threw on the cost guard below (live + !USE_VERTEX), so voice
+    // capture and call reflection were structurally dead in production builds.
+    const supabase = getSupabaseClient();
+    const t0 = Date.now();
+    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+      body: {
+        user: prompt,
+        model,
+        purpose: "voice_transcribe",
+        audio: { mimeType: input.mimeType, data: input.base64 },
       },
-    ],
-    config: input.signal ? { abortSignal: input.signal } : undefined,
-  });
-  const latencyMs = Date.now() - t0;
-  const text = (res.text ?? "").trim();
+      signal: input.signal,
+    });
+    latencyMs = Date.now() - t0;
+    if (error) throw error;
+    const payload = data as { text?: string; modelUsed?: string; audited?: boolean } | null;
+    text = (payload?.text ?? "").trim();
+    modelUsedForAudit = payload?.modelUsed ?? model;
+    vertexBackend = false;
+    proxyAudited = payload?.audited === true;
+  } else {
+    // Direct/Vertex client path (C2). The cost guard still rejects a live
+    // API-key direct call — Vertex (or mock) is the only non-proxy live egress.
+    assertDirectEgressAllowed(env);
+    const { client, vertex } = getClient();
+    const t0 = Date.now();
+    const res = await client.models.generateContent({
+      model,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: input.mimeType, data: input.base64 } },
+            { text: prompt },
+          ],
+        },
+      ],
+      config: input.signal ? { abortSignal: input.signal } : undefined,
+    });
+    latencyMs = Date.now() - t0;
+    text = (res.text ?? "").trim();
+    vertexBackend = vertex;
+  }
 
   // C9 equivalent for an audio-input call: classify the transcript. A red-zone
   // transcript is never returned verbatim — swap in the fixed crisis template,
@@ -1117,12 +1152,16 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     const swapAudit: AuditMeta = {
       promptHash,
       outputHash: djb2(fixed.text),
-      modelUsed: `${model}+swap:${fixed.version}`,
-      vertexBackend: vertex,
+      modelUsed: `${modelUsedForAudit}+swap:${fixed.version}`,
+      vertexBackend,
       safetyZone: "red",
       latencyMs,
     };
-    await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] transcribe output-swap insert failed");
+    // Skip the raw-call audit insert only when the proxy already wrote it
+    // server-side (proxyAudited) — same convention as callGemini's output swap.
+    if (!proxyAudited) {
+      await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] transcribe output-swap insert failed");
+    }
     await writeCrisisEvent(
       input.userId,
       {
@@ -1140,12 +1179,15 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   const audit: AuditMeta = {
     promptHash,
     outputHash: djb2(text),
-    modelUsed: model,
-    vertexBackend: vertex,
+    modelUsed: modelUsedForAudit,
+    vertexBackend,
     safetyZone: outputSafety.zone,
     latencyMs,
   };
-  await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed");
+  // C3: skip only when the proxy already wrote the row server-side.
+  if (!proxyAudited) {
+    await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed");
+  }
   return { text, safety: outputSafety, audit };
 }
 
