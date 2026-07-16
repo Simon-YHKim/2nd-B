@@ -95,7 +95,8 @@ jobs:
         if: steps.detect.outputs.routes != ''
         run: |
           git clone --depth 1 https://github.com/Simon-YHKim/Flow-debugger fd
-          (cd fd/skills/flow-debugger && npm ci && npx playwright install --with-deps chromium)
+          # Flow-debugger ships no package-lock.json, so `npm ci` EUSAGE-fails; use install.
+          (cd fd/skills/flow-debugger && npm install --no-audit --no-fund && npx playwright install --with-deps chromium)
 
       # 4) Re-shoot only the changed screens (auth cluster logged-out; the rest via the QA account).
       - name: Re-capture changed screens
