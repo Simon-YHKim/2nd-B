@@ -39,6 +39,10 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/audit",
   "/esm",
   "/core-brain",
+  // Dev-only reference (DevOnlyRoute): /graph renders the 내 두뇌 지도 design
+  // screen inside the dock chrome in dev builds; production redirects home, so
+  // registering it here is inert for users but keeps the drift guard honest.
+  "/graph",
   "/big-five",
   "/attachment",
   "/iden",

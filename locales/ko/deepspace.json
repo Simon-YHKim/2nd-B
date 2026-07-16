@@ -241,6 +241,9 @@
     "a11yStatus": "{{name}} {{status}}",
     "a11yConnected": "연결됨",
     "a11yConnect": "연결",
+    "openImport": "파일로 가져오기",
+    "openCapture": "담기로 가져오기",
+    "a11yGo": "{{name}} 가져오기 열기",
     "sources": {
       "cal": {
         "name": "Google 캘린더",
@@ -284,7 +287,9 @@
     "sectionFinding": "이번 주 핵심 발견",
     "findingMajority": "이번 주 기록의 {{percent}}%가 ‘{{domain}}’ 영역이었어요.",
     "findingSpread": "이번 주 기록이 한 영역에 몰리지 않았어요.",
-    "findingEmpty": "이번 주엔 아직 담은 기록이 없어요."
+    "findingEmpty": "이번 주엔 아직 담은 기록이 없어요.",
+    "sectionDiscover": "무엇을 담아볼까",
+    "discoverLead": "요즘 내 기록에서 떠오르는 관심사를 보여드려요."
   },
   "data": {
     "title": "내 데이터",
@@ -744,7 +749,13 @@
     },
     "inbox": {
       "title": "알림",
-      "empty": "새 알림이 없어요. 담고 정리하면 여기에 쌓여요."
+      "empty": "새 알림이 없어요. 담고 정리하면 여기에 쌓여요.",
+      "proposalsTitle": "검토할 연결 제안",
+      "proposalsBody": "세컨비가 이어 본 연결 {{n}}건이 확인을 기다려요.",
+      "proposalsCta": "제안 검토",
+      "peerTitle": "지인 응답 도착",
+      "peerBody": "보낸 초대 중 {{n}}건에 응답이 왔어요.",
+      "peerCta": "응답 보기"
     },
     "import": {
       "title": "외부 가져오기",

@@ -295,25 +295,21 @@ export function DeepSpaceGraphDesignScreen() {
 }
 
 // rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.
-// Real per-source OAuth is not built yet, so "연결" hands off to the working
-// file-import flow (/import-hub); a connected source toggles back off (no dead
-// switch). No provider is seeded as 연결됨 — every row starts disconnected until
-// a real connection exists, so the screen never claims a link that isn't there.
+// Real per-source OAuth is not built yet, so every row is an HONEST hand-off
+// to the flow that actually works today: file/paste import (/import-hub), or
+// the capture screen for photos. No "연결됨" state exists on this screen at
+// all — the old local toggle flipped a checkmark plus a screen-reader
+// "연결됨" without connecting anything (the audit's fake-success pattern A),
+// which directly contradicted this very comment.
 export function DeepSpaceIntegrationsScreen() {
   const { t } = useTranslation("deepspace");
-  const [conn, setConn] = useState<Record<string, boolean>>({ cal: false, health: false, notion: false, photos: false, gpt: false });
-  const sources: { id: string; icon: keyof typeof CLONE_ICON; k: string; sub: string }[] = [
-    { id: "cal", icon: "forum", k: t("connect.sources.cal.name"), sub: t("connect.sources.cal.sub") },
-    { id: "health", icon: "bedtime", k: t("connect.sources.health.name"), sub: t("connect.sources.health.sub") },
-    { id: "notion", icon: "book", k: "Notion", sub: t("connect.sources.notion.sub") },
-    { id: "photos", icon: "camera", k: t("connect.sources.photos.name"), sub: t("connect.sources.photos.sub") },
-    { id: "gpt", icon: "bubble", k: t("connect.sources.gpt.name"), sub: t("connect.sources.gpt.sub") },
+  const sources: { id: string; icon: keyof typeof CLONE_ICON; k: string; sub: string; route: "/import-hub" | "/capture" }[] = [
+    { id: "cal", icon: "forum", k: t("connect.sources.cal.name"), sub: t("connect.sources.cal.sub"), route: "/import-hub" },
+    { id: "health", icon: "bedtime", k: t("connect.sources.health.name"), sub: t("connect.sources.health.sub"), route: "/import-hub" },
+    { id: "notion", icon: "book", k: "Notion", sub: t("connect.sources.notion.sub"), route: "/import-hub" },
+    { id: "photos", icon: "camera", k: t("connect.sources.photos.name"), sub: t("connect.sources.photos.sub"), route: "/capture" },
+    { id: "gpt", icon: "bubble", k: t("connect.sources.gpt.name"), sub: t("connect.sources.gpt.sub"), route: "/import-hub" },
   ];
-  const toggle = (id: string) => {
-    if (conn[id]) { setConn((s) => ({ ...s, [id]: false })); return; }
-    setConn((s) => ({ ...s, [id]: true }));
-    router.push("/import-hub");
-  };
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={t("connect.title")} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={cx.body} keyboardShouldPersistTaps="handled">
@@ -326,30 +322,26 @@ export function DeepSpaceIntegrationsScreen() {
           </View>
         </MdCard>
         <View style={cx.stack8}>
-          {sources.map((s) => {
-            const on = conn[s.id];
-            return (
-              <MdCard key={s.id} variant="outlined" style={cx.sourceCard}>
-                <View style={cx.sourceRow}>
-                  <View style={[cx.iconBox, on ? cx.iconBoxOn : cx.iconBoxOff]}>
-                    <CloneIcon name={s.icon} color={on ? m3.color.onPrimary : m3.color.onSurfaceVariant} size={22} />
-                  </View>
-                  <View style={cx.flex1}>
-                    <RNText style={[m3TextStyle("titleSmall"), cx.sourceName]}>{s.k}</RNText>
-                    <RNText style={[m3TextStyle("bodySmall"), cx.sourceSub]}>{s.sub}</RNText>
-                  </View>
-                  <MdButton
-                    label={on ? t("connect.connected") : t("connect.connect")}
-                    variant={on ? "tonal" : "filled"}
-                    icon={on ? <CloneIcon name="check" color={m3.color.onSecondaryContainer} size={16} /> : undefined}
-                    onPress={() => toggle(s.id)}
-                    style={cx.connectBtn}
-                    accessibilityLabel={t("connect.a11yStatus", { name: s.k, status: on ? t("connect.a11yConnected") : t("connect.a11yConnect") })}
-                  />
+          {sources.map((s) => (
+            <MdCard key={s.id} variant="outlined" style={cx.sourceCard}>
+              <View style={cx.sourceRow}>
+                <View style={[cx.iconBox, cx.iconBoxOff]}>
+                  <CloneIcon name={s.icon} color={m3.color.onSurfaceVariant} size={22} />
                 </View>
-              </MdCard>
-            );
-          })}
+                <View style={cx.flex1}>
+                  <RNText style={[m3TextStyle("titleSmall"), cx.sourceName]}>{s.k}</RNText>
+                  <RNText style={[m3TextStyle("bodySmall"), cx.sourceSub]}>{s.sub}</RNText>
+                </View>
+                <MdButton
+                  label={s.route === "/capture" ? t("connect.openCapture") : t("connect.openImport")}
+                  variant="filled"
+                  onPress={() => router.push(s.route)}
+                  style={cx.connectBtn}
+                  accessibilityLabel={t("connect.a11yGo", { name: s.k })}
+                />
+              </View>
+            </MdCard>
+          ))}
         </View>
       </ScrollView>
     </DeepSpaceScreen>
@@ -976,6 +968,19 @@ export function DeepSpaceInsightsScreen() {
           <Text variant="body" style={styles.lead}>{findingText}</Text>
         </Card>
       </Pressable>
+      {/* Door for /discover (rising interests): the screen was fully built on
+          real gatherRisingInterests data but had ZERO nav references — an
+          implemented feature nobody could reach (audit pattern B). */}
+      <Pressable
+        onPress={() => router.push("/discover")}
+        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        accessibilityRole="button"
+      >
+        <Card>
+          <Text variant="heading" style={styles.section}>{t("insights.sectionDiscover")}</Text>
+          <Text variant="body" style={styles.lead}>{t("insights.discoverLead")}</Text>
+        </Card>
+      </Pressable>
     </Shell>
   );
 }
@@ -1575,7 +1580,9 @@ export function DeepSpaceResearchScreen() {
             <Pressable
               style={styles.insightViolet}
               android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.headline!.id } })}
+              // headline.id is a WIKI PAGE id (graph-stats topHubs), not a
+              // record id — /record/[id] was a guaranteed "찾을 수 없어요".
+              onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: view.headline!.id } })}
               accessibilityRole="button"
               accessibilityLabel={view.headline.title}
             >
@@ -1595,7 +1602,8 @@ export function DeepSpaceResearchScreen() {
             <Pressable
               style={styles.insightViolet}
               android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
+              // surprise.fromId is wiki_links.from_page (a PAGE id) — same fix.
+              onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: view.surprise!.fromId } })}
               accessibilityRole="button"
               accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
             >
@@ -2026,6 +2034,11 @@ export function DeepSpaceOpsScreen() {
     { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },
     { icon: "lightbulb", label: t("tools.imagine.label"), sub: t("tools.imagine.sub"), route: "/imagine" },
     { icon: "share", label: t("tools.shareCard.label"), sub: t("tools.shareCard.sub"), route: "/share-card" },
+    // Doors for two screens that were fully built but unreachable in the
+    // canonical nav (audit pattern B): SRS review's only link lived on the
+    // legacy home graph, and call reflection had no entry point at all.
+    { icon: "book", label: t("tools.srs.label"), sub: t("tools.srs.sub"), route: "/srs" },
+    { icon: "bubble", label: t("tools.callReflection.label"), sub: t("tools.callReflection.sub"), route: "/call-reflection" },
   ];
 
   return (
@@ -2336,11 +2349,19 @@ export function DeepSpaceFocusScreen() {
   // Per-day tally; survives reset (not the in-cycle session count).
   const [doneToday, setDoneToday] = useState(0);
   const [starIdx, setStarIdx] = useState(0);
+  // Per-star per-day tally (device-local): the "어떤 별을 위해?" pick counts for
+  // real now. Before, the selection lived and died in this mount's state while
+  // the copy promised "그 별에 한 걸음" — decoration posing as data.
+  const [doneByStar, setDoneByStar] = useState<Record<string, number>>({});
 
   // ANDROID_QA §4: a single 1s interval drives tick(); cleared on unmount AND
   // whenever `running` flips off, so a paused/idle timer holds no live interval.
   const timerRef = useRef(timer);
   timerRef.current = timer;
+  // The completion branch runs inside the interval closure — read the star via
+  // a ref (same pattern as timerRef) so a mid-session pick isn't stale.
+  const starIdxRef = useRef(starIdx);
+  starIdxRef.current = starIdx;
 
   useEffect(() => {
     if (!timer.running) return;
@@ -2353,14 +2374,17 @@ export function DeepSpaceFocusScreen() {
         // idle focus block (the reference timer has no break phase).
         setTimer(createPomodoro(prev.config));
         setDoneToday((n) => n + 1);
+        const starAt = starIdxRef.current;
+        setDoneByStar((m) => ({ ...m, [String(starAt)]: (m[String(starAt)] ?? 0) + 1 }));
         if (userId) void applyFocusSessionComplete(userId).catch(() => {});
-        void notifyNow(t("focus.alarmFocusTitle"), t("focus.alarmFocusBody")).catch(() => {});
+        const starLabel = ko ? FOCUS_STARS[starAt] : t(`focus.stars.s${starAt}`);
+        void notifyNow(t("focus.alarmFocusTitle"), t("focus.alarmFocusBodyStar", { star: starLabel })).catch(() => {});
       } else {
         setTimer(next);
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [timer.running, userId, t]);
+  }, [timer.running, userId, t, ko]);
 
   // Per-day tally persists across app restarts (keyed by today's date), so the
   // count reflects all of today's focus sessions, not just this mount's — the
@@ -2380,6 +2404,37 @@ export function DeepSpaceFocusScreen() {
     if (doneToday <= 0) return;
     void AsyncStorage.setItem(`focus_done_${kstDateToday()}`, String(doneToday)).catch(() => {});
   }, [doneToday]);
+
+  // Star pick + per-star tally survive remounts the same way doneToday does.
+  useEffect(() => {
+    let alive = true;
+    void AsyncStorage.getItem("focus_star_idx")
+      .then((v) => {
+        const n = v == null ? NaN : Number(v);
+        if (alive && Number.isInteger(n) && n >= 0 && n < FOCUS_STARS.length) setStarIdx(n);
+      })
+      .catch(() => {});
+    void AsyncStorage.getItem(`focus_star_done_${kstDateToday()}`)
+      .then((v) => {
+        if (!alive || !v) return;
+        try {
+          setDoneByStar(JSON.parse(v) as Record<string, number>);
+        } catch {
+          // corrupted tally: start fresh rather than crash the screen
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => {
+    void AsyncStorage.setItem("focus_star_idx", String(starIdx)).catch(() => {});
+  }, [starIdx]);
+  useEffect(() => {
+    if (Object.keys(doneByStar).length === 0) return;
+    void AsyncStorage.setItem(`focus_star_done_${kstDateToday()}`, JSON.stringify(doneByStar)).catch(() => {});
+  }, [doneByStar]);
 
   if (authLoading) {
     return <DockShell title={t("focus.title")}><GraphLoading /></DockShell>;
@@ -2401,7 +2456,12 @@ export function DeepSpaceFocusScreen() {
   const starName = focusStarLabel(starIdx);
   const target = 4;
   const filled = Math.min(doneToday, target);
-  const setPreset = (m: number) => setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
+  const setPreset = (m: number) => {
+    // Idle-only: mid-session this used to createPomodoro() with no guard and
+    // silently destroy the running session (audit: /focus bug-open).
+    if (!idle) return;
+    setTimer(createPomodoro({ ...timer.config, focusMinutes: m }));
+  };
 
   return (
     <DockShell title={t("focus.title")}>
@@ -2496,6 +2556,11 @@ export function DeepSpaceFocusScreen() {
         <View style={cx.flex1}>
           <RNText style={[m3TextStyle("bodyLarge"), cx.summaryTitle]}>{t("focus.todayCount", { sessions: doneToday })}</RNText>
           <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>{t("focus.todaySub", { min: doneToday * focusMin, goal: target })}</RNText>
+          {(doneByStar[String(starIdx)] ?? 0) > 0 ? (
+            <RNText style={[m3TextStyle("bodySmall"), cx.summarySub]}>
+              {t("focus.todayStarCount", { star: starName, n: doneByStar[String(starIdx)] })}
+            </RNText>
+          ) : null}
         </View>
         <CloneIcon name="fire" color={m3.accent.alertDot} size={22} fill />
       </MdCard>

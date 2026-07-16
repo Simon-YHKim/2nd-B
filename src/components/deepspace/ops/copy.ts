@@ -123,6 +123,12 @@ export interface OpsCopy {
   once: string;
   remindersTip: string;
   remindersEntry: string;
+  // milestones (③) — named goals. Before these existed the add button wrote a
+  // hardcoded "새 목표"/"New goal" with no way to name or rename one, so every
+  // goal in the list was indistinguishable.
+  goalTitlePlaceholder: string;
+  goalRename: string;
+  cancel: string;
 }
 
 const en: OpsCopy = {
@@ -221,6 +227,9 @@ const en: OpsCopy = {
   once: "Once",
   remindersTip: "Turn any of them off anytime.",
   remindersEntry: "Scheduled reminders",
+  goalTitlePlaceholder: "Name the goal",
+  goalRename: "Rename this goal",
+  cancel: "Cancel",
 };
 
 const ko: OpsCopy = {
@@ -315,6 +324,9 @@ const ko: OpsCopy = {
   once: "한 번",
   remindersTip: "언제든 항목별로 끌 수 있어요.",
   remindersEntry: "예약 리마인더",
+  goalTitlePlaceholder: "목표 이름을 적어 주세요",
+  goalRename: "목표 이름 바꾸기",
+  cancel: "취소",
 };
 
 export const OPS_COPY = { en, ko } as const;
