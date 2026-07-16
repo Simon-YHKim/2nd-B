@@ -64,7 +64,7 @@ export interface UseSignInForm {
   // handlers
   handleSubmit: () => Promise<void>;
   handleOAuth: (provider: OAuthProvider) => Promise<void>;
-  handleNaver: () => void;
+  handleNaver: () => Promise<void>;
   handleForgotPassword: () => Promise<void>;
 }
 
@@ -138,16 +138,19 @@ export function useSignInForm(): UseSignInForm {
   );
 
   // Naver uses a custom redirect (not Supabase-native), so it has its own
-  // handler — signInWithNaver() navigates the browser to Naver's authorize page.
-  const handleNaver = useCallback(() => {
+  // handler. Native awaits the browser bridge; web navigates immediately.
+  const handleNaver = useCallback(async () => {
+    setOauthSubmitting(true);
     try {
-      signInWithNaver();
+      await signInWithNaver();
     } catch (e) {
       setToast({
         tone: "danger",
         message: t("errors.oauthSignInStartFailed", { provider: "Naver" }),
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
+    } finally {
+      setOauthSubmitting(false);
     }
   }, [t]);
 

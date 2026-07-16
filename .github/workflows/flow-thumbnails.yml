@@ -1,0 +1,152 @@
+name: Flow thumbnails (auto re-capture)
+
+# When a PR changes screen source, re-shoot ONLY those screens from a real web build and commit the
+# refreshed thumbnails back onto the PR branch — so docs/flow-debugger.html's pictures stay true to
+# the code without anyone running capture-shots by hand.
+#
+# - Reuses web-deploy.yml's proven Expo web static export (built at root baseUrl so `serve dist`
+#   resolves assets + client routes locally).
+# - Captures a static `serve dist` (NOT the expo dev server, which OOMs on the runner).
+# - Auth-cluster screens are shot logged-out; the rest log in with the committed QA test account.
+# - Best-effort: capture failures never fail a PR (the commit step is a no-op when nothing changed).
+# - Not a required check; GITHUB_TOKEN-pushed commits don't retrigger workflows, and the commit
+#   carries [skip ci] as a second guard against loops.
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'app.json'
+  workflow_dispatch:
+    inputs:
+      routes:
+        description: "Comma routes to force re-shoot (blank = auto-detect from the diff vs base)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flow-thumbs-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  recapture:
+    runs-on: ubuntu-latest
+    # same-repo PRs only (a fork's token can't push back); always run on manual dispatch
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # 1) Which screens did this change touch? Blank -> nothing to re-shoot (job stays green).
+      - name: Detect changed screens
+        id: detect
+        run: |
+          if [ -n "${{ github.event.inputs.routes }}" ]; then
+            ROUTES="${{ github.event.inputs.routes }}"
+          else
+            git fetch origin ${{ github.base_ref || 'main' }} --depth=1 || true
+            ROUTES=$(node scripts/flow/changed-screens.mjs origin/${{ github.base_ref || 'main' }})
+          fi
+          echo "routes=$ROUTES" >> "$GITHUB_OUTPUT"
+          if [ -z "$ROUTES" ]; then echo "no changed screens — nothing to re-shoot."; else echo "re-shoot: $ROUTES"; fi
+
+      - name: Install app deps
+        if: steps.detect.outputs.routes != ''
+        run: npm ci --legacy-peer-deps
+
+      # 2) Web static export (web-deploy.yml recipe), forced to root baseUrl for local serving.
+      - name: Build web export
+        if: steps.detect.outputs.routes != ''
+        env:
+          EXPO_PUBLIC_UI: "deep-space"
+          EXPO_USE_STATIC: "true"
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_ENABLE_GOOGLE: "true"
+          EXPO_PUBLIC_ENABLE_KAKAO: "true"
+          EXPO_PUBLIC_ENABLE_GITHUB: "true"
+          EXPO_PUBLIC_ENABLE_NAVER: "true"
+          EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
+        run: |
+          node -e "const fs=require('fs');const a=JSON.parse(fs.readFileSync('app.json','utf8'));a.expo.experiments=a.expo.experiments||{};a.expo.experiments.baseUrl='';fs.writeFileSync('app.json',JSON.stringify(a,null,2))"
+          npx expo export --platform web --output-dir dist
+          cp dist/index.html dist/404.html 2>/dev/null || true
+
+      - name: Serve export
+        if: steps.detect.outputs.routes != ''
+        run: |
+          npx --yes serve -s dist -l 8081 >/tmp/serve.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:8081/ && break; sleep 2; done
+          curl -sf -o /dev/null http://localhost:8081/ && echo "served OK" || (echo "serve failed"; cat /tmp/serve.log; exit 1)
+
+      # 3) capture scripts from the plugin repo (single source of truth)
+      - name: Get flow-debugger scripts
+        if: steps.detect.outputs.routes != ''
+        run: |
+          git clone --depth 1 https://github.com/Simon-YHKim/Flow-debugger fd
+          (cd fd/skills/flow-debugger && npm ci && npx playwright install --with-deps chromium)
+
+      # 4) Re-shoot only the changed screens (auth cluster logged-out; the rest via the QA account).
+      - name: Re-capture changed screens
+        if: steps.detect.outputs.routes != ''
+        env:
+          ROUTES: ${{ steps.detect.outputs.routes }}
+        run: |
+          SCRIPTS=fd/skills/flow-debugger/scripts
+          mkdir -p out/authed out/public
+          node -e "const fs=require('fs');const g=JSON.parse(fs.readFileSync('docs/flow-map.json','utf8'));fs.writeFileSync('out/graph-array.json',JSON.stringify(g.screens||[]))"
+          QA_EMAIL=$(grep '^QA_TEST_EMAIL=' .env.test | cut -d= -f2-)
+          QA_PW=$(grep '^QA_TEST_PASSWORD=' .env.test | cut -d= -f2-)
+          PUB_SET="/(auth) /oauth-callback /sign-in /sign-up /reset-password /onboarding"
+          AUTHED=""; PUBLIC=""
+          IFS=',' read -ra R <<< "$ROUTES"
+          for r in "${R[@]}"; do
+            r=$(echo "$r" | xargs)
+            [ -z "$r" ] && continue
+            case " $PUB_SET " in *" $r "*) PUBLIC="$PUBLIC,$r";; *) AUTHED="$AUTHED,$r";; esac
+          done
+          AUTHED=${AUTHED#,}; PUBLIC=${PUBLIC#,}
+          echo "authed=[$AUTHED] public=[$PUBLIC]"
+          if [ -n "$AUTHED" ]; then
+            node $SCRIPTS/capture-shots.js out/graph-array.json http://localhost:8081 out/authed \
+              --only "$AUTHED" --auth-url http://localhost:8081/sign-in --email "$QA_EMAIL" --password "$QA_PW" \
+              --jpeg 72 --wait 2500 || true
+          fi
+          if [ -n "$PUBLIC" ]; then
+            node $SCRIPTS/capture-shots.js out/graph-array.json http://localhost:8081 out/public \
+              --only "$PUBLIC" --jpeg 72 --wait 2500 || true
+          fi
+
+      # 5) Overlay the fresh thumbnails into the committed html (each stamp touches only its routes)
+      - name: Update flow-debugger.html
+        if: steps.detect.outputs.routes != ''
+        run: |
+          SCRIPTS=fd/skills/flow-debugger/scripts
+          [ -f out/authed/shots-map.json ] && node $SCRIPTS/stamp-shots.js docs/flow-debugger.html out/authed/shots-map.json || true
+          [ -f out/public/shots-map.json ] && node $SCRIPTS/stamp-shots.js docs/flow-debugger.html out/public/shots-map.json || true
+          # discard the throwaway app.json baseUrl edit so it can't be committed
+          git checkout -- app.json || true
+
+      # 6) Commit back onto the PR branch (no-op when nothing changed; [skip ci] guards against loops)
+      - name: Commit refreshed thumbnails
+        if: steps.detect.outputs.routes != ''
+        run: |
+          if git diff --quiet -- docs/flow-debugger.html; then
+            echo "no thumbnail change to commit."; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/flow-debugger.html
+          git commit -m "chore(flow-debugger): auto-refresh thumbnails for changed screens [skip ci]"
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
