@@ -102,6 +102,22 @@ export async function addToShelf(
   return rowToEntry(data as Record<string, unknown>);
 }
 
+/**
+ * med#21: move a shelf entry between statuses (want → reading → done). The
+ * NOW-READING hero could never light up before this existed — nothing in the
+ * UI ever set status to "reading".
+ */
+export async function setShelfStatus(userId: string, entryId: string, status: ReadingStatus): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("ops_reading")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("id", entryId);
+  if (error) throw error;
+  invalidateDomainLevels(userId);
+}
+
 /** The whole shelf, grouped by status. */
 export async function listShelf(userId: string): Promise<Shelf> {
   const supabase = getSupabaseClient();

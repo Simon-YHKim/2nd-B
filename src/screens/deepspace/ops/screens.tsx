@@ -41,7 +41,7 @@ import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend"
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
-import { addToShelf, listShelf, readingProgress, type Shelf } from "@/lib/reading/shelf";
+import { addToShelf, listShelf, readingProgress, setShelfStatus, type Shelf } from "@/lib/reading/shelf";
 import {
   createMilestone,
   domainProgress,
@@ -322,6 +322,18 @@ export function ReadingScreen() {
       setSaveErr(true);
     }
   };
+  // med#21: the shelf had no way to MOVE a book between statuses, so the
+  // NOW-READING hero (and its progress bar) was permanently empty render code.
+  const onMove = async (entryId: string, status: "reading" | "done") => {
+    if (!userId) return;
+    setSaveErr(false);
+    try {
+      await setShelfStatus(userId, entryId, status);
+      shelf.reload();
+    } catch {
+      setSaveErr(true);
+    }
+  };
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
@@ -353,6 +365,9 @@ export function ReadingScreen() {
             <Text variant="subtle" style={styles.heroMeta}>
               {reading.current_page} / {reading.total_pages ?? "?"}
             </Text>
+            <Pressable accessibilityRole="button" onPress={() => void onMove(reading.id, "done")} hitSlop={8}>
+              <OpsStatusChip tone="muted" label={c.finishedReading} />
+            </Pressable>
           </View>
         </View>
       ) : null}
@@ -381,6 +396,9 @@ export function ReadingScreen() {
           {shelf.data?.want.map((b) => (
             <View key={b.id} style={styles.bookRow}>
               <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+              <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
+                <OpsStatusChip tone="positive" label={c.startReading} />
+              </Pressable>
             </View>
           ))}
         </View>

@@ -30,6 +30,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
+import { getWikiPage } from "@/lib/wiki/queries";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
   REV2_PERSONA_IDS,
@@ -245,14 +246,10 @@ const ChatComposer = memo(
                 }
               }}
             />
-            <Pressable
-              style={ds.micBtn}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t("voiceInput")}
-            >
-              <IconMic color={m3.color.onSurfaceVariant} size={22} />
-            </Pressable>
+            {/* med#22: the mic Pressable had NO onPress — a button-role control
+                that did nothing. Removed until chat voice input is actually
+                built (transcription itself is live now via the proxy, so this
+                is a wiring task, not a platform gap). */}
           </View>
           <Pressable
             onPress={submit}
@@ -1004,12 +1001,21 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                     key={slug}
                     style={ds.drawerCard}
                     onPress={() => {
-                      // Citations are wiki-page slugs. Route to the 위키 tab (which
-                      // lists the wiki pages) rather than the /records browser, so
-                      // the user lands where the cited page actually lives.
-                      // TODO: once a slug->page resolver exists, deep-link the page.
+                      // med#23: citations are wiki-page slugs — resolve to the
+                      // page id (getWikiPage) and deep-link it via the same
+                      // /wiki?focusPageId mechanism the digest fix uses. A
+                      // failed resolve still lands on the wiki list.
                       setRefDrawer(null);
-                      router.push("/wiki");
+                      if (!userId) {
+                        router.push("/wiki");
+                        return;
+                      }
+                      void getWikiPage(userId, slug)
+                        .then((page) => {
+                          if (page) router.push({ pathname: "/wiki", params: { focusPageId: page.id } });
+                          else router.push("/wiki");
+                        })
+                        .catch(() => router.push("/wiki"));
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={formatSourceCitationLabel(slug)}

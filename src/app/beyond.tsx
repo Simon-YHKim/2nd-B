@@ -95,7 +95,9 @@ export default function BeyondScreen() {
               </Pressable>
               <Pressable
                 style={[s.captureBtn, s.captureBtnGhost]}
-                onPress={() => router.push("/capture")}
+                // med#24: the label promises voice capture — open the composer
+                // in the voice recorder pane, not the same plain capture as +.
+                onPress={() => router.push({ pathname: "/capture-full", params: { mode: "voice" } })}
                 accessibilityRole="button"
                 accessibilityLabel={t("beyond.captureByVoice")}
               >
@@ -129,6 +131,9 @@ export default function BeyondScreen() {
               {t("beyond.pushBody")}
             </RNText>
           </View>
+          {/* med#25: the widget + lockscreen mocks carry a 미리보기 tag but this
+              one didn't — an example notification with no tag reads as real. */}
+          <View style={s.lockTag}><RNText style={s.tagTxt}>{previewTag}</RNText></View>
         </MdCard>
 
         <View style={s.actions}>

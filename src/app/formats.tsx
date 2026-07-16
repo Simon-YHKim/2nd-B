@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 
 import {
   PremiumAppShell,
@@ -514,6 +514,12 @@ const styles = StyleSheet.create({
 });
 
 export default function Formats() {
+  // med#11: in deep-space this route renders the EXPORT screen, which orphaned
+  // the clipper format-manager (list/share/edit/delete of capture formats,
+  // including AI-proposed ones). Capture's manage-formats entries now open the
+  // manager explicitly via ?view=manager; the export surface stays the default.
+  const { view } = useLocalSearchParams<{ view?: string }>();
+  if (view === "manager") return <FormatsLegacy />;
   if (isDeepSpaceUI()) return <DeepSpaceFormatsScreen />;
   return <FormatsLegacy />;
 }

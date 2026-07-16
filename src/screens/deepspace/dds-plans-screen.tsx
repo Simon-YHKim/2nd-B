@@ -301,11 +301,16 @@ export function DeepSpacePlansScreen() {
                 label={
                   cur
                     ? t("ds.plans.currentPlan")
-                    : busyAction === "buy"
-                      ? t("ds.plans.purchasing")
-                      : t("ds.plans.startTier", { name: tr.name })
+                    : tr.key === "free"
+                      ? t("ds.plans.included")
+                      : busyAction === "buy"
+                        ? t("ds.plans.purchasing")
+                        : t("ds.plans.startTier", { name: tr.name })
                 }
-                onPress={cur ? undefined : () => onStart(tr.key)}
+                // med#16: free is not purchasable — for paid users this button
+                // was live but did nothing (reference no-op). It is a fact row
+                // ("기본 포함"), not an action.
+                onPress={cur || tr.key === "free" ? undefined : () => onStart(tr.key)}
               />
             </MdCard>
           );

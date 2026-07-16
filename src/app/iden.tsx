@@ -314,7 +314,13 @@ function IdenExportScreenDeepSpace() {
             })}
           </View>
           <Text style={dsIden.rowsFootnote}>
-            {isKo ? "끄면 어떤 형식으로도 나가지 않아요." : "Off = leaves in no format."}
+            {/* med#10: the old claim ("끄면 어떤 형식으로도 나가지 않아요") was
+                broader than the switch — it removes the ROW only, while the
+                one-line summary is a separate top-level doc field. Say exactly
+                what the control does. */}
+            {isKo
+              ? "끄면 이 항목 줄은 어떤 형식에도 담기지 않아요. 한 줄 요약 문장은 별도 항목으로 계속 포함돼요."
+              : "Off = this row leaves in no format. The one-line summary is a separate item and stays included."}
           </Text>
 
           {/* 형식 */}

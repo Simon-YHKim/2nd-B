@@ -64,6 +64,18 @@ export function markOnboardingComplete(): void {
 // into one SecondB chat (the "session 1 = 1 star + 1 chat" activation target).
 // One-shot — this returns true once the nudge has fired, so later star saves go
 // straight back to the persona card. Same triple-storage layering as onboarding.
+/**
+ * One-shot consume for the first-star→chat activation nudge (med#7): every
+ * quant instrument calls this from its save celebration; only the FIRST star
+ * ever lit returns true (and marks). Before this helper the nudge was wired
+ * only on /attachment — the other five instruments skipped activation.
+ */
+export function consumeFirstStarChatNudge(): boolean {
+  if (isFirstStarChatNudged()) return false;
+  markFirstStarChatNudged();
+  return true;
+}
+
 export function isFirstStarChatNudged(): boolean {
   const local = ls();
   if (local) return !!local.getItem(FIRST_STAR_CHAT_KEY);
