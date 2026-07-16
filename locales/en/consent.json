@@ -25,7 +25,33 @@
     "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
     "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
     "optMarketing": "Send me occasional product updates (optional).",
-    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off."
+    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off.",
+    "detailLink": "View details"
+  },
+  "detail": {
+    "title": "What you're agreeing to",
+    "intro": "Plain-language detail for each item you check at sign-up: what it covers, why it is needed, and what your choices are.",
+    "service": {
+      "title": "Collection and use to run the service",
+      "body": "What we collect: your email address, date of birth, and the entries you write (journals, notes, captures).\nWhy: to run your account, store your entries, draw your growth graph, power your assistant, and confirm you are 14 or older.\nHow long: while your account is active. You can delete entries or your whole account any time from Settings; deleted data is destroyed without undue delay.\nYour choice: you can decline, but this item is essential to provide the service, so sign-up cannot continue without it."
+    },
+    "llmProcessing": {
+      "title": "Processing entries for AI responses",
+      "body": "What happens: when you ask for a response, the relevant entries and your request are sent to an AI model (Google Gemini, Anthropic Claude, or OpenAI).\nOnly in these cases: responses you ask for, automatic safety checks, and service audit records. Nothing else.\nWhat we never do: sell your entries, use them for ads, or hand them to train outside models.\nYour choice: you can decline, but AI responses are core to the service, so sign-up cannot continue without it."
+    },
+    "overseasTransfer": {
+      "title": "Processing outside your country",
+      "body": "Who receives it: Google (AI responses) and Supabase (database and sign-in hosting).\nWhat is transferred: encrypted service data (account details and entries) and the content needed to generate a response.\nWhere and how: servers these providers operate outside your country, over encrypted connections, at the moment you use the service.\nHow long: only to run the app, for the same period as your account.\nYour choice: you can decline, but the service cannot run without this processing, so sign-up cannot continue."
+    },
+    "sensitiveData": {
+      "title": "How sensitive entries are handled",
+      "body": "What this covers: journals and notes may naturally include sensitive details, such as health or beliefs.\nHow we handle it: we do not collect or sort it separately; everything stays encrypted, private account data. It is never made public, sold, or used for ads.\nYour choice: what you write is entirely up to you, and you can delete any entry at any time.\nIf you decline: we cannot store your entries without this acknowledgement, so sign-up cannot continue."
+    },
+    "marketing": {
+      "title": "Product updates (optional)",
+      "body": "What you get: an occasional email about new features and improvements.\nOptional: declining changes nothing about the app.\nWithdraw any time: from Settings, or with the unsubscribe link in any email."
+    },
+    "footer": "Questions? Ask any time from Settings, Support. We reply within 2 business days."
   },
   "privacy": {
     "eyebrow": "Privacy",

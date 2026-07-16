@@ -25,7 +25,33 @@
     "ackOverseas": "Entiendo que los datos cifrados del servicio pueden procesarse fuera de mi país por Google o Supabase para operar la app.",
     "ackSensitive": "Entiendo que mis entradas pueden incluir detalles sensibles, y que 2nd-Brain las trata como datos privados de mi cuenta.",
     "optMarketing": "Envíenme novedades ocasionales del producto (opcional).",
-    "minorBanner": "Te registras como adolescente (14 a 17). La privacidad alta está activa por defecto: compartir, anuncios, analíticas, entrenamiento de modelos y análisis externo permanecen desactivados."
+    "minorBanner": "Te registras como adolescente (14 a 17). La privacidad alta está activa por defecto: compartir, anuncios, analíticas, entrenamiento de modelos y análisis externo permanecen desactivados.",
+    "detailLink": "Ver detalles"
+  },
+  "detail": {
+    "title": "Qué estás aceptando",
+    "intro": "Detalle en lenguaje claro de cada casilla del registro: qué cubre, por qué hace falta y qué opciones tienes.",
+    "service": {
+      "title": "Recopilación y uso para operar el servicio",
+      "body": "Qué recopilamos: tu correo, tu fecha de nacimiento y las entradas que escribes (diarios, notas, capturas).\nPara qué: operar tu cuenta, guardar tus entradas, dibujar tu gráfico de crecimiento, hacer funcionar tu asistente y confirmar que tienes 14 años o más.\nCuánto tiempo: mientras tu cuenta esté activa. Puedes borrar entradas o toda la cuenta cuando quieras desde Ajustes; los datos borrados se destruyen sin demora indebida.\nTu opción: puedes rechazarlo, pero este punto es esencial para prestar el servicio, así que el registro no puede continuar sin él."
+    },
+    "llmProcessing": {
+      "title": "Procesamiento de entradas para respuestas de IA",
+      "body": "Qué ocurre: cuando pides una respuesta, las entradas relevantes y tu solicitud se envían a un modelo de IA (Google Gemini, Anthropic Claude u OpenAI).\nSolo en estos casos: respuestas que pides, comprobaciones automáticas de seguridad y registros de auditoría del servicio. Nada más.\nLo que nunca hacemos: vender tus entradas, usarlas para anuncios o entregarlas para entrenar modelos externos.\nTu opción: puedes rechazarlo, pero las respuestas de IA son el núcleo del servicio, así que el registro no puede continuar sin él."
+    },
+    "overseasTransfer": {
+      "title": "Procesamiento fuera de tu país",
+      "body": "Quién lo recibe: Google (respuestas de IA) y Supabase (base de datos e inicio de sesión).\nQué se transfiere: datos cifrados del servicio (datos de cuenta y entradas) y el contenido necesario para generar una respuesta.\nDónde y cómo: servidores que estos proveedores operan fuera de tu país, por conexiones cifradas, en el momento en que usas el servicio.\nCuánto tiempo: solo para operar la app, durante el mismo periodo que tu cuenta.\nTu opción: puedes rechazarlo, pero el servicio no puede funcionar sin este procesamiento, así que el registro no puede continuar."
+    },
+    "sensitiveData": {
+      "title": "Cómo se manejan las entradas sensibles",
+      "body": "Qué cubre: los diarios y notas pueden incluir de forma natural detalles sensibles, como salud o creencias.\nCómo lo manejamos: no lo recopilamos ni clasificamos por separado; todo queda cifrado como datos privados de tu cuenta. Nunca se hace público, se vende ni se usa para anuncios.\nTu opción: lo que escribes depende solo de ti, y puedes borrar cualquier entrada en cualquier momento.\nSi lo rechazas: no podemos guardar tus entradas sin esta confirmación, así que el registro no puede continuar."
+    },
+    "marketing": {
+      "title": "Novedades del producto (opcional)",
+      "body": "Qué recibes: un correo ocasional sobre funciones nuevas y mejoras.\nOpcional: rechazarlo no cambia nada en la app.\nRetíralo cuando quieras: desde Ajustes o con el enlace de baja de cualquier correo."
+    },
+    "footer": "¿Dudas? Pregunta cuando quieras desde Ajustes, Soporte. Respondemos en 2 días hábiles."
   },
   "privacy": {
     "eyebrow": "Privacidad",
