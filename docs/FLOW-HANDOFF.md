@@ -1,23 +1,23 @@
 # 2nd-B — 구조 핸드오프
 
 > 새 세션은 **이 파일만 읽으면** 앱 구조를 안다. 2분이면 된다.
-> 개별 화면을 건드릴 땐 [`.worktrees/flow-refresh/docs/flow-map.json`](.worktrees/flow-refresh/docs/flow-map.json) 를 조회한다(아래 §5).
+> 개별 화면을 건드릴 땐 [`docs/flow-map.json`](docs/flow-map.json) 를 조회한다(아래 §5).
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
-**86개 화면 · 522개 동작 · 서버/데이터 100종 · AI 14종**  
-코드 좌표 820개 전부 실제 소스와 대조: **✔ 함수까지 확인 236** · **· 파일·줄만 확인 565** · ⚠ 19
+**88개 화면 · 529개 동작 · 서버/데이터 100종 · AI 14종**  
+코드 좌표 830개 전부 실제 소스와 대조: **✔ 함수까지 확인 249** · **· 파일·줄만 확인 576** · ⚠ 5
 
 **스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `bdbafaeb` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `d82df3fb` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
-node <flow-debugger>/scripts/check-stale.js .worktrees/flow-refresh/docs/flow-map.json . --strict
+node <flow-debugger>/scripts/check-stale.js docs/flow-map.json . --strict
 ```
-- **exit 0** — 앵커한 파일 163개가 그대로다. 이 문서를 믿고 시작해도 된다.
+- **exit 0** — 앵커한 파일 166개가 그대로다. 이 문서를 믿고 시작해도 된다.
 - **exit 1** — 바뀐 파일 목록이 그대로 출력된다. **그 화면들만** 다시 스캔하면 된다(§6 재생성).
 
 ---
@@ -36,10 +36,10 @@ node <flow-debugger>/scripts/check-stale.js .worktrees/flow-refresh/docs/flow-ma
 **고칠 파일 찾는 법** — 화면 0개가 위임한다. 그 화면의 진짜 파일:
 
 ```bash
-jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' .worktrees/flow-refresh/docs/flow-map.json
+jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow-map.json
 ```
 
-### 2. 이 6개 화면은 **사용자가 못 연다**
+### 2. 이 5개 화면은 **사용자가 못 연다**
 
 배포판에서 열리지 않는다. **여기서 찾은 "버그"는 실사용자에게 안 보인다** — 고치기 전에 그것부터 확인할 것.
 (전에 이걸 안 물어서 "저장 버튼이 가짜다, 데이터가 사라진다"는 확신에 찬 **허위 신고 4건**이 나갔다.)
@@ -51,7 +51,6 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' .worktree
 | `/deepspace-preview` | 개발 전용 — 배포판에서는 열리지 않아요 | `src/app/deepspace-preview.tsx:6` |
 | `/deepspace-flowmap` | 개발 전용 — 배포판에서는 열리지 않아요 | `src/app/deepspace-flowmap.tsx:6` |
 | `/trends` | 개발 전용 — 배포판에서는 열리지 않아요 | `src/app/trends.tsx:18` |
-| `/graph` | 개발 전용 — 배포판에서는 열리지 않아요 | `src/app/graph.tsx:11` |
 
 ### 3. 겉보기와 다른 함수 — **호출 한 줄에 AI가 숨어 있다**
 
@@ -70,12 +69,12 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' .worktree
 | `nextProbe()` | `src/lib/interview/probe.ts:239` | `callGemini` |
 | `callGemini()` | `src/lib/llm/gemini.ts:464` | `callAdvisor` |
 | `embedTexts()` | `src/lib/llm/gemini.ts:903` | 직접 |
-| `transcribeAudio()` | `src/lib/llm/gemini.ts:1048` | `classifySafety` |
-| `callAdvisor()` | `src/lib/llm/gemini.ts:1194` | `classifySafety` |
+| `transcribeAudio()` | `src/lib/llm/gemini.ts:1046` | `classifySafety` |
+| `callAdvisor()` | `src/lib/llm/gemini.ts:1152` | `classifySafety` |
 | `classifySafety()` | `src/lib/llm/safety.ts:254` | `insertAiAuditLog` |
 | `buildOpsDailyBrief()` | `src/lib/ops/daily-brief.ts:142` | `callGemini` |
 
-전체 26개: `jq '.aiHelpers | keys' .worktrees/flow-refresh/docs/flow-map.json`
+전체 26개: `jq '.aiHelpers | keys' docs/flow-map.json`
 
 ---
 
@@ -83,7 +82,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' .worktree
 
 | 영역 | 화면 | 동작 | 주요 화면 |
 |---|---|---|---|
-| **인증·시작** | 8 | 39 | 회원가입 `/sign-up` · 로그인 `/sign-in` · 비밀번호 재설정 `/reset-password` · 가입 마무리(생년월일·동의) `/complete-profile` |
+| **인증·시작** | 10 | 46 | 로그인 `/sign-in` · 회원가입 `/sign-up` · 비밀번호 재설정 `/reset-password` · 가입 마무리(생년월일·동의) `/complete-profile` |
 | **홈·별자리** | 10 | 47 | 홈 별자리 `/` · 허브 도크 (개발용 미리보기) `/deepspace-hub` · 도메인 별 렌즈 `/star/[domain]` · 북극성 문장 `/northstar` |
 | **담기·기록** | 5 | 49 | 전체 담기 `/capture-full` · 위키 (기록 보관소) `/records` · 담기 `/capture` · 별가루 상세 `/record/[id]` |
 | **검사·진단** | 10 | 79 | 성격 5요인 검사 `/big-five` · 동기 자기보고 `/motivation` · 애착 유형 `/attachment` · 성격 정밀검사 (120문항) `/ipip-neo` |
@@ -94,7 +93,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' .worktree
 | **가져오기·연결** | 9 | 53 | 가져오기 허브 `/import-hub` · 통화 녹음 (앱 안에 들어가는 길이 없는 화면) `/call-reflection` · 외부 가져오기 `/import` · 지인 응답 페이지 `/peer/[token]` |
 | **옛 화면** | 3 | 20 | 북극성 (나의 종합 요약) `/core-brain` · 내 두뇌 지도 `/graph` · 내 영역 (4영역) `/trinity` |
 
-전체 화면 목록: `jq -r '.screens[] | "\(.groupKo)  \(.title)  \(.route)"' .worktrees/flow-refresh/docs/flow-map.json`
+전체 화면 목록: `jq -r '.screens[] | "\(.groupKo)  \(.title)  \(.route)"' docs/flow-map.json`
 
 ---
 
@@ -143,20 +142,20 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' .worktree
 
 ## 5. 필요할 때 찾아보는 법
 
-읽는 건 여기까지다. 나머지는 **찾아 쓴다** — [`.worktrees/flow-refresh/docs/flow-map.json`](.worktrees/flow-refresh/docs/flow-map.json) 에 522개 동작 전부 있다.
+읽는 건 여기까지다. 나머지는 **찾아 쓴다** — [`docs/flow-map.json`](docs/flow-map.json) 에 529개 동작 전부 있다.
 
 ```bash
 # 한 화면이 무슨 일을 하는가
-jq '.screens[] | select(.route=="/capture")' .worktrees/flow-refresh/docs/flow-map.json
+jq '.screens[] | select(.route=="/capture")' docs/flow-map.json
 
 # 이 화면을 고치려면 어느 파일인가 (프로덕션 렌더 파일)
-jq -r '.screens[] | select(.route=="/capture") | .rendersInProduction' .worktrees/flow-refresh/docs/flow-map.json
+jq -r '.screens[] | select(.route=="/capture") | .rendersInProduction' docs/flow-map.json
 
 # 어떤 동작이 이 테이블을 건드리나
-jq -r '.screens[].actions[] | select(.apis[]? | contains("records")) | .action' .worktrees/flow-refresh/docs/flow-map.json
+jq -r '.screens[].actions[] | select(.apis[]? | contains("records")) | .action' docs/flow-map.json
 
 # AI 쓰는 동작 전부
-jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action)  \(.ai.purpose)"' .worktrees/flow-refresh/docs/flow-map.json
+jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action)  \(.ai.purpose)"' docs/flow-map.json
 ```
 
 **클릭해서 보기:** [`docs/flow-debugger.html`](docs/flow-debugger.html) — 화면별 플로우 / 시스템 플로우, 버그 신고서 생성.
@@ -167,9 +166,9 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 | | 수 | 뜻 |
 |---|---|---|
-| **✔** | 236 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
-| **·** | 565 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
-| **~** | 19 | 빈 줄/import/주석 — 로직은 다른 줄 |
+| **✔** | 249 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
+| **·** | 576 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
+| **~** | 5 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
 | 위임 트랩 | 35 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
 
@@ -188,7 +187,7 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 ```bash
 # flow-debugger 스킬 폴더에서 (scan-prompts.md "RESCAN / PATCH" 참조)
-node scripts/verify-anchors.js <graph.json> "E:\2ndB" --fix <graph.json> --strict
-node scripts/make-handoff.js <graph.json> "E:\2ndB" --out .worktrees/flow-refresh/docs/FLOW-HANDOFF.md --json .worktrees/flow-refresh/docs/flow-map.json
+node scripts/verify-anchors.js <graph.json> "E:\2ndB\.worktrees\flowmap-c5" --fix <graph.json> --strict
+node scripts/make-handoff.js <graph.json> "E:\2ndB\.worktrees\flowmap-c5" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
 ```
 
