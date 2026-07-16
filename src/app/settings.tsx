@@ -45,7 +45,6 @@ import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/sett
 import {
   useAppFeatures,
   type AccentPalette,
-  type ConnectionKey,
   type FeatureKey,
 } from "@/lib/settings/app-features";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
@@ -90,6 +89,9 @@ const ICON_PATHS: Record<string, string> = {
   auto_stories:
     '<path d="M12 6.2C9.8 4.8 6.8 4.4 4 5v12.5c2.8-.6 5.8-.2 8 1.2 2.2-1.4 5.2-1.8 8-1.2V5c-2.8-.6-5.8-.2-8 1.2Z"/><path d="M12 6.2v12.5"/>',
   check: '<path d="M5 12.5 10 17 19 7"/>',
+  chevron_right: '<path d="m9 18 6-6-6-6"/>',
+  sync_alt: '<path d="m8 3-4 4 4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+  upload_file: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
 };
 
 function M3Icon({ name, color, size = 20, fill = false }: { name: string; color: string; size?: number; fill?: boolean }) {
@@ -167,23 +169,21 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
   );
 }
 
-function M3ConnectRow({ icon, label, sub, connected, connectLabel, connectedLabel, onToggle }: { icon: string; label: string; sub: string; connected: boolean; connectLabel: string; connectedLabel: string; onToggle: () => void }) {
+// Navigation row (replaces M3ConnectRow): the old rows flipped a LOCAL boolean
+// and rendered "연결됨·동기화 중" — no account link, no sync, ever (audit
+// pattern A, fake success). Until a real per-source connector exists, settings
+// hands off honestly to the import/integration surfaces instead of claiming a
+// state that isn't there.
+function M3LinkRow({ icon, label, sub, onPress }: { icon: string; label: string; sub: string; onPress: () => void }) {
   return (
-    <View style={m3Styles.row}>
-      <M3IconBadge icon={icon} active={connected} />
+    <Pressable style={m3Styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      <M3IconBadge icon={icon} active={false} />
       <View style={m3Styles.rowText}>
         <RNText style={m3Styles.rowLabel}>{label}</RNText>
-        <RNText style={m3Styles.rowSub}>{connected ? connectedLabel : sub}</RNText>
+        <RNText style={m3Styles.rowSub}>{sub}</RNText>
       </View>
-      <MdButton
-        label={connected ? connectLabel : label}
-        variant={connected ? "tonal" : "outlined"}
-        icon={connected ? <M3Icon name="check" size={16} color={m3.color.onSecondaryContainer} /> : undefined}
-        onPress={onToggle}
-        accessibilityLabel={`${label} ${connectLabel}`}
-        style={m3Styles.connectBtn}
-      />
-    </View>
+      <M3Icon name="chevron_right" size={20} color={m3.color.onSurfaceVariant} />
+    </Pressable>
   );
 }
 
@@ -331,7 +331,7 @@ export default function Settings() {
   const { mode, setMode } = useTheme();
   const dark = mode === "dark";
   const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
-  const { features, setFeature, connections, setConnection, palette, setPalette } = useAppFeatures();
+  const { features, setFeature, palette, setPalette } = useAppFeatures();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -412,7 +412,6 @@ export default function Settings() {
 
   const featureOn = (key: FeatureKey): boolean => features[key];
   const toggleFeature = (key: FeatureKey) => setFeature(key, !features[key]);
-  const toggleConnection = (key: ConnectionKey) => setConnection(key, !connections[key]);
 
   async function runDeleteKind(kind: "journal" | "note" | "audit_response", label: string) {
     if (!userId) return;
@@ -620,16 +619,15 @@ export default function Settings() {
           />
         </M3Group>
 
-        {/* 데이터 연동 */}
+        {/* 데이터 연동 — honest hand-offs only. The old three rows here showed
+            "연결됨·동기화 중" off a local toggle while syncing NOTHING. */}
         <M3SectionLabel action={<MdButton label={t("all")} variant="text" onPress={() => router.push("/integrations")} accessibilityLabel={t("allIntegrations")} />}>
           {t("dataConnections")}
         </M3SectionLabel>
         <M3Group>
-          <M3ConnectRow icon="forum" label={t("googleCalendar")} sub={t("googleCalendarDesc")} connected={connections.cal} connectLabel={t("connected")} connectedLabel={t("connectedSyncing")} onToggle={() => toggleConnection("cal")} />
+          <M3LinkRow icon="sync_alt" label={t("manageIntegrations")} sub={t("manageIntegrationsDesc")} onPress={() => router.push("/integrations")} />
           <M3Divider />
-          <M3ConnectRow icon="bedtime" label={t("appleHealth")} sub={t("appleHealthDesc")} connected={connections.health} connectLabel={t("connected")} connectedLabel={t("connectedSyncing")} onToggle={() => toggleConnection("health")} />
-          <M3Divider />
-          <M3ConnectRow icon="auto_stories" label="Notion" sub={t("importNotes")} connected={connections.notion} connectLabel={t("connected")} connectedLabel={t("connectedSyncing")} onToggle={() => toggleConnection("notion")} />
+          <M3LinkRow icon="upload_file" label={t("importData")} sub={t("importDataDesc")} onPress={() => router.push("/import-hub")} />
         </M3Group>
 
         {/* Destructive op in flight: a persistent banner explains why actions

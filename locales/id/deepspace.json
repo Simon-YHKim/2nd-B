@@ -241,6 +241,9 @@
     "a11yStatus": "{{name}} {{status}}",
     "a11yConnected": "terhubung",
     "a11yConnect": "hubungkan",
+    "openImport": "Impor dari file",
+    "openCapture": "Masukkan lewat tangkap",
+    "a11yGo": "Buka impor untuk {{name}}",
     "sources": {
       "cal": {
         "name": "Google Calendar",
@@ -284,7 +287,9 @@
     "sectionFinding": "Temuan utama minggu ini",
     "findingMajority": "{{percent}}% catatanmu minggu ini tentang {{domain}}.",
     "findingSpread": "Tidak ada satu area pun yang mengisi lebih dari setengah catatanmu minggu ini.",
-    "findingEmpty": "Belum ada yang kamu simpan minggu ini."
+    "findingEmpty": "Belum ada yang kamu simpan minggu ini.",
+    "sectionDiscover": "Apa yang ditangkap berikutnya",
+    "discoverLead": "Lihat minat yang naik di catatan terbarumu."
   },
   "data": {
     "title": "Data saya",
@@ -744,7 +749,13 @@
     },
     "inbox": {
       "title": "Notifikasi",
-      "empty": "Belum ada notifikasi - akan muncul di sini saat kamu menyimpan dan mengatur."
+      "empty": "Belum ada notifikasi - akan muncul di sini saat kamu menyimpan dan mengatur.",
+      "proposalsTitle": "Usulan tautan untuk ditinjau",
+      "proposalsBody": "{{n}} usulan tautan menunggu konfirmasimu.",
+      "proposalsCta": "Tinjau usulan",
+      "peerTitle": "Balasan kenalan tiba",
+      "peerBody": "{{n}} undanganmu mendapat balasan.",
+      "peerCta": "Lihat balasan"
     },
     "import": {
       "title": "Impor",

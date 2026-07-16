@@ -108,13 +108,58 @@ export async function notifyNow(title: string, body?: string): Promise<ReminderR
 }
 
 /**
+ * Deterministic per-routine notification identifier, so enable/disable can
+ * schedule AND cancel the same notification. Before this existed, every
+ * schedule ran under a random OS id — nothing could ever cancel one, which is
+ * how the /reminders toggles ended up flipping a flag for notifications that
+ * either kept firing (off) or never existed (on).
+ */
+export function routineReminderId(routineId: string): string {
+  return `ops-routine-${routineId}`;
+}
+
+/** Cancel the OS notification scheduled under this routine's identifier. */
+export async function cancelRoutineReminder(routineId: string): Promise<void> {
+  if (!remindersSupported() || !Notifications) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(routineReminderId(routineId));
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[ops] reminder cancel failed", (e as Error).message);
+    }
+  }
+}
+
+/** Routine ids that have a LIVE scheduled OS notification (by identifier). */
+export async function getScheduledRoutineIds(): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (!remindersSupported() || !Notifications) return out;
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    for (const n of all) {
+      const id = n.identifier ?? "";
+      if (id.startsWith("ops-routine-")) out.add(id.slice("ops-routine-".length));
+    }
+  } catch {
+    // best-effort: an unreadable schedule list reads as "nothing scheduled"
+  }
+  return out;
+}
+
+/**
  * Schedules a local reminder for the recommendation: repeating at the item's
  * local wall-clock time for daily/weekly routines, one-shot otherwise.
+ * `opts.identifier` pins the OS notification id (routineReminderId) so a
+ * re-schedule replaces the prior one and disable can cancel it.
  */
-export async function scheduleRoutineReminder(input: OpsEventInput): Promise<ReminderResult> {
+export async function scheduleRoutineReminder(
+  input: OpsEventInput,
+  opts?: { identifier?: string },
+): Promise<ReminderResult> {
   if (!remindersSupported() || !Notifications) return "unavailable";
   const start = new Date(input.startsAtIso);
   if (Number.isNaN(start.getTime())) return "error";
+  const withId = opts?.identifier ? { identifier: opts.identifier } : {};
   try {
     const permission = await Notifications.requestPermissionsAsync();
     if (!permission.granted) return "denied";
@@ -122,6 +167,7 @@ export async function scheduleRoutineReminder(input: OpsEventInput): Promise<Rem
     const content = { title: input.title, body: input.description ?? null };
     if (input.recurrence === "daily") {
       await Notifications.scheduleNotificationAsync({
+        ...withId,
         content,
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -134,6 +180,7 @@ export async function scheduleRoutineReminder(input: OpsEventInput): Promise<Rem
     }
     if (input.recurrence === "weekly") {
       await Notifications.scheduleNotificationAsync({
+        ...withId,
         content,
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
@@ -150,6 +197,7 @@ export async function scheduleRoutineReminder(input: OpsEventInput): Promise<Rem
     // scheduling a notification that silently never arrives.
     if (start.getTime() <= Date.now()) return "error";
     await Notifications.scheduleNotificationAsync({
+      ...withId,
       content,
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -255,20 +303,33 @@ export async function getReminderStates(
  * first (propose->ratify: the tap is the user action); when permission is
  * denied the state is NOT flipped on, so the caller can show "권한 필요" and the
  * row stays off. Returns true only when the reminder is now enabled.
+ *
+ * When `event` is given, enabling ALSO schedules the OS notification under the
+ * routine's deterministic identifier. The flag alone used to be the whole
+ * implementation — the row said ON while no OS notification existed (audit:
+ * /reminders mismatch).
  */
-export async function enableReminder(routineId: string): Promise<boolean> {
+export async function enableReminder(routineId: string, event?: OpsEventInput): Promise<boolean> {
   const granted = await ensureNotificationPermission();
   if (!granted) return false;
   const disabled = await readDisabledSet();
   if (disabled.delete(routineId)) await writeDisabledSet(disabled);
+  if (event) {
+    await scheduleRoutineReminder(event, { identifier: routineReminderId(routineId) });
+  }
   return true;
 }
 
-/** Turn this routine's reminder OFF and persist it. Always succeeds. */
+/**
+ * Turn this routine's reminder OFF and persist it. Always succeeds. Also
+ * cancels the scheduled OS notification — before, an already-scheduled
+ * reminder kept firing after the row was switched off.
+ */
 export async function disableReminder(routineId: string): Promise<void> {
   const disabled = await readDisabledSet();
   if (!disabled.has(routineId)) {
     disabled.add(routineId);
     await writeDisabledSet(disabled);
   }
+  await cancelRoutineReminder(routineId);
 }
