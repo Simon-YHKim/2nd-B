@@ -83,7 +83,7 @@ export interface UseSignUpForm {
   // handlers
   handleSubmit: () => Promise<void>;
   handleOAuth: (provider: OAuthProvider) => Promise<void>;
-  handleNaver: () => void;
+  handleNaver: () => Promise<void>;
 }
 
 export function useSignUpForm(): UseSignUpForm {
@@ -223,16 +223,20 @@ export function useSignUpForm(): UseSignUpForm {
     [t],
   );
 
-  // Naver: custom redirect flow (not Supabase-native). Navigates to Naver.
-  const handleNaver = useCallback(() => {
+  // Naver: custom redirect flow (not Supabase-native). Native awaits the
+  // browser bridge; web navigates immediately.
+  const handleNaver = useCallback(async () => {
+    setOauthSubmitting(true);
     try {
-      signInWithNaver();
+      await signInWithNaver();
     } catch (e) {
       setToast({
         tone: "danger",
         message: t("errors.oauthSignUpStartFailed", { provider: "Naver" }),
       });
       if (typeof console !== "undefined") console.warn("[auth] naver oauth error", (e as Error).message);
+    } finally {
+      setOauthSubmitting(false);
     }
   }, [t]);
 

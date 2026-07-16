@@ -437,22 +437,37 @@ export function isProviderEnabled(provider: OAuthProvider): boolean {
 //      hands the code to the oauth-naver edge function, and signs the user in
 //      with the magic-link token_hash it returns (verifyOtp). New users then
 //      route through /complete-profile (DOB + consent), like every provider.
-// Gated behind EXPO_PUBLIC_ENABLE_NAVER + a configured client id (and the
-// server's ENABLE_NAVER_OAUTH). Web-only for now; native lands with the other
-// providers' native path. See docs/AUTH_PROVIDERS.md.
+// Gated behind EXPO_PUBLIC_ENABLE_NAVER on web plus a configured client id (and
+// the server's ENABLE_NAVER_OAUTH). Native uses the registered HTTPS callback
+// as a bridge back to the app. See docs/AUTH_PROVIDERS.md.
 
 const NAVER_AUTHORIZE_URL = "https://nid.naver.com/oauth2.0/authorize";
 const NAVER_STATE_KEY = "secondB_naver_oauth_state";
+const NAVER_PRODUCTION_REDIRECT_URI = "https://simon-yhkim.github.io/2nd-B/oauth-callback";
+const NAVER_NATIVE_STATE_PREFIX = "native.";
+const NAVER_NATIVE_CALLBACK_URI = "secondbrain:///oauth-callback";
 
 export function isNaverEnabled(): boolean {
   const env = getEnv();
-  return env.EXPO_PUBLIC_ENABLE_NAVER && !!env.EXPO_PUBLIC_NAVER_CLIENT_ID;
+  // Native profiles already carry the public client id. The old enable flag was
+  // web-only, which accidentally hid Naver on the phone even after its server
+  // and console setup were complete.
+  return !!env.EXPO_PUBLIC_NAVER_CLIENT_ID && (env.EXPO_PUBLIC_ENABLE_NAVER || !isWebRuntime());
+}
+
+export function isNativeNaverCallbackState(state: string): boolean {
+  return state.startsWith(NAVER_NATIVE_STATE_PREFIX);
+}
+
+export function buildNativeNaverCallbackUrl(search: string): string {
+  const query = search.startsWith("?") ? search : `?${search}`;
+  return `${NAVER_NATIVE_CALLBACK_URI}${query}`;
 }
 
 // Callback URL Naver redirects back to. Must be registered in the Naver console
 // AND match the value the edge function forwards to Naver's token exchange.
 function naverRedirectUri(): string {
-  if (typeof window === "undefined") return "";
+  if (!isWebRuntime()) return NAVER_PRODUCTION_REDIRECT_URI;
   const path = window.location.pathname;
   const base = path.startsWith("/2nd-B/") ? "/2nd-B/" : "/";
   return `${window.location.origin}${base}oauth-callback`;
@@ -469,25 +484,41 @@ function randomState(): string {
   return `${Date.now().toString(16)}${Math.floor(Math.random() * 1e16).toString(16)}`;
 }
 
-// Web: redirect to Naver's authorize page. Throws if Naver isn't configured.
-export function signInWithNaver(): void {
+// Web redirects directly. Native uses the registered HTTPS callback as a
+// bridge: the callback page forwards code+state to secondbrain:///oauth-callback,
+// allowing expo-web-browser to return control without adding a native SDK.
+export async function signInWithNaver(): Promise<void> {
   const env = getEnv();
   const clientId = env.EXPO_PUBLIC_NAVER_CLIENT_ID;
-  if (!env.EXPO_PUBLIC_ENABLE_NAVER || !clientId) throw new Error("Naver login is not enabled.");
-  if (typeof window === "undefined") throw new Error("Naver login is web-only for now.");
-  const state = randomState();
-  try {
-    window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
-  } catch {
-    // sessionStorage unavailable (private mode) — the state echo can't be
-    // verified on return, so completeNaverOAuth() will reject. User can retry.
-  }
+  const web = isWebRuntime();
+  if (!clientId || (!env.EXPO_PUBLIC_ENABLE_NAVER && web)) throw new Error("Naver login is not enabled.");
+  const state = `${web ? "" : NAVER_NATIVE_STATE_PREFIX}${randomState()}`;
   const url = new URL(NAVER_AUTHORIZE_URL);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", naverRedirectUri());
   url.searchParams.set("state", state);
-  window.location.href = url.toString();
+
+  if (web) {
+    try {
+      window.sessionStorage?.setItem(NAVER_STATE_KEY, state);
+    } catch {
+      // sessionStorage unavailable (private mode) — the state echo can't be
+      // verified on return, so completeNaverOAuth() will reject. User can retry.
+    }
+    window.location.href = url.toString();
+    return;
+  }
+
+  const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
+  const result = await WebBrowser.openAuthSessionAsync(url.toString(), NAVER_NATIVE_CALLBACK_URI);
+  if (result.type !== "success") return;
+  const returned = authParamsFromUrl(result.url);
+  if (returned.error) throw new Error(returned.error_description ?? returned.error);
+  const code = returned.code ?? "";
+  const returnedState = returned.state ?? "";
+  if (!code) throw new Error("Naver sign-in returned no authorization code.");
+  await completeNaverOAuth({ code, state: returnedState }, state);
 }
 
 export interface NaverCallbackParams {
@@ -498,21 +529,28 @@ export interface NaverCallbackParams {
 // Complete the Naver flow after the redirect: verify the state echo (CSRF),
 // exchange the code via the edge function, and sign in with the magic-link
 // token it returns. Returns the user id.
-export async function completeNaverOAuth(params: NaverCallbackParams): Promise<{ userId: string }> {
-  let stored: string | null = null;
-  try {
-    stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
-  } catch {
-    stored = null;
+export async function completeNaverOAuth(
+  params: NaverCallbackParams,
+  expectedState?: string,
+): Promise<{ userId: string }> {
+  let stored: string | null = expectedState ?? null;
+  if (!stored && isWebRuntime()) {
+    try {
+      stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
+    } catch {
+      stored = null;
+    }
   }
   // CSRF: the state Naver echoes back must equal the one we issued.
   if (!params.state || !stored || stored !== params.state) {
     throw new Error("Naver sign-in state mismatch (possible CSRF). Please try again.");
   }
-  try {
-    window.sessionStorage?.removeItem(NAVER_STATE_KEY);
-  } catch {
-    /* ignore */
+  if (isWebRuntime()) {
+    try {
+      window.sessionStorage?.removeItem(NAVER_STATE_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 
   const supabase = getSupabaseClient();
