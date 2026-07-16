@@ -4,7 +4,7 @@
 // DeepSpaceDesignScreens re-exports them so every route import is unchanged.
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -67,7 +67,7 @@ function AuthBackdrop() {
   );
 }
 
-function AuthShell({ children }: { children: ReactNode }) {
+export function AuthShell({ children, scrollRef }: { children: ReactNode; scrollRef?: Ref<ScrollView> }) {
   // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
   // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
   // sign-up/reset form draw under the 3-button nav bar. insets.bottom clears it.
@@ -77,6 +77,7 @@ function AuthShell({ children }: { children: ReactNode }) {
       <AuthBackdrop />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
           keyboardShouldPersistTaps="handled"
         >
@@ -139,6 +140,83 @@ const PROVIDER_BADGE: Record<OAuthProvider, string> = {
   github: "GH",
 };
 
+// Monochrome brand marks for the icon-only provider circles (flow request #2).
+// Single-color per DESIGN.md's palette discipline; every major brand permits a
+// one-color mark on dark UI. Facebook has no path here and falls back to its
+// letter badge (it ships flag-off by default).
+const PROVIDER_MARK_PATH: Partial<Record<OAuthProvider | "naver", string>> = {
+  google:
+    "M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81Z",
+  kakao:
+    "M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.06.24.01.24.01.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.12 1.77.12 5.52 0 10-3.54 10-7.9S17.52 3 12 3Z",
+  github:
+    "M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.92-.26 1.9-.38 2.88-.39.98.01 1.96.13 2.88.39 2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.67.8.55C20.22 21.38 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z",
+  naver: "M16.27 12.85 7.42 0H0v24h7.73V11.15L16.58 24H24V0h-7.73v12.85Z",
+};
+
+function ProviderMark({ provider, color }: { provider: OAuthProvider | "naver"; color: string }) {
+  if (provider === "apple") return <AppleGlyph color={color} />;
+  const d = PROVIDER_MARK_PATH[provider];
+  if (d) {
+    // Naver's mark is a full-bleed square N; render it smaller so its optical
+    // weight matches the padded 24-viewBox marks.
+    const size = provider === "naver" ? 14 : 20;
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path fill={color} d={d} />
+      </Svg>
+    );
+  }
+  return <RNText style={styles.providerMarkDark}>{PROVIDER_BADGE[provider as OAuthProvider] ?? ""}</RNText>;
+}
+
+// Icon-only circular provider row: all social methods in ONE horizontal line
+// instead of stacked full-width bars, so the auth screens stay short (flow
+// request #2). Icon-only buttons keep the FULL provider label for a11y; Naver
+// (custom OAuth, separate handler) joins the same row visually.
+function ProviderIconRow({ providers, naverEnabled, disabled, busy, labelKeys, naverLabel, onProvider, onNaver }: {
+  providers: readonly OAuthProvider[];
+  naverEnabled: boolean;
+  disabled: boolean;
+  busy: boolean;
+  labelKeys: Record<OAuthProvider, string>;
+  naverLabel: string;
+  onProvider: (provider: OAuthProvider) => void;
+  onNaver: () => void;
+}) {
+  const { t } = useTranslation(["auth"]);
+  if (providers.length === 0 && !naverEnabled) return null;
+  return (
+    <View style={styles.providerCircleRow}>
+      {providers.map((provider) => (
+        <Pressable
+          key={provider}
+          onPress={() => onProvider(provider)}
+          disabled={disabled}
+          style={[styles.providerCircle, disabled && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t(labelKeys[provider])}
+          accessibilityState={{ disabled, busy }}
+        >
+          <ProviderMark provider={provider} color={colors.textTitle} />
+        </Pressable>
+      ))}
+      {naverEnabled ? (
+        <Pressable
+          onPress={onNaver}
+          disabled={disabled}
+          style={[styles.providerCircle, disabled && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={naverLabel}
+          accessibilityState={{ disabled, busy }}
+        >
+          <ProviderMark provider="naver" color={colors.textTitle} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export function DeepSpaceSignInDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
   const {
@@ -154,15 +232,11 @@ export function DeepSpaceSignInDesignScreen() {
     oauthSubmitting,
     canSubmit,
     toast,
-    resetHelpVisible,
-    resetSubmitting,
-    resetEmailSentTo,
     visibleProviders,
     naverEnabled,
     handleSubmit,
     handleOAuth,
     handleNaver,
-    handleForgotPassword,
   } = useSignInForm();
   const passwordRef = useRef<TextInput>(null);
 
@@ -176,32 +250,6 @@ export function DeepSpaceSignInDesignScreen() {
   if (userId) return <Redirect href="/" />;
 
   const oauthBusy = oauthSubmitting || submitting;
-  const renderProvider = (provider: OAuthProvider) => {
-    const light = provider === "apple";
-    const label = t(`deepspace:auth.continueShort.${provider}`);
-    return (
-      <Pressable
-        key={provider}
-        onPress={() => void handleOAuth(provider)}
-        disabled={oauthBusy}
-        style={[styles.providerPill, light ? styles.providerPillLight : styles.providerPillDark, oauthBusy && styles.btnDisabled]}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ disabled: oauthBusy, busy: oauthSubmitting }}
-      >
-        <View style={styles.providerPillRow}>
-          {provider === "apple" ? (
-            <AppleGlyph color={deepSpace.providerLightFg} />
-          ) : PROVIDER_BADGE[provider] ? (
-            <RNText style={styles.providerMarkDark}>{PROVIDER_BADGE[provider]}</RNText>
-          ) : null}
-          <Text variant="body" style={light ? styles.providerPillTextLight : styles.providerPillTextDark}>
-            {oauthSubmitting ? "…" : label}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
 
   return (
     <AuthShell>
@@ -268,26 +316,18 @@ export function DeepSpaceSignInDesignScreen() {
           <Text variant="body" style={styles.authPrimaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
         </Pressable>
 
+        {/* Forgot-password now NAVIGATES: the code entry, resend, and new
+            password all live on /reset-password (flow request #5). The typed
+            address rides along so the user does not retype it. */}
         <Pressable
-          onPress={() => void handleForgotPassword()}
-          disabled={resetSubmitting}
+          onPress={() => router.push({ pathname: "/reset-password", params: email.trim().includes("@") ? { email: email.trim() } : {} })}
           hitSlop={14}
-          style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
-          accessibilityRole="button"
+          style={styles.authForgotRow}
+          accessibilityRole="link"
           accessibilityLabel={t("auth:signIn.resetLabel")}
-          accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
         >
-          <Text variant="body" style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
+          <Text variant="body" style={styles.authHelper}>{t("deepspace:auth.forgotPassword")}</Text>
         </Pressable>
-
-        {resetHelpVisible ? (
-          <View style={styles.authHelpCard} accessibilityRole="alert">
-            <Text variant="heading" style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
-            <Text variant="body" style={styles.authHelpBody}>
-              {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
-            </Text>
-          </View>
-        ) : null}
 
         {visibleProviders.length > 0 || naverEnabled ? (
           <View style={styles.authDividerRow}>
@@ -297,21 +337,16 @@ export function DeepSpaceSignInDesignScreen() {
           </View>
         ) : null}
 
-        {visibleProviders.map(renderProvider)}
-        {naverEnabled ? (
-          <Pressable
-            onPress={handleNaver}
-            disabled={oauthBusy}
-            style={[styles.providerPill, styles.providerPillDark, oauthBusy && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t("auth:signIn.continueWithNaver")}
-          >
-            <View style={styles.providerPillRow}>
-              <RNText style={styles.providerMarkDark}>N</RNText>
-              <Text variant="body" style={styles.providerPillTextDark}>{t("auth:signIn.continueWithNaver")}</Text>
-            </View>
-          </Pressable>
-        ) : null}
+        <ProviderIconRow
+          providers={visibleProviders}
+          naverEnabled={naverEnabled}
+          disabled={oauthBusy}
+          busy={oauthSubmitting}
+          labelKeys={PROVIDER_SIGNIN_KEY}
+          naverLabel={t("auth:signIn.continueWithNaver")}
+          onProvider={(provider) => void handleOAuth(provider)}
+          onNaver={() => void handleNaver()}
+        />
 
         <Pressable onPress={() => router.push("/sign-up")} style={styles.authSignUpRow} accessibilityRole="link" accessibilityLabel={`${t("deepspace:auth.signUpPrompt")} ${t("deepspace:auth.signUp")}`}>
           <Text variant="body" style={styles.authSignUpPrompt}>{t("deepspace:auth.signUpPrompt")}</Text>
@@ -329,20 +364,35 @@ export function DeepSpaceSignInDesignScreen() {
 // legacy ConsentNotice uses, so the C10 ledger (buildSignUpConsentArgs in the
 // hook) is byte-for-byte equivalent. Copy comes from the reviewed `consent`
 // namespace (notice.*). Styling is deep-space tokens only.
-function ConsentCheckRow({ checked, label, emphasize, onToggle }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void }) {
+function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detailLabel }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void; onDetail?: () => void; detailLabel?: string }) {
   return (
-    <Pressable
-      style={styles.consentRow}
-      onPress={onToggle}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      accessibilityLabel={label}
-    >
-      <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
-        {checked ? <RNText style={styles.consentCheckmark}>✓</RNText> : null}
-      </View>
-      <Text variant="body" style={[styles.consentLabel, emphasize && { color: colors.textTitle }]}>{label}</Text>
-    </Pressable>
+    <View style={styles.consentRow}>
+      <Pressable
+        style={styles.consentToggleArea}
+        onPress={onToggle}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        accessibilityLabel={label}
+      >
+        <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
+          {checked ? <RNText style={styles.consentCheckmark}>✓</RNText> : null}
+        </View>
+        <Text variant="body" style={[styles.consentLabel, emphasize && { color: colors.textTitle }]}>{label}</Text>
+      </Pressable>
+      {onDetail ? (
+        // The faint chevron the flow request asked for: its own target (44x40)
+        // so a detail tap can never flip the checkbox, with its own a11y label.
+        <Pressable
+          onPress={onDetail}
+          hitSlop={10}
+          style={styles.consentDetailBtn}
+          accessibilityRole="button"
+          accessibilityLabel={detailLabel ?? label}
+        >
+          <RNText style={styles.chev}>›</RNText>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -350,6 +400,13 @@ function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; val
   const { t } = useTranslation("consent");
   const allChecked = allRequiredAcksChecked(value);
   const toggle = (key: keyof ConsentSelections) => onChange({ ...value, [key]: !value[key] });
+  // Each row's faint chevron opens the full notice for THAT item (what is
+  // collected, why, retention, refusal right) on /consent-notice — the legal
+  // detail lives there, the sign-up screen stays one-message lean (flow #4).
+  const detailProps = (item: keyof ConsentSelections) => ({
+    onDetail: () => router.push({ pathname: "/consent-notice", params: { item } }),
+    detailLabel: `${t(`detail.${item}.title`)} ${t("notice.detailLink")}`,
+  });
   return (
     <Card>
       <Text variant="heading" style={styles.section}>{t("notice.title")}</Text>
@@ -362,12 +419,12 @@ function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; val
       <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.requiredLabel")}</Text>
       <ConsentCheckRow checked={allChecked} label={t("notice.agreeAll")} emphasize onToggle={() => onChange(setAllRequiredAcks(value, !allChecked))} />
       <View style={styles.consentDivider} />
-      <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} />
-      <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} />
-      <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} />
-      <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} />
+      <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} {...detailProps("service")} />
+      <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} {...detailProps("llmProcessing")} />
+      <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} {...detailProps("overseasTransfer")} />
+      <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} {...detailProps("sensitiveData")} />
       <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</Text>
-      <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
+      <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} {...detailProps("marketing")} />
     </Card>
   );
 }
@@ -508,33 +565,16 @@ export function DeepSpaceSignUpDesignScreen() {
             <View style={styles.authDividerLine} />
           </View>
         ) : null}
-        {visibleProviders.map((provider) => (
-          <Pressable
-            key={provider}
-            onPress={() => void handleOAuth(provider)}
-            disabled={oauthSubmitting || submitting}
-            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t(PROVIDER_SIGNUP_KEY[provider])}
-            accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
-          >
-            <View style={styles.providerRow}>
-              {PROVIDER_BADGE[provider] ? <Text style={styles.providerBadge}>{PROVIDER_BADGE[provider]}</Text> : null}
-              <Text variant="caption" style={styles.providerBtnText}>{t(PROVIDER_SIGNUP_KEY[provider])}</Text>
-            </View>
-          </Pressable>
-        ))}
-        {naverEnabled ? (
-          <Pressable
-            onPress={handleNaver}
-            disabled={oauthSubmitting || submitting}
-            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t("auth:signUp.continueWithNaver")}
-          >
-            <Text variant="caption" style={styles.providerBtnText}>{t("auth:signUp.continueWithNaver")}</Text>
-          </Pressable>
-        ) : null}
+        <ProviderIconRow
+          providers={visibleProviders}
+          naverEnabled={naverEnabled}
+          disabled={oauthSubmitting || submitting}
+          busy={oauthSubmitting}
+          labelKeys={PROVIDER_SIGNUP_KEY}
+          naverLabel={t("auth:signUp.continueWithNaver")}
+          onProvider={(provider) => void handleOAuth(provider)}
+          onNaver={() => void handleNaver()}
+        />
       </Card>
 
       <Pressable
@@ -559,8 +599,19 @@ export function DeepSpaceSignUpDesignScreen() {
 export function DeepSpaceResetPasswordDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
   const {
-    userId,
     loading,
+    step,
+    email,
+    setEmail,
+    canSendCode,
+    sendSubmitting,
+    resendSeconds,
+    handleSendCode,
+    code,
+    setCode,
+    canVerify,
+    verifying,
+    handleVerifyCode,
     password,
     setPassword,
     confirmPassword,
@@ -595,15 +646,89 @@ export function DeepSpaceResetPasswordDesignScreen() {
       <View style={styles.authHero}>
         <SecondbHead size={120} mood={complete ? "positive" : "neutral"} />
         <Text variant="heading" style={styles.big}>{complete ? t("auth:resetPassword.doneTitle") : t("auth:resetPassword.title")}</Text>
-        <Text variant="body" style={styles.lead}>{complete ? t("auth:resetPassword.doneSubtitle") : t("auth:resetPassword.subtitle")}</Text>
+        <Text variant="body" style={styles.lead}>
+          {step === "done"
+            ? t("auth:resetPassword.doneSubtitle")
+            : step === "password"
+              ? t("auth:resetPassword.subtitle")
+              : step === "verify"
+                ? t("auth:resetPassword.verifySubtitle")
+                : t("auth:resetPassword.requestSubtitle")}
+        </Text>
       </View>
       <Card>
-        {!userId ? (
+        {step === "request" || step === "verify" ? (
           <>
-            <Text variant="heading" style={styles.authHelpTitle}>{t("auth:resetPassword.expiredTitle")}</Text>
-            <Text variant="body" style={styles.authHelpBody}>{t("auth:resetPassword.expiredBody")}</Text>
-            <Pressable style={styles.providerBtn} onPress={() => router.replace("/sign-in")} accessibilityRole="link" accessibilityLabel={t("auth:resetPassword.backToSignIn")}>
-              <Text variant="caption" style={styles.providerBtnText}>{t("auth:resetPassword.backToSignIn")}</Text>
+            {/* Flow request #5: the whole recovery lives in this screen now —
+                request a 6-digit code, verify it (recovery session), then set
+                the new password. The mail link stays a working fallback. */}
+            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.emailLabel")}</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              placeholder="email@example.com"
+              placeholderTextColor={colors.textLo}
+              accessibilityLabel={t("auth:resetPassword.emailLabel")}
+              style={styles.input}
+              editable={!sendSubmitting}
+            />
+            <Pressable
+              onPress={() => void handleSendCode()}
+              disabled={!canSendCode}
+              style={[styles.providerBtn, !canSendCode && styles.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={step === "verify" ? t("auth:resetPassword.resend") : t("auth:resetPassword.sendCode")}
+              accessibilityState={{ disabled: !canSendCode, busy: sendSubmitting }}
+            >
+              <Text variant="caption" style={styles.providerBtnText}>
+                {sendSubmitting
+                  ? t("auth:resetPassword.sending")
+                  : resendSeconds > 0
+                    ? t("auth:resetPassword.resendWait", { seconds: resendSeconds })
+                    : step === "verify"
+                      ? t("auth:resetPassword.resend")
+                      : t("auth:resetPassword.sendCode")}
+              </Text>
+            </Pressable>
+            {step === "verify" ? (
+              <>
+                <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.codeLabel")}</Text>
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                  maxLength={6}
+                  placeholder="000000"
+                  placeholderTextColor={colors.textLo}
+                  accessibilityLabel={t("auth:resetPassword.codeLabel")}
+                  accessibilityHint={t("auth:resetPassword.codeHint")}
+                  style={styles.input}
+                  returnKeyType="go"
+                  onSubmitEditing={() => {
+                    if (canVerify) void handleVerifyCode();
+                  }}
+                />
+                <Text variant="body" style={styles.authHelper}>{t("auth:resetPassword.codeHelper")}</Text>
+                <Pressable
+                  onPress={() => void handleVerifyCode()}
+                  disabled={!canVerify}
+                  style={[styles.primary, !canVerify && styles.btnDisabled]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("auth:resetPassword.verify")}
+                  accessibilityState={{ disabled: !canVerify, busy: verifying }}
+                >
+                  <Text variant="caption" style={styles.primaryText}>{verifying ? t("auth:resetPassword.verifying") : t("auth:resetPassword.verify")}</Text>
+                </Pressable>
+              </>
+            ) : null}
+            <Pressable style={styles.authLinkRow} onPress={() => router.replace("/sign-in")} accessibilityRole="link" accessibilityLabel={t("auth:resetPassword.backToSignIn")}>
+              <Text variant="body" style={styles.link}>{t("auth:resetPassword.backToSignIn")}</Text>
             </Pressable>
           </>
         ) : complete ? (

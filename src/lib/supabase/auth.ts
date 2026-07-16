@@ -343,6 +343,16 @@ export async function sendPasswordResetEmail(email: string): Promise<void> {
   if (error) throw error;
 }
 
+// Recovery-code path (flow request #5): the same resetPasswordForEmail issues a
+// 6-digit token alongside the link; verifying it (type "recovery") establishes
+// the session updatePassword needs, with no mail link round-trip. The link in
+// the mail keeps working as a fallback — both consume the same token.
+export async function verifyPasswordResetCode(email: string, code: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.verifyOtp({ type: "recovery", email: email.trim(), token: code.trim() });
+  if (error) throw error;
+}
+
 export async function updatePassword(password: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.updateUser({ password });

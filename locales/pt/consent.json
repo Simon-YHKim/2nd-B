@@ -25,7 +25,33 @@
     "ackOverseas": "Entendo que dados criptografados do serviço podem ser processados fora do meu país pelo Google ou Supabase para operar o app.",
     "ackSensitive": "Entendo que minhas entradas podem incluir detalhes sensíveis, e que 2nd-Brain as trata como dados privados da conta.",
     "optMarketing": "Envie-me atualizações ocasionais do produto (opcional).",
-    "minorBanner": "Você está se cadastrando como adolescente (14 a 17). A alta privacidade fica ativa por padrão: compartilhamento, anúncios, análises, treinamento de modelos e análise externa permanecem desativados."
+    "minorBanner": "Você está se cadastrando como adolescente (14 a 17). A alta privacidade fica ativa por padrão: compartilhamento, anúncios, análises, treinamento de modelos e análise externa permanecem desativados.",
+    "detailLink": "Ver detalhes"
+  },
+  "detail": {
+    "title": "O que você está aceitando",
+    "intro": "Detalhe em linguagem simples de cada item que você marca no cadastro: o que cobre, por que é necessário e quais são suas opções.",
+    "service": {
+      "title": "Coleta e uso para operar o serviço",
+      "body": "O que coletamos: seu e-mail, sua data de nascimento e os registros que você escreve (diários, notas, capturas).\nPara quê: operar sua conta, guardar seus registros, desenhar seu gráfico de crescimento, fazer seu assistente funcionar e confirmar que você tem 14 anos ou mais.\nPor quanto tempo: enquanto sua conta estiver ativa. Você pode apagar registros ou a conta inteira a qualquer momento em Ajustes; dados apagados são destruídos sem demora indevida.\nSua escolha: você pode recusar, mas este item é essencial para prestar o serviço, então o cadastro não pode continuar sem ele."
+    },
+    "llmProcessing": {
+      "title": "Processamento de registros para respostas de IA",
+      "body": "O que acontece: quando você pede uma resposta, os registros relevantes e seu pedido são enviados a um modelo de IA (Google Gemini, Anthropic Claude ou OpenAI).\nApenas nestes casos: respostas que você pede, verificações automáticas de segurança e registros de auditoria do serviço. Nada mais.\nO que nunca fazemos: vender seus registros, usá-los para anúncios ou entregá-los para treinar modelos externos.\nSua escolha: você pode recusar, mas as respostas de IA são o núcleo do serviço, então o cadastro não pode continuar sem ele."
+    },
+    "overseasTransfer": {
+      "title": "Processamento fora do seu país",
+      "body": "Quem recebe: Google (respostas de IA) e Supabase (banco de dados e hospedagem de login).\nO que é transferido: dados criptografados do serviço (dados da conta e registros) e o conteúdo necessário para gerar uma resposta.\nOnde e como: servidores que esses provedores operam fora do seu país, por conexões criptografadas, no momento em que você usa o serviço.\nPor quanto tempo: apenas para operar o app, pelo mesmo período da sua conta.\nSua escolha: você pode recusar, mas o serviço não funciona sem esse processamento, então o cadastro não pode continuar."
+    },
+    "sensitiveData": {
+      "title": "Como registros sensíveis são cuidados",
+      "body": "O que cobre: diários e notas podem naturalmente incluir detalhes sensíveis, como saúde ou crenças.\nComo cuidamos: não coletamos nem classificamos separadamente; tudo permanece criptografado como dado privado da conta. Nunca é tornado público, vendido ou usado para anúncios.\nSua escolha: o que você escreve é totalmente sua decisão, e qualquer registro pode ser apagado a qualquer momento.\nSe recusar: sem esta confirmação não podemos guardar seus registros, então o cadastro não pode continuar."
+    },
+    "marketing": {
+      "title": "Novidades do produto (opcional)",
+      "body": "O que você recebe: um e-mail ocasional sobre novos recursos e melhorias.\nOpcional: recusar não muda nada no app.\nRetire quando quiser: em Ajustes, ou pelo link de descadastro em qualquer e-mail."
+    },
+    "footer": "Dúvidas? Pergunte quando quiser em Ajustes, Suporte. Respondemos em até 2 dias úteis."
   },
   "privacy": {
     "eyebrow": "Privacidade",
