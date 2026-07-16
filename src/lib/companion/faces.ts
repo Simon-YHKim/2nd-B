@@ -65,62 +65,62 @@ export interface FaceSpec {
   blink: "normal" | "slow" | "none";
 }
 
-const EYE_NEUTRAL: EyeSpec = { h: 1, top: 0.585, tilt: 0 };
+const EYE_NEUTRAL: EyeSpec = { h: 1, top: 0.603, tilt: 0 };
 
 export const FACES: Record<Expression, FaceSpec> = {
   neutral: { eyes: [EYE_NEUTRAL, EYE_NEUTRAL], mouth: "flat", blink: "normal" },
   positive: {
     eyes: [
-      { h: 0.58, top: 0.585, tilt: 0 },
-      { h: 0.58, top: 0.585, tilt: 0 },
+      { h: 0.58, top: 0.603, tilt: 0 },
+      { h: 0.58, top: 0.603, tilt: 0 },
     ],
     mouth: "smile",
     blink: "normal",
   },
   negative: {
     eyes: [
-      { h: 0.9, top: 0.602, tilt: 8 },
-      { h: 0.9, top: 0.602, tilt: 8 },
+      { h: 0.9, top: 0.620, tilt: 8 },
+      { h: 0.9, top: 0.620, tilt: 8 },
     ],
     mouth: "frown",
     blink: "normal",
   },
   happy: {
     eyes: [
-      { h: 0.5, top: 0.58, tilt: 0, arc: true },
-      { h: 0.5, top: 0.58, tilt: 0, arc: true },
+      { h: 0.5, top: 0.598, tilt: 0, arc: true },
+      { h: 0.5, top: 0.598, tilt: 0, arc: true },
     ],
     mouth: "open",
     blink: "none",
   },
   delight: {
     eyes: [
-      { h: 1.25, top: 0.578, tilt: 0 },
-      { h: 1.25, top: 0.578, tilt: 0 },
+      { h: 1.25, top: 0.596, tilt: 0 },
+      { h: 1.25, top: 0.596, tilt: 0 },
     ],
     mouth: "open",
     blink: "normal",
   },
   smug: {
     eyes: [
-      { h: 0.52, top: 0.59, tilt: -6 },
-      { h: 0.95, top: 0.58, tilt: 0 },
+      { h: 0.52, top: 0.608, tilt: -6 },
+      { h: 0.95, top: 0.598, tilt: 0 },
     ],
     mouth: "smirk",
     blink: "normal",
   },
   wink: {
     eyes: [
-      { h: 1, top: 0.585, tilt: 0 },
-      { h: 0.5, top: 0.585, tilt: 0, arc: true },
+      { h: 1, top: 0.603, tilt: 0 },
+      { h: 0.5, top: 0.603, tilt: 0, arc: true },
     ],
     mouth: "smile",
     blink: "none",
   },
   surprised: {
     eyes: [
-      { h: 1.35, top: 0.578, tilt: 0 },
-      { h: 1.35, top: 0.578, tilt: 0 },
+      { h: 1.35, top: 0.596, tilt: 0 },
+      { h: 1.35, top: 0.596, tilt: 0 },
     ],
     mouth: "o",
     mouthScale: 0.72,
@@ -128,8 +128,8 @@ export const FACES: Record<Expression, FaceSpec> = {
   },
   thinking: {
     eyes: [
-      { h: 0.92, top: 0.572, tilt: 0 },
-      { h: 0.92, top: 0.572, tilt: 0 },
+      { h: 0.92, top: 0.590, tilt: 0 },
+      { h: 0.92, top: 0.590, tilt: 0 },
     ],
     mouth: "flat",
     mouthScale: 0.7,
@@ -139,16 +139,16 @@ export const FACES: Record<Expression, FaceSpec> = {
   },
   sad: {
     eyes: [
-      { h: 0.78, top: 0.61, tilt: 14 },
-      { h: 0.78, top: 0.61, tilt: 14 },
+      { h: 0.78, top: 0.628, tilt: 14 },
+      { h: 0.78, top: 0.628, tilt: 14 },
     ],
     mouth: "frown",
     blink: "slow",
   },
   bored: {
     eyes: [
-      { h: 0.48, top: 0.595, tilt: 0 },
-      { h: 0.48, top: 0.595, tilt: 0 },
+      { h: 0.48, top: 0.613, tilt: 0 },
+      { h: 0.48, top: 0.613, tilt: 0 },
     ],
     mouth: "flat",
     mouthScale: 0.8,
@@ -157,8 +157,8 @@ export const FACES: Record<Expression, FaceSpec> = {
   },
   whistle: {
     eyes: [
-      { h: 0.62, top: 0.582, tilt: 0 },
-      { h: 0.62, top: 0.582, tilt: 0 },
+      { h: 0.62, top: 0.600, tilt: 0 },
+      { h: 0.62, top: 0.600, tilt: 0 },
     ],
     mouth: "o",
     mouthScale: 0.55,
@@ -169,8 +169,8 @@ export const FACES: Record<Expression, FaceSpec> = {
   },
   sleepy: {
     eyes: [
-      { h: 0.32, top: 0.6, tilt: 4 },
-      { h: 0.32, top: 0.6, tilt: 4 },
+      { h: 0.32, top: 0.618, tilt: 4 },
+      { h: 0.32, top: 0.618, tilt: 4 },
     ],
     mouth: "flat",
     mouthScale: 0.6,

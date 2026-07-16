@@ -73,7 +73,7 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
 
   return (
     <View style={styles.overlay} accessibilityViewIsModal pointerEvents="auto">
-      {/* spotlight ring — a lit circle over the dimmed field */}
+      {/* spotlight — a lit ROUNDED RECT over the dimmed field (원형 금지: 사용자 지시 2026-07-16) */}
       <View
         pointerEvents="none"
         style={[
@@ -81,7 +81,7 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
           {
             width: ringSize,
             height: ringSize,
-            borderRadius: ringSize / 2,
+            borderRadius: m3.shape.large,
             left: width * step.cx - ringSize / 2,
             top: height * step.cy - ringSize / 2,
           },

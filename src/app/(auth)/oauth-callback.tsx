@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import {
@@ -22,6 +22,11 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 export default function OAuthCallback() {
   const { t } = useTranslation("auth");
   const [failed, setFailed] = useState(false);
+  // Native cold-start deep link (secondbrain:///oauth-callback?code&state):
+  // expo-router delivers the Naver return as ROUTE PARAMS in a fresh JS
+  // context (Android killed the app behind the Custom Tab, so the
+  // openAuthSessionAsync promise that would normally finish the flow is gone).
+  const linkParams = useLocalSearchParams<{ code?: string; state?: string; error?: string }>();
 
   useEffect(() => {
     let cancelled = false;
@@ -31,7 +36,26 @@ export default function OAuthCallback() {
       // would throw. This route is web-only (Naver custom-OAuth return); guard
       // on the platform, not on `window`, so native cleanly bounces home.
       if (Platform.OS !== "web" || typeof window === "undefined" || !window.location) {
-        router.replace("/");
+        // 사용자 리포트(2026-07-16): this used to router.replace("/") and DISCARD
+        // the code+state — a cold-started Naver return bounced straight back to
+        // /sign-in with no session and no error (edge exchange 200'd, /verify
+        // never ran). Finish the exchange here instead; the CSRF nonce comes
+        // from the persisted store (completeNaverOAuth falls back to it when
+        // no expectedState is given).
+        const code = typeof linkParams.code === "string" ? linkParams.code : "";
+        const state = typeof linkParams.state === "string" ? linkParams.state : "";
+        const linkError = typeof linkParams.error === "string" ? linkParams.error : null;
+        if (linkError || !code || !state) {
+          router.replace("/");
+          return;
+        }
+        try {
+          await completeNaverOAuth({ code, state });
+          if (!cancelled) router.replace("/");
+        } catch (e) {
+          if (!cancelled) setFailed(true);
+          if (typeof console !== "undefined") console.warn("[auth] naver cold-start callback error", (e as Error).message);
+        }
         return;
       }
       const params = new URLSearchParams(window.location.search);
@@ -61,6 +85,8 @@ export default function OAuthCallback() {
     return () => {
       cancelled = true;
     };
+    // linkParams at mount ARE the deep-link payload; do not re-run on later
+    // param identity churn.
   }, []);
 
   if (failed) {

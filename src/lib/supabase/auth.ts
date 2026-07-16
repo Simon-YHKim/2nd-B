@@ -10,6 +10,7 @@ import { digitalConsentAge } from "../auth/consent-age";
 import type { ConsentSelections } from "../auth/consent-selections";
 import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSupabaseClient } from "./client";
 import * as Crypto from "expo-crypto";
 
@@ -526,6 +527,15 @@ export async function signInWithNaver(): Promise<void> {
     return;
   }
 
+  // Cold-start survival: Android may kill the app while the Custom Tab is up.
+  // The deep link then starts a FRESH JS context where this closure (and its
+  // state nonce) no longer exists — the native /oauth-callback route finishes
+  // the flow instead, verifying against this persisted nonce.
+  try {
+    await AsyncStorage.setItem(NAVER_STATE_KEY, state);
+  } catch {
+    /* storage unavailable: the warm path still verifies via the closure */
+  }
   const WebBrowser = require("expo-web-browser") as ExpoWebBrowserModule;
   const result = await WebBrowser.openAuthSessionAsync(url.toString(), NAVER_NATIVE_CALLBACK_URI);
   if (result.type !== "success") return;
@@ -553,6 +563,15 @@ export async function completeNaverOAuth(
   if (!stored && isWebRuntime()) {
     try {
       stored = window.sessionStorage?.getItem(NAVER_STATE_KEY) ?? null;
+    } catch {
+      stored = null;
+    }
+  }
+  if (!stored && !isWebRuntime()) {
+    // Cold-start path: the persisted native nonce (single-use — cleared here).
+    try {
+      stored = await AsyncStorage.getItem(NAVER_STATE_KEY);
+      await AsyncStorage.removeItem(NAVER_STATE_KEY);
     } catch {
       stored = null;
     }
