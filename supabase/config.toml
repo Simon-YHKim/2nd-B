@@ -4,6 +4,40 @@
 
 project_id = "zoacryukmdeivmolvyhj"
 
+# ⚠ `supabase config push` semantics: declaring ANY [auth] subsection pushes the
+# WHOLE auth group -- every UNDECLARED field resets to CLI defaults, and in a
+# non-TTY shell the confirm prompt auto-accepts. That exact combination reset
+# production auth on 2026-07-16 (site_url -> localhost, redirect URLs lost,
+# Confirm-Email off) before this block existed. Everything below is therefore
+# the DECLARED production truth: keep it in sync with the dashboard, and never
+# push with a partial [auth] block again.
+[auth]
+enabled = true
+site_url = "https://simon-yhkim.github.io/2nd-B/"
+additional_redirect_urls = [
+  "https://simon-yhkim.github.io/2nd-B/**",
+  "secondbrain://**",
+  "http://localhost:8081/**",
+  "https://simon-yhkim.github.io/2nd-B/",
+  "secondbrain://",
+]
+
+[auth.email]
+enable_signup = true
+# Confirm Email stays ON (the #1009 email-confirmation track depends on it; the
+# 0018 autoconfirm trigger masks it user-side until 0086 lands).
+enable_confirmations = true
+
+# Recovery email: show the 6-digit code the in-screen OTP reset flow (#1013)
+# verifies, alongside the classic link (both consume the same token).
+[auth.email.template.recovery]
+subject = "[2nd-Brain] 비밀번호 재설정 인증번호 / Password reset code"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
 [functions.gemini-proxy]
 verify_jwt = true
 
