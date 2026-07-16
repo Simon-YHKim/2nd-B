@@ -9,7 +9,7 @@ import { Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text as RNTex
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
-import { MdButton, MdCard } from "@/components/m3";
+import { DateField, MdButton, MdCard } from "@/components/m3";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -41,7 +41,7 @@ import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend"
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
-import { addToShelf, listShelf, readingProgress, type Shelf } from "@/lib/reading/shelf";
+import { addToShelf, listShelf, readingProgress, setShelfStatus, type Shelf } from "@/lib/reading/shelf";
 import {
   createMilestone,
   domainProgress,
@@ -322,6 +322,18 @@ export function ReadingScreen() {
       setSaveErr(true);
     }
   };
+  // med#21: the shelf had no way to MOVE a book between statuses, so the
+  // NOW-READING hero (and its progress bar) was permanently empty render code.
+  const onMove = async (entryId: string, status: "reading" | "done") => {
+    if (!userId) return;
+    setSaveErr(false);
+    try {
+      await setShelfStatus(userId, entryId, status);
+      shelf.reload();
+    } catch {
+      setSaveErr(true);
+    }
+  };
 
   return (
     <OpsFrame title={c.myShelf} bubble={c.whatReading} tip={c.add}>
@@ -353,6 +365,9 @@ export function ReadingScreen() {
             <Text variant="subtle" style={styles.heroMeta}>
               {reading.current_page} / {reading.total_pages ?? "?"}
             </Text>
+            <Pressable accessibilityRole="button" onPress={() => void onMove(reading.id, "done")} hitSlop={8}>
+              <OpsStatusChip tone="muted" label={c.finishedReading} />
+            </Pressable>
           </View>
         </View>
       ) : null}
@@ -381,6 +396,9 @@ export function ReadingScreen() {
           {shelf.data?.want.map((b) => (
             <View key={b.id} style={styles.bookRow}>
               <Text variant="body" style={styles.bookTitle}>{b.title}</Text>
+              <Pressable accessibilityRole="button" onPress={() => void onMove(b.id, "reading")} hitSlop={8}>
+                <OpsStatusChip tone="positive" label={c.startReading} />
+              </Pressable>
             </View>
           ))}
         </View>
@@ -411,7 +429,10 @@ export function MilestonesScreen() {
   const [busy, setBusy] = useState(false);
   // Named goals: the add input's draft + the inline rename target.
   const [draft, setDraft] = useState("");
-  const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
+  // Due date (ISO "YYYY-MM-DD", "" = none). target_date + the Overdue chip already
+  // existed, but nothing could set the date, so Overdue could never fire.
+  const [dueDraft, setDueDraft] = useState("");
+  const [editing, setEditing] = useState<{ id: string; title: string; due: string } | null>(null);
   const ms = useAsync<Milestone[]>(
     () => (userId ? listMilestones(userId, domain) : Promise.resolve([])),
     [userId, domain],
@@ -435,8 +456,9 @@ export function MilestonesScreen() {
     setBusy(true);
     setSaveErr(false);
     try {
-      await createMilestone(userId, domain, { title });
+      await createMilestone(userId, domain, { title, target_date: dueDraft || null });
       setDraft("");
+      setDueDraft("");
       ms.reload();
     } catch {
       // The write failed. Say so: reload() lives inside the try above, so on this path
@@ -458,7 +480,7 @@ export function MilestonesScreen() {
     setBusy(true);
     setSaveErr(false);
     try {
-      await updateMilestone(userId, editing.id, { title });
+      await updateMilestone(userId, editing.id, { title, target_date: editing.due || null });
       setEditing(null);
       ms.reload();
     } catch {
@@ -512,6 +534,12 @@ export function MilestonesScreen() {
           returnKeyType="done"
         />
       </View>
+      <DateField
+        value={dueDraft}
+        onChange={setDueDraft}
+        label={c.dueDate}
+        containerStyle={styles.dueField}
+      />
       <Pressable accessibilityRole="button" onPress={onAdd} hitSlop={6} disabled={busy || draft.trim().length === 0} style={styles.addRow}>
         <Text variant="caption" style={styles.addRowText}>＋ {c.emptyCta}</Text>
       </Pressable>
@@ -531,7 +559,7 @@ export function MilestonesScreen() {
                   <>
                     <TextInput
                       value={editing.title}
-                      onChangeText={(v) => setEditing({ id: m.id, title: v })}
+                      onChangeText={(v) => setEditing((e) => (e ? { ...e, title: v } : e))}
                       style={[styles.searchInput, styles.msTitleInput]}
                       placeholderTextColor={deepSpace.textLo}
                       autoFocus
@@ -550,7 +578,7 @@ export function MilestonesScreen() {
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={c.goalRename}
-                      onPress={() => setEditing({ id: m.id, title: m.title })}
+                      onPress={() => setEditing({ id: m.id, title: m.title, due: m.target_date ?? "" })}
                       hitSlop={6}
                       style={styles.msTitlePress}
                     >
@@ -562,6 +590,31 @@ export function MilestonesScreen() {
                   </>
                 )}
               </View>
+              {editing?.id === m.id ? (
+                <View style={styles.msDueEdit}>
+                  <DateField
+                    value={editing.due}
+                    onChange={(d) => setEditing((e) => (e ? { ...e, due: d } : e))}
+                    label={c.dueDate}
+                    containerStyle={styles.msDueField}
+                  />
+                  {editing.due ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={c.dueClear}
+                      onPress={() => setEditing((e) => (e ? { ...e, due: "" } : e))}
+                      hitSlop={8}
+                      disabled={busy}
+                    >
+                      <OpsStatusChip tone="muted" label={c.dueClear} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : m.target_date ? (
+                <Text variant="caption" style={styles.msDue}>
+                  {c.dueDate} · {m.target_date}
+                </Text>
+              ) : null}
               {m.note ? <Text variant="body" style={styles.msNote}>{m.note}</Text> : null}
             </View>
           );
@@ -1389,6 +1442,10 @@ const styles = StyleSheet.create({
   msTitlePress: { flex: 1 },
   msTitleInput: { flex: 1, minHeight: 40 },
   msNote: { fontSize: 12, color: deepSpace.textLo },
+  msDue: { fontSize: 12, color: deepSpace.textLo },
+  msDueEdit: { flexDirection: "row", alignItems: "center", gap: 8 },
+  msDueField: { flex: 1 },
+  dueField: { marginTop: deepSpaceSpacing.sm },
 
   ledgerCard: {
     padding: deepSpaceSpacing.md,

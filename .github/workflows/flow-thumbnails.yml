@@ -91,6 +91,12 @@ jobs:
           curl -sf -o /dev/null http://localhost:8081/ && echo "served OK" || (echo "serve failed"; cat /tmp/serve.log; exit 1)
 
       # 3) capture scripts from the plugin repo (single source of truth)
+      - name: Cache Playwright browser
+        if: steps.detect.outputs.routes != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-v1
       - name: Get flow-debugger scripts
         if: steps.detect.outputs.routes != ''
         run: |

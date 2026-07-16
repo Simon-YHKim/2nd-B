@@ -190,17 +190,18 @@ interface ActiveMoment {
 }
 
 // Every designed companion moment also drives the SecondB head's face, so the
-// character reacts everywhere these fire (save/import/connection = a smile). The
-// two safety events are intentionally absent: a crisis surface must never trigger
-// a cute facial reaction.
+// character reacts everywhere these fire — with the full expression vocabulary
+// now (faces.ts): a save is happy, fresh information is delight, a found
+// connection is the smug 잘난척. The two safety events are intentionally
+// absent: a crisis surface must never trigger a cute facial reaction.
 const EXPRESSION_BY_EVENT: Partial<Record<CompanionEventKey, ExpressionMood>> = {
-  journalSaved: "positive",
-  auditCompleted: "positive",
-  wikiSaved: "positive",
-  captureSaved: "positive",
-  linkImported: "positive",
-  connectionFound: "positive",
-  personaUpdated: "positive",
+  journalSaved: "happy",
+  auditCompleted: "happy",
+  wikiSaved: "delight",
+  captureSaved: "happy",
+  linkImported: "delight",
+  connectionFound: "smug",
+  personaUpdated: "delight",
 };
 
 export function useCompanionMoment(): { moment: ActiveMoment | null; fire: (key: CompanionEventKey) => void } {

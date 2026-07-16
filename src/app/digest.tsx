@@ -16,6 +16,7 @@ import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { deepSpace, deepSpaceSpacing, deepSpaceRadii } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { reactExpression } from "@/lib/companion/expression";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import {
   listInferredLinkDetails,
@@ -71,6 +72,8 @@ export default function Digest() {
       try {
         if (confirm) await ratifyLink(userId, p.from_page, p.to_page);
         else await rejectInferredLink(userId, p.from_page, p.to_page);
+        // 승인 = the app-wide ratify wink (rejections stay face-neutral).
+        if (confirm) reactExpression("wink");
         await refresh();
       } catch {
         // best-effort; the row stays for a retry

@@ -6,6 +6,8 @@
 // account/data/language/danger-zone behavior and localized helper copy.
 
 import { type ReactNode, useEffect, useState } from "react";
+
+import { reactExpression } from "@/lib/companion/expression";
 import {
   ActivityIndicator,
   TouchableOpacity,
@@ -418,6 +420,7 @@ export default function Settings() {
     setBusy(label);
     try {
       const n = await deleteRecordsByKind(userId, kind);
+      reactExpression("sad"); // 데이터가 지워졌다 — the head registers the loss
       showSuccess(t("deletedN", { n }));
     } catch (e) {
       showActionError(
@@ -437,6 +440,7 @@ export default function Settings() {
     setBusy(label);
     try {
       const n = await deleteRecordsByTag(userId, tags);
+      reactExpression("sad"); // 데이터가 지워졌다 — the head registers the loss
       showSuccess(t("deletedN", { n }));
     } catch (e) {
       showActionError(
@@ -456,6 +460,7 @@ export default function Settings() {
     setBusy("wikiPages");
     try {
       const n = await deleteAllWikiPages(userId);
+      reactExpression("sad");
       showSuccess(t("deletedNWiki", { n }));
     } catch (e) {
       showActionError(
@@ -475,6 +480,7 @@ export default function Settings() {
     setBusy("sources");
     try {
       const n = await deleteUningestedSources(userId);
+      reactExpression("sad");
       showSuccess(t("deletedNCaptures", { n }));
     } catch (e) {
       showActionError(

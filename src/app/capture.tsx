@@ -293,8 +293,8 @@ export function CaptureLegacy() {
   // ("one sentence is enough") for the journey's very first save.
   // url/text/title arrive from the Web Share Target (manifest.webmanifest):
   // sharing a page from another app opens /capture with the payload here.
-  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam } =
-    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string }>();
+  const { entry, url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam, mode: modeParam, tag: tagParam } =
+    useLocalSearchParams<{ entry?: string; url?: string; text?: string; title?: string; mode?: string; tag?: string }>();
   const firstRun = entry === "firstRun";
   const shared = useMemo(
     () => normalizeSharedCaptureParams({ url: sharedUrlParam, text: sharedTextParam, title: sharedTitleParam }),
@@ -337,6 +337,9 @@ export function CaptureLegacy() {
 
   const [submitting, setSubmitting] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
+  // med#4: true once the user taps a 트랙 chip this visit — the AI classifier
+  // then keeps its hands off the track (mirrors the user-hashtags-win rule).
+  const trackTouchedRef = useRef(false);
   // Clipboard paste offer (⑥-b-i): availability comes from a presence-only
   // probe; the one-line empty note covers the probe-then-cleared race.
   const [clipboardAvailable, setClipboardAvailable] = useState(false);
@@ -526,6 +529,28 @@ export function CaptureLegacy() {
     // forward) doesn't resurrect content the user may have since edited away.
     router.setParams({ url: undefined, text: undefined, title: undefined });
   }, [shared, userId, draftHydrated]);
+
+  // Deep links can open a specific composer with a pre-attached tag:
+  // /capture-full?mode=voice (사진·음성 quick buttons, /beyond mic — med#3/#24)
+  // and ?tag=domain:career (별 화면의 담기 — med#1, so the piece lands on the
+  // star it was captured from instead of wherever auto-classification guesses).
+  // Consumed once after draft hydration, same sequencing as the share effect.
+  const modeParamConsumedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!draftHydrated) return;
+    const m = typeof modeParam === "string" && (CAPTURE_MODES as string[]).includes(modeParam) ? (modeParam as Mode) : null;
+    const tg = typeof tagParam === "string" && tagParam.trim().length > 0 ? tagParam.trim() : null;
+    if (!m && !tg) return;
+    const key = `${m ?? ""}:${tg ?? ""}`;
+    if (modeParamConsumedRef.current === key) return;
+    modeParamConsumedRef.current = key;
+    if (m) {
+      setShowAdvancedModes(true);
+      setMode(m);
+    }
+    if (tg) setTagsEditable((prev) => (prev.includes(tg) ? prev : [...prev, tg]));
+    router.setParams({ mode: undefined, tag: undefined });
+  }, [draftHydrated, modeParam, tagParam]);
   // Clipboard offer probe: presence-only (no content read, no OS notice) when
   // the user lands on the link box, re-run when the app returns to the
   // foreground — the headline flow is "copy in the browser, switch back here",
@@ -781,6 +806,8 @@ export function CaptureLegacy() {
       const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
       setOcrReviewApproved(false);
+      // 사진에서 글자를 읽어냈다 — fresh information, the delight beat.
+      reactExpression("delight");
     } catch (e) {
       // Split-② guards turned the crisis output swap into a typed throw; the
       // generic "clearer photo" alert here would HIDE the hotline from a user
@@ -1117,6 +1144,8 @@ export function CaptureLegacy() {
         setVoiceNotice(t("voice.transcriptEmpty"));
         return;
       }
+      // 받아쓰기 성공 — a happy beat as the words land in the box.
+      reactExpression("happy");
       // propose->ratify: fill the body so the user reviews/edits before saving.
       setBody((prev) => {
         const current = prev.trim();
@@ -1175,6 +1204,7 @@ export function CaptureLegacy() {
       // the save (degrades to the URL-derived kind + no extra frontmatter).
       let finalTags = tagsEditable;
       let suggestedTrack: WikiTrack = track;
+      const trackChosenByUser = trackTouchedRef.current;
       // OCR is user-authored knowledge → keep self_knowledge; else let the AI pick.
       let kindOverride: SourceKind | null = mode === "ocr" ? "self_knowledge" : null;
       let extraFrontmatter: Record<string, unknown> | undefined;
@@ -1184,7 +1214,10 @@ export function CaptureLegacy() {
           const cls = await classifyClipper(userId, finalBody, fallbackUrl, locale, isMinor === true, submitSignal);
           if (!submitIsCurrent(submitController)) return;
           if (tagsEditable.length === 0) finalTags = cls.tags;
-          suggestedTrack = cls.track;
+          // audit med#4: the AI used to overwrite the user's explicit 트랙 pick
+          // unconditionally — the chip only "worked" when the AI failed. Same
+          // rule as hashtags one line up: the user's curation wins.
+          if (!trackChosenByUser) suggestedTrack = cls.track;
           if (mode !== "ocr") kindOverride = cls.kind;
           extraFrontmatter = {
             ...cls.props,
@@ -1397,7 +1430,9 @@ export function CaptureLegacy() {
                 {
                   title: t("captureTab"),
                   items: [
-                    { key: "formats", label: t("formatsTab"), route: "/formats" },
+                    // med#11: this entry means the clipper FORMAT MANAGER, not
+                    // the export screen the bare route renders in deep-space.
+                    { key: "formats", label: t("formatsTab"), route: "/formats?view=manager" },
                     { key: "import", label: t("importTab"), route: "/import" },
                     { key: "inbox", label: t("inboxTab"), route: "/inbox" },
                     { key: "manual", label: t("manualTab"), route: "/manual" },
@@ -1538,7 +1573,7 @@ export function CaptureLegacy() {
               the clipper formats — including any just proposed above. */}
           {secondaryOpen ? (
             <Pressable
-              onPress={() => router.push("/formats")}
+              onPress={() => router.push({ pathname: "/formats", params: { view: "manager" } })}
               hitSlop={14}
               style={styles.manageFormatsLink}
               accessibilityRole="button"
@@ -1569,7 +1604,11 @@ export function CaptureLegacy() {
                   <Pressable
                     key={option}
                     style={[styles.trackChip, active && styles.trackChipActive]}
-                    onPress={() => setTrack(option)}
+                    onPress={() => {
+                      // An explicit pick means the AI must not override it (med#4).
+                      trackTouchedRef.current = true;
+                      setTrack(option);
+                    }}
                     hitSlop={14}
                     accessibilityRole="tab"
                     accessibilityState={{ selected: active }}

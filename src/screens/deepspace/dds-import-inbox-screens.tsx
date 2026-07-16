@@ -19,6 +19,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
@@ -146,6 +147,8 @@ function DeepSpaceInboxBody({ userId, title }: { userId: string; title: string }
           cta: t("ds.inbox.peerCta"),
         });
       }
+      // 새 소식이 실제로 있다 — the head lights up as the cards land.
+      if (next.length > 0) reactExpression("delight", 1200);
       setItems(next);
     });
     return () => {

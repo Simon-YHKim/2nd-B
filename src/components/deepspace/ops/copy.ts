@@ -129,6 +129,13 @@ export interface OpsCopy {
   goalTitlePlaceholder: string;
   goalRename: string;
   cancel: string;
+  // due dates: the model + the overdue chip already existed, but nothing could
+  // SET target_date, so "Overdue" was unreachable. These label the picker.
+  dueDate: string;
+  dueClear: string;
+  // reading shelf (med#21) — status moves that make the NOW-READING hero real.
+  startReading: string;
+  finishedReading: string;
 }
 
 const en: OpsCopy = {
@@ -230,6 +237,10 @@ const en: OpsCopy = {
   goalTitlePlaceholder: "Name the goal",
   goalRename: "Rename this goal",
   cancel: "Cancel",
+  dueDate: "Due date",
+  dueClear: "Clear",
+  startReading: "Start reading",
+  finishedReading: "Finished",
 };
 
 const ko: OpsCopy = {
@@ -327,6 +338,10 @@ const ko: OpsCopy = {
   goalTitlePlaceholder: "목표 이름을 적어 주세요",
   goalRename: "목표 이름 바꾸기",
   cancel: "취소",
+  dueDate: "마감일",
+  dueClear: "지우기",
+  startReading: "읽는 중으로",
+  finishedReading: "다 읽었어요",
 };
 
 export const OPS_COPY = { en, ko } as const;

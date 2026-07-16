@@ -9,6 +9,7 @@ import { Modal, View, StyleSheet } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { CompanionMoment } from "@/components/art/CompanionSprite";
+import { reactExpression } from "@/lib/companion/expression";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { semantic, spacing } from "@/lib/theme/tokens";
 
@@ -23,6 +24,9 @@ export function QuantSaveCelebration({ message, onDone }: { message: string; onD
   onDoneRef.current = onDone;
 
   useEffect(() => {
+    // A saved self-report is a happy beat on every mounted head — one line here
+    // covers all six quant instruments at once.
+    reactExpression("happy");
     // CompanionMoment plays for ~1.5s; navigate just after it settles, or after
     // a short beat when motion is reduced (the moment then holds, doesn't fade).
     const t = setTimeout(() => onDoneRef.current(), prefersReducedMotion() ? 900 : 1600);
