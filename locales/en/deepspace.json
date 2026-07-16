@@ -241,6 +241,9 @@
     "a11yStatus": "{{name}} {{status}}",
     "a11yConnected": "connected",
     "a11yConnect": "connect",
+    "openImport": "Import from file",
+    "openCapture": "Bring in via capture",
+    "a11yGo": "Open import for {{name}}",
     "sources": {
       "cal": {
         "name": "Google Calendar",
@@ -284,7 +287,9 @@
     "sectionFinding": "This week's key finding",
     "findingMajority": "{{percent}}% of this week's records were about {{domain}}.",
     "findingSpread": "No single area took up more than half of this week's records.",
-    "findingEmpty": "Nothing saved this week yet."
+    "findingEmpty": "Nothing saved this week yet.",
+    "sectionDiscover": "What to capture next",
+    "discoverLead": "See the interests rising in your recent records."
   },
   "data": {
     "title": "My data",
@@ -744,7 +749,13 @@
     },
     "inbox": {
       "title": "Alerts",
-      "empty": "No notifications yet - they appear here as you capture and organize."
+      "empty": "No notifications yet - they appear here as you capture and organize.",
+      "proposalsTitle": "Link proposals to review",
+      "proposalsBody": "{{n}} proposed connections are waiting for your confirmation.",
+      "proposalsCta": "Review proposals",
+      "peerTitle": "Peer responses arrived",
+      "peerBody": "{{n}} of your invites got a response.",
+      "peerCta": "See responses"
     },
     "import": {
       "title": "Import",

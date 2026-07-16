@@ -107,6 +107,14 @@
     "shareCard": {
       "label": "Kartu berbagi",
       "sub": "Kartu 1080"
+    },
+    "srs": {
+      "label": "Ulasan kartu",
+      "sub": "Ulasan berjarak"
+    },
+    "callReflection": {
+      "label": "Refleksi panggilan",
+      "sub": "Ucapkan jadi catatan"
     }
   },
   "states": {
@@ -137,6 +145,7 @@
     "doneToday": "Sesi fokus selesai hari ini: {{count}}",
     "alarmFocusTitle": "Blok fokus selesai",
     "alarmFocusBody": "Kerja bagus. Waktunya istirahat singkat.",
+    "alarmFocusBodyStar": "Kerja bagus. Satu sesi fokus tersimpan untuk {{star}}.",
     "alarmBreakTitle": "Istirahat selesai",
     "alarmBreakBody": "Kembali ke blok fokus berikutnya.",
     "subIdle": "Siap saat kamu mau",
@@ -172,6 +181,7 @@
     "forWhichStar": "Untuk bintang apa?",
     "todayCount": "{{sessions}} sesi fokus hari ini",
     "todaySub": "Sekitar {{min}} mnt · target {{goal}}",
+    "todayStarCount": "Bintang {{star}} · {{n}} hari ini",
     "stars": {
       "s0": "Pertumbuhan",
       "s1": "Karier",

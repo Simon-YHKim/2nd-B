@@ -572,6 +572,14 @@ const styles = StyleSheet.create({
 });
 
 export default function Trinity() {
-  if (isDeepSpaceUI()) return <TrinityDeepSpace />;
+  if (isDeepSpaceUI()) {
+    // CONCEPT.md names Brain Trinity LEGACY (rollback skin only) — it must not
+    // surface in the canonical deep-space experience. Production redirects to
+    // 북극성 (/core-brain), the canonical aggregate that superseded it; dev
+    // builds keep the M3 remake reachable for reference (same __DEV__ read as
+    // DevOnlyRoute — untyped in this tsconfig, so via globalThis).
+    if ((globalThis as { __DEV__?: boolean }).__DEV__ === true) return <TrinityDeepSpace />;
+    return <Redirect href="/core-brain" />;
+  }
   return <TrinityLegacy />;
 }

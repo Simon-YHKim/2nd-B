@@ -46,6 +46,16 @@ const PAGE_ID_EXPRS = [
   "to_page",
   "page.id",
   "wikiPage.id",
+  // /research insight cards (2026-07-16): headline.id = graph-stats topHubs
+  // (wiki_pages.id) and surprise.fromId = wiki_links.from_page. Both slipped
+  // this scanner because the allow-list above never named them — the same
+  // page-id-as-record-id bug shipped twice in the file this test guards.
+  "view.headline!.id",
+  "view.headline.id",
+  "view.surprise!.fromId",
+  "view.surprise.fromId",
+  "headline.id",
+  "surprise.fromId",
 ];
 
 describe("a wiki page id is never used as a record id", () => {
@@ -66,11 +76,14 @@ describe("a wiki page id is never used as a record id", () => {
     expect(offenders).toEqual([]);
   });
 
-  test("the three fixed screens now send page ids to /wiki", () => {
+  test("the fixed screens now send page ids to /wiki", () => {
     const expected: [string, string][] = [
       ["src/app/digest.tsx", "p.from_page"],
       ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "p.from_page"],
       ["src/screens/deepspace/dds-wiki-records-screens.tsx", "p.id"],
+      // /research insight cards — the second occurrence of this bug (2026-07-16).
+      ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "view.headline!.id"],
+      ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "view.surprise!.fromId"],
     ];
     for (const [file, expr] of expected) {
       const src = read(join(ROOT, file));

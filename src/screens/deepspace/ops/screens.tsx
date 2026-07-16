@@ -69,6 +69,7 @@ import {
   disableReminder,
   enableReminder,
   getReminderStates,
+  getScheduledRoutineIds,
   remindersSupported,
 } from "@/lib/ops/reminders";
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
@@ -406,10 +407,11 @@ export function MilestonesScreen() {
   // but reload() sits INSIDE the try -- so on the failure path it never ran, and the tap
   // just silently did nothing.
   const [saveErr, setSaveErr] = useState(false);
-  const { i18n } = useTranslation();
-  const isKo = i18n.language?.toLowerCase().startsWith("ko");
   const [domain, setDomain] = useState<OpsDomainId>("learning_goals");
   const [busy, setBusy] = useState(false);
+  // Named goals: the add input's draft + the inline rename target.
+  const [draft, setDraft] = useState("");
+  const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
   const ms = useAsync<Milestone[]>(
     () => (userId ? listMilestones(userId, domain) : Promise.resolve([])),
     [userId, domain],
@@ -424,17 +426,42 @@ export function MilestonesScreen() {
     return { tone: "info", label: c.planning };
   };
 
-  // [데이터 추가]: append a blank "Untitled" goal the user can advance/edit.
+  // [데이터 추가]: the user NAMES the goal. The old handler hardcoded
+  // "새 목표"/"New goal" and no rename existed anywhere, so every goal in the
+  // list was an indistinguishable "새 목표" (audit: /milestones stub).
   const onAdd = async () => {
-    if (!userId || busy) return;
+    const title = draft.trim();
+    if (!userId || busy || title.length === 0) return;
     setBusy(true);
     setSaveErr(false);
     try {
-      await createMilestone(userId, domain, { title: isKo ? "새 목표" : "New goal" });
+      await createMilestone(userId, domain, { title });
+      setDraft("");
       ms.reload();
     } catch {
       // The write failed. Say so: reload() lives inside the try above, so on this path
       // it never ran and nothing surfaced anywhere.
+      setSaveErr(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Inline rename (tap a goal's title to edit it).
+  const onRename = async () => {
+    if (!userId || busy || !editing) return;
+    const title = editing.title.trim();
+    if (title.length === 0) {
+      setEditing(null);
+      return;
+    }
+    setBusy(true);
+    setSaveErr(false);
+    try {
+      await updateMilestone(userId, editing.id, { title });
+      setEditing(null);
+      ms.reload();
+    } catch {
       setSaveErr(true);
     } finally {
       setBusy(false);
@@ -474,7 +501,18 @@ export function MilestonesScreen() {
         </Text>
         <ProgressBar value={prog.pct} color={deepSpace.accentDim} />
       </View>
-      <Pressable accessibilityRole="button" onPress={onAdd} hitSlop={6} disabled={busy} style={styles.addRow}>
+      <View style={styles.searchRow}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={() => void onAdd()}
+          placeholder={c.goalTitlePlaceholder}
+          placeholderTextColor={deepSpace.textLo}
+          style={styles.searchInput}
+          returnKeyType="done"
+        />
+      </View>
+      <Pressable accessibilityRole="button" onPress={onAdd} hitSlop={6} disabled={busy || draft.trim().length === 0} style={styles.addRow}>
         <Text variant="caption" style={styles.addRowText}>＋ {c.emptyCta}</Text>
       </Pressable>
       {ms.status === "loading" ? (
@@ -489,10 +527,40 @@ export function MilestonesScreen() {
           return (
             <View key={m.id} style={styles.msRow}>
               <View style={styles.msTop}>
-                <Text variant="heading" style={styles.msTitle}>{m.title}</Text>
-                <Pressable accessibilityRole="button" onPress={() => onAdvance(m)} hitSlop={8} disabled={busy}>
-                  <OpsStatusChip tone={chip.tone} label={chip.label} />
-                </Pressable>
+                {editing?.id === m.id ? (
+                  <>
+                    <TextInput
+                      value={editing.title}
+                      onChangeText={(v) => setEditing({ id: m.id, title: v })}
+                      style={[styles.searchInput, styles.msTitleInput]}
+                      placeholderTextColor={deepSpace.textLo}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={() => void onRename()}
+                    />
+                    <Pressable accessibilityRole="button" onPress={() => void onRename()} hitSlop={8} disabled={busy}>
+                      <OpsStatusChip tone="positive" label={c.save} />
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => setEditing(null)} hitSlop={8} disabled={busy}>
+                      <OpsStatusChip tone="muted" label={c.cancel} />
+                    </Pressable>
+                  </>
+                ) : (
+                  <>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={c.goalRename}
+                      onPress={() => setEditing({ id: m.id, title: m.title })}
+                      hitSlop={6}
+                      style={styles.msTitlePress}
+                    >
+                      <Text variant="heading" style={styles.msTitle}>{m.title}</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => onAdvance(m)} hitSlop={8} disabled={busy}>
+                      <OpsStatusChip tone={chip.tone} label={chip.label} />
+                    </Pressable>
+                  </>
+                )}
               </View>
               {m.note ? <Text variant="body" style={styles.msNote}>{m.note}</Text> : null}
             </View>
@@ -1030,20 +1098,52 @@ export function RemindersScreen() {
   // render the row's "권한 필요" state instead of crashing or silently failing.
   const [denied, setDenied] = useState<Record<string, true>>({});
 
-  // Hydrate the persisted on/off states once the reminder list is known.
+  // Hydrate on/off from the persisted flag AND the real OS schedule. ON now
+  // means "an OS notification is actually scheduled" — the old flag-only state
+  // showed ON by default for rows that had never been scheduled at all (the
+  // audit's /reminders mismatch: a switch over notifications that don't exist).
   useEffect(() => {
     let alive = true;
-    void getReminderStates(withReminder.map((r) => r.id)).then((s) => {
-      if (alive) setStates(s);
+    void Promise.all([
+      getReminderStates(withReminder.map((r) => r.id)),
+      getScheduledRoutineIds(),
+    ]).then(([flags, scheduled]) => {
+      if (!alive) return;
+      const next: Record<string, boolean> = {};
+      for (const r of withReminder) next[r.id] = flags[r.id] !== false && scheduled.has(r.id);
+      setStates(next);
     });
     return () => {
       alive = false;
     };
   }, [withReminder]);
 
-  const toggle = async (id: string) => {
-    const currentlyOn = states[id] !== false;
+  // Build the schedulable event for a routine (HH:MM local + recurrence). A
+  // weekly routine is anchored to its weekday; a one-shot in the past rolls to
+  // tomorrow so the OS scheduler never gets an unfireable date.
+  const eventForRoutine = (r: OpsRoutine): OpsEventInput | null => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(r.reminder_time ?? "");
+    if (!m) return null;
+    const d = new Date();
+    d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    if (r.recurrence === "weekly" && r.weekday != null) {
+      d.setDate(d.getDate() + ((r.weekday - d.getDay() + 7) % 7));
+    } else if (r.recurrence === "none" && d.getTime() <= Date.now()) {
+      d.setDate(d.getDate() + 1);
+    }
+    return {
+      title: r.title,
+      description: r.reason ?? undefined,
+      startsAtIso: d.toISOString(),
+      ...(r.recurrence === "daily" || r.recurrence === "weekly" ? { recurrence: r.recurrence } : {}),
+    };
+  };
+
+  const toggle = async (r: OpsRoutine) => {
+    const id = r.id;
+    const currentlyOn = states[id] === true;
     if (currentlyOn) {
+      // Cancels the scheduled OS notification too (not just the flag).
       await disableReminder(id);
       setStates((prev) => ({ ...prev, [id]: false }));
       setDenied((prev) => {
@@ -1054,8 +1154,11 @@ export function RemindersScreen() {
       return;
     }
     // Enabling: ask for the OS permission first (propose->ratify — the tap is
-    // the user action). Denied → keep it off and show "권한 필요".
-    const ok = await enableReminder(id);
+    // the user action), then actually SCHEDULE under the routine's identifier.
+    // Denied → keep it off and show "권한 필요".
+    const event = eventForRoutine(r);
+    if (!event) return; // unparsable reminder_time: nothing real to schedule
+    const ok = await enableReminder(id, event);
     if (ok) {
       setStates((prev) => ({ ...prev, [id]: true }));
       setDenied((prev) => {
@@ -1074,11 +1177,12 @@ export function RemindersScreen() {
   const rows: { vm: ReminderVM; onToggle?: () => void }[] = hasReal
     ? withReminder.map((r) => {
         const isDenied = !!denied[r.id];
-        const on = supported && !isDenied && states[r.id] !== false;
+        // ON = actually scheduled (states is hydrated against the OS schedule).
+        const on = supported && !isDenied && states[r.id] === true;
         const repeat = r.recurrence === "daily" ? c.daily : r.recurrence === "weekly" ? c.weekly : c.once;
         return {
           vm: { key: r.id, title: r.title, when: reminderSchedule(r, c), repeat, src: c.assistantSource, star: "", on, interactive: supported },
-          onToggle: supported ? () => void toggle(r.id) : undefined,
+          onToggle: supported ? () => void toggle(r) : undefined,
         };
       })
     : [];
@@ -1282,6 +1386,8 @@ const styles = StyleSheet.create({
   },
   msTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   msTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
+  msTitlePress: { flex: 1 },
+  msTitleInput: { flex: 1, minHeight: 40 },
   msNote: { fontSize: 12, color: deepSpace.textLo },
 
   ledgerCard: {

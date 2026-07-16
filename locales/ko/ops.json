@@ -107,6 +107,14 @@
     "shareCard": {
       "label": "공유 카드",
       "sub": "1080 카드"
+    },
+    "srs": {
+      "label": "낱말카드 복습",
+      "sub": "간격 복습"
+    },
+    "callReflection": {
+      "label": "통화 돌아보기",
+      "sub": "말로 남기기"
     }
   },
   "states": {
@@ -137,6 +145,7 @@
     "doneToday": "오늘 끝낸 집중 세션: {{count}}",
     "alarmFocusTitle": "집중 블록 완료",
     "alarmFocusBody": "잘했어요. 잠깐 쉬어요.",
+    "alarmFocusBodyStar": "잘했어요. {{star}} 별에 집중 1회를 담았어요.",
     "alarmBreakTitle": "휴식 끝",
     "alarmBreakBody": "다음 집중 블록으로 돌아가요.",
     "subIdle": "시작할 준비가 됐어요",
@@ -172,6 +181,7 @@
     "forWhichStar": "어떤 별을 위해?",
     "todayCount": "오늘 {{sessions}}회 집중",
     "todaySub": "약 {{min}}분 · 목표 {{goal}}회",
+    "todayStarCount": "{{star}} 별 · 오늘 {{n}}회",
     "stars": {
       "s0": "성장",
       "s1": "커리어",

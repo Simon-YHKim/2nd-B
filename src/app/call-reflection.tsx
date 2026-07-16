@@ -279,7 +279,20 @@ export default function CallReflection() {
           {recording ? (
             <>
               <MdButton variant="filled" label={t("callReflection.stopAnalyse")} onPress={() => void stopAndTranscribe()} style={s.stopBtn} />
-              <MdButton variant="text" label={t("callReflection.cancelNoSave")} onPress={() => { void audioRecorder.stop().catch(() => {}); setSecs(0); setPhase("idle"); }} />
+              <MdButton
+                variant="text"
+                label={t("callReflection.cancelNoSave")}
+                onPress={() => {
+                  // "저장 안 함" must also DELETE the temp audio file — every
+                  // other exit path discards it; this one left it on disk.
+                  void audioRecorder
+                    .stop()
+                    .then(() => discardRecording(audioRecorder.uri))
+                    .catch(() => {});
+                  setSecs(0);
+                  setPhase("idle");
+                }}
+              />
             </>
           ) : (
             <>

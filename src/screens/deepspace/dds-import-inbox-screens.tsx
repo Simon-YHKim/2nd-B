@@ -20,6 +20,8 @@ import { DeepSpaceLoader } from "@/components/deepspace";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { listInferredLinkDetails } from "@/lib/wiki/queries";
+import { listPeerInvites } from "@/lib/peer/invite";
 import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
@@ -89,15 +91,75 @@ export function DeepSpaceInboxScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const items: {
-    icon: keyof typeof GLYPH;
-    accent: string;
-    title: string;
-    body: string;
-    time: string;
-    route: string;
-    cta: string;
-  }[] = [];
+  return <DeepSpaceInboxBody userId={userId} title={title} />;
+}
+
+type InboxItem = {
+  icon: keyof typeof GLYPH;
+  accent: string;
+  title: string;
+  body: string;
+  time: string;
+  route: string;
+  cta: string;
+};
+
+// The notification list is REAL now: it aggregates the two in-app event
+// sources that already exist — pending link proposals (propose→ratify, the
+// /digest queue) and responded peer invites. Before this, `items` was a
+// hardcoded empty array: honest-looking, but the pipeline behind the bell was
+// simply not wired (audit: /inbox stub).
+function DeepSpaceInboxBody({ userId, title }: { userId: string; title: string }) {
+  const { t } = useTranslation("deepspace");
+  const [items, setItems] = useState<InboxItem[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([
+      listInferredLinkDetails(userId).catch(() => []),
+      listPeerInvites(userId).catch(() => []),
+    ]).then(([links, invites]) => {
+      if (!alive) return;
+      const next: InboxItem[] = [];
+      if (links.length > 0) {
+        next.push({
+          icon: "link",
+          accent: m3.color.primary,
+          title: t("ds.inbox.proposalsTitle"),
+          body: t("ds.inbox.proposalsBody", { n: links.length }),
+          time: "",
+          route: "/digest",
+          cta: t("ds.inbox.proposalsCta"),
+        });
+      }
+      const responded = invites.filter(
+        (i) => i.responded_at != null && (i.status === "accepted" || i.status === "declined"),
+      );
+      if (responded.length > 0) {
+        next.push({
+          icon: "forum",
+          accent: m3.color.tertiary,
+          title: t("ds.inbox.peerTitle"),
+          body: t("ds.inbox.peerBody", { n: responded.length }),
+          time: "",
+          route: "/peer-invites",
+          cta: t("ds.inbox.peerCta"),
+        });
+      }
+      setItems(next);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId, t]);
+
+  if (items === null) {
+    return (
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>
+        <Loading />
+      </DeepSpaceScreen>
+    );
+  }
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={title} onBack={() => router.back()}>

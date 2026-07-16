@@ -87,7 +87,6 @@ export function ImportHubScreen() {
   // nothing kept -- after the user had walked a consent flow and picked a file for it.
   const [importErr, setImportErr] = useState(false);
   const [active, setActive] = useState<ImportSource | null>(null);
-  const [onDevice, setOnDevice] = useState(true);
   const [paste, setPaste] = useState("");
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -337,21 +336,12 @@ export function ImportHubScreen() {
         <View style={styles.chipRow}>
           <MetaChip label={t("keep90")} />
           <MetaChip label={t("deleteAnytime")} />
+          {/* Truthful STATIC fact, not a switch: buildProposals parses locally,
+              so analysis really is on-device — but the old toggle here was read
+              by nothing (analyze/ratify/chooseFile ignored it), a fake control
+              on a privacy promise (audit: /import-hub dead switch). */}
+          <MetaChip label={t("onDeviceOnly")} />
         </View>
-
-        <Pressable
-          onPress={() => setOnDevice((v) => !v)}
-          hitSlop={6}
-          style={styles.toggleRow}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: onDevice }}
-          accessibilityLabel={t("onDeviceOnly")}
-        >
-          <Text variant="body" style={styles.toggleText}>{t("onDeviceOnly")}</Text>
-          <View style={[styles.toggle, onDevice ? styles.toggleOn : styles.toggleOff]}>
-            <View style={[styles.knob, onDevice ? styles.knobOn : styles.knobOff]} />
-          </View>
-        </Pressable>
 
         {s.googleKind ? (
           <>

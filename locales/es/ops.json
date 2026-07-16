@@ -107,6 +107,14 @@
     "shareCard": {
       "label": "Tarjeta para compartir",
       "sub": "Tarjeta 1080"
+    },
+    "srs": {
+      "label": "Repaso de tarjetas",
+      "sub": "Repaso espaciado"
+    },
+    "callReflection": {
+      "label": "Reflexión de llamada",
+      "sub": "Déjalo dicho"
     }
   },
   "states": {
@@ -137,6 +145,7 @@
     "doneToday": "Sesiones de enfoque hechas hoy: {{count}}",
     "alarmFocusTitle": "Bloque de enfoque terminado",
     "alarmFocusBody": "Buen trabajo. Hora de un descanso corto.",
+    "alarmFocusBodyStar": "Buen trabajo. Una sesión de foco guardada para {{star}}.",
     "alarmBreakTitle": "Descanso terminado",
     "alarmBreakBody": "De vuelta a tu próximo bloque de enfoque.",
     "subIdle": "Listo cuando quieras",
@@ -172,6 +181,7 @@
     "forWhichStar": "¿Para qué estrella?",
     "todayCount": "{{sessions}} sesiones de enfoque hoy",
     "todaySub": "Unos {{min}} min · meta {{goal}}",
+    "todayStarCount": "Estrella {{star}} · {{n}} hoy",
     "stars": {
       "s0": "Crecimiento",
       "s1": "Carrera",
