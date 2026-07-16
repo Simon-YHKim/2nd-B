@@ -113,14 +113,15 @@ jobs:
           # is actually enabled in the Supabase console AND the matching Variable
           # is "true". Simon confirmed Google/Kakao/GitHub are enabled server-side
           # (2026-07-15), so those default "true". Apple stays "false" pending
-          # Apple Developer / App Store review; Facebook is unset here (env.ts
+          # Apple is enabled after its provider configuration was completed;
+          # Facebook is unset here (env.ts
           # default "false"). A provider left "false" hides its button so users
           # never hit a raw provider error page (the 2026-06-11 live-QA failure).
           EXPO_PUBLIC_ENABLE_GOOGLE: ${{ vars.EXPO_PUBLIC_ENABLE_GOOGLE || 'true' }}
-          EXPO_PUBLIC_ENABLE_APPLE: ${{ vars.EXPO_PUBLIC_ENABLE_APPLE || 'false' }}
+          EXPO_PUBLIC_ENABLE_APPLE: ${{ vars.EXPO_PUBLIC_ENABLE_APPLE || 'true' }}
           EXPO_PUBLIC_ENABLE_KAKAO: ${{ vars.EXPO_PUBLIC_ENABLE_KAKAO || 'true' }}
           EXPO_PUBLIC_ENABLE_GITHUB: ${{ vars.EXPO_PUBLIC_ENABLE_GITHUB || 'true' }}
-          EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID }}
+          EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
           # Analytics (Simon directive 2026-06-11): the client code has been
           # consent-gated and wired since #258, but the build never injected
           # the ids, so live collection was a no-op. All optional: an unset

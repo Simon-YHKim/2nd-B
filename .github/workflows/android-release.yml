@@ -90,7 +90,11 @@ jobs:
       EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"
       EXPO_PUBLIC_ENABLE_KAKAO: "true"
-      EXPO_PUBLIC_NATIVE_SOCIAL_SDK: "true"
+      EXPO_PUBLIC_ENABLE_APPLE: "true"
+      # Native Google/Kakao SDKs require their own release-key registrations.
+      # Until those registrations are verified, use Supabase's browser OAuth
+      # flow, which returns through the registered secondbrain:// callback.
+      EXPO_PUBLIC_NATIVE_SOCIAL_SDK: "false"
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com' }}
       EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN || 'https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808' }}
