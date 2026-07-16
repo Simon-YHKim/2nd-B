@@ -354,7 +354,16 @@ export function DeepSpaceSignInDesignScreen() {
         </Pressable>
       </View>
 
-      <Text variant="caption" style={styles.authLegal}>{t("deepspace:auth.legalConsent")}</Text>
+      {/* U4: the consent line now OPENS the terms it references (readable
+          signed-out; /terms lives in this (auth) group). */}
+      <Pressable
+        onPress={() => router.push("/terms")}
+        hitSlop={10}
+        accessibilityRole="link"
+        accessibilityLabel={t("deepspace:auth.legalConsent")}
+      >
+        <Text variant="caption" style={[styles.authLegal, { textDecorationLine: "underline" }]}>{t("deepspace:auth.legalConsent")}</Text>
+      </Pressable>
       {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
     </AuthShell>
   );
