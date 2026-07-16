@@ -10,13 +10,14 @@
 // record. The sanctioned path is speakerphone mic capture the user starts — the
 // UI says so honestly rather than promising an impossible call-audio API.
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { MdButton } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
@@ -194,8 +195,7 @@ export default function CallReflection() {
     return (
       <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
         <View style={s.loadingWrap}>
-          <ActivityIndicator size="large" color={m3.color.primary} />
-          <RNText style={s.loadingTitle}>{t("callReflection.transcribing")}</RNText>
+          <DeepSpaceLoader variant="dots" caption={t("callReflection.transcribing")} />
           <RNText style={s.loadingSub}>
             {ko ? "음성을 텍스트로 바꾸고 있어요. 원본 녹음은 곧 삭제돼요." : "Turning speech into text. The recording is deleted shortly."}
           </RNText>
@@ -330,7 +330,6 @@ const s = StyleSheet.create({
   blockedBody: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 21, textAlign: "center", maxWidth: 300 },
   blockedBtn: { marginTop: 6 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, paddingHorizontal: 32 },
-  loadingTitle: { color: m3.color.onSurface, fontSize: 16, fontWeight: "500", textAlign: "center" },
   loadingSub: { color: m3.color.onSurfaceVariant, fontSize: 13, lineHeight: 19, textAlign: "center" },
   resultScroll: { padding: m3.spacing.s4, paddingBottom: 40, gap: m3.spacing.s2 },
   resultHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 8 },

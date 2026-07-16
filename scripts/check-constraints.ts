@@ -2750,7 +2750,12 @@ results.push(
       koCommon.includes('"loading": "불러오는 중이에요') &&
       feedback.includes('useTranslation("common")') &&
       feedback.includes('accessibilityLabel={t("actions.close")}') &&
-      feedback.includes('title={message ?? t("states.loading")}') &&
+      // PremiumLoadingState now renders the shared 세컨비 head loader
+      // (DeepSpaceLoader "dots") instead of the pixel glyph, so the localized
+      // label rides its `caption` prop rather than StateShell's `title`. The
+      // constraint is unchanged: the label must come from the locale bundle,
+      // never a hardcoded Korean string (guarded below).
+      feedback.includes('caption={message ?? t("states.loading")}') &&
       feedback.includes('const resolvedRetryLabel = retryLabel ?? t("actions.retry")') &&
       !feedback.includes('accessibilityLabel="닫기"') &&
       !feedback.includes('message ?? "불러오는 중이에요') &&
