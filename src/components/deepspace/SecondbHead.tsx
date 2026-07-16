@@ -36,7 +36,7 @@ import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } fr
 import { Image } from "expo-image";
 import Svg, { Circle, Path } from "react-native-svg";
 
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace } from "@/lib/theme/tokens";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { subscribeExpression, subscribeHold, type Expression } from "@/lib/companion/expression";
@@ -60,7 +60,12 @@ interface SecondbHeadProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
+// Face-BLANK head (clean black visor): the face is drawn ENTIRELY by this
+// component, matching the baked face of secondb-head-front.png 1:1 in the
+// neutral pose — that PNG (the loading screen / static contexts) is the
+// reference design, so every context shows the same face (사용자 지시
+// 2026-07-16: 로딩 화면의 세컨비가 레퍼런스).
+const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-blank.png");
 
 /** Heads at or above this size are "big" and track by default. */
 const BIG_HEAD_MIN = 80;
@@ -209,7 +214,6 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
   // Persona tint (rev2): personas share the silhouette; only the accent glow
   // differs. Unset persona keeps the canonical deep-space cyan (no regression).
   const accent = persona ? m3.persona[persona].accent : deepSpace.accent;
-  const accentBright = persona ? m3.persona[persona].soft : deepSpace.accentBright;
 
   const tracking = useSecondbTracking();
   // Auto by size when `track` is omitted: big heads follow touch, small heads don't.
@@ -339,13 +343,14 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
   // Face geometry as canon fractions of the head size, then expression-shaped.
-  const faceW = size * 0.47;
-  const faceH = size * 0.235;
-  const eyeW = Math.max(3, size * 0.063);
-  const eyeHBase = Math.max(4, size * 0.101);
-  const mouthW = Math.max(8, size * 0.12) * (face.mouthScale ?? 1);
-  const mouthBoxH = Math.max(4, size * 0.06);
-  const mouthStroke = Math.max(2, size * 0.018);
+  const eyeW = Math.max(4, size * 0.062);
+  // Reference eyes are rounded SQUARES (the baked face of the loading logo) —
+  // height == width at h: 1; expression h-multipliers squash them into lids.
+  const eyeHBase = eyeW;
+  const eyeRadius = eyeW * 0.24;
+  const mouthW = Math.max(6, size * 0.058) * (face.mouthScale ?? 1);
+  const mouthBoxH = Math.max(4, size * 0.05);
+  const mouthStroke = Math.max(1.5, size * 0.012);
   const gazeX = (face.lookX ?? 0) * size;
   const gazeY = (face.lookY ?? 0) * size;
 
@@ -354,22 +359,6 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
       <Animated.View style={trackStyle}>
         <Animated.View style={[styles.wrap, { width: size, height: size }, bobStyle]}>
           <Image source={HEAD_IMAGE} style={{ width: size, height: size }} contentFit="contain" accessibilityLabel={accessibilityLabel} />
-
-          {/* Dark face screen (visor) the eyes + mouth glow on. */}
-          <View
-            pointerEvents="none"
-            style={[
-              styles.faceScreen,
-              {
-                width: faceW,
-                height: faceH,
-                borderRadius: Math.max(6, size * 0.063),
-                left: size * 0.5 - faceW / 2,
-                top: size * 0.6 - faceH / 2,
-                borderColor: withAlpha(accent, 0.18),
-              },
-            ]}
-          />
 
           {/* Eyes — glowing cyan; blink + drift toward touch, expression-shaped
               PER SIDE (wink closes one; smug half-lowers one; sad droops both). */}
@@ -406,7 +395,6 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
               );
             }
 
-            const eyePupil = eyeW * 0.6;
             const transform = eyeOffset
               ? [{ translateX: eyeOffset.x }, { translateY: eyeOffset.y }, { rotate: tilt }, { scaleY: blink }]
               : [{ rotate: tilt }, { scaleY: blink }];
@@ -419,7 +407,7 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                   {
                     width: eyeW,
                     height: eyeH,
-                    borderRadius: eyeW / 2,
+                    borderRadius: eyeRadius,
                     left: size * cx - eyeW / 2 + gazeX,
                     top: size * spec.top - eyeH / 2 + gazeY,
                     transform,
@@ -427,9 +415,7 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                     shadowColor: accent,
                   },
                 ]}
-              >
-                <View style={[styles.pupil, { width: eyePupil, height: eyePupil, borderRadius: eyePupil / 2, top: eyeH * 0.18, backgroundColor: accentBright }]} />
-              </Animated.View>
+              />
             );
           })}
 
@@ -478,12 +464,6 @@ const styles = StyleSheet.create({
   // box-shadow halo and on Android elevation casts a rectangular outline around
   // the transparent head PNG. The eyes carry their own (circular) glow.
   wrap: { position: "relative", flexShrink: 0, alignItems: "center", justifyContent: "center" },
-  faceScreen: {
-    position: "absolute",
-    backgroundColor: deepSpace.bgEdge,
-    borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accent, 0.18),
-  },
   eye: {
     position: "absolute",
     alignItems: "center",
@@ -501,10 +481,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
     elevation: 6,
-  },
-  pupil: {
-    position: "absolute",
-    backgroundColor: deepSpace.accentBright,
   },
   mouth: {
     position: "absolute",
