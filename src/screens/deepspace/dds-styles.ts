@@ -137,5 +137,7 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
   minorBannerText:{color:colors.soul,fontSize:11.5,},
   checklistRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm,minHeight:24},
   checklistDot:{width:8,height:8,borderRadius:4},
-  checklistText:{flex:1,fontSize:11.5}});
+  checklistText:{flex:1,fontSize:11.5},
+  providerCircleRow:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',alignItems:'center',gap:spacing.md,paddingVertical:spacing.xs},
+  providerCircle:{width:52,height:52,borderRadius:26,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:colors.borderHi,backgroundColor:colors.cardBg}});
 
