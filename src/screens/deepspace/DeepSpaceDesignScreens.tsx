@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
+import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -1511,6 +1512,8 @@ export function DeepSpaceResearchScreen() {
       });
       await proposeAllRelatedLinks(userId);
       await loadProposals(userId);
+      // 연결을 찾아냈다 — the 잘난척 beat (proposals arriving is SecondB's moment).
+      reactExpression("smug");
     } catch {
       // best-effort; nothing new appears
     } finally {
@@ -1524,6 +1527,8 @@ export function DeepSpaceResearchScreen() {
     setActingKey(key);
     try {
       await ratifyLink(userId, p.from_page, p.to_page);
+      // 승인 = the app-wide ratify wink.
+      reactExpression("wink");
       setAnnounce(t("connectionConfirmed"));
       await loadProposals(userId);
     } catch {

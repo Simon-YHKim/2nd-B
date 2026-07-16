@@ -7,6 +7,19 @@
 // px the same way. There is NO floating orb above the head (the canon has none;
 // emotion is read from the live face, not a dot).
 //
+// EXPRESSIONS: the face vocabulary is 13 deep (lib/companion/faces.ts is the
+// geometry SoT — per-eye lids/tilt/arc, six mouth kinds, gaze offsets, blink
+// cadence). Every mounted head resolves one face per frame:
+//
+//     reaction  ??  hold  ??  idle  ??  base mood(prop)
+//
+//   · reaction — reactExpression("sad") etc: a beat-long flash on EVERY head.
+//   · hold     — holdExpression("thinking") while an AI call is in flight.
+//   · idle     — 평소 딴청: on a quiet head the idle policy occasionally rolls a
+//                whistle / bored look-away (sleepy after a long stretch). Blink
+//                keeps running underneath throughout.
+//   · base     — the screen's `mood` prop (3-mood back-compat surface).
+//
 // Tracking is AUTO by size: heads >= 80 ("big") follow touch when under a
 // <SecondbHeadTrackProvider>; smaller header heads only bob + blink (canon §0.1:
 // the status-bar head does not track). Override with `track`.
@@ -21,12 +34,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
-import { subscribeExpression } from "@/lib/companion/expression";
+import { subscribeExpression, subscribeHold, type Expression } from "@/lib/companion/expression";
+import { FACES, nextIdleDelayMs, pickIdleAction, type FaceSpec, type MouthKind } from "@/lib/companion/faces";
 import { useSecondbTracking } from "./SecondbHeadTrack";
 
 export type SecondbMood = "positive" | "neutral" | "negative";
@@ -51,24 +65,67 @@ const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 /** Heads at or above this size are "big" and track by default. */
 const BIG_HEAD_MIN = 80;
 
-// Per-mood FACE shapes (cyan-only, never a colored orb). The canon .dc.html only
-// changes a background-sphere colour by mood; these eye/mouth shapes extend that
-// into a readable expression within the deep-space identity.
-//   eyes:  hFactor = height vs neutral (squint), topF = vertical placement,
-//          tilt   = outer-corner droop in deg (sad).
-const EYE_BY_MOOD: Record<SecondbMood, { hFactor: number; topF: number; tilt: number }> = {
-  positive: { hFactor: 0.58, topF: 0.585, tilt: 0 }, // content squint
-  neutral: { hFactor: 1, topF: 0.585, tilt: 0 },
-  negative: { hFactor: 0.9, topF: 0.602, tilt: 8 }, // lowered, outer corners down
-};
-
-// Mouth as an SVG curve: smile ◡ (positive), flat line (neutral), frown ◠ (negative).
-function mouthPath(mood: SecondbMood, w: number, h: number): string {
+// Mouth as an SVG curve, six kinds (faces.ts picks per expression):
+//   smile ◡ · flat — · frown ◠ · open (filled happy D) · o (whistle/surprise
+//   ring, drawn as a Circle) · smirk (one-sided curl, the 잘난척 mouth).
+function mouthPath(kind: MouthKind, w: number, h: number): string {
   const midY = h / 2;
   const depth = h * 0.62;
-  if (mood === "positive") return `M1 ${midY - depth / 2} Q ${w / 2} ${midY + depth} ${w - 1} ${midY - depth / 2}`;
-  if (mood === "negative") return `M1 ${midY + depth / 2} Q ${w / 2} ${midY - depth} ${w - 1} ${midY + depth / 2}`;
-  return `M1 ${midY} L ${w - 1} ${midY}`;
+  switch (kind) {
+    case "smile":
+      return `M1 ${midY - depth / 2} Q ${w / 2} ${midY + depth} ${w - 1} ${midY - depth / 2}`;
+    case "frown":
+      return `M1 ${midY + depth / 2} Q ${w / 2} ${midY - depth} ${w - 1} ${midY + depth / 2}`;
+    case "open":
+      // Closed area: straight top lip, round lower lip — an open laugh.
+      return `M1 ${midY - depth / 2} L ${w - 1} ${midY - depth / 2} Q ${w / 2} ${midY + depth * 1.5} 1 ${midY - depth / 2} Z`;
+    case "smirk":
+      // Flat from the left, curling up only on the right.
+      return `M1 ${midY + depth * 0.15} Q ${w * 0.62} ${midY + depth * 0.35} ${w - 1} ${midY - depth * 0.7}`;
+    case "o": // rendered as a Circle, path unused — keep a fallback line
+    case "flat":
+    default:
+      return `M1 ${midY} L ${w - 1} ${midY}`;
+  }
+}
+
+/** Tiny cyan eighth-note that floats beside the mouth while whistling. */
+function WhistleNote({ size, accent, reduce }: { size: number; accent: string; reduce: boolean }) {
+  const drift = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduce) {
+      drift.setValue(0.5);
+      return;
+    }
+    // JS driver on purpose — every face-layer animation stays on the JS side
+    // (see the blink note below for why mixing drivers here throws).
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(drift, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [drift, reduce]);
+  const noteSize = Math.max(7, size * 0.1);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: size * 0.66,
+        top: size * 0.56,
+        opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.95] }),
+        transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [1.5, -2.5] }) }],
+      }}
+    >
+      <Svg width={noteSize} height={noteSize} viewBox="0 0 10 10">
+        <Path d="M4 8 L4 2 Q6.4 1.2 8 2.6" stroke={accent} strokeWidth={1.6} strokeLinecap="round" fill="none" />
+        <Circle cx={3.1} cy={8.1} r={1.9} fill={accent} />
+      </Svg>
+    </Animated.View>
+  );
 }
 
 export function SecondbHead({ mood = "neutral", persona, size = 48, track, accessibilityLabel, style }: SecondbHeadProps) {
@@ -76,22 +133,79 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
   const bob = useRef(new Animated.Value(0)).current;
   const blink = useRef(new Animated.Value(1)).current; // 1 = eyes open, ~0.08 = shut
 
-  // Momentary reaction to user actions (save -> smile, error -> concern). Overrides
-  // the base mood for a beat, then reverts. `effMood` drives every face shape below.
-  const [reactMood, setReactMood] = useState<SecondbMood | null>(null);
+  // Reaction layer (save -> happy, delete -> sad): overrides the base mood for a
+  // beat, then reverts. Hold layer (AI 응답 대기): sticky until released. Idle
+  // layer (딴청): rolled by the idle policy when nothing else is going on.
+  const [reactExpr, setReactExpr] = useState<Expression | null>(null);
+  const [holdExpr, setHoldExpr] = useState<Expression | null>(null);
+  const [idleExpr, setIdleExpr] = useState<Expression | null>(null);
+  const reactRef = useRef<Expression | null>(null);
+  const holdRef = useRef<Expression | null>(null);
+  const lastActiveRef = useRef(Date.now());
+
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const off = subscribeExpression((m, dur) => {
-      setReactMood(m);
+    const offReact = subscribeExpression((expr, dur) => {
+      reactRef.current = expr;
+      lastActiveRef.current = Date.now();
+      setReactExpr(expr);
+      setIdleExpr(null); // a real moment interrupts any 딴청
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => setReactMood(null), dur);
+      timer = setTimeout(() => {
+        reactRef.current = null;
+        setReactExpr(null);
+      }, dur);
+    });
+    const offHold = subscribeHold((expr) => {
+      holdRef.current = expr;
+      lastActiveRef.current = Date.now();
+      setHoldExpr(expr);
+      if (expr) setIdleExpr(null);
     });
     return () => {
-      off();
+      offReact();
+      offHold();
       if (timer) clearTimeout(timer);
     };
   }, []);
-  const effMood = reactMood ?? mood;
+
+  // Idle policy (평소): occasionally whistle / look away bored; sleepy after a
+  // long quiet stretch. The pure cadence lives in faces.ts. Reduced motion opts
+  // out entirely.
+  useEffect(() => {
+    if (reduce) {
+      setIdleExpr(null);
+      return;
+    }
+    let rollTimer: ReturnType<typeof setTimeout> | undefined;
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    const loop = () => {
+      rollTimer = setTimeout(() => {
+        if (cancelled) return;
+        if (!reactRef.current && !holdRef.current) {
+          const quietMs = Date.now() - lastActiveRef.current;
+          const action = pickIdleAction(Math.random, quietMs);
+          if (action.expr) {
+            setIdleExpr(action.expr);
+            clearTimer = setTimeout(() => {
+              if (!cancelled) setIdleExpr(null);
+            }, action.holdMs);
+          }
+        }
+        loop();
+      }, nextIdleDelayMs());
+    };
+    loop();
+    return () => {
+      cancelled = true;
+      if (rollTimer) clearTimeout(rollTimer);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
+  }, [reduce]);
+
+  const effExpr: Expression = reactExpr ?? holdExpr ?? idleExpr ?? mood;
+  const face: FaceSpec = FACES[effExpr];
   // Persona tint (rev2): personas share the silhouette; only the accent glow
   // differs. Unset persona keeps the canonical deep-space cyan (no regression).
   const accent = persona ? m3.persona[persona].accent : deepSpace.accent;
@@ -121,12 +235,18 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
   }, [bob, reduce]);
 
   // Blink on a random cadence (canon: ~130ms close, next in 1.6-4.8s). Reduced
-  // motion keeps the eyes open.
+  // motion keeps the eyes open. The current face sets the cadence: `slow`
+  // (sleepy/bored/sad/thinking) blinks about half as often and a touch heavier;
+  // `none` (arc-closed eyes: happy/wink/surprised) suspends blinking while that
+  // face shows.
+  const blinkMode = face.blink;
   useEffect(() => {
-    if (reduce) {
+    if (reduce || blinkMode === "none") {
       blink.setValue(1);
       return;
     }
+    const slow = blinkMode === "slow" ? 2.1 : 1;
+    const lidMs = blinkMode === "slow" ? 1.6 : 1;
     let timer: ReturnType<typeof setTimeout>;
     let cancelled = false;
     const schedule = () => {
@@ -138,19 +258,19 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
           // A native blink would move that node to the native side, and the
           // SecondbHeadTrack provider's JS setValue/spring on touch/engage would then
           // throw "JS driven animation on a node moved to native" on the next touch.
-          Animated.timing(blink, { toValue: 0.08, duration: 65, easing: Easing.in(Easing.quad), useNativeDriver: false }),
-          Animated.timing(blink, { toValue: 1, duration: 75, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 0.08, duration: 65 * lidMs, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 1, duration: 75 * lidMs, easing: Easing.out(Easing.quad), useNativeDriver: false }),
         ]).start(() => {
           if (!cancelled) schedule();
         });
-      }, 1600 + Math.random() * 3200);
+      }, (1600 + Math.random() * 3200) * slow);
     };
     schedule();
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [blink, reduce]);
+  }, [blink, reduce, blinkMode]);
 
   // Measure the static root's window center so touch offsets are accurate.
   const measure = () => {
@@ -202,7 +322,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
   // Eyes drift a few px toward the touch (smaller than the head shift). null when
-  // tracking is off, so the eye transform stays purely blink.
+  // tracking is off, so the eye transform stays purely blink (+ the face's own
+  // fixed gaze offset — thinking looks up-side, bored looks away).
   const eyeOffset = useMemo(() => {
     if (!enabled || !center.ready || !tracking) return null;
     const { touch, engage } = tracking;
@@ -217,16 +338,16 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
     };
   }, [enabled, center.x, center.y, center.ready, size, tracking]);
 
-  // Face geometry as canon fractions of the head size, then mood-shaped.
+  // Face geometry as canon fractions of the head size, then expression-shaped.
   const faceW = size * 0.47;
   const faceH = size * 0.235;
   const eyeW = Math.max(3, size * 0.063);
-  const eyeMood = EYE_BY_MOOD[effMood];
-  const eyeH = Math.max(4, size * 0.101) * eyeMood.hFactor;
-  const eyePupil = eyeW * 0.6;
-  const mouthW = Math.max(8, size * 0.12);
+  const eyeHBase = Math.max(4, size * 0.101);
+  const mouthW = Math.max(8, size * 0.12) * (face.mouthScale ?? 1);
   const mouthBoxH = Math.max(4, size * 0.06);
   const mouthStroke = Math.max(2, size * 0.018);
+  const gazeX = (face.lookX ?? 0) * size;
+  const gazeY = (face.lookY ?? 0) * size;
 
   return (
     <View ref={rootRef} onLayout={measure} collapsable={false} style={[styles.root, style]}>
@@ -250,11 +371,42 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
             ]}
           />
 
-          {/* Eyes — glowing cyan; blink + drift toward touch, mood-shaped (squint
-              when positive, droop outward when negative). */}
+          {/* Eyes — glowing cyan; blink + drift toward touch, expression-shaped
+              PER SIDE (wink closes one; smug half-lowers one; sad droops both). */}
           {[0.385, 0.615].map((cx, i) => {
+            const spec = face.eyes[i];
+            const eyeH = eyeHBase * spec.h;
             // Sad: outer corners drop — left eye tilts one way, right eye mirrors.
-            const tilt = eyeMood.tilt === 0 ? "0deg" : `${i === 0 ? -eyeMood.tilt : eyeMood.tilt}deg`;
+            const tilt = spec.tilt === 0 ? "0deg" : `${i === 0 ? -spec.tilt : spec.tilt}deg`;
+
+            if (spec.arc) {
+              // Closed smiling eye (∪): a stroked arc instead of the glowing pill.
+              // No pupil, no blink — it IS a blink held at its happiest frame.
+              const arcW = eyeW * 1.9;
+              const arcH = Math.max(3, eyeHBase * 0.55);
+              return (
+                <View
+                  key={i}
+                  pointerEvents="none"
+                  style={[
+                    styles.arcEye,
+                    { left: size * cx - arcW / 2 + gazeX, top: size * spec.top - arcH / 2 + gazeY, shadowColor: accent },
+                  ]}
+                >
+                  <Svg width={arcW} height={arcH}>
+                    <Path
+                      d={`M1 1 Q ${arcW / 2} ${arcH * 1.6} ${arcW - 1} 1`}
+                      stroke={accent}
+                      strokeWidth={Math.max(2, size * 0.02)}
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </Svg>
+                </View>
+              );
+            }
+
+            const eyePupil = eyeW * 0.6;
             const transform = eyeOffset
               ? [{ translateX: eyeOffset.x }, { translateY: eyeOffset.y }, { rotate: tilt }, { scaleY: blink }]
               : [{ rotate: tilt }, { scaleY: blink }];
@@ -268,8 +420,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                     width: eyeW,
                     height: eyeH,
                     borderRadius: eyeW / 2,
-                    left: size * cx - eyeW / 2,
-                    top: size * eyeMood.topF - eyeH / 2,
+                    left: size * cx - eyeW / 2 + gazeX,
+                    top: size * spec.top - eyeH / 2 + gazeY,
                     transform,
                     backgroundColor: accent,
                     shadowColor: accent,
@@ -281,7 +433,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
             );
           })}
 
-          {/* Mouth — cyan SVG curve: smile / flat / frown by mood. */}
+          {/* Mouth — cyan SVG shape per expression: smile / flat / frown / open
+              laugh (filled) / whistling·surprised o (ring) / smug smirk. */}
           <View
             pointerEvents="none"
             style={[
@@ -290,15 +443,29 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
             ]}
           >
             <Svg width={mouthW} height={mouthBoxH}>
-              <Path
-                d={mouthPath(effMood, mouthW, mouthBoxH)}
-                stroke={deepSpace.text}
-                strokeWidth={mouthStroke}
-                strokeLinecap="round"
-                fill="none"
-              />
+              {face.mouth === "o" ? (
+                <Circle
+                  cx={mouthW / 2}
+                  cy={mouthBoxH / 2}
+                  r={Math.max(2, Math.min(mouthW, mouthBoxH) / 2 - 1)}
+                  stroke={deepSpace.text}
+                  strokeWidth={mouthStroke}
+                  fill="none"
+                />
+              ) : (
+                <Path
+                  d={mouthPath(face.mouth, mouthW, mouthBoxH)}
+                  stroke={deepSpace.text}
+                  strokeWidth={mouthStroke}
+                  strokeLinecap="round"
+                  fill={face.mouth === "open" ? deepSpace.text : "none"}
+                />
+              )}
             </Svg>
           </View>
+
+          {/* 휘파람 notelet — whistle only, cyan-identity, drifts gently. */}
+          {face.note ? <WhistleNote size={size} accent={accent} reduce={reduce} /> : null}
         </Animated.View>
       </Animated.View>
     </View>
@@ -321,6 +488,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     alignItems: "center",
     backgroundColor: deepSpace.accent,
+    shadowColor: deepSpace.accent,
+    shadowOpacity: 0.85,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  arcEye: {
+    position: "absolute",
     shadowColor: deepSpace.accent,
     shadowOpacity: 0.85,
     shadowRadius: 6,

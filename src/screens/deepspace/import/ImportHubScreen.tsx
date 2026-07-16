@@ -20,6 +20,7 @@ import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { reactExpression } from "@/lib/companion/expression";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
@@ -209,6 +210,8 @@ export function ImportHubScreen() {
       setBusy(false);
       return;
     }
+    // 새 데이터가 기록에 들어왔다 — the delight beat.
+    reactExpression("delight");
     setBusy(false);
     setActive(null);
     setOutcome(null);
@@ -247,6 +250,8 @@ export function ImportHubScreen() {
       }
     }
     await removeImportHistory(id);
+    // Imported data left the record — a sad beat on the head.
+    reactExpression("sad");
     setHistory(await getImportHistory());
   };
 

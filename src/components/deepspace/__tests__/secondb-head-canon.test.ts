@@ -23,18 +23,25 @@ describe("SecondB head canon", () => {
     expect(canonHead).toMatch(/scaleY:\s*blink/);
   });
 
-  test("has per-mood expression shapes (eyes + mouth), not just one face", () => {
-    // Eyes change shape by mood (squint / droop), mouth curves smile/flat/frown.
-    expect(canonHead).toMatch(/EYE_BY_MOOD/);
+  test("has per-expression face shapes (eyes + mouth), not just one face", () => {
+    // The 13-expression geometry moved to lib/companion/faces.ts (FACES) — the
+    // head must render FROM it: per-eye specs, six mouth kinds, gaze offsets.
+    expect(canonHead).toMatch(/FACES\[/);
     expect(canonHead).toMatch(/function mouthPath/);
-    expect(canonHead).toMatch(/positive/);
-    expect(canonHead).toMatch(/negative/);
+    expect(canonHead).toMatch(/face\.eyes\[i\]/);
+    expect(canonHead).toMatch(/face\.mouth/);
   });
 
-  test("reacts to user actions: subscribes to the expression emitter", () => {
+  test("reacts to user actions: subscribes to the expression + hold emitters", () => {
     expect(canonHead).toMatch(/subscribeExpression/);
-    // The reaction overrides the base mood (effMood), then reverts.
-    expect(canonHead).toMatch(/effMood/);
+    expect(canonHead).toMatch(/subscribeHold/);
+    // Resolution order is fixed: reaction ?? hold ?? idle ?? base mood.
+    expect(canonHead).toMatch(/reactExpr \?\? holdExpr \?\? idleExpr \?\? mood/);
+  });
+
+  test("keeps the idle 딴청 policy pure and reduced-motion opt-out", () => {
+    expect(canonHead).toMatch(/pickIdleAction/);
+    expect(canonHead).toMatch(/nextIdleDelayMs/);
   });
 
   test("has no floating mood orb above the head", () => {
