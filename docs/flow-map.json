@@ -37,6 +37,12 @@
       "why": "개발 전용 — 배포판에서는 열리지 않아요",
       "evidence": "src/app/trends.tsx:18",
       "line": "<DevOnlyRoute>"
+    },
+    "/graph": {
+      "gate": "dev-only",
+      "why": "개발 전용 — 배포판에서는 열리지 않아요",
+      "evidence": "src/app/graph.tsx:11",
+      "line": "<DevOnlyRoute>"
     }
   },
   "aiHelpers": {
@@ -187,8 +193,9 @@
       ]
     },
     "transcribeAudio": {
-      "file": "src/lib/llm/gemini.ts:1046",
+      "file": "src/lib/llm/gemini.ts:1048",
       "apis": [
+        "edge:gemini-proxy",
         "rpc:log_ai_audit"
       ],
       "ai": true,
@@ -196,13 +203,14 @@
         "throwIfAborted",
         "getEnv",
         "classifyInput",
+        "getSupabaseClient",
         "classifySafety",
         "fixedCrisisResponse"
       ],
       "via": "classifySafety"
     },
     "callAdvisor": {
-      "file": "src/lib/llm/gemini.ts:1152",
+      "file": "src/lib/llm/gemini.ts:1194",
       "apis": [
         "edge:gemini-proxy",
         "db:knowledge_sources:select",
@@ -2532,8 +2540,10 @@
             "담고 돌아왔는데 이 별의 목록에 그 기록이 없어요 (다른 별로 붙었어요)",
             "특징적인 단어가 없는 글은 '담아내기' 별로 가버려요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/star/[domain].tsx:176"
+          "knownBug": false,
+          "bugAnchor": "src/app/star/[domain].tsx:176",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "한 걸음 더 들어가기 버튼 누르기",
@@ -3761,8 +3771,10 @@
             "마이크 권한을 거부하면 '마이크 접근이 꺼져 있어요…' 안내가 뜨고 글로 적는 칸만 남아요",
             "받아쓰기가 성공한 경우, 말한 내용이 위험 신호면 받아쓴 글 대신 도움받을 연락처 창이 떠요 (단, 그 뒤에 '담기'로 저장할 때는 연락처 창이 다시 뜨지 않아요)"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/capture.tsx:1886"
+          "knownBug": false,
+          "bugAnchor": "src/app/capture.tsx:1886",
+          "fixedIn": "#1008",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "사진에서 뽑은 글 '추출 텍스트 승인하기' 누르기 (이걸 눌러야 담기가 켜져요)",
@@ -3980,8 +3992,10 @@
             "직접 고른 트랙이 저장할 때 AI가 고른 트랙으로 조용히 바뀌어요 (아무 안내가 없어요 — 실제 약점이에요)",
             "AI 분류가 실패한 경우에만 직접 고른 트랙이 그대로 저장돼요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/capture.tsx:1564"
+          "knownBug": false,
+          "bugAnchor": "src/app/capture.tsx:1564",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "복사해둔 링크·글 붙여넣기",
@@ -4582,8 +4596,10 @@
             "그 상태에서는 '편집' 버튼까지 살아나서, 실수로 저장하면 검사 응답 데이터가 글로 덮어써져 결과 화면이 깨질 수 있어요",
             "넘어간 검사 화면에서 결과를 못 불러오면 그쪽 화면에서 오류가 떠요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:998"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:998",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         }
       ]
     },
@@ -5216,8 +5232,10 @@
             "실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가 Markdown 경로에만 이 값을 넘겨요",
             "실제 결함: 위의 두 스위치는 켜진 스위치처럼 보이지만 누를 수 없어요. 눌러도 안 바뀌는 게 고장이 아니라 원래 그래요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "내보내기 실행",
@@ -7124,8 +7142,10 @@
             "마이크 아이콘은 눌러도 아무 동작이 없어요 (핸들러가 아예 없는 미완성 버튼)",
             "스크린리더는 '음성 입력' 버튼이라고 읽어 주기 때문에 시각장애 사용자는 더 크게 오인해요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/secondb.tsx:248"
+          "knownBug": false,
+          "bugAnchor": "src/app/secondb.tsx:248",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "답변 아래 빠른 질문 칩 누르기",
@@ -7203,8 +7223,10 @@
             "누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 TODO로 남아 있는 미완성 부분)",
             "위키 목록에서 그 기록을 사람이 직접 다시 찾아야 해요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/secondb.tsx:1006"
+          "knownBug": false,
+          "bugAnchor": "src/app/secondb.tsx:1006",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "트위비가 준 갈래 담기 (기록으로 넘기기)",
@@ -7890,8 +7912,10 @@
             "담기 화면에서 '음성' 모드를 직접 손으로 골라야 해요",
             "버튼 이름만 '음성으로 담기' 라서, 눌러 보기 전엔 안 되는 줄 몰라요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/beyond.tsx:96"
+          "knownBug": false,
+          "bugAnchor": "src/app/beyond.tsx:96",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "알림 설정 열기",
@@ -8295,8 +8319,10 @@
             "이 카드들도 지금 빌드에서는 화면에 나오지 않아요 — 리서치 화면이 늘 빈 화면이라서예요 (실제 결함)",
             "인터넷이 끊기면 열린 화면이 오류 상태로 남아요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1524"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1524",
+          "fixedIn": "#1008",
+          "fixedOn": "2026-07-16"
         }
       ]
     },
@@ -15926,7 +15952,12 @@
       "groupKo": "옛 화면",
       "summary": "위키에 쌓인 글 수와 연결 수만 진짜로 세어 보여주고, 가운데 '나' 별과 다섯 개 무리 별을 눌러 각 화면으로 건너뛰는 지도 화면입니다. 다만 앱 안 어디에도 이 화면으로 가는 버튼이 없습니다. 아래 탭의 '그래프'는 홈 화면으로 가고, 이 주소는 개발자가 주소를 직접 입력하거나 딥링크로 들어갈 때만 열립니다. 별들의 위치도 실제 데이터가 아니라 미리 그려 둔 그림입니다.",
       "rendersInProduction": null,
-      "gate": null,
+      "gate": {
+        "gate": "dev-only",
+        "why": "개발 전용 — 배포판에서는 열리지 않아요",
+        "evidence": "src/app/graph.tsx:11",
+        "line": "<DevOnlyRoute>"
+      },
       "actions": [
         {
           "action": "화면 열자마자 개수 세어 오기",
