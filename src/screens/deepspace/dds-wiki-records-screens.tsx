@@ -7,6 +7,7 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { reactExpression } from "@/lib/companion/expression";
 import {
   DOMAIN_STARS,
   DOMAIN_TAG_PREFIX,
@@ -930,6 +931,8 @@ export function DeepSpaceRecordDetailScreen() {
     setDeleting(true);
     try {
       await deleteRecord(userId, record.id);
+      // A piece of the record is gone — the head takes it with a sad beat.
+      reactExpression("sad");
       router.back();
     } catch {
       setDeleting(false);

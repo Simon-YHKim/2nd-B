@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { getWikiPage } from "@/lib/wiki/queries";
+import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
   REV2_PERSONA_IDS,
@@ -484,6 +485,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       setSending(true);
       setTurns((prev) => [...prev, { role: "user", text: msg }]);
       void (async () => {
+        // AI 응답 대기: every mounted head holds the thinking face (eyes drift
+        // up-side) until the reply lands — released in finally either way.
+        const releaseThinking = holdExpression("thinking");
         try {
           const result = await sendChatMessage({
             userId,
@@ -559,8 +563,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
         } catch (e) {
           const failText = t("replyFailed");
           setTurns((prev) => [...prev, { role: "secondb", text: failText, synthetic: true }]);
+          reactExpression("negative");
           if (typeof console !== "undefined") console.warn("[secondb] sendChatMessage error", (e as Error).message);
         } finally {
+          releaseThinking();
           setSending(false);
         }
       })();

@@ -6,6 +6,8 @@
 // thin record base the screen says so honestly instead of inventing a persona.
 // 다른 제안 받기 re-asks; tapping a suggestion fills the editor (user always confirms).
 import { useCallback, useEffect, useState } from "react";
+
+import { reactExpression } from "@/lib/companion/expression";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -128,6 +130,8 @@ export default function NorthstarSentence() {
     setSaving(true);
     try {
       await saveNorthstar({ userId, locale, sentence: draft, minor: isMinor === true });
+      // 북극성 문장이 갱신됐다 — the head lights up with it.
+      reactExpression("delight");
       router.back();
     } catch {
       setSaving(false);

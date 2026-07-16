@@ -30,8 +30,8 @@ export function CompletionToast() {
       drop.setValue(0);
       return;
     }
-    // A finished task is a happy beat — the persistent SecondB head smiles too.
-    reactExpression("positive");
+    // A finished task is a happy beat — the persistent SecondB head beams too.
+    reactExpression("happy");
     Animated.timing(drop, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [visible, drop]);
 

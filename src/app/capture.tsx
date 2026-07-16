@@ -806,6 +806,8 @@ export function CaptureLegacy() {
       const md = await ocrImageAsset(userId, locale, pickedImage, isMinor === true);
       setBody(md);
       setOcrReviewApproved(false);
+      // 사진에서 글자를 읽어냈다 — fresh information, the delight beat.
+      reactExpression("delight");
     } catch (e) {
       // Split-② guards turned the crisis output swap into a typed throw; the
       // generic "clearer photo" alert here would HIDE the hotline from a user
@@ -1142,6 +1144,8 @@ export function CaptureLegacy() {
         setVoiceNotice(t("voice.transcriptEmpty"));
         return;
       }
+      // 받아쓰기 성공 — a happy beat as the words land in the box.
+      reactExpression("happy");
       // propose->ratify: fill the body so the user reviews/edits before saving.
       setBody((prev) => {
         const current = prev.trim();

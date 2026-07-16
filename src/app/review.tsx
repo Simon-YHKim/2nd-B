@@ -109,7 +109,8 @@ function ReviewScreenLegacy() {
         citations: evidenceRefs,
       });
     }
-    if (decision === "ratify") reactExpression("positive");
+    // 승인 = a quick wink (the ratify gesture across the app).
+    if (decision === "ratify") reactExpression("wink");
     setResult(
       decision === "ratify"
         ? locale === "ko"
