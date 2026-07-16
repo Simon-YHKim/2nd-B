@@ -7,18 +7,20 @@
 // the same deps construction (signUpWithEmail, recordConsentBestEffort via
 // buildSignUpConsentArgs, refreshAuth, and the AgeGate/BreachedPassword/
 // ExistingAccount discriminators), the same judge-mode welcome hold, and the
-// same result→UI mapping. The only addition is facebook/github in the OAuth
-// provider set (same signInWithProvider path as google). The consent ledger
-// logic is untouched.
+// same result→UI mapping. It also owns facebook/github provider dispatch plus
+// the real email-confirmation pending state and native callback; the consent
+// selections themselves still come from the shared C10 contract.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BackHandler, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
+import { useURL } from "expo-linking";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   ageInYears,
+  consumeAuthCallbackUrl,
   signUpWithEmail,
   isNaverEnabled,
   isProviderEnabled,
@@ -102,12 +104,39 @@ export function useSignUpForm(): UseSignUpForm {
   const [existingAccountHelp, setExistingAccountHelp] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const deepLinkUrl = useURL();
+  const consumedUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!toast) return;
+    // The confirm-email state is the screen's current status, not a transient
+    // success message. Keep it visible until the address changes or the native
+    // confirmation callback establishes a session.
+    if (!toast || toast.tone === "info") return;
     const timeout = setTimeout(() => setToast(null), 2800);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  // Supabase's detectSessionInUrl handles web confirmation links. Native links
+  // need the same token/code consumption used by password recovery. The email
+  // redirects to /sign-up, so this hook is mounted for cold and warm app links;
+  // after refresh, the guest guard routes the now-authenticated user onward.
+  useEffect(() => {
+    if (Platform.OS === "web" || !deepLinkUrl || userId) return;
+    if (!/[?#&](?:code|access_token|error_code)=/.test(deepLinkUrl)) return;
+    if (consumedUrlRef.current === deepLinkUrl) return;
+    consumedUrlRef.current = deepLinkUrl;
+    consumeAuthCallbackUrl(deepLinkUrl)
+      .then(async () => {
+        await refresh();
+        setToast(null);
+      })
+      .catch((e) => {
+        setToast({ tone: "danger", message: t("errors.signUpFailed") });
+        if (typeof console !== "undefined") {
+          console.warn("[auth] confirmation link consume failed", (e as Error).message);
+        }
+      });
+  }, [deepLinkUrl, refresh, t, userId]);
 
   // Stage 3 (O-31): hardware Back on the auth gate returns to the constellation
   // home instead of exiting the app (no dead-end). Web uses the browser back.
@@ -144,6 +173,7 @@ export function useSignUpForm(): UseSignUpForm {
     // The recovery card is keyed to the email that failed; editing the address
     // makes it stale, so retire it immediately.
     setExistingAccountHelp((prev) => (prev ? false : prev));
+    setToast((prev) => (prev?.tone === "info" ? null : prev));
   }, []);
 
   // E2E-3/E2E-4: the submit sequencing lives in sign-up-flow.ts (unit-tested).
@@ -154,7 +184,7 @@ export function useSignUpForm(): UseSignUpForm {
     setExistingAccountHelp(false);
     try {
       const result = await submitSignUp({
-        signUp: () => signUpWithEmail({ email: email.trim(), password, birthDate, locale }),
+        signUp: () => signUpWithEmail({ email: email.trim(), password, birthDate, locale, consent }),
         // Record the consent the user just gave. Awaited BEFORE navigating: on
         // web a router.replace tears down the page and cancels an in-flight
         // fire-and-forget request, which could silently drop the PIPA consent
@@ -169,6 +199,12 @@ export function useSignUpForm(): UseSignUpForm {
         isBreachedPasswordError: (e) => e instanceof BreachedPasswordError,
         isExistingAccountLikelyError: (e) => e instanceof ExistingAccountLikelyError,
       });
+      if (result.kind === "confirmationRequired") {
+        // Reuse the shipped, translated one-message status across all five
+        // locale packs. The submitted address remains visible in the form.
+        setToast({ tone: "info", message: t("signIn.resetSentTitle") });
+        return;
+      }
       if (result.kind === "entered") {
         if (result.judgeMode) {
           setJudgeWelcome(true); // hold the guest guard open for the toast

@@ -7,6 +7,7 @@
 import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { digitalConsentAge } from "../auth/consent-age";
+import type { ConsentSelections } from "../auth/consent-selections";
 import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
 import { getSupabaseClient } from "./client";
@@ -117,16 +118,25 @@ export interface SignUpArgs {
   password: string;
   birthDate: string; // YYYY-MM-DD
   locale?: "en" | "ko";
+  /** Explicit acknowledgements collected by ConsentNotice. They are copied to
+   *  auth metadata so the DB can atomically create the profile + immutable
+   *  consent row only after the email address is confirmed. */
+  consent: ConsentSelections;
 }
 
-export interface SignUpResult {
-  userId: string;
-  judgeMode: boolean;
-  /** False when the users row already existed (a fully-registered user
-   *  re-signed-up with their CORRECT password — effectively a sign-in).
-   *  The caller must not re-record sign-up consent in that case. */
-  created: boolean;
-}
+export type SignUpResult =
+  | {
+      kind: "confirmationRequired";
+    }
+  | {
+      kind: "active";
+      userId: string;
+      judgeMode: boolean;
+      /** False when the users row already existed (a fully-registered user
+       *  re-signed-up with their CORRECT password — effectively a sign-in).
+       *  The caller must not re-record sign-up consent in that case. */
+      created: boolean;
+    };
 
 export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   if (ageInYears(args.birthDate) < MIN_SELF_CONSENT_AGE) throw new AgeGateError();
@@ -136,40 +146,31 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
   const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
     email: args.email,
     password: args.password,
+    options: {
+      emailRedirectTo: authRedirectTo("/sign-up"),
+      data: {
+        signup_flow: "email-v1",
+        signup_birth_date: args.birthDate,
+        signup_locale: args.locale ?? "en",
+        signup_consent_service: args.consent.service,
+        signup_consent_llm_processing: args.consent.llmProcessing,
+        signup_consent_overseas_transfer: args.consent.overseasTransfer,
+        signup_consent_sensitive_data: args.consent.sensitiveData,
+        signup_consent_marketing: args.consent.marketing,
+      },
+    },
   });
   if (signUpErr) throw signUpErr;
 
-  // The project keeps GoTrue's "confirm email" enabled, but migration 0018
-  // installs an auth.users auto-confirm trigger so the free-tier flow (no SMTP
-  // configured) is not a dead end. signUp() therefore returns no session; we
-  // sign in immediately to obtain an authenticated session BEFORE the profile
-  // INSERT, because RLS policy users_self_insert requires auth.uid() = id.
-  // If the project later disables confirmation, signUp() returns a session
-  // directly and the sign-in step is skipped.
-  let session = signUpData.session;
-  let user = signUpData.user;
-  if (!session) {
-    const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-      email: args.email,
-      password: args.password,
-    });
-    if (signInErr) {
-      // J3: no-session signUp + invalid-credentials sign-in is the shape of
-      // "this email is already registered with a different password" (GoTrue's
-      // enumeration-safe fake success). Mark it so the screen can offer the
-      // sign-in / reset recovery instead of a dead generic failure loop.
-      // Match the stable AuthApiError code first; the message regex stays as
-      // a fallback for older GoTrue builds (wording drift degrades gracefully
-      // to the generic toast, never mislabels).
-      const code = (signInErr as { code?: string }).code;
-      if (code === "invalid_credentials" || /invalid login credentials/i.test(signInErr.message ?? "")) {
-        throw new ExistingAccountLikelyError(signInErr.message);
-      }
-      throw signInErr;
-    }
-    session = signInData.session;
-    user = signInData.user;
-  }
+  // Confirm-email enabled projects deliberately return no session here. Never
+  // attempt an immediate password sign-in: doing so was the client half of the
+  // old auto-confirm bypass and accepted typo/fake addresses. Migration 0086
+  // creates the profile + consent ledger only on the auth.users confirmation
+  // transition. The redirect returns to /sign-up, where useSignUpForm consumes
+  // the native callback and lets the normal authenticated guard enter the app.
+  const session = signUpData.session;
+  const user = signUpData.user;
+  if (!session) return { kind: "confirmationRequired" };
   if (!user || !session) throw new Error("Sign-up returned no session");
 
   const judgeMode = isJudgeEmail(args.email);
@@ -195,7 +196,12 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
       .eq("id", user.id)
       .maybeSingle();
     if (existing) {
-      return { userId: user.id, judgeMode: existing.judge_mode === true, created: false };
+      return {
+        kind: "active",
+        userId: user.id,
+        judgeMode: existing.judge_mode === true,
+        created: false,
+      };
     }
     // The auth.users account already exists with an authenticated session, but
     // the profile row failed (age-gate trigger, citext-unique email collision,
@@ -211,7 +217,7 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
     throw insertErr;
   }
 
-  return { userId: user.id, judgeMode, created: true };
+  return { kind: "active", userId: user.id, judgeMode, created: true };
 }
 
 // --- OAuth (Google / Apple / Kakao) --------------------------------------

@@ -6,7 +6,7 @@ class FakeExistingAccountLikelyError extends Error {}
 
 function makeDeps(overrides: Partial<SignUpFlowDeps> = {}): SignUpFlowDeps {
   return {
-    signUp: jest.fn().mockResolvedValue({ userId: "user-1", judgeMode: false, created: true }),
+    signUp: jest.fn().mockResolvedValue({ kind: "active", userId: "user-1", judgeMode: false, created: true }),
     recordConsent: jest.fn().mockResolvedValue(undefined),
     refreshAuth: jest.fn().mockResolvedValue(undefined),
     isAgeGateError: (e: unknown) => e instanceof FakeAgeGateError,
@@ -31,6 +31,17 @@ function deferred(): { promise: Promise<void>; release: () => void } {
 }
 
 describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
+  test("confirm-email account: reports the pending state without consent or auth refresh", async () => {
+    const deps = makeDeps({
+      signUp: jest.fn().mockResolvedValue({ kind: "confirmationRequired" }),
+    });
+    const result = await submitSignUp(deps);
+
+    expect(result).toEqual({ kind: "confirmationRequired" });
+    expect(deps.recordConsent).not.toHaveBeenCalled();
+    expect(deps.refreshAuth).not.toHaveBeenCalled();
+  });
+
   test("success: records consent for the fresh userId, refreshes auth, then reports entered", async () => {
     const deps = makeDeps();
     const result = await submitSignUp(deps);
@@ -68,7 +79,7 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
 
   test("judge mode propagates so the screen can hold the guard open for the welcome toast", async () => {
     const deps = makeDeps({
-      signUp: jest.fn().mockResolvedValue({ userId: "judge-1", judgeMode: true, created: true }),
+      signUp: jest.fn().mockResolvedValue({ kind: "active", userId: "judge-1", judgeMode: true, created: true }),
     });
     const result = await submitSignUp(deps);
     expect(result).toEqual({ kind: "entered", judgeMode: true });
@@ -76,7 +87,7 @@ describe("submitSignUp (E2E-3 silent drop / E2E-4 double entry)", () => {
 
   test("existing row with the correct password (created:false — effectively a sign-in): enters WITHOUT re-recording consent, still refreshes", async () => {
     const deps = makeDeps({
-      signUp: jest.fn().mockResolvedValue({ userId: "user-1", judgeMode: false, created: false }),
+      signUp: jest.fn().mockResolvedValue({ kind: "active", userId: "user-1", judgeMode: false, created: false }),
     });
     const result = await submitSignUp(deps);
 

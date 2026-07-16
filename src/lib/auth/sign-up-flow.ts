@@ -21,12 +21,14 @@
 // submitting, so failure feedback paints on a mounted form.
 
 export interface SignUpFlowDeps {
-  /** Creates the auth user + signs in + inserts the users row
-   *  (signUpWithEmail). Throws AgeGateError / BreachedPasswordError /
-   *  the profile-INSERT error (after signing the half-provisioned session
-   *  back out). created:false = the row already existed (a registered user
-   *  re-signed-up with their correct password — effectively a sign-in). */
-  signUp: () => Promise<{ userId: string; judgeMode: boolean; created: boolean }>;
+  /** Creates the auth user (signUpWithEmail). A new confirm-email account has
+   *  no session and returns confirmationRequired. In confirm-off/local setups,
+   *  active means the profile can still be inserted client-side; created:false
+   *  is an existing registered user that effectively signed in. */
+  signUp: () => Promise<
+    | { kind: "confirmationRequired" }
+    | { kind: "active"; userId: string; judgeMode: boolean; created: boolean }
+  >;
   /** Persists the consent the user just gave, keyed by the fresh userId.
    *  Awaited BEFORE navigation so a web router.replace can't cancel the
    *  in-flight PIPA consent write. Only called on a fresh profile (created):
@@ -45,6 +47,10 @@ export interface SignUpFlowDeps {
 }
 
 export type SignUpSubmitResult =
+  /** The auth user exists but cannot sign in until the address owner follows
+   *  the confirmation link. No consent write or auth refresh runs yet: the DB
+   *  confirmation trigger owns that atomic hand-off. */
+  | { kind: "confirmationRequired" }
   /** Account + profile + consent exist and the context knows hasProfile=true
    *  — navigate into the app. */
   | { kind: "entered"; judgeMode: boolean }
@@ -65,6 +71,9 @@ export type SignUpSubmitResult =
 export async function submitSignUp(deps: SignUpFlowDeps): Promise<SignUpSubmitResult> {
   try {
     const result = await deps.signUp();
+    if (result.kind === "confirmationRequired") {
+      return { kind: "confirmationRequired" };
+    }
     if (result.created) {
       await deps.recordConsent(result.userId);
     }
