@@ -1,11 +1,11 @@
 {
   "git": {
-    "head": "eb5a0bef51b3a2c0f6fe4093924a23256dc8acdf",
-    "branch": "main",
+    "head": "28901f140552e6e2313c39e05158e6112bbbe776",
+    "branch": "flow/map-refresh-20260716",
     "dirty": true,
-    "describedAt": "2026-07-16T10:22:59+09:00"
+    "describedAt": "2026-07-16T13:41:20+09:00"
   },
-  "at": "2026-07-16T04:31:35.006Z",
+  "at": "2026-07-16T04:47:18.509Z",
   "counts": {
     "screens": 85,
     "actions": 517,

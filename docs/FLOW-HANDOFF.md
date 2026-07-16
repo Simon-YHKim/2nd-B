@@ -5,13 +5,13 @@
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
 **85개 화면 · 517개 동작 · 서버/데이터 100종 · AI 14종**  
-코드 좌표 811개 전부 실제 소스와 대조: **✔ 함수까지 확인 240** · **· 파일·줄만 확인 571** · ⚠ 0
+코드 좌표 812개 전부 실제 소스와 대조: **✔ 함수까지 확인 241** · **· 파일·줄만 확인 571** · ⚠ 0
 
 **스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `eb5a0bef` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `28901f14` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
@@ -97,7 +97,7 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 ---
 
-## 3. 알려진 문제 63건
+## 3. 알려진 문제 43건
 
 손대기 전에 여기 있는지 먼저 본다. **코드 위치 = 결함이 있는 곳(화면)** — 액션이 부르는 lib(`impl`)이 아니다.
 
@@ -108,64 +108,44 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/northstar` | 세컨비 제안 받기 | 인터넷이 끊기거나 AI가 형식에 안 맞는 답을 해도 화면은 똑같이 '아직 기록이 얕아서 제안하기 조심스러워요… | `src/app/northstar.tsx:98` |
 | `/northstar` | 이 문장으로 저장 | 저장이 실패하면 버튼만 다시 눌리게 풀릴 뿐, 실패했다는 안내가 안 떠요 — 화면이 안 넘어가면 저장이 안 … | `src/app/northstar.tsx:126` |
 | `/capture` | 전체 담기 화면 열기 (사진·음성) | '카메라·앨범 열기'를 눌러도 카메라도 앨범도 안 열려요. 화면만 전체 담기 화면으로 바뀌어요 | `src/components/deep-space/DeepSpaceViews.tsx:420` |
-| `/capture-full` | 4W1H·할 일·음성 담기 | 저장이 실패하면 '별가루를 담지 못했어요' 카드가 뜨고 쓴 내용은 남아 있어요 ('다시 시도'를 누르면 돼요… | `src/app/capture.tsx:2143` |
 | `/capture-full` | 음성 녹음하고 받아쓰기 | 현재 배포된 실제 앱에서는 받아쓰기가 항상 '녹음을 글로 바꾸지 못했어요…'로 끝나요. 음성 받아쓰기만 안전… | `src/app/capture.tsx:1886` |
 | `/capture-full` | 어디로 보낼지 고르기 (일상 Wiki · Pro Wiki) — AI가 덮어써요 | 직접 고른 트랙이 저장할 때 AI가 고른 트랙으로 조용히 바뀌어요 (아무 안내가 없어요 — 실제 약점이에요) | `src/app/capture.tsx:1564` |
-| `/records` | 조각 하나 열기 | 담아둔 자료를 누르면 상세 내용이 없어서 '찾을 수 없어요' 화면이 떠요 (목록에는 보이는데 열리지 않는 진… | `src/screens/deepspace/dds-wiki-records-screens.tsx:401` |
 | `/records` | 정리함 열기 | 카드를 눌러도 정리를 못 해요. 태그·보관·삭제 버튼이 있는 화면이 아니라 비어 있는 '알림' 화면으로 가요… | `src/screens/deepspace/dds-wiki-records-screens.tsx:490` |
-| `/record/[id]` | 별가루 불러오기 | 약점: 인터넷이 끊겨서 못 불러온 것과 진짜로 지워진 것을 구분하지 않아요. 둘 다 똑같이 '기록을 찾을 수… | `src/screens/deepspace/dds-wiki-records-screens.tsx:879` |
-| `/record/[id]` | 검사 결과 보러 가기 | 약점: 검사 이름표가 다섯 가지(동기·강점·가치·성격·애착) 중 하나와 정확히 맞지 않으면 버튼이 아예 안 … | — |
+| `/record/[id]` | 검사 결과 보러 가기 | 약점: 검사 이름표가 다섯 가지(동기·강점·가치·성격·애착) 중 하나와 정확히 맞지 않으면 버튼이 아예 안 … | `src/screens/deepspace/dds-wiki-records-screens.tsx:998` |
 | `/inbox` | 알림 화면 열기 (로그인 확인 후 빈 목록) | 담아둔 자료가 아무리 많아도 알림 목록은 항상 비어 있어요 - 화면이 서버에서 데이터를 전혀 읽지 않고, 목… | `src/screens/deepspace/dds-import-inbox-screens.tsx:78` |
-| `/attachment` | 저장된 검사 결과 불러오기 (실패해도 빈 화면으로 보임) | 버그: 불러오기가 실패해도 오류 안내가 안 나오고 '아직 이 별은 어두워요' 빈 화면이 떠요. '불러오지 못… | `src/app/attachment.tsx:329` |
 | `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:222` |
-| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | — |
-| `/formats` | 원본 기록 포함 스위치 | 실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가… | — |
-| `/formats` | 내보내기 실행 | 실패하면 '내보내기를 만들지 못했어요. 다시 시도해 주세요' 문구가 뜨고 미리보기는 안 나와요 | — |
-| `/career-drilldown` | 드릴다운 제출하기 | 실제 결함: 저장이 실패해도 오류 안내 없이 화면은 그냥 세컨비로 넘어가서, 사용자가 기록이 날아간 걸 모른… | — |
-| `/ledger` | 빠른 기록 추가하기 (0원 자리표시 줄만 생김) | 실제 금액을 입력할 수 없어 가계부로 쓸 수 없고, 잘못 생긴 줄을 지울 수도 없어요 | `src/screens/deepspace/ops/screens.tsx:548` |
+| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` |
+| `/formats` | 원본 기록 포함 스위치 | 실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722` |
 | `/secondb` | 화면 열기 (로그인·가입정보 확인 + 인사 모달 + 오늘 쓴 횟수 불러오기) | 구글 로그인만 하고 생년월일·동의를 아직 안 채웠으면 세컨비 화면이 아예 열리지 않고 정보 입력 화면(/co… | `src/app/secondb.tsx:393` |
 | `/secondb` | 음성 입력 마이크 누르기 (동작하지 않음) | 마이크 아이콘은 눌러도 아무 동작이 없어요 (핸들러가 아예 없는 미완성 버튼) | `src/app/secondb.tsx:248` |
 | `/secondb` | 근거 보기 (참고한 기록 열기) | 누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 … | `src/app/secondb.tsx:1006` |
 | `/secondb` | 답변을 길게 눌러 복사하기 | 휴대폰 앱에서는 꾹 눌러도 자동 복사가 안 돼요 — 자동 복사는 웹 브라우저에서만 동작해요 (src/app/… | `src/app/secondb.tsx:716` |
 | `/beyond` | 음성으로 담기 (마이크 버튼) | 마이크 버튼을 눌러도 녹음이 안 시작돼요 — 그냥 글 쓰는 담기 화면만 열려요 | `src/app/beyond.tsx:96` |
 | `/beyond` | 알림 설정 열기 | 이 화면에서는 알림을 못 꺼요 — 설정 화면으로 넘어가야 해요 | `src/app/beyond.tsx:135` |
-| `/discover` | 화면 열기 | 화면의 +32% / +18% 는 내 데이터로 계산한 값이 아니라 코드에 박아둔 고정 숫자예요. 모든 사용자에… | `src/app/discover.tsx:7` |
 | `/research` | 첫 별가루 담기 (빈 화면일 때) | 기록 화면에서 저장한 메모는 '기록(records)' 으로 들어가고, 이 화면이 세는 '위키 페이지(wiki… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1485` |
-| `/research` | 묶음 태그로 걸러 보기 | 이 칩은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePage… | — |
-| `/research` | AI 연결 제안 받기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | — |
+| `/research` | 묶음 태그로 걸러 보기 | 이 칩은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePage… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385` |
+| `/research` | AI 연결 제안 받기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385` |
 | `/research` | 연결 승인하기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1435` |
 | `/research` | 연결 제안 거절하기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1450` |
 | `/research` | 페이지 열어 보기 | 위키 페이지 번호를 기록 화면에 그대로 넘겨요 — 두 번호는 서로 다른 체계라 거의 항상 '기록을 찾을 수 … | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1524` |
 | `/wiki` | 원문 열어 보기 | 이 줄을 누르면 항상 '기록을 찾을 수 없어요' 빈 화면이 열려요 — 위키 페이지 id 를 기록 id 로 잘… | `src/screens/deepspace/dds-wiki-records-screens.tsx:1368` |
-| `/wiki` | 연결 그림에서 점을 눌러 선택하고, 한 번 더 눌러 페이지 열기 | 한 번만 누르면 아무 일도 안 일어난 것처럼 보여요 (선택만 된 상태) | `src/components/deep-space/WikiGraph.tsx:76` |
-| `/big-five` | 저장된 성격 점수 불러오기 | 버그(기본 화면에서 실제로 겪음): 인터넷이 끊기거나 서버가 안 되면 오류 화면 대신 '아직 이 별은 어두워… | `src/app/big-five.tsx:328` |
 | `/ipip-neo` | 검사 시작하기 | 안내 창이 안 뜨고 바로 문항이 나오면, 예전에 '다음부터 이 안내 건너뛰기'를 체크해 둔 거예요 (고장이 … | `src/app/ipip-neo.tsx:375` |
-| `/ipip-neo` | 120문항 답변 저장하기 | 저장에 실패하면 빨간 알림이 뜨고 답변은 화면에 그대로 남아요 — '결과 저장'을 다시 누르면 돼요 (src… | `src/app/ipip-neo.tsx:105` |
-| `/values` | 화면 열기 (저장된 가치 결과 불러오기) | 버그(기본 화면에서 실제로 겪음): 불러오기가 실패해도 오류 표시나 다시 시도 버튼 없이 '결과 없음'으로 … | `src/app/values.tsx:286` |
-| `/strengths` | 화면 열기 (저장된 강점 결과 불러오기) | 버그(기본 화면에서 실제로 겪음): 불러오기가 실패해도 오류 표시가 없이 '결과 없음'으로 처리돼서, 결과가… | — |
 | `/strengths` | '다음' 눌러 다음 문항 페이지로 넘어가기 | 게이트: 마지막 장이 아니면 저장 버튼 자체가 없어서, 다 답했는데도 저장을 못 찾는 것처럼 보여요 | `src/components/quant/QuantPager.tsx:122` |
-| `/insights` | 화면 열기 (내 기록 불러오기) | 인터넷이 끊기면 화면 대신 오류 문구와 다시 시도 버튼만 보여요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:800` |
 | `/digest` | 제안 줄 눌러 원본 기록 열기 (지금은 항상 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.'가 떠요) | 언제나 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.' 화면 — 기록이 지워져서가 아니라 10… | `src/app/digest.tsx:190` |
 | `/milestones` | 목표 추가 (＋ 버튼) | 저장이 실패해도 오류 문구가 전혀 안 떠요 (조용한 실패 — screens.tsx:409-411 의 빈 ca… | `src/screens/deepspace/ops/screens.tsx:403` |
 | `/milestones` | 상태 칩 눌러 진행 상태 바꾸기 | 저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈… | `src/screens/deepspace/ops/screens.tsx:417` |
 | `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2424` |
-| `/import` | 오늘 건강 데이터 반영 | [버그] 폰에 건강 앱 연결이 없거나 권한을 '거부'하면, 알리지도 않고 가짜 값(걸음 9000·수면 420… | `src/screens/deepspace/dds-import-inbox-screens.tsx:297` |
-| `/import-hub` | 고른 항목 기록에 반영 | 저장이 실패해도 오류 없이 첫 화면으로 돌아가서 성공한 것처럼 보여요 (실제 버그) | `src/screens/deepspace/import/ImportHubScreen.tsx:185` |
 | `/import-hub` | 가져온 데이터 삭제(철회) | 서버가 안 되면 '철회하지 못했어요'가 뜨고 목록에 그대로 남아요 | `src/screens/deepspace/import/ImportHubScreen.tsx:227` |
-| `/import-hub` | '이 기기에서만 처리' 스위치 | 스위치를 어느 쪽에 두든 저장하면 서버 업로드는 그대로 일어나요 (스위치가 동작하지 않는 버그) | — |
+| `/import-hub` | '이 기기에서만 처리' 스위치 | 스위치를 어느 쪽에 두든 저장하면 서버 업로드는 그대로 일어나요 (스위치가 동작하지 않는 버그) | `src/screens/deepspace/import/ImportHubScreen.tsx:343` |
 | `/integrations` | 소스 연결 누르기 | 가져오기를 취소하거나 뒤로 나와도 줄이 '연결됨'으로 남아, 연결되지 않은 데이터가 연결된 것처럼 보여요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:310` |
 | `/call-reflection` | '녹음 멈추고 분석' 누르기 — 배포본에서는 100% 실패 (다만 이 화면 자체에 들어오는 길이 없음) | 지금 배포된 앱에서는 '녹음 멈추고 분석'이 100% 실패해요. 매번 '받아 적기에 실패했어요.'만 뜨고 처… | `src/app/call-reflection.tsx:134` |
 | `/reminders` | 알림 켜기/끄기 | 스위치를 꺼도 폰 알림이 예정대로 계속 울려요 - 화면은 꺼진 것으로 보이는데 알림만 계속 와서 앱이 내 설… | `src/screens/deepspace/ops/screens.tsx:1044` |
 | `/share-card` | 화면 열기 | 내가 쓴 북극성 문장과 상관없이 카드 문장이 항상 '깊이 이해하고, 더 나답게 산다.' 로 고정돼요 (서버·… | `src/app/share-card.tsx:70` |
-| `/peer-invites` | 초대 회수하기 | 회수가 실패해도 오류 안내가 전혀 없고 목록도 그대로예요 (실패했다는 걸 알 방법이 없어요) | `src/app/peer-invites.tsx:68` |
-| `/peer/[token]` | 내 응답 철회하기 | 서버에서 취소가 실패해도(500·404) 화면은 '응답이 철회됐어요. 합산 그림에 아무것도 남지 않아요.'로… | `src/app/peer/[token].tsx:92` |
-| `/ratifications` | 결정 종류로 거르기 | 승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요 | `src/app/ratifications.tsx:168` |
 | `/settings` | 다크 모드·강조색 바꾸기, '기능' 스위치 5개 켜고 끄기 | '앱 잠금'을 켜도 앱이 잠기지 않습니다 — 남에게 폰을 건네도 그대로 열립니다 (생체 인증 기능 자체가 앱… | `src/app/settings.tsx:414` |
 | `/settings` | '데이터 연동'의 연결 버튼 누르기 (Google 캘린더 · Apple 건강 · Notion) | '연결됨 · 동기화 중'이라고 표시되지만 실제 동기화는 전혀 일어나지 않습니다 (화면이 거짓말을 합니다) | `src/app/settings.tsx:415` |
 | `/settings` | '그래프 크루 (장식 로봇)' 밀도 바꾸기 (없음/적게/보통/많이) | 밀도를 '많이'로 해도 크루가 하나도 안 보입니다 — 이 설정이 붙어 있는 그래프 화면이 기본 화면에서 안 … | `src/app/settings.tsx:801` |
 | `/plans` | 무료 요금제(별바라기) 카드의 버튼 누르기 — 유료 이용자에게만 눌리는 버튼 | 버튼을 눌러도 아무 반응이 없습니다 (앱이 멈춘 것처럼 보입니다) | `src/app/plans.tsx:187` |
-| `/graph` | 화면 열자마자 개수 세어 오기 | 별의 위치·개수·이름이 전부 고정된 가짜 그림입니다. 내 글이 늘어도 별은 하나도 안 늘고 자리도 안 바뀝니… | — |
-| `/core-brain` | '참고한 별가루' 목록 열고 조각 눌러보기 | 담은 자료를 누르면 상세 화면이 '기록' 쪽에서만 찾아서 무조건 '기록을 찾을 수 없어요. 보관소로 돌아가 … | — |
+| `/graph` | 화면 열자마자 개수 세어 오기 | 별의 위치·개수·이름이 전부 고정된 가짜 그림입니다. 내 글이 늘어도 별은 하나도 안 늘고 자리도 안 바뀝니… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:164` |
 
 ---
 
@@ -195,7 +175,7 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 | | 수 | 뜻 |
 |---|---|---|
-| **✔** | 240 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
+| **✔** | 241 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
 | **·** | 571 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
 | **~** | 0 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
