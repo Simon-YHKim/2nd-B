@@ -131,6 +131,8 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
   consentCheckmark:{color:colors.bgDeep,fontFamily:fontFamilies.readable,fontSize:13,lineHeight:15},
   consentLabel:{flex:1,color:colors.textHi,fontSize:12,},
   consentDivider:{height:1,backgroundColor:colors.border,opacity:0.6,marginVertical:spacing.xs},
+  consentToggleArea:{flex:1,flexDirection:'row',alignItems:'flex-start',gap:spacing.sm},
+  consentDetailBtn:{minWidth:40,minHeight:40,alignItems:'center',justifyContent:'center',marginVertical:-spacing.xs},
   minorBanner:{borderWidth:1,borderLeftWidth:4,borderColor:colors.soulLine,borderRadius:radius.sm,backgroundColor:colors.cardBg,padding:spacing.sm},
   minorBannerText:{color:colors.soul,fontSize:11.5,},
   checklistRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm,minHeight:24},

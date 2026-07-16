@@ -4,7 +4,7 @@
 // DeepSpaceDesignScreens re-exports them so every route import is unchanged.
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -67,7 +67,7 @@ function AuthBackdrop() {
   );
 }
 
-function AuthShell({ children }: { children: ReactNode }) {
+export function AuthShell({ children, scrollRef }: { children: ReactNode; scrollRef?: Ref<ScrollView> }) {
   // Reserve the Android bottom inset: under edge-to-edge (Expo SDK 56 default)
   // the shared scroll's fixed paddingBottom:40 lets the last CTA on a tall
   // sign-up/reset form draw under the 3-button nav bar. insets.bottom clears it.
@@ -77,6 +77,7 @@ function AuthShell({ children }: { children: ReactNode }) {
       <AuthBackdrop />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, insets.bottom + 24) }]}
           keyboardShouldPersistTaps="handled"
         >
@@ -375,20 +376,35 @@ export function DeepSpaceSignInDesignScreen() {
 // legacy ConsentNotice uses, so the C10 ledger (buildSignUpConsentArgs in the
 // hook) is byte-for-byte equivalent. Copy comes from the reviewed `consent`
 // namespace (notice.*). Styling is deep-space tokens only.
-function ConsentCheckRow({ checked, label, emphasize, onToggle }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void }) {
+function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detailLabel }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void; onDetail?: () => void; detailLabel?: string }) {
   return (
-    <Pressable
-      style={styles.consentRow}
-      onPress={onToggle}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      accessibilityLabel={label}
-    >
-      <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
-        {checked ? <RNText style={styles.consentCheckmark}>✓</RNText> : null}
-      </View>
-      <Text variant="body" style={[styles.consentLabel, emphasize && { color: colors.textTitle }]}>{label}</Text>
-    </Pressable>
+    <View style={styles.consentRow}>
+      <Pressable
+        style={styles.consentToggleArea}
+        onPress={onToggle}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        accessibilityLabel={label}
+      >
+        <View style={[styles.consentCheckbox, checked && styles.consentCheckboxOn]}>
+          {checked ? <RNText style={styles.consentCheckmark}>✓</RNText> : null}
+        </View>
+        <Text variant="body" style={[styles.consentLabel, emphasize && { color: colors.textTitle }]}>{label}</Text>
+      </Pressable>
+      {onDetail ? (
+        // The faint chevron the flow request asked for: its own target (44x40)
+        // so a detail tap can never flip the checkbox, with its own a11y label.
+        <Pressable
+          onPress={onDetail}
+          hitSlop={10}
+          style={styles.consentDetailBtn}
+          accessibilityRole="button"
+          accessibilityLabel={detailLabel ?? label}
+        >
+          <RNText style={styles.chev}>›</RNText>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -396,6 +412,13 @@ function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; val
   const { t } = useTranslation("consent");
   const allChecked = allRequiredAcksChecked(value);
   const toggle = (key: keyof ConsentSelections) => onChange({ ...value, [key]: !value[key] });
+  // Each row's faint chevron opens the full notice for THAT item (what is
+  // collected, why, retention, refusal right) on /consent-notice — the legal
+  // detail lives there, the sign-up screen stays one-message lean (flow #4).
+  const detailProps = (item: keyof ConsentSelections) => ({
+    onDetail: () => router.push({ pathname: "/consent-notice", params: { item } }),
+    detailLabel: `${t(`detail.${item}.title`)} ${t("notice.detailLink")}`,
+  });
   return (
     <Card>
       <Text variant="heading" style={styles.section}>{t("notice.title")}</Text>
@@ -408,12 +431,12 @@ function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; val
       <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.requiredLabel")}</Text>
       <ConsentCheckRow checked={allChecked} label={t("notice.agreeAll")} emphasize onToggle={() => onChange(setAllRequiredAcks(value, !allChecked))} />
       <View style={styles.consentDivider} />
-      <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} />
-      <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} />
-      <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} />
-      <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} />
+      <ConsentCheckRow checked={value.service} label={t("notice.ackService")} onToggle={() => toggle("service")} {...detailProps("service")} />
+      <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} {...detailProps("llmProcessing")} />
+      <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} {...detailProps("overseasTransfer")} />
+      <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} {...detailProps("sensitiveData")} />
       <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</Text>
-      <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} />
+      <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} {...detailProps("marketing")} />
     </Card>
   );
 }
