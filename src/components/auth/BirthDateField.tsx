@@ -1,18 +1,18 @@
-// C10: enforce the self-consent age floor at the UI layer. The authoritative gate
-// is the server-side BEFORE INSERT trigger (0030_server_age_gate), with the
-// users_birth_date_sane CHECK (0028) as a backstop -- the legacy
-// users_birth_date_min_age CHECK was dropped in 0028. auth.ts mirrors the floor
-// client-side for fast-fail UX.
+// C10: the self-consent age floor. The authoritative gate is the server-side
+// BEFORE INSERT trigger (0030_server_age_gate), with the users_birth_date_sane
+// CHECK (0028) as a backstop; auth.ts mirrors the floor client-side for
+// fast-fail UX. Entry is a calendar picker (never free text), so the value is
+// always a real ISO date or "" — the age status below still drives the gate copy
+// and the caller's submit guard, unchanged.
 
 import { useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { spacing } from "@/lib/theme/tokens";
 import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
-import { formatBirthDateInput } from "@/lib/account/dob";
-import { Input } from "@/components/ui/Input";
-import { Text } from "@/components/ui/Text";
+import { DateField } from "@/components/m3";
+import { todayISO } from "@/components/m3/date-picker/calendar-math";
 
 export interface BirthDateFieldProps {
   value: string; // YYYY-MM-DD
@@ -33,29 +33,33 @@ export function BirthDateField({ value, onChange }: BirthDateFieldProps) {
   }, [value]);
 
   const showError = value.length > 0 && (status === "underage" || status === "malformed");
+  const today = todayISO();
+  // Open the year grid near a plausible birth year so the user is not decades of
+  // taps away from theirs; picking is still unconstrained down to 1900.
+  const defaultCursor = `${Number(today.slice(0, 4)) - 20}-01-01`;
 
   return (
-    <View style={styles.row}>
-      <Text variant="caption" color="textMuted">{t("signUp.birthDate")}</Text>
-      <Input
-        value={value}
-        placeholder="YYYY-MM-DD"
-        onChangeText={(next) => onChange(formatBirthDateInput(next))}
-        autoCapitalize="none"
-        keyboardType="number-pad"
-        maxLength={10}
-        accessibilityLabel={t("signUp.birthDate")}
-        accessibilityHint={t("signUp.birthDateHelper")}
-      />
-      <Text variant="subtle" color={showError ? "danger" : "textSubtle"}>
-        {showError
+    <DateField
+      label={t("signUp.birthDate")}
+      value={value}
+      onChange={onChange}
+      minDate="1900-01-01"
+      maxDate={today}
+      initialView="year"
+      initialCursorDate={defaultCursor}
+      error={showError}
+      supportingText={
+        showError
           ? t(status === "underage" ? "errors.ageGate" : "errors.invalidBirthDate")
-          : t("signUp.birthDateHelper")}
-      </Text>
-    </View>
+          : t("signUp.birthDateHelper")
+      }
+      accessibilityLabel={t("signUp.birthDate")}
+      accessibilityHint={t("signUp.birthDateHelper")}
+      containerStyle={styles.row}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  row: { gap: spacing.xs, marginBottom: spacing.md },
+  row: { marginBottom: spacing.md },
 });
