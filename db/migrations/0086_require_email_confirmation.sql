@@ -59,6 +59,17 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- Malformed or incomplete metadata must never roll back the auth.users
+  -- confirmation UPDATE. Leave the confirmed account profile-less so the
+  -- existing /complete-profile route can collect a valid value instead.
+  IF NEW.email IS NULL
+     OR btrim(NEW.email) = ''
+     OR signup_birth_date IS NULL
+     OR signup_birth_date <= DATE '1900-01-01'
+     OR signup_birth_date > current_date THEN
+    RETURN NEW;
+  END IF;
+
   signup_age := date_part('year', age(current_date, signup_birth_date))::int;
   IF signup_age < 14 THEN
     RETURN NEW;
@@ -72,7 +83,10 @@ BEGIN
 
   INSERT INTO public.users (id, email, birth_date, judge_mode, locale)
   VALUES (NEW.id, NEW.email, signup_birth_date, false, signup_locale)
-  ON CONFLICT (id) DO NOTHING;
+  -- A stale profile row can collide on either id or the unique email. Email
+  -- confirmation must still succeed; the signed-in fallback can resolve the
+  -- profile instead of stranding the auth account in an unconfirmed state.
+  ON CONFLICT DO NOTHING;
 
   INSERT INTO public.consent_records (
     user_id,
