@@ -139,6 +139,83 @@ const PROVIDER_BADGE: Record<OAuthProvider, string> = {
   github: "GH",
 };
 
+// Monochrome brand marks for the icon-only provider circles (flow request #2).
+// Single-color per DESIGN.md's palette discipline; every major brand permits a
+// one-color mark on dark UI. Facebook has no path here and falls back to its
+// letter badge (it ships flag-off by default).
+const PROVIDER_MARK_PATH: Partial<Record<OAuthProvider | "naver", string>> = {
+  google:
+    "M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81Z",
+  kakao:
+    "M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.06.24.01.24.01.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.12 1.77.12 5.52 0 10-3.54 10-7.9S17.52 3 12 3Z",
+  github:
+    "M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18.92-.26 1.9-.38 2.88-.39.98.01 1.96.13 2.88.39 2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.73.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .3.2.67.8.55C20.22 21.38 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5Z",
+  naver: "M16.27 12.85 7.42 0H0v24h7.73V11.15L16.58 24H24V0h-7.73v12.85Z",
+};
+
+function ProviderMark({ provider, color }: { provider: OAuthProvider | "naver"; color: string }) {
+  if (provider === "apple") return <AppleGlyph color={color} />;
+  const d = PROVIDER_MARK_PATH[provider];
+  if (d) {
+    // Naver's mark is a full-bleed square N; render it smaller so its optical
+    // weight matches the padded 24-viewBox marks.
+    const size = provider === "naver" ? 14 : 20;
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path fill={color} d={d} />
+      </Svg>
+    );
+  }
+  return <RNText style={styles.providerMarkDark}>{PROVIDER_BADGE[provider as OAuthProvider] ?? ""}</RNText>;
+}
+
+// Icon-only circular provider row: all social methods in ONE horizontal line
+// instead of stacked full-width bars, so the auth screens stay short (flow
+// request #2). Icon-only buttons keep the FULL provider label for a11y; Naver
+// (custom OAuth, separate handler) joins the same row visually.
+function ProviderIconRow({ providers, naverEnabled, disabled, busy, labelKeys, naverLabel, onProvider, onNaver }: {
+  providers: readonly OAuthProvider[];
+  naverEnabled: boolean;
+  disabled: boolean;
+  busy: boolean;
+  labelKeys: Record<OAuthProvider, string>;
+  naverLabel: string;
+  onProvider: (provider: OAuthProvider) => void;
+  onNaver: () => void;
+}) {
+  const { t } = useTranslation(["auth"]);
+  if (providers.length === 0 && !naverEnabled) return null;
+  return (
+    <View style={styles.providerCircleRow}>
+      {providers.map((provider) => (
+        <Pressable
+          key={provider}
+          onPress={() => onProvider(provider)}
+          disabled={disabled}
+          style={[styles.providerCircle, disabled && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={t(labelKeys[provider])}
+          accessibilityState={{ disabled, busy }}
+        >
+          <ProviderMark provider={provider} color={colors.textTitle} />
+        </Pressable>
+      ))}
+      {naverEnabled ? (
+        <Pressable
+          onPress={onNaver}
+          disabled={disabled}
+          style={[styles.providerCircle, disabled && styles.btnDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel={naverLabel}
+          accessibilityState={{ disabled, busy }}
+        >
+          <ProviderMark provider="naver" color={colors.textTitle} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export function DeepSpaceSignInDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
   const {
@@ -176,32 +253,6 @@ export function DeepSpaceSignInDesignScreen() {
   if (userId) return <Redirect href="/" />;
 
   const oauthBusy = oauthSubmitting || submitting;
-  const renderProvider = (provider: OAuthProvider) => {
-    const light = provider === "apple";
-    const label = t(`deepspace:auth.continueShort.${provider}`);
-    return (
-      <Pressable
-        key={provider}
-        onPress={() => void handleOAuth(provider)}
-        disabled={oauthBusy}
-        style={[styles.providerPill, light ? styles.providerPillLight : styles.providerPillDark, oauthBusy && styles.btnDisabled]}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ disabled: oauthBusy, busy: oauthSubmitting }}
-      >
-        <View style={styles.providerPillRow}>
-          {provider === "apple" ? (
-            <AppleGlyph color={deepSpace.providerLightFg} />
-          ) : PROVIDER_BADGE[provider] ? (
-            <RNText style={styles.providerMarkDark}>{PROVIDER_BADGE[provider]}</RNText>
-          ) : null}
-          <Text variant="body" style={light ? styles.providerPillTextLight : styles.providerPillTextDark}>
-            {oauthSubmitting ? "…" : label}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
 
   return (
     <AuthShell>
@@ -297,21 +348,16 @@ export function DeepSpaceSignInDesignScreen() {
           </View>
         ) : null}
 
-        {visibleProviders.map(renderProvider)}
-        {naverEnabled ? (
-          <Pressable
-            onPress={handleNaver}
-            disabled={oauthBusy}
-            style={[styles.providerPill, styles.providerPillDark, oauthBusy && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t("auth:signIn.continueWithNaver")}
-          >
-            <View style={styles.providerPillRow}>
-              <RNText style={styles.providerMarkDark}>N</RNText>
-              <Text variant="body" style={styles.providerPillTextDark}>{t("auth:signIn.continueWithNaver")}</Text>
-            </View>
-          </Pressable>
-        ) : null}
+        <ProviderIconRow
+          providers={visibleProviders}
+          naverEnabled={naverEnabled}
+          disabled={oauthBusy}
+          busy={oauthSubmitting}
+          labelKeys={PROVIDER_SIGNIN_KEY}
+          naverLabel={t("auth:signIn.continueWithNaver")}
+          onProvider={(provider) => void handleOAuth(provider)}
+          onNaver={() => void handleNaver()}
+        />
 
         <Pressable onPress={() => router.push("/sign-up")} style={styles.authSignUpRow} accessibilityRole="link" accessibilityLabel={`${t("deepspace:auth.signUpPrompt")} ${t("deepspace:auth.signUp")}`}>
           <Text variant="body" style={styles.authSignUpPrompt}>{t("deepspace:auth.signUpPrompt")}</Text>
@@ -508,33 +554,16 @@ export function DeepSpaceSignUpDesignScreen() {
             <View style={styles.authDividerLine} />
           </View>
         ) : null}
-        {visibleProviders.map((provider) => (
-          <Pressable
-            key={provider}
-            onPress={() => void handleOAuth(provider)}
-            disabled={oauthSubmitting || submitting}
-            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t(PROVIDER_SIGNUP_KEY[provider])}
-            accessibilityState={{ disabled: oauthSubmitting || submitting, busy: oauthSubmitting }}
-          >
-            <View style={styles.providerRow}>
-              {PROVIDER_BADGE[provider] ? <Text style={styles.providerBadge}>{PROVIDER_BADGE[provider]}</Text> : null}
-              <Text variant="caption" style={styles.providerBtnText}>{t(PROVIDER_SIGNUP_KEY[provider])}</Text>
-            </View>
-          </Pressable>
-        ))}
-        {naverEnabled ? (
-          <Pressable
-            onPress={handleNaver}
-            disabled={oauthSubmitting || submitting}
-            style={[styles.providerBtn, (oauthSubmitting || submitting) && styles.btnDisabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t("auth:signUp.continueWithNaver")}
-          >
-            <Text variant="caption" style={styles.providerBtnText}>{t("auth:signUp.continueWithNaver")}</Text>
-          </Pressable>
-        ) : null}
+        <ProviderIconRow
+          providers={visibleProviders}
+          naverEnabled={naverEnabled}
+          disabled={oauthSubmitting || submitting}
+          busy={oauthSubmitting}
+          labelKeys={PROVIDER_SIGNUP_KEY}
+          naverLabel={t("auth:signUp.continueWithNaver")}
+          onProvider={(provider) => void handleOAuth(provider)}
+          onNaver={() => void handleNaver()}
+        />
       </Card>
 
       <Pressable
