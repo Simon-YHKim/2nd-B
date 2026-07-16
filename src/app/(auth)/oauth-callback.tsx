@@ -1,8 +1,9 @@
 // OAuth callback route. Currently handles the Naver custom-OAuth return
 // (?code&state): verifies the CSRF state echo, exchanges the code via the
 // oauth-naver edge function, signs in, and routes onward (new users land on
-// /complete-profile via the index redirect, like every provider). Web-only —
-// the Supabase-native providers (Google/Apple/Kakao) don't use this route.
+// /complete-profile via the index redirect, like every provider). On native,
+// this HTTPS route bridges the untouched result into the app deep link. The
+// Supabase-native providers (Google/Apple/Kakao) don't use this route.
 
 import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
@@ -10,7 +11,11 @@ import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
-import { completeNaverOAuth } from "@/lib/supabase/auth";
+import {
+  buildNativeNaverCallbackUrl,
+  completeNaverOAuth,
+  isNativeNaverCallbackState,
+} from "@/lib/supabase/auth";
 import { cosmic, typography } from "@/lib/theme/tokens";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 
@@ -33,6 +38,13 @@ export default function OAuthCallback() {
       const providerError = params.get("error");
       const code = params.get("code") ?? "";
       const state = params.get("state") ?? "";
+      // Native Naver starts with the same registered HTTPS callback as web.
+      // Forward the untouched OAuth result into the app, where the state is
+      // checked against the nonce retained by the initiating native flow.
+      if (isNativeNaverCallbackState(state)) {
+        window.location.replace(buildNativeNaverCallbackUrl(window.location.search));
+        return;
+      }
       if (providerError || !code) {
         if (!cancelled) setFailed(true);
         return;

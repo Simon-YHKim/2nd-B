@@ -1,5 +1,11 @@
 import { __setSupabaseClientForTests } from "../client";
-import { consumeAuthCallbackUrl, sendPasswordResetEmail, updatePassword } from "../auth";
+import {
+  buildNativeNaverCallbackUrl,
+  consumeAuthCallbackUrl,
+  isNativeNaverCallbackState,
+  sendPasswordResetEmail,
+  updatePassword,
+} from "../auth";
 
 type MockSupabaseAuth = {
   resetPasswordForEmail: jest.Mock;
@@ -103,5 +109,18 @@ describe("password reset helpers", () => {
       ),
     ).rejects.toThrow();
     expect(auth.setSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("Naver native OAuth bridge", () => {
+  test("recognizes only native-issued state values", () => {
+    expect(isNativeNaverCallbackState("native.abc123")).toBe(true);
+    expect(isNativeNaverCallbackState("abc123")).toBe(false);
+  });
+
+  test("forwards the provider callback query to the fixed app route", () => {
+    expect(buildNativeNaverCallbackUrl("?code=code-1&state=native.abc123")).toBe(
+      "secondbrain:///oauth-callback?code=code-1&state=native.abc123",
+    );
   });
 });
