@@ -232,15 +232,11 @@ export function DeepSpaceSignInDesignScreen() {
     oauthSubmitting,
     canSubmit,
     toast,
-    resetHelpVisible,
-    resetSubmitting,
-    resetEmailSentTo,
     visibleProviders,
     naverEnabled,
     handleSubmit,
     handleOAuth,
     handleNaver,
-    handleForgotPassword,
   } = useSignInForm();
   const passwordRef = useRef<TextInput>(null);
 
@@ -320,26 +316,18 @@ export function DeepSpaceSignInDesignScreen() {
           <Text variant="body" style={styles.authPrimaryText}>{submitting ? t("auth:signIn.submitting") : t("auth:signIn.submit")}</Text>
         </Pressable>
 
+        {/* Forgot-password now NAVIGATES: the code entry, resend, and new
+            password all live on /reset-password (flow request #5). The typed
+            address rides along so the user does not retype it. */}
         <Pressable
-          onPress={() => void handleForgotPassword()}
-          disabled={resetSubmitting}
+          onPress={() => router.push({ pathname: "/reset-password", params: email.trim().includes("@") ? { email: email.trim() } : {} })}
           hitSlop={14}
-          style={[styles.authForgotRow, resetSubmitting && styles.btnDisabled]}
-          accessibilityRole="button"
+          style={styles.authForgotRow}
+          accessibilityRole="link"
           accessibilityLabel={t("auth:signIn.resetLabel")}
-          accessibilityState={{ disabled: resetSubmitting, busy: resetSubmitting }}
         >
-          <Text variant="body" style={styles.authHelper}>{resetSubmitting ? t("auth:signIn.resetSending") : t("deepspace:auth.forgotPassword")}</Text>
+          <Text variant="body" style={styles.authHelper}>{t("deepspace:auth.forgotPassword")}</Text>
         </Pressable>
-
-        {resetHelpVisible ? (
-          <View style={styles.authHelpCard} accessibilityRole="alert">
-            <Text variant="heading" style={styles.authHelpTitle}>{resetEmailSentTo ? t("auth:signIn.resetSentTitle") : t("auth:signIn.resetTitle")}</Text>
-            <Text variant="body" style={styles.authHelpBody}>
-              {resetEmailSentTo ? t("auth:signIn.resetSentBody", { email: resetEmailSentTo }) : t("auth:signIn.resetBody")}
-            </Text>
-          </View>
-        ) : null}
 
         {visibleProviders.length > 0 || naverEnabled ? (
           <View style={styles.authDividerRow}>
@@ -611,8 +599,19 @@ export function DeepSpaceSignUpDesignScreen() {
 export function DeepSpaceResetPasswordDesignScreen() {
   const { t } = useTranslation(["deepspace", "auth", "common"]);
   const {
-    userId,
     loading,
+    step,
+    email,
+    setEmail,
+    canSendCode,
+    sendSubmitting,
+    resendSeconds,
+    handleSendCode,
+    code,
+    setCode,
+    canVerify,
+    verifying,
+    handleVerifyCode,
     password,
     setPassword,
     confirmPassword,
@@ -647,15 +646,89 @@ export function DeepSpaceResetPasswordDesignScreen() {
       <View style={styles.authHero}>
         <SecondbHead size={120} mood={complete ? "positive" : "neutral"} />
         <Text variant="heading" style={styles.big}>{complete ? t("auth:resetPassword.doneTitle") : t("auth:resetPassword.title")}</Text>
-        <Text variant="body" style={styles.lead}>{complete ? t("auth:resetPassword.doneSubtitle") : t("auth:resetPassword.subtitle")}</Text>
+        <Text variant="body" style={styles.lead}>
+          {step === "done"
+            ? t("auth:resetPassword.doneSubtitle")
+            : step === "password"
+              ? t("auth:resetPassword.subtitle")
+              : step === "verify"
+                ? t("auth:resetPassword.verifySubtitle")
+                : t("auth:resetPassword.requestSubtitle")}
+        </Text>
       </View>
       <Card>
-        {!userId ? (
+        {step === "request" || step === "verify" ? (
           <>
-            <Text variant="heading" style={styles.authHelpTitle}>{t("auth:resetPassword.expiredTitle")}</Text>
-            <Text variant="body" style={styles.authHelpBody}>{t("auth:resetPassword.expiredBody")}</Text>
-            <Pressable style={styles.providerBtn} onPress={() => router.replace("/sign-in")} accessibilityRole="link" accessibilityLabel={t("auth:resetPassword.backToSignIn")}>
-              <Text variant="caption" style={styles.providerBtnText}>{t("auth:resetPassword.backToSignIn")}</Text>
+            {/* Flow request #5: the whole recovery lives in this screen now —
+                request a 6-digit code, verify it (recovery session), then set
+                the new password. The mail link stays a working fallback. */}
+            <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.emailLabel")}</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              placeholder="email@example.com"
+              placeholderTextColor={colors.textLo}
+              accessibilityLabel={t("auth:resetPassword.emailLabel")}
+              style={styles.input}
+              editable={!sendSubmitting}
+            />
+            <Pressable
+              onPress={() => void handleSendCode()}
+              disabled={!canSendCode}
+              style={[styles.providerBtn, !canSendCode && styles.btnDisabled]}
+              accessibilityRole="button"
+              accessibilityLabel={step === "verify" ? t("auth:resetPassword.resend") : t("auth:resetPassword.sendCode")}
+              accessibilityState={{ disabled: !canSendCode, busy: sendSubmitting }}
+            >
+              <Text variant="caption" style={styles.providerBtnText}>
+                {sendSubmitting
+                  ? t("auth:resetPassword.sending")
+                  : resendSeconds > 0
+                    ? t("auth:resetPassword.resendWait", { seconds: resendSeconds })
+                    : step === "verify"
+                      ? t("auth:resetPassword.resend")
+                      : t("auth:resetPassword.sendCode")}
+              </Text>
+            </Pressable>
+            {step === "verify" ? (
+              <>
+                <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:resetPassword.codeLabel")}</Text>
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                  maxLength={6}
+                  placeholder="000000"
+                  placeholderTextColor={colors.textLo}
+                  accessibilityLabel={t("auth:resetPassword.codeLabel")}
+                  accessibilityHint={t("auth:resetPassword.codeHint")}
+                  style={styles.input}
+                  returnKeyType="go"
+                  onSubmitEditing={() => {
+                    if (canVerify) void handleVerifyCode();
+                  }}
+                />
+                <Text variant="body" style={styles.authHelper}>{t("auth:resetPassword.codeHelper")}</Text>
+                <Pressable
+                  onPress={() => void handleVerifyCode()}
+                  disabled={!canVerify}
+                  style={[styles.primary, !canVerify && styles.btnDisabled]}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("auth:resetPassword.verify")}
+                  accessibilityState={{ disabled: !canVerify, busy: verifying }}
+                >
+                  <Text variant="caption" style={styles.primaryText}>{verifying ? t("auth:resetPassword.verifying") : t("auth:resetPassword.verify")}</Text>
+                </Pressable>
+              </>
+            ) : null}
+            <Pressable style={styles.authLinkRow} onPress={() => router.replace("/sign-in")} accessibilityRole="link" accessibilityLabel={t("auth:resetPassword.backToSignIn")}>
+              <Text variant="body" style={styles.link}>{t("auth:resetPassword.backToSignIn")}</Text>
             </Pressable>
           </>
         ) : complete ? (

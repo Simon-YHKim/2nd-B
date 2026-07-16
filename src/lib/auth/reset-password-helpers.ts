@@ -10,3 +10,14 @@ export function resetHelperKey(password: string, confirmPassword: string): strin
   if (confirmPassword.length > 0 && confirmPassword !== password) return "resetPassword.passwordMismatch";
   return "resetPassword.passwordHelper";
 }
+
+// Which of the four reset phases the screen shows. A session (userId) always
+// wins: it can arrive from the verified code OR from the legacy mail link, and
+// in both cases the only remaining job is setting the new password.
+export type ResetStep = "request" | "verify" | "password" | "done";
+
+export function resetStep(input: { userId: string | null; complete: boolean; codeSent: boolean }): ResetStep {
+  if (input.complete) return "done";
+  if (input.userId) return "password";
+  return input.codeSent ? "verify" : "request";
+}
