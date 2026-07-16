@@ -124,15 +124,22 @@ jobs:
             case " $PUB_SET " in *" $r "*) PUBLIC="$PUBLIC,$r";; *) AUTHED="$AUTHED,$r";; esac
           done
           AUTHED=${AUTHED#,}; PUBLIC=${PUBLIC#,}
-          echo "authed=[$AUTHED] public=[$PUBLIC]"
+          # opt-in motion GIFs: routes listed in docs/flow-motion.txt (comma or newline) render as
+          # animated GIFs. capture-shots only motion-captures routes in BOTH --only and --motion.
+          MOTION_FLAG=""
+          if [ -f docs/flow-motion.txt ]; then
+            MOTION=$(tr '\n' ',' < docs/flow-motion.txt | sed 's/,,*/,/g;s/^,//;s/,$//')
+            [ -n "$MOTION" ] && MOTION_FLAG="--motion $MOTION"
+          fi
+          echo "authed=[$AUTHED] public=[$PUBLIC] motion=[$MOTION_FLAG]"
           if [ -n "$AUTHED" ]; then
             node $SCRIPTS/capture-shots.js out/graph-array.json http://localhost:8081 out/authed \
               --only "$AUTHED" --auth-url http://localhost:8081/sign-in --email "$QA_EMAIL" --password "$QA_PW" \
-              --jpeg 72 --wait 2500 || true
+              --jpeg 72 $MOTION_FLAG --wait 2500 || true
           fi
           if [ -n "$PUBLIC" ]; then
             node $SCRIPTS/capture-shots.js out/graph-array.json http://localhost:8081 out/public \
-              --only "$PUBLIC" --jpeg 72 --wait 2500 || true
+              --only "$PUBLIC" --jpeg 72 $MOTION_FLAG --wait 2500 || true
           fi
 
       # 5) Overlay the fresh thumbnails into the committed html (each stamp touches only its routes)
