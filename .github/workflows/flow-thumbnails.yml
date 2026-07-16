@@ -135,11 +135,11 @@ jobs:
           if [ -n "$AUTHED" ]; then
             node $SCRIPTS/capture-shots.js out/graph-array.json http://localhost:8081 out/authed \
               --only "$AUTHED" --auth-url http://localhost:8081/sign-in --email "$QA_EMAIL" --password "$QA_PW" \
-              --jpeg 72 $MOTION_FLAG --wait 2500 || true
+              --jpeg 72 --auto-motion $MOTION_FLAG --wait 2500 || true
           fi
           if [ -n "$PUBLIC" ]; then
             node $SCRIPTS/capture-shots.js out/graph-array.json http://localhost:8081 out/public \
-              --only "$PUBLIC" --jpeg 72 $MOTION_FLAG --wait 2500 || true
+              --only "$PUBLIC" --jpeg 72 --auto-motion $MOTION_FLAG --wait 2500 || true
           fi
 
       # 5) Overlay the fresh thumbnails into the committed html (each stamp touches only its routes)
