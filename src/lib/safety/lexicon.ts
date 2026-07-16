@@ -98,6 +98,10 @@ export type HotlineId = keyof typeof HOTLINES;
 export const LEXICON_SCAN_ALLOWLIST: readonly string[] = [
   "src/lib/safety/lexicon.ts",
   "src/lib/safety/__tests__/**",
+  // Legal document snapshot (U4): the Terms disclaimer must NAME the services
+  // 2nd-Brain is NOT (의료·심리상담·진단·치료) to disclaim them -- same reason
+  // docs/legal/** below is allowed. Content mirrors docs/legal verbatim.
+  "src/lib/legal/legal-documents.ts",
   // Government-mandated hotline labels (e.g. "자살예방상담전화"/"정신건강위기상담전화")
   // must use their official names. Language packs ship safety.json as an EN
   // copy (crisis copy is never machine-translated - O-R2 gate policy), so
