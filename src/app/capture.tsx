@@ -1693,7 +1693,9 @@ export function CaptureLegacy() {
               from the retired /journal screen so the redirect can't bypass it. */}
           {mode === "journal" && progression.loading ? (
             <View style={styles.gateCard}>
-              <ActivityIndicator color={semantic.brand} />
+              {/* Same wait as everywhere else. This file already used
+                  PremiumLoadingState twice; only this gate had a bare spinner. */}
+              <PremiumLoadingState />
             </View>
           ) : null}
           {mode === "journal" && !progression.loading && !journalGate.unlocked ? (

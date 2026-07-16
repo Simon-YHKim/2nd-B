@@ -19,6 +19,7 @@ import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 
@@ -54,7 +55,16 @@ const STARS = [
 
 function useBloom() {
   const v = useRef(new Animated.Value(0)).current;
+  // Honour the reduce-motion pref. This matters now that "dots" is the app-wide
+  // loading state: the pixel glyph it replaced in PremiumLoadingState checked
+  // this pref, and unifying must not quietly drop that promise. Settled at 1 =
+  // fully lit dots, no breathing.
+  const reduceMotion = useReducedMotionPref();
   useEffect(() => {
+    if (reduceMotion) {
+      v.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(v, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -63,7 +73,7 @@ function useBloom() {
     );
     loop.start();
     return () => loop.stop();
-  }, [v]);
+  }, [v, reduceMotion]);
   return v;
 }
 

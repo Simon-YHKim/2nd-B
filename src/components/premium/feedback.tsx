@@ -7,14 +7,13 @@ import { Animated, BackHandler, Easing, Modal, Pressable, StyleSheet, View } fro
 import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
+import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
-import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { PremiumButton } from "./surfaces";
 
-const LOADING_DOT_PATTERN = [true, true, true, true, false, true, true, true, true];
 type FeedbackStateKind = "empty" | "error";
 
 /** Slide-up premium bottom sheet. Screen-fixed; renders nothing when closed. */
@@ -131,48 +130,20 @@ function StateShell({ glyph, title, body, action }: { glyph: ReactNode; title: s
   );
 }
 
+/**
+ * ONE loading state, everywhere.
+ *
+ * This used to blink a pixel-dot matrix — a leftover of the legacy cosmic-pixel
+ * skin — across ~39 screens, while the constellation home showed the breathing
+ * 세컨비 head and other places showed a bare system spinner. Same app, three
+ * different waits. It now renders the exact loader the home renders, so every
+ * call site unifies without a single one being touched.
+ *
+ * Empty/error states keep StateShell + their v3 art; only the WAIT is unified.
+ */
 export function PremiumLoadingState({ message }: { message?: string }) {
   const { t } = useTranslation("common");
-  return <StateShell glyph={<PixelLoadingGlyph />} title={message ?? t("states.loading")} />;
-}
-
-function PixelLoadingGlyph() {
-  const opacity = useRef(new Animated.Value(1)).current;
-  // Subscribed read: the blink loop must stop/restart on a lite-mode toggle.
-  const reduceMotion = useReducedMotionPref();
-
-  useEffect(() => {
-    if (reduceMotion) {
-      opacity.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.28, duration: 360, easing: Easing.linear, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 360, easing: Easing.linear, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity, reduceMotion]);
-
-  return (
-    <View style={styles.loadingGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={styles.loadingMatrix}>
-        {LOADING_DOT_PATTERN.map((filled, i) => (
-          <Animated.View
-            key={i}
-            style={[
-              styles.loadingDot,
-              filled ? styles.loadingDotOn : styles.loadingDotOff,
-              filled && !reduceMotion ? { opacity } : null,
-            ]}
-          />
-        ))}
-      </View>
-      <Animated.View style={[styles.loadingBlink, !reduceMotion ? { opacity } : null]} />
-    </View>
-  );
+  return <DeepSpaceLoader variant="dots" caption={message ?? t("states.loading")} />;
 }
 
 export function PremiumEmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
@@ -277,44 +248,6 @@ const styles = StyleSheet.create({
   state: { alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
   stateGlyph: { marginBottom: spacing.xs },
   stateAction: { marginTop: spacing.sm, width: "100%", maxWidth: 300, gap: spacing.sm },
-  loadingGlyph: {
-    width: 58,
-    height: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    borderWidth: gameboy.borderWidth,
-    borderColor: gameboy.border,
-    borderRadius: gameboy.radius,
-    backgroundColor: gameboy.screen,
-    ...pixelShadowStyle(gameboy.power),
-  },
-  loadingMatrix: {
-    width: 28,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 3,
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: gameboy.radius,
-    borderWidth: gameboy.borderWidth,
-  },
-  loadingDotOn: {
-    borderColor: gameboy.power,
-    backgroundColor: gameboy.power,
-  },
-  loadingDotOff: {
-    borderColor: gameboy.border,
-    backgroundColor: "transparent",
-  },
-  loadingBlink: {
-    width: 28,
-    height: 4,
-    borderRadius: gameboy.radius,
-    backgroundColor: gameboy.power,
-  },
   stateAssetShell: {
     width: 64,
     height: 64,

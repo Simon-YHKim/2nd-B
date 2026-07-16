@@ -5,7 +5,7 @@
 /* eslint-disable */
 // TODO(split-2): trim the import set + re-enable lint once the move settles.
 import { useEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View, useWindowDimensions } from "react-native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
@@ -24,6 +24,7 @@ import { useResetPasswordForm } from "@/lib/auth/useResetPasswordForm";
 import { ageInYears, MIN_SELF_CONSENT_AGE, type OAuthProvider } from "@/lib/supabase/auth";
 import { allRequiredAcksChecked, setAllRequiredAcks, type ConsentSelections } from "@/lib/auth/consent-selections";
 import { DateField } from "@/components/m3";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { todayISO } from "@/components/m3/date-picker/calendar-math";
 
 // Keyboard-aware shell for the auth screens (sign-in / sign-up / reset). The
@@ -241,11 +242,7 @@ export function DeepSpaceSignInDesignScreen() {
   const passwordRef = useRef<TextInput>(null);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.cyan} />
-      </View>
-    );
+    return <InlineLoader />;
   }
   if (userId) return <Redirect href="/" />;
 
@@ -467,11 +464,7 @@ export function DeepSpaceSignUpDesignScreen() {
   const passwordRef = useRef<TextInput>(null);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.cyan} />
-      </View>
-    );
+    return <InlineLoader />;
   }
   if (userId && !submitting && !judgeWelcome && !toast) return <Redirect href="/" />;
 
@@ -641,11 +634,7 @@ export function DeepSpaceResetPasswordDesignScreen() {
   const confirmRef = useRef<TextInput>(null);
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.cyan} />
-      </View>
-    );
+    return <InlineLoader />;
   }
 
   const helperDanger = helperKey !== "resetPassword.passwordHelper";
