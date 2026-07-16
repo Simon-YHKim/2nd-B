@@ -12,7 +12,7 @@ import { Redirect, router } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { Field, MdButton, MdCard } from "@/components/m3";
+import { Field, MdButton, MdCard, YearField } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { createRecord } from "@/lib/records/create";
@@ -160,12 +160,11 @@ export default function CareerTimelineScreen() {
               onChangeText={setImpact}
               placeholder={t("deepspace:career.placeholderImpact")}
             />
-            <Field
+            <YearField
               label={t("deepspace:career.fieldYear")}
               value={year}
-              onChangeText={setYear}
+              onChange={setYear}
               placeholder={t("deepspace:career.placeholderYear")}
-              keyboardType="number-pad"
               error={!yearValid}
               supportingText={yearValid ? undefined : t("deepspace:career.yearError")}
             />

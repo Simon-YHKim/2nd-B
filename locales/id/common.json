@@ -17,6 +17,13 @@
     "delete": "Hapus",
     "signOut": "Keluar"
   },
+  "datePicker": {
+    "title": "Pilih tanggal",
+    "yearTitle": "Pilih tahun",
+    "confirm": "OK",
+    "placeholder": "Pilih tanggal",
+    "yearPlaceholder": "Pilih tahun"
+  },
   "states": {
     "loading": "Memuat…"
   },
