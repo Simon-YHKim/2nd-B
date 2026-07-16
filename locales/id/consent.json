@@ -25,7 +25,33 @@
     "ackOverseas": "Saya memahami data layanan terenkripsi dapat diproses di luar negara saya oleh Google atau Supabase untuk menjalankan app.",
     "ackSensitive": "Saya memahami entri saya mungkin berisi detail sensitif, dan 2nd-Brain memperlakukannya sebagai data akun pribadi.",
     "optMarketing": "Kirimi saya pembaruan produk sesekali (opsional).",
-    "minorBanner": "Kamu mendaftar sebagai remaja (14 sampai 17). Privasi tinggi aktif secara default: berbagi, iklan, analitik, pelatihan model, dan analisis luar tetap mati."
+    "minorBanner": "Kamu mendaftar sebagai remaja (14 sampai 17). Privasi tinggi aktif secara default: berbagi, iklan, analitik, pelatihan model, dan analisis luar tetap mati.",
+    "detailLink": "Lihat detail"
+  },
+  "detail": {
+    "title": "Apa yang kamu setujui",
+    "intro": "Penjelasan sederhana untuk tiap butir yang kamu centang saat mendaftar: apa cakupannya, kenapa perlu, dan apa pilihanmu.",
+    "service": {
+      "title": "Pengumpulan dan penggunaan untuk menjalankan layanan",
+      "body": "Yang dikumpulkan: alamat email, tanggal lahir, dan catatan yang kamu tulis (jurnal, catatan, tangkapan).\nUntuk apa: menjalankan akunmu, menyimpan catatan, menggambar grafik pertumbuhan, menjalankan asisten, dan memastikan usiamu 14 tahun ke atas.\nBerapa lama: selama akunmu aktif. Kamu bisa menghapus catatan atau seluruh akun kapan saja dari Pengaturan; data yang dihapus dimusnahkan tanpa penundaan.\nPilihanmu: kamu boleh menolak, tetapi butir ini penting untuk menyediakan layanan, jadi pendaftaran tidak bisa lanjut tanpanya."
+    },
+    "llmProcessing": {
+      "title": "Pemrosesan catatan untuk respons AI",
+      "body": "Yang terjadi: saat kamu meminta respons, catatan terkait dan permintaanmu dikirim ke model AI (Google Gemini, Anthropic Claude, atau OpenAI).\nHanya dalam kasus ini: respons yang kamu minta, pemeriksaan keamanan otomatis, dan catatan audit layanan. Tidak ada yang lain.\nYang tidak pernah kami lakukan: menjual catatanmu, memakainya untuk iklan, atau menyerahkannya untuk melatih model luar.\nPilihanmu: kamu boleh menolak, tetapi respons AI adalah inti layanan, jadi pendaftaran tidak bisa lanjut tanpanya."
+    },
+    "overseasTransfer": {
+      "title": "Pemrosesan di luar negaramu",
+      "body": "Penerima: Google (respons AI) dan Supabase (basis data dan hosting masuk).\nYang ditransfer: data layanan terenkripsi (data akun dan catatan) serta konten yang diperlukan untuk membuat respons.\nDi mana dan bagaimana: server yang dioperasikan penyedia tersebut di luar negaramu, lewat koneksi terenkripsi, saat kamu memakai layanan.\nBerapa lama: hanya untuk menjalankan aplikasi, selama periode yang sama dengan akunmu.\nPilihanmu: kamu boleh menolak, tetapi layanan tidak bisa berjalan tanpa pemrosesan ini, jadi pendaftaran tidak bisa lanjut."
+    },
+    "sensitiveData": {
+      "title": "Cara catatan sensitif ditangani",
+      "body": "Cakupannya: jurnal dan catatan bisa saja memuat hal sensitif, seperti kesehatan atau keyakinan.\nCara kami menanganinya: tidak dikumpulkan atau dipilah terpisah; semuanya tetap terenkripsi sebagai data akun pribadi. Tidak pernah dipublikasikan, dijual, atau dipakai untuk iklan.\nPilihanmu: apa yang kamu tulis sepenuhnya pilihanmu, dan catatan apa pun bisa dihapus kapan saja.\nJika menolak: tanpa konfirmasi ini kami tidak bisa menyimpan catatanmu, jadi pendaftaran tidak bisa lanjut."
+    },
+    "marketing": {
+      "title": "Kabar produk (opsional)",
+      "body": "Yang kamu terima: email sesekali tentang fitur baru dan perbaikan.\nOpsional: menolak tidak mengubah apa pun di aplikasi.\nTarik kapan saja: dari Pengaturan, atau lewat tautan berhenti berlangganan di email."
+    },
+    "footer": "Ada pertanyaan? Tanyakan kapan saja dari Pengaturan, Dukungan. Kami membalas dalam 2 hari kerja."
   },
   "privacy": {
     "eyebrow": "Privasi",
