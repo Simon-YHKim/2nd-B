@@ -1008,6 +1008,14 @@ export function CaptureLegacy() {
         // 0066: 4W1H keeps the machine-readable payload beside the flattened body.
         structured: noteMode === "fourw" ? composeStructured("fourw", fourw) ?? undefined : undefined,
       });
+      // Crisis routing parity with journal (:934): voice/todo/4W1H are the
+      // user's own words on the SAME createRecord path, but this handler used
+      // to drop res.followup on the floor (setSavedFollowup(null)) — a red-zone
+      // save wrote the safety ledger and showed the user NOTHING. Same hotline
+      // modal, same followup card.
+      if (res.followup?.zone === "red") {
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      }
       const savedBody = noteBody;
       reset();
       companion.fire("captureSaved");
@@ -1017,7 +1025,7 @@ export function CaptureLegacy() {
       // Reuse savedSourceId as the just-saved record id so the success CTA can
       // open /record/[id] for note-like captures too.
       setSavedSourceId(res.id);
-      setSavedFollowup(null);
+      setSavedFollowup(res.followup ?? null);
       setSavedPending(false);
       void progression.refresh();
       void Promise.all([

@@ -107,6 +107,14 @@
     "shareCard": {
       "label": "Share card",
       "sub": "1080 card"
+    },
+    "srs": {
+      "label": "Flashcard review",
+      "sub": "Spaced review"
+    },
+    "callReflection": {
+      "label": "Call reflection",
+      "sub": "Speak it down"
     }
   },
   "states": {
@@ -137,6 +145,7 @@
     "doneToday": "Focus sessions done today: {{count}}",
     "alarmFocusTitle": "Focus block done",
     "alarmFocusBody": "Nice work. Time for a short break.",
+    "alarmFocusBodyStar": "Nice work. One focus session saved for {{star}}.",
     "alarmBreakTitle": "Break over",
     "alarmBreakBody": "Back to your next focus block.",
     "subIdle": "Ready when you are",
@@ -172,6 +181,7 @@
     "forWhichStar": "For which star?",
     "todayCount": "{{sessions}} focus sessions today",
     "todaySub": "About {{min}} min · goal {{goal}}",
+    "todayStarCount": "{{star}} star · {{n}} today",
     "stars": {
       "s0": "Growth",
       "s1": "Career",

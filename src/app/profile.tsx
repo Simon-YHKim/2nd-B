@@ -213,7 +213,10 @@ export default function Profile() {
           // menu item promising an MBTI screener was a broken promise.
           { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
           { key: "seen", label: i18n.language?.toLowerCase().startsWith("ko") ? "보여지는 나" : "Seen self", route: "/seen" },
-          { key: "trinity", label: sections.analyze.items.trinity.label, route: "/trinity" },
+          // Trinity was retired from the canonical menu (CONCEPT.md: Brain
+          // Trinity is legacy, rollback skin only — same reasoning as the MBTI
+          // removal above); /trinity now redirects deep-space users to
+          // /core-brain (북극성), so a menu item would be a broken promise.
           { key: "esm", label: sections.center.items.esm.label, route: "/esm" },
           { key: "interview", label: sections.know.items.interview.label, route: "/interview" },
           { key: "audit", label: sections.know.items.audit.label, route: "/audit" },
