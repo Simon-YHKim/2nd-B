@@ -8,7 +8,7 @@
 // HONESTY: this is a self-report ESTIMATE of the user's OWN stated importance —
 // not a medical assessment. Confidence is shown and capped well under 100%; the
 // populated layout only ever shows the user's real answers (values-survey.ts).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, KeyboardAvoidingView, Platform, BackHandler } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -36,6 +36,7 @@ import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
+import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 
 // 6-point self-report scale: 1 전혀 나 같지 않다 … 6 매우 나 같다.
 const SCALE: { value: number; en: string; ko: string }[] = [
@@ -54,7 +55,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // ["values","assessment"] record that loadLatestValues reads. onComplete fires
 // after the save celebration so the caller reloads into the populated lens;
 // onCancel backs out of the intro (caller shows the not-measured state).
-function ValuesSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
+function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
   const { i18n } = useTranslation("home");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
@@ -78,6 +79,22 @@ function ValuesSurvey({ onComplete, onCancel }: { onComplete: () => void; onCanc
     const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => subscription.remove();
   }, [started, responses, saved]);
+
+  // med#8: the top app-bar back arrow must honor the same mid-survey exit
+  // confirm as the hardware back — it used to bypass it and silently drop
+  // every answer in progress.
+  useEffect(() => {
+    if (!registerBackGuard) return;
+    registerBackGuard(() => {
+      if (started && Object.keys(responses).length > 0 && !saved) {
+        setExitConfirmOpen(true);
+        return true;
+      }
+      return false;
+    });
+    return () => registerBackGuard(null);
+  }, [registerBackGuard, started, responses, saved]);
+
 
   useEffect(() => {
     if (!toast) return;
@@ -224,7 +241,15 @@ function ValuesSurvey({ onComplete, onCancel }: { onComplete: () => void; onCanc
       {saved ? (
         <QuantSaveCelebration
           message={locale === "ko" ? "가치 자기보고를 저장했어요." : "Your values self-report is saved."}
-          onDone={onComplete}
+          onDone={() => {
+            // med#7: first star ever -> one SecondB chat (activation). This
+            // nudge lived only on /attachment; now every instrument takes it.
+            if (consumeFirstStarChatNudge()) {
+              router.replace({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "가치 자기보고" : "Values self-report" } });
+            } else {
+              onComplete();
+            }
+          }}
         />
       ) : null}
 
@@ -279,6 +304,8 @@ export default function ValuesCheck() {
   // When there is no result and the user backs out of the survey intro, fall
   // back to the honest not-measured AxisCheck state instead of the survey.
   const [dismissed, setDismissed] = useState(false);
+  // med#8: filled by the survey so the app-bar back can route through its confirm.
+  const surveyBackGuard = useRef<(() => boolean) | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -361,11 +388,17 @@ export default function ValuesCheck() {
       header="none"
       variant="windowed"
       title={t("ds.axisCheck.values.headline")}
-      onBack={() => router.back()}
+      onBack={() => {
+        if (surveyBackGuard.current?.()) return;
+        router.back();
+      }}
     >
       <ValuesSurvey
         onComplete={() => setReloadKey((k) => k + 1)}
         onCancel={() => setDismissed(true)}
+        registerBackGuard={(fn) => {
+          surveyBackGuard.current = fn;
+        }}
       />
     </DeepSpaceScreen>
   );

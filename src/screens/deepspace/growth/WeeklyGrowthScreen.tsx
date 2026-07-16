@@ -113,9 +113,17 @@ export function WeeklyGrowthScreen() {
     if (!userId || !top || saved) return;
     const step = STEP[top.id];
     try {
+      // med#20: without a schedule this saved recurrence=none + reminder=null,
+      // so the routine was never "due today" — invisible in the ops list the
+      // button promises. Anchor it as a daily 9AM routine (same default the
+      // ops hub uses), which also makes the reminder derivable.
+      const at = new Date();
+      at.setHours(9, 0, 0, 0);
       await createRoutineFromRecommendation(userId, step.domain, {
         title: ko ? step.stepKo : step.stepEn,
         reason: ko ? step.obsKo : step.obsEn,
+        startsAtIso: at.toISOString(),
+        recurrence: "daily",
       });
       setSaved(true);
     } catch {

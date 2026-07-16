@@ -31,6 +31,7 @@ import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
+import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 
 // 1-7 anchors. Only the two poles + the midpoint are labelled in the legend; the
 // middle values stay numeric so the 7-point granularity reads cleanly.
@@ -220,7 +221,15 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
       {saved ? (
         <QuantSaveCelebration
           message={t("saved")}
-          onDone={onComplete}
+          onDone={() => {
+            // med#7: first star ever -> one SecondB chat (activation). This
+            // nudge lived only on /attachment; now every instrument takes it.
+            if (consumeFirstStarChatNudge()) {
+              router.replace({ pathname: "/secondb", params: { fromNode: t("title") } });
+            } else {
+              onComplete();
+            }
+          }}
         />
       ) : null}
 

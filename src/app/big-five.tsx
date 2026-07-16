@@ -32,6 +32,7 @@ import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
 import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
+import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 
 const SCALE: { value: number; en: string; ko: string }[] = [
   { value: 1, en: "Strongly disagree", ko: "전혀 아니다" },
@@ -220,7 +221,15 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
       {saved ? (
         <QuantSaveCelebration
           message={t("saved")}
-          onDone={onComplete}
+          onDone={() => {
+            // med#7: first star ever -> one SecondB chat (activation). This
+            // nudge lived only on /attachment; now every instrument takes it.
+            if (consumeFirstStarChatNudge()) {
+              router.replace({ pathname: "/secondb", params: { fromNode: t("title") } });
+            } else {
+              onComplete();
+            }
+          }}
         />
       ) : null}
 

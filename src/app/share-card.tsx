@@ -18,6 +18,7 @@ import { ShareCard } from "@/components/deepspace/ShareCard";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { spacing } from "@/lib/theme/tokens";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
+import { fetchCurrentNorthstar } from "@/lib/persona/northstar";
 import { deriveCardProps, shareInsightCard } from "@/lib/share/insight-card";
 import { countUserPieces } from "@/lib/share/piece-count";
 
@@ -29,6 +30,12 @@ export default function ShareCardScreen() {
   const [variant, setVariant] = useState<"A" | "B">("A");
   const [litStars, setLitStars] = useState<number | null>(null);
   const [pieceCount, setPieceCount] = useState<number | null>(null);
+  // med#31: the card ignored the user's saved 북극성 문장 — always the canned
+  // default. med#32: a star-count load FAILURE fell through to 4 fabricated
+  // stars on a SHARE surface (정직한 밝기 violation) — it is an error state now.
+  const [sentence, setSentence] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [sharing, setSharing] = useState(false);
   const [saving, setSaving] = useState(false);
   const captureRef = useRef<View>(null);
@@ -36,6 +43,7 @@ export default function ShareCardScreen() {
   useEffect(() => {
     if (!userId) return;
     let alive = true;
+    setLoadFailed(false);
     loadDomainLevels(userId)
       .then((b) => {
         if (!alive) return;
@@ -43,8 +51,16 @@ export default function ShareCardScreen() {
         setLitStars(lit);
       })
       .catch(() => {
-        if (alive) setLitStars(null);
+        // med#32: don't render fabricated fallback stars — surface the failure.
+        if (alive) setLoadFailed(true);
       });
+    // med#31: the user's own 북극성 문장 (newest NORTHSTAR record). Optional —
+    // a miss just keeps the honest default insight line.
+    void fetchCurrentNorthstar(userId)
+      .then((s) => {
+        if (alive && s.sentence) setSentence(s.sentence);
+      })
+      .catch(() => {});
     // Signature line count — countUserPieces resolves null on failure, so no catch.
     void countUserPieces(userId).then((n) => {
       if (alive) setPieceCount(n);
@@ -52,7 +68,7 @@ export default function ShareCardScreen() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, retryKey]);
 
   const barTitle = t("deepspace:shareCard.barTitle");
 
@@ -67,7 +83,19 @@ export default function ShareCardScreen() {
   }
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const card = deriveCardProps({ litStars });
+  // med#32: a failed star load renders an error + retry, never invented stars.
+  if (loadFailed) {
+    return (
+      <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
+        <View style={styles.center}>
+          <Text variant="body" accessibilityRole="alert">{t("home:ds.axisCheck.loadError")}</Text>
+          <MdButton variant="tonal" label={t("home:ds.axisCheck.retry")} onPress={() => setRetryKey((k) => k + 1)} />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+
+  const card = deriveCardProps({ litStars, northStarSentence: sentence });
 
   async function handleShare() {
     if (sharing || saving) return;

@@ -486,7 +486,10 @@ export function DeepSpaceRecordsScreen() {
       <Pressable
         style={rStyles.triageCard}
         android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-        onPress={() => router.push("/inbox")}
+        // med#5: the card counts UNFILED pieces, but it used to route to
+        // /inbox (알림), which has no triage UI — the promised sorting is this
+        // list's own 미분류 filter, one tap away on the same screen.
+        onPress={() => setTypeFilter("unfiled")}
         accessibilityRole="button"
         accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
       >

@@ -417,7 +417,9 @@ export function CaptureView() {
             variant="outlined"
             icon={<CaptureIcon name="photo_camera" color={m3.color.primary} size={18} />}
             label={f("photoOpen")}
-            onPress={() => router.push({ pathname: "/capture-full", params: { text } })}
+            // med#3: open the FULL composer in photo (ocr) mode — this used to
+            // land on the default journal/link pane with the label promising 사진.
+            onPress={() => router.push({ pathname: "/capture-full", params: { text, mode: "ocr" } })}
             style={styles.capFullWidth}
           />
           <TextInput
@@ -438,7 +440,8 @@ export function CaptureView() {
             variant="outlined"
             icon={<CaptureIcon name="mic" color={m3.color.primary} size={18} />}
             label={f("voiceOpen")}
-            onPress={() => router.push({ pathname: "/capture-full", params: { text } })}
+            // med#3: same — the voice label must open the voice recorder pane.
+            onPress={() => router.push({ pathname: "/capture-full", params: { text, mode: "voice" } })}
             style={styles.capFullWidth}
           />
           <TextInput
