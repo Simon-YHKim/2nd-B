@@ -1,6 +1,6 @@
 {
-  "app": "앱",
-  "generatedFrom": "screenmap.canon.json",
+  "app": "2nd-B",
+  "generatedFrom": "graph-array.json",
   "stack": "React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.",
   "production": {
     "switch": "isDeepSpaceUI",
@@ -36,12 +36,6 @@
       "gate": "dev-only",
       "why": "개발 전용 — 배포판에서는 열리지 않아요",
       "evidence": "src/app/trends.tsx:18",
-      "line": "<DevOnlyRoute>"
-    },
-    "/graph": {
-      "gate": "dev-only",
-      "why": "개발 전용 — 배포판에서는 열리지 않아요",
-      "evidence": "src/app/graph.tsx:11",
       "line": "<DevOnlyRoute>"
     }
   },
@@ -193,9 +187,8 @@
       ]
     },
     "transcribeAudio": {
-      "file": "src/lib/llm/gemini.ts:1048",
+      "file": "src/lib/llm/gemini.ts:1046",
       "apis": [
-        "edge:gemini-proxy",
         "rpc:log_ai_audit"
       ],
       "ai": true,
@@ -203,14 +196,13 @@
         "throwIfAborted",
         "getEnv",
         "classifyInput",
-        "getSupabaseClient",
         "classifySafety",
         "fixedCrisisResponse"
       ],
       "via": "classifySafety"
     },
     "callAdvisor": {
-      "file": "src/lib/llm/gemini.ts:1194",
+      "file": "src/lib/llm/gemini.ts:1152",
       "apis": [
         "edge:gemini-proxy",
         "db:knowledge_sources:select",
@@ -535,11 +527,11 @@
     }
   },
   "trust": {
-    "verified": 244,
-    "located": 570,
-    "caution": 15,
+    "verified": 249,
+    "located": 576,
+    "caution": 5,
     "broken": 0,
-    "total": 829,
+    "total": 830,
     "delegationTraps": 35
   },
   "screens": [
@@ -567,7 +559,7 @@
           "raw": "화면 열기(로그인 상태 확인)",
           "symbol": "useSignInForm",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:241 (useSignInForm)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:240 (useSignInForm)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/AuthContext.tsx:179",
           "implTrust": "·",
@@ -598,7 +590,7 @@
           "raw": "비밀번호 보기·가리기",
           "symbol": "toggleShowPassword",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:279 (toggleShowPassword)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:282 (toggleShowPassword)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:112",
           "implTrust": "·",
@@ -620,7 +612,7 @@
           "raw": "이메일·비밀번호로 로그인",
           "symbol": "handleSubmit",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:306 (handleSubmit)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:309 (handleSubmit)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:157 (handleSubmit)",
           "implTrust": "✔",
@@ -648,7 +640,7 @@
           "raw": "구글·애플·카카오 등으로 로그인",
           "symbol": "ProviderIconRow",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:178 (ProviderIconRow)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:177 (ProviderIconRow)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:114 (handleOAuth)",
           "implTrust": "✔",
@@ -679,7 +671,7 @@
           "raw": "네이버로 로그인",
           "symbol": "ProviderIconRow",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:178 (ProviderIconRow)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:177 (ProviderIconRow)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:142 (handleNaver)",
           "implTrust": "✔",
@@ -706,7 +698,7 @@
           "raw": "비밀번호 재설정 화면으로 가기",
           "symbol": "DeepSpaceSignInDesignScreen",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:221 (DeepSpaceSignInDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:220 (DeepSpaceSignInDesignScreen)",
           "fileTrust": "✔",
           "impl": null,
           "implTrust": null,
@@ -729,10 +721,10 @@
           "raw": "회원가입 화면으로 가기",
           "symbol": "router.push",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:413 (router.push)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:416 (router.push)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:390",
-          "implTrust": "~",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:411",
+          "implTrust": "·",
           "implName": null,
           "apis": [],
           "ai": null,
@@ -752,7 +744,7 @@
           "raw": "이메일 주소 입력(@ 없으면 로그인 버튼이 안 켜짐)",
           "symbol": "setEmail",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:263 (setEmail)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:266 (setEmail)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:198",
           "implTrust": "·",
@@ -777,7 +769,7 @@
           "raw": "비밀번호 입력(비면 로그인 버튼이 안 켜짐)",
           "symbol": "setPassword",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:292 (setPassword)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:295 (setPassword)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useSignInForm.ts:198",
           "implTrust": "·",
@@ -806,7 +798,7 @@
           "raw": "약관 열어보기 (아래 동의 문구)",
           "symbol": "DeepSpaceSignInDesignScreen",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:221 (DeepSpaceSignInDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:220 (DeepSpaceSignInDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/screens/deepspace/dds-legal-doc-screen.tsx:19 (DeepSpaceLegalDocScreen)",
           "implTrust": "✔",
@@ -838,7 +830,7 @@
           "raw": "화면 열기(로그인 상태 확인)",
           "symbol": "useSignUpForm",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:463 (useSignUpForm)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:466 (useSignUpForm)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/AuthContext.tsx:179",
           "implTrust": "·",
@@ -869,7 +861,7 @@
           "raw": "생년월일 달력에서 고르기",
           "symbol": "DeepSpaceSignUpDesignScreen",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:438 (DeepSpaceSignUpDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:441 (DeepSpaceSignUpDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/components/m3/date-picker/DatePicker.tsx (DatePicker)",
           "implTrust": "·",
@@ -895,7 +887,7 @@
           "raw": "필수 동의 항목 체크하기",
           "symbol": "DeepSpaceConsentBlock",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:405 (DeepSpaceConsentBlock)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:408 (DeepSpaceConsentBlock)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/consent-selections.ts:51",
           "implTrust": "·",
@@ -922,7 +914,7 @@
           "raw": "동의 항목 자세히 보기 (옅은 화살표)",
           "symbol": "ConsentCheckRow",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:373 (ConsentCheckRow)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:376 (ConsentCheckRow)",
           "fileTrust": "✔",
           "impl": "src/screens/deepspace/dds-consent-notice-screen.tsx:24 (DeepSpaceConsentNoticeScreen)",
           "implTrust": "✔",
@@ -945,9 +937,9 @@
           "raw": "계정 만들기",
           "symbol": "handleSubmit",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:302 (handleSubmit)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:633 (handleSubmit)",
           "fileTrust": "✔",
-          "impl": "src/lib/auth/useSignUpForm.ts:86 (handleSubmit)",
+          "impl": "src/lib/auth/useSignUpForm.ts:182 (handleSubmit)",
           "implTrust": "✔",
           "implName": null,
           "apis": [
@@ -977,9 +969,9 @@
           "raw": "구글·애플·카카오 등으로 가입",
           "symbol": "ProviderIconRow",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:178 (ProviderIconRow)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:177 (ProviderIconRow)",
           "fileTrust": "✔",
-          "impl": "src/lib/auth/useSignUpForm.ts:87 (handleOAuth)",
+          "impl": "src/lib/auth/useSignUpForm.ts:243 (handleOAuth)",
           "implTrust": "✔",
           "implName": null,
           "apis": [
@@ -1010,10 +1002,10 @@
           "raw": "네이버로 가입",
           "symbol": "ProviderIconRow",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:178 (ProviderIconRow)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:177 (ProviderIconRow)",
           "fileTrust": "✔",
-          "impl": "src/lib/auth/useSignUpForm.ts:192 (handleNaver)",
-          "implTrust": "~",
+          "impl": "src/lib/auth/useSignUpForm.ts:264 (handleNaver)",
+          "implTrust": "✔",
           "implName": null,
           "apis": [],
           "ai": null,
@@ -1039,9 +1031,9 @@
           "raw": "이미 계정이 있어요 → 로그인으로",
           "symbol": "router.push",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:320 (router.push)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:600 (router.push)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:571",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:596",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -1064,8 +1056,8 @@
           "does": "",
           "file": "src/screens/deepspace/dds-auth-screens.tsx",
           "fileTrust": "·",
-          "impl": "src/lib/auth/useSignUpForm.ts:142",
-          "implTrust": "~",
+          "impl": "src/lib/auth/useSignUpForm.ts:171",
+          "implTrust": "·",
           "implName": "setEmailAndClearHelp",
           "apis": [],
           "ai": null,
@@ -1496,7 +1488,7 @@
           "raw": "화면 열기(재설정 링크 확인)",
           "symbol": "useResetPasswordForm",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useResetPasswordForm.ts:66 (useResetPasswordForm)",
           "implTrust": "✔",
@@ -1529,14 +1521,14 @@
             "인터넷이 느리면 계정 정보 확인이 늦어져 로딩이 길어져요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-auth-screens.tsx:601"
+          "bugAnchor": "src/screens/deepspace/dds-auth-screens.tsx:581"
         },
         {
           "action": "인증번호 보내기",
           "raw": "인증번호 보내기",
           "symbol": "handleSendCode",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useResetPasswordForm.ts (handleSendCode)",
           "implTrust": "·",
@@ -1565,7 +1557,7 @@
           "raw": "인증번호 확인",
           "symbol": "handleVerifyCode",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useResetPasswordForm.ts (handleVerifyCode)",
           "implTrust": "·",
@@ -1594,7 +1586,7 @@
           "raw": "새 비밀번호 저장",
           "symbol": "handleSubmit",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/useResetPasswordForm.ts (handleSubmit)",
           "implTrust": "·",
@@ -1625,10 +1617,10 @@
           "raw": "완료 후 앱으로 들어가기",
           "symbol": "router.replace",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:715",
-          "implTrust": "~",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:744",
+          "implTrust": "·",
           "implName": null,
           "apis": [],
           "ai": null,
@@ -1648,9 +1640,9 @@
           "raw": "로그인 화면으로 돌아가기",
           "symbol": "router.replace",
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
-          "impl": "src/screens/deepspace/dds-auth-screens.tsx:596",
+          "impl": "src/screens/deepspace/dds-auth-screens.tsx:621",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -1671,7 +1663,7 @@
           "raw": "새 비밀번호·확인 입력(8자 이상 · 두 칸 일치)",
           "symbol": null,
           "does": "",
-          "file": "src/screens/deepspace/dds-auth-screens.tsx:601 (DeepSpaceResetPasswordDesignScreen)",
+          "file": "src/screens/deepspace/dds-auth-screens.tsx:608 (DeepSpaceResetPasswordDesignScreen)",
           "fileTrust": "✔",
           "impl": "src/lib/auth/reset-password-helpers.ts:8 (resetHelperKey)",
           "implTrust": "✔",
@@ -1711,9 +1703,9 @@
           "raw": "화면 열기(네이버 로그인 마무리)",
           "symbol": null,
           "does": "",
-          "file": "src/app/(auth)/oauth-callback.tsx:72",
+          "file": "src/app/(auth)/oauth-callback.tsx:48",
           "fileTrust": "·",
-          "impl": "src/lib/supabase/auth.ts:496",
+          "impl": "src/lib/supabase/auth.ts:507",
           "implTrust": "·",
           "implName": "completeNaverOAuth",
           "apis": [
@@ -1745,9 +1737,9 @@
           "raw": "실패 시 로그인 화면으로",
           "symbol": null,
           "does": "",
-          "file": "src/app/(auth)/oauth-callback.tsx:127",
+          "file": "src/app/(auth)/oauth-callback.tsx:101",
           "fileTrust": "·",
-          "impl": "src/app/(auth)/oauth-callback.tsx:127",
+          "impl": "src/app/(auth)/oauth-callback.tsx:101",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -1963,8 +1955,8 @@
           "raw": "첫 방문 안내 4단계 따라가기",
           "symbol": null,
           "does": "",
-          "file": null,
-          "fileTrust": null,
+          "file": "src/components/deep-space/DeepSpaceShell.tsx:100 (HomeCoachmarks)",
+          "fileTrust": "✔",
           "impl": "src/components/deep-space/HomeCoachmarks.tsx:44 (HomeCoachmarks)",
           "implTrust": "✔",
           "implName": null,
@@ -2650,7 +2642,7 @@
           "raw": "화면 열 때 이 영역 기록과 밝기 불러오기",
           "symbol": null,
           "does": "",
-          "file": "src/app/star/[domain].tsx:79",
+          "file": "src/app/star/[domain].tsx:105",
           "fileTrust": "·",
           "impl": "src/lib/persona/load-domain-levels.ts:70",
           "implTrust": "·",
@@ -2706,16 +2698,18 @@
             "담고 돌아왔는데 이 별의 목록에 그 기록이 없어요 (다른 별로 붙었어요)",
             "특징적인 단어가 없는 글은 '담아내기' 별로 가버려요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/star/[domain].tsx"
+          "knownBug": false,
+          "bugAnchor": "src/app/star/[domain].tsx:176",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "한 걸음 더 들어가기 버튼 누르기",
           "raw": "한 걸음 더 들어가기 버튼 누르기",
           "symbol": null,
           "does": "",
-          "file": "src/app/star/[domain].tsx:149 (DOMAIN_DRILL)",
-          "fileTrust": "~",
+          "file": "src/app/star/[domain].tsx:185 (DOMAIN_DRILL)",
+          "fileTrust": "✔",
           "impl": "src/app/star/[domain].tsx:55 (DOMAIN_DRILL)",
           "implTrust": "✔",
           "implName": null,
@@ -2735,7 +2729,7 @@
           "raw": "기록 하나 누르기",
           "symbol": null,
           "does": "",
-          "file": "src/app/star/[domain].tsx:180",
+          "file": "src/app/star/[domain].tsx:216",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -2760,9 +2754,9 @@
           "raw": "다시 시도 누르기",
           "symbol": null,
           "does": "",
-          "file": "src/app/star/[domain].tsx:167",
-          "fileTrust": "~",
-          "impl": "src/app/star/[domain].tsx:79",
+          "file": "src/app/star/[domain].tsx:203",
+          "fileTrust": "·",
+          "impl": "src/app/star/[domain].tsx:105",
           "implTrust": "·",
           "implName": null,
           "apis": [
@@ -2794,8 +2788,8 @@
           "raw": "뒤로 가기 누르기",
           "symbol": null,
           "does": "",
-          "file": "src/app/star/[domain].tsx:122",
-          "fileTrust": "~",
+          "file": "src/app/star/[domain].tsx:146",
+          "fileTrust": "·",
           "impl": null,
           "implTrust": null,
           "implName": null,
@@ -2897,7 +2891,7 @@
             "무료 사용량을 다 쓰면 문장을 못 받고 요금제 화면으로 넘어가요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/northstar.tsx:100"
+          "bugAnchor": "src/app/northstar.tsx:98"
         },
         {
           "action": "제안 문장 탭해서 편집칸에 넣기",
@@ -2967,7 +2961,7 @@
             "개인정보(/privacy) 화면의 '기록 의미 연결' 설정을 켠 어른 사용자는 저장할 때 AI가 문장을 한 번 더 읽어 벡터로 바꿔요 (실패해도 저장은 그대로 됩니다)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/northstar.tsx:128"
+          "bugAnchor": "src/app/northstar.tsx:126"
         },
         {
           "action": "취소 누르기",
@@ -3406,7 +3400,7 @@
             "넘어간 화면에서 뒤로 오면 이 화면에 적던 4W1H·할 일 내용은 남아 있지 않아요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/components/deep-space/DeepSpaceViews.tsx"
+          "bugAnchor": "src/components/deep-space/DeepSpaceViews.tsx:420"
         },
         {
           "action": "저장한 뒤 기록 보관소 열기",
@@ -3602,7 +3596,7 @@
           "raw": "일기 담기 (기본 형식) — AI 조언은 클로드로 나가요",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2216",
+          "file": "src/app/capture.tsx:2214",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx:945",
           "implTrust": "·",
@@ -3659,7 +3653,7 @@
           "raw": "'일기 잠김'에서 벗어나기 ('입문 시작하기' → 입문 화면)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:1727",
+          "file": "src/app/capture.tsx:1725",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx:656 (checkGate / progression.totalXp)",
           "implTrust": "✔",
@@ -3691,7 +3685,7 @@
           "raw": "4W1H·할 일·음성 담기",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2216",
+          "file": "src/app/capture.tsx:2214",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx:1015",
           "implTrust": "·",
@@ -3736,15 +3730,17 @@
             "미성년 계정은 숫자 변환이 아예 안 돌아요 (설정을 켜도 막혀 있어요)",
             "안전 기록 쓰기가 실패하면 기기에 모아뒀다가 다음에 다시 보내요. 화면에는 티가 안 나요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/capture.tsx:2216"
+          "knownBug": false,
+          "bugAnchor": "src/app/capture.tsx:2143",
+          "notABug": "The catch calls showFeedback(t('alerts.pieceSave.title')) and reactExpression('negative') -- the failure IS surfaced, and the body is preserved. The failureModes text describes that correct behaviour; it was read as a defect.",
+          "notABugVerifiedOn": "2026-07-14"
         },
         {
           "action": "링크·클립·메모·사진 글자·파일 담기 (위험 신호면 안전 기록도 남아요)",
           "raw": "링크·클립·메모·사진 글자·파일 담기 (위험 신호면 안전 기록도 남아요)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2216",
+          "file": "src/app/capture.tsx:2214",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx",
           "implTrust": "·",
@@ -3871,7 +3867,7 @@
           "raw": "파일 고르기 ('문서' 탭의 '파일 선택' 버튼)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2132 (runFilePick)",
+          "file": "src/app/capture.tsx:2130 (runFilePick)",
           "fileTrust": "✔",
           "impl": "src/app/capture.tsx:860 (runFilePick)",
           "implTrust": "✔",
@@ -3933,15 +3929,17 @@
             "마이크 권한을 거부하면 '마이크 접근이 꺼져 있어요…' 안내가 뜨고 글로 적는 칸만 남아요",
             "받아쓰기가 성공한 경우, 말한 내용이 위험 신호면 받아쓴 글 대신 도움받을 연락처 창이 떠요 (단, 그 뒤에 '담기'로 저장할 때는 연락처 창이 다시 뜨지 않아요)"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/capture.tsx:1114"
+          "knownBug": false,
+          "bugAnchor": "src/app/capture.tsx:1886",
+          "fixedIn": "#1008",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "사진에서 뽑은 글 '추출 텍스트 승인하기' 누르기 (이걸 눌러야 담기가 켜져요)",
           "raw": "사진에서 뽑은 글 '추출 텍스트 승인하기' 누르기 (이걸 눌러야 담기가 켜져요)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2096",
+          "file": "src/app/capture.tsx:2094",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx:915",
           "implTrust": "·",
@@ -3971,7 +3969,7 @@
           "raw": "'이 기록을 세컨비에게 물어보기' 켜기 (잠겨 있으면 누르면 요금제 화면으로 가요)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:1812",
+          "file": "src/app/capture.tsx:1810",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx:958",
           "implTrust": "·",
@@ -4002,7 +4000,7 @@
           "raw": "4W1H 다섯 칸 채우기 ('무엇을'만 필수예요)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2054",
+          "file": "src/app/capture.tsx:2052",
           "fileTrust": "·",
           "impl": "src/lib/capture/fourw.ts:20",
           "implTrust": "·",
@@ -4101,7 +4099,7 @@
           "raw": "해시태그 직접 붙이기·지우기 (직접 붙이면 AI 이름표는 안 붙어요)",
           "symbol": null,
           "does": "",
-          "file": "src/app/capture.tsx:2206",
+          "file": "src/app/capture.tsx:2204",
           "fileTrust": "·",
           "impl": "src/app/capture.tsx:880",
           "implTrust": "·",
@@ -4152,8 +4150,10 @@
             "직접 고른 트랙이 저장할 때 AI가 고른 트랙으로 조용히 바뀌어요 (아무 안내가 없어요 — 실제 약점이에요)",
             "AI 분류가 실패한 경우에만 직접 고른 트랙이 그대로 저장돼요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/capture.tsx"
+          "knownBug": false,
+          "bugAnchor": "src/app/capture.tsx:1564",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "복사해둔 링크·글 붙여넣기",
@@ -4323,8 +4323,11 @@
             "담아둔 자료를 누르면 상세 내용이 없어서 '찾을 수 없어요' 화면이 떠요 (목록에는 보이는데 열리지 않는 진짜 결함이에요)",
             "이미 지워진 기록을 누르면 '찾을 수 없어요' 화면이 떠요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:402"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:401",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "Tapping a source piece (link/clip/import) in /records opened the record detail, which queried only the records table for a src- prefixed id and always showed 찾을 수 없어요."
         },
         {
           "action": "정리함 열기",
@@ -4352,7 +4355,7 @@
             "정리할 게 0개여도 카드는 계속 보여요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:494"
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:490"
         },
         {
           "action": "이 별 채워넣기",
@@ -4555,8 +4558,11 @@
             "약점: 인터넷이 끊겨서 못 불러온 것과 진짜로 지워진 것을 구분하지 않아요. 둘 다 똑같이 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.' 화면이 떠서, 멀쩡한 내 기록이 사라진 줄 알고 놀랄 수 있어요. 다시 시도 버튼은 없고 '보관소로' 버튼 하나만 있어요 (기록 목록으로 나가요)",
             "화면을 다시 열어도 새로 불러오지 않아요. 다른 곳에서 바꾼 내용이 바로 안 보일 수 있어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:880"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:879",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "The live detail screen resolved only records. It resolves sources too now, via getPieceById."
         },
         {
           "action": "본문 고치기",
@@ -4748,7 +4754,10 @@
             "그 상태에서는 '편집' 버튼까지 살아나서, 실수로 저장하면 검사 응답 데이터가 글로 덮어써져 결과 화면이 깨질 수 있어요",
             "넘어간 검사 화면에서 결과를 못 불러오면 그쪽 화면에서 오류가 떠요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:998",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         }
       ]
     },
@@ -4795,7 +4804,7 @@
             "위키 화면의 정리함 카드에는 \"미분류 별가루를 태그·보관·삭제로 정리해요\"라고 적혀 있지만, 알림 화면에는 태그·보관·삭제 셋 다 없어요. 태그 달기와 삭제는 기록을 하나 눌러서 여는 '기록 상세' 화면에 있고, '보관'은 앱 어디에도 없는 기능이에요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-import-inbox-screens.tsx:81"
+          "bugAnchor": "src/screens/deepspace/dds-import-inbox-screens.tsx:78"
         },
         {
           "action": "로그인 안 했으면 로그인 화면으로 보내기",
@@ -4948,8 +4957,11 @@
             "그 상태에서 다시 검사하면 기존 결과를 고치는 게 아니라 기록이 하나 더 쌓여요 (지도에는 가장 최근 것만 보여요)",
             "저장된 내용이 깨져 있을 때도 똑같이 빈 화면이 나와요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/attachment.tsx:329"
+          "knownBug": false,
+          "bugAnchor": "src/app/attachment.tsx:329",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "loader folded a query error into null; the .catch that sets hasError was dead code"
         },
         {
           "action": "검사 시작하기",
@@ -5240,7 +5252,8 @@
             "검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요)",
             "화면이 비어 보이면 앱 언어 설정이나 번역 파일이 빠진 경우예요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074"
         },
         {
           "action": "'시작하기' 질문 누르기",
@@ -5377,7 +5390,10 @@
             "실제 결함: .iden / PDF / JSON을 고른 상태에서 이 스위치를 켜도 아무 차이가 없어요. 코드가 Markdown 경로에만 이 값을 넘겨요",
             "실제 결함: 위의 두 스위치는 켜진 스위치처럼 보이지만 누를 수 없어요. 눌러도 안 바뀌는 게 고장이 아니라 원래 그래요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1722",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "내보내기 실행",
@@ -5417,7 +5433,11 @@
             "실제 결함: PDF를 골라도 PDF가 아니라 html 파일이 만들어져요. 코드가 r.html과 .html 이름을 그대로 써요",
             "기록이 하나도 없으면 요약할 내용이 없다는 정직한 문장이 대신 들어가요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1635",
+          "fixedIn": "#986",
+          "fixedOn": "2026-07-14",
+          "wasBug": "The \"PDF\" export handed back r.html under r.htmlFilename. There is no PDF generator in the app. Renamed to HTML and the copy now says how to print/save-as-PDF."
         },
         {
           "action": "복사하거나 공유하기",
@@ -5920,8 +5940,11 @@
             "AI 의미 색인만 실패하면 조용히 넘어가고 기록은 정상 저장돼요",
             "위험 신호가 담긴 문장을 적어도 이 화면에서는 도움 연락처가 안 떠요 (기록과 안전 기록에는 남아요)"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/career-drilldown.tsx:122"
+          "knownBug": false,
+          "bugAnchor": "src/app/career-drilldown.tsx:122",
+          "fixedIn": "#990",
+          "fixedOn": "2026-07-14",
+          "wasBug": "The router.push to /secondb sat outside the try, so a failed save still navigated away as if it had worked."
         }
       ]
     },
@@ -6444,7 +6467,7 @@
           "raw": "이전/다음 주로 넘기기",
           "symbol": "shiftWeek",
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:983 (shiftWeek)",
+          "file": "src/screens/deepspace/ops/screens.tsx:1023 (shiftWeek)",
           "fileTrust": "✔",
           "impl": "src/lib/nutrition/meal-plan.ts:126 (listWeek)",
           "implTrust": "✔",
@@ -6472,8 +6495,8 @@
           "raw": "식단 칸 눌러 입력창 열기",
           "symbol": "openCell",
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:945 (openCell)",
-          "fileTrust": "~",
+          "file": "src/screens/deepspace/ops/screens.tsx:989 (openCell)",
+          "fileTrust": "✔",
           "impl": "src/lib/nutrition/foods.ts:128",
           "implTrust": "·",
           "implName": "serviceKey",
@@ -6502,7 +6525,7 @@
           "raw": "추천 메뉴 눌러 입력창 채우기",
           "symbol": null,
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:1334",
+          "file": "src/screens/deepspace/ops/screens.tsx:1312",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -6525,7 +6548,7 @@
           "raw": "메뉴 저장하기",
           "symbol": "saveCell",
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:999 (saveCell)",
+          "file": "src/screens/deepspace/ops/screens.tsx:1070 (saveCell)",
           "fileTrust": "✔",
           "impl": "src/lib/nutrition/meal-plan.ts:100",
           "implTrust": "·",
@@ -6803,7 +6826,10 @@
             "내역이 없으면 수입·지출·잔여가 모두 0으로만 보여요",
             "변화 딱지(지출 ↑)는 지금은 어떤 경우에도 안 떠요 — 만들 수 있는 줄이 전부 0원이라 이번 달과 지난달 지출이 늘 똑같기 때문이에요"
           ],
-          "knownBug": false
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:484",
+          "notABug": "failureModes describes CORRECT behaviour: on a failed month load it shows an error state + retry (OpsState variant=error). That is the honest handling, not a defect.",
+          "notABugVerifiedOn": "2026-07-15"
         },
         {
           "action": "빠른 기록 추가하기 (0원 자리표시 줄만 생김)",
@@ -6837,16 +6863,19 @@
             "저장에 실패해도 화면에 아무 오류가 안 떠요 (실패하면 목록 새로고침 자체가 실행되지 않아 오류 화면이 뜰 수 없어요)",
             "0원짜리 줄만 있으면 분류별 막대 길이가 0 ÷ 0 계산이 돼서 막대가 채워지지 않고 빈 칸으로 보여요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:777"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:548",
+          "fixedIn": "#993",
+          "fixedOn": "2026-07-15",
+          "wasBug": "The ＋ button inserted a hardcoded 0-won 기타 placeholder; no amount input, no delete. Wired a real amount+category+kind form and per-row delete (the lib supported both all along)."
         },
         {
           "action": "잘못 입력한 항목 삭제",
           "raw": "잘못 입력한 항목 삭제",
           "symbol": "onDeleteEntry",
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:796 (onDeleteEntry)",
-          "fileTrust": "~",
+          "file": "src/screens/deepspace/ops/screens.tsx:836 (onDeleteEntry)",
+          "fileTrust": "✔",
           "impl": "src/lib/finance/ledger.ts:146 (deleteLedgerEntry)",
           "implTrust": "✔",
           "implName": null,
@@ -6873,7 +6902,7 @@
           "raw": "불러오기 실패했을 때 다시 시도 누르기",
           "symbol": null,
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:907",
+          "file": "src/screens/deepspace/ops/screens.tsx:780",
           "fileTrust": "·",
           "impl": "src/lib/finance/ledger.ts:127 (listEntriesForMonth)",
           "implTrust": "✔",
@@ -6893,7 +6922,10 @@
           "failureModes": [
             "여전히 인터넷이 없으면 같은 오류 화면이 다시 떠요"
           ],
-          "knownBug": false
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:549",
+          "notABug": "Renders OpsState variant='error' with a retry CTA on entries.status === 'error'. Correct handling, read as a defect.",
+          "notABugVerifiedOn": "2026-07-14"
         },
         {
           "action": "뒤로 가기",
@@ -7194,7 +7226,7 @@
             "횟수 불러오기에 실패하면 조용히 0으로 표시돼서, 실제로는 다 썼는데 남은 것처럼 보일 수 있어요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/secondb.tsx:394"
+          "bugAnchor": "src/app/secondb.tsx:393"
         },
         {
           "action": "메시지 보내기",
@@ -7268,8 +7300,10 @@
             "마이크 아이콘은 눌러도 아무 동작이 없어요 (핸들러가 아예 없는 미완성 버튼)",
             "스크린리더는 '음성 입력' 버튼이라고 읽어 주기 때문에 시각장애 사용자는 더 크게 오인해요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/secondb.tsx:837"
+          "knownBug": false,
+          "bugAnchor": "src/app/secondb.tsx:248",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "답변 아래 빠른 질문 칩 누르기",
@@ -7347,8 +7381,10 @@
             "누른 그 페이지로 이동하지 않고 위키 목록만 열려요. 어떤 기록을 눌렀는지 정보가 그냥 버려집니다 (코드에 TODO로 남아 있는 미완성 부분)",
             "위키 목록에서 그 기록을 사람이 직접 다시 찾아야 해요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/secondb.tsx:1009"
+          "knownBug": false,
+          "bugAnchor": "src/app/secondb.tsx:1006",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "트위비가 준 갈래 담기 (기록으로 넘기기)",
@@ -7461,7 +7497,7 @@
             "답변 전체를 저장하거나 내보내는 버튼은 없어요. 트위비 답변의 갈래만 '담기' 로 기록에 넘길 수 있어요 (:777)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/secondb.tsx:719"
+          "bugAnchor": "src/app/secondb.tsx:716"
         }
       ]
     },
@@ -8034,8 +8070,10 @@
             "담기 화면에서 '음성' 모드를 직접 손으로 골라야 해요",
             "버튼 이름만 '음성으로 담기' 라서, 눌러 보기 전엔 안 되는 줄 몰라요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/beyond.tsx:96"
+          "knownBug": false,
+          "bugAnchor": "src/app/beyond.tsx:96",
+          "fixedIn": "#1015",
+          "fixedOn": "2026-07-16"
         },
         {
           "action": "알림 설정 열기",
@@ -8064,7 +8102,7 @@
             "설정 화면의 '제안 알림' 스위치도 아직 진짜로 동작하지 않아요 — 켜도 알림이 오지 않고, 꺼도 알림이 멈추지 않아요 (켜짐/꺼짐 표시만 기기에 저장돼요)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/beyond.tsx:140"
+          "bugAnchor": "src/app/beyond.tsx:135"
         },
         {
           "action": "뒤로 가기",
@@ -8126,8 +8164,11 @@
             "'최근 3주간 가장 자주 담은 주제', '기분이 좋은 날의 공통점' 같은 문장도 실제로 계산한 게 아니라 미리 써둔 고정 문장이에요",
             "이 화면으로 들어가는 버튼이 앱 안에 아직 없어요. 주소를 직접 치거나 링크로만 들어올 수 있어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/discover.tsx:7"
+          "knownBug": false,
+          "bugAnchor": "src/app/discover.tsx:7",
+          "fixedIn": "#980",
+          "fixedOn": "2026-07-14",
+          "wasBug": "/discover's +32% / +18% were literals; now reads the real rising interests"
         },
         {
           "action": "관계 검사 시작 (첫 번째 카드)",
@@ -8266,7 +8307,7 @@
             "기록 화면에서 저장한 메모는 '기록(records)' 으로 들어가고, 이 화면이 세는 '위키 페이지(wiki_pages)' 는 만들어지지 않아요 — 그래서 이 버튼을 눌러도 빈 화면에서 벗어날 수 없어요 (실제 결함: src/components/deep-space/DeepSpaceViews.tsx:265 는 createRecord 만 호출)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1537"
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1485"
         },
         {
           "action": "묶음 태그로 걸러 보기",
@@ -8294,7 +8335,8 @@
             "이 칩은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePage)가 옛날 화면에만 남아 있어서(src/app/inbox.tsx:531 = InboxLegacy, src/app/wiki.tsx:325 = WikiLegacy) 리서치 화면은 늘 빈 화면이에요 (실제 결함)",
             "눌러도 그림이나 제안 목록은 그대로예요 — 칩 색과 이름표만 바뀌어서 '아무 일도 안 일어났다' 고 느끼기 쉬워요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385"
         },
         {
           "action": "AI 연결 제안 받기",
@@ -8340,7 +8382,8 @@
             "AI 호출이라 느릴 수 있고, 페이지가 많으면 비용이 발생해요",
             "닮은 정도가 기준(0.5)에 못 미치면 후보가 아예 안 만들어져요 — 내용이 너무 짧거나 서로 많이 다르면 빈손으로 끝나요"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385"
         },
         {
           "action": "연결 승인하기",
@@ -8372,7 +8415,7 @@
             "저장이 실패해도 아무 메시지가 안 떠요 — 목록에 그대로 남아 있으면 실패한 거예요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx"
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1435"
         },
         {
           "action": "연결 제안 거절하기",
@@ -8405,7 +8448,7 @@
             "다음에 'AI 연결 제안 받기' 를 누르면 같은 제안이 다시 올라올 수 있어요 (거절했다는 기록이 남지 않아요)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1456"
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1450"
         },
         {
           "action": "페이지 열어 보기",
@@ -8434,8 +8477,10 @@
             "이 카드들도 지금 빌드에서는 화면에 나오지 않아요 — 리서치 화면이 늘 빈 화면이라서예요 (실제 결함)",
             "인터넷이 끊기면 열린 화면이 오류 상태로 남아요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1534"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:1524",
+          "fixedIn": "#1008",
+          "fixedOn": "2026-07-16"
         }
       ]
     },
@@ -8573,7 +8618,7 @@
             "이 줄을 누르면 항상 '기록을 찾을 수 없어요' 빈 화면이 열려요 — 위키 페이지 id 를 기록 id 로 잘못 넘기고 있어서, 내 데이터 문제가 아니라 앱 버그예요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:1374"
+          "bugAnchor": "src/screens/deepspace/dds-wiki-records-screens.tsx:1368"
         },
         {
           "action": "별가루 담으러 가기",
@@ -8625,8 +8670,11 @@
             "연결이 적은 페이지를 열면 목록에 그 줄이 없어서 아무것도 안 펼쳐진 빈 목록으로 돌아와요",
             "태그를 걸어 남는 페이지가 0개면 그래프 대신 '이 태그에 담긴 지식이 아직 없어요' 안내가 떠서 점을 누를 수 없어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/components/deep-space/WikiGraph.tsx:76"
+          "knownBug": false,
+          "bugAnchor": "src/components/deep-space/WikiGraph.tsx:76",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "The list keeps the top 12 pages by connection count; the graph draws all of them. Tapping a sparsely-linked node switched to a list that did not contain it, and nothing expanded."
         },
         {
           "action": "연결 그림 확대·축소",
@@ -8693,8 +8741,11 @@
             "그래서 '불러오지 못했어요 / 다시 시도' 화면은 코드에는 있지만 실제로는 절대 뜨지 않아요 — 다시 불러올 방법이 없고, 앱을 껐다 켜는 수밖에 없어요",
             "저장된 내용이 깨져 있으면 결과가 없는 것으로 보고 같은 빈 화면이 나와요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/big-five.tsx:337"
+          "knownBug": false,
+          "bugAnchor": "src/app/big-five.tsx:328",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "same loader contract; the honest branch existed and could never fire"
         },
         {
           "action": "검사 시작하기 (결과가 있으면 '다시 측정')",
@@ -9062,7 +9113,7 @@
             "버그(기본 화면에서 실제로 겪음): 안내 창의 '페이지' 칸에는 24가 적혀 있는데 실제 설문은 15페이지예요 — 안내 창은 5문항씩(120÷5=24)으로 계산하는데 이 검사는 8문항씩 보여줘요 (src/components/quant/QuantIntroModal.tsx:136 vs src/app/ipip-neo.tsx:184)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/ipip-neo.tsx:384"
+          "bugAnchor": "src/app/ipip-neo.tsx:375"
         },
         {
           "action": "120문항 답하기",
@@ -9089,7 +9140,11 @@
             "(#991에서 고쳐짐) 예전엔 뒤로가기 한 번에 확인 없이 닫혀 120문항 답이 통째로 사라졌어요 — 지금은 '그만두시겠어요?' 확인 창이 먼저 떠요",
             "앱을 완전히 끄면 답한 내용이 사라져요 (중간 임시 저장이 없어요)"
           ],
-          "knownBug": false
+          "knownBug": false,
+          "bugAnchor": "src/app/ipip-neo.tsx:81",
+          "fixedIn": "#991",
+          "fixedOn": "2026-07-14",
+          "wasBug": "No hardwareBackPress guard: one Android back press mid-survey closed the screen with no confirmation and lost all 120 answers."
         },
         {
           "action": "답변 중 뒤로가기 (그만둘지 확인)",
@@ -9160,8 +9215,11 @@
             "'기록 의미 연결'이 켜져 있는데 AI 호출이 실패하면 기록 자체는 정상 저장되고 이어주기 표시만 조용히 빠져요 (사용자에게 아무 알림이 없어요)",
             "경험치 올리기나 설정 읽기가 실패해도 기록 저장 자체는 그대로 성공해요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/ipip-neo.tsx:106"
+          "knownBug": false,
+          "bugAnchor": "src/app/ipip-neo.tsx:105",
+          "fixedIn": "#988",
+          "fixedOn": "2026-07-14",
+          "wasBug": "createRecord had no time bound and awaited XP + prefs + an AI embedding round trip. A stalled connection left the save button spinning forever with no error, and 120 items of self-report went with the app when the user killed it."
         },
         {
           "action": "다시 검사하기",
@@ -9495,7 +9553,11 @@
             "(#991에서 고쳐짐) 예전엔 뒤로가기 한 번에 확인 없이 닫혀 답이 사라졌어요 — 지금은 '그만두시겠어요?' 확인 창이 먼저 떠요",
             "답을 임시로 저장해 두는 기능이 없어서, 저장 전에 앱이 꺼지면 처음부터 다시 해야 해요"
           ],
-          "knownBug": false
+          "knownBug": false,
+          "bugAnchor": "src/app/rlss.tsx:81",
+          "fixedIn": "#991",
+          "fixedOn": "2026-07-14",
+          "wasBug": "Same missing back guard as ipip-neo -- the five sibling surveys all had one."
         },
         {
           "action": "답변 중 뒤로가기 (그만둘지 확인)",
@@ -9643,8 +9705,11 @@
             "버그(기본 화면에서 실제로 겪음): 불러오기가 실패해도 오류 표시나 다시 시도 버튼 없이 '결과 없음'으로 처리돼서, 결과가 있는데도 설문을 처음부터 다시 하라고 해요 (src/lib/persona/build.ts:316 이 오류를 그냥 '없음'으로 바꿔요)",
             "저장된 내용이 깨져 있으면 결과가 없는 것으로 보고 설문 화면이 떠요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/values.tsx:313"
+          "knownBug": false,
+          "bugAnchor": "src/app/values.tsx:286",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "a read failure was reported as 'no result yet' and re-offered the completed survey"
         },
         {
           "action": "설문 시작하기",
@@ -9882,7 +9947,11 @@
             "로그인 세션이 끊기면 결과 대신 로그인 화면이 떠요",
             "저장된 내용이 깨져 있으면 결과가 없는 것으로 보고 설문 화면이 떠요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/strengths.tsx:287",
+          "fixedIn": "#981",
+          "fixedOn": "2026-07-14",
+          "wasBug": "same as /values"
         },
         {
           "action": "설문 시작하기",
@@ -10774,8 +10843,11 @@
             "링크·메모·클립으로 담은 자료만 있으면 이 화면은 그걸 세지 않아서, 기록 목록에는 자료가 보이는데 여기서는 '첫 주'처럼 텅 비어 보여요 (실제 결함)",
             "90일보다 오래된 기록만 있으면 아무것도 없는 것처럼 보여요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:800",
+          "fixedIn": "#987",
+          "fixedOn": "2026-07-14",
+          "wasBug": "/insights counted only `records`, while /records shows records + sources. A user who captures links and clips was told it was their 'first week'."
         },
         {
           "action": "다시 시도 버튼 누르기",
@@ -11191,7 +11263,7 @@
             "앱 안에는 이 화면으로 가는 버튼이 없어서(개발자용 화면에만 링크가 있어요) 실제로 겪는 사람은 주소·딥링크로 직접 들어온 경우로 한정돼요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/digest.tsx:193"
+          "bugAnchor": "src/app/digest.tsx:190"
         },
         {
           "action": "'매일 오전 9시에 알림' 스위치 켜기/끄기",
@@ -11551,7 +11623,7 @@
             "＋를 빠르게 여러 번 누르면 busy 잠금이 풀리는 사이에 중복 목표가 생겨요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/ops/screens.tsx"
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:403"
         },
         {
           "action": "상태 칩 눌러 진행 상태 바꾸기",
@@ -11585,7 +11657,7 @@
             "실수로 한 번 더 누르면 '완료'가 '계획'으로 돌아가고 진행률이 다시 내려가요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:419"
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:417"
         },
         {
           "action": "오류 카드에서 다시 시도 누르기",
@@ -12367,7 +12439,7 @@
             "'{별} 별에 한 걸음' 문구가 지키지 못할 약속이라 사용자가 오해해요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:2707"
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:2424"
         },
         {
           "action": "집중 세션 완료 (자동)",
@@ -12634,8 +12706,11 @@
             "[버그] 실패해도 오류 문구가 하나도 없어요 (:299 빈 catch). 성공하면 글자가 '반영됨'으로 바뀌지만, 실패하면 '오늘 반영' 그대로라서 왜 안 됐는지 알 수 없어요.",
             "[버그] 읽는 기간이 시작=끝인 0초짜리라서, 진짜 건강 앱이 연결돼 있어도 오늘 데이터가 0건으로 읽힐 수 있어요 (:292-293)"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/dds-import-inbox-screens.tsx:482"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/dds-import-inbox-screens.tsx:297",
+          "fixedIn": "#978",
+          "fixedOn": "2026-07-14",
+          "wasBug": "denied health permission wrote fabricated 9,000 steps as the user's data"
         },
         {
           "action": "가져온 데이터 철회",
@@ -12818,8 +12893,11 @@
             "실패하면 '가져온 데이터' 목록에도 안 남아서 뭐가 잘못됐는지 알 수 없어요",
             "저장은 됐는데 기록 남기기만 실패하면 나중에 그 기록을 지울 방법이 없어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/import/ImportHubScreen.tsx:182"
+          "knownBug": false,
+          "bugAnchor": "src/screens/deepspace/import/ImportHubScreen.tsx:185",
+          "fixedIn": "#990",
+          "fixedOn": "2026-07-14",
+          "wasBug": "catch was a comment claiming the error was \"surfaced by returning to hub\"; the return-to-hub lines sat outside the try and surfaced nothing."
         },
         {
           "action": "가져온 데이터 목록 열기",
@@ -12875,7 +12953,7 @@
             "로그인이 풀린 상태에서 삭제를 누르면 목록에서만 사라지고 서버 기록은 그대로 남아요 - 다시 지울 방법이 없어져요 (실제 버그)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/import/ImportHubScreen.tsx:229"
+          "bugAnchor": "src/screens/deepspace/import/ImportHubScreen.tsx:227"
         },
         {
           "action": "동의하고 다음으로 (파일 선택 화면 열기)",
@@ -12927,7 +13005,8 @@
           "failureModes": [
             "스위치를 어느 쪽에 두든 저장하면 서버 업로드는 그대로 일어나요 (스위치가 동작하지 않는 버그)"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/import/ImportHubScreen.tsx:343"
         },
         {
           "action": "반영할 항목 체크하기",
@@ -13025,7 +13104,7 @@
             "'Google 캘린더' 줄을 연결해도, 앱이 실제로 가진 구글 연결과 이어지지 않아요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:311"
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:310"
         },
         {
           "action": "연결 해제 누르기",
@@ -13067,7 +13146,7 @@
           "raw": "이 화면에 들어오기 (앱 안에 입구가 없음)",
           "symbol": null,
           "does": "",
-          "file": "src/app/call-reflection.tsx:47",
+          "file": "src/app/call-reflection.tsx:46",
           "fileTrust": "·",
           "impl": "src/lib/nav/tabs.ts:67",
           "implTrust": "~",
@@ -13096,7 +13175,7 @@
           "raw": "화면 열기 (사용 가능 확인)",
           "symbol": null,
           "does": "",
-          "file": "src/app/call-reflection.tsx:82",
+          "file": "src/app/call-reflection.tsx:81",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -13130,7 +13209,7 @@
           "raw": "녹음 시작",
           "symbol": null,
           "does": "",
-          "file": "src/app/call-reflection.tsx:97 (startRecording)",
+          "file": "src/app/call-reflection.tsx:96 (startRecording)",
           "fileTrust": "✔",
           "impl": null,
           "implTrust": null,
@@ -13158,7 +13237,7 @@
           "raw": "'녹음 멈추고 분석' 누르기 — 배포본에서는 100% 실패 (다만 이 화면 자체에 들어오는 길이 없음)",
           "symbol": null,
           "does": "",
-          "file": "src/app/call-reflection.tsx:135",
+          "file": "src/app/call-reflection.tsx:134",
           "fileTrust": "·",
           "impl": "src/lib/llm/gemini.ts:1175",
           "implTrust": "·",
@@ -13202,7 +13281,7 @@
             "중계 서버는 지금 이미지만 받아요. 앱 쪽만 고치고 중계 서버를 안 고치면 이번엔 중계 서버가 음성을 거절해요 — 두 곳을 다 고쳐야 해요"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/call-reflection.tsx:135"
+          "bugAnchor": "src/app/call-reflection.tsx:134"
         },
         {
           "action": "'취소 · 저장 안 함' 누르기",
@@ -13238,7 +13317,7 @@
           "raw": "'승인하고 위키에 담기' 누르기",
           "symbol": null,
           "does": "",
-          "file": "src/app/call-reflection.tsx:162",
+          "file": "src/app/call-reflection.tsx:161",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -13435,7 +13514,7 @@
             "앱을 지우거나 폰을 바꾸면 켜짐/꺼짐 설정이 초기화돼요 (다시 다 켜진 상태로 돌아가요)"
           ],
           "knownBug": true,
-          "bugAnchor": "src/screens/deepspace/ops/screens.tsx"
+          "bugAnchor": "src/screens/deepspace/ops/screens.tsx:1044"
         },
         {
           "action": "'오늘의 비서에서 추가' 누르기",
@@ -13465,7 +13544,7 @@
           "raw": "'다시 시도' 누르기 (불러오기 실패했을 때)",
           "symbol": null,
           "does": "",
-          "file": "src/screens/deepspace/ops/screens.tsx:1552",
+          "file": "src/screens/deepspace/ops/screens.tsx:1598",
           "fileTrust": "·",
           "impl": "src/lib/ops/routines.ts:175 (listActiveRoutines)",
           "implTrust": "✔",
@@ -13800,8 +13879,11 @@
             "회수됐다고 믿은 링크가 실제로는 살아 있어서 상대가 계속 답변할 수 있어요",
             "회수 실패용 안내 문구 자체가 앱에 없어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/peer-invites.tsx:68"
+          "knownBug": false,
+          "bugAnchor": "src/app/peer-invites.tsx:68",
+          "fixedIn": "#990",
+          "fixedOn": "2026-07-14",
+          "wasBug": "revoke() had no catch at all: a failed revoke rejected into the void, the list never reloaded, and nothing told the user the invite link was still live."
         }
       ]
     },
@@ -13907,8 +13989,11 @@
             "인터넷이 끊기면 아무 일도 안 일어나요 - 오류 메시지도 없이 버튼만 다시 켜져요",
             "철회가 실패해도 알려주는 안내 문구 자체가 앱에 없어요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/peer/[token].tsx:92"
+          "knownBug": false,
+          "bugAnchor": "src/app/peer/[token].tsx:92",
+          "fixedIn": "#979",
+          "fixedOn": "2026-07-14",
+          "wasBug": "a failed consent withdrawal reported success"
         },
         {
           "action": "미성년(만 18세 미만) 체크 · 보호자 동의 체크",
@@ -14066,8 +14151,11 @@
             "승인 기록이 있는데도 보류·거절을 누르면 '기록이 하나도 없다'는 안내가 떠서 기록이 사라진 줄 알게 돼요",
             "그 잘못된 빈 카드의 '북극성으로 가기'를 누르면 이 화면을 떠나게 돼요"
           ],
-          "knownBug": true,
-          "bugAnchor": "src/app/ratifications.tsx:168"
+          "knownBug": false,
+          "bugAnchor": "src/app/ratifications.tsx:168",
+          "fixedIn": "#994",
+          "fixedOn": "2026-07-15",
+          "wasBug": "The empty-state keyed \"nothing at all\" on unchanged.length===0; with all-real-change records that is 0, so tapping 보류/거절 (visible always [] by design) showed \"기록이 하나도 없다\" over a full ratified log. Now keys on all.length via ratificationEmptyState."
         },
         {
           "action": "변화 없는 기록도 보기",
@@ -14215,7 +14303,7 @@
             "'통화 녹음 → 텍스트 → 분석'을 켜도 통화가 기록되거나 받아 적히지 않습니다"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/settings.tsx:416"
+          "bugAnchor": "src/app/settings.tsx:414"
         },
         {
           "action": "'데이터 연동'의 연결 버튼 누르기 (Google 캘린더 · Apple 건강 · Notion)",
@@ -14332,7 +14420,7 @@
             "설정이 저장은 되기 때문에 '적용됐다'고 착각하기 쉽습니다"
           ],
           "knownBug": true,
-          "bugAnchor": "src/app/settings.tsx:799"
+          "bugAnchor": "src/app/settings.tsx:801"
         },
         {
           "action": "코치마크(첫 사용 안내) 다시 보기",
@@ -14435,7 +14523,7 @@
           "does": "",
           "file": "src/app/settings.tsx",
           "fileTrust": "·",
-          "impl": "src/lib/supabase/auth.ts:369 (signOut)",
+          "impl": "src/lib/supabase/auth.ts:368 (signOut)",
           "implTrust": "✔",
           "implName": null,
           "apis": [
@@ -16022,12 +16110,7 @@
       "groupKo": "옛 화면",
       "summary": "위키에 쌓인 글 수와 연결 수만 진짜로 세어 보여주고, 가운데 '나' 별과 다섯 개 무리 별을 눌러 각 화면으로 건너뛰는 지도 화면입니다. 다만 앱 안 어디에도 이 화면으로 가는 버튼이 없습니다. 아래 탭의 '그래프'는 홈 화면으로 가고, 이 주소는 개발자가 주소를 직접 입력하거나 딥링크로 들어갈 때만 열립니다. 별들의 위치도 실제 데이터가 아니라 미리 그려 둔 그림입니다.",
       "rendersInProduction": null,
-      "gate": {
-        "gate": "dev-only",
-        "why": "개발 전용 — 배포판에서는 열리지 않아요",
-        "evidence": "src/app/graph.tsx:11",
-        "line": "<DevOnlyRoute>"
-      },
+      "gate": null,
       "actions": [
         {
           "action": "화면 열자마자 개수 세어 오기",
@@ -16067,7 +16150,8 @@
             "글이 많은 계정에서는 글을 최대 200개까지만, 연결을 최대 4000개까지 세기 때문에 세는 기준이 서로 달라 '노드 수'와 '연결 수'가 앞뒤가 안 맞을 수 있습니다",
             "정식 배포판에서도 주소만 알면 열립니다. 다른 가짜 데이터 화면들은 개발자 모드에서만 열리도록 막아 뒀는데 이 화면만 빠졌습니다"
           ],
-          "knownBug": true
+          "knownBug": true,
+          "bugAnchor": "src/screens/deepspace/DeepSpaceDesignScreens.tsx:164"
         },
         {
           "action": "가운데 '나' 별 누르기",
@@ -16204,7 +16288,7 @@
           "raw": "화면 열자마자 근거 모으고 AI 요약 만들기",
           "symbol": null,
           "does": "",
-          "file": "src/app/core-brain.tsx:129",
+          "file": "src/app/core-brain.tsx:117",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -16254,9 +16338,9 @@
           "raw": "첫 카드의 바로가기 3개 (밝기 변화 · 승인 이력 · 공유 카드)",
           "symbol": null,
           "does": "",
-          "file": "src/app/core-brain.tsx:404",
+          "file": "src/app/core-brain.tsx:372",
           "fileTrust": "·",
-          "impl": "src/app/core-brain.tsx:399",
+          "impl": "src/app/core-brain.tsx:368",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -16304,9 +16388,9 @@
           "raw": "성격 그래프 옆 버튼 / '나를 재는 도구들'로 직접 검사하기",
           "symbol": null,
           "does": "",
-          "file": "src/app/core-brain.tsx:494",
+          "file": "src/app/core-brain.tsx:458",
           "fileTrust": "·",
-          "impl": "src/app/core-brain.tsx:562",
+          "impl": "src/app/core-brain.tsx:526",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -16354,14 +16438,18 @@
             "기록 목록(/records)에서 담은 자료를 눌러도 똑같이 못 찾아요. 이 화면만 고장 난 게 아니라 담은 자료 상세가 아직 없는 상태예요",
             "되돌리기용 옛날 화면(legacy)에서만 담은 자료 상세가 열려요. 기본 화면에서는 안 열려요"
           ],
-          "knownBug": true
+          "knownBug": false,
+          "bugAnchor": "src/app/core-brain.tsx:496",
+          "fixedIn": "#989",
+          "fixedOn": "2026-07-14",
+          "wasBug": "Same dead tap: an evidence shard that is a source piece opened the record detail, which could not find it."
         },
         {
           "action": "'다음 한 걸음' 카드의 버튼 3개",
           "raw": "'다음 한 걸음' 카드의 버튼 3개",
           "symbol": null,
           "does": "",
-          "file": "src/app/core-brain.tsx:585",
+          "file": "src/app/core-brain.tsx:549",
           "fileTrust": "·",
           "impl": null,
           "implTrust": null,
@@ -16385,9 +16473,9 @@
           "raw": "기록이 하나도 없을 때 뜨는 시작 버튼 2개",
           "symbol": null,
           "does": "",
-          "file": "src/app/core-brain.tsx:282",
+          "file": "src/app/core-brain.tsx:254",
           "fileTrust": "·",
-          "impl": "src/app/core-brain.tsx:254",
+          "impl": "src/app/core-brain.tsx:226",
           "implTrust": "·",
           "implName": null,
           "apis": [],
@@ -16408,9 +16496,9 @@
           "raw": "불러오기 실패 화면의 '다시 시도하기' · '세컨비와 시작하기'",
           "symbol": null,
           "does": "",
-          "file": "src/app/core-brain.tsx:237",
-          "fileTrust": "~",
-          "impl": "src/app/core-brain.tsx:129",
+          "file": "src/app/core-brain.tsx:209",
+          "fileTrust": "·",
+          "impl": "src/app/core-brain.tsx:117",
           "implTrust": "·",
           "implName": null,
           "apis": [
@@ -16621,5 +16709,12 @@
         }
       ]
     }
-  ]
+  ],
+  "_anchorContract": {
+    "note": "READ THIS BEFORE CITING AN ANCHOR FOR A KNOWN BUG. Every action carries two locations, and they are not interchangeable. `impl` is the lib function the action CALLS. `file` is the screen handler that calls it. The lib layer is almost always correct -- it throws (`if (error) throw error`). The swallowing is almost always in the SCREEN. So `impl` is the wrong anchor for a bug, structurally, and citing it sends the fixer to a file that has nothing wrong with it.",
+    "evidence": "17 of the 41 knownBug entries were reported with an `impl` anchor and every one was wrong. Examples: the fabricated-health-data bug was reported at src/lib/health/ingest.ts:62 (which correctly enforces the consent gate) when it actually lived at src/screens/deepspace/dds-import-inbox-screens.tsx:294. The consent-withdrawal fail-open was reported at src/lib/peer/invite.ts:86 when it lived at src/app/peer/[token].tsx.",
+    "rule": "Cite `bugAnchor`. It is the field that means 'where the defect is'.",
+    "addedBy": "2026-07-14 defect re-triage",
+    "triageWarning": "The 2026-07-14 re-triage returned NOT_REPRODUCIBLE on six entries. Two were genuinely not defects (their failureModes described CORRECT behaviour). The other four were read one by one afterwards and ALL FOUR were real -- three of them said '실제 결함' in their own failureModes text. They are fixed in #986 #987 #988 #989. Lesson, recorded because it nearly cost four real bugs: do not clear an entry you have not personally read. A cleared entry is worse than an open one, because the map then ASSERTS the screen is fine."
+  }
 }
