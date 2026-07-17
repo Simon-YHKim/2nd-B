@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
+- Latest — 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
+- 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
 - 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (11 PR)
 - 2026-07-14 (2라운드) / 결함 트랙 완주 중 — 14 PR + 트리아지 자체가 틀렸다는 발견
 - 2026-07-14 / P0 전멸 + 제품 무결성 3건 + 결함 41건 재검증 (7 PR, prod 마이그레이션 5건, 엣지 배포)
@@ -92,7 +93,71 @@
 
 ---
 
-## Latest — 2026-07-17 / 감사 전량 소탕(41건) + 세컨비 표정 13종 + 얼굴 통일 + 네이버 콜드스타트 픽스 (5 PR + OTA×2)
+## Latest — 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
+
+### 어디까지 왔나
+- main HEAD: `85667f5d` (#1041까지 머지)
+- 이번 세션 머지 PR (4, 전부 automerge):
+  - **#1038** /privacy-policy 문서 라우트 (큐 B) — PIPA 10개조 `PRIVACY_DOC` 스냅샷 + 설정 화면 처리방침 행 복원(med#17 후속) + **docs/legal 초안 md 3종 첫 커밋**(스냅샷이 "SOURCE OF TRUTH"로 지목하던 파일이 리포에 없던 갭 해소) + 파서 표 지원·백틱/이스케이프 백슬래시 제거(기존 terms/refund 화면의 `\로서` 노출도 수리)
+  - **#1039** 플랜 가격 고지 (U6 전반) — 자동갱신·부가세 포함·30일 환불을 가격 표면에 명시 + /terms·/refund 링크. 가드 테스트 신설: 기존 pricing.test.ts는 죽은 legacy `plans` 네임스페이스만 커버, 라이브는 `ds.plans`
+  - **#1040** OAuth 좌초 계정 픽스 (U6 후반) — `ensureUserProfile`의 23505 무방비가 근본 원인(트리거 0086은 `signup_flow='email-v1'` 전용이라 OAuth는 클라이언트 경로 의존). pkey 레이스=멱등 해소, 이메일 충돌=`EmailInUseError` → "처음 가입했던 방법으로" 토스트 → 세션 정리 → /sign-in. 이메일만으로 자동 링킹 금지(AUDIT_2026-06-03 원칙) 준수
+  - **#1041** 챗 음성 입력 (큐 E) — #1015가 제거한 죽은 마이크를 라이브 STT 체인(capture 딕테이션 미러)으로 복원. 전사→드래프트 **제안만**(자동 전송 금지), red zone→CrisisRouter, 녹음 파일 즉시 폐기, secondb `voice.*` 6키×5로케일, med#22 재발 가드
+- 테스트 상태: verify 그린 (마지막 완주 358 스위트 / 2,737 테스트; 4 PR CI 전부 그린)
+- working tree(E:\2ndB 본체): 플릿 에이전트 작업 중 (core-brain·star/[domain]·flow-debugger.html 미커밋 — 건드리지 말 것)
+- ⚠ **루트 `HANDOFF.md`/`TODO.md`(Cowork 07-16)는 STALE** — 그 문서의 Phase 4/U4/U5는 이미 #1028/#1029/#1031로 완료. 이 문서(docs/HANDOFF.md)가 정본
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` · gemini-proxy **v56** (audio inlineData) · Paddle 웹훅 fail-closed (활성화 절차 = `supabase/functions/paddle-webhook/index.ts` 헤더)
+- 웹: gh-pages 자동배포 (이번 4 PR 반영)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 심사위원 첫 경험 리허설 (fresh 가입→첫 별→첫 챗→북극성) | medium | ⭐ XPRIZE 직결 · **선행: 인증 메일 인박스** (0086 이후 fresh 가입은 confirm 필수 — QA 계정은 fresh 아님) |
+| B | flow-map 재동기화 + 잔여 knownBugs 34건 (이번 4 PR로 plans·secondb·설정 화면 변경) | large | 플릿의 flow-debugger.html 미커밋 수정 해소 후 |
+| C | flow-debugger.html 44MB 커밋 다이어트 | small | 〃 (같은 파일 충돌 회피로 이번 세션 스킵) |
+| D | Paddle 승인 도착 → secrets + replay/tamper 검증 + 활성화 | small | 외부 대기 (매출 크리티컬 패스) |
+| E | 법률 6정보 수신 → docs/legal `[기입]` 채움 + 스냅샷 갱신 + 초안 배지 제거 | small | Simon 회신 즉시 |
+
+### 🔒 Simon 결정 대기 (이번 세션 신규)
+1. **가입 화면 법률 링크 전무** — 동의 체브론은 /consent-notice 요약만 연다. /terms·/privacy-policy를 가입 화면에 노출할지 (법무-인접이라 임의 수정 안 함; 로그인 화면 동의 문구는 /terms만 연결, terms가 나머지 크로스링크)
+2. **Supabase Manual Linking 토글** — 진짜 identity linking의 선행 조건 (현재는 EmailInUseError 정직 탈출까지 구현)
+3. **리허설용 메일 주소** — 큐 A 선행 조건
+
+### 적용 중인 정책 (영구)
+1. PR automerge(CI 그린) · main 직접 push 금지 · 워크트리 `.worktrees/` + node_modules 정션(제거 시 정션 rmdir 먼저)
+2. E:\2ndB 직접 편집 금지 (플릿 공유)
+3. **법률 문서: `docs/legal/*.md`가 SoT**, `src/lib/legal/legal-documents.ts` 스냅샷은 수동 미러(초안 주석 제거 + em대시 스크럽 + 표는 파서가 처리) — 재생성 스크립트 없음(의도)
+4. flow-map: FRESH면 재렌더만 · 드리프트 rebase-anchors · 큐레이션 필드(bugAnchor/fixedIn) 이월 확인
+
+### 핵심 파일 위치
+```
+src/app/(auth)/privacy-policy.tsx            개인정보 처리방침 라우트 (#1038)
+src/lib/legal/legal-documents.ts             법률 3종 스냅샷 (terms/refund/privacy)
+docs/legal/*.md                              법률 초안 SoT (이번에 첫 커밋)
+src/screens/deepspace/dds-plans-screen.tsx   플랜 가격 고지 블록 (#1039)
+src/lib/supabase/auth.ts                     EmailInUseError + 23505 처리 (#1040)
+src/lib/auth/complete-profile-flow.ts        emailInUse 결과 (toast-first 계약)
+src/app/secondb.tsx                          챗 음성 입력 ChatComposer (#1041)
+src/lib/__tests__/plans-price-disclosure.test.ts   라이브 ds.plans 가드 (신규)
+src/lib/__tests__/chat-voice-input.test.ts         음성 입력 계약 가드 (신규)
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(리허설 — 메일 주소 확보 후) 또는 B(flow-map)부터
+```
+
+---
+
+## 2026-07-17 / 감사 전량 소탕(41건) + 세컨비 표정 13종 + 얼굴 통일 + 네이버 콜드스타트 픽스 (5 PR + OTA×2)
 
 ### 어디까지 왔나
 - main HEAD: `e3149230` (이 핸드오프 브랜치 기준)
