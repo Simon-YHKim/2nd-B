@@ -30,7 +30,10 @@ const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   chat: "/secondb",
   ops: "/ops",
   account: "/account",
-  wiki: "/wiki",
+  // rev2's fourth root tab is the RecordsScreen surface. `/wiki` remains a
+  // detail/deep-link surface; pointing the root tab there revives the older
+  // knowledge-page renderer and bypasses the approved records composition.
+  wiki: "/records",
   lens: "/core-brain",
   iden: "/iden",
   settings: "/settings",
@@ -173,7 +176,10 @@ export function DeepSpaceScreen({
         active={active}
         items={dockItems}
         onSelect={(tab) => {
-          if (tab !== active) router.replace(TAB_ROUTE[tab as DeepSpaceTab]);
+          const target = TAB_ROUTE[tab as DeepSpaceTab];
+          // Sub-screens highlight their owning root tab. Tapping that highlighted
+          // item must still return to the root instead of becoming a no-op.
+          if (tab !== active || pathname !== target) router.replace(target);
         }}
       />
     </SafeAreaView>

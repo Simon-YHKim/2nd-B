@@ -11,9 +11,9 @@ import {
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SvgXml } from "react-native-svg";
-import { SafeAreaView } from "react-native-safe-area-context";
 
-import { MdButton, MdTopAppBar } from "@/components/m3";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { m3 } from "@/lib/theme/m3";
@@ -21,92 +21,138 @@ import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
 export type NoticeKind = "patch" | "developer" | "maintenance";
+type LocalizedNoticeText = Readonly<{ ko: string; en: string }>;
 
 export interface ProductNotice {
   id: string;
   kind: NoticeKind;
-  eyebrow: string;
+  eyebrow: LocalizedNoticeText;
   version?: string;
-  when: string;
-  listMeta: string;
-  title: string;
-  body: readonly { kind: "paragraph" | "bullet"; text: string }[];
+  when: LocalizedNoticeText;
+  listMeta: LocalizedNoticeText;
+  title: LocalizedNoticeText;
+  body: readonly {
+    kind: "paragraph" | "bullet";
+    text: LocalizedNoticeText;
+  }[];
 }
 
 export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   {
     id: "patch-1.4.0",
     kind: "patch",
-    eyebrow: "NEW",
+    eyebrow: { ko: "NEW", en: "NEW" },
     version: "v1.4.0",
-    when: "2026.07.17 · 패치노트",
-    listMeta: "패치 v1.4.0 · 오늘",
-    title: "리즈닝이 더 똑똑해졌어요",
+    when: { ko: "2026.07.17 · 패치노트", en: "2026.07.17 · Patch notes" },
+    listMeta: { ko: "패치 v1.4.0 · 오늘", en: "Patch v1.4.0 · Today" },
+    title: { ko: "리즈닝 실행 방식이 새로워졌어요", en: "Reasoning has a new workflow" },
     body: [
-      { kind: "bullet", text: "자동 리즈닝 토글이 생겼어요. 담는 대로 별을 이어줘요." },
-      { kind: "bullet", text: "자료를 별로 잇는 속도가 2배 빨라졌어요." },
-      { kind: "bullet", text: "위키 그래프가 더 부드럽게 움직여요." },
+      {
+        kind: "bullet",
+        text: {
+          ko: "자동 리즈닝 토글이 생겼어요. 담은 자료의 연결을 제안해요.",
+          en: "Automatic reasoning is now available. It proposes connections for captured items.",
+        },
+      },
+      {
+        kind: "bullet",
+        text: {
+          ko: "실행 전에 자료를 직접 고를 수 있어요.",
+          en: "You can choose the items before each manual run.",
+        },
+      },
+      {
+        kind: "bullet",
+        text: {
+          ko: "위키 그래프가 더 부드럽게 움직여요.",
+          en: "The Wiki graph now moves more smoothly.",
+        },
+      },
     ],
   },
   {
     id: "developer-letter-2026-07",
     kind: "developer",
-    eyebrow: "개발자 공지",
-    when: "2026.07.14 · 세컨비 팀",
-    listMeta: "공지 · 3일 전",
-    title: "세컨비의 편지 — 우리가 별을 그리는 이유",
+    eyebrow: { ko: "개발자 공지", en: "DEVELOPER NOTE" },
+    when: { ko: "2026.07.14 · 세컨비 팀", en: "2026.07.14 · SecondB team" },
+    listMeta: { ko: "공지 · 3일 전", en: "Note · 3 days ago" },
+    title: {
+      ko: "세컨비의 편지: 우리가 별을 그리는 이유",
+      en: "A letter from SecondB: Why we draw stars",
+    },
     body: [
-      { kind: "paragraph", text: "안녕하세요, 세컨비를 만드는 팀이에요." },
       {
         kind: "paragraph",
-        text: "여러분이 담아준 별가루가 이번 달에만 12만 개를 넘었어요. 하나하나가 누군가의 하루라 생각하면 조심스럽고 고맙습니다.",
+        text: {
+          ko: "안녕하세요, 세컨비를 만드는 팀이에요.",
+          en: "Hello, we're the team building SecondB.",
+        },
       },
       {
         kind: "paragraph",
-        text: "다음 업데이트에선 '북극성'을 더 또렷하게 다듬고 있어요. 조금만 기다려 주세요.",
+        text: {
+          ko: "여러분이 담아준 별가루가 이번 달에만 12만 개를 넘었어요. 하나하나가 누군가의 하루라 생각하면 조심스럽고 고맙습니다.",
+          en: "You captured more than 120,000 pieces this month. Each one holds part of someone's day, and we handle that trust with care.",
+        },
+      },
+      {
+        kind: "paragraph",
+        text: {
+          ko: "다음 업데이트에선 '북극성'을 더 또렷하게 다듬고 있어요. 조금만 기다려 주세요.",
+          en: "We're refining Polaris for the next update. Thank you for waiting with us.",
+        },
       },
     ],
   },
   {
     id: "maintenance-2026-07-20",
     kind: "maintenance",
-    eyebrow: "점검 안내",
-    when: "2026.07.20 · 03:00–05:00",
-    listMeta: "점검 · 1주 전",
-    title: "정기 서버 점검 안내",
+    eyebrow: { ko: "점검 안내", en: "MAINTENANCE" },
+    when: { ko: "2026.07.20 · 03:00–05:00", en: "2026.07.20 · 03:00–05:00 KST" },
+    listMeta: { ko: "점검 · 1주 전", en: "Maintenance · 1 week ago" },
+    title: { ko: "정기 서버 점검 안내", en: "Scheduled server maintenance" },
     body: [
       {
         kind: "paragraph",
-        text: "일요일 새벽 서버 점검이 있어요. 이 시간엔 담기·리즈닝이 잠시 멈춰요. 담아둔 자료는 안전하게 보관되고 연결되면 자동 동기화돼요.",
+        text: {
+          ko: "일요일 새벽 서버 점검이 있어요. 이 시간엔 담기·리즈닝이 잠시 멈춰요. 담아둔 자료는 안전하게 보관되고 연결되면 자동 동기화돼요.",
+          en: "Server maintenance is scheduled for early Sunday. Capture and reasoning will pause briefly. Saved items remain stored and sync automatically after service returns.",
+        },
       },
     ],
   },
   {
     id: "patch-1.3.0",
     kind: "patch",
-    eyebrow: "패치노트",
+    eyebrow: { ko: "패치노트", en: "PATCH NOTES" },
     version: "v1.3.0",
-    when: "2026.06.26 · 패치노트",
-    listMeta: "패치 v1.3.0 · 3주 전",
-    title: "v1.3.0 — AI 뮤지엄이 열렸어요",
+    when: { ko: "2026.06.26 · 패치노트", en: "2026.06.26 · Patch notes" },
+    listMeta: { ko: "패치 v1.3.0 · 3주 전", en: "Patch v1.3.0 · 3 weeks ago" },
+    title: { ko: "v1.3.0: AI 뮤지엄이 열렸어요", en: "v1.3.0: AI Museum is open" },
     body: [
       {
         kind: "paragraph",
-        text: "AI 뮤지엄에서 지금까지 담은 자료와 새로 발견한 연결을 시간의 흐름으로 둘러볼 수 있어요.",
+        text: {
+          ko: "AI 뮤지엄에서 지금까지 담은 자료와 새로 발견한 연결을 시간의 흐름으로 둘러볼 수 있어요.",
+          en: "Explore captured items and newly found connections over time in AI Museum.",
+        },
       },
     ],
   },
   {
     id: "beta-thanks-2026-06",
     kind: "developer",
-    eyebrow: "공지",
-    when: "2026.06.05 · 세컨비 팀",
-    listMeta: "공지 · 6주 전",
-    title: "베타에 함께해줘서 고마워요",
+    eyebrow: { ko: "공지", en: "NOTE" },
+    when: { ko: "2026.06.05 · 세컨비 팀", en: "2026.06.05 · SecondB team" },
+    listMeta: { ko: "공지 · 6주 전", en: "Note · 6 weeks ago" },
+    title: { ko: "베타에 함께해줘서 고마워요", en: "Thank you for joining the beta" },
     body: [
       {
         kind: "paragraph",
-        text: "여러분이 남겨준 기록과 의견 덕분에 별자리가 조금씩 또렷해지고 있어요. 함께 만들어줘서 고마워요.",
+        text: {
+          ko: "여러분이 남겨준 기록과 의견 덕분에 별자리가 조금씩 또렷해지고 있어요. 함께 만들어줘서 고마워요.",
+          en: "Your records and feedback are helping the constellation take shape. Thank you for building it with us.",
+        },
       },
     ],
   },
@@ -222,6 +268,10 @@ function kindColor(kind: NoticeKind): string {
   return m3.color.primary;
 }
 
+function noticeText(text: LocalizedNoticeText, ko: boolean): string {
+  return ko ? text.ko : text.en;
+}
+
 function NoticeGlyph({ kind, size = 22 }: { kind: NoticeKind; size?: number }) {
   const color = kindColor(kind);
   const xml =
@@ -254,7 +304,13 @@ export function NoticeDialog({
 }) {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
-  const shortTitle = notice.id === "developer-letter-2026-07" ? "세컨비의 편지" : notice.title;
+  const title = noticeText(notice.title, ko);
+  const shortTitle =
+    notice.id === "developer-letter-2026-07"
+      ? ko
+        ? "세컨비의 편지"
+        : "A letter from SecondB"
+      : title;
   const tone = kindColor(notice.kind);
 
   return (
@@ -280,12 +336,14 @@ export function NoticeDialog({
                 { backgroundColor: withAlpha(tone, 0.13), borderColor: withAlpha(tone, 0.32) },
               ]}
             >
-              <NoticeGlyph kind={notice.kind} size={24} />
+              <NoticeGlyph kind={notice.kind} size={22} />
             </View>
             <View style={styles.headerCopy}>
               <View style={styles.tags}>
                 <View style={[styles.tag, { borderColor: withAlpha(tone, 0.52) }]}>
-                  <RNText style={[styles.tagText, { color: tone }]}>{notice.eyebrow}</RNText>
+                  <RNText style={[styles.tagText, { color: tone }]}>
+                    {noticeText(notice.eyebrow, ko)}
+                  </RNText>
                 </View>
                 {notice.version ? (
                   <View style={styles.versionTag}>
@@ -293,12 +351,12 @@ export function NoticeDialog({
                   </View>
                 ) : null}
               </View>
-              <RNText style={styles.when}>{notice.when}</RNText>
+              <RNText style={styles.when}>{noticeText(notice.when, ko)}</RNText>
             </View>
           </View>
 
           <RNText style={styles.dialogTitle} accessibilityLabel={shortTitle}>
-            {keepAllKo(shortTitle)}
+            {ko ? keepAllKo(shortTitle) : shortTitle}
           </RNText>
 
           <ScrollView style={styles.dialogBodyScroll} contentContainerStyle={styles.dialogBody}>
@@ -306,17 +364,24 @@ export function NoticeDialog({
               block.kind === "bullet" ? (
                 <View key={`${notice.id}-${blockIndex}`} style={styles.bulletRow}>
                   <RNText style={[styles.bulletMark, { color: tone }]}>{"✦"}</RNText>
-                  <RNText style={styles.bodyText} accessibilityLabel={block.text}>
-                    {keepAllKo(block.text)}
+                  <RNText
+                    style={styles.bodyText}
+                    accessibilityLabel={noticeText(block.text, ko)}
+                  >
+                    {ko
+                      ? keepAllKo(noticeText(block.text, ko))
+                      : noticeText(block.text, ko)}
                   </RNText>
                 </View>
               ) : (
                 <RNText
                   key={`${notice.id}-${blockIndex}`}
                   style={styles.bodyText}
-                  accessibilityLabel={block.text}
+                  accessibilityLabel={noticeText(block.text, ko)}
                 >
-                  {keepAllKo(block.text)}
+                  {ko
+                    ? keepAllKo(noticeText(block.text, ko))
+                    : noticeText(block.text, ko)}
                 </RNText>
               ),
             )}
@@ -377,21 +442,29 @@ export default function NoticesScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <View style={styles.screenWindow}>
-        <MdTopAppBar title={ko ? "공지사항" : "Notices"} onBack={() => router.back()} />
+    <DeepSpaceScreen
+      active="settings"
+      header="none"
+      variant="windowed"
+      title={ko ? "공지사항" : "Notices"}
+      onBack={() => router.back()}
+    >
+      <View style={styles.listFrame}>
         <FlatList
           data={data}
           keyExtractor={(item) => item.id}
+          style={styles.noticeCard}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           renderItem={({ item, index }) => {
             const unread = noticeCenter.hydrated && noticeCenter.isUnread(item.id);
+            const title = noticeText(item.title, ko);
+            const listMeta = noticeText(item.listMeta, ko);
             return (
               <Pressable
                 onPress={() => setSelectedIndex(index)}
                 accessibilityRole="button"
-                accessibilityLabel={`${item.title}, ${item.listMeta}`}
+                accessibilityLabel={`${title}, ${listMeta}`}
                 style={styles.noticeRow}
               >
                 <View
@@ -409,10 +482,10 @@ export default function NoticesScreen() {
                       style={[styles.rowTitle, !unread && styles.rowTitleRead]}
                       numberOfLines={2}
                     >
-                      {item.title}
+                      {title}
                     </RNText>
                   </View>
-                  <RNText style={styles.rowMeta}>{item.listMeta}</RNText>
+                  <RNText style={styles.rowMeta}>{listMeta}</RNText>
                 </View>
                 <RNText style={styles.chevron}>{"›"}</RNText>
               </Pressable>
@@ -442,26 +515,33 @@ export default function NoticesScreen() {
           }
         />
       ) : null}
-    </SafeAreaView>
+    </DeepSpaceScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: m3.accent.cosmicBase, padding: m3.spacing.s3 },
-  screenWindow: { flex: 1, borderRadius: m3.shape.extraLarge, overflow: "hidden", backgroundColor: m3.color.surface },
-  list: {
-    paddingHorizontal: m3.spacing.s4,
+  listFrame: {
+    flex: 1,
+    paddingHorizontal: 18,
     paddingTop: m3.spacing.s2,
-    paddingBottom: m3.spacing.s8,
+    paddingBottom: 18,
   },
+  noticeCard: {
+    flexGrow: 0,
+    flexShrink: 1,
+    borderRadius: m3.shape.large,
+    overflow: "hidden",
+    backgroundColor: m3.color.surfaceContainer,
+  },
+  list: { backgroundColor: m3.color.surfaceContainer },
   noticeRow: {
-    minHeight: 76,
+    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
     gap: m3.spacing.s3,
-    paddingHorizontal: m3.spacing.s3,
-    paddingVertical: m3.spacing.s3,
-    backgroundColor: m3.color.surfaceContainerHighest,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    backgroundColor: m3.color.surfaceContainer,
   },
   divider: {
     height: 1,
@@ -513,18 +593,20 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     maxHeight: "82%",
     borderRadius: m3.shape.extraLarge,
-    padding: 22,
+    paddingTop: 22,
+    paddingHorizontal: 22,
+    paddingBottom: m3.spacing.s4,
     backgroundColor: m3.color.surfaceContainerHigh,
     borderWidth: 1,
     borderColor: withAlpha(m3.color.primary, 0.18),
     ...m3.elevation.level3,
   },
   dialogMaintenance: { borderColor: withAlpha(m3.color.error, 0.3) },
-  dialogHeader: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
+  dialogHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   dialogIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: m3.shape.large,
+    width: 40,
+    height: 40,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -569,12 +651,12 @@ const styles = StyleSheet.create({
   dialogTitle: {
     color: m3.color.onSurface,
     fontFamily: fontFamilies.readable,
-    fontSize: 22,
-    lineHeight: 30,
+    fontSize: 20,
+    lineHeight: 25,
     fontWeight: "700",
-    marginTop: m3.spacing.s5,
+    marginTop: 14,
   },
-  dialogBodyScroll: { marginTop: m3.spacing.s4, maxHeight: 260 },
+  dialogBodyScroll: { marginTop: 10, maxHeight: 260 },
   dialogBody: { gap: m3.spacing.s3, paddingBottom: 2 },
   bodyText: {
     flex: 1,
