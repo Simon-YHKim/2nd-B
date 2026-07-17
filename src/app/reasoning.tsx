@@ -7,6 +7,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { MdButton } from "@/components/m3";
+import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, weekBucket } from "@/lib/entitlements/usage";
@@ -622,7 +623,14 @@ type DeferredRunError = "limit" | "safety" | "generic";
 const deferredRunErrors = new Map<string, DeferredRunError>();
 
 export default function ReasoningScreen() {
-  const { userId, loading, isMinor } = useAuth();
+  const {
+    userId,
+    loading,
+    isMinor,
+    hasProfile,
+    profileProbeFailed,
+    refresh,
+  } = useAuth();
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const locale: "ko" | "en" = ko ? "ko" : "en";
@@ -662,6 +670,16 @@ export default function ReasoningScreen() {
       if (runningRef.current) sendToBackground();
     };
   }, []);
+
+  useEffect(() => {
+    // A failed first profile probe is unknown, not a confirmed missing profile.
+    // Hold this LLM surface and retry until age/consent can be resolved.
+    if (loading || !userId || hasProfile !== false || !profileProbeFailed) return;
+    const timer = setTimeout(() => {
+      void refresh();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [hasProfile, loading, profileProbeFailed, refresh, userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -800,7 +818,7 @@ export default function ReasoningScreen() {
   }, []);
 
   const startRun = useCallback(() => {
-    if (!userId || selectedItems.length === 0 || phase === "running") return;
+    if (!userId || isMinor == null || selectedItems.length === 0 || phase === "running") return;
     if (depleted) return;
     if (task.phase === "running") {
       setErrorText(ko ? "다른 작업이 끝난 뒤 다시 실행해 주세요." : "Wait for the current task to finish.");
@@ -942,8 +960,11 @@ export default function ReasoningScreen() {
     }
   }, [applying, ko, phase, proposals, selected, userId]);
 
-  if (loading) return null;
+  if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
+  if (hasProfile === false && profileProbeFailed) return <InlineLoader />;
+  if (hasProfile === false) return <Redirect href="/complete-profile" />;
+  if (hasProfile !== true || isMinor == null) return <InlineLoader />;
 
   const screenTitle =
     phase === "done"
@@ -1043,7 +1064,7 @@ export default function ReasoningScreen() {
                         : "Your weekly runs refill Monday. Earn a reward from Records or review plans to continue now."}
                   </RNText>
                   <View style={styles.depletedActions}>
-                    {isMinor !== true ? (
+                    {isMinor === false ? (
                       <MdButton
                         label={ko ? "기록에서 광고 보기" : "Watch from Records"}
                         variant="filled"

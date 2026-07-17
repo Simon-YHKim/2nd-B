@@ -38,4 +38,19 @@ describe("reasoning execution isolation", () => {
     expect(rewardIndex - guardIndex).toBeLessThan(400);
     expect(guardEndIndex).toBeGreaterThan(rewardIndex);
   });
+
+  test("the reasoning surface holds unknown profiles and unknown age", () => {
+    const reasoning = readRepoFile("src/app/reasoning.tsx");
+
+    expect(reasoning).toContain("hasProfile,");
+    expect(reasoning).toContain("profileProbeFailed,");
+    expect(reasoning).toContain(
+      "if (hasProfile === false && profileProbeFailed) return <InlineLoader />;",
+    );
+    expect(reasoning).toContain(
+      "if (hasProfile !== true || isMinor == null) return <InlineLoader />;",
+    );
+    expect(reasoning).toContain("{isMinor === false ? (");
+    expect(reasoning).not.toContain("{isMinor !== true ? (");
+  });
 });
