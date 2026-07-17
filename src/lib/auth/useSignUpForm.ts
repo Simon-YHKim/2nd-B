@@ -79,6 +79,8 @@ export interface UseSignUpForm {
   canSubmit: boolean;
   oauthSubmitting: boolean;
   existingAccountHelp: boolean;
+  /** Confirmation email sent to this address; the screen's primary post-submit state. */
+  confirmSentTo: string | null;
   // provider visibility
   visibleProviders: OAuthProvider[];
   naverEnabled: boolean;
@@ -102,6 +104,12 @@ export function useSignUpForm(): UseSignUpForm {
   const [toast, setToast] = useState<SignUpToast | null>(null);
   // J3: persistent recovery card for the likely-already-registered shape.
   const [existingAccountHelp, setExistingAccountHelp] = useState(false);
+  // Judge-rehearsal finding #1 (260717): mandatory email confirmation (0086)
+  // was announced by a two-word toast reusing signIn.resetSentTitle -- easy to
+  // miss, looked like a failed submit. This is the screen's PRIMARY state
+  // after a successful sign-up, so it gets a persistent card naming the
+  // address, not a transient bar.
+  const [confirmSentTo, setConfirmSentTo] = useState<string | null>(null);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const deepLinkUrl = useURL();
@@ -129,6 +137,7 @@ export function useSignUpForm(): UseSignUpForm {
       .then(async () => {
         await refresh();
         setToast(null);
+        setConfirmSentTo(null);
       })
       .catch((e) => {
         setToast({ tone: "danger", message: t("errors.signUpFailed") });
@@ -170,9 +179,10 @@ export function useSignUpForm(): UseSignUpForm {
 
   const setEmailAndClearHelp = useCallback((value: string) => {
     setEmail(value);
-    // The recovery card is keyed to the email that failed; editing the address
-    // makes it stale, so retire it immediately.
+    // The recovery + confirm cards are keyed to the email they were shown
+    // for; editing the address makes them stale, so retire them immediately.
     setExistingAccountHelp((prev) => (prev ? false : prev));
+    setConfirmSentTo((prev) => (prev ? null : prev));
     setToast((prev) => (prev?.tone === "info" ? null : prev));
   }, []);
 
@@ -200,9 +210,11 @@ export function useSignUpForm(): UseSignUpForm {
         isExistingAccountLikelyError: (e) => e instanceof ExistingAccountLikelyError,
       });
       if (result.kind === "confirmationRequired") {
-        // Reuse the shipped, translated one-message status across all five
-        // locale packs. The submitted address remains visible in the form.
-        setToast({ tone: "info", message: t("signIn.resetSentTitle") });
+        // Persistent card with the target address (judge-rehearsal #1); it
+        // stays until the address changes or the confirmation callback
+        // establishes a session.
+        setConfirmSentTo(email);
+        setToast(null);
         return;
       }
       if (result.kind === "entered") {
@@ -300,6 +312,7 @@ export function useSignUpForm(): UseSignUpForm {
     canSubmit,
     oauthSubmitting,
     existingAccountHelp,
+    confirmSentTo,
     visibleProviders,
     naverEnabled: isNaverEnabled(),
     handleSubmit,

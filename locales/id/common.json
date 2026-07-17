@@ -42,6 +42,14 @@
     "en": "Bahasa Inggris",
     "ko": "한국어"
   },
+  "loadingGate": {
+    "hint": "Ketuk untuk membuka otak keduamu",
+    "open": "Buka 2nd-Brain",
+    "opening": "Membuka 2nd-Brain",
+    "loading": "Memuat 2nd-Brain",
+    "enterHint": "Ketuk dua kali untuk masuk ke layar utama.",
+    "skipHint": "Ketuk dua kali untuk melewati animasi pembuka."
+  },
   "worldview": {
     "soulCore": "Inti Jiwa",
     "growthCore": "Inti Pertumbuhan",

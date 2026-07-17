@@ -455,6 +455,7 @@ export function DeepSpaceSignUpDesignScreen() {
     canSubmit,
     oauthSubmitting,
     existingAccountHelp,
+    confirmSentTo,
     visibleProviders,
     naverEnabled,
     handleSubmit,
@@ -479,6 +480,16 @@ export function DeepSpaceSignUpDesignScreen() {
         <Text variant="body" style={styles.lead}>{t("deepspace:auth.signUpLead")}</Text>
         <Text variant="body" style={styles.authHelper}>{t("deepspace:auth.ageNotice")}</Text>
       </View>
+
+      {/* Judge-rehearsal #1: mandatory confirmation (0086) deserves the top
+          slot, not a two-word toast. Persists until the address changes or
+          the confirmation link lands. */}
+      {confirmSentTo ? (
+        <View style={styles.authHelpCard} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Text variant="heading" style={styles.authHelpTitle}>{t("auth:signUp.confirmSentTitle")}</Text>
+          <Text variant="body" style={styles.authHelpBody}>{t("auth:signUp.confirmSentBody", { email: confirmSentTo })}</Text>
+        </View>
+      ) : null}
       <Card>
         <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.email")}</Text>
         <TextInput

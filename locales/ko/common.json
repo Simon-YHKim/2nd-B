@@ -42,6 +42,14 @@
     "en": "English",
     "ko": "한국어"
   },
+  "loadingGate": {
+    "hint": "탭해서 두번째 뇌를 열기",
+    "open": "2nd-Brain 열기",
+    "opening": "2nd-Brain 여는 중",
+    "loading": "2nd-Brain 불러오는 중",
+    "enterHint": "두 번 탭하면 메인 화면으로 이동합니다.",
+    "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다."
+  },
   "worldview": {
     "soulCore": "소울 코어",
     "growthCore": "그로스 코어",

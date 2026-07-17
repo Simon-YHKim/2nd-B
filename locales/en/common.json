@@ -42,6 +42,14 @@
     "en": "English",
     "ko": "한국어"
   },
+  "loadingGate": {
+    "hint": "Tap to open your second brain",
+    "open": "Open 2nd-Brain",
+    "opening": "Opening 2nd-Brain",
+    "loading": "Loading 2nd-Brain",
+    "enterHint": "Double tap to enter the main screen.",
+    "skipHint": "Double tap to skip the intro animation."
+  },
   "worldview": {
     "soulCore": "Soul Core",
     "growthCore": "Growth Core",
