@@ -344,7 +344,6 @@ function applyRuntimeAnalyticsFlags(flags: AnalyticsRuntimeFlags): void {
   if (!flags.analyticsEnabled) {
     productAnalyticsReady = false;
     pendingProductEvents = [];
-    stopRuntimeAnalyticsPolling();
   }
   const w = webWindow();
   if (!w || !analyticsConsent) return;
@@ -398,6 +397,7 @@ function applyRuntimeAnalyticsFlags(flags: AnalyticsRuntimeFlags): void {
   } else if (flags.analyticsEnabled && productAnalyticsReady) {
     flushPendingProductEvents();
   }
+  scheduleRuntimeAnalyticsPolling();
 }
 
 async function fetchRuntimeAnalyticsFlags(): Promise<AnalyticsRuntimeFlags> {
@@ -446,21 +446,35 @@ function stopRuntimeAnalyticsPolling(): void {
 }
 
 function scheduleRuntimeAnalyticsPolling(): void {
+  let env: Env;
+  try {
+    env = getEnv();
+  } catch {
+    return;
+  }
   if (
     runtimeAnalyticsTimer !== null ||
     !analyticsConsent ||
-    !runtimeAnalyticsFlags.analyticsEnabled ||
+    !hasProductAnalyticsConfig(env) ||
     !webWindow()
   ) {
     return;
   }
   runtimeAnalyticsTimer = setTimeout(() => {
     runtimeAnalyticsTimer = null;
-    void refreshRuntimeAnalyticsFlags(true).then((flags) => {
-      if (analyticsConsent && flags.analyticsEnabled) scheduleRuntimeAnalyticsPolling();
+    void refreshRuntimeAnalyticsFlags(true).then(() => {
+      if (analyticsConsent) scheduleRuntimeAnalyticsPolling();
     });
   }, 60_000);
   unrefTimer(runtimeAnalyticsTimer);
+}
+
+function hasProductAnalyticsConfig(env: Env): boolean {
+  return Boolean(
+    env.EXPO_PUBLIC_GA4_MEASUREMENT_ID ||
+      env.EXPO_PUBLIC_CLARITY_PROJECT_ID ||
+      (env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST),
+  );
 }
 
 function cleanProps(props: AnalyticsProps | undefined): Record<string, AnalyticsPropValue> {
@@ -825,11 +839,7 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
       if (typeof console !== "undefined") console.warn("[analytics] posthog init skipped:", (e as Error).message);
     }
   }
-  if (
-    env.EXPO_PUBLIC_GA4_MEASUREMENT_ID ||
-    env.EXPO_PUBLIC_CLARITY_PROJECT_ID ||
-    (env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST)
-  ) {
+  if (hasProductAnalyticsConfig(env)) {
     scheduleRuntimeAnalyticsPolling();
   }
 }
