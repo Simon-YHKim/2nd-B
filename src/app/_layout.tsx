@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Stack, Redirect, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
@@ -10,7 +10,13 @@ import { AppState } from "react-native";
 
 import "../../global.css";
 import { initI18n } from "@/lib/i18n";
-import { initAnalytics, setAnalyticsConsent } from "@/lib/analytics";
+import {
+  captureEvent,
+  getAnalyticsConsentRevision,
+  initAnalytics,
+  pageView,
+  setAnalyticsConsent,
+} from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
 import { requiresGuardianConsent } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -320,19 +326,35 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 // M1 (round-4): gate product analytics on the SERVER decision, not the
 // localStorage cache (initAnalytics no longer auto-loads from it). Once auth
 // resolves, load GA4/Clarity/PostHog only when the user's stored
-// external_analytics pref is on, they are not in the 14-17 high-privacy band,
-// and their birth date is not below the KR/PIPA self-consent floor. A minor's
-// privacy lock (0033/0038) already forces external_analytics false server-side,
-// so this is defense-in-depth against a stale/forged client cache. Renders
-// nothing; analytics never hard-fails the app.
+// external_analytics pref is on and the server birth date confirms age 18+.
+// Missing/contradictory age data fails closed. A minor's privacy lock
+// (0033/0038) already forces external_analytics false server-side, so this is
+// defense-in-depth against a stale/forged client cache. Route analytics use
+// Expo Router FILE segments ("/record/[id]"), never live ids or entry text.
+// Renders nothing; analytics never hard-fails the app.
 function AnalyticsConsentSync(): null {
   const { userId, isMinor, loading } = useAuth();
+  const segments = useSegments();
+  const routePath = segments.length > 0 ? `/${segments.join("/")}` : "/";
+  const [consentSyncVersion, setConsentSyncVersion] = useState(0);
+  const lastTrackedPageRef = useRef<string | null>(null);
+
   useEffect(() => {
+    // Revoke synchronously before any server round-trip. This prevents a
+    // previous adult account's grant from surviving into auth loading, a new
+    // account, or an unresolved/minor age state.
+    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    lastTrackedPageRef.current = null;
     if (loading) return;
     if (!userId) {
-      setAnalyticsConsent(false);
+      setConsentSyncVersion((version) => version + 1);
       return;
     }
+    if (isMinor !== false) {
+      setConsentSyncVersion((version) => version + 1);
+      return;
+    }
+    const expectedRevision = getAnalyticsConsentRevision();
     let cancelled = false;
     void (async () => {
       try {
@@ -346,15 +368,45 @@ function AnalyticsConsentSync(): null {
           (data?.privacy_prefs as { external_analytics?: boolean } | null)?.external_analytics === true;
         const age = data?.birth_date ? ageInYears(data.birth_date as string) : null;
         const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, "KR");
-        if (!cancelled) setAnalyticsConsent(ext, { isMinor, underDigitalConsentAge });
+        // AuthContext also derives isMinor from birth_date. Require BOTH views
+        // to say "adult"; missing or contradictory data stays blocked.
+        const under18 = age === null || age < 18 || isMinor !== false;
+        if (!cancelled) {
+          setAnalyticsConsent(
+            ext,
+            {
+              isMinor: under18,
+              confirmedAdult: !under18,
+              underDigitalConsentAge,
+            },
+            { expectedRevision },
+          );
+          setConsentSyncVersion((version) => version + 1);
+        }
       } catch {
-        if (!cancelled) setAnalyticsConsent(false);
+        if (!cancelled) {
+          setAnalyticsConsent(
+            false,
+            { isMinor: true, confirmedAdult: false },
+            { expectedRevision },
+          );
+          setConsentSyncVersion((version) => version + 1);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [userId, isMinor, loading]);
+
+  useEffect(() => {
+    const pageKey = `${userId ?? "signed-out"}:${routePath}`;
+    if (lastTrackedPageRef.current === pageKey) return;
+    if (captureEvent(pageView({ path: routePath }))) {
+      lastTrackedPageRef.current = pageKey;
+    }
+  }, [routePath, userId, consentSyncVersion]);
+
   return null;
 }
 

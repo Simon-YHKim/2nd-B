@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>2nd-Brain 광고·분석 운영 준비 보고서</title>
+  <style>
+    :root {
+      --bg: #050a13;
+      --surface: #0b1320;
+      --surface-2: #111c2c;
+      --line: #26364a;
+      --text: #edf7ff;
+      --muted: #9db0c5;
+      --cyan: #5ee7f2;
+      --green: #77e5ae;
+      --amber: #ffc970;
+      --red: #ff8f93;
+      --violet: #b9a7ff;
+      --focus: #ffffff;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      --sans: Inter, Pretendard, "Noto Sans KR", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.65;
+    }
+
+    a { color: var(--cyan); }
+    a:hover { color: var(--focus); }
+
+    button,
+    a {
+      outline-offset: 3px;
+    }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 2px solid var(--focus);
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 80px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      line-height: 1.28;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(2rem, 5vw, 4rem);
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: clamp(1.45rem, 3vw, 2.2rem);
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+    }
+
+    p { margin: 0 0 12px; }
+
+    .lead {
+      max-width: 820px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 1.06rem;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 22px;
+      margin-top: 24px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.82rem;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin-top: 34px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .status-cell {
+      min-height: 168px;
+      padding: 22px;
+      background: var(--surface);
+    }
+
+    .status-cell strong {
+      display: block;
+      margin: 12px 0 8px;
+      font-size: 1.22rem;
+    }
+
+    .status-cell p {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .status {
+      display: inline-block;
+      border: 1px solid currentColor;
+      padding: 3px 8px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+    }
+
+    .ok { color: var(--green); }
+    .hold { color: var(--amber); }
+    .off { color: var(--red); }
+    .info { color: var(--cyan); }
+
+    nav {
+      margin-top: 20px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    nav a {
+      display: inline-block;
+      margin: 4px 18px 4px 0;
+      font-size: 0.9rem;
+    }
+
+    section {
+      margin-top: 62px;
+      scroll-margin-top: 24px;
+    }
+
+    .callout {
+      margin-top: 28px;
+      padding: 20px;
+      border: 1px solid var(--red);
+      border-left-width: 5px;
+      background: #1b1117;
+    }
+
+    .callout h2 {
+      color: var(--red);
+      font-size: 1.3rem;
+    }
+
+    .callout p:last-child { margin-bottom: 0; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+    }
+
+    .card strong { color: var(--text); }
+
+    ul,
+    ol {
+      margin: 10px 0 0;
+      padding-left: 22px;
+    }
+
+    li + li { margin-top: 8px; }
+
+    .priority {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      border-top: 1px solid var(--line);
+    }
+
+    .priority:last-child {
+      border-bottom: 1px solid var(--line);
+    }
+
+    .priority-code,
+    .priority-body {
+      padding: 18px 14px;
+    }
+
+    .priority-code {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+
+    .priority-body {
+      border-left: 1px solid var(--line);
+    }
+
+    .priority-body strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .priority-body p { color: var(--muted); }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+    }
+
+    td { color: var(--muted); }
+    tr:last-child td { border-bottom: 0; }
+    code { font-family: var(--mono); color: var(--violet); }
+
+    .prompt {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    .prompt-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .prompt-head h3 { margin: 0; }
+
+    .copy {
+      flex: 0 0 auto;
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 1px solid var(--cyan);
+      border-radius: 0;
+      background: transparent;
+      color: var(--cyan);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+
+    .copy:hover {
+      background: var(--cyan);
+      color: var(--bg);
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      color: #dceaf7;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.62;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .copy-status {
+      min-height: 24px;
+      margin-top: 10px;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .check {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 10px;
+      padding: 13px 15px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .check::before {
+      content: "□";
+      color: var(--cyan);
+      font-family: var(--mono);
+    }
+
+    .sources {
+      columns: 2;
+      column-gap: 36px;
+    }
+
+    .sources li { break-inside: avoid; }
+
+    footer {
+      margin-top: 64px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 22px, 1120px); padding-top: 24px; }
+      .status-grid,
+      .cards { grid-template-columns: 1fr; }
+      .status-cell { min-height: auto; }
+      .priority { grid-template-columns: 66px 1fr; }
+      .sources { columns: 1; }
+      .prompt-head { align-items: flex-start; }
+    }
+
+    @media print {
+      :root {
+        --bg: #ffffff;
+        --surface: #ffffff;
+        --surface-2: #f4f6f8;
+        --line: #b5bec8;
+        --text: #111820;
+        --muted: #3d4a58;
+        --cyan: #006478;
+        --green: #176b45;
+        --amber: #815100;
+        --red: #9c2631;
+        --violet: #51449d;
+      }
+
+      body { background: #ffffff; }
+      .shell { width: 100%; padding: 0; }
+      nav,
+      .copy,
+      .copy-status { display: none; }
+      section { margin-top: 34px; }
+      .prompt,
+      .card,
+      .status-cell,
+      .callout { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+      a::after { content: " (" attr(href) ")"; font-size: 0.75em; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">2nd-Brain / operator handoff</p>
+      <h1>광고·분석 운영 준비 보고서</h1>
+      <p class="lead">
+        코드 연결 상태, 만 18세 이상 연령 게이트, 외부 콘솔에서 Simon이 해야 할 일,
+        그리고 광고를 켜면 안 되는 현재의 보류선을 한 문서에 정리했습니다.
+      </p>
+      <div class="meta">
+        <span>기준: 2026-07-17 KST</span>
+        <span>저장소: Simon-YHKim/2nd-B</span>
+        <span>배포: GitHub Pages /2nd-B</span>
+        <span>실제 ID 값: 미기재</span>
+      </div>
+
+      <div class="status-grid" aria-label="핵심 상태">
+        <article class="status-cell">
+          <span class="status ok">조건부 사용 가능</span>
+          <strong>GA4 웹</strong>
+          <p>서버 DOB가 만 18세 이상이고 사용 통계에 명시적으로 동의한 세션만 로드합니다.</p>
+        </article>
+        <article class="status-cell">
+          <span class="status hold">운영 보류</span>
+          <strong>Microsoft Clarity</strong>
+          <p>연령·동의 게이트는 완료했습니다. 미성년 대상 앱 정책과 동적 URL 수집은 서면 확인이 필요합니다.</p>
+        </article>
+        <article class="status-cell">
+          <span class="status off">켜지 않음</span>
+          <strong>AdSense · AdMob</strong>
+          <p>AdSense 운영 변수는 없고, AdMob·네이티브 Firebase Analytics SDK도 아직 미연동입니다.</p>
+        </article>
+      </div>
+
+      <nav aria-label="보고서 목차">
+        <a href="#risk">중요 보류선</a>
+        <a href="#done">이번 코드 변경</a>
+        <a href="#status">서비스별 판정</a>
+        <a href="#actions">Simon 작업</a>
+        <a href="#inputs">필요 자료</a>
+        <a href="#prompts">복사 프롬프트</a>
+        <a href="#verify">검증표</a>
+        <a href="#sources">공식 문서</a>
+      </nav>
+    </header>
+
+    <section id="risk" class="callout" aria-labelledby="risk-title">
+      <h2 id="risk-title">Clarity는 기술 게이트 완료와 운영 허용이 같은 뜻이 아닙니다</h2>
+      <p>
+        Microsoft는 만 18세 미만을 대상으로 하는 웹사이트나 앱에 Clarity를 사용하지 말라고 안내합니다.
+        2nd-Brain은 14-17세 직접 가입을 지원하므로, 성인 세션에만 스크립트를 넣는 방식이 공급자 정책에
+        맞는지는 Microsoft의 서면 답변 전까지 미확정입니다.
+      </p>
+      <p>
+        Strict text masking과 코드의 전체 DOM 마스킹은 기록 본문을 보호하지만 URL path는 가리지 않습니다.
+        Clarity는 브라우저의 실제 <code>/record/&lt;uuid&gt;</code>,
+        <code>/peer/&lt;token&gt;</code> 경로를 볼 수 있습니다. 이 두 문제가 해결되기 전에는
+        운영 Clarity Project ID를 비활성 상태로 두는 것이 가장 안전합니다.
+      </p>
+    </section>
+
+    <section id="done">
+      <p class="eyebrow">implemented</p>
+      <h2>이번 코드에서 완료한 보호</h2>
+      <div class="cards">
+        <article class="card">
+          <h3>18+ fail-closed 게이트</h3>
+          <p>
+            AuthContext와 서버 <code>birth_date</code>를 함께 확인합니다. DOB가 없거나 계산 중이거나
+            두 결과가 어긋나면 GA4·Clarity·광고 동의를 활성화하지 않습니다.
+          </p>
+        </article>
+        <article class="card">
+          <h3>명시적 opt-in과 즉시 철회</h3>
+          <p>
+            개인정보 화면에서 서버 저장이 성공한 뒤에만 사용 통계를 켭니다. 끌 때는 저장 결과를
+            기다리지 않고 앱 이벤트를 막고 GA consent를 denied로 바꾸며 Clarity consent·쿠키를 철회합니다.
+            이미 로드된 Google tag의 cookieless ping은 아래 콘솔 전송 차단도 필요합니다.
+          </p>
+        </article>
+        <article class="card">
+          <h3>안전한 GA4 화면 경로</h3>
+          <p>
+            Expo 파일 세그먼트만 사용해 <code>/record/[id]</code>처럼 전송합니다. 모든 GA 이벤트의
+            page_location, referrer, title을 덮어쓰고 UUID·긴 token·query·hash를 방어적으로 제거합니다.
+          </p>
+        </article>
+        <article class="card">
+          <h3>Clarity·PostHog·Sentry 방어</h3>
+          <p>
+            Clarity ConsentV2에서 광고 storage는 항상 denied입니다. 문서 전체에 Clarity mask 속성을
+            적용했고 PostHog 자동 URL·referrer는 제거했습니다. Sentry URL·breadcrumb도 익명화하고 tracing을 껐습니다.
+          </p>
+        </article>
+        <article class="card">
+          <h3>계정 전환 비동기 안전성</h3>
+          <p>
+            개인정보 설정 저장 중 로그아웃하거나 다른 계정으로 바뀌어도 이전 사용자의 응답이 새 계정의
+            화면 상태를 덮지 않도록 대상 user와 mounted 상태를 재검사합니다.
+          </p>
+        </article>
+        <article class="card">
+          <h3>웹 전용 범위의 정직한 표시</h3>
+          <p>
+            현재 설정은 웹 GA4·Clarity·AdSense용임을 개인정보 화면에 표시합니다.
+            Android·iOS Analytics와 AdMob은 별도 native build 작업입니다.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section id="status">
+      <p class="eyebrow">integration audit</p>
+      <h2>서비스별 현재 판정</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>서비스</th>
+              <th>현재 상태</th>
+              <th>확인된 배선</th>
+              <th>운영 전 남은 일</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>GA4 Web</strong></td>
+              <td><span class="status ok">조건부 가동</span></td>
+              <td>GitHub Variable 존재, gtag 동적 로드, 수동 page_view, 18+·동의 게이트</td>
+              <td>PR 배포 후 Realtime·DebugView, SPA history pageview OFF, 중복·동적 ID 0건 확인</td>
+            </tr>
+            <tr>
+              <td><strong>Microsoft Clarity</strong></td>
+              <td><span class="status hold">정책 확인 필요</span></td>
+              <td>Project ID Variable 존재, ConsentV2, 18+·동의 게이트, DOM 전체 마스킹</td>
+              <td>Strict masking, default cookies OFF, Consent Mode, under-18 앱 정책과 URL token에 대한 서면 답변</td>
+            </tr>
+            <tr>
+              <td><strong>AdSense Web</strong></td>
+              <td><span class="status off">OFF</span></td>
+              <td>웹 광고 scaffold와 정책 함수는 있으나 운영 variables 없음</td>
+              <td>사이트·배치 승인, 공개 publisher-content, Google 인증 CMP, root ads.txt. 현재 /records 후보는 보류</td>
+            </tr>
+            <tr>
+              <td><strong>Firebase Analytics Native</strong></td>
+              <td><span class="status off">미연동</span></td>
+              <td>없음. 현 analytics 모듈은 web-only</td>
+              <td>Firebase Android·iOS 등록, 두 config 파일, SDK, 기본 수집 OFF, EAS native rebuild</td>
+            </tr>
+            <tr>
+              <td><strong>AdMob Native</strong></td>
+              <td><span class="status off">미연동</span></td>
+              <td>SDK·App ID·ad unit·UMP·app-ads.txt 없음</td>
+              <td>정책·콘솔 준비 뒤 테스트 ID로 구현. live 요청 금지</td>
+            </tr>
+            <tr>
+              <td><strong>보상광고</strong></td>
+              <td><span class="status off">출시 차단</span></td>
+              <td><code>src/lib/ads/rewarded.ts</code>가 SDK 부재 시 600ms 후 성공을 반환</td>
+              <td><code>/secondb</code>의 ads consent·route allow-list 연결과 fake success 제거 전 광고 env 활성화 금지</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="actions">
+      <p class="eyebrow">operator sequence</p>
+      <h2>Simon이 진행할 작업</h2>
+      <div class="priority">
+        <div class="priority-code">P0</div>
+        <div class="priority-body">
+          <strong>코드 PR 검토·배포</strong>
+          <p>현재 feature branch 변경을 PR로 검토하고 <code>npm run verify</code>가 통과한 commit만 GitHub Pages에 배포합니다.</p>
+        </div>
+      </div>
+      <div class="priority">
+        <div class="priority-code">P0</div>
+        <div class="priority-body">
+          <strong>GA4 운영 검증</strong>
+          <p>
+            Data Stream URL이 <code>https://simon-yhkim.github.io/2nd-B/</code>인지 확인합니다.
+            Enhanced Measurement의 browser history 기반 page changes를 끕니다. Google tag의 Manage data transmission에서
+            behavioral analytics와 consent diagnostics 전송도 consent denied일 때 차단합니다.
+          </p>
+        </div>
+      </div>
+      <div class="priority">
+        <div class="priority-code">P0</div>
+        <div class="priority-body">
+          <strong>Clarity 설정·공급자 문의</strong>
+          <p>
+            Masking을 Strict로, unmask 예외를 0건으로, default cookies를 OFF로, Consent Mode를 ON으로 둡니다.
+            아래 영문 문의로 연령 정책과 path token 보호 방법을 서면 확인합니다. 답변 전 운영 활성화는 보류합니다.
+          </p>
+        </div>
+      </div>
+      <div class="priority">
+        <div class="priority-code">P1</div>
+        <div class="priority-body">
+          <strong>AdSense 사전감사</strong>
+          <p>
+            개인 기록 목록은 비공개·저콘텐츠 화면으로 판단될 위험이 있습니다. 사이트 승인, 안전한 공개 콘텐츠 배치,
+            개인정보 고지, 인증 CMP, root ads.txt가 모두 확인될 때까지 <code>EXPO_PUBLIC_ENABLE_ADS=false</code>를 유지합니다.
+          </p>
+        </div>
+      </div>
+      <div class="priority">
+        <div class="priority-code">P2</div>
+        <div class="priority-body">
+          <strong>Firebase Analytics native 준비</strong>
+          <p>
+            기존 Firebase 프로젝트와 GA4 속성의 중복 여부를 먼저 확인한 뒤 Android·iOS 앱을 등록합니다.
+            서비스 계정 키는 필요 없고 만들지 않습니다.
+          </p>
+        </div>
+      </div>
+      <div class="priority">
+        <div class="priority-code">P3</div>
+        <div class="priority-body">
+          <strong>AdMob·보상광고 별도 코드 슬라이스</strong>
+          <p>
+            UMP, app-ads.txt, 테스트 unit, fail-closed reward flow, 성인·ads consent·route 정책을 한 번에 구현하고
+            EAS development build에서 검증합니다. live rewarded unit은 그 뒤에 만듭니다.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="inputs">
+      <p class="eyebrow">required inputs</p>
+      <h2>필요한 ID·파일·외부 산출물</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>항목</th>
+              <th>상태</th>
+              <th>형식·저장 위치</th>
+              <th>주의</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GA4 Measurement ID</td>
+              <td>기존 Variable 존재</td>
+              <td><code>EXPO_PUBLIC_GA4_MEASUREMENT_ID</code>, 형식 G-…</td>
+              <td>보고서·채팅에는 전체 값을 붙이지 않음</td>
+            </tr>
+            <tr>
+              <td>Clarity Project ID</td>
+              <td>기존 Variable 존재</td>
+              <td><code>EXPO_PUBLIC_CLARITY_PROJECT_ID</code></td>
+              <td>Microsoft 서면 확인 전 운영 보류 권장</td>
+            </tr>
+            <tr>
+              <td>AdSense client</td>
+              <td>미설정</td>
+              <td><code>EXPO_PUBLIC_ADSENSE_CLIENT</code>, 형식 ca-pub-…</td>
+              <td>사전감사 GO 전 만들거나 설정하지 않음</td>
+            </tr>
+            <tr>
+              <td>AdSense slot</td>
+              <td>미설정</td>
+              <td><code>EXPO_PUBLIC_ADSENSE_SLOT_RECORDS</code>, 숫자형</td>
+              <td>/records 배치는 현재 보류</td>
+            </tr>
+            <tr>
+              <td>ads.txt</td>
+              <td>미배포</td>
+              <td><code>https://simon-yhkim.github.io/ads.txt</code></td>
+              <td>project page /2nd-B가 아닌 user-site root에서 제공</td>
+            </tr>
+            <tr>
+              <td>Firebase native config</td>
+              <td>미준비</td>
+              <td><code>google-services.json</code>, <code>GoogleService-Info.plist</code></td>
+              <td>안전한 로컬·EAS file secret 사용. 내용 공유 금지</td>
+            </tr>
+            <tr>
+              <td>AdMob App IDs</td>
+              <td>미설정</td>
+              <td>Android·iOS 각각 ca-app-pub-…~…</td>
+              <td>Expo config plugin과 native rebuild 필요</td>
+            </tr>
+            <tr>
+              <td>AdMob banner units</td>
+              <td>미설정</td>
+              <td>Android·iOS 각각 ca-app-pub-…/…</td>
+              <td>개발 중 Google test ID만 사용</td>
+            </tr>
+            <tr>
+              <td>AdMob rewarded units</td>
+              <td>지금 만들지 않음</td>
+              <td>별도 native code slice 뒤 확정</td>
+              <td>fake completion·policy bypass 수정 전 금지</td>
+            </tr>
+            <tr>
+              <td>app-ads.txt</td>
+              <td>미배포</td>
+              <td><code>https://simon-yhkim.github.io/app-ads.txt</code></td>
+              <td>store listing developer website hostname과 일치</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="prompts">
+      <p class="eyebrow">copy and run</p>
+      <h2>운영자용 복사 프롬프트</h2>
+      <p class="lead">
+        아래 프롬프트는 새 리소스 중복 생성, 실제 ID 노출, 임의 약관 수락을 막도록 작성했습니다.
+        각 블록의 복사 버튼을 눌러 담당 AI 또는 작업 세션에 그대로 전달하세요.
+      </p>
+
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>A. GA4·Clarity 운영 검증</h3>
+          <button class="copy" type="button" data-copy="prompt-a">프롬프트 복사</button>
+        </div>
+        <pre id="prompt-a">[작업] 2nd-Brain 웹 분석 운영 상태를 검증한다. 새 속성이나 프로젝트를 중복 생성하지 않는다.
+
+대상 저장소: Simon-YHKim/2nd-B
+운영 URL: https://simon-yhkim.github.io/2nd-B/
+원칙: 비밀번호, 2FA, 전체 ID 값을 채팅이나 보고서에 남기지 말고 마스킹한다. 약관 동의나 설정 삭제는 Simon에게 넘긴다.
+
+1. GitHub Actions Variables에서 EXPO_PUBLIC_GA4_MEASUREMENT_ID와 EXPO_PUBLIC_CLARITY_PROJECT_ID의 존재만 확인한다. 값은 출력하지 않는다.
+2. GA4 Admin에서 기존 웹 Data Stream URL이 운영 URL과 맞고 Measurement ID가 GitHub 값과 일치하는지 확인한다. Google Signals와 광고 개인화는 켜지 않는다.
+3. Enhanced Measurement의 Page views 설정에서 browser history 기반 page changes를 OFF로 둔다. 앱이 수동 page_view를 보내므로 자동 SPA pageview는 중복과 실제 URL 노출 위험이 있다.
+4. Google tag > Configure tag settings > Manage data transmission에서 analytics_storage=denied일 때 behavioral analytics data와 consent diagnostics data 전송을 차단한다. 이미 로드된 tag는 consent denied에서도 cookieless ping을 보낼 수 있다.
+5. 배포 후 성인 QA 계정으로 사용 통계 OFF 상태를 새로고침한다. googletagmanager.com, google-analytics.com/g/collect, clarity.ms 요청이 없어야 한다.
+6. 사용 통계를 ON으로 저장한 뒤 화면을 3곳 이동한다. GA4 Realtime/DebugView에 page_view가 화면 이동당 1건인지 확인한다. 경로는 /record/[id] 같은 파일 패턴이어야 하며 실제 record/user ID, query, 기록 본문은 없어야 한다.
+7. Clarity Settings에서 Masking을 Strict로, unmask 예외를 0건으로 둔다. Default cookies는 OFF, Consent Mode는 ON으로 둔다. GA 연동과 광고 공유는 켜지 않는다.
+8. 사용 통계를 다시 OFF로 바꾼다. 앱 이벤트가 즉시 멈추고 GA consent가 denied로 바뀌며 Clarity cookies가 지워져야 한다. Network에서 GA automatic/cookieless request가 남으면 전송 차단 설정을 수정하고 PASS 처리하지 않는다.
+9. 결과를 PASS/FAIL 표, 시간, 브라우저, 마스킹된 스크린샷으로 보고한다. 새 테스트 계정은 만들지 않는다.</pre>
+      </article>
+
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>B. Microsoft Clarity 정책 확인 영문 문의</h3>
+          <button class="copy" type="button" data-copy="prompt-b">프롬프트 복사</button>
+        </div>
+        <pre id="prompt-b">2nd-Brain is a general-audience self-understanding application that supports direct registration for users aged 14-17 as well as adults.
+
+The Microsoft Clarity JavaScript tag is never injected when the authenticated user's server-recorded date of birth indicates an age under 18 or when age is unknown. It is also never injected before explicit optional analytics consent. The tag loads only for authenticated users aged 18 or older who opted in, with Strict masking, a document-wide data-clarity-mask attribute, default cookies disabled, Consent Mode enabled, and advertising storage denied.
+
+Does this implementation comply with Clarity's restriction stating that Clarity should not be used on websites or apps targeting users under 18?
+
+The app also has dynamic paths such as /record/&lt;uuid&gt; and /peer/&lt;token&gt;. Strict text masking does not mask URLs. What supported configuration can prevent Clarity from collecting or retaining those path identifiers without breaking navigation analytics?
+
+Please provide written confirmation and any additional configuration requirements. Until we receive confirmation, we will keep production use disabled.</pre>
+      </article>
+
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>C. AdSense 사전감사, 활성화 금지</h3>
+          <button class="copy" type="button" data-copy="prompt-c">프롬프트 복사</button>
+        </div>
+        <pre id="prompt-c">[작업] 2nd-Brain의 AdSense 도입 가능성만 사전감사한다. 광고를 활성화하거나 live ad unit을 만들지 않는다.
+
+운영 URL: https://simon-yhkim.github.io/2nd-B/
+현재 후보 배치: 인증 후 개인 기록 목록 /records footer
+
+1. 기존 AdSense 계정과 사이트 상태를 확인한다. 중복 계정이나 사이트를 만들지 않는다.
+2. Google AdSense Program Policies와 Publisher Policies 기준으로 /records가 publisher-content로 적합한지 평가한다. 개인 기록, 비공개 화면, 저콘텐츠 화면 위험을 명시한다.
+3. 사이트 승인, 공개 원본 콘텐츠, 개인정보처리방침의 광고 cookie·제3자·web beacon·IP 고지, EEA·UK·CH용 Google 인증 CMP, root ads.txt가 각각 준비됐는지 표로 확인한다.
+4. 하나라도 미충족이면 EXPO_PUBLIC_ENABLE_ADS=false 유지와 함께 STOP으로 보고한다. GitHub Variables를 추가하지 않는다.
+5. 결과는 GO/NO-GO, 근거 정책 링크, 안전한 대체 배치 제안으로 보고한다. 승인, 약관 수락, 세금·지급 정보는 Simon이 직접 처리한다.</pre>
+      </article>
+
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>D. Firebase Analytics native 등록 자료 준비</h3>
+          <button class="copy" type="button" data-copy="prompt-d">프롬프트 복사</button>
+        </div>
+        <pre id="prompt-d">[작업] 코드나 저장소를 바꾸지 않고 Firebase Analytics native 등록 자료만 준비한다.
+
+Android package: com.simonk.secondbrain
+iOS bundle ID: com.simonk.secondbrain
+
+1. 기존 Google/Firebase 프로젝트와 기존 GA4 속성이 있는지 먼저 확인한다. 중복 프로젝트나 속성을 만들지 말고 선택이 필요하면 STOP하고 Simon에게 묻는다.
+2. 선택된 Firebase 프로젝트에 Android 앱과 iOS 앱을 위 식별자로 등록한다.
+3. Analytics를 기존 GA4 속성과 연결할 수 있으면 그 옵션을 우선 검토한다. 광고 개인화와 Google Signals는 켜지 않는다.
+4. google-services.json과 GoogleService-Info.plist를 Simon이 지정한 안전한 로컬 폴더로 다운로드한다. 채팅, 이슈, PR, 스크린샷에 내용을 붙이지 않는다. 서비스 계정 키는 만들지 않는다.
+5. 프로젝트 이름, 등록 성공 여부, 두 파일의 로컬 경로와 SHA-256만 보고한다.
+6. 실제 앱 연동은 @react-native-firebase/app + analytics, 기본 수집 OFF, 서버 DOB 18+와 사용 통계 동의 후 ON, EAS native rebuild를 포함하는 별도 코드 작업으로 남긴다.</pre>
+      </article>
+
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>E. AdMob 준비, live 광고 금지</h3>
+          <button class="copy" type="button" data-copy="prompt-e">프롬프트 복사</button>
+        </div>
+        <pre id="prompt-e">[작업] AdMob native 도입의 콘솔·정책 준비만 한다. live 광고 요청과 운영 광고 클릭은 금지한다.
+
+Android package: com.simonk.secondbrain
+iOS bundle ID: com.simonk.secondbrain
+
+1. 기존 AdMob 계정을 사용하고 Android/iOS 앱 등록 가능 여부를 확인한다. store 미게시라면 unpublished 상태로만 준비한다.
+2. store listing의 developer website hostname과 https://simon-yhkim.github.io/app-ads.txt 배포 가능성을 확인한다.
+3. Privacy &amp; messaging에서 UMP와 Google 인증 CMP 요구사항을 정리한다. 2nd-Brain은 만 18세 미만 또는 나이 미확인 사용자에게 광고 요청을 보내지 않는다.
+4. 현재 /records 개인 기록 배치와 /secondb 보상광고는 정책·코드 검토 미완료다. live banner/rewarded ad unit을 만들지 않는다. 개발 단계는 Google test ad unit만 사용한다.
+5. src/lib/ads/rewarded.ts의 SDK 부재 시 completed:true 반환을 fail-closed로 바꾸고, /secondb가 canShowAds()의 성인·ads consent·free tier·route allow-list를 모두 통과하게 만드는 별도 코드 작업을 계획한다.
+6. App ID, ad unit, app-ads.txt, app readiness, UMP를 각각 READY/BLOCKED로 보고한다. ID 값은 마스킹한다.</pre>
+      </article>
+
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>F. Codex 다음 구현 슬라이스</h3>
+          <button class="copy" type="button" data-copy="prompt-f">프롬프트 복사</button>
+        </div>
+        <pre id="prompt-f">E:\2ndB의 2nd-Brain 앱에서 native Firebase Analytics와 AdMob 도입 1단계를 진행해줘.
+
+먼저 AGENTS.md, ANDROID_QA_GUIDELINES.md, docs/CONCEPT.md, DESIGN.md를 읽고 내부 .worktrees 아래 새 branch에서 작업해. 한 세션 5파일 제한을 지키고 dependency의 무료 tier와 Expo SDK 56 호환성을 공식 문서로 확인해.
+
+입력 자료:
+- google-services.json 로컬 경로: &lt;PATH&gt;
+- GoogleService-Info.plist 로컬 경로: &lt;PATH&gt;
+- AdMob Android App ID: &lt;MASKED_REFERENCE_OR_SECURE_SOURCE&gt;
+- AdMob iOS App ID: &lt;MASKED_REFERENCE_OR_SECURE_SOURCE&gt;
+- 개발 중에는 Google 공식 test ad unit만 사용
+
+필수 조건:
+1. Analytics 기본 수집은 OFF이며 서버 DOB가 만 18세 이상이고 external_analytics=true일 때만 ON.
+2. AdMob 초기화 전에 UMP consent flow를 완료하고, 나이 미확인·만 18세 미만·ads=false에는 SDK 초기화와 광고 요청 모두 0건.
+3. src/lib/ads/rewarded.ts의 fake completed:true를 제거해 SDK·unit·earned event 중 하나라도 없으면 completed:false.
+4. /secondb와 plans의 보상광고 진입은 canShowAds()의 tier, 성인, ads consent, route allow-list를 모두 사용.
+5. 테스트 ID와 운영 ID를 분리하고 Expo Go가 아닌 EAS development build에서 검증.
+6. 실제 config 파일 내용, 전체 ID, secret을 출력하거나 commit하지 않음.
+7. npm run verify, Android development build, consent OFF·minor·adult ON 매트릭스를 증거와 함께 보고.
+
+범위가 5파일을 넘으면 native analytics와 AdMob을 각각 별도 PR 계획으로 나누고 첫 슬라이스만 구현해.</pre>
+      </article>
+
+      <div id="copy-status" class="copy-status" aria-live="polite"></div>
+    </section>
+
+    <section>
+      <p class="eyebrow">commands</p>
+      <h2>필요할 때만 실행할 명령</h2>
+      <article class="prompt">
+        <div class="prompt-head">
+          <h3>존재 감사·명시적 OFF·재배포</h3>
+          <button class="copy" type="button" data-copy="commands">명령 복사</button>
+        </div>
+        <pre id="commands"># 값은 출력·공유하지 않고 존재만 감사
+gh variable list --repo Simon-YHKim/2nd-B
+eas env:list --environment production
+
+# 광고 사전조건 완료 전 명시적 OFF
+gh variable set EXPO_PUBLIC_ENABLE_ADS --body "false" --repo Simon-YHKim/2nd-B
+
+# 콘솔 값 불일치가 확인된 경우에만 공개 client ID 갱신
+gh variable set EXPO_PUBLIC_GA4_MEASUREMENT_ID --body "&lt;GA4_MEASUREMENT_ID&gt;" --repo Simon-YHKim/2nd-B
+gh variable set EXPO_PUBLIC_CLARITY_PROJECT_ID --body "&lt;CLARITY_PROJECT_ID&gt;" --repo Simon-YHKim/2nd-B
+
+# PR merge 후 웹 재배포
+gh workflow run web-deploy.yml --repo Simon-YHKim/2nd-B</pre>
+      </article>
+      <p class="lead">
+        현재 native analytics·AdMob 코드가 config file용 EAS variable을 읽지 않으므로
+        <code>eas env:create</code>는 다음 코드 슬라이스에서 정확한 변수명을 확정한 뒤 실행하세요.
+      </p>
+    </section>
+
+    <section id="verify">
+      <p class="eyebrow">acceptance checklist</p>
+      <h2>최종 운영 검증표</h2>
+      <div class="checklist">
+        <div class="check"><span><code>npm run verify</code>가 오류 없이 통과한다.</span></div>
+        <div class="check"><span>새로고침 + 사용 통계 OFF에서 GA4·Clarity script/request가 0건이다.</span></div>
+        <div class="check"><span>나이 미확인·미성년 상태에서 통계·광고 토글이 잠기고 외부 요청이 0건이다. 새 계정은 만들지 않고 unit test 증거를 사용한다.</span></div>
+        <div class="check"><span>성인 + 사용 통계 ON에서 SDK가 1회 로드되고 page_view가 화면당 1건이다.</span></div>
+        <div class="check"><span>GA4 page_location은 <code>/record/[id]</code> 같은 파일 패턴이며 UUID, token, query, 제목 본문이 없다.</span></div>
+        <div class="check"><span>GA4 Enhanced Measurement의 browser history page changes가 OFF이고 자동·수동 page_view 중복이 없다.</span></div>
+        <div class="check"><span>사용 통계 OFF 전환 즉시 앱 이벤트가 멈추고 GA denied, Clarity denied·cookie erase가 적용된다.</span></div>
+        <div class="check"><span>Google tag Data transmission controls가 denied 상태의 behavioral analytics·diagnostics를 막고, Network의 GA automatic/cookieless request가 0건이다.</span></div>
+        <div class="check"><span>Clarity Strict masking, unmask 0건, default cookies OFF, Consent Mode ON을 확인한다.</span></div>
+        <div class="check"><span>Microsoft의 under-18 대상 앱 정책과 동적 URL 처리에 대한 서면 답변을 보관한다.</span></div>
+        <div class="check"><span><code>EXPO_PUBLIC_ENABLE_ADS=false</code>이며 adsbygoogle request가 0건이다.</span></div>
+        <div class="check"><span>Firebase Analytics와 AdMob은 native rebuild 전까지 NOT WIRED 상태다.</span></div>
+        <div class="check"><span>rewarded fake success 제거와 ads 정책 연결 전 광고 env·live unit을 활성화하지 않는다.</span></div>
+      </div>
+    </section>
+
+    <section id="sources">
+      <p class="eyebrow">primary sources</p>
+      <h2>공식 정책·구현 문서</h2>
+      <ul class="sources">
+        <li><a href="https://learn.microsoft.com/en-us/clarity/faq" target="_blank" rel="noreferrer">Microsoft Clarity FAQ</a></li>
+        <li><a href="https://learn.microsoft.com/en-us/clarity/setup-and-installation/clarity-consent-api-v2" target="_blank" rel="noreferrer">Clarity ConsentV2 API</a></li>
+        <li><a href="https://learn.microsoft.com/en-us/clarity/setup-and-installation/clarity-masking" target="_blank" rel="noreferrer">Clarity masking</a></li>
+        <li><a href="https://support.google.com/analytics/answer/9234069" target="_blank" rel="noreferrer">GA4 SPA measurement</a></li>
+        <li><a href="https://support.google.com/analytics/answer/7201382" target="_blank" rel="noreferrer">GA4 DebugView</a></li>
+        <li><a href="https://support.google.com/analytics/answer/16054531" target="_blank" rel="noreferrer">Google tag data transmission controls</a></li>
+        <li><a href="https://support.google.com/tagmanager/answer/14009635" target="_blank" rel="noreferrer">Google basic·advanced consent mode</a></li>
+        <li><a href="https://support.google.com/adsense/answer/48182" target="_blank" rel="noreferrer">AdSense Program Policies</a></li>
+        <li><a href="https://support.google.com/adsense/answer/10502938" target="_blank" rel="noreferrer">Google Publisher Policies</a></li>
+        <li><a href="https://support.google.com/adsense/answer/13554020" target="_blank" rel="noreferrer">Google 인증 CMP 요구사항</a></li>
+        <li><a href="https://support.google.com/admob/answer/6219315" target="_blank" rel="noreferrer">AdMob 연령 분류 설정</a></li>
+        <li><a href="https://support.google.com/admob/answer/9363762" target="_blank" rel="noreferrer">AdMob app-ads.txt</a></li>
+        <li><a href="https://docs.expo.dev/eas/environment-variables/manage/" target="_blank" rel="noreferrer">EAS environment variables</a></li>
+        <li><a href="https://docs.page/invertase/react-native-google-mobile-ads" target="_blank" rel="noreferrer">React Native Google Mobile Ads</a></li>
+      </ul>
+    </section>
+
+    <section>
+      <p class="eyebrow">scope note</p>
+      <h2>이번 세션의 범위와 다음 문서 정리</h2>
+      <p class="lead">
+        프로젝트의 5파일 제한에 맞춰 analytics core, analytics test, app root sync,
+        deep-space 개인정보 화면, 이 운영 보고서만 수정했습니다.
+        기존 <code>docs/ADS.md</code>의 “분석 ID 미주입·광고 동의 미배선” 설명은 현재 상태와 어긋나므로
+        다음 1파일 문서 슬라이스에서 이 보고서를 기준으로 갱신해야 합니다.
+      </p>
+    </section>
+
+    <footer>
+      <p>
+        이 문서는 설정 실행을 자동 승인하지 않습니다. 결제·세금·약관 수락, 리소스 삭제,
+        Microsoft 정책 판단은 Simon의 확인 후 진행합니다.
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      var status = document.getElementById("copy-status");
+
+      function fallbackCopy(text) {
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        var copied = document.execCommand("copy");
+        document.body.removeChild(area);
+        return copied;
+      }
+
+      async function copyText(id, button) {
+        var source = document.getElementById(id);
+        if (!source) return;
+        var text = source.innerText;
+        var copied = false;
+
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          } else {
+            copied = fallbackCopy(text);
+          }
+        } catch (error) {
+          copied = fallbackCopy(text);
+        }
+
+        status.textContent = copied ? "복사됨: " + button.closest(".prompt").querySelector("h3").textContent : "복사하지 못했습니다. 텍스트를 직접 선택해 주세요.";
+        if (copied) {
+          var original = button.textContent;
+          button.textContent = "복사됨";
+          window.setTimeout(function () {
+            button.textContent = original;
+          }, 1400);
+        }
+      }
+
+      document.querySelectorAll("[data-copy]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          copyText(button.getAttribute("data-copy"), button);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
