@@ -22,16 +22,25 @@ import {
   SceneHero,
   StatTile,
 } from "@/components/premium";
-import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
-import { TraitRadar } from "@/components/persona/TraitRadar";
-import { MdButton } from "@/components/m3";
+import { MdButton, m3TextStyle } from "@/components/m3";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { buildPersona, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
+import {
+  buildPersona,
+  loadLatestStrengths,
+  type LoadedStrengths,
+  type PersonaCard,
+} from "@/lib/persona/build";
+import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
+import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
+import { loadDomainLevels, type DomainBrightness } from "@/lib/persona/load-domain-levels";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import type { LadderLevel } from "@/lib/persona/brightness";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
 import { mergeEvidence, evidenceTypeLabel, type EvidenceShard, type OriginShard, type RawRecordRow, type RawSourceRow } from "@/lib/persona/evidence";
@@ -89,8 +98,17 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
 // identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
 // for the aggregate Soul Core, so it is no longer used here.)
 function CoreShell({ children }: { children: ReactNode }) {
+  const { t } = useTranslation("core-brain");
   return isDeepSpaceUI() ? (
-    <DeepSpaceScreen active="lens">{children}</DeepSpaceScreen>
+    <DeepSpaceScreen
+      active="home"
+      header="none"
+      variant="windowed"
+      title={t("polaris")}
+      onBack={() => router.back()}
+    >
+      {children}
+    </DeepSpaceScreen>
   ) : (
     <PremiumAppShell>{children}</PremiumAppShell>
   );
@@ -107,6 +125,8 @@ function CoreBrainScreen() {
 
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [evidence, setEvidence] = useState<OriginShard[]>([]);
+  const [domainBrightness, setDomainBrightness] = useState<DomainBrightness | null>(null);
+  const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
   const [building, setBuilding] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -123,11 +143,17 @@ function CoreBrainScreen() {
     setLoadError(false);
     (async () => {
       try {
-        const ev = await loadCoreBrainEvidence(userId, locale);
+        const [ev, nextDomainBrightness, nextStrengths] = await Promise.all([
+          loadCoreBrainEvidence(userId, locale),
+          loadDomainLevels(userId).catch(() => null),
+          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
+        ]);
         const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
         if (!cancelled) {
           setEvidence(ev);
           setPersona(p);
+          setDomainBrightness(nextDomainBrightness);
+          setStrengths(nextStrengths);
           // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
           if (p) fireCompanion("connectionFound");
         }
@@ -151,9 +177,15 @@ function CoreBrainScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const ev = await loadCoreBrainEvidence(userId, locale);
+        const [ev, nextDomainBrightness, nextStrengths] = await Promise.all([
+          loadCoreBrainEvidence(userId, locale),
+          loadDomainLevels(userId).catch(() => null),
+          loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
+        ]);
         if (!cancelled) {
           setEvidence(ev);
+          if (nextDomainBrightness) setDomainBrightness(nextDomainBrightness);
+          setStrengths(nextStrengths);
           setLoadError(false);
         }
       } catch (e) {
@@ -231,7 +263,7 @@ function CoreBrainScreen() {
           <View style={styles.lockedConstellation}>
             <IslandArt id="core" size={120} />
             <View style={styles.lockedStarRow}>
-              {SELF_UNDERSTANDING_STARS.map((star) => (
+              {DOMAIN_STARS.map((star) => (
                 <View key={star.id} style={styles.starItem}>
                   <View style={[styles.starDot, { opacity: dimStar }]} />
                   <Text variant="caption" color="textSubtle" style={styles.starName}>
@@ -276,6 +308,7 @@ function CoreBrainScreen() {
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
   const starLevels = persona?.starLevels;
+  const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
   const renderEvidenceDrawer = () => (
@@ -336,83 +369,174 @@ function CoreBrainScreen() {
     </Modal>
   );
 
-  // rev2 P3a (deep-space track): the same data as the legacy sections below,
-  // reorganized as the 북극성 persona deck — one card per screenful (swipe),
-  // Big Five radar + validation entry included. User-facing name here is
-  // 북극성 (the legacy core name is dropped on the canon track, PRD v3).
-  // The legacy premium-shell screen below is untouched.
+  // rev2 deep-space track: the Claude 10-me composition is a three-card
+  // horizontally paged persona deck. Every visible number below comes from the
+  // real persona, structured assessments, evidence count, or domain ladder.
+  // The prototype's role/strength sample values are never copied.
   if (isDeepSpaceUI()) {
-    const band = brightnessBand(persona?.soulCoreBrightness ?? 0.2);
+    const band = brightnessBand(domainBrightness?.northStarBrightness ?? 0.2);
     const bandLabel = locale === "ko" ? SOUL_CORE_BAND_KO[band] : SOUL_CORE_BAND_EN[band];
+    const homeDomains = DOMAIN_STARS.filter((star) => star.id !== "collect");
+    const topDomain = domainLevels
+      ? homeDomains.reduce((best, star) =>
+          domainLevels[star.id] > domainLevels[best.id] ? star : best,
+        homeDomains[0])
+      : null;
+    const topLevel = topDomain && domainLevels ? domainLevels[topDomain.id] : 1;
+    const topDomainName = topDomain
+      ? locale === "ko"
+        ? topDomain.nameKo
+        : topDomain.nameEn
+      : locale === "ko"
+        ? "북극성"
+        : "Polaris";
+    const roleHeadline =
+      topLevel >= 2
+        ? locale === "ko"
+          ? `${topDomainName}가 가장 밝은 나`
+          : `My brightest side is ${topDomainName.toLowerCase()}`
+        : locale === "ko"
+          ? "역할을 모으는 중"
+          : "Still gathering my roles";
+    const traitRows = persona
+      ? [
+          { key: "openness", ko: "개방", en: "Open", value: persona.traits.openness },
+          { key: "conscientiousness", ko: "성실", en: "Order", value: persona.traits.conscientiousness },
+          { key: "extraversion", ko: "외향", en: "Social", value: persona.traits.extraversion },
+          { key: "agreeableness", ko: "우호", en: "Warm", value: persona.traits.agreeableness },
+          { key: "neuroticism", ko: "신경", en: "Sensitive", value: persona.traits.neuroticism },
+        ]
+      : [];
+    const strengthLabels = (strengths?.scores ?? []).slice(0, 4).map((score) =>
+      locale === "ko" ? STRENGTH_LABEL_KO[score.strength] : STRENGTH_LABEL_EN[score.strength],
+    );
+    const traitConfidence = persona?.traitConfidence?.openness?.confidence;
+    const confidence =
+      strengths?.confidence ??
+      (traitConfidence === "high" ? 0.9 : traitConfidence === "medium" ? 0.6 : traitConfidence === "low" ? 0.3 : 0);
+    const confidenceDots = Math.max(0, Math.min(5, Math.round(confidence * 5)));
+    const directionBody = direction?.body?.replace(/\s*—\s*/g, ". ");
     const askPolaris = () =>
       router.push({ pathname: "/secondb", params: { fromNode: t("polaris") } });
     const deckPages: PolarisDeckPage[] = [
       {
-        key: "polaris",
-        title: t("polarisAggregate"),
+        key: "role",
+        title: locale === "ko" ? "내 역할" : "MY ROLE",
         accent: cosmic.soulViolet,
         body: (
-          <View style={dsDeck.heroBody}>
-            <Text variant="display" style={dsDeck.heroBand}>{bandLabel}</Text>
-            <Text variant="caption" color="textMuted" style={dsDeck.heroCaption}>
-              {t("currentBrightness")}
+          <View style={dsDeck.roleBody}>
+            <View style={dsDeck.roleTop}>
+              <View style={dsDeck.roleGlyph}>
+                <Text style={dsDeck.roleGlyphText}>{"‹›"}</Text>
+              </View>
+              <View style={dsDeck.roleTitleWrap}>
+                <View style={dsDeck.domainTag}>
+                  <Text style={dsDeck.domainTagText}>{topLevel >= 2 ? topDomainName : t("polaris")}</Text>
+                </View>
+                <Text style={dsDeck.roleHeadline}>{roleHeadline}</Text>
+              </View>
+            </View>
+
+            <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "어떤 역할" : "THE ROLE"}</Text>
+            <Text style={dsDeck.roleDescription}>
+              {directionBody ??
+                (locale === "ko"
+                  ? "기록이 더 모이면 세컨비가 반복해서 나타나는 역할을 근거와 함께 보여줘요."
+                  : "As more records gather, SecondB will show the roles that repeat, with their evidence.")}
             </Text>
-            <View style={dsDeck.heroStats}>
-              <Text variant="body" color="textMuted">
-                {t("piecesCount", { n: evidence.length })}
-              </Text>
-              <Text variant="body" color="textMuted">
-                {t("selfPortraitCount", { n: filledFields })}
-              </Text>
-              <Text variant="body" color="textMuted">
-                {t("areasCount", { n: persona?.values.length ?? 0 })}
+
+            <Text style={dsDeck.sectionEyebrow}>BIG FIVE</Text>
+            <View style={dsDeck.traitList}>
+              {traitRows.map((trait) => {
+                const score = Math.round(Math.max(0, Math.min(1, trait.value)) * 100);
+                return (
+                  <View key={trait.key} style={dsDeck.traitRow}>
+                    <Text style={dsDeck.traitLabel}>{locale === "ko" ? trait.ko : trait.en}</Text>
+                    <View style={dsDeck.traitTrack}>
+                      <View style={[dsDeck.traitFill, { width: `${score}%` }]} />
+                    </View>
+                    <Text style={dsDeck.traitValue}>{score}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "어떤 사람" : "THE PERSON"}</Text>
+            <View style={dsDeck.personCard}>
+              <Text style={dsDeck.personText}>
+                {neighborhood?.body ??
+                  pieces?.body ??
+                  (locale === "ko"
+                    ? "아직 한 문장으로 단정하지 않고 기록을 더 모으고 있어요."
+                    : "We are gathering more records before naming this in one sentence.")}
               </Text>
             </View>
-            <Text variant="subtle" color="textSubtle" style={dsDeck.heroHint}>
-              {t("swipeCards")}
-            </Text>
-            <View style={dsDeck.heroLinks}>
+
+            <Text style={dsDeck.sectionEyebrow}>{locale === "ko" ? "강점" : "STRENGTHS"}</Text>
+            {strengthLabels.length > 0 ? (
+              <View style={dsDeck.strengthRow}>
+                {strengthLabels.map((label) => (
+                  <View key={label} style={dsDeck.strengthChip}>
+                    <View style={dsDeck.strengthDot} />
+                    <Text style={dsDeck.strengthText}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={dsDeck.strengthEmpty}>
+                <Text style={dsDeck.strengthEmptyText}>
+                  {locale === "ko"
+                    ? "강점 체크를 마치면 근거 있는 강점이 여기에 나타나요."
+                    : "Complete the strengths check to place grounded strengths here."}
+                </Text>
+                <MdButton
+                  variant="text"
+                  label={t("strengthsCheck")}
+                  onPress={() => router.push("/strengths")}
+                />
+              </View>
+            )}
+
+            <View style={dsDeck.evidenceMeta}>
+              <Text style={dsDeck.evidenceText}>
+                {locale === "ko"
+                  ? `${evidence.length}개 기록 · 밝기 ${bandLabel}`
+                  : `${evidence.length} records · ${bandLabel} brightness`}
+              </Text>
+              <View style={dsDeck.confidenceDots}>
+                {[1, 2, 3, 4, 5].map((dot) => (
+                  <View
+                    key={dot}
+                    style={[dsDeck.confidenceDot, dot <= confidenceDots ? dsDeck.confidenceDotOn : null]}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={dsDeck.roleActions}>
               <MdButton
-                variant="text"
-                label={t("brightness")}
-                onPress={() => router.push("/brightness")}
+                variant="filled"
+                label={locale === "ko" ? "문장 다듬기" : "Refine sentence"}
+                onPress={() => router.push("/northstar")}
+                style={dsDeck.roleAction}
               />
               <MdButton
-                variant="text"
-                label={t("ratLog")}
-                onPress={() => router.push("/ratifications")}
-              />
-              <MdButton
-                variant="text"
-                label={t("shareCard")}
+                variant="tonal"
+                label={locale === "ko" ? "내보내기" : "Export"}
                 onPress={() => router.push("/share-card")}
+                style={dsDeck.roleAction}
               />
             </View>
           </View>
         ),
       },
-      ...(direction
-        ? [{
-            key: "direction",
-            title: t("brightestConn"),
-            accent: direction.accent,
-            body: <Text variant="body">{direction.body}</Text>,
-          }]
-        : []),
-      ...(neighborhood
-        ? [{
-            key: "neighborhood",
-            title: t("litNeighborhood"),
-            accent: neighborhood.accent,
-            body: <Text variant="body">{neighborhood.body}</Text>,
-          }]
-        : []),
       {
         key: "portrait",
-        title: t("sideOfMe"),
+        title: locale === "ko" ? "나의 모습" : "SELF PORTRAIT",
         accent: cosmic.soulViolet,
         body: (
-          <View>
+          <View style={dsDeck.pageBody}>
+            <Text style={dsDeck.pageHeadline}>{t("sideOfMe")}</Text>
             <View style={styles.fieldList}>
               {portrait.map((field) => (
                 <TouchableOpacity
@@ -443,87 +567,35 @@ function CoreBrainScreen() {
             <Text variant="caption" color="textSubtle" style={{ marginTop: 8 }}>
               {t("aiApprox")}
             </Text>
+            <View style={dsDeck.secondaryActions}>
+              <MdButton variant="outlined" label={t("brightness")} onPress={() => router.push("/brightness")} />
+              <MdButton variant="outlined" label={t("ratLog")} onPress={() => router.push("/ratifications")} />
+            </View>
           </View>
         ),
       },
-      ...(persona
-        ? [{
-            key: "radar",
-            title: t("traitTerrain"),
-            accent: cosmic.soulViolet,
-            body: (
-              <View style={dsDeck.radarBody}>
-                <TraitRadar traits={persona.traits} traitsSource={persona.traitsSource} locale={locale} />
-                <MdButton
-                  variant="tonal"
-                  label={
-                    isMeasuredSource(persona.traitsSource)
-                      ? t("lookCloser")
-                      : t("measureProperly")
-                  }
-                  onPress={() => router.push(isMeasuredSource(persona.traitsSource) ? "/persona" : "/big-five")}
-                />
-              </View>
-            ),
-          }]
-        : []),
-      ...(starLevels
-        ? [{
-            key: "seven",
-            title: t("sevenWays"),
-            accent: cosmic.soulViolet,
-            body: (
-              <View style={styles.starRow}>
-                {SELF_UNDERSTANDING_STARS.map((star) => {
-                  const v = brightnessVisual(starLevels[star.id]);
-                  return (
-                    <View key={star.id} style={styles.starItem}>
-                      <View style={[styles.starDot, { opacity: v.opacity }]} />
-                      <Text variant="caption" color="textMuted" style={styles.starName}>
-                        {locale === "ko" ? star.nameKo : star.nameEn}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ),
-          }]
-        : []),
       {
-        key: "pieces",
-        title: t("piecesBehind"),
-        accent: cosmic.pixelLamp,
+        key: "evidence",
+        title: locale === "ko" ? "근거와 검증" : "EVIDENCE",
+        accent: cosmic.signalMint,
         body: (
-          <View>
-            {pieces ? <Text variant="body" style={{ marginBottom: spacing.sm }}>{pieces.body}</Text> : null}
+          <View style={dsDeck.pageBody}>
+            <Text style={dsDeck.pageHeadline}>{t("piecesBehind")}</Text>
+            {pieces ? <Text style={dsDeck.pageDescription}>{pieces.body}</Text> : null}
             <MdButton
-              variant="text"
+              variant="tonal"
               label={t("seePieces", { n: evidence.length })}
               onPress={() => setDrawerOpen(true)}
             />
-          </View>
-        ),
-      },
-      {
-        key: "validate",
-        title: t("waysToMeasure"),
-        accent: cosmic.signalMint,
-        body: (
-          <View style={dsDeck.validateList}>
-            <Text variant="caption" color="textMuted" style={{ marginBottom: 4 }}>
+            <Text style={[dsDeck.pageHeadline, dsDeck.validationHead]}>{t("waysToMeasure")}</Text>
+            <Text variant="caption" color="textMuted">
               {t("validatedChecks")}
             </Text>
             {([
               { key: "bigfive", label: t("bigFiveCheck"), route: "/big-five" },
-              { key: "ipip", label: t("facetMap"), route: "/ipip-neo" },
               { key: "attachment", label: t("relCheck"), route: "/attachment" },
-              { key: "motivation", label: t("motivationCheck"), route: "/motivation" },
               { key: "strengths", label: t("strengthsCheck"), route: "/strengths" },
               { key: "values", label: t("valuesCheck"), route: "/values" },
-              { key: "northstar", label: t("editNorthStar"), route: "/northstar" },
-              // MBTI retired (src/app/mbti.tsx is a redirect to /persona) — a
-              // 스크리너 button that lands on a different screen erodes trust.
-              { key: "audit", label: t("valuesAudit"), route: "/audit" },
             ] as const).map((tool) => (
               <MdButton
                 key={tool.key}
@@ -532,28 +604,6 @@ function CoreBrainScreen() {
                 onPress={() => router.push(tool.route)}
               />
             ))}
-          </View>
-        ),
-      },
-      {
-        key: "next",
-        title: t("nextStep"),
-        accent: cosmic.signalMint,
-        body: (
-          <View style={dsDeck.validateList}>
-            <Text variant="body" color="textMuted">
-              {t("narrowStep")}
-            </Text>
-            <MdButton
-              variant="outlined"
-              label={t("newAngleTwi")}
-              onPress={() => router.push({ pathname: "/secondb", params: { mode: "divergent" } })}
-            />
-            <MdButton
-              variant="filled"
-              label={t("reviewProposal")}
-              onPress={() => router.push("/review")}
-            />
             <MdButton
               variant="text"
               label={t("askAboutCenter")}
@@ -798,19 +848,173 @@ const styles = StyleSheet.create({
 
 // rev2 P3a — deep-space 북극성 deck layout (the deck itself is PolarisDeck).
 const dsDeck = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 12, paddingTop: 10 },
-  heroBody: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.md },
-  heroBand: { textAlign: "center" },
-  heroCaption: { textAlign: "center" },
-  heroStats: {
+  wrap: { flex: 1, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 4 },
+  roleBody: { gap: 0 },
+  roleTop: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: spacing.md,
-    marginTop: spacing.md,
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 20,
   },
-  heroHint: { marginTop: spacing.lg, textAlign: "center" },
-  heroLinks: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginTop: spacing.sm },
-  radarBody: { alignItems: "center", gap: spacing.md },
-  validateList: { gap: spacing.sm },
+  roleGlyph: {
+    width: 56,
+    height: 56,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: withAlpha(m3.color.tertiary, 0.55),
+    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.5),
+  },
+  roleGlyphText: {
+    ...m3TextStyle("headlineSmall"),
+    color: m3.color.onTertiaryContainer,
+    fontFamily: m3.font.mono,
+    fontWeight: "700",
+  },
+  roleTitleWrap: { flex: 1, alignItems: "flex-start", gap: 7 },
+  domainTag: {
+    minHeight: 28,
+    justifyContent: "center",
+    paddingHorizontal: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: withAlpha(m3.color.tertiary, 0.45),
+    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.42),
+  },
+  domainTagText: {
+    ...m3TextStyle("labelLarge"),
+    color: m3.color.onTertiaryContainer,
+    fontFamily: m3.font.brand,
+  },
+  roleHeadline: {
+    ...m3TextStyle("headlineSmall"),
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+    fontWeight: "700",
+  },
+  sectionEyebrow: {
+    ...m3TextStyle("labelMedium"),
+    color: m3.color.tertiary,
+    fontFamily: m3.font.mono,
+    letterSpacing: 3,
+    marginTop: 17,
+    marginBottom: 8,
+  },
+  roleDescription: {
+    ...m3TextStyle("bodyLarge"),
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.brand,
+    lineHeight: 24,
+  },
+  traitList: { gap: 8 },
+  traitRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  traitLabel: {
+    ...m3TextStyle("bodyMedium"),
+    width: 48,
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+  },
+  traitTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    backgroundColor: withAlpha(m3.color.tertiary, 0.12),
+  },
+  traitFill: { height: "100%", borderRadius: 4, backgroundColor: m3.color.tertiary },
+  traitValue: {
+    ...m3TextStyle("bodyMedium"),
+    width: 30,
+    textAlign: "right",
+    color: m3.color.tertiary,
+    fontFamily: m3.font.mono,
+  },
+  personCard: {
+    padding: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: withAlpha(m3.color.tertiary, 0.16),
+    backgroundColor: withAlpha(m3.color.surfaceContainerHighest, 0.52),
+  },
+  personText: {
+    ...m3TextStyle("bodyMedium"),
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.brand,
+    lineHeight: 21,
+  },
+  strengthRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  strengthChip: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: withAlpha(m3.color.tertiary, 0.4),
+    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.3),
+  },
+  strengthDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: m3.color.tertiary },
+  strengthText: {
+    ...m3TextStyle("labelLarge"),
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+  },
+  strengthEmpty: {
+    alignItems: "flex-start",
+    gap: 2,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: withAlpha(m3.color.surfaceContainerHighest, 0.42),
+  },
+  strengthEmptyText: {
+    ...m3TextStyle("bodySmall"),
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.brand,
+  },
+  evidenceMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 20,
+  },
+  evidenceText: {
+    ...m3TextStyle("bodySmall"),
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.brand,
+  },
+  confidenceDots: { flexDirection: "row", gap: 5 },
+  confidenceDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: withAlpha(m3.color.onSurfaceVariant, 0.28),
+  },
+  confidenceDotOn: { backgroundColor: m3.color.tertiary },
+  roleActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 20,
+  },
+  roleAction: { flex: 1 },
+  pageBody: { gap: 12 },
+  pageHeadline: {
+    ...m3TextStyle("headlineSmall"),
+    color: m3.color.onSurface,
+    fontFamily: m3.font.brand,
+    fontWeight: "700",
+  },
+  pageDescription: {
+    ...m3TextStyle("bodyLarge"),
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.brand,
+  },
+  validationHead: { marginTop: 16 },
+  secondaryActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12,
+  },
 });
