@@ -735,7 +735,10 @@
       "proFeat1": "Tudo do Viajante",
       "proFeat2": "Armazenamento de longo prazo ilimitado",
       "proFeat3": "Compartilhamento familiar",
-      "proFeat4": "Análise prioritária"
+      "proFeat4": "Análise prioritária",
+      "disclosure": "Os planos pagos renovam automaticamente a cada mês. Cancele quando quiser antes da próxima renovação; os preços incluem impostos (VAT). Reembolso integral garantido em até 30 dias após o pagamento.",
+      "legalTerms": "Termos de serviço",
+      "legalRefund": "Política de reembolso"
     },
     "wikiRecords": {
       "relationships": "Relacionamentos",
