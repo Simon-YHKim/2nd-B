@@ -1,20 +1,13 @@
-<!--
-⚠️ 초안 (DRAFT) — 게시 전 반드시 (1) 법률 검토, (2) [기입: …] 항목 실제 정보 기입, (3) 이 주석 삭제.
-작성: 2026-07-16 · 결제 레일: Paddle (Merchant of Record) · 준거법: 대한민국.
-이 문서는 법률 자문이 아닙니다. 공개 전 변호사/전문가 검토가 필요합니다.
-용어 주의: 본 서비스는 의료·상담·치료 서비스가 아니며 그러한 표현을 사용하지 않습니다.
--->
-
 # 이용약관 · Terms of Service
 
-_시행일: [기입: YYYY-MM-DD]_
+_시행일: 2026-07-17_
 
 ---
 
 ## 한국어
 
 ### 제1조 (목적)
-본 약관은 [기입: 운영자명](이하 "회사")가 제공하는 **2nd-Brain**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
+본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **2nd-Brain**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 ### 제2조 (서비스의 성격)
 서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
@@ -30,7 +23,7 @@ _시행일: [기입: YYYY-MM-DD]_
 ④ 한 이용자가 복수 경로로 가입한 경우 계정 연결·통합 정책은 서비스 내 안내에 따릅니다.
 
 ### 제5조 (유료 서비스 및 결제)
-① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함, 예: [기입: ₩9,900/월], [기입: ₩19,900/월]).
+① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함: Plus ₩9,900/월 · Pro ₩19,900/월(출시 준비 중) · 연간 구독 = 월 요금×10(2개월 무료) · 평생 이용권 ₩99,000 일시불).
 ② **결제 및 판매자**: 유료 구독의 결제는 **Paddle.com Market Limited("Paddle")가 판매자(Merchant of Record)**\로서 처리합니다. Paddle의 구매자 약관이 결제에 함께 적용됩니다.
 ③ **자동 갱신**: 유료 구독은 이용자가 취소하기 전까지 표시된 주기로 자동 갱신되며, 갱신 시점에 등록된 결제수단으로 청구됩니다. 이용자는 다음 갱신 이전 언제든 취소할 수 있습니다.
 ④ **결제수단**: 카드, KakaoPay, NaverPay 등 결제 화면에 제공되는 수단을 이용할 수 있습니다.
@@ -63,15 +56,19 @@ _시행일: [기입: YYYY-MM-DD]_
 ① 본 약관은 **대한민국 법**에 따라 해석됩니다.
 ② 서비스 이용과 관련한 분쟁은 관련 법령에 따른 관할 법원을 제1심 관할로 합니다.
 
-### 제13조 (문의)
-문의: [기입: support 이메일] · [기입: 지원 전화번호]. 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
+### 제13조 (사업자 정보 및 문의)
+- 상호: 하양 프로덕션 (개인사업자, 대표: 배소하)
+- 소재지: 경기도 안양시
+- 사업자등록번호: 발급 진행 중 (발급 즉시 본 문서에 반영합니다)
+- 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
+- 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
 ---
 
 ## English
 
 ### 1. Purpose
-These Terms govern the rights, obligations, and responsibilities between [fill: operator name] (the "Company") and users regarding the use of **2nd-Brain** (the "Service").
+These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **2nd-Brain** (the "Service").
 
 ### 2. Nature of the Service
 The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
@@ -83,7 +80,7 @@ The Service is an AI-assisted personal tool that helps users accumulate records 
 (1) Users may sign up by email or social login (Google, Apple, Kakao, Naver, etc.). (2) **Age**: only users aged 14+ may register directly; children under 14 may use the Service only where verifiable guardian consent is obtained (phased per law and Company policy). (3) Users must provide accurate account information and are responsible for safeguarding their account. (4) Where one person registers via multiple methods, account-linking follows the in-Service guidance.
 
 ### 5. Paid services & billing
-(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included, e.g., [fill: ₩9,900/mo], [fill: ₩19,900/mo]). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
+(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Plus ₩9,900/mo · Pro ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free) · Lifetime ₩99,000 one-time). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
 
 ### 6. Withdrawal & refunds
 Withdrawal, refunds, and cancellation follow the separate **[Refund & Cancellation Policy](./refund-policy.md)** and Korean e-commerce law.
@@ -106,5 +103,9 @@ The Company may change or suspend all or part of the Service for operational/tec
 ### 12. Governing law & disputes
 (1) These Terms are governed by the **laws of the Republic of Korea**. (2) Disputes are subject to the competent court under applicable law as the court of first instance.
 
-### 13. Contact
-Contact: [fill: support email] · [fill: support phone]. Support aims to reply **within 2 business days**.
+### 13. Business information & contact
+- Business name: Hayang Production (sole proprietorship, Representative: Bae Soha)
+- Location: Anyang-si, Gyeonggi-do, Republic of Korea
+- Business registration number: issuance in progress (posted here as soon as issued)
+- Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
+- Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.

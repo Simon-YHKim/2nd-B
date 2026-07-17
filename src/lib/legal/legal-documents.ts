@@ -1,8 +1,10 @@
 // Legal document snapshots (U4). SOURCE OF TRUTH: docs/legal/*.md -- edit there,
-// then regenerate this module (scripts noted in the PR; a plain copy with the
-// draft comment stripped and em dashes scrubbed). The [기입: …] markers stay
-// visible on purpose: the screen shows a draft badge while any remain, and the
-// final text lands once Simon's 법률 6정보 arrives (HANDOFF.md §5-1).
+// then mirror here (a plain copy with the draft comment stripped and em dashes
+// scrubbed). FINALIZED 2026-07-17 with Simon's 법률 6정보 (하양 프로덕션 · 대표
+// 배소하 · 경기도 안양시 · kim0405@hayangzip.com · 보호책임자 김양환 · prices);
+// no [기입]/[fill] markers remain, so isDraft() is false and the 초안 badge is
+// gone. One line intentionally stays pending: 사업자등록번호 "발급 진행 중" --
+// update BOTH the md and this mirror the day the number is issued.
 // Lexicon note: the disclaimers must NAME the services 2nd-Brain is NOT
 // (의료·심리상담·진단·치료) -- this file is allowlisted in
 // src/lib/safety/lexicon.ts LEXICON_SCAN_ALLOWLIST for exactly that reason.
@@ -24,14 +26,14 @@ export const TERMS_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 이용약관 · Terms of Service
 
-_시행일: [기입: YYYY-MM-DD]_
+_시행일: 2026-07-17_
 
 ---
 
 ## 한국어
 
 ### 제1조 (목적)
-본 약관은 [기입: 운영자명](이하 "회사")가 제공하는 **2nd-Brain**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
+본 약관은 하양 프로덕션(개인사업자, 대표: 배소하, 이하 "회사")가 제공하는 **2nd-Brain**(이하 "서비스")의 이용과 관련하여 회사와 이용자 간의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.
 
 ### 제2조 (서비스의 성격)
 서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
@@ -47,7 +49,7 @@ _시행일: [기입: YYYY-MM-DD]_
 ④ 한 이용자가 복수 경로로 가입한 경우 계정 연결·통합 정책은 서비스 내 안내에 따릅니다.
 
 ### 제5조 (유료 서비스 및 결제)
-① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함, 예: [기입: ₩9,900/월], [기입: ₩19,900/월]).
+① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함: Plus ₩9,900/월 · Pro ₩19,900/월(출시 준비 중) · 연간 구독 = 월 요금×10(2개월 무료) · 평생 이용권 ₩99,000 일시불).
 ② **결제 및 판매자**: 유료 구독의 결제는 **Paddle.com Market Limited("Paddle")가 판매자(Merchant of Record)**\\로서 처리합니다. Paddle의 구매자 약관이 결제에 함께 적용됩니다.
 ③ **자동 갱신**: 유료 구독은 이용자가 취소하기 전까지 표시된 주기로 자동 갱신되며, 갱신 시점에 등록된 결제수단으로 청구됩니다. 이용자는 다음 갱신 이전 언제든 취소할 수 있습니다.
 ④ **결제수단**: 카드, KakaoPay, NaverPay 등 결제 화면에 제공되는 수단을 이용할 수 있습니다.
@@ -80,15 +82,19 @@ _시행일: [기입: YYYY-MM-DD]_
 ① 본 약관은 **대한민국 법**에 따라 해석됩니다.
 ② 서비스 이용과 관련한 분쟁은 관련 법령에 따른 관할 법원을 제1심 관할로 합니다.
 
-### 제13조 (문의)
-문의: [기입: support 이메일] · [기입: 지원 전화번호]. 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
+### 제13조 (사업자 정보 및 문의)
+- 상호: 하양 프로덕션 (개인사업자, 대표: 배소하)
+- 소재지: 경기도 안양시
+- 사업자등록번호: 발급 진행 중 (발급 즉시 본 문서에 반영합니다)
+- 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
+- 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
 ---
 
 ## English
 
 ### 1. Purpose
-These Terms govern the rights, obligations, and responsibilities between [fill: operator name] (the "Company") and users regarding the use of **2nd-Brain** (the "Service").
+These Terms govern the rights, obligations, and responsibilities between Hayang Production (sole proprietorship, Representative: Bae Soha; the "Company") and users regarding the use of **2nd-Brain** (the "Service").
 
 ### 2. Nature of the Service
 The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
@@ -100,7 +106,7 @@ The Service is an AI-assisted personal tool that helps users accumulate records 
 (1) Users may sign up by email or social login (Google, Apple, Kakao, Naver, etc.). (2) **Age**: only users aged 14+ may register directly; children under 14 may use the Service only where verifiable guardian consent is obtained (phased per law and Company policy). (3) Users must provide accurate account information and are responsible for safeguarding their account. (4) Where one person registers via multiple methods, account-linking follows the in-Service guidance.
 
 ### 5. Paid services & billing
-(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included, e.g., [fill: ₩9,900/mo], [fill: ₩19,900/mo]). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
+(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Plus ₩9,900/mo · Pro ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free) · Lifetime ₩99,000 one-time). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
 
 ### 6. Withdrawal & refunds
 Withdrawal, refunds, and cancellation follow the separate **[Refund & Cancellation Policy](./refund-policy.md)** and Korean e-commerce law.
@@ -123,8 +129,12 @@ The Company may change or suspend all or part of the Service for operational/tec
 ### 12. Governing law & disputes
 (1) These Terms are governed by the **laws of the Republic of Korea**. (2) Disputes are subject to the competent court under applicable law as the court of first instance.
 
-### 13. Contact
-Contact: [fill: support email] · [fill: support phone]. Support aims to reply **within 2 business days**.`,
+### 13. Business information & contact
+- Business name: Hayang Production (sole proprietorship, Representative: Bae Soha)
+- Location: Anyang-si, Gyeonggi-do, Republic of Korea
+- Business registration number: issuance in progress (posted here as soon as issued)
+- Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
+- Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.`,
 };
 
 export const REFUND_DOC: LegalDoc = {
@@ -133,7 +143,7 @@ export const REFUND_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 환불 및 청약철회 정책 · Refund & Cancellation Policy
 
-_최종 업데이트: [기입: YYYY-MM-DD]_
+_최종 업데이트: 2026-07-17_
 
 ---
 
@@ -142,8 +152,8 @@ _최종 업데이트: [기입: YYYY-MM-DD]_
 ### 1. 판매자 및 결제 처리자
 2nd-Brain(이하 "서비스")의 유료 구독 결제는 **Paddle.com Market Limited(이하 "Paddle")**\\가 **판매자(Merchant of Record)**\\로서 처리합니다. 결제·세금계산서·환불은 Paddle을 통해 이루어지며, 카드 명세서에는 Paddle 또는 \`Paddle.net\`\\이 표기될 수 있습니다.
 
-- 서비스 운영자: [기입: 사업자/운영자명(법적 상호 권장)]
-- 고객지원: [기입: support 이메일] · [기입: 지원 전화번호]
+- 서비스 운영자: 하양 프로덕션 (개인사업자, 대표: 배소하 · 소재지: 경기도 안양시 · 사업자등록번호 발급 진행 중 · 통신판매업 신고 면제 사업자)
+- 고객지원: kim0405@hayangzip.com (이메일 중심, 영업일 기준 2일 이내 회신)
 
 ### 2. 30일 환불 보장 (30-Day Money-Back Guarantee)
 ① 서비스는 결제일로부터 **30일 이내 전액 환불**을 보장합니다. **사유를 묻지 않으며**, 아래 5·6항 절차로 요청하시면 원 결제수단으로 환불해 드립니다.
@@ -151,10 +161,10 @@ _최종 업데이트: [기입: YYYY-MM-DD]_
 ③ 디지털 콘텐츠 특성상, 이용자는 결제 시 **30일 환불 창(기간)에 대한 고지를 확인**한 뒤 이용을 시작합니다.
 
 ### 3. 구독 취소 및 자동 갱신
-- 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함, 예: [기입: ₩9,900/월], [기입: ₩19,900/월] · 앱 표시 기준 확정 필요).
+- 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함: Plus ₩9,900/월 · Pro ₩19,900/월 · 연간 = 월 요금×10 · 평생 이용권 ₩99,000).
 - 이용자는 **다음 갱신일 이전 언제든 구독을 취소**할 수 있으며, 취소 시 **이미 결제한 기간의 만료일까지 유료 혜택이 유지**된 뒤 자동 갱신이 중단됩니다.
 - 자동 갱신 결제도 **결제일로부터 30일 이내**이면 위 2항의 환불 보장 대상입니다.
-- 취소 방법: 앱 내 [설정 → 구독 관리] 또는 Paddle 결제 영수증의 구독 관리 링크. 문의: [기입: support 이메일].
+- 취소 방법: 앱 내 [설정 → 구독 관리] 또는 Paddle 결제 영수증의 구독 관리 링크. 문의: kim0405@hayangzip.com.
 
 ### 4. 추가 환불 기준
 30일 보장과 별개로, 다음의 경우에도 환불을 처리합니다:
@@ -167,7 +177,7 @@ _최종 업데이트: [기입: YYYY-MM-DD]_
 - 승인된 환불은 통상 영업일 기준 5~10일 이내 처리되며, 카드사·간편결제사의 정산 일정에 따라 실제 반영은 달라질 수 있습니다.
 
 ### 6. 환불 요청 방법
-[기입: support 이메일]\\로 (1) 가입 이메일, (2) 결제일/영수증 번호(Paddle 영수증 참조), (3) 사유(선택)를 보내주세요. 고객지원은 **영업일 기준 2일 이내** 회신합니다.
+kim0405@hayangzip.com 으로 (1) 가입 이메일, (2) 결제일/영수증 번호(Paddle 영수증 참조), (3) 사유(선택)를 보내주세요. 고객지원은 **영업일 기준 2일 이내** 회신합니다.
 
 ### 7. 정책 변경
 본 정책은 관련 법령 및 서비스 정책에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.
@@ -179,8 +189,8 @@ _최종 업데이트: [기입: YYYY-MM-DD]_
 ### 1. Seller & payment processor
 Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Paddle.com Market Limited ("Paddle") as the Merchant of Record**. Payments, invoices, and refunds are handled through Paddle, and your card statement may show Paddle or \`Paddle.net\`.
 
-- Service operator: [fill: operator/business legal name]
-- Support: [fill: support email] · [fill: support phone]
+- Service operator: Hayang Production (sole proprietorship, Rep.: Bae Soha · Anyang-si, Gyeonggi-do · business registration in progress · exempt from the mail-order business report)
+- Support: kim0405@hayangzip.com (email-first; replies within 2 business days)
 
 ### 2. 30-Day Money-Back Guarantee
 (1) We guarantee a **full refund within 30 days** of payment. **No questions asked** · request via Sections 5–6 and we refund to your original payment method.
@@ -188,10 +198,10 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 (3) As this is digital content, you confirm awareness of the 30-day refund window at checkout before use begins.
 
 ### 3. Cancellation & auto-renewal
-- Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included, e.g., [fill: ₩9,900/mo], [fill: ₩19,900/mo] · confirm against in-app values).
+- Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included: Plus ₩9,900/mo · Pro ₩19,900/mo · yearly = 10x monthly · Lifetime ₩99,000).
 - You may **cancel any time before the next renewal**; paid benefits **continue until the end of the paid period**, then auto-renewal stops.
 - Auto-renewal charges are also covered by the 30-day guarantee in Section 2 **if within 30 days** of that charge.
-- How to cancel: in-app [Settings → Manage subscription] or the link on your Paddle receipt. Contact: [fill: support email].
+- How to cancel: in-app [Settings → Manage subscription] or the link on your Paddle receipt. Contact: kim0405@hayangzip.com.
 
 ### 4. Additional refund criteria
 Beyond the 30-day guarantee, we also refund:
@@ -204,7 +214,7 @@ Beyond the 30-day guarantee, we also refund:
 - Approved refunds are typically processed within 5–10 business days; actual posting depends on the card/wallet provider's settlement schedule.
 
 ### 6. How to request
-Email [fill: support email] with (1) your account email, (2) payment date/receipt number (see your Paddle receipt), and (3) an optional reason. Support replies **within 2 business days**.
+Email kim0405@hayangzip.com with (1) your account email, (2) payment date/receipt number (see your Paddle receipt), and (3) an optional reason. Support replies **within 2 business days**.
 
 ### 7. Changes
 This policy may change per applicable law and Service policy; changes will be announced in the Service.`,
@@ -216,13 +226,13 @@ export const PRIVACY_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 개인정보처리방침 · Privacy Policy
 
-_시행일: [기입: YYYY-MM-DD] · 최종 개정: [기입: YYYY-MM-DD]_
+_시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 
 ---
 
 ## 한국어
 
-[기입: 운영자명](이하 "회사")는 「개인정보 보호법」 등 관련 법령을 준수하며, 다음과 같이 개인정보를 처리합니다.
+하양 프로덕션(개인사업자, 대표: 배소하, 소재지: 경기도 안양시, 이하 "회사")는 「개인정보 보호법」 등 관련 법령을 준수하며, 다음과 같이 개인정보를 처리합니다.
 
 ### 1. 수집하는 개인정보 항목
 - **필수(계정)**: 이메일 주소, 소셜 로그인 식별자(Google/Apple/Kakao/Naver 등), 인증 토큰.
@@ -248,20 +258,20 @@ _시행일: [기입: YYYY-MM-DD] · 최종 개정: [기입: YYYY-MM-DD]_
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
 
 ### 5. 개인정보의 국외 이전
-서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전되는 항목·목적·시점·방법·보유기간은 [기입: 구체 명시]하며, 이용자는 이에 대해 [기입: 동의 획득 방식]으로 동의합니다.
+서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보 및 이용자 콘텐츠, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리, 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
 
 ### 6. 정보주체의 권리
-이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, [기입: support 이메일]\\로도 요청할 수 있습니다.
+이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, kim0405@hayangzip.com 으로도 요청할 수 있습니다.
 
 ### 7. 만 14세 미만 아동
 회사는 원칙적으로 만 14세 미만 아동의 개인정보를 수집하지 않으며, 불가피한 경우 법정대리인의 동의를 확인한 후에만 처리합니다(단계적 적용).
 
 ### 8. 안전성 확보 조치
-접근권한 관리 및 접근통제, 전송·저장 구간 암호화 적용 노력, 접속기록 보관, 취약점 점검 등 관리적·기술적 보호조치를 시행합니다. [기입: 실제 시행 조치와 대조]
+행 수준 접근통제(RLS)를 포함한 접근권한 관리, 전송 구간 TLS 암호화 및 저장 데이터 암호화, 접속기록 보관, 정기 점검 등 관리적·기술적 보호조치를 시행합니다.
 
 ### 9. 개인정보 보호책임자 및 문의
-- 개인정보 보호책임자: [기입: 성명/직책], 연락처 [기입: 이메일]
-- 문의: [기입: support 이메일] (영업일 기준 2일 이내 회신 목표)
+- 개인정보 보호책임자: 김양환, 연락처 kim0405@hayangzip.com
+- 문의: kim0405@hayangzip.com (영업일 기준 2일 이내 회신 목표)
 - 권익침해 상담: 개인정보분쟁조정위원회, 개인정보침해신고센터(privacy.kisa.or.kr) 등.
 
 ### 10. 처리방침의 변경
@@ -271,7 +281,7 @@ _시행일: [기입: YYYY-MM-DD] · 최종 개정: [기입: YYYY-MM-DD]_
 
 ## English
 
-[fill: operator name] (the "Company") complies with Korea's Personal Information Protection Act (PIPA) and processes personal data as follows.
+Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gyeonggi-do; the "Company") complies with Korea's Personal Information Protection Act (PIPA) and processes personal data as follows.
 
 ### 1. Personal data collected
 - **Required (account)**: email address, social-login identifiers (Google/Apple/Kakao/Naver, etc.), authentication tokens.
@@ -297,20 +307,20 @@ The Company entrusts processing as below; processors act only within the stated 
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
 
 ### 5. Overseas transfer
-The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The items, purpose, timing, method, and retention are [fill: specified], and users consent via [fill: consent method].
+The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data and User Content in Section 1; the purpose is data hosting (auth/database) and AI processing; transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
 
 ### 6. Your rights
-You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact [fill: support email].
+You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact kim0405@hayangzip.com.
 
 ### 7. Children under 14
 The Company generally does not collect personal data of children under 14 and, where unavoidable, processes it only after verifying guardian consent (phased rollout).
 
 ### 8. Security measures
-Access-rights management and access control, encryption in transit/at rest where applicable, access-log retention, and vulnerability checks. [fill: reconcile with actual measures]
+Access-rights management with row-level access control (RLS), TLS encryption in transit and encrypted storage, access-log retention, and regular vulnerability checks.
 
 ### 9. Data Protection Officer & contact
-- DPO: [fill: name/title], [fill: email]
-- Contact: [fill: support email] (aim to reply within 2 business days)
+- DPO: Kim Yang-hwan, kim0405@hayangzip.com
+- Contact: kim0405@hayangzip.com (aim to reply within 2 business days)
 - Remedies: Korea's Personal Information Dispute Mediation Committee, KISA privacy center (privacy.kisa.or.kr).
 
 ### 10. Changes

@@ -27,11 +27,33 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("만 14세");
   });
 
-  test("all stay draft-flagged while [기입] placeholders remain", () => {
-    expect(isDraft(TERMS_DOC)).toBe(true);
-    expect(isDraft(REFUND_DOC)).toBe(true);
-    expect(isDraft(PRIVACY_DOC)).toBe(true);
-    expect(isDraft({ ...TERMS_DOC, body: "완성된 본문" })).toBe(false);
+  test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
+    // 법률 6정보 기입 완료 (하양 프로덕션 · 배소하 · 안양시 · hayangzip · 김양환).
+    expect(isDraft(TERMS_DOC)).toBe(false);
+    expect(isDraft(REFUND_DOC)).toBe(false);
+    expect(isDraft(PRIVACY_DOC)).toBe(false);
+    // The badge mechanism still works if a marker ever returns.
+    expect(isDraft({ ...TERMS_DOC, body: "본문 [기입: 예시]" })).toBe(true);
+  });
+
+  test("the six facts are actually present in the bodies", () => {
+    for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
+      expect(doc.body).toContain("하양 프로덕션");
+      expect(doc.body).toContain("kim0405@hayangzip.com");
+    }
+    expect(TERMS_DOC.body).toContain("배소하");
+    expect(TERMS_DOC.body).toContain("경기도 안양시");
+    expect(TERMS_DOC.body).toContain("면제 사업자");
+    expect(TERMS_DOC.body).toContain("발급 진행 중"); // 사업자등록번호 pending on purpose
+    expect(TERMS_DOC.body).toContain("₩9,900/월");
+    expect(TERMS_DOC.body).toContain("₩19,900/월");
+    expect(TERMS_DOC.body).toContain("₩99,000");
+    expect(REFUND_DOC.body).toContain("30일 이내 전액 환불");
+    expect(PRIVACY_DOC.body).toContain("김양환");
+    // 전화 미표기 (email-first): no phone placeholders or numbers.
+    for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
+      expect(doc.body).not.toMatch(/전화번호|support phone/);
+    }
   });
 
   test("bodies carry no em dash (check:emdash covers src/)", () => {
