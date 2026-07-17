@@ -593,6 +593,18 @@ export function DeepSpaceSignUpDesignScreen() {
       <Pressable onPress={() => router.push("/sign-in")} style={styles.authLinkRow} accessibilityRole="link" accessibilityLabel={t("auth:signUp.signInLink")}>
         <Text variant="body" style={styles.link}>{t("deepspace:auth.haveAccount")}</Text>
       </Pressable>
+
+      {/* D2 (decision-sheet 260717): sign-up had NO route to the documents the
+          consent block references — only the /consent-notice summaries. Same
+          line as sign-in; /terms cross-links /refund and /privacy-policy. */}
+      <Pressable
+        onPress={() => router.push("/terms")}
+        hitSlop={10}
+        accessibilityRole="link"
+        accessibilityLabel={t("deepspace:auth.legalConsent")}
+      >
+        <Text variant="caption" style={[styles.authLegal, { textDecorationLine: "underline" }]}>{t("deepspace:auth.legalConsent")}</Text>
+      </Pressable>
       {toast ? <AuthToast message={toast.message} tone={toast.tone} /> : null}
     </AuthShell>
   );
