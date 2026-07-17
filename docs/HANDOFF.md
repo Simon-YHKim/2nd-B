@@ -6,7 +6,7 @@
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
 - Latest — 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
-
+- 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (11 PR)
 - 2026-07-14 (2라운드) / 결함 트랙 완주 중 — 14 PR + 트리아지 자체가 틀렸다는 발견
 - 2026-07-14 / P0 전멸 + 제품 무결성 3건 + 결함 41건 재검증 (7 PR, prod 마이그레이션 5건, 엣지 배포)
 - 2026-07-11 (밤) / 게이트 실행 라운드 — W1 무료캡 라이브 + 8 PR + 게이트 5건 결정시트 (루프 중단, 결정 대기)
@@ -59,6 +59,38 @@
 
 2026-06-16 이전 → [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md)
 </details>
+
+## 📌 현재 라이브 큐 + 게이트 (통합 정본 — 2026-07-03 기준)
+
+> 아래 per-session 블록마다 자체 "다음 작업 큐"가 있고, 문자(A~O)가 세션마다 다른 뜻이라 충돌한다
+> (예: `D` = call-log 트리거 vs motivation 파이프, `E` = plans 3티어 vs 고용24). 이 블록이 **현재 열린 작업의 단일 정본**이며
+> `W#` 로 네임스페이스한다. 상세·맥락은 각 세션 블록 참조. 완료분은 제외. (파생: 최신 2개 세션 — 오후 오케스트레이터 + 감사 라운드 #730.)
+
+### 열린 작업 (재정렬 트랙)
+| ID | 작업 | 크기 | 旧 라벨 · 비고 |
+|---|---|---|---|
+| W1 | 에뮬 육안 QA 1회: imagine 신규 화면 + 뮤지엄 레인라벨/NOW + settings 레거시 헤더 | small | 旧 H · ⭐ 최우선(라이브 미검증) |
+| W2 | star insight 스트립("세컨비 한 줄 해석") + 공통 버튼(채워 넣기/세컨비와 대화) | large | 旧 K · 실데이터 훅 설계 |
+| W3 | ops 본문 3섹션(종합 의견·주간 패턴·비서 도구 그리드) + 시간행·undo | large | 旧 L · 데이터 모델 선행 |
+| W4 | capture 담은뒤 별-분류 스텝 + 왜(Why) 필드 | medium | 旧 M · fourw 스키마 |
+| W5 | 뮤지엄 사진추가 칩 + ShareCard 배경사진 슬롯(image-picker 기존 dep) | medium | 旧 N |
+| W6 | 근거 드로어 명사 → '근거 기록' 리네임 | small | 旧 O · #735 후속 |
+| W7 | Fabric Pressable 함수형 style 42곳/17파일 스윕(#680 패턴) | large | 旧 G · HIGH 목록=PR #730 본문 |
+| W8 | companion 잔존 fullbleed + 코호트 전환 (+온보딩 미변환 레거시 스타일) | large | 旧 I · 셸 연장전 |
+| W9 | 데드코드: OpsHomeScreen(src/screens/deepspace/ops/screens.tsx 미배선)·DeepSpaceDock 렌더러·records 아웃라이어 | small | 旧 J |
+| W10 | motivation 파이프 잔여 2종(확신%/L배지 · 내적↔외적 게이지) | large | 旧 D · 설계 선행 (드롭 아님 — 유지) |
+| W11 | call-log 트리거 설계(통화내용 미저장 명시 · 수동/지연 트리거 · opt-in+끄기) | medium | grok KR advisory · 카피 금기=감정분석/관계진단/상대평가 |
+
+### 🔒 Simon 결정 대기 (게이트 — 코드 결함 아님, 회신 필요)
+1. **axis_estimate 과금**: 현재 전 티어 무과금 개방(northstar 동일) — 스펜드 게이트 의도?
+2. **consent 문구 복원** (법무-인접) — 레퍼런스 복원 전 명시 확인.
+3. **plans 3티어 카드** 수익화 레이아웃 (旧 E).
+4. **0.0.7 폰 QA** — APK 링크 전달됨, 설치가 사용자 액션 (旧 F).
+5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
+
+> ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
 
 ## Latest — 2026-07-17 / 감사 전량 소탕(41건) + 세컨비 표정 13종 + 얼굴 통일 + 네이버 콜드스타트 픽스 (5 PR + OTA×2)
 
@@ -151,6 +183,61 @@ cat docs/HANDOFF.md
 5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
 
 > ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (PR 11건, 운영 마이그레이션 3건, 사고 1건 완전복구)
+
+### 어디까지 왔나
+- main HEAD: `e3149230` (#1035까지 머지된 상태에서 작성)
+- 이번 세션 머지 PR (11): #1010 가입 동의 상세(/consent-notice) · #1012 소셜 아이콘 원형 행 · #1013 비밀번호 재설정 인증번호(OTP) 흐름 · #1020 Supabase auth config-as-code(+recovery 메일 템플릿) · #1028 Paddle 웹훅+엔타이틀먼트(U1-U2) · #1029 캡 만료·judge comp(U5/C6) · #1031 /terms·/refund 법률 라우트(U4) · flow-map ×4(#1004/#1016/#1018/#1033)
+- **운영 DB 적용·검증 완료**: 0086(메일 인증 필수 — 구 autoconfirm 트리거 제거) · 0087(apply_billing_event) · 0088(effective_subscription_tier). 검증: 캡 RPC 실호출 → 1 반환, anon으로 billing RPC → 42501, QA 계정 effective tier = free
+- 테스트: npm run verify 그린 (마지막 완주 356 suites / 2,710 tests)
+- working tree(E:\2ndB 본체): 플릿 더티 가능 — 내 작업은 전부 .worktrees/ 안에서
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` (ap-northeast-2): Confirm Email **ON** · custom SMTP(kim0405@hayangzip.com) 생존 확인 · recovery 메일에 `{{ .Token }}` 6자리 + 링크 병행 라이브
+- `supabase/config.toml` = [auth] 프로덕션 실값 선언(config-as-code). ⚠ **config push 함정**: 부분 [auth] 선언 = auth 전체 기본값 리셋 + 비TTY는 확인 프롬프트 자동승인 (07-16 실사고 → 즉시 복구 → 실값 선언으로 재발 방지, ~/.claude/instincts/tool-quirks.md 기록)
+- Paddle 웹훅: 코드·DB 준비 완료, `PADDLE_WEBHOOK_ENABLED=1` 전까지 fail-closed(503). 활성화 절차 = supabase/functions/paddle-webhook/index.ts 헤더 (시크릿 4개 + replay/tamper 검증 후 켤 것)
+- 루트 `HANDOFF.md` = Cowork 커머스 인수인계(§5 = Simon 대기: 법률 6정보 · Paddle 셀러 가입 · 페이월 결정). Cowork용 안내 프롬프트는 07-17 세션 대화에 전달됨
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | Paddle 승인 도착 → secrets 세팅 + 웹훅 replay/tamper 검증 + 활성화 | small | ⭐ 실결제 증빙 크리티컬 패스 |
+| B | 법률 6정보 수신 → docs/legal [기입] 채움 + 스냅샷 재생성 + 초안 배지 제거 | small | ⭐ Simon 회신 즉시 |
+| C | U3 웹 체크아웃(Paddle.js, plans 화면 + customData.user_id) | medium | Paddle 계정 선행 |
+| D | U6 identity linking + 플랜 화면 가격 고지 | medium | |
+| E | flow-map 재동기화 (#1032/#1034/#1035 등 반영) | small | check-stale로 판단 후 rebase |
+
+### 적용 중인 정책 (영구)
+1. PR은 automerge(CI 그린 시) · main 직접 push 금지 · 워크트리는 .worktrees/ + node_modules 정션 (제거 시 **정션 rmdir 먼저**, --force가 정션을 따라가 본체 node_modules를 지운 전례)
+2. supabase config push: 부분 [auth] 선언 금지 · 비TTY 자동승인 주의 (config.toml 경고 주석 참조)
+3. 새 SECURITY DEFINER 함수는 `REVOKE ... FROM anon, authenticated` 명시 (0036/0039/0040 하우스 스타일)
+4. flow-map: FRESH면 재렌더만 · 드리프트는 rebase-anchors · 재스캔은 구조 변화 화면만. 큐레이션 필드(bugAnchor/fixedIn)는 make-handoff carry-forward가 route+raw 키 — 재스캔이 raw를 바꾸면 유실되니 반드시 이월 확인
+
+### 핵심 파일 위치
+```
+supabase/config.toml                              [auth] config-as-code (프로덕션 실값 + 함정 경고)
+supabase/functions/paddle-webhook/index.ts        결제 웹훅 (fail-closed, 활성화 절차 헤더)
+db/migrations/0086~0088                           운영 적용 완료
+src/lib/legal/legal-documents.ts                  약관/환불 스냅샷 ([기입] 유지 → 초안 배지)
+docs/legal/*.md                                   법률 초안 source of truth
+HANDOFF.md (repo 루트)                            Cowork 커머스 인수인계
+docs/FLOW-HANDOFF.md · docs/flow-debugger.html    앱 구조 지도 (#1033 기준 88화면·529동작)
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(Paddle 승인 왔는지 확인)부터 · 아니면 B(법률 6정보) · 둘 다 대기면 E(flow-map)
+```
 
 ---
 
