@@ -841,7 +841,9 @@
       "propose": "Ver outros rascunhos",
       "cancel": "Cancelar",
       "save": "Salvar esta frase",
-      "thinBase": "Sua base de registros ainda é rasa. Salve cerca de {{count}} peças e tirarei rascunhos delas."
+      "thinBase": "Sua base de registros ainda é rasa. Salve cerca de {{count}} peças e tirarei rascunhos delas.",
+      "proposeFailed": "Não consegui buscar rascunhos agora. Verifique sua conexão e tente de novo.",
+      "saveFailed": "Não foi possível salvar. Sua frase continua aqui, tente de novo."
     },
     "reward": {
       "titleA": "Assista 30s e ganhe ",

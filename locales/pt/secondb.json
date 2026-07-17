@@ -164,6 +164,8 @@
   "newPerspectives": "Novas perspectivas e hipóteses",
   "readyToChat": "SecondB pronto para conversar",
   "longPressCopyThis": "Pressione e segure para copiar esta mensagem",
+  "copied": "Copiado",
+  "copyFailed": "Não foi possível copiar. Selecione o texto para copiá-lo.",
   "aboutNode": "Sobre '{{node}}': ",
   "drewOnPieces": "Esta resposta se baseou em {{n}} dos seus fragmentos. Toque para ver o detalhe.",
   "nSources": "{{n}} fontes",

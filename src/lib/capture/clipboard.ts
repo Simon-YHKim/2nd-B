@@ -41,3 +41,30 @@ export async function readClipboardText(): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * Writes text to the clipboard and reports whether it actually worked, so the
+ * caller can SAY so instead of pretending (flow-map /secondb: long-press copy
+ * was navigator.clipboard-only — a silent no-op on native — with an empty
+ * catch on web). Unlike the reads above this also runs on web: writing is
+ * user-initiated and carries none of the read-side privacy prompts.
+ */
+export async function writeClipboardText(text: string): Promise<boolean> {
+  if (isReactNativeRuntime()) {
+    try {
+      await ExpoClipboard.setStringAsync(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  const clipboard = (globalThis.navigator as { clipboard?: { writeText?: (t: string) => Promise<void> } } | undefined)
+    ?.clipboard;
+  if (!clipboard?.writeText) return false;
+  try {
+    await clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}

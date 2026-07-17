@@ -7,10 +7,13 @@
 // The 3 suggested drafts come from the user's own recent records through
 // callGemini — honesty rules: with fewer than MIN_RECORDS_FOR_PROPOSal pieces
 // we return null and the screen says so instead of inventing a persona.
+// null means EXACTLY "record base too thin". A DB failure or an unusable AI
+// reply throws instead — collapsing those into null made the screen tell a
+// user with plenty of records that they had none (flow-map /northstar).
 
 import { getSupabaseClient } from "../supabase/client";
 import { callGemini } from "../llm/gemini";
-import { createRecord } from "../records/create";
+import { createRecord, type CreatedRecord } from "../records/create";
 
 export const NORTHSTAR_TAG = "northstar_sentence";
 export const MIN_RECORDS_FOR_PROPOSAL = 5;
@@ -39,8 +42,11 @@ export async function saveNorthstar(args: {
   locale: "en" | "ko";
   sentence: string;
   minor?: boolean;
-}): Promise<void> {
-  await createRecord({
+}): Promise<CreatedRecord> {
+  // Return the created record: createRecord runs the C9 crisis classifier on
+  // every save and reports a red zone via followup — the screen must surface
+  // the hotline modal instead of navigating away (flow-map /northstar).
+  return createRecord({
     userId: args.userId,
     locale: args.locale,
     kind: "note",
@@ -100,14 +106,19 @@ export async function proposeNorthstarSentences(args: {
   });
 
   const text = typeof reply === "string" ? reply : (reply as { text?: string })?.text ?? "";
+  // An unusable AI reply is a FAILURE, not a thin base. These used to return
+  // null, which rendered the "record base is thin" card over what was really a
+  // network/format problem. Thin base is the ONLY null this function returns.
   const match = text.match(/\[[\s\S]*\]/);
-  if (!match) return null;
+  if (!match) throw new Error("northstar propose: unusable AI reply (no JSON array)");
+  let out: string[];
   try {
     const arr = JSON.parse(match[0]) as unknown;
-    if (!Array.isArray(arr)) return null;
-    const out = arr.filter((s): s is string => typeof s === "string" && s.trim().length > 0).slice(0, 3);
-    return out.length === 3 ? out.map((s) => s.trim()) : null;
+    if (!Array.isArray(arr)) throw new Error("not an array");
+    out = arr.filter((s): s is string => typeof s === "string" && s.trim().length > 0).slice(0, 3);
   } catch {
-    return null;
+    throw new Error("northstar propose: unusable AI reply (bad JSON)");
   }
+  if (out.length !== 3) throw new Error("northstar propose: unusable AI reply (expected 3 sentences)");
+  return out.map((s) => s.trim());
 }

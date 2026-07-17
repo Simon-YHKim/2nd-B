@@ -16,6 +16,8 @@ import Svg, { Defs, RadialGradient, Rect, Stop, SvgXml } from "react-native-svg"
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -56,9 +58,18 @@ export default function NorthstarSentence() {
 
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(false);
   const [suggestions, setSuggestions] = useState<string[] | null>(null);
   const [proposing, setProposing] = useState(false);
   const [thinBase, setThinBase] = useState(false);
+  // thinBase and proposeError are DIFFERENT facts: "your record base is thin"
+  // vs "the proposal call failed". Collapsing them told users with plenty of
+  // records that they had none (flow-map /northstar).
+  const [proposeError, setProposeError] = useState(false);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
 
   // Reasoning-cap (count-only, mirrors the chat gate). Each 세컨비 제안 is one
   // reasoning use; unlimited tiers (북극성/brain) are never gated. getReasoningUsage
@@ -107,6 +118,7 @@ export default function NorthstarSentence() {
     }
     setProposing(true);
     setThinBase(false);
+    setProposeError(false);
     try {
       const out = await proposeNorthstarSentences({ userId, locale, minor: isMinor === true });
       if (out) {
@@ -114,12 +126,15 @@ export default function NorthstarSentence() {
         setReasoningUsed((u) => u + 1);
         void incrementReasoningUsage(userId).catch(() => {});
       } else {
+        // null is the lib's honest "record base too thin" — the only null.
         setSuggestions(null);
         setThinBase(true);
       }
     } catch {
+      // Network/DB/AI failure. NOT the thin-base card: that card blamed the
+      // user's records for what was really a connection problem.
       setSuggestions(null);
-      setThinBase(true);
+      setProposeError(true);
     } finally {
       setProposing(false);
     }
@@ -128,12 +143,25 @@ export default function NorthstarSentence() {
   const save = useCallback(async () => {
     if (!userId || saving || draft.trim().length === 0) return;
     setSaving(true);
+    setSaveErr(false);
     try {
-      await saveNorthstar({ userId, locale, sentence: draft, minor: isMinor === true });
+      const res = await saveNorthstar({ userId, locale, sentence: draft, minor: isMinor === true });
+      if (res.followup?.zone === "red") {
+        // The sentence tripped the C9 red-zone classifier. The record is in the
+        // ledger, but leaving with a cheerful "delight" and no hotline is the
+        // gap the map flagged (call-reflection shows the modal; this screen
+        // did not). router.back() runs when the user closes the modal.
+        setSaving(false);
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        return;
+      }
       // 북극성 문장이 갱신됐다 — the head lights up with it.
       reactExpression("delight");
       router.back();
     } catch {
+      // A failed save must SAY so: the button un-spinning alone reads as
+      // "saved" and the user leaves believing the sentence was kept.
+      setSaveErr(true);
       setSaving(false);
     }
   }, [userId, locale, draft, isMinor, saving]);
@@ -208,6 +236,13 @@ export default function NorthstarSentence() {
             </Text>
           </MdCard>
         ) : null}
+        {proposeError ? (
+          <MdCard variant="outlined" style={styles.suggestCard}>
+            <Text style={styles.emptyText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {t("ds.northstar.proposeFailed")}
+            </Text>
+          </MdCard>
+        ) : null}
         <MdButton
           variant="text"
           label={proposing ? t("ds.northstar.thinking") : t("ds.northstar.propose")}
@@ -218,6 +253,11 @@ export default function NorthstarSentence() {
         />
       </View>
 
+      {saveErr ? (
+        <Text style={styles.saveErr} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {t("ds.northstar.saveFailed")}
+        </Text>
+      ) : null}
       <View style={styles.actions}>
         <MdButton
           variant="outlined"
@@ -236,6 +276,14 @@ export default function NorthstarSentence() {
         />
       </View>
       </ScrollView>
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => {
+          setCrisis((c) => ({ ...c, visible: false }));
+          router.back();
+        }}
+      />
     </DeepSpaceScreen>
   );
 }
@@ -286,6 +334,7 @@ const styles = StyleSheet.create({
   suggestRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   suggestText: { ...m3TextStyle("bodyMedium"), flex: 1, color: m3.color.onSurface },
   emptyText: { ...m3TextStyle("bodyMedium"), color: m3.color.onSurfaceVariant },
+  saveErr: { ...m3TextStyle("bodySmall"), color: m3.color.error, textAlign: "center" },
   replayBtn: { alignSelf: "flex-start" },
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   cancelBtn: { flex: 1 },
