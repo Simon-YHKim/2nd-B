@@ -29,6 +29,8 @@ import {
   sanitizeAnalyticsRoutePath,
   scrubSentryEvent,
   __resetAnalytics,
+  __setNativeAnalyticsApplierForTests,
+  __flushNativeAnalyticsForTests,
 } from "../index";
 
 const ROOT = resolve(__dirname, "../../../..");
@@ -36,6 +38,10 @@ const ROOT = resolve(__dirname, "../../../..");
 describe("analytics — no-op when no keys configured", () => {
   beforeEach(() => {
     __resetAnalytics();
+    // Keep these web-focused tests hermetic: the native sync fires on every
+    // consent call (jest Platform.OS is "ios"), so park it on a no-op applier
+    // instead of letting it attempt the real Firebase dynamic import.
+    __setNativeAnalyticsApplierForTests(async () => {});
   });
 
   test("initAnalytics() resolves without throwing when keys absent", async () => {
@@ -243,6 +249,100 @@ describe("analytics — no-op when no keys configured", () => {
       const t = typeof value;
       expect(t === "string" || t === "number" || t === "boolean").toBe(true);
     }
+  });
+});
+
+// Native Firebase Analytics gate (Android builds; jest's react-native mock
+// reports Platform.OS "ios" = non-web, so the native sync path runs here).
+// Collection may turn ON only for a server-confirmed adult with the
+// external_analytics pref granted; every other state applies OFF.
+describe("native Firebase Analytics collection gate", () => {
+  const applied: boolean[] = [];
+
+  beforeEach(() => {
+    __resetAnalytics();
+    applied.length = 0;
+    __setNativeAnalyticsApplierForTests(async (enabled) => {
+      applied.push(enabled);
+    });
+  });
+
+  afterEach(() => {
+    __setNativeAnalyticsApplierForTests(null);
+  });
+
+  test("boot with no opts asserts OFF (fail-closed default)", async () => {
+    await initAnalytics();
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("server-confirmed adult with granted pref turns collection ON", async () => {
+    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([true]);
+  });
+
+  test("14-17 minor stays OFF even with a granted pref", async () => {
+    setAnalyticsConsent(true, { isMinor: true, confirmedAdult: false });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("unresolved age stays OFF (no confirmedAdult)", async () => {
+    setAnalyticsConsent(true, { isMinor: null });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("under digital-consent age stays OFF even when marked adult", async () => {
+    setAnalyticsConsent(true, {
+      isMinor: false,
+      confirmedAdult: true,
+      underDigitalConsentAge: true,
+    });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("revoke after grant applies OFF immediately (no reload needed)", async () => {
+    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+    setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([true, false]);
+  });
+
+  test("repeated same-state syncs are deduped to one native apply", async () => {
+    await initAnalytics();
+    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    setAnalyticsConsent(true, { isMinor: null });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("a stale server read cannot enable native collection (revision guard)", async () => {
+    await initAnalytics();
+    const staleRevision = getAnalyticsConsentRevision();
+    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    setAnalyticsConsent(
+      true,
+      { isMinor: false, confirmedAdult: true },
+      { expectedRevision: staleRevision },
+    );
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("a rejecting native applier never throws and the queue stays alive", async () => {
+    __setNativeAnalyticsApplierForTests(() => Promise.reject(new Error("native module missing")));
+    expect(() => setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true })).not.toThrow();
+    await __flushNativeAnalyticsForTests();
+    __setNativeAnalyticsApplierForTests(async (enabled) => {
+      applied.push(enabled);
+    });
+    setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
   });
 });
 
