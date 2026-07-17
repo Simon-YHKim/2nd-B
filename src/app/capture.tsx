@@ -104,6 +104,7 @@ import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
+import { enqueueAutoReasoningRecord, enqueueAutoReasoningSource } from "@/app/reasoning";
 
 // Deep-space reads these four explicit pixel-font labels in Pretendard (the
 // same build-constant swap as Text.tsx #667); the legacy track keeps pixelKo.
@@ -960,6 +961,17 @@ export function CaptureLegacy() {
       });
       if (res.followup?.zone === "red") {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      } else {
+        enqueueAutoReasoningRecord({
+          userId,
+          locale,
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: res.id,
+          body: body.trim(),
+          title: topic.trim() || undefined,
+          tags: tagsEditable,
+        });
       }
       const savedTopic = topic.trim();
       reset();
@@ -1042,6 +1054,16 @@ export function CaptureLegacy() {
       // modal, same followup card.
       if (res.followup?.zone === "red") {
         setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+      } else {
+        enqueueAutoReasoningRecord({
+          userId,
+          locale,
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: res.id,
+          body: noteBody,
+          tags,
+        });
       }
       const savedBody = noteBody;
       reset();
@@ -1253,12 +1275,14 @@ export function CaptureLegacy() {
       // routing; the save above already succeeded and stays untouched.
       // linkclip/file stay excluded: clipped web articles about a tragedy are
       // not the user's own words (false-positive surface).
+      let memoCrisisDetected = false;
       if (submittedMode === "memo") {
         try {
           if (!submitIsCurrent(submitController)) return;
           const crisis = await classifyRecordTextForCrisis(finalBody, locale, userId, isMinor === true);
           if (!submitIsCurrent(submitController)) return;
           if (crisis) {
+            memoCrisisDetected = true;
             setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
           }
         } catch (e) {
@@ -1267,6 +1291,17 @@ export function CaptureLegacy() {
         }
       }
       if (!submitIsCurrent(submitController)) return;
+
+      if (!memoCrisisDetected && !result.storagePending) {
+        enqueueAutoReasoningSource({
+          userId,
+          locale,
+          minor: isMinor === true,
+          tier: progression.tier,
+          id: result.source.id,
+          title: result.source.title,
+        });
+      }
 
       reset();
       clearModeDraft(submittedMode);
