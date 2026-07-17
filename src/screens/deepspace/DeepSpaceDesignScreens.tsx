@@ -732,8 +732,9 @@ export function DeepSpacePrivacyDesignScreen() {
         {/* audit med#17: these rows rendered as buttons with no onPress — dead
             taps on a privacy surface. 처리 기록 now opens the real ai_audit_log
             viewer (/audit); 제3자 제공 "없음" is a FACT, so it renders static
-            (no button role); the 처리방침 row is dropped until a policy document
-            actually exists to open (follow-up: author + host one). */}
+            (no button role); the 처리방침 row opens the /privacy-policy
+            document (restored once the policy document existed to open). */}
+        <Action label={t("privacy.policy")} value={t("privacy.view")} onPress={() => router.push("/privacy-policy")} />
         <Action label={t("privacy.processingLog")} value={t("privacy.last7")} onPress={() => router.push("/audit")} />
         <View style={styles.action} accessible accessibilityLabel={`${t("privacy.thirdParty")}, ${t("privacy.none")}`}>
           <Text variant="body" style={styles.actionLabel}>{t("privacy.thirdParty")}</Text>
