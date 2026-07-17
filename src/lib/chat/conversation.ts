@@ -22,7 +22,7 @@ import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
-import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsage } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -167,8 +167,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
-  const usedBefore = await readChatUsage(input.userId, day);
-  const precheck = checkChatLimit(input.tier, usedBefore);
+  // 0090: today's allowance includes any rewarded ad bonus.
+  const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);
+  const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
   if (!precheck.allowed) {
     return {
       status: "blocked",
@@ -224,8 +225,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
   } catch (e) {
     if (e instanceof ChatLimitExceededError) {
-      const used = await readChatUsage(input.userId, day);
-      const check = checkChatLimit(input.tier, used);
+      const detail = await readChatUsageDetail(input.userId, day);
+      const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
       return {
         status: "blocked",
         reason: "limit_reached",

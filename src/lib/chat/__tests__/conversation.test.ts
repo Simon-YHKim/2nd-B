@@ -24,6 +24,11 @@ jest.mock("../usage", () => ({
     captured.push({ fn: "readChatUsage", args: [userId, day], ret: fixtures.used ?? 0 });
     return Promise.resolve(fixtures.used ?? 0);
   }),
+  // 0090: the cap path reads used + today's rewarded ad bonus together.
+  readChatUsageDetail: jest.fn((userId: string, day: string) => {
+    captured.push({ fn: "readChatUsageDetail", args: [userId, day], ret: fixtures.used ?? 0 });
+    return Promise.resolve({ used: fixtures.used ?? 0, adBonus: (fixtures.adBonus as number) ?? 0 });
+  }),
   bumpChatUsage: jest.fn((userId: string, day: string) => {
     captured.push({ fn: "bumpChatUsage", args: [userId, day], ret: (fixtures.used as number ?? 0) + 1 });
     return Promise.resolve((fixtures.used as number ?? 0) + 1);
@@ -102,7 +107,7 @@ describe("sendChatMessage", () => {
     expect(r.hint).toContain("Soma");
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toContain("readChatUsage");
+    expect(callNames).toContain("readChatUsageDetail");
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callGemini");
     expect(callNames).not.toContain("exportUserWiki");
@@ -126,7 +131,7 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3); // 5 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsage", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);
+    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);
 
     // System prompt was assembled from header + exportUserWiki output.
     const geminiCall = captured.find((c) => c.fn === "callGemini");
@@ -163,7 +168,7 @@ describe("sendChatMessage", () => {
     );
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsage", "retrieveChatContext", "exportUserWiki"]);
+    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki"]);
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
     expect(callNames).not.toContain("callGemini");
   });

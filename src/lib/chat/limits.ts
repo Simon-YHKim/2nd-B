@@ -59,10 +59,13 @@ const NEXT_TIER: Record<SubscriptionTier, SubscriptionTier | null> = {
   brain: null,
 };
 
-export function checkChatLimit(tier: SubscriptionTier, used: number): ChatLimitCheck {
+export function checkChatLimit(tier: SubscriptionTier, used: number, adBonus = 0): ChatLimitCheck {
+  // Phase 4 (0090): rewarded ads widen TODAY's allowance by ad_bonus — the
+  // server RPC applies the same `count < cap + ad_bonus` gate.
   const limit = CHAT_DAILY_LIMIT[tier];
-  const remaining = Math.max(0, limit - used);
-  const allowed = used < limit;
+  const allowance = limit + Math.max(0, adBonus);
+  const remaining = Math.max(0, allowance - used);
+  const allowed = used < allowance;
   return {
     allowed,
     limit,

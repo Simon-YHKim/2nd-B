@@ -66,7 +66,7 @@ import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { readChatUsage } from "@/lib/chat/usage";
+import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
@@ -541,6 +541,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [reasoningUsed, setReasoningUsed] = useState(0);
   const [rewardCredits, setRewardCredits] = useState(0);
   const [rewardVisible, setRewardVisible] = useState(false);
+  // Phase 4 (0090): the chat DAILY cap gets its own rewarded top-up (+2 sends
+  // today) beside the reasoning one — same free-adult eligibility.
+  const [chatRewardVisible, setChatRewardVisible] = useState(false);
   const [capNotice, setCapNotice] = useState(false);
   const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
   const reasoningUnlimited = reasoningRemaining === Infinity;
@@ -702,6 +705,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
+            // 0090: free adults can widen TODAY's allowance by +2 via a
+            // rewarded watch (same eligibility as the reasoning sheet).
+            if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
+              setChatRewardVisible(true);
+            }
             captureEvent(
               secondBSession({
                 action: "message_sent",
@@ -1264,6 +1272,30 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           }}
           locale={locale}
         />
+
+        {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
+            grant RPC enforces day/month/ceiling server-side; on success the
+            user just sends again — the next send re-reads the allowance. */}
+        <RewardedSheet
+          kind="chat"
+          visible={chatRewardVisible}
+          onClose={() => setChatRewardVisible(false)}
+          remaining={Math.max(0, limit - (usedToday ?? 0))}
+          onEarned={async () => {
+            if (userId) {
+              try {
+                await grantChatAdBonus(userId);
+              } catch (e) {
+                if (typeof console !== "undefined") {
+                  const capped = e instanceof ChatRewardCapReachedError;
+                  console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
+                }
+              }
+            }
+            setChatRewardVisible(false);
+          }}
+          locale={locale}
+        />
       </DeepSpaceScreen>
     );
   }
@@ -1651,6 +1683,28 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           setRewardCredits((c) => c + credits);
           setCapNotice(false);
           setRewardVisible(false);
+        }}
+        locale={locale}
+      />
+
+      {/* 0090: chat daily-cap top-up — same wiring as deep-space. */}
+      <RewardedSheet
+        kind="chat"
+        visible={chatRewardVisible}
+        onClose={() => setChatRewardVisible(false)}
+        remaining={Math.max(0, limit - (usedToday ?? 0))}
+        onEarned={async () => {
+          if (userId) {
+            try {
+              await grantChatAdBonus(userId);
+            } catch (e) {
+              if (typeof console !== "undefined") {
+                const capped = e instanceof ChatRewardCapReachedError;
+                console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
+              }
+            }
+          }
+          setChatRewardVisible(false);
         }}
         locale={locale}
       />

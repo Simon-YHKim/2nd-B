@@ -854,6 +854,16 @@
       "cta": "Watch and get +{{n}}",
       "later": "Later",
       "privacy": "Adults with consent only · never on sensitive screens"
+    },
+    "rewardChat": {
+      "titleA": "30 seconds for ",
+      "titleCount": "+{{n}} chats today",
+      "sub": "Watch an ad to top up today's chat sends.\nAnswer quality stays the same.",
+      "remaining": "Chats left",
+      "afterLabel": "after +{{n}}",
+      "cta": "Watch to get +{{n}} chats",
+      "later": "Later",
+      "privacy": "Adults with consent only · never on sensitive screens"
     }
   },
   "beyond": {

@@ -854,6 +854,16 @@
       "cta": "Tonton iklan & dapat +{{n}}",
       "later": "Nanti",
       "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
+    },
+    "rewardChat": {
+      "titleA": "30 detik untuk ",
+      "titleCount": "+{{n}} obrolan hari ini",
+      "sub": "Tonton iklan untuk menambah kiriman obrolan hari ini.\nKualitas jawaban tetap sama.",
+      "remaining": "Sisa obrolan",
+      "afterLabel": "setelah +{{n}}",
+      "cta": "Tonton untuk +{{n}} obrolan",
+      "later": "Nanti",
+      "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
     }
   },
   "beyond": {

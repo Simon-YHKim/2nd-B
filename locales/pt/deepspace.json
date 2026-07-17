@@ -854,6 +854,16 @@
       "cta": "Ver anúncio e ganhar +{{n}}",
       "later": "Agora não",
       "privacy": "Somente adultos com consentimento · nunca em telas sensíveis"
+    },
+    "rewardChat": {
+      "titleA": "30 segundos para ",
+      "titleCount": "+{{n}} conversas hoje",
+      "sub": "Assista a um anúncio para somar envios de chat hoje.\nA qualidade das respostas não muda.",
+      "remaining": "Conversas restantes",
+      "afterLabel": "após +{{n}}",
+      "cta": "Assistir e ganhar +{{n}}",
+      "later": "Mais tarde",
+      "privacy": "Somente adultos com consentimento · nunca em telas sensíveis"
     }
   },
   "beyond": {

@@ -39,15 +39,21 @@ const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 export interface RewardedSheetProps {
   visible: boolean;
   onClose: () => void;
-  /** Reasoning runs the user has left this period (before watching). */
+  /** Runs/sends the user has left this period (before watching). */
   remaining: number;
   /** Called with the earned credit count once a rewarded watch completes. */
   onEarned: (credits: number) => void;
   /** Optional locale override; otherwise read from i18n.language. */
   locale?: string;
+  /**
+   * What the watch earns (Phase 4): 'reasoning' (+2 runs, default) or
+   * 'chat' (+2 sends today). Copy switches between ds.reward.* and
+   * ds.rewardChat.*; the earn mechanics stay the caller's onEarned.
+   */
+  kind?: "reasoning" | "chat";
 }
 
-export function RewardedSheet({ visible, onClose, remaining, onEarned, locale }: RewardedSheetProps) {
+export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, kind = "reasoning" }: RewardedSheetProps) {
   const { t, i18n } = useTranslation("deepspace");
   const lang = locale ?? i18n.language ?? "ko";
   const { height } = useWindowDimensions();
@@ -107,15 +113,16 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale }:
   // { lng: lang } preserves the optional locale-override prop; {{n}} interpolates
   // the real reward count so it can never drift from REWARD_PER_WATCH.
   const n = REWARD_PER_WATCH;
+  const ns = kind === "chat" ? "ds.rewardChat" : "ds.reward";
   const C = {
-    titleA: t("ds.reward.titleA", { lng: lang }),
-    titleB: t("ds.reward.titleCount", { lng: lang, n }),
-    sub: t("ds.reward.sub", { lng: lang }),
-    remaining: t("ds.reward.remaining", { lng: lang }),
-    afterLabel: t("ds.reward.afterLabel", { lng: lang, n }),
-    cta: t("ds.reward.cta", { lng: lang, n }),
-    later: t("ds.reward.later", { lng: lang }),
-    privacy: t("ds.reward.privacy", { lng: lang }),
+    titleA: t(`${ns}.titleA`, { lng: lang }),
+    titleB: t(`${ns}.titleCount`, { lng: lang, n }),
+    sub: t(`${ns}.sub`, { lng: lang }),
+    remaining: t(`${ns}.remaining`, { lng: lang }),
+    afterLabel: t(`${ns}.afterLabel`, { lng: lang, n }),
+    cta: t(`${ns}.cta`, { lng: lang, n }),
+    later: t(`${ns}.later`, { lng: lang }),
+    privacy: t(`${ns}.privacy`, { lng: lang }),
   };
 
   return (
