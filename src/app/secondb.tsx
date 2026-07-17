@@ -17,6 +17,12 @@ import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo,
 import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from "expo-audio";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -31,6 +37,10 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { getWikiPage } from "@/lib/wiki/queries";
+import { transcribeAudio } from "@/lib/llm/gemini";
+import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
 import {
@@ -204,7 +214,7 @@ const ChatComposer = memo(
     },
     ref,
   ) {
-    const { t } = useTranslation("secondb");
+    const { t, i18n } = useTranslation("secondb");
     // Node entry seeds the composer once (mirrors the old seeding effect); the
     // initializer runs only on mount, so a later param change never re-seeds.
     const [draft, setDraft] = useState(() => (fromNode ? t("aboutNode", { node: fromNode }) : ""));
@@ -217,9 +227,100 @@ const ChatComposer = memo(
       if (onSend(draft.trim())) setDraft("");
     };
 
+    // Voice input (queue E) — the /capture-full dictation chain, retargeted at
+    // the DRAFT. Recorder created unconditionally (rules of hooks); the
+    // transcript is proposed into the draft for review, never auto-sent
+    // (propose -> ratify). transcribeAudio holds C1/C3/C9: a red-zone
+    // transcript never reaches the draft — it routes to the crisis surface.
+    const { userId, isMinor } = useAuth();
+    const voiceLocale = i18n.language === "ko" ? ("ko" as const) : ("en" as const);
+    const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+    const [voicePhase, setVoicePhase] = useState<"idle" | "recording" | "transcribing">("idle");
+    const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
+    const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+      visible: false,
+      hotline: "GLOBAL_988",
+    });
+    useEffect(() => {
+      if (!voiceNotice) return;
+      const timeout = setTimeout(() => setVoiceNotice(null), 3200);
+      return () => clearTimeout(timeout);
+    }, [voiceNotice]);
+
+    async function handleMicPress(): Promise<void> {
+      if (voicePhase === "transcribing") return;
+      if (voicePhase === "recording") {
+        await stopAndTranscribe();
+        return;
+      }
+      if (!userId) return;
+      if (Platform.OS === "web") {
+        setVoiceNotice(t("voice.webFallback"));
+        return;
+      }
+      try {
+        const perm = await requestRecordingPermissionsAsync();
+        if (!perm.granted) {
+          setVoiceNotice(t("voice.permissionDenied"));
+          return;
+        }
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await audioRecorder.prepareToRecordAsync();
+        audioRecorder.record();
+        setVoicePhase("recording");
+      } catch {
+        setVoiceNotice(t("voice.recordFailed"));
+      }
+    }
+
+    async function stopAndTranscribe(): Promise<void> {
+      if (!userId || voicePhase !== "recording") return;
+      setVoicePhase("transcribing");
+      let recordingUri: string | null = null;
+      try {
+        await audioRecorder.stop();
+        recordingUri = audioRecorder.uri;
+        if (!recordingUri) {
+          setVoicePhase("idle");
+          setVoiceNotice(t("voice.recordFailed"));
+          return;
+        }
+        const { base64, mimeType } = await recordingUriToBase64(recordingUri);
+        const reply = await transcribeAudio({ userId, locale: voiceLocale, base64, mimeType, minor: isMinor === true });
+        if (reply.safety?.zone === "red") {
+          // C9: the transcript was crisis-swapped server-side; surface the
+          // hotline, never the text.
+          setVoicePhase("idle");
+          setCrisis({ visible: true, hotline: voiceLocale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+          return;
+        }
+        const transcript = reply.text.trim();
+        if (transcript.length === 0) {
+          setVoicePhase("idle");
+          setVoiceNotice(t("voice.transcriptEmpty"));
+          return;
+        }
+        reactExpression("happy");
+        setDraft((prev) => (prev.trim().length === 0 ? transcript : `${prev.trimEnd()} ${transcript}`));
+        setVoicePhase("idle");
+      } catch {
+        setVoicePhase("idle");
+        setVoiceNotice(t("voice.transcribeFailed"));
+      } finally {
+        // Privacy: the temp audio file never outlives its transcription.
+        await discardRecording(recordingUri);
+      }
+    }
+
     if (variant === "deep-space") {
       return (
-        <View style={ds.composer}>
+        <View>
+          {voiceNotice ? (
+            <Text variant="caption" style={ds.voiceNotice} accessibilityLiveRegion="polite">
+              {voiceNotice}
+            </Text>
+          ) : null}
+          <View style={ds.composer}>
           <View style={ds.inputPill}>
             <TextInput
               value={draft}
@@ -247,10 +348,24 @@ const ChatComposer = memo(
                 }
               }}
             />
-            {/* med#22: the mic Pressable had NO onPress — a button-role control
-                that did nothing. Removed until chat voice input is actually
-                built (transcription itself is live now via the proxy, so this
-                is a wiring task, not a platform gap). */}
+            {/* med#22 follow-through: the mic is BACK, and this time it does
+                something — the live /capture-full dictation chain, proposing
+                the transcript into the draft. */}
+            <Pressable
+              onPress={() => void handleMicPress()}
+              disabled={voicePhase === "transcribing"}
+              style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: withAlpha(lensAccent, 0.18) }]}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={voicePhase === "recording" ? t("voice.stop") : t("voiceInput")}
+              accessibilityState={{ disabled: voicePhase === "transcribing", busy: voicePhase === "transcribing" }}
+            >
+              {voicePhase === "transcribing" ? (
+                <ActivityIndicator size="small" color={lensAccent} />
+              ) : (
+                <IconMic color={voicePhase === "recording" ? lensAccent : withAlpha(deepSpace.text, 0.6)} size={22} />
+              )}
+            </Pressable>
           </View>
           <Pressable
             onPress={submit}
@@ -269,6 +384,12 @@ const ChatComposer = memo(
               <IconSend color={canSend ? inkOnAccent : lensAccent} size={22} />
             )}
           </Pressable>
+          </View>
+          <CrisisRouter
+            visible={crisis.visible}
+            hotline={crisis.hotline}
+            onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+          />
         </View>
       );
     }
@@ -1924,6 +2045,12 @@ const ds = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+  },
+  // one-line voice status above the composer (permission / fallback / failure)
+  voiceNotice: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    color: withAlpha(deepSpace.text, 0.75),
   },
   // separate 48px round send button (reference): accent fill when canSend.
   sendBtn: {

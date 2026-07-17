@@ -145,6 +145,14 @@
   "newAngleMode": "New angle mode",
   "newAngleChip": "New angle",
   "voiceInput": "Voice input",
+  "voice": {
+    "stop": "Stop and transcribe",
+    "webFallback": "Recording is not available here. Type your message instead.",
+    "permissionDenied": "Microphone access is off. Type your message, or allow the microphone in settings.",
+    "recordFailed": "Couldn't start recording. Type your message instead.",
+    "transcribeFailed": "Couldn't turn that recording into text. Try again, or type your message.",
+    "transcriptEmpty": "We couldn't make out any words. Try again closer to the microphone, or type it."
+  },
   "closeIntro": "Close intro",
   "closeIntroHint": "Dismisses the intro modal",
   "closeReferenced": "Close referenced pieces",
