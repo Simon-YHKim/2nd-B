@@ -841,7 +841,9 @@
       "propose": "Ver otros borradores",
       "cancel": "Cancelar",
       "save": "Guardar esta frase",
-      "thinBase": "Tu base de registros aún es escasa. Guarda unas {{count}} piezas y sacaré borradores de ellas."
+      "thinBase": "Tu base de registros aún es escasa. Guarda unas {{count}} piezas y sacaré borradores de ellas.",
+      "proposeFailed": "No pude traer borradores ahora. Revisa tu conexión e inténtalo de nuevo.",
+      "saveFailed": "No se pudo guardar. Tu frase sigue aquí, inténtalo de nuevo."
     },
     "reward": {
       "titleA": "Mira 30s y gana ",
