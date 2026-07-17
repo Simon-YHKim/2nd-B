@@ -31,7 +31,7 @@ describe("signature motion specs", () => {
   test("each moment is anchored to its character accent", () => {
     expect(SAVE_MOTION.accent).toBe("lulu");
     expect(CONNECTION_MOTION.accent).toBe("archi");
-    expect(IMAGINE_MOTION.accent).toBe("secondb"); // Vela retired (공상 → Divergent); legacy imagine motion dormant
+    expect(IMAGINE_MOTION.accent).toBe("secondb"); // Vela retired (imagine folded into Divergent); legacy motion dormant
   });
 
   test("prefersReducedMotion is false when matchMedia is unavailable (native)", () => {

@@ -1393,7 +1393,7 @@ export function PossibleLensView({
           <Text style={styles.ghostLabel}>{t("ds.possible.rewrite")}</Text>
         </Pressable>
         <View style={styles.btnFlex}>
-          {/* SCREEN_TREE_SPEC §7 /imagine: "이 공상을 첫 걸음으로 → /ops" (the routine is
+          {/* SCREEN_TREE_SPEC §7 /imagine: "이 상상을 첫 걸음으로 → /ops" (the routine is
               proposed/created on the ops side, never auto-applied from here). The
               selected draft rides along as a param so /ops proposes from it. */}
           <GradientButton
@@ -1411,7 +1411,7 @@ export function PossibleLensView({
   );
 }
 
-// ── 공상하기 / Imagine — divergent seeds (sb-more ImagineScreen 1:1) ─────────
+// ── 상상하기 / Imagine — divergent seeds (sb-more ImagineScreen 1:1) ─────────
 // Seed content lives in ./imagine-seeds (canon-testable .ts module).
 
 // Inline Material-glyph approximations (the app has no icon font — TabIcon /

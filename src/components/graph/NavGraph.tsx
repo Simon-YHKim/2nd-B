@@ -190,7 +190,7 @@ export interface DataNode {
 // unchanged so every existing screen stays reachable.
 export const MENU_NODES: readonly NavNode[] = [
   // Tier 2 — five Pattern Cores around the Soul Core (worldview v-final). The
-  // former "imagine" core was removed: 공상 is now SecondB's Divergent mode.
+  // former "imagine" core was removed: the old imagine surface is now SecondB's Divergent mode (트위비).
   { id: "work", tier: 2, parentId: "core", href: { pathname: "/records", params: { domain: "work" } },
     label: { en: "Growth Core", ko: "그로스 코어" },
     description: { en: "Where the pieces that move today's you gather: work and growth.", ko: "오늘의 나를 움직이는 일과 성장의 별가루들이 모이는 곳이에요." } },

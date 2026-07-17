@@ -6,49 +6,66 @@ import {
   REWARD_MONTHLY_CAP,
   remainingReasoning,
   canUseReasoning,
-  lensAllowed,
-  historyHorizonDays,
-  canExport,
-  canUseIntegrations,
+  personaAllowed,
   earnRewardCredits,
 } from '../tiers';
+import { DB_TIER_BY_PUBLIC, PUBLIC_TIER_BY_DB, REASONING_PER_WEEK } from '../tier-map';
 
-describe('TIERS table', () => {
-  it('encodes the launch strategy for free', () => {
+describe('TIERS table (Phase 4 boundary, Simon 확정 2026-07-17)', () => {
+  it('encodes the free tier: 주 2회 reasoning, no paid personas', () => {
     expect(TIERS.free).toEqual({
-      reasoningPerMonth: 30,
-      lenses: 3,
-      historyDays: 30,
-      exportEnabled: false,
-      integrations: false,
-      imagineProjects: 1,
+      reasoningPerWeek: 2,
+      metabPersona: false,
+      twibPersona: false,
     });
   });
 
-  it('encodes the launch strategy for plus and pro', () => {
+  it('encodes plus (메타비, 주 7회) and pro (메타비+트위비, unlimited)', () => {
     expect(TIERS.plus).toEqual({
-      reasoningPerMonth: 60,
-      lenses: 'all',
-      historyDays: null,
-      exportEnabled: true,
-      integrations: true,
-      imagineProjects: null,
+      reasoningPerWeek: 7,
+      metabPersona: true,
+      twibPersona: false,
     });
     expect(TIERS.pro).toEqual({
-      reasoningPerMonth: null,
-      lenses: 'all',
-      historyDays: null,
-      exportEnabled: true,
-      integrations: true,
-      imagineProjects: null,
+      reasoningPerWeek: null,
+      metabPersona: true,
+      twibPersona: true,
     });
+  });
+
+  it('carries NO lens/history/export/integration gates — those are free for everyone', () => {
+    // Phase 4 removed the gates outright; a resurfaced field here means a
+    // paywall crept back onto a surface Simon declared free-open.
+    for (const limits of Object.values(TIERS)) {
+      const keys = Object.keys(limits);
+      expect(keys).not.toContain('lenses');
+      expect(keys).not.toContain('historyDays');
+      expect(keys).not.toContain('exportEnabled');
+      expect(keys).not.toContain('integrations');
+      expect(keys).not.toContain('imagineProjects');
+    }
+  });
+});
+
+describe('tier-map (등급명 단일화)', () => {
+  it('maps public tiers to DB tiers and back', () => {
+    expect(DB_TIER_BY_PUBLIC).toEqual({ free: 'free', plus: 'cortex', pro: 'brain' });
+    expect(PUBLIC_TIER_BY_DB).toEqual({ free: 'free', soma: 'plus', cortex: 'plus', brain: 'pro' });
+  });
+
+  it('holds the single weekly reasoning cap table', () => {
+    expect(REASONING_PER_WEEK).toEqual({ free: 2, soma: 7, cortex: 7, brain: null });
+  });
+
+  it('TIERS reasoning values derive from the single table', () => {
+    expect(TIERS.free.reasoningPerWeek).toBe(REASONING_PER_WEEK.free);
+    expect(TIERS.plus.reasoningPerWeek).toBe(REASONING_PER_WEEK.cortex);
+    expect(TIERS.pro.reasoningPerWeek).toBe(REASONING_PER_WEEK.brain);
   });
 });
 
 describe('TIER_PRICE_KRW', () => {
-  it('derives monthly KRW from the pricing SoT via the fixed label mapping', () => {
-    // plus = 항해자 = Voyager = cortex; pro = 북극성 = North Star = brain.
-    // Guards the mapping so a wrong price can only originate in pricing.ts.
+  it('derives monthly KRW from the pricing SoT via tier-map (plus=cortex, pro=brain)', () => {
     expect(TIER_PRICE_KRW).toEqual({
       free: 0,
       plus: TIER_PRICING.cortex.krwMonthly,
@@ -56,82 +73,48 @@ describe('TIER_PRICE_KRW', () => {
     });
   });
 
-  it('keeps free at zero', () => {
+  it('matches the launch sticker prices', () => {
     expect(TIER_PRICE_KRW.free).toBe(0);
+    expect(TIER_PRICE_KRW.plus).toBe(9_900);
+    expect(TIER_PRICE_KRW.pro).toBe(19_900);
   });
 });
 
-describe('remainingReasoning', () => {
-  it('free: cap 30 plus 2x2=4 earned, 0 used -> 34', () => {
-    const earned = earnRewardCredits(0, 2); // 4
-    expect(remainingReasoning('free', 0, earned)).toBe(34);
-  });
-
-  it('free: subtracts usage and never goes negative', () => {
-    expect(remainingReasoning('free', 3)).toBe(27);
-    expect(remainingReasoning('free', 99)).toBe(0);
-  });
-
-  it('plus: limit 60', () => {
-    expect(remainingReasoning('plus', 0)).toBe(60);
-    expect(remainingReasoning('plus', 10)).toBe(50);
-  });
-
-  it('pro: unlimited -> Infinity regardless of usage', () => {
+describe('remainingReasoning / canUseReasoning (weekly)', () => {
+  it('unlimited pro is never gated', () => {
     expect(remainingReasoning('pro', 0)).toBe(Infinity);
     expect(remainingReasoning('pro', 100000)).toBe(Infinity);
-  });
-});
-
-describe('canUseReasoning', () => {
-  it('free: true while remaining, false when exhausted', () => {
-    expect(canUseReasoning('free', 29)).toBe(true);
-    expect(canUseReasoning('free', 30)).toBe(false);
-  });
-
-  it('free: earned credits extend availability', () => {
-    expect(canUseReasoning('free', 8, 4)).toBe(true);
-  });
-
-  it('pro: always true', () => {
     expect(canUseReasoning('pro', 999999)).toBe(true);
   });
-});
 
-describe('lensAllowed', () => {
-  it('free: index 2 allowed, index 3 blocked (3 lenses)', () => {
-    expect(lensAllowed('free', 2)).toBe(true);
-    expect(lensAllowed('free', 3)).toBe(false);
+  it('free: base 2/week, then credits stretch the allowance', () => {
+    expect(remainingReasoning('free', 0)).toBe(2);
+    expect(remainingReasoning('free', 1)).toBe(1);
+    expect(remainingReasoning('free', 2)).toBe(0);
+    expect(remainingReasoning('free', 2, 3)).toBe(3); // base spent, credits remain
+    expect(canUseReasoning('free', 2)).toBe(false);
+    expect(canUseReasoning('free', 2, 1)).toBe(true);
   });
 
-  it('plus/pro: all lenses allowed', () => {
-    expect(lensAllowed('plus', 99)).toBe(true);
-    expect(lensAllowed('pro', 99)).toBe(true);
-  });
-});
-
-describe('historyHorizonDays', () => {
-  it('free: 30 days', () => {
-    expect(historyHorizonDays('free')).toBe(30);
+  it('plus: base 7/week', () => {
+    expect(remainingReasoning('plus', 0)).toBe(7);
+    expect(remainingReasoning('plus', 5)).toBe(2);
   });
 
-  it('plus/pro: unlimited (null)', () => {
-    expect(historyHorizonDays('plus')).toBeNull();
-    expect(historyHorizonDays('pro')).toBeNull();
+  it('never goes negative', () => {
+    expect(remainingReasoning('free', 99)).toBe(0);
+    expect(remainingReasoning('plus', 99)).toBe(0);
   });
 });
 
-describe('canExport / canUseIntegrations', () => {
-  it('free: both disabled', () => {
-    expect(canExport('free')).toBe(false);
-    expect(canUseIntegrations('free')).toBe(false);
-  });
-
-  it('plus and pro: both enabled', () => {
-    expect(canExport('plus')).toBe(true);
-    expect(canUseIntegrations('plus')).toBe(true);
-    expect(canExport('pro')).toBe(true);
-    expect(canUseIntegrations('pro')).toBe(true);
+describe('personaAllowed', () => {
+  it('메타비 unlocks at plus, 트위비 at pro (2nd-B is free for everyone)', () => {
+    expect(personaAllowed('free', 'meta')).toBe(false);
+    expect(personaAllowed('free', 'twi')).toBe(false);
+    expect(personaAllowed('plus', 'meta')).toBe(true);
+    expect(personaAllowed('plus', 'twi')).toBe(false);
+    expect(personaAllowed('pro', 'meta')).toBe(true);
+    expect(personaAllowed('pro', 'twi')).toBe(true);
   });
 });
 

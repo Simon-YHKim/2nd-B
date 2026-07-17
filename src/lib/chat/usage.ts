@@ -15,6 +15,61 @@ export async function readChatUsage(userId: string, day: string = kstDateToday()
   return data?.count ?? 0;
 }
 
+export interface ChatUsageDetail {
+  used: number;
+  /** Today's rewarded-ad allowance widening (+2 per watch, 0090). */
+  adBonus: number;
+}
+
+/**
+ * Today's usage INCLUDING the rewarded ad bonus (0090). Prefer this over
+ * readChatUsage wherever the cap is being checked, so a watched ad is
+ * reflected in the allowance the user sees.
+ */
+export async function readChatUsageDetail(
+  userId: string,
+  day: string = kstDateToday(),
+): Promise<ChatUsageDetail> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from("chat_usage")
+    .select("count, ad_bonus")
+    .eq("user_id", userId)
+    .eq("day", day)
+    .maybeSingle();
+  if (error) throw error;
+  return { used: data?.count ?? 0, adBonus: Number(data?.ad_bonus) || 0 };
+}
+
+export class ChatRewardCapReachedError extends Error {
+  readonly code = "chat_reward_cap_reached";
+  constructor() {
+    super("chat_reward_cap_reached");
+    this.name = "ChatRewardCapReachedError";
+  }
+}
+
+/**
+ * Rewarded watch completed -> +2 chat sends for TODAY (KST), at most 20
+ * credits per KST month. Both bucket and ceiling are enforced inside the
+ * SECURITY DEFINER RPC (0090); a monthly-cap rejection surfaces as a typed
+ * ChatRewardCapReachedError. Returns today's total ad bonus.
+ */
+export async function grantChatAdBonus(userId: string): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc("grant_chat_ad_bonus", {
+    p_user_id: userId,
+  });
+  if (error) {
+    if (typeof error.message === "string" && error.message.includes("chat_reward_cap_reached")) {
+      throw new ChatRewardCapReachedError();
+    }
+    throw error;
+  }
+  if (typeof data !== "number") throw new Error("invalid_chat_ad_bonus_response");
+  return data;
+}
+
 /**
  * DEPRECATED — use bumpChatUsageIfUnderCap. Kept for backward compat with
  * tests that exercise the old path; new code paths must go through the

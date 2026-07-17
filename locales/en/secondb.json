@@ -109,6 +109,9 @@
   },
   "rev2": {
     "selectorA11y": "Choose a persona",
+    "lockVoyager": "Voyager",
+    "lockNorthstar": "North Star",
+    "lockedA11y": "Locked · unlocks with the {{plan}} plan",
     "secondb": {
       "name": "2nd-B",
       "role": "Empathy",
@@ -139,7 +142,7 @@
   "longPressCopy": "Long press to copy",
   "fillsComposer": "Fills the composer",
   "keep": "Keep",
-  "usedDeepQuestions": "You've used this month's deep questions",
+  "usedDeepQuestions": "You've used this week's deep questions",
   "analysisMode": "Analysis mode",
   "analysisChip": "Analysis",
   "newAngleMode": "New angle mode",

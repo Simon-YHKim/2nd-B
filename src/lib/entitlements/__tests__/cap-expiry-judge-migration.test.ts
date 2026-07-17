@@ -6,7 +6,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHAT_DAILY_LIMIT } from "../../chat/limits";
-import { reasoningCapForTier } from "../reasoning-cap";
 
 const sql = readFileSync(
   join(__dirname, "..", "..", "..", "..", "db", "migrations", "0088_cap_tier_expiry_and_judge.sql"),
@@ -45,12 +44,13 @@ describe("0088_cap_tier_expiry_and_judge.sql - structure", () => {
     expect(sql).toMatch(new RegExp(`ELSE ${CHAT_DAILY_LIMIT.free}\\b`));
   });
 
-  test("reasoning caps stay in sync with reasoningCapForTier", () => {
-    expect(reasoningCapForTier("brain")).toBeNull();
+  test("reasoning caps carry the 0088-era monthly literals (historical; superseded by 0089 weekly)", () => {
     expect(sql).toMatch(/WHEN 'brain'\s+THEN NULL/);
-    expect(sql).toMatch(new RegExp(`WHEN 'cortex' THEN ${reasoningCapForTier("cortex")}\\b`));
-    expect(sql).toMatch(new RegExp(`WHEN 'soma'\\s+THEN ${reasoningCapForTier("soma")}\\b`));
-    expect(sql).toMatch(new RegExp(`ELSE ${reasoningCapForTier("free")}\\b`));
+    // Frozen literals: migration text never changes. The LIVE caps moved to
+    // weekly in 0089 (reasoning-weekly-cap-migration.test.ts pins them).
+    expect(sql).toMatch(/WHEN 'cortex' THEN 60\b/);
+    expect(sql).toMatch(/WHEN 'soma'\s+THEN 60\b/);
+    expect(sql).toMatch(/ELSE 30\b/);
   });
 
   test("cap RPC signatures, owner guard, and grants are unchanged from 0076/0077", () => {

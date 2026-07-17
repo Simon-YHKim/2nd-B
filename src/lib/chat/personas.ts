@@ -7,7 +7,7 @@
 // chat system prompt so replies stay in character while grounding on the user's
 // wiki. Internal ids (archi/gadi/lulu/momo/lumi) are unchanged — only the
 // display names + concepts move (Archon/Relia/Lumen/Foreman Momo/Lumina). The
-// `vela` entry is dormant (공상 → SecondB Divergent mode); it is not surfaced.
+// `vela` entry is dormant (imagine → SecondB Divergent mode); it is not surfaced.
 //
 // Pure data + tested. Vocabulary stays within the project's self-understanding
 // /growth/reflection register (see src/lib/safety/lexicon.ts) and exposes no

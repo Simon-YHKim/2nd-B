@@ -109,6 +109,9 @@
   },
   "rev2": {
     "selectorA11y": "페르소나 선택",
+    "lockVoyager": "항해자",
+    "lockNorthstar": "북극성",
+    "lockedA11y": "잠김 · {{plan}} 플랜에서 열려요",
     "secondb": {
       "name": "2nd-B",
       "role": "공감",
@@ -126,8 +129,8 @@
     },
     "twi": {
       "name": "트위비",
-      "role": "공상",
-      "systemHint": "페르소나: 트위비. 2nd-B의 공상 담당이에요. 근거 인용과 안전 규칙은 그대로 지키되, 장난기 있게 뜻밖의 각도를 펼쳐요. 사용자의 기록에서 출발한 '만약에' 가지 몇 개를 그려 보고, 담아둘 수 있는 작은 다음 걸음 하나로 마무리해요.",
+      "role": "상상",
+      "systemHint": "페르소나: 트위비. 2nd-B의 상상 담당이에요. 근거 인용과 안전 규칙은 그대로 지키되, 장난기 있게 뜻밖의 각도를 펼쳐요. 사용자의 기록에서 출발한 '만약에' 가지 몇 개를 그려 보고, 담아둘 수 있는 작은 다음 걸음 하나로 마무리해요.",
       "lensName": "트위비",
       "tag": "Twi-B",
       "desc": "내 데이터로 엉뚱한 가능성을 여는 뇌"
@@ -139,7 +142,7 @@
   "longPressCopy": "길게 눌러 복사",
   "fillsComposer": "입력창에 채워요",
   "keep": "담기",
-  "usedDeepQuestions": "이번 달 깊이 묻기 횟수를 다 썼어요",
+  "usedDeepQuestions": "이번 주 깊이 묻기 횟수를 다 썼어요",
   "analysisMode": "분석 모드",
   "analysisChip": "분석",
   "newAngleMode": "새 관점 모드",

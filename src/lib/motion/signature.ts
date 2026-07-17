@@ -3,7 +3,7 @@
 //
 //   1) 저장 / Save        "루루 뽁"        — one pop overshoot (+ playPop on web)
 //   2) 연결 발견 / Connect "아치 라인 켜짐"  — a line illuminates dim → bright
-//   3) 공상 / Imagine     "세컨비 신호"     — soft presence pulse (legacy/dormant; Vela retired, Imagine folded into Divergent mode)
+//   3) 상상 / Imagine     "세컨비 신호"     — soft presence pulse (legacy/dormant; Vela retired, Imagine folded into Divergent mode)
 //
 // This module holds the PURE specs (timings, magnitudes, accents) so they
 // are a single source of truth, testable without a renderer, and exactly
@@ -71,7 +71,7 @@ export const IMAGINE_MOTION: ImagineMotionSpec = {
   restOpacity: 0.6,
   maxScale: 1.05,
   durationMs: 600,
-  accent: "secondb", // Vela retired; legacy imagine motion is dormant (공상 → Divergent)
+  accent: "secondb", // Vela retired; legacy imagine motion is dormant (folded into Divergent)
 };
 
 /** Total wall-clock of the save pop, ms. Documented as ~400ms. */

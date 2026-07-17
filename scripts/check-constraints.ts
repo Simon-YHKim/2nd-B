@@ -2457,6 +2457,34 @@ results.push(
 );
 
 results.push(
+  check("GongsangRetiredFromCopy", () => {
+    // Phase 4 (Simon 2026-07-17): the '공상' feature name is retired from every
+    // user-visible surface — 트위비 owns the Divergent mode; KO copy says
+    // 상상/트위비. Locale bundles ONLY: validated survey items (ipip-neo), the
+    // user-tag keyword matcher (relatedness), and retirement-pinning tests may
+    // legitimately contain the word as data/history.
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const offenders: string[] = [];
+    for (const locale of ["en", "ko", "es", "pt", "id"]) {
+      const dir = path.join("locales", locale);
+      for (const file of fs.readdirSync(dir)) {
+        if (!file.endsWith(".json")) continue;
+        if (read(path.join(dir, file)).includes("공상")) offenders.push(`${locale}/${file}`);
+      }
+    }
+    const ok = offenders.length === 0;
+    return {
+      id: "GongsangRetiredFromCopy",
+      status: ok ? "PASS" : "FAIL",
+      note: ok
+        ? "locale bundles carry no retired 공상 feature naming (트위비/상상 vocabulary)"
+        : `retired 공상 naming found in locale copy: ${offenders.join(", ")}`,
+    };
+  }),
+);
+
+results.push(
   check("SignInHeroI18nCopy", () => {
     const screen = read("src/app/(auth)/sign-in.tsx");
     const en = read("locales/en/auth.json");

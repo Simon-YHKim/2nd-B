@@ -202,7 +202,7 @@
       "evidence": "근거 · 기록 8건",
       "rhythm": "리듬 ↓",
       "suggestRest": "쉼을 기록할까?",
-      "suggestImagine": "공상 모드"
+      "suggestImagine": "트위비 모드"
     },
     "lens": {
       "toggleFilled": "채움",
@@ -342,7 +342,7 @@
       "rewrite": "다시 쓰기",
       "add": "+ 추가",
       "emptyTitle": "아직 그려둔 미래의 나가 없어요",
-      "emptyBody": "세컨비와 공상 모드로 이야기하면, 데이터가 되기 전의 내 모습을 여기 담을 수 있어요."
+      "emptyBody": "트위비와 이야기하면, 데이터가 되기 전의 내 모습을 여기 담을 수 있어요."
     },
     "relational": {
       "title": "관계·지식",
@@ -380,7 +380,7 @@
       "pieceCount": "{{count}}개"
     },
     "imagine": {
-      "title": "공상하기",
+      "title": "상상하기",
       "introBody": "정답 없이 멀리 던져봐요. 마음에 드는 갈래를 고르면 다음 한 걸음으로 좁혀줄게요.",
       "sectionAngles": "세컨비가 던진 갈래",
       "sectionSteps": "다음 한 걸음 후보",

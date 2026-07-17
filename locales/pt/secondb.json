@@ -109,6 +109,9 @@
   },
   "rev2": {
     "selectorA11y": "Escolha uma persona",
+    "lockVoyager": "Viajante",
+    "lockNorthstar": "Estrela Polar",
+    "lockedA11y": "Bloqueado · abre com o plano {{plan}}",
     "secondb": {
       "name": "2nd-B",
       "role": "Empatia",

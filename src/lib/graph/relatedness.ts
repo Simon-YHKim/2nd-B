@@ -12,7 +12,7 @@
 import { stripDomainTags } from "../persona/domain-stars";
 
 // The tier-2 Pattern Cores (NavGraph MENU_NODES tier-2 ids). The former
-// "imagine" district was removed in worldview v-final (공상 → SecondB Divergent
+// "imagine" district was removed in worldview v-final (imagine → SecondB Divergent
 // mode); its keywords fold into `taste` (Muse Core). Internal ids unchanged.
 // `rhythm` (O-R3 assistant ops axis) is appended LAST on purpose: VILLAGE_IDS
 // order breaks classification ties, so existing pieces keep their villages.
@@ -66,7 +66,7 @@ const DOMAIN_KEYWORDS: Record<VillageId, readonly string[]> = {
     "taste", "inspiration", "spark", "music", "film", "movie", "art",
     "design", "aesthetic", "style", "favorite", "like",
     "취향", "영감", "음악", "영화", "예술", "디자인", "미감", "스타일", "좋아하는",
-    // Muse Core also absorbs the former imagine domain (공상 → Divergent mode).
+    // Muse Core also absorbs the former imagine domain (→ Divergent mode).
     "imagine", "idea-spark", "dream", "fiction", "story", "creative",
     "imagination", "what-if", "scene",
     "공상", "상상", "꿈", "이야기", "창작", "장면", "아이디어",

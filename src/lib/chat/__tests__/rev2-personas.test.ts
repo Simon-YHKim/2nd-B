@@ -42,7 +42,7 @@ describe("rev2 세컨비 personas (PRD v2.0)", () => {
     expect(rev2PersonaName("twi", "ko")).toBe("트위비");
   });
 
-  test("트위비 owns 공상 (divergent engine mode); the others stay analytic", () => {
+  test("트위비 owns the divergent engine mode; the others stay analytic", () => {
     expect(rev2PersonaMode("twi")).toBe("divergent");
     expect(rev2PersonaMode("secondb")).toBe("analytic");
     expect(rev2PersonaMode("meta")).toBe("analytic");

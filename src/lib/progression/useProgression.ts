@@ -17,6 +17,12 @@ export interface Progression {
   level: number;
   progress: LevelProgress;
   tier: SubscriptionTier;
+  /**
+   * C6 judge comp (Phase 4): server-side the cap RPCs already treat judges as
+   * 'brain' (0088); this mirrors the flag so client-side gates (personas) comp
+   * too. False while loading or on read failure — the server stays authoritative.
+   */
+  judge: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 }
@@ -25,6 +31,7 @@ export function useProgression(): Progression {
   const { userId } = useAuth();
   const [totalXp, setTotalXp] = useState(0);
   const [tier, setTier] = useState<SubscriptionTier>("free");
+  const [judge, setJudge] = useState(false);
   const [loading, setLoading] = useState(true);
   // refresh() is exposed so screens re-pull after a stage completes; two calls (or a
   // userId A->B switch) can overlap, and the slower/older response must not overwrite
@@ -41,13 +48,14 @@ export function useProgression(): Progression {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from("users")
-        .select("total_xp, subscription_tier")
+        .select("total_xp, subscription_tier, judge_mode")
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
       if (guardRef.current.isStale(token)) return;
       setTotalXp(data?.total_xp ?? 0);
       setTier(((data?.subscription_tier as SubscriptionTier) ?? "free"));
+      setJudge(data?.judge_mode === true);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[progression] load failed", e);
     } finally {
@@ -76,6 +84,7 @@ export function useProgression(): Progression {
     level: levelForXp(totalXp),
     progress: levelProgress(totalXp),
     tier: resolveTier(override, tier),
+    judge,
     loading,
     refresh,
   };

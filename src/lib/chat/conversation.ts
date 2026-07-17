@@ -22,7 +22,7 @@ import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
 import { loadStructuredContext } from "../records/load-structured";
 import { exportUserWiki } from "../wiki/export";
 import { formatRagPages, retrieveChatContext } from "./rag";
-import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsage } from "./usage";
+import { ChatLimitExceededError, bumpChatUsageIfUnderCap, readChatUsageDetail } from "./usage";
 
 /** One prior exchange line. `assistant` is the model's own earlier reply. */
 export interface ChatHistoryTurn {
@@ -52,7 +52,7 @@ export interface SendMessageInput {
    * analysis + advice in the user's data; "divergent" stays data-grounded but
    * explores radically different angles and new possibilities. Both still run
    * the full C9 -> C3 -> gemini.ts path; the mode only shapes the system prompt
-   * (공상 is a mode, never a safety bypass).
+   * (Divergent is a mode, never a safety bypass).
    */
   mode?: "analytic" | "divergent";
   // C10 safety: minor flag forwarded to callGemini for youth crisis routing.
@@ -125,7 +125,7 @@ function sanitizeUntrusted(s: string | null | undefined): string {
     .replace(/\[SYSTEM\]/gi, "[user-sys]");
 }
 
-// SecondB conversation modes (worldview v-final). The "공상" workshop is no
+// SecondB conversation modes (worldview v-final). The old imagine workshop is no
 // longer a place — it is the Divergent mode here. Both modes go through the
 // same callGemini path, so C9 (classifyInput) -> C3 (ai_audit_log) hold; the
 // mode only shapes the system prompt.
@@ -167,8 +167,9 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
   const day = kstDateToday();
   const limit = CHAT_DAILY_LIMIT[input.tier];
 
-  const usedBefore = await readChatUsage(input.userId, day);
-  const precheck = checkChatLimit(input.tier, usedBefore);
+  // 0090: today's allowance includes any rewarded ad bonus.
+  const { used: usedBefore, adBonus } = await readChatUsageDetail(input.userId, day);
+  const precheck = checkChatLimit(input.tier, usedBefore, adBonus);
   if (!precheck.allowed) {
     return {
       status: "blocked",
@@ -224,8 +225,8 @@ export async function sendChatMessage(input: SendMessageInput): Promise<SendMess
     newCount = await bumpChatUsageIfUnderCap(input.userId, limit, day);
   } catch (e) {
     if (e instanceof ChatLimitExceededError) {
-      const used = await readChatUsage(input.userId, day);
-      const check = checkChatLimit(input.tier, used);
+      const detail = await readChatUsageDetail(input.userId, day);
+      const check = checkChatLimit(input.tier, detail.used, detail.adBonus);
       return {
         status: "blocked",
         reason: "limit_reached",

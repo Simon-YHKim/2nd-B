@@ -66,10 +66,12 @@ import { SecondBSprite } from "@/components/art/SecondBSprite";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { PremiumAppShell, ContextPill, ReferenceShardCard, SceneHero } from "@/components/premium";
 import { InlineLoader } from "@/components/ui/InlineLoader";
-import { readChatUsage } from "@/lib/chat/usage";
+import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { personaAllowed } from "@/lib/entitlements/tiers";
+import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
 import { getReasoningUsage, incrementReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
@@ -506,9 +508,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     params.mode === "divergent" ? "divergent" : "analytic",
   );
   // rev2 세컨비 personas (main deep-space chat only): ONE character, three
-  // personas sharing this conversation. 트위비 owns 공상, so selecting it engages
-  // the Divergent engine mode (and ?mode=divergent seeds 트위비). The default
-  // 2nd-B keeps the shipped voice (hint = null — no behavior change).
+  // personas sharing this conversation. 트위비 owns the Divergent engine mode
+  // (구체화 — ?mode=divergent seeds 트위비). The default 2nd-B keeps the shipped
+  // voice (hint = null — no behavior change).
   const [rev2Persona, setRev2Persona] = useState<Rev2PersonaId>(
     params.mode === "divergent" ? "twi" : "secondb",
   );
@@ -516,9 +518,22 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     setRev2Persona(id);
     setChatMode(rev2PersonaMode(id));
   }
+  // Phase 4 paid personas: effective tier for the client gate. Judges comp to
+  // pro (C6) — the 0088 server rule mirrored; the RPCs stay authoritative.
+  const effectiveTier = progression.judge ? "pro" : PUBLIC_TIER_BY_DB[progression.tier];
+  // A persisted/deep-linked paid persona must not survive into a free session
+  // (e.g. ?mode=divergent seeding 트위비, or a lapsed subscription): fall back
+  // to 2nd-B once the tier is known.
+  useEffect(() => {
+    if (progression.loading || rev2Persona === "secondb") return;
+    if (!personaAllowed(effectiveTier, rev2Persona as "meta" | "twi")) {
+      selectRev2Persona("secondb");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progression.loading, effectiveTier, rev2Persona]);
   // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
   // Divergent turn is in flight. Holds at rest otherwise; static under reduced
-  // motion. (Replaces the old dreamPink "벨라 신호" now that 공상 is a mode.)
+  // motion. (Replaces the old dreamPink "벨라 신호" now that Divergent is a mode.)
   const divergentPulse = useRef(new Animated.Value(0.6)).current;
   // Reference drawer (chat pack §6): the cited pieces of a tapped answer.
   const [refDrawer, setRefDrawer] = useState<string[] | null>(null);
@@ -541,6 +556,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [reasoningUsed, setReasoningUsed] = useState(0);
   const [rewardCredits, setRewardCredits] = useState(0);
   const [rewardVisible, setRewardVisible] = useState(false);
+  // Phase 4 (0090): the chat DAILY cap gets its own rewarded top-up (+2 sends
+  // today) beside the reasoning one — same free-adult eligibility.
+  const [chatRewardVisible, setChatRewardVisible] = useState(false);
   const [capNotice, setCapNotice] = useState(false);
   const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
   const reasoningUnlimited = reasoningRemaining === Infinity;
@@ -702,6 +720,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setTurns((prev) => [...prev, { role: "secondb", text: result.hint, synthetic: true }]);
             setUsedToday(result.used);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
+            // 0090: free adults can widen TODAY's allowance by +2 via a
+            // rewarded watch (same eligibility as the reasoning sheet).
+            if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
+              setChatRewardVisible(true);
+            }
             captureEvent(
               secondBSession({
                 action: "message_sent",
@@ -814,7 +837,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     momo: VILLAGE_UI.records,
     lumi: VILLAGE_UI.taste,
   } as const;
-  // vela is dormant (공상 → Divergent mode); fall back to the Soul Core UI for
+  // vela is dormant (imagine → Divergent mode); fall back to the Soul Core UI for
   // any worker without a Pattern Core mapping.
   const chatWorker = (
     isCharacterChat && persona.id in chatUiByWorker ? persona.id : "secondb"
@@ -1050,24 +1073,34 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               {REV2_PERSONA_IDS.map((id) => {
                 const on = rev2Persona === id;
                 const accent = rev2PersonaAccent(id);
+                // Phase 4 paid personas: 메타비 = plus+, 트위비 = pro. Judges comp
+                // to pro (C6, mirrors the 0088 server rule). A locked tap goes to
+                // /plans — the persona itself stays visible (honest, no dead end).
+                const locked = id !== "secondb" && !personaAllowed(effectiveTier, id as "meta" | "twi");
+                const lockPlan = id === "meta" ? t("rev2.lockVoyager") : t("rev2.lockNorthstar");
                 return (
                   <Pressable
                     key={id}
-                    onPress={() => selectRev2Persona(id)}
+                    onPress={() => (locked ? router.push(`/plans?from=persona_${id}`) : selectRev2Persona(id))}
                     style={[
                       ds.lensBtn,
                       { borderColor: on ? accent : m3.color.outlineVariant },
                       on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
+                      locked ? { opacity: 0.6 } : null,
                     ]}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    accessibilityLabel={`${rev2PersonaLensName(id, locale)} · ${rev2PersonaRole(id, locale)}`}
+                    accessibilityState={{ selected: on, disabled: locked }}
+                    accessibilityLabel={
+                      locked
+                        ? `${rev2PersonaLensName(id, locale)} · ${t("rev2.lockedA11y", { plan: lockPlan })}`
+                        : `${rev2PersonaLensName(id, locale)} · ${rev2PersonaRole(id, locale)}`
+                    }
                   >
                     <Text style={[ds.lensName, { color: on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
                       {rev2PersonaLensName(id, locale)}
                     </Text>
                     <Text style={[ds.lensTag, { color: on ? accent : m3.color.onSurfaceVariant }]}>
-                      {rev2PersonaTag(id, locale)}
+                      {locked ? lockPlan : rev2PersonaTag(id, locale)}
                     </Text>
                   </Pressable>
                 );
@@ -1261,6 +1294,30 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setRewardCredits((c) => c + credits);
             setCapNotice(false);
             setRewardVisible(false);
+          }}
+          locale={locale}
+        />
+
+        {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
+            grant RPC enforces day/month/ceiling server-side; on success the
+            user just sends again — the next send re-reads the allowance. */}
+        <RewardedSheet
+          kind="chat"
+          visible={chatRewardVisible}
+          onClose={() => setChatRewardVisible(false)}
+          remaining={Math.max(0, limit - (usedToday ?? 0))}
+          onEarned={async () => {
+            if (userId) {
+              try {
+                await grantChatAdBonus(userId);
+              } catch (e) {
+                if (typeof console !== "undefined") {
+                  const capped = e instanceof ChatRewardCapReachedError;
+                  console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
+                }
+              }
+            }
+            setChatRewardVisible(false);
           }}
           locale={locale}
         />
@@ -1651,6 +1708,28 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           setRewardCredits((c) => c + credits);
           setCapNotice(false);
           setRewardVisible(false);
+        }}
+        locale={locale}
+      />
+
+      {/* 0090: chat daily-cap top-up — same wiring as deep-space. */}
+      <RewardedSheet
+        kind="chat"
+        visible={chatRewardVisible}
+        onClose={() => setChatRewardVisible(false)}
+        remaining={Math.max(0, limit - (usedToday ?? 0))}
+        onEarned={async () => {
+          if (userId) {
+            try {
+              await grantChatAdBonus(userId);
+            } catch (e) {
+              if (typeof console !== "undefined") {
+                const capped = e instanceof ChatRewardCapReachedError;
+                console.warn("[secondb] grantChatAdBonus", capped ? "monthly cap reached" : (e as Error).message);
+              }
+            }
+          }
+          setChatRewardVisible(false);
         }}
         locale={locale}
       />

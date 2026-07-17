@@ -8,8 +8,19 @@
 import { kstDayKey } from "@/lib/journal/streak";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
+// Phase 4 (Simon 2026-07-17): the free daily cap is env-adjustable for
+// experimentation — default 5. The SERVER cap lives in the bump_chat RPC SQL
+// (0088/0090) and does NOT read this env: changing the knob without shipping a
+// matching migration makes the structural migration tests fail loudly, which
+// is the intended drift alarm (a client-only change would just lie to users).
+const FREE_CHAT_DAILY_DEFAULT = 5;
+function freeChatDaily(): number {
+  const raw = Number(process.env.EXPO_PUBLIC_CHAT_FREE_DAILY);
+  return Number.isInteger(raw) && raw > 0 ? raw : FREE_CHAT_DAILY_DEFAULT;
+}
+
 export const CHAT_DAILY_LIMIT: Record<SubscriptionTier, number> = {
-  free: 5,
+  free: freeChatDaily(),
   soma: 30,
   cortex: 80,
   brain: 250,
@@ -48,10 +59,13 @@ const NEXT_TIER: Record<SubscriptionTier, SubscriptionTier | null> = {
   brain: null,
 };
 
-export function checkChatLimit(tier: SubscriptionTier, used: number): ChatLimitCheck {
+export function checkChatLimit(tier: SubscriptionTier, used: number, adBonus = 0): ChatLimitCheck {
+  // Phase 4 (0090): rewarded ads widen TODAY's allowance by ad_bonus — the
+  // server RPC applies the same `count < cap + ad_bonus` gate.
   const limit = CHAT_DAILY_LIMIT[tier];
-  const remaining = Math.max(0, limit - used);
-  const allowed = used < limit;
+  const allowance = limit + Math.max(0, adBonus);
+  const remaining = Math.max(0, allowance - used);
+  const allowed = used < allowance;
   return {
     allowed,
     limit,
