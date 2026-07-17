@@ -735,7 +735,10 @@
       "proFeat1": "항해자 전체",
       "proFeat2": "장기 보관 무제한",
       "proFeat3": "가족 공유",
-      "proFeat4": "우선 분석"
+      "proFeat4": "우선 분석",
+      "disclosure": "유료 플랜은 월 단위로 자동 갱신돼요. 다음 갱신일 전에 언제든 해지할 수 있고, 표시 가격은 부가세(VAT)가 포함돼 있어요. 결제일부터 30일 안에는 전액 환불을 보장해요.",
+      "legalTerms": "이용약관",
+      "legalRefund": "환불 및 청약철회 정책"
     },
     "wikiRecords": {
       "relationships": "관계",

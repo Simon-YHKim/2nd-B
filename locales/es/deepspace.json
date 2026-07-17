@@ -735,7 +735,10 @@
       "proFeat1": "Todo lo de Viajero",
       "proFeat2": "Almacenamiento a largo plazo ilimitado",
       "proFeat3": "Compartir en familia",
-      "proFeat4": "Análisis prioritario"
+      "proFeat4": "Análisis prioritario",
+      "disclosure": "Los planes de pago se renuevan automáticamente cada mes. Cancela cuando quieras antes de la próxima renovación; los precios incluyen impuestos (IVA). Reembolso completo garantizado dentro de los 30 días posteriores al pago.",
+      "legalTerms": "Términos del servicio",
+      "legalRefund": "Política de reembolso"
     },
     "wikiRecords": {
       "relationships": "Relaciones",
