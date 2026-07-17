@@ -128,9 +128,16 @@ Deno.serve(async (req: Request) => {
     const { ok, params } = await signatureValid(url.search.replace(/^\?/, ''));
     if (!ok) return json({ error: 'bad_signature' }, 403);
 
-    // The user id is carried in custom_data (set when the client requests the ad).
-    const userId = params.get('custom_data') ?? params.get('user_id');
+    // The user id is carried in custom_data (set when the client requests the
+    // ad). Phase 4 (0091): custom_data may also carry the reward KIND as
+    // "<userId>|chat" -- one watch tops up TODAY's chat allowance instead of
+    // the monthly reasoning credits. Bare custom_data stays reasoning, so
+    // already-fielded clients keep their exact behavior.
+    const rawCustom = params.get('custom_data') ?? params.get('user_id');
+    if (!rawCustom) return json({ error: 'no_user' }, 400);
+    const [userId, kindRaw] = rawCustom.split('|');
     if (!userId) return json({ error: 'no_user' }, 400);
+    const kind = kindRaw === 'chat' ? 'chat' : 'reasoning';
     // AdMob's unique impression id = the idempotency key (replay + retry defense).
     const txnId = params.get('transaction_id');
     if (!txnId) return json({ error: 'no_transaction_id' }, 400);
@@ -143,6 +150,20 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { persistSession: false } },
     );
+    if (kind === 'chat') {
+      // 0091: +2 chat sends TODAY, monthly-capped; buckets derived inside the
+      // RPC. Same dedup ledger, so one impression funds exactly one grant.
+      const { data: bonus, error: cErr } = await admin.rpc('grant_chat_ad_bonus_ssv', {
+        p_user_id: userId,
+        p_txn_id: txnId,
+      });
+      if (cErr) {
+        console.error('[rewarded-ssv] chat grant failed:', cErr.message);
+        return json({ error: 'grant_failed' }, 500);
+      }
+      return json({ ok: true, chat_ad_bonus: bonus ?? null });
+    }
+
     const kst = new Date(Date.now() + 9 * 3600_000);
     const monthBucket = `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`;
 

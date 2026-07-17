@@ -35,6 +35,9 @@ export interface RewardedResult {
 export function isRewardedAdSdkAvailable(): boolean {
   // TODO(AdMob): return true once react-native-google-mobile-ads is installed
   // and an ad-unit id is configured for the active platform.
+  // SSV note (0091): when wiring the real SDK, set serverSideVerificationOptions
+  // customData to `${userId}` for a reasoning reward or `${userId}|chat` for a
+  // chat +2 -- the rewarded-ssv edge function routes on that suffix.
   return false;
 }
 
