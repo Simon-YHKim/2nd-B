@@ -142,13 +142,16 @@ jobs:
               --only "$PUBLIC" --jpeg 72 --auto-motion $MOTION_FLAG --tap "text=탭해서 두번째 뇌를 열기||text=탭해서||text=건너뛰기" --retry 2 --wait 2500 || true
           fi
 
-      # 5) Overlay the fresh thumbnails into the committed html (each stamp touches only its routes)
+      # 5) Overlay the fresh thumbnails into the committed html (each stamp touches only its routes),
+      #    then move the stamped base64 back OUT to docs/flow-thumbs/* so the committed html stays
+      #    thin (~1MB) and history only pays for the pngs that actually changed.
       - name: Update flow-debugger.html
         if: steps.detect.outputs.routes != ''
         run: |
           SCRIPTS=fd/skills/flow-debugger/scripts
           [ -f out/authed/shots-map.json ] && node $SCRIPTS/stamp-shots.js docs/flow-debugger.html out/authed/shots-map.json || true
           [ -f out/public/shots-map.json ] && node $SCRIPTS/stamp-shots.js docs/flow-debugger.html out/public/shots-map.json || true
+          node scripts/flow/externalize-thumbs.mjs docs/flow-debugger.html
           # discard the throwaway app.json baseUrl edit so it can't be committed
           git checkout -- app.json || true
 
@@ -156,11 +159,11 @@ jobs:
       - name: Commit refreshed thumbnails
         if: steps.detect.outputs.routes != ''
         run: |
-          if git diff --quiet -- docs/flow-debugger.html; then
+          if [ -z "$(git status --porcelain -- docs/flow-debugger.html docs/flow-thumbs)" ]; then
             echo "no thumbnail change to commit."; exit 0
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/flow-debugger.html
+          git add docs/flow-debugger.html docs/flow-thumbs
           git commit -m "chore(flow-debugger): auto-refresh thumbnails for changed screens [skip ci]"
           git push origin HEAD:${{ github.head_ref || github.ref_name }}
