@@ -14,7 +14,7 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
+import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import {
@@ -36,6 +36,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
+import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
 import { transcribeAudio } from "@/lib/llm/gemini";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
@@ -136,29 +137,57 @@ type ChatMode = "analytic" | "divergent";
 
 const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
 
-function readIntroDismissed(): "off" | "today" | "permanent" {
+// Web keeps localStorage; native goes through AsyncStorage (same split as
+// capture/draft.ts). localStorage-only meant the native app forgot "오늘은
+// 그만 볼래요" on every entry (flow-map /secondb) — the write was a no-op.
+interface IntroStorageLike {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+}
+
+function isReactNativeRuntime(): boolean {
+  const nav = globalThis.navigator as { product?: string } | undefined;
+  return nav?.product === "ReactNative";
+}
+
+function nativeIntroStorage(): IntroStorageLike | null {
+  if (!isReactNativeRuntime()) return null;
   try {
+    return require("@react-native-async-storage/async-storage").default as IntroStorageLike;
+  } catch {
+    return null;
+  }
+}
+
+function parseIntroDismissed(v: string | null): "off" | "today" | "permanent" {
+  if (v === "permanent") return "permanent";
+  if (v && v.startsWith("today:") && v.slice("today:".length) === kstDateToday()) return "today";
+  return "off";
+}
+
+async function readIntroDismissed(): Promise<"off" | "today" | "permanent"> {
+  try {
+    const native = nativeIntroStorage();
+    if (native) return parseIntroDismissed(await native.getItem(INTRO_DISMISS_KEY));
     if (typeof localStorage === "undefined") return "off";
-    const v = localStorage.getItem(INTRO_DISMISS_KEY);
-    if (v === "permanent") return "permanent";
-    if (v && v.startsWith("today:")) {
-      const day = v.slice("today:".length);
-      const today = kstDateToday();
-      if (day === today) return "today";
-    }
-    return "off";
+    return parseIntroDismissed(localStorage.getItem(INTRO_DISMISS_KEY));
   } catch {
     return "off";
   }
 }
 
 function writeIntroDismissed(kind: "today" | "permanent"): void {
+  const v = kind === "permanent" ? "permanent" : `today:${kstDateToday()}`;
   try {
+    const native = nativeIntroStorage();
+    if (native) {
+      void native.setItem(INTRO_DISMISS_KEY, v).catch(() => {});
+      return;
+    }
     if (typeof localStorage === "undefined") return;
-    const v = kind === "permanent" ? "permanent" : `today:${kstDateToday()}`;
     localStorage.setItem(INTRO_DISMISS_KEY, v);
   } catch {
-    // ignore — private mode, native
+    // ignore — private mode
   }
 }
 
@@ -417,7 +446,7 @@ export default function SecondBChat() {
 function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isDeepSpace = variant === "deep-space";
   const { t, i18n } = useTranslation("secondb");
-  const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
+  const { userId, loading: authLoading, isMinor, hasProfile, profileProbeFailed, refresh } = useAuth();
   const progression = useProgression();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const insets = useSafeAreaInsets();
@@ -443,6 +472,30 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // The draft now lives inside ChatComposer (keystroke isolation); the parent
   // reaches it only to prefill (quick-actions / branches) via this handle.
   const composerRef = useRef<ChatComposerHandle>(null);
+
+  // Long-press copy used to be navigator.clipboard-only — a silent no-op on
+  // native, with an empty catch on web, and no feedback either way (flow-map
+  // /secondb). expo-clipboard covers both runtimes; the transient caption +
+  // screen-reader announcement says whether it actually worked.
+  const [copyNotice, setCopyNotice] = useState<{ i: number; ok: boolean } | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyTurn = useCallback(
+    (i: number, text: string) => {
+      void writeClipboardText(text).then((ok) => {
+        setCopyNotice({ i, ok });
+        AccessibilityInfo.announceForAccessibility(t(ok ? "copied" : "copyFailed"));
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setCopyNotice(null), 1800);
+      });
+    },
+    [t],
+  );
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
   const [sending, setSending] = useState(false);
   const [usedToday, setUsedToday] = useState<number | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
@@ -510,17 +563,37 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const limit = useMemo(() => CHAT_DAILY_LIMIT[progression.tier], [progression.tier]);
 
   useEffect(() => {
-    // Intro modal opens on first entry only — guarded by localStorage.
-    if (readIntroDismissed() === "off") setIntroOpen(true);
+    // Intro modal opens on first entry only — guarded by device storage
+    // (AsyncStorage on native, localStorage on web).
+    let alive = true;
+    void readIntroDismissed().then((v) => {
+      if (alive && v === "off") setIntroOpen(true);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  useEffect(() => {
+    // Re-probe while the profile answer is "unknown" (a FAILED probe, not a
+    // confirmed missing row). The guard below holds the loader instead of
+    // ejecting to /complete-profile; without this retry it would sit forever.
+    if (authLoading || !userId || hasProfile !== false || !profileProbeFailed) return;
+    const timer = setTimeout(() => {
+      void refresh();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [authLoading, userId, hasProfile, profileProbeFailed, refresh]);
 
   useEffect(() => {
     if (!userId) return;
     void readChatUsage(userId)
       .then((n) => setUsedToday(n))
       .catch((e) => {
+        // Unknown is not zero: a fake 0/5 told capped users they had sends
+        // left. null renders as "..." and the server still enforces the cap.
         if (typeof console !== "undefined") console.warn("[secondb] readChatUsage failed", (e as Error).message);
-        setUsedToday(0);
+        setUsedToday(null);
       });
   }, [userId]);
 
@@ -715,6 +788,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   if (!userId) {
     return <Redirect href="/sign-in" />;
   }
+  // A FAILED probe is not a missing profile: ejecting to /complete-profile on
+  // a network blip stranded real accounts (flow-map /secondb). Unknown = hold
+  // the loader (C10: never admit an unknown profile to an LLM surface either);
+  // the retry effect above re-probes until the server actually answers.
+  if (hasProfile === false && profileProbeFailed) return <InlineLoader />;
   // OAuth mints a session before the profile/DOB + PIPA consent exist. A
   // no-profile session must not reach an LLM/crisis surface: route it to
   // /complete-profile (C10 age gate + consent; also fixes minor crisis-routing,
@@ -837,15 +915,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                 >
                   <View style={ds.bubbleCol}>
                     <Pressable
-                      onLongPress={async () => {
-                        if (typeof navigator !== "undefined" && navigator.clipboard) {
-                          try {
-                            await navigator.clipboard.writeText(turn.text);
-                          } catch {
-                            // ignore — fall back to user selection
-                          }
-                        }
-                      }}
+                      onLongPress={() => copyTurn(i, turn.text)}
                       style={turn.role === "user" ? ds.userBubble : [ds.aiBubble, { borderLeftColor: lensAccent }]}
                       accessibilityRole="button"
                       accessibilityLabel={
@@ -859,6 +929,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         {turn.text}
                       </Text>
                     </Pressable>
+                    {copyNotice?.i === i ? (
+                      <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
+                        {t(copyNotice.ok ? "copied" : "copyFailed")}
+                      </Text>
+                    ) : null}
                     {/* 근거(citation) chip -> reference drawer -> /records. One
                         summary chip (reference "근거 · 기록 N건") tinted by the lens. */}
                     {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (
@@ -1357,15 +1432,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               >
                 <View style={styles.bubbleCol}>
                   <Pressable
-                    onLongPress={async () => {
-                      if (typeof navigator !== "undefined" && navigator.clipboard) {
-                        try {
-                          await navigator.clipboard.writeText(turn.text);
-                        } catch {
-                          // ignore — fall back to selection by the user
-                        }
-                      }
-                    }}
+                    onLongPress={() => copyTurn(i, turn.text)}
                     style={[
                       styles.bubble,
                       turn.role === "user" ? styles.userBubble : styles.secondbBubble,
@@ -1388,6 +1455,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       {turn.text}
                     </Text>
                   </Pressable>
+                  {copyNotice?.i === i ? (
+                    <Text variant="caption" color="textSubtle" accessibilityLiveRegion="polite">
+                      {t(copyNotice.ok ? "copied" : "copyFailed")}
+                    </Text>
+                  ) : null}
                   {/* Grounding strip — "이 답변은 참고한 별가루 N개를 봤어요"; tap to
                       open the reference drawer (chat pack §5/§6). */}
                   {turn.role === "secondb" && turn.chips && turn.chips.length > 0 ? (

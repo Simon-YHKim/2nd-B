@@ -841,7 +841,9 @@
       "propose": "Get other drafts",
       "cancel": "Cancel",
       "save": "Save this sentence",
-      "thinBase": "Your record base is still thin. Capture about {{count}} pieces and I'll draw drafts from them."
+      "thinBase": "Your record base is still thin. Capture about {{count}} pieces and I'll draw drafts from them.",
+      "proposeFailed": "Couldn't fetch drafts right now. Check your connection and try again.",
+      "saveFailed": "Couldn't save. Your sentence is still here, so try again."
     },
     "reward": {
       "titleA": "Watch 30s, get ",

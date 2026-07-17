@@ -164,6 +164,8 @@
   "newPerspectives": "New perspectives & what-ifs",
   "readyToChat": "SecondB ready to chat",
   "longPressCopyThis": "Long press to copy this message",
+  "copied": "Copied",
+  "copyFailed": "Copy failed. Select the text to copy it.",
   "aboutNode": "About '{{node}}': ",
   "drewOnPieces": "This answer drew on {{n}} of your pieces. Tap for detail.",
   "nSources": "{{n}} sources",

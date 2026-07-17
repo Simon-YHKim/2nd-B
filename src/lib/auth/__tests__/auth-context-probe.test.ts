@@ -34,4 +34,17 @@ describe("AuthContext profile probe preservation", () => {
 
     expect(preserveKnownMinorForMissingProfile(refreshed, previous)).toEqual(refreshed);
   });
+
+  test("a FAILED probe keeps its flag through minor preservation", () => {
+    // probeFailed marks hasProfile:false as "unknown", not "confirmed missing" —
+    // screens hold + retry on it instead of ejecting to /complete-profile.
+    const previous = { hasProfile: true, isMinor: true };
+    const refreshed = { hasProfile: false, isMinor: null, probeFailed: true };
+
+    expect(preserveKnownMinorForMissingProfile(refreshed, previous)).toEqual({
+      hasProfile: false,
+      isMinor: true,
+      probeFailed: true,
+    });
+  });
 });
