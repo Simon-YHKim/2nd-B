@@ -302,6 +302,11 @@ describe("runtime analytics web transitions", () => {
     data: RuntimeFlagRow[] | null;
     error: { message: string } | null;
   };
+  type PostHogMock = {
+    init: jest.Mock;
+    capture: jest.Mock;
+    identify: jest.Mock;
+  };
 
   const originalWindow = (globalThis as { window?: unknown }).window;
   const originalDocument = (globalThis as { document?: unknown }).document;
@@ -330,6 +335,7 @@ describe("runtime analytics web transitions", () => {
   function loadWebModule(
     rowsRef: { current: RuntimeFlagRow[] },
     queryFlags?: () => Promise<RuntimeFlagResponse>,
+    posthogClient?: PostHogMock,
   ): {
     analytics: typeof import("../index");
     dataLayer: unknown[];
@@ -343,8 +349,24 @@ describe("runtime analytics web transitions", () => {
       getEnv: () => ({
         EXPO_PUBLIC_GA4_MEASUREMENT_ID: "G-TEST",
         EXPO_PUBLIC_CLARITY_PROJECT_ID: "clarity-test",
+        ...(posthogClient
+          ? {
+              EXPO_PUBLIC_POSTHOG_KEY: "ph-test",
+              EXPO_PUBLIC_POSTHOG_HOST: "https://posthog.test",
+            }
+          : {}),
       }),
     }));
+    if (posthogClient) {
+      jest.doMock(
+        "posthog-js",
+        () => ({
+          __esModule: true,
+          default: posthogClient,
+        }),
+        { virtual: true },
+      );
+    }
     const fetchFlags = jest.fn(
       queryFlags ??
         (() =>
@@ -406,7 +428,7 @@ describe("runtime analytics web transitions", () => {
     analytics.__resetAnalytics();
   });
 
-  test("init and consent overlap share one SDK load and flush the initial page once", async () => {
+  test("overlapping init and consent use one async PostHog init and flush the page once", async () => {
     const enabledRows: RuntimeFlagRow[] = [
       { key: "analytics_enabled", enabled: true },
       { key: "clarity_enabled", enabled: true },
@@ -419,7 +441,16 @@ describe("runtime analytics web transitions", () => {
       new Promise<RuntimeFlagResponse>((resolve) => {
         resolveFlags = resolve;
       });
-    const { analytics, appendChild, dataLayer, fetchFlags } = loadWebModule(rows, queryFlags);
+    const posthog = {
+      init: jest.fn(),
+      capture: jest.fn(),
+      identify: jest.fn(),
+    };
+    const { analytics, appendChild, dataLayer, fetchFlags } = loadWebModule(
+      rows,
+      queryFlags,
+      posthog,
+    );
 
     const init = analytics.initAnalytics();
     analytics.setAnalyticsConsent(true, {
@@ -442,11 +473,92 @@ describe("runtime analytics web transitions", () => {
     );
     expect(scriptSources.filter((src) => src?.includes("googletagmanager.com"))).toHaveLength(1);
     expect(scriptSources.filter((src) => src?.includes("clarity.ms"))).toHaveLength(1);
+    expect(posthog.init).toHaveBeenCalledTimes(1);
+    expect(posthog.init).toHaveBeenCalledWith(
+      "ph-test",
+      expect.objectContaining({
+        api_host: "https://posthog.test",
+        autocapture: false,
+        capture_pageview: false,
+      }),
+    );
+    expect(posthog.capture).toHaveBeenCalledTimes(1);
+    expect(posthog.capture).toHaveBeenCalledWith("page_view", { path: "/record/[id]" });
     const pageViews = dataLayer.filter(
       (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
     ) as Array<[string, string, { path?: string }]>;
     expect(pageViews.map((entry) => entry[2].path)).toEqual(["/record/[id]"]);
     analytics.__resetAnalytics();
+  });
+
+  test("an unchanged ON poll flushes two queued page routes exactly once each", async () => {
+    const enabledRows: RuntimeFlagRow[] = [
+      { key: "analytics_enabled", enabled: true },
+      { key: "clarity_enabled", enabled: true },
+    ];
+    const rows = { current: enabledRows };
+    let requestCount = 0;
+    let resolvePoll: ((response: RuntimeFlagResponse) => void) | undefined;
+    const queryFlags = () => {
+      requestCount += 1;
+      if (requestCount === 2) {
+        return new Promise<RuntimeFlagResponse>((resolve) => {
+          resolvePoll = resolve;
+        });
+      }
+      return Promise.resolve({ data: enabledRows, error: null });
+    };
+    const { analytics, dataLayer, fetchFlags } = loadWebModule(rows, queryFlags);
+    try {
+      await analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(fetchFlags).toHaveBeenCalledTimes(2);
+      expect(
+        analytics.captureEvent(
+          analytics.pageView({ path: "/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120" }),
+        ),
+      ).toBe(true);
+      expect(
+        analytics.captureEvent(
+          analytics.pageView({ path: "/peer/abcdefghijklmnopqrstuvwxyz012345" }),
+        ),
+      ).toBe(true);
+      expect(
+        dataLayer.filter(
+          (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+        ),
+      ).toHaveLength(0);
+
+      resolvePoll?.({ data: enabledRows, error: null });
+      await flushAsyncWork();
+
+      const pageViews = dataLayer.filter(
+        (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+      ) as Array<[string, string, { page_location?: string; path?: string }]>;
+      expect(
+        pageViews.map((entry) => ({
+          path: entry[2].path,
+          page_location: entry[2].page_location,
+        })),
+      ).toEqual([
+        {
+          path: "/record/[id]",
+          page_location: "https://example.test/2nd-B/record/[id]",
+        },
+        {
+          path: "/peer/[token]",
+          page_location: "https://example.test/2nd-B/peer/[token]",
+        },
+      ]);
+      expect(fetchFlags).toHaveBeenCalledTimes(2);
+    } finally {
+      analytics.__resetAnalytics();
+    }
   });
 
   test("60-second polling keeps running while OFF and restores GA and Clarity", async () => {
