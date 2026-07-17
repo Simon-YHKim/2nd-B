@@ -1,18 +1,12 @@
-<!--
-⚠️ 초안 (DRAFT) — 게시 전 반드시 (1) 법률 검토, (2) [기입: …] 항목 실제 정보 기입, (3) 실제 처리 현황과 대조(수집 항목·수탁사·보관기간), (4) 이 주석 삭제.
-작성: 2026-07-16 · 근거: 개인정보 보호법(PIPA) + 실제 스택(Supabase, Google Gemini, Paddle, OAuth).
-이 문서는 법률 자문이 아닙니다. 공개 전 변호사/전문가 검토가 필요합니다.
--->
-
 # 개인정보처리방침 · Privacy Policy
 
-_시행일: [기입: YYYY-MM-DD] · 최종 개정: [기입: YYYY-MM-DD]_
+_시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 
 ---
 
 ## 한국어
 
-[기입: 운영자명](이하 "회사")는 「개인정보 보호법」 등 관련 법령을 준수하며, 다음과 같이 개인정보를 처리합니다.
+하양 프로덕션(개인사업자, 대표: 배소하, 소재지: 경기도 안양시, 이하 "회사")는 「개인정보 보호법」 등 관련 법령을 준수하며, 다음과 같이 개인정보를 처리합니다.
 
 ### 1. 수집하는 개인정보 항목
 - **필수(계정)**: 이메일 주소, 소셜 로그인 식별자(Google/Apple/Kakao/Naver 등), 인증 토큰.
@@ -38,20 +32,20 @@ _시행일: [기입: YYYY-MM-DD] · 최종 개정: [기입: YYYY-MM-DD]_
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
 
 ### 5. 개인정보의 국외 이전
-서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전되는 항목·목적·시점·방법·보유기간은 [기입: 구체 명시]하며, 이용자는 이에 대해 [기입: 동의 획득 방식]으로 동의합니다.
+서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보 및 이용자 콘텐츠, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리, 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
 
 ### 6. 정보주체의 권리
-이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, [기입: support 이메일]\로도 요청할 수 있습니다.
+이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, kim0405@hayangzip.com 으로도 요청할 수 있습니다.
 
 ### 7. 만 14세 미만 아동
 회사는 원칙적으로 만 14세 미만 아동의 개인정보를 수집하지 않으며, 불가피한 경우 법정대리인의 동의를 확인한 후에만 처리합니다(단계적 적용).
 
 ### 8. 안전성 확보 조치
-접근권한 관리 및 접근통제, 전송·저장 구간 암호화 적용 노력, 접속기록 보관, 취약점 점검 등 관리적·기술적 보호조치를 시행합니다. [기입: 실제 시행 조치와 대조]
+행 수준 접근통제(RLS)를 포함한 접근권한 관리, 전송 구간 TLS 암호화 및 저장 데이터 암호화, 접속기록 보관, 정기 점검 등 관리적·기술적 보호조치를 시행합니다.
 
 ### 9. 개인정보 보호책임자 및 문의
-- 개인정보 보호책임자: [기입: 성명/직책], 연락처 [기입: 이메일]
-- 문의: [기입: support 이메일] (영업일 기준 2일 이내 회신 목표)
+- 개인정보 보호책임자: 김양환, 연락처 kim0405@hayangzip.com
+- 문의: kim0405@hayangzip.com (영업일 기준 2일 이내 회신 목표)
 - 권익침해 상담: 개인정보분쟁조정위원회, 개인정보침해신고센터(privacy.kisa.or.kr) 등.
 
 ### 10. 처리방침의 변경
@@ -61,7 +55,7 @@ _시행일: [기입: YYYY-MM-DD] · 최종 개정: [기입: YYYY-MM-DD]_
 
 ## English
 
-[fill: operator name] (the "Company") complies with Korea's Personal Information Protection Act (PIPA) and processes personal data as follows.
+Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gyeonggi-do; the "Company") complies with Korea's Personal Information Protection Act (PIPA) and processes personal data as follows.
 
 ### 1. Personal data collected
 - **Required (account)**: email address, social-login identifiers (Google/Apple/Kakao/Naver, etc.), authentication tokens.
@@ -87,20 +81,20 @@ The Company entrusts processing as below; processors act only within the stated 
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
 
 ### 5. Overseas transfer
-The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The items, purpose, timing, method, and retention are [fill: specified], and users consent via [fill: consent method].
+The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data and User Content in Section 1; the purpose is data hosting (auth/database) and AI processing; transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
 
 ### 6. Your rights
-You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact [fill: support email].
+You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact kim0405@hayangzip.com.
 
 ### 7. Children under 14
 The Company generally does not collect personal data of children under 14 and, where unavoidable, processes it only after verifying guardian consent (phased rollout).
 
 ### 8. Security measures
-Access-rights management and access control, encryption in transit/at rest where applicable, access-log retention, and vulnerability checks. [fill: reconcile with actual measures]
+Access-rights management with row-level access control (RLS), TLS encryption in transit and encrypted storage, access-log retention, and regular vulnerability checks.
 
 ### 9. Data Protection Officer & contact
-- DPO: [fill: name/title], [fill: email]
-- Contact: [fill: support email] (aim to reply within 2 business days)
+- DPO: Kim Yang-hwan, kim0405@hayangzip.com
+- Contact: kim0405@hayangzip.com (aim to reply within 2 business days)
 - Remedies: Korea's Personal Information Dispute Mediation Committee, KISA privacy center (privacy.kisa.or.kr).
 
 ### 10. Changes
