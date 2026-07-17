@@ -97,12 +97,24 @@ jobs:
       EXPO_PUBLIC_NATIVE_SOCIAL_SDK: "false"
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com' }}
       EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
-      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN || 'https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808' }}
-      EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID || 'G-VF514NK1WS' }}
-      EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID || 'xb3qenit2h' }}
-      EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || 'phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A' }}
-      EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
+      # Optional operational integrations are repo-variable only. An unset
+      # variable must stay off; committed fallbacks defeat emergency shutdown.
+      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+      EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
+      EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
     steps:
+      - name: Validate optional analytics variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          if { [ -n "${EXPO_PUBLIC_POSTHOG_KEY:-}" ] && [ -z "${EXPO_PUBLIC_POSTHOG_HOST:-}" ]; } ||
+             { [ -z "${EXPO_PUBLIC_POSTHOG_KEY:-}" ] && [ -n "${EXPO_PUBLIC_POSTHOG_HOST:-}" ]; }; then
+            echo "::error::EXPO_PUBLIC_POSTHOG_KEY and EXPO_PUBLIC_POSTHOG_HOST must be set together."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -114,6 +126,44 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+
+      # --- Firebase config ---------------------------------------------------
+      # google-services.json is gitignored (never committed). Preferred: the
+      # real file via the GOOGLE_SERVICES_JSON_BASE64 repo secret (base64 of
+      # the Firebase console download). Fallback (no secret): a placeholder so
+      # prebuild/gradle still succeed - Firebase Analytics is then INERT in the
+      # artifact, which is safe because collection defaults OFF (firebase.json)
+      # and only enables behind the adult+consent runtime gate.
+      - name: Provision google-services.json
+        run: |
+          set -euo pipefail
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" ]; then
+            echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > google-services.json
+            echo "Real google-services.json provisioned from secret."
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 secret missing - writing a placeholder google-services.json. Firebase Analytics will be INERT in this build."
+            cat > google-services.json <<'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "secondbrain-placeholder",
+              "storage_bucket": "secondbrain-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": { "package_name": "com.simonk.secondbrain" }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "AIzaSyA0000000000000000000000000000000000" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
 
       - name: Setup Java 17 (Temurin)
         uses: actions/setup-java@v4

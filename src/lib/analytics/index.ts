@@ -6,8 +6,10 @@
 // unset (so dev/preview builds stay dependency-free) and wires up the real
 // tools when Simon adds the ids to GitHub Actions / EAS Variables.
 //
-// Web-only for now (Expo Web on GitHub Pages). Native builds (iOS/Android via
-// EAS) get their own SDK wiring later.
+// Web SDKs (GA4/Clarity/PostHog/Sentry) load on Expo Web (GitHub Pages).
+// Native Android builds mirror the same consent decision into Firebase
+// Analytics via syncNativeAnalyticsCollection below: collection is OFF at the
+// build level (firebase.json) and turns on only through that gate.
 //
 // PRIVACY / PIPA: product analytics (PostHog, GA4, Clarity) load ONLY after the
 // user grants the optional `analytics` consent (consent-selections.ts) AND the
@@ -21,6 +23,7 @@
 import { Platform } from "react-native";
 
 import { getEnv, type Env } from "../env";
+import { getSupabaseClient } from "../supabase/client";
 
 export type AnalyticsPropValue = string | number | boolean | null;
 export type AnalyticsProps = Record<string, AnalyticsPropValue | undefined>;
@@ -87,6 +90,31 @@ export interface AnalyticsSubjectGate {
   confirmedAdult?: boolean;
   /** True below the KR/PIPA self-consent floor. Product analytics and ads stay off. */
   underDigitalConsentAge?: boolean | null;
+}
+
+export interface AnalyticsRuntimeFlags {
+  analyticsEnabled: boolean;
+  clarityEnabled: boolean;
+}
+
+const RUNTIME_ANALYTICS_DEFAULTS: AnalyticsRuntimeFlags = {
+  analyticsEnabled: false,
+  clarityEnabled: false,
+};
+
+export function resolveAnalyticsRuntimeFlags(rows: unknown): AnalyticsRuntimeFlags {
+  if (!Array.isArray(rows)) return { ...RUNTIME_ANALYTICS_DEFAULTS };
+  const enabled = new Map<string, boolean>();
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const { key, enabled: value } = row as { key?: unknown; enabled?: unknown };
+    if (typeof key === "string" && typeof value === "boolean") enabled.set(key, value);
+  }
+  const analyticsEnabled = enabled.get("analytics_enabled") === true;
+  return {
+    analyticsEnabled,
+    clarityEnabled: analyticsEnabled && enabled.get("clarity_enabled") === true,
+  };
 }
 
 export function pageView(props: PageViewEventProps): PageViewAnalyticsEvent {
@@ -205,11 +233,87 @@ export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjec
   );
 }
 
+// ---------------------------------------------------------------------------
+// Native Firebase Analytics (Android-first; iOS pods stay excluded via
+// react-native.config.js until a static-frameworks pass lands).
+//
+// Build-level default is OFF: firebase.json ships
+// analytics_auto_collection_enabled=false plus denied consent-mode defaults,
+// so the SDK collects nothing between process start and this gate running.
+// At runtime the SAME canLoadProductAnalytics decision that gates the web
+// SDKs is mirrored into the native SDK: collection turns ON only for a
+// server-confirmed adult (18+) whose external_analytics pref is granted;
+// 14-17 minors, under-14, and unresolved age stay OFF (fail closed).
+//
+// The SDK is imported lazily and every call is guarded: in Expo Go, on web,
+// or when the native module / google-services config is absent, the import or
+// call rejects and the build-level OFF default simply stands.
+
+type NativeAnalyticsApplier = (enabled: boolean) => Promise<void>;
+
+let nativeApplierOverride: NativeAnalyticsApplier | null = null;
+let nativeApplyTarget: boolean | null = null;
+let nativeApplyChain: Promise<void> = Promise.resolve();
+
+async function applyNativeAnalyticsCollection(enabled: boolean): Promise<void> {
+  try {
+    const mod = await import("@react-native-firebase/analytics");
+    const analytics = mod.getAnalytics();
+    // Consent mode first so an enable can never race ahead of its storage
+    // grant; ad signals stay denied in every state (analytics-only consent).
+    await mod.setConsent(analytics, {
+      analytics_storage: enabled,
+      ad_storage: false,
+      ad_user_data: false,
+      ad_personalization: false,
+    });
+    await mod.setAnalyticsCollectionEnabled(analytics, enabled);
+  } catch {
+    // Fail closed: without the SDK/native module the build-level OFF stands.
+  }
+}
+
+/**
+ * Mirror the resolved product-analytics decision into the native Firebase
+ * SDK. Serialized so rapid toggles apply in submission order; deduped on the
+ * target state. No-op on web (loadProductAnalytics handles the web SDKs).
+ */
+function syncNativeAnalyticsCollection(enabled: boolean): void {
+  if (Platform.OS === "web") return;
+  if (nativeApplyTarget === enabled) return;
+  nativeApplyTarget = enabled;
+  const applier = nativeApplierOverride ?? applyNativeAnalyticsCollection;
+  nativeApplyChain = nativeApplyChain.then(() => applier(enabled)).catch(() => {});
+}
+
+/** Test hook only: substitute the native applier (null restores the real one). */
+export function __setNativeAnalyticsApplierForTests(applier: NativeAnalyticsApplier | null): void {
+  nativeApplierOverride = applier;
+}
+
+/** Test hook only: await the native apply queue. */
+export function __flushNativeAnalyticsForTests(): Promise<void> {
+  return nativeApplyChain;
+}
+
 const CONSENT_KEY = "2ndb_analytics_consent";
 
 let initialized = false;
 let analyticsConsent = false;
 let analyticsConsentRevision = 0;
+let runtimeAnalyticsFlags = { ...RUNTIME_ANALYTICS_DEFAULTS };
+let runtimeAnalyticsFlagsCheckedAt = 0;
+let runtimeAnalyticsRefresh: Promise<AnalyticsRuntimeFlags> | null = null;
+let runtimeAnalyticsTimer: ReturnType<typeof setTimeout> | null = null;
+let runtimeAnalyticsBootstrapped = false;
+let productAnalyticsReady = false;
+let productAnalyticsLoad: Promise<void> | null = null;
+type PreparedProductEvent = {
+  name: AnalyticsEventName;
+  props: Record<string, AnalyticsPropValue>;
+  route: string;
+};
+let pendingProductEvents: PreparedProductEvent[] = [];
 let posthogClient: { capture: (name: string, props?: Record<string, unknown>) => void; identify: (id: string) => void } | null = null;
 let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
@@ -227,6 +331,150 @@ type WebGlobal = {
 function webWindow(): WebGlobal | null {
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
   return window as unknown as WebGlobal;
+}
+
+function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
+  const candidate = timer as unknown as { unref?: () => void };
+  candidate.unref?.();
+}
+
+function applyRuntimeAnalyticsFlags(flags: AnalyticsRuntimeFlags): void {
+  const previous = runtimeAnalyticsFlags;
+  runtimeAnalyticsFlags = flags;
+  if (!flags.analyticsEnabled) {
+    productAnalyticsReady = false;
+    pendingProductEvents = [];
+  }
+  const w = webWindow();
+  if (!w || !analyticsConsent) return;
+  if (!flags.analyticsEnabled) {
+    try {
+      w.gtag?.("consent", "update", {
+        analytics_storage: "denied",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
+    } catch {
+      // ignore
+    }
+  } else {
+    try {
+      w.gtag?.("consent", "update", {
+        analytics_storage: "granted",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
+    } catch {
+      // ignore
+    }
+  }
+  if (clarityLoaded && w.clarity) {
+    try {
+      const clarityGranted = flags.analyticsEnabled && flags.clarityEnabled;
+      w.clarity("consentv2", {
+        ad_Storage: "denied",
+        analytics_Storage: clarityGranted ? "granted" : "denied",
+      });
+      if (!clarityGranted) w.clarity("consent", false);
+    } catch {
+      // ignore
+    }
+  }
+  const shouldLoad =
+    runtimeAnalyticsBootstrapped &&
+    flags.analyticsEnabled &&
+    (!previous.analyticsEnabled ||
+      (!previous.clarityEnabled && flags.clarityEnabled) ||
+      !productAnalyticsReady);
+  if (shouldLoad) {
+    try {
+      void loadProductAnalytics(getEnv());
+    } catch {
+      // invalid build env keeps analytics off
+    }
+  } else if (flags.analyticsEnabled && productAnalyticsReady) {
+    flushPendingProductEvents();
+  }
+  scheduleRuntimeAnalyticsPolling();
+}
+
+async function fetchRuntimeAnalyticsFlags(): Promise<AnalyticsRuntimeFlags> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const query = getSupabaseClient()
+      .from("runtime_flags")
+      .select("key, enabled")
+      .in("key", ["analytics_enabled", "clarity_enabled"]);
+    const { data, error } = await Promise.race([
+      query,
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => reject(new Error("runtime_flags_timeout")), 5_000);
+        unrefTimer(timeout);
+      }),
+    ]);
+    if (error) return { ...RUNTIME_ANALYTICS_DEFAULTS };
+    return resolveAnalyticsRuntimeFlags(data);
+  } catch {
+    return { ...RUNTIME_ANALYTICS_DEFAULTS };
+  } finally {
+    if (timeout !== null) clearTimeout(timeout);
+  }
+}
+
+async function refreshRuntimeAnalyticsFlags(force = false): Promise<AnalyticsRuntimeFlags> {
+  const isFresh = Date.now() - runtimeAnalyticsFlagsCheckedAt < 60_000;
+  if (!force && isFresh) return runtimeAnalyticsFlags;
+  if (runtimeAnalyticsRefresh) return runtimeAnalyticsRefresh;
+  runtimeAnalyticsRefresh = fetchRuntimeAnalyticsFlags()
+    .then((flags) => {
+      runtimeAnalyticsFlagsCheckedAt = Date.now();
+      applyRuntimeAnalyticsFlags(flags);
+      return flags;
+    })
+    .finally(() => {
+      runtimeAnalyticsRefresh = null;
+    });
+  return runtimeAnalyticsRefresh;
+}
+
+function stopRuntimeAnalyticsPolling(): void {
+  if (runtimeAnalyticsTimer === null) return;
+  clearTimeout(runtimeAnalyticsTimer);
+  runtimeAnalyticsTimer = null;
+}
+
+function scheduleRuntimeAnalyticsPolling(): void {
+  let env: Env;
+  try {
+    env = getEnv();
+  } catch {
+    return;
+  }
+  if (
+    runtimeAnalyticsTimer !== null ||
+    !analyticsConsent ||
+    !hasProductAnalyticsConfig(env) ||
+    !webWindow()
+  ) {
+    return;
+  }
+  runtimeAnalyticsTimer = setTimeout(() => {
+    runtimeAnalyticsTimer = null;
+    void refreshRuntimeAnalyticsFlags(true).then(() => {
+      if (analyticsConsent) scheduleRuntimeAnalyticsPolling();
+    });
+  }, 60_000);
+  unrefTimer(runtimeAnalyticsTimer);
+}
+
+function hasProductAnalyticsConfig(env: Env): boolean {
+  return Boolean(
+    env.EXPO_PUBLIC_GA4_MEASUREMENT_ID ||
+      env.EXPO_PUBLIC_CLARITY_PROJECT_ID ||
+      (env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST),
+  );
 }
 
 function cleanProps(props: AnalyticsProps | undefined): Record<string, AnalyticsPropValue> {
@@ -277,14 +525,53 @@ export function buildAnalyticsPageLocation(routePath: string, origin?: string): 
   return `${safeOrigin}${GITHUB_PAGES_BASE_PATH}${safeRoute}`;
 }
 
-function gaContextProps(w: WebGlobal): Record<string, string> {
-  const path = sanitizeAnalyticsRoutePath(currentAnalyticsRoute);
+function gaContextProps(w: WebGlobal, routePath = currentAnalyticsRoute): Record<string, string> {
+  const path = sanitizeAnalyticsRoutePath(routePath);
   const safeRoot = buildAnalyticsPageLocation("/", w.location?.origin);
   return {
     page_location: buildAnalyticsPageLocation(path, w.location?.origin),
     page_referrer: safeRoot,
     page_title: path,
   };
+}
+
+function deliverProductEvent(event: PreparedProductEvent): boolean {
+  let delivered = clarityLoaded && runtimeAnalyticsFlags.clarityEnabled;
+  if (posthogClient) {
+    try {
+      posthogClient.capture(event.name, event.props);
+      delivered = true;
+    } catch {
+      // analytics failures must not propagate
+    }
+  }
+  const w = webWindow();
+  if (ga4Id && w?.gtag) {
+    try {
+      // Never let the browser's live URL/title enrich a custom event.
+      w.gtag("event", event.name, { ...event.props, ...gaContextProps(w, event.route) });
+      delivered = true;
+    } catch {
+      // ignore
+    }
+  }
+  return delivered;
+}
+
+function enqueueProductEvent(event: PreparedProductEvent): void {
+  if (pendingProductEvents.length >= 20) pendingProductEvents.shift();
+  pendingProductEvents.push(event);
+}
+
+function flushPendingProductEvents(): void {
+  if (!analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) {
+    pendingProductEvents = [];
+    return;
+  }
+  if (!productAnalyticsReady) return;
+  const queued = pendingProductEvents;
+  pendingProductEvents = [];
+  for (const event of queued) deliverProductEvent(event);
 }
 
 type SentryBreadcrumb = {
@@ -351,6 +638,12 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   if (initialized) return;
   initialized = true;
 
+  // Native (Android) Firebase Analytics: assert the fail-closed default
+  // synchronously at boot, before any env/web checks. _layout calls this with
+  // no opts, so a cold start always re-applies OFF until the server-derived
+  // decision arrives through setAnalyticsConsent.
+  syncNativeAnalyticsCollection(canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts));
+
   let env: Env;
   try {
     env = getEnv();
@@ -358,7 +651,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
     return;
   }
 
-  // Web-only path. Native builds will get their own wiring later.
+  // Web SDK path from here down; the native gate was already applied above.
   if (!webWindow()) return; // also covers SSR / static export
 
   // Establish the initial gate BEFORE the first await. Auth may resolve and call
@@ -392,6 +685,11 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
     }
   }
 
+  // Deployment-free operator gate. Consent and confirmed-adult status remain
+  // mandatory, but neither can override an operator shutdown. Migration lag,
+  // missing rows, and network errors all fail closed.
+  runtimeAnalyticsFlags = await refreshRuntimeAnalyticsFlags(true);
+
   // M1 (round-4): do NOT trust the localStorage cache to auto-load product
   // analytics at boot - a stale "granted", or a 14-17 minor who set the key in
   // devtools, would load GA4/Clarity/PostHog without re-checking the SERVER
@@ -400,7 +698,10 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // AuthContext resolves external_analytics + minor status (see the
   // AnalyticsConsentSync effect in _layout). Sentry (above) is operational +
   // PII-free, so it loads regardless of this gate.
-  if (analyticsConsent) await loadProductAnalytics(env);
+  if (analyticsConsent && runtimeAnalyticsFlags.analyticsEnabled) {
+    await loadProductAnalytics(env);
+  }
+  runtimeAnalyticsBootstrapped = true;
 }
 
 /**
@@ -410,8 +711,22 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
  * setAnalyticsConsent when the user opts in mid-session).
  */
 async function loadProductAnalytics(env: Env): Promise<void> {
+  if (!webWindow() || !analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) return;
+  if (productAnalyticsLoad) return productAnalyticsLoad;
+  productAnalyticsReady = false;
+  productAnalyticsLoad = performProductAnalyticsLoad(env).finally(() => {
+    productAnalyticsLoad = null;
+    if (analyticsConsent && runtimeAnalyticsFlags.analyticsEnabled) {
+      productAnalyticsReady = true;
+      flushPendingProductEvents();
+    }
+  });
+  return productAnalyticsLoad;
+}
+
+async function performProductAnalyticsLoad(env: Env): Promise<void> {
   const w = webWindow();
-  if (!w) return;
+  if (!w || !analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) return;
 
   // GA4 (gtag.js) - public measurement id, privacy-hardened (IP anonymized, no
   // Google/ad signals). Inject the tag script once. Keep this before the
@@ -452,7 +767,11 @@ async function loadProductAnalytics(env: Env): Promise<void> {
 
   // MS Clarity - loaded only post-consent. The project must be configured to
   // mask text (sensitive content); signal cookie consent after load.
-  if (!clarityLoaded && env.EXPO_PUBLIC_CLARITY_PROJECT_ID) {
+  if (
+    runtimeAnalyticsFlags.clarityEnabled &&
+    !clarityLoaded &&
+    env.EXPO_PUBLIC_CLARITY_PROJECT_ID
+  ) {
     try {
       const id = env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
       // Mask the entire rendered document even if an operator later weakens the
@@ -496,7 +815,7 @@ async function loadProductAnalytics(env: Env): Promise<void> {
           identify: (id: string) => void;
         };
       };
-      if (!analyticsConsent) return;
+      if (!analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) return;
       mod.default.init(env.EXPO_PUBLIC_POSTHOG_KEY, {
         api_host: env.EXPO_PUBLIC_POSTHOG_HOST,
         autocapture: false, // explicit events only - no input scraping
@@ -519,6 +838,9 @@ async function loadProductAnalytics(env: Env): Promise<void> {
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[analytics] posthog init skipped:", (e as Error).message);
     }
+  }
+  if (hasProductAnalyticsConfig(env)) {
+    scheduleRuntimeAnalyticsPolling();
   }
 }
 
@@ -550,11 +872,20 @@ export function setAnalyticsConsent(
   }
   analyticsConsentRevision += 1;
   analyticsConsent = canLoadProductAnalytics(granted, gate);
+  // Native builds mirror the same resolved decision (revision-guarded above);
+  // a native revoke is immediate (setAnalyticsCollectionEnabled false), unlike
+  // the web SDKs which also need their consent-update calls below.
+  syncNativeAnalyticsCollection(analyticsConsent);
   const w = webWindow();
   try {
     w?.localStorage?.setItem(CONSENT_KEY, analyticsConsent ? "granted" : "denied");
   } catch {
     // ignore storage failures (private mode, etc.)
+  }
+  if (!analyticsConsent) {
+    productAnalyticsReady = false;
+    pendingProductEvents = [];
+    stopRuntimeAnalyticsPolling();
   }
   if (!analyticsConsent && w) {
     try {
@@ -582,29 +913,32 @@ export function setAnalyticsConsent(
     return true;
   }
   if (analyticsConsent && initialized && w) {
-    try {
-      w.gtag?.("consent", "update", {
-        analytics_storage: "granted",
-        ad_storage: "denied",
-        ad_user_data: "denied",
-        ad_personalization: "denied",
-      });
-      if (clarityLoaded && w.clarity) {
-        w.clarity("consentv2", {
-          ad_Storage: "denied",
-          analytics_Storage: "granted",
-        });
-      }
-    } catch {
-      // ignore
-    }
     let env: Env;
     try {
       env = getEnv();
     } catch {
       return true;
     }
-    void loadProductAnalytics(env);
+    void refreshRuntimeAnalyticsFlags(true).then((flags) => {
+      if (!analyticsConsent || !flags.analyticsEnabled) return;
+      try {
+        w.gtag?.("consent", "update", {
+          analytics_storage: "granted",
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+        });
+        if (flags.clarityEnabled && clarityLoaded && w.clarity) {
+          w.clarity("consentv2", {
+            ad_Storage: "denied",
+            analytics_Storage: "granted",
+          });
+        }
+      } catch {
+        // ignore
+      }
+      void loadProductAnalytics(env);
+    });
   }
   return true;
 }
@@ -617,34 +951,34 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
   }
+  // Re-check at most once per minute. The current event uses the last safe
+  // snapshot; a newly disabled flag revokes loaded GA/Clarity immediately
+  // when the asynchronous refresh resolves.
+  if (initialized && webWindow()) void refreshRuntimeAnalyticsFlags();
+  const prepared = {
+    name: event.name,
+    props: cleanAnalyticsEventProps(event),
+    route: currentAnalyticsRoute,
+  } satisfies PreparedProductEvent;
   // Opt-out is immediate for every app-driven event. A Google tag already
   // loaded in this document can still emit consent-status/cookieless pings;
   // production therefore also requires GA's behavioral + diagnostic data
   // transmission controls and automatic history events to be disabled.
   if (!analyticsConsent) return false;
-  const props = cleanAnalyticsEventProps(event);
-  let delivered = clarityLoaded;
-  if (posthogClient) {
-    try {
-      posthogClient.capture(event.name, props);
-      delivered = true;
-    } catch {
-      // analytics failures must not propagate
-    }
+  if (
+    runtimeAnalyticsRefresh ||
+    !runtimeAnalyticsFlags.analyticsEnabled ||
+    !productAnalyticsReady
+  ) {
+    const awaitingDecision =
+      runtimeAnalyticsRefresh !== null ||
+      runtimeAnalyticsFlagsCheckedAt === 0 ||
+      (runtimeAnalyticsFlags.analyticsEnabled && !productAnalyticsReady);
+    if (!awaitingDecision) return false;
+    enqueueProductEvent(prepared);
+    return true;
   }
-  const w = webWindow();
-  if (ga4Id && w?.gtag) {
-    try {
-      // GA enriches every event with browser page metadata by default. Override
-      // all three fields at event scope so record ids, peer tokens, OAuth query
-      // values, and document titles cannot ride along on non-page events.
-      w.gtag("event", event.name, { ...props, ...gaContextProps(w) });
-      delivered = true;
-    } catch {
-      // ignore
-    }
-  }
-  return delivered;
+  return deliverProductEvent(prepared);
 }
 
 /**
@@ -675,9 +1009,20 @@ export function __resetAnalytics(): void {
   initialized = false;
   analyticsConsent = false;
   analyticsConsentRevision = 0;
+  runtimeAnalyticsFlags = { ...RUNTIME_ANALYTICS_DEFAULTS };
+  runtimeAnalyticsFlagsCheckedAt = 0;
+  runtimeAnalyticsRefresh = null;
+  stopRuntimeAnalyticsPolling();
+  runtimeAnalyticsBootstrapped = false;
+  productAnalyticsReady = false;
+  productAnalyticsLoad = null;
+  pendingProductEvents = [];
   posthogClient = null;
   sentryClient = null;
   ga4Id = null;
   clarityLoaded = false;
   currentAnalyticsRoute = "/";
+  nativeApplierOverride = null;
+  nativeApplyTarget = null;
+  nativeApplyChain = Promise.resolve();
 }

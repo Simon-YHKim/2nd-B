@@ -1,6 +1,9 @@
 // Smoke tests for the analytics abstraction. SDK loading is gated by web
-// platform checks, env ids, and consent, so the default test path should be a
+// platform checks, env ids, runtime flags, and consent, so the default test path should be a
 // no-op without throwing.
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   buildAnalyticsPageLocation,
@@ -22,14 +25,23 @@ import {
   plansTierFocused,
   checkoutStarted,
   purchase,
+  resolveAnalyticsRuntimeFlags,
   sanitizeAnalyticsRoutePath,
   scrubSentryEvent,
   __resetAnalytics,
+  __setNativeAnalyticsApplierForTests,
+  __flushNativeAnalyticsForTests,
 } from "../index";
+
+const ROOT = resolve(__dirname, "../../../..");
 
 describe("analytics — no-op when no keys configured", () => {
   beforeEach(() => {
     __resetAnalytics();
+    // Keep these web-focused tests hermetic: the native sync fires on every
+    // consent call (jest Platform.OS is "ios"), so park it on a no-op applier
+    // instead of letting it attempt the real Firebase dynamic import.
+    __setNativeAnalyticsApplierForTests(async () => {});
   });
 
   test("initAnalytics() resolves without throwing when keys absent", async () => {
@@ -96,6 +108,31 @@ describe("analytics — no-op when no keys configured", () => {
         underDigitalConsentAge: true,
       }),
     ).not.toThrow();
+  });
+
+  test("runtime analytics flags fail closed for missing or malformed rows", () => {
+    expect(resolveAnalyticsRuntimeFlags(undefined)).toEqual({
+      analyticsEnabled: false,
+      clarityEnabled: false,
+    });
+    expect(
+      resolveAnalyticsRuntimeFlags([
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ]),
+    ).toEqual({
+      analyticsEnabled: true,
+      clarityEnabled: true,
+    });
+    expect(
+      resolveAnalyticsRuntimeFlags([
+        { key: "analytics_enabled", enabled: "true" },
+        { key: "clarity_enabled", enabled: true },
+      ]),
+    ).toEqual({
+      analyticsEnabled: false,
+      clarityEnabled: false,
+    });
   });
 
   test("a stale server consent read cannot overwrite a newer privacy action", () => {
@@ -211,6 +248,532 @@ describe("analytics — no-op when no keys configured", () => {
     for (const value of Object.values(evt.props)) {
       const t = typeof value;
       expect(t === "string" || t === "number" || t === "boolean").toBe(true);
+    }
+  });
+});
+
+// Native Firebase Analytics gate (Android builds; jest's react-native mock
+// reports Platform.OS "ios" = non-web, so the native sync path runs here).
+// Collection may turn ON only for a server-confirmed adult with the
+// external_analytics pref granted; every other state applies OFF.
+describe("native Firebase Analytics collection gate", () => {
+  const applied: boolean[] = [];
+
+  beforeEach(() => {
+    __resetAnalytics();
+    applied.length = 0;
+    __setNativeAnalyticsApplierForTests(async (enabled) => {
+      applied.push(enabled);
+    });
+  });
+
+  afterEach(() => {
+    __setNativeAnalyticsApplierForTests(null);
+  });
+
+  test("boot with no opts asserts OFF (fail-closed default)", async () => {
+    await initAnalytics();
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("server-confirmed adult with granted pref turns collection ON", async () => {
+    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([true]);
+  });
+
+  test("14-17 minor stays OFF even with a granted pref", async () => {
+    setAnalyticsConsent(true, { isMinor: true, confirmedAdult: false });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("unresolved age stays OFF (no confirmedAdult)", async () => {
+    setAnalyticsConsent(true, { isMinor: null });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("under digital-consent age stays OFF even when marked adult", async () => {
+    setAnalyticsConsent(true, {
+      isMinor: false,
+      confirmedAdult: true,
+      underDigitalConsentAge: true,
+    });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("revoke after grant applies OFF immediately (no reload needed)", async () => {
+    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+    setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([true, false]);
+  });
+
+  test("repeated same-state syncs are deduped to one native apply", async () => {
+    await initAnalytics();
+    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    setAnalyticsConsent(true, { isMinor: null });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("a stale server read cannot enable native collection (revision guard)", async () => {
+    await initAnalytics();
+    const staleRevision = getAnalyticsConsentRevision();
+    setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    setAnalyticsConsent(
+      true,
+      { isMinor: false, confirmedAdult: true },
+      { expectedRevision: staleRevision },
+    );
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("a rejecting native applier never throws and the queue stays alive", async () => {
+    __setNativeAnalyticsApplierForTests(() => Promise.reject(new Error("native module missing")));
+    expect(() => setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true })).not.toThrow();
+    await __flushNativeAnalyticsForTests();
+    __setNativeAnalyticsApplierForTests(async (enabled) => {
+      applied.push(enabled);
+    });
+    setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+});
+
+describe("runtime operations config", () => {
+  const migration = readFileSync(
+    resolve(ROOT, "db/migrations/0092_runtime_flags.sql"),
+    "utf8",
+  );
+
+  test("runtime flags are public-read-only and AI egress is server-gated", () => {
+    expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS public\.runtime_flags/i);
+    expect(migration).toMatch(/ALTER TABLE public\.runtime_flags ENABLE ROW LEVEL SECURITY/i);
+    expect(migration).toMatch(/GRANT SELECT ON TABLE public\.runtime_flags TO anon, authenticated/i);
+    expect(migration).toMatch(
+      /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.runtime_flags TO service_role/i,
+    );
+    expect(migration).not.toMatch(
+      /CREATE POLICY[\s\S]*?FOR (?:INSERT|UPDATE|DELETE) TO (?:anon|authenticated)/i,
+    );
+    expect(migration).toMatch(/WHERE key = 'llm_enabled'/i);
+    expect(migration).toMatch(/RAISE EXCEPTION 'llm_runtime_disabled'/i);
+  });
+
+  test("release profiles contain no committed analytics identifiers or CI fallbacks", () => {
+    const eas = JSON.parse(readFileSync(resolve(ROOT, "eas.json"), "utf8")) as {
+      build: Record<string, { environment?: string; env?: Record<string, string> }>;
+    };
+    const androidWorkflow = readFileSync(
+      resolve(ROOT, ".github/workflows/android-release.yml"),
+      "utf8",
+    );
+    const keys = [
+      "EXPO_PUBLIC_SENTRY_DSN",
+      "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
+      "EXPO_PUBLIC_CLARITY_PROJECT_ID",
+      "EXPO_PUBLIC_POSTHOG_KEY",
+      "EXPO_PUBLIC_POSTHOG_HOST",
+    ];
+
+    expect(eas.build.preview.environment).toBe("preview");
+    expect(eas.build.production.environment).toBe("production");
+    for (const profile of ["preview", "production"]) {
+      expect(eas.build[profile].env?.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION).toBe("true");
+      for (const key of keys) expect(eas.build[profile].env).not.toHaveProperty(key);
+    }
+    expect(androidWorkflow).toMatch(/EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION:\s*"true"/);
+    for (const key of keys) {
+      expect(androidWorkflow).toContain(`${key}: \${{ vars.${key} }}`);
+      expect(androidWorkflow).not.toMatch(new RegExp(`^\\s+${key}:.*\\|\\|`, "m"));
+    }
+  });
+});
+
+describe("runtime analytics web transitions", () => {
+  type RuntimeFlagRow = { key: string; enabled: boolean };
+  type RuntimeFlagResponse = {
+    data: RuntimeFlagRow[] | null;
+    error: { message: string } | null;
+  };
+  type PostHogMock = {
+    init: jest.Mock;
+    capture: jest.Mock;
+    identify: jest.Mock;
+  };
+
+  const originalWindow = (globalThis as { window?: unknown }).window;
+  const originalDocument = (globalThis as { document?: unknown }).document;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
+    else (globalThis as { window?: unknown }).window = originalWindow;
+    if (originalDocument === undefined) delete (globalThis as { document?: unknown }).document;
+    else (globalThis as { document?: unknown }).document = originalDocument;
+    jest.dontMock("react-native");
+    jest.dontMock("../../env");
+    jest.dontMock("../../supabase/client");
+    jest.resetModules();
+  });
+
+  async function flushAsyncWork(turns = 12): Promise<void> {
+    for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
+  }
+
+  function loadWebModule(
+    rowsRef: { current: RuntimeFlagRow[] },
+    queryFlags?: () => Promise<RuntimeFlagResponse>,
+    posthogClient?: PostHogMock,
+  ): {
+    analytics: typeof import("../index");
+    dataLayer: unknown[];
+    appendChild: jest.Mock;
+    clarity: jest.Mock;
+    fetchFlags: jest.Mock;
+  } {
+    jest.resetModules();
+    jest.doMock("react-native", () => ({ Platform: { OS: "web" } }));
+    jest.doMock("../../env", () => ({
+      getEnv: () => ({
+        EXPO_PUBLIC_GA4_MEASUREMENT_ID: "G-TEST",
+        EXPO_PUBLIC_CLARITY_PROJECT_ID: "clarity-test",
+        ...(posthogClient
+          ? {
+              EXPO_PUBLIC_POSTHOG_KEY: "ph-test",
+              EXPO_PUBLIC_POSTHOG_HOST: "https://posthog.test",
+            }
+          : {}),
+      }),
+    }));
+    if (posthogClient) {
+      jest.doMock(
+        "posthog-js",
+        () => ({
+          __esModule: true,
+          default: posthogClient,
+        }),
+        { virtual: true },
+      );
+    }
+    const fetchFlags = jest.fn(
+      queryFlags ??
+        (() =>
+          Promise.resolve({
+            data: rowsRef.current,
+            error: null,
+          })),
+    );
+    jest.doMock("../../supabase/client", () => ({
+      getSupabaseClient: () => ({
+        from: () => ({
+          select: () => ({
+            in: fetchFlags,
+          }),
+        }),
+      }),
+    }));
+
+    const dataLayer: unknown[] = [];
+    const appendChild = jest.fn();
+    const clarity = jest.fn();
+    (globalThis as { window?: unknown }).window = {
+      dataLayer,
+      clarity,
+      location: { origin: "https://example.test" },
+      localStorage: { getItem: jest.fn(), setItem: jest.fn() },
+    };
+    (globalThis as { document?: unknown }).document = {
+      createElement: () => ({ async: false, src: "" }),
+      documentElement: { setAttribute: jest.fn() },
+      getElementsByTagName: () => [],
+      head: { appendChild },
+    };
+    return {
+      analytics: require("../index") as typeof import("../index"),
+      dataLayer,
+      appendChild,
+      clarity,
+      fetchFlags,
+    };
+  }
+
+  test("runtime OFF blocks product SDK loading even for a consenting adult", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: false },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics, appendChild } = loadWebModule(rows);
+    await analytics.initAnalytics({
+      analyticsConsent: true,
+      isMinor: false,
+      confirmedAdult: true,
+    });
+    expect(appendChild).not.toHaveBeenCalled();
+    expect(analytics.captureEvent(analytics.pageView({ path: "/capture" }))).toBe(false);
+    expect(jest.getTimerCount()).toBe(1);
+    analytics.__resetAnalytics();
+  });
+
+  test("overlapping init and consent use one async PostHog init and flush the page once", async () => {
+    const enabledRows: RuntimeFlagRow[] = [
+      { key: "analytics_enabled", enabled: true },
+      { key: "clarity_enabled", enabled: true },
+    ];
+    const rows = {
+      current: enabledRows,
+    };
+    let resolveFlags: ((response: RuntimeFlagResponse) => void) | undefined;
+    const queryFlags = () =>
+      new Promise<RuntimeFlagResponse>((resolve) => {
+        resolveFlags = resolve;
+      });
+    const posthog = {
+      init: jest.fn(),
+      capture: jest.fn(),
+      identify: jest.fn(),
+    };
+    const { analytics, appendChild, dataLayer, fetchFlags } = loadWebModule(
+      rows,
+      queryFlags,
+      posthog,
+    );
+
+    const init = analytics.initAnalytics();
+    analytics.setAnalyticsConsent(true, {
+      isMinor: false,
+      confirmedAdult: true,
+    });
+    expect(
+      analytics.captureEvent(
+        analytics.pageView({ path: "/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120" }),
+      ),
+    ).toBe(true);
+    expect(fetchFlags).toHaveBeenCalledTimes(1);
+
+    resolveFlags?.({ data: enabledRows, error: null });
+    await init;
+    await flushAsyncWork();
+
+    const scriptSources = appendChild.mock.calls.map(
+      ([script]) => (script as { src?: string }).src,
+    );
+    expect(scriptSources.filter((src) => src?.includes("googletagmanager.com"))).toHaveLength(1);
+    expect(scriptSources.filter((src) => src?.includes("clarity.ms"))).toHaveLength(1);
+    expect(posthog.init).toHaveBeenCalledTimes(1);
+    expect(posthog.init).toHaveBeenCalledWith(
+      "ph-test",
+      expect.objectContaining({
+        api_host: "https://posthog.test",
+        autocapture: false,
+        capture_pageview: false,
+      }),
+    );
+    expect(posthog.capture).toHaveBeenCalledTimes(1);
+    expect(posthog.capture).toHaveBeenCalledWith("page_view", { path: "/record/[id]" });
+    const pageViews = dataLayer.filter(
+      (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+    ) as Array<[string, string, { path?: string }]>;
+    expect(pageViews.map((entry) => entry[2].path)).toEqual(["/record/[id]"]);
+    analytics.__resetAnalytics();
+  });
+
+  test("an unchanged ON poll flushes two queued page routes exactly once each", async () => {
+    const enabledRows: RuntimeFlagRow[] = [
+      { key: "analytics_enabled", enabled: true },
+      { key: "clarity_enabled", enabled: true },
+    ];
+    const rows = { current: enabledRows };
+    let requestCount = 0;
+    let resolvePoll: ((response: RuntimeFlagResponse) => void) | undefined;
+    const queryFlags = () => {
+      requestCount += 1;
+      if (requestCount === 2) {
+        return new Promise<RuntimeFlagResponse>((resolve) => {
+          resolvePoll = resolve;
+        });
+      }
+      return Promise.resolve({ data: enabledRows, error: null });
+    };
+    const { analytics, dataLayer, fetchFlags } = loadWebModule(rows, queryFlags);
+    try {
+      await analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(fetchFlags).toHaveBeenCalledTimes(2);
+      expect(
+        analytics.captureEvent(
+          analytics.pageView({ path: "/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120" }),
+        ),
+      ).toBe(true);
+      expect(
+        analytics.captureEvent(
+          analytics.pageView({ path: "/peer/abcdefghijklmnopqrstuvwxyz012345" }),
+        ),
+      ).toBe(true);
+      expect(
+        dataLayer.filter(
+          (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+        ),
+      ).toHaveLength(0);
+
+      resolvePoll?.({ data: enabledRows, error: null });
+      await flushAsyncWork();
+
+      const pageViews = dataLayer.filter(
+        (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+      ) as Array<[string, string, { page_location?: string; path?: string }]>;
+      expect(
+        pageViews.map((entry) => ({
+          path: entry[2].path,
+          page_location: entry[2].page_location,
+        })),
+      ).toEqual([
+        {
+          path: "/record/[id]",
+          page_location: "https://example.test/2nd-B/record/[id]",
+        },
+        {
+          path: "/peer/[token]",
+          page_location: "https://example.test/2nd-B/peer/[token]",
+        },
+      ]);
+      expect(fetchFlags).toHaveBeenCalledTimes(2);
+    } finally {
+      analytics.__resetAnalytics();
+    }
+  });
+
+  test("60-second polling keeps running while OFF and restores GA and Clarity", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: false },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics, appendChild, clarity, dataLayer, fetchFlags } = loadWebModule(rows);
+    try {
+      await analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+      expect(fetchFlags).toHaveBeenCalledTimes(1);
+      expect(appendChild).not.toHaveBeenCalled();
+
+      rows.current = [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ];
+      await jest.advanceTimersByTimeAsync(60_000);
+      await flushAsyncWork();
+      expect(fetchFlags).toHaveBeenCalledTimes(2);
+      expect(appendChild).toHaveBeenCalledTimes(2);
+
+      rows.current = [
+        { key: "analytics_enabled", enabled: false },
+        { key: "clarity_enabled", enabled: false },
+      ];
+      await jest.advanceTimersByTimeAsync(60_000);
+      await flushAsyncWork();
+      expect(fetchFlags).toHaveBeenCalledTimes(3);
+      expect(analytics.captureEvent(analytics.pageView({ path: "/blocked" }))).toBe(false);
+
+      rows.current = [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ];
+      await jest.advanceTimersByTimeAsync(60_000);
+      await flushAsyncWork();
+      expect(fetchFlags).toHaveBeenCalledTimes(4);
+      expect(appendChild).toHaveBeenCalledTimes(2);
+      expect(analytics.captureEvent(analytics.pageView({ path: "/restored" }))).toBe(true);
+
+      const gaConsentStates = dataLayer
+        .filter((entry) => Array.isArray(entry) && entry[0] === "consent")
+        .map((entry) => (entry as [string, string, { analytics_storage: string }])[2].analytics_storage);
+      expect(gaConsentStates).toEqual(["granted", "denied", "granted"]);
+      const clarityConsentStates = clarity.mock.calls
+        .filter(([command]) => command === "consentv2")
+        .map(([, state]) => (state as { analytics_Storage: string }).analytics_Storage);
+      expect(clarityConsentStates).toEqual(["granted", "denied", "granted"]);
+      expect(jest.getTimerCount()).toBe(1);
+    } finally {
+      analytics.__resetAnalytics();
+    }
+  });
+
+  test("a 5-second flag timeout fails closed and the next poll can recover", async () => {
+    const enabledRows: RuntimeFlagRow[] = [
+      { key: "analytics_enabled", enabled: true },
+      { key: "clarity_enabled", enabled: true },
+    ];
+    const rows = { current: enabledRows };
+    let requestCount = 0;
+    const queryFlags = () => {
+      requestCount += 1;
+      if (requestCount === 2) return new Promise<RuntimeFlagResponse>(() => {});
+      return Promise.resolve({ data: enabledRows, error: null });
+    };
+    const { analytics, dataLayer, fetchFlags } = loadWebModule(rows, queryFlags);
+    try {
+      await analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(fetchFlags).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(4_999);
+      expect(
+        dataLayer.some(
+          (entry) =>
+            Array.isArray(entry) &&
+            entry[0] === "consent" &&
+            (entry[2] as { analytics_storage?: string }).analytics_storage === "denied",
+        ),
+      ).toBe(false);
+
+      await jest.advanceTimersByTimeAsync(1);
+      await flushAsyncWork();
+      expect(
+        dataLayer.some(
+          (entry) =>
+            Array.isArray(entry) &&
+            entry[0] === "consent" &&
+            (entry[2] as { analytics_storage?: string }).analytics_storage === "denied",
+        ),
+      ).toBe(true);
+      expect(analytics.captureEvent(analytics.pageView({ path: "/timeout" }))).toBe(false);
+
+      await jest.advanceTimersByTimeAsync(60_000);
+      await flushAsyncWork();
+      expect(fetchFlags).toHaveBeenCalledTimes(3);
+      expect(analytics.captureEvent(analytics.pageView({ path: "/recovered" }))).toBe(true);
+      const gaConsentStates = dataLayer
+        .filter((entry) => Array.isArray(entry) && entry[0] === "consent")
+        .map((entry) => (entry as [string, string, { analytics_storage: string }])[2].analytics_storage);
+      expect(gaConsentStates).toEqual(["granted", "denied", "granted"]);
+    } finally {
+      analytics.__resetAnalytics();
     }
   });
 });
