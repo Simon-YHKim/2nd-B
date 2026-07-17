@@ -97,12 +97,24 @@ jobs:
       EXPO_PUBLIC_NATIVE_SOCIAL_SDK: "false"
       EXPO_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com' }}
       EXPO_PUBLIC_NAVER_CLIENT_ID: ${{ vars.EXPO_PUBLIC_NAVER_CLIENT_ID || 'A1Su7C7EgyR49be6V4rT' }}
-      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN || 'https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808' }}
-      EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID || 'G-VF514NK1WS' }}
-      EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID || 'xb3qenit2h' }}
-      EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || 'phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A' }}
-      EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
+      # Optional operational integrations are repo-variable only. An unset
+      # variable must stay off; committed fallbacks defeat emergency shutdown.
+      EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
+      EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
+      EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
+      EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
+      EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
     steps:
+      - name: Validate optional analytics variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          if { [ -n "${EXPO_PUBLIC_POSTHOG_KEY:-}" ] && [ -z "${EXPO_PUBLIC_POSTHOG_HOST:-}" ]; } ||
+             { [ -z "${EXPO_PUBLIC_POSTHOG_KEY:-}" ] && [ -n "${EXPO_PUBLIC_POSTHOG_HOST:-}" ]; }; then
+            echo "::error::EXPO_PUBLIC_POSTHOG_KEY and EXPO_PUBLIC_POSTHOG_HOST must be set together."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 

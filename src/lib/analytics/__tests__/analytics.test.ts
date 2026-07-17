@@ -1,6 +1,9 @@
 // Smoke tests for the analytics abstraction. SDK loading is gated by web
-// platform checks, env ids, and consent, so the default test path should be a
+// platform checks, env ids, runtime flags, and consent, so the default test path should be a
 // no-op without throwing.
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   buildAnalyticsPageLocation,
@@ -22,12 +25,15 @@ import {
   plansTierFocused,
   checkoutStarted,
   purchase,
+  resolveAnalyticsRuntimeFlags,
   sanitizeAnalyticsRoutePath,
   scrubSentryEvent,
   __resetAnalytics,
   __setNativeAnalyticsApplierForTests,
   __flushNativeAnalyticsForTests,
 } from "../index";
+
+const ROOT = resolve(__dirname, "../../../..");
 
 describe("analytics — no-op when no keys configured", () => {
   beforeEach(() => {
@@ -102,6 +108,31 @@ describe("analytics — no-op when no keys configured", () => {
         underDigitalConsentAge: true,
       }),
     ).not.toThrow();
+  });
+
+  test("runtime analytics flags fail closed for missing or malformed rows", () => {
+    expect(resolveAnalyticsRuntimeFlags(undefined)).toEqual({
+      analyticsEnabled: false,
+      clarityEnabled: false,
+    });
+    expect(
+      resolveAnalyticsRuntimeFlags([
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ]),
+    ).toEqual({
+      analyticsEnabled: true,
+      clarityEnabled: true,
+    });
+    expect(
+      resolveAnalyticsRuntimeFlags([
+        { key: "analytics_enabled", enabled: "true" },
+        { key: "clarity_enabled", enabled: true },
+      ]),
+    ).toEqual({
+      analyticsEnabled: false,
+      clarityEnabled: false,
+    });
   });
 
   test("a stale server consent read cannot overwrite a newer privacy action", () => {
@@ -312,5 +343,205 @@ describe("native Firebase Analytics collection gate", () => {
     setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
     await __flushNativeAnalyticsForTests();
     expect(applied).toEqual([false]);
+  });
+});
+
+describe("runtime operations config", () => {
+  const migration = readFileSync(
+    resolve(ROOT, "db/migrations/0092_runtime_flags.sql"),
+    "utf8",
+  );
+
+  test("runtime flags are public-read-only and AI egress is server-gated", () => {
+    expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS public\.runtime_flags/i);
+    expect(migration).toMatch(/ALTER TABLE public\.runtime_flags ENABLE ROW LEVEL SECURITY/i);
+    expect(migration).toMatch(/GRANT SELECT ON TABLE public\.runtime_flags TO anon, authenticated/i);
+    expect(migration).toMatch(
+      /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.runtime_flags TO service_role/i,
+    );
+    expect(migration).not.toMatch(
+      /CREATE POLICY[\s\S]*?FOR (?:INSERT|UPDATE|DELETE) TO (?:anon|authenticated)/i,
+    );
+    expect(migration).toMatch(/WHERE key = 'llm_enabled'/i);
+    expect(migration).toMatch(/RAISE EXCEPTION 'llm_runtime_disabled'/i);
+  });
+
+  test("release profiles contain no committed analytics identifiers or CI fallbacks", () => {
+    const eas = JSON.parse(readFileSync(resolve(ROOT, "eas.json"), "utf8")) as {
+      build: Record<string, { environment?: string; env?: Record<string, string> }>;
+    };
+    const androidWorkflow = readFileSync(
+      resolve(ROOT, ".github/workflows/android-release.yml"),
+      "utf8",
+    );
+    const keys = [
+      "EXPO_PUBLIC_SENTRY_DSN",
+      "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
+      "EXPO_PUBLIC_CLARITY_PROJECT_ID",
+      "EXPO_PUBLIC_POSTHOG_KEY",
+      "EXPO_PUBLIC_POSTHOG_HOST",
+    ];
+
+    expect(eas.build.preview.environment).toBe("preview");
+    expect(eas.build.production.environment).toBe("production");
+    for (const profile of ["preview", "production"]) {
+      expect(eas.build[profile].env?.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION).toBe("true");
+      for (const key of keys) expect(eas.build[profile].env).not.toHaveProperty(key);
+    }
+    expect(androidWorkflow).toMatch(/EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION:\s*"true"/);
+    for (const key of keys) {
+      expect(androidWorkflow).toContain(`${key}: \${{ vars.${key} }}`);
+      expect(androidWorkflow).not.toMatch(new RegExp(`^\\s+${key}:.*\\|\\|`, "m"));
+    }
+  });
+});
+
+describe("runtime analytics web transitions", () => {
+  const originalWindow = (globalThis as { window?: unknown }).window;
+  const originalDocument = (globalThis as { document?: unknown }).document;
+
+  afterEach(() => {
+    if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
+    else (globalThis as { window?: unknown }).window = originalWindow;
+    if (originalDocument === undefined) delete (globalThis as { document?: unknown }).document;
+    else (globalThis as { document?: unknown }).document = originalDocument;
+    jest.dontMock("react-native");
+    jest.dontMock("../../env");
+    jest.dontMock("../../supabase/client");
+    jest.resetModules();
+  });
+
+  function loadWebModule(rowsRef: {
+    current: Array<{ key: string; enabled: boolean }>;
+  }): {
+    analytics: typeof import("../index");
+    dataLayer: unknown[];
+    appendChild: jest.Mock;
+  } {
+    jest.resetModules();
+    jest.doMock("react-native", () => ({ Platform: { OS: "web" } }));
+    jest.doMock("../../env", () => ({
+      getEnv: () => ({
+        EXPO_PUBLIC_GA4_MEASUREMENT_ID: "G-TEST",
+        EXPO_PUBLIC_CLARITY_PROJECT_ID: "clarity-test",
+      }),
+    }));
+    jest.doMock("../../supabase/client", () => ({
+      getSupabaseClient: () => ({
+        from: () => ({
+          select: () => ({
+            in: () => Promise.resolve({ data: rowsRef.current, error: null }),
+          }),
+        }),
+      }),
+    }));
+
+    const dataLayer: unknown[] = [];
+    const appendChild = jest.fn();
+    (globalThis as { window?: unknown }).window = {
+      dataLayer,
+      clarity: jest.fn(),
+      location: { origin: "https://example.test" },
+      localStorage: { getItem: jest.fn(), setItem: jest.fn() },
+    };
+    (globalThis as { document?: unknown }).document = {
+      createElement: () => ({ async: false, src: "" }),
+      documentElement: { setAttribute: jest.fn() },
+      getElementsByTagName: () => [],
+      head: { appendChild },
+    };
+    return {
+      analytics: require("../index") as typeof import("../index"),
+      dataLayer,
+      appendChild,
+    };
+  }
+
+  test("runtime OFF blocks product SDK loading even for a consenting adult", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: false },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics, appendChild } = loadWebModule(rows);
+    await analytics.initAnalytics({
+      analyticsConsent: true,
+      isMinor: false,
+      confirmedAdult: true,
+    });
+    expect(appendChild).not.toHaveBeenCalled();
+    expect(analytics.captureEvent(analytics.pageView({ path: "/capture" }))).toBe(false);
+    analytics.__resetAnalytics();
+  });
+
+  test("consent-time events queue until a newly enabled runtime gate loads SDKs", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: false },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics, dataLayer } = loadWebModule(rows);
+    await analytics.initAnalytics();
+    rows.current = [
+      { key: "analytics_enabled", enabled: true },
+      { key: "clarity_enabled", enabled: true },
+    ];
+
+    analytics.setAnalyticsConsent(true, {
+      isMinor: false,
+      confirmedAdult: true,
+    });
+    expect(analytics.captureEvent(analytics.pageView({ path: "/record/private-id" }))).toBe(true);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(
+      dataLayer.some(
+        (entry) =>
+          Array.isArray(entry) &&
+          entry[0] === "event" &&
+          entry[1] === "page_view" &&
+          (entry[2] as { path?: string }).path === "/record/private-id",
+      ),
+    ).toBe(true);
+    analytics.__resetAnalytics();
+  });
+
+  test("events queued during an enabled flag refresh flush after the gate stays enabled", async () => {
+    const now = jest.spyOn(Date, "now").mockReturnValue(1_000);
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ],
+    };
+    const { analytics, dataLayer } = loadWebModule(rows);
+    try {
+      await analytics.initAnalytics({
+        analyticsConsent: true,
+        isMinor: false,
+        confirmedAdult: true,
+      });
+      now.mockReturnValue(61_001);
+
+      expect(analytics.captureEvent(analytics.pageView({ path: "/capture" }))).toBe(true);
+      expect(analytics.captureEvent(analytics.pageView({ path: "/settings" }))).toBe(true);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      const pageViews = dataLayer.filter(
+        (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+      ) as Array<[string, string, { page_location?: string; path?: string }]>;
+      expect(pageViews.map((entry) => entry[2].path)).toEqual(["/capture", "/settings"]);
+      expect(pageViews.map((entry) => entry[2].page_location)).toEqual([
+        "https://example.test/2nd-B/capture",
+        "https://example.test/2nd-B/settings",
+      ]);
+    } finally {
+      now.mockRestore();
+      analytics.__resetAnalytics();
+    }
   });
 });
