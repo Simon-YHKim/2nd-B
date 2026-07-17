@@ -233,19 +233,25 @@ export function DeepSpacePlansScreen() {
       name: t("ds.plans.plusName"),
       sub: t("ds.plans.plusSub"),
       price: `${krw(TIER_PRICE_KRW.plus)}${per}`,
-      feats: [t("ds.plans.plusFeat1"), t("ds.plans.plusFeat2"), t("ds.plans.plusFeat3"), t("ds.plans.plusFeat4")],
+      feats: [t("ds.plans.plusFeat1"), t("ds.plans.plusFeat2"), t("ds.plans.plusFeat3")],
     },
     {
       key: "pro",
       name: t("ds.plans.proName"),
       sub: t("ds.plans.proSub"),
       price: `${krw(TIER_PRICE_KRW.pro)}${per}`,
-      feats: [t("ds.plans.proFeat1"), t("ds.plans.proFeat2"), t("ds.plans.proFeat3"), t("ds.plans.proFeat4")],
+      feats: [t("ds.plans.proFeat1"), t("ds.plans.proFeat2"), t("ds.plans.proFeat3")],
     },
   ];
 
+  // Phase 4 launch scope = Free + Plus; Pro ships later. The card stays
+  // visible (price anchor + roadmap signal, Simon 확정 2026-07-17) with a
+  // "준비 중" pill and no live purchase CTA.
+  const PRO_COMING_SOON = true;
+
   function onStart(key: TierKey) {
     if (busy) return;
+    if (key === "pro" && PRO_COMING_SOON) return; // 준비 중 — not purchasable at launch
     if (key === "plus" && plusPkg) void buy(plusPkg);
     else if (key === "pro" && proPkg) void buy(proPkg);
     else if (key !== "free") setError(t("ds.plans.purchaseError"));
@@ -281,6 +287,10 @@ export function DeepSpacePlansScreen() {
                     <View style={s.currentPill}>
                       <Text style={s.currentPillText}>{t("ds.plans.active")}</Text>
                     </View>
+                  ) : tr.key === "pro" && PRO_COMING_SOON ? (
+                    <View style={s.currentPill}>
+                      <Text style={s.currentPillText}>{t("ds.plans.comingSoon")}</Text>
+                    </View>
                   ) : null}
                 </View>
                 <Text style={s.tierPrice}>{tr.price}</Text>
@@ -295,22 +305,25 @@ export function DeepSpacePlansScreen() {
                 ))}
               </View>
               <MdButton
-                variant={cur ? "tonal" : "filled"}
+                variant={cur ? "tonal" : tr.key === "pro" && PRO_COMING_SOON ? "tonal" : "filled"}
                 style={s.tierBtn}
-                disabled={busy}
+                disabled={busy || (tr.key === "pro" && PRO_COMING_SOON)}
                 label={
                   cur
                     ? t("ds.plans.currentPlan")
                     : tr.key === "free"
                       ? t("ds.plans.included")
-                      : busyAction === "buy"
-                        ? t("ds.plans.purchasing")
-                        : t("ds.plans.startTier", { name: tr.name })
+                      : tr.key === "pro" && PRO_COMING_SOON
+                        ? t("ds.plans.comingSoon")
+                        : busyAction === "buy"
+                          ? t("ds.plans.purchasing")
+                          : t("ds.plans.startTier", { name: tr.name })
                 }
                 // med#16: free is not purchasable — for paid users this button
                 // was live but did nothing (reference no-op). It is a fact row
-                // ("기본 포함"), not an action.
-                onPress={cur || tr.key === "free" ? undefined : () => onStart(tr.key)}
+                // ("기본 포함"), not an action. Pro at launch is the same kind of
+                // fact row ("준비 중") until the tier ships.
+                onPress={cur || tr.key === "free" || (tr.key === "pro" && PRO_COMING_SOON) ? undefined : () => onStart(tr.key)}
               />
             </MdCard>
           );

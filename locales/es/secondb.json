@@ -109,8 +109,8 @@
   },
   "rev2": {
     "selectorA11y": "Elige una persona",
-    "lockVoyager": "Voyager",
-    "lockNorthstar": "North Star",
+    "lockVoyager": "Viajero",
+    "lockNorthstar": "Estrella Polar",
     "lockedA11y": "Bloqueado · se abre con el plan {{plan}}",
     "secondb": {
       "name": "2nd-B",
