@@ -5,6 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
+- Latest — 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
+- 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (11 PR)
 - 2026-07-14 (2라운드) / 결함 트랙 완주 중 — 14 PR + 트리아지 자체가 틀렸다는 발견
 - 2026-07-14 / P0 전멸 + 제품 무결성 3건 + 결함 41건 재검증 (7 PR, prod 마이그레이션 5건, 엣지 배포)
 - 2026-07-11 (밤) / 게이트 실행 라운드 — W1 무료캡 라이브 + 8 PR + 게이트 5건 결정시트 (루프 중단, 결정 대기)
@@ -90,7 +92,101 @@
 
 ---
 
-## Latest — 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (PR 11건, 운영 마이그레이션 3건, 사고 1건 완전복구)
+## Latest — 2026-07-17 / 감사 전량 소탕(41건) + 세컨비 표정 13종 + 얼굴 통일 + 네이버 콜드스타트 픽스 (5 PR + OTA×2)
+
+### 어디까지 왔나
+- main HEAD: `e3149230` (이 핸드오프 브랜치 기준)
+- 이번 세션 머지된 PR:
+  - **#1008** 감사 심각 13건 전량 수정 (capture 위기 핫라인, STT 구조 고장, trinity 노출, research 죽은 링크+테스트 구멍, 가짜 UI 5종, 문 없는 화면 도어)
+  - **#1015** 감사 med 28건 + canon 프라이버시 카피 정정 (클라우드 STT 진실 기술 — gaps.json 양본+EN 미러)
+  - **#1019** flow-map knownBug 9건 fixedIn 마킹 (43→34)
+  - **#1023** 세컨비 표정 13종 시스템 (`lib/companion/faces.ts` 지오메트리 SoT + hold API + 유휴 딴청 정책; 25개 머리 전부 `반응??유지??딴청??기본` 해석)
+  - **#1032** 코치마크 라운드사각 + **네이버 콜드스타트 로그인 픽스**(nonce AsyncStorage 영속+네이티브 콜백 완주) + **얼굴 3맥락 통일**(blank 에셋+레퍼런스 1:1)
+- 부수: 화면 목적 감사 리포트 `Output/screen-purpose-audit-20260716.html` (85화면·검증 좌표) · STT E2E 실증(한국어 WAV→완벽 전사)
+- 테스트 상태: verify 초록 (마지막 실행 353 스위트 / 2703 테스트)
+- working tree(E:\2ndB): **플릿 에이전트 작업 중** (core-brain·star/[domain] 등 미커밋 — 건드리지 말 것)
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` · **gemini-proxy v56** (audio inlineData 지원 — 음성 받아쓰기 라이브, E2E 검증됨)
+- **OTA(EAS Update)**: preview+production 양채널 발행 완료(runtime **0.0.8**, #1032 포함). 게이트: 머지 메시지 `[ota]` 마커 또는 수동 디스패치. ⚠ concurrency가 ref 기준이라 **채널 디스패치는 순차로** (동시에 쏘면 앞 런이 취소됨)
+- 웹: gh-pages 자동배포 (Vercel 아님)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 심사위원 첫 경험 리허설 (fresh 가입→첫 별→첫 챗→북극성, 에뮬/웹 실동작 QA) | medium | ⭐ XPRIZE D-31 직결 |
+| B | 개인정보 처리방침 라우트 (+#1031의 /terms·/refund 패턴 재사용, /privacy 행 복원) | small | ⭐ 반나절, 법무+심사 신뢰 |
+| C | flow-debugger.html 44MB 커밋 다이어트 (병합마다 히스토리 +40MB, 충돌 빈발) | small | 복리 효과 |
+| D | flow-map 잔여 knownBugs 34건 소탕 | large | 첫 경험 경로부터 |
+| E | 챗 음성 입력 (STT 라이브라 소형화됨 — 죽은 마이크는 #1015에서 제거) | small | 데모 와우 |
+| F | 미드나잇 라이트 테마 리스킨 (m3 모듈스코프 35파일 제약) | large | 후순위 |
+
+### 적용 중인 정책 (영구)
+1. **코치마크는 원형 금지** — 모서리 둥근 사각형 (사용자 지시 2026-07-16)
+2. **세컨비 얼굴 레퍼런스 = 로딩 화면의 구운 PNG 얼굴** (둥근 사각 눈·동공 없음·짧은 일자 입). 프로시저럴 얼굴은 blank 에셋 위에 이 디자인 1:1 + 13표정 유지. 위기 표면엔 귀여운 표정 금지
+3. PR/CI/머지 자동화 (auto-merge when green) — BEHIND면 update-branch, DIRTY면 로컬 클린머지 확인
+4. E:\2ndB 직접 편집 금지 (플릿 공유) — 워크트리 `.worktrees/<name>` 필수, node_modules 정션은 제거 시 rmdir 먼저
+5. OTA는 명시 게이트 (`[ota]` 마커/수동) — 자동 발행 아님
+
+### 핵심 파일 위치
+```
+src/lib/companion/faces.ts                 표정 13종 지오메트리 SoT (+유휴 정책, 순수·테스트)
+src/lib/companion/expression.ts            reactExpression/holdExpression 버스
+src/components/deepspace/SecondbHead.tsx   머리 렌더러 (blank 에셋 + 레퍼런스 얼굴)
+src/lib/supabase/auth.ts                   네이버 nonce 영속 (콜드스타트 폴백)
+src/app/(auth)/oauth-callback.tsx          네이티브 콜드스타트 교환 완주
+Output/screen-purpose-audit-20260716.html  85화면 목적 감사 리포트 (med 33 목록 포함)
+docs/flow-map.json                         지도 (knownBugs 34, fixedIn 30)
+```
+
+### 검증
+```bash
+npm run verify   # lint+tsc+i18n(5로케일)+lexicon+constraints+cycles+jest
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(심사위원 리허설) 또는 B(처리방침)부터
+```
+
+---
+
+
+## 📌 현재 라이브 큐 + 게이트 (통합 정본 — 2026-07-03 기준)
+
+> 아래 per-session 블록마다 자체 "다음 작업 큐"가 있고, 문자(A~O)가 세션마다 다른 뜻이라 충돌한다
+> (예: `D` = call-log 트리거 vs motivation 파이프, `E` = plans 3티어 vs 고용24). 이 블록이 **현재 열린 작업의 단일 정본**이며
+> `W#` 로 네임스페이스한다. 상세·맥락은 각 세션 블록 참조. 완료분은 제외. (파생: 최신 2개 세션 — 오후 오케스트레이터 + 감사 라운드 #730.)
+
+### 열린 작업 (재정렬 트랙)
+| ID | 작업 | 크기 | 旧 라벨 · 비고 |
+|---|---|---|---|
+| W1 | 에뮬 육안 QA 1회: imagine 신규 화면 + 뮤지엄 레인라벨/NOW + settings 레거시 헤더 | small | 旧 H · ⭐ 최우선(라이브 미검증) |
+| W2 | star insight 스트립("세컨비 한 줄 해석") + 공통 버튼(채워 넣기/세컨비와 대화) | large | 旧 K · 실데이터 훅 설계 |
+| W3 | ops 본문 3섹션(종합 의견·주간 패턴·비서 도구 그리드) + 시간행·undo | large | 旧 L · 데이터 모델 선행 |
+| W4 | capture 담은뒤 별-분류 스텝 + 왜(Why) 필드 | medium | 旧 M · fourw 스키마 |
+| W5 | 뮤지엄 사진추가 칩 + ShareCard 배경사진 슬롯(image-picker 기존 dep) | medium | 旧 N |
+| W6 | 근거 드로어 명사 → '근거 기록' 리네임 | small | 旧 O · #735 후속 |
+| W7 | Fabric Pressable 함수형 style 42곳/17파일 스윕(#680 패턴) | large | 旧 G · HIGH 목록=PR #730 본문 |
+| W8 | companion 잔존 fullbleed + 코호트 전환 (+온보딩 미변환 레거시 스타일) | large | 旧 I · 셸 연장전 |
+| W9 | 데드코드: OpsHomeScreen(src/screens/deepspace/ops/screens.tsx 미배선)·DeepSpaceDock 렌더러·records 아웃라이어 | small | 旧 J |
+| W10 | motivation 파이프 잔여 2종(확신%/L배지 · 내적↔외적 게이지) | large | 旧 D · 설계 선행 (드롭 아님 — 유지) |
+| W11 | call-log 트리거 설계(통화내용 미저장 명시 · 수동/지연 트리거 · opt-in+끄기) | medium | grok KR advisory · 카피 금기=감정분석/관계진단/상대평가 |
+
+### 🔒 Simon 결정 대기 (게이트 — 코드 결함 아님, 회신 필요)
+1. **axis_estimate 과금**: 현재 전 티어 무과금 개방(northstar 동일) — 스펜드 게이트 의도?
+2. **consent 문구 복원** (법무-인접) — 레퍼런스 복원 전 명시 확인.
+3. **plans 3티어 카드** 수익화 레이아웃 (旧 E).
+4. **0.0.7 폰 QA** — APK 링크 전달됨, 설치가 사용자 액션 (旧 F).
+5. **어휘 별가루 vs 조각** — 표면 분리로 잠정 결론(기록=별가루 / 대시보드 표면=조각, #735), 전앱 통일 여부.
+
+> ⚠️ 과거 세션 블록의 A~O 라벨은 그 세션 한정. 현재 정본은 위 W1~W11.
+
+---
+
+## 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (PR 11건, 운영 마이그레이션 3건, 사고 1건 완전복구)
 
 ### 어디까지 왔나
 - main HEAD: `e3149230` (#1035까지 머지된 상태에서 작성)
