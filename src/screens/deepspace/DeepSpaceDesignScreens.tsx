@@ -66,6 +66,8 @@ import {
 import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
+import { setAnalyticsConsent } from "@/lib/analytics";
+import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import { clearRecordEmbeddings } from "@/lib/records/records-embeddings";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
@@ -157,7 +159,7 @@ function dsRecencyLabels(t: Tx): RecencyLabels {
   };
 }
 
-type Row = { label: string; value?: string; onPress?: () => void; on?: boolean };
+type Row = { label: string; value?: string; onPress?: () => void; on?: boolean; disabled?: boolean };
 
 // Shared loader for the two graph-backed deep-space screens (/wiki + /research).
 // Mirrors what the legacy /wiki loads: pages + the full edge set, both bounded.
@@ -268,7 +270,7 @@ function Action({ label, value, onPress }: Row) {
     </Pressable>
   );
 }
-function Toggle({ label, value, on = true, onPress }: Row) {
+function Toggle({ label, value, on = true, onPress, disabled = false }: Row) {
   const body = (
     <>
       <View><Text variant="body" style={styles.actionLabel}>{label}</Text>{value ? <Text variant="body" style={styles.actionValue}>{value}</Text> : null}</View>
@@ -276,7 +278,7 @@ function Toggle({ label, value, on = true, onPress }: Row) {
     </>
   );
   if (onPress) {
-    return <Pressable style={styles.action} onPress={onPress} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={label}>{body}</Pressable>;
+    return <Pressable style={styles.action} onPress={onPress} disabled={disabled} accessibilityRole="switch" accessibilityState={{ checked: on, disabled }} accessibilityLabel={label}>{body}</Pressable>;
   }
   return <View style={styles.action}>{body}</View>;
 }
@@ -492,7 +494,22 @@ export function DeepSpacePrivacyDesignScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
-  const minor = isMinor === true;
+  // AuthContext derives this from users.birth_date. Unknown age fails closed,
+  // so Clarity/GA4 and ads cannot be enabled while the profile is resolving.
+  const minor = isMinor !== false;
+  const minorRef = useRef(minor);
+  minorRef.current = minor;
+  const activeUserRef = useRef(userId);
+  activeUserRef.current = userId;
+  const privacyMountedRef = useRef(true);
+  const prefsRef = useRef<PrivacyPrefs | null>(null);
+  const prefsUserRef = useRef<string | null>(null);
+  const [analyticsOn, setAnalyticsOn] = useState<boolean | null>(null);
+  const [adsOn, setAdsOn] = useState<boolean | null>(null);
+  const [externalError, setExternalError] = useState<{
+    key: "external_analytics" | "ads";
+    attemptedOn: boolean;
+  } | null>(null);
   const [recOn, setRecOn] = useState<boolean | null>(null);
   const [understanding, setUnderstanding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -506,27 +523,61 @@ export function DeepSpacePrivacyDesignScreen() {
   const [deleting, setDeleting] = useState(false);
   const [delError, setDelError] = useState(false);
 
+  useEffect(() => {
+    privacyMountedRef.current = true;
+    return () => {
+      privacyMountedRef.current = false;
+    };
+  }, []);
+
   async function runDeleteAccount() {
     if (!userId || deleting || delConfirm !== "DELETE") return;
+    const targetUserId = userId;
     setDeleting(true);
     setDelError(false);
     try {
-      await deleteAllUserData(userId);
+      await deleteAllUserData(targetUserId);
+      // Never let a delayed A-user wipe continue into an account-deletion call
+      // after the active session has become B.
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       await requestAccountDeletion();
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       await signOut();
       router.replace("/sign-in");
     } catch {
       // Some content may already be gone; tell the truth and let them retry.
-      setDelError(true);
-      setDeleting(false);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) {
+        setDelError(true);
+        setDeleting(false);
+      }
     }
   }
 
   useEffect(() => {
+    prefsRef.current = null;
+    prefsUserRef.current = null;
+    setAnalyticsOn(null);
+    setAdsOn(null);
+    setRecOn(null);
+    setEmbedOn(null);
+    setUnderstanding(false);
+    setEmbedUnderstanding(false);
+    setExternalError(null);
+    setRecError(false);
+    setEmbedErr(false);
+    setBusy(false);
+    setDelConfirm("");
+    setDeleting(false);
+    setDelError(false);
     if (!userId) return;
+    const targetUserId = userId;
     let cancelled = false;
-    void fetchPrivacyPrefs(userId).then((p) => {
-      if (!cancelled) {
+    void fetchPrivacyPrefs(targetUserId).then((p) => {
+      if (!cancelled && activeUserRef.current === targetUserId) {
+        prefsRef.current = p;
+        prefsUserRef.current = targetUserId;
+        setAnalyticsOn(p.external_analytics === true);
+        setAdsOn(p.ads === true);
         setRecOn(p.recommendations === true);
         setEmbedOn(p.records_embedding === true);
       }
@@ -536,76 +587,186 @@ export function DeepSpacePrivacyDesignScreen() {
     };
   }, [userId]);
 
+  async function toggleExternalPreference(
+    key: Extract<PrivacyPrefKey, "external_analytics" | "ads">,
+    next: boolean,
+  ) {
+    if (
+      !userId ||
+      minorRef.current ||
+      prefsUserRef.current !== userId ||
+      !prefsRef.current ||
+      busy
+    ) return;
+    if (prefsRef.current[key] === next) return;
+
+    const targetUserId = userId;
+    const updated: PrivacyPrefs = { ...prefsRef.current, [key]: next };
+    setExternalError(null);
+    setBusy(true);
+
+    // Withdrawal is immediate even if persistence later fails. Opt-in waits for
+    // a successful server write before any analytics SDK can start.
+    if (key === "external_analytics" && !next) {
+      setAnalyticsConsent(false, {
+        isMinor: minorRef.current,
+        confirmedAdult: minorRef.current === false,
+      });
+    }
+
+    try {
+      await savePrivacyPrefs(targetUserId, updated);
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      const effectiveNext = minorRef.current ? false : next;
+      const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
+      // If age became unresolved/minor while an opt-in was saving, persist the
+      // fail-closed value too instead of merely hiding a stale server grant.
+      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed);
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      prefsRef.current = committed;
+      prefsUserRef.current = targetUserId;
+      if (key === "external_analytics") {
+        setAnalyticsOn(effectiveNext);
+        setAnalyticsConsent(effectiveNext, {
+          isMinor: minorRef.current,
+          confirmedAdult: minorRef.current === false,
+        });
+      } else {
+        setAdsOn(effectiveNext);
+      }
+    } catch {
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      setExternalError({ key, attemptedOn: next });
+    } finally {
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
+    }
+  }
+
   // D-25 §11-5 follow-up: adult-only opt-in WITH an understanding step. Minors
   // are locked (the recommendations pref is non-promotable for them); adults must
   // read what recommendations do and explicitly confirm before it turns on, and
   // the opt-in is logged to the consent ledger with the LLM + overseas acks.
   async function enableRecommendations() {
-    if (!userId || busy || minor) return;
+    if (!userId || busy || minorRef.current || prefsUserRef.current !== userId) return;
+    const targetUserId = userId;
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(userId)), recommendations: true };
-      await savePrivacyPrefs(userId, prefs);
-      await recordRecommendationsConsent({ userId, ageBand: "adult", minorTier: "adult", locale: ko ? "ko" : "en" });
+      const current = await fetchPrivacyPrefs(targetUserId);
+      if (
+        !privacyMountedRef.current ||
+        activeUserRef.current !== targetUserId ||
+        minorRef.current
+      ) return;
+      const prefs = { ...current, recommendations: true };
+      await savePrivacyPrefs(targetUserId, prefs);
+      if (
+        !privacyMountedRef.current ||
+        activeUserRef.current !== targetUserId ||
+        minorRef.current
+      ) {
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        return;
+      }
+      await recordRecommendationsConsent({
+        userId: targetUserId,
+        ageBand: "adult",
+        minorTier: "adult",
+        locale: ko ? "ko" : "en",
+      });
+      if (
+        !privacyMountedRef.current ||
+        activeUserRef.current !== targetUserId ||
+        minorRef.current
+      ) {
+        await savePrivacyPrefs(targetUserId, { ...prefs, recommendations: false });
+        return;
+      }
+      prefsRef.current = prefs;
+      prefsUserRef.current = targetUserId;
       setRecOn(true);
       setUnderstanding(false);
     } catch {
-      setRecError(true);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setRecError(true);
     } finally {
-      setBusy(false);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
 
   async function disableRecommendations() {
-    if (!userId || busy) return;
+    if (!userId || busy || prefsUserRef.current !== userId) return;
+    const targetUserId = userId;
     setBusy(true);
     setRecError(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(userId)), recommendations: false };
-      await savePrivacyPrefs(userId, prefs);
+      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), recommendations: false };
+      await savePrivacyPrefs(targetUserId, prefs);
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      prefsRef.current = prefs;
+      prefsUserRef.current = targetUserId;
       setRecOn(false);
       setUnderstanding(false);
     } catch {
-      setRecError(true);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setRecError(true);
     } finally {
-      setBusy(false);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
 
   // D5 (J1/J2): records semantic embedding — adult-only opt-in WITH an
   // understanding step (mirrors recommendations). Off deletes the stored vectors.
   async function enableEmbedding() {
-    if (!userId || busy || minor) return;
+    if (!userId || busy || minorRef.current || prefsUserRef.current !== userId) return;
+    const targetUserId = userId;
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(userId)), records_embedding: true };
-      await savePrivacyPrefs(userId, prefs);
+      const current = await fetchPrivacyPrefs(targetUserId);
+      if (
+        !privacyMountedRef.current ||
+        activeUserRef.current !== targetUserId ||
+        minorRef.current
+      ) return;
+      const prefs = { ...current, records_embedding: true };
+      await savePrivacyPrefs(targetUserId, prefs);
+      if (
+        !privacyMountedRef.current ||
+        activeUserRef.current !== targetUserId ||
+        minorRef.current
+      ) {
+        await savePrivacyPrefs(targetUserId, { ...prefs, records_embedding: false });
+        return;
+      }
+      prefsRef.current = prefs;
+      prefsUserRef.current = targetUserId;
       setEmbedOn(true);
       setEmbedUnderstanding(false);
     } catch {
-      setEmbedErr(true);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(true);
     } finally {
-      setBusy(false);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
 
   async function disableEmbedding() {
-    if (!userId || busy) return;
+    if (!userId || busy || prefsUserRef.current !== userId) return;
+    const targetUserId = userId;
     setBusy(true);
     setEmbedErr(false);
     try {
-      const prefs = { ...(await fetchPrivacyPrefs(userId)), records_embedding: false };
-      await savePrivacyPrefs(userId, prefs);
+      const prefs = { ...(await fetchPrivacyPrefs(targetUserId)), records_embedding: false };
+      await savePrivacyPrefs(targetUserId, prefs);
       // Consent revoked → forget the index (honest "off deletes vectors").
-      await clearRecordEmbeddings(userId);
+      await clearRecordEmbeddings(targetUserId);
+      if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
+      prefsRef.current = prefs;
+      prefsUserRef.current = targetUserId;
       setEmbedOn(false);
       setEmbedUnderstanding(false);
     } catch {
-      setEmbedErr(true);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setEmbedErr(true);
     } finally {
-      setBusy(false);
+      if (privacyMountedRef.current && activeUserRef.current === targetUserId) setBusy(false);
     }
   }
 
@@ -630,6 +791,92 @@ export function DeepSpacePrivacyDesignScreen() {
             </View>
           );
         })}
+      </Card>
+
+      <Card>
+        <Text variant="caption" style={styles.section}>
+          {ko ? "웹 사용 통계와 광고" : "Web analytics and ads"}
+        </Text>
+        <Text variant="body" style={styles.lead}>
+          {isMinor === null
+            ? ko
+              ? "생년월일을 확인한 뒤 웹 사용 통계와 광고 설정을 보여드려요."
+              : "Web analytics and ad settings appear after your birth date is confirmed."
+            : minor
+            ? ko
+              ? "생년월일 기준 만 18세 미만은 웹 사용 통계와 광고가 잠겨 있어요."
+              : "Web analytics and ads are locked when the birth date shows an age under 18."
+            : ko
+              ? "선택 사항이며 현재 웹 앱에만 적용돼요. Clarity 화면 기록에는 텍스트 마스킹 설정이 필요해요."
+              : "Optional and currently web-only. Clarity screen recordings require text masking."}
+        </Text>
+        {analyticsOn === null || adsOn === null ? (
+          <Text variant="subtle" style={styles.footer}>
+            {isMinor === null
+              ? ko
+                ? "생년월일을 확인하는 중…"
+                : "Checking your birth date…"
+              : ko
+                ? "설정을 불러오는 중…"
+                : "Loading settings…"}
+          </Text>
+        ) : (
+          <>
+            <Toggle
+              label={ko ? "웹 사용 통계 허용" : "Allow web analytics"}
+              value={
+                minor
+                  ? ko
+                    ? "만 18세 미만 잠금"
+                    : "Locked under 18"
+                  : analyticsOn
+                    ? ko
+                      ? "웹에서 GA4·Clarity 사용"
+                      : "GA4 and Clarity on web"
+                    : ko
+                      ? "꺼짐"
+                      : "Off"
+              }
+              on={!minor && analyticsOn}
+              disabled={minor || busy}
+              onPress={() => void toggleExternalPreference("external_analytics", !analyticsOn)}
+            />
+            <Toggle
+              label={ko ? "웹 광고 허용" : "Allow web ads"}
+              value={
+                minor
+                  ? ko
+                    ? "만 18세 미만 잠금"
+                    : "Locked under 18"
+                  : adsOn
+                    ? ko
+                      ? "웹 무료 성인 계정에서만 적용"
+                      : "Free adult web accounts only"
+                    : ko
+                      ? "꺼짐"
+                      : "Off"
+              }
+              on={!minor && adsOn}
+              disabled={minor || busy}
+              onPress={() => void toggleExternalPreference("ads", !adsOn)}
+            />
+          </>
+        )}
+        {externalError ? (
+          <Text variant="subtle" style={styles.footer}>
+            {externalError.key === "external_analytics"
+              ? externalError.attemptedOn
+                ? ko
+                  ? "통계 설정을 켜지 못했어요. 다시 시도해 주세요."
+                  : "Couldn't enable analytics. Please try again."
+                : ko
+                  ? "저장에 실패했어요. 통계 철회는 이 기기에서 즉시 적용됐지만 다시 저장해 주세요."
+                  : "Couldn't save. Analytics withdrawal took effect on this device; please try saving again."
+              : ko
+                ? "광고 설정을 저장하지 못했어요. 다시 시도해 주세요."
+                : "Couldn't save the ads setting. Please try again."}
+          </Text>
+        ) : null}
       </Card>
 
       <Card>
