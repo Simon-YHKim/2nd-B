@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 7.0.0",
+    "version": ">= 20.0.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -12,6 +12,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "environment": "preview",
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
@@ -35,11 +36,6 @@
         "EXPO_PUBLIC_ENABLE_GITHUB": "true",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com",
         "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808",
-        "EXPO_PUBLIC_GA4_MEASUREMENT_ID": "G-VF514NK1WS",
-        "EXPO_PUBLIC_CLARITY_PROJECT_ID": "xb3qenit2h",
-        "EXPO_PUBLIC_POSTHOG_KEY": "phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false"
       }
     },
@@ -50,6 +46,7 @@
     },
     "production": {
       "channel": "production",
+      "environment": "production",
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
@@ -72,11 +69,6 @@
         "EXPO_PUBLIC_ENABLE_GITHUB": "true",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com",
         "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://334159a0c75dae6d72aa06e38c1a02f0@o4511637741830144.ingest.us.sentry.io/4511637746679808",
-        "EXPO_PUBLIC_GA4_MEASUREMENT_ID": "G-VF514NK1WS",
-        "EXPO_PUBLIC_CLARITY_PROJECT_ID": "xb3qenit2h",
-        "EXPO_PUBLIC_POSTHOG_KEY": "phc_AkPZXxTwcFVjH9reTQdgBG6tPc4wJRL2RhJqjkpgPK3A",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false"
       }
     }
