@@ -841,7 +841,9 @@
       "propose": "Lihat draf lain",
       "cancel": "Batal",
       "save": "Simpan kalimat ini",
-      "thinBase": "Catatanmu masih sedikit. Simpan sekitar {{count}} butir dan aku akan menyusun draf darinya."
+      "thinBase": "Catatanmu masih sedikit. Simpan sekitar {{count}} butir dan aku akan menyusun draf darinya.",
+      "proposeFailed": "Tidak bisa mengambil draf sekarang. Periksa koneksimu lalu coba lagi.",
+      "saveFailed": "Tidak bisa menyimpan. Kalimatmu masih ada, coba lagi."
     },
     "reward": {
       "titleA": "Tonton 30 dtk, dapat ",

@@ -10,12 +10,13 @@
 // EAS) get their own SDK wiring later.
 //
 // PRIVACY / PIPA: product analytics (PostHog, GA4, Clarity) load ONLY after the
-// user grants the optional `analytics` consent (consent-selections.ts). The
-// consent decision is persisted on web (localStorage) so it gates the next load
-// too. Error tracking (Sentry) is operational, carries no PII (sendDefaultPii
-// off), and loads independently. GA4 runs with IP anonymization + no ad
-// signals; Clarity is loaded only post-consent and its project must be set to
-// mask text (the app shows sensitive self-knowledge content).
+// user grants the optional `analytics` consent (consent-selections.ts) AND the
+// server-derived birth date confirms the user is 18+. Unknown age fails closed.
+// The consent decision is persisted on web (localStorage) so it gates the next
+// load too. Error tracking (Sentry) is operational, carries no PII
+// (sendDefaultPii off), and loads independently. GA4 runs with IP anonymization
+// + no ad signals; Clarity is loaded only post-consent and its project must be
+// set to mask text (the app shows sensitive self-knowledge content).
 
 import { Platform } from "react-native";
 
@@ -80,8 +81,10 @@ export type AnalyticsEvent =
   | PurchaseAnalyticsEvent;
 
 export interface AnalyticsSubjectGate {
-  /** True for 14-17 high-privacy users. Product analytics stay off. */
+  /** True below 18. Null/undefined means age is unresolved and fails closed. */
   isMinor?: boolean | null;
+  /** True only after the current signed-in subject was confirmed adult by server-derived data. */
+  confirmedAdult?: boolean;
   /** True below the KR/PIPA self-consent floor. Product analytics and ads stay off. */
   underDigitalConsentAge?: boolean | null;
 }
@@ -194,23 +197,31 @@ export function purchase(props: PurchaseEventProps): PurchaseAnalyticsEvent {
 }
 
 export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjectGate): boolean {
-  return granted === true && gate?.isMinor !== true && gate?.underDigitalConsentAge !== true;
+  return (
+    granted === true &&
+    gate?.isMinor === false &&
+    gate?.confirmedAdult === true &&
+    gate?.underDigitalConsentAge !== true
+  );
 }
 
 const CONSENT_KEY = "2ndb_analytics_consent";
 
 let initialized = false;
 let analyticsConsent = false;
+let analyticsConsentRevision = 0;
 let posthogClient: { capture: (name: string, props?: Record<string, unknown>) => void; identify: (id: string) => void } | null = null;
 let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
 let clarityLoaded = false;
+let currentAnalyticsRoute = "/";
 
 type WebGlobal = {
   localStorage?: { getItem: (k: string) => string | null; setItem: (k: string, v: string) => void };
   dataLayer?: unknown[];
   gtag?: (...args: unknown[]) => void;
   clarity?: (...args: unknown[]) => void;
+  location?: { origin?: string };
 };
 
 function webWindow(): WebGlobal | null {
@@ -225,6 +236,104 @@ function cleanProps(props: AnalyticsProps | undefined): Record<string, Analytics
     if (value !== undefined) out[key] = value;
   }
   return out;
+}
+
+/** Prepare event properties so a live page URL cannot survive in `path` or `title`. */
+export function cleanAnalyticsEventProps(event: AnalyticsEvent): Record<string, AnalyticsPropValue> {
+  if (event.name !== "page_view") return cleanProps(event.props);
+  return cleanProps({
+    ...event.props,
+    path: sanitizeAnalyticsRoutePath(event.props.path),
+    title: undefined,
+  });
+}
+
+const GITHUB_PAGES_BASE_PATH = "/2nd-B";
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Defense-in-depth for accidental live URLs. The canonical caller supplies
+ * Expo file segments such as `/record/[id]`; this also strips query/hash data
+ * and replaces common live id/token segments if another caller regresses.
+ */
+export function sanitizeAnalyticsRoutePath(routePath: string): string {
+  const pathOnly = routePath.split(/[?#]/, 1)[0] || "/";
+  const segments = pathOnly
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      if (/^\[[^\]]+\]$/.test(segment) || /^\([^)]+\)$/.test(segment)) return segment;
+      if (UUID_SEGMENT.test(segment) || /^\d+$/.test(segment)) return "[id]";
+      if (segment.length >= 20) return "[token]";
+      return segment;
+    });
+  return segments.length > 0 ? `/${segments.join("/")}` : "/";
+}
+
+/** Build a GA-safe absolute page location without reading the live URL. */
+export function buildAnalyticsPageLocation(routePath: string, origin?: string): string {
+  const safeRoute = sanitizeAnalyticsRoutePath(routePath);
+  const safeOrigin = origin?.replace(/\/+$/, "") ?? "";
+  return `${safeOrigin}${GITHUB_PAGES_BASE_PATH}${safeRoute}`;
+}
+
+function gaContextProps(w: WebGlobal): Record<string, string> {
+  const path = sanitizeAnalyticsRoutePath(currentAnalyticsRoute);
+  const safeRoot = buildAnalyticsPageLocation("/", w.location?.origin);
+  return {
+    page_location: buildAnalyticsPageLocation(path, w.location?.origin),
+    page_referrer: safeRoot,
+    page_title: path,
+  };
+}
+
+type SentryBreadcrumb = {
+  category?: string;
+  message?: string;
+  data?: Record<string, unknown>;
+};
+
+type SentryEvent = {
+  request?: {
+    url?: string;
+    headers?: Record<string, unknown>;
+    cookies?: unknown;
+    data?: unknown;
+    query_string?: unknown;
+  };
+  transaction?: string;
+  breadcrumbs?: SentryBreadcrumb[];
+};
+
+function scrubSentryBreadcrumb(breadcrumb: SentryBreadcrumb): SentryBreadcrumb {
+  const data = { ...breadcrumb.data };
+  for (const key of Object.keys(data)) {
+    if (/(url|uri|href|path|query|referr|from|to)/i.test(key)) data[key] = "[redacted]";
+  }
+  const message =
+    typeof breadcrumb.message === "string" &&
+    /(https?:\/\/|\/record\/|\/peer\/|[?&](code|token|email)=)/i.test(breadcrumb.message)
+      ? "[redacted]"
+      : breadcrumb.message;
+  return { ...breadcrumb, message, data };
+}
+
+/** Remove live URLs and request material from consent-independent Sentry events. */
+export function scrubSentryEvent(
+  event: SentryEvent,
+  routePath = "/",
+  origin?: string,
+): SentryEvent {
+  if (event.request) {
+    event.request.url = buildAnalyticsPageLocation(routePath, origin);
+    delete event.request.headers;
+    delete event.request.cookies;
+    delete event.request.data;
+    delete event.request.query_string;
+  }
+  event.transaction = sanitizeAnalyticsRoutePath(routePath);
+  if (event.breadcrumbs) event.breadcrumbs = event.breadcrumbs.map(scrubSentryBreadcrumb);
+  return event;
 }
 
 /**
@@ -252,6 +361,11 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // Web-only path. Native builds will get their own wiring later.
   if (!webWindow()) return; // also covers SSR / static export
 
+  // Establish the initial gate BEFORE the first await. Auth may resolve and call
+  // setAnalyticsConsent() while Sentry's dynamic import is in flight; assigning
+  // the default after that await would overwrite a newer server-derived grant.
+  analyticsConsent = canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts);
+
   // Sentry error tracking - operational, no PII, loads independently of the
   // analytics consent gate.
   const sentryDsn = env.EXPO_PUBLIC_SENTRY_DSN || env.SENTRY_DSN;
@@ -264,9 +378,13 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
       mod.init({
         dsn: sentryDsn,
         sendDefaultPii: false,
-        tracesSampleRate: 0.1,
+        tracesSampleRate: 0,
+        tracePropagationTargets: [],
         replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: 0,
+        beforeSend: (event: SentryEvent) =>
+          scrubSentryEvent(event, currentAnalyticsRoute, webWindow()?.location?.origin),
+        beforeBreadcrumb: (breadcrumb: SentryBreadcrumb) => scrubSentryBreadcrumb(breadcrumb),
       });
       sentryClient = { captureException: mod.captureException };
     } catch (e) {
@@ -282,7 +400,6 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // AuthContext resolves external_analytics + minor status (see the
   // AnalyticsConsentSync effect in _layout). Sentry (above) is operational +
   // PII-free, so it loads regardless of this gate.
-  analyticsConsent = canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts);
   if (analyticsConsent) await loadProductAnalytics(env);
 }
 
@@ -296,33 +413,10 @@ async function loadProductAnalytics(env: Env): Promise<void> {
   const w = webWindow();
   if (!w) return;
 
-  // PostHog product analytics.
-  if (!posthogClient && env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST) {
-    try {
-      // @ts-expect-error - optional peer dep. The operator installs posthog-js
-      // once ready to wire analytics; until then this dynamic import throws.
-      const mod = (await import("posthog-js")) as {
-        default: {
-          init: (key: string, opts: Record<string, unknown>) => void;
-          capture: (name: string, props?: Record<string, unknown>) => void;
-          identify: (id: string) => void;
-        };
-      };
-      mod.default.init(env.EXPO_PUBLIC_POSTHOG_KEY, {
-        api_host: env.EXPO_PUBLIC_POSTHOG_HOST,
-        autocapture: false, // explicit events only - no input scraping
-        capture_pageview: false, // screen-level events captured manually
-        disable_session_recording: true, // privacy-first
-        persistence: "memory", // no localStorage by default
-      });
-      posthogClient = mod.default;
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[analytics] posthog init skipped:", (e as Error).message);
-    }
-  }
-
   // GA4 (gtag.js) - public measurement id, privacy-hardened (IP anonymized, no
-  // Google/ad signals). Inject the tag script once.
+  // Google/ad signals). Inject the tag script once. Keep this before the
+  // optional PostHog dynamic import so the first consented page view is not
+  // delayed or dropped while an uninstalled optional package rejects.
   if (!ga4Id && env.EXPO_PUBLIC_GA4_MEASUREMENT_ID) {
     try {
       const id = env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
@@ -344,6 +438,7 @@ async function loadProductAnalytics(env: Env): Promise<void> {
         allow_google_signals: false,
         allow_ad_personalization_signals: false,
         send_page_view: false,
+        ...gaContextProps(w),
       });
       const s = document.createElement("script");
       s.async = true;
@@ -360,6 +455,10 @@ async function loadProductAnalytics(env: Env): Promise<void> {
   if (!clarityLoaded && env.EXPO_PUBLIC_CLARITY_PROJECT_ID) {
     try {
       const id = env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
+      // Mask the entire rendered document even if an operator later weakens the
+      // project setting. Clarity still sees the live URL, so routes containing
+      // ids/tokens require a separate console/vendor review before production.
+      document.documentElement.setAttribute("data-clarity-mask", "true");
       const c = w as unknown as Record<string, unknown>;
       const clarity = (...args: unknown[]) => {
         const q = (c.clarity as { q?: unknown[] } | undefined)?.q;
@@ -370,11 +469,55 @@ async function loadProductAnalytics(env: Env): Promise<void> {
       t.async = true;
       t.src = `https://www.clarity.ms/tag/${encodeURIComponent(id)}`;
       const first = document.getElementsByTagName("script")[0];
-      first?.parentNode?.insertBefore(t, first);
-      w.clarity?.("consent"); // we only load Clarity after analytics consent
+      if (first?.parentNode) first.parentNode.insertBefore(t, first);
+      else document.head.appendChild(t);
+      // ConsentV2 is the current Clarity API. Advertising storage stays denied;
+      // this product consent covers usage analytics only.
+      w.clarity?.("consentv2", {
+        ad_Storage: "denied",
+        analytics_Storage: "granted",
+      });
       clarityLoaded = true;
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[analytics] clarity init skipped:", (e as Error).message);
+    }
+  }
+
+  // PostHog product analytics. This remains last because it is an optional peer
+  // dependency; a missing package must never delay GA4 or Clarity setup.
+  if (!posthogClient && env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST) {
+    try {
+      // @ts-expect-error - optional peer dep. The operator installs posthog-js
+      // once ready to wire analytics; until then this dynamic import throws.
+      const mod = (await import("posthog-js")) as {
+        default: {
+          init: (key: string, opts: Record<string, unknown>) => void;
+          capture: (name: string, props?: Record<string, unknown>) => void;
+          identify: (id: string) => void;
+        };
+      };
+      if (!analyticsConsent) return;
+      mod.default.init(env.EXPO_PUBLIC_POSTHOG_KEY, {
+        api_host: env.EXPO_PUBLIC_POSTHOG_HOST,
+        autocapture: false, // explicit events only - no input scraping
+        capture_pageview: false, // screen-level events captured manually
+        disable_session_recording: true, // privacy-first
+        persistence: "memory", // no localStorage by default
+        property_denylist: [
+          "$current_url",
+          "$pathname",
+          "$referrer",
+          "$referring_domain",
+          "$host",
+          "$session_entry_url",
+          "$session_entry_host",
+          "$session_entry_pathname",
+          "$prev_pageview_pathname",
+        ],
+      });
+      posthogClient = mod.default;
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[analytics] posthog init skipped:", (e as Error).message);
     }
   }
 }
@@ -382,10 +525,30 @@ async function loadProductAnalytics(env: Env): Promise<void> {
 /**
  * Record the user's analytics-consent decision. Persists it (web) so it gates
  * the next load, and - when granting in-session after init - loads the product
- * analytics SDKs immediately. Revoking takes effect on the next reload (loaded
- * third-party SDKs can't be cleanly torn down mid-session).
+ * analytics SDKs immediately. Revoking stops app-driven events synchronously,
+ * updates GA4/Clarity consent, and clears Clarity cookies in the current session.
  */
-export function setAnalyticsConsent(granted: boolean, gate?: AnalyticsSubjectGate): void {
+export interface AnalyticsConsentApplyOptions {
+  /** Ignore a server read if a newer privacy action changed consent meanwhile. */
+  expectedRevision?: number;
+}
+
+export function getAnalyticsConsentRevision(): number {
+  return analyticsConsentRevision;
+}
+
+export function setAnalyticsConsent(
+  granted: boolean,
+  gate?: AnalyticsSubjectGate,
+  options?: AnalyticsConsentApplyOptions,
+): boolean {
+  if (
+    options?.expectedRevision !== undefined &&
+    options.expectedRevision !== analyticsConsentRevision
+  ) {
+    return false;
+  }
+  analyticsConsentRevision += 1;
   analyticsConsent = canLoadProductAnalytics(granted, gate);
   const w = webWindow();
   try {
@@ -393,27 +556,78 @@ export function setAnalyticsConsent(granted: boolean, gate?: AnalyticsSubjectGat
   } catch {
     // ignore storage failures (private mode, etc.)
   }
+  if (!analyticsConsent && w) {
+    try {
+      w.gtag?.("consent", "update", {
+        analytics_storage: "denied",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
+    } catch {
+      // ignore
+    }
+    if (clarityLoaded && w.clarity) {
+      try {
+        w.clarity("consentv2", {
+          ad_Storage: "denied",
+          analytics_Storage: "denied",
+        });
+        // ConsentV1's false form is still the documented cookie-erasure API.
+        w.clarity("consent", false);
+      } catch {
+        // ignore
+      }
+    }
+    return true;
+  }
   if (analyticsConsent && initialized && w) {
+    try {
+      w.gtag?.("consent", "update", {
+        analytics_storage: "granted",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
+      if (clarityLoaded && w.clarity) {
+        w.clarity("consentv2", {
+          ad_Storage: "denied",
+          analytics_Storage: "granted",
+        });
+      }
+    } catch {
+      // ignore
+    }
     let env: Env;
     try {
       env = getEnv();
     } catch {
-      return;
+      return true;
     }
     void loadProductAnalytics(env);
   }
+  return true;
 }
 
-/** Track a high-level product event. No-op until product analytics are loaded. */
-export function captureEvent(event: AnalyticsEvent): void {
-  // Opt-out must be immediate: loaded SDKs can't be torn down mid-session, but
-  // all emission is app-driven (autocapture/page_view off), so gating here stops
-  // every GA4/PostHog hit the instant consent is revoked.
-  if (!analyticsConsent) return;
-  const props = cleanProps(event.props);
+/** Track a high-level product event. Returns false when consent blocks it. */
+export function captureEvent(event: AnalyticsEvent): boolean {
+  // Remember the safe file route even while consent is denied. If consent is
+  // granted moments later, GA config and every subsequent custom event still
+  // receive the correct redacted route rather than the browser's live URL.
+  if (event.name === "page_view") {
+    currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
+  }
+  // Opt-out is immediate for every app-driven event. A Google tag already
+  // loaded in this document can still emit consent-status/cookieless pings;
+  // production therefore also requires GA's behavioral + diagnostic data
+  // transmission controls and automatic history events to be disabled.
+  if (!analyticsConsent) return false;
+  const props = cleanAnalyticsEventProps(event);
+  let delivered = clarityLoaded;
   if (posthogClient) {
     try {
       posthogClient.capture(event.name, props);
+      delivered = true;
     } catch {
       // analytics failures must not propagate
     }
@@ -421,39 +635,25 @@ export function captureEvent(event: AnalyticsEvent): void {
   const w = webWindow();
   if (ga4Id && w?.gtag) {
     try {
-      w.gtag("event", event.name, props);
+      // GA enriches every event with browser page metadata by default. Override
+      // all three fields at event scope so record ids, peer tokens, OAuth query
+      // values, and document titles cannot ride along on non-page events.
+      w.gtag("event", event.name, { ...props, ...gaContextProps(w) });
+      delivered = true;
     } catch {
       // ignore
     }
   }
+  return delivered;
 }
 
-/** Pin events to the current user id (call after sign-in). No-op until loaded. */
-export function identifyUser(userId: string): void {
-  // Respect a revoked consent the same way captureEvent does.
-  if (!analyticsConsent) return;
-  if (posthogClient) {
-    try {
-      posthogClient.identify(userId);
-    } catch {
-      // ignore
-    }
-  }
-  const w = webWindow();
-  if (ga4Id && w?.gtag) {
-    try {
-      w.gtag("config", ga4Id, { user_id: userId });
-    } catch {
-      // ignore
-    }
-  }
-  if (clarityLoaded && w?.clarity) {
-    try {
-      w.clarity("identify", userId);
-    } catch {
-      // ignore
-    }
-  }
+/**
+ * Kept as a compatibility no-op. Direct app account ids are intentionally not
+ * forwarded to third-party web analytics; anonymous consented sessions are
+ * sufficient for the current product metrics.
+ */
+export function identifyUser(_userId: string): void {
+  // Intentionally empty.
 }
 
 /** Report an exception with structured context. No-op when Sentry isn't configured. */
@@ -474,8 +674,10 @@ export function captureException(err: unknown, context?: Record<string, unknown>
 export function __resetAnalytics(): void {
   initialized = false;
   analyticsConsent = false;
+  analyticsConsentRevision = 0;
   posthogClient = null;
   sentryClient = null;
   ga4Id = null;
   clarityLoaded = false;
+  currentAnalyticsRoute = "/";
 }

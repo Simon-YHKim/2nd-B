@@ -3,10 +3,13 @@
 // no-op without throwing.
 
 import {
+  buildAnalyticsPageLocation,
   canLoadProductAnalytics,
+  cleanAnalyticsEventProps,
   capture,
   captureEvent,
   captureException,
+  getAnalyticsConsentRevision,
   identifyUser,
   initAnalytics,
   pageView,
@@ -19,6 +22,8 @@ import {
   plansTierFocused,
   checkoutStarted,
   purchase,
+  sanitizeAnalyticsRoutePath,
+  scrubSentryEvent,
   __resetAnalytics,
 } from "../index";
 
@@ -70,12 +75,91 @@ describe("analytics — no-op when no keys configured", () => {
     );
   });
 
-  test("PIPA/C10 gate blocks product analytics for minors and under-14 users", () => {
-    expect(canLoadProductAnalytics(true)).toBe(true);
+  test("PIPA/C10 gate requires confirmed adult age and explicit consent", () => {
+    expect(canLoadProductAnalytics(true)).toBe(false);
     expect(canLoadProductAnalytics(false)).toBe(false);
+    expect(canLoadProductAnalytics(true, { isMinor: null })).toBe(false);
     expect(canLoadProductAnalytics(true, { isMinor: true })).toBe(false);
-    expect(canLoadProductAnalytics(true, { underDigitalConsentAge: true })).toBe(false);
-    expect(() => setAnalyticsConsent(true, { underDigitalConsentAge: true })).not.toThrow();
+    expect(canLoadProductAnalytics(true, { isMinor: false })).toBe(false);
+    expect(canLoadProductAnalytics(true, { isMinor: false, confirmedAdult: true })).toBe(true);
+    expect(
+      canLoadProductAnalytics(true, {
+        isMinor: false,
+        confirmedAdult: true,
+        underDigitalConsentAge: true,
+      }),
+    ).toBe(false);
+    expect(() =>
+      setAnalyticsConsent(true, {
+        isMinor: false,
+        confirmedAdult: true,
+        underDigitalConsentAge: true,
+      }),
+    ).not.toThrow();
+  });
+
+  test("a stale server consent read cannot overwrite a newer privacy action", () => {
+    const serverReadRevision = getAnalyticsConsentRevision();
+    expect(setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true })).toBe(true);
+    expect(
+      setAnalyticsConsent(
+        true,
+        { isMinor: false, confirmedAdult: true },
+        { expectedRevision: serverReadRevision },
+      ),
+    ).toBe(false);
+  });
+
+  test("analytics page locations never include live ids, tokens, queries, or hashes", () => {
+    const uuid = "9c820f74-17a2-4d0a-9a6e-234b86a6c120";
+    expect(sanitizeAnalyticsRoutePath(`/record/${uuid}?email=private@example.com#detail`)).toBe(
+      "/record/[id]",
+    );
+    expect(sanitizeAnalyticsRoutePath("/peer/abcdefghijklmnopqrstuvwxyz012345")).toBe(
+      "/peer/[token]",
+    );
+    expect(buildAnalyticsPageLocation("/record/[id]", "https://simon-yhkim.github.io/")).toBe(
+      "https://simon-yhkim.github.io/2nd-B/record/[id]",
+    );
+    expect(
+      cleanAnalyticsEventProps(
+        pageView({
+          path: `/record/${uuid}?email=private@example.com`,
+          title: "private record title",
+        }),
+      ),
+    ).toEqual({ path: "/record/[id]" });
+  });
+
+  test("Sentry events redact live URLs, request material, and navigation breadcrumbs", () => {
+    const scrubbed = scrubSentryEvent(
+      {
+        request: {
+          url: "https://example.test/record/private?email=private@example.com",
+          headers: { referer: "private" },
+          cookies: "private",
+          data: "private",
+          query_string: "private",
+        },
+        breadcrumbs: [
+          {
+            category: "navigation",
+            message: "https://example.test/peer/private-token",
+            data: { from: "/record/private", to: "/peer/private" },
+          },
+        ],
+      },
+      "/record/[id]",
+      "https://simon-yhkim.github.io",
+    );
+    expect(scrubbed.request).toEqual({
+      url: "https://simon-yhkim.github.io/2nd-B/record/[id]",
+    });
+    expect(scrubbed.transaction).toBe("/record/[id]");
+    expect(scrubbed.breadcrumbs?.[0]).toMatchObject({
+      message: "[redacted]",
+      data: { from: "[redacted]", to: "[redacted]" },
+    });
   });
 
   test("conversion-funnel creators emit their canonical event names", () => {
@@ -107,7 +191,7 @@ describe("analytics — no-op when no keys configured", () => {
   test("C10: a minor's revoked consent emits nothing for funnel events", () => {
     // canLoadProductAnalytics(false) for a minor -> setAnalyticsConsent stays
     // denied -> captureEvent must not reach any SDK (none loaded anyway).
-    expect(canLoadProductAnalytics(true, { isMinor: true })).toBe(false);
+    expect(canLoadProductAnalytics(true, { isMinor: true, confirmedAdult: false })).toBe(false);
     setAnalyticsConsent(true, { isMinor: true });
     expect(() => captureEvent(starLit({ star_id: "now", ladder_level: 4, source: "questionnaire" }))).not.toThrow();
     expect(() => captureEvent(aiLimitHit({ tier: "free", limit: 2 }))).not.toThrow();

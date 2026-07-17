@@ -5,13 +5,13 @@
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
 **88개 화면 · 529개 동작 · 서버/데이터 100종 · AI 14종**  
-코드 좌표 830개 전부 실제 소스와 대조: **✔ 함수까지 확인 249** · **· 파일·줄만 확인 576** · ⚠ 5
+코드 좌표 830개 전부 실제 소스와 대조: **✔ 함수까지 확인 249** · **· 파일·줄만 확인 575** · ⚠ 6
 
 **스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `d82df3fb` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `46c24da0` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
@@ -97,22 +97,15 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 ---
 
-## 3. 알려진 문제 34건
+## 3. 알려진 문제 25건
 
 손대기 전에 여기 있는지 먼저 본다. **코드 위치 = 결함이 있는 곳(화면)** — 액션이 부르는 lib(`impl`)이 아니다.
 
 | 화면 | 안 되는 것 | 증상 | 결함 위치 |
 |---|---|---|---|
-| `/reset-password` | 화면 열기(재설정 링크 확인) | 메일 링크로 앱이 새로 켜질 때(콜드 스타트) 로딩이 끝나는 순간 화면이 오류로 죽습니다 — dds-auth… | `src/screens/deepspace/dds-auth-screens.tsx:581` |
-| `/northstar` | 세컨비 제안 받기 | 인터넷이 끊기거나 AI가 형식에 안 맞는 답을 해도 화면은 똑같이 '아직 기록이 얕아서 제안하기 조심스러워요… | `src/app/northstar.tsx:98` |
-| `/northstar` | 이 문장으로 저장 | 저장이 실패하면 버튼만 다시 눌리게 풀릴 뿐, 실패했다는 안내가 안 떠요 — 화면이 안 넘어가면 저장이 안 … | `src/app/northstar.tsx:126` |
-| `/capture` | 전체 담기 화면 열기 (사진·음성) | '카메라·앨범 열기'를 눌러도 카메라도 앨범도 안 열려요. 화면만 전체 담기 화면으로 바뀌어요 | `src/components/deep-space/DeepSpaceViews.tsx:420` |
-| `/records` | 정리함 열기 | 카드를 눌러도 정리를 못 해요. 태그·보관·삭제 버튼이 있는 화면이 아니라 비어 있는 '알림' 화면으로 가요… | `src/screens/deepspace/dds-wiki-records-screens.tsx:490` |
 | `/inbox` | 알림 화면 열기 (로그인 확인 후 빈 목록) | 담아둔 자료가 아무리 많아도 알림 목록은 항상 비어 있어요 - 화면이 서버에서 데이터를 전혀 읽지 않고, 목… | `src/screens/deepspace/dds-import-inbox-screens.tsx:78` |
 | `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:222` |
 | `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` |
-| `/secondb` | 화면 열기 (로그인·가입정보 확인 + 인사 모달 + 오늘 쓴 횟수 불러오기) | 구글 로그인만 하고 생년월일·동의를 아직 안 채웠으면 세컨비 화면이 아예 열리지 않고 정보 입력 화면(/co… | `src/app/secondb.tsx:393` |
-| `/secondb` | 답변을 길게 눌러 복사하기 | 휴대폰 앱에서는 꾹 눌러도 자동 복사가 안 돼요 — 자동 복사는 웹 브라우저에서만 동작해요 (src/app/… | `src/app/secondb.tsx:716` |
 | `/beyond` | 알림 설정 열기 | 이 화면에서는 알림을 못 꺼요 — 설정 화면으로 넘어가야 해요 | `src/app/beyond.tsx:135` |
 | `/research` | 첫 별가루 담기 (빈 화면일 때) | 기록 화면에서 저장한 메모는 '기록(records)' 으로 들어가고, 이 화면이 세는 '위키 페이지(wiki… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1485` |
 | `/research` | 묶음 태그로 걸러 보기 | 이 칩은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePage… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385` |
@@ -125,7 +118,6 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/digest` | 제안 줄 눌러 원본 기록 열기 (지금은 항상 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.'가 떠요) | 언제나 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.' 화면 — 기록이 지워져서가 아니라 10… | `src/app/digest.tsx:190` |
 | `/milestones` | 목표 추가 (＋ 버튼) | 저장이 실패해도 오류 문구가 전혀 안 떠요 (조용한 실패 — screens.tsx:409-411 의 빈 ca… | `src/screens/deepspace/ops/screens.tsx:403` |
 | `/milestones` | 상태 칩 눌러 진행 상태 바꾸기 | 저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈… | `src/screens/deepspace/ops/screens.tsx:417` |
-| `/focus` | '어떤 별을 위해?' 별 고르기 | 고른 별이 저장되지 않아 별 밝기나 영역별 통계에 전혀 반영되지 않아요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2424` |
 | `/import-hub` | 가져온 데이터 삭제(철회) | 서버가 안 되면 '철회하지 못했어요'가 뜨고 목록에 그대로 남아요 | `src/screens/deepspace/import/ImportHubScreen.tsx:227` |
 | `/import-hub` | '이 기기에서만 처리' 스위치 | 스위치를 어느 쪽에 두든 저장하면 서버 업로드는 그대로 일어나요 (스위치가 동작하지 않는 버그) | `src/screens/deepspace/import/ImportHubScreen.tsx:343` |
 | `/integrations` | 소스 연결 누르기 | 가져오기를 취소하거나 뒤로 나와도 줄이 '연결됨'으로 남아, 연결되지 않은 데이터가 연결된 것처럼 보여요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:310` |
@@ -135,7 +127,6 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `/settings` | 다크 모드·강조색 바꾸기, '기능' 스위치 5개 켜고 끄기 | '앱 잠금'을 켜도 앱이 잠기지 않습니다 — 남에게 폰을 건네도 그대로 열립니다 (생체 인증 기능 자체가 앱… | `src/app/settings.tsx:414` |
 | `/settings` | '데이터 연동'의 연결 버튼 누르기 (Google 캘린더 · Apple 건강 · Notion) | '연결됨 · 동기화 중'이라고 표시되지만 실제 동기화는 전혀 일어나지 않습니다 (화면이 거짓말을 합니다) | `src/app/settings.tsx:415` |
 | `/settings` | '그래프 크루 (장식 로봇)' 밀도 바꾸기 (없음/적게/보통/많이) | 밀도를 '많이'로 해도 크루가 하나도 안 보입니다 — 이 설정이 붙어 있는 그래프 화면이 기본 화면에서 안 … | `src/app/settings.tsx:801` |
-| `/plans` | 무료 요금제(별바라기) 카드의 버튼 누르기 — 유료 이용자에게만 눌리는 버튼 | 버튼을 눌러도 아무 반응이 없습니다 (앱이 멈춘 것처럼 보입니다) | `src/app/plans.tsx:187` |
 | `/graph` | 화면 열자마자 개수 세어 오기 | 별의 위치·개수·이름이 전부 고정된 가짜 그림입니다. 내 글이 늘어도 별은 하나도 안 늘고 자리도 안 바뀝니… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:164` |
 
 ---
@@ -167,8 +158,8 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 | | 수 | 뜻 |
 |---|---|---|
 | **✔** | 249 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
-| **·** | 576 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
-| **~** | 5 | 빈 줄/import/주석 — 로직은 다른 줄 |
+| **·** | 575 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
+| **~** | 6 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
 | 위임 트랩 | 35 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
 
@@ -187,7 +178,7 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 ```bash
 # flow-debugger 스킬 폴더에서 (scan-prompts.md "RESCAN / PATCH" 참조)
-node scripts/verify-anchors.js <graph.json> "E:\2ndB\.worktrees\flowmap-c5" --fix <graph.json> --strict
-node scripts/make-handoff.js <graph.json> "E:\2ndB\.worktrees\flowmap-c5" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
+node scripts/verify-anchors.js <graph.json> "E:\2ndB\.worktrees\flow-curation" --fix <graph.json> --strict
+node scripts/make-handoff.js <graph.json> "E:\2ndB\.worktrees\flow-curation" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
 ```
 
