@@ -69,10 +69,8 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ChatRewardCapReachedError, grantChatAdBonus, readChatUsage } from "@/lib/chat/usage";
 import { CHAT_DAILY_LIMIT, kstDateToday } from "@/lib/chat/limits";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
-import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { personaAllowed } from "@/lib/entitlements/tiers";
 import { PUBLIC_TIER_BY_DB } from "@/lib/entitlements/tier-map";
-import { getReasoningUsage, incrementReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { CORE_VILLAGE_UI, VILLAGE_UI } from "@/lib/village-ui";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -529,7 +527,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (!personaAllowed(effectiveTier, rev2Persona as "meta" | "twi")) {
       selectRev2Persona("secondb");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progression.loading, effectiveTier, rev2Persona]);
   // Divergent signature motion (DESIGN.md): a soft soulViolet2 pulse while a
   // Divergent turn is in flight. Holds at rest otherwise; static under reduced
@@ -548,20 +545,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [pendingUpgrade, setPendingUpgrade] = useState<SubscriptionTier | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Reasoning cap (monthly) — each chat send = one "깊이 묻기" reasoning use.
-  // This is the COUNT-only gate (same-quality principle: we limit how many,
-  // never the quality). reasoningUsed/rewardCredits come from getReasoningUsage
-  // (fail-open). reasoningRemaining = Infinity for unlimited tiers (북극성/brain),
-  // which are never gated. rewardVisible drives the RewardedSheet for free adults.
-  const [reasoningUsed, setReasoningUsed] = useState(0);
-  const [rewardCredits, setRewardCredits] = useState(0);
-  const [rewardVisible, setRewardVisible] = useState(false);
-  // Phase 4 (0090): the chat DAILY cap gets its own rewarded top-up (+2 sends
-  // today) beside the reasoning one — same free-adult eligibility.
+  // Phase 4 (0090): free adults can top up the chat DAILY cap (+2 sends today).
   const [chatRewardVisible, setChatRewardVisible] = useState(false);
-  const [capNotice, setCapNotice] = useState(false);
-  const reasoningRemaining = remainingReasoning(progression.tier, reasoningUsed, rewardCredits);
-  const reasoningUnlimited = reasoningRemaining === Infinity;
 
   // Seed once on entry: a character chat opens with that companion's greeting
   // as the first turn; a node entry pre-fills the composer with the context.
@@ -615,20 +600,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       });
   }, [userId]);
 
-  // Reasoning usage (monthly cap) — load on mount, refreshed after each send.
-  // getReasoningUsage is fail-open, so a failure leaves the user unblocked.
-  useEffect(() => {
-    if (!userId) return;
-    void getReasoningUsage(userId)
-      .then(({ used, rewardCredits: rc }) => {
-        setReasoningUsed(used);
-        setRewardCredits(rc);
-      })
-      .catch((e) => {
-        if (typeof console !== "undefined") console.warn("[secondb] getReasoningUsage failed", (e as Error).message);
-      });
-  }, [userId]);
-
   // Funnel: the AI cap is the conversion gate. Fire ai_limit_hit once per mount
   // the moment usage reaches the tier limit (whether hit by a sent turn or
   // already at the cap on entry). Scalars only - tier/limit/upgrade target.
@@ -666,7 +637,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
 
   // The composer owns the draft now, so it hands the trimmed text to onSend.
   // Returns true when the send is committed (composer clears the draft) and
-  // false when the reasoning-cap gate refuses it (composer keeps the draft).
+  // false when the message is empty or there is no signed-in user.
   // Stable across renders (useCallback) so the memoized ChatComposer holds.
   // Kept ABOVE the early returns so this hook always runs (rules-of-hooks).
   const handleSend = useCallback(
@@ -674,25 +645,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       if (!userId) return false;
       const msg = message.trim();
       if (msg.length === 0) return false;
-
-      // Pre-send reasoning-cap gate (count-only — never a quality gate). Each send
-      // is one "깊이 묻기" reasoning use. Unlimited tiers (북극성/brain → Infinity)
-      // are never gated. On cap: free adults get the rewarded sheet ONLY when ads
-      // are actually configured (adsConfigured() — watch-to-earn needs a real ad to
-      // watch); otherwise, and for everyone else, we route to the paywall. This
-      // stops the placeholder ad from paying out reasoning credits while ads are
-      // OFF by default (ads/policy.ts). The chat engine / C9 / C3 path below is
-      // untouched — we only decide whether to reach it.
-      if (!reasoningUnlimited && reasoningRemaining <= 0) {
-        setCapNotice(true);
-        if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
-          setRewardVisible(true);
-        } else {
-          router.push("/plans?from=ai_limit");
-        }
-        return false;
-      }
-      setCapNotice(false);
 
       setSending(true);
       setTurns((prev) => [...prev, { role: "user", text: msg }]);
@@ -721,7 +673,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setUsedToday(result.used);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
-            // rewarded watch (same eligibility as the reasoning sheet).
+            // rewarded watch.
             if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
               setChatRewardVisible(true);
             }
@@ -751,15 +703,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               { role: "secondb", text: twi.display, chips, branches: twi.branches },
             ]);
             setUsedToday(result.used);
-            // SUCCESS only (not blocked / not crisis): this send consumed one
-            // reasoning use. Count it (count-only, never quality). Optimistically
-            // bump local used so the gate is live before the server round-trip
-            // resolves; still increment unlimited tiers for analytics (they never
-            // block). Fail-open: a failed increment must not break the answer.
-            setReasoningUsed((u) => u + 1);
-            void incrementReasoningUsage(userId).catch((e) => {
-              if (typeof console !== "undefined") console.warn("[secondb] incrementReasoningUsage failed", (e as Error).message);
-            });
             captureEvent(
               secondBSession({
                 action: "message_sent",
@@ -791,8 +734,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     },
     [
       userId,
-      reasoningUnlimited,
-      reasoningRemaining,
       progression.tier,
       isMinor,
       locale,
@@ -1044,14 +985,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             </ScrollView>
           ) : null}
 
-          {/* reasoning-cap inline notice (count-only — NOT a quality message).
-              "다 썼어요, 더 하려면" framing; no implication of lower quality. */}
-          {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
-            <Text style={ds.limitLinkText} accessibilityLiveRegion="polite">
-              {t("usedDeepQuestions")}
-            </Text>
-          ) : null}
-
           {atLimit ? (
             <Pressable
               onPress={() => router.push("/plans?from=ai_limit")}
@@ -1276,28 +1209,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
         ) : null}
 
-        {/* Rewarded watch-to-earn — free adults top up reasoning COUNTS only
-            (never quality). onEarned: persist credits, refresh remaining, close;
-            the user can send again. onClose: just close. */}
-        <RewardedSheet
-          visible={rewardVisible}
-          onClose={() => setRewardVisible(false)}
-          remaining={reasoningUnlimited ? 0 : reasoningRemaining}
-          onEarned={async (credits) => {
-            if (userId) {
-              try {
-                await addRewardCredits(userId, credits);
-              } catch (e) {
-                if (typeof console !== "undefined") console.warn("[secondb] addRewardCredits failed", (e as Error).message);
-              }
-            }
-            setRewardCredits((c) => c + credits);
-            setCapNotice(false);
-            setRewardVisible(false);
-          }}
-          locale={locale}
-        />
-
         {/* 0090: chat daily-cap top-up (+2 sends today, monthly earn cap). The
             grant RPC enforces day/month/ceiling server-side; on success the
             user just sends again — the next send re-reads the allowance. */}
@@ -1373,13 +1284,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           onSend={handleSend}
           fromNode={fromNode}
         />
-
-        {/* reasoning-cap inline notice (count-only — NOT a quality message). */}
-        {capNotice && !reasoningUnlimited && reasoningRemaining <= 0 ? (
-          <Text variant="caption" color="textMuted" accessibilityLiveRegion="polite" style={{ textAlign: "right", paddingHorizontal: spacing.md }}>
-            {t("usedDeepQuestions")}
-          </Text>
-        ) : null}
 
         {usedToday !== null && usedToday >= limit ? (
           <Pressable
@@ -1691,26 +1595,6 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       {companion.moment ? (
         <CompanionMoment moment={companion.moment} style={styles.companionFlash} />
       ) : null}
-
-      {/* Rewarded watch-to-earn — count-only top up; same wiring as deep-space. */}
-      <RewardedSheet
-        visible={rewardVisible}
-        onClose={() => setRewardVisible(false)}
-        remaining={reasoningUnlimited ? 0 : reasoningRemaining}
-        onEarned={async (credits) => {
-          if (userId) {
-            try {
-              await addRewardCredits(userId, credits);
-            } catch (e) {
-              if (typeof console !== "undefined") console.warn("[secondb] addRewardCredits failed", (e as Error).message);
-            }
-          }
-          setRewardCredits((c) => c + credits);
-          setCapNotice(false);
-          setRewardVisible(false);
-        }}
-        locale={locale}
-      />
 
       {/* 0090: chat daily-cap top-up — same wiring as deep-space. */}
       <RewardedSheet

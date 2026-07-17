@@ -251,7 +251,7 @@ export function ConstellationHome({
   hasUnread?: boolean;
 }) {
   const { t, i18n } = useTranslation("home");
-  const { userId } = useAuth();
+  const { userId, isMinor } = useAuth();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
   const coachmarksDue = useCoachmarksGate();
@@ -592,14 +592,16 @@ export function ConstellationHome({
               <View style={styles.bubbleActions}>
                 {reasoningMode === "depleted" ? (
                   <>
-                    <MdButton
-                      label={ko ? "광고로 1회 받기" : "Earn one run"}
-                      variant="filled"
-                      onPress={() => {
-                        setBubble({ kind: "intro" });
-                        router.push("/records");
-                      }}
-                    />
+                    {isMinor === false ? (
+                      <MdButton
+                        label={ko ? "광고로 1회 받기" : "Earn one run"}
+                        variant="filled"
+                        onPress={() => {
+                          setBubble({ kind: "intro" });
+                          router.push("/records");
+                        }}
+                      />
+                    ) : null}
                     <MdButton
                       label={ko ? "업그레이드" : "Upgrade"}
                       variant="tonal"
