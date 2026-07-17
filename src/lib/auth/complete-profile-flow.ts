@@ -30,6 +30,8 @@ export interface CompleteProfileFlowDeps {
   signOutUser: () => Promise<void>;
   /** AgeGateError discriminator (kept injectable so tests need no real error class). */
   isAgeGateError: (e: unknown) => boolean;
+  /** EmailInUseError discriminator (same injectable pattern as the age gate). */
+  isEmailInUseError: (e: unknown) => boolean;
 }
 
 export type CompleteProfileSubmitResult =
@@ -40,6 +42,11 @@ export type CompleteProfileSubmitResult =
    *  userId:null and the screen's own guard would unmount the toast at zero
    *  frames), then call signOutAndSettle and navigate. */
   | { kind: "ageGate" }
+  /** The email belongs to another sign-in method (users.email citext UNIQUE):
+   *  this session can NEVER gain a profile, so retrying is the stranded-account
+   *  loop (U6). Same toast-first contract as ageGate -- the screen shows the
+   *  "use your original method" toast, THEN signs out and lands on /sign-in. */
+  | { kind: "emailInUse" }
   /** ensureProfile failed for a non-age reason — stay on the form. */
   | { kind: "saveFailed"; message: string };
 
@@ -63,6 +70,9 @@ export async function submitCompleteProfile(
   } catch (e) {
     if (deps.isAgeGateError(e)) {
       return { kind: "ageGate" };
+    }
+    if (deps.isEmailInUseError(e)) {
+      return { kind: "emailInUse" };
     }
     return { kind: "saveFailed", message: e instanceof Error ? e.message : String(e) };
   }
