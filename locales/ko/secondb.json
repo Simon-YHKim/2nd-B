@@ -164,6 +164,8 @@
   "newPerspectives": "새로운 관점·가정으로",
   "readyToChat": "대화할 준비가 된 세컨비",
   "longPressCopyThis": "길게 눌러 메시지를 복사합니다",
+  "copied": "복사했어요",
+  "copyFailed": "복사하지 못했어요. 글자를 선택해 복사해 주세요.",
   "aboutNode": "'{{node}}'에 대해 물어볼게요: ",
   "drewOnPieces": "이 답변은 참고한 별가루 {{n}}개를 봤어요. 눌러서 자세히 보기.",
   "nSources": "근거 · 기록 {{n}}건",
