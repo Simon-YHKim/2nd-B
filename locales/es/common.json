@@ -42,6 +42,14 @@
     "en": "Inglés",
     "ko": "한국어"
   },
+  "loadingGate": {
+    "hint": "Toca para abrir tu segundo cerebro",
+    "open": "Abrir 2nd-Brain",
+    "opening": "Abriendo 2nd-Brain",
+    "loading": "Cargando 2nd-Brain",
+    "enterHint": "Toca dos veces para entrar a la pantalla principal.",
+    "skipHint": "Toca dos veces para saltar la animación de inicio."
+  },
   "worldview": {
     "soulCore": "Núcleo del alma",
     "growthCore": "Núcleo de crecimiento",

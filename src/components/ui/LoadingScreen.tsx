@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Image as ExpoImage } from "expo-image";
 
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
@@ -93,6 +94,7 @@ interface Props {
 }
 
 export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
+  const { t } = useTranslation("common");
   const [phase, setPhase] = useState<Phase>("typing");
   const [msgIdx, setMsgIdx] = useState(0);
   const [typed, setTyped] = useState("");
@@ -249,10 +251,14 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     startZoom();
   }
 
+  // Judge-rehearsal finding #3 (260717): the ready-gate hint was hardcoded
+  // Korean -- the ONLY Korean surface an English-locale judge hits. (The
+  // typewriter MESSAGES stay Korean for now: they are curated 세컨비-voice
+  // lines gated by check:mascot-voice, translated as their own task.)
   const accessibilityLabel =
-    phase === "ready" ? "2nd-Brain 열기" : phase === "zooming" ? "2nd-Brain 여는 중" : "2nd-Brain 불러오는 중";
+    phase === "ready" ? t("loadingGate.open") : phase === "zooming" ? t("loadingGate.opening") : t("loadingGate.loading");
   const accessibilityHint =
-    phase === "ready" ? "두 번 탭하면 메인 화면으로 이동합니다." : "두 번 탭하면 시작 애니메이션을 건너뜁니다.";
+    phase === "ready" ? t("loadingGate.enterHint") : t("loadingGate.skipHint");
 
   return (
     <Pressable
@@ -276,7 +282,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       ) : null}
       {phase === "ready" ? (
         <Animated.Text style={[styles.hint, { opacity: hintOpacity }]}>
-          탭해서 두번째 뇌를 열기
+          {t("loadingGate.hint")}
         </Animated.Text>
       ) : null}
     </Pressable>

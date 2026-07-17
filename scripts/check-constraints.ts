@@ -1021,8 +1021,10 @@ results.push(
       formats.includes('accessibilityLabel={tf("guideModal.label")}') &&
       loadingScreen.includes('accessibilityRole="button"') &&
       loadingScreen.includes("accessibilityState={{ busy: phase !== \"ready\", disabled: phase === \"zooming\" }}") &&
-      loadingScreen.includes("2nd-Brain 열기") &&
-      loadingScreen.includes("두 번 탭하면 메인 화면으로 이동합니다.") &&
+      // Localized 260717 (judge-rehearsal #3): the gate label/hint moved from
+      // hardcoded Korean into the common bundle's loadingGate.* keys.
+      loadingScreen.includes('t("loadingGate.open")') &&
+      loadingScreen.includes('t("loadingGate.enterHint")') &&
       oauthCallback.includes('accessibilityRole="alert"') &&
       oauthCallback.includes("accessibilityLabel={retryLabel}") &&
       oauthCallback.includes("accessibilityHint={retryHint}") &&
