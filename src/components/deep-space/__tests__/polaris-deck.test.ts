@@ -1,6 +1,6 @@
-// rev2 P3a guard: the deep-space 북극성 screen renders the persona DECK
-// (swipe cards + Big Five radar + validation entry), the "Soul Core" user-facing
-// name is dropped on the canon track, and the new components keep token discipline.
+// rev2 P3a guard: the deep-space 북극성 screen renders the three-page persona
+// deck from 10-me (role + portrait + evidence), keeps validation data real, and
+// never reintroduces the legacy "Soul Core" user-facing name.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -9,7 +9,6 @@ const SRC = path.resolve(__dirname, "../../..");
 const read = (p: string) => fs.readFileSync(path.join(SRC, p), "utf8");
 
 const deck = read("components/deep-space/PolarisDeck.tsx");
-const radar = read("components/persona/TraitRadar.tsx");
 const screen = read("app/core-brain.tsx");
 
 describe("북극성 persona deck (P3a)", () => {
@@ -19,21 +18,24 @@ describe("북극성 persona deck (P3a)", () => {
     expect(deck).toMatch(/accessibilityRole="tab"/);
   });
 
-  test("deck and radar keep token discipline (no raw colors)", () => {
-    for (const source of [deck, radar]) {
+  test("deck keeps token discipline (no raw colors)", () => {
+    for (const source of [deck]) {
       expect(source).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
       expect(source).not.toMatch(/rgba\(/);
     }
     expect(deck).toMatch(/m3\./);
-    expect(radar).toMatch(/m3\.accent\./);
   });
 
-  test("deep-space 북극성 screen mounts the deck with radar + validation entry", () => {
+  test("deep-space 북극성 screen mounts the three real-data pages and validation entries", () => {
     expect(screen).toMatch(/PolarisDeck/);
-    expect(screen).toMatch(/TraitRadar/);
-    // QA #1: the "북극성 · 종합" hero label moved to the core-brain namespace.
-    expect(screen).toContain('t("polarisAggregate")');
-    for (const route of ["/big-five", "/ipip-neo", "/attachment", "/motivation", "/strengths", "/audit"]) {
+    expect(screen).toContain('key: "role"');
+    expect(screen).toContain('key: "portrait"');
+    expect(screen).toContain('key: "evidence"');
+    expect(screen).not.toMatch(/<TraitRadar/);
+    expect(screen).toMatch(/persona\.traits\.openness/);
+    expect(screen).toContain("loadLatestStrengths");
+    expect(screen).toContain("loadDomainLevels");
+    for (const route of ["/big-five", "/attachment", "/strengths", "/values"]) {
       expect(screen).toContain(`route: "${route}"`);
     }
     // MBTI is retired (src/app/mbti.tsx is a deep-link redirect to /persona) —
@@ -44,17 +46,12 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toContain('router.push("/ratifications")');
   });
 
-  test("radar discloses its source honestly (instrument vs approximation)", () => {
-    expect(radar).toMatch(/instrumentLabel/);
-    expect(radar).toMatch(/근사치/);
-  });
-
   test("the deep-space branch does not reintroduce the Soul Core name", () => {
     // The legacy premium-shell branch may keep 소울 코어; the deep-space deck
-    // block (from the isDeepSpaceUI() branch marker to the legacy return) must
+    // block (from the isDeepSpaceUI() branch to the legacy return) must
     // use 북극성 only.
-    const start = screen.indexOf("rev2 P3a (deep-space track)");
-    const end = screen.indexOf("<SceneHero");
+    const start = screen.indexOf("if (isDeepSpaceUI())");
+    const end = screen.indexOf("<SceneHero", start);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const deepSpaceBlock = screen.slice(start, end);
