@@ -127,6 +127,44 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # --- Firebase config ---------------------------------------------------
+      # google-services.json is gitignored (never committed). Preferred: the
+      # real file via the GOOGLE_SERVICES_JSON_BASE64 repo secret (base64 of
+      # the Firebase console download). Fallback (no secret): a placeholder so
+      # prebuild/gradle still succeed - Firebase Analytics is then INERT in the
+      # artifact, which is safe because collection defaults OFF (firebase.json)
+      # and only enables behind the adult+consent runtime gate.
+      - name: Provision google-services.json
+        run: |
+          set -euo pipefail
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" ]; then
+            echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > google-services.json
+            echo "Real google-services.json provisioned from secret."
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 secret missing - writing a placeholder google-services.json. Firebase Analytics will be INERT in this build."
+            cat > google-services.json <<'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "secondbrain-placeholder",
+              "storage_bucket": "secondbrain-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": { "package_name": "com.simonk.secondbrain" }
+                },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "AIzaSyA0000000000000000000000000000000000" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+
       - name: Setup Java 17 (Temurin)
         uses: actions/setup-java@v4
         with:

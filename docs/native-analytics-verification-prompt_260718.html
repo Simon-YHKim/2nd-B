@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>native Firebase Analytics + AdMob 완료 점검 프롬프트 (2026-07-18)</title>
+<style>
+  :root {
+    --bg: #0B0E1A; --surface: #131829; --border: #2A345A;
+    --text: #E8ECF8; --muted: #8D98B8; --accent: #4CC9F0;
+    --pass: #72F2C7; --warn: #FFD166;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: Pretendard, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    line-height: 1.6; padding: 40px 20px; max-width: 900px; margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  h2 { font-size: 17px; margin: 36px 0 12px; color: var(--accent); }
+  p.lead { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: rgba(76,201,240,0.08); font-weight: 600; }
+  code, pre { font-family: "Roboto Mono", Consolas, monospace; }
+  code { background: rgba(76,201,240,0.10); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  pre.prompt {
+    background: #0A0D16; border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px; font-size: 12.5px; line-height: 1.55; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .copybtn {
+    background: var(--accent); color: #0B0E0C; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+  }
+  .copybtn:active { opacity: 0.8; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); margin-right: 6px; }
+  .ok { color: var(--pass); } .hold { color: var(--warn); }
+  ul { padding-left: 20px; } li { margin: 4px 0; font-size: 14px; }
+  .small { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>native Firebase Analytics + AdMob 완료 점검 프롬프트</h1>
+<p class="lead">2026-07-18 · PR <a href="https://github.com/Simon-YHKim/2nd-B/pull/1055" style="color:var(--accent)">#1055</a> (native analytics, phase 1a) 랜딩 검증 + Simon 콘솔 액션 + 타 세션 PR (b) AdMob 검증용</p>
+<p class="lead">사용법: 아래 프롬프트를 복사해 새 Claude Code 세션(E:\2ndB)에 붙여넣으면 READ-ONLY 전수 점검이 실행됩니다.</p>
+
+<div class="card">
+  <span class="tag">붙여넣기용</span><span class="tag">READ-ONLY</span><span class="tag">증거 필수</span>
+  <h2 style="margin-top:12px">점검 프롬프트</h2>
+  <button class="copybtn" onclick="navigator.clipboard.writeText(document.getElementById('p').innerText).then(()=>{this.innerText='복사됨';setTimeout(()=>this.innerText='프롬프트 복사',1500)})">프롬프트 복사</button>
+<pre class="prompt" id="p">[점검] E:\2ndB - native Firebase Analytics(PR #1055) + AdMob(PR b, 타 세션) 완료 검증.
+코드를 수정하지 말고 READ-ONLY로 검증만 한다. 각 항목마다 "실행한 명령 + 출력 발췌" 또는
+"파일:줄" 증거를 첨부해 PASS / FAIL / 미완(해당없음) 으로 판정한다. 점검은 최신 main 기준
+(git fetch 후 origin/main)으로 한다.
+
+A. PR #1055 랜딩 상태 - native analytics (조건 1)
+A1. #1055가 main에 squash 머지됐는지 (git log --oneline -5, gh pr view 1055 --json state,mergedAt)
+    + 머지 커밋의 CI(ci.yml verify) green.
+A2. firebase.json 존재 + 다음 9키가 전부 false:
+    analytics_auto_collection_enabled / google_analytics_automatic_screen_reporting_enabled /
+    google_analytics_adid_collection_enabled / google_analytics_ssaid_collection_enabled /
+    analytics_default_allow_analytics_storage / analytics_default_allow_ad_storage /
+    analytics_default_allow_ad_user_data / analytics_default_allow_ad_personalization_signals /
+    app_data_collection_default_enabled
+A3. src/lib/analytics/index.ts 게이트 3속성:
+    (a) syncNativeAnalyticsCollection이 setAnalyticsConsent 내부에서 revision guard 통과 후에만,
+        canLoadProductAnalytics 결과값으로만 호출된다 (별도의 완화된 판정 없음)
+    (b) initAnalytics가 부팅 시 OFF를 명시 적용한다 (_layout은 opts 없이 호출 = false)
+    (c) applyNativeAnalyticsCollection이 전체 try/catch(fail-closed)이고, setConsent에서
+        ad_storage / ad_user_data / ad_personalization을 어떤 상태에서도 false로 보낸다
+A4. 매트릭스 테스트 green: npx jest src/lib/analytics/__tests__/analytics.test.ts
+    "native Firebase Analytics collection gate" 9케이스 전부 통과 (boot OFF / adult ON /
+    minor OFF / age-unknown OFF / under-14 OFF / revoke 즉시 OFF / dedupe / revision guard /
+    rejecting applier 무해)
+A5. 실 config 미커밋: git check-ignore -v google-services.json 이 규칙을 출력하고,
+    git ls-files | grep -iE "google-services|GoogleService-Info" 가 빈 결과인지
+A6. react-native.config.js가 @react-native-firebase/app + analytics 둘 다 ios: null 로
+    제외하는지 (iOS 빌드 불변 펜스)
+A7. app.config.js env 오버라이드 동작: GOOGLE_SERVICES_JSON 환경변수를 임의 경로로 설정하고
+    npx expo config --type public 의 googleServicesFile이 그 경로로 바뀌는지
+A8. .github/workflows/android-release.yml에 "Provision google-services.json" 스텝 존재 +
+    머지 후 최신 run 결과 (gh run list --workflow=android-release.yml -L 1) - secret 미등록
+    상태면 ::warning + placeholder로 green이 정상
+
+B. Simon 콘솔 액션 (미완이면 "미완"으로만 표기, 코드 아님)
+B1. Firebase 콘솔에 Android 앱 com.simonk.secondbrain 등록 + 실제 google-services.json 확보
+B2. EAS file env var GOOGLE_SERVICES_JSON 등록 (eas env:list) - 미등록이면 EAS Android 빌드가
+    prebuild에서 실패하는 것이 의도된 loud-fail
+B3. GitHub repo secret GOOGLE_SERVICES_JSON_BASE64 등록 (gh secret list) - 미등록이어도
+    android-release.yml은 green이지만 그 산출물의 Analytics는 비활성(placeholder)
+B4. (B1~B2 완료 후) EAS development build 부팅: 크래시 없음, adb logcat에 Firebase 초기화
+    에러 없음
+B5. 런타임 매트릭스 (Firebase DebugView 기준):
+    - 성인 QA 계정(qa.ai.b18807@example.com, .env.test) + external_analytics OFF -> 이벤트 0건
+    - 같은 계정 ON 전환 -> 이벤트 유입 시작 / 다시 OFF -> 즉시 중단
+    - 14-17 계정 -> 설정 토글 잠김 + 이벤트 0건 / 나이 미확인 상태 -> 0건
+B6. 웹은 이 PR 무관 기존 게이트 유지: /privacy revoke 시 gtag consent denied +
+    Clarity consentv2 denied + 쿠키 소거 (이미 main 구현, 회귀만 확인)
+
+C. PR (b) AdMob/UMP - 타 세션 산출물이 있을 때만 (조건 2~5)
+C1. UMP 순서 강제: AdsConsent.gatherConsent() 완료 + getConsentInfo().canRequestAds === true
+    확인 전에 mobileAds().initialize()가 호출되는 코드 경로가 없는지 (initialize 호출부 전수
+    grep). 나이미확인 / 미성년 / ads=false 분기에서 SDK 초기화와 광고 요청이 모두 0건인지
+C2. src/lib/ads/rewarded.ts: "무조건 completed:true" 시임 제거 확인 - SDK, ad unit,
+    EARNED_REWARD 중 하나라도 없으면 completed:false, EARNED_REWARD 이벤트에서만 true.
+    SSV serverSideVerificationOptions customData(0091 rewarded-ssv 라우팅) 연동 여부
+C3. src/lib/ads/policy.ts: 배너 AD_ALLOWED_ROUTE_PREFIXES(["/records"])와 분리된 rewarded
+    전용 allow-list(/plans, /secondb 포함) + canShowRewardedAd() 존재. tier(free만) / isMinor
+    false / adsConsent true / route 전 분기 null=fail-closed 유지 + 단위테스트 존재
+C4. RewardedSheet 진입부(dds-plans-screen 등)가 rewarded 게이트를 실제로 통과하는지
+    (게이트를 우회하는 진입 경로 없음)
+C5. 실 ID 하드코딩 금지: git grep "ca-app-pub-" 결과가 Google 공식 test ID
+    (ca-app-pub-3940256099942544/...)뿐이고, App ID/ad-unit은 env(app.config.js 주입)로만
+    들어오는지
+C6. npm run verify green + C1~C12 제약 / lexicon(금지어) 위반 없음
+
+보고 형식: 섹션별 표(항목 / 증거 / 판정). FAIL 항목은 수정하지 말고 수정 제안(파일:줄)만.
+마지막 줄에 전체 판정: SHIP (전부 PASS 또는 B만 미완) / HOLD (A 또는 C에 FAIL 존재).</pre>
+</div>
+
+<h2>사람용 요약 체크리스트</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:90px">영역</th><th>핵심 확인</th><th style="width:150px">기대 상태</th></tr>
+    <tr><td>A. PR #1055</td><td>firebase.json 9키 false · 게이트 미러링 · 매트릭스 테스트 9종 · config 미커밋 · iOS 펜스 · env 오버라이드 · 릴리스 워크플로 프로비저닝</td><td class="ok">전부 PASS여야 함</td></tr>
+    <tr><td>B. 콘솔 액션</td><td>Firebase 앱 등록 → EAS env(GOOGLE_SERVICES_JSON) → GitHub secret(GOOGLE_SERVICES_JSON_BASE64) → dev build 부팅 → DebugView 매트릭스</td><td class="hold">Simon 진행 (미완 허용)</td></tr>
+    <tr><td>C. PR (b)</td><td>UMP 순서(초기화 전 동의) · rewarded 시임 fail-closed · rewarded 전용 allow-list · test ID만 · verify green</td><td class="hold">타 세션 완료 시 검증</td></tr>
+  </table>
+</div>
+
+<h2>런타임 consent 매트릭스 (기대값)</h2>
+<div class="card">
+  <table>
+    <tr><th>상태</th><th>native Firebase 수집</th><th>웹 GA4/Clarity/PostHog</th><th>AdMob (PR b)</th></tr>
+    <tr><td>부팅 직후 (동의 미해석)</td><td>OFF (빌드 기본 OFF + boot 명시 OFF)</td><td>미로드</td><td>SDK 초기화 안 함</td></tr>
+    <tr><td>성인 확정 + external_analytics ON</td><td>ON (analytics_storage만; 광고 신호 denied)</td><td>로드</td><td>ads 동의와 별개</td></tr>
+    <tr><td>14-17 / under-14 / 나이 미확인</td><td>OFF (절대)</td><td>미로드</td><td>초기화·요청 0건</td></tr>
+    <tr><td>성인 ON 후 revoke</td><td>즉시 OFF</td><td>이벤트 중단 + consent denied + 쿠키 소거</td><td>요청 중단</td></tr>
+  </table>
+  <p class="small" style="margin-top:8px">근거: src/lib/analytics/index.ts의 canLoadProductAnalytics(confirmedAdult AND external_analytics AND NOT underDigitalConsentAge) 단일 판정. native는 이 판정을 setConsent + setAnalyticsCollectionEnabled로 미러링.</p>
+</div>
+
+<p class="small" style="margin-top:24px">작성: Claude (2nd-B) · 세션 산출물: PR #1055 (@react-native-firebase 25.1.0, verify 367 suites/2808 tests PASS, gradle assembleDebug BUILD SUCCESSFUL 1h18m) · AdMob PR (b)는 타 세션 진행 중이라 본 문서는 검증 기준만 제공</p>
+
+</body>
+</html>

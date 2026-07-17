@@ -6,8 +6,10 @@
 // unset (so dev/preview builds stay dependency-free) and wires up the real
 // tools when Simon adds the ids to GitHub Actions / EAS Variables.
 //
-// Web-only for now (Expo Web on GitHub Pages). Native builds (iOS/Android via
-// EAS) get their own SDK wiring later.
+// Web SDKs (GA4/Clarity/PostHog/Sentry) load on Expo Web (GitHub Pages).
+// Native Android builds mirror the same consent decision into Firebase
+// Analytics via syncNativeAnalyticsCollection below: collection is OFF at the
+// build level (firebase.json) and turns on only through that gate.
 //
 // PRIVACY / PIPA: product analytics (PostHog, GA4, Clarity) load ONLY after the
 // user grants the optional `analytics` consent (consent-selections.ts) AND the
@@ -229,6 +231,69 @@ export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjec
     gate?.confirmedAdult === true &&
     gate?.underDigitalConsentAge !== true
   );
+}
+
+// ---------------------------------------------------------------------------
+// Native Firebase Analytics (Android-first; iOS pods stay excluded via
+// react-native.config.js until a static-frameworks pass lands).
+//
+// Build-level default is OFF: firebase.json ships
+// analytics_auto_collection_enabled=false plus denied consent-mode defaults,
+// so the SDK collects nothing between process start and this gate running.
+// At runtime the SAME canLoadProductAnalytics decision that gates the web
+// SDKs is mirrored into the native SDK: collection turns ON only for a
+// server-confirmed adult (18+) whose external_analytics pref is granted;
+// 14-17 minors, under-14, and unresolved age stay OFF (fail closed).
+//
+// The SDK is imported lazily and every call is guarded: in Expo Go, on web,
+// or when the native module / google-services config is absent, the import or
+// call rejects and the build-level OFF default simply stands.
+
+type NativeAnalyticsApplier = (enabled: boolean) => Promise<void>;
+
+let nativeApplierOverride: NativeAnalyticsApplier | null = null;
+let nativeApplyTarget: boolean | null = null;
+let nativeApplyChain: Promise<void> = Promise.resolve();
+
+async function applyNativeAnalyticsCollection(enabled: boolean): Promise<void> {
+  try {
+    const mod = await import("@react-native-firebase/analytics");
+    const analytics = mod.getAnalytics();
+    // Consent mode first so an enable can never race ahead of its storage
+    // grant; ad signals stay denied in every state (analytics-only consent).
+    await mod.setConsent(analytics, {
+      analytics_storage: enabled,
+      ad_storage: false,
+      ad_user_data: false,
+      ad_personalization: false,
+    });
+    await mod.setAnalyticsCollectionEnabled(analytics, enabled);
+  } catch {
+    // Fail closed: without the SDK/native module the build-level OFF stands.
+  }
+}
+
+/**
+ * Mirror the resolved product-analytics decision into the native Firebase
+ * SDK. Serialized so rapid toggles apply in submission order; deduped on the
+ * target state. No-op on web (loadProductAnalytics handles the web SDKs).
+ */
+function syncNativeAnalyticsCollection(enabled: boolean): void {
+  if (Platform.OS === "web") return;
+  if (nativeApplyTarget === enabled) return;
+  nativeApplyTarget = enabled;
+  const applier = nativeApplierOverride ?? applyNativeAnalyticsCollection;
+  nativeApplyChain = nativeApplyChain.then(() => applier(enabled)).catch(() => {});
+}
+
+/** Test hook only: substitute the native applier (null restores the real one). */
+export function __setNativeAnalyticsApplierForTests(applier: NativeAnalyticsApplier | null): void {
+  nativeApplierOverride = applier;
+}
+
+/** Test hook only: await the native apply queue. */
+export function __flushNativeAnalyticsForTests(): Promise<void> {
+  return nativeApplyChain;
 }
 
 const CONSENT_KEY = "2ndb_analytics_consent";
@@ -573,6 +638,12 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   if (initialized) return;
   initialized = true;
 
+  // Native (Android) Firebase Analytics: assert the fail-closed default
+  // synchronously at boot, before any env/web checks. _layout calls this with
+  // no opts, so a cold start always re-applies OFF until the server-derived
+  // decision arrives through setAnalyticsConsent.
+  syncNativeAnalyticsCollection(canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts));
+
   let env: Env;
   try {
     env = getEnv();
@@ -580,7 +651,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
     return;
   }
 
-  // Web-only path. Native builds will get their own wiring later.
+  // Web SDK path from here down; the native gate was already applied above.
   if (!webWindow()) return; // also covers SSR / static export
 
   // Establish the initial gate BEFORE the first await. Auth may resolve and call
@@ -801,6 +872,10 @@ export function setAnalyticsConsent(
   }
   analyticsConsentRevision += 1;
   analyticsConsent = canLoadProductAnalytics(granted, gate);
+  // Native builds mirror the same resolved decision (revision-guarded above);
+  // a native revoke is immediate (setAnalyticsCollectionEnabled false), unlike
+  // the web SDKs which also need their consent-update calls below.
+  syncNativeAnalyticsCollection(analyticsConsent);
   const w = webWindow();
   try {
     w?.localStorage?.setItem(CONSENT_KEY, analyticsConsent ? "granted" : "denied");
@@ -947,4 +1022,7 @@ export function __resetAnalytics(): void {
   ga4Id = null;
   clarityLoaded = false;
   currentAnalyticsRoute = "/";
+  nativeApplierOverride = null;
+  nativeApplyTarget = null;
+  nativeApplyChain = Promise.resolve();
 }
