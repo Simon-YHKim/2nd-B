@@ -43,6 +43,57 @@ describe("sign-up confirm wall (judge-rehearsal #1)", () => {
   });
 });
 
+describe("sign-up confirm code (deliverability P1, 260718)", () => {
+  // Root cause, A/B-verified on 2026-07-18: Gmail spam-buckets any mail that
+  // carries a *.supabase.co auth link (same sender + auth stack, the link
+  // alone flips inbox -> spam), silently burying every confirmation mail.
+  // These pins keep the confirmation path link-free end to end.
+  test("the confirmation template is code-only: token present, no link, wired in config", () => {
+    const tpl = read("supabase/templates/confirmation.html");
+    expect(tpl).toContain("{{ .Token }}");
+    expect(tpl).not.toMatch(/ConfirmationURL|supabase\.co|href=/);
+    const config = read("supabase/config.toml");
+    expect(config).toContain("[auth.email.template.confirmation]");
+    expect(config).toContain('content_path = "./supabase/templates/confirmation.html"');
+  });
+
+  test("verifySignUpCode verifies the mailed token as a signup OTP", () => {
+    const auth = read("src/lib/supabase/auth.ts");
+    const fn = auth.slice(auth.indexOf("export async function verifySignUpCode"));
+    expect(fn).toContain('verifyOtp({ type: "signup"');
+  });
+
+  test("the hook settles the session before tearing the card down", () => {
+    const hook = read("src/lib/auth/useSignUpForm.ts");
+    const fn = hook.slice(hook.indexOf("const handleVerifyConfirmCode"));
+    expect(fn).toContain("verifySignUpCode(");
+    expect(fn.indexOf("refresh()")).toBeGreaterThan(-1);
+    expect(fn.indexOf("refresh()")).toBeLessThan(fn.indexOf("setConfirmSentTo(null)"));
+  });
+
+  test("the confirm card renders the code input and verify button", () => {
+    const screen = read("src/screens/deepspace/dds-auth-screens.tsx");
+    expect(screen).toContain('t("auth:signUp.confirmCodeLabel")');
+    expect(screen).toContain('t("auth:signUp.confirmCodeHint")');
+    expect(screen).toContain('t("auth:signUp.confirmCodeVerify")');
+  });
+
+  test("every locale carries the confirm-code copy, em-dash free", () => {
+    for (const locale of LOCALES) {
+      const auth = JSON.parse(read(`locales/${locale}/auth.json`)) as {
+        signUp: Record<string, string | undefined>;
+      };
+      for (const key of ["confirmCodeLabel", "confirmCodeHint", "confirmCodeVerify", "confirmCodeInvalid"] as const) {
+        expect(auth.signUp[key] ?? "").not.toHaveLength(0);
+        expect(auth.signUp[key]).not.toMatch(/—/);
+      }
+      // The card body now names the code (not the retired link) and still
+      // carries the address interpolation the #1047 pin requires.
+      expect(auth.signUp.confirmSentBody ?? "").toContain("{{email}}");
+    }
+  });
+});
+
 describe("loading gate i18n (judge-rehearsal #3)", () => {
   test("LoadingScreen carries no hardcoded gate/a11y Korean literals", () => {
     const screen = read("src/components/ui/LoadingScreen.tsx");

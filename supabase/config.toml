@@ -34,6 +34,16 @@ enable_confirmations = true
 subject = "[2nd-Brain] 비밀번호 재설정 인증번호 / Password reset code"
 content_path = "./supabase/templates/recovery.html"
 
+# Confirmation email: CODE-ONLY, deliberately no link. Gmail spam-buckets mail
+# carrying *.supabase.co auth links (A/B-verified 2026-07-18: same sender and
+# auth stack, the link alone flips inbox -> spam), which silently buried every
+# Gmail sign-up confirmation. The 6-digit {{ .Token }} verifies in-screen on
+# /sign-up (verifySignUpCode, type "signup"); links in already-sent mail keep
+# working through the existing callback path.
+[auth.email.template.confirmation]
+subject = "[2nd-Brain] 가입 확인 코드 / Sign-up confirmation code"
+content_path = "./supabase/templates/confirmation.html"
+
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true

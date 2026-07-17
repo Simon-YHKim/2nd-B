@@ -377,6 +377,20 @@ export async function verifyPasswordResetCode(email: string, code: string): Prom
   if (error) throw error;
 }
 
+// Sign-up confirm code (Gmail deliverability P1, 2026-07-18): Gmail buries any
+// mail carrying a *.supabase.co auth link (A/B-verified: same sender and auth
+// stack, the link alone flips inbox -> spam), which silently blocked every
+// Gmail sign-up. The confirmation template is therefore CODE-ONLY; verifying
+// the mailed 6-digit {{ .Token }} establishes the session with no link
+// round-trip, and the 0086 trigger has already created the profile + consent
+// rows on the confirmation transition. Links in already-sent mail keep working
+// through the existing callback path (both consume the same token).
+export async function verifySignUpCode(email: string, code: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.auth.verifyOtp({ type: "signup", email: email.trim(), token: code.trim() });
+  if (error) throw error;
+}
+
 export async function updatePassword(password: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.updateUser({ password });
