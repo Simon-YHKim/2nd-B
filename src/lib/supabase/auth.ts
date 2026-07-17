@@ -30,6 +30,23 @@ export class AgeGateError extends Error {
   }
 }
 
+// The email already belongs to ANOTHER auth identity (a different sign-in
+// method): users.email is citext UNIQUE, so the profile INSERT can never
+// succeed for this session. Per docs/AUDIT_2026-06-03.md we never auto-link
+// accounts on email alone -- the screen signs the session out and tells the
+// user to use their original method.
+export class EmailInUseError extends Error {
+  constructor() {
+    super("This email is already registered through another sign-in method.");
+    this.name = "EmailInUseError";
+  }
+}
+
+/** Postgres unique_violation, as surfaced by PostgREST (code 23505). */
+export function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "23505";
+}
+
 // M2 (round-4): the only credential strength check was length >= 8, and the
 // Supabase leaked-password (HIBP) protection is a Pro-plan dashboard toggle the
 // $0/mo free tier can't enable. This is the code-side backstop, and it matters
@@ -645,7 +662,19 @@ export async function ensureUserProfile(args: CompleteProfileArgs): Promise<Comp
     locale: args.locale,
   });
   // C6: the auto_judge_mode BEFORE INSERT trigger overrides the client value.
-  if (insertErr) throw insertErr;
+  if (insertErr) {
+    // A 23505 here has two shapes. (a) users_pkey: our own row won a
+    // double-submit race -- re-probe by id and report idempotent success,
+    // mirroring signUpWithEmail's defence. (b) users_email_key: the email
+    // belongs to ANOTHER auth uid via a different sign-in method. Before
+    // this branch existed that session was STRANDED -- authed but unable to
+    // ever gain a profile, every retry re-colliding into the same generic
+    // "save failed" toast (U6, commerce handoff).
+    const { data: raced } = await supabase.from("users").select("id, judge_mode").eq("id", user.id).maybeSingle();
+    if (raced) return { created: false, judgeMode: raced.judge_mode === true };
+    if (isUniqueViolation(insertErr)) throw new EmailInUseError();
+    throw insertErr;
+  }
 
   return { created: true, judgeMode };
 }

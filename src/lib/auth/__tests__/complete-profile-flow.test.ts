@@ -5,6 +5,7 @@ import {
 } from "../complete-profile-flow";
 
 class FakeAgeGateError extends Error {}
+class FakeEmailInUseError extends Error {}
 
 function makeDeps(overrides: Partial<CompleteProfileFlowDeps> = {}): CompleteProfileFlowDeps {
   return {
@@ -13,6 +14,7 @@ function makeDeps(overrides: Partial<CompleteProfileFlowDeps> = {}): CompletePro
     refreshAuth: jest.fn().mockResolvedValue(undefined),
     signOutUser: jest.fn().mockResolvedValue(undefined),
     isAgeGateError: (e: unknown) => e instanceof FakeAgeGateError,
+    isEmailInUseError: (e: unknown) => e instanceof FakeEmailInUseError,
     ...overrides,
   };
 }
@@ -93,6 +95,18 @@ describe("submitCompleteProfile (E2E-1: silent Continue loop)", () => {
     const result = await submitCompleteProfile(deps);
 
     expect(result).toEqual({ kind: "ageGate" });
+    expect(deps.signOutUser).not.toHaveBeenCalled();
+    expect(deps.refreshAuth).not.toHaveBeenCalled();
+    expect(deps.recordConsent).not.toHaveBeenCalled();
+  });
+
+  test("email collision (U6 stranded account): reports emailInUse WITHOUT signing out or refreshing — the screen must show the which-way-out toast first", async () => {
+    const deps = makeDeps({
+      ensureProfile: jest.fn().mockRejectedValue(new FakeEmailInUseError("email taken")),
+    });
+    const result = await submitCompleteProfile(deps);
+
+    expect(result).toEqual({ kind: "emailInUse" });
     expect(deps.signOutUser).not.toHaveBeenCalled();
     expect(deps.refreshAuth).not.toHaveBeenCalled();
     expect(deps.recordConsent).not.toHaveBeenCalled();

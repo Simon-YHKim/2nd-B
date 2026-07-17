@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { deepSpace, deepSpaceSpacing, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
-import { ageInYears, ensureUserProfile, AgeGateError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
+import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
@@ -109,6 +109,7 @@ export default function CompleteProfile() {
         refreshAuth: refresh,
         signOutUser: signOut,
         isAgeGateError: (e) => e instanceof AgeGateError,
+        isEmailInUseError: (e) => e instanceof EmailInUseError,
       });
       if (result.kind === "entered") {
         // The context already knows hasProfile=true (flow refreshed), so the
@@ -121,6 +122,18 @@ export default function CompleteProfile() {
           return;
         }
         router.replace("/");
+        return;
+      }
+      if (result.kind === "emailInUse") {
+        // Stranded-account exit (U6): this session's email belongs to another
+        // sign-in method, so the profile INSERT can never succeed. Toast-first
+        // like the age gate (the flow did NOT sign out yet), with a longer
+        // beat -- the user must read WHICH way out exists (their original
+        // method) before we sign the dead-end session out.
+        setToast({ tone: "danger", message: t("errors.emailInUse") });
+        await new Promise((resolve) => setTimeout(resolve, 1600));
+        const { signedOut } = await signOutAndSettle({ signOutUser: signOut, refreshAuth: refresh });
+        if (signedOut) router.replace("/sign-in");
         return;
       }
       if (result.kind === "ageGate") {
