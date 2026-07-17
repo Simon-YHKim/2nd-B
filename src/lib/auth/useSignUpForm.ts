@@ -22,6 +22,7 @@ import {
   ageInYears,
   consumeAuthCallbackUrl,
   signUpWithEmail,
+  verifySignUpCode,
   isNaverEnabled,
   isProviderEnabled,
   signInWithNaver,
@@ -81,6 +82,12 @@ export interface UseSignUpForm {
   existingAccountHelp: boolean;
   /** Confirmation email sent to this address; the screen's primary post-submit state. */
   confirmSentTo: string | null;
+  /** 6-digit code from the code-only confirmation mail (Gmail buries supabase.co links). */
+  confirmCode: string;
+  setConfirmCode: (value: string) => void;
+  canVerifyConfirmCode: boolean;
+  confirmVerifying: boolean;
+  handleVerifyConfirmCode: () => Promise<void>;
   // provider visibility
   visibleProviders: OAuthProvider[];
   naverEnabled: boolean;
@@ -110,6 +117,12 @@ export function useSignUpForm(): UseSignUpForm {
   // after a successful sign-up, so it gets a persistent card naming the
   // address, not a transient bar.
   const [confirmSentTo, setConfirmSentTo] = useState<string | null>(null);
+  // In-card entry for the mailed 6-digit code. The confirmation template is
+  // code-only (deliverability P1: Gmail buries mail carrying supabase.co
+  // links), so the code is the primary finish path; it mirrors the
+  // reset-password OTP flow (#1013).
+  const [confirmCode, setConfirmCode] = useState("");
+  const [confirmVerifying, setConfirmVerifying] = useState(false);
   const [consent, setConsent] = useState(emptyConsentSelections());
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const deepLinkUrl = useURL();
@@ -138,6 +151,7 @@ export function useSignUpForm(): UseSignUpForm {
         await refresh();
         setToast(null);
         setConfirmSentTo(null);
+        setConfirmCode("");
       })
       .catch((e) => {
         setToast({ tone: "danger", message: t("errors.signUpFailed") });
@@ -183,6 +197,7 @@ export function useSignUpForm(): UseSignUpForm {
     // for; editing the address makes them stale, so retire them immediately.
     setExistingAccountHelp((prev) => (prev ? false : prev));
     setConfirmSentTo((prev) => (prev ? null : prev));
+    setConfirmCode((prev) => (prev ? "" : prev));
     setToast((prev) => (prev?.tone === "info" ? null : prev));
   }, []);
 
@@ -249,6 +264,30 @@ export function useSignUpForm(): UseSignUpForm {
     }
   }, [email, password, birthDate, locale, isMinorAge, consent, refresh, t]);
 
+  // Verifies the mailed 6-digit confirmation code (verifySignUpCode). Success
+  // establishes the session server-side; refresh() settles the context (the
+  // 0086 trigger already created the profile + consent rows on the confirm
+  // transition), then the card tears down and the guest guard routes the
+  // authenticated user onward -- identical destination to the link path.
+  const handleVerifyConfirmCode = useCallback(async () => {
+    const target = confirmSentTo;
+    const token = confirmCode.trim();
+    if (!target || token.length < 6 || confirmVerifying) return;
+    setConfirmVerifying(true);
+    try {
+      await verifySignUpCode(target, token);
+      await refresh();
+      setToast(null);
+      setConfirmSentTo(null);
+      setConfirmCode("");
+    } catch (e) {
+      setToast({ tone: "danger", message: t("signUp.confirmCodeInvalid") });
+      if (typeof console !== "undefined") console.warn("[auth] confirm code verify error", (e as Error).message);
+    } finally {
+      setConfirmVerifying(false);
+    }
+  }, [confirmCode, confirmSentTo, confirmVerifying, refresh, t]);
+
   // Social sign-up: the OAuth flow creates the auth user, then /complete-profile
   // collects date of birth (C10) and records consent — so the age gate + consent
   // ledger still apply to provider sign-ups, just at the post-redirect step.
@@ -293,6 +332,8 @@ export function useSignUpForm(): UseSignUpForm {
     [],
   );
 
+  const canVerifyConfirmCode = confirmSentTo !== null && confirmCode.trim().length >= 6 && !confirmVerifying;
+
   return {
     loading,
     userId,
@@ -313,6 +354,11 @@ export function useSignUpForm(): UseSignUpForm {
     oauthSubmitting,
     existingAccountHelp,
     confirmSentTo,
+    confirmCode,
+    setConfirmCode,
+    canVerifyConfirmCode,
+    confirmVerifying,
+    handleVerifyConfirmCode,
     visibleProviders,
     naverEnabled: isNaverEnabled(),
     handleSubmit,
