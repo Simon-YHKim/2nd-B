@@ -16,10 +16,10 @@ import { ddsStyles as styles } from "./dds-styles";
 import { parseLegalMarkdown } from "@/lib/legal/parse-legal-markdown";
 import { isDraft, type LegalDoc } from "@/lib/legal/legal-documents";
 
-export function DeepSpaceLegalDocScreen({ doc, crossLink }: {
+export function DeepSpaceLegalDocScreen({ doc, crossLinks }: {
   doc: LegalDoc;
-  /** Optional sibling document link (terms <-> refund). */
-  crossLink?: { href: "/terms" | "/refund"; label: string };
+  /** Optional sibling document links (terms / refund / privacy policy). */
+  crossLinks?: Array<{ href: "/terms" | "/refund" | "/privacy-policy"; label: string }>;
 }) {
   const { t } = useTranslation(["common"]);
   const blocks = useMemo(() => parseLegalMarkdown(doc.body), [doc.body]);
@@ -75,16 +75,17 @@ export function DeepSpaceLegalDocScreen({ doc, crossLink }: {
         })}
       </View>
 
-      {crossLink ? (
+      {(crossLinks ?? []).map((link) => (
         <Pressable
+          key={link.href}
           style={styles.authLinkRow}
-          onPress={() => router.push(crossLink.href)}
+          onPress={() => router.push(link.href)}
           accessibilityRole="link"
-          accessibilityLabel={crossLink.label}
+          accessibilityLabel={link.label}
         >
-          <Text variant="body" style={styles.link}>{crossLink.label}</Text>
+          <Text variant="body" style={styles.link}>{link.label}</Text>
         </Pressable>
-      ) : null}
+      ))}
     </AuthShell>
   );
 }
