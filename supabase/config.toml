@@ -11,6 +11,14 @@ project_id = "zoacryukmdeivmolvyhj"
 # Confirm-Email off) before this block existed. Everything below is therefore
 # the DECLARED production truth: keep it in sync with the dashboard, and never
 # push with a partial [auth] block again.
+#
+# ⚠ Second bite (2026-07-18): the reset ALSO applies to [auth.external.*] --
+# the confirmation-template push flipped the UNDECLARED apple provider from
+# enabled to disabled in production (google/kakao/github happened to survive;
+# do not rely on that). Until a provider is declared here with its real values
+# (secrets via env(), never literals), every push is a loaded gun pointed at
+# it. Same push also tried to enable paid storage vector buckets from the CLI
+# default and died with a 402; [storage.vector] below pins that off.
 [auth]
 enabled = true
 site_url = "https://simon-yhkim.github.io/2nd-B/"
@@ -44,9 +52,24 @@ content_path = "./supabase/templates/recovery.html"
 subject = "[2nd-Brain] 가입 확인 코드 / Sign-up confirmation code"
 content_path = "./supabase/templates/confirmation.html"
 
+# RESTORE NOTE (2026-07-18): the apple provider was reset to disabled by a
+# config push (see the warning above) and must be re-enabled in the dashboard
+# (Authentication > Providers > Apple: Services ID + secret from the 07-16
+# setup). Once restored, declare it for real so a push can never kill it again:
+# [auth.external.apple]
+# enabled = true
+# client_id = "<Services ID(s), comma-separated>"
+# secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
+
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
+
+[storage.vector]
+# Vector buckets are a paid-tier feature; the CLI default (enabled) makes every
+# config push attempt to turn them on and fail with a 402 on this free-tier
+# project. Pin the declared truth to off.
+enabled = false
 
 [functions.gemini-proxy]
 verify_jwt = true
