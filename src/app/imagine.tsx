@@ -1,4 +1,4 @@
-// 공상하기 — restored to the reference design (Simon 2026-07-03: the design
+// 상상하기(Imagine) — restored to the reference design (Simon 2026-07-03: the design
 // handoff is canonical for all terminology and design). The deep-space route
 // renders the reference ImagineScreen 1:1: three divergent seeds (확장/반전/연결)
 // with next-step candidates, feeding 담기 (prefill) or Divergent chat. The

@@ -20,7 +20,7 @@ import { isDeepSpaceUI } from "@/lib/ui-mode";
 // 3-axis IA - 그래프 / 담기 / 세컨비 / 나. The old explore(/core-brain),
 // records(/records) and store(/wiki) tabs were removed: core-brain folds into
 // the 나 hub (Phase 5), wiki + records are reached through the graph villages
-// (Phase 4 routes a village to its records domain filter). 공상(divergent) is
+// (Phase 4 routes a village to its records domain filter). Divergent (트위비) is
 // a mode inside 세컨비, not its own tab.
 type TabId = "graph" | "capture" | "secondb" | "profile";
 

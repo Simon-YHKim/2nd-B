@@ -109,12 +109,12 @@ describe('remainingReasoning / canUseReasoning (weekly)', () => {
 
 describe('personaAllowed', () => {
   it('메타비 unlocks at plus, 트위비 at pro (2nd-B is free for everyone)', () => {
-    expect(personaAllowed('free', 'metab')).toBe(false);
-    expect(personaAllowed('free', 'twib')).toBe(false);
-    expect(personaAllowed('plus', 'metab')).toBe(true);
-    expect(personaAllowed('plus', 'twib')).toBe(false);
-    expect(personaAllowed('pro', 'metab')).toBe(true);
-    expect(personaAllowed('pro', 'twib')).toBe(true);
+    expect(personaAllowed('free', 'meta')).toBe(false);
+    expect(personaAllowed('free', 'twi')).toBe(false);
+    expect(personaAllowed('plus', 'meta')).toBe(true);
+    expect(personaAllowed('plus', 'twi')).toBe(false);
+    expect(personaAllowed('pro', 'meta')).toBe(true);
+    expect(personaAllowed('pro', 'twi')).toBe(true);
   });
 });
 

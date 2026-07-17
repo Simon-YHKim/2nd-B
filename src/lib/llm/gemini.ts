@@ -222,7 +222,7 @@ const MOCK_RESPONSES: Record<
     en: "What part of what you just said feels most alive to you right now?",
     ko: "방금 말한 것 중에서 지금 가장 살아 있는 느낌이 드는 부분은 무엇인가요?",
   },
-  // Structured "공상" sample in the :: delimited format parseImagineResult
+  // Structured imagine sample in the :: delimited format parseImagineResult
   // expects, so the result cards render in the offline-preview build (the
   // default deployed build).
   imagine: {

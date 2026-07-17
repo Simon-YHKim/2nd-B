@@ -41,7 +41,7 @@ export function DeepSpaceHubDockScreen() {
         <View style={styles.titleRow}>
           <RNText style={styles.back}>‹</RNText>
           <Text variant="heading" style={styles.title}>{title}</Text>
-          <Text variant="caption" pixelEn style={styles.kicker}>{active === "capture" ? "5 MODE" : active === "review" ? "RATIFY" : active === "trend" ? "DISCOVER" : "공상"}</Text>
+          <Text variant="caption" pixelEn style={styles.kicker}>{active === "capture" ? "5 MODE" : active === "review" ? "RATIFY" : active === "trend" ? "DISCOVER" : "IMAGINE"}</Text>
         </View>
         <View style={styles.content}>
           {renderContent(active, {

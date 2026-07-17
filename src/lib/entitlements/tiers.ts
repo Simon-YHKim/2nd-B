@@ -118,9 +118,12 @@ export function canUseReasoning(
   return remainingReasoning(tier, usedThisWeek, availableCredits) > 0;
 }
 
-/** Whether a persona is unlocked for the tier. 2nd-B itself is always free. */
-export function personaAllowed(tier: Tier, persona: 'metab' | 'twib'): boolean {
-  return persona === 'metab' ? TIERS[tier].metabPersona : TIERS[tier].twibPersona;
+/**
+ * Whether a persona is unlocked for the tier. Ids match the rev2 persona ids
+ * ('meta' = 메타비, 'twi' = 트위비); 2nd-B itself is always free.
+ */
+export function personaAllowed(tier: Tier, persona: 'meta' | 'twi'): boolean {
+  return persona === 'meta' ? TIERS[tier].metabPersona : TIERS[tier].twibPersona;
 }
 
 /**

@@ -1,7 +1,7 @@
 // rev2 세컨비 personas (PRD v2.0 §02/§05): ONE character, THREE personas that
 // share the same conversation context. Selecting a persona changes only the
 // voice hint woven into the system prompt, the head tint (m3.persona), and the
-// engine mode (트위비 owns 공상 = the existing Divergent mode). The C9 -> C3 ->
+// engine mode (트위비 owns the existing Divergent mode). The C9 -> C3 ->
 // gemini path, grounding, citations, and safety behavior are untouched.
 //
 // This is SEPARATE from src/lib/chat/personas.ts — that file is the legacy
@@ -34,7 +34,7 @@ export function rev2PersonaHint(id: Rev2PersonaId, locale: SystemLocale): string
   return hint.length > 0 ? hint : null;
 }
 
-/** 트위비 owns 공상: selecting it engages the Divergent engine mode. */
+/** 트위비 owns Divergent: selecting it engages that engine mode. */
 export function rev2PersonaMode(id: Rev2PersonaId): "analytic" | "divergent" {
   return id === "twi" ? "divergent" : "analytic";
 }

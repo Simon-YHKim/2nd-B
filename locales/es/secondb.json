@@ -109,6 +109,9 @@
   },
   "rev2": {
     "selectorA11y": "Elige una persona",
+    "lockVoyager": "Voyager",
+    "lockNorthstar": "North Star",
+    "lockedA11y": "Bloqueado · se abre con el plan {{plan}}",
     "secondb": {
       "name": "2nd-B",
       "role": "Empatía",
