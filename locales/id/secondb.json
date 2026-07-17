@@ -145,6 +145,14 @@
   "newAngleMode": "Mode sudut baru",
   "newAngleChip": "Sudut baru",
   "voiceInput": "Input suara",
+  "voice": {
+    "stop": "Berhenti dan transkripsikan",
+    "webFallback": "Perekaman tidak tersedia di sini. Ketik pesanmu sebagai gantinya.",
+    "permissionDenied": "Akses mikrofon mati. Ketik pesanmu, atau izinkan mikrofon di pengaturan.",
+    "recordFailed": "Tidak bisa mulai merekam. Ketik pesanmu sebagai gantinya.",
+    "transcribeFailed": "Tidak bisa mengubah rekaman itu menjadi teks. Coba lagi, atau ketik pesanmu.",
+    "transcriptEmpty": "Kami tidak bisa menangkap kata apa pun. Coba lagi lebih dekat ke mikrofon, atau ketik saja."
+  },
   "closeIntro": "Tutup intro",
   "closeIntroHint": "Menutup jendela intro",
   "closeReferenced": "Tutup serpihan yang dirujuk",

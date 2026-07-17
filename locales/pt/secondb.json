@@ -145,6 +145,14 @@
   "newAngleMode": "Modo novo ângulo",
   "newAngleChip": "Novo ângulo",
   "voiceInput": "Entrada de voz",
+  "voice": {
+    "stop": "Parar e transcrever",
+    "webFallback": "A gravação não está disponível aqui. Digite sua mensagem.",
+    "permissionDenied": "O acesso ao microfone está desativado. Digite sua mensagem ou permita o microfone nas configurações.",
+    "recordFailed": "Não foi possível iniciar a gravação. Digite sua mensagem.",
+    "transcribeFailed": "Não foi possível transformar essa gravação em texto. Tente de novo ou digite sua mensagem.",
+    "transcriptEmpty": "Não conseguimos distinguir nenhuma palavra. Tente de novo mais perto do microfone ou digite."
+  },
   "closeIntro": "Fechar a introdução",
   "closeIntroHint": "Fecha a janela de introdução",
   "closeReferenced": "Fechar os fragmentos referenciados",
