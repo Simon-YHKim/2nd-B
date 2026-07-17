@@ -31,6 +31,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Firebase per-app config (project ids/keys) - provision locally or via the
+# EAS file env var GOOGLE_SERVICES_JSON; never commit
+google-services.json
+GoogleService-Info.plist
+
 # Metro
 .metro-health-check*
 .codex-run/
