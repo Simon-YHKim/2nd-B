@@ -317,6 +317,22 @@ export function DeepSpacePlansScreen() {
         })}
       </View>
 
+      {/* U6 price disclosure: auto-renewal cadence, VAT-included pricing, and
+          the 30-day refund window must be stated AT the price surface (Korean
+          e-commerce law + Paddle MoR checkout rules), with the documents that
+          back them one tap away -- not buried behind /support. */}
+      <View style={s.disclosure}>
+        <Text style={s.disclosureText}>{t("ds.plans.disclosure")}</Text>
+        <View style={s.legalLinks}>
+          <Pressable onPress={() => router.push("/terms")} accessibilityRole="link" hitSlop={8} accessibilityLabel={t("ds.plans.legalTerms")}>
+            <Text style={s.legalLink}>{t("ds.plans.legalTerms")}</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push("/refund")} accessibilityRole="link" hitSlop={8} accessibilityLabel={t("ds.plans.legalRefund")}>
+            <Text style={s.legalLink}>{t("ds.plans.legalRefund")}</Text>
+          </Pressable>
+        </View>
+      </View>
+
       {loading ? (
         <View style={s.loadingRow}>
           <ActivityIndicator color={m3.color.primary} />
@@ -430,6 +446,10 @@ const s = StyleSheet.create({
   rewardText: { flex: 1 },
   rewardTitle: { fontSize: m3.type.titleSmall.size, lineHeight: m3.type.titleSmall.line, fontWeight: "600", color: m3.color.onSurface },
   rewardSub: { fontSize: m3.type.labelSmall.size, lineHeight: m3.type.labelSmall.line, color: m3.color.onSurfaceVariant, marginTop: 2 },
+  disclosure: { marginTop: m3.spacing.s2, gap: m3.spacing.s2 },
+  disclosureText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
+  legalLinks: { flexDirection: "row", gap: m3.spacing.s4 },
+  legalLink: { fontSize: m3.type.bodySmall.size, color: m3.color.primary },
   notice: { padding: m3.spacing.s4, gap: m3.spacing.s2, borderColor: m3.color.outlineVariant, borderWidth: 1 },
   noticeTitle: { fontSize: m3.type.titleSmall.size, fontWeight: "600", color: m3.color.onSurface },
   noticeBody: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
