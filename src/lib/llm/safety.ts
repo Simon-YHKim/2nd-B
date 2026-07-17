@@ -18,10 +18,10 @@ import { GoogleGenAI } from "@google/genai";
 import { getEnv } from "../env";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
-// C3: the Flash classifier makes a real Gemini call client-side (not via the
-// gemini-proxy), so the proxy never logs it. This module audits its own call.
-// safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
-// @google/genai); the audit allowlist (check-llm-import-boundary.ts) covers it.
+// C3: the retained non-live/test Flash seam calls Gemini client-side, so this
+// module audits that call itself. A live configuration that requests direct
+// Vertex is refused; the separately approved server classifier owns its own
+// authoritative audit and runtime switch.
 import { insertAiAuditLog } from "../supabase/audit";
 
 export type SafetyZone = "green" | "yellow" | "red";
@@ -75,21 +75,35 @@ OUTPUT (strict JSON, no prose):
 }`;
 
 let cachedClient: GoogleGenAI | null = null;
+
+// Direct Vertex is the only client-side safety path that a live configuration
+// could otherwise reach. Force that path through gemini-proxy, while preserving
+// the existing explicit rollout gate for ordinary keyless/non-Vertex builds.
+// Jest retains the direct Vertex seam for hermetic classifier tests.
+function mustUseServerAuthoritativeSafety(env: ReturnType<typeof getEnv>): boolean {
+  return (
+    env.EXPO_PUBLIC_LLM_MODE === "live" &&
+    env.EXPO_PUBLIC_USE_VERTEX &&
+    process.env.NODE_ENV !== "test"
+  );
+}
+
 function getFlashClient(): GoogleGenAI | null {
   try {
     const env = getEnv();
     if (env.EXPO_PUBLIC_LLM_MODE === "mock") return null;
-    // H4-residual (round-5): the direct API-key Flash client is an UNCAPPED Gemini
-    // egress — it bypasses the gemini-proxy per-user/day spend cap, the same hole
-    // assertDirectEgressAllowed (gemini.ts) closes for the two main branches. On a
-    // LIVE build that means uncapped billing of the Gemini free tier on every
-    // classify turn, so refuse it and degrade to the lexicon-only backstop (return
-    // null -> classifySafety returns the lexicon result; it must NEVER throw).
-    // Mirror the guard's condition exactly (live && !Vertex), and check it BEFORE
-    // the cache so a previously-built client can't defeat it. Vertex is exempt
-    // (GCP-billed); dev/test (non-live) keeps the direct client; the keyless web
-    // build is already mock -> null above.
-    if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) return null;
+    // A direct Flash client bypasses both the DB runtime switch and spend cap.
+    // Official live builds therefore return null here and let classifySafety use
+    // the server proxy; an unavailable proxy degrades safely to the lexicon.
+    // Check BEFORE the cache so a client constructed by a development/test call
+    // cannot leak into a published live session. Direct Vertex is also refused
+    // there because it bypasses the same DB-authoritative runtime switch.
+    if (
+      mustUseServerAuthoritativeSafety(env) ||
+      (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX)
+    ) {
+      return null;
+    }
     if (cachedClient) return cachedClient;
     if (env.EXPO_PUBLIC_USE_VERTEX) {
       cachedClient = new GoogleGenAI({
@@ -118,13 +132,15 @@ function noteSemanticUnavailable(): void {
   if (_semanticDarkWarned) return;
   try {
     const env = getEnv();
-    if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) {
+    if (
+      mustUseServerAuthoritativeSafety(env) ||
+      (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX)
+    ) {
       _semanticDarkWarned = true;
       if (typeof console !== "undefined") {
         console.warn(
-          "[safety] Layer-2 semantic classifier UNAVAILABLE on this live build " +
-            "(keyless/non-Vertex): crisis detection is lexicon-only. Wire server-side " +
-            "safety_classify to restore it (audit H1, D4).",
+          "[safety] Server Layer-2 classifier unavailable on this live build: " +
+            "crisis detection is using the lexicon backstop only.",
         );
       }
     }
@@ -191,22 +207,16 @@ function sanitizeCssrsLevel(v: unknown): SafetyResult["cssrsLevel"] {
   return r >= 1 && r <= 6 ? (r as SafetyResult["cssrsLevel"]) : null;
 }
 
-// D4 (audit H1): flag-gated server-side Layer-2 classifier. On a keyless build
-// getFlashClient() is null and the semantic layer is otherwise dark; when
-// EXPO_PUBLIC_SERVER_SAFETY === "true" we route the classification through the
-// gemini-proxy safety_classify seat (the server holds the key + is exempt from
-// the proxy's crisis short-circuit), restoring semantic crisis detection without
-// an uncapped client-side egress. OFF BY DEFAULT and DELIBERATELY so: enabling it
-// requires a crisis eval set + safety-owner sign-off, because a wrong classifier
-// on this path affects vulnerable users. Returns null to fall back to lexicon;
-// NEVER throws.
+// Flag-gated server-side Layer-2 classifier. Enabling it still requires the
+// crisis eval set + safety-owner sign-off; blocking direct Vertex must not
+// silently opt a build into a different classifier. When the flag is off, live
+// direct-Vertex configurations degrade to the lexicon backstop with zero model
+// egress. The proxy owns approved upstream calls and their audit.
 async function classifyViaProxy(
   userMessage: string,
   locale: "en" | "ko",
 ): Promise<SafetyResult | null> {
   try {
-    // Direct process.env read so babel-preset-expo inlines the flag at build time
-    // (default undefined -> off). Do not route through getEnv (not in its schema).
     if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
     const { data, error } = await getSupabaseClient().functions.invoke("gemini-proxy", {
       body: {
@@ -329,11 +339,8 @@ export async function classifySafety(
         if (typeof console !== "undefined") console.warn("[safety] classifier payload unparseable, using lexicon", e);
       }
     }
-    // C3: a real Gemini Flash call happened. The classifier runs client-side (not
-    // via the gemini-proxy), so the proxy never logs it — audit it here,
-    // best-effort, when attributable to a user. On the public web build the Flash
-    // client has no key (getFlashClient() === null) so we never reach this; this
-    // closes the C3 gap on native/Vertex live builds.
+    // C3: a real direct Flash call happened in the retained non-live/test seam.
+    // The proxy cannot audit it, so write the best-effort attributed row here.
     if (opts?.userId) {
       try {
         await insertAiAuditLog({

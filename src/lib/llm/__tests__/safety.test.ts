@@ -8,6 +8,7 @@
 //   - fixedCrisisResponse returns the correct verbatim template per locale
 
 const mockGenerateContent = jest.fn();
+const mockInvoke = jest.fn();
 
 jest.mock("@google/genai", () => ({
   GoogleGenAI: jest.fn().mockImplementation(() => ({
@@ -25,16 +26,24 @@ jest.mock("../../supabase/audit", () => ({
   insertAiAuditLog: (...args: unknown[]) => mockInsertAudit(...args),
 }));
 
+jest.mock("../../supabase/client", () => ({
+  getSupabaseClient: () => ({ functions: { invoke: mockInvoke } }),
+}));
+
+jest.mock("../../supabase/crisis-events", () => ({
+  insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
+}));
+
+import { callGemini } from "../gemini";
 import { classifySafety, fixedCrisisResponse } from "../safety";
 
 const LIVE_ENV = {
   EXPO_PUBLIC_SUPABASE_URL: "https://x.supabase.co",
   EXPO_PUBLIC_SUPABASE_ANON_KEY: "x".repeat(40),
   EXPO_PUBLIC_LLM_MODE: "live" as const,
-  // Vertex: the live egress that legitimately runs the Flash classifier (GCP-
-  // billed, exempt from the H4 spend-cap guard). The API-key direct path is now
-  // refused on live builds (see LIVE_APIKEY_ENV below), so these classifier tests
-  // exercise the Vertex path.
+  // Jest keeps the direct Vertex seam for hermetic C2/C3 classifier tests.
+  // Published live runtimes force both this classifier and primary generation
+  // through gemini-proxy regardless of this setting.
   EXPO_PUBLIC_USE_VERTEX: true,
   GOOGLE_CLOUD_PROJECT: "test-project",
   GOOGLE_CLOUD_LOCATION: "us-central1",
@@ -54,6 +63,7 @@ const LIVE_APIKEY_ENV = { ...LIVE_ENV, EXPO_PUBLIC_USE_VERTEX: false };
 describe("classifySafety (layered)", () => {
   beforeEach(() => {
     mockGenerateContent.mockClear();
+    mockInvoke.mockReset();
     mockEnv.mockReset();
     mockInsertAudit.mockClear();
   });
@@ -82,6 +92,107 @@ describe("classifySafety (layered)", () => {
     expect(r.cssrsLevel).toBe(2);
     expect(r.source).toBe("lexicon+llm");
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+  });
+
+  test("published live Vertex with server safety OFF blocks direct SDK and keeps lexicon fallback", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalServerSafety = process.env.EXPO_PUBLIC_SERVER_SAFETY;
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SERVER_SAFETY = "false";
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockInvoke.mockResolvedValueOnce({
+      data: {
+        text: "OK reflection",
+        modelUsed: "gemini-2.5-flash",
+        audited: true,
+      },
+      error: null,
+    });
+
+    try {
+      const result = await callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "journal_reflect",
+        user: "Today I went for a walk.",
+      });
+
+      expect(result.text).toBe("OK reflection");
+      expect(result.safety.zone).toBe("green");
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+      expect(mockInvoke.mock.calls[0]![0]).toBe("gemini-proxy");
+      expect(mockInvoke.mock.calls[0]![1].body.purpose).toBe("journal_reflect");
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalServerSafety === undefined) {
+        Reflect.deleteProperty(process.env, "EXPO_PUBLIC_SERVER_SAFETY");
+      } else {
+        process.env.EXPO_PUBLIC_SERVER_SAFETY = originalServerSafety;
+      }
+    }
+  });
+
+  test("published live Vertex with approved server safety ON uses both authoritative proxy seats", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalServerSafety = process.env.EXPO_PUBLIC_SERVER_SAFETY;
+    process.env.NODE_ENV = "production";
+    process.env.EXPO_PUBLIC_SERVER_SAFETY = "true";
+    mockEnv.mockReturnValue(LIVE_ENV);
+    mockInvoke.mockImplementation(
+      async (_functionName: string, options: { body?: { purpose?: string } }) => {
+        if (options.body?.purpose === "safety_classify") {
+          return {
+            data: {
+              text: JSON.stringify({
+                zone: "green",
+                triggers: [],
+                confidence: 0.8,
+                cssrsLevel: null,
+              }),
+              audited: true,
+            },
+            error: null,
+          };
+        }
+        return {
+          data: {
+            text: "OK reflection",
+            modelUsed: "gemini-2.5-flash",
+            audited: true,
+          },
+          error: null,
+        };
+      },
+    );
+
+    try {
+      const result = await callGemini({
+        userId: "u1",
+        locale: "en",
+        purpose: "journal_reflect",
+        user: "Today I went for a walk.",
+      });
+
+      expect(result.text).toBe("OK reflection");
+      expect(mockGenerateContent).not.toHaveBeenCalled();
+      expect(
+        mockInvoke.mock.calls.map(([functionName, options]) => [
+          functionName,
+          (options as { body?: { purpose?: string } }).body?.purpose,
+        ]),
+      ).toEqual([
+        ["gemini-proxy", "journal_reflect"],
+        ["gemini-proxy", "safety_classify"],
+      ]);
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      if (originalServerSafety === undefined) {
+        Reflect.deleteProperty(process.env, "EXPO_PUBLIC_SERVER_SAFETY");
+      } else {
+        process.env.EXPO_PUBLIC_SERVER_SAFETY = originalServerSafety;
+      }
+    }
   });
 
   test("live mode + LLM GREEN on lexicon-RED input → still RED (lexicon wins)", async () => {

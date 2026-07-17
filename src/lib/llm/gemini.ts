@@ -110,8 +110,9 @@ function resolveReasoningProvider(): "gemini" | "claude" {
 
 // Each vendor routes to its own Supabase Edge Function; all keep the client
 // SDK-free (C1). Claude/OpenAI have no client-side path (no key on the
-// device), so a non-Gemini call ALWAYS goes through its edge function even
-// when EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off for the direct Gemini path.
+// device), so a non-Gemini call ALWAYS goes through its edge function. Gemini
+// also does so in every official live runtime; its direct seam remains only for
+// non-live development and hermetic tests.
 function reasoningProxyFn(
   reasoningProvider: "gemini" | "claude" | "openai" | undefined,
 ): "gemini-proxy" | "claude-proxy" | "openai-proxy" {
@@ -140,22 +141,30 @@ function getClient(): { client: GoogleGenAI; vertex: boolean } {
   return { client: cachedClient, vertex: cachedClientVertex };
 }
 
-// C-cost (round-4 H4): the gemini-proxy is the ONLY spend-capped LLM egress
-// (bump_gemini_spend, 0035/0036, per-user/day). Reaching the direct @google/genai
-// client on a LIVE call bypasses that ceiling. The API-key direct path bills the
-// Gemini free tier the $0/mo promise (blueprint §5) protects, so a live call MUST
-// route through the edge proxy. Vertex (USE_VERTEX) is the only permitted direct
-// egress: it bills GCP (governed by the project budget/quota in the GCP console,
-// a separate domain from the Gemini-API free-tier counter) and is the C2
-// submission-evidence path. Mock mode never reaches the direct branch (returns
-// earlier). Called at the top of both direct branches so neither can ship an
-// uncapped live API-key path.
+// Server-authoritative operational and spend controls live in gemini-proxy:
+// bump_gemini_spend enforces both the shared runtime kill switch and the daily
+// cap before any upstream call. A direct LIVE client — API key or Vertex — would
+// bypass that DB authority, so every non-test live runtime is forced through the
+// proxy even when a build accidentally omits EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION.
+// Mock/non-live development remains local, and Jest keeps the direct Vertex seam
+// available for hermetic C2/C3/C9 wiring tests.
+function mustUseServerAuthoritativeEgress(env: ReturnType<typeof getEnv>): boolean {
+  return env.EXPO_PUBLIC_LLM_MODE === "live" && process.env.NODE_ENV !== "test";
+}
+
+function shouldUseLlmProxy(env: ReturnType<typeof getEnv>): boolean {
+  return env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || mustUseServerAuthoritativeEgress(env);
+}
+
 function assertDirectEgressAllowed(env: ReturnType<typeof getEnv>): void {
-  if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) {
+  if (
+    mustUseServerAuthoritativeEgress(env) ||
+    (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX)
+  ) {
     throw new Error(
-      "LLM boundary (C-cost): a live call reached the uncapped direct API-key client. " +
+      "LLM boundary: a live call reached a direct client that bypasses the server runtime switch. " +
         "Route through the gemini-proxy edge function (EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true), " +
-        "which enforces the per-user/day spend cap, or use Vertex (EXPO_PUBLIC_USE_VERTEX=true).",
+        "which enforces the DB-authoritative kill switch and per-user/day spend cap.",
     );
   }
 }
@@ -556,7 +565,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
   // their proxies). reasoningProxyFn picks the matching function.
   if (
-    env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION ||
+    shouldUseLlmProxy(env) ||
     (reasoningProvider != null && reasoningProvider !== "gemini")
   ) {
     const supabase = getSupabaseClient();
@@ -640,7 +649,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     vertexBackend = false;
     proxyAudited = payload?.audited === true;
   } else {
-    // C2 client constructed with Vertex when configured.
+    // C2 direct-client seam for non-live development and hermetic tests only.
     assertDirectEgressAllowed(env);
     const { client, vertex } = getClient();
 
@@ -895,10 +904,9 @@ const zeroVector = (): number[] => new Array<number>(EMBED_DIM).fill(0);
  *   C9   each text is classified first; a red-zone text is NEVER embedded
  *        (zero vector) so crisis content never leaves the device for the model.
  *   C3   one ai_audit_log row per batch (mock + live).
- *   Cost live egress goes through gemini-proxy when the edge flag is on
- *        (spend-capped, the only path that works on the keyless web build) or
- *        the Vertex client; a direct API-key path is rejected
- *        (assertDirectEgressAllowed), so the $0/mo promise holds.
+ *   Cost every official live egress goes through gemini-proxy, where the DB
+ *        runtime switch and spend cap are authoritative. Direct clients remain
+ *        available only to non-live development and hermetic tests.
  */
 export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResult> {
   throwIfAborted(input.signal);
@@ -951,7 +959,7 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
   let modelUsedForAudit: string = EMBED_MODEL;
   let proxyAudited = false;
 
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+  if (shouldUseLlmProxy(env)) {
     // Edge path (P0-2): the proxy owns the key + spend cap; this is the ONLY
     // live embedding route on the keyless web build. One batch = one call.
     if (toEmbed.length > 0) {
@@ -967,7 +975,7 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
       proxyAudited = payload?.audited === true;
     }
   } else {
-    // Direct path: Vertex-only live egress passes the cost guard.
+    // Direct-client seam for non-live development and hermetic tests only.
     assertDirectEgressAllowed(env);
     const { client, vertex } = getClient();
     vertexBackend = vertex;
@@ -1029,16 +1037,15 @@ export interface TranscribeAudioResult {
 // Constraints held exactly like callGemini / embedTexts:
 //   C1   only this file imports @google/genai (the transcription call lives here).
 //   C2   the @google/genai client is Vertex when EXPO_PUBLIC_USE_VERTEX=true
-//        (getClient()), the only permitted live egress here.
+//        in the retained non-live/test direct seam.
 //   C3   one ai_audit_log row on EVERY path (mock + live + output-swap).
 //   C9   the model's transcript is re-classified; a red-zone transcript is
 //        swapped for the fixed crisis template + crisis_events (input is audio,
 //        so the pre-call text classifier has nothing to scan — output gating is
 //        the C9 equivalent, mirroring callGemini's output swap).
-//   Cost live egress rides the spend-capped gemini-proxy when
-//        EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is on (the production path); a live
-//        API-key direct call is rejected (assertDirectEgressAllowed), so mock,
-//        proxy and Vertex are the only paths, preserving the $0/mo promise.
+//   Cost official live egress always rides the spend-capped gemini-proxy, even
+//        if the edge build flag is omitted. The direct seam is non-live/test
+//        only, preserving both the runtime kill switch and the $0/mo promise.
 //
 // NOTE (device verification PENDING): the recorder + real Gemini audio
 // transcription cannot be exercised in this environment (no microphone). Mock
@@ -1084,7 +1091,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   let vertexBackend: boolean;
   let proxyAudited = false;
 
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION) {
+  if (shouldUseLlmProxy(env)) {
     // Production path (eas.json ships EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION=true):
     // the spend-capped gemini-proxy forwards audio inline-data exactly like the
     // image path (same validation: mime allowlist + base64 cap, server-side).
@@ -1110,8 +1117,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     vertexBackend = false;
     proxyAudited = payload?.audited === true;
   } else {
-    // Direct/Vertex client path (C2). The cost guard still rejects a live
-    // API-key direct call — Vertex (or mock) is the only non-proxy live egress.
+    // Direct/Vertex seam for non-live development and hermetic C2 tests.
     assertDirectEgressAllowed(env);
     const { client, vertex } = getClient();
     const t0 = Date.now();
@@ -1304,10 +1310,9 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     };
   }
 
-  // Live mode: real Gemini Pro call. Route through the gemini-proxy Edge
-  // Function (key stays server-side) when configured — REQUIRED for the public
-  // web bundle, where a direct @google/genai client would need an inlined key.
-  // Otherwise construct the client directly (native / Vertex).
+  // Live mode: real Gemini Pro call. Official runtimes always route through the
+  // server-authoritative proxy even if the edge flag is missing. The direct
+  // client below is retained only for non-live development and hermetic tests.
   let text: string;
   let latencyMs: number;
   let vertex: boolean;
@@ -1322,7 +1327,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   let proxyAudited = false;
   // Edge path when configured, OR whenever the vendor is non-Gemini
   // (server-side only). reasoningProxyFn picks the matching proxy.
-  if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider !== "gemini") {
+  if (shouldUseLlmProxy(env) || reasoningProvider !== "gemini") {
     const supabase = getSupabaseClient();
     // The curated RAG prompt rides in `system` (trusted, NOT crisis-scanned —
     // it legitimately quotes crisis-detection reference text); the genuine
