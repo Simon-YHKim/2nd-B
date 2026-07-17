@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
+- Latest — 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기) (4 PR 병합 + 1 대기)
+- 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
 - 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
 - 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (11 PR)
 - 2026-07-14 (2라운드) / 결함 트랙 완주 중 — 14 PR + 트리아지 자체가 틀렸다는 발견
@@ -93,7 +94,74 @@
 
 ---
 
-## Latest — 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
+## Latest — 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기)
+
+### 어디까지 왔나
+- main HEAD: `149a613b` (#1052까지)
+- 이번 세션 병합 PR (4):
+  - **#1044** D2 — 가입 화면 법률 문서 링크 (로그인과 동일 한 줄)
+  - **#1047** 심사위원 리허설 후속 — 가입 확인 카드(대상 이메일 명시, 5로케일) + 진입 게이트 i18n(loadingGate 6키). 리허설 보고: `docs/judge-rehearsal-report_260717.html` (하드 블로커 0, 핵심 루프 전부 통과)
+  - **#1050** **Phase 4 페이월** (Simon 확정 그대로) — 아래 경계표 참조. 등급명 단일화(`tier-map.ts` 단일 매핑·캡 테이블), 리즈닝 주간화(0089, 버킷 서버 파생 — 버킷 회전 구멍 봉쇄, 리워드 크레딧 월 단위 유지·주간 베이스 소진 후 소비), 채팅 광고 +2(0090, 월 20 상한 별도 원장), 페르소나 게이트(메타비 Plus+/트위비 Pro, judge는 클라에서도 comp), '공상' 전면 폐기(+CI 게이트 `GongsangRetiredFromCopy`), 플랜 카피 정직화 + Pro '준비 중'
+  - **#1052** SSV 서버검증 채팅 확장 — 0091 `grant_chat_ad_bonus_ssv`(service_role 전용, 공유 txn 원장 멱등) + `rewarded-ssv` 엣지 함수 kind 라우팅(`custom_data`=`<uid>|chat`)
+- **대기 PR: #1051 법률 3종 최종화** — 6정보 기입 완료([기입] 마커 0, 초안 배지 자동 해제), **automerge 없음 — Simon "법률 병합해줘" 승인 필요**. 리뷰 시트 `docs/legal-final-review_260717.html`. 유일한 잔여 플레이스홀더: 사업자등록번호 "발급 진행 중"(발급 시 md+스냅샷 2곳 1줄 교체)
+- 테스트: verify 그린 (마지막 완주 367 스위트 / 2,798 테스트)
+- working tree(E:\2ndB 본체): 플릿 작업 중 (flow-debugger.html·core-brain 등 미커밋 — 건드리지 말 것)
+
+### Phase 4 확정 경계 (2026-07-17 Simon 확정 — 서버 강제 라이브)
+| | Free | Plus 항해자 ₩9,900 | Pro 북극성 ₩19,900(준비 중) |
+|---|---|---|---|
+| 리즈닝 | 주 2회 | 주 7회 (Lifetime=soma 동일) | 무제한 |
+| 채팅/일 | 5(+광고 +2, 월 20) | 80 | 250 |
+| 페르소나 | 2nd-B | +메타비 | +메타비+트위비 |
+| 렌즈·기록·보관·export·연동 | **전원 무료** (게이트 제거 — 재무장 불가) | | |
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj`: **0089·0090·0091 적용 완료**(스모크 검증 — 서버 주 버킷 `2026-W29` = 클라 `weekBucket()` 일치 확인) · `rewarded-ssv` **v1 배포**(verify_jwt=false, `REWARD_SSV_ENABLED` 미설정 = 503 fail-closed 휴면) · gemini-proxy v56 · paddle-webhook fail-closed
+- 리워드 스택 완비: 리즈닝 +2(월 20)·채팅 +2(월 20) 양쪽 모두 클라 경로 + SSV 서버검증 경로 존재. 남은 것 = AdMob SDK 설치(클라, `ads/rewarded.ts` 주석에 customData 계약 명시)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **법률 병합** — Simon 승인 한마디 → #1051 병합 → 게시 확인 | tiny | ⭐ 유일한 즉시 액션 |
+| B | Paddle 승인 도착 → secrets + replay/tamper 검증 + 활성화 + U3 웹 체크아웃(Paddle.js) | medium | 매출 크리티컬 패스 (Cowork 신청 결과 회신 대기) |
+| C | flow-map 재동기화 + knownBugs 25건 (Phase 4로 plans·secondb·게이트 대폭 변경) | large | 플릿의 flow-debugger.html 미커밋 해소 후 |
+| D | flow-debugger.html 44MB 다이어트 | small | 〃 |
+| E | 사업자등록번호 도착 → 법률 2곳 1줄 교체 | tiny | Simon 회신 즉시 |
+| F | Gmail 확인메일 미도달 P1 — DKIM ON (Cowork/admin.google.com) 후 리허설 계정 재검증 | small | 심사위원 가입 차단급 |
+| G | 리즈닝 실행 UX 개편 | medium | Claude Design 시안 확정 후 |
+
+### 적용 중인 정책 (영구)
+1. PR automerge(CI 그린) — **예외: 법률 문서 게시는 사용자 최종 확인 필수(automerge 금지)**
+2. E:\2ndB 직접 편집 금지(플릿 공유) · **세션 resume 후 첫 git 명령 전 pwd 확인**(cwd가 플릿 루트로 리셋됨 — 07-17 실사고, instincts 기록)
+3. 등급 어휘는 `src/lib/entitlements/tier-map.ts`가 유일 SoT(free/plus/pro ↔ free/soma/cortex/brain, soma=Lifetime) — 캡 숫자 변경은 tier-map+SQL 마이그레이션 동시(구조 테스트가 드리프트 차단)
+4. '공상' 용어 금지(로케일 CI 게이트) — 트위비/상상 어휘
+5. 법률 문서: docs/legal/*.md SoT + legal-documents.ts 수동 미러(둘 다 고쳐야 함)
+
+### 핵심 파일 위치
+```
+src/lib/entitlements/tier-map.ts       등급·주간 캡 단일 SoT
+db/migrations/0089~0091*.sql           주간 리즈닝·채팅 광고·SSV (전부 운영 적용됨)
+supabase/functions/rewarded-ssv/       SSV 콜백 (v1 배포, fail-closed)
+src/lib/legal/legal-documents.ts       법률 스냅샷 (#1051 브랜치에 최종본)
+docs/legal-final-review_260717.html    법률 게시 전 확인 시트
+docs/judge-rehearsal-report_260717.html 리허설 발견 8건 + PASS 목록
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(법률 병합 승인 여부 확인) → B/C 순
+```
+
+---
+
+## 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
 
 ### 어디까지 왔나
 - main HEAD: `85667f5d` (#1041까지 머지)
