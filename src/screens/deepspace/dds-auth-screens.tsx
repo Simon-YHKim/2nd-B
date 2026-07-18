@@ -456,6 +456,11 @@ export function DeepSpaceSignUpDesignScreen() {
     oauthSubmitting,
     existingAccountHelp,
     confirmSentTo,
+    confirmCode,
+    setConfirmCode,
+    canVerifyConfirmCode,
+    confirmVerifying,
+    handleVerifyConfirmCode,
     visibleProviders,
     naverEnabled,
     handleSubmit,
@@ -488,6 +493,39 @@ export function DeepSpaceSignUpDesignScreen() {
         <View style={styles.authHelpCard} accessibilityRole="alert" accessibilityLiveRegion="polite">
           <Text variant="heading" style={styles.authHelpTitle}>{t("auth:signUp.confirmSentTitle")}</Text>
           <Text variant="body" style={styles.authHelpBody}>{t("auth:signUp.confirmSentBody", { email: confirmSentTo })}</Text>
+          {/* Deliverability P1 (260718): the confirmation mail is code-only
+              (Gmail buries supabase.co links), so the card carries the finish
+              step itself. Mirrors the reset-password OTP input. */}
+          <Text variant="caption" pixelEn style={styles.authLabel}>{t("auth:signUp.confirmCodeLabel")}</Text>
+          <TextInput
+            value={confirmCode}
+            onChangeText={setConfirmCode}
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            maxLength={6}
+            placeholder="000000"
+            placeholderTextColor={colors.textLo}
+            accessibilityLabel={t("auth:signUp.confirmCodeLabel")}
+            accessibilityHint={t("auth:signUp.confirmCodeHint")}
+            style={styles.input}
+            returnKeyType="go"
+            onSubmitEditing={() => {
+              if (canVerifyConfirmCode) void handleVerifyConfirmCode();
+            }}
+          />
+          <Pressable
+            onPress={() => void handleVerifyConfirmCode()}
+            disabled={!canVerifyConfirmCode}
+            style={[styles.primary, !canVerifyConfirmCode && styles.btnDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t("auth:signUp.confirmCodeVerify")}
+            accessibilityState={{ disabled: !canVerifyConfirmCode, busy: confirmVerifying }}
+          >
+            <Text variant="caption" style={styles.primaryText}>
+              {confirmVerifying ? t("auth:resetPassword.verifying") : t("auth:signUp.confirmCodeVerify")}
+            </Text>
+          </Pressable>
         </View>
       ) : null}
       <Card>
