@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기) (4 PR 병합 + 1 대기)
+- Latest — 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩+운영 적용 — 스펙 확정(결정 10·A~F·계약 16) → 선예약·환불·idempotency 서버 계약 완주 (#1063)
+- 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기) (4 PR 병합 + 1 대기)
 - 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
 - 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
 - 2026-07-17 / 커머스 백엔드 라이브 준비 + auth UX 4종 + OTP 재설정 + 법률 라우트 (11 PR)
@@ -94,7 +95,61 @@
 
 ---
 
-## Latest — 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기)
+## Latest — 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩 + 운영 적용 — 스펙 확정에서 서버 계약 완주까지
+
+### 어디까지 왔나
+- main HEAD: `c8103dde` (#1064까지)
+- 이번 세션 병합 PR: **#1063** feat(reasoning): server-side run lifecycle — reserve/refund·idempotency·persisted proposals (**0092**)
+  - 참고: 이 세션의 선행 픽스 #1059(챗-리즈닝 분리)는 타 세션 #1061(“/reasoning 화면+챗 분리” 광역 구현)에 대체되어 닫힘 — 중복 아님, 계보만 기록
+- 확정 스펙 커밋됨: **`docs/reasoning-ux-spec_260718.html`** (GPT/codex 회신 + Simon 확정 — 결정 10건 답변표 + 화면 A~F + 구현 계약 16조). 광고 충돌 결정: **월 20 크레딧 정본 유지, 크레딧은 수동 리즈닝 전용, 자동은 주간 베이스만 + 수동 1회 상시 예약**
+- 테스트: verify 풀 그린 **369 suites / 2,848 tests** (로컬 워크트리 + CI 양쪽)
+- working tree: clean (작업은 `.worktrees/claude-reasoning-infra`)
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` — **0092 운영 적용 완료** (원장 `20260718012900_0092_reasoning_runs`). 라이브 검증: RPC 9종 전부 SECURITY DEFINER, 권한 매트릭스 anon 예약 불가 / authenticated 예약 가능 / `refund_reasoning_spend` 클라 호출 불가 / 테이블 직접 INSERT 불가
+- 0092가 제공하는 서버 계약: 선예약→실행→제안 영속(proposed)→비준/적용(exactly-once), 실패·취소·좌초(30분) 시 **런에 박아둔 주/월 버킷 기준 정확 환불**, (user, idempotency_key) 유니크 + 유저별 advisory lock으로 이중 차감 차단, 동시 실행 1개, **자동 실행 가드 `used < cap-1`** (= 자동 상한 free 1/주·plus 6/주 + 수동 1회 예약이 한 식)
+- 웹은 main 머지로 GitHub Pages 자동 배포 — 클라(선예약 재배선된 `/reasoning`)와 서버 정합 상태
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **PR-B: 화면 A~F 스펙 정합** — 자동 토글 서버 저장(privacy_prefs 패턴), 잔여 분리 표기(“이번 주 N/2 · 월요일 초기화” + “보상 N회 · 월말까지”), F 한도 시트 1종 통일, `ConstellationHome`의 “광고로 1회 받기” → **“광고 보고 2회 받기”** 교정 | large | ⭐ 스펙 `docs/reasoning-ux-spec_260718.html` §A~F 그대로 |
+| B | purpose 택소노미 정리 — `/reasoning`이 쓰는 `journal_reflect`/`knowledge_lookup`은 D-26 폐기/개명 대상 → 정식 purpose 부여 (감사 연속성 매핑 포함) | small | LLM-ROUTING.md §4 |
+| C | 연동 P0 — 시그널→별 브리지 · Health Connect 제품화(건강 CTA 경로 픽스) · 카카오 관계 시그널(가명화) · 동의 실기록 갭 수리 | large | `docs/integrations-feasibility_260717.html` §4 |
+| D | 워크트리 청소 — `.worktrees/claude-chat-decouple`이 파일 잠금으로 제거 실패(브랜치는 삭제됨), 잠금 풀리면 rmdir | small | 정션은 이미 제거됨 |
+
+### 적용 중인 정책 (영구)
+1. CI 그린 → auto-merge(squash) — Simon 상시 규칙. 브랜치 BEHIND면 `gh pr update-branch` 후 재대기
+2. `E:\2ndB` 직접 수정 금지 — `.worktrees/<name>` + node_modules 정션(제거 시 **정션 먼저 rmdir**), tsc는 `expo-env.d.ts`+`.expo/types` 복사 필요
+3. 리즈닝 정책(Simon 확정 2026-07-18): 크레딧 = 수동 전용 · 자동 = 주간 베이스만 + 수동 1회 상시 예약 · 주 경계 = KST ISO 월요일 00:00 · 캡 free 2/plus·soma 7/pro 무제한
+4. 캡·규칙 SoT = `tier-map.ts` ↔ 0089/0092 SQL CASE — 구조 테스트가 락스텝 강제(숫자 바꾸면 양쪽+테스트 동시 수정)
+
+### 핵심 파일 위치
+```
+docs/reasoning-ux-spec_260718.html                          확정 스펙 SoT (결정 10 · 화면 A~F · 계약 16)
+db/migrations/0092_reasoning_runs.sql                        잡 인프라 (운영 적용됨)
+src/lib/reasoning/runs.ts                                    클라 잡 래퍼 (fail-closed 차감 / fail-open 읽기)
+src/app/reasoning.tsx                                        선예약 재배선 + 서버 제안 복원 + exactly-once 적용
+src/lib/reasoning/__tests__/reasoning-runs-migration.test.ts 구조 락스텝 (28 assertions)
+docs/reasoning-revamp-impact_260717.html                     영향범위 조사 (전사)
+docs/integrations-feasibility_260717.html                    연동 실효성 조사 + P0~P2 로드맵
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(PR-B 화면 A~F)부터 — 스펙 HTML을 먼저 열고 시작
+```
+
+---
+
+## 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기)
 
 ### 어디까지 왔나
 - main HEAD: `149a613b` (#1052까지)
