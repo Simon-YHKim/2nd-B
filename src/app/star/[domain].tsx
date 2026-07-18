@@ -78,7 +78,12 @@ const DOMAIN_ACTION: Record<
     primaryEn: "Add a record",
     secondaryKo: "데이터 연결",
     secondaryEn: "Connect data",
-    route: "/import-hub",
+    // "/import" hosts the actual device-health connect path (Health Connect /
+    // HealthKit ingest into health_samples — the table this star's
+    // crossSourceAgreement reads). "/import-hub"'s health FILE import lands in
+    // `sources` and can never feed health_samples, so the star's own CTA was
+    // pointing at the one import surface that could not light it (P0②).
+    route: "/import",
   },
   recreation: {
     primaryKo: "휴식 담기",

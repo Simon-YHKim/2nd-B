@@ -123,6 +123,37 @@ export async function recordRecommendationsConsent(args: {
   });
 }
 
+// P0④ (integrations bridge): record the per-source consent the /import-hub
+// sheet collects before a personal-data file import. Parsing is on-device (no
+// LLM at import time) and the extracted signals land in the user's own rows,
+// so only the sensitive-data ack varies: true for the critical/sensitive
+// tiers (comms · location · health · email), false for normal notes/calendar.
+// Call AFTER the user completed the consent sheet AND the import actually
+// landed — never for a cancelled or failed import.
+export async function recordImportConsent(args: {
+  userId: string;
+  ageBand: ConsentAgeBand;
+  minorTier?: MinorTier | null;
+  locale: "en" | "ko";
+  /** Import-hub source key (kakao, sms, takeout, health, email, ...). */
+  sourceKey: string;
+  /** True for the critical/sensitive source tiers. */
+  sensitive: boolean;
+}): Promise<boolean> {
+  return recordConsentBestEffort({
+    userId: args.userId,
+    ageBand: args.ageBand,
+    minorTier: args.minorTier ?? null,
+    locale: args.locale,
+    purposes: ["personal_import"],
+    requiredAck: true,
+    optionalConsents: { [`import_${args.sourceKey}`]: true },
+    llmProcessingAck: false,
+    overseasTransferAck: false,
+    sensitiveDataAck: args.sensitive,
+  });
+}
+
 // A transient (network/timeout) failure should not lose a consent event, but a
 // permanent error (missing table pre-migration, schema/permission, integrity)
 // will never succeed on retry, so retrying it just wastes time. Distinguish the

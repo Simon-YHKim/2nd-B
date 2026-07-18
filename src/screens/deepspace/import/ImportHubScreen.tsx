@@ -19,8 +19,11 @@ import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
+import { enqueueAutoReasoningSource } from "@/app/reasoning";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
+import { useProgression } from "@/lib/progression/useProgression";
+import { recordImportConsent } from "@/lib/supabase/consent";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
@@ -82,6 +85,7 @@ export function ImportHubScreen() {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId, isMinor } = useAuth();
+  const progression = useProgression();
 
   const [step, setStep] = useState<Step>("hub");
   // A failed import used to end exactly like a successful one: back at the hub, no message,
@@ -200,6 +204,28 @@ export function ImportHubScreen() {
         atIso: new Date().toISOString(),
         summary: `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
         sourceIds: [result.source.id],
+      });
+      // P0④: the consent sheet the user just walked finally leaves a ledger row
+      // (consent_records). Best-effort — the import itself already landed.
+      void recordImportConsent({
+        userId,
+        ageBand: isMinor === true ? "minor_self" : "adult",
+        minorTier: isMinor === true ? "minor_self" : "adult",
+        locale: ko ? "ko" : "en",
+        sourceKey: active.key,
+        sensitive: active.tier !== "normal",
+      });
+      // P0①: hand the new source to automatic reasoning (a no-op when the
+      // toggle is off or the auto allowance is spent). A later ratify stamps
+      // the domain tag that lets this import brighten its star — the only
+      // honest path (propose→ratify) from imported data to the constellation.
+      enqueueAutoReasoningSource({
+        userId,
+        locale: ko ? "ko" : "en",
+        minor: isMinor === true,
+        tier: progression.tier,
+        id: result.source.id,
+        title: result.source.title,
       });
     } catch {
       // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
