@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩+운영 적용 — 스펙 확정(결정 10·A~F·계약 16) → 선예약·환불·idempotency 서버 계약 완주 (#1063)
+- Latest — 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
+- 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩+운영 적용 — 스펙 확정(결정 10·A~F·계약 16) → 선예약·환불·idempotency 서버 계약 완주 (#1063)
 - 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기) (4 PR 병합 + 1 대기)
 - 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
 - 2026-07-17 / 감사 전량 소탕 + 표정 13종 + 얼굴 통일 + 네이버 픽스 (5 PR + OTA)
@@ -95,7 +96,72 @@
 
 ---
 
-## Latest — 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩 + 운영 적용 — 스펙 확정에서 서버 계약 완주까지
+## Latest — 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
+
+### 어디까지 왔나
+- main HEAD: `853398a7` (#1078까지)
+- 이번 세션 병합 PR (6):
+  - **#1069** PR-B 화면 A~F 스펙 정합 — 자동 토글 서버 저장(0093 + `lib/reasoning/auto-pref.ts`, 서버우선→로컬미러→OFF), **잔여 분리 표기**(주간 "이번 주 2회 중 1회 남음 · 월요일 초기화" / 월간 "보상 N회 남음 · 7월 말까지" — `remaining-copy.ts`), **`ReasoningLimitSheet` 단일 한도 시트**(홈·/reasoning의 죽은 /records 우회 제거, 시트가 광고 실행·그랜트 소유), 카피 "광고 보고 2회 받기", 플랜 rewardSub 월 상한 고지, `ds.reasoningLimit.*` ×5로케일
+  - **#1072** purpose 택소노미 — `/reasoning` 딥런 배치에 전용 **`reasoning_connect`** 신설(PURPOSE_TIER pro), wiki intake `knowledge_lookup`→**`source_ingest`**(A14 이행), `journal_reflect` 삭제, LLM-ROUTING.md §4에 감사 연속성 표. ⚠ **`cluster_infer` 재사용은 함정이었음**: Phase 2가 07-06부터 라이브(9좌석 OpenAI)라 그 이름을 쓰면 딥런이 Gemini pro→gpt-5.4로 조용히 재라우팅됨 — reasoning_connect는 의도적 PHASE2_VENDOR 미등재(Gemini 잔류)
+  - **#1073** 연동 P0 ①②④ — **별 엔진이 `sources`를 스캔**(7번째 테이블; domain: 태그=딥런 비준분만=정직한 밝기. 이전엔 비준된 source 연결·모든 임포트가 별을 못 밝혔음 — 이게 진짜 P0 단절), /reasoning 비준 후 `invalidateDomainLevels`, **임포트 비준→`enqueueAutoReasoningSource`**(임포트→자동딥런→비준→별 풀루프), 건강 별 CTA `/import-hub`→`/import` 픽스(②), **`recordImportConsent`**로 임포트 동의 원장 갭 수리(④)
+  - **#1075** 연동 P0 ③ — 카카오 관계 시그널 → **별-이름 별칭 인물**(Simon 확정: 김○○ 대신 "새벽에 걷는 베텔게우스"). `star-alias.ts` 접두사 KO/EN 각 115 × IAU 별 이름 112, `subjectKeyFor` FNV-1a 쌍(실명 무저장·무전달), `subject:<key>` 태그 멱등 업서트, 사용자 개명 보존·최근접촉 후퇴 금지
+  - **#1078** 보상 게이트 일원화 — 타 세션 #1076(canShowRewardedAds, /plans·/secondb)과 병렬 개발로 어긋난 한도 시트를 게이트에 합류: 허용목록 += "/"(정확일치)·"/reasoning", 시트 광고영역 = 풀 게이트(동의 `privacy_prefs.ads`+라우트+로딩 fail-closed)+월 상한, 진입 프리체크 `adsConfigured`→`rewardedAdsConfigured`(배너 플래그가 네이티브 CTA 오차단하던 것)
+  - (+세션 초입) **E:\2ndB 본체 pull 차단 해소** — 잔재 14파일 전부 병합본과 동일/구버전 확인 후 `stash@{0}`(sweep 2026-07-18) 보존, main 최신화. ⚠ 뮤지엄 WIP 스태시는 **`stash@{1}`로 밀림**. `.worktrees/claude-chat-decouple` 잔여 rmdir
+- 테스트: verify 풀 그린 (마지막 완주 **2,899 tests** / 376 suites; 세션 시작 2,848 대비 +51)
+- working tree: clean (작업 워크트리: `claude-prb-screens` · `claude-purpose-taxonomy` · `claude-bridge-p0`)
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` — **0093 운영 적용 완료**(`users.reasoning_prefs` jsonb, Simon 컨펌 후 apply+라이브 검증). 자동 리즈닝 토글 기기 간 서버 동기화
+- ⚠ 타 세션 **#1068**: rewarded 시임 전면 fail-closed(EARNED_REWARD 없으면 dev에서도 보상 없음) — dev/QA 보상 흐름은 `showRewardedAd` jest 목 필요. **#1076**: 보상 진입 게이트 = `canShowRewardedAds`(빌드플래그+free+성인확정+광고동의+라우트 허용목록) — 새 보상 표면은 반드시 이 게이트+허용목록으로
+- Phase 2 벤더 라우팅 라이브(07-06~): 새 purpose를 OpenAI 좌석 표면에 붙일 땐 openai-proxy allow-list도 함께
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 에뮬/웹 육안 QA 1회 — 한도 시트(동의 ON/OFF·광고/플랜 분기)·잔여 분리 표기·자동 토글 서버 동기화·임포트→자동딥런→비준→별 밝아짐 풀루프·카카오 별칭 인물 | medium | ⭐ 이번 6 PR 전부 라이브 미검증 (QA 계정 .env.test) |
+| B | P0④ 잔여: 민감 임포트 미성년 **서버 클램프**(DB, 0050 미러 — 현재 클라 minorLocked뿐) | small | 마이그레이션 1건 |
+| C | notion/obsidian 임포트 dead-end 수리 (buildProposals에 markdown 분기 없음 → 0 proposals → 에러) | small | 정찰로 확정된 실버그 |
+| D | P1 파서: YouTube Takeout(성장·휴식) · 금융 CSV → ops_ledger | medium | feasibility §4 P1 |
+| E | 리즈닝 스펙 잔여: 처음 ON 설명 시트(spec A) · D 화면 궤도 링 | small | 광고 SDK/SSV는 AdMob PR 세션 소유 |
+| F | Health Connect 실기기 삼성헬스 검증 | - | Simon 액션 |
+
+### 적용 중인 정책 (영구)
+1. CI 그린 → auto-merge(squash); BEHIND면 `gh pr update-branch` 후 재대기 (오늘 main 고속 전진으로 수차례 — 베이비시터 루프가 유효했음)
+2. `E:\2ndB` 직접 수정 금지 — `.worktrees/<name>` + node_modules 정션(제거 시 정션 먼저 rmdir)
+3. 리즈닝 정책: 크레딧=수동 전용 · 자동=주간 베이스만+수동 1회 예약 · 캡 SoT `tier-map.ts`↔SQL 락스텝
+4. 별 밝기 정직성: 비준 없는 임포트/소스는 절대 별을 밝히지 않는다 (`sources` 스캔 = domain: 태그 = 비준분만)
+5. 관계 별칭: 실명 무저장 — `subjectKeyFor` 밖으로 이름이 나가면 안 됨; display_name은 사용자 소유(재임포트가 덮지 않음)
+6. 보상 표면: `canShowRewardedAds` + `REWARDED_AD_ALLOWED_ROUTE_PREFIXES` 경유가 유일 경로 (수제 게이트 금지)
+
+### 핵심 파일 위치
+```
+src/components/deep-space/ReasoningLimitSheet.tsx   THE 한도 시트 (풀 게이트 적용)
+src/lib/reasoning/auto-pref.ts                      자동 토글 서버 저장 (0093 계약)
+src/lib/reasoning/remaining-copy.ts                 잔여 분리 표기 포매터
+src/lib/persona/load-domain-levels.ts               별 엔진 (sources 스캔 추가됨)
+src/lib/relation/star-alias.ts                      별-이름 별칭 (접두사 115×별 112)
+src/lib/relation/import-signals.ts                  카카오 시그널 → relation_people 업서트
+src/lib/import/kakao.ts                             aggregateRelationSignals (가명 집계)
+src/lib/ads/policy.ts                               rewarded 게이트 + 라우트 허용목록
+db/migrations/0093_reasoning_prefs.sql              운영 적용됨
+docs/LLM-ROUTING.md §4                              감사 연속성 표 (구 purpose → 현행)
+```
+
+### 검증
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(육안 QA)부터 — 이번 세션 산출물 6 PR이 전부 라이브 미검증
+```
+
+---
+
+## 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩 + 운영 적용 — 스펙 확정에서 서버 계약 완주까지
 
 ### 어디까지 왔나
 - main HEAD: `c8103dde` (#1064까지)
