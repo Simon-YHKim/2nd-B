@@ -20,7 +20,7 @@
 // + no ad signals; Clarity is loaded only post-consent and its project must be
 // set to mask text (the app shows sensitive self-knowledge content).
 
-import { Platform } from "react-native";
+import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 
 import { getEnv, type Env } from "../env";
 import { getSupabaseClient } from "../supabase/client";
@@ -250,13 +250,35 @@ export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjec
 // call rejects and the build-level OFF default simply stands.
 
 type NativeAnalyticsApplier = (enabled: boolean) => Promise<void>;
+type NativeModuleLookup = (name: string) => unknown;
+
+const RNFB_ANALYTICS_MODULE = "RNFBAnalyticsModule";
 
 let nativeApplierOverride: NativeAnalyticsApplier | null = null;
 let nativeApplyTarget: boolean | null = null;
 let nativeApplyChain: Promise<void> = Promise.resolve();
 let nativeRuntimeFlagsOverride: AnalyticsRuntimeFlags | null = null;
 
+/**
+ * OTA compatibility gate for binaries built before native Firebase landed.
+ *
+ * runtimeVersion 0.0.8 shipped both with and without RNFirebase. Importing the
+ * JS package against the older binary can terminate Android during cold start,
+ * so prove the native analytics module exists before evaluating that package.
+ */
+export function hasNativeFirebaseAnalyticsModule(
+  lookup: NativeModuleLookup = (name) =>
+    TurboModuleRegistry.get(name) ?? NativeModules[name],
+): boolean {
+  try {
+    return lookup(RNFB_ANALYTICS_MODULE) != null;
+  } catch {
+    return false;
+  }
+}
+
 async function applyNativeAnalyticsCollection(enabled: boolean): Promise<void> {
+  if (!hasNativeFirebaseAnalyticsModule()) return;
   try {
     const mod = await import("@react-native-firebase/analytics");
     const analytics = mod.getAnalytics();

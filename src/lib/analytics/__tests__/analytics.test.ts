@@ -13,6 +13,7 @@ import {
   captureEvent,
   captureException,
   getAnalyticsConsentRevision,
+  hasNativeFirebaseAnalyticsModule,
   identifyUser,
   initAnalytics,
   pageView,
@@ -274,6 +275,23 @@ describe("native Firebase Analytics collection gate", () => {
   afterEach(() => {
     __setNativeAnalyticsApplierForTests(null);
     __setRuntimeAnalyticsFlagsForTests(null);
+  });
+
+  test("old OTA binaries without RNFirebase fail closed before importing the SDK", () => {
+    expect(hasNativeFirebaseAnalyticsModule(() => null)).toBe(false);
+    expect(
+      hasNativeFirebaseAnalyticsModule(() => {
+        throw new Error("native module registry unavailable");
+      }),
+    ).toBe(false);
+  });
+
+  test("rebuilt binaries expose the linked analytics module", () => {
+    const lookup = jest.fn((name: string) =>
+      name === "RNFBAnalyticsModule" ? {} : null,
+    );
+    expect(hasNativeFirebaseAnalyticsModule(lookup)).toBe(true);
+    expect(lookup).toHaveBeenCalledWith("RNFBAnalyticsModule");
   });
 
   test("boot with no opts asserts OFF (fail-closed default)", async () => {
