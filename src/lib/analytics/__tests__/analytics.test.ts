@@ -491,6 +491,19 @@ describe("runtime analytics web transitions", () => {
     for (let turn = 0; turn < turns; turn += 1) await Promise.resolve();
   }
 
+  // gtag command tuples are `arguments` objects, NOT arrays - gtag.js silently
+  // drops array-shaped commands (the 2026-07-18 P0 no-collect defect). Typed
+  // as unknown[] purely so positional reads/casts below stay unchanged; the
+  // dedicated regression test asserts the runtime shape is not an Array.
+  function isGtagCommand(entry: unknown): entry is unknown[] {
+    return (
+      typeof entry === "object" &&
+      entry !== null &&
+      !Array.isArray(entry) &&
+      typeof (entry as { length?: unknown }).length === "number"
+    );
+  }
+
   function loadWebModule(
     rowsRef: { current: RuntimeFlagRow[] },
     queryFlags?: () => Promise<RuntimeFlagResponse>,
@@ -644,7 +657,7 @@ describe("runtime analytics web transitions", () => {
     expect(posthog.capture).toHaveBeenCalledTimes(1);
     expect(posthog.capture).toHaveBeenCalledWith("page_view", { path: "/record/[id]" });
     const pageViews = dataLayer.filter(
-      (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+      (entry) => isGtagCommand(entry) && entry[0] === "event" && entry[1] === "page_view",
     ) as Array<[string, string, { path?: string }]>;
     expect(pageViews.map((entry) => entry[2].path)).toEqual(["/record/[id]"]);
     analytics.__resetAnalytics();
@@ -689,7 +702,7 @@ describe("runtime analytics web transitions", () => {
       ).toBe(true);
       expect(
         dataLayer.filter(
-          (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+          (entry) => isGtagCommand(entry) && entry[0] === "event" && entry[1] === "page_view",
         ),
       ).toHaveLength(0);
 
@@ -697,7 +710,7 @@ describe("runtime analytics web transitions", () => {
       await flushAsyncWork();
 
       const pageViews = dataLayer.filter(
-        (entry) => Array.isArray(entry) && entry[0] === "event" && entry[1] === "page_view",
+        (entry) => isGtagCommand(entry) && entry[0] === "event" && entry[1] === "page_view",
       ) as Array<[string, string, { page_location?: string; path?: string }]>;
       expect(
         pageViews.map((entry) => ({
@@ -766,7 +779,7 @@ describe("runtime analytics web transitions", () => {
       expect(analytics.captureEvent(analytics.pageView({ path: "/restored" }))).toBe(true);
 
       const gaConsentStates = dataLayer
-        .filter((entry) => Array.isArray(entry) && entry[0] === "consent")
+        .filter((entry) => isGtagCommand(entry) && entry[0] === "consent")
         .map((entry) => (entry as [string, string, { analytics_storage: string }])[2].analytics_storage);
       expect(gaConsentStates).toEqual(["granted", "denied", "granted"]);
       const clarityConsentStates = clarity.mock.calls
@@ -805,7 +818,7 @@ describe("runtime analytics web transitions", () => {
       expect(
         dataLayer.some(
           (entry) =>
-            Array.isArray(entry) &&
+            isGtagCommand(entry) &&
             entry[0] === "consent" &&
             (entry[2] as { analytics_storage?: string }).analytics_storage === "denied",
         ),
@@ -816,7 +829,7 @@ describe("runtime analytics web transitions", () => {
       expect(
         dataLayer.some(
           (entry) =>
-            Array.isArray(entry) &&
+            isGtagCommand(entry) &&
             entry[0] === "consent" &&
             (entry[2] as { analytics_storage?: string }).analytics_storage === "denied",
         ),
@@ -828,11 +841,36 @@ describe("runtime analytics web transitions", () => {
       expect(fetchFlags).toHaveBeenCalledTimes(3);
       expect(analytics.captureEvent(analytics.pageView({ path: "/recovered" }))).toBe(true);
       const gaConsentStates = dataLayer
-        .filter((entry) => Array.isArray(entry) && entry[0] === "consent")
+        .filter((entry) => isGtagCommand(entry) && entry[0] === "consent")
         .map((entry) => (entry as [string, string, { analytics_storage: string }])[2].analytics_storage);
       expect(gaConsentStates).toEqual(["granted", "denied", "granted"]);
     } finally {
       analytics.__resetAnalytics();
     }
+  });
+
+  test("gtag commands are arguments objects, not arrays (P0 2026-07-18: gtag.js drops arrays)", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics, dataLayer } = loadWebModule(rows);
+    await analytics.initAnalytics({ analyticsConsent: true, isMinor: false, confirmedAdult: true });
+    await flushAsyncWork();
+    expect(analytics.captureEvent(analytics.pageView({ path: "/capture" }))).toBe(true);
+    // js + consent default + config, then the page_view event.
+    expect(dataLayer.length).toBeGreaterThanOrEqual(4);
+    for (const entry of dataLayer) {
+      // The exact defect shape: an Array-pushed command is silently ignored by
+      // gtag.js, so nothing may ever push arrays again.
+      expect(Array.isArray(entry)).toBe(false);
+      expect(isGtagCommand(entry)).toBe(true);
+    }
+    const commands = dataLayer.filter(isGtagCommand).map((entry) => entry[0]);
+    expect(commands).toContain("config");
+    expect(commands).toContain("event");
+    analytics.__resetAnalytics();
   });
 });
