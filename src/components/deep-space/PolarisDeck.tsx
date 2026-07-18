@@ -1,8 +1,8 @@
 /**
  * 북극성 persona deck (rev2 P3a): the aggregate self, one card at a time.
  * A horizontally paged deck of M3 cards — swipe (or tap a dot) to move between
- * cards. Replaces the stacked-section wall on the deep-space 북극성 screen, per
- * the info-density rule: ONE message per screenful, detail behind a gesture.
+ * cards. Its hierarchy follows the Claude 10-me handoff: a compact "swipe"
+ * caption and page count above one violet persona card.
  *
  * Presentational only: pages arrive as prepared nodes; data loading, empty,
  * error, and loading states stay on the screen that owns them.
@@ -11,10 +11,10 @@ import { useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
-import { Text } from "@/components/ui/Text";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { MdCard, m3TextStyle, robotoFor } from "@/components/m3";
+import { MdCard, m3TextStyle } from "@/components/m3";
+import { Text } from "@/components/ui/Text";
 
 export interface PolarisDeckPage {
   key: string;
@@ -25,7 +25,7 @@ export interface PolarisDeckPage {
   body: ReactNode;
 }
 
-export function PolarisDeck({ pages }: { pages: PolarisDeckPage[]; isKo: boolean }) {
+export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: boolean }) {
   const { t } = useTranslation("deepspace");
   const [pageWidth, setPageWidth] = useState(0);
   const [index, setIndex] = useState(0);
@@ -41,6 +41,17 @@ export function PolarisDeck({ pages }: { pages: PolarisDeckPage[]; isKo: boolean
       style={styles.root}
       onLayout={(e) => setPageWidth(Math.round(e.nativeEvent.layout.width))}
     >
+      <View style={styles.deckHead}>
+        <View style={styles.deckHeadCopy}>
+          <Text style={styles.deckTitle} numberOfLines={1}>
+            {pages[index]?.title}
+          </Text>
+          <Text style={styles.deckHint} numberOfLines={1}>
+            {isKo ? "옆으로 넘겨 보기" : "Swipe to explore"}
+          </Text>
+        </View>
+        <Text style={styles.pageCount}>{`${Math.min(index + 1, pages.length)} / ${pages.length}`}</Text>
+      </View>
       {pageWidth > 0 ? (
         <ScrollView
           ref={scrollRef}
@@ -55,15 +66,16 @@ export function PolarisDeck({ pages }: { pages: PolarisDeckPage[]; isKo: boolean
         >
           {pages.map((page) => (
             <View key={page.key} style={[styles.page, { width: pageWidth }]}>
-              <MdCard variant="outlined" style={styles.card}>
-                <View style={styles.titleRow}>
-                  {page.accent ? <View style={[styles.titleTick, { backgroundColor: page.accent }]} /> : null}
-                  <Text style={styles.title} numberOfLines={1}>
-                    {page.title}
-                  </Text>
-                </View>
+              <MdCard
+                variant="outlined"
+                style={[
+                  styles.card,
+                  page.accent ? { borderColor: withAlpha(page.accent, 0.48) } : null,
+                ]}
+              >
                 <ScrollView
                   style={styles.cardBody}
+                  contentContainerStyle={styles.cardContent}
                   showsVerticalScrollIndicator={false}
                   nestedScrollEnabled
                 >
@@ -95,28 +107,46 @@ export function PolarisDeck({ pages }: { pages: PolarisDeckPage[]; isKo: boolean
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  deckHead: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  deckHeadCopy: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  deckTitle: {
+    ...m3TextStyle("labelLarge"),
+    color: m3.color.tertiary,
+    fontFamily: m3.font.brand,
+    letterSpacing: 2,
+  },
+  deckHint: {
+    ...m3TextStyle("bodySmall"),
+    flexShrink: 1,
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.brand,
+  },
+  pageCount: {
+    ...m3TextStyle("titleMedium"),
+    color: m3.color.onSurfaceVariant,
+    fontFamily: m3.font.mono,
+  },
   pager: { flex: 1 },
   page: { height: "100%" },
   card: {
     flex: 1,
     marginHorizontal: 4,
     marginVertical: 2,
-    padding: 16,
+    padding: 0,
+    overflow: "hidden",
+    borderRadius: 22,
+    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.22),
   },
   cardBody: { flex: 1 },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  titleTick: { width: 3, height: 14, borderRadius: 2 },
-  title: {
-    ...m3TextStyle("titleSmall"),
-    fontFamily: robotoFor("500"),
-    color: m3.color.onSurface,
-    flex: 1,
-  },
+  cardContent: { padding: 18, flexGrow: 1 },
   dots: {
     flexDirection: "row",
     justifyContent: "center",
@@ -132,8 +162,8 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.accentDim, 0.4),
   },
   dotOn: {
-    width: 16,
+    width: 10,
     borderRadius: 3,
-    backgroundColor: m3.accent.starCore,
+    backgroundColor: m3.color.tertiary,
   },
 });

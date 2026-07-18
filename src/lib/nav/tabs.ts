@@ -87,6 +87,11 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // 설정 — rev2 windowed ROOT tab (5th dock slot); conditional render behind
   // isDeepSpaceUI so the drift guard's direct-render scan doesn't see it.
   "/settings",
+  // 리즈닝·공지 — rev2 windowed sub-screens. Both use DeepSpaceScreen's
+  // persistent dock plus their own M3 top-app-bar back, so the root floating
+  // BackArrow must stand down.
+  "/reasoning",
+  "/notices",
   // windowed 코호트 4 — DockShell(inbox/focus) · OpsFrame(ops sub-screens) ·
   // interview Frame all render DeepSpaceScreen via shared wrappers, so the
   // drift guard's direct-render scan doesn't see them; registered by hand.

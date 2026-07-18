@@ -10,11 +10,20 @@
  * Star brightness stays live (starLevels/northStarBrightness from
  * loadDomainLevels); the opacity curve is the prototype's 0.36 + L/5×0.64.
  */
-import { Fragment, memo, useMemo, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import { router } from "expo-router";
+import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
+import { LATEST_NOTICE, NoticeDialog, useNoticeCenter } from "@/app/notices";
+import { getAutoReasoningEnabled } from "@/app/reasoning";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { getReasoningUsage } from "@/lib/entitlements/usage";
+import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
+import { useProgression } from "@/lib/progression/useProgression";
+import { useTaskStatus } from "@/lib/tasks/store";
 import { withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { keepAllKo } from "@/lib/i18n/keep-all";
@@ -79,7 +88,13 @@ function rev2StarOpacity(level: LadderLevel): number {
   return 0.36 + (level / 5) * 0.64;
 }
 
-type BubbleState = { kind: "intro" } | { kind: "menu" } | { kind: "star"; id: HomeStarId };
+type BubbleState =
+  | { kind: "intro" }
+  | { kind: "reasoning" }
+  | { kind: "menu" }
+  | { kind: "star"; id: HomeStarId };
+
+type ReasoningBubbleMode = "available" | "automatic" | "running" | "depleted";
 
 // Static t=0 frame of the prototype's neural field (seed 99173, mulberry32):
 // 24 drifting glow nodes + 46 pin stars + <96px connection arcs, with the
@@ -235,10 +250,45 @@ export function ConstellationHome({
    *  canon-seeded today, so there is no honest unread count yet). */
   hasUnread?: boolean;
 }) {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
+  const { userId, isMinor } = useAuth();
+  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
+  const noticeCenter = useNoticeCenter(userId);
+  const coachmarksDue = useCoachmarksGate();
+  const progression = useProgression();
+  const task = useTaskStatus();
   const { width: winW } = useWindowDimensions();
   const [bubble, setBubble] = useState<BubbleState>({ kind: "intro" });
   const [stage, setStage] = useState<{ w: number; h: number } | null>(null);
+  const [autoNoticeDismissed, setAutoNoticeDismissed] = useState(false);
+  const [manualNoticeVisible, setManualNoticeVisible] = useState(false);
+  const [reasoningStatus, setReasoningStatus] = useState<{
+    automatic: boolean;
+    remaining: number | null;
+  }>({ automatic: false, remaining: null });
+
+  const refreshReasoningStatus = useCallback(async () => {
+    if (!userId) {
+      setReasoningStatus({ automatic: false, remaining: null });
+      return;
+    }
+    const [automatic, usage] = await Promise.all([
+      getAutoReasoningEnabled(userId),
+      getReasoningUsage(userId),
+    ]);
+    setReasoningStatus({
+      automatic,
+      remaining: remainingReasoning(
+        progression.tier,
+        usage.used,
+        usage.rewardCredits,
+      ),
+    });
+  }, [progression.tier, userId]);
+
+  useEffect(() => {
+    if (bubble.kind === "reasoning") void refreshReasoningStatus();
+  }, [bubble.kind, refreshReasoningStatus, task.phase]);
 
   // Constellation box: prototype 380×312 (280×230 space), shrunk to fit narrow
   // screens; k scales the prototype's screen-px values proportionally.
@@ -265,14 +315,59 @@ export function ConstellationHome({
   const headSize = 200;
 
   const bubbleTag =
-    bubble.kind === "menu" ? t("ds.home.bubble.menuTag") : bubble.kind === "star" ? kindOf(bubble.id) : t("ds.home.bubble.introTag");
+    bubble.kind === "reasoning"
+      ? ko
+        ? "리즈닝"
+        : "REASONING"
+      : bubble.kind === "menu"
+          ? t("ds.home.bubble.menuTag")
+          : bubble.kind === "star"
+            ? kindOf(bubble.id)
+            : t("ds.home.bubble.introTag");
   const bubbleTitle = bubble.kind === "star" ? starName(bubble.id) : null;
   const bubbleLine =
-    bubble.kind === "menu"
-      ? t("ds.home.bubble.menu")
-      : bubble.kind === "star"
-        ? t(`ds.home.star.${bubble.id}.line`)
-        : t("ds.home.bubble.intro");
+    bubble.kind === "reasoning"
+      ? task.phase === "running" && task.resultHref === "/reasoning"
+        ? ko
+          ? "선택한 자료를 읽고 별을 잇는 중이에요."
+          : "I'm reading your selected items and connecting their stars."
+        : reasoningStatus.remaining !== null && reasoningStatus.remaining <= 0
+          ? ko
+            ? "이번 주 리즈닝을 다 썼어요. 월요일에 다시 채워져요."
+            : "This week's reasoning is used up. It refills Monday."
+          : reasoningStatus.automatic
+            ? ko
+              ? "자동 리즈닝이 켜져 있어요. 새 자료를 담으면 바로 이어요."
+              : "Automatic reasoning is on. New items connect right away."
+            : reasoningStatus.remaining === Infinity
+              ? ko
+                ? "필요한 자료를 골라 별을 이어볼까요?"
+                : "Choose the items whose stars you want to connect."
+              : reasoningStatus.remaining === null
+                ? ko
+                  ? "필요한 자료를 골라 별을 이어볼까요?"
+                  : "Choose the items whose stars you want to connect."
+                : ko
+                  ? `이번 주 ${reasoningStatus.remaining}회 남았어요. 어떤 자료를 이을까요?`
+                  : `${reasoningStatus.remaining} runs remain this week. What should we connect?`
+      : bubble.kind === "menu"
+          ? t("ds.home.bubble.menu")
+          : bubble.kind === "star"
+            ? t(`ds.home.star.${bubble.id}.line`)
+            : t("ds.home.bubble.intro");
+  const autoNoticeVisible =
+    noticeCenter.hydrated &&
+    noticeCenter.unreadCount > 0 &&
+    coachmarksDue === false &&
+    !autoNoticeDismissed;
+  const reasoningMode: ReasoningBubbleMode =
+    task.phase === "running" && task.resultHref === "/reasoning"
+      ? "running"
+      : reasoningStatus.remaining !== null && reasoningStatus.remaining <= 0
+        ? "depleted"
+        : reasoningStatus.automatic
+          ? "automatic"
+          : "available";
 
   return (
     <View style={styles.root} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
@@ -306,6 +401,32 @@ export function ConstellationHome({
           </Svg>
         </Pressable>
         {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
+      </View>
+
+      {/* Campaign is distinct from the inbox bell: it owns product news and
+          keeps the unread signal tied to a real persisted latest-notice ID. */}
+      <View style={styles.noticeBell}>
+        <Pressable
+          onPress={() => {
+            setBubble({ kind: "intro" });
+            setManualNoticeVisible(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={ko ? "공지사항" : "Notices"}
+          hitSlop={14}
+        >
+          <Svg width={20} height={20} viewBox="0 0 24 24">
+            <Path
+              d="M4 6.5h3l8-3v17l-8-3H4zM7 17.5 8.5 21h3L10 18M18 8v8"
+              stroke={m3.color.primary}
+              strokeWidth={1.8}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </Pressable>
+        {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
       </View>
 
       {/* constellation block (sb-home: flex 1, box centered, 84px top clearance) */}
@@ -441,7 +562,15 @@ export function ConstellationHome({
       <View style={styles.headBlock}>
         <View style={[styles.headAnchor, { marginTop: -104 - headSize / 2 }]}>
           <Pressable
-            onPress={() => setBubble((b) => (b.kind === "menu" ? { kind: "intro" } : { kind: "menu" }))}
+            onPress={() =>
+              setBubble((current) =>
+                current.kind === "intro"
+                  ? { kind: "reasoning" }
+                  : current.kind === "reasoning"
+                    ? { kind: "menu" }
+                    : { kind: "intro" },
+              )
+            }
             accessibilityRole="button"
             accessibilityLabel={t("ds.home.headA11y")}
           >
@@ -459,6 +588,61 @@ export function ConstellationHome({
               <Text style={styles.bubbleTitle} accessibilityLabel={bubbleTitle}>{keepAllKo(bubbleTitle)}</Text>
             ) : null}
             <Text style={styles.bubbleLine} accessibilityLabel={bubbleLine}>{keepAllKo(bubbleLine)}</Text>
+            {bubble.kind === "reasoning" ? (
+              <View style={styles.bubbleActions}>
+                {reasoningMode === "depleted" ? (
+                  <>
+                    {isMinor === false ? (
+                      <MdButton
+                        label={ko ? "광고로 1회 받기" : "Earn one run"}
+                        variant="filled"
+                        onPress={() => {
+                          setBubble({ kind: "intro" });
+                          router.push("/records");
+                        }}
+                      />
+                    ) : null}
+                    <MdButton
+                      label={ko ? "업그레이드" : "Upgrade"}
+                      variant="tonal"
+                      onPress={() => {
+                        setBubble({ kind: "intro" });
+                        router.push("/plans?from=reasoning_limit");
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <MdButton
+                      label={
+                        reasoningMode === "running"
+                          ? ko
+                            ? "진행 화면 보기"
+                            : "View progress"
+                          : ko
+                            ? "자료 선택"
+                            : "Choose items"
+                      }
+                      variant="filled"
+                      onPress={() => {
+                        setBubble({ kind: "intro" });
+                        router.push("/reasoning");
+                      }}
+                    />
+                    {reasoningMode !== "running" ? (
+                      <MdButton
+                        label={ko ? "자동 설정" : "Automatic"}
+                        variant="tonal"
+                        onPress={() => {
+                          setBubble({ kind: "intro" });
+                          router.push("/reasoning");
+                        }}
+                      />
+                    ) : null}
+                  </>
+                )}
+              </View>
+            ) : null}
             {bubble.kind === "menu" ? (
               <View style={styles.bubbleActions}>
                 <MdButton
@@ -496,6 +680,26 @@ export function ConstellationHome({
           </View>
         </View>
       </View>
+      <NoticeDialog
+        visible={autoNoticeVisible || manualNoticeVisible}
+        notice={LATEST_NOTICE}
+        index={0}
+        showPager={false}
+        onClose={() => {
+          setAutoNoticeDismissed(true);
+          setManualNoticeVisible(false);
+        }}
+        onList={() => {
+          setAutoNoticeDismissed(true);
+          setManualNoticeVisible(false);
+          router.push("/notices");
+        }}
+        onConfirm={() => {
+          setAutoNoticeDismissed(true);
+          setManualNoticeVisible(false);
+          void noticeCenter.markSeen(LATEST_NOTICE.id);
+        }}
+      />
     </View>
   );
 }
@@ -513,6 +717,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
+    ...m3.elevation.level2,
+  },
+  noticeBell: {
+    position: "absolute",
+    top: 4,
+    right: 16,
+    zIndex: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: withAlpha(m3.color.primary, 0.42),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(m3.color.primaryContainer, 0.72),
+    ...m3.elevation.level2,
   },
   bellDot: {
     position: "absolute",

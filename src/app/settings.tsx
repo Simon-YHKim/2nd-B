@@ -52,6 +52,7 @@ import {
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { useNoticeCenter } from "@/app/notices";
 import {
   deleteAllChatUsage,
   deleteAllUserData,
@@ -94,6 +95,8 @@ const ICON_PATHS: Record<string, string> = {
   chevron_right: '<path d="m9 18 6-6-6-6"/>',
   sync_alt: '<path d="m8 3-4 4 4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
   upload_file: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  campaign: '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
+  bolt: '<path d="m13 2-8 12h6l-1 8 9-13h-6z"/>',
 };
 
 function M3Icon({ name, color, size = 20, fill = false }: { name: string; color: string; size?: number; fill?: boolean }) {
@@ -176,7 +179,7 @@ function M3ToggleRow({ icon, label, sub, subAccessibilityLabel, checked, onChang
 // pattern A, fake success). Until a real per-source connector exists, settings
 // hands off honestly to the import/integration surfaces instead of claiming a
 // state that isn't there.
-function M3LinkRow({ icon, label, sub, onPress }: { icon: string; label: string; sub: string; onPress: () => void }) {
+function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: string; sub: string; badge?: number; onPress: () => void }) {
   return (
     <Pressable style={m3Styles.row} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
       <M3IconBadge icon={icon} active={false} />
@@ -184,6 +187,11 @@ function M3LinkRow({ icon, label, sub, onPress }: { icon: string; label: string;
         <RNText style={m3Styles.rowLabel}>{label}</RNText>
         <RNText style={m3Styles.rowSub}>{sub}</RNText>
       </View>
+      {badge && badge > 0 ? (
+        <View style={m3Styles.rowBadge}>
+          <RNText style={m3Styles.rowBadgeText}>{badge}</RNText>
+        </View>
+      ) : null}
       <M3Icon name="chevron_right" size={20} color={m3.color.onSurfaceVariant} />
     </Pressable>
   );
@@ -334,6 +342,7 @@ export default function Settings() {
   const dark = mode === "dark";
   const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
   const { features, setFeature, palette, setPalette } = useAppFeatures();
+  const noticeCenter = useNoticeCenter(userId);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -557,6 +566,22 @@ export default function Settings() {
     cyan: t("cyan"),
     violet: t("violet"),
   };
+  const newSurfaceCopy =
+    locale === "ko"
+      ? {
+          news: "소식",
+          notices: "공지사항",
+          noticesSub: "패치노트 · 개발자 소식",
+          reasoning: "리즈닝",
+          reasoningSub: "자동 실행 · 자료 선택",
+        }
+      : {
+          news: "News",
+          notices: "Notices",
+          noticesSub: "Patch notes · developer news",
+          reasoning: "Reasoning",
+          reasoningSub: "Automatic runs · item selection",
+        };
 
   return (
     <Chrome>
@@ -604,12 +629,31 @@ export default function Settings() {
           </View>
         </M3Group>
 
+        {/* 소식 */}
+        <M3SectionLabel>{newSurfaceCopy.news}</M3SectionLabel>
+        <M3Group>
+          <M3LinkRow
+            icon="campaign"
+            label={newSurfaceCopy.notices}
+            sub={newSurfaceCopy.noticesSub}
+            badge={noticeCenter.unreadCount}
+            onPress={() => router.push("/notices")}
+          />
+          <M3Divider />
+          <M3ToggleRow icon="bubble_chart" label={t("suggestionAlerts")} sub={t("suggestionAlertsDesc")} checked={featureOn("notify")} onChange={() => toggleFeature("notify")} />
+        </M3Group>
+
         {/* 기능 */}
         <M3SectionLabel>{t("features")}</M3SectionLabel>
         <M3Group>
-          <M3ToggleRow icon="auto_awesome" label={t("autoTagging")} sub={t("autoTaggingDesc")} checked={featureOn("autotag")} onChange={() => toggleFeature("autotag")} />
+          <M3LinkRow
+            icon="bolt"
+            label={newSurfaceCopy.reasoning}
+            sub={newSurfaceCopy.reasoningSub}
+            onPress={() => router.push("/reasoning")}
+          />
           <M3Divider />
-          <M3ToggleRow icon="bubble_chart" label={t("suggestionAlerts")} sub={t("suggestionAlertsDesc")} checked={featureOn("notify")} onChange={() => toggleFeature("notify")} />
+          <M3ToggleRow icon="auto_awesome" label={t("autoTagging")} sub={t("autoTaggingDesc")} checked={featureOn("autotag")} onChange={() => toggleFeature("autotag")} />
           <M3Divider />
           <M3ToggleRow icon="lock" label={t("appLock")} sub={t("appLockDesc")} checked={featureOn("applock")} onChange={() => toggleFeature("applock")} />
           <M3Divider />
@@ -1145,6 +1189,8 @@ const m3Styles = StyleSheet.create({
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
   iconBadge: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  rowBadge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
+  rowBadgeText: { ...koType(12, 16, 0, "700"), color: m3.color.onPrimary },
   switchTrack: { width: 52, height: 32, borderRadius: 9999, borderWidth: 2, justifyContent: "center" },
   switchThumb: { position: "absolute", borderRadius: 9999 },
   connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
