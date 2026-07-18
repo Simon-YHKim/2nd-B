@@ -1,72 +1,123 @@
-// Rewarded-ad SEAM -- the single boundary the RewardedSheet calls to play a
-// rewarded video. The AdMob SDK (react-native-google-mobile-ads) is NOT yet
-// installed: shipping it needs the package + a platform ad-unit id, which the
-// owner provisions.
+// Rewarded-ad boundary -- the single seam the RewardedSheet calls to play a
+// rewarded video. Real AdMob path since session Y (docs/admob-ump-plan_260718.html);
+// the SDK landed in session X with the UMP seam (./consent).
 //
-// IMPORTANT -- this seam answers "did the watch COMPLETE", nothing else:
+// IMPORTANT -- this module answers "did the watch COMPLETE", nothing else:
 //   - It grants USAGE COUNTS only (the +credits happen in the caller). It must
 //     never influence answer quality (entitlements SAME-QUALITY invariant).
-//   - WHETHER an ad may be shown at all (adult + ads consent + non-sensitive
-//     route + free tier) is the CALLER's gate, decided by canShowAds() in
-//     src/lib/ads/policy.ts. This module assumes the caller already passed that
-//     gate; it does not re-check eligibility.
-//   - FAIL-CLOSED (2026-07-18): with no SDK there is no EARNED_REWARD event,
-//     so there is no completed watch. The previous dev seam resolved
-//     completed:true here, which paid out real usage counts with no ad
-//     watched. Exercising the earn mechanic in dev/tests now goes through
-//     jest mocks of this module (or the real SDK on a dev build), never
-//     through a fabricated completion.
+//   - WHETHER an ad may be shown at all (adult + ads consent + free tier +
+//     allowed route) is the CALLER's gate: canShowRewardedAds() in ./policy.ts
+//     (#1076). This module assumes that gate already passed and adds the two
+//     Google-side gates in order: UMP regulatory consent, then SDK init.
+//   - FAIL-CLOSED everywhere: no consent signal, no SDK, no EARNED_REWARD
+//     event, load timeout, error -> { completed: false }. The only path to
+//     completed:true is Google's EARNED_REWARD event (#1068 contract).
 //
-// No top-level native-only import lives here, so the module is import-safe on
-// web and under jest.
+// No top-level native import lives here, so the module is import-safe on web
+// and under jest (same discipline as ./consent).
 
 import { Platform } from "react-native";
+
+import { ensureAdsInitialized, ensureUmpConsent } from "./consent";
 
 export interface RewardedResult {
   /** true when the user watched to the rewarded threshold and earned the reward. */
   completed: boolean;
 }
 
-/**
- * Whether a real rewarded-ad SDK is wired up in this build. Today it never is
- * (the SDK is not a dependency). When the owner adds AdMob, flip this to detect
- * the native module instead of returning false.
- *
- * This is NOT the eligibility gate -- see canShowAds() in ./policy.ts. A caller
- * MUST still confirm adult + ads consent + non-sensitive route before
- * presenting the sheet. This flag only reports SDK availability.
- */
-export function isRewardedAdSdkAvailable(): boolean {
-  // TODO(AdMob): return true once react-native-google-mobile-ads is installed
-  // and an ad-unit id is configured for the active platform.
-  // SSV note (0091): when wiring the real SDK, set serverSideVerificationOptions
-  // customData to `${userId}` for a reasoning reward or `${userId}|chat` for a
-  // chat +2 -- the rewarded-ssv edge function routes on that suffix.
-  return false;
+export interface ShowRewardedAdOptions {
+  /** SSV customData (0091 contract): `${userId}` credits a reasoning reward,
+   *  `${userId}|chat` credits a chat +2 -- the rewarded-ssv edge function
+   *  routes on that suffix. Omitted = client-grant path only. */
+  ssvCustomData?: string;
+  /** Dev builds only: force the EEA debug geography so the published GDPR
+   *  consent form can be exercised from anywhere. No-op in production. */
+  debugUmpEea?: boolean;
 }
+
+type GoogleMobileAdsModule = typeof import("react-native-google-mobile-ads");
+
+function loadSdk(): GoogleMobileAdsModule | null {
+  if (Platform.OS === "web") return null;
+  try {
+    return require("react-native-google-mobile-ads") as GoogleMobileAdsModule;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the rewarded-ad SDK is present in this build (web/Expo Go: no). */
+export function isRewardedAdSdkAvailable(): boolean {
+  return loadSdk() !== null;
+}
+
+/** How long a load may take before we fail closed instead of hanging the sheet. */
+const LOAD_TIMEOUT_MS = 20_000;
 
 /**
  * Play a rewarded video and resolve whether it completed.
  *
- * Real path (TODO): construct an AdMob RewardedAd, load it, present it, and
- * resolve completed:true ONLY on the EARNED_REWARD event (false on
- * dismiss-before-reward or load error).
- *
- * SDK-absent path (web, jest, or package not installed): resolve
- * completed:false immediately. The caller already treats false as
- * dismiss-without-reward (the sheet closes and nothing is granted), which is
- * exactly the honest outcome when no ad could be shown.
+ * Order of gates (each fails closed):
+ *   1. SDK present (web / Expo Go / jest resolve false immediately)
+ *   2. UMP regulatory consent (./consent) -- lazy, right before the request
+ *   3. SDK initialize
+ *   4. PRODUCTION GUARD: no real ad unit exists yet (creating live units is
+ *      forbidden until launch GO), so non-dev builds fail closed even if
+ *      EXPO_PUBLIC_ENABLE_ADS were flipped. Dev builds use Google's official
+ *      TEST unit. Replacing this guard with the real unit id is the launch
+ *      change, nowhere else.
+ *   5. resolve completed:true ONLY on RewardedAdEventType.EARNED_REWARD;
+ *      dismiss-before-reward, load error, or timeout resolve false.
  */
-export async function showRewardedAd(): Promise<RewardedResult> {
-  if (isRewardedAdSdkAvailable() && Platform.OS !== "web") {
-    // TODO(AdMob): wire react-native-google-mobile-ads RewardedAd here.
-    //   import { RewardedAd, RewardedAdEventType } from "react-native-google-mobile-ads";
-    //   const ad = RewardedAd.createForAdRequest(adUnitId);
-    //   resolve completed:true on RewardedAdEventType.EARNED_REWARD,
-    //   completed:false on CLOSED-without-reward or error.
-    // Falls through fail-closed until the SDK is present (never reached today).
-  }
+export async function showRewardedAd(opts?: ShowRewardedAdOptions): Promise<RewardedResult> {
+  const sdk = loadSdk();
+  if (!sdk) return { completed: false };
 
-  // Fail-closed: no SDK, no EARNED_REWARD event, no reward.
-  return { completed: false };
+  const consent = await ensureUmpConsent(opts?.debugUmpEea ? { debugGeographyEea: true } : undefined);
+  if (!consent.canRequestAds) return { completed: false };
+  if (!(await ensureAdsInitialized())) return { completed: false };
+
+  if (!__DEV__) {
+    // No live ad unit has been created (owner instruction). Fail closed in
+    // production until the real unit id replaces this guard at launch.
+    return { completed: false };
+  }
+  const unitId = sdk.TestIds.REWARDED;
+
+  const request = opts?.ssvCustomData
+    ? { serverSideVerificationOptions: { customData: opts.ssvCustomData } }
+    : undefined;
+  const ad = sdk.RewardedAd.createForAdRequest(unitId, request);
+
+  return await new Promise<RewardedResult>((resolve) => {
+    let earned = false;
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const subs: Array<() => void> = [];
+    const settle = (completed: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== null) clearTimeout(timeoutId);
+      for (const unsub of subs) unsub();
+      resolve({ completed });
+    };
+
+    subs.push(
+      ad.addAdEventListener(sdk.RewardedAdEventType.LOADED, () => {
+        if (timeoutId !== null) clearTimeout(timeoutId);
+        timeoutId = null;
+        ad.show();
+      }),
+      ad.addAdEventListener(sdk.RewardedAdEventType.EARNED_REWARD, () => {
+        earned = true;
+      }),
+      // CLOSED fires after EARNED_REWARD on a full watch; on early dismiss
+      // earned is still false -- the honest no-reward outcome.
+      ad.addAdEventListener(sdk.AdEventType.CLOSED, () => settle(earned)),
+      ad.addAdEventListener(sdk.AdEventType.ERROR, () => settle(earned)),
+    );
+
+    timeoutId = setTimeout(() => settle(false), LOAD_TIMEOUT_MS);
+    ad.load();
+  });
 }
