@@ -1,22 +1,41 @@
 # Android build (APK + AAB) via GitHub Actions
 
-This repo builds Android **locally inside GitHub Actions** (`expo prebuild` ->
-local gradle), so you can produce installable artifacts **without an Expo
-account / `EXPO_TOKEN`** and without any paid service ($0/mo). EAS cloud build
-is kept as a documented secondary path in `eas.json`.
+This repo has two Android build paths:
 
-Workflow: `.github/workflows/android-release.yml`. (This is separate from the
-web `gh-pages` deploy in `web-deploy.yml`, which is untouched.)
+- **Install-facing preview APK**: EAS-managed signing through
+  `.github/workflows/eas-preview-build.yml`. Use this to upgrade an existing
+  EAS preview install in place.
+- **Diagnostic APK + store AAB**: local Gradle inside GitHub Actions through
+  `.github/workflows/android-release.yml`.
+
+Both paths are separate from the web `gh-pages` deploy in `web-deploy.yml`.
 
 ## How to trigger
 
-Two ways:
+### EAS preview APK
+
+Run **EAS Preview Build (APK)** from the Actions tab. The workflow:
+
+1. restores and validates `google-services.json` from the
+   `GOOGLE_SERVICES_JSON_BASE64` repository secret;
+2. verifies the OTA/native runtime policy;
+3. submits an EAS `preview` build using `EXPO_TOKEN`.
+
+The EAS build uses remote version management and EAS-managed signing. Download
+the finished APK from the EAS build URL. This is the preferred artifact for
+`adb install -r` over an existing EAS preview app.
+
+### Local Gradle APK + AAB
+
+Two trigger options:
 
 1. **Push a tag** matching `v*` (e.g. `v0.0.1`):
+
    ```bash
    git tag v0.0.1
    git push origin v0.0.1
    ```
+
    This builds the APK + AAB **and creates a GitHub Release** with both files
    attached.
 
@@ -27,6 +46,9 @@ Two ways:
 
 ## Where the artifacts land
 
+- **EAS preview build**: on the EAS build page linked from the workflow log.
+  Release-worthy APKs may also be attached to the matching GitHub Release with
+  an explicit `eas-vc<versionCode>-preview` filename.
 - **Always**: as **workflow artifacts** named `2ndb-android-<sha>` (Actions run
   page -> Artifacts; 30-day retention). Contains `2ndb-<sha>.apk` and
   `2ndb-<sha>.aab`.
@@ -57,12 +79,12 @@ For a **real, store-submittable signed build**, add these repository secrets
 (Settings -> Secrets and variables -> Actions). When `ANDROID_KEYSTORE_BASE64`
 is present, the workflow uses your real keystore automatically:
 
-| Secret | Meaning |
-|---|---|
-| `ANDROID_KEYSTORE_BASE64` | base64 of your upload keystore (`.jks`/`.keystore`). Generate locally with `keytool -genkeypair`, then `base64 -w0 my-upload-key.keystore`. |
-| `ANDROID_KEYSTORE_PASSWORD` | keystore (store) password |
-| `ANDROID_KEY_ALIAS` | key alias inside the keystore |
-| `ANDROID_KEY_PASSWORD` | key password for that alias |
+| Secret                      | Meaning                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANDROID_KEYSTORE_BASE64`   | base64 of your upload keystore (`.jks`/`.keystore`). Generate locally with `keytool -genkeypair`, then `base64 -w0 my-upload-key.keystore`. |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore (store) password                                                                                                                   |
+| `ANDROID_KEY_ALIAS`         | key alias inside the keystore                                                                                                               |
+| `ANDROID_KEY_PASSWORD`      | key password for that alias                                                                                                                 |
 
 Keep the real keystore file out of git (`*.jks` / `*.keystore` / `*.key` are
 already gitignored). Back it up safely — losing your Play upload key is painful
@@ -71,15 +93,17 @@ to recover.
 ## App identity
 
 - `android.package` = `com.simonk.secondbrain` (from `app.json`, unchanged).
-- `android.versionCode` = `1` in `app.json`. Bump this manually for each Play
-  upload (Play rejects a re-used versionCode). The EAS `production` profile uses
-  `autoIncrement` for the cloud path, but the local gradle path reads the value
-  from `app.json`.
+- The local Gradle path reads `android.versionCode` from `app.json`. Bump it
+  monotonically before each Play upload because Play rejects a reused or lower
+  version code.
+- EAS uses `appVersionSource: remote` plus `autoIncrement`; the actual EAS
+  version code can therefore differ from `app.json`. Confirm it on the EAS
+  build page before publishing or installing.
 
-## EAS cloud path (secondary, optional)
+## EAS profiles
 
-`eas.json` documents three profiles for when/if an Expo account is set up:
+`eas.json` documents three profiles:
 `development` (dev client, internal), `preview` (internal, `android.buildType:
-apk`), `production` (`android.buildType: app-bundle`). Run e.g.
-`eas build -p android --profile preview`. This requires an Expo login and is not
-needed for the GitHub Actions gradle path above.
+apk`), and `production` (`android.buildType: app-bundle`). Prefer the
+secret-backed GitHub workflow for preview builds instead of running from a
+dirty local checkout.
