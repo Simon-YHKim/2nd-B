@@ -2,9 +2,10 @@ name: Android Release (APK + AAB)
 
 # Self-contained Android build path: expo prebuild -> local gradle.
 # Does NOT require an Expo account / EXPO_TOKEN. Produces a sideload APK and a
-# store AAB. Publishes a GitHub Release on a v* tag, on a manual dispatch with a
-# release_tag, and on a main push when app.json's version has no Release yet
-# (one Release per version). Other main pushes only upload workflow artifacts.
+# store AAB. Publishes a GitHub Release only on a v* tag or a manual dispatch
+# with release_tag. Main pushes upload workflow artifacts only: the installed
+# preview APK uses EAS-managed signing, so a differently signed Gradle APK must
+# never be advertised as its in-place upgrade.
 #
 # EAS cloud build is the documented secondary path (see eas.json + docs/ANDROID-BUILD.md).
 
@@ -17,8 +18,8 @@ on:
         default: ""
   # Auto-build whenever app code/assets/native config land on main (mirrors
   # web-deploy.yml). Path-filtered so docs-only merges don't spend a ~10 min
-  # native build. A main push uploads the APK/AAB as workflow artifacts and, when
-  # app.json's version has no Release yet, also publishes that version's Release.
+  # native build. A main push uploads APK/AAB workflow artifacts for diagnostics
+  # but never creates an install-facing Release.
   push:
     branches:
       - main
@@ -26,6 +27,7 @@ on:
       - "src/**"
       - "assets/**"
       - "app.json"
+      - "app.config.js"
       - "eas.json"
       - "package.json"
       - "package-lock.json"
@@ -127,43 +129,35 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Verify OTA/native runtime policy
+        run: npm run check:ota-runtime
+
       # --- Firebase config ---------------------------------------------------
-      # google-services.json is gitignored (never committed). Preferred: the
-      # real file via the GOOGLE_SERVICES_JSON_BASE64 repo secret (base64 of
-      # the Firebase console download). Fallback (no secret): a placeholder so
-      # prebuild/gradle still succeed - Firebase Analytics is then INERT in the
-      # artifact, which is safe because collection defaults OFF (firebase.json)
-      # and only enables behind the adult+consent runtime gate.
+      # google-services.json is gitignored (never committed). A real config is
+      # required through GOOGLE_SERVICES_JSON_BASE64. Failing closed prevents a
+      # nominal release whose Firebase native module is present but inert.
       - name: Provision google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         run: |
           set -euo pipefail
-          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" ]; then
-            echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > google-services.json
-            echo "Real google-services.json provisioned from secret."
-          else
-            echo "::warning::GOOGLE_SERVICES_JSON_BASE64 secret missing - writing a placeholder google-services.json. Firebase Analytics will be INERT in this build."
-            cat > google-services.json <<'EOF'
-          {
-            "project_info": {
-              "project_number": "000000000000",
-              "project_id": "secondbrain-placeholder",
-              "storage_bucket": "secondbrain-placeholder.appspot.com"
-            },
-            "client": [
-              {
-                "client_info": {
-                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
-                  "android_client_info": { "package_name": "com.simonk.secondbrain" }
-                },
-                "oauth_client": [],
-                "api_key": [{ "current_key": "AIzaSyA0000000000000000000000000000000000" }],
-                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
-              }
-            ],
-            "configuration_version": "1"
-          }
-          EOF
+          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON_BASE64 is required for Android releases."
+            exit 1
           fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > google-services.json
+          node -e '
+            const config = require("./google-services.json");
+            const clients = config.client || [];
+            const valid = clients.some(
+              (client) =>
+                client.client_info?.android_client_info?.package_name ===
+                "com.simonk.secondbrain",
+            );
+            if (!valid) throw new Error("Firebase config package mismatch");
+          '
+          echo "GOOGLE_SERVICES_JSON=$GITHUB_WORKSPACE/google-services.json" >> "$GITHUB_ENV"
+          echo "Real google-services.json provisioned and validated."
 
       - name: Setup Java 17 (Temurin)
         uses: actions/setup-java@v4
@@ -256,9 +250,7 @@ jobs:
       # Decide whether to publish a GitHub Release and under which tag:
       #   - dispatch with release_tag -> that tag, always publish
       #   - v* tag push               -> that tag, always publish
-      #   - main push                 -> v<app.json version>, publish only if that
-      #                                  Release does not already exist (one per
-      #                                  version; routine pushes just keep artifacts)
+      #   - main push                 -> artifacts only; EAS owns upgrade signing
       - name: Resolve release target
         id: rel
         env:
@@ -271,14 +263,9 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             TAG="${{ github.ref_name }}"; PUBLISH=true
           else
-            TAG="v$(node -p "require('./app.json').expo.version")"
-            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              PUBLISH=false
-            else
-              PUBLISH=true
-            fi
+            TAG=""; PUBLISH=false
           fi
-          echo "Release target: $TAG (publish=$PUBLISH)"
+          echo "Release target: ${TAG:-none} (publish=$PUBLISH)"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
 
