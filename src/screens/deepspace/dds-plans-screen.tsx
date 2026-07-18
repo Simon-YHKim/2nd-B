@@ -16,7 +16,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Path } from "react-native-svg";
 
@@ -24,7 +24,8 @@ import { m3 } from "@/lib/theme/m3";
 import { TIER_PRICE_KRW, REWARD_PER_WATCH, REWARD_MONTHLY_CAP } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
-import { adsConfigured } from "@/lib/ads/policy";
+import { canShowRewardedAds } from "@/lib/ads/policy";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -104,9 +105,12 @@ export function DeepSpacePlansScreen() {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language === "ko";
 
-  const { userId } = useAuth();
-  const { tier: currentTier } = useProgression();
+  const { userId, isMinor } = useAuth();
+  const { tier: currentTier, loading: tierLoading } = useProgression();
+  const pathname = usePathname();
   const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
+  // users.privacy_prefs.ads - null until resolved; the rewarded gate fails closed.
+  const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
 
   // Real native IAP scaffold (unchanged): RevenueCat routes the Offering to
   // Google Play Billing (Android) / Apple IAP (iOS). On web / no key / no
@@ -120,6 +124,29 @@ export function DeepSpacePlansScreen() {
   const [error, setError] = useState<string | null>(null);
   const available = arePurchasesAvailable();
   const [rewardVisible, setRewardVisible] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchPrivacyPrefs(userId)
+      .then((prefs) => {
+        if (!cancelled) setAdsConsent(prefs.ads === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // Rewarded entry eligibility (policy rules 1-5; every null fails closed).
+  const rewardedAllowed = canShowRewardedAds({
+    tier: tierLoading ? null : currentTier,
+    isMinor,
+    adsConsent,
+    route: pathname ?? "/",
+  });
 
   useEffect(() => {
     let alive = true;
@@ -355,10 +382,11 @@ export function DeepSpacePlansScreen() {
       {error ? <Text style={s.error}>{error}</Text> : null}
 
       {/* free top-up via opt-in rewarded ad (COUNTS only, never quality).
-          Guarded by adsConfigured(): with ads OFF (the shipping default) there
-          is no ad to watch, so showing "watch an ad for +N" is a lever that
-          can never pay out — hide it entirely rather than fake a completion. */}
-      {adsConfigured() ? (
+          Entry requires the FULL rewarded gate (canShowRewardedAds): build
+          flag + free tier + confirmed non-minor + explicit ads consent +
+          rewarded route allow-list. With any of those missing there is no ad
+          that can pay out — hide the lever entirely rather than fake it. */}
+      {rewardedAllowed ? (
         <>
           <Text style={s.sectionLabel}>{t("ds.plans.growWithoutPaying")}</Text>
           <Pressable
@@ -398,7 +426,7 @@ export function DeepSpacePlansScreen() {
       ) : null}
 
       <RewardedSheet
-        visible={rewardVisible}
+        visible={rewardVisible && rewardedAllowed}
         onClose={() => setRewardVisible(false)}
         remaining={freeRemaining ?? 0}
         onEarned={async (credits) => {
