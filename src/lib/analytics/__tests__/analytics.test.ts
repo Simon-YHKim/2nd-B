@@ -919,4 +919,81 @@ describe("runtime analytics web transitions", () => {
     expect(clarity.mock.calls.some(([command]) => command === "consentv2")).toBe(true);
     analytics.__resetAnalytics();
   });
+
+  // Cookie purge on consent revoke. document.cookie never reveals a cookie's
+  // domain/path, so the module expires every tracker name across host-only,
+  // hostname, and dot-hostname variants at "/", the base path, and the base
+  // path with a trailing slash.
+  function stubCookieJar(): string[] {
+    const writes: string[] = [];
+    Object.defineProperty(globalThis.document, "cookie", {
+      configurable: true,
+      // The measured post-revoke jar from the 2026-07-18 production pass
+      // (_clck + _ga + the full _ga_<CONTAINER> stream cookie), plus _clsk
+      // for prefix coverage and a non-tracker control.
+      get: () => "_clck=abc; _clsk=def; _ga=GA1.1.1; _ga_R6BK0F1RWE=stream; other=keep",
+      set: (value: string) => {
+        writes.push(value);
+      },
+    });
+    (globalThis.window as { location?: { origin?: string; hostname?: string } }).location!.hostname =
+      "example.test";
+    return writes;
+  }
+
+  test("a real revoke expires _clck/_clsk/_ga* across domain and path variants", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics } = loadWebModule(rows);
+    const writes = stubCookieJar();
+    analytics.setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+    await flushAsyncWork();
+    analytics.setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
+    // 4 tracker names x 3 paths x 3 domain variants; "other" is untouched.
+    expect(writes).toHaveLength(36);
+    expect(writes).toContain("_clck=; Max-Age=0; path=/");
+    expect(writes).toContain("_ga_R6BK0F1RWE=; Max-Age=0; path=/2nd-B; domain=.example.test");
+    expect(writes).toContain("_clsk=; Max-Age=0; path=/2nd-B/; domain=example.test");
+    expect(writes.some((entry) => entry.startsWith("other="))).toBe(false);
+    analytics.__resetAnalytics();
+  });
+
+  test("the boot-time preemptive revoke never purges (no client-id churn for consented users)", () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics } = loadWebModule(rows);
+    const writes = stubCookieJar();
+    // The _layout guard fires this on every auth transition BEFORE the server
+    // decision resolves - denied state, no prior grant, no expectedRevision.
+    analytics.setAnalyticsConsent(false, { isMinor: true, confirmedAdult: false });
+    expect(writes).toHaveLength(0);
+    analytics.__resetAnalytics();
+  });
+
+  test("a server-resolved denial purges even without an in-session grant (cross-device revoke)", () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: false },
+      ],
+    };
+    const { analytics } = loadWebModule(rows);
+    const writes = stubCookieJar();
+    analytics.setAnalyticsConsent(
+      false,
+      { isMinor: true, confirmedAdult: false },
+      { expectedRevision: analytics.getAnalyticsConsentRevision() },
+    );
+    expect(writes.length).toBeGreaterThan(0);
+    expect(writes).toContain("_ga=; Max-Age=0; path=/");
+    analytics.__resetAnalytics();
+  });
 });

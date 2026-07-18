@@ -1,83 +1,77 @@
-# Android build (APK + AAB) via GitHub Actions
+# Android build and release (APK + AAB)
 
 This repo has two Android build paths:
 
-- **Install-facing preview APK**: EAS-managed signing through
-  `.github/workflows/eas-preview-build.yml`. Use this to upgrade an existing
-  EAS preview install in place.
-- **Diagnostic APK + store AAB**: local Gradle inside GitHub Actions through
-  `.github/workflows/android-release.yml`.
+- **Public release APK + AAB**: EAS-managed signing through
+  `.github/workflows/eas-preview-build.yml`.
+- **Diagnostic APK**: local Gradle through
+  `.github/workflows/android-release.yml`. It remains an Actions artifact and is
+  never attached to a public GitHub Release.
 
 Both paths are separate from the web `gh-pages` deploy in `web-deploy.yml`.
 
 ## How to trigger
 
-### EAS preview APK
+### EAS public release build
 
-Run **EAS Preview Build (APK)** from the Actions tab. The workflow:
+Run **EAS Android Build (APK / AAB)** from the Actions tab and select:
+
+- `preview`: install-facing APK, EAS preview channel.
+- `production`: Google Play AAB, EAS production channel.
+
+The workflow:
 
 1. restores and validates `google-services.json` from the
    `GOOGLE_SERVICES_JSON_BASE64` repository secret;
 2. verifies the OTA/native runtime policy;
-3. submits an EAS `preview` build using `EXPO_TOKEN`.
+3. submits the selected build profile using `EXPO_TOKEN`;
+4. prints a stable EAS build ID and build page URL.
 
-The EAS build uses remote version management and EAS-managed signing. Download
-the finished APK from the EAS build URL. This is the preferred artifact for
-`adb install -r` over an existing EAS preview app.
+EAS uses remote version management, profile-specific channels, and managed
+signing. Download the finished APK or AAB from the EAS build page.
 
-### Local Gradle APK + AAB
+For a public version `vX.Y.Z`, attach exactly these two canonical assets to the
+matching GitHub Release:
 
-Two trigger options:
+- `2ndB-vX.Y.Z.apk`
+- `2ndB-vX.Y.Z.aab`
 
-1. **Push a tag** matching `v*` (e.g. `v0.0.1`):
+The APK is the only user-installable file. The AAB is retained beside it for
+Google Play Console upload.
 
-   ```bash
-   git tag v0.0.1
-   git push origin v0.0.1
-   ```
+### Local Gradle diagnostic build
 
-   This builds the APK + AAB **and creates a GitHub Release** with both files
-   attached.
-
-2. **Manual run** (`workflow_dispatch`): Actions tab -> "Android Release
-   (APK + AAB)" -> Run workflow. Leave the `release_tag` input blank to just
-   produce downloadable workflow artifacts, or set it (e.g. `v0.0.1`) to also
-   cut a GitHub Release.
+Run **Android Diagnostic Build (APK)** manually, or let its path-filtered
+`main` trigger run after native-relevant changes. It never creates or modifies a
+GitHub Release.
 
 ## Where the artifacts land
 
-- **EAS preview build**: on the EAS build page linked from the workflow log.
-  Release-worthy APKs may also be attached to the matching GitHub Release with
-  an explicit `eas-vc<versionCode>-preview` filename.
-- **Always**: as **workflow artifacts** named `2ndb-android-<sha>` (Actions run
-  page -> Artifacts; 30-day retention). Contains `2ndb-<sha>.apk` and
-  `2ndb-<sha>.aab`.
-- **On a tag (or with a `release_tag` input)**: also attached to a **GitHub
-  Release** under the same names.
-
-Download the `.apk` from there to test on a device.
+- **EAS release builds**: EAS build page linked in the workflow summary.
+- **Local Gradle diagnostics**: workflow artifact
+  `2ndb-android-<sha>` with 30-day retention.
+- **Public release**: one canonical APK plus one canonical AAB, both from EAS.
 
 ## APK (sideload) vs AAB (store)
 
-- **`2ndb-<sha>.apk`** - sideload / internal testing. Install directly:
-  `adb install 2ndb-<sha>.apk`, or copy to the phone and open it (enable
+- **`2ndB-vX.Y.Z.apk`** - sideload / internal testing. Install directly:
+  `adb install -r 2ndB-vX.Y.Z.apk`, or copy to the phone and open it (enable
   "install from unknown sources"). This is what you use to test on your own
   Android device right now.
-- **`2ndb-<sha>.aab`** - the Android App Bundle for **Google Play store**
+- **`2ndB-vX.Y.Z.aab`** - the Android App Bundle for **Google Play**
   upload. You cannot install an `.aab` directly on a device; Play (or
   `bundletool`) turns it into device-specific APKs.
 
 ## Signing & secrets
 
-By default (no secrets set) the workflow generates a **throwaway test
-keystore** in CI. That is fine for sideloading the APK and for smoke-testing,
-but the resulting **AAB is NOT valid for a real Play store submission** — each
-CI run signs with a different ephemeral key, and Play requires a stable upload
-key.
+Canonical APK/AAB release artifacts use EAS-managed signing and require:
 
-For a **real, store-submittable signed build**, add these repository secrets
-(Settings -> Secrets and variables -> Actions). When `ANDROID_KEYSTORE_BASE64`
-is present, the workflow uses your real keystore automatically:
+| Secret                        | Meaning                                        |
+| ----------------------------- | ---------------------------------------------- |
+| `EXPO_TOKEN`                  | Non-interactive EAS authentication             |
+| `GOOGLE_SERVICES_JSON_BASE64` | Current Android Firebase configuration, base64 |
+
+The diagnostic Gradle workflow can optionally use a stable, separate keystore:
 
 | Secret                      | Meaning                                                                                                                                     |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,16 +88,14 @@ to recover.
 
 - `android.package` = `com.simonk.secondbrain` (from `app.json`, unchanged).
 - The local Gradle path reads `android.versionCode` from `app.json`. Bump it
-  monotonically before each Play upload because Play rejects a reused or lower
-  version code.
+  only for diagnostic parity.
 - EAS uses `appVersionSource: remote` plus `autoIncrement`; the actual EAS
-  version code can therefore differ from `app.json`. Confirm it on the EAS
-  build page before publishing or installing.
+  version code can differ from `app.json`. Confirm it on the EAS build page
+  before publishing or uploading to Play.
 
 ## EAS profiles
 
 `eas.json` documents three profiles:
 `development` (dev client, internal), `preview` (internal, `android.buildType:
-apk`), and `production` (`android.buildType: app-bundle`). Prefer the
-secret-backed GitHub workflow for preview builds instead of running from a
-dirty local checkout.
+apk`), and `production` (`android.buildType: app-bundle`). Use the secret-backed
+GitHub workflow instead of running a release build from a dirty local checkout.

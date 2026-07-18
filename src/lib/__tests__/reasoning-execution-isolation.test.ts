@@ -26,7 +26,7 @@ describe("reasoning execution isolation", () => {
 
   test("the home reward action is fail-closed for age, tier and ad config", () => {
     const home = readRepoFile("src/components/deep-space/ConstellationHome.tsx");
-    const guard = '{isMinor === false && progression.tier === "free" && adsConfigured() ? (';
+    const guard = '{isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (';
     const rewardLabel = "광고 보고 ${REWARD_PER_WATCH}회 받기";
     const guardIndex = home.indexOf(guard);
     const rewardIndex = home.indexOf(rewardLabel);
@@ -60,7 +60,7 @@ describe("reasoning execution isolation", () => {
       "if (hasProfile !== true || isMinor == null) return <InlineLoader />;",
     );
     expect(reasoning).toContain(
-      '{isMinor === false && progression.tier === "free" && adsConfigured() ? (',
+      '{isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (',
     );
     expect(reasoning).not.toContain("{isMinor !== true ? (");
   });

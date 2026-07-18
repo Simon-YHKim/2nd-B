@@ -96,9 +96,13 @@ describe("canShowRewardedAds", () => {
     };
   }
 
-  test("free adult with consent on /plans or /secondb: allowed", () => {
+  test("free adult with consent on an allowed route: /plans, /secondb, home, /reasoning", () => {
     expect(canShowRewardedAds(rewardedEligible())).toBe(true);
     expect(canShowRewardedAds(rewardedEligible({ route: "/secondb" }))).toBe(true);
+    // The reasoning limit sheet's surfaces (spec F 계약 14): the home
+    // constellation bubble ("/", exact-match by construction) and /reasoning.
+    expect(canShowRewardedAds(rewardedEligible({ route: "/" }))).toBe(true);
+    expect(canShowRewardedAds(rewardedEligible({ route: "/reasoning" }))).toBe(true);
   });
 
   test("paying tiers and UNKNOWN (loading) tier fail closed", () => {
@@ -120,9 +124,11 @@ describe("canShowRewardedAds", () => {
   });
 
   test("rewarded allow-list excludes every other route, including the banner route", () => {
-    for (const route of ["/", "/records", "/records/filter", "/capture", "/journal", "/record/abc", "/privacy"]) {
+    for (const route of ["/records", "/records/filter", "/capture", "/journal", "/record/abc", "/privacy"]) {
       expect(canShowRewardedAds(rewardedEligible({ route }))).toBe(false);
     }
+    // "/" admits ONLY the exact home route — no accidental global prefix.
+    expect(canShowRewardedAds(rewardedEligible({ route: "/anything" }))).toBe(false);
   });
 
   test("build flag off = no rewarded entry; a missing AdSense client does NOT block (AdMob track)", () => {
@@ -145,11 +151,15 @@ describe("canShowRewardedAds", () => {
 });
 
 describe("isRewardedAdAllowedRoute", () => {
-  test("prefix match covers nested plans/secondb paths and nothing else", () => {
+  test("prefix match covers the listed surfaces and nothing else", () => {
     expect(isRewardedAdAllowedRoute("/plans")).toBe(true);
     expect(isRewardedAdAllowedRoute("/secondb")).toBe(true);
     expect(isRewardedAdAllowedRoute("/secondb/session")).toBe(true);
+    // Reasoning limit sheet surfaces: home is EXACT-match only ("/"'s
+    // startsWith arm would need "//"), /reasoning is a normal prefix.
+    expect(isRewardedAdAllowedRoute("/")).toBe(true);
+    expect(isRewardedAdAllowedRoute("/reasoning")).toBe(true);
     expect(isRewardedAdAllowedRoute("/records")).toBe(false);
-    expect(isRewardedAdAllowedRoute("/")).toBe(false);
+    expect(isRewardedAdAllowedRoute("/anything")).toBe(false);
   });
 });
