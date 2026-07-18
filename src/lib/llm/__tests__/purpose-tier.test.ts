@@ -77,7 +77,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     expect(PURPOSE_TIER.gap_synthesize).toBe("flash");
     expect(PURPOSE_TIER.self_model_propose).toBe("flash");
     expect(PURPOSE_TIER.advisor).toBe("pro");
-    expect(PURPOSE_TIER.journal_reflect).toBe("pro");
+    expect(PURPOSE_TIER.reasoning_connect).toBe("pro");
     // Routing decisions (docs/LLM-ROUTING.md): interview_probe demoted to
     // flash (deterministic layer choice; LLM only drafts one question), and
     // the two previously-unmapped estimate purposes pinned explicitly.
@@ -106,11 +106,11 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     expect(r.audit.modelUsed).toBe(`mock:${MODELS.flash}`);
   });
 
-  test("reasoning purpose (journal_reflect) routes to the pro model id", async () => {
+  test("reasoning purpose (reasoning_connect) routes to the pro model id", async () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "today felt long",
     });
     expect(r.audit.modelUsed).toBe(`mock:${MODELS.pro}`);
@@ -142,7 +142,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "go on",
     });
     const audit = r.audit as AuditMeta;
@@ -155,7 +155,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "go on",
       effort: "max",
     });

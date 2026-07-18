@@ -13,9 +13,18 @@ export type GeminiModel = "lite" | "flash" | "pro";
 export type ReasoningEffort = "low" | "medium" | "high" | "xhigh" | "max";
 
 export type PromptPurpose =
-  | "journal_reflect"
   | "audit_qa"
-  | "knowledge_lookup"
+  // D-26 A14 rename: knowledge_lookup -> source_ingest (the wiki 4-question
+  // source intake). Old audit rows keep the historical label (text column; no
+  // migration needed) — see docs/LLM-ROUTING.md §4 감사 연속성.
+  | "source_ingest"
+  // The /reasoning deep-run domain-link batches (0092 lifecycle). Formerly
+  // mislabeled journal_reflect (records) / knowledge_lookup (sources) — both
+  // D-26 폐기/개명 대상. Deliberately its OWN purpose, NOT cluster_infer: that
+  // seat is reserved for the wiki cluster rationale and is Phase-2 mapped to
+  // OpenAI, while the deep run stays on the Gemini backbone until the Phase-2
+  // cutover decides its seat. Old audit rows keep the historical labels.
+  | "reasoning_connect"
   // D-26 taxonomy split: the old catch-all "persona_chat" covered three
   // semantically different call-sites with different Phase 2 seats. Split so
   // routing + audit attribution are per-situation. Old audit rows keep the
@@ -171,7 +180,7 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   ops_recommend: "flash",
   ops_daily_brief: "flash",
   audit_qa: "flash",
-  knowledge_lookup: "flash",
+  source_ingest: "flash",
   import_ingest: "flash",
   clipper_template_propose: "flash",
   // 북극성 persona synthesis (layer C). v1 flash (CONSTELLATION-DESIGN §17-f);
@@ -195,10 +204,14 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   axis_estimate: "flash",
   // pro: reasoning / nuance
   advisor: "pro",
-  journal_reflect: "pro",
+  // The /reasoning deep-run batches (call sites also pass model:"pro"
+  // explicitly since #1063; this row makes the table agree with them).
+  reasoning_connect: "pro",
   imagine: "pro",
-  // Proto rev2 routing seats (call-sites pending). digest_weekly is the
-  // highest-stakes causal claim -> pro on the Gemini backbone; cluster_infer and
+  // Proto rev2 routing seats. digest_weekly is the highest-stakes causal claim
+  // -> pro on the Gemini backbone; cluster_infer (now live: the /reasoning
+  // domain-link batches, which pass model:"pro" explicitly per the #1063
+  // implementation — explicit model wins over this table) and
   // ttfv_first_insight are structured/precompute -> flash.
   digest_weekly: "pro",
   cluster_infer: "flash",

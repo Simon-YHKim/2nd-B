@@ -189,18 +189,21 @@ async function writeCrisisEvent(
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "journal_reflect" | "audit_qa" | "knowledge_lookup" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "ops_daily_brief",
+  "reasoning_connect" | "audit_qa" | "source_ingest" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "ops_daily_brief",
   Record<"en" | "ko", string>
 > = {
-  journal_reflect: {
-    en: "What feeling came up most strongly in that moment? Try naming it in a single word.",
-    ko: "그 순간 가장 또렷이 떠오른 감정이 무엇이었나요? 한 단어로 이름 붙여볼까요?",
+  // Deliberately NOT the connections JSON: parseConnections() treats it as
+  // unparseable and the deep run falls back to the deterministic on-device
+  // domain detection, which is the honest offline behavior.
+  reasoning_connect: {
+    en: "This is an offline preview. Connections are drafted from your items' own words for now.",
+    ko: "지금은 오프라인 미리보기예요. 자료에 담긴 표현을 바탕으로 연결을 임시로 이어드릴게요.",
   },
   audit_qa: {
     en: "Looking back, who did you lean on most during that period, and what did they offer you?",
     ko: "그 시기를 돌아보면, 가장 의지했던 사람은 누구였고, 그 사람은 당신에게 무엇을 주었나요?",
   },
-  knowledge_lookup: {
+  source_ingest: {
     en: "This is an offline preview. Curated references will appear here when you go online.",
     ko: "지금은 오프라인 미리보기예요. 온라인으로 연결하면 검증된 자료가 여기에 표시됩니다.",
   },

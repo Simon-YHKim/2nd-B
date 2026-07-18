@@ -59,7 +59,7 @@ describe("callGemini (mock mode)", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "I want to die",
     });
     expect(r.safety.zone).toBe("red");
@@ -95,7 +95,7 @@ describe("callGemini (mock mode)", () => {
       callGemini({
         userId: "u1",
         locale: "en",
-        purpose: "journal_reflect",
+        purpose: "reasoning_connect",
         user: "A normal day.",
       }),
     ).resolves.toBeDefined();
