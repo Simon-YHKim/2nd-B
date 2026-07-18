@@ -41,6 +41,16 @@ describe("signal-to-star bridge wiring", () => {
     expect(enqueueIndex).toBeGreaterThan(captureIndex);
   });
 
+  test("a ratified kakao import upserts star-alias relation people (P0③)", () => {
+    const hub = readRepoFile("src/screens/deepspace/import/ImportHubScreen.tsx");
+    const captureIndex = hub.indexOf("await captureFromMarkdown({ userId");
+    const upsertIndex = hub.indexOf("upsertKakaoRelationPeople(", captureIndex);
+    expect(upsertIndex).toBeGreaterThan(captureIndex);
+    // Kakao-only: the call sits behind the source-key guard.
+    const guardIndex = hub.lastIndexOf('active.key === "kakao"', upsertIndex);
+    expect(guardIndex).toBeGreaterThan(captureIndex);
+  });
+
   test("the health star CTA routes to the surface that actually feeds health_samples", () => {
     const star = readRepoFile("src/app/star/[domain].tsx");
     // No ROUTE may point at /import-hub (whose health file-import lands in

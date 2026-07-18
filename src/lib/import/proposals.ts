@@ -5,7 +5,7 @@
 // flagged so the screen can default-exclude them.
 
 import type { ImportKind } from "./detect";
-import { extractAppointmentHints, parseKakaoExport } from "./kakao";
+import { aggregateRelationSignals, extractAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
 import { extractSmsAppointmentHints, parseSmsBackup } from "./sms";
 import { parseTakeoutLocations, summarizeLocations } from "./location";
 import { parseIcs } from "./ics";
@@ -33,6 +33,12 @@ export interface ImportSummary {
 export interface ImportOutcome {
   proposals: ImportProposal[];
   summary: ImportSummary;
+  /**
+   * kakao only (연동 P0③): pseudonymous per-person frequency/recency signals
+   * (subjectKey, never a name — see kakao.ts). The hub upserts these into
+   * relation_people as star aliases AFTER the user ratifies the import.
+   */
+  relationSignals?: KakaoRelationSignal[];
 }
 
 const PROPOSAL_CAP = 100;
@@ -43,10 +49,13 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
   const proposals: ImportProposal[] = [];
   const summary: ImportSummary = { ...empty };
 
+  let relationSignals: KakaoRelationSignal[] | undefined;
   if (kind === "kakao") {
-    const hints = extractAppointmentHints(parseKakaoExport(content));
+    const messages = parseKakaoExport(content);
+    const hints = extractAppointmentHints(messages);
     summary.appointments = hints.length;
     for (const h of hints) proposals.push({ id: `kakao-${proposals.length}`, label: h.text, sub: "약속 → 캘린더 후보", sensitive: true });
+    relationSignals = aggregateRelationSignals(messages);
   } else if (kind === "sms") {
     const hints = extractSmsAppointmentHints(parseSmsBackup(content));
     summary.appointments = hints.length;
@@ -71,7 +80,11 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
     }
   }
 
-  return { proposals: proposals.slice(0, PROPOSAL_CAP), summary };
+  return {
+    proposals: proposals.slice(0, PROPOSAL_CAP),
+    summary,
+    ...(relationSignals && relationSignals.length > 0 ? { relationSignals } : {}),
+  };
 }
 
 function safeJson(content: string): unknown {

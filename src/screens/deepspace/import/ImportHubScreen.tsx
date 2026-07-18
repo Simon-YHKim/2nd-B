@@ -23,6 +23,7 @@ import { enqueueAutoReasoningSource } from "@/app/reasoning";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
 import { useProgression } from "@/lib/progression/useProgression";
+import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
@@ -227,6 +228,12 @@ export function ImportHubScreen() {
         id: result.source.id,
         title: result.source.title,
       });
+      // P0③ (kakao only): pseudonymous per-person signals become star-alias
+      // people ("새벽에 걷는 베텔게우스") in relation_people — the relation
+      // star's real backing. Best-effort after the import itself landed.
+      if (active.key === "kakao" && outcome.relationSignals?.length) {
+        void upsertKakaoRelationPeople(userId, ko, outcome.relationSignals).catch(() => undefined);
+      }
     } catch {
       // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
       // the try, so a failed import ended exactly like a successful one: back at the hub,
