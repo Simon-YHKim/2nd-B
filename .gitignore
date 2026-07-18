@@ -122,3 +122,7 @@ Output/
 
 # proto_rev2 local-only audit captures (79MB, kept out of git)
 design/proto_rev2/docs/improve-audit/
+
+# Firebase config files - never commit (wired via EAS file env / GH secret)
+**/google-services.json
+**/GoogleService-Info.plist
