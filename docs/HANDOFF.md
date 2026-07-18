@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
+- Latest — 2026-07-18 (4) / 에뮬 라이브 QA 완주(6 PR 전수) + 실버그 QA-F1 발견→픽스 + 큐 B·C·E 랜딩 (#1087 + 0094 운영)
+- 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
 - 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩+운영 적용 — 스펙 확정(결정 10·A~F·계약 16) → 선예약·환불·idempotency 서버 계약 완주 (#1063)
 - 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기) (4 PR 병합 + 1 대기)
 - 2026-07-17 (오후) / 커머스·법무 큐 4건 랜딩 — /privacy-policy · 플랜 가격 고지 · OAuth 좌초 픽스 · 챗 음성 입력 (4 PR)
@@ -96,7 +97,70 @@
 
 ---
 
-## Latest — 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
+## Latest — 2026-07-18 (4) / 에뮬 라이브 QA 완주(6 PR 전수) + 실버그 QA-F1 발견→픽스 + 큐 B·C·E 랜딩 (#1087 + 0094 운영)
+
+### 어디까지 왔나
+- main HEAD: `6bf020d7` (#1087까지; 병렬로 타 세션 #1082~#1086도 랜딩 — 아래 활성 인프라)
+- **에뮬 라이브 QA (旧 큐 A) 전 항목 완료** — Pixel_9_Pro_XL 에뮬 + QA 계정(.env.test) 실주행, 스크린샷 + prod DB 대조:
+  - **한도 시트(스펙 F)**: fail-closed 분기(동의 OFF → 플랜 filled+닫기 text, 광고영역 완전 숨김) ✓ / 광고 적격 분기(ENABLE_ADS 임시 플래그+동의 ON → "Watch an ad for 2 runs" filled 1차+플랜 tonal 2차) ✓ / "/" 정확일치 허용목록으로 홈에서 열림 ✓ / **#1068 fail-closed 실증: 시청 탭 후 reward_credits 0 불변**(DB) ✓
+  - **잔여 분리 표기**: 주간 "0/2 of runs left this week · resets Monday" + 월간 "0 reward runs left · through the end of July" 동시 표기 ✓ (formatWeekly/RewardRemaining EN)
+  - **자동 토글 0093**: 기본 OFF(서버 {}) → ON 시 `users.reasoning_prefs={"auto":true}` 서버 저장 ✓ → **서버값을 false로 바꾸고 재시작하면 토글 OFF로 부팅**(로컬 미러 true를 서버가 이김 = 기기 간 동기화 시맨틱 증명) ✓ · 고갈 상태에서도 스위치 조작 가능(spec A 잔여 0) ✓
+  - **임포트(카카오)**: 동의 시트 → `consent_records` 원장 행(personal_import·adult·sensitive_ack) ✓ · 리뷰 6 Plans/민감 기본제외 ✓ · 비준 → sources 생성(태그 없음 = 별 안 밝힘, 정직성) ✓ · **별칭 인물 "Bike-polishing Wezen"**(daily·subject:key·실명 무저장) ✓ — 1명만 생성된 건 `SIGNAL_MIN_MESSAGES=3` 노이즈 플로어(by design)
+  - **0092 수동 런**: reserve→run→proposed→**ratified** 풀 라이프사이클 ✓ · 제안 "First light→Collect / 산책 노트→Health" → 비준 후 records에 `domain:health`/`domain:collect`+`reasoning:ratified` 태그 박제 ✓ · 주간 정확 1회 차감 ✓ (dev는 mock LLM: `mock:gemini-3.5-flash`)
+- **QA-F1 (P1 실버그, 발견→당일 픽스)**: 한글 제목("KakaoTalk 가져오기") → Storage 객체 키 400 "Invalid key" → 캡처는 `_body_fallback` 인라인 폴백으로 생존하지만 `storage_path`가 무효 경로로 기록되고, **소스 자동 딥런이 본문 로드에서 0.6초 만에 failed** (환불은 0092가 정확 처리 ✓, ai_audit_log 0건 = LLM 도달 전). 임포트→자동딥런 브리지가 KO 제목(사실상 전부)에서 전멸이었음
+- **QA-F2 (minor, 미픽스)**: 클라이언트가 쓰는 audit 행(mock·output-swap·직결 fallback)에 purpose 미기록 — `log_ai_audit` RPC(0038)에 p_purpose 파라미터 자체가 없음. 프록시 경로는 서버가 기록하므로 prod 웹 무영향
+- **#1087 병합** (verify 2,935 그린): ①QA-F1 픽스 — `storageSafeSlug()`(물리 키만 ASCII, 위키 슬러그·제목은 한글 유지) + 딥런 로더 `_body_fallback` 인지 + promote-pending이 오염 행 힐링(safe 키 재업로드+storage_path 교정) ②旧큐 C — buildProposals **markdown 분기**(Notion·Obsidian dead-end 해소; 헤딩 섹션→노트 제안, body 비준 시 원문 반영, Notes 칩) ③旧큐 B — **0094 미성년 서버 클램프** ④旧큐 E — spec A **처음-ON 소비규칙 시트**(확인 후 활성화, 기기 로컬 seen) + spec D **일정 속도 궤도 링**(퍼센트 바는 done 전용)
+- working tree: clean · 워크트리 정리 완료 (junction 먼저 rmdir — 공유 node_modules 무사)
+
+### 활성 인프라
+- **0094 운영 적용 완료** (`relation_people_minor_import_clamp` 트리거 + 함수 라이브 확인, 성인+imported: INSERT 통과 확인). 미성년 계정의 `imported:%` 태그 행은 서버가 P0001 거부; 수동 인물 입력은 허용
+- 병렬 세션 랜딩: **#1083 AdMob+UMP SDK**(app.json plugins에 등재!) · **#1085 real rewarded**(EARNED_REWARD only·SSV-ready) · #1084 v0.1.0 런타임 포크 · #1086 metro blockList 루트 앵커 · #1082 EAS 통합. **이번 광고 QA는 #1085 이전 main 기준** — 게이트/시트 분기 검증은 유효, 실 SDK 경로는 그 세션 산출물로 별도
+- **공유 node_modules에 `react-native-google-mobile-ads` 추가 설치됨**(#1083이 app.json plugins에 넣어서 없으면 Metro가 아예 안 뜸; `npm install --legacy-peer-deps`, 락파일 클린). ⚠ 이후 캐노니컬 `expo start`가 css-interop getSha1 크래시 반복(구 메모리의 "fleet-busy dir exit 7" 재현) — 다음 세션은 워크트리 Metro 또는 재시도. 죽은 인스턴스가 8201을 좀비 점유할 수 있음(PID kill)
+- E:\2ndB 스태시 스택 변동: **@{0}=admob 세션 iOS app.json WIP**(NSUserTracking 문구+GoogleService-Info 참조 — pull 차단 해소용으로 라벨 스태시; 그 세션이 pop 해가야 함) · @{1}=07-18 sweep · @{2}=뮤지엄 WIP (인덱스 말고 메시지로 찾을 것)
+- QA 계정 상태: ads 동의 ON · auto ON · 주간 0/2 사용(리셋 상태) · relation_people에 별칭 1명 · "KakaoTalk 가져오기" source 1건(storage_path 오염 상태 — promote-pending이 다음 인박스 로드에서 힐링하는지 다음 세션 관찰 포인트)
+- 에뮬 실태: 쓸 수 있는 AVD는 **Pixel_9_Pro_XL 하나**(2ndB_QA_009는 broken: target=android-0 부팅 불가). 듀얼 에뮬은 호스트 그래픽 크래시로 불가. 포트 예약: 8200=admob 세션, 8201=main. 타 세션 monkey/pm clear 하이재킹 실존 — dev-client 딥링크 재발사로 복구(자세한 절차는 QC 메모리 갱신됨)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | 병합분 시각 재확인 1회: markdown 임포트(픽스처 /sdcard/Download/obsidian-qa.md 푸시돼 있음) → 자동딥런 **성공** 루프(F1 픽스 실증) + 처음-ON 시트 + 궤도 링 + Notes 칩 | small | ⭐ 코드·CI는 그린, 화면만 미확인 (Metro 크래시로 이번에 못 봄) |
+| B | P1 파서: YouTube Takeout(성장·휴식) · 금융 CSV → ops_ledger | medium | feasibility §4 P1 |
+| C | QA-F2: `log_ai_audit`에 p_purpose 추가(마이그레이션) + gemini.ts 클라 audit 3곳 + effort/vendor도 클라 경로 누락 여부 점검 | small | 감사 연속성(#1072) 완결 |
+| D | cosmetic: proposalsToMarkdown 제목이 EN 로케일에도 "... 가져오기" | tiny | i18n 마감 때 |
+| E | Health Connect 실기기 삼성헬스 검증 | - | Simon 액션 |
+
+### 적용 중인 정책 (영구)
+1. CI 그린 → auto-merge(squash); BEHIND면 `gh pr update-branch` 후 재대기 (이번에도 1회 발생)
+2. `E:\2ndB` 직접 수정 금지 — `.worktrees/<name>` + node_modules 정션(제거 시 정션 먼저 rmdir)
+3. 별 밝기 정직성·별칭 실명 무저장·보상 게이트 단일 경로 — (3) 섹션과 동일
+4. ⚠ 워크트리 로컬 `npm run verify` 그린을 CI 그린으로 믿지 말 것 — 이번 세션 2회 어긋남(신규 파일 tsc/jest). 신규 테스트 파일은 `npx jest <파일>` 개별 실행 + 공유 인터페이스 변경 시 리터럴 생성처 전수 grep (instincts/tool-quirks 기록됨)
+
+### 핵심 파일 위치
+```
+src/lib/wiki/slug.ts                                storageSafeSlug (물리 키 ASCII)
+src/lib/wiki/promote-pending.ts                     오염 storage_path 힐링
+src/app/reasoning.tsx                               _body_fallback 로더 + 처음-ON 시트 + 궤도 링
+src/components/deep-space/AutoReasoningIntroSheet.tsx  spec A 처음-ON 시트
+src/lib/import/proposals.ts                         markdown 분기 + splitMarkdownSections
+db/migrations/0094_minor_import_clamp.sql           운영 적용됨
+docs/reasoning-ux-spec_260718.html                  스펙 SoT (변동 없음)
+```
+
+### 검증
+```bash
+npm run verify   # + 신규 테스트 파일은 개별 jest도 (정책 4)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull
+cat docs/HANDOFF.md
+# A(병합분 시각 재확인)부터 — 에뮬 절차는 QC 메모리(reference-2ndb-android-qc) 최신화됨
+```
+
+---
+
+## 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
 
 ### 어디까지 왔나
 - main HEAD: `853398a7` (#1078까지)
