@@ -62,6 +62,11 @@ export async function showRewardedAd(): Promise<RewardedResult> {
   }
 
   // Seam: simulate a short watch so the earn mechanic is testable in dev.
+  // PRODUCTION bundles never complete via the seam (spec 계약 16: no dev-seam
+  // credits in prod) — until the real SDK lands, a prod watch resolves
+  // uncompleted, so no grant fires even if an ad surface is reachable.
+  const dev = typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV !== "production";
+  if (!dev) return { completed: false };
   await new Promise<void>((resolve) => setTimeout(resolve, 600));
   return { completed: true };
 }

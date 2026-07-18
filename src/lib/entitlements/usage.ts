@@ -25,6 +25,9 @@ export interface ReasoningUsage {
   used: number;
   /** Rewarded credits still available this month (earned − consumed). */
   rewardCredits: number;
+  /** Rewarded credits EARNED this month (vs REWARD_MONTHLY_CAP) — drives the
+   *  "이번 달 보상을 모두 받았어요" state of the limit sheet (spec F). */
+  rewardEarned: number;
   weekBucket: string;
   monthBucket: string;
 }
@@ -70,7 +73,7 @@ export function weekBucket(now: Date = new Date()): string {
 export async function getReasoningUsage(userId: string): Promise<ReasoningUsage> {
   const week = weekBucket();
   const month = monthBucket();
-  const zero: ReasoningUsage = { used: 0, rewardCredits: 0, weekBucket: week, monthBucket: month };
+  const zero: ReasoningUsage = { used: 0, rewardCredits: 0, rewardEarned: 0, weekBucket: week, monthBucket: month };
   try {
     const { data, error } = await getSupabaseClient()
       .from(TABLE)
@@ -88,6 +91,7 @@ export async function getReasoningUsage(userId: string): Promise<ReasoningUsage>
     return {
       used: Number(weekRow?.reasoning_used) || 0,
       rewardCredits: Math.max(0, earned - consumed),
+      rewardEarned: Math.max(0, earned),
       weekBucket: week,
       monthBucket: month,
     };

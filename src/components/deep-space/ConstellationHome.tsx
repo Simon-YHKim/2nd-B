@@ -17,10 +17,13 @@ import { router } from "expo-router";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { LATEST_NOTICE, NoticeDialog, useNoticeCenter } from "@/app/notices";
-import { getAutoReasoningEnabled } from "@/app/reasoning";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { adsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
+import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
+import { getAutoReasoningEnabled } from "@/lib/reasoning/auto-pref";
+import { weeklyBaseRemaining } from "@/lib/reasoning/remaining-copy";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useTaskStatus } from "@/lib/tasks/store";
@@ -32,6 +35,7 @@ import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { soulCoreOpacity } from "@/lib/persona/constellation-brightness";
 import { MdButton } from "@/components/m3";
+import { ReasoningLimitSheet } from "./ReasoningLimitSheet";
 import { SecondbHead } from "./SecondbHead";
 import { SbStarfield } from "./SbStarfield";
 
@@ -264,12 +268,18 @@ export function ConstellationHome({
   const [manualNoticeVisible, setManualNoticeVisible] = useState(false);
   const [reasoningStatus, setReasoningStatus] = useState<{
     automatic: boolean;
+    /** Run gate: weekly base + monthly reward credits (what CAN still run). */
     remaining: number | null;
-  }>({ automatic: false, remaining: null });
+    /** Display split (spec 결정 5): weekly base only. null = unlimited/unknown. */
+    baseRemaining: number | null;
+    /** Display split: monthly reward credits still available. */
+    rewardCredits: number;
+  }>({ automatic: false, remaining: null, baseRemaining: null, rewardCredits: 0 });
+  const [limitSheetVisible, setLimitSheetVisible] = useState(false);
 
   const refreshReasoningStatus = useCallback(async () => {
     if (!userId) {
-      setReasoningStatus({ automatic: false, remaining: null });
+      setReasoningStatus({ automatic: false, remaining: null, baseRemaining: null, rewardCredits: 0 });
       return;
     }
     const [automatic, usage] = await Promise.all([
@@ -283,6 +293,8 @@ export function ConstellationHome({
         usage.used,
         usage.rewardCredits,
       ),
+      baseRemaining: weeklyBaseRemaining(progression.tier, usage.used),
+      rewardCredits: usage.rewardCredits,
     });
   }, [progression.tier, userId]);
 
@@ -333,8 +345,8 @@ export function ConstellationHome({
           : "I'm reading your selected items and connecting their stars."
         : reasoningStatus.remaining !== null && reasoningStatus.remaining <= 0
           ? ko
-            ? "이번 주 리즈닝을 다 썼어요. 월요일에 다시 채워져요."
-            : "This week's reasoning is used up. It refills Monday."
+            ? "이번 주 기본 횟수를 다 썼어요. 월요일에 다시 채워져요."
+            : "You've used this week's base runs. They refill Monday."
           : reasoningStatus.automatic
             ? ko
               ? "자동 리즈닝이 켜져 있어요. 새 자료를 담으면 바로 이어요."
@@ -347,9 +359,13 @@ export function ConstellationHome({
                 ? ko
                   ? "필요한 자료를 골라 별을 이어볼까요?"
                   : "Choose the items whose stars you want to connect."
-                : ko
-                  ? `이번 주 ${reasoningStatus.remaining}회 남았어요. 어떤 자료를 이을까요?`
-                  : `${reasoningStatus.remaining} runs remain this week. What should we connect?`
+                : reasoningStatus.baseRemaining !== null && reasoningStatus.baseRemaining > 0
+                  ? ko
+                    ? `이번 주 ${reasoningStatus.baseRemaining}회 남았어요. 어떤 자료를 이을까요?`
+                    : `You have ${reasoningStatus.baseRemaining} runs left this week. What should we connect?`
+                  : ko
+                    ? `주간 기본은 다 썼어요. 보상 ${reasoningStatus.rewardCredits}회를 쓸 수 있어요.`
+                    : `Weekly base is used. ${reasoningStatus.rewardCredits} reward runs are available.`
       : bubble.kind === "menu"
           ? t("ds.home.bubble.menu")
           : bubble.kind === "star"
@@ -592,18 +608,21 @@ export function ConstellationHome({
               <View style={styles.bubbleActions}>
                 {reasoningMode === "depleted" ? (
                   <>
-                    {isMinor === false ? (
+                    {/* THE limit sheet owns the real ad path (spec F, 계약 14) — the
+                        old push to /records led nowhere. Fail-closed: adult + free
+                        tier + ads built into this binary. */}
+                    {isMinor === false && progression.tier === "free" && adsConfigured() ? (
                       <MdButton
-                        label={ko ? "광고로 1회 받기" : "Earn one run"}
+                        label={ko ? `광고 보고 ${REWARD_PER_WATCH}회 받기` : `Watch an ad for ${REWARD_PER_WATCH} runs`}
                         variant="filled"
                         onPress={() => {
                           setBubble({ kind: "intro" });
-                          router.push("/records");
+                          setLimitSheetVisible(true);
                         }}
                       />
                     ) : null}
                     <MdButton
-                      label={ko ? "업그레이드" : "Upgrade"}
+                      label={ko ? "플랜 보기" : "View plans"}
                       variant="tonal"
                       onPress={() => {
                         setBubble({ kind: "intro" });
@@ -699,6 +718,11 @@ export function ConstellationHome({
           setManualNoticeVisible(false);
           void noticeCenter.markSeen(LATEST_NOTICE.id);
         }}
+      />
+      <ReasoningLimitSheet
+        visible={limitSheetVisible}
+        onClose={() => setLimitSheetVisible(false)}
+        onChanged={() => void refreshReasoningStatus()}
       />
     </View>
   );

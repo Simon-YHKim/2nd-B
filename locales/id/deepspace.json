@@ -712,7 +712,7 @@
       "loading": "Memuat paket…",
       "growWithoutPaying": "Berkembang tanpa membayar",
       "rewardTitle": "Percepat dengan iklan",
-      "rewardSub": "Video 30 detik = +{{n}} pertanyaan · kualitas tetap",
+      "rewardSub": "Video 30 detik = +{{n}} pertanyaan · maksimal {{cap}} per bulan · kualitas tetap",
       "noticeTitle": "Tingkatkan di aplikasi seluler",
       "noticeBody": "Paket berbayar dibeli melalui toko aplikasi di iOS dan Android. Buka 2nd-Brain di ponsel Anda untuk meningkatkan.",
       "contactSupport": "Hubungi dukungan",
@@ -863,6 +863,16 @@
       "cta": "Tonton untuk +{{n}} obrolan",
       "later": "Nanti",
       "privacy": "Hanya dewasa dengan persetujuan · tidak pernah di layar sensitif"
+    },
+    "reasoningLimit": {
+      "title": "Jatah reasoning dasar minggu ini sudah habis.",
+      "resetLine": "{{cap}} jatah terisi lagi Senin pukul 00.00 KST.",
+      "rewardLeft": "Sisa {{n}} jatah hadiah · sampai akhir {{month}}",
+      "rewardCapReached": "Semua {{cap}} hadiah bulan ini sudah kamu dapatkan.",
+      "adCta": "Tonton iklan, dapat {{n}} jatah",
+      "plansCta": "Lihat paket",
+      "close": "Tutup",
+      "sameQuality": "Hadiah hanya menambah jumlah. Kualitas jawaban tetap sama."
     }
   },
   "beyond": {

@@ -712,7 +712,7 @@
       "loading": "Loading plans…",
       "growWithoutPaying": "Grow without paying",
       "rewardTitle": "Speed up with an ad",
-      "rewardSub": "30s video = +{{n}} asks · quality unchanged",
+      "rewardSub": "30s video = +{{n}} asks · up to {{cap}} a month · quality unchanged",
       "noticeTitle": "Upgrade in the mobile app",
       "noticeBody": "Paid plans are purchased through the app stores on iOS and Android. Open 2nd-Brain on your phone to upgrade.",
       "contactSupport": "Contact support",
@@ -863,6 +863,16 @@
       "cta": "Watch to get +{{n}} chats",
       "later": "Later",
       "privacy": "Adults with consent only · never on sensitive screens"
+    },
+    "reasoningLimit": {
+      "title": "You've used this week's base reasoning runs.",
+      "resetLine": "{{cap}} runs refill Monday at 00:00 KST.",
+      "rewardLeft": "{{n}} reward runs left · through the end of {{month}}",
+      "rewardCapReached": "You've earned all {{cap}} reward runs for this month.",
+      "adCta": "Watch an ad for {{n}} runs",
+      "plansCta": "View plans",
+      "close": "Close",
+      "sameQuality": "Rewards only add runs. Answer quality stays the same."
     }
   },
   "beyond": {
