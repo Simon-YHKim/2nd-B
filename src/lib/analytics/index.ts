@@ -257,6 +257,7 @@ const RNFB_ANALYTICS_MODULE = "RNFBAnalyticsModule";
 let nativeApplierOverride: NativeAnalyticsApplier | null = null;
 let nativeApplyTarget: boolean | null = null;
 let nativeApplyChain: Promise<void> = Promise.resolve();
+let nativeRuntimeFlagsOverride: AnalyticsRuntimeFlags | null = null;
 
 /**
  * OTA compatibility gate for binaries built before native Firebase landed.
@@ -300,17 +301,40 @@ async function applyNativeAnalyticsCollection(enabled: boolean): Promise<void> {
  * SDK. Serialized so rapid toggles apply in submission order; deduped on the
  * target state. No-op on web (loadProductAnalytics handles the web SDKs).
  */
+// The #1054 runtime kill-switch covers native too: an enable is honored only
+// while runtime_flags.analytics_enabled is true (missing rows or a failed
+// fetch fail closed, matching the web SDK gate). Evaluated when the decision
+// is applied - a mid-session flip lands at the next consent sync (cold start,
+// auth change, privacy toggle). No native timer is added (Android QA rule:
+// no background timers); a disable never waits on the network.
+async function resolveNativeCollectionTarget(enabled: boolean): Promise<boolean> {
+  if (!enabled) return false;
+  if (nativeRuntimeFlagsOverride) return nativeRuntimeFlagsOverride.analyticsEnabled;
+  try {
+    return (await refreshRuntimeAnalyticsFlags()).analyticsEnabled;
+  } catch {
+    return false;
+  }
+}
+
 function syncNativeAnalyticsCollection(enabled: boolean): void {
   if (Platform.OS === "web") return;
   if (nativeApplyTarget === enabled) return;
   nativeApplyTarget = enabled;
   const applier = nativeApplierOverride ?? applyNativeAnalyticsCollection;
-  nativeApplyChain = nativeApplyChain.then(() => applier(enabled)).catch(() => {});
+  nativeApplyChain = nativeApplyChain
+    .then(async () => applier(await resolveNativeCollectionTarget(enabled)))
+    .catch(() => {});
 }
 
 /** Test hook only: substitute the native applier (null restores the real one). */
 export function __setNativeAnalyticsApplierForTests(applier: NativeAnalyticsApplier | null): void {
   nativeApplierOverride = applier;
+}
+
+/** Test hook only: pin the runtime flags the native gate consults (null = live fetch). */
+export function __setRuntimeAnalyticsFlagsForTests(flags: AnalyticsRuntimeFlags | null): void {
+  nativeRuntimeFlagsOverride = flags;
 }
 
 /** Test hook only: await the native apply queue. */
@@ -1047,4 +1071,5 @@ export function __resetAnalytics(): void {
   nativeApplierOverride = null;
   nativeApplyTarget = null;
   nativeApplyChain = Promise.resolve();
+  nativeRuntimeFlagsOverride = null;
 }

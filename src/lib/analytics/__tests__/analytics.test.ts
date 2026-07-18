@@ -32,6 +32,7 @@ import {
   __resetAnalytics,
   __setNativeAnalyticsApplierForTests,
   __flushNativeAnalyticsForTests,
+  __setRuntimeAnalyticsFlagsForTests,
 } from "../index";
 
 const ROOT = resolve(__dirname, "../../../..");
@@ -266,10 +267,14 @@ describe("native Firebase Analytics collection gate", () => {
     __setNativeAnalyticsApplierForTests(async (enabled) => {
       applied.push(enabled);
     });
+    // Default the #1054 runtime kill-switch to ON so the consent/age matrix
+    // below tests exactly one variable; the kill-switch cases pin it OFF.
+    __setRuntimeAnalyticsFlagsForTests({ analyticsEnabled: true, clarityEnabled: false });
   });
 
   afterEach(() => {
     __setNativeAnalyticsApplierForTests(null);
+    __setRuntimeAnalyticsFlagsForTests(null);
   });
 
   test("old OTA binaries without RNFirebase fail closed before importing the SDK", () => {
@@ -361,6 +366,42 @@ describe("native Firebase Analytics collection gate", () => {
     setAnalyticsConsent(false, { isMinor: false, confirmedAdult: true });
     await __flushNativeAnalyticsForTests();
     expect(applied).toEqual([false]);
+  });
+
+  test("runtime kill-switch OFF blocks a native enable for a consenting adult", async () => {
+    __setRuntimeAnalyticsFlagsForTests({ analyticsEnabled: false, clarityEnabled: false });
+    setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+    await __flushNativeAnalyticsForTests();
+    expect(applied).toEqual([false]);
+  });
+
+  test("unavailable runtime flags fail closed for a native enable", async () => {
+    // Live path (no seam): the runtime_flags source is unreachable, so the
+    // fetch resolves to the OFF defaults and the enable must not go through.
+    // Isolated module registry with supabase mocked to throw - constructing
+    // the real client in the node test env leaks an AsyncStorage rejection.
+    jest.resetModules();
+    jest.doMock("react-native", () => ({ Platform: { OS: "ios" } }));
+    jest.doMock("../../supabase/client", () => ({
+      getSupabaseClient: () => {
+        throw new Error("no runtime flags source");
+      },
+    }));
+    try {
+      const analytics = require("../index") as typeof import("../index");
+      const localApplied: boolean[] = [];
+      analytics.__setNativeAnalyticsApplierForTests(async (enabled) => {
+        localApplied.push(enabled);
+      });
+      analytics.setAnalyticsConsent(true, { isMinor: false, confirmedAdult: true });
+      await analytics.__flushNativeAnalyticsForTests();
+      expect(localApplied).toEqual([false]);
+      analytics.__resetAnalytics();
+    } finally {
+      jest.dontMock("react-native");
+      jest.dontMock("../../supabase/client");
+      jest.resetModules();
+    }
   });
 });
 
