@@ -1,24 +1,17 @@
-name: Android Release (APK + AAB)
+name: Android Diagnostic Build (APK)
 
 # Self-contained Android build path: expo prebuild -> local gradle.
-# Does NOT require an Expo account / EXPO_TOKEN. Produces a sideload APK and a
-# store AAB. Publishes a GitHub Release only on a v* tag or a manual dispatch
-# with release_tag. Main pushes upload workflow artifacts only: the installed
-# preview APK uses EAS-managed signing, so a differently signed Gradle APK must
-# never be advertised as its in-place upgrade.
+# Does NOT require an Expo account / EXPO_TOKEN. Produces a diagnostic APK
+# workflow artifact only. Public GitHub Release APK/AAB files come exclusively
+# from EAS Android Build so users never see differently signed duplicates.
 #
-# EAS cloud build is the documented secondary path (see eas.json + docs/ANDROID-BUILD.md).
+# See eas.json + docs/ANDROID-BUILD.md for the canonical release path.
 
 on:
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Optional release tag (e.g. v0.0.1). When set, a GitHub Release is created with the artifacts attached."
-        required: false
-        default: ""
   # Auto-build whenever app code/assets/native config land on main (mirrors
   # web-deploy.yml). Path-filtered so docs-only merges don't spend a ~10 min
-  # native build. A main push uploads APK/AAB workflow artifacts for diagnostics
+  # native build. A main push uploads an APK workflow artifact for diagnostics
   # but never creates an install-facing Release.
   push:
     branches:
@@ -36,12 +29,9 @@ on:
       - "metro.config.js"
       - "patches/**"
       - ".github/workflows/android-release.yml"
-    tags:
-      - "v*"
 
-# Needed so the job can create a GitHub Release and upload assets.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-release-${{ github.ref }}
@@ -56,11 +46,11 @@ jobs:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false"
       # Shrink the otherwise-universal release artifacts to a single ABI. This is
       # read by config-plugins/withAndroidAbiFilter.js during expo prebuild (it
-      # writes reactNativeArchitectures), so both the sideload APK and the AAB
-      # build arm64-v8a only - the dominant cause of the 148 MB universal APK.
+      # writes reactNativeArchitectures), so the sideload APK builds arm64-v8a
+      # only - the dominant cause of the 148 MB universal APK.
       # NOTE: arm64-v8a covers every phone since ~2015 but drops 32-bit
-      # (armeabi-v7a) and x86. Before a real Play submission needing full device
-      # reach, widen this (e.g. "arm64-v8a,armeabi-v7a") or split the AAB.
+      # (armeabi-v7a) and x86. Widen this only when a diagnostic APK needs those
+      # device classes. Play device delivery is owned by the EAS production AAB.
       ANDROID_ABI_FILTER: "arm64-v8a"
       # Inline the real Supabase project at JS-bundle time so the release stops
       # falling back to the demo.invalid placeholder. Prefer repo Variables when
@@ -172,17 +162,15 @@ jobs:
         run: npx expo prebuild -p android --no-install
 
       # --- Signing -----------------------------------------------------------
-      # Preferred: a REAL upload keystore supplied via repo secrets. Required
-      # for Google Play store submission. Add these secrets to use it:
+      # Optional: a stable diagnostic keystore supplied via repo secrets:
       #   ANDROID_KEYSTORE_BASE64  - base64 of your .jks/.keystore file
       #   ANDROID_KEYSTORE_PASSWORD
       #   ANDROID_KEY_ALIAS
       #   ANDROID_KEY_PASSWORD
       #
       # Fallback (NO secrets present): a throwaway keystore generated here so
-      # the build still produces an installable APK/AAB for INTERNAL / sideload
-      # TESTING ONLY. A store-submittable AAB MUST be signed with a real,
-      # persistent keystore — do NOT ship the throwaway-signed AAB to Play.
+      # the build still produces an installable APK for INTERNAL / sideload
+      # TESTING ONLY. Store-submittable AAB files are built by EAS production.
       - name: Resolve signing keystore
         id: signing
         run: |
@@ -196,7 +184,7 @@ jobs:
             echo "key_password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_OUTPUT"
             echo "is_real=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret found. Generating a THROWAWAY test keystore. The resulting AAB is NOT valid for Play store submission."
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret found. Generating a THROWAWAY test keystore for this diagnostic APK."
             keytool -genkeypair -v \
               -keystore "$KEYSTORE_PATH" \
               -alias testkey \
@@ -210,11 +198,11 @@ jobs:
           fi
           echo "keystore_path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Build APK + AAB (release)
+      - name: Build diagnostic APK (release)
         working-directory: android
         run: |
           set -euo pipefail
-          ./gradlew assembleRelease bundleRelease \
+          ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="${{ steps.signing.outputs.keystore_path }}" \
             -Pandroid.injected.signing.store.password="${{ steps.signing.outputs.store_password }}" \
             -Pandroid.injected.signing.key.alias="${{ steps.signing.outputs.key_alias }}" \
@@ -228,15 +216,12 @@ jobs:
           OUT="$RUNNER_TEMP/release-artifacts"
           mkdir -p "$OUT"
           APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n1)
-          AAB=$(find android/app/build/outputs/bundle/release -name "*.aab" | head -n1)
-          if [ -z "$APK" ] || [ -z "$AAB" ]; then
-            echo "::error::Expected APK and AAB not found (APK='$APK' AAB='$AAB')."
+          if [ -z "$APK" ]; then
+            echo "::error::Expected APK not found."
             exit 1
           fi
           cp "$APK" "$OUT/2ndb-$SHA.apk"
-          cp "$AAB" "$OUT/2ndb-$SHA.aab"
           echo "apk=$OUT/2ndb-$SHA.apk" >> "$GITHUB_OUTPUT"
-          echo "aab=$OUT/2ndb-$SHA.aab" >> "$GITHUB_OUTPUT"
           echo "dir=$OUT" >> "$GITHUB_OUTPUT"
 
       - name: Upload workflow artifacts
@@ -246,45 +231,3 @@ jobs:
           path: ${{ steps.collect.outputs.dir }}/*
           if-no-files-found: error
           retention-days: 30
-
-      # Decide whether to publish a GitHub Release and under which tag:
-      #   - dispatch with release_tag -> that tag, always publish
-      #   - v* tag push               -> that tag, always publish
-      #   - main push                 -> artifacts only; EAS owns upgrade signing
-      - name: Resolve release target
-        id: rel
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          INPUT_TAG="${{ github.event.inputs.release_tag }}"
-          if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"; PUBLISH=true
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${{ github.ref_name }}"; PUBLISH=true
-          else
-            TAG=""; PUBLISH=false
-          fi
-          echo "Release target: ${TAG:-none} (publish=$PUBLISH)"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
-
-      - name: Create GitHub Release
-        if: steps.rel.outputs.publish == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.rel.outputs.tag }}
-          name: ${{ steps.rel.outputs.tag }}
-          generate_release_notes: true
-          body: |
-            Android build for 2nd-Brain.
-
-            - `2ndb-<sha>.apk` - sideload onto a device for testing (`adb install` or open on device).
-            - `2ndb-<sha>.aab` - Google Play store upload bundle.
-
-            Signing: ${{ steps.signing.outputs.is_real == 'true' && 'real upload keystore (store-ready)' || 'THROWAWAY test keystore (sideload/testing only, NOT valid for Play submission)' }}.
-          files: |
-            ${{ steps.collect.outputs.apk }}
-            ${{ steps.collect.outputs.aab }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

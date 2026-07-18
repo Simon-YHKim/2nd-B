@@ -1,7 +1,8 @@
-name: EAS Preview Build (APK)
+name: EAS Android Build (APK / AAB)
 
-# Produces the install-facing preview APK with EAS-managed signing. This is the
-# only APK that can upgrade an existing EAS preview install in place.
+# Produces the two public Android release artifacts with EAS-managed signing:
+#   preview    -> install-facing APK
+#   production -> Google Play AAB
 #
 # Firebase configuration is restored from the GitHub Actions secret immediately
 # before submission. `.easignore` intentionally does not exclude
@@ -11,22 +12,32 @@ name: EAS Preview Build (APK)
 on:
   workflow_dispatch:
     inputs:
+      profile:
+        description: "EAS build profile (preview = APK, production = Play AAB)"
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
       message:
         description: "Build message shown in EAS"
         required: false
-        default: "Firebase-enabled preview APK"
+        default: "Firebase-enabled Android release"
 
 permissions:
   contents: read
 
 concurrency:
-  group: eas-preview-build-${{ github.ref }}
+  group: eas-android-build-${{ github.ref }}-${{ inputs.profile }}
   cancel-in-progress: false
 
 jobs:
   submit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      build_id: ${{ steps.submit_build.outputs.build_id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
-            echo "::error::GOOGLE_SERVICES_JSON_BASE64 is required for EAS preview builds."
+            echo "::error::GOOGLE_SERVICES_JSON_BASE64 is required for EAS Android builds."
             exit 1
           fi
           printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > google-services.json
@@ -64,19 +75,46 @@ jobs:
           '
           echo "Real google-services.json provisioned and validated."
 
-      - name: Submit EAS preview APK build
+      - name: Submit EAS Android build
+        id: submit_build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_MESSAGE: ${{ inputs.message }}
+          BUILD_PROFILE: ${{ inputs.profile }}
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
-            echo "::error::EXPO_TOKEN is required for EAS preview builds."
+            echo "::error::EXPO_TOKEN is required for EAS Android builds."
             exit 1
           fi
-          npx eas-cli build \
+          if [ "$BUILD_PROFILE" != "preview" ] && [ "$BUILD_PROFILE" != "production" ]; then
+            echo "::error::Unsupported EAS build profile '$BUILD_PROFILE'."
+            exit 1
+          fi
+          BUILD_JSON="$(npx eas-cli build \
             --platform android \
-            --profile preview \
+            --profile "$BUILD_PROFILE" \
             --message "$BUILD_MESSAGE" \
             --non-interactive \
-            --no-wait
+            --no-wait \
+            --json)"
+          printf '%s\n' "$BUILD_JSON"
+          BUILD_ID="$(
+            printf '%s' "$BUILD_JSON" | node -e '
+              const fs = require("fs");
+              const payload = JSON.parse(fs.readFileSync(0, "utf8"));
+              const build = Array.isArray(payload) ? payload[0] : payload;
+              if (!build?.id) process.exit(1);
+              process.stdout.write(build.id);
+            '
+          )"
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+          BUILD_URL="https://expo.dev/accounts/simon_k/projects/2nd-brain/builds/$BUILD_ID"
+          echo "::notice title=EAS Android build submitted::$BUILD_PROFILE build: $BUILD_URL"
+          {
+            echo "### EAS Android build submitted"
+            echo
+            echo "- Profile: \`$BUILD_PROFILE\`"
+            echo "- Artifact: $([ "$BUILD_PROFILE" = "production" ] && echo 'AAB' || echo 'APK')"
+            echo "- Build: $BUILD_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
