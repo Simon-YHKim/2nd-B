@@ -712,7 +712,7 @@
       "loading": "Cargando planes…",
       "growWithoutPaying": "Crece sin pagar",
       "rewardTitle": "Acelera con un anuncio",
-      "rewardSub": "Video de 30s = +{{n}} consultas · la calidad no cambia",
+      "rewardSub": "Video de 30s = +{{n}} consultas · máximo {{cap}} al mes · la calidad no cambia",
       "noticeTitle": "Mejora en la app móvil",
       "noticeBody": "Los planes de pago se compran en las tiendas de aplicaciones de iOS y Android. Abre 2nd-Brain en tu teléfono para mejorar.",
       "contactSupport": "Contactar soporte",
@@ -863,6 +863,16 @@
       "cta": "Ver y recibir +{{n}} chats",
       "later": "Más tarde",
       "privacy": "Solo adultos con consentimiento · nunca en pantallas sensibles"
+    },
+    "reasoningLimit": {
+      "title": "Has usado las ejecuciones base de esta semana.",
+      "resetLine": "El lunes a las 00:00 KST se reponen {{cap}} ejecuciones.",
+      "rewardLeft": "{{n}} ejecuciones de recompensa · hasta fin de {{month}}",
+      "rewardCapReached": "Ya obtuviste las {{cap}} recompensas de este mes.",
+      "adCta": "Ver un anuncio y ganar {{n}}",
+      "plansCta": "Ver planes",
+      "close": "Cerrar",
+      "sameQuality": "Las recompensas solo añaden ejecuciones. La calidad de las respuestas no cambia."
     }
   },
   "beyond": {

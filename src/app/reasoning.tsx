@@ -8,10 +8,15 @@ import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { ReasoningLimitSheet } from "@/components/deep-space/ReasoningLimitSheet";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { adsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage } from "@/lib/entitlements/usage";
+import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
+import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
 import { callGemini } from "@/lib/llm/gemini";
+import { getAutoReasoningEnabled, setAutoReasoningEnabled } from "@/lib/reasoning/auto-pref";
+import { formatRewardRemaining, formatWeeklyRemaining } from "@/lib/reasoning/remaining-copy";
 import {
   ReasoningAutoUnavailableError,
   ReasoningRunActiveError,
@@ -43,58 +48,8 @@ import { dismissTask, sendToBackground, startTask, useTaskStatus } from "@/lib/t
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
-const AUTO_REASONING_KEY = "reasoning.auto.v1";
 const REASONING_RATIFIED_TAG = "reasoning:ratified";
 const MAX_SELECTION = 5;
-interface AsyncStorageLike {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-}
-
-const memoryAuto = new Map<string, boolean>();
-
-function autoKey(userId: string): string {
-  return `${AUTO_REASONING_KEY}.${userId}`;
-}
-
-function webStorage(): Storage | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function nativeStorage(): AsyncStorageLike | null {
-  const nav = globalThis.navigator as { product?: string } | undefined;
-  if (nav?.product !== "ReactNative") return null;
-  try {
-    return require("@react-native-async-storage/async-storage").default as AsyncStorageLike;
-  } catch {
-    return null;
-  }
-}
-
-export async function getAutoReasoningEnabled(userId: string): Promise<boolean> {
-  const key = autoKey(userId);
-  const web = webStorage();
-  if (web) return web.getItem(key) === "1";
-  const native = nativeStorage();
-  if (native) return (await native.getItem(key)) === "1";
-  return memoryAuto.get(key) ?? false;
-}
-
-export async function setAutoReasoningEnabled(userId: string, enabled: boolean): Promise<void> {
-  const key = autoKey(userId);
-  memoryAuto.set(key, enabled);
-  const raw = enabled ? "1" : "0";
-  const web = webStorage();
-  if (web) {
-    web.setItem(key, raw);
-    return;
-  }
-  await nativeStorage()?.setItem(key, raw);
-}
 
 function useAutoReasoning(userId: string | null) {
   const [enabled, setEnabledState] = useState(false);
@@ -696,6 +651,7 @@ export default function ReasoningScreen() {
   const [completedCount, setCompletedCount] = useState(0);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [crisisVisible, setCrisisVisible] = useState(false);
+  const [limitSheetVisible, setLimitSheetVisible] = useState(false);
 
   const mountedRef = useRef(true);
   const runningRef = useRef(false);
@@ -739,6 +695,7 @@ export default function ReasoningScreen() {
     } else if (deferred === "limit") {
       setPhase("idle");
       void refreshUsage().catch(() => undefined);
+      setLimitSheetVisible(true);
     } else {
       setPhase("error");
       setErrorText(
@@ -954,6 +911,7 @@ export default function ReasoningScreen() {
           if (error instanceof ReasoningLimitError) {
             await refreshUsage().catch(() => undefined);
             setPhase("idle");
+            setLimitSheetVisible(true);
           } else if (error instanceof ReasoningSafetyError) {
             setPhase("idle");
             setCrisisVisible(true);
@@ -1059,13 +1017,16 @@ export default function ReasoningScreen() {
         ? 0
         : completedCount / selectedItems.length;
 
+  // Split display (spec 결정 5 + 계약 13): weekly base and monthly reward are
+  // separate ledgers with separate reset instants — never merge them into one
+  // "N회 남음 · 월요일 초기화" line. The RUN gate (depleted) still counts both.
   const quotaCopy = unlimited
     ? ko
       ? "무제한으로 별을 이을 수 있어요"
       : "Unlimited connections"
-    : ko
-      ? `${Math.max(0, remaining)}회 남음 · 월요일 초기화`
-      : `${Math.max(0, remaining)} left · resets Monday`;
+    : formatWeeklyRemaining(ko, cap ?? 0, used);
+  const rewardCopy =
+    !unlimited && rewardCredits > 0 ? formatRewardRemaining(ko, rewardCredits, monthBucket()) : null;
 
   const ctaLabel =
     phase === "running"
@@ -1125,29 +1086,28 @@ export default function ReasoningScreen() {
                   <View style={styles.depletedTitleRow}>
                     <Glyph name="bolt" color={m3.color.error} size={22} />
                     <RNText style={styles.depletedTitle}>
-                      {ko ? "이번 주 리즈닝을 다 썼어요" : "You've used this week's reasoning"}
+                      {ko ? "이번 주 기본 리즈닝을 다 썼어요" : "You've used this week's base reasoning runs"}
                     </RNText>
                   </View>
                   <RNText style={styles.depletedBody}>
-                    {isMinor === true
-                      ? ko
-                        ? "월요일에 주간 횟수가 다시 채워져요. 더 많은 실행이 필요하면 플랜을 확인해 주세요."
-                        : "Your weekly runs refill Monday. Review plans if you need more runs."
-                      : ko
-                        ? "월요일에 주간 횟수가 다시 채워져요. 지금 더 잇고 싶다면 기록 화면에서 보상 횟수를 받거나 플랜을 확인해 주세요."
-                        : "Your weekly runs refill Monday. Earn a reward from Records or review plans to continue now."}
+                    {ko
+                      ? `월요일 00:00에 다시 ${cap ?? 0}회가 채워져요.`
+                      : `${cap ?? 0} runs refill Monday at 00:00 KST.`}
                   </RNText>
                   <View style={styles.depletedActions}>
-                    {isMinor === false ? (
+                    {/* The ad path lives in THE limit sheet (spec F, 계약 14) — the
+                        old "기록에서 광고 보기" push led to /records where no
+                        rewarded flow exists. Fail-closed: adult + free + ads built. */}
+                    {isMinor === false && progression.tier === "free" && adsConfigured() ? (
                       <MdButton
-                        label={ko ? "기록에서 광고 보기" : "Watch from Records"}
+                        label={ko ? `광고 보고 ${REWARD_PER_WATCH}회 받기` : `Watch an ad for ${REWARD_PER_WATCH} runs`}
                         variant="filled"
-                        onPress={() => router.push("/records")}
+                        onPress={() => setLimitSheetVisible(true)}
                         style={styles.flexButton}
                       />
                     ) : null}
                     <MdButton
-                      label={ko ? "업그레이드" : "Upgrade"}
+                      label={ko ? "플랜 보기" : "View plans"}
                       variant="tonal"
                       onPress={() => router.push("/plans?from=reasoning_limit")}
                       style={styles.flexButton}
@@ -1167,17 +1127,19 @@ export default function ReasoningScreen() {
                     <RNText style={[styles.rowSub, depleted && styles.errorText]}>
                       {depleted
                         ? ko
-                          ? "한도 소진 · 다음 주부터 다시 실행돼요"
-                          : "Limit reached · resumes next week"
+                          ? "한도 소진 · 월요일에 자동으로 다시 시작해요"
+                          : "Limit reached · automatic runs resume Monday"
                         : ko
                           ? "자료를 담을 때마다 세컨비가 바로 별을 이어요"
                           : "SecondB connects each item as you capture it"}
                     </RNText>
                   </View>
+                  {/* Spec A 잔여 0: the paused state must still allow turning the
+                      switch OFF — depletion never disables it (only hydration). */}
                   <Pressable
                     accessibilityRole="switch"
-                    accessibilityState={{ checked: auto.enabled, disabled: depleted || !auto.hydrated }}
-                    disabled={depleted || !auto.hydrated}
+                    accessibilityState={{ checked: auto.enabled, disabled: !auto.hydrated }}
+                    disabled={!auto.hydrated}
                     onPress={() => auto.setEnabled(!auto.enabled)}
                     style={[
                       styles.switchTrack,
@@ -1187,7 +1149,7 @@ export default function ReasoningScreen() {
                           ? m3.color.primary
                           : m3.color.surfaceContainerHighest,
                       },
-                      (depleted || !auto.hydrated) && styles.dimmed,
+                      !auto.hydrated && styles.dimmed,
                     ]}
                   >
                     <View
@@ -1254,6 +1216,7 @@ export default function ReasoningScreen() {
                   <View style={styles.rowCopy}>
                     <RNText style={styles.rowLabel}>{ko ? "이번 주 리즈닝" : "This week's reasoning"}</RNText>
                     <RNText style={styles.rowSub}>{quotaCopy}</RNText>
+                    {rewardCopy ? <RNText style={styles.rowSubReward}>{rewardCopy}</RNText> : null}
                   </View>
                   {cap == null ? (
                     <RNText style={styles.infinity}>{"∞"}</RNText>
@@ -1371,12 +1334,15 @@ export default function ReasoningScreen() {
             variant={phase === "running" ? "outlined" : "filled"}
             disabled={
               applying ||
-              (phase !== "running" && phase !== "done" && (selected.size === 0 || depleted)) ||
+              (phase !== "running" && phase !== "done" && selected.size === 0 && !depleted) ||
               listLoading
             }
             onPress={() => {
               if (phase === "running") cancelRun();
               else if (phase === "done") void applySelectedProposals();
+              // Spec B 잔여 0: keep the selection and show THE limit sheet
+              // instead of a dead disabled button.
+              else if (depleted) setLimitSheetVisible(true);
               else startRun();
             }}
             style={styles.runButton}
@@ -1395,6 +1361,12 @@ export default function ReasoningScreen() {
         hotline={ko ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"}
         onClose={() => setCrisisVisible(false)}
       />
+
+      <ReasoningLimitSheet
+        visible={limitSheetVisible}
+        onClose={() => setLimitSheetVisible(false)}
+        onChanged={() => void refreshUsage().catch(() => undefined)}
+      />
     </>
   );
 }
@@ -1409,6 +1381,7 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 15, lineHeight: 21, fontWeight: "600" },
   rowSub: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  rowSubReward: { color: m3.color.tertiary, fontFamily: fontFamilies.readable, fontSize: 11, lineHeight: 16, marginTop: 2 },
   switchTrack: { width: 52, height: 32, borderRadius: 16, borderWidth: 2, justifyContent: "center" },
   switchThumb: { position: "absolute", borderRadius: 12 },
   switchThumbOn: { width: 24, height: 24, right: 2, backgroundColor: m3.color.onPrimary },
