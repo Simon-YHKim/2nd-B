@@ -12,6 +12,7 @@ jest.mock("../queries", () => ({
 }));
 
 jest.mock("../storage", () => ({
+  rawClippingPath: (userId: string, slug: string) => `${userId}/${slug}.md`,
   uploadRawClipping: (...args: unknown[]) => mockUpload(...args),
 }));
 
@@ -44,6 +45,19 @@ describe("promotePendingUploads", () => {
     expect(mockUpload).toHaveBeenCalledWith("u1", "my-piece", "# Body", { overwrite: true });
     // Flags removed; unrelated frontmatter preserved.
     expect(mockUpdateFm).toHaveBeenCalledWith("u1", "s1", { keep: "me" });
+  });
+
+  test("Hangul storage key heals to an ASCII-safe path and repoints storage_path", async () => {
+    // Pre-fix rows carry a key Storage rejects (400 Invalid key) — retrying it
+    // verbatim would stay pending forever. Promotion must upload to the safe
+    // key and update the row's storage_path in the same pass.
+    mockList.mockResolvedValueOnce([pendingRow({ storage_path: "u1/kakaotalk-가져오기-abc123.md" })]);
+
+    const r = await promotePendingUploads("u1");
+
+    expect(r).toEqual({ pending: 1, promoted: 1 });
+    expect(mockUpload).toHaveBeenCalledWith("u1", "kakaotalk-abc123", "# Body", { overwrite: true });
+    expect(mockUpdateFm).toHaveBeenCalledWith("u1", "s1", { keep: "me" }, "u1/kakaotalk-abc123.md");
   });
 
   test("storage still down: keeps the fallback, clears nothing", async () => {

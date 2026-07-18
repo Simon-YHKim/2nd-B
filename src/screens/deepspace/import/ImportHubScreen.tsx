@@ -203,7 +203,9 @@ export function ImportHubScreen() {
         sourceKey: active.key,
         name: name(active),
         atIso: new Date().toISOString(),
-        summary: `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
+        summary:
+          (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
+          `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
         sourceIds: [result.source.id],
       });
       // P0④: the consent sheet the user just walked finally leaves a ledger row
@@ -473,6 +475,7 @@ export function ImportHubScreen() {
           <Text variant="caption" style={styles.doneText}>{t("done")}</Text>
         </View>
         <View style={styles.summaryRow}>
+          {out.summary.notes > 0 ? <Summary n={out.summary.notes} label={t("notes")} /> : null}
           <Summary n={out.summary.appointments} label={t("appts")} />
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
           <Summary n={0} label={t("raw")} dim />
@@ -553,7 +556,7 @@ function COPY(ko: boolean): Record<string, string> {
         pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
         errTitle: "파일 형식을 못 읽었어요", errBody: "내보낸 형식이 맞는지 확인해 주세요",
         importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
-        done: "완료", appts: "약속", places: "장소", raw: "원문", pickToApply: "반영할 항목 고르기",
+        done: "완료", appts: "약속", places: "장소", notes: "노트", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
         delete: "삭제", historyFine: "삭제는 파생 신호까지 완전 제거해요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
@@ -576,7 +579,7 @@ function COPY(ko: boolean): Record<string, string> {
         pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
         errTitle: "Couldn't read the file", errBody: "Check that the exported format is right",
         importFailed: "Couldn't import that. Nothing was recorded. Try again.",
-        done: "Done", appts: "Plans", places: "Places", raw: "Raw", pickToApply: "Pick what to apply",
+        done: "Done", appts: "Plans", places: "Places", notes: "Notes", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
         delete: "Delete", historyFine: "Delete removes the derived signals too. Comms/location import is server-locked for minor accounts.",

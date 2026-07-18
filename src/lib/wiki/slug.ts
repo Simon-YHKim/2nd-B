@@ -55,3 +55,22 @@ export function slugForTitle(title: string): string {
   if (base.length > 0) return base;
   return `n-${hashToken(title.normalize("NFC"))}`;
 }
+
+/**
+ * ASCII-only slug for PHYSICAL Supabase Storage object keys. Storage rejects
+ * non-ASCII keys outright (400 "Invalid key"), while wiki slugs keep Hangul by
+ * design — so the human-facing slug and the storage key must be allowed to
+ * differ. Anything outside [a-z0-9-] collapses to hyphens; when nothing
+ * survives (a pure-Hangul title like "가져오기"), a stable hash of the slug
+ * keeps distinct titles on distinct keys. Idempotent for already-safe input.
+ */
+export function storageSafeSlug(slug: string): string {
+  const ascii = slug
+    .toLowerCase()
+    .normalize("NFC")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (ascii.length > 0) return ascii;
+  return `s-${hashToken(slug.normalize("NFC"))}`;
+}

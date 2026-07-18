@@ -90,6 +90,25 @@ Body content with [[some link]].`;
     expect(r.storage_path).toMatch(/^u1\/foo-[0-9a-f]{12}\.md$/);
   });
 
+  test("Hangul title: wiki slug keeps Hangul, storage key goes ASCII-safe", async () => {
+    // Supabase Storage rejects non-ASCII keys (400 Invalid key) — the physical
+    // key must be ASCII while suggested_slug (human-facing) keeps Hangul.
+    fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "note", title: "KakaoTalk 가져오기" };
+    const md = `---
+title: "KakaoTalk 가져오기"
+---
+
+- 내일 저녁 7시에 보자`;
+
+    const r = await captureFromMarkdown({ userId: "u1", rawMd: md });
+
+    const upload = captured[0];
+    expect(upload.fn).toBe("uploadRawClipping");
+    expect(upload.args[1]).toMatch(/^kakaotalk-[0-9a-f]{12}$/); // Hangul stripped, hash suffix kept
+    expect(r.suggested_slug).toBe("kakaotalk-가져오기"); // human-facing slug untouched
+    expect(r.storage_path).toMatch(/^u1\/kakaotalk-[0-9a-f]{12}\.md$/);
+  });
+
   test("fallback URL drives kind detection when frontmatter has no url", async () => {
     fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "code", title: "T" };
     const md = `---
@@ -138,18 +157,21 @@ Body.`;
     expect((insert.args[0] as { tags: string[] }).tags).toEqual([]);
   });
 
-  test("storage_path = suggested_slug + content-hash suffix (Hangul-safe, collision-free)", async () => {
+  test("storage_path = ASCII-safe slug + content-hash suffix (collision-free)", async () => {
     fixtures.sourceRow = { id: "s1", user_id: "u1", kind: "self_knowledge", title: "T" };
     const r = await captureFromMarkdown({
       userId: "u1",
       rawMd: "# 민지의 성장 노트\n\n자기 노트.",
     });
-    // The human-facing slug is unchanged; only the physical storage path carries
-    // the 12-hex content-hash suffix so same-title captures never overwrite.
+    // The human-facing slug keeps Hangul; the PHYSICAL storage key cannot
+    // (Storage 400s on non-ASCII — the pre-2026-07-18 Hangul key failed every
+    // upload straight into the inline fallback). Pure-Hangul slugs collapse to
+    // the stable s-<hash> token + the 12-hex content-hash suffix, so distinct
+    // titles and same-title captures both stay collision-free.
     expect(r.suggested_slug).toBe("민지의-성장-노트");
-    expect(r.storage_path).toMatch(/^u1\/민지의-성장-노트-[0-9a-f]{12}\.md$/);
+    expect(r.storage_path).toMatch(/^u1\/s-[0-9a-z]+-[0-9a-f]{12}\.md$/);
     const upload = captured.find((c) => c.fn === "uploadRawClipping")!;
-    expect(upload.args[1]).toMatch(/^민지의-성장-노트-[0-9a-f]{12}$/);
+    expect(upload.args[1]).toMatch(/^s-[0-9a-z]+-[0-9a-f]{12}$/);
   });
 
   test("same-title captures with different bodies get distinct storage paths (regression: no overwrite)", async () => {

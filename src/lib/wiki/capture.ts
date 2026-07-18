@@ -8,6 +8,7 @@
 import { buildSourcePayload } from "./ingest-helpers";
 import { throwIfAborted } from "../async/abort";
 import { createSource, getSource } from "./queries";
+import { storageSafeSlug } from "./slug";
 import { rawClippingPath, uploadRawClipping } from "./storage";
 import { contentHash, minhashSignature, lshBandKeys } from "../ingest/dedup";
 import { decideIngest, type GateDeps } from "../ingest/gate";
@@ -135,7 +136,10 @@ export async function captureFromMarkdown(input: CaptureInput): Promise<CaptureR
   // duplicates already returned above, so every distinct capture here has a
   // distinct content hash. suggested_slug (the human-facing wiki slug) is left
   // untouched — only the physical storage path is disambiguated.
-  const storageSlug = `${built.suggested_slug}-${hash.slice(0, 12)}`;
+  // storageSafeSlug: Storage rejects non-ASCII keys (400 "Invalid key"), so a
+  // Hangul title ("KakaoTalk 가져오기") used to fail EVERY upload straight into
+  // the inline fallback — and poisoned storage_path for later readers.
+  const storageSlug = `${storageSafeSlug(built.suggested_slug)}-${hash.slice(0, 12)}`;
   const path = rawClippingPath(input.userId, storageSlug);
   let storedToStorage = true;
   try {

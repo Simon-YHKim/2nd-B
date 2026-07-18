@@ -11,7 +11,8 @@
 // bounded, so a still-broken bucket just means "try again next time".
 
 import { listStoragePendingSources, updateSourceFrontmatter } from "./queries";
-import { uploadRawClipping } from "./storage";
+import { storageSafeSlug } from "./slug";
+import { rawClippingPath, uploadRawClipping } from "./storage";
 
 export interface PromoteResult {
   /** Pending rows seen this run (bounded by the query limit). */
@@ -34,8 +35,13 @@ export async function promotePendingUploads(userId: string): Promise<PromoteResu
   for (const row of rows) {
     const fm = (row.frontmatter ?? {}) as Record<string, unknown>;
     const body = fm._body_fallback;
-    const slug = slugFromStoragePath(row.storage_path);
-    if (typeof body !== "string" || body.length === 0 || !slug) continue;
+    const storedSlug = slugFromStoragePath(row.storage_path);
+    if (typeof body !== "string" || body.length === 0 || !storedSlug) continue;
+    // Pre-fix rows carry a Hangul storage key that Storage rejects with 400
+    // "Invalid key" — retrying it verbatim would stay pending forever. Promote
+    // to the ASCII-safe key instead and repoint storage_path in the same write.
+    const slug = storageSafeSlug(storedSlug);
+    const healedPath = slug === storedSlug ? undefined : rawClippingPath(userId, slug);
     try {
       // overwrite: the original upload may have actually landed (client-side
       // timeout after a server-side success) — promotion must be idempotent.
@@ -47,7 +53,8 @@ export async function promotePendingUploads(userId: string): Promise<PromoteResu
     void _storage_pending;
     void _body_fallback;
     try {
-      await updateSourceFrontmatter(userId, row.id, rest);
+      if (healedPath) await updateSourceFrontmatter(userId, row.id, rest, healedPath);
+      else await updateSourceFrontmatter(userId, row.id, rest);
       promoted++;
     } catch (e) {
       // Upload landed but the flag didn't clear — next run re-uploads the
