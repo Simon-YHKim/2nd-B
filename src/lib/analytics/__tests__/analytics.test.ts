@@ -15,6 +15,7 @@ import {
   getAnalyticsConsentRevision,
   hasNativeFirebaseAnalyticsModule,
   identifyUser,
+  isClarityAllowedRoute,
   initAnalytics,
   pageView,
   secondBSession,
@@ -135,6 +136,24 @@ describe("analytics — no-op when no keys configured", () => {
       analyticsEnabled: false,
       clarityEnabled: false,
     });
+  });
+
+  test("Clarity route allow-list: identifier and writing surfaces stay out by construction", () => {
+    expect(isClarityAllowedRoute("/")).toBe(true);
+    expect(isClarityAllowedRoute("/plans")).toBe(true);
+    expect(isClarityAllowedRoute("/settings/language")).toBe(true);
+    expect(isClarityAllowedRoute("/sign-in")).toBe(true);
+    expect(isClarityAllowedRoute("/onboarding")).toBe(true);
+    // "/" is an exact match, never a match-everything prefix.
+    expect(isClarityAllowedRoute("/record/abc")).toBe(false);
+    expect(isClarityAllowedRoute("/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120")).toBe(false);
+    expect(isClarityAllowedRoute("/peer/abcdefghijklmnopqrstuvwxyz012345")).toBe(false);
+    expect(isClarityAllowedRoute("/secondb")).toBe(false);
+    expect(isClarityAllowedRoute("/capture")).toBe(false);
+    expect(isClarityAllowedRoute("/journal")).toBe(false);
+    // Query/hash data never widens the decision (sanitized first).
+    expect(isClarityAllowedRoute("/plans?from=ai_limit#top")).toBe(true);
+    expect(isClarityAllowedRoute("/record/abc?share=1")).toBe(false);
   });
 
   test("a stale server consent read cannot overwrite a newer privacy action", () => {
@@ -644,7 +663,9 @@ describe("runtime analytics web transitions", () => {
       ([script]) => (script as { src?: string }).src,
     );
     expect(scriptSources.filter((src) => src?.includes("googletagmanager.com"))).toHaveLength(1);
-    expect(scriptSources.filter((src) => src?.includes("clarity.ms"))).toHaveLength(1);
+    // The session sits on /record/[id] when the load runs, so the Clarity
+    // route allow-list withholds injection (GA4/PostHog are unaffected).
+    expect(scriptSources.filter((src) => src?.includes("clarity.ms"))).toHaveLength(0);
     expect(posthog.init).toHaveBeenCalledTimes(1);
     expect(posthog.init).toHaveBeenCalledWith(
       "ph-test",
@@ -871,6 +892,31 @@ describe("runtime analytics web transitions", () => {
     const commands = dataLayer.filter(isGtagCommand).map((entry) => entry[0]);
     expect(commands).toContain("config");
     expect(commands).toContain("event");
+    analytics.__resetAnalytics();
+  });
+
+  test("Clarity injects only on allow-listed routes and retries on the first allowed page_view", async () => {
+    const rows = {
+      current: [
+        { key: "analytics_enabled", enabled: true },
+        { key: "clarity_enabled", enabled: true },
+      ],
+    };
+    const { analytics, appendChild, clarity } = loadWebModule(rows);
+    // Land on an identifier route BEFORE consent resolves.
+    analytics.captureEvent(
+      analytics.pageView({ path: "/record/9c820f74-17a2-4d0a-9a6e-234b86a6c120" }),
+    );
+    await analytics.initAnalytics({ analyticsConsent: true, isMinor: false, confirmedAdult: true });
+    await flushAsyncWork();
+    // GA4 injected; Clarity withheld because the session sits on /record/[id].
+    expect(appendChild).toHaveBeenCalledTimes(1);
+    expect(clarity).not.toHaveBeenCalled();
+    // The first page_view on an allow-listed route performs the lazy injection.
+    analytics.captureEvent(analytics.pageView({ path: "/plans" }));
+    await flushAsyncWork();
+    expect(appendChild).toHaveBeenCalledTimes(2);
+    expect(clarity.mock.calls.some(([command]) => command === "consentv2")).toBe(true);
     analytics.__resetAnalytics();
   });
 });
