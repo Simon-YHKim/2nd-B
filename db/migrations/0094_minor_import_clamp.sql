@@ -13,9 +13,10 @@
 -- relation people stay allowed for minors — the lock is about bulk comms
 -- ingestion (PIPA posture), not about a teen writing down a friend.
 --
--- No SECURITY DEFINER: the trigger reads only the writer's OWN users row
+-- Definer-free by design: the trigger reads only the writer's OWN users row
 -- (NEW.user_id = auth.uid() under relation_people's owner-only RLS), which
--- own-row SELECT policy already permits. Additive + idempotent.
+-- own-row SELECT policy already permits — invoker rights suffice. Additive +
+-- idempotent.
 
 CREATE OR REPLACE FUNCTION reject_minor_imported_relation_rows() RETURNS trigger
 LANGUAGE plpgsql
