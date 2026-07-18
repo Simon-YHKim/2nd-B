@@ -50,7 +50,7 @@ export function googleTasksToOutcome(tasks: ReadonlyArray<GoogleTask>): ImportOu
   }));
   // To-dos aren't appointments/places/health; count them in `events` (the same
   // slot calendar events use), so the review summary stays consistent.
-  return { proposals, summary: { appointments: 0, places: 0, events: proposals.length, health: 0, raw: 0 } };
+  return { proposals, summary: { appointments: 0, places: 0, events: proposals.length, health: 0, notes: 0, raw: 0 } };
 }
 
 export type TasksFetchError = "no_token" | "fetch_failed" | "bad_response";
