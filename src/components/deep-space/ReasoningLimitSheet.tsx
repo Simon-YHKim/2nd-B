@@ -6,25 +6,27 @@
 // returns the user to the surface they came from with their selection intact
 // (it is an overlay — the caller's state is never torn down).
 //
-// Eligibility for the ad CTA (fail-closed, matching the live rewarded
-// precedent on /plans + /secondb): free tier AND isMinor === false AND
-// adsConfigured() AND the monthly earn cap not yet reached. Minors and
-// age-unknown users never see the ad region at all (spec F 상태 전수). The
-// stricter checks (ads-consent pref, real SDK readiness + SSV) land with the
-// AdMob SDK PR — this sheet already funnels every surface through one gate so
-// that tightening happens in exactly one place.
+// Eligibility for the ad CTA: the FULL rewarded gate (#1076
+// canShowRewardedAds — build flag + free tier + confirmed non-minor +
+// explicit ads consent from users.privacy_prefs.ads + the rewarded route
+// allow-list, where "/" home and "/reasoning" are listed for this sheet) plus
+// the monthly earn cap. Every unresolved input fails closed, so minors and
+// age-unknown users never see the ad region at all (spec F 상태 전수). Real
+// SDK readiness + SSV verification remain rewarded.ts's own seam (#1068
+// fail-closed until AdMob lands).
 //
 // SAME-QUALITY invariant: the reward adds RUNS only; copy restates it.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { adsConfigured } from "@/lib/ads/policy";
+import { canShowRewardedAds } from "@/lib/ads/policy";
 import { showRewardedAd } from "@/lib/ads/rewarded";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_MONTHLY_CAP, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { addRewardCredits, getReasoningUsage, type ReasoningUsage } from "@/lib/entitlements/usage";
@@ -45,10 +47,13 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const { t, i18n } = useTranslation("deepspace");
   const { userId, isMinor } = useAuth();
   const progression = useProgression();
+  const pathname = usePathname();
   const { height } = useWindowDimensions();
 
   const [usage, setUsage] = useState<ReasoningUsage | null>(null);
   const [watching, setWatching] = useState(false);
+  // users.privacy_prefs.ads — null until resolved; the rewarded gate fails closed.
+  const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
   const mountedRef = useRef(true);
   const rise = useRef(new Animated.Value(0)).current;
 
@@ -77,6 +82,21 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
     void refreshUsage();
   }, [visible, rise, refreshUsage]);
 
+  useEffect(() => {
+    if (!visible || !userId) return;
+    let cancelled = false;
+    fetchPrivacyPrefs(userId)
+      .then((prefs) => {
+        if (!cancelled) setAdsConsent(prefs.ads === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, userId]);
+
   const cap = reasoningCapForTier(progression.tier);
   const used = usage?.used ?? 0;
   const baseLeft = cap === null ? null : Math.max(0, cap - used);
@@ -85,10 +105,17 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const earnCapReached = rewardEarned >= REWARD_MONTHLY_CAP;
   const month = monthLabelFor(i18n.language ?? "en", usage?.monthBucket ?? "");
 
-  // Fail-closed ad region: free adults only, ads built in, monthly earn cap
-  // open. isMinor null (unknown age) hides the region entirely (spec F).
+  // Fail-closed ad region: the FULL #1076 rewarded gate (build flag + free
+  // tier + confirmed non-minor + explicit ads consent + rewarded route
+  // allow-list — "/" home and "/reasoning" are listed for this sheet) plus the
+  // monthly earn cap. Any unresolved input hides the region entirely (spec F).
   const adEligible =
-    progression.tier === "free" && isMinor === false && adsConfigured() && !earnCapReached;
+    canShowRewardedAds({
+      tier: progression.loading ? null : progression.tier,
+      isMinor,
+      adsConsent,
+      route: pathname ?? "/",
+    }) && !earnCapReached;
 
   const onWatch = useCallback(async () => {
     if (!userId || watching) return;
