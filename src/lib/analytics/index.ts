@@ -371,7 +371,7 @@ type WebGlobal = {
   dataLayer?: unknown[];
   gtag?: (...args: unknown[]) => void;
   clarity?: (...args: unknown[]) => void;
-  location?: { origin?: string };
+  location?: { origin?: string; hostname?: string };
 };
 
 function webWindow(): WebGlobal | null {
@@ -968,6 +968,47 @@ export function getAnalyticsConsentRevision(): number {
   return analyticsConsentRevision;
 }
 
+// Trackers the app may have set while consent was granted: GA4 stores
+// _ga / _ga_<STREAM> (prefix "_ga" also covers _gat throttling cookies);
+// Clarity stores _clck / _clsk. Prefix match against document.cookie names.
+const TRACKING_COOKIE_PREFIXES = ["_clck", "_clsk", "_ga"] as const;
+
+/**
+ * Expire tracker cookies after a REAL consent revoke. document.cookie only
+ * exposes name=value pairs, never each cookie's domain/path, so every present
+ * tracker name is expired across all plausible variants: host-only, the exact
+ * hostname, and the dot-hostname, each at "/", the GitHub Pages base path,
+ * and the base path with a trailing slash. Expiring a variant that was never
+ * set is a no-op; cookie access failures must never break the consent flow.
+ */
+function expireTrackingCookies(): void {
+  const w = webWindow();
+  if (!w || typeof document === "undefined") return;
+  try {
+    const names = new Set(
+      document.cookie
+        .split(";")
+        .map((part) => part.split("=", 1)[0]?.trim() ?? "")
+        .filter((name) => TRACKING_COOKIE_PREFIXES.some((p) => name.startsWith(p))),
+    );
+    if (names.size === 0) return;
+    const hostname = w.location?.hostname ?? "";
+    const domains = [""];
+    if (hostname) domains.push(hostname, `.${hostname}`);
+    const paths = ["/", GITHUB_PAGES_BASE_PATH, `${GITHUB_PAGES_BASE_PATH}/`];
+    for (const name of names) {
+      for (const path of paths) {
+        for (const domain of domains) {
+          document.cookie =
+            `${name}=; Max-Age=0; path=${path}` + (domain ? `; domain=${domain}` : "");
+        }
+      }
+    }
+  } catch {
+    // ignore - a blocked cookie store (exotic embeddings) is already private
+  }
+}
+
 export function setAnalyticsConsent(
   granted: boolean,
   gate?: AnalyticsSubjectGate,
@@ -980,6 +1021,7 @@ export function setAnalyticsConsent(
     return false;
   }
   analyticsConsentRevision += 1;
+  const wasGranted = analyticsConsent;
   analyticsConsent = canLoadProductAnalytics(granted, gate);
   // Native builds mirror the same resolved decision (revision-guarded above);
   // a native revoke is immediate (setAnalyticsCollectionEnabled false), unlike
@@ -1018,6 +1060,15 @@ export function setAnalyticsConsent(
       } catch {
         // ignore
       }
+    }
+    // Expire tracker cookies (_clck/_clsk/_ga*) on a REAL revoke (granted ->
+    // denied in this session) or a server-resolved denial (expectedRevision
+    // present = the AnalyticsConsentSync outcome, catching a revoke made on
+    // another device). The boot-time preemptive revoke (no options) must NOT
+    // purge: it fires before every grant resolution, and wiping _ga there
+    // would reset a consented user's GA client id on every cold start.
+    if (wasGranted || options?.expectedRevision !== undefined) {
+      expireTrackingCookies();
     }
     return true;
   }
