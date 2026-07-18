@@ -68,8 +68,12 @@ export function canShowAds(input: AdEligibilityInput): boolean {
 // display space - /secondb stays banner-free even though its reward entry
 // lives there, and /records stays rewarded-free.
 
-/** The ONLY routes where a rewarded-ad entry may open (prefix match). */
-export const REWARDED_AD_ALLOWED_ROUTE_PREFIXES: readonly string[] = ["/plans", "/secondb"];
+/** The ONLY routes where a rewarded-ad entry may open (prefix match). "/" is
+ *  exact-match by construction (its startsWith arm would need "//"), so listing
+ *  it admits ONLY the constellation home — where the reasoning limit sheet
+ *  lives (spec F 계약 14: the ONE sheet owns the reward path from the home
+ *  bubble and /reasoning entries). */
+export const REWARDED_AD_ALLOWED_ROUTE_PREFIXES: readonly string[] = ["/plans", "/secondb", "/", "/reasoning"];
 
 export function isRewardedAdAllowedRoute(route: string): boolean {
   return REWARDED_AD_ALLOWED_ROUTE_PREFIXES.some((p) => route === p || route.startsWith(`${p}/`));

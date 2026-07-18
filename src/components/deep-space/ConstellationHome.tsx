@@ -18,7 +18,7 @@ import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-nativ
 
 import { LATEST_NOTICE, NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { adsConfigured } from "@/lib/ads/policy";
+import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
@@ -608,10 +608,11 @@ export function ConstellationHome({
               <View style={styles.bubbleActions}>
                 {reasoningMode === "depleted" ? (
                   <>
-                    {/* THE limit sheet owns the real ad path (spec F, 계약 14) — the
-                        old push to /records led nowhere. Fail-closed: adult + free
-                        tier + ads built into this binary. */}
-                    {isMinor === false && progression.tier === "free" && adsConfigured() ? (
+                    {/* THE limit sheet owns the real ad path (spec F, 계약 14) and
+                        applies the FULL rewarded gate — canShowRewardedAds:
+                        consent + route allow-list. This entry precheck is the
+                        cheap sync subset: adult + free + rewarded build flag. */}
+                    {isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (
                       <MdButton
                         label={ko ? `광고 보고 ${REWARD_PER_WATCH}회 받기` : `Watch an ad for ${REWARD_PER_WATCH} runs`}
                         variant="filled"

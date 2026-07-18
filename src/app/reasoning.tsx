@@ -10,7 +10,7 @@ import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { ReasoningLimitSheet } from "@/components/deep-space/ReasoningLimitSheet";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { adsConfigured } from "@/lib/ads/policy";
+import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
@@ -1102,10 +1102,11 @@ export default function ReasoningScreen() {
                       : `${cap ?? 0} runs refill Monday at 00:00 KST.`}
                   </RNText>
                   <View style={styles.depletedActions}>
-                    {/* The ad path lives in THE limit sheet (spec F, 계약 14) — the
-                        old "기록에서 광고 보기" push led to /records where no
-                        rewarded flow exists. Fail-closed: adult + free + ads built. */}
-                    {isMinor === false && progression.tier === "free" && adsConfigured() ? (
+                    {/* The ad path lives in THE limit sheet (spec F, 계약 14),
+                        which applies the FULL #1076 rewarded gate (consent +
+                        route allow-list). This entry precheck is the cheap sync
+                        subset: adult + free + rewarded build flag. */}
+                    {isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (
                       <MdButton
                         label={ko ? `광고 보고 ${REWARD_PER_WATCH}회 받기` : `Watch an ad for ${REWARD_PER_WATCH} runs`}
                         variant="filled"
