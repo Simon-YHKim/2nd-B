@@ -10,8 +10,25 @@ import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
-import { getReasoningUsage, weekBucket } from "@/lib/entitlements/usage";
+import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { callGemini } from "@/lib/llm/gemini";
+import {
+  ReasoningAutoUnavailableError,
+  ReasoningRunActiveError,
+  ReasoningRunLimitError,
+  type ServerProposalRow,
+  autoRunKey,
+  cancelRun as cancelRunJob,
+  completeRun,
+  failRun,
+  listPendingProposals,
+  makeManualRunKey,
+  markProposalApplied,
+  ratifyProposals,
+  recoverStaleRuns,
+  reserveRun,
+  startRun as startRunJob,
+} from "@/lib/reasoning/runs";
 import { domainTagFor, getDomainStar, isDomainId, stripDomainTags, type DomainId } from "@/lib/persona/domain-stars";
 import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
@@ -19,7 +36,6 @@ import { detectDomain } from "@/lib/records/detect-domain";
 import { getRecordById, listRecentRecords, updateRecordTags } from "@/lib/records/create";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { classifyInputAnyLocale } from "@/lib/safety/classifier";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { generateSourcePage } from "@/lib/wiki/phase2";
 import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
@@ -28,7 +44,6 @@ import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 const AUTO_REASONING_KEY = "reasoning.auto.v1";
-const PENDING_PROPOSALS_KEY = "reasoning.proposals.v1";
 const REASONING_RATIFIED_TAG = "reasoning:ratified";
 const MAX_SELECTION = 5;
 interface AsyncStorageLike {
@@ -40,10 +55,6 @@ const memoryAuto = new Map<string, boolean>();
 
 function autoKey(userId: string): string {
   return `${AUTO_REASONING_KEY}.${userId}`;
-}
-
-function proposalKey(userId: string): string {
-  return `${PENDING_PROPOSALS_KEY}.${userId}`;
 }
 
 function webStorage(): Storage | null {
@@ -138,67 +149,64 @@ export interface ReasoningItem {
 
 export interface ReasoningProposal extends ReasoningItem {
   domain: DomainId;
+  /** Server run this proposal belongs to (0092) — drives ratify/apply. */
+  runId: string;
+  /** Ordinal inside the run — the exactly-once apply key. */
+  ordinal: number;
 }
 
-const memoryProposals = new Map<string, ReasoningProposal[]>();
-
-async function readPendingProposals(userId: string): Promise<ReasoningProposal[]> {
-  const key = proposalKey(userId);
-  let raw: string | null = null;
-  try {
-    const web = webStorage();
-    if (web) raw = web.getItem(key);
-    else {
-      const native = nativeStorage();
-      raw = native ? await native.getItem(key) : null;
-    }
-  } catch {
-    return memoryProposals.get(key) ?? [];
-  }
-  if (!raw) return memoryProposals.get(key) ?? [];
-  try {
-    const parsed = JSON.parse(raw) as ReasoningProposal[];
-    return Array.isArray(parsed)
-      ? parsed
-          .filter(
-            (proposal) =>
-              proposal &&
-              typeof proposal.key === "string" &&
-              typeof proposal.refId === "string" &&
-              isDomainId(proposal.domain),
-          )
-          .slice(-20)
-      : [];
-  } catch {
-    return [];
-  }
+// Proposals persist SERVER-side per run (0092 reasoning_run_proposals), so
+// review survives app kills and device switches and a spent run can never
+// lose its result to storage pressure. The payload is slim — identity,
+// labels, and the suggested domain; apply re-reads the latest row anyway.
+function proposalToPayload(proposal: ReasoningProposal): Record<string, unknown> {
+  return {
+    key: proposal.key,
+    refKind: proposal.refKind,
+    refId: proposal.refId,
+    title: proposal.title,
+    meta: proposal.meta,
+    createdAt: proposal.createdAt,
+    icon: proposal.icon,
+    domain: proposal.domain,
+  };
 }
 
-async function writePendingProposals(
-  userId: string,
-  proposals: readonly ReasoningProposal[],
-): Promise<void> {
-  const key = proposalKey(userId);
-  // Proposal review needs identity, labels, tags, and the suggested domain,
-  // not the original record body. Dropping it keeps this user-scoped cache
-  // comfortably below Android's AsyncStorage limits.
-  const next = proposals
-    .slice(-20)
-    .map((proposal) => ({ ...proposal, body: undefined }));
-  memoryProposals.set(key, [...next]);
-  const raw = JSON.stringify(next);
-  try {
-    const web = webStorage();
-    if (web) {
-      web.setItem(key, raw);
-      return;
-    }
-    await nativeStorage()?.setItem(key, raw);
-  } catch {
-    // The in-memory copy still lets the user review this completed run in the
-    // current session. Storage pressure must not turn a successful, metered run
-    // into an error screen with no visible result.
+function proposalFromServerRow(row: ServerProposalRow): ReasoningProposal | null {
+  const p = row.payload as {
+    key?: unknown;
+    refKind?: unknown;
+    refId?: unknown;
+    title?: unknown;
+    meta?: unknown;
+    createdAt?: unknown;
+    icon?: unknown;
+    domain?: unknown;
+  };
+  if (
+    typeof p.key !== "string" ||
+    typeof p.refId !== "string" ||
+    (p.refKind !== "record" && p.refKind !== "source") ||
+    typeof p.domain !== "string" ||
+    !isDomainId(p.domain)
+  ) {
+    return null;
   }
+  const icon = p.icon;
+  return {
+    key: p.key,
+    refKind: p.refKind,
+    refId: p.refId,
+    title: typeof p.title === "string" ? p.title : p.key,
+    meta: typeof p.meta === "string" ? p.meta : "",
+    createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date(0).toISOString(),
+    body: undefined,
+    tags: [],
+    icon: icon === "link" || icon === "mic" || icon === "task" ? icon : "notes",
+    domain: p.domain,
+    runId: row.runId,
+    ordinal: row.ordinal,
+  };
 }
 
 interface ReasoningRunInput {
@@ -207,6 +215,10 @@ interface ReasoningRunInput {
   minor: boolean;
   tier: SubscriptionTier;
   items: readonly ReasoningItem[];
+  /** manual = user command (fresh key per tap) · auto = new-item batch. */
+  trigger: "manual" | "auto";
+  /** Idempotency key for the 0092 reserve — a retry never spends twice. */
+  runKey: string;
   signal?: AbortSignal;
   onItemStart?: (key: string, completed: number) => void;
   onItemDone?: (key: string, completed: number, domain: DomainId) => void;
@@ -320,30 +332,63 @@ async function loadSafeBatchText(
   return new Map(entries);
 }
 
-async function reserveReasoningUsage(userId: string): Promise<void> {
-  const { error } = await getSupabaseClient().rpc("bump_reasoning_usage_if_under_cap", {
-    p_user_id: userId,
-    p_month: weekBucket(),
-    p_cap: 0,
-  });
-  if (!error) return;
-  if (
-    error.code === "P0001" ||
-    error.message.toLowerCase().includes("reasoning_limit_exceeded")
-  ) {
-    throw new ReasoningLimitError();
-  }
-  throw new Error("reasoning_quota_reservation_failed");
-}
-
 export async function runReasoningBatch(
   input: ReasoningRunInput,
 ): Promise<ReasoningProposal[]> {
   if (input.items.length === 0) return [];
-  const usage = await getReasoningUsage(input.userId);
-  if (remainingReasoning(input.tier, usage.used, usage.rewardCredits) <= 0) {
-    throw new ReasoningLimitError();
+
+  // Reserve FIRST (0092): the spend is atomic and idempotent server-side, and
+  // every failure path below refunds it — so a crash can no longer eat a run
+  // without a reviewable result, and a second device cannot double-spend.
+  let reservedRunId: string;
+  try {
+    const reserved = await reserveRun({
+      userId: input.userId,
+      key: input.runKey,
+      trigger: input.trigger,
+      itemCount: input.items.length,
+    });
+    if (reserved.existing && reserved.status !== "reserved" && reserved.status !== "running") {
+      // This exact command already finished once (auto retry after success, or
+      // a manual re-send). Its proposals are already persisted server-side.
+      return [];
+    }
+    reservedRunId = reserved.runId;
+  } catch (error) {
+    if (error instanceof ReasoningRunLimitError) throw new ReasoningLimitError();
+    throw error;
   }
+
+  try {
+    void startRunJob(input.userId, reservedRunId);
+    const withIds = await produceProposals(input, reservedRunId);
+    await completeRun(
+      input.userId,
+      reservedRunId,
+      withIds.map((proposal) => ({ kind: "domain_link", payload: proposalToPayload(proposal) })),
+    );
+    return withIds;
+  } catch (error) {
+    // Refund the reservation: cancel for a user abort, fail otherwise. Both
+    // are exactly-once server-side; a missed call is repaired by the stale
+    // sweep (recoverStaleRuns) on the next visit.
+    if ((error as Error).message === "reasoning_cancelled") {
+      await cancelRunJob(input.userId, reservedRunId);
+    } else {
+      await failRun(
+        input.userId,
+        reservedRunId,
+        error instanceof ReasoningSafetyError ? "safety" : "error",
+      );
+    }
+    throw error;
+  }
+}
+
+async function produceProposals(
+  input: ReasoningRunInput,
+  runId: string,
+): Promise<ReasoningProposal[]> {
   const safeTextByKey = await loadSafeBatchText(input);
   throwIfCancelled(input.signal);
 
@@ -351,7 +396,7 @@ export async function runReasoningBatch(
   const recordItems = input.items.filter((item) => item.refKind === "record");
   const sourceItems = input.items.filter((item) => item.refKind === "source");
   const domainByKey = new Map<string, DomainId>();
-  const proposals: ReasoningProposal[] = [];
+  const proposals: (ReasoningItem & { domain: DomainId })[] = [];
 
   if (recordItems.length > 0) {
     throwIfCancelled(input.signal);
@@ -437,12 +482,8 @@ export async function runReasoningBatch(
     }
   }
 
-  // A run is spent only after every selected item has produced a reviewable
-  // proposal. Cancelling or failing before this point does not silently consume
-  // the user's scarce weekly allowance.
   throwIfCancelled(input.signal);
-  await reserveReasoningUsage(input.userId);
-  return proposals;
+  return proposals.map((proposal, index) => ({ ...proposal, runId, ordinal: index }));
 }
 
 async function applyReasoningProposal(
@@ -476,19 +517,13 @@ async function autoRunCanUseQuota(
   userId: string,
   tier: SubscriptionTier,
 ): Promise<boolean> {
+  // Client mirror of the server auto rule (0092): weekly BASE only — rewarded
+  // credits are manual-only (Simon 확정 2026-07-18) — and the last base run is
+  // always left for a manual deep run. The RPC re-enforces this atomically.
+  const cap = reasoningCapForTier(tier);
+  if (cap === null) return true;
   const usage = await getReasoningUsage(userId);
-  const remaining = remainingReasoning(tier, usage.used, usage.rewardCredits);
-  return remaining === Infinity || remaining > 1;
-}
-
-async function appendPendingProposals(
-  userId: string,
-  proposals: readonly ReasoningProposal[],
-): Promise<void> {
-  const current = await readPendingProposals(userId);
-  const byKey = new Map(current.map((proposal) => [proposal.key, proposal]));
-  for (const proposal of proposals) byKey.set(proposal.key, proposal);
-  await writePendingProposals(userId, [...byKey.values()]);
+  return Math.min(usage.used, cap) < cap - 1;
 }
 
 export function enqueueAutoReasoningRecord(args: {
@@ -505,11 +540,14 @@ export function enqueueAutoReasoningRecord(args: {
     if (!(await getAutoReasoningEnabled(args.userId))) return;
     // Free keeps one weekly run for an intentional manual deep run.
     if (!(await autoRunCanUseQuota(args.userId, args.tier))) return;
-    const proposals = await runReasoningBatch({
+    // Proposals persist server-side under the run (0092) — review loads them.
+    await runReasoningBatch({
       userId: args.userId,
       locale: args.locale,
       minor: args.minor,
       tier: args.tier,
+      trigger: "auto",
+      runKey: autoRunKey("record", args.id),
       items: [
         {
           key: `record:${args.id}`,
@@ -524,9 +562,12 @@ export function enqueueAutoReasoningRecord(args: {
         },
       ],
     });
-    await appendPendingProposals(args.userId, proposals);
   }).catch((error) => {
-    if (!(error instanceof ReasoningLimitError) && typeof console !== "undefined") {
+    const expected =
+      error instanceof ReasoningLimitError ||
+      error instanceof ReasoningRunActiveError ||
+      error instanceof ReasoningAutoUnavailableError;
+    if (!expected && typeof console !== "undefined") {
       console.warn("[reasoning] automatic record run failed", (error as Error).message);
     }
   });
@@ -543,11 +584,13 @@ export function enqueueAutoReasoningSource(args: {
   void enqueueReasoning(async () => {
     if (!(await getAutoReasoningEnabled(args.userId))) return;
     if (!(await autoRunCanUseQuota(args.userId, args.tier))) return;
-    const proposals = await runReasoningBatch({
+    await runReasoningBatch({
       userId: args.userId,
       locale: args.locale,
       minor: args.minor,
       tier: args.tier,
+      trigger: "auto",
+      runKey: autoRunKey("source", args.id),
       items: [
         {
           key: `source:${args.id}`,
@@ -561,9 +604,12 @@ export function enqueueAutoReasoningSource(args: {
         },
       ],
     });
-    await appendPendingProposals(args.userId, proposals);
   }).catch((error) => {
-    if (!(error instanceof ReasoningLimitError) && typeof console !== "undefined") {
+    const expected =
+      error instanceof ReasoningLimitError ||
+      error instanceof ReasoningRunActiveError ||
+      error instanceof ReasoningAutoUnavailableError;
+    if (!expected && typeof console !== "undefined") {
       console.warn("[reasoning] automatic source run failed", (error as Error).message);
     }
   });
@@ -706,7 +752,15 @@ export default function ReasoningScreen() {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    void readPendingProposals(userId).then((pending) => {
+    // 0092 recovery: refund runs stranded by a crash/kill, then restore the
+    // pending review from the server (proposed runs + ratified-but-unapplied
+    // leftovers of an interrupted apply loop) — survives device switches.
+    void (async () => {
+      await recoverStaleRuns(userId);
+      const rows = await listPendingProposals(userId);
+      const pending = rows
+        .map(proposalFromServerRow)
+        .filter((proposal): proposal is ReasoningProposal => proposal !== null);
       if (cancelled || pending.length === 0) return;
       setProposals(pending);
       setSelected(new Set(pending.map((proposal) => proposal.key)));
@@ -720,7 +774,7 @@ export default function ReasoningScreen() {
       );
       setCompletedCount(pending.length);
       setPhase((current) => (current === "running" ? current : "done"));
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -836,12 +890,15 @@ export default function ReasoningScreen() {
       Object.fromEntries(selectedItems.map((item) => [item.key, { state: "waiting" as const }])),
     );
 
+    const runKey = makeManualRunKey();
     const queued = enqueueReasoning(() =>
       runReasoningBatch({
         userId,
         locale,
         minor: isMinor === true,
         tier: progression.tier,
+        trigger: "manual",
+        runKey,
         items: selectedItems,
         signal: controller.signal,
         onItemStart: (key) => {
@@ -867,7 +924,7 @@ export default function ReasoningScreen() {
           const nextProposals = await queued;
           runningRef.current = false;
           abortRef.current = null;
-          await writePendingProposals(userId, nextProposals);
+          // Proposals are already persisted server-side by completeRun (0092).
           if (mountedRef.current) {
             setProposals(nextProposals);
             setSelected(new Set(nextProposals.map((proposal) => proposal.key)));
@@ -925,16 +982,33 @@ export default function ReasoningScreen() {
   const applySelectedProposals = useCallback(async () => {
     if (!userId || phase !== "done" || applying) return;
     const accepted = proposals.filter((proposal) => selected.has(proposal.key));
+    const dismissed = proposals.filter((proposal) => !selected.has(proposal.key));
     let pending = [...proposals];
     setApplying(true);
     setErrorText(null);
     try {
+      // 1) Record the per-proposal decisions server-side, exactly-once
+      //    (0092: proposed→ratified / proposed→dismissed; a retry after a
+      //    partial failure only transitions what is still 'proposed').
+      const runIds = [...new Set(proposals.map((proposal) => proposal.runId))];
+      for (const runId of runIds) {
+        await ratifyProposals(
+          userId,
+          runId,
+          accepted.filter((p) => p.runId === runId).map((p) => p.ordinal),
+          dismissed.filter((p) => p.runId === runId).map((p) => p.ordinal),
+        );
+      }
+      // Dismissed proposals never touch user state — drop them from pending.
+      pending = pending.filter((candidate) => selected.has(candidate.key));
+      // 2) Apply each ratified proposal, then mark it applied (ratified→
+      //    applied). A crash mid-loop leaves the rest 'ratified' on the
+      //    server; the mount recovery reloads exactly those for retry.
       for (const proposal of accepted) {
         await applyReasoningProposal(userId, proposal);
+        await markProposalApplied(userId, proposal.runId, proposal.ordinal);
         pending = pending.filter((candidate) => candidate.key !== proposal.key);
-        await writePendingProposals(userId, pending);
       }
-      await writePendingProposals(userId, []);
       setItems((current) =>
         current.filter((item) => !accepted.some((proposal) => proposal.key === item.key)),
       );
