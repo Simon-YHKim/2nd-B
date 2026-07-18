@@ -712,7 +712,7 @@
       "loading": "플랜을 불러오는 중이에요…",
       "growWithoutPaying": "결제 없이 늘리기",
       "rewardTitle": "광고로 담기 가속 충전",
-      "rewardSub": "30초 영상 = +{{n}}회 · 분석 품질은 그대로",
+      "rewardSub": "30초 영상 = +{{n}}회 · 월 최대 {{cap}}회 · 분석 품질은 그대로",
       "noticeTitle": "모바일 앱에서 업그레이드",
       "noticeBody": "유료 플랜은 iOS와 Android 앱스토어에서 결제해요. 휴대폰에서 두번째 뇌 앱을 열어 업그레이드해 주세요.",
       "contactSupport": "문의하기",
@@ -863,6 +863,16 @@
       "cta": "광고 보고 +{{n}}번 받기",
       "later": "나중에",
       "privacy": "성인·동의 시에만 · 민감한 화면에선 안 보여요"
+    },
+    "reasoningLimit": {
+      "title": "이번 주 기본 리즈닝을 다 썼어요.",
+      "resetLine": "월요일 00:00에 다시 {{cap}}회가 채워져요.",
+      "rewardLeft": "보상 {{n}}회 남음 · {{month}} 말까지",
+      "rewardCapReached": "이번 달 보상 {{cap}}회를 모두 받았어요.",
+      "adCta": "광고 보고 {{n}}회 받기",
+      "plansCta": "플랜 보기",
+      "close": "닫기",
+      "sameQuality": "보상은 횟수만 늘어나요. 결과 품질은 그대로예요."
     }
   },
   "beyond": {
