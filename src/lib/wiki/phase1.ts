@@ -186,7 +186,7 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
   const reply = await callGemini({
     userId: input.userId,
     locale: input.locale,
-    purpose: "knowledge_lookup",
+    purpose: "source_ingest",
     minor: input.minor,
     system: SYSTEM_PROMPT[input.locale],
     user: `Title: ${source.title}\n\n${body}`,

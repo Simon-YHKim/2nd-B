@@ -86,11 +86,23 @@
 ## 4. 택소노미 마이그레이션 (26종 최종)
 
 - **분리**: `persona_chat` → `persona_narrative` / `gap_synthesize` / `self_model_propose` (3 콜사이트가 의미 상이 — 감사·라우팅 정밀화)
-- **리네임**: `knowledge_lookup` → `source_ingest`, `clipper_template_propose` → `template_propose`
+- **리네임**: `knowledge_lookup` → `source_ingest` ✅(2026-07-18 이행 — wiki phase1 4질문 intake), `clipper_template_propose` → `template_propose`
 - **재바인딩**: `imagine` → `imagine_divergent` (트위비/발산; 원장 연속성 위해 기존 enum 재사용)
-- **신설**: `digest_weekly`, `ops_daily_brief`, `trend_narrate`, `cluster_infer`, `chat_capture_summarize`, `callrec_summarize`, `ttfv_first_insight`, `safety_classify`, `embed_index`
-- **삭제**: `capture_classify`(dead), `journal_reflect`(dead — record_summarize는 clipper 흡수), `persona_chat`(3분할). `planner`는 PREMIUM_PURPOSES에서 축소 검토.
+- **신설**: `digest_weekly`, `ops_daily_brief`, `trend_narrate`, `cluster_infer`, `chat_capture_summarize`, `callrec_summarize`, `ttfv_first_insight`, `safety_classify`, `embed_index`,
+  `reasoning_connect` ✅(2026-07-18 신설·이행 — `/reasoning` 딥런 도메인-연결 배치(0092). D-26 이후 리즈닝 개편이 낳은 라이브 콜사이트로, `cluster_infer`(위키 클러스터 근거·P2 OpenAI 좌석)와는 별개 purpose. 현행 라우팅 = Gemini pro @ high(콜사이트 명시 인자); P2 좌석은 컷오버 런북에서 결정 — PHASE2_VENDOR 미등재로 Gemini 잔류)
+- **삭제**: `capture_classify`(dead), `journal_reflect` ✅(2026-07-18 이행 — 아래 감사 연속성 참조), `persona_chat`(3분할). `planner`는 PREMIUM_PURPOSES에서 축소 검토.
 - 구→신 purpose 매핑 테이블을 감사 로그 연속성용으로 유지.
+
+### 감사 연속성 (ai_audit_log 구 라벨 → 현행 purpose)
+
+purpose 컬럼은 free text라 과거 행은 그대로 남는다 (persona_chat 3분할 선례). 대시보드·감사 조회 시 아래로 해석:
+
+| 구 라벨 (행 생성 시기) | 현행 purpose | 비고 |
+|---|---|---|
+| `journal_reflect` (#1061 이전) | (dead) | 옛 저널 반성 질문 — record_summarize는 clipper 흡수 |
+| `journal_reflect` (#1061~#1069, /reasoning 기록 배치) | `reasoning_connect` | 리즈닝 개편기가 임시 재사용한 라벨 |
+| `knowledge_lookup` (wiki phase1 intake) | `source_ingest` | A14 리네임 |
+| `knowledge_lookup` (#1061~#1069, /reasoning 자료 배치) | `reasoning_connect` | 동일 시기 임시 재사용 — 시기+콜 형태(JSON connections 스키마)로 구분 |
 
 **목표 스키마** (서버 proxy가 정본 소유):
 ```

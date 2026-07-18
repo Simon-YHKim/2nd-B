@@ -60,3 +60,36 @@ export function canShowAds(input: AdEligibilityInput): boolean {
   if (!isAdAllowedRoute(input.route)) return false; // rule 4 (allow-list)
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Rewarded track (watch-to-earn). Same five rules, SEPARATE allow-list
+// (Simon 2026-07-18): rewarded is a user-INITIATED earn surface (/plans
+// count top-up, /secondb chat +2), while the banner list above is passive
+// display space - /secondb stays banner-free even though its reward entry
+// lives there, and /records stays rewarded-free.
+
+/** The ONLY routes where a rewarded-ad entry may open (prefix match). */
+export const REWARDED_AD_ALLOWED_ROUTE_PREFIXES: readonly string[] = ["/plans", "/secondb"];
+
+export function isRewardedAdAllowedRoute(route: string): boolean {
+  return REWARDED_AD_ALLOWED_ROUTE_PREFIXES.some((p) => route === p || route.startsWith(`${p}/`));
+}
+
+/** Build-level switch for the rewarded track: the flag alone. Rewarded ships
+ *  via the native AdMob SDK, so the web AdSense client is irrelevant here;
+ *  SDK/ad-unit availability is rewarded.ts's own seam (fail-closed, #1068). */
+export function rewardedAdsConfigured(): boolean {
+  const env = getEnv();
+  return env.EXPO_PUBLIC_ENABLE_ADS === true;
+}
+
+/** Rewarded-entry eligibility. Every branch fails closed (null tier, unknown
+ *  minor status, unresolved consent all block), mirroring canShowAds. */
+export function canShowRewardedAds(input: AdEligibilityInput): boolean {
+  if (!rewardedAdsConfigured()) return false;
+  if (input.tier !== "free") return false; // rule 1 (null/loading fails closed)
+  if (input.isMinor !== false) return false; // rule 2 (null = fail closed)
+  if (input.adsConsent !== true) return false; // rule 3
+  if (!isRewardedAdAllowedRoute(input.route)) return false; // rule 4 (allow-list)
+  return true;
+}
