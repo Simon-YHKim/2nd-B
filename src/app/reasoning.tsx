@@ -35,6 +35,7 @@ import {
   startRun as startRunJob,
 } from "@/lib/reasoning/runs";
 import { domainTagFor, getDomainStar, isDomainId, stripDomainTags, type DomainId } from "@/lib/persona/domain-stars";
+import { invalidateDomainLevels } from "@/lib/persona/load-domain-levels";
 import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { detectDomain } from "@/lib/records/detect-domain";
@@ -988,6 +989,12 @@ export default function ReasoningScreen() {
           : "Couldn't apply the selected proposals. Try again.",
       );
     } finally {
+      // Ratifying writes domain tags (records AND sources), which shifts the
+      // constellation — drop the cached levels so the star brightens on the
+      // very next home render instead of after the 45s TTL (create.ts:282
+      // pattern). Also runs on partial failure: some proposals may have
+      // applied before the error.
+      if (accepted.length > 0) invalidateDomainLevels(userId);
       setApplying(false);
     }
   }, [applying, ko, phase, proposals, selected, userId]);

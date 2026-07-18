@@ -184,6 +184,45 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
     expect(domainLevels.career).toBe(1); // untouched domain stays dark
   });
 
+  test("ratified sources brighten their star; un-ratified imports stay dark (P0 연동 브리지)", async () => {
+    // The deep-run ratify stamps domain:<slug> onto the sources row — those are
+    // deliberate propose→ratify acts, so 5 of them reach the medium band (L3)
+    // exactly like organized records. A source WITHOUT a domain tag (a fresh
+    // import nobody ratified) contributes nothing: honesty means an import
+    // alone never lights a star.
+    tableFixtures["records:select"] = { data: [], error: null };
+    tableFixtures["sources:select"] = {
+      data: [
+        ...Array.from({ length: 5 }, (_, i) => ({
+          captured_at: RECENT_ISO,
+          tags: [`domain:career`, "reasoning:ratified", `clip-${i}`],
+        })),
+        { captured_at: RECENT_ISO, tags: ["article"] }, // un-ratified -> dark
+        { captured_at: RECENT_ISO, tags: ["domain:notadomain"] }, // unknown slug -> ignored
+      ],
+      error: null,
+    };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.career).toBe(3);
+    expect(domainLevels.growth).toBe(1);
+  });
+
+  test("records and ratified sources add up within one domain", async () => {
+    // 3 organized records + 2 ratified sources = 5 career entries -> L3. The
+    // two evidence kinds share one coverage ledger, so a mixed capture+import
+    // life is not penalized for where each piece happened to land.
+    tableFixtures["records:select"] = { data: organizedRows("career", 3), error: null };
+    tableFixtures["sources:select"] = {
+      data: Array.from({ length: 2 }, () => ({
+        captured_at: RECENT_ISO,
+        tags: ["domain:career", "reasoning:ratified"],
+      })),
+      error: null,
+    };
+    const { domainLevels } = await loadDomainLevels("u1");
+    expect(domainLevels.career).toBe(3);
+  });
+
   test("structured recency uses the ACTIVITY date, not created_at (last_interaction_on / occurred_on)", async () => {
     // 15 rows each → high band → L4 before recency. The created_at column would
     // give the wrong recency for both: relation rows are old-created but contacted

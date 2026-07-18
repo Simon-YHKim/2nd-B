@@ -4,10 +4,10 @@
 // (layer B) from elicitation signals, this derives the visible life-domain stars
 // (layer A) purely from how much the user has put into each domain.
 //
-// Reads only the records' `domain:` tag + their organizing user-tags — no LLM,
-// no narrative summary — so the home sky reflects COVERAGE, never inference
-// confidence (the brightness-honesty rule). domainConfidence / domainLevel /
-// northStarBrightness do the deterministic math.
+// Reads only `domain:` tags (records + ratified sources) + the structured
+// manage tables — no LLM, no narrative summary — so the home sky reflects
+// COVERAGE, never inference confidence (the brightness-honesty rule).
+// domainConfidence / domainLevel / northStarBrightness do the deterministic math.
 
 import { getSupabaseClient } from "../supabase/client";
 import { isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
@@ -69,7 +69,7 @@ interface StructuredRow {
 
 async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
   const supabase = getSupabaseClient();
-  const [recordsRes, relationRes, recreationRes, ledgerRes, readingRes, healthDeviceRes] =
+  const [recordsRes, sourcesRes, relationRes, recreationRes, ledgerRes, readingRes, healthDeviceRes] =
     await Promise.all([
       supabase
         .from("records")
@@ -80,6 +80,19 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
         // domain fed today vs. abandoned months ago) stays correct. Ascending
         // would silently keep the OLDEST rows and freeze the home sky in the past.
         .order("created_at", { ascending: false }),
+      // Ratified sources (P0 연동 브리지): clips/imports the user connected to a
+      // domain through the deep-run propose→ratify loop, which stamps a
+      // domain:<slug> tag onto the sources row. Before this scan the engine
+      // never read `sources` at all, so a RATIFIED source connection (and every
+      // import, which lands only in `sources`) could not brighten any star.
+      // Honesty holds: an un-ratified source has no domain tag and stays a dark
+      // star, exactly like a pre-migration record. Recency key = captured_at
+      // (this table has no created_at); newest-first for the same cap reason.
+      supabase
+        .from("sources")
+        .select("captured_at, tags")
+        .eq("user_id", userId)
+        .order("captured_at", { ascending: false }),
       // Structured backing for the relation/recreation stars. Read-only here; the
       // manage-layer writers (mirroring ops_*) own inserts. A failed/absent table
       // must never blank the home sky, so these degrade to [] independently.
@@ -121,6 +134,21 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
       domain,
       createdAt: row.created_at ?? undefined,
       tags: userTags,
+    });
+  }
+
+  // Fold ratified sources: a domain tag on a sources row exists only because
+  // the user ratified that connection in the deep-run review (propose→ratify),
+  // so the entry is organized BY that deliberate act — it carries a sentinel
+  // user-tag like the structured rows below. Volume stays honest: one ratify =
+  // one entry, and nothing counts before the user says yes.
+  for (const row of (sourcesRes.data ?? []) as { captured_at?: string | null; tags?: string[] | null }[]) {
+    const domain = domainOf(row.tags ?? []);
+    if (!domain) continue;
+    (entriesByDomain[domain] ??= []).push({
+      domain,
+      createdAt: row.captured_at ?? undefined,
+      tags: ["ratified"],
     });
   }
 
@@ -176,7 +204,7 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
 }
 
 // ── Per-user TTL cache + in-flight dedup ───────────────────────────────
-// The six-table scan above runs on every home mount (DeepSpaceShell), again on
+// The seven-table scan above runs on every home mount (DeepSpaceShell), again on
 // every star tap (/star/[domain]), and serially inside every advisor chat reply
 // (gemini.ts) where it lands on the time-to-first-token path. None of that data
 // changes second-to-second, so a short per-userId cache collapses the repeat
