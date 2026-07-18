@@ -40,11 +40,11 @@ const GEMINI_STAYERS: PromptPurpose[] = [
   "clipper_classify",
   "capture_ocr",
   "capture_voice",
-  "knowledge_lookup",
+  "source_ingest",
   "import_ingest",
   "clipper_template_propose",
   "imagine",
-  "journal_reflect",
+  "reasoning_connect",
 ];
 
 function withPhase<T>(phase: string | undefined, fn: () => T): T {

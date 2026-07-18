@@ -369,7 +369,7 @@ async function produceProposals(
     const reply = await callGemini({
       userId: input.userId,
       locale: input.locale,
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       model: "pro",
       effort: "high",
       minor: input.minor,
@@ -410,7 +410,7 @@ async function produceProposals(
     const reply = await callGemini({
       userId: input.userId,
       locale: input.locale,
-      purpose: "knowledge_lookup",
+      purpose: "reasoning_connect",
       model: "pro",
       effort: "high",
       minor: input.minor,

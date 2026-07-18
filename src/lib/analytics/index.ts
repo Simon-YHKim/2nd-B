@@ -782,9 +782,14 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
     try {
       const id = env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
       w.dataLayer = w.dataLayer || [];
-      const gtag = (...args: unknown[]) => {
-        (w.dataLayer as unknown[]).push(args);
-      };
+      // gtag.js processes ONLY command tuples pushed as `arguments` objects; a
+      // plain array is silently dropped. That shipped as the 2026-07-18 P0
+      // no-collect defect: the container loaded and the dataLayer sequence
+      // looked right, yet zero /g/collect hits left the page. Keep this a
+      // `function` (arrows have no `arguments`).
+      const gtag = function () {
+        (w.dataLayer as unknown[]).push(arguments);
+      } as (...args: unknown[]) => void;
       w.gtag = gtag;
       gtag("js", new Date());
       // Consent mode: we only reach here after explicit opt-in.
