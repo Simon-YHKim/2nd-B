@@ -157,6 +157,39 @@ export async function setAutoReasoningEnabled(userId: string, enabled: boolean):
   }
 }
 
+// ── First-ON intro (spec A 인터랙션: "처음 ON: 소비 규칙을 설명하는 bottom
+// sheet 확인 후 활성화") ─────────────────────────────────────────────────
+// Device-local by design: the intro is a one-time UI explainer, not a synced
+// preference — a fresh device showing it once more is correct behavior.
+
+const INTRO_KEY_PREFIX = "reasoning.auto.intro.v1";
+
+function introKey(userId: string): string {
+  return `${INTRO_KEY_PREFIX}.${userId}`;
+}
+
+/** Has this device already confirmed the auto-reasoning consumption rules? */
+export async function getAutoIntroSeen(userId: string): Promise<boolean> {
+  const key = introKey(userId);
+  const web = webStorage();
+  if (web) return web.getItem(key) === "1";
+  const native = nativeStorage();
+  if (native) return (await native.getItem(key)) === "1";
+  return memoryMirror.get(key) === true;
+}
+
+/** Mark the first-ON intro as confirmed on this device. */
+export async function setAutoIntroSeen(userId: string): Promise<void> {
+  const key = introKey(userId);
+  memoryMirror.set(key, true);
+  const web = webStorage();
+  if (web) {
+    web.setItem(key, "1");
+    return;
+  }
+  await nativeStorage()?.setItem(key, "1");
+}
+
 /** Test seam: drop the in-memory read cache (and optionally the memory mirror). */
 export function __resetAutoPrefCacheForTests(clearMirror = false): void {
   readCache.clear();

@@ -1,4 +1,4 @@
-import { isValidSlug, slugForTitle, toSlug } from "../slug";
+import { isValidSlug, slugForTitle, storageSafeSlug, toSlug } from "../slug";
 
 describe("toSlug", () => {
   test("lowercases ASCII", () => {
@@ -95,5 +95,29 @@ describe("isValidSlug", () => {
 
   test("rejects spaces", () => {
     expect(isValidSlug("big five")).toBe(false);
+  });
+});
+
+// Supabase Storage rejects non-ASCII object keys (400 "Invalid key"), so the
+// PHYSICAL storage key must be ASCII even though wiki slugs keep Hangul.
+describe("storageSafeSlug", () => {
+  test("mixed Hangul+ASCII keeps the ASCII part", () => {
+    expect(storageSafeSlug("kakaotalk-가져오기")).toBe("kakaotalk");
+  });
+
+  test("pure Hangul falls back to a stable, distinct hash key", () => {
+    const a = storageSafeSlug("가져오기");
+    expect(a).toMatch(/^s-[0-9a-z]+$/);
+    expect(storageSafeSlug("가져오기")).toBe(a);
+    expect(storageSafeSlug("내보내기")).not.toBe(a);
+  });
+
+  test("already-safe input passes through unchanged (idempotent)", () => {
+    expect(storageSafeSlug("my-piece")).toBe("my-piece");
+    expect(storageSafeSlug(storageSafeSlug("kakaotalk-가져오기"))).toBe("kakaotalk");
+  });
+
+  test("collapses the hyphen runs Hangul removal leaves behind", () => {
+    expect(storageSafeSlug("a-가-b")).toBe("a-b");
   });
 });

@@ -48,6 +48,18 @@ describe("reasoning execution isolation", () => {
     }
   });
 
+  test("the source-item loader honors the inline body fallback (2026-07-18 QA)", () => {
+    // capture.ts stashes the body in frontmatter._body_fallback when the
+    // Storage upload didn't land. The batch loader reading storage_path
+    // unconditionally 400'd and killed the whole auto run — the fallback
+    // check must come before the storage read.
+    const reasoning = readRepoFile("src/app/reasoning.tsx");
+    const fallbackIndex = reasoning.indexOf("_body_fallback");
+    const downloadIndex = reasoning.indexOf("downloadRawClipping(source.storage_path)");
+    expect(fallbackIndex).toBeGreaterThan(-1);
+    expect(downloadIndex).toBeGreaterThan(fallbackIndex);
+  });
+
   test("the reasoning surface holds unknown profiles and unknown age", () => {
     const reasoning = readRepoFile("src/app/reasoning.tsx");
 

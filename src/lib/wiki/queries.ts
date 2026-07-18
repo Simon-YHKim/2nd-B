@@ -172,16 +172,20 @@ export async function listStoragePendingSources(userId: string, limit = 10): Pro
 }
 
 /** Replace a source's frontmatter wholesale (promote-pending clears the
- *  _storage_pending/_body_fallback pair after a successful re-upload). */
+ *  _storage_pending/_body_fallback pair after a successful re-upload).
+ *  `storagePath` heals rows whose original path was Storage-invalid (pre-fix
+ *  Hangul keys): promotion re-uploads to an ASCII-safe key and repoints the
+ *  row at it in the same write. */
 export async function updateSourceFrontmatter(
   userId: string,
   sourceId: string,
   frontmatter: Record<string, unknown>,
+  storagePath?: string,
 ): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("sources")
-    .update({ frontmatter })
+    .update({ frontmatter, ...(storagePath ? { storage_path: storagePath } : {}) })
     .eq("user_id", userId)
     .eq("id", sourceId);
   if (error) throw error;

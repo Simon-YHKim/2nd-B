@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { Animated, Easing, FlatList, Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SvgXml } from "react-native-svg";
@@ -8,6 +8,7 @@ import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { AutoReasoningIntroSheet } from "@/components/deep-space/AutoReasoningIntroSheet";
 import { ReasoningLimitSheet } from "@/components/deep-space/ReasoningLimitSheet";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { rewardedAdsConfigured } from "@/lib/ads/policy";
@@ -15,7 +16,12 @@ import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reas
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
 import { callGemini } from "@/lib/llm/gemini";
-import { getAutoReasoningEnabled, setAutoReasoningEnabled } from "@/lib/reasoning/auto-pref";
+import {
+  getAutoIntroSeen,
+  getAutoReasoningEnabled,
+  setAutoIntroSeen,
+  setAutoReasoningEnabled,
+} from "@/lib/reasoning/auto-pref";
 import { formatRewardRemaining, formatWeeklyRemaining } from "@/lib/reasoning/remaining-copy";
 import {
   ReasoningAutoUnavailableError,
@@ -272,7 +278,13 @@ async function loadSafeBatchText(
       }
       const source = await getSource(input.userId, item.refId);
       if (!source) throw new Error(`No source row for id=${item.refId}`);
-      const body = await downloadRawClipping(source.storage_path);
+      // capture.ts stashes the body inline (frontmatter._body_fallback) when
+      // the Storage upload didn't land — reading storage_path then 400s and
+      // killed the WHOLE run (the 2026-07-18 auto-run QA failure). Honor the
+      // same fallback every other body reader does (inbox, promote-pending).
+      const fm = (source.frontmatter ?? {}) as Record<string, unknown>;
+      const fallback = typeof fm._body_fallback === "string" ? fm._body_fallback : null;
+      const body = fallback ?? (await downloadRawClipping(source.storage_path));
       return [item.key, `${source.title}\n${body}`] as const;
     }),
   );
@@ -653,10 +665,28 @@ export default function ReasoningScreen() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [crisisVisible, setCrisisVisible] = useState(false);
   const [limitSheetVisible, setLimitSheetVisible] = useState(false);
+  // Spec A 인터랙션 "처음 ON": the first enable confirms the consumption rules
+  // in a bottom sheet before the pref flips; later enables toggle directly.
+  const [autoIntroVisible, setAutoIntroVisible] = useState(false);
 
   const mountedRef = useRef(true);
   const runningRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Spec D graphic: 세컨비 head + ONE constant-speed orbit ring while running
+  // ("일정 속도의 궤도 진행 링" — deliberately NOT progress-proportional, so
+  // progress can never look exaggerated; the n/m line carries the numbers).
+  const orbit = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (phase !== "running") return;
+    orbit.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(orbit, { toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [phase, orbit]);
+  const orbitSpin = orbit.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
 
   const refreshUsage = useCallback(async () => {
     if (!userId) return;
@@ -1148,7 +1178,19 @@ export default function ReasoningScreen() {
                     accessibilityRole="switch"
                     accessibilityState={{ checked: auto.enabled, disabled: !auto.hydrated }}
                     disabled={!auto.hydrated}
-                    onPress={() => auto.setEnabled(!auto.enabled)}
+                    onPress={() => {
+                      // Spec A "처음 ON": first enable routes through the
+                      // consumption-rules sheet; OFF is always immediate.
+                      if (auto.enabled) {
+                        auto.setEnabled(false);
+                        return;
+                      }
+                      if (!userId) return;
+                      void getAutoIntroSeen(userId).then((seen) => {
+                        if (seen) auto.setEnabled(true);
+                        else setAutoIntroVisible(true);
+                      });
+                    }}
                     style={[
                       styles.switchTrack,
                       {
@@ -1183,7 +1225,14 @@ export default function ReasoningScreen() {
               {phase === "running" || phase === "done" ? (
                 <View style={styles.progressCard}>
                   <View style={styles.progressHead}>
-                    <SecondbHead size={52} mood={phase === "done" ? "positive" : "neutral"} />
+                    {/* Spec D: the ONE running graphic is the head + a
+                        constant-speed orbit ring (never percent-scaled). */}
+                    <View style={styles.orbitWrap}>
+                      {phase === "running" ? (
+                        <Animated.View style={[styles.orbitRing, { transform: [{ rotate: orbitSpin }] }]} />
+                      ) : null}
+                      <SecondbHead size={52} mood={phase === "done" ? "positive" : "neutral"} />
+                    </View>
                     <View style={styles.rowCopy}>
                       <RNText style={styles.progressTitle}>
                         {phase === "done"
@@ -1205,9 +1254,13 @@ export default function ReasoningScreen() {
                       </RNText>
                     </View>
                   </View>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-                  </View>
+                  {/* Spec D bans a second graphic while running (the orbit ring
+                      is THE graphic); the determinate bar stays for done. */}
+                  {phase === "done" ? (
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+                    </View>
+                  ) : null}
                   <RNText style={styles.autoNote}>
                     {phase === "done"
                       ? ko
@@ -1375,6 +1428,16 @@ export default function ReasoningScreen() {
         onClose={() => setLimitSheetVisible(false)}
         onChanged={() => void refreshUsage().catch(() => undefined)}
       />
+      <AutoReasoningIntroSheet
+        visible={autoIntroVisible}
+        ko={ko}
+        onConfirm={() => {
+          setAutoIntroVisible(false);
+          if (userId) void setAutoIntroSeen(userId).catch(() => undefined);
+          auto.setEnabled(true);
+        }}
+        onClose={() => setAutoIntroVisible(false)}
+      />
     </>
   );
 }
@@ -1417,6 +1480,16 @@ const styles = StyleSheet.create({
   doneText: { color: m3.accent.moodPositive },
   progressCard: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.surfaceContainerHigh, borderWidth: 1, borderColor: withAlpha(m3.color.primary, 0.24) },
   progressHead: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
+  orbitWrap: { width: 68, height: 68, alignItems: "center", justifyContent: "center" },
+  orbitRing: {
+    position: "absolute",
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 2,
+    borderColor: withAlpha(m3.color.primary, 0.16),
+    borderTopColor: m3.color.primary,
+  },
   progressTitle: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 15, lineHeight: 21, fontWeight: "700" },
   progressTrack: { height: 6, borderRadius: 3, overflow: "hidden", backgroundColor: m3.color.outlineVariant, marginTop: m3.spacing.s4 },
   progressFill: { height: 6, borderRadius: 3, backgroundColor: m3.color.primary },

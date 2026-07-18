@@ -19,6 +19,13 @@ export interface ImportProposal {
   sub: string;
   /** sensitive proposals (health, comms) are default-excluded in the UI. */
   sensitive: boolean;
+  /**
+   * markdown (Notion·Obsidian) only: the note section imported verbatim on
+   * ratify. Notes are the user's OWN authored content — bringing the text in
+   * is the entire point of a notes import, unlike comms/location where only
+   * derived signals may be kept.
+   */
+  body?: string;
 }
 
 export interface ImportSummary {
@@ -26,6 +33,8 @@ export interface ImportSummary {
   places: number;
   events: number;
   health: number;
+  /** markdown note sections found (Notion·Obsidian export). */
+  notes: number;
   /** always 0 — raw bodies are never retained. Shown for transparency. */
   raw: 0;
 }
@@ -42,7 +51,38 @@ export interface ImportOutcome {
 }
 
 const PROPOSAL_CAP = 100;
-const empty: ImportSummary = { appointments: 0, places: 0, events: 0, health: 0, raw: 0 };
+const NOTE_BODY_MAX = 4000;
+const empty: ImportSummary = { appointments: 0, places: 0, events: 0, health: 0, notes: 0, raw: 0 };
+
+/**
+ * Split a markdown export into per-note sections at #/##/### headings. Content
+ * before the first heading becomes its own section titled by its first line.
+ * Pure; bodies clamped so one giant note can't blow up the review screen.
+ */
+export function splitMarkdownSections(content: string): Array<{ title: string; body: string }> {
+  const lines = content.split(/\r?\n/);
+  const sections: Array<{ title: string; body: string[] }> = [];
+  let current: { title: string; body: string[] } | null = null;
+  for (const line of lines) {
+    const heading = /^#{1,3}\s+(.+)$/.exec(line);
+    if (heading) {
+      current = { title: heading[1].trim(), body: [] };
+      sections.push(current);
+      continue;
+    }
+    if (!current) {
+      if (line.trim().length === 0) continue;
+      // Headingless preamble: its first line doubles as the section title.
+      current = { title: line.trim().slice(0, 80), body: [] };
+      sections.push(current);
+      continue;
+    }
+    current.body.push(line);
+  }
+  return sections
+    .map((s) => ({ title: s.title, body: s.body.join("\n").trim().slice(0, NOTE_BODY_MAX) }))
+    .filter((s) => s.title.length > 0);
+}
 
 /** Pure: parse `content` per `kind` and build derived proposals + summary. */
 export function buildProposals(kind: ImportKind, content: string): ImportOutcome {
@@ -78,6 +118,16 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
       summary.appointments = 1;
       proposals.push({ id: "email-0", label: email.subject || email.from, sub: "약속 → 캘린더 후보", sensitive: false });
     }
+  } else if (kind === "markdown") {
+    // Notion·Obsidian notes (2026-07-18 QA: this kind previously had NO branch,
+    // so every notes import died on "0 proposals" — a dead end the hub
+    // advertised as working). Each heading section becomes one proposal whose
+    // body imports verbatim on ratify.
+    const sections = splitMarkdownSections(content);
+    summary.notes = sections.length;
+    for (const s of sections) {
+      proposals.push({ id: `md-${proposals.length}`, label: s.title, sub: "노트 → 기록", sensitive: false, body: s.body });
+    }
   }
 
   return {
@@ -95,8 +145,17 @@ function safeJson(content: string): unknown {
   }
 }
 
-/** Render the ratified proposals as a markdown note (fed to captureFromMarkdown). */
+/** Render the ratified proposals as a markdown note (fed to captureFromMarkdown).
+ *  Signal-only proposals render as bullets (derived, 원문 비보존); note proposals
+ *  (markdown import) carry their body and render as full sections. */
 export function proposalsToMarkdown(sourceName: string, chosen: ReadonlyArray<ImportProposal>): string {
-  const lines = [`# ${sourceName} 가져오기`, "", ...chosen.map((p) => `- ${p.label} _(${p.sub})_`)];
+  const lines = [`# ${sourceName} 가져오기`, ""];
+  for (const p of chosen) {
+    if (p.body) {
+      lines.push(`## ${p.label}`, "", p.body, "");
+    } else {
+      lines.push(`- ${p.label} _(${p.sub})_`);
+    }
+  }
   return lines.join("\n");
 }
