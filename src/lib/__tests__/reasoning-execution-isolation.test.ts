@@ -24,10 +24,10 @@ describe("reasoning execution isolation", () => {
     }
   });
 
-  test("the home reward action is fail-closed for age", () => {
+  test("the home reward action is fail-closed for age, tier and ad config", () => {
     const home = readRepoFile("src/components/deep-space/ConstellationHome.tsx");
-    const guard = "{isMinor === false ? (";
-    const rewardLabel = '"광고로 1회 받기"';
+    const guard = '{isMinor === false && progression.tier === "free" && adsConfigured() ? (';
+    const rewardLabel = "광고 보고 ${REWARD_PER_WATCH}회 받기";
     const guardIndex = home.indexOf(guard);
     const rewardIndex = home.indexOf(rewardLabel);
     const guardEndIndex = home.indexOf(") : null}", rewardIndex);
@@ -35,8 +35,17 @@ describe("reasoning execution isolation", () => {
     expect(home).toContain("const { userId, isMinor } = useAuth();");
     expect(guardIndex).toBeGreaterThan(-1);
     expect(rewardIndex).toBeGreaterThan(guardIndex);
-    expect(rewardIndex - guardIndex).toBeLessThan(400);
+    expect(rewardIndex - guardIndex).toBeLessThan(500);
     expect(guardEndIndex).toBeGreaterThan(rewardIndex);
+  });
+
+  test("reward CTAs open THE limit sheet, never the dead /records detour (spec F, 계약 14)", () => {
+    for (const file of ["src/components/deep-space/ConstellationHome.tsx", "src/app/reasoning.tsx"]) {
+      const source = readRepoFile(file);
+      expect(source).toContain("<ReasoningLimitSheet");
+      expect(source).not.toContain('"/records"');
+      expect(source).not.toContain("광고로 1회 받기");
+    }
   });
 
   test("the reasoning surface holds unknown profiles and unknown age", () => {
@@ -50,7 +59,9 @@ describe("reasoning execution isolation", () => {
     expect(reasoning).toContain(
       "if (hasProfile !== true || isMinor == null) return <InlineLoader />;",
     );
-    expect(reasoning).toContain("{isMinor === false ? (");
+    expect(reasoning).toContain(
+      '{isMinor === false && progression.tier === "free" && adsConfigured() ? (',
+    );
     expect(reasoning).not.toContain("{isMinor !== true ? (");
   });
 });
