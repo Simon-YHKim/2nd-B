@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cowork 프롬프트: Firebase 콘솔 등록 + 빌드 시크릿 3종 배선 (2026-07-18)</title>
+<style>
+  :root {
+    --bg: #0B0E1A; --surface: #131829; --border: #2A345A;
+    --text: #E8ECF8; --muted: #8D98B8; --accent: #4CC9F0;
+    --pass: #72F2C7; --warn: #FFD166;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: Pretendard, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+    line-height: 1.6; padding: 40px 20px; max-width: 900px; margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  h2 { font-size: 17px; margin: 36px 0 12px; color: var(--accent); }
+  p.lead { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: rgba(76,201,240,0.08); font-weight: 600; }
+  code, pre { font-family: "Roboto Mono", Consolas, monospace; }
+  code { background: rgba(76,201,240,0.10); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  pre.prompt {
+    background: #0A0D16; border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px; font-size: 12.5px; line-height: 1.55; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .copybtn {
+    background: var(--accent); color: #0B0E0C; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+  }
+  .copybtn:active { opacity: 0.8; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--muted); margin-right: 6px; }
+  .warn { color: var(--warn); }
+  ul { padding-left: 20px; } li { margin: 4px 0; font-size: 14px; }
+  .small { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>cowork 프롬프트: Firebase 콘솔 등록 + 빌드 시크릿 3종 배선</h1>
+<p class="lead">2026-07-18 · PR #1055(native Firebase Analytics) 머지 후 Simon 계정으로만 가능한 잔여 작업 4가지를 cowork(브라우저를 함께 보는 Claude)에게 넘기는 프롬프트</p>
+<p class="lead warn">주의: google-services.json의 "내용"은 어떤 채팅에도 붙여넣지 않기. 파일은 경로로만 다루고, 리포에는 gitignore로 이미 차단되어 있음.</p>
+
+<div class="card">
+  <span class="tag">붙여넣기용</span><span class="tag">Simon 계정 브라우저 필요</span><span class="tag">산출물 4종</span>
+  <h2 style="margin-top:12px">cowork 프롬프트</h2>
+  <button class="copybtn" onclick="navigator.clipboard.writeText(document.getElementById('p').innerText).then(()=>{this.innerText='복사됨';setTimeout(()=>this.innerText='프롬프트 복사',1500)})">프롬프트 복사</button>
+<pre class="prompt" id="p">[cowork] 2nd-Brain: Firebase 콘솔에서 Android 앱 등록 + 빌드 시크릿 3종 배선.
+브라우저는 Simon 구글 계정 로그인 상태다. 단계별로 어디를 클릭할지 안내하고, 각 단계
+완료를 확인한 뒤 다음으로 넘어간다. google-services.json의 내용은 채팅에 출력하지 말고
+경로로만 다룬다.
+
+목표 산출물 4종:
+ 1) E:\2ndB\google-services.json  (실제 파일; 리포에서 gitignored 확인됨)
+ 2) EAS file env var GOOGLE_SERVICES_JSON  (development / preview / production 전부)
+ 3) GitHub repo secret GOOGLE_SERVICES_JSON_BASE64
+ 4) Firebase-GA4 연결 확인 (권장)
+
+절차:
+A. https://console.firebase.google.com → "프로젝트 추가"
+   - 이름 예: secondbrain-prod (쓸만한 기존 프로젝트가 있으면 재사용 가능)
+   - Google 애널리틱스 활성화 선택 → 산출물 4)를 여기서 해결
+B. 프로젝트 개요 → Android 아이콘(앱 추가)
+   - 패키지 이름: com.simonk.secondbrain   ← 오타 금지. 틀리면 gradle이 패키지
+     불일치로 빌드 실패함
+   - 앱 닉네임: 2nd-Brain / 디버그 서명 인증서 SHA-1: 지금은 생략 (Analytics만이면 불필요)
+C. google-services.json 다운로드 → E:\2ndB\google-services.json 으로 저장
+   - 저장 후 터미널 확인: cd E:\2ndB ; git check-ignore google-services.json
+     → 경로가 출력되어야 정상(= 커밋 안 됨)
+D. EAS file env 등록 (터미널):
+   cd E:\2ndB
+   eas env:create --scope project --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret
+   - 환경을 물으면 development / preview / production 셋 다 선택
+   - eas-cli 버전에 따라 플래그가 다르면 eas env:create --help 를 보거나,
+     expo.dev 대시보드 → 프로젝트 → Environment variables → Add variable (type: File)로 등록
+E. GitHub secret 등록 (PowerShell):
+   $b64=[Convert]::ToBase64String([IO.File]::ReadAllBytes("E:\2ndB\google-services.json"))
+   gh secret set GOOGLE_SERVICES_JSON_BASE64 --repo Simon-YHKim/2nd-B --body $b64
+F. 검증:
+   - gh workflow run android-release.yml --repo Simon-YHKim/2nd-B 실행 후 해당 run 로그의
+     "Provision google-services.json" 스텝에 "Real google-services.json provisioned from
+     secret." 이 찍히는지 (placeholder 경고가 사라져야 함)
+   - eas build --profile development --platform android 가 prebuild를 통과하는지
+   - 런타임 매트릭스: docs/native-analytics-verification-prompt_260718.html 섹션 B4·B5
+     (성인 QA 계정 external_analytics ON에서만 DebugView 이벤트, minor/미확인 0건)
+
+대안: C까지만 끝내고 Claude Code 세션에 "google-services.json 준비됨"이라고 알리면
+D·E는 Claude Code가 CLI로 마무리할 수 있다.
+
+보고 형식: 산출물 4종 각각 완료/실패 + 실패 항목은 마지막 화면 상태 요약.</pre>
+</div>
+
+<h2>사람용 요약</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:60px">단계</th><th>내용</th><th style="width:190px">완료 판정</th></tr>
+    <tr><td>A·B</td><td>Firebase 프로젝트 + Android 앱(<code>com.simonk.secondbrain</code>) 등록, GA4 활성화</td><td>콘솔에 앱 카드 표시</td></tr>
+    <tr><td>C</td><td><code>E:\2ndB\google-services.json</code> 저장</td><td><code>git check-ignore</code>가 경로 출력</td></tr>
+    <tr><td>D</td><td>EAS file env <code>GOOGLE_SERVICES_JSON</code> (3개 환경)</td><td><code>eas env:list</code>에 표시</td></tr>
+    <tr><td>E</td><td>GH secret <code>GOOGLE_SERVICES_JSON_BASE64</code></td><td><code>gh secret list</code>에 표시</td></tr>
+    <tr><td>F</td><td>워크플로 "Real ... provisioned" 로그 + dev build + DebugView 매트릭스</td><td>placeholder 경고 소멸</td></tr>
+  </table>
+  <p class="small" style="margin-top:8px">이 4종이 끝나기 전에도 앱은 안전: 수집은 빌드(firebase.json)·런타임(성인확정+동의 게이트) 양쪽에서 기본 OFF.</p>
+</div>
+
+<p class="small" style="margin-top:24px">작성: Claude (2nd-B) · 선행: PR #1055 (main cf5a13bf) · 점검 도구: docs/native-analytics-verification-prompt_260718.html</p>
+
+</body>
+</html>
