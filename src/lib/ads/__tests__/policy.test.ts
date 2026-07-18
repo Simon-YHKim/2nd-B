@@ -1,4 +1,10 @@
-import { canShowAds, isAdAllowedRoute, type AdEligibilityInput } from "../policy";
+import {
+  canShowAds,
+  canShowRewardedAds,
+  isAdAllowedRoute,
+  isRewardedAdAllowedRoute,
+  type AdEligibilityInput,
+} from "../policy";
 
 // adsConfigured() reads the env module; mock it so the policy rules are
 // testable independent of build variables.
@@ -73,5 +79,77 @@ describe("isAdAllowedRoute", () => {
     expect(isAdAllowedRoute("/records/filter")).toBe(true);
     expect(isAdAllowedRoute("/record/abc")).toBe(false);
     expect(isAdAllowedRoute("/")).toBe(false);
+  });
+});
+
+// Rewarded track: same fail-closed rules, separate allow-list. The two lists
+// must never bleed into each other - /secondb and /plans are rewarded-only,
+// /records is banner-only.
+describe("canShowRewardedAds", () => {
+  function rewardedEligible(overrides: Partial<AdEligibilityInput> = {}): AdEligibilityInput {
+    return {
+      tier: "free",
+      isMinor: false,
+      adsConsent: true,
+      route: "/plans",
+      ...overrides,
+    };
+  }
+
+  test("free adult with consent on /plans or /secondb: allowed", () => {
+    expect(canShowRewardedAds(rewardedEligible())).toBe(true);
+    expect(canShowRewardedAds(rewardedEligible({ route: "/secondb" }))).toBe(true);
+  });
+
+  test("paying tiers and UNKNOWN (loading) tier fail closed", () => {
+    expect(canShowRewardedAds(rewardedEligible({ tier: "soma" }))).toBe(false);
+    expect(canShowRewardedAds(rewardedEligible({ tier: "cortex" }))).toBe(false);
+    expect(canShowRewardedAds(rewardedEligible({ tier: "brain" }))).toBe(false);
+    expect(canShowRewardedAds(rewardedEligible({ tier: null }))).toBe(false);
+  });
+
+  test("minors and UNRESOLVED minor status fail closed (no null pass-through)", () => {
+    expect(canShowRewardedAds(rewardedEligible({ isMinor: true }))).toBe(false);
+    expect(canShowRewardedAds(rewardedEligible({ isMinor: null }))).toBe(false);
+  });
+
+  test("no explicit ads consent (false, null, undefined) = no rewarded entry", () => {
+    expect(canShowRewardedAds(rewardedEligible({ adsConsent: false }))).toBe(false);
+    expect(canShowRewardedAds(rewardedEligible({ adsConsent: null }))).toBe(false);
+    expect(canShowRewardedAds(rewardedEligible({ adsConsent: undefined }))).toBe(false);
+  });
+
+  test("rewarded allow-list excludes every other route, including the banner route", () => {
+    for (const route of ["/", "/records", "/records/filter", "/capture", "/journal", "/record/abc", "/privacy"]) {
+      expect(canShowRewardedAds(rewardedEligible({ route }))).toBe(false);
+    }
+  });
+
+  test("build flag off = no rewarded entry; a missing AdSense client does NOT block (AdMob track)", () => {
+    (getEnv as jest.Mock).mockReturnValueOnce({
+      EXPO_PUBLIC_ENABLE_ADS: false,
+      EXPO_PUBLIC_ADSENSE_CLIENT: "ca-pub-test",
+    });
+    expect(canShowRewardedAds(rewardedEligible())).toBe(false);
+    (getEnv as jest.Mock).mockReturnValueOnce({
+      EXPO_PUBLIC_ENABLE_ADS: true,
+      EXPO_PUBLIC_ADSENSE_CLIENT: undefined,
+    });
+    expect(canShowRewardedAds(rewardedEligible())).toBe(true);
+  });
+
+  test("the banner gate still rejects rewarded routes (lists stay separate both ways)", () => {
+    expect(canShowAds(rewardedEligible({ route: "/plans" }))).toBe(false);
+    expect(canShowAds(rewardedEligible({ route: "/secondb" }))).toBe(false);
+  });
+});
+
+describe("isRewardedAdAllowedRoute", () => {
+  test("prefix match covers nested plans/secondb paths and nothing else", () => {
+    expect(isRewardedAdAllowedRoute("/plans")).toBe(true);
+    expect(isRewardedAdAllowedRoute("/secondb")).toBe(true);
+    expect(isRewardedAdAllowedRoute("/secondb/session")).toBe(true);
+    expect(isRewardedAdAllowedRoute("/records")).toBe(false);
+    expect(isRewardedAdAllowedRoute("/")).toBe(false);
   });
 });

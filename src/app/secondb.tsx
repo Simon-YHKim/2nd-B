@@ -16,7 +16,7 @@
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams, usePathname } from "expo-router";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -31,7 +31,8 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, deepSpace, deepSpaceRadii, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { adsConfigured } from "@/lib/ads/policy";
+import { canShowRewardedAds } from "@/lib/ads/policy";
+import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -548,6 +549,36 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // Phase 4 (0090): free adults can top up the chat DAILY cap (+2 sends today).
   const [chatRewardVisible, setChatRewardVisible] = useState(false);
 
+  // Rewarded-entry gate inputs (policy.canShowRewardedAds; every null fails
+  // closed): users.privacy_prefs.ads resolves async, route from the live
+  // pathname, tier/minor from context.
+  const pathname = usePathname();
+  const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchPrivacyPrefs(userId)
+      .then((prefs) => {
+        if (!cancelled) setAdsConsent(prefs.ads === true);
+      })
+      .catch(() => {
+        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+  const rewardedAllowed = canShowRewardedAds({
+    tier: progression.loading ? null : progression.tier,
+    isMinor,
+    adsConsent,
+    route: pathname ?? "/",
+  });
+  // handleSend is a stable useCallback; mirror the gate through a ref so the
+  // blocked-turn branch never reads a stale value.
+  const rewardedAllowedRef = useRef(rewardedAllowed);
+  rewardedAllowedRef.current = rewardedAllowed;
+
   // Seed once on entry: a character chat opens with that companion's greeting
   // as the first turn; a node entry pre-fills the composer with the context.
   const seededRef = useRef(false);
@@ -673,8 +704,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setUsedToday(result.used);
             if (result.upgradeTo) setPendingUpgrade(result.upgradeTo);
             // 0090: free adults can widen TODAY's allowance by +2 via a
-            // rewarded watch.
-            if (progression.tier === "free" && isMinor !== true && adsConfigured()) {
+            // rewarded watch - only when the FULL rewarded gate passes
+            // (build flag + free tier + confirmed non-minor + explicit ads
+            // consent + rewarded route allow-list).
+            if (rewardedAllowedRef.current) {
               setChatRewardVisible(true);
             }
             captureEvent(
@@ -1214,7 +1247,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             user just sends again — the next send re-reads the allowance. */}
         <RewardedSheet
           kind="chat"
-          visible={chatRewardVisible}
+          visible={chatRewardVisible && rewardedAllowed}
           onClose={() => setChatRewardVisible(false)}
           remaining={Math.max(0, limit - (usedToday ?? 0))}
           onEarned={async () => {
@@ -1599,7 +1632,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       {/* 0090: chat daily-cap top-up — same wiring as deep-space. */}
       <RewardedSheet
         kind="chat"
-        visible={chatRewardVisible}
+        visible={chatRewardVisible && rewardedAllowed}
         onClose={() => setChatRewardVisible(false)}
         remaining={Math.max(0, limit - (usedToday ?? 0))}
         onEarned={async () => {
