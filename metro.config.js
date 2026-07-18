@@ -27,8 +27,16 @@ config.resolver.unstable_enablePackageExports = false;
 // Nested git worktrees (.worktrees/<branch>) are full repo copies. Keep Metro from
 // crawling them, or the haste map collides on duplicate module names + the watch
 // set balloons. (Team rule: all 2ndB worktrees live under .worktrees/.)
+//
+// Anchored to THIS project root's own .worktrees dir (2026-07-18): the old bare
+// /[\\/]\.worktrees[\\/]/ pattern matched the ABSOLUTE path of every file when
+// Metro itself ran inside a worktree checkout (the project path contains
+// .worktrees), which blocked the project's own node_modules and 404'd the
+// entry bundle. Anchoring keeps the fleet-copy exclusion in the canonical
+// checkout and makes worktree-local Metro (emulator QA flows) work unchanged.
+const escapeForRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 config.resolver.blockList = [
-  /[\\/]\.worktrees[\\/].*/,
+  new RegExp(`^${escapeForRegExp(require("path").join(__dirname, ".worktrees"))}[\\\\/].*`),
   // Never bundle tests into the app. expo-router globs src/app via require.context,
   // so a *.test.* / __tests__ file there pulls in node:* builtins that Hermes can't
   // resolve and breaks the native / OTA export (see .github/workflows/eas-update.yml).
