@@ -564,6 +564,36 @@ export function sanitizeAnalyticsRoutePath(routePath: string): string {
   return segments.length > 0 ? `/${segments.join("/")}` : "/";
 }
 
+// ---------------------------------------------------------------------------
+// Clarity route allow-list (2026-07-18 decision; precondition for enabling
+// Clarity in production). Clarity can mask CONTENT but cannot hide URL path
+// segments, and its client API has no pause/stop command - so the only
+// reliable control is to never INJECT it while the session sits on an
+// identifier-carrying screen. Residual risk stays real (see the PR): once
+// injected on an allowed route, later same-page-lifetime navigation
+// (including /record/*, /peer/*) IS recorded - URLs, clicks, referrers -
+// while content stays masked via data-clarity-mask. Clarity's vendor policy
+// also bars under-18 audiences; the analyticsConsent gate already restricts
+// every product-analytics load to server-confirmed adults.
+
+/** Routes where the Clarity script may be injected. "/" matches exactly;
+ *  the rest are prefix matches. Identifier-carrying (/record/*, /peer/*)
+ *  and writing surfaces stay out by construction (allow-list, not deny). */
+export const CLARITY_ALLOWED_ROUTE_PREFIXES: readonly string[] = [
+  "/",
+  "/plans",
+  "/settings",
+  "/sign-in",
+  "/onboarding",
+];
+
+export function isClarityAllowedRoute(routePath: string): boolean {
+  const route = sanitizeAnalyticsRoutePath(routePath);
+  return CLARITY_ALLOWED_ROUTE_PREFIXES.some((p) =>
+    p === "/" ? route === "/" : route === p || route.startsWith(`${p}/`),
+  );
+}
+
 /** Build a GA-safe absolute page location without reading the live URL. */
 export function buildAnalyticsPageLocation(routePath: string, origin?: string): string {
   const safeRoute = sanitizeAnalyticsRoutePath(routePath);
@@ -770,6 +800,30 @@ async function loadProductAnalytics(env: Env): Promise<void> {
   return productAnalyticsLoad;
 }
 
+/**
+ * Clarity injects lazily: consent may resolve while the session sits on a
+ * disallowed route (the loader skips injection there), so the first
+ * page_view on an allow-listed route retries the load. Every gate that the
+ * loader itself enforces (consent, runtime flags, web platform, per-SDK
+ * loaded guards) is re-checked inside; this only avoids pointless calls.
+ */
+function maybeLoadClarityForRoute(): void {
+  if (
+    !analyticsConsent ||
+    clarityLoaded ||
+    !runtimeAnalyticsFlags.clarityEnabled ||
+    !isClarityAllowedRoute(currentAnalyticsRoute) ||
+    !webWindow()
+  ) {
+    return;
+  }
+  try {
+    void loadProductAnalytics(getEnv());
+  } catch {
+    // invalid build env keeps analytics off
+  }
+}
+
 async function performProductAnalyticsLoad(env: Env): Promise<void> {
   const w = webWindow();
   if (!w || !analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) return;
@@ -816,12 +870,16 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
     }
   }
 
-  // MS Clarity - loaded only post-consent. The project must be configured to
-  // mask text (sensitive content); signal cookie consent after load.
+  // MS Clarity - loaded only post-consent AND only while the session sits on
+  // an allow-listed route (injection is irreversible for the page lifetime;
+  // captureEvent retries via maybeLoadClarityForRoute on later navigations).
+  // The project must be configured to mask text (sensitive content); signal
+  // cookie consent after load.
   if (
     runtimeAnalyticsFlags.clarityEnabled &&
     !clarityLoaded &&
-    env.EXPO_PUBLIC_CLARITY_PROJECT_ID
+    env.EXPO_PUBLIC_CLARITY_PROJECT_ID &&
+    isClarityAllowedRoute(currentAnalyticsRoute)
   ) {
     try {
       const id = env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
@@ -1001,6 +1059,7 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   // receive the correct redacted route rather than the browser's live URL.
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
+    maybeLoadClarityForRoute();
   }
   // Re-check at most once per minute. The current event uses the last safe
   // snapshot; a newly disabled flag revokes loaded GA/Clarity immediately
