@@ -77,7 +77,7 @@ describe("callGemini", () => {
     const r: GeminiResult<string> = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "I want to die",
     });
     expect(r.safety.zone).toBe("red");
@@ -89,7 +89,7 @@ describe("callGemini", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "Today I went for a walk.",
     });
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
@@ -107,7 +107,7 @@ describe("callGemini", () => {
       callGemini({
         userId: "u1",
         locale: "en",
-        purpose: "journal_reflect",
+        purpose: "reasoning_connect",
         user: "A normal day.",
       }),
     ).resolves.toBeDefined();
@@ -121,7 +121,7 @@ describe("callGemini", () => {
     const r = await callGemini({
       userId: "u1",
       locale: "ko",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "자살하고 싶다",
     });
     expect(r.safety.zone).toBe("red");
@@ -159,7 +159,7 @@ describe("callGemini", () => {
     await callGemini({
       userId: "u1",
       locale: "en",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "Today I wrote a note.",
       signal: controller.signal,
     });
@@ -178,7 +178,7 @@ describe("callGemini", () => {
       callGemini({
         userId: "u1",
         locale: "en",
-        purpose: "journal_reflect",
+        purpose: "reasoning_connect",
         user: "A normal note.",
         signal: controller.signal,
       }),
@@ -191,7 +191,7 @@ describe("callGemini", () => {
     const minorR = await callGemini({
       userId: "u1",
       locale: "ko",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "자살하고 싶다",
       minor: true,
     });
@@ -203,7 +203,7 @@ describe("callGemini", () => {
     const adultR = await callGemini({
       userId: "u1",
       locale: "ko",
-      purpose: "journal_reflect",
+      purpose: "reasoning_connect",
       user: "자살하고 싶다",
     });
     expect(adultR.text).toMatch(/109/);
