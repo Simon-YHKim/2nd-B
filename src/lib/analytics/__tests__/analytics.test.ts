@@ -928,7 +928,10 @@ describe("runtime analytics web transitions", () => {
     const writes: string[] = [];
     Object.defineProperty(globalThis.document, "cookie", {
       configurable: true,
-      get: () => "_clck=abc; _clsk=def; _ga=GA1.1.1; _ga_R6BK=stream; other=keep",
+      // The measured post-revoke jar from the 2026-07-18 production pass
+      // (_clck + _ga + the full _ga_<CONTAINER> stream cookie), plus _clsk
+      // for prefix coverage and a non-tracker control.
+      get: () => "_clck=abc; _clsk=def; _ga=GA1.1.1; _ga_R6BK0F1RWE=stream; other=keep",
       set: (value: string) => {
         writes.push(value);
       },
@@ -953,7 +956,7 @@ describe("runtime analytics web transitions", () => {
     // 4 tracker names x 3 paths x 3 domain variants; "other" is untouched.
     expect(writes).toHaveLength(36);
     expect(writes).toContain("_clck=; Max-Age=0; path=/");
-    expect(writes).toContain("_ga_R6BK=; Max-Age=0; path=/2nd-B; domain=.example.test");
+    expect(writes).toContain("_ga_R6BK0F1RWE=; Max-Age=0; path=/2nd-B; domain=.example.test");
     expect(writes).toContain("_clsk=; Max-Age=0; path=/2nd-B/; domain=example.test");
     expect(writes.some((entry) => entry.startsWith("other="))).toBe(false);
     analytics.__resetAnalytics();
