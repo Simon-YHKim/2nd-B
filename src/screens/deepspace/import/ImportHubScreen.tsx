@@ -30,6 +30,7 @@ import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
+import { ratifyLedgerEntries } from "@/lib/import/ledger-ratify";
 import {
   addImportHistory,
   getImportHistory,
@@ -235,6 +236,16 @@ export function ImportHubScreen() {
       // star's real backing. Best-effort after the import itself landed.
       if (active.key === "kakao" && outcome.relationSignals?.length) {
         void upsertKakaoRelationPeople(userId, ko, outcome.relationSignals).catch(() => undefined);
+      }
+      // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
+      // captureFromMarkdown above already landed the summary note; this lands the
+      // actual ledger rows the proposals carry (ledgerEntry payload). Content
+      // sniffing routes any bank/card CSV here regardless of active.key, so gate
+      // on the payload, not the source. ratifyLedgerEntries books exactly the
+      // chosen ledgerEntry rows, per-row fail-soft — best-effort after the import
+      // itself landed, mirroring the kakao relation-signals seam above.
+      if (chosen.some((p) => p.ledgerEntry)) {
+        void ratifyLedgerEntries(userId, chosen).catch(() => undefined);
       }
     } catch {
       // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
