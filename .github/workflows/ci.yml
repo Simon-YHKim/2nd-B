@@ -22,3 +22,28 @@ jobs:
       # makes the two pipelines structurally unable to drift again.
       - name: Full verify gauntlet (same command as local `npm run verify`)
         run: npm run verify
+
+  # P0-1 guard (2026-07-19): three web deploys in a row (#1085 era, runs
+  # 29642324523/29643931576/29645075631) failed on `expo export --platform
+  # web` while this CI stayed green — Metro resolves the module graph
+  # statically, so a native-only import reachable from a web-resolved module
+  # breaks the export in a way jest and tsc cannot see. Running the same
+  # export here makes that class of "CI green but web deploy broken"
+  # impossible to merge silently. Runs with default env (mock LLM etc.);
+  # web-deploy.yml stays the source of truth for the production env matrix —
+  # the failure class this catches is import-graph shape, which env vars
+  # cannot change.
+  web-export-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci --legacy-peer-deps
+      - name: Expo web static export (smoke)
+        env:
+          EXPO_PUBLIC_UI: "deep-space"
+          EXPO_USE_STATIC: "true"
+        run: npx expo export --platform web --output-dir dist-smoke
