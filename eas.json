@@ -51,6 +51,9 @@
       "android": {
         "buildType": "app-bundle"
       },
+      "ios": {
+        "credentialsSource": "local"
+      },
       "env": {
         "EXPO_PUBLIC_FORCE_TIER": "off",
         "EXPO_PUBLIC_UI": "deep-space",
