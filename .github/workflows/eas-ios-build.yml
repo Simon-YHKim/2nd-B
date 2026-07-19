@@ -15,19 +15,24 @@ name: EAS iOS Build (IPA)
 # process.env.GOOGLE_SERVICE_INFO_PLIST. The plist never touches this runner
 # and stays out of git (.gitignore **/GoogleService-Info.plist).
 #
-# FIRST-BUILD PREREQUISITE (one-time, dispatch 260719): EAS holds no iOS
-# distribution certificate / provisioning profile for this app yet (zero iOS
-# build history), and this workflow runs --non-interactive, so the very first
-# run FAILS at credential setup until iOS credentials exist on EAS servers.
-# One-time setup (path (a), App Store Connect API key -- never commit the
-# .p8):
-#   1. ASC > Users and Access > Integrations > Keys -> generate an App
-#      Manager key; download the .p8 once, note Key ID + Issuer ID.
-#   2. Locally run `npx eas-cli credentials --platform ios` (not a build --
-#      costs no build slot), pick the production profile, let EAS use the API
-#      key to create + store the distribution certificate and provisioning
-#      profile, and store the key for App Store submissions as well.
-#   3. Re-run this workflow: it is fully non-interactive from then on.
+# SIGNING (production, decided 2026-07-19): LOCAL credentials, no Apple login.
+# The remote EAS-managed path is blocked: Apple's fastlane login 2FA rejects
+# the account's phone verification (web login works, fastlane does not), and
+# retrying risks an account lock. So nothing in this workflow ever talks to
+# Apple. The distribution certificate (.p12) and the App Store provisioning
+# profile ("2ndB App Store Distribution", com.simonk.secondbrain, both expire
+# 2027-07-19) were issued on the Apple Developer WEB portal and live only in
+# GitHub secrets: IOS_DIST_P12_BASE64 / IOS_PROVISIONING_PROFILE_BASE64 /
+# IOS_DIST_P12_PASSWORD. The provision step below restores them and writes
+# credentials.json (gitignored; the runner is ephemeral, secret values are
+# never echoed), and eas.json build.production.ios.credentialsSource="local"
+# makes eas-cli read exactly those files.
+#   docs: https://docs.expo.dev/app-signing/local-credentials/
+# The ASC API key already stored on EAS (Key ID MCNQH5N3US) is for
+# `eas submit -p ios` only and stays untouched by this flow.
+# NOTE: the preview (ad hoc) iOS profile still uses REMOTE credentials and
+# would hit the same Apple-auth wall -- production is the supported iOS
+# profile for now.
 #
 # Build slots: every run consumes an EAS build slot -- trigger only after the
 # owner confirms (workflow_dispatch keeps this human-gated by construction).
@@ -76,6 +81,55 @@ jobs:
 
       - name: Verify OTA/native runtime policy
         run: npm run check:ota-runtime
+
+      # Mirrors the Android GOOGLE_SERVICES_JSON_BASE64 restore pattern; see
+      # the SIGNING header note. Values flow env -> file only, never echoed.
+      - name: Provision iOS signing credentials (local credentialsSource)
+        if: ${{ inputs.profile == 'production' }}
+        env:
+          IOS_DIST_P12_BASE64: ${{ secrets.IOS_DIST_P12_BASE64 }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in IOS_DIST_P12_BASE64 IOS_PROVISIONING_PROFILE_BASE64 IOS_DIST_P12_PASSWORD; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::$v is required for production iOS builds (local credentialsSource)."
+              exit 1
+            fi
+          done
+          mkdir -p ios/certs
+          printf '%s' "$IOS_DIST_P12_BASE64" | base64 -d > ios/certs/dist.p12
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d > ios/certs/profile.mobileprovision
+          for f in ios/certs/dist.p12 ios/certs/profile.mobileprovision; do
+            if [ ! -s "$f" ]; then
+              echo "::error::$f decoded empty; check the corresponding secret."
+              exit 1
+            fi
+          done
+          # credentials.json is written via node so the password is
+          # JSON-escaped regardless of special characters.
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync(
+              "credentials.json",
+              JSON.stringify(
+                {
+                  ios: {
+                    provisioningProfilePath: "ios/certs/profile.mobileprovision",
+                    distributionCertificate: {
+                      path: "ios/certs/dist.p12",
+                      password: process.env.IOS_DIST_P12_PASSWORD,
+                    },
+                  },
+                },
+                null,
+                2,
+              ) + "\n",
+            );
+          '
+          chmod 600 credentials.json ios/certs/dist.p12 ios/certs/profile.mobileprovision
+          echo "Local iOS signing credentials provisioned for the production profile."
 
       - name: Submit EAS iOS build
         id: submit_build
