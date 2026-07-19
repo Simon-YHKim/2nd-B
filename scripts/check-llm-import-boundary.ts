@@ -23,6 +23,10 @@ const GEMINI_TESTS = [
   // to assert C3 rows on the claude-proxy path + outage failover (same pattern
   // as proxy-crisis-fallback.test.ts).
   ["src", "lib", "llm", "__tests__", "vendor-routing-live.test.ts"].join("/"),
+  // 0095 audit-enrichment suite: mocks the supabase client to assert the
+  // log_ai_audit RPC now carries p_purpose/p_reasoning_vendor/p_reasoning_effort
+  // (QA-F2 follow-up) — same sanctioned-test pattern as the entries above.
+  ["src", "lib", "llm", "__tests__", "audit-purpose-continuity.test.ts"].join("/"),
 ];
 
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
