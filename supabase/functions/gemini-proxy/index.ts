@@ -166,6 +166,15 @@ const DEFAULT_DAILY_CALL_CAP = 500;
 // Sub-brain calls are also pinned to flash: the pro model is the expensive
 // half of the worst-case call, and no sub-brain surface needs it.
 const PREMIUM_PURPOSES = new Set(['advisor', 'planner']);
+// Purposes that run PRO-CLASS for EVERY tier by design — exempt from the
+// sub-brain pro->flash pin below. reasoning_connect is the /reasoning deep run
+// (#1063): live for ALL tiers with model:"pro" and already spend-bounded by
+// the 0092 weekly run ledger (free 2/wk · plus 7/wk), so the pin would only
+// have made the SERVED model tier-keyed (brain=pro, everyone else=flash) — a
+// SAME-QUALITY violation (tiers differ by counts/features, never quality;
+// entitlements/tiers.ts + 스펙 계약 12). The tier-aware daily call cap remains
+// the cost backstop a mislabeled caller cannot dodge.
+const PRO_FOR_ALL_TIERS = new Set(['reasoning_connect']);
 const TIER_RANK: Record<string, number> = { free: 0, soma: 1, cortex: 2, brain: 3 };
 const BRAIN_RANK = TIER_RANK.brain;
 const DEFAULT_FREE_DAILY_CALL_CAP = 200;
@@ -501,7 +510,10 @@ Deno.serve(async (req: Request) => {
         safety_zone: 'green',
         latency_ms: latencyMs,
         // D-27: embeds stay on the base key; tag the vendor for re-decomposition.
-        purpose: 'embed',
+        // Label unified with the client rows + the invoke body's self-report
+        // ('embed_index', D-26 A19) — was 'embed', which split the same op
+        // across two purpose labels in re-decomposition queries.
+        purpose: 'embed_index',
         reasoning_vendor: 'gemini',
         key_combo: 'GEMINI_API_KEY',
       });
@@ -672,7 +684,12 @@ Deno.serve(async (req: Request) => {
   // unknown brain user.
   const isProClass = /-pro(\b|$|-)/.test(model);
   const effectiveModel =
-    tierRank !== null && tierRank < BRAIN_RANK && isProClass ? 'gemini-2.5-flash' : model;
+    tierRank !== null &&
+    tierRank < BRAIN_RANK &&
+    isProClass &&
+    !(purpose && PRO_FOR_ALL_TIERS.has(purpose))
+      ? 'gemini-2.5-flash'
+      : model;
 
   // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
   // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day
