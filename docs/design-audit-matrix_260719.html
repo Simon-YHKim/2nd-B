@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>S3 디자인 전수 감사 매트릭스 · 2026-07-19</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #edf6fb;
+      --surface: rgba(255, 255, 255, 0.76);
+      --text: #10283a;
+      --muted: #587184;
+      --accent: #007f94;
+      --line: rgba(16, 40, 58, 0.18);
+      --soft: rgba(0, 127, 148, 0.09);
+      font-family: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #081624;
+        --surface: rgba(234, 246, 255, 0.055);
+        --text: #eaf6ff;
+        --muted: #94aabd;
+        --accent: #5ad7ea;
+        --line: rgba(234, 246, 255, 0.16);
+        --soft: rgba(90, 215, 234, 0.09);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.62;
+    }
+    a { color: var(--accent); text-underline-offset: 0.2em; }
+    button, input, select { font: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+    .page { width: min(1480px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 12px;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.22; text-wrap: balance; }
+    h1 { max-width: 920px; margin: 0; font-size: clamp(30px, 5vw, 58px); letter-spacing: -0.045em; }
+    h2 { margin: 0 0 18px; font-size: clamp(24px, 3vw, 34px); letter-spacing: -0.025em; }
+    h3 { margin: 0 0 10px; font-size: 18px; }
+    p { margin: 0 0 12px; }
+    code {
+      padding: 0.12em 0.34em;
+      border: 1px solid var(--line);
+      background: var(--soft);
+      color: var(--text);
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 0.9em;
+    }
+    .lede { max-width: 880px; margin: 18px 0 0; color: var(--muted); font-size: 18px; }
+    .meta { margin-top: 20px; color: var(--muted); font-family: ui-monospace, "Cascadia Code", monospace; font-size: 12px; }
+    .status {
+      margin-top: 28px;
+      padding: 18px 20px;
+      border-left: 4px solid var(--accent);
+      background: var(--soft);
+    }
+    .status strong { display: block; margin-bottom: 4px; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .card {
+      min-height: 136px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 10px;
+    }
+    .card .value { display: block; margin: 6px 0 3px; color: var(--accent); font-size: 30px; font-weight: 750; }
+    .card .label { color: var(--muted); font-size: 13px; }
+    section { margin-top: 56px; scroll-margin-top: 24px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .panel { padding: 20px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; }
+    .panel ul, .panel ol { margin: 8px 0 0; padding-left: 1.25em; }
+    .panel li + li { margin-top: 7px; }
+    .note { color: var(--muted); }
+    .axis {
+      display: inline-block;
+      min-width: 1.8em;
+      margin-right: 0.28em;
+      color: var(--accent);
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-weight: 700;
+    }
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(140px, 220px));
+      gap: 10px;
+      margin: 18px 0 12px;
+    }
+    .filters label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+    .filters input, .filters select {
+      min-height: 44px;
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; min-width: 1160px; }
+    th, td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--bg);
+      color: var(--muted);
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+    }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--soft); }
+    td:first-child { width: 46px; color: var(--muted); font-family: ui-monospace, "Cascadia Code", monospace; }
+    td:nth-child(2) { min-width: 132px; font-weight: 700; }
+    .tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid currentColor;
+      border-radius: 4px;
+      color: var(--accent);
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .tag.muted { color: var(--muted); }
+    .figure-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    figure { margin: 0; padding: 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; }
+    figure img { display: block; width: 100%; max-height: 520px; object-fit: contain; background: var(--bg); }
+    figcaption { margin-top: 8px; color: var(--muted); font-size: 12px; }
+    details { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+    summary { min-height: 44px; padding: 11px 14px; cursor: pointer; font-weight: 700; }
+    details > div { padding: 0 14px 14px; }
+    .decision { border-left: 3px solid var(--accent); padding-left: 12px; }
+    .footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 900px) {
+      .cards, .grid-2 { grid-template-columns: 1fr 1fr; }
+      .figure-grid { grid-template-columns: 1fr 1fr; }
+      .filters { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 580px) {
+      .page { width: min(100% - 20px, 1480px); padding-top: 28px; }
+      .cards, .grid-2, .figure-grid { grid-template-columns: 1fr; }
+      .card { min-height: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+    @media print {
+      .filters { display: none; }
+      .page { width: 100%; }
+      details > div { display: block; }
+      th { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">2nd-B · S3 Design Track · Evidence Matrix</p>
+      <h1>디자인 전수 감사와 스타일 개선 판정</h1>
+      <p class="lede">발주 기준 <code>da6be790</code>에서 리즈닝 A~F, rev2 화면 인벤토리, 현행 앱 증거, 신규 캐릭터 에셋과 ZIP 세대를 하나의 판정표로 통합했다.</p>
+      <p class="meta">측정 시각: 2026-07-19 09:58:02 KST · 브랜치: codex/s3-design-260719 · viewport 기준: 390×844</p>
+      <div class="status" role="status">
+        <strong>결론: 전수 목록은 완성됐지만, 최신 화면의 픽셀 승인은 보류다.</strong>
+        새 rev2 ZIP의 캡처는 36장이고 <code>35-exhibit</code>은 제거된 orphan이다. 현행 32장은 2026-07-05 역사 자료이며, 로컬 웹은 기존 광고 모듈 import 오류로 중단됐다. 아래 우선순위는 실행 소스, 정본 ZIP, 역사 캡처를 교차한 위험도이며 fresh 상태 캡처가 필요한 행을 <code>U</code>로 분리했다.
+      </div>
+      <div class="cards" aria-label="감사 요약">
+        <article class="card"><span class="label">rev2 캡처 인벤토리</span><span class="value">36 + 1</span><span class="label">정본 36, orphan 1</span></article>
+        <article class="card"><span class="label">화면 위험도</span><span class="value">2 P0</span><span class="label">역사 증거 기준, fresh 확인 필요</span></article>
+        <article class="card"><span class="label">리즈닝 A~F</span><span class="value">5 partial</span><span class="label">F만 거의 정합</span></article>
+        <article class="card"><span class="label">S3 적용</span><span class="value">3 styles</span><span class="label">로직·카피 변경 없음</span></article>
+      </div>
+    </header>
+
+    <section aria-labelledby="scope-title">
+      <h2 id="scope-title">판정 기준과 증거 한계</h2>
+      <div class="grid-2">
+        <article class="panel">
+          <h3>정본 우선순위</h3>
+          <ol>
+            <li>날짜가 있는 Simon 결정, PRD v3, CONCEPT, CONSTELLATION-DESIGN, CONSTRAINTS</li>
+            <li>현행 DESIGN과 deep-space 계약</li>
+            <li>SHA가 고정된 rev2 ZIP과 scoped reasoning ZIP</li>
+            <li>실행 소스, 캡처, 기존 감사 자료</li>
+          </ol>
+          <p class="note">보이는 7별은 life domain이고, 숨은 검증 construct를 홈 별로 렌더링하지 않는다. Polaris가 항상 가장 지배적이어야 한다.</p>
+        </article>
+        <article class="panel">
+          <h3>입력 자료 신선도</h3>
+          <ul>
+            <li>rev2 ZIP: pinned SHA 일치, 82개 파일, 캡처 36장</li>
+            <li>reasoning ZIP: pinned SHA 일치, 8개 파일, 실제 patch 파일 없음</li>
+            <li><code>screens.json</code>: 57개 항목, 제거 route 4개 포함, overlay 3개 누락</li>
+            <li>현행 캡처: 32장, 2026-07-05, da6be790의 승인 증거로 사용 불가</li>
+            <li>fresh 증거: GitHub Pages 홈·공지 390×844 한 상태, 마지막 성공 배포본</li>
+          </ul>
+        </article>
+      </div>
+      <details>
+        <summary>우선순위와 축 표기 읽는 법</summary>
+        <div>
+          <p><span class="tag">P0</span> 루프 단절 또는 잘못된 화면 정체성, <span class="tag">P1</span> 핵심 IA·상태 갭, <span class="tag">P2</span> 위계·토큰 갭, <span class="tag">P3</span> 마감 차이, <span class="tag muted">U</span> fresh 상태 캡처 없이는 확정 불가, <span class="tag muted">X</span> 폐기·비정본이다.</p>
+          <p><span class="axis">L</span>레이아웃, <span class="axis">T</span>토큰, <span class="axis">Y</span>타이포, <span class="axis">M</span>모션, <span class="axis">A</span>에셋을 뜻한다. 정적 캡처가 모션을 증명하지 못하면 추정하지 않고 미검증으로 남겼다.</p>
+        </div>
+      </details>
+    </section>
+
+    <section aria-labelledby="visual-title">
+      <h2 id="visual-title">대표 화면 교차 증거</h2>
+      <p class="note">아래 이미지는 저장소에 이미 추적된 정본·역사 캡처다. 현재 SHA의 fresh 승인 샷이 아니며, 구조 차이를 빠르게 확인하는 용도로만 쓴다.</p>
+      <div class="figure-grid">
+        <figure>
+          <a href="clone-audit/reference-captures/05-home.png"><img src="clone-audit/reference-captures/05-home.png" alt="05 홈 정본 캡처" loading="lazy" decoding="async"></a>
+          <figcaption>05 홈 정본 PNG: 실행형 ref와 포털 명칭이 충돌해 결정 필요</figcaption>
+        </figure>
+        <figure>
+          <a href="clone-audit/current-live/05-home.png"><img src="clone-audit/current-live/05-home.png" alt="05 홈 2026년 7월 5일 앱 캡처" loading="lazy" decoding="async"></a>
+          <figcaption>05 홈 역사 캡처: 잘못된 목업 route를 캡처해 비교 무효</figcaption>
+        </figure>
+        <figure>
+          <a href="clone-audit/reference-captures/32-share.png"><img src="clone-audit/reference-captures/32-share.png" alt="32 공유 정본 캡처" loading="lazy" decoding="async"></a>
+          <figcaption>32 공유 정본: 구조와 비율이 비교적 안정적인 기준</figcaption>
+        </figure>
+        <figure>
+          <a href="clone-audit/current-live/32-share.png"><img src="clone-audit/current-live/32-share.png" alt="32 공유 2026년 7월 5일 앱 캡처" loading="lazy" decoding="async"></a>
+          <figcaption>32 공유 역사 캡처: 상태·언어·카드 밀도만 후속 확인</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section aria-labelledby="reasoning-title">
+      <h2 id="reasoning-title">S3-1 · 리즈닝 A~F 정합성</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>화면</th><th>판정</th><th>현행 구현</th><th>시안·정본 대비 갭</th><th>배정</th></tr></thead>
+          <tbody>
+            <tr><td>A</td><td>설정·자동<br><span class="tag">부분</span></td><td>설정 진입, 서버 저장, OFF/ON/고갈, 첫 ON 시트, 주간·보상 분리</td><td>A와 B가 한 화면에 병합. 10분 자동 묶음, 자동 작업 표시, 완료 알림 없음</td><td>[로직필요→S5]</td></tr>
+            <tr><td>B</td><td>자료선택<br><span class="tag">부분</span></td><td>최근 records/sources, checkbox, 최대 5개, empty CTA, 고정 실행 버튼</td><td>소스 그룹 switch, 추천 기본선택, 홈 preselect, 6번째 선택 안내 없음</td><td>[로직필요→S5]</td></tr>
+            <tr><td>C</td><td>홈 말풍선<br><span class="tag">부분</span></td><td>available, automatic, running, depleted와 동일 한도 시트 연결</td><td>새 자료 수, 자동 예정, completed, error, 결과 검토 알림 없음</td><td>복수 CTA stack은 S3, 상태는 S5</td></tr>
+            <tr><td>D</td><td>실행중<br><span class="tag">부분</span></td><td>shared window, 2400ms linear orbit, n/m, Back 배경화, 취소</td><td>명시적 배경 계속 CTA 없음. 자료목록이 남아 one-message 위반. 자동 job 복원과 reduced motion 없음</td><td>[로직필요→S5]</td></tr>
+            <tr><td>E</td><td>결과 비준<br><span class="tag">핵심 누락</span></td><td>제안 복원, 기본선택, 선택만 exactly-once 반영, 미선택 유지</td><td><code>domain_link</code>만 산출. 밝기, Polaris 문장, persona, 근거, mini constellation, 완료 연출 없음</td><td>[로직필요→S5]</td></tr>
+            <tr><td>F</td><td>한도 시트<br><span class="tag">거의 정합</span></td><td>단일 sheet, 2/7 meter, 월요일 reset, +2/월20, plans, fail-closed gate</td><td>광고 재고 실패 피드백, reduced motion, reasoning 화면의 inline 고갈 카드 중복</td><td>중복 CTA stack은 S3, 나머지는 S5</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details>
+        <summary>reasoning ZIP 인벤토리와 supersede 판정</summary>
+        <div>
+          <p>아카이브는 <code>README.md</code>, <code>CLAUDE.md</code>, 디자인 HTML 2개, 구형 web mock 4개로 구성된다. <code>reference/</code>에는 실제 ReasoningScreen·NoticesScreen 구현이 없고 폐기 route가 섞여 있어 공통 shell 복사 대상이 아니다.</p>
+          <p>원 시안의 일요일 초기화, 광고 1회, 즉시 자동 실행, gradient와 pill은 다음날 승인된 reasoning UX 정본에 의해 월요일 00:00, 광고 +2·월20, 수동 1회 예약, one-graphic로 대체됐다.</p>
+        </div>
+      </details>
+    </section>
+
+    <section aria-labelledby="matrix-title">
+      <h2 id="matrix-title">S3-2 · 화면 × 5축 갭 매트릭스</h2>
+      <p id="matrix-help" class="note">검색과 필터는 브라우저 안에서만 동작하며 데이터를 전송하지 않는다. P 표기는 fresh 캡처 전 위험도다.</p>
+      <div class="filters" aria-describedby="matrix-help">
+        <label>화면·갭 검색<input id="query" type="search" placeholder="예: Polaris, route, 타이포"></label>
+        <label>우선순위<select id="priority"><option value="">전체</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option><option>U</option><option>X</option></select></label>
+        <label>주 배정<select id="owner"><option value="">전체</option><option>S3</option><option>S5</option><option>Mixed</option><option>Decision</option></select></label>
+      </div>
+      <p id="result-count" class="sr-only" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table id="matrix">
+          <thead>
+            <tr><th>#</th><th>화면</th><th>L · 레이아웃</th><th>T · 토큰</th><th>Y · 타이포</th><th>M · 모션</th><th>A · 에셋</th><th>P</th><th>배정</th></tr>
+          </thead>
+          <tbody>
+            <tr data-priority="U" data-owner="S5"><td>01</td><td>Auth</td><td>현행 캡처 없음</td><td>fresh 미검증</td><td>fresh 미검증</td><td>전환 미검증</td><td>ref의 root dock·구 head가 auth와 충돌</td><td><span class="tag muted">U</span></td><td>재캡처 후 S5/S3</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>02</td><td>Onboard</td><td>역사 앱은 영문 1페이지, dots·Next 미노출</td><td>현행 상태 미검증</td><td>ZIP KO 줄깨짐·본문 겹침</td><td>페이지 전환 미검증</td><td>그래픽 상태 후판정</td><td><span class="tag">P1</span></td><td>상태 S5, 타이포 S3</td></tr>
+            <tr data-priority="P0" data-owner="Mixed"><td>03</td><td>TTFV</td><td>역사 앱 primary 동의 CTA 미렌더</td><td>CTA 위계 미검증</td><td>ZIP 하단 카피 겹침</td><td>handoff 미검증</td><td>별·head 정합 후판정</td><td><span class="tag">P0</span></td><td>CTA S5, 간격 S3</td></tr>
+            <tr data-priority="U" data-owner="S5"><td>04</td><td>Coach</td><td>현행 캡처 없음, 4단계·Back 미검증</td><td>spotlight 대비 미검증</td><td>말풍선 미검증</td><td>단계 전환 미검증</td><td>spotlight·head 미검증</td><td><span class="tag muted">U</span></td><td>재캡처 후 분류</td></tr>
+            <tr data-priority="P0" data-owner="Decision"><td>05</td><td>Home</td><td>역사 캡처가 잘못된 <code>/deepspace-home</code> 목업</td><td>deep-space 소스는 정적 검증</td><td>상태별 카피 후판정</td><td>living 상태 fresh 미검증</td><td>PNG ‘담아내기’와 실행형 ref ‘뮤지엄’ 충돌</td><td><span class="tag">P0</span></td><td>제품 결정·route S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>06</td><td>Capture</td><td>구 캡처는 구조 일부만 근접</td><td>windowed M3 fill 위계 차이</td><td>KO/EN·컴패니언 밀도 차이</td><td>capture 전환 미검증</td><td>SecondB 밀도 후판정</td><td><span class="tag">P1</span></td><td>skin S3, 상태 S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>07</td><td>SecondB Chat</td><td>튜토리얼 dialog가 기본 상태를 가림</td><td>낮은 대비·outline 위계</td><td>영문·라벨 밀도 차이</td><td>채팅 상태 미검증</td><td>persona 상태 미검증</td><td><span class="tag">P1</span></td><td>skin S3, 상태 S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>08</td><td>Records / Wiki</td><td>ref는 list+toggle, 구 앱은 장문 list·중복 companion</td><td>현행 graph shell 후판정</td><td>목록 밀도 후판정</td><td>list↔graph 미검증</td><td>그래프 구조 소스 존재</td><td><span class="tag">P1</span></td><td>fresh 후 S3/S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>09</td><td>Settings</td><td>ref 직접 토글, 앱 링크 허브</td><td>outline card 위계 차이</td><td>영문·그룹 밀도 차이</td><td>진입 전환 후판정</td><td>link cloud는 ref와 다른 구조</td><td><span class="tag">P1</span></td><td>IA S5, skin S3</td></tr>
+            <tr data-priority="U" data-owner="S5"><td>10</td><td>Polaris</td><td>stale PNG, 실행형은 PersonaDeck·검증 허브</td><td>dim placeholder와 상태 불일치</td><td>빈 상태 위계 후판정</td><td>deck 전환 미검증</td><td>Polaris 우위 fresh 미검증</td><td><span class="tag muted">U</span></td><td>데이터 상태 후 재감사</td></tr>
+            <tr data-priority="U" data-owner="Mixed"><td>11</td><td>Domain Star</td><td>stale PNG, 실행형 full timeline과 sparse 앱 상태 불일치</td><td>상태별 밝기 후판정</td><td>밀도 후판정</td><td>drilldown 미검증</td><td>도메인 별 우위 규칙 후판정</td><td><span class="tag muted">U</span></td><td>상태 S5, 밀도 S3</td></tr>
+            <tr data-priority="U" data-owner="Mixed"><td>12</td><td>Record Detail</td><td>현행 캡처 없음</td><td>연결·태그 surface 미검증</td><td>원문 가독성 미검증</td><td>편집·이동 미검증</td><td>44dp 포함 fresh 필요</td><td><span class="tag muted">U</span></td><td>재캡처 후 분류</td></tr>
+            <tr data-priority="U" data-owner="S5"><td>13</td><td>Interview</td><td>ref 질문 1/5, 앱 시기 선택 pre-step</td><td>서로 다른 상태</td><td>질문 화면 미검증</td><td>단계 전환 미검증</td><td>상태 에셋 후판정</td><td><span class="tag muted">U</span></td><td>흐름·state S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>14</td><td>Big Five</td><td>ref 결과, 앱 empty gate</td><td>empty CTA 대비 후판정</td><td>상단 ‘밝아짐’과 본문 ‘still dark’ 모순</td><td>결과 전환 미검증</td><td>결과 별 상태 불일치</td><td><span class="tag">P1</span></td><td>state·copy S5</td></tr>
+            <tr data-priority="P2" data-owner="Mixed"><td>15</td><td>Attachment</td><td>ref 결과 사분면, 앱 intro</td><td>mint primary가 3색 계약과 충돌</td><td>상태별 위계 후판정</td><td>결과 전환 미검증</td><td>결과 그래픽 미검증</td><td><span class="tag">P2</span></td><td>token S3, state S5</td></tr>
+            <tr data-priority="U" data-owner="Mixed"><td>16</td><td>Values</td><td>ref 결과 랭킹, 앱 intro</td><td>shell·CTA는 근접</td><td>결과 랭킹 미검증</td><td>결과 전환 미검증</td><td>막대 상태 불일치</td><td><span class="tag muted">U</span></td><td>state S5, style 후판정</td></tr>
+            <tr data-priority="P1" data-owner="S5"><td>17</td><td>Audit</td><td>ref 인생시기 timeline, 앱 work-growth 빈 domain</td><td>비교 대상 정체성 다름</td><td>후판정</td><td>후판정</td><td>timeline 미노출</td><td><span class="tag">P1</span></td><td>IA·route S5</td></tr>
+            <tr data-priority="P1" data-owner="S5"><td>18</td><td>Trend</td><td>ref 8주 밝기 차트, 앱 키워드 빈도 카드</td><td>구성 자체 다름</td><td>차트 라벨 후판정</td><td>차트 전환 미검증</td><td>별별 bar·이력 누락</td><td><span class="tag">P1</span></td><td>데이터·구성 S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>19</td><td>Motivation</td><td>ref 결과, 앱 intake, 현 소스 result 분기 존재</td><td>노후 캡처로 확정 불가</td><td>결과 밀도 후판정</td><td>분기 전환 미검증</td><td>결과 그래픽 후판정</td><td><span class="tag">P1</span></td><td>fresh 후 style S3</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>20</td><td>Strengths</td><td>ref Top3 결과, 앱 intake, 현 소스 result 분기 존재</td><td>노후 캡처로 확정 불가</td><td>결과 밀도 후판정</td><td>분기 전환 미검증</td><td>스펙트럼 후판정</td><td><span class="tag">P1</span></td><td>fresh 후 style S3</td></tr>
+            <tr data-priority="U" data-owner="Mixed"><td>21</td><td>North Star</td><td>ref 현재문장+3제안, 앱 confirmed empty</td><td>outline·낮은 밀도</td><td>빈 상태 위계 후판정</td><td>제안 전환 미검증</td><td>같은 IA, 다른 데이터 상태</td><td><span class="tag muted">U</span></td><td>seed S5, card S3</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>22</td><td>Ratify</td><td>ref 제안 4행동+근거+undo, 앱 로그 중심</td><td>raw amber literal 1건</td><td>행동 위계 후판정</td><td>undo 미검증</td><td>제안 모델 상태 제약</td><td><span class="tag">P1</span></td><td>model S5, token S3</td></tr>
+            <tr data-priority="P2" data-owner="S3"><td>23</td><td>IDEN</td><td>구 캡처 2행, 현 소스 4행으로 개선</td><td><code>#FFFFFF</code> literal 1건</td><td>밀도 fresh 후판정</td><td>toggle 미검증</td><td>구조는 가장 근접</td><td><span class="tag">P2</span></td><td>fresh 후 token S3</td></tr>
+            <tr data-priority="P1" data-owner="S5"><td>24</td><td>Ops</td><td>ref progress·분석·4도구, 앱 empty routines</td><td>filled 위계 후판정</td><td>도구 라벨 후판정</td><td>루틴 전환 미검증</td><td>도구 상태 누락</td><td><span class="tag">P1</span></td><td>module·state S5</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>25</td><td>Focus</td><td>ref preset·귀속·reset·요약, 앱 timer+play</td><td>ring 위계 후판정</td><td>요약 타입 후판정</td><td>timer만 부분 검증</td><td>controls·state 누락</td><td><span class="tag">P1</span></td><td>controls S5, ring S3</td></tr>
+            <tr data-priority="U" data-owner="Mixed"><td>26</td><td>Reminders</td><td>ref filled list, 앱 empty dead-end</td><td>empty 스타일 후판정</td><td>CTA·privacy 안내 없음</td><td>add 흐름 미검증</td><td>동등 상태 아님</td><td><span class="tag muted">U</span></td><td>add path S5</td></tr>
+            <tr data-priority="P1" data-owner="S5"><td>27</td><td>Inbox</td><td>ref action feed, 앱 sorting tray</td><td>화면 정체성 다름</td><td>라벨도 다른 모델</td><td>행동 흐름 미검증</td><td>feed 자산 미노출</td><td><span class="tag">P1</span></td><td>IA·route S5</td></tr>
+            <tr data-priority="P2" data-owner="Mixed"><td>28</td><td>Connect</td><td>ref privacy+source cards, 앱 assistant/capture 설정</td><td>M3 fill 차이</td><td>약속 카드 누락</td><td>연동 흐름 미검증</td><td>기능은 초과, 구조 다름</td><td><span class="tag">P2</span></td><td>consent S5, skin S3</td></tr>
+            <tr data-priority="P1" data-owner="Mixed"><td>29</td><td>Import</td><td>ref file/account dropzone, 앱 markdown paste</td><td>밀도 차이</td><td>3개 약속 문구 누락</td><td>file 흐름 미검증</td><td>무관한 companion toast 잔존</td><td><span class="tag">P1</span></td><td>flow S5, density S3</td></tr>
+            <tr data-priority="P1" data-owner="S5"><td>30</td><td>Data Review</td><td>ref confidence/evidence/delete, 앱 저장량 허브</td><td>view 정체성 다름</td><td>근거·confidence 누락</td><td>delete 흐름 미검증</td><td>파생 신호 모델 미노출</td><td><span class="tag">P1</span></td><td>model·view S5</td></tr>
+            <tr data-priority="P1" data-owner="Decision"><td>31</td><td>Call Rec</td><td>ref on-device recording, 앱 수기 after-call</td><td>제품 pivot 여부 미결정</td><td>비교 보류</td><td>녹음 흐름 미검증</td><td>native capability 미노출</td><td><span class="tag">P1</span></td><td>제품 결정 S5</td></tr>
+            <tr data-priority="P3" data-owner="S3"><td>32</td><td>Share</td><td>구조·비율 거의 동일</td><td>card density 차이</td><td>KO/EN·세부 위계</td><td>공유 전환 미검증</td><td>핵심 에셋 이슈 없음</td><td><span class="tag">P3</span></td><td>fresh 후 S3</td></tr>
+            <tr data-priority="P3" data-owner="S3"><td>33</td><td>Plans</td><td>3-tier·정직성 note·primary 위계 근접</td><td>카드 밀도 차이</td><td>KO/EN 차이</td><td>선택 전환 미검증</td><td>핵심 에셋 이슈 없음</td><td><span class="tag">P3</span></td><td>fresh 후 S3</td></tr>
+            <tr data-priority="U" data-owner="Mixed"><td>34</td><td>Museum</td><td>stale PNG, 실행형 ref와 앱은 timeline 골격</td><td>현 renderer raw color 다수</td><td>축·node label 후판정</td><td>pan·zoom fresh 미검증</td><td>데이터·interaction 상태 필요</td><td><span class="tag muted">U</span></td><td>token S3, state S5</td></tr>
+            <tr data-priority="X" data-owner="Decision"><td>35</td><td>Exhibit</td><td>새 ZIP에 파일 없음</td><td>비정본</td><td>비정본</td><td>비정본</td><td>기존 tracked PNG는 orphan</td><td><span class="tag muted">X</span></td><td>목록에서 legacy 표시</td></tr>
+            <tr data-priority="P3" data-owner="S3"><td>36</td><td>Imagine</td><td>확장·반전·연결 3갈래가 사실상 동일</td><td>spacing 마감</td><td>KO/EN·타입 마감</td><td>분기 전환 미검증</td><td>핵심 에셋 이슈 없음</td><td><span class="tag">P3</span></td><td>fresh 후 S3</td></tr>
+            <tr data-priority="U" data-owner="S5"><td>37</td><td>Widget</td><td>현행 캡처 없음</td><td>native surface 미검증</td><td>home·lock·notification 미검증</td><td>native 전환 미검증</td><td>실 capability 미검증</td><td><span class="tag muted">U</span></td><td>기능·fresh S5</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="asset-title">
+      <h2 id="asset-title">S3-4 · 신규 8개 에셋 판정</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>에셋</th><th>판정</th><th>정본·기술 근거</th><th>실행 영향</th></tr></thead>
+          <tbody>
+            <tr><td>secondb-2nd<br>blank / face</td><td><span class="tag muted">폐기</span></td><td>각각 <code>meta-*</code>와 SHA-256 byte 동일. 2nd-B 정본은 기존 violet <code>secondb-head-*</code></td><td>실행 참조 0, 잘못된 identity alias</td></tr>
+            <tr><td>secondb-anti<br>blank / face</td><td><span class="tag muted">폐기</span></td><td>pinned rev2·실행 참조에 없음. 폐기된 Anti-B 세대</td><td>실행 참조 0, 현 persona는 Twi-B</td></tr>
+            <tr><td>secondb-meta<br>blank / face</td><td><span class="tag">조건부 채택</span></td><td>pinned rev2 ZIP과 SHA 동일. 정상 RGBA 1248×1248. alpha IoU <code>0.93278</code></td><td>정적 사용 후보. 동적 swap 전 재출력 필요</td></tr>
+            <tr><td>secondb-twi<br>blank / face</td><td><span class="tag">조건부 채택</span></td><td>pinned rev2 ZIP과 SHA 동일. 정상 RGBA 1248×1248. alpha IoU <code>0.98043</code></td><td>정적 사용 후보. 동적 swap 전 재출력 권장</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">현재 RN <code>SecondbHead</code>는 기존 blank body 하나와 persona accent만 사용한다. Meta/Twi body 연결은 [로직필요→S5]이며, 이 PR은 신규 PNG를 커밋하지 않는다.</p>
+      <details>
+        <summary>에셋 경로·세대 부채</summary>
+        <div>
+          <ul>
+            <li><code>DESIGN_INDEX.md</code>의 <code>assets/secondb-head-front.png</code>는 실제로 없고 production 경로는 <code>assets/deepspace/secondb-head-front.png</code>다.</li>
+            <li><code>persona-asset-prompts.md</code>는 2nd·Meta·Anti를 안내하지만 실행 정본은 2nd·Meta·Twi다.</li>
+            <li>landing의 version suffix alias는 canonical front와 같은 blob이다. 새 SoT로 복제하지 않는다.</li>
+            <li>구 premium asset 참조는 legacy branch에만 남겨야 하며 deep-space 정본으로 승격하지 않는다.</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <section aria-labelledby="zip-title">
+      <h2 id="zip-title">S3-5 · 구 ZIP 처분 제안</h2>
+      <div class="grid-2">
+        <article class="panel decision">
+          <h3>결정 제안: 복원하지 않음</h3>
+          <p><code>design/디자인 시안.zip</code>과 <code>design/앱 디자인 및 기능 기획.zip</code>은 2026-06 pixel·구 명칭·구 font 세대다. 현 deep-space 계약과 충돌하며 실행 참조가 없다.</p>
+          <p><strong>S5가 현재 D 상태를 명시 경로 삭제 커밋으로 마무리하는 것을 권고한다.</strong> S3는 삭제·복원을 실행하지 않았다.</p>
+        </article>
+        <article class="panel">
+          <h3>보존성 근거</h3>
+          <ul>
+            <li>구 자료는 Git history에 남는다.</li>
+            <li>tracked <code>design/proto_rev2/**</code>와 <code>docs/clone-audit/reference-handoff/**</code>가 검수 근거를 보존한다.</li>
+            <li>구↔신 exact 중복은 canonical head blob 하나뿐이다.</li>
+            <li>24MB 신 ZIP은 지시대로 untracked 유지한다.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="fix-title">
+      <h2 id="fix-title">S3-3 · 적용한 스타일-only 수정</h2>
+      <div class="grid-2">
+        <article class="panel">
+          <h3>리즈닝 소진 카드</h3>
+          <p><code>reasoning.tsx</code>의 <code>depletedActions</code>를 row에서 column으로 변경했다. 390px에서 보상·플랜 CTA가 서로 폭을 경쟁하지 않는다.</p>
+        </article>
+        <article class="panel">
+          <h3>홈 리즈닝 말풍선</h3>
+          <p><code>ConstellationHome.tsx</code>의 <code>bubbleActions</code>를 column으로 변경했다. 긴 KO/EN CTA의 한 줄 잘림을 줄이고 48px 기본 touch target을 유지한다.</p>
+        </article>
+        <article class="panel">
+          <h3>IDEN target badge</h3>
+          <p><code>iden.tsx</code>의 순백색 literal을 기존 의미 토큰 <code>m3.color.onPrimary</code>로 치환했다. 명암은 유지하면서 컴포넌트 hex 금지 계약을 회복한다.</p>
+        </article>
+      </div>
+      <p class="note">StyleSheet 값 3개만 수정했다. 상태, 훅, 데이터, route, i18n key, 카피, <code>src/lib/**</code>는 변경하지 않았다.</p>
+    </section>
+
+    <section aria-labelledby="plus-title">
+      <h2 id="plus-title">S3-6 · 저비용·고임팩트 제안 5건</h2>
+      <div class="grid-2">
+        <article class="panel"><h3>1. 자연스러움</h3><p>홈 말풍선에 completed·error를 추가해 실행 후 사용자가 결과 위치를 잃지 않게 한다. [로직필요→S5]</p></article>
+        <article class="panel"><h3>2. 직관성</h3><p>실행중 화면의 primary를 “백그라운드에서 계속”으로 명시하고 취소는 text action으로 낮춘다. [로직필요→S5]</p></article>
+        <article class="panel"><h3>3. 정보위계</h3><p>실행중에는 자료 목록을 접고 head+orbit 한 그래픽과 n/m 한 메시지만 남긴다. [로직필요→S5]</p></article>
+        <article class="panel"><h3>4. 자산 일관성</h3><p>2nd·Meta·Twi manifest와 blank/face alpha alignment 검사를 추가해 identity alias를 차단한다. [빌드도구→S5]</p></article>
+        <article class="panel"><h3>5. 검증 가능성</h3><p>정본 화면 registry 하나에서 route·overlay·fixture를 생성하고 390×844 상태 캡처를 자동화한다. [QA기반→S5]</p></article>
+      </div>
+    </section>
+
+    <section aria-labelledby="handoff-title">
+      <h2 id="handoff-title">S5 배정 요청</h2>
+      <div class="panel">
+        <ol>
+          <li><strong>fresh 캡처 차단 해소:</strong> 웹의 native 광고 import 경로를 분리한 뒤 QA fixture로 390×844 전수 재캡처한다.</li>
+          <li><strong>P0:</strong> TTFV primary CTA 루프와 Home 정체성·portal 명칭·실 route를 결정한다.</li>
+          <li><strong>리즈닝:</strong> A/B 분리 여부, source group, completed/error, 배경 실행 CTA, E 산출물과 mini constellation을 구현한다.</li>
+          <li><strong>registry:</strong> 새 ZIP <code>SCREENS.md</code>를 기준으로 제거 route와 overlay를 정리하고 orphan 35를 legacy 표시한다.</li>
+          <li><strong>상태 불일치:</strong> 10, 11, 13~21, 24~31, 34, 37은 seeded fixture와 실행 상태로 다시 판정한다.</li>
+          <li><strong>접근성:</strong> switch와 domain star의 실제 hit target 44dp, reasoning orbit·head의 reduced motion을 보장한다.</li>
+          <li><strong>에셋:</strong> Meta/Twi blank-face를 정렬 재출력하고 persona body wiring을 결정한다.</li>
+          <li><strong>구 ZIP:</strong> 두 D 상태를 복원하지 말고 명시 경로 삭제 커밋으로 마무리한다.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section aria-labelledby="verify-title">
+      <h2 id="verify-title">검증 상태</h2>
+      <div class="grid-2">
+        <article class="panel"><h3>정적 범위</h3><p>StyleSheet 두 값만 변경했으며 scope diff를 확인했다. 금지 영역과 신규 asset·ZIP은 stage하지 않는다.</p></article>
+        <article class="panel"><h3>자동 검증</h3><p id="verify-result"><code>npm run verify</code> 종료 코드 0. 379개 suite·2,935개 test 통과. lint 0 error·기존 warning 57개. Jest worker teardown 경고는 있었으나 실패는 없다.</p></article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>인수인계 순서: 발주 프롬프트 → <code>docs/tracks/S3-log_260719.md</code> → 이 매트릭스. 최신 캡처가 추가되면 U 행부터 재판정한다.</p>
+      <p>보고서 생성: 2026-07-19 09:58:02 KST · 외부 library·CDN·network 요청 없음</p>
+    </footer>
+  </main>
+  <script>
+    (() => {
+      const query = document.querySelector("#query");
+      const priority = document.querySelector("#priority");
+      const owner = document.querySelector("#owner");
+      const rows = [...document.querySelectorAll("#matrix tbody tr")];
+      const result = document.querySelector("#result-count");
+      const apply = () => {
+        const q = query.value.trim().toLocaleLowerCase("ko");
+        let visible = 0;
+        rows.forEach((row) => {
+          const matchQuery = !q || row.textContent.toLocaleLowerCase("ko").includes(q);
+          const matchPriority = !priority.value || row.dataset.priority === priority.value;
+          const matchOwner = !owner.value || row.dataset.owner === owner.value;
+          row.hidden = !(matchQuery && matchPriority && matchOwner);
+          if (!row.hidden) visible += 1;
+        });
+        result.textContent = `${visible}개 화면 표시`;
+      };
+      [query, priority, owner].forEach((control) => control.addEventListener("input", apply));
+      apply();
+    })();
+  </script>
+</body>
+</html>
