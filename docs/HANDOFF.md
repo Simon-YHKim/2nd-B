@@ -5,7 +5,8 @@
 
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
-- Latest — 2026-07-18 (4) / 에뮬 라이브 QA 완주(6 PR 전수) + 실버그 QA-F1 발견→픽스 + 큐 B·C·E 랜딩 (#1087 + 0094 운영)
+- Latest — 2026-07-19 (S5) / 6세션 병렬 발주 최종 검수·통합 — S1~S4 PR 11건 머지 + P0-1 웹배포 해소 + 0095 프로드 (#1089~#1098)
+- 2026-07-18 (4) / 에뮬 라이브 QA 완주(6 PR 전수) + 실버그 QA-F1 발견→픽스 + 큐 B·C·E 랜딩 (#1087 + 0094 운영)
 - 2026-07-18 (3) / 리즈닝 PR-B 화면 완주 + 택소노미 + 연동 P0 4건 + 보상 게이트 일원화 (6 PR + 0093 운영)
 - 2026-07-18 (2) / 리즈닝 잡 인프라 0092 랜딩+운영 적용 — 스펙 확정(결정 10·A~F·계약 16) → 선예약·환불·idempotency 서버 계약 완주 (#1063)
 - 2026-07-18 / Phase 4 페이월 확정·구현 + SSV 서버검증 + 법률 3종 최종화(승인 대기) (4 PR 병합 + 1 대기)
@@ -97,7 +98,33 @@
 
 ---
 
-## Latest — 2026-07-18 (4) / 에뮬 라이브 QA 완주(6 PR 전수) + 실버그 QA-F1 발견→픽스 + 큐 B·C·E 랜딩 (#1087 + 0094 운영)
+## Latest — 2026-07-19 (S5) / 6세션 병렬 발주 최종 검수·통합 — S1~S4 PR 11건 머지 + P0-1 해소 + 0095 프로드
+
+### 어디까지 왔나
+- S5 게이트 세션이 발주 `da6be790`(#1088)에서 S1~S4 전 PR을 framework-aware 정밀검수 → 머지순서(S1→S2→S3→S4) 준수 머지. 4-AI 토론은 전건 불요 판정(사전스펙/기존불변식(C12) 집행/스타일-only, green 넘어 diff 전독·실증 결정적 — 위양성 방지).
+- **P0-1 해소 실증**: web-deploy 3연속 실패(`da6be790`·`bc1a8b1e`) → #1090(ads platform-split) 머지 후 `3dac7bd8`에서 **SUCCESS**(run 29667968331). #1086 이후 첫 성공 배포, Pages 200 라이브.
+- **머지 11건**: #1089(iOS 프리렉) · **#1090(P0-1 웹 export platform-split + web-export-smoke 회귀가드)** · #1091(SSV customData 배선) · #1092(proposalsToMarkdown i18n) · #1093(리즈닝 16계약 감사 + 0095 audit-purpose + ⑫ SAME-QUALITY 픽스) · #1094(P1 파서 YouTube/금융CSV→ops_ledger) · #1095(SUPERVISOR.md 목적드리프트 정본, 제안본) · #1096(S1 로그) · #1097(디자인 전수감사 + 스타일 3픽스) · #1098(finance-ledger ratify 훅업, S5 반쪽배선 수정).
+- **프로드**: 0095 `log_ai_audit` 9-인자(p_purpose/vendor/effort DEFAULT NULL, 하위호환) Supabase MCP apply + before/after 검증(anon revoke·대상 컬럼 존재). **gemini-proxy 재배포(⑫)는 Simon `supabase login` 게이트 대기**(소스 랜딩, 라이브 미반영 = 의도된 드리프트, 네이티브 프리런치).
+
+### Simon 게이트 (상세 = `docs/s5-report_260719.html`)
+G1 EAS 빌드 비용(v0.1.0 릴리즈 선행) · G2 gemini-proxy 재배포(`! npx supabase login`) · G3 iOS Apple 로그인 + DSA 제출 · G4 구 디자인 zip 2건 삭제(S3 권고) · G5 루트 잡파일(x.tmp · supabase/.temp · 루트 HANDOFF.md stray · apl_sign.txt · flow-debugger.html restore) · G6 stale 브랜치 350 / 원격 330 / 워크트리 80(명시명+승인 별도 사이클).
+
+### v0.1.0 릴리즈 준비 (G1·G3 해소 시 즉시 절단)
+P0-1 · iOS 프리렉(#1089) · Android 경로(eas-preview-build.yml profile: preview=APK / production=AAB) · 0095 전부 완료. 버전 0.1.0(#1084), versionCode = EAS remote autoIncrement(→vc12+, 기존 릴리즈 vc11 초과). Android=`gh workflow run eas-preview-build.yml`, iOS=`eas build -p ios --profile production`→`eas submit`(Apple 로그인).
+
+### 타트랙결함 (수거·배정 대기)
+chat 이중지급 가드(`src/lib/chat/usage.ts grantChatAdBonus`, SSV GO 전 필수) · SSV 서버 자격 재확인(rewarded-ssv 엣지 Free·성인·동의) · 리즈닝 화면 i18n es/pt/id · eas.json `EXPO_PUBLIC_MODEL_*` 3.5-flash 핀 · ImportHub summary watches/transactions 표시.
+
+### 운영 발견
+- PR 제목 `[S#]` 태그 ↔ `pr-title.yml` lint 충돌 → 후미태그 규약(`type(scope): desc [S#]`).
+- **브랜치보호 실재**(디스패치 "없음"은 outdated) + recapture가 썸네일 `[skip ci]` 자동커밋으로 head 체크 orphan → 코드커밋 green 확인 후 `--admin`. 썸네일 관여 PR은 수동 머지 대신 main기준 cherry-pick(flow-debugger↔썸네일 일관성, `flow-debugger-thin.test`).
+
+### 다음 세션 인계
+`docs/tracks/S5-log_260719.md`(전 판정·머지 SHA·프로드 apply 근거) → `docs/s5-report_260719.html`(Simon 게이트) → 이 섹션. 접수 파이프라인 완료 — 잔여는 게이트 해소 후 릴리즈 + 후속 정리.
+
+---
+
+## 2026-07-18 (4) / 에뮬 라이브 QA 완주(6 PR 전수) + 실버그 QA-F1 발견→픽스 + 큐 B·C·E 랜딩 (#1087 + 0094 운영)
 
 ### 어디까지 왔나
 - main HEAD: `6bf020d7` (#1087까지; 병렬로 타 세션 #1082~#1086도 랜딩 — 아래 활성 인프라)
