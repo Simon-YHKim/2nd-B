@@ -14,10 +14,12 @@ name: EAS iOS Submit (TestFlight)
 # distribution certificate, so the IOS_DIST_* secrets are deliberately not
 # referenced here.
 #
-# TARGET SELECTION: build_id input submits that exact build; left empty, the
-# CLI resolves --latest (the newest finished iOS build). Duplicate
-# submissions of the same build fail on the Apple side, so prefer an
-# explicit build_id when in doubt.
+# TARGET SELECTION: an explicit build_id is REQUIRED (review 260720, P1).
+# `eas submit --latest` picks the newest iOS build regardless of BUILD
+# profile (--profile only selects the submit configuration), so with
+# eas-ios-build.yml able to produce ad-hoc preview IPAs, a --latest default
+# could submit the wrong artifact. Copy the id from the EAS builds
+# dashboard. Duplicate submission of the same build fails on the Apple side.
 #
 # PROFILE: pinned to "production" on purpose (review 260720). eas.json has
 # only submit.production, and preview iOS builds are ad-hoc artifacts that
@@ -33,9 +35,8 @@ on:
   workflow_dispatch:
     inputs:
       build_id:
-        description: "EAS build id to submit (empty = --latest finished build)"
-        required: false
-        default: ""
+        description: "EAS build id to submit (explicit; --latest is deliberately unsupported, see header)"
+        required: true
 
 permissions:
   contents: read
@@ -74,14 +75,12 @@ jobs:
             echo "::error::EXPO_TOKEN is required for EAS iOS submissions."
             exit 1
           fi
-          ARGS=( --platform ios --profile "$SUBMIT_PROFILE" --non-interactive )
-          if [ -n "$BUILD_ID" ]; then
-            ARGS+=( --id "$BUILD_ID" )
-            TARGET_DESC="build $BUILD_ID"
-          else
-            ARGS+=( --latest )
-            TARGET_DESC="--latest finished build"
+          if [ -z "${BUILD_ID:-}" ]; then
+            echo "::error::build_id is required; --latest is profile-blind and unsupported here (see header)."
+            exit 1
           fi
+          ARGS=( --platform ios --profile "$SUBMIT_PROFILE" --non-interactive --id "$BUILD_ID" )
+          TARGET_DESC="build $BUILD_ID"
           echo "Submitting: $TARGET_DESC (profile: $SUBMIT_PROFILE)"
           npx eas-cli submit "${ARGS[@]}" | tee submit-output.log
           SUBMISSION_URL="$(grep -o 'https://expo.dev/accounts/[^ ]*/submissions/[a-z0-9-]*' submit-output.log | head -1 || true)"
