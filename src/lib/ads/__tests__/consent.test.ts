@@ -6,7 +6,9 @@ jest.mock("react-native", () => ({ Platform: { OS: "android" } }));
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { ensureUmpConsent, ensureAdsInitialized } from "../consent";
+// The real UMP flow lives in the .native variant since the P0-1 platform
+// split (web resolves the fail-closed stub; see platform-split.test.ts).
+import { ensureUmpConsent, ensureAdsInitialized } from "../consent.native";
 
 describe("UMP consent seam (fail-closed)", () => {
   test("SDK absent: consent resolves canRequestAds:false", async () => {
@@ -28,7 +30,7 @@ describe("UMP consent seam (fail-closed)", () => {
   });
 
   test("source pins: strict canRequestAds check, no eager native import", () => {
-    const src = readFileSync(path.resolve(__dirname, "../consent.ts"), "utf8");
+    const src = readFileSync(path.resolve(__dirname, "../consent.native.ts"), "utf8");
     // The gate must demand an explicit true (undefined/null fail closed)...
     expect(src).toContain("info.canRequestAds === true");
     // ...and the native SDK may only be pulled lazily inside functions.

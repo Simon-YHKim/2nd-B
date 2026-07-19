@@ -33,6 +33,7 @@ import { fontFamilies } from "@/theme/typography";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
 import { showRewardedAd } from "@/lib/ads/rewarded";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
@@ -57,6 +58,9 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
   const { t, i18n } = useTranslation("deepspace");
   const lang = locale ?? i18n.language ?? "ko";
   const { height } = useWindowDimensions();
+  // For SSV customData only -- eligibility gating stays the CALLER's job
+  // (header contract above). Sourced here so no parent needs a new prop.
+  const { userId } = useAuth();
 
   // Slide-up: fade veil + rise from the bottom edge. NO bounce/elastic.
   const rise = useRef(new Animated.Value(0)).current;
@@ -100,7 +104,13 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
     if (watchingRef.current) return;
     watchingRef.current = true;
     try {
-      const { completed } = await showRewardedAd();
+      // SSV customData (0091 contract): "<userId>" credits a reasoning
+      // reward, "<userId>|chat" credits the chat +2 -- the rewarded-ssv edge
+      // routes on the suffix, so the kind decides it here. Signed-out edge
+      // case (no userId) sends none: the client-grant path still works and a
+      // server callback would simply have nothing to credit.
+      const ssvCustomData = userId ? (kind === "chat" ? `${userId}|chat` : userId) : undefined;
+      const { completed } = await showRewardedAd(ssvCustomData ? { ssvCustomData } : undefined);
       if (completed) onEarned(REWARD_PER_WATCH);
     } finally {
       watchingRef.current = false;
