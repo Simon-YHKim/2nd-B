@@ -29,6 +29,13 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+// Optional output directory override (first CLI argument). The freshness gate
+// (scripts/check-legal-html-fresh.ts, wired into npm run verify) regenerates
+// into a temp dir and diffs against the committed public/legal pages, so a
+// docs/legal edit that skips regeneration fails CI instead of silently
+// shipping stale public pages.
+const OUT_DIR = process.argv[2] ? process.argv[2] : join(ROOT, "public", "legal");
+
 const PAGES = [
   { src: "terms-of-service.md", out: "terms.html", nav: "이용약관 · Terms" },
   { src: "privacy-policy.md", out: "privacy.html", nav: "개인정보처리방침 · Privacy" },
@@ -117,7 +124,9 @@ function mdToBody(md) {
       const name = trimmed.slice(3).trim();
       const id = name === "한국어" ? "ko" : name === "English" ? "en" : name.toLowerCase();
       if (sectionOpen) out.push("</section>");
-      out.push(`<section id="${id}">`);
+      // The document language is ko; mark the English half so screen readers
+      // switch pronunciation rules instead of reading English with Korean ones.
+      out.push(`<section id="${id}"${id === "en" ? ' lang="en"' : ""}>`);
       sectionOpen = true;
       out.push(`<h2>${inline(name)}</h2>`);
       i++;
@@ -127,6 +136,13 @@ function mdToBody(md) {
       out.push(`<h3>${inline(trimmed.slice(4).trim())}</h3>`);
       i++;
       continue;
+    }
+    if (trimmed.startsWith("#")) {
+      // Unsupported heading depth (#### and beyond). Without this branch the
+      // paragraph collector below refuses lines starting with "#", so the
+      // outer loop would spin on the same line forever. Per the header
+      // contract, anything outside the supported subset fails LOUDLY.
+      throw new Error(`unsupported heading depth: "${trimmed.slice(0, 40)}" - extend build-legal-html.mjs`);
     }
     if (trimmed.startsWith("|")) {
       const rows = [];
@@ -244,8 +260,8 @@ This page is a static copy generated from the markdown source above; both are ke
 </body>
 </html>
 `;
-  const outPath = join(ROOT, "public", "legal", page.out);
+  const outPath = join(OUT_DIR, page.out);
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, html);
-  console.log(`wrote public/legal/${page.out} (${html.length} bytes)`);
+  console.log(`wrote ${page.out} -> ${OUT_DIR} (${html.length} bytes)`);
 }
