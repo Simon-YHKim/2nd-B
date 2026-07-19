@@ -19,7 +19,7 @@
 
 | # | 결함 | 위치 | 상태 |
 |---|---|---|---|
-| P0-1 | **prod 시맨틱 위기분류 무음 사망**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 조용히 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:83-91` | 백로그 #1 — 잔여 (위기 eval set + 세이프티 승인 게이트 선행) |
+| P0-1 | **prod 시맨틱 위기분류 강등**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:92` | 백로그 #1 — 잔여, 단 **부분 완화 실측(2026-07-19 S2 감사)**: ① 무음→관측 (`noteSemanticUnavailable` 세션당 1회 warn, safety.ts:117-134) ② 플래그 게이트 서버 경로 존재 — `EXPO_PUBLIC_SERVER_SAFETY=true`(클라, safety.ts:203-252) + `LLM_SERVER_SAFETY_SEAT=1`(gemini-proxy:591-593)이면 proxy `safety_classify` 좌석으로 시맨틱 분류 복구. 기본 OFF — 본복구(A18)는 위기 eval set + 세이프티 오너 승인 선행 |
 | P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/gemini.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
 | P0-3 | **엣지 경유 lite 콜 400**: gemini-proxy MODELS_ALLOWED={2.5-flash, 2.5-pro}뿐 → lite 티어(clipper_classify)가 엣지 빌드에서 model_not_allowed | `supabase/functions/gemini-proxy/index.ts` | ✅ P0 레인에서 수리 — allowlist에 lite+3.x, GEMINI_MODELS_ALLOWED env, pro-클래스 패턴 핀 |
 | P0-4 | **audit_qa 시스템 프롬프트 전무** — 라이브 무유도 출력 | `src/lib/records/create.ts` | ✅ 이 브랜치에서 수정 |
@@ -89,7 +89,7 @@
 - **리네임**: `knowledge_lookup` → `source_ingest` ✅(2026-07-18 이행 — wiki phase1 4질문 intake), `clipper_template_propose` → `template_propose`
 - **재바인딩**: `imagine` → `imagine_divergent` (트위비/발산; 원장 연속성 위해 기존 enum 재사용)
 - **신설**: `digest_weekly`, `ops_daily_brief`, `trend_narrate`, `cluster_infer`, `chat_capture_summarize`, `callrec_summarize`, `ttfv_first_insight`, `safety_classify`, `embed_index`,
-  `reasoning_connect` ✅(2026-07-18 신설·이행 — `/reasoning` 딥런 도메인-연결 배치(0092). D-26 이후 리즈닝 개편이 낳은 라이브 콜사이트로, `cluster_infer`(위키 클러스터 근거·P2 OpenAI 좌석)와는 별개 purpose. 현행 라우팅 = Gemini pro @ high(콜사이트 명시 인자); P2 좌석은 컷오버 런북에서 결정 — PHASE2_VENDOR 미등재로 Gemini 잔류)
+  `reasoning_connect` ✅(2026-07-18 신설·이행 — `/reasoning` 딥런 도메인-연결 배치(0092). D-26 이후 리즈닝 개편이 낳은 라이브 콜사이트로, `cluster_infer`(위키 클러스터 근거·P2 OpenAI 좌석)와는 별개 purpose. 현행 라우팅 = Gemini pro @ high(콜사이트 명시 인자); P2 좌석은 컷오버 런북에서 결정 — PHASE2_VENDOR 미등재로 Gemini 잔류. **2026-07-19 S2 감사 추가 2건**: ① 미등재·Gemini 잔류·cluster_infer 재사용 금지를 회귀 테스트로 박제 — `src/lib/llm/__tests__/reasoning-connect-routing.test.ts` (Phase 플립·EXPO_PUBLIC_LLM_VENDOR 스위치 전 분기에서 gemini 고정 검증) ② gemini-proxy의 서브브레인 pro→flash 핀이 이 purpose에 적중해 티어별 서빙 모델 차등(SAME-QUALITY 위반)이던 것을 `PRO_FOR_ALL_TIERS` 면제로 픽스(전 티어 pro; 지출은 0092 주간 원장이 바운드) — proxy 재배포 필요)
 - **삭제**: `capture_classify`(dead), `journal_reflect` ✅(2026-07-18 이행 — 아래 감사 연속성 참조), `persona_chat`(3분할). `planner`는 PREMIUM_PURPOSES에서 축소 검토.
 - 구→신 purpose 매핑 테이블을 감사 로그 연속성용으로 유지.
 
@@ -103,6 +103,9 @@ purpose 컬럼은 free text라 과거 행은 그대로 남는다 (persona_chat 3
 | `journal_reflect` (#1061~#1069, /reasoning 기록 배치) | `reasoning_connect` | 리즈닝 개편기가 임시 재사용한 라벨 |
 | `knowledge_lookup` (wiki phase1 intake) | `source_ingest` | A14 리네임 |
 | `knowledge_lookup` (#1061~#1069, /reasoning 자료 배치) | `reasoning_connect` | 동일 시기 임시 재사용 — 시기+콜 형태(JSON connections 스키마)로 구분 |
+| `embed` (gemini-proxy embed 감사행, 0095 이전) | `embed_index` | 프록시 하드코드가 클라 라벨과 달랐음 — 0095 레인에서 `embed_index`로 통일 |
+
+**클라 감사행 enrichment — 0095 (2026-07-19, QA-F2 종결)**: 0073이 추가한 `purpose`/`reasoning_vendor`/`reasoning_effort` 컬럼은 서비스롤 프록시만 채우고 네이티브 `log_ai_audit` RPC(0038) 경로는 전부 NULL이었다(mock·output-swap·crisis·직결·분류기 행 무귀속 — QA-F2). `0095_ai_audit_purpose_rpc.sql`이 RPC를 9-인자(신규 3개 DEFAULT NULL)로 재생성하고 `src/lib/supabase/audit.ts`가 `AuditMeta.purpose`/`reasoningProvider`/`effort`를 전달한다. 클라 라벨: callGemini=PromptPurpose, advisor 경로="advisor", 임베딩="embed_index", 전사="voice_transcribe", 클라 분류기="safety_classify"(A18 좌석명), record-save 위기 스캔=NULL(콜 컨텍스트 없음). **적용 순서 = 서버(0095) 먼저, 클라 머지 나중** — 역순이면 audit 쓰기가 outbox에 적체됐다가 마이그레이션 후 자동 방류. `key_combo`/`total_tokens`는 프록시 전용 유지(클라가 알 수 없는 값).
 
 **목표 스키마** (서버 proxy가 정본 소유):
 ```
@@ -172,6 +175,20 @@ PURPOSE_ROUTE[purpose] = {
 - **openai**: OpenAI 결제수단+크레딧 → `OPENAI_API_KEY` 시크릿 주입 → openai-proxy 재배포(v1이 #829 이전) → `EXPO_PUBLIC_LLM_VENDOR=openai`.
 - 저한도 검증(QA `.env.test`): 해당 프록시 `gap_synthesize`→200 + `modelUsed` 접두어. 경계 422/403/401.
 
+## 6.2 위상 실측 표 (2026-07-19 S2 감사 — 표면별 실제 위상)
+
+> "문서 안믿기" 원칙에 따른 전수 실측. 결론: **전 표면 Phase 1(전량 Gemini)** — "Phase 2 라이브"라는 서술은 *배선 완료·스위치 가능*의 의미로만 옳고, 실제 위상 플립은 어디에도 없다(§6.1의 STALE 경고와 일치). 단 **모델 세대가 표면마다 다르다**(마지막 열).
+
+| 표면 | PHASE | MODE | VIA_EDGE | VENDOR | 실효 모델 (lite/flash/pro) | 근거 |
+|---|---|---|---|---|---|---|
+| 웹 라이브 (GitHub Pages) | **1** (Variable, 2026-07-05) | live (Variable) | true (Variable) | 미설정 → Phase1 전량 Gemini | **전부 `gemini-3.5-flash`** (MODEL_* Variable 미설정 → 워크플로 기본값) | repo Variables 실조회(gh variable list) + `.github/workflows/web-deploy.yml:82-102` |
+| 네이티브 (EAS preview/production) | **1** (eas.json:33,66) | live | true | 미설정 | **2.5 패밀리** (`gemini-2.5-flash-lite`/`-flash`/`-pro` — EXPO_PUBLIC_MODEL_* 부재 → types.ts 기본값) | `eas.json:30-33,63-66` + `src/lib/llm/types.ts:148-158` |
+| 앱 기본값 (env 전무: 로컬/jest) | 1 (`llmPhase()` 기본) | mock (env.ts 기본) | false | 미설정 | 2.5 패밀리 (mock 접두) | `src/lib/llm/routing.ts:26-29` |
+| runtime_flags (서버) | 위상 아님 — `llm_enabled` 킬스위치만 (현재 true) | — | — | — | — | `db/migrations/0092_runtime_flags.sql:25-30` |
+
+- **불일치 1 (정본 제안)**: 웹=3.5-flash vs 네이티브=2.5 패밀리. D-27 운영 결정("Gemini는 `gemini-3.5-flash` 하나만, 조합 키 4개 발급 완료")의 정본대로면 **네이티브 eas.json에 `EXPO_PUBLIC_MODEL_LITE/_FLASH/_PRO=gemini-3.5-flash` 3줄 추가**가 맞다(§3-2 락스텝 주의: proxy allowlist에는 3.5가 이미 있음 — gemini-proxy:63-73). 빌드 인프라 소유 트랙 게이트로 이관.
+- **불일치 2**: 네이티브 pro 기본값(2.5-pro)은 gemini-proxy 서브브레인 핀과 상호작용해 티어별 모델 차등을 만들었다 — §4 reasoning_connect 항의 픽스로 해소(배포 대기).
+
 ## Axis key attribution (D-27) — (벤더 × 모델 × 리즈닝) 축별 API 키
 
 라우팅이 `purpose → vendor → model → clampedEffort` 를 정한 뒤, 프록시는 그 **조합 전용 키**로 벤더를 호출한다. → 벤더 청구/사용량 대시보드에서 **키별 = 조합별**로 사용량·비용이 분리 집계된다. (모든 키가 같은 결제 계정에 청구됨 — 분리는 "귀속"이지 별도 결제계정이 아니다.)
@@ -211,7 +228,7 @@ PURPOSE_ROUTE[purpose] = {
 
   > **→ Claude Code 인계 명시:** **Gemini 좌석 = `gemini-3.5-flash` 전용.** 위 4개 조합 키가 실제로 쓰이려면 **앱의 Gemini 라우팅이 `gemini-3.5-flash`로 가야** 한다 — `EXPO_PUBLIC_MODEL_LITE/_FLASH/_PRO`(또는 `types.ts`의 `PURPOSE_TIER`→`MODELS` 매핑)를 `gemini-3.5-flash`로 핀할 것. 아니면 다른 모델 슬러그(`G25FLASH` 등)로 조회돼 base 키로 폴백된다. `gemini-proxy`의 `MODELS_ALLOWED`에는 `gemini-3.5-flash`가 이미 포함돼 있어 프록시단 변경은 불필요.
 
-**감사로그 재분해(0073)** — 키가 못 나누는 축(purpose·user·time)까지 SQL로 재분해. `ai_audit_log`에 nullable 컬럼 추가: `purpose`, `reasoning_vendor`(gemini/claude/openai), `reasoning_effort`(clamped), `key_combo`(사용 시크릿명 또는 base), `total_tokens`(벤더 usage). 서비스롤 프록시가 기록(네이티브 `log_ai_audit` RPC 경로는 미변경 → NULL). 예:
+**감사로그 재분해(0073)** — 키가 못 나누는 축(purpose·user·time)까지 SQL로 재분해. `ai_audit_log`에 nullable 컬럼 추가: `purpose`, `reasoning_vendor`(gemini/claude/openai), `reasoning_effort`(clamped), `key_combo`(사용 시크릿명 또는 base), `total_tokens`(벤더 usage). 서비스롤 프록시가 기록. ~~네이티브 `log_ai_audit` RPC 경로는 미변경 → NULL~~ → **0095(2026-07-19)로 클라 경로도 purpose/vendor/effort 기록** (§4 "클라 감사행 enrichment" 참조; key_combo/total_tokens는 여전히 프록시 전용). 예:
 
 ```sql
 -- 조합별(벤더×모델×effort) 호출·토큰 집계 (최근 30일)

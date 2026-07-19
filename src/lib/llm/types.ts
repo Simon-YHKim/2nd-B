@@ -118,6 +118,13 @@ export interface AuditMeta {
   vertexBackend: boolean;
   safetyZone: SafetyZone;
   latencyMs: number;
+  // Purpose label for the call — the D-27 "situation" axis (0073 column).
+  // Free text at the DB so the proxy-side labels ("embed_index",
+  // "voice_transcribe", "safety_classify") stay legal alongside PromptPurpose.
+  // Threaded to log_ai_audit by the 0095 migration; before it, every
+  // client-written row (mock / output-swap / crisis / direct path) was
+  // unattributable (QA-F2, 2026-07-18). Absent on rows with no call context.
+  purpose?: string;
   // Reasoning effort recorded for traceability (C3). Set on the pro
   // (reasoning) tier AND on D-26 Phase 2 vendor-seat calls (where the proxy
   // maps it to the vendor's native ladder); undefined on plain Gemini
