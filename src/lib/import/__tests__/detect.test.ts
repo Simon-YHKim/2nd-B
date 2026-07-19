@@ -46,3 +46,29 @@ describe("parseEml", () => {
     expect(parseEml("no headers here")).toBeNull(); // no "Name: value" → no headers → null
   });
 });
+
+describe("detectImportKind: P1 kinds (youtube-history / finance-csv)", () => {
+  test("Takeout watch-history JSON routes to youtube-history", () => {
+    const json = JSON.stringify([
+      { header: "YouTube", title: "Watched x", titleUrl: "https://www.youtube.com/watch?v=1", time: "2026-06-01T00:00:00Z" },
+    ]);
+    expect(detectImportKind("watch-history.json", json)).toBe("youtube-history");
+    expect(detectImportKind("anything.json", json)).toBe("youtube-history"); // content sniff wins
+  });
+
+  test("takeout LOCATION json still routes to takeout-location (object, not array)", () => {
+    const json = JSON.stringify({ timelineObjects: [] });
+    expect(detectImportKind("Records.json", json)).toBe("takeout-location");
+  });
+
+  test("bank/card statement CSVs route to finance-csv", () => {
+    const bank = '"거래일시","적요","출금액","입금액"\n"2026-06-03","커피","4,500",""';
+    const card = "이용일,가맹점명,이용금액\n2026.6.3,서점,28000";
+    expect(detectImportKind("statement.csv", bank)).toBe("finance-csv");
+    expect(detectImportKind("card.csv", card)).toBe("finance-csv");
+  });
+
+  test("non-finance CSV stays unknown (no ledger overreach)", () => {
+    expect(detectImportKind("NetflixViewingHistory.csv", "Title,Date\nSome Show,2026-06-01")).toBe("unknown");
+  });
+});
