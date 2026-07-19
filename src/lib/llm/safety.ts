@@ -344,6 +344,9 @@ export async function classifySafety(
           vertexBackend: getEnv().EXPO_PUBLIC_USE_VERTEX,
           safetyZone: result.zone,
           latencyMs,
+          // 0095: the A18 seat name — same label the proxy path self-reports
+          // (classifyViaProxy), so classifier rows aggregate under one purpose.
+          purpose: "safety_classify",
         });
       } catch (e) {
         if (typeof console !== "undefined") console.warn("[safety] classifier audit failed", e);

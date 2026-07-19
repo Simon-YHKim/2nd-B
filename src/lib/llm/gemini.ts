@@ -411,7 +411,7 @@ async function routeCrisis(
   promptHash: string,
   minor = false,
   sourceTag = "input_red",
-  opts: { recordCrisisEvent?: boolean } = {},
+  opts: { recordCrisisEvent?: boolean; purpose?: string } = {},
 ): Promise<GeminiResult<string>> {
   // Same hotline set as the Advisor path (single source of truth):
   // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
@@ -428,6 +428,9 @@ async function routeCrisis(
     vertexBackend: false,
     safetyZone: "red" as const,
     latencyMs: 0,
+    // 0095: attribute the intercepted call's purpose when the caller had one
+    // (callGemini paths); record-save scans have no PromptPurpose — NULL row.
+    ...(opts.purpose ? { purpose: opts.purpose } : {}),
   };
   // C3: crisis routing MUST be audited. The whole point of audit_log is the
   // judges' ability to prove the safety classifier intercepted dangerous input.
@@ -479,6 +482,8 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       input.userId,
       promptHash,
       input.minor,
+      "input_red",
+      { purpose: input.purpose },
     )) as unknown as GeminiResult<T>;
   }
 
@@ -535,6 +540,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
       safetyZone: outputSafety.zone,
       latencyMs,
+      purpose: input.purpose,
       // Mock never egresses, so vendor-seat effort/provider would be a lie in
       // the row (mock:gemini-* + "claude"). Record them only for the pro tier
       // (pre-D-26 semantics, where they describe the local thinking config).
@@ -603,7 +609,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
           promptHash,
           input.minor,
           vendorCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
-          { recordCrisisEvent: vendorCrisis.confirmedMarker },
+          { recordCrisisEvent: vendorCrisis.confirmedMarker, purpose: input.purpose },
         )) as unknown as GeminiResult<T>;
       }
       if (typeof console !== "undefined") {
@@ -632,7 +638,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
           promptHash,
           input.minor,
           proxyCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
-          { recordCrisisEvent: proxyCrisis.confirmedMarker },
+          { recordCrisisEvent: proxyCrisis.confirmedMarker, purpose: input.purpose },
         )) as unknown as GeminiResult<T>;
       }
       throw error;
@@ -719,6 +725,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       vertexBackend,
       safetyZone: "red" as const,
       latencyMs,
+      purpose: input.purpose,
       ...(effort ? { effort } : {}),
       ...(servedByProvider ? { reasoningProvider: servedByProvider } : {}),
     };
@@ -753,6 +760,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
     vertexBackend,
     safetyZone: outputSafety.zone,
     latencyMs,
+    purpose: input.purpose,
     ...(effort ? { effort } : {}),
     ...(servedByProvider ? { reasoningProvider: servedByProvider } : {}),
   };
@@ -812,6 +820,7 @@ async function advisorProxyCrisisResult(
     vertexBackend,
     safetyZone: "red" as const,
     latencyMs: 0,
+    purpose: "advisor",
     // Advisor is the reasoning path; record the provider for a complete trail.
     reasoningProvider,
   };
@@ -943,6 +952,7 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
       safetyZone: anyRed ? "red" : "green",
       latencyMs: Date.now() - t0,
+      purpose: "embed_index",
     };
     await writeAiAuditLog(input.userId, audit, "[ai_audit_log] embed insert failed (mock)");
     return { vectors, audit };
@@ -995,6 +1005,7 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
     vertexBackend,
     safetyZone: anyRed ? "red" : "green",
     latencyMs: Date.now() - t0,
+    purpose: "embed_index",
   };
   // C3: skip the client insert when the proxy already audited the batch —
   // UNLESS the batch carried withheld red-zone texts: the proxy only saw the
@@ -1071,6 +1082,8 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
       safetyZone: outputSafety.zone,
       latencyMs: Date.now() - t0,
+      // The proxy's own label for this op (audit continuity with server rows).
+      purpose: "voice_transcribe",
     };
     await writeAiAuditLog(input.userId, audit, "[ai_audit_log] transcribe insert failed (mock)");
     return { text, safety: outputSafety, audit };
@@ -1159,6 +1172,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       vertexBackend,
       safetyZone: "red",
       latencyMs,
+      purpose: "voice_transcribe",
     };
     // Skip the raw-call audit insert only when the proxy already wrote it
     // server-side (proxyAudited) — same convention as callGemini's output swap.
@@ -1186,6 +1200,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     vertexBackend,
     safetyZone: outputSafety.zone,
     latencyMs,
+    purpose: "voice_transcribe",
   };
   // C3: skip only when the proxy already wrote the row server-side.
   if (!proxyAudited) {
@@ -1217,6 +1232,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
       safetyZone: "red" as const,
       latencyMs: 0,
+      purpose: "advisor",
       // No reasoning ran (crisis short-circuit), but record the provider for a
       // complete trail; effort omitted since the model was never invoked.
       reasoningProvider,
@@ -1287,6 +1303,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       vertexBackend: env.EXPO_PUBLIC_USE_VERTEX,
       safetyZone: safety.zone,
       latencyMs: 0,
+      purpose: "advisor",
       effort,
       reasoningProvider,
     };
@@ -1425,6 +1442,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       vertexBackend: vertex,
       safetyZone: "red" as const,
       latencyMs,
+      purpose: "advisor",
       effort,
       reasoningProvider: servedByProvider,
     };
@@ -1467,6 +1485,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     vertexBackend: vertex,
     safetyZone: finalZone,
     latencyMs,
+    purpose: "advisor",
     effort,
     reasoningProvider: servedByProvider,
   };

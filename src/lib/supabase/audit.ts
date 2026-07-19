@@ -27,6 +27,14 @@ export async function insertAiAuditLog(meta: AiAuditInsert): Promise<void> {
     p_vertex_backend: meta.vertexBackend,
     p_safety_zone: meta.safetyZone,
     p_latency_ms: meta.latencyMs,
+    // 0095 enrichment (0073 axes): purpose + vendor + effort, NULL when the
+    // call had none (e.g. crisis rows without a call context). Sent explicitly
+    // so PostgREST always matches the 9-arg signature — which is why the 0095
+    // migration must be APPLIED BEFORE this client ships (server first; a
+    // stalled row just waits in the audit-write outbox until then).
+    p_purpose: meta.purpose ?? null,
+    p_reasoning_vendor: meta.reasoningProvider ?? null,
+    p_reasoning_effort: meta.effort ?? null,
   });
   if (error) throw error;
 }

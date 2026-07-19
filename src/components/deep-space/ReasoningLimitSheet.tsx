@@ -121,7 +121,13 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
     if (!userId || watching) return;
     setWatching(true);
     try {
-      const { completed } = await showRewardedAd();
+      // SSV customData (0091 contract): bare userId = the reasoning reward
+      // path. When AdMob SSV becomes the grant authority
+      // (EXPO_PUBLIC_REWARD_SSV=true + edge REWARD_SSV_ENABLED=1), the
+      // verified callback credits THIS user server-side; addRewardCredits
+      // below already no-ops in that mode (D2 guard in entitlements/usage.ts),
+      // so one watch never double-grants.
+      const { completed } = await showRewardedAd({ ssvCustomData: userId });
       if (completed) {
         await addRewardCredits(userId, REWARD_PER_WATCH);
         await refreshUsage();
