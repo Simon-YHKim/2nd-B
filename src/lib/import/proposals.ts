@@ -4,6 +4,9 @@
 // never returned, only derived signals ("원문 비보존"). Sensitive proposals are
 // flagged so the screen can default-exclude them.
 
+import i18next from "i18next";
+
+import { systemLocaleFor, type SystemLocale } from "@/lib/i18n/locales";
 import type { ImportKind } from "./detect";
 import { aggregateRelationSignals, extractAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
 import { extractSmsAppointmentHints, parseSmsBackup } from "./sms";
@@ -11,6 +14,8 @@ import { parseTakeoutLocations, summarizeLocations } from "./location";
 import { parseIcs } from "./ics";
 import { parseAppleHealthExport, summarizeHealth } from "./health-export";
 import { emailLooksLikeAppointment, parseEml } from "./email";
+import { parseFinanceCsv, type FinanceTxn } from "./finance-csv";
+import { parseYouTubeWatchHistory, summarizeWatchHistory } from "./youtube";
 
 export interface ImportProposal {
   id: string;
@@ -26,6 +31,13 @@ export interface ImportProposal {
    * derived signals may be kept.
    */
   body?: string;
+  /**
+   * finance-csv only (P1): the ops_ledger row this proposal ratifies into.
+   * Riding ON the proposal (not the outcome) keeps the user's per-row
+   * check/uncheck authoritative — ledger-ratify.ts inserts exactly the chosen
+   * ones, mirroring the #1075 relation-alias "propose, then persist" law.
+   */
+  ledgerEntry?: FinanceTxn;
 }
 
 export interface ImportSummary {
@@ -35,6 +47,10 @@ export interface ImportSummary {
   health: number;
   /** markdown note sections found (Notion·Obsidian export). */
   notes: number;
+  /** youtube-history: non-ad watch events found (P1). */
+  watches: number;
+  /** finance-csv: readable statement rows found (P1). */
+  transactions: number;
   /** always 0 — raw bodies are never retained. Shown for transparency. */
   raw: 0;
 }
@@ -52,7 +68,12 @@ export interface ImportOutcome {
 
 const PROPOSAL_CAP = 100;
 const NOTE_BODY_MAX = 4000;
-const empty: ImportSummary = { appointments: 0, places: 0, events: 0, health: 0, notes: 0, raw: 0 };
+const empty: ImportSummary = { appointments: 0, places: 0, events: 0, health: 0, notes: 0, watches: 0, transactions: 0, raw: 0 };
+
+/** "1234567" -> "1,234,567" without Intl (Hermes/node parity). */
+function formatKrw(n: number): string {
+  return `${String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}원`;
+}
 
 /**
  * Split a markdown export into per-note sections at #/##/### headings. Content
@@ -118,6 +139,38 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
       summary.appointments = 1;
       proposals.push({ id: "email-0", label: email.subject || email.from, sub: "약속 → 캘린더 후보", sensitive: false });
     }
+  } else if (kind === "youtube-history") {
+    // P1: derived signals only — channel-level interest counts + one rhythm
+    // line. Individual video titles are never proposed (원문 비보존).
+    const yt = summarizeWatchHistory(parseYouTubeWatchHistory(safeJson(content)));
+    summary.watches = yt.total;
+    if (yt.total > 0) {
+      const monthsSpanned = Math.max(1, yt.months.length);
+      proposals.push({
+        id: "yt-rhythm",
+        label: `최근 ${monthsSpanned}개월 ${yt.total}회 시청`,
+        sub: "시청 리듬 → 휴식 패턴",
+        sensitive: false,
+      });
+    }
+    for (const c of yt.channels) {
+      proposals.push({ id: `yt-${proposals.length}`, label: `${c.name} · ${c.count}회`, sub: "채널 → 관심사(성장·휴식)", sensitive: false });
+    }
+  } else if (kind === "finance-csv") {
+    // P1 조건부: each readable statement row proposes one ops_ledger entry
+    // (재정 별 직결). Sensitive => default-excluded until the user opts rows
+    // in; nothing persists before ratify, and only chosen rows do.
+    const parsed = parseFinanceCsv(content);
+    summary.transactions = parsed.txns.length;
+    for (const txn of parsed.txns) {
+      proposals.push({
+        id: `fin-${proposals.length}`,
+        label: `${txn.occurredOn} ${txn.label || "(내용 없음)"} ${formatKrw(txn.amountKrw)}`,
+        sub: txn.kind === "income" ? "입금 → 재정 원장" : "지출 → 재정 원장",
+        sensitive: true,
+        ledgerEntry: txn,
+      });
+    }
   } else if (kind === "markdown") {
     // Notion·Obsidian notes (2026-07-18 QA: this kind previously had NO branch,
     // so every notes import died on "0 proposals" — a dead end the hub
@@ -148,8 +201,20 @@ function safeJson(content: string): unknown {
 /** Render the ratified proposals as a markdown note (fed to captureFromMarkdown).
  *  Signal-only proposals render as bullets (derived, 원문 비보존); note proposals
  *  (markdown import) carry their body and render as full sections. */
-export function proposalsToMarkdown(sourceName: string, chosen: ReadonlyArray<ImportProposal>): string {
-  const lines = [`# ${sourceName} 가져오기`, ""];
+/**
+ * Markdown note body for the ratified import (the H1 becomes the note title).
+ * Locale-aware since dispatch 260719 S1-5 (HANDOFF queue D): the heading used
+ * to be KO-fixed ("... 가져오기") even for EN-locale users. Callers may pass
+ * the locale explicitly; omitted, it follows the current app language
+ * (systemLocaleFor collapses every non-KO tag to "en", and an uninitialized
+ * i18next -- e.g. under jest -- reads as "en" too).
+ */
+export function proposalsToMarkdown(
+  sourceName: string,
+  chosen: ReadonlyArray<ImportProposal>,
+  locale: SystemLocale = systemLocaleFor(i18next.language),
+): string {
+  const lines = [locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
   for (const p of chosen) {
     if (p.body) {
       lines.push(`## ${p.label}`, "", p.body, "");
