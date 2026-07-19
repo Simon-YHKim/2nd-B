@@ -1,0 +1,98 @@
+name: EAS iOS Submit (TestFlight)
+
+# Submits an already-finished EAS iOS build to App Store Connect /
+# TestFlight. Dispatch 260720: the Expo web dashboard has no submit action,
+# so this wraps the CLI the same way eas-ios-build.yml wraps builds.
+#
+# COST: this workflow consumes NO EAS build slot -- submissions are free.
+#
+# APPLE AUTH: none happens here. `eas submit` uses the App Store Connect API
+# key stored on EAS servers (Key ID MCNQH5N3US) and the submit target pinned
+# in eas.json (submit.production.ios: ascAppId 6792266942 / appleTeamId
+# 7CP84WS5C6). No Apple ID login, no 2FA, and -- unlike the build workflow --
+# NO signing-credential restore step: submissions never touch the
+# distribution certificate, so the IOS_DIST_* secrets are deliberately not
+# referenced here.
+#
+# TARGET SELECTION: an explicit build_id is REQUIRED (review 260720, P1).
+# `eas submit --latest` picks the newest iOS build regardless of BUILD
+# profile (--profile only selects the submit configuration), so with
+# eas-ios-build.yml able to produce ad-hoc preview IPAs, a --latest default
+# could submit the wrong artifact. Copy the id from the EAS builds
+# dashboard. Duplicate submission of the same build fails on the Apple side.
+#
+# PROFILE: pinned to "production" on purpose (review 260720). eas.json has
+# only submit.production, and preview iOS builds are ad-hoc artifacts that
+# cannot reach TestFlight -- offering a preview choice here would fail with
+# the exact "Set ascAppId in the submit profile" class the canonical-tree
+# dry run hit. Add a profile input back only when an App-Store-eligible
+# submit profile besides production lands in eas.json.
+#
+# First successful use of this exact CLI path: 2026-07-20, build c517ea20
+# (0.1.0 build 4) -> submission cdb04f7b, no Apple prompt.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "EAS build id to submit (explicit; --latest is deliberately unsupported, see header)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-ios-submit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # No set -x anywhere: EXPO_TOKEN flows env -> CLI only and never echoes.
+      - name: Submit iOS build to App Store Connect
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          BUILD_ID: ${{ inputs.build_id }}
+          # Pinned; see the PROFILE header note before widening this.
+          SUBMIT_PROFILE: production
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required for EAS iOS submissions."
+            exit 1
+          fi
+          if [ -z "${BUILD_ID:-}" ]; then
+            echo "::error::build_id is required; --latest is profile-blind and unsupported here (see header)."
+            exit 1
+          fi
+          ARGS=( --platform ios --profile "$SUBMIT_PROFILE" --non-interactive --id "$BUILD_ID" )
+          TARGET_DESC="build $BUILD_ID"
+          echo "Submitting: $TARGET_DESC (profile: $SUBMIT_PROFILE)"
+          npx eas-cli submit "${ARGS[@]}" | tee submit-output.log
+          SUBMISSION_URL="$(grep -o 'https://expo.dev/accounts/[^ ]*/submissions/[a-z0-9-]*' submit-output.log | head -1 || true)"
+          {
+            echo "### EAS iOS submission"
+            echo
+            echo "- Profile: \`$SUBMIT_PROFILE\`"
+            echo "- Target: $TARGET_DESC"
+            echo "- Submission: ${SUBMISSION_URL:-see log above}"
+            echo "- App Store Connect (TestFlight): https://appstoreconnect.apple.com/apps/6792266942/testflight/ios"
+            echo
+            echo '```'
+            tail -20 submit-output.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
