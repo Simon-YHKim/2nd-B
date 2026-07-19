@@ -4,6 +4,9 @@
 // never returned, only derived signals ("원문 비보존"). Sensitive proposals are
 // flagged so the screen can default-exclude them.
 
+import i18next from "i18next";
+
+import { systemLocaleFor, type SystemLocale } from "@/lib/i18n/locales";
 import type { ImportKind } from "./detect";
 import { aggregateRelationSignals, extractAppointmentHints, parseKakaoExport, type KakaoRelationSignal } from "./kakao";
 import { extractSmsAppointmentHints, parseSmsBackup } from "./sms";
@@ -198,8 +201,20 @@ function safeJson(content: string): unknown {
 /** Render the ratified proposals as a markdown note (fed to captureFromMarkdown).
  *  Signal-only proposals render as bullets (derived, 원문 비보존); note proposals
  *  (markdown import) carry their body and render as full sections. */
-export function proposalsToMarkdown(sourceName: string, chosen: ReadonlyArray<ImportProposal>): string {
-  const lines = [`# ${sourceName} 가져오기`, ""];
+/**
+ * Markdown note body for the ratified import (the H1 becomes the note title).
+ * Locale-aware since dispatch 260719 S1-5 (HANDOFF queue D): the heading used
+ * to be KO-fixed ("... 가져오기") even for EN-locale users. Callers may pass
+ * the locale explicitly; omitted, it follows the current app language
+ * (systemLocaleFor collapses every non-KO tag to "en", and an uninitialized
+ * i18next -- e.g. under jest -- reads as "en" too).
+ */
+export function proposalsToMarkdown(
+  sourceName: string,
+  chosen: ReadonlyArray<ImportProposal>,
+  locale: SystemLocale = systemLocaleFor(i18next.language),
+): string {
+  const lines = [locale === "ko" ? `# ${sourceName} 가져오기` : `# ${sourceName} import`, ""];
   for (const p of chosen) {
     if (p.body) {
       lines.push(`## ${p.label}`, "", p.body, "");
