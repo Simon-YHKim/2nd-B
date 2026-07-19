@@ -105,3 +105,30 @@ describe("proposalsToMarkdown", () => {
     expect(md).toContain("- 금요일 약속"); // signal-only stays a bullet
   });
 });
+
+describe("buildProposals: P1 kinds (youtube-history / finance-csv)", () => {
+  test("youtube-history → rhythm + channel proposals, non-sensitive, no video titles", () => {
+    const json = JSON.stringify([
+      { header: "YouTube", title: "Watched secret video title", titleUrl: "https://www.youtube.com/watch?v=1", subtitles: [{ name: "DevCasts" }], time: "2026-06-01T00:00:00Z" },
+      { header: "YouTube", title: "Watched another", titleUrl: "https://www.youtube.com/watch?v=2", subtitles: [{ name: "DevCasts" }], time: "2026-07-01T00:00:00Z" },
+    ]);
+    const { proposals, summary } = buildProposals("youtube-history", json);
+    expect(summary.watches).toBe(2);
+    expect(proposals[0].sub).toContain("휴식");
+    expect(proposals.some((p) => p.label.includes("DevCasts · 2회"))).toBe(true);
+    expect(proposals.every((p) => !p.sensitive)).toBe(true);
+    // derived-only law: individual video titles never surface as proposals
+    expect(proposals.every((p) => !p.label.includes("secret video title"))).toBe(true);
+  });
+
+  test("finance-csv → sensitive ledger proposals carrying the ops_ledger row", () => {
+    const csv = '"거래일시","적요","출금액","입금액"\n"2026-06-03","커피 한잔","4,500",""';
+    const { proposals, summary } = buildProposals("finance-csv", csv);
+    expect(summary.transactions).toBe(1);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0].sensitive).toBe(true);
+    expect(proposals[0].sub).toContain("재정 원장");
+    expect(proposals[0].label).toContain("4,500원");
+    expect(proposals[0].ledgerEntry).toEqual({ occurredOn: "2026-06-03", kind: "expense", amountKrw: 4500, label: "커피 한잔" });
+  });
+});
