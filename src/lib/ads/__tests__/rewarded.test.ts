@@ -36,7 +36,9 @@ jest.mock("react-native-google-mobile-ads", () => ({
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { showRewardedAd } from "../rewarded";
+// The real path lives in the .native variant since the P0-1 platform split
+// (web resolves the fail-closed stub; see platform-split.test.ts).
+import { showRewardedAd } from "../rewarded.native";
 import { ensureAdsInitialized, ensureUmpConsent } from "../consent";
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -130,7 +132,7 @@ describe("showRewardedAd (real path, fail-closed)", () => {
   });
 
   test("source pins: EARNED_REWARD is the only completion source; gates stay in order", () => {
-    const src = readFileSync(path.resolve(__dirname, "../rewarded.ts"), "utf8");
+    const src = readFileSync(path.resolve(__dirname, "../rewarded.native.ts"), "utf8");
     expect(src).toContain("RewardedAdEventType.EARNED_REWARD");
     // No unconditional completed:true return anywhere.
     expect(src).not.toMatch(/return\s*\{\s*completed:\s*true/);
