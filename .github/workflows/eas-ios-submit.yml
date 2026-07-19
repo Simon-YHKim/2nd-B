@@ -15,9 +15,16 @@ name: EAS iOS Submit (TestFlight)
 # referenced here.
 #
 # TARGET SELECTION: build_id input submits that exact build; left empty, the
-# CLI resolves --latest (the newest finished iOS build for the profile).
-# Duplicate submissions of the same build fail on the Apple side, so prefer
-# an explicit build_id when in doubt.
+# CLI resolves --latest (the newest finished iOS build). Duplicate
+# submissions of the same build fail on the Apple side, so prefer an
+# explicit build_id when in doubt.
+#
+# PROFILE: pinned to "production" on purpose (review 260720). eas.json has
+# only submit.production, and preview iOS builds are ad-hoc artifacts that
+# cannot reach TestFlight -- offering a preview choice here would fail with
+# the exact "Set ascAppId in the submit profile" class the canonical-tree
+# dry run hit. Add a profile input back only when an App-Store-eligible
+# submit profile besides production lands in eas.json.
 #
 # First successful use of this exact CLI path: 2026-07-20, build c517ea20
 # (0.1.0 build 4) -> submission cdb04f7b, no Apple prompt.
@@ -26,23 +33,15 @@ on:
   workflow_dispatch:
     inputs:
       build_id:
-        description: "EAS build id to submit (empty = --latest finished build for the profile)"
+        description: "EAS build id to submit (empty = --latest finished build)"
         required: false
         default: ""
-      profile:
-        description: "EAS submit profile"
-        required: true
-        type: choice
-        options:
-          - preview
-          - production
-        default: production
 
 permissions:
   contents: read
 
 concurrency:
-  group: eas-ios-submit-${{ github.ref }}-${{ inputs.profile }}
+  group: eas-ios-submit-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -67,15 +66,12 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_ID: ${{ inputs.build_id }}
-          SUBMIT_PROFILE: ${{ inputs.profile }}
+          # Pinned; see the PROFILE header note before widening this.
+          SUBMIT_PROFILE: production
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
             echo "::error::EXPO_TOKEN is required for EAS iOS submissions."
-            exit 1
-          fi
-          if [ "$SUBMIT_PROFILE" != "preview" ] && [ "$SUBMIT_PROFILE" != "production" ]; then
-            echo "::error::Unsupported EAS submit profile '$SUBMIT_PROFILE'."
             exit 1
           fi
           ARGS=( --platform ios --profile "$SUBMIT_PROFILE" --non-interactive )
