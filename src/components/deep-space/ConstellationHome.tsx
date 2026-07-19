@@ -856,5 +856,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: fontFamilies.readable,
   },
-  bubbleActions: { flexDirection: "row", gap: 8, marginTop: 12, justifyContent: "center" },
+  bubbleActions: { flexDirection: "column", gap: 8, marginTop: 12, justifyContent: "center" },
 });

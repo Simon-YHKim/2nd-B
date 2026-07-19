@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
   depletedTitleRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
   depletedTitle: { flex: 1, color: m3.color.onErrorContainer, fontFamily: fontFamilies.readable, fontSize: 16, lineHeight: 23, fontWeight: "700" },
   depletedBody: { color: m3.color.onErrorContainer, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 18, marginTop: m3.spacing.s3 },
-  depletedActions: { flexDirection: "row", gap: m3.spacing.s2, marginTop: m3.spacing.s4 },
+  depletedActions: { flexDirection: "column", gap: m3.spacing.s2, marginTop: m3.spacing.s4 },
   flexButton: { flex: 1, paddingHorizontal: m3.spacing.s2 },
   errorCard: { borderRadius: m3.shape.medium, padding: m3.spacing.s3, backgroundColor: withAlpha(m3.color.error, 0.12) },
   errorText: { color: m3.color.error, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 18 },

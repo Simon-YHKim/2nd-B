@@ -461,7 +461,7 @@ const dsIden = StyleSheet.create({
     borderColor: m3.color.outline,
   },
   targetBadge: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  targetBadgeText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  targetBadgeText: { color: m3.color.onPrimary, fontWeight: "700", fontSize: 14 },
   targetName: { fontSize: 14, color: m3.color.onSurface },
   actions: { flexDirection: "row", gap: 8, marginTop: 22 },
   actionMain: { flex: 1 },
