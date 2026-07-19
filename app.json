@@ -119,7 +119,8 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "The app uses your calendar only to add routine items you approve on screen."
+          "calendarPermission": "The app uses your calendar only to add routine items you approve on screen.",
+          "remindersPermission": "The app does not use your reminders. iOS shows this because the calendar library includes reminder features."
         }
       ],
       "expo-notifications",
@@ -130,7 +131,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "The app reads your activity and routines only to tick off goals you approve on screen.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "The app does not write to Health. iOS requires this notice alongside the app's Health read access.",
           "background": false
         }
       ],
