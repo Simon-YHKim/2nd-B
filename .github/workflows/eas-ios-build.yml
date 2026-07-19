@@ -8,12 +8,26 @@ name: EAS iOS Build (IPA)
 #                 `eas submit -p ios` afterwards; submit.production.ios in
 #                 eas.json already pins ascAppId 6792266942 / team 7CP84WS5C6)
 #
-# Unlike the Android twin there is NO google-services restore step here: the
-# iOS Firebase config is injected by the EAS BUILDER from the file-type env
-# var GOOGLE_SERVICE_INFO_PLIST (Secret, registered in development/preview/
-# production), which app.config.js reads via
-# process.env.GOOGLE_SERVICE_INFO_PLIST. The plist never touches this runner
-# and stays out of git (.gitignore **/GoogleService-Info.plist).
+# FIREBASE CONFIG -- two delivery paths for the SAME file (run-1 lesson,
+# 2026-07-19, Actions run 29673670150): `eas build` resolves the app config
+# ON THIS RUNNER before uploading the archive, and the Expo Google config
+# plugin readFileSync's app.json's ios.googleServicesFile at that moment.
+# EAS file-type env vars only materialize on the EAS BUILDER, so without a
+# runner-side copy config resolution dies with ENOENT (exactly how run #1
+# failed, before any slot was consumed). Therefore:
+#   - runner: the "Provision GoogleService-Info.plist" step below restores
+#     the plist from the GitHub secret GOOGLE_SERVICE_INFO_PLIST_BASE64 and
+#     validates BUNDLE_ID. It runs for BOTH profiles -- config resolution
+#     always happens, so it must not be production-gated.
+#   - builder: the EAS file-type env var GOOGLE_SERVICE_INFO_PLIST provides
+#     the same file there (registered in all three environments).
+# app.config.js splits the two automatically:
+#   process.env.GOOGLE_SERVICE_INFO_PLIST ?? config.ios?.googleServicesFile
+# (env unset on the runner -> ./GoogleService-Info.plist fallback; env path
+# on the builder). .easignore does not exclude the plist, so the restored
+# file also rides the build archive, mirroring the Android twin's
+# google-services.json handling. The file stays out of git
+# (.gitignore **/GoogleService-Info.plist).
 #
 # SIGNING (production, decided 2026-07-19): LOCAL credentials, no Apple login.
 # The remote EAS-managed path is blocked: Apple's fastlane login 2FA rejects
@@ -81,6 +95,34 @@ jobs:
 
       - name: Verify OTA/native runtime policy
         run: npm run check:ota-runtime
+
+      # Runner-side Firebase config for app-config resolution (see the
+      # FIREBASE CONFIG header note). Mirrors the Android twin's
+      # "Provision google-services.json" step. Deliberately NOT gated on the
+      # profile: config resolution happens for preview and production alike.
+      - name: Provision GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICE_INFO_PLIST_BASE64:-}" ]; then
+            echo "::error::GOOGLE_SERVICE_INFO_PLIST_BASE64 is required for EAS iOS builds."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -d > GoogleService-Info.plist
+          if [ ! -s GoogleService-Info.plist ]; then
+            echo "::error::GoogleService-Info.plist decoded empty; check the secret."
+            exit 1
+          fi
+          node -e '
+            const fs = require("fs");
+            const xml = fs.readFileSync("GoogleService-Info.plist", "utf8");
+            const m = xml.match(/<key>BUNDLE_ID<\/key>\s*<string>([^<]+)<\/string>/);
+            if (m?.[1] !== "com.simonk.secondbrain") {
+              throw new Error(`Firebase iOS config bundle mismatch: ${m?.[1] ?? "missing"}`);
+            }
+          '
+          echo "Real GoogleService-Info.plist provisioned and validated."
 
       # Mirrors the Android GOOGLE_SERVICES_JSON_BASE64 restore pattern; see
       # the SIGNING header note. Values flow env -> file only, never echoed.
