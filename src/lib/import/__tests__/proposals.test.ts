@@ -70,12 +70,29 @@ describe("buildProposals (propose, derived-only)", () => {
 });
 
 describe("proposalsToMarkdown", () => {
-  test("renders a markdown note from chosen proposals", () => {
-    const md = proposalsToMarkdown("카카오톡", [
-      { id: "a", label: "금요일 약속", sub: "약속 → 캘린더 후보", sensitive: true },
-    ]);
+  test("renders a markdown note from chosen proposals (ko locale)", () => {
+    const md = proposalsToMarkdown(
+      "카카오톡",
+      [{ id: "a", label: "금요일 약속", sub: "약속 → 캘린더 후보", sensitive: true }],
+      "ko",
+    );
     expect(md).toContain("# 카카오톡 가져오기");
     expect(md).toContain("- 금요일 약속");
+  });
+
+  test("EN locale gets an EN heading (queue D: no more KO-fixed title)", () => {
+    const md = proposalsToMarkdown(
+      "KakaoTalk",
+      [{ id: "a", label: "Friday plan", sub: "appointment", sensitive: true }],
+      "en",
+    );
+    expect(md).toContain("# KakaoTalk import");
+    expect(md).not.toContain("가져오기");
+  });
+
+  test("locale omitted: follows the app language via systemLocaleFor (en under jest)", () => {
+    const md = proposalsToMarkdown("KakaoTalk", []);
+    expect(md.startsWith("# KakaoTalk import")).toBe(true);
   });
 
   test("note proposals render as full sections with their body", () => {
