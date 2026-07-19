@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S5 최종 게이트 결과 · 2026-07-19</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg:#f2f4f8; --card:#ffffff; --ink:#1b1e2b; --sub:#5f6474;
+    --accent:#4f5bd5; --accent-soft:#ecedfb; --line:#e2e4ee;
+    --warn:#a8480f; --warn-soft:#fbefe7; --ok:#1f7a54; --ok-soft:#e7f4ee;
+    font-family:"Pretendard Variable",Pretendard,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0e1016; --card:#161a24; --ink:#e8eaf2; --sub:#9aa0b4; --accent:#8b93f0;
+      --accent-soft:rgba(139,147,240,.12); --line:#262b39; --warn:#e8965a; --warn-soft:rgba(232,150,90,.12);
+      --ok:#5bd39a; --ok-soft:rgba(91,211,154,.12); }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.62;font-size:15px;padding:44px 18px 80px}
+  .wrap{max-width:1000px;margin:0 auto}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .meta{color:var(--sub);font-size:13px;margin:8px 0 26px;font-family:ui-monospace,"Cascadia Code",monospace}
+  h2{font-size:18px;font-weight:700;margin:38px 0 12px;padding-top:22px;border-top:1px solid var(--line)}
+  h3{font-size:15px;font-weight:700;margin:0 0 6px}
+  p{margin:6px 0}
+  code{font-family:ui-monospace,"Cascadia Code",monospace;font-size:.86em;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:18px 20px;margin:12px 0}
+  .gate{border-left:4px solid var(--warn)}
+  .done{border-left:4px solid var(--ok)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .stat .v{display:block;color:var(--accent);font-size:26px;font-weight:800;margin:2px 0}
+  .stat .l{color:var(--sub);font-size:12.5px}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--warn-soft);color:var(--warn);margin-right:6px}
+  .tag.g{background:var(--ok-soft);color:var(--ok)}
+  .tag.n{background:var(--accent-soft);color:var(--accent)}
+  ul{margin:8px 0 4px 18px}li{margin:4px 0}
+  .k{color:var(--sub);font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:10px}
+  .cmd{position:relative;background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;padding:10px 44px 10px 12px;margin:8px 0;font-family:ui-monospace,"Cascadia Code",monospace;font-size:12.5px;white-space:pre-wrap;word-break:break-all}
+  .cmd button{position:absolute;top:7px;right:7px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+  .cmd button.ok{background:var(--ok)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--accent-soft);font-weight:700}
+  .foot{color:var(--sub);font-size:12px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>S5 최종 검수·통합·릴리즈 게이트 — 결과</h1>
+<div class="meta">2026-07-19 KST · 발주 main <code>da6be790</code>(#1088) → 현재 <code>1c0b39f9</code> (+ #1098 훅업 CI중) · 검수자: Claude Code (Opus 4.8) S5</div>
+
+<div class="grid">
+  <div class="stat"><span class="l">접수·머지 PR</span><span class="v">11</span><span class="l">S1×6·S2·S3·S4·S5훅업</span></div>
+  <div class="stat"><span class="l">P0-1 웹배포</span><span class="v">해소</span><span class="l">3연속실패→SUCCESS 실증</span></div>
+  <div class="stat"><span class="l">프로드 반영</span><span class="v">0095</span><span class="l">Supabase MCP apply+검증</span></div>
+  <div class="stat"><span class="l">Simon 게이트</span><span class="v">6</span><span class="l">아래 즉시 결정/실행</span></div>
+</div>
+
+<h2>1. 완료 (S5 자율 수행)</h2>
+<div class="card done">
+<p><b>전 세션 PR 접수 검수 + 머지 (머지순서 S1→S2→S3→S4 준수, 전건 framework-aware 정밀검수):</b></p>
+<ul>
+<li><b>S1 (6):</b> #1089 iOS 프리렉 · <b>#1090 P0-1 웹 export 플랫폼분리</b> · #1091 SSV 배선 · #1092 i18n · #1094 P1 파서 · #1096 로그</li>
+<li><b>S2 (1):</b> #1093 리즈닝 16계약 감사 + 0095 audit-purpose + ⑫ SAME-QUALITY 픽스</li>
+<li><b>S3 (1):</b> #1097 디자인 전수감사 + 스타일-only 3픽스(검증완료)</li>
+<li><b>S4 (1):</b> #1095 SUPERVISOR.md 목적드리프트 정본(제안본)</li>
+<li><b>S5 (1):</b> #1098 finance-csv ledger 훅업 — S1이 넘긴 반쪽배선 수정(닫힌 루프)</li>
+</ul>
+<p class="k">핵심 실증</p>
+<ul>
+<li><b>P0-1 해소 실증:</b> web-deploy가 <code>da6be790</code>·<code>bc1a8b1e</code>에서 연속 FAIL → <b><code>3dac7bd8</code>(#1090)에서 SUCCESS</b>(run 29667968331) = #1086 이후 첫 성공배포. 3연속 실패 클래스 종료. Pages 200 확인.</li>
+<li><b>0095 프로드 반영:</b> Supabase MCP로 log_ai_audit 9-인자 재생성(하위호환 DEFAULT NULL) + before/after pg 검증(anon revoke 확인, 대상 컬럼 존재). S2 [프로드적용요청] 서버-먼저 완료.</li>
+<li><b>#1094 충돌 해소:</b> proposals.ts 코드 auto-merge, 바이너리 썸네일만 충돌 → --theirs, jest 83 tests 검증.</li>
+</ul>
+<p class="k">발견·운영</p>
+<ul>
+<li><b>PR 제목 lint 충돌:</b> 디스패치 <code>[S#]</code> 접두가 repo title-lint(<code>^(feat|fix|...)</code>)와 충돌 → 전 PR 후미태그로 리타이틀. (모든 S-PR 영향, 반응적 처리.)</li>
+<li><b>브랜치보호 실재:</b> 디스패치 "보호없음"은 outdated. recapture가 썸네일 <code>[skip ci]</code> 자동커밋해 head 체크를 orphan → 코드커밋 green 확인 후 <code>--admin</code>. (시스템 결함, 트리정리 대상.)</li>
+</ul>
+</div>
+
+<h2>2. 🔴 Simon 게이트 — 즉시 결정/실행</h2>
+
+<div class="card gate">
+<h3><span class="tag">G1</span> EAS 빌드 비용 게이트 — v0.1.0 릴리즈 선행</h3>
+<p><b>왜:</b> 07-18 헤비소비(v0.0.9 vc4~vc11 약 8빌드). v0.1.0 = APK(preview) + AAB(production) + iOS(production) <b>≥3빌드</b> 필요. 잔여 월 크레딧은 CLI 미노출.</p>
+<p><b>어떻게:</b> Expo 대시보드 billing/usage에서 잔여 빌드 확인(Cowork도 점검 중). 충분하면 GO, 부족하면 대기·플랜조정. GO 후 S5가 CI로 절단.</p>
+</div>
+
+<div class="card gate">
+<h3><span class="tag">G2</span> gemini-proxy 재배포 — ⑫ SAME-QUALITY 라이브 반영</h3>
+<p><b>왜:</b> #1093 소스는 랜딩됐으나 <b>엣지 함수 라이브는 미반영</b>(소스↔라이브 드리프트). ⑫ = reasoning_connect(purpose-tier pro)가 서브브레인 pin에 걸려 네이티브서 <code>brain=pro / 나머지=flash</code> 티어차등(C12 SAME-QUALITY 위반). 픽스=전 티어 pro. 비용=free 2run/주 주간원장 바운드(소). 방향 확인: <b>pro-for-all</b>(설계티어 부합, 권고) vs flash-for-all(저렴).</p>
+<p class="k">Simon 실행 (엣지 CLI는 login 필요)</p>
+<div class="cmd"><button onclick="cp(this)">복사</button>! npx supabase login</div>
+<p class="note" style="color:var(--sub);font-size:12.5px">로그인 후 S5가 origin/main 워크트리에서 <code>functions deploy gemini-proxy --project-ref zoacryukmdeivmolvyhj</code> 실행(byte-safe). 배포 후 0095 스모크 1회.</p>
+</div>
+
+<div class="card gate">
+<h3><span class="tag">G3</span> iOS 릴리즈 — Apple 로그인 + DSA</h3>
+<p><b>왜:</b> iOS 프리렉(#1089=ATT문구·plist·ascAppId/appleTeamId)은 머지 완료. <code>eas submit</code>에 Apple 로그인(<code>hwanydanh@gmail.com</code>) + <b>DSA 거래자 상태 제출</b>(ASC Business 탭, 미제출=EU 스토어 제거) 필요. EAS 파일시크릿 <code>GOOGLE_SERVICE_INFO_PLIST</code> = Cowork 실증 대기.</p>
+<p><b>어떻게:</b> G1(빌드 슬롯) 확인 후 S5가 <code>eas build -p ios --profile production</code>(EAS 인증서 자동) → <code>eas submit</code>에서 Simon Apple 로그인 개입. TestFlight 내부배포는 beta review 불요.</p>
+</div>
+
+<div class="card gate">
+<h3><span class="tag">G4</span> 구 디자인 zip 2건 삭제 (S3 권고)</h3>
+<p><b>왜:</b> <code>design/디자인 시안.zip</code> · <code>design/앱 디자인 및 기능 기획.zip</code> = 2026-06 구세대, 현 deep-space 정본과 충돌, 실행참조 0. 현재 로컬 D(삭제)상태. S3 판정=복원말고 삭제커밋(git history가 보존).</p>
+<p><b>승인 시:</b> S5가 명시경로 <code>git rm</code> 커밋. 신 zip 2건(24MB)은 지시대로 untracked 유지.</p>
+</div>
+
+<div class="card gate">
+<h3><span class="tag">G5</span> 루트 잡파일 처분</h3>
+<table>
+<tr><th>파일</th><th>판정</th><th>제안</th></tr>
+<tr><td><code>x.tmp</code></td><td>빈 파일 junk</td><td>삭제</td></tr>
+<tr><td><code>supabase/.temp/</code></td><td>CLI 임시 junk</td><td>삭제(.gitignore 확인)</td></tr>
+<tr><td>루트 <code>HANDOFF.md</code></td><td>07-16 Cowork 스트레이(정본=docs/HANDOFF.md 294KB에 흡수)</td><td>삭제</td></tr>
+<tr><td><code>apl_sign.txt</code></td><td>Apple Sign-in Key 메타(Key ID CC642D8GG4) = 서명 참조</td><td>보존하되 <b>PUBLIC repo 커밋 금지</b> → 미트래킹 유지 or H:\백업킷 이동</td></tr>
+<tr><td><code>docs/flow-debugger.html</code></td><td>44MB M(재생성 가능)</td><td><code>git restore</code>로 원복(다이어트는 별도)</td></tr>
+</table>
+<p>삭제는 파괴적 → Simon 일괄 승인 시 S5가 명시경로로 실행.</p>
+</div>
+
+<div class="card gate">
+<h3><span class="tag">G6</span> stale 브랜치·워크트리 정리 (계획만, 실행 게이트)</h3>
+<p><b>현황:</b> 로컬 브랜치 <b>350</b> · 원격 <b>330</b> · 워크트리 <b>80</b>. 과거 glob 삭제가 플릿 WIP를 쓸어담은 사고 이력 → <b>삭제 금지, 명시 브랜치명 + Simon 승인 별도 사이클</b>. 최근 4 트리아지 브랜치(ship-0-1-0·eas-production-aab·analytics-ads-age-gate·qa-260718-followups)는 전부 슈퍼시드/중복 판정(신규 PR 불요).</p>
+<p><b>워크트리 삭제 레시피(승인 후):</b> 정션 먼저 <code>rmdir node_modules</code> → <code>git worktree remove</code>. 롱패스는 <code>robocopy /MIR</code>로 비운 뒤 <code>\\?\</code> rmdir.</p>
+</div>
+
+<h2>3. 🟡 후속 작업 (대부분 게이트 아님 — S5/차기 세션)</h2>
+<div class="card">
+<p class="k">수거된 타트랙결함 (구현 배정 대기)</p>
+<ul>
+<li><b>chat 이중지급 가드</b> — <code>src/lib/chat/usage.ts grantChatAdBonus</code>에 <code>EXPO_PUBLIC_REWARD_SSV</code> no-op 가드 부재(entitlements/usage.ts:145엔 존재). SSV GO 전 필수(현재 SSV off라 무해).</li>
+<li><b>SSV 서버 자격 재확인</b> — rewarded-ssv 엣지가 Free·성인·동의 미확인(서명·멱등만). SSV GO 전.</li>
+<li><b>리즈닝 화면 i18n</b> — A~E·홈 말풍선 인라인 ko/en 삼항 → es/pt/id EN 폴백. locale key 이행.</li>
+<li><b>eas.json MODEL_* 핀</b> — 네이티브 2.5패밀리 vs 웹 3.5-flash 세대 불일치. D-27 정본대로 <code>EXPO_PUBLIC_MODEL_*=gemini-3.5-flash</code> 3줄(빌드인프라).</li>
+<li><b>ImportHub summary</b> — watches/transactions 카운트 미표시(i18n키 필요, 마이너).</li>
+</ul>
+<p class="k">디자인 [S5 배정] (대부분 로직 → 차기 세션)</p>
+<ul>
+<li>fresh 390×844 재캡처(#1090으로 차단 해소) · TTFV/Home P0 결정 · 리즈닝 A/B분리·E 산출물 구현 · a11y 44dp·reduced-motion · Meta/Twi body wiring.</li>
+</ul>
+<p class="k">정리</p>
+<ul>
+<li>docs 미커밋 리포트 약 30건(07-16~19) = untracked 보존 상태(유실 아님). 일괄 커밋(docs 스윕)은 저위험 추가 작업.</li>
+<li>폴더트리 재구성 제안(레거시·문서산개·워크트리 80) = 토론+Simon 후 적용.</li>
+</ul>
+</div>
+
+<h2>4. v0.1.0 릴리즈 준비 상태</h2>
+<div class="card">
+<table>
+<tr><th>항목</th><th>상태</th></tr>
+<tr><td>P0-1 웹 export</td><td><span class="tag g">완료</span> #1090 머지, web-deploy SUCCESS</td></tr>
+<tr><td>iOS 프리렉(plist·ATT·submit target)</td><td><span class="tag g">완료</span> #1089 머지</td></tr>
+<tr><td>Android 빌드 경로</td><td><span class="tag g">준비</span> eas-preview-build.yml (profile: preview=APK / production=AAB)</td></tr>
+<tr><td>버전/versionCode</td><td><span class="tag g">준비</span> 0.1.0(#1084) · versionCode=EAS remote autoIncrement→vc12+</td></tr>
+<tr><td>0095 프로드</td><td><span class="tag g">완료</span> MCP apply</td></tr>
+<tr><td>EAS 빌드 슬롯</td><td><span class="tag">G1 대기</span> Simon 비용 확인</td></tr>
+<tr><td>iOS Apple 로그인·DSA</td><td><span class="tag">G3 대기</span> Simon 개입</td></tr>
+</table>
+<p><b>결론:</b> P0-1·프리렉·빌드경로·0095 전부 준비 완료. <b>릴리즈는 G1(비용)·G3(Apple 로그인) 두 게이트만 해소되면 즉시 절단 가능.</b></p>
+</div>
+
+<h2>5. 다음 세션 인계</h2>
+<div class="card">
+<p>① 이 리포트 ② <code>docs/tracks/S5-log_260719.md</code>(전 판정·머지 SHA·토론기록) ③ <code>docs/HANDOFF.md</code> Latest 순으로 읽고 재개. 접수 파이프라인 완료 — 잔여는 위 게이트 해소 후 릴리즈 + 후속 정리.</p>
+</div>
+
+<div class="foot">S5 자율 수행 · Simon 게이트만 대기 · 외부 라이브러리/네트워크 요청 없음 · 생성 2026-07-19 KST</div>
+</div>
+<script>
+function cp(b){var t=b.parentNode.textContent.replace(/^복사$/,'').trim();
+ (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(t):Promise.reject())
+ .then(function(){b.textContent='복사됨';b.classList.add('ok');setTimeout(function(){b.textContent='복사';b.classList.remove('ok');},1500);})
+ .catch(function(){var r=document.createRange();r.selectNodeContents(b.parentNode);var s=getSelection();s.removeAllRanges();s.addRange(r);});}
+</script>
+</body>
+</html>
