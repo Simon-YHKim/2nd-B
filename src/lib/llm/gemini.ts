@@ -189,9 +189,32 @@ async function writeCrisisEvent(
 // as ordinary product copy. The internal "mock"/no-key technical marker lives in
 // this comment and in modelUsed audit fields only.
 const MOCK_RESPONSES: Record<
-  "reasoning_connect" | "audit_qa" | "source_ingest" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "ops_daily_brief",
+  "reasoning_connect" | "audit_qa" | "source_ingest" | "persona_narrative" | "gap_synthesize" | "secondb_chat" | "interview_probe" | "imagine" | "import_ingest" | "ops_recommend" | "ops_daily_brief" | "northstar_propose",
   Record<"en" | "ko", string>
 > = {
+  // Schema-shaped sample ({"sentences":[...]}) so the 북극성 propose surface
+  // renders its 3 draft cards in the offline-preview build. Before this entry
+  // the generic preview line reached parseNorthstarReply, which THROWS on a
+  // non-JSON reply (throw = network/format failure by contract), so offline
+  // preview showed an error card. axis_estimate / self_model_propose are
+  // deliberately absent: their parsers fail SOFT to null ("no estimate/proposal
+  // yet"), which is the honest offline behavior for a ratify surface.
+  northstar_propose: {
+    en: JSON.stringify({
+      sentences: [
+        "I keep small promises to myself first",
+        "I learn something and write it down daily",
+        "I make room for the people I care about",
+      ],
+    }),
+    ko: JSON.stringify({
+      sentences: [
+        "나는 나와의 작은 약속부터 지키고 싶다",
+        "나는 배운 것을 기록으로 남기는 사람이고 싶다",
+        "나는 가까운 사람을 먼저 챙기고 싶다",
+      ],
+    }),
+  },
   // Deliberately NOT the connections JSON: parseConnections() treats it as
   // unparseable and the deep run falls back to the deterministic on-device
   // domain detection, which is the honest offline behavior.
