@@ -32,6 +32,7 @@ import { cosmic, deepSpace, deepSpaceRadii, deepSpaceSpacing, semantic, spacing,
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { canShowRewardedAds } from "@/lib/ads/policy";
+import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -568,12 +569,17 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
       cancelled = true;
     };
   }, [userId]);
-  const rewardedAllowed = canShowRewardedAds({
-    tier: progression.loading ? null : progression.tier,
-    isMinor,
-    adsConsent,
-    route: pathname ?? "/",
-  });
+  // Capability first (Simon B-decision): a build that cannot complete a watch
+  // renders no CTA at all -- policy answers WHO may watch, capability answers
+  // whether THIS build can deliver.
+  const rewardedAllowed =
+    canCompleteRewardedWatch() &&
+    canShowRewardedAds({
+      tier: progression.loading ? null : progression.tier,
+      isMinor,
+      adsConsent,
+      route: pathname ?? "/",
+    });
   // handleSend is a stable useCallback; mirror the gate through a ref so the
   // blocked-turn branch never reads a stale value.
   const rewardedAllowedRef = useRef(rewardedAllowed);

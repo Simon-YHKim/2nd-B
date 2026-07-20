@@ -38,7 +38,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 // The real path lives in the .native variant since the P0-1 platform split
 // (web resolves the fail-closed stub; see platform-split.test.ts).
-import { showRewardedAd } from "../rewarded.native";
+import { canCompleteRewardedWatch, showRewardedAd } from "../rewarded.native";
 import { ensureAdsInitialized, ensureUmpConsent } from "../consent";
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -126,9 +126,18 @@ describe("showRewardedAd (real path, fail-closed)", () => {
     try {
       await expect(showRewardedAd()).resolves.toEqual({ completed: false });
       expect(createForAdRequest).not.toHaveBeenCalled();
+      // P0-2 (Simon B-decision 2026-07-21): the capability gate runs BEFORE
+      // UMP -- consent is never collected on a path that cannot fulfil it.
+      expect(ensureUmpConsent).not.toHaveBeenCalled();
+      // And the surfaces' CTA gate answers false for the same build.
+      expect(canCompleteRewardedWatch()).toBe(false);
     } finally {
       g.__DEV__ = prev;
     }
+  });
+
+  test("capability gate: dev build with the SDK present can complete a watch", () => {
+    expect(canCompleteRewardedWatch()).toBe(true);
   });
 
   test("source pins: EARNED_REWARD is the only completion source; gates stay in order", () => {

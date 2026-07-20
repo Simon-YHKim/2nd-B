@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canShowRewardedAds } from "@/lib/ads/policy";
-import { showRewardedAd } from "@/lib/ads/rewarded";
+import { canCompleteRewardedWatch, showRewardedAd } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_MONTHLY_CAP, REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
@@ -109,13 +109,18 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   // tier + confirmed non-minor + explicit ads consent + rewarded route
   // allow-list — "/" home and "/reasoning" are listed for this sheet) plus the
   // monthly earn cap. Any unresolved input hides the region entirely (spec F).
+  // Capability first (Simon B-decision): no CTA when this build cannot
+  // complete a watch -- policy answers WHO, capability answers whether the
+  // build can deliver.
   const adEligible =
+    canCompleteRewardedWatch() &&
     canShowRewardedAds({
       tier: progression.loading ? null : progression.tier,
       isMinor,
       adsConsent,
       route: pathname ?? "/",
-    }) && !earnCapReached;
+    }) &&
+    !earnCapReached;
 
   const onWatch = useCallback(async () => {
     if (!userId || watching) return;
