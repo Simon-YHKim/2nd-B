@@ -60,10 +60,18 @@ describe("digest proposal row exposes nested actions to VoiceOver", () => {
   });
 });
 
-describe("settings segmented control announces checked state", () => {
-  test("radio option sets both selected and checked", () => {
+describe("settings renders no placebo controls", () => {
+  test("the unconsumed app-features prefs are not rendered as live controls", () => {
+    // logic-audit 2026-07-21 (docs/handoff/logic_260721.md): the six former
+    // rows (자동 분류/앱 잠금/온디바이스/통화 녹음/제안 알림/강조 색) persisted
+    // app-features prefs that NOTHING consumed — 앱 잠금 promised biometrics
+    // with no lock, 온디바이스 defaulted ON while analysis runs through cloud
+    // Gemini. A control returns only WITH its behavior — same rule as the dead
+    // font-size knob above. (This block previously pinned the palette seg's
+    // a11y state; the control it guarded was itself a placebo.)
     const settings = read("app/settings.tsx");
-    expect(settings).toContain("accessibilityState={{ selected: on, checked: on }}");
+    expect(settings).not.toContain("useAppFeatures");
+    expect(settings).not.toContain("M3PaletteSeg");
   });
 });
 
