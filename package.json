@@ -14,6 +14,7 @@
     "test": "jest",
     "check:i18n": "tsx scripts/check-i18n-keys.ts",
     "check:lexicon": "tsx scripts/check-forbidden-lexicon.ts",
+    "check:crisis-parity": "tsx scripts/eval-crisis-layer-parity.ts --check",
     "check:legal-review": "tsx scripts/check-legal-review.ts",
     "check:legal-html": "tsx scripts/check-legal-html-fresh.ts",
     "check:llm-boundary": "tsx scripts/check-llm-import-boundary.ts",
@@ -27,7 +28,7 @@
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:legal-review && npm run check:legal-html && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:cycles && npm run check:ota-runtime && npm test -- --ci"
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:llm-boundary && npm run check:constraints && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:cycles && npm run check:ota-runtime && npm test -- --ci"
   },
   "dependencies": {
     "@expo-google-fonts/press-start-2p": "^0.4.1",

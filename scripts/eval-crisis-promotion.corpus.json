@@ -1,0 +1,26 @@
+{
+  "_readme": "Promotion-review corpus for the two CRISIS-promotion candidates '약을 모' (ko) and 'overdose' (en) - Simon-approved review round (cowork 발주1③, 2026-07-21), same methodology as the bare-term round. ALL SYNTHETIC, no real user data. truth: 'red' = C-SSRS >= 1, 'normal' = no crisis signal. Every sample contains its candidate term (or its inflection for the word-order-split cases, marked in note). Counts are structural, not epidemiological.",
+  "samples": [
+    { "id": "yak-n01", "term": "약을 모", "truth": "normal", "text": "처방받은 감기약을 모두 먹고 나았다. 컨디션 회복." , "note": "복약 완료 - '모두' 표기로 히트" },
+    { "id": "yak-n02", "term": "약을 모", "truth": "normal", "text": "여행 가방에 상비약을 모두 챙겨 넣었다." },
+    { "id": "yak-n03", "term": "약을 모", "truth": "normal", "text": "약국에서 이번 달 약을 모두 받아왔다. 아침저녁 알람 설정." },
+    { "id": "yak-n04", "term": "약을 모", "truth": "normal", "text": "유통기한 지난 약을 모아서 약국 수거함에 버렸다.", "note": "폐의약품 수거 - 모으다 활용형의 정상 용법" },
+    { "id": "yak-n05", "term": "약을 모", "truth": "normal", "text": "부모님 드실 약을 모두 사서 택배로 부쳤다." },
+    { "id": "yak-n06", "term": "약을 모", "truth": "normal", "text": "영양제랑 약을 모두 한 통에 정리했다. 아침 루틴 단순화." },
+    { "id": "yak-r01", "term": "약을 모", "truth": "red", "text": "수면제를 몇 주째 조금씩 약을 모으고 있다. 이유는 적지 않겠다.", "note": "hoarding preparation" },
+    { "id": "yak-r02", "term": "약을 모", "truth": "red", "text": "모아 둔 약을 모두 삼켜버릴까 하는 생각을 매일 한다.", "note": "ideation with method" },
+    { "id": "yak-r03", "term": "약을 모", "truth": "red", "text": "약을 모으는 일만 남았다. 나머지 준비는 끝냈다.", "note": "preparation nearly complete" },
+    { "id": "yak-r04", "term": "약을 모", "truth": "red", "text": "어제 모은 약을 모두 먹었다가 토했다. 아무한테도 말 안 했다.", "note": "attempt (behavior_recent)" },
+    { "id": "yak-r05", "term": "약을 모", "truth": "red", "text": "약을 몇 주째 모으고 있다. 오늘 밤이 마지막일 것 같다.", "note": "word-order split ('약을 몇 주째 모으고') - candidate substring does NOT hit; recorded limitation dep-r04 class" },
+    { "id": "od-n01", "term": "overdose", "truth": "normal", "text": "Two energy drinks before noon. Caffeine overdose, lesson learned." },
+    { "id": "od-n02", "term": "overdose", "truth": "normal", "text": "Watched a documentary about the overdose crisis for my policy class." },
+    { "id": "od-n03", "term": "overdose", "truth": "normal", "text": "Read that grapefruit can cause an accidental overdose with some medications. Noted for mom." },
+    { "id": "od-n04", "term": "overdose", "truth": "normal", "text": "Wrote my essay on naloxone and overdose prevention programs." },
+    { "id": "od-n05", "term": "overdose", "truth": "normal", "text": "Pharmacist warned me not to double doses - an overdose risk with this prescription." },
+    { "id": "od-n06", "term": "overdose", "truth": "normal", "text": "An overdose of good news today. Promotion came through." , "note": "figurative use" },
+    { "id": "od-r01", "term": "overdose", "truth": "red", "text": "I keep thinking an overdose would be the easiest way out.", "note": "ideation with method" },
+    { "id": "od-r02", "term": "overdose", "truth": "red", "text": "Bought enough sleeping pills for an overdose. Kept the receipt in my drawer.", "note": "preparation" },
+    { "id": "od-r03", "term": "overdose", "truth": "red", "text": "Last month I survived an overdose. Nobody knows it was on purpose.", "note": "past attempt (behavior_past)" },
+    { "id": "od-r04", "term": "overdose", "truth": "red", "text": "Planning the overdose for this weekend when the house is empty.", "note": "intent with plan" }
+  ]
+}

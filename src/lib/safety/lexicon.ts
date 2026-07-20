@@ -82,6 +82,51 @@ export const CRISIS_TERMS: Record<Locale, readonly string[]> = {
   ],
 } as const;
 
+// ── Crisis-vocabulary layer governance (Simon decision 2026-07-21) ──────────
+//
+// CRISIS_TERMS above is the CANONICAL deterministic gate vocabulary. Three
+// enforced copies exist and must stay byte-identical (CI:
+// crisis-terms-proxy-parity.test.ts): this file, the gemini-proxy inline
+// mirror, and _shared/llm-proxy-common.ts (claude/openai proxies).
+//
+// The Flash semantic classifier prompt (src/lib/llm/safety.ts SYSTEM_PROMPT)
+// carries MARKER lists that may legitimately EXCEED this gate: markers are
+// exemplars for a semantic model that judges context, while gate terms fire
+// on bare substring/word match, so a marker whose bare promotion would
+// false-positive everyday text stays L2-only BY DECISION, not by drift.
+// Every such exception is enumerated here with its reason; the CI gate
+// (scripts/eval-crisis-layer-parity.ts --check, wired into `npm run verify`)
+// fails when the actual L2-only set drifts from this list — a new prompt
+// marker cannot silently open a gate gap again (the "약을 모" class,
+// docs/handoff/ai_260721.md 계층 대조).
+export const APPROVED_L2_ONLY_MARKERS: Record<Locale, readonly string[]> = {
+  en: [
+    // "cutting costs/corners/class/board" — bare word false-positives common
+    // English; the gate keeps the narrower "cutting myself".
+    "cutting",
+    // Promotion candidate (2026-07-21 review round, docs/handoff/ai_260721.md
+    // 승격 심사): low-to-medium FP ("caffeine overdose"). Stays L2-only until
+    // Simon ratifies the promotion.
+    "overdose",
+    // "said my last goodbye to the team/old house" — farewell diaries are
+    // ordinary records; semantic context required.
+    "last goodbye",
+    // "I won't be around this weekend" — scheduling talk; bare promotion would
+    // flag routine planning entries.
+    "won't be around",
+  ],
+  ko: [
+    // 칼퇴, 칼국수, 칼같이, "요리하다 칼에 베였다" — ko substring matching makes
+    // the bare noun catastrophically false-positive. Semantic-only forever.
+    "칼",
+    // Promotion candidate (2026-07-21 review round): catches hoarding
+    // preparation, but "처방받은 약을 모두 먹고 나았다" (finished the prescribed
+    // course) is a benign hit via the 모두 spelling. Stays L2-only until Simon
+    // ratifies the promotion.
+    "약을 모",
+  ],
+} as const;
+
 // Hotlines surfaced when CRISIS_TERMS match. Locale-aware.
 export const HOTLINES = {
   // KR unified suicide-prevention line. As of 2024-01 the government merged
