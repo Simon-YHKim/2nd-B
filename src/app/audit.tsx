@@ -386,9 +386,10 @@ const styles = StyleSheet.create({
 
 // Deep-space 성장 · 과거의 나: the reference AuditScreen era timeline (clone-audit
 // 17-audit) — a "과거의 나" headline + subtitle over a left-rail timeline of five
-// life eras (유아기/아동기/청소년기/청년기/현재) with per-era brightness. Tapping an
-// era opens the open-ended interview (reference go('interview')). Static content
-// by design, matching the reference — no fabricated per-user domain counts.
+// life eras (유아기/아동기/청소년기/청년기/현재). Tapping an era opens the open-ended
+// interview (reference go('interview')). Navigation-only: the reference's per-era
+// "또렷함 L{n}" dots were fixed constants (fabricated brightness, 정직한 밝기 위반)
+// and were removed by the 2026-07-21 logic audit; see PastMeErasView.
 function AuditDeepSpace() {
   const { i18n } = useTranslation();
   const isKo = i18n.language === "ko";
