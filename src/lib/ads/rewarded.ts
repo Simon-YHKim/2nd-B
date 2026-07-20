@@ -28,6 +28,13 @@ export function isRewardedAdSdkAvailable(): boolean {
   return false;
 }
 
+/** Web/default: no build here can ever complete a watch -- surfaces must not
+ *  render a watch CTA (mirror of the native capability gate; keeps the
+ *  ENABLE_ADS web Variable from exposing a dead CTA to consented users). */
+export function canCompleteRewardedWatch(): boolean {
+  return false;
+}
+
 /** Web/default: no rewarded ads exist, so a watch can never complete. */
 export async function showRewardedAd(_opts?: ShowRewardedAdOptions): Promise<RewardedResult> {
   return { completed: false };
