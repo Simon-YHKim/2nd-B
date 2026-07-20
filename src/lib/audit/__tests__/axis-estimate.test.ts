@@ -32,6 +32,10 @@ describe("parseAxisEstimateReply", () => {
     expect(parseAxisEstimateReply('{"sentence":"치료가 필요한 상태로 보여요"}')).toBeNull();
   });
 
+  it("returns null on a 우울증 verdict (FORBIDDEN yellow since 2026-07-21, Simon decision)", () => {
+    expect(parseAxisEstimateReply('{"sentence":"우울증이 있으신 것 같아요"}')).toBeNull();
+  });
+
   it("returns null on empty or malformed JSON", () => {
     expect(parseAxisEstimateReply("")).toBeNull();
     expect(parseAxisEstimateReply('{"sentence": }')).toBeNull();

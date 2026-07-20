@@ -166,7 +166,7 @@ Build with Gemini XPRIZE — **Education & Human Potential** 트랙.
 |---|---|
 | mental health, therapy, counseling | self-understanding, growth |
 | diagnosis, treatment, healing, cure | reflection, self-knowledge |
-| 정신건강, 심리치료, 심리상담, 치유 | 자기 이해, 성장 |
+| 정신건강, 심리치료, 심리상담, 치유, 우울증 | 자기 이해, 성장 |
 
 세 축의 voice 는 *clinical* 이 아니라 *creative agency* 다.
 
