@@ -19,6 +19,11 @@ describe("parseSelfModelProposal", () => {
     expect(parseSelfModelProposal(raw, target, "x", 4)).toBeNull();
   });
 
+  test("rejects a 우울증-worded proposal (FORBIDDEN yellow since 2026-07-21, Simon decision)", () => {
+    const raw = '{"after":"나는 우울증과 싸우는 사람이다","rationale":"기록에서 보인 패턴","citations":[]}';
+    expect(parseSelfModelProposal(raw, target, "x", 4)).toBeNull();
+  });
+
   test("rejects a no-op proposal (after == before)", () => {
     const raw = '{"after":"same value","rationale":"r","citations":[]}';
     expect(parseSelfModelProposal(raw, target, "same value", 4)).toBeNull();
