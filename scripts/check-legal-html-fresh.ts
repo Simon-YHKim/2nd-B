@@ -7,17 +7,24 @@
 // differs. Deploy keeps using the committed artifacts (no new dependency in
 // the web pipeline); this only verifies they are current.
 //
+// The page list is NOT duplicated here (round-2 review): whatever *.html the
+// generator emits into the temp dir is the comparison set, so adding a page
+// to the generator automatically extends the gate; a missing committed twin
+// fails as stale rather than being silently skipped.
+//
 // Line endings: the generator emits LF; on Windows checkouts core.autocrlf
 // materializes the committed files as CRLF. Compare with CR stripped so the
 // gate is byte-honest about content while agnostic to checkout EOL.
+//
+// Cleanup: failures set process.exitCode (never process.exit inside try), so
+// the finally rmSync always removes the temp directory (round-2 review).
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
-const PAGES = ["terms.html", "privacy.html", "refund.html"];
 
 const tmp = mkdtempSync(join(tmpdir(), "legal-html-"));
 try {
@@ -25,9 +32,20 @@ try {
     stdio: ["ignore", "ignore", "inherit"],
   });
 
+  const pages = readdirSync(tmp).filter((name) => name.endsWith(".html")).sort();
+  if (pages.length === 0) {
+    console.error("Legal HTML freshness FAILED - the generator produced no pages.");
+    process.exitCode = 1;
+  }
+
   const stale: string[] = [];
-  for (const page of PAGES) {
-    const committed = readFileSync(join(ROOT, "public", "legal", page), "utf8").replaceAll("\r", "");
+  for (const page of pages) {
+    const committedPath = join(ROOT, "public", "legal", page);
+    if (!existsSync(committedPath)) {
+      stale.push(`${page} (missing from public/legal)`);
+      continue;
+    }
+    const committed = readFileSync(committedPath, "utf8").replaceAll("\r", "");
     const fresh = readFileSync(join(tmp, page), "utf8").replaceAll("\r", "");
     if (committed !== fresh) stale.push(page);
   }
@@ -37,10 +55,10 @@ try {
     for (const page of stale) console.error(`  - public/legal/${page}`);
     console.error("\nRun `node scripts/build-legal-html.mjs` and commit the result so the");
     console.error("public pages match their canonical docs/legal/*.md sources.");
-    process.exit(1);
+    process.exitCode = 1;
+  } else if (pages.length > 0) {
+    console.log(`Legal HTML freshness PASS  ${pages.length} pages match docs/legal sources`);
   }
-
-  console.log(`Legal HTML freshness PASS  ${PAGES.length} pages match docs/legal sources`);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
