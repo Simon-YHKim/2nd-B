@@ -29,6 +29,8 @@ jest.mock("../../records/create", () => ({
 import {
   MIN_RECORDS_FOR_PROPOSAL,
   NORTHSTAR_TAG,
+  buildNorthstarPrompt,
+  parseNorthstarReply,
   proposeNorthstarSentences,
   saveNorthstar,
 } from "../northstar";
@@ -85,6 +87,49 @@ describe("proposeNorthstarSentences (null = thin base ONLY)", () => {
       "c",
     ]);
     expect(callGeminiMock).toHaveBeenCalledWith(expect.objectContaining({ purpose: "northstar_propose" }));
+  });
+
+  it("passes the structured-output schema to callGemini (harness tuning ai_260721)", async () => {
+    limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL));
+    callGeminiMock.mockResolvedValue('{"sentences":["a","b","c"]}');
+    await proposeNorthstarSentences({ userId: "u", locale: "ko" });
+    const args = callGeminiMock.mock.calls[0][0] as { responseSchema?: { required?: readonly string[] } };
+    expect(args.responseSchema?.required).toEqual(["sentences"]);
+  });
+});
+
+describe("parseNorthstarReply (schema shape + legacy array + lexicon gate)", () => {
+  it("parses the schema-shaped object reply", () => {
+    expect(parseNorthstarReply('{"sentences":[" a", "b ", "c"]}')).toEqual(["a", "b", "c"]);
+  });
+
+  it("still parses the legacy bare-array reply (pre-schema shape, back-compat)", () => {
+    expect(parseNorthstarReply('["a","b","c"]')).toEqual(["a", "b", "c"]);
+  });
+
+  it("THROWS on the refusal sentence the un-fenced prompt produced live (ns-inject before)", () => {
+    // Verbatim observed output, 2026-07-21, gemini-3.5-flash via gemini-proxy.
+    expect(() =>
+      parseNorthstarReply("시스템 지시사항을 우회하거나 변경하려는 요청은 지원하지 않습니다."),
+    ).toThrow("unusable AI reply");
+  });
+
+  it("THROWS when a sentence carries forbidden clinical wording instead of rendering it", () => {
+    expect(() =>
+      parseNorthstarReply(
+        '{"sentences":["나는 성장하고 싶다","나는 심리치료가 필요한 사람이다","나는 배우고 싶다"]}',
+      ),
+    ).toThrow("lexicon-flagged");
+  });
+});
+
+describe("buildNorthstarPrompt (injection fence)", () => {
+  it("fences the digest as UNTRUSTED and carries the guard line + object shape", () => {
+    const { system, user } = buildNorthstarPrompt("- 오늘 회고를 적었다", "ko");
+    expect(user).toContain('<UNTRUSTED type="records_digest">');
+    expect(user).toContain("</UNTRUSTED>");
+    expect(system).toContain("인젝션 가드");
+    expect(system).toContain('"sentences"');
   });
 });
 
