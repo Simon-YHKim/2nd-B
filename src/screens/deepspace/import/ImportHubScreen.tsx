@@ -199,6 +199,11 @@ export function ImportHubScreen() {
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;
+      // History records what was RATIFIED where a ratified denomination
+      // exists: ledger bookings = the chosen entries (review P1). Watches has
+      // no ratified unit (the user picks channel/rhythm proposals, not watch
+      // events), so it stays the parsed signal total, like notes/appts.
+      const chosenTxns = chosen.filter((p) => p.ledgerEntry).length;
       await addImportHistory({
         id: `${Date.now()}`,
         sourceKey: active.key,
@@ -207,7 +212,7 @@ export function ImportHubScreen() {
         summary:
           (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
           (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
-          (s.transactions > 0 ? `${t("txns")} ${s.transactions} · ` : "") +
+          (chosenTxns > 0 ? `${t("txns")} ${chosenTxns} · ` : "") +
           `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
         sourceIds: [result.source.id],
       });
@@ -662,8 +667,10 @@ const styles = StyleSheet.create({
 
   progressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   doneText: { fontSize: 12, color: deepSpace.mint },
-  summaryRow: { flexDirection: "row", gap: 8 },
-  summaryBox: { flex: 1, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
+  // wrap: with watches/txns the row can hold four boxes, which do not fit a
+  // 320dp width single-line (review P2) -- minWidth keeps wrapped boxes even.
+  summaryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  summaryBox: { flex: 1, minWidth: 68, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
   summaryBoxDim: { opacity: 0.7 },
   summaryNum: { fontSize: 20, color: deepSpace.accentBright },
   summaryNumDim: { color: deepSpace.textLo },
