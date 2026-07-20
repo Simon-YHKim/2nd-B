@@ -1539,32 +1539,24 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
 
 // ── 성장·과거의 나 / Past-me era timeline (clone-audit 17-audit) ──────────────
 // Reference AuditScreen (sb-screens-know.jsx): a "과거의 나" headline + subtitle
-// over a left-rail timeline of 5 life eras. Each era is a filled MdCard with a
-// brightness Dots row + "또렷함 L{n}" label + chevron; tapping opens the
-// open-ended interview (reference go('interview')). Static by design — matches
-// the reference (no fabricated per-user data). m3.* tokens only.
-const AUDIT_ERAS: { key: string; eraKey: string; rangeKey: string; level: 1 | 2 | 3 | 4 | 5 }[] = [
-  { key: "infancy", eraKey: "ds.audit.eraInfancy", rangeKey: "ds.audit.rangeInfancy", level: 1 },
-  { key: "child", eraKey: "ds.audit.eraChild", rangeKey: "ds.audit.rangeChild", level: 2 },
-  { key: "teen", eraKey: "ds.audit.eraTeen", rangeKey: "ds.audit.rangeTeen", level: 3 },
-  { key: "young", eraKey: "ds.audit.eraYoung", rangeKey: "ds.audit.rangeYoung", level: 4 },
-  { key: "now", eraKey: "ds.audit.eraNow", rangeKey: "ds.audit.rangeNow", level: 3 },
+// over a left-rail timeline of 5 life eras; tapping an era opens the open-ended
+// interview (reference go('interview')). NAVIGATION-ONLY by constraint: the
+// reference's per-era "또렷함 L{n}" dots were fixed constants shown to every
+// user identically — fabricated brightness, which the 정직한 밝기 L1~L5 rule
+// forbids (logic audit 2026-07-21, docs/handoff/logic_260721.md). No per-era
+// coverage pipeline exists yet (see RecallLensView above), so the timeline
+// shows no level at all; real levels may return WITH a real data source.
+const AUDIT_ERAS: { key: string; eraKey: string; rangeKey: string }[] = [
+  { key: "infancy", eraKey: "ds.audit.eraInfancy", rangeKey: "ds.audit.rangeInfancy" },
+  { key: "child", eraKey: "ds.audit.eraChild", rangeKey: "ds.audit.rangeChild" },
+  { key: "teen", eraKey: "ds.audit.eraTeen", rangeKey: "ds.audit.rangeTeen" },
+  { key: "young", eraKey: "ds.audit.eraYoung", rangeKey: "ds.audit.rangeYoung" },
+  { key: "now", eraKey: "ds.audit.eraNow", rangeKey: "ds.audit.rangeNow" },
 ];
 
 // Map each era to the interview's period-scoped question set (AuditPeriod:
 // current | 20s | teens). Eras earlier than the teen set fall back to teens.
 const ERA_PERIOD: Record<string, string> = { infancy: "teens", child: "teens", teen: "teens", young: "20s", now: "current" };
-
-const AUDIT_DOTS = 5;
-function AuditDots({ level }: { level: number }) {
-  return (
-    <View style={styles.auditDotRow}>
-      {Array.from({ length: AUDIT_DOTS }).map((_, i) => (
-        <View key={i} style={[styles.auditDot, i < level ? styles.auditDotOn : styles.auditDotOff]} />
-      ))}
-    </View>
-  );
-}
 
 export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
@@ -1588,10 +1580,6 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
                   <View style={styles.auditEraCol}>
                     <Text style={styles.auditEraName}>{t(e.eraKey)}</Text>
                     <Text style={styles.auditEraRange}>{t(e.rangeKey)}</Text>
-                  </View>
-                  <View style={styles.auditEraMeta}>
-                    <AuditDots level={e.level} />
-                    <Text style={styles.auditVivid}>{t("ds.audit.vividness", { level: e.level })}</Text>
                   </View>
                   <Svg width={20} height={20} viewBox="0 0 24 24">
                     <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />
@@ -2354,12 +2342,6 @@ const styles = StyleSheet.create({
   auditEraCol: { flex: 1, minWidth: 0 },
   auditEraName: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
   auditEraRange: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable },
-  auditEraMeta: { alignItems: "flex-end" },
-  auditDotRow: { flexDirection: "row", gap: 3 },
-  auditDot: { width: 6, height: 6, borderRadius: 3 },
-  auditDotOn: { backgroundColor: m3.color.primary },
-  auditDotOff: { backgroundColor: m3.color.surfaceVariant },
-  auditVivid: { fontSize: 11, lineHeight: 16, fontWeight: "500", color: m3.color.onSurfaceVariant, marginTop: 4, fontFamily: fontFamilies.readable },
   imgBtnFlex: { flex: 1 },
 
   // ── 북극성 종합 / me synthesis (10-me) ──────────────────────────────────────
