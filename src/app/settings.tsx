@@ -44,13 +44,7 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // known require cycle that crashed the /settings path once already (PR 711).
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
-import {
-  useAppFeatures,
-  type AccentPalette,
-  type FeatureKey,
-} from "@/lib/settings/app-features";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
-import { keepAllKo } from "@/lib/i18n/keep-all";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { useNoticeCenter } from "@/app/notices";
 import {
@@ -197,31 +191,6 @@ function M3LinkRow({ icon, label, sub, badge, onPress }: { icon: string; label: 
   );
 }
 
-// 강조 색 (별빛 팔레트) — the segmented 시안/바이올렛 control from the capture.
-function M3PaletteSeg({ palette, onSelect, labels }: { palette: AccentPalette; onSelect: (p: AccentPalette) => void; labels: Record<AccentPalette, string> }) {
-  const opts: AccentPalette[] = ["cyan", "violet"];
-  return (
-    <View style={m3Styles.seg} accessibilityRole="radiogroup">
-      {opts.map((key, i) => {
-        const on = palette === key;
-        return (
-          <Pressable
-            key={key}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: on, checked: on }}
-            accessibilityLabel={labels[key]}
-            onPress={() => onSelect(key)}
-            style={[m3Styles.segBtn, i > 0 && m3Styles.segDivider, on && m3Styles.segBtnOn]}
-          >
-            {on ? <M3Icon name="check" size={16} color={m3.color.onSecondaryContainer} /> : null}
-            <RNText style={[m3Styles.segLabel, { color: on ? m3.color.onSecondaryContainer : m3.color.onSurface }]}>{labels[key]}</RNText>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 type SettingsActionButtonProps = {
   label: string;
   accessibilityLabel?: string;
@@ -341,7 +310,6 @@ export default function Settings() {
   const { mode, setMode } = useTheme();
   const dark = mode === "dark";
   const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
-  const { features, setFeature, palette, setPalette } = useAppFeatures();
   const noticeCenter = useNoticeCenter(userId);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -420,9 +388,6 @@ export default function Settings() {
   function toggleDisclosure(key: SettingsDisclosureKey): void {
     setOpenDisclosures((current) => ({ ...current, [key]: !current[key] }));
   }
-
-  const featureOn = (key: FeatureKey): boolean => features[key];
-  const toggleFeature = (key: FeatureKey) => setFeature(key, !features[key]);
 
   async function runDeleteKind(kind: "journal" | "note" | "audit_response", label: string) {
     if (!userId) return;
@@ -562,10 +527,6 @@ export default function Settings() {
       </View>
     );
 
-  const paletteLabels: Record<AccentPalette, string> = {
-    cyan: t("cyan"),
-    violet: t("violet"),
-  };
   const newSurfaceCopy =
     locale === "ko"
       ? {
@@ -618,15 +579,6 @@ export default function Settings() {
             checked={dark}
             onChange={(v) => setMode(v ? "dark" : "light")}
           />
-          <M3Divider />
-          <View style={m3Styles.row}>
-            <M3IconBadge icon="auto_awesome" active={false} />
-            <View style={m3Styles.rowText}>
-              <RNText style={m3Styles.rowLabel}>{t("accentColor")}</RNText>
-              <RNText style={m3Styles.rowSub}>{t("starlightPalette")}</RNText>
-            </View>
-            <M3PaletteSeg palette={palette} onSelect={setPalette} labels={paletteLabels} />
-          </View>
         </M3Group>
 
         {/* 소식 */}
@@ -639,8 +591,6 @@ export default function Settings() {
             badge={noticeCenter.unreadCount}
             onPress={() => router.push("/notices")}
           />
-          <M3Divider />
-          <M3ToggleRow icon="bubble_chart" label={t("suggestionAlerts")} sub={t("suggestionAlertsDesc")} checked={featureOn("notify")} onChange={() => toggleFeature("notify")} />
         </M3Group>
 
         {/* 기능 */}
@@ -652,21 +602,12 @@ export default function Settings() {
             sub={newSurfaceCopy.reasoningSub}
             onPress={() => router.push("/reasoning")}
           />
-          <M3Divider />
-          <M3ToggleRow icon="auto_awesome" label={t("autoTagging")} sub={t("autoTaggingDesc")} checked={featureOn("autotag")} onChange={() => toggleFeature("autotag")} />
-          <M3Divider />
-          <M3ToggleRow icon="lock" label={t("appLock")} sub={t("appLockDesc")} checked={featureOn("applock")} onChange={() => toggleFeature("applock")} />
-          <M3Divider />
-          <M3ToggleRow icon="badge" label={t("onDeviceFirst")} sub={t("onDeviceFirstDesc")} checked={featureOn("ondevice")} onChange={() => toggleFeature("ondevice")} />
-          <M3Divider />
-          <M3ToggleRow
-            icon="mic"
-            label={t("callRecording")}
-            sub={keepAllKo(t("callRecordingDesc"))}
-            subAccessibilityLabel={t("callRecordingDesc")}
-            checked={featureOn("callrec")}
-            onChange={() => toggleFeature("callrec")}
-          />
+          {/* No placebo controls here (audit pattern A, same rule as M3LinkRow
+              above): the former 자동 분류/앱 잠금/온디바이스/통화 녹음/제안 알림/강조 색
+              rows persisted a local pref that NOTHING consumed — 앱 잠금 promised
+              biometrics with no lock, 온디바이스 defaulted ON while analysis runs
+              through cloud Gemini (C1). A control returns only WITH its behavior
+              (pref plumbing kept in src/lib/settings/app-features.ts). */}
         </M3Group>
 
         {/* 데이터 연동 — honest hand-offs only. The old three rows here showed
@@ -1194,11 +1135,6 @@ const m3Styles = StyleSheet.create({
   switchTrack: { width: 52, height: 32, borderRadius: 9999, borderWidth: 2, justifyContent: "center" },
   switchThumb: { position: "absolute", borderRadius: 9999 },
   connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
-  seg: { flexDirection: "row", borderWidth: 1, borderColor: m3.color.outline, borderRadius: m3.shape.small, overflow: "hidden" },
-  segBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 8, minHeight: 36 },
-  segBtnOn: { backgroundColor: m3.color.secondaryContainer },
-  segDivider: { borderLeftWidth: 1, borderLeftColor: m3.color.outline },
-  segLabel: { ...koType(13, 16, 0.1, "500") },
 });
 
 const styles = StyleSheet.create({
