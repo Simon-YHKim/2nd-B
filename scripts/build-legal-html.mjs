@@ -112,9 +112,22 @@ function mdToBody(md) {
     }
     const metaMatch = trimmed.match(/^_(.+)_$/);
     if (metaMatch) {
+      // The standalone-italic form is reserved for the ONE effective-date line
+      // in the document preamble. Anywhere later it would be silently consumed
+      // as metadata (vanishing from the page and overwriting the date), so a
+      // body occurrence fails loudly per the subset contract.
+      if (sectionOpen || meta) {
+        throw new Error(`standalone _..._ outside the preamble: "${trimmed.slice(0, 40)}" - extend build-legal-html.mjs`);
+      }
       meta = inline(metaMatch[1]);
       i++;
       continue;
+    }
+    if (/^\d+\.\s/.test(trimmed)) {
+      // Ordered markdown lists are outside the supported subset; the paragraph
+      // fallback would silently fuse them into one <p>, restructuring legal
+      // text while the freshness gate still passes. Fail loudly instead.
+      throw new Error(`unsupported ordered list: "${trimmed.slice(0, 40)}" - extend build-legal-html.mjs`);
     }
     if (trimmed === "---") {
       i++;
@@ -216,7 +229,8 @@ const STYLE = `
     padding:1px 5px; border-radius:4px; }
   a{ color:var(--accent); }
   table{ width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px; }
-  th,td{ border:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top; }
+  th,td{ border:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top;
+    word-break:normal; overflow-wrap:anywhere; }
   th{ background:color-mix(in srgb, var(--accent) 8%, transparent); font-weight:700; }
   footer{ margin-top:44px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; }
 `;
@@ -254,7 +268,7 @@ ${navHtml(page.out)}
 ${body}
 <footer>
 이 페이지는 <code>docs/legal/${page.src}</code>에서 생성된 정적 사본입니다. 두 문서의 내용은 항상 같게 유지됩니다.
-This page is a static copy generated from the markdown source above; both are kept identical.
+<span lang="en">This page is a static copy generated from the markdown source above; both are kept identical.</span>
 </footer>
 </main>
 </body>

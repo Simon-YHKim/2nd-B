@@ -50,6 +50,19 @@ try {
     if (committed !== fresh) stale.push(page);
   }
 
+  // Reverse direction (round-4 review): a page removed or renamed in the
+  // generator must not leave its old committed HTML silently deployed (the
+  // web export publishes everything under public/). Any flat *.html in
+  // public/legal that the generator no longer emits fails the gate. The
+  // privacy/ legacy-redirect lives in a SUBDIRECTORY (privacy/index.html),
+  // so this flat listing excludes it by construction.
+  const committedPages = readdirSync(join(ROOT, "public", "legal"))
+    .filter((name) => name.endsWith(".html"))
+    .sort();
+  for (const page of committedPages) {
+    if (!pages.includes(page)) stale.push(`${page} (orphaned - generator no longer emits it)`);
+  }
+
   if (stale.length > 0) {
     console.error("Legal HTML freshness FAILED - committed pages differ from regenerated output:");
     for (const page of stale) console.error(`  - public/legal/${page}`);
