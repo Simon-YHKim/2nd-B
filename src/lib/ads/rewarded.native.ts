@@ -45,6 +45,25 @@ export function isRewardedAdSdkAvailable(): boolean {
   return loadSdk() !== null;
 }
 
+// Single source for "does a live ad unit exist". The launch change is to set
+// this true alongside the real unit id (cowork delivers it after the AdMob
+// store link) -- both the capability answer and the in-flow guard read it.
+const HAS_LIVE_AD_UNIT = false;
+
+/**
+ * Capability gate (Simon B-decision, 2026-07-21): can THIS build actually
+ * complete a rewarded watch? Dev builds can (Google TEST unit); production
+ * builds cannot until a real ad unit lands. Surfaces must consult this
+ * BEFORE rendering any watch CTA -- rendering a CTA that walks the user
+ * through consent and then silently fails is the false-UI class this gate
+ * exists to remove. Distinct from policy.canShowRewardedAds (per-user legal
+ * eligibility): both must pass.
+ */
+export function canCompleteRewardedWatch(): boolean {
+  if (loadSdk() === null) return false;
+  return __DEV__ || HAS_LIVE_AD_UNIT;
+}
+
 /** How long a load may take before we fail closed instead of hanging the sheet. */
 const LOAD_TIMEOUT_MS = 20_000;
 
@@ -53,13 +72,13 @@ const LOAD_TIMEOUT_MS = 20_000;
  *
  * Order of gates (each fails closed):
  *   1. SDK present (Expo Go / jest resolve false immediately)
- *   2. UMP regulatory consent (./consent) -- lazy, right before the request
- *   3. SDK initialize
- *   4. PRODUCTION GUARD: no real ad unit exists yet (creating live units is
- *      forbidden until launch GO), so non-dev builds fail closed even if
- *      EXPO_PUBLIC_ENABLE_ADS were flipped. Dev builds use Google's official
- *      TEST unit. Replacing this guard with the real unit id is the launch
- *      change, nowhere else.
+ *   2. CAPABILITY (canCompleteRewardedWatch): no real ad unit exists yet, so
+ *      non-dev builds fail closed BEFORE any consent is collected (P0-2:
+ *      never walk a user through the UMP form on a path that cannot fulfil
+ *      its purpose). Dev builds use Google's official TEST unit. The launch
+ *      change = HAS_LIVE_AD_UNIT true + the real unit id, nowhere else.
+ *   3. UMP regulatory consent (./consent) -- lazy, right before the request
+ *   4. SDK initialize
  *   5. resolve completed:true ONLY on RewardedAdEventType.EARNED_REWARD;
  *      dismiss-before-reward, load error, or timeout resolve false.
  */
@@ -67,15 +86,18 @@ export async function showRewardedAd(opts?: ShowRewardedAdOptions): Promise<Rewa
   const sdk = loadSdk();
   if (!sdk) return { completed: false };
 
+  // Capability BEFORE consent (P0-2, Simon B-decision): a build that cannot
+  // complete a watch must not walk the user through the UMP form first --
+  // collecting consent on a path that cannot fulfil its purpose is a false
+  // UI and a privacy problem. Production stays fail-closed here until the
+  // real unit id lands (HAS_LIVE_AD_UNIT); dev uses Google's TEST unit.
+  if (!canCompleteRewardedWatch()) return { completed: false };
+
   const consent = await ensureUmpConsent(opts?.debugUmpEea ? { debugGeographyEea: true } : undefined);
   if (!consent.canRequestAds) return { completed: false };
   if (!(await ensureAdsInitialized())) return { completed: false };
 
-  if (!__DEV__) {
-    // No live ad unit has been created (owner instruction). Fail closed in
-    // production until the real unit id replaces this guard at launch.
-    return { completed: false };
-  }
+  // Launch change: flip HAS_LIVE_AD_UNIT and replace this with the real id.
   const unitId = sdk.TestIds.REWARDED;
 
   const request = opts?.ssvCustomData
