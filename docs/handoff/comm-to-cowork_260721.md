@@ -194,3 +194,53 @@ cowork -> comm 인계문을 Simon 중계로 수신 (cowork 작성 2026-07-21 02:
 - 발주 1 · 발주 2 회신 완료 (이 문서). 차단요인 1(스테일) comm이 해소.
 - comm 잔여 (이 인계와 독립, 워크트리 PR로 진행): chat 이중지급 가드 검증, 리즈닝 화면 i18n es/pt/id, ImportHub summary 표시.
 - 다음 담당: **cowork** (역요청 3건 + 기존 "다음 cowork 세션" 목록).
+
+---
+
+# 2라운드: 광고 GO 발주 처리 (comm, 2026-07-21 03:55 KST)
+
+## 수신 (2라운드)
+
+cowork 2라운드 회신을 03:16 KST Simon 중계로 수신. 정본 `docs/handoff/cowork-to-comm_260721.md` 로컬 존재 확인(03:17). 복창:
+
+- 회신 1: ASC App Privacy 11종 확보. **Crash Data 선언 존재**(Diagnostics · App Functionality · Not Linked) = M3 해소·추가 선언 불필요. Advertising Data는 Third-Party Advertising · Linked로 기선언. 과잉선언 1건(Device ID · Product Interaction, iOS 실수집 없음) 기록. **M1 · M2는 유효** = 처리방침 개정안 필요.
+- 회신 2: EAS 크레딧 **11/30**(iOS 3 · Android 8), 잔여 Android 7 · iOS 12, 청구 $0 = P0-2 Android 절단 여유 확인.
+- 회신 3: M4 = **Simon 결정, 광고 전부 ON**(리스크 3건 고지 후 재확인). 전제 = iOS 심사 제출은 ATT 착지 후.
+- 발주 4건(eas.json 플래그 · SKAdNetwork 재확인 · ATT 구현 · TestIds 유지) + 경계(심사는 ATT 후 · AdMob 콘솔 금지 · src/lib/analytics·src/lib/privacy 무접촉 · main 직접 push 금지) 접수.
+
+## 작업 (2라운드)
+
+1. **발주 1 완료**: eas.json preview+production env에 `EXPO_PUBLIC_ENABLE_ADS: "true"` (**PR #1116, 머지 완료**). TestIds 유지 · per-user 게이트 불변 · SSV 서버 미가동 불변을 PR 본문에 박제.
+2. **발주 2 완료(검증)**: 광고 활성 env로 `expo config --type introspect`: SKAdNetworkItems **고유 50개** + Google `cstr6suwn9` 존재 + 암호화 키 불변. #1108 정합.
+3. **발주 3(ATT) = 다음 comm 세션 분할.** 사유: 신규 의존성(expo-tracking-transparency) + 동의 흐름 설계가 필요한 심사-크리티컬 작업이라 세션 말미 착수 부적절 + 세션 수정 파일 상한 초과. 스펙 초안: 패키지 설치+plugin, iOS에서 광고 동의 ON 사용자 rewarded 진입 전 `requestTrackingPermissionsAsync()`(UMP 흐름과 순서 조율, `src/lib/ads/consent.native.ts` 봉합선), `NSUserTrackingUsageDescription` 기존 문구 재사용, 네이티브 핑거프린트 변동 = 새 빌드 필요.
+4. **발주 4 무작업 확인**: 유닛 TestIds 유지 실측(`src/lib/ads/rewarded.native.ts:79`).
+5. **codex 리뷰 라운드 처리** (3 PR 전체): #1114 P1 = 주석 핀(pre-callback floor) + 회신·resolve / #1115 P1 r1 = 거래 세그먼트 비준 수(6354fd1a), P1 r2 = **부킹 실적 수**(`ratifyLedgerEntries` await + `{inserted}` 기록, ccb9d104), P2 = flexWrap+minWidth / #1116 사후 4건 = 아래 격상·큐.
+6. 경계 준수: 이번 세션 diff = chat · import 화면 · eas.json · docs뿐. src/lib/analytics/ · src/lib/privacy/ 무접촉, AdMob 콘솔 무접촉, main 직접 push 없음(전부 PR).
+
+## 회신 (2라운드)
+
+### PR 상태 (03:46 KST 실측 + 이후 업데이트)
+
+| PR | 내용 | 체크 | 최신성 | 리뷰 스레드 | 충돌 | 로컬 verify |
+|---|---|---|---|---|---|---|
+| #1114 chat SSV 이중지급 가드 | **MERGED** | 전부 pass | main 병합 후 머지 | 1건 회신+resolve | 없음 | full 그린 ×2 |
+| #1115 ImportHub summary | OPEN · auto-merge 대기 | CI 재실행 중(리뷰 3라운드 + recapture 썸네일 자동커밋 병합 071916a6) | main 병합됨 | 3건 전부 회신+resolve | 없음(MERGEABLE) | full 그린 + 최종 델타 tsc/eslint/jest 23스위트 그린 |
+| #1116 ads GO eas.json | **MERGED** | 전부 pass | - | 사후 4건: 2 격상(미해결=추적) · 2 큐 | 없음 | full 그린 |
+
+### ⚠ Simon 재확인 요청 (T1·T2: cowork가 Simon에게)
+
+리뷰가 실증한 사실이 GO 결정의 리스크 프레이밍보다 나쁘다:
+
+- **T1**: `rewarded.native.ts:74-78`에 production 하드가드(`!__DEV__` = 무조건 미완료)가 있고, **UMP 동의 폼은 그 가드보다 먼저 실행**(:70-72). 즉 다음 production 빌드부터 "동의 폼까지 띄우고 시청은 침묵 실패"가 된다. "광고가 안 나온다"(리스크 ①)보다 나쁜 UX.
+- **T2**: 광고 동의 화면 카피가 웹 한정("Allow web ads" · "Free adult web accounts only", `DeepSpaceDesignScreens.tsx:796-861`)인데 네이티브 게이트가 같은 동의값을 재사용 = 동의 특정성 갭.
+- 선택지: **(B, 권고)** capability 게이트 PR: 빌드가 시청을 완료할 수 없으면 CTA 자체를 숨김(ON 결정 유지 + 정직 UX) + 동의 카피 플랫폼-중립화 / (A) 실유닛 랜딩 전까지 production 빌드 절단 보류 / (C) production env만 false 롤백.
+- **결정 전까지 Android v0.1.0 절단은 이 건에 블록** (크레딧은 여유, 결정만 필요).
+
+### 다음 세션 큐 (comm)
+
+ATT 구현(위 스펙) · T1/T2 결정 후속 PR · T3 android-release.yml 플래그 미러(1줄) · T4 useProgression tier 실패 시 null 처리(전용 PR, 소비자 스윕 동반) · SSV 엣지 자격 재확인(Free·성인·동의) · 캐노니컬 main pull(#1114·#1115·#1116 랜딩분).
+
+### 미확인
+
+- #1115 최종 머지(작성 시점 CI 재실행 중: auto-merge가 집행).
+- EAS 서버측 env의 preview/development 환경(production만 실측).
