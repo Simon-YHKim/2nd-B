@@ -199,11 +199,21 @@ export function ImportHubScreen() {
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;
-      // History records what was RATIFIED where a ratified denomination
-      // exists: ledger bookings = the chosen entries (review P1). Watches has
-      // no ratified unit (the user picks channel/rhythm proposals, not watch
-      // events), so it stays the parsed signal total, like notes/appts.
-      const chosenTxns = chosen.filter((p) => p.ledgerEntry).length;
+      // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
+      // captureFromMarkdown above already landed the summary note; this lands
+      // the actual ledger rows the proposals carry (ledgerEntry payload).
+      // Content sniffing routes any bank/card CSV here regardless of
+      // active.key, so gate on the payload, not the source. AWAITED (review
+      // P1 round 2) so the history line below records what actually BOOKED
+      // ({inserted}), not what was merely selected: per-row fail-soft keeps
+      // this bounded, and a thrown call means nothing inserted (0). Watches
+      // keeps the parsed signal total -- the user ratifies channel/rhythm
+      // proposals, not watch events, so no ratified denomination exists.
+      let bookedTxns = 0;
+      if (chosen.some((p) => p.ledgerEntry)) {
+        const booked = await ratifyLedgerEntries(userId, chosen).catch(() => null);
+        bookedTxns = booked?.inserted ?? 0;
+      }
       await addImportHistory({
         id: `${Date.now()}`,
         sourceKey: active.key,
@@ -212,7 +222,7 @@ export function ImportHubScreen() {
         summary:
           (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
           (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
-          (chosenTxns > 0 ? `${t("txns")} ${chosenTxns} · ` : "") +
+          (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
           `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
         sourceIds: [result.source.id],
       });
@@ -243,16 +253,6 @@ export function ImportHubScreen() {
       // star's real backing. Best-effort after the import itself landed.
       if (active.key === "kakao" && outcome.relationSignals?.length) {
         void upsertKakaoRelationPeople(userId, ko, outcome.relationSignals).catch(() => undefined);
-      }
-      // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
-      // captureFromMarkdown above already landed the summary note; this lands the
-      // actual ledger rows the proposals carry (ledgerEntry payload). Content
-      // sniffing routes any bank/card CSV here regardless of active.key, so gate
-      // on the payload, not the source. ratifyLedgerEntries books exactly the
-      // chosen ledgerEntry rows, per-row fail-soft — best-effort after the import
-      // itself landed, mirroring the kakao relation-signals seam above.
-      if (chosen.some((p) => p.ledgerEntry)) {
-        void ratifyLedgerEntries(userId, chosen).catch(() => undefined);
       }
     } catch {
       // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
