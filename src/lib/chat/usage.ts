@@ -56,6 +56,17 @@ export class ChatRewardCapReachedError extends Error {
  * ChatRewardCapReachedError. Returns today's total ad bonus.
  */
 export async function grantChatAdBonus(userId: string): Promise<number> {
+  // D2 single-payer (mirrors entitlements/usage.ts addRewardCredits): when
+  // AdMob SSV is the grant authority (EXPO_PUBLIC_REWARD_SSV=true), the
+  // verified server callback (rewarded-ssv -> grant_chat_ad_bonus_ssv, 0091)
+  // is the ONLY payer -- granting here too would credit one impression twice
+  // (+4 instead of +2). Report today's current bonus instead so the declared
+  // return contract holds; the next send re-reads the allowance, which
+  // reflects the server grant once the callback lands. Off by default
+  // (direct process.env read so babel inlines it).
+  if (process.env.EXPO_PUBLIC_REWARD_SSV === "true") {
+    return (await readChatUsageDetail(userId)).adBonus;
+  }
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.rpc("grant_chat_ad_bonus", {
     p_user_id: userId,
