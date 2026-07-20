@@ -30,7 +30,7 @@ import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
-import { ratifyLedgerEntries } from "@/lib/import/ledger-ratify";
+import { ratifyLedgerEntries, type LedgerRatifyResult } from "@/lib/import/ledger-ratify";
 import {
   addImportHistory,
   getImportHistory,
@@ -93,10 +93,13 @@ export function ImportHubScreen() {
   // A failed import used to end exactly like a successful one: back at the hub, no message,
   // nothing kept -- after the user had walked a consent flow and picked a file for it.
   const [importErr, setImportErr] = useState(false);
-  // Ledger booking runs best-effort AFTER the import lands, but a total failure
-  // of rows the user explicitly chose must not vanish silently (logic audit P1,
-  // docs/handoff/logic_260721.md): flag it and show a warning on the hub.
-  const [ledgerWarn, setLedgerWarn] = useState(false);
+  // Ledger booking runs best-effort AFTER the import lands, but rows the user
+  // explicitly chose must not vanish silently (logic audit P1, dbl round 3):
+  // ratifyLedgerEntries RESOLVES with {inserted, failed} counts (per-row
+  // fail-soft, never rejects on row failures), so the warning derives from the
+  // resolved counts. null = no warning; inserted===0 = total failure (safe to
+  // advise re-import); inserted>0 = partial (re-import would double-book).
+  const [ledgerWarn, setLedgerWarn] = useState<LedgerRatifyResult | null>(null);
   const [active, setActive] = useState<ImportSource | null>(null);
   const [paste, setPaste] = useState("");
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
@@ -200,7 +203,7 @@ export function ImportHubScreen() {
     const chosen = outcome.proposals.filter((p) => selected.has(p.id));
     if (chosen.length === 0) return;
     setBusy(true);
-    setLedgerWarn(false);
+    setLedgerWarn(null);
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;
@@ -216,12 +219,19 @@ export function ImportHubScreen() {
       // proposals, not watch events, so no ratified denomination exists.
       let bookedTxns = 0;
       if (chosen.some((p) => p.ledgerEntry)) {
+        const attempted = chosen.filter((p) => p.ledgerEntry).length;
         const booked = await ratifyLedgerEntries(userId, chosen).catch(() => null);
         bookedTxns = booked?.inserted ?? 0;
-        // #1117 intent, carried into the awaited call: rows the user
-        // explicitly chose must not vanish silently. Zero booked covers both
-        // a rejected call (null) and every row failing per-row fail-soft.
-        if (bookedTxns === 0) setLedgerWarn(true);
+        // #1117 intent, completed for the resolve contract (dbl round 3):
+        // ratifyLedgerEntries never rejects on row failures -- it resolves
+        // with {inserted, failed} -- so the warning must read those counts,
+        // not a .catch(). PARTIAL failure warns too: the user chose those
+        // rows, and it needs its OWN copy because ops_ledger has no dedup
+        // (ledger-ratify.ts documented limitation) -- advising "re-import
+        // the file" is only safe when NOTHING booked; after a partial
+        // booking it would double-book the inserted rows.
+        const failedTxns = booked ? booked.failed : attempted;
+        if (failedTxns > 0) setLedgerWarn({ inserted: bookedTxns, failed: failedTxns });
       }
       await addImportHistory({
         id: `${Date.now()}`,
@@ -353,7 +363,17 @@ export function ImportHubScreen() {
     return (
       <>
         {ledgerWarn ? (
-          <OpsState variant="rate" title={t("ledgerWarnTitle")} body={t("ledgerWarnBody")} />
+          <OpsState
+            variant="rate"
+            title={t(ledgerWarn.inserted === 0 ? "ledgerWarnTitle" : "ledgerWarnPartTitle")}
+            body={
+              ledgerWarn.inserted === 0
+                ? t("ledgerWarnBody")
+                : t("ledgerWarnPartBody")
+                    .replace("{failed}", String(ledgerWarn.failed))
+                    .replace("{inserted}", String(ledgerWarn.inserted))
+            }
+          />
         ) : null}
         {tiers.map((tier) => (
           <View key={tier} style={styles.section}>
@@ -594,6 +614,8 @@ function COPY(ko: boolean): Record<string, string> {
         importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
         ledgerWarnTitle: "거래 반영은 실패했어요",
         ledgerWarnBody: "가져오기는 저장됐어요. 다만 고른 거래 내역을 적지 못했어요. 같은 파일을 다시 가져오면 반영돼요.",
+        ledgerWarnPartTitle: "거래 일부를 적지 못했어요",
+        ledgerWarnPartBody: "고른 거래 중 {failed}건을 적지 못했어요. {inserted}건은 반영됐어요. 같은 파일을 다시 가져오면 이미 반영된 내역이 중복되니, 빠진 내역은 직접 추가해 주세요.",
         done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
@@ -619,6 +641,8 @@ function COPY(ko: boolean): Record<string, string> {
         importFailed: "Couldn't import that. Nothing was recorded. Try again.",
         ledgerWarnTitle: "Couldn't book the transactions",
         ledgerWarnBody: "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
+        ledgerWarnPartTitle: "Some transactions were not booked",
+        ledgerWarnPartBody: "{failed} of the chosen transactions could not be booked; {inserted} were. Re-importing the same file would duplicate the booked rows, so please add the missing ones by hand.",
         done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
