@@ -82,6 +82,15 @@ try {
     if (!pages.includes(page)) stale.push(`${page} (orphaned - generator no longer emits it)`);
   }
 
+  // The legacy redirect is load-bearing, not merely tolerated (round-6
+  // review): /legal/privacy/ is externally registered (#831 store fields),
+  // so an accidental deletion must fail the gate instead of shipping a 404.
+  for (const page of INTENTIONAL_NON_GENERATED) {
+    if (!existsSync(join(ROOT, "public", "legal", page))) {
+      stale.push(`${page} (required legacy redirect is missing)`);
+    }
+  }
+
   if (stale.length > 0) {
     console.error("Legal HTML freshness FAILED - committed pages differ from regenerated output:");
     for (const page of stale) console.error(`  - public/legal/${page}`);
