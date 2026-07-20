@@ -69,7 +69,7 @@ When uncertain whether a change weakens a constraint, run `npm run check:constra
 
 This is **not** a mental-health, therapy, or wellness app. Avoid clinical terminology in all surfaces (code, UI strings, comments, docs).
 
-- **Forbidden** (CI-enforced via `scripts/check-forbidden-lexicon.ts`): mental health, therapy, counseling, diagnosis, treatment, healing, cure, 정신건강, 심리치료, 심리상담, 치유.
+- **Forbidden** (CI-enforced via `scripts/check-forbidden-lexicon.ts`): mental health, therapy, counseling, diagnosis, treatment, healing, cure, 정신건강, 심리치료, 심리상담, 치유, 우울증.
 - **Use instead**: self-understanding, growth, reflection, self-knowledge, 자기 이해, 성장.
 
 The single source of truth for both runtime classification and CI scan is `src/lib/safety/lexicon.ts`.

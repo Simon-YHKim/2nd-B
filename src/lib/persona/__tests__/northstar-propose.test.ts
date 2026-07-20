@@ -121,6 +121,12 @@ describe("parseNorthstarReply (schema shape + legacy array + lexicon gate)", () 
       ),
     ).toThrow("lexicon-flagged");
   });
+
+  it("THROWS on a 우울증 sentence (FORBIDDEN yellow since 2026-07-21, Simon decision)", () => {
+    expect(() =>
+      parseNorthstarReply('{"sentences":["나는 우울증을 이겨내는 사람이다","나는 배우고 싶다","나는 걷고 싶다"]}'),
+    ).toThrow("lexicon-flagged");
+  });
 });
 
 describe("buildNorthstarPrompt (injection fence)", () => {
