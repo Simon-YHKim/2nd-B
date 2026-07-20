@@ -22,6 +22,14 @@ export const FORBIDDEN_TERMS: Record<Locale, readonly string[]> = {
     "심리치료",
     "심리상담",
     "치유",
+    // 2026-07-21 (Simon decision, docs/handoff/ai_260721.md bare-term round):
+    // YELLOW only, deliberately NOT a crisis term. Measured on the 34-sample
+    // synthetic corpus: as CRISIS it false-positived 20/20 realistic normal
+    // records (hotline modal + crisis_events pollution + digest 422 blast);
+    // as FORBIDDEN it costs nothing on input (no short-circuit, advisor
+    // listening mode only), activates the output-side proposal gates, and
+    // flags 0 existing repo files in the CI scan.
+    "우울증",
   ],
 } as const;
 

@@ -29,6 +29,13 @@
 //
 // Run from the repo root:  npx tsx scripts/eval-lexicon-bareterm.ts
 // Deterministic, offline, zero LLM calls (C1/C3 untouched).
+//
+// BASELINE SHIFT NOTE (2026-07-21, after the bare-term round): Simon adopted
+// recommendation #2 - "우울증" is now in FORBIDDEN_TERMS.ko (yellow). The
+// `current` column therefore reads yellow (not green) for every 우울증-bearing
+// sample on post-adoption checkouts. To reproduce the original decision table
+// (PR #1118), run this script on the #1118 merge commit. FP/FN counts are
+// unaffected (yellow is not crisis routing).
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";

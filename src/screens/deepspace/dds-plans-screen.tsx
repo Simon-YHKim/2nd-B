@@ -25,6 +25,7 @@ import { TIER_PRICE_KRW, REWARD_PER_WATCH, REWARD_MONTHLY_CAP } from "@/lib/enti
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { canShowRewardedAds } from "@/lib/ads/policy";
+import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard } from "@/components/m3";
@@ -141,12 +142,16 @@ export function DeepSpacePlansScreen() {
   }, [userId]);
 
   // Rewarded entry eligibility (policy rules 1-5; every null fails closed).
-  const rewardedAllowed = canShowRewardedAds({
-    tier: tierLoading ? null : currentTier,
-    isMinor,
-    adsConsent,
-    route: pathname ?? "/",
-  });
+  // Capability first (Simon B-decision): no CTA when this build cannot
+  // complete a watch.
+  const rewardedAllowed =
+    canCompleteRewardedWatch() &&
+    canShowRewardedAds({
+      tier: tierLoading ? null : currentTier,
+      isMinor,
+      adsConsent,
+      route: pathname ?? "/",
+    });
 
   useEffect(() => {
     let alive = true;
