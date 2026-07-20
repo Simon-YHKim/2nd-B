@@ -36,7 +36,8 @@
         "EXPO_PUBLIC_ENABLE_GITHUB": "true",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com",
         "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
-        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false"
+        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false",
+        "EXPO_PUBLIC_ENABLE_ADS": "true"
       }
     },
     "ios-simulator": {
@@ -72,7 +73,8 @@
         "EXPO_PUBLIC_ENABLE_GITHUB": "true",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com",
         "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
-        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false"
+        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false",
+        "EXPO_PUBLIC_ENABLE_ADS": "true"
       }
     }
   },
