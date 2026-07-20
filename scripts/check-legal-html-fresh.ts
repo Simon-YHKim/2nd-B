@@ -20,11 +20,31 @@
 // the finally rmSync always removes the temp directory (round-2 review).
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 const ROOT = process.cwd();
+
+// The one committed page that is NOT generator output: the legacy
+// /legal/privacy/ URL kept alive as a redirect to ../privacy.html.
+const INTENTIONAL_NON_GENERATED = new Set(["privacy/index.html"]);
+
+// Recursive *.html enumeration (round-5 review): the generator supports
+// directory-style outputs via dirname()+mkdirSync(recursive), so a flat
+// readdir would silently skip a future nested page in BOTH directions.
+function htmlFilesUnder(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (name.endsWith(".html")) out.push(relative(root, full).split(sep).join("/"));
+    }
+  };
+  walk(root);
+  return out.sort();
+}
 
 const tmp = mkdtempSync(join(tmpdir(), "legal-html-"));
 try {
@@ -32,7 +52,7 @@ try {
     stdio: ["ignore", "ignore", "inherit"],
   });
 
-  const pages = readdirSync(tmp).filter((name) => name.endsWith(".html")).sort();
+  const pages = htmlFilesUnder(tmp);
   if (pages.length === 0) {
     console.error("Legal HTML freshness FAILED - the generator produced no pages.");
     process.exitCode = 1;
@@ -52,13 +72,12 @@ try {
 
   // Reverse direction (round-4 review): a page removed or renamed in the
   // generator must not leave its old committed HTML silently deployed (the
-  // web export publishes everything under public/). Any flat *.html in
-  // public/legal that the generator no longer emits fails the gate. The
-  // privacy/ legacy-redirect lives in a SUBDIRECTORY (privacy/index.html),
-  // so this flat listing excludes it by construction.
-  const committedPages = readdirSync(join(ROOT, "public", "legal"))
-    .filter((name) => name.endsWith(".html"))
-    .sort();
+  // web export publishes everything under public/). Any committed *.html the
+  // generator no longer emits fails the gate - recursively (round-5), with
+  // the intentional legacy redirect excluded by exact path.
+  const committedPages = htmlFilesUnder(join(ROOT, "public", "legal")).filter(
+    (page) => !INTENTIONAL_NON_GENERATED.has(page),
+  );
   for (const page of committedPages) {
     if (!pages.includes(page)) stale.push(`${page} (orphaned - generator no longer emits it)`);
   }
