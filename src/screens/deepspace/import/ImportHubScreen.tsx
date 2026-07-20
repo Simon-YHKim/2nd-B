@@ -93,6 +93,10 @@ export function ImportHubScreen() {
   // A failed import used to end exactly like a successful one: back at the hub, no message,
   // nothing kept -- after the user had walked a consent flow and picked a file for it.
   const [importErr, setImportErr] = useState(false);
+  // Ledger booking runs best-effort AFTER the import lands, but a total failure
+  // of rows the user explicitly chose must not vanish silently (logic audit P1,
+  // docs/handoff/logic_260721.md): flag it and show a warning on the hub.
+  const [ledgerWarn, setLedgerWarn] = useState(false);
   const [active, setActive] = useState<ImportSource | null>(null);
   const [paste, setPaste] = useState("");
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
@@ -196,6 +200,7 @@ export function ImportHubScreen() {
     const chosen = outcome.proposals.filter((p) => selected.has(p.id));
     if (chosen.length === 0) return;
     setBusy(true);
+    setLedgerWarn(false);
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;
@@ -243,9 +248,11 @@ export function ImportHubScreen() {
       // sniffing routes any bank/card CSV here regardless of active.key, so gate
       // on the payload, not the source. ratifyLedgerEntries books exactly the
       // chosen ledgerEntry rows, per-row fail-soft — best-effort after the import
-      // itself landed, mirroring the kakao relation-signals seam above.
+      // itself landed, mirroring the kakao relation-signals seam above. A TOTAL
+      // failure (the promise rejects) flips the hub's ledgerWarn line instead of
+      // vanishing: the user chose these rows, so their loss must be visible.
       if (chosen.some((p) => p.ledgerEntry)) {
-        void ratifyLedgerEntries(userId, chosen).catch(() => undefined);
+        void ratifyLedgerEntries(userId, chosen).catch(() => setLedgerWarn(true));
       }
     } catch {
       // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
@@ -335,6 +342,9 @@ export function ImportHubScreen() {
     const tiers: Tier[] = ["critical", "sensitive", "normal"];
     return (
       <>
+        {ledgerWarn ? (
+          <OpsState variant="rate" title={t("ledgerWarnTitle")} body={t("ledgerWarnBody")} />
+        ) : null}
         {tiers.map((tier) => (
           <View key={tier} style={styles.section}>
             <Text variant="caption" pixelEn style={[styles.tierLabel, { color: TIER_COLOR[tier] }]}>{t(`tier_${tier}`)}</Text>
@@ -567,6 +577,8 @@ function COPY(ko: boolean): Record<string, string> {
         pasteHint: "내보낸 파일 내용을 붙여넣어 주세요.", pastePlaceholder: "여기에 붙여넣기", analyze: "분석",
         errTitle: "파일 형식을 못 읽었어요", errBody: "내보낸 형식이 맞는지 확인해 주세요",
         importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
+        ledgerWarnTitle: "거래 반영은 실패했어요",
+        ledgerWarnBody: "가져오기는 저장됐어요. 다만 고른 거래 내역을 적지 못했어요. 같은 파일을 다시 가져오면 반영돼요.",
         done: "완료", appts: "약속", places: "장소", notes: "노트", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
@@ -590,6 +602,8 @@ function COPY(ko: boolean): Record<string, string> {
         pasteHint: "Paste the exported file's contents.", pastePlaceholder: "Paste here", analyze: "Analyze",
         errTitle: "Couldn't read the file", errBody: "Check that the exported format is right",
         importFailed: "Couldn't import that. Nothing was recorded. Try again.",
+        ledgerWarnTitle: "Couldn't book the transactions",
+        ledgerWarnBody: "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
         done: "Done", appts: "Plans", places: "Places", notes: "Notes", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
