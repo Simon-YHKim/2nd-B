@@ -23,13 +23,21 @@
 //               the model generalizes. Absence from the prompt does not stop
 //               Flash from flagging the phrase.
 //
-// Run from the repo root:  npx tsx scripts/eval-crisis-layer-parity.ts
+// Run from the repo root:
+//   npx tsx scripts/eval-crisis-layer-parity.ts           (full report)
+//   npx tsx scripts/eval-crisis-layer-parity.ts --check   (CI gate)
 // Deterministic, offline, zero LLM calls.
+//
+// --check (Simon approval 2026-07-21, cowork 발주1②): compares the ACTUAL
+// L2-only set against lexicon.ts APPROVED_L2_ONLY_MARKERS and exits 1 on any
+// drift — an unapproved new marker (fresh gate gap) or a stale exception (the
+// marker was removed/promoted but the list wasn't updated). Wired into
+// `npm run verify` as check:crisis-parity.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { CRISIS_TERMS } from "../src/lib/safety/lexicon";
+import { APPROVED_L2_ONLY_MARKERS, CRISIS_TERMS } from "../src/lib/safety/lexicon";
 
 const ROOT = process.cwd();
 
@@ -99,6 +107,35 @@ function main(): void {
   // en, word-boundary containment approximated by substring on the phrase).
   const coveredByGate = (marker: string, locale: "en" | "ko"): boolean =>
     [...l1a[locale]].some((g) => marker.toLowerCase().includes(g.toLowerCase()));
+
+  // --check: CI gate against the approved exception list (lexicon.ts SoT).
+  if (process.argv.includes("--check")) {
+    let drift = 0;
+    for (const locale of ["en", "ko"] as const) {
+      const actual = [...l2[locale]].filter((t) => !l1a[locale].has(t) && !coveredByGate(t, locale)).sort();
+      const approved = [...APPROVED_L2_ONLY_MARKERS[locale]].sort();
+      const unapproved = actual.filter((t) => !approved.includes(t));
+      const stale = approved.filter((t) => !actual.includes(t));
+      for (const t of unapproved) {
+        drift++;
+        console.error(
+          `CRISIS-PARITY FAIL (${locale}): Flash marker "${t}" is not covered by the deterministic gate ` +
+            `and is not in APPROVED_L2_ONLY_MARKERS. Either promote it into CRISIS_TERMS (all 3 mirrors + ` +
+            `parity test) or record it as an approved exception with its reason in lexicon.ts.`,
+        );
+      }
+      for (const t of stale) {
+        drift++;
+        console.error(
+          `CRISIS-PARITY FAIL (${locale}): approved exception "${t}" is no longer an L2-only marker ` +
+            `(promoted or removed from the prompt). Delete the stale entry from APPROVED_L2_ONLY_MARKERS.`,
+        );
+      }
+    }
+    if (drift > 0) process.exit(1);
+    console.log("CRISIS-PARITY PASS  L1 mirrors byte-identical (jest) + L2-only markers == approved exception list");
+    return;
+  }
 
   for (const locale of ["en", "ko"] as const) {
     console.log(`\n### ${locale.toUpperCase()} presence matrix (${union[locale].length} terms)`);
