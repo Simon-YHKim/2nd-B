@@ -204,6 +204,25 @@ export function ImportHubScreen() {
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;
+      // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
+      // captureFromMarkdown above already landed the summary note; this lands
+      // the actual ledger rows the proposals carry (ledgerEntry payload).
+      // Content sniffing routes any bank/card CSV here regardless of
+      // active.key, so gate on the payload, not the source. AWAITED (review
+      // P1 round 2) so the history line below records what actually BOOKED
+      // ({inserted}), not what was merely selected: per-row fail-soft keeps
+      // this bounded, and a thrown call means nothing inserted (0). Watches
+      // keeps the parsed signal total -- the user ratifies channel/rhythm
+      // proposals, not watch events, so no ratified denomination exists.
+      let bookedTxns = 0;
+      if (chosen.some((p) => p.ledgerEntry)) {
+        const booked = await ratifyLedgerEntries(userId, chosen).catch(() => null);
+        bookedTxns = booked?.inserted ?? 0;
+        // #1117 intent, carried into the awaited call: rows the user
+        // explicitly chose must not vanish silently. Zero booked covers both
+        // a rejected call (null) and every row failing per-row fail-soft.
+        if (bookedTxns === 0) setLedgerWarn(true);
+      }
       await addImportHistory({
         id: `${Date.now()}`,
         sourceKey: active.key,
@@ -211,6 +230,8 @@ export function ImportHubScreen() {
         atIso: new Date().toISOString(),
         summary:
           (s.notes > 0 ? `${t("notes")} ${s.notes} · ` : "") +
+          (s.watches > 0 ? `${t("watches")} ${s.watches} · ` : "") +
+          (bookedTxns > 0 ? `${t("txns")} ${bookedTxns} · ` : "") +
           `${t("appts")} ${s.appointments} · ${t("places")} ${s.places + s.events} · ${t("raw")} 0`,
         sourceIds: [result.source.id],
       });
@@ -242,18 +263,7 @@ export function ImportHubScreen() {
       if (active.key === "kakao" && outcome.relationSignals?.length) {
         void upsertKakaoRelationPeople(userId, ko, outcome.relationSignals).catch(() => undefined);
       }
-      // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
-      // captureFromMarkdown above already landed the summary note; this lands the
-      // actual ledger rows the proposals carry (ledgerEntry payload). Content
-      // sniffing routes any bank/card CSV here regardless of active.key, so gate
-      // on the payload, not the source. ratifyLedgerEntries books exactly the
-      // chosen ledgerEntry rows, per-row fail-soft — best-effort after the import
-      // itself landed, mirroring the kakao relation-signals seam above. A TOTAL
-      // failure (the promise rejects) flips the hub's ledgerWarn line instead of
-      // vanishing: the user chose these rows, so their loss must be visible.
-      if (chosen.some((p) => p.ledgerEntry)) {
-        void ratifyLedgerEntries(userId, chosen).catch(() => setLedgerWarn(true));
-      }
+
     } catch {
       // "surfaced by returning to hub" surfaced nothing. The four lines below sat outside
       // the try, so a failed import ended exactly like a successful one: back at the hub,
@@ -497,6 +507,11 @@ export function ImportHubScreen() {
         </View>
         <View style={styles.summaryRow}>
           {out.summary.notes > 0 ? <Summary n={out.summary.notes} label={t("notes")} /> : null}
+          {/* P1 parsers (#1094) fill these two; each import kind fills only its
+              own counter, so at most one of them joins the row. Without these
+              a YouTube/finance import reviewed as "약속 0 · 장소 0 · 원문 0". */}
+          {out.summary.watches > 0 ? <Summary n={out.summary.watches} label={t("watches")} /> : null}
+          {out.summary.transactions > 0 ? <Summary n={out.summary.transactions} label={t("txns")} /> : null}
           <Summary n={out.summary.appointments} label={t("appts")} />
           <Summary n={out.summary.places + out.summary.events} label={t("places")} />
           <Summary n={0} label={t("raw")} dim />
@@ -579,7 +594,7 @@ function COPY(ko: boolean): Record<string, string> {
         importFailed: "가져오지 못했어요. 아무것도 기록되지 않았어요. 다시 시도해 주세요.",
         ledgerWarnTitle: "거래 반영은 실패했어요",
         ledgerWarnBody: "가져오기는 저장됐어요. 다만 고른 거래 내역을 적지 못했어요. 같은 파일을 다시 가져오면 반영돼요.",
-        done: "완료", appts: "약속", places: "장소", notes: "노트", raw: "원문", pickToApply: "반영할 항목 고르기",
+        done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
         delete: "삭제", historyFine: "삭제는 파생 신호까지 완전 제거해요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
@@ -604,7 +619,7 @@ function COPY(ko: boolean): Record<string, string> {
         importFailed: "Couldn't import that. Nothing was recorded. Try again.",
         ledgerWarnTitle: "Couldn't book the transactions",
         ledgerWarnBody: "The import itself was saved, but the chosen transactions were not booked. Re-import the same file to book them.",
-        done: "Done", appts: "Plans", places: "Places", notes: "Notes", raw: "Raw", pickToApply: "Pick what to apply",
+        done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
         delete: "Delete", historyFine: "Delete removes the derived signals too. Comms/location import is server-locked for minor accounts.",
@@ -669,8 +684,10 @@ const styles = StyleSheet.create({
 
   progressRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   doneText: { fontSize: 12, color: deepSpace.mint },
-  summaryRow: { flexDirection: "row", gap: 8 },
-  summaryBox: { flex: 1, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
+  // wrap: with watches/txns the row can hold four boxes, which do not fit a
+  // 320dp width single-line (review P2) -- minWidth keeps wrapped boxes even.
+  summaryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  summaryBox: { flex: 1, minWidth: 68, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
   summaryBoxDim: { opacity: 0.7 },
   summaryNum: { fontSize: 20, color: deepSpace.accentBright },
   summaryNumDim: { color: deepSpace.textLo },
