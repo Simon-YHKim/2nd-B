@@ -67,7 +67,12 @@ jobs:
       # model key is needed in the build. (audit B1)
       EXPO_PUBLIC_LLM_MODE: "live"
       EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION: "true"
-      EXPO_PUBLIC_REASONING_PROVIDER: "claude"
+      # "gemini" since 2026-07-21: the Anthropic account has had no credits since
+      # 2026-07-06, so the "claude" pin made EVERY pro-tier call (advisor,
+      # /reasoning deep-run batches, imagine) pay a ~2.3s dead claude-proxy hop
+      # (502 credit error, verified live) before the gemini-proxy fallback.
+      # Flip back to "claude" only after refilling Anthropic credits.
+      EXPO_PUBLIC_REASONING_PROVIDER: "gemini"
       # D-27 axis-key pins (parity with eas.json production + web-deploy.yml):
       # without these the bundle falls back to the types.ts gemini-2.5 defaults,
       # so live calls bypass the dedicated GEMINI_API_KEY__G35FLASH__{effort}
