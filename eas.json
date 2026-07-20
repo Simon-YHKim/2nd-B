@@ -29,14 +29,15 @@
         "EXPO_PUBLIC_MODEL_PRO": "gemini-3.5-flash",
         "EXPO_PUBLIC_LLM_MODE": "live",
         "EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION": "true",
-        "EXPO_PUBLIC_REASONING_PROVIDER": "claude",
+        "EXPO_PUBLIC_REASONING_PROVIDER": "gemini",
         "EXPO_PUBLIC_LLM_PHASE": "1",
         "EXPO_PUBLIC_ENABLE_KAKAO": "true",
         "EXPO_PUBLIC_ENABLE_APPLE": "true",
         "EXPO_PUBLIC_ENABLE_GITHUB": "true",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com",
         "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
-        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false"
+        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false",
+        "EXPO_PUBLIC_ENABLE_ADS": "true"
       }
     },
     "ios-simulator": {
@@ -65,14 +66,15 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvYWNyeXVrbWRlaXZtb2x2eWhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjE0MzUsImV4cCI6MjA5NTIzNzQzNX0.neb3x_u8Vo9PaxoVpvfSHHxfpAcqxzoqGBDQV6xUYcs",
         "EXPO_PUBLIC_LLM_MODE": "live",
         "EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION": "true",
-        "EXPO_PUBLIC_REASONING_PROVIDER": "claude",
+        "EXPO_PUBLIC_REASONING_PROVIDER": "gemini",
         "EXPO_PUBLIC_LLM_PHASE": "1",
         "EXPO_PUBLIC_ENABLE_KAKAO": "true",
         "EXPO_PUBLIC_ENABLE_APPLE": "true",
         "EXPO_PUBLIC_ENABLE_GITHUB": "true",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "160139928684-a3d8fufkppj560cltgaas9qpsfefl72i.apps.googleusercontent.com",
         "EXPO_PUBLIC_NAVER_CLIENT_ID": "A1Su7C7EgyR49be6V4rT",
-        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false"
+        "EXPO_PUBLIC_NATIVE_SOCIAL_SDK": "false",
+        "EXPO_PUBLIC_ENABLE_ADS": "true"
       }
     }
   },

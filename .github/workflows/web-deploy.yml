@@ -94,9 +94,13 @@ jobs:
           EXPO_PUBLIC_MODEL_FLASH: ${{ vars.EXPO_PUBLIC_MODEL_FLASH || 'gemini-3.5-flash' }}
           EXPO_PUBLIC_MODEL_PRO: ${{ vars.EXPO_PUBLIC_MODEL_PRO || 'gemini-3.5-flash' }}
           # Reasoning-seat provider parity with the native builds (eas.json +
-          # android-release.yml pin "claude"): left unset, the live web silently
-          # served the reasoning seat from the Gemini backbone instead.
-          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'claude' }}
+          # android-release.yml pin "gemini" since 2026-07-21: Anthropic credits
+          # exhausted 2026-07-06, so "claude" made every pro-tier call pay a dead
+          # claude-proxy hop before the gemini fallback). NOTE the repo Variable
+          # EXPO_PUBLIC_REASONING_PROVIDER (currently "claude") outranks this
+          # fallback — flip it with:
+          #   gh variable set EXPO_PUBLIC_REASONING_PROVIDER --body gemini
+          EXPO_PUBLIC_REASONING_PROVIDER: ${{ vars.EXPO_PUBLIC_REASONING_PROVIDER || 'gemini' }}
           # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
           # change); flip the repo Variable to "2" to activate Phase 2 routing.
           EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
