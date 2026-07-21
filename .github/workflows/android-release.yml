@@ -33,8 +33,13 @@ on:
 permissions:
   contents: read
 
+# Dispatch runs get their OWN group (run_id) so a queued release-gate build is
+# never replaced by the next main-push diagnostic: GitHub keeps at most one
+# PENDING run per group, and with gradle at ~25 min vs a 10-20 min merge
+# cadence a shared group meant the gate build never completed (hub 실측
+# 2026-07-21). Push builds keep per-ref dedup exactly as before.
 concurrency:
-  group: android-release-${{ github.ref }}
+  group: android-release-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -86,6 +91,12 @@ jobs:
       EXPO_PUBLIC_UI: "deep-space"
       EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"
+      # Ads GO (Simon 2026-07-21, #1116) -- mirror eas.json production so this
+      # diagnostic APK is the SAME app EAS builds (dbl FAIL 1: without it the
+      # flag never reached this path and the launch change stopped being
+      # single-point). CTA exposure stays governed by the capability gate
+      # (#1120): release builds render no watch CTA until a live unit lands.
+      EXPO_PUBLIC_ENABLE_ADS: "true"
       EXPO_PUBLIC_ENABLE_KAKAO: "true"
       EXPO_PUBLIC_ENABLE_APPLE: "true"
       # Native Google/Kakao SDKs require their own release-key registrations.
@@ -102,6 +113,21 @@ jobs:
       EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
       EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
     steps:
+      # Release-gate dispatches must pin the exact commit they gated: the fleet
+      # merges every 10-20 minutes, so dispatching on ANY moving branch drifts
+      # between the SHA a gate verified and the SHA this build checks out (hub
+      # hit this on 2026-07-21 with main: gated SHA != built SHA). ALLOWLIST,
+      # not a main-only denylist (review P1): only a tag or a release/* branch
+      # may be dispatched -- feature branches move just like main. E.g.
+      #   git push origin <sha>:refs/heads/release/vX.Y.Z-rc
+      #   gh workflow run android-release.yml --ref release/vX.Y.Z-rc
+      # Push-triggered diagnostic builds on main are unaffected.
+      - name: Refuse workflow_dispatch off pinned refs (tag or release/* only)
+        if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag' && !startsWith(github.ref_name, 'release/')
+        run: |
+          echo "::error::Dispatch this workflow on a pinned tag or release/* branch only (got '${{ github.ref_name }}'). Moving branches (main, feature/*) drift between the SHA you gated and the SHA this build checks out."
+          exit 1
+
       - name: Validate optional analytics variables
         shell: bash
         run: |
