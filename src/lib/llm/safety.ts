@@ -18,6 +18,7 @@ import { GoogleGenAI } from "@google/genai";
 import { getEnv } from "../env";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
+import { MODELS } from "./types";
 // C3: the Flash classifier makes a real Gemini call client-side (not via the
 // gemini-proxy), so the proxy never logs it. This module audits its own call.
 // safety.ts is a sanctioned LLM-boundary module (already C1-allowlisted for
@@ -211,6 +212,19 @@ async function classifyViaProxy(
     const { data, error } = await getSupabaseClient().functions.invoke("gemini-proxy", {
       body: {
         purpose: "safety_classify",
+        // Config-defect fix (cowork 발주2, 2026-07-21; docs/handoff/ai_260721.md
+        // 회신2 C): this body used to omit model AND effort, so the proxy
+        // defaulted to old-gen gemini-2.5-flash (base-key attribution under the
+        // D-27 combo-key scheme) at effort high (2048 thinking tokens) for a
+        // one-sentence JSON classification. Pin the env-routed flash tier (same
+        // class the local client path uses; deployed pins resolve 3.5-flash,
+        // unset env keeps today's 2.5-flash default) and the low effort rung
+        // (proxy ladder: 512 thinking / 1024 out). Live-measured delta on the
+        // deployed proxy: see the handoff's 발주2 전후 표. If a future crisis
+        // eval shows the low rung hurts semantic recall, raise effort — that
+        // eval is the D4 activation gate's job, not this cost fix.
+        model: MODELS.flash,
+        effort: "low",
         system: `${SYSTEM_PROMPT}\n\nClassify the user message below. Output JSON only, no prose.`,
         user: `User message (locale=${locale}):\n"""\n${userMessage}\n"""`,
         responseSchema: {
@@ -220,7 +234,13 @@ async function classifyViaProxy(
             zone: { type: "string", enum: ["red", "yellow", "green"] },
             triggers: { type: "array", items: { type: "string" } },
             confidence: { type: "number" },
-            cssrsLevel: { type: ["number", "null"] },
+            // Single type, NOT the union ["number","null"]: the Gemini REST API
+            // rejects union types in responseSchema with 400 Invalid JSON payload
+            // (live-reproduced 2026-07-21, handoff 회신3 발주2) - which made BOTH
+            // semantic paths silently degrade to lexicon-only via their catch
+            // blocks. Nullability = omission: cssrsLevel is not in required, and
+            // the zone gate below nulls it on every non-red verdict anyway.
+            cssrsLevel: { type: "number" },
           },
         },
       },
@@ -242,7 +262,11 @@ async function classifyViaProxy(
         typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
           ? Math.min(1, Math.max(0, parsed.confidence))
           : 0.5,
-      cssrsLevel: sanitizeCssrsLevel(parsed.cssrsLevel),
+      // Zone-gated: C-SSRS levels are only defined for crisis verdicts (rubric:
+      // RED = level >= 1). The single-type schema above forces a number slot, and
+      // live Gemini emitted cssrsLevel 6 on a benign GREEN walk note (observed
+      // 2026-07-21) - an in-range junk value sanitize alone cannot distinguish.
+      cssrsLevel: parsed.zone === "red" ? sanitizeCssrsLevel(parsed.cssrsLevel) : null,
       source: "llm",
       routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
     };
@@ -291,7 +315,13 @@ export async function classifySafety(
             zone: { type: "string", enum: ["red", "yellow", "green"] },
             triggers: { type: "array", items: { type: "string" } },
             confidence: { type: "number" },
-            cssrsLevel: { type: ["number", "null"] },
+            // Single type, NOT the union ["number","null"]: the Gemini REST API
+            // rejects union types in responseSchema with 400 Invalid JSON payload
+            // (live-reproduced 2026-07-21, handoff 회신3 발주2) - which made BOTH
+            // semantic paths silently degrade to lexicon-only via their catch
+            // blocks. Nullability = omission: cssrsLevel is not in required, and
+            // the zone gate below nulls it on every non-red verdict anyway.
+            cssrsLevel: { type: "number" },
           },
         },
       },
@@ -320,7 +350,9 @@ export async function classifySafety(
             typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
               ? Math.min(1, Math.max(0, parsed.confidence))
               : 0.5,
-          cssrsLevel: sanitizeCssrsLevel(parsed.cssrsLevel),
+          // Zone-gated for the same reason as the proxy path above (C-SSRS is
+          // only defined for crisis verdicts; live GREEN emitted junk level 6).
+          cssrsLevel: parsed.zone === "red" ? sanitizeCssrsLevel(parsed.cssrsLevel) : null,
           source: "llm",
           routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
         };

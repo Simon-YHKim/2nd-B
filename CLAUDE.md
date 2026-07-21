@@ -117,8 +117,9 @@ This document contains hard-learned prevention measures for Android runtime cras
 
 ## Verification
 
-`npm run verify` runs the full gauntlet: lint + type-check + i18n + lexicon + legal-review +
-LLM boundary + constraints + em dash + anti-anthro + mascot-voice + **require cycles** + jest.
+`npm run verify` runs the full gauntlet: lint + type-check + i18n + lexicon + crisis-layer
+parity + legal-review + LLM boundary + constraints + em dash + anti-anthro + mascot-voice +
+**require cycles** + jest.
 
 Always run `npm run verify` before pushing. CI calls `npm run verify` directly (not a copy of the
 steps), so a new check added there is automatically enforced in CI.
