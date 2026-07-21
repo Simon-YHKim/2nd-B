@@ -132,3 +132,10 @@ design/proto_rev2/docs/improve-audit/
 # Firebase config files - never commit (wired via EAS file env / GH secret)
 **/google-services.json
 **/GoogleService-Info.plist
+
+# Apple / Firebase credential bundle — never commit (private keys, certs, CSRs,
+# issuer IDs, provisioning profiles). Directory-level ignore so any future cert
+# type is covered even if a specific extension isn't listed above. A stray
+# `git add -A` must never sweep these into this PUBLIC repo.
+fb_2ndb_K/
+apl_sign.txt
