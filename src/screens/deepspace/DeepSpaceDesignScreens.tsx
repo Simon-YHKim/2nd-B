@@ -841,8 +841,13 @@ export function DeepSpacePrivacyDesignScreen() {
               disabled={minor || busy}
               onPress={() => void toggleExternalPreference("external_analytics", !analyticsOn)}
             />
+            {/* Platform-neutral consent copy (Simon pick, 2안, 2026-07-21):
+                the same privacy_prefs.ads value gates web AND native, so a
+                web-scoped label was a consent-specificity gap (#1116 T2).
+                The data-transfer promise is conditional on WATCHING; builds
+                that cannot complete a watch never reach it (#1120 gate). */}
             <Toggle
-              label={ko ? "웹 광고 허용" : "Allow web ads"}
+              label={ko ? "광고 허용" : "Allow ads"}
               value={
                 minor
                   ? ko
@@ -850,8 +855,8 @@ export function DeepSpacePrivacyDesignScreen() {
                     : "Locked under 18"
                   : adsOn
                     ? ko
-                      ? "웹 무료 성인 계정에서만 적용"
-                      : "Free adult web accounts only"
+                      ? "성인 무료 계정 전용. 광고 시청 시 광고 식별 데이터가 Google에 전달돼요"
+                      : "Adult free accounts only. Watching sends ad identifiers to Google"
                     : ko
                       ? "꺼짐"
                       : "Off"
