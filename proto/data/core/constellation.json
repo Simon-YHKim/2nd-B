@@ -1,0 +1,97 @@
+{
+  "stars": [
+    {
+      "id": "polaris",
+      "x": 140,
+      "y": -16,
+      "big": true,
+      "label": "북극성",
+      "kind": "북극성",
+      "star": "Polaris",
+      "line": "7개의 별을 모으면, 내가 또렷해져요.",
+      "route": "me"
+    },
+    {
+      "id": "career",
+      "x": 228,
+      "y": 90,
+      "domain": "커리어",
+      "kind": "도메인",
+      "star": "Dubhe",
+      "level": 3,
+      "line": "무엇을 만들고 쌓아왔나요?",
+      "route": "star"
+    },
+    {
+      "id": "finance",
+      "x": 230,
+      "y": 131,
+      "domain": "재정",
+      "kind": "도메인",
+      "star": "Merak",
+      "level": 2,
+      "line": "돈은 나의 무엇을 말해주나요?",
+      "route": "star"
+    },
+    {
+      "id": "relation",
+      "x": 174,
+      "y": 152,
+      "domain": "관계",
+      "kind": "도메인",
+      "star": "Phecda",
+      "level": 3,
+      "line": "가까운 사람들과 나는 어떤가요?",
+      "route": "star"
+    },
+    {
+      "id": "growth",
+      "x": 151,
+      "y": 126,
+      "domain": "성장",
+      "kind": "도메인",
+      "star": "Megrez",
+      "level": 3,
+      "line": "어느 시기가 지금의 나를 만들었나요?",
+      "route": "star"
+    },
+    {
+      "id": "health",
+      "x": 108,
+      "y": 135,
+      "domain": "건강",
+      "kind": "도메인",
+      "star": "Alioth",
+      "level": 2,
+      "line": "요즘 내 컨디션과 리듬은요?",
+      "route": "star"
+    },
+    {
+      "id": "leisure",
+      "x": 76,
+      "y": 143,
+      "domain": "휴식",
+      "kind": "도메인",
+      "star": "Mizar",
+      "level": 2,
+      "line": "무엇이 나를 쉬게 하나요?",
+      "route": "star"
+    },
+    {
+      "id": "museum",
+      "x": 50,
+      "y": 187,
+      "domain": "뮤지엄",
+      "kind": "함께 배우기",
+      "star": "Alkaid",
+      "level": 4,
+      "line": "AI가 걸어온 길을 거닐며, 세컨비가 나를 이해하는 원리도 함께 배워요.",
+      "route": "museum"
+    }
+  ],
+  "lines": [
+    "M228,90 L230,131 L174,152 L151,126 Z",
+    "M151,126 L108,135 L76,143 L50,187"
+  ],
+  "polarisGuide": "M230,131 L228,90 L140,-16"
+}

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>배경 시안 — ⑤ 채택, ⑤-rev 비교 (O-24·25·28)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root { --accent:#46B6FF; --bright:#CCFAFF; --ink:#5FD4FF; --bg:#0A0E1A; --edge:#070A13; --line:rgba(70,182,255,0.24); --card:rgba(70,182,255,0.06); --muted:rgba(95,212,255,0.6); }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:Pretendard,system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding:28px 18px 60px; }
+  header { max-width:880px; margin:0 auto 26px; }
+  h1 { font-size:20px; margin:0 0 8px; color:var(--bright); font-weight:700; }
+  .sub { font-size:13px; color:var(--muted); line-height:1.6; margin:0; }
+  .grid { max-width:880px; margin:0 auto; display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+  .card { border:1px solid var(--line); border-radius:12px; background:var(--card); overflow:hidden; display:flex; flex-direction:column; }
+  .card a.shot { display:block; line-height:0; position:relative; }
+  .card img { width:100%; display:block; aspect-ratio:510/900; object-fit:cover; }
+  .card .meta { padding:14px 16px 16px; }
+  .card h2 { font-size:15px; margin:0 0 6px; color:var(--bright); font-weight:600; }
+  .card p { font-size:12px; color:var(--muted); line-height:1.6; margin:0 0 10px; }
+  .card .live { display:inline-block; font-size:12px; color:var(--accent); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:6px 12px; }
+  .card .live:hover { color:var(--bright); border-color:var(--accent); }
+  .badge { position:absolute; top:10px; left:10px; font-size:11px; background:var(--edge); color:var(--ink); border:1px solid var(--line); border-radius:999px; padding:3px 9px; }
+  footer { max-width:880px; margin:30px auto 0; font-size:12px; color:var(--muted); line-height:1.7; }
+  @media (max-width:640px){ .grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>배경 시안 (⑤ 채택 → ⑤-rev) — 비교 보드</h1>
+  <p class="sub">O-24 · 구상 Antigravity · 그림 Codex · 정리 Claude. 썸네일을 누르면 라이브 모션(애니메이션)으로 열립니다. deep-space · 시안 일관 · 살짝 귀여운 톤. <b>방향 확정 = ⑤(혼합·저자극).</b> ⑤-rev는 밝기 2/3 상향 + 거리·크기·밝기 다양화 개정본 — ⑤와 비교해 확정하세요.</p>
+</header>
+<main class="grid">
+  <div class="card">
+    <a class="shot" href="./concept-1-neural.html"><span class="badge">① 신경망</span><img src="./shot-1.png" alt="하늘색 신경망" /></a>
+    <div class="meta">
+      <h2>① 하늘색 신경망</h2>
+      <p>둥근 시안 노드와 연결선이 느린 브리딩으로 이어지는 풍경. 몽글몽글 물방울 노드가 캐릭터 rim과 숨쉬듯 동기화. 저사양=정적 SVG 폴백.</p>
+      <a class="live" href="./concept-1-neural.html">라이브 보기</a>
+    </div>
+  </div>
+  <div class="card">
+    <a class="shot" href="./concept-2-cosmos.html"><span class="badge">② 우주 (기준)</span><img src="./shot-2.png" alt="파란빛 우주" /></a>
+    <div class="meta">
+      <h2>② 파란빛 우주 <span style="color:var(--muted);font-weight:400;font-size:12px;">현 채택본 비교기준</span></h2>
+      <p>부드러운 파란 성운 + 둥근 별빛이 느린 시차로 떠다님. rim이 성운 반사광처럼 섞이고 동글동글 별이 포근함. 저사양=정적 래스터 폴백.</p>
+      <a class="live" href="./concept-2-cosmos.html">라이브 보기</a>
+    </div>
+  </div>
+  <div class="card">
+    <a class="shot" href="./concept-3-gravity.html"><span class="badge">③ 중력장</span><img src="./shot-3.png" alt="파란빛 중력장" /></a>
+    <div class="meta">
+      <h2>③ 파란빛 중력장</h2>
+      <p>둥근 머리를 중심으로 공간이 휘어 퍼지는 동심원 파동. 로봇이 콧노래할 때 나는 소리 물결 느낌. 저사양=정적 동심원 폴백.</p>
+      <a class="live" href="./concept-3-gravity.html">라이브 보기</a>
+    </div>
+  </div>
+  <div class="card">
+    <a class="shot" href="./concept-4-interior.html"><span class="badge">④ 로봇 내부</span><img src="./shot-4.png" alt="로봇 내부" /></a>
+    <div class="meta">
+      <h2>④ 로봇 내부</h2>
+      <p>몸통=화면 컨셉. 둥근 회로와 데이터 흐름이 rim-light로 에너지를 공급하는 내부 뷰. 저사양=흐름 생략 정적 SVG 기판.</p>
+      <a class="live" href="./concept-4-interior.html">라이브 보기</a>
+    </div>
+  </div>
+  <div class="card">
+    <a class="shot" href="./concept-5-hybrid-dim.html"><span class="badge">⑤ 혼합·저자극</span><img src="./shot-5.png" alt="신경망+우주 혼합, 저휘도 저눈부심" /></a>
+    <div class="meta">
+      <h2>⑤ 혼합 · 저자극 <span style="color:var(--muted);font-weight:400;font-size:12px;">①+② 혼합, 눈 편한 버전</span></h2>
+      <p>신경망 노드 + 옅은 성운을 한 화면에 섞되, 밝기를 낮추고 bloom/glow/blur를 걷어낸 차분·저눈부심 버전. 캐릭터 rim만 은은히 도드라짐.</p>
+      <a class="live" href="./concept-5-hybrid-dim.html">라이브 보기</a>
+    </div>
+  </div>
+  <div class="card" style="border-color: var(--accent);">
+    <a class="shot" href="./concept-5b-hybrid-rev.html"><span class="badge" style="background: var(--accent); color: var(--edge);">⑤-rev 채택방향</span><img src="./shot-5b.png" alt="⑤ 개정: 밝기 2/3 상향, 거리·크기·밝기 다양화" /></a>
+    <div class="meta">
+      <h2>⑤-rev 혼합 개정 <span style="color:var(--muted);font-weight:400;font-size:12px;">⑤ 채택 + 5조정</span></h2>
+      <p>⑤를 베이스로 밝기를 2/3까지 올리고(글레어는 계속 억제) 광원의 거리·크기·밝기를 크게 다양화 + 랜덤성 강화. 3단 depth로 가까운 건 크고 밝게, 먼 건 작고 흐릿하게. ⑤와 나란히 비교해 보세요.</p>
+      <a class="live" href="./concept-5b-hybrid-rev.html">라이브 보기</a>
+    </div>
+  </div>
+</main>
+<footer>
+  방향을 정해 알려주시면 채택본을 새 UI(deep-space 셸) 본 배경에 반영합니다. 썸네일은 정적 캡처, 실제 톤·모션은 라이브에서 확인하세요.
+</footer>
+</body>
+</html>

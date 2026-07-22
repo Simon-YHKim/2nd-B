@@ -1,0 +1,61 @@
+{
+  "headAsset": "assets/deepspace/secondb-head-front.png",
+  "moods": [
+    {
+      "ic": "sentiment_very_dissatisfied",
+      "l": "많이 지침"
+    },
+    {
+      "ic": "sentiment_dissatisfied",
+      "l": "지침"
+    },
+    {
+      "ic": "sentiment_neutral",
+      "l": "보통"
+    },
+    {
+      "ic": "sentiment_satisfied",
+      "l": "좋음"
+    },
+    {
+      "ic": "sentiment_very_satisfied",
+      "l": "아주 좋음"
+    }
+  ],
+  "contexts": [
+    "수면",
+    "운동",
+    "영양",
+    "스트레스",
+    "통증",
+    "휴식",
+    "카페인",
+    "음주"
+  ],
+  "causes": [
+    "업무 스트레스",
+    "늦은 취침",
+    "갈등",
+    "음주",
+    "카페인",
+    "과로",
+    "컨디션 난조"
+  ],
+  "shortcuts": [
+    {
+      "id": "meal",
+      "icon": "restaurant",
+      "label": "식단"
+    },
+    {
+      "id": "workout",
+      "icon": "fitness_center",
+      "label": "운동"
+    },
+    {
+      "id": "sleep",
+      "icon": "bedtime",
+      "label": "수면"
+    }
+  ]
+}

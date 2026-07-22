@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=510, initial-scale=1">
+<title>2nd-B Interior Concept</title>
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --blue: #46B6FF;
+    --ice: #CCFAFF;
+    --cyan: #5FD4FF;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  body {
+    display: grid;
+    place-items: center;
+  }
+
+  .stage {
+    position: relative;
+    width: 510px;
+    height: 900px;
+    overflow: hidden;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(70, 182, 255, 0.09), transparent 25%),
+      radial-gradient(circle at 50% 86%, rgba(95, 212, 255, 0.11), transparent 27%),
+      linear-gradient(180deg, #0B1021 0%, var(--bg) 54%, #070914 100%);
+  }
+
+  .panel-glow {
+    position: absolute;
+    left: 50%;
+    bottom: 46px;
+    width: 404px;
+    height: 392px;
+    transform: translateX(-50%);
+    border-radius: 38px;
+    pointer-events: none;
+    border: 1px solid rgba(95, 212, 255, 0.18);
+    background:
+      linear-gradient(180deg, rgba(70, 182, 255, 0.035), rgba(95, 212, 255, 0.065)),
+      radial-gradient(circle at 50% 10%, rgba(204, 250, 255, 0.08), transparent 34%);
+    box-shadow:
+      inset 0 0 36px rgba(70, 182, 255, 0.10),
+      0 0 36px rgba(70, 182, 255, 0.10);
+    opacity: 0.86;
+    z-index: 1;
+  }
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 510px;
+    height: 900px;
+    display: block;
+    z-index: 2;
+  }
+
+  .trace-base {
+    fill: none;
+    stroke: rgba(70, 182, 255, 0.25);
+    stroke-width: 9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 7px rgba(70, 182, 255, 0.25));
+  }
+
+  .trace-flow {
+    fill: none;
+    stroke: var(--cyan);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 28 92;
+    animation: flow 16s linear infinite;
+    filter: drop-shadow(0 0 9px rgba(95, 212, 255, 0.78));
+  }
+
+  .trace-flow.alt {
+    stroke: var(--blue);
+    stroke-dasharray: 18 78;
+    animation-duration: 19s;
+    animation-delay: -7s;
+  }
+
+  .trace-flow.ice {
+    stroke: var(--ice);
+    stroke-dasharray: 12 84;
+    animation-duration: 22s;
+    animation-delay: -11s;
+  }
+
+  .chip {
+    fill: rgba(10, 14, 26, 0.74);
+    stroke: rgba(95, 212, 255, 0.38);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 8px rgba(70, 182, 255, 0.16));
+  }
+
+  .node {
+    fill: rgba(204, 250, 255, 0.92);
+    stroke: rgba(70, 182, 255, 0.70);
+    stroke-width: 3;
+    filter: drop-shadow(0 0 8px rgba(204, 250, 255, 0.68));
+    animation: nodePulse 7s ease-in-out infinite;
+  }
+
+  .soft-vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 27%, rgba(10, 14, 26, 0.14) 50%, rgba(10, 14, 26, 0.75) 100%),
+      linear-gradient(180deg, rgba(10, 14, 26, 0.16), transparent 22%, transparent 72%, rgba(10, 14, 26, 0.22));
+    z-index: 3;
+  }
+
+  .rim-halo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 340px;
+    height: 340px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+    background:
+      radial-gradient(circle, rgba(204, 250, 255, 0.16), rgba(95, 212, 255, 0.10) 31%, rgba(70, 182, 255, 0.04) 50%, transparent 68%);
+    filter: blur(12px);
+    opacity: 0.82;
+    animation: haloBreath 8.5s ease-in-out infinite;
+    z-index: 4;
+  }
+
+  .character {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 240px;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    filter:
+      drop-shadow(0 0 14px rgba(70, 182, 255, 0.86))
+      drop-shadow(0 0 36px rgba(95, 212, 255, 0.36));
+    animation: floatBot 9.5s ease-in-out infinite;
+  }
+
+  @keyframes flow {
+    to {
+      stroke-dashoffset: -320;
+    }
+  }
+
+  @keyframes nodePulse {
+    0%,
+    100% {
+      opacity: 0.62;
+      transform: scale(0.96);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes haloBreath {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) scale(0.97);
+      opacity: 0.70;
+    }
+    50% {
+      transform: translate(-50%, -50%) scale(1.04);
+      opacity: 0.98;
+    }
+  }
+
+  @keyframes floatBot {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) translateY(0);
+    }
+    50% {
+      transform: translate(-50%, -50%) translateY(-5px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trace-flow,
+    .node,
+    .rim-halo,
+    .character {
+      animation: none;
+    }
+  }
+</style>
+</head>
+<body>
+  <main class="stage" aria-hidden="true">
+    <div class="panel-glow"></div>
+    <svg viewBox="0 0 510 900" role="img">
+      <g opacity="0.90">
+        <rect class="chip" x="65" y="584" width="94" height="74" rx="22"/>
+        <rect class="chip" x="351" y="584" width="94" height="74" rx="22"/>
+        <rect class="chip" x="178" y="692" width="154" height="80" rx="25"/>
+        <rect class="chip" x="101" y="769" width="86" height="52" rx="19"/>
+        <rect class="chip" x="323" y="769" width="86" height="52" rx="19"/>
+      </g>
+
+      <g>
+        <path class="trace-base" d="M112 821 C112 760 112 704 112 658"/>
+        <path class="trace-base" d="M398 821 C398 760 398 704 398 658"/>
+        <path class="trace-base" d="M112 621 C158 621 168 621 205 650 C227 667 239 686 255 692"/>
+        <path class="trace-base" d="M398 621 C352 621 342 621 305 650 C283 667 271 686 255 692"/>
+        <path class="trace-base" d="M255 772 C255 721 255 671 255 623 C255 584 255 550 255 512"/>
+        <path class="trace-base" d="M66 716 C121 716 157 716 194 716"/>
+        <path class="trace-base" d="M444 716 C389 716 353 716 316 716"/>
+        <path class="trace-base" d="M178 810 C221 810 289 810 332 810"/>
+        <path class="trace-base" d="M84 584 C84 540 120 515 167 515"/>
+        <path class="trace-base" d="M426 584 C426 540 390 515 343 515"/>
+      </g>
+
+      <g>
+        <path class="trace-flow" d="M112 821 C112 760 112 704 112 658"/>
+        <path class="trace-flow alt" d="M398 821 C398 760 398 704 398 658"/>
+        <path class="trace-flow ice" d="M112 621 C158 621 168 621 205 650 C227 667 239 686 255 692"/>
+        <path class="trace-flow" d="M398 621 C352 621 342 621 305 650 C283 667 271 686 255 692"/>
+        <path class="trace-flow alt" d="M255 772 C255 721 255 671 255 623 C255 584 255 550 255 512"/>
+        <path class="trace-flow ice" d="M66 716 C121 716 157 716 194 716"/>
+        <path class="trace-flow" d="M444 716 C389 716 353 716 316 716"/>
+        <path class="trace-flow alt" d="M178 810 C221 810 289 810 332 810"/>
+        <path class="trace-flow ice" d="M84 584 C84 540 120 515 167 515"/>
+        <path class="trace-flow" d="M426 584 C426 540 390 515 343 515"/>
+      </g>
+
+      <g>
+        <circle class="node" cx="112" cy="621" r="10" style="animation-delay:-1s"/>
+        <circle class="node" cx="398" cy="621" r="10" style="animation-delay:-5s"/>
+        <circle class="node" cx="255" cy="692" r="12" style="animation-delay:-8s"/>
+        <circle class="node" cx="255" cy="512" r="8" style="animation-delay:-12s"/>
+        <circle class="node" cx="112" cy="821" r="8" style="animation-delay:-15s"/>
+        <circle class="node" cx="398" cy="821" r="8" style="animation-delay:-18s"/>
+        <circle class="node" cx="84" cy="584" r="7" style="animation-delay:-21s"/>
+        <circle class="node" cx="426" cy="584" r="7" style="animation-delay:-24s"/>
+      </g>
+    </svg>
+    <div class="soft-vignette"></div>
+    <div class="rim-halo"></div>
+    <img class="character" src="../assets/head-angle-v2/secondb_head_angle_v2_r02_level_c01_front.png" alt="">
+  </main>
+</body>
+</html>
