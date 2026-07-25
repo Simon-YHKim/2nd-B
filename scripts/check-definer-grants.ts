@@ -48,7 +48,9 @@ const grantToAnonPublic =
 
 // Rule B helpers.
 const hasSecurityDefiner = /\bsecurity\s+definer\b/i;
-const revokesFromAnon = /revoke\s+execute\s+on\s+function[\s\S]*?\bfrom\s+[^;]*\banon\b/i;
+// Accept both `REVOKE EXECUTE ...` and `REVOKE ALL ...` (0056 uses ALL) FROM anon.
+const revokesFromAnon =
+  /revoke\s+(all|execute)\s+on\s+function[\s\S]*?\bfrom\s+[^;]*\banon\b/i;
 const triggerOnlyOptOut = /--\s*definer-grants-lint:\s*trigger-only/i;
 
 function migrationNumber(filename: string): number {
