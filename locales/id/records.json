@@ -11,6 +11,8 @@
   "filterAll": "Semua",
   "filterBy": "Saring catatan menurut {{label}}",
   "loadError": "Tidak dapat memuat serpihanmu.",
+  "emptyNoPieces": "Belum ada serpihan. Ingin meninggalkan serpihan hari ini?",
+  "emptyNoMatch": "Tidak ada serpihan yang cocok dengan filter itu.",
   "tryAgain": "Coba lagi",
   "retryHint": "Mencoba memuat catatan dan sumber lagi.",
   "leavePiece": "Tinggalkan serpihan hari ini",

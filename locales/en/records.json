@@ -11,6 +11,8 @@
   "filterAll": "All",
   "filterBy": "Filter records by {{label}}",
   "loadError": "Couldn't load your pieces.",
+  "emptyNoPieces": "No pieces yet. Want to leave today's piece?",
+  "emptyNoMatch": "No pieces match that filter.",
   "tryAgain": "Try again",
   "retryHint": "Retries loading records and sources.",
   "leavePiece": "Leave today's piece",

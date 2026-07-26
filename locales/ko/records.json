@@ -11,6 +11,8 @@
   "filterAll": "전체",
   "filterBy": "{{label}} 기록 필터",
   "loadError": "별가루를 불러오지 못했어요.",
+  "emptyNoPieces": "아직 남긴 별가루가 없어요. 오늘의 별가루를 하나 남겨볼까요?",
+  "emptyNoMatch": "조건에 맞는 별가루가 없어요.",
   "tryAgain": "다시 시도",
   "retryHint": "기록과 소스 목록을 다시 불러옵니다.",
   "leavePiece": "오늘의 별가루 남기기",
