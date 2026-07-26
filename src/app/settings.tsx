@@ -527,23 +527,6 @@ export default function Settings() {
       </View>
     );
 
-  const newSurfaceCopy =
-    locale === "ko"
-      ? {
-          news: "소식",
-          notices: "공지사항",
-          noticesSub: "패치노트 · 개발자 소식",
-          reasoning: "리즈닝",
-          reasoningSub: "자동 실행 · 자료 선택",
-        }
-      : {
-          news: "News",
-          notices: "Notices",
-          noticesSub: "Patch notes · developer news",
-          reasoning: "Reasoning",
-          reasoningSub: "Automatic runs · item selection",
-        };
-
   return (
     <Chrome>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -582,12 +565,12 @@ export default function Settings() {
         </M3Group>
 
         {/* 소식 */}
-        <M3SectionLabel>{newSurfaceCopy.news}</M3SectionLabel>
+        <M3SectionLabel>{t("news")}</M3SectionLabel>
         <M3Group>
           <M3LinkRow
             icon="campaign"
-            label={newSurfaceCopy.notices}
-            sub={newSurfaceCopy.noticesSub}
+            label={t("notices")}
+            sub={t("noticesSub")}
             badge={noticeCenter.unreadCount}
             onPress={() => router.push("/notices")}
           />
@@ -598,8 +581,8 @@ export default function Settings() {
         <M3Group>
           <M3LinkRow
             icon="bolt"
-            label={newSurfaceCopy.reasoning}
-            sub={newSurfaceCopy.reasoningSub}
+            label={t("reasoning")}
+            sub={t("reasoningSub")}
             onPress={() => router.push("/reasoning")}
           />
           {/* No placebo controls here (audit pattern A, same rule as M3LinkRow
