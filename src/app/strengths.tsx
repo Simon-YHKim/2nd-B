@@ -57,9 +57,10 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // fires after the save celebration so the caller reloads into the populated lens;
 // onCancel backs out of the intro (caller shows the not-measured state).
 function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
-  const { i18n } = useTranslation("home");
+  const { t, i18n } = useTranslation(["home", "common"]);
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const strengthsTitle = t("home:ds.axisCheck.strengths.headline");
 
   const [responses, setResponses] = useState<StrengthsResponses>({});
   const [submitting, setSubmitting] = useState(false);
@@ -106,7 +107,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "불러오는 중…" : "Loading…"} />
+        <PremiumLoadingState message={t("common:states.loading")} />
       </View>
     );
   }
@@ -136,7 +137,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
           scores: result.scores,
           confidence: result.confidence,
         }),
-        topic: locale === "ko" ? "강점 자기보고" : "Strengths self-report",
+        topic: strengthsTitle,
         summary,
         conclusion:
           locale === "ko"
@@ -165,7 +166,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
       {!started ? (
         <QuantIntroModal
           toolKey="strengths"
-          title={locale === "ko" ? "강점 자기보고" : "Strengths self-report"}
+          title={strengthsTitle}
           itemCount={STRENGTH_ITEMS.length}
           estimatedMinutes={3}
           description={
@@ -188,7 +189,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "강점 자기보고" : "Strengths self-report"}
+              {strengthsTitle}
             </Text>
             <Text variant="body" color="textMuted">
               {locale === "ko"
@@ -246,7 +247,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
             // med#7: first star ever -> one SecondB chat (activation). This
             // nudge lived only on /attachment; now every instrument takes it.
             if (consumeFirstStarChatNudge()) {
-              router.replace({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "강점 자기보고" : "Strengths self-report" } });
+              router.replace({ pathname: "/secondb", params: { fromNode: strengthsTitle } });
             } else {
               onComplete();
             }
