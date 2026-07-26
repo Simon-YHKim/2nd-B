@@ -479,6 +479,33 @@
             "name": "Relação",
             "note": "Você se move um pouco mais quando está com outros"
           }
+        },
+        "survey": {
+          "title": "Autoavaliação de motivação",
+          "loading": "Carregando…",
+          "description": "Uma autoavaliação curta sobre o que move você. Marque quanto cada frase combina com você, de 1 (nada parecido comigo) a 6 (muito parecido comigo). Não há respostas certas; é uma estimativa.",
+          "citation": "Baseada na teoria da autodeterminação (SDT) · estimativa por autoavaliação",
+          "instruction": "Quanto cada frase combina com você?",
+          "intrinsic": "Intrínseca",
+          "extrinsic": "Extrínseca",
+          "conclusion": "Estimativa por autoavaliação.",
+          "saveError": "Não foi possível salvar. Suas respostas continuam aqui; tente novamente.",
+          "saved": "Sua autoavaliação de motivação foi salva.",
+          "scale": {
+            "1": "Nada parecido comigo",
+            "2": "Pouco parecido comigo",
+            "3": "Um pouco diferente de mim",
+            "4": "Um pouco parecido comigo",
+            "5": "Parecido comigo",
+            "6": "Muito parecido comigo"
+          },
+          "exit": {
+            "notice": "Confirmação de saída",
+            "title": "Sair do questionário?",
+            "body": "Tem certeza de que deseja sair? Seu progresso não será salvo.",
+            "cancel": "Continuar",
+            "confirm": "Sair"
+          }
         }
       },
       "strengths": {

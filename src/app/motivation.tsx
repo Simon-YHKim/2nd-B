@@ -59,7 +59,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // fires after the save celebration so the caller reloads into the populated lens;
 // onCancel backs out of the intro (caller shows the not-measured state).
 function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
-  const { i18n } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -108,7 +108,7 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "불러오는 중…" : "Loading…"} />
+        <PremiumLoadingState message={t("ds.axisCheck.motivation.survey.loading")} />
       </View>
     );
   }
@@ -125,8 +125,8 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
     setSubmitting(true);
     try {
       const labels = locale === "ko" ? MOTIVATION_LABEL_KO : MOTIVATION_LABEL_EN;
-      const intr = locale === "ko" ? "내적" : "Intrinsic";
-      const extr = locale === "ko" ? "외적" : "Extrinsic";
+      const intr = t("ds.axisCheck.motivation.survey.intrinsic");
+      const extr = t("ds.axisCheck.motivation.survey.extrinsic");
       const topNeed = result.needs[0];
       // Summary is the real balance split + the top SDT need — never a hardcoded
       // example. The populated lens re-derives the same from the stored body.
@@ -144,12 +144,9 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
           extrinsicPct: result.extrinsicPct,
           confidence: result.confidence,
         }),
-        topic: locale === "ko" ? "동기 자기보고" : "Motivation self-report",
+        topic: t("ds.axisCheck.motivation.survey.title"),
         summary,
-        conclusion:
-          locale === "ko"
-            ? "자기보고 추정 (진단 아님)."
-            : "Self-report estimate (not a medical assessment).",
+        conclusion: t("ds.axisCheck.motivation.survey.conclusion"),
         tags: ["motivation", "assessment"],
         withFollowup: false,
       });
@@ -158,10 +155,7 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
       if (typeof console !== "undefined") console.warn("[motivation] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save. Your answers are still here; please try again.",
+        message: t("ds.axisCheck.motivation.survey.saveError"),
       });
     } finally {
       setSubmitting(false);
@@ -173,19 +167,11 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
       {!started ? (
         <QuantIntroModal
           toolKey="motivation"
-          title={locale === "ko" ? "동기 자기보고" : "Motivation self-report"}
+          title={t("ds.axisCheck.motivation.survey.title")}
           itemCount={MOTIVATION_ITEMS.length}
           estimatedMinutes={3}
-          description={
-            locale === "ko"
-              ? "무엇이 나를 움직이는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요."
-              : "A short self-report of what moves you. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment."
-          }
-          citation={
-            locale === "ko"
-              ? "자기결정성 이론(SDT)에서 착안 · 자기보고 추정"
-              : "Anchored to Self-Determination Theory (SDT) · self-report estimate"
-          }
+          description={t("ds.axisCheck.motivation.survey.description")}
+          citation={t("ds.axisCheck.motivation.survey.citation")}
           locale={locale}
           onStart={() => setStarted(true)}
           onCancel={onCancel}
@@ -196,12 +182,10 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "동기 자기보고" : "Motivation self-report"}
+              {t("ds.axisCheck.motivation.survey.title")}
             </Text>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "다음 문장이 당신과 얼마나 맞는지 골라주세요."
-                : "How well does each statement fit you?"}
+              {t("ds.axisCheck.motivation.survey.instruction")}
             </Text>
           </View>
 
@@ -226,7 +210,7 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
                     {locale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
                   <LikertChoiceGroup
-                    choices={SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
+                    choices={SCALE.map((s) => ({ value: s.value, label: t(`ds.axisCheck.motivation.survey.scale.${s.value}`) }))}
                     locale={locale}
                     onSelect={(next) => setResponse(item.id, next)}
                     question={`${item.id}. ${locale === "ko" ? item.ko : item.en}`}
@@ -234,10 +218,10 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
                   />
                   <View style={styles.scaleLegend}>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[0].ko : SCALE[0].en}
+                      {t("ds.axisCheck.motivation.survey.scale.1")}
                     </Text>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[5].ko : SCALE[5].en}
+                      {t("ds.axisCheck.motivation.survey.scale.6")}
                     </Text>
                   </View>
                 </View>
@@ -249,12 +233,12 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "동기 자기보고를 저장했어요." : "Your motivation self-report is saved."}
+          message={t("ds.axisCheck.motivation.survey.saved")}
           onDone={() => {
             // med#7: first star ever -> one SecondB chat (activation). This
             // nudge lived only on /attachment; now every instrument takes it.
             if (consumeFirstStarChatNudge()) {
-              router.replace({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "동기 자기보고" : "Motivation self-report" } });
+              router.replace({ pathname: "/secondb", params: { fromNode: t("ds.axisCheck.motivation.survey.title") } });
             } else {
               onComplete();
             }
@@ -271,23 +255,21 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "종료 확인" : "Exit confirmation"}
+        accessibilityLabel={t("ds.axisCheck.motivation.survey.exit.notice")}
       >
-        <Text variant="heading">{locale === "ko" ? "그만두시겠어요?" : "Leave the survey?"}</Text>
+        <Text variant="heading">{t("ds.axisCheck.motivation.survey.exit.title")}</Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {t("ds.axisCheck.motivation.survey.exit.body")}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "계속하기" : "Keep going"}
+            label={t("ds.axisCheck.motivation.survey.exit.cancel")}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
           />
           <Button
-            label={locale === "ko" ? "종료" : "Exit"}
+            label={t("ds.axisCheck.motivation.survey.exit.confirm")}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
