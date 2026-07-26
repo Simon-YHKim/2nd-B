@@ -12,7 +12,7 @@ Supabase MCP. No merge to main — this ships as a draft PR for review.
 
 | # | Risk | Prod finding | What changed (this branch) | Owner action remaining |
 |---|------|--------------|----------------------------|------------------------|
-| R9 | anon-callable DEFINER RPCs | **[verified]** `award_xp` + `bump_chat_usage` were anon-EXECUTE (both self-guard on `auth.uid()`; 27 others correct) | `0096` REVOKEs anon on both; `check:definer-grants` lint (in `verify`) blocks the next unrevoked DEFINER RPC | Apply `0096` to prod |
+| R9 | anon-callable DEFINER RPCs | **[verified]** `award_xp` + `bump_chat_usage` were anon-EXECUTE (both self-guard on `auth.uid()`; 27 others correct) | `0098` REVOKEs anon on both; `check:definer-grants` lint (in `verify`) blocks the next unrevoked DEFINER RPC | Apply `0098` to prod |
 | R4 | crisis-lexicon 4-copy drift | **[verified]** already covered | none — `crisis-terms-proxy-parity.test.ts` (3 copies) + `check:crisis-parity` (safety.ts markers) already in `verify` | none |
 | R12 | cap-table / bucket-format divergence | **[verified]** already pinned SQL↔TS; TS bucket fns untested | `usage-bucket-format.test.ts` pins `weekBucket()/monthBucket()` incl. ISO week-year boundary | none |
 | R7 | retention purge repo≠prod | **[verified]** all 6 purge jobs ACTIVE on pg_cron (nightly 04:00 UTC); `0067` activates them | corrected the misread: pointer note on the 0056 test; broadened lint regex | none |
@@ -27,7 +27,7 @@ Supabase MCP. No merge to main — this ships as a draft PR for review.
 
 ## Owner action checklist (nothing below was done automatically)
 
-1. **[R9] Apply migration 0096 to prod** (`REVOKE EXECUTE ... FROM anon` on `award_xp`,
+1. **[R9] Apply migration 0098 to prod** (`REVOKE EXECUTE ... FROM anon` on `award_xp`,
    `bump_chat_usage`). Safe: both self-guard on `auth.uid()`, `authenticated` retains
    EXECUTE, clients call as authenticated.
 2. **[R1] Legal + data-model decision** on overseas-transfer withdrawal, THEN make the

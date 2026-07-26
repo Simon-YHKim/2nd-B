@@ -9,7 +9,7 @@
 //
 // This bit the repo twice already (grant_reward_credits_ssv in 0079/0082 was
 // anon-callable = a monetization bypass) and a 2026-07-26 prod audit found
-// award_xp + bump_chat_usage still anon-EXECUTE. 0096 fixes those two; this lint
+// award_xp + bump_chat_usage still anon-EXECUTE. 0098 fixes those two; this lint
 // stops the next one from slipping in.
 //
 // Two rules:
@@ -18,7 +18,7 @@
 //   B (migrations numbered >= BASELINE): any file that CREATEs a SECURITY DEFINER
 //      function must ALSO contain a `REVOKE EXECUTE ON FUNCTION ... FROM anon`
 //      in the same file. Historical migrations (< BASELINE) are grandfathered --
-//      prod state was audited correct on 2026-07-26 (only the two 0096 fixes).
+//      prod state was audited correct on 2026-07-26 (only the two 0098 fixes).
 //
 // Escape hatch: a file that legitimately adds a trigger-only DEFINER function
 // (never exposed as an RPC, so no grant to revoke) may add the marker comment
@@ -31,9 +31,10 @@ import { join, relative } from "node:path";
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "db", "migrations");
 
-// Rule B applies from this migration number onward. 0096 is the first migration
-// authored under this lint; everything before it is grandfathered against the
-// audited-correct prod grant state (see 0096 header).
+// Rule B applies from this migration number onward (>= 96). Migrations before it
+// are grandfathered against the audited-correct prod grant state (2026-07-26).
+// New migrations at/after the baseline (main's 0097_ugc_block_report and this
+// branch's 0098) both comply -- each revokes anon in-file.
 const BASELINE = 96;
 
 const files = readdirSync(MIGRATIONS)

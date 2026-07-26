@@ -1,4 +1,7 @@
--- 0096: REVOKE anon EXECUTE on award_xp + bump_chat_usage (house-rule catch-up)
+-- 0098: REVOKE anon EXECUTE on award_xp + bump_chat_usage (house-rule catch-up)
+--
+-- (Renumbered 0096 -> 0098 so it applies AFTER main's 0097_ugc_block_report,
+-- restoring a monotonic sequence; the REVOKE is idempotent + order-independent.)
 --
 -- Prod audit (2026-07-26) found two SECURITY DEFINER functions still anon-EXECUTE
 -- while the other 27 are correctly anon=false:
