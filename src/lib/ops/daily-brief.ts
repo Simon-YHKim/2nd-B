@@ -56,7 +56,8 @@ const BRIEF_SYSTEM_PROMPT = {
 
 // Gemini-dialect schema: one optional recommendation array per life-area id.
 // Built from OPS_DOMAIN_IDS so a domain add/remove updates the schema for free.
-const BRIEF_SCHEMA: Record<string, unknown> = {
+// Exported for the conformance test only.
+export const BRIEF_SCHEMA: Record<string, unknown> = {
   type: "OBJECT",
   properties: Object.fromEntries(
     OPS_DOMAIN_IDS.map((d) => [d, { type: "ARRAY", items: OPS_RECOMMENDATION_ITEM_SCHEMA }]),

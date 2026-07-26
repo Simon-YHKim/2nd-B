@@ -57,10 +57,19 @@ function derivesIdentityFromJwtSub(code: string): boolean {
 
 // Requires the 'authenticated' role, not merely a valid (possibly anon) token.
 // For functions that import the shared helper, the role gate lives in the
-// shared module — accept it there, but only because the test below pins it.
+// shared module — accept it there ONLY when (a) the helper is actually CALLED
+// (import presence alone proves nothing), (b) the function has no inline
+// decode path of its own hiding behind the import, and (c) the shared module
+// carries the gate (pinned by its own test below).
 function requiresAuthenticatedRole(code: string): boolean {
   if (/role\s*(===|!==)\s*['"]authenticated['"]/.test(code)) return true;
-  return importsSharedJwtHelper(code) && /role\s*(===|!==)\s*['"]authenticated['"]/.test(sharedCode);
+  const hasInlineDecode = /JSON\.parse\(\s*atob\(/.test(code) && /\.sub\b/.test(code);
+  if (hasInlineDecode) return false;
+  return (
+    importsSharedJwtHelper(code) &&
+    /\buserIdFromJwt\s*\(/.test(code) &&
+    /role\s*(===|!==)\s*['"]authenticated['"]/.test(sharedCode)
+  );
 }
 
 describe("edge function JWT hardening (reject the anon-key JWT)", () => {

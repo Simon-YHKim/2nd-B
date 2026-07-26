@@ -145,7 +145,10 @@ export function buildClipperPrompt(
  *  format names are legal answers (the parser enum-clamps with safe defaults),
  *  and an enum here would forbid them. Props are typed from the SAME prop list
  *  the prompt advertises; an empty list omits `props` entirely (Gemini rejects
- *  an OBJECT node with no properties). Root OBJECT per the 전사 규약. */
+ *  an OBJECT node with no properties) — the prompt's "(none)" props block then
+ *  diverges cosmetically, but the schema wins under constrained decoding and
+ *  the parser reads `parsed.props ?? {}` either way (the prompt branch still
+ *  serves the schema-less mock path). Root OBJECT per the 전사 규약. */
 export function buildClipperSchema(propDefs: readonly ClipperAiProperty[]): Record<string, unknown> {
   const propProps: Record<string, unknown> = {};
   for (const p of propDefs) {

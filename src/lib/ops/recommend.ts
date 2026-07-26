@@ -50,7 +50,8 @@ const SYSTEM_PROMPT = {
 } as const;
 
 // Root-OBJECT envelope around the shared per-item schema (전사 규약).
-const OPS_RECOMMEND_SCHEMA = {
+// Exported for the conformance test only.
+export const OPS_RECOMMEND_SCHEMA = {
   type: "OBJECT",
   properties: {
     items: { type: "ARRAY", items: OPS_RECOMMENDATION_ITEM_SCHEMA },

@@ -9,6 +9,9 @@
 import { assertRootObjectSchema } from "../gemini";
 import { INGEST_SCHEMA } from "../../wiki/import-external";
 import { buildClipperSchema } from "../../wiki/classify-clipper";
+import { PROPOSE_TEMPLATE_SCHEMA } from "../../wiki/propose-template";
+import { OPS_RECOMMEND_SCHEMA } from "../../ops/recommend";
+import { BRIEF_SCHEMA } from "../../ops/daily-brief";
 import { parseOpsRecommendations } from "../../ops/recommend-parse";
 
 describe("schema-first surfaces conform to the root-OBJECT convention", () => {
@@ -16,6 +19,14 @@ describe("schema-first surfaces conform to the root-OBJECT convention", () => {
     expect(() =>
       assertRootObjectSchema(INGEST_SCHEMA as unknown as Record<string, unknown>),
     ).not.toThrow();
+  });
+
+  it("PROPOSE_TEMPLATE_SCHEMA, OPS_RECOMMEND_SCHEMA, BRIEF_SCHEMA", () => {
+    for (const schema of [PROPOSE_TEMPLATE_SCHEMA, OPS_RECOMMEND_SCHEMA, BRIEF_SCHEMA]) {
+      expect(() =>
+        assertRootObjectSchema(schema as unknown as Record<string, unknown>),
+      ).not.toThrow();
+    }
   });
 
   it("buildClipperSchema — with and without props", () => {

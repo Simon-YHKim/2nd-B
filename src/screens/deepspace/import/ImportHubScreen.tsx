@@ -205,16 +205,18 @@ export function ImportHubScreen() {
     if (chosen.length === 0) return;
     setBusy(true);
     setLedgerWarn(null);
-    // propose→ratify quality signal: counts only (chosen vs left unchecked),
-    // consent-gated inside captureEvent. Unchecked rows are the closest thing
-    // this flow has to a decline (there is no explicit reject button).
-    captureEvent(proposalDecided({ flow: "import", decision: "ratify", count: chosen.length }));
-    const unchecked = outcome.proposals.length - chosen.length;
-    if (unchecked > 0) {
-      captureEvent(proposalDecided({ flow: "import", decision: "decline", count: unchecked }));
-    }
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
+      // propose→ratify quality signal AFTER the import actually landed (a
+      // failed attempt must not count, and the retry path would double-count
+      // if this fired before the await — adversarial review 2026-07-26).
+      // Counts only, consent-gated inside captureEvent. Unchecked rows are the
+      // closest thing this flow has to a decline (no explicit reject button).
+      captureEvent(proposalDecided({ flow: "import", decision: "ratify", count: chosen.length }));
+      const unchecked = outcome.proposals.length - chosen.length;
+      if (unchecked > 0) {
+        captureEvent(proposalDecided({ flow: "import", decision: "decline", count: unchecked }));
+      }
       const s = outcome.summary;
       // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
       // captureFromMarkdown above already landed the summary note; this lands

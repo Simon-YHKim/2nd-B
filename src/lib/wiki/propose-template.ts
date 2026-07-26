@@ -25,8 +25,9 @@ import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 
 // Schema-first (2026-07-26): pins the proposal shape (this output reaches the
 // SHARED format store after ratification, so a malformed reply matters more
-// here than on private surfaces). Root OBJECT per the 전사 규약.
-const PROPOSE_TEMPLATE_SCHEMA = {
+// here than on private surfaces). Root OBJECT per the 전사 규약. Exported for
+// the conformance test only.
+export const PROPOSE_TEMPLATE_SCHEMA = {
   type: "OBJECT",
   properties: {
     slug: { type: "STRING" },

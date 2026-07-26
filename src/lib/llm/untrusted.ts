@@ -28,7 +28,13 @@ export function sanitizeUntrusted(s: string | null | undefined): string {
   return s
     .replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]")
     .replace(
-      /=== ?(HARD SAFETY|USER CONTEXT|RELEVANT EVIDENCE|BATCH NOTES|USER MESSAGE|YOUR RESPONSE)[^=]*===/gi,
+      // Single-line, length-bounded ([^=\n]{0,80}) on purpose: the legacy
+      // retrieve.ts [^=]* form spanned newlines, so one header prefix plus any
+      // later '===' run (a setext heading underline in a clipped page) could
+      // swallow everything in between — silently deleting legitimate content
+      // from the prompt (adversarial review 2026-07-26, reproduced). A real
+      // injected header sits on one line, so detection strength is unchanged.
+      /=== ?(HARD SAFETY|USER CONTEXT|RELEVANT EVIDENCE|BATCH NOTES|USER MESSAGE|YOUR RESPONSE)[^=\n]{0,80}===/gi,
       "[section]",
     )
     .replace(/\[SYSTEM\]/gi, "[user-sys]");
