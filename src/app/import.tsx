@@ -16,6 +16,7 @@ import { callGemini } from "@/lib/llm/gemini";
 import { wrapUntrusted } from "@/lib/llm/untrusted";
 import {
   buildExtractionPrompt,
+  INGEST_SCHEMA,
   INGEST_SYSTEM,
   parseIngestResult,
   renderIngestMarkdown,
@@ -89,7 +90,7 @@ function ImportExternalLegacy() {
     try {
       // Pasted third-party material is the classic injection channel — fence it
       // (was raw until 2026-07-26; INGEST_SYSTEM carries the matching guard line).
-      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: wrapUntrusted("import_material", raw.trim()), minor: isMinor === true });
+      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: wrapUntrusted("import_material", raw.trim()), minor: isMinor === true, responseSchema: INGEST_SCHEMA as unknown as Record<string, unknown> });
       setResult(parseIngestResult(reply.text, raw.trim()));
       setPhase("result");
     } catch (e) {

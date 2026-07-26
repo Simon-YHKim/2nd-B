@@ -99,6 +99,32 @@ export const INGEST_SYSTEM = [
   "- Keep the summary and titles in the same language as the input.",
 ].join("\n");
 
+// Schema-first (2026-07-26): pins the shape the regex parser expects. Root
+// OBJECT per the 전사 규약 (OpenAI/Phase-2 compat); the parser keeps its full
+// garbage tolerance for mock mode and legacy replies.
+export const INGEST_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    summary: { type: "STRING" },
+    track: { type: "STRING", format: "enum", enum: ["daily", "pro"] },
+    tags: { type: "ARRAY", items: { type: "STRING" } },
+    items: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          section: { type: "STRING", format: "enum", enum: [...IMPORT_SECTIONS] },
+          title: { type: "STRING" },
+          detail: { type: "STRING" },
+          confidence: { type: "STRING", format: "enum", enum: ["low", "medium", "high"] },
+        },
+        required: ["section", "title", "detail", "confidence"],
+      },
+    },
+  },
+  required: ["summary", "track", "tags", "items"],
+} as const;
+
 export interface ImportItem {
   section: ImportSection;
   title: string;

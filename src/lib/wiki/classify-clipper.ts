@@ -141,6 +141,39 @@ export function buildClipperPrompt(
   return { system, user: wrapUntrusted("clipped_material", content.trim().slice(0, 4000)) };
 }
 
+/** Schema-first (2026-07-26). `kind` stays a free STRING on purpose: custom
+ *  format names are legal answers (the parser enum-clamps with safe defaults),
+ *  and an enum here would forbid them. Props are typed from the SAME prop list
+ *  the prompt advertises; an empty list omits `props` entirely (Gemini rejects
+ *  an OBJECT node with no properties). Root OBJECT per the 전사 규약. */
+export function buildClipperSchema(propDefs: readonly ClipperAiProperty[]): Record<string, unknown> {
+  const propProps: Record<string, unknown> = {};
+  for (const p of propDefs) {
+    propProps[p.name] =
+      p.type === "number"
+        ? { type: "NUMBER" }
+        : p.type === "multitext"
+          ? { type: "ARRAY", items: { type: "STRING" } }
+          : { type: "STRING" };
+  }
+  return {
+    type: "OBJECT",
+    properties: {
+      kind: { type: "STRING" },
+      track: { type: "STRING", format: "enum", enum: ["daily", "pro"] },
+      targetCategory: { type: "STRING", format: "enum", enum: ["concepts", "entities", "projects"] },
+      simonRelevance: { type: "NUMBER" },
+      tags: { type: "ARRAY", items: { type: "STRING" } },
+      summary: { type: "STRING" },
+      actionableTakeaway: { type: "STRING" },
+      ...(propDefs.length > 0
+        ? { props: { type: "OBJECT", properties: propProps, required: [] } }
+        : {}),
+    },
+    required: ["kind", "track", "targetCategory", "simonRelevance", "tags", "summary", "actionableTakeaway"],
+  };
+}
+
 /** Parse + sanitize the LLM reply into a ClipperClassification. Pure → tested.
  *  Anchors every field on a safe default keyed off the URL-derived kind. */
 export function parseClipperResult(raw: string, fallbackKind: SourceKind, forcedKind?: SourceKind, propSchema?: readonly ClipperAiProperty[]): ClipperClassification {
@@ -249,7 +282,9 @@ export async function classifyClipper(
   if (matchedFormat) baselineKind = matchedFormat.baseKind;
 
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats, matchedFormat?.aiProperties);
-  const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user, minor, signal });
+  // Same prop-list resolution as buildClipperPrompt (matched format wins).
+  const propDefs = matchedFormat?.aiProperties ?? CLIPPER_TEMPLATES[baselineKind].aiProperties;
+  const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user, minor, signal, responseSchema: buildClipperSchema(propDefs) });
   // A matched trigger is an explicit routing override, so force the kind and its
   // prop schema to the authored format rather than letting the model pick.
   const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind, matchedFormat?.aiProperties);
