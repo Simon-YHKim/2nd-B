@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
 import { withAlpha } from "@/lib/theme/tokens";
@@ -9,15 +10,27 @@ export type DeepSpaceHubTab = "capture" | "secondb" | "trend" | "review";
 interface DockItem {
   key: DeepSpaceHubTab;
   icon: string;
-  label: string;
 }
 
 const DOCK_ITEMS: DockItem[] = [
-  { key: "capture", icon: "✎", label: "담기" },
-  { key: "secondb", icon: "💬", label: "세컨비" },
-  { key: "trend", icon: "◒", label: "트렌드" },
-  { key: "review", icon: "✓", label: "점검" },
+  { key: "capture", icon: "✎" },
+  { key: "secondb", icon: "💬" },
+  { key: "trend", icon: "◒" },
+  { key: "review", icon: "✓" },
 ];
+
+const DOCK_LABELS: Record<string, Record<DeepSpaceHubTab, string>> = {
+  en: { capture: "Capture", secondb: "SecondB", trend: "Trends", review: "Review" },
+  ko: { capture: "담기", secondb: "세컨비", trend: "트렌드", review: "점검" },
+  es: { capture: "Capturar", secondb: "SecondB", trend: "Tendencias", review: "Revisar" },
+  pt: { capture: "Capturar", secondb: "SecondB", trend: "Tendencias", review: "Revisar" },
+  id: { capture: "Tangkap", secondb: "SecondB", trend: "Tren", review: "Tinjau" },
+};
+
+function dockLabelsFor(language: string | undefined): Record<DeepSpaceHubTab, string> {
+  const base = language?.split("-")[0] ?? "en";
+  return DOCK_LABELS[base] ?? DOCK_LABELS.en;
+}
 
 interface DeepSpaceHubDockProps {
   active: DeepSpaceHubTab;
@@ -25,21 +38,26 @@ interface DeepSpaceHubDockProps {
 }
 
 export function DeepSpaceHubDock({ active, onChange }: DeepSpaceHubDockProps) {
+  const { i18n } = useTranslation();
+  const labels = dockLabelsFor(i18n.language);
+
   return (
     <View style={styles.wrap}>
       {DOCK_ITEMS.map((item) => {
         const selected = item.key === active;
+        const label = labels[item.key];
         return (
           <Pressable
             key={item.key}
             accessibilityRole="tab"
+            accessibilityLabel={label}
             accessibilityState={{ selected }}
             onPress={() => onChange(item.key)}
             style={styles.item}
             android_ripple={{ color: withAlpha(colors.cyan, 0.12) }}
           >
             <Text style={[styles.icon, selected ? styles.activeIcon : styles.inactiveIcon]}>{item.icon}</Text>
-            <Text style={[styles.label, selected ? styles.activeLabel : styles.inactiveLabel]}>{item.label}</Text>
+            <Text style={[styles.label, selected ? styles.activeLabel : styles.inactiveLabel]}>{label}</Text>
           </Pressable>
         );
       })}
