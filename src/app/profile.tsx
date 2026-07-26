@@ -120,7 +120,9 @@ function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
 }
 
 export default function Profile() {
-  const { t, i18n } = useTranslation("profile");
+  const { t } = useTranslation("profile");
+  const { t: tDeepSpace } = useTranslation("deepspace");
+  const { t: tHome } = useTranslation("home");
   const { t: tPlans } = useTranslation("plans");
   const { t: tCommon } = useTranslation("common");
   const { userId, loading } = useAuth();
@@ -191,7 +193,7 @@ export default function Profile() {
           { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
           { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
           { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
-          { key: "trends", label: i18n.language?.toLowerCase().startsWith("ko") ? "트렌드" : "Trends", route: "/brightness" },
+          { key: "trends", label: tDeepSpace("trends.title"), route: "/brightness" },
           // a2z audit 2026-07-11: /growth (주간 변화 리뷰) shipped fully
           // data-wired but had ZERO reachable entry on the deep-space surface
           // (its only links lived in the legacy-only GraphScreen strip).
@@ -212,7 +214,7 @@ export default function Profile() {
           // deep-link redirect to /persona, which has its own entry above, so a
           // menu item promising an MBTI screener was a broken promise.
           { key: "attachment", label: sections.know.items.attachment.label, route: "/attachment" },
-          { key: "seen", label: i18n.language?.toLowerCase().startsWith("ko") ? "보여지는 나" : "Seen self", route: "/seen" },
+          { key: "seen", label: tHome("ds.home.starName.seen"), route: "/seen" },
           // Trinity was retired from the canonical menu (CONCEPT.md: Brain
           // Trinity is legacy, rollback skin only — same reasoning as the MBTI
           // removal above); /trinity now redirects deep-space users to
