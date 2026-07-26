@@ -98,7 +98,138 @@
 
 ---
 
-## Latest — 2026-07-19 (S5) / 6세션 병렬 발주 최종 검수·통합 — S1~S4 PR 11건 머지 + P0-1 해소 + 0095 프로드
+## Latest — 2026-07-26 / 커뮤니티 UGC 차단·신고 랜딩(#1131 · 0097) + Play·ASC 스토어 등록 완주 — 남은 병목은 EAS 빌드 하나
+
+> Cowork P1(코드) ↔ P2(콘솔) 왕복 세션. 코드 2건 머지 + 양 스토어 메타데이터 사실상 완주.
+> **막힌 곳은 딱 하나: #1131 을 담은 빌드가 없다.** Android 는 fingerprint 불일치로 EAS 빌드 2회 실패,
+> iOS 는 07-20 빌드밖에 없다. 이걸 풀면 양 스토어가 동시에 열린다.
+
+### 어디까지 왔나
+- main HEAD: `ace55df4`
+- 이번 세션 머지된 PR:
+  - **#1131** `feat(community)` 커뮤니티 공유 클리퍼 형식의 차단·신고 (마이그레이션 **0097**) — Play UGC 정책 대응
+  - **#1132** `fix(support)` support 주소를 실재하는 메일박스로 교체
+  - ⚠️ `ace55df4`(#1133 LLM injection fences)는 **타 세션 산출물** — 이 세션과 무관
+- 테스트: `npm run verify` 그린 (**392 suites / 3,063 tests**, 두 PR 각각)
+- working tree: `E:\2ndB` 는 fleet 공용이라 상시 dirty (untracked 다수) — 정상
+
+### #1131 이 실제로 한 일 (요약)
+공개 UGC 는 커뮤니티 클리퍼 형식 목록 **하나뿐**. `clipper_templates.is_shared=true` 가 이름·설명·속성
+스키마를 전 사용자에게 공개한다. 0097 은 `template_blocks` + `content_reports` + 별도 집계 테이블
+`clipper_template_moderation` 을 추가하고 **`clipper_templates` READ POLICY 를 교체**했다.
+
+- **게이트는 클라이언트가 아니라 RLS.** 조회 함수에 소유자 필터가 없고 앱이 공개 anon 키를 싣는다.
+  덤으로 `classify-clipper.ts` 가 공유 형식명을 Gemini 프롬프트에 넣는 두 번째 경로도 같이 막혔다.
+- 신고 사유는 **고정 enum**(자유 텍스트 금지) — 0064 결정 #6 재적용.
+- 집계는 별도 테이블. 0027 이 테이블 권한을 선언하지 않아, 카운터를 `clipper_templates` 에 두면
+  **작성자가 자기 신고수를 수정**할 수 있었다.
+- 검증: CI 는 마이그레이션을 적용만 하므로, 같은 `pgvector:pg16` 이미지에서 **RLS 를 실제 실행**해
+  15개 항목 확인(위조 reporter_id 42501 거부 / 집계 클라이언트 쓰기 불가 / 신고 append-only /
+  타인 신고 열람 0 / anon 권한 0). 적대적 리뷰 29건 중 3건 생존 → 수정 + 변이 테스트로 가드 검증.
+  그중 하나는 **기능을 무력화할 접근성 결함**(신고·차단 버튼이 카드 Pressable 안에 중첩 → 스크린리더 도달 불가).
+
+### 활성 인프라
+- Supabase `zoacryukmdeivmolvyhj` / 신규 마이그레이션 **0097** (⚠️ **prod 적용 여부 미확인 — 다음 세션 확인 필요**)
+- EAS: 계정 `simon_k` / project `2nd-brain` / **versionCode 는 원격 관리값**(app.json 의 7 이 아니라 18 까지 소모)
+- Play Console: 대시보드 **11/11 완료**, 비공개 테스트 2/5, Alpha 트랙 ID `4699963527811527343`, 국가 **KR 단독**
+  - IARC 발급 완료(전 기관 최저: 만3세 / PEGI 3 / ESRB 전체이용가), 상호작용 요소 '사용자 상호작용'
+  - 연락처·의견창구 = `kim0405@hayangzip.com` (MX `smtp.google.com` 검증됨)
+- ASC: App ID `6792266942` / iOS 0.1.0 Prepare for Submission / **Release = Manually**(자동 공개 차단)
+  - 스크린샷 3장(1284×2778) · Description · Keywords · Promotional Text · Copyright 저장 완료
+  - App Privacy 는 이미 게시됨(11종) — Advertising Data 제거가 진행 중 발주
+- 스토어 자산 전부: `E:\Coding Infra\reports\store-assets\`
+  (icon-512 / feature-graphic-1024x500 / screenshot-1~3 / ios-screenshot-1~3 / store-listing-en.txt /
+  release-notes-en.txt / ios-metadata.txt)
+
+### 다음 작업 큐
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **EAS production 빌드 fingerprint 해소** — Linux CI(GitHub Actions)에서 EAS 빌드 트리거 | medium | ⭐ **양 스토어 공통 병목. 이거 하나가 전부를 막고 있다** |
+| B | `0097` prod 적용 여부 확인 후 미적용이면 적용 | small | A 와 병행 가능 |
+| C | `app.json` `updates.requestHeaders` 채널 정리 (preview 하드코딩 ↔ production 프로필 불일치) | small | A 성공 후 별건 PR |
+| D | 미래 부채 4건 — 기능을 켜는 PR 안에서 스토어 설문 동반 수정 | - | 잊으면 허위 진술이 된다 |
+
+**A 의 진단은 끝나 있다** (다시 파지 말 것):
+- 실패 원인 = 빌드 worktree 의 `node_modules` **junction**. fingerprint 가 실경로를 따라가
+  `../../node_modules/...`(프로젝트 밖)으로 계산 → 로컬/EAS 해시 불일치 → `Runtime version mismatch`.
+  junction 상태에서 로컬 해시 `94359bee…` 가 실패 로그값과 **정확히 재현**됨(밖 경로 332/346).
+- junction 링크만 제거(`cmd /c rmdir`) + worktree 전용 `npm ci --legacy-peer-deps` → 332→**0/182**,
+  해시 `52e6980e…`. 그래도 EAS(`3f4d46e5…`)와 불일치 → 잔여 차이는 **Windows CRLF vs Linux LF**.
+- **기각한 우회**: `expo install --check`(효과 없이 fleet 30+ worktree 공유 트리·lockfile 흔듦),
+  `policy: appVersion` 되돌리기(`check:ota-runtime` 이 fingerprint 강제 + #1066 런타임 격리 후퇴).
+- 크레딧 0 사전검증: `npx expo-updates fingerprint:generate --platform android`
+- 인프라: `eas-preview-build.yml` / `eas-ios-build.yml` 존재. `android-release.yml` 은 로컬 gradle 진단용 APK 라 AAB 경로 아님.
+
+**D 미래 부채 목록** (전부 "기능 ON = 스토어 설문 수정" 쌍):
+1. `HAS_LIVE_AD_UNIT` → true 시 ① ASC App Privacy 에 Advertising Data 재추가 ② Play 광고 답변 '예' ③ UMP 흐름 실검증
+2. IAP 활성화 시 IARC "디지털 상품 구매" 문항 '예'
+
+### Simon 직접 처리 대기 (P1·P2 모두 불가)
+| 항목 | 왜 Simon 만 |
+|---|---|
+| **Play 테스터 12명 Gmail** | 실제 사람 12명이 링크 열고 '참여 선택'까지 해야 14일 시계가 켜짐. **마지노선 08-03** |
+| ASC App Review **Password** | 비밀번호 — 에이전트 미입력 규칙 |
+| ASC **Contact Information** | 개인정보. 제출 차단 후보로 지목됨 → 빌드 대기 중 미리 처리 권고 |
+| **DSA 거래자 상태** | 주소·전화. ⚠️ EU 배포를 안 하면 **불필요해질 수 있음**(Play 를 KR 단독으로 잡은 근거가 iOS 에도 동일 적용) |
+| **앱 이름 통일** | Play `2nd-Brain: Self Knowledge` vs ASC `2nd-B: My Constellation`. P1 권고는 통일, 단 "My Constellation" 의 컨셉 전달력이 더 좋음 → Simon 선택. 제출 승인 시점에는 확정 필요 |
+| **XPRIZE 요건** | 제출이 '프로덕션 게시'인지 '비공개 테스트 배포'인지. 레포에 rulebook 전문 없음(§04 은 자산 등록 조항뿐) |
+
+### ⏰ 일정 (지배적 제약)
+Play 프로덕션 액세스 = **테스터 12명이 참여 선택한 상태로 14일 실행**(트랙 생성이 시계를 켜지 않는다).
+```
+08-03  12명 참여 완료 마지노선
+08-17  14일 충족 = XPRIZE 마감 (여유 0일)
+```
+그 전에 스크린샷·등록정보(완료) + AAB 업로드 + **비공개 테스트 첫 게시(Play 검토 통과)** 가 끝나야 한다.
+프로덕션 게시가 XPRIZE 요건이면 실패 가능성이 실질적이고, 비공개 테스트 배포로 충분하면 여유가 있다.
+
+### 적용 중인 정책 (영구)
+1. **auto-merge on green** — CI 그린이면 squash auto-merge.
+2. **외부 도달 값(이메일·URL)은 코드 반영 전에 DNS/MX 로 실재 확인.**
+   `support@2nd-brain.app` 이 **미등록 도메인**인 채 7곳에 퍼져 있던 원인이 정확히 이 확인의 부재였다.
+3. **EAS 빌드용 worktree 에 `node_modules` junction 금지.** fingerprint 가 프로젝트 밖 경로로 계산돼 빌드가 실패한다.
+   일반 개발·verify 에는 junction 이 맞지만 **EAS 빌드만은 예외**로 `npm ci`.
+4. junction 제거는 반드시 `cmd /c rmdir`(링크만). `rm -rf` 는 타겟을 따라가 **공유 node_modules 를 지운다**.
+5. **전송 2종 미클릭** — Play '검토를 위해 앱 전송' / ASC 'Add for Review' 는 Simon 명시 승인 전까지 금지.
+6. Cowork **P1(코드) ↔ P2(콘솔)** 발주 프로토콜. 발주/회신은 `════` 블록 + HTML 리포트 동시 산출.
+7. 스토어 문구는 **파일로 전달**(클립보드 경유 금지 — P2 가 클립보드 덮어쓰기 사고를 겪음).
+
+### 핵심 파일 위치
+```
+db/migrations/0097_ugc_block_report.sql          UGC 차단·신고 스키마 + 교체된 READ POLICY
+src/lib/wiki/moderation.ts                      임계값(3) + 신고 사유 enum
+src/lib/wiki/moderation-queries.ts              report/block/unblock/listBlocked
+src/app/formats.tsx                             커뮤니티 카드 신고·차단 UI (/formats?view=manager)
+src/lib/wiki/__tests__/ugc-block-report-migration.test.ts   0097 구조 핀
+src/lib/wiki/__tests__/formats-moderation-surface.test.ts    a11y·레이스 회귀 가드(변이 테스트됨)
+src/lib/ads/rewarded.native.ts:51               HAS_LIVE_AD_UNIT (광고 실노출 단일 지점)
+E:\Coding Infra\reports\store-assets\           양 스토어 자산·문구 전부
+E:\Coding Infra\reports\ticket-T-P*.html        이번 세션 발주·회신 리포트
+```
+
+### ⚠️ QA 함정 (반복 주의)
+- 커뮤니티 목록은 **`/formats?view=manager`** 에서만 열린다. 맨 `/formats` 는 무관한 **내보내기** 화면.
+  `/formats` 로 들어가 테스트하면 엉뚱한 화면을 본 것이다.
+- 스토어 스크린샷용 라우트로 **`/insights` 금지** — 빈 계정에서 "이번주 0 · ▼100% 적게 담았어요" 가 뜬다.
+- 웹 스크린샷 촬영법·함정 3개는 메모리 `reference_2ndb_web_screenshots` 참조
+  (1080 CSS 뷰포트=태블릿 레이아웃 / Git Bash 라우트 경로변환 / 코치마크 화면 흐림).
+
+### 검증
+```bash
+npm run verify        # lint + tsc + i18n(5 locale) + lexicon + cycles + 392 suites
+npx expo-updates fingerprint:generate --platform android   # EAS 빌드 전 사전검증(크레딧 0)
+```
+
+### 다음 세션 시작하는 법
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A 작업(EAS 빌드 fingerprint 해소)부터 시작 — 진단은 위에 다 있으니 재조사 불필요
+```
+
+---
+
+## 2026-07-19 (S5) / 6세션 병렬 발주 최종 검수·통합 — S1~S4 PR 11건 머지 + P0-1 해소 + 0095 프로드
 
 ### 어디까지 왔나
 - S5 게이트 세션이 발주 `da6be790`(#1088)에서 S1~S4 전 PR을 framework-aware 정밀검수 → 머지순서(S1→S2→S3→S4) 준수 머지. 4-AI 토론은 전건 불요 판정(사전스펙/기존불변식(C12) 집행/스타일-only, green 넘어 diff 전독·실증 결정적 — 위양성 방지).
