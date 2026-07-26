@@ -17,7 +17,6 @@ import { Redirect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Text } from "@/components/ui/Text";
-import { MdButton } from "@/components/m3";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
@@ -156,15 +155,28 @@ export default function Onboarding() {
       )}
 
       {isAuth ? (
+        // #680-safe primary CTA: a bare Pressable inside a styled wrapper View,
+        // NOT MdButton. MdButton renders a Pressable with FUNCTION-AS-CHILDREN
+        // ({({pressed}) => ...}); on Android Fabric (newArchEnabled=true) that is
+        // an unguarded sibling of the #680 function-STYLE class -- the source
+        // reads fine but the touch target silently vanishes, so Get started took
+        // taps yet never fired (rc2 emulator QA blocker, docs/qa/rc2-260721).
+        // Mirrors the Next CTA below exactly: visuals on the wrapper, the
+        // Pressable is a plain touch surface. The launch/repo-wide MdButton
+        // hardening is the separate follow-up (2단계).
         <View style={styles.authBar}>
-          <MdButton
-            variant="filled"
-            label={authLabel}
-            accessibilityLabel={authLabel}
-            accessibilityHint={authHint}
-            onPress={goToAuth}
-            style={styles.authBtn}
-          />
+          <View style={styles.authBtnWrap}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={authLabel}
+              accessibilityHint={authHint}
+              onPress={goToAuth}
+              style={styles.authPress}
+              android_ripple={{ color: withAlpha(deepSpace.onAccent, 0.12) }}
+            >
+              <Text variant="body" style={styles.authText}>{authLabel}</Text>
+            </Pressable>
+          </View>
         </View>
       ) : (
         <View style={styles.bottomBar}>
@@ -276,5 +288,21 @@ const styles = StyleSheet.create({
   nextText: { color: deepSpace.onAccent, fontSize: 15 },
 
   authBar: { paddingBottom: 28 },
-  authBtn: { alignSelf: "stretch" },
+  // #680-safe filled CTA: colour + shape on the wrapper (like nextBtn), the
+  // Pressable is a plain touch surface. Visually matches the old filled
+  // MdButton (accent fill, onAccent label, stadium radius, min 48, stretch).
+  authBtnWrap: {
+    alignSelf: "stretch",
+    borderRadius: 9999,
+    backgroundColor: deepSpace.accent,
+    overflow: "hidden",
+  },
+  authPress: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+  authText: { color: deepSpace.onAccent, fontSize: 15, fontWeight: "600" },
 });
