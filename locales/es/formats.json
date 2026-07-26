@@ -16,7 +16,26 @@
   "community": {
     "heading": "Formatos de la comunidad",
     "headingWithCount": "Formatos de la comunidad ({{count}})",
-    "empty": "Aún no hay formatos de la comunidad. Cuando alguien comparta uno, aparecerá aquí."
+    "empty": "Aún no hay formatos de la comunidad. Cuando alguien comparta uno, aparecerá aquí.",
+    "blockedCount": "Autores bloqueados: {{count}}",
+    "unblockAll": "Desbloquear todo"
+  },
+  "moderation": {
+    "action": "Reportar o bloquear",
+    "sheetLabel": "Reportar o bloquear este formato",
+    "title": "Reportar o bloquear",
+    "body": "Al reportar, el formato queda oculto en tu lista. Con tres reportes queda oculto para todos.",
+    "reportHeading": "¿Por qué lo reportas?",
+    "reasons": {
+      "spam": "Spam o publicidad",
+      "off_topic": "No es un formato de archivo",
+      "offensive": "Lenguaje inapropiado",
+      "impersonation": "Se hace pasar por otra persona",
+      "other": "Otro motivo"
+    },
+    "blockHeading": "Bloquear a este autor",
+    "blockBody": "Sus formatos compartidos dejan de aparecer en tu lista.",
+    "block": "Bloquear autor"
   },
   "builtIn": {
     "headingWithCount": "Formatos integrados ({{count}})"
@@ -52,7 +71,13 @@
     "deleteFailed": "No se pudo eliminar.",
     "saveSuccess": "Formato guardado.",
     "saveFailed": "No se pudo guardar.",
-    "addSuccess": "Formato agregado."
+    "addSuccess": "Formato agregado.",
+    "reportSuccess": "Reportado. Este formato queda oculto en tu lista.",
+    "reportFailed": "No se pudo enviar el reporte.",
+    "blockSuccess": "Bloqueado. Sus formatos quedan ocultos en tu lista.",
+    "blockFailed": "No se pudo bloquear.",
+    "unblockSuccess": "Bloqueos eliminados.",
+    "unblockFailed": "No se pudieron eliminar los bloqueos."
   },
   "deleteModal": {
     "label": "Confirmación de eliminación de formato",
