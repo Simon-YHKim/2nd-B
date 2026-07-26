@@ -15,6 +15,7 @@
 // Edge Function) the same code path produces the structured output.
 
 import { callGemini } from "@/lib/llm/gemini";
+import { INJECTION_GUARD, wrapUntrusted } from "@/lib/llm/untrusted";
 import { getEnv } from "@/lib/env";
 
 import { getSource } from "./queries";
@@ -64,11 +65,16 @@ const PHASE1_SCHEMA = {
   required: ["summary", "entities", "concepts", "questions", "category", "tags", "relevance", "keep"],
 } as const;
 
+// The clipped page body is arbitrary web content — the single most
+// injection-exposed input in the app — so it rides inside an <UNTRUSTED>
+// fence with the shared guard line (was unfenced until 2026-07-26).
 const SYSTEM_PROMPT = {
   en:
-    "You are a careful reading assistant. Read the source markdown and emit JSON with: a 3-5 sentence summary, an `entities` array (people / orgs / works named in the text), a `concepts` array (3-7 abstract ideas the text develops), and a `questions` array of exactly 4 reflection prompts the reader can sit with. Also classify the source into exactly one `category` from: work, relation, knowledge, records, taste, rhythm. Suggest 3-7 short `tags`. Give a `relevance` integer from 1 to 5 for how useful this is for the reader's self-understanding and growth, and a `keep` boolean that is false only for spam, ads, or content with no personal value. Use the reader's locale.",
+    "You are a careful reading assistant. Read the source markdown and emit JSON with: a 3-5 sentence summary, an `entities` array (people / orgs / works named in the text), a `concepts` array (3-7 abstract ideas the text develops), and a `questions` array of exactly 4 reflection prompts the reader can sit with. Also classify the source into exactly one `category` from: work, relation, knowledge, records, taste, rhythm. Suggest 3-7 short `tags`. Give a `relevance` integer from 1 to 5 for how useful this is for the reader's self-understanding and growth, and a `keep` boolean that is false only for spam, ads, or content with no personal value. Use the reader's locale. " +
+    INJECTION_GUARD.en,
   ko:
-    "당신은 신중한 독해 보조자입니다. 소스 마크다운을 읽고 다음 JSON을 만들어 주세요: 3-5문장 요약, 본문에 등장한 사람/조직/저작물의 `entities` 배열, 본문이 다루는 3-7개의 추상 개념 `concepts` 배열, 그리고 독자가 음미할 수 있는 정확히 4개의 성찰 질문 `questions` 배열. 또한 소스를 work, relation, knowledge, records, taste, rhythm 중 정확히 하나의 `category`로 분류하고, 3-7개의 짧은 `tags`를 제안하세요. 독자의 자기 이해와 성장에 얼마나 유용한지 `relevance`를 1에서 5 사이 정수로, 그리고 스팸·광고·개인적 가치가 전혀 없는 콘텐츠일 때만 false인 `keep` 불리언을 함께 주세요. 독자의 언어에 맞춰 답하세요.",
+    "당신은 신중한 독해 보조자입니다. 소스 마크다운을 읽고 다음 JSON을 만들어 주세요: 3-5문장 요약, 본문에 등장한 사람/조직/저작물의 `entities` 배열, 본문이 다루는 3-7개의 추상 개념 `concepts` 배열, 그리고 독자가 음미할 수 있는 정확히 4개의 성찰 질문 `questions` 배열. 또한 소스를 work, relation, knowledge, records, taste, rhythm 중 정확히 하나의 `category`로 분류하고, 3-7개의 짧은 `tags`를 제안하세요. 독자의 자기 이해와 성장에 얼마나 유용한지 `relevance`를 1에서 5 사이 정수로, 그리고 스팸·광고·개인적 가치가 전혀 없는 콘텐츠일 때만 false인 `keep` 불리언을 함께 주세요. 독자의 언어에 맞춰 답하세요. " +
+    INJECTION_GUARD.ko,
 };
 
 /**
@@ -189,7 +195,7 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
     purpose: "source_ingest",
     minor: input.minor,
     system: SYSTEM_PROMPT[input.locale],
-    user: `Title: ${source.title}\n\n${body}`,
+    user: `Title: ${wrapUntrusted("source_title", source.title)}\n\n${wrapUntrusted("source_body", body)}`,
     model: "flash",
     responseSchema: env.EXPO_PUBLIC_LLM_MODE === "mock" ? undefined : (PHASE1_SCHEMA as Record<string, unknown>),
   });

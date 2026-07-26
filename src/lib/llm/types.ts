@@ -215,11 +215,12 @@ export const PURPOSE_TIER: Partial<Record<PromptPurpose, GeminiModel>> = {
   // explicitly since #1063; this row makes the table agree with them).
   reasoning_connect: "pro",
   imagine: "pro",
-  // Proto rev2 routing seats. digest_weekly is the highest-stakes causal claim
-  // -> pro on the Gemini backbone; cluster_infer (now live: the /reasoning
-  // domain-link batches, which pass model:"pro" explicitly per the #1063
-  // implementation — explicit model wins over this table) and
-  // ttfv_first_insight are structured/precompute -> flash.
+  // Proto rev2 routing seats, all still call-site-less (verified 2026-07-26):
+  // the /reasoning domain-link batches ship under purpose reasoning_connect
+  // above, NOT cluster_infer — do not reuse cluster_infer for them (its Phase-2
+  // routing seat re-routes to OpenAI). digest_weekly is the highest-stakes
+  // causal claim -> pro; cluster_infer and ttfv_first_insight are
+  // structured/precompute -> flash.
   digest_weekly: "pro",
   cluster_infer: "flash",
   ttfv_first_insight: "flash",

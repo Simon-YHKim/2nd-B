@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { callGemini } from "@/lib/llm/gemini";
+import { wrapUntrusted } from "@/lib/llm/untrusted";
 import {
   buildExtractionPrompt,
   INGEST_SYSTEM,
@@ -86,7 +87,9 @@ function ImportExternalLegacy() {
     setPhase("analyzing");
     setDegraded(false);
     try {
-      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: raw.trim(), minor: isMinor === true });
+      // Pasted third-party material is the classic injection channel — fence it
+      // (was raw until 2026-07-26; INGEST_SYSTEM carries the matching guard line).
+      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: wrapUntrusted("import_material", raw.trim()), minor: isMinor === true });
       setResult(parseIngestResult(reply.text, raw.trim()));
       setPhase("result");
     } catch (e) {

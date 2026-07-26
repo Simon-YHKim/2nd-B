@@ -21,6 +21,7 @@ import { detectClipperKind } from "./clipper-kind";
 import { toSlug } from "./slug";
 import { SOURCE_KINDS, type SourceKind } from "./types";
 import { sanitizeTag } from "./tags";
+import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 
 export interface ProposedClipperTemplate {
   slug: string;
@@ -58,6 +59,8 @@ export function buildProposeTemplatePrompt(
           '  "aiProperties": [ { "name": "kebab-key", "type": "text"|"multitext"|"number", "describe": { "en": "...", "ko": "..." } } ]  (1-3개) }',
           "",
           `자료 URL: ${url ?? "(없음)"}`,
+          "",
+          INJECTION_GUARD.ko,
         ].join("\n")
       : [
           "The material the user clipped does not fit any of the 8 existing clipper formats well.",
@@ -76,8 +79,11 @@ export function buildProposeTemplatePrompt(
           '  "aiProperties": [ { "name": "kebab-key", "type": "text"|"multitext"|"number", "describe": { "en": "...", "ko": "..." } } ]  (1-3 items) }',
           "",
           `Material URL: ${url ?? "(none)"}`,
+          "",
+          INJECTION_GUARD.en,
         ].join("\n");
-  return { system, user: content.trim().slice(0, 4000) };
+  // Clipped material is arbitrary web content — fence it (was raw until 2026-07-26).
+  return { system, user: wrapUntrusted("clipped_material", content.trim().slice(0, 4000)) };
 }
 
 function asPair(v: unknown): { en: string; ko: string } {

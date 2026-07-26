@@ -15,6 +15,7 @@
 // The synthesis NEVER writes the self-model; it is a proposal (propose->ratify).
 
 import { callGemini } from "../llm/gemini";
+import { INJECTION_GUARD, sanitizeUntrusted } from "../llm/untrusted";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { LadderLevel } from "./brightness";
 import { isDomainId, type DomainId } from "./domain-stars";
@@ -120,6 +121,8 @@ export function buildPersonaSynthesisPrompt(
           '{ "personas": [ { "id": "역할 슬러그", "label": "역할 이름",',
           '   "evidence": { "domains": ["..."], "constructs": ["..."] },',
           '   "summary": "한두 문장 요약", "strengths": ["강점", ...], "advice": "조언 한 줄" } ] }',
+          "",
+          INJECTION_GUARD.ko,
         ].join("\n")
       : [
           "Synthesize the user's life-domain summaries and validation-framework (construct) estimates into 1-3 representative personas (roles / hats). Return strict JSON only.",
@@ -132,17 +135,21 @@ export function buildPersonaSynthesisPrompt(
           '{ "personas": [ { "id": "role-slug", "label": "Role name",',
           '   "evidence": { "domains": ["..."], "constructs": ["..."] },',
           '   "summary": "one or two sentences", "strengths": ["strength", ...], "advice": "one-line advice" } ] }',
+          "",
+          INJECTION_GUARD.en,
         ].join("\n");
 
+  // topTags and prior persona labels are the only user-influenced strings in
+  // this otherwise-numeric prompt — sanitize them (raw until 2026-07-26).
   const domainLines = input.domainSummaries
-    .map((d) => `- ${d.domain}: L${d.level}, ${d.itemCount} items${d.topTags?.length ? ` (${d.topTags.join(", ")})` : ""}`)
+    .map((d) => `- ${d.domain}: L${d.level}, ${d.itemCount} items${d.topTags?.length ? ` (<UNTRUSTED type="tags">${sanitizeUntrusted(d.topTags.join(", "))}</UNTRUSTED>)` : ""}`)
     .join("\n");
   const constructLines = input.constructEstimates
     .map((c) => `- ${c.construct}: L${c.level}${c.domains?.length ? ` (from ${c.domains.join(", ")})` : ""}`)
     .join("\n");
   const priorLines = input.priorPersonas?.length
     ? `\n\nPrior personas (propose a diff, keep stable ones):\n` +
-      input.priorPersonas.map((p) => `- ${p.label} [${p.evidence.domains.join("/")}]`).join("\n")
+      input.priorPersonas.map((p) => `- <UNTRUSTED type="persona_label">${sanitizeUntrusted(p.label)}</UNTRUSTED> [${sanitizeUntrusted(p.evidence.domains.join("/"))}]`).join("\n")
     : "";
   const user = `Domains:\n${domainLines}\n\nConstructs:\n${constructLines}${priorLines}`;
   return { system, user };

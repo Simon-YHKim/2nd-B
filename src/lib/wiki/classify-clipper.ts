@@ -9,6 +9,7 @@
 // defaults anchored on the URL-derived kind, so a capture never fails to save.
 
 import { callGemini } from "../llm/gemini";
+import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { detectClipperKind } from "./clipper-kind";
 import {
   CLIPPER_TEMPLATES,
@@ -109,6 +110,8 @@ export function buildClipperPrompt(
           "  } }",
           "",
           `자료 URL: ${url ?? "(없음)"}`,
+          "",
+          INJECTION_GUARD.ko,
         ].join("\n")
       : [
           "Classify the web material the user clipped into their 2nd-Brain using the Obsidian clipper kinds.",
@@ -130,9 +133,12 @@ export function buildClipperPrompt(
           "  } }",
           "",
           `Material URL: ${url ?? "(none)"}`,
+          "",
+          INJECTION_GUARD.en,
         ].join("\n");
 
-  return { system, user: content.trim().slice(0, 4000) };
+  // Clipped material is arbitrary web content — fence it (was raw until 2026-07-26).
+  return { system, user: wrapUntrusted("clipped_material", content.trim().slice(0, 4000)) };
 }
 
 /** Parse + sanitize the LLM reply into a ClipperClassification. Pure → tested.

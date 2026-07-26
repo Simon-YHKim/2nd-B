@@ -11,6 +11,7 @@
 //   - Output is parsed defensively: the model proposes, this module clamps.
 
 import { callGemini } from "../llm/gemini";
+import { sanitizeUntrusted } from "../llm/untrusted";
 import type { SystemLocale } from "../i18n/locales";
 import { exportUserWiki } from "../wiki/export";
 import { buildOpsDailyBrief, getOpsDailyBrief } from "./daily-brief";
@@ -26,10 +27,6 @@ export { OPS_MAX_RECOMMENDATIONS, parseOpsRecommendations };
 export type { OpsRecommendation };
 
 const SNAPSHOT_CHAR_LIMIT = 600;
-
-function sanitizeUntrusted(s: string): string {
-  return s.replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]").replace(/\[SYSTEM\]/gi, "[user-sys]");
-}
 
 const SYSTEM_PROMPT = {
   en: [
