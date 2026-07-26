@@ -75,6 +75,15 @@ const SOURCES: ImportSource[] = [
   { key: "calendar", icon: "🗓", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
 ];
 
+// F7 (C10): the parser kinds behind the minor-locked comms/location tiles. Derived
+// from SOURCES so it never drifts. runAnalyze re-checks the CONTENT-DETECTED kind
+// against this, because content-sniffing can route a locked export (a KakaoTalk /
+// SMS / Takeout-location file) through a NON-locked tile (e.g. Notion/markdown),
+// which openSource's tile-level lock alone does not stop.
+const MINOR_LOCKED_KINDS = new Set<ImportKind>(
+  SOURCES.filter((s) => s.minorLocked && s.kind !== "unknown").map((s) => s.kind),
+);
+
 const TIER_COLOR: Record<Tier, string> = {
   critical: deepSpace.dangerText,
   sensitive: deepSpace.warning,
@@ -140,6 +149,14 @@ export function ImportHubScreen() {
     }
     const detected = detectImportKind(fileName, content);
     const kind = detected === "unknown" ? active.kind : detected;
+    // F7 (C10): re-apply the minor lock to the DETECTED kind. openSource blocks the
+    // locked TILES, but a minor can open a non-locked tile and feed a comms/location
+    // export whose content sniffs to kakao/sms/takeout-location; without this the
+    // kakao/sms branch would run and store message-derived snippets in `sources`.
+    if (isMinor === true && MINOR_LOCKED_KINDS.has(kind)) {
+      setErrored(true);
+      return;
+    }
     const out = buildProposals(kind, content);
     if (out.proposals.length === 0) {
       setErrored(true);
