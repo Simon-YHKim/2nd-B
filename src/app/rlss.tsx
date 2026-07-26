@@ -51,7 +51,7 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 // wraps it in DeepSpaceScreen, legacy in PremiumAppShell. onComplete fires after
 // the save celebration (caller decides where to go); onCancel backs out of intro.
 function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
-  const { t, i18n } = useTranslation("rlss");
+  const { t, i18n } = useTranslation(["rlss", "common"]);
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -133,10 +133,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
       if (typeof console !== "undefined") console.warn("[rlss] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save. Your answers are still here; please try again.",
+        message: t("common:errors.unknown"),
       });
     } finally {
       setSubmitting(false);
@@ -242,7 +239,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "종료 확인" : "Exit confirmation"}
+        accessibilityLabel={t("title")}
       >
         <Text variant="heading">{locale === "ko" ? "그만두시겠어요?" : "Leave the survey?"}</Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
@@ -252,13 +249,13 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "계속하기" : "Keep going"}
+            label={t("common:actions.continue")}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
           />
           <Button
-            label={locale === "ko" ? "종료" : "Exit"}
+            label={t("common:actions.back")}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
