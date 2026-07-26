@@ -434,15 +434,15 @@ Deno.serve(async (req: Request) => {
     // counter exists to stop replay loops, and a batch of 50 counts as ONE call.
     let tierRank: number | null = null;
     {
-      const { data: tierRow, error: tierErr } = await supabaseAdmin
-        .from('users')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .maybeSingle();
+      // F6: effective tier (expiry-collapsed + judge-comped), not the raw column.
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
       if (tierErr) {
-        console.error('[gemini-proxy] tier lookup failed (embed):', tierErr.message ?? String(tierErr));
+        console.error('[gemini-proxy] effective-tier lookup failed (embed):', tierErr.message ?? String(tierErr));
       } else {
-        const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+        const t = (effTier as string | null) ?? 'free';
         tierRank = TIER_RANK[t] ?? 0;
       }
     }
@@ -664,20 +664,25 @@ Deno.serve(async (req: Request) => {
     gc.responseSchema = responseSchema;
   }
 
-  // Tier lookup (service-role, same client as the spend cap). Fail-open on a
-  // lookup ERROR — availability first, the daily cap below still bounds the
-  // damage — but an explicit sub-brain row fails CLOSED for premium purposes.
+  // Tier lookup (service-role, same client as the spend cap). F6: resolve the
+  // EFFECTIVE tier via effective_subscription_tier (0088) -- NOT the raw
+  // subscription_tier column. The raw column stays 'brain'/'cortex' after expiry
+  // until the cancel webhook lands, so reading it let a lapsed subscriber keep the
+  // brain-only premium purposes + the brain daily ceiling; it also 403'd a judge
+  // (raw tier 'free' + judge_mode) despite the C6 comp. The RPC collapses
+  // expired->free and comps judge->brain, matching the cap RPCs exactly. Fail-open
+  // on a lookup ERROR (availability first; the daily cap still bounds damage), but
+  // an explicit sub-brain effective tier fails CLOSED for premium purposes.
   let tierRank: number | null = null;
   {
-    const { data: tierRow, error: tierErr } = await supabaseAdmin
-      .from('users')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .maybeSingle();
+    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+      'effective_subscription_tier',
+      { p_user_id: userId },
+    );
     if (tierErr) {
-      console.error('[gemini-proxy] tier lookup failed:', tierErr.message ?? String(tierErr));
+      console.error('[gemini-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
-      const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+      const t = (effTier as string | null) ?? 'free';
       tierRank = TIER_RANK[t] ?? 0;
     }
   }
