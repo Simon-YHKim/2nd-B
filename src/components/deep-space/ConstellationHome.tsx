@@ -99,6 +99,111 @@ type BubbleState =
   | { kind: "star"; id: HomeStarId };
 
 type ReasoningBubbleMode = "available" | "automatic" | "running" | "depleted";
+type HomeReasoningLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const HOME_REASONING_COPY: Record<
+  HomeReasoningLocale,
+  {
+    reasoningTag: string;
+    notices: string;
+    running: string;
+    depleted: string;
+    automatic: string;
+    choose: string;
+    baseLeft: (count: number) => string;
+    rewardLeft: (count: number) => string;
+    adReward: (count: number) => string;
+    viewPlans: string;
+    viewProgress: string;
+    chooseItems: string;
+    automaticButton: string;
+  }
+> = {
+  en: {
+    reasoningTag: "REASONING",
+    notices: "Notices",
+    running: "I'm reading your selected items and connecting their stars.",
+    depleted: "You've used this week's base runs. They refill Monday.",
+    automatic: "Automatic reasoning is on. New items connect right away.",
+    choose: "Choose the items whose stars you want to connect.",
+    baseLeft: (count) => `You have ${count} runs left this week. What should we connect?`,
+    rewardLeft: (count) => `Weekly base is used. ${count} reward runs are available.`,
+    adReward: (count) => `Watch an ad for ${count} runs`,
+    viewPlans: "View plans",
+    viewProgress: "View progress",
+    chooseItems: "Choose items",
+    automaticButton: "Automatic",
+  },
+  ko: {
+    reasoningTag: "리즈닝",
+    notices: "공지사항",
+    running: "선택한 자료를 읽고 별을 잇는 중이에요.",
+    depleted: "이번 주 기본 횟수를 다 썼어요. 월요일에 다시 채워져요.",
+    automatic: "자동 리즈닝이 켜져 있어요. 새 자료를 담으면 바로 이어요.",
+    choose: "필요한 자료를 골라 별을 이어볼까요?",
+    baseLeft: (count) => `이번 주 ${count}회 남았어요. 어떤 자료를 이을까요?`,
+    rewardLeft: (count) => `주간 기본은 다 썼어요. 보상 ${count}회를 쓸 수 있어요.`,
+    adReward: (count) => `광고 보고 ${count}회 받기`,
+    viewPlans: "플랜 보기",
+    viewProgress: "진행 화면 보기",
+    chooseItems: "자료 선택",
+    automaticButton: "자동 설정",
+  },
+  es: {
+    reasoningTag: "RAZONAMIENTO",
+    notices: "Avisos",
+    running: "Estoy leyendo tus elementos seleccionados y conectando sus estrellas.",
+    depleted: "Ya usaste las ejecuciones base de esta semana. Se recargan el lunes.",
+    automatic: "El razonamiento automatico esta activo. Los nuevos elementos se conectan al instante.",
+    choose: "Elige los elementos cuyas estrellas quieres conectar.",
+    baseLeft: (count) => `Te quedan ${count} ejecuciones esta semana. ¿Que conectamos?`,
+    rewardLeft: (count) => `La base semanal se uso. Hay ${count} ejecuciones de recompensa disponibles.`,
+    adReward: (count) => `Ver un anuncio por ${count} ejecuciones`,
+    viewPlans: "Ver planes",
+    viewProgress: "Ver progreso",
+    chooseItems: "Elegir elementos",
+    automaticButton: "Automatico",
+  },
+  pt: {
+    reasoningTag: "RACIOCINIO",
+    notices: "Avisos",
+    running: "Estou lendo os itens selecionados e conectando suas estrelas.",
+    depleted: "Voce usou as execucoes base desta semana. Elas voltam na segunda.",
+    automatic: "O raciocinio automatico esta ativo. Novos itens se conectam na hora.",
+    choose: "Escolha os itens cujas estrelas voce quer conectar.",
+    baseLeft: (count) => `Voce tem ${count} execucoes nesta semana. O que vamos conectar?`,
+    rewardLeft: (count) => `A base semanal acabou. ${count} execucoes de recompensa estao disponiveis.`,
+    adReward: (count) => `Ver um anuncio por ${count} execucoes`,
+    viewPlans: "Ver planos",
+    viewProgress: "Ver progresso",
+    chooseItems: "Escolher itens",
+    automaticButton: "Automatico",
+  },
+  id: {
+    reasoningTag: "PENALARAN",
+    notices: "Pengumuman",
+    running: "Aku sedang membaca item pilihanmu dan menghubungkan bintangnya.",
+    depleted: "Jatah dasar minggu ini sudah habis. Akan terisi lagi Senin.",
+    automatic: "Penalaran otomatis aktif. Item baru langsung terhubung.",
+    choose: "Pilih item yang bintangnya ingin kamu hubungkan.",
+    baseLeft: (count) => `Minggu ini tersisa ${count} kali. Apa yang perlu kita hubungkan?`,
+    rewardLeft: (count) => `Jatah dasar mingguan sudah habis. ${count} jatah hadiah tersedia.`,
+    adReward: (count) => `Tonton iklan untuk ${count} kali`,
+    viewPlans: "Lihat paket",
+    viewProgress: "Lihat progres",
+    chooseItems: "Pilih item",
+    automaticButton: "Otomatis",
+  },
+};
+
+function homeReasoningLocale(language: string | undefined): HomeReasoningLocale {
+  const code = language?.toLowerCase() ?? "en";
+  if (code.startsWith("ko")) return "ko";
+  if (code.startsWith("es")) return "es";
+  if (code.startsWith("pt")) return "pt";
+  if (code.startsWith("id")) return "id";
+  return "en";
+}
 
 // Static t=0 frame of the prototype's neural field (seed 99173, mulberry32):
 // 24 drifting glow nodes + 46 pin stars + <96px connection arcs, with the
@@ -256,7 +361,7 @@ export function ConstellationHome({
 }) {
   const { t, i18n } = useTranslation("home");
   const { userId, isMinor } = useAuth();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
+  const reasoningCopy = HOME_REASONING_COPY[homeReasoningLocale(i18n.language)];
   const noticeCenter = useNoticeCenter(userId);
   const coachmarksDue = useCoachmarksGate();
   const progression = useProgression();
@@ -328,9 +433,7 @@ export function ConstellationHome({
 
   const bubbleTag =
     bubble.kind === "reasoning"
-      ? ko
-        ? "리즈닝"
-        : "REASONING"
+      ? reasoningCopy.reasoningTag
       : bubble.kind === "menu"
           ? t("ds.home.bubble.menuTag")
           : bubble.kind === "star"
@@ -340,32 +443,18 @@ export function ConstellationHome({
   const bubbleLine =
     bubble.kind === "reasoning"
       ? task.phase === "running" && task.resultHref === "/reasoning"
-        ? ko
-          ? "선택한 자료를 읽고 별을 잇는 중이에요."
-          : "I'm reading your selected items and connecting their stars."
+        ? reasoningCopy.running
         : reasoningStatus.remaining !== null && reasoningStatus.remaining <= 0
-          ? ko
-            ? "이번 주 기본 횟수를 다 썼어요. 월요일에 다시 채워져요."
-            : "You've used this week's base runs. They refill Monday."
+          ? reasoningCopy.depleted
           : reasoningStatus.automatic
-            ? ko
-              ? "자동 리즈닝이 켜져 있어요. 새 자료를 담으면 바로 이어요."
-              : "Automatic reasoning is on. New items connect right away."
+            ? reasoningCopy.automatic
             : reasoningStatus.remaining === Infinity
-              ? ko
-                ? "필요한 자료를 골라 별을 이어볼까요?"
-                : "Choose the items whose stars you want to connect."
+              ? reasoningCopy.choose
               : reasoningStatus.remaining === null
-                ? ko
-                  ? "필요한 자료를 골라 별을 이어볼까요?"
-                  : "Choose the items whose stars you want to connect."
+                ? reasoningCopy.choose
                 : reasoningStatus.baseRemaining !== null && reasoningStatus.baseRemaining > 0
-                  ? ko
-                    ? `이번 주 ${reasoningStatus.baseRemaining}회 남았어요. 어떤 자료를 이을까요?`
-                    : `You have ${reasoningStatus.baseRemaining} runs left this week. What should we connect?`
-                  : ko
-                    ? `주간 기본은 다 썼어요. 보상 ${reasoningStatus.rewardCredits}회를 쓸 수 있어요.`
-                    : `Weekly base is used. ${reasoningStatus.rewardCredits} reward runs are available.`
+                  ? reasoningCopy.baseLeft(reasoningStatus.baseRemaining)
+                  : reasoningCopy.rewardLeft(reasoningStatus.rewardCredits)
       : bubble.kind === "menu"
           ? t("ds.home.bubble.menu")
           : bubble.kind === "star"
@@ -428,7 +517,7 @@ export function ConstellationHome({
             setManualNoticeVisible(true);
           }}
           accessibilityRole="button"
-          accessibilityLabel={ko ? "공지사항" : "Notices"}
+          accessibilityLabel={reasoningCopy.notices}
           hitSlop={14}
         >
           <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -614,7 +703,7 @@ export function ConstellationHome({
                         cheap sync subset: adult + free + rewarded build flag. */}
                     {isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (
                       <MdButton
-                        label={ko ? `광고 보고 ${REWARD_PER_WATCH}회 받기` : `Watch an ad for ${REWARD_PER_WATCH} runs`}
+                        label={reasoningCopy.adReward(REWARD_PER_WATCH)}
                         variant="filled"
                         onPress={() => {
                           setBubble({ kind: "intro" });
@@ -623,7 +712,7 @@ export function ConstellationHome({
                       />
                     ) : null}
                     <MdButton
-                      label={ko ? "플랜 보기" : "View plans"}
+                      label={reasoningCopy.viewPlans}
                       variant="tonal"
                       onPress={() => {
                         setBubble({ kind: "intro" });
@@ -636,12 +725,8 @@ export function ConstellationHome({
                     <MdButton
                       label={
                         reasoningMode === "running"
-                          ? ko
-                            ? "진행 화면 보기"
-                            : "View progress"
-                          : ko
-                            ? "자료 선택"
-                            : "Choose items"
+                          ? reasoningCopy.viewProgress
+                          : reasoningCopy.chooseItems
                       }
                       variant="filled"
                       onPress={() => {
@@ -651,7 +736,7 @@ export function ConstellationHome({
                     />
                     {reasoningMode !== "running" ? (
                       <MdButton
-                        label={ko ? "자동 설정" : "Automatic"}
+                        label={reasoningCopy.automaticButton}
                         variant="tonal"
                         onPress={() => {
                           setBubble({ kind: "intro" });
