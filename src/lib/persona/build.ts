@@ -38,6 +38,7 @@ import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
 import type { LadderLevel } from "./brightness";
 import { soulCoreBrightness, type StarId } from "./stars";
 import { deriveStarLevels } from "./star-levels";
+import { loadStandingRatifiedTiers } from "./load-ratified-tiers";
 import { loadEsmCount } from "./esm-count";
 import { recordStarTiers } from "./record-star-tiers";
 
@@ -741,7 +742,12 @@ export async function buildPersona(
   // from the card's own signals (compute-on-build; persistence is a later unit
   // per D9). Deterministic + LLM-free - the INSTRUMENT layer decides the levels.
   const esmCount = await loadEsmCount(userId);
-  persona.starLevels = deriveStarLevels(persona, esmCount);
+  // F8: fold in the standing ratified tiers so a deterministic rebuild never
+  // regresses a user-ratified star. The lifted levels drive brightness AND are what
+  // gets persisted below, so the rebuild row reads 5->5 (no phantom "down" nudge)
+  // and the ratified L5 stays lit on the home constellation.
+  const standingRatified = await loadStandingRatifiedTiers(userId);
+  persona.starLevels = deriveStarLevels(persona, esmCount, standingRatified);
   persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
   // D9 (memo §10): persist this build's tiers so detectTierShift can later spot a
   // changed tendency. Fire-and-forget + best-effort - never blocks the build.
