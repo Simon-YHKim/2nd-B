@@ -6,7 +6,7 @@
 
 import dayjs from "dayjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { digitalConsentAge } from "../auth/consent-age";
+import { digitalConsentAge, resolveJurisdiction } from "../auth/consent-age";
 import type { ConsentSelections } from "../auth/consent-selections";
 import { isJudgeEmail } from "../judge/domains";
 import { getEnv } from "../env";
@@ -19,9 +19,10 @@ import * as Crypto from "expo-crypto";
 // (Article 22-2); users 14+ may consent themselves under the general provisions
 // (Articles 15/17/22) with age-appropriate notice. Under 14 requires verifiable
 // guardian consent (added in a later PR); until then they are blocked here.
-// Sourced from the jurisdiction matrix (task F); KR-assumed until country
-// detection exists, so the live floor is the KR value (14).
-export const MIN_SELF_CONSENT_AGE = digitalConsentAge("KR");
+// Sourced from the jurisdiction matrix (task F) via the single resolveJurisdiction()
+// seam (defaults to KR until a real country signal exists), so the live floor is the
+// KR value (14) unless an operator pins EXPO_PUBLIC_JURISDICTION for QA.
+export const MIN_SELF_CONSENT_AGE = digitalConsentAge(resolveJurisdiction());
 
 export class AgeGateError extends Error {
   constructor() {

@@ -18,7 +18,7 @@ import {
   setAnalyticsConsent,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
-import { requiresGuardianConsent } from "@/lib/auth/consent-age";
+import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
@@ -367,7 +367,7 @@ function AnalyticsConsentSync(): null {
         const ext =
           (data?.privacy_prefs as { external_analytics?: boolean } | null)?.external_analytics === true;
         const age = data?.birth_date ? ageInYears(data.birth_date as string) : null;
-        const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, "KR");
+        const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, resolveJurisdiction());
         // AuthContext also derives isMinor from birth_date. Require BOTH views
         // to say "adult"; missing or contradictory data stays blocked.
         const under18 = age === null || age < 18 || isMinor !== false;

@@ -37,3 +37,23 @@ export function digitalConsentAge(jurisdiction?: Jurisdiction | null): number {
 export function requiresGuardianConsent(age: number, jurisdiction?: Jurisdiction | null): boolean {
   return age < digitalConsentAge(jurisdiction);
 }
+
+/**
+ * THE single seam for "which jurisdiction's rules apply to this user". There is
+ * no reliable country signal yet (locale != country), so this returns the
+ * documented current assumption — KR (the app ships KR-first) — but every gate
+ * routes through here instead of a scattered literal "KR". When a real signal
+ * (SIM region / IP geo / an explicit profile field) lands, thread it in HERE and
+ * every age gate upgrades at once. An operator may pin a market for testing via
+ * EXPO_PUBLIC_JURISDICTION (KR|US|EU); direct process.env read so babel inlines it.
+ *
+ * WARNING: this is NOT production multi-market support. Serving non-KR markets on
+ * their own floors needs legal sign-off first (per-EU-member values, the signal
+ * itself, LEXICON_LAST_LEGAL_REVIEW). Until then the default stays KR so behavior
+ * is unchanged; the override exists for QA/staging, not a real geo rollout.
+ */
+export function resolveJurisdiction(): Jurisdiction {
+  const raw = (process.env.EXPO_PUBLIC_JURISDICTION ?? "").trim().toUpperCase();
+  if (raw === "KR" || raw === "US" || raw === "EU") return raw;
+  return "KR";
+}
