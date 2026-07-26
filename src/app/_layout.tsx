@@ -18,7 +18,7 @@ import {
   setAnalyticsConsent,
 } from "@/lib/analytics";
 import { AuthProvider, useAuth } from "@/lib/auth/AuthContext";
-import { requiresGuardianConsent } from "@/lib/auth/consent-age";
+import { requiresGuardianConsent, resolveJurisdiction } from "@/lib/auth/consent-age";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { flushAuditWriteOutbox } from "@/lib/llm/audit-write-outbox";
 import { ageInYears } from "@/lib/supabase/auth";
@@ -249,7 +249,7 @@ function markIntroPlayed(): void {
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
-  const { userId, loading, hasProfile } = useAuth();
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
   const segments = useSegments();
   // Play the cell-team intro only once per tab session. On re-entry (tab
   // switch back, navigating home, a fresh auth event) we go straight to the
@@ -286,7 +286,18 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // holds: "/" (DeepSpaceShell) forces hasProfile===false to /complete-profile
   // before onboarding, and onboarding exits back through "/". Per-screen redirects
   // stay as defense-in-depth.
-  if (!loading && userId && hasProfile === false && segments[0] !== "(auth)" && segments[0] !== "onboarding") {
+  // F4: `!profileProbeFailed` — a TRANSIENT profile-probe failure publishes
+  // hasProfile===false; do not eject a registered user to /complete-profile (DOB +
+  // consent re-entry) on a network blip. The genuine no-profile state (a real server
+  // answer, profileProbeFailed===false) still redirects. AuthContext re-probes.
+  if (
+    !loading &&
+    userId &&
+    hasProfile === false &&
+    !profileProbeFailed &&
+    segments[0] !== "(auth)" &&
+    segments[0] !== "onboarding"
+  ) {
     return <Redirect href="/complete-profile" />;
   }
 
@@ -367,7 +378,7 @@ function AnalyticsConsentSync(): null {
         const ext =
           (data?.privacy_prefs as { external_analytics?: boolean } | null)?.external_analytics === true;
         const age = data?.birth_date ? ageInYears(data.birth_date as string) : null;
-        const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, "KR");
+        const underDigitalConsentAge = age !== null && requiresGuardianConsent(age, resolveJurisdiction());
         // AuthContext also derives isMinor from birth_date. Require BOTH views
         // to say "adult"; missing or contradictory data stays blocked.
         const under18 = age === null || age < 18 || isMinor !== false;

@@ -36,7 +36,35 @@ type AuditWriteEntry =
   | (AuditWriteBase & { kind: "crisis_event"; payload: CrisisEventInsert });
 
 const STORAGE_KEY = "llm.auditWriteOutbox.v1";
+// Bound on NON-critical (green/yellow ai_audit_log) entries -- the AsyncStorage /
+// OOM guard (ANDROID_QA_GUIDELINES 2MB). Safety-critical entries get a separate,
+// larger cap so C3 crisis evidence is never the first thing evicted during a
+// delivery-failure / migration window (F3).
 const MAX_OUTBOX_ENTRIES = 100;
+const MAX_CRITICAL_ENTRIES = 500;
+
+// C3-critical = a crisis_event, or an ai_audit_log row that recorded a RED
+// interception. These prove the classifier caught dangerous input, so they must
+// survive eviction ahead of routine green/yellow audit rows.
+function isCriticalEntry(e: AuditWriteEntry): boolean {
+  return (
+    e.kind === "crisis_event" ||
+    (e.kind === "ai_audit_log" && (e.payload as AiAuditInsert).safetyZone === "red")
+  );
+}
+
+// Keep ALL critical entries (up to a large safety cap) and evict only the OLDEST
+// non-critical entries to stay within MAX_OUTBOX_ENTRIES. Preserves the original
+// chronological order (deliver() drains oldest-first). Replaces the old blanket
+// slice(-100) that discarded early-session crisis rows first.
+// Exported for unit testing (F3); not part of the runtime API surface.
+export function boundOutbox(queue: AuditWriteEntry[]): AuditWriteEntry[] {
+  const critical = queue.filter(isCriticalEntry);
+  if (critical.length === 0) return queue.slice(-MAX_OUTBOX_ENTRIES);
+  const keptCritical = new Set(critical.slice(-MAX_CRITICAL_ENTRIES));
+  const keptNormal = new Set(queue.filter((e) => !isCriticalEntry(e)).slice(-MAX_OUTBOX_ENTRIES));
+  return queue.filter((e) => keptCritical.has(e) || keptNormal.has(e));
+}
 
 let memoryOutbox: AuditWriteEntry[] = [];
 let queueChain: Promise<void> = Promise.resolve();
@@ -108,7 +136,7 @@ async function readQueue(): Promise<AuditWriteEntry[]> {
 }
 
 async function writeQueue(queue: AuditWriteEntry[]): Promise<void> {
-  const bounded = queue.slice(-MAX_OUTBOX_ENTRIES);
+  const bounded = boundOutbox(queue);
   const raw = JSON.stringify(bounded);
   memoryOutbox = bounded;
   const local = ls();

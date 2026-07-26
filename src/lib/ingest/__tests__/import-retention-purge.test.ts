@@ -40,7 +40,12 @@ describe("0056_import_retention_purge.sql — structure", () => {
     expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION purge_unreflected_import_data\(int\) TO service_role/);
   });
 
-  test("ships OFF — no active pg_cron schedule (activation is commented only)", () => {
+  // NOTE: this asserts the 0056 FILE ships the function OFF (no cron here). The
+  // schedule is turned ON by db/migrations/0067_retention_activation.sql
+  // (Simon-ratified 2026-07-03). Prod audit 2026-07-26 confirmed all 6 purge jobs
+  // ACTIVE on pg_cron (nightly 04:00 UTC). So "ships OFF" is scoped to this file,
+  // not "purge never runs" -- do not read it as the latter.
+  test("ships OFF in THIS file — activation lives in 0067 (verified active in prod)", () => {
     expect(sql).not.toMatch(/^\s*SELECT cron\.schedule/m);
     expect(sql).not.toMatch(/^\s*CREATE EXTENSION IF NOT EXISTS pg_cron/m);
   });

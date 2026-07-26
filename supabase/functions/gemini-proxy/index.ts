@@ -266,11 +266,14 @@ const CRISIS_TERMS_KO: readonly string[] = [
 // Hangul (iOS/macOS clipboard, imported clips) against the NFC-authored lexicon.
 // Mirrors src/lib/safety/classifier.ts:matchesTerm — keep the two in sync.
 function normalizeForMatch(text: string): string {
-  return text.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+  // NFKC (not NFC): folds full-width/compatibility Latin to ASCII so IME full-width
+  // crisis phrases match the lexicon; strictly more conservative, KO unaffected. Keep
+  // this in sync with src/lib/safety/classifier.ts + _shared normalizeForMatch.
+  return text.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ');
 }
 
 function matchesTermEn(lowerHaystack: string, term: string): boolean {
-  const t = term.normalize('NFC').toLowerCase();
+  const t = term.normalize('NFKC').toLowerCase();
   if (t.length === 0) return false;
   const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
   // Scan every occurrence: a term embedded in a larger word at its first
@@ -373,6 +376,13 @@ Deno.serve(async (req: Request) => {
   // (consent_changes/0062 + users.privacy_prefs treat overseas transfer as
   // withdrawable per PIPA 37 / GDPR 7(3)), this grant-only read must ALSO honor
   // withdrawal before the flag is enabled - resolve with legal/data-model first.
+  // Recommended effective-consent formula (adopt in all 3 proxies before enabling):
+  //   effective = latest consent_records grant (llm+overseas acks true)
+  //               AND the driving external-processing pref in users.privacy_prefs
+  //               is still ON (i.e. no later consent_changes 'revoke' for it).
+  // Which pref(s) map to "overseas transfer" is the open legal decision.
+  // See docs/RISK-REMEDIATION-260726.md (R1). claude-proxy + openai-proxy carry
+  // the same NOTE (parity).
   if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
     let consentOk = false;
     try {
@@ -424,15 +434,15 @@ Deno.serve(async (req: Request) => {
     // counter exists to stop replay loops, and a batch of 50 counts as ONE call.
     let tierRank: number | null = null;
     {
-      const { data: tierRow, error: tierErr } = await supabaseAdmin
-        .from('users')
-        .select('subscription_tier')
-        .eq('id', userId)
-        .maybeSingle();
+      // F6: effective tier (expiry-collapsed + judge-comped), not the raw column.
+      const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+        'effective_subscription_tier',
+        { p_user_id: userId },
+      );
       if (tierErr) {
-        console.error('[gemini-proxy] tier lookup failed (embed):', tierErr.message ?? String(tierErr));
+        console.error('[gemini-proxy] effective-tier lookup failed (embed):', tierErr.message ?? String(tierErr));
       } else {
-        const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+        const t = (effTier as string | null) ?? 'free';
         tierRank = TIER_RANK[t] ?? 0;
       }
     }
@@ -654,20 +664,25 @@ Deno.serve(async (req: Request) => {
     gc.responseSchema = responseSchema;
   }
 
-  // Tier lookup (service-role, same client as the spend cap). Fail-open on a
-  // lookup ERROR — availability first, the daily cap below still bounds the
-  // damage — but an explicit sub-brain row fails CLOSED for premium purposes.
+  // Tier lookup (service-role, same client as the spend cap). F6: resolve the
+  // EFFECTIVE tier via effective_subscription_tier (0088) -- NOT the raw
+  // subscription_tier column. The raw column stays 'brain'/'cortex' after expiry
+  // until the cancel webhook lands, so reading it let a lapsed subscriber keep the
+  // brain-only premium purposes + the brain daily ceiling; it also 403'd a judge
+  // (raw tier 'free' + judge_mode) despite the C6 comp. The RPC collapses
+  // expired->free and comps judge->brain, matching the cap RPCs exactly. Fail-open
+  // on a lookup ERROR (availability first; the daily cap still bounds damage), but
+  // an explicit sub-brain effective tier fails CLOSED for premium purposes.
   let tierRank: number | null = null;
   {
-    const { data: tierRow, error: tierErr } = await supabaseAdmin
-      .from('users')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .maybeSingle();
+    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+      'effective_subscription_tier',
+      { p_user_id: userId },
+    );
     if (tierErr) {
-      console.error('[gemini-proxy] tier lookup failed:', tierErr.message ?? String(tierErr));
+      console.error('[gemini-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
-      const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+      const t = (effTier as string | null) ?? 'free';
       tierRank = TIER_RANK[t] ?? 0;
     }
   }

@@ -33,11 +33,14 @@ export const CRISIS_TERMS_KO: readonly string[] = [
 // Hangul (iOS/macOS clipboard, imported clips) against the NFC-authored lexicon.
 // Mirrors src/lib/safety/classifier.ts:matchesTerm — keep the two in sync.
 function normalizeForMatch(text: string): string {
-  return text.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+  // NFKC (not NFC): folds full-width/compatibility Latin to ASCII so IME full-width
+  // crisis phrases match the lexicon; strictly more conservative, KO unaffected. Keep
+  // this in sync with src/lib/safety/classifier.ts + gemini-proxy normalizeForMatch.
+  return text.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ');
 }
 
 function matchesTermEn(lowerHaystack: string, term: string): boolean {
-  const t = term.normalize('NFC').toLowerCase();
+  const t = term.normalize('NFKC').toLowerCase();
   if (t.length === 0) return false;
   const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
   for (let idx = lowerHaystack.indexOf(t); idx !== -1; idx = lowerHaystack.indexOf(t, idx + 1)) {

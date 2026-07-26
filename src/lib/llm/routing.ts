@@ -67,7 +67,10 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   // "Your credit balance is too low"), so Simon chose the OpenAI backend. All
   // nine live reasoning seats now land on gpt-5.4 via openai-proxy, which
   // allowlists exactly these purposes. Revert to "claude" once Anthropic has
-  // credits (claude-proxy is still deployed + keyed).
+  // credits (claude-proxy is still deployed + keyed). Code-free revert:
+  // EXPO_PUBLIC_LLM_VENDOR=claude routes every seat to claude-proxy immediately.
+  // Which vendor served each call is audited (ai_audit_log.reasoning_vendor, 0095).
+  // Pinned + revert-verified by phase2-vendor-stopgap.test.ts (R6).
   advisor: "openai",
   persona_narrative: "openai",
   gap_synthesize: "openai",

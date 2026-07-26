@@ -23,6 +23,7 @@ import {
 } from "./build";
 import type { LadderLevel } from "./brightness";
 import { deriveStarLevels } from "./star-levels";
+import { loadStandingRatifiedTiers } from "./load-ratified-tiers";
 import { loadEsmCount } from "./esm-count";
 import { soulCoreBrightness, type StarId } from "./stars";
 
@@ -86,6 +87,9 @@ export async function loadStarLevels(userId: string): Promise<StarBrightness> {
   };
 
   const esmCount = await loadEsmCount(userId);
-  const starLevels = deriveStarLevels(card, esmCount);
+  // F8: lift ratified stars (propose->ratify L5) so the read path matches build.ts
+  // and never shows a rebuilt star below its ratified tier.
+  const standingRatified = await loadStandingRatifiedTiers(userId);
+  const starLevels = deriveStarLevels(card, esmCount, standingRatified);
   return { starLevels, soulCoreBrightness: soulCoreBrightness(starLevels) };
 }

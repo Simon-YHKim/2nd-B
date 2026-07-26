@@ -22,6 +22,10 @@ export function rhythmStarLevel(esmCount: number): LadderLevel {
 export function deriveStarLevels(
   card: PersonaCard,
   rhythmObservationCount = 0,
+  // F8: standing user-ratified tiers (propose->ratify, the only durable path to L5).
+  // Each star is lifted to max(deterministic, ratified) so a rebuild never regresses
+  // a ratification. Defaults to none, so every existing caller is unchanged.
+  standingRatified: Partial<Record<StarId, LadderLevel>> = {},
 ): Record<StarId, LadderLevel> {
   // star1 "지금의 나": trait-state confidence (BFI questionnaire vs journal
   // heuristic) mapped through the value ladder. v1 confidence is uniform across
@@ -48,9 +52,22 @@ export function deriveStarLevels(
   // by the caller). stars 3 (보여지는 나 / peer) + 6 (될 수 있는 나) have no shipped
   // engine yet, so they stay dim until their elicitation path lands.
   const rhythm: LadderLevel = rhythmStarLevel(rhythmObservationCount);
-  return { now, recall, seen: 1, rhythm, relational, possible: 1, values };
+  const base: Record<StarId, LadderLevel> = { now, recall, seen: 1, rhythm, relational, possible: 1, values };
+  // F8: lift each star to its standing ratified tier when higher. A user-ratified
+  // star (L5) must survive a deterministic rebuild; without this the rebuild wrote a
+  // lower level back to star_tier_history, dropping the ratified brightness AND
+  // firing a phantom "down" nudge.
+  for (const s of Object.keys(base) as StarId[]) {
+    const r = standingRatified[s];
+    if (r !== undefined && r > base[s]) base[s] = r;
+  }
+  return base;
 }
 
-export function soulCoreBrightnessFor(card: PersonaCard, rhythmObservationCount = 0): number {
-  return soulCoreBrightness(deriveStarLevels(card, rhythmObservationCount));
+export function soulCoreBrightnessFor(
+  card: PersonaCard,
+  rhythmObservationCount = 0,
+  standingRatified: Partial<Record<StarId, LadderLevel>> = {},
+): number {
+  return soulCoreBrightness(deriveStarLevels(card, rhythmObservationCount, standingRatified));
 }

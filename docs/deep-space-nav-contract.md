@@ -18,10 +18,12 @@ the router home; the gameboy graph keeps its own reachable route.
 - `index` (`/`) branches on `isDeepSpaceUI()`:
   - legacy → the village graph (current `index.tsx` body) — unchanged.
   - deep-space → `<DeepSpaceShell/>` (the character home).
-- The village graph gets a dedicated route `graph` (`/graph`) that renders the
-  SAME graph view via a shared `GraphScreen` component extracted from `index.tsx`
-  (both `index` legacy and `/graph` import it — no logic fork). The deep-space
-  `그래프` menu routes to `/graph`.
+- The legacy village graph lives at `/` (the `GraphScreen` body in `index.tsx`,
+  rendered when `EXPO_PUBLIC_UI=legacy`). NOTE (corrected 2026-07-26): `/graph`
+  (`graph.tsx`) is NOT a re-export of `GraphScreen` — it is a DEV-ONLY design
+  reference (`DeepSpaceGraphDesignScreen`, fixed mock positions) wrapped in
+  `DevOnlyRoute`, so production redirects it home and prod nav never links there.
+  The earlier "shared GraphScreen at /graph" plan was not what shipped.
 - Navigation from the shell uses `router.push("/<route>")`; BackArrow + the
   router's back stack return to the shell. A deep-space tab bar variant (or the
   existing PremiumTabBar re-themed) shows on the 4 primaries.
@@ -32,7 +34,7 @@ Primary menu (shell home, 4 items):
 
 | Menu | Route | Notes |
 |---|---|---|
-| 그래프 | `/graph` | shared GraphScreen (village). NOT `/` (that's the shell). |
+| 그래프 | `/` (legacy) | Village graph = `GraphScreen` in `index.tsx` under `EXPO_PUBLIC_UI=legacy`. `/graph` is a DEV-ONLY mock (DeepSpaceGraphDesignScreen), redirects home in prod — not the shared GraphScreen. (corrected 2026-07-26) |
 | 담기 | `/capture` | |
 | 세컨비 | `/secondb` | mode toggle 자비스/공상 in-screen (`/jarvis`,`/imagine` are redirects) |
 | 나 | `/profile` | |

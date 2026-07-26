@@ -173,12 +173,17 @@ describe("classifySafety (layered)", () => {
     expect(mockInsertAudit).not.toHaveBeenCalled();
   });
 
-  test("H4-residual: a live non-Vertex (API-key) build does NOT call the uncapped Flash client", async () => {
+  test("H4-residual: a live non-Vertex build refuses the uncapped Flash client but records a degraded health row", async () => {
     mockEnv.mockReturnValue(LIVE_APIKEY_ENV);
     await classifySafety("그냥 산책 갔어요", "ko", { userId: "u1" });
     // getFlashClient refuses the uncapped API-key egress on live -> lexicon-only.
     expect(mockGenerateContent).not.toHaveBeenCalled();
-    expect(mockInsertAudit).not.toHaveBeenCalled();
+    // R5: the degradation is NOT silent -- one queryable health row per session is
+    // written (modelUsed 'lexicon-only'), not a real Flash-call audit. This is the
+    // only degraded+userId case in this file, so the once-per-session latch fires here.
+    expect(mockInsertAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "u1", modelUsed: "lexicon-only", safetyZone: "green" }),
+    );
   });
 
   test("H4-residual: a RED input is still caught by the lexicon backstop on that build", async () => {
