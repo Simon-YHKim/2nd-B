@@ -37,12 +37,15 @@ function matchesTerm(haystack: string, term: string, locale: Locale): boolean {
   // / full-width space (U+3000) / double space, or when the input arrives as
   // NFD-decomposed Hangul (iOS/macOS clipboard, imported/third-party clips). The
   // \s+ collapse folds every whitespace run to one ASCII space so multi-word EN
-  // terms ("want to die") and spaced KO terms ("죽고 싶") still match; NFC unifies
-  // Hangul composition so decomposed input matches the NFC-authored lexicon. Without
-  // this, a RED crisis phrase silently drops to GREEN — a false negative that breaks
-  // the module's 0-false-negatives-on-in-lexicon-terms invariant.
-  const lower = haystack.normalize("NFC").toLowerCase().replace(/\s+/g, " ");
-  const t = term.normalize("NFC").toLowerCase();
+  // terms ("want to die") and spaced KO terms ("죽고 싶") still match. NFKC (not NFC)
+  // unifies Hangul composition AND folds full-width / compatibility Latin to ASCII, so
+  // "ｉ ｗａｎｔ ｔｏ ｄｉｅ" (IME full-width) or pasted compatibility forms still match the
+  // ASCII-authored lexicon — NFC alone left those as a silent RED->GREEN bypass. NFKC
+  // is strictly more conservative here (more matches, never fewer) and does not touch
+  // precomposed Hangul, so KO matching is unchanged. Without this, a RED crisis phrase
+  // silently drops to GREEN — breaking the 0-false-negatives-on-in-lexicon invariant.
+  const lower = haystack.normalize("NFKC").toLowerCase().replace(/\s+/g, " ");
+  const t = term.normalize("NFKC").toLowerCase();
   if (locale === "ko") return lower.includes(t);
   if (t.length === 0) return false;
   const isBoundary = (ch: string) => /[^a-z0-9]/i.test(ch);
