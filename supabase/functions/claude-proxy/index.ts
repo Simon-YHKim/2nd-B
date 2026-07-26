@@ -262,6 +262,14 @@ Deno.serve(async (req: Request) => {
   // (default off) — enable once legal finalizes the consent copy/versions. When
   // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
   // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
+  // NOTE (R1 / pre-deploy review P2): consent_records is an append-only GRANT
+  // ledger (0031). Withdrawal lives ELSEWHERE -- users.privacy_prefs (current
+  // state) + the consent_changes ledger (0062, grant/revoke per pref key). This
+  // grant-only read does NOT see a withdrawal, so BEFORE enabling
+  // LLM_REQUIRE_CONSENT the read MUST become withdrawal-aware (effective consent =
+  // granted acks AND the driving external-processing pref still ON, PIPA 37 /
+  // GDPR 7(3)). Which prefs constitute "overseas transfer consent" is a
+  // legal/data-model decision -- resolve first. See docs/RISK-REMEDIATION-260726.md (R1).
   if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
     let consentOk = false;
     try {

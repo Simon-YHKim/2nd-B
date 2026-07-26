@@ -373,6 +373,13 @@ Deno.serve(async (req: Request) => {
   // (consent_changes/0062 + users.privacy_prefs treat overseas transfer as
   // withdrawable per PIPA 37 / GDPR 7(3)), this grant-only read must ALSO honor
   // withdrawal before the flag is enabled - resolve with legal/data-model first.
+  // Recommended effective-consent formula (adopt in all 3 proxies before enabling):
+  //   effective = latest consent_records grant (llm+overseas acks true)
+  //               AND the driving external-processing pref in users.privacy_prefs
+  //               is still ON (i.e. no later consent_changes 'revoke' for it).
+  // Which pref(s) map to "overseas transfer" is the open legal decision.
+  // See docs/RISK-REMEDIATION-260726.md (R1). claude-proxy + openai-proxy carry
+  // the same NOTE (parity).
   if ((Deno.env.get('LLM_REQUIRE_CONSENT') ?? 'false') === 'true') {
     let consentOk = false;
     try {
