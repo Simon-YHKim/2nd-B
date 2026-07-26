@@ -737,8 +737,13 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // caller (interview probe, phase1 summary, import echo, persona), so we must
   // NOT ship it. Swap in the verbatim crisis template, write an HONEST audit row
   // (real model + latency + a +swap marker so judges see the model WAS called and
-  // intercepted), and log a categorical crisis_event. Skip the audit insert only
-  // when the proxy already wrote it server-side (proxyAudited), like GREEN/YELLOW.
+  // intercepted), and log a categorical crisis_event.
+  // F9: write the swap row UNCONDITIONALLY (was gated on !proxyAudited). Unlike
+  // GREEN/YELLOW this is NOT a duplicate of the proxy's row -- the proxy audited the
+  // pre-swap call as green (its gate passed on input), while this row carries the
+  // swapped output_hash, safetyZone 'red', and the +swap marker. Gating it on
+  // proxyAudited meant the edge path recorded only the proxy's green row, so an
+  // ai_audit_log query for interceptions missed this call entirely.
   if (outputZone === "red") {
     const fixed = fixedCrisisResponse(input.locale, input.minor);
     const swapAudit = {
@@ -752,9 +757,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       ...(effort ? { effort } : {}),
       ...(servedByProvider ? { reasoningProvider: servedByProvider } : {}),
     };
-    if (!proxyAudited) {
-      await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] output-swap insert failed");
-    }
+    await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] output-swap insert failed");
     await writeCrisisEvent(
       input.userId,
       {
@@ -1197,11 +1200,11 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       latencyMs,
       purpose: "voice_transcribe",
     };
-    // Skip the raw-call audit insert only when the proxy already wrote it
-    // server-side (proxyAudited) — same convention as callGemini's output swap.
-    if (!proxyAudited) {
-      await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] transcribe output-swap insert failed");
-    }
+    // F9: write the swap row unconditionally. The proxy's row (if any) recorded the
+    // pre-swap call as green; this red +swap row is a distinct interception record,
+    // not a duplicate, so gating it on proxyAudited hid transcribe interceptions on
+    // the edge path.
+    await writeAiAuditLog(input.userId, swapAudit, "[ai_audit_log] transcribe output-swap insert failed");
     await writeCrisisEvent(
       input.userId,
       {
@@ -1469,11 +1472,10 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       effort,
       reasoningProvider: servedByProvider,
     };
-    // Skip when the proxy already wrote the row (proxyAudited); the swap itself
-    // is still recorded in crisis_events below regardless.
-    if (!proxyAudited) {
-      await writeAiAuditLog(input.userId, audit, "[advisor] output-swap audit failed");
-    }
+    // F9: write the swap row unconditionally -- the proxy's pre-swap row is green,
+    // this red +swap row is a distinct interception record. Gating it on
+    // proxyAudited hid advisor interceptions from ai_audit_log on the edge path.
+    await writeAiAuditLog(input.userId, audit, "[advisor] output-swap audit failed");
     await writeCrisisEvent(
       input.userId,
       {
