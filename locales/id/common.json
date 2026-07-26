@@ -27,6 +27,12 @@
   "states": {
     "loading": "Memuat…"
   },
+  "progression": {
+    "maxLevelTrailing": "{{xp}} XP · level maksimum",
+    "nextLevelTrailing": "{{xp}} XP menuju level berikutnya",
+    "progressLabel": "Level {{level}}, progres XP {{pct}}%",
+    "maxLevelHint": "Sudah di level maksimum."
+  },
   "journal": {
     "privacyFootnote": "Entri jurnalmu dienkripsi dan tidak pernah melatih model apa pun.",
     "relativeJustNow": "baru saja",

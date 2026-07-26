@@ -27,6 +27,12 @@
   "states": {
     "loading": "Cargando…"
   },
+  "progression": {
+    "maxLevelTrailing": "{{xp}} XP · nivel máximo",
+    "nextLevelTrailing": "{{xp}} XP para el siguiente nivel",
+    "progressLabel": "Nivel {{level}}, progreso de XP {{pct}}%",
+    "maxLevelHint": "Ya estás en el nivel máximo."
+  },
   "journal": {
     "privacyFootnote": "Tus entradas se mantienen cifradas y nunca entrenan ningún modelo.",
     "relativeJustNow": "justo ahora",
