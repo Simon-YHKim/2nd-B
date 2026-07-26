@@ -479,6 +479,33 @@
             "name": "Relación",
             "note": "Te mueves un poco más cuando estás con otros"
           }
+        },
+        "survey": {
+          "title": "Autoinforme de motivación",
+          "loading": "Cargando…",
+          "description": "Un autoinforme breve sobre lo que te mueve. Indica qué tan bien encaja cada frase contigo, de 1 (nada parecido a mí) a 6 (muy parecido a mí). No hay respuestas correctas; es una estimación.",
+          "citation": "Basado en la teoría de la autodeterminación (SDT) · estimación por autoinforme",
+          "instruction": "¿Qué tan bien encaja cada frase contigo?",
+          "intrinsic": "Intrínseca",
+          "extrinsic": "Extrínseca",
+          "conclusion": "Estimación por autoinforme.",
+          "saveError": "No se pudo guardar. Tus respuestas siguen aquí; inténtalo de nuevo.",
+          "saved": "Tu autoinforme de motivación se guardó.",
+          "scale": {
+            "1": "Nada parecido a mí",
+            "2": "Poco parecido a mí",
+            "3": "Algo poco parecido a mí",
+            "4": "Algo parecido a mí",
+            "5": "Parecido a mí",
+            "6": "Muy parecido a mí"
+          },
+          "exit": {
+            "notice": "Confirmación de salida",
+            "title": "¿Salir del cuestionario?",
+            "body": "¿Seguro que quieres salir? Tu progreso no se guardará.",
+            "cancel": "Seguir",
+            "confirm": "Salir"
+          }
         }
       },
       "strengths": {

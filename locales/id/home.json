@@ -479,6 +479,33 @@
             "name": "Keterhubungan",
             "note": "Kamu bergerak sedikit lebih saat bersama orang lain"
           }
+        },
+        "survey": {
+          "title": "Laporan diri motivasi",
+          "loading": "Memuat…",
+          "description": "Laporan diri singkat tentang apa yang menggerakkanmu. Nilai seberapa cocok tiap kalimat denganmu dari 1 (sama sekali tidak seperti aku) sampai 6 (sangat seperti aku). Tidak ada jawaban benar; ini perkiraan.",
+          "citation": "Berpijak pada Self-Determination Theory (SDT) · perkiraan dari laporan diri",
+          "instruction": "Seberapa cocok tiap kalimat denganmu?",
+          "intrinsic": "Intrinsik",
+          "extrinsic": "Ekstrinsik",
+          "conclusion": "Perkiraan dari laporan diri.",
+          "saveError": "Tidak dapat menyimpan. Jawabanmu masih ada di sini; coba lagi.",
+          "saved": "Laporan diri motivasimu tersimpan.",
+          "scale": {
+            "1": "Sama sekali tidak seperti aku",
+            "2": "Tidak seperti aku",
+            "3": "Agak tidak seperti aku",
+            "4": "Agak seperti aku",
+            "5": "Seperti aku",
+            "6": "Sangat seperti aku"
+          },
+          "exit": {
+            "notice": "Konfirmasi keluar",
+            "title": "Keluar dari survei?",
+            "body": "Yakin ingin keluar? Progresmu tidak akan disimpan.",
+            "cancel": "Lanjutkan",
+            "confirm": "Keluar"
+          }
         }
       },
       "strengths": {
