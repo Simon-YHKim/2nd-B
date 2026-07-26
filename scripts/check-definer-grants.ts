@@ -59,13 +59,24 @@ function migrationNumber(filename: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY;
 }
 
+// Strip SQL comments before keyword matching so a comment that merely MENTIONS
+// "security definer" / "grant ... anon" (e.g. a migration documenting that it is
+// invoker-rights) is not a false positive, and a REVOKE written only in a comment
+// is not a false pass. (Line `--` inside a string literal is rare here and not
+// security-relevant to these keyword checks.) The trigger-only opt-out marker is a
+// comment BY DESIGN, so it is matched against the original text, not this.
+function stripSqlComments(sql: string): string {
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
+}
+
 for (const file of files) {
   const full = join(MIGRATIONS, file);
   const sql = readFileSync(full, "utf8");
+  const code = stripSqlComments(sql);
   const rel = relative(ROOT, full);
 
   // Rule A -- all migrations.
-  if (grantToAnonPublic.test(sql)) {
+  if (grantToAnonPublic.test(code)) {
     errors.push(
       `${rel}: explicit GRANT EXECUTE ... TO anon/public on a function. ` +
         `Remove it; rely on default privileges + an explicit REVOKE FROM anon.`,
@@ -73,8 +84,8 @@ for (const file of files) {
   }
 
   // Rule B -- new migrations only.
-  if (migrationNumber(file) >= BASELINE && hasSecurityDefiner.test(sql)) {
-    if (!revokesFromAnon.test(sql) && !triggerOnlyOptOut.test(sql)) {
+  if (migrationNumber(file) >= BASELINE && hasSecurityDefiner.test(code)) {
+    if (!revokesFromAnon.test(code) && !triggerOnlyOptOut.test(sql)) {
       errors.push(
         `${rel}: creates a SECURITY DEFINER function but has no ` +
           `REVOKE EXECUTE ON FUNCTION ... FROM anon in the same file. ` +
