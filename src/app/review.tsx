@@ -17,6 +17,7 @@ import { buildPersona } from "@/lib/persona/build";
 import { proposalContextForStar } from "@/lib/persona/proposal-context";
 import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
+import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
 import { tierShiftNudge, type TierShift } from "@/lib/persona/tier-history";
@@ -98,6 +99,10 @@ function ReviewScreenLegacy() {
   function handleDecision(decision: RatifyDecision) {
     const r = applyRatify(4, decision);
     setSheetOpen(false);
+    // propose→ratify quality signal: counts only, consent-gated inside captureEvent.
+    captureEvent(
+      proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
+    );
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       // Persist the ratified tier so D9 history + trend detection reflect it.
       // Cite evidenceRefs (real `record:<id>` for the records this card was built

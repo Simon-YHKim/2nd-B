@@ -9,6 +9,7 @@
 import { distillContext, fuseFrameworks } from "./engines";
 import { loadBatch, loadSchema, queryRows } from "./loader";
 import type { AgeRange, KnowledgeRow, Locale } from "./types";
+import { sanitizeUntrusted } from "@/lib/llm/untrusted";
 
 export interface RetrieveInput {
   userMessage: string;
@@ -386,18 +387,10 @@ interface AssembleInput {
   conversationContext?: string;
 }
 
-// Strip any tokens that would let untrusted content escape a fenced block or
-// impersonate a trusted role. We treat knowledge_sources rows, conversationContext,
-// and the user message as untrusted (any authenticated user can INSERT into
-// knowledge_sources under current RLS; conversationContext is composed from user
-// records; userMessage is user-typed by definition).
-function sanitizeUntrusted(s: string | null | undefined): string {
-  if (!s) return "";
-  return s
-    .replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]")
-    .replace(/=== ?(HARD SAFETY|USER CONTEXT|RELEVANT EVIDENCE|BATCH NOTES|USER MESSAGE|YOUR RESPONSE)[^=]*===/gi, "[section]")
-    .replace(/\[SYSTEM\]/gi, "[user-sys]");
-}
+// We treat knowledge_sources rows, conversationContext, and the user message as
+// untrusted (any authenticated user can INSERT into knowledge_sources under
+// current RLS; conversationContext is composed from user records; userMessage is
+// user-typed by definition). Sanitizer semantics live in the shared module.
 
 // Per build-rag-wiki §7 prompt template.
 function assembleAdvisorPrompt(input: AssembleInput): string {

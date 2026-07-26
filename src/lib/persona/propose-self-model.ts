@@ -13,6 +13,7 @@
 // (docs/handoff/ai_260721.md, sm-boundary before/after).
 
 import { callGemini } from "../llm/gemini";
+import { sanitizeUntrusted } from "../llm/untrusted";
 import type { LadderLevel } from "./brightness";
 import {
   isPresentableProposal,
@@ -37,12 +38,6 @@ function targetLabel(target: ProposalTarget): string {
   if (target.kind === "star") return `self-understanding star "${target.star}"`;
   if (target.kind === "soulCore") return "Soul Core aggregate reading";
   return "north-star philosophy sentence";
-}
-
-// Strip tokens that would let evidence text escape the fence or impersonate a
-// trusted role. Mirrors sanitizeUntrusted in ops/daily-brief.ts.
-function sanitizeUntrusted(s: string): string {
-  return s.replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]").replace(/\[SYSTEM\]/gi, "[user-sys]");
 }
 
 // Pure -> deterministic. Builds the propose-a-change prompt for one self-model target.

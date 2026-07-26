@@ -17,12 +17,16 @@ describe("buildClipperPrompt", () => {
     expect(system).toContain("doc-type");
     expect(system).toContain("stack-impact");
     expect(system).toContain("https://docs.anthropic.com/x");
-    expect(user).toBe("Claude docs about tool use.");
+    // Clipped material rides inside the shared injection fence (2026-07-26).
+    expect(user).toBe('<UNTRUSTED type="clipped_material">Claude docs about tool use.</UNTRUSTED>');
   });
 
-  it("caps the user content", () => {
+  it("caps the user content before fencing", () => {
     const { user } = buildClipperPrompt("article", "x".repeat(9000), null, "ko");
-    expect(user.length).toBe(4000);
+    const fenceOverhead = '<UNTRUSTED type="clipped_material">'.length + "</UNTRUSTED>".length;
+    expect(user.length).toBe(4000 + fenceOverhead);
+    expect(user.startsWith('<UNTRUSTED type="clipped_material">')).toBe(true);
+    expect(user.endsWith("</UNTRUSTED>")).toBe(true);
   });
 
   it("asks Gemini to extract hashtags (tags) — both locales", () => {

@@ -14,6 +14,7 @@
 // (docs/handoff/ai_260721.md, ax-inject before/after).
 import { getSupabaseClient } from "../supabase/client";
 import { callGemini } from "../llm/gemini";
+import { sanitizeUntrusted } from "../llm/untrusted";
 import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 
 /** Below this many answers the estimate would be invention — return null. */
@@ -27,12 +28,6 @@ export const AXIS_ESTIMATE_SCHEMA = {
   },
   required: ["sentence"],
 } as const;
-
-// Strip tokens that would let an answer body escape the fence or impersonate a
-// trusted role. Mirrors sanitizeUntrusted in ops/daily-brief.ts.
-function sanitizeUntrusted(s: string): string {
-  return s.replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]").replace(/\[SYSTEM\]/gi, "[user-sys]");
-}
 
 async function axisDigest(userId: string, tag: string): Promise<{ count: number; digest: string }> {
   const supabase = getSupabaseClient();

@@ -20,12 +20,13 @@
 //     for an opted-out user.
 
 import { callGemini } from "../llm/gemini";
+import { sanitizeUntrusted } from "../llm/untrusted";
 import type { SystemLocale } from "../i18n/locales";
 import { getSupabaseClient } from "../supabase/client";
 import { exportUserWiki } from "../wiki/export";
 import { kstDayKey } from "../journal/streak";
 import { OPS_DOMAIN_IDS, type OpsDomainId } from "./domains";
-import { type OpsRecommendation, parseOpsRecommendations } from "./recommend-parse";
+import { OPS_RECOMMENDATION_ITEM_SCHEMA, type OpsRecommendation, parseOpsRecommendations } from "./recommend-parse";
 
 const SNAPSHOT_CHAR_LIMIT = 600;
 /** Cap recommendations kept per domain in the brief (the passive home shows a
@@ -53,9 +54,16 @@ const BRIEF_SYSTEM_PROMPT = {
   ].join("\n"),
 } as const;
 
-function sanitizeUntrusted(s: string): string {
-  return s.replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]").replace(/\[SYSTEM\]/gi, "[user-sys]");
-}
+// Gemini-dialect schema: one optional recommendation array per life-area id.
+// Built from OPS_DOMAIN_IDS so a domain add/remove updates the schema for free.
+// Exported for the conformance test only.
+export const BRIEF_SCHEMA: Record<string, unknown> = {
+  type: "OBJECT",
+  properties: Object.fromEntries(
+    OPS_DOMAIN_IDS.map((d) => [d, { type: "ARRAY", items: OPS_RECOMMENDATION_ITEM_SCHEMA }]),
+  ),
+  required: [],
+};
 
 /** Parse the brief object reply: for each KNOWN domain id, run the same
  *  defensive per-domain parse the on-demand path uses, then cap the count. */
@@ -167,6 +175,10 @@ export async function buildOpsDailyBrief(input: BuildBriefInput): Promise<OpsDai
       system: BRIEF_SYSTEM_PROMPT[input.locale],
       user,
       minor: input.minor,
+      // Schema-first (2026-07-26): the reply was already a root OBJECT keyed
+      // by domain id — the schema just pins it (empty `required` keeps every
+      // domain omittable, matching the parser's per-domain tolerance).
+      responseSchema: BRIEF_SCHEMA,
     });
     // Red-zone short-circuits return crisis copy, not JSON -> parser yields {}.
     const brief = parseOpsDailyBrief(reply.text);

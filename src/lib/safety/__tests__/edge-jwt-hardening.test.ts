@@ -34,16 +34,42 @@ function readFunctions(): { name: string; code: string }[] {
     .map(({ name, file }) => ({ name, code: stripComments(readFileSync(file, "utf8")) }));
 }
 
-// Derives a user identity from a JWT sub claim (directly, or via the
-// userIdFromJwt / authenticatedUserIdFromJwt helper).
+// Shared plumbing module: claude-proxy / openai-proxy IMPORT userIdFromJwt from
+// here instead of defining it inline. Before 2026-07-26 this guard only scanned
+// each function's index.ts for a DEFINITION, so the two importing proxies were
+// structurally invisible to it and their role check rested on untested code.
+const SHARED_FILE = join(FUNCTIONS_DIR, "_shared", "llm-proxy-common.ts");
+const sharedCode = stripComments(readFileSync(SHARED_FILE, "utf8"));
+
+function importsSharedJwtHelper(code: string): boolean {
+  return /import\s*\{[^}]*\buserIdFromJwt\b[^}]*\}\s*from\s*['"][^'"]*llm-proxy-common(\.ts)?['"]/.test(
+    code,
+  );
+}
+
+// Derives a user identity from a JWT sub claim (directly, via a local
+// userIdFromJwt / authenticatedUserIdFromJwt helper, or via the shared import).
 function derivesIdentityFromJwtSub(code: string): boolean {
   if (/function\s+(userIdFromJwt|authenticatedUserIdFromJwt)\s*\(/.test(code)) return true;
+  if (importsSharedJwtHelper(code)) return true;
   return /JSON\.parse\(\s*atob\(/.test(code) && /\.sub\b/.test(code);
 }
 
 // Requires the 'authenticated' role, not merely a valid (possibly anon) token.
+// For functions that import the shared helper, the role gate lives in the
+// shared module — accept it there ONLY when (a) the helper is actually CALLED
+// (import presence alone proves nothing), (b) the function has no inline
+// decode path of its own hiding behind the import, and (c) the shared module
+// carries the gate (pinned by its own test below).
 function requiresAuthenticatedRole(code: string): boolean {
-  return /role\s*(===|!==)\s*['"]authenticated['"]/.test(code);
+  if (/role\s*(===|!==)\s*['"]authenticated['"]/.test(code)) return true;
+  const hasInlineDecode = /JSON\.parse\(\s*atob\(/.test(code) && /\.sub\b/.test(code);
+  if (hasInlineDecode) return false;
+  return (
+    importsSharedJwtHelper(code) &&
+    /\buserIdFromJwt\s*\(/.test(code) &&
+    /role\s*(===|!==)\s*['"]authenticated['"]/.test(sharedCode)
+  );
 }
 
 describe("edge function JWT hardening (reject the anon-key JWT)", () => {
@@ -53,14 +79,21 @@ describe("edge function JWT hardening (reject the anon-key JWT)", () => {
     expect(fns.length).toBeGreaterThanOrEqual(5);
   });
 
+  test("shared llm-proxy-common userIdFromJwt requires role==='authenticated'", () => {
+    expect(/function\s+userIdFromJwt\s*\(/.test(sharedCode)).toBe(true);
+    expect(/role\s*(===|!==)\s*['"]authenticated['"]/.test(sharedCode)).toBe(true);
+  });
+
   const jwtFns = fns.filter((f) => derivesIdentityFromJwtSub(f.code));
 
   test("detects every JWT-sub-trusting function (guard wiring sanity)", () => {
     expect(jwtFns.map((f) => f.name).sort()).toEqual(
       expect.arrayContaining([
+        "claude-proxy",
         "delete-account",
         "export-account",
         "gemini-proxy",
+        "openai-proxy",
         "rss-proxy",
       ])
     );

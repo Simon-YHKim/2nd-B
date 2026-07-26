@@ -490,8 +490,26 @@ async function routeCrisis(
   return { text, safety: result, audit };
 }
 
+// Root-OBJECT schema convention (전사 규약, docs/handoff/ai_260721.md §responseSchema):
+// OpenAI's response_format rejects array roots, so a root-ARRAY schema works on
+// Gemini right up until the purpose is re-seated onto OpenAI in Phase 2, then
+// breaks in prod. Nothing at the edge enforces the convention (documented in
+// normalize-response-schema.test.ts), so the C1 gateway — the single choke
+// point every schema passes through — fails fast instead. Exported for tests.
+export function assertRootObjectSchema(schema: Record<string, unknown> | undefined): void {
+  if (!schema) return;
+  const t = (schema as { type?: unknown }).type;
+  const rootType = typeof t === "string" ? t.toLowerCase() : Array.isArray(t) ? "(union)" : undefined;
+  if (rootType && rootType !== "object") {
+    throw new Error(
+      `[llm] responseSchema root must be type OBJECT (Phase-2/OpenAI compatibility); got ${JSON.stringify(t)}`,
+    );
+  }
+}
+
 export async function callGemini<T = string>(input: PromptInput): Promise<GeminiResult<T>> {
   throwIfAborted(input.signal);
+  assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
   // Dual-locale: catch a crisis term written in the other language than the UI
   // locale, matching embedTexts + the proxy gate (the direct/Vertex path has no

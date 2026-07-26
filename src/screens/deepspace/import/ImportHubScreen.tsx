@@ -27,6 +27,7 @@ import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
+import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
@@ -206,6 +207,16 @@ export function ImportHubScreen() {
     setLedgerWarn(null);
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
+      // propose→ratify quality signal AFTER the import actually landed (a
+      // failed attempt must not count, and the retry path would double-count
+      // if this fired before the await — adversarial review 2026-07-26).
+      // Counts only, consent-gated inside captureEvent. Unchecked rows are the
+      // closest thing this flow has to a decline (no explicit reject button).
+      captureEvent(proposalDecided({ flow: "import", decision: "ratify", count: chosen.length }));
+      const unchecked = outcome.proposals.length - chosen.length;
+      if (unchecked > 0) {
+        captureEvent(proposalDecided({ flow: "import", decision: "decline", count: unchecked }));
+      }
       const s = outcome.summary;
       // finance-csv (S1-4): book the chosen transactions into ops_ledger. The
       // captureFromMarkdown above already landed the summary note; this lands
