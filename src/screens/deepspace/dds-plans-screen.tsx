@@ -107,7 +107,7 @@ export function DeepSpacePlansScreen() {
   const ko = i18n.language === "ko";
 
   const { userId, isMinor } = useAuth();
-  const { tier: currentTier, loading: tierLoading } = useProgression();
+  const { tier: currentTier, loading: tierLoading, refresh: refreshTier } = useProgression();
   const pathname = usePathname();
   const [freeRemaining, setFreeRemaining] = useState<number | null>(null);
   // users.privacy_prefs.ads - null until resolved; the rewarded gate fails closed.
@@ -219,8 +219,16 @@ export function DeepSpacePlansScreen() {
     setBusyAction("buy");
     setError(null);
     const outcome = await purchasePackage(pkg);
-    if (outcome.status === "purchased") setIsPro(outcome.isPro);
-    else if (outcome.status === "error" || outcome.status === "unavailable")
+    if (outcome.status === "purchased") {
+      setIsPro(outcome.isPro);
+      // R3 reconciliation: local isPro is optimistic display only -- the DB tier
+      // (users.subscription_tier) is the entitlement authority the whole app gates
+      // on, and it moves ONLY via the store->revenue_events webhook
+      // (TODO(IAP-webhook) in src/lib/payments/purchases.ts, an owner action
+      // before enabling RevenueCat keys). Re-read it so that once the webhook is
+      // live the tier (and every gate) reconciles without a manual reload.
+      void refreshTier();
+    } else if (outcome.status === "error" || outcome.status === "unavailable")
       setError(t("ds.plans.purchaseError"));
     setBusyAction(null);
   }
@@ -232,6 +240,7 @@ export function DeepSpacePlansScreen() {
     const outcome = await restorePurchases();
     if (outcome.status === "restored") {
       setIsPro(outcome.isPro);
+      void refreshTier(); // R3: reconcile the DB tier (the gating authority) too
       if (!outcome.isPro) setError(t("ds.plans.restoredNone"));
     } else {
       setError(t("ds.plans.restoreError"));
@@ -239,7 +248,13 @@ export function DeepSpacePlansScreen() {
     setBusyAction(null);
   }
 
-  // Which tier the user is currently on (RevenueCat isPro promotes a free row).
+  // Which tier the user is currently on. `currentTier` (DB users.subscription_tier)
+  // is the authority every OTHER gate in the app uses; RevenueCat `isPro` here is an
+  // OPTIMISTIC plans-screen-only promotion for the just-purchased moment before the
+  // store->revenue_events webhook reconciles the DB (owner action -- see buy()).
+  // isPro must never leak into real feature gating: payment-tier-authority.test.ts
+  // pins that useProgression/entitlements read the DB tier only, so this optimistic
+  // display can never become a "shows pro / features locked" contradiction elsewhere.
   const onNorthStar = currentTier === "brain";
   const onVoyager = !onNorthStar && (currentTier === "cortex" || currentTier === "soma" || isPro);
   const onStargazer = !onNorthStar && !onVoyager;
