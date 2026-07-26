@@ -636,7 +636,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "완료", appts: "약속", places: "장소", notes: "노트", watches: "시청", txns: "거래", raw: "원문", pickToApply: "반영할 항목 고르기",
         sensitiveExcluded: "민감 · 기본 제외", applyN: "고른 {n}건 기록에 반영",
         emptyTitle: "아직 가져온 게 없어요", emptyBody: "소스를 골라 시작해요", pickSource: "소스 고르기",
-        delete: "삭제", historyFine: "삭제는 파생 신호까지 완전 제거해요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
+        delete: "삭제", historyFine: "삭제는 임포트한 원본을 제거해요. 임포트로 만들어진 인물·가계부 항목은 관계·가계부 화면에서 지울 수 있어요. 미성년 계정은 통신·위치 임포트가 서버에서 잠겨 있어요.",
         revokeFailed: "철회하지 못했어요. 잠시 후 다시 시도해 주세요.", revokeNeedsSignIn: "로그인 후 철회할 수 있어요. 서버에 남은 데이터까지 함께 지워야 해서요.",
       }
     : {
@@ -663,7 +663,7 @@ function COPY(ko: boolean): Record<string, string> {
         done: "Done", appts: "Plans", places: "Places", notes: "Notes", watches: "Watches", txns: "Entries", raw: "Raw", pickToApply: "Pick what to apply",
         sensitiveExcluded: "sensitive · excluded by default", applyN: "Apply {n} to records",
         emptyTitle: "Nothing imported yet", emptyBody: "Pick a source to start", pickSource: "Pick a source",
-        delete: "Delete", historyFine: "Delete removes the derived signals too. Comms/location import is server-locked for minor accounts.",
+        delete: "Delete", historyFine: "Delete removes the imported source. People and ledger entries created from an import can be removed in the Relationships and Ledger screens. Comms/location import is server-locked for minor accounts.",
         revokeFailed: "Couldn't withdraw. Try again shortly.", revokeNeedsSignIn: "Sign in to withdraw - the server-side rows must be deleted together.",
       };
 }
