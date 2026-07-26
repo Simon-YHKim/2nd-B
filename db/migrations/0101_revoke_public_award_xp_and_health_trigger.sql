@@ -14,8 +14,8 @@
 --                                        service_role=X
 --
 --     So `FROM anon` was a no-op there and has_function_privilege('anon', ...) stayed true.
---     0098's own header had the diagnosis right ("never had a FROM anon revoke") but applied
---     bump_chat_usage's prescription to both. This revokes the PUBLIC grant, which is what
+--     0098's own header read the cause correctly ("never had a FROM anon revoke") but then
+--     applied bump_chat_usage's remedy to both. This revokes the PUBLIC grant, which is what
 --     award_xp actually needed.
 --
 --     Safe: `authenticated=X/postgres` is a separate explicit grant, so the app's XP path
