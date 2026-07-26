@@ -151,7 +151,7 @@
       "confirmCta": "Delete",
       "cancel": "Cancel",
       "failed": "Account deletion failed",
-      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact support@2nd-brain.app and we'll help.",
+      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact kim0405@hayangzip.com and we'll help.",
       "confirmLabel": "Account deletion confirmation",
       "inputLabel": "Account deletion confirmation phrase",
       "inputHint": "Type DELETE to enable the account deletion button.",

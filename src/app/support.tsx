@@ -16,7 +16,7 @@ import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceSupportDesignScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-const SUPPORT_EMAIL = "support@2nd-brain.app";
+const SUPPORT_EMAIL = "kim0405@hayangzip.com";
 
 type SupportFaq = { question: string; answer: string };
 

@@ -412,7 +412,7 @@ export function DeepSpaceSupportDesignScreen() {
   return (
     <Shell title={t("support.title")}>
       <View style={styles.center}><SecondbHead size={104} mood="neutral" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
-      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:support@2nd-brain.app?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
+      <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
 
       {/* FAQ (canonGaps.faqs) — tap a question to reveal its answer. */}
       <Card>
