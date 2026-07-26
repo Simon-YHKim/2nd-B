@@ -21,6 +21,7 @@
     "check:constraints": "tsx scripts/check-constraints.ts",
     "check:definer-grants": "tsx scripts/check-definer-grants.ts",
     "check:supabase-auth-config": "tsx scripts/check-supabase-auth-config.ts",
+    "check:safety-consent-locale": "tsx scripts/check-safety-consent-locale.ts",
     "check:emdash": "tsx scripts/check-no-emdash.ts",
     "check:anti-anthro": "tsx scripts/check-anti-anthro.ts",
     "check:mascot-voice": "tsx scripts/check-mascot-voice.ts",
@@ -30,7 +31,7 @@
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:supabase-auth-config && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:cycles && npm run check:ota-runtime && npm test -- --ci"
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:cycles && npm run check:ota-runtime && npm test -- --ci"
   },
   "dependencies": {
     "@expo-google-fonts/press-start-2p": "^0.4.1",
