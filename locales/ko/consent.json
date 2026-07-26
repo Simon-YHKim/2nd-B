@@ -151,7 +151,7 @@
       "confirmCta": "삭제",
       "cancel": "취소",
       "failed": "계정 삭제 실패",
-      "failedBody": "계정 삭제를 끝내지 못했어요. 일부 콘텐츠는 이미 삭제됐을 수 있고, 계정과 로그인 정보는 아직 남아 있을 수 있어요. support@2nd-brain.app 로 문의해 주시면 도와드릴게요.",
+      "failedBody": "계정 삭제를 끝내지 못했어요. 일부 콘텐츠는 이미 삭제됐을 수 있고, 계정과 로그인 정보는 아직 남아 있을 수 있어요. kim0405@hayangzip.com 로 문의해 주시면 도와드릴게요.",
       "confirmLabel": "계정 삭제 최종 확인",
       "inputLabel": "계정 삭제 확인 문구",
       "inputHint": "계정 삭제 버튼을 활성화하려면 DELETE를 입력합니다.",
