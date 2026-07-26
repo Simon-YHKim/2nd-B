@@ -48,13 +48,23 @@ export function useProgression(): Progression {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from("users")
-        .select("total_xp, subscription_tier, judge_mode")
+        .select("total_xp, subscription_tier, judge_mode, subscription_expires_at")
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
       if (guardRef.current.isStale(token)) return;
       setTotalXp(data?.total_xp ?? 0);
-      setTier(((data?.subscription_tier as SubscriptionTier) ?? "free"));
+      // F10: collapse an EXPIRED subscription to free client-side, mirroring the
+      // server's effective_subscription_tier (0088). The cancel webhook can lag, so
+      // the raw subscription_tier column may still read 'cortex'/'brain' after
+      // expiry; without this the client keeps unlocking paid personas (메타비/트위비)
+      // during the lapse window while the server caps have already dropped to free.
+      // judge_mode stays authoritative + is comped downstream (secondb.tsx), so no
+      // special-case here -- a judge's expires_at is null so lapsed is false anyway.
+      const rawTier = (data?.subscription_tier as SubscriptionTier) ?? "free";
+      const expiresAt = data?.subscription_expires_at as string | null | undefined;
+      const lapsed = expiresAt != null && Date.parse(expiresAt) < Date.now();
+      setTier(lapsed ? "free" : rawTier);
       setJudge(data?.judge_mode === true);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[progression] load failed", e);
