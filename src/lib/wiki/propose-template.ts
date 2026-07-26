@@ -21,6 +21,48 @@ import { detectClipperKind } from "./clipper-kind";
 import { toSlug } from "./slug";
 import { SOURCE_KINDS, type SourceKind } from "./types";
 import { sanitizeTag } from "./tags";
+import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
+
+// Schema-first (2026-07-26): pins the proposal shape (this output reaches the
+// SHARED format store after ratification, so a malformed reply matters more
+// here than on private surfaces). Root OBJECT per the 전사 규약. Exported for
+// the conformance test only.
+export const PROPOSE_TEMPLATE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    slug: { type: "STRING" },
+    base_kind: { type: "STRING", format: "enum", enum: [...SOURCE_KINDS] },
+    name: {
+      type: "OBJECT",
+      properties: { en: { type: "STRING" }, ko: { type: "STRING" } },
+      required: ["en", "ko"],
+    },
+    what: {
+      type: "OBJECT",
+      properties: { en: { type: "STRING" }, ko: { type: "STRING" } },
+      required: ["en", "ko"],
+    },
+    defaultTags: { type: "ARRAY", items: { type: "STRING" } },
+    targetCategory: { type: "STRING", format: "enum", enum: ["concepts", "entities", "projects"] },
+    aiProperties: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          name: { type: "STRING" },
+          type: { type: "STRING", format: "enum", enum: ["text", "multitext", "number"] },
+          describe: {
+            type: "OBJECT",
+            properties: { en: { type: "STRING" }, ko: { type: "STRING" } },
+            required: ["en", "ko"],
+          },
+        },
+        required: ["name", "type", "describe"],
+      },
+    },
+  },
+  required: ["slug", "base_kind", "name", "what", "defaultTags", "targetCategory", "aiProperties"],
+} as const;
 
 export interface ProposedClipperTemplate {
   slug: string;
@@ -58,6 +100,8 @@ export function buildProposeTemplatePrompt(
           '  "aiProperties": [ { "name": "kebab-key", "type": "text"|"multitext"|"number", "describe": { "en": "...", "ko": "..." } } ]  (1-3개) }',
           "",
           `자료 URL: ${url ?? "(없음)"}`,
+          "",
+          INJECTION_GUARD.ko,
         ].join("\n")
       : [
           "The material the user clipped does not fit any of the 8 existing clipper formats well.",
@@ -76,8 +120,11 @@ export function buildProposeTemplatePrompt(
           '  "aiProperties": [ { "name": "kebab-key", "type": "text"|"multitext"|"number", "describe": { "en": "...", "ko": "..." } } ]  (1-3 items) }',
           "",
           `Material URL: ${url ?? "(none)"}`,
+          "",
+          INJECTION_GUARD.en,
         ].join("\n");
-  return { system, user: content.trim().slice(0, 4000) };
+  // Clipped material is arbitrary web content — fence it (was raw until 2026-07-26).
+  return { system, user: wrapUntrusted("clipped_material", content.trim().slice(0, 4000)) };
 }
 
 function asPair(v: unknown): { en: string; ko: string } {
@@ -183,6 +230,6 @@ export async function proposeClipperTemplate(
   if (trimmed.length === 0) return null;
   const baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
   const { system, user } = buildProposeTemplatePrompt(trimmed, url, locale);
-  const reply = await callGemini({ userId, locale, purpose: "clipper_template_propose", system, user, minor });
+  const reply = await callGemini({ userId, locale, purpose: "clipper_template_propose", system, user, minor, responseSchema: PROPOSE_TEMPLATE_SCHEMA as unknown as Record<string, unknown> });
   return parseProposedTemplate(reply.text, baselineKind);
 }

@@ -32,6 +32,7 @@ import type { ValueId } from "./values-survey";
 import type { StrengthId } from "./strengths-survey";
 import type { MotivationNeedKey } from "./motivation-survey";
 import { callGemini } from "../llm/gemini";
+import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
 import { isValidMbtiResult, type MbtiScores } from "./assessment-shapes";
@@ -681,9 +682,10 @@ export async function buildPersona(
         purpose: "persona_narrative",
         // Guide the synthesis toward an honest, grounded, balanced mirror (was
         // unguided). Trusted system channel; the entries still ride `user` and stay
-        // crisis-scanned, so C9/C3 are unaffected.
-        system: personaSynthesisSystem(locale),
-        user: summaryInput,
+        // crisis-scanned, so C9/C3 are unaffected. Record bodies are stored user
+        // material — fenced (was raw until 2026-07-26).
+        system: `${personaSynthesisSystem(locale)}\n${INJECTION_GUARD[locale]}`,
+        user: wrapUntrusted("qa_entries", summaryInput),
         minor,
       });
       summaryText = summaryRes.text;

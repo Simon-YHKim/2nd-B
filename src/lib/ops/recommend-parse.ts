@@ -15,6 +15,23 @@ export interface OpsRecommendation {
 }
 
 export const OPS_MAX_RECOMMENDATIONS = 4;
+
+// Gemini-dialect schema for ONE recommendation object — shared by the
+// ops_recommend items envelope and the daily-brief domain map (this module is
+// the leaf both sides already import, so no new cycle). Root schemas that
+// embed it must keep a root OBJECT (전사 규약; gemini.ts assertRootObjectSchema).
+export const OPS_RECOMMENDATION_ITEM_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    title: { type: "STRING" },
+    reason: { type: "STRING" },
+    startsAtIso: { type: "STRING" },
+    durationMinutes: { type: "NUMBER" },
+    recurrence: { type: "STRING", format: "enum", enum: ["daily", "weekly"] },
+    checklist: { type: "ARRAY", items: { type: "STRING" } },
+  },
+  required: ["title", "reason"],
+} as const;
 const TITLE_MAX = 80;
 const REASON_MAX = 240;
 const CHECKLIST_MAX_ITEMS = 7;

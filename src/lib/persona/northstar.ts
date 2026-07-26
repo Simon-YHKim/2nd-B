@@ -22,6 +22,7 @@
 
 import { getSupabaseClient } from "../supabase/client";
 import { callGemini } from "../llm/gemini";
+import { sanitizeUntrusted } from "../llm/untrusted";
 import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 import { createRecord, type CreatedRecord } from "../records/create";
 
@@ -74,12 +75,6 @@ export async function saveNorthstar(args: {
     withFollowup: false,
     tags: [NORTHSTAR_TAG],
   });
-}
-
-// Strip tokens that would let a record body escape the fence or impersonate a
-// trusted role. Mirrors sanitizeUntrusted in ops/daily-brief.ts.
-function sanitizeUntrusted(s: string): string {
-  return s.replace(/<\/?UNTRUSTED[^>]*>/gi, "[fence]").replace(/\[SYSTEM\]/gi, "[user-sys]");
 }
 
 /** Recent-record digest for the proposal prompt (bodies only, clipped). */

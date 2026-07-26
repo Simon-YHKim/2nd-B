@@ -8,7 +8,10 @@ describe("buildProposeTemplatePrompt", () => {
       expect(system).toContain(k);
     }
     expect(system).toContain("https://example.com/p");
-    expect(user.length).toBe(4000);
+    // Content capped at 4000, then wrapped in the shared injection fence (2026-07-26).
+    const fenceOverhead = '<UNTRUSTED type="clipped_material">'.length + "</UNTRUSTED>".length;
+    expect(user.length).toBe(4000 + fenceOverhead);
+    expect(user.startsWith('<UNTRUSTED type="clipped_material">')).toBe(true);
   });
 });
 

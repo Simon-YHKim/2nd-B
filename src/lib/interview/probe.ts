@@ -17,6 +17,7 @@
 // signals are deterministic functions here (LLM-agnostic per C1/C9).
 
 import { callGemini } from "../llm/gemini";
+import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 
 export type LifePeriod = "childhood" | "teens" | "twenties" | "thirties" | "current";
 export type DrillLayer = "fact" | "feeling" | "meaning" | "belief" | "echo";
@@ -195,6 +196,7 @@ function buildSystemPrompt(
       "4) 사용자가 '그만' 같은 신호를 보내면, '여기서 멈춰도 좋아요'로 마무리합니다.",
       "5) 위기 신호(자해·자살·학대)가 보이면 즉시 한국 109(자살예방) 안내로 전환합니다.",
       "출력: 다음 질문 한 줄만. 다른 텍스트는 출력하지 않습니다.",
+      INJECTION_GUARD.ko,
     ].join("\n");
   }
   const layerGuide: Record<DrillLayer, string> = {
@@ -215,11 +217,16 @@ function buildSystemPrompt(
     "4) If the user signals 'stop' or 'enough', close warmly: 'It's okay to pause here.'",
     "5) If you detect crisis signals (self-harm, suicide, abuse), pivot immediately to US 988 hotline guidance.",
     "Output: the next question on a single line. No other text.",
+    INJECTION_GUARD.en,
   ].join("\n");
 }
 
+// The transcript is stored user material — fence it (was raw until 2026-07-26).
 function buildUserPrompt(history: InterviewTurn[]): string {
-  return history.map((t) => (t.role === "interviewer" ? `Q: ${t.text}` : `A: ${t.text}`)).join("\n");
+  const transcript = history
+    .map((t) => (t.role === "interviewer" ? `Q: ${t.text}` : `A: ${t.text}`))
+    .join("\n");
+  return wrapUntrusted("interview_transcript", transcript);
 }
 
 export interface ProbeResult {
