@@ -7,7 +7,15 @@
 // from the /profile hub and a link on /capture. Token-only styling (DESIGN.md).
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  useWindowDimensions,
+} from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -20,6 +28,7 @@ import {
   PremiumLoadingState,
   PremiumErrorState,
   PremiumModal,
+  PremiumBottomSheet,
   PremiumToast,
 } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
@@ -36,6 +45,13 @@ import {
   type CustomClipperTemplate,
 } from "@/lib/wiki/template-queries";
 import { partitionTemplates, type TemplateDraft } from "@/lib/wiki/template-validate";
+import { REPORT_REASONS, type ReportReason } from "@/lib/wiki/moderation";
+import {
+  reportTemplate,
+  blockOwner,
+  unblockAllOwners,
+  listBlockedOwnerIds,
+} from "@/lib/wiki/moderation-queries";
 import { CLIPPER_TEMPLATE_LIST, type ClipperTemplate } from "@/lib/wiki/clipper-templates";
 import { TemplateEditor } from "@/components/wiki/TemplateEditor";
 import { AddFormatFlow } from "@/components/wiki/AddFormatFlow";
@@ -51,6 +67,7 @@ function FormatsLegacy() {
   const { userId, loading } = useAuth();
   const locale: Locale = i18n.language === "ko" ? "ko" : "en";
   const kbHeight = useKeyboard();
+  const { height: windowHeight } = useWindowDimensions();
 
   const [templates, setTemplates] = useState<CustomClipperTemplate[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -62,6 +79,12 @@ function FormatsLegacy() {
   const [pendingShareIds, setPendingShareIds] = useState<ReadonlySet<string>>(new Set());
   const [adding, setAdding] = useState(false);
   const [viewing, setViewing] = useState<FormatSchemaInput | null>(null);
+  // Play UGC moderation (migration 0097). `moderating` is the community row the
+  // sheet is open for; `blockedIds` only drives the unblock control and the
+  // optimistic hide, since the clipper_templates read policy already filters.
+  const [moderating, setModerating] = useState<CustomClipperTemplate | null>(null);
+  const [modBusy, setModBusy] = useState(false);
+  const [blockedIds, setBlockedIds] = useState<ReadonlySet<string>>(new Set());
 
   // Async-race guards: ignore results after unmount, and apply only the latest
   // load (a write bumps loadSeqRef so a stale reload can't clobber a mutation).
@@ -99,6 +122,15 @@ function FormatsLegacy() {
         if (typeof console !== "undefined") console.warn("[formats] load failed", (e as Error).message);
         if (mountedRef.current && seq === loadSeqRef.current) setLoadError(true);
       });
+    // Blocks are a side channel: the list above is already filtered server-side,
+    // so a failure here costs the unblock control, never the screen.
+    listBlockedOwnerIds(userId)
+      .then((ids) => {
+        if (mountedRef.current && seq === loadSeqRef.current) setBlockedIds(new Set(ids));
+      })
+      .catch((e) => {
+        if (typeof console !== "undefined") console.warn("[formats] blocks load failed", (e as Error).message);
+      });
   }, [userId]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -126,6 +158,93 @@ function FormatsLegacy() {
           return n;
         });
       });
+  }
+
+  // Play UGC moderation. Both writes drop the row optimistically because the
+  // clipper_templates read policy (0097) hides anything this user reported and
+  // every format by an author they blocked, so the optimistic list matches what
+  // the next load returns. A failure reverts by reloading rather than by
+  // guessing, since the server is the authority on what is still visible.
+  // Apply an optimistic removal, or re-fetch if the list is not on screen.
+  // The moderation sheet outlives the list (liftAllBlocks reloads underneath
+  // it), and these handlers bump loadSeqRef before they know that, which
+  // invalidates the in-flight reload. Without this branch the screen would sit
+  // on a loading spinner forever, with no retry affordance.
+  function dropFromList(keep: (t: CustomClipperTemplate) => boolean) {
+    if (templates === null) {
+      reload();
+      return;
+    }
+    setTemplates((prev) => (prev ? prev.filter(keep) : prev));
+  }
+
+  async function submitReport(reason: ReportReason) {
+    if (!userId || !moderating || modBusy) return;
+    const target = moderating;
+    loadSeqRef.current++; // a write invalidates any in-flight reload
+    setModBusy(true);
+    try {
+      await reportTemplate(userId, target.id, reason);
+      if (!mountedRef.current) return;
+      dropFromList((x) => x.id !== target.id);
+      setModerating(null);
+      flashToast(tf("toast.reportSuccess"), "success");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[formats] report failed", (e as Error).message);
+      if (!mountedRef.current) return;
+      // Close on failure too: the sheet is bottom-anchored and the toast paints
+      // over its own footer, so leaving it open hides the explanation.
+      setModerating(null);
+      if (templates === null) reload();
+      flashToast(tf("toast.reportFailed"), "danger");
+    } finally {
+      if (mountedRef.current) setModBusy(false);
+    }
+  }
+
+  async function submitBlock() {
+    if (!userId || !moderating || modBusy) return;
+    const ownerId = moderating.ownerId;
+    loadSeqRef.current++;
+    setModBusy(true);
+    try {
+      await blockOwner(userId, ownerId);
+      if (!mountedRef.current) return;
+      // Every shared format by that author goes, not just the one tapped.
+      dropFromList((x) => x.ownerId !== ownerId);
+      setBlockedIds((s) => new Set(s).add(ownerId));
+      setModerating(null);
+      flashToast(tf("toast.blockSuccess"), "success");
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[formats] block failed", (e as Error).message);
+      if (!mountedRef.current) return;
+      setModerating(null);
+      if (templates === null) reload();
+      flashToast(tf("toast.blockFailed"), "danger");
+    } finally {
+      if (mountedRef.current) setModBusy(false);
+    }
+  }
+
+  async function liftAllBlocks() {
+    if (!userId || modBusy) return;
+    setModBusy(true);
+    try {
+      await unblockAllOwners(userId);
+      if (!mountedRef.current) return;
+      setBlockedIds(new Set());
+      flashToast(tf("toast.unblockSuccess"), "success");
+      // Close the sheet first: reload() unmounts the list under it, and a write
+      // from a sheet floating over a torn-down list is the race dropFromList
+      // exists to catch. Closing removes the race instead of surviving it.
+      setModerating(null);
+      reload(); // the un-hidden formats only come back from the server
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[formats] unblock failed", (e as Error).message);
+      if (mountedRef.current) flashToast(tf("toast.unblockFailed"), "danger");
+    } finally {
+      if (mountedRef.current) setModBusy(false);
+    }
   }
 
   async function confirmDeleteNow() {
@@ -394,25 +513,64 @@ function FormatsLegacy() {
                     </Text>
                   </View>
 
+                  {/* Blocking is reversible from here. There is no author identity
+                      anywhere in the app, so a per-author list would be a column
+                      of meaningless ids; one control is the honest surface. */}
+                  {blockedIds.size > 0 ? (
+                    <View style={styles.blockedRow}>
+                      <Text variant="subtle" color="textSubtle">
+                        {tf("community.blockedCount", { count: blockedIds.size })}
+                      </Text>
+                      <Pressable
+                        onPress={() => void liftAllBlocks()}
+                        disabled={modBusy}
+                        style={styles.deleteLink}
+                        hitSlop={14}
+                        accessibilityRole="button"
+                        accessibilityLabel={tf("community.unblockAll")}
+                        accessibilityState={{ disabled: modBusy, busy: modBusy }}
+                      >
+                        <Text variant="subtle" color="brand">{tf("community.unblockAll")}</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+
                   {partition.community.length === 0 ? (
                     <Text variant="subtle" color="textSubtle" style={styles.communityEmpty}>
                       {tf("community.empty")}
                     </Text>
                   ) : (
                     partition.community.map((t) => (
-                      <Pressable
-                        key={t.id}
-                        onPress={() => setViewing(schemaOfCustom(t))}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${nameOf(t)} ${tf("labels.viewGuide")}`}
-                      >
-                        <PremiumCard accent={semantic.info} eyebrow={metaOf(t)} title={nameOf(t)}>
-                          {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
-                          <Text variant="subtle" color="brand" style={styles.shareNote}>
-                            {tf("labels.tapViewGuide")}
-                          </Text>
-                        </PremiumCard>
-                      </Pressable>
+                      // The card used to be one big Pressable. Nesting the
+                      // moderation action inside it collapsed the whole card
+                      // into a single accessibility element (and on the web
+                      // export, one role="button" inside another is
+                      // children-presentational), so a screen reader could
+                      // never reach report/block. Discrete links instead, the
+                      // same shape the my-formats card above already uses.
+                      <PremiumCard key={t.id} accent={semantic.info} eyebrow={metaOf(t)} title={nameOf(t)}>
+                        {whatOf(t) ? <Text variant="subtle" color="textMuted">{whatOf(t)}</Text> : null}
+                        <View style={styles.cardActions}>
+                          <Pressable
+                            onPress={() => setViewing(schemaOfCustom(t))}
+                            style={styles.deleteLink}
+                            hitSlop={14}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${nameOf(t)} ${tf("labels.viewGuide")}`}
+                          >
+                            <Text variant="subtle" color="brand">{tf("labels.guide")}</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => setModerating(t)}
+                            style={styles.deleteLink}
+                            hitSlop={14}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${nameOf(t)} ${tf("moderation.action")}`}
+                          >
+                            <Text variant="subtle" color="textMuted">{tf("moderation.action")}</Text>
+                          </Pressable>
+                        </View>
+                      </PremiumCard>
                     ))
                   )}
                 </>
@@ -476,6 +634,80 @@ function FormatsLegacy() {
         </View>
       </PremiumModal>
 
+      {/* Play UGC policy: report + block for community-shared formats. A sheet
+          rather than a modal, per the O-7 touch rule (a tap simplifies; it does
+          not stack an overlay on the thing that was tapped). Reasons are a fixed
+          list, never free text, so this never becomes its own moderation
+          surface (0064 decision #6). */}
+      <PremiumBottomSheet
+        visible={!!moderating}
+        onClose={() => (modBusy ? undefined : setModerating(null))}
+        accessibilityLabel={tf("moderation.sheetLabel")}
+      >
+        {/* PremiumBottomSheet sets no maxHeight and anchors to the bottom, so
+            tall content would grow off the TOP of the screen unreachable. Bound
+            it here rather than in the shared primitive: at a large OS text
+            scale five reasons plus two buttons outgrow a short phone. */}
+        <ScrollView
+          style={{ maxHeight: windowHeight * 0.6 }}
+          contentContainerStyle={styles.sheetContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text variant="heading" style={{ fontSize: typography.sizes.lg }}>
+            {tf("moderation.title")}
+          </Text>
+          <Text variant="body" color="textMuted">
+            {moderating ? nameOf(moderating) : ""}
+          </Text>
+          <Text variant="subtle" color="textSubtle">
+            {tf("moderation.body")}
+          </Text>
+
+          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+            {tf("moderation.reportHeading")}
+          </Text>
+          {REPORT_REASONS.map((reason) => (
+            <Pressable
+              key={reason}
+              onPress={() => void submitReport(reason)}
+              disabled={modBusy}
+              style={styles.reasonRow}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={tf(`moderation.reasons.${reason}`)}
+              accessibilityState={{ disabled: modBusy, busy: modBusy }}
+            >
+              <Text variant="body" color="text">
+                {tf(`moderation.reasons.${reason}`)}
+              </Text>
+            </Pressable>
+          ))}
+
+          <Text variant="caption" color="textMuted" style={styles.sectionEyebrow}>
+            {tf("moderation.blockHeading")}
+          </Text>
+          <Text variant="subtle" color="textSubtle">
+            {tf("moderation.blockBody")}
+          </Text>
+          <View style={styles.modalActions}>
+            <PremiumButton
+              label={tf("moderation.block")}
+              variant="danger"
+              loading={modBusy}
+              onPress={() => void submitBlock()}
+              full
+            />
+            <PremiumButton
+              label={tf("actions.cancel")}
+              variant="ghost"
+              disabled={modBusy}
+              onPress={() => setModerating(null)}
+              full
+            />
+          </View>
+        </ScrollView>
+      </PremiumBottomSheet>
+
       {toast ? (
         <View style={styles.toastWrap} pointerEvents="none">
           <PremiumToast message={toast.message} tone={toast.tone} />
@@ -509,6 +741,23 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
   },
   communityEmpty: { lineHeight: 20 },
+  blockedRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  sheetContent: { gap: spacing.sm },
+  reasonRow: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: semantic.border,
+  },
   modalActions: { gap: spacing.sm, marginTop: spacing.xs },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });

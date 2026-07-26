@@ -16,7 +16,26 @@
   "community": {
     "heading": "Format komunitas",
     "headingWithCount": "Format komunitas ({{count}})",
-    "empty": "Belum ada format komunitas. Saat seseorang membagikannya, format itu akan tampil di sini."
+    "empty": "Belum ada format komunitas. Saat seseorang membagikannya, format itu akan tampil di sini.",
+    "blockedCount": "Penulis diblokir: {{count}}",
+    "unblockAll": "Buka semua blokir"
+  },
+  "moderation": {
+    "action": "Laporkan atau blokir",
+    "sheetLabel": "Laporkan atau blokir format ini",
+    "title": "Laporkan atau blokir",
+    "body": "Setelah dilaporkan, format ini disembunyikan dari daftarmu. Tiga laporan menyembunyikannya dari semua orang.",
+    "reportHeading": "Kenapa kamu melaporkannya?",
+    "reasons": {
+      "spam": "Spam atau iklan",
+      "off_topic": "Bukan format pengarsipan",
+      "offensive": "Kata-kata yang tidak pantas",
+      "impersonation": "Mengaku sebagai orang lain",
+      "other": "Alasan lain"
+    },
+    "blockHeading": "Blokir penulis ini",
+    "blockBody": "Format yang dibagikan penulis ini berhenti tampil di daftarmu.",
+    "block": "Blokir penulis"
   },
   "builtIn": {
     "headingWithCount": "Format bawaan ({{count}})"
@@ -52,7 +71,13 @@
     "deleteFailed": "Tidak bisa menghapus.",
     "saveSuccess": "Format disimpan.",
     "saveFailed": "Tidak bisa menyimpan.",
-    "addSuccess": "Format ditambahkan."
+    "addSuccess": "Format ditambahkan.",
+    "reportSuccess": "Dilaporkan. Format ini disembunyikan dari daftarmu.",
+    "reportFailed": "Tidak bisa mengirim laporan.",
+    "blockSuccess": "Diblokir. Format penulis ini disembunyikan dari daftarmu.",
+    "blockFailed": "Tidak bisa memblokir.",
+    "unblockSuccess": "Semua blokir dibuka.",
+    "unblockFailed": "Tidak bisa membuka blokir."
   },
   "deleteModal": {
     "label": "Konfirmasi hapus format",

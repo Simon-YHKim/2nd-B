@@ -16,7 +16,26 @@
   "community": {
     "heading": "Community formats",
     "headingWithCount": "Community formats ({{count}})",
-    "empty": "No community formats yet. When someone shares one, it shows up here."
+    "empty": "No community formats yet. When someone shares one, it shows up here.",
+    "blockedCount": "Blocked authors: {{count}}",
+    "unblockAll": "Unblock all"
+  },
+  "moderation": {
+    "action": "Report or block",
+    "sheetLabel": "Report or block this format",
+    "title": "Report or block",
+    "body": "Reporting hides this format from your list. Three reports hide it from everyone.",
+    "reportHeading": "Why are you reporting it?",
+    "reasons": {
+      "spam": "Spam or advertising",
+      "off_topic": "Not a real filing format",
+      "offensive": "Offensive wording",
+      "impersonation": "Pretends to be someone else",
+      "other": "Something else"
+    },
+    "blockHeading": "Block this author",
+    "blockBody": "Their shared formats stop showing in your list.",
+    "block": "Block author"
   },
   "builtIn": {
     "headingWithCount": "Built-in formats ({{count}})"
@@ -52,7 +71,13 @@
     "deleteFailed": "Could not delete.",
     "saveSuccess": "Format saved.",
     "saveFailed": "Could not save.",
-    "addSuccess": "Format added."
+    "addSuccess": "Format added.",
+    "reportSuccess": "Reported. This format is hidden from your list.",
+    "reportFailed": "Could not send the report.",
+    "blockSuccess": "Blocked. Their formats are hidden from your list.",
+    "blockFailed": "Could not block.",
+    "unblockSuccess": "Blocks lifted.",
+    "unblockFailed": "Could not lift the blocks."
   },
   "deleteModal": {
     "label": "Delete format confirmation",
