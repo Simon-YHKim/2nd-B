@@ -17,6 +17,7 @@ import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
 import { callGemini } from "@/lib/llm/gemini";
 import { INJECTION_GUARD, sanitizeUntrusted, wrapUntrusted } from "@/lib/llm/untrusted";
+import { captureEvent, proposalDecided } from "@/lib/analytics";
 import {
   getAutoIntroSeen,
   getAutoReasoningEnabled,
@@ -992,6 +993,13 @@ export default function ReasoningScreen() {
           accepted.filter((p) => p.runId === runId).map((p) => p.ordinal),
           dismissed.filter((p) => p.runId === runId).map((p) => p.ordinal),
         );
+      }
+      // propose→ratify quality signal: counts only, consent-gated inside captureEvent.
+      if (accepted.length > 0) {
+        captureEvent(proposalDecided({ flow: "reasoning", decision: "ratify", count: accepted.length }));
+      }
+      if (dismissed.length > 0) {
+        captureEvent(proposalDecided({ flow: "reasoning", decision: "decline", count: dismissed.length }));
       }
       // Dismissed proposals never touch user state — drop them from pending.
       pending = pending.filter((candidate) => selected.has(candidate.key));

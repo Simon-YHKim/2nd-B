@@ -37,7 +37,8 @@ export type AnalyticsEventName =
   | "plans_viewed"
   | "plans_tier_focused"
   | "checkout_started"
-  | "purchase";
+  | "purchase"
+  | "proposal_decided";
 
 export interface PageViewEventProps extends AnalyticsProps {
   path: string;
@@ -81,7 +82,8 @@ export type AnalyticsEvent =
   | PlansViewedAnalyticsEvent
   | PlansTierFocusedAnalyticsEvent
   | CheckoutStartedAnalyticsEvent
-  | PurchaseAnalyticsEvent;
+  | PurchaseAnalyticsEvent
+  | ProposalDecidedAnalyticsEvent;
 
 export interface AnalyticsSubjectGate {
   /** True below 18. Null/undefined means age is unresolved and fails closed. */
@@ -188,6 +190,18 @@ export interface PurchaseEventProps extends AnalyticsProps {
   period?: string;
 }
 
+// propose→ratify quality signal (2026-07-26): until this event, only the
+// reasoning flow persisted reject outcomes (reasoning_run_proposals) — every
+// other decline vanished, so acceptance rates (the cheapest output-quality
+// feedback the app can collect) were unmeasurable. Counts only, never content.
+export type ProposalDecisionFlow = "self_model" | "import" | "reasoning";
+export interface ProposalDecidedEventProps extends AnalyticsProps {
+  flow: ProposalDecisionFlow;
+  decision: "ratify" | "decline";
+  /** How many proposals this decision covered (1 for single-target flows). */
+  count: number;
+}
+
 export type StarLitAnalyticsEvent = { name: "star_lit"; props: StarLitEventProps };
 export type ActivationMilestoneAnalyticsEvent = { name: "activation_milestone"; props: ActivationMilestoneEventProps };
 export type AiLimitHitAnalyticsEvent = { name: "ai_limit_hit"; props: AiLimitHitEventProps };
@@ -195,6 +209,7 @@ export type PlansViewedAnalyticsEvent = { name: "plans_viewed"; props: PlansView
 export type PlansTierFocusedAnalyticsEvent = { name: "plans_tier_focused"; props: PlansTierFocusedEventProps };
 export type CheckoutStartedAnalyticsEvent = { name: "checkout_started"; props: CheckoutStartedEventProps };
 export type PurchaseAnalyticsEvent = { name: "purchase"; props: PurchaseEventProps };
+export type ProposalDecidedAnalyticsEvent = { name: "proposal_decided"; props: ProposalDecidedEventProps };
 
 export function starLit(props: StarLitEventProps): StarLitAnalyticsEvent {
   return { name: "star_lit", props };
@@ -222,6 +237,10 @@ export function checkoutStarted(props: CheckoutStartedEventProps): CheckoutStart
 
 export function purchase(props: PurchaseEventProps): PurchaseAnalyticsEvent {
   return { name: "purchase", props };
+}
+
+export function proposalDecided(props: ProposalDecidedEventProps): ProposalDecidedAnalyticsEvent {
+  return { name: "proposal_decided", props };
 }
 
 export function canLoadProductAnalytics(granted: boolean, gate?: AnalyticsSubjectGate): boolean {

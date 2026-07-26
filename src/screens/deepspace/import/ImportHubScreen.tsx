@@ -27,6 +27,7 @@ import { upsertKakaoRelationPeople } from "@/lib/relation/import-signals";
 import { recordImportConsent } from "@/lib/supabase/consent";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
+import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { detectImportKind, type ImportKind } from "@/lib/import/detect";
 import { fileImportSupported, pickTextFile } from "@/lib/import/file-read";
 import { buildProposals, proposalsToMarkdown, type ImportOutcome, type ImportProposal } from "@/lib/import/proposals";
@@ -204,6 +205,14 @@ export function ImportHubScreen() {
     if (chosen.length === 0) return;
     setBusy(true);
     setLedgerWarn(null);
+    // propose→ratify quality signal: counts only (chosen vs left unchecked),
+    // consent-gated inside captureEvent. Unchecked rows are the closest thing
+    // this flow has to a decline (there is no explicit reject button).
+    captureEvent(proposalDecided({ flow: "import", decision: "ratify", count: chosen.length }));
+    const unchecked = outcome.proposals.length - chosen.length;
+    if (unchecked > 0) {
+      captureEvent(proposalDecided({ flow: "import", decision: "decline", count: unchecked }));
+    }
     try {
       const result = await captureFromMarkdown({ userId, rawMd: proposalsToMarkdown(name(active), chosen), kindOverride: "self_knowledge" });
       const s = outcome.summary;

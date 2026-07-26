@@ -66,7 +66,7 @@ import {
 import type { PurchasesPackage } from "react-native-purchases";
 import { systemLocaleFor } from "@/lib/i18n/locales";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
-import { setAnalyticsConsent } from "@/lib/analytics";
+import { captureEvent, proposalDecided, setAnalyticsConsent } from "@/lib/analytics";
 import type { PrivacyPrefKey, PrivacyPrefs } from "@/lib/privacy/prefs";
 import { clearRecordEmbeddings } from "@/lib/records/records-embeddings";
 import { recordHealthImportConsent, recordRecommendationsConsent } from "@/lib/supabase/consent";
@@ -1630,6 +1630,10 @@ export function DeepSpaceReviewScreen() {
   function handleDecision(decision: RatifyDecision) {
     const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
+    // propose→ratify quality signal: counts only, consent-gated inside captureEvent.
+    captureEvent(
+      proposalDecided({ flow: "self_model", decision: decision === "ratify" ? "ratify" : "decline", count: 1 }),
+    );
     if (decision === "ratify" && userId && proposal?.target.kind === "star") {
       // Cite evidenceRefs (real `record:<id>` for the records this card was built
       // from), NOT proposal.citations — those are Gemini-emitted labels with no
