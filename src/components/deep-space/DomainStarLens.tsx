@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
 import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import { useTranslation } from "react-i18next";
 
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import type { LadderLevel } from "@/lib/persona/brightness";
@@ -58,12 +59,329 @@ const RELATION_COLOR: Record<RelationKind, string> = {
   other: m3.accent.starDim,
 };
 
-const HEALTH_LABEL: Record<string, { ko: string; en: string }> = {
-  steps: { ko: "걸음", en: "Steps" },
-  workout: { ko: "움직임", en: "Movement" },
-  sleep: { ko: "수면", en: "Sleep" },
-  heart_rate: { ko: "심박", en: "Heart rate" },
+type LensLocale = "en" | "ko" | "es" | "pt" | "id";
+
+type LensCopyKey =
+  | "career.section"
+  | "career.main"
+  | "career.side"
+  | "career.emptyMain"
+  | "career.emptySide"
+  | "career.open"
+  | "finance.section"
+  | "finance.empty"
+  | "finance.open"
+  | "finance.expense"
+  | "finance.income"
+  | "finance.ratio"
+  | "finance.cashFlow"
+  | "relation.section"
+  | "relation.empty"
+  | "relation.open"
+  | "relation.openFull"
+  | "relation.me"
+  | "relation.foot"
+  | "growth.section"
+  | "growth.empty"
+  | "growth.start"
+  | "health.section"
+  | "health.coverage"
+  | "health.empty"
+  | "health.sleepSection"
+  | "health.sleepEmpty"
+  | "health.connect"
+  | "recreation.section"
+  | "recreation.fill"
+  | "recreation.emptyAxis"
+  | "recreation.solo"
+  | "recreation.together"
+  | "recreation.empty"
+  | "recreation.foot"
+  | "recreation.open"
+  | "collect.section"
+  | "collect.empty"
+  | "state.loadingA11y"
+  | "state.loadingBody"
+  | "state.errorBody"
+  | "state.errorAction";
+
+const LENS_COPY: Record<LensLocale, Record<LensCopyKey, string>> = {
+  en: {
+    "career.section": "The path you have built",
+    "career.main": "Main",
+    "career.side": "Side",
+    "career.emptyMain": "Add an achievement and its real record will join this path.",
+    "career.emptySide": "Connected official records will organize here as education, awards, licenses, and experience.",
+    "career.open": "Open career",
+    "finance.section": "This month",
+    "finance.empty": "Add income and expenses to see this month's flow and category mix here.",
+    "finance.open": "Open ledger",
+    "finance.expense": "Expense",
+    "finance.income": "Income",
+    "finance.ratio": "Expense compared with income",
+    "finance.cashFlow": "Cash flow",
+    "relation.section": "My people",
+    "relation.empty": "Add one person to begin a real map centered on you.",
+    "relation.open": "Open people map",
+    "relation.openFull": "Open full people map",
+    "relation.me": "Me",
+    "relation.foot": "Distance shows closeness; starlight color shows relation type.",
+    "growth.section": "Chapters in your records",
+    "growth.empty": "Add a growth moment and its real chapter will open here.",
+    "growth.start": "Start reflection",
+    "health.section": "Today's health records",
+    "health.coverage": "Coverage",
+    "health.empty": "No connected health records yet.",
+    "health.sleepSection": "Sleep record trend",
+    "health.sleepEmpty": "Connect sleep records to see the recent pattern as bars.",
+    "health.connect": "Connect data",
+    "recreation.section": "Rest map",
+    "recreation.fill": "Fill",
+    "recreation.emptyAxis": "Empty",
+    "recreation.solo": "Solo",
+    "recreation.together": "Together",
+    "recreation.empty": "Rest moments become stars here.",
+    "recreation.foot": "Current items stay neutral at the center. Solo/together and empty/fill classification will build from future entries.",
+    "recreation.open": "Open rest records",
+    "collect.section": "Waiting to organize",
+    "collect.empty": "There are no records waiting to be organized.",
+    "state.loadingA11y": "Loading domain lens",
+    "state.loadingBody": "Fitting the lens to your real records.",
+    "state.errorBody": "The structured records did not load just now. Try their source screen.",
+    "state.errorAction": "Open all records",
+  },
+  ko: {
+    "career.section": "쌓아온 길",
+    "career.main": "메인",
+    "career.side": "사이드",
+    "career.emptyMain": "성과를 담으면 이 길에 실제 기록이 이어져요.",
+    "career.emptySide": "공식 이력은 연동된 자료가 생기면 학력, 수상, 자격, 경력 순으로 정리돼요.",
+    "career.open": "커리어 전체 보기",
+    "finance.section": "이번 달 가계",
+    "finance.empty": "수입과 지출을 담으면 이번 달 흐름과 카테고리 구성이 여기에 보여요.",
+    "finance.open": "가계 열기",
+    "finance.expense": "지출",
+    "finance.income": "수입",
+    "finance.ratio": "수입 대비 지출",
+    "finance.cashFlow": "현금 흐름",
+    "relation.section": "나의 사람들",
+    "relation.empty": "사람을 한 명 담으면 나를 중심으로 실제 관계 지도가 시작돼요.",
+    "relation.open": "사람 지도 열기",
+    "relation.openFull": "관계 지도 전체 보기",
+    "relation.me": "나",
+    "relation.foot": "가까움은 중심과의 거리, 관계 종류는 별빛 색으로 보여요.",
+    "growth.section": "기록의 시간대",
+    "growth.empty": "성장의 장면을 담으면 실제 기록의 시간대가 한 장씩 열려요.",
+    "growth.start": "회상 시작하기",
+    "health.section": "오늘의 건강 기록",
+    "health.coverage": "기록 범위",
+    "health.empty": "연결된 건강 기록이 아직 없어요.",
+    "health.sleepSection": "수면 기록의 흐름",
+    "health.sleepEmpty": "수면 기록을 연결하면 최근 흐름이 막대로 나타나요.",
+    "health.connect": "데이터 연결",
+    "recreation.section": "휴식 지도",
+    "recreation.fill": "채움",
+    "recreation.emptyAxis": "비움",
+    "recreation.solo": "혼자",
+    "recreation.together": "함께",
+    "recreation.empty": "휴식을 담으면 여기에 별이 생겨요.",
+    "recreation.foot": "현재 항목은 중심에 모아 두었어요. 혼자·함께, 비움·채움 분류는 다음 입력부터 쌓여요.",
+    "recreation.open": "휴식 기록 보기",
+    "collect.section": "정리 대기",
+    "collect.empty": "아직 분류를 기다리는 기록이 없어요.",
+    "state.loadingA11y": "도메인 렌즈 불러오는 중",
+    "state.loadingBody": "실제 기록으로 렌즈를 맞추는 중이에요.",
+    "state.errorBody": "전용 기록을 잠깐 불러오지 못했어요. 원본 화면에서 다시 확인해 주세요.",
+    "state.errorAction": "기록 전체 보기",
+  },
+  es: {
+    "career.section": "El camino que has construido",
+    "career.main": "Principal",
+    "career.side": "Lateral",
+    "career.emptyMain": "Agrega un logro y su registro real se unira a este camino.",
+    "career.emptySide": "Los registros oficiales conectados se ordenaran aqui como estudios, premios, licencias y experiencia.",
+    "career.open": "Abrir carrera",
+    "finance.section": "Este mes",
+    "finance.empty": "Agrega ingresos y gastos para ver aqui el flujo del mes y la mezcla por categoria.",
+    "finance.open": "Abrir libro",
+    "finance.expense": "Gasto",
+    "finance.income": "Ingreso",
+    "finance.ratio": "Gasto frente a ingreso",
+    "finance.cashFlow": "Flujo de caja",
+    "relation.section": "Mi gente",
+    "relation.empty": "Agrega una persona para empezar un mapa real centrado en ti.",
+    "relation.open": "Abrir mapa de personas",
+    "relation.openFull": "Abrir mapa completo de personas",
+    "relation.me": "Yo",
+    "relation.foot": "La distancia muestra cercania; el color de la luz muestra el tipo de relacion.",
+    "growth.section": "Capitulos en tus registros",
+    "growth.empty": "Agrega un momento de crecimiento y su capitulo real aparecera aqui.",
+    "growth.start": "Iniciar recuerdo",
+    "health.section": "Registros de salud de hoy",
+    "health.coverage": "Cobertura",
+    "health.empty": "Aun no hay registros de salud conectados.",
+    "health.sleepSection": "Tendencia de sueno",
+    "health.sleepEmpty": "Conecta registros de sueno para ver el patron reciente como barras.",
+    "health.connect": "Conectar datos",
+    "recreation.section": "Mapa de descanso",
+    "recreation.fill": "Llenar",
+    "recreation.emptyAxis": "Vaciar",
+    "recreation.solo": "Solo",
+    "recreation.together": "Juntos",
+    "recreation.empty": "Los momentos de descanso se vuelven estrellas aqui.",
+    "recreation.foot": "Los elementos actuales quedan neutrales en el centro. La clasificacion solo/juntos y vaciar/llenar crecera con entradas futuras.",
+    "recreation.open": "Abrir registros de descanso",
+    "collect.section": "Pendiente de organizar",
+    "collect.empty": "No hay registros esperando organizacion.",
+    "state.loadingA11y": "Cargando lente de dominio",
+    "state.loadingBody": "Ajustando la lente a tus registros reales.",
+    "state.errorBody": "Los registros estructurados no cargaron ahora. Revisa su pantalla de origen.",
+    "state.errorAction": "Abrir todos los registros",
+  },
+  pt: {
+    "career.section": "O caminho que voce construiu",
+    "career.main": "Principal",
+    "career.side": "Lateral",
+    "career.emptyMain": "Adicione uma conquista e o registro real entrara neste caminho.",
+    "career.emptySide": "Registros oficiais conectados serao organizados aqui como educacao, premios, licencas e experiencia.",
+    "career.open": "Abrir carreira",
+    "finance.section": "Este mes",
+    "finance.empty": "Adicione renda e gastos para ver aqui o fluxo do mes e a mistura por categoria.",
+    "finance.open": "Abrir livro",
+    "finance.expense": "Gasto",
+    "finance.income": "Renda",
+    "finance.ratio": "Gasto em relacao a renda",
+    "finance.cashFlow": "Fluxo de caixa",
+    "relation.section": "Minhas pessoas",
+    "relation.empty": "Adicione uma pessoa para iniciar um mapa real centrado em voce.",
+    "relation.open": "Abrir mapa de pessoas",
+    "relation.openFull": "Abrir mapa completo de pessoas",
+    "relation.me": "Eu",
+    "relation.foot": "A distancia mostra proximidade; a cor da luz mostra o tipo de relacao.",
+    "growth.section": "Capitulos nos seus registros",
+    "growth.empty": "Adicione um momento de crescimento e o capitulo real aparecera aqui.",
+    "growth.start": "Iniciar lembranca",
+    "health.section": "Registros de saude de hoje",
+    "health.coverage": "Cobertura",
+    "health.empty": "Ainda nao ha registros de saude conectados.",
+    "health.sleepSection": "Tendencia de sono",
+    "health.sleepEmpty": "Conecte registros de sono para ver o padrao recente em barras.",
+    "health.connect": "Conectar dados",
+    "recreation.section": "Mapa de descanso",
+    "recreation.fill": "Preencher",
+    "recreation.emptyAxis": "Esvaziar",
+    "recreation.solo": "Sozinho",
+    "recreation.together": "Juntos",
+    "recreation.empty": "Momentos de descanso viram estrelas aqui.",
+    "recreation.foot": "Os itens atuais ficam neutros no centro. A classificacao sozinho/juntos e esvaziar/preencher crescera com entradas futuras.",
+    "recreation.open": "Abrir registros de descanso",
+    "collect.section": "Aguardando organizacao",
+    "collect.empty": "Nao ha registros aguardando organizacao.",
+    "state.loadingA11y": "Carregando lente de dominio",
+    "state.loadingBody": "Ajustando a lente aos seus registros reais.",
+    "state.errorBody": "Os registros estruturados nao carregaram agora. Confira a tela de origem.",
+    "state.errorAction": "Abrir todos os registros",
+  },
+  id: {
+    "career.section": "Jalur yang sudah kamu bangun",
+    "career.main": "Utama",
+    "career.side": "Samping",
+    "career.emptyMain": "Tambahkan pencapaian, lalu catatan aslinya akan masuk ke jalur ini.",
+    "career.emptySide": "Catatan resmi yang terhubung akan tersusun di sini sebagai pendidikan, penghargaan, lisensi, dan pengalaman.",
+    "career.open": "Buka karier",
+    "finance.section": "Bulan ini",
+    "finance.empty": "Tambahkan pemasukan dan pengeluaran untuk melihat arus bulan ini dan campuran kategorinya.",
+    "finance.open": "Buka buku kas",
+    "finance.expense": "Pengeluaran",
+    "finance.income": "Pemasukan",
+    "finance.ratio": "Pengeluaran dibanding pemasukan",
+    "finance.cashFlow": "Arus kas",
+    "relation.section": "Orang-orangku",
+    "relation.empty": "Tambahkan satu orang untuk memulai peta nyata yang berpusat padamu.",
+    "relation.open": "Buka peta orang",
+    "relation.openFull": "Buka peta orang penuh",
+    "relation.me": "Aku",
+    "relation.foot": "Jarak menunjukkan kedekatan; warna cahaya menunjukkan jenis hubungan.",
+    "growth.section": "Bab dalam catatanmu",
+    "growth.empty": "Tambahkan momen bertumbuh dan bab nyatanya akan muncul di sini.",
+    "growth.start": "Mulai refleksi",
+    "health.section": "Catatan kesehatan hari ini",
+    "health.coverage": "Cakupan",
+    "health.empty": "Belum ada catatan kesehatan yang terhubung.",
+    "health.sleepSection": "Tren catatan tidur",
+    "health.sleepEmpty": "Hubungkan catatan tidur untuk melihat pola terbaru sebagai batang.",
+    "health.connect": "Hubungkan data",
+    "recreation.section": "Peta istirahat",
+    "recreation.fill": "Mengisi",
+    "recreation.emptyAxis": "Mengosongkan",
+    "recreation.solo": "Sendiri",
+    "recreation.together": "Bersama",
+    "recreation.empty": "Momen istirahat menjadi bintang di sini.",
+    "recreation.foot": "Item saat ini tetap netral di tengah. Klasifikasi sendiri/bersama dan kosong/isi akan terbentuk dari entri berikutnya.",
+    "recreation.open": "Buka catatan istirahat",
+    "collect.section": "Menunggu dirapikan",
+    "collect.empty": "Tidak ada catatan yang menunggu untuk dirapikan.",
+    "state.loadingA11y": "Memuat lensa domain",
+    "state.loadingBody": "Menyesuaikan lensa dengan catatan nyatamu.",
+    "state.errorBody": "Catatan terstruktur belum termuat sekarang. Coba layar sumbernya.",
+    "state.errorAction": "Buka semua catatan",
+  },
 };
+
+const CAREER_CREDENTIALS: Record<LensLocale, string[]> = {
+  en: ["Education", "Service", "Awards", "Licenses", "Experience"],
+  ko: ["학력", "병역", "수상", "자격", "경력"],
+  es: ["Estudios", "Servicio", "Premios", "Licencias", "Experiencia"],
+  pt: ["Educacao", "Servico", "Premios", "Licencas", "Experiencia"],
+  id: ["Pendidikan", "Layanan", "Penghargaan", "Lisensi", "Pengalaman"],
+};
+
+const HEALTH_LABEL: Record<string, Record<LensLocale, string>> = {
+  steps: { ko: "걸음", en: "Steps", es: "Pasos", pt: "Passos", id: "Langkah" },
+  workout: { ko: "움직임", en: "Movement", es: "Movimiento", pt: "Movimento", id: "Gerak" },
+  sleep: { ko: "수면", en: "Sleep", es: "Sueno", pt: "Sono", id: "Tidur" },
+  heart_rate: { ko: "심박", en: "Heart rate", es: "Ritmo cardiaco", pt: "Batimento", id: "Detak jantung" },
+};
+
+function lensCopy(locale: LensLocale, key: LensCopyKey) {
+  return LENS_COPY[locale]?.[key] ?? LENS_COPY.en[key];
+}
+
+function numberLocale(locale: LensLocale) {
+  return ({ en: "en-US", ko: "ko-KR", es: "es-ES", pt: "pt-BR", id: "id-ID" } as const)[locale];
+}
+
+function netFlowLabel(locale: LensLocale, money: string) {
+  if (locale === "ko") return `이번 달 순흐름 ${money}`;
+  if (locale === "es") return `Flujo neto este mes ${money}`;
+  if (locale === "pt") return `Fluxo liquido este mes ${money}`;
+  if (locale === "id") return `Arus bersih bulan ini ${money}`;
+  return `Net flow this month ${money}`;
+}
+
+function decadeLabel(locale: LensLocale, decade: number) {
+  if (locale === "ko") return `${decade}년대`;
+  if (locale === "es") return `Anios ${decade}`;
+  if (locale === "pt") return `Anos ${decade}`;
+  if (locale === "id") return `${decade}-an`;
+  return `${decade}s`;
+}
+
+function recordsCountLabel(locale: LensLocale, count: number) {
+  if (locale === "ko") return `${count}개 기록`;
+  if (locale === "es") return `${count} registros`;
+  if (locale === "pt") return `${count} registros`;
+  if (locale === "id") return `${count} catatan`;
+  return `${count} records`;
+}
+
+function localeFromLanguage(language: string | undefined, koFallback: boolean): LensLocale {
+  if (language?.startsWith("ko")) return "ko";
+  if (language?.startsWith("es")) return "es";
+  if (language?.startsWith("pt")) return "pt";
+  if (language?.startsWith("id")) return "id";
+  return koFallback ? "ko" : "en";
+}
 
 function useStructuredLensData(userId: string, domain: DomainId): StructuredLensData {
   const [data, setData] = useState<StructuredLensData>({ status: "idle" });
@@ -178,14 +496,12 @@ function RecordTimeline({
   );
 }
 
-function CareerLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean }) {
+function CareerLens({ records, locale }: { records: DomainLensRecord[]; locale: LensLocale }) {
   const [track, setTrack] = useState<"main" | "side">("main");
-  const credentials = ko
-    ? ["학력", "병역", "수상", "자격", "경력"]
-    : ["Education", "Service", "Awards", "Licenses", "Experience"];
+  const credentials = CAREER_CREDENTIALS[locale] ?? CAREER_CREDENTIALS.en;
   return (
     <>
-      <SectionLabel>{ko ? "쌓아온 길" : "The path you have built"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "career.section")}</SectionLabel>
       <View style={styles.segmented}>
         {(["main", "side"] as const).map((key) => {
           const selected = track === key;
@@ -198,7 +514,7 @@ function CareerLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean 
               style={[styles.segment, selected && styles.segmentOn]}
             >
               <RNText style={[m3TextStyle("labelLarge"), selected ? styles.segmentTextOn : styles.segmentText]}>
-                {key === "main" ? (ko ? "메인" : "Main") : ko ? "사이드" : "Side"}
+                {key === "main" ? lensCopy(locale, "career.main") : lensCopy(locale, "career.side")}
               </RNText>
             </Pressable>
           );
@@ -216,16 +532,14 @@ function CareerLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean 
         {track === "main" ? (
           <RecordTimeline
             records={records}
-            empty={ko ? "성과를 담으면 이 길에 실제 기록이 이어져요." : "Add an achievement and its real record will join this path."}
+            empty={lensCopy(locale, "career.emptyMain")}
           />
         ) : (
           <View style={styles.sideEmpty}>
             <RNText style={[m3TextStyle("bodyMedium"), styles.muted]}>
-              {ko
-                ? "공식 이력은 연동된 자료가 생기면 학력, 수상, 자격, 경력 순으로 정리돼요."
-                : "Connected official records will organize here as education, awards, licenses, and experience."}
+              {lensCopy(locale, "career.emptySide")}
             </RNText>
-            <MdButton variant="text" label={ko ? "커리어 전체 보기" : "Open career"} onPress={() => router.push("/career")} />
+            <MdButton variant="text" label={lensCopy(locale, "career.open")} onPress={() => router.push("/career")} />
           </View>
         )}
       </MdCard>
@@ -235,18 +549,18 @@ function CareerLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean 
 
 function FinanceLens({
   payload,
-  ko,
+  locale,
 }: {
   payload: StructuredLensData["finance"];
-  ko: boolean;
+  locale: LensLocale;
 }) {
   if (!payload || payload.entries.length === 0) {
     return (
       <>
-        <SectionLabel>{ko ? "이번 달 가계" : "This month"}</SectionLabel>
+        <SectionLabel>{lensCopy(locale, "finance.section")}</SectionLabel>
         <EmptyPanel
-          body={ko ? "수입과 지출을 담으면 이번 달 흐름과 카테고리 구성이 여기에 보여요." : "Add income and expenses to see this month's flow and category mix here."}
-          action={ko ? "가계 열기" : "Open ledger"}
+          body={lensCopy(locale, "finance.empty")}
+          action={lensCopy(locale, "finance.open")}
           route="/ledger"
         />
       </>
@@ -254,31 +568,31 @@ function FinanceLens({
   }
 
   const { entries, summary } = payload;
-  const money = (value: number) => `₩${Math.round(value).toLocaleString(ko ? "ko-KR" : "en-US")}`;
+  const money = (value: number) => `₩${Math.round(value).toLocaleString(numberLocale(locale))}`;
   const ratio = summary.income > 0 ? Math.min(1, summary.expense / summary.income) : summary.expense > 0 ? 1 : 0;
   const categoryTotal = Math.max(1, summary.byCategory.reduce((sum, row) => sum + row.total, 0));
 
   return (
     <>
-      <SectionLabel>{ko ? "이번 달 가계" : "This month"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "finance.section")}</SectionLabel>
       <MdCard variant="outlined" style={styles.financeCard}>
         <View style={styles.financeHeadline}>
           <View style={styles.flexOne}>
-            <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>{ko ? "지출" : "Expense"}</RNText>
+            <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>{lensCopy(locale, "finance.expense")}</RNText>
             <RNText style={styles.money}>{money(summary.expense)}</RNText>
           </View>
           <View style={styles.financeRight}>
-            <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>{ko ? "수입" : "Income"}</RNText>
+            <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>{lensCopy(locale, "finance.income")}</RNText>
             <RNText style={[m3TextStyle("bodyMedium"), styles.financeIncome]}>{money(summary.income)}</RNText>
           </View>
         </View>
         <ProgressLinear
           value={ratio}
-          accessibilityLabel={ko ? "수입 대비 지출" : "Expense compared with income"}
+          accessibilityLabel={lensCopy(locale, "finance.ratio")}
           style={styles.financeProgress}
         />
         <RNText style={[m3TextStyle("bodySmall"), styles.muted]}>
-          {ko ? `이번 달 순흐름 ${money(summary.net)}` : `Net flow this month ${money(summary.net)}`}
+          {netFlowLabel(locale, money(summary.net))}
         </RNText>
         {summary.byCategory.length > 0 ? (
           <>
@@ -309,7 +623,7 @@ function FinanceLens({
         ) : null}
       </MdCard>
 
-      <SectionLabel>{ko ? "현금 흐름" : "Cash flow"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "finance.cashFlow")}</SectionLabel>
       <MdCard variant="outlined" style={styles.financeCard}>
         {entries.slice(0, 4).map((entry) => (
           <View key={entry.id} style={styles.flowRow}>
@@ -333,16 +647,16 @@ function FinanceLens({
   );
 }
 
-function RelationLens({ people, ko }: { people: Person[] | undefined; ko: boolean }) {
+function RelationLens({ people, locale }: { people: Person[] | undefined; locale: LensLocale }) {
   const visiblePeople = (people ?? []).slice(0, 24);
   const nodes = useMemo(() => layoutPeopleMap(visiblePeople), [visiblePeople]);
   if (nodes.length === 0) {
     return (
       <>
-        <SectionLabel>{ko ? "나의 사람들" : "My people"}</SectionLabel>
+        <SectionLabel>{lensCopy(locale, "relation.section")}</SectionLabel>
         <EmptyPanel
-          body={ko ? "사람을 한 명 담으면 나를 중심으로 실제 관계 지도가 시작돼요." : "Add one person to begin a real map centered on you."}
-          action={ko ? "사람 지도 열기" : "Open people map"}
+          body={lensCopy(locale, "relation.empty")}
+          action={lensCopy(locale, "relation.open")}
           route="/people"
         />
       </>
@@ -351,11 +665,11 @@ function RelationLens({ people, ko }: { people: Person[] | undefined; ko: boolea
 
   return (
     <>
-      <SectionLabel>{ko ? "나의 사람들" : "My people"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "relation.section")}</SectionLabel>
       <Pressable
         onPress={() => router.push("/people")}
         accessibilityRole="button"
-        accessibilityLabel={ko ? "관계 지도 전체 보기" : "Open full people map"}
+        accessibilityLabel={lensCopy(locale, "relation.openFull")}
         style={styles.mapCard}
       >
         <Svg width="100%" height="100%" viewBox="0 0 1000 1000">
@@ -383,7 +697,7 @@ function RelationLens({ people, ko }: { people: Person[] | undefined; ko: boolea
           ))}
           <Circle cx={500} cy={500} r={32} fill={m3.accent.polaris} />
           <SvgText x={500} y={560} fill={m3.color.onSurface} fontSize={30} textAnchor="middle">
-            {ko ? "나" : "Me"}
+            {lensCopy(locale, "relation.me")}
           </SvgText>
           {nodes.map((node) => {
             const radius = 16 + node.closeness * 3;
@@ -410,13 +724,13 @@ function RelationLens({ people, ko }: { people: Person[] | undefined; ko: boolea
         </Svg>
       </Pressable>
       <RNText style={[m3TextStyle("bodySmall"), styles.mapFoot]}>
-        {ko ? "가까움은 중심과의 거리, 관계 종류는 별빛 색으로 보여요." : "Distance shows closeness; starlight color shows relation type."}
+        {lensCopy(locale, "relation.foot")}
       </RNText>
     </>
   );
 }
 
-function GrowthLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean }) {
+function GrowthLens({ records, locale }: { records: DomainLensRecord[]; locale: LensLocale }) {
   const groups = useMemo(() => {
     const map = new Map<number, DomainLensRecord[]>();
     for (const record of records.slice(0, 40)) {
@@ -431,14 +745,14 @@ function GrowthLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean 
 
   return (
     <>
-      <SectionLabel>{ko ? "기록의 시간대" : "Chapters in your records"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "growth.section")}</SectionLabel>
       <MdCard variant="outlined" style={styles.growthCard}>
         {groups.length === 0 ? (
           <View style={styles.sideEmpty}>
             <RNText style={[m3TextStyle("bodyMedium"), styles.muted]}>
-              {ko ? "성장의 장면을 담으면 실제 기록의 시간대가 한 장씩 열려요." : "Add a growth moment and its real chapter will open here."}
+              {lensCopy(locale, "growth.empty")}
             </RNText>
-            <MdButton variant="text" label={ko ? "회상 시작하기" : "Start reflection"} onPress={() => router.push("/audit")} />
+            <MdButton variant="text" label={lensCopy(locale, "growth.start")} onPress={() => router.push("/audit")} />
           </View>
         ) : (
           groups.map(([decade, items], index) => (
@@ -449,9 +763,9 @@ function GrowthLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean 
               </View>
               <View style={styles.chapterBody}>
                 <View style={styles.chapterHead}>
-                  <RNText style={[m3TextStyle("titleMedium"), styles.onSurface]}>{`${decade}${ko ? "년대" : "s"}`}</RNText>
+                  <RNText style={[m3TextStyle("titleMedium"), styles.onSurface]}>{decadeLabel(locale, decade)}</RNText>
                   <RNText style={[m3TextStyle("labelSmall"), styles.monoMuted]}>
-                    {ko ? `${items.length}개 기록` : `${items.length} records`}
+                    {recordsCountLabel(locale, items.length)}
                   </RNText>
                 </View>
                 <ProgressLinear value={Math.min(1, items.length / 10)} style={styles.chapterProgress} />
@@ -470,11 +784,11 @@ function GrowthLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean 
 function HealthLens({
   samples,
   level,
-  ko,
+  locale,
 }: {
   samples: HealthSampleRow[] | undefined;
   level: LadderLevel | null;
-  ko: boolean;
+  locale: LensLocale;
 }) {
   const recent = samples ?? [];
   const coverage = Math.max(0, Math.min(1, ((level ?? 1) - 1) / 4));
@@ -490,7 +804,7 @@ function HealthLens({
 
   return (
     <>
-      <SectionLabel>{ko ? "오늘의 건강 기록" : "Today's health records"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "health.section")}</SectionLabel>
       <MdCard variant="outlined" style={styles.healthCard}>
         <View style={styles.healthTop}>
           <View style={styles.ringWrap}>
@@ -518,7 +832,7 @@ function HealthLens({
             </Svg>
             <View style={styles.ringText}>
               <RNText style={styles.ringLevel}>{`L${level ?? 1}`}</RNText>
-              <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>{ko ? "기록 범위" : "Coverage"}</RNText>
+              <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>{lensCopy(locale, "health.coverage")}</RNText>
             </View>
           </View>
           <View style={styles.healthStats}>
@@ -526,7 +840,7 @@ function HealthLens({
               stats.map((sample) => (
                 <View key={sample.id} style={styles.healthStat}>
                   <RNText style={[m3TextStyle("bodySmall"), styles.muted]}>
-                    {(HEALTH_LABEL[sample.metric_type] ?? { ko: sample.metric_type, en: sample.metric_type })[ko ? "ko" : "en"]}
+                    {HEALTH_LABEL[sample.metric_type]?.[locale] ?? sample.metric_type}
                   </RNText>
                   <RNText style={[m3TextStyle("labelLarge"), styles.healthValue]}>
                     {`${Number(sample.value.toFixed(1)).toLocaleString()} ${sample.unit}`}
@@ -535,21 +849,21 @@ function HealthLens({
               ))
             ) : (
               <RNText style={[m3TextStyle("bodyMedium"), styles.muted]}>
-                {ko ? "연결된 건강 기록이 아직 없어요." : "No connected health records yet."}
+                {lensCopy(locale, "health.empty")}
               </RNText>
             )}
           </View>
         </View>
       </MdCard>
 
-      <SectionLabel>{ko ? "수면 기록의 흐름" : "Sleep record trend"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "health.sleepSection")}</SectionLabel>
       <MdCard variant="outlined" style={styles.sleepCard}>
         {sleep.length === 0 ? (
           <View style={styles.sideEmpty}>
             <RNText style={[m3TextStyle("bodyMedium"), styles.muted]}>
-              {ko ? "수면 기록을 연결하면 최근 흐름이 막대로 나타나요." : "Connect sleep records to see the recent pattern as bars."}
+              {lensCopy(locale, "health.sleepEmpty")}
             </RNText>
-            <MdButton variant="text" label={ko ? "데이터 연결" : "Connect data"} onPress={() => router.push("/import-hub")} />
+            <MdButton variant="text" label={lensCopy(locale, "health.connect")} onPress={() => router.push("/import-hub")} />
           </View>
         ) : (
           <View style={styles.sleepBars}>
@@ -558,7 +872,7 @@ function HealthLens({
                 <RNText style={[m3TextStyle("labelSmall"), styles.monoMuted]}>{Number(sample.value.toFixed(1))}</RNText>
                 <View style={[styles.sleepBar, { height: Math.max(12, (sample.value / maxSleep) * 74) }]} />
                 <RNText style={[m3TextStyle("labelSmall"), styles.muted]}>
-                  {new Date(sample.started_at).toLocaleDateString(ko ? "ko-KR" : "en-US", { weekday: "short" })}
+                  {new Date(sample.started_at).toLocaleDateString(numberLocale(locale), { weekday: "short" })}
                 </RNText>
               </View>
             ))}
@@ -571,27 +885,27 @@ function HealthLens({
 
 function RecreationLens({
   items,
-  ko,
+  locale,
 }: {
   items: RecreationItem[] | undefined;
-  ko: boolean;
+  locale: LensLocale;
 }) {
   const visible = (items ?? []).slice(0, 8);
   return (
     <>
-      <SectionLabel>{ko ? "휴식 지도" : "Rest map"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "recreation.section")}</SectionLabel>
       <MdCard variant="outlined" style={styles.restCard}>
         <View style={styles.restMap}>
           <View style={styles.axisVertical} />
           <View style={styles.axisHorizontal} />
-          <RNText style={[m3TextStyle("labelSmall"), styles.axisTop]}>{ko ? "채움" : "Fill"}</RNText>
-          <RNText style={[m3TextStyle("labelSmall"), styles.axisBottom]}>{ko ? "비움" : "Empty"}</RNText>
-          <RNText style={[m3TextStyle("labelSmall"), styles.axisLeft]}>{ko ? "혼자" : "Solo"}</RNText>
-          <RNText style={[m3TextStyle("labelSmall"), styles.axisRight]}>{ko ? "함께" : "Together"}</RNText>
+          <RNText style={[m3TextStyle("labelSmall"), styles.axisTop]}>{lensCopy(locale, "recreation.fill")}</RNText>
+          <RNText style={[m3TextStyle("labelSmall"), styles.axisBottom]}>{lensCopy(locale, "recreation.emptyAxis")}</RNText>
+          <RNText style={[m3TextStyle("labelSmall"), styles.axisLeft]}>{lensCopy(locale, "recreation.solo")}</RNText>
+          <RNText style={[m3TextStyle("labelSmall"), styles.axisRight]}>{lensCopy(locale, "recreation.together")}</RNText>
           {visible.length === 0 ? (
             <View style={styles.restEmpty}>
               <RNText style={[m3TextStyle("bodyMedium"), styles.restEmptyText]}>
-                {ko ? "휴식을 담으면 여기에 별이 생겨요." : "Rest moments become stars here."}
+                {lensCopy(locale, "recreation.empty")}
               </RNText>
             </View>
           ) : (
@@ -625,25 +939,23 @@ function RecreationLens({
         </View>
         <View style={styles.restFoot}>
           <RNText style={[m3TextStyle("bodySmall"), styles.muted]}>
-            {ko
-              ? "현재 항목은 중심에 모아 두었어요. 혼자·함께, 비움·채움 분류는 다음 입력부터 쌓여요."
-              : "Current items stay neutral at the center. Solo/together and empty/fill classification will build from future entries."}
+            {lensCopy(locale, "recreation.foot")}
           </RNText>
-          <MdButton variant="text" label={ko ? "휴식 기록 보기" : "Open rest records"} onPress={() => router.push("/rest")} />
+          <MdButton variant="text" label={lensCopy(locale, "recreation.open")} onPress={() => router.push("/rest")} />
         </View>
       </MdCard>
     </>
   );
 }
 
-function CollectLens({ records, ko }: { records: DomainLensRecord[]; ko: boolean }) {
+function CollectLens({ records, locale }: { records: DomainLensRecord[]; locale: LensLocale }) {
   return (
     <>
-      <SectionLabel>{ko ? "정리 대기" : "Waiting to organize"}</SectionLabel>
+      <SectionLabel>{lensCopy(locale, "collect.section")}</SectionLabel>
       <MdCard variant="outlined" style={styles.timelineCard}>
         <RecordTimeline
           records={records}
-          empty={ko ? "아직 분류를 기다리는 기록이 없어요." : "There are no records waiting to be organized."}
+          empty={lensCopy(locale, "collect.empty")}
         />
       </MdCard>
     </>
@@ -663,14 +975,16 @@ export function DomainStarLens({
   level: LadderLevel | null;
   ko: boolean;
 }) {
+  const { i18n } = useTranslation();
+  const locale = localeFromLanguage(i18n.language, ko);
   const structured = useStructuredLensData(userId, domain);
 
   if (structured.status === "loading") {
     return (
       <MdCard variant="outlined" style={styles.loadingCard}>
-        <ProgressLinear accessibilityLabel={ko ? "도메인 렌즈 불러오는 중" : "Loading domain lens"} />
+        <ProgressLinear accessibilityLabel={lensCopy(locale, "state.loadingA11y")} />
         <RNText style={[m3TextStyle("bodyMedium"), styles.muted]}>
-          {ko ? "실제 기록으로 렌즈를 맞추는 중이에요." : "Fitting the lens to your real records."}
+          {lensCopy(locale, "state.loadingBody")}
         </RNText>
       </MdCard>
     );
@@ -679,8 +993,8 @@ export function DomainStarLens({
   if (structured.status === "error") {
     return (
       <EmptyPanel
-        body={ko ? "전용 기록을 잠깐 불러오지 못했어요. 원본 화면에서 다시 확인해 주세요." : "The structured records did not load just now. Try their source screen."}
-        action={ko ? "기록 전체 보기" : "Open all records"}
+        body={lensCopy(locale, "state.errorBody")}
+        action={lensCopy(locale, "state.errorAction")}
         route="/records"
       />
     );
@@ -688,19 +1002,19 @@ export function DomainStarLens({
 
   switch (domain) {
     case "career":
-      return <CareerLens records={records} ko={ko} />;
+      return <CareerLens records={records} locale={locale} />;
     case "finance":
-      return <FinanceLens payload={structured.finance} ko={ko} />;
+      return <FinanceLens payload={structured.finance} locale={locale} />;
     case "relation":
-      return <RelationLens people={structured.people} ko={ko} />;
+      return <RelationLens people={structured.people} locale={locale} />;
     case "growth":
-      return <GrowthLens records={records} ko={ko} />;
+      return <GrowthLens records={records} locale={locale} />;
     case "health":
-      return <HealthLens samples={structured.health} level={level} ko={ko} />;
+      return <HealthLens samples={structured.health} level={level} locale={locale} />;
     case "recreation":
-      return <RecreationLens items={structured.recreation} ko={ko} />;
+      return <RecreationLens items={structured.recreation} locale={locale} />;
     case "collect":
-      return <CollectLens records={records} ko={ko} />;
+      return <CollectLens records={records} locale={locale} />;
   }
 }
 
