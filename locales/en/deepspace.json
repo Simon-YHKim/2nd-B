@@ -879,6 +879,12 @@
       "plansCta": "View plans",
       "close": "Close",
       "sameQuality": "Rewards only add runs. Answer quality stays the same."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Automatic reasoning",
+      "autoPaused": "Limit reached · automatic runs resume Monday",
+      "autoBody": "SecondB connects each item as you capture it",
+      "autoNote": "Automatic runs use one weekly run and always reserve one for manual use."
     }
   },
   "beyond": {

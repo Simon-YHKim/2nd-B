@@ -879,6 +879,12 @@
       "plansCta": "Lihat paket",
       "close": "Tutup",
       "sameQuality": "Hadiah hanya menambah jumlah. Kualitas jawaban tetap sama."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning otomatis",
+      "autoPaused": "Batas tercapai · otomatis lanjut Senin",
+      "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
+      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual."
     }
   },
   "beyond": {
