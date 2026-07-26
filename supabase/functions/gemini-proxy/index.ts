@@ -782,20 +782,8 @@ Deno.serve(async (req: Request) => {
   // with claude/openai proxies). A normal completion is finishReason 'STOP' and
   // passes straight through.
   const blockReason = data?.promptFeedback?.blockReason;
-  if (blockReason) {
-    return jsonResponse(req, { error: 'upstream_blocked', reason: String(blockReason).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
-  }
   const candidate = data?.candidates?.[0];
-  if (!candidate) {
-    return jsonResponse(req, { error: 'upstream_empty', reason: 'no_candidates' }, 502);
-  }
   const finishReason: string | undefined = candidate?.finishReason;
-  if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
-    return jsonResponse(req, { error: 'upstream_blocked', reason: finishReason }, 502);
-  }
-  if (finishReason === 'MAX_TOKENS') {
-    return jsonResponse(req, { error: 'upstream_truncated', reason: 'max_tokens' }, 502);
-  }
   const text: string = candidate?.content?.parts?.[0]?.text ?? '';
   const modelUsed: string = data?.modelVersion ?? effectiveModel;
 
@@ -806,6 +794,21 @@ Deno.serve(async (req: Request) => {
   // insert; on failure the client falls back to writing the row itself. The
   // prompt hash mirrors the client (system+user only, excluding the preamble).
   // D-27: usage tokens (Gemini usageMetadata.totalTokenCount).
+  //
+  // C3 parity fix (2026-07-26): claude/openai audit refused/truncated upstream
+  // completions (+refusal/+truncated model_used markers) BEFORE their 502
+  // returns; this proxy used to 502 first, so a paid-but-blocked Gemini call
+  // left NO audit row. The insert now runs on every upstream 200, tagging the
+  // outcome, and only then do the blocked/empty/truncated 502s return.
+  const outcomeMarker = blockReason
+    ? '+blocked'
+    : !candidate
+      ? '+empty'
+      : finishReason === 'SAFETY' || finishReason === 'RECITATION'
+        ? '+refusal'
+        : finishReason === 'MAX_TOKENS'
+          ? '+truncated'
+          : '';
   const geminiTotalTokens =
     Number((data?.usageMetadata as { totalTokenCount?: number } | undefined)?.totalTokenCount) || null;
   let audited = false;
@@ -814,7 +817,7 @@ Deno.serve(async (req: Request) => {
       user_id: userId,
       prompt_hash: djb2(`${systemText ?? ''}${userText}`),
       output_hash: djb2(text),
-      model_used: modelUsed,
+      model_used: `${modelUsed}${outcomeMarker}`,
       vertex_backend: false,
       safety_zone: hasCrisisTerm(text) ? 'red' : 'green',
       latency_ms: latencyMs,
@@ -829,6 +832,19 @@ Deno.serve(async (req: Request) => {
     if (auditErr) console.warn('[gemini-proxy] audit insert failed:', auditErr.message);
   } catch (e) {
     console.warn('[gemini-proxy] audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+  }
+
+  if (blockReason) {
+    return jsonResponse(req, { error: 'upstream_blocked', reason: String(blockReason).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
+  }
+  if (!candidate) {
+    return jsonResponse(req, { error: 'upstream_empty', reason: 'no_candidates' }, 502);
+  }
+  if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+    return jsonResponse(req, { error: 'upstream_blocked', reason: finishReason }, 502);
+  }
+  if (finishReason === 'MAX_TOKENS') {
+    return jsonResponse(req, { error: 'upstream_truncated', reason: 'max_tokens' }, 502);
   }
 
   return jsonResponse(req, { text, modelUsed, latencyMs, audited });
