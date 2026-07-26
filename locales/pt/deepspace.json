@@ -605,6 +605,12 @@
     "introPrivacy": "Os registros originais e os números nunca vão no cartão. Só a frase que você escolher.",
     "starsFallback": "Não conseguimos ler suas estrelas; desenhamos o padrão."
   },
+  "completionToast": {
+    "done": "A análise está pronta",
+    "sub": "Quer ver?",
+    "see": "Ver resultado",
+    "later": "Mais tarde"
+  },
   "coachmarks": {
     "step1": "Esta é a sua constelação",
     "step2": "Toque em uma estrela",

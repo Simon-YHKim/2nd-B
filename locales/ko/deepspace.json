@@ -605,6 +605,12 @@
     "introPrivacy": "기록 원문·수치는 카드에 포함되지 않아요. 보여줄 문장만 골라 담아요.",
     "starsFallback": "별 개수를 못 읽어 기본값으로 그렸어요."
   },
+  "completionToast": {
+    "done": "분석이 끝났어요",
+    "sub": "보러 갈래요?",
+    "see": "결과 보기",
+    "later": "나중에"
+  },
   "coachmarks": {
     "step1": "여기는 별자리예요",
     "step2": "별을 눌러보세요",

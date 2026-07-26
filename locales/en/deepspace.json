@@ -605,6 +605,12 @@
     "introPrivacy": "Raw records and numbers never go on the card. Only the sentence you pick.",
     "starsFallback": "Could not read your stars; drew the default."
   },
+  "completionToast": {
+    "done": "Analysis is ready",
+    "sub": "Take a look?",
+    "see": "See result",
+    "later": "Later"
+  },
   "coachmarks": {
     "step1": "This is your constellation",
     "step2": "Tap a star",
