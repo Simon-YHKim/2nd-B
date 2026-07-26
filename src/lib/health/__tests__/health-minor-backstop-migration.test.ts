@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const raw = readFileSync(
-  join(__dirname, "..", "..", "..", "..", "db", "migrations", "0099_health_minor_backstop.sql"),
+  join(__dirname, "..", "..", "..", "..", "db", "migrations", "0100_health_minor_backstop.sql"),
   "utf8",
 );
 // Assert against executable SQL, not comments -- the header legitimately MENTIONS

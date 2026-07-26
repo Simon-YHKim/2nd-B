@@ -1,4 +1,6 @@
--- 0099_health_minor_backstop.sql
+-- 0100_health_minor_backstop.sql
+-- (Renumbered 0099 -> 0100 to avoid a collision with the open PR #1133's
+-- 0099_ai_audit_health_view.sql; ordering is not significant for this trigger.)
 -- Deep-hunt F5: the minor health-data (PIPA 민감정보) lock existed ONLY in the client
 -- choke point (health/ingest.ts ingestHealthSamples reads the health_import pref) plus
 -- that pref being server-clamped false for minors (0050). But health_samples RLS
