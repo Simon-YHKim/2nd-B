@@ -243,7 +243,7 @@ export default function Index() {
 
 export function GraphScreen() {
   const { t, i18n } = useTranslation("index");
-  const { userId, hasProfile, loading } = useAuth();
+  const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
   const onboardingComplete = useOnboardingComplete();
   const autoTriggerTTFV = useAutoTriggerTTFV();
   const insets = useSafeAreaInsets();
@@ -453,6 +453,9 @@ export function GraphScreen() {
 
   if (loading) return <InlineLoader />;
   if (!userId) return <Redirect href="/sign-in" />;
+  // F4: hold on a transient profile-probe failure instead of ejecting a registered
+  // user to /complete-profile (DOB + consent re-entry) on a network blip.
+  if (hasProfile === false && profileProbeFailed) return <InlineLoader />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   // First run: wait for native persistence before deciding whether to gate.
   if (onboardingComplete === null) return <InlineLoader />;

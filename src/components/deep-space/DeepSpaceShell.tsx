@@ -23,7 +23,7 @@ import { ConstellationHome } from "./ConstellationHome";
 import { HomeCoachmarks } from "./HomeCoachmarks";
 
 export function DeepSpaceShell() {
-  const { userId, hasProfile, loading } = useAuth();
+  const { userId, hasProfile, loading, profileProbeFailed } = useAuth();
   const onboardingComplete = useOnboardingComplete();
   // First-day activation: once onboarded + signed in, a first-launcher is sent
   // to the TTFV "첫 별 점등" once (the gate self-clears after the screen is seen).
@@ -69,6 +69,11 @@ export function DeepSpaceShell() {
   // before anything else; onboarding is now a post-login welcome. This reverses
   // the earlier "sell before signup" order so nothing renders pre-auth.
   if (!userId) return <Redirect href="/sign-in" />;
+  // F4: a TRANSIENT profile-probe failure (network blip) surfaces as
+  // hasProfile===false with profileProbeFailed===true. Do NOT eject a real,
+  // fully-registered user to /complete-profile (which would demand DOB + consent
+  // re-entry) on a mere blip -- hold with the loader; AuthContext re-probes.
+  if (hasProfile === false && profileProbeFailed) return <InlineLoader />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
   if (onboardingComplete === null) return <InlineLoader />;
   if (!onboardingComplete) return <Redirect href="/onboarding" />;

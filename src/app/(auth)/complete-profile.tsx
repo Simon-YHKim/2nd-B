@@ -32,7 +32,7 @@ type CompleteProfileToast = { message: string; tone: "info" | "success" | "dange
 
 export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
-  const { userId, hasProfile, loading, refresh } = useAuth();
+  const { userId, hasProfile, loading, refresh, profileProbeFailed } = useAuth();
   const [birthDate, setBirthDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -67,6 +67,14 @@ export default function CompleteProfile() {
   // redirects below read userId === null while loading, which would otherwise
   // bounce a freshly-signed-in OAuth user back to /sign-in before auth settles.
   if (loading) {
+    return <InlineLoader message={t("common.checking")} />;
+  }
+
+  // F4: a TRANSIENT profile-probe failure lands here as hasProfile===false. Hold with
+  // the checking state rather than showing the DOB + consent form to a user who may
+  // already be fully registered (the probe merely failed). AuthContext re-probes; a
+  // genuine no-profile answer (profileProbeFailed===false) falls through to the form.
+  if (userId && hasProfile === false && profileProbeFailed) {
     return <InlineLoader message={t("common.checking")} />;
   }
 

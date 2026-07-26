@@ -249,7 +249,7 @@ function markIntroPlayed(): void {
 }
 
 function IntroGate({ children }: { children: React.ReactNode }) {
-  const { userId, loading, hasProfile } = useAuth();
+  const { userId, loading, hasProfile, profileProbeFailed } = useAuth();
   const segments = useSegments();
   // Play the cell-team intro only once per tab session. On re-entry (tab
   // switch back, navigating home, a fresh auth event) we go straight to the
@@ -286,7 +286,18 @@ function IntroGate({ children }: { children: React.ReactNode }) {
   // holds: "/" (DeepSpaceShell) forces hasProfile===false to /complete-profile
   // before onboarding, and onboarding exits back through "/". Per-screen redirects
   // stay as defense-in-depth.
-  if (!loading && userId && hasProfile === false && segments[0] !== "(auth)" && segments[0] !== "onboarding") {
+  // F4: `!profileProbeFailed` — a TRANSIENT profile-probe failure publishes
+  // hasProfile===false; do not eject a registered user to /complete-profile (DOB +
+  // consent re-entry) on a network blip. The genuine no-profile state (a real server
+  // answer, profileProbeFailed===false) still redirects. AuthContext re-probes.
+  if (
+    !loading &&
+    userId &&
+    hasProfile === false &&
+    !profileProbeFailed &&
+    segments[0] !== "(auth)" &&
+    segments[0] !== "onboarding"
+  ) {
     return <Redirect href="/complete-profile" />;
   }
 
