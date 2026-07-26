@@ -879,6 +879,12 @@
       "plansCta": "플랜 보기",
       "close": "닫기",
       "sameQuality": "보상은 횟수만 늘어나요. 결과 품질은 그대로예요."
+    },
+    "reasoningScreen": {
+      "autoTitle": "자동 리즈닝",
+      "autoPaused": "한도 소진 · 월요일에 자동으로 다시 시작해요",
+      "autoBody": "자료를 담을 때마다 세컨비가 바로 별을 이어요",
+      "autoNote": "자동 실행도 주간 한도를 1회씩 사용해요. 직접 실행할 1회는 항상 남겨 둬요."
     }
   },
   "beyond": {

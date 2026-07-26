@@ -879,6 +879,12 @@
       "plansCta": "Ver planes",
       "close": "Cerrar",
       "sameQuality": "Las recompensas solo añaden ejecuciones. La calidad de las respuestas no cambia."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning automático",
+      "autoPaused": "Límite alcanzado · se reanuda el lunes",
+      "autoBody": "SecondB conecta cada elemento cuando lo capturas",
+      "autoNote": "Las ejecuciones automáticas usan una ejecución semanal y siempre reservan una para uso manual."
     }
   },
   "beyond": {
