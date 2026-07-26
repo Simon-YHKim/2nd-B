@@ -33,34 +33,111 @@ import { m3TextStyle } from "../typeface";
 import {
   isDisabledISO,
   isValidISO,
-  isoMonth0,
   isoYear,
   monthGrid,
   todayISO,
-  toISO,
   yearsDescending,
 } from "./calendar-math";
 
 // ---------------------------------------------------------------------------
-// Localised month / weekday labels. Following the repo convention (career.tsx
-// renders KO/EN copy inline off `i18n.language`), these live in-component rather
-// than exploding the i18n JSON with 19 keys × 5 locales. KO is exact; every
-// other pack renders the EN labels (matches i18n fallbackLng="en").
+// Localised month, weekday, and picker navigation labels. These stay in-component
+// to avoid expanding common.json with calendar primitives used only here.
 // ---------------------------------------------------------------------------
-const WEEKDAYS_EN = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
-const MONTHS_LONG_EN = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-const MONTHS_SHORT_EN = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+type CalendarLocale = "en" | "ko" | "es" | "pt" | "id";
+
+interface CalendarLabelPack {
+  weekdays: string[];
+  monthsLong: string[];
+  monthsShort: string[];
+  previousMonth: string;
+  nextMonth: string;
+  yearSelectionHint: string;
+  monthYear: (year: number, month: string) => string;
+  formatLong: (year: number, month: string, day: number) => string;
+  formatYear: (year: number) => string;
+}
+
+const CALENDAR_LABELS: Record<CalendarLocale, CalendarLabelPack> = {
+  en: {
+    weekdays: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+    monthsLong: [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ],
+    monthsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    previousMonth: "Previous month",
+    nextMonth: "Next month",
+    yearSelectionHint: "Opens year selection",
+    monthYear: (year, month) => `${month} ${year}`,
+    formatLong: (year, month, day) => `${month} ${day}, ${year}`,
+    formatYear: (year) => String(year),
+  },
+  ko: {
+    weekdays: ["일", "월", "화", "수", "목", "금", "토"],
+    monthsLong: ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+    monthsShort: ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+    previousMonth: "이전 달",
+    nextMonth: "다음 달",
+    yearSelectionHint: "연도를 선택하려면 누르세요",
+    monthYear: (year, month) => `${year}년 ${month}`,
+    formatLong: (year, month, day) => `${year}년 ${month} ${day}일`,
+    formatYear: (year) => `${year}년`,
+  },
+  es: {
+    weekdays: ["do", "lu", "ma", "mi", "ju", "vi", "sa"],
+    monthsLong: [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ],
+    monthsShort: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"],
+    previousMonth: "Mes anterior",
+    nextMonth: "Mes siguiente",
+    yearSelectionHint: "Abre la selección de año",
+    monthYear: (year, month) => `${month} de ${year}`,
+    formatLong: (year, month, day) => `${day} de ${month} de ${year}`,
+    formatYear: (year) => String(year),
+  },
+  pt: {
+    weekdays: ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"],
+    monthsLong: [
+      "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+      "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+    ],
+    monthsShort: ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."],
+    previousMonth: "Mês anterior",
+    nextMonth: "Próximo mês",
+    yearSelectionHint: "Abre a seleção de ano",
+    monthYear: (year, month) => `${month} de ${year}`,
+    formatLong: (year, month, day) => `${day} de ${month} de ${year}`,
+    formatYear: (year) => String(year),
+  },
+  id: {
+    weekdays: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
+    monthsLong: [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ],
+    monthsShort: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+    previousMonth: "Bulan sebelumnya",
+    nextMonth: "Bulan berikutnya",
+    yearSelectionHint: "Membuka pilihan tahun",
+    monthYear: (year, month) => `${month} ${year}`,
+    formatLong: (year, month, day) => `${day} ${month} ${year}`,
+    formatYear: (year) => String(year),
+  },
+};
+
+function calendarLocaleFor(language: string | undefined): CalendarLocale {
+  const base = (language ?? "en").split("-")[0];
+  if (base === "ko" || base === "es" || base === "pt" || base === "id") return base;
+  return "en";
+}
 
 interface DateLabels {
-  ko: boolean;
   weekdays: string[];
+  previousMonth: string;
+  nextMonth: string;
+  yearSelectionHint: string;
   monthYear: (year: number, month0: number) => string;
   formatLong: (iso: string) => string;
   formatYear: (year: number) => string;
@@ -68,22 +145,26 @@ interface DateLabels {
 
 function useDateLabels(): DateLabels {
   const { i18n } = useTranslation();
-  const ko = (i18n.language ?? "en").startsWith("ko");
+  const locale = calendarLocaleFor(i18n.language);
   return useMemo<DateLabels>(
-    () => ({
-      ko,
-      weekdays: ko ? WEEKDAYS_KO : WEEKDAYS_EN,
-      monthYear: (year, month0) =>
-        ko ? `${year}년 ${month0 + 1}월` : `${MONTHS_LONG_EN[month0]} ${year}`,
-      formatLong: (iso) => {
-        const y = Number(iso.slice(0, 4));
-        const m0 = Number(iso.slice(5, 7)) - 1;
-        const d = Number(iso.slice(8, 10));
-        return ko ? `${y}년 ${m0 + 1}월 ${d}일` : `${MONTHS_SHORT_EN[m0]} ${d}, ${y}`;
-      },
-      formatYear: (year) => (ko ? `${year}년` : String(year)),
-    }),
-    [ko],
+    () => {
+      const pack = CALENDAR_LABELS[locale];
+      return {
+        weekdays: pack.weekdays,
+        previousMonth: pack.previousMonth,
+        nextMonth: pack.nextMonth,
+        yearSelectionHint: pack.yearSelectionHint,
+        monthYear: (year, month0) => pack.monthYear(year, pack.monthsLong[month0]),
+        formatLong: (iso) => {
+          const y = Number(iso.slice(0, 4));
+          const m0 = Number(iso.slice(5, 7)) - 1;
+          const d = Number(iso.slice(8, 10));
+          return pack.formatLong(y, pack.monthsShort[m0], d);
+        },
+        formatYear: pack.formatYear,
+      };
+    },
+    [locale],
   );
 }
 
@@ -268,7 +349,7 @@ function CalendarModal({
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: prevDisabled }}
-                  accessibilityLabel={labels.ko ? "이전 달" : "Previous month"}
+                  accessibilityLabel={labels.previousMonth}
                   style={[styles.navBtn, prevDisabled && styles.navBtnOff]}
                 >
                   <Chevron direction="left" color={m3.color.onSurfaceVariant} />
@@ -278,7 +359,7 @@ function CalendarModal({
                   onPress={() => setView("year")}
                   accessibilityRole="button"
                   accessibilityLabel={labels.monthYear(cursorY, cursorM)}
-                  accessibilityHint={labels.ko ? "연도를 선택하려면 누르세요" : "Opens year selection"}
+                  accessibilityHint={labels.yearSelectionHint}
                   style={styles.monthLabelBtn}
                 >
                   <Text style={[m3TextStyle("titleMedium"), styles.monthLabel]}>
@@ -293,7 +374,7 @@ function CalendarModal({
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityState={{ disabled: nextDisabled }}
-                  accessibilityLabel={labels.ko ? "다음 달" : "Next month"}
+                  accessibilityLabel={labels.nextMonth}
                   style={[styles.navBtn, nextDisabled && styles.navBtnOff]}
                 >
                   <Chevron direction="right" color={m3.color.onSurfaceVariant} />
