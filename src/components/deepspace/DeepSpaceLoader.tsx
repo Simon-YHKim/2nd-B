@@ -5,9 +5,9 @@
 //   B "ring"     sync / processing       — rotating ring around the breathing head
 //   C "analysis" long star-ignition      — Big-Dipper twinkle + sweep bar, and a
 //                                          "continue in background" exit (no trap)
-// Motion is fade + breathe + rotate only (no bounce/elastic). Copy is inline
-// ko/en (no new i18n keys, WeeklyGrowthScreen pattern), so check:i18n parity is
-// unaffected. Colors come only from deepSpace.* tokens (no hex literals).
+// Motion is fade + breathe + rotate only (no bounce/elastic). Default dots copy
+// uses common i18n so app-wide loading states follow every shipped UI locale.
+// Colors come only from deepSpace.* tokens (no hex literals).
 //
 //   <DeepSpaceLoader variant="dots" />
 //   <DeepSpaceLoader variant="ring" />
@@ -200,7 +200,7 @@ export function DeepSpaceLoader({
   bgLabel,
 }: DeepSpaceLoaderProps) {
   const phase = useBloom();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("common");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
 
   if (variant === "analysis") {
@@ -241,7 +241,7 @@ export function DeepSpaceLoader({
   }
 
   // A: dots
-  const cap = caption ?? title ?? (ko ? "불러오는 중" : "Loading");
+  const cap = caption ?? title ?? t("states.loading");
   return (
     <View style={styles.wrap}>
       <SecondbHead size={64} mood="neutral" />
