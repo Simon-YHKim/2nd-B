@@ -605,6 +605,12 @@
     "introPrivacy": "Catatan asli dan angka tidak pernah masuk ke kartu. Hanya kalimat yang kamu pilih.",
     "starsFallback": "Tidak bisa membaca bintangmu; jadi kami gambar versi bawaannya."
   },
+  "completionToast": {
+    "done": "Analisis sudah siap",
+    "sub": "Mau melihatnya?",
+    "see": "Lihat hasil",
+    "later": "Nanti"
+  },
   "coachmarks": {
     "step1": "Ini rasi bintangmu",
     "step2": "Ketuk sebuah bintang",

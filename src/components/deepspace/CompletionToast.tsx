@@ -20,8 +20,7 @@ const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
 export function CompletionToast() {
   const task = useTaskStatus();
-  const { i18n } = useTranslation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const { t } = useTranslation("deepspace");
   const drop = useRef(new Animated.Value(0)).current;
   const visible = task.phase === "done";
 
@@ -38,10 +37,7 @@ export function CompletionToast() {
   if (!visible) return null;
 
   const translateY = drop.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
-  const C = ko
-    ? { done: "분석이 끝났어요", sub: "보러 갈래요?", see: "결과 보기", later: "나중에" }
-    : { done: "Analysis is ready", sub: "Take a look?", see: "See result", later: "Later" };
-  const sub = task.tip ?? C.sub;
+  const sub = task.tip ?? t("completionToast.sub");
 
   const href = task.resultHref;
   const openResult = () => {
@@ -57,18 +53,18 @@ export function CompletionToast() {
             <Image source={HEAD_IMAGE} style={styles.head} contentFit="contain" />
           </View>
           <View style={styles.body}>
-            <Text variant="caption" style={styles.title}>{C.done}</Text>
+            <Text variant="caption" style={styles.title}>{t("completionToast.done")}</Text>
             <Text variant="subtle" style={styles.sub}>{sub}</Text>
           </View>
         </View>
         <View style={styles.btnRow}>
           {href ? (
             <Pressable accessibilityRole="button" onPress={openResult} hitSlop={8} style={styles.seeBtn}>
-              <Text variant="caption" style={styles.seeText}>{C.see}</Text>
+              <Text variant="caption" style={styles.seeText}>{t("completionToast.see")}</Text>
             </Pressable>
           ) : null}
           <Pressable accessibilityRole="button" onPress={() => dismissTask()} hitSlop={8} style={styles.laterBtn}>
-            <Text variant="caption" style={styles.laterText}>{C.later}</Text>
+            <Text variant="caption" style={styles.laterText}>{t("completionToast.later")}</Text>
           </Pressable>
         </View>
       </Animated.View>
