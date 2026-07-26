@@ -231,8 +231,10 @@ let entryFlourishPlayed = false;
 
 // O-23 Stage③: `index` (/) branches on the UI flag. Legacy renders the village
 // graph (GraphScreen, this file's original body); deep-space renders the character
-// shell. The graph stays reachable in deep-space via the /graph route (graph.tsx
-// re-exports GraphScreen), so no logic is forked — see docs/deep-space-nav-contract.md.
+// shell. NOTE (corrected 2026-07-26): the village graph is reachable ONLY at `/`
+// under EXPO_PUBLIC_UI=legacy — `/graph` (graph.tsx) is a DEV-ONLY mock design
+// screen (DeepSpaceGraphDesignScreen), NOT a re-export of GraphScreen, and prod
+// redirects it home. See docs/deep-space-nav-contract.md.
 export default function Index() {
   useImportPendingCaptures();
   if (isDeepSpaceUI()) return <DeepSpaceShell />;

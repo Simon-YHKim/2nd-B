@@ -1,3 +1,14 @@
+// ⚠ STALE (flagged 2026-07-26): this generated file predates several shipped
+// tables/RPCs -- e.g. reasoning_runs + reasoning_run_proposals + runtime_flags
+// (0092), paddle_webhook_events (0087), usage_counters.reward_consumed (0089),
+// ai_audit_log axis columns (0073/0095). The schema SoT is db/migrations, NOT this
+// file; code using the untyped tables falls back to `any`, which is why the drift
+// hasn't broken the build. Regenerate in its own PR (a large mechanical diff should
+// not ride inside a feature/security change):
+//   supabase gen types typescript --project-id zoacryukmdeivmolvyhj > src/lib/supabase/types.gen.ts
+//   npm run type-check   # then fix any newly-surfaced type mismatches
+// See docs/RISK-REMEDIATION-260726.md (R10).
+
 export type Json =
   | string
   | number
