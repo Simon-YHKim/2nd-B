@@ -38,15 +38,134 @@ import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
 
+type DisplayLocale = "en" | "ko" | "es" | "pt" | "id";
+type AssessmentLocale = "en" | "ko";
+
+function displayLocaleFor(language?: string): DisplayLocale {
+  const root = language?.toLowerCase().split("-")[0];
+  if (root === "ko" || root === "es" || root === "pt" || root === "id") return root;
+  return "en";
+}
+
+function assessmentLocaleFor(language?: string): AssessmentLocale {
+  return language?.toLowerCase().startsWith("ko") ? "ko" : "en";
+}
+
 // 6-point self-report scale: 1 전혀 나 같지 않다 … 6 매우 나 같다.
-const SCALE: { value: number; en: string; ko: string }[] = [
-  { value: 1, en: "Not like me at all", ko: "전혀 나 같지 않다" },
-  { value: 2, en: "Unlike me", ko: "나 같지 않다" },
-  { value: 3, en: "Somewhat unlike me", ko: "별로 나 같지 않다" },
-  { value: 4, en: "Somewhat like me", ko: "조금 나 같다" },
-  { value: 5, en: "Like me", ko: "나 같다" },
-  { value: 6, en: "Very much like me", ko: "매우 나 같다" },
+const SCALE: Array<{ value: number } & Record<DisplayLocale, string>> = [
+  { value: 1, en: "Not like me at all", ko: "전혀 나 같지 않다", es: "No se parece en nada a mí", pt: "Nada parecido comigo", id: "Sama sekali tidak seperti saya" },
+  { value: 2, en: "Unlike me", ko: "나 같지 않다", es: "No se parece a mí", pt: "Pouco parecido comigo", id: "Tidak seperti saya" },
+  { value: 3, en: "Somewhat unlike me", ko: "별로 나 같지 않다", es: "Se parece poco a mí", pt: "Um pouco diferente de mim", id: "Agak tidak seperti saya" },
+  { value: 4, en: "Somewhat like me", ko: "조금 나 같다", es: "Se parece algo a mí", pt: "Um pouco parecido comigo", id: "Agak seperti saya" },
+  { value: 5, en: "Like me", ko: "나 같다", es: "Se parece a mí", pt: "Parecido comigo", id: "Seperti saya" },
+  { value: 6, en: "Very much like me", ko: "매우 나 같다", es: "Se parece mucho a mí", pt: "Muito parecido comigo", id: "Sangat seperti saya" },
 ];
+
+const VALUES_COPY: Record<
+  DisplayLocale,
+  {
+    loading: string;
+    title: string;
+    description: string;
+    citation: string;
+    prompt: string;
+    topic: string;
+    conclusion: string;
+    saveError: string;
+    saved: string;
+    exitLabel: string;
+    exitTitle: string;
+    exitBody: string;
+    keepGoing: string;
+    exit: string;
+  }
+> = {
+  en: {
+    loading: "Loading...",
+    title: "Values self-report",
+    description:
+      "A short self-report of what you hold important. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment.",
+    citation: "Anchored to Schwartz's values theory · self-report estimate",
+    prompt: "How well does each statement fit you?",
+    topic: "Values self-report",
+    conclusion: "Self-report estimate (not a medical assessment).",
+    saveError: "Couldn't save. Your answers are still here; please try again.",
+    saved: "Your values self-report is saved.",
+    exitLabel: "Exit confirmation",
+    exitTitle: "Leave the survey?",
+    exitBody: "Are you sure you want to exit? Your progress will not be saved.",
+    keepGoing: "Keep going",
+    exit: "Exit",
+  },
+  ko: {
+    loading: "불러오는 중...",
+    title: "가치 자기보고",
+    description:
+      "무엇을 중요하게 여기는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요.",
+    citation: "Schwartz 가치 이론에서 착안 · 자기보고 추정",
+    prompt: "다음 문장이 당신과 얼마나 맞는지 골라주세요.",
+    topic: "가치 자기보고",
+    conclusion: "자기보고 추정 (진단 아님).",
+    saveError: "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
+    saved: "가치 자기보고를 저장했어요.",
+    exitLabel: "종료 확인",
+    exitTitle: "그만두시겠어요?",
+    exitBody: "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다.",
+    keepGoing: "계속하기",
+    exit: "종료",
+  },
+  es: {
+    loading: "Cargando...",
+    title: "Autoinforme de valores",
+    description:
+      "Un autoinforme breve sobre lo que consideras importante. Puntua cuanto encaja cada frase contigo de 1 (no se parece en nada a mi) a 6 (se parece mucho a mi). No hay respuestas correctas y es una estimacion, no una evaluacion medica.",
+    citation: "Inspirado en la teoria de valores de Schwartz · estimacion de autoinforme",
+    prompt: "Cuanto encaja cada frase contigo?",
+    topic: "Autoinforme de valores",
+    conclusion: "Estimacion de autoinforme (no es una evaluacion medica).",
+    saveError: "No se pudo guardar. Tus respuestas siguen aqui; intentalo de nuevo.",
+    saved: "Tu autoinforme de valores se guardo.",
+    exitLabel: "Confirmacion de salida",
+    exitTitle: "Salir de la encuesta?",
+    exitBody: "Seguro que quieres salir? Tu progreso no se guardara.",
+    keepGoing: "Continuar",
+    exit: "Salir",
+  },
+  pt: {
+    loading: "Carregando...",
+    title: "Autorrelato de valores",
+    description:
+      "Um autorrelato curto sobre o que e importante para voce. Avalie o quanto cada frase combina com voce de 1 (nada parecido comigo) a 6 (muito parecido comigo). Nao ha respostas certas, e isto e uma estimativa, nao uma avaliacao medica.",
+    citation: "Inspirado na teoria de valores de Schwartz · estimativa de autorrelato",
+    prompt: "Quanto cada frase combina com voce?",
+    topic: "Autorrelato de valores",
+    conclusion: "Estimativa de autorrelato (nao e avaliacao medica).",
+    saveError: "Nao foi possivel salvar. Suas respostas continuam aqui; tente novamente.",
+    saved: "Seu autorrelato de valores foi salvo.",
+    exitLabel: "Confirmacao de saida",
+    exitTitle: "Sair da pesquisa?",
+    exitBody: "Tem certeza de que deseja sair? Seu progresso nao sera salvo.",
+    keepGoing: "Continuar",
+    exit: "Sair",
+  },
+  id: {
+    loading: "Memuat...",
+    title: "Laporan diri nilai",
+    description:
+      "Laporan diri singkat tentang hal yang penting bagi Anda. Nilai seberapa cocok tiap pernyataan dengan diri Anda dari 1 (sama sekali tidak seperti saya) sampai 6 (sangat seperti saya). Tidak ada jawaban benar, dan ini estimasi, bukan penilaian medis.",
+    citation: "Berpijak pada teori nilai Schwartz · estimasi laporan diri",
+    prompt: "Seberapa cocok tiap pernyataan dengan diri Anda?",
+    topic: "Laporan diri nilai",
+    conclusion: "Estimasi laporan diri (bukan penilaian medis).",
+    saveError: "Tidak dapat menyimpan. Jawaban Anda masih ada; coba lagi.",
+    saved: "Laporan diri nilai Anda disimpan.",
+    exitLabel: "Konfirmasi keluar",
+    exitTitle: "Keluar dari survei?",
+    exitBody: "Yakin ingin keluar? Progres Anda tidak akan disimpan.",
+    keepGoing: "Lanjutkan",
+    exit: "Keluar",
+  },
+};
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
@@ -58,8 +177,9 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
   const { t, i18n } = useTranslation(["home", "common"]);
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
-  const valuesTitle = t("home:ds.axisCheck.values.headline");
+  const locale = assessmentLocaleFor(i18n.language);
+  const displayLocale = displayLocaleFor(i18n.language);
+  const copy = VALUES_COPY[displayLocale];
 
   const [responses, setResponses] = useState<ValuesResponses>({});
   const [submitting, setSubmitting] = useState(false);
@@ -106,7 +226,7 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={t("common:states.loading")} />
+        <PremiumLoadingState message={copy.loading} />
       </View>
     );
   }
@@ -136,12 +256,9 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
           scores: result.scores,
           confidence: result.confidence,
         }),
-        topic: valuesTitle,
+        topic: copy.topic,
         summary,
-        conclusion:
-          locale === "ko"
-            ? "자기보고 추정 (진단 아님)."
-            : "Self-report estimate (not a medical assessment).",
+        conclusion: copy.conclusion,
         tags: ["values", "assessment"],
         withFollowup: false,
       });
@@ -150,10 +267,7 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
       if (typeof console !== "undefined") console.warn("[values] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save. Your answers are still here; please try again.",
+        message: copy.saveError,
       });
     } finally {
       setSubmitting(false);
@@ -165,19 +279,11 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
       {!started ? (
         <QuantIntroModal
           toolKey="values"
-          title={valuesTitle}
+          title={copy.title}
           itemCount={VALUE_ITEMS.length}
           estimatedMinutes={3}
-          description={
-            locale === "ko"
-              ? "무엇을 중요하게 여기는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요."
-              : "A short self-report of what you hold important. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment."
-          }
-          citation={
-            locale === "ko"
-              ? "Schwartz 가치 이론에서 착안 · 자기보고 추정"
-              : "Anchored to Schwartz's values theory · self-report estimate"
-          }
+          description={copy.description}
+          citation={copy.citation}
           locale={locale}
           onStart={() => setStarted(true)}
           onCancel={onCancel}
@@ -188,12 +294,10 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {valuesTitle}
+              {copy.title}
             </Text>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "다음 문장이 당신과 얼마나 맞는지 골라주세요."
-                : "How well does each statement fit you?"}
+              {copy.prompt}
             </Text>
           </View>
 
@@ -218,7 +322,7 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
                     {locale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
                   <LikertChoiceGroup
-                    choices={SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
+                    choices={SCALE.map((s) => ({ value: s.value, label: s[displayLocale] }))}
                     locale={locale}
                     onSelect={(next) => setResponse(item.id, next)}
                     question={`${item.id}. ${locale === "ko" ? item.ko : item.en}`}
@@ -226,10 +330,10 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
                   />
                   <View style={styles.scaleLegend}>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[0].ko : SCALE[0].en}
+                      {SCALE[0][displayLocale]}
                     </Text>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[5].ko : SCALE[5].en}
+                      {SCALE[5][displayLocale]}
                     </Text>
                   </View>
                 </View>
@@ -241,12 +345,12 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "가치 자기보고를 저장했어요." : "Your values self-report is saved."}
+          message={copy.saved}
           onDone={() => {
             // med#7: first star ever -> one SecondB chat (activation). This
             // nudge lived only on /attachment; now every instrument takes it.
             if (consumeFirstStarChatNudge()) {
-              router.replace({ pathname: "/secondb", params: { fromNode: valuesTitle } });
+              router.replace({ pathname: "/secondb", params: { fromNode: copy.title } });
             } else {
               onComplete();
             }
@@ -263,23 +367,21 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "종료 확인" : "Exit confirmation"}
+        accessibilityLabel={copy.exitLabel}
       >
-        <Text variant="heading">{locale === "ko" ? "그만두시겠어요?" : "Leave the survey?"}</Text>
+        <Text variant="heading">{copy.exitTitle}</Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {copy.exitBody}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "계속하기" : "Keep going"}
+            label={copy.keepGoing}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
           />
           <Button
-            label={locale === "ko" ? "종료" : "Exit"}
+            label={copy.exit}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);
