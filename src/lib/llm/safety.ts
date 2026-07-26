@@ -115,11 +115,15 @@ function getFlashClient(): GoogleGenAI | null {
 // routing is the flag-gated clinical follow-up, gated on a crisis eval set +
 // safety-owner sign-off.)
 let _semanticDarkWarned = false;
-function noteSemanticUnavailable(): void {
-  if (_semanticDarkWarned) return;
+let _semanticDarkAudited = false;
+function noteSemanticUnavailable(opts?: { userId?: string; lexiconZone?: SafetyZone }): void {
+  // Fast exit only when BOTH signals are already emitted this session.
+  if (_semanticDarkWarned && _semanticDarkAudited) return;
   try {
     const env = getEnv();
-    if (env.EXPO_PUBLIC_LLM_MODE === "live" && !env.EXPO_PUBLIC_USE_VERTEX) {
+    if (env.EXPO_PUBLIC_LLM_MODE !== "live" || env.EXPO_PUBLIC_USE_VERTEX) return;
+
+    if (!_semanticDarkWarned) {
       _semanticDarkWarned = true;
       if (typeof console !== "undefined") {
         console.warn(
@@ -128,6 +132,30 @@ function noteSemanticUnavailable(): void {
             "safety_classify to restore it (audit H1, D4).",
         );
       }
+    }
+
+    // R5: console.warn is ephemeral and only reaches Sentry when the native SDK is
+    // in the binary. Also record ONE best-effort, queryable health row per session
+    // in ai_audit_log (the ledger ops already monitor), marked modelUsed
+    // 'lexicon-only', so "the Layer-2 classifier ran dark for real users" is
+    // visible in prod (SELECT ... WHERE model_used='lexicon-only') without relying
+    // on log capture. Needs a signed-in user to attribute to; latched separately so
+    // an anon first-hit doesn't consume the once-per-session audit slot. Never
+    // throws -- the safety path must not break on a telemetry failure.
+    if (!_semanticDarkAudited && opts?.userId) {
+      _semanticDarkAudited = true;
+      void insertAiAuditLog({
+        userId: opts.userId,
+        promptHash: "",
+        outputHash: "",
+        modelUsed: "lexicon-only",
+        vertexBackend: false,
+        safetyZone: opts.lexiconZone ?? "green",
+        latencyMs: 0,
+        purpose: "safety_classify",
+      }).catch(() => {
+        // best-effort health signal; never surface
+      });
     }
   } catch {
     // The safety path must never throw.
@@ -295,7 +323,7 @@ export async function classifySafety(
     // D4 (flag-gated): try the server-side classifier before degrading to lexicon.
     const viaProxy = await classifyViaProxy(userMessage, locale);
     if (viaProxy) return mergeResults(lex, viaProxy);
-    noteSemanticUnavailable();
+    noteSemanticUnavailable({ userId: opts?.userId, lexiconZone: lex.zone });
     return lex;
   }
 
