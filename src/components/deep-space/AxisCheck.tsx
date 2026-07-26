@@ -66,6 +66,108 @@ const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof ty
   strengths: { primaryRoute: "/secondb", primaryIcon: "forum", secondaryRoute: "/motivation" },
 };
 
+type AxisCopyLocale = "en" | "ko" | "es" | "pt" | "id";
+
+function axisCopyLocale(language: string): AxisCopyLocale {
+  const base = language.split("-")[0];
+  return base === "ko" || base === "es" || base === "pt" || base === "id" ? base : "en";
+}
+
+const AXIS_RESULT_COPY: Record<
+  AxisCopyLocale,
+  {
+    confidence: (pct: number) => string;
+    valueInsight: (topName: string) => string;
+    strengthInsight: (topName: string) => string;
+    intrinsicLabel: (pct: number) => string;
+    extrinsicLabel: (pct: number) => string;
+    balanceNote: (intrinsicHigher: boolean) => string;
+    motivationSide: (intrinsicHigher: boolean) => string;
+    motivationInsight: (side: string, topNeedName: string) => string;
+  }
+> = {
+  en: {
+    confidence: (pct) => `${pct}% confidence`,
+    valueInsight: (topName) =>
+      `Right now ${topName} comes out highest. This is an estimate from the self-report you just answered, and it can shift over time.`,
+    strengthInsight: (topName) =>
+      `Right now ${topName} comes out highest. This is an estimate from the self-report you just answered, and it can shift over time.`,
+    intrinsicLabel: (pct) => `Intrinsic ${pct}%`,
+    extrinsicLabel: (pct) => `Extrinsic ${pct}%`,
+    balanceNote: (intrinsicHigher) =>
+      intrinsicHigher
+        ? "Right now the 'because I want to' side is a bit larger. This is an estimate from the self-report you just answered."
+        : "Right now the 'reward/recognition' side is a bit larger. This is an estimate from the self-report you just answered.",
+    motivationSide: (intrinsicHigher) => (intrinsicHigher ? "Intrinsic" : "Extrinsic"),
+    motivationInsight: (side, topNeedName) =>
+      `${side} motivation comes out a bit higher, and among the three needs ${topNeedName} is highest. This is an estimate from the self-report you just answered, and it can shift over time.`,
+  },
+  ko: {
+    confidence: (pct) => `확신 ${pct}%`,
+    valueInsight: (topName) =>
+      `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`,
+    strengthInsight: (topName) =>
+      `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`,
+    intrinsicLabel: (pct) => `내적 ${pct}%`,
+    extrinsicLabel: (pct) => `외적 ${pct}%`,
+    balanceNote: (intrinsicHigher) =>
+      intrinsicHigher
+        ? "지금은 '하고 싶어서' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요."
+        : "지금은 '보상·평가' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요.",
+    motivationSide: (intrinsicHigher) => (intrinsicHigher ? "내적 동기" : "외적 동기"),
+    motivationInsight: (side, topNeedName) =>
+      `${side}가 조금 더 크게 나왔고, 세 욕구 중에서는 ${topNeedName} 쪽이 가장 높아요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`,
+  },
+  es: {
+    confidence: (pct) => `${pct}% de confianza`,
+    valueInsight: (topName) =>
+      `Ahora ${topName} aparece como lo más alto. Es una estimación basada en el autoinforme que acabas de responder, y puede cambiar con el tiempo.`,
+    strengthInsight: (topName) =>
+      `Ahora ${topName} aparece como lo más alto. Es una estimación basada en el autoinforme que acabas de responder, y puede cambiar con el tiempo.`,
+    intrinsicLabel: (pct) => `Intrínseca ${pct}%`,
+    extrinsicLabel: (pct) => `Extrínseca ${pct}%`,
+    balanceNote: (intrinsicHigher) =>
+      intrinsicHigher
+        ? "Ahora pesa un poco más el lado de 'porque quiero'. Es una estimación basada en el autoinforme que acabas de responder."
+        : "Ahora pesa un poco más el lado de 'recompensa/reconocimiento'. Es una estimación basada en el autoinforme que acabas de responder.",
+    motivationSide: (intrinsicHigher) => (intrinsicHigher ? "La motivación intrínseca" : "La motivación extrínseca"),
+    motivationInsight: (side, topNeedName) =>
+      `${side} aparece un poco más alta, y entre las tres necesidades ${topNeedName} es la más alta. Es una estimación basada en el autoinforme que acabas de responder, y puede cambiar con el tiempo.`,
+  },
+  pt: {
+    confidence: (pct) => `${pct}% de confiança`,
+    valueInsight: (topName) =>
+      `Agora ${topName} aparece como o ponto mais alto. Esta é uma estimativa baseada no autorrelato que você acabou de responder, e pode mudar com o tempo.`,
+    strengthInsight: (topName) =>
+      `Agora ${topName} aparece como o ponto mais alto. Esta é uma estimativa baseada no autorrelato que você acabou de responder, e pode mudar com o tempo.`,
+    intrinsicLabel: (pct) => `Intrínseca ${pct}%`,
+    extrinsicLabel: (pct) => `Extrínseca ${pct}%`,
+    balanceNote: (intrinsicHigher) =>
+      intrinsicHigher
+        ? "Agora o lado de 'porque eu quero' está um pouco maior. Esta é uma estimativa baseada no autorrelato que você acabou de responder."
+        : "Agora o lado de 'recompensa/reconhecimento' está um pouco maior. Esta é uma estimativa baseada no autorrelato que você acabou de responder.",
+    motivationSide: (intrinsicHigher) => (intrinsicHigher ? "A motivação intrínseca" : "A motivação extrínseca"),
+    motivationInsight: (side, topNeedName) =>
+      `${side} aparece um pouco mais alta, e entre as três necessidades ${topNeedName} é a mais alta. Esta é uma estimativa baseada no autorrelato que você acabou de responder, e pode mudar com o tempo.`,
+  },
+  id: {
+    confidence: (pct) => `${pct}% keyakinan`,
+    valueInsight: (topName) =>
+      `Saat ini ${topName} muncul paling tinggi. Ini perkiraan dari laporan diri yang baru kamu jawab, dan bisa berubah seiring waktu.`,
+    strengthInsight: (topName) =>
+      `Saat ini ${topName} muncul paling tinggi. Ini perkiraan dari laporan diri yang baru kamu jawab, dan bisa berubah seiring waktu.`,
+    intrinsicLabel: (pct) => `Intrinsik ${pct}%`,
+    extrinsicLabel: (pct) => `Ekstrinsik ${pct}%`,
+    balanceNote: (intrinsicHigher) =>
+      intrinsicHigher
+        ? "Saat ini sisi 'karena aku ingin' sedikit lebih besar. Ini perkiraan dari laporan diri yang baru kamu jawab."
+        : "Saat ini sisi 'imbalan/pengakuan' sedikit lebih besar. Ini perkiraan dari laporan diri yang baru kamu jawab.",
+    motivationSide: (intrinsicHigher) => (intrinsicHigher ? "Motivasi intrinsik" : "Motivasi ekstrinsik"),
+    motivationInsight: (side, topNeedName) =>
+      `${side} sedikit lebih tinggi, dan dari tiga kebutuhan ${topNeedName} adalah yang tertinggi. Ini perkiraan dari laporan diri yang baru kamu jawab, dan bisa berubah seiring waktu.`,
+  },
+};
+
 // Populated 가치관 body — the reference ValuesScreen layout (sb-validate.jsx),
 // but driven ONLY by the user's real values self-report (never the prototype's
 // example numbers). Renders the CORE VALUES top-3 highlight, the 6-bar 가치
@@ -73,7 +175,7 @@ const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof ty
 // is shown next to the headline (honest, sub-max). Scoring/labels: values-survey.ts.
 function ValuesPopulated({ result }: { result: LoadedValues }) {
   const { t, i18n } = useTranslation("home");
-  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  const copy = AXIS_RESULT_COPY[axisCopyLocale(i18n.language)];
 
   const rowKey = (v: ValueId) => VALUE_ROW_KEY[v] ?? v;
   const name = (v: ValueId) => t(`ds.axisCheck.values.rows.${rowKey(v)}.name`);
@@ -85,10 +187,7 @@ function ValuesPopulated({ result }: { result: LoadedValues }) {
   // Honest insight — grounded in the user's actual highest self-report value,
   // framed as an estimate that can shift, never a medical verdict or a claim that
   // records "prove" it (the reference's hardcoded 자율성 line is not reused).
-  const insight =
-    locale === "ko"
-      ? `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`
-      : `Right now ${topName} comes out highest. This is an estimate from the self-report you just answered, and it can shift over time.`;
+  const insight = copy.valueInsight(topName);
 
   return (
     <>
@@ -144,7 +243,7 @@ function ValuesPopulated({ result }: { result: LoadedValues }) {
 // headline (honest, sub-max). Scoring/labels: motivation-survey.ts.
 function MotivationPopulated({ result }: { result: LoadedMotivation }) {
   const { t, i18n } = useTranslation("home");
-  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  const copy = AXIS_RESULT_COPY[axisCopyLocale(i18n.language)];
 
   const rowKey = (k: MotivationNeedKey) => MOTIVATION_ROW_KEY[k] ?? k;
   const name = (k: MotivationNeedKey) => t(`ds.axisCheck.motivation.rows.${rowKey(k)}.name`);
@@ -156,24 +255,14 @@ function MotivationPopulated({ result }: { result: LoadedMotivation }) {
 
   // Balance-bar labels built from the user's REAL percentages — NEVER the i18n
   // example strings (내적 68% / 외적 32%), which are prototype placeholders.
-  const intrinsicLabel = locale === "ko" ? `내적 ${result.intrinsicPct}%` : `Intrinsic ${result.intrinsicPct}%`;
-  const extrinsicLabel = locale === "ko" ? `외적 ${result.extrinsicPct}%` : `Extrinsic ${result.extrinsicPct}%`;
+  const intrinsicLabel = copy.intrinsicLabel(result.intrinsicPct);
+  const extrinsicLabel = copy.extrinsicLabel(result.extrinsicPct);
 
   // Balance note + insight grounded in which side is actually higher and which
   // need is top — framed as an estimate that can shift, never a verdict and never
   // the reference's hardcoded 자율성 claim.
-  const balanceNote =
-    locale === "ko"
-      ? intrinsicHigher
-        ? "지금은 '하고 싶어서' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요."
-        : "지금은 '보상·평가' 쪽이 조금 더 커요. 방금 답한 자기보고를 바탕으로 한 추정이라 달라질 수 있어요."
-      : intrinsicHigher
-        ? "Right now the 'because I want to' side is a bit larger. This is an estimate from the self-report you just answered."
-        : "Right now the 'reward/recognition' side is a bit larger. This is an estimate from the self-report you just answered.";
-  const insight =
-    locale === "ko"
-      ? `${intrinsicHigher ? "내적 동기" : "외적 동기"}가 조금 더 크게 나왔고, 세 욕구 중에서는 ${topNeedName} 쪽이 가장 높아요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`
-      : `${intrinsicHigher ? "Intrinsic" : "Extrinsic"} motivation comes out a bit higher, and among the three needs ${topNeedName} is highest. This is an estimate from the self-report you just answered, and it can shift over time.`;
+  const balanceNote = copy.balanceNote(intrinsicHigher);
+  const insight = copy.motivationInsight(copy.motivationSide(intrinsicHigher), topNeedName);
 
   return (
     <>
@@ -230,7 +319,7 @@ function MotivationPopulated({ result }: { result: LoadedMotivation }) {
 // is shown next to the headline (honest, sub-max). Scoring/labels: strengths-survey.ts.
 function StrengthsPopulated({ result }: { result: LoadedStrengths }) {
   const { t, i18n } = useTranslation("home");
-  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  const copy = AXIS_RESULT_COPY[axisCopyLocale(i18n.language)];
 
   const rowKey = (s: StrengthId) => STRENGTH_ROW_KEY[s] ?? s;
   const name = (s: StrengthId) => t(`ds.axisCheck.strengths.rows.${rowKey(s)}.name`);
@@ -242,10 +331,7 @@ function StrengthsPopulated({ result }: { result: LoadedStrengths }) {
   // Honest insight — grounded in the user's actual highest self-report strength,
   // framed as an estimate that can shift, never a verdict or a claim that records
   // "prove" it (the reference's hardcoded 호기심 line is not reused).
-  const insight =
-    locale === "ko"
-      ? `지금은 ${topName} 쪽이 가장 높게 나왔어요. 방금 답한 자기보고를 바탕으로 한 추정이라, 시간이 지나며 달라질 수 있어요.`
-      : `Right now ${topName} comes out highest. This is an estimate from the self-report you just answered, and it can shift over time.`;
+  const insight = copy.strengthInsight(topName);
 
   return (
     <>
@@ -306,7 +392,7 @@ function AxisLens({
   const { t, i18n } = useTranslation("home");
   const act = ACTIONS[axis];
   const k = (leaf: string) => t(`ds.axisCheck.${axis}.${leaf}`);
-  const locale: "en" | "ko" = i18n.language === "ko" ? "ko" : "en";
+  const copy = AXIS_RESULT_COPY[axisCopyLocale(i18n.language)];
 
   // Populated only when THIS axis has a real self-report result in hand: values →
   // ValuesPopulated (>=3 scores for the top-3 card), strengths → StrengthsPopulated
@@ -333,7 +419,7 @@ function AxisLens({
         <Text style={[m3TextStyle("headlineSmall"), styles.headline]}>{k("headline")}</Text>
         {populated ? (
           <Text style={[m3TextStyle("labelMedium"), styles.confidence]}>
-            {locale === "ko" ? `확신 ${confPct}%` : `${confPct}% confidence`}
+            {copy.confidence(confPct)}
           </Text>
         ) : null}
       </View>
