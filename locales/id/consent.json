@@ -1,11 +1,11 @@
 {
   "testimonial": {
-    "title": "Share your story?",
-    "body": "We may share your words with our team and trusted reviewers as evidence that 2nd-Brain helps real people. You stay in control.",
-    "shareWithJudges": "Allow trusted reviewers to read this testimonial",
-    "approveForPublic": "Allow public display on our site",
-    "agree": "I consent",
-    "decline": "Not now"
+    "title": "Mau membagikan ceritamu?",
+    "body": "Kami dapat membagikan kata-katamu kepada tim kami dan peninjau tepercaya sebagai bukti bahwa 2nd-Brain membantu orang nyata. Kamu tetap memegang kendali.",
+    "shareWithJudges": "Izinkan peninjau tepercaya membaca testimoni ini",
+    "approveForPublic": "Izinkan tampilan publik di situs kami",
+    "agree": "Saya setuju",
+    "decline": "Nanti saja"
   },
   "notice": {
     "title": "A quick heads-up before you start",
