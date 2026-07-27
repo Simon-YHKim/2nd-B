@@ -21,12 +21,110 @@ const PERIOD_OPTIONS: { id: AuditPeriod; label: { en: string; ko: string } }[] =
   { id: "20s", label: { en: "Your 20s", ko: "20대" } },
   { id: "teens", label: { en: "Your teens", ko: "10대" } },
 ];
+type AuditDisplayLocale = "en" | "ko" | "es" | "pt" | "id";
+type AuditDataLocale = "en" | "ko";
 type AuditToast = { message: string; tone: "info" | "success" | "danger" };
+
+const DISPLAY_COPY: Record<
+  AuditDisplayLocale,
+  {
+    periodDescription: string;
+    saveError: string;
+    completeBody: (count: number) => string;
+    interviewDescription: string;
+    tooShort: string;
+    enough: string;
+    finish: string;
+    next: string;
+    exitBody: string;
+  }
+> = {
+  en: {
+    periodDescription:
+      "A fixed framework-anchored question set (Big Five, Attachment, SDT). For open-ended depth probing, use /interview.",
+    saveError: "Couldn't save your answer. Your answer is still here, so try again.",
+    completeBody: (count) => `${count} answers are ready to synthesize your persona model.`,
+    interviewDescription:
+      "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer; the more you answer, the clearer the patterns in your self-model become.",
+    tooShort: "A few more words help",
+    enough: "Looks good",
+    finish: "Finish",
+    next: "Next question",
+    exitBody: "Are you sure you want to exit? Your progress will not be saved.",
+  },
+  ko: {
+    periodDescription:
+      "Big Five, 애착이론, 자기결정성 이론에 기반한 고정 질문 묶음입니다. 자유로운 깊이 탐색은 /스무고개에서.",
+    saveError: "답변을 저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
+    completeBody: (count) => `${count}개의 답변이 페르소나 모델을 합성할 준비가 됐어요.`,
+    interviewDescription:
+      "Big Five, 애착이론, 자기결정성 이론에 기반한 질문들입니다. 정답은 없어요. 답이 쌓일수록 자기 모델의 패턴이 더 또렷해집니다.",
+    tooShort: "조금만 더 길게 적어볼까요",
+    enough: "충분해요",
+    finish: "마무리",
+    next: "다음 질문",
+    exitBody: "정말 가치관 진단을 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다.",
+  },
+  es: {
+    periodDescription:
+      "Un conjunto fijo de preguntas basado en marcos como Big Five, apego y SDT. Para explorar con mas libertad, usa /interview.",
+    saveError: "No pudimos guardar tu respuesta. Tu texto sigue aqui; intenta de nuevo.",
+    completeBody: (count) => `${count} respuestas estan listas para sintetizar tu modelo personal.`,
+    interviewDescription:
+      "Preguntas basadas en Big Five, teoria del apego y teoria de la autodeterminacion. No hay una respuesta correcta; mientras mas respondas, mas claros se vuelven los patrones de tu modelo personal.",
+    tooShort: "Un poco mas de detalle ayuda",
+    enough: "Se ve bien",
+    finish: "Finalizar",
+    next: "Siguiente pregunta",
+    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardara.",
+  },
+  pt: {
+    periodDescription:
+      "Um conjunto fixo de perguntas baseado em Big Five, apego e SDT. Para explorar com mais liberdade, use /interview.",
+    saveError: "Nao foi possivel salvar sua resposta. Seu texto continua aqui; tente de novo.",
+    completeBody: (count) => `${count} respostas estao prontas para sintetizar seu modelo pessoal.`,
+    interviewDescription:
+      "Perguntas baseadas em Big Five, teoria do apego e teoria da autodeterminacao. Nao existe resposta certa; quanto mais voce responde, mais claros ficam os padroes do seu modelo pessoal.",
+    tooShort: "Um pouco mais de detalhe ajuda",
+    enough: "Esta bom",
+    finish: "Finalizar",
+    next: "Proxima pergunta",
+    exitBody: "Tem certeza de que quer sair? Seu progresso nao sera salvo.",
+  },
+  id: {
+    periodDescription:
+      "Kumpulan pertanyaan tetap berbasis Big Five, attachment, dan SDT. Untuk eksplorasi yang lebih bebas, gunakan /interview.",
+    saveError: "Jawabanmu belum tersimpan. Teksmu masih ada di sini, jadi coba lagi.",
+    completeBody: (count) => `${count} jawaban siap dipakai untuk menyusun model personalmu.`,
+    interviewDescription:
+      "Pertanyaan berbasis Big Five, attachment theory, dan self-determination theory. Tidak ada jawaban benar; makin banyak kamu menjawab, makin jelas pola dalam model personalmu.",
+    tooShort: "Sedikit lebih detail akan membantu",
+    enough: "Sudah cukup",
+    finish: "Selesai",
+    next: "Pertanyaan berikutnya",
+    exitBody: "Yakin ingin keluar? Progresmu tidak akan disimpan.",
+  },
+};
+
+function displayLocaleFor(language: string | undefined): AuditDisplayLocale {
+  const normalized = language?.toLowerCase() ?? "";
+  if (normalized.startsWith("ko")) return "ko";
+  if (normalized.startsWith("es")) return "es";
+  if (normalized.startsWith("pt")) return "pt";
+  if (normalized.startsWith("id")) return "id";
+  return "en";
+}
+
+function dataLocaleFor(language: string | undefined): AuditDataLocale {
+  return language?.toLowerCase().startsWith("ko") ? "ko" : "en";
+}
 
 function AuditLegacy() {
   const { t, i18n } = useTranslation("audit");
   const { userId, loading, isMinor, hasProfile } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const displayLocale = displayLocaleFor(i18n.language);
+  const locale = dataLocaleFor(i18n.language);
+  const copy = DISPLAY_COPY[displayLocale];
 
   const [period, setPeriod] = useState<AuditPeriod | null>(null);
   const questions = period ? questionsForPeriod(period) : [];
@@ -108,10 +206,7 @@ function AuditLegacy() {
       console.warn("[audit] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "답변을 저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save your answer. Your answer is still here, so try again.",
+        message: copy.saveError,
       });
     } finally {
       setSubmitting(false);
@@ -128,9 +223,7 @@ function AuditLegacy() {
               {t("periodTitle")}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
-              {locale === "ko"
-                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 고정 질문 묶음입니다. 자유로운 깊이 탐색은 /스무고개에서."
-                : "A fixed framework-anchored question set (Big Five · Attachment · SDT). For open-ended depth probing, use /interview."}
+              {copy.periodDescription}
             </Text>
           </View>
           <View style={{ gap: spacing.sm }}>
@@ -172,9 +265,7 @@ function AuditLegacy() {
             {t("complete")}
           </Text>
           <Text variant="body" color="textMuted" style={{ textAlign: "center", marginTop: spacing.sm }}>
-            {locale === "ko"
-              ? `${questions.length}개의 답변이 페르소나 모델을 합성할 준비가 됐어요.`
-              : `${questions.length} answers are ready to synthesize your persona model.`}
+            {copy.completeBody(questions.length)}
           </Text>
           <View style={styles.actions}>
             <Button
@@ -207,9 +298,7 @@ function AuditLegacy() {
               {t("interviewTitle")}
             </Text>
             <Text variant="subtle" color="textMuted" style={{ marginTop: 4, lineHeight: 18 }}>
-              {locale === "ko"
-                ? "Big Five · 애착이론 · 자기결정성 이론에 기반한 질문들. 정답은 없어요. 답이 쌓일수록 자기 모델의 패턴이 더 또렷해집니다."
-                : "Questions grounded in Big Five, Attachment Theory, and Self-Determination Theory. No right answer; the more you answer, the clearer the patterns in your self-model become."}
+              {copy.interviewDescription}
             </Text>
           </View>
         ) : null}
@@ -249,13 +338,7 @@ function AuditLegacy() {
         />
         <View style={styles.charCountRow}>
           <Text variant="subtle" color="textSubtle">
-            {locale === "ko"
-              ? answer.trim().length < 40
-                ? "조금만 더 길게 적어볼까요"
-                : "충분해요"
-              : answer.trim().length < 40
-                ? "A few more words help"
-                : "Looks good"}
+            {answer.trim().length < 40 ? copy.tooShort : copy.enough}
           </Text>
           <Text variant="subtle" color="textSubtle">
             {answer.length} / 2000
@@ -264,12 +347,8 @@ function AuditLegacy() {
         <Button
           label={
             index + 1 >= questions.length
-              ? locale === "ko"
-                ? "마무리"
-                : "Finish"
-              : locale === "ko"
-                ? "다음 질문"
-                : "Next question"
+              ? copy.finish
+              : copy.next
           }
           variant="primary"
           onPress={handleNext}
@@ -298,9 +377,7 @@ function AuditLegacy() {
           {t("exit.title")}
         </Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 가치관 진단을 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {copy.exitBody}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
