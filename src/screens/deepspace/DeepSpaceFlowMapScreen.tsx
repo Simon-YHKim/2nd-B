@@ -4,7 +4,6 @@ import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-n
 import { useTranslation } from "react-i18next";
 
 import { SecondbStatusHeader } from "@/components/deepspace";
-import { startTask } from "@/lib/tasks/store";
 import { Text } from "@/components/ui/Text";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { withAlpha } from "@/lib/theme/tokens";
@@ -36,9 +35,8 @@ const FLOW: FlowColumn[] = [
     subtitle: "북극성 · 7별",
     tone: "soul",
     items: [
-      { label: "홈 별자리", path: "/deepspace-home", note: "preview" },
+      { label: "홈 별자리", path: "/", note: "첫 화면" },
       { label: "소울코어", path: "/core-brain", note: "북극성" },
-      { label: "라이브 홈", path: "/", note: "shell" },
     ],
   },
   {
@@ -60,23 +58,22 @@ const FLOW: FlowColumn[] = [
     subtitle: "담기 · 세컨비",
     tone: "cyan",
     items: [
-      { label: "허브 preview", path: "/deepspace-hub", note: "4 panels" },
-      { label: "담기", path: "/capture", note: "first save" },
-      { label: "세컨비", path: "/secondb", note: "chat" },
-      { label: "트렌드", path: "/trends", note: "rising" },
-      { label: "기록", path: "/records", note: "archive" },
+      { label: "담기", path: "/capture", note: "첫 기록" },
+      { label: "세컨비", path: "/secondb", note: "대화" },
+      { label: "트렌드", path: "/trends", note: "흐름" },
+      { label: "기록", path: "/records", note: "보관" },
     ],
   },
   {
     title: "⑤ 지식망",
-    subtitle: "그래프 · wiki",
+    subtitle: "그래프 · 위키",
     tone: "soul",
     items: [
-      { label: "그래프", path: "/graph", note: "map" },
-      { label: "위키", path: "/wiki", note: "knowledge" },
-      { label: "인사이트", path: "/insights", note: "patterns" },
-      { label: "리서치", path: "/research", note: "sources" },
-      { label: "AI 뮤지엄", path: "/museum", note: "history" },
+      { label: "그래프", path: "/graph", note: "연결" },
+      { label: "위키", path: "/wiki", note: "지식" },
+      { label: "인사이트", path: "/insights", note: "패턴" },
+      { label: "리서치", path: "/research", note: "출처" },
+      { label: "AI 뮤지엄", path: "/museum", note: "발전사" },
     ],
   },
   {
@@ -84,11 +81,11 @@ const FLOW: FlowColumn[] = [
     subtitle: "계정 · 내보내기",
     tone: "mint",
     items: [
-      { label: "프로필", path: "/profile", note: "me" },
-      { label: "계정", path: "/account", note: "identity" },
-      { label: "개인정보", path: "/privacy", note: "trust" },
-      { label: "IDEN", path: "/iden", note: "export" },
-      { label: "지원", path: "/support", note: "help" },
+      { label: "프로필", path: "/profile", note: "내 정보" },
+      { label: "계정", path: "/account", note: "본인 확인" },
+      { label: "개인정보", path: "/privacy", note: "신뢰" },
+      { label: "IDEN", path: "/iden", note: "내보내기" },
+      { label: "지원", path: "/support", note: "도움" },
     ],
   },
 ];
@@ -149,23 +146,6 @@ export function DeepSpaceFlowMapScreen() {
   const header = HEADER_COPY[locale];
   const flow = FLOW_BY_LOCALE[locale];
 
-  // Loading-system demo (Claude Design loading.dc.html, C to D to E): wraps a
-  // long task with startTask so the global BackgroundTaskDock (D) spins while the
-  // app stays usable, then the CompletionToast (E) shows on finish (no auto-nav,
-  // the user taps the result link). This QA screen is not a merged feature, so
-  // wiring the demo here keeps the shipped screens untouched.
-  // TODO: point run() at a real long task (e.g. star re-analysis / import parse)
-  // once one is exposed outside the merged feature screens.
-  const runLoadingDemo = () => {
-    startTask({
-      title: header.loadingTitle,
-      mode: "background",
-      etaSec: 8,
-      resultHref: "/museum",
-      run: () => new Promise<void>((resolve) => setTimeout(resolve, 8000)),
-    });
-  };
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.phone}>
@@ -181,16 +161,6 @@ export function DeepSpaceFlowMapScreen() {
         <Text variant="caption" pixelEn style={styles.kicker}>2ND-BRAIN · FLOW MAP</Text>
         <Text variant="heading" style={styles.title}>{header.title}</Text>
         <Text variant="body" style={styles.subtitle}>{header.subtitle}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={header.demoLabel}
-          onPress={runLoadingDemo}
-          style={[styles.chip, styles.demoChip]}
-          android_ripple={{ color: withAlpha(colors.cyan, 0.12) }}
-        >
-          <Text variant="caption" style={styles.chipLabel}>{header.demoLabel}</Text>
-          <Text variant="subtle" style={styles.chipNote}>{header.demoNote}</Text>
-        </Pressable>
         <View style={styles.grid}>
           {flow.map((column) => (
             <View key={column.title} style={styles.column}>
@@ -236,5 +206,4 @@ const styles = StyleSheet.create({
   chip: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.cardBg, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, marginTop: spacing.xs },
   chipLabel: { color: colors.textTitle, fontSize: 11 },
   chipNote: { marginTop: 2, color: colors.textLo, fontSize: 10.5 },
-  demoChip: { marginHorizontal: 20, marginTop: spacing.md },
 });
