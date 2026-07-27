@@ -567,6 +567,7 @@
     "save": "담기",
     "opening": "펼치는 중…",
     "empty": "아직 담긴 휴식이 없어요. 요즘 나를 쉬게 하는 것부터 담아 보세요. 휴식 별이 밝아져요.",
+    "ratingLabel": "평점 {{rating}}/5",
     "category": {
       "game": "게임",
       "movie": "영화",

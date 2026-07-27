@@ -567,6 +567,7 @@
     "save": "Guardar",
     "opening": "Abriendo…",
     "empty": "Aún no hay nada aquí. Empieza con lo que te recarga estos días; la estrella del descanso se ilumina.",
+    "ratingLabel": "Valoración {{rating}}/5",
     "category": {
       "game": "Juego",
       "movie": "Película",

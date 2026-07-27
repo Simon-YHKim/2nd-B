@@ -39,6 +39,8 @@ export default function RestScreen() {
   const [category, setCategory] = useState<RecreationCategory>("hobby");
   const [status, setStatus] = useState<RecreationStatus>("want");
 
+  const ratingLabel = useCallback((rating: number) => t("deepspace:rest.ratingLabel", { rating: Math.min(5, rating) }), [t]);
+
   const refresh = useCallback(() => {
     if (!userId) return;
     listRecreationItems(userId)
@@ -175,7 +177,7 @@ export default function RestScreen() {
                       <Text variant="caption" color="textMuted">
                         {t(`deepspace:rest.category.${item.category}`)}
                         {item.occurred_on ? ` · ${item.occurred_on}` : ""}
-                        {item.rating ? ` · ${"★".repeat(Math.min(5, item.rating))}` : ""}
+                        {item.rating ? ` · ${ratingLabel(item.rating)}` : ""}
                       </Text>
                     </View>
                   </MdCard>
