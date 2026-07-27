@@ -237,7 +237,7 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
         {props.subtitle ? <Text variant="subtle" style={styles.sheetSubtitle}>{props.subtitle}</Text> : null}
         {props.needsConsent && props.consentLabel ? (
           <View style={styles.consentLine}>
-            <RNText style={styles.consentIcon}>OK</RNText>
+            <RNText style={styles.consentBadge}>LOCK</RNText>
             <Text variant="body" style={styles.consentText}>{props.consentLabel}</Text>
           </View>
         ) : null}
@@ -254,7 +254,7 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
                 <Text variant="caption" style={styles.pushOptionLabel}>{o.label}</Text>
                 {o.sub ? <Text variant="subtle" style={styles.pushOptionSub}>{o.sub}</Text> : null}
               </View>
-              {o.recommended ? <RNText style={styles.pushRecTag}>★</RNText> : null}
+              {o.recommended ? <RNText style={styles.pushRecTag}>REC</RNText> : null}
             </Pressable>
           ))}
         </View>
@@ -277,11 +277,11 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
 
 export type OpsStateVariant = "empty" | "error" | "unlinked" | "rate";
 
-const STATE_ICON: Record<OpsStateVariant, string> = {
-  empty: "0",
-  error: "!",
-  unlinked: "LN",
-  rate: "...",
+const STATE_BADGE: Record<OpsStateVariant, string> = {
+  empty: "NEW",
+  error: "ERR",
+  unlinked: "LINK",
+  rate: "WAIT",
 };
 
 export interface OpsStateProps {
@@ -303,7 +303,7 @@ export function OpsState(props: OpsStateProps) {
         warn ? styles.stateWarn : null,
       ]}
     >
-      <RNText style={styles.stateIcon}>{STATE_ICON[props.variant]}</RNText>
+      <RNText style={styles.stateBadge}>{STATE_BADGE[props.variant]}</RNText>
       <Text variant="heading" style={styles.stateTitle}>{props.title}</Text>
       <Text variant="body" style={styles.stateBody}>{props.body}</Text>
       {props.ctaLabel && props.onCta ? (
@@ -529,15 +529,16 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.mintBg,
     borderRadius: deepSpaceRadii.md,
   },
-  consentIcon: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
+  consentBadge: {
+    minWidth: 42,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderWidth: 1,
     borderColor: deepSpace.mintLine,
+    borderRadius: deepSpaceRadii.sm,
     color: deepSpace.mint,
     fontSize: 10,
-    lineHeight: 22,
+    fontWeight: "700",
     textAlign: "center",
   },
   consentText: { flex: 1, fontSize: 13, color: deepSpace.textMid },
@@ -557,7 +558,18 @@ const styles = StyleSheet.create({
   pushOptionBody: { flex: 1 },
   pushOptionLabel: { fontSize: 14, color: deepSpace.accentBright },
   pushOptionSub: { fontSize: 12, color: deepSpace.textLo, marginTop: 1 },
-  pushRecTag: { fontSize: 13, color: deepSpace.mint },
+  pushRecTag: {
+    minWidth: 34,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: deepSpace.mintLine,
+    borderRadius: deepSpaceRadii.sm,
+    color: deepSpace.mint,
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   sheetConfirm: { marginTop: 4 },
 
   state: {
@@ -573,15 +585,16 @@ const styles = StyleSheet.create({
   },
   stateDanger: { borderColor: deepSpace.dangerLine, backgroundColor: deepSpace.dangerBg },
   stateWarn: { borderColor: deepSpace.warningLine, backgroundColor: deepSpace.warningBg },
-  stateIcon: {
-    minWidth: 38,
-    height: 38,
-    borderRadius: 19,
+  stateBadge: {
+    minWidth: 48,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
+    borderRadius: deepSpaceRadii.sm,
     color: deepSpace.accentSoft,
-    fontSize: 13,
-    lineHeight: 36,
+    fontSize: 11,
+    fontWeight: "700",
     textAlign: "center",
   },
   stateTitle: { fontSize: 14, color: deepSpace.accentBright, textAlign: "center" },
