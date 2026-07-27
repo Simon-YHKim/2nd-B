@@ -27,6 +27,7 @@
   "subjectTitle": "Preguntar a quienes me conocen",
   "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más, la imagen combinada aparece en tu lente Visto; nunca ves respuestas individuales.",
   "labelField": "Apodo para esta persona (solo tú lo ves)",
+  "labelPlaceholder": "p. ej., amistad de la universidad",
   "kind": {
     "friend": "Amistad",
     "family": "Familia",

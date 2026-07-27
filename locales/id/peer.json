@@ -27,6 +27,7 @@
   "subjectTitle": "Tanya orang yang mengenalku",
   "subjectIntro": "Kirim tautan sekali pakai ke orang yang mengenalmu. Setelah tiga orang atau lebih menjawab, gambaran gabungan muncul di lensa Terlihat; kamu tidak pernah melihat jawaban individual.",
   "labelField": "Nama panggilan untuk orang ini (hanya kamu yang melihat)",
+  "labelPlaceholder": "mis. teman kuliah",
   "kind": {
     "friend": "Teman",
     "family": "Keluarga",

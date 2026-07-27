@@ -24,8 +24,7 @@ import {
 const KINDS: PeerRelationKind[] = ["friend", "family", "coworker", "partner", "other"];
 
 export default function PeerInvites() {
-  const { t, i18n } = useTranslation("peer");
-  const ko = i18n.language === "ko";
+  const { t } = useTranslation("peer");
   const { userId, loading } = useAuth();
   const [invites, setInvites] = useState<PeerInvitation[] | null>(null);
   // A revoke that failed used to reject into the void. For an invitation that shares the
@@ -99,7 +98,7 @@ export default function PeerInvites() {
             label={t("labelField")}
             value={label}
             onChangeText={setLabel}
-            placeholder={ko ? "예) 대학 동기" : "e.g. college friend"}
+            placeholder={t("labelPlaceholder")}
           />
           <View style={styles.kindRow}>
             {KINDS.map((k) => (

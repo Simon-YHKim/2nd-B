@@ -27,6 +27,7 @@
   "subjectTitle": "나를 아는 사람들에게 묻기",
   "subjectIntro": "나를 아는 사람에게 일회용 링크를 보내요. 세 명 이상 답하면 합산 그림이 보여지는 나 렌즈에 나타나요. 개별 답변은 볼 수 없어요.",
   "labelField": "이 사람을 부를 별칭 (나만 보여요)",
+  "labelPlaceholder": "예) 대학 동기",
   "kind": {
     "friend": "친구",
     "family": "가족",

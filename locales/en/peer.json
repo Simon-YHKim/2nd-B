@@ -27,6 +27,7 @@
   "subjectTitle": "Ask people who know me",
   "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in your Seen lens; you never see individual answers.",
   "labelField": "Nickname for this person (only you see it)",
+  "labelPlaceholder": "e.g. college friend",
   "kind": {
     "friend": "Friend",
     "family": "Family",

@@ -27,6 +27,7 @@
   "subjectTitle": "Perguntar a quem me conhece",
   "subjectIntro": "Envie um link de uso único. Quando três ou mais responderem, o retrato combinado aparece na sua lente Visto; você nunca vê respostas individuais.",
   "labelField": "Apelido para esta pessoa (só você vê)",
+  "labelPlaceholder": "ex.: colega da faculdade",
   "kind": {
     "friend": "Amizade",
     "family": "Família",
