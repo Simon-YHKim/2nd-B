@@ -13,7 +13,6 @@ import {
   Text as RNText,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
@@ -238,7 +237,7 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
         {props.subtitle ? <Text variant="subtle" style={styles.sheetSubtitle}>{props.subtitle}</Text> : null}
         {props.needsConsent && props.consentLabel ? (
           <View style={styles.consentLine}>
-            <RNText style={styles.consentIcon}>🔒</RNText>
+            <RNText style={styles.consentIcon}>OK</RNText>
             <Text variant="body" style={styles.consentText}>{props.consentLabel}</Text>
           </View>
         ) : null}
@@ -279,10 +278,10 @@ export function OpsPushSheet(props: OpsPushSheetProps) {
 export type OpsStateVariant = "empty" | "error" | "unlinked" | "rate";
 
 const STATE_ICON: Record<OpsStateVariant, string> = {
-  empty: "✦",
-  error: "⚠",
-  unlinked: "🔗",
-  rate: "⏳",
+  empty: "0",
+  error: "!",
+  unlinked: "LN",
+  rate: "...",
 };
 
 export interface OpsStateProps {
@@ -530,7 +529,17 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.mintBg,
     borderRadius: deepSpaceRadii.md,
   },
-  consentIcon: { fontSize: 14 },
+  consentIcon: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: deepSpace.mintLine,
+    color: deepSpace.mint,
+    fontSize: 10,
+    lineHeight: 22,
+    textAlign: "center",
+  },
   consentText: { flex: 1, fontSize: 13, color: deepSpace.textMid },
   sheetOptions: { gap: 8 },
   pushOption: {
@@ -564,7 +573,17 @@ const styles = StyleSheet.create({
   },
   stateDanger: { borderColor: deepSpace.dangerLine, backgroundColor: deepSpace.dangerBg },
   stateWarn: { borderColor: deepSpace.warningLine, backgroundColor: deepSpace.warningBg },
-  stateIcon: { fontSize: 26, color: deepSpace.accentSoft },
+  stateIcon: {
+    minWidth: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLineStrong,
+    color: deepSpace.accentSoft,
+    fontSize: 13,
+    lineHeight: 36,
+    textAlign: "center",
+  },
   stateTitle: { fontSize: 14, color: deepSpace.accentBright, textAlign: "center" },
   stateBody: { fontSize: 13, color: deepSpace.textLo, textAlign: "center" },
   stateCta: { flex: 0, paddingHorizontal: deepSpaceSpacing.lg, marginTop: 4 },
