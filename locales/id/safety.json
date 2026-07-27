@@ -2,6 +2,10 @@
   "red": {
     "title": "We hear you.",
     "body": "What you're going through sounds heavy. You don't have to carry it alone.",
+    "noticeLabel": "Pemberitahuan keamanan krisis",
+    "badge": "DARURAT",
+    "callHint": "Lakukan panggilan",
+    "callCta": "Ketuk untuk menelepon",
     "hotline": {
       "GLOBAL_988": "Call or text 988 - Suicide & Crisis Lifeline (24/7)",
       "KR_109": "전화 109 - 자살예방상담전화 (24시간, 무료)",
