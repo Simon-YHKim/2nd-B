@@ -33,11 +33,6 @@ export const CRISIS_DIRECTORY_URL = "https://findahelpline.com";
 export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
   const { t } = useTranslation("safety");
   const number = HOTLINES[hotline].number;
-  const isKorean =
-    hotline === "KR_109" ||
-    hotline === "KR_1393" ||
-    hotline === "KR_1577_0199" ||
-    hotline === "KR_1388";
 
   const handleCall = useCallback(() => {
     // Strip non-digits for the tel: URI (e.g. "1577-0199" → "15770199").
@@ -66,12 +61,12 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
         style={styles.backdrop}
         accessibilityViewIsModal
         accessibilityRole="alert"
-        accessibilityLabel={isKorean ? "긴급 안전 안내" : "Crisis safety notice"}
+        accessibilityLabel={t("red.noticeLabel")}
       >
         <View style={styles.card}>
           <View style={styles.hotlineBadge}>
             <Text variant="subtle" style={styles.hotlineBadgeText}>
-              {isKorean ? "긴급" : "URGENT"}
+              {t("red.badge")}
             </Text>
           </View>
           <View style={styles.titleRow}>
@@ -87,7 +82,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
             <Pressable
               onPress={handleCall}
               accessibilityRole="button"
-              accessibilityHint={isKorean ? "전화 걸기" : "Place a call"}
+              accessibilityHint={t("red.callHint")}
               accessibilityLabel={`${number}: ${HOTLINES[hotline].label}`}
               style={styles.hotlinePress}
               android_ripple={{ color: withAlpha(semantic.danger, 0.12) }}
@@ -96,7 +91,7 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
                 {t(`red.hotline.${hotline}`)}
               </Text>
               <Text variant="subtle" color="textMuted" style={{ marginTop: 4 }}>
-                {isKorean ? "탭하여 전화 걸기" : "Tap to call"}
+                {t("red.callCta")}
               </Text>
             </Pressable>
           </View>
