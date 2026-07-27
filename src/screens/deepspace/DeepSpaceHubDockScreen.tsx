@@ -465,7 +465,7 @@ function CaptureContent({ captureMode, setCaptureMode, captured, setCaptured, co
       <View style={styles.tagRow}><Text variant="caption" pixelEn style={styles.tag}>{copy.ideaTag}</Text><Text variant="caption" pixelEn style={styles.tag}>{copy.autoTag}</Text></View>
       <Text variant="caption" pixelEn style={styles.sectionLabel}>{copy.recent}</Text>
       {copy.rows.map((row) => (
-        <SmallRow key={row.title} icon={row.icon} title={row.title} time={row.time} />
+        <SmallRow key={row.title} badge={row.icon} title={row.title} time={row.time} />
       ))}
       <Pressable
         accessibilityRole="button"
@@ -548,8 +548,8 @@ function ReviewContent({ reviewDecision, setReviewDecision, copy }: HubState) {
   );
 }
 
-function SmallRow({ icon, title, time }: { icon: string; title: string; time: string }) {
-  return <View style={styles.smallRow}><RNText style={styles.rowIcon}>{icon}</RNText><Text variant="body" style={styles.rowTitle} numberOfLines={1}>{title}</Text><Text variant="subtle" style={styles.rowTime}>{time}</Text></View>;
+function SmallRow({ badge, title, time }: { badge: string; title: string; time: string }) {
+  return <View style={styles.smallRow}><RNText style={styles.rowBadge}>{badge}</RNText><Text variant="body" style={styles.rowTitle} numberOfLines={1}>{title}</Text><Text variant="subtle" style={styles.rowTime}>{time}</Text></View>;
 }
 
 function TrendCard({ title, delta, body, label, onPress }: { title: string; delta: string; body: string; label: string; onPress: () => void }) {
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   tag: { color: colors.cyanBright, opacity: 0.55, borderWidth: 1, borderColor: colors.border, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5, fontSize: 6, lineHeight: 10 },
   sectionLabel: { color: colors.cyanBright, opacity: 0.55, marginTop: spacing.lg, marginBottom: spacing.sm, fontSize: 7, lineHeight: 12 },
   smallRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: colors.ruleSoft, borderRadius: 10, backgroundColor: colors.cardBg, marginBottom: spacing.sm },
-  rowIcon: { fontSize: 14, lineHeight: 18 },
+  rowBadge: { minWidth: 34, textAlign: "center", color: colors.cyanBright, borderWidth: 1, borderColor: colors.ruleSoft, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 3, fontSize: 10, lineHeight: 14 },
   rowTitle: { flex: 1, color: colors.textMid, fontSize: 12.5 },
   rowTime: { color: colors.cyanBright, opacity: 0.4, fontSize: 10 },
   primaryButton: { marginTop: spacing.md, padding: 13, borderRadius: 12, backgroundColor: colors.cyanBright, alignItems: "center" },
