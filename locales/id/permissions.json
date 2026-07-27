@@ -2,7 +2,7 @@
   "hero": {
     "eyebrow": "Izin",
     "title": "Gunakan hanya yang diperlukan",
-    "subtitle": "Jaringan · clipboard · akses foto opsional",
+    "subtitle": "Jaringan · papan klip · akses foto opsional",
     "speech": "Izin diminta hanya saat diperlukan, dan yang opsional bisa ditolak."
   },
   "status": {
@@ -25,7 +25,7 @@
     },
     "clipboard": {
       "name": "Papan klip",
-      "why": "Digunakan hanya saat kamu mengetuk Salin di tindakan ekspor atau pesan. 2nd-Brain tidak pernah membaca clipboard-mu di latar belakang."
+      "why": "Digunakan hanya saat kamu mengetuk Salin di tindakan ekspor atau pesan. 2nd-Brain tidak pernah membaca papan klipmu di latar belakang."
     },
     "calendar": {
       "name": "Kalender",
