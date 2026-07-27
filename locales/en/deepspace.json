@@ -567,6 +567,7 @@
     "save": "Save",
     "opening": "Opening…",
     "empty": "Nothing here yet. Start with what recharges you these days; the rest star brightens.",
+    "ratingLabel": "Rating {{rating}}/5",
     "category": {
       "game": "Game",
       "movie": "Movie",

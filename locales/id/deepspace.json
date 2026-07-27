@@ -567,6 +567,7 @@
     "save": "Simpan",
     "opening": "Membuka…",
     "empty": "Belum ada apa pun di sini. Mulai dari yang membuatmu segar akhir-akhir ini; bintang istirahat pun bersinar.",
+    "ratingLabel": "Rating {{rating}}/5",
     "category": {
       "game": "Game",
       "movie": "Film",
