@@ -58,7 +58,7 @@
       "help": "Escreva uma nota curta. Hashtags e arquivamento são adicionados automaticamente ao salvar."
     },
     "linkclip": {
-      "label": "Link",
+      "label": "Ligação",
       "help": "Cole uma URL ou texto de artigo salvo. Vamos reconhecer o tipo de fonte."
     },
     "ocr": {
@@ -200,7 +200,7 @@
     "dataUsageHint": "O envio de arquivos pode gerar cobranca de dados. Recomenda-se Wi-Fi."
   },
   "tags": {
-    "title": "Hashtags",
+    "title": "Etiquetas",
     "removeLabel": "Remover hashtag {{tag}}",
     "emptyHelper": "Deixe vazio e o SecondB vai adicionar hashtags ao salvar, ou adicione as suas com +.",
     "removeHelper": "Toque em uma hashtag para remover.",
