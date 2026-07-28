@@ -11,7 +11,7 @@
   "comingSoonBody": "O checkout ainda não está aberto. Os preços são definitivos e nada é cobrado até você escolher um plano aqui.",
   "tiers": {
     "free": {
-      "name": "Stargazer",
+      "name": "Observador de estrelas",
       "price": "Grátis",
       "tagline": "Seu 2nd-Brain do dia a dia, registros ilimitados",
       "f1": "Registros, notas e wiki ilimitados",
@@ -19,16 +19,17 @@
       "f3": "5 conversas com IA por dia"
     },
     "soma": {
-      "name": "Voyager",
+      "name": "Viajante",
       "price": "$4.99 / mo",
       "priceNote": "$49.90 / yr (2 meses grátis)",
       "tagline": "IA diária junto aos seus registros",
       "f1": "30 conversas com IA por dia",
-      "f2": "Tudo do Free",
-      "f3": "O primeiro passo além do limite diário"
+      "f2": "Tudo do plano grátis",
+      "f3": "O primeiro passo além do limite diário",
+      "lifetimeNote": "Ou $99 uma vez para acesso vitalício"
     },
     "cortex": {
-      "name": "Voyager",
+      "name": "Viajante",
       "price": "$9.99 / mo",
       "priceNote": "$99.90 / yr (2 meses grátis)",
       "tagline": "Espaço para mergulhos diários profundos",
@@ -37,7 +38,7 @@
       "f3": "Fôlego para sessões longas"
     },
     "brain": {
-      "name": "North Star",
+      "name": "Estrela Polar",
       "price": "$19.99 / mo",
       "priceNote": "$199.90 / yr (2 meses grátis)",
       "tagline": "O segundo cérebro completo",
