@@ -46,7 +46,7 @@ describe("CHARACTERS roster", () => {
   });
 
   test("role labels match Simon's canonical worldview concepts", () => {
-    expect(CHARACTERS.secondb.role.en).toBe("Soul Core navigator");
+    expect(CHARACTERS.secondb.role.en).toBe("North Star navigator");
     expect(CHARACTERS.archi.role.en).toBe("Career consultant");
     expect(CHARACTERS.gadi.role.en).toBe("Warm relationship guide");
     expect(CHARACTERS.lulu.role.en).toBe("Life-applied wisdom sage");
