@@ -1518,7 +1518,7 @@ const SUBVIEWS = {
   import:       { label: "가져오기",  parent: "capture", body: "다른 앱이나 파일에서 한 번에 가져와요." },
   inbox:        { label: "받은 항목", parent: "capture", body: "받은 항목을 모아 정리하기 전에 먼저 검토해요." },
   manual:       { label: "수동 입력", parent: "capture", body: "직접 입력해서 그 자리에서 담아요." },
-  "core-brain": { label: "소울 코어", parent: "profile", body: "나를 이루는 중심 노드 — 모든 기록이 여기로 모여요." },
+  "core-brain": { label: "북극성", parent: "profile", body: "내 기록이 모여 방향을 잡는 중심입니다." },
   persona:      { label: "나의 모습", parent: "profile", body: "지금의 나를 비추는 화면이에요." },
   insight:      { label: "통찰",      parent: "profile", body: "기록 속에서 발견한 패턴을 보여줘요." },
   big5:         { label: "빅5",       parent: "profile", body: "다섯 요인으로 나의 성격을 들여다봐요." },
