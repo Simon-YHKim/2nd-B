@@ -153,6 +153,15 @@ describe("worldview canon: brain model + value ladder + north-star terminology",
     expect(ctx).toMatch(/Roles \/ Action \/ Knowledge are NOT stars/i);
   });
 
+  test("home domain star accessibility copy does not expose retired Pattern Core labels", () => {
+    const localeFiles = ["en", "ko", "es", "pt", "id"].map((locale) => `locales/${locale}/index.json`);
+    for (const file of localeFiles) {
+      const indexCopy = JSON.parse(readProjectFile(file)) as { openPatternCore?: string };
+      expect(indexCopy.openPatternCore).toBeTruthy();
+      expect(indexCopy.openPatternCore).not.toMatch(/Pattern Core|패턴 코어|Núcleo de Patrones|Núcleo de Padrões|Inti Pola/i);
+    }
+  });
+
   test("the canon glossary carries no forbidden clinical lexicon", () => {
     const ctx = readProjectFile("CONTEXT.md");
     expect(containsForbiddenLexicon(ctx, "en")).toHaveLength(0);
