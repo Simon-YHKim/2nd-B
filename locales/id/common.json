@@ -71,21 +71,21 @@
   "navGraph": {
     "drilldown": {
       "back": "Kembali ke konstelasi",
-      "backHint": "Kembali dari detail bintang domain ke konstelasi penuh.",
-      "coreEyebrow": "Inti Pola",
-      "dataEyebrow": "Data Pola",
+      "backHint": "Kembali dari area konstelasi ini ke konstelasi penuh.",
+      "coreEyebrow": "Area konstelasi",
+      "dataEyebrow": "Serpihan terhubung",
       "touch": "Sentuh!",
       "coreIntro": {
-        "work": "Ini adalah Growth Core. Kepingan karier dan pertumbuhanmu berkumpul di sini.",
-        "relation": "Ini adalah Bond Core. Kenangan, janji, dan percakapan berkumpul di sini.",
-        "knowledge": "Ini adalah Wisdom Core. Kepingan yang dipelajari dan dipahami berkumpul di sini.",
-        "records": "Ini adalah Narrative Core. Kepingan yang disimpan berkumpul di sini agar mudah ditemukan lagi.",
-        "taste": "Ini adalah Muse Core. Kepingan selera dan inspirasi berkumpul di sini."
+        "work": "Kepingan karier dan pertumbuhan berkumpul di area konstelasi ini.",
+        "relation": "Kenangan, janji, dan percakapan berkumpul di area konstelasi ini.",
+        "knowledge": "Kepingan yang dipelajari dan dipahami berkumpul di area konstelasi ini.",
+        "records": "Kepingan yang disimpan berkumpul di area konstelasi ini agar mudah ditemukan lagi.",
+        "taste": "Kepingan selera dan inspirasi berkumpul di area konstelasi ini."
       },
       "dataFallback": "Kepingan yang kamu hubungkan ke {{core}}.",
-      "noDataTitle": "Belum ada Pattern Data",
-      "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan core ini akan menumbuhkan node kepingan salju ringan.",
-      "dataDetailHint": "Membuka detail Pattern Data yang dipilih."
+      "noDataTitle": "Belum ada serpihan terhubung",
+      "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan area ini akan menumbuhkan node terhubung kecil.",
+      "dataDetailHint": "Membuka detail serpihan terhubung yang dipilih."
     }
   },
   "navPiece": "serpihan",

@@ -69,4 +69,17 @@ describe("visible brand copy", () => {
       expect(source).not.toMatch(/세컨드비/);
     }
   });
+
+  test("nav graph drilldown copy does not expose legacy Pattern Core labels", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const locales = ["en", "ko", "es", "pt", "id"];
+
+    for (const locale of locales) {
+      const common = JSON.parse(readFileSync(path.join(root, `locales/${locale}/common.json`), "utf8")) as {
+        navGraph: { drilldown: Record<string, unknown> };
+      };
+      const drilldownCopy = JSON.stringify(common.navGraph.drilldown);
+      expect(drilldownCopy).not.toMatch(/Pattern Core|Pattern Data|패턴 코어|패턴 데이터/);
+    }
+  });
 });

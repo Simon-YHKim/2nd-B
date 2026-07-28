@@ -71,21 +71,21 @@
   "navGraph": {
     "drilldown": {
       "back": "Voltar à constelação",
-      "backHint": "Volta do detalhe da estrela de domínio para a constelação completa.",
-      "coreEyebrow": "Núcleo de padrões",
-      "dataEyebrow": "Dados de padrões",
+      "backHint": "Volta desta área da constelação para a constelação completa.",
+      "coreEyebrow": "Área da constelação",
+      "dataEyebrow": "Fragmento conectado",
       "touch": "Toque!",
       "coreIntro": {
-        "work": "Este é o Growth Core. Suas peças de carreira e crescimento se reúnem aqui.",
-        "relation": "Este é o Bond Core. Memórias, promessas e conversas se reúnem aqui.",
-        "knowledge": "Este é o Wisdom Core. Peças aprendidas e compreendidas se reúnem aqui.",
-        "records": "Este é o Narrative Core. Peças guardadas se reúnem aqui para você encontrá-las novamente.",
-        "taste": "Este é o Muse Core. Peças de gosto e inspiração se reúnem aqui."
+        "work": "Peças de carreira e crescimento se reúnem nesta área da constelação.",
+        "relation": "Memórias, promessas e conversas se reúnem nesta área da constelação.",
+        "knowledge": "Peças aprendidas e compreendidas se reúnem nesta área da constelação.",
+        "records": "Peças guardadas se reúnem nesta área da constelação para você encontrá-las novamente.",
+        "taste": "Peças de gosto e inspiração se reúnem nesta área da constelação."
       },
       "dataFallback": "Uma peça que você conectou a {{core}}.",
-      "noDataTitle": "Nenhum Pattern Data ainda",
-      "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e este núcleo fará crescer um nó floco de neve leve.",
-      "dataDetailHint": "Abre o detalhe do Pattern Data selecionado."
+      "noDataTitle": "Nenhum fragmento conectado ainda",
+      "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e esta área fará crescer um pequeno nó conectado.",
+      "dataDetailHint": "Abre o detalhe do fragmento conectado selecionado."
     }
   },
   "navPiece": "fragmento",

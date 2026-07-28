@@ -71,21 +71,21 @@
   "navGraph": {
     "drilldown": {
       "back": "Back to constellation",
-      "backHint": "Returns from the domain star detail to the full constellation.",
-      "coreEyebrow": "Pattern Core",
-      "dataEyebrow": "Pattern Data",
+      "backHint": "Returns from this constellation area to the full constellation.",
+      "coreEyebrow": "Constellation area",
+      "dataEyebrow": "Connected piece",
       "touch": "Touch!",
       "coreIntro": {
-        "work": "This is the Growth Core. Your career and growth pieces gather here.",
-        "relation": "This is the Bond Core. Memories, promises, and conversations gather here.",
-        "knowledge": "This is the Wisdom Core. Learned and understood pieces gather here.",
-        "records": "This is the Narrative Core. Kept pieces gather here so you can find them again.",
-        "taste": "This is the Muse Core. Taste and inspiration pieces gather here."
+        "work": "Career and growth pieces gather in this constellation area.",
+        "relation": "Memories, promises, and conversations gather in this constellation area.",
+        "knowledge": "Learned and understood pieces gather in this constellation area.",
+        "records": "Kept pieces gather in this constellation area so you can find them again.",
+        "taste": "Taste and inspiration pieces gather in this constellation area."
       },
       "dataFallback": "One piece you connected to {{core}}.",
-      "noDataTitle": "No Pattern Data yet",
-      "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this core will grow a light snowflake node.",
-      "dataDetailHint": "Opens the selected Pattern Data detail."
+      "noDataTitle": "No connected pieces yet",
+      "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this area will grow a small connected node.",
+      "dataDetailHint": "Opens the selected connected-piece detail."
     }
   },
   "navPiece": "piece",
