@@ -113,6 +113,16 @@ describe("worldview v-final naming", () => {
 // 밝기 = L-level). Roles/Action/Knowledge stay OUT of the stars (goal-tree). L4 must
 // read "교차검증 (cross-source agreement)" with no clinical lexicon anywhere.
 describe("worldview canon: brain model + value ladder + north-star terminology", () => {
+  test("core-brain visible locale labels use North Star naming", () => {
+    const enCoreBrain = JSON.parse(readProjectFile("locales/en/core-brain.json"));
+    const koCoreBrain = JSON.parse(readProjectFile("locales/ko/core-brain.json"));
+
+    expect(enCoreBrain.soulCoreEyebrow).toBe("02. North Star");
+    expect(enCoreBrain.myCenter).toBe("North Star");
+    expect(koCoreBrain.soulCoreEyebrow).toBe("02. 북극성");
+    expect(koCoreBrain.myCenter).toBe("북극성");
+  });
+
   test("CONTEXT.md pins the 0th/1st/2nd/3rd brain bridge model", () => {
     const ctx = readProjectFile("CONTEXT.md");
     for (const layer of ["0th brain", "1st brain", "2nd brain", "3rd brain"]) {
