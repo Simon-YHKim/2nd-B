@@ -57,13 +57,13 @@
     "skipHint": "Toca dos veces para saltar la animación de inicio."
   },
   "worldview": {
-    "soulCore": "Núcleo del alma",
+    "soulCore": "Estrella polar",
     "growthCore": "Núcleo de crecimiento",
     "bondCore": "Núcleo de vínculos",
     "wisdomCore": "Núcleo de sabiduría",
     "narrativeCore": "Núcleo narrativo",
     "museCore": "Núcleo musa",
-    "patternCore": "Núcleo de patrones",
+    "patternCore": "Estrella de dominio",
     "patternData": "Datos de patrones",
     "log": "Registro",
     "patternLink": "Enlace de patrones"
@@ -71,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "Volver a la constelación",
-      "backHint": "Vuelve del detalle del Pattern Core a la constelación completa.",
+      "backHint": "Vuelve del detalle de la estrella de dominio a la constelación completa.",
       "coreEyebrow": "Núcleo de patrones",
       "dataEyebrow": "Datos de patrones",
       "touch": "¡Toca!",

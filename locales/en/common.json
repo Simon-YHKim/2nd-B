@@ -57,13 +57,13 @@
     "skipHint": "Double tap to skip the intro animation."
   },
   "worldview": {
-    "soulCore": "Soul Core",
+    "soulCore": "North Star",
     "growthCore": "Growth Core",
     "bondCore": "Bond Core",
     "wisdomCore": "Wisdom Core",
     "narrativeCore": "Narrative Core",
     "museCore": "Muse Core",
-    "patternCore": "Pattern Core",
+    "patternCore": "Domain star",
     "patternData": "Pattern Data",
     "log": "Log",
     "patternLink": "Pattern Link"
@@ -71,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "Back to constellation",
-      "backHint": "Returns from the Pattern Core drilldown to the full constellation.",
+      "backHint": "Returns from the domain star detail to the full constellation.",
       "coreEyebrow": "Pattern Core",
       "dataEyebrow": "Pattern Data",
       "touch": "Touch!",
