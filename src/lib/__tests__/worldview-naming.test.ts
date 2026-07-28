@@ -104,6 +104,14 @@ describe("worldview v-final naming", () => {
     expect(VILLAGE_LABEL.relation.ko).toBe("본드 코어");
     expect(VILLAGE_LABEL.relation.en).toBe("Bond Core");
   });
+
+  test("Indonesian graph drilldown copy does not leak English pattern terms", () => {
+    const commonId = readProjectFile("locales/id/common.json");
+    expect(commonId).not.toContain("Pattern Core");
+    expect(commonId).not.toContain("Pattern Data");
+    expect(commonId).toContain("Bintang domain");
+    expect(commonId).toContain("serpihan");
+  });
 });
 
 // Synthesis memo (2026-06-17): north-star + 7-lens canon, Phase 0 pins.
