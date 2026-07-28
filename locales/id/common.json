@@ -57,13 +57,13 @@
     "skipHint": "Ketuk dua kali untuk melewati animasi pembuka."
   },
   "worldview": {
-    "soulCore": "Inti Jiwa",
+    "soulCore": "Bintang penuntun",
     "growthCore": "Inti Pertumbuhan",
     "bondCore": "Inti Ikatan",
     "wisdomCore": "Inti Kebijaksanaan",
     "narrativeCore": "Inti Narasi",
     "museCore": "Inti Muse",
-    "patternCore": "Inti Pola",
+    "patternCore": "Bintang domain",
     "patternData": "Data Pola",
     "log": "Catatan",
     "patternLink": "Tautan Pola"
@@ -71,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "Kembali ke konstelasi",
-      "backHint": "Kembali dari drilldown Pattern Core ke konstelasi penuh.",
+      "backHint": "Kembali dari detail bintang domain ke konstelasi penuh.",
       "coreEyebrow": "Inti Pola",
       "dataEyebrow": "Data Pola",
       "touch": "Sentuh!",

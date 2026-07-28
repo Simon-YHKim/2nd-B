@@ -57,13 +57,13 @@
     "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다."
   },
   "worldview": {
-    "soulCore": "소울 코어",
+    "soulCore": "북극성",
     "growthCore": "그로스 코어",
     "bondCore": "본드 코어",
     "wisdomCore": "위즈덤 코어",
     "narrativeCore": "내러티브 코어",
     "museCore": "뮤즈 코어",
-    "patternCore": "패턴 코어",
+    "patternCore": "도메인 별",
     "patternData": "패턴 데이터",
     "log": "로그",
     "patternLink": "패턴 링크"
@@ -71,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "전체 성좌로 돌아가기",
-      "backHint": "패턴 코어 드릴다운에서 전체 성좌로 돌아갑니다.",
+      "backHint": "도메인 별 상세에서 전체 성좌로 돌아갑니다.",
       "coreEyebrow": "패턴 코어",
       "dataEyebrow": "패턴 데이터",
       "touch": "터치!",
