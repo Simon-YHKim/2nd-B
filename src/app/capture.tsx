@@ -337,6 +337,12 @@ export function CaptureLegacy() {
   const [ocrReviewApproved, setOcrReviewApproved] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
+  // Pressed state for the submit CTA. It lives here, not in a function-form
+  // `style` prop: Fabric Android drops function-form Pressable props at runtime
+  // (#680), and the enabled branch of this button used to be exactly that - so
+  // the moment the button became tappable it lost styles.tossBtn (padding,
+  // height, background) and the target collapsed under the finger.
+  const [submitPressed, setSubmitPressed] = useState(false);
   const [tagsEditable, setTagsEditable] = useState<string[]>([]);
   // med#4: true once the user taps a 트랙 chip this visit — the AI classifier
   // then keeps its hands off the track (mirrors the user-hashtags-win rule).
@@ -2226,11 +2232,13 @@ export function CaptureLegacy() {
             <Pressable
               onPress={handleSubmit}
               disabled={!canSubmit}
-              style={
-                !canSubmit
-                  ? [styles.tossBtn, styles.tossBtnDisabled]
-                  : ({ pressed }) => [styles.tossBtn, pressed && styles.tossBtnPressed]
-              }
+              onPressIn={() => setSubmitPressed(true)}
+              onPressOut={() => setSubmitPressed(false)}
+              style={[
+                styles.tossBtn,
+                !canSubmit && styles.tossBtnDisabled,
+                canSubmit && submitPressed && styles.tossBtnPressed,
+              ]}
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSubmit, busy: submitting }}
               accessibilityHint={submitAccessibilityHint}
