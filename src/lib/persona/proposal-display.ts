@@ -24,7 +24,7 @@ export function formatProposalForDisplay(p: SelfModelProposal, locale: "en" | "k
   const ko = locale === "ko";
   let targetLabel: string;
   if (p.target.kind === "star") targetLabel = ko ? `별: ${p.target.star}` : `star: ${p.target.star}`;
-  else if (p.target.kind === "soulCore") targetLabel = ko ? "소울 코어" : "Soul Core";
+  else if (p.target.kind === "soulCore") targetLabel = ko ? "북극성" : "North Star";
   else targetLabel = ko ? "북극성 (철학)" : "north star (philosophy)";
 
   return {
