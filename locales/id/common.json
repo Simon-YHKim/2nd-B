@@ -58,34 +58,34 @@
   },
   "worldview": {
     "soulCore": "Bintang Utara",
-    "growthCore": "Inti Pertumbuhan",
-    "bondCore": "Inti Ikatan",
-    "wisdomCore": "Inti Kebijaksanaan",
-    "narrativeCore": "Inti Narasi",
-    "museCore": "Inti Muse",
-    "patternCore": "Bintang Domain",
-    "patternData": "Serpihan",
+    "growthCore": "Bintang pertumbuhan",
+    "bondCore": "Bintang relasi",
+    "wisdomCore": "Bintang belajar",
+    "narrativeCore": "Bintang catatan",
+    "museCore": "Bintang selera",
+    "patternCore": "Bintang domain",
+    "patternData": "Kepingan tersimpan",
     "log": "Catatan",
     "patternLink": "Tautan Pola"
   },
   "navGraph": {
     "drilldown": {
       "back": "Kembali ke konstelasi",
-      "backHint": "Kembali dari area konstelasi ini ke konstelasi penuh.",
-      "coreEyebrow": "Area konstelasi",
-      "dataEyebrow": "Serpihan terhubung",
+      "backHint": "Kembali dari detail bintang domain ke konstelasi penuh.",
+      "coreEyebrow": "Bintang domain",
+      "dataEyebrow": "Kepingan tersimpan",
       "touch": "Sentuh!",
       "coreIntro": {
-        "work": "Kepingan karier dan pertumbuhan berkumpul di area konstelasi ini.",
-        "relation": "Kenangan, janji, dan percakapan berkumpul di area konstelasi ini.",
-        "knowledge": "Kepingan yang dipelajari dan dipahami berkumpul di area konstelasi ini.",
-        "records": "Kepingan yang disimpan berkumpul di area konstelasi ini agar mudah ditemukan lagi.",
-        "taste": "Kepingan selera dan inspirasi berkumpul di area konstelasi ini."
+        "work": "Ini bintang pertumbuhanmu. Kepingan karier dan pertumbuhanmu berkumpul di sini.",
+        "relation": "Ini bintang relasimu. Kenangan, janji, dan percakapan berkumpul di sini.",
+        "knowledge": "Ini bintang belajarmu. Kepingan yang dipelajari dan dipahami berkumpul di sini.",
+        "records": "Ini bintang catatanmu. Kepingan yang disimpan berkumpul di sini agar mudah ditemukan lagi.",
+        "taste": "Ini bintang seleramu. Kepingan selera dan inspirasi berkumpul di sini."
       },
       "dataFallback": "Kepingan yang kamu hubungkan ke {{core}}.",
-      "noDataTitle": "Belum ada serpihan terhubung",
-      "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan area ini akan menumbuhkan node terhubung kecil.",
-      "dataDetailHint": "Membuka detail serpihan terhubung yang dipilih."
+      "noDataTitle": "Belum ada kepingan tersimpan",
+      "noDataBody": "Hanya kepingan yang kamu tulis atau simpan sendiri yang muncul di sini. Tinggalkan satu kepingan dan bintang ini akan makin terang.",
+      "dataDetailHint": "Membuka detail kepingan tersimpan yang dipilih."
     }
   },
   "navPiece": "serpihan",

@@ -58,34 +58,34 @@
   },
   "worldview": {
     "soulCore": "North Star",
-    "growthCore": "Growth Core",
-    "bondCore": "Bond Core",
-    "wisdomCore": "Wisdom Core",
-    "narrativeCore": "Narrative Core",
-    "museCore": "Muse Core",
+    "growthCore": "Growth star",
+    "bondCore": "Relationship star",
+    "wisdomCore": "Learning star",
+    "narrativeCore": "Records star",
+    "museCore": "Taste star",
     "patternCore": "Domain star",
-    "patternData": "Pattern Data",
+    "patternData": "Saved piece",
     "log": "Log",
     "patternLink": "Pattern Link"
   },
   "navGraph": {
     "drilldown": {
       "back": "Back to constellation",
-      "backHint": "Returns from this constellation area to the full constellation.",
-      "coreEyebrow": "Constellation area",
-      "dataEyebrow": "Connected piece",
+      "backHint": "Returns from the domain star detail to the full constellation.",
+      "coreEyebrow": "Domain star",
+      "dataEyebrow": "Saved piece",
       "touch": "Touch!",
       "coreIntro": {
-        "work": "Career and growth pieces gather in this constellation area.",
-        "relation": "Memories, promises, and conversations gather in this constellation area.",
-        "knowledge": "Learned and understood pieces gather in this constellation area.",
-        "records": "Kept pieces gather in this constellation area so you can find them again.",
-        "taste": "Taste and inspiration pieces gather in this constellation area."
+        "work": "This is your growth star. Career and growth pieces gather here.",
+        "relation": "This is your relationship star. Memories, promises, and conversations gather here.",
+        "knowledge": "This is your learning star. Learned and understood pieces gather here.",
+        "records": "This is your records star. Kept pieces gather here so you can find them again.",
+        "taste": "This is your taste star. Taste and inspiration pieces gather here."
       },
       "dataFallback": "One piece you connected to {{core}}.",
-      "noDataTitle": "No connected pieces yet",
-      "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this area will grow a small connected node.",
-      "dataDetailHint": "Opens the selected connected-piece detail."
+      "noDataTitle": "No saved pieces yet",
+      "noDataBody": "Only pieces you write or save yourself appear here. Leave one piece and this star will grow brighter.",
+      "dataDetailHint": "Opens the selected saved piece detail."
     }
   },
   "navPiece": "piece",

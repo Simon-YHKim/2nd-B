@@ -57,35 +57,35 @@
     "skipHint": "Toque duas vezes para pular a animação de abertura."
   },
   "worldview": {
-    "soulCore": "Estrela do Norte",
-    "growthCore": "Núcleo de crescimento",
-    "bondCore": "Núcleo de vínculos",
-    "wisdomCore": "Núcleo de sabedoria",
-    "narrativeCore": "Núcleo narrativo",
-    "museCore": "Núcleo musa",
+    "soulCore": "Estrela Polar",
+    "growthCore": "Estrela de crescimento",
+    "bondCore": "Estrela de relações",
+    "wisdomCore": "Estrela de aprendizado",
+    "narrativeCore": "Estrela de registros",
+    "museCore": "Estrela de gostos",
     "patternCore": "Estrela de domínio",
-    "patternData": "Dados de padrões",
+    "patternData": "Peça salva",
     "log": "Registro",
     "patternLink": "Link de padrões"
   },
   "navGraph": {
     "drilldown": {
       "back": "Voltar à constelação",
-      "backHint": "Volta desta área da constelação para a constelação completa.",
-      "coreEyebrow": "Área da constelação",
-      "dataEyebrow": "Fragmento conectado",
+      "backHint": "Volta do detalhe da estrela de domínio para a constelação completa.",
+      "coreEyebrow": "Estrela de domínio",
+      "dataEyebrow": "Peça salva",
       "touch": "Toque!",
       "coreIntro": {
-        "work": "Peças de carreira e crescimento se reúnem nesta área da constelação.",
-        "relation": "Memórias, promessas e conversas se reúnem nesta área da constelação.",
-        "knowledge": "Peças aprendidas e compreendidas se reúnem nesta área da constelação.",
-        "records": "Peças guardadas se reúnem nesta área da constelação para você encontrá-las novamente.",
-        "taste": "Peças de gosto e inspiração se reúnem nesta área da constelação."
+        "work": "Esta é sua estrela de crescimento. Suas peças de carreira e crescimento se reúnem aqui.",
+        "relation": "Esta é sua estrela de relações. Memórias, promessas e conversas se reúnem aqui.",
+        "knowledge": "Esta é sua estrela de aprendizado. Peças aprendidas e compreendidas se reúnem aqui.",
+        "records": "Esta é sua estrela de registros. Peças guardadas se reúnem aqui para você encontrá-las novamente.",
+        "taste": "Esta é sua estrela de gostos. Peças de gosto e inspiração se reúnem aqui."
       },
       "dataFallback": "Uma peça que você conectou a {{core}}.",
-      "noDataTitle": "Nenhum fragmento conectado ainda",
-      "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e esta área fará crescer um pequeno nó conectado.",
-      "dataDetailHint": "Abre o detalhe do fragmento conectado selecionado."
+      "noDataTitle": "Nenhuma peça salva ainda",
+      "noDataBody": "Só aparecem aqui as peças que você escreve ou salva. Deixe uma peça e esta estrela ficará mais brilhante.",
+      "dataDetailHint": "Abre o detalhe da peça salva selecionada."
     }
   },
   "navPiece": "fragmento",

@@ -58,34 +58,34 @@
   },
   "worldview": {
     "soulCore": "북극성",
-    "growthCore": "그로스 코어",
-    "bondCore": "본드 코어",
-    "wisdomCore": "위즈덤 코어",
-    "narrativeCore": "내러티브 코어",
-    "museCore": "뮤즈 코어",
+    "growthCore": "성장 별",
+    "bondCore": "관계 별",
+    "wisdomCore": "배움 별",
+    "narrativeCore": "기록 별",
+    "museCore": "취향 별",
     "patternCore": "도메인 별",
-    "patternData": "패턴 데이터",
+    "patternData": "저장한 별가루",
     "log": "로그",
     "patternLink": "패턴 링크"
   },
   "navGraph": {
     "drilldown": {
       "back": "전체 성좌로 돌아가기",
-      "backHint": "이 성좌 영역에서 전체 성좌로 돌아갑니다.",
-      "coreEyebrow": "성좌 영역",
-      "dataEyebrow": "연결 별가루",
+      "backHint": "도메인 별 상세에서 전체 성좌로 돌아갑니다.",
+      "coreEyebrow": "도메인 별",
+      "dataEyebrow": "저장한 별가루",
       "touch": "터치!",
       "coreIntro": {
-        "work": "커리어와 성장에 관련된 별가루들이 이 성좌 영역에 모여 있어요.",
-        "relation": "사람들과의 기억, 약속, 대화 별가루가 이 성좌 영역에 모여 있어요.",
-        "knowledge": "배우고 이해한 별가루들이 이 성좌 영역에 모여 있어요.",
-        "records": "남긴 별가루를 다시 찾기 좋게 이 성좌 영역에 모아 두어요.",
-        "taste": "취향과 영감의 별가루들이 이 성좌 영역에 모여 있어요."
+        "work": "이곳은 성장 별이에요. 커리어와 성장에 관련된 별가루들이 모여 있어요.",
+        "relation": "이곳은 관계 별이에요. 사람들과의 기억, 약속, 대화 별가루가 모여 있어요.",
+        "knowledge": "이곳은 배움 별이에요. 배우고 이해한 별가루들이 모여 있어요.",
+        "records": "이곳은 기록 별이에요. 남긴 별가루를 다시 찾기 좋게 모아 두어요.",
+        "taste": "이곳은 취향 별이에요. 취향과 영감의 별가루들이 모여 있어요."
       },
       "dataFallback": "내가 {{core}}에 직접 연결한 별가루예요.",
-      "noDataTitle": "아직 연결된 별가루가 없어요",
-      "noDataBody": "내가 쓰거나 저장한 별가루만 여기에 보여요. 별가루 하나를 남기면 이 영역에 작은 연결 노드가 자라나요.",
-      "dataDetailHint": "선택한 연결 별가루 상세를 엽니다."
+      "noDataTitle": "아직 저장한 별가루가 없어요",
+      "noDataBody": "내가 쓰거나 저장한 별가루만 여기에 보여요. 별가루 하나를 남기면 이 별이 더 밝아져요.",
+      "dataDetailHint": "선택한 별가루 상세를 엽니다."
     }
   },
   "navPiece": "별가루",

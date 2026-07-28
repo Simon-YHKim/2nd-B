@@ -57,35 +57,35 @@
     "skipHint": "Toca dos veces para saltar la animación de inicio."
   },
   "worldview": {
-    "soulCore": "Estrella del Norte",
-    "growthCore": "Núcleo de crecimiento",
-    "bondCore": "Núcleo de vínculos",
-    "wisdomCore": "Núcleo de sabiduría",
-    "narrativeCore": "Núcleo narrativo",
-    "museCore": "Núcleo musa",
+    "soulCore": "Estrella Polar",
+    "growthCore": "Estrella de crecimiento",
+    "bondCore": "Estrella de relaciones",
+    "wisdomCore": "Estrella de aprendizaje",
+    "narrativeCore": "Estrella de registros",
+    "museCore": "Estrella de gustos",
     "patternCore": "Estrella de dominio",
-    "patternData": "Datos de patrones",
+    "patternData": "Pieza guardada",
     "log": "Registro",
     "patternLink": "Enlace de patrones"
   },
   "navGraph": {
     "drilldown": {
       "back": "Volver a la constelación",
-      "backHint": "Vuelve de esta área de la constelación a la constelación completa.",
-      "coreEyebrow": "Área de la constelación",
-      "dataEyebrow": "Pieza conectada",
+      "backHint": "Vuelve del detalle de la estrella de dominio a la constelación completa.",
+      "coreEyebrow": "Estrella de dominio",
+      "dataEyebrow": "Pieza guardada",
       "touch": "¡Toca!",
       "coreIntro": {
-        "work": "Las piezas de carrera y crecimiento se reúnen en esta área de la constelación.",
-        "relation": "Recuerdos, promesas y conversaciones se reúnen en esta área de la constelación.",
-        "knowledge": "Las piezas aprendidas y comprendidas se reúnen en esta área de la constelación.",
-        "records": "Las piezas guardadas se reúnen en esta área de la constelación para que puedas encontrarlas de nuevo.",
-        "taste": "Las piezas de gustos e inspiración se reúnen en esta área de la constelación."
+        "work": "Esta es tu estrella de crecimiento. Tus piezas de carrera y crecimiento se reúnen aquí.",
+        "relation": "Esta es tu estrella de relaciones. Recuerdos, promesas y conversaciones se reúnen aquí.",
+        "knowledge": "Esta es tu estrella de aprendizaje. Las piezas aprendidas y comprendidas se reúnen aquí.",
+        "records": "Esta es tu estrella de registros. Las piezas guardadas se reúnen aquí para que puedas encontrarlas de nuevo.",
+        "taste": "Esta es tu estrella de gustos. Las piezas de gustos e inspiración se reúnen aquí."
       },
       "dataFallback": "Una pieza que conectaste con {{core}}.",
-      "noDataTitle": "Aún no hay piezas conectadas",
-      "noDataBody": "Aquí solo aparecen las piezas que escribes o guardas tú. Deja una pieza y esta área hará crecer un pequeño nodo conectado.",
-      "dataDetailHint": "Abre el detalle de la pieza conectada seleccionada."
+      "noDataTitle": "Aún no hay piezas guardadas",
+      "noDataBody": "Aquí solo aparecen las piezas que escribes o guardas tú. Deja una pieza y esta estrella brillará más.",
+      "dataDetailHint": "Abre el detalle de la pieza guardada seleccionada."
     }
   },
   "navPiece": "fragmento",
