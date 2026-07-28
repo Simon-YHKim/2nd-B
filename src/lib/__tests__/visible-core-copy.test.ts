@@ -23,6 +23,8 @@ describe("visible graph copy", () => {
       '"/core-brain": { en: "Soul Core"',
       '"/core-brain": { en: "North Star", ko: "소울 코어" }',
       "this Core",
+      '"/core-brain": { en: "Soul Core"',
+      '"/core-brain": { en: "North Star", ko: "소울 코어" }',
       'label: { en: "Core"',
       'label: { en: "Core", ko: "코어" }',
       "Core 로그",
