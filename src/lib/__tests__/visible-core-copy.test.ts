@@ -46,4 +46,12 @@ describe("visible graph copy", () => {
     expect(wiki).toContain('label: { en: "North Star", ko: "북극성" }');
     expect(wiki).not.toContain('label: { en: "Soul Core", ko: "소울 코어" }');
   });
+
+  test("NavGraph center node uses North Star copy", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const source = readFileSync(path.join(root, "src/components/graph/NavGraph.tsx"), "utf8");
+
+    expect(source).toContain('label: { en: "North Star", ko: "북극성" }');
+    expect(source).not.toContain('label: { en: "Soul Core", ko: "소울 코어" }');
+  });
 });
