@@ -82,8 +82,8 @@
         "desc": "Use records inside your account to suggest prompts and next steps."
       },
       "external_analytics": {
-        "label": "External analytics",
-        "desc": "Send app usage signals, not entry text, to outside analytics services."
+        "label": "Análises externas",
+        "desc": "Envia sinais de uso do app, não o texto das suas entradas, para serviços externos de análise."
       },
       "llm_training": {
         "label": "Model training permission",
@@ -106,12 +106,12 @@
   },
   "account": {
     "export": {
-      "label": "Your data",
-      "body": "Download everything saved on your account as a structured JSON file.",
-      "button": "Export my data",
-      "buttonHint": "Builds a complete JSON export of your account data.",
-      "done": "Export ready.",
-      "failed": "Couldn't build the export. Try again."
+      "label": "Seus dados",
+      "body": "Baixe tudo o que está salvo na sua conta como um arquivo JSON estruturado.",
+      "button": "Exportar meus dados",
+      "buttonHint": "Cria uma exportação JSON completa dos dados da sua conta.",
+      "done": "Exportação pronta.",
+      "failed": "Não foi possível criar a exportação. Tente de novo."
     },
     "loading": "Loading account…",
     "eyebrow": "Account",
@@ -130,10 +130,10 @@
       "retryHint": "Retries saving your birth date."
     },
     "privacy": {
-      "label": "Privacy and consent",
-      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
-      "button": "Open privacy controls",
-      "buttonHint": "Opens privacy and consent settings."
+      "label": "Privacidade e consentimento",
+      "body": "Análises externas são a única configuração aqui, desativada por padrão. Compartilhamento, anúncios, recomendações e treinamento de modelos não são recursos atuais; qualquer recurso futuro ficaria desativado até você concordar.",
+      "button": "Abrir controles de privacidade",
+      "buttonHint": "Abre as configurações de privacidade e consentimento."
     },
     "feedback": {
       "label": "Account feedback notice",
@@ -142,21 +142,21 @@
     },
     "delete": {
       "label": "Excluir conta",
-      "body": "Isto apaga suas entradas, capturas, wiki e uso do assistente, e depois encerra sua sessao.",
-      "supportNote": "A remocao completa da conta e processada em ate 2 dias uteis. Entre em contato com o suporte se precisar antes.",
-      "confirmHint": "Digite \"{{phrase}}\" para ativar o botao.",
+      "body": "Isso apaga suas entradas, capturas, wiki e uso do assistente, e depois encerra sua sessão.",
+      "supportNote": "A remoção completa da conta é processada em até 2 dias úteis. Fale com o suporte se precisar antes.",
+      "confirmHint": "Digite \"{{phrase}}\" para ativar o botão.",
       "button": "Excluir minha conta",
       "confirmTitle": "Excluir sua conta?",
-      "confirmBody": "Seus dados serao apagados e sua sessao sera encerrada. Isso nao pode ser desfeito.",
+      "confirmBody": "Seus dados serão apagados e sua sessão será encerrada. Isso não pode ser desfeito.",
       "confirmCta": "Excluir",
       "cancel": "Cancelar",
       "failed": "Falha ao excluir a conta",
-      "failedBody": "Nao conseguimos terminar de excluir sua conta. Parte do conteudo talvez ja tenha sido removida, e sua conta e login ainda podem existir. Entre em contato com kim0405@hayangzip.com e vamos ajudar.",
-      "confirmLabel": "Confirmacao de exclusao da conta",
-      "inputLabel": "Frase de confirmacao para excluir a conta",
-      "inputHint": "Type DELETE to enable the account deletion button.",
-      "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "failedBody": "Não conseguimos terminar a exclusão da sua conta. Parte do conteúdo pode já ter sido removida, e sua conta e login ainda podem existir. Entre em contato pelo kim0405@hayangzip.com e ajudaremos.",
+      "confirmLabel": "Confirmação de exclusão de conta",
+      "inputLabel": "Frase de confirmação de exclusão de conta",
+      "inputHint": "Digite DELETE para ativar o botão de exclusão de conta.",
+      "buttonHint": "Abre uma confirmação final antes de excluir sua conta e seus dados.",
+      "confirmCtaHint": "Inicia a exclusão da conta e dos dados."
     }
   }
 }

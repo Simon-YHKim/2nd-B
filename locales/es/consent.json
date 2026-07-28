@@ -82,8 +82,8 @@
         "desc": "Use records inside your account to suggest prompts and next steps."
       },
       "external_analytics": {
-        "label": "External analytics",
-        "desc": "Send app usage signals, not entry text, to outside analytics services."
+        "label": "Analíticas externas",
+        "desc": "Envía señales de uso de la app, no el texto de tus entradas, a servicios externos de analítica."
       },
       "llm_training": {
         "label": "Model training permission",
@@ -106,12 +106,12 @@
   },
   "account": {
     "export": {
-      "label": "Your data",
-      "body": "Download everything saved on your account as a structured JSON file.",
-      "button": "Export my data",
-      "buttonHint": "Builds a complete JSON export of your account data.",
-      "done": "Export ready.",
-      "failed": "Couldn't build the export. Try again."
+      "label": "Tus datos",
+      "body": "Descarga todo lo guardado en tu cuenta como un archivo JSON estructurado.",
+      "button": "Exportar mis datos",
+      "buttonHint": "Crea una exportación JSON completa de los datos de tu cuenta.",
+      "done": "Exportación lista.",
+      "failed": "No se pudo crear la exportación. Inténtalo de nuevo."
     },
     "loading": "Loading account…",
     "eyebrow": "Account",
@@ -130,10 +130,10 @@
       "retryHint": "Retries saving your birth date."
     },
     "privacy": {
-      "label": "Privacy and consent",
-      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
-      "button": "Open privacy controls",
-      "buttonHint": "Opens privacy and consent settings."
+      "label": "Privacidad y consentimiento",
+      "body": "Las analíticas externas son el único ajuste aquí y están desactivadas por defecto. Compartir, anuncios, recomendaciones y entrenamiento de modelos no son funciones actuales; cualquier función futura seguiría desactivada hasta que aceptes.",
+      "button": "Abrir controles de privacidad",
+      "buttonHint": "Abre los ajustes de privacidad y consentimiento."
     },
     "feedback": {
       "label": "Account feedback notice",
@@ -142,21 +142,21 @@
     },
     "delete": {
       "label": "Eliminar cuenta",
-      "body": "Esto borra tus entradas, capturas, wiki y uso del asistente, y luego cierra tu sesion.",
-      "supportNote": "La eliminacion completa de la cuenta se procesa en un plazo de 2 dias habiles. Contacta a soporte si la necesitas antes.",
-      "confirmHint": "Escribe \"{{phrase}}\" para activar el boton.",
+      "body": "Esto borra tus entradas, capturas, wiki y uso del asistente, y luego cierra tu sesión.",
+      "supportNote": "La eliminación completa de la cuenta se procesa en un plazo de 2 días hábiles. Contacta con soporte si la necesitas antes.",
+      "confirmHint": "Escribe \"{{phrase}}\" para activar el botón.",
       "button": "Eliminar mi cuenta",
-      "confirmTitle": "Eliminar tu cuenta?",
-      "confirmBody": "Tus datos se borraran y se cerrara tu sesion. Esta accion no se puede deshacer.",
+      "confirmTitle": "¿Eliminar tu cuenta?",
+      "confirmBody": "Tus datos se borrarán y se cerrará tu sesión. Esto no se puede deshacer.",
       "confirmCta": "Eliminar",
       "cancel": "Cancelar",
       "failed": "No se pudo eliminar la cuenta",
-      "failedBody": "No pudimos terminar de eliminar tu cuenta. Es posible que parte del contenido ya se haya borrado, y que tu cuenta y acceso aun existan. Contacta a kim0405@hayangzip.com y te ayudaremos.",
-      "confirmLabel": "Confirmacion de eliminacion de cuenta",
-      "inputLabel": "Frase de confirmacion para eliminar la cuenta",
-      "inputHint": "Type DELETE to enable the account deletion button.",
-      "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "failedBody": "No pudimos terminar de eliminar tu cuenta. Es posible que parte del contenido ya se haya borrado y que tu cuenta e inicio de sesión sigan existiendo. Escribe a kim0405@hayangzip.com y te ayudaremos.",
+      "confirmLabel": "Confirmación de eliminación de cuenta",
+      "inputLabel": "Frase de confirmación de eliminación de cuenta",
+      "inputHint": "Escribe DELETE para activar el botón de eliminación de cuenta.",
+      "buttonHint": "Abre una confirmación final antes de eliminar tu cuenta y tus datos.",
+      "confirmCtaHint": "Inicia la eliminación de la cuenta y los datos."
     }
   }
 }

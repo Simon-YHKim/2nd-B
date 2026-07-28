@@ -82,8 +82,8 @@
         "desc": "Use records inside your account to suggest prompts and next steps."
       },
       "external_analytics": {
-        "label": "External analytics",
-        "desc": "Send app usage signals, not entry text, to outside analytics services."
+        "label": "Analitik eksternal",
+        "desc": "Mengirim sinyal penggunaan app, bukan teks entri kamu, ke layanan analitik eksternal."
       },
       "llm_training": {
         "label": "Model training permission",
@@ -106,12 +106,12 @@
   },
   "account": {
     "export": {
-      "label": "Your data",
-      "body": "Download everything saved on your account as a structured JSON file.",
-      "button": "Export my data",
-      "buttonHint": "Builds a complete JSON export of your account data.",
-      "done": "Export ready.",
-      "failed": "Couldn't build the export. Try again."
+      "label": "Datamu",
+      "body": "Unduh semua yang tersimpan di akunmu sebagai file JSON terstruktur.",
+      "button": "Ekspor dataku",
+      "buttonHint": "Membuat ekspor JSON lengkap dari data akunmu.",
+      "done": "Ekspor siap.",
+      "failed": "Tidak dapat membuat ekspor. Coba lagi."
     },
     "loading": "Loading account…",
     "eyebrow": "Account",
@@ -130,10 +130,10 @@
       "retryHint": "Retries saving your birth date."
     },
     "privacy": {
-      "label": "Privacy and consent",
-      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
-      "button": "Open privacy controls",
-      "buttonHint": "Opens privacy and consent settings."
+      "label": "Privasi dan persetujuan",
+      "body": "Analitik eksternal adalah satu-satunya pengaturan di sini dan nonaktif secara default. Berbagi, iklan, rekomendasi, dan pelatihan model belum menjadi fitur saat ini; fitur apa pun di masa depan tetap nonaktif sampai kamu menyetujuinya.",
+      "button": "Buka kontrol privasi",
+      "buttonHint": "Membuka pengaturan privasi dan persetujuan."
     },
     "feedback": {
       "label": "Account feedback notice",
@@ -142,21 +142,21 @@
     },
     "delete": {
       "label": "Hapus akun",
-      "body": "Ini menghapus entri, tangkapan, wiki, dan penggunaan asisten Anda, lalu mengeluarkan Anda.",
-      "supportNote": "Penghapusan akun penuh diproses dalam 2 hari kerja. Hubungi dukungan jika Anda membutuhkannya lebih cepat.",
+      "body": "Ini menghapus entri, tangkapan, wiki, dan penggunaan asistenmu, lalu mengeluarkanmu.",
+      "supportNote": "Penghapusan akun penuh diproses dalam 2 hari kerja. Hubungi dukungan jika kamu membutuhkannya lebih cepat.",
       "confirmHint": "Ketik \"{{phrase}}\" untuk mengaktifkan tombol.",
-      "button": "Hapus akun saya",
-      "confirmTitle": "Hapus akun Anda?",
-      "confirmBody": "Data Anda akan dihapus dan Anda akan keluar. Tindakan ini tidak dapat dibatalkan.",
+      "button": "Hapus akunku",
+      "confirmTitle": "Hapus akunmu?",
+      "confirmBody": "Datamu akan dihapus dan kamu akan dikeluarkan. Ini tidak bisa dibatalkan.",
       "confirmCta": "Hapus",
       "cancel": "Batal",
       "failed": "Penghapusan akun gagal",
-      "failedBody": "Kami tidak dapat menyelesaikan penghapusan akun Anda. Beberapa konten mungkin sudah dihapus, dan akun serta login Anda mungkin masih ada. Hubungi kim0405@hayangzip.com dan kami akan membantu.",
+      "failedBody": "Kami belum bisa menyelesaikan penghapusan akunmu. Sebagian konten mungkin sudah terhapus, sementara akun dan loginmu mungkin masih ada. Hubungi kim0405@hayangzip.com dan kami akan membantu.",
       "confirmLabel": "Konfirmasi penghapusan akun",
       "inputLabel": "Frasa konfirmasi penghapusan akun",
-      "inputHint": "Type DELETE to enable the account deletion button.",
-      "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "inputHint": "Ketik DELETE untuk mengaktifkan tombol penghapusan akun.",
+      "buttonHint": "Membuka konfirmasi akhir sebelum menghapus akun dan datamu.",
+      "confirmCtaHint": "Memulai penghapusan akun dan data."
     }
   }
 }
