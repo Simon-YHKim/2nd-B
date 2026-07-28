@@ -187,6 +187,24 @@ describe("worldview canon: brain model + value ladder + north-star terminology",
     }
   });
 
+  test("localized SecondB system hints use North Star naming, not legacy soul-core names", () => {
+    const localeHints = [
+      readProjectFile("locales/es/secondb.json"),
+      readProjectFile("locales/pt/secondb.json"),
+      readProjectFile("locales/id/secondb.json"),
+    ];
+
+    for (const text of localeHints) {
+      expect(text).not.toContain("Núcleo del alma");
+      expect(text).not.toContain("Núcleo da alma");
+      expect(text).not.toContain("Inti Jiwa");
+    }
+
+    expect(localeHints[0]).toContain("Estrella Polar");
+    expect(localeHints[1]).toContain("Estrela Polar");
+    expect(localeHints[2]).toContain("Bintang Utara");
+  });
+
   test("the canon glossary carries no forbidden clinical lexicon", () => {
     const ctx = readProjectFile("CONTEXT.md");
     expect(containsForbiddenLexicon(ctx, "en")).toHaveLength(0);
