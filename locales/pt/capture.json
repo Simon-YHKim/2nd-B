@@ -17,7 +17,7 @@
   "hero": {
     "eyebrow": "01. Captura",
     "title": "Salve uma nota ou fonte",
-    "subtitle": "Diário · nota · link · foto · arquivo",
+    "subtitle": "Diário · nota · ligação · foto · arquivo",
     "speechSaved": "Salvo. Você pode ver no grafo.",
     "speechSavedOcr": "Sua nota de foto foi salva. É uma peça privada no seu grafo.",
     "speechSavedRecords": "Salvo. Você pode encontrar nos seus registros.",
@@ -35,7 +35,7 @@
     "mode": {
       "accessibilityLabel": "Modo de captura",
       "more": "Mais",
-      "moreHint": "Mostra as opções de nota, link, foto e arquivo.",
+      "moreHint": "Mostra as opções de nota, ligação, foto e arquivo.",
       "less": "Menos",
       "lessHint": "Oculta as opções extras de captura e volta ao Diário se necessário."
     }
@@ -161,10 +161,10 @@
     }
   },
   "linkClip": {
-    "label": "Link ou artigo salvo",
+    "label": "Ligação ou artigo salvo",
     "placeholder": "https://... ou cole o texto do artigo",
     "savedAsClip": "Salvo como texto de artigo",
-    "detected": "Link detectado: {{kind}}",
+    "detected": "Ligação detectada: {{kind}}",
     "pasteOffer": "Colar o que você copiou",
     "pasteOfferHint": "Preenche o campo com o último conteúdo copiado. É lido apenas quando você toca.",
     "pasteOfferEmpty": "Nada para colar foi encontrado."
