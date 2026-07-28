@@ -10,6 +10,7 @@ describe("visible graph copy", () => {
       "src/app/persona.tsx",
       "src/app/records.tsx",
       "src/app/wiki.tsx",
+      "src/components/ui/BackArrow.tsx",
     ];
     const residue = [
       "02. Core brain",
@@ -19,6 +20,8 @@ describe("visible graph copy", () => {
       "Core logs",
       "core logs",
       "Core pieces",
+      '"/core-brain": { en: "Soul Core"',
+      '"/core-brain": { en: "North Star", ko: "소울 코어" }',
       "this Core",
       'label: { en: "Core"',
       'label: { en: "Core", ko: "코어" }',
