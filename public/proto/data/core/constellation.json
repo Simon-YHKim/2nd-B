@@ -8,7 +8,7 @@
       "label": "북극성",
       "kind": "북극성",
       "star": "Polaris",
-      "line": "7개의 별을 모으면, 내가 또렷해져요.",
+      "line": "삶의 별이 고르게 밝아질수록, 내가 또렷해져요.",
       "route": "me"
     },
     {
@@ -93,5 +93,69 @@
     "M228,90 L230,131 L174,152 L151,126 Z",
     "M151,126 L108,135 L76,143 L50,187"
   ],
-  "polarisGuide": "M230,131 L228,90 L140,-16"
+  "polarisGuide": "M230,131 L228,90 L140,-16",
+  "polarisBrightness": {
+    "decision": {
+      "owner": "Simon",
+      "decidedAt": "2026-07-29T03:44:00+09:00",
+      "rule": "Polaris brightness averages only the six domains drawn on home."
+    },
+    "includedDomainIds": [
+      "career",
+      "finance",
+      "growth",
+      "relation",
+      "health",
+      "recreation"
+    ],
+    "excludedDomainIds": [
+      "collect"
+    ],
+    "excludedHomeNodeIds": [
+      "museum"
+    ],
+    "allLitMinimumLevel": 2,
+    "allLitBonus": 0.05,
+    "goldens": [
+      {
+        "id": "collect-does-not-inflate",
+        "levels": {
+          "career": 1,
+          "finance": 1,
+          "growth": 1,
+          "relation": 1,
+          "health": 1,
+          "recreation": 1,
+          "collect": 4
+        },
+        "expected": 0.2
+      },
+      {
+        "id": "visible-six-all-lit",
+        "levels": {
+          "career": 2,
+          "finance": 2,
+          "growth": 2,
+          "relation": 2,
+          "health": 2,
+          "recreation": 2,
+          "collect": 1
+        },
+        "expected": 0.45
+      },
+      {
+        "id": "qa-2026-07-29",
+        "levels": {
+          "career": 4,
+          "finance": 3,
+          "growth": 4,
+          "relation": 4,
+          "health": 4,
+          "recreation": 3,
+          "collect": 4
+        },
+        "expected": 0.7833333333333333
+      }
+    ]
+  }
 }
