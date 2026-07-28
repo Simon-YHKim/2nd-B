@@ -53,10 +53,32 @@ export interface CanonStar {
   level?: number;
 }
 
+/** The Polaris headline-brightness contract (Simon 2026-07-29 03:44 decision,
+ *  recorded in the canon by S4 e2fdb372). The home draws six domain stars plus a
+ *  Museum portal; the headline averages ONLY those six. `collect` is a real data
+ *  domain but not a home star, so it is excluded from both the mean and the
+ *  all-lit test — otherwise a user whose captures all land in the catch-all sees
+ *  Polaris brighten while every star they can see stays dark. */
+export interface CanonPolarisBrightness {
+  decision: { owner: string; decidedAt: string; rule: string };
+  includedDomainIds: string[];
+  excludedDomainIds: string[];
+  excludedHomeNodeIds: string[];
+  allLitMinimumLevel: number;
+  allLitBonus: number;
+  goldens: { id: string; levels: Record<string, number>; expected: number }[];
+}
+
 export const canonCanvas = screensPack.canvas as { w: number; h: number };
 export const canonScreens = screensPack.screens as CanonScreen[];
 export const canonNav = navPack.tabs as CanonNavTab[];
 export const canonStars = constellationPack.stars as CanonStar[];
+export const canonPolarisBrightness = (
+  constellationPack as unknown as { polarisBrightness: CanonPolarisBrightness }
+).polarisBrightness;
+/** SVG path data for the dipper outline + the pointer guide to Polaris. */
+export const canonConstellationLines = constellationPack.lines as string[];
+export const canonPolarisGuide = constellationPack.polarisGuide as string;
 export const canonManifestFiles = manifest.files as Record<string, string>;
 
 const byId = new Map(canonScreens.map((s) => [s.id, s]));

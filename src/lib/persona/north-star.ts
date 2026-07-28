@@ -9,13 +9,32 @@
 // domainStarLevels() turns per-domain entries into the per-star L1~L5 the home
 // renders; northStarBrightness() aggregates those into the Polaris glow.
 
+import { canonPolarisBrightness } from "../canon";
 import { type LadderLevel, brightnessFraction } from "./brightness";
 import { domainLevel } from "./domain-confidence";
-import { DOMAIN_STARS, type DomainEntry, type DomainId } from "./domain-stars";
+import { DOMAIN_STARS, isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
 
-// Mirrors stars.ts soulCoreBrightness: breadth (all seven known a little) outshines
-// one deep spike, so every-domain-lit earns a small bonus.
-const ALL_LIT_BONUS = 0.05;
+// The headline's input set is NOT "every domain" — it is "every domain the home
+// actually draws", and that set lives in the canon
+// (public/proto/data/core/constellation.json -> polarisBrightness), not here.
+// Simon decided it on 2026-07-29 03:44; S4 recorded it in the canon; this module
+// reads it so the number and the picture can never drift apart.
+//
+// Why it matters concretely: detect-domain.ts sends every capture that matches no
+// keyword to `collect`, and `collect` is not a home star. Averaging it in meant a
+// user whose writing never tripped a keyword watched Polaris brighten while all
+// six stars they can see stayed dark. Measured on the QA account 2026-07-29:
+// 0.7929 with collect vs 0.7333 without (before the all-lit bonus).
+const CANON = canonPolarisBrightness;
+const ALL_LIT_BONUS = CANON.allLitBonus;
+const ALL_LIT_MIN_LEVEL = CANON.allLitMinimumLevel;
+
+/** The domain stars the home draws, in canon order. Excludes `collect` (a data
+ *  domain that is not a home star) and never includes `museum` (a portal, not a
+ *  domain, so it has no level to average). */
+export const HEADLINE_DOMAIN_IDS: readonly DomainId[] = CANON.includedDomainIds.filter(
+  (id): id is DomainId => isDomainId(id),
+);
 
 export interface DomainStarOpts {
   crossSourceAgreement?: boolean;
@@ -43,12 +62,14 @@ export function domainStarLevels(
   return out;
 }
 
-/** 북극성 headline brightness 0-1 = mean of the 7 domain brightnesses + all-lit
- *  bonus when every domain is >= L2. Missing domains count as L1. Mirrors
- *  soulCoreBrightness exactly, over the domain axis. */
+/** 북극성 headline brightness 0-1 = mean of the brightnesses of the domains the
+ *  home DRAWS, plus the all-lit bonus when every one of those is >= the canon's
+ *  minimum. Missing domains count as L1. `collect` is excluded from both the mean
+ *  and the bonus test (canon polarisBrightness.excludedDomainIds), so a domain the
+ *  user cannot see can never move the number they can. */
 export function northStarBrightness(levels: Partial<Record<DomainId, LadderLevel>>): number {
-  const perStar = DOMAIN_STARS.map((d) => levels[d.id] ?? 1) as LadderLevel[];
+  const perStar = HEADLINE_DOMAIN_IDS.map((id) => levels[id] ?? 1) as LadderLevel[];
   const mean = perStar.reduce((sum, l) => sum + brightnessFraction(l), 0) / perStar.length;
-  const allLit = perStar.every((l) => l >= 2);
+  const allLit = perStar.every((l) => l >= ALL_LIT_MIN_LEVEL);
   return Math.min(1, mean + (allLit ? ALL_LIT_BONUS : 0));
 }
