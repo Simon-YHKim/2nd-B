@@ -3,7 +3,7 @@
 // greeting, and voice — not the single generic SecondB.
 //
 // The five Pattern Core mascots map to the five cores; SecondB is the central
-// North Star navigator. Voice/role text is woven into the
+// North Star navigator (worldview v-final). Voice/role text is woven into the
 // chat system prompt so replies stay in character while grounding on the user's
 // wiki. Internal ids (archi/gadi/lulu/momo/lumi) are unchanged — only the
 // display names + concepts move (Archon/Relia/Lumen/Foreman Momo/Lumina). The
