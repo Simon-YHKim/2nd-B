@@ -10,7 +10,27 @@ name: Flow thumbnails (auto re-capture)
 # - Auth-cluster screens are shot logged-out; the rest log in with the committed QA test account.
 # - Best-effort: capture failures never fail a PR (the commit step is a no-op when nothing changed).
 # - Not a required check; GITHUB_TOKEN-pushed commits don't retrigger workflows, and the commit
-#   carries [skip ci] as a second guard against loops.
+#   carries a skip directive as a second guard against loops.
+#
+# 2026-07-29 (S1) -- the auto-commit no longer runs on pull_request. It made every PR that
+# touches a SCREEN file permanently unmergeable, which is why PR #1137 (a two-line store fix)
+# could not land:
+#
+#   push -> CI passes -> this job pushes a thumbnail commit onto the PR branch
+#        -> that commit is now the PR head
+#        -> branch protection on main requires the `verify` context ON THE HEAD SHA
+#        -> no run exists for it, because (a) GITHUB_TOKEN pushes never retrigger workflows
+#           and (b) the message carries a skip directive
+#        -> mergeStateStatus = BLOCKED, forever, with an empty status rollup
+#
+# Reproduced twice on #1137 (f2bc7409, then c41b43d6 immediately after CI went green on
+# cf175f53). Neither guard can be relaxed to fix it: dropping the skip directive does not help
+# because the GITHUB_TOKEN restriction alone is enough to stop the run, and re-dispatching CI
+# from here hits the same restriction. A PAT would work but that is a new secret.
+#
+# So on pull_request the refreshed thumbnails are uploaded as an artifact instead of committed.
+# The capture still runs, so a PR author still learns that a screen's picture went stale, and
+# `workflow_dispatch` keeps the original commit-back behaviour for a deliberate refresh run.
 
 on:
   pull_request:
@@ -155,9 +175,11 @@ jobs:
           # discard the throwaway app.json baseUrl edit so it can't be committed
           git checkout -- app.json || true
 
-      # 6) Commit back onto the PR branch (no-op when nothing changed; [skip ci] guards against loops)
-      - name: Commit refreshed thumbnails
-        if: steps.detect.outputs.routes != ''
+      # 6a) Manual dispatch keeps the original behaviour: commit back onto the branch you ran it on.
+      #     Safe here because a dispatch run is a deliberate act on a branch you are about to
+      #     push anyway, not an automatic write onto someone else's open PR head.
+      - name: Commit refreshed thumbnails (manual dispatch only)
+        if: steps.detect.outputs.routes != '' && github.event_name == 'workflow_dispatch'
         run: |
           if [ -z "$(git status --porcelain -- docs/flow-debugger.html docs/flow-thumbs)" ]; then
             echo "no thumbnail change to commit."; exit 0
@@ -166,4 +188,39 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/flow-debugger.html docs/flow-thumbs
           git commit -m "chore(flow-debugger): auto-refresh thumbnails for changed screens [skip ci]"
-          git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          git push origin HEAD:${{ github.ref_name }}
+
+      # 6b) On a PR: never write to the head. Hand the refreshed files over as an artifact so the
+      #     author can apply them without the branch becoming unmergeable. See the header note.
+      - name: Upload refreshed thumbnails (pull_request)
+        if: steps.detect.outputs.routes != '' && github.event_name == 'pull_request'
+        id: thumbdiff
+        run: |
+          if [ -z "$(git status --porcelain -- docs/flow-debugger.html docs/flow-thumbs)" ]; then
+            echo "changed=0" >> "$GITHUB_OUTPUT"
+            echo "Thumbnails already match the code for the changed screens." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Flow thumbnails went stale for the screens this PR touches"
+            echo
+            echo "Re-shot routes: \`${{ steps.detect.outputs.routes }}\`"
+            echo
+            echo "They are NOT committed to this PR on purpose: a bot commit on the PR head"
+            echo "leaves branch protection with no \`verify\` context and blocks the merge."
+            echo
+            echo "To apply, download the **flow-thumbnails** artifact from this run and drop"
+            echo "\`docs/flow-debugger.html\` + \`docs/flow-thumbs/\` in, or run this workflow"
+            echo "manually (Actions -> Flow thumbnails -> Run workflow) on the branch."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach refreshed thumbnails
+        if: steps.detect.outputs.routes != '' && github.event_name == 'pull_request' && steps.thumbdiff.outputs.changed == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-thumbnails
+          path: |
+            docs/flow-debugger.html
+            docs/flow-thumbs
+          retention-days: 14
