@@ -13,10 +13,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/439c4c86-39a7-4a47-8bfa-0426f9fe18c9",
-      "fallbackToCacheTimeout": 0,
-      "requestHeaders": {
-        "expo-channel-name": "preview"
-      }
+      "fallbackToCacheTimeout": 0
     },
     "ios": {
       "bundleIdentifier": "com.simonk.secondbrain",
@@ -35,7 +32,6 @@
       "versionCode": 7,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_CALENDAR",
