@@ -36,4 +36,12 @@ describe("visible graph copy", () => {
       }
     }
   });
+
+  test("wiki facet names the aggregate screen as North Star", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const wiki = readFileSync(path.join(root, "src/app/wiki.tsx"), "utf8");
+
+    expect(wiki).toContain('label: { en: "North Star", ko: "북극성" }');
+    expect(wiki).not.toContain('label: { en: "Soul Core", ko: "소울 코어" }');
+  });
 });
