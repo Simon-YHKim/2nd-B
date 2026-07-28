@@ -365,8 +365,19 @@ export function DeepSpaceImportScreen() {
     setHealthDone(false);
     setHealthErr(null);
     try {
-      const now = new Date().toISOString();
-      const range = { startIso: now, endIso: now };
+      // The window has to have WIDTH. A zero-width range (start === end) is what
+      // shipped through vc19: Health Connect / HealthKit are asked for records
+      // "between now and now", every source returns [], and the flow always ends
+      // at healthErrEmpty("반영할 게 없어요") no matter how much data the user has.
+      // prod health_samples was 0 rows for exactly this reason.
+      // Today-local-midnight -> now matches what the lens actually renders
+      // ("오늘의 건강 기록", DomainStarLens HealthLens) and bounds the row volume:
+      // a multi-day window on HeartRate expands to thousands of instantaneous
+      // samples per sync (mapHealthConnectHeartRate returns an array per record).
+      const end = new Date();
+      const start = new Date(end);
+      start.setHours(0, 0, 0, 0);
+      const range = { startIso: start.toISOString(), endIso: end.toISOString() };
       const native = availableHealthSources().find((src) => src.id === "health_connect" || src.id === "healthkit");
       if (!native) {
         // Web, Expo Go, or a device without Health Connect / HealthKit.
