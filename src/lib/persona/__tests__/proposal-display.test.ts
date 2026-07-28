@@ -35,6 +35,7 @@ describe("formatProposalForDisplay", () => {
 
   test("target label reflects the proposal target kind", () => {
     expect(formatProposalForDisplay(proposal({ target: { kind: "star", star: "relational" } }), "en").targetLabel).toContain("relational");
+    expect(formatProposalForDisplay(proposal({ target: { kind: "soulCore" } }), "en").targetLabel).toBe("North Star");
     expect(formatProposalForDisplay(proposal({ target: { kind: "soulCore" } }), "ko").targetLabel).toBe("북극성");
     expect(formatProposalForDisplay(proposal({ target: { kind: "northStar" } }), "en").targetLabel).toContain("north star");
   });
