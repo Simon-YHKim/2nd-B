@@ -36,7 +36,7 @@ const FLOW: FlowColumn[] = [
     tone: "soul",
     items: [
       { label: "홈 별자리", path: "/", note: "첫 화면" },
-      { label: "소울코어", path: "/core-brain", note: "북극성" },
+      { label: "북극성", path: "/core-brain", note: "종합" },
     ],
   },
   {

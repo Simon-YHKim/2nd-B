@@ -11,6 +11,7 @@ describe("visible graph copy", () => {
       "src/app/records.tsx",
       "src/app/wiki.tsx",
       "src/components/ui/BackArrow.tsx",
+      "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx",
     ];
     const residue = [
       "02. Core brain",
@@ -29,6 +30,7 @@ describe("visible graph copy", () => {
       'label: { en: "Core", ko: "코어" }',
       "Core 로그",
       "이 Core",
+      "소울코어",
     ];
 
     for (const file of files) {
