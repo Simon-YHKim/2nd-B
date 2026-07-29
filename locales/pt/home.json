@@ -261,7 +261,7 @@
     },
     "recall": {
       "title": "Lembrança",
-      "tag": "NARRATIVE",
+      "tag": "NARRATIVA",
       "eyebrow": "Qual época fez a pessoa que eu sou agora",
       "hint": "Toque em um período para abrir uma pergunta a fundo",
       "footer": "Perguntas repetidas elevam a coerência da sua lembrança.",
@@ -286,7 +286,7 @@
     },
     "seen": {
       "title": "Como me veem",
-      "tag": "SELF·OTHER",
+      "tag": "EU·OUTROS",
       "eyebrow": "Quanto o eu que os outros veem parece com o eu que eu vejo",
       "legendSelf": "O eu que eu vejo",
       "legendOther": "O eu que os outros veem",
@@ -330,7 +330,7 @@
     },
     "possible": {
       "title": "Eu futuro",
-      "tag": "ASPIRATION",
+      "tag": "ASPIRACAO",
       "eyebrow": "Para onde estou indo: o eu que ainda não virou dados",
       "a1Name": "Alguém que cria",
       "a1Body": "Fazer de dar forma às ideias o meu ofício",
@@ -346,7 +346,7 @@
     },
     "relational": {
       "title": "Relações",
-      "tag": "RELATIONS",
+      "tag": "RELACOES",
       "eyebrow": "O eu dentro das relações e do conhecimento",
       "peopleHead": "Pessoas que aparecem com frequência",
       "person1": "Minjun · 24",

@@ -261,7 +261,7 @@
     },
     "recall": {
       "title": "회상",
-      "tag": "NARRATIVE",
+      "tag": "서사",
       "eyebrow": "어느 시기가 지금의 나를 만들었나",
       "hint": "시기를 누르면 drill-down 질문",
       "footer": "반복되는 되물음으로 회상의 정합성을 높입니다",
@@ -286,7 +286,7 @@
     },
     "seen": {
       "title": "보여지는 나",
-      "tag": "SELF·OTHER",
+      "tag": "나·타인",
       "eyebrow": "남이 보는 나는 내가 보는 나와 얼마나 같은가",
       "legendSelf": "내가 본 나",
       "legendOther": "남이 본 나",
@@ -330,7 +330,7 @@
     },
     "possible": {
       "title": "미래의 나",
-      "tag": "ASPIRATION",
+      "tag": "지향",
       "eyebrow": "내가 향하는 곳 - 아직 데이터가 되지 않은 나",
       "a1Name": "만드는 사람",
       "a1Body": "생각을 형태로 옮기는 일을 업으로",
@@ -346,7 +346,7 @@
     },
     "relational": {
       "title": "관계·지식",
-      "tag": "RELATIONS",
+      "tag": "관계",
       "eyebrow": "관계와 지식 속의 나",
       "peopleHead": "자주 등장하는 사람",
       "person1": "민준 · 24",

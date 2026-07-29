@@ -261,7 +261,7 @@
     },
     "recall": {
       "title": "Kenangan",
-      "tag": "NARRATIVE",
+      "tag": "NARASI",
       "eyebrow": "Masa mana yang membentuk aku yang sekarang",
       "hint": "Ketuk satu periode untuk memulai pertanyaan mendalam",
       "footer": "Pertanyaan yang berulang menaikkan keutuhan kenanganmu.",
@@ -286,7 +286,7 @@
     },
     "seen": {
       "title": "Aku di mata orang",
-      "tag": "SELF·OTHER",
+      "tag": "AKU·LAIN",
       "eyebrow": "Seberapa mirip aku yang dilihat orang dengan aku yang kulihat",
       "legendSelf": "Aku yang kulihat",
       "legendOther": "Aku yang dilihat orang",
@@ -330,7 +330,7 @@
     },
     "possible": {
       "title": "Aku di masa depan",
-      "tag": "ASPIRATION",
+      "tag": "ASPIRASI",
       "eyebrow": "Ke mana aku menuju: aku yang belum menjadi data",
       "a1Name": "Seorang pembuat",
       "a1Body": "Menjadikan mewujudkan ide sebagai pekerjaanku",
@@ -346,7 +346,7 @@
     },
     "relational": {
       "title": "Relasi",
-      "tag": "RELATIONS",
+      "tag": "RELASI",
       "eyebrow": "Aku di dalam relasi dan pengetahuan",
       "peopleHead": "Orang yang sering muncul",
       "person1": "Minjun · 24",
