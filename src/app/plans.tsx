@@ -1,5 +1,5 @@
 // Monetization v2 Plans screen (Simon-approved 2026-06-10). Free is the
-// unlimited record core; Soma / Cortex / Brain add AI room at the confirmed
+// unlimited record core; 항해자 / 북극성 add AI room at the confirmed
 // list prices (src/lib/progression/pricing.ts is the SoT; pricing.test.ts
 // guards this screen's copy against drift). Honest by design: there is NO
 // in-app checkout yet — real billing goes through native IAP (+ Small
@@ -18,19 +18,20 @@ import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { useProgression } from "@/lib/progression/useProgression";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
-import { LIFETIME } from "@/lib/progression/pricing";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { captureEvent, plansViewed, plansTierFocused } from "@/lib/analytics";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpacePlansScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-// Every tier sells under its own enum name (v2: soma is live again as the
-// entry tier). The highlighted card is soma — the step the free AI limit
-// points at (NEXT_TIER in src/lib/chat/limits.ts).
+// The sellable ladder, and only that. `soma` used to sit here as the
+// highlighted entry card because it carried the lifetime plan; Simon retired
+// the lifetime plan on 2026-07-29 and soma has had no purchase path since, so
+// showing it would advertise something nobody can buy. soma remains a DB tier
+// (see src/lib/progression/pricing.ts SellableTier for why it cannot be
+// removed) — it is simply not merchandised.
 const CARD_TIERS: { key: SubscriptionTier; highlight: boolean }[] = [
   { key: "free", highlight: false },
-  { key: "soma", highlight: true },
-  { key: "cortex", highlight: false },
+  { key: "cortex", highlight: true },
   { key: "brain", highlight: false },
 ];
 
@@ -42,7 +43,7 @@ function PlansLegacy() {
   const params = useLocalSearchParams<{ from?: string }>();
 
   // Funnel: record that the plans screen was seen, attributing the entry point,
-  // and the default-highlighted tier (soma). PII-free scalars only - tier ids +
+  // and the default-highlighted tier. PII-free scalars only - tier ids +
   // entry source + locale. Fires once the current tier is known.
   useEffect(() => {
     if (progression.loading) return;
@@ -58,7 +59,7 @@ function PlansLegacy() {
         locale,
       }),
     );
-    captureEvent(plansTierFocused({ tier: "soma" }));
+    captureEvent(plansTierFocused({ tier: "cortex" }));
   }, [progression.loading]);
 
   return (
@@ -107,11 +108,6 @@ function PlansLegacy() {
                   </Text>
                 ))}
               </View>
-              {key === LIFETIME.tier ? (
-                <Text variant="caption" color="textMuted" style={styles.lifetimeNote}>
-                  {t(`tiers.${LIFETIME.tier}.lifetimeNote`)}
-                </Text>
-              ) : null}
             </View>
           );
         })}
@@ -170,7 +166,6 @@ const styles = StyleSheet.create({
   tagline: { marginTop: 2 },
   features: { marginTop: spacing.sm, gap: spacing.xs },
   feature: {},
-  lifetimeNote: { marginTop: spacing.xs },
   notifyPanel: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
