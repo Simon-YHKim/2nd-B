@@ -107,42 +107,42 @@
   "account": {
     "export": {
       "label": "Seus dados",
-      "body": "Baixe tudo o que está salvo na sua conta como um arquivo JSON estruturado.",
+      "body": "Baixe tudo que está salvo na sua conta como um arquivo JSON estruturado.",
       "button": "Exportar meus dados",
       "buttonHint": "Cria uma exportação JSON completa dos dados da sua conta.",
       "done": "Exportação pronta.",
       "failed": "Não foi possível criar a exportação. Tente de novo."
     },
-    "loading": "Loading account…",
-    "eyebrow": "Account",
-    "title": "Your account, your call",
-    "subtitle": "Fix your details, manage privacy, or close your account.",
-    "speech": "Anything about your account lives here. No rush.",
+    "loading": "Carregando conta…",
+    "eyebrow": "Conta",
+    "title": "Sua conta, sua decisão",
+    "subtitle": "Corrija seus dados, gerencie privacidade ou encerre sua conta.",
+    "speech": "Tudo sobre sua conta fica aqui. Sem pressa.",
     "dob": {
-      "label": "Correct your date of birth",
-      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
-      "save": "Save birth date",
-      "saved": "Birth date updated.",
-      "saveFailed": "Could not update your birth date",
-      "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
-      "saveHint": "Saves your birth date and updates age-based privacy settings.",
-      "retry": "Retry",
-      "retryHint": "Retries saving your birth date."
+      "label": "Corrigir sua data de nascimento",
+      "hint": "Corrija uma data de nascimento digitada errado. Ela precisa ser real e cumprir a idade mínima.",
+      "save": "Salvar data de nascimento",
+      "saved": "Data de nascimento atualizada.",
+      "saveFailed": "Não foi possível atualizar sua data de nascimento",
+      "saveFailedBody": "Não conseguimos salvar sua data de nascimento. Tente de novo em um instante.",
+      "saveHint": "Salva sua data de nascimento e atualiza os ajustes de privacidade por idade.",
+      "retry": "Tentar novamente",
+      "retryHint": "Tenta salvar sua data de nascimento novamente."
     },
     "privacy": {
       "label": "Privacidade e consentimento",
-      "body": "Análises externas são a única configuração aqui, desativada por padrão. Compartilhamento, anúncios, recomendações e treinamento de modelos não são recursos atuais; qualquer recurso futuro ficaria desativado até você concordar.",
+      "body": "Analítica externa é o único ajuste aqui, desativado por padrão. Compartilhamento, anúncios, recomendações e treinamento de modelos não existem hoje como recursos, e qualquer recurso futuro ficará desativado até você concordar.",
       "button": "Abrir controles de privacidade",
-      "buttonHint": "Abre as configurações de privacidade e consentimento."
+      "buttonHint": "Abre os ajustes de privacidade e consentimento."
     },
     "feedback": {
-      "label": "Account feedback notice",
-      "dismiss": "Dismiss",
-      "dismissHint": "Dismisses this notice."
+      "label": "Aviso de feedback da conta",
+      "dismiss": "Dispensar",
+      "dismissHint": "Dispensa este aviso."
     },
     "delete": {
       "label": "Excluir conta",
-      "body": "Isso apaga suas entradas, capturas, wiki e uso do assistente, e depois encerra sua sessão.",
+      "body": "Isso apaga suas entradas, capturas, wiki e uso do assistente, depois encerra sua sessão.",
       "supportNote": "A remoção completa da conta é processada em até 2 dias úteis. Fale com o suporte se precisar antes.",
       "confirmHint": "Digite \"{{phrase}}\" para ativar o botão.",
       "button": "Excluir minha conta",
@@ -151,9 +151,9 @@
       "confirmCta": "Excluir",
       "cancel": "Cancelar",
       "failed": "Falha ao excluir a conta",
-      "failedBody": "Não conseguimos terminar a exclusão da sua conta. Parte do conteúdo pode já ter sido removida, e sua conta e login ainda podem existir. Entre em contato pelo kim0405@hayangzip.com e ajudaremos.",
+      "failedBody": "Não conseguimos terminar de excluir sua conta. Parte do conteúdo pode já ter sido removida, e sua conta e login ainda podem existir. Fale com kim0405@hayangzip.com e vamos ajudar.",
       "confirmLabel": "Confirmação de exclusão de conta",
-      "inputLabel": "Frase de confirmação de exclusão de conta",
+      "inputLabel": "Frase de confirmação para excluir a conta",
       "inputHint": "Digite DELETE para ativar o botão de exclusão de conta.",
       "buttonHint": "Abre uma confirmação final antes de excluir sua conta e seus dados.",
       "confirmCtaHint": "Inicia a exclusão da conta e dos dados."

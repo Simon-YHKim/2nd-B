@@ -113,32 +113,32 @@
       "done": "Exportación lista.",
       "failed": "No se pudo crear la exportación. Inténtalo de nuevo."
     },
-    "loading": "Loading account…",
-    "eyebrow": "Account",
-    "title": "Your account, your call",
-    "subtitle": "Fix your details, manage privacy, or close your account.",
-    "speech": "Anything about your account lives here. No rush.",
+    "loading": "Cargando cuenta…",
+    "eyebrow": "Cuenta",
+    "title": "Tu cuenta, tu decisión",
+    "subtitle": "Corrige tus datos, gestiona la privacidad o cierra tu cuenta.",
+    "speech": "Todo lo relacionado con tu cuenta vive aquí. Sin prisa.",
     "dob": {
-      "label": "Correct your date of birth",
-      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
-      "save": "Save birth date",
-      "saved": "Birth date updated.",
-      "saveFailed": "Could not update your birth date",
-      "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
-      "saveHint": "Saves your birth date and updates age-based privacy settings.",
-      "retry": "Retry",
-      "retryHint": "Retries saving your birth date."
+      "label": "Corregir tu fecha de nacimiento",
+      "hint": "Corrige una fecha de nacimiento mal escrita. Debe ser real y cumplir la edad mínima.",
+      "save": "Guardar fecha de nacimiento",
+      "saved": "Fecha de nacimiento actualizada.",
+      "saveFailed": "No se pudo actualizar tu fecha de nacimiento",
+      "saveFailedBody": "No pudimos guardar tu fecha de nacimiento. Inténtalo de nuevo en un momento.",
+      "saveHint": "Guarda tu fecha de nacimiento y actualiza los ajustes de privacidad por edad.",
+      "retry": "Reintentar",
+      "retryHint": "Vuelve a intentar guardar tu fecha de nacimiento."
     },
     "privacy": {
       "label": "Privacidad y consentimiento",
-      "body": "Las analíticas externas son el único ajuste aquí y están desactivadas por defecto. Compartir, anuncios, recomendaciones y entrenamiento de modelos no son funciones actuales; cualquier función futura seguiría desactivada hasta que aceptes.",
+      "body": "La analítica externa es el único ajuste aquí y está desactivada por defecto. Compartir, anuncios, recomendaciones y entrenamiento de modelos no existen hoy como funciones, y cualquier función futura seguirá desactivada hasta que aceptes.",
       "button": "Abrir controles de privacidad",
       "buttonHint": "Abre los ajustes de privacidad y consentimiento."
     },
     "feedback": {
-      "label": "Account feedback notice",
-      "dismiss": "Dismiss",
-      "dismissHint": "Dismisses this notice."
+      "label": "Aviso de comentarios de cuenta",
+      "dismiss": "Descartar",
+      "dismissHint": "Descarta este aviso."
     },
     "delete": {
       "label": "Eliminar cuenta",
@@ -150,10 +150,10 @@
       "confirmBody": "Tus datos se borrarán y se cerrará tu sesión. Esto no se puede deshacer.",
       "confirmCta": "Eliminar",
       "cancel": "Cancelar",
-      "failed": "No se pudo eliminar la cuenta",
-      "failedBody": "No pudimos terminar de eliminar tu cuenta. Es posible que parte del contenido ya se haya borrado y que tu cuenta e inicio de sesión sigan existiendo. Escribe a kim0405@hayangzip.com y te ayudaremos.",
+      "failed": "Falló la eliminación de la cuenta",
+      "failedBody": "No pudimos terminar de eliminar tu cuenta. Puede que parte del contenido ya se haya quitado, y que tu cuenta e inicio de sesión sigan existiendo. Contacta con kim0405@hayangzip.com y te ayudaremos.",
       "confirmLabel": "Confirmación de eliminación de cuenta",
-      "inputLabel": "Frase de confirmación de eliminación de cuenta",
+      "inputLabel": "Frase de confirmación para eliminar la cuenta",
       "inputHint": "Escribe DELETE para activar el botón de eliminación de cuenta.",
       "buttonHint": "Abre una confirmación final antes de eliminar tu cuenta y tus datos.",
       "confirmCtaHint": "Inicia la eliminación de la cuenta y los datos."
