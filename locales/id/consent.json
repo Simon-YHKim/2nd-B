@@ -156,7 +156,7 @@
       "inputLabel": "Frasa konfirmasi penghapusan akun",
       "inputHint": "Type DELETE to enable the account deletion button.",
       "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "confirmCtaHint": "Memulai penghapusan akun dan data."
     }
   }
 }

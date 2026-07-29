@@ -156,7 +156,7 @@
       "inputLabel": "Frase de confirmacao para excluir a conta",
       "inputHint": "Type DELETE to enable the account deletion button.",
       "buttonHint": "Opens a final confirmation before deleting your account and data.",
-      "confirmCtaHint": "Starts account and data deletion."
+      "confirmCtaHint": "Inicia a exclusão da conta e dos dados."
     }
   }
 }
