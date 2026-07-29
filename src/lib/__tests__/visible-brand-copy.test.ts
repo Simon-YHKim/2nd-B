@@ -82,4 +82,13 @@ describe("visible brand copy", () => {
       expect(drilldownCopy).not.toMatch(/Pattern Core|Pattern Data|패턴 코어|패턴 데이터/);
     }
   });
+
+  test("floating back arrow labels the core-brain route as North Star", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const backArrow = readFileSync(path.join(root, "src/components/ui/BackArrow.tsx"), "utf8");
+
+    expect(backArrow).toContain('"/core-brain": { en: "North Star", ko: "북극성" }');
+    expect(backArrow).not.toContain('"/core-brain": { en: "Soul Core"');
+    expect(backArrow).not.toContain('ko: "소울 코어"');
+  });
 });
