@@ -304,7 +304,15 @@ Deno.serve(async (req: Request) => {
     systemText && systemText.length > 0 ? `${SAFETY_PREAMBLE}\n\n${systemText}` : SAFETY_PREAMBLE;
   const anthropicBody = {
     model: claudeModel,
-    max_tokens: effortToMaxTokens(clampedEffort),
+    // ops_daily_brief packs up to 14 keys x 3 recs into ONE object; with adaptive
+    // thinking, thinking tokens count against max_tokens, so medium (4096) is
+    // eaten before the object closes and it truncates (surfaced as an error
+    // below). Floor the consolidated seat; the one call REPLACES up to 14
+    // per-domain calls, a net egress cut. [ops-brief-output-floor] 16000
+    max_tokens: Math.max(
+      effortToMaxTokens(clampedEffort),
+      purpose === 'ops_daily_brief' ? 16000 : 0,
+    ),
     system: systemPrompt,
     messages: [{ role: 'user', content: userText }],
     // D-26: adaptive thinking + effort are the reasoning levers (the old
