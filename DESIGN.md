@@ -64,19 +64,24 @@ Brightness L1 to L5 means how much the user has actually established about that
 domain. AI output is a proposal and cannot brighten a star before user
 ratification.
 
+The home renders six domain stars: `career`, `finance`, `growth`, `relation`,
+`health`, and `recreation`. Polaris headline brightness is the mean of those six
+stars, plus the existing `0.05` all-lit bonus when all six are at least L2.
+`collect` and Museum are excluded from both the mean and the all-lit test.
+
 All links are subtle cyan. Focused drilldown promotes the selected domain near
 Polaris while the other domains recede through scale, saturation, opacity, and
 motion. It must not turn the selected domain into a second Polaris.
 
-### Open home-slot conflict
+### Resolved home-slot decision
 
-The product model and project constraints name `collect` as the seventh domain.
-The rev2 executable home currently uses a Museum portal in that visual slot.
-No agent may silently swap these interpretations. Until Simon records a dated
-decision, preserve the shipping home topology being changed, treat Museum as a
-navigation portal with no domain brightness, and never include Museum in Polaris
-synthesis. A PR that changes this slot must update the PRD, constellation spec,
-this contract, route registry, and goldens together.
+Simon decided on 2026-07-29 at 03:44 KST that Polaris headline brightness
+averages only the six domains drawn on home. Keep the shipping topology:
+six visible domain stars plus a Museum navigation portal. `collect` remains the
+seventh data-domain intake key, but it is not a home star and must not inflate
+Polaris brightness. Museum has no domain brightness and is also excluded.
+Do not add an eighth star. The `collect` propose-to-ratify router is deferred,
+not discarded.
 
 ## 3. Screen identity registry
 
