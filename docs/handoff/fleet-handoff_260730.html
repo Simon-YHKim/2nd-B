@@ -1,0 +1,263 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2nd-B 함대 핸드오프 · 2026-07-30 00:55 KST</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+<style>
+:root{--bg:#0d0f17;--card:#151826;--card2:#0f1220;--bd:#252a3d;--tx:#e6e8f2;--mut:#8b90a8;
+--ac:#e0a86b;--bad:#e06b6b;--ok:#6be0a8;--warn:#e0c96b}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);
+font-family:Pretendard,-apple-system,'Segoe UI','Apple SD Gothic Neo',system-ui,sans-serif;
+line-height:1.66;padding:24px 18px 100px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto}
+.ban{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--ac);
+border:1px solid var(--bd);border-radius:8px;padding:7px 12px;display:inline-block;margin-bottom:14px}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.5px}
+h2{font-size:16px;margin:44px 0 14px;color:var(--ac);border-bottom:1px solid var(--bd);
+padding-bottom:8px;letter-spacing:.3px}
+h3{font-size:14px;margin:22px 0 8px;color:var(--tx)}
+.sub{font-size:13px;color:var(--mut);margin:0 0 6px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:11px;margin:16px 0}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.kpi .k{font-size:11.5px;color:var(--mut);letter-spacing:.4px;text-transform:uppercase}
+.kpi .v{font-size:20px;font-weight:800;margin:5px 0 2px;letter-spacing:-.4px}
+.kpi .d{font-size:12px;color:var(--mut);line-height:1.5}
+.kpi.ok{border-left:3px solid var(--ok)} .kpi.bad{border-left:3px solid var(--bad)}
+.kpi.warn{border-left:3px solid var(--warn)} .kpi.n{border-left:3px solid var(--bd)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+td,th{border-bottom:1px solid var(--bd);padding:9px 9px;text-align:left;vertical-align:top}
+th{color:var(--mut);font-size:11.5px;font-weight:700;letter-spacing:.3px}
+tr:last-child td{border-bottom:0}
+.bdg{display:inline-block;font-size:10.5px;padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap}
+.bdg.ok{background:rgba(107,224,168,.14);color:var(--ok)}
+.bdg.bad{background:rgba(224,107,107,.14);color:var(--bad)}
+.bdg.warn{background:rgba(224,201,107,.14);color:var(--warn)}
+.bdg.n{background:rgba(139,144,168,.14);color:var(--mut)}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;background:#0a0c14;
+border:1px solid var(--bd);border-radius:4px;padding:1px 5px}
+pre{background:#0a0c14;border:1px solid var(--bd);border-radius:8px;padding:12px 14px;
+overflow-x:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.6;margin:10px 0}
+blockquote{margin:10px 0;padding:10px 14px;background:var(--card2);border:1px solid var(--bd);
+border-left:3px solid var(--ac);border-radius:0 8px 8px 0;font-size:12.5px}
+details{margin-top:8px;border-top:1px dashed var(--bd);padding-top:7px}
+summary{cursor:pointer;font-size:11.5px;color:var(--ac);list-style:none;user-select:none}
+summary::-webkit-details-marker{display:none}
+summary:before{content:"▸ 자세히"}
+details[open] summary:before{content:"▾ 접기"}
+.dd{font-size:12.5px;color:var(--mut);padding:9px 0 2px}
+.dd b,.dd strong{color:var(--tx)}
+ul,ol{margin:8px 0;padding-left:20px;font-size:13px}
+li{margin:4px 0}
+.sess{border-left:3px solid var(--bd);padding-left:14px;margin-bottom:20px}
+.sess.me{border-left-color:var(--ac)}
+.sn{font-size:15px;font-weight:800;margin:0 0 2px}
+.sr{font-size:12px;color:var(--mut);margin-bottom:7px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.act{background:rgba(224,107,107,.07);border:1px solid var(--bad);border-radius:12px;padding:15px 17px;margin:12px 0}
+.act .t{font-weight:800;font-size:15px;color:var(--bad);margin-bottom:5px}
+.act2{background:rgba(224,168,107,.07);border:1px solid var(--ac);border-radius:12px;padding:15px 17px;margin:12px 0}
+.act2 .t{font-weight:800;font-size:15px;color:var(--ac);margin-bottom:5px}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+.toc a{font-size:12px;color:var(--mut);border:1px solid var(--bd);border-radius:20px;
+padding:5px 12px;text-decoration:none}
+.toc a:hover{border-color:var(--ac);color:var(--ac)}
+a{color:var(--ac)}
+.hl{color:var(--ac);font-weight:700}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+.warnbox{background:rgba(224,201,107,.07);border:1px solid var(--warn);border-radius:12px;padding:14px 16px;margin:12px 0;font-size:13px}
+@media(max-width:640px){h1{font-size:21px}.grid{grid-template-columns:1fr 1fr}}
+</style></head><body><div class="wrap">
+<div class="ban">[S7 · 콘솔 · R1 · 07-30 00:55 KST · 핸드오프]</div>
+<h1>2nd-B 함대 종합 핸드오프</h1>
+<p class="sub">다른 컴퓨터에서 이어서 작업하기 위한 인계 문서. 모든 상태값은 <b>2026-07-30 00:55 KST에 화면·API·git에서 직접 읽은 것</b>이다. 추정 없음.</p>
+<p class="sub">⚠️ <b>함대는 07-29 04:56 KST 이후 약 20시간 정지 상태다.</b> 그 사이 vc20 빌드와 Paddle 심사는 서버 쪽에서 진행돼 상태가 바뀌었다.</p>
+<div class="toc"><a href="#now">지금 당장</a><a href="#kpi">한눈 상태</a><a href="#tl">타임라인</a><a href="#sess">세션 페르소나 7</a><a href="#todo">투두</a><a href="#dec">Simon 결정 이력</a><a href="#set">고정값·셋팅</a><a href="#rule">규율·게이트</a><a href="#resume">재개 절차</a></div>
+<h2 id="now">지금 당장 — Simon만 할 수 있는 것</h2>
+<div class="act"><div class="t">① Paddle 신원 확인 (Complete identity checks)</div><p style="margin:0;font-size:13.5px">랜딩 게시 덕분에 <b>도메인 검증은 통과했다.</b> 반려 배너가 사라졌고 화면이 바뀌었다:</p><blockquote><b>Verify your identity</b><br>Complete a quick identity check with our trusted partner.<br>[ Complete identity checks → ]</blockquote><p style="margin:0;font-size:13.5px">신분증 제출은 <b>내가 대신 할 수 없다</b>(게이트 ③ 시크릿·⑦ PII). 이게 끝나야 Paddle 카탈로그→체크아웃→웹훅 전체가 열린다. <b>결제 레일 전체가 이 한 클릭에 걸려 있다.</b></p></div>
+<div class="act"><div class="t">② Play 테스터 — 12명 × 14일 연속, 마감 08-03</div><p style="margin:0 0 6px;font-size:13.5px">오늘이 <b>07-30</b>이므로 <b>D-4</b>다. 그런데 시계는 <b>12번째 테스터가 참여를 선택한 순간부터</b> 돌기 시작한다. 지금 그룹은 <b>3/12</b>이고, 08-03까지 12명을 채워도 14일은 그 뒤로 흐른다.</p><p style="margin:0;font-size:13.5px">→ <b>이게 프로젝트 전체에서 가장 늦은 크리티컬 패스다.</b> 품앗이 카페 글(A안)은 올라가 있고, 게시되면 B안으로 교체하기로 돼 있다. 웹 참여 링크는 앱이 게시돼야 생성된다.</p><details><summary></summary><div class="dd">⚠️ S7 한계: <code>cafe.naver.com</code>은 Chrome 확장이 읽기·쓰기·탭 닫기를 모두 차단한다(<code>This site is blocked</code>). 카페 글 확인·댓글·품앗이 응답은 <b>전부 Simon이 직접</b> 해야 한다. 나는 그룹 가입만 대행할 수 있다(hwanydanh 계정으로).</div></details></div>
+<div class="act2"><div class="t">③ S5 적대검증을 깨워라 — 여기가 병목이다</div><p style="margin:0;font-size:13.5px">PR 3건이 <b>CI 전부 green인데 S5 판정을 못 받아 멈춰 있다.</b> 프로토콜상 S1~S4 산출물은 S5를 통과해야 main에 간다.</p><pre>#1140  s1/retire-lifetime-plan      OPEN  · CI 7/7 SUCCESS · MERGEABLE
+#1139  claude/s2-dead-touch-clean   DRAFT · CI 7/7 SUCCESS · MERGEABLE
+#1141  claude/s2-polaris-consumer   DRAFT · CI 7/7 SUCCESS · MERGEABLE</pre><p style="margin:0;font-size:13.5px">S5 미처리 발주: <code>T-R1-S1-S5-04</code>(04:56) · <code>T-R1-S2-S5-02</code>(04:46) · <code>#1139</code> 2차 검증</p></div>
+<div class="act2"><div class="t">④ PayPal 커넥터 재연결 (선택)</div><p style="margin:0;font-size:13.5px">브라우저 로그인은 돼 있지만 MCP 토큰이 죽어 있다 — <code>401 invalid_token · Access Token not found in cache</code>. Claude 앱 → 커넥터 → PayPal <b>연결 해제 후 재연결</b>. 세션 안에서는 갱신할 방법이 없다.<br>다만 결제 레일 정본은 <b>Paddle(MoR)</b>이므로 우선순위는 낮다.</p></div>
+<h2 id="kpi">한눈 상태</h2>
+<div class="grid">
+<div class="kpi bad"><div class="k">마감까지</div><div class="v">D-4</div><div class="d">Play 프로덕션 액세스 08-03 · XPRIZE 08-17</div></div>
+<div class="kpi ok"><div class="k">vc20 AAB</div><div class="v">FINISHED</div><div class="d"><code>135775f2</code> · 총 2h 7m 8s (큐 2h 9m) · Download 가능</div></div>
+<div class="kpi warn"><div class="k">Paddle</div><div class="v">신원 확인 대기</div><div class="d">도메인 검증 <b>통과</b> · 다음은 Simon 본인 ID 체크</div></div>
+<div class="kpi ok"><div class="k">루트 랜딩</div><div class="v">LIVE</div><div class="d"><code>simon-yhkim.github.io</code> HTTP 200 · 커밋 <code>8016c41</code></div></div>
+<div class="kpi warn"><div class="k">열린 PR</div><div class="v">3건 전부 green</div><div class="d">S5 판정 대기 · main은 <code>9c674f4d</code>에서 정지</div></div>
+<div class="kpi bad"><div class="k">품앗이</div><div class="v">3 / 12</div><div class="d">웹 참여 링크는 앱 게시 후 생성</div></div>
+<div class="kpi warn"><div class="k">iOS</div><div class="v">제출 보류</div><div class="d">ASC 차단 0건이나 Build 6이 <code>#1128</code> 이전</div></div>
+<div class="kpi n"><div class="k">스토어 IAP</div><div class="v">전부 0개</div><div class="d">ASC 구독 0 · Play 정기결제 0 · 일회성 0 · Paddle 상품 0</div></div>
+</div>
+<h2 id="tl">R1 라운드 타임라인 — 07-29 새벽</h2>
+<div class="card">
+<svg viewBox="0 0 1040 506" width="100%" style="max-width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+<line x1="86" y1="14" x2="86" y2="490" stroke="#252a3d" stroke-width="2"/>
+<text x="0" y="30" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">02:14</text>
+<circle cx="86" cy="26" r="5.5" fill="#6be0a8"/>
+<text x="104" y="30" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">main 9c674f4d — #1137 머지 (스토어 선언 2건 해소)</text>
+<text x="0" y="64" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">02:17</text>
+<circle cx="86" cy="60" r="5.5" fill="#8b90a8"/>
+<text x="104" y="64" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">vc20 EAS 큐 진입 (Free Tier Queue)</text>
+<text x="0" y="98" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">02:59</text>
+<circle cx="86" cy="94" r="5.5" fill="#e06b6b"/>
+<text x="104" y="98" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">Paddle 도메인 반려 메일 (kim0405 수신)</text>
+<text x="0" y="132" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">03:41</text>
+<circle cx="86" cy="128" r="5.5" fill="#6be0a8"/>
+<text x="104" y="132" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">루트 랜딩 게시 → simon-yhkim.github.io 404 해소</text>
+<text x="0" y="166" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">03:44</text>
+<circle cx="86" cy="162" r="5.5" fill="#e0a86b"/>
+<text x="104" y="166" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">Simon 결정 — home canon (가) 보이는 6개만 평균</text>
+<text x="0" y="200" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">03:47</text>
+<circle cx="86" cy="196" r="5.5" fill="#6be0a8"/>
+<text x="104" y="200" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">Paddle 도메인 재제출 → In review</text>
+<text x="0" y="234" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">04:04</text>
+<circle cx="86" cy="230" r="5.5" fill="#6be0a8"/>
+<text x="104" y="234" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">S1 가격 정본 발굴 — #703 (2026-07-03)</text>
+<text x="0" y="268" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">04:14</text>
+<circle cx="86" cy="264" r="5.5" fill="#e0a86b"/>
+<text x="104" y="268" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">Simon 결정 — 평생 미판매 · PR-1/PR-2 착수</text>
+<text x="0" y="302" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">04:25</text>
+<circle cx="86" cy="298" r="5.5" fill="#8b90a8"/>
+<text x="104" y="302" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">vc20 빌드 착수 (큐 2h 9m)</text>
+<text x="0" y="336" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">04:33</text>
+<circle cx="86" cy="332" r="5.5" fill="#6be0a8"/>
+<text x="104" y="336" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">S2 OTA 판정 — 가능 (fingerprint source set에 src/ 0건)</text>
+<text x="0" y="370" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">04:40</text>
+<circle cx="86" cy="366" r="5.5" fill="#6be0a8"/>
+<text x="104" y="370" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">S7 fingerprint 절대값 + runtime 격리 확정</text>
+<text x="0" y="404" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">04:56</text>
+<circle cx="86" cy="400" r="5.5" fill="#e0c96b"/>
+<text x="104" y="404" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">함대 마지막 활동 — S1→S5 발주 이후 정지</text>
+<text x="0" y="438" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">~04:24</text>
+<circle cx="86" cy="434" r="5.5" fill="#6be0a8"/>
+<text x="104" y="438" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">vc20 FINISHED (총 2h 7m 8s)</text>
+<text x="0" y="472" fill="#8b90a8" font-size="12.5" font-family="ui-monospace,Menlo,monospace">이후</text>
+<circle cx="86" cy="468" r="5.5" fill="#6be0a8"/>
+<text x="104" y="472" fill="#e6e8f2" font-size="13" font-family="Pretendard,sans-serif">Paddle 도메인 검증 통과 → 신원 확인 단계로 이동</text>
+</svg>
+<p class="sub" style="margin-top:8px">마지막 두 항목은 함대 정지 이후 서버 쪽에서 진행된 것이고, 07-30 00:5x KST에 S7이 실측해 확인했다.</p>
+</div>
+<h2 id="sess">세션 페르소나 7 — 무엇을 했고 무엇을 할 것인가</h2>
+<div class="card"><table><tr><th style="width:52px">세션</th><th style="width:150px">역할</th><th style="width:190px">런타임</th><th>한 줄</th><th style="width:88px">상태</th></tr>
+<tr><td><b>S1</b></td><td>서비스 현실화</td><td class="mono">Claude Code · VSCode 1</td><td>스토어 선언 해소 + 가격 정본 발굴. PR #1140 대기</td><td><span class="bdg ok">진행 가능</span></td></tr>
+<tr><td><b>S2</b></td><td>시스템 R&D</td><td class="mono">Claude Code · VSCode 2</td><td>OTA 가능 판정 + 부채 D1/D2 발견. PR #1139·#1141 대기</td><td><span class="bdg warn">조건부</span></td></tr>
+<tr><td><b>S3</b></td><td>AI 하네스 R&D</td><td class="mono">Claude Code · VSCode 3</td><td>채널 분석 4차. ops_daily_brief 89% 잘림이 유일한 불</td><td><span class="bdg n">대기</span></td></tr>
+<tr><td><b>S4</b></td><td>디자인 디버깅</td><td class="mono">Codex · VSCode 4</td><td>캐논·golden 완료(e2fdb372). non-home 3장 촬영 가능</td><td><span class="bdg warn">조건부</span></td></tr>
+<tr><td><b>S5</b></td><td>적대검증</td><td class="mono">Codex · VSCode 5</td><td>R1 판정 61건. ★ 04:56 이후 응답 없음 — 병목</td><td><span class="bdg bad">막힘</span></td></tr>
+<tr><td><b>S6</b></td><td>메타 프롬프팅</td><td class="mono">Claude Code · VSCode 6</td><td>BOARD 관리·정정 전파. [skip ci] 정책 결정 남음</td><td><span class="bdg n">대기</span></td></tr>
+<tr><td><b>S7</b></td><td>콘솔 전담</td><td class="mono">Claude Cowork (이 세션)</td><td>Paddle 도메인 통과·랜딩 게시·OTA 안전성 확정</td><td><span class="bdg ok">진행 가능</span></td></tr>
+</table></div>
+<div class="sess">
+<div class="sn">S1 · 서비스 현실화 <span class="bdg ok">진행 가능</span></div>
+<div class="sr">Claude Code · VSCode 1</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">제품이 실제로 동작하게 만드는 세션. 스토어 선언·법무 문서·결제 레일·권한 등 “출시에 필요한 진짜 코드”를 담당한다.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0">① 스토어 선언 2건 해소 — <code>#1137</code>로 <code>READ_MEDIA_IMAGES</code> 제거(expo-image-picker가 Android Photo Picker를 쓰므로 불필요) + Health Connect 읽기 창을 <b>zero-width → 자정~현재</b>로 수정. 이 버그 때문에 <code>health_samples</code>가 프로덕션에서 0행이었다.<br>② 웹 결제 레일 설계 <code>web-payment-rail-design.md</code> — RevenueCat 걷어내고 Paddle 배선. 자기 이전 판정(“웹에 결제 코드 없다”)을 스스로 정정했다.<br>③ <b>가격 정본 발굴</b> — <code>pricing-tier-canon.md</code>. Simon이 “과거에 결정해둔 게 있다”고 한 그것을 찾아냈다: <b>2026-07-03 #703 «요금제 캐논 확정»</b>.<br>④ PR <code>#1140</code> — 평생 플랜 철수 + soma 상품화 중단.</p>
+<h3>다음에 할 일</h3><p style="font-size:13px;margin:0">PR-2(법무 문서 어휘 <code>Plus/Pro → 항해자/북극성</code> + 평생 문구 삭제) 착수. <b>머지 직전 S7에 사전 통보</b>해야 한다 — 루트 랜딩과 동시 배포해야 공개된 가격 고지가 어긋나지 않는다.</p>
+<h3>판정 하나가 중요하다</h3><p style="font-size:13px;margin:0"><b>soma는 보유자 0명인데도 제거 금지</b>다. 라이브 RPC 4개 + CHECK 제약에 박혀 있어 지우면 DB가 깨진다. 판매만 중단하고 enum은 남긴다 — 정본 #703이 <code>cortex</code>/<code>brain</code>을 남긴 것과 같은 처리(“결제 enum·스토어 상품 불변”).</p>
+</div>
+<div class="sess">
+<div class="sn">S2 · 시스템 R&D <span class="bdg warn">조건부</span></div>
+<div class="sr">Claude Code · VSCode 2</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">런타임·빌드·CI·플랫폼 경계를 파는 세션. 왜 이 화면이 안 눌리는지, 왜 이 번들이 이렇게 나오는지를 근거로 답한다.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0">① PR <code>#1139</code> — MdButton function-as-children dead-touch 2단계 하드닝(<code>#680</code> 가드 확장).<br>② PR <code>#1141</code> — 북극성 밝기를 홈이 그리는 6 도메인만 평균하도록 consumer 변경.<br>③ <b>OTA 경로 판정</b> — S7 발주에 대해 “가능”으로 답하며 <code>expo-updates fingerprint:generate</code>를 직접 돌렸다. fingerprint source set에 <code>src/</code>·<code>public/proto/</code>가 <b>0건</b>이라 우리 변경이 runtime을 못 움직인다.<br>④ 부채 2건 발견 — <b>D1</b> 북극성 밝기가 보이지 않는 <code>collect</code>까지 평균에 넣는다. <b>D2</b> <code>ConstellationHome</code>이 캐논을 소비하지 않고 <code>REV2_STARS</code>를 하드코딩한다.</p>
+<h3>다음에 할 일</h3><p style="font-size:13px;margin:0">S5 2차 검증 결과를 받아 <code>#1139</code>·<code>#1141</code> 진행. S4가 넘긴 인계 6건(계약 테스트 4종 포함) 착수.</p>
+<h3>이 세션이 S7을 두 번 정정했다</h3><p style="font-size:13px;margin:0">ⓐ <b><code>Verify OTA/native runtime policy</code> 스텝은 fingerprint를 비교하지 않는다.</b> <code>validateOtaRuntime:17-46</code>은 policy 형태·버전 자릿수만 본다 — 설정 가드다. S7이 스텝 이름만 보고 기능을 추정한 것이 틀렸다.<br>ⓑ <b>캐논만 OTA로 올리면 홈이 안 바뀐다.</b> <code>ConstellationHome</code>이 캐논을 import하지 않으므로 S4 단독 커밋만 올리면 재촬영해도 이전과 같은 그림이 나온다.</p>
+</div>
+<div class="sess">
+<div class="sn">S3 · AI 하네스 R&D <span class="bdg n">대기</span></div>
+<div class="sr">Claude Code · VSCode 3</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">LLM 프롬프트·채널·비용·잘림률을 다루는 세션. 어떤 데이터가 어떤 경로로 모델에 들어가는지를 추적한다.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0">채널 A/B/C/D의 health→LLM 경로 분석 4차까지. S5/S6 정정 2건 수용 + 자기정정 3건(잘림률 2 · 로케일 산정 1).<br>한 줄 결론: <b>“불타는 건 <code>ops_daily_brief</code> 하나(89%)이고 그 수정은 비용 게이트에 안 걸린다.”</b></p>
+<h3>다음에 할 일</h3><p style="font-size:13px;margin:0"><code>ops_daily_brief</code> 잘림 수정. 건강 선언 문안에 들어갈 “Google AI로 갈 수 있는 항목·조건” 문구 제공(S1이 화면 배선 single-writer).</p>
+<h3>주의</h3><p style="font-size:13px;margin:0">채널 C 정정이 중요하다 — <b>본문 그대로 LLM에 가는 채널 C는 Android <code>READ_*</code>가 아니라, 사용자가 별도 업로드하고 비준한 Apple Health <code>export.xml</code>이다.</b> S6/S7이 두 출처를 합쳐 요약한 것이 오보였다.</p>
+</div>
+<div class="sess">
+<div class="sn">S4 · 디자인 디버깅 <span class="bdg warn">조건부</span></div>
+<div class="sr">Codex · VSCode 4</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">캐논(디자인 정본)·기하·스크린샷을 담당. 시각 판정의 최종 근거를 만든다.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0">① Simon의 (가)안 결정을 <b>제품 SoT에 계약으로 기록</b> — <code>DESIGN.md</code>·<code>docs/PRD.md</code>·<code>docs/CONSTELLATION-DESIGN.md</code>·<code>constellation.json</code> ×2. 커밋 <code>e2fdb372</code>, verify 404 suites/3138 tests PASS.<br>② golden 갱신 — 6도메인 평균 + <code>+0.05</code> all-lit 보너스 기준 기대값 3종.<br>③ 스토어 캡처 준비 완료 — <code>capture-vc20.ps1</code>·<code>preflight-data.mjs</code>.</p>
+<h3>다음에 할 일</h3><p style="font-size:13px;margin:0"><b>vc20이 FINISHED 됐으므로 non-home 3장을 지금 찍을 수 있다</b> — <code>/star/career</code> → <code>/core-brain</code> → <code>/onboarding</code>.<br>home 1장은 <code>#1141</code> 머지 → production 채널 OTA 뒤에만.</p>
+<h3>S7 티켓을 정정했다</h3><p style="font-size:13px;margin:0">S7이 “<code>companion.json</code>의 7별 문장은 앱이 import하지 않아 사용자 영향 0”이라고 썼는데 <b>둘 다 틀렸다.</b> 실제 위치는 <code>data/screens/gaps.json:204</code>이고, <code>canonGaps.manualConcepts</code>로 import돼 deep-space <code>/manual</code> KO에 <b>실제 렌더된다.</b></p>
+</div>
+<div class="sess">
+<div class="sn">S5 · 적대검증 <span class="bdg bad">막힘</span></div>
+<div class="sr">Codex · VSCode 5</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">다른 세션의 주장을 반증하는 세션. <b>S1~S4의 산출물은 S5를 통과해야 main이나 S7에 도달한다.</b> 판정 어휘: CONFIRMED / CONDITIONAL / REFUTED / UNVERIFIABLE.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0">R1 누적 판정 <b>61건</b> (CONFIRMED 27 · CONDITIONAL 13 · REFUTED 18 · UNVERIFIABLE 3).<br>결정적 반박: <b>“RevenueCat Browser Mode 로그가 웹 결제 실패의 원인”은 REFUTED.</b> 그 로그는 번들에 포함된 SDK의 page-load 환경 감지일 뿐이고, 진짜 원인은 <code>web unavailable → packages=[] → 그런데도 활성인 CTA → local purchaseError</code>다.<br>그리고 Live Paddle에 notification destination이 <b>0개</b>이므로 웹훅 우회 경로 가설도 깨진다고 확인.</p>
+<h3>★ 지금 여기서 막혀 있다</h3><p style="font-size:13px;margin:0"><b>S5가 검증 대기 중인 것이 3건이고, 07-29 04:56 이후 응답이 없다.</b><br>· <code>T-R1-S1-S5-04</code> (04:56) — S1 발주<br>· <code>T-R1-S2-S5-02</code> (04:46) — S2 발주<br>· <code>#1139</code> 2차 검증<br>재개하면 <b>S5부터 깨워야 한다.</b> 여기가 병목이다.</p>
+</div>
+<div class="sess">
+<div class="sn">S6 · 메타 프롬프팅 <span class="bdg n">대기</span></div>
+<div class="sr">Claude Code · VSCode 6</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">라운드 전체를 감사하는 세션. BOARD를 관리하고, 세션 간 모순·중복·누락을 잡아 라우팅한다.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0"><code>R1/BOARD.md</code> 관리, 크리티컬 패스와 이슈 I-1~I-8 추적. L-1/L-2/L-3 정정 전파. 품앗이 10명 목표·갈래 A 지시.</p>
+<h3>다음에 할 일</h3><p style="font-size:13px;margin:0">R1 종료 감사. <code>[skip ci]</code> 워크플로가 PR head를 막는 문제(S2 #1136 건)에 대한 정책 결정 — S5 머지 기준을 head가 아니라 코드 커밋 기준으로 바꿀지.</p>
+</div>
+<div class="sess me">
+<div class="sn">S7 · 콘솔 전담 <span class="bdg ok">진행 가능</span></div>
+<div class="sr">Claude Cowork (이 세션)</div>
+<p style="font-size:13px;color:var(--mut);margin:0 0 8px">화면이 있어야만 되는 일을 끝까지 하는 세션 — Play Console · App Store Connect · AdMob · Firebase · Supabase · Paddle · EAS · GA4 · Squarespace DNS · GitHub 웹. 그리고 <b>라운드 운영</b>(발주·회신 취합·라운드 개폐). 코드 수정과 설계 판단은 하지 않는다.</p>
+<h3>이번에 한 일</h3><p style="font-size:13px;margin:0">① <b>Paddle 반려 원인 규명 → 해결 → 재제출 → 통과</b>. 메일 원문 확보(사유 3개), 루트 404 실측, <code>simon-yhkim.github.io</code> 레포에 <code>index.html</code>이 없어서였음을 발견, 랜딩 게시(커밋 2건), 재제출.<br>② <b>iOS 제출 차단</b> — ASC는 차단 0건이지만 붙어 있는 Build 6이 <code>#1128</code> 이전이라 온보딩 P0가 실린다는 걸 잡아냄.<br>③ <b>S2의 “Actions 멈춤” 진단 반증</b> — 공개 레포라 Actions 분 무제한, 마지막 run은 success. 막힌 건 Expo 무료 워커 큐였다.<br>④ <b>OTA 안전성 확정</b> — vc20 fingerprint 원문 확인 + runtime 격리로 과거 설치본에 도달하지 않음을 증명.<br>⑤ 스토어 IAP 전무 확인(ASC 구독 0 · Play 정기결제 0 · 일회성 0 · Paddle 상품 0).</p>
+<h3>스스로 틀린 것 3건</h3><p style="font-size:13px;margin:0">정직성 규칙에 따라 남긴다.<br>· <b><code>gaps.json</code> 경로·가시성</b> — S2 회신의 경로를 검증 없이 옮겼고 S4가 정정했다.<br>· <b>OTA policy 스텝</b> — 스텝 <i>이름만</i> 보고 fingerprint를 비교한다고 추정했다. S2가 정정했다.<br>· <b>평생 등급</b> — <code>LIFETIME.tier="soma"</code>만 보고 “더 낮은 등급”이라 단정했으나, 리즈닝은 항해자와 동일하다. S1이 정정했다.<br>공통 원인: <b>파일을 열지 않고 이름·경로로 추정했다.</b></p>
+</div>
+<h2 id="todo">투두 — 우선순위순</h2>
+<div class="card"><table><tr><th style="width:38px">P</th><th style="width:290px">할 일</th><th style="width:88px">담당</th><th style="width:88px">상태</th><th>비고</th></tr>
+<tr><td><b>P0</b></td><td><b>Paddle 신원 확인 완료</b></td><td>Simon</td><td><span class="bdg bad">막힘</span></td><td style="color:var(--mut);font-size:12.5px">결제 레일 전체의 단일 차단점. 도메인은 이미 통과했다</td></tr>
+<tr><td><b>P0</b></td><td><b>테스터 12명 확보</b></td><td>Simon</td><td><span class="bdg bad">막힘</span></td><td style="color:var(--mut);font-size:12.5px">08-03 마감. 현재 3/12. 카페는 S7이 접근 불가</td></tr>
+<tr><td><b>P0</b></td><td><b>S5 적대검증 재가동</b></td><td>S5</td><td><span class="bdg bad">막힘</span></td><td style="color:var(--mut);font-size:12.5px">PR 3건이 green인 채로 대기. 여기가 병목</td></tr>
+<tr><td><b>P1</b></td><td><b>vc20 AAB 다운로드 → SHA → merged manifest 검사</b></td><td>S7</td><td><span class="bdg ok">가능</span></td><td style="color:var(--mut);font-size:12.5px">빌드 FINISHED. S5 과제 1번</td></tr>
+<tr><td><b>P1</b></td><td><b>non-home 스크린샷 3장 촬영</b></td><td>S4</td><td><span class="bdg ok">가능</span></td><td style="color:var(--mut);font-size:12.5px">/star/career → /core-brain → /onboarding. vc20 설치본으로</td></tr>
+<tr><td><b>P1</b></td><td><b>PR #1140 머지 → PR-2(법무 어휘+평생 삭제) 착수</b></td><td>S1</td><td><span class="bdg warn">S5 대기</span></td><td style="color:var(--mut);font-size:12.5px">PR-2 머지 직전 S7 통보 필수 — 랜딩 동시 배포</td></tr>
+<tr><td><b>P1</b></td><td><b>PR #1141 머지 → production 채널 OTA → home 1장</b></td><td>S2→S7→S4</td><td><span class="bdg warn">S5 대기</span></td><td style="color:var(--mut);font-size:12.5px">OTA 안전성은 확정됐다(runtime 격리)</td></tr>
+<tr><td><b>P2</b></td><td><b>Paddle 카탈로그 생성 — 항해자 월 ₩9,900 / 연 ₩99,000</b></td><td>S7</td><td><span class="bdg warn">신원확인 대기</span></td><td style="color:var(--mut);font-size:12.5px">상품 폼은 채워둠. 북극성은 '준비 중'이라 안 만듦. 평생은 미판매</td></tr>
+<tr><td><b>P2</b></td><td><b>iOS 재빌드 → ASC Build 교체 → 심사 제출</b></td><td>S1/S7</td><td><span class="bdg n">보류</span></td><td style="color:var(--mut);font-size:12.5px">Build 6은 #1128 이전. Actions의 EAS iOS Build(IPA) 경로로 (Expo 콘솔은 credentials 없어 실패)</td></tr>
+<tr><td><b>P2</b></td><td><b>건강 선언 2단계·3단계 입력</b></td><td>S7</td><td><span class="bdg bad">STOP 유지</span></td><td style="color:var(--mut);font-size:12.5px">S5 지정 순서 — vc20 네이티브 검증이 먼저. 저장·제출은 Simon 승인 ⑤⑥ 뒤</td></tr>
+<tr><td><b>P2</b></td><td><b>ko-KR 출시 노트 교체</b></td><td>S7</td><td><span class="bdg warn">S1 대기</span></td><td style="color:var(--mut);font-size:12.5px">현재 en-US와 동일한 영문이 들어 있다. release-notes-ko.txt 필요</td></tr>
+<tr><td><b>P3</b></td><td><b>ops_daily_brief 89% 잘림 수정</b></td><td>S3</td><td><span class="bdg ok">가능</span></td><td style="color:var(--mut);font-size:12.5px">비용 게이트에 안 걸린다</td></tr>
+<tr><td><b>P3</b></td><td><b>/manual 카피 정합 (gaps.json ×2 + EN renderer)</b></td><td>S4</td><td><span class="bdg ok">가능</span></td><td style="color:var(--mut);font-size:12.5px">사용자 가시. 별도 3파일 단위</td></tr>
+<tr><td><b>P3</b></td><td><b>죽은 ds.home.hint 5로케일 정리</b></td><td>S4</td><td><span class="bdg ok">가능</span></td><td style="color:var(--mut);font-size:12.5px">ko/en/es/id/pt. C7 정합상 5파일 동시</td></tr>
+<tr><td><b>P3</b></td><td><b>캐논 JSON 가격 표류 ₩6,900/₩12,900 → ₩9,900/₩19,900</b></td><td>S4</td><td><span class="bdg ok">가능</span></td><td style="color:var(--mut);font-size:12.5px">코드가 안 읽는 필드. 런타임 영향 0</td></tr>
+<tr><td><b>P3</b></td><td><b>PayPal MCP 재연결</b></td><td>Simon</td><td><span class="bdg n">선택</span></td><td style="color:var(--mut);font-size:12.5px">정본 레일은 Paddle이라 우선순위 낮음</td></tr>
+<tr><td><b>P3</b></td><td><b>[skip ci] 워크플로가 PR head를 막는 문제</b></td><td>S6</td><td><span class="bdg warn">결정 필요</span></td><td style="color:var(--mut);font-size:12.5px">S5 기준을 head가 아닌 코드 커밋 기준으로 바꿀지</td></tr>
+</table></div>
+<h2 id="dec">Simon 결정 이력 — 날짜 있는 것만이 정본이다</h2>
+<div class="warnbox">이 프로젝트의 판정 규칙: <b>코드에 그렇게 적혀 있다는 사실은 근거가 아니다.</b> <code>pricing.ts</code>가 자기를 “single source of truth”라 불러도 그건 자기 주장이다. 날짜가 붙은 Simon의 결정만 정본이다.</div>
+<div class="card"><table><tr><th style="width:120px">날짜</th><th style="width:180px">항목</th><th>내용</th><th style="width:200px">근거</th></tr>
+<tr><td class="mono">2026-06-10</td><td><b>가격 승인</b></td><td>Soma ₩4,900 / Cortex ₩9,900 / Brain ₩19,900 · 연 = 월×10</td><td class="mono" style="color:var(--mut)"><code>b0c83ed8</code> #311</td></tr>
+<tr><td class="mono">2026-06-10</td><td><b>평생 리프라이스</b></td><td>Brain ₩299,000 → <b>Soma ₩99,000</b></td><td class="mono" style="color:var(--mut)"><code>c8a82db6</code> #313</td></tr>
+<tr><td class="mono">2026-07-03</td><td><b><b>요금제 캐논 확정 (명칭 정본)</b></b></td><td>별바라기(free) / 항해자(cortex, soma=평생판) / 북극성(brain) — <b>결제 enum·스토어 상품 불변</b></td><td class="mono" style="color:var(--mut)"><code>21523ca3</code> #703 · <code>HANDOFF.md:1911</code></td></tr>
+<tr><td class="mono">2026-07-17</td><td><b>Phase 4 판매 경계</b></td><td>reasoning free 주2 / plus 주7 / pro 무제한 · Free / Plus 항해자 ₩9,900 / Pro 북극성 ₩19,900(준비 중)</td><td class="mono" style="color:var(--mut)"><code>339cf381</code> #1050</td></tr>
+<tr><td class="mono">2026-07-29 03:44</td><td><b><b>home canon (가)안</b></b></td><td>북극성 밝기는 홈에 그리는 <b>6 도메인만</b> 평균. collect·Museum 제외. 8번째 별 없음. (다)안은 보류(폐기 아님)</td><td class="mono" style="color:var(--mut)">S4 <code>e2fdb372</code>에 계약으로 기록</td></tr>
+<tr><td class="mono">2026-07-29 04:14</td><td><b><b>평생 미판매</b></b></td><td>항해자 연간 ₩99,000과 평생 ₩99,000이 같은 값에 하나는 1년·하나는 영구 → 연간을 살 이유가 없다. 평생을 내린다</td><td class="mono" style="color:var(--mut)">PR #1140</td></tr>
+<tr><td class="mono">2026-07-29 03:1x</td><td><b>EAS 무료 큐 대기</b></td><td>유료 플랜 결제하지 않음. 결과적으로 큐에서 2h 9m 대기</td><td class="mono" style="color:var(--mut)">실측 확인</td></tr>
+<tr><td class="mono">2026-07-29 04:14</td><td><b>레거시 제거 PR-1 + PR-2 둘 다</b></td><td>PR-1 무영향 / PR-2 공개 법무. <b>절대 합치지 않는다</b></td><td class="mono" style="color:var(--mut)">S1 진행 중</td></tr>
+</table></div>
+<h2 id="set">고정값 · 계정 · 셋팅</h2>
+<div class="card"><h3>계정</h3><table><tr><th style="width:210px">용도</th><th>값</th></tr><tr><td>Play Console · App Store Connect</td><td class="mono">hwanydanh@gmail.com</td></tr><tr><td>GA4 · AdMob · Firebase · 테스터 그룹 · <b>Paddle 알림 메일</b></td><td class="mono">kim0405@hayangzip.com</td></tr><tr><td colspan="2" style="color:var(--warn);font-size:12.5px">⚠️ <b>메일 확인은 항상 두 계정 모두.</b> Paddle 반려 메일이 하양집으로 와서 처음에 못 찾았다.</td></tr><tr><td>Play 개발자 계정 ID</td><td class="mono">4795577270086966748 (개인 계정)</td></tr><tr><td>Play 앱 ID / 패키지</td><td class="mono">4972454515325629178 / com.simonk.secondbrain</td></tr><tr><td>Play 트랙</td><td class="mono">비공개 테스트 Alpha 4699963527811527343 · KR 단독</td></tr><tr><td>ASC App ID / 팀</td><td class="mono">6792266942 / 7CP84WS5C6 · “2nd-B: My Constellation”</td></tr><tr><td>Expo</td><td class="mono">expo.dev/accounts/<b>simon_k</b>/projects/2nd-brain  (simonk 아님)</td></tr><tr><td>Supabase</td><td class="mono">zoacryukmdeivmolvyhj</td></tr><tr><td>QA 테스트 계정</td><td class="mono">qa.ai.b18807@example.com · 비번은 committed <code>.env.test</code> (새로 만들지 말 것)</td></tr><tr><td>사업자</td><td>하양 프로덕션 (개인사업자) · 대표 배소하 · 경기도 안양시 · 통신판매업 신고 면제</td></tr><tr><td>테스터 그룹</td><td class="mono">groups.google.com/g/2ndb-testers · 2ndb-testers@googlegroups.com (공개·자동승인)</td></tr></table></div>
+<div class="card"><h3>URL · 산출물</h3><table><tr><th style="width:210px">무엇</th><th>주소</th></tr><tr><td>루트 랜딩 (Paddle 검증용)</td><td class="mono">https://simon-yhkim.github.io/  — 별도 레포 <code>Simon-YHKim/simon-yhkim.github.io</code>, S7이 관리</td></tr><tr><td>웹 앱</td><td class="mono">https://simon-yhkim.github.io/2nd-B/  — <code>gh-pages</code> 브랜치, <code>web-deploy.yml</code>이 배포</td></tr><tr><td>이용약관</td><td class="mono">/2nd-B/terms</td></tr><tr><td>개인정보처리방침</td><td class="mono">/2nd-B/<b>privacy-policy</b>  (<code>/privacy</code>는 앱 내 설정 화면이지 문서가 아니다)</td></tr><tr><td>환불정책</td><td class="mono">/2nd-B/refund</td></tr><tr><td>세션 문서</td><td class="mono">E:\2ndB\docs\sessions\R1\  · 프로토콜은 <code>docs\sessions\PROTOCOL.md</code></td></tr><tr><td>vc20 빌드</td><td class="mono">expo.dev/.../builds/135775f2-89e4-4803-af35-cc046bdc3f51</td></tr></table></div>
+<div class="card"><h3>기술 고정값</h3><table><tr><th style="width:210px">항목</th><th>값</th></tr><tr><td>main HEAD</td><td class="mono">9c674f4d (07-29 02:14) — 20시간째 이동 없음</td></tr><tr><td>vc20 runtime / fingerprint</td><td class="mono">c1e1f6e844de10e5d82197caebbf3f17c91974e5 · channel <b>production</b></td></tr><tr><td>OTA 안전성</td><td>과거 production 업데이트는 전부 runtime <code>0.0.8</code>, vc19는 <code>b5e1c2a</code>. <b><code>c1e1f6e</code>를 가진 빌드는 vc20 하나뿐</b>이라 OTA는 vc20 설치본에만 간다</td></tr><tr><td>fingerprint source set</td><td>config-plugins · assets · node_modules · patches · .easignore · .gitignore · eas.json · google-services.json · Android autolinking. <b><code>src/</code>·<code>public/proto/</code>·<code>docs/</code>·<code>design/</code>는 없다</b></td></tr><tr><td>UI 모드</td><td class="mono">EXPO_PUBLIC_UI=deep-space (web-deploy.yml·EAS production 둘 다 핀). PlansLegacy는 출고 빌드에서 렌더 0</td></tr><tr><td>EAS 무료 티어</td><td>동시 빌드 1. 이번 vc20이 <b>큐에서만 2h 9m</b> 대기. 새 빌드는 뒤에 줄 선다</td></tr><tr><td>GitHub Actions</td><td><b>공개 레포라 분 무제한·무료.</b> 워크플로 13개 전부 active. “Actions 멈춤”은 오진이었다 — push가 없었을 뿐</td></tr><tr><td>Paddle 결제 레일</td><td>MoR(Merchant of Record). Stripe는 한국 사업자 불가, PayPal은 가능하나 백업</td></tr><tr><td>웹훅</td><td><code>supabase/functions/paddle-webhook/index.ts</code> <b>182줄 완성본이 이미 있다.</b> 배포·설정만 남음. 현재 Live Paddle에 destination 0개</td></tr></table></div>
+<h2 id="rule">작업 규율 · 게이트</h2>
+<div class="card"><h3>사이클 (Phase 0–7)</h3><pre>라운드 개시 → 병렬 작업 → 개별 적대검증 → 재작업 → 교차 통합검증 → 콘솔 이관 → S6 감사 → 다음 라운드</pre><p style="font-size:13px;margin:0"><b>S1~S4의 산출물은 S5를 통과해야 S7이나 main에 도달한다.</b> 이 규칙이 지금 병목을 만들고 있다.</p></div>
+<div class="card"><h3>7개 게이트 — Simon 확인 없이 클릭 금지</h3><table><tr><td style="width:34px"><b>①</b></td><td style="width:120px">파괴적</td><td>DB 삭제 · 파일 덮어쓰기 · force push · reset --hard</td></tr><tr><td><b>②</b></td><td>실비용</td><td>유료 플랜 · 유료 API 대량 호출 · 클라우드 리소스 · 도메인 구매</td></tr><tr><td><b>③</b></td><td>시크릿</td><td>API 키 · 토큰 · 비밀번호. <b>평문으로 채팅에 남기지 않는다</b></td></tr><tr><td><b>④</b></td><td>안전·임상</td><td>건강·의료 관련 진술</td></tr><tr><td><b>⑤</b></td><td>법무</td><td>약관 · 개인정보처리방침 · 환불정책 · 공개 가격 고지</td></tr><tr><td><b>⑥</b></td><td>스토어 불가역</td><td>「검토를 위해 전송」 · 「Add for Review」 · 심사 제출</td></tr><tr><td><b>⑦</b></td><td>PII 공개</td><td>주소 · 전화 · 사업자 정보의 대외 노출</td></tr></table></div>
+<div class="card"><h3>코드 작업 규율</h3><ul><li><code>main</code> 직접 push 금지 · <code>git add -A</code> 금지</li><li>워크트리는 반드시 <code>E:\2ndB\.worktrees\{name}</code> 안에</li><li><code>npm run verify</code>는 <b>standalone으로 실행</b>해 exit code를 가리지 말 것</li><li><code>check:cycles</code>는 무관용(zero-tolerance)</li><li>Conventional Commits · 커밋 전 버그·취약점 자동 리뷰</li><li><b>시각은 반드시 실측.</b> Cowork의 <code>device_bash</code>는 UTC이므로 <code>TZ=Asia/Seoul</code>을 붙여야 한다 (PROTOCOL §2의 “Git Bash는 9시간 어긋난다”는 경고는 Windows Git Bash 한정)</li></ul></div>
+<div class="card"><h3>판정 어휘</h3><p style="margin:0;font-size:13px"><span class="bdg ok">CONFIRMED</span> 실측으로 확인 &nbsp; <span class="bdg warn">CONDITIONAL</span> 조건부 &nbsp; <span class="bdg bad">REFUTED</span> 반박됨 &nbsp; <span class="bdg n">UNVERIFIABLE</span> 이 자리에서 검증 불가</p><p style="margin:8px 0 0;font-size:13px;color:var(--mut)">막히면 그 자리에서 멈추고 <b>어느 화면 어느 항목에서 막혔는지</b> 정확히 적는다. 임의로 우회하지 않는다.</p></div>
+<h2>이번 라운드에서 뒤집힌 것들</h2>
+<p class="sub">틀린 채로 넘어가면 다음 사람이 같은 함정에 빠진다. 전부 남긴다.</p>
+<div class="card"><table><tr><th style="width:130px">누가</th><th style="width:290px">틀렸던 주장</th><th>실측</th></tr>
+<tr><td><b>S7 → S4가 정정</b></td><td style="color:var(--mut)"><code>companion.json</code>의 7별 문장 · “사용자 영향 0”</td><td>실제 위치는 <code>gaps.json:204</code>이고 <code>/manual</code> KO에 <b>실제 렌더된다</b>. S7이 S2의 경로를 검증 없이 옮겼다</td></tr>
+<tr><td><b>S7 → S2가 정정</b></td><td style="color:var(--mut)"><code>Verify OTA/native runtime policy</code> 스텝이 fingerprint를 검사한다</td><td><b>검사하지 않는다.</b> policy 형태·버전 자릿수만 보는 설정 가드다</td></tr>
+<tr><td><b>S7 → S1이 정정</b></td><td style="color:var(--mut)">평생 이용권이 항해자보다 낮은 등급</td><td><b>아니다.</b> 리즈닝은 항해자와 동일(주 7회), 채팅만 별도 캡(30/일)</td></tr>
+<tr><td><b>S7 → S2 진단 반증</b></td><td style="color:var(--mut)">“GitHub Actions가 61분째 멈췄다 · 빌링 한도 의심”</td><td>공개 레포라 <b>Actions 분 무제한</b>. 마지막 run은 success. 막힌 건 <b>Expo 무료 워커 큐</b>였다</td></tr>
+<tr><td><b>S1 자기정정</b></td><td style="color:var(--mut)">“웹에 결제 코드가 없다”</td><td>RevenueCat SDK가 <b>웹 번들에 실려 브라우저 모드로 자기를 초기화한다</b>(<code>purchases.js:64</code>가 모듈 최상위). 다만 <code>configure()</code>를 안 부르므로 결제 시도는 0</td></tr>
+<tr><td><b>S5 → S6/S7 정정</b></td><td style="color:var(--mut)">“Health Connect 집계 수치가 본문 그대로 Gemini로 간다”</td><td>본문 그대로 가는 채널 C는 Android <code>READ_*</code>가 아니라 <b>사용자가 별도 업로드하고 비준한 Apple Health <code>export.xml</code></b>이다</td></tr>
+<tr><td><b>S5 → S7 정정</b></td><td style="color:var(--mut)">“RevenueCat Browser Mode 로그가 웹 결제 실패의 원인”</td><td><b>REFUTED.</b> 진짜 원인은 <code>web unavailable → packages=[] → 그런데도 활성인 CTA → local purchaseError</code></td></tr>
+<tr><td><b>S7 자기정정</b></td><td style="color:var(--mut)">“iPad 스크린샷이 iOS 제출을 막는다”</td><td>Device Family = iPhone이라 <b>iPad 스크린샷은 필요 없다</b></td></tr>
+</table>
+<p style="font-size:12.5px;color:var(--mut);margin:10px 0 0">S7의 오보 3건은 공통 원인이 있다 — <b>파일을 열지 않고 이름·경로로 기능을 추정했다.</b> 콘솔 세션이 코드를 인용할 땐 원문을 열어야 한다.</p></div>
+<h2 id="resume">다른 컴퓨터에서 재개하는 절차</h2>
+<div class="card"><ol style="font-size:13.5px"><li><b>먼저 대조하라</b> — <code>git rev-parse main origin/main</code>. 이 문서 기준 main은 <code>9c674f4d</code>다.</li><li><b>프로토콜을 읽어라</b> — <code>docs/sessions/PROTOCOL.md</code> (v1). 배너·티켓 형식·사이클·게이트가 여기 있다.</li><li><b>R1 폴더의 최신 회신부터</b> — <code>docs/sessions/R1/</code>. 마지막 파일 2개가 <code>T-R1-S1-S5-04.md</code>(04:56)와 <code>T-R1-S2-S5-02.md</code>(04:46)이고, <b>둘 다 S5가 아직 안 받았다.</b></li><li><b>S5부터 깨워라.</b> PR 3건이 green인 채로 S5만 기다리고 있다. 여기를 풀지 않으면 아무것도 main에 못 간다.</li><li><b>병렬로 Simon 본인 작업 2건</b> — Paddle 신원 확인 · 테스터 모집. 둘 다 세션이 대신할 수 없다.</li><li><b>S7(콘솔)은 새 Cowork 세션으로 부팅한다.</b> 이 문서의 「고정값·셋팅」을 넘기면 그대로 이어받는다. 브라우저 로그인 상태는 Simon의 Chrome에 남아 있다.</li></ol><p style="font-size:13px;color:var(--mut);margin:10px 0 0">⚠️ 세션들이 20시간 멈춰 있었으므로, 재개할 때 각 세션이 <b>자기가 마지막에 무엇을 했는지</b>부터 다시 확인하게 하라. 컨텍스트가 날아간 세션은 <code>docs/sessions/R1/</code>의 자기 회신 파일을 읽으면 복구된다.</p></div>
+<p class="sub" style="margin-top:34px;text-align:center">S7 콘솔 전담 · Claude Cowork · 실측 2026-07-30 00:55 KST</p>
+</div></body></html>
