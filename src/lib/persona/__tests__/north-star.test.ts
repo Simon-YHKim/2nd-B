@@ -1,5 +1,6 @@
-import { domainStarLevels, northStarBrightness } from "../north-star";
-import { soulCoreBrightness } from "../stars";
+import { canonPolarisBrightness } from "@/lib/canon";
+
+import { HEADLINE_DOMAIN_IDS, domainStarLevels, northStarBrightness } from "../north-star";
 import type { DomainEntry, DomainId } from "../domain-stars";
 
 const organized = (n: number): DomainEntry[] =>
@@ -100,10 +101,49 @@ describe("northStarBrightness", () => {
     expect(broad).toBeGreaterThan(oneSpike);
   });
 
-  it("uses the SAME formula as soulCoreBrightness (domain axis)", () => {
-    // identical level multiset -> identical aggregate, proving the formula is shared
-    const domainLevels = { career: 4, finance: 3, growth: 2, relation: 1, health: 1, recreation: 1, collect: 1 } as Record<DomainId, 1 | 2 | 3 | 4 | 5>;
-    const constructLevels = { now: 4, recall: 3, seen: 2, rhythm: 1, relational: 1, possible: 1, values: 1 } as const;
-    expect(northStarBrightness(domainLevels)).toBeCloseTo(soulCoreBrightness(constructLevels));
+  // Replaces the old "SAME formula as soulCoreBrightness (domain axis)" assertion.
+  // It is no longer true and must not be restored: soulCoreBrightness averages the
+  // SEVEN layer-B constructs, while the headline now averages only the SIX domains
+  // the home draws (Simon 2026-07-29 03:44, canon polarisBrightness). Pinning the
+  // two together would silently drag `collect` back into the number.
+  describe("the headline input set is the canon's, not every domain", () => {
+    it("reads the included/excluded sets from the canon rather than hardcoding them", () => {
+      expect([...HEADLINE_DOMAIN_IDS]).toEqual(canonPolarisBrightness.includedDomainIds);
+      expect(HEADLINE_DOMAIN_IDS).not.toContain("collect");
+      expect(canonPolarisBrightness.excludedDomainIds).toContain("collect");
+      // museum is a portal, not a domain: it has no level and never enters the mean.
+      expect(canonPolarisBrightness.excludedHomeNodeIds).toContain("museum");
+    });
+
+    it("is INVARIANT to collect at every level (the defect this closes)", () => {
+      const visible = { career: 4, finance: 3, growth: 4, relation: 4, health: 4, recreation: 3 } as const;
+      const base = northStarBrightness(visible);
+      for (const collect of [1, 2, 3, 4, 5] as const) {
+        expect(northStarBrightness({ ...visible, collect })).toBe(base);
+      }
+    });
+
+    it("does not let collect earn the all-lit bonus on its own", () => {
+      // five visible lit, one dark, collect maxed: the bonus must NOT fire.
+      const withDarkStar = northStarBrightness({
+        career: 2, finance: 2, growth: 2, relation: 2, health: 2, recreation: 1, collect: 5,
+      });
+      const allVisibleLit = northStarBrightness({
+        career: 2, finance: 2, growth: 2, relation: 2, health: 2, recreation: 2, collect: 1,
+      });
+      expect(allVisibleLit - withDarkStar).toBeGreaterThan(canonPolarisBrightness.allLitBonus / 2);
+    });
+
+    // The canon carries the expected values, so a canon edit that the code does not
+    // follow fails here instead of shipping a number nobody re-derived.
+    it.each(canonPolarisBrightness.goldens.map((g) => [g.id, g] as const))(
+      "matches the canon golden %s",
+      (_id, golden) => {
+        expect(northStarBrightness(golden.levels as Partial<Record<DomainId, 1 | 2 | 3 | 4 | 5>>)).toBeCloseTo(
+          golden.expected,
+          10,
+        );
+      },
+    );
   });
 });
