@@ -74,17 +74,17 @@ describe("northStarBrightness", () => {
     expect(northStarBrightness({})).toBeCloseTo(0.2);
   });
 
-  it("all domains >= L2 earns the all-lit bonus", () => {
+  it("all visible domains >= L2 earns the all-lit bonus", () => {
     const all2 = Object.fromEntries(
       (["career", "finance", "growth", "relation", "health", "recreation", "collect"] as DomainId[]).map(
         (d) => [d, 2 as const],
       ),
     );
-    // mean(0.4 x7) + 0.05 = 0.45
+    // mean(0.4 x6 visible domains) + 0.05 = 0.45; collect is ignored.
     expect(northStarBrightness(all2)).toBeCloseTo(0.45);
   });
 
-  it("caps at 1.0 even when all domains are L5", () => {
+  it("caps at 1.0 even when all visible domains are L5", () => {
     const all5 = Object.fromEntries(
       (["career", "finance", "growth", "relation", "health", "recreation", "collect"] as DomainId[]).map(
         (d) => [d, 5 as const],
