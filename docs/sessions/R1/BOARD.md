@@ -171,3 +171,28 @@ R1에서 우회 머지된(`f1c964a3`, PROTOCOL §5 유일 예외로 Simon 직접
 
 **하지 말 것 재확인(S5 티켓 원문 그대로, S6도 동일 준수)**: `#1141`/`#1142` 롤백 금지 · Polaris 계산
 로직 재수정 금지 · 추가 production OTA 배포 금지 · 누락 티켓 추측 복원 금지 · `main` 직접 push 금지.
+
+## 갱신 — 2026-07-31 01:24 KST, S7 회신 수거 및 S6 감사 종료
+
+S7 회신 원문은 `docs/s7-r1-replies` 브랜치의
+`docs/sessions/R1/T-R1-S6-S7-01-reply.md`(커밋 `6bac658c`, PR `#1156`)를 직접 열어 확인했다.
+S6가 00:04 KST에 발주한 4개 항목은 다음과 같이 닫는다.
+
+| 항목 | 실측 결과 | S6 판정 |
+|---|---|---|
+| `#1146` 법무·GTM 문구 | 2026-07-31 00:55 KST 머지. 법무 본문의 lifetime 문구 제거와 정본 티어 라벨 일치를 S7이 main 실파일로 재검증 | **CLOSED** |
+| `north-star.ts` 주석 | PR `#1154`, 로직 변경 없음. 2026-07-31 01:17 KST `freshness`·`lint`·`recapture`·`verify`·`web-export-smoke` 전부 green | **READY TO MERGE** |
+| `T-R1-S1-S5-04` | 전체 ref와 로컬 클론 검색 결과 0건. 추측 복원 없이 S5 사후 판정으로 대체 | **LOST / SUPERSEDED** |
+| `T-R1-S2-S5-02` | 전체 ref와 로컬 클론 검색 결과 0건. 추측 복원 없이 S5 사후 판정으로 대체 | **LOST / SUPERSEDED** |
+
+추가 확인:
+
+- PR `#1156`은 2026-07-31 01:17 KST 기준 `lint`·`verify`·`web-export-smoke` 전부 green.
+- PR `#1149`은 최신 `origin/main`을 S6 브랜치에 merge해 뒤처짐을 해소했다. 이 BOARD 갱신과
+  `T-R1-S6-S7-02` 발주를 포함해 다시 push·CI 검증한다.
+- `PROTOCOL.md`는 **LOST**로 유지하며 추측 복원하지 않는다. 부팅 계약 정본은
+  `docs/sessions/BOOTSTRAP.md` v1.1이다.
+- S6의 R1 감사·라우팅 책임은 여기서 종료한다. 남은 것은 S7의 PR 순차 머지와 `origin/main` 실반영 확인뿐이다.
+
+후속 발주: `T-R1-S6-S7-02` — `#1149` → `#1156` → `#1154` 순서로 green 확인 후 머지하고,
+배지가 아니라 `origin/main`의 실제 파일과 ancestry로 완료를 증명한다.

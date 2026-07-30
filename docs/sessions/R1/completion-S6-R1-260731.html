@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S6 R1 감사 완료 보고</title>
+<style>
+:root{color-scheme:light dark;--accent:#9b641d;--text:#202124;--muted:#62656b;--surface:#f5f1e8}
+@media(prefers-color-scheme:dark){:root{--accent:#e0a86b;--text:#eef0f4;--muted:#aeb2bc;--surface:#171922}}
+*{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--text);font:16px/1.55 system-ui,sans-serif}
+main{max-width:960px;margin:auto;padding:28px 18px 64px}h1{line-height:1.15}h2{margin-top:32px}.sub,.muted{color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.toolbar button{min-height:44px;padding:8px 14px;border:1px solid var(--muted);border-radius:10px;background:transparent;color:var(--text);cursor:pointer}
+.toolbar button[aria-pressed="true"]{background:var(--accent);color:#111;border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.card,details{padding:16px;border:1px solid color-mix(in srgb,var(--muted) 45%,transparent);border-radius:14px;background:color-mix(in srgb,var(--surface) 82%,var(--text) 4%)}
+.card strong{display:block;font-size:1.5rem;color:var(--accent)}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{text-align:left;padding:10px;border-bottom:1px solid color-mix(in srgb,var(--muted) 35%,transparent)}
+summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}.ko,.en,.easy,.expert{display:none}
+.lang-ko .ko,.lang-en .en,.mode-easy .easy,.mode-expert .expert{display:block}
+code{overflow-wrap:anywhere}@media(max-width:600px){table{font-size:.9rem}.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body class="lang-ko mode-easy">
+<main>
+<p class="muted">S6 · 메타 프롬프팅 · R1 · 2026-07-31 01:24 KST</p>
+<h1 class="ko">R1 감사 종료와 S7 인계</h1><h1 class="en">R1 audit closure and S7 handoff</h1>
+<p class="sub ko">S6의 정본 복구 판단과 후속 라우팅을 끝내고, 남은 PR 마감 절차를 S7에 넘겼습니다.</p>
+<p class="sub en">S6 completed the source-of-truth decision and routing, then handed the final PR sequence to S7.</p>
+<div class="toolbar" role="group" aria-label="보고서 표시 설정">
+<button id="ko" aria-pressed="true" aria-label="한국어로 보기">한국어</button>
+<button id="en" aria-pressed="false" aria-label="View in English">English</button>
+<button id="easy" aria-pressed="true" aria-label="쉬운 설명 보기">쉬운 설명</button>
+<button id="expert" aria-pressed="false" aria-label="전문가 설명 보기">전문가 설명</button>
+</div>
+<section class="grid">
+<div class="card"><span class="ko">S6 발주 결과</span><span class="en">S6 order results</span><strong>4/4</strong><span class="ko">처리 완료</span><span class="en">handled</span></div>
+<div class="card"><span class="ko">머지 완료</span><span class="en">Merged</span><strong>#1146</strong><span class="ko">법무·GTM</span><span class="en">legal and GTM</span></div>
+<div class="card"><span class="ko">Green PR</span><span class="en">Green PRs</span><strong>2</strong><span>#1154 · #1156</span></div>
+<div class="card"><span class="ko">남은 실행자</span><span class="en">Next operator</span><strong>S7</strong><span class="ko">순차 머지·실반영 검증</span><span class="en">merge and verify</span></div>
+</section>
+
+<section class="easy ko"><h2>무엇을 끝냈나</h2><p>없어진 규칙 파일을 억지로 다시 만들지 않기로 확정했습니다. 대신 실제로 존재하는 부팅 문서와 상태판을 고쳤고, S7이 남은 세 PR을 안전하게 닫을 수 있는 순서를 적었습니다.</p></section>
+<section class="easy en"><h2>What was completed</h2><p>The missing protocol was not recreated from guesses. Existing bootstrap and board documents were corrected, and S7 received a safe sequence for closing the remaining PRs.</p></section>
+<section class="expert ko"><h2>기술적 결정</h2><p><code>docs/sessions/PROTOCOL.md</code>는 모든 ref와 로컬 클론에서 부재하므로 LOST로 유지합니다. <code>BOOTSTRAP.md</code> v1.1과 R1 BOARD를 대체 정본으로 사용하며, PR #1149에 최신 <code>origin/main</code>을 merge했습니다.</p></section>
+<section class="expert en"><h2>Technical decision</h2><p><code>docs/sessions/PROTOCOL.md</code> remains LOST because it is absent from every ref and local clone. <code>BOOTSTRAP.md</code> v1.1 and the R1 board are the replacement sources of truth, and current <code>origin/main</code> was merged into PR #1149.</p></section>
+
+<h2 class="ko">결과와 남은 단계</h2><h2 class="en">Results and remaining steps</h2>
+<table>
+<thead><tr><th>PR</th><th class="ko">상태</th><th class="en">Status</th><th class="ko">다음 행동</th><th class="en">Next action</th></tr></thead>
+<tbody>
+<tr><td>#1149</td><td class="ko">S6 갱신·재검증 예정</td><td class="en">S6 updated; CI pending</td><td class="ko">먼저 머지</td><td class="en">Merge first</td></tr>
+<tr><td>#1156</td><td>CI green</td><td>CI green</td><td class="ko">최신 main 반영 후 머지</td><td class="en">Update and merge</td></tr>
+<tr><td>#1154</td><td>CI green</td><td>CI green</td><td class="ko">최신 main 반영 후 머지</td><td class="en">Update and merge</td></tr>
+</tbody>
+</table>
+
+<details><summary><span class="ko">[자세히] 검증 근거와 위험</span><span class="en">[Details] Evidence and risks</span></summary>
+<div class="easy ko"><p>테스트가 초록이어도 마지막에는 main의 실제 파일을 다시 엽니다. 이 확인 전에는 완료라고 하지 않습니다.</p></div>
+<div class="easy en"><p>Even with green checks, S7 must open the actual files on main before declaring completion.</p></div>
+<div class="expert ko"><p><code>gh pr checks</code>를 머지 직전에 실행하고, 머지 후 <code>git show origin/main:&lt;path&gt;</code>와 <code>git merge-base --is-ancestor</code> exit code 0을 요구합니다. 주요 위험은 BEHIND 상태에서의 성급한 머지와 Merged 배지만 신뢰하는 오판입니다.</p></div>
+<div class="expert en"><p>Run <code>gh pr checks</code> immediately before each merge, then require <code>git show origin/main:&lt;path&gt;</code> and exit code 0 from <code>git merge-base --is-ancestor</code>. Primary risks are merging stale heads and trusting UI badges alone.</p></div>
+</details>
+
+<details><summary><span class="ko">[자세히] 롤백</span><span class="en">[Details] Rollback</span></summary>
+<p class="ko">문서 변경만 포함합니다. 문제가 생기면 해당 PR의 squash merge commit을 별도 revert PR로 되돌립니다. <code>reset --hard</code>나 force push는 사용하지 않습니다.</p>
+<p class="en">Changes are documentation-only. If needed, revert the squash merge commit through a separate PR; do not use hard reset or force push.</p>
+</details>
+</main>
+<script>
+const b=document.body,ko=document.getElementById("ko"),en=document.getElementById("en");
+const easy=document.getElementById("easy"),expert=document.getElementById("expert");
+ko.onclick=()=>{b.classList.replace("lang-en","lang-ko");ko.setAttribute("aria-pressed","true");en.setAttribute("aria-pressed","false")};
+en.onclick=()=>{b.classList.replace("lang-ko","lang-en");en.setAttribute("aria-pressed","true");ko.setAttribute("aria-pressed","false")};
+easy.onclick=()=>{b.classList.replace("mode-expert","mode-easy");easy.setAttribute("aria-pressed","true");expert.setAttribute("aria-pressed","false")};
+expert.onclick=()=>{b.classList.replace("mode-easy","mode-expert");expert.setAttribute("aria-pressed","true");easy.setAttribute("aria-pressed","false")};
+</script>
+</body>
+</html>

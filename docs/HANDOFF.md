@@ -3,6 +3,53 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-07-31 / S6 R1 감사 종료, S7 순차 머지 인계
+
+### 어디까지 왔나
+
+- `origin/main`: `73c62c4e` (S6 재개 시점 실측)
+- S6 브랜치: `claude/s6-r1-board-init`, PR `#1149`
+- `PROTOCOL.md`: 전체 ref와 로컬 클론에서 원본 부재. **LOST 확정, 추측 복원 금지**
+- 대체 정본: `docs/sessions/BOOTSTRAP.md` v1.1 + `docs/sessions/R1/BOARD.md`
+- 기존 S7 발주 4건: `#1146` 머지, `#1154` green, 누락 티켓 2건 LOST/SUPERSEDED
+- working tree: S6 전용 worktree에서만 변경. 루트 `C:\2ndB`의 untracked assets 6개는 건드리지 않음
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | PR `#1149` checks green 확인 후 머지 | small | ⭐ BOOTSTRAP·BOARD·후속 티켓의 정본화 |
+| B | PR `#1156` 최신 main 갱신·green 재확인·머지 | small | S7 회신 원문 정본화 |
+| C | PR `#1154` 최신 main 갱신·green 재확인·머지 | small | 낡은 7-domain 주석 정정 |
+| D | `origin/main` 실제 파일·ancestry 확인 후 reply PR | small | 머지 배지 오판 방지 |
+
+### 적용 중인 정책
+
+1. `main` 직접 push·자동 머지 금지. PR마다 머지 직전 `gh pr checks` 확인.
+2. `PROTOCOL.md`는 LOST로 유지하고 재구성하지 않는다.
+3. Polaris 계산 로직과 production OTA는 건드리지 않는다.
+4. 다른 세션 파일은 원문을 직접 연 뒤에만 `CONFIRMED`로 인용한다.
+
+### 핵심 파일 위치
+
+```text
+docs/sessions/BOOTSTRAP.md                   부팅 계약 v1.1
+docs/sessions/R1/BOARD.md                    S6 R1 감사 정본
+docs/sessions/R1/T-R1-S6-S7-02.md            S7 최종 발주와 복사용 시작 프롬프트
+docs/sessions/R1/T-R1-S6-S7-02-reply.md      S7 완료 회신 예정 경로
+```
+
+### 다음 세션 시작하는 법
+
+```powershell
+git fetch origin main
+git pull --ff-only origin main
+Get-Content docs/sessions/BOOTSTRAP.md
+Get-Content docs/sessions/R1/T-R1-S6-S7-02.md
+```
+
+---
+
 <details><summary>📑 목차 — live sections (최신순)</summary>
 
 - Latest — 2026-07-19 (S5) / 6세션 병렬 발주 최종 검수·통합 — S1~S4 PR 11건 머지 + P0-1 웹배포 해소 + 0095 프로드 (#1089~#1098)
