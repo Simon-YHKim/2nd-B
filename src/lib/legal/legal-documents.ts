@@ -49,7 +49,7 @@ _시행일: 2026-07-17_
 ④ 한 이용자가 복수 경로로 가입한 경우 계정 연결·통합 정책은 서비스 내 안내에 따릅니다.
 
 ### 제5조 (유료 서비스 및 결제)
-① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함: Plus ₩9,900/월 · Pro ₩19,900/월(출시 준비 중) · 연간 구독 = 월 요금×10(2개월 무료) · 평생 이용권 ₩99,000 일시불).
+① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함: 항해자 ₩9,900/월 · 북극성 ₩19,900/월(출시 준비 중) · 연간 구독 = 월 요금×10(2개월 무료)).
 ② **결제 및 판매자**: 유료 구독의 결제는 **Paddle.com Market Limited("Paddle")가 판매자(Merchant of Record)**\\로서 처리합니다. Paddle의 구매자 약관이 결제에 함께 적용됩니다.
 ③ **자동 갱신**: 유료 구독은 이용자가 취소하기 전까지 표시된 주기로 자동 갱신되며, 갱신 시점에 등록된 결제수단으로 청구됩니다. 이용자는 다음 갱신 이전 언제든 취소할 수 있습니다.
 ④ **결제수단**: 카드, KakaoPay, NaverPay 등 결제 화면에 제공되는 수단을 이용할 수 있습니다.
@@ -106,7 +106,7 @@ The Service is an AI-assisted personal tool that helps users accumulate records 
 (1) Users may sign up by email or social login (Google, Apple, Kakao, Naver, etc.). (2) **Age**: only users aged 14+ may register directly; children under 14 may use the Service only where verifiable guardian consent is obtained (phased per law and Company policy). (3) Users must provide accurate account information and are responsible for safeguarding their account. (4) Where one person registers via multiple methods, account-linking follows the in-Service guidance.
 
 ### 5. Paid services & billing
-(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Plus ₩9,900/mo · Pro ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free) · Lifetime ₩99,000 one-time). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
+(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free)). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
 
 ### 6. Withdrawal & refunds
 Withdrawal, refunds, and cancellation follow the separate **[Refund & Cancellation Policy](./refund-policy.md)** and Korean e-commerce law.
@@ -161,7 +161,7 @@ _최종 업데이트: 2026-07-17_
 ③ 디지털 콘텐츠 특성상, 이용자는 결제 시 **30일 환불 창(기간)에 대한 고지를 확인**한 뒤 이용을 시작합니다.
 
 ### 3. 구독 취소 및 자동 갱신
-- 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함: Plus ₩9,900/월 · Pro ₩19,900/월 · 연간 = 월 요금×10 · 평생 이용권 ₩99,000).
+- 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함: 항해자 ₩9,900/월 · 북극성 ₩19,900/월 · 연간 = 월 요금×10).
 - 이용자는 **다음 갱신일 이전 언제든 구독을 취소**할 수 있으며, 취소 시 **이미 결제한 기간의 만료일까지 유료 혜택이 유지**된 뒤 자동 갱신이 중단됩니다.
 - 자동 갱신 결제도 **결제일로부터 30일 이내**이면 위 2항의 환불 보장 대상입니다.
 - 취소 방법: 앱 내 [설정 → 구독 관리] 또는 Paddle 결제 영수증의 구독 관리 링크. 문의: kim0405@hayangzip.com.
@@ -198,7 +198,7 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 (3) As this is digital content, you confirm awareness of the 30-day refund window at checkout before use begins.
 
 ### 3. Cancellation & auto-renewal
-- Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included: Plus ₩9,900/mo · Pro ₩19,900/mo · yearly = 10x monthly · Lifetime ₩99,000).
+- Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo · yearly = 10x monthly).
 - You may **cancel any time before the next renewal**; paid benefits **continue until the end of the paid period**, then auto-renewal stops.
 - Auto-renewal charges are also covered by the 30-day guarantee in Section 2 **if within 30 days** of that charge.
 - How to cancel: in-app [Settings → Manage subscription] or the link on your Paddle receipt. Contact: kim0405@hayangzip.com.
@@ -240,6 +240,9 @@ _시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 - **이용자 콘텐츠**: 이용자가 입력·생성한 성찰·기록 등 서비스 이용 데이터.
 - **자동 수집**: 서비스 이용 기록, 기기·브라우저 정보, 접속 로그, 쿠키/로컬 저장소(웹).
 - **결제 관련**: 결제는 Paddle이 처리하며, **회사는 카드번호 등 결제수단 전체 정보를 저장하지 않습니다.** 결제 상태·구독 정보 등 처리 결과만 수신합니다.
+- **건강·활동 데이터(선택·민감정보)**: 걸음 수, 운동, 수면, 심박수. 성인 이용자가 앱에서 직접 연동을 켜고 OS 건강 연결(예: Health Connect)을 승인한 경우에만 읽어 **본인 계정에만** 저장합니다. 만 14세 미만 및 14-17세 미성년자에게는 이 기능이 잠겨 있어 수집하지 않습니다.
+
+**민감정보 처리 고지**: 위 건강·활동 데이터는 「개인정보 보호법」상 **민감정보**로 별도 동의를 받아 처리합니다. 이 데이터는 앱 내 루틴 자동 완료 표시와 이용자 본인의 건강 기록 표시("오늘의 건강 기록") 목적으로만 쓰이며, **AI(Gemini) 분석이나 외부 제3자 제공에 사용하지 않고 광고·판매에도 사용하지 않습니다.** 이용자는 언제든 열람·내보내기·삭제할 수 있습니다.
 
 ### 2. 수집·이용 목적
 회원 식별 및 계정 관리, 서비스 제공 및 개인화(AI 처리 포함), 유료 구독 결제·정산, 고객지원, 서비스 개선 및 보안, 법령상 의무 이행.
@@ -258,7 +261,7 @@ _시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
 
 ### 5. 개인정보의 국외 이전
-서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보 및 이용자 콘텐츠, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리, 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
+서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보·이용자 콘텐츠·건강 및 활동 데이터, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리(단 건강·활동 데이터는 AI 처리에 사용하지 않습니다), 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
 
 ### 6. 정보주체의 권리
 이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, kim0405@hayangzip.com 으로도 요청할 수 있습니다.
@@ -289,6 +292,9 @@ Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gye
 - **User Content**: reflections/records and other usage data you input or generate.
 - **Automatically collected**: usage logs, device/browser info, access logs, cookies/local storage (web).
 - **Payment-related**: payments are handled by Paddle; **the Company does not store full payment-instrument data (e.g., card numbers)** - it receives only processing results such as payment status and subscription info.
+- **Health & activity data (optional, sensitive)**: steps, exercise, sleep, heart rate. Read only when an adult user turns on the integration in-app and approves the OS health connection (e.g., Health Connect), and stored **only in your own account**. The feature is locked for users under 14 and for 14-17 minors, so no data is collected from them.
+
+**Sensitive-data notice**: the health and activity data above is **sensitive data** under Korea's PIPA and is processed with separate consent. It is used only for in-app routine auto-completion and to show your own health records ("Today's health records"); it is **not sent to AI (Gemini), not shared with external third parties, and never used for advertising or sale.** You may view, export, or delete it at any time.
 
 ### 2. Purposes
 Member identification and account management; service provision and personalization (including AI processing); paid-subscription billing/settlement; customer support; service improvement and security; compliance with legal obligations.
@@ -307,7 +313,7 @@ The Company entrusts processing as below; processors act only within the stated 
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
 
 ### 5. Overseas transfer
-The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data and User Content in Section 1; the purpose is data hosting (auth/database) and AI processing; transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
+The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data, User Content, and health and activity data in Section 1; the purpose is data hosting (auth/database) and AI processing (health and activity data is excluded from AI processing); transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
 
 ### 6. Your rights
 You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact kim0405@hayangzip.com.
