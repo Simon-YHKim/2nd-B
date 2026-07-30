@@ -27,12 +27,13 @@ describe("reasoning execution isolation", () => {
   test("the home reward action is fail-closed for age, tier and ad config", () => {
     const home = readRepoFile("src/components/deep-space/ConstellationHome.tsx");
     const guard = '{isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (';
-    const rewardLabel = "광고 보고 ${REWARD_PER_WATCH}회 받기";
+    const rewardLabel = "label={reasoningCopy.adReward(REWARD_PER_WATCH)}";
     const guardIndex = home.indexOf(guard);
     const rewardIndex = home.indexOf(rewardLabel);
     const guardEndIndex = home.indexOf(") : null}", rewardIndex);
 
     expect(home).toContain("const { userId, isMinor } = useAuth();");
+    expect(home).toContain("adReward: (count) => `광고 보고 ${count}회 받기`");
     expect(guardIndex).toBeGreaterThan(-1);
     expect(rewardIndex).toBeGreaterThan(guardIndex);
     expect(rewardIndex - guardIndex).toBeLessThan(500);
