@@ -119,7 +119,14 @@ function geminiGenLadder(
   const rung = ladder[effort];
   // Verbatim OCR/transcription gains nothing from a thinking budget.
   const thinkingBudget = purpose === 'capture_ocr' || purpose === 'voice_transcribe' ? 0 : rung.think;
-  const maxOutputTokens = hasImage ? Math.max(rung.out, 4096) : rung.out;
+  // ops_daily_brief packs up to 14 life-area keys x 3 recs into ONE object. The
+  // per-effort rung (high rung out=2048) truncates it, and truncation HARD-FAILS
+  // here as 502 upstream_truncated (not a soft cut), dropping the caller back to
+  // up-to-14 per-domain calls and defeating the D-26 consolidation. Floor the
+  // consolidated seat so the single call completes; it REPLACES those calls, so a
+  // larger per-call cap is still a net egress reduction. [ops-brief-output-floor] 8192
+  const briefFloor = purpose === 'ops_daily_brief' ? 8192 : 0;
+  const maxOutputTokens = Math.max(hasImage ? Math.max(rung.out, 4096) : rung.out, briefFloor);
   return { maxOutputTokens, thinkingConfig: { thinkingBudget } };
 }
 
