@@ -313,7 +313,15 @@ Deno.serve(async (req: Request) => {
     systemText && systemText.length > 0 ? `${SAFETY_PREAMBLE}\n\n${systemText}` : SAFETY_PREAMBLE;
   const openaiBody = {
     model: openaiModel,
-    max_completion_tokens: effortToMaxTokens(clampedEffort),
+    // ops_daily_brief packs up to 14 keys x 3 recs into ONE object; on gpt-5.x
+    // reasoning tokens share max_completion_tokens, so medium (4096) is eaten by
+    // reasoning before the object closes and it truncates (surfaced as an error
+    // below). Floor the consolidated seat; the one call REPLACES up to 14
+    // per-domain calls, a net egress cut. [ops-brief-output-floor] 16000
+    max_completion_tokens: Math.max(
+      effortToMaxTokens(clampedEffort),
+      purpose === 'ops_daily_brief' ? 16000 : 0,
+    ),
     reasoning_effort: clampedEffort,
     messages: [
       { role: 'system', content: systemPrompt },
