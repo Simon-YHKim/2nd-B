@@ -1,65 +1,65 @@
 {
   "testimonial": {
-    "title": "Quer compartilhar sua história?",
-    "body": "Podemos mostrar suas palavras à nossa equipe e a revisores de confiança como evidência de que o 2nd-Brain ajuda pessoas reais. Você mantém o controle.",
-    "shareWithJudges": "Permitir que revisores de confiança leiam este depoimento",
-    "approveForPublic": "Permitir exibição pública no nosso site",
-    "agree": "Dou meu consentimento",
-    "decline": "Agora não"
+    "title": "Share your story?",
+    "body": "We may share your words with our team and trusted reviewers as evidence that 2nd-Brain helps real people. You stay in control.",
+    "shareWithJudges": "Allow trusted reviewers to read this testimonial",
+    "approveForPublic": "Allow public display on our site",
+    "agree": "I consent",
+    "decline": "Not now"
   },
   "notice": {
-    "title": "Um aviso rápido antes de começar",
-    "intro": "O 2nd-Brain mantém suas entradas privadas, armazena tudo criptografado e usa Google Gemini, Anthropic Claude ou OpenAI apenas para gerar as respostas que você pede. Revise e aceite antes de continuar.",
-    "trustTitle": "Seus registros não estão à venda",
-    "trustBody": "Suas entradas são privadas por padrão. Elas são processadas apenas para as respostas que você pede, verificações automáticas de segurança e registros de auditoria do serviço.",
-    "purposesTitle": "O que coletamos e por quê",
-    "items": "Coletamos: seu e-mail, data de nascimento e as entradas que você escreve (diários, notas, capturas).",
-    "purposeService": "Usado para operar o serviço: salvar suas entradas, seu gráfico de crescimento e seu assistente.",
-    "retention": "Mantido enquanto sua conta estiver ativa. Você pode excluir entradas ou toda a sua conta a qualquer momento em Configurações.",
-    "rights": "Você pode recusar o item opcional abaixo e ainda usar o app. Recusar um item obrigatório significa que não poderemos fornecer o serviço.",
-    "requiredLabel": "Obrigatório",
-    "optionalLabel": "Opcional",
-    "agreeAll": "Aceitar todos os itens obrigatórios",
-    "ackService": "Concordo com a coleta e o uso acima para que o serviço possa funcionar.",
-    "ackLlm": "Entendo que minhas entradas são processadas apenas quando necessário para gerar respostas que solicito, para verificações automáticas de segurança e para registros de auditoria do serviço, e que somente nesses casos podem ser enviadas ao Google Gemini, Anthropic Claude ou OpenAI.",
-    "ackOverseas": "Entendo que dados criptografados do serviço podem ser processados fora do meu país pelo Google ou pela Supabase para operar o app.",
-    "ackSensitive": "Entendo que minhas entradas podem incluir detalhes sensíveis e que o 2nd-Brain as trata como dados privados da conta.",
-    "optMarketing": "Enviar novidades ocasionais do produto para mim (opcional).",
-    "minorBanner": "Você está se cadastrando como adolescente (14 a 17). A privacidade alta fica ativada por padrão: compartilhamento, anúncios, análises, treinamento de modelos e análise externa permanecem desligados.",
-    "detailLink": "Ver detalhes"
+    "title": "A quick heads-up before you start",
+    "intro": "2nd-Brain keeps your entries private, stores them encrypted, and uses Google Gemini, Anthropic Claude, or OpenAI only to generate the responses you ask for. Please review and agree before continuing.",
+    "trustTitle": "Your records are not for sale",
+    "trustBody": "Your entries are private by default. They are processed only for responses you ask for, automatic safety checks, and service audit records.",
+    "purposesTitle": "What we collect and why",
+    "items": "Collected: your email, date of birth, and the entries you write (journals, notes, captures).",
+    "purposeService": "Used to run the service: saving your entries, your growth graph, and your assistant.",
+    "retention": "Kept while your account is active. You can delete entries or your whole account any time from Settings.",
+    "rights": "You can decline the optional item below and still use the app. Declining a required item means we cannot provide the service.",
+    "requiredLabel": "Required",
+    "optionalLabel": "Optional",
+    "agreeAll": "Agree to all required items",
+    "ackService": "I agree to the collection and use above so the service can run.",
+    "ackLlm": "I understand my entries are processed only when needed to generate responses I request, for automatic safety checks, and for service audit records, and only in those cases may be sent to Google Gemini, Anthropic Claude, or OpenAI.",
+    "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
+    "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
+    "optMarketing": "Send me occasional product updates (optional).",
+    "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off.",
+    "detailLink": "View details"
   },
   "detail": {
-    "title": "Com o que você está concordando",
-    "intro": "Detalhe em linguagem simples de cada item marcado no cadastro: o que cobre, por que é necessário e quais são suas escolhas.",
+    "title": "What you're agreeing to",
+    "intro": "Plain-language detail for each item you check at sign-up: what it covers, why it is needed, and what your choices are.",
     "service": {
-      "title": "Coleta e uso para operar o serviço",
-      "body": "O que coletamos: seu endereço de e-mail, data de nascimento e as entradas que você escreve (diários, notas, capturas).\nPor quê: para operar sua conta, armazenar suas entradas, desenhar seu gráfico de crescimento, alimentar seu assistente e confirmar que você tem 14 anos ou mais.\nPor quanto tempo: enquanto sua conta estiver ativa. Você pode excluir entradas ou toda a sua conta a qualquer momento em Configurações; dados excluídos são destruídos sem demora indevida.\nSua escolha: você pode recusar, mas este item é essencial para fornecer o serviço, então o cadastro não pode continuar sem ele."
+      "title": "Collection and use to run the service",
+      "body": "What we collect: your email address, date of birth, and the entries you write (journals, notes, captures).\nWhy: to run your account, store your entries, draw your growth graph, power your assistant, and confirm you are 14 or older.\nHow long: while your account is active. You can delete entries or your whole account any time from Settings; deleted data is destroyed without undue delay.\nYour choice: you can decline, but this item is essential to provide the service, so sign-up cannot continue without it."
     },
     "llmProcessing": {
-      "title": "Processamento de entradas para respostas de IA",
-      "body": "O que acontece: quando você pede uma resposta, as entradas relevantes e sua solicitação são enviadas a um modelo de IA (Google Gemini, Anthropic Claude ou OpenAI).\nSomente nestes casos: respostas que você pede, verificações automáticas de segurança e registros de auditoria do serviço. Nada mais.\nO que nunca fazemos: vender suas entradas, usá-las para anúncios ou entregá-las para treinar modelos externos.\nSua escolha: você pode recusar, mas respostas de IA são centrais para o serviço, então o cadastro não pode continuar sem isso."
+      "title": "Processing entries for AI responses",
+      "body": "What happens: when you ask for a response, the relevant entries and your request are sent to an AI model (Google Gemini, Anthropic Claude, or OpenAI).\nOnly in these cases: responses you ask for, automatic safety checks, and service audit records. Nothing else.\nWhat we never do: sell your entries, use them for ads, or hand them to train outside models.\nYour choice: you can decline, but AI responses are core to the service, so sign-up cannot continue without it."
     },
     "overseasTransfer": {
-      "title": "Processamento fora do seu país",
-      "body": "Quem recebe: Google (respostas de IA) e Supabase (banco de dados e hospedagem de login).\nO que é transferido: dados criptografados do serviço (detalhes da conta e entradas) e o conteúdo necessário para gerar uma resposta.\nOnde e como: servidores que esses provedores operam fora do seu país, por conexões criptografadas, no momento em que você usa o serviço.\nPor quanto tempo: apenas para operar o app, pelo mesmo período da sua conta.\nSua escolha: você pode recusar, mas o serviço não funciona sem esse processamento, então o cadastro não pode continuar."
+      "title": "Processing outside your country",
+      "body": "Who receives it: Google (AI responses) and Supabase (database and sign-in hosting).\nWhat is transferred: encrypted service data (account details and entries) and the content needed to generate a response.\nWhere and how: servers these providers operate outside your country, over encrypted connections, at the moment you use the service.\nHow long: only to run the app, for the same period as your account.\nYour choice: you can decline, but the service cannot run without this processing, so sign-up cannot continue."
     },
     "sensitiveData": {
-      "title": "Como entradas sensíveis são tratadas",
-      "body": "O que isto cobre: diários e notas podem incluir naturalmente detalhes sensíveis, como saúde ou crenças.\nComo tratamos: não coletamos nem separamos isso em outra categoria; tudo permanece como dados privados da conta, criptografados. Nunca é tornado público, vendido ou usado para anúncios.\nSua escolha: o que você escreve depende totalmente de você, e qualquer entrada pode ser excluída a qualquer momento.\nSe você recusar: não podemos armazenar suas entradas sem este reconhecimento, então o cadastro não pode continuar."
+      "title": "How sensitive entries are handled",
+      "body": "What this covers: journals and notes may naturally include sensitive details, such as health or beliefs.\nHow we handle it: we do not collect or sort it separately; everything stays encrypted, private account data. It is never made public, sold, or used for ads.\nYour choice: what you write is entirely up to you, and you can delete any entry at any time.\nIf you decline: we cannot store your entries without this acknowledgement, so sign-up cannot continue."
     },
     "marketing": {
-      "title": "Novidades do produto (opcional)",
-      "body": "O que você recebe: um e-mail ocasional sobre novos recursos e melhorias.\nOpcional: recusar não muda nada no app.\nRetire quando quiser: em Configurações ou pelo link de cancelamento em qualquer e-mail."
+      "title": "Product updates (optional)",
+      "body": "What you get: an occasional email about new features and improvements.\nOptional: declining changes nothing about the app.\nWithdraw any time: from Settings, or with the unsubscribe link in any email."
     },
-    "footer": "Dúvidas? Fale conosco quando quiser em Configurações, Suporte. Respondemos em até 2 dias úteis."
+    "footer": "Questions? Ask any time from Settings, Support. We reply within 2 business days."
   },
   "privacy": {
     "eyebrow": "Privacy",
     "title": "You decide what leaves your account",
     "subtitle": "Sharing, profiling, analytics, and model training all start off.",
     "speech": "Your records stay private unless you turn on a control. Teens stay locked to high-privacy.",
-    "trustTitle": "Padrão: privado e desativado",
-    "trustBody": "Suas entradas são armazenadas com criptografia. Anúncios nunca aparecem a menos que você os ative, e mesmo assim suas entradas nunca são usadas para anúncios. O 2nd-Brain não vende seus dados.",
+    "trustTitle": "Default: private and off",
+    "trustBody": "Your entries are stored encrypted. Ads never appear unless you turn them on yourself, and even then your entries are never used for ads. 2nd-Brain does not sell your data.",
     "sectionLabel": "Privacy controls",
     "minorLockNote": "You are on a teen account, so high-privacy stays on. Long-term memory is the only switch you can turn on.",
     "saveError": "Could not save that change. Please try again.",
@@ -82,8 +82,8 @@
         "desc": "Use records inside your account to suggest prompts and next steps."
       },
       "external_analytics": {
-        "label": "Análises externas",
-        "desc": "Envia sinais de uso do app, não o texto das suas entradas, para serviços externos de análise."
+        "label": "External analytics",
+        "desc": "Send app usage signals, not entry text, to outside analytics services."
       },
       "llm_training": {
         "label": "Model training permission",
@@ -106,57 +106,57 @@
   },
   "account": {
     "export": {
-      "label": "Seus dados",
-      "body": "Baixe tudo que está salvo na sua conta como um arquivo JSON estruturado.",
-      "button": "Exportar meus dados",
-      "buttonHint": "Cria uma exportação JSON completa dos dados da sua conta.",
-      "done": "Exportação pronta.",
-      "failed": "Não foi possível criar a exportação. Tente de novo."
+      "label": "Your data",
+      "body": "Download everything saved on your account as a structured JSON file.",
+      "button": "Export my data",
+      "buttonHint": "Builds a complete JSON export of your account data.",
+      "done": "Export ready.",
+      "failed": "Couldn't build the export. Try again."
     },
-    "loading": "Carregando conta…",
-    "eyebrow": "Conta",
-    "title": "Sua conta, sua decisão",
-    "subtitle": "Corrija seus dados, gerencie privacidade ou encerre sua conta.",
-    "speech": "Tudo sobre sua conta fica aqui. Sem pressa.",
+    "loading": "Loading account…",
+    "eyebrow": "Account",
+    "title": "Your account, your call",
+    "subtitle": "Fix your details, manage privacy, or close your account.",
+    "speech": "Anything about your account lives here. No rush.",
     "dob": {
-      "label": "Corrigir sua data de nascimento",
-      "hint": "Corrija uma data de nascimento digitada errado. Ela precisa ser real e cumprir a idade mínima.",
-      "save": "Salvar data de nascimento",
-      "saved": "Data de nascimento atualizada.",
-      "saveFailed": "Não foi possível atualizar sua data de nascimento",
-      "saveFailedBody": "Não conseguimos salvar sua data de nascimento. Tente de novo em um instante.",
-      "saveHint": "Salva sua data de nascimento e atualiza os ajustes de privacidade por idade.",
-      "retry": "Tentar novamente",
-      "retryHint": "Tenta salvar sua data de nascimento novamente."
+      "label": "Correct your date of birth",
+      "hint": "Fix a mistyped birth date. It must be a real date and meet the age floor.",
+      "save": "Save birth date",
+      "saved": "Birth date updated.",
+      "saveFailed": "Could not update your birth date",
+      "saveFailedBody": "We couldn't save your birth date. Please try again in a moment.",
+      "saveHint": "Saves your birth date and updates age-based privacy settings.",
+      "retry": "Retry",
+      "retryHint": "Retries saving your birth date."
     },
     "privacy": {
-      "label": "Privacidade e consentimento",
-      "body": "Analítica externa é o único ajuste aqui, desativado por padrão. Compartilhamento, anúncios, recomendações e treinamento de modelos não existem hoje como recursos, e qualquer recurso futuro ficará desativado até você concordar.",
-      "button": "Abrir controles de privacidade",
-      "buttonHint": "Abre os ajustes de privacidade e consentimento."
+      "label": "Privacy and consent",
+      "body": "External analytics is the only setting here, off by default. Sharing, ads, recommendations, and model training are not features today, and any future one would stay off until you agree.",
+      "button": "Open privacy controls",
+      "buttonHint": "Opens privacy and consent settings."
     },
     "feedback": {
-      "label": "Aviso de feedback da conta",
-      "dismiss": "Dispensar",
-      "dismissHint": "Dispensa este aviso."
+      "label": "Account feedback notice",
+      "dismiss": "Dismiss",
+      "dismissHint": "Dismisses this notice."
     },
     "delete": {
-      "label": "Excluir conta",
-      "body": "Isso apaga suas entradas, capturas, wiki e uso do assistente, depois encerra sua sessão.",
-      "supportNote": "A remoção completa da conta é processada em até 2 dias úteis. Fale com o suporte se precisar antes.",
-      "confirmHint": "Digite \"{{phrase}}\" para ativar o botão.",
-      "button": "Excluir minha conta",
-      "confirmTitle": "Excluir sua conta?",
-      "confirmBody": "Seus dados serão apagados e sua sessão será encerrada. Isso não pode ser desfeito.",
-      "confirmCta": "Excluir",
-      "cancel": "Cancelar",
-      "failed": "Falha ao excluir a conta",
-      "failedBody": "Não conseguimos terminar de excluir sua conta. Parte do conteúdo pode já ter sido removida, e sua conta e login ainda podem existir. Fale com kim0405@hayangzip.com e vamos ajudar.",
-      "confirmLabel": "Confirmação de exclusão de conta",
-      "inputLabel": "Frase de confirmação para excluir a conta",
-      "inputHint": "Digite DELETE para ativar o botão de exclusão de conta.",
-      "buttonHint": "Abre uma confirmação final antes de excluir sua conta e seus dados.",
-      "confirmCtaHint": "Inicia a exclusão da conta e dos dados."
+      "label": "Delete account",
+      "body": "This erases your entries, captures, wiki, and assistant usage, then signs you out.",
+      "supportNote": "Full account removal is processed within 2 business days. Contact support if you need it sooner.",
+      "confirmHint": "Type \"{{phrase}}\" to enable the button.",
+      "button": "Delete my account",
+      "confirmTitle": "Delete your account?",
+      "confirmBody": "Your data will be erased and you will be signed out. This cannot be undone.",
+      "confirmCta": "Delete",
+      "cancel": "Cancel",
+      "failed": "Account deletion failed",
+      "failedBody": "We couldn't finish deleting your account. Some content may already be removed, and your account and login may still exist. Please contact kim0405@hayangzip.com and we'll help.",
+      "confirmLabel": "Account deletion confirmation",
+      "inputLabel": "Account deletion confirmation phrase",
+      "inputHint": "Type DELETE to enable the account deletion button.",
+      "buttonHint": "Opens a final confirmation before deleting your account and data.",
+      "confirmCtaHint": "Starts account and data deletion."
     }
   }
 }
