@@ -89,3 +89,28 @@ PROTOCOL.md가 없어 어디에 넣을지(§4 정직성에 병합 vs 새 조항)
    push하는 게 제일 빠른 복구다.
 2. 그게 지금 안 되면: 나(S6, 이 세션)에게 fleet-handoff·session-personas류에 흩어진 인용만으로
    PROTOCOL.md를 "재구성"해서 커밋할 권한을 줄지, 아니면 그건 원본 회수 전까지 보류할지.
+
+**→ Simon 답변(같은 턴 내, 시각 미상): "E:\2ndB에서 원본 복사".** 아래 04:15 이후 상태 참고 — 아직 반영 안 됨.
+
+## 갱신 — 2026-07-30 22:16 KST (같은 세션, ~18시간 경과 확인)
+
+시각 재측정: A(PS)=22:16:10, B(bash)=22:16:09 (KST 일치) / C(TZ=Asia/Seoul 강제)=13:16:09 (9시간 어긋남,
+04:15 때와 같은 패턴 재확인 — A/B 채택 근거 유지). **04:15 → 22:16, 같은 날 내 약 18시간 경과가 실측으로
+확인됐다.** 이 프로젝트 히스토리에 이미 있는 "20시간 정지" 패턴과 같은 종류로 보인다 — 이번엔 Simon의
+AskUserQuestion 응답 대기 구간에서 발생.
+
+그 사이 fleet은 움직였다:
+
+- `main`/`origin/main` = `b3851cfc` (04:15 당시 `5e0f7f36`에서 커밋 2개 전진: `e1fcf161` "hand the 173
+  Codex cycle branches to S4", `b3851cfc` "S4 boot prompt for the cycle integration"). **173개 Codex
+  브랜치 통합**이라는 별도의 큰 축이 새로 시작된 것으로 보임 — S6 감사 범위 밖, 참고만.
+- 열린 PR **0 → 4건**: `#1145`(chore/codex-cycle-integration, 120개 브랜치 무충돌 통합) · `#1146`(S1의
+  법무 어휘 PR-2, DRAFT) · `#1147`(S3의 ops_daily_brief 잘림 수정 — 태스크 5 관련) · `#1148`(S7 vc20
+  검증+OTA 게시 기록).
+- `docs/sessions/`는 **여전히 `BOOTSTRAP.md` + 티켓 파일 1개(`R1/T-R1-S7-S4-06.md`)뿐** — `PROTOCOL.md`는
+  22:16 기준으로도 origin/main에 없음. Simon이 고른 "E:\2ndB에서 원본 복사"가 아직 반영 전이거나, 다른
+  경로로 진행 중이라 이 체크아웃에서는 안 보이는 상태.
+- 이 브랜치(`claude/s6-r1-board-init`, 이 파일)는 아직 PR 없이 push만 된 상태 — main에 안 들어감.
+
+**해석**: 새 활동은 실재하지만 PROTOCOL.md/R1 복구와는 무관한 별도 트랙(코덱스 173브랜치 정리)이다. 이
+세션의 핵심 블로커는 22:16 시점에도 그대로다.
