@@ -4,6 +4,7 @@
 - to: S7
 - 상태: 통합 완료, 안전 게이트 및 CI 대기
 - 게이트: C9 다국어 자유입력 분류 결정 + S5 적대검증 또는 Simon의 명시적 우회 승인 전 merge 금지
+- PR: https://github.com/Simon-YHKim/2nd-B/pull/1151
 
 ## 1차 회신 (07-30 23:48 KST)
 
