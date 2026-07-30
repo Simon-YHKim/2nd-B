@@ -487,10 +487,14 @@ export function ConstellationHome({
             {REV2_STARS.map((s) => {
               const on = focusedId === s.id;
               const o = rev2StarOpacity(levelOf(s.id));
-              const dotR = 6 * k * (on ? 1.5 : 1);
+              // Visual Tier: a tapped (focused) domain star is promoted but must
+              // stay BELOW 북극성 (core 9k / halo 17k). focus 1.3 -> core 7.8k and
+              // glow 1.9 -> halo 14.82k, both under Polaris; resting stays 6k/13.2k.
+              // Enforced by constellation-polaris-dominance.test.ts.
+              const dotR = 6 * k * (on ? 1.3 : 1);
               return (
                 <Fragment key={s.id}>
-                  <Circle cx={px(s.x)} cy={py(s.y)} r={dotR * (on ? 2.5 : 2.2)} fill="url(#ds-star-glow)" opacity={o * (on ? 1 : 0.8)} />
+                  <Circle cx={px(s.x)} cy={py(s.y)} r={dotR * (on ? 1.9 : 2.2)} fill="url(#ds-star-glow)" opacity={o * (on ? 1 : 0.8)} />
                   <Circle cx={px(s.x)} cy={py(s.y)} r={dotR} fill="url(#ds-star)" opacity={o} />
                 </Fragment>
               );
