@@ -25,6 +25,10 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("5년");
     expect(PRIVACY_DOC.body).toContain("열람·정정·삭제");
     expect(PRIVACY_DOC.body).toContain("만 14세");
+    // 건강·활동 데이터(민감정보) 고지 (S1, PIPA gap fix): 수집 항목 + 민감정보 + AI 미전송.
+    expect(PRIVACY_DOC.body).toContain("민감정보");
+    expect(PRIVACY_DOC.body).toContain("건강·활동 데이터");
+    expect(PRIVACY_DOC.body).toContain("Health & activity data");
   });
 
   test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
@@ -47,13 +51,27 @@ describe("legal document snapshots", () => {
     expect(TERMS_DOC.body).toContain("발급 진행 중"); // 사업자등록번호 pending on purpose
     expect(TERMS_DOC.body).toContain("₩9,900/월");
     expect(TERMS_DOC.body).toContain("₩19,900/월");
-    expect(TERMS_DOC.body).toContain("₩99,000");
     expect(REFUND_DOC.body).toContain("30일 이내 전액 환불");
     expect(PRIVACY_DOC.body).toContain("김양환");
     // 전화 미표기 (email-first): no phone placeholders or numbers.
     for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
       expect(doc.body).not.toMatch(/전화번호|support phone/);
     }
+  });
+
+  test("retired lifetime plan; canonical tier names (PR-2 · #1140, Simon 2026-07-29)", () => {
+    // 평생 이용권 판매 종료. 법무 문서(약관·환불정책) 어디에도 남지 않는다.
+    for (const doc of [TERMS_DOC, REFUND_DOC]) {
+      expect(doc.body).not.toContain("평생");
+      expect(doc.body).not.toContain("Lifetime");
+      expect(doc.body).not.toContain("₩99,000");
+    }
+    // 공개 티어명 = 정본 라벨(tier-map.ts): 항해자/Voyager · 북극성/North Star. 구 Plus/Pro는 제거.
+    for (const label of ["항해자", "북극성", "Voyager", "North Star"]) {
+      expect(TERMS_DOC.body).toContain(label);
+    }
+    expect(TERMS_DOC.body).not.toMatch(/\bPlus\b/);
+    expect(TERMS_DOC.body).not.toMatch(/\bPro\b/);
   });
 
   test("bodies carry no em dash (check:emdash covers src/)", () => {

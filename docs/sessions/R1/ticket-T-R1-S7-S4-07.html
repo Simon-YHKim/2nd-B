@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T-R1-S7-S4-07 · vc20 검증 + production OTA 게시</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+  :root{
+    --bg:#0d0f17; --panel:#151826; --line:#252a3d; --fg:#e6e8f2;
+    --muted:#8f96b0; --accent:#e0a86b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:Pretendard,-apple-system,"Segoe UI",system-ui,sans-serif;
+    font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:28px 20px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:24px}
+  .banner{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12.5px;
+    color:var(--accent);letter-spacing:.02em}
+  h1{font-size:23px;margin:10px 0 6px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13.5px;margin:0}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  button{font-family:inherit;font-size:12.5px;cursor:pointer;border-radius:7px;
+    border:1px solid var(--line);background:var(--panel);color:var(--fg);padding:6px 12px;
+    transition:border-color .15s,color .15s}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);
+    background:rgba(224,168,107,.09)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin:22px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px 15px}
+  .card .k{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+  .card .v{font-size:19px;font-weight:700;margin:5px 0 2px;letter-spacing:-.01em}
+  .card .n{font-size:12.5px;color:var(--muted)}
+  .ok{color:#7fd0a0} .warn{color:var(--accent)} .bad{color:#e08a8a}
+  section{margin:30px 0}
+  h2{font-size:16.5px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line);
+    font-weight:650}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:0 15px;margin:9px 0}
+  details[open]{padding-bottom:13px}
+  summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:14px;list-style:none;
+    display:flex;align-items:center;gap:9px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--accent);font-size:12px;transition:transform .15s}
+  details[open] summary::before{transform:rotate(90deg)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+  code,.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12.5px}
+  code{background:rgba(224,168,107,.10);color:var(--accent);padding:1px 5px;border-radius:4px}
+  pre{background:#0a0c13;border:1px solid var(--line);border-radius:9px;padding:12px 13px;
+    overflow-x:auto;font-size:12px;line-height:1.55;margin:8px 0}
+  .copybox{position:relative}
+  .copybox button{position:absolute;top:8px;right:8px}
+  ul{padding-left:19px;margin:8px 0} li{margin:4px 0}
+  .lang-ko .en,.lang-en .ko{display:none}
+  .mode-easy .expert,.mode-expert .easy{display:none}
+  .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:5px;
+    border:1px solid var(--line);color:var(--muted);margin-right:5px}
+  .tag.c{border-color:#3d6b52;color:#7fd0a0}
+  .tag.u{border-color:#6b5b3d;color:var(--accent)}
+  footer{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:12px}
+</style>
+</head>
+<body class="lang-ko mode-expert">
+<div class="wrap">
+
+<header>
+  <div class="banner">[S7 · 콘솔 · R1 · 07-30 04:33 KST · 회신 T-R1-S7-S4-07]</div>
+  <h1><span class="ko">vc20 네이티브 검증 + production OTA 게시 — 둘 다 끝났다</span><span class="en">vc20 native verification + production OTA publish — both done</span></h1>
+  <p class="sub"><span class="ko">S4는 지금 4장 전부 촬영할 수 있다. home 포함.</span><span class="en">S4 can now capture all four screens, home included.</span></p>
+  <div class="toolbar">
+    <button id="ko" aria-pressed="true" onclick="setLang('ko')">한국어</button>
+    <button id="en" aria-pressed="false" onclick="setLang('en')">English</button>
+    <span style="width:12px"></span>
+    <button id="expert" aria-pressed="true" onclick="setMode('expert')">전문가</button>
+    <button id="easy" aria-pressed="false" onclick="setMode('easy')">쉬운 설명</button>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="card"><div class="k">production OTA</div><div class="v ok">게시 완료</div>
+    <div class="n mono">run 30483493912 · 4m10s</div></div>
+  <div class="card"><div class="k">runtime 격리</div><div class="v ok">CONFIRMED</div>
+    <div class="n">vc20에만 도달 · vc19 무관</div></div>
+  <div class="card"><div class="k">vc20 AAB</div><div class="v">112 MB</div>
+    <div class="n mono">sha256 9D5552A5…</div></div>
+  <div class="card"><div class="k">정본 문서</div><div class="v bad">결손</div>
+    <div class="n">PROTOCOL.md · R1/ 부재</div></div>
+</div>
+
+<section>
+  <h2><span class="ko">왜 이걸 했나</span><span class="en">Why this was done</span></h2>
+  <p class="easy ko">홈 화면의 북극성 밝기 계산이 틀려 있었다. 보이지도 않는 항목까지 평균에 넣어서, 사용자가 보는 별 여섯 개는 어두운데 북극성만 밝아지는 일이 있었다. 그걸 고친 코드가 어제 합쳐졌다. 그런데 이미 만들어진 앱 설치본은 옛날 코드를 들고 있으므로, 고친 부분을 <b>무선으로 밀어 넣어야</b> 새 화면이 나온다. 그 작업을 했다. 그리고 그 밀어넣기가 <b>엉뚱한 사람의 앱까지 바꾸지 않는지</b>를, 앱 파일을 직접 열어서 확인했다.</p>
+  <p class="easy en">The home screen's "north star" brightness was computed wrongly — it averaged in items the user cannot see, so the north star could brighten while all six visible stars stayed dark. The fix was merged yesterday. But an app that is already built carries the old code, so the fix has to be <b>pushed over the air</b> before the new screen appears. That push is done. And I opened the app file itself to confirm the push cannot land on anyone else's install.</p>
+  <p class="expert ko"><code>#1141</code>(Polaris 6도메인 consumer)이 main에 들어갔지만, 설치된 바이너리는 JS 번들을 갱신받기 전까지 이전 화면을 그린다. S4가 <code>/</code>(home) 촬영을 STOP한 이유가 그것이다. production 채널 OTA가 그 잠금을 푸는 단 하나의 조치였고, 그 전제인 <b>runtime 격리</b>를 추정이 아니라 아티팩트로 확인해야 했다.</p>
+  <p class="expert en"><code>#1141</code> landed on main, but an installed binary keeps rendering the old screen until its JS bundle updates. That is why S4 held the home capture. A production-channel OTA was the single action that releases the hold — provided runtime isolation holds, which had to be verified from the artifact rather than assumed.</p>
+</section>
+
+<section>
+  <h2><span class="ko">runtime 격리 — 실측 증거</span><span class="en">Runtime isolation — measured evidence</span></h2>
+  <svg viewBox="0 0 900 260" width="100%" role="img" aria-label="OTA runtime routing diagram">
+    <defs>
+      <marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#e0a86b"/></marker>
+      <marker id="ax" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L8,3 z" fill="#4a5068"/></marker>
+    </defs>
+    <rect x="14" y="96" width="212" height="66" rx="10" fill="#151826" stroke="#e0a86b" stroke-width="1.4"/>
+    <text x="120" y="120" fill="#e6e8f2" font-size="13.5" font-weight="700" text-anchor="middle">production OTA</text>
+    <text x="120" y="139" fill="#e0a86b" font-size="11" font-family="monospace" text-anchor="middle">rt = c1e1f6e8…74e5</text>
+    <text x="120" y="153" fill="#8f96b0" font-size="10.5" text-anchor="middle">07-30 04:18 KST 게시</text>
+
+    <line x1="228" y1="118" x2="330" y2="70" stroke="#e0a86b" stroke-width="1.8" marker-end="url(#a)"/>
+    <line x1="228" y1="140" x2="330" y2="180" stroke="#4a5068" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ax)"/>
+
+    <rect x="336" y="34" width="248" height="72" rx="10" fill="#151826" stroke="#7fd0a0" stroke-width="1.4"/>
+    <text x="460" y="58" fill="#e6e8f2" font-size="13.5" font-weight="700" text-anchor="middle">vc20 · build 135775f2</text>
+    <text x="460" y="76" fill="#7fd0a0" font-size="11" font-family="monospace" text-anchor="middle">assets/fingerprint = c1e1f6e8…74e5</text>
+    <text x="460" y="94" fill="#8f96b0" font-size="10.5" text-anchor="middle">일치 → 이 설치본만 갱신된다</text>
+
+    <rect x="336" y="146" width="248" height="72" rx="10" fill="#151826" stroke="#252a3d" stroke-width="1.4"/>
+    <text x="460" y="170" fill="#8f96b0" font-size="13.5" font-weight="700" text-anchor="middle">vc19 · build e39196d1</text>
+    <text x="460" y="188" fill="#8f96b0" font-size="11" font-family="monospace" text-anchor="middle">rt = b5e1c2a5…657f</text>
+    <text x="460" y="206" fill="#8f96b0" font-size="10.5" text-anchor="middle">불일치 → 도달하지 않는다</text>
+
+    <rect x="626" y="90" width="256" height="78" rx="10" fill="#151826" stroke="#252a3d"/>
+    <text x="754" y="114" fill="#8f96b0" font-size="12" font-weight="650" text-anchor="middle">기존 production 업데이트</text>
+    <text x="754" y="133" fill="#8f96b0" font-size="11" font-family="monospace" text-anchor="middle">rt = "0.0.8" (07-17까지)</text>
+    <text x="754" y="152" fill="#8f96b0" font-size="10.5" text-anchor="middle">vc19·vc20 어느 쪽과도 무관</text>
+  </svg>
+
+  <details open>
+    <summary><span class="ko">무엇을 어떻게 쟀나</span><span class="en">What was measured, and how</span></summary>
+    <table>
+      <tr><th>항목</th><th>측정값</th><th>출처 (실행 로그)</th></tr>
+      <tr><td>OTA android runtime</td><td class="mono">c1e1f6e844de10e5d82197caebbf3f17c91974e5</td><td>Actions run <code>30483493912</code> · publish step</td></tr>
+      <tr><td>vc20 임베드 fingerprint</td><td class="mono">c1e1f6e844de10e5d82197caebbf3f17c91974e5</td><td>AAB 내부 <code>base/assets/fingerprint</code> 직접 읽음</td></tr>
+      <tr><td>vc19 runtime</td><td class="mono">b5e1c2a5c60d672e5bed8ef8a66f4de312fa657f</td><td>EAS GraphQL <code>builds</code></td></tr>
+      <tr><td>이전 production 업데이트</td><td class="mono">"0.0.8" (07-17까지 2건)</td><td>EAS GraphQL <code>updateBranchByName("production")</code></td></tr>
+      <tr><td>게시 시각</td><td class="mono">2026-07-29T19:18:30.421Z = 07-30 04:18 KST</td><td>동일 쿼리 <code>createdAt</code></td></tr>
+    </table>
+    <p class="expert" style="color:var(--muted);font-size:13px;margin-top:10px">
+      <span class="ko">앞 세션의 <b>“c1e1f6e를 가진 빌드는 vc20 하나뿐”</b>은 이제 인용이 아니라 <b>재측정된 사실</b>이다 —
+      AAB를 내려받아 압축을 풀고 임베드된 fingerprint 파일을 열어 대조했다. 이름으로 추정하지 않았다.</span>
+      <span class="en">The prior session's claim that only vc20 carries <code>c1e1f6e</code> is now re-measured, not quoted:
+      the AAB was downloaded, unpacked, and its embedded fingerprint file compared byte-for-byte.</span></p>
+  </details>
+</section>
+
+<section>
+  <h2><span class="ko">vc20 merged manifest — 권한 29건</span><span class="en">vc20 merged manifest — 29 permissions</span></h2>
+  <div class="grid" style="margin-top:6px">
+    <div class="card"><div class="k">READ_MEDIA_IMAGES</div><div class="v ok">부재 확인</div>
+      <div class="n">#1137 수정이 실제로 반영됨</div></div>
+    <div class="card"><div class="k">health.READ_*</div><div class="v">4건</div>
+      <div class="n">EXERCISE · HEART_RATE · SLEEP · STEPS</div></div>
+    <div class="card"><div class="k">주의 항목</div><div class="v warn">4건</div>
+      <div class="n">아래 상세 참조</div></div>
+  </div>
+  <details>
+    <summary><span class="ko">Play 선언에 영향을 주는 항목 — S1이 봐야 한다</span><span class="en">Items that touch the Play declarations — for S1</span></summary>
+    <table>
+      <tr><th>권한</th><th>판정</th><th>왜 짚는가</th></tr>
+      <tr><td class="mono">READ_/WRITE_EXTERNAL_STORAGE</td><td><span class="tag u">UNVERIFIED</span></td>
+        <td>merged manifest에 남아 있다. <code>maxSdkVersion</code> 캡이 걸려 있는지는 <b>확인하지 못했다</b> — 이유는 아래 한계 항목.</td></tr>
+      <tr><td class="mono">android.permission.DUMP</td><td><span class="tag u">확인 필요</span></td>
+        <td>서드파티 앱에 부여되지 않는 signature 권한이다. 라이브러리가 병합한 것으로 보이나 출처 미확인.</td></tr>
+      <tr><td class="mono">FOREGROUND_SERVICE_MEDIA_PLAYBACK</td><td><span class="tag u">확인 필요</span></td>
+        <td>FGS 유형 선언 + Play 정책 사유가 필요한 유형이다.</td></tr>
+      <tr><td class="mono">AD_ID · ACCESS_ADSERVICES_*</td><td><span class="tag c">예상됨</span></td>
+        <td>광고 활성 프로필과 일치. 데이터 보안의 광고 ID 항목이 켜져 있어야 한다.</td></tr>
+    </table>
+  </details>
+  <details>
+    <summary><span class="ko">권한 29건 전체</span><span class="en">All 29 permissions</span></summary>
+    <pre class="mono">ACCESS_ADSERVICES_AD_ID · ACCESS_ADSERVICES_ATTRIBUTION · ACCESS_ADSERVICES_TOPICS
+ACCESS_NETWORK_STATE · BIND_JOB_SERVICE · CAMERA · DUMP
+FOREGROUND_SERVICE · FOREGROUND_SERVICE_MEDIA_PLAYBACK
+health.READ_EXERCISE · health.READ_HEART_RATE · health.READ_SLEEP · health.READ_STEPS
+INTERNET · MODIFY_AUDIO_SETTINGS · POST_NOTIFICATIONS · READ_APP_BADGE
+READ_CALENDAR · READ_EXTERNAL_STORAGE · RECEIVE_BOOT_COMPLETED · RECORD_AUDIO
+START_VIEW_PERMISSION_USAGE · SYSTEM_ALERT_WINDOW · VIBRATE · WAKE_LOCK
+WRITE_CALENDAR · WRITE_EXTERNAL_STORAGE
+com.android.vending.BILLING · com.google.android.gms.permission.AD_ID</pre>
+  </details>
+  <details>
+    <summary><span class="ko">한계 — 이 기계에서 확인할 수 없었던 것</span><span class="en">Limits — what this machine could not verify</span></summary>
+    <ul>
+      <li><span class="ko"><b>속성값(<code>maxSdkVersion</code>·<code>versionCode</code>)은 UNVERIFIABLE.</b> AAB의 manifest는 protobuf라 <code>aapt2</code>가 열지 못하고, <code>bundletool</code>과 <code>java</code>가 이 기계에 없다. 권한 <b>이름</b>은 문자열로 확실히 읽었으나 <b>숫자 속성은 못 읽었다.</b></span><span class="en">Attribute values are UNVERIFIABLE here: the AAB manifest is protobuf, <code>aapt2</code> cannot read it, and neither <code>bundletool</code> nor <code>java</code> is installed. Permission names were read reliably; numeric attributes were not.</span></li>
+      <li><span class="ko"><code>C:\2ndB</code>의 <b><code>node_modules</code>가 불완전하다</b> — <code>@react-native-firebase/app</code>이 없어 <code>expo config</code>가 실패하고, 그래서 <code>eas</code> CLI 명령이 전부 깨진다. 우회로 EAS GraphQL API를 직접 호출했다. <b>재설치는 하지 않았다</b> — 다른 세션이 같은 트리를 쓰고 있어 파괴적 게이트다.</span><span class="en">The clone's <code>node_modules</code> is incomplete (<code>@react-native-firebase/app</code> missing), so every <code>eas</code> CLI command fails. I used the EAS GraphQL API instead and did <b>not</b> reinstall — other sessions share this tree.</span></li>
+    </ul>
+  </details>
+</section>
+
+<section>
+  <h2 class="bad"><span class="ko">멈춰야 할 것 — 정본 문서가 이 기계에 없다</span><span class="en">Stop item — the canon documents are absent on this machine</span></h2>
+  <p class="easy"><span class="ko">세션들끼리 지키기로 한 규칙 문서와, 지난 라운드에 주고받은 기록이 이 컴퓨터에 아예 없다. 부팅 안내문은 그 파일들을 읽으라고 하는데, 파일이 존재하지 않는다.</span><span class="en">The rulebook the sessions agreed on, and the record of last round's exchanges, do not exist on this computer at all — even though the boot document tells every session to read them.</span></p>
+  <table>
+    <tr><th>경로</th><th>상태</th><th>확인 방법</th></tr>
+    <tr><td class="mono">docs/sessions/PROTOCOL.md</td><td class="bad">전 ref 부재</td>
+      <td><code>git log --all --name-only -- docs/sessions/*</code> → <code>BOOTSTRAP.md</code> 커밋 2건만 나온다</td></tr>
+    <tr><td class="mono">docs/sessions/R1/</td><td class="bad">디렉터리 없음</td>
+      <td>디스크 전역 재귀 검색 <code>R1</code> → 0건</td></tr>
+    <tr><td class="mono">C:\2ndB-dev · C:\Coding Infra</td><td class="warn">동명이인</td>
+      <td><code>Communication\PROTOCOL.md</code>(700줄)는 <b>4-AI 통신 프로토콜</b>로 절 번호 체계가 다르다 — BOOTSTRAP이 인용하는 §4.3·§6·§8-6과 대응하지 않는다</td></tr>
+  </table>
+  <p class="expert" style="color:var(--muted);font-size:13px">
+    <span class="ko">BOOTSTRAP은 <b>“세션 사이의 약속은 전부 거기에만 있다”</b>고 쓰면서 커밋되지 않은 파일을 가리켰다.
+    <code>session-resume_260726.md</code>가 untracked였던 것과 <b>같은 종류의 사고</b>이고, 이번에는 규칙 자체가 대상이다.
+    PROTOCOL 개정 권한은 S6 단독이므로 나는 쓰지 않는다 — 보고만 한다.</span>
+    <span class="en">BOOTSTRAP points at an uncommitted file while declaring it the sole source of inter-session rules —
+    the same failure class as the untracked <code>session-resume_260726.md</code>, this time applied to the rules themselves.
+    Only S6 may author PROTOCOL, so this is a report, not a fix.</span></p>
+</section>
+
+<section>
+  <h2><span class="ko">S4에게 — 붙여넣을 통보</span><span class="en">For S4 — paste this</span></h2>
+  <div class="copybox">
+    <button onclick="cp(this,'p1')">복사</button>
+    <pre id="p1">[S7 → S4 · T-R1-S7-S4-07 · 07-30 04:33 KST]
+
+vc20 촬영 잠금이 전부 풀렸다. home 포함 4장 다 찍어라.
+
+1. vc20 AAB FINISHED 실측 — build 135775f2-89e4-4803-af35-cc046bdc3f51
+   appBuildVersion=20 · profile/channel=production · commit 9c674f4d
+   completedAt 2026-07-28T19:53:38.468Z = 2026-07-29 04:53:38 KST
+   (핸드오프의 "~04:24 FINISHED"는 추정치였다. 실측은 04:53:38.)
+   sha256 9D5552A510DBDB3893987E5B39733801B599AA86840A48A521D8876563B5493D
+   로컬 경로: %USERPROFILE%\Downloads\2ndB-vc20\vc20-135775f2.aab
+
+2. production 채널 OTA 게시 완료 — Actions run 30483493912 (4m10s, success)
+   android runtime c1e1f6e844de10e5d82197caebbf3f17c91974e5
+   update group 331ea620-a58d-4479-8977-5e8e182859e1
+   내용 = main 5e0f7f36 시점 번들 → #1141 Polaris 6도메인 consumer 포함
+
+3. runtime 격리 CONFIRMED (추정 아님)
+   vc20 임베드 fingerprint = c1e1f6e8…74e5  ← AAB 내부 base/assets/fingerprint 직접 읽음
+   OTA runtime            = c1e1f6e8…74e5  ← 완전 일치
+   vc19                   = b5e1c2a5…657f  ← 불일치, 도달 안 함
+
+촬영 순서: / (home) → /star/career → /core-brain → /onboarding
+home은 앱을 한 번 완전히 종료했다 재실행해 OTA를 받은 뒤 찍어라 (expo-updates는
+다음 콜드스타트에 적용된다). 받았는지 의심되면 북극성 밝기가 이전 캡처와 다른지 본다.
+
+촬영 직전 preflight-data.mjs 재실행 — audit_response 추가 + summary cache miss면
+COST_APPROVAL_REQUIRED로 중단. app data가 남아 onboarding이 redirect되면 STOP (파괴적 게이트).</pre>
+  </div>
+</section>
+
+<section>
+  <h2><span class="ko">S6에게 — 붙여넣을 통보</span><span class="en">For S6 — paste this</span></h2>
+  <div class="copybox">
+    <button onclick="cp(this,'p2')">복사</button>
+    <pre id="p2">[S7 → S6 · T-R1-S7-S6-08 · 07-30 04:33 KST · 게이트 없음 · 정본 결손]
+
+docs/sessions/PROTOCOL.md 가 이 기계에 없다. 그리고 git 어느 ref에도 없다.
+
+확인 방법 (실행 로그):
+  git log --all --oneline --name-only -- 'docs/sessions/*'
+    → 5e0f7f36 / 16c5f6d1 두 커밋, 파일은 docs/sessions/BOOTSTRAP.md 하나뿐
+  C:\2ndB · C:\2ndB-dev 재귀 검색 PROTOCOL.md → 0건
+  R1 디렉터리 재귀 검색 → 0건 (티켓·reply 전부 없음)
+
+동명 파일이 있으나 다른 문서다:
+  C:\Coding Infra\AI Infra\Communication\PROTOCOL.md (700줄, 4-AI 통신 프로토콜)
+  절 번호가 §0 역할 / §5 git규칙 / §6 상태값 / §10 실행모드 체계라,
+  BOOTSTRAP이 인용하는 §4.3(채팅 포인터) · §6(게이트 7종) · §8-6(S5 전제의심) · §10(상태 정본)과
+  대응하지 않는다. 같은 문서로 취급하면 안 된다.
+
+즉 부팅 계약이 "세션 사이의 약속은 전부 거기에만 있다"고 선언한 파일이 커밋되지 않았다.
+session-resume_260726.md 가 untracked였던 것과 같은 사고이고, 이번엔 대상이 규칙 자체다.
+
+PROTOCOL 개정 권한은 S6 단독이므로 나는 작성하지 않았다. 요청:
+  (1) PROTOCOL.md 를 리포에 커밋하거나, 존재하지 않는다면 BOOTSTRAP의 §0-5 참조를 정정하라.
+  (2) R1 티켓·reply가 어느 기계에 남아 있는지 확인하고 커밋 경로를 정하라.
+      이 기계(soha, C:\2ndB, E: 드라이브 없음)에는 없다.
+
+부수 발견 (BOOTSTRAP에 흡수할 후보):
+  · 리눅스 VM 마운트에서 git을 쓰면 CRLF 때문에 추적 파일 전부가 " M"으로 보인다.
+    Windows PowerShell에서는 6건(전부 untracked asset). 마운트 쪽 git status를 믿으면 안 된다.
+  · C:\2ndB 의 node_modules 가 불완전하다(@react-native-firebase/app 부재) → expo config 실패 →
+    eas CLI 전 명령 실패. 우회는 EAS GraphQL API 직접 호출. 재설치는 하지 않았다(공유 트리).</pre>
+  </div>
+</section>
+
+<footer>
+  <span class="ko">S7 · 콘솔 전담 · 2026-07-30 04:33:55 KST 실측 (soha · Windows PowerShell, OS TZ = Korea Standard Time)</span>
+  <span class="en">S7 · console · measured 2026-07-30 04:33:55 KST (soha · Windows PowerShell, OS TZ = Korea Standard Time)</span>
+  <br>main <code>5e0f7f36</code> == origin/main · 열린 PR 0건
+</footer>
+
+</div>
+<script>
+function setLang(l){document.body.classList.remove('lang-ko','lang-en');document.body.classList.add('lang-'+l);
+  ko.setAttribute('aria-pressed',l==='ko');en.setAttribute('aria-pressed',l==='en');
+  document.documentElement.lang=l;}
+function setMode(m){document.body.classList.remove('mode-easy','mode-expert');document.body.classList.add('mode-'+m);
+  expert.setAttribute('aria-pressed',m==='expert');easy.setAttribute('aria-pressed',m==='easy');}
+function cp(btn,id){navigator.clipboard.writeText(document.getElementById(id).innerText)
+  .then(()=>{const t=btn.textContent;btn.textContent='복사됨';setTimeout(()=>btn.textContent=t,1400);});}
+</script>
+</body>
+</html>
