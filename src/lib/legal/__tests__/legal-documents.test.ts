@@ -25,6 +25,10 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("5년");
     expect(PRIVACY_DOC.body).toContain("열람·정정·삭제");
     expect(PRIVACY_DOC.body).toContain("만 14세");
+    // 건강·활동 데이터(민감정보) 고지 (S1, PIPA gap fix): 수집 항목 + 민감정보 + AI 미전송.
+    expect(PRIVACY_DOC.body).toContain("민감정보");
+    expect(PRIVACY_DOC.body).toContain("건강·활동 데이터");
+    expect(PRIVACY_DOC.body).toContain("Health & activity data");
   });
 
   test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
