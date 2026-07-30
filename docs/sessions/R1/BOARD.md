@@ -156,15 +156,18 @@ R1에서 우회 머지된(`f1c964a3`, PROTOCOL §5 유일 예외로 Simon 직접
 
 ### 라우팅 — S6는 실행하지 않음, 담당·상태만 기록
 
-| 담당 | 요청 | 상태 |
+**2026-07-31 00:1x KST 갱신**: Simon 지시로 아래 4건을 S1/S2 개별 라우팅 대신 **S7 일괄 발주로 통합**
+(`T-R1-S6-S7-01`, cc 없음). S7이 위임하든 직접 처리하든 방식은 S6가 지정하지 않는다.
+
+| 항목 | 요청 | 상태 |
 |---|---|---|
-| S1 | `#1146` 법무·GTM 문구 마감. 확정 시점에 게이트⑤로 멈춰 Simon 확인 → 이후 checks green 확인 → S6 회신 | **PENDING** |
-| S2 | `src/lib/persona/north-star.ts` 상단 주석("7 DOMAIN"·"SAME formula" 표현)을 현재 계약에 맞게 정정. 로직 불변, 별도 PR, 관련 테스트 실행 후 결과 회신 | **PENDING** |
-| S1 | `T-R1-S1-S5-04` 원문을 RECOVERED(다른 기계·브랜치에서 그대로 복구) 또는 LOST/SUPERSEDED(이 티켓의 사후 판정으로 대체됐다고 BOARD에 연결)로 닫기 | **PENDING** |
-| S2 | `T-R1-S2-S5-02` 원문을 같은 방식으로 닫기 | **PENDING** |
+| 1 | `#1146` 법무·GTM 문구 마감. 확정 시점에 게이트⑤로 멈춰 Simon 확인 → checks green 확인 → S6 회신 | **PENDING (S7)** |
+| 2 | `src/lib/persona/north-star.ts` 상단 주석("7 DOMAIN"·"SAME formula" 표현)을 현재 계약에 맞게 정정. 로직 불변, 별도 PR, 관련 테스트 실행 후 결과 회신 | **PENDING (S7)** |
+| 3 | `T-R1-S1-S5-04` 원문을 RECOVERED 또는 LOST/SUPERSEDED로 닫기 | **PENDING (S7)** |
+| 4 | `T-R1-S2-S5-02` 원문을 같은 방식으로 닫기 | **PENDING (S7)** |
 
 전부 미착수 — S6가 대신 처리하지 않는다("하지 말 것: 누락 티켓의 추측 복원"과 정면으로 부딪힌다).
-각 담당이 회신하면 이 표를 갱신한다.
+`T-R1-S6-S7-01`에 회신이 오면 이 표를 갱신한다.
 
 **하지 말 것 재확인(S5 티켓 원문 그대로, S6도 동일 준수)**: `#1141`/`#1142` 롤백 금지 · Polaris 계산
 로직 재수정 금지 · 추가 production OTA 배포 금지 · 누락 티켓 추측 복원 금지 · `main` 직접 push 금지.
