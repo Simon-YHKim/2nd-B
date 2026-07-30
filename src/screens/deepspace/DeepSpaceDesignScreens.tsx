@@ -375,8 +375,8 @@ const GAPS_FACT_EN: { label: string; v: string }[] = [
   { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
 ];
 const GAPS_CONCEPT_EN: { title: string; body: string }[] = [
-  { title: "Star = an area of life", body: "The seven Big Dipper stars are career, finances, growth, relationships, health, rest, and capturing. Tap a star to see yourself in that area." },
-  { title: "North Star = your whole self", body: "It gathers the seven stars into one sentence about who you are. The more evenly they brighten, the clearer it gets." },
+  { title: "Stars = areas of life", body: "The six visible home stars are career, finances, growth, relationships, health, and rest. Capturing is an invisible intake area that feeds those six stars." },
+  { title: "North Star = your whole self", body: "It brings together data from all seven areas into one sentence about who you are. Its brightness becomes clearer as the six visible stars brighten evenly." },
   { title: "Starlight is not confidence", body: "Starlight is how much you've captured; confidence is how well it's verified. If it doesn't know, it says so." },
   { title: "Ratify (propose then ratify)", body: "SecondB's estimates are only proposals. Only what you ratify with \"that's right\" is reflected in you." },
   { title: "Capturing", body: "Capture notes, links, photos, voice, and to-dos instead of letting them slip by. SecondB helps sort them." },
