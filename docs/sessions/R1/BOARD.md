@@ -114,3 +114,57 @@ AskUserQuestion 응답 대기 구간에서 발생.
 
 **해석**: 새 활동은 실재하지만 PROTOCOL.md/R1 복구와는 무관한 별도 트랙(코덱스 173브랜치 정리)이다. 이
 세션의 핵심 블로커는 22:16 시점에도 그대로다.
+
+## 갱신 — 2026-07-31 00:04 KST, S5·S7 티켓 도착
+
+### I-1 결론 확정 — PROTOCOL.md는 LOST, 재구성하지 않는다
+
+세 갈래가 서로 독립적으로 같은 결론에 도달했다:
+
+- **S7** `T-R1-S7-S6-08`(2026-07-30 04:33 KST) — 이 기계·다른 워크트리 전부·E드라이브 없음을 직접
+  확인. "원본이 소실됐다면 BOOTSTRAP 참조를 정정하라"고 요청.
+- **S6**(이 세션, 04:15~22:16) — 전체 git 히스토리 검색으로 동일 확인.
+- **S5** `T-R1-S5-S6-01`(23:53 KST) — `#1143`(핸드오프 완결성)을 이 근거로 **REFUTED** 처리. "존재하지
+  않는 원문을 추측으로 복원하지 않는다"고 명시 요청.
+- **Simon**(채팅) — "경로는 C:\2ndB", 즉 인용되던 `E:\2ndB` 자체가 stale였다고 직접 확인. 복사해 올
+  다른 머신이 없다.
+
+**결정 (S6, PROTOCOL 개정 권한자로서): 재구성하지 않는다.** 대신:
+
+- `BOOTSTRAP.md` §0-5의 `PROTOCOL.md` 참조를 LOST로 정정 — 존재하지 않는 파일을 읽으라고 지시하는
+  상태를 남기지 않는다.
+- `BOOTSTRAP.md` §0-6 신설 — 정본 존재 검사(`git log --all -- <경로>`)를 부팅 절차에 편입.
+  `session-resume_260726.md`와 `PROTOCOL.md` 자신, 두 사고가 같은 검사 한 줄로 막혔을 사례.
+- `T-R1-S7-S6-08`의 부수 발견 2건(리눅스 마운트 `git status` CRLF 함정, `C:\2ndB` `node_modules`
+  불완전 + eas 우회)도 `BOOTSTRAP.md` §7로 흡수.
+- 전부 `v1.1`, 브랜치 `claude/s6-r1-board-init` / PR `#1149`에 커밋.
+- `T-R1-S7-S6-08`, `T-R1-S5-S6-01` 둘 다 이 결정으로 회신·종결.
+
+### I-6 — S5 사후검증 판정 (`T-R1-S5-S6-01`)
+
+원문: S5 브랜치 `docs/r1-s5-postmerge-actions`의 `docs/sessions/R1/T-R1-S5-S6-01.md`(커밋 `13b64c07`).
+R1에서 우회 머지된(`f1c964a3`, PROTOCOL §5 유일 예외로 Simon 직접 승인) 5개 PR을 `main` 기준으로 재반증.
+
+| 대상 | 판정 | 비고 |
+|---|---|---|
+| `#1142`(S4 캐논)+`#1141`(S2 consumer) | **CONFIRMED** | 캐논의 6개 `includedDomainIds`가 런타임 headline 밝기 경로로 실제로 흐른다. collect L1/L5·6-domain L2 적대 입력에서 과대 밝기·all-lit 오작동 재현 안 됨. 관련 테스트 22건 통과. **롤백·재설계 대상 아님.** |
+| S2 "조용한 축소 전제 해소" 주장 | **CONFIRMED** | `DESIGN.md`·`docs/PRD.md`·`docs/CONSTELLATION-DESIGN.md`가 7-domain persona 합성과 6-domain home headline을 명시적으로 분리. S5의 종전 REFUTED 전제는 더 이상 성립 안 함. |
+| `#1140` lifetime 판매 철수 | **CONDITIONAL** | 판매 tier·가격 경로 철수는 버팀. 공개 법무·GTM 문구 정리는 draft `#1146` 완료가 조건. |
+| `#1139` MdButton | **CONFIRMED** | function-form Pressable 제거 + guard 테스트 버팀. 후속 코드 조치 없음. |
+| `#1143` 핸드오프 완결성 | **REFUTED** | PROTOCOL.md·원발주 2건(`T-R1-S1-S5-04`·`T-R1-S2-S5-02`) 원문이 `main`에 없음 — I-1과 같은 사실. |
+| production OTA vc20 격리 | **CONFIRMED** | `#1148` 기준, S7 보고를 S5가 독립 재검증. fingerprint `c1e1f6e...` 일치, vc19·이전 production과 불일치. |
+
+### 라우팅 — S6는 실행하지 않음, 담당·상태만 기록
+
+| 담당 | 요청 | 상태 |
+|---|---|---|
+| S1 | `#1146` 법무·GTM 문구 마감. 확정 시점에 게이트⑤로 멈춰 Simon 확인 → 이후 checks green 확인 → S6 회신 | **PENDING** |
+| S2 | `src/lib/persona/north-star.ts` 상단 주석("7 DOMAIN"·"SAME formula" 표현)을 현재 계약에 맞게 정정. 로직 불변, 별도 PR, 관련 테스트 실행 후 결과 회신 | **PENDING** |
+| S1 | `T-R1-S1-S5-04` 원문을 RECOVERED(다른 기계·브랜치에서 그대로 복구) 또는 LOST/SUPERSEDED(이 티켓의 사후 판정으로 대체됐다고 BOARD에 연결)로 닫기 | **PENDING** |
+| S2 | `T-R1-S2-S5-02` 원문을 같은 방식으로 닫기 | **PENDING** |
+
+전부 미착수 — S6가 대신 처리하지 않는다("하지 말 것: 누락 티켓의 추측 복원"과 정면으로 부딪힌다).
+각 담당이 회신하면 이 표를 갱신한다.
+
+**하지 말 것 재확인(S5 티켓 원문 그대로, S6도 동일 준수)**: `#1141`/`#1142` 롤백 금지 · Polaris 계산
+로직 재수정 금지 · 추가 production OTA 배포 금지 · 누락 티켓 추측 복원 금지 · `main` 직접 push 금지.
