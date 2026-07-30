@@ -1,7 +1,9 @@
 // Layer C aggregate for the constellation home (PRD §4.4). The 북극성 (Polaris)
-// reading is the mean of the 7 DOMAIN star levels + a small all-lit bonus — the
-// SAME formula as soulCoreBrightness (stars.ts), but over the domain axis (layer A)
-// instead of the construct axis. Per the brightness-honesty rule the headline
+// reading is the mean of the SIX home domain star levels + a small all-lit bonus.
+// It shares the SHAPE of soulCoreBrightness (stars.ts) but not its input set: that
+// one runs over the construct axis (layer B), this one over the six domain stars
+// the home actually draws (layer A). The 7-domain persona synthesis is a separate
+// contract and does not feed this number. Per the brightness-honesty rule the headline
 // number means "how much of my life is mapped" (domain coverage), nothing more —
 // construct confidence (layer B) governs persona claim strength elsewhere, never
 // this number. Deterministic, LLM-free.
