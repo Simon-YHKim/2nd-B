@@ -1,7 +1,7 @@
 // Settings screen — rev2 M3 toggle-card top (모양 / 기능 / 데이터 연동, cloned
 // 1:1 from reference-app SettingsScreen + docs/clone-audit capture 09-settings)
 // over the retained functional settings surface (account nav, language,
-// decorative crew, the one-area-at-a-time data-delete danger zone, sign-out).
+// the one-area-at-a-time data-delete danger zone, sign-out).
 // The M3 rows are the capture-matching visuals; the sections below carry the
 // account/data/language/danger-zone behavior and localized helper copy.
 
@@ -43,7 +43,6 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // Direct module import (NOT the components/deepspace barrel) — the barrel has a
 // known require cycle that crashed the /settings path once already (PR 711).
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
-import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { useNoticeCenter } from "@/app/notices";
@@ -60,23 +59,10 @@ const CONFIRM_PHRASE = "DELETE";
 type SettingsToast = { message: string; tone: "info" | "success" | "danger" };
 type PendingConfirm = { message: string; onYes: () => Promise<void> } | null;
 type ActionError = { title: string; body: string; retry?: () => void } | null;
-type SettingsDisclosureKey = "crew" | "data" | "language";
+type SettingsDisclosureKey = "data" | "language";
 type DataDeleteStep = "records" | "assessments" | "library" | "full";
 
 const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library", "full"];
-
-const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
-  en: { none: "None", few: "Few", some: "Some", many: "Many" },
-  ko: { none: "없음", few: "적게", some: "보통", many: "많이" },
-};
-
-const DISPLAY_CREW_DENSITY_LABEL: Record<AvailableUiLocale, Record<CrewDensity, string>> = {
-  en: CREW_DENSITY_LABEL.en,
-  ko: CREW_DENSITY_LABEL.ko,
-  es: { none: "Ninguno", few: "Pocos", some: "Algunos", many: "Muchos" },
-  pt: { none: "Nenhum", few: "Poucos", some: "Alguns", many: "Muitos" },
-  id: { none: "Tidak ada", few: "Sedikit", some: "Beberapa", many: "Banyak" },
-};
 
 const SETTINGS_SURFACE_COPY: Record<
   AvailableUiLocale,
@@ -367,7 +353,6 @@ export default function Settings() {
     : "en";
   const { mode, setMode } = useTheme();
   const dark = mode === "dark";
-  const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
   const noticeCenter = useNoticeCenter(userId);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -377,7 +362,6 @@ export default function Settings() {
   const [actionError, setActionError] = useState<ActionError>(null);
   const [dataDeleteStep, setDataDeleteStep] = useState<DataDeleteStep>("records");
   const [openDisclosures, setOpenDisclosures] = useState<Record<SettingsDisclosureKey, boolean>>({
-    crew: false,
     data: false,
     language: false,
   });
@@ -586,7 +570,6 @@ export default function Settings() {
     );
 
   const newSurfaceCopy = SETTINGS_SURFACE_COPY[displayLocale];
-  const crewDensityLabel = DISPLAY_CREW_DENSITY_LABEL[displayLocale];
 
   return (
     <Chrome>
@@ -815,28 +798,14 @@ export default function Settings() {
           </View>
         </DisclosureSection>
 
-        <DisclosureSection
-          title={t("graphCrew")}
-          expanded={openDisclosures.crew}
-          onToggle={() => toggleDisclosure("crew")}
-        >
-          <Text variant="subtle" color="textMuted">
-            {t("graphCrewDesc")}
-          </Text>
-          <View style={styles.crewRow}>
-            {CREW_DENSITY_ORDER.map((d) => (
-              <Button
-                key={d}
-                label={crewDensityLabel[d]}
-                accessibilityHint={t("actions.crewDensityHint", { density: crewDensityLabel[d] })}
-                variant={crewDensity === d ? "primary" : "secondary"}
-                selected={crewDensity === d}
-                onPress={() => setCrewDensity(d)}
-                full={false}
-              />
-            ))}
-          </View>
-        </DisclosureSection>
+        {/* 그래프 크루 밀도 control removed (audit pattern A, same rule as the
+            feature switches above): the crew only draws in CrewLayer, which
+            mounts inside NavGraph — and NavGraph is reachable on neither
+            production surface. Home early-returns <DeepSpaceShell/> for
+            isDeepSpaceUI() (index.tsx), and /graph is wrapped in DevOnlyRoute.
+            So every density here moved a slider the user could never see the
+            effect of. The pref plumbing stays in lib/settings/crew-density.ts:
+            a control returns only WITH its screen. */}
 
         <DisclosureSection
           // Was titled identically to the nav.data button above (two controls,

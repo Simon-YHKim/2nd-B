@@ -1057,8 +1057,8 @@ results.push(
       settings.includes('accessibilityHint={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // /theme owns theme switching; see O-R1 settings restructure.)
-      settings.includes('accessibilityHint={t("actions.crewDensityHint",') &&
-      settings.includes("density: crewDensityLabel[d]") &&
+      // (crew-density hints removed with the control itself — CrewLayer only
+      //  renders inside NavGraph, which no production surface mounts.)
       settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
       settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
       settings.includes('accessibilityHint={t("actions.fullWipeHint")}') &&
@@ -1334,8 +1334,6 @@ results.push(
     const en = read("locales/en/settings.json");
     const ko = read("locales/ko/settings.json");
     const requiredCode = [
-      't("actions.crewDensityHint",',
-      "density: crewDensityLabel[d]",
       't("actions.deleteJournalsHint")',
       't("actions.deleteNotesHint")',
       't("actions.deleteAuditHint")',

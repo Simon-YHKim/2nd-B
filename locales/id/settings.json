@@ -28,7 +28,6 @@
   },
   "actions": {
     "signOutHint": "Keluar dan kembali ke layar masuk.",
-    "crewDensityHint": "Mengatur kepadatan kru graf dekoratif ke {{density}}.",
     "deleteJournalsHint": "Membuka konfirmasi sebelum menghapus semua entri jurnal.",
     "deleteNotesHint": "Membuka konfirmasi sebelum menghapus semua catatan.",
     "deleteAuditHint": "Membuka konfirmasi sebelum menghapus semua respons audit.",
@@ -147,8 +146,6 @@
   "integrations": "Integrasi",
   "aiMuseum": "Museum AI",
   "routines": "Rutinitas",
-  "graphCrew": "Kru grafik (dekoratif)",
-  "graphCrewDesc": "Berapa banyak sprite kru menjelajahi grafik. Menskala dengan jumlah node; atur dari tidak ada hingga banyak.",
   "deleteData": "Hapus data (zona bahaya)",
   "partialByKind": "Sebagian: menurut jenis",
   "partialByKindDesc": "Hapus satu jenis saja. Jenis lain dan wiki-mu tetap ada.",
