@@ -26,6 +26,8 @@ describe("visible graph copy", () => {
       "Core 로그",
       "이 Core",
       "소울코어",
+      'en: "Soul Core"',
+      'ko: "소울 코어"',
     ];
 
     for (const file of files) {
