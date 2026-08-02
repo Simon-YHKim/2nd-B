@@ -28,7 +28,6 @@
   },
   "actions": {
     "signOutHint": "Signs out and returns to the sign-in screen.",
-    "crewDensityHint": "Sets decorative graph crew density to {{density}}.",
     "deleteJournalsHint": "Opens a confirmation before deleting every journal entry.",
     "deleteNotesHint": "Opens a confirmation before deleting every note.",
     "deleteAuditHint": "Opens a confirmation before deleting every audit response.",
@@ -147,8 +146,6 @@
   "integrations": "Integrations",
   "aiMuseum": "AI Museum",
   "routines": "Routines",
-  "graphCrew": "Graph crew (decorative)",
-  "graphCrewDesc": "How many records-crew sprites wander the graph. Scales with your node count; set anywhere from none to many.",
   "deleteData": "Delete data (danger zone)",
   "partialByKind": "Partial: by kind",
   "partialByKindDesc": "Delete one kind only. Other kinds and your wiki stay.",

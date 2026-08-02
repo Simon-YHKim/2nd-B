@@ -28,7 +28,6 @@
   },
   "actions": {
     "signOutHint": "Sai da conta e volta para a tela de login.",
-    "crewDensityHint": "Define a densidade decorativa da equipe no grafo para {{density}}.",
     "deleteJournalsHint": "Abre uma confirmação antes de apagar todas as entradas do diário.",
     "deleteNotesHint": "Abre uma confirmação antes de apagar todas as notas.",
     "deleteAuditHint": "Abre uma confirmação antes de apagar todas as respostas de avaliação.",
@@ -147,8 +146,6 @@
   "integrations": "Integrações",
   "aiMuseum": "Museu de IA",
   "routines": "Rotinas",
-  "graphCrew": "Tripulação do gráfico (decorativa)",
-  "graphCrewDesc": "Quantos sprites da tripulação percorrem o gráfico. Escala com o número de nós; ajuste de nenhum a muitos.",
   "deleteData": "Excluir dados (zona de perigo)",
   "partialByKind": "Parcial: por tipo",
   "partialByKindDesc": "Exclui apenas um tipo. Os outros tipos e sua wiki permanecem.",
