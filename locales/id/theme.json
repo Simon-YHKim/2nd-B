@@ -21,7 +21,7 @@
     "options": {
       "pixel": {
         "label": "Font pixel",
-        "sub": "Huruf pixel khas desa"
+        "sub": "Huruf tampilan yang tajam untuk tampilan konstelasi"
       },
       "readable": {
         "label": "Font mudah dibaca",

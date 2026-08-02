@@ -38,18 +38,174 @@ import { LikertChoiceGroup } from "@/components/quant/LikertChoiceGroup";
 import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 import { consumeFirstStarChatNudge } from "@/lib/onboarding/state";
+import { systemLocaleFor, type AvailableUiLocale } from "@/lib/i18n/locales";
 
 // 6-point self-report scale: 1 전혀 나 같지 않다 … 6 매우 나 같다.
-const SCALE: { value: number; en: string; ko: string }[] = [
-  { value: 1, en: "Not like me at all", ko: "전혀 나 같지 않다" },
-  { value: 2, en: "Unlike me", ko: "나 같지 않다" },
-  { value: 3, en: "Somewhat unlike me", ko: "별로 나 같지 않다" },
-  { value: 4, en: "Somewhat like me", ko: "조금 나 같다" },
-  { value: 5, en: "Like me", ko: "나 같다" },
-  { value: 6, en: "Very much like me", ko: "매우 나 같다" },
+const SHIPPED_DISPLAY_LOCALES = ["en", "ko", "es", "pt", "id"] as const;
+
+function displayLocaleFor(localeTag: string | null | undefined): AvailableUiLocale {
+  const base = localeTag?.split("-")[0];
+  return SHIPPED_DISPLAY_LOCALES.includes(base as AvailableUiLocale) ? (base as AvailableUiLocale) : "en";
+}
+
+const SCALE: { value: number; label: Record<AvailableUiLocale, string> }[] = [
+  {
+    value: 1,
+    label: {
+      en: "Not like me at all",
+      ko: "전혀 나 같지 않다",
+      es: "No se parece nada a mi",
+      pt: "Nada parecido comigo",
+      id: "Sama sekali bukan saya",
+    },
+  },
+  {
+    value: 2,
+    label: { en: "Unlike me", ko: "나 같지 않다", es: "No se parece a mi", pt: "Pouco parecido comigo", id: "Kurang seperti saya" },
+  },
+  {
+    value: 3,
+    label: {
+      en: "Somewhat unlike me",
+      ko: "별로 나 같지 않다",
+      es: "Se parece poco a mi",
+      pt: "Um pouco diferente de mim",
+      id: "Agak kurang seperti saya",
+    },
+  },
+  {
+    value: 4,
+    label: {
+      en: "Somewhat like me",
+      ko: "조금 나 같다",
+      es: "Se parece algo a mi",
+      pt: "Um pouco parecido comigo",
+      id: "Agak seperti saya",
+    },
+  },
+  {
+    value: 5,
+    label: { en: "Like me", ko: "나 같다", es: "Se parece a mi", pt: "Parecido comigo", id: "Seperti saya" },
+  },
+  {
+    value: 6,
+    label: {
+      en: "Very much like me",
+      ko: "매우 나 같다",
+      es: "Se parece mucho a mi",
+      pt: "Muito parecido comigo",
+      id: "Sangat seperti saya",
+    },
+  },
 ];
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
+
+const STRENGTHS_COPY: Record<
+  AvailableUiLocale,
+  {
+    loading: string;
+    topic: string;
+    conclusion: string;
+    saveError: string;
+    title: string;
+    description: string;
+    citation: string;
+    prompt: string;
+    saved: string;
+    exitLabel: string;
+    exitTitle: string;
+    exitBody: string;
+    keepGoing: string;
+    exit: string;
+  }
+> = {
+  en: {
+    loading: "Loading...",
+    topic: "Strengths self-report",
+    conclusion: "Self-report estimate (not a medical assessment).",
+    saveError: "Couldn't save. Your answers are still here; please try again.",
+    title: "Strengths self-report",
+    description:
+      "A short self-report of which strengths feel like you. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment.",
+    citation: "Anchored to a character-strengths view · self-report estimate",
+    prompt: "How well does each statement fit you?",
+    saved: "Your strengths self-report is saved.",
+    exitLabel: "Exit confirmation",
+    exitTitle: "Leave the survey?",
+    exitBody: "Are you sure you want to exit? Your progress will not be saved.",
+    keepGoing: "Keep going",
+    exit: "Exit",
+  },
+  ko: {
+    loading: "불러오는 중...",
+    topic: "강점 자기보고",
+    conclusion: "자기보고 추정 (진단 아님).",
+    saveError: "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요.",
+    title: "강점 자기보고",
+    description:
+      "어떤 강점이 나와 얼마나 맞는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요.",
+    citation: "성격 강점 관점에서 착안 · 자기보고 추정",
+    prompt: "다음 문장이 당신과 얼마나 맞는지 골라주세요.",
+    saved: "강점 자기보고를 저장했어요.",
+    exitLabel: "종료 확인",
+    exitTitle: "그만두시겠어요?",
+    exitBody: "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다.",
+    keepGoing: "계속하기",
+    exit: "종료",
+  },
+  es: {
+    loading: "Cargando...",
+    topic: "Autoinforme de fortalezas",
+    conclusion: "Estimacion de autoinforme (no es una evaluacion medica).",
+    saveError: "No se pudo guardar. Tus respuestas siguen aqui; intentalo de nuevo.",
+    title: "Autoinforme de fortalezas",
+    description:
+      "Un autoinforme breve sobre que fortalezas se sienten propias. Valora cada frase del 1 (no se parece nada a mi) al 6 (se parece mucho a mi). No hay respuestas correctas; es una estimacion, no una evaluacion medica.",
+    citation: "Basado en una mirada de fortalezas personales · estimacion de autoinforme",
+    prompt: "¿Que tan bien encaja cada frase contigo?",
+    saved: "Tu autoinforme de fortalezas se guardo.",
+    exitLabel: "Confirmacion de salida",
+    exitTitle: "¿Salir de la encuesta?",
+    exitBody: "¿Seguro que quieres salir? Tu progreso no se guardara.",
+    keepGoing: "Continuar",
+    exit: "Salir",
+  },
+  pt: {
+    loading: "Carregando...",
+    topic: "Autorrelato de fortalezas",
+    conclusion: "Estimativa de autorrelato (nao e uma avaliacao medica).",
+    saveError: "Nao foi possivel salvar. Suas respostas ainda estao aqui; tente novamente.",
+    title: "Autorrelato de fortalezas",
+    description:
+      "Um autorrelato curto sobre quais fortalezas parecem suas. Avalie cada frase de 1 (nada parecido comigo) a 6 (muito parecido comigo). Nao ha respostas certas; e uma estimativa, nao uma avaliacao medica.",
+    citation: "Baseado em uma visao de fortalezas pessoais · estimativa de autorrelato",
+    prompt: "Quanto cada frase combina com voce?",
+    saved: "Seu autorrelato de fortalezas foi salvo.",
+    exitLabel: "Confirmacao de saida",
+    exitTitle: "Sair da pesquisa?",
+    exitBody: "Tem certeza de que quer sair? Seu progresso nao sera salvo.",
+    keepGoing: "Continuar",
+    exit: "Sair",
+  },
+  id: {
+    loading: "Memuat...",
+    topic: "Laporan diri kekuatan",
+    conclusion: "Perkiraan laporan diri (bukan penilaian medis).",
+    saveError: "Tidak dapat menyimpan. Jawabanmu masih ada; coba lagi.",
+    title: "Laporan diri kekuatan",
+    description:
+      "Laporan diri singkat tentang kekuatan yang terasa seperti dirimu. Nilai setiap pernyataan dari 1 (sama sekali bukan saya) sampai 6 (sangat seperti saya). Tidak ada jawaban benar; ini perkiraan, bukan penilaian medis.",
+    citation: "Berpijak pada sudut pandang kekuatan karakter · perkiraan laporan diri",
+    prompt: "Seberapa cocok setiap pernyataan dengan dirimu?",
+    saved: "Laporan diri kekuatanmu tersimpan.",
+    exitLabel: "Konfirmasi keluar",
+    exitTitle: "Keluar dari survei?",
+    exitBody: "Yakin ingin keluar? Progresmu tidak akan disimpan.",
+    keepGoing: "Lanjutkan",
+    exit: "Keluar",
+  },
+};
 
 // The strengths self-report body, mirroring ValuesSurvey: QuantIntroModal → paged
 // Likert items → live scoring → createRecord. It is the only writer of the
@@ -59,7 +215,10 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete: () => void; onCancel: () => void; registerBackGuard?: (fn: (() => boolean) | null) => void }) {
   const { i18n } = useTranslation("home");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const displayLocale = displayLocaleFor(i18n.language);
+  const systemLocale = systemLocaleFor(i18n.language);
+  const copy = STRENGTHS_COPY[displayLocale];
+  const systemCopy = STRENGTHS_COPY[systemLocale];
 
   const [responses, setResponses] = useState<StrengthsResponses>({});
   const [submitting, setSubmitting] = useState(false);
@@ -106,7 +265,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
   if (loading) {
     return (
       <View style={styles.center}>
-        <PremiumLoadingState message={locale === "ko" ? "불러오는 중…" : "Loading…"} />
+        <PremiumLoadingState message={copy.loading} />
       </View>
     );
   }
@@ -122,26 +281,23 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
     if (!userId || !result.complete) return;
     setSubmitting(true);
     try {
-      const labels = locale === "ko" ? STRENGTH_LABEL_KO : STRENGTH_LABEL_EN;
+      const labels = systemLocale === "ko" ? STRENGTH_LABEL_KO : STRENGTH_LABEL_EN;
       const summary = result.scores
         .slice(0, 3)
         .map((s) => `${labels[s.strength]}: ${s.score}`)
         .join("  ·  ");
       await createRecord({
         userId,
-        locale,
+        locale: systemLocale,
         kind: "note",
         body: JSON.stringify({
           strengths_responses: responses,
           scores: result.scores,
           confidence: result.confidence,
         }),
-        topic: locale === "ko" ? "강점 자기보고" : "Strengths self-report",
+        topic: systemCopy.topic,
         summary,
-        conclusion:
-          locale === "ko"
-            ? "자기보고 추정 (진단 아님)."
-            : "Self-report estimate (not a medical assessment).",
+        conclusion: systemCopy.conclusion,
         tags: ["strengths", "assessment"],
         withFollowup: false,
       });
@@ -150,10 +306,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
       if (typeof console !== "undefined") console.warn("[strengths] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save. Your answers are still here; please try again.",
+        message: copy.saveError,
       });
     } finally {
       setSubmitting(false);
@@ -165,20 +318,12 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
       {!started ? (
         <QuantIntroModal
           toolKey="strengths"
-          title={locale === "ko" ? "강점 자기보고" : "Strengths self-report"}
+          title={copy.title}
           itemCount={STRENGTH_ITEMS.length}
           estimatedMinutes={3}
-          description={
-            locale === "ko"
-              ? "어떤 강점이 나와 얼마나 맞는지 스스로 답하는 짧은 자기보고예요. 각 문장이 나와 얼마나 맞는지 1(전혀 나 같지 않다) ~ 6(매우 나 같다)로 답해 주세요. 정답은 없고, 진단이 아니라 추정이에요."
-              : "A short self-report of which strengths feel like you. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment."
-          }
-          citation={
-            locale === "ko"
-              ? "성격 강점 관점에서 착안 · 자기보고 추정"
-              : "Anchored to a character-strengths view · self-report estimate"
-          }
-          locale={locale}
+          description={copy.description}
+          citation={copy.citation}
+          locale={systemLocale}
           onStart={() => setStarted(true)}
           onCancel={onCancel}
         />
@@ -188,12 +333,10 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.header}>
             <Text variant="caption" color="brand">
-              {locale === "ko" ? "강점 자기보고" : "Strengths self-report"}
+              {copy.title}
             </Text>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "다음 문장이 당신과 얼마나 맞는지 골라주세요."
-                : "How well does each statement fit you?"}
+              {copy.prompt}
             </Text>
           </View>
 
@@ -205,31 +348,31 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
             onSubmit={handleSubmit}
             submitDisabled={!result.complete || submitting}
             submitLoading={submitting}
-            locale={locale}
+            locale={systemLocale}
             renderItem={(idx) => {
               const item = STRENGTH_ITEMS[idx];
               const value = responses[item.id];
               return (
                 <View style={styles.itemCard}>
                   <Text variant="body" style={{ marginBottom: 2 }}>
-                    {item.id}. {locale === "ko" ? item.ko : item.en}
+                    {item.id}. {systemLocale === "ko" ? item.ko : item.en}
                   </Text>
                   <Text variant="subtle" color="textSubtle" style={{ marginBottom: spacing.xs }}>
-                    {locale === "ko" ? item.subtitleKo : item.subtitleEn}
+                    {systemLocale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
                   <LikertChoiceGroup
-                    choices={SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
-                    locale={locale}
+                    choices={SCALE.map((s) => ({ value: s.value, label: s.label[displayLocale] }))}
+                    locale={systemLocale}
                     onSelect={(next) => setResponse(item.id, next)}
-                    question={`${item.id}. ${locale === "ko" ? item.ko : item.en}`}
+                    question={`${item.id}. ${systemLocale === "ko" ? item.ko : item.en}`}
                     value={value}
                   />
                   <View style={styles.scaleLegend}>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[0].ko : SCALE[0].en}
+                      {SCALE[0].label[displayLocale]}
                     </Text>
                     <Text variant="subtle" color="textMuted">
-                      {locale === "ko" ? SCALE[5].ko : SCALE[5].en}
+                      {SCALE[5].label[displayLocale]}
                     </Text>
                   </View>
                 </View>
@@ -241,12 +384,12 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
 
       {saved ? (
         <QuantSaveCelebration
-          message={locale === "ko" ? "강점 자기보고를 저장했어요." : "Your strengths self-report is saved."}
+          message={copy.saved}
           onDone={() => {
             // med#7: first star ever -> one SecondB chat (activation). This
             // nudge lived only on /attachment; now every instrument takes it.
             if (consumeFirstStarChatNudge()) {
-              router.replace({ pathname: "/secondb", params: { fromNode: locale === "ko" ? "강점 자기보고" : "Strengths self-report" } });
+              router.replace({ pathname: "/secondb", params: { fromNode: copy.topic } });
             } else {
               onComplete();
             }
@@ -263,23 +406,21 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "종료 확인" : "Exit confirmation"}
+        accessibilityLabel={copy.exitLabel}
       >
-        <Text variant="heading">{locale === "ko" ? "그만두시겠어요?" : "Leave the survey?"}</Text>
+        <Text variant="heading">{copy.exitTitle}</Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {copy.exitBody}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "계속하기" : "Keep going"}
+            label={copy.keepGoing}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
           />
           <Button
-            label={locale === "ko" ? "종료" : "Exit"}
+            label={copy.exit}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);

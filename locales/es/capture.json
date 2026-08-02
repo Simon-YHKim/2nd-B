@@ -134,8 +134,8 @@
       "helper": "La captura de notas, enlaces, archivos y fotos sigue disponible sin límite."
     },
     "streak": {
-      "label": "Racha de {{count}} día(s){{suffix}}",
-      "missingToday": " (ninguna hoy todavía)"
+      "label": "Días registrados: {{count}}{{suffix}}",
+      "missingToday": " (hoy es opcional)"
     },
     "prompt": {
       "heading": "Pregunta de reflexión de hoy",
@@ -349,7 +349,7 @@
   "formatsTab": "Formatos",
   "importTab": "Importar",
   "inboxTab": "Bandeja",
-  "manualTab": "Manual",
+  "manualTab": "Entrada manual",
   "jot": {
     "title": "Anota una línea",
     "deviceNote": "Por ahora se guarda en este dispositivo. Crea una cuenta para llevarlo a tu segundo cerebro.",

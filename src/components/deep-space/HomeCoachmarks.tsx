@@ -95,13 +95,20 @@ export function HomeCoachmarks({ onDone }: { onDone: () => void }) {
           <Text style={styles.stepCount}>{`${idx + 1}/${STEPS.length}`}</Text>
           <Text style={styles.bubbleText} accessibilityLabel={bubbleText}>{keepAllKo(bubbleText)}</Text>
           <View style={styles.btnRow}>
-            <Pressable onPress={finish} hitSlop={8} accessibilityRole="button" style={styles.ghostBtn}>
+            <Pressable
+              onPress={finish}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("deepspace:coachmarks.dontShowAgain")}
+              style={styles.ghostBtn}
+            >
               <Text style={styles.ghostText}>{t("deepspace:coachmarks.dontShowAgain")}</Text>
             </Pressable>
             <Pressable
               onPress={() => (last ? finish() : setIdx((v) => v + 1))}
               hitSlop={8}
               accessibilityRole="button"
+              accessibilityLabel={last ? t("deepspace:coachmarks.start") : t("deepspace:coachmarks.next")}
               style={styles.nextBtn}
             >
               <Text style={styles.nextText}>{last ? t("deepspace:coachmarks.start") : t("deepspace:coachmarks.next")}</Text>
@@ -148,12 +155,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.accent, 0.35),
-    backgroundColor: "#0B1120",
+    backgroundColor: deepSpace.bgMid,
     padding: spacing.md,
     gap: 6,
   },
   stepCount: { fontFamily: m3.font.mono, fontSize: 10, color: withAlpha(deepSpace.accentSoft, 0.7) },
-  bubbleText: { fontSize: 15, lineHeight: 22, color: "#EAF2FF", fontWeight: "600" },
+  bubbleText: { fontSize: 15, lineHeight: 22, color: deepSpace.textHi, fontWeight: "600" },
   btnRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   ghostBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
   ghostText: { fontSize: 12.5, color: withAlpha(deepSpace.accentSoft, 0.8) },

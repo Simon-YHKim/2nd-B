@@ -248,9 +248,9 @@ export const CENTER_NODE: NavNode = {
   // bubbleAction removed (2026-05-28 user directive): the chat (세컨비)
   // entry moved out of the bubble to a floating button at the bottom-
   // right of the main screen. The bubble now only describes Core Brain.
-  // Dev name stays "Core Brain"; user-facing label uses the village
-  // wording "나의 중심" / "Soul Core" (handoff §7-2).
-  label: { en: "Soul Core", ko: "소울 코어" },
+  // Dev name stays "Core Brain"; the user-facing graph center is the
+  // canonical North Star / 북극성 readout.
+  label: { en: "North Star", ko: "북극성" },
   // Core Brain speaks as the team's voice — calm, plural ("우리 / we"),
   // owns the cells. Surface this everywhere the user lands first.
   description: {

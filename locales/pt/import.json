@@ -1,9 +1,9 @@
 {
-  "loading": "Carregando importação...",
+  "loading": "Carregando importação…",
   "hero": {
     "eyebrow": "08-5. Importar",
     "title": "Traga autoconhecimento externo para o 2nd-Brain",
-    "subtitle": "Outros assistentes - resultados de testes - notas",
+    "subtitle": "Outros assistentes · resultados de testes · notas",
     "speech": "O material colado é organizado primeiro e salvo só quando você confirmar."
   },
   "promptCard": {
@@ -18,7 +18,7 @@
     "eyebrow": "Colar",
     "title": "Resposta ou resultado de teste",
     "description": "Cole a resposta, uma disposição anterior ou resultado de teste de personalidade, ou notas sobre você. O 2nd-Brain vai organizar e marcar tudo na sua estrutura.",
-    "placeholder": "Cole aqui...",
+    "placeholder": "Cole aqui…",
     "accessibilityLabel": "Material a importar",
     "sort": "Organizar e classificar",
     "sortHint": "Organiza o material colado antes de salvar."
@@ -32,7 +32,7 @@
     "eyebrow": "Resultado organizado",
     "title": "Registro importado",
     "degraded": "A organização profunda estava indisponível, então este é um processamento local básico. Tente novamente para uma organização mais completa.",
-    "meta": "{{count}} itens - {{track}}",
+    "meta": "{{count}} itens · {{track}}",
     "track": {
       "pro": "trabalho e especialidade",
       "life": "cotidiano"

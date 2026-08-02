@@ -280,6 +280,7 @@ export function OpsHomeScreen() {
         subtitle={pushRec?.title}
         options={pushRec ? pushOptions(pushRec) : []}
         confirmLabel={c.allowAndContinue}
+        closeLabel={c.cancel}
         onConfirm={() => setPushRec(null)}
         onClose={() => setPushRec(null)}
       />

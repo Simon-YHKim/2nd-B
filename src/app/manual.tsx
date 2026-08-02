@@ -231,7 +231,7 @@ function ManualLegacy() {
                 "성격 특성과 애착 스타일: 짧게 남기는 자기 이해 평가",
                 "인사이트 화면: 매주 활동·자주 다룬 주제·결론 모음",
                 "리서치 화면: 세컨비가 인용하는 학술 자료 브라우저",
-                "오늘의 성찰 질문 + 연속 기록 카운터",
+                "오늘의 성찰 질문 + 부담 없는 기록일 카운터",
                 "기록 · 캡처 · 위키 페이지 삭제 가능",
                 "캡처 시 종류 자동 감지 + 미리보기",
               ]
@@ -239,7 +239,7 @@ function ManualLegacy() {
                 "Personality and attachment: short self-knowledge assessments",
                 "Insights screen: weekly activity, recurring topics, conclusion stream",
                 "Research screen: browse validated academic sources SecondB cites",
-                "Daily reflection prompt + streak counter",
+                "Daily reflection prompt + gentle record-day counter",
                 "Delete records, captures, and wiki pages",
                 "Auto-detect kind on capture + preview before save",
               ]).map((line, i) => (

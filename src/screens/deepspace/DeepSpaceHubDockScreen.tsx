@@ -129,7 +129,7 @@ function SecondbContent({ chatDraft, setChatDraft, chatSent, setChatSent }: HubS
         <Text variant="body" style={styles.aiBubble}>기록을 보면 3월부터 작업 전환이 잦아졌어요. 외향성이 오른 시기와 겹쳐요. 산만함보다 관심이 넓어진 신호일 수 있어요.</Text>
         <Text variant="subtle" style={styles.evidence}>📎 내 기록 3건 근거</Text>
       </View>
-      {chatSent ? <Text variant="subtle" style={styles.sentNote}>보냈어요. 실제 대화 저장 연결은 다음 단계 TODO입니다.</Text> : null}
+      {chatSent ? <Text variant="subtle" style={styles.sentNote}>보냈어요. 이 미리보기에서는 대화가 저장되지 않습니다.</Text> : null}
       <View style={styles.inputBar}>
         <TextInput
           accessibilityLabel="세컨비에게 물어보기"

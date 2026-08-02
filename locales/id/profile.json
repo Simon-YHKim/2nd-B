@@ -16,8 +16,8 @@
       "label": "Pusat diri",
       "items": {
         "coreBrain": {
-          "label": "Buka pusat",
-          "hint": "Membuka layar pusat diri."
+          "label": "Buka Bintang Utara",
+          "hint": "Membuka layar Bintang Utara."
         },
         "esm": {
           "label": "Check-in sekarang",
@@ -107,7 +107,7 @@
           "hint": "Membuka format pengarsipanmu."
         },
         "manual": {
-          "label": "Manual",
+          "label": "Panduan",
           "hint": "Membuka manual aplikasi."
         },
         "import": {

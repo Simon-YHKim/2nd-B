@@ -36,7 +36,7 @@ export const SELF_MODEL_PROPOSAL_SCHEMA = {
 
 function targetLabel(target: ProposalTarget): string {
   if (target.kind === "star") return `self-understanding star "${target.star}"`;
-  if (target.kind === "soulCore") return "Soul Core aggregate reading";
+  if (target.kind === "soulCore") return "North Star aggregate reading";
   return "north-star philosophy sentence";
 }
 

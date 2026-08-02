@@ -27,6 +27,12 @@
   "states": {
     "loading": "Loading…"
   },
+  "progression": {
+    "maxLevelTrailing": "{{xp}} XP · max level",
+    "nextLevelTrailing": "{{xp}} XP to next level",
+    "progressLabel": "Level {{level}}, XP progress {{pct}}%",
+    "maxLevelHint": "Already at the max level."
+  },
   "journal": {
     "privacyFootnote": "Your entries stay encrypted and never train any model.",
     "relativeJustNow": "just now",
@@ -51,7 +57,7 @@
     "skipHint": "Double tap to skip the intro animation."
   },
   "worldview": {
-    "soulCore": "Soul Core",
+    "soulCore": "North Star",
     "growthCore": "Growth Core",
     "bondCore": "Bond Core",
     "wisdomCore": "Wisdom Core",
@@ -65,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "Back to constellation",
-      "backHint": "Returns from the Pattern Core drilldown to the full constellation.",
+      "backHint": "Returns from the domain star detail to the full constellation.",
       "coreEyebrow": "Pattern Core",
       "dataEyebrow": "Pattern Data",
       "touch": "Touch!",
@@ -84,25 +90,25 @@
   },
   "navPiece": "piece",
   "navPieceSummary": "Opens this piece summary and tags",
-  "navVillageNode": "Opens this village node",
-  "navCenterVillage": "Opens the center village",
+  "navVillageNode": "Opens this star node",
+  "navCenterVillage": "Opens the North Star",
   "navResetView": "Reset view",
   "navResetHint": "Resets graph pan and zoom",
   "navReset": "Reset",
   "navPrevCategory": "Previous category",
-  "navPrevHint": "Selects previous village",
+  "navPrevHint": "Selects previous star",
   "navPrev": "Prev",
   "navOpenSettings": "Open settings",
   "navSettingsHint": "Opens settings screen",
   "navSettings": "Settings",
   "navNextCategory": "Next category",
-  "navNextHint": "Selects next village",
+  "navNextHint": "Selects next star",
   "navNext": "Next",
   "navClose": "Close",
-  "navCloseVillage": "Closes the village detail panel",
+  "navCloseVillage": "Closes the star detail panel",
   "navPiecesConnected": "pieces I connected",
   "navLookAround": "Look around",
-  "navOpenAngleVillage": "Opens this village in SecondB from a new angle",
+  "navOpenAngleVillage": "Opens this star in SecondB from a new angle",
   "navOpenNewAngle": "Open new angle",
   "navClosePiece": "Closes the piece detail panel",
   "navNoSummary": "No summary yet.",

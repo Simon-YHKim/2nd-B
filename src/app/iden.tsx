@@ -55,12 +55,55 @@ const ROW_FIELDS: Record<string, string[]> = {
   raw: [], // raw notes: not in the doc, sensitive, off by default
 };
 
-// English mirrors for the KO-only canon row labels/subs (iden supports en/ko).
-const ROW_EN: Record<string, { label: string; sub: string }> = {
-  northstar: { label: "North-star sentence", sub: "You in one line" },
-  bigfive: { label: "Big Five", sub: "Big Five included" },
-  domains: { label: "7-domain summary", sub: "Starlight · confidence" },
-  raw: { label: "Raw notes", sub: "Sensitive — off by default" },
+type IdenLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const IDEN_ROW_COPY: Record<IdenLocale, Record<string, { label: string; sub: string }>> = {
+  en: {
+    northstar: { label: "North-star sentence", sub: "You in one line" },
+    bigfive: { label: "Big Five", sub: "Big Five included" },
+    domains: { label: "7-domain summary", sub: "Starlight · confidence" },
+    raw: { label: "Raw notes", sub: "Sensitive, off by default" },
+  },
+  ko: {
+    northstar: { label: "북극성 문장", sub: "나를 한 줄로" },
+    bigfive: { label: "Big Five", sub: "검증 결과 포함" },
+    domains: { label: "7도메인 요약", sub: "별빛 · 신뢰도" },
+    raw: { label: "원문 기록", sub: "민감할 수 있어요. 기본 제외" },
+  },
+  es: {
+    northstar: { label: "Frase de estrella guía", sub: "Tú en una línea" },
+    bigfive: { label: "Big Five", sub: "Big Five incluido" },
+    domains: { label: "Resumen de 7 dominios", sub: "Luz estelar · confianza" },
+    raw: { label: "Notas originales", sub: "Sensibles, excluidas por defecto" },
+  },
+  pt: {
+    northstar: { label: "Frase da estrela guia", sub: "Você em uma linha" },
+    bigfive: { label: "Big Five", sub: "Big Five incluído" },
+    domains: { label: "Resumo de 7 domínios", sub: "Luz das estrelas · confiança" },
+    raw: { label: "Notas originais", sub: "Sensíveis, excluídas por padrão" },
+  },
+  id: {
+    northstar: { label: "Kalimat bintang penuntun", sub: "Dirimu dalam satu baris" },
+    bigfive: { label: "Big Five", sub: "Big Five disertakan" },
+    domains: { label: "Ringkasan 7 domain", sub: "Cahaya bintang · keyakinan" },
+    raw: { label: "Catatan asli", sub: "Sensitif, dikecualikan secara default" },
+  },
+};
+
+const IDEN_FOOTNOTE_COPY: Record<IdenLocale, string> = {
+  en: "Off = this row leaves in no format. The one-line summary is a separate item and stays included.",
+  ko: "끄면 이 항목 줄은 어떤 형식에도 담기지 않아요. 한 줄 요약 문장은 별도 항목으로 계속 포함돼요.",
+  es: "Si se desactiva, esta fila no se incluye en ningún formato. El resumen de una línea es un elemento separado y sigue incluido.",
+  pt: "Ao desligar, esta linha não entra em nenhum formato. O resumo de uma linha é um item separado e continua incluído.",
+  id: "Jika dimatikan, baris ini tidak masuk ke format apa pun. Ringkasan satu baris adalah item terpisah dan tetap disertakan.",
+};
+
+const IDEN_LOCK_COPY: Record<IdenLocale, string> = {
+  en: "Signed on your device. Raw notes never leave without consent.",
+  ko: "내 기기에서 서명돼요. 원문은 동의 없이 나가지 않아요.",
+  es: "Se firma en tu dispositivo. Las notas originales nunca salen sin consentimiento.",
+  pt: "Assinado no seu dispositivo. As notas originais nunca saem sem consentimento.",
+  id: "Ditandatangani di perangkatmu. Catatan asli tidak pernah keluar tanpa persetujuan.",
 };
 
 // Open the rendered CV sheet in a new tab so the browser print dialog can save
@@ -89,6 +132,7 @@ function IdenExportScreenDeepSpace() {
   const { t, i18n } = useTranslation("iden");
   const isKo = i18n.language === "ko";
   const locale = (isKo ? "ko" : "en") as "en" | "ko";
+  const uiLocale = (["ko", "es", "pt", "id"].find((lang) => i18n.language.startsWith(lang)) ?? "en") as IdenLocale;
   const { userId, loading, isMinor } = useAuth();
   const [data, setData] = useState<IdenViewData | null | undefined>(undefined);
   const [hasError, setHasError] = useState(false);
@@ -282,13 +326,12 @@ function IdenExportScreenDeepSpace() {
           <View style={dsIden.rowsCard}>
             {canonIden.rows.map((row, i) => {
               const on = !excluded.includes(row.id);
-              const label = isKo ? row.label : ROW_EN[row.id]?.label ?? row.label;
+              const rowCopy = IDEN_ROW_COPY[uiLocale][row.id];
+              const label = rowCopy?.label ?? row.label;
               const sub =
                 row.id === "bigfive"
-                  ? data!.bigFive ?? (isKo ? "검증 결과 포함" : ROW_EN.bigfive.sub)
-                  : isKo
-                    ? row.sub
-                    : ROW_EN[row.id]?.sub ?? row.sub;
+                  ? data!.bigFive ?? IDEN_ROW_COPY[uiLocale].bigfive.sub
+                  : rowCopy?.sub ?? row.sub;
               const sensitive = row.id === "raw";
               return (
                 <View key={row.id} style={[dsIden.row, i > 0 && dsIden.rowDivider]}>
@@ -318,9 +361,7 @@ function IdenExportScreenDeepSpace() {
                 broader than the switch — it removes the ROW only, while the
                 one-line summary is a separate top-level doc field. Say exactly
                 what the control does. */}
-            {isKo
-              ? "끄면 이 항목 줄은 어떤 형식에도 담기지 않아요. 한 줄 요약 문장은 별도 항목으로 계속 포함돼요."
-              : "Off = this row leaves in no format. The one-line summary is a separate item and stays included."}
+            {IDEN_FOOTNOTE_COPY[uiLocale]}
           </Text>
 
           {/* 형식 */}
@@ -369,7 +410,7 @@ function IdenExportScreenDeepSpace() {
               <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onSurfaceVariant} />
             </Svg>
             <Text style={dsIden.lockText}>
-              {isKo ? "내 기기에서 서명돼요. 원문은 동의 없이 나가지 않아요." : "Signed on your device. Raw notes never leave without consent."}
+              {IDEN_LOCK_COPY[uiLocale]}
             </Text>
           </View>
         </ScrollView>

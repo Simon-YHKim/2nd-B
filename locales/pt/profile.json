@@ -16,8 +16,8 @@
       "label": "Centro pessoal",
       "items": {
         "coreBrain": {
-          "label": "Abrir centro",
-          "hint": "Abre a tela do seu centro pessoal."
+          "label": "Abrir Estrela Polar",
+          "hint": "Abre a tela da sua Estrela Polar."
         },
         "esm": {
           "label": "Registrar agora",

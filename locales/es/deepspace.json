@@ -332,7 +332,7 @@
     "search": "¿Qué te da curiosidad?",
     "sectionStart": "Primeros pasos",
     "q1": "¿Cuáles son las 7 estrellas de la Osa Mayor?",
-    "q2": "¿Cómo se ilumina la Estrella Polar (Núcleo del Alma)?",
+    "q2": "¿Cómo se ilumina la Estrella Polar?",
     "q3": "¿Cómo se vuelven más precisos los resultados de las pruebas?",
     "sectionData": "Datos · Privacidad",
     "q4": "¿Qué es un archivo IDEN?",
@@ -567,6 +567,7 @@
     "save": "Guardar",
     "opening": "Abriendo…",
     "empty": "Aún no hay nada aquí. Empieza con lo que te recarga estos días; la estrella del descanso se ilumina.",
+    "ratingLabel": "Valoración {{rating}}/5",
     "category": {
       "game": "Juego",
       "movie": "Película",
@@ -660,6 +661,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowConstellation": "MI CONSTELACION",
     "footerWeek": "Una semana vista junto a SecondB",
     "starsLit": "{{count}} estrellas brillando",
     "signature": "2nd-Brain · {{count}} motas de estrella"
@@ -799,7 +801,16 @@
       "healthErrUnavailable": "Este dispositivo no puede conectarse a una app de salud. No se registró nada.",
       "healthErrDenied": "Se rechazó el acceso a salud, así que no se registró nada. Puedes permitirlo en los ajustes del dispositivo.",
       "healthErrEmpty": "Hoy no hay actividad de salud que reflejar.",
-      "healthErrFailed": "No se pudo reflejar tus datos de salud. Inténtalo de nuevo en un momento."
+      "healthErrFailed": "No se pudo reflejar tus datos de salud. Inténtalo de nuevo en un momento.",
+      "summaryPieces": "{{count}} pieza",
+      "summaryPieces_plural": "{{count}} piezas",
+      "resultAdded": "Se agregó {{count}} a tu bandeja",
+      "resultAdded_plural": "Se agregaron {{count}} a tu bandeja",
+      "resultDuplicate": "{{count}} duplicado",
+      "resultDuplicate_plural": "{{count}} duplicados",
+      "resultFailed": "{{count}} con error",
+      "a11yImportExportFile": "Importar el archivo de exportación de {{name}}",
+      "a11yRevokeImport": "Revocar la importación de {{name}}"
     },
     "ttfv": {
       "pageTitle": "Tu primera estrella acaba de encenderse",
@@ -873,6 +884,12 @@
       "plansCta": "Ver planes",
       "close": "Cerrar",
       "sameQuality": "Las recompensas solo añaden ejecuciones. La calidad de las respuestas no cambia."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning automático",
+      "autoPaused": "Límite alcanzado · se reanuda el lunes",
+      "autoBody": "SecondB conecta cada elemento cuando lo capturas",
+      "autoNote": "Las ejecuciones automáticas usan una ejecución semanal y siempre reservan una para uso manual."
     }
   },
   "beyond": {

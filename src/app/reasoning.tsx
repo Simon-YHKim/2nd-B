@@ -657,7 +657,7 @@ export default function ReasoningScreen() {
     profileProbeFailed,
     refresh,
   } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const locale: "ko" | "en" = ko ? "ko" : "en";
   const progression = useProgression();
@@ -1192,15 +1192,11 @@ export default function ReasoningScreen() {
                     <Glyph name="bolt" color={m3.color.primary} />
                   </View>
                   <View style={styles.rowCopy}>
-                    <RNText style={styles.rowLabel}>{ko ? "자동 리즈닝" : "Automatic reasoning"}</RNText>
+                    <RNText style={styles.rowLabel}>{t("ds.reasoningScreen.autoTitle")}</RNText>
                     <RNText style={[styles.rowSub, depleted && styles.errorText]}>
                       {depleted
-                        ? ko
-                          ? "한도 소진 · 월요일에 자동으로 다시 시작해요"
-                          : "Limit reached · automatic runs resume Monday"
-                        : ko
-                          ? "자료를 담을 때마다 세컨비가 바로 별을 이어요"
-                          : "SecondB connects each item as you capture it"}
+                        ? t("ds.reasoningScreen.autoPaused")
+                        : t("ds.reasoningScreen.autoBody")}
                     </RNText>
                   </View>
                   {/* Spec A 잔여 0: the paused state must still allow turning the
@@ -1245,9 +1241,7 @@ export default function ReasoningScreen() {
                 </View>
                 {auto.enabled && !depleted ? (
                   <RNText style={styles.autoNote}>
-                    {ko
-                      ? "자동 실행도 주간 한도를 1회씩 사용해요. 직접 실행할 1회는 항상 남겨 둬요."
-                      : "Automatic runs use one weekly run and always reserve one for manual use."}
+                    {t("ds.reasoningScreen.autoNote")}
                   </RNText>
                 ) : null}
                 </View>

@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { SecondbHead } from "@/components/deepspace";
@@ -37,19 +38,18 @@ interface HomeStar {
   id: DomainId | "polaris";
   x: number;
   y: number;
-  label: string;
   big?: boolean;
   level?: number;
 }
 const STARS: HomeStar[] = [
-  { id: "polaris", x: 140, y: -16, label: "북극성", big: true },
-  { id: "career", x: 228, y: 90, label: "커리어", level: 3 },
-  { id: "finance", x: 230, y: 131, label: "재정", level: 2 },
-  { id: "relation", x: 174, y: 152, label: "관계", level: 3 },
-  { id: "growth", x: 151, y: 126, label: "성장", level: 3 },
-  { id: "health", x: 108, y: 135, label: "건강", level: 2 },
-  { id: "recreation", x: 76, y: 143, label: "휴식", level: 2 },
-  { id: "collect", x: 50, y: 187, label: "담아내기", level: 4 },
+  { id: "polaris", x: 140, y: -16, big: true },
+  { id: "career", x: 228, y: 90, level: 3 },
+  { id: "finance", x: 230, y: 131, level: 2 },
+  { id: "relation", x: 174, y: 152, level: 3 },
+  { id: "growth", x: 151, y: 126, level: 3 },
+  { id: "health", x: 108, y: 135, level: 2 },
+  { id: "recreation", x: 76, y: 143, level: 2 },
+  { id: "collect", x: 50, y: 187, level: 4 },
 ];
 
 // sb-data.jsx STAR_LINES (dipper bowl + handle) and POLARIS_GUIDE (pointer).
@@ -74,7 +74,21 @@ function starOpacity(s: HomeStar, liveLevel?: number): number {
   return 0.36 + (lv / 5) * 0.64;
 }
 
-function StarDot({ star, cx, cy, liveLevel, onPress }: { star: HomeStar; cx: number; cy: number; liveLevel?: number; onPress: () => void }) {
+function StarDot({
+  star,
+  label,
+  cx,
+  cy,
+  liveLevel,
+  onPress,
+}: {
+  star: HomeStar;
+  label: string;
+  cx: number;
+  cy: number;
+  liveLevel?: number;
+  onPress: () => void;
+}) {
   const dot = star.big ? BIG_DOT : DOT;
   const glow = star.big ? BIG_GLOW : GLOW;
   const core = `core-${star.id}`;
@@ -123,13 +137,13 @@ function StarDot({ star, cx, cy, liveLevel, onPress }: { star: HomeStar; cx: num
           },
         ]}
       >
-        {star.label}
+        {label}
       </Text>
       {/* bare touch surface ON TOP — visuals stay on sibling Views because
           Fabric Android drops styles handed to Pressable (PR 680 pattern). */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${star.label} 별`}
+        accessibilityLabel={label}
         onPress={onPress}
         hitSlop={6}
         style={{ position: "absolute", left: cx - HIT / 2, top: cy - HIT / 2, width: HIT, height: HIT }}
@@ -141,6 +155,7 @@ function StarDot({ star, cx, cy, liveLevel, onPress }: { star: HomeStar; cx: num
 export function DeepSpaceHomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation("home");
   const { userId, loading } = useAuth();
   const { width, height } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -176,6 +191,7 @@ export function DeepSpaceHomeScreen() {
   const boxH = boxW * (VBH / VBW);
   const sx = boxW / VBW;
   const sy = boxH / VBH;
+  const starLabel = (id: HomeStar["id"]) => (id === "polaris" ? t("ds.home.polaris") : t(`ds.home.domainName.${id}`));
 
   return (
     <PhoneShell variant="immersive" activeNav="home">
@@ -206,7 +222,7 @@ export function DeepSpaceHomeScreen() {
         <View style={[styles.bell, { top: insets.top + 8 }]}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="알림"
+            accessibilityLabel={t("ds.home.inbox")}
             style={styles.bellPress}
             hitSlop={8}
             onPress={() => router.push("/inbox")}
@@ -236,6 +252,7 @@ export function DeepSpaceHomeScreen() {
               <StarDot
                 key={s.id}
                 star={s}
+                label={starLabel(s.id)}
                 cx={s.x * sx}
                 cy={s.y * sy}
                 liveLevel={s.id === "polaris" ? undefined : levels?.[s.id]}
@@ -250,22 +267,22 @@ export function DeepSpaceHomeScreen() {
         <View style={styles.headRegion}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="세컨비에게 물어보기"
+            accessibilityLabel={t("ds.home.headA11y")}
             onPress={() => setMenuOpen((v) => !v)}
             hitSlop={4}
           >
-            <SecondbHead mood="neutral" size={160} accessibilityLabel="세컨비" />
+            <SecondbHead mood="neutral" size={160} accessibilityLabel={t("ds.dock.chat")} />
           </Pressable>
           <View style={styles.bubble}>
             <View style={styles.caret} />
-            <Text style={styles.eyebrow}>소개</Text>
-            <Text style={styles.bubbleBody}>안녕하세요, 저는 세컨비예요. 머리를 누르면 도와드릴게요.</Text>
+            <Text style={styles.eyebrow}>{t("ds.home.bubble.introTag")}</Text>
+            <Text style={styles.bubbleBody}>{t("ds.home.bubble.intro")}</Text>
             {menuOpen ? (
               <View style={styles.menuRow}>
                 <View style={styles.menuBtnWrap}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="챗봇"
+                    accessibilityLabel={t("ds.home.bubble.chatbot")}
                     hitSlop={10}
                     onPress={() => {
                       setMenuOpen(false);
@@ -274,13 +291,13 @@ export function DeepSpaceHomeScreen() {
                     style={styles.menuPress}
                   >
                     <SbIcon name="forum" size={16} color={m3.color.onPrimary} />
-                    <Text style={styles.menuBtnFilledText}>챗봇</Text>
+                    <Text style={styles.menuBtnFilledText}>{t("ds.home.bubble.chatbot")}</Text>
                   </Pressable>
                 </View>
                 <View style={[styles.menuBtnWrap, styles.menuBtnTonal]}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="비서"
+                    accessibilityLabel={t("ds.home.bubble.assistant")}
                     hitSlop={10}
                     onPress={() => {
                       setMenuOpen(false);
@@ -289,7 +306,7 @@ export function DeepSpaceHomeScreen() {
                     style={styles.menuPress}
                   >
                     <SbIcon name="today" size={16} color={m3.color.onSecondaryContainer} />
-                    <Text style={styles.menuBtnTonalText}>비서</Text>
+                    <Text style={styles.menuBtnTonalText}>{t("ds.home.bubble.assistant")}</Text>
                   </Pressable>
                 </View>
               </View>

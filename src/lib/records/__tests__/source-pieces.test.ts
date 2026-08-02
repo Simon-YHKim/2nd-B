@@ -38,6 +38,8 @@ describe("listSourcePieces", () => {
       {
         // Prefixed so it can never collide with a records id in a merged list.
         id: "src-abc",
+        // Raw source id is kept for source-detail navigation.
+        sourceId: "abc",
         title: "A link I clipped",
         // Renamed from captured_at so it merges with record rows unchanged.
         created_at: "2026-07-10T09:00:00Z",
@@ -77,8 +79,8 @@ describe("/insights and /records count the same pieces", () => {
 
   test("/records reads sources through the shared function, not its own inline query", () => {
     expect(records).toMatch(/listSourcePieces\(userId\)/);
-    // The inline `.from("sources")` it used to carry is gone: two hand-rolled merges are
-    // what let the screens disagree in the first place.
-    expect(records).not.toMatch(/\.from\("sources"\)/);
+    // The old list-level inline query shape is gone: two hand-rolled merges are what let
+    // the screens disagree in the first place. Source detail may still read `sources`.
+    expect(records).not.toMatch(/\.select\("id, title, captured_at, tags"\)/);
   });
 });
