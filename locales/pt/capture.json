@@ -134,8 +134,8 @@
       "helper": "Captura de nota, link, arquivo e foto continuam disponíveis sem limite."
     },
     "streak": {
-      "label": "Sequência de {{count}} dia(s){{suffix}}",
-      "missingToday": " (nenhuma hoje ainda)"
+      "label": "Dias registrados: {{count}}{{suffix}}",
+      "missingToday": " (hoje é opcional)"
     },
     "prompt": {
       "heading": "Reflexão de hoje",

@@ -661,6 +661,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowConstellation": "MI CONSTELACION",
     "footerWeek": "Una semana vista junto a SecondB",
     "starsLit": "{{count}} estrellas brillando",
     "signature": "2nd-Brain · {{count}} motas de estrella"
@@ -800,7 +801,16 @@
       "healthErrUnavailable": "Este dispositivo no puede conectarse a una app de salud. No se registró nada.",
       "healthErrDenied": "Se rechazó el acceso a salud, así que no se registró nada. Puedes permitirlo en los ajustes del dispositivo.",
       "healthErrEmpty": "Hoy no hay actividad de salud que reflejar.",
-      "healthErrFailed": "No se pudo reflejar tus datos de salud. Inténtalo de nuevo en un momento."
+      "healthErrFailed": "No se pudo reflejar tus datos de salud. Inténtalo de nuevo en un momento.",
+      "summaryPieces": "{{count}} pieza",
+      "summaryPieces_plural": "{{count}} piezas",
+      "resultAdded": "Se agregó {{count}} a tu bandeja",
+      "resultAdded_plural": "Se agregaron {{count}} a tu bandeja",
+      "resultDuplicate": "{{count}} duplicado",
+      "resultDuplicate_plural": "{{count}} duplicados",
+      "resultFailed": "{{count}} con error",
+      "a11yImportExportFile": "Importar el archivo de exportación de {{name}}",
+      "a11yRevokeImport": "Revocar la importación de {{name}}"
     },
     "ttfv": {
       "pageTitle": "Tu primera estrella acaba de encenderse",

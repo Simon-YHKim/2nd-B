@@ -394,6 +394,7 @@ export function NoticeDialog({
                 disabled={!onPrevious}
                 hitSlop={8}
                 accessibilityRole="button"
+                accessibilityLabel={ko ? "이전 공지" : "Previous notice"}
                 accessibilityState={{ disabled: !onPrevious }}
               >
                 <RNText style={[styles.pagerArrow, !onPrevious && styles.pagerDisabled]}>{"‹"}</RNText>
@@ -404,6 +405,7 @@ export function NoticeDialog({
                 disabled={!onNext}
                 hitSlop={8}
                 accessibilityRole="button"
+                accessibilityLabel={ko ? "다음 공지" : "Next notice"}
                 accessibilityState={{ disabled: !onNext }}
               >
                 <RNText style={[styles.pagerArrow, !onNext && styles.pagerDisabled]}>{"›"}</RNText>

@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import * as ts from "typescript";
 import type { SourceRow, WikiPageRow } from "../wiki/types";
 
 type InsertRecordRow = {
@@ -14,6 +15,9 @@ const recordRows: Array<InsertRecordRow & { id: string; created_at: string }> = 
 const sourceRows: SourceRow[] = [];
 const wikiRows: WikiPageRow[] = [];
 const repoRoot = path.resolve(__dirname, "../../..");
+const RECORD_EXPORT_FIELDS = ["kind", "topic", "body", "created_at", "tags"] as const;
+const RECORD_INSERT_PARITY_FIELDS = ["kind", "topic", "body", "tags"] as const;
+const RECORD_DB_DEFAULT_FIELDS = ["created_at"] as const;
 
 jest.mock("../llm/gemini", () => ({
   callAdvisor: jest.fn(),
@@ -110,11 +114,11 @@ function walkTsFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-function sourcesQueryBlocks(source: string): string[] {
+function tableQueryBlocks(source: string, table: string): string[] {
   const blocks: string[] = [];
-  const fromSources = /\.from\(\s*["']sources["']\s*\)/g;
+  const fromTable = new RegExp(String.raw`\.from\(\s*["']${table}["']\s*\)`, "g");
   let match: RegExpExecArray | null;
-  while ((match = fromSources.exec(source)) !== null) {
+  while ((match = fromTable.exec(source)) !== null) {
     const start = match.index;
     const nextFrom = source.indexOf(".from(", start + 1);
     const nextSemicolon = source.indexOf(";", start);
@@ -123,6 +127,10 @@ function sourcesQueryBlocks(source: string): string[] {
     blocks.push(source.slice(start, end));
   }
   return blocks;
+}
+
+function sourcesQueryBlocks(source: string): string[] {
+  return tableQueryBlocks(source, "sources");
 }
 
 function selectArgs(block: string): string[] {
@@ -181,6 +189,83 @@ function sourcesCreatedAtViolations(): string[] {
   return violations;
 }
 
+function recordExportSelectFields(): string[] {
+  const source = readFileSync(path.join(repoRoot, "src", "lib", "wiki", "export.ts"), "utf8");
+  const selects = tableQueryBlocks(source, "records").flatMap(selectArgs);
+  if (selects.length !== 1) {
+    throw new Error(`Expected one records export select, found ${selects.length}`);
+  }
+  return topLevelSelectItems(selects[0]);
+}
+
+function propertyNameText(name: ts.PropertyName): string {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return name.getText();
+}
+
+function stringLiteralArg(call: ts.CallExpression, index = 0): string | null {
+  const arg = call.arguments[index];
+  if (!arg) return null;
+  if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) return arg.text;
+  return null;
+}
+
+function expressionContainsFromTable(expression: ts.Expression, table: string): boolean {
+  if (ts.isCallExpression(expression)) {
+    if (
+      ts.isPropertyAccessExpression(expression.expression) &&
+      expression.expression.name.text === "from" &&
+      stringLiteralArg(expression) === table
+    ) {
+      return true;
+    }
+    return expressionContainsFromTable(expression.expression, table);
+  }
+
+  if (ts.isPropertyAccessExpression(expression)) {
+    return expressionContainsFromTable(expression.expression, table);
+  }
+
+  return false;
+}
+
+function createRecordInsertKeys(): string[] {
+  const sourcePath = path.join(repoRoot, "src", "lib", "records", "create.ts");
+  const source = readFileSync(sourcePath, "utf8");
+  const file = ts.createSourceFile(sourcePath, source, ts.ScriptTarget.Latest, true);
+  const insertKeySets: string[][] = [];
+
+  function visit(node: ts.Node): void {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "insert" &&
+      expressionContainsFromTable(node.expression.expression, "records")
+    ) {
+      const [arg] = node.arguments;
+      if (arg && ts.isObjectLiteralExpression(arg)) {
+        insertKeySets.push(
+          arg.properties.map((property) => {
+            if (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) {
+              return propertyNameText(property.name);
+            }
+            throw new Error(`Unsupported createRecord insert property: ${property.getText(file)}`);
+          }),
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(file);
+  if (insertKeySets.length !== 1) {
+    throw new Error(`Expected one object-literal insert in records/create.ts, found ${insertKeySets.length}`);
+  }
+  return insertKeySets[0];
+}
+
 describe("records and sources data-shape contract", () => {
   beforeEach(() => {
     recordRows.length = 0;
@@ -234,6 +319,19 @@ describe("records and sources data-shape contract", () => {
     expect(exported.prompt).toMatch(/Journal\s+\S+\s+Morning review/);
     expect(exported.prompt).toContain("tags: daily, work");
     expect(exported.prompt).toContain("Journal body that should survive export.");
+  });
+
+  test("records export select fields stay aligned with createRecord insert fields", () => {
+    const exportFields = recordExportSelectFields();
+    const insertKeys = createRecordInsertKeys();
+
+    expect(exportFields).toEqual([...RECORD_EXPORT_FIELDS]);
+    expect(insertKeys).toEqual(expect.arrayContaining([...RECORD_INSERT_PARITY_FIELDS]));
+    for (const field of RECORD_DB_DEFAULT_FIELDS) {
+      expect(insertKeys).not.toContain(field);
+      expect(exportFields).toContain(field);
+    }
+    expect(RECORD_INSERT_PARITY_FIELDS.filter((field) => !exportFields.includes(field))).toEqual([]);
   });
 
   test("sources queries use captured_at instead of created_at", () => {

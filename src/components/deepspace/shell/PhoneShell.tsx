@@ -38,7 +38,7 @@ export interface PhoneShellProps {
 // sb-app data-window: 0 20px 52px rgba(0,0,0,.5), 0 0 0 1px rgba(150,180,230,.16).
 // RN takes a single shadow; the 1px rim is a hairline border in windowRim.
 const WINDOW_SHADOW = {
-  shadowColor: "#000",
+  shadowColor: m3.color.scrim,
   shadowOpacity: 0.5,
   shadowRadius: 26,
   shadowOffset: { width: 0, height: 20 },

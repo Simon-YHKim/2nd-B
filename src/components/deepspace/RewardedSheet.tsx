@@ -141,7 +141,12 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
         {/* faint dimmed deep-space backdrop */}
         <View style={styles.spaceWash} pointerEvents="none" />
         {/* dim veil (tap to dismiss) */}
-        <Pressable style={styles.veil} onPress={onClose} accessibilityRole="button" />
+        <Pressable
+          style={styles.veil}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={C.later}
+        />
 
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           {/* grabber */}

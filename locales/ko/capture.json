@@ -161,8 +161,8 @@
       "helper": "메모, 링크, 문서, 사진 담기는 한도 없이 계속 쓸 수 있어요."
     },
     "streak": {
-      "label": "{{count}}일 연속 기록{{suffix}}",
-      "missingToday": " (오늘은 아직)"
+      "label": "기록한 날: {{count}}일{{suffix}}",
+      "missingToday": " (오늘은 선택이에요)"
     },
     "prompt": {
       "heading": "오늘의 성찰 질문",

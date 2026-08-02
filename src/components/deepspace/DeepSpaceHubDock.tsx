@@ -67,6 +67,7 @@ export function DeepSpaceHubDock({ active, onChange }: DeepSpaceHubDockProps) {
           <Pressable
             key={item.key}
             accessibilityRole="tab"
+            accessibilityLabel={item.label}
             accessibilityState={{ selected }}
             accessibilityLabel={item.accessibilityLabel}
             onPress={() => onChange(item.key)}

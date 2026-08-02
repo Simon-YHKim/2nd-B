@@ -26,10 +26,6 @@ import { loadTierObservations } from "@/lib/persona/load-tier-observations";
 import { buildRatificationLog, ratificationEmptyState, type RatificationEntry } from "@/lib/persona/brightness-timeline";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
-// Amber warning tone for the 보류 column — the one raw literal, transcribed 1:1
-// from the reference RatifyScreen DEC map (#F7B955) as its M3 caution accent.
-const HOLD_AMBER = "#F7B955";
-
 type Tx = (key: string, options?: Record<string, unknown>) => string;
 
 // Star names resolve through home:ds.home.starName.<id> (all five locales);
@@ -138,7 +134,7 @@ export default function RatificationLogScreen() {
   const counts = [
     { key: "제안", label: t("proposed"), n: all.length, color: m3.color.onSurface },
     { key: "승인", label: t("ratified"), n: all.length, color: m3.color.primary },
-    { key: "보류", label: t("held"), n: 0, color: HOLD_AMBER },
+    { key: "보류", label: t("held"), n: 0, color: m3.accent.trendFlat },
     { key: "거절", label: t("declined"), n: 0, color: m3.color.error },
   ];
 

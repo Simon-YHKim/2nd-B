@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
+import { withAlpha } from "@/lib/theme/tokens";
 
 import { m3TextStyle } from "../typeface";
 import {
@@ -730,7 +731,7 @@ const styles = StyleSheet.create({
   // Modal shell.
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: withAlpha(m3.color.scrim, 0.6),
     alignItems: "center",
     justifyContent: "center",
     padding: m3.spacing.s5,
