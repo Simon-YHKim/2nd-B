@@ -1058,7 +1058,7 @@ results.push(
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // /theme owns theme switching; see O-R1 settings restructure.)
       settings.includes('accessibilityHint={t("actions.crewDensityHint",') &&
-      settings.includes("density: CREW_DENSITY_LABEL[locale][d]") &&
+      settings.includes("density: crewDensityLabel[d]") &&
       settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
       settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
       settings.includes('accessibilityHint={t("actions.fullWipeHint")}') &&
@@ -1085,7 +1085,8 @@ results.push(
       xpBar.includes('accessibilityRole="progressbar"') &&
       xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
       xpBar.includes("accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}") &&
-      xpBar.includes("Already at the max level.") &&
+      xpBar.includes("accessibilityHint={accessibilityHint}") &&
+      xpBar.includes('t("progression.maxLevelHint"') &&
       interview.includes("const kbHeight = useKeyboard()") &&
       interview.includes("paddingBottom: kbHeight + spacing.sm") &&
       interview.includes("minHeight: 48") &&
@@ -1334,7 +1335,7 @@ results.push(
     const ko = read("locales/ko/settings.json");
     const requiredCode = [
       't("actions.crewDensityHint",',
-      "density: CREW_DENSITY_LABEL[locale][d]",
+      "density: crewDensityLabel[d]",
       't("actions.deleteJournalsHint")',
       't("actions.deleteNotesHint")',
       't("actions.deleteAuditHint")',
@@ -2886,13 +2887,13 @@ results.push(
       conceptText.includes("Pattern Data") &&
       conceptText.includes("Log") &&
       conceptText.includes("Pattern Link") &&
-      characters.includes('en: "Soul Core navigator"') &&
+      characters.includes('en: "North Star navigator"') &&
       characters.includes('en: "Career consultant"') &&
       characters.includes('en: "Warm relationship guide"') &&
       characters.includes('en: "Life-applied wisdom sage"') &&
       characters.includes('en: "Narrative Core crew foreman"') &&
       characters.includes('en: "Trainer and curator"') &&
-      personaText.includes("central AI for the Soul Core") &&
+      personaText.includes("central AI for the North Star synthesis") &&
       personaText.includes("career consultant for work and growth") &&
       personaText.includes("inner-world patterns") &&
       personaText.includes("Not raw facts") &&
