@@ -862,6 +862,7 @@ results.push(
       capture.includes('accessibilityLabel={t("proposal.dismissLabel")}') &&
       capture.includes('accessibilityLabel={t("journal.prompt.useAsTopicLabel")}') &&
       capture.includes('accessibilityLabel={t("journal.conclusion.toggleLabel")}') &&
+      capture.includes('accessibilityLabel={t("linkClip.label")}') &&
       capture.includes("accessibilityLabel={`${label}. ${help}`}") &&
       capture.includes("accessibilityHint={help}") &&
       capture.includes("ModeGlyph mode={m} color={color} label={label}") &&

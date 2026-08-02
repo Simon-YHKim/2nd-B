@@ -2,5 +2,13 @@
   "loading": "Cargando la evaluación…",
   "title": "Satisfacción con la vida (RLSS)",
   "counter": "Satisfacción con la vida · RLSS",
-  "saved": "Guardado · lo verás en tu Persona"
+  "saved": "Guardado · lo verás en tu Persona",
+  "saveError": "No se pudo guardar. Tus respuestas siguen aquí; inténtalo de nuevo.",
+  "introDescription": "Un autoinforme validado de 6 preguntas sobre tu satisfacción con la vida en conjunto. Puntúa cada frase del 1 (muy en desacuerdo) al 7 (muy de acuerdo). No hay respuestas correctas, solo cómo se siente ahora.",
+  "headerPrompt": "Pensando en tu vida en conjunto, elige qué tanto encaja cada frase contigo ahora.",
+  "exitConfirmA11y": "Confirmación de salida",
+  "exitTitle": "¿Quieres salir de la encuesta?",
+  "exitBody": "¿Seguro que quieres salir? Tu progreso no se guardará.",
+  "exitKeepGoing": "Seguir",
+  "exitLeave": "Salir"
 }

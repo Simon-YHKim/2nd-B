@@ -11,6 +11,14 @@ import { facetRows } from "@/lib/persona/facet-rows";
 import { type BigFiveTrait } from "@/lib/persona/bfi";
 import { useTranslation } from "react-i18next";
 
+const NOTE_COPY: Record<string, string> = {
+  en: "Each of the 5 domains, broken into its facets. Bars are from your own self-report.",
+  ko: "5가지 축을 그 아래 세부 특질까지 펼쳐봤어요. 막대는 자기보고 기준이에요.",
+  es: "Cada uno de los 5 dominios, dividido en sus facetas. Las barras vienen de tu autoinforme.",
+  pt: "Cada um dos 5 domínios, dividido em suas facetas. As barras vêm do seu autorrelato.",
+  id: "Masing-masing dari 5 domain, dipecah menjadi fasetnya. Batang berasal dari laporan dirimu sendiri.",
+};
+
 function Bar({ percent, accent }: { percent: number | null; accent: string }) {
   return (
     <View style={styles.track}>
@@ -30,7 +38,9 @@ export function FacetBreakdown({
   locale: "en" | "ko";
   onRetake?: () => void;
 }) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
+  const language = (i18n.resolvedLanguage ?? i18n.language ?? locale).split("-")[0];
+  const noteCopy = NOTE_COPY[language] ?? NOTE_COPY[locale] ?? NOTE_COPY.en;
   const groups = facetRows(facets, domains, locale);
   return (
     <ScrollView contentContainerStyle={styles.body}>
@@ -38,9 +48,7 @@ export function FacetBreakdown({
         {t("facet30")}
       </Text>
       <Text variant="subtle" color="textMuted" style={styles.note}>
-        {locale === "ko"
-          ? "5가지 축을 그 아래 세부 특질까지 펼쳐봤어요. 막대는 자기보고 기준이에요."
-          : "Each of the 5 domains, broken into its facets. Bars are from your own self-report."}
+        {noteCopy}
       </Text>
       {groups.map((g) => (
         <View key={g.domain} style={styles.group}>

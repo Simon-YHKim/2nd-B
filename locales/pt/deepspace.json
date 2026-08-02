@@ -74,7 +74,7 @@
     "triageTitle": "{{count}} para organizar",
     "triageBody": "Marque, guarde ou exclua peças não classificadas",
     "typeText": "Texto",
-    "typeLink": "Link",
+    "typeLink": "Ligação",
     "typeVoice": "Voz",
     "typePhoto": "Foto",
     "typeUnfiled": "Não classificado",
@@ -332,7 +332,7 @@
     "search": "O que te dá curiosidade?",
     "sectionStart": "Primeiros passos",
     "q1": "Quais são as 7 estrelas do Carro Maior?",
-    "q2": "Como a Estrela Polar (Núcleo da Alma) se ilumina?",
+    "q2": "Como a Estrela Polar se ilumina?",
     "q3": "Como os resultados dos testes ficam mais precisos?",
     "sectionData": "Dados · Privacidade",
     "q4": "O que é um arquivo IDEN?",
@@ -567,13 +567,14 @@
     "save": "Salvar",
     "opening": "Abrindo…",
     "empty": "Ainda não há nada aqui. Comece pelo que te recarrega nestes dias; a estrela do descanso se ilumina.",
+    "ratingLabel": "Avaliação {{rating}}/5",
     "category": {
       "game": "Jogo",
       "movie": "Filme",
       "music": "Música",
       "travel": "Viagem",
       "show": "Espetáculo",
-      "hobby": "Hobby",
+      "hobby": "Passatempo",
       "other": "Outro"
     },
     "status": {
@@ -743,7 +744,7 @@
       "relationships": "Relacionamentos",
       "justNow": "Agora mesmo",
       "seeEvidence": "Ver evidências ↗",
-      "tags": "Tags",
+      "tags": "Etiquetas",
       "addTag": "Adicionar tag",
       "linkedRecords": "Registros vinculados",
       "meaning": "significado",
@@ -873,6 +874,12 @@
       "plansCta": "Ver planos",
       "close": "Fechar",
       "sameQuality": "Recompensas só adicionam execuções. A qualidade das respostas continua a mesma."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning automático",
+      "autoPaused": "Limite atingido · volta na segunda",
+      "autoBody": "SecondB conecta cada item quando você captura",
+      "autoNote": "Execuções automáticas usam uma execução semanal e sempre reservam uma para uso manual."
     }
   },
   "beyond": {

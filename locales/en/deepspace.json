@@ -332,7 +332,7 @@
     "search": "What are you curious about?",
     "sectionStart": "Getting started",
     "q1": "What are the 7 stars of the Big Dipper?",
-    "q2": "How does the North Star (Soul Core) brighten?",
+    "q2": "How does the North Star brighten?",
     "q3": "How do check results get more accurate?",
     "sectionData": "Data · Privacy",
     "q4": "What is an IDEN file?",
@@ -567,6 +567,7 @@
     "save": "Save",
     "opening": "Opening…",
     "empty": "Nothing here yet. Start with what recharges you these days; the rest star brightens.",
+    "ratingLabel": "Rating {{rating}}/5",
     "category": {
       "game": "Game",
       "movie": "Movie",
@@ -873,6 +874,12 @@
       "plansCta": "View plans",
       "close": "Close",
       "sameQuality": "Rewards only add runs. Answer quality stays the same."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Automatic reasoning",
+      "autoPaused": "Limit reached · automatic runs resume Monday",
+      "autoBody": "SecondB connects each item as you capture it",
+      "autoNote": "Automatic runs use one weekly run and always reserve one for manual use."
     }
   },
   "beyond": {

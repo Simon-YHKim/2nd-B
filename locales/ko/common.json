@@ -27,6 +27,12 @@
   "states": {
     "loading": "불러오는 중이에요…"
   },
+  "progression": {
+    "maxLevelTrailing": "{{xp}} XP · 최고 레벨",
+    "nextLevelTrailing": "다음 레벨까지 {{xp}} XP",
+    "progressLabel": "레벨 {{level}}, 경험치 진행률 {{pct}}%",
+    "maxLevelHint": "이미 최고 레벨입니다."
+  },
   "journal": {
     "privacyFootnote": "기록은 암호화되어 저장되며, 어떤 모델 학습에도 사용되지 않습니다.",
     "relativeJustNow": "방금 전",
@@ -51,7 +57,7 @@
     "skipHint": "두 번 탭하면 시작 애니메이션을 건너뜁니다."
   },
   "worldview": {
-    "soulCore": "소울 코어",
+    "soulCore": "북극성",
     "growthCore": "그로스 코어",
     "bondCore": "본드 코어",
     "wisdomCore": "위즈덤 코어",
@@ -65,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "전체 성좌로 돌아가기",
-      "backHint": "패턴 코어 드릴다운에서 전체 성좌로 돌아갑니다.",
+      "backHint": "도메인 별 상세에서 전체 성좌로 돌아갑니다.",
       "coreEyebrow": "패턴 코어",
       "dataEyebrow": "패턴 데이터",
       "touch": "터치!",
@@ -84,25 +90,25 @@
   },
   "navPiece": "별가루",
   "navPieceSummary": "별가루 요약과 해시태그를 엽니다",
-  "navVillageNode": "이 마을 별가루를 엽니다",
-  "navCenterVillage": "중심 마을을 엽니다",
+  "navVillageNode": "이 별 노드를 엽니다",
+  "navCenterVillage": "북극성을 엽니다",
   "navResetView": "원래대로",
   "navResetHint": "그래프 위치와 확대를 초기화합니다",
   "navReset": "원래대로",
   "navPrevCategory": "이전 카테고리",
-  "navPrevHint": "이전 마을을 선택합니다",
+  "navPrevHint": "이전 별을 선택합니다",
   "navPrev": "이전",
   "navOpenSettings": "설정 열기",
   "navSettingsHint": "설정 화면으로 이동합니다",
   "navSettings": "설정",
   "navNextCategory": "다음 카테고리",
-  "navNextHint": "다음 마을을 선택합니다",
+  "navNextHint": "다음 별을 선택합니다",
   "navNext": "다음",
   "navClose": "닫기",
-  "navCloseVillage": "마을 상세 패널을 닫습니다",
+  "navCloseVillage": "별 상세 패널을 닫습니다",
   "navPiecesConnected": "내가 연결한 별가루",
   "navLookAround": "살펴보기",
-  "navOpenAngleVillage": "이 마을을 세컨비에서 새 관점으로 엽니다",
+  "navOpenAngleVillage": "이 별을 세컨비에서 새 관점으로 엽니다",
   "navOpenNewAngle": "새 관점으로 펼치기",
   "navClosePiece": "별가루 상세 패널을 닫습니다",
   "navNoSummary": "아직 요약이 없어요.",

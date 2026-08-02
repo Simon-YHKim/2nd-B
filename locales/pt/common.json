@@ -27,6 +27,12 @@
   "states": {
     "loading": "Carregando…"
   },
+  "progression": {
+    "maxLevelTrailing": "{{xp}} XP · nível máximo",
+    "nextLevelTrailing": "{{xp}} XP até o próximo nível",
+    "progressLabel": "Nível {{level}}, progresso de XP {{pct}}%",
+    "maxLevelHint": "Você já está no nível máximo."
+  },
   "journal": {
     "privacyFootnote": "Suas entradas ficam criptografadas e nunca treinam nenhum modelo.",
     "relativeJustNow": "agora mesmo",
@@ -51,7 +57,7 @@
     "skipHint": "Toque duas vezes para pular a animação de abertura."
   },
   "worldview": {
-    "soulCore": "Núcleo da alma",
+    "soulCore": "Estrela do Norte",
     "growthCore": "Núcleo de crescimento",
     "bondCore": "Núcleo de vínculos",
     "wisdomCore": "Núcleo de sabedoria",
@@ -65,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "Voltar à constelação",
-      "backHint": "Volta do detalhamento do Pattern Core para a constelação completa.",
+      "backHint": "Volta do detalhe da estrela de domínio para a constelação completa.",
       "coreEyebrow": "Núcleo de padrões",
       "dataEyebrow": "Dados de padrões",
       "touch": "Toque!",
@@ -84,25 +90,25 @@
   },
   "navPiece": "fragmento",
   "navPieceSummary": "Abre o resumo e as etiquetas deste fragmento",
-  "navVillageNode": "Abre este nó da vila",
-  "navCenterVillage": "Abre a vila central",
+  "navVillageNode": "Abre este nó de estrela",
+  "navCenterVillage": "Abre a Estrela Polar",
   "navResetView": "Redefinir vista",
   "navResetHint": "Redefine o deslocamento e o zoom do gráfico",
   "navReset": "Redefinir",
   "navPrevCategory": "Categoria anterior",
-  "navPrevHint": "Seleciona a vila anterior",
+  "navPrevHint": "Seleciona a estrela anterior",
   "navPrev": "Ant.",
   "navOpenSettings": "Abrir opções",
   "navSettingsHint": "Abre a tela de opções",
   "navSettings": "Opções",
   "navNextCategory": "Próxima categoria",
-  "navNextHint": "Seleciona a próxima vila",
+  "navNextHint": "Seleciona a próxima estrela",
   "navNext": "Próx.",
   "navClose": "Fechar",
-  "navCloseVillage": "Fecha o painel de detalhe da vila",
+  "navCloseVillage": "Fecha o painel de detalhe da estrela",
   "navPiecesConnected": "fragmentos que conectei",
   "navLookAround": "Dar uma olhada",
-  "navOpenAngleVillage": "Abre esta vila no SecondB por um novo ângulo",
+  "navOpenAngleVillage": "Abre esta estrela no SecondB por um novo ângulo",
   "navOpenNewAngle": "Abrir novo ângulo",
   "navClosePiece": "Fecha o painel de detalhe do fragmento",
   "navNoSummary": "Ainda não há resumo.",

@@ -2,5 +2,13 @@
   "loading": "Loading assessment…",
   "title": "Life Satisfaction (RLSS)",
   "counter": "Life Satisfaction · RLSS",
-  "saved": "Saved · see it on your Persona"
+  "saved": "Saved · see it on your Persona",
+  "saveError": "Couldn't save. Your answers are still here; please try again.",
+  "introDescription": "A validated 6-item self-report of how satisfied you are with life as a whole. Rate each statement from 1 (strongly disagree) to 7 (strongly agree). No right answers, just how it feels right now.",
+  "headerPrompt": "Thinking of your life as a whole, choose how well each statement fits you right now.",
+  "exitConfirmA11y": "Exit confirmation",
+  "exitTitle": "Leave the survey?",
+  "exitBody": "Are you sure you want to exit? Your progress will not be saved.",
+  "exitKeepGoing": "Keep going",
+  "exitLeave": "Exit"
 }

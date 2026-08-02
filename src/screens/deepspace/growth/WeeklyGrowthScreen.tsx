@@ -226,8 +226,16 @@ export function WeeklyGrowthScreen() {
           </View>
         </View>
 
-        <Pressable onPress={() => router.push("/imagine")} hitSlop={6} style={styles.dreamRow}>
-          <RNText style={styles.dreamIcon}>✨</RNText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.growth.dreamToStep")}
+          onPress={() => router.push("/imagine")}
+          hitSlop={6}
+          style={styles.dreamRow}
+        >
+          <View style={styles.dreamBadge} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Text variant="caption" pixelEn style={styles.dreamBadgeText}>GO</Text>
+          </View>
           <Text variant="body" style={styles.dreamText}>{t("ds.growth.dreamToStep")}</Text>
           <RNText style={styles.dreamCaret}>›</RNText>
         </Pressable>
@@ -301,7 +309,17 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 9, minHeight: 48, paddingHorizontal: deepSpaceSpacing.md,
     borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card,
   },
-  dreamIcon: { fontSize: 14 },
+  dreamBadge: {
+    width: 28,
+    height: 22,
+    borderRadius: deepSpaceRadii.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: deepSpace.soulLine,
+    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+  },
+  dreamBadgeText: { fontSize: 9, color: deepSpace.soul },
   dreamText: { flex: 1, fontSize: 13, color: deepSpace.textMid },
   dreamCaret: { fontSize: 16, color: deepSpace.soul },
 

@@ -2,6 +2,10 @@
   "red": {
     "title": "We hear you.",
     "body": "What you're going through sounds heavy. You don't have to carry it alone.",
+    "noticeLabel": "Aviso de seguridad en crisis",
+    "badge": "URGENTE",
+    "callHint": "Hacer una llamada",
+    "callCta": "Toca para llamar",
     "hotline": {
       "GLOBAL_988": "Call or text 988 - Suicide & Crisis Lifeline (24/7)",
       "KR_109": "전화 109 - 자살예방상담전화 (24시간, 무료)",
@@ -10,13 +14,13 @@
       "KR_1388": "전화 1388 - 청소년상담전화 (24시간)"
     },
     "dismiss": "Close",
-    "directoryLabel": "Outside the US? Find a helpline in your country",
-    "directoryHint": "Opens findahelpline.com in your browser"
+    "directoryLabel": "¿Fuera de EE. UU.? Encuentra una línea de ayuda en tu país",
+    "directoryHint": "Abre findahelpline.com en tu navegador"
   },
   "yellow": {
     "rephraseHint": "We focus on self-understanding and growth. Try describing what you're noticing rather than naming a condition."
   },
   "green": {
-    "placeholder": "What's on your mind?"
+    "placeholder": "¿Qué tienes en mente?"
   }
 }

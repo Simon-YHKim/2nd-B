@@ -24,18 +24,163 @@ import type { Framework } from "@/lib/audit/questions";
 import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionSprite";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { ReflectionScaffold } from "@/components/persona/ReflectionScaffold";
+import { isAvailableUiLocale, systemLocaleFor, type AvailableUiLocale } from "@/lib/i18n/locales";
 
 type PersonaToast = { message: string; tone: "info" | "success" | "danger" };
 
-// D-25: identity surfaces show brightness as a qualitative band, never a raw %.
-const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
-const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
+const PERSONA_COPY: Record<AvailableUiLocale, {
+  errorBody: string;
+  emptySubtitle: string;
+  emptySpeech: string;
+  exportError: string;
+  measuredSubtitle: (instrument: string) => string;
+  estimatedSubtitle: string;
+  soulBand: Record<BrightnessBand, string>;
+  soulBrightness: (band: string, lit: number) => string;
+  bigFiveProxyNote: string;
+  patternNote: string;
+  mbtiNote: string;
+  backToCapture: string;
+  dimHigh: string;
+  dimLow: string;
+  tools: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti" | "/ipip-neo" | "/rlss"; fast?: boolean }[];
+}> = {
+  en: {
+    errorBody: "Something interrupted gathering your pieces. Please try again in a moment.",
+    emptySubtitle: "Finish one tool and we can build self-model v1",
+    emptySpeech: "Three minutes on your relationship pattern lights your first star right away. Shall we start here?",
+    exportError: "Couldn't finish the export. Try again from the export button.",
+    measuredSubtitle: (instrument) => `${instrument} measurement · attachment combined`,
+    estimatedSubtitle: "Journal-based estimate · assessments update it",
+    soulBand: { dim: "dim", fair: "fair", bright: "bright" },
+    soulBrightness: (band, lit) => `Brightness ${band} · ${lit}/7 stars lit`,
+    bigFiveProxyNote: "Big Five proxy (v1). A pattern view from your records, not an evaluation.",
+    patternNote: "Themes you've returned to most often in recent entries. Observation, not verdict.",
+    mbtiNote: "MBTI has weak scientific validity. Use as a self-awareness starting point only.",
+    backToCapture: "Back to capture",
+    dimHigh: "above",
+    dimLow: "below",
+    tools: [
+      { label: "Attachment style / ECR-S", sub: "12 items · ~3 min · lights one star now", route: "/attachment", fast: true },
+      { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
+      { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
+      { label: "Personality, in depth (IPIP-NEO-120)", sub: "120 items · ~15 min · 30 facets", route: "/ipip-neo" },
+      { label: "Life Satisfaction / RLSS", sub: "6 items · ~2 min", route: "/rlss" },
+      { label: "MBTI", sub: "Type check-in · ~3 min", route: "/mbti" },
+    ],
+  },
+  ko: {
+    errorBody: "별가루를 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요.",
+    emptySubtitle: "도구 하나만 마쳐도 자기 모델 v1을 만들 수 있어요",
+    emptySpeech: "3분이면 가까운 관계 패턴을 짚고 별 하나가 바로 켜져요. 여기서 같이 시작해 볼까요?",
+    exportError: "내보내기를 마치지 못했어요. 내보내기 버튼에서 다시 시도해 주세요.",
+    measuredSubtitle: (instrument) => `${instrument} 실측 · 애착 합성`,
+    estimatedSubtitle: "일기 기반 추정 · 평가하면 실측으로 업데이트",
+    soulBand: { dim: "흐릿", fair: "보통", bright: "밝음" },
+    soulBrightness: (band, lit) => `밝기 ${band} · 별 ${lit}/7 켜짐`,
+    bigFiveProxyNote: "Big Five 근사치 (v1). 기록에서 보이는 패턴일 뿐, 판단이나 평가는 아니에요.",
+    patternNote: "최근 기록에서 가장 자주 다룬 주제예요. 단정이 아닌 관찰입니다.",
+    mbtiNote: "MBTI는 학술적 신뢰도가 낮은 분류입니다. 자기 인식의 출발점으로만 가볍게 보세요.",
+    backToCapture: "별가루 담기로 돌아가기",
+    dimHigh: "평균 위",
+    dimLow: "평균 아래",
+    tools: [
+      { label: "애착 스타일 / Attachment", sub: "12문항 · 약 3분 · 별 하나 바로 켜져요", route: "/attachment", fast: true },
+      { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
+      { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
+      { label: "성격 정밀검사 (IPIP-NEO-120)", sub: "120문항 · 약 15분 · facet 30개", route: "/ipip-neo" },
+      { label: "삶의 만족도 / RLSS", sub: "6문항 · 약 2분", route: "/rlss" },
+      { label: "MBTI", sub: "유형 입력 · 약 3분", route: "/mbti" },
+    ],
+  },
+  es: {
+    errorBody: "Algo interrumpió la reunión de tus piezas. Inténtalo de nuevo en un momento.",
+    emptySubtitle: "Completa una herramienta y podremos crear el modelo de ti v1",
+    emptySpeech: "Tres minutos sobre tu patrón de relaciones encienden tu primera estrella. ¿Empezamos aquí?",
+    exportError: "No se pudo terminar la exportación. Inténtalo desde el botón de exportar.",
+    measuredSubtitle: (instrument) => `${instrument} medido · apego combinado`,
+    estimatedSubtitle: "Estimación basada en diario · las evaluaciones la actualizan",
+    soulBand: { dim: "tenue", fair: "media", bright: "brillante" },
+    soulBrightness: (band, lit) => `Brillo ${band} · ${lit}/7 estrellas encendidas`,
+    bigFiveProxyNote: "Aproximación Big Five (v1). Es una vista de patrones desde tus registros, no una evaluación.",
+    patternNote: "Temas a los que has vuelto con más frecuencia en entradas recientes. Observación, no veredicto.",
+    mbtiNote: "MBTI tiene validez científica débil. Úsalo solo como punto de partida para conocerte.",
+    backToCapture: "Volver a guardar",
+    dimHigh: "encima",
+    dimLow: "debajo",
+    tools: [
+      { label: "Estilo de apego / ECR-S", sub: "12 ítems · ~3 min · enciende una estrella", route: "/attachment", fast: true },
+      { label: "Auditoría de vida", sub: "25 ítems · ~8 min", route: "/audit" },
+      { label: "Big Five (BFI-44)", sub: "44 ítems · ~8 min", route: "/big-five" },
+      { label: "Personalidad en profundidad (IPIP-NEO-120)", sub: "120 ítems · ~15 min · 30 facetas", route: "/ipip-neo" },
+      { label: "Satisfacción vital / RLSS", sub: "6 ítems · ~2 min", route: "/rlss" },
+      { label: "MBTI", sub: "Registro de tipo · ~3 min", route: "/mbti" },
+    ],
+  },
+  pt: {
+    errorBody: "Algo interrompeu a reunião das suas peças. Tente novamente em instantes.",
+    emptySubtitle: "Conclua uma ferramenta e criaremos o modelo de si v1",
+    emptySpeech: "Três minutos sobre seu padrão de relações acendem sua primeira estrela. Vamos começar por aqui?",
+    exportError: "Não foi possível terminar a exportação. Tente novamente pelo botão de exportar.",
+    measuredSubtitle: (instrument) => `${instrument} medido · apego combinado`,
+    estimatedSubtitle: "Estimativa baseada no diário · avaliações atualizam isso",
+    soulBand: { dim: "suave", fair: "médio", bright: "brilhante" },
+    soulBrightness: (band, lit) => `Brilho ${band} · ${lit}/7 estrelas acesas`,
+    bigFiveProxyNote: "Aproximação Big Five (v1). Uma visão de padrões dos seus registros, não uma avaliação.",
+    patternNote: "Temas aos quais você voltou com mais frequência nos registros recentes. Observação, não veredito.",
+    mbtiNote: "MBTI tem validade científica fraca. Use apenas como ponto de partida para autoconhecimento.",
+    backToCapture: "Voltar a guardar",
+    dimHigh: "acima",
+    dimLow: "abaixo",
+    tools: [
+      { label: "Estilo de apego / ECR-S", sub: "12 itens · ~3 min · acende uma estrela", route: "/attachment", fast: true },
+      { label: "Auditoria de vida", sub: "25 itens · ~8 min", route: "/audit" },
+      { label: "Big Five (BFI-44)", sub: "44 itens · ~8 min", route: "/big-five" },
+      { label: "Personalidade em profundidade (IPIP-NEO-120)", sub: "120 itens · ~15 min · 30 facetas", route: "/ipip-neo" },
+      { label: "Satisfação com a vida / RLSS", sub: "6 itens · ~2 min", route: "/rlss" },
+      { label: "MBTI", sub: "Checagem de tipo · ~3 min", route: "/mbti" },
+    ],
+  },
+  id: {
+    errorBody: "Ada gangguan saat mengumpulkan bagian dirimu. Coba lagi sebentar lagi.",
+    emptySubtitle: "Selesaikan satu alat dan kami bisa membuat model diri v1",
+    emptySpeech: "Tiga menit tentang pola relasimu menyalakan bintang pertama. Mulai dari sini?",
+    exportError: "Ekspor belum selesai. Coba lagi dari tombol ekspor.",
+    measuredSubtitle: (instrument) => `${instrument} terukur · kelekatan digabungkan`,
+    estimatedSubtitle: "Perkiraan dari jurnal · asesmen akan memperbaruinya",
+    soulBand: { dim: "redup", fair: "cukup", bright: "terang" },
+    soulBrightness: (band, lit) => `Kecerahan ${band} · ${lit}/7 bintang menyala`,
+    bigFiveProxyNote: "Proksi Big Five (v1). Ini tampilan pola dari catatanmu, bukan evaluasi.",
+    patternNote: "Tema yang paling sering kamu ulangi di entri terbaru. Observasi, bukan putusan.",
+    mbtiNote: "MBTI memiliki validitas ilmiah yang lemah. Gunakan hanya sebagai titik awal memahami diri.",
+    backToCapture: "Kembali menyimpan",
+    dimHigh: "di atas",
+    dimLow: "di bawah",
+    tools: [
+      { label: "Gaya kelekatan / ECR-S", sub: "12 item · ~3 mnt · menyalakan satu bintang", route: "/attachment", fast: true },
+      { label: "Audit hidup", sub: "25 item · ~8 mnt", route: "/audit" },
+      { label: "Big Five (BFI-44)", sub: "44 item · ~8 mnt", route: "/big-five" },
+      { label: "Kepribadian mendalam (IPIP-NEO-120)", sub: "120 item · ~15 mnt · 30 faset", route: "/ipip-neo" },
+      { label: "Kepuasan hidup / RLSS", sub: "6 item · ~2 mnt", route: "/rlss" },
+      { label: "MBTI", sub: "Cek tipe · ~3 mnt", route: "/mbti" },
+    ],
+  },
+};
+
+function displayLocaleFor(localeTag: string | null | undefined): AvailableUiLocale {
+  const base = localeTag?.split("-")[0];
+  if (isAvailableUiLocale(localeTag)) return localeTag;
+  if (isAvailableUiLocale(base)) return base;
+  return "en";
+}
 
 function PersonaLegacy() {
   const { t, i18n } = useTranslation("secondb");
   const { t: tp } = useTranslation("persona");
   const { userId, loading, hasProfile, isMinor } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const displayLocale = displayLocaleFor(i18n.language);
+  const copy = PERSONA_COPY[displayLocale];
+  const locale = systemLocaleFor(i18n.language);
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [building, setBuilding] = useState(false);
   const [buildError, setBuildError] = useState(false);
@@ -106,11 +251,7 @@ function PersonaLegacy() {
         <View style={styles.center}>
           <PremiumErrorState
             title={tp("errorTitle")}
-            body={
-              locale === "ko"
-                ? "별가루를 모으는 중에 잠깐 문제가 생겼어요. 잠시 후 다시 시도해 주세요."
-                : "Something interrupted gathering your pieces. Please try again in a moment."
-            }
+            body={copy.errorBody}
             retryLabel={tp("tryAgain")}
             onRetry={() => {
               setBuildError(false);
@@ -132,45 +273,18 @@ function PersonaLegacy() {
     // ECR-first activation: the 12-item attachment check is the cheapest validated
     // instrument and lights star5 straight to ladder L4, so it leads as the fast
     // first-value path (the others follow). `fast` flags the lead card's accent.
-    const toolCards: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti" | "/ipip-neo" | "/rlss"; fast?: boolean }[] =
-      locale === "ko"
-        ? [
-            { label: "애착 스타일 / Attachment", sub: "12문항 · 약 3분 · 별 하나 바로 켜져요", route: "/attachment", fast: true },
-            { label: "라이프 오딧", sub: "25문항 · 약 8분", route: "/audit" },
-            { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
-            { label: "성격 정밀검사 (IPIP-NEO-120)", sub: "120문항 · 약 15분 · facet 30개", route: "/ipip-neo" },
-            { label: "삶의 만족도 / RLSS", sub: "6문항 · 약 2분", route: "/rlss" },
-            // Live QA 2026-06-11: /mbti 검사 화면에 진입점이 없었음 - 결과 카드는
-            // 데이터가 있어야만 떠서, 검사를 시작할 방법 자체가 없었다.
-            { label: "MBTI", sub: "유형 입력 · 약 3분", route: "/mbti" },
-          ]
-        : [
-            { label: "애착 스타일 / Attachment", sub: "12 items · ~3 min · lights one star now", route: "/attachment", fast: true },
-            { label: "Life audit", sub: "25 items · ~8 min", route: "/audit" },
-            { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
-            { label: "Personality, in depth (IPIP-NEO-120)", sub: "120 items · ~15 min · 30 facets", route: "/ipip-neo" },
-            { label: "Life Satisfaction / RLSS", sub: "6 items · ~2 min", route: "/rlss" },
-            { label: "MBTI", sub: "Type check-in · ~3 min", route: "/mbti" },
-          ];
+    const toolCards = copy.tools;
     return (
       <PremiumAppShell>
         <ScrollView contentContainerStyle={styles.emptyScroll}>
           <SceneHero
             eyebrow={tp("eyebrow")}
             title={tp("notEnough")}
-            subtitle={
-              locale === "ko"
-                ? "도구 하나만 마쳐도 자기 모델 v1을 만들 수 있어요"
-                : "Finish one tool and we can build self-model v1"
-            }
+            subtitle={copy.emptySubtitle}
             island={CORE_VILLAGE_UI.island}
             worker={CORE_VILLAGE_UI.worker}
             accent={CORE_VILLAGE_UI.accent}
-            speech={
-              locale === "ko"
-                ? "3분이면 가까운 관계 패턴을 짚고 별 하나가 바로 켜져요. 여기서 같이 시작해 볼까요?"
-                : "Three minutes on your relationship pattern lights your first star right away. Shall we start here?"
-            }
+            speech={copy.emptySpeech}
             primaryAction={{
               label: tp("startRelCheck"),
               onPress: () => router.push("/attachment"),
@@ -208,10 +322,7 @@ function PersonaLegacy() {
       console.warn("[persona] export failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "내보내기를 마치지 못했어요. 내보내기 버튼에서 다시 시도해 주세요."
-            : "Couldn't finish the export. Try again from the export button.",
+        message: copy.exportError,
       });
     }
   }
@@ -224,12 +335,8 @@ function PersonaLegacy() {
           title={tp("gathered")}
           subtitle={
             isMeasuredSource(persona.traitsSource)
-              ? locale === "ko"
-                ? `${instrumentLabel(persona.traitsSource)} 실측 · 애착 합성`
-                : `${instrumentLabel(persona.traitsSource)} measurement · attachment combined`
-              : locale === "ko"
-                ? "일기 기반 추정 · 평가하면 실측으로 업데이트"
-                : "Journal-based estimate · assessments update it"
+              ? copy.measuredSubtitle(instrumentLabel(persona.traitsSource) ?? "Big Five")
+              : copy.estimatedSubtitle
           }
           island={CORE_VILLAGE_UI.island}
           worker={CORE_VILLAGE_UI.worker}
@@ -255,9 +362,10 @@ function PersonaLegacy() {
           </Text>
           {persona.soulCoreBrightness != null ? (
             <Text variant="subtle" color="brand" style={{ marginTop: 2 }}>
-              {locale === "ko"
-                ? `밝기 ${SOUL_CORE_BAND_KO[brightnessBand(persona.soulCoreBrightness)]} · 별 ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 켜짐`
-                : `Brightness ${SOUL_CORE_BAND_EN[brightnessBand(persona.soulCoreBrightness)]} · ${SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length}/7 stars lit`}
+              {copy.soulBrightness(
+                copy.soulBand[brightnessBand(persona.soulCoreBrightness)],
+                SELF_UNDERSTANDING_STARS.filter((s) => (persona.starLevels?.[s.id] ?? 1) >= 2).length,
+              )}
             </Text>
           ) : null}
           {buildCenterCards(persona, locale).map((card) => (
@@ -291,9 +399,7 @@ function PersonaLegacy() {
             );
           })}
           <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.sm }}>
-            {locale === "ko"
-              ? "Big Five 근사치 (v1). 기록에서 보이는 패턴일 뿐, 판단이나 평가는 아니에요."
-              : "Big Five proxy (v1). A pattern view from your records, not an evaluation."}
+            {copy.bigFiveProxyNote}
           </Text>
         </View>
 
@@ -328,9 +434,7 @@ function PersonaLegacy() {
                 );
               })}
             <Text variant="subtle" color="textSubtle" style={{ marginTop: spacing.xs }}>
-              {locale === "ko"
-                ? "최근 기록에서 가장 자주 다룬 주제예요. 단정이 아닌 관찰입니다."
-                : "Themes you've returned to most often in recent entries. Observation, not verdict."}
+              {copy.patternNote}
             </Text>
           </View>
         ) : null}
@@ -349,9 +453,7 @@ function PersonaLegacy() {
                   {TYPE_NICKNAME[locale][persona.mbti.type] ?? persona.mbti.type}
                 </Text>
                 <Text variant="subtle" color="textMuted" style={{ marginTop: 2 }}>
-                  {locale === "ko"
-                    ? "MBTI는 학술적 신뢰도가 낮은 분류입니다. 자기 인식의 출발점으로만 가볍게 보세요."
-                    : "MBTI has weak scientific validity. Use as a self-awareness starting point only."}
+                  {copy.mbtiNote}
                 </Text>
               </View>
             </View>
@@ -373,12 +475,12 @@ function PersonaLegacy() {
               <AttachmentDimBar
                 label={tp("anxiety")}
                 value={persona.attachment.anxiety}
-                locale={locale}
+                locale={displayLocale}
               />
               <AttachmentDimBar
                 label={tp("avoidance")}
                 value={persona.attachment.avoidance}
-                locale={locale}
+                locale={displayLocale}
               />
             </View>
           </View>
@@ -412,7 +514,7 @@ function PersonaLegacy() {
             onPress={() => router.replace("/attachment")}
           />
           <Button
-            label={locale === "ko" ? "별가루 담기로 돌아가기" : "Back to capture"}
+            label={copy.backToCapture}
             variant="secondary"
             onPress={() => router.replace("/capture")}
           />
@@ -433,9 +535,10 @@ function PersonaLegacy() {
 
 // ECR-S anxiety/avoidance values are on a 1-7 Likert scale. Mid-point (4) is
 // the median-split threshold the scorer uses to classify style.
-function AttachmentDimBar({ label, value, locale }: { label: string; value: number; locale: "en" | "ko" }) {
+function AttachmentDimBar({ label, value, locale }: { label: string; value: number; locale: AvailableUiLocale }) {
   const pct = Math.max(0, Math.min(1, (value - 1) / 6));
   const high = value > 4;
+  const copy = PERSONA_COPY[locale];
   return (
     <View style={styles.dimRow}>
       <Text variant="subtle" color="textMuted" style={{ width: 56 }}>{label}</Text>
@@ -448,7 +551,7 @@ function AttachmentDimBar({ label, value, locale }: { label: string; value: numb
         color={high ? "brand" : "textMuted"}
         style={{ width: 64, textAlign: "right" }}
       >
-        {locale === "ko" ? (high ? "평균 위" : "평균 아래") : high ? "above" : "below"}
+        {high ? copy.dimHigh : copy.dimLow}
       </Text>
     </View>
   );

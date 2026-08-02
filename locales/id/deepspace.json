@@ -332,7 +332,7 @@
     "search": "Apa yang ingin kamu ketahui?",
     "sectionStart": "Memulai",
     "q1": "Apa itu 7 bintang Biduk?",
-    "q2": "Bagaimana Bintang Utara (Inti Jiwa) menyala?",
+    "q2": "Bagaimana Bintang Utara menyala?",
     "q3": "Bagaimana hasil tes menjadi lebih akurat?",
     "sectionData": "Data · Privasi",
     "q4": "Apa itu berkas IDEN?",
@@ -567,8 +567,9 @@
     "save": "Simpan",
     "opening": "Membuka…",
     "empty": "Belum ada apa pun di sini. Mulai dari yang membuatmu segar akhir-akhir ini; bintang istirahat pun bersinar.",
+    "ratingLabel": "Rating {{rating}}/5",
     "category": {
-      "game": "Game",
+      "game": "Permainan",
       "movie": "Film",
       "music": "Musik",
       "travel": "Perjalanan",
@@ -747,7 +748,7 @@
       "addTag": "Tambah tag",
       "linkedRecords": "Catatan tertaut",
       "meaning": "makna",
-      "edit": "Edit",
+      "edit": "Sunting",
       "move": "Pindahkan",
       "fillStar": "Isi bintang ini",
       "fillStarBody": "Tambahkan informasi untuk domain ini.",
@@ -873,6 +874,12 @@
       "plansCta": "Lihat paket",
       "close": "Tutup",
       "sameQuality": "Hadiah hanya menambah jumlah. Kualitas jawaban tetap sama."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning otomatis",
+      "autoPaused": "Batas tercapai · otomatis lanjut Senin",
+      "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
+      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual."
     }
   },
   "beyond": {

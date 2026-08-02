@@ -332,7 +332,7 @@
     "search": "¿Qué te da curiosidad?",
     "sectionStart": "Primeros pasos",
     "q1": "¿Cuáles son las 7 estrellas de la Osa Mayor?",
-    "q2": "¿Cómo se ilumina la Estrella Polar (Núcleo del Alma)?",
+    "q2": "¿Cómo se ilumina la Estrella Polar?",
     "q3": "¿Cómo se vuelven más precisos los resultados de las pruebas?",
     "sectionData": "Datos · Privacidad",
     "q4": "¿Qué es un archivo IDEN?",
@@ -567,6 +567,7 @@
     "save": "Guardar",
     "opening": "Abriendo…",
     "empty": "Aún no hay nada aquí. Empieza con lo que te recarga estos días; la estrella del descanso se ilumina.",
+    "ratingLabel": "Valoración {{rating}}/5",
     "category": {
       "game": "Juego",
       "movie": "Película",
@@ -873,6 +874,12 @@
       "plansCta": "Ver planes",
       "close": "Cerrar",
       "sameQuality": "Las recompensas solo añaden ejecuciones. La calidad de las respuestas no cambia."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning automático",
+      "autoPaused": "Límite alcanzado · se reanuda el lunes",
+      "autoBody": "SecondB conecta cada elemento cuando lo capturas",
+      "autoNote": "Las ejecuciones automáticas usan una ejecución semanal y siempre reservan una para uso manual."
     }
   },
   "beyond": {

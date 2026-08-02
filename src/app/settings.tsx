@@ -44,7 +44,7 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 // known require cycle that crashed the /settings path once already (PR 711).
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { useCrewDensity, CREW_DENSITY_ORDER, type CrewDensity } from "@/lib/settings/crew-density";
-import { AVAILABLE_UI_LOCALES, UI_LOCALE_META } from "@/lib/i18n/locales";
+import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { useNoticeCenter } from "@/app/notices";
 import {
@@ -68,6 +68,61 @@ const DATA_DELETE_STEPS: DataDeleteStep[] = ["records", "assessments", "library"
 const CREW_DENSITY_LABEL: Record<"en" | "ko", Record<CrewDensity, string>> = {
   en: { none: "None", few: "Few", some: "Some", many: "Many" },
   ko: { none: "없음", few: "적게", some: "보통", many: "많이" },
+};
+
+const DISPLAY_CREW_DENSITY_LABEL: Record<AvailableUiLocale, Record<CrewDensity, string>> = {
+  en: CREW_DENSITY_LABEL.en,
+  ko: CREW_DENSITY_LABEL.ko,
+  es: { none: "Ninguno", few: "Pocos", some: "Algunos", many: "Muchos" },
+  pt: { none: "Nenhum", few: "Poucos", some: "Alguns", many: "Muitos" },
+  id: { none: "Tidak ada", few: "Sedikit", some: "Beberapa", many: "Banyak" },
+};
+
+const SETTINGS_SURFACE_COPY: Record<
+  AvailableUiLocale,
+  {
+    news: string;
+    notices: string;
+    noticesSub: string;
+    reasoning: string;
+    reasoningSub: string;
+  }
+> = {
+  en: {
+    news: "News",
+    notices: "Notices",
+    noticesSub: "Patch notes · developer news",
+    reasoning: "Reasoning",
+    reasoningSub: "Automatic runs · item selection",
+  },
+  ko: {
+    news: "소식",
+    notices: "공지사항",
+    noticesSub: "패치노트 · 개발자 소식",
+    reasoning: "리즈닝",
+    reasoningSub: "자동 실행 · 자료 선택",
+  },
+  es: {
+    news: "Novedades",
+    notices: "Avisos",
+    noticesSub: "Notas de versión · noticias del desarrollador",
+    reasoning: "Razonamiento",
+    reasoningSub: "Ejecuciones automáticas · selección de material",
+  },
+  pt: {
+    news: "Novidades",
+    notices: "Avisos",
+    noticesSub: "Notas de versão · notícias do desenvolvedor",
+    reasoning: "Raciocínio",
+    reasoningSub: "Execuções automáticas · seleção de material",
+  },
+  id: {
+    news: "Kabar baru",
+    notices: "Pemberitahuan",
+    noticesSub: "Catatan rilis · kabar pengembang",
+    reasoning: "Penalaran",
+    reasoningSub: "Jalankan otomatis · pilih materi",
+  },
 };
 
 // ── M3 toggle-card kit (rev2 clone) ─────────────────────────────────────────
@@ -307,6 +362,9 @@ export default function Settings() {
   const { t, i18n } = useTranslation("settings");
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const displayLocale = AVAILABLE_UI_LOCALES.includes(i18n.language as AvailableUiLocale)
+    ? (i18n.language as AvailableUiLocale)
+    : "en";
   const { mode, setMode } = useTheme();
   const dark = mode === "dark";
   const { density: crewDensity, setDensity: setCrewDensity } = useCrewDensity();
@@ -527,22 +585,8 @@ export default function Settings() {
       </View>
     );
 
-  const newSurfaceCopy =
-    locale === "ko"
-      ? {
-          news: "소식",
-          notices: "공지사항",
-          noticesSub: "패치노트 · 개발자 소식",
-          reasoning: "리즈닝",
-          reasoningSub: "자동 실행 · 자료 선택",
-        }
-      : {
-          news: "News",
-          notices: "Notices",
-          noticesSub: "Patch notes · developer news",
-          reasoning: "Reasoning",
-          reasoningSub: "Automatic runs · item selection",
-        };
+  const newSurfaceCopy = SETTINGS_SURFACE_COPY[displayLocale];
+  const crewDensityLabel = DISPLAY_CREW_DENSITY_LABEL[displayLocale];
 
   return (
     <Chrome>
@@ -783,8 +827,8 @@ export default function Settings() {
             {CREW_DENSITY_ORDER.map((d) => (
               <Button
                 key={d}
-                label={CREW_DENSITY_LABEL[locale][d]}
-                accessibilityHint={t("actions.crewDensityHint", { density: CREW_DENSITY_LABEL[locale][d] })}
+                label={crewDensityLabel[d]}
+                accessibilityHint={t("actions.crewDensityHint", { density: crewDensityLabel[d] })}
                 variant={crewDensity === d ? "primary" : "secondary"}
                 selected={crewDensity === d}
                 onPress={() => setCrewDensity(d)}

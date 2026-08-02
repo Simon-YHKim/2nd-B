@@ -25,46 +25,46 @@
   },
   "monologues": {
     "secondb": [
-      "Clear patterns first, wider possibilities next.",
-      "Let me connect it once more from the center.",
-      "This path is Analytic; that one is Divergent.",
-      "The scattered pieces are gathering into one view."
+      "Primeiro padrões claros, depois possibilidades mais amplas.",
+      "Deixe-me conectar isso mais uma vez a partir do centro.",
+      "Este caminho é Analítico; aquele é Divergente.",
+      "As peças dispersas estão se reunindo em uma única vista."
     ],
     "archi": [
-      "Growth direction starts with the current situation.",
-      "Measure the career clues again.",
-      "If the next step is too large, split it smaller.",
-      "This pattern can become a working plan."
+      "A direção de crescimento começa pela situação atual.",
+      "Meça novamente as pistas de carreira.",
+      "Se o próximo passo for grande demais, divida em partes menores.",
+      "Este padrão pode virar um plano de trabalho."
     ],
     "gadi": [
-      "Read the temperature of this bond slowly.",
-      "Notice what was left between the words.",
-      "Sometimes people need rhythm before direction.",
-      "Look for a steadier connection."
+      "Leia devagar a temperatura deste vínculo.",
+      "Perceba o que ficou entre as palavras.",
+      "Às vezes as pessoas precisam de ritmo antes de direção.",
+      "Procure uma conexão mais estável."
     ],
     "lulu": [
-      "Knowledge shines when it reaches life.",
-      "This question is worth asking once more.",
-      "The saved pieces are gathering into a small wisdom.",
-      "Socrates would ask; Confucius would look for practice."
+      "O conhecimento brilha quando chega à vida.",
+      "Vale fazer esta pergunta mais uma vez.",
+      "As peças salvas estão se reunindo em uma pequena sabedoria.",
+      "Sócrates perguntaria; Confúcio buscaria a prática."
     ],
     "momo": [
-      "Start the new record with a category.",
-      "Make it easy to find what happened when.",
-      "The archive routes are tidy today.",
-      "Even a small log becomes a story in the right place."
+      "Comece o novo registro com uma categoria.",
+      "Facilite encontrar o que aconteceu e quando.",
+      "As rotas do arquivo estão organizadas hoje.",
+      "Mesmo um pequeno registro vira história no lugar certo."
     ],
     "lumi": [
-      "Taste grows little by little, like training.",
-      "Would this recommendation fit the day's rhythm?",
-      "Keep what feels good enjoyable and balanced.",
-      "Where will today's inspiration spark?"
+      "O gosto cresce aos poucos, como treino.",
+      "Esta recomendação combinaria com o ritmo do dia?",
+      "Mantenha o que faz bem agradável e equilibrado.",
+      "Onde a inspiração de hoje vai acender?"
     ]
   },
   "personas": {
     "secondb": {
       "greeting": "Seus registros estão aqui. O que você quer olhar primeiro?",
-      "systemHint": "Fale como SecondB, a IA central do Núcleo da alma. Conecte os registros do usuário pelo gráfico; use o modo Analítico para leitura clara de padrões e o modo Divergente para ângulos alternativos. Caloroso, conciso e prático."
+      "systemHint": "Fale como SecondB, a IA central da Estrela Polar. Conecte os registros do usuário pelo gráfico; use o modo Analítico para leitura clara de padrões e o modo Divergente para ângulos alternativos. Caloroso, conciso e prático."
     },
     "archi": {
       "greeting": "Onde você quer crescer agora? Conte a situação e eu vou mapear uma direção.",

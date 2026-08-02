@@ -13,8 +13,8 @@
   },
   "empty": "Nenhuma fonte ainda. O fluxo de curadoria está em andamento.",
   "filter": {
-    "label": "Filtrar por framework",
-    "accessibilityLabel": "Filtros de framework",
+    "label": "Filtrar por modelo",
+    "accessibilityLabel": "Filtros de modelo",
     "all": "Todos"
   },
   "sourceCount": "{{visible}} fonte{{plural}} (de {{total}})",
