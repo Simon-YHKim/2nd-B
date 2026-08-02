@@ -79,11 +79,11 @@ export function CompletionToast() {
         </View>
         <View style={styles.btnRow}>
           {href ? (
-            <Pressable accessibilityRole="button" onPress={openResult} hitSlop={8} style={styles.seeBtn}>
+            <Pressable accessibilityRole="button" accessibilityLabel={C.see} onPress={openResult} hitSlop={8} style={styles.seeBtn}>
               <Text variant="caption" style={styles.seeText}>{C.see}</Text>
             </Pressable>
           ) : null}
-          <Pressable accessibilityRole="button" onPress={() => dismissTask()} hitSlop={8} style={styles.laterBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={C.later} onPress={() => dismissTask()} hitSlop={8} style={styles.laterBtn}>
             <Text variant="caption" style={styles.laterText}>{C.later}</Text>
           </Pressable>
         </View>

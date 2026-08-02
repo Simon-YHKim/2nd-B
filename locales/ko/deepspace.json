@@ -661,6 +661,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · 이번 주",
+    "eyebrowConstellation": "나의 별자리",
     "footerWeek": "세컨비가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
     "signature": "2nd-Brain · {{count}}개 별가루"
@@ -800,7 +801,16 @@
       "healthErrUnavailable": "이 기기에서는 건강 앱에 연결할 수 없어요. 아무것도 기록하지 않았어요.",
       "healthErrDenied": "건강 접근이 거부돼서 아무것도 기록하지 않았어요. 기기 설정에서 허용할 수 있어요.",
       "healthErrEmpty": "오늘 반영할 건강 활동이 없어요.",
-      "healthErrFailed": "건강 데이터를 반영하지 못했어요. 잠시 후 다시 시도해 주세요."
+      "healthErrFailed": "건강 데이터를 반영하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "summaryPieces": "별가루 {{count}}개",
+      "summaryPieces_plural": "별가루 {{count}}개",
+      "resultAdded": "{{count}}개를 정리함에 담았어요",
+      "resultAdded_plural": "{{count}}개를 정리함에 담았어요",
+      "resultDuplicate": "중복 {{count}}개",
+      "resultDuplicate_plural": "중복 {{count}}개",
+      "resultFailed": "실패 {{count}}개",
+      "a11yImportExportFile": "{{name}} 내보내기 파일 가져오기",
+      "a11yRevokeImport": "{{name}} 가져오기 철회"
     },
     "ttfv": {
       "pageTitle": "당신의 첫 별이 켜졌어요",

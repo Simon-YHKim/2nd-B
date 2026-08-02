@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { OPS_DOMAIN_GROUP, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
@@ -221,6 +221,7 @@ export interface OpsPushSheetProps {
   subtitle?: string; // routine title · cadence
   needsConsent?: boolean;
   consentLabel?: string;
+  closeLabel?: string;
   options: PushOption[];
   confirmLabel: string; // "Allow and continue"
   onConfirm: () => void;
@@ -230,7 +231,12 @@ export interface OpsPushSheetProps {
 export function OpsPushSheet(props: OpsPushSheetProps) {
   return (
     <Modal visible={props.visible} transparent animationType="slide" onRequestClose={props.onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={props.onClose} accessibilityRole="button" />
+      <Pressable
+        style={styles.sheetBackdrop}
+        onPress={props.onClose}
+        accessibilityRole="button"
+        accessibilityLabel={props.closeLabel}
+      />
       <View style={styles.sheet}>
         <View style={styles.sheetGrip} />
         <Text variant="heading" style={styles.sheetTitle}>{props.title}</Text>
@@ -505,7 +511,7 @@ const styles = StyleSheet.create({
   },
   warnBtnText: { fontSize: 13, color: deepSpace.warning },
 
-  sheetBackdrop: { flex: 1, backgroundColor: deepSpace.bgEdge, opacity: 0.6 },
+  sheetBackdrop: { flex: 1, backgroundColor: withAlpha(deepSpace.bgEdge, 0.6) },
   sheet: {
     backgroundColor: deepSpace.bgMid,
     borderTopWidth: 1,

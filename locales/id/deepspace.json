@@ -661,6 +661,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · MINGGU INI",
+    "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama SecondB",
     "starsLit": "{{count}} bintang bersinar",
     "signature": "2nd-Brain · {{count}} serpihan bintang"
@@ -800,7 +801,16 @@
       "healthErrUnavailable": "Perangkat ini tidak dapat terhubung ke aplikasi kesehatan. Tidak ada yang dicatat.",
       "healthErrDenied": "Akses kesehatan ditolak, jadi tidak ada yang dicatat. Kamu bisa mengizinkannya di pengaturan perangkat.",
       "healthErrEmpty": "Tidak ada aktivitas kesehatan untuk dicerminkan hari ini.",
-      "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi."
+      "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
+      "summaryPieces": "{{count}} potongan",
+      "summaryPieces_plural": "{{count}} potongan",
+      "resultAdded": "{{count}} ditambahkan ke kotak masukmu",
+      "resultAdded_plural": "{{count}} ditambahkan ke kotak masukmu",
+      "resultDuplicate": "{{count}} duplikat",
+      "resultDuplicate_plural": "{{count}} duplikat",
+      "resultFailed": "{{count}} gagal",
+      "a11yImportExportFile": "Impor file ekspor {{name}}",
+      "a11yRevokeImport": "Cabut impor {{name}}"
     },
     "ttfv": {
       "pageTitle": "Bintang pertamamu baru saja menyala",

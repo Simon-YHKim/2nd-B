@@ -661,6 +661,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · THIS WEEK",
+    "eyebrowConstellation": "MY CONSTELLATION",
     "footerWeek": "A week seen together with SecondB",
     "starsLit": "{{count}} stars shining",
     "signature": "2nd-Brain · {{count}} stardust"
@@ -800,7 +801,16 @@
       "healthErrUnavailable": "This device can't connect to a health app. Nothing was recorded.",
       "healthErrDenied": "Health access was declined, so nothing was recorded. You can allow it in your device settings.",
       "healthErrEmpty": "No health activity to reflect today.",
-      "healthErrFailed": "Couldn't reflect your health data. Try again shortly."
+      "healthErrFailed": "Couldn't reflect your health data. Try again shortly.",
+      "summaryPieces": "{{count}} piece",
+      "summaryPieces_plural": "{{count}} pieces",
+      "resultAdded": "Added {{count}} to your inbox",
+      "resultAdded_plural": "Added {{count}} to your inbox",
+      "resultDuplicate": "{{count}} duplicate",
+      "resultDuplicate_plural": "{{count}} duplicates",
+      "resultFailed": "{{count}} failed",
+      "a11yImportExportFile": "Import {{name}} export file",
+      "a11yRevokeImport": "Revoke {{name}} import"
     },
     "ttfv": {
       "pageTitle": "Your first star just lit up",

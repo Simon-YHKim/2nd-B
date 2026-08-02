@@ -30,11 +30,10 @@ import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
-import { deleteRecord, getRecordById, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
+import { deleteRecord, listRecentRecords, updateRecord, updateRecordTags } from "@/lib/records/create";
 import { buildRecordsGraph } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { getPieceById } from "@/lib/records/get-piece";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import { listAllWikiLinks, listWikiPages } from "@/lib/wiki/queries";
 import type { WikiPageRow } from "@/lib/wiki/types";
 import { buildDeepWikiView, recencyLabel, type RecencyLabels, type WikiEdge } from "./wiki-graph-view";
@@ -157,6 +156,9 @@ function TrashGlyph() {
 // list can carry the reference's 5 content-type icons (글·링크·음성·사진·할 일)
 // without a dedicated column in the DB. Purely presentational.
 type RType = "text" | "link" | "voice" | "photo" | "todo";
+type RecordsOrigin = "record" | "source";
+type RecordsTimelineRecord = TimelineRecord & { origin?: RecordsOrigin; sourceId?: string };
+
 const TYPE_CHIPS: { id: RType | "all" | "unfiled"; labelKey: string }[] = [
   { id: "all", labelKey: "records.filterAll" },
   { id: "text", labelKey: "records.typeText" },
@@ -190,6 +192,15 @@ function timelineTitle(r: TimelineRecord, fallback: string): string {
     if (line) return line.length > 80 ? `${line.slice(0, 80).trimEnd()}…` : line;
   }
   return fallback;
+}
+function recordRouteParams(r: RecordsTimelineRecord) {
+  return r.origin === "source" && r.sourceId
+    ? { id: r.sourceId, origin: "source" }
+    : { id: r.id };
+}
+function recordRouteParamsById(id: string, records: readonly RecordsTimelineRecord[]) {
+  const hit = records.find((r) => r.id === id || r.sourceId === id);
+  return hit ? recordRouteParams(hit) : { id };
 }
 
 // Static Material-symbol-style glyphs (inline SVG, no animation) — Android-safe
@@ -234,7 +245,7 @@ function TypeGlyph({ type }: { type: RType }) {
   );
 }
 
-const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }: { r: TimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: (id: string) => void }) {
+const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }: { r: RecordsTimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: (record: RecordsTimelineRecord) => void }) {
   const { t } = useTranslation("deepspace");
   const title = timelineTitle(r, t("records.fallbackTitle"));
   const tags = stripDomainTags(r.tags ?? []).slice(0, 2);
@@ -242,7 +253,7 @@ const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }:
   // text, so TalkBack heard only the title and never the time label, tags, or the
   // 미분류 badge. Without it, RN concatenates the children in render order.
   return (
-    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r.id)} accessibilityRole="button">
+    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r)} accessibilityRole="button">
       <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
       <View style={rStyles.body}>
         <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
@@ -296,7 +307,7 @@ export function DeepSpaceRecordsScreen() {
     }
     return null;
   }, [tagFilter]);
-  const [records, setRecords] = useState<TimelineRecord[]>([]);
+  const [records, setRecords] = useState<RecordsTimelineRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   // Bumped to re-run the load: on focus re-entry (useFocusRefetch) and on the
@@ -341,8 +352,8 @@ export function DeepSpaceRecordsScreen() {
     // (글/링크/사진/file) that land in `sources`, not just `records` — so a
     // source-only user no longer sees a false-empty list. Sources are
     // best-effort: a sources failure degrades to records-only and never blanks
-    // the screen (mirrors core-brain's merged evidence read). Source rows carry
-    // no record detail, so tapping one lands on the graceful notFound state.
+    // the screen (mirrors core-brain's merged evidence read). Source rows keep
+    // their DB id for detail navigation while the list id stays collision-free.
     (async () => {
       // The canonical records read is NOT coerced to [] on failure. Doing so
       // rendered the genuine-empty state ("아직 기록이 없어요" + 담기 CTA) to a
@@ -350,29 +361,31 @@ export function DeepSpaceRecordsScreen() {
       // records that they have none. A records-read failure is a distinct error
       // state (retry) instead. Sources stay best-effort (source-only users still
       // merge in below), so only the primary records read gates the error.
-      let recs: TimelineRecord[] = [];
+      let recs: RecordsTimelineRecord[] = [];
       let recordsFailed = false;
       try {
-        recs = (await listRecentRecords(userId)) as TimelineRecord[];
+        recs = (await listRecentRecords(userId)) as RecordsTimelineRecord[];
       } catch {
         recordsFailed = true;
       }
       // Same source of truth as /insights. This read used to live here inline, and
       // /insights had no equivalent at all -- which is exactly how the two screens came to
       // disagree about how much the user had captured.
-      let srcRecs: TimelineRecord[] = [];
+      let srcRecs: RecordsTimelineRecord[] = [];
       try {
         srcRecs = (await listSourcePieces(userId)).map(
           (s) =>
             ({
               id: s.id,
+              origin: "source",
+              sourceId: s.sourceId,
               kind: "note",
               summary: s.title,
               topic: s.title,
               body: null,
               tags: s.tags,
               created_at: s.created_at,
-            }) as TimelineRecord,
+            }) as RecordsTimelineRecord,
         );
       } catch {
         // records-only fallback (sources stay best-effort)
@@ -400,7 +413,7 @@ export function DeepSpaceRecordsScreen() {
   // Stable across renders so the memoized RecordCard's onPress prop does not
   // change (React.memo keeps unchanged rows from re-rendering on filter taps).
   const openRecord = useCallback(
-    (id: string) => router.push({ pathname: "/record/[id]", params: { id } }),
+    (record: RecordsTimelineRecord) => router.push({ pathname: "/record/[id]", params: recordRouteParams(record) }),
     [],
   );
 
@@ -425,7 +438,7 @@ export function DeepSpaceRecordsScreen() {
   }, [scoped, typeFilter]);
 
   const renderRecord = useCallback(
-    ({ item }: { item: TimelineRecord }) => (
+    ({ item }: { item: RecordsTimelineRecord }) => (
       <RecordCard
         r={item}
         type={recordType(item)}
@@ -594,7 +607,7 @@ export function DeepSpaceRecordsScreen() {
             ) : loading ? (
               <GraphLoading />
             ) : records.length > 0 ? (
-              <RecordsGraph graph={recordsGraph} onOpenRecord={openRecord} />
+              <RecordsGraph graph={recordsGraph} onOpenRecord={(id) => router.push({ pathname: "/record/[id]", params: recordRouteParamsById(id, records) })} />
             ) : (
               <View style={styles.wikiPageOpen}>
                 <Text variant="body" style={styles.wikiBody}>{t("records.graphEmpty")}</Text>
@@ -695,6 +708,7 @@ interface DetailRecord {
   conclusion: string | null;
   tags: string[] | null;
   created_at: string;
+  origin?: RecordsOrigin;
 }
 
 // Instrument records persist a JSON payload as their body (build.ts loaders
@@ -761,11 +775,12 @@ export function DeepSpaceRecordDetailScreen() {
   const { userId, loading: authLoading } = useAuth();
   const params = useLocalSearchParams();
   const idParam = params.id;
+  const originParam = params.origin;
   const recordId = Array.isArray(idParam) ? idParam[0] : idParam;
   // /records prefixes source ids (`src-<uuid>`), so the id alone is enough there.
   // /core-brain keeps the raw uuid and carries the origin separately. Read both.
-  const originParam = params.origin;
   const origin = (Array.isArray(originParam) ? originParam[0] : originParam) === "source" ? "source" : null;
+  const isSource = origin === "source";
 
   const [record, setRecord] = useState<DetailRecord | null>(null);
   const [all, setAll] = useState<TimelineRecord[]>([]);
@@ -802,7 +817,7 @@ export function DeepSpaceRecordDetailScreen() {
     const tag = tagDraft.trim();
     setAddingTag(false);
     setTagDraft("");
-    if (!tag || !userId || !record || !recordId) return;
+    if (isSource || !tag || !userId || !record || !recordId) return;
     // Reserved domain: tags drive star membership and are managed by Move, not
     // free-text — a hand-typed "domain:career" would double-file the record and
     // break moveTo's single-domain assumption (persona-validate: tag-injection).
@@ -818,7 +833,7 @@ export function DeepSpaceRecordDetailScreen() {
       setRecord({ ...record, tags: existing });
       reportActionError();
     }
-  }, [tagDraft, userId, record, recordId, reportActionError]);
+  }, [isSource, tagDraft, userId, record, recordId, reportActionError]);
   // 이동: re-file this record to another domain star by swapping its reserved
   // domain: tag (the star lens filters by the domain: tag). Same optimistic
   // updateRecordTags path as add-tag; reverts on failure.
@@ -826,7 +841,7 @@ export function DeepSpaceRecordDetailScreen() {
   const moveTo = useCallback(
     async (target: DomainId) => {
       setMoving(false);
-      if (!userId || !record || !recordId) return;
+      if (isSource || !userId || !record || !recordId) return;
       const currentTags = record.tags ?? [];
       if (currentTags.includes(domainTagFor(target))) return;
       const next = [...stripDomainTags(currentTags), domainTagFor(target)];
@@ -839,7 +854,7 @@ export function DeepSpaceRecordDetailScreen() {
         reportActionError();
       }
     },
-    [userId, record, recordId, reportActionError],
+    [isSource, userId, record, recordId, reportActionError],
   );
   // 편집: inline-edit this record's body text in place. The Edit CTA used to
   // route to /capture, which has no edit mode, so the labelled action did
@@ -850,13 +865,13 @@ export function DeepSpaceRecordDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [bodyDraft, setBodyDraft] = useState("");
   const startEdit = useCallback(() => {
-    if (!record) return;
+    if (isSource || !record) return;
     setBodyDraft(record.body ?? "");
     setEditing(true);
-  }, [record]);
+  }, [isSource, record]);
   const submitEdit = useCallback(async () => {
     const next = bodyDraft.trim();
-    if (!userId || !record || !recordId) {
+    if (isSource || !userId || !record || !recordId) {
       setEditing(false);
       return;
     }
@@ -874,7 +889,7 @@ export function DeepSpaceRecordDetailScreen() {
       setRecord({ ...record, body: prevBody });
       reportActionError();
     }
-  }, [bodyDraft, userId, record, recordId, reportActionError]);
+  }, [isSource, bodyDraft, userId, record, recordId, reportActionError]);
 
   useEffect(() => {
     if (!userId || !recordId) {
@@ -887,7 +902,9 @@ export function DeepSpaceRecordDetailScreen() {
     // piece (link / clip / import) arrives here with a `src-` prefixed id. This screen used
     // to look that id up in the records table, find nothing, and show "찾을 수 없어요" --
     // so EVERY link, clip and import in the list was a dead tap.
-    Promise.all([getPieceById(userId, recordId, origin), listRecentRecords(userId)])
+    const recordPromise = getPieceById(userId, recordId, origin);
+    const relatedPromise = listRecentRecords(userId).catch(() => [] as TimelineRecord[]);
+    Promise.all([recordPromise, relatedPromise])
       .then(([r, rows]) => {
         if (!alive) return;
         setRecord((r as DetailRecord | null) ?? null);
@@ -908,12 +925,16 @@ export function DeepSpaceRecordDetailScreen() {
   // (a minor's pref is server-locked false, so recordsEmbeddingAllowed short-
   // circuits). Best-effort read; the focal record returns [] until it is embedded.
   useEffect(() => {
-    if (!userId || !recordId) return;
+    setSemanticIds(new Set());
+    if (!userId || !recordId || isSource) return;
     let alive = true;
     void (async () => {
       try {
         const prefs = await fetchPrivacyPrefs(userId);
-        if (!recordsEmbeddingAllowed(false, prefs.records_embedding)) return;
+        if (!recordsEmbeddingAllowed(false, prefs.records_embedding)) {
+          if (alive) setSemanticIds(new Set());
+          return;
+        }
         const neighbours = await relatedRecordsByEmbedding(userId, recordId, 6);
         if (alive) setSemanticIds(new Set(neighbours.map((n) => n.id)));
       } catch {
@@ -923,7 +944,7 @@ export function DeepSpaceRecordDetailScreen() {
     return () => {
       alive = false;
     };
-  }, [userId, recordId]);
+  }, [userId, recordId, isSource]);
 
   async function handleDelete() {
     if (!userId || !record) return;
@@ -1083,7 +1104,7 @@ export function DeepSpaceRecordDetailScreen() {
         {(record.tags ?? []).slice(0, 6).map((tag) => (
           <View key={tag} style={rd.tag}><RNText style={rd.tagTxt}>{tag}</RNText></View>
         ))}
-        {addingTag ? (
+        {isSource ? null : addingTag ? (
           <TextInput
             style={[rd.tag, { minWidth: 120, color: colors.textTitle, fontSize: 12, paddingVertical: 4 }]}
             value={tagDraft}
@@ -1131,6 +1152,7 @@ export function DeepSpaceRecordDetailScreen() {
         </>
       ) : null}
 
+      {isSource ? null : (
       <View style={styles.ctaRow}>
         {record.body && record.body.trim().length > 0 && !assessmentRoute(record) && !parseStructured(record.structured) && !editing ? (
           <Pressable style={styles.secondary} onPress={startEdit} accessibilityRole="button">
@@ -1151,6 +1173,7 @@ export function DeepSpaceRecordDetailScreen() {
           <TrashGlyph />
         </Pressable>
       </View>
+      )}
 
       <PremiumModal
         visible={confirmingDelete}
@@ -1180,6 +1203,7 @@ export function DeepSpaceRecordDetailScreen() {
         </View>
       </PremiumModal>
 
+      {isSource ? null : (
       <PremiumModal
         visible={moving}
         onClose={() => setMoving(false)}
@@ -1200,6 +1224,7 @@ export function DeepSpaceRecordDetailScreen() {
           ))}
         </View>
       </PremiumModal>
+      )}
     </Shell>
   );
 }

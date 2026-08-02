@@ -233,9 +233,9 @@ export function MuseumTimelineScreen() {
             <Svg width={MZ_CANVAS_W} height={MZ.TH} style={StyleSheet.absoluteFill} pointerEvents="none">
               {/* decade gridlines + central axis + now marker */}
               {DECADES.map((dy) => (
-                <Line key={dy} x1={mzX(dy)} y1={0} x2={mzX(dy)} y2={MZ.TH} stroke="rgba(127,178,255,0.09)" strokeWidth={1} />
+                <Line key={dy} x1={mzX(dy)} y1={0} x2={mzX(dy)} y2={MZ.TH} stroke={MUSEUM_GRID_LINE} strokeWidth={1} />
               ))}
-              <Line x1={0} y1={MZ.AXIS} x2={MZ_CANVAS_W} y2={MZ.AXIS} stroke="rgba(127,178,255,0.35)" strokeWidth={1.4} />
+              <Line x1={0} y1={MZ.AXIS} x2={MZ_CANVAS_W} y2={MZ.AXIS} stroke={MUSEUM_AXIS_LINE} strokeWidth={1.4} />
               <Line x1={mzX(2026)} y1={0} x2={mzX(2026)} y2={MZ.TH} stroke={MZ_LANES.ai.accent} strokeWidth={1} strokeDasharray="3 6" opacity={0.7} />
               {/* connectors */}
               {connectors.map((c) => {
@@ -462,7 +462,7 @@ export function MuseumTimelineScreen() {
                         <Text style={styles.refLabel} numberOfLines={2}>{r.label}</Text>
                         <Text style={styles.refKind}>{MUSEUM_REF_LABEL[r.kind]}</Text>
                       </View>
-                      <MuseumGlyph name="open_in_new" color="rgba(255,255,255,0.32)" size={15} />
+                      <MuseumGlyph name="open_in_new" color={MUSEUM_OPEN_ICON} size={15} />
                     </View>
                   ))}
                 </View>
@@ -484,7 +484,18 @@ export function MuseumTimelineScreen() {
   );
 }
 
-const SHEET_SURFACE = "#0B1120"; // prototype sheet/node surface (deep-space navy)
+const SHEET_SURFACE = m3.color.surfaceContainerLow;
+const MUSEUM_TEXT_STRONG = m3.accent.shareInk;
+const MUSEUM_TEXT_BODY = m3.accent.shareInkSoft;
+const MUSEUM_TEXT_LONG = withAlpha(m3.accent.consentFootnote, 0.72);
+const MUSEUM_TEXT_CAUSE = withAlpha(m3.accent.shareInkSoft, 0.82);
+const MUSEUM_FAINT_WASH = withAlpha(m3.accent.skyStarWhite, 0.02);
+const MUSEUM_REF_WASH = withAlpha(m3.accent.skyStarWhite, 0.03);
+const MUSEUM_REF_BORDER = withAlpha(m3.accent.skyStarWhite, 0.08);
+const MUSEUM_OPEN_ICON = withAlpha(m3.accent.skyStarWhite, 0.32);
+const MUSEUM_GRID_LINE = withAlpha(m3.accent.entryTag, 0.09);
+const MUSEUM_AXIS_LINE = withAlpha(m3.accent.entryTag, 0.35);
+const MUSEUM_TEXT_SHADOW = withAlpha(m3.color.scrim, 0.9);
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
@@ -514,7 +525,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 13,
     textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowColor: MUSEUM_TEXT_SHADOW,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
@@ -535,10 +546,10 @@ const styles = StyleSheet.create({
   nodeHere: { shadowColor: MZ_LANES.ai.accent, shadowOpacity: 0.7, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
   nodeNow: { position: "absolute", top: 7, right: 9, fontFamily: m3.font.mono, fontSize: 8.5, fontWeight: "800", letterSpacing: 1 },
   nodeYear: { fontFamily: m3.font.mono, fontSize: 9 },
-  nodeTitle: { fontSize: 12.5, fontWeight: "700", color: "#EAF2FF" },
+  nodeTitle: { fontSize: 12.5, fontWeight: "700", color: MUSEUM_TEXT_STRONG },
   dialBlock: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },
   dialHead: { flexDirection: "row", alignItems: "baseline", gap: 8 },
-  dialYear: { fontFamily: m3.font.mono, fontSize: 26, color: "#CFFAFF" },
+  dialYear: { fontFamily: m3.font.mono, fontSize: 26, color: deepSpace.accentBright },
   dialCap: { fontFamily: m3.font.mono, fontSize: 9, letterSpacing: 1.4, color: withAlpha(deepSpace.accentSoft, 0.6) },
   dialTrack: { height: 10, borderRadius: 13, backgroundColor: withAlpha(deepSpace.accent, 0.12), overflow: "hidden" },
   dialPlayhead: { position: "absolute", top: 0, bottom: 0, width: 8, borderRadius: 4, backgroundColor: MZ_LANES.world.accent },
@@ -568,11 +579,11 @@ const styles = StyleSheet.create({
   laneChipText: { fontSize: 10.5, fontWeight: "600" },
   hereChip: { backgroundColor: m3.accent.moodPositive, borderColor: m3.accent.moodPositive },
   plateYear: { fontFamily: m3.font.mono, fontSize: 12 },
-  plateTitle: { color: "#EAF2FF" },
+  plateTitle: { color: MUSEUM_TEXT_STRONG },
   plateSub: { fontSize: 13, color: withAlpha(deepSpace.accentSoft, 0.85) },
-  bodyText: { fontSize: 13.5, lineHeight: 21, color: "#D7E4F5" },
+  bodyText: { fontSize: 13.5, lineHeight: 21, color: MUSEUM_TEXT_BODY },
   // MZ_DETAIL sections (prototype MzSheet: long copy, facts grid, 배경/영향)
-  longText: { fontSize: 13, lineHeight: 22, color: "rgba(199,213,240,0.72)" },
+  longText: { fontSize: 13, lineHeight: 22, color: MUSEUM_TEXT_LONG },
   factsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   factCell: {
     flexBasis: "47%",
@@ -584,13 +595,13 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   factLabel: { fontFamily: m3.font.mono, fontSize: 10.5, letterSpacing: 1.1 },
-  factValue: { fontSize: 13.5, fontWeight: "700", color: "#EAF2FF", lineHeight: 17.5 },
-  causeCard: { borderWidth: 1, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.02)", overflow: "hidden" },
+  factValue: { fontSize: 13.5, fontWeight: "700", color: MUSEUM_TEXT_STRONG, lineHeight: 17.5 },
+  causeCard: { borderWidth: 1, borderRadius: 14, backgroundColor: MUSEUM_FAINT_WASH, overflow: "hidden" },
   causeRow: { flexDirection: "row", gap: 11, paddingHorizontal: 13, paddingVertical: 11 },
   causeIcon: { marginTop: 1 },
   causeText: { flex: 1, gap: 3 },
   causeLabel: { fontFamily: m3.font.mono, fontSize: 10.5, letterSpacing: 1.3 },
-  causeBody: { fontSize: 13, lineHeight: 19.5, color: "rgba(214,226,248,0.82)" },
+  causeBody: { fontSize: 13, lineHeight: 19.5, color: MUSEUM_TEXT_CAUSE },
   causeDivider: { height: 1, marginHorizontal: 13 },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   tagChip: { borderRadius: 9999, borderWidth: 1, borderColor: withAlpha(deepSpace.accent, 0.3), paddingHorizontal: 10, paddingVertical: 4 },
@@ -599,7 +610,7 @@ const styles = StyleSheet.create({
   sectionLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.2, color: withAlpha(deepSpace.accentSoft, 0.7) },
   relRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: withAlpha(deepSpace.accent, 0.2), borderRadius: 12, paddingHorizontal: 12 },
   relYear: { fontFamily: m3.font.mono, fontSize: 10, minWidth: 44 },
-  relTitle: { flex: 1, fontSize: 13, color: "#EAF2FF" },
+  relTitle: { flex: 1, fontSize: 13, color: MUSEUM_TEXT_STRONG },
   relGo: { fontSize: 14, color: deepSpace.textHi },
   // refs — prototype rows: 32px tinted glyph box, label over refKo kind, dim open_in_new
   refRow: {
@@ -607,14 +618,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 11,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: MUSEUM_REF_BORDER,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: MUSEUM_REF_WASH,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   refIconBox: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   refBody: { flex: 1, gap: 1 },
   refKind: { fontFamily: m3.font.mono, fontSize: 10.5, color: withAlpha(deepSpace.accentSoft, 0.8) },
-  refLabel: { fontSize: 13.5, fontWeight: "500", color: "#EAF2FF" },
+  refLabel: { fontSize: 13.5, fontWeight: "500", color: MUSEUM_TEXT_STRONG },
 });

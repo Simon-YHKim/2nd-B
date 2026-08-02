@@ -134,8 +134,8 @@
       "helper": "Tangkapan catatan, tautan, file, dan foto tetap terbuka tanpa batas."
     },
     "streak": {
-      "label": "Streak {{count}} hari{{suffix}}",
-      "missingToday": " (belum ada hari ini)"
+      "label": "Hari tercatat: {{count}}{{suffix}}",
+      "missingToday": " (hari ini opsional)"
     },
     "prompt": {
       "heading": "Topik refleksi hari ini",

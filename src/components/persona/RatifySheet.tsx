@@ -61,7 +61,7 @@ export function RatifySheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(7,10,24,0.6)" },
+  backdrop: { flex: 1, backgroundColor: semantic.backdrop },
   sheet: {
     position: "absolute",
     left: 0,

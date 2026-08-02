@@ -135,9 +135,10 @@ function CoreBrainScreen() {
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
-    // buildPersona() calls Gemini — don't fire it for a no-profile OAuth session
-    // (gated here because the effect runs before the render redirect). C10 + consent.
-    if (!userId || hasProfile === false) return;
+    // buildPersona() calls Gemini — don't fire it until auth, profile, and
+    // minor status are fully resolved. The effect runs before render redirects,
+    // so hasProfile=null/isMinor=null must fail closed instead of routing as adult.
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
     let cancelled = false;
     setBuilding(true);
     setLoadError(false);
@@ -167,7 +168,7 @@ function CoreBrainScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
+  }, [loading, userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
   // Re-focus refreshes only cheap DB evidence. The initial/manual path above is
   // the only path that may run buildPersona(), because buildPersona calls Gemini.
   useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile !== false));

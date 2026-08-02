@@ -2225,7 +2225,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: deepSpace.cardLine,
+    borderColor: deepSpace.cardLineStrong,
     alignItems: "center",
     justifyContent: "center",
   },

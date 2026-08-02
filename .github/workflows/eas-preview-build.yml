@@ -19,6 +19,7 @@ on:
         options:
           - preview
           - production
+          - preview-emulator
         default: preview
       message:
         description: "Build message shown in EAS"
@@ -87,7 +88,7 @@ jobs:
             echo "::error::EXPO_TOKEN is required for EAS Android builds."
             exit 1
           fi
-          if [ "$BUILD_PROFILE" != "preview" ] && [ "$BUILD_PROFILE" != "production" ]; then
+          if [ "$BUILD_PROFILE" != "preview" ] && [ "$BUILD_PROFILE" != "production" ] && [ "$BUILD_PROFILE" != "preview-emulator" ]; then
             echo "::error::Unsupported EAS build profile '$BUILD_PROFILE'."
             exit 1
           fi
