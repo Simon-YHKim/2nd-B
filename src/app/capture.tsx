@@ -1904,6 +1904,7 @@ export function CaptureLegacy() {
                 value={body}
                 onChangeText={setBody}
                 placeholder={t("linkClip.placeholder")}
+                accessibilityLabel={t("linkClip.label")}
                 autoCapitalize="none"
                 autoCorrect={false}
                 multiline

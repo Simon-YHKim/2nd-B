@@ -9,6 +9,7 @@
 
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { MdButton } from "@/components/m3";
 import { m3 } from "@/lib/theme/m3";
@@ -24,9 +25,74 @@ export interface AutoReasoningIntroSheetProps {
   onClose: () => void;
 }
 
+type DisplayLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const DISPLAY_LOCALES = new Set<DisplayLocale>(["en", "ko", "es", "pt", "id"]);
+
+const COPY: Record<
+  DisplayLocale,
+  {
+    close: string;
+    title: string;
+    groupLine: string;
+    limitLine: string;
+    confirm: string;
+    later: string;
+  }
+> = {
+  en: {
+    close: "Close",
+    title: "Turn on automatic reasoning",
+    groupLine: "SecondB groups new items and proposes connections.",
+    limitLine: "Automatic runs use one weekly run and always reserve one for manual use.",
+    confirm: "Turn on",
+    later: "Not now",
+  },
+  ko: {
+    close: "닫기",
+    title: "자동 리즈닝을 켜요",
+    groupLine: "새 자료를 모아 세컨비가 연결을 제안해요.",
+    limitLine: "자동 실행도 주간 한도를 1회씩 사용해요. 직접 실행할 1회는 항상 남겨 둬요.",
+    confirm: "켜기",
+    later: "나중에",
+  },
+  es: {
+    close: "Cerrar",
+    title: "Activar razonamiento automático",
+    groupLine: "SecondB agrupa los elementos nuevos y propone conexiones.",
+    limitLine: "Cada ejecución automática usa una vez semanal y siempre reserva una para uso manual.",
+    confirm: "Activar",
+    later: "Ahora no",
+  },
+  pt: {
+    close: "Fechar",
+    title: "Ativar raciocínio automático",
+    groupLine: "O SecondB agrupa novos itens e propõe conexões.",
+    limitLine: "Cada execução automática usa um limite semanal e sempre reserva uma para uso manual.",
+    confirm: "Ativar",
+    later: "Agora não",
+  },
+  id: {
+    close: "Tutup",
+    title: "Aktifkan penalaran otomatis",
+    groupLine: "SecondB mengelompokkan item baru dan mengusulkan koneksi.",
+    limitLine: "Setiap proses otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual.",
+    confirm: "Aktifkan",
+    later: "Nanti saja",
+  },
+};
+
+function displayLocale(language: string, ko: boolean): DisplayLocale {
+  const base = language.split("-")[0] as DisplayLocale;
+  if (DISPLAY_LOCALES.has(base)) return base;
+  return ko ? "ko" : "en";
+}
+
 export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: AutoReasoningIntroSheetProps) {
+  const { i18n } = useTranslation();
   const { height } = useWindowDimensions();
   const rise = useRef(new Animated.Value(0)).current;
+  const copy = COPY[displayLocale(i18n.language, ko)];
 
   useEffect(() => {
     if (!visible) return;
@@ -48,30 +114,22 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
           style={styles.veil}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel={ko ? "닫기" : "Close"}
+          accessibilityLabel={copy.close}
         />
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
           <View style={styles.grabber} />
-          <RNText style={styles.title}>{ko ? "자동 리즈닝을 켜요" : "Turn on automatic reasoning"}</RNText>
-          <RNText style={styles.line}>
-            {ko
-              ? "새 자료를 모아 세컨비가 연결을 제안해요."
-              : "SecondB groups new items and proposes connections."}
-          </RNText>
-          <RNText style={styles.line}>
-            {ko
-              ? "자동 실행도 주간 한도를 1회씩 사용해요. 직접 실행할 1회는 항상 남겨 둬요."
-              : "Automatic runs use one weekly run and always reserve one for manual use."}
-          </RNText>
+          <RNText style={styles.title}>{copy.title}</RNText>
+          <RNText style={styles.line}>{copy.groupLine}</RNText>
+          <RNText style={styles.line}>{copy.limitLine}</RNText>
           <View style={styles.actions}>
             <MdButton
-              label={ko ? "켜기" : "Turn on"}
+              label={copy.confirm}
               variant="filled"
               onPress={onConfirm}
               style={styles.actionButton}
             />
             <MdButton
-              label={ko ? "나중에" : "Not now"}
+              label={copy.later}
               variant="text"
               onPress={onClose}
               style={styles.actionButton}

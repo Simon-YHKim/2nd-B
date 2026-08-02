@@ -5,9 +5,9 @@
 //   B "ring"     sync / processing       — rotating ring around the breathing head
 //   C "analysis" long star-ignition      — Big-Dipper twinkle + sweep bar, and a
 //                                          "continue in background" exit (no trap)
-// Motion is fade + breathe + rotate only (no bounce/elastic). Copy is inline
-// ko/en (no new i18n keys, WeeklyGrowthScreen pattern), so check:i18n parity is
-// unaffected. Colors come only from deepSpace.* tokens (no hex literals).
+// Motion is fade + breathe + rotate only (no bounce/elastic). Default copy uses
+// a local shipped-locale table, so check:i18n parity is unaffected. Colors come
+// only from deepSpace.* tokens (no hex literals).
 //
 //   <DeepSpaceLoader variant="dots" />
 //   <DeepSpaceLoader variant="ring" />
@@ -41,6 +41,64 @@ export interface DeepSpaceLoaderProps {
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const LOADER_COPY: Record<LoaderLocale, {
+  analysisHeadline: string;
+  analysisHint: (etaSec: number) => string;
+  background: string;
+  ringCaption: string;
+  ringTip: string;
+  dotsCaption: string;
+}> = {
+  en: {
+    analysisHeadline: "Looking at you",
+    analysisHint: (etaSec) => `This may take a while · ~${etaSec}s`,
+    background: "Continue in background",
+    ringCaption: "Tidying up",
+    ringTip: "Just a moment",
+    dotsCaption: "Loading",
+  },
+  ko: {
+    analysisHeadline: "너를 살펴보는 중",
+    analysisHint: (etaSec) => `길어질 수 있어요 · 약 ${etaSec}초`,
+    background: "백그라운드에서 계속 · 다른 거 할게요",
+    ringCaption: "정리하는 중",
+    ringTip: "잠깐이면 돼요",
+    dotsCaption: "불러오는 중",
+  },
+  es: {
+    analysisHeadline: "Revisando tus registros",
+    analysisHint: (etaSec) => `Puede tardar un poco · ~${etaSec}s`,
+    background: "Continuar en segundo plano",
+    ringCaption: "Ordenando",
+    ringTip: "Solo un momento",
+    dotsCaption: "Cargando",
+  },
+  pt: {
+    analysisHeadline: "Analisando seus registros",
+    analysisHint: (etaSec) => `Pode levar um pouco · ~${etaSec}s`,
+    background: "Continuar em segundo plano",
+    ringCaption: "Organizando",
+    ringTip: "Só um momento",
+    dotsCaption: "Carregando",
+  },
+  id: {
+    analysisHeadline: "Membaca catatanmu",
+    analysisHint: (etaSec) => `Mungkin perlu sebentar · ~${etaSec}d`,
+    background: "Lanjutkan di latar belakang",
+    ringCaption: "Merapikan",
+    ringTip: "Sebentar saja",
+    dotsCaption: "Memuat",
+  },
+};
+
+function loaderLocale(language?: string): LoaderLocale {
+  const base = language?.toLowerCase().split("-")[0];
+  if (base === "ko" || base === "es" || base === "pt" || base === "id") return base;
+  return "en";
+}
 
 // Big-Dipper (북두칠성) layout from the design canon. dim = faint star.
 const STARS = [
@@ -201,12 +259,12 @@ export function DeepSpaceLoader({
 }: DeepSpaceLoaderProps) {
   const phase = useBloom();
   const { i18n } = useTranslation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
+  const copy = LOADER_COPY[loaderLocale(i18n.language)];
 
   if (variant === "analysis") {
-    const headline = title ?? (ko ? "너를 살펴보는 중" : "Looking at you");
-    const hint = tip ?? (ko ? `길어질 수 있어요 · 약 ${etaSec}초` : `This may take a while · ~${etaSec}s`);
-    const bg = bgLabel ?? (ko ? "백그라운드에서 계속 · 다른 거 할게요" : "Continue in background");
+    const headline = title ?? copy.analysisHeadline;
+    const hint = tip ?? copy.analysisHint(etaSec);
+    const bg = bgLabel ?? copy.background;
     return (
       <View style={[styles.wrap, styles.wrapFull]}>
         <Constellation />
@@ -229,8 +287,8 @@ export function DeepSpaceLoader({
   }
 
   if (variant === "ring") {
-    const cap = caption ?? (ko ? "정리하는 중" : "Tidying up");
-    const sub = tip ?? (ko ? "잠깐이면 돼요" : "Just a moment");
+    const cap = caption ?? copy.ringCaption;
+    const sub = tip ?? copy.ringTip;
     return (
       <View style={styles.wrap}>
         <Ring />
@@ -241,7 +299,7 @@ export function DeepSpaceLoader({
   }
 
   // A: dots
-  const cap = caption ?? title ?? (ko ? "불러오는 중" : "Loading");
+  const cap = caption ?? title ?? copy.dotsCaption;
   return (
     <View style={styles.wrap}>
       <SecondbHead size={64} mood="neutral" />

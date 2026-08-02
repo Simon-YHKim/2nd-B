@@ -27,6 +27,12 @@
   "states": {
     "loading": "Memuat…"
   },
+  "progression": {
+    "maxLevelTrailing": "{{xp}} XP · level maksimum",
+    "nextLevelTrailing": "{{xp}} XP menuju level berikutnya",
+    "progressLabel": "Level {{level}}, progres XP {{pct}}%",
+    "maxLevelHint": "Sudah di level maksimum."
+  },
   "journal": {
     "privacyFootnote": "Entri jurnalmu dienkripsi dan tidak pernah melatih model apa pun.",
     "relativeJustNow": "baru saja",
@@ -51,7 +57,7 @@
     "skipHint": "Ketuk dua kali untuk melewati animasi pembuka."
   },
   "worldview": {
-    "soulCore": "Inti Jiwa",
+    "soulCore": "Bintang Utara",
     "growthCore": "Inti Pertumbuhan",
     "bondCore": "Inti Ikatan",
     "wisdomCore": "Inti Kebijaksanaan",
@@ -65,7 +71,7 @@
   "navGraph": {
     "drilldown": {
       "back": "Kembali ke konstelasi",
-      "backHint": "Kembali dari drilldown Pattern Core ke konstelasi penuh.",
+      "backHint": "Kembali dari detail bintang domain ke konstelasi penuh.",
       "coreEyebrow": "Inti Pola",
       "dataEyebrow": "Data Pola",
       "touch": "Sentuh!",
@@ -84,25 +90,25 @@
   },
   "navPiece": "serpihan",
   "navPieceSummary": "Membuka ringkasan dan tag serpihan ini",
-  "navVillageNode": "Membuka node desa ini",
-  "navCenterVillage": "Membuka desa pusat",
+  "navVillageNode": "Membuka node bintang ini",
+  "navCenterVillage": "Membuka Bintang Utara",
   "navResetView": "Setel ulang tampilan",
   "navResetHint": "Menyetel ulang geser dan zoom grafik",
   "navReset": "Setel ulang",
   "navPrevCategory": "Kategori sebelumnya",
-  "navPrevHint": "Memilih desa sebelumnya",
+  "navPrevHint": "Memilih bintang sebelumnya",
   "navPrev": "Sebelumnya",
   "navOpenSettings": "Buka pengaturan",
   "navSettingsHint": "Membuka layar pengaturan",
   "navSettings": "Pengaturan",
   "navNextCategory": "Kategori berikutnya",
-  "navNextHint": "Memilih desa berikutnya",
+  "navNextHint": "Memilih bintang berikutnya",
   "navNext": "Berikutnya",
   "navClose": "Tutup",
-  "navCloseVillage": "Menutup panel detail desa",
+  "navCloseVillage": "Menutup panel detail bintang",
   "navPiecesConnected": "serpihan yang kuhubungkan",
   "navLookAround": "Lihat-lihat",
-  "navOpenAngleVillage": "Membuka desa ini di SecondB dari sudut baru",
+  "navOpenAngleVillage": "Membuka bintang ini di SecondB dari sudut baru",
   "navOpenNewAngle": "Buka sudut baru",
   "navClosePiece": "Menutup panel detail serpihan",
   "navNoSummary": "Belum ada ringkasan.",

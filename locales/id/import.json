@@ -1,9 +1,9 @@
 {
-  "loading": "Memuat impor...",
+  "loading": "Memuat impor…",
   "hero": {
     "eyebrow": "08-5. Impor",
     "title": "Bawa pengetahuan diri dari luar ke 2nd-Brain",
-    "subtitle": "Asisten lain - hasil tes - catatan",
+    "subtitle": "Asisten lain · hasil tes · catatan",
     "speech": "Materi yang ditempel diurutkan dulu, lalu disimpan hanya setelah kamu konfirmasi."
   },
   "promptCard": {
@@ -18,7 +18,7 @@
     "eyebrow": "Tempel",
     "title": "Balasan atau hasil tes",
     "description": "Tempel balasan, hasil tes disposisi atau kepribadian yang lalu, atau catatan tentang dirimu. 2nd-Brain akan mengurut dan menandainya ke strukturmu.",
-    "placeholder": "Tempel di sini...",
+    "placeholder": "Tempel di sini…",
     "accessibilityLabel": "Materi yang akan diimpor",
     "sort": "Urutkan dan atur",
     "sortHint": "Mengurutkan materi yang ditempel sebelum disimpan."
@@ -32,7 +32,7 @@
     "eyebrow": "Hasil urutan",
     "title": "Catatan yang diimpor",
     "degraded": "Pengurutan mendalam tidak tersedia, jadi ini adalah hasil lokal dasar. Coba lagi untuk urutan yang lebih kaya.",
-    "meta": "{{count}} item - {{track}}",
+    "meta": "{{count}} item · {{track}}",
     "track": {
       "pro": "pekerjaan dan spesialis",
       "life": "keseharian"

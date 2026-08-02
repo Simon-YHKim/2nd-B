@@ -26,7 +26,8 @@ export interface PolarisDeckPage {
 }
 
 export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: boolean }) {
-  const { t } = useTranslation("deepspace");
+  const { t } = useTranslation(["deepspace", "core-brain"]);
+  void isKo;
   const [pageWidth, setPageWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -47,7 +48,7 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
             {pages[index]?.title}
           </Text>
           <Text style={styles.deckHint} numberOfLines={1}>
-            {isKo ? "옆으로 넘겨 보기" : "Swipe to explore"}
+            {t("core-brain:swipeCards")}
           </Text>
         </View>
         <Text style={styles.pageCount}>{`${Math.min(index + 1, pages.length)} / ${pages.length}`}</Text>

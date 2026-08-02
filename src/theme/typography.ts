@@ -45,7 +45,10 @@ export const fontWeights = {
 
 export const fontAssets = {
   Pretendard: require("../../assets/fonts/Pretendard-Regular.otf"),
-  Galmuri11: require("../../assets/fonts/Galmuri11-subset.ttf"),
+  Galmuri11:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/Galmuri11-subset.woff2")
+      : require("../../assets/fonts/Galmuri11-subset.ttf"),
   PressStart2P: require("@expo-google-fonts/press-start-2p/400Regular/PressStart2P_400Regular.ttf"),
   // Material 3 chrome (rev2 migration, P1b). Keys MUST equal the m3.font strings
   // (m3.font.chrome "Roboto" / mono "RobotoMono") so migrated screens resolve them.

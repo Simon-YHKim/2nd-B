@@ -58,8 +58,8 @@ describe("worldview v-final naming", () => {
   });
 
   test("persona roles and hints follow Simon's canonical responsibilities", () => {
-    expect(PERSONAS.secondb.role.en).toBe("Soul Core navigator");
-    expect(PERSONAS.secondb.systemHint.en).toContain("central AI for the Soul Core");
+    expect(PERSONAS.secondb.role.en).toBe("North Star navigator");
+    expect(PERSONAS.secondb.systemHint.en).toContain("central AI for the North Star synthesis");
     expect(PERSONAS.secondb.systemHint.en).toContain("Analytic mode");
     expect(PERSONAS.secondb.systemHint.en).toContain("Divergent mode");
 
@@ -113,6 +113,16 @@ describe("worldview v-final naming", () => {
 // 밝기 = L-level). Roles/Action/Knowledge stay OUT of the stars (goal-tree). L4 must
 // read "교차검증 (cross-source agreement)" with no clinical lexicon anywhere.
 describe("worldview canon: brain model + value ladder + north-star terminology", () => {
+  test("core-brain visible locale labels use North Star naming", () => {
+    const enCoreBrain = JSON.parse(readProjectFile("locales/en/core-brain.json"));
+    const koCoreBrain = JSON.parse(readProjectFile("locales/ko/core-brain.json"));
+
+    expect(enCoreBrain.soulCoreEyebrow).toBe("02. North Star");
+    expect(enCoreBrain.myCenter).toBe("North Star");
+    expect(koCoreBrain.soulCoreEyebrow).toBe("02. 북극성");
+    expect(koCoreBrain.myCenter).toBe("북극성");
+  });
+
   test("CONTEXT.md pins the 0th/1st/2nd/3rd brain bridge model", () => {
     const ctx = readProjectFile("CONTEXT.md");
     for (const layer of ["0th brain", "1st brain", "2nd brain", "3rd brain"]) {
@@ -151,6 +161,24 @@ describe("worldview canon: brain model + value ladder + north-star terminology",
   test("roles / action / knowledge stay OUT of the stars (goal-tree, not a measurement axis)", () => {
     const ctx = readProjectFile("CONTEXT.md");
     expect(ctx).toMatch(/Roles \/ Action \/ Knowledge are NOT stars/i);
+  });
+
+  test("localized SecondB system hints use North Star naming, not legacy soul-core names", () => {
+    const localeHints = [
+      readProjectFile("locales/es/secondb.json"),
+      readProjectFile("locales/pt/secondb.json"),
+      readProjectFile("locales/id/secondb.json"),
+    ];
+
+    for (const text of localeHints) {
+      expect(text).not.toContain("Núcleo del alma");
+      expect(text).not.toContain("Núcleo da alma");
+      expect(text).not.toContain("Inti Jiwa");
+    }
+
+    expect(localeHints[0]).toContain("Estrella Polar");
+    expect(localeHints[1]).toContain("Estrela Polar");
+    expect(localeHints[2]).toContain("Bintang Utara");
   });
 
   test("the canon glossary carries no forbidden clinical lexicon", () => {

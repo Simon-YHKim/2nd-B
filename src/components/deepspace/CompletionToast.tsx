@@ -18,10 +18,28 @@ import { reactExpression } from "@/lib/companion/expression";
 
 const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
+const COMPLETION_COPY = {
+  en: { done: "Analysis is ready", sub: "Take a look?", see: "See result", later: "Later" },
+  ko: { done: "분석이 끝났어요", sub: "보러 갈래요?", see: "결과 보기", later: "나중에" },
+  es: { done: "El analisis esta listo", sub: "Quieres verlo?", see: "Ver resultado", later: "Mas tarde" },
+  pt: { done: "A analise esta pronta", sub: "Quer ver?", see: "Ver resultado", later: "Mais tarde" },
+  id: { done: "Analisis sudah siap", sub: "Mau lihat?", see: "Lihat hasil", later: "Nanti" },
+} as const;
+
+type CompletionCopyLocale = keyof typeof COMPLETION_COPY;
+
+function completionCopyLocale(language: string | undefined): CompletionCopyLocale {
+  const normalized = language?.toLowerCase() ?? "en";
+  if (normalized.startsWith("ko")) return "ko";
+  if (normalized.startsWith("es")) return "es";
+  if (normalized.startsWith("pt")) return "pt";
+  if (normalized.startsWith("id")) return "id";
+  return "en";
+}
+
 export function CompletionToast() {
   const task = useTaskStatus();
   const { i18n } = useTranslation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const drop = useRef(new Animated.Value(0)).current;
   const visible = task.phase === "done";
 
@@ -38,9 +56,7 @@ export function CompletionToast() {
   if (!visible) return null;
 
   const translateY = drop.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] });
-  const C = ko
-    ? { done: "분석이 끝났어요", sub: "보러 갈래요?", see: "결과 보기", later: "나중에" }
-    : { done: "Analysis is ready", sub: "Take a look?", see: "See result", later: "Later" };
+  const C = COMPLETION_COPY[completionCopyLocale(i18n.language)];
   const sub = task.tip ?? C.sub;
 
   const href = task.resultHref;
