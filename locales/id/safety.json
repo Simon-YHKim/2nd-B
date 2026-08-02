@@ -2,10 +2,10 @@
   "red": {
     "title": "We hear you.",
     "body": "What you're going through sounds heavy. You don't have to carry it alone.",
-    "noticeLabel": "Pemberitahuan keamanan krisis",
-    "badge": "DARURAT",
-    "callHint": "Lakukan panggilan",
-    "callCta": "Ketuk untuk menelepon",
+    "noticeLabel": "Crisis safety notice",
+    "badge": "URGENT",
+    "callHint": "Place a call",
+    "callCta": "Tap to call",
     "hotline": {
       "GLOBAL_988": "Call or text 988 - Suicide & Crisis Lifeline (24/7)",
       "KR_109": "전화 109 - 자살예방상담전화 (24시간, 무료)",
@@ -14,13 +14,13 @@
       "KR_1388": "전화 1388 - 청소년상담전화 (24시간)"
     },
     "dismiss": "Close",
-    "directoryLabel": "Di luar AS? Temukan saluran bantuan di negaramu",
-    "directoryHint": "Membuka findahelpline.com di browsermu"
+    "directoryLabel": "Outside the US? Find a helpline in your country",
+    "directoryHint": "Opens findahelpline.com in your browser"
   },
   "yellow": {
     "rephraseHint": "We focus on self-understanding and growth. Try describing what you're noticing rather than naming a condition."
   },
   "green": {
-    "placeholder": "Apa yang sedang kamu pikirkan?"
+    "placeholder": "What's on your mind?"
   }
 }
