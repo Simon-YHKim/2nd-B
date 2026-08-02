@@ -59,7 +59,7 @@ describe("worldview v-final naming", () => {
 
   test("persona roles and hints follow Simon's canonical responsibilities", () => {
     expect(PERSONAS.secondb.role.en).toBe("North Star navigator");
-    expect(PERSONAS.secondb.systemHint.en).toContain("central AI for the Soul Core");
+    expect(PERSONAS.secondb.systemHint.en).toContain("central AI for the North Star synthesis");
     expect(PERSONAS.secondb.systemHint.en).toContain("Analytic mode");
     expect(PERSONAS.secondb.systemHint.en).toContain("Divergent mode");
 
