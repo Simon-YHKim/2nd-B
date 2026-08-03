@@ -12,6 +12,11 @@
 //
 // They now go to /wiki?focusPageId=<id>, which is where a page id actually resolves.
 //
+// 2026-08-03 (D-27 Phase 1c): /research stopped being a wiki-page surface. Its
+// view is built from recordsToResearchGraph now, so its headline/surprise ids
+// are RECORD ids and belong at /record/[id]. Those two entries left this guard
+// for that reason alone; every other page-id expression is still fenced here.
+//
 // The rest of the /record/[id] call sites are FINE: they push record ids, and with
 // origin absent the detail screen looks in `records`, which is correct. records.tsx is
 // the only one that passes origin, and it is the only one that needs to. Making origin
@@ -46,16 +51,15 @@ const PAGE_ID_EXPRS = [
   "to_page",
   "page.id",
   "wikiPage.id",
-  // /research insight cards (2026-07-16): headline.id = graph-stats topHubs
-  // (wiki_pages.id) and surprise.fromId = wiki_links.from_page. Both slipped
-  // this scanner because the allow-list above never named them — the same
-  // page-id-as-record-id bug shipped twice in the file this test guards.
-  "view.headline!.id",
-  "view.headline.id",
-  "view.surprise!.fromId",
-  "view.surprise.fromId",
-  "headline.id",
-  "surprise.fromId",
+  // NOTE: the /research insight cards (view.headline.id, view.surprise.fromId)
+  // used to be listed here, and correctly so — they were wiki_pages.id and
+  // wiki_links.from_page, and this scanner caught the second shipping of the
+  // bug. D-27 Phase 1c moved that screen onto recordsToResearchGraph, so those
+  // same expressions now carry RECORD ids and /record/[id] is the right target
+  // for them. They are out of this list because the id space changed, not
+  // because the rule relaxed. The replacement assertion lives in
+  // src/lib/records/__tests__/records-research.test.ts, which pins that the
+  // adapter emits record ids AND that the two cards route to /record/[id].
 ];
 
 describe("a wiki page id is never used as a record id", () => {
@@ -81,9 +85,6 @@ describe("a wiki page id is never used as a record id", () => {
       ["src/app/digest.tsx", "p.from_page"],
       ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "p.from_page"],
       ["src/screens/deepspace/dds-wiki-records-screens.tsx", "p.id"],
-      // /research insight cards — the second occurrence of this bug (2026-07-16).
-      ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "view.headline!.id"],
-      ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "view.surprise!.fromId"],
     ];
     for (const [file, expr] of expected) {
       const src = read(join(ROOT, file));
