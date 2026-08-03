@@ -120,9 +120,20 @@ export interface BuildBriefInput {
 // by `${userId}:${day}` so a new day starts a fresh build.
 const briefInFlight = new Map<string, Promise<OpsDailyBrief>>();
 
+// A build that yields {} is deliberately NOT persisted (see buildOpsDailyBrief),
+// so without a hold every later domain on the same paint rebuilds from scratch.
+// Measured 2026-07-28: one ops-home visit cost SIX whole-snapshot LLM calls
+// (six ai_audit_log rows ~7s apart, twice that day, 10/12 truncated) because the
+// six domains each missed the cache in turn. Hold an empty result briefly so a
+// bad build costs one call, not one per domain. Mirrors REC_EMPTY_TTL_MS in
+// recommend.ts, which already carries this fix one layer up.
+const EMPTY_BRIEF_HOLD_MS = 90 * 1000;
+const emptyBriefUntil = new Map<string, number>();
+
 /** Test hook: clear the in-flight guard. */
 export function resetOpsDailyBriefInFlightForTests(): void {
   briefInFlight.clear();
+  emptyBriefUntil.clear();
 }
 
 /** Read today's cached brief for a user (null when not built yet today). */
@@ -158,6 +169,11 @@ export async function buildOpsDailyBrief(input: BuildBriefInput): Promise<OpsDai
   const key = `${input.userId}:${day}`;
   const existing = briefInFlight.get(key);
   if (existing) return existing;
+  const heldUntil = emptyBriefUntil.get(key);
+  if (heldUntil !== undefined) {
+    if (now.getTime() < heldUntil) return {};
+    emptyBriefUntil.delete(key);
+  }
 
   const build = (async (): Promise<OpsDailyBrief> => {
     const snapshot = await exportUserWiki(input.userId, { bodyCharLimit: SNAPSHOT_CHAR_LIMIT });
@@ -200,7 +216,11 @@ export async function buildOpsDailyBrief(input: BuildBriefInput): Promise<OpsDai
 
   briefInFlight.set(key, build);
   try {
-    return await build;
+    const brief = await build;
+    // Only an empty brief needs the hold: a non-empty one is already cached in
+    // Postgres, so the next domain reads it instead of rebuilding.
+    if (Object.keys(brief).length === 0) emptyBriefUntil.set(key, now.getTime() + EMPTY_BRIEF_HOLD_MS);
+    return brief;
   } finally {
     briefInFlight.delete(key);
   }
