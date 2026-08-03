@@ -12,13 +12,14 @@
 //      transaction.completed.
 //   2. Deploy with verify_jwt=false (Paddle sends no Supabase JWT).
 //   3. Secrets (supabase secrets set): PADDLE_WEBHOOK_SECRET (from the notification
-//      destination), and the price->tier map PADDLE_PRICE_SOMA / _CORTEX / _BRAIN
-//      (Paddle price ids). Then PADDLE_WEBHOOK_ENABLED=1 to turn it on. FAILS CLOSED
-//      until then. NEVER hardcode these - env only (repo constraint §4).
+//      destination), and the price->tier map PADDLE_PRICE_CORTEX / _BRAIN, each a
+//      COMMA-SEPARATED list of that tier's price ids (monthly AND yearly - a tier
+//      has two). Then PADDLE_WEBHOOK_ENABLED=1 to turn it on. FAILS CLOSED until
+//      then. NEVER hardcode these - env only (repo constraint §4).
 //   4. At checkout, pass the Supabase user id in Paddle `customData.user_id`.
 // VALIDATION REQUIRED before enabling: replay the same event twice (must apply ONCE)
-// and send a tampered body (must be rejected 403). One-time products (Lifetime) and
-// dunning/grace on past_due are a later unit - this handles the subscription core.
+// and send a tampered body (must be rejected 403). Dunning/grace on past_due is a
+// later unit - this handles the subscription core. Lifetime was retired 2026-07-29.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -75,15 +76,29 @@ function parsePaddleSignature(header: string): { ts: string | null; h1: string |
   return { ts, h1 };
 }
 
-// Paddle price id -> DB tier ('soma' | 'cortex' | 'brain'), configured via env.
+// Paddle price id -> DB tier ('cortex' | 'brain'), configured via env.
+//
+// A tier has MORE THAN ONE price: monthly and yearly are separate Paddle price
+// ids on the same product. The first version of this map held one id per tier,
+// which silently reintroduced the exact bug this function exists to prevent —
+// a yearly purchase resolved to no tier, fell through to `ignored: 'no_op'`,
+// and the payer stayed 'free'. Each env var now takes a COMMA-SEPARATED list,
+// so adding a price later is a config change, not a redeploy.
+//
+//   PADDLE_PRICE_CORTEX="pri_<monthly>,pri_<yearly>"   # 항해자 / Voyager
+//   PADDLE_PRICE_BRAIN="pri_<monthly>,pri_<yearly>"    # 북극성 / North Star
+//
+// `soma` (the retired Lifetime tier) is intentionally absent: it was retired on
+// 2026-07-29 and has no Paddle product, so nothing can ever resolve to it.
 function priceToTier(priceId: string | undefined): string | null {
   if (!priceId) return null;
   const map: Record<string, string> = {};
   const put = (env: string, tier: string) => {
-    const id = Deno.env.get(env);
-    if (id) map[id] = tier;
+    for (const id of (Deno.env.get(env) ?? '').split(',')) {
+      const trimmed = id.trim();
+      if (trimmed) map[trimmed] = tier;
+    }
   };
-  put('PADDLE_PRICE_SOMA', 'soma');
   put('PADDLE_PRICE_CORTEX', 'cortex');
   put('PADDLE_PRICE_BRAIN', 'brain');
   return map[priceId] ?? null;

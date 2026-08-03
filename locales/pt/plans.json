@@ -18,15 +18,6 @@
       "f2": "Armazenamento privado na conta com exportação quando precisar",
       "f3": "5 conversas com IA por dia"
     },
-    "soma": {
-      "name": "Voyager",
-      "price": "$4.99 / mo",
-      "priceNote": "$49.90 / yr (2 meses grátis)",
-      "tagline": "IA diária junto aos seus registros",
-      "f1": "30 conversas com IA por dia",
-      "f2": "Tudo do Free",
-      "f3": "O primeiro passo além do limite diário"
-    },
     "cortex": {
       "name": "Voyager",
       "price": "$9.99 / mo",

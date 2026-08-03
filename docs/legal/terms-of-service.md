@@ -59,7 +59,7 @@ _시행일: 2026-07-17_
 ### 제13조 (사업자 정보 및 문의)
 - 상호: 하양 프로덕션 (개인사업자, 대표: 배소하)
 - 소재지: 경기도 안양시
-- 사업자등록번호: 발급 진행 중 (발급 즉시 본 문서에 반영합니다)
+- 사업자등록번호: 205-10-98603
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
@@ -106,6 +106,6 @@ The Company may change or suspend all or part of the Service for operational/tec
 ### 13. Business information & contact
 - Business name: Hayang Production (sole proprietorship, Representative: Bae Soha)
 - Location: Anyang-si, Gyeonggi-do, Republic of Korea
-- Business registration number: issuance in progress (posted here as soon as issued)
+- Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
 - Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.
