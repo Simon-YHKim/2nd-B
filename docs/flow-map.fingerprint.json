@@ -1,11 +1,11 @@
 {
   "git": {
-    "head": "a927d07417b5c2c069d63db0a9c15665cbd52850",
+    "head": "89d20eb107f9f8d81f40df59022915b68d7c0827",
     "branch": "Simon-YHKim/260802_Function-Debugging",
     "dirty": true,
-    "describedAt": "2026-08-02T23:54:15+09:00"
+    "describedAt": "2026-08-04T02:22:33+09:00"
   },
-  "at": "2026-08-02T14:55:15.682Z",
+  "at": "2026-08-03T17:23:34.888Z",
   "counts": {
     "screens": 88,
     "actions": 529,
@@ -55,7 +55,7 @@
     "src/app/review.tsx": "37c6e235caf8dc8f",
     "src/app/rlss.tsx": "9d70207922e0298f",
     "src/app/secondb.tsx": "2a47f9c77c3ef1a6",
-    "src/app/settings.tsx": "984d68c836c88e32",
+    "src/app/settings.tsx": "d7afab5663586e19",
     "src/app/share-card.tsx": "5ab8d9d9bf4f155c",
     "src/app/star/[domain].tsx": "08a76ae308064a03",
     "src/app/strengths.tsx": "8c55ae48004e486e",
@@ -161,7 +161,7 @@
     "src/lib/wiki/queries.ts": "4f51de75182732dd",
     "src/lib/wiki/template-queries.ts": "8bbeb060a2294da3",
     "src/screens/deepspace/DeepSpaceComponentsPreview.tsx": "998007bbc6f91a3d",
-    "src/screens/deepspace/DeepSpaceDesignScreens.tsx": "92643a52692ed5aa",
+    "src/screens/deepspace/DeepSpaceDesignScreens.tsx": "5c684a2d3f4901a2",
     "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx": "80109bb4712854b6",
     "src/screens/deepspace/DeepSpaceHomeScreen.tsx": "d2cf9f9986d078a7",
     "src/screens/deepspace/DeepSpaceHubDockScreen.tsx": "73e4000ab3d54ce4",
@@ -169,7 +169,7 @@
     "src/screens/deepspace/dds-consent-notice-screen.tsx": "54ef0a491d868405",
     "src/screens/deepspace/dds-import-inbox-screens.tsx": "c67af4d399440a1e",
     "src/screens/deepspace/dds-legal-doc-screen.tsx": "1fe9a6c9d238ef80",
-    "src/screens/deepspace/dds-plans-screen.tsx": "dac0b5c483610410",
+    "src/screens/deepspace/dds-plans-screen.tsx": "b32c06ff660579b3",
     "src/screens/deepspace/dds-wiki-records-screens.tsx": "f0839fb8262afac5",
     "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": "4a9f57df21dd6300",
     "src/screens/deepspace/import/ImportHubScreen.tsx": "3b847a2626779317",
