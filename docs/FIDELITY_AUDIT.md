@@ -30,7 +30,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 
 | Pri | Route | Status | Effort | legacyOnlyInFallback | blk/maj | Recommendation |
 |---|---|---|---|---|---|---|
-| P1 | `/growth` | MISSING | M | True | 1/2 | Create design/weekly-growth.dc.html canon file matching the implementation (hero-star display + constellation SVG + metrics chips + observat |
+| P1 | `/growth` | MISSING | M | True | 1/2 | Create legacy/design/weekly-growth.dc.html canon file matching the implementation (hero-star display + constellation SVG + metrics chips + observat |
 | P1 | `/core-brain` | GENERIC_PLACEHOLDER | L | True | 5/3 | Create a star-aware router: (1) Modify DeepSpaceScreen or add a LensScreenWrapper that accepts a starId parameter (0=북극성, 1=지금의나, 2=회상, etc. |
 | P1 | `/interview` | GENERIC_PLACEHOLDER | L | True | 4/1 | Implement a DeepSpaceInterview component that wraps RecallLensView (period picker) + a new DrillDownLensView component for the Q&A flow. Rec |
 | P1 | `/attachment` | GENERIC_PLACEHOLDER | L | False | 3/1 | Create a new DeepSpaceAttachmentView component that renders the ECR-S questionnaire in deep-space style (QuantPager + LikertChoiceGroup wrap |
@@ -38,7 +38,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 | P1 | `/secondb` | GENERIC_PLACEHOLDER | L | True | 2/2 | Replace ChatView stub with a real implementation that mirrors the legacy chat UI pattern (from src/app/secondb.tsx SecondBChatLegacy, lines  |
 | P2 | `/big-five` | GENERIC_PLACEHOLDER | L | True | 1/5 | Replace the generic LensView rendered at big-five.tsx:242-247 with a dedicated BigFiveLensView component (create in src/components/deep-spac |
 | P2 | `/trinity` | GENERIC_PLACEHOLDER | M | True | 1/3 | Replace DeepSpaceDomainsScreen with a trinity-specific implementation: (1) Port computeStats logic from TrinityLegacy (lines 76-117) to deep |
-| P3 | `/focus` | PARTIAL | M | True | 1/2 | Create design/focus-timer.dc.html canvas (or add /focus frame to an existing ops-focused file like ops-wiki.dc.html or screen-design.dc.html |
+| P3 | `/focus` | PARTIAL | M | True | 1/2 | Create legacy/design/focus-timer.dc.html canvas (or add /focus frame to an existing ops-focused file like ops-wiki.dc.html or screen-design.dc.html |
 | P3 | `/persona` | PARTIAL | M | True | 0/1 | Wire the SeenLensView component to consume actual persona peer-review data (src/lib/persona) instead of hardcoded dummy values. Replace line |
 | P3 | `/esm` | PARTIAL | M | True | 0/1 | Update deepSpaceGradients to include a distinct peak/ctaGlow variant with brighter start color (#CCFAFF), and modify RhythmLensView to apply |
 | P3 | `/imagine` | PARTIAL | S | True | 0/0 | Update ghostBtnFlex borderColor on line 820 from deepSpace.cardLine to deepSpace.cardLineStrong (which is rgba(70,182,255,0.30)), or define  |
@@ -58,10 +58,10 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/growth` - MISSING (effort M, P1)
 - impl: `E:\2ndB\src\screens\deepspace\growth\WeeklyGrowthScreen.tsx`
 - legacy only in fallback: True
-- recommendation: Create design/weekly-growth.dc.html canon file matching the implementation (hero-star display + constellation SVG + metrics chips + observation card + dream-to-step row), or audit the implementation against the design handoff HTML if a separate design artifact exists. Then update src/app/growth.tsx to include isDeepSpaceUI() branching with a legacy fallback component for consistency with the rollback pattern.
+- recommendation: Create legacy/design/weekly-growth.dc.html canon file matching the implementation (hero-star display + constellation SVG + metrics chips + observation card + dream-to-step row), or audit the implementation against the design handoff HTML if a separate design artifact exists. Then update src/app/growth.tsx to include isDeepSpaceUI() branching with a legacy fallback component for consistency with the rollback pattern.
 - gaps:
   - **[blocker]** Canon design file weekly-growth.dc.html does not exist in design/. Referenced in WeeklyGrowthScreen.tsx line 1 but no pixel-truth to validate against.
-    - canon: design/weekly-growth.dc.html (MISSING)
+    - canon: legacy/design/weekly-growth.dc.html (MISSING)
     - current: No design file found; implementation in WeeklyGrowthScreen.tsx proceeds without design reference
   - **[major]** No isDeepSpaceUI() branch detected. Unlike other converted screens (e.g., growth.tsx at line 7), WeeklyGrowthScreen renders directly without a legacy fallback path. This breaks the established pattern where deep-space and legacy coexist.
     - canon: Expected: export default function Growth() { if (isDeepSpaceUI()) return <WeeklyGrowthScreen />; return <GrowthLegacy/>; }
@@ -73,7 +73,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/core-brain` - GENERIC_PLACEHOLDER (effort L, P1)
 - impl: `src/app/core-brain.tsx (deep-space branch line 84-90); child component: src/components/deep-space/DeepSpaceViews.tsx LensView() line 234-282`
 - deep-space view: `LensView (generic one-size-fits-all Big Five inspector with state toggle; renders identical trait bars + insight card + buttons for all star contexts)`
-- canon: `design/lens.dc.html`
+- canon: `legacy/design/lens.dc.html`
 - legacy only in fallback: True
 - recommendation: Create a star-aware router: (1) Modify DeepSpaceScreen or add a LensScreenWrapper that accepts a starId parameter (0=북극성, 1=지금의나, 2=회상, etc.). (2) Update the dock tap handler and router to pass ?star=N to /core-brain. (3) Implement a dispatch switch in the wrapper that renders the correct lens component (RecallLensView for star 2, SeenLensView for star 3, RhythmLensView for star 4, etc.) instead of always returning LensView. (4) Render a dedicated 북극성Screen component with the soul orb + 7 brightness-meter bars when starId=0. (5) Wire each lens to use the correct canon data (Big Five scores for star 1, life periods for star 2, self-vs-other comparison for star 3, ESM bar chart for star 4, aspirations for star 5, domain rows for star 6, and relations chips for star 7). Start with the routing scaffold; wire real data from src/lib/persona/* as a second phase.
 - gaps:
@@ -81,7 +81,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
     - canon: Each star opens a screen-specific view with its own heading (e.g., 별1 지금의나 with tag BFI-44), subtitle, SecondB tip, and content structure (trait bars, narrative grid, comparison chart, ESM bar graph, dashed cards, domain rows, or chips — NOT all Big Five)
     - current: LensView renders Big Five trait bars (label, value, progress bar, ●●●○○ L-level) + insight card + buttons. State toggle switches between empty/error/filled, but all three render the same dummy data (openness:72, conscientiousness:58, extraversion:41, agreeableness:67, neuroticism:39)
   - **[blocker]** No star-context routing — core-brain.tsx line 84-90 renders LensView() with no parameter indicating which star was tapped. DeepSpaceScreen dock maps to fixed route /core-brain, not /core-brain?star=1 or similar. Cannot distinguish 'user tapped 지금의나' from 'user tapped 회상' from 'user tapped 리듬'.
-    - canon: Each frame in design/lens.dc.html is labeled with a distinct star identifier (별1 ·지금의나, 별2 ·회상, 별3 ·보여지는나, 별4 ·리듬, 별5 ·미래의나, 별 ·일·성장, 별 ·관계·지식, 북극성 ·소울 코어). The app must route to the correct view based on which star was tapped.
+    - canon: Each frame in legacy/design/lens.dc.html is labeled with a distinct star identifier (별1 ·지금의나, 별2 ·회상, 별3 ·보여지는나, 별4 ·리듬, 별5 ·미래의나, 별 ·일·성장, 별 ·관계·지식, 북극성 ·소울 코어). The app must route to the correct view based on which star was tapped.
     - current: Fixed route; no star context. All 7 tabs hit the same LensView component.
   - **[blocker]** Missing screen-specific sections — canon shows each star has a unique main section. 지금의나 renders 5 trait bars + 한 문장 summary; 회상 renders 8 period cards in 2×4 grid with age ranges + dot-meter per period; 리듬 renders 7-day bar chart + insight; etc. Implementation only renders the Big Five trait structure.
     - canon: 별1 지금의나 (line 66-101): 5 Big Five bars + insight + buttons. 별2 회상 (line 104-137): 8 period cards in grid. 별3 보여지는나 (line 140-169): legend + 3 compare rows (self vs other bars). 별4 리듬 (line 172-205): 7-day mood chart. 별5 미래의나 (line 208-235): 3 dashed aspiration cards. 별 일·성장 (line 238-264): 3 domain rows (커리어, 배움·성장, 재정). 별 관계·지식 (line 267-292): person chips + knowledge topics + bars. 북극성 (line 28-62): north-star orb (pulse animation) + 7 brightness-meter rows (지금의나, 회상, 보여지는나, etc.).
@@ -105,27 +105,27 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/interview` - GENERIC_PLACEHOLDER (effort L, P1)
 - impl: `src/app/interview.tsx`
 - deep-space view: `RecallLensView (src/components/deep-space/DeepSpaceViews.tsx:342-376)`
-- canon: `design/lens.dc.html`
+- canon: `legacy/design/lens.dc.html`
 - legacy only in fallback: True
 - recommendation: Implement a DeepSpaceInterview component that wraps RecallLensView (period picker) + a new DrillDownLensView component for the Q&A flow. RecallLensView period cards should have onPress={(period) => setDrillingPeriod(period)}; when drillingPeriod is set, render the interview Q&A interface (styled with deepSpace tokens, mirroring InterviewLegacy's UI structure but using deep-space palette). Wire the drill state (coverage, turns, pendingLayer) and probe logic into the deep-space path. Estimated scope: extract the interview state machine and UI components from InterviewLegacy, re-style with deepSpace tokens, and integrate into a new DeepSpaceInterview wrapper.
 - gaps:
   - **[blocker]** RecallLensView renders only the period-picker grid entry screen; the full drill-down interview flow (Q&A conversation, layer labels, progress matrix, sufficient-depth signal) is missing. When a user taps a period in the canon design, it should drill down into an interview conversation with interviewer/user Q&A bubbles, layer tags, and turn tracking (src/app/interview.tsx:64-482 in Legacy has this, but deep-space path has no equivalent).
-    - canon: Full interview flow with Q&A chat bubbles, layer labels (●●●○○ as row headers), turn counter, progress matrix, and depth-reached signal (design/lens.dc.html line 121: '시기를 누르면 drill-down 질문')
+    - canon: Full interview flow with Q&A chat bubbles, layer labels (●●●○○ as row headers), turn counter, progress matrix, and depth-reached signal (legacy/design/lens.dc.html line 121: '시기를 누르면 drill-down 질문')
     - current: Static period-picker grid only; no Q&A flow, no interaction handlers on period buttons, no layer/turn tracking interface
   - **[blocker]** RecallLensView period cards are non-interactive — no onPress handler or navigation. The grid buttons render but don't respond to taps or navigate into the interview (src/components/deep-space/DeepSpaceViews.tsx:365, styles.gridCard has no onPress attached in the deep-space path)
-    - canon: Button-style cards that trigger drill-down interview (design/lens.dc.html line 122: 'button' elements with click handlers)
+    - canon: Button-style cards that trigger drill-down interview (legacy/design/lens.dc.html line 122: 'button' elements with click handlers)
     - current: Pressable elements with styling but no onPress logic; no router.push() or startInterview() equivalent
   - **[blocker]** Missing interactive UI elements from the interview flow: Input composer (multiline text input), Send/Stop buttons, completion banner ('충분한 깊이 도달'), layer tags in Q&A bubbles, turn counter ('답변 N턴'), and depth-reached signal. These are present in InterviewLegacy but absent from the deep-space path (src/app/interview.tsx:64-482).
     - canon: Interactive composer, Send/Stop buttons, layer labels per turn, turn counter, completion banner with 'Wrap up'/'Keep going' options, progress matrix visualization (25 cells for 5 layers × 5 periods)
     - current: Only static period-grid cards; no composer, no buttons, no progress matrix, no completion signal
   - **[major]** RecallLensView uses a generic template structure (LensHead + grid + footer) reused across all 7 lens views. It does not implement the *interview-specific* drill-down state machine (coverage tracking, layer-specific questioning, sufficient-depth check via narrativeStarLevel()). The interview logic (src/lib/interview/probe.ts, narrative-level.ts) is not wired to the deep-space view.
-    - canon: Interview-specific drill-down flow with coverage state (5 layers × 5 periods = 25 cells), layer-by-layer questioning strategy, and narrative-level calculation to determine when to suggest wrap-up (design/lens.dc.html line 121 comment + src/lib/interview/narrative-level.ts logic)
+    - canon: Interview-specific drill-down flow with coverage state (5 layers × 5 periods = 25 cells), layer-by-layer questioning strategy, and narrative-level calculation to determine when to suggest wrap-up (legacy/design/lens.dc.html line 121 comment + src/lib/interview/narrative-level.ts logic)
     - current: Generic lens view with static demo data (hardcoded dots array, no state mutations, no probe/coverage logic)
   - **[minor]** Palette: RecallLensView correctly uses deepSpace tokens (accent, text, soul) in the grid cards, but the full interview flow UI (if it were implemented) would need semantic tokens for the Q&A bubbles, progress matrix, and footer. No off-palette colors detected in the grid view itself, but the missing interview flow has undefined palette treatment.
-    - canon: Q&A bubbles styled with deepSpace tones (accent for interviewer, accentSoft/soul for AI); progress matrix using cyan gradients (design/lens.dc.html line 121-135 shows the grid structure in cyan/mint tones)
+    - canon: Q&A bubbles styled with deepSpace tones (accent for interviewer, accentSoft/soul for AI); progress matrix using cyan gradients (legacy/design/lens.dc.html line 121-135 shows the grid structure in cyan/mint tones)
     - current: RecallLensView grid uses deepSpace tokens correctly; interview flow (missing) has no palette spec
   - **[blocker]** No drill-down navigation path. The RecallLensView does not implement state transitions to show a drill-down interview when a period is selected. The Legacy version has startInterview(period) that triggers the full flow; deep-space has no equivalent routing or state lift.
-    - canon: Tapping a period should navigate to/show the interview drill-down UI for that period (design/lens.dc.html line 122: '시기를 누르면 drill-down 질문')
+    - canon: Tapping a period should navigate to/show the interview drill-down UI for that period (legacy/design/lens.dc.html line 122: '시기를 누르면 drill-down 질문')
     - current: No navigation, no state management for drill-down mode, grid is terminal (no onPress handlers)
 
 ### `/attachment` - GENERIC_PLACEHOLDER (effort L, P1)
@@ -149,7 +149,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/capture` - GENERIC_PLACEHOLDER (effort L, P1)
 - impl: `src/components/deep-space/DeepSpaceViews.tsx (CaptureView, lines 94-177)`
 - deep-space view: `CaptureView (src/components/deep-space/DeepSpaceViews.tsx:94-177): Renders a simplified onboarding-style first-piece input form with a TextInput, 3 hardcoded chips, and a gradient button. It is NOT the full multi-mode capture interface shown in the canon (hub.dc.html /capture frame). The legacy CaptureLegacy (src/app/capture.tsx:206-1802) implements the actual 5-mode capture UI with all features, but uses legacy theme tokens.`
-- canon: `design/hub.dc.html (담기 frame, lines 23-58)`
+- canon: `legacy/design/hub.dc.html (담기 frame, lines 23-58)`
 - legacy only in fallback: True
 - recommendation: Replace CaptureView with a port of the core capture form UI from CaptureLegacy into deep-space tokens. Essential: (1) render 5 mode tabs (journal/memo/linkclip/ocr/file), (2) add Recent pieces section wired to real user data, (3) show AI auto-tagging chips, (4) float submit button at bottom with gradient, (5) swap semantic/gameboy tokens for deepSpace/deepSpaceGradients, (6) port mode-specific input boxes using deep-space tokens.
 - gaps:
@@ -180,10 +180,10 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 - legacy only in fallback: True
 - recommendation: Replace ChatView stub with a real implementation that mirrors the legacy chat UI pattern (from src/app/secondb.tsx SecondBChatLegacy, lines 104-689). Wire to sendChatMessage(), parseSourceCitations(), and the chat turn state. Render: (1) status header with SecondB sprite + title + mode badge, (2) scrollable turns list, (3) evidence chips with tap-to-reference-drawer, (4) input composer with send button, (5) mode toggle above composer. Use deep-space token colors (deepSpace.cyan, deepSpace.soul, deepSpace.mint) instead of legacy gameboy tokens.
 - gaps:
-  - **[blocker]** Missing input composer at bottom. Canon (design/hub.dc.html:85) shows flex row with input + gradient send button. ChatView has no Input component or button.
+  - **[blocker]** Missing input composer at bottom. Canon (legacy/design/hub.dc.html:85) shows flex row with input + gradient send button. ChatView has no Input component or button.
     - canon: Input field + gradient CTA button (bottom, rounded pill style)
     - current: Empty space below demo chips
-  - **[blocker]** Missing screen header. Canon (design/hub.dc.html:75) shows back button, SecondB sprite (30x30), title 'セコンビ', and mode badge '공상'. ChatView renders only ScrollView with chat bubbles.
+  - **[blocker]** Missing screen header. Canon (legacy/design/hub.dc.html:75) shows back button, SecondB sprite (30x30), title 'セコンビ', and mode badge '공상'. ChatView renders only ScrollView with chat bubbles.
     - canon: Back button + sprite + title + badge, aligned horizontally at top
     - current: No header component
   - **[major]** No mode toggle visible. Canon and legacy code show Analytic/Divergent mode selector, but ChatView does not render any toggle UI.
@@ -201,7 +201,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 - legacy only in fallback: True
 - recommendation: Replace the generic LensView rendered at big-five.tsx:242-247 with a dedicated BigFiveLensView component (create in src/components/deep-space/BigFiveLensView.tsx). Implement the canvas-specific layout: summary sentence, 5 trait bars with brightness level badges (●●●●○ L4 format), BFI-44 label, and the two action buttons. Wire to persona/bfi.ts scoring results. Verify trait values, narrative generation, and level badge calculation match the canon mockup exactly.
 - gaps:
-  - **[blocker]** LensView is a generic one-size-fits-all lens component, not Big-Five-specific. The /big-five route should render a dedicated Big Five trait display that matches design/lens.dc.html lines 65-101 (지금의 나 card). Instead it renders the reusable LensView, which is intended for multiple assessment types.
+  - **[blocker]** LensView is a generic one-size-fits-all lens component, not Big-Five-specific. The /big-five route should render a dedicated Big Five trait display that matches legacy/design/lens.dc.html lines 65-101 (지금의 나 card). Instead it renders the reusable LensView, which is intended for multiple assessment types.
     - canon: Dedicated Big Five card with: title '지금의 나', summary narrative sentence, 5 trait bars, brightness level indicators (L4/L3 format), BFI-44 label, two action buttons.
     - current: Generic LensView with optional empty/error state, filled state showing only 5 trait bars + insight text, hardcoded dummy data, no Big-Five-specific metadata.
   - **[major]** Missing brightness level indicators (●●●●○ L4 format). Canon shows each trait with filled/empty dots + letter level; LensView only shows percentage value.
@@ -252,7 +252,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 - deep-space view: `DeepSpaceFocusScreen: SVG progress ring (cyan/cyanDim/mint state-toned), Secondb head (mood-aware), session timer (MM:SS, Galmuri11), dots row (session progress tracker), play/pause button (74x74 px, cyan for focus / ghost for break), completion celebration screen with choice buttons (break / focus-again), settings sheet (focus/break duration steppers with +/-), all using deep-space tokens exclusively`
 - canon: `MISSING - focus-timer.dc.html does not exist in design/ directory`
 - legacy only in fallback: True
-- recommendation: Create design/focus-timer.dc.html canvas (or add /focus frame to an existing ops-focused file like ops-wiki.dc.html or screen-design.dc.html) showing the four screen states: idle → focus → break → complete. Include ring animation keyframes, typography (label, clock, submessage), button states (play/pause glyphs, disabled break button), dots indicator, and settings sheet layout. Once canon exists, cross-check: ring glow intensity, Secondb mood triggers, initial prompt/onboarding copy, and empty-state messaging.
+- recommendation: Create legacy/design/focus-timer.dc.html canvas (or add /focus frame to an existing ops-focused file like ops-wiki.dc.html or screen-design.dc.html) showing the four screen states: idle → focus → break → complete. Include ring animation keyframes, typography (label, clock, submessage), button states (play/pause glyphs, disabled break button), dots indicator, and settings sheet layout. Once canon exists, cross-check: ring glow intensity, Secondb mood triggers, initial prompt/onboarding copy, and empty-state messaging.
 - gaps:
   - **[blocker]** Design canon file missing: focus-timer.dc.html is referenced in code comment (line 2477) but not present in design/ directory. Cannot validate visual layout, spacing, typography, or component arrangement against pixel-truth.
   - **[major]** No empty state design present: comment states timer 'reuses ops_routine_logs via logRoutineCompletion' but no pre-session guidance, error states, or tutorial flow visible. Lone button with no context on first visit may confuse users.
@@ -263,7 +263,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/persona` - PARTIAL (effort M, P3)
 - impl: `E:\2ndB\src\app\persona.tsx (routes to SeenLensView in E:\2ndB\src\components\deep-space\DeepSpaceViews.tsx:397-431)`
 - deep-space view: `SeenLensView (export function at DeepSpaceViews.tsx:397)`
-- canon: `design/lens.dc.html`
+- canon: `legacy/design/lens.dc.html`
 - legacy only in fallback: True
 - recommendation: Wire the SeenLensView component to consume actual persona peer-review data (src/lib/persona) instead of hardcoded dummy values. Replace lines 414-416 with a map over dynamic trait data, preserving the current layout structure. All palette tokens are correct; only data wiring is needed.
 - gaps:
@@ -295,11 +295,11 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/imagine` - PARTIAL (effort S, P3)
 - impl: `src/app/imagine.tsx (renders PossibleLensView from src/components/deep-space/DeepSpaceViews.tsx:475)`
 - deep-space view: `PossibleLensView() — renders LensHead (title/tag/eyebrow), 3 dashed-border cards in a list, footer text, and 2-button row (ghost + gradient). Correct structure and layout.`
-- canon: `design/lens.dc.html`
+- canon: `legacy/design/lens.dc.html`
 - legacy only in fallback: True
 - recommendation: Update ghostBtnFlex borderColor on line 820 from deepSpace.cardLine to deepSpace.cardLineStrong (which is rgba(70,182,255,0.30)), or define a dedicated token. This brings the ghost button border to canon-exact opacity. Effort: S (single line change).
 - gaps:
-  - **[minor]** Ghost button border opacity mismatch (src/components/deep-space/DeepSpaceViews.tsx:820). Implementation uses deepSpace.cardLine (rgba(70,182,255,0.24)) but canon (design/lens.dc.html:231) specifies rgba(70,182,255,.3). Difference: 0.06 alpha — subtle but measurable.
+  - **[minor]** Ghost button border opacity mismatch (src/components/deep-space/DeepSpaceViews.tsx:820). Implementation uses deepSpace.cardLine (rgba(70,182,255,0.24)) but canon (legacy/design/lens.dc.html:231) specifies rgba(70,182,255,.3). Difference: 0.06 alpha — subtle but measurable.
     - canon: rgba(70,182,255,.3)
     - current: rgba(70,182,255,0.24)
 
@@ -310,13 +310,13 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 - legacy only in fallback: True
 - recommendation: Update the three hardcoded demo values in DeepSpaceViews.tsx lines 566-568 to match canon percentages: 100→78, 69→64, 26→34. These are clearly marked TODO (line 561: 'wire to domain piece counts') so this is just demo data alignment for fidelity testing.
 - gaps:
-  - **[major]** Demo data: Domain1 (Career) bar width 100% but canon shows 78% (design/lens.dc.html line 255, width:78%)
+  - **[major]** Demo data: Domain1 (Career) bar width 100% but canon shows 78% (legacy/design/lens.dc.html line 255, width:78%)
     - canon: 78%
     - current: 100% (DeepSpaceViews.tsx line 566: value={100})
-  - **[major]** Demo data: Domain2 (Learning·growth) bar width 69% but canon shows 64% (design/lens.dc.html line 256, width:64%)
+  - **[major]** Demo data: Domain2 (Learning·growth) bar width 69% but canon shows 64% (legacy/design/lens.dc.html line 256, width:64%)
     - canon: 64%
     - current: 69% (DeepSpaceViews.tsx line 567: value={69})
-  - **[major]** Demo data: Domain3 (Finance) bar width 26% but canon shows 34% (design/lens.dc.html line 257, width:34%)
+  - **[major]** Demo data: Domain3 (Finance) bar width 26% but canon shows 34% (legacy/design/lens.dc.html line 257, width:34%)
     - canon: 34%
     - current: 26% (DeepSpaceViews.tsx line 568: value={26})
 
@@ -325,16 +325,16 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 - legacy only in fallback: True
 - recommendation: Add ATTACHMENT and SOURCE sections to IdenView before the action buttons. Each should use the same left-border accent row pattern as NORTH_STAR/BIG_FIVE. Wire ATTACHMENT to attachment.style + trust level from real IdenDoc; wire SOURCE to record/test/day counts from iden-export.ts result object. Add View raw button as secondary button in a two-button row (using ghostBtn style). Add emoji to file card center.
 - gaps:
-  - **[major]** ATTACHMENT section missing - canon shows "안정형 · 신뢰도 L4" card (design/iden.dc.html line 95). Implementation has no corresponding section.
+  - **[major]** ATTACHMENT section missing - canon shows "안정형 · 신뢰도 L4" card (legacy/design/iden.dc.html line 95). Implementation has no corresponding section.
     - canon: Attachment-type card with label + trust level
     - current: Not rendered
   - **[major]** SOURCE section missing - canon shows "기록 214건 · 검사 4종 · 142일" (record count, test count, days duration). Implementation has no section.
     - canon: Source metadata row with three data points
     - current: Not rendered
-  - **[minor]** View raw button missing - canon shows "원문 보기" button alongside "AI에 전달" button (design/iden.dc.html lines 98-99). Implementation only has send button.
+  - **[minor]** View raw button missing - canon shows "원문 보기" button alongside "AI에 전달" button (legacy/design/iden.dc.html lines 98-99). Implementation only has send button.
     - canon: Two-button row: secondary button (원문 보기) + primary button (AI에 전달)
     - current: Single primary button (AI에 전달)
-  - **[minor]** File card emoji missing - canon shows 🪪 passport emoji in file card header (design/iden.dc.html line 86). Implementation renders text-only card.
+  - **[minor]** File card emoji missing - canon shows 🪪 passport emoji in file card header (legacy/design/iden.dc.html line 86). Implementation renders text-only card.
     - canon: 30px emoji centered in card
     - current: Text-only filename display
 
@@ -432,7 +432,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 
 ### `/import-hub` - PARTIAL (effort S, P3)
 - impl: `src/screens/deepspace/import/ImportHubScreen.tsx`
-- canon: `design/import-hub.dc.html`
+- canon: `legacy/design/import-hub.dc.html`
 - legacy only in fallback: True
 - recommendation: Add tier-based styling to sourceRow in renderHub. Modify the map function (line 240-256) to conditionally apply backgroundColor and borderColor based on source.tier, using deepSpace palette equivalents of canon tier colors (critical: #FF8A8A tint, sensitive: #FFC478 tint, normal: #46B6FF tint) at 0.04-0.05 opacity for background and 0.22-0.28 for borders.
 - gaps:
@@ -452,7 +452,7 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/ops` - PARTIAL (effort M, P3)
 - impl: `src/screens/deepspace/DeepSpaceDesignScreens.tsx:2007-2317`
 - deep-space view: `DeepSpaceOpsScreen`
-- canon: `design/ops-wiki.dc.html`
+- canon: `legacy/design/ops-wiki.dc.html`
 - legacy only in fallback: True
 - recommendation: Restore the canonical section order (Groups → Domains → Recommendations at top), move the Today section below recommendations, restore the Secondb chat bubble header with inline tip, and add record-count metadata chips to each recommendation card to match canvas exactly.
 - gaps:
@@ -487,11 +487,11 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/wiki` - PARTIAL (effort M, P3)
 - impl: `src/app/wiki.tsx (legacy path) → src/screens/deepspace/DeepSpaceDesignScreens.tsx (line 2319 DeepSpaceWikiScreen)`
 - deep-space view: `DeepSpaceWikiScreen renders a Shell with SecondbStatusHeader, stat boxes, tag filters, and pages list - layout structure matches canon but some visual styling details need refinement for exact fidelity`
-- canon: `design/ops-wiki.dc.html (also ops-wiki-trinity.dc.html frame 2)`
+- canon: `legacy/design/ops-wiki.dc.html (also ops-wiki-trinity.dc.html frame 2)`
 - legacy only in fallback: True
 - recommendation: Adjust wikiPageOpen border to rgba(70,182,255,.3) and create a distinct wikiPageRowCompact style for non-expanded rows with border rgba(70,182,255,.18) and background rgba(70,182,255,.04) to match canon's visual hierarchy. Verify FilterChip active visual state and ensure LIVING BRAIN eyebrow integrates into the stat row layout if the design requires it as a structural element (currently it may be rendered via SecondbStatusHeader text alone).
 - gaps:
-  - **[minor]** soulLine opacity mismatch in backlink badge: code uses rgba(167,139,250,0.50) but canon specifies rgba(167,139,250,.3) per design/ops-wiki.dc.html line 96
+  - **[minor]** soulLine opacity mismatch in backlink badge: code uses rgba(167,139,250,0.50) but canon specifies rgba(167,139,250,.3) per legacy/design/ops-wiki.dc.html line 96
     - canon: rgba(167,139,250,.3)
     - current: soulLine: rgba(167,139,250,0.50) in src/theme/tokens.ts line 20
   - **[major]** First page opened card: Canon (ops-wiki.dc.html line 93) shows padding:14px 15px with light border rgba(70,182,255,.3), but wikiPageOpen uses standardized card styling with border rgba(70,182,255,.22) - visual density and border strength differs from canon
@@ -513,6 +513,6 @@ Priority key: P1 = blocker view (>=2 blockers or MISSING), P2 = generic/missing 
 ### `/ttfv` - FAITHFUL (effort S, -)
 - impl: `E:\2ndB/src/screens/deepspace/onboarding/TTFVScreen.tsx`
 - deep-space view: `TTFVScreen component renders two states (propose/ratify) with 北極星 Soul Core (violet) + 北斗七星 Big Dipper (7 cyan stars), animated constellation with progressive disclosure of evidence card post-ratify.`
-- canon: `design/screen-design.dc.html (system design system reference only; no explicit /ttfv frame in canon, implementation IS the spec)`
+- canon: `legacy/design/screen-design.dc.html (system design system reference only; no explicit /ttfv frame in canon, implementation IS the spec)`
 - legacy only in fallback: True
 - recommendation: Ship as-is. Implementation is complete, pixel-faithful to intended design (no legacy design canvas exists for /ttfv; the component IS the canon spec). All deepSpace.* tokens correctly applied, dual-state (propose/ratify) logic implemented, Tier system enforced (Soul Tier 1 dominant violet, lit star Tier 2 bright cyan, 6 receded stars Tier 3 dim). Progressive disclosure of reasoning card post-ratify working. No legacy leakage into deep-space path. Animation on ratify (bloom interpolation 420ms cubic easing) matches "Calmness is the brand" spec.
