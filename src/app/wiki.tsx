@@ -67,7 +67,7 @@ const FACETS: ReadonlyArray<{
   {
     id: "core_brain",
     route: "/core-brain",
-    label: { en: "Soul Core", ko: "소울 코어" },
+    label: { en: "North Star", ko: "북극성" },
     desc: { en: "Trace your patterns", ko: "내 패턴 보기" },
   },
   {
