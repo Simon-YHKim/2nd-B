@@ -6,7 +6,7 @@ import path from "node:path";
  *
  * The per-screen status bar used to have TWO live, visually divergent
  * implementations sharing one export name — components/deep-space/ (deepSpace.*
- * tokens, from design/prototype.dc.html) and components/deepspace/ (legacy-token
+ * tokens, from legacy/design/prototype.dc.html) and components/deepspace/ (legacy-token
  * copy, brighter/dimmer TIP, headroom logic). A one-character import-path typo
  * (deep-space vs deepspace) silently picked the wrong one with no type error.
  *

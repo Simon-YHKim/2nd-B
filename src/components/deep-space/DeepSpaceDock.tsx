@@ -1,6 +1,6 @@
 /**
  * STEP 4 — <DeepSpaceDock /> : the bottom 5-tab dock from
- * design/prototype.dc.html (홈 ✦ · 담기 ✎ · 세컨비 💬 · 나 ◐ · IDEN 🪪). The
+ * legacy/design/prototype.dc.html (홈 ✦ · 담기 ✎ · 세컨비 💬 · 나 ◐ · IDEN 🪪). The
  * design used emoji placeholders; per DESIGN.md (emoji-as-decoration banned) the
  * glyphs are redrawn as small inline SVG marks tinted with deepSpace.* tokens.
  *

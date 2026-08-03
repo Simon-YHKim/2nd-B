@@ -1,5 +1,5 @@
 /**
- * Shared deep-space chrome — a 1:1 clone of design/prototype.dc.html's frame:
+ * Shared deep-space chrome — a 1:1 clone of legacy/design/prototype.dc.html's frame:
  * SecondbStatusHeader at the top, the screen body, and the primary dock at the
  * bottom. No extra chrome (the design home has no top-right icons). The OS status
  * bar is handled by the safe-area inset.
