@@ -48,7 +48,10 @@ describe("legal document snapshots", () => {
     expect(TERMS_DOC.body).toContain("배소하");
     expect(TERMS_DOC.body).toContain("경기도 안양시");
     expect(TERMS_DOC.body).toContain("면제 사업자");
-    expect(TERMS_DOC.body).toContain("발급 진행 중"); // 사업자등록번호 pending on purpose
+    expect(TERMS_DOC.body).toContain("205-10-98603"); // 사업자등록번호, issued 2026-07-22
+    // The old "발급 진행 중" placeholder must never come back: it is a false
+    // statement to a paying customer now that the number exists.
+    expect(TERMS_DOC.body).not.toContain("발급 진행 중");
     expect(TERMS_DOC.body).toContain("₩9,900/월");
     expect(TERMS_DOC.body).toContain("₩19,900/월");
     expect(REFUND_DOC.body).toContain("30일 이내 전액 환불");

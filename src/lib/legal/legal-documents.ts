@@ -3,8 +3,8 @@
 // scrubbed). FINALIZED 2026-07-17 with Simon's 법률 6정보 (하양 프로덕션 · 대표
 // 배소하 · 경기도 안양시 · kim0405@hayangzip.com · 보호책임자 김양환 · prices);
 // no [기입]/[fill] markers remain, so isDraft() is false and the 초안 badge is
-// gone. One line intentionally stays pending: 사업자등록번호 "발급 진행 중" --
-// update BOTH the md and this mirror the day the number is issued.
+// gone. 사업자등록번호 205-10-98603 was issued 2026-07-22 and posted here on
+// 2026-08-03; nothing in these documents is pending any more.
 // Lexicon note: the disclaimers must NAME the services 2nd-Brain is NOT
 // (의료·심리상담·진단·치료) -- this file is allowlisted in
 // src/lib/safety/lexicon.ts LEXICON_SCAN_ALLOWLIST for exactly that reason.
@@ -85,7 +85,7 @@ _시행일: 2026-07-17_
 ### 제13조 (사업자 정보 및 문의)
 - 상호: 하양 프로덕션 (개인사업자, 대표: 배소하)
 - 소재지: 경기도 안양시
-- 사업자등록번호: 발급 진행 중 (발급 즉시 본 문서에 반영합니다)
+- 사업자등록번호: 205-10-98603
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
@@ -132,7 +132,7 @@ The Company may change or suspend all or part of the Service for operational/tec
 ### 13. Business information & contact
 - Business name: Hayang Production (sole proprietorship, Representative: Bae Soha)
 - Location: Anyang-si, Gyeonggi-do, Republic of Korea
-- Business registration number: issuance in progress (posted here as soon as issued)
+- Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
 - Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.`,
 };
@@ -152,7 +152,7 @@ _최종 업데이트: 2026-07-17_
 ### 1. 판매자 및 결제 처리자
 2nd-Brain(이하 "서비스")의 유료 구독 결제는 **Paddle.com Market Limited(이하 "Paddle")**\\가 **판매자(Merchant of Record)**\\로서 처리합니다. 결제·세금계산서·환불은 Paddle을 통해 이루어지며, 카드 명세서에는 Paddle 또는 \`Paddle.net\`\\이 표기될 수 있습니다.
 
-- 서비스 운영자: 하양 프로덕션 (개인사업자, 대표: 배소하 · 소재지: 경기도 안양시 · 사업자등록번호 발급 진행 중 · 통신판매업 신고 면제 사업자)
+- 서비스 운영자: 하양 프로덕션 (개인사업자, 대표: 배소하 · 소재지: 경기도 안양시 · 사업자등록번호 205-10-98603 · 통신판매업 신고 면제 사업자)
 - 고객지원: kim0405@hayangzip.com (이메일 중심, 영업일 기준 2일 이내 회신)
 
 ### 2. 30일 환불 보장 (30-Day Money-Back Guarantee)
@@ -189,7 +189,7 @@ kim0405@hayangzip.com 으로 (1) 가입 이메일, (2) 결제일/영수증 번�
 ### 1. Seller & payment processor
 Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Paddle.com Market Limited ("Paddle") as the Merchant of Record**. Payments, invoices, and refunds are handled through Paddle, and your card statement may show Paddle or \`Paddle.net\`.
 
-- Service operator: Hayang Production (sole proprietorship, Rep.: Bae Soha · Anyang-si, Gyeonggi-do · business registration in progress · exempt from the mail-order business report)
+- Service operator: Hayang Production (sole proprietorship, Rep.: Bae Soha · Anyang-si, Gyeonggi-do · business registration 205-10-98603 · exempt from the mail-order business report)
 - Support: kim0405@hayangzip.com (email-first; replies within 2 business days)
 
 ### 2. 30-Day Money-Back Guarantee

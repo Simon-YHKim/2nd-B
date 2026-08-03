@@ -9,7 +9,7 @@ _최종 업데이트: 2026-07-17_
 ### 1. 판매자 및 결제 처리자
 2nd-Brain(이하 "서비스")의 유료 구독 결제는 **Paddle.com Market Limited(이하 "Paddle")**\가 **판매자(Merchant of Record)**\로서 처리합니다. 결제·세금계산서·환불은 Paddle을 통해 이루어지며, 카드 명세서에는 Paddle 또는 `Paddle.net`\이 표기될 수 있습니다.
 
-- 서비스 운영자: 하양 프로덕션 (개인사업자, 대표: 배소하 · 소재지: 경기도 안양시 · 사업자등록번호 발급 진행 중 · 통신판매업 신고 면제 사업자)
+- 서비스 운영자: 하양 프로덕션 (개인사업자, 대표: 배소하 · 소재지: 경기도 안양시 · 사업자등록번호 205-10-98603 · 통신판매업 신고 면제 사업자)
 - 고객지원: kim0405@hayangzip.com (이메일 중심, 영업일 기준 2일 이내 회신)
 
 ### 2. 30일 환불 보장 (30-Day Money-Back Guarantee)
@@ -46,7 +46,7 @@ kim0405@hayangzip.com 으로 (1) 가입 이메일, (2) 결제일/영수증 번�
 ### 1. Seller & payment processor
 Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Paddle.com Market Limited ("Paddle") as the Merchant of Record**. Payments, invoices, and refunds are handled through Paddle, and your card statement may show Paddle or `Paddle.net`.
 
-- Service operator: Hayang Production (sole proprietorship, Rep.: Bae Soha · Anyang-si, Gyeonggi-do · business registration in progress · exempt from the mail-order business report)
+- Service operator: Hayang Production (sole proprietorship, Rep.: Bae Soha · Anyang-si, Gyeonggi-do · business registration 205-10-98603 · exempt from the mail-order business report)
 - Support: kim0405@hayangzip.com (email-first; replies within 2 business days)
 
 ### 2. 30-Day Money-Back Guarantee
