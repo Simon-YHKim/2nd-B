@@ -15,7 +15,7 @@
 //      destination), and the price->tier map PADDLE_PRICE_CORTEX / _BRAIN, each a
 //      COMMA-SEPARATED list of that tier's price ids (monthly AND yearly - a tier
 //      has two). Then PADDLE_WEBHOOK_ENABLED=1 to turn it on. FAILS CLOSED until
-//      then. NEVER hardcode these - env only (repo constraint §4).
+//      then. NEVER hardcode these - env only (repo constraint 4).
 //   4. At checkout, pass the Supabase user id in Paddle `customData.user_id`.
 // VALIDATION REQUIRED before enabling: replay the same event twice (must apply ONCE)
 // and send a tampered body (must be rejected 403). Dunning/grace on past_due is a
@@ -39,6 +39,85 @@ interface PaddleEvent {
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+}
+
+// ---------------------------------------------------------------------------
+// Source-IP allowlist (defence in depth, added 2026-08-04).
+//
+// The HMAC alone is a single secret: anyone who learns it can mint events that
+// grant themselves a paid tier. Paddle publishes the addresses it sends from, so
+// requiring BOTH a valid signature AND a Paddle source address means a leaked
+// secret is not sufficient on its own.
+//
+// WHICH HEADER IS TRUSTWORTHY - measured on this project, not assumed. A request
+// deliberately sent with `X-Forwarded-For: 1.2.3.4` arrived at the function with
+// that value ABSENT: the hosted edge gateway discards a client-supplied
+// x-forwarded-for and rewrites it, and sets cf-connecting-ip to the real peer.
+// Deno's remoteAddr is 0.0.0.0 behind the proxy and is useless here. So
+// cf-connecting-ip is authoritative and cannot be spoofed by the caller;
+// x-forwarded-for's FIRST entry is the same value and is kept as a fallback.
+//
+// FAILURE POLICY. The CIDR list is cached in module scope. A refresh failure
+// keeps serving the last known good list indefinitely, so a Paddle API outage
+// does not break billing. Only a cold start that has NEVER fetched the list
+// rejects with 503 - Paddle retries failed deliveries with backoff, so the
+// entitlement is delayed, never lost. Set PADDLE_IP_ALLOWLIST=off to bypass this
+// check entirely without a redeploy if it ever blocks real traffic.
+const PADDLE_IPS_URL = 'https://api.paddle.com/ips';
+const IP_TTL_MS = 60 * 60 * 1000;
+let ipCache: { cidrs: string[]; at: number } | null = null;
+
+function ipv4ToInt(ip: string): number | null {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return null;
+  let out = 0;
+  for (const p of parts) {
+    if (!/^\d{1,3}$/.test(p)) return null;
+    const n = Number(p);
+    if (n > 255) return null;
+    out = (out << 8) | n;
+  }
+  return out >>> 0;
+}
+
+function inCidr(ip: string, cidr: string): boolean {
+  const [base, bitsRaw] = cidr.split('/');
+  const bits = bitsRaw === undefined ? 32 : Number(bitsRaw);
+  if (!Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+  const a = ipv4ToInt(ip);
+  const b = ipv4ToInt(base);
+  if (a === null || b === null) return false;
+  if (bits === 0) return true;
+  const mask = (0xffffffff << (32 - bits)) >>> 0;
+  return (a & mask) === (b & mask);
+}
+
+async function paddleCidrs(): Promise<string[] | null> {
+  const now = Date.now();
+  if (ipCache && now - ipCache.at < IP_TTL_MS) return ipCache.cidrs;
+  try {
+    const res = await fetch(PADDLE_IPS_URL, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const body = await res.json();
+      const cidrs = body?.data?.ipv4_cidrs;
+      if (Array.isArray(cidrs) && cidrs.length > 0) {
+        ipCache = { cidrs: cidrs as string[], at: now };
+        return ipCache.cidrs;
+      }
+    }
+    console.warn('[paddle-webhook] paddle ip list fetch returned no cidrs');
+  } catch (e) {
+    console.warn('[paddle-webhook] paddle ip list fetch failed:', String(e));
+  }
+  return ipCache?.cidrs ?? null; // stale is fine; null only before any success
+}
+
+function callerIp(req: Request): string | null {
+  const cf = req.headers.get('cf-connecting-ip');
+  if (cf) return cf.trim();
+  const xff = req.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0].trim();
+  return null;
 }
 
 // Constant-time compare of two hex strings (avoids a signature timing oracle).
@@ -80,13 +159,13 @@ function parsePaddleSignature(header: string): { ts: string | null; h1: string |
 //
 // A tier has MORE THAN ONE price: monthly and yearly are separate Paddle price
 // ids on the same product. The first version of this map held one id per tier,
-// which silently reintroduced the exact bug this function exists to prevent —
+// which silently reintroduced the exact bug this function exists to prevent -
 // a yearly purchase resolved to no tier, fell through to `ignored: 'no_op'`,
 // and the payer stayed 'free'. Each env var now takes a COMMA-SEPARATED list,
 // so adding a price later is a config change, not a redeploy.
 //
-//   PADDLE_PRICE_CORTEX="pri_<monthly>,pri_<yearly>"   # 항해자 / Voyager
-//   PADDLE_PRICE_BRAIN="pri_<monthly>,pri_<yearly>"    # 북극성 / North Star
+//   PADDLE_PRICE_CORTEX="pri_<monthly>,pri_<yearly>"
+//   PADDLE_PRICE_BRAIN="pri_<monthly>,pri_<yearly>"
 //
 // `soma` (the retired Lifetime tier) is intentionally absent: it was retired on
 // 2026-07-29 and has no Paddle product, so nothing can ever resolve to it.
@@ -109,6 +188,18 @@ Deno.serve(async (req: Request) => {
   if (Deno.env.get('PADDLE_WEBHOOK_ENABLED') !== '1') return json({ error: 'disabled' }, 503);
   const secret = Deno.env.get('PADDLE_WEBHOOK_SECRET');
   if (!secret) return json({ error: 'misconfigured' }, 503);
+
+  // Source check first: a caller that is not Paddle is rejected before we read a
+  // body or compute an HMAC.
+  if (Deno.env.get('PADDLE_IP_ALLOWLIST') !== 'off') {
+    const cidrs = await paddleCidrs();
+    if (!cidrs) return json({ error: 'ip_list_unavailable' }, 503);
+    const ip = callerIp(req);
+    if (!ip || !cidrs.some((c) => inCidr(ip, c))) {
+      console.warn('[paddle-webhook] rejected non-Paddle source');
+      return json({ error: 'forbidden_source' }, 403);
+    }
+  }
 
   try {
     const raw = await req.text();
