@@ -79,6 +79,14 @@ Total: **226 bundled image files**. `scripts/check-constraints.ts` (C12)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 
+**In the repository but not in the build.** A further 317 images live
+under `docs/` (231: clone-audit captures, flow thumbnails, QA evidence)
+and `design/` (86: prototype renders, reference boards, app screenshots).
+These are working material — neither path is packaged into the app or the
+web export, and `src/` contains no image files at all, so the shipped set
+is exactly the 226 listed above. They were captured or generated in-window
+by the same person and tooling.
+
 ## Remote images (AI Museum, /museum)
 
 The AI history museum (`src/screens/deepspace/museum/AiMuseumScreen.tsx`) shows
@@ -116,5 +124,6 @@ the SVGs counted above belong to the bundled sprite sets, not the museum.
 
 All app code under `src/app/`, `src/components/`, `src/lib/`, all database
 migrations under `db/`, all CI workflows under `.github/`, all
-documentation under `docs/`, and all bundled art listed above were
-created between 2026-05-25 and the submission deadline of 2026-08-17.
+documentation under `docs/`, all design working material under `design/`,
+and all bundled art listed above were created between 2026-05-25 and the
+submission deadline of 2026-08-17.
