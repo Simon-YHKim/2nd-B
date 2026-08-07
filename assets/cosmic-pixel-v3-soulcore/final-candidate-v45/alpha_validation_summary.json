@@ -1,0 +1,12 @@
+{
+  "runtime_png_count": 77,
+  "checked_runtime_dirs": [
+    "tier1_soul_core",
+    "tier2_pattern_cores",
+    "tier3_pattern_data",
+    "tier4_logs",
+    "pattern_links"
+  ],
+  "all_corners_transparent": true,
+  "transparent_corner_failures": []
+}

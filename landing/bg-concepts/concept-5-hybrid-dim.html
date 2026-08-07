@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>concept-5-hybrid-dim</title>
+  <style>
+    :root {
+      --bg: #05070A;
+      --cyan: 70, 182, 255;
+      --cyan-soft: 95, 212, 255;
+      --cyan-pale: 204, 250, 255;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    body {
+      position: fixed;
+      inset: 0;
+    }
+
+    .scene {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at 24% 18%, rgba(var(--cyan), 0.052) 0%, rgba(var(--cyan), 0.032) 19%, rgba(var(--cyan), 0.010) 42%, rgba(var(--cyan), 0) 68%),
+        radial-gradient(ellipse at 76% 78%, rgba(var(--cyan-soft), 0.045) 0%, rgba(var(--cyan-soft), 0.024) 22%, rgba(var(--cyan-soft), 0.008) 46%, rgba(var(--cyan-soft), 0) 70%),
+        radial-gradient(ellipse at 46% 54%, rgba(var(--cyan), 0.030) 0%, rgba(var(--cyan), 0.016) 28%, rgba(var(--cyan), 0) 63%),
+        linear-gradient(180deg, #05070A 0%, #05070A 100%);
+      isolation: isolate;
+    }
+
+    .scene::before,
+    .scene::after {
+      content: "";
+      position: absolute;
+      inset: -4%;
+      pointer-events: none;
+    }
+
+    .scene::before {
+      opacity: 0.8;
+      background:
+        radial-gradient(circle at 13% 12%, rgba(var(--cyan-pale), 0.13) 0 0.7px, transparent 1.2px),
+        radial-gradient(circle at 86% 17%, rgba(var(--cyan), 0.10) 0 0.8px, transparent 1.4px),
+        radial-gradient(circle at 28% 34%, rgba(var(--cyan-pale), 0.11) 0 0.6px, transparent 1.3px),
+        radial-gradient(circle at 67% 39%, rgba(var(--cyan-soft), 0.10) 0 0.7px, transparent 1.5px),
+        radial-gradient(circle at 91% 52%, rgba(var(--cyan), 0.12) 0 0.7px, transparent 1.4px),
+        radial-gradient(circle at 11% 67%, rgba(var(--cyan-pale), 0.10) 0 0.8px, transparent 1.5px),
+        radial-gradient(circle at 52% 86%, rgba(var(--cyan-soft), 0.11) 0 0.6px, transparent 1.3px),
+        radial-gradient(circle at 80% 91%, rgba(var(--cyan), 0.10) 0 0.7px, transparent 1.4px);
+      animation: fieldBreath 84s ease-in-out infinite;
+    }
+
+    .scene::after {
+      opacity: 0.64;
+      background:
+        repeating-radial-gradient(circle at 37% 22%, rgba(var(--cyan), 0.034) 0 0.6px, rgba(var(--cyan), 0) 0.9px 52px),
+        repeating-radial-gradient(circle at 64% 74%, rgba(var(--cyan-soft), 0.026) 0 0.5px, rgba(var(--cyan-soft), 0) 0.8px 61px);
+      animation: dustBreath 96s ease-in-out infinite;
+    }
+
+    #nebula-dust {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.82;
+    }
+
+    .network {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .network-back {
+      opacity: 0.72;
+      animation: netBackBreath 76s ease-in-out infinite;
+    }
+
+    .network-front {
+      opacity: 0.84;
+      animation: netFrontBreath 68s ease-in-out infinite;
+    }
+
+    .edge {
+      fill: none;
+      stroke: rgb(var(--cyan-soft));
+      stroke-width: 0.72;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-opacity: 0.14;
+    }
+
+    .edge.quiet {
+      stroke: rgb(var(--cyan));
+      stroke-width: 0.56;
+      stroke-opacity: 0.105;
+    }
+
+    .edge.near {
+      stroke: rgb(var(--cyan-pale));
+      stroke-width: 0.68;
+      stroke-opacity: 0.18;
+    }
+
+    .node {
+      fill: rgb(var(--cyan));
+      fill-opacity: 0.13;
+      stroke: rgb(var(--cyan-pale));
+      stroke-width: 0.58;
+      stroke-opacity: 0.17;
+    }
+
+    .node.soft {
+      fill: rgb(var(--cyan-soft));
+      fill-opacity: 0.105;
+      stroke-opacity: 0.13;
+    }
+
+    .node.near {
+      fill: rgb(var(--cyan-pale));
+      fill-opacity: 0.18;
+      stroke: rgb(var(--cyan-soft));
+      stroke-opacity: 0.20;
+    }
+
+    .pin {
+      fill: rgb(var(--cyan-pale));
+      fill-opacity: 0.18;
+    }
+
+    .character-wrap {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 274px;
+      height: 274px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      animation: characterBreath 70s ease-in-out infinite;
+    }
+
+    .rim {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 268px;
+      height: 268px;
+      border: 1px solid rgba(var(--cyan-soft), 0.105);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(var(--cyan), 0) 0 54%, rgba(var(--cyan), 0.040) 55%, rgba(var(--cyan-soft), 0.020) 61%, rgba(var(--cyan), 0) 66%),
+        radial-gradient(circle at 50% 50%, rgba(var(--cyan-pale), 0.026) 0%, rgba(var(--cyan), 0.012) 34%, rgba(var(--cyan), 0) 64%);
+      opacity: 0.74;
+    }
+
+    .rim::before,
+    .rim::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .rim::before {
+      inset: 22px;
+      border: 1px solid rgba(var(--cyan-pale), 0.075);
+    }
+
+    .rim::after {
+      left: 50%;
+      top: 16px;
+      width: 5px;
+      height: 5px;
+      transform: translateX(-50%);
+      background: rgba(var(--cyan-pale), 0.16);
+      border: 1px solid rgba(var(--cyan-soft), 0.10);
+    }
+
+    .character {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: block;
+      width: 240px;
+      height: auto;
+      transform: translate(-50%, -50%);
+      user-select: none;
+    }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(5, 7, 10, 0) 0%, rgba(5, 7, 10, 0.08) 64%, rgba(5, 7, 10, 0.44) 100%),
+        linear-gradient(180deg, rgba(5, 7, 10, 0.16) 0%, rgba(5, 7, 10, 0) 28%, rgba(5, 7, 10, 0) 66%, rgba(5, 7, 10, 0.22) 100%);
+      z-index: 4;
+    }
+
+    .static *,
+    .static .scene::before,
+    .static .scene::after {
+      animation-play-state: paused !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      .scene::before,
+      .scene::after {
+        animation: none !important;
+      }
+    }
+
+    @keyframes fieldBreath {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 0.72;
+      }
+      50% {
+        transform: translate3d(1.2px, -1.8px, 0) scale(1.004);
+        opacity: 0.86;
+      }
+    }
+
+    @keyframes dustBreath {
+      0%, 100% {
+        transform: translate3d(0, 0, 0);
+        opacity: 0.54;
+      }
+      50% {
+        transform: translate3d(-1.4px, 1px, 0);
+        opacity: 0.66;
+      }
+    }
+
+    @keyframes netBackBreath {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(-1px, 1.5px, 0) scale(1.003);
+      }
+    }
+
+    @keyframes netFrontBreath {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(1.2px, -1px, 0) scale(1.002);
+      }
+    }
+
+    @keyframes characterBreath {
+      0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+      }
+      50% {
+        transform: translate(-50%, calc(-50% - 1px)) scale(1.0018);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="scene" aria-label="하이브리드 저휘도 deep-space 배경">
+    <canvas id="nebula-dust" width="510" height="900" aria-hidden="true"></canvas>
+
+    <svg class="network network-back" viewBox="0 0 510 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path class="edge quiet" d="M28 96 C64 118 80 160 119 179 S188 190 219 229" />
+      <path class="edge" d="M82 260 C116 224 151 239 178 278 S237 325 276 300" />
+      <path class="edge quiet" d="M16 407 C52 382 81 393 110 432 S166 493 204 474" />
+      <path class="edge" d="M302 91 C333 136 381 134 414 170 S453 230 493 217" />
+      <path class="edge quiet" d="M354 284 C393 251 429 284 469 315" />
+      <path class="edge" d="M318 642 C356 602 399 615 429 654 S462 724 497 744" />
+      <path class="edge quiet" d="M58 729 C94 698 128 711 160 744 S205 796 250 776" />
+      <path class="edge" d="M286 795 C325 760 362 772 396 809 S448 852 486 832" />
+      <path class="edge quiet" d="M130 62 C161 91 191 93 221 72 S278 52 309 82" />
+      <path class="edge quiet" d="M229 683 C258 657 284 665 308 691 S352 727 381 706" />
+
+      <circle class="node soft" cx="28" cy="96" r="4.2" />
+      <circle class="node" cx="119" cy="179" r="5.2" />
+      <circle class="node soft" cx="219" cy="229" r="4.5" />
+      <circle class="node" cx="82" cy="260" r="5.4" />
+      <circle class="node soft" cx="178" cy="278" r="3.8" />
+      <circle class="node" cx="276" cy="300" r="4.8" />
+      <circle class="node soft" cx="16" cy="407" r="3.8" />
+      <circle class="node" cx="110" cy="432" r="5.5" />
+      <circle class="node soft" cx="204" cy="474" r="4.3" />
+      <circle class="node" cx="302" cy="91" r="4.8" />
+      <circle class="node soft" cx="414" cy="170" r="5.6" />
+      <circle class="node" cx="493" cy="217" r="4.2" />
+      <circle class="node soft" cx="354" cy="284" r="4.9" />
+      <circle class="node" cx="469" cy="315" r="5.2" />
+      <circle class="node soft" cx="318" cy="642" r="4.6" />
+      <circle class="node" cx="429" cy="654" r="5.8" />
+      <circle class="node soft" cx="497" cy="744" r="4.4" />
+      <circle class="node" cx="58" cy="729" r="5.0" />
+      <circle class="node soft" cx="160" cy="744" r="5.7" />
+      <circle class="node" cx="250" cy="776" r="4.4" />
+      <circle class="node soft" cx="286" cy="795" r="4.8" />
+      <circle class="node" cx="396" cy="809" r="5.3" />
+      <circle class="node soft" cx="486" cy="832" r="4.0" />
+      <circle class="node soft" cx="130" cy="62" r="4.2" />
+      <circle class="node" cx="221" cy="72" r="4.7" />
+      <circle class="node soft" cx="309" cy="82" r="4.4" />
+      <circle class="node" cx="229" cy="683" r="4.5" />
+      <circle class="node soft" cx="308" cy="691" r="4.0" />
+      <circle class="node" cx="381" cy="706" r="4.6" />
+    </svg>
+
+    <svg class="network network-front" viewBox="0 0 510 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <path class="edge near" d="M56 148 C91 116 123 132 151 166 S211 208 247 184" />
+      <path class="edge" d="M247 184 C276 159 303 164 329 194 S374 238 411 222" />
+      <path class="edge quiet" d="M411 222 C434 246 456 262 482 256" />
+      <path class="edge" d="M41 548 C82 515 122 527 154 564 S206 618 247 598" />
+      <path class="edge near" d="M247 598 C282 571 318 586 346 620 S399 671 440 650" />
+      <path class="edge" d="M88 338 C122 361 152 353 181 322" />
+      <path class="edge quiet" d="M329 353 C365 332 394 344 422 375 S459 418 496 400" />
+      <path class="edge" d="M29 822 C65 798 98 805 129 837 S180 876 222 856" />
+      <path class="edge quiet" d="M296 434 C324 407 349 413 374 439 S420 473 453 457" />
+      <path class="edge near" d="M188 116 C215 144 240 147 266 126" />
+      <path class="edge quiet" d="M185 648 C212 625 237 630 260 655" />
+
+      <circle class="node near" cx="56" cy="148" r="4.7" />
+      <circle class="node" cx="151" cy="166" r="6.1" />
+      <circle class="node soft" cx="247" cy="184" r="4.8" />
+      <circle class="node" cx="329" cy="194" r="5.4" />
+      <circle class="node soft" cx="411" cy="222" r="4.6" />
+      <circle class="node near" cx="482" cy="256" r="3.9" />
+      <circle class="node" cx="41" cy="548" r="4.6" />
+      <circle class="node near" cx="154" cy="564" r="5.8" />
+      <circle class="node soft" cx="247" cy="598" r="4.4" />
+      <circle class="node" cx="346" cy="620" r="5.5" />
+      <circle class="node near" cx="440" cy="650" r="4.7" />
+      <circle class="node soft" cx="88" cy="338" r="5.1" />
+      <circle class="node" cx="181" cy="322" r="4.6" />
+      <circle class="node soft" cx="329" cy="353" r="4.8" />
+      <circle class="node" cx="422" cy="375" r="5.4" />
+      <circle class="node soft" cx="496" cy="400" r="4.2" />
+      <circle class="node" cx="29" cy="822" r="4.1" />
+      <circle class="node soft" cx="129" cy="837" r="5.6" />
+      <circle class="node" cx="222" cy="856" r="4.5" />
+      <circle class="node soft" cx="296" cy="434" r="4.2" />
+      <circle class="node" cx="374" cy="439" r="5.0" />
+      <circle class="node soft" cx="453" cy="457" r="4.3" />
+      <circle class="node near" cx="188" cy="116" r="4.1" />
+      <circle class="node soft" cx="266" cy="126" r="4.3" />
+      <circle class="node" cx="185" cy="648" r="4.5" />
+      <circle class="node soft" cx="260" cy="655" r="4.1" />
+
+      <circle class="pin" cx="151" cy="164" r="1.2" />
+      <circle class="pin" cx="346" cy="618" r="1.1" />
+      <circle class="pin" cx="422" cy="373" r="1.0" />
+      <circle class="pin" cx="129" cy="835" r="1.1" />
+      <circle class="pin" cx="374" cy="437" r="1.0" />
+    </svg>
+
+    <div class="character-wrap" aria-hidden="true">
+      <div class="rim"></div>
+      <img class="character" src="character.png" width="240" alt="">
+    </div>
+
+    <div class="vignette" aria-hidden="true"></div>
+  </main>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("nebula-dust");
+      const ctx = canvas.getContext("2d", { alpha: true });
+      const W = 510;
+      const H = 900;
+      const paint = () => {
+        ctx.clearRect(0, 0, W, H);
+        ctx.globalCompositeOperation = "source-over";
+
+        const clouds = [
+          [118, 180, 186, 0.052],
+          [386, 650, 230, 0.046],
+          [250, 470, 275, 0.034],
+          [432, 162, 150, 0.030],
+          [92, 716, 176, 0.028]
+        ];
+
+        for (const [x, y, r, a] of clouds) {
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, `rgba(70,182,255,${a})`);
+          g.addColorStop(0.34, `rgba(70,182,255,${a * 0.55})`);
+          g.addColorStop(0.72, `rgba(95,212,255,${a * 0.18})`);
+          g.addColorStop(1, "rgba(70,182,255,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        let seed = 27;
+        const random = () => {
+          seed = (seed * 1664525 + 1013904223) >>> 0;
+          return seed / 4294967296;
+        };
+
+        for (let i = 0; i < 96; i += 1) {
+          const x = random() * W;
+          const y = random() * H;
+          const r = 0.36 + random() * 0.58;
+          const a = 0.10 + random() * 0.06;
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r + 0.9);
+          g.addColorStop(0, `rgba(204,250,255,${a})`);
+          g.addColorStop(1, "rgba(204,250,255,0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, r + 0.9, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      };
+
+      paint();
+
+      let slowFrames = 0;
+      let last = performance.now();
+      const watch = (now) => {
+        const delta = now - last;
+        last = now;
+        slowFrames = delta > 120 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
+        if (slowFrames >= 5) {
+          document.documentElement.classList.add("static");
+          return;
+        }
+        requestAnimationFrame(watch);
+      };
+
+      requestAnimationFrame(watch);
+    })();
+  </script>
+</body>
+</html>

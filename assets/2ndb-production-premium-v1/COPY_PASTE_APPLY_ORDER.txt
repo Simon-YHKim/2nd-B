@@ -1,0 +1,68 @@
+2ndB PRODUCTION PREMIUM ASSET APPLICATION ORDER v1
+
+Use this asset pack to replace the current placeholder/premium-closeout assets that still look simpler than the premium references.
+
+Install location recommendation:
+public/assets/2ndb-production-premium-v1/
+
+Critical rules:
+- Do not treat these images as full-screen UI.
+- Use each PNG as an isolated transparent sprite/illustration inside existing interactive components.
+- Keep all Korean UI text as real app text, not image text.
+- Preserve NavGraph, pan/zoom, route handoffs, and safety paths.
+
+Replace these assets:
+1. core_center_premium_clean.png
+Use for Core Brain / 나의 중심 island/art. Replace any core image that shows a cyan square or black rectangular crop.
+
+2. auth_secondb_gate_hero_clean.png
+Use for auth/login hero. Replace any hero image that appears inside a black rectangular box.
+
+3. Domain islands
+work_growth -> domain_work_growth_premium.png
+relationship -> domain_relationship_premium.png
+knowledge -> domain_knowledge_premium.png
+records -> domain_records_premium.png
+imagine -> domain_imagine_premium.png
+inspiration -> domain_inspiration_premium.png
+
+4. Characters/workers
+SecondB -> secondb_premium_idle.png + secondb_premium_walk_strip_6f.png
+Archi -> archi_premium_idle.png + archi_premium_walk_strip_6f.png
+Gadi -> gadi_premium_idle.png + gadi_premium_walk_strip_6f.png
+Lulu -> lulu_premium_idle.png + lulu_premium_walk_strip_6f.png
+Momo -> momo_premium_idle.png + momo_premium_walk_strip_6f.png
+Vela -> vela_premium_idle.png + vela_premium_walk_strip_6f.png
+Lumi -> lumi_premium_idle.png + lumi_premium_walk_strip_6f.png
+
+5. Optional wiki thumbnails
+wiki_card_thumb_core_brain_premium.png
+wiki_card_thumb_library_premium.png
+wiki_card_thumb_imagine_premium.png
+
+Implementation notes:
+- All sprites are transparent PNG; render with image-rendering: pixelated.
+- Keep node hitboxes separate from image dimensions.
+- Character sprites are 128x128 idle and 768x128 6-frame strips. Use CSS background-position or canvas/sprite component for animation.
+- Do not use robot face glyphs as tier 3/4 generic data nodes. Keep using source-based shard icons.
+- Domain accent mapping should remain:
+  work_growth/Archi #4CC9F0
+  relationship/Gadi #FF7A90
+  knowledge/Lulu #72F2C7
+  records/Momo #FFD166
+  imagine/Vela #FF9FD6
+  inspiration/Lumi #FFD166
+  core/SecondB #A78BFA
+
+After replacing assets, verify:
+- No cyan square around core/auth hero.
+- No black rectangular crop box on login hero.
+- Islands resemble dense premium pixel villages more than plain cubes.
+- Characters feel closer to the premium character sheet.
+- Mobile performance remains acceptable.
+
+Return a plain text status report with:
+1. copied asset paths
+2. components updated
+3. before/after notes
+4. unresolved issues
