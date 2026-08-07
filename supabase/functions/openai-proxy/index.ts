@@ -210,7 +210,11 @@ Deno.serve(async (req: Request) => {
   // Purpose allowlist — this proxy serves EXACTLY its D-26 seats. Rejecting
   // everything else (before the tier lookup and any paid call) keeps a
   // tampered client from using OPENAI_API_KEY as a generic completion source.
-  if (!purpose || !(purpose in PURPOSE_MODEL)) {
+  // hasOwnProperty, NOT `in`: `in` walks the prototype chain, so purpose values
+  // like 'toString' / 'constructor' / '__proto__' passed this gate, then
+  // resolveModel returned the inherited FUNCTION as the model and modelSlug
+  // crashed (500, no CORS) AFTER the spend bump. Own-key check closes both.
+  if (!purpose || !Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
     return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
   }
 
@@ -225,19 +229,22 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
   }
 
-  // Tier lookup (service-role). Fail-open on a lookup ERROR for availability; an
-  // explicit sub-brain row fails CLOSED for premium purposes.
+  // EFFECTIVE tier via effective_subscription_tier (0088), NOT the raw
+  // subscription_tier column — mirrors gemini-proxy. The raw column stays
+  // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
+  // let a lapsed subscriber keep the brain-only premium purposes + the brain
+  // daily ceiling, and 403'd a comped judge. The RPC collapses expired->free and
+  // comps judge->brain. Fail open on a lookup ERROR (the daily cap still bounds cost).
   let tierRank: number | null = null;
   {
-    const { data: tierRow, error: tierErr } = await supabaseAdmin
-      .from('users')
-      .select('subscription_tier')
-      .eq('id', userId)
-      .maybeSingle();
+    const { data: effTier, error: tierErr } = await supabaseAdmin.rpc(
+      'effective_subscription_tier',
+      { p_user_id: userId },
+    );
     if (tierErr) {
-      console.error('[openai-proxy] tier lookup failed:', tierErr.message ?? String(tierErr));
+      console.error('[openai-proxy] effective-tier lookup failed:', tierErr.message ?? String(tierErr));
     } else {
-      const t = (tierRow?.subscription_tier as string | null) ?? 'free';
+      const t = (effTier as string | null) ?? 'free';
       tierRank = TIER_RANK[t] ?? 0;
     }
   }
@@ -266,6 +273,9 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
     }
   }
+  // True only on the clean-bump path (not the rpc-missing fail-open), so a
+  // refund can never decrement a counter that was never incremented.
+  const spentBumped = !spendErr;
 
   // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
   // (default off) — enable once legal finalizes the consent copy/versions. When
@@ -343,6 +353,20 @@ Deno.serve(async (req: Request) => {
       : {}),
   };
 
+  // Give back the daily-cap unit when the call produced nothing billable, so a
+  // vendor outage can't burn a user's whole allowance on answers they never got.
+  // Refund ONLY on no-upstream-billing failures (unreachable / non-2xx reject),
+  // never on refusal/truncation (the model ran and billed). refund_gemini_spend
+  // (0110) floors at 0 and no-ops when no row exists, so a stray refund is safe.
+  const refundOnFailure = async () => {
+    if (!spentBumped) return;
+    try {
+      await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+    } catch (e) {
+      console.warn('[openai-proxy] spend refund failed:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+    }
+  };
+
   const t0 = Date.now();
   let upstream: Response;
   try {
@@ -355,12 +379,14 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify(openaiBody),
     });
   } catch (e) {
+    await refundOnFailure();
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
   const latencyMs = Date.now() - t0;
 
   if (!upstream.ok) {
     const errBody = await upstream.text();
+    await refundOnFailure();
     return jsonResponse(req, {
       error: 'upstream_error',
       status: upstream.status,
@@ -368,7 +394,15 @@ Deno.serve(async (req: Request) => {
     }, 502);
   }
 
-  const data = await upstream.json();
+  // A 200 with a non-JSON body previously threw here unhandled -> 500 with no
+  // CORS headers, after the model may already have billed. Catch and 502 without
+  // refunding (billing is ambiguous once we have a 200).
+  let data: { choices?: unknown; model?: unknown; usage?: { total_tokens?: number } };
+  try {
+    data = await upstream.json();
+  } catch (_e) {
+    return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
+  }
   const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
   const rawContent = choice?.message?.content;
   const text: string = typeof rawContent === 'string' ? rawContent : '';
