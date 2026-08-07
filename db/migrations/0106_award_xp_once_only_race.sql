@@ -61,3 +61,10 @@ BEGIN
     'level', v_level, 'duplicate', false);
 END;
 $function$;
+
+
+-- Re-assert the 0098/0101 grant posture after CREATE OR REPLACE (definer-grants
+-- lint): the replace keeps existing ACLs, but the lint requires the FROM anon
+-- revoke in the same file as any SECURITY DEFINER create. Idempotent.
+REVOKE EXECUTE ON FUNCTION public.award_xp(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.award_xp(text) FROM anon;
