@@ -221,7 +221,7 @@
       "title": "Reembolso",
       "cta": "Solicitar reembolso",
       "confirmTitle": "Solicitar un reembolso?",
-      "confirmBody": "La solicitud va a Paddle, el vendedor registrado. Si se aprueba, el importe completo vuelve a tu metodo de pago original y las funciones de pago se cierran.",
+      "confirmBody": "La solicitud va a Paddle, el vendedor registrado. Si Paddle la aprueba, el importe completo vuelve a tu metodo de pago original. Esto no cancela la suscripcion por si solo, asi que cancelala tambien si quieres que dejen de cobrarte.",
       "confirmCta": "Enviar solicitud",
       "reason": {
         "eligible": "Ahora mismo puedes solicitar un reembolso completo.",
@@ -233,15 +233,19 @@
       },
       "window": "Ventana de reembolso: quedan {{days}} de {{total}} dias",
       "usage": "Razonamientos usados: {{used}} (el plan gratuito permite {{allowance}} en el mismo periodo)",
-      "calls": "Llamadas de IA registradas: {{calls}}"
+      "calls": "Llamadas de IA registradas: {{calls}}",
+      "beforeEffective": "Las condiciones de reembolso revisadas entran en vigor el 8 de septiembre de 2026. Hasta entonces se aplica la politica actual: reembolso completo dentro de los 30 dias posteriores al pago, sin preguntas, solicitado por correo electronico."
     },
     "notice": {
       "cancelledAtRenewal": "La cancelacion queda programada para la proxima fecha de renovacion.",
       "cancelledNow": "Se envio la cancelacion inmediata.",
-      "refundRequested": "Tu solicitud de reembolso fue enviada. La decision llega por correo a la direccion del recibo.",
+      "refundRequested": "Tu solicitud de reembolso fue enviada a Paddle. La decision llega por correo a la direccion del recibo. Cancela la suscripcion aparte si tambien quieres que dejen de cobrarte.",
       "alreadyRequested": "Ya hay una solicitud registrada, asi que no se envio dos veces.",
       "refundRejected": "El reembolso automatico no esta disponible para este pago.",
-      "contactSupport": "Esto no se puede resolver en la app ahora mismo. Escribe a soporte."
+      "contactSupport": "Esto no se puede resolver en la app ahora mismo. Escribe a soporte.",
+      "notSubscribed": "No hay ninguna suscripcion de pago activa que cancelar.",
+      "dryRun": "El modo de ensayo esta activo, asi que no se envio nada a Paddle. Escribe a soporte si querias enviarlo de verdad.",
+      "policyNotInEffect": "Las condiciones de reembolso revisadas aun no estan en vigor. Por ahora solicita el reembolso por correo electronico."
     },
     "autoRenewOn": "Se renueva automaticamente el {{date}}",
     "cancelScheduledOn": "La renovacion automatica esta desactivada. Las funciones de pago siguen abiertas hasta el {{date}}.",

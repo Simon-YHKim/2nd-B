@@ -18,6 +18,8 @@ import {
   parseRefundStatus,
   refundDaysLeft,
   refundReasonKey,
+  REFUND_POLICY_EFFECTIVE_AT,
+  revisedPolicyInForce,
   verdictFor,
   type RefundEligibility,
 } from "../subscription-manage";
@@ -169,5 +171,30 @@ describe("payment method is shown, never invented", () => {
 
   test("nothing on record renders nothing rather than a guess", () => {
     expect(formatPaymentMethod({ payment_method: null, card_brand: null, card_last4: null })).toBeNull();
+  });
+});
+
+// ── 0117 / effective-date gate ──────────────────────────────────────────────
+// Three defects the 2026-08-10 audit found in the shipped 0115 rule, each
+// pinned so the fix cannot be undone by a later "simplification".
+
+describe("the revised policy does not bind anyone before its effective date", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  test("the effective instant is the published one (KST)", () => {
+    expect(REFUND_POLICY_EFFECTIVE_AT).toBe(Date.parse("2026-09-08T00:00:00+09:00"));
+  });
+
+  test("not in force one second before, in force at the instant", () => {
+    expect(revisedPolicyInForce(REFUND_POLICY_EFFECTIVE_AT - 1000)).toBe(false);
+    expect(revisedPolicyInForce(REFUND_POLICY_EFFECTIVE_AT)).toBe(true);
+    expect(revisedPolicyInForce(REFUND_POLICY_EFFECTIVE_AT + DAY)).toBe(true);
+  });
+
+  test("the 30-day notice window is still open as of the revision date", () => {
+    // 이용약관 제3조② requires 30 days' notice for an adverse change; the notice
+    // was re-issued 2026-08-09, which is exactly 30 days before.
+    const noticed = Date.parse("2026-08-09T00:00:00+09:00");
+    expect(Math.round((REFUND_POLICY_EFFECTIVE_AT - noticed) / DAY)).toBe(30);
   });
 });

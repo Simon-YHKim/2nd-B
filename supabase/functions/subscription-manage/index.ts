@@ -116,6 +116,11 @@ interface Eligibility {
 
 const PADDLE_TIMEOUT_MS = 15000;
 
+// Mirrors REFUND_POLICY_EFFECTIVE_AT in src/lib/billing/subscription-manage.ts.
+// Edge functions cannot import from src/, so the value is duplicated and the
+// structural test pins the two together.
+const REFUND_POLICY_EFFECTIVE_AT = Date.parse('2026-09-08T00:00:00+09:00');
+
 function paddleBase(): string {
   return (Deno.env.get('PADDLE_API_BASE') ?? 'https://api.paddle.com').replace(/\/+$/, '');
 }
@@ -221,16 +226,67 @@ Deno.serve(async (req: Request) => {
     if (error) console.error('[subscription-manage] terminal log failed:', error.message);
   };
 
+  // The usage-gated refund rule does not bind anyone before its effective date
+  // (docs/legal/refund-policy.md "개정 시행일: 2026-09-08", 이용약관 제3조② 30-day
+  // notice). PADDLE_SELF_SERVICE_ENABLED is the operator's switch, not a legal
+  // one - if it were flipped early, this would still refuse to apply a standard
+  // that is not yet in force, and the user keeps the email path the policy in
+  // force names. Cancel is unaffected: cancelling was never the adverse change.
+  if (action === 'refund_request' && Date.now() < REFUND_POLICY_EFFECTIVE_AT) {
+    await settleTerminal('rejected', 'policy_not_in_effect');
+    return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'policy_not_in_effect', eligibility }, 200);
+  }
+
   // A refund that is not owed never reaches Paddle. The verdict and its evidence
   // go back to the client so the screen can show WHY, not just "no".
   if (action === 'refund_request' && eligibility.status !== 'eligible') {
     await settleTerminal('rejected', `not_eligible:${eligibility.status}`);
-    return jsonResponse(req, { ok: false, outcome: 'rejected', eligibility }, 200);
+    return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_eligible', eligibility }, 200);
+  }
+
+  // A cancel needs something to cancel. The screen hides the button on a free
+  // tier, but the FUNCTION is the boundary, not the screen: without this a stale
+  // client, a replayed request, or a direct call claims a cancel row and fires a
+  // Paddle request for a subscription the caller does not hold. Paddle rejects
+  // it, so the user is handed "provider_error, contact support" for an action
+  // that was never valid - a support ticket manufactured out of nothing.
+  // eligibility.tier is the EFFECTIVE tier (judge comp + expiry aware, 0088),
+  // already computed above, so this costs no extra round trip.
+  if (action === 'cancel' && eligibility.tier === 'free') {
+    await settleTerminal('rejected', 'not_subscribed');
+    return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_subscribed', eligibility }, 200);
+  }
+
+  // Abuse guard. This endpoint writes a ledger row and can reach a paid API on
+  // every call, and nothing else throttles it (the LLM proxies have
+  // bump_gemini_spend; there is no generic limiter). A loop with any valid user
+  // token could otherwise grow the ledger without bound and, once enabled, keep
+  // re-opening released claims against Paddle's rate limits. service_role
+  // bypasses RLS, so this counts the caller's OWN rows only.
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: recent, error: rateErr } = await admin
+    .from('billing_self_service_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', since);
+  if (rateErr) {
+    // Fail CLOSED: an unreadable ledger is exactly when we cannot tell a retry
+    // from an attack, and this endpoint spends money.
+    console.error('[subscription-manage] rate check failed:', rateErr.message);
+    return jsonResponse(req, { error: 'rate_check_unavailable' }, 503);
+  }
+  if ((recent ?? 0) >= 20) {
+    return jsonResponse(req, { error: 'too_many_requests', retry_after_seconds: 3600 }, 429);
   }
 
   const enabled = Deno.env.get('PADDLE_SELF_SERVICE_ENABLED') === '1';
   const dryRun = Deno.env.get('PADDLE_SELF_SERVICE_DRYRUN') === '1';
   const hasKey = (Deno.env.get('PADDLE_API_KEY') ?? '').length > 0;
+  if (enabled && dryRun) {
+    // Both on is a rehearsal, which is legitimate - but it is also exactly the
+    // state that must never survive the go-live flip, so it is loud in the logs.
+    console.warn('[subscription-manage][ALERT] DRYRUN is set while the feature is ENABLED: no request will reach Paddle.');
+  }
   if (!enabled || (!hasKey && !dryRun)) {
     // Fail closed: the action is recorded, nothing is attempted, and the client
     // is told to send the user to support rather than shown a fake success.
@@ -291,18 +347,37 @@ Deno.serve(async (req: Request) => {
   if (dryRun) {
     // Everything above ran for real (eligibility, ledger, idempotency); only the
     // outbound call is skipped. Lets the whole path be exercised without moving money.
-    await settleClaim('accepted', { ok: true, status: 0, ref: `dryrun:${targetId}`, error: null });
-    return jsonResponse(req, { ok: true, outcome: 'accepted', dry_run: true, eligibility }, 200);
+    //
+    // Settled as its own outcome, NOT 'accepted' (0118). 'accepted' sits inside
+    // the refund idempotency index, so a dry run that looked like a real one
+    // would have permanently blocked the user's actual request - and if DRYRUN
+    // survived the go-live flip, every user would have been told "submitted"
+    // while nothing reached Paddle and their real attempt was locked out.
+    // 'dry_run' is outside both indexes, so a rehearsal is repeatable and
+    // consumes nothing.
+    await settleClaim('dry_run', { ok: true, status: 0, ref: `dryrun:${targetId}`, error: null });
+    return jsonResponse(req, { ok: true, outcome: 'dry_run', dry_run: true, eligibility }, 200);
   }
 
+  // The idempotency key must identify the REQUEST, not the attempt. It used to
+  // be the claim uuid, minted fresh every time, so the one case it existed for
+  // could not work: our 15s timeout settles the claim as provider_error (which
+  // releases the index by design), the user retries, a NEW claim mints a NEW
+  // key, and Paddle - having already accepted the first adjustment - sees an
+  // unrelated request and issues a SECOND full refund. Keyed on the target
+  // object instead, a retry is the same logical request and Paddle dedupes it.
+  const idempotencyKey = action === 'cancel'
+    ? `cancel:${targetId}:${effectiveFrom}`
+    : `refund:${targetId}`;
+
   const call = action === 'cancel'
-    ? await callPaddle(`/subscriptions/${encodeURIComponent(targetId)}/cancel`, { effective_from: effectiveFrom }, claimId)
+    ? await callPaddle(`/subscriptions/${encodeURIComponent(targetId)}/cancel`, { effective_from: effectiveFrom }, idempotencyKey)
     : await callPaddle('/adjustments', {
         action: 'refund',
         type: 'full',
         transaction_id: targetId,
         reason: 'Customer self-serve refund request within the published refund window',
-      }, claimId);
+      }, idempotencyKey);
 
   if (!call.ok) {
     console.error(`[subscription-manage] paddle ${action} failed:`, call.status, call.error);
