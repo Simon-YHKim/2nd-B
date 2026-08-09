@@ -240,7 +240,8 @@
       "refundRequested": "환불 요청을 접수했어요. 승인 결과는 결제 영수증 메일로 안내돼요.",
       "alreadyRequested": "이미 접수된 요청이 있어서 중복으로 처리하지 않았어요.",
       "refundRejected": "이 결제는 앱에서 바로 환불받을 수 있는 대상이 아니에요.",
-      "contactSupport": "지금은 앱에서 처리할 수 없어요. 지원팀에 문의해 주세요."
+      "contactSupport": "지금은 앱에서 처리할 수 없어요. 지원팀에 문의해 주세요.",
+      "notSubscribed": "해지할 유료 구독이 없어요."
     },
     "autoRenewOn": "{{date}}에 자동 결제돼요",
     "cancelScheduledOn": "자동 결제가 꺼져 있어요. {{date}}까지는 그대로 쓸 수 있어요.",

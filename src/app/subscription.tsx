@@ -115,8 +115,11 @@ export default function SubscriptionScreen() {
     (result: ManageResult, okKey: string) => {
       if (result.outcome === "accepted") setNotice({ kind: "ok", key: okKey });
       else if (result.outcome === "duplicate") setNotice({ kind: "ok", key: "alreadyRequested" });
-      else if (result.outcome === "rejected") setNotice({ kind: "warn", key: "refundRejected" });
-      else setNotice({ kind: "warn", key: "contactSupport" });
+      // Two refusals, two sentences. Telling someone with nothing to cancel that
+      // their refund was declined is a different (and wrong) statement.
+      else if (result.outcome === "rejected") {
+        setNotice({ kind: "warn", key: result.reason === "not_subscribed" ? "notSubscribed" : "refundRejected" });
+      } else setNotice({ kind: "warn", key: "contactSupport" });
       if (result.eligibility?.status) setEligibility(result.eligibility);
     },
     [],

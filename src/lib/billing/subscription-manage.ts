@@ -113,9 +113,14 @@ export type ManageOutcome =
   | "provider_error"
   | "misconfigured";
 
+/** Why the server refused. Present only on outcome "rejected"; the two refusals
+ *  need different sentences ("not owed a refund" vs "nothing to cancel"). */
+export type ManageRejectReason = "not_eligible" | "not_subscribed";
+
 export interface ManageResult {
   ok: boolean;
   outcome: ManageOutcome;
+  reason: ManageRejectReason | null;
   /** true when the server could not act and the user must be routed to support. */
   contactSupport: boolean;
   /** Paddle adjustment / subscription reference, when the call succeeded. */
@@ -180,9 +185,12 @@ export function renewalState(o: SubscriptionOverview): "auto_renew" | "cancel_sc
 function asResult(raw: unknown): ManageResult {
   const rec = (raw ?? {}) as Record<string, unknown>;
   const outcome = (typeof rec.outcome === "string" ? rec.outcome : "provider_error") as ManageOutcome;
+  const reason =
+    rec.reason === "not_eligible" || rec.reason === "not_subscribed" ? (rec.reason as ManageRejectReason) : null;
   return {
     ok: rec.ok === true,
     outcome,
+    reason,
     contactSupport: rec.contact_support === true,
     reference: typeof rec.reference === "string" ? rec.reference : null,
     dryRun: rec.dry_run === true,

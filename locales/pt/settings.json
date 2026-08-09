@@ -240,7 +240,8 @@
       "refundRequested": "Seu pedido de reembolso foi enviado. A decisao chega por e-mail no endereco do recibo.",
       "alreadyRequested": "Ja existe um pedido registrado, entao nada foi enviado duas vezes.",
       "refundRejected": "O reembolso automatico nao esta disponivel para este pagamento.",
-      "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte."
+      "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte.",
+      "notSubscribed": "Nao ha assinatura paga ativa para cancelar."
     },
     "autoRenewOn": "Renova automaticamente em {{date}}",
     "cancelScheduledOn": "A renovacao automatica esta desligada. Os recursos pagos continuam ate {{date}}.",

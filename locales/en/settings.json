@@ -240,7 +240,8 @@
       "refundRequested": "Your refund request was submitted. The decision arrives by email from the payment receipt address.",
       "alreadyRequested": "A request is already on file, so nothing was submitted twice.",
       "refundRejected": "Self-serve refund is not available for this payment.",
-      "contactSupport": "This cannot be handled in the app right now. Please contact support."
+      "contactSupport": "This cannot be handled in the app right now. Please contact support.",
+      "notSubscribed": "There is no active paid subscription to cancel."
     },
     "autoRenewOn": "Renews automatically on {{date}}",
     "cancelScheduledOn": "Auto-renewal is off. Paid features stay open until {{date}}.",

@@ -240,7 +240,8 @@
       "refundRequested": "Permintaan pengembalian dana sudah dikirim. Keputusannya dikirim lewat email ke alamat pada struk.",
       "alreadyRequested": "Sudah ada permintaan yang tercatat, jadi tidak dikirim dua kali.",
       "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
-      "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan."
+      "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan.",
+      "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan."
     },
     "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
     "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",

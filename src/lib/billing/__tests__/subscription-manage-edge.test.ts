@@ -78,6 +78,26 @@ describe("subscription-manage - eligibility is re-derived server-side", () => {
     expect(code).toMatch(/settleTerminal\('rejected'/);
   });
 
+  // The screen hides the cancel button on a free tier, but the function is the
+  // boundary. Without this gate a stale or direct call claims a cancel row and
+  // fires a Paddle request for a subscription the caller does not hold, and the
+  // user is handed "contact support" for an action that was never valid.
+  test("cancel on a free tier is refused before any claim or provider call", () => {
+    expect(code).toMatch(/action === 'cancel' && eligibility\.tier === 'free'/);
+    expect(code).toMatch(/'not_subscribed'/);
+    // The gate must sit BEFORE the claim, or the ledger holds a claim for an
+    // action that can never succeed.
+    const gateAt = code.indexOf("eligibility.tier === 'free'");
+    const claimAt = code.indexOf('claim_billing_self_service');
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(claimAt).toBeGreaterThan(gateAt);
+  });
+
+  test("the two refusals are distinguishable by the client", () => {
+    expect(code).toMatch(/reason: 'not_eligible'/);
+    expect(code).toMatch(/reason: 'not_subscribed'/);
+  });
+
   test("the verdict travels back to the client so the screen can explain it", () => {
     expect(code).toMatch(/eligibility\s*}/);
   });

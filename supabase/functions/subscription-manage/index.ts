@@ -225,7 +225,20 @@ Deno.serve(async (req: Request) => {
   // go back to the client so the screen can show WHY, not just "no".
   if (action === 'refund_request' && eligibility.status !== 'eligible') {
     await settleTerminal('rejected', `not_eligible:${eligibility.status}`);
-    return jsonResponse(req, { ok: false, outcome: 'rejected', eligibility }, 200);
+    return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_eligible', eligibility }, 200);
+  }
+
+  // A cancel needs something to cancel. The screen hides the button on a free
+  // tier, but the FUNCTION is the boundary, not the screen: without this a stale
+  // client, a replayed request, or a direct call claims a cancel row and fires a
+  // Paddle request for a subscription the caller does not hold. Paddle rejects
+  // it, so the user is handed "provider_error, contact support" for an action
+  // that was never valid - a support ticket manufactured out of nothing.
+  // eligibility.tier is the EFFECTIVE tier (judge comp + expiry aware, 0088),
+  // already computed above, so this costs no extra round trip.
+  if (action === 'cancel' && eligibility.tier === 'free') {
+    await settleTerminal('rejected', 'not_subscribed');
+    return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'not_subscribed', eligibility }, 200);
   }
 
   const enabled = Deno.env.get('PADDLE_SELF_SERVICE_ENABLED') === '1';
