@@ -16,27 +16,24 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { keepAllKo } from "@/lib/i18n/keep-all";
+import { composeNoticeCenter } from "@/lib/notices/center";
+import { fetchNotices, fetchReadNoticeIds, markNoticeRead } from "@/lib/notices/remote";
+import type { LocalizedNoticeText, NoticeKind, ProductNotice, RemoteNotice } from "@/lib/notices/types";
+import { getAppVersion } from "@/lib/notices/version";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
-export type NoticeKind = "patch" | "developer" | "maintenance";
-type LocalizedNoticeText = Readonly<{ ko: string; en: string }>;
+// The shapes moved to src/lib/notices/types.ts so the pure notice logic is
+// importable without pulling a screen (and its RN imports) into the node test
+// environment. Re-exported here because this module is the historical home of
+// the notice API and both consumers import from it.
+export type { LocalizedNoticeText, NoticeKind, ProductNotice };
 
-export interface ProductNotice {
-  id: string;
-  kind: NoticeKind;
-  eyebrow: LocalizedNoticeText;
-  version?: string;
-  when: LocalizedNoticeText;
-  listMeta: LocalizedNoticeText;
-  title: LocalizedNoticeText;
-  body: readonly {
-    kind: "paragraph" | "bullet";
-    text: LocalizedNoticeText;
-  }[];
-}
-
+/** Release notes baked into the binary. They describe THIS build, so they are
+ *  authored here rather than published to the notices table; anything an
+ *  operator needs to say after a release goes in the table instead
+ *  (db/migrations/0113_notices.sql, docs/OPERATIONS-NOTICES.md). */
 export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   {
     id: "patch-1.4.0",
@@ -209,18 +206,37 @@ async function writeSeenId(userId: string, noticeId: string): Promise<void> {
   await nativeStorage()?.setItem(key, noticeId);
 }
 
+/**
+ * The notice centre: bundled release notes plus operator-published rows from
+ * the `notices` table, merged into one list, one unread count and one popup.
+ *
+ * Everything about WHICH notice wins lives in composeNoticeCenter()
+ * (src/lib/notices/center.ts) so it can be unit-tested; this hook is just the
+ * data plumbing around it.
+ */
 export function useNoticeCenter(userId: string | null) {
-  // undefined = storage hydration in progress. It prevents an already-read
-  // notice from flashing for one frame during an Android cold start.
+  // undefined = hydration in progress, for each source independently. It
+  // prevents an already-read notice from flashing for one frame during an
+  // Android cold start, and it keeps the popup shut until BOTH the local cursor
+  // and the server read-state are known.
   const [seenId, setSeenId] = useState<string | null | undefined>(undefined);
+  const [remote, setRemote] = useState<readonly RemoteNotice[] | undefined>(undefined);
+  const [readIds, setReadIds] = useState<ReadonlySet<string> | undefined>(undefined);
 
   useEffect(() => {
     if (!userId) {
       setSeenId(null);
+      // Signed out: no rows are readable (the RLS policies are TO authenticated
+      // and anon holds no grant), so do not spend a request to find that out.
+      setRemote([]);
+      setReadIds(new Set());
       return;
     }
     let cancelled = false;
     setSeenId(undefined);
+    setRemote(undefined);
+    setReadIds(undefined);
+
     void readSeenId(userId)
       .then((value) => {
         if (!cancelled) setSeenId(value);
@@ -228,27 +244,63 @@ export function useNoticeCenter(userId: string | null) {
       .catch(() => {
         if (!cancelled) setSeenId(null);
       });
+
+    // Both fetches already fail soft and resolve to an empty result, so a
+    // network outage hydrates to "no remote notices" rather than hanging the
+    // popup gate forever.
+    void fetchNotices().then((rows) => {
+      if (!cancelled) setRemote(rows);
+    });
+    void fetchReadNoticeIds(userId).then((ids) => {
+      if (!cancelled) setReadIds(ids);
+    });
+
     return () => {
       cancelled = true;
     };
   }, [userId]);
 
+  const hydrated = seenId !== undefined && remote !== undefined && readIds !== undefined;
+
+  const state = useMemo(
+    () =>
+      composeNoticeCenter({
+        remote: remote ?? [],
+        remoteReadIds: readIds ?? new Set<string>(),
+        bundled: PRODUCT_NOTICES,
+        bundledSeenId: seenId ?? null,
+        appVersion: getAppVersion(),
+      }),
+    [remote, readIds, seenId],
+  );
+
   const markSeen = useCallback(
     async (noticeId: string) => {
       if (!userId) return;
-      // Only the newest ID is the unread cursor. Reading an older history item
-      // must not accidentally clear a newer announcement.
+      if (state.remoteIds.has(noticeId)) {
+        // Optimistic: the badge and the popup gate must settle immediately, and
+        // the write is idempotent (23505 is swallowed), so a failed request
+        // only costs the cross-device sync of this one read.
+        setReadIds((previous) => new Set([...(previous ?? []), noticeId]));
+        await markNoticeRead(userId, noticeId).catch(() => undefined);
+        return;
+      }
+      // Bundled notices share a single "last seen id" cursor, so only the newest
+      // one moves it. Reading an older history item must not accidentally clear
+      // a newer announcement.
       if (noticeId !== LATEST_NOTICE.id) return;
       setSeenId(noticeId);
       await writeSeenId(userId, noticeId).catch(() => undefined);
     },
-    [userId],
+    [userId, state.remoteIds],
   );
 
   return {
-    hydrated: seenId !== undefined,
-    unreadCount: seenId !== undefined && seenId !== LATEST_NOTICE.id ? 1 : 0,
-    isUnread: (noticeId: string) => noticeId === LATEST_NOTICE.id && seenId !== LATEST_NOTICE.id,
+    hydrated,
+    notices: state.notices,
+    unreadCount: hydrated ? state.unreadCount : 0,
+    popupNotice: hydrated ? state.popupNotice : null,
+    isUnread: (noticeId: string) => hydrated && state.unreadIds.has(noticeId),
     markSeen,
   };
 }
@@ -260,11 +312,20 @@ const ICON_PATH: Record<NoticeKind, string> = {
     '<path d="M4 19.5h5L19.5 9 15 4.5 4.5 15z"/><path d="m13.5 6 4.5 4.5M4 19.5l4.5-1-3.5-3.5z"/>',
   maintenance:
     '<path d="M14.7 6.3a4.2 4.2 0 0 0-5.5 5.5L3.5 17.5l3 3 5.7-5.7a4.2 4.2 0 0 0 5.5-5.5l-2.4 2.4-3-3z"/>',
+  // Operator-published kinds. major = the megaphone that is allowed to
+  // interrupt; minor = a quiet info mark that only ever sits in the list.
+  major:
+    '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
+  minor: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/>',
 };
 
 function kindColor(kind: NoticeKind): string {
   if (kind === "developer") return m3.color.tertiary;
   if (kind === "maintenance") return m3.color.error;
+  // A minor notice recedes: neutral tone, no accent colour competing with the
+  // rest of the surface. Same tier principle the constellation uses, and it
+  // keeps the screen inside its colour budget instead of adding a fourth hue.
+  if (kind === "minor") return m3.color.onSurfaceVariant;
   return m3.color.primary;
 }
 
@@ -291,6 +352,7 @@ export function NoticeDialog({
   onPrevious,
   onNext,
   showPager = true,
+  total,
 }: {
   visible: boolean;
   notice: ProductNotice;
@@ -301,6 +363,9 @@ export function NoticeDialog({
   onPrevious?: () => void;
   onNext?: () => void;
   showPager?: boolean;
+  /** Pager denominator. The list is no longer a fixed array once remote notices
+   *  are merged in, so the count comes from the caller. */
+  total?: number;
 }) {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
@@ -399,7 +464,9 @@ export function NoticeDialog({
               >
                 <RNText style={[styles.pagerArrow, !onPrevious && styles.pagerDisabled]}>{"‹"}</RNText>
               </Pressable>
-              <RNText style={styles.pagerText}>{`${index + 1} / ${PRODUCT_NOTICES.length}`}</RNText>
+              <RNText style={styles.pagerText}>
+                {`${index + 1} / ${total ?? PRODUCT_NOTICES.length}`}
+              </RNText>
               <Pressable
                 onPress={onNext}
                 disabled={!onNext}
@@ -436,9 +503,11 @@ export default function NoticesScreen() {
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selected = selectedIndex == null ? null : PRODUCT_NOTICES[selectedIndex];
 
-  const data = useMemo(() => [...PRODUCT_NOTICES], []);
+  // Operator-published notices first (newest first), then the bundled release
+  // notes. Composed in src/lib/notices/center.ts.
+  const data = noticeCenter.notices;
+  const selected = selectedIndex == null ? null : (data[selectedIndex] ?? null);
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -459,7 +528,7 @@ export default function NoticesScreen() {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           renderItem={({ item, index }) => {
-            const unread = noticeCenter.hydrated && noticeCenter.isUnread(item.id);
+            const unread = noticeCenter.isUnread(item.id);
             const title = noticeText(item.title, ko);
             const listMeta = noticeText(item.listMeta, ko);
             return (
@@ -501,6 +570,7 @@ export default function NoticesScreen() {
           visible
           notice={selected}
           index={selectedIndex}
+          total={data.length}
           onClose={() => setSelectedIndex(null)}
           onList={() => setSelectedIndex(null)}
           onConfirm={() => {
@@ -511,7 +581,7 @@ export default function NoticesScreen() {
             selectedIndex > 0 ? () => setSelectedIndex((value) => (value == null ? 0 : value - 1)) : undefined
           }
           onNext={
-            selectedIndex < PRODUCT_NOTICES.length - 1
+            selectedIndex < data.length - 1
               ? () => setSelectedIndex((value) => (value == null ? 0 : value + 1))
               : undefined
           }
