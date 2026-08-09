@@ -33,6 +33,10 @@ jest.mock("../queries", () => ({
 jest.mock("../storage", () => ({
   downloadRawClipping: jest.fn((path: string) => {
     captured.push({ fn: "downloadRawClipping", args: [path] });
+    // A failed upload leaves storage_path set but the object missing — the
+    // production shape that stranded every source. fixtures.storageMissing
+    // reproduces it.
+    if (fixtures.storageMissing) return Promise.reject(new Error("Object not found"));
     return Promise.resolve(fixtures.body ?? "body content");
   }),
 }));
@@ -53,7 +57,7 @@ jest.mock("../materialize", () => ({
   }),
 }));
 
-import { generateSourcePage, SourceNotFoundError } from "../phase2";
+import { generateSourcePage, SourceNotFoundError, SourceBodyUnavailableError } from "../phase2";
 
 function reset() {
   captured.length = 0;
@@ -279,5 +283,65 @@ describe("generateSourcePage", () => {
     const upsert = captured.find((c) => c.fn === "upsertWikiPage")!;
     expect((upsert.args[0] as { tags: string[] }).tags).toEqual(["one", "two"]);
     expect(callOrder()).not.toContain("materializeGraphFromPhase1");
+  });
+});
+
+describe("body fallback when the Storage upload never landed", () => {
+  // capture.ts writes the canonical storage_path onto the row even when the
+  // upload fails, stashing the body in frontmatter._body_fallback. Promotion
+  // used to trust the path and throw, which is why the QA account's only source
+  // (a KakaoTalk import, 48 bytes in _body_fallback) could never become a wiki
+  // page while the detail screen rendered it fine — get-piece.ts already read
+  // the same fallback.
+  beforeEach(reset);
+
+  it("promotes from _body_fallback when Storage misses", async () => {
+    fixtures.storageMissing = true;
+    fixtures.source = {
+      id: "s1",
+      title: "KakaoTalk import",
+      tags: [],
+      storage_path: "u/kakaotalk.md",
+      frontmatter: { _body_fallback: "the rescued body" },
+      ingested: false,
+    };
+    fixtures.upsertWikiPage = { id: "p1" };
+
+    await generateSourcePage("u1", "s1");
+
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { body_md: string }).body_md).toBe("the rescued body");
+    expect(captured.some((c) => c.fn === "markSourceIngested")).toBe(true);
+  });
+
+  it("throws a distinct error when neither Storage nor the fallback has a body", async () => {
+    fixtures.storageMissing = true;
+    fixtures.source = {
+      id: "s1",
+      title: "Empty",
+      tags: [],
+      storage_path: "u/empty.md",
+      frontmatter: {},
+      ingested: false,
+    };
+    await expect(generateSourcePage("u1", "s1")).rejects.toBeInstanceOf(SourceBodyUnavailableError);
+  });
+
+  it("still prefers Storage when the object is there", async () => {
+    fixtures.source = {
+      id: "s1",
+      title: "Fine",
+      tags: [],
+      storage_path: "u/fine.md",
+      frontmatter: { _body_fallback: "stale copy" },
+      ingested: false,
+    };
+    fixtures.body = "fresh from storage";
+    fixtures.upsertWikiPage = { id: "p1" };
+
+    await generateSourcePage("u1", "s1");
+
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { body_md: string }).body_md).toBe("fresh from storage");
   });
 });

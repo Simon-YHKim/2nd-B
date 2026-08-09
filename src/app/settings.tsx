@@ -5,7 +5,7 @@
 // The M3 rows are the capture-matching visuals; the sections below carry the
 // account/data/language/danger-zone behavior and localized helper copy.
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { reactExpression } from "@/lib/companion/expression";
 import {
@@ -46,6 +46,11 @@ import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import { buildInfoLine } from "@/lib/build-info";
+import {
+  DEFAULT_WIKI_AUTO_PROMOTE,
+  getWikiAutoPromote,
+  setWikiAutoPromote,
+} from "@/lib/wiki/auto-promote";
 import { useNoticeCenter } from "@/app/notices";
 import {
   deleteAllChatUsage,
@@ -73,6 +78,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: string;
     reasoning: string;
     reasoningSub: string;
+    wikiAuto: string;
+    wikiAutoSub: string;
   }
 > = {
   en: {
@@ -81,6 +88,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Patch notes · developer news",
     reasoning: "Reasoning",
     reasoningSub: "Automatic runs · item selection",
+    wikiAuto: "Auto wiki pages",
+    wikiAutoSub: "Turn new captures into wiki pages by themselves",
   },
   ko: {
     news: "소식",
@@ -88,6 +97,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "패치노트 · 개발자 소식",
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
+    wikiAuto: "위키 자동 만들기",
+    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만들어요",
   },
   es: {
     news: "Novedades",
@@ -95,6 +106,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Notas de versión · noticias del desarrollador",
     reasoning: "Razonamiento",
     reasoningSub: "Ejecuciones automáticas · selección de material",
+    wikiAuto: "Páginas wiki automáticas",
+    wikiAutoSub: "Convierte las capturas nuevas en páginas wiki",
   },
   pt: {
     news: "Novidades",
@@ -102,6 +115,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Notas de versão · notícias do desenvolvedor",
     reasoning: "Raciocínio",
     reasoningSub: "Execuções automáticas · seleção de material",
+    wikiAuto: "Páginas wiki automáticas",
+    wikiAutoSub: "Transforma capturas novas em páginas wiki",
   },
   id: {
     news: "Kabar baru",
@@ -109,6 +124,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Catatan rilis · kabar pengembang",
     reasoning: "Penalaran",
     reasoningSub: "Jalankan otomatis · pilih materi",
+    wikiAuto: "Halaman wiki otomatis",
+    wikiAutoSub: "Ubah tangkapan baru menjadi halaman wiki",
   },
 };
 
@@ -355,6 +372,30 @@ export default function Settings() {
   const { mode, setMode } = useTheme();
   const dark = mode === "dark";
   const noticeCenter = useNoticeCenter(userId);
+
+  // Wiki auto-promotion. Server-persisted (users.reasoning_prefs.wikiAuto) so the
+  // policy does not silently differ per device — the exact failure 0093 fixed for
+  // its sibling toggle. Optimistic: the switch moves immediately and the write is
+  // fail-soft, so a network blip never eats the tap.
+  const [wikiAutoPromote, setWikiAutoPromoteState] = useState(DEFAULT_WIKI_AUTO_PROMOTE);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void getWikiAutoPromote(userId).then((v) => {
+      if (alive) setWikiAutoPromoteState(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+  const onToggleWikiAutoPromote = useCallback(
+    (next: boolean) => {
+      if (!userId) return;
+      setWikiAutoPromoteState(next);
+      void setWikiAutoPromote(userId, next);
+    },
+    [userId],
+  );
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -629,6 +670,18 @@ export default function Settings() {
             label={newSurfaceCopy.reasoning}
             sub={newSurfaceCopy.reasoningSub}
             onPress={() => router.push("/reasoning")}
+          />
+          <M3Divider />
+          {/* Not a placebo: the consumer is maybeAutoPromoteSource at the capture
+              save path. OFF by default on cost grounds — promotion embeds the new
+              page, one paid call per capture, and re-promoting re-bills. With it
+              off the user promotes from the source's own detail screen instead. */}
+          <M3ToggleRow
+            icon="auto_stories"
+            label={newSurfaceCopy.wikiAuto}
+            sub={newSurfaceCopy.wikiAutoSub}
+            checked={wikiAutoPromote}
+            onChange={onToggleWikiAutoPromote}
           />
           {/* No placebo controls here (audit pattern A, same rule as M3LinkRow
               above): the former 자동 분류/앱 잠금/온디바이스/통화 녹음/제안 알림/강조 색

@@ -754,7 +754,9 @@
       "fillStar": "Fill in this star",
       "fillStarBody": "Add information for this domain.",
       "secondbLinked": "This piece links to your '{{star}}' star. {{n}} similar records sit in the same window.",
-      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon."
+      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon.",
+      "makeWikiPage": "Make a wiki page",
+      "wikiPageMade": "Wiki page created"
     },
     "inbox": {
       "title": "Alerts",

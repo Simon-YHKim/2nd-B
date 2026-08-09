@@ -754,7 +754,9 @@
       "fillStar": "이 별 채워넣기",
       "fillStarBody": "이 영역의 정보를 직접 추가해요.",
       "secondbLinked": "이 별가루는 '{{star}}' 별과 이어져요. 비슷한 기록 {{n}}건이 같은 시간대에 모여 있어요.",
-      "secondbUnlinked": "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+      "secondbUnlinked": "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요.",
+      "makeWikiPage": "위키 페이지로 만들기",
+      "wikiPageMade": "위키 페이지를 만들었어요"
     },
     "inbox": {
       "title": "알림",
