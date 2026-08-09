@@ -225,6 +225,7 @@
       "confirmCta": "Send request",
       "reason": {
         "eligible": "You can request a full refund right now.",
+        "alreadyRequested": "A refund request for this payment is already on file.",
         "usedBeyondFree": "Usage since the payment went past what the free plan covers over the same span, so self-serve refund is not available.",
         "windowPassed": "More than 7 days have passed since the payment, so self-serve refund is not available.",
         "noPayment": "There is no payment on record to refund.",
