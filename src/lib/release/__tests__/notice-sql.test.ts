@@ -8,7 +8,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { buildNoticeInsert, buildNoticePrecheck, NOTICE_INSERT_COLUMNS } from "../notice-sql";
+import {
+  buildNoticeInsert,
+  buildNoticePrecheck,
+  isPublishableVersion,
+  NOTICE_INSERT_COLUMNS,
+} from "../notice-sql";
 
 const MIGRATION = join(__dirname, "..", "..", "..", "..", "db", "migrations", "0113_notices.sql");
 
@@ -72,6 +77,19 @@ describe("buildNoticeInsert", () => {
   test("rejects an empty title or body", () => {
     expect(() => buildNoticeInsert(input({ bodyKo: "   " }))).toThrow(/body_ko/);
     expect(() => buildNoticeInsert(input({ titleEn: "" }))).toThrow(/title_en/);
+  });
+});
+
+describe("isPublishableVersion", () => {
+  test("is stricter than the comparator, because the column's CHECK is", () => {
+    // parseSemver() pads "1.2" to [1,2,0] since it only has to ORDER versions.
+    // min_app_version wants all three segments written out, so the publish path
+    // asks this instead and fails at the top of the script rather than the
+    // bottom.
+    expect(isPublishableVersion("1.5.0")).toBe(true);
+    expect(isPublishableVersion("1.5")).toBe(false);
+    expect(isPublishableVersion("v1.5.0")).toBe(false);
+    expect(isPublishableVersion("1.5.0-beta.1")).toBe(false);
   });
 });
 
