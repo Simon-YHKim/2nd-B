@@ -189,13 +189,38 @@ describe("min_app_version gate", () => {
     expect(meetsMinAppVersion("0.1.0", null)).toBe(true);
   });
 
-  test("a build below the floor does not see the notice", () => {
+  test("a build below the floor does not see a MINOR notice", () => {
+    // The original use of the column (docs/OPERATIONS-NOTICES.md N4): a tip
+    // about a button this build does not have is only confusing, and a minor
+    // notice is by definition not worth confusing anyone over.
     const state = compose({
-      remote: [remote({ id: "needs-2", minAppVersion: "2.0.0" })],
+      remote: [remote({ id: "needs-2", kind: "minor", minAppVersion: "2.0.0" })],
       appVersion: "1.5.0",
     });
     expect(state.popupNotice).toBeNull();
     expect(state.unreadCount).toBe(0);
+  });
+
+  test("a build below the floor DOES see a MAJOR notice", () => {
+    // A major notice with a floor is a release announcement, and the people who
+    // have not updated are the ones who still have to act on it. The dialog
+    // shows them the update prompt instead of the feature introduction
+    // (src/lib/release/update-notice.ts). Filtering it out here would make that
+    // branch unreachable code.
+    const state = compose({
+      remote: [remote({ id: "announces-2", kind: "major", minAppVersion: "2.0.0" })],
+      appVersion: "1.5.0",
+    });
+    expect(state.popupNotice?.id).toBe("announces-2");
+    expect(state.unreadCount).toBe(1);
+  });
+
+  test("the floor rides along to the dialog so it can pick the copy", () => {
+    const state = compose({
+      remote: [remote({ id: "announces-2", kind: "major", minAppVersion: "2.0.0" })],
+      appVersion: "1.5.0",
+    });
+    expect(state.popupNotice?.minAppVersion).toBe("2.0.0");
   });
 
   test("a build at or above the floor sees it", () => {

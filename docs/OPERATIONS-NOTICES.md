@@ -100,15 +100,33 @@ where published_at > now() and withdrawn_at is null
 order by published_at;
 ```
 
-## N4 — 특정 버전 이상에만 보내기 (min_app_version)
+## N4 — min_app_version: kind 에 따라 뜻이 다르다
 
-새 기능 안내처럼 구버전 사용자가 보면 혼란스러운 공지에 쓴다. 비워두면(기본값
-`null`) 모든 빌드에 보인다.
+같은 컬럼이지만 **`minor` 에서는 숨김 조건, `major` 에서는 라벨**이다. 비워두면
+(기본값 `null`) 어느 쪽이든 모든 빌드에 보인다.
+
+| kind | `min_app_version` 을 적으면 |
+|---|---|
+| `minor` | 그 버전 **미만에는 안 보인다.** 없는 버튼 이야기로 혼란만 주는 안내에 쓴다 |
+| `major` | **숨기지 않는다.** 이 공지가 어느 릴리스 이야기인지 적어두는 값이고, 앱이 그걸 읽어 문구를 가른다 |
 
 ```sql
+-- 구버전에는 숨긴다 (팁·소식)
 insert into notices (kind, title_ko, title_en, body_ko, body_en, min_app_version)
 values ('minor', '제목', 'Title', '내용', 'Body', '0.2.0');
 ```
+
+`major` 에 적었을 때 사용자가 보는 것:
+
+| 실행 중인 버전 | 보이는 것 | 버튼 |
+|---|---|---|
+| `>= min_app_version` | 본문 그대로 (새 기능 안내) | 확인 |
+| `< min_app_version` | 본문 + "X.Y.Z 버전부터 쓸 수 있어요" 한 줄 | 네이티브: 업데이트 · 웹: 새로고침 |
+
+구버전 사용자를 숨기지 않는 이유는, `major` 는 정의상 가로막을 값어치가 있는
+공지이고 **아직 업데이트하지 않은 사람이야말로 행동할 게 남은 쪽**이기 때문이다.
+릴리스 공지는 손으로 쓰지 말고 `npm run notice:release` 가 뽑아준 초안에서 시작한다
+(`docs/RELEASE-PROCESS.md`).
 
 - 형식은 `숫자.숫자.숫자` 고정이다. `v0.2.0`, `0.2` 같은 값은 CHECK 제약이 거부한다.
 - 비교 대상은 `app.json` 의 `expo.version`(현재 `0.1.0`)이다. OTA 런타임 버전이
