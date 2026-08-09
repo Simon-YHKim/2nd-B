@@ -392,10 +392,53 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
   if (error) throw error;
 }
 
-export async function updatePassword(password: string): Promise<void> {
+// Supabase Auth "Require current password when updating" was enabled on the
+// Email provider on 2026-08-10. auth-js 2.106.1 takes the current password as a
+// FIELD on UserAttributes (types.d.ts: `current_password?: string`), not as a
+// second argument, so the shape below is the one the installed client accepts.
+// The recovery/reset flow calls this WITHOUT a current password on purpose: a
+// user who forgot it cannot supply it. That is safe, and it was verified rather
+// than assumed: on 2026-08-10, with the toggle ON, a real recovery session
+// (POST /verify type=recovery) updated the password with no current_password and
+// got 200. GoTrue exempts recovery sessions, so enabling the setting does NOT
+// break "forgot password". The caller still handles `current_password_required`
+// in case that exemption ever changes.
+export async function updatePassword(password: string, currentPassword?: string): Promise<void> {
   const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.updateUser({ password });
+  const { error } = await supabase.auth.updateUser(
+    currentPassword ? { password, current_password: currentPassword } : { password },
+  );
   if (error) throw error;
+}
+
+/**
+ * The password-update outcomes this app shows distinct copy for. Codes were
+ * measured against the live project on 2026-08-10 (QA account): a missing and a
+ * WRONG current password both return HTTP 400 with the SAME message text and
+ * differ only by `error_code`, so never branch on the message.
+ * `reauthentication_needed` comes from auth-js's own error-code list (Secure
+ * password change, session older than 24h); it was not reproducible locally.
+ */
+export type PasswordUpdateFailure =
+  | "current_password_required"
+  | "current_password_invalid"
+  | "reauthentication_needed"
+  | "weak_password"
+  | "unknown";
+
+export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
+  const code = (error as { code?: unknown } | null)?.code;
+  switch (code) {
+    case "current_password_required":
+    case "current_password_invalid":
+    case "reauthentication_needed":
+    case "weak_password":
+      return code;
+    case "reauthentication_not_valid":
+      return "reauthentication_needed";
+    default:
+      return "unknown";
+  }
 }
 
 export async function signOut(): Promise<void> {
