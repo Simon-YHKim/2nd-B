@@ -52,7 +52,7 @@ describe("paddle-webhook refund adjustments", () => {
     expect(adjustmentBlock).toMatch(/p_transaction_id: adjustmentTransactionId/);
     expect(adjustmentBlock).toMatch(/p_status: adjustmentStatus/);
     expect(adjustmentBlock).toMatch(/p_occurred_at: occurredAt/);
-    expect(adjustmentBlock).toMatch(/return json\(\{ ok: true, result \}\)/);
+    expect(adjustmentBlock).toMatch(/return json\(\{ ok: true, result, applied \}\)/);
   });
 
   test("surfaces ledger failures so Paddle can retry", () => {
@@ -61,9 +61,24 @@ describe("paddle-webhook refund adjustments", () => {
     );
   });
 
-  test("returns before and never calls the entitlement writer", () => {
+  // The invariant, stated precisely (0119). An adjustment must never enter
+  // apply_billing_event: that is the price-id -> tier mapping writer, and running
+  // an adjustment through it would clobber the tier and the billing-period expiry
+  // off a payload that describes neither. It may, and now does, reach the narrow
+  // apply_billing_refund path, which only writes the offsetting revenue row and
+  // revokes to 'free' for a FULL approved refund under 0109's ordering guard.
+  // Without that, an approved refund returned the money and left the paid tier
+  // live for the rest of the period while auto-renewal kept billing.
+  test("never calls the price-mapping entitlement writer", () => {
     expect(adjustmentBlock).not.toMatch(/apply_billing_event/);
     expect(adjustmentBlock).not.toMatch(/p_tier|subscription_tier|tier\s*=/);
-    expect(adjustmentBlock).toMatch(/return json\(\{ ok: true, result \}\)/);
+    expect(adjustmentBlock).toMatch(/return json\(\{ ok: true, result, applied \}\)/);
+  });
+
+  test("an APPROVED refund also applies its consequence, and only then", () => {
+    expect(adjustmentBlock).toMatch(/if \(adjustmentStatus === 'approved'\)/);
+    expect(adjustmentBlock).toMatch(/rpc\('apply_billing_refund'/);
+    // The ledger record must not be lost because the consequence failed.
+    expect(adjustmentBlock).toMatch(/\[ALERT\] refund consequence failed/);
   });
 });
