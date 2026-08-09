@@ -180,3 +180,42 @@ describe("subscription-manage - the revised policy has an effective date", () =>
     expect(code).not.toMatch(/action === 'cancel' && Date\.now\(\)/);
   });
 });
+
+describe("subscription-manage - 0118 hardening", () => {
+  test("the idempotency key identifies the request, not the attempt", () => {
+    // A per-attempt uuid could never dedupe a retry, which is the only case the
+    // header exists for: timeout -> claim released -> retry -> second refund.
+    expect(code).toMatch(/`refund:\$\{targetId\}`/);
+    expect(code).toMatch(/`cancel:\$\{targetId\}:\$\{effectiveFrom\}`/);
+    expect(code).not.toMatch(/callPaddle\([^)]*,\s*claimId\)/);
+  });
+
+  test("there is a per-user rate limit, and it fails closed", () => {
+    expect(code).toMatch(/from\('billing_self_service_log'\)/);
+    expect(code).toMatch(/'too_many_requests'/);
+    expect(code).toMatch(/429/);
+    expect(code).toMatch(/'rate_check_unavailable'/);
+  });
+
+  test("DRYRUN while ENABLED is loud, because it must not survive the go-live flip", () => {
+    expect(code).toMatch(/if \(enabled && dryRun\)/);
+    expect(code).toMatch(/\[ALERT\] DRYRUN is set while the feature is ENABLED/);
+  });
+});
+
+describe("supabase/config.toml declares every deployed function", () => {
+  test("the three JWT-less functions are declared verify_jwt = false", () => {
+    // Undeclared meant the CLI default (TRUE) applied on the next redeploy,
+    // which would have 401'd every Paddle delivery and stopped billing.
+    for (const fn of ["paddle-webhook", "rewarded-ssv", "peer-respond"]) {
+      const header = `[functions.${fn}]`;
+      const at = config.indexOf(header);
+      expect(at).toBeGreaterThan(-1);
+      // Scope the assertion to THIS block: up to the next [functions.*] header.
+      const rest = config.slice(at + header.length);
+      const next = rest.indexOf("\n[functions.");
+      const block = next === -1 ? rest : rest.slice(0, next);
+      expect(block).toContain("verify_jwt = false");
+    }
+  });
+});

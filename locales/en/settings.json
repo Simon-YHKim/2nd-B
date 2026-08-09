@@ -242,7 +242,9 @@
       "alreadyRequested": "A request is already on file, so nothing was submitted twice.",
       "refundRejected": "Self-serve refund is not available for this payment.",
       "contactSupport": "This cannot be handled in the app right now. Please contact support.",
-      "notSubscribed": "There is no active paid subscription to cancel."
+      "notSubscribed": "There is no active paid subscription to cancel.",
+      "dryRun": "Rehearsal mode is on, so nothing was sent to Paddle. Contact support if you meant to submit this.",
+      "policyNotInEffect": "The revised refund terms are not in effect yet. Please request a refund by email for now."
     },
     "autoRenewOn": "Renews automatically on {{date}}",
     "cancelScheduledOn": "Auto-renewal is off. Paid features stay open until {{date}}.",

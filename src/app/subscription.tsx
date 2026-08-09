@@ -114,12 +114,21 @@ export default function SubscriptionScreen() {
 
   const applyResult = useCallback(
     (result: ManageResult, okKey: string) => {
-      if (result.outcome === "accepted") setNotice({ kind: "ok", key: okKey });
+      // A dry run reached nothing. Saying "submitted" would be the same lie the
+      // server no longer tells, so it gets its own operator-facing sentence.
+      if (result.outcome === "dry_run") setNotice({ kind: "warn", key: "dryRun" });
+      else if (result.outcome === "accepted") setNotice({ kind: "ok", key: okKey });
       else if (result.outcome === "duplicate") setNotice({ kind: "ok", key: "alreadyRequested" });
-      // Two refusals, two sentences. Telling someone with nothing to cancel that
-      // their refund was declined is a different (and wrong) statement.
+      // Three refusals, three sentences. Telling someone with nothing to cancel
+      // that their refund was declined is a different (and wrong) statement.
       else if (result.outcome === "rejected") {
-        setNotice({ kind: "warn", key: result.reason === "not_subscribed" ? "notSubscribed" : "refundRejected" });
+        const key =
+          result.reason === "not_subscribed"
+            ? "notSubscribed"
+            : result.reason === "policy_not_in_effect"
+              ? "policyNotInEffect"
+              : "refundRejected";
+        setNotice({ kind: "warn", key });
       } else setNotice({ kind: "warn", key: "contactSupport" });
       if (result.eligibility?.status) setEligibility(result.eligibility);
     },

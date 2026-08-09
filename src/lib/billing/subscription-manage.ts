@@ -126,6 +126,7 @@ export interface SubscriptionOverview {
 
 export type ManageOutcome =
   | "accepted"
+  | "dry_run"
   | "duplicate"
   | "rejected"
   | "provider_error"
@@ -133,7 +134,7 @@ export type ManageOutcome =
 
 /** Why the server refused. Present only on outcome "rejected"; the two refusals
  *  need different sentences ("not owed a refund" vs "nothing to cancel"). */
-export type ManageRejectReason = "not_eligible" | "not_subscribed";
+export type ManageRejectReason = "not_eligible" | "not_subscribed" | "policy_not_in_effect";
 
 export interface ManageResult {
   ok: boolean;
@@ -204,7 +205,9 @@ function asResult(raw: unknown): ManageResult {
   const rec = (raw ?? {}) as Record<string, unknown>;
   const outcome = (typeof rec.outcome === "string" ? rec.outcome : "provider_error") as ManageOutcome;
   const reason =
-    rec.reason === "not_eligible" || rec.reason === "not_subscribed" ? (rec.reason as ManageRejectReason) : null;
+    rec.reason === "not_eligible" || rec.reason === "not_subscribed" || rec.reason === "policy_not_in_effect"
+      ? (rec.reason as ManageRejectReason)
+      : null;
   return {
     ok: rec.ok === true,
     outcome,

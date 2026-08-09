@@ -341,3 +341,99 @@ describe("0117 - refund_eligibility counts every real run and only real runs", (
     expect(sql0117).not.toMatch(/GRANT\s+EXECUTE ON FUNCTION[^;]*\bTO[^;]*\b(anon|public)\b/i);
   });
 });
+
+// ── 0118: the refund actually lands, and nothing stays stuck ─────────────────
+describe("0118 - an approved refund moves the money AND the entitlement", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+  const body0118 = sql0118.replace(/--[^\n]*/g, " ");
+
+  test("the webhook handles adjustment.* instead of dropping it", () => {
+    expect(webhook).toMatch(/eventType\.startsWith\('adjustment\.'\)/);
+    expect(webhook).toMatch(/rpc\('apply_billing_refund'/);
+    // Only an APPROVED refund moves anything: pending_approval and rejected, and
+    // credit/chargeback adjustments, must record nothing.
+    expect(webhook).toMatch(/adjAction !== 'refund' \|\| status !== 'approved'/);
+  });
+
+  test("the offsetting revenue row is negative and deduped on the adjustment event", () => {
+    expect(sql0118).toMatch(/-abs\(p_amount_cents\)/);
+    expect(sql0118).toMatch(/ON CONFLICT \(source, external_id\) WHERE external_id IS NOT NULL DO NOTHING/);
+  });
+
+  test("the entitlement is revoked ONLY for a full refund, under 0109's ordering guard", () => {
+    expect(sql0118).toMatch(/IF v_full AND v_user_id IS NOT NULL THEN/);
+    expect(sql0118).toMatch(/AND \(subscription_event_at IS NULL OR v_at >= subscription_event_at\)/);
+    // A partial refund must not end a subscription the user still pays for.
+    expect(sql0118).toMatch(/v_full\s+boolean := COALESCE\(p_is_full, false\)/);
+  });
+
+  test("a matching accepted self-serve refund is itself proof of a full refund", () => {
+    expect(sql0118).toMatch(/WHERE action = 'refund_request'\s*\n\s*AND outcome = 'accepted'/);
+    expect(sql0118).toMatch(/IF FOUND THEN\s*\n\s*v_full := true;/);
+  });
+
+  test("still idempotent on the Paddle event id", () => {
+    expect(sql0118).toMatch(/ON CONFLICT \(event_id\) DO NOTHING/);
+    expect(sql0118).toMatch(/IF v_rows = 0 THEN\s*\n\s*RETURN 'duplicate';/);
+  });
+});
+
+describe("0118 - a dry run consumes nothing", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+
+  test("'dry_run' is an allowed outcome", () => {
+    expect(sql0118).toMatch(/CHECK \(outcome IN \('pending', 'accepted', 'rejected', 'provider_error', 'misconfigured', 'dry_run'\)\)/);
+  });
+
+  test("and it is OUTSIDE both idempotency indexes, so a rehearsal is repeatable", () => {
+    const predicates = sql0118.match(/AND outcome IN \('pending', 'accepted'\)/g) ?? [];
+    expect(predicates).toHaveLength(2);
+    expect(sql0118).not.toMatch(/outcome IN \([^)]*'dry_run'[^)]*\)\s*\n\s*AND paddle_/);
+  });
+
+  test("the edge function settles a dry run as dry_run, never as accepted", () => {
+    expect(edge).toMatch(/settleClaim\('dry_run'/);
+    expect(edge).toMatch(/outcome: 'dry_run', dry_run: true/);
+    expect(edge).not.toMatch(/settleClaim\('accepted', \{ ok: true, status: 0/);
+  });
+});
+
+describe("0118 - stranded claims are released", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+
+  test("a sweeper exists and settles pending rows into the retryable state", () => {
+    expect(sql0118).toMatch(/CREATE OR REPLACE FUNCTION public\.sweep_stale_billing_claims/);
+    expect(sql0118).toMatch(/SET outcome\s+= 'provider_error',\s*\n\s*provider_error = 'stale_claim_swept'/);
+    expect(sql0118).toMatch(/WHERE outcome = 'pending'\s*\n\s*AND created_at < now\(\) - p_older_than/);
+  });
+
+  test("it is scheduled, and re-applying does not stack duplicate cron jobs", () => {
+    expect(sql0118).toMatch(/cron\.schedule\(\s*\n?\s*'sweep-stale-billing-claims'/);
+    expect(sql0118).toMatch(/cron\.unschedule\('sweep-stale-billing-claims'\)/);
+  });
+});
+
+describe("0118 - 0116's role check is repaired", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+  const body0118 = sql0118.replace(/--[^\n]*/g, " ");
+
+  test("block_self_tier_insert goes through the helper, not the GUC that is never set", () => {
+    expect(sql0118).toMatch(/CREATE OR REPLACE FUNCTION public\.block_self_tier_insert/);
+    expect(sql0118).toMatch(/IF public\.billing_request_role\(\) = 'service_role' THEN/);
+    // The raw legacy GUC may appear only inside the helper's own COALESCE.
+    const raw = body0118.match(/current_setting\('request\.jwt\.claim\.role'/g) ?? [];
+    expect(raw).toHaveLength(1);
+  });
+
+  test("the helper is callable from a SECURITY INVOKER trigger", () => {
+    // Without DEFINER + an authenticated grant, the trigger would raise
+    // permission denied on every self-insert.
+    expect(sql0118).toMatch(/CREATE OR REPLACE FUNCTION public\.billing_request_role\(\)[\s\S]*?SECURITY DEFINER/);
+    expect(sql0118).toContain("GRANT  EXECUTE ON FUNCTION public.billing_request_role() TO authenticated;");
+    expect(sql0118).toMatch(/REVOKE EXECUTE ON FUNCTION public\.billing_request_role\(\) FROM anon/);
+  });
+
+  test("the clamp itself is unchanged: subscription_event_at still reset", () => {
+    expect(sql0118).toMatch(/NEW\.subscription_event_at := NULL;/);
+  });
+});

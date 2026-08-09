@@ -113,6 +113,28 @@ verify_jwt = true
 # Never deploy with --no-verify-jwt.
 verify_jwt = true
 
+[functions.paddle-webhook]
+# Paddle sends no Supabase JWT, so the gateway must NOT demand one. The function
+# is its own auth boundary: a Paddle source-IP allowlist, then an HMAC-SHA256
+# signature over `ts:rawBody` with a 5-minute replay window, then event-id
+# idempotency in apply_billing_event. Undeclared until 0118, which meant its
+# verify_jwt was whatever the last manual deploy passed - and the CLI default is
+# TRUE, so the next redeploy without a flag would have 401'd every Paddle
+# delivery and silently stopped all billing.
+verify_jwt = false
+
+[functions.rewarded-ssv]
+# AdMob server-side verification callback: Google sends no Supabase JWT. The
+# function verifies an ECDSA signature against Google's rotating verifier keys
+# and dedupes on transaction_id. Same redeploy hazard as paddle-webhook.
+verify_jwt = false
+
+[functions.peer-respond]
+# The informant has NO account, so there is no JWT to verify. Anon key + CORS at
+# the edge; the function itself validates a hashed one-time token and is the only
+# write path for informant consent/observation rows.
+verify_jwt = false
+
 [functions.oauth-naver]
 # Pre-auth endpoint - the function IS the auth boundary: it validates the user
 # via Naver's OAuth and only then mints a Supabase session. (Kakao uses the

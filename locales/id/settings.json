@@ -242,7 +242,9 @@
       "alreadyRequested": "Sudah ada permintaan yang tercatat, jadi tidak dikirim dua kali.",
       "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
       "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan.",
-      "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan."
+      "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan.",
+      "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya.",
+      "policyNotInEffect": "Ketentuan pengembalian dana yang direvisi belum berlaku. Untuk sekarang, ajukan pengembalian dana lewat email."
     },
     "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
     "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",
