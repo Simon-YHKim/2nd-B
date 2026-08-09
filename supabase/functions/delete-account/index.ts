@@ -1,4 +1,4 @@
-// delete-account Edge Function — terminal account erasure (GDPR Art.17 /
+// delete-account Edge Function -- terminal account erasure (GDPR Art.17 /
 // PIPA right to deletion).
 //
 // Why a service-role function: most user-owned tables are erased only by an
@@ -10,14 +10,16 @@
 // nulled) as XPRIZE audit evidence rather than cascade-erased.
 // Several of those (memorized_patterns, xp_events,
 // personas, the append-only consent_records ledger) have NO client DELETE
-// policy, so a client-side wipe can never reach them. And public.users is NOT
-// FK-linked to auth.users, so deleting the auth row alone leaves public.users +
-// all its children intact. True erasure therefore needs the service role to:
-//   1. DELETE public.users  -> cascade erases every user_id-owned table
-//   2. delete the auth.users row -> no orphaned login
+// policy, so a client-side wipe can never reach them. Since migration 0107,
+// public.users.id -> auth.users(id) is ON DELETE CASCADE, so the service role:
+//   1. deletes the auth.users row FIRST -> Postgres cascades the profile and
+//      every user_id-owned table in one transaction, and no login can outlive
+//      the data (the ghost-account failure mode of the old profile-first order)
+//   2. deletes public.users explicitly after, as an idempotent safety net for
+//      any environment whose DB predates the 0107 cascade FK
 //
 // IDOR-safe: the account erased is ALWAYS the caller's own, derived from the
-// gateway-verified JWT (verify_jwt=true). The body is ignored — we never accept
+// gateway-verified JWT (verify_jwt=true). The body is ignored -- we never accept
 // a target user_id from the client.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -107,30 +109,39 @@ Deno.serve(async (req: Request) => {
   await admin.from('knowledge_sources').update({ verified_by: null }).eq('verified_by', userId);
   await admin.from('knowledge_sources').update({ added_by: null }).eq('added_by', userId);
 
-  // 1. Delete the profile row — cascades to every user_id-owned table.
-  const { error: profileErr } = await admin.from('users').delete().eq('id', userId);
-  if (profileErr) {
-    return jsonResponse(req, { error: 'profile_delete_failed', detail: profileErr.message }, 500);
-  }
-
-  // 2. Delete the auth account so no orphaned login remains.
+  // 1. Delete the auth account FIRST. Migration 0107 added
+  //    public.users.id -> auth.users(id) ON DELETE CASCADE, so removing the auth
+  //    row cascades the profile and every user_id-owned table in a single
+  //    transaction. Ordering is the fix, not a detail: if this step fails,
+  //    NOTHING has been deleted (auth + profile both intact, consistent, safe to
+  //    retry). The previous order deleted the profile first, so an auth-side
+  //    failure left a ghost account that could still log in but owned no data.
   const { error: authErr } = await admin.auth.admin.deleteUser(userId);
   if (authErr) {
-    // Profile + owned data are already gone; surface the auth-side failure so
-    // the operator can finish removing the dangling auth row.
-    return jsonResponse(req, { error: 'auth_delete_failed', detail: authErr.message, profile_deleted: true }, 500);
+    return jsonResponse(req, { error: 'auth_delete_failed', detail: authErr.message }, 500);
+  }
+
+  // 2. Safety net for any environment whose DB predates the 0107 cascade FK:
+  //    delete the profile explicitly too. Idempotent -- a no-op once the cascade
+  //    above already removed it. Reported but never fatal: the login is already
+  //    gone, so the account can no longer be accessed regardless.
+  let profileErased = true;
+  const { error: profileErr } = await admin.from('users').delete().eq('id', userId);
+  if (profileErr) {
+    console.warn('[delete-account] residual profile delete failed:', profileErr.message);
+    profileErased = false;
   }
 
   // 3. Remove the user's raw clipped markdown from Storage (raw-clippings bucket,
-  // <userId>/<slug>.md) — the most PII-rich content, NOT FK-linked so the
+  // <userId>/<slug>.md) -- the most PII-rich content, NOT FK-linked so the
   // public.users cascade never reaches it. Best-effort: the account is already
   // erased, so a Storage hiccup must not fail the request.
   // Paginate: list() returns one bounded page. We delete each page then re-list
   // from the start (the deleted page is gone, so the next list surfaces the
-  // remainder) until a short/empty page — so users with >1000 clippings are
+  // remainder) until a short/empty page -- so users with >1000 clippings are
   // fully erased, not just the first page.
   // Best-effort by design (the account is already erased, so a Storage hiccup
-  // must not fail the request) — but report whether the PII was actually erased
+  // must not fail the request) -- but report whether the PII was actually erased
   // instead of unconditionally claiming success, so a partial failure is
   // observable and an operator can re-run cleanup.
   let rawClippingsErased = true;
@@ -158,5 +169,5 @@ Deno.serve(async (req: Request) => {
     rawClippingsErased = false;
   }
 
-  return jsonResponse(req, { deleted: true, raw_clippings_erased: rawClippingsErased });
+  return jsonResponse(req, { deleted: true, profile_erased: profileErased, raw_clippings_erased: rawClippingsErased });
 });

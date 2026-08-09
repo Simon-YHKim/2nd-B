@@ -1,4 +1,4 @@
-// export-account Edge Function — subject data portability (GDPR Art.20 /
+// export-account Edge Function -- subject data portability (GDPR Art.20 /
 // PIPA right to data portability).
 //
 // Returns a structured, machine-readable (JSON) bundle of all personal data the
@@ -10,11 +10,11 @@
 //
 // Why a service-role function: several owned tables (personas, memorized_patterns,
 // the append-only consent_records ledger, xp_events) have NO client SELECT path or
-// are RLS-narrowed, so a client-side gather can never reach them — the same reason
+// are RLS-narrowed, so a client-side gather can never reach them -- the same reason
 // delete-account runs service-role.
 //
 // IDOR-safe: the data returned is ALWAYS the caller's own, derived from the
-// gateway-verified JWT (verify_jwt=true). The body is ignored — we never accept a
+// gateway-verified JWT (verify_jwt=true). The body is ignored -- we never accept a
 // target user_id from the client (identical contract to delete-account).
 //
 // NOT a destructive operation: read-only. Deliberately EXCLUDED from the export
@@ -87,26 +87,61 @@ function userIdFromJwt(authHeader: string): string | null {
 // the live schema (information_schema) on 2026-06-14. `users` (profile + privacy_prefs
 // jsonb) is handled separately by primary key, and knowledge_sources is filtered to the
 // user's own contributions (added_by).
+// User-owned tables and the column that scopes a row to its owner. Re-verified
+// against the live schema (every FK to public.users) on 2026-08-07 -- the prior
+// list predated the ops_*, reasoning_*, persona-graph, srs_*, health_samples,
+// relation_people and star_tier_history tables, which held the subject's own
+// personal data yet were silently omitted from a data-portability export.
+// `users` (profile + privacy_prefs jsonb) is handled separately by primary key,
+// and knowledge_sources is filtered to the user's own contributions (added_by).
 const EXPORT_TABLES: { table: string; fk: string }[] = [
   { table: 'records', fk: 'user_id' },
   { table: 'sources', fk: 'user_id' },
   { table: 'wiki_pages', fk: 'user_id' },
   { table: 'wiki_links', fk: 'user_id' },
   { table: 'personas', fk: 'user_id' },
+  { table: 'persona_entity', fk: 'user_id' },
+  { table: 'persona_relation', fk: 'user_id' },
+  { table: 'persona_reasoning_trace', fk: 'user_id' },
   { table: 'memorized_patterns', fk: 'user_id' },
   { table: 'self_contexts', fk: 'user_id' },
   { table: 'esm_responses', fk: 'user_id' },
   { table: 'chat_usage', fk: 'user_id' },
+  { table: 'usage_counters', fk: 'user_id' },
   { table: 'consent_records', fk: 'user_id' },
+  { table: 'consent_changes', fk: 'user_id' },
   { table: 'testimonials', fk: 'user_id' },
   { table: 'xp_events', fk: 'user_id' },
+  { table: 'star_tier_history', fk: 'user_id' },
   { table: 'clipper_templates', fk: 'owner_id' },
+  { table: 'health_samples', fk: 'user_id' },
+  { table: 'ingest_log', fk: 'user_id' },
+  { table: 'reasoning_runs', fk: 'user_id' },
+  { table: 'recreation_items', fk: 'user_id' },
+  { table: 'relation_people', fk: 'user_id' },
+  { table: 'srs_cards', fk: 'user_id' },
+  { table: 'srs_reviews', fk: 'user_id' },
+  { table: 'peer_invitations', fk: 'user_id' },
+  { table: 'ops_routines', fk: 'user_id' },
+  { table: 'ops_routine_logs', fk: 'user_id' },
+  { table: 'ops_ledger', fk: 'user_id' },
+  { table: 'ops_daily_brief', fk: 'user_id' },
+  { table: 'ops_meal_plan', fk: 'user_id' },
+  { table: 'ops_milestones', fk: 'user_id' },
+  { table: 'ops_reading', fk: 'user_id' },
 ];
 
 const EXCLUDED: Record<string, string> = {
   ai_audit_log: 'hashes only; retained-after-erasure audit evidence, not the subject content',
   gemini_spend_daily: 'internal cost accounting, not personal content',
   revenue_events: 'billing/ops records; financial export out of scope for v1',
+  paddle_webhook_events: 'billing/ops records; financial export out of scope for v1',
+  rewarded_ssv_txns: 'internal ad-reward accounting, not personal content',
+  content_reports: 'safety/moderation records the user filed about others; reference other users',
+  template_blocks: 'the user’s block list; moderation data',
+  guardian_consents: 'contains a guardian’s third-party identity; available on manual request so it can be reviewed',
+  peer_observations: 'peer-contributed observations about the subject; contain informants’ third-party input, available on manual request so informant privacy is reviewed',
+  informant_consents: 'informants’ own consent records; third-party data, available on manual request',
 };
 
 Deno.serve(async (req: Request) => {
@@ -153,16 +188,22 @@ Deno.serve(async (req: Request) => {
     else tables['knowledge_sources_contributed'] = data ?? [];
   }
 
-  // raw-clippings Storage (<userId>/<slug>.md) — the original clipped markdown, NOT
+  // raw-clippings Storage (<userId>/<slug>.md) -- the original clipped markdown, NOT
   // FK-linked. Best-effort: list paginated, download each; never fail the export on a
   // Storage hiccup (the structured DB export above is the rights-grade payload).
   const storage: { path: string; markdown?: string; error?: string }[] = [];
   try {
     const PAGE = 1000;
+    // Advance an explicit offset each round. Unlike delete-account (which
+    // REMOVES each page, so re-listing from 0 surfaces the remainder), export
+    // is read-only: without an advancing offset, list() returns the SAME first
+    // page forever and a user with >=1000 clippings loops until the function
+    // times out. offset += objs.length walks the whole bucket exactly once.
+    let offset = 0;
     for (;;) {
       const { data: objs, error: listErr } = await admin.storage
         .from('raw-clippings')
-        .list(userId, { limit: PAGE });
+        .list(userId, { limit: PAGE, offset });
       if (listErr) {
         errors['raw-clippings:list'] = listErr.message;
         break;
@@ -175,6 +216,7 @@ Deno.serve(async (req: Request) => {
         else storage.push({ path, markdown: await blob.text() });
       }
       if (objs.length < PAGE) break;
+      offset += objs.length;
     }
   } catch (e) {
     errors['raw-clippings'] = String(e);
