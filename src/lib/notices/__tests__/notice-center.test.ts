@@ -11,6 +11,9 @@
 // from this suite. Keeping the decisions in composeNoticeCenter() is what makes
 // them testable at all.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { composeNoticeCenter } from "../center";
 import { noticeBodyToBlocks, parseNoticeMarkdown, renderableBlocks } from "../markdown";
 import { pickPopupNotice, visibleNotices } from "../select";
@@ -444,5 +447,78 @@ describe("no orphan bullet for the language that ran short", () => {
     const blocks = noticeBodyToBlocks("- 하나\n- 둘", "- one\n- two");
     expect(renderableBlocks(blocks, true)).toHaveLength(2);
     expect(renderableBlocks(blocks, false)).toHaveLength(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Wiring invariants, asserted against the source text.
+//
+// These live in components, so a render test would be the natural tool and is
+// unavailable here (RN 0.85 + jest 29). The alternative is not "no test": each
+// rule below has already been a shipped bug once, and each is a single line
+// that a plausible edit removes while every other test stays green. Reading the
+// source is the cheapest guard that fails loudly when that happens - the same
+// tactic the migration suites use against SQL.
+// ---------------------------------------------------------------------------
+
+describe("home popup wiring", () => {
+  const home = readFileSync(
+    join(__dirname, "..", "..", "..", "components", "deep-space", "ConstellationHome.tsx"),
+    "utf8",
+  );
+
+  test("dismissNotice records the read", () => {
+    expect(home).toMatch(/const dismissNotice = \(\) => \{[\s\S]*?markSeen\(shownNotice\.id\)/);
+  });
+
+  test("the home popup records a read on every dismissal route", () => {
+    // onClose is the scrim tap and the Android hardware back button. Recording
+    // only on 확인 made an unread major re-interrupt on every cold start,
+    // forever, for anyone who dismisses that way - and it made the runbook's
+    // read-count query undercount the notice's real reach.
+    for (const handler of ["onClose", "onList", "onConfirm"]) {
+      const at = home.indexOf(`${handler}={() => {`);
+      expect(at).toBeGreaterThan(-1);
+      expect(home.slice(at, at + 120)).toContain("dismissNotice()");
+    }
+  });
+
+  test("the popup still yields to the coachmark overlay", () => {
+    // HomeCoachmarks is a plain View sibling in DeepSpaceShell while this is a
+    // Modal, so without the interlock the Modal wins z-order while the
+    // coachmark's BackHandler still swallows the back button.
+    expect(home).toMatch(/coachmarksDue === false/);
+  });
+
+  test("the popup is driven by popupNotice, never by unreadCount", () => {
+    // An unread `minor` raises unreadCount, and minor must never interrupt.
+    expect(home).toMatch(/const autoNotice = noticeCenter\.popupNotice/);
+    expect(home).not.toMatch(/noticeCenter\.unreadCount > 0 &&\s*\n?\s*coachmarksDue/);
+  });
+
+  test("the bell opens the newest UNREAD notice, not a positional row", () => {
+    expect(home).toMatch(/noticeCenter\.notices\.find\(\(notice\) => noticeCenter\.isUnread\(notice\.id\)\)/);
+  });
+});
+
+describe("inbox wiring", () => {
+  const screen = readFileSync(join(__dirname, "..", "..", "..", "app", "notices.tsx"), "utf8");
+
+  test("the open dialog is keyed by id, never by a list index", () => {
+    // `data` gains remote rows at the FRONT when the fetch lands, so an index
+    // captured on tap pointed at a different notice a round trip later: the
+    // dialog swapped its own content and 확인 marked the wrong one read.
+    expect(screen).toMatch(/const \[selectedId, setSelectedId\] = useState<string \| null>\(null\)/);
+    expect(screen).not.toMatch(/useState<number \| null>\(null\)/);
+    expect(screen).toMatch(/data\.findIndex\(\(item\) => item\.id === selectedId\)/);
+  });
+
+  test("the pager moves by id too", () => {
+    expect(screen).toMatch(/setSelectedId\(data\[selectedIndex - 1\]\.id\)/);
+    expect(screen).toMatch(/setSelectedId\(data\[selectedIndex \+ 1\]\.id\)/);
+  });
+
+  test("the body renders through renderableBlocks", () => {
+    expect(screen).toMatch(/renderableBlocks\(notice\.body, ko\)/);
   });
 });
