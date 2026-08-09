@@ -53,5 +53,6 @@ export function adaptRemoteNotice(notice: RemoteNotice): ProductNotice {
     title: { ko: notice.titleKo, en: notice.titleEn },
     body: noticeBodyToBlocks(notice.bodyKo, notice.bodyEn),
     sortAt: notice.publishedAt,
+    minAppVersion: notice.minAppVersion,
   };
 }

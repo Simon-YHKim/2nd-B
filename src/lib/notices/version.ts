@@ -15,35 +15,17 @@
 //     incident notice that fails to reach people is a worse outcome than one
 //     that reaches a build it does not quite apply to.
 
-/** Numeric release segments, prerelease/build metadata discarded. Returns null
- *  when the input is not "1", "1.2" or "1.2.3" shaped. */
-function parseVersion(value: string): number[] | null {
-  const core = value.trim().split(/[-+]/)[0] ?? "";
-  if (core === "") return null;
-  const parts = core.split(".");
-  if (parts.length === 0 || parts.length > 3) return null;
-  const numbers: number[] = [];
-  for (const part of parts) {
-    if (!/^[0-9]+$/.test(part)) return null;
-    numbers.push(Number(part));
-  }
-  return numbers;
-}
+import { compareSemver } from "../release/semver";
 
 /** -1 / 0 / 1, or null when either side is unparseable. Missing segments count
- *  as 0, so "1.2" === "1.2.0". */
-export function compareVersions(a: string, b: string): -1 | 0 | 1 | null {
-  const left = parseVersion(a);
-  const right = parseVersion(b);
-  if (!left || !right) return null;
-  for (let index = 0; index < 3; index += 1) {
-    const l = left[index] ?? 0;
-    const r = right[index] ?? 0;
-    if (l < r) return -1;
-    if (l > r) return 1;
-  }
-  return 0;
-}
+ *  as 0, so "1.2" === "1.2.0".
+ *
+ *  The implementation moved to src/lib/release/semver.ts when the release
+ *  pipeline started needing the same comparison to classify a bump. One
+ *  comparator, two callers: a second copy is how "0.10.0" ends up below
+ *  "0.9.0" in the half of the feature nobody re-read. Import direction is
+ *  notices -> release and never back, which keeps check:cycles at zero. */
+export const compareVersions = compareSemver;
 
 /**
  * Should a notice carrying `minAppVersion` be shown to a build running
