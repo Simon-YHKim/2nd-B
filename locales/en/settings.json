@@ -177,7 +177,6 @@
   "signOut": "Sign out",
   "couldntSignOut": "Couldn't sign out",
   "signOutError": "Something went wrong while signing out. Please try again in a moment.",
-  "buildInfo": "Build 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "Deleted {{n}}",
   "deletedNWiki": "Deleted {{n}} wiki pages",
   "deletedNCaptures": "Deleted {{n}} captures",

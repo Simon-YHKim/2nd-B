@@ -45,6 +45,7 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { buildInfoLine } from "@/lib/build-info";
 import { useNoticeCenter } from "@/app/notices";
 import {
   deleteAllChatUsage,
@@ -1048,8 +1049,14 @@ export default function Settings() {
           />
         </View>
 
+        {/* The real bundle identity, not a frozen string. This line existed to
+            answer "which bundle is this?" during an incident — the 2026-06-26
+            head-touch crash was prolonged by embedded-vs-OTA uncertainty — and a
+            hardcoded locale value ("Build 0.0.6 · OTA ota-2026-06-27a", still
+            claiming 0.0.6 on a 0.1.0 build) defeats exactly that purpose.
+            buildInfoLine() reads expo-updates, same as the account screen. */}
         <Text variant="caption" color="textMuted" style={styles.buildMarker}>
-          {t("buildInfo")}
+          {buildInfoLine()}
         </Text>
       </ScrollView>
 </KeyboardAvoidingView>

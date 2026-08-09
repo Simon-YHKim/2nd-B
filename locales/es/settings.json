@@ -177,7 +177,6 @@
   "signOut": "Cerrar sesión",
   "couldntSignOut": "No se pudo cerrar sesión",
   "signOutError": "Algo salió mal al cerrar sesión. Inténtalo de nuevo en un momento.",
-  "buildInfo": "Compilación 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "Se eliminaron {{n}}",
   "deletedNWiki": "Se eliminaron {{n}} páginas wiki",
   "deletedNCaptures": "Se eliminaron {{n}} capturas",

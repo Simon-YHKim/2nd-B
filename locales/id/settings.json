@@ -177,7 +177,6 @@
   "signOut": "Keluar",
   "couldntSignOut": "Tidak dapat keluar",
   "signOutError": "Terjadi kesalahan saat keluar. Coba lagi sebentar lagi.",
-  "buildInfo": "Info build 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "{{n}} dihapus",
   "deletedNWiki": "{{n}} halaman wiki dihapus",
   "deletedNCaptures": "{{n}} tangkapan dihapus",
