@@ -79,10 +79,28 @@ export function verdictFor(input: {
 /** Server verdict codes from refund_eligibility(). */
 export type RefundStatus =
   | "eligible"
+  | "refund_already_requested"
   | "used_beyond_free"
   | "window_passed"
   | "no_payment"
   | "unknown";
+
+/** Narrow the RPC's untrusted JSON status onto the client vocabulary. Unknown
+ *  values fail closed so a new server verdict cannot accidentally open the
+ *  refund action before the app knows how to explain it. */
+export function parseRefundStatus(raw: unknown): RefundStatus {
+  switch (raw) {
+    case "eligible":
+    case "refund_already_requested":
+    case "used_beyond_free":
+    case "window_passed":
+    case "no_payment":
+    case "unknown":
+      return raw;
+    default:
+      return "unknown";
+  }
+}
 
 /** The verdict plus every number behind it. The screen shows these verbatim: a
  *  user told "no" is entitled to see which count produced that answer. */
@@ -153,10 +171,9 @@ const UNKNOWN: RefundEligibility = { status: "unknown" };
 function asEligibility(raw: unknown): RefundEligibility {
   if (!raw || typeof raw !== "object") return UNKNOWN;
   const rec = raw as Record<string, unknown>;
-  const status = typeof rec.status === "string" ? rec.status : "unknown";
   // Spread first so unknown extra fields survive for display, then pin `status`
   // to the narrowed union: the RPC is the authority on the verdict vocabulary.
-  return { ...rec, status: status as RefundStatus } as RefundEligibility;
+  return { ...rec, status: parseRefundStatus(rec.status) } as RefundEligibility;
 }
 
 /** Read the refund verdict for the signed-in user. Own-row only: the RPC rejects
@@ -249,6 +266,8 @@ export function refundReasonKey(status: RefundStatus): string {
   switch (status) {
     case "eligible":
       return "eligible";
+    case "refund_already_requested":
+      return "alreadyRequested";
     case "used_beyond_free":
       return "usedBeyondFree";
     case "window_passed":

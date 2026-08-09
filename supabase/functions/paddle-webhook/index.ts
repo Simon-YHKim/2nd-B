@@ -8,8 +8,8 @@
 //
 // DEPLOY / CONFIG (Simon, AFTER Paddle account approval):
 //   1. Paddle > Notifications: add a destination at this function URL; subscribe to
-//      subscription.created / subscription.updated / subscription.canceled and
-//      transaction.completed.
+//      subscription.created / subscription.updated / subscription.canceled,
+//      transaction.completed, adjustment.created, and adjustment.updated.
 //   2. Deploy with verify_jwt=false (Paddle sends no Supabase JWT).
 //   3. Secrets (supabase secrets set): PADDLE_WEBHOOK_SECRET (from the notification
 //      destination), and the price->tier map PADDLE_PRICE_CORTEX / _BRAIN, each a
@@ -40,6 +40,8 @@ interface PaddleEvent {
     // is what made [설정 -> 구독 관리] impossible to build.
     id?: string;
     subscription_id?: string;
+    transaction_id?: string;
+    action?: string;
     status?: string;
     currency_code?: string;
     custom_data?: { user_id?: string } | null;
@@ -67,6 +69,13 @@ interface PaddleEvent {
     }> | null;
   };
 }
+
+const REFUND_ADJUSTMENT_STATUSES = new Set([
+  'pending_approval',
+  'approved',
+  'rejected',
+  'reversed',
+]);
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -253,6 +262,39 @@ Deno.serve(async (req: Request) => {
     const occurredAt = event.occurred_at ?? null;
     const userId = data.custom_data?.user_id ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
+
+    // Refund adjustments update only the self-service billing ledger. They
+    // return here so an adjustment can never enter the entitlement writer.
+    const isAdjustmentEvent = eventType === 'adjustment.created' || eventType === 'adjustment.updated';
+    if (isAdjustmentEvent) {
+      if (data.action !== 'refund') return json({ ok: true, ignored: 'non_refund_adjustment' });
+
+      const adjustmentId = typeof data.id === 'string' ? data.id.trim() : '';
+      const adjustmentTransactionId = typeof data.transaction_id === 'string' ? data.transaction_id.trim() : '';
+      const adjustmentStatus = typeof data.status === 'string' ? data.status : '';
+      if (!adjustmentId || !adjustmentTransactionId || !REFUND_ADJUSTMENT_STATUSES.has(adjustmentStatus)) {
+        return json({ error: 'invalid_refund_adjustment' }, 400);
+      }
+
+      const admin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { persistSession: false } },
+      );
+      const { data: result, error } = await admin.rpc('record_paddle_refund_adjustment', {
+        p_event_id: eventId,
+        p_event_type: eventType,
+        p_adjustment_id: adjustmentId,
+        p_transaction_id: adjustmentTransactionId,
+        p_status: adjustmentStatus,
+        p_occurred_at: occurredAt,
+      });
+      if (error) {
+        console.error('[paddle-webhook] refund adjustment apply failed:', error.message);
+        return json({ error: 'refund_adjustment_apply_failed' }, 500);
+      }
+      return json({ ok: true, result });
+    }
 
     // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the

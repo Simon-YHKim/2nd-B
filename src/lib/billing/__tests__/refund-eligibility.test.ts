@@ -15,6 +15,7 @@ import {
   canRequestRefund,
   formatPaymentMethod,
   freeAllowanceForSpan,
+  parseRefundStatus,
   refundDaysLeft,
   refundReasonKey,
   REFUND_POLICY_EFFECTIVE_AT,
@@ -114,7 +115,7 @@ describe("audit-log fallback only applies when the run ledger is empty", () => {
 });
 
 describe("the button opens only on the server's 'eligible'", () => {
-  test.each(["used_beyond_free", "window_passed", "no_payment", "unknown"] as const)(
+  test.each(["refund_already_requested", "used_beyond_free", "window_passed", "no_payment", "unknown"] as const)(
     "%s does not open the refund button",
     (status) => {
       expect(canRequestRefund({ status })).toBe(false);
@@ -125,7 +126,13 @@ describe("the button opens only on the server's 'eligible'", () => {
     expect(canRequestRefund({ status: "eligible" })).toBe(true);
   });
 
+  test("an existing refund request gets its own explanation", () => {
+    expect(parseRefundStatus("refund_already_requested")).toBe("refund_already_requested");
+    expect(refundReasonKey("refund_already_requested")).toBe("alreadyRequested");
+  });
+
   test("an unrecognised server verdict is treated as not eligible", () => {
+    expect(parseRefundStatus("something_new")).toBe("unknown");
     expect(canRequestRefund({ status: "something_new" as never })).toBe(false);
     expect(refundReasonKey("something_new" as never)).toBe("unknown");
   });
