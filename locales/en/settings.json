@@ -181,5 +181,69 @@
   "deletedNWiki": "Deleted {{n}} wiki pages",
   "deletedNCaptures": "Deleted {{n}} captures",
   "resetNDays": "Reset {{n}} days of usage",
-  "wipeComplete": "Full wipe complete: records {{r}} · sources {{s}} · wiki {{w}} · usage {{u}}"
+  "wipeComplete": "Full wipe complete: records {{r}} · sources {{s}} · wiki {{w}} · usage {{u}}",
+  "subscription": {
+    "title": "Manage subscription",
+    "sectionLabel": "Subscription",
+    "rowLabel": "Manage subscription",
+    "rowSub": "Billing status, cancellation, refund request",
+    "currentPlan": "Current plan",
+    "tierName": {
+      "free": "Stargazer",
+      "plus": "Voyager",
+      "pro": "North Star"
+    },
+    "judgeComp": "Paid features are open on this judge account at no charge.",
+    "lastPaidOn": "Last charged: {{date}}",
+    "paymentMethod": "Payment method: {{method}}",
+    "freeBody": "You are on the free plan, so there is no active paid subscription.",
+    "loadFailed": "Could not load your subscription details.",
+    "retry": "Try again",
+    "keep": "Keep it",
+    "supportLine": "Need a hand? Write to {{email}} and we reply within 2 business days.",
+    "viewPolicy": "Read the refund policy",
+    "viewPlans": "See plans",
+    "cancel": {
+      "title": "Cancel subscription",
+      "body": "Your subscription renews automatically until you cancel. Cancelling stops the next charge and keeps your paid features until the period you already paid for ends.",
+      "cta": "Cancel subscription",
+      "unavailable": "This subscription cannot be cancelled from the app. If you bought it through a store, cancel it in that store's subscription settings.",
+      "confirmTitle": "Cancel this subscription?",
+      "confirmAtRenewal": "It will not renew after {{date}}. Paid features stay open until then.",
+      "confirmImmediate": "Paid features close right away, and the remaining time is not refunded automatically.",
+      "confirmCta": "Cancel it",
+      "switchToImmediate": "Cancel immediately instead",
+      "switchToRenewal": "Cancel at the next renewal instead",
+      "periodEnd": "the end of the paid period",
+      "alreadyScheduled": "Auto-renewal is already off for this subscription. Nothing more will be charged, and paid features stay open until the paid period ends."
+    },
+    "refund": {
+      "title": "Refund",
+      "cta": "Request a refund",
+      "confirmTitle": "Request a refund?",
+      "confirmBody": "The request goes to Paddle, the seller of record. If it is approved, the full amount returns to your original payment method and paid features close.",
+      "confirmCta": "Send request",
+      "reason": {
+        "eligible": "You can request a full refund right now.",
+        "usedBeyondFree": "Usage since the payment went past what the free plan covers over the same span, so self-serve refund is not available.",
+        "windowPassed": "More than 7 days have passed since the payment, so self-serve refund is not available.",
+        "noPayment": "There is no payment on record to refund.",
+        "unknown": "We could not check refund eligibility."
+      },
+      "window": "Refund window: {{days}} of {{total}} days left",
+      "usage": "Reasoning used: {{used}} (the free plan allows {{allowance}} over the same span)",
+      "calls": "AI calls on record: {{calls}}"
+    },
+    "notice": {
+      "cancelledAtRenewal": "Cancellation is scheduled for the next renewal date.",
+      "cancelledNow": "Immediate cancellation has been submitted.",
+      "refundRequested": "Your refund request was submitted. The decision arrives by email from the payment receipt address.",
+      "alreadyRequested": "A request is already on file, so nothing was submitted twice.",
+      "refundRejected": "Self-serve refund is not available for this payment.",
+      "contactSupport": "This cannot be handled in the app right now. Please contact support."
+    },
+    "autoRenewOn": "Renews automatically on {{date}}",
+    "cancelScheduledOn": "Auto-renewal is off. Paid features stay open until {{date}}.",
+    "cancelScheduled": "Auto-renewal is off. Paid features stay open until the paid period ends."
+  }
 }

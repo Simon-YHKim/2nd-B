@@ -150,6 +150,8 @@ const ICON_PATHS: Record<string, string> = {
   upload_file: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
   campaign: '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
   bolt: '<path d="m13 2-8 12h6l-1 8 9-13h-6z"/>',
+  // Same 2dp stroke idiom: card outline + magnetic stripe, for 구독 관리.
+  credit_card: '<rect x="3" y="5.5" width="18" height="13" rx="2.2"/><path d="M3 10h18"/><path d="M6.5 14.5h4"/>',
 };
 
 function M3Icon({ name, color, size = 20, fill = false }: { name: string; color: string; size?: number; fill?: boolean }) {
@@ -662,6 +664,22 @@ export default function Settings() {
           />
         </M3Group>
 
+        {/* 구독 — the entry point docs/legal/refund-policy.md has named since
+            2026-07-17 ("앱 내 [설정 → 구독 관리]"). It is a link row, not a set of
+            buttons: cancel and refund are consequential enough to deserve their
+            own screen with the eligibility numbers next to them. */}
+        <M3SectionLabel action={<MdButton label={t("plans")} variant="text" onPress={() => router.push("/plans")} accessibilityLabel={t("plans")} />}>
+          {t("subscription.sectionLabel")}
+        </M3SectionLabel>
+        <M3Group>
+          <M3LinkRow
+            icon="credit_card"
+            label={t("subscription.rowLabel")}
+            sub={t("subscription.rowSub")}
+            onPress={() => router.push("/subscription")}
+          />
+        </M3Group>
+
         {/* 기능 */}
         <M3SectionLabel>{t("features")}</M3SectionLabel>
         <M3Group>
@@ -796,6 +814,7 @@ export default function Settings() {
                 title: t("settings"),
                 items: [
                   { key: "account", label: t("account"), route: "/account" },
+                  { key: "subscription", label: t("subscription.rowLabel"), route: "/subscription" },
                   { key: "plans", label: t("plans"), route: "/plans" },
                   { key: "privacy", label: t("privacy"), route: "/privacy" },
                   { key: "permissions", label: t("permissions"), route: "/permissions" },

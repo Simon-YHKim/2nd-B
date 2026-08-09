@@ -31,6 +31,12 @@ values ('major', '제목', 'Title', '내용', 'Body');
 미읽은 `major` 가 여러 건이어도 **한 번에 한 건, 가장 최신 것만** 뜬다. 나머지는
 목록에 미읽음으로 남는다 (한 화면 한 메시지 원칙 · 모달 겹침 금지).
 
+⚠️ **점검·장애 공지에는 `min_app_version` 을 비워둔다.** `major` 에 그 값을 적으면
+"이건 그 버전 릴리스 안내" 라는 뜻이 되어, 구버전 사용자에게 본문 아래
+**"업데이트하세요" 한 줄과 스토어 버튼**이 붙는다 (N4). 서버 점검 안내에 그게
+붙으면 엉뚱하다. 버전을 적는 건 **릴리스 안내일 때뿐**이고, 그건 손으로 쓰지 말고
+`npm run notice:release` 로 뽑는다 (`docs/RELEASE-PROCESS.md`).
+
 ```sql
 -- 조용한 안내
 insert into notices (kind, title_ko, title_en, body_ko, body_en)

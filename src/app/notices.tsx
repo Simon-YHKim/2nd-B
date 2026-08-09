@@ -455,9 +455,24 @@ export function NoticeDialog({
         : "Update";
 
   // Acting on the prompt counts as reading it, so this calls onConfirm(): the
-  // user has been told and has been sent somewhere. Dismissing instead (the
-  // scrim, or the hardware back button) leaves it unread and it returns on the
-  // next home entry, which is the behaviour every unread major already has.
+  // user has been told and has been sent somewhere.
+  //
+  // What DISMISSING does is not decided here. This dialog only reports the
+  // gesture; each caller chooses what it means, and the two callers differ:
+  //
+  //   home    every route records the read - scrim, hardware back, 리스트 and
+  //           확인 all run ConstellationHome's dismissNotice(), which calls
+  //           markSeen(). The popup already interrupted the user and put the
+  //           notice on screen, so that is what read means there. Keying it off
+  //           확인 alone is what used to make one major notice re-interrupt on
+  //           every cold start, forever, for anyone whose habit is the back
+  //           button.
+  //   inbox   /notices records only on 확인, because nothing was interrupted:
+  //           the user opened the notice themselves and can leave without
+  //           acknowledging it.
+  //
+  // Pinned by "the home popup records a read on every dismissal route" in
+  // src/lib/notices/__tests__/notice-center.test.ts.
   //
   // onConfirm() goes FIRST because on web the action is a page reload, and
   // markSeen()'s durable half is a POST to user_notice_reads. Issuing the

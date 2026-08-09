@@ -38,8 +38,17 @@ import {
   unreleasedEntry,
   type ChangelogEntry,
 } from "../src/lib/release/changelog";
-import { buildNoticeInsert, buildNoticePrecheck } from "../src/lib/release/notice-sql";
-import { classifyRelease, noticeRequired, type ReleaseClass } from "../src/lib/release/semver";
+import {
+  buildNoticeInsert,
+  buildNoticePrecheck,
+  isPublishableVersion,
+} from "../src/lib/release/notice-sql";
+import {
+  classifyRelease,
+  noticeRequired,
+  parseSemver,
+  type ReleaseClass,
+} from "../src/lib/release/semver";
 
 const ROOT = process.cwd();
 
@@ -173,6 +182,29 @@ if (!source) {
 // ---------------------------------------------------------------------------
 // Classification
 // ---------------------------------------------------------------------------
+
+// classifyRelease() returns null for two unrelated reasons: the release did not
+// move forward, or a version is unparseable. Collapsing them produces the worst
+// message in the script - "--announce v9.9.9 is not ahead of 0.0.3" blames the
+// ordering when the real problem is the "v". Rule the parse errors out here so
+// the null below can only mean one thing.
+// The announced version is held to the STRICTER shape, because it is the value
+// that ends up in notices.min_app_version and that column's CHECK wants all
+// three segments. Checking it here rather than letting buildNoticeInsert() throw
+// at the bottom means the operator gets the message before the draft is built.
+if (!isPublishableVersion(announced)) {
+  fail(`"${announced}" cannot be published as a version.`, [
+    "It came from --announce, or from app.json expo.version.",
+    'Write all three segments and no "v" prefix (1.5.0, not v1.5 or 1.5).',
+    "notices.min_app_version has the same CHECK.",
+  ]);
+}
+if (parseSemver(previous) === null) {
+  fail(`the previous version "${previous}" is not a major.minor.patch version.`, [
+    "It came from --previous, or from the newest released CHANGELOG.md heading.",
+    "Pass --previous <x.y.z> to say what this release is measured against.",
+  ]);
+}
 
 const derived: ReleaseClass | null = classifyRelease(previous, announced);
 const release: ReleaseClass | null = forceMajor ? "major" : derived;
