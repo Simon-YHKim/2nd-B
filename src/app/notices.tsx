@@ -284,11 +284,28 @@ export function useNoticeCenter(userId: string | null) {
     // an optimistic markSeen that landed while they were in flight.
     void Promise.all([loadPersistedReadIds(userId), fetchReadNoticeIds(userId)])
       .then(([local, server]) => {
-        if (cancelled) return;
+        // Merge UNCONDITIONALLY, even when this instance was cancelled. The
+        // store is module-level and grows monotonically, so a result that lands
+        // after an unmount is still correct for every instance still mounted -
+        // and three of them mount at once (home, /settings, /notices). Dropping
+        // it on `cancelled` was a way for a read the server already knows about
+        // to never reach any render.
         mergeReadIds(userId, local);
         mergeReadIds(userId, server);
+        // Re-sync THIS instance's revision explicitly. mergeReadIds only
+        // notify()s when it actually changed something, so whenever another
+        // instance merged the same ids first, this one gets no notification and
+        // its readRevision stays at whatever it captured on mount - leaving a
+        // stale, empty readIds behind a hydrated gate. That is exactly the
+        // shape of the observed defect: the server row came back 200 with the
+        // right id, yet the popup, the bell dot and the inbox all still read
+        // "unread" for as long as the screen stayed open.
+        if (!cancelled) setReadRevision(getRevision());
       })
       .finally(() => {
+        // After the merge above, never before: hydrated is what opens the popup
+        // gate, and opening it while readIds is still empty shows an already
+        // read notice.
         if (!cancelled) setReadsHydrated(true);
       });
 
