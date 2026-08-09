@@ -16,7 +16,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensio
 import { router } from "expo-router";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { LATEST_NOTICE, NoticeDialog, useNoticeCenter } from "@/app/notices";
+import { NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
@@ -460,11 +460,17 @@ export function ConstellationHome({
           : bubble.kind === "star"
             ? t(`ds.home.star.${bubble.id}.line`)
             : t("ds.home.bubble.intro");
+  // The popup is driven by popupNotice, NOT by unreadCount. Once the notices
+  // table exists an unread `minor` row also raises unreadCount, and minor is
+  // explicitly not allowed to interrupt - keying the gate off the count would
+  // pop a dialog for it. popupNotice already applies the precedence rules
+  // (src/lib/notices/center.ts) and is null when nothing may interrupt.
+  const autoNotice = noticeCenter.popupNotice;
   const autoNoticeVisible =
-    noticeCenter.hydrated &&
-    noticeCenter.unreadCount > 0 &&
-    coachmarksDue === false &&
-    !autoNoticeDismissed;
+    noticeCenter.hydrated && autoNotice !== null && coachmarksDue === false && !autoNoticeDismissed;
+  // The bell opens the newest notice in the merged list, read or not.
+  const manualNotice = noticeCenter.notices[0] ?? null;
+  const shownNotice = manualNoticeVisible ? manualNotice : autoNotice;
   const reasoningMode: ReasoningBubbleMode =
     task.phase === "running" && task.resultHref === "/reasoning"
       ? "running"
@@ -789,26 +795,28 @@ export function ConstellationHome({
           </View>
         </View>
       </View>
-      <NoticeDialog
-        visible={autoNoticeVisible || manualNoticeVisible}
-        notice={LATEST_NOTICE}
-        index={0}
-        showPager={false}
-        onClose={() => {
-          setAutoNoticeDismissed(true);
-          setManualNoticeVisible(false);
-        }}
-        onList={() => {
-          setAutoNoticeDismissed(true);
-          setManualNoticeVisible(false);
-          router.push("/notices");
-        }}
-        onConfirm={() => {
-          setAutoNoticeDismissed(true);
-          setManualNoticeVisible(false);
-          void noticeCenter.markSeen(LATEST_NOTICE.id);
-        }}
-      />
+      {shownNotice ? (
+        <NoticeDialog
+          visible={autoNoticeVisible || manualNoticeVisible}
+          notice={shownNotice}
+          index={0}
+          showPager={false}
+          onClose={() => {
+            setAutoNoticeDismissed(true);
+            setManualNoticeVisible(false);
+          }}
+          onList={() => {
+            setAutoNoticeDismissed(true);
+            setManualNoticeVisible(false);
+            router.push("/notices");
+          }}
+          onConfirm={() => {
+            setAutoNoticeDismissed(true);
+            setManualNoticeVisible(false);
+            void noticeCenter.markSeen(shownNotice.id);
+          }}
+        />
+      ) : null}
       <ReasoningLimitSheet
         visible={limitSheetVisible}
         onClose={() => setLimitSheetVisible(false)}
