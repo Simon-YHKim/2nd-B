@@ -3,6 +3,7 @@ import {
   buildNativeNaverCallbackUrl,
   consumeAuthCallbackUrl,
   isNativeNaverCallbackState,
+  passwordUpdateFailure,
   sendPasswordResetEmail,
   updatePassword,
 } from "../auth";
@@ -122,5 +123,53 @@ describe("Naver native OAuth bridge", () => {
     expect(buildNativeNaverCallbackUrl("?code=code-1&state=native.abc123")).toBe(
       "secondbrain:///oauth-callback?code=code-1&state=native.abc123",
     );
+  });
+});
+
+// Supabase Auth turned on "Require current password when updating" (Email
+// provider, 2026-08-10). Codes below were measured against the live project
+// with the committed QA account on that date; the missing and the WRONG
+// current-password cases return HTTP 400 with IDENTICAL message text and differ
+// only by error_code, which is why the UI must never branch on the message.
+// Also measured that day: a genuine recovery session updates the password with
+// NO current_password and gets 200, so the toggle does not break "forgot
+// password". The required/invalid branches exist for a future change screen and
+// as insurance if that exemption ever moves.
+describe("passwordUpdateFailure", () => {
+  test.each([
+    ["current_password_required", "current_password_required"],
+    ["current_password_invalid", "current_password_invalid"],
+    ["weak_password", "weak_password"],
+    ["reauthentication_needed", "reauthentication_needed"],
+    // auth-js exposes a second reauth code; both mean "sign in again".
+    ["reauthentication_not_valid", "reauthentication_needed"],
+  ])("maps %s", (code, expected) => {
+    expect(passwordUpdateFailure({ code })).toBe(expected);
+  });
+
+  test("anything else stays unknown so the generic copy still shows", () => {
+    expect(passwordUpdateFailure({ code: "otp_expired" })).toBe("unknown");
+    expect(passwordUpdateFailure(new Error("boom"))).toBe("unknown");
+    expect(passwordUpdateFailure(null)).toBe("unknown");
+  });
+});
+
+describe("updatePassword current_password wiring", () => {
+  test("omits current_password when the caller has none (recovery flow)", async () => {
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+    __setSupabaseClientForTests({ auth: { updateUser } } as never);
+    await updatePassword("new-password-123");
+    expect(updateUser).toHaveBeenCalledWith({ password: "new-password-123" });
+  });
+
+  test("sends it as a FIELD on UserAttributes, not a second argument", async () => {
+    const updateUser = jest.fn().mockResolvedValue({ error: null });
+    __setSupabaseClientForTests({ auth: { updateUser } } as never);
+    await updatePassword("new-password-123", "old-password-123");
+    expect(updateUser).toHaveBeenCalledWith({
+      password: "new-password-123",
+      current_password: "old-password-123",
+    });
+    expect(updateUser).toHaveBeenCalledTimes(1);
   });
 });
