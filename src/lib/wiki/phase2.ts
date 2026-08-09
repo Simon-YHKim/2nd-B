@@ -13,7 +13,7 @@
 
 import { readPhase1 } from "./phase1";
 import { materializeGraphFromPhase1 } from "./materialize";
-import { getSource, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
+import { getSource, getWikiPage, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { slugForTitle, toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
 import { embedAndStorePage } from "./embeddings";
@@ -82,7 +82,17 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   // slugForTitle (not toSlug) so a title written purely in CJK/Cyrillic/Thai
   // doesn't collapse to "" and overwrite another foreign-titled page on the
   // (user_id, slug) upsert key.
-  const slug = slugForTitle(source.title);
+  const baseSlug = slugForTitle(source.title);
+  // Do not clobber somebody else's page. The upsert below keys on
+  // (user_id, slug), so a source whose title slugs onto an existing entity or
+  // concept page — or onto a DIFFERENT source's page — would silently flip that
+  // row to kind='source', replace its body_md and steal its source_id.
+  // materialize.ts already refuses to overwrite (it get-or-creates); this is the
+  // one writer that did not. Disambiguate instead, deterministically, so a
+  // re-promotion of the same source still lands on the same page.
+  const owner = await getWikiPage(userId, baseSlug);
+  const slug =
+    owner && owner.source_id !== source.id ? `${baseSlug}-${source.id.slice(0, 8)}` : baseSlug;
 
   // Merge Phase 1 concepts into tags (when present). Concepts are the
   // LLM's distilled abstract ideas — natural tag candidates. Dedupe to
