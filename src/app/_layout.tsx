@@ -30,6 +30,7 @@ import { PremiumTabBar } from "@/components/premium";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
+import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 
 // Expo Router uses a route's named `ErrorBoundary` export as that segment's
 // render-error fallback. Exporting it from the root layout makes it the app-wide
@@ -71,6 +72,15 @@ export default function RootLayout() {
       void SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // The first-star chat nudge is persisted to AsyncStorage but nothing read it
+  // back, so on native it re-armed on every cold start and re-nudged users who
+  // had already been through it. Load it once, here, before any quant screen can
+  // consume it. Fire-and-forget: the helper never throws and the worst case is
+  // one extra nudge.
+  useEffect(() => {
+    void hydrateFirstStarChatNudge();
+  }, []);
 
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated

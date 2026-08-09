@@ -281,6 +281,7 @@ function ValuesSurvey({ onComplete, onCancel, registerBackGuard }: { onComplete:
           toolKey="values"
           title={copy.title}
           itemCount={VALUE_ITEMS.length}
+          perPage={4}
           estimatedMinutes={3}
           description={copy.description}
           citation={copy.citation}
