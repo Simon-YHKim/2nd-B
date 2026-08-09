@@ -932,6 +932,18 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
 
   // PostHog product analytics. This remains last because it is an optional peer
   // dependency; a missing package must never delay GA4 or Clarity setup.
+  //
+  // STATUS 2026-08-10: NOT WIRED, and the reason is the package, not the keys.
+  // Both repo Variables are set (EXPO_PUBLIC_POSTHOG_KEY / _HOST, since
+  // 2026-06-27) and web-deploy.yml injects them, so the guard below passes and
+  // the dynamic import runs. `posthog-js` is absent from package.json entirely
+  // (not dependencies, devDependencies, or optionalDependencies), so the import
+  // throws and the catch swallows it: on the live web build "posthog" appears in
+  // the bundle as these string literals while window.posthog stays undefined and
+  // zero requests go out. GA4 and Clarity carry product analytics today. Adding
+  // posthog-js is a dependency decision (bundle size, free-tier impact) and is
+  // deliberately not taken here; delete this block instead if PostHog is off the
+  // roadmap.
   if (!posthogClient && env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST) {
     try {
       // @ts-expect-error - optional peer dep. The operator installs posthog-js
