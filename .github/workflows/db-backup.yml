@@ -7,7 +7,8 @@ name: DB backup (daily encrypted pg_dump)
 # access -- plaintext user data must never land in an artifact.
 #
 # Required repository secrets (Settings > Secrets and variables > Actions):
-#   SUPABASE_DB_URL        postgresql://postgres:...@db.zoacryukmdeivmolvyhj.supabase.co:5432/postgres
+#   SUPABASE_DB_URL        postgresql://postgres.zoacryukmdeivmolvyhj:...@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres
+#   Copy the Session pooler URI from Supabase Connect because the Direct host is IPv6-only and GitHub-hosted runners need IPv4.
 #   BACKUP_AGE_PUBLIC_KEY  "age1..." public key (private key stays with Simon, never committed)
 #
 # Restore drill (locally, with the private key file backup_age.key):
