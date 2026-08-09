@@ -407,3 +407,14 @@ BEGIN
   END IF;
 END;
 $$;
+
+----------------------------------------------------------------------
+-- 5. Bound the retention of the 0107 orphan-profile rollback copy
+----------------------------------------------------------------------
+
+-- This table contains two full public.users rows and is already locked to
+-- service_role by 0113. Thirty days is an internal maximum rollback window,
+-- not a statutory retention period. Remove it sooner if rollback verification
+-- finishes sooner; otherwise drop it in a dedicated migration by the deadline.
+COMMENT ON TABLE public.users_orphan_backup_0107 IS
+  'Reversal data for migration 0107. Restore with: insert into public.users select * from jsonb_populate_record(null::public.users, row_data); Retain for no more than 30 calendar days from the latest backed_up_at, through 2026-09-06 02:48:55.689335 KST. Remove sooner if rollback verification finishes; otherwise permanently delete by the deadline and record the result.';

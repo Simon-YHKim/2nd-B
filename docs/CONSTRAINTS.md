@@ -128,6 +128,14 @@ separate, dependency-aware cleanup.
   this cannot issue money. Repeated refund attempts can still append duplicate
   `misconfigured` rows to `billing_self_service_log`; ledger deduplication for
   these legacy rows is deferred as a low-priority follow-up.
+- `users_orphan_backup_0107` contains two service-role-only rollback rows from
+  the 0107 orphan cleanup. Its maximum retention is 30 calendar days from
+  `max(backed_up_at)`, through **2026-09-06 02:48:55.689335 KST**. Remove it
+  sooner if rollback verification finishes; otherwise permanently delete it
+  in a dedicated migration by that deadline and record the result. Thirty days
+  is an internal maximum rollback window, not a statutory fixed period;
+  [PIPA Article 21](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?ancYnChk=&chrClsCd=010202&lsJoLnkSeq=1020398651)
+  still requires prompt destruction once the rollback purpose ends.
 - The `citext`, `pg_trgm`, and `vector` extensions currently live in the
   `public` schema. Moving them without first inventorying dependent columns
   and objects can break existing type references. Keep them in place until a

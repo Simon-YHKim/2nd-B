@@ -178,3 +178,13 @@ describe("0117 - Paddle refund adjustments update facts without writing tiers", 
     expect(recorder).not.toMatch(/UPDATE\s+public\.users/i);
   });
 });
+
+describe("0117 - orphan rollback backup has a bounded retention window", () => {
+  test("records the 30-day deadline without dropping the backup early", () => {
+    expect(migration).toMatch(/COMMENT ON TABLE public\.users_orphan_backup_0107 IS/);
+    expect(migration).toMatch(/30 calendar days from the latest backed_up_at/);
+    expect(migration).toMatch(/2026-09-06 02:48:55\.689335 KST/);
+    expect(migration).toMatch(/Restore with: insert into public\.users select \* from jsonb_populate_record/);
+    expect(migration).not.toMatch(/DROP TABLE(?: IF EXISTS)? public\.users_orphan_backup_0107/i);
+  });
+});
