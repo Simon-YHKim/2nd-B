@@ -181,5 +181,69 @@
   "deletedNWiki": "{{n}} halaman wiki dihapus",
   "deletedNCaptures": "{{n}} tangkapan dihapus",
   "resetNDays": "{{n}} hari penggunaan disetel ulang",
-  "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}"
+  "wipeComplete": "Penghapusan total selesai: catatan {{r}} · sumber {{s}} · wiki {{w}} · penggunaan {{u}}",
+  "subscription": {
+    "title": "Kelola langganan",
+    "sectionLabel": "Langganan",
+    "rowLabel": "Kelola langganan",
+    "rowSub": "Status pembayaran, pembatalan, permintaan pengembalian dana",
+    "currentPlan": "Paket saat ini",
+    "tierName": {
+      "free": "Stargazer",
+      "plus": "Voyager",
+      "pro": "North Star"
+    },
+    "judgeComp": "Fitur berbayar terbuka tanpa biaya di akun juri ini.",
+    "lastPaidOn": "Tagihan terakhir: {{date}}",
+    "paymentMethod": "Metode pembayaran: {{method}}",
+    "freeBody": "Kamu memakai paket gratis, jadi tidak ada langganan berbayar yang aktif.",
+    "loadFailed": "Detail langganan tidak bisa dimuat.",
+    "retry": "Coba lagi",
+    "keep": "Biarkan saja",
+    "supportLine": "Butuh bantuan? Kirim email ke {{email}} dan kami balas dalam 2 hari kerja.",
+    "viewPolicy": "Baca kebijakan pengembalian dana",
+    "viewPlans": "Lihat paket",
+    "cancel": {
+      "title": "Batalkan langganan",
+      "body": "Langgananmu diperpanjang otomatis sampai kamu membatalkannya. Membatalkan menghentikan tagihan berikutnya, dan fitur berbayar tetap aktif sampai periode yang sudah kamu bayar berakhir.",
+      "cta": "Batalkan langganan",
+      "unavailable": "Langganan ini tidak bisa dibatalkan dari aplikasi. Kalau kamu membelinya lewat toko aplikasi, batalkan di pengaturan langganan toko tersebut.",
+      "confirmTitle": "Batalkan langganan ini?",
+      "confirmAtRenewal": "Tidak akan diperpanjang setelah {{date}}. Sampai saat itu fitur berbayar tetap terbuka.",
+      "confirmImmediate": "Fitur berbayar langsung tertutup, dan sisa waktunya tidak dikembalikan otomatis.",
+      "confirmCta": "Batalkan",
+      "switchToImmediate": "Batalkan sekarang juga",
+      "switchToRenewal": "Batalkan saat perpanjangan berikutnya",
+      "periodEnd": "akhir periode berbayar",
+      "alreadyScheduled": "Langganan ini sudah dimatikan perpanjangan otomatisnya. Tidak ada tagihan lagi, dan fitur berbayar tetap aktif sampai periode berbayar berakhir."
+    },
+    "refund": {
+      "title": "Pengembalian dana",
+      "cta": "Ajukan pengembalian dana",
+      "confirmTitle": "Ajukan pengembalian dana?",
+      "confirmBody": "Permintaan dikirim ke Paddle sebagai penjual resmi. Kalau disetujui, seluruh jumlahnya kembali ke metode pembayaran awal dan fitur berbayar tertutup.",
+      "confirmCta": "Kirim permintaan",
+      "reason": {
+        "eligible": "Kamu bisa mengajukan pengembalian dana penuh sekarang.",
+        "usedBeyondFree": "Pemakaian sejak pembayaran melebihi jatah paket gratis untuk rentang waktu yang sama, jadi pengembalian dana mandiri tidak tersedia.",
+        "windowPassed": "Sudah lebih dari 7 hari sejak pembayaran, jadi pengembalian dana mandiri tidak tersedia.",
+        "noPayment": "Tidak ada catatan pembayaran yang bisa dikembalikan.",
+        "unknown": "Kami tidak bisa memeriksa kelayakan pengembalian dana."
+      },
+      "window": "Masa pengembalian dana: sisa {{days}} dari {{total}} hari",
+      "usage": "Penalaran terpakai: {{used}} (paket gratis memberi {{allowance}} pada rentang yang sama)",
+      "calls": "Panggilan AI tercatat: {{calls}}"
+    },
+    "notice": {
+      "cancelledAtRenewal": "Pembatalan dijadwalkan pada tanggal perpanjangan berikutnya.",
+      "cancelledNow": "Pembatalan langsung sudah dikirim.",
+      "refundRequested": "Permintaan pengembalian dana sudah dikirim. Keputusannya dikirim lewat email ke alamat pada struk.",
+      "alreadyRequested": "Sudah ada permintaan yang tercatat, jadi tidak dikirim dua kali.",
+      "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
+      "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan."
+    },
+    "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
+    "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",
+    "cancelScheduled": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai periode berbayar berakhir."
+  }
 }

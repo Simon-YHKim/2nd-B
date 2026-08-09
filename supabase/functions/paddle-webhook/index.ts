@@ -20,6 +20,12 @@
 // VALIDATION REQUIRED before enabling: replay the same event twice (must apply ONCE)
 // and send a tampered body (must be rejected 403). Dunning/grace on past_due is a
 // later unit - this handles the subscription core. Lifetime was retired 2026-07-29.
+//
+// 0115: this function also captures the Paddle object identity (sub_... / txn_...),
+// the event time, and the payment-method remnant. Self-serve cancel and refund
+// (supabase/functions/subscription-manage) can only address a subscription or a
+// transaction that was recorded here first, so an event delivered before 0115
+// leaves that user on the "contact support" path by design.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -28,12 +34,29 @@ interface PaddleEvent {
   event_type?: string;
   occurred_at?: string;
   data?: {
+    // `id` is the event's OWN object: sub_... on subscription.*, txn_... on
+    // transaction.*. Captured since 0115 - without it nothing in the database
+    // can name the subscription to cancel or the transaction to refund, which
+    // is what made [설정 -> 구독 관리] impossible to build.
+    id?: string;
+    subscription_id?: string;
     status?: string;
     currency_code?: string;
     custom_data?: { user_id?: string } | null;
     items?: Array<{ price?: { id?: string } }>;
     current_billing_period?: { ends_at?: string } | null;
+    // Set while a cancellation is pending on an otherwise active subscription,
+    // and cleared back to null if it is reversed. This is Paddle's answer to
+    // "will this renew?", which [설정 -> 구독 관리] has to be able to state.
+    scheduled_change?: { action?: string; effective_at?: string } | null;
     details?: { totals?: { grand_total?: string | number } } | null;
+    payments?: Array<{
+      status?: string;
+      method_details?: {
+        type?: string;
+        card?: { type?: string; last4?: string } | null;
+      } | null;
+    }> | null;
   };
 }
 
@@ -223,6 +246,28 @@ Deno.serve(async (req: Request) => {
     const userId = data.custom_data?.user_id ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
 
+    // Paddle object identity (0115). On subscription.* the event's own object IS
+    // the subscription; on transaction.* it is the transaction and the
+    // subscription is a sibling field. Everything stays null for event shapes
+    // that carry neither, and a null id is what makes self-serve fail closed.
+    const isSubscriptionEvent = eventType.startsWith('subscription.');
+    const subscriptionId = (isSubscriptionEvent ? data.id : data.subscription_id) ?? null;
+    const transactionId = (isSubscriptionEvent ? null : data.id) ?? null;
+
+    // Payment-method summary for the settings card. Only the captured payment is
+    // meaningful; last4/brand exist only for card payments. Nothing here is a
+    // credential - Paddle exposes the display remnant, never the PAN.
+    const captured = data.payments?.find((p) => p?.status === 'captured') ?? data.payments?.[0] ?? null;
+    const paymentMethod = captured?.method_details?.type ?? null;
+    const cardBrand = captured?.method_details?.card?.type ?? null;
+    const cardLast4 = captured?.method_details?.card?.last4 ?? null;
+
+    // Auto-renewal state. Null (no scheduled change, or a scheduled change that
+    // is not a cancel) means the subscription still renews - and null is exactly
+    // what gets stored, so a reversal is recorded as faithfully as a cancel.
+    const sc = data.scheduled_change ?? null;
+    const scheduledCancelAt = sc?.action === 'cancel' ? (sc.effective_at ?? null) : null;
+
     let tier: string | null = null;
     let expiresAt: string | null = null;
     let amountCents: number | null = null;
@@ -254,7 +299,11 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, ignored: eventType });
     }
 
-    if (tier !== null && !userId) return json({ ok: true, ignored: 'no_user' });
+    // A tier change still needs an owner, but since 0115 the RPC can recover one
+    // from an earlier event on the same subscription - so only drop the event
+    // when there is no route to an owner at all. Renewal transactions in
+    // particular do not reliably carry checkout custom_data.
+    if (tier !== null && !userId && !subscriptionId) return json({ ok: true, ignored: 'no_user' });
     if (tier === null && amountCents === null) return json({ ok: true, ignored: 'no_op' });
 
     const admin = createClient(
@@ -275,6 +324,12 @@ Deno.serve(async (req: Request) => {
       p_is_related_party: false,
       p_relation: 'arms_length',
       p_source: 'paddle',
+      p_subscription_id: subscriptionId,
+      p_transaction_id: transactionId,
+      p_payment_method: paymentMethod,
+      p_card_brand: cardBrand,
+      p_card_last4: cardLast4,
+      p_scheduled_cancel_at: scheduledCancelAt,
     });
     if (error) {
       console.error('[paddle-webhook] apply failed:', error.message);
