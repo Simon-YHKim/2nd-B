@@ -73,6 +73,11 @@ function requireText(value: string, field: string): string {
  * lean on, and a duplicate major notice is not a cosmetic problem - the popup
  * shows the newest unread major, so a second copy re-interrupts everybody who
  * already dismissed the first one.
+ *
+ * The guard ignores WITHDRAWN rows (0114_notice_withdrawal.sql). Withdrawing a
+ * notice is how an operator takes a bad announcement down; if the withdrawn copy
+ * still blocked the insert, the fixed one could never be published and the only
+ * way out would be a DELETE, which also destroys the read statistics.
  */
 function requireVersion(version: string): string {
   if (!VERSION_SHAPE.test(version)) {
@@ -102,6 +107,7 @@ export function buildNoticeInsert(input: NoticeInsertInput): string {
     `where not exists (`,
     `  select 1 from notices`,
     `  where kind = 'major' and min_app_version = '${input.version}'`,
+    `    and withdrawn_at is null`,
     `);`,
   ].join("\n");
 }
@@ -116,7 +122,10 @@ export function buildNoticeInsert(input: NoticeInsertInput): string {
 export function buildNoticePrecheck(version: string): string {
   requireVersion(version);
   return [
-    `select id, kind, title_ko, published_at, min_app_version`,
+    // withdrawn_at is in the list because a withdrawn row is invisible to the
+    // app but still sitting in the table: without it the operator sees a notice
+    // that "already exists" and cannot tell why nobody is receiving it.
+    `select id, kind, title_ko, published_at, withdrawn_at, min_app_version`,
     `from notices`,
     `where min_app_version = '${version}'`,
     `order by published_at desc;`,

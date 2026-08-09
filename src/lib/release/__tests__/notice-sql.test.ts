@@ -39,6 +39,13 @@ describe("buildNoticeInsert", () => {
     expect(sql).toContain("where kind = 'major' and min_app_version = '1.5.0'");
   });
 
+  test("a withdrawn notice does not block republishing", () => {
+    // 0114 withdrawal is how a bad announcement comes down. If the withdrawn
+    // copy still satisfied the guard, the corrected notice could never be
+    // published except by DELETE, which also destroys the read statistics.
+    expect(buildNoticeInsert(input())).toContain("and withdrawn_at is null");
+  });
+
   test("omits published_at so the table default applies", () => {
     // The notice goes out when the human runs the statement, which is the only
     // moment anyone can confirm the release is actually live.
@@ -102,6 +109,16 @@ describe("the columns are pinned to db/migrations/0113_notices.sql", () => {
 
   test("'major' is a value of the notice_kind enum", () => {
     expect(migration).toContain("CREATE TYPE notice_kind AS ENUM ('major', 'minor')");
+  });
+
+  test("withdrawn_at is a real column, so the guard and the precheck can use it", () => {
+    const withdrawal = readFileSync(
+      join(__dirname, "..", "..", "..", "..", "db", "migrations", "0114_notice_withdrawal.sql"),
+      "utf8",
+    ).replace(/\r\n/g, "\n");
+    expect(withdrawal).toContain("ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz");
+    // NULL means live, which is why the guard tests `is null` rather than a flag.
+    expect(withdrawal).toContain("withdrawn_at IS NULL");
   });
 
   test("the version shape the builder enforces is the one the CHECK enforces", () => {

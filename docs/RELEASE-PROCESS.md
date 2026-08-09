@@ -127,7 +127,12 @@ OTA 는 JS 번들만 바꾼다. `app.json` 이 `runtimeVersion.policy = "fingerp
      이제 무엇을 할 수 있는지**를 설명한다.
    - 임상 용어를 쓰지 않는다 (`src/lib/safety/lexicon.ts` 가 정본이다. 공지 본문은
      DB 로 들어가므로 CI 스캔이 닿지 않는다).
-   - Supabase SQL Editor 에 붙여넣고 실행한다.
+   - Supabase SQL Editor 에 붙여넣고 실행한다. 앞에 붙은 조회문으로 이 버전에
+     이미 올라간 공지가 있는지 먼저 본다.
+
+   INSERT 는 **두 번 실행해도 한 건만** 들어간다. 단 **철회된**
+   (`withdrawn_at`) 공지는 막지 않으므로, 잘못 쓴 공지를 내리고 고쳐서 다시
+   올리는 게 그대로 된다 (`docs/OPERATIONS-NOTICES.md` N5).
 
 **CI 는 이 스크립트를 실행하지 않는다.** `npm run verify` 체인에 없고, 스크립트
 자체가 `process.env.CI` 를 보고 거절한다. 그리고 `src/lib/release/` 와
