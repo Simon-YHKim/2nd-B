@@ -1,0 +1,145 @@
+// Source pins for supabase/functions/subscription-manage/index.ts.
+//
+// Edge functions get no type-check and no lint in this repo (tsconfig `include`
+// skips supabase/**, eslint ignores it), and component render tests are blocked,
+// so a structural test on the source text is the ONLY automated coverage this
+// function has. Same style as src/lib/ads/__tests__/ssv-wiring.test.ts.
+//
+// The four properties asserted here are the ones that cost money or leak access
+// if they regress: fail-closed without a key, IDOR safety, idempotency, and the
+// promise that this function never writes an entitlement.
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const ROOT = join(__dirname, "..", "..", "..", "..");
+const fn = readFileSync(join(ROOT, "supabase", "functions", "subscription-manage", "index.ts"), "utf8");
+const config = readFileSync(join(ROOT, "supabase", "config.toml"), "utf8");
+
+// Comments are stripped before keyword assertions so a comment that merely
+// MENTIONS a check cannot satisfy a test that requires the check in code.
+const code = fn.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+
+describe("subscription-manage - auth boundary", () => {
+  test("registered with verify_jwt = true in config.toml", () => {
+    expect(config).toMatch(/\[functions\.subscription-manage\][\s\S]*?verify_jwt = true/);
+  });
+
+  test("requires a real signed-in user, not merely a valid token", () => {
+    // The public anon key is itself a valid JWT; role must be checked in CODE
+    // (this is also what src/lib/safety/__tests__/edge-jwt-hardening.test.ts scans for).
+    expect(code).toMatch(/role !== 'authenticated'/);
+    expect(code).toMatch(/'missing_authorization'/);
+    expect(code).toMatch(/'invalid_jwt'/);
+  });
+
+  test("the acting user comes from the JWT, never from the request body", () => {
+    expect(code).toMatch(/const userId = userIdFromJwt\(authHeader\)/);
+    expect(code).toMatch(/p_user_id: userId/);
+    expect(code).not.toMatch(/body\.user_id/);
+  });
+
+  test("non-POST and preflight are handled before any work", () => {
+    expect(code).toMatch(/req\.method === 'OPTIONS'/);
+    expect(code).toMatch(/'method_not_allowed'/);
+  });
+});
+
+describe("subscription-manage - fail closed", () => {
+  test("does nothing without the API key or the enable flag", () => {
+    expect(code).toMatch(/PADDLE_SELF_SERVICE_ENABLED'\) === '1'/);
+    expect(code).toMatch(/PADDLE_API_KEY/);
+    expect(code).toMatch(/if \(!enabled \|\| \(!hasKey && !dryRun\)\)/);
+  });
+
+  test("a fail-closed action is still audited and routes the user to support", () => {
+    expect(code).toMatch(/settleTerminal\('misconfigured'/);
+    expect(code).toMatch(/contact_support: true/);
+  });
+
+  test("an unresolvable Paddle id is support, never a guessed id", () => {
+    expect(code).toMatch(/no_paddle_id_on_record/);
+  });
+
+  test("the key is only ever read from the environment", () => {
+    expect(code).toMatch(/Deno\.env\.get\('PADDLE_API_KEY'\)/);
+    // No literal Paddle key shape anywhere in the file.
+    expect(fn).not.toMatch(/pdl_(live|sdbx)_/);
+  });
+});
+
+describe("subscription-manage - eligibility is re-derived server-side", () => {
+  test("calls the RPC itself rather than trusting anything from the client", () => {
+    expect(code).toMatch(/rpc\('refund_eligibility'/);
+  });
+
+  test("an ineligible refund never reaches Paddle", () => {
+    expect(code).toMatch(/action === 'refund_request' && eligibility\.status !== 'eligible'/);
+    expect(code).toMatch(/settleTerminal\('rejected'/);
+  });
+
+  test("the verdict travels back to the client so the screen can explain it", () => {
+    expect(code).toMatch(/eligibility\s*}/);
+  });
+});
+
+describe("subscription-manage - idempotency", () => {
+  test("the ledger row is claimed BEFORE the provider call", () => {
+    const claimAt = code.indexOf("claim_billing_self_service");
+    const callAt = code.indexOf("callPaddle(");
+    expect(claimAt).toBeGreaterThan(-1);
+    expect(callAt).toBeGreaterThan(-1);
+    expect(claimAt).toBeLessThan(code.lastIndexOf("await callPaddle"));
+  });
+
+  test("a duplicate claim returns success without spending money again", () => {
+    expect(code).toMatch(/if \(claim\.duplicate\)/);
+    expect(code).toMatch(/outcome: 'duplicate'/);
+  });
+
+  test("an idempotency key is sent to Paddle as well", () => {
+    expect(code).toMatch(/'paddle-idempotency-key'/);
+  });
+
+  test("every terminal state is settled back onto the claim", () => {
+    expect(code).toMatch(/settleClaim\('accepted'/);
+    expect(code).toMatch(/settleClaim\('provider_error'/);
+  });
+});
+
+describe("subscription-manage - provider contract", () => {
+  test("cancel defaults to the next billing period, immediate is explicit opt-in", () => {
+    expect(code).toMatch(/body\.effective_from === 'immediately'\s*\?\s*'immediately'\s*:\s*'next_billing_period'/);
+    expect(code).toMatch(/\/subscriptions\/\$\{encodeURIComponent\(targetId\)\}\/cancel/);
+  });
+
+  test("refund is a full adjustment against the transaction", () => {
+    expect(code).toMatch(/'\/adjustments'/);
+    expect(code).toMatch(/action: 'refund'/);
+    expect(code).toMatch(/type: 'full'/);
+    expect(code).toMatch(/transaction_id: targetId/);
+  });
+
+  test("the base URL is overridable so sandbox can be exercised", () => {
+    expect(code).toMatch(/PADDLE_API_BASE/);
+  });
+
+  test("outbound calls are bounded by a timeout", () => {
+    expect(code).toMatch(/AbortSignal\.timeout\(PADDLE_TIMEOUT_MS\)/);
+  });
+});
+
+describe("subscription-manage - no second entitlement writer", () => {
+  test("never writes the tier itself: the webhook rail stays the only revoker", () => {
+    expect(code).not.toMatch(/subscription_tier/);
+    expect(code).not.toMatch(/apply_billing_event/);
+    expect(code).not.toMatch(/from\('users'\)/);
+  });
+});
+
+describe("subscription-manage - honest wording at the boundary", () => {
+  test("the response says the request was accepted, never that money was refunded", () => {
+    expect(code).not.toMatch(/refunded: true/);
+    expect(code).toMatch(/outcome: 'accepted'/);
+  });
+});

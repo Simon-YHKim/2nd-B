@@ -104,6 +104,15 @@ verify_jwt = true
 # IDOR-safety contract as delete-account. Never deploy with --no-verify-jwt.
 verify_jwt = true
 
+[functions.subscription-manage]
+# Self-serve subscription cancel + refund request (0114). verify_jwt=true so the
+# gateway validates the caller; the function acts ONLY on the caller's own
+# subscription (user_id from the JWT, and the Paddle subscription/transaction ids
+# resolved server-side from paddle_webhook_events, never from the request body).
+# It spends money at Paddle, so this is the strictest boundary in the file.
+# Never deploy with --no-verify-jwt.
+verify_jwt = true
+
 [functions.oauth-naver]
 # Pre-auth endpoint - the function IS the auth boundary: it validates the user
 # via Naver's OAuth and only then mints a Supabase session. (Kakao uses the

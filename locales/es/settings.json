@@ -181,5 +181,69 @@
   "deletedNWiki": "Se eliminaron {{n}} páginas wiki",
   "deletedNCaptures": "Se eliminaron {{n}} capturas",
   "resetNDays": "Se restablecieron {{n}} días de uso",
-  "wipeComplete": "Borrado total completo: registros {{r}} · fuentes {{s}} · wiki {{w}} · uso {{u}}"
+  "wipeComplete": "Borrado total completo: registros {{r}} · fuentes {{s}} · wiki {{w}} · uso {{u}}",
+  "subscription": {
+    "title": "Gestionar suscripcion",
+    "sectionLabel": "Suscripcion",
+    "rowLabel": "Gestionar suscripcion",
+    "rowSub": "Estado del pago, cancelacion, solicitud de reembolso",
+    "currentPlan": "Plan actual",
+    "tierName": {
+      "free": "Stargazer",
+      "plus": "Voyager",
+      "pro": "North Star"
+    },
+    "judgeComp": "Las funciones de pago estan abiertas sin cargo en esta cuenta de jurado.",
+    "lastPaidOn": "Ultimo cobro: {{date}}",
+    "paymentMethod": "Metodo de pago: {{method}}",
+    "freeBody": "Estas en el plan gratuito, asi que no hay ninguna suscripcion de pago activa.",
+    "loadFailed": "No se pudieron cargar los datos de tu suscripcion.",
+    "retry": "Reintentar",
+    "keep": "Mantenerla",
+    "supportLine": "Si necesitas ayuda, escribe a {{email}} y respondemos en 2 dias habiles.",
+    "viewPolicy": "Leer la politica de reembolso",
+    "viewPlans": "Ver planes",
+    "cancel": {
+      "title": "Cancelar suscripcion",
+      "body": "Tu suscripcion se renueva automaticamente hasta que la canceles. Al cancelar se detiene el proximo cobro y conservas las funciones de pago hasta que termine el periodo que ya pagaste.",
+      "cta": "Cancelar suscripcion",
+      "unavailable": "Esta suscripcion no se puede cancelar desde la app. Si la compraste en una tienda, cancelala en los ajustes de suscripcion de esa tienda.",
+      "confirmTitle": "Cancelar esta suscripcion?",
+      "confirmAtRenewal": "No se renovara despues del {{date}}. Hasta entonces las funciones de pago siguen abiertas.",
+      "confirmImmediate": "Las funciones de pago se cierran de inmediato y el tiempo restante no se reembolsa automaticamente.",
+      "confirmCta": "Cancelar",
+      "switchToImmediate": "Cancelar de inmediato",
+      "switchToRenewal": "Cancelar en la proxima renovacion",
+      "periodEnd": "el final del periodo pagado",
+      "alreadyScheduled": "Esta suscripcion ya tiene la renovacion automatica desactivada. No se cobrara nada mas y las funciones de pago siguen abiertas hasta que termine el periodo pagado."
+    },
+    "refund": {
+      "title": "Reembolso",
+      "cta": "Solicitar reembolso",
+      "confirmTitle": "Solicitar un reembolso?",
+      "confirmBody": "La solicitud va a Paddle, el vendedor registrado. Si se aprueba, el importe completo vuelve a tu metodo de pago original y las funciones de pago se cierran.",
+      "confirmCta": "Enviar solicitud",
+      "reason": {
+        "eligible": "Ahora mismo puedes solicitar un reembolso completo.",
+        "usedBeyondFree": "El uso desde el pago supero lo que cubre el plan gratuito en el mismo periodo, asi que el reembolso automatico no esta disponible.",
+        "windowPassed": "Han pasado mas de 7 dias desde el pago, asi que el reembolso automatico no esta disponible.",
+        "noPayment": "No hay ningun pago registrado para reembolsar.",
+        "unknown": "No pudimos comprobar si el reembolso es posible."
+      },
+      "window": "Ventana de reembolso: quedan {{days}} de {{total}} dias",
+      "usage": "Razonamientos usados: {{used}} (el plan gratuito permite {{allowance}} en el mismo periodo)",
+      "calls": "Llamadas de IA registradas: {{calls}}"
+    },
+    "notice": {
+      "cancelledAtRenewal": "La cancelacion queda programada para la proxima fecha de renovacion.",
+      "cancelledNow": "Se envio la cancelacion inmediata.",
+      "refundRequested": "Tu solicitud de reembolso fue enviada. La decision llega por correo a la direccion del recibo.",
+      "alreadyRequested": "Ya hay una solicitud registrada, asi que no se envio dos veces.",
+      "refundRejected": "El reembolso automatico no esta disponible para este pago.",
+      "contactSupport": "Esto no se puede resolver en la app ahora mismo. Escribe a soporte."
+    },
+    "autoRenewOn": "Se renueva automaticamente el {{date}}",
+    "cancelScheduledOn": "La renovacion automatica esta desactivada. Las funciones de pago siguen abiertas hasta el {{date}}.",
+    "cancelScheduled": "La renovacion automatica esta desactivada. Las funciones de pago siguen abiertas hasta que termine el periodo pagado."
+  }
 }

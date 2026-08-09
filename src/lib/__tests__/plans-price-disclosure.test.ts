@@ -1,5 +1,5 @@
 // U6 price disclosure: the plans surface must state auto-renewal, VAT-included
-// pricing, and the 30-day refund window AT the price, and link the documents
+// pricing, and the 7-day refund window AT the price, and link the documents
 // that back them (/terms, /refund). pricing.test.ts guards only the legacy
 // `plans` namespace; the LIVE copy is deepspace ds.plans.* -- guarded here.
 
@@ -21,8 +21,12 @@ describe("plans price disclosure (live ds.plans namespace)", () => {
       expect(plans.disclosure ?? "").not.toHaveLength(0);
       expect(plans.legalTerms ?? "").not.toHaveLength(0);
       expect(plans.legalRefund ?? "").not.toHaveLength(0);
-      // The three commitments: renewal cadence, VAT-included, 30-day window.
-      expect(plans.disclosure).toMatch(/30/);
+      // The three commitments: renewal cadence, VAT-included, and the refund
+      // window. The window narrowed 30 -> 7 days on 2026-08-09; the number is
+      // pinned so a copy edit cannot drift from refund_eligibility()
+      // (0114 c_window_days) or from docs/legal/refund-policy.md.
+      expect(plans.disclosure).toMatch(/\b7\b/);
+      expect(plans.disclosure).not.toMatch(/\b30\b/);
       expect(plans.disclosure).not.toMatch(/—/);
     }
   });
