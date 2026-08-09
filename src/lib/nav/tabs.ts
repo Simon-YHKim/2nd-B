@@ -54,7 +54,7 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // Call recording v1 (post-call reflection, docs/CALL-RECORDING-SPEC.md §5).
   "/call-reflection",
   "/account",
-  // 구독 관리 (0114 self-serve cancel + refund): a windowed dock screen whose M3
+  // 구독 관리 (0115 self-serve cancel + refund): a windowed dock screen whose M3
   // top app bar carries the back arrow, so the floating chip must hide - back
   // lives in exactly one place.
   "/subscription",

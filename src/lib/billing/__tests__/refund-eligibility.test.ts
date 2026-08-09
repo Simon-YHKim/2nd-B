@@ -1,6 +1,6 @@
 // Boundary tests for the refund rule.
 //
-// The rule lives in SQL (refund_eligibility, 0114) and jest cannot execute it, so
+// The rule lives in SQL (refund_eligibility, 0115) and jest cannot execute it, so
 // the arithmetic is mirrored by pure functions in subscription-manage.ts and the
 // SQL constants are pinned against those same exports in
 // billing-self-service-migration.test.ts. Together that is the same contract 0089

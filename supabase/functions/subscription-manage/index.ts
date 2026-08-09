@@ -29,7 +29,7 @@
 // FAIL CLOSED. Without PADDLE_API_KEY (or with PADDLE_SELF_SERVICE_ENABLED != '1')
 // nothing is attempted: the action is logged as 'misconfigured' and the response
 // tells the client to route the user to support (C11, 2 business days). The same
-// applies to a user whose subscription predates 0114 and therefore has no stored
+// applies to a user whose subscription predates 0115 and therefore has no stored
 // Paddle id. Never guess an id, never half-cancel.
 //
 // A REFUND IS A REQUEST, NOT A SETTLEMENT. Paddle is the Merchant of Record and
@@ -280,7 +280,7 @@ Deno.serve(async (req: Request) => {
   };
 
   // The stored Paddle id is what makes the action addressable. Missing means the
-  // subscription predates 0114's capture (or came from a store purchase, which we
+  // subscription predates 0115's capture (or came from a store purchase, which we
   // cannot cancel at all) - support, not a guess.
   const targetId = action === 'cancel' ? claim.subscription_id : claim.transaction_id;
   if (!targetId) {

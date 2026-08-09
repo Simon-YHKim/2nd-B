@@ -21,10 +21,10 @@
 // and send a tampered body (must be rejected 403). Dunning/grace on past_due is a
 // later unit - this handles the subscription core. Lifetime was retired 2026-07-29.
 //
-// 0114: this function also captures the Paddle object identity (sub_... / txn_...),
+// 0115: this function also captures the Paddle object identity (sub_... / txn_...),
 // the event time, and the payment-method remnant. Self-serve cancel and refund
 // (supabase/functions/subscription-manage) can only address a subscription or a
-// transaction that was recorded here first, so an event delivered before 0114
+// transaction that was recorded here first, so an event delivered before 0115
 // leaves that user on the "contact support" path by design.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -35,7 +35,7 @@ interface PaddleEvent {
   occurred_at?: string;
   data?: {
     // `id` is the event's OWN object: sub_... on subscription.*, txn_... on
-    // transaction.*. Captured since 0114 - without it nothing in the database
+    // transaction.*. Captured since 0115 - without it nothing in the database
     // can name the subscription to cancel or the transaction to refund, which
     // is what made [설정 -> 구독 관리] impossible to build.
     id?: string;
@@ -246,7 +246,7 @@ Deno.serve(async (req: Request) => {
     const userId = data.custom_data?.user_id ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
 
-    // Paddle object identity (0114). On subscription.* the event's own object IS
+    // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the
     // subscription is a sibling field. Everything stays null for event shapes
     // that carry neither, and a null id is what makes self-serve fail closed.
@@ -299,7 +299,7 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, ignored: eventType });
     }
 
-    // A tier change still needs an owner, but since 0114 the RPC can recover one
+    // A tier change still needs an owner, but since 0115 the RPC can recover one
     // from an earlier event on the same subscription - so only drop the event
     // when there is no route to an owner at all. Renewal transactions in
     // particular do not reliably carry checkout custom_data.

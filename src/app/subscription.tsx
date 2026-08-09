@@ -7,7 +7,7 @@
 // consequences appear only after a tap, in a modal, never as a stacked wall.
 //
 // The refund block is deliberately honest in both directions. The verdict comes
-// from refund_eligibility() (0114) and the screen prints ITS numbers: how much of
+// from refund_eligibility() (0115) and the screen prints ITS numbers: how much of
 // the free allowance the payment window covered, how much was actually used, and
 // how many days of the window remain. A user who cannot self-refund is shown the
 // arithmetic that produced that answer plus the support address, never a bare no.

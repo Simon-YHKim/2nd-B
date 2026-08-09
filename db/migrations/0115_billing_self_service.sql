@@ -1,4 +1,4 @@
--- 0114_billing_self_service.sql
+-- 0115_billing_self_service.sql
 -- Self-serve subscription management: cancel + usage-gated refund.
 --
 -- WHY NOW. docs/legal/refund-policy.md KO 3항 / EN §3 already tells users the
@@ -43,19 +43,32 @@
 -- BOTH numbers are returned either way and both are shown in the UI. C3's
 -- ai_audit_log stays the evidence ledger it was designed to be.
 --
--- Allowance is pro-rated, not flat: a free user gets 2 runs per ISO week, so a
--- payment that is n weeks old is compared against 2 * ceil(n) runs. Anything
--- else would make the verdict depend on how long the user waited to ask.
+-- Allowance is pro-rated by week, and the 7-day window means it is always
+-- exactly one week's worth (2 runs). The pro-rating arithmetic is kept anyway so
+-- widening the window later cannot silently turn into a flat cap.
 --
 -- The cap number itself mirrors src/lib/entitlements/tier-map.ts
 -- REASONING_PER_WEEK.free and is pinned by the structural test in
 -- src/lib/billing/__tests__/billing-self-service-migration.test.ts, the same
 -- contract 0089 has with that file.
 --
+-- WHAT THIS MIGRATION INHERITS AND MUST NOT UNDO (0109 + 0112, both shipped
+-- after this work started and both landing on exactly the code below):
+--   * 0109 made the entitlement write MONOTONIC on subscription_event_at and
+--     records a skipped write as paddle_webhook_events.stale_entitlement. That
+--     guard is reproduced verbatim in the re-created function. Dropping it would
+--     re-open the two live bugs it closed: a retried older updated(active)
+--     re-granting a cancelled tier, and a retried older event permanently
+--     downgrading an upgraded subscriber.
+--   * 0112 found that `request.jwt.claim.role` is NOT set on the current
+--     PostgREST stack, which is why the FIRST real live purchase (2026-08-08)
+--     500'd. Every service_role check in this file therefore goes through
+--     public.billing_request_role() below, never the raw legacy GUC.
+--
 -- NOTE ON 0087's TEST. src/lib/entitlements/__tests__/paddle-billing-migration.test.ts
 -- reads 0087's SQL text only, so it keeps passing while describing the 12-argument
 -- apply_billing_event this migration replaces. That is a green test describing a
--- dead shape; the new structural test above pins the LIVE 17-argument signature and
+-- dead shape; the new structural test above pins the LIVE 18-argument signature and
 -- says so, and 0087 is left untouched because its own test asserts it verbatim.
 --
 -- Idempotent, forward-only. Safe to re-apply.
@@ -101,6 +114,35 @@ CREATE INDEX IF NOT EXISTS paddle_webhook_events_subscription_idx
   WHERE paddle_subscription_id IS NOT NULL;
 
 ----------------------------------------------------------------------
+-- 1b. Role detection, once (0112's lesson)
+----------------------------------------------------------------------
+
+-- 0112 found that `request.jwt.claim.role` is NOT set by the current PostgREST
+-- stack (claims live in the request.jwt.claims JSON GUC), and the legacy check
+-- had been silently failing: apply_billing_event raised 42501 and Paddle got
+-- 500s on the FIRST real live purchase (2026-08-08). Every service_role check
+-- in this file goes through this one function so there is exactly one place to
+-- fix if the shape moves again.
+--
+-- Not SECURITY DEFINER: it only reads session GUCs, so it needs no elevated
+-- rights, and every caller below is a DEFINER body that executes it as the
+-- function owner. Revoked from anon/authenticated all the same.
+CREATE OR REPLACE FUNCTION public.billing_request_role()
+RETURNS text
+LANGUAGE sql
+STABLE
+SET search_path = ''
+AS $$
+  SELECT COALESCE(
+    NULLIF(pg_catalog.current_setting('request.jwt.claim.role', true), ''),
+    NULLIF(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'
+  );
+$$;
+
+REVOKE ALL     ON FUNCTION public.billing_request_role() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.billing_request_role() FROM anon, authenticated;
+
+----------------------------------------------------------------------
 -- 2. apply_billing_event(): persist the identifiers
 ----------------------------------------------------------------------
 
@@ -139,6 +181,9 @@ SET search_path = ''
 AS $$
 DECLARE
   v_rows int;
+  -- 0109's ordering baseline. Every entitlement decision below compares against
+  -- this, NOT against arrival order.
+  v_at timestamptz := COALESCE(p_occurred_at, now());
   v_sub_id text := NULLIF(btrim(p_subscription_id), '');
   v_txn_id text := NULLIF(btrim(p_transaction_id), '');
   v_user_id uuid := p_user_id;
@@ -151,7 +196,7 @@ BEGIN
   END IF;
 
   -- RENEWAL ANCHOR. custom_data.user_id is attached at checkout; Paddle does not
-  -- reliably carry it onto later renewal transactions. Before 0114 that only cost
+  -- reliably carry it onto later renewal transactions. Before 0115 that only cost
   -- us an unattributed revenue row, but the refund window now anchors on the
   -- latest transaction.completed for a user, so an unattributed renewal would
   -- leave a paying subscriber with no anchor at all. Recover the owner from an
@@ -186,29 +231,52 @@ BEGIN
     RETURN 'duplicate';
   END IF;
 
-  -- Reflect entitlement (service_role passes block_self_tier_change 0038).
+  -- Reflect entitlement. THE ORDERING GUARD BELOW IS 0109's, PRESERVED VERBATIM.
+  -- Paddle gives no delivery-ordering guarantee and retries with backoff, so a
+  -- stale subscription.updated(active) landing after a cancel would otherwise
+  -- re-grant a paid tier to a non-paying user, and a retried older event would
+  -- permanently downgrade an upgraded subscriber. Event-id idempotency does not
+  -- help: those are DIFFERENT events, each seen once. Do not "simplify" this
+  -- back into an unconditional UPDATE.
   IF p_tier IS NOT NULL AND v_user_id IS NOT NULL THEN
-    UPDATE public.users
-       SET subscription_tier      = p_tier,
-           subscription_expires_at = p_expires_at,
-           subscription_provider   = p_provider
-     WHERE id = v_user_id;
-    IF NOT FOUND THEN
+    -- Existence is checked separately from the ordering guard (0109): without
+    -- this, a deliberately-skipped stale event would look identical to an
+    -- unknown user and raise, making Paddle retry an event we correctly ignored.
+    IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = v_user_id) THEN
       RAISE EXCEPTION 'unknown user %', v_user_id USING ERRCODE = 'P0002';
+    END IF;
+
+    UPDATE public.users
+       SET subscription_tier       = p_tier,
+           subscription_expires_at = p_expires_at,
+           subscription_provider   = p_provider,
+           subscription_event_at   = v_at
+     WHERE id = v_user_id
+       AND (subscription_event_at IS NULL OR v_at >= subscription_event_at);
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    IF v_rows = 0 THEN
+      UPDATE public.paddle_webhook_events
+         SET stale_entitlement = true
+       WHERE event_id = p_event_id;
     END IF;
   END IF;
 
-  -- Log real revenue (C4 columns) only for money-moving events.
+  -- Log real revenue (C4 columns) only for money-moving events. Always logged,
+  -- even for a stale entitlement: the money moved regardless of arrival order.
   IF p_amount_cents IS NOT NULL THEN
     INSERT INTO public.revenue_events
       (user_id, amount_cents, currency, occurred_at,
        is_related_party, customer_relation_type, source, external_id)
     VALUES
-      (v_user_id, p_amount_cents, COALESCE(p_currency, 'USD'), COALESCE(p_occurred_at, now()),
+      (v_user_id, p_amount_cents, COALESCE(p_currency, 'USD'), v_at,
        COALESCE(p_is_related_party, false), COALESCE(p_relation, 'arms_length'), p_source, p_event_id)
     ON CONFLICT (source, external_id) WHERE external_id IS NOT NULL DO NOTHING;
   END IF;
 
+  -- Contract preserved on purpose (0109): the caller only distinguishes
+  -- 'duplicate'. Staleness is observable on paddle_webhook_events.stale_entitlement
+  -- rather than via a new return value the edge function would read as a failure.
   RETURN 'applied';
 END;
 $$;
@@ -333,7 +401,7 @@ DECLARE
 BEGIN
   -- Ownership guard. service_role (the edge function) is exempt: it has no
   -- auth.uid() and is the caller that enforces the verdict.
-  v_is_owner := (pg_catalog.current_setting('request.jwt.claim.role', true) = 'service_role');
+  v_is_owner := (public.billing_request_role() = 'service_role');
   IF NOT v_is_owner THEN
     IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
       RAISE EXCEPTION 'caller must match p_user_id' USING ERRCODE = '42501';
@@ -344,7 +412,7 @@ BEGIN
 
   -- The payment the refund would reverse: the most recent completed Paddle
   -- transaction. occurred_at is the Paddle event time; processed_at is only a
-  -- fallback for rows written before 0114 added the column.
+  -- fallback for rows written before 0115 added the column.
   SELECT e.paddle_transaction_id,
          e.paddle_subscription_id,
          COALESCE(e.occurred_at, e.processed_at) AS paid_at
@@ -488,7 +556,7 @@ DECLARE
   v_tier       text;
   v_auto       boolean;
 BEGIN
-  v_is_service := (pg_catalog.current_setting('request.jwt.claim.role', true) = 'service_role');
+  v_is_service := (public.billing_request_role() = 'service_role');
   IF NOT v_is_service THEN
     IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN
       RAISE EXCEPTION 'caller must match p_user_id' USING ERRCODE = '42501';
@@ -596,7 +664,7 @@ DECLARE
   v_txn_id text;
   v_id     uuid;
 BEGIN
-  IF pg_catalog.current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role' THEN
+  IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
   IF p_action NOT IN ('cancel', 'refund_request') THEN
@@ -658,7 +726,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF pg_catalog.current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role' THEN
+  IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
   IF p_outcome NOT IN ('accepted', 'rejected', 'provider_error', 'misconfigured') THEN
@@ -696,7 +764,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF pg_catalog.current_setting('request.jwt.claim.role', true) IS DISTINCT FROM 'service_role' THEN
+  IF public.billing_request_role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role only' USING ERRCODE = '42501';
   END IF;
   IF p_action NOT IN ('cancel', 'refund_request') THEN

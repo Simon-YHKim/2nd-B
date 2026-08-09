@@ -105,7 +105,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.subscription-manage]
-# Self-serve subscription cancel + refund request (0114). verify_jwt=true so the
+# Self-serve subscription cancel + refund request (0115). verify_jwt=true so the
 # gateway validates the caller; the function acts ONLY on the caller's own
 # subscription (user_id from the JWT, and the Paddle subscription/transaction ids
 # resolved server-side from paddle_webhook_events, never from the request body).

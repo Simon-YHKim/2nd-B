@@ -1,4 +1,4 @@
-// Structural guard for db/migrations/0114_billing_self_service.sql - the server
+// Structural guard for db/migrations/0115_billing_self_service.sql - the server
 // side of [설정 → 구독 관리]: the Paddle object identity the webhook now captures,
 // the self-serve audit ledger with its idempotency claim, and refund_eligibility()
 // (the single source of truth for whether a refund is owed).
@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { FREE_RUNS_PER_WEEK, REFUND_WINDOW_DAYS } from "../subscription-manage";
 
 const MIGRATIONS = join(__dirname, "..", "..", "..", "..", "db", "migrations");
-const sql = readFileSync(join(MIGRATIONS, "0114_billing_self_service.sql"), "utf8");
+const sql = readFileSync(join(MIGRATIONS, "0115_billing_self_service.sql"), "utf8");
 const edge = readFileSync(
   join(__dirname, "..", "..", "..", "..", "supabase", "functions", "subscription-manage", "index.ts"),
   "utf8",
@@ -28,7 +28,7 @@ const webhook = readFileSync(
   "utf8",
 );
 
-describe("0114 - Paddle object identity on the webhook ledger", () => {
+describe("0115 - Paddle object identity on the webhook ledger", () => {
   test("captures the ids self-serve needs, all nullable so old rows stay valid", () => {
     expect(sql).toMatch(/ALTER TABLE public\.paddle_webhook_events/);
     for (const col of [
@@ -63,7 +63,7 @@ describe("0114 - Paddle object identity on the webhook ledger", () => {
   });
 });
 
-describe("0114 - auto-renewal state is answerable (Simon 2026-08-09)", () => {
+describe("0115 - auto-renewal state is answerable (Simon 2026-08-09)", () => {
   test("subscription_overview reports auto_renew plus both signals behind it", () => {
     for (const key of ["'auto_renew'", "'cancel_scheduled_at'", "'cancel_requested_at'"]) {
       expect(sql).toMatch(new RegExp(key));
@@ -94,7 +94,7 @@ describe("0114 - auto-renewal state is answerable (Simon 2026-08-09)", () => {
   });
 });
 
-describe("0114 - apply_billing_event keeps its 0087 guarantees while growing", () => {
+describe("0115 - apply_billing_event keeps its 0087 guarantees while growing", () => {
   test("the old 12-argument signature is dropped, not left as a second overload", () => {
     expect(sql).toMatch(/DROP FUNCTION IF EXISTS public\.apply_billing_event\(/);
   });
@@ -114,6 +114,32 @@ describe("0114 - apply_billing_event keeps its 0087 guarantees while growing", (
     expect(sql).toMatch(/IF v_rows = 0 THEN[\s\S]*?RETURN 'duplicate'/);
   });
 
+  // 0109 and 0112 both landed on this exact function while this work was in
+  // flight. Re-creating it is the moment their fixes could silently vanish, so
+  // each one is pinned here rather than trusted to review.
+  test("0109's ordering guard survives the re-creation (monotonic on subscription_event_at)", () => {
+    expect(sql).toMatch(/subscription_event_at\s+= v_at/);
+    expect(sql).toMatch(/AND \(subscription_event_at IS NULL OR v_at >= subscription_event_at\)/);
+    expect(sql).toMatch(/SET stale_entitlement = true/);
+    // Existence is checked separately, so a deliberately-skipped stale event
+    // does not masquerade as an unknown user and make Paddle retry it.
+    expect(sql).toMatch(/IF NOT EXISTS \(SELECT 1 FROM public\.users WHERE id = v_user_id\)/);
+    // The unconditional UPDATE this replaced must not come back.
+    expect(sql).not.toMatch(/subscription_provider\s+= p_provider\s*\n\s*WHERE id = v_user_id;/);
+  });
+
+  test("0112's role detection is used, never the legacy GUC alone", () => {
+    // request.jwt.claim.role is NOT set by the current PostgREST stack. It may
+    // appear exactly once: inside the helper, as the first COALESCE arm.
+    const rawReads = sql.match(/current_setting\('request\.jwt\.claim\.role'/g) ?? [];
+    expect(rawReads).toHaveLength(1);
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.billing_request_role\(\)/);
+    expect(sql).toMatch(/current_setting\('request\.jwt\.claims', true\)[^;]*::jsonb ->> 'role'/);
+    // Every guard goes through the helper.
+    const guards = sql.match(/public\.billing_request_role\(\)/g) ?? [];
+    expect(guards.length).toBeGreaterThanOrEqual(5);
+  });
+
   test("a renewal with no checkout custom_data recovers its owner by subscription id", () => {
     expect(sql).toMatch(/IF v_user_id IS NULL AND v_sub_id IS NOT NULL THEN/);
     expect(sql).toMatch(/WHERE e\.paddle_subscription_id = v_sub_id/);
@@ -122,7 +148,7 @@ describe("0114 - apply_billing_event keeps its 0087 guarantees while growing", (
   });
 });
 
-describe("0114 - billing_self_service_log is the audit ledger AND the idempotency claim", () => {
+describe("0115 - billing_self_service_log is the audit ledger AND the idempotency claim", () => {
   test("every self-serve action is recorded with its verdict and evidence", () => {
     expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS public\.billing_self_service_log/);
     expect(sql).toMatch(/action\s+text NOT NULL CHECK \(action IN \('cancel', 'refund_request'\)\)/);
@@ -156,7 +182,7 @@ describe("0114 - billing_self_service_log is the audit ledger AND the idempotenc
   });
 });
 
-describe("0114 - refund_eligibility() is the server-side single source of truth", () => {
+describe("0115 - refund_eligibility() is the server-side single source of truth", () => {
   test("definer + locked search_path, anon revoked, owner and service_role granted", () => {
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.refund_eligibility\(p_user_id uuid\)/);
     expect(sql).toMatch(/SECURITY DEFINER/);
@@ -226,7 +252,7 @@ describe("0114 - refund_eligibility() is the server-side single source of truth"
   });
 });
 
-describe("0114 - the claim/settle helpers are service_role only", () => {
+describe("0115 - the claim/settle helpers are service_role only", () => {
   test.each([
     ["claim_billing_self_service", "uuid, text, text, text, jsonb"],
     ["settle_billing_self_service", "uuid, text, integer, text, text"],
@@ -248,7 +274,7 @@ describe("0114 - the claim/settle helpers are service_role only", () => {
   });
 });
 
-describe("0114 - definer-grant lint contract (scripts/check-definer-grants.ts, BASELINE 96)", () => {
+describe("0115 - definer-grant lint contract (scripts/check-definer-grants.ts, BASELINE 96)", () => {
   test("every SECURITY DEFINER create in the file is matched by a FROM anon revoke", () => {
     const definers = sql.match(/SECURITY DEFINER/g) ?? [];
     expect(definers.length).toBeGreaterThan(0);

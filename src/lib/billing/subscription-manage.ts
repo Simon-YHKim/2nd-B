@@ -3,7 +3,7 @@
 //
 // Everything here is a thin, honest wrapper. Two rules the UI depends on:
 //
-//   1. The verdict is NEVER decided here. refund_eligibility() (0114) is the single
+//   1. The verdict is NEVER decided here. refund_eligibility() (0115) is the single
 //      source of truth, and subscription-manage re-derives it server-side before it
 //      spends money. This module only transports and formats it.
 //   2. A refund is a REQUEST. Paddle is the Merchant of Record and reviews refund
@@ -17,7 +17,7 @@
 import { getSupabaseClient } from "../supabase/client";
 import { REASONING_PER_WEEK } from "../entitlements/tier-map";
 
-/** Refund window in days. Mirrors c_window_days in refund_eligibility() (0114)
+/** Refund window in days. Mirrors c_window_days in refund_eligibility() (0115)
  *  and "7일" in docs/legal/refund-policy.md. The server decides; this is the
  *  display fallback and the number the migration's structural test pins against.
  *
