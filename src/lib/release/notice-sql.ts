@@ -28,6 +28,19 @@ export const NOTICE_INSERT_COLUMNS = [
 /** Mirrors the CHECK on notices.min_app_version. */
 const VERSION_SHAPE = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 
+/**
+ * Can this version be stored in notices.min_app_version?
+ *
+ * Stricter than parseSemver(), deliberately: the comparator pads "1.2" to
+ * "1.2.0" because it only has to ORDER versions, while this column has a CHECK
+ * that wants all three segments written out. Callers that are about to publish
+ * should ask this one, so a two-part version fails at the top of the script
+ * with a sentence rather than at the bottom, after the draft has been built.
+ */
+export function isPublishableVersion(version: string): boolean {
+  return VERSION_SHAPE.test(version);
+}
+
 export interface NoticeInsertInput {
   /** The version being announced. Becomes min_app_version. */
   version: string;
