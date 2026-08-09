@@ -468,9 +468,24 @@ export function ConstellationHome({
   const autoNotice = noticeCenter.popupNotice;
   const autoNoticeVisible =
     noticeCenter.hydrated && autoNotice !== null && coachmarksDue === false && !autoNoticeDismissed;
-  // The bell opens the newest notice in the merged list, read or not.
-  const manualNotice = noticeCenter.notices[0] ?? null;
+  // The bell opens the newest UNREAD notice, falling back to the newest one
+  // when everything is read. Positional notices[0] made the bell disagree with
+  // its own dot: the dot is raised by the unread set, so tapping it could open
+  // an already-read notice and leave the dot lit with no way to clear it.
+  // Gated on `hydrated` like every other notice path - without it the bell can
+  // open the bundled release note and then re-render as an arriving remote
+  // notice under the user's finger, marking one they never saw as read.
+  const manualNotice = noticeCenter.hydrated
+    ? (noticeCenter.notices.find((notice) => noticeCenter.isUnread(notice.id)) ??
+      noticeCenter.notices[0] ??
+      null)
+    : null;
   const shownNotice = manualNoticeVisible ? manualNotice : autoNotice;
+  const dismissNotice = () => {
+    setAutoNoticeDismissed(true);
+    setManualNoticeVisible(false);
+    if (shownNotice) void noticeCenter.markSeen(shownNotice.id);
+  };
   const reasoningMode: ReasoningBubbleMode =
     task.phase === "running" && task.resultHref === "/reasoning"
       ? "running"
@@ -801,19 +816,22 @@ export function ConstellationHome({
           notice={shownNotice}
           index={0}
           showPager={false}
+          // Dismissing by ANY route records the read, not just 확인.
+          // The dialog interrupted the user and put the notice on screen, so
+          // that is what "read" means here. With 확인 as the only writer, a
+          // backdrop tap or Android hardware back left no row and the same
+          // major notice re-interrupted on every single cold start, forever,
+          // while docs/OPERATIONS-NOTICES.md promised the opposite and its
+          // read-count query undercounted the notice's real reach.
           onClose={() => {
-            setAutoNoticeDismissed(true);
-            setManualNoticeVisible(false);
+            dismissNotice();
           }}
           onList={() => {
-            setAutoNoticeDismissed(true);
-            setManualNoticeVisible(false);
+            dismissNotice();
             router.push("/notices");
           }}
           onConfirm={() => {
-            setAutoNoticeDismissed(true);
-            setManualNoticeVisible(false);
-            void noticeCenter.markSeen(shownNotice.id);
+            dismissNotice();
           }}
         />
       ) : null}

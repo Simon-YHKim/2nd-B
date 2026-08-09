@@ -177,7 +177,6 @@
   "signOut": "Sair",
   "couldntSignOut": "Não foi possível sair",
   "signOutError": "Algo deu errado ao sair. Tente de novo em um instante.",
-  "buildInfo": "Compilação 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "{{n}} excluídos",
   "deletedNWiki": "{{n}} páginas wiki excluídas",
   "deletedNCaptures": "{{n}} capturas excluídas",

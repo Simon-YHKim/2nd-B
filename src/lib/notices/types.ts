@@ -44,6 +44,11 @@ export interface ProductNotice {
   listMeta: LocalizedNoticeText;
   title: LocalizedNoticeText;
   body: readonly NoticeBodyBlock[];
+  /** ISO date used only to order the merged list. `when` / `listMeta` are
+   *  display copy and cannot be sorted; without this the list was "remote rows
+   *  first, then bundled", which stops being newest-first the moment a release
+   *  ships a bundled note newer than an existing remote row. */
+  sortAt: string;
 }
 
 /** A row of `notices`, camel-cased at the data-access boundary. */

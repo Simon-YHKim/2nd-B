@@ -1,4 +1,4 @@
-// T5 peer review — F2 informant responder (spec §6, schema 0064).
+// T5 peer review -- F2 informant responder (spec §6, schema 0064).
 // The informant has NO account: this function is the only write path for
 // informant consent + observation rows (RLS gives authenticated users no
 // policies on those tables). service_role inside; anon key + CORS at the edge.
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // withdrawn; the aggregate drops them immediately (0064 filters on
     // withdrawn_at IS NULL). Check every write: a silent failure here would
     // report "withdrawn" while the informant's ratings stay live in the
-    // aggregate — a fail-open consent revocation.
+    // aggregate -- a fail-open consent revocation.
     const now = new Date().toISOString();
     const { error: icErr } = await admin.from('informant_consents').update({ withdrawn_at: now })
       .eq('invitation_id', invite.id).is('withdrawn_at', null);
@@ -136,29 +136,57 @@ Deno.serve(async (req) => {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '';
     const ua = req.headers.get('user-agent') ?? '';
 
-    const { data: consent, error: cErr } = await admin
-      .from('informant_consents')
-      .insert({
-        invitation_id: invite.id,
-        subject_user_id: invite.user_id,
-        consent_at: now,
-        informant_is_minor: isMinor,
-        guardian_consent_at: isMinor ? now : null,
-        llm_processing_ack: true,
-        overseas_transfer_ack: true,
-        ip_hash: ip ? await sha256Hex(`${salt}:${ip}`) : null,
-        ua_hash: ua ? await sha256Hex(`${salt}:${ua}`) : null,
-      })
-      .select('id')
-      .single();
-    if (cErr || !consent) return jsonResponse(req, { error: 'consent_failed' }, 500);
+    const ipHash = ip ? await sha256Hex(`${salt}:${ip}`) : null;
+    const uaHash = ua ? await sha256Hex(`${salt}:${ua}`) : null;
 
-    const { error: oErr } = await admin.from('peer_observations').insert({
-      invitation_id: invite.id,
-      subject_user_id: invite.user_id,
-      informant_consent_id: consent.id,
-      ratings,
-    });
+    // The status read at line ~81 and these writes are not one atomic step, so
+    // two submissions of the same token can both pass the pending check above.
+    // Migration 0110 put UNIQUE(invitation_id) on BOTH informant_consents and
+    // peer_observations; upserting with onConflict + ignoreDuplicates compiles to
+    // INSERT ... ON CONFLICT (invitation_id) DO NOTHING, which is the atomic race
+    // gate: the first writer inserts, any concurrent OR retried writer no-ops
+    // instead of double-counting the informant in the T5 aggregate. It is also
+    // idempotent across a partial prior attempt (consent written, observation
+    // not): the retry no-ops the consent and still completes the observation,
+    // rather than being falsely told "already responded" with its ratings lost.
+    const { error: cErr } = await admin
+      .from('informant_consents')
+      .upsert(
+        {
+          invitation_id: invite.id,
+          subject_user_id: invite.user_id,
+          consent_at: now,
+          informant_is_minor: isMinor,
+          guardian_consent_at: isMinor ? now : null,
+          llm_processing_ack: true,
+          overseas_transfer_ack: true,
+          ip_hash: ipHash,
+          ua_hash: uaHash,
+        },
+        { onConflict: 'invitation_id', ignoreDuplicates: true },
+      );
+    if (cErr) return jsonResponse(req, { error: 'consent_failed' }, 500);
+
+    // Resolve the canonical consent id for this invitation -- the row this
+    // request just inserted, or the one a prior/concurrent request inserted.
+    const { data: consent, error: cSelErr } = await admin
+      .from('informant_consents')
+      .select('id')
+      .eq('invitation_id', invite.id)
+      .maybeSingle();
+    if (cSelErr || !consent) return jsonResponse(req, { error: 'consent_failed' }, 500);
+
+    const { error: oErr } = await admin
+      .from('peer_observations')
+      .upsert(
+        {
+          invitation_id: invite.id,
+          subject_user_id: invite.user_id,
+          informant_consent_id: consent.id,
+          ratings,
+        },
+        { onConflict: 'invitation_id', ignoreDuplicates: true },
+      );
     if (oErr) return jsonResponse(req, { error: 'observation_failed' }, 500);
 
     await admin.from('peer_invitations').update({ status: 'accepted', responded_at: now })
