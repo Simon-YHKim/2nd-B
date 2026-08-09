@@ -1,8 +1,8 @@
--- 0108 — One account per real mailbox.
+-- 0108 -- One account per real mailbox.
 --
 -- users.email is citext UNIQUE, so case is already deduped. Sub-addressing is
 -- not: simon@gmail.com / si.mon@gmail.com / simon+a@gmail.com are three distinct
--- citext values that all deliver to ONE inbox. This was not theoretical — prod
+-- citext values that all deliver to ONE inbox. This was not theoretical -- prod
 -- held three profiles canonicalising to the same mailbox. Each one is a fresh
 -- free tier: its own gemini_spend_daily row, its own usage_counters reward
 -- ceiling, its own once-only XP grants.

@@ -1,4 +1,4 @@
-// export-account Edge Function — subject data portability (GDPR Art.20 /
+// export-account Edge Function -- subject data portability (GDPR Art.20 /
 // PIPA right to data portability).
 //
 // Returns a structured, machine-readable (JSON) bundle of all personal data the
@@ -10,11 +10,11 @@
 //
 // Why a service-role function: several owned tables (personas, memorized_patterns,
 // the append-only consent_records ledger, xp_events) have NO client SELECT path or
-// are RLS-narrowed, so a client-side gather can never reach them — the same reason
+// are RLS-narrowed, so a client-side gather can never reach them -- the same reason
 // delete-account runs service-role.
 //
 // IDOR-safe: the data returned is ALWAYS the caller's own, derived from the
-// gateway-verified JWT (verify_jwt=true). The body is ignored — we never accept a
+// gateway-verified JWT (verify_jwt=true). The body is ignored -- we never accept a
 // target user_id from the client (identical contract to delete-account).
 //
 // NOT a destructive operation: read-only. Deliberately EXCLUDED from the export
@@ -88,7 +88,7 @@ function userIdFromJwt(authHeader: string): string | null {
 // jsonb) is handled separately by primary key, and knowledge_sources is filtered to the
 // user's own contributions (added_by).
 // User-owned tables and the column that scopes a row to its owner. Re-verified
-// against the live schema (every FK to public.users) on 2026-08-07 — the prior
+// against the live schema (every FK to public.users) on 2026-08-07 -- the prior
 // list predated the ops_*, reasoning_*, persona-graph, srs_*, health_samples,
 // relation_people and star_tier_history tables, which held the subject's own
 // personal data yet were silently omitted from a data-portability export.
@@ -188,7 +188,7 @@ Deno.serve(async (req: Request) => {
     else tables['knowledge_sources_contributed'] = data ?? [];
   }
 
-  // raw-clippings Storage (<userId>/<slug>.md) — the original clipped markdown, NOT
+  // raw-clippings Storage (<userId>/<slug>.md) -- the original clipped markdown, NOT
   // FK-linked. Best-effort: list paginated, download each; never fail the export on a
   // Storage hiccup (the structured DB export above is the rights-grade payload).
   const storage: { path: string; markdown?: string; error?: string }[] = [];

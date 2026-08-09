@@ -1,4 +1,4 @@
-// T5 peer review — F2 informant responder (spec §6, schema 0064).
+// T5 peer review -- F2 informant responder (spec §6, schema 0064).
 // The informant has NO account: this function is the only write path for
 // informant consent + observation rows (RLS gives authenticated users no
 // policies on those tables). service_role inside; anon key + CORS at the edge.
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // withdrawn; the aggregate drops them immediately (0064 filters on
     // withdrawn_at IS NULL). Check every write: a silent failure here would
     // report "withdrawn" while the informant's ratings stay live in the
-    // aggregate — a fail-open consent revocation.
+    // aggregate -- a fail-open consent revocation.
     const now = new Date().toISOString();
     const { error: icErr } = await admin.from('informant_consents').update({ withdrawn_at: now })
       .eq('invitation_id', invite.id).is('withdrawn_at', null);
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
       );
     if (cErr) return jsonResponse(req, { error: 'consent_failed' }, 500);
 
-    // Resolve the canonical consent id for this invitation — the row this
+    // Resolve the canonical consent id for this invitation -- the row this
     // request just inserted, or the one a prior/concurrent request inserted.
     const { data: consent, error: cSelErr } = await admin
       .from('informant_consents')

@@ -1,4 +1,4 @@
--- 0110 — two independent fixes, both "the DB had no backstop for a race the
+-- 0110 -- two independent fixes, both "the DB had no backstop for a race the
 -- application layer assumed away".
 
 -- (a) peer-respond read invite.status='pending', then inserted a consent row and

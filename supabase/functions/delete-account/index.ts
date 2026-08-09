@@ -1,4 +1,4 @@
-// delete-account Edge Function — terminal account erasure (GDPR Art.17 /
+// delete-account Edge Function -- terminal account erasure (GDPR Art.17 /
 // PIPA right to deletion).
 //
 // Why a service-role function: most user-owned tables are erased only by an
@@ -19,7 +19,7 @@
 //      any environment whose DB predates the 0107 cascade FK
 //
 // IDOR-safe: the account erased is ALWAYS the caller's own, derived from the
-// gateway-verified JWT (verify_jwt=true). The body is ignored — we never accept
+// gateway-verified JWT (verify_jwt=true). The body is ignored -- we never accept
 // a target user_id from the client.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -122,7 +122,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // 2. Safety net for any environment whose DB predates the 0107 cascade FK:
-  //    delete the profile explicitly too. Idempotent — a no-op once the cascade
+  //    delete the profile explicitly too. Idempotent -- a no-op once the cascade
   //    above already removed it. Reported but never fatal: the login is already
   //    gone, so the account can no longer be accessed regardless.
   let profileErased = true;
@@ -133,15 +133,15 @@ Deno.serve(async (req: Request) => {
   }
 
   // 3. Remove the user's raw clipped markdown from Storage (raw-clippings bucket,
-  // <userId>/<slug>.md) — the most PII-rich content, NOT FK-linked so the
+  // <userId>/<slug>.md) -- the most PII-rich content, NOT FK-linked so the
   // public.users cascade never reaches it. Best-effort: the account is already
   // erased, so a Storage hiccup must not fail the request.
   // Paginate: list() returns one bounded page. We delete each page then re-list
   // from the start (the deleted page is gone, so the next list surfaces the
-  // remainder) until a short/empty page — so users with >1000 clippings are
+  // remainder) until a short/empty page -- so users with >1000 clippings are
   // fully erased, not just the first page.
   // Best-effort by design (the account is already erased, so a Storage hiccup
-  // must not fail the request) — but report whether the PII was actually erased
+  // must not fail the request) -- but report whether the PII was actually erased
   // instead of unconditionally claiming success, so a partial failure is
   // observable and an operator can re-run cleanup.
   let rawClippingsErased = true;

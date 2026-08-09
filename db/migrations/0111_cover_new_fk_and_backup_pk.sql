@@ -1,4 +1,4 @@
--- 0111 — housekeeping for the two INFO advisories that 0107/0109 introduced.
+-- 0111 -- housekeeping for the two INFO advisories that 0107/0109 introduced.
 
 -- The new FK on paddle_webhook_events.user_id needs a covering index, otherwise
 -- every users-row delete has to seq-scan the webhook table to check the

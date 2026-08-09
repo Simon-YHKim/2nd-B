@@ -1,4 +1,4 @@
--- 0107 — public.users had NO foreign key to auth.users, so deleting an auth
+-- 0107 -- public.users had NO foreign key to auth.users, so deleting an auth
 -- user left the profile row behind forever. Because users_email_key is UNIQUE
 -- on citext email, that orphan permanently claims the address: the person can
 -- never re-register (the signup trigger's ON CONFLICT DO NOTHING swallows the
@@ -32,7 +32,7 @@ alter table public.users
 
 -- Billing audit rows were the one user-scoped table with no FK at all. SET NULL
 -- (not CASCADE) so revenue history survives an erasure request, matching the
--- existing treatment of revenue_events and ai_audit_log.
+-- existing handling of revenue_events and ai_audit_log.
 alter table public.paddle_webhook_events
   add constraint paddle_webhook_events_user_id_fkey
   foreign key (user_id) references public.users (id) on delete set null;

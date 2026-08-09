@@ -1,25 +1,25 @@
-// OpenAI proxy Edge Function — the OpenAI backend for D-26 Phase 2
+// OpenAI proxy Edge Function -- the OpenAI backend for D-26 Phase 2
 // purpose-keyed vendor routing (seat: cluster_infer on gpt-5.4, plus the
 // safety_classify outage-fallback seat on gpt-5.4-nano).
 //
-// Fork of claude-proxy — the security boundary mirrors gemini-proxy 1:1: same
+// Fork of claude-proxy -- the security boundary mirrors gemini-proxy 1:1: same
 // JWT auth, same server-side crisis gate, same PER-USER/DAY spend counter
-// (bump_gemini_spend — one pool across ALL vendor proxies so provider-hopping
+// (bump_gemini_spend -- one pool across ALL vendor proxies so provider-hopping
 // can't multiply a user's budget), same premium-purpose gate, same
 // ai_audit_log write. Shared plumbing: ../_shared/llm-proxy-common.ts.
 //
 // Auth: requires a valid Supabase JWT (verify_jwt is set in config.toml).
 //
 // Secrets the operator sets via the Supabase Dashboard:
-//   OPENAI_API_KEY        — the OpenAI platform key (project-scoped key
+//   OPENAI_API_KEY        -- the OpenAI platform key (project-scoped key
 //                            recommended). No key = this function 500s; the
 //                            client's D-26 outage failover (callGemini /
 //                            callAdvisor retry-once-via-gemini-proxy) then
 //                            serves the call on the Phase 1 route.
-//   OPENAI_MODEL          — optional GLOBAL kill-switch: when set it beats
+//   OPENAI_MODEL          -- optional GLOBAL kill-switch: when set it beats
 //                            every built-in PURPOSE_MODEL seat. Only the
 //                            per-purpose JSON below outranks it.
-//   OPENAI_PURPOSE_MODELS — optional JSON object { purpose: model-id }
+//   OPENAI_PURPOSE_MODELS -- optional JSON object { purpose: model-id }
 //                            overriding individual seats. Highest priority.
 //
 // D-26: MODEL CHOICE IS SERVER-OWNED (client `model` accepted-but-ignored);
@@ -56,18 +56,18 @@ import {
 
 const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
-// D-26 default seat: gpt-5.4 (value frontier — the cluster_infer seat).
+// D-26 default seat: gpt-5.4 (value frontier -- the cluster_infer seat).
 const DEFAULT_OPENAI_MODEL = 'gpt-5.4';
 
 // D-26 Phase 2 OpenAI seats (server-owned routing). This is ALSO the purpose
-// ALLOWLIST — unlike claude-proxy (which must keep serving the legacy
+// ALLOWLIST -- unlike claude-proxy (which must keep serving the legacy
 // reasoning seam), openai-proxy has exactly these seats; any other purpose is
 // rejected 400 before any paid call, so the function never becomes an
 // arbitrary-purpose gpt-5.4 spend surface for tampered clients.
-//   cluster_infer   — record clustering / edge inference with why-sentences
+//   cluster_infer   -- record clustering / edge inference with why-sentences
 //                     (batchable; kNN pre-filter upstream). NOT YET WIRED in
-//                     the client (gap purpose — lands with the cluster lane).
-//   safety_classify — OUTAGE-ONLY cross-vendor fallback for the Gemini safety
+//                     the client (gap purpose -- lands with the cluster lane).
+//   safety_classify -- OUTAGE-ONLY cross-vendor fallback for the Gemini safety
 //                     chain (cheap nano, reasoning_effort none). NOT YET WIRED
 //                     in the client (D-26 backlog #1).
 const PURPOSE_MODEL: Record<string, string> = {
@@ -99,7 +99,7 @@ function resolveModel(purpose: string): string {
       const m = map?.[purpose];
       if (typeof m === 'string' && m.trim().length > 0) return m.trim();
     } catch {
-      console.error('[openai-proxy] OPENAI_PURPOSE_MODELS is not valid JSON — ignoring');
+      console.error('[openai-proxy] OPENAI_PURPOSE_MODELS is not valid JSON -- ignoring');
     }
   }
   const globalOverride = (Deno.env.get('OPENAI_MODEL') ?? '').trim();
@@ -135,7 +135,7 @@ function effortToOpenAi(effort: string | null, purpose: string): string {
   return EFFORT_RANK[requested] <= EFFORT_RANK[ceiling] ? requested : ceiling;
 }
 
-// Hard output ceilings per (clamped) effort — max_completion_tokens includes
+// Hard output ceilings per (clamped) effort -- max_completion_tokens includes
 // reasoning tokens on gpt-5.x, roomy for the same reason as claude-proxy's
 // ladder (truncation is surfaced as an error below, never a silent 200).
 function effortToMaxTokens(clampedEffort: string): number {
@@ -207,7 +207,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
 
-  // Purpose allowlist — this proxy serves EXACTLY its D-26 seats. Rejecting
+  // Purpose allowlist -- this proxy serves EXACTLY its D-26 seats. Rejecting
   // everything else (before the tier lookup and any paid call) keeps a
   // tampered client from using OPENAI_API_KEY as a generic completion source.
   // hasOwnProperty, NOT `in`: `in` walks the prototype chain, so purpose values
@@ -218,7 +218,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
   }
 
-  // R1-A: server-side crisis classifier — reject before any paid OpenAI call.
+  // R1-A: server-side crisis classifier -- reject before any paid OpenAI call.
   // Scans ONLY the `user` turn, never the curated `system` channel. The
   // safety_classify seat is exempt (flag-gated by LLM_SERVER_SAFETY_SEAT, default
   // off) so a cross-vendor safety fallback wired to this seat can actually see the
@@ -230,7 +230,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // EFFECTIVE tier via effective_subscription_tier (0088), NOT the raw
-  // subscription_tier column — mirrors gemini-proxy. The raw column stays
+  // subscription_tier column -- mirrors gemini-proxy. The raw column stays
   // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge. The RPC collapses expired->free and
@@ -252,7 +252,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
   }
 
-  // Spend cap — the SAME shared per-user/day counter as gemini/claude proxies.
+  // Spend cap -- the SAME shared per-user/day counter as gemini/claude proxies.
   const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
     p_user_id: userId,
     p_day: utcDay(),
@@ -267,9 +267,9 @@ Deno.serve(async (req: Request) => {
     const rpcMissing =
       code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
     if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[openai-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
+      console.error('[openai-proxy][ALERT] spend RPC missing -- allowing WITHOUT a cap. Apply 0035/0036:', msg);
     } else {
-      console.error('[openai-proxy][ALERT] spend check unavailable — failing closed:', msg);
+      console.error('[openai-proxy][ALERT] spend check unavailable -- failing closed:', msg);
       return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
     }
   }
@@ -278,7 +278,7 @@ Deno.serve(async (req: Request) => {
   const spentBumped = !spendErr;
 
   // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
-  // (default off) — enable once legal finalizes the consent copy/versions. When
+  // (default off) -- enable once legal finalizes the consent copy/versions. When
   // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
   // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
   // NOTE (R1 / pre-deploy review P2): consent_records is an append-only GRANT
@@ -315,7 +315,7 @@ Deno.serve(async (req: Request) => {
   const resolvedKey = resolveApiKey('OPENAI', openaiModel, clampedEffort, apiKey);
   if (!resolvedKey.usedCombo) {
     console.warn(
-      `[openai-proxy] combo key ${resolvedKey.secretName} absent — using base OPENAI_API_KEY (usage attributes to base)`,
+      `[openai-proxy] combo key ${resolvedKey.secretName} absent -- using base OPENAI_API_KEY (usage attributes to base)`,
     );
   }
   const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'OPENAI_API_KEY';
@@ -343,7 +343,7 @@ Deno.serve(async (req: Request) => {
             type: 'json_schema',
             json_schema: {
               name: 'response',
-              // strict:false — the client's Gemini-dialect schemas may carry a
+              // strict:false -- the client's Gemini-dialect schemas may carry a
               // required-subset (strict mode demands required == all keys).
               strict: false,
               schema: responseSchema,

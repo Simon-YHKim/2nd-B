@@ -1,22 +1,22 @@
-// Claude proxy Edge Function — the Anthropic backend for D-26 Phase 2
+// Claude proxy Edge Function -- the Anthropic backend for D-26 Phase 2
 // purpose-keyed vendor routing (and, legacy, EXPO_PUBLIC_REASONING_PROVIDER=claude).
 //
 // Why: like gemini-proxy, this keeps the model API key server-side. The
 // Anthropic key (ANTHROPIC_API_KEY) NEVER reaches the client bundle; the client
 // sends the prompt, this function signs and forwards it, the answer comes back.
-// It mirrors gemini-proxy's security boundary 1:1 — only the upstream provider
-// differs — so the same auth, crisis gate, spend cap, entitlement gate, and
+// It mirrors gemini-proxy's security boundary 1:1 -- only the upstream provider
+// differs -- so the same auth, crisis gate, spend cap, entitlement gate, and
 // audit row all apply. Shared plumbing lives in ../_shared/llm-proxy-common.ts.
 //
 // Auth: requires a valid Supabase JWT (verify_jwt is set in config.toml).
 //
 // Secrets the operator sets via the Supabase Dashboard:
-//   ANTHROPIC_API_KEY        — the Anthropic Console key (workspace "2ndb-reasoning")
-//   ANTHROPIC_MODEL          — optional GLOBAL kill-switch: when set it beats
+//   ANTHROPIC_API_KEY        -- the Anthropic Console key (workspace "2ndb-reasoning")
+//   ANTHROPIC_MODEL          -- optional GLOBAL kill-switch: when set it beats
 //                              every built-in PURPOSE_MODEL seat (fleet-wide
 //                              downgrade in a cost/outage incident). Only the
 //                              per-purpose JSON below outranks it.
-//   ANTHROPIC_PURPOSE_MODELS — optional JSON object { purpose: model-id } that
+//   ANTHROPIC_PURPOSE_MODELS -- optional JSON object { purpose: model-id } that
 //                              overrides individual seats without a code change
 //                              (e.g. flip persona_narrative to sonnet-5 if the
 //                              KO-prose pilot rejects opus). Highest priority.
@@ -25,7 +25,7 @@
 //
 // D-26: the MODEL CHOICE IS SERVER-OWNED. The client's `model` field is
 // accepted-but-ignored; the purpose label picks the seat. A tampered client can
-// therefore never self-select an expensive model (SAME-QUALITY stays intact —
+// therefore never self-select an expensive model (SAME-QUALITY stays intact --
 // seats key on purpose, never on subscription tier).
 //
 // Request shape:
@@ -86,7 +86,7 @@ const PURPOSE_MODEL: Record<string, string> = {
 
 function resolveModel(purpose: string | null): string {
   // Precedence: per-purpose env JSON > ANTHROPIC_MODEL (TRUE global
-  // kill-switch — e.g. fleet-wide opus->sonnet downgrade during a cost
+  // kill-switch -- e.g. fleet-wide opus->sonnet downgrade during a cost
   // incident) > built-in seat > default.
   if (purpose) {
     const raw = (Deno.env.get('ANTHROPIC_PURPOSE_MODELS') ?? '').trim();
@@ -96,7 +96,7 @@ function resolveModel(purpose: string | null): string {
         const m = map?.[purpose];
         if (typeof m === 'string' && m.trim().length > 0) return m.trim();
       } catch {
-        console.error('[claude-proxy] ANTHROPIC_PURPOSE_MODELS is not valid JSON — ignoring');
+        console.error('[claude-proxy] ANTHROPIC_PURPOSE_MODELS is not valid JSON -- ignoring');
       }
     }
   }
@@ -106,8 +106,8 @@ function resolveModel(purpose: string | null): string {
   // this proxy has no allowlist (it must keep serving the legacy reasoning seam,
   // where an unseated purpose legitimately falls to the default seat). A plain
   // `PURPOSE_MODEL[purpose]` walks the prototype chain, so purpose='toString'
-  // (or constructor/__proto__/valueOf) returned Object.prototype.toString — a
-  // FUNCTION — which then crashed modelSlug(model.toUpperCase) AFTER the spend
+  // (or constructor/__proto__/valueOf) returned Object.prototype.toString -- a
+  // FUNCTION -- which then crashed modelSlug(model.toUpperCase) AFTER the spend
   // was already bumped: an anonymous-to-authenticated quota-drain + 500. Own-key
   // check makes every non-seat purpose fall cleanly to the default sonnet seat.
   if (purpose && Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
@@ -116,7 +116,7 @@ function resolveModel(purpose: string | null): string {
   return DEFAULT_CLAUDE_MODEL;
 }
 
-// D-26 per-purpose EFFORT CEILING (server-owned — `effort` is client-reported,
+// D-26 per-purpose EFFORT CEILING (server-owned -- `effort` is client-reported,
 // and price = model x effort x max_tokens, so without this clamp a tampered
 // client could run the opus seats at "max". Mirrors the verdict matrix; no
 // seat is approved for "max" at all. Unknown/unseated purposes clamp to the
@@ -153,7 +153,7 @@ function effortToAnthropic(effort: string | null, purpose: string | null): strin
 }
 
 // Hard output ceilings per (clamped) effort. With adaptive thinking ON,
-// thinking tokens count against max_tokens, so these are deliberately roomy —
+// thinking tokens count against max_tokens, so these are deliberately roomy --
 // a 4-sentence answer at high effort could otherwise be eaten by its own
 // thinking budget and truncate (which we now surface as an error below).
 function effortToMaxTokens(clampedEffort: string): number {
@@ -223,7 +223,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
 
-  // R1-A: server-side crisis classifier — reject before any paid Claude call.
+  // R1-A: server-side crisis classifier -- reject before any paid Claude call.
   // Scans ONLY the `user` turn (the genuine utterance), never the curated
   // `system` channel (which legitimately carries crisis-reference vocabulary).
   if (hasCrisisTerm(userText)) {
@@ -231,7 +231,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // EFFECTIVE tier via effective_subscription_tier (0088), NOT the raw
-  // subscription_tier column — mirrors gemini-proxy. The raw column stays
+  // subscription_tier column -- mirrors gemini-proxy. The raw column stays
   // 'brain'/'cortex' after expiry until the cancel webhook lands, so reading it
   // let a lapsed subscriber keep the brain-only premium purposes + the brain
   // daily ceiling, and 403'd a comped judge (raw 'free' + judge_mode). The RPC
@@ -254,7 +254,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'entitlement_required', feature: purpose }, 403);
   }
 
-  // Spend cap (cost backstop) — shared per-user/day counter with gemini-proxy.
+  // Spend cap (cost backstop) -- shared per-user/day counter with gemini-proxy.
   const { error: spendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
     p_user_id: userId,
     p_day: utcDay(),
@@ -266,14 +266,14 @@ Deno.serve(async (req: Request) => {
       return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
     }
     // FAIL CLOSED on a cost-critical error. The only tolerated case is "RPC does
-    // not exist yet" (migration not applied) — allow + alert loudly.
+    // not exist yet" (migration not applied) -- allow + alert loudly.
     const code = (spendErr as { code?: string }).code ?? '';
     const rpcMissing =
       code === 'PGRST202' || code === '42883' || msg.includes('Could not find the function');
     if (rpcMissing && Deno.env.get('GEMINI_SPEND_FAILOPEN') === '1') {
-      console.error('[claude-proxy][ALERT] spend RPC missing — allowing WITHOUT a cap. Apply 0035/0036:', msg);
+      console.error('[claude-proxy][ALERT] spend RPC missing -- allowing WITHOUT a cap. Apply 0035/0036:', msg);
     } else {
-      console.error('[claude-proxy][ALERT] spend check unavailable — failing closed:', msg);
+      console.error('[claude-proxy][ALERT] spend check unavailable -- failing closed:', msg);
       return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
     }
   }
@@ -282,7 +282,7 @@ Deno.serve(async (req: Request) => {
   const spentBumped = !spendErr;
 
   // D6 (audit M5): consent egress gate. Flag-gated by LLM_REQUIRE_CONSENT
-  // (default off) — enable once legal finalizes the consent copy/versions. When
+  // (default off) -- enable once legal finalizes the consent copy/versions. When
   // on, require a current consent row (llm_processing_ack + overseas_transfer_ack)
   // before sending user content to the overseas vendor; fail CLOSED if unverifiable.
   // NOTE (R1 / pre-deploy review P2): consent_records is an append-only GRANT
@@ -319,7 +319,7 @@ Deno.serve(async (req: Request) => {
   const resolvedKey = resolveApiKey('ANTHROPIC', claudeModel, clampedEffort, apiKey);
   if (!resolvedKey.usedCombo) {
     console.warn(
-      `[claude-proxy] combo key ${resolvedKey.secretName} absent — using base ANTHROPIC_API_KEY (usage attributes to base)`,
+      `[claude-proxy] combo key ${resolvedKey.secretName} absent -- using base ANTHROPIC_API_KEY (usage attributes to base)`,
     );
   }
   const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'ANTHROPIC_API_KEY';
@@ -406,7 +406,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
   }
   // Anthropic returns content as an array of blocks; concatenate the text blocks
-  // (thinking blocks are skipped — raw reasoning is never forwarded).
+  // (thinking blocks are skipped -- raw reasoning is never forwarded).
   const blocks = Array.isArray(data?.content) ? data.content : [];
   const text: string = blocks
     .filter((b: { type?: string }) => b?.type === 'text')
@@ -420,7 +420,7 @@ Deno.serve(async (req: Request) => {
   const refused = data?.stop_reason === 'refusal';
   // Truncation (stop_reason:"max_tokens"): with adaptive thinking the budget
   // includes thinking tokens, so a truncated reply can be a mid-JSON stump or
-  // even all-thinking/empty. NEVER return it as a 200 — parsers downstream
+  // even all-thinking/empty. NEVER return it as a 200 -- parsers downstream
   // would read it as thin data. Audited with a +truncated marker, then 502 so
   // callers take their fail-soft/failover path.
   const truncated = data?.stop_reason === 'max_tokens';

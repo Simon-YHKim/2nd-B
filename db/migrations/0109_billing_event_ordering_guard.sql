@@ -1,4 +1,4 @@
--- 0109 — Paddle gives no delivery-ordering guarantee and retries failures with
+-- 0109 -- Paddle gives no delivery-ordering guarantee and retries failures with
 -- backoff, so a delayed event routinely lands after a newer one. The
 -- entitlement write in apply_billing_event was unconditional, and nothing
 -- recorded which event the current tier came from, so a stale delivery won and
