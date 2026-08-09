@@ -225,6 +225,7 @@
       "confirmCta": "Enviar pedido",
       "reason": {
         "eligible": "Voce pode pedir o reembolso integral agora.",
+        "alreadyRequested": "Ja existe uma solicitacao de reembolso registrada para este pagamento.",
         "usedBeyondFree": "O uso desde o pagamento passou do que o plano gratuito cobre no mesmo periodo, entao o reembolso automatico nao esta disponivel.",
         "windowPassed": "Ja se passaram mais de 7 dias desde o pagamento, entao o reembolso automatico nao esta disponivel.",
         "noPayment": "Nao ha pagamento registrado para reembolsar.",

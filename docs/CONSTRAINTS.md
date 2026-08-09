@@ -117,3 +117,18 @@ is Sprint 1 OPS work.
 
 README contains a "Pre-existing assets used" section per XPRIZE rulebook
 §04. `docs/ASSETS.md` carries the detailed registry.
+
+## Known platform limitations (2026-08-10)
+
+These findings do not relax C1 through C12. They remain tracked for a
+separate, dependency-aware cleanup.
+
+- Legacy Paddle payment rows can have a null `paddle_transaction_id`.
+  `subscription-manage` stops with `misconfigured` before calling Paddle, so
+  this cannot issue money. Repeated refund attempts can still append duplicate
+  `misconfigured` rows to `billing_self_service_log`; ledger deduplication for
+  these legacy rows is deferred as a low-priority follow-up.
+- The `citext`, `pg_trgm`, and `vector` extensions currently live in the
+  `public` schema. Moving them without first inventorying dependent columns
+  and objects can break existing type references. Keep them in place until a
+  dedicated migration and rollback plan are reviewed.
