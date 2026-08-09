@@ -2,7 +2,8 @@
 
 > 공지 하나 내보내는 데 스토어 심사가 필요 없게 만든 절차. Supabase SQL Editor 에서
 > `INSERT` 한 줄이면 다음 앱 시작부터 사용자에게 보인다. 스키마는
-> `db/migrations/0113_notices.sql`, 표시 규칙은 `src/lib/notices/center.ts`.
+> `db/migrations/0113_notices.sql` + `0114_notice_withdrawal.sql`(철회),
+> 표시 규칙은 `src/lib/notices/center.ts`.
 
 ## N0 — 한 줄 템플릿 (이것만 알면 된다)
 
@@ -81,6 +82,11 @@ values (
 insert into notices (kind, title_ko, title_en, body_ko, body_en, published_at)
 values ('major', '제목', 'Title', '내용', 'Body',
         timestamptz '2026-08-15 09:00+09');
+
+-- 대기 중인 예약 공지 (철회분 제외)
+select id, kind, title_ko, published_at from notices
+where published_at > now() and withdrawn_at is null
+order by published_at;
 ```
 
 ## N4 — 특정 버전 이상에만 보내기 (min_app_version)
@@ -104,8 +110,8 @@ values ('minor', '제목', 'Title', '내용', 'Body', '0.2.0');
 ## N5 — 게시 후 확인·수정·철회
 
 ```sql
--- 최근 게시분 확인
-select id, kind, title_ko, published_at, min_app_version
+-- 최근 게시분 확인 (철회된 것도 보인다. SQL Editor 는 RLS 를 우회한다)
+select id, kind, title_ko, published_at, withdrawn_at, min_app_version
 from notices order by published_at desc limit 10;
 
 -- 몇 명이 읽었는지
@@ -116,12 +122,25 @@ group by n.id, n.title_ko order by n.published_at desc limit 10;
 -- 오타 수정 (이미 읽은 사람에게 다시 뜨지는 않는다)
 update notices set body_ko = '고친 내용' where id = '<uuid>';
 
--- 철회: 게시 시각을 미래로 미루면 목록에서도 사라진다
-update notices set published_at = now() + interval '100 years' where id = '<uuid>';
+-- 철회: 즉시 모두에게서 사라진다. 게시 시각은 그대로 남는다.
+update notices set withdrawn_at = now() where id = '<uuid>';
+
+-- 철회 취소: 원래 published_at 그대로 되살아난다.
+update notices set withdrawn_at = null where id = '<uuid>';
 
 -- 완전 삭제 (읽음 기록도 FK CASCADE 로 같이 지워진다)
 delete from notices where id = '<uuid>';
 ```
+
+- **철회에는 앱 배포가 필요 없다.** 게이트가 RLS 정책(`withdrawn_at is null`)이라
+  이미 설치된 빌드도 다음 화면 진입에서 바로 반영한다. 앱은 이 컬럼이 있는지도
+  모른다 (`db/migrations/0114_notice_withdrawal.sql`).
+- 철회해도 `user_notice_reads` 는 지우지 않는다. 읽은 사람은 실제로 읽었고, 그
+  기록은 append-only 다. 되살리면 그 사람들에게는 계속 읽음 상태다.
+- `delete` 는 되돌릴 수 없고 읽음 통계도 같이 날아간다. 잠깐 내리는 거라면
+  `withdrawn_at` 을 쓴다.
+- 예전 방식(`published_at` 을 100년 뒤로 미루기)은 쓰지 않는다. 게시 시각이
+  덮여서 되살릴 수 없고, 예약 공지와 구분도 안 된다.
 
 ⚠️ 이미 팝업을 본 사람에게는 **다시 뜨지 않는다**. 읽음이
 `user_notice_reads` 에 남고, 그 기록은 사용자 본인만 INSERT 할 수 있으며 수정·삭제
@@ -151,3 +170,5 @@ npx jest src/lib/notices
   (anon 차단, 타인 읽음 기록 불가, notices 쓰기 정책 없음).
 - `src/lib/notices/__tests__/notice-center.test.ts` — 팝업 1회성, major/minor 분기,
   예약 게시, `min_app_version` 게이트, 마크다운 파싱.
+- `src/lib/notices/__tests__/notice-withdrawal.test.ts` — 철회 정책 고정. 이 런북의
+  SQL 이 실제 스키마와 어긋나면 여기서 깨진다.
