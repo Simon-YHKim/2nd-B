@@ -40,10 +40,13 @@ export interface NoticeCenterInput {
 }
 
 export interface NoticeCenterState {
-  /** Everything the inbox lists, newest first: published remote notices, then
-   *  the bundled release notes. Remote rows are always newer than the bundled
-   *  ones, which ship with the binary and therefore predate any row an operator
-   *  can insert into a running database. */
+  /** Everything the inbox lists, newest first by `sortAt` - remote rows and
+   *  bundled release notes interleaved, not concatenated. The old
+   *  "remote first, bundled after" order rested on the premise that bundled
+   *  notices always predate any row an operator can insert, which stops being
+   *  true the moment the NEXT release ships a bundled note newer than an
+   *  existing remote row: the list then showed an older item on top and the
+   *  home bell (which opens notices[0]) offered a stale notice. */
   notices: ProductNotice[];
   unreadIds: ReadonlySet<string>;
   unreadCount: number;
@@ -52,6 +55,27 @@ export interface NoticeCenterState {
   /** Ids that belong to the remote source. markSeen() routes on this: remote
    *  ids write a user_notice_reads row, bundled ids move the local cursor. */
   remoteIds: ReadonlySet<string>;
+}
+
+/**
+ * Newest first by `sortAt`, with a deterministic id tie-break so two notices
+ * dated the same day do not swap places between renders (the same reason
+ * visibleNotices() tie-breaks). An unparseable `sortAt` sorts last rather than
+ * poisoning the comparator with NaN.
+ */
+function mergeNewestFirst(
+  remote: readonly ProductNotice[],
+  bundled: readonly ProductNotice[],
+): ProductNotice[] {
+  const at = (notice: ProductNotice): number => {
+    const parsed = Date.parse(notice.sortAt);
+    return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+  };
+  return [...remote, ...bundled].sort((a, b) => {
+    const diff = at(b) - at(a);
+    if (diff !== 0) return diff;
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
 }
 
 export function composeNoticeCenter(input: NoticeCenterInput): NoticeCenterState {
@@ -78,7 +102,7 @@ export function composeNoticeCenter(input: NoticeCenterInput): NoticeCenterState
       : null;
 
   return {
-    notices: [...adapted, ...input.bundled],
+    notices: mergeNewestFirst(adapted, input.bundled),
     unreadIds,
     unreadCount: unreadIds.size,
     popupNotice,

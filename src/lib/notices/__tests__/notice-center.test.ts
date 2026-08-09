@@ -12,7 +12,7 @@
 // them testable at all.
 
 import { composeNoticeCenter } from "../center";
-import { noticeBodyToBlocks, parseNoticeMarkdown } from "../markdown";
+import { noticeBodyToBlocks, parseNoticeMarkdown, renderableBlocks } from "../markdown";
 import { pickPopupNotice, visibleNotices } from "../select";
 import type { ProductNotice, RemoteNotice } from "../types";
 import { compareVersions, meetsMinAppVersion } from "../version";
@@ -35,6 +35,7 @@ function remote(overrides: Partial<RemoteNotice> & Pick<RemoteNotice, "id">): Re
 const BUNDLED: readonly ProductNotice[] = [
   {
     id: "patch-1.4.0",
+    sortAt: "2026-07-17T00:00:00.000Z",
     kind: "patch",
     eyebrow: { ko: "NEW", en: "NEW" },
     when: { ko: "when", en: "when" },
@@ -44,6 +45,7 @@ const BUNDLED: readonly ProductNotice[] = [
   },
   {
     id: "patch-1.3.0",
+    sortAt: "2026-06-26T00:00:00.000Z",
     kind: "patch",
     eyebrow: { ko: "NEW", en: "NEW" },
     when: { ko: "when", en: "when" },
@@ -341,5 +343,81 @@ describe("markdown body", () => {
 
   test("a bullet in either language keeps the block a bullet", () => {
     expect(noticeBodyToBlocks("- 하나", "one").at(0)?.kind).toBe("bullet");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review fixes. Each block below pins a defect found reviewing the merged
+// feature; the comment names what broke, so a future edit that reintroduces it
+// fails with the reason attached.
+// ---------------------------------------------------------------------------
+
+describe("the merged list is newest first, not remote-then-bundled", () => {
+  // The old order was [...remote, ...bundled], justified by "bundled notices
+  // predate any row an operator can insert". That holds only until the NEXT
+  // release ships a bundled note newer than an existing remote row - after
+  // which /notices showed an older item on top and the home bell, which opens
+  // notices[0], offered a stale notice.
+  test("a bundled release note newer than a remote row sorts above it", () => {
+    const state = compose({ remote: [remote({ id: "r-old", publishedAt: "2026-07-01T00:00:00.000Z" })] });
+    expect(state.notices.map((n) => n.id)).toEqual(["patch-1.4.0", "r-old", "patch-1.3.0"]);
+  });
+
+  test("a remote row newer than every bundled note still leads", () => {
+    const state = compose({ remote: [remote({ id: "r-new", publishedAt: "2026-08-01T00:00:00.000Z" })] });
+    expect(state.notices[0]?.id).toBe("r-new");
+  });
+
+  test("bundled notes keep their own relative order", () => {
+    const state = compose({ remote: [] });
+    expect(state.notices.map((n) => n.id)).toEqual(["patch-1.4.0", "patch-1.3.0"]);
+  });
+
+  test("ordering is deterministic when two notices share a date", () => {
+    const a = compose({ remote: [remote({ id: "aaa" }), remote({ id: "bbb" })] });
+    const b = compose({ remote: [remote({ id: "bbb" }), remote({ id: "aaa" })] });
+    expect(a.notices.map((n) => n.id)).toEqual(b.notices.map((n) => n.id));
+  });
+});
+
+describe("a wrong device clock cannot suppress a published notice", () => {
+  // RLS decides publication using the SERVER clock, so every row that arrives
+  // is already published. Re-checking it against the device clock could only
+  // ever HIDE a live notice - the opposite of the original comment's claim.
+  test("a phone running two days behind still sees the notice", () => {
+    const behind = new Date("2026-08-07T00:00:00.000Z");
+    const rows = [remote({ id: "r1", publishedAt: "2026-08-09T00:00:00.000Z" })];
+    expect(visibleNotices(rows, { appVersion: "1.5.0", now: behind }).map((n) => n.id)).toEqual(["r1"]);
+  });
+
+  test("an absurd future timestamp is still dropped", () => {
+    const rows = [remote({ id: "r1", publishedAt: "2030-01-01T00:00:00.000Z" })];
+    expect(visibleNotices(rows, { appVersion: "1.5.0", now: NOW })).toEqual([]);
+  });
+
+  test("an unparseable timestamp is still dropped", () => {
+    const rows = [remote({ id: "r1", publishedAt: "nope" })];
+    expect(visibleNotices(rows, { appVersion: "1.5.0", now: NOW })).toEqual([]);
+  });
+});
+
+describe("no orphan bullet for the language that ran short", () => {
+  // noticeBodyToBlocks pads the shorter language with "" so the longer one
+  // keeps every block. Rendered as-is that is a bare marker with no text.
+  test("the padded block is dropped for the short language only", () => {
+    const blocks = noticeBodyToBlocks("- 하나\n- 둘\n- 셋", "- one\n- two");
+    expect(renderableBlocks(blocks, true)).toHaveLength(3);
+    expect(renderableBlocks(blocks, false)).toHaveLength(2);
+  });
+
+  test("whitespace-only text counts as empty", () => {
+    const blocks = [{ kind: "paragraph" as const, text: { ko: "본문", en: "   " } }];
+    expect(renderableBlocks(blocks, false)).toEqual([]);
+  });
+
+  test("a complete pair keeps every block in both languages", () => {
+    const blocks = noticeBodyToBlocks("- 하나\n- 둘", "- one\n- two");
+    expect(renderableBlocks(blocks, true)).toHaveLength(2);
+    expect(renderableBlocks(blocks, false)).toHaveLength(2);
   });
 });
