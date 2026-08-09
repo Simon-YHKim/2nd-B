@@ -52,6 +52,25 @@ export function parseNoticeMarkdown(body: string): { kind: "paragraph" | "bullet
   return blocks;
 }
 
+/**
+ * The blocks worth drawing for ONE language.
+ *
+ * noticeBodyToBlocks pads the shorter language with "" so no content is ever
+ * dropped from the longer one, which means an operator who wrote three Korean
+ * bullets and two English ones leaves a block whose EN text is empty. Rendered
+ * as-is that is a bare "✦" with nothing after it - a notice that looks broken,
+ * to exactly the readers who cannot see the language it was complete in.
+ *
+ * Pulled out of the dialog JSX so it is testable: component renders do not run
+ * in this repo (RN 0.85 + jest 29).
+ */
+export function renderableBlocks(
+  blocks: readonly NoticeBodyBlock[],
+  ko: boolean,
+): NoticeBodyBlock[] {
+  return blocks.filter((block) => (ko ? block.text.ko : block.text.en).trim() !== "");
+}
+
 /** Parse the ko and en bodies together into the localized block shape the
  *  dialog consumes.
  *

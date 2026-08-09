@@ -17,6 +17,15 @@ import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { composeNoticeCenter } from "@/lib/notices/center";
+import { renderableBlocks } from "@/lib/notices/markdown";
+import {
+  addReadId,
+  getReadIds,
+  getRevision,
+  loadPersistedReadIds,
+  mergeReadIds,
+  subscribe,
+} from "@/lib/notices/read-store";
 import { fetchNotices, fetchReadNoticeIds, markNoticeRead } from "@/lib/notices/remote";
 import type { LocalizedNoticeText, NoticeKind, ProductNotice, RemoteNotice } from "@/lib/notices/types";
 import { getAppVersion } from "@/lib/notices/version";
@@ -37,6 +46,7 @@ export type { LocalizedNoticeText, NoticeKind, ProductNotice };
 export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   {
     id: "patch-1.4.0",
+    sortAt: "2026-07-17T00:00:00+09:00",
     kind: "patch",
     eyebrow: { ko: "NEW", en: "NEW" },
     version: "v1.4.0",
@@ -69,6 +79,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "developer-letter-2026-07",
+    sortAt: "2026-07-14T00:00:00+09:00",
     kind: "developer",
     eyebrow: { ko: "개발자 공지", en: "DEVELOPER NOTE" },
     when: { ko: "2026.07.14 · 세컨비 팀", en: "2026.07.14 · SecondB team" },
@@ -103,6 +114,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "maintenance-2026-07-20",
+    sortAt: "2026-07-20T00:00:00+09:00",
     kind: "maintenance",
     eyebrow: { ko: "점검 안내", en: "MAINTENANCE" },
     when: { ko: "2026.07.20 · 03:00–05:00", en: "2026.07.20 · 03:00–05:00 KST" },
@@ -120,6 +132,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "patch-1.3.0",
+    sortAt: "2026-06-26T00:00:00+09:00",
     kind: "patch",
     eyebrow: { ko: "패치노트", en: "PATCH NOTES" },
     version: "v1.3.0",
@@ -138,6 +151,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "beta-thanks-2026-06",
+    sortAt: "2026-06-05T00:00:00+09:00",
     kind: "developer",
     eyebrow: { ko: "공지", en: "NOTE" },
     when: { ko: "2026.06.05 · 세컨비 팀", en: "2026.06.05 · SecondB team" },
@@ -221,7 +235,18 @@ export function useNoticeCenter(userId: string | null) {
   // and the server read-state are known.
   const [seenId, setSeenId] = useState<string | null | undefined>(undefined);
   const [remote, setRemote] = useState<readonly RemoteNotice[] | undefined>(undefined);
-  const [readIds, setReadIds] = useState<ReadonlySet<string> | undefined>(undefined);
+  const [readsHydrated, setReadsHydrated] = useState(false);
+  // Read ids live in a module-level store, not in this hook: home, /settings
+  // and /notices all mount useNoticeCenter at once, and /notices is pushed OVER
+  // a still-mounted home, so a private copy left the home badge lit after the
+  // inbox cleared it. See src/lib/notices/read-store.ts.
+  const [readRevision, setReadRevision] = useState(() => getRevision());
+  useEffect(() => subscribe(() => setReadRevision(getRevision())), []);
+  const readIds = useMemo(
+    // readRevision is the dependency that matters; the store mutates in place.
+    () => new Set(getReadIds(userId)),
+    [userId, readRevision],
+  );
 
   useEffect(() => {
     if (!userId) {
@@ -229,13 +254,13 @@ export function useNoticeCenter(userId: string | null) {
       // Signed out: no rows are readable (the RLS policies are TO authenticated
       // and anon holds no grant), so do not spend a request to find that out.
       setRemote([]);
-      setReadIds(new Set());
+      setReadsHydrated(true);
       return;
     }
     let cancelled = false;
     setSeenId(undefined);
     setRemote(undefined);
-    setReadIds(undefined);
+    setReadsHydrated(false);
 
     void readSeenId(userId)
       .then((value) => {
@@ -251,16 +276,25 @@ export function useNoticeCenter(userId: string | null) {
     void fetchNotices().then((rows) => {
       if (!cancelled) setRemote(rows);
     });
-    void fetchReadNoticeIds(userId).then((ids) => {
-      if (!cancelled) setReadIds(ids);
-    });
+    // Local mirror first so a read recorded while offline survives the restart,
+    // then the server set. Both MERGE rather than replace, so neither can undo
+    // an optimistic markSeen that landed while they were in flight.
+    void Promise.all([loadPersistedReadIds(userId), fetchReadNoticeIds(userId)])
+      .then(([local, server]) => {
+        if (cancelled) return;
+        mergeReadIds(userId, local);
+        mergeReadIds(userId, server);
+      })
+      .finally(() => {
+        if (!cancelled) setReadsHydrated(true);
+      });
 
     return () => {
       cancelled = true;
     };
   }, [userId]);
 
-  const hydrated = seenId !== undefined && remote !== undefined && readIds !== undefined;
+  const hydrated = seenId !== undefined && remote !== undefined && readsHydrated;
 
   const state = useMemo(
     () =>
@@ -278,11 +312,17 @@ export function useNoticeCenter(userId: string | null) {
     async (noticeId: string) => {
       if (!userId) return;
       if (state.remoteIds.has(noticeId)) {
-        // Optimistic: the badge and the popup gate must settle immediately, and
-        // the write is idempotent (23505 is swallowed), so a failed request
-        // only costs the cross-device sync of this one read.
-        setReadIds((previous) => new Set([...(previous ?? []), noticeId]));
-        await markNoticeRead(userId, noticeId).catch(() => undefined);
+        // Optimistic AND locally persisted. The write is idempotent (23505 is
+        // swallowed), and the local mirror is what makes a failed request cost
+        // only the cross-device sync of this one read: without it an offline
+        // 확인 was forgotten at the next cold start and the same major notice
+        // interrupted again, forever.
+        addReadId(userId, noticeId);
+        await markNoticeRead(userId, noticeId).catch((error: unknown) => {
+          // The two read paths in remote.ts warn on failure; this one used to
+          // swallow silently, which made the replay above undiagnosable.
+          console.warn("[notices] failed to record read", error);
+        });
         return;
       }
       // Bundled notices share a single "last seen id" cursor, so only the newest
@@ -425,7 +465,12 @@ export function NoticeDialog({
           </RNText>
 
           <ScrollView style={styles.dialogBodyScroll} contentContainerStyle={styles.dialogBody}>
-            {notice.body.map((block, blockIndex) =>
+            {/* renderableBlocks drops blocks with no text in THIS language:
+                the ko/en bodies are paired by index and padded, so an unequal
+                bullet count would otherwise show a bare "✦" with nothing after
+                it. See src/lib/notices/markdown.ts. */}
+            {renderableBlocks(notice.body, ko)
+              .map((block, blockIndex) =>
               block.kind === "bullet" ? (
                 <View key={`${notice.id}-${blockIndex}`} style={styles.bulletRow}>
                   <RNText style={[styles.bulletMark, { color: tone }]}>{"✦"}</RNText>
@@ -449,7 +494,7 @@ export function NoticeDialog({
                     : noticeText(block.text, ko)}
                 </RNText>
               ),
-            )}
+              )}
           </ScrollView>
 
           <View style={styles.dialogActions}>
@@ -502,12 +547,19 @@ export default function NoticesScreen() {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Keyed by ID, not by index. `data` is bundled-only until fetchNotices()
+  // resolves and then gains the remote rows AT THE FRONT, so an index captured
+  // on tap pointed at a different notice a round trip later: the open dialog
+  // swapped its own content, and 확인 wrote a read row for a notice the user
+  // had never opened - permanently suppressing its popup, since reads are
+  // append-only with no client DELETE.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Operator-published notices first (newest first), then the bundled release
-  // notes. Composed in src/lib/notices/center.ts.
+  // Newest first: remote rows and bundled release notes interleaved by date.
+  // Composed in src/lib/notices/center.ts.
   const data = noticeCenter.notices;
-  const selected = selectedIndex == null ? null : (data[selectedIndex] ?? null);
+  const selectedIndex = selectedId == null ? -1 : data.findIndex((item) => item.id === selectedId);
+  const selected = selectedIndex < 0 ? null : data[selectedIndex];
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -527,13 +579,13 @@ export default function NoticesScreen() {
           style={styles.noticeCard}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
-          renderItem={({ item, index }) => {
+          renderItem={({ item }) => {
             const unread = noticeCenter.isUnread(item.id);
             const title = noticeText(item.title, ko);
             const listMeta = noticeText(item.listMeta, ko);
             return (
               <Pressable
-                onPress={() => setSelectedIndex(index)}
+                onPress={() => setSelectedId(item.id)}
                 accessibilityRole="button"
                 accessibilityLabel={`${title}, ${listMeta}`}
                 style={styles.noticeRow}
@@ -565,24 +617,24 @@ export default function NoticesScreen() {
         />
       </View>
 
-      {selected && selectedIndex != null ? (
+      {selected ? (
         <NoticeDialog
           visible
           notice={selected}
           index={selectedIndex}
           total={data.length}
-          onClose={() => setSelectedIndex(null)}
-          onList={() => setSelectedIndex(null)}
+          onClose={() => setSelectedId(null)}
+          onList={() => setSelectedId(null)}
           onConfirm={() => {
             void noticeCenter.markSeen(selected.id);
-            setSelectedIndex(null);
+            setSelectedId(null);
           }}
           onPrevious={
-            selectedIndex > 0 ? () => setSelectedIndex((value) => (value == null ? 0 : value - 1)) : undefined
+            selectedIndex > 0 ? () => setSelectedId(data[selectedIndex - 1].id) : undefined
           }
           onNext={
             selectedIndex < data.length - 1
-              ? () => setSelectedIndex((value) => (value == null ? 0 : value + 1))
+              ? () => setSelectedId(data[selectedIndex + 1].id)
               : undefined
           }
         />

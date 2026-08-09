@@ -8,12 +8,37 @@ import type { RemoteNotice } from "./types";
 import { meetsMinAppVersion } from "./version";
 
 /**
+ * How far a row's published_at may sit in the future, per the DEVICE clock,
+ * before this module drops it.
+ *
+ * Seven days is deliberate on both sides. Anything larger stops catching a
+ * genuinely misconfigured environment; anything smaller starts suppressing real
+ * notices on phones whose clock has drifted. A device off by more than a few
+ * days cannot complete a TLS handshake against a valid certificate in the first
+ * place, so it never reaches this code with rows in hand - bounded drift is the
+ * only case that actually arrives here.
+ */
+export const CLOCK_SKEW_TOLERANCE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
  * Published, version-appropriate notices, newest first.
  *
- * `published_at <= now()` is already enforced by the RLS policy in
- * db/migrations/0113_notices.sql, so this repeats the server's rule rather than
- * replacing it. Repeating it keeps the ordering deterministic for tests and
- * covers the window where a device clock runs ahead of the database.
+ * `published_at <= now()` is enforced by the RLS policy in
+ * db/migrations/0113_notices.sql, and the SERVER clock is the one that decides.
+ * Every row that reaches this function was already published as far as the
+ * database is concerned.
+ *
+ * So the repeat here cannot do what an earlier comment claimed. A device clock
+ * running AHEAD is a no-op (the server withheld the row regardless), and the
+ * only clock state that changes the outcome is a device running BEHIND, which
+ * would hide a genuinely published notice - the opposite of the intent, and the
+ * worst possible failure for an incident notice.
+ *
+ * What the check IS worth keeping for is defence in depth: fetchNotices() sends
+ * no published_at filter of its own and leans entirely on the policy, so an
+ * environment where RLS was never applied would serve scheduled rows. Hence the
+ * tolerance - absurd timestamps still drop, a merely-wrong clock no longer
+ * suppresses an announcement the server has published.
  *
  * The id tie-break exists so two notices published in the same transaction do
  * not swap places between renders, which would make "the newest one" ambiguous
@@ -28,7 +53,7 @@ export function visibleNotices(
     .filter((notice) => {
       const publishedMs = Date.parse(notice.publishedAt);
       if (Number.isNaN(publishedMs)) return false;
-      if (publishedMs > nowMs) return false;
+      if (publishedMs - nowMs > CLOCK_SKEW_TOLERANCE_MS) return false;
       return meetsMinAppVersion(options.appVersion, notice.minAppVersion);
     })
     .sort((a, b) => {
