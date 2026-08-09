@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +31,7 @@ import {
 import { fetchNotices, fetchReadNoticeIds, markNoticeRead } from "@/lib/notices/remote";
 import type { LocalizedNoticeText, NoticeKind, ProductNotice, RemoteNotice } from "@/lib/notices/types";
 import { getAppVersion } from "@/lib/notices/version";
+import { storeUrl, updateChannel, updateNoticeMode } from "@/lib/release/update-notice";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
@@ -418,6 +421,60 @@ export function NoticeDialog({
       : title;
   const tone = kindColor(notice.kind);
 
+  // A major notice published by the release pipeline carries the version it
+  // announces (min_app_version). Readers who already have that version get the
+  // notice as written - it introduces a feature they can go and use. Readers
+  // who do not get one extra line and an action, because for them the same text
+  // describes something they cannot find yet. Everything else (bundled notes,
+  // minor rows, notices with no floor) resolves to "feature-intro" and renders
+  // exactly as it did before. See src/lib/release/update-notice.ts.
+  const needsUpdate =
+    notice.kind === "major" &&
+    updateNoticeMode(getAppVersion(), notice.minAppVersion) === "update-prompt";
+  const updateVersion = notice.minAppVersion ?? "";
+  const reloads = updateChannel(Platform.OS) === "reload";
+  const updateHint = !needsUpdate
+    ? ""
+    : reloads
+      ? ko
+        ? `${updateVersion} 버전부터 쓸 수 있어요. 새로고침하면 최신 버전으로 바뀌어요.`
+        : `This arrives in version ${updateVersion}. Reload the page to get it.`
+      : ko
+        ? `${updateVersion} 버전부터 쓸 수 있어요. 스토어에서 앱을 업데이트해 주세요.`
+        : `This arrives in version ${updateVersion}. Update the app in the store to get it.`;
+  const confirmLabel = !needsUpdate
+    ? ko
+      ? "확인"
+      : "Done"
+    : reloads
+      ? ko
+        ? "새로고침"
+        : "Reload"
+      : ko
+        ? "업데이트"
+        : "Update";
+
+  // Acting on the prompt counts as reading it, so this calls onConfirm(): the
+  // user has been told and has been sent somewhere. Dismissing instead (the
+  // scrim, or the hardware back button) leaves it unread and it returns on the
+  // next home entry, which is the behaviour every unread major already has.
+  //
+  // onConfirm() goes FIRST because on web the action is a page reload, and
+  // markSeen()'s durable half is a POST to user_notice_reads. Issuing the
+  // request before queueing the navigation is free and gives it the whole
+  // unload window instead of a slice of it.
+  const onUpdatePress = () => {
+    onConfirm();
+    const target = storeUrl(Platform.OS);
+    if (target !== null) {
+      void Linking.openURL(target).catch(() => undefined);
+    } else if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
+      // Web only. `window` also exists on native (it aliases global) but has no
+      // location, so this is a typeof check rather than a truthiness one.
+      window.location.reload();
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -497,6 +554,12 @@ export function NoticeDialog({
               )}
           </ScrollView>
 
+          {needsUpdate ? (
+            <RNText style={styles.updateHint} accessibilityLabel={updateHint}>
+              {ko ? keepAllKo(updateHint) : updateHint}
+            </RNText>
+          ) : null}
+
           <View style={styles.dialogActions}>
             {showPager ? <View style={styles.pager}>
               <Pressable
@@ -530,9 +593,9 @@ export function NoticeDialog({
               style={styles.dialogButton}
             />
             <MdButton
-              label={ko ? "확인" : "Done"}
+              label={confirmLabel}
               variant={notice.kind === "maintenance" ? "tonal" : "filled"}
-              onPress={onConfirm}
+              onPress={needsUpdate ? onUpdatePress : onConfirm}
               style={styles.dialogButton}
             />
           </View>
@@ -791,6 +854,15 @@ const styles = StyleSheet.create({
   },
   bulletRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s2 },
   bulletMark: { fontSize: 13, lineHeight: 22 },
+  // One quiet line, not a banner: the notice body is still the message on this
+  // screen and a coloured callout would compete with it.
+  updateHint: {
+    color: m3.color.onSurfaceVariant,
+    fontFamily: fontFamilies.readable,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: m3.spacing.s3,
+  },
   dialogActions: {
     flexDirection: "row",
     alignItems: "center",

@@ -49,6 +49,11 @@ export interface ProductNotice {
    *  first, then bundled", which stops being newest-first the moment a release
    *  ships a bundled note newer than an existing remote row. */
   sortAt: string;
+  /** Carried over from the remote row so the dialog can tell a reader who
+   *  already has the release from one who does not, and pick the matching copy
+   *  (src/lib/release/update-notice.ts). Absent on bundled notices, which ship
+   *  inside the binary and therefore always describe the build reading them. */
+  minAppVersion?: string | null;
 }
 
 /** A row of `notices`, camel-cased at the data-access boundary. */

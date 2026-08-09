@@ -40,6 +40,23 @@ export const CLOCK_SKEW_TOLERANCE_MS = 7 * 24 * 60 * 60 * 1000;
  * tolerance - absurd timestamps still drop, a merely-wrong clock no longer
  * suppresses an announcement the server has published.
  *
+ * WHAT min_app_version MEANS DEPENDS ON kind, and the split is deliberate:
+ *
+ *   minor  the floor HIDES the notice from older builds. This is the original
+ *          use in docs/OPERATIONS-NOTICES.md N4: a tip about a button that a
+ *          1.4.0 user does not have yet is just confusing, and a minor notice
+ *          is by definition not worth confusing anyone over.
+ *
+ *   major  the floor does NOT hide anything. It records which release the
+ *          notice announces, and the dialog reads it to choose between "here is
+ *          what is new" and "update to get this"
+ *          (src/lib/release/update-notice.ts). Hiding it would suppress the
+ *          announcement from exactly the people who still have to act on it -
+ *          a major notice is the one kind defined as worth interrupting for.
+ *
+ * So the version filter applies to everything except major. Without the
+ * exception the update-prompt branch is unreachable code.
+ *
  * The id tie-break exists so two notices published in the same transaction do
  * not swap places between renders, which would make "the newest one" ambiguous
  * for the popup.
@@ -54,6 +71,7 @@ export function visibleNotices(
       const publishedMs = Date.parse(notice.publishedAt);
       if (Number.isNaN(publishedMs)) return false;
       if (publishedMs - nowMs > CLOCK_SKEW_TOLERANCE_MS) return false;
+      if (notice.kind === "major") return true;
       return meetsMinAppVersion(options.appVersion, notice.minAppVersion);
     })
     .sort((a, b) => {
