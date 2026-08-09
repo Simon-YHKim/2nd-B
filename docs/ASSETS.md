@@ -2,11 +2,19 @@
 
 > XPRIZE rulebook §04 requires disclosure of code, designs, content, and
 > other materials that existed before the competition window began.
+>
+> This registry also records the art that **ships inside the build** even
+> though it was generated *during* the window and is therefore not
+> pre-existing. Listing it is a transparency choice, not a §04 obligation:
+> a reader should be able to account for every image in the repository
+> from this file alone.
 
-## Status at Sprint 0
+## Status
 
 No pre-existing first-party assets are bundled into 2nd-Brain. The
-codebase was initialized from a clean Expo template on 2026-05-25.
+codebase was initialized from a clean Expo template on 2026-05-25, and
+every bundled image first appeared in the repository after that date —
+see [Bundled generated art](#bundled-generated-art-ai-generated-in-window).
 
 ## Third-party dependencies (free-tier OSS)
 
@@ -37,6 +45,48 @@ libraries used under their respective licenses. The full list:
 - Roboto Mono — Apache-2.0, loaded via
   `@expo-google-fonts/roboto-mono` (^0.4.2); M3 numeric face (rev2)
 
+## Bundled generated art (AI-generated, in-window)
+
+**How it was made.** Every image below was produced with OpenAI GPT
+image generation (ChatGPT / `gpt-image`) from prompts written for this
+project. No image was commissioned, purchased, scraped, or taken from a
+stock library. The style bible used for the tesseract/v3 line is
+committed in this repository at
+[`docs/V3_GPT_IMAGE_PROMPT.md`](./V3_GPT_IMAGE_PROMPT.md), so the
+generation inputs are auditable, not just the outputs.
+
+**When.** Dates below are the day each set first appeared in git. The
+repository's initial commit is 2026-05-25, so no set predates the
+competition window. Generation happened on or shortly before the listed
+date.
+
+**Rights.** Simon Kim generated and owns these outputs, and uses them
+under the image tool's terms for generated content. The generated art
+carries no third-party license obligation.
+
+| Path | Files | First in git | Contents |
+|------|-------|--------------|----------|
+| `public/assets/cosmic-pixel-v3-soulcore/` | 142 (79 PNG · 63 SVG) | 2026-06-02 | Legacy "cosmic pixel" skin, still shipped behind `EXPO_PUBLIC_UI=legacy`: soul-core tiers 1–4, pattern cores / data / logs, pattern links, mobile graph, companion sprites (`archon`, `iris`, `lumen`, `relia`, `foreman_momo`), momo-crew, sprite sheets |
+| `public/assets/2ndb-production-premium-v1/` | 52 PNG | 2026-05-30 | Current production skin: graph islands, tier icons, worker redraws, shards, auth gate hero |
+| `public/assets/tesseract-v10/` | 7 PNG | 2026-06-04 | Tesseract worldview set generated from `docs/V3_GPT_IMAGE_PROMPT.md` |
+| `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
+| `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
+| `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
+| `assets/deepspace/` | 2 PNG | 2026-06-19 | SecondB character head (`secondb-head-front`, `secondb-head-blank`) — the canonical character asset |
+| `assets/images/` | 7 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, logo glow. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
+
+Total: **226 bundled image files**. `scripts/check-constraints.ts` (C12)
+fails if any of these paths stops being mentioned in this file, so a new
+art pack cannot ship undisclosed.
+
+**In the repository but not in the build.** A further 317 images live
+under `docs/` (231: clone-audit captures, flow thumbnails, QA evidence)
+and `design/` (86: prototype renders, reference boards, app screenshots).
+These are working material — neither path is packaged into the app or the
+web export, and `src/` contains no image files at all, so the shipped set
+is exactly the 226 listed above. They were captured or generated in-window
+by the same person and tooling.
+
 ## Remote images (AI Museum, /museum)
 
 The AI history museum (`src/screens/deepspace/museum/AiMuseumScreen.tsx`) shows
@@ -62,7 +112,8 @@ Attribution per moment (date · title — file, license, author):
 - 2023 EU AI Act & Safety Summit — `UK_Government_hosts_AI_Summit_at_Bletchley_Park_(53301734397).jpg`, CC-BY 2.0, Marcel Grabowski / UK Government.
 
 Moments without a license-clean image intentionally keep the orb placeholder.
-SVG/video files are intentionally not used (no native `Image` URI support).
+Museum moments never use SVG or video (no native `Image` URI support for those);
+the SVGs counted above belong to the bundled sprite sets, not the museum.
 
 ## Pre-existing materials owned by Simon
 
@@ -72,6 +123,7 @@ SVG/video files are intentionally not used (no native `Image` URI support).
 ## What is in scope for the competition
 
 All app code under `src/app/`, `src/components/`, `src/lib/`, all database
-migrations under `db/`, all CI workflows under `.github/`, and all
-documentation under `docs/` were written between 2026-05-25 and the
+migrations under `db/`, all CI workflows under `.github/`, all
+documentation under `docs/`, all design working material under `design/`,
+and all bundled art listed above were created between 2026-05-25 and the
 submission deadline of 2026-08-17.
