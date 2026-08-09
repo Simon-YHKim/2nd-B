@@ -131,6 +131,10 @@ describe("Naver native OAuth bridge", () => {
 // with the committed QA account on that date; the missing and the WRONG
 // current-password cases return HTTP 400 with IDENTICAL message text and differ
 // only by error_code, which is why the UI must never branch on the message.
+// Also measured that day: a genuine recovery session updates the password with
+// NO current_password and gets 200, so the toggle does not break "forgot
+// password". The required/invalid branches exist for a future change screen and
+// as insurance if that exemption ever moves.
 describe("passwordUpdateFailure", () => {
   test.each([
     ["current_password_required", "current_password_required"],

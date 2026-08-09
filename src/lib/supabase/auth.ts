@@ -397,8 +397,12 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
 // FIELD on UserAttributes (types.d.ts: `current_password?: string`), not as a
 // second argument, so the shape below is the one the installed client accepts.
 // The recovery/reset flow calls this WITHOUT a current password on purpose: a
-// user who forgot it cannot supply it. If the server rejects that, the caller
-// gets `current_password_required` and must say so plainly.
+// user who forgot it cannot supply it. That is safe, and it was verified rather
+// than assumed: on 2026-08-10, with the toggle ON, a real recovery session
+// (POST /verify type=recovery) updated the password with no current_password and
+// got 200. GoTrue exempts recovery sessions, so enabling the setting does NOT
+// break "forgot password". The caller still handles `current_password_required`
+// in case that exemption ever changes.
 export async function updatePassword(password: string, currentPassword?: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.updateUser(
