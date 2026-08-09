@@ -54,6 +54,25 @@ describe("recordsToResearchGraph", () => {
     expect(pages[0]?.tags).toContain("reading");
   });
 
+  it("drops the domain: scaffolding tags so they cannot become cluster chips", () => {
+    // The app writes a domain tag on every save, so leaving it in made
+    // "domain:career" the top cluster on almost every account and crowded out the
+    // shared tags the clusters exist to surface.
+    const { pages } = recordsToResearchGraph([rec("a", ["domain:career", "reading"])]);
+    expect(pages[0]?.tags).not.toContain("domain:career");
+    expect(pages[0]?.tags).toEqual(["reading"]);
+  });
+
+  it("still links records by a shared tag after the domain tags are stripped", () => {
+    // The link edges come from buildRecordsGraph, which does its own domain
+    // handling — stripping here must not break cross-domain connection finding.
+    const { edges } = recordsToResearchGraph([
+      rec("a", ["domain:career", "reading"]),
+      rec("b", ["domain:health", "reading"]),
+    ]);
+    expect(edges).toHaveLength(1);
+  });
+
   it("uses the record summary as the page body", () => {
     const { pages } = recordsToResearchGraph([rec("a", ["domain:career"], "  a thought  ")]);
     expect(pages[0]?.body_md).toBe("a thought");

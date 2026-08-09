@@ -1481,14 +1481,18 @@ export function DeepSpaceWikiScreen() {
                     <Text variant="body" style={styles.wikiBody}>{p.snippet}</Text>
                   ) : null}
                   <View style={styles.wikiBacklinkRow}>
-                    <Pressable
-                      onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: p.id } })}
-                      accessibilityRole="button"
-                      hitSlop={12}
-                      accessibilityLabel={t("wiki.backlinks", { count: p.connections })}
-                    >
-                      <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
-                    </Pressable>
+                    {/* A count, not a button. This row only renders inside the
+                        EXPANDED card, so `p.id` is the page the user is already
+                        looking at — the tap pushed a second, visually identical
+                        /wiki with the same entry open. (It used to push
+                        /record/[id] and land on "기록을 찾을 수 없어요"; #984
+                        retargeted it to /wiki, which stopped the error screen but
+                        left the destination degenerate.) The label named a
+                        destination that did not exist, so the affordance goes and
+                        the number stays. Listing the N linked pages inline is the
+                        real fix and wants its own change: `edges` and `pages` are
+                        both in scope here, so it is a disclosure, not a fetch. */}
+                    <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
                     {p.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{p.tags[0]}</Text> : null}
                   </View>
                 </View>
