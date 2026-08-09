@@ -1,0 +1,67 @@
+name: DB backup (daily encrypted pg_dump)
+
+# Why: Supabase Free plan has no scheduled backups/PITR (verified 2026-08-09).
+# This keeps the $0/mo promise (blueprint section 5) while giving us a daily
+# restorable snapshot. The dump is age-encrypted BEFORE upload because this
+# repo is public and workflow artifacts are downloadable by anyone with read
+# access -- plaintext user data must never land in an artifact.
+#
+# Required repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL        postgresql://postgres:...@db.zoacryukmdeivmolvyhj.supabase.co:5432/postgres
+#   BACKUP_AGE_PUBLIC_KEY  "age1..." public key (private key stays with Simon, never committed)
+#
+# Restore drill (locally, with the private key file backup_age.key):
+#   age -d -i backup_age.key db-YYYYMMDDTHHMMSSZ.dump.age > db.dump
+#   pg_restore --clean --if-exists -d "$TARGET_DB_URL" db.dump
+
+on:
+  schedule:
+    - cron: "30 18 * * *" # 03:30 KST daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install postgresql-client-17 and age
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y curl ca-certificates age lsb-release
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DB_URL" ] || [ -z "$AGE_PUBLIC_KEY" ]; then
+            echo "Missing SUPABASE_DB_URL or BACKUP_AGE_PUBLIC_KEY secret" >&2
+            exit 1
+          fi
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          pg_dump "$DB_URL" -Fc --no-owner -f "db-$STAMP.dump"
+          age -r "$AGE_PUBLIC_KEY" -o "db-$STAMP.dump.age" "db-$STAMP.dump"
+          shred -u "db-$STAMP.dump"
+          ls -lh db-*.age
+
+      - name: Upload encrypted artifact (14-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: "*.age"
+          retention-days: 14
+          if-no-files-found: error
