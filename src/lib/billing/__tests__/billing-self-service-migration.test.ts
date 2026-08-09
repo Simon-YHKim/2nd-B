@@ -285,3 +285,59 @@ describe("0115 - definer-grant lint contract (scripts/check-definer-grants.ts, B
     expect(sql).not.toMatch(/GRANT\s+EXECUTE ON FUNCTION[^;]*\bTO[^;]*\b(anon|public)\b/i);
   });
 });
+
+// ── 0117: the refund meter counted the wrong set of runs, in both directions ──
+// Found by an adversarial audit of 0115 on 2026-08-10, before the feature was
+// ever enabled. Each defect is pinned by BOTH the removal of the broken clause
+// and the presence of the correct one, so a revert cannot pass silently.
+describe("0117 - refund_eligibility counts every real run and only real runs", () => {
+  const sql0117 = readFileSync(join(MIGRATIONS, "0117_refund_meter_counts_every_real_run.sql"), "utf8");
+  // The header QUOTES the broken clauses to explain why they were wrong, so the
+  // "must not come back" assertions have to run against comment-stripped SQL or
+  // the documentation defeats the guard.
+  const body0117 = sql0117.replace(/--[^\n]*/g, " ");
+
+  test("the spend filter is GONE: spend='none' marks an unlimited-tier run, not a free one", () => {
+    // 0092:220-221 sets spend='none' whenever the cap is NULL, and brain is the
+    // NULL-cap arm (0092:214). `spend <> 'none'` therefore excluded 100% of
+    // North Star runs and made v_runs always 0 for the most expensive tier.
+    expect(body0117).not.toMatch(/r\.spend\s*<>\s*'none'/);
+    expect(sql0117).toMatch(/FROM public\.reasoning_runs r/);
+  });
+
+  test("all three refunded terminal states are excluded, not just cancelled", () => {
+    // 0092 calls refund_reasoning_spend for failed (:389), cancelled (:413) and
+    // recovered (:441). Counting any of them charges the user for a run that was
+    // given back.
+    expect(sql0117).toMatch(/r\.status NOT IN \('cancelled', 'failed', 'recovered'\)/);
+    expect(body0117).not.toMatch(/r\.status\s*<>\s*'cancelled'/);
+  });
+
+  test("the verdict and the claim now select the SAME transaction row", () => {
+    // Both must require a non-NULL transaction id, or the verdict can describe
+    // payment A while the adjustment targets payment B.
+    expect(sql0117).toMatch(/e\.event_type = 'transaction\.completed'\s*\n\s*AND e\.paddle_transaction_id IS NOT NULL/);
+  });
+
+  test("the NULL p_user_id three-valued-logic hole is closed on both owner RPCs", () => {
+    const guards = sql0117.match(/IF p_user_id IS NULL OR auth\.uid\(\) IS NULL OR auth\.uid\(\) <> p_user_id THEN/g) ?? [];
+    expect(guards).toHaveLength(2);
+  });
+
+  test("an accepted cancel is scoped to the subscription it cancelled", () => {
+    // Scoped only to user_id, one cancel pinned auto_renew=false forever: a
+    // resumed or newly purchased subscription kept reading "auto-renewal is off"
+    // while Paddle charged every month, and the cancel card stayed hidden.
+    expect(sql0117).toMatch(/AND l\.paddle_subscription_id = v_sub_id/);
+    expect(sql0117).toMatch(/v_auto := v_tier <> 'free' AND v_sub_id IS NOT NULL AND v_sched IS NULL AND v_req IS NULL/);
+  });
+
+  test("still definer-safe: anon revoked, owner and service_role granted", () => {
+    for (const fn of ["refund_eligibility", "subscription_overview"]) {
+      expect(sql0117).toContain(`REVOKE EXECUTE ON FUNCTION public.${fn}(uuid) FROM anon;`);
+      expect(sql0117).toContain(`GRANT  EXECUTE ON FUNCTION public.${fn}(uuid) TO authenticated;`);
+      expect(sql0117).toContain(`GRANT  EXECUTE ON FUNCTION public.${fn}(uuid) TO service_role;`);
+    }
+    expect(sql0117).not.toMatch(/GRANT\s+EXECUTE ON FUNCTION[^;]*\bTO[^;]*\b(anon|public)\b/i);
+  });
+});

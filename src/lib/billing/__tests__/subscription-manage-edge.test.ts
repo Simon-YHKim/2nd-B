@@ -163,3 +163,20 @@ describe("subscription-manage - honest wording at the boundary", () => {
     expect(code).toMatch(/outcome: 'accepted'/);
   });
 });
+
+describe("subscription-manage - the revised policy has an effective date", () => {
+  test("refunds are refused before it, and the constant matches the TS mirror", () => {
+    // PADDLE_SELF_SERVICE_ENABLED is an operator switch, not a legal one. Even
+    // flipped early, the function must not apply a standard that is not yet in
+    // force (docs/legal/refund-policy.md "개정 시행일: 2026-09-08").
+    expect(code).toMatch(/const REFUND_POLICY_EFFECTIVE_AT = Date\.parse\('2026-09-08T00:00:00\+09:00'\)/);
+    expect(code).toMatch(/action === 'refund_request' && Date\.now\(\) < REFUND_POLICY_EFFECTIVE_AT/);
+    expect(code).toMatch(/'policy_not_in_effect'/);
+  });
+
+  test("cancel is NOT date-gated: cancelling was never the adverse change", () => {
+    const gate = code.match(/Date\.now\(\) < REFUND_POLICY_EFFECTIVE_AT/g) ?? [];
+    expect(gate).toHaveLength(1);
+    expect(code).not.toMatch(/action === 'cancel' && Date\.now\(\)/);
+  });
+});

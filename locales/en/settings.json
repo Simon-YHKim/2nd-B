@@ -221,7 +221,7 @@
       "title": "Refund",
       "cta": "Request a refund",
       "confirmTitle": "Request a refund?",
-      "confirmBody": "The request goes to Paddle, the seller of record. If it is approved, the full amount returns to your original payment method and paid features close.",
+      "confirmBody": "The request goes to Paddle, the seller of record. If Paddle approves it, the full amount returns to your original payment method. This does not cancel the subscription on its own, so cancel it too if you want the billing to stop.",
       "confirmCta": "Send request",
       "reason": {
         "eligible": "You can request a full refund right now.",
@@ -232,12 +232,13 @@
       },
       "window": "Refund window: {{days}} of {{total}} days left",
       "usage": "Reasoning used: {{used}} (the free plan allows {{allowance}} over the same span)",
-      "calls": "AI calls on record: {{calls}}"
+      "calls": "AI calls on record: {{calls}}",
+      "beforeEffective": "The revised refund terms take effect on 8 September 2026. Until then the current policy applies: a full refund within 30 days of payment, no questions asked, requested by email."
     },
     "notice": {
       "cancelledAtRenewal": "Cancellation is scheduled for the next renewal date.",
       "cancelledNow": "Immediate cancellation has been submitted.",
-      "refundRequested": "Your refund request was submitted. The decision arrives by email from the payment receipt address.",
+      "refundRequested": "Your refund request was submitted to Paddle. The decision arrives by email from the payment receipt address. Cancel the subscription separately if you also want the billing to stop.",
       "alreadyRequested": "A request is already on file, so nothing was submitted twice.",
       "refundRejected": "Self-serve refund is not available for this payment.",
       "contactSupport": "This cannot be handled in the app right now. Please contact support.",

@@ -221,7 +221,7 @@
       "title": "Pengembalian dana",
       "cta": "Ajukan pengembalian dana",
       "confirmTitle": "Ajukan pengembalian dana?",
-      "confirmBody": "Permintaan dikirim ke Paddle sebagai penjual resmi. Kalau disetujui, seluruh jumlahnya kembali ke metode pembayaran awal dan fitur berbayar tertutup.",
+      "confirmBody": "Permintaan dikirim ke Paddle sebagai penjual resmi. Kalau Paddle menyetujuinya, seluruh jumlahnya kembali ke metode pembayaran awal. Ini tidak otomatis membatalkan langganan, jadi batalkan juga kalau kamu ingin tagihannya berhenti.",
       "confirmCta": "Kirim permintaan",
       "reason": {
         "eligible": "Kamu bisa mengajukan pengembalian dana penuh sekarang.",
@@ -232,12 +232,13 @@
       },
       "window": "Masa pengembalian dana: sisa {{days}} dari {{total}} hari",
       "usage": "Penalaran terpakai: {{used}} (paket gratis memberi {{allowance}} pada rentang yang sama)",
-      "calls": "Panggilan AI tercatat: {{calls}}"
+      "calls": "Panggilan AI tercatat: {{calls}}",
+      "beforeEffective": "Ketentuan pengembalian dana yang direvisi berlaku mulai 8 September 2026. Sampai saat itu kebijakan yang berlaku sekarang tetap dipakai: pengembalian dana penuh dalam 30 hari setelah pembayaran, tanpa ditanya alasannya, diajukan lewat email."
     },
     "notice": {
       "cancelledAtRenewal": "Pembatalan dijadwalkan pada tanggal perpanjangan berikutnya.",
       "cancelledNow": "Pembatalan langsung sudah dikirim.",
-      "refundRequested": "Permintaan pengembalian dana sudah dikirim. Keputusannya dikirim lewat email ke alamat pada struk.",
+      "refundRequested": "Permintaan pengembalian dana sudah dikirim ke Paddle. Keputusannya dikirim lewat email ke alamat pada struk. Batalkan langganan secara terpisah kalau kamu juga ingin tagihannya berhenti.",
       "alreadyRequested": "Sudah ada permintaan yang tercatat, jadi tidak dikirim dua kali.",
       "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
       "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan.",

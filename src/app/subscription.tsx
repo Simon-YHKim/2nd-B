@@ -42,6 +42,7 @@ import {
   REFUND_WINDOW_DAYS,
   renewalState,
   requestRefund,
+  revisedPolicyInForce,
   type ManageResult,
   type RefundEligibility,
   type SubscriptionOverview,
@@ -185,7 +186,10 @@ export default function SubscriptionScreen() {
   const method = overview ? formatPaymentMethod(overview) : null;
   const daysLeft = eligibility ? refundDaysLeft(eligibility) : null;
   const reasonKey = eligibility ? refundReasonKey(eligibility.status) : "unknown";
-  const refundOpen = eligibility != null && canRequestRefund(eligibility) && !busy;
+  // The revised 7-day usage-gated rule only binds from its effective date;
+  // before that the screen shows the policy actually in force instead.
+  const policyInForce = revisedPolicyInForce();
+  const refundOpen = policyInForce && eligibility != null && canRequestRefund(eligibility) && !busy;
 
   return (
     <DeepSpaceScreen active="settings" header="none" variant="windowed" title={t("subscription.title")} onBack={() => router.back()}>
@@ -273,9 +277,22 @@ export default function SubscriptionScreen() {
               </MdCard>
             ) : null}
 
+            {/* Refund, BEFORE the revision takes effect. The usage-gated verdict
+                is deliberately not shown: until 2026-09-08 the policy that binds
+                us is the previous one (30 days, no questions asked, requested by
+                email), and displaying a stricter standard than the one in force
+                is exactly what the 30-day notice period exists to prevent. */}
+            {eligibility && eligibility.status !== "no_payment" && !policyInForce ? (
+              <MdCard variant="outlined" style={s.card}>
+                <Text style={s.sectionTitle}>{t("subscription.refund.title")}</Text>
+                <Text style={s.body}>{t("subscription.refund.beforeEffective")}</Text>
+                <Text style={s.dim}>{t("subscription.supportLine", { email: SUPPORT_EMAIL })}</Text>
+              </MdCard>
+            ) : null}
+
             {/* Refund. The verdict and the numbers behind it are always shown -
                 including when the answer is no. */}
-            {eligibility && eligibility.status !== "no_payment" ? (
+            {eligibility && eligibility.status !== "no_payment" && policyInForce ? (
               <MdCard variant="outlined" style={s.card}>
                 <Text style={s.sectionTitle}>{t("subscription.refund.title")}</Text>
                 <Text style={s.body}>{t(`subscription.refund.reason.${reasonKey}`)}</Text>

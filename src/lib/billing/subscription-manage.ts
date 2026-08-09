@@ -31,6 +31,24 @@ export const REFUND_WINDOW_DAYS = 7;
  *  refund rule away from the plan it is measured against. */
 export const FREE_RUNS_PER_WEEK = REASONING_PER_WEEK.free ?? 0;
 
+/** When the revised refund policy takes effect (docs/legal/refund-policy.md
+ *  header: "개정 시행일: 2026-09-08", 이용약관 제3조② 30-day notice for an
+ *  adverse change). KST, because the policy is a Korean document.
+ *
+ *  This exists because PADDLE_SELF_SERVICE_ENABLED gates only the WRITE path.
+ *  The verdict READ is granted to `authenticated` and /subscription is reachable
+ *  from settings today, so without a date gate the screen would show the new
+ *  7-day conditional standard to users while the 30-day no-questions-asked
+ *  guarantee is still the one in force. Showing a stricter rule than the one
+ *  that binds us is the exact thing the 30-day notice period exists to prevent. */
+export const REFUND_POLICY_EFFECTIVE_AT = Date.parse("2026-09-08T00:00:00+09:00");
+
+/** Whether the revised (7-day, usage-gated) policy is in force yet.
+ *  `now` is injectable so the boundary is testable without faking the clock. */
+export function revisedPolicyInForce(now: number = Date.now()): boolean {
+  return now >= REFUND_POLICY_EFFECTIVE_AT;
+}
+
 /** What the free plan would have allowed over a span of `days`, pro-rated by
  *  whole or partial weeks. A 1-day-old payment still gets a full week's worth:
  *  the alternative would make the verdict depend on how fast the user asked.

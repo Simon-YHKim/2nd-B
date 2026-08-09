@@ -221,7 +221,7 @@
       "title": "Reembolso",
       "cta": "Pedir reembolso",
       "confirmTitle": "Pedir um reembolso?",
-      "confirmBody": "O pedido vai para a Paddle, a vendedora registrada. Se for aprovado, o valor integral volta para a forma de pagamento original e os recursos pagos fecham.",
+      "confirmBody": "O pedido vai para a Paddle, a vendedora registrada. Se a Paddle aprovar, o valor integral volta para a sua forma de pagamento original. Isso nao cancela a assinatura sozinho, entao cancele tambem se quiser parar as cobrancas.",
       "confirmCta": "Enviar pedido",
       "reason": {
         "eligible": "Voce pode pedir o reembolso integral agora.",
@@ -232,12 +232,13 @@
       },
       "window": "Janela de reembolso: faltam {{days}} de {{total}} dias",
       "usage": "Raciocinios usados: {{used}} (o plano gratuito permite {{allowance}} no mesmo periodo)",
-      "calls": "Chamadas de IA registradas: {{calls}}"
+      "calls": "Chamadas de IA registradas: {{calls}}",
+      "beforeEffective": "As condicoes de reembolso revisadas entram em vigor em 8 de setembro de 2026. Ate la vale a politica atual: reembolso integral em ate 30 dias apos o pagamento, sem perguntas, solicitado por e-mail."
     },
     "notice": {
       "cancelledAtRenewal": "O cancelamento ficou agendado para a proxima data de renovacao.",
       "cancelledNow": "O cancelamento imediato foi enviado.",
-      "refundRequested": "Seu pedido de reembolso foi enviado. A decisao chega por e-mail no endereco do recibo.",
+      "refundRequested": "Seu pedido de reembolso foi enviado a Paddle. A decisao chega por e-mail no endereco do recibo. Cancele a assinatura a parte se tambem quiser parar as cobrancas.",
       "alreadyRequested": "Ja existe um pedido registrado, entao nada foi enviado duas vezes.",
       "refundRejected": "O reembolso automatico nao esta disponivel para este pagamento.",
       "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte.",
