@@ -177,7 +177,6 @@
   "signOut": "로그아웃",
   "couldntSignOut": "로그아웃하지 못했어요",
   "signOutError": "로그아웃 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.",
-  "buildInfo": "빌드 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "{{n}}개 삭제됨",
   "deletedNWiki": "{{n}}개 위키 페이지 삭제됨",
   "deletedNCaptures": "{{n}}개 캡처 삭제됨",

@@ -490,7 +490,20 @@ async function applyReasoningProposal(
     REASONING_RATIFIED_TAG,
     ...stripDomainTags(latestSource.tags).filter((tag) => tag !== REASONING_RATIFIED_TAG),
   ]);
-  await generateSourcePage(userId, proposal.refId);
+  // Promotion is best-effort, deliberately. The load-bearing write is the domain
+  // tag above — that is what brightens the star. Promotion used to run unguarded
+  // here, inside an apply loop that has no per-proposal try/catch, so ONE source
+  // that threw aborted the whole batch. Proposals are ordered records-first, so
+  // every record landed and the source half never did: the run stayed 'ratified'
+  // server-side and was re-offered on every mount, forever. That is why 3 of the
+  // QA account's records carry reasoning:ratified while wiki_pages is still 0.
+  try {
+    await generateSourcePage(userId, proposal.refId);
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[reasoning] wiki promotion failed; tag kept", (e as Error).message);
+    }
+  }
 }
 
 async function autoRunCanUseQuota(

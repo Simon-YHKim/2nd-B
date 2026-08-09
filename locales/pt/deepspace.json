@@ -754,7 +754,9 @@
       "fillStar": "Preencher esta estrela",
       "fillStarBody": "Adicione informações deste domínio.",
       "secondbLinked": "Este fragmento se conecta à sua estrela '{{star}}'. {{n}} registros similares estão no mesmo período.",
-      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve."
+      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve.",
+      "makeWikiPage": "Criar página wiki",
+      "wikiPageMade": "Página wiki criada"
     },
     "inbox": {
       "title": "Alertas",

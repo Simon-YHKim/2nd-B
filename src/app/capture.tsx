@@ -105,6 +105,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { enqueueAutoReasoningRecord, enqueueAutoReasoningSource } from "@/app/reasoning";
+import { maybeAutoPromoteSource } from "@/lib/wiki/auto-promote";
 
 // Deep-space reads these four explicit pixel-font labels in Pretendard (the
 // same build-constant swap as Text.tsx #667); the legacy track keeps pixelKo.
@@ -1307,6 +1308,13 @@ export function CaptureLegacy() {
           id: result.source.id,
           title: result.source.title,
         });
+        // Turn the capture into a wiki page too, but ONLY if the user asked for
+        // that to be automatic (settings > 기능; OFF by default). Promotion is
+        // not free — it embeds the new page, one paid call per capture — so the
+        // default keeps it on the manual button in the source's detail screen.
+        // Fire-and-forget: the capture is already saved, and a promotion that
+        // fails must never cost the user their piece or hold the success panel.
+        void maybeAutoPromoteSource(userId, result.source.id);
       }
 
       reset();

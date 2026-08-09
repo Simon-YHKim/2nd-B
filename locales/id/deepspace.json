@@ -754,7 +754,9 @@
       "fillStar": "Isi bintang ini",
       "fillStarBody": "Tambahkan informasi untuk domain ini.",
       "secondbLinked": "Serpihan ini terhubung dengan bintang '{{star}}' kamu. {{n}} catatan serupa berada di rentang waktu yang sama.",
-      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera."
+      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera.",
+      "makeWikiPage": "Buat halaman wiki",
+      "wikiPageMade": "Halaman wiki dibuat"
     },
     "inbox": {
       "title": "Notifikasi",
