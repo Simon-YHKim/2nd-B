@@ -43,12 +43,29 @@ describe("legal document snapshots", () => {
     // survive anywhere in the refund document.
     expect(REFUND_DOC.body).toContain("7일 이내 전액 환불");
     expect(REFUND_DOC.body).toContain("full refund within 7 days");
+    // These two forbid the old PROMISE, not every mention of 30 days: the
+    // grandfather clause pinned in the next test deliberately says
+    // "30일 이내 환불" / "refund within 30 days" without 전액 / full.
     expect(REFUND_DOC.body).not.toContain("30일 이내 전액 환불");
     expect(REFUND_DOC.body).not.toContain("full refund within 30 days");
     // Self-serve entry point + the honest framing of what submitting means.
     expect(REFUND_DOC.body).toContain("[설정 → 구독 관리]");
     expect(REFUND_DOC.body).toContain("접수 즉시 환불이 확정되는 것은 아니고");
     expect(REFUND_DOC.body).toContain("submitting is not the same as being refunded");
+  });
+
+  // The 2026-08-09 20:26 KST in-app notice (notices id
+  // a3d822d5-654f-4da5-929f-9d6c02dbe33e, kind=major) told every user that
+  // payments made before the revision keep the old 30-day window. A policy
+  // document that quietly dropped that promise would contradict a notice
+  // already delivered, so both sentences are pinned verbatim.
+  test("pre-revision payments keep the previous 30-day terms (matches the 2026-08-09 major notice)", () => {
+    expect(REFUND_DOC.body).toContain(
+      "2026년 9월 8일 전에 결제하신 건에는 개정 전 기준(결제 후 30일 이내 환불)을 그대로 적용합니다.",
+    );
+    expect(REFUND_DOC.body).toContain(
+      "Payments made before 8 September 2026 keep the previous terms (refund within 30 days of payment).",
+    );
   });
 
   test("the adverse-change notice period is stated (이용약관 제3조② 30일 사전공지)", () => {

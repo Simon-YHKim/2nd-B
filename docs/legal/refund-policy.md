@@ -19,6 +19,7 @@ _최종 업데이트: 2026-08-09 · 개정 시행일: 2026-09-08 (이용약관 �
 ④ ③에 해당하더라도 **환불이 원천 차단되는 것은 아닙니다.** 아래 4항의 사유(중복·오류 결제, 서비스 중대 장애)는 그대로 적용되며, 그 밖의 개별 사정은 kim0405@hayangzip.com 으로 알려주시면 검토 후 회신합니다.
 ⑤ 위 ①의 7일 보장은 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조제1항이 정한 **법정 7일 청약철회권과 같은 기간**이며, 무료 플랜 범위 안의 이용에 대해서는 그 권리가 그대로 유지됩니다.
 ⑥ 디지털 콘텐츠 특성상, 이용자는 결제 시 **7일 환불 창(기간)과 위 ③의 제한에 대한 고지를 확인**한 뒤 이용을 시작합니다.
+⑦ 2026년 9월 8일 전에 결제하신 건에는 개정 전 기준(결제 후 30일 이내 환불)을 그대로 적용합니다.
 
 ### 3. 구독 취소 및 자동 갱신
 - 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함: 항해자 ₩9,900/월 · 북극성 ₩19,900/월 · 연간 = 월 요금×10).
@@ -61,6 +62,7 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 (4) Even where (3) applies, **refunds are not shut off.** Section 4 below still applies in full, and any other individual circumstance can be sent to kim0405@hayangzip.com for review and a reply.
 (5) The 7-day guarantee in (1) is **the same period** as the statutory 7-day right of withdrawal under Article 17(1) of Korea's Act on Consumer Protection in Electronic Commerce, and for usage within the free-plan range that right is preserved in full.
 (6) As this is digital content, you confirm awareness of the 7-day refund window and of the limit in (3) at checkout before use begins.
+(7) Payments made before 8 September 2026 keep the previous terms (refund within 30 days of payment).
 
 ### 3. Cancellation & auto-renewal
 - Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo · yearly = 10x monthly).
