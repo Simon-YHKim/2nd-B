@@ -159,6 +159,36 @@ describe("buildOpsDailyBrief", () => {
     expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(1); // shared
   });
 
+  // 2026-07-28 regression: the six ops-home domains call in SEQUENCE, not in
+  // parallel, so the in-flight guard never applied and an empty (unpersisted)
+  // build made every domain rebuild from scratch — six whole-snapshot LLM calls
+  // per visit, twice that day (ai_audit_log, 10/12 truncated). An empty build is
+  // now held briefly so a bad day costs one call, not one per domain.
+  test("sequential calls after an empty build reuse the hold (ONE llm call, not one per domain)", async () => {
+    reset();
+    fixtures.geminiResult = { text: "not json", safety: { zone: "green" }, audit: { modelUsed: "mock" } };
+    const first = await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: true });
+    const second = await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: true });
+    expect(first).toEqual({});
+    expect(second).toEqual({});
+    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(1);
+    expect(upserts).toHaveLength(0);
+  });
+
+  test("the empty-build hold expires, so a later visit rebuilds", async () => {
+    reset();
+    fixtures.geminiResult = { text: "not json", safety: { zone: "green" }, audit: { modelUsed: "mock" } };
+    const t0 = new Date("2026-07-28T14:48:00Z");
+    await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: true, now: t0 });
+    await buildOpsDailyBrief({
+      userId: "u1",
+      locale: "en",
+      recommendationsPref: true,
+      now: new Date(t0.getTime() + 91 * 1000),
+    });
+    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(2);
+  });
+
   test("D-2 gate: an opted-out pref builds nothing (no snapshot, no LLM)", async () => {
     const brief = await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: false });
     expect(brief).toEqual({});

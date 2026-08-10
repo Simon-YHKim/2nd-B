@@ -27,7 +27,10 @@ describe("reasoning execution isolation", () => {
   test("the home reward action is fail-closed for age, tier and ad config", () => {
     const home = readRepoFile("src/components/deep-space/ConstellationHome.tsx");
     const guard = '{isMinor === false && progression.tier === "free" && rewardedAdsConfigured() ? (';
-    const rewardLabel = "광고 보고 ${REWARD_PER_WATCH}회 받기";
+    // Anchor on the call, not on the Korean copy: the label moved into the
+    // component's per-locale map (en/ko/es/pt), so a literal string would make
+    // this test fail on translation work instead of on a real guard change.
+    const rewardLabel = "reasoningCopy.adReward(REWARD_PER_WATCH)";
     const guardIndex = home.indexOf(guard);
     const rewardIndex = home.indexOf(rewardLabel);
     const guardEndIndex = home.indexOf(") : null}", rewardIndex);

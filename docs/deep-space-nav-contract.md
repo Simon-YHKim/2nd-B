@@ -47,7 +47,7 @@ Second-tier (reached inside each primary screen):
 |---|---|---|
 | 그래프 | 위키 / 기록 / 리서치 | `/wiki` · `/records`(→`/record/[id]`) · `/research` |
 | 담기 | 형식 / 가져오기 / 받은항목 / 수동입력 | `/formats` · `/import` · `/inbox` · `/manual` |
-| 나 | 소울코어 / 나의모습 / 통찰 | `/core-brain` · `/persona` · `/insights` |
+| 나 | 소울코어 / 나의모습 / 통찰 / 나의 변화 | `/core-brain` · `/persona` · `/insights` · `/growth` |
 | 나 · 자기검사 허브 | 빅5 / MBTI / 애착 / 네영역 / 순간기록 / 인터뷰 / 자기점검 | `/big-five` · `/mbti` · `/attachment` · `/trinity` · `/esm` · `/interview` · `/audit` |
 | 설정 | 계정 / 요금제 / 개인정보 / 권한 / 데이터 / 테마 / 지원 / 운영진단 | `/account` · `/plans` · `/privacy` · `/permissions` · `/data` · `/theme` · `/support` · `/ops` |
 
@@ -55,8 +55,12 @@ Auth/system (not in deep-space menus, but reachable by flow): `(auth)/*`,
 `/onboarding`, `/journal`, `/+not-found`. These keep their existing entry paths
 (redirects, deep-links) and are gated as today (C10/PIPA in IntroGate — unchanged).
 
-Coverage check: 40 app routes; every one appears above or is an auth/system
-flow → 누락 0 once Stage③ wires the primary + second-tier entries.
+Deep-space-only review surfaces: `/growth` is entered from the home "나의 변화"
+strip and renders the weekly growth canon screen directly. It has no separate
+legacy screen; the rollback path is the whole-app `EXPO_PUBLIC_UI=legacy` track.
+
+Coverage check: user-facing deep-space routes appear above or are classified as
+auth/system flows → 누락 0 once Stage③ wires the primary + second-tier entries.
 
 ## 4. Back / deeplink / tab behavior (E2E gate)
 

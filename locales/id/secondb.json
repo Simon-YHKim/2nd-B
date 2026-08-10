@@ -2,8 +2,8 @@
   "title": "SecondB",
   "subtitle": "Wiki-mu, siap pakai. Tanya apa saja - saya akan kutip halaman yang saya gunakan.",
   "empty": "Mulai percakapan. Coba: \"Pola apa yang muncul di tangkapan bulan ini?\"",
-  "placeholder": "Tanya SecondB...",
-  "inputA11y": "Tanya SecondB",
+  "placeholder": "Tanyakan ke SecondB...",
+  "inputA11y": "Tanyakan ke SecondB",
   "send": "Kirim",
   "clearChat": "Hapus",
   "clearChatA11y": "Hapus obrolan",
@@ -25,46 +25,46 @@
   },
   "monologues": {
     "secondb": [
-      "Clear patterns first, wider possibilities next.",
-      "Let me connect it once more from the center.",
-      "This path is Analytic; that one is Divergent.",
-      "The scattered pieces are gathering into one view."
+      "Pola yang jelas dulu, lalu kemungkinan yang lebih luas.",
+      "Biarkan aku menghubungkannya sekali lagi dari pusat.",
+      "Jalur ini Analitik; yang itu Divergen.",
+      "Serpihan yang tersebar sedang berkumpul menjadi satu tampilan."
     ],
     "archi": [
-      "Growth direction starts with the current situation.",
-      "Measure the career clues again.",
-      "If the next step is too large, split it smaller.",
-      "This pattern can become a working plan."
+      "Arah pertumbuhan dimulai dari situasi saat ini.",
+      "Ukur lagi petunjuk kariernya.",
+      "Jika langkah berikutnya terlalu besar, pecah menjadi lebih kecil.",
+      "Pola ini bisa menjadi rencana kerja."
     ],
     "gadi": [
-      "Read the temperature of this bond slowly.",
-      "Notice what was left between the words.",
-      "Sometimes people need rhythm before direction.",
-      "Look for a steadier connection."
+      "Baca suhu ikatan ini pelan-pelan.",
+      "Perhatikan apa yang tertinggal di antara kata-kata.",
+      "Kadang orang membutuhkan ritme sebelum arah.",
+      "Cari koneksi yang lebih stabil."
     ],
     "lulu": [
-      "Knowledge shines when it reaches life.",
-      "This question is worth asking once more.",
-      "The saved pieces are gathering into a small wisdom.",
-      "Socrates would ask; Confucius would look for practice."
+      "Pengetahuan bersinar saat sampai ke kehidupan.",
+      "Pertanyaan ini layak ditanyakan sekali lagi.",
+      "Serpihan yang disimpan sedang berkumpul menjadi kebijaksanaan kecil.",
+      "Socrates akan bertanya; Konfusius akan mencari praktiknya."
     ],
     "momo": [
-      "Start the new record with a category.",
-      "Make it easy to find what happened when.",
-      "The archive routes are tidy today.",
-      "Even a small log becomes a story in the right place."
+      "Mulai catatan baru dengan kategori.",
+      "Buat mudah menemukan apa yang terjadi dan kapan.",
+      "Rute arsip hari ini rapi.",
+      "Catatan kecil pun menjadi cerita di tempat yang tepat."
     ],
     "lumi": [
-      "Taste grows little by little, like training.",
-      "Would this recommendation fit the day's rhythm?",
-      "Keep what feels good enjoyable and balanced.",
-      "Where will today's inspiration spark?"
+      "Selera tumbuh sedikit demi sedikit, seperti latihan.",
+      "Apakah rekomendasi ini cocok dengan ritme hari ini?",
+      "Jaga hal yang terasa baik tetap menyenangkan dan seimbang.",
+      "Di mana inspirasi hari ini akan menyala?"
     ]
   },
   "personas": {
     "secondb": {
       "greeting": "Catatanmu ada di sini. Apa yang ingin kamu lihat dulu?",
-      "systemHint": "Bicaralah sebagai SecondB, AI pusat untuk Inti Jiwa. Hubungkan catatan pengguna di seluruh grafik; gunakan mode Analitik untuk membaca pola dengan jelas dan mode Divergen untuk sudut alternatif. Hangat, ringkas, praktis."
+      "systemHint": "Bicaralah sebagai SecondB, AI pusat untuk Bintang Utara. Hubungkan catatan pengguna di seluruh grafik; gunakan mode Analitik untuk membaca pola dengan jelas dan mode Divergen untuk sudut alternatif. Hangat, ringkas, praktis."
     },
     "archi": {
       "greeting": "Di mana kamu ingin bertumbuh berikutnya? Ceritakan situasinya dan aku akan memetakan arah.",

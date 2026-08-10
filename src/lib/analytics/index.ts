@@ -1,17 +1,17 @@
 // Lightweight analytics + error-tracking abstraction.
 //
-// Why: the blueprint promises $0 fixed cost. PostHog, GA4, MS Clarity, and
+// Why: the blueprint promises $0 fixed cost. GA4, MS Clarity, and
 // Sentry all have free tiers, but we do not load an SDK until it is actually
 // configured. This module is a no-op when the relevant env id is
 // unset (so dev/preview builds stay dependency-free) and wires up the real
 // tools when Simon adds the ids to GitHub Actions / EAS Variables.
 //
-// Web SDKs (GA4/Clarity/PostHog/Sentry) load on Expo Web (GitHub Pages).
+// Web SDKs (GA4/Clarity/Sentry) load on Expo Web (GitHub Pages).
 // Native Android builds mirror the same consent decision into Firebase
 // Analytics via syncNativeAnalyticsCollection below: collection is OFF at the
 // build level (firebase.json) and turns on only through that gate.
 //
-// PRIVACY / PIPA: product analytics (PostHog, GA4, Clarity) load ONLY after the
+// PRIVACY / PIPA: product analytics (GA4, Clarity) load ONLY after the
 // user grants the optional `analytics` consent (consent-selections.ts) AND the
 // server-derived birth date confirms the user is 18+. Unknown age fails closed.
 // The consent decision is persisted on web (localStorage) so it gates the next
@@ -379,7 +379,6 @@ type PreparedProductEvent = {
   route: string;
 };
 let pendingProductEvents: PreparedProductEvent[] = [];
-let posthogClient: { capture: (name: string, props?: Record<string, unknown>) => void; identify: (id: string) => void } | null = null;
 let sentryClient: { captureException: (err: unknown, context?: Record<string, unknown>) => void } | null = null;
 let ga4Id: string | null = null; // set once GA4 is loaded
 let clarityLoaded = false;
@@ -536,9 +535,7 @@ function scheduleRuntimeAnalyticsPolling(): void {
 
 function hasProductAnalyticsConfig(env: Env): boolean {
   return Boolean(
-    env.EXPO_PUBLIC_GA4_MEASUREMENT_ID ||
-      env.EXPO_PUBLIC_CLARITY_PROJECT_ID ||
-      (env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST),
+    env.EXPO_PUBLIC_GA4_MEASUREMENT_ID || env.EXPO_PUBLIC_CLARITY_PROJECT_ID,
   );
 }
 
@@ -632,14 +629,6 @@ function gaContextProps(w: WebGlobal, routePath = currentAnalyticsRoute): Record
 
 function deliverProductEvent(event: PreparedProductEvent): boolean {
   let delivered = clarityLoaded && runtimeAnalyticsFlags.clarityEnabled;
-  if (posthogClient) {
-    try {
-      posthogClient.capture(event.name, event.props);
-      delivered = true;
-    } catch {
-      // analytics failures must not propagate
-    }
-  }
   const w = webWindow();
   if (ga4Id && w?.gtag) {
     try {
@@ -787,7 +776,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
 
   // M1 (round-4): do NOT trust the localStorage cache to auto-load product
   // analytics at boot - a stale "granted", or a 14-17 minor who set the key in
-  // devtools, would load GA4/Clarity/PostHog without re-checking the SERVER
+  // devtools, would load GA4/Clarity without re-checking the SERVER
   // decision. Product analytics now load ONLY from an explicit, server-derived
   // decision: initAnalytics({analyticsConsent}) or setAnalyticsConsent() once
   // AuthContext resolves external_analytics + minor status (see the
@@ -800,7 +789,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
 }
 
 /**
- * Load the consent-gated product-analytics SDKs (PostHog + GA4 + Clarity). Each
+ * Load the consent-gated product-analytics SDKs (GA4 + Clarity). Each
  * is independently gated on its id/key and on already-loaded guards, so this is
  * safe to call more than once (e.g. from initAnalytics and again from
  * setAnalyticsConsent when the user opts in mid-session).
@@ -849,7 +838,7 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
 
   // GA4 (gtag.js) - public measurement id, privacy-hardened (IP anonymized, no
   // Google/ad signals). Inject the tag script once. Keep this before the
-  // optional PostHog dynamic import so the first consented page view is not
+  // async SDK loads so the first consented page view is not
   // delayed or dropped while an uninstalled optional package rejects.
   if (!ga4Id && env.EXPO_PUBLIC_GA4_MEASUREMENT_ID) {
     try {
@@ -930,43 +919,6 @@ async function performProductAnalyticsLoad(env: Env): Promise<void> {
     }
   }
 
-  // PostHog product analytics. This remains last because it is an optional peer
-  // dependency; a missing package must never delay GA4 or Clarity setup.
-  if (!posthogClient && env.EXPO_PUBLIC_POSTHOG_KEY && env.EXPO_PUBLIC_POSTHOG_HOST) {
-    try {
-      // @ts-expect-error - optional peer dep. The operator installs posthog-js
-      // once ready to wire analytics; until then this dynamic import throws.
-      const mod = (await import("posthog-js")) as {
-        default: {
-          init: (key: string, opts: Record<string, unknown>) => void;
-          capture: (name: string, props?: Record<string, unknown>) => void;
-          identify: (id: string) => void;
-        };
-      };
-      if (!analyticsConsent || !runtimeAnalyticsFlags.analyticsEnabled) return;
-      mod.default.init(env.EXPO_PUBLIC_POSTHOG_KEY, {
-        api_host: env.EXPO_PUBLIC_POSTHOG_HOST,
-        autocapture: false, // explicit events only - no input scraping
-        capture_pageview: false, // screen-level events captured manually
-        disable_session_recording: true, // privacy-first
-        persistence: "memory", // no localStorage by default
-        property_denylist: [
-          "$current_url",
-          "$pathname",
-          "$referrer",
-          "$referring_domain",
-          "$host",
-          "$session_entry_url",
-          "$session_entry_host",
-          "$session_entry_pathname",
-          "$prev_pageview_pathname",
-        ],
-      });
-      posthogClient = mod.default;
-    } catch (e) {
-      if (typeof console !== "undefined") console.warn("[analytics] posthog init skipped:", (e as Error).message);
-    }
-  }
   if (hasProductAnalyticsConfig(env)) {
     scheduleRuntimeAnalyticsPolling();
   }
@@ -1197,7 +1149,6 @@ export function __resetAnalytics(): void {
   productAnalyticsReady = false;
   productAnalyticsLoad = null;
   pendingProductEvents = [];
-  posthogClient = null;
   sentryClient = null;
   ga4Id = null;
   clarityLoaded = false;

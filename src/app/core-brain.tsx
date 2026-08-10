@@ -1,5 +1,5 @@
-// 소울 코어 / Core Brain screen (core-brain pack v2). Internal concept
-// stays "Core Brain"; user-facing name is "소울 코어". Reuses buildPersona
+// Polaris / Core Brain screen (core-brain pack v2). Internal route and data
+// keys stay "Core Brain"; user-facing name is "북극성". Reuses buildPersona
 // + buildCenterCards (the §7-2 cards) and a real records fetch for the
 // evidence drawer. Per the pack's data_contract we never fabricate
 // unsupported summaries — sections fall back to a collecting/empty state.
@@ -50,7 +50,7 @@ import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 
-// D-25: Soul Core brightness shows as a qualitative band, never a raw %.
+// D-25: Polaris brightness shows as a qualitative band, never a raw %.
 const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
 const SOUL_CORE_BAND_EN: Record<BrightnessBand, string> = { dim: "dim", fair: "fair", bright: "bright" };
 
@@ -96,7 +96,7 @@ async function loadCoreBrainEvidence(userId: string, locale: "en" | "ko"): Promi
 // the deep-space dock (DeepSpaceScreen) vs the premium shell. All data
 // (evidence, persona, the eight sections, the evidence drawer) and every CTA are
 // identical and live in both. (LensView is the 7-axis per-trait view — wrong fit
-// for the aggregate Soul Core, so it is no longer used here.)
+// for the aggregate Polaris readout, so it is no longer used here.)
 function CoreShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation("core-brain");
   return isDeepSpaceUI() ? (
@@ -135,9 +135,10 @@ function CoreBrainScreen() {
   const { moment: companionMoment, fire: fireCompanion } = useCompanionMoment();
 
   useEffect(() => {
-    // buildPersona() calls Gemini — don't fire it for a no-profile OAuth session
-    // (gated here because the effect runs before the render redirect). C10 + consent.
-    if (!userId || hasProfile === false) return;
+    // buildPersona() calls Gemini — don't fire it until auth, profile, and
+    // minor status are fully resolved. The effect runs before render redirects,
+    // so hasProfile=null/isMinor=null must fail closed instead of routing as adult.
+    if (loading || !userId || hasProfile !== true || isMinor === null) return;
     let cancelled = false;
     setBuilding(true);
     setLoadError(false);
@@ -167,7 +168,7 @@ function CoreBrainScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
+  }, [loading, userId, hasProfile, isMinor, locale, fireCompanion, reloadKey]);
   // Re-focus refreshes only cheap DB evidence. The initial/manual path above is
   // the only path that may run buildPersona(), because buildPersona calls Gemini.
   useFocusRefetch(() => setEvidenceReloadKey((k) => k + 1), Boolean(userId && hasProfile !== false));

@@ -41,6 +41,12 @@ describe("parseSelfModelProposal", () => {
     expect(user).toContain("some evidence");
   });
 
+  test("soulCore prompt uses the canonical North Star display name", () => {
+    const { system } = buildSelfModelProposalPrompt({ kind: "soulCore" }, "x", "e", "en");
+    expect(system).toContain("North Star aggregate reading");
+    expect(system).not.toContain("Soul Core");
+  });
+
   // Harness tuning (ai_260721): evidence bodies are user-influenced (imports,
   // clips) and previously rode UNFENCED; a fake fence/[SYSTEM] marker inside
   // evidence must be neutralized, and the guard + thin-evidence honesty lines

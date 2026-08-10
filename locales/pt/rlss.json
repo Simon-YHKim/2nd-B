@@ -2,5 +2,13 @@
   "loading": "Carregando a avaliação…",
   "title": "Satisfação com a vida (RLSS)",
   "counter": "Satisfação com a vida · RLSS",
-  "saved": "Salvo · veja na sua Persona"
+  "saved": "Salvo · veja na sua Persona",
+  "saveError": "Não foi possível salvar. Suas respostas continuam aqui; tente novamente.",
+  "introDescription": "Um autorrelato validado de 6 itens sobre sua satisfação com a vida como um todo. Avalie cada frase de 1 (discordo totalmente) a 7 (concordo totalmente). Não há respostas certas, apenas como isso parece agora.",
+  "headerPrompt": "Pensando na sua vida como um todo, escolha o quanto cada frase combina com você agora.",
+  "exitConfirmA11y": "Confirmação de saída",
+  "exitTitle": "Sair da pesquisa?",
+  "exitBody": "Tem certeza de que quer sair? Seu progresso não será salvo.",
+  "exitKeepGoing": "Continuar",
+  "exitLeave": "Sair"
 }

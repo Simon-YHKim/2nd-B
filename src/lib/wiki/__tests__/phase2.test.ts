@@ -16,6 +16,11 @@ jest.mock("../queries", () => ({
     captured.push({ fn: "getSource", args: [userId, sourceId] });
     return Promise.resolve(fixtures.source);
   }),
+  getWikiPage: jest.fn((userId: string, slug: string) => {
+    captured.push({ fn: "getWikiPage", args: [userId, slug] });
+    // fixtures.slugOwner stands in for "a page already sits on this slug".
+    return Promise.resolve(fixtures.slugOwner ?? null);
+  }),
   upsertWikiPage: jest.fn((input: unknown) => {
     captured.push({ fn: "upsertWikiPage", args: [input] });
     return Promise.resolve(fixtures.upsertWikiPage);
@@ -33,6 +38,10 @@ jest.mock("../queries", () => ({
 jest.mock("../storage", () => ({
   downloadRawClipping: jest.fn((path: string) => {
     captured.push({ fn: "downloadRawClipping", args: [path] });
+    // A failed upload leaves storage_path set but the object missing — the
+    // production shape that stranded every source. fixtures.storageMissing
+    // reproduces it.
+    if (fixtures.storageMissing) return Promise.reject(new Error("Object not found"));
     return Promise.resolve(fixtures.body ?? "body content");
   }),
 }));
@@ -53,7 +62,7 @@ jest.mock("../materialize", () => ({
   }),
 }));
 
-import { generateSourcePage, SourceNotFoundError } from "../phase2";
+import { generateSourcePage, SourceNotFoundError, SourceBodyUnavailableError } from "../phase2";
 
 function reset() {
   captured.length = 0;
@@ -97,6 +106,9 @@ describe("generateSourcePage", () => {
     expect(callOrder()).toEqual([
       "getSource",
       "downloadRawClipping",
+      // Slug-ownership check: refuses to clobber an entity/concept page or
+      // another source that already sits on this slug.
+      "getWikiPage",
       "upsertWikiPage",
       "syncWikiLinks",
       "markSourceIngested",
@@ -279,5 +291,117 @@ describe("generateSourcePage", () => {
     const upsert = captured.find((c) => c.fn === "upsertWikiPage")!;
     expect((upsert.args[0] as { tags: string[] }).tags).toEqual(["one", "two"]);
     expect(callOrder()).not.toContain("materializeGraphFromPhase1");
+  });
+});
+
+describe("body fallback when the Storage upload never landed", () => {
+  // capture.ts writes the canonical storage_path onto the row even when the
+  // upload fails, stashing the body in frontmatter._body_fallback. Promotion
+  // used to trust the path and throw, which is why the QA account's only source
+  // (a KakaoTalk import, 48 bytes in _body_fallback) could never become a wiki
+  // page while the detail screen rendered it fine — get-piece.ts already read
+  // the same fallback.
+  beforeEach(reset);
+
+  it("promotes from _body_fallback when Storage misses", async () => {
+    fixtures.storageMissing = true;
+    fixtures.source = {
+      id: "s1",
+      title: "KakaoTalk import",
+      tags: [],
+      storage_path: "u/kakaotalk.md",
+      frontmatter: { _body_fallback: "the rescued body" },
+      ingested: false,
+    };
+    fixtures.upsertWikiPage = { id: "p1" };
+
+    await generateSourcePage("u1", "s1");
+
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { body_md: string }).body_md).toBe("the rescued body");
+    expect(captured.some((c) => c.fn === "markSourceIngested")).toBe(true);
+  });
+
+  it("throws a distinct error when neither Storage nor the fallback has a body", async () => {
+    fixtures.storageMissing = true;
+    fixtures.source = {
+      id: "s1",
+      title: "Empty",
+      tags: [],
+      storage_path: "u/empty.md",
+      frontmatter: {},
+      ingested: false,
+    };
+    await expect(generateSourcePage("u1", "s1")).rejects.toBeInstanceOf(SourceBodyUnavailableError);
+  });
+
+  it("still prefers Storage when the object is there", async () => {
+    fixtures.source = {
+      id: "s1",
+      title: "Fine",
+      tags: [],
+      storage_path: "u/fine.md",
+      frontmatter: { _body_fallback: "stale copy" },
+      ingested: false,
+    };
+    fixtures.body = "fresh from storage";
+    fixtures.upsertWikiPage = { id: "p1" };
+
+    await generateSourcePage("u1", "s1");
+
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { body_md: string }).body_md).toBe("fresh from storage");
+  });
+});
+
+describe("slug collision never overwrites somebody else's page", () => {
+  // upsertWikiPage keys on (user_id, slug). materialize.ts get-or-creates and so
+  // refuses to clobber; phase2 was the one writer that did not, so a source whose
+  // title slugged onto an existing entity/concept page would silently flip that
+  // row to kind='source', replace its body and steal its source_id.
+  beforeEach(reset);
+
+  const source = (id: string, title: string) => ({
+    id,
+    title,
+    tags: [],
+    storage_path: "u/x.md",
+    frontmatter: {},
+    ingested: false,
+  });
+
+  it("uses the plain slug when nothing owns it", async () => {
+    fixtures.source = source("s1", "Async loops");
+    fixtures.upsertWikiPage = { id: "p1" };
+    await generateSourcePage("u1", "s1");
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { slug: string }).slug).toBe("async-loops");
+  });
+
+  it("reuses the plain slug when the page is this source's own (idempotent re-run)", async () => {
+    fixtures.source = source("s1", "Async loops");
+    fixtures.slugOwner = { id: "p1", slug: "async-loops", kind: "source", source_id: "s1" };
+    fixtures.upsertWikiPage = { id: "p1" };
+    await generateSourcePage("u1", "s1");
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { slug: string }).slug).toBe("async-loops");
+  });
+
+  it("disambiguates when an entity page already holds the slug", async () => {
+    fixtures.source = source("s1abcdef-0000-0000-0000-000000000000", "Async loops");
+    fixtures.slugOwner = { id: "pE", slug: "async-loops", kind: "entity", source_id: null };
+    fixtures.upsertWikiPage = { id: "p2" };
+    await generateSourcePage("u1", "s1abcdef-0000-0000-0000-000000000000");
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { slug: string }).slug).toBe("async-loops-s1abcdef");
+  });
+
+  it("disambiguates when a DIFFERENT source already holds the slug", async () => {
+    fixtures.source = source("bbbbbbbb-0000-0000-0000-000000000000", "Async loops");
+    fixtures.slugOwner = { id: "pOther", slug: "async-loops", kind: "source", source_id: "aaaa" };
+    fixtures.upsertWikiPage = { id: "p3" };
+    await generateSourcePage("u1", "bbbbbbbb-0000-0000-0000-000000000000");
+    const upsert = captured.find((c) => c.fn === "upsertWikiPage");
+    expect((upsert?.args[0] as { slug: string }).slug).toBe("async-loops-bbbbbbbb");
   });
 });

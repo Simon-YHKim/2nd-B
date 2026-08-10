@@ -30,6 +30,7 @@ import { PremiumTabBar } from "@/components/premium";
 import { pixelStackTransition } from "@/lib/motion/pixel-physical";
 import { fontAssets } from "@/theme/typography";
 import { ThemeProvider, useThemePalette } from "@/lib/theme/ThemeContext";
+import { hydrateFirstStarChatNudge } from "@/lib/onboarding/state";
 
 // Expo Router uses a route's named `ErrorBoundary` export as that segment's
 // render-error fallback. Exporting it from the root layout makes it the app-wide
@@ -72,6 +73,15 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
+  // The first-star chat nudge is persisted to AsyncStorage but nothing read it
+  // back, so on native it re-armed on every cold start and re-nudged users who
+  // had already been through it. Load it once, here, before any quant screen can
+  // consume it. Fire-and-forget: the helper never throws and the worst case is
+  // one extra nudge.
+  useEffect(() => {
+    void hydrateFirstStarChatNudge();
+  }, []);
+
   // Brief minimal loader during font resolution. The branded cell-team
   // intro now lives inside IntroGate (gated on auth) — unauthenticated
   // visitors should land on /sign-in immediately, NOT see the loader.
@@ -109,6 +119,7 @@ export default function RootLayout() {
               <Stack.Screen name="secondb" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
+              <Stack.Screen name="subscription" />
               <Stack.Screen name="wiki" options={fadeTransition} />
               <Stack.Screen name="manual" />
               <Stack.Screen name="museum" />
@@ -336,7 +347,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 
 // M1 (round-4): gate product analytics on the SERVER decision, not the
 // localStorage cache (initAnalytics no longer auto-loads from it). Once auth
-// resolves, load GA4/Clarity/PostHog only when the user's stored
+// resolves, load GA4/Clarity only when the user's stored
 // external_analytics pref is on and the server birth date confirms age 18+.
 // Missing/contradictory age data fails closed. A minor's privacy lock
 // (0033/0038) already forces external_analytics false server-side, so this is

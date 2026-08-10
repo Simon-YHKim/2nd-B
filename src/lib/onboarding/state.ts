@@ -82,6 +82,37 @@ export function isFirstStarChatNudged(): boolean {
   return memoryStarChat;
 }
 
+/**
+ * Load the persisted flag into memory once per launch.
+ *
+ * markFirstStarChatNudged() has always written to AsyncStorage, but NOTHING read
+ * it back: isFirstStarChatNudged() falls through to `memoryStarChat`, which is
+ * re-initialized to false on every JS bundle load. So on native the value sat on
+ * disk and was ignored, and every cold start re-armed the one-shot — a user who
+ * had already been nudged got yanked into a SecondB chat again on their next
+ * quant save, on all seven instruments that share this helper.
+ *
+ * Web is unaffected and deliberately skipped: localStorage is synchronous and
+ * already the source of truth there.
+ *
+ * Fail-soft: on any error the flag stays false, which costs at most one extra
+ * nudge — never a lost save.
+ */
+export async function hydrateFirstStarChatNudge(): Promise<void> {
+  if (memoryStarChat) return;
+  if (ls()) return;
+  const storage = nativeStorage();
+  if (!storage) return;
+  try {
+    const nudgedAt = await storage.getItem(FIRST_STAR_CHAT_KEY);
+    if (nudgedAt) memoryStarChat = true;
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[onboarding] first-star-chat hydrate failed", (e as Error).message);
+    }
+  }
+}
+
 export function markFirstStarChatNudged(): void {
   const nudgedAt = new Date().toISOString();
   memoryStarChat = true;

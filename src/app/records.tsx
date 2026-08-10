@@ -310,13 +310,7 @@ function RecordsLegacy() {
   ) : (
     <View style={styles.stateBox}>
       <Text variant="body" color="textMuted" style={{ textAlign: "center" }}>
-        {shards.length === 0
-          ? locale === "ko"
-            ? "아직 남긴 별가루가 없어요. 오늘의 별가루를 하나 남겨볼까요?"
-            : "No pieces yet. Want to leave today's piece?"
-          : locale === "ko"
-            ? "조건에 맞는 별가루가 없어요."
-            : "No pieces match that filter."}
+        {t(shards.length === 0 ? "emptyNoPieces" : "emptyNoMatch")}
       </Text>
       {shards.length === 0 ? (
         <Button

@@ -14,7 +14,7 @@
 //   - Tap → dolly-zoom to scale 4 → onContinue. /index picks up the
 //     same scale 4 + opacity 1 frame so the handoff is seamless.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Image as ExpoImage } from "expo-image";
@@ -24,38 +24,153 @@ import { deepSpace, typography } from "@/lib/theme/tokens";
 
 const logo = require("../../../assets/deepspace/secondb-head-front.png");
 
-const MESSAGES: readonly string[] = [
-  // Phase 1 — 밤하늘 (the deep-space night canvas)
-  "밤하늘 펼치는 중...",
-  "영차영차! 별가루 한 줌 뿌리는 중.",
-  "우주 바닥 다 깔았다! 일꾼 세포 투입.",
-  "읏차! 어둠에 첫 별빛 한 점 심는 중.",
-  "별자리 들어설 자리, 반짝반짝 닦는 중!",
-  // Phase 2 — 일곱 별 (the seven self-understanding stars)
-  "일곱 별 빚는 중...",
-  "빛 한 줌 두 줌, 첫 별 다지기.",
-  "자기이해 일곱 별, 자리 잡는 중!",
-  "바쁘다 바빠! 별마다 불씨 한 점씩.",
-  "별 하나 둘, 하늘 위로 띄우는 중.",
-  // Phase 3 — 별자리 (the constellation links)
-  "별과 별, 길 잇는 중...",
-  "쫙쫙! 빛나는 별길 늘이는 중.",
-  "별가루와 별가루, 빛 한 가닥씩 연결.",
-  "찌릿! 끊긴 별길 이어 붙이는 중.",
-  "별자리 엉키지 않게 조심조심!",
-  // Phase 4 — 북극성 (the soul core lights up)
-  "북극성 불 켜는 중...",
-  "탁! 한가운데 북극성 점등.",
-  "일곱 별로 빛 모으는 중!",
-  "쓱싹쓱싹, 북극성 둘레 대청소.",
-  "채비 막바지! 최종 점검.",
-  // Phase 5 — 환영 (세컨비 ready to welcome the first piece)
-  "당신의 별가루를 기다리는 중...",
-  "안테나 쫙! 새 이야기 수신 대기.",
-  "세컨비 환영 채비 끝, 문 여는 중.",
-  "꿀꺽. 첫 별가루 받을 두 손 모으고 대기.",
-  "두근두근! 당신의 멋진 생각, 기대 중!",
-] as const;
+const MESSAGE_SETS = {
+  en: [
+    "Opening the night sky...",
+    "Scattering a first handful of stardust.",
+    "Laying the deep-space floor.",
+    "Planting the first point of light.",
+    "Polishing the place where your constellation will form.",
+    "Shaping the seven stars...",
+    "Packing light into the first star.",
+    "Settling the seven self-understanding stars.",
+    "Lighting each star, one spark at a time.",
+    "Lifting the stars into the sky.",
+    "Drawing paths between stars...",
+    "Stretching bright routes across the sky.",
+    "Connecting stardust to stardust.",
+    "Repairing a broken star path.",
+    "Keeping the constellation lines clear.",
+    "Lighting Polaris...",
+    "Polaris is turning on at the center.",
+    "Gathering light from the seven stars.",
+    "Clearing the space around Polaris.",
+    "Final checks before opening.",
+    "Waiting for your first piece of stardust...",
+    "Antenna up, ready for a new story.",
+    "SecondB is getting the door ready.",
+    "Preparing both hands for the first piece.",
+    "Ready for the thought you bring in.",
+  ],
+  ko: [
+    "밤하늘 펼치는 중...",
+    "영차영차! 별가루 한 줌 뿌리는 중.",
+    "우주 바닥 다 깔았다! 일꾼 세포 투입.",
+    "읏차! 어둠에 첫 별빛 한 점 심는 중.",
+    "별자리 들어설 자리, 반짝반짝 닦는 중!",
+    "일곱 별 빚는 중...",
+    "빛 한 줌 두 줌, 첫 별 다지기.",
+    "자기이해 일곱 별, 자리 잡는 중!",
+    "바쁘다 바빠! 별마다 불씨 한 점씩.",
+    "별 하나 둘, 하늘 위로 띄우는 중.",
+    "별과 별, 길 잇는 중...",
+    "쫙쫙! 빛나는 별길 늘이는 중.",
+    "별가루와 별가루, 빛 한 가닥씩 연결.",
+    "찌릿! 끊긴 별길 이어 붙이는 중.",
+    "별자리 엉키지 않게 조심조심!",
+    "북극성 불 켜는 중...",
+    "탁! 한가운데 북극성 점등.",
+    "일곱 별로 빛 모으는 중!",
+    "쓱싹쓱싹, 북극성 둘레 대청소.",
+    "채비 막바지! 최종 점검.",
+    "당신의 별가루를 기다리는 중...",
+    "안테나 쫙! 새 이야기 수신 대기.",
+    "세컨비 환영 채비 끝, 문 여는 중.",
+    "꿀꺽. 첫 별가루 받을 두 손 모으고 대기.",
+    "두근두근! 당신의 멋진 생각, 기대 중!",
+  ],
+  es: [
+    "Abriendo el cielo nocturno...",
+    "Esparciendo el primer puñado de polvo estelar.",
+    "Preparando el suelo del espacio profundo.",
+    "Plantando el primer punto de luz.",
+    "Puliendo el lugar donde se formará tu constelación.",
+    "Dando forma a las siete estrellas...",
+    "Cargando luz en la primera estrella.",
+    "Colocando las siete estrellas de autoconocimiento.",
+    "Encendiendo cada estrella, chispa a chispa.",
+    "Elevando las estrellas al cielo.",
+    "Trazando caminos entre estrellas...",
+    "Extendiendo rutas brillantes por el cielo.",
+    "Conectando polvo estelar con polvo estelar.",
+    "Reparando un camino de estrellas roto.",
+    "Manteniendo claras las líneas de la constelación.",
+    "Encendiendo Polaris...",
+    "Polaris se enciende en el centro.",
+    "Reuniendo luz de las siete estrellas.",
+    "Despejando el espacio alrededor de Polaris.",
+    "Revisión final antes de abrir.",
+    "Esperando tu primera pieza de polvo estelar...",
+    "Antena arriba, lista para una nueva historia.",
+    "SecondB prepara la puerta.",
+    "Preparando ambas manos para la primera pieza.",
+    "Listo para la idea que traes.",
+  ],
+  pt: [
+    "Abrindo o céu noturno...",
+    "Espalhando o primeiro punhado de poeira estelar.",
+    "Preparando o piso do espaço profundo.",
+    "Plantando o primeiro ponto de luz.",
+    "Polindo o lugar onde sua constelação vai se formar.",
+    "Moldando as sete estrelas...",
+    "Carregando luz na primeira estrela.",
+    "Posicionando as sete estrelas de autoconhecimento.",
+    "Acendendo cada estrela, faísca por faísca.",
+    "Elevando as estrelas ao céu.",
+    "Traçando caminhos entre estrelas...",
+    "Estendendo rotas brilhantes pelo céu.",
+    "Conectando poeira estelar a poeira estelar.",
+    "Reparando um caminho de estrelas quebrado.",
+    "Mantendo claras as linhas da constelação.",
+    "Acendendo Polaris...",
+    "Polaris está se acendendo no centro.",
+    "Reunindo luz das sete estrelas.",
+    "Limpando o espaço ao redor de Polaris.",
+    "Verificações finais antes de abrir.",
+    "Esperando sua primeira peça de poeira estelar...",
+    "Antena erguida, pronta para uma nova história.",
+    "SecondB prepara a porta.",
+    "Preparando as duas mãos para a primeira peça.",
+    "Pronto para a ideia que você traz.",
+  ],
+  id: [
+    "Membuka langit malam...",
+    "Menaburkan segenggam serpihan bintang pertama.",
+    "Menyiapkan dasar ruang dalam.",
+    "Menanam titik cahaya pertama.",
+    "Memoles tempat konstelasimu akan terbentuk.",
+    "Membentuk tujuh bintang...",
+    "Mengisi cahaya ke bintang pertama.",
+    "Menempatkan tujuh bintang pemahaman diri.",
+    "Menyalakan tiap bintang, satu percikan demi satu.",
+    "Mengangkat bintang-bintang ke langit.",
+    "Menggambar jalur antar bintang...",
+    "Merentangkan rute terang di langit.",
+    "Menghubungkan serpihan bintang ke serpihan bintang.",
+    "Memperbaiki jalur bintang yang putus.",
+    "Menjaga garis konstelasi tetap jelas.",
+    "Menyalakan Polaris...",
+    "Polaris menyala di tengah.",
+    "Mengumpulkan cahaya dari tujuh bintang.",
+    "Membersihkan ruang di sekitar Polaris.",
+    "Pemeriksaan akhir sebelum dibuka.",
+    "Menunggu serpihan bintang pertamamu...",
+    "Antena naik, siap menerima cerita baru.",
+    "SecondB menyiapkan pintu.",
+    "Menyiapkan dua tangan untuk serpihan pertama.",
+    "Siap untuk pikiran yang kamu bawa.",
+  ],
+} as const;
+
+type LoadingMessageLocale = keyof typeof MESSAGE_SETS;
+
+function messageLocale(language: string | undefined): LoadingMessageLocale {
+  if (language === "ko" || language?.startsWith("ko-")) return "ko";
+  if (language === "es" || language?.startsWith("es-")) return "es";
+  if (language === "pt" || language?.startsWith("pt-")) return "pt";
+  if (language === "id" || language?.startsWith("id-")) return "id";
+  return "en";
+}
 
 // Minimum time the intro plays before we'll allow the ready transition
 // — guards instant warm-loads where parent.ready fires in <100ms. 2.5s
@@ -94,7 +209,8 @@ interface Props {
 }
 
 export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
+  const messages = useMemo(() => MESSAGE_SETS[messageLocale(i18n.language)], [i18n.language]);
   const [phase, setPhase] = useState<Phase>("typing");
   const [msgIdx, setMsgIdx] = useState(0);
   const [typed, setTyped] = useState("");
@@ -143,8 +259,8 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   //    push us into the 'ready' phase below.
   useEffect(() => {
     if (phase !== "typing") return;
-    if (msgIdx >= MESSAGES.length) return; // last message stays
-    const text = MESSAGES[msgIdx];
+    if (msgIdx >= messages.length) return; // last message stays
+    const text = messages[msgIdx];
     setTyped("");
 
     let i = 0;
@@ -155,14 +271,14 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
     }, Math.max(20, TYPE_TARGET_MS / text.length));
 
     const advanceId = setTimeout(() => {
-      setMsgIdx((idx) => Math.min(idx + 1, MESSAGES.length - 1));
+      setMsgIdx((idx) => Math.min(idx + 1, messages.length - 1));
     }, PER_MESSAGE_MS);
 
     return () => {
       clearInterval(typeId);
       clearTimeout(advanceId);
     };
-  }, [msgIdx, phase]);
+  }, [messages, msgIdx, phase]);
 
   // ── transition typing → ready when parent says ready AND min-time elapsed.
   //    No more "wait for typing to finish" — the intro adapts to actual

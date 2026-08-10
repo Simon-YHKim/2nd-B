@@ -161,8 +161,8 @@
       "helper": "Note, link, file, and photo capture stay open with no limit."
     },
     "streak": {
-      "label": "{{count}}-day streak{{suffix}}",
-      "missingToday": " (none today yet)"
+      "label": "Days recorded: {{count}}{{suffix}}",
+      "missingToday": " (today is optional)"
     },
     "prompt": {
       "heading": "Today's reflection prompt",

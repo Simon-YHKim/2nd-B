@@ -150,6 +150,7 @@ function IpipNeoSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           toolKey="ipip"
           title={t("title")}
           itemCount={IPIP_NEO_120_ITEMS.length}
+          perPage={8}
           estimatedMinutes={15}
           description={
             locale === "ko"

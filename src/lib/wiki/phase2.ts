@@ -13,7 +13,7 @@
 
 import { readPhase1 } from "./phase1";
 import { materializeGraphFromPhase1 } from "./materialize";
-import { getSource, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
+import { getSource, getWikiPage, markSourceIngested, syncWikiLinks, upsertWikiPage } from "./queries";
 import { slugForTitle, toSlug } from "./slug";
 import { downloadRawClipping } from "./storage";
 import { embedAndStorePage } from "./embeddings";
@@ -43,6 +43,24 @@ export class SourceNotFoundError extends Error {
   }
 }
 
+/** The row exists but neither Storage nor the frontmatter fallback holds a body. */
+export class SourceBodyUnavailableError extends Error {
+  constructor(public readonly sourceId: string) {
+    super(`No readable body for source id=${sourceId}`);
+    this.name = "SourceBodyUnavailableError";
+  }
+}
+
+/**
+ * The body capture.ts stashes on the row when the Storage upload fails. Same
+ * shape get-piece.ts reads, deliberately duplicated rather than imported: wiki/
+ * must not take an edge on records/ (check:cycles is a zero-tolerance gate).
+ */
+function bodyFallback(frontmatter: Record<string, unknown> | null): string | null {
+  const body = frontmatter?._body_fallback;
+  return typeof body === "string" && body.trim().length > 0 ? body : null;
+}
+
 /**
  * Promote a source to a wiki page. Idempotent: re-running on the same source
  * overwrites the page body with the latest Storage content, re-syncs links,
@@ -52,11 +70,29 @@ export async function generateSourcePage(userId: string, sourceId: string): Prom
   const source = await getSource(userId, sourceId);
   if (!source) throw new SourceNotFoundError(sourceId);
 
-  const body = await downloadRawClipping(source.storage_path);
+  // storage_path being set is NOT evidence the object exists: capture.ts writes
+  // the canonical path onto the row even when the upload failed, stashing the
+  // body in frontmatter._body_fallback. Promotion used to trust the path and
+  // throw on those rows, which is why the QA account's only source (a KakaoTalk
+  // import whose upload failed, 48 bytes sitting in _body_fallback) could never
+  // become a wiki page. get-piece.ts already reads the same fallback, so the
+  // detail screen rendered the body fine while promotion died on it.
+  const body = (await downloadRawClipping(source.storage_path).catch(() => null)) ?? bodyFallback(source.frontmatter);
+  if (body === null) throw new SourceBodyUnavailableError(sourceId);
   // slugForTitle (not toSlug) so a title written purely in CJK/Cyrillic/Thai
   // doesn't collapse to "" and overwrite another foreign-titled page on the
   // (user_id, slug) upsert key.
-  const slug = slugForTitle(source.title);
+  const baseSlug = slugForTitle(source.title);
+  // Do not clobber somebody else's page. The upsert below keys on
+  // (user_id, slug), so a source whose title slugs onto an existing entity or
+  // concept page — or onto a DIFFERENT source's page — would silently flip that
+  // row to kind='source', replace its body_md and steal its source_id.
+  // materialize.ts already refuses to overwrite (it get-or-creates); this is the
+  // one writer that did not. Disambiguate instead, deterministically, so a
+  // re-promotion of the same source still lands on the same page.
+  const owner = await getWikiPage(userId, baseSlug);
+  const slug =
+    owner && owner.source_id !== source.id ? `${baseSlug}-${source.id.slice(0, 8)}` : baseSlug;
 
   // Merge Phase 1 concepts into tags (when present). Concepts are the
   // LLM's distilled abstract ideas — natural tag candidates. Dedupe to

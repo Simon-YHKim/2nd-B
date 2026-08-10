@@ -21,7 +21,7 @@
     "options": {
       "pixel": {
         "label": "Fonte pixel",
-        "sub": "As letras pixel características da vila"
+        "sub": "Letras nítidas para a vista de constelação"
       },
       "readable": {
         "label": "Fonte legível",

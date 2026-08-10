@@ -69,6 +69,13 @@ Conventional Commits.
 - i18n font fallback keys (ko/en)
 - Branded loading screen (logo + spinner) shown while fonts and auth
   resolve, replacing blank/`null` frames on web
+- Major-update notice pipeline (`docs/RELEASE-PROCESS.md`): semver decides
+  whether a release owes users a popup (major only; minor and patch stay
+  silent), `npm run notice:release` drafts the publish SQL from app.json +
+  CHANGELOG and stops so a human publishes it, and the notice dialog now
+  branches its copy on `min_app_version` - readers who already have the
+  release see the feature introduction, readers who do not get an update
+  prompt (store on native, reload on web).
 
 ### Changed
 - LLM routing (D-26): `interview_probe` demoted pro→flash (depth-layer choice

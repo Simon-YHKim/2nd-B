@@ -19,6 +19,8 @@ import { getSupabaseClient } from "../supabase/client";
 export interface SourcePiece {
   /** Prefixed so it can never collide with a records id in a merged list. */
   id: string;
+  /** The real `sources.id`, used when opening the source detail route. */
+  sourceId: string;
   title: string | null;
   /** Named `created_at` (not `captured_at`) so it merges with record rows unchanged. */
   created_at: string;
@@ -51,6 +53,7 @@ export async function listSourcePieces(userId: string): Promise<SourcePiece[]> {
 
   return rows.map((r) => ({
     id: `src-${r.id}`,
+    sourceId: r.id,
     title: r.title,
     created_at: r.captured_at,
     tags: r.tags,

@@ -24,9 +24,9 @@
     "loadError": "Tidak bisa memuat ulasanmu. Coba lagi sebentar lagi.",
     "retry": "Coba lagi",
     "empty": "Belum ada yang perlu diulas. Simpan lebih banyak dan koneksi akan muncul.",
-    "goCapture": "Mulai simpan",
+    "goCapture": "Buka layar tangkap",
     "toReview": "{{n}} untuk diulas",
-    "a11yOpen": "Buka {{title}}",
+    "a11yOpen": "Lihat detail {{title}}",
     "dismiss": "Abaikan",
     "confirm": "Konfirmasi",
     "band": {

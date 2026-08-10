@@ -456,8 +456,6 @@ describe("runtime operations config", () => {
       "EXPO_PUBLIC_SENTRY_DSN",
       "EXPO_PUBLIC_GA4_MEASUREMENT_ID",
       "EXPO_PUBLIC_CLARITY_PROJECT_ID",
-      "EXPO_PUBLIC_POSTHOG_KEY",
-      "EXPO_PUBLIC_POSTHOG_HOST",
     ];
 
     expect(eas.build.preview.environment).toBe("preview");
@@ -480,12 +478,6 @@ describe("runtime analytics web transitions", () => {
     data: RuntimeFlagRow[] | null;
     error: { message: string } | null;
   };
-  type PostHogMock = {
-    init: jest.Mock;
-    capture: jest.Mock;
-    identify: jest.Mock;
-  };
-
   const originalWindow = (globalThis as { window?: unknown }).window;
   const originalDocument = (globalThis as { document?: unknown }).document;
 
@@ -526,7 +518,6 @@ describe("runtime analytics web transitions", () => {
   function loadWebModule(
     rowsRef: { current: RuntimeFlagRow[] },
     queryFlags?: () => Promise<RuntimeFlagResponse>,
-    posthogClient?: PostHogMock,
   ): {
     analytics: typeof import("../index");
     dataLayer: unknown[];
@@ -540,24 +531,8 @@ describe("runtime analytics web transitions", () => {
       getEnv: () => ({
         EXPO_PUBLIC_GA4_MEASUREMENT_ID: "G-TEST",
         EXPO_PUBLIC_CLARITY_PROJECT_ID: "clarity-test",
-        ...(posthogClient
-          ? {
-              EXPO_PUBLIC_POSTHOG_KEY: "ph-test",
-              EXPO_PUBLIC_POSTHOG_HOST: "https://posthog.test",
-            }
-          : {}),
       }),
     }));
-    if (posthogClient) {
-      jest.doMock(
-        "posthog-js",
-        () => ({
-          __esModule: true,
-          default: posthogClient,
-        }),
-        { virtual: true },
-      );
-    }
     const fetchFlags = jest.fn(
       queryFlags ??
         (() =>
@@ -619,7 +594,7 @@ describe("runtime analytics web transitions", () => {
     analytics.__resetAnalytics();
   });
 
-  test("overlapping init and consent use one async PostHog init and flush the page once", async () => {
+  test("overlapping init and consent flush the page once", async () => {
     const enabledRows: RuntimeFlagRow[] = [
       { key: "analytics_enabled", enabled: true },
       { key: "clarity_enabled", enabled: true },
@@ -632,16 +607,7 @@ describe("runtime analytics web transitions", () => {
       new Promise<RuntimeFlagResponse>((resolve) => {
         resolveFlags = resolve;
       });
-    const posthog = {
-      init: jest.fn(),
-      capture: jest.fn(),
-      identify: jest.fn(),
-    };
-    const { analytics, appendChild, dataLayer, fetchFlags } = loadWebModule(
-      rows,
-      queryFlags,
-      posthog,
-    );
+    const { analytics, appendChild, dataLayer, fetchFlags } = loadWebModule(rows, queryFlags);
 
     const init = analytics.initAnalytics();
     analytics.setAnalyticsConsent(true, {
@@ -664,19 +630,8 @@ describe("runtime analytics web transitions", () => {
     );
     expect(scriptSources.filter((src) => src?.includes("googletagmanager.com"))).toHaveLength(1);
     // The session sits on /record/[id] when the load runs, so the Clarity
-    // route allow-list withholds injection (GA4/PostHog are unaffected).
+    // route allow-list withholds injection (GA4 is unaffected).
     expect(scriptSources.filter((src) => src?.includes("clarity.ms"))).toHaveLength(0);
-    expect(posthog.init).toHaveBeenCalledTimes(1);
-    expect(posthog.init).toHaveBeenCalledWith(
-      "ph-test",
-      expect.objectContaining({
-        api_host: "https://posthog.test",
-        autocapture: false,
-        capture_pageview: false,
-      }),
-    );
-    expect(posthog.capture).toHaveBeenCalledTimes(1);
-    expect(posthog.capture).toHaveBeenCalledWith("page_view", { path: "/record/[id]" });
     const pageViews = dataLayer.filter(
       (entry) => isGtagCommand(entry) && entry[0] === "event" && entry[1] === "page_view",
     ) as Array<[string, string, { path?: string }]>;

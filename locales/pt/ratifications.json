@@ -24,9 +24,9 @@
     "loadError": "Não foi possível carregar sua revisão. Tente de novo em um instante.",
     "retry": "Tentar de novo",
     "empty": "Nada para revisar ainda. Guarde mais e as conexões vão aparecer.",
-    "goCapture": "Ir guardar",
+    "goCapture": "Ir para captura",
     "toReview": "{{n}} para revisar",
-    "a11yOpen": "Abrir {{title}}",
+    "a11yOpen": "Ver detalhes de {{title}}",
     "dismiss": "Dispensar",
     "confirm": "Confirmar",
     "band": {

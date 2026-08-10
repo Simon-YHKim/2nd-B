@@ -48,7 +48,7 @@ type Mode = "file" | "connector";
 
 interface ImportSource {
   key: string;
-  icon: string;
+  badge: string;
   nameKo: string;
   nameEn: string;
   subKo: string;
@@ -64,16 +64,16 @@ interface ImportSource {
 }
 
 const SOURCES: ImportSource[] = [
-  { key: "kakao", icon: "💬", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속·할 일·관계 신호만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/relationship signals. We don't store message text." },
-  { key: "takeout", icon: "📍", nameKo: "구글 타임라인", nameEn: "Google Timeline", subKo: "위치 · Takeout 파일", subEn: "Location · Takeout file", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "sms", icon: "✉", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속·알림 신호만. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/reminder signals. We don't store message text." },
-  { key: "live-location", icon: "🛰", nameKo: "실시간 위치", nameEn: "Live location", subKo: "위치 · 기기 권한", subEn: "Location · device permission", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
-  { key: "health", icon: "❤", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
-  { key: "email", icon: "✉", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
-  { key: "notion", icon: "🗒", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여와요.", whatEn: "Brings your notes in as records." },
-  { key: "google", icon: "🗓", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
-  { key: "google-tasks", icon: "✅", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져와요.", whatEn: "Brings your to-do titles in as records." },
-  { key: "calendar", icon: "🗓", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
+  { key: "kakao", badge: "KA", nameKo: "카카오톡 대화", nameEn: "KakaoTalk", subKo: "통신 · 파일 내보내기", subEn: "Comms · file export", tier: "critical", mode: "file", minorLocked: true, kind: "kakao", whatKo: "약속·할 일·관계 신호만 뽑아요. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/relationship signals. We don't store message text." },
+  { key: "takeout", badge: "LO", nameKo: "구글 타임라인", nameEn: "Google Timeline", subKo: "위치 · Takeout 파일", subEn: "Location · Takeout file", tier: "critical", mode: "file", minorLocked: true, kind: "takeout-location", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
+  { key: "sms", badge: "SM", nameKo: "문자(SMS)", nameEn: "SMS", subKo: "통신 · 백업 파일", subEn: "Comms · backup file", tier: "critical", mode: "file", minorLocked: true, kind: "sms", whatKo: "약속·알림 신호만. 메시지 본문은 저장하지 않아요.", whatEn: "Only plan/reminder signals. We don't store message text." },
+  { key: "live-location", badge: "LV", nameKo: "실시간 위치", nameEn: "Live location", subKo: "위치 · 기기 권한", subEn: "Location · device permission", tier: "critical", mode: "connector", minorLocked: true, kind: "unknown", whatKo: "자주 가는 장소·머문 시간 패턴만. 정확한 좌표 경로는 저장 안 함.", whatEn: "Only place/dwell patterns. Exact coordinates aren't stored." },
+  { key: "health", badge: "HE", nameKo: "건강", nameEn: "Health", subKo: "건강 · export 파일", subEn: "Health · export file", tier: "sensitive", mode: "file", minorLocked: false, kind: "apple-health", whatKo: "걸음·운동 등 합계만. 상세 기록 원문은 저장 안 함.", whatEn: "Only totals (steps, etc). Detailed records aren't stored." },
+  { key: "email", badge: "EM", nameKo: "이메일", nameEn: "Email", subKo: "이메일 · .eml 파일", subEn: "Email · .eml file", tier: "sensitive", mode: "file", minorLocked: false, kind: "email", whatKo: "약속·일정 신호만. 본문 전체는 저장 안 함.", whatEn: "Only plan/schedule signals, not the full body." },
+  { key: "notion", badge: "NO", nameKo: "Notion · Obsidian", nameEn: "Notion · Obsidian", subKo: "노트 · export 파일", subEn: "Notes · export file", tier: "normal", mode: "file", minorLocked: false, kind: "markdown", whatKo: "노트를 기록으로 들여와요.", whatEn: "Brings your notes in as records." },
+  { key: "google", badge: "GC", nameKo: "구글 캘린더", nameEn: "Google Calendar", subKo: "일정 · 계정 연결", subEn: "Schedule · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "ics", googleKind: "calendar", whatKo: "다가오는 일정의 제목·시간만 가져와요. 본문·참석자는 저장 안 해요.", whatEn: "Brings only upcoming event titles + times. No body/attendees." },
+  { key: "google-tasks", badge: "GT", nameKo: "구글 할 일", nameEn: "Google Tasks", subKo: "할 일 · 계정 연결", subEn: "To-dos · account link", tier: "normal", mode: "connector", minorLocked: false, kind: "markdown", googleKind: "tasks", whatKo: "할 일 목록의 제목만 기록으로 가져와요.", whatEn: "Brings your to-do titles in as records." },
+  { key: "calendar", badge: "IC", nameKo: "캘린더(.ics)", nameEn: "Calendar (.ics)", subKo: "일정 · 파일", subEn: "Schedule · file", tier: "normal", mode: "file", minorLocked: false, kind: "ics", whatKo: "일정 이벤트를 들여와요.", whatEn: "Brings your calendar events in." },
 ];
 
 // F7 (C10): the parser kinds behind the minor-locked comms/location tiles. Derived
@@ -427,7 +427,7 @@ export function ImportHubScreen() {
                   ]}
                   disabled={locked}
                 >
-                  <RNText style={styles.sourceIcon}>{s.icon}</RNText>
+                  <RNText style={styles.sourceIcon}>{s.badge}</RNText>
                   <View style={{ flex: 1 }}>
                     <Text variant="heading" style={styles.sourceName}>{name(s)}</Text>
                     <Text variant="subtle" style={styles.sourceSub}>{ko ? s.subKo : s.subEn}</Text>
@@ -446,7 +446,7 @@ export function ImportHubScreen() {
     return (
       <View style={styles.section}>
         <View style={styles.consentHead}>
-          <RNText style={styles.consentIcon}>{s.icon}</RNText>
+          <RNText style={styles.consentIcon}>{s.badge}</RNText>
           <Text variant="heading" style={styles.consentTitle}>{name(s)}</Text>
         </View>
         <OpsStatusChip tone={s.tier === "critical" ? "danger" : "warning"} label={t(`tier_${s.tier}`)} />
@@ -697,12 +697,36 @@ const styles = StyleSheet.create({
     padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine,
     borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card,
   },
-  sourceIcon: { fontSize: 16 },
+  sourceIcon: {
+    minWidth: 28,
+    textAlign: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: deepSpaceRadii.sm,
+    overflow: "hidden",
+    backgroundColor: withAlpha(deepSpace.text, 0.1),
+    color: deepSpace.text,
+    fontSize: 11,
+    fontFamily: fontFamilies.mono,
+    letterSpacing: 0,
+  },
   sourceName: { fontSize: 13, color: deepSpace.accentBright },
   sourceSub: { fontSize: 12, color: deepSpace.textLo, marginTop: 1 },
 
   consentHead: { flexDirection: "row", alignItems: "center", gap: 9 },
-  consentIcon: { fontSize: 17 },
+  consentIcon: {
+    minWidth: 28,
+    textAlign: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: deepSpaceRadii.sm,
+    overflow: "hidden",
+    backgroundColor: withAlpha(deepSpace.text, 0.1),
+    color: deepSpace.text,
+    fontSize: 11,
+    fontFamily: fontFamilies.mono,
+    letterSpacing: 0,
+  },
   consentTitle: { fontSize: 16, color: deepSpace.textHi },
   block: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
   blockLabel: { fontSize: 7, letterSpacing: 1, color: deepSpace.accentSoft },

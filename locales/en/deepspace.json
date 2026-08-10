@@ -188,7 +188,8 @@
     "navProfile": "Profile",
     "navSettings": "Settings",
     "navData": "My data",
-    "navBeyond": "Outside the app"
+    "navBeyond": "Outside the app",
+    "navPassword": "Change password"
   },
   "privacy": {
     "title": "Privacy",
@@ -332,7 +333,7 @@
     "search": "What are you curious about?",
     "sectionStart": "Getting started",
     "q1": "What are the 7 stars of the Big Dipper?",
-    "q2": "How does the North Star (Soul Core) brighten?",
+    "q2": "How does the North Star brighten?",
     "q3": "How do check results get more accurate?",
     "sectionData": "Data · Privacy",
     "q4": "What is an IDEN file?",
@@ -567,6 +568,7 @@
     "save": "Save",
     "opening": "Opening…",
     "empty": "Nothing here yet. Start with what recharges you these days; the rest star brightens.",
+    "ratingLabel": "Rating {{rating}}/5",
     "category": {
       "game": "Game",
       "movie": "Movie",
@@ -660,6 +662,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · THIS WEEK",
+    "eyebrowConstellation": "MY CONSTELLATION",
     "footerWeek": "A week seen together with SecondB",
     "starsLit": "{{count}} stars shining",
     "signature": "2nd-Brain · {{count}} stardust"
@@ -735,7 +738,7 @@
       "proFeat2": "250 chats a day",
       "proFeat3": "Unlimited reasoning",
       "comingSoon": "Coming soon",
-      "disclosure": "Paid plans renew automatically each month. Cancel anytime before the next renewal; prices include VAT. Full refund guaranteed within 30 days of payment.",
+      "disclosure": "Paid plans renew automatically each month until you cancel. Cancel anytime before the next renewal and paid features stay open until that period ends; prices include VAT. Full refund within 7 days of payment, as long as your usage has stayed within what the free plan covers.",
       "legalTerms": "Terms of Service",
       "legalRefund": "Refund policy"
     },
@@ -752,7 +755,9 @@
       "fillStar": "Fill in this star",
       "fillStarBody": "Add information for this domain.",
       "secondbLinked": "This piece links to your '{{star}}' star. {{n}} similar records sit in the same window.",
-      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon."
+      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon.",
+      "makeWikiPage": "Make a wiki page",
+      "wikiPageMade": "Wiki page created"
     },
     "inbox": {
       "title": "Alerts",
@@ -799,7 +804,16 @@
       "healthErrUnavailable": "This device can't connect to a health app. Nothing was recorded.",
       "healthErrDenied": "Health access was declined, so nothing was recorded. You can allow it in your device settings.",
       "healthErrEmpty": "No health activity to reflect today.",
-      "healthErrFailed": "Couldn't reflect your health data. Try again shortly."
+      "healthErrFailed": "Couldn't reflect your health data. Try again shortly.",
+      "summaryPieces": "{{count}} piece",
+      "summaryPieces_plural": "{{count}} pieces",
+      "resultAdded": "Added {{count}} to your inbox",
+      "resultAdded_plural": "Added {{count}} to your inbox",
+      "resultDuplicate": "{{count}} duplicate",
+      "resultDuplicate_plural": "{{count}} duplicates",
+      "resultFailed": "{{count}} failed",
+      "a11yImportExportFile": "Import {{name}} export file",
+      "a11yRevokeImport": "Revoke {{name}} import"
     },
     "ttfv": {
       "pageTitle": "Your first star just lit up",
@@ -873,6 +887,12 @@
       "plansCta": "View plans",
       "close": "Close",
       "sameQuality": "Rewards only add runs. Answer quality stays the same."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Automatic reasoning",
+      "autoPaused": "Limit reached · automatic runs resume Monday",
+      "autoBody": "SecondB connects each item as you capture it",
+      "autoNote": "Automatic runs use one weekly run and always reserve one for manual use."
     }
   },
   "beyond": {

@@ -16,8 +16,8 @@
       "label": "Self center",
       "items": {
         "coreBrain": {
-          "label": "Open center",
-          "hint": "Opens your self center screen."
+          "label": "Open North Star",
+          "hint": "Opens your North Star screen."
         },
         "esm": {
           "label": "Check in now",

@@ -85,6 +85,31 @@ describe("visible trust copy", () => {
     expect(text).not.toMatch(/계정\s*없이|가입\s*없이|로그인\s*없이|내\s*기기|기기\s*안|로컬/);
   });
 
+  test("high-risk product copy avoids unsupported file ownership and no-cloud claims", () => {
+    const root = path.resolve(__dirname, "../../..");
+    const files = [
+      "README.md",
+      "locales/en/auth.json",
+      "locales/ko/auth.json",
+      "locales/en/capture.json",
+      "locales/ko/capture.json",
+      "locales/en/common.json",
+      "locales/ko/common.json",
+      "locales/en/plans.json",
+      "locales/ko/plans.json",
+      "locales/en/secondb.json",
+      "locales/ko/secondb.json",
+      "src/app/index.tsx",
+      "src/app/manual.tsx",
+    ];
+    const text = files.map((file) => readFileSync(path.join(root, file), "utf8")).join("\n");
+
+    expect(text).not.toMatch(
+      /plain text|plain files|files you own|owned files|your files|on your disk|no cloud|cloud-free|pc-only|pc only|local vault|permanent memory|think(?:s)? back at you|deed|renting|rented/i,
+    );
+    expect(text).not.toMatch(/PC에만|영구소장|내\s*파일|네\s*파일|클라우드\s*없이|클라우드\s*없|로컬\s*(?:보관|저장|전용)/);
+  });
+
   test("sign-up dense consent and input borders avoid first-viewport regressions", () => {
     const root = path.resolve(__dirname, "../../..");
     const koConsent = readFileSync(path.join(root, "locales/ko/consent.json"), "utf8");
@@ -157,8 +182,45 @@ describe("visible trust copy", () => {
     expect(pt.saved.recordsOwnership).toContain("Uma frase já basta");
     expect(id.firstRun.hint).toContain("catatan tersimpan pertamamu");
     expect(id.saved.recordsOwnership).toContain("Satu kalimat cukup");
-    expect(combined).not.toMatch(/graph|local|device|anonymous|no sign-up|no signup/i);
-    expect(combined).not.toMatch(/그래프|로컬|기기|계정 없이/);
+    expect(combined).not.toMatch(
+      /graph|local|local-first|local-only|device|on your device|not the app|anonymous|no account|without account|account-free|no sign-up|no signup/i,
+    );
+    expect(combined).not.toMatch(/그래프|로컬|기기|내 기기|기기 안|계정 없이|계정 없이도|가입 없이/);
+  });
+
+  test("journal record-day copy stays low-pressure instead of streak-based", () => {
+    type CaptureLocale = {
+      journal: { streak: { label: string; missingToday: string } };
+    };
+    const root = path.resolve(__dirname, "../../..");
+    const en = JSON.parse(readFileSync(path.join(root, "locales/en/capture.json"), "utf8")) as CaptureLocale;
+    const ko = JSON.parse(readFileSync(path.join(root, "locales/ko/capture.json"), "utf8")) as CaptureLocale;
+    const es = JSON.parse(readFileSync(path.join(root, "locales/es/capture.json"), "utf8")) as CaptureLocale;
+    const pt = JSON.parse(readFileSync(path.join(root, "locales/pt/capture.json"), "utf8")) as CaptureLocale;
+    const id = JSON.parse(readFileSync(path.join(root, "locales/id/capture.json"), "utf8")) as CaptureLocale;
+    const manual = readFileSync(path.join(root, "src/app/manual.tsx"), "utf8");
+    const visible = [
+      en.journal.streak.label,
+      en.journal.streak.missingToday,
+      ko.journal.streak.label,
+      ko.journal.streak.missingToday,
+      es.journal.streak.label,
+      es.journal.streak.missingToday,
+      pt.journal.streak.label,
+      pt.journal.streak.missingToday,
+      id.journal.streak.label,
+      id.journal.streak.missingToday,
+      manual,
+    ].join("\n");
+
+    expect(en.journal.streak.label).toBe("Days recorded: {{count}}{{suffix}}");
+    expect(ko.journal.streak.label).toBe("기록한 날: {{count}}일{{suffix}}");
+    expect(en.journal.streak.missingToday).toContain("optional");
+    expect(ko.journal.streak.missingToday).toContain("선택");
+    expect(manual).toContain("gentle record-day counter");
+    expect(manual).toContain("부담 없는 기록일 카운터");
+    expect(visible).not.toMatch(/streak|don't break|none today yet|missing today|racha|sequ[eê]ncia/i);
+    expect(visible).not.toMatch(/스트릭|연속 기록|오늘은 아직|압박/);
   });
 
   test("first-run graph card does not promise a journal save lights the graph", () => {

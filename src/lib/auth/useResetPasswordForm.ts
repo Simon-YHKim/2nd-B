@@ -15,6 +15,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   consumeAuthCallbackUrl,
+  passwordUpdateFailure,
   sendPasswordResetEmail,
   updatePassword,
   verifyPasswordResetCode,
@@ -154,8 +155,26 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       setComplete(true);
       setToast({ tone: "success", message: t("resetPassword.successToast") });
     } catch (e) {
-      setToast({ tone: "danger", message: t("errors.passwordUpdateFailed") });
-      if (typeof console !== "undefined") console.warn("[auth] password update error", (e as Error).message);
+      // One generic toast used to swallow every failure, so a user could not
+      // tell "link expired" from "the server wants your current password".
+      // Branch on error_code: the missing and the wrong current-password cases
+      // return identical message text and differ only by code.
+      // Each t() call is written out in full on purpose: check:constraints pins
+      // the literal t("errors.passwordUpdateFailed") in this file to keep the
+      // generic fallback from being refactored away.
+      const failure = passwordUpdateFailure(e);
+      const message =
+        failure === "current_password_required"
+          ? t("errors.currentPasswordRequired")
+          : failure === "current_password_invalid"
+            ? t("errors.currentPasswordInvalid")
+            : failure === "reauthentication_needed"
+              ? t("errors.reauthRequired")
+              : failure === "weak_password"
+                ? t("errors.passwordTooShort")
+                : t("errors.passwordUpdateFailed");
+      setToast({ tone: "danger", message });
+      if (typeof console !== "undefined") console.warn("[auth] password update error", failure);
     } finally {
       setSubmitting(false);
     }

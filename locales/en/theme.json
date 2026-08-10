@@ -21,7 +21,7 @@
     "options": {
       "pixel": {
         "label": "Pixel font",
-        "sub": "The village's signature pixel letters"
+        "sub": "Crisp display letters for the constellation view"
       },
       "readable": {
         "label": "Readable font",
