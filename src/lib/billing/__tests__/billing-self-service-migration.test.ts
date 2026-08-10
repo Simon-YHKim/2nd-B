@@ -662,18 +662,23 @@ describe("0124 - the record is cross-referenced from the code that applies it", 
     expect(edge).toContain("개정 경위");
   });
 
-  test("the published policy carries the revision history", () => {
+  // Simon, 2026-08-11: the published policy gets a plain revision history and
+  // nothing more. The assessment of the notice procedure is an INTERNAL record
+  // (0124's COMMENT ON, pinned above) because the product is still in testing
+  // and there is no reason to publish it. The split is the decision, so both
+  // halves are pinned: the facts must survive in the database, and must not
+  // leak into the customer-facing document by a later well-meaning edit.
+  test("the published policy carries a plain revision history, and only that", () => {
     const policy = readFileSync(
       join(__dirname, "..", "..", "..", "..", "docs", "legal", "refund-policy.md"),
       "utf8",
     );
     expect(policy).toContain("### 8. 개정 경위");
     expect(policy).toContain("### 8. Revision history");
-    // The uncomfortable half is the half that must not get edited away.
-    expect(policy).toContain("사전 고지 기간은 없었습니다");
-    expect(policy).toContain("there was no advance notice period");
-    expect(policy).toContain("제3조②");
-    // ...without turning into a claim we did give notice.
-    expect(policy).not.toContain("30일 사전공지");
+    expect(policy).toContain("2026-07-17");
+    // The notice-procedure assessment stays out of the published document.
+    for (const s of ["사전 고지 기간", "advance notice period", "제3조②", "30일 사전공지"]) {
+      expect(policy).not.toContain(s);
+    }
   });
 });
