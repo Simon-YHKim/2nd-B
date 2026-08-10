@@ -130,10 +130,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.peer-respond]
-# The informant has NO account, so there is no JWT to verify. Anon key + CORS at
-# the edge; the function itself validates a hashed one-time token and is the only
-# write path for informant consent/observation rows.
-verify_jwt = false
+# TRUE, matching what is live (v42) and what the caller actually sends. The
+# informant has no account, but src/lib/peer/peer-respond.ts posts
+# `authorization: Bearer <anon key>`, and the publishable key IS a valid token,
+# so the gateway check passes. Declaring false here would have LOOSENED the
+# gateway on the next deploy - the opposite of the point. The real boundary is
+# inside the function: a SHA-256 comparison against a one-time invitation token.
+verify_jwt = true
 
 [functions.oauth-naver]
 # Pre-auth endpoint - the function IS the auth boundary: it validates the user

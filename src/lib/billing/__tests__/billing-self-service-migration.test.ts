@@ -12,7 +12,7 @@
 // 17-argument one asserted below; 0087 is left untouched because its test pins
 // its file text verbatim.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { FREE_RUNS_PER_WEEK, REFUND_WINDOW_DAYS } from "../subscription-manage";
@@ -348,11 +348,15 @@ describe("0118 - an approved refund moves the money AND the entitlement", () => 
   const body0118 = sql0118.replace(/--[^\n]*/g, " ");
 
   test("the webhook handles adjustment.* instead of dropping it", () => {
-    expect(webhook).toMatch(/eventType\.startsWith\('adjustment\.'\)/);
+    // ONE branch (0119): #1203 and #1205 each added a handler concurrently and
+    // git merged both, leaving #1205's unreachable behind #1203's early return.
+    expect(webhook.match(/const isAdjustmentEvent = /g) ?? []).toHaveLength(1);
+    expect(webhook).toMatch(/rpc\('record_paddle_refund_adjustment'/);
     expect(webhook).toMatch(/rpc\('apply_billing_refund'/);
-    // Only an APPROVED refund moves anything: pending_approval and rejected, and
-    // credit/chargeback adjustments, must record nothing.
-    expect(webhook).toMatch(/adjAction !== 'refund' \|\| status !== 'approved'/);
+    // Only an APPROVED refund has a consequence: pending_approval / rejected /
+    // reversed are recorded on the ledger and move no money and no entitlement.
+    expect(webhook).toMatch(/if \(adjustmentStatus === 'approved'\)/);
+    expect(webhook).toMatch(/data\.action !== 'refund'/);
   });
 
   test("the offsetting revenue row is negative and deduped on the adjustment event", () => {
@@ -435,5 +439,52 @@ describe("0118 - 0116's role check is repaired", () => {
 
   test("the clamp itself is unchanged: subscription_event_at still reset", () => {
     expect(sql0118).toMatch(/NEW\.subscription_event_at := NULL;/);
+  });
+});
+
+// ── 0119: two concurrent 0117s, reconciled ──────────────────────────────────
+// #1203 and #1205 fixed the same rail at the same time and both landed. Git saw
+// no conflict and CI was green, but migrations apply in FILENAME order, so
+// "refund_meter" replaced "refund_history" and each side's unique fix survived
+// only in one. These pins make the union explicit.
+describe("0119 - the surviving refund_eligibility carries BOTH sessions' fixes", () => {
+  const sql = readFileSync(join(MIGRATIONS, "0119_reconcile_two_0117s.sql"), "utf8");
+
+  test("it is the last definition of refund_eligibility by filename order", () => {
+    const defs = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .filter((f) => /CREATE OR REPLACE FUNCTION public\.refund_eligibility/i.test(readFileSync(join(MIGRATIONS, f), "utf8")));
+    expect(defs.length).toBeGreaterThan(1);
+    expect(defs[defs.length - 1]).toBe("0120_refund_policy_effective_dating.sql");
+  });
+
+  test("#1203's guard survives: a request already on file is not offered again", () => {
+    expect(sql).toMatch(/'status',\s+'refund_already_requested'/);
+    expect(sql).toMatch(/l\.outcome IN \('pending', 'accepted'\)/);
+  });
+
+  test("#1205's meter correction survives", () => {
+    expect(sql).toMatch(/r\.status NOT IN \('cancelled', 'failed', 'recovered'\)/);
+    expect(sql.replace(/--[^\n]*/g, " ")).not.toMatch(/r\.spend\s*<>\s*'none'/);
+  });
+
+  test("#1205's transaction-id requirement and NULL guard survive", () => {
+    expect(sql).toMatch(/AND e\.paddle_transaction_id IS NOT NULL/);
+    expect(sql).toMatch(/IF p_user_id IS NULL OR auth\.uid\(\) IS NULL OR auth\.uid\(\) <> p_user_id THEN/);
+  });
+
+  test("the client can actually receive refund_already_requested", () => {
+    // It shipped in the union type and the locales while the database could no
+    // longer produce it. Both halves must line up.
+    const lib = readFileSync(join(__dirname, "..", "subscription-manage.ts"), "utf8");
+    expect(lib).toContain("refund_already_requested");
+  });
+
+  test("the sweeper no longer reaps a refund Paddle is still reviewing", () => {
+    // #1203 maps 'pending_approval' onto outcome='pending'; #1205's sweeper
+    // reaped any 'pending' past 15 minutes. Together that marked a live refund
+    // as failed AND released its idempotency claim, allowing a second refund.
+    expect(sql).toMatch(/AND provider_ref IS NULL\s*\n\s*AND provider_status IS NULL\s*\n\s*AND paddle_adjustment_id IS NULL/);
   });
 });
