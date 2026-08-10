@@ -143,7 +143,7 @@ export const REFUND_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 환불 및 청약철회 정책 · Refund & Cancellation Policy
 
-_최종 업데이트: 2026-08-09 · 개정 시행일: 2026-09-08 (이용약관 제3조② 30일 사전공지)_
+_최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
 
 ---
 

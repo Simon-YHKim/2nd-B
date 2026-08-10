@@ -35,22 +35,18 @@ export const PRE_REVISION_WINDOW_DAYS = 30;
  *  refund rule away from the plan it is measured against. */
 export const FREE_RUNS_PER_WEEK = REASONING_PER_WEEK.free ?? 0;
 
-/** When the revised refund policy takes effect (docs/legal/refund-policy.md
- *  header: "개정 시행일: 2026-09-08", 이용약관 제3조② 30-day notice for an
- *  adverse change). KST, because the policy is a Korean document.
- *
- *  This exists because PADDLE_SELF_SERVICE_ENABLED gates only the WRITE path.
- *  The verdict READ is granted to `authenticated` and /subscription is reachable
- *  from settings today, so without a date gate the screen would show the new
- *  7-day conditional standard to users while the 30-day no-questions-asked
- *  guarantee is still the one in force. Showing a stricter rule than the one
- *  that binds us is the exact thing the 30-day notice period exists to prevent. */
-export const REFUND_POLICY_EFFECTIVE_AT = Date.parse("2026-09-08T00:00:00+09:00");
+/** When the revised rule took effect. 0120 briefly DATED it (30 days until
+ *  2026-09-08, 7 after); 0122 removed the dating on Simon's decision, so the
+ *  revised rule is simply the rule from 2026-08-11. Kept as a constant so the
+ *  migration test can assert the dating is GONE from the SQL rather than
+ *  silently drifting back. */
+export const REFUND_POLICY_EFFECTIVE_AT = Date.parse("2026-08-11T00:00:00+09:00");
 
-/** Whether the revised (7-day, usage-gated) policy is in force yet.
- *  `now` is injectable so the boundary is testable without faking the clock. */
-export function revisedPolicyInForce(now: number = Date.now()): boolean {
-  return now >= REFUND_POLICY_EFFECTIVE_AT;
+/** There is one rule now, so this is always true. Retained rather than deleted
+ *  because the payload still carries `policy` / `usage_gate_applies`, and a
+ *  future dated change should be a constant edit, not a contract change. */
+export function revisedPolicyInForce(_now: number = Date.now()): boolean {
+  return true;
 }
 
 /** What the free plan would have allowed over a span of `days`, pro-rated by
@@ -69,16 +65,13 @@ export function verdictFor(input: {
   daysSincePayment: number | null;
   reasoningRuns: number;
   reasoningCalls: number;
-  /** Defaults to now, so the mirror picks the same rule the server would. */
+  /** Accepted and ignored since 0122: there is one rule now. Kept so existing
+   *  callers and tests compile unchanged. */
   now?: number;
 }): RefundStatus {
   if (input.daysSincePayment == null) return "no_payment";
-  const revised = revisedPolicyInForce(input.now ?? Date.now());
-  const windowDays = revised ? REFUND_WINDOW_DAYS : PRE_REVISION_WINDOW_DAYS;
-  if (input.daysSincePayment > windowDays) return "window_passed";
-  // Only the revised policy carries a usage condition. Before its effective date
-  // the published promise is "사유를 묻지 않으며" and this arm must be unreachable.
-  if (!revised) return "eligible";
+  // ONE rule (0122): inside the 7-day window AND inside the free-plan allowance.
+  if (input.daysSincePayment > REFUND_WINDOW_DAYS) return "window_passed";
   // Runs are the meter the free cap actually spends from. The audit-log count is
   // the fallback only when the run ledger has nothing for the window, so a call
   // that was logged without reserving a run cannot buy a free refund.
@@ -315,6 +308,6 @@ export function formatPaymentMethod(o: Pick<SubscriptionOverview, "payment_metho
  *  user still sees a window rather than a blank. */
 export function refundDaysLeft(e: RefundEligibility): number | null {
   if (e.days_since_payment == null) return null;
-  const total = e.refund_window_days ?? (revisedPolicyInForce() ? REFUND_WINDOW_DAYS : PRE_REVISION_WINDOW_DAYS);
+  const total = e.refund_window_days ?? REFUND_WINDOW_DAYS;
   return Math.max(0, Math.floor(total - e.days_since_payment));
 }

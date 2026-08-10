@@ -234,7 +234,7 @@
       "window": "Janela de reembolso: faltam {{days}} de {{total}} dias",
       "usage": "Raciocinios usados: {{used}} (o plano gratuito permite {{allowance}} no mesmo periodo)",
       "calls": "Chamadas de IA registradas: {{calls}}",
-      "currentPolicyNote": "Ate 8 de setembro de 2026 vale a politica atual: reembolso integral em ate 30 dias apos o pagamento, sem perguntas. A partir dessa data a janela passa a ser de 7 dias e o seu uso precisa ter ficado dentro do que o plano gratuito cobre."
+      "currentPolicyNote": "Reembolsavel em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre."
     },
     "notice": {
       "cancelledAtRenewal": "O cancelamento ficou agendado para a proxima data de renovacao.",

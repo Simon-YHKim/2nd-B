@@ -184,60 +184,29 @@ describe("payment method is shown, never invented", () => {
   });
 });
 
-// ── 0117 / effective-date gate ──────────────────────────────────────────────
-// Three defects the 2026-08-10 audit found in the shipped 0115 rule, each
-// pinned so the fix cannot be undone by a later "simplification".
-
-describe("the revised policy does not bind anyone before its effective date", () => {
-  const DAY = 24 * 60 * 60 * 1000;
-
-  test("the effective instant is the published one (KST)", () => {
-    expect(REFUND_POLICY_EFFECTIVE_AT).toBe(Date.parse("2026-09-08T00:00:00+09:00"));
-  });
-
-  test("not in force one second before, in force at the instant", () => {
-    expect(revisedPolicyInForce(REFUND_POLICY_EFFECTIVE_AT - 1000)).toBe(false);
-    expect(revisedPolicyInForce(REFUND_POLICY_EFFECTIVE_AT)).toBe(true);
-    expect(revisedPolicyInForce(REFUND_POLICY_EFFECTIVE_AT + DAY)).toBe(true);
-  });
-
-  test("the 30-day notice window is still open as of the revision date", () => {
-    // 이용약관 제3조② requires 30 days' notice for an adverse change; the notice
-    // was re-issued 2026-08-09, which is exactly 30 days before.
-    const noticed = Date.parse("2026-08-09T00:00:00+09:00");
-    expect(Math.round((REFUND_POLICY_EFFECTIVE_AT - noticed) / DAY)).toBe(30);
-  });
-});
-
-// The feature must WORK before the revision, under the rule that binds us then.
-// Blocking it (the first attempt) refused refunds to users who were owed one.
-describe("before the effective date the PRE-REVISION policy is applied, not a block", () => {
-  const pre = (daysSincePayment: number, reasoningRuns: number) =>
-    verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0, now: BEFORE });
-
-  test("the window is 30 days, not 7", () => {
-    expect(PRE_REVISION_WINDOW_DAYS).toBe(30);
-    expect(pre(20, 0)).toBe("eligible");
-    expect(pre(30, 0)).toBe("eligible");
-    expect(pre(30.01, 0)).toBe("window_passed");
-  });
-
-  test("no questions asked: usage can never refuse a refund", () => {
-    expect(pre(3, 999)).toBe("eligible");
-    expect(pre(29, 999)).toBe("eligible");
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 999, now: BEFORE })).toBe("eligible");
-  });
-
-  test("used_beyond_free is unreachable under the pre-revision rule", () => {
-    for (const day of [0, 1, 7, 14, 29.9]) {
-      expect(pre(day, 500)).not.toBe("used_beyond_free");
+// ONE RULE (0122, Simon 2026-08-11): the revised rule is simply the rule. The
+// dating 0120 introduced is gone, so the superseded 30-day window must never be
+// applied again and the usage condition is always live.
+describe("there is one rule now: 7 days AND inside the free-plan allowance", () => {
+  test("the superseded 30-day window is never applied, whatever the clock says", () => {
+    const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
+    const AFTER_ = Date.parse("2026-09-08T00:00:00+09:00") + 1000;
+    for (const now of [BEFORE, AFTER_, Date.now()]) {
+      expect(verdictFor({ daysSincePayment: 8, reasoningRuns: 0, reasoningCalls: 0, now })).toBe("window_passed");
+      expect(verdictFor({ daysSincePayment: 20, reasoningRuns: 0, reasoningCalls: 0, now })).toBe("window_passed");
     }
+    // The constant is retained only so this assertion can exist.
+    expect(PRE_REVISION_WINDOW_DAYS).toBe(30);
   });
 
-  test("the rule flips by the clock alone, with no deploy and no flag", () => {
-    // Same inputs, one second apart across the boundary, opposite answers.
-    const args = { daysSincePayment: 3, reasoningRuns: 99, reasoningCalls: 0 };
-    expect(verdictFor({ ...args, now: BEFORE })).toBe("eligible");
-    expect(verdictFor({ ...args, now: AFTER })).toBe("used_beyond_free");
+  test("the usage condition applies at every instant, not from a date", () => {
+    const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 3, reasoningCalls: 0, now: BEFORE })).toBe("used_beyond_free");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 2, reasoningCalls: 0, now: BEFORE })).toBe("eligible");
+  });
+
+  test("the rule no longer depends on the clock at all", () => {
+    expect(revisedPolicyInForce(0)).toBe(true);
+    expect(revisedPolicyInForce(Date.now())).toBe(true);
   });
 });
