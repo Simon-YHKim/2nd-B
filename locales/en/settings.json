@@ -234,7 +234,7 @@
       "window": "Refund window: {{days}} of {{total}} days left",
       "usage": "Reasoning used: {{used}} (the free plan allows {{allowance}} over the same span)",
       "calls": "AI calls on record: {{calls}}",
-      "beforeEffective": "The revised refund terms take effect on 8 September 2026. Until then the current policy applies: a full refund within 30 days of payment, no questions asked, requested by email."
+      "currentPolicyNote": "Until 8 September 2026 the current policy applies: a full refund within 30 days of payment, no questions asked. From that date the window is 7 days and your usage must have stayed within what the free plan covers."
     },
     "notice": {
       "cancelledAtRenewal": "Cancellation is scheduled for the next renewal date.",
@@ -244,8 +244,7 @@
       "refundRejected": "Self-serve refund is not available for this payment.",
       "contactSupport": "This cannot be handled in the app right now. Please contact support.",
       "notSubscribed": "There is no active paid subscription to cancel.",
-      "dryRun": "Rehearsal mode is on, so nothing was sent to Paddle. Contact support if you meant to submit this.",
-      "policyNotInEffect": "The revised refund terms are not in effect yet. Please request a refund by email for now."
+      "dryRun": "Rehearsal mode is on, so nothing was sent to Paddle. Contact support if you meant to submit this."
     },
     "autoRenewOn": "Renews automatically on {{date}}",
     "cancelScheduledOn": "Auto-renewal is off. Paid features stay open until {{date}}.",

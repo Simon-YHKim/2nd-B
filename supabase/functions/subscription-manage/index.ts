@@ -116,11 +116,6 @@ interface Eligibility {
 
 const PADDLE_TIMEOUT_MS = 15000;
 
-// Mirrors REFUND_POLICY_EFFECTIVE_AT in src/lib/billing/subscription-manage.ts.
-// Edge functions cannot import from src/, so the value is duplicated and the
-// structural test pins the two together.
-const REFUND_POLICY_EFFECTIVE_AT = Date.parse('2026-09-08T00:00:00+09:00');
-
 function paddleBase(): string {
   return (Deno.env.get('PADDLE_API_BASE') ?? 'https://api.paddle.com').replace(/\/+$/, '');
 }
@@ -226,17 +221,12 @@ Deno.serve(async (req: Request) => {
     if (error) console.error('[subscription-manage] terminal log failed:', error.message);
   };
 
-  // The usage-gated refund rule does not bind anyone before its effective date
-  // (docs/legal/refund-policy.md "개정 시행일: 2026-09-08", 이용약관 제3조② 30-day
-  // notice). PADDLE_SELF_SERVICE_ENABLED is the operator's switch, not a legal
-  // one - if it were flipped early, this would still refuse to apply a standard
-  // that is not yet in force, and the user keeps the email path the policy in
-  // force names. Cancel is unaffected: cancelling was never the adverse change.
-  if (action === 'refund_request' && Date.now() < REFUND_POLICY_EFFECTIVE_AT) {
-    await settleTerminal('rejected', 'policy_not_in_effect');
-    return jsonResponse(req, { ok: false, outcome: 'rejected', reason: 'policy_not_in_effect', eligibility }, 200);
-  }
-
+  // NOTE (0120): there is deliberately no effective-date REFUSAL here any more.
+  // refund_eligibility() now applies the policy in force at the moment of the
+  // request - 30 days no-questions-asked before 2026-09-08, 7 days plus the
+  // usage test after - so the verdict this function enforces is already the
+  // right one. Blocking the action instead of dating the rule turned the whole
+  // feature off and sent users who were OWED a refund to email support.
   // A refund that is not owed never reaches Paddle. The verdict and its evidence
   // go back to the client so the screen can show WHY, not just "no".
   if (action === 'refund_request' && eligibility.status !== 'eligible') {

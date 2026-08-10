@@ -456,7 +456,7 @@ describe("0119 - the surviving refund_eligibility carries BOTH sessions' fixes",
       .sort()
       .filter((f) => /CREATE OR REPLACE FUNCTION public\.refund_eligibility/i.test(readFileSync(join(MIGRATIONS, f), "utf8")));
     expect(defs.length).toBeGreaterThan(1);
-    expect(defs[defs.length - 1]).toBe("0119_reconcile_two_0117s.sql");
+    expect(defs[defs.length - 1]).toBe("0120_refund_policy_effective_dating.sql");
   });
 
   test("#1203's guard survives: a request already on file is not offered again", () => {

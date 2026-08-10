@@ -26,6 +26,10 @@ import { REASONING_PER_WEEK } from "../entitlements/tier-map";
  *  how long the user waited to ask. */
 export const REFUND_WINDOW_DAYS = 7;
 
+/** The window the policy published 2026-07-17 promised, still in force until the
+ *  revision's effective date: 30 days, no questions asked. */
+export const PRE_REVISION_WINDOW_DAYS = 30;
+
 /** Free-plan reasoning allowance per ISO week. ONE number, taken from the tier
  *  vocabulary SoT rather than retyped, so a cap change cannot silently split the
  *  refund rule away from the plan it is measured against. */
@@ -65,9 +69,16 @@ export function verdictFor(input: {
   daysSincePayment: number | null;
   reasoningRuns: number;
   reasoningCalls: number;
+  /** Defaults to now, so the mirror picks the same rule the server would. */
+  now?: number;
 }): RefundStatus {
   if (input.daysSincePayment == null) return "no_payment";
-  if (input.daysSincePayment > REFUND_WINDOW_DAYS) return "window_passed";
+  const revised = revisedPolicyInForce(input.now ?? Date.now());
+  const windowDays = revised ? REFUND_WINDOW_DAYS : PRE_REVISION_WINDOW_DAYS;
+  if (input.daysSincePayment > windowDays) return "window_passed";
+  // Only the revised policy carries a usage condition. Before its effective date
+  // the published promise is "사유를 묻지 않으며" and this arm must be unreachable.
+  if (!revised) return "eligible";
   // Runs are the meter the free cap actually spends from. The audit-log count is
   // the fallback only when the run ledger has nothing for the window, so a call
   // that was logged without reserving a run cannot buy a free refund.
@@ -106,6 +117,13 @@ export function parseRefundStatus(raw: unknown): RefundStatus {
  *  user told "no" is entitled to see which count produced that answer. */
 export interface RefundEligibility {
   status: RefundStatus;
+  /** Which published policy produced this verdict (0120). Before the revision's
+   *  effective date the server applies the 30-day no-questions-asked rule that is
+   *  actually in force; from that instant, the 7-day usage-gated one. */
+  policy?: "pre_revision" | "revised";
+  /** false while the pre-revision policy applies: usage cannot refuse a refund,
+   *  though the numbers are still measured and shown. */
+  usage_gate_applies?: boolean;
   tier?: string;
   paid_at?: string | null;
   transaction_id?: string | null;
@@ -152,7 +170,7 @@ export type ManageOutcome =
 
 /** Why the server refused. Present only on outcome "rejected"; the two refusals
  *  need different sentences ("not owed a refund" vs "nothing to cancel"). */
-export type ManageRejectReason = "not_eligible" | "not_subscribed" | "policy_not_in_effect";
+export type ManageRejectReason = "not_eligible" | "not_subscribed";
 
 export interface ManageResult {
   ok: boolean;
@@ -222,9 +240,7 @@ function asResult(raw: unknown): ManageResult {
   const rec = (raw ?? {}) as Record<string, unknown>;
   const outcome = (typeof rec.outcome === "string" ? rec.outcome : "provider_error") as ManageOutcome;
   const reason =
-    rec.reason === "not_eligible" || rec.reason === "not_subscribed" || rec.reason === "policy_not_in_effect"
-      ? (rec.reason as ManageRejectReason)
-      : null;
+    rec.reason === "not_eligible" || rec.reason === "not_subscribed" ? (rec.reason as ManageRejectReason) : null;
   return {
     ok: rec.ok === true,
     outcome,
@@ -299,6 +315,6 @@ export function formatPaymentMethod(o: Pick<SubscriptionOverview, "payment_metho
  *  user still sees a window rather than a blank. */
 export function refundDaysLeft(e: RefundEligibility): number | null {
   if (e.days_since_payment == null) return null;
-  const total = e.refund_window_days ?? REFUND_WINDOW_DAYS;
+  const total = e.refund_window_days ?? (revisedPolicyInForce() ? REFUND_WINDOW_DAYS : PRE_REVISION_WINDOW_DAYS);
   return Math.max(0, Math.floor(total - e.days_since_payment));
 }
