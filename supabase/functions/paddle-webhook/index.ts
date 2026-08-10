@@ -292,8 +292,40 @@ Deno.serve(async (req: Request) => {
       const adjustmentId = typeof data.id === 'string' ? data.id.trim() : '';
       const adjustmentTransactionId = typeof data.transaction_id === 'string' ? data.transaction_id.trim() : '';
       const adjustmentStatus = typeof data.status === 'string' ? data.status : '';
-      if (!adjustmentId || !adjustmentTransactionId || !REFUND_ADJUSTMENT_STATUSES.has(adjustmentStatus)) {
+
+      // No id means nothing to address. A refund must never be attributed to a
+      // guessed payment, so this one stays a 400 and lets Paddle retry.
+      if (!adjustmentId || !adjustmentTransactionId) {
         return json({ error: 'invalid_refund_adjustment' }, 400);
+      }
+
+      // A status outside REFUND_ADJUSTMENT_STATUSES used to 400 as well. That set
+      // is an ASSUMPTION - no adjustment webhook has ever been observed here and
+      // the sandbox comparison is still outstanding - and a 400 makes Paddle
+      // retry, fail, and leave NO row on our side: no event, no ledger entry,
+      // nothing to reconcile a missing refund from. Record it instead, loudly,
+      // and touch neither the entitlement nor revenue: acting on a status we do
+      // not understand is the one thing worse than not acting.
+      if (!REFUND_ADJUSTMENT_STATUSES.has(adjustmentStatus)) {
+        console.error(
+          '[paddle-webhook][ALERT] unhandled_adjustment_status',
+          JSON.stringify({ status: adjustmentStatus, adjustment: adjustmentId, event: eventId }),
+        );
+        const { error: recErr } = await admin.rpc('record_unhandled_billing_event', {
+          p_event_id: eventId,
+          p_event_type: eventType,
+          p_subscription_id: data.subscription_id ?? null,
+          p_transaction_id: adjustmentTransactionId,
+          p_occurred_at: occurredAt,
+          p_payload: event,
+        });
+        if (recErr) {
+          // Could not even record it: a 500 keeps Paddle retrying, which is the
+          // right outcome when we have lost the event entirely.
+          console.error('[paddle-webhook][ALERT] unhandled adjustment record failed:', recErr.message);
+          return json({ error: 'unhandled_adjustment_record_failed' }, 500);
+        }
+        return json({ ok: true, ignored: 'unhandled_adjustment_status', status: adjustmentStatus });
       }
 
       const { data: result, error } = await admin.rpc('record_paddle_refund_adjustment', {
