@@ -20,6 +20,11 @@
 // who read "eligible", then burned their allowance, then tapped the button gets the
 // current answer, not the stale one.
 //
+// WHY THAT RULE APPLIES TO EVERY PAYMENT WITH NO GRACE PERIOD, and the zero-day
+// notice behind it: recorded decision (Simon, 2026-08-11) in the COMMENT ON
+// public.refund_eligibility, db/migrations/0124, and docs/legal/refund-policy.md
+// section "개정 경위". Read it before changing the window or the usage gate.
+//
 // IDEMPOTENCY. claim_billing_self_service() inserts the ledger row BEFORE the Paddle
 // call and a partial unique index rejects a second live claim on the same
 // transaction (refund) or subscription+timing (cancel). A duplicate returns 200 with

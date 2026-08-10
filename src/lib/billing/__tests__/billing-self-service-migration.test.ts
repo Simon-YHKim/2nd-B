@@ -456,7 +456,9 @@ describe("0119 - the surviving refund_eligibility carries BOTH sessions' fixes",
       .sort()
       .filter((f) => /CREATE OR REPLACE FUNCTION public\.refund_eligibility/i.test(readFileSync(join(MIGRATIONS, f), "utf8")));
     expect(defs.length).toBeGreaterThan(1);
-    expect(defs[defs.length - 1]).toBe("0122_revised_refund_rule_applies_now.sql");
+    // 0124 re-states the function to attach the decision record. It is a
+    // comment-only replay of 0122's body, pinned byte-for-byte below.
+    expect(defs[defs.length - 1]).toBe("0124_refund_eligibility_decision_record.sql");
   });
 
   test("#1203's guard survives: a request already on file is not offered again", () => {
@@ -575,5 +577,108 @@ describe("0123 - the unhandled-event recorder is a trace and nothing more", () =
     expect(sql).toMatch(/SET raw_payload = NULL/);
     expect(sql).toMatch(/cron\.schedule\(\s*\n?\s*'purge-unhandled-billing-payloads'/);
     expect(sql).toMatch(/cron\.unschedule\('purge-unhandled-billing-payloads'\)/);
+  });
+});
+
+// ── 0124: the decision record, and the proof that it is only a record ────────
+// Simon chose on 2026-08-11 to keep the refund rule exactly as it is, knowing
+// the notice for it ran zero days and that 이용약관 제3조② asks for thirty. The
+// value of writing that down is entirely in it being findable later, so these
+// pins protect the two things that make it findable: that the record exists
+// where a reader of the LIVE function will see it, and that re-stating the
+// function to attach it changed no behaviour at all.
+describe("0124 - a recorded decision, provably comment-only", () => {
+  const sql0124 = readFileSync(join(MIGRATIONS, "0124_refund_eligibility_decision_record.sql"), "utf8");
+  const sql0122 = readFileSync(join(MIGRATIONS, "0122_revised_refund_rule_applies_now.sql"), "utf8");
+
+  // Executable text = the function body with comments removed and whitespace
+  // collapsed. If this differs, the migration is no longer comment-only.
+  const bodyOf = (text: string) => {
+    const at = text.indexOf("CREATE OR REPLACE FUNCTION public.refund_eligibility");
+    const from = text.indexOf("AS $$", at) + "AS $$".length;
+    const to = text.indexOf("\n$$;", from);
+    expect(at).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    return text.slice(from, to).replace(/--[^\n]*/g, " ").replace(/\s+/g, " ").trim();
+  };
+
+  test("the executable body is byte-identical to 0122's", () => {
+    // Verified against production prosrc on 2026-08-11 as well: all three
+    // normalise to md5 260f15695bfe1ea1f26752bd5d65947b (3554 chars).
+    expect(bodyOf(sql0124)).toBe(bodyOf(sql0122));
+    expect(bodyOf(sql0124)).toHaveLength(3554);
+  });
+
+  test("the rule itself is untouched: 7 days, 2 runs, revised, gate on", () => {
+    expect(sql0124).toContain(`c_window_days   constant int := ${REFUND_WINDOW_DAYS};`);
+    expect(sql0124).toContain(`c_free_per_week constant int := ${FREE_RUNS_PER_WEEK};`);
+    expect(sql0124.match(/'policy',\s+'revised'/g) ?? []).toHaveLength(3);
+    expect(sql0124.match(/'usage_gate_applies',\s+true/g) ?? []).toHaveLength(3);
+    // No dating, no grace branch reintroduced by the edit.
+    expect(sql0124).not.toContain("2026-09-08");
+    expect(bodyOf(sql0124)).not.toMatch(/pre_revision|grace|effective_from/i);
+  });
+
+  // The reason this is a COMMENT ON and not only a `--` header: measured on prod
+  // 2026-08-11, all seven billing functions have zero line comments in prosrc
+  // while their source files are full of them. The apply path strips them, so a
+  // `--` block alone would be absent from the one place a reader of the live
+  // function looks. A string literal cannot be stripped.
+  test("the record lands in the database, not just the repo", () => {
+    expect(sql0124).toMatch(/COMMENT ON FUNCTION public\.refund_eligibility\(uuid\) IS/);
+  });
+
+  test("it carries the facts that make the decision auditable", () => {
+    const comment = sql0124.slice(sql0124.indexOf("COMMENT ON FUNCTION"));
+    expect(comment).toContain("Simon, 2026-08-11");
+    // The notice trail, including the re-issue that lost the grace clause.
+    for (const id of ["a3d822d5", "22eedef0", "d3ff81e6"]) expect(comment).toContain(id);
+    expect(comment).toContain("zero days");
+    expect(comment).toContain("제3조②");
+    // Substance vs procedure must stay distinguishable.
+    expect(comment).toContain("제17조");
+    // Why nobody is hurt today, stated as luck rather than as a safeguard.
+    expect(comment).toMatch(/ACCIDENT|accident/);
+  });
+
+  test("it names the trigger to re-open, with the query to check it", () => {
+    expect(sql0124).toContain("RE-OPEN THIS JUDGEMENT");
+    expect(sql0124).toMatch(
+      /select count\(\*\) from public\.paddle_webhook_events\s*\n?\s*where event_type = 'transaction\.completed' and paddle_transaction_id is not null;/,
+    );
+  });
+
+  test("re-stating a DEFINER function still revokes anon in the same file", () => {
+    expect(sql0124).toMatch(/REVOKE EXECUTE ON FUNCTION public\.refund_eligibility\(uuid\) FROM anon/);
+    expect(sql0124).not.toMatch(/GRANT\s+EXECUTE[\s\S]{0,80}TO\s+anon/i);
+  });
+});
+
+// The same decision has to be reachable from the two surfaces that implement it,
+// or the record is only findable by someone who already knows to look in SQL.
+describe("0124 - the record is cross-referenced from the code that applies it", () => {
+  test("the edge function header points at it", () => {
+    expect(edge).toContain("db/migrations/0124");
+    expect(edge).toContain("개정 경위");
+  });
+
+  // Simon, 2026-08-11: the published policy gets a plain revision history and
+  // nothing more. The assessment of the notice procedure is an INTERNAL record
+  // (0124's COMMENT ON, pinned above) because the product is still in testing
+  // and there is no reason to publish it. The split is the decision, so both
+  // halves are pinned: the facts must survive in the database, and must not
+  // leak into the customer-facing document by a later well-meaning edit.
+  test("the published policy carries a plain revision history, and only that", () => {
+    const policy = readFileSync(
+      join(__dirname, "..", "..", "..", "..", "docs", "legal", "refund-policy.md"),
+      "utf8",
+    );
+    expect(policy).toContain("### 8. 개정 경위");
+    expect(policy).toContain("### 8. Revision history");
+    expect(policy).toContain("2026-07-17");
+    // The notice-procedure assessment stays out of the published document.
+    for (const s of ["사전 고지 기간", "advance notice period", "제3조②", "30일 사전공지"]) {
+      expect(policy).not.toContain(s);
+    }
   });
 });
