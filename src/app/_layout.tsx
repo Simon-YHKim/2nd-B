@@ -117,6 +117,9 @@ export default function RootLayout() {
               <Stack.Screen name="srs" />
               <Stack.Screen name="formats" />
               <Stack.Screen name="secondb" />
+              <Stack.Screen name="community" />
+              <Stack.Screen name="community/[room]" />
+              <Stack.Screen name="community/join/[token]" />
               <Stack.Screen name="jarvis" />
               <Stack.Screen name="plans" />
               <Stack.Screen name="subscription" />

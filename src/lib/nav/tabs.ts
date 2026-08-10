@@ -51,6 +51,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/persona",
   // T5 F2 (peer review): the subject-side invitation ledger lives on the lens track.
   "/peer-invites",
+  // Community chat v1 (0117): room list renders the windowed dock shell with
+  // its own M3 top-app-bar back.
+  "/community",
   // Call recording v1 (post-call reflection, docs/CALL-RECORDING-SPEC.md §5).
   "/call-reflection",
   "/account",
@@ -136,7 +139,7 @@ export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
 // DeepSpaceScreen (museumLike star lens / windowed record detail) with their
 // own M3 top-app-bar back — without the prefix match the floating BackArrow
 // chip stacked a second, conflicting back control over that top bar.
-export const DEEP_SPACE_DOCK_PREFIXES = ["/star/", "/record/"] as const;
+export const DEEP_SPACE_DOCK_PREFIXES = ["/star/", "/record/", "/community/"] as const;
 
 // Routes that hide the floating BackArrow chip ENTIRELY (not because a dock or
 // top bar replaces it, but because no back-to-home affordance belongs there):
