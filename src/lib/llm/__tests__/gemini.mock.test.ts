@@ -28,8 +28,6 @@ jest.mock("../../env", () => ({
     GOOGLE_CLOUD_LOCATION: "us-central1",
     GOOGLE_API_KEY: undefined,
     SENTRY_DSN: undefined,
-    EXPO_PUBLIC_POSTHOG_KEY: undefined,
-    EXPO_PUBLIC_POSTHOG_HOST: undefined,
   }),
 }));
 

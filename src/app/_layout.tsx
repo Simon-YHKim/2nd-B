@@ -347,7 +347,7 @@ function IntroGate({ children }: { children: React.ReactNode }) {
 
 // M1 (round-4): gate product analytics on the SERVER decision, not the
 // localStorage cache (initAnalytics no longer auto-loads from it). Once auth
-// resolves, load GA4/Clarity/PostHog only when the user's stored
+// resolves, load GA4/Clarity only when the user's stored
 // external_analytics pref is on and the server birth date confirms age 18+.
 // Missing/contradictory age data fails closed. A minor's privacy lock
 // (0033/0038) already forces external_analytics false server-side, so this is
