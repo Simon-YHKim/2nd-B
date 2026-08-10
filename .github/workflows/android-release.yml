@@ -110,8 +110,6 @@ jobs:
       EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
       EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
       EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
-      EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
-      EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
     steps:
       # Release-gate dispatches must pin the exact commit they gated: the fleet
       # merges every 10-20 minutes, so dispatching on ANY moving branch drifts
@@ -132,11 +130,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if { [ -n "${EXPO_PUBLIC_POSTHOG_KEY:-}" ] && [ -z "${EXPO_PUBLIC_POSTHOG_HOST:-}" ]; } ||
-             { [ -z "${EXPO_PUBLIC_POSTHOG_KEY:-}" ] && [ -n "${EXPO_PUBLIC_POSTHOG_HOST:-}" ]; }; then
-            echo "::error::EXPO_PUBLIC_POSTHOG_KEY and EXPO_PUBLIC_POSTHOG_HOST must be set together."
-            exit 1
-          fi
 
       - name: Checkout
         uses: actions/checkout@v4

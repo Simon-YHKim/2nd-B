@@ -143,7 +143,7 @@ export const REFUND_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 환불 및 청약철회 정책 · Refund & Cancellation Policy
 
-_최종 업데이트: 2026-08-09 · 개정 시행일: 2026-09-08 (이용약관 제3조② 30일 사전공지)_
+_최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
 
 ---
 
@@ -187,6 +187,11 @@ _최종 업데이트: 2026-08-09 · 개정 시행일: 2026-09-08 (이용약관 �
 ### 7. 정책 변경
 본 정책은 관련 법령 및 서비스 정책에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.
 
+### 8. 개정 경위
+- **2026-08-11 (현행)**: 결제일로부터 7일 이내이고, 결제 이후의 이용량이 무료 플랜 범위 안에 있는 경우 전액 환불. 위 2항이 그 내용입니다. 기간은 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조제1항이 정한 법정 청약철회 기간과 같으며, 이용량 조건은 같은 조 제2항제5호에 근거합니다.
+- **2026-07-17**: 결제일로부터 30일 동안 조건 없이 전액 환불.
+- 개별 사정이 있으신 경우 위 2항④ 및 6항에 따라 kim0405@hayangzip.com 으로 알려주시면 검토 후 회신합니다.
+
 ---
 
 ## English
@@ -227,7 +232,12 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 - **By email**: if the automatic check does not cover your case, email kim0405@hayangzip.com with (1) your account email, (2) payment date/receipt number (see your Paddle receipt), and (3) your reason. Support replies **within 2 business days**.
 
 ### 7. Changes
-This policy may change per applicable law and Service policy; changes will be announced in the Service.`,
+This policy may change per applicable law and Service policy; changes will be announced in the Service.
+
+### 8. Revision history
+- **2026-08-11 (current)**: a full refund where the request is made within 7 days of payment and usage since that payment stayed within the free-plan range. Section 2 above is that rule. The window is the same period as the statutory right of withdrawal under Article 17(1) of Korea's Act on Consumer Protection in Electronic Commerce, and the usage condition rests on Article 17(2)5 of the same Act.
+- **2026-07-17**: a full refund for 30 days after payment, unconditionally.
+- For any individual case, sections 2(4) and 6 above apply. Write to kim0405@hayangzip.com and we will review and reply.`,
 };
 
 export const PRIVACY_DOC: LegalDoc = {

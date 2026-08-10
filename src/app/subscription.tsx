@@ -113,10 +113,16 @@ export default function SubscriptionScreen() {
 
   const applyResult = useCallback(
     (result: ManageResult, okKey: string) => {
-      if (result.outcome === "accepted") setNotice({ kind: "ok", key: okKey });
+      // A dry run reached nothing. Saying "submitted" would be the same lie the
+      // server no longer tells, so it gets its own operator-facing sentence.
+      if (result.outcome === "dry_run") setNotice({ kind: "warn", key: "dryRun" });
+      else if (result.outcome === "accepted") setNotice({ kind: "ok", key: okKey });
       else if (result.outcome === "duplicate") setNotice({ kind: "ok", key: "alreadyRequested" });
-      else if (result.outcome === "rejected") setNotice({ kind: "warn", key: "refundRejected" });
-      else setNotice({ kind: "warn", key: "contactSupport" });
+      // Two refusals, two sentences. Telling someone with nothing to cancel that
+      // their refund was declined is a different (and wrong) statement.
+      else if (result.outcome === "rejected") {
+        setNotice({ kind: "warn", key: result.reason === "not_subscribed" ? "notSubscribed" : "refundRejected" });
+      } else setNotice({ kind: "warn", key: "contactSupport" });
       if (result.eligibility?.status) setEligibility(result.eligibility);
     },
     [],
@@ -182,6 +188,8 @@ export default function SubscriptionScreen() {
   const method = overview ? formatPaymentMethod(overview) : null;
   const daysLeft = eligibility ? refundDaysLeft(eligibility) : null;
   const reasonKey = eligibility ? refundReasonKey(eligibility.status) : "unknown";
+  // The SERVER decides the verdict; the screen never re-decides, it only
+  // renders what came back.
   const refundOpen = eligibility != null && canRequestRefund(eligibility) && !busy;
 
   return (
@@ -275,7 +283,19 @@ export default function SubscriptionScreen() {
             {eligibility && eligibility.status !== "no_payment" ? (
               <MdCard variant="outlined" style={s.card}>
                 <Text style={s.sectionTitle}>{t("subscription.refund.title")}</Text>
-                <Text style={s.body}>{t(`subscription.refund.reason.${reasonKey}`)}</Text>
+                {/* `total` comes from the server, which knows which policy is in
+                    force - 30 days before the revision, 7 after. The sentence used
+                    to hardcode 7 and told a user past day 30 that "7 days have
+                    passed", understating the window they actually had. */}
+                <Text style={s.body}>
+                  {t(`subscription.refund.reason.${reasonKey}`, {
+                    total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
+                  })}
+                </Text>
+                {/* The rule, stated under every verdict: 7 days AND inside the
+                    free-plan allowance. A user refused for usage should be able
+                    to read the condition without leaving the screen. */}
+                <Text style={s.dim}>{t("subscription.refund.currentPolicyNote")}</Text>
 
                 <View style={s.evidence}>
                   {daysLeft != null ? (

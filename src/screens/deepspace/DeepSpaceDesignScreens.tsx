@@ -479,6 +479,7 @@ export function DeepSpaceAccountDesignScreen() {
         </View>
         <Card>
           <Action label={t("account.navProfile")} onPress={() => router.push("/profile")} />
+          <Action label={t("account.navPassword")} onPress={() => router.push("/change-password")} />
           <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
           <Action label={t("account.navData")} onPress={() => router.push("/data")} />
           <Action label="IDEN" onPress={() => router.push("/iden")} />
@@ -1858,14 +1859,21 @@ export function DeepSpaceResearchScreen() {
       <Text variant="body" style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
-      ) : view.pageCount === 0 ? (
+      ) : (
+        <>
+        {/* The records half. This gate counts RECORDS; the proposal half below
+            is deliberately outside it, because proposals come from the wiki
+            track (sources -> wiki_pages) and those tables are disjoint. Bundling
+            them locked the link/clip-only user — the only user who can actually
+            have a ratifiable proposal — out of the proposal UI entirely. */}
+        {view.pageCount === 0 ? (
         <View style={styles.insightViolet}>
           <Text variant="body" style={styles.insightVioletText}>{t("research.emptyInsight")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
-      ) : (
+        ) : (
         <>
           {view.clusters.length > 0 ? (
             <View style={styles.filterRow}>
@@ -1939,7 +1947,11 @@ export function DeepSpaceResearchScreen() {
             </Pressable>
           ) : null}
 
-          {/* propose->ratify: AI proposes semantic links, the user decides. */}
+        </>
+        )}
+
+          {/* propose->ratify: AI proposes semantic links, the user decides.
+              Outside the records gate on purpose — see the note above. */}
           <Text variant="caption" pixelEn style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
           {announce ? (
             <RNText

@@ -268,6 +268,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
           toolKey="ecr"
           title={t("intro.title")}
           itemCount={ECR_ITEMS.length}
+          perPage={5}
           estimatedMinutes={3}
           description={t("intro.description")}
           citation={t("intro.citation")}

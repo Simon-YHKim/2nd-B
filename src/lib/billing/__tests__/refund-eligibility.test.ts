@@ -11,18 +11,28 @@
 
 import {
   FREE_RUNS_PER_WEEK,
+  PRE_REVISION_WINDOW_DAYS,
   REFUND_WINDOW_DAYS,
   canRequestRefund,
   formatPaymentMethod,
   freeAllowanceForSpan,
+  parseRefundStatus,
   refundDaysLeft,
   refundReasonKey,
+  REFUND_POLICY_EFFECTIVE_AT,
+  revisedPolicyInForce,
   verdictFor,
   type RefundEligibility,
 } from "../subscription-manage";
 
+// The boundary cases below all describe the REVISED rule, so they pin `now` to a
+// moment after its effective date. The pre-revision rule has its own block at the
+// bottom of this file.
+const AFTER = Date.parse("2026-09-08T00:00:00+09:00") + 1000;
+const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
+
 const runs = (daysSincePayment: number, reasoningRuns: number) =>
-  verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0 });
+  verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0, now: AFTER });
 
 describe("free-plan allowance is pro-rated by whole or partial weeks", () => {
   test("free cap is the tier-map number, not a retyped literal", () => {
@@ -93,26 +103,26 @@ describe("7-day window boundary", () => {
   });
 
   test("no payment on record is its own verdict, not a refusal", () => {
-    expect(verdictFor({ daysSincePayment: null, reasoningRuns: 0, reasoningCalls: 0 })).toBe("no_payment");
+    expect(verdictFor({ daysSincePayment: null, reasoningRuns: 0, reasoningCalls: 0, now: AFTER })).toBe("no_payment");
   });
 });
 
 describe("audit-log fallback only applies when the run ledger is empty", () => {
   test("with runs present the audit count is ignored, however large", () => {
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 1, reasoningCalls: 50 })).toBe("eligible");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 1, reasoningCalls: 50, now: AFTER })).toBe("eligible");
   });
 
   test("with no runs, logged calls beyond the allowance still block a free refund", () => {
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 3 })).toBe("used_beyond_free");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 3, now: AFTER })).toBe("used_beyond_free");
   });
 
   test("with no runs and calls inside the allowance it stays eligible", () => {
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 2 })).toBe("eligible");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 2, now: AFTER })).toBe("eligible");
   });
 });
 
 describe("the button opens only on the server's 'eligible'", () => {
-  test.each(["used_beyond_free", "window_passed", "no_payment", "unknown"] as const)(
+  test.each(["refund_already_requested", "used_beyond_free", "window_passed", "no_payment", "unknown"] as const)(
     "%s does not open the refund button",
     (status) => {
       expect(canRequestRefund({ status })).toBe(false);
@@ -123,7 +133,13 @@ describe("the button opens only on the server's 'eligible'", () => {
     expect(canRequestRefund({ status: "eligible" })).toBe(true);
   });
 
+  test("an existing refund request gets its own explanation", () => {
+    expect(parseRefundStatus("refund_already_requested")).toBe("refund_already_requested");
+    expect(refundReasonKey("refund_already_requested")).toBe("alreadyRequested");
+  });
+
   test("an unrecognised server verdict is treated as not eligible", () => {
+    expect(parseRefundStatus("something_new")).toBe("unknown");
     expect(canRequestRefund({ status: "something_new" as never })).toBe(false);
     expect(refundReasonKey("something_new" as never)).toBe("unknown");
   });
@@ -138,8 +154,11 @@ describe("days-left display", () => {
     expect(refundDaysLeft({ ...base, days_since_payment: 45 })).toBe(0);
   });
 
-  test("falls back to the published window when the server omits it", () => {
-    expect(refundDaysLeft({ status: "eligible", days_since_payment: 3 })).toBe(4);
+  test("falls back to the window of whichever policy is in force", () => {
+    // Only reachable against a server too old to send refund_window_days. The
+    // fallback must still follow the dated policy, not a fixed 7.
+    const expected = (revisedPolicyInForce() ? REFUND_WINDOW_DAYS : PRE_REVISION_WINDOW_DAYS) - 3;
+    expect(refundDaysLeft({ status: "eligible", days_since_payment: 3 })).toBe(expected);
   });
 
   test("no payment means no countdown", () => {
@@ -162,5 +181,32 @@ describe("payment method is shown, never invented", () => {
 
   test("nothing on record renders nothing rather than a guess", () => {
     expect(formatPaymentMethod({ payment_method: null, card_brand: null, card_last4: null })).toBeNull();
+  });
+});
+
+// ONE RULE (0122, Simon 2026-08-11): the revised rule is simply the rule. The
+// dating 0120 introduced is gone, so the superseded 30-day window must never be
+// applied again and the usage condition is always live.
+describe("there is one rule now: 7 days AND inside the free-plan allowance", () => {
+  test("the superseded 30-day window is never applied, whatever the clock says", () => {
+    const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
+    const AFTER_ = Date.parse("2026-09-08T00:00:00+09:00") + 1000;
+    for (const now of [BEFORE, AFTER_, Date.now()]) {
+      expect(verdictFor({ daysSincePayment: 8, reasoningRuns: 0, reasoningCalls: 0, now })).toBe("window_passed");
+      expect(verdictFor({ daysSincePayment: 20, reasoningRuns: 0, reasoningCalls: 0, now })).toBe("window_passed");
+    }
+    // The constant is retained only so this assertion can exist.
+    expect(PRE_REVISION_WINDOW_DAYS).toBe(30);
+  });
+
+  test("the usage condition applies at every instant, not from a date", () => {
+    const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 3, reasoningCalls: 0, now: BEFORE })).toBe("used_beyond_free");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 2, reasoningCalls: 0, now: BEFORE })).toBe("eligible");
+  });
+
+  test("the rule no longer depends on the clock at all", () => {
+    expect(revisedPolicyInForce(0)).toBe(true);
+    expect(revisedPolicyInForce(Date.now())).toBe(true);
   });
 });

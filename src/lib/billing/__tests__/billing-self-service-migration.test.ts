@@ -12,7 +12,7 @@
 // 17-argument one asserted below; 0087 is left untouched because its test pins
 // its file text verbatim.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { FREE_RUNS_PER_WEEK, REFUND_WINDOW_DAYS } from "../subscription-manage";
@@ -283,5 +283,402 @@ describe("0115 - definer-grant lint contract (scripts/check-definer-grants.ts, B
 
   test("no function is granted to anon or public", () => {
     expect(sql).not.toMatch(/GRANT\s+EXECUTE ON FUNCTION[^;]*\bTO[^;]*\b(anon|public)\b/i);
+  });
+});
+
+// ── 0117: the refund meter counted the wrong set of runs, in both directions ──
+// Found by an adversarial audit of 0115 on 2026-08-10, before the feature was
+// ever enabled. Each defect is pinned by BOTH the removal of the broken clause
+// and the presence of the correct one, so a revert cannot pass silently.
+describe("0117 - refund_eligibility counts every real run and only real runs", () => {
+  const sql0117 = readFileSync(join(MIGRATIONS, "0117_refund_meter_counts_every_real_run.sql"), "utf8");
+  // The header QUOTES the broken clauses to explain why they were wrong, so the
+  // "must not come back" assertions have to run against comment-stripped SQL or
+  // the documentation defeats the guard.
+  const body0117 = sql0117.replace(/--[^\n]*/g, " ");
+
+  test("the spend filter is GONE: spend='none' marks an unlimited-tier run, not a free one", () => {
+    // 0092:220-221 sets spend='none' whenever the cap is NULL, and brain is the
+    // NULL-cap arm (0092:214). `spend <> 'none'` therefore excluded 100% of
+    // North Star runs and made v_runs always 0 for the most expensive tier.
+    expect(body0117).not.toMatch(/r\.spend\s*<>\s*'none'/);
+    expect(sql0117).toMatch(/FROM public\.reasoning_runs r/);
+  });
+
+  test("all three refunded terminal states are excluded, not just cancelled", () => {
+    // 0092 calls refund_reasoning_spend for failed (:389), cancelled (:413) and
+    // recovered (:441). Counting any of them charges the user for a run that was
+    // given back.
+    expect(sql0117).toMatch(/r\.status NOT IN \('cancelled', 'failed', 'recovered'\)/);
+    expect(body0117).not.toMatch(/r\.status\s*<>\s*'cancelled'/);
+  });
+
+  test("the verdict and the claim now select the SAME transaction row", () => {
+    // Both must require a non-NULL transaction id, or the verdict can describe
+    // payment A while the adjustment targets payment B.
+    expect(sql0117).toMatch(/e\.event_type = 'transaction\.completed'\s*\n\s*AND e\.paddle_transaction_id IS NOT NULL/);
+  });
+
+  test("the NULL p_user_id three-valued-logic hole is closed on both owner RPCs", () => {
+    const guards = sql0117.match(/IF p_user_id IS NULL OR auth\.uid\(\) IS NULL OR auth\.uid\(\) <> p_user_id THEN/g) ?? [];
+    expect(guards).toHaveLength(2);
+  });
+
+  test("an accepted cancel is scoped to the subscription it cancelled", () => {
+    // Scoped only to user_id, one cancel pinned auto_renew=false forever: a
+    // resumed or newly purchased subscription kept reading "auto-renewal is off"
+    // while Paddle charged every month, and the cancel card stayed hidden.
+    expect(sql0117).toMatch(/AND l\.paddle_subscription_id = v_sub_id/);
+    expect(sql0117).toMatch(/v_auto := v_tier <> 'free' AND v_sub_id IS NOT NULL AND v_sched IS NULL AND v_req IS NULL/);
+  });
+
+  test("still definer-safe: anon revoked, owner and service_role granted", () => {
+    for (const fn of ["refund_eligibility", "subscription_overview"]) {
+      expect(sql0117).toContain(`REVOKE EXECUTE ON FUNCTION public.${fn}(uuid) FROM anon;`);
+      expect(sql0117).toContain(`GRANT  EXECUTE ON FUNCTION public.${fn}(uuid) TO authenticated;`);
+      expect(sql0117).toContain(`GRANT  EXECUTE ON FUNCTION public.${fn}(uuid) TO service_role;`);
+    }
+    expect(sql0117).not.toMatch(/GRANT\s+EXECUTE ON FUNCTION[^;]*\bTO[^;]*\b(anon|public)\b/i);
+  });
+});
+
+// ── 0118: the refund actually lands, and nothing stays stuck ─────────────────
+describe("0118 - an approved refund moves the money AND the entitlement", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+  const body0118 = sql0118.replace(/--[^\n]*/g, " ");
+
+  test("the webhook handles adjustment.* instead of dropping it", () => {
+    // ONE branch (0119): #1203 and #1205 each added a handler concurrently and
+    // git merged both, leaving #1205's unreachable behind #1203's early return.
+    expect(webhook.match(/const isAdjustmentEvent = /g) ?? []).toHaveLength(1);
+    expect(webhook).toMatch(/rpc\('record_paddle_refund_adjustment'/);
+    expect(webhook).toMatch(/rpc\('apply_billing_refund'/);
+    // Only an APPROVED refund has a consequence: pending_approval / rejected /
+    // reversed are recorded on the ledger and move no money and no entitlement.
+    expect(webhook).toMatch(/if \(adjustmentStatus === 'approved'\)/);
+    expect(webhook).toMatch(/data\.action !== 'refund'/);
+  });
+
+  test("the offsetting revenue row is negative and deduped on the adjustment event", () => {
+    expect(sql0118).toMatch(/-abs\(p_amount_cents\)/);
+    expect(sql0118).toMatch(/ON CONFLICT \(source, external_id\) WHERE external_id IS NOT NULL DO NOTHING/);
+  });
+
+  test("the entitlement is revoked ONLY for a full refund, under 0109's ordering guard", () => {
+    expect(sql0118).toMatch(/IF v_full AND v_user_id IS NOT NULL THEN/);
+    expect(sql0118).toMatch(/AND \(subscription_event_at IS NULL OR v_at >= subscription_event_at\)/);
+    // A partial refund must not end a subscription the user still pays for.
+    expect(sql0118).toMatch(/v_full\s+boolean := COALESCE\(p_is_full, false\)/);
+  });
+
+  test("a matching accepted self-serve refund is itself proof of a full refund", () => {
+    expect(sql0118).toMatch(/WHERE action = 'refund_request'\s*\n\s*AND outcome = 'accepted'/);
+    expect(sql0118).toMatch(/IF FOUND THEN\s*\n\s*v_full := true;/);
+  });
+
+  test("still idempotent on the Paddle event id", () => {
+    expect(sql0118).toMatch(/ON CONFLICT \(event_id\) DO NOTHING/);
+    expect(sql0118).toMatch(/IF v_rows = 0 THEN\s*\n\s*RETURN 'duplicate';/);
+  });
+});
+
+describe("0118 - a dry run consumes nothing", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+
+  test("'dry_run' is an allowed outcome", () => {
+    expect(sql0118).toMatch(/CHECK \(outcome IN \('pending', 'accepted', 'rejected', 'provider_error', 'misconfigured', 'dry_run'\)\)/);
+  });
+
+  test("and it is OUTSIDE both idempotency indexes, so a rehearsal is repeatable", () => {
+    const predicates = sql0118.match(/AND outcome IN \('pending', 'accepted'\)/g) ?? [];
+    expect(predicates).toHaveLength(2);
+    expect(sql0118).not.toMatch(/outcome IN \([^)]*'dry_run'[^)]*\)\s*\n\s*AND paddle_/);
+  });
+
+  test("the edge function settles a dry run as dry_run, never as accepted", () => {
+    expect(edge).toMatch(/settleClaim\('dry_run'/);
+    expect(edge).toMatch(/outcome: 'dry_run', dry_run: true/);
+    expect(edge).not.toMatch(/settleClaim\('accepted', \{ ok: true, status: 0/);
+  });
+});
+
+describe("0118 - stranded claims are released", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+
+  test("a sweeper exists and settles pending rows into the retryable state", () => {
+    expect(sql0118).toMatch(/CREATE OR REPLACE FUNCTION public\.sweep_stale_billing_claims/);
+    expect(sql0118).toMatch(/SET outcome\s+= 'provider_error',\s*\n\s*provider_error = 'stale_claim_swept'/);
+    expect(sql0118).toMatch(/WHERE outcome = 'pending'\s*\n\s*AND created_at < now\(\) - p_older_than/);
+  });
+
+  test("it is scheduled, and re-applying does not stack duplicate cron jobs", () => {
+    expect(sql0118).toMatch(/cron\.schedule\(\s*\n?\s*'sweep-stale-billing-claims'/);
+    expect(sql0118).toMatch(/cron\.unschedule\('sweep-stale-billing-claims'\)/);
+  });
+});
+
+describe("0118 - 0116's role check is repaired", () => {
+  const sql0118 = readFileSync(join(MIGRATIONS, "0118_billing_refund_reconciliation.sql"), "utf8");
+  const body0118 = sql0118.replace(/--[^\n]*/g, " ");
+
+  test("block_self_tier_insert goes through the helper, not the GUC that is never set", () => {
+    expect(sql0118).toMatch(/CREATE OR REPLACE FUNCTION public\.block_self_tier_insert/);
+    expect(sql0118).toMatch(/IF public\.billing_request_role\(\) = 'service_role' THEN/);
+    // The raw legacy GUC may appear only inside the helper's own COALESCE.
+    const raw = body0118.match(/current_setting\('request\.jwt\.claim\.role'/g) ?? [];
+    expect(raw).toHaveLength(1);
+  });
+
+  test("the helper is callable from a SECURITY INVOKER trigger", () => {
+    // Without DEFINER + an authenticated grant, the trigger would raise
+    // permission denied on every self-insert.
+    expect(sql0118).toMatch(/CREATE OR REPLACE FUNCTION public\.billing_request_role\(\)[\s\S]*?SECURITY DEFINER/);
+    expect(sql0118).toContain("GRANT  EXECUTE ON FUNCTION public.billing_request_role() TO authenticated;");
+    expect(sql0118).toMatch(/REVOKE EXECUTE ON FUNCTION public\.billing_request_role\(\) FROM anon/);
+  });
+
+  test("the clamp itself is unchanged: subscription_event_at still reset", () => {
+    expect(sql0118).toMatch(/NEW\.subscription_event_at := NULL;/);
+  });
+});
+
+// ── 0119: two concurrent 0117s, reconciled ──────────────────────────────────
+// #1203 and #1205 fixed the same rail at the same time and both landed. Git saw
+// no conflict and CI was green, but migrations apply in FILENAME order, so
+// "refund_meter" replaced "refund_history" and each side's unique fix survived
+// only in one. These pins make the union explicit.
+describe("0119 - the surviving refund_eligibility carries BOTH sessions' fixes", () => {
+  const sql = readFileSync(join(MIGRATIONS, "0119_reconcile_two_0117s.sql"), "utf8");
+
+  test("it is the last definition of refund_eligibility by filename order", () => {
+    const defs = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .filter((f) => /CREATE OR REPLACE FUNCTION public\.refund_eligibility/i.test(readFileSync(join(MIGRATIONS, f), "utf8")));
+    expect(defs.length).toBeGreaterThan(1);
+    // 0124 re-states the function to attach the decision record. It is a
+    // comment-only replay of 0122's body, pinned byte-for-byte below.
+    expect(defs[defs.length - 1]).toBe("0124_refund_eligibility_decision_record.sql");
+  });
+
+  test("#1203's guard survives: a request already on file is not offered again", () => {
+    expect(sql).toMatch(/'status',\s+'refund_already_requested'/);
+    expect(sql).toMatch(/l\.outcome IN \('pending', 'accepted'\)/);
+  });
+
+  test("#1205's meter correction survives", () => {
+    expect(sql).toMatch(/r\.status NOT IN \('cancelled', 'failed', 'recovered'\)/);
+    expect(sql.replace(/--[^\n]*/g, " ")).not.toMatch(/r\.spend\s*<>\s*'none'/);
+  });
+
+  test("#1205's transaction-id requirement and NULL guard survive", () => {
+    expect(sql).toMatch(/AND e\.paddle_transaction_id IS NOT NULL/);
+    expect(sql).toMatch(/IF p_user_id IS NULL OR auth\.uid\(\) IS NULL OR auth\.uid\(\) <> p_user_id THEN/);
+  });
+
+  test("the client can actually receive refund_already_requested", () => {
+    // It shipped in the union type and the locales while the database could no
+    // longer produce it. Both halves must line up.
+    const lib = readFileSync(join(__dirname, "..", "subscription-manage.ts"), "utf8");
+    expect(lib).toContain("refund_already_requested");
+  });
+
+  test("the sweeper no longer reaps a refund Paddle is still reviewing", () => {
+    // #1203 maps 'pending_approval' onto outcome='pending'; #1205's sweeper
+    // reaped any 'pending' past 15 minutes. Together that marked a live refund
+    // as failed AND released its idempotency claim, allowing a second refund.
+    expect(sql).toMatch(/AND provider_ref IS NULL\s*\n\s*AND provider_status IS NULL\s*\n\s*AND paddle_adjustment_id IS NULL/);
+  });
+});
+
+// ── 0121: Paddle's answer supersedes our optimistic cancel row ───────────────
+// 0119 scoped our cancel signal to the subscription, which fixed "cancelled, then
+// re-subscribed under a NEW id". It did NOT fix the same subscription being
+// RESUMED: the accepted row survived, auto_renew stayed false forever, the cancel
+// card stayed hidden, and the partial unique index blocked a genuine second
+// cancel - while Paddle billed every month.
+describe("0121 - a resumed subscription can be cancelled again", () => {
+  const sql = readFileSync(join(MIGRATIONS, "0121_provider_supersedes_our_cancel.sql"), "utf8");
+
+  test("the writer supersedes our row when Paddle says the sub is active and uncancelled", () => {
+    expect(sql).toMatch(/AND p_scheduled_cancel_at IS NULL\s*\n\s*AND p_tier IS NOT NULL\s*\n\s*AND p_tier <> 'free'/);
+    expect(sql).toMatch(/SET outcome\s+= 'rejected',\s*\n\s*provider_error = 'superseded_by_provider'/);
+    // Scoped to the subscription Paddle is talking about, not the whole user.
+    expect(sql).toMatch(/AND paddle_subscription_id = v_sub_id/);
+  });
+
+  test("superseding frees the idempotency index, so a second cancel can be claimed", () => {
+    // The index only holds on outcome IN ('pending','accepted'); 'rejected' is
+    // outside it, which is exactly why the supersede writes that value.
+    expect(sql).toMatch(/outcome        = 'rejected'/);
+  });
+
+  test("the reader also ignores a cancel Paddle has already contradicted", () => {
+    expect(sql).toMatch(/INTO v_sched, v_sched_seen/);
+    expect(sql).toMatch(/IF v_req IS NOT NULL AND v_sched IS NULL AND v_sched_seen IS NOT NULL AND v_sched_seen > v_req THEN\s*\n\s*v_req := NULL;/);
+  });
+
+  test("0109's ordering guard and 0115's renewal anchor survive the re-creation", () => {
+    expect(sql).toMatch(/AND \(subscription_event_at IS NULL OR v_at >= subscription_event_at\)/);
+    expect(sql).toMatch(/SET stale_entitlement = true/);
+    expect(sql).toMatch(/IF v_user_id IS NULL AND v_sub_id IS NOT NULL THEN/);
+  });
+
+  test("it is the last definition of both functions it touches", () => {
+    for (const fn of ["apply_billing_event", "subscription_overview"]) {
+      const defs = readdirSync(MIGRATIONS)
+        .filter((f) => f.endsWith(".sql"))
+        .sort()
+        .filter((f) =>
+          new RegExp(`CREATE OR REPLACE FUNCTION public\.${fn}`, "i").test(readFileSync(join(MIGRATIONS, f), "utf8")),
+        );
+      expect(defs[defs.length - 1]).toBe("0121_provider_supersedes_our_cancel.sql");
+    }
+  });
+});
+
+describe("0121 - the refund window in copy comes from the server", () => {
+  test("windowPassed interpolates the number instead of hardcoding 7", () => {
+    // The window is 30 until 2026-09-08 and 7 after. Hardcoding 7 told a user
+    // past day 30 that "7 days have passed" - the wrong number, and one that
+    // understates the window they actually had.
+    for (const code of ["en", "ko", "es", "pt", "id"]) {
+      const s = JSON.parse(
+        readFileSync(join(MIGRATIONS, "..", "..", "locales", code, "settings.json"), "utf8"),
+      ).subscription.refund.reason.windowPassed as string;
+      expect(s).toContain("{{total}}");
+      expect(s).not.toMatch(/\b7\b/);
+      expect(s).not.toMatch(/\b30\b/);
+    }
+  });
+});
+
+describe("0123 - the unhandled-event recorder is a trace and nothing more", () => {
+  const sql = readFileSync(join(MIGRATIONS, "0123_record_unhandled_billing_events.sql"), "utf8");
+
+  test("it writes the event row and stops", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.record_unhandled_billing_event/);
+    expect(sql).toMatch(/INSERT INTO public\.paddle_webhook_events[\s\S]*?ON CONFLICT \(event_id\) DO NOTHING/);
+    // Never the paths that move money or entitlement.
+    const body = sql.replace(/--[^\n]*/g, " ");
+    expect(body).not.toMatch(/UPDATE public\.users/);
+    expect(body).not.toMatch(/INSERT INTO public\.revenue_events/);
+  });
+
+  test("service_role only, in the body as well as the grants", () => {
+    expect(sql).toMatch(/IS DISTINCT FROM 'service_role' THEN\s*\n\s*RAISE EXCEPTION 'service_role only'/);
+    expect(sql).toMatch(/REVOKE EXECUTE ON FUNCTION public\.record_unhandled_billing_event[^;]*FROM anon, authenticated/);
+    expect(sql).toMatch(/GRANT\s+EXECUTE ON FUNCTION public\.record_unhandled_billing_event[^;]*TO service_role/);
+  });
+
+  test("the raw payload is a diagnostic buffer with a purge, not an archive", () => {
+    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS raw_payload jsonb/);
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.purge_unhandled_billing_payloads/);
+    expect(sql).toMatch(/SET raw_payload = NULL/);
+    expect(sql).toMatch(/cron\.schedule\(\s*\n?\s*'purge-unhandled-billing-payloads'/);
+    expect(sql).toMatch(/cron\.unschedule\('purge-unhandled-billing-payloads'\)/);
+  });
+});
+
+// ── 0124: the decision record, and the proof that it is only a record ────────
+// Simon chose on 2026-08-11 to keep the refund rule exactly as it is, knowing
+// the notice for it ran zero days and that 이용약관 제3조② asks for thirty. The
+// value of writing that down is entirely in it being findable later, so these
+// pins protect the two things that make it findable: that the record exists
+// where a reader of the LIVE function will see it, and that re-stating the
+// function to attach it changed no behaviour at all.
+describe("0124 - a recorded decision, provably comment-only", () => {
+  const sql0124 = readFileSync(join(MIGRATIONS, "0124_refund_eligibility_decision_record.sql"), "utf8");
+  const sql0122 = readFileSync(join(MIGRATIONS, "0122_revised_refund_rule_applies_now.sql"), "utf8");
+
+  // Executable text = the function body with comments removed and whitespace
+  // collapsed. If this differs, the migration is no longer comment-only.
+  const bodyOf = (text: string) => {
+    const at = text.indexOf("CREATE OR REPLACE FUNCTION public.refund_eligibility");
+    const from = text.indexOf("AS $$", at) + "AS $$".length;
+    const to = text.indexOf("\n$$;", from);
+    expect(at).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    return text.slice(from, to).replace(/--[^\n]*/g, " ").replace(/\s+/g, " ").trim();
+  };
+
+  test("the executable body is byte-identical to 0122's", () => {
+    // Verified against production prosrc on 2026-08-11 as well: all three
+    // normalise to md5 260f15695bfe1ea1f26752bd5d65947b (3554 chars).
+    expect(bodyOf(sql0124)).toBe(bodyOf(sql0122));
+    expect(bodyOf(sql0124)).toHaveLength(3554);
+  });
+
+  test("the rule itself is untouched: 7 days, 2 runs, revised, gate on", () => {
+    expect(sql0124).toContain(`c_window_days   constant int := ${REFUND_WINDOW_DAYS};`);
+    expect(sql0124).toContain(`c_free_per_week constant int := ${FREE_RUNS_PER_WEEK};`);
+    expect(sql0124.match(/'policy',\s+'revised'/g) ?? []).toHaveLength(3);
+    expect(sql0124.match(/'usage_gate_applies',\s+true/g) ?? []).toHaveLength(3);
+    // No dating, no grace branch reintroduced by the edit.
+    expect(sql0124).not.toContain("2026-09-08");
+    expect(bodyOf(sql0124)).not.toMatch(/pre_revision|grace|effective_from/i);
+  });
+
+  // The reason this is a COMMENT ON and not only a `--` header: measured on prod
+  // 2026-08-11, all seven billing functions have zero line comments in prosrc
+  // while their source files are full of them. The apply path strips them, so a
+  // `--` block alone would be absent from the one place a reader of the live
+  // function looks. A string literal cannot be stripped.
+  test("the record lands in the database, not just the repo", () => {
+    expect(sql0124).toMatch(/COMMENT ON FUNCTION public\.refund_eligibility\(uuid\) IS/);
+  });
+
+  test("it carries the facts that make the decision auditable", () => {
+    const comment = sql0124.slice(sql0124.indexOf("COMMENT ON FUNCTION"));
+    expect(comment).toContain("Simon, 2026-08-11");
+    // The notice trail, including the re-issue that lost the grace clause.
+    for (const id of ["a3d822d5", "22eedef0", "d3ff81e6"]) expect(comment).toContain(id);
+    expect(comment).toContain("zero days");
+    expect(comment).toContain("제3조②");
+    // Substance vs procedure must stay distinguishable.
+    expect(comment).toContain("제17조");
+    // Why nobody is hurt today, stated as luck rather than as a safeguard.
+    expect(comment).toMatch(/ACCIDENT|accident/);
+  });
+
+  test("it names the trigger to re-open, with the query to check it", () => {
+    expect(sql0124).toContain("RE-OPEN THIS JUDGEMENT");
+    expect(sql0124).toMatch(
+      /select count\(\*\) from public\.paddle_webhook_events\s*\n?\s*where event_type = 'transaction\.completed' and paddle_transaction_id is not null;/,
+    );
+  });
+
+  test("re-stating a DEFINER function still revokes anon in the same file", () => {
+    expect(sql0124).toMatch(/REVOKE EXECUTE ON FUNCTION public\.refund_eligibility\(uuid\) FROM anon/);
+    expect(sql0124).not.toMatch(/GRANT\s+EXECUTE[\s\S]{0,80}TO\s+anon/i);
+  });
+});
+
+// The same decision has to be reachable from the two surfaces that implement it,
+// or the record is only findable by someone who already knows to look in SQL.
+describe("0124 - the record is cross-referenced from the code that applies it", () => {
+  test("the edge function header points at it", () => {
+    expect(edge).toContain("db/migrations/0124");
+    expect(edge).toContain("개정 경위");
+  });
+
+  // Simon, 2026-08-11: the published policy gets a plain revision history and
+  // nothing more. The assessment of the notice procedure is an INTERNAL record
+  // (0124's COMMENT ON, pinned above) because the product is still in testing
+  // and there is no reason to publish it. The split is the decision, so both
+  // halves are pinned: the facts must survive in the database, and must not
+  // leak into the customer-facing document by a later well-meaning edit.
+  test("the published policy carries a plain revision history, and only that", () => {
+    const policy = readFileSync(
+      join(__dirname, "..", "..", "..", "..", "docs", "legal", "refund-policy.md"),
+      "utf8",
+    );
+    expect(policy).toContain("### 8. 개정 경위");
+    expect(policy).toContain("### 8. Revision history");
+    expect(policy).toContain("2026-07-17");
+    // The notice-procedure assessment stays out of the published document.
+    for (const s of ["사전 고지 기간", "advance notice period", "제3조②", "30일 사전공지"]) {
+      expect(policy).not.toContain(s);
+    }
   });
 });

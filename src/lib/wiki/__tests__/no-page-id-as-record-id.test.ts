@@ -84,7 +84,14 @@ describe("a wiki page id is never used as a record id", () => {
     const expected: [string, string][] = [
       ["src/app/digest.tsx", "p.from_page"],
       ["src/screens/deepspace/DeepSpaceDesignScreens.tsx", "p.from_page"],
-      ["src/screens/deepspace/dds-wiki-records-screens.tsx", "p.id"],
+      // NOTE: dds-wiki-records-screens.tsx's backlink row used to be listed here
+      // with "p.id". It no longer navigates at all. That row renders only inside
+      // the EXPANDED card, so p.id was the page the user was already on — the tap
+      // pushed an identical /wiki with the same entry open. Retargeting it to
+      // /wiki (#984) stopped the "기록을 찾을 수 없어요" screen but left a button
+      // that went nowhere, so the affordance was removed and the count kept. The
+      // rule this file enforces is unchanged: the negative assertion below still
+      // covers that file, so a page id can never reappear at /record/[id].
     ];
     for (const [file, expr] of expected) {
       const src = read(join(ROOT, file));

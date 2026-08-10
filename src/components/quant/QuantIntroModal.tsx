@@ -21,6 +21,15 @@ export interface QuantIntroProps {
   toolKey: "bfi" | "mbti" | "ecr" | "ipip" | "rlss" | "values" | "strengths" | "motivation";
   title: string;
   itemCount: number;
+  /**
+   * Items per page, mirroring what the caller hands QuantPager. The page count
+   * below used to hardcode /5, which is right for only 2 of the 7 instruments —
+   * /strengths, /values and /motivation paginate by 4, /ipip-neo by 8 and /rlss
+   * shows every item at once, so those five promised a page count the pager then
+   * contradicted (strengths said 2, showed 3). Defaults to 5 so a caller that
+   * does not paginate keeps the old number.
+   */
+  perPage?: number;
   estimatedMinutes: number;
   /** Short description of the tool, what it measures, who it's for. */
   description: string;
@@ -67,6 +76,7 @@ export function QuantIntroModal({
   toolKey,
   title,
   itemCount,
+  perPage = 5,
   estimatedMinutes,
   description,
   citation,
@@ -134,7 +144,7 @@ export function QuantIntroModal({
             <View style={styles.statDivider} />
             <Stat
               label={t("quantPages")}
-              value={`${Math.ceil(itemCount / 5)}`}
+              value={`${Math.max(1, Math.ceil(itemCount / Math.max(1, perPage)))}`}
             />
           </View>
 

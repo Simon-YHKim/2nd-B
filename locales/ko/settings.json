@@ -221,26 +221,30 @@
       "title": "환불",
       "cta": "환불 요청하기",
       "confirmTitle": "환불을 요청할까요?",
-      "confirmBody": "요청은 판매자인 Paddle에 접수돼요. 승인되면 원 결제수단으로 전액 환불되고 유료 기능은 닫혀요.",
+      "confirmBody": "요청은 판매자인 Paddle에 접수돼요. 승인되면 원 결제수단으로 전액 환불돼요. 환불만으로 구독이 끝나지는 않으니, 결제를 멈추려면 해지도 함께 해주세요.",
       "confirmCta": "환불 요청",
       "reason": {
         "eligible": "지금은 전액 환불을 요청할 수 있어요.",
+        "alreadyRequested": "이 결제의 환불 요청이 이미 접수되어 있어요.",
         "usedBeyondFree": "결제 후 사용량이 같은 기간 무료 플랜에서 쓸 수 있는 양을 넘어서, 앱에서 바로 환불받을 수는 없어요.",
-        "windowPassed": "결제일로부터 7일이 지나서 앱에서 바로 환불받을 수는 없어요.",
+        "windowPassed": "결제일로부터 {{total}}일이 지나서 앱에서 바로 환불받을 수는 없어요.",
         "noPayment": "환불할 결제 내역이 없어요.",
         "unknown": "환불 가능 여부를 확인하지 못했어요."
       },
       "window": "환불 가능 기간: {{total}}일 중 {{days}}일 남음",
       "usage": "리즈닝 사용: {{used}}회 (같은 기간 무료 플랜 기준 {{allowance}}회)",
-      "calls": "기록된 AI 호출: {{calls}}건"
+      "calls": "기록된 AI 호출: {{calls}}건",
+      "currentPolicyNote": "결제일로부터 7일 이내이고, 무료 플랜 범위를 넘겨 쓰지 않았다면 전액 환불받을 수 있어요."
     },
     "notice": {
       "cancelledAtRenewal": "다음 갱신일에 해지되도록 접수했어요.",
       "cancelledNow": "즉시 해지를 접수했어요.",
-      "refundRequested": "환불 요청을 접수했어요. 승인 결과는 결제 영수증 메일로 안내돼요.",
+      "refundRequested": "환불 요청을 Paddle에 접수했어요. 승인 결과는 결제 영수증 메일로 안내돼요. 결제를 멈추려면 해지도 따로 해주세요.",
       "alreadyRequested": "이미 접수된 요청이 있어서 중복으로 처리하지 않았어요.",
       "refundRejected": "이 결제는 앱에서 바로 환불받을 수 있는 대상이 아니에요.",
-      "contactSupport": "지금은 앱에서 처리할 수 없어요. 지원팀에 문의해 주세요."
+      "contactSupport": "지금은 앱에서 처리할 수 없어요. 지원팀에 문의해 주세요.",
+      "notSubscribed": "해지할 유료 구독이 없어요.",
+      "dryRun": "리허설 모드라서 Paddle로 전송되지 않았어요. 실제로 요청하려면 지원팀에 문의해 주세요."
     },
     "autoRenewOn": "{{date}}에 자동 결제돼요",
     "cancelScheduledOn": "자동 결제가 꺼져 있어요. {{date}}까지는 그대로 쓸 수 있어요.",
