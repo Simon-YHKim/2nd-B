@@ -550,3 +550,30 @@ describe("0121 - the refund window in copy comes from the server", () => {
     }
   });
 });
+
+describe("0123 - the unhandled-event recorder is a trace and nothing more", () => {
+  const sql = readFileSync(join(MIGRATIONS, "0123_record_unhandled_billing_events.sql"), "utf8");
+
+  test("it writes the event row and stops", () => {
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.record_unhandled_billing_event/);
+    expect(sql).toMatch(/INSERT INTO public\.paddle_webhook_events[\s\S]*?ON CONFLICT \(event_id\) DO NOTHING/);
+    // Never the paths that move money or entitlement.
+    const body = sql.replace(/--[^\n]*/g, " ");
+    expect(body).not.toMatch(/UPDATE public\.users/);
+    expect(body).not.toMatch(/INSERT INTO public\.revenue_events/);
+  });
+
+  test("service_role only, in the body as well as the grants", () => {
+    expect(sql).toMatch(/IS DISTINCT FROM 'service_role' THEN\s*\n\s*RAISE EXCEPTION 'service_role only'/);
+    expect(sql).toMatch(/REVOKE EXECUTE ON FUNCTION public\.record_unhandled_billing_event[^;]*FROM anon, authenticated/);
+    expect(sql).toMatch(/GRANT\s+EXECUTE ON FUNCTION public\.record_unhandled_billing_event[^;]*TO service_role/);
+  });
+
+  test("the raw payload is a diagnostic buffer with a purge, not an archive", () => {
+    expect(sql).toMatch(/ADD COLUMN IF NOT EXISTS raw_payload jsonb/);
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.purge_unhandled_billing_payloads/);
+    expect(sql).toMatch(/SET raw_payload = NULL/);
+    expect(sql).toMatch(/cron\.schedule\(\s*\n?\s*'purge-unhandled-billing-payloads'/);
+    expect(sql).toMatch(/cron\.unschedule\('purge-unhandled-billing-payloads'\)/);
+  });
+});

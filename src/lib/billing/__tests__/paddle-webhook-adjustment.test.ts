@@ -38,10 +38,11 @@ describe("paddle-webhook refund adjustments", () => {
     expect(adjustmentBlock).toMatch(
       /typeof data\.transaction_id === 'string'[\s\S]*?data\.transaction_id\.trim\(\)/,
     );
-    expect(adjustmentBlock).toMatch(
-      /!adjustmentId \|\| !adjustmentTransactionId \|\| !REFUND_ADJUSTMENT_STATUSES\.has\(adjustmentStatus\)/,
-    );
-    expect(adjustmentBlock).toMatch(/error: 'invalid_refund_adjustment'[\s\S]*?, 400/);
+    // 0123 split this in two: a missing id is unrecoverable and stays a 400,
+    // while an unrecognised status is recorded rather than refused (the status
+    // set is an assumption, and refusing lost the event entirely).
+    expect(adjustmentBlock).toMatch(/typeof data\.status === 'string'/);
+    expect(adjustmentBlock).toMatch(/error: 'invalid_refund_adjustment'[\s\S]*?400/);
   });
 
   test("records through the service-role RPC and returns its result", () => {
@@ -80,5 +81,45 @@ describe("paddle-webhook refund adjustments", () => {
     expect(adjustmentBlock).toMatch(/rpc\('apply_billing_refund'/);
     // The ledger record must not be lost because the consequence failed.
     expect(adjustmentBlock).toMatch(/\[ALERT\] refund consequence failed/);
+  });
+});
+
+// ── 0123: an unverified assumption must not be able to lose a refund ─────────
+// REFUND_ADJUSTMENT_STATUSES was written from model knowledge; no adjustment
+// webhook has been observed on this project. A 400 for an unexpected status made
+// Paddle retry, fail, and leave NO row on our side - the refund would be visible
+// only in Paddle's dashboard, which is not where anyone looks for a missing one.
+describe("paddle-webhook - an unknown adjustment status is recorded, not dropped", () => {
+  test("unknown status returns 200 and records the event with its payload", () => {
+    expect(adjustmentBlock).toMatch(/!REFUND_ADJUSTMENT_STATUSES\.has\(adjustmentStatus\)/);
+    expect(adjustmentBlock).toMatch(/rpc\('record_unhandled_billing_event'/);
+    expect(adjustmentBlock).toMatch(/p_payload: event/);
+    expect(adjustmentBlock).toMatch(/ignored: 'unhandled_adjustment_status'/);
+  });
+
+  test("it is greppable in the logs", () => {
+    // Fixed string on purpose: this is what an operator searches for.
+    expect(source).toContain("[paddle-webhook][ALERT] unhandled_adjustment_status");
+  });
+
+  test("it still touches neither the entitlement nor revenue", () => {
+    const at = adjustmentBlock.indexOf("record_unhandled_billing_event");
+    const ret = adjustmentBlock.indexOf("unhandled_adjustment_status'", at);
+    const between = adjustmentBlock.slice(at, ret);
+    expect(between).not.toMatch(/apply_billing_refund|apply_billing_event|record_paddle_refund_adjustment/);
+  });
+
+  test("a MISSING id is still a 400: the target must never be guessed", () => {
+    expect(adjustmentBlock).toMatch(
+      /if \(!adjustmentId \|\| !adjustmentTransactionId\) \{[\s\S]*?error: 'invalid_refund_adjustment'[\s\S]*?400/,
+    );
+    // and the status is no longer part of that same refusal
+    expect(adjustmentBlock).not.toMatch(
+      /!adjustmentId \|\| !adjustmentTransactionId \|\| !REFUND_ADJUSTMENT_STATUSES/,
+    );
+  });
+
+  test("failing to record is a 500, so Paddle keeps retrying", () => {
+    expect(adjustmentBlock).toMatch(/error: 'unhandled_adjustment_record_failed'[\s\S]*?500/);
   });
 });
