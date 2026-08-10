@@ -234,7 +234,7 @@
       "window": "Masa pengembalian dana: sisa {{days}} dari {{total}} hari",
       "usage": "Penalaran terpakai: {{used}} (paket gratis memberi {{allowance}} pada rentang yang sama)",
       "calls": "Panggilan AI tercatat: {{calls}}",
-      "currentPolicyNote": "Sampai 8 September 2026 kebijakan yang berlaku sekarang dipakai: pengembalian dana penuh dalam 30 hari setelah pembayaran, tanpa ditanya alasannya. Mulai tanggal itu masanya jadi 7 hari dan pemakaianmu harus tetap dalam batas paket gratis."
+      "currentPolicyNote": "Bisa dikembalikan dalam 7 hari setelah pembayaran, selama pemakaianmu masih dalam batas yang diberikan paket gratis."
     },
     "notice": {
       "cancelledAtRenewal": "Pembatalan dijadwalkan pada tanggal perpanjangan berikutnya.",
