@@ -227,7 +227,7 @@
         "eligible": "Kamu bisa mengajukan pengembalian dana penuh sekarang.",
         "alreadyRequested": "Permintaan pengembalian dana untuk pembayaran ini sudah tercatat.",
         "usedBeyondFree": "Pemakaian sejak pembayaran melebihi jatah paket gratis untuk rentang waktu yang sama, jadi pengembalian dana mandiri tidak tersedia.",
-        "windowPassed": "Sudah lebih dari 7 hari sejak pembayaran, jadi pengembalian dana mandiri tidak tersedia.",
+        "windowPassed": "Sudah lebih dari {{total}} hari sejak pembayaran, jadi pengembalian dana mandiri tidak tersedia.",
         "noPayment": "Tidak ada catatan pembayaran yang bisa dikembalikan.",
         "unknown": "Kami tidak bisa memeriksa kelayakan pengembalian dana."
       },
