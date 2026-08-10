@@ -51,9 +51,14 @@ describe("legal document snapshots", () => {
     expect(REFUND_DOC.body).toContain("submitting is not the same as being refunded");
   });
 
-  test("the adverse-change notice period is stated (이용약관 제3조② 30일 사전공지)", () => {
-    expect(REFUND_DOC.body).toContain("개정 시행일: 2026-09-08");
-    expect(REFUND_DOC.body).toContain("30일 사전공지");
+  // Simon decided (2026-08-11) that the revised rule applies immediately. The
+  // notice was re-issued 2026-08-09, so it is two days, not thirty - and the
+  // document therefore must NOT claim a 30-day notice it did not give. Pinning
+  // the ABSENCE is the point: a claim we cannot support is worse than none.
+  test("the effective date is stated and no notice period is claimed", () => {
+    expect(REFUND_DOC.body).toContain("개정 시행일: 2026-08-11");
+    expect(REFUND_DOC.body).not.toContain("30일 사전공지");
+    expect(REFUND_DOC.body).not.toContain("2026-09-08");
   });
 
   test("privacy policy carries the PIPA essentials (processors, statutory retention, subject rights, age floor)", () => {

@@ -79,7 +79,7 @@ function PrivacyLegacy() {
       if (!cancelled && mounted.current) {
         setPrefs(loaded);
         setReady(true);
-        // Gate web analytics (GA4/Clarity/PostHog) on the external_analytics
+        // Gate web analytics (GA4/Clarity) on the external_analytics
         // pref — they load only when the user has opted in.
         setAnalyticsConsent(loaded.external_analytics, { isMinor: minor });
       }

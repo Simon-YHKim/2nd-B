@@ -8,8 +8,8 @@
 //
 // DEPLOY / CONFIG (Simon, AFTER Paddle account approval):
 //   1. Paddle > Notifications: add a destination at this function URL; subscribe to
-//      subscription.created / subscription.updated / subscription.canceled and
-//      transaction.completed.
+//      subscription.created / subscription.updated / subscription.canceled,
+//      transaction.completed, adjustment.created, and adjustment.updated.
 //   2. Deploy with verify_jwt=false (Paddle sends no Supabase JWT).
 //   3. Secrets (supabase secrets set): PADDLE_WEBHOOK_SECRET (from the notification
 //      destination), and the price->tier map PADDLE_PRICE_CORTEX / _BRAIN, each a
@@ -40,15 +40,24 @@ interface PaddleEvent {
     // is what made [설정 -> 구독 관리] impossible to build.
     id?: string;
     subscription_id?: string;
+    transaction_id?: string;
+    action?: string;
     status?: string;
     currency_code?: string;
     custom_data?: { user_id?: string } | null;
-    items?: Array<{ price?: { id?: string } }>;
+    items?: Array<{ price?: { id?: string }; type?: string }>;
     current_billing_period?: { ends_at?: string } | null;
     // Set while a cancellation is pending on an otherwise active subscription,
     // and cleared back to null if it is reversed. This is Paddle's answer to
     // "will this renew?", which [설정 -> 구독 관리] has to be able to state.
     scheduled_change?: { action?: string; effective_at?: string } | null;
+    // adjustment.* totals. `action` (refund | credit | chargeback), `status`
+    // (pending_approval | approved | rejected | reversed) and `items` are
+    // declared above and shared with the subscription path; items[].type carries
+    // 'full' for a whole-transaction refund, which is what decides whether the
+    // entitlement is revoked. Read defensively: an unexpected payload records
+    // the money and leaves the tier alone rather than guessing.
+    totals?: { total?: string | number } | null;
     details?: { totals?: { grand_total?: string | number } } | null;
     payments?: Array<{
       status?: string;
@@ -59,6 +68,13 @@ interface PaddleEvent {
     }> | null;
   };
 }
+
+const REFUND_ADJUSTMENT_STATUSES = new Set([
+  'pending_approval',
+  'approved',
+  'rejected',
+  'reversed',
+]);
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -246,6 +262,114 @@ Deno.serve(async (req: Request) => {
     const userId = data.custom_data?.user_id ?? null;
     const firstPriceId = data.items?.[0]?.price?.id;
 
+    // ── adjustment.* ───────────────────────────────────────────────────────
+    // ONE branch (0119). #1203 and #1205 each added an adjustment handler at the
+    // same time; git merged both, and #1203's returned first, so #1205's was
+    // unreachable dead code and an approved refund still never revoked anything.
+    // The two are complementary, not competing, so they run in order:
+    //
+    //   1. record_paddle_refund_adjustment (#1203) tracks the adjustment
+    //      LIFECYCLE on the ledger row - pending_approval -> approved / rejected
+    //      / reversed - keyed by adjustment id across redeliveries.
+    //   2. apply_billing_refund (#1205) applies the CONSEQUENCE, and only for an
+    //      approved refund: the offsetting revenue row (C4) and, for a full
+    //      refund, the entitlement revoke. Without it the money went back and
+    //      the paid tier stayed live for the rest of the period.
+    //
+    // Step 2 never blocks step 1: the ledger is the record of what Paddle said,
+    // and losing it because a consequence failed would be worse than a delayed
+    // revoke an operator can see and redo.
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { persistSession: false } },
+    );
+
+    const isAdjustmentEvent = eventType === 'adjustment.created' || eventType === 'adjustment.updated';
+    if (isAdjustmentEvent) {
+      if (data.action !== 'refund') return json({ ok: true, ignored: 'non_refund_adjustment' });
+
+      const adjustmentId = typeof data.id === 'string' ? data.id.trim() : '';
+      const adjustmentTransactionId = typeof data.transaction_id === 'string' ? data.transaction_id.trim() : '';
+      const adjustmentStatus = typeof data.status === 'string' ? data.status : '';
+
+      // No id means nothing to address. A refund must never be attributed to a
+      // guessed payment, so this one stays a 400 and lets Paddle retry.
+      if (!adjustmentId || !adjustmentTransactionId) {
+        return json({ error: 'invalid_refund_adjustment' }, 400);
+      }
+
+      // A status outside REFUND_ADJUSTMENT_STATUSES used to 400 as well. That set
+      // is an ASSUMPTION - no adjustment webhook has ever been observed here and
+      // the sandbox comparison is still outstanding - and a 400 makes Paddle
+      // retry, fail, and leave NO row on our side: no event, no ledger entry,
+      // nothing to reconcile a missing refund from. Record it instead, loudly,
+      // and touch neither the entitlement nor revenue: acting on a status we do
+      // not understand is the one thing worse than not acting.
+      if (!REFUND_ADJUSTMENT_STATUSES.has(adjustmentStatus)) {
+        console.error(
+          '[paddle-webhook][ALERT] unhandled_adjustment_status',
+          JSON.stringify({ status: adjustmentStatus, adjustment: adjustmentId, event: eventId }),
+        );
+        const { error: recErr } = await admin.rpc('record_unhandled_billing_event', {
+          p_event_id: eventId,
+          p_event_type: eventType,
+          p_subscription_id: data.subscription_id ?? null,
+          p_transaction_id: adjustmentTransactionId,
+          p_occurred_at: occurredAt,
+          p_payload: event,
+        });
+        if (recErr) {
+          // Could not even record it: a 500 keeps Paddle retrying, which is the
+          // right outcome when we have lost the event entirely.
+          console.error('[paddle-webhook][ALERT] unhandled adjustment record failed:', recErr.message);
+          return json({ error: 'unhandled_adjustment_record_failed' }, 500);
+        }
+        return json({ ok: true, ignored: 'unhandled_adjustment_status', status: adjustmentStatus });
+      }
+
+      const { data: result, error } = await admin.rpc('record_paddle_refund_adjustment', {
+        p_event_id: eventId,
+        p_event_type: eventType,
+        p_adjustment_id: adjustmentId,
+        p_transaction_id: adjustmentTransactionId,
+        p_status: adjustmentStatus,
+        p_occurred_at: occurredAt,
+      });
+      if (error) {
+        console.error('[paddle-webhook] refund adjustment apply failed:', error.message);
+        return json({ error: 'refund_adjustment_apply_failed' }, 500);
+      }
+
+      let applied: unknown = null;
+      if (adjustmentStatus === 'approved') {
+        const rawTotal = data.totals?.total;
+        const cents = rawTotal != null ? parseInt(String(rawTotal), 10) : NaN;
+        // Either signal is sufficient; the RPC also treats a matching accepted
+        // self-serve request as full, since we only ever submit type:'full'.
+        const isFull = (data.items ?? []).some((i) => i?.type === 'full');
+        const { data: applyResult, error: applyError } = await admin.rpc('apply_billing_refund', {
+          p_event_id: `${eventId}:consequence`,
+          p_event_type: eventType,
+          p_adjustment_id: adjustmentId,
+          p_transaction_id: adjustmentTransactionId,
+          p_subscription_id: data.subscription_id ?? null,
+          p_occurred_at: occurredAt,
+          p_amount_cents: Number.isFinite(cents) ? cents : null,
+          p_currency: data.currency_code ?? null,
+          p_is_full: isFull,
+        });
+        if (applyError) {
+          // Loud, but not fatal: the ledger above already recorded the approval,
+          // so an operator can see the refund and reconcile the tier by hand.
+          console.error('[paddle-webhook][ALERT] refund consequence failed:', applyError.message);
+        } else {
+          applied = applyResult;
+        }
+      }
+      return json({ ok: true, result, applied });
+    }
+
     // Paddle object identity (0115). On subscription.* the event's own object IS
     // the subscription; on transaction.* it is the transaction and the
     // subscription is a sibling field. Everything stays null for event shapes
@@ -304,13 +428,22 @@ Deno.serve(async (req: Request) => {
     // when there is no route to an owner at all. Renewal transactions in
     // particular do not reliably carry checkout custom_data.
     if (tier !== null && !userId && !subscriptionId) return json({ ok: true, ignored: 'no_user' });
-    if (tier === null && amountCents === null) return json({ ok: true, ignored: 'no_op' });
+    // 0118: a subscription event that changes no tier is still RECORDED, where
+    // it used to return no_op and leave no trace at all. Two things were
+    // invisible because of that: a past_due / payment-failure period, during
+    // which the paid tier survives unpaid with nothing in the database saying
+    // so; and an active subscription whose price id is missing from
+    // PADDLE_PRICE_* (a new price created in Paddle and not mirrored into the
+    // env), where the payer silently stayed free and Paddle was told 200 OK.
+    // Writing the row costs nothing and makes both greppable.
+    const isSubscriptionLifecycle = eventType.startsWith('subscription.');
+    if (tier === null && amountCents === null && !isSubscriptionLifecycle) {
+      return json({ ok: true, ignored: 'no_op' });
+    }
+    if (tier === null && amountCents === null && !userId && !subscriptionId) {
+      return json({ ok: true, ignored: 'no_op' });
+    }
 
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } },
-    );
     const { data: result, error } = await admin.rpc('apply_billing_event', {
       p_event_id: eventId,
       p_event_type: eventType,

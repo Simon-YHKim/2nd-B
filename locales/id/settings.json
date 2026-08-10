@@ -221,26 +221,30 @@
       "title": "Pengembalian dana",
       "cta": "Ajukan pengembalian dana",
       "confirmTitle": "Ajukan pengembalian dana?",
-      "confirmBody": "Permintaan dikirim ke Paddle sebagai penjual resmi. Kalau disetujui, seluruh jumlahnya kembali ke metode pembayaran awal dan fitur berbayar tertutup.",
+      "confirmBody": "Permintaan dikirim ke Paddle sebagai penjual resmi. Kalau Paddle menyetujuinya, seluruh jumlahnya kembali ke metode pembayaran awal. Ini tidak otomatis membatalkan langganan, jadi batalkan juga kalau kamu ingin tagihannya berhenti.",
       "confirmCta": "Kirim permintaan",
       "reason": {
         "eligible": "Kamu bisa mengajukan pengembalian dana penuh sekarang.",
+        "alreadyRequested": "Permintaan pengembalian dana untuk pembayaran ini sudah tercatat.",
         "usedBeyondFree": "Pemakaian sejak pembayaran melebihi jatah paket gratis untuk rentang waktu yang sama, jadi pengembalian dana mandiri tidak tersedia.",
-        "windowPassed": "Sudah lebih dari 7 hari sejak pembayaran, jadi pengembalian dana mandiri tidak tersedia.",
+        "windowPassed": "Sudah lebih dari {{total}} hari sejak pembayaran, jadi pengembalian dana mandiri tidak tersedia.",
         "noPayment": "Tidak ada catatan pembayaran yang bisa dikembalikan.",
         "unknown": "Kami tidak bisa memeriksa kelayakan pengembalian dana."
       },
       "window": "Masa pengembalian dana: sisa {{days}} dari {{total}} hari",
       "usage": "Penalaran terpakai: {{used}} (paket gratis memberi {{allowance}} pada rentang yang sama)",
-      "calls": "Panggilan AI tercatat: {{calls}}"
+      "calls": "Panggilan AI tercatat: {{calls}}",
+      "currentPolicyNote": "Bisa dikembalikan dalam 7 hari setelah pembayaran, selama pemakaianmu masih dalam batas yang diberikan paket gratis."
     },
     "notice": {
       "cancelledAtRenewal": "Pembatalan dijadwalkan pada tanggal perpanjangan berikutnya.",
       "cancelledNow": "Pembatalan langsung sudah dikirim.",
-      "refundRequested": "Permintaan pengembalian dana sudah dikirim. Keputusannya dikirim lewat email ke alamat pada struk.",
+      "refundRequested": "Permintaan pengembalian dana sudah dikirim ke Paddle. Keputusannya dikirim lewat email ke alamat pada struk. Batalkan langganan secara terpisah kalau kamu juga ingin tagihannya berhenti.",
       "alreadyRequested": "Sudah ada permintaan yang tercatat, jadi tidak dikirim dua kali.",
       "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
-      "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan."
+      "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan.",
+      "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan.",
+      "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya."
     },
     "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
     "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",

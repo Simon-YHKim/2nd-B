@@ -151,18 +151,6 @@ const schema = z.object({
   GOOGLE_API_KEY: z.string().optional(),
   EXPO_PUBLIC_SENTRY_DSN: z.string().optional(),
   SENTRY_DSN: z.string().optional(),
-  EXPO_PUBLIC_POSTHOG_KEY: z.string().optional(),
-  // Telemetry endpoints must NEVER brick the app. The previous .url() check
-  // threw at module init, and because the deploy workflow renders an unset
-  // repo Variable as the EMPTY STRING, every visitor got a dead black screen
-  // (live outage, 2026-06-11: ZodError on EXPO_PUBLIC_POSTHOG_HOST took the
-  // whole site down). Now: empty -> off, scheme-less host -> https:// is
-  // assumed (the common paste form "us.i.posthog.com"), anything else -> a
-  // loud console warning and analytics stays off. The app always boots.
-  EXPO_PUBLIC_POSTHOG_HOST: z
-    .string()
-    .optional()
-    .transform((value) => normalizeAnalyticsUrl("EXPO_PUBLIC_POSTHOG_HOST", value)),
   // Web usage analytics — public client-side ids (not secrets). Both no-op until
   // set, and only load after the user grants analytics consent (PIPA). GA4 =
   // "G-XXXXXXX" measurement id (gtag); Clarity = the project id from
@@ -233,8 +221,6 @@ function readRaw(): Record<string, string | undefined> {
   const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
   const publicGoogleKey = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
   const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-  const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
-  const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST;
   const ga4Id = process.env.EXPO_PUBLIC_GA4_MEASUREMENT_ID;
   const clarityId = process.env.EXPO_PUBLIC_CLARITY_PROJECT_ID;
   const enableAds = process.env.EXPO_PUBLIC_ENABLE_ADS;
@@ -278,8 +264,6 @@ function readRaw(): Record<string, string | undefined> {
     GOOGLE_API_KEY: (publicGoogleKey && publicGoogleKey.length > 0) ? publicGoogleKey : proc.GOOGLE_API_KEY,
     EXPO_PUBLIC_SENTRY_DSN: presentOrUndefined(sentryDsn),
     SENTRY_DSN: proc.SENTRY_DSN,
-    EXPO_PUBLIC_POSTHOG_KEY: presentOrUndefined(posthogKey),
-    EXPO_PUBLIC_POSTHOG_HOST: presentOrUndefined(posthogHost),
     EXPO_PUBLIC_GA4_MEASUREMENT_ID: presentOrUndefined(ga4Id),
     EXPO_PUBLIC_CLARITY_PROJECT_ID: presentOrUndefined(clarityId),
     EXPO_PUBLIC_ENABLE_ADS: presentOrUndefined(enableAds),

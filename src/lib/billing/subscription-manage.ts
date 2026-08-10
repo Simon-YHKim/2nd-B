@@ -26,10 +26,28 @@ import { REASONING_PER_WEEK } from "../entitlements/tier-map";
  *  how long the user waited to ask. */
 export const REFUND_WINDOW_DAYS = 7;
 
+/** The window the policy published 2026-07-17 promised, still in force until the
+ *  revision's effective date: 30 days, no questions asked. */
+export const PRE_REVISION_WINDOW_DAYS = 30;
+
 /** Free-plan reasoning allowance per ISO week. ONE number, taken from the tier
  *  vocabulary SoT rather than retyped, so a cap change cannot silently split the
  *  refund rule away from the plan it is measured against. */
 export const FREE_RUNS_PER_WEEK = REASONING_PER_WEEK.free ?? 0;
+
+/** When the revised rule took effect. 0120 briefly DATED it (30 days until
+ *  2026-09-08, 7 after); 0122 removed the dating on Simon's decision, so the
+ *  revised rule is simply the rule from 2026-08-11. Kept as a constant so the
+ *  migration test can assert the dating is GONE from the SQL rather than
+ *  silently drifting back. */
+export const REFUND_POLICY_EFFECTIVE_AT = Date.parse("2026-08-11T00:00:00+09:00");
+
+/** There is one rule now, so this is always true. Retained rather than deleted
+ *  because the payload still carries `policy` / `usage_gate_applies`, and a
+ *  future dated change should be a constant edit, not a contract change. */
+export function revisedPolicyInForce(_now: number = Date.now()): boolean {
+  return true;
+}
 
 /** What the free plan would have allowed over a span of `days`, pro-rated by
  *  whole or partial weeks. A 1-day-old payment still gets a full week's worth:
@@ -47,8 +65,12 @@ export function verdictFor(input: {
   daysSincePayment: number | null;
   reasoningRuns: number;
   reasoningCalls: number;
+  /** Accepted and ignored since 0122: there is one rule now. Kept so existing
+   *  callers and tests compile unchanged. */
+  now?: number;
 }): RefundStatus {
   if (input.daysSincePayment == null) return "no_payment";
+  // ONE rule (0122): inside the 7-day window AND inside the free-plan allowance.
   if (input.daysSincePayment > REFUND_WINDOW_DAYS) return "window_passed";
   // Runs are the meter the free cap actually spends from. The audit-log count is
   // the fallback only when the run ledger has nothing for the window, so a call
@@ -61,15 +83,40 @@ export function verdictFor(input: {
 /** Server verdict codes from refund_eligibility(). */
 export type RefundStatus =
   | "eligible"
+  | "refund_already_requested"
   | "used_beyond_free"
   | "window_passed"
   | "no_payment"
   | "unknown";
 
+/** Narrow the RPC's untrusted JSON status onto the client vocabulary. Unknown
+ *  values fail closed so a new server verdict cannot accidentally open the
+ *  refund action before the app knows how to explain it. */
+export function parseRefundStatus(raw: unknown): RefundStatus {
+  switch (raw) {
+    case "eligible":
+    case "refund_already_requested":
+    case "used_beyond_free":
+    case "window_passed":
+    case "no_payment":
+    case "unknown":
+      return raw;
+    default:
+      return "unknown";
+  }
+}
+
 /** The verdict plus every number behind it. The screen shows these verbatim: a
  *  user told "no" is entitled to see which count produced that answer. */
 export interface RefundEligibility {
   status: RefundStatus;
+  /** Which published policy produced this verdict (0120). Before the revision's
+   *  effective date the server applies the 30-day no-questions-asked rule that is
+   *  actually in force; from that instant, the 7-day usage-gated one. */
+  policy?: "pre_revision" | "revised";
+  /** false while the pre-revision policy applies: usage cannot refuse a refund,
+   *  though the numbers are still measured and shown. */
+  usage_gate_applies?: boolean;
   tier?: string;
   paid_at?: string | null;
   transaction_id?: string | null;
@@ -108,14 +155,20 @@ export interface SubscriptionOverview {
 
 export type ManageOutcome =
   | "accepted"
+  | "dry_run"
   | "duplicate"
   | "rejected"
   | "provider_error"
   | "misconfigured";
 
+/** Why the server refused. Present only on outcome "rejected"; the two refusals
+ *  need different sentences ("not owed a refund" vs "nothing to cancel"). */
+export type ManageRejectReason = "not_eligible" | "not_subscribed";
+
 export interface ManageResult {
   ok: boolean;
   outcome: ManageOutcome;
+  reason: ManageRejectReason | null;
   /** true when the server could not act and the user must be routed to support. */
   contactSupport: boolean;
   /** Paddle adjustment / subscription reference, when the call succeeded. */
@@ -129,10 +182,9 @@ const UNKNOWN: RefundEligibility = { status: "unknown" };
 function asEligibility(raw: unknown): RefundEligibility {
   if (!raw || typeof raw !== "object") return UNKNOWN;
   const rec = raw as Record<string, unknown>;
-  const status = typeof rec.status === "string" ? rec.status : "unknown";
   // Spread first so unknown extra fields survive for display, then pin `status`
   // to the narrowed union: the RPC is the authority on the verdict vocabulary.
-  return { ...rec, status: status as RefundStatus } as RefundEligibility;
+  return { ...rec, status: parseRefundStatus(rec.status) } as RefundEligibility;
 }
 
 /** Read the refund verdict for the signed-in user. Own-row only: the RPC rejects
@@ -180,9 +232,12 @@ export function renewalState(o: SubscriptionOverview): "auto_renew" | "cancel_sc
 function asResult(raw: unknown): ManageResult {
   const rec = (raw ?? {}) as Record<string, unknown>;
   const outcome = (typeof rec.outcome === "string" ? rec.outcome : "provider_error") as ManageOutcome;
+  const reason =
+    rec.reason === "not_eligible" || rec.reason === "not_subscribed" ? (rec.reason as ManageRejectReason) : null;
   return {
     ok: rec.ok === true,
     outcome,
+    reason,
     contactSupport: rec.contact_support === true,
     reference: typeof rec.reference === "string" ? rec.reference : null,
     dryRun: rec.dry_run === true,
@@ -220,6 +275,8 @@ export function refundReasonKey(status: RefundStatus): string {
   switch (status) {
     case "eligible":
       return "eligible";
+    case "refund_already_requested":
+      return "alreadyRequested";
     case "used_beyond_free":
       return "usedBeyondFree";
     case "window_passed":

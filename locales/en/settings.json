@@ -221,26 +221,30 @@
       "title": "Refund",
       "cta": "Request a refund",
       "confirmTitle": "Request a refund?",
-      "confirmBody": "The request goes to Paddle, the seller of record. If it is approved, the full amount returns to your original payment method and paid features close.",
+      "confirmBody": "The request goes to Paddle, the seller of record. If Paddle approves it, the full amount returns to your original payment method. This does not cancel the subscription on its own, so cancel it too if you want the billing to stop.",
       "confirmCta": "Send request",
       "reason": {
         "eligible": "You can request a full refund right now.",
+        "alreadyRequested": "A refund request for this payment is already on file.",
         "usedBeyondFree": "Usage since the payment went past what the free plan covers over the same span, so self-serve refund is not available.",
-        "windowPassed": "More than 7 days have passed since the payment, so self-serve refund is not available.",
+        "windowPassed": "More than {{total}} days have passed since the payment, so self-serve refund is not available.",
         "noPayment": "There is no payment on record to refund.",
         "unknown": "We could not check refund eligibility."
       },
       "window": "Refund window: {{days}} of {{total}} days left",
       "usage": "Reasoning used: {{used}} (the free plan allows {{allowance}} over the same span)",
-      "calls": "AI calls on record: {{calls}}"
+      "calls": "AI calls on record: {{calls}}",
+      "currentPolicyNote": "Refundable within 7 days of payment, as long as your usage has stayed within what the free plan covers."
     },
     "notice": {
       "cancelledAtRenewal": "Cancellation is scheduled for the next renewal date.",
       "cancelledNow": "Immediate cancellation has been submitted.",
-      "refundRequested": "Your refund request was submitted. The decision arrives by email from the payment receipt address.",
+      "refundRequested": "Your refund request was submitted to Paddle. The decision arrives by email from the payment receipt address. Cancel the subscription separately if you also want the billing to stop.",
       "alreadyRequested": "A request is already on file, so nothing was submitted twice.",
       "refundRejected": "Self-serve refund is not available for this payment.",
-      "contactSupport": "This cannot be handled in the app right now. Please contact support."
+      "contactSupport": "This cannot be handled in the app right now. Please contact support.",
+      "notSubscribed": "There is no active paid subscription to cancel.",
+      "dryRun": "Rehearsal mode is on, so nothing was sent to Paddle. Contact support if you meant to submit this."
     },
     "autoRenewOn": "Renews automatically on {{date}}",
     "cancelScheduledOn": "Auto-renewal is off. Paid features stay open until {{date}}.",

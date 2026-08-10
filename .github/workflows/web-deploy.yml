@@ -130,15 +130,10 @@ jobs:
           # consent-gated and wired since #258, but the build never injected
           # the ids, so live collection was a no-op. All optional: an unset
           # Variable keeps that tool off. Set the four Variables to activate
-          # (GA4 G-xxxx, Clarity project id, Sentry DSN, PostHog key).
+          # (GA4 G-xxxx, Clarity project id, Sentry DSN).
           EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
           EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
           EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
-          EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
-          # PostHog needs BOTH key and host (analytics/index.ts gates on the
-          # pair) plus the posthog-js package — see docs/ADS.md before relying
-          # on it.
-          EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
           # Paddle web checkout (#1171). The web export is the only surface that can
           # take money: RevenueCat is native-only, so a browser visitor had no payment
           # path at all. paddleCheckoutAvailable() fails closed on any unset value, so
