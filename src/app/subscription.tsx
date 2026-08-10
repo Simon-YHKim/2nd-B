@@ -188,9 +188,8 @@ export default function SubscriptionScreen() {
   const method = overview ? formatPaymentMethod(overview) : null;
   const daysLeft = eligibility ? refundDaysLeft(eligibility) : null;
   const reasonKey = eligibility ? refundReasonKey(eligibility.status) : "unknown";
-  // The SERVER decides which policy applies and returns the verdict under it
-  // (0120). The screen never re-decides; it only renders what came back.
-  const usageGateApplies = eligibility?.usage_gate_applies === true;
+  // The SERVER decides the verdict; the screen never re-decides, it only
+  // renders what came back.
   const refundOpen = eligibility != null && canRequestRefund(eligibility) && !busy;
 
   return (
@@ -293,10 +292,10 @@ export default function SubscriptionScreen() {
                     total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
                   })}
                 </Text>
-                {/* Which rule this verdict came from. Before the revision takes
-                    effect the answer is the more generous one, and saying so is
-                    also the advance notice of what changes on 2026-09-08. */}
-                {!usageGateApplies ? <Text style={s.dim}>{t("subscription.refund.currentPolicyNote")}</Text> : null}
+                {/* The rule, stated under every verdict: 7 days AND inside the
+                    free-plan allowance. A user refused for usage should be able
+                    to read the condition without leaving the screen. */}
+                <Text style={s.dim}>{t("subscription.refund.currentPolicyNote")}</Text>
 
                 <View style={s.evidence}>
                   {daysLeft != null ? (
@@ -307,7 +306,7 @@ export default function SubscriptionScreen() {
                       })}
                     </Text>
                   ) : null}
-                  {usageGateApplies && eligibility.free_allowance != null ? (
+                  {eligibility.free_allowance != null ? (
                     <Text style={s.dim}>
                       {t("subscription.refund.usage", {
                         used: eligibility.counted_usage ?? 0,
@@ -315,7 +314,7 @@ export default function SubscriptionScreen() {
                       })}
                     </Text>
                   ) : null}
-                  {usageGateApplies && eligibility.reasoning_calls_logged != null ? (
+                  {eligibility.reasoning_calls_logged != null ? (
                     <Text style={s.dim}>
                       {t("subscription.refund.calls", { calls: eligibility.reasoning_calls_logged })}
                     </Text>
