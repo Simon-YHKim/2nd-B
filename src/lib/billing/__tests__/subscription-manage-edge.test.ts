@@ -164,20 +164,20 @@ describe("subscription-manage - honest wording at the boundary", () => {
   });
 });
 
-describe("subscription-manage - the revised policy has an effective date", () => {
-  test("refunds are refused before it, and the constant matches the TS mirror", () => {
-    // PADDLE_SELF_SERVICE_ENABLED is an operator switch, not a legal one. Even
-    // flipped early, the function must not apply a standard that is not yet in
-    // force (docs/legal/refund-policy.md "개정 시행일: 2026-09-08").
-    expect(code).toMatch(/const REFUND_POLICY_EFFECTIVE_AT = Date\.parse\('2026-09-08T00:00:00\+09:00'\)/);
-    expect(code).toMatch(/action === 'refund_request' && Date\.now\(\) < REFUND_POLICY_EFFECTIVE_AT/);
-    expect(code).toMatch(/'policy_not_in_effect'/);
+describe("subscription-manage - the policy is dated, not gated (0120)", () => {
+  test("there is NO effective-date refusal: the server applies the rule in force", () => {
+    // The first attempt refused every refund_request until 2026-09-08. That
+    // solved "do not show a stricter rule than the one binding us" by turning
+    // the feature off, and sent users who were OWED a refund under the current
+    // 30-day no-questions-asked policy to email support instead.
+    expect(code).not.toMatch(/policy_not_in_effect/);
+    expect(code).not.toMatch(/REFUND_POLICY_EFFECTIVE_AT/);
+    expect(code).not.toMatch(/Date\.now\(\) </);
   });
 
-  test("cancel is NOT date-gated: cancelling was never the adverse change", () => {
-    const gate = code.match(/Date\.now\(\) < REFUND_POLICY_EFFECTIVE_AT/g) ?? [];
-    expect(gate).toHaveLength(1);
-    expect(code).not.toMatch(/action === 'cancel' && Date\.now\(\)/);
+  test("the verdict it enforces is still the server's, re-derived per request", () => {
+    expect(code).toMatch(/rpc\('refund_eligibility'/);
+    expect(code).toMatch(/action === 'refund_request' && eligibility\.status !== 'eligible'/);
   });
 });
 
@@ -204,10 +204,14 @@ describe("subscription-manage - 0118 hardening", () => {
 });
 
 describe("supabase/config.toml declares every deployed function", () => {
-  test("the three JWT-less functions are declared verify_jwt = false", () => {
-    // Undeclared meant the CLI default (TRUE) applied on the next redeploy,
-    // which would have 401'd every Paddle delivery and stopped billing.
-    for (const fn of ["paddle-webhook", "rewarded-ssv", "peer-respond"]) {
+  // Declared values must match what is LIVE, not what the header comment
+  // implies. Undeclared meant the CLI default (TRUE) applied on the next
+  // redeploy, which would have 401'd every Paddle delivery and stopped billing.
+  // The inverse mistake is just as real: peer-respond reads as "no account, so
+  // no JWT", but its caller posts the anon key as a bearer token and the gateway
+  // check passes, so it is live as TRUE - declaring false would have loosened it.
+  test("the callers that send no token at all are declared verify_jwt = false", () => {
+    for (const fn of ["paddle-webhook", "rewarded-ssv"]) {
       const header = `[functions.${fn}]`;
       const at = config.indexOf(header);
       expect(at).toBeGreaterThan(-1);
@@ -217,5 +221,18 @@ describe("supabase/config.toml declares every deployed function", () => {
       const block = next === -1 ? rest : rest.slice(0, next);
       expect(block).toContain("verify_jwt = false");
     }
+  });
+
+  test("peer-respond is declared TRUE, matching live and its caller", () => {
+    const header = "[functions.peer-respond]";
+    const at = config.indexOf(header);
+    expect(at).toBeGreaterThan(-1);
+    const rest = config.slice(at + header.length);
+    const next = rest.indexOf("\n[functions.");
+    const block = next === -1 ? rest : rest.slice(0, next);
+    expect(block).toContain("verify_jwt = true");
+    // And the caller really does present a token, or the declaration is wrong.
+    const caller = readFileSync(join(ROOT, "src", "lib", "peer", "peer-respond.ts"), "utf8");
+    expect(caller).toMatch(/authorization: `Bearer \$\{env\.EXPO_PUBLIC_SUPABASE_ANON_KEY\}`/);
   });
 });

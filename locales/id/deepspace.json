@@ -188,7 +188,8 @@
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
     "navData": "Dataku",
-    "navBeyond": "Di luar aplikasi"
+    "navBeyond": "Di luar aplikasi",
+    "navPassword": "Change password"
   },
   "privacy": {
     "title": "Privasi",

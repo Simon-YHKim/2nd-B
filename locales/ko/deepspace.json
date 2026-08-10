@@ -188,7 +188,8 @@
     "navProfile": "프로필",
     "navSettings": "설정",
     "navData": "내 데이터",
-    "navBeyond": "앱 밖에서"
+    "navBeyond": "앱 밖에서",
+    "navPassword": "비밀번호 변경"
   },
   "privacy": {
     "title": "개인정보",

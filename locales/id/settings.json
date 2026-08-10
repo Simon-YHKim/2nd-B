@@ -234,7 +234,7 @@
       "window": "Masa pengembalian dana: sisa {{days}} dari {{total}} hari",
       "usage": "Penalaran terpakai: {{used}} (paket gratis memberi {{allowance}} pada rentang yang sama)",
       "calls": "Panggilan AI tercatat: {{calls}}",
-      "beforeEffective": "Ketentuan pengembalian dana yang direvisi berlaku mulai 8 September 2026. Sampai saat itu kebijakan yang berlaku sekarang tetap dipakai: pengembalian dana penuh dalam 30 hari setelah pembayaran, tanpa ditanya alasannya, diajukan lewat email."
+      "currentPolicyNote": "Sampai 8 September 2026 kebijakan yang berlaku sekarang dipakai: pengembalian dana penuh dalam 30 hari setelah pembayaran, tanpa ditanya alasannya. Mulai tanggal itu masanya jadi 7 hari dan pemakaianmu harus tetap dalam batas paket gratis."
     },
     "notice": {
       "cancelledAtRenewal": "Pembatalan dijadwalkan pada tanggal perpanjangan berikutnya.",
@@ -244,8 +244,7 @@
       "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
       "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan.",
       "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan.",
-      "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya.",
-      "policyNotInEffect": "Ketentuan pengembalian dana yang direvisi belum berlaku. Untuk sekarang, ajukan pengembalian dana lewat email."
+      "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya."
     },
     "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
     "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",

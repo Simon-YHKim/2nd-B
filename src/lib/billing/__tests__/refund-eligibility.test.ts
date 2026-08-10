@@ -11,6 +11,7 @@
 
 import {
   FREE_RUNS_PER_WEEK,
+  PRE_REVISION_WINDOW_DAYS,
   REFUND_WINDOW_DAYS,
   canRequestRefund,
   formatPaymentMethod,
@@ -24,8 +25,14 @@ import {
   type RefundEligibility,
 } from "../subscription-manage";
 
+// The boundary cases below all describe the REVISED rule, so they pin `now` to a
+// moment after its effective date. The pre-revision rule has its own block at the
+// bottom of this file.
+const AFTER = Date.parse("2026-09-08T00:00:00+09:00") + 1000;
+const BEFORE = Date.parse("2026-09-08T00:00:00+09:00") - 1000;
+
 const runs = (daysSincePayment: number, reasoningRuns: number) =>
-  verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0 });
+  verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0, now: AFTER });
 
 describe("free-plan allowance is pro-rated by whole or partial weeks", () => {
   test("free cap is the tier-map number, not a retyped literal", () => {
@@ -96,21 +103,21 @@ describe("7-day window boundary", () => {
   });
 
   test("no payment on record is its own verdict, not a refusal", () => {
-    expect(verdictFor({ daysSincePayment: null, reasoningRuns: 0, reasoningCalls: 0 })).toBe("no_payment");
+    expect(verdictFor({ daysSincePayment: null, reasoningRuns: 0, reasoningCalls: 0, now: AFTER })).toBe("no_payment");
   });
 });
 
 describe("audit-log fallback only applies when the run ledger is empty", () => {
   test("with runs present the audit count is ignored, however large", () => {
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 1, reasoningCalls: 50 })).toBe("eligible");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 1, reasoningCalls: 50, now: AFTER })).toBe("eligible");
   });
 
   test("with no runs, logged calls beyond the allowance still block a free refund", () => {
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 3 })).toBe("used_beyond_free");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 3, now: AFTER })).toBe("used_beyond_free");
   });
 
   test("with no runs and calls inside the allowance it stays eligible", () => {
-    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 2 })).toBe("eligible");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 2, now: AFTER })).toBe("eligible");
   });
 });
 
@@ -147,8 +154,11 @@ describe("days-left display", () => {
     expect(refundDaysLeft({ ...base, days_since_payment: 45 })).toBe(0);
   });
 
-  test("falls back to the published window when the server omits it", () => {
-    expect(refundDaysLeft({ status: "eligible", days_since_payment: 3 })).toBe(4);
+  test("falls back to the window of whichever policy is in force", () => {
+    // Only reachable against a server too old to send refund_window_days. The
+    // fallback must still follow the dated policy, not a fixed 7.
+    const expected = (revisedPolicyInForce() ? REFUND_WINDOW_DAYS : PRE_REVISION_WINDOW_DAYS) - 3;
+    expect(refundDaysLeft({ status: "eligible", days_since_payment: 3 })).toBe(expected);
   });
 
   test("no payment means no countdown", () => {
@@ -196,5 +206,38 @@ describe("the revised policy does not bind anyone before its effective date", ()
     // was re-issued 2026-08-09, which is exactly 30 days before.
     const noticed = Date.parse("2026-08-09T00:00:00+09:00");
     expect(Math.round((REFUND_POLICY_EFFECTIVE_AT - noticed) / DAY)).toBe(30);
+  });
+});
+
+// The feature must WORK before the revision, under the rule that binds us then.
+// Blocking it (the first attempt) refused refunds to users who were owed one.
+describe("before the effective date the PRE-REVISION policy is applied, not a block", () => {
+  const pre = (daysSincePayment: number, reasoningRuns: number) =>
+    verdictFor({ daysSincePayment, reasoningRuns, reasoningCalls: 0, now: BEFORE });
+
+  test("the window is 30 days, not 7", () => {
+    expect(PRE_REVISION_WINDOW_DAYS).toBe(30);
+    expect(pre(20, 0)).toBe("eligible");
+    expect(pre(30, 0)).toBe("eligible");
+    expect(pre(30.01, 0)).toBe("window_passed");
+  });
+
+  test("no questions asked: usage can never refuse a refund", () => {
+    expect(pre(3, 999)).toBe("eligible");
+    expect(pre(29, 999)).toBe("eligible");
+    expect(verdictFor({ daysSincePayment: 3, reasoningRuns: 0, reasoningCalls: 999, now: BEFORE })).toBe("eligible");
+  });
+
+  test("used_beyond_free is unreachable under the pre-revision rule", () => {
+    for (const day of [0, 1, 7, 14, 29.9]) {
+      expect(pre(day, 500)).not.toBe("used_beyond_free");
+    }
+  });
+
+  test("the rule flips by the clock alone, with no deploy and no flag", () => {
+    // Same inputs, one second apart across the boundary, opposite answers.
+    const args = { daysSincePayment: 3, reasoningRuns: 99, reasoningCalls: 0 };
+    expect(verdictFor({ ...args, now: BEFORE })).toBe("eligible");
+    expect(verdictFor({ ...args, now: AFTER })).toBe("used_beyond_free");
   });
 });

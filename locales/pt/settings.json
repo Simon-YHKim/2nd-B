@@ -234,7 +234,7 @@
       "window": "Janela de reembolso: faltam {{days}} de {{total}} dias",
       "usage": "Raciocinios usados: {{used}} (o plano gratuito permite {{allowance}} no mesmo periodo)",
       "calls": "Chamadas de IA registradas: {{calls}}",
-      "beforeEffective": "As condicoes de reembolso revisadas entram em vigor em 8 de setembro de 2026. Ate la vale a politica atual: reembolso integral em ate 30 dias apos o pagamento, sem perguntas, solicitado por e-mail."
+      "currentPolicyNote": "Ate 8 de setembro de 2026 vale a politica atual: reembolso integral em ate 30 dias apos o pagamento, sem perguntas. A partir dessa data a janela passa a ser de 7 dias e o seu uso precisa ter ficado dentro do que o plano gratuito cobre."
     },
     "notice": {
       "cancelledAtRenewal": "O cancelamento ficou agendado para a proxima data de renovacao.",
@@ -244,8 +244,7 @@
       "refundRejected": "O reembolso automatico nao esta disponivel para este pagamento.",
       "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte.",
       "notSubscribed": "Nao ha assinatura paga ativa para cancelar.",
-      "dryRun": "O modo de ensaio esta ligado, entao nada foi enviado para a Paddle. Fale com o suporte se voce queria enviar de verdade.",
-      "policyNotInEffect": "As condicoes de reembolso revisadas ainda nao estao em vigor. Por enquanto, peca o reembolso por e-mail."
+      "dryRun": "O modo de ensaio esta ligado, entao nada foi enviado para a Paddle. Fale com o suporte se voce queria enviar de verdade."
     },
     "autoRenewOn": "Renova automaticamente em {{date}}",
     "cancelScheduledOn": "A renovacao automatica esta desligada. Os recursos pagos continuam ate {{date}}.",

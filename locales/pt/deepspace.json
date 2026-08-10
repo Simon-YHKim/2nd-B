@@ -188,7 +188,8 @@
     "navProfile": "Perfil",
     "navSettings": "Configurações",
     "navData": "Meus dados",
-    "navBeyond": "Fora do app"
+    "navBeyond": "Fora do app",
+    "navPassword": "Change password"
   },
   "privacy": {
     "title": "Privacidade",
