@@ -11,7 +11,7 @@
 | Ad policy (single source of truth) | `src/lib/ads/policy.ts` (+tests) | paying tiers / minors / no-consent / sensitive routes always OFF |
 | Web AdSense slot | `src/components/ads/AdSlot.tsx` | records list footer only; AdBlock/no-fill → subscription upsell line |
 | Build flags | `EXPO_PUBLIC_ENABLE_ADS` (default false), `EXPO_PUBLIC_ADSENSE_CLIENT`, `EXPO_PUBLIC_ADSENSE_SLOT_RECORDS` | unset = invisible |
-| Analytics (GA4 / Clarity / PostHog / Sentry) | `src/lib/analytics` + consent gate, wired since #258 | ids never injected → **collecting nothing** until Variables set |
+| Analytics (GA4 / Clarity / Sentry) | `src/lib/analytics` + consent gate, wired since #258 | ids never injected → **collecting nothing** until Variables set |
 | Build wiring | `.github/workflows/web-deploy.yml` | all seven Variables now flow into the web build |
 
 Deliberate rollout gate: the **ads-consent toggle is not collected yet** (privacy
@@ -25,7 +25,7 @@ Variables set. Never default that to true.
 1. GA4: analytics.google.com → property for `simon-yhkim.github.io/2nd-B` → Variable `EXPO_PUBLIC_GA4_MEASUREMENT_ID` (G-xxxx).
 2. Clarity: clarity.microsoft.com → new project → `EXPO_PUBLIC_CLARITY_PROJECT_ID`.
 3. Sentry: sentry.io → Browser/JS project DSN → `EXPO_PUBLIC_SENTRY_DSN` (the web build uses @sentry/browser; DSNs are cross-platform anyway).
-4. PostHog (optional, extra steps): needs BOTH `EXPO_PUBLIC_POSTHOG_KEY` and `EXPO_PUBLIC_POSTHOG_HOST` (e.g. https://us.i.posthog.com) AND `npm i posthog-js` (not currently a dependency — the loader silently no-ops without it). GA4+Clarity cover the launch funnel; treat PostHog as a later upgrade.
+4. PostHog: removed 2026-08-10. The loader was never wired (posthog-js was never a dependency, so the dynamic import always threw into a silent catch) and GA4 + Clarity cover the funnel. Re-adding it means adding the package back, not just Variables.
 → GitHub repo → Settings → Variables → add → re-run web-deploy. Done.
 
 ### 2. AdSense (web) — needs site approval

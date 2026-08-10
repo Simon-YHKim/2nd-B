@@ -77,7 +77,7 @@ export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memo
 // why the unenforced llm_training/persona_export/persona_share keys were pruned
 // entirely; `sharing` remains as the one intentional future-wiring placeholder).
 // Enforced today:
-//   - external_analytics: analytics-consent-queue gates GA4/Clarity/PostHog.
+//   - external_analytics: analytics-consent-queue gates GA4/Clarity.
 //   - ads (2026-06-11): AdSlot reads this pref as the explicit ads consent
 //     (policy rule 3, src/lib/ads/policy.ts) — OFF means no ads at all, not
 //     non-personalized ones. Minors stay locked OFF here AND suppressed
