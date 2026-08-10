@@ -44,6 +44,16 @@ _최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
 ### 7. 정책 변경
 본 정책은 관련 법령 및 서비스 정책에 따라 변경될 수 있으며, 변경 시 서비스 내 공지합니다.
 
+### 8. 개정 경위
+본 정책은 2026-08-11 자로 개정되었습니다. 무엇이 바뀌었고 어떤 절차를 거쳤는지, 저희에게 불리한 부분을 포함하여 그대로 남깁니다.
+
+- **종전 (2026-07-17 판)**: 결제일로부터 30일 동안 조건 없이 전액 환불.
+- **현행 (2026-08-11 판)**: 결제일로부터 7일 이내이고, 결제 이후의 이용량이 무료 플랜 범위 안에 있을 것. 위 2항이 그 내용입니다.
+- **공지 경과**: 개정은 2026-08-09 서비스 내 공지로 처음 안내했고, 2026-08-11 자 공지에서 시행일을 2026-08-11 로 정했습니다. 공지일과 시행일이 같은 날이므로 **사전 고지 기간은 없었습니다.**
+- **이용약관과의 관계**: 이용약관 제3조②는 이용자에게 불리한 변경을 30일 전에 공지한다고 정하고 있습니다. 이번 개정은 그 기간을 지키지 못했습니다.
+- **개정 내용의 근거**: 현행 7일은 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조제1항이 정한 법정 청약철회 기간과 같은 기간이며, 이용량 조건은 같은 조 제2항제5호에 근거합니다. 종전의 30일은 법정 기준보다 넓게 제공하던 것입니다.
+- **개별 사정**: 2026-08-11 이전 결제분을 포함하여 개별 사정이 있으신 경우, 위 2항④ 및 6항에 따라 kim0405@hayangzip.com 으로 알려주시면 검토 후 회신합니다.
+
 ---
 
 ## English
@@ -85,3 +95,13 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 
 ### 7. Changes
 This policy may change per applicable law and Service policy; changes will be announced in the Service.
+
+### 8. Revision history
+This policy was revised on 2026-08-11. What changed and how it was announced is recorded here, including the part that does not favour us.
+
+- **Previous (2026-07-17 edition)**: a full refund for 30 days after payment, unconditionally.
+- **Current (2026-08-11 edition)**: within 7 days of payment, and only if usage since that payment stayed within the free-plan range. Section 2 above is that rule.
+- **How it was announced**: the revision was first announced in-app on 2026-08-09, and the notice issued on 2026-08-11 set the effective date to 2026-08-11. The notice and the effective date fall on the same day, so **there was no advance notice period**.
+- **Relation to our Terms**: Article 3(2) of the Terms of Service states that changes unfavourable to users are announced 30 days beforehand. This revision did not meet that period.
+- **Basis for the new rule**: the 7-day window is the same period as the statutory right of withdrawal under Article 17(1) of Korea's Act on Consumer Protection in Electronic Commerce, and the usage condition rests on Article 17(2)5 of the same Act. The previous 30-day term was more generous than the law requires.
+- **Individual circumstances**: for any individual case, including payments made before 2026-08-11, sections 2(4) and 6 above apply. Write to kim0405@hayangzip.com and we will review and reply.
