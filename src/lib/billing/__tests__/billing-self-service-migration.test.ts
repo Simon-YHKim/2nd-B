@@ -488,3 +488,65 @@ describe("0119 - the surviving refund_eligibility carries BOTH sessions' fixes",
     expect(sql).toMatch(/AND provider_ref IS NULL\s*\n\s*AND provider_status IS NULL\s*\n\s*AND paddle_adjustment_id IS NULL/);
   });
 });
+
+// ── 0121: Paddle's answer supersedes our optimistic cancel row ───────────────
+// 0119 scoped our cancel signal to the subscription, which fixed "cancelled, then
+// re-subscribed under a NEW id". It did NOT fix the same subscription being
+// RESUMED: the accepted row survived, auto_renew stayed false forever, the cancel
+// card stayed hidden, and the partial unique index blocked a genuine second
+// cancel - while Paddle billed every month.
+describe("0121 - a resumed subscription can be cancelled again", () => {
+  const sql = readFileSync(join(MIGRATIONS, "0121_provider_supersedes_our_cancel.sql"), "utf8");
+
+  test("the writer supersedes our row when Paddle says the sub is active and uncancelled", () => {
+    expect(sql).toMatch(/AND p_scheduled_cancel_at IS NULL\s*\n\s*AND p_tier IS NOT NULL\s*\n\s*AND p_tier <> 'free'/);
+    expect(sql).toMatch(/SET outcome\s+= 'rejected',\s*\n\s*provider_error = 'superseded_by_provider'/);
+    // Scoped to the subscription Paddle is talking about, not the whole user.
+    expect(sql).toMatch(/AND paddle_subscription_id = v_sub_id/);
+  });
+
+  test("superseding frees the idempotency index, so a second cancel can be claimed", () => {
+    // The index only holds on outcome IN ('pending','accepted'); 'rejected' is
+    // outside it, which is exactly why the supersede writes that value.
+    expect(sql).toMatch(/outcome        = 'rejected'/);
+  });
+
+  test("the reader also ignores a cancel Paddle has already contradicted", () => {
+    expect(sql).toMatch(/INTO v_sched, v_sched_seen/);
+    expect(sql).toMatch(/IF v_req IS NOT NULL AND v_sched IS NULL AND v_sched_seen IS NOT NULL AND v_sched_seen > v_req THEN\s*\n\s*v_req := NULL;/);
+  });
+
+  test("0109's ordering guard and 0115's renewal anchor survive the re-creation", () => {
+    expect(sql).toMatch(/AND \(subscription_event_at IS NULL OR v_at >= subscription_event_at\)/);
+    expect(sql).toMatch(/SET stale_entitlement = true/);
+    expect(sql).toMatch(/IF v_user_id IS NULL AND v_sub_id IS NOT NULL THEN/);
+  });
+
+  test("it is the last definition of both functions it touches", () => {
+    for (const fn of ["apply_billing_event", "subscription_overview"]) {
+      const defs = readdirSync(MIGRATIONS)
+        .filter((f) => f.endsWith(".sql"))
+        .sort()
+        .filter((f) =>
+          new RegExp(`CREATE OR REPLACE FUNCTION public\.${fn}`, "i").test(readFileSync(join(MIGRATIONS, f), "utf8")),
+        );
+      expect(defs[defs.length - 1]).toBe("0121_provider_supersedes_our_cancel.sql");
+    }
+  });
+});
+
+describe("0121 - the refund window in copy comes from the server", () => {
+  test("windowPassed interpolates the number instead of hardcoding 7", () => {
+    // The window is 30 until 2026-09-08 and 7 after. Hardcoding 7 told a user
+    // past day 30 that "7 days have passed" - the wrong number, and one that
+    // understates the window they actually had.
+    for (const code of ["en", "ko", "es", "pt", "id"]) {
+      const s = JSON.parse(
+        readFileSync(join(MIGRATIONS, "..", "..", "locales", code, "settings.json"), "utf8"),
+      ).subscription.refund.reason.windowPassed as string;
+      expect(s).toContain("{{total}}");
+      expect(s).not.toMatch(/\b7\b/);
+      expect(s).not.toMatch(/\b30\b/);
+    }
+  });
+});

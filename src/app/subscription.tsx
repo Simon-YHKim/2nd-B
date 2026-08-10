@@ -284,7 +284,15 @@ export default function SubscriptionScreen() {
             {eligibility && eligibility.status !== "no_payment" ? (
               <MdCard variant="outlined" style={s.card}>
                 <Text style={s.sectionTitle}>{t("subscription.refund.title")}</Text>
-                <Text style={s.body}>{t(`subscription.refund.reason.${reasonKey}`)}</Text>
+                {/* `total` comes from the server, which knows which policy is in
+                    force - 30 days before the revision, 7 after. The sentence used
+                    to hardcode 7 and told a user past day 30 that "7 days have
+                    passed", understating the window they actually had. */}
+                <Text style={s.body}>
+                  {t(`subscription.refund.reason.${reasonKey}`, {
+                    total: eligibility.refund_window_days ?? REFUND_WINDOW_DAYS,
+                  })}
+                </Text>
                 {/* Which rule this verdict came from. Before the revision takes
                     effect the answer is the more generous one, and saying so is
                     also the advance notice of what changes on 2026-09-08. */}

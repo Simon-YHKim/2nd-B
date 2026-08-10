@@ -227,7 +227,7 @@
         "eligible": "Ahora mismo puedes solicitar un reembolso completo.",
         "alreadyRequested": "Ya hay una solicitud de reembolso registrada para este pago.",
         "usedBeyondFree": "El uso desde el pago supero lo que cubre el plan gratuito en el mismo periodo, asi que el reembolso automatico no esta disponible.",
-        "windowPassed": "Han pasado mas de 7 dias desde el pago, asi que el reembolso automatico no esta disponible.",
+        "windowPassed": "Han pasado mas de {{total}} dias desde el pago, asi que el reembolso automatico no esta disponible.",
         "noPayment": "No hay ningun pago registrado para reembolsar.",
         "unknown": "No pudimos comprobar si el reembolso es posible."
       },
