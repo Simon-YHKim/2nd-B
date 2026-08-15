@@ -1,6 +1,6 @@
 /**
  * Deep-space home (index `/`) — the constellation inside the shared DeepSpaceScreen
- * chrome (status header + 5-tab dock), a 1:1 clone of design/prototype.dc.html's
+ * chrome (status header + 5-tab dock), a 1:1 clone of legacy/design/prototype.dc.html's
  * home. The dock maps to real routes; the 7 stars + 북극성 map to their engine
  * routes, so home navigation is real.
  *

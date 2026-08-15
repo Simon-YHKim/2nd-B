@@ -1,5 +1,5 @@
 /**
- * STEP 4 — the deep-space dock views, translated from design/prototype.dc.html:
+ * STEP 4 — the deep-space dock views, translated from legacy/design/prototype.dc.html:
  *   CaptureView (담기) · ChatView (세컨비) · LensView (나, empty/error/filled) ·
  *   IdenView (IDEN).
  *

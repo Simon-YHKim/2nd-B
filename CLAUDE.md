@@ -100,7 +100,7 @@ not eyeballing a mockup.
 - `design/proto_rev2/reference-app/README.md` — how the reference app is structured.
 - `design/proto_rev2/reference-app/data/index.json` — which screen spec maps to which route.
 
-**STALE — do not use as the reference for new work:** `design/*.dc.html` and the `docs/ui-audit/`
+**STALE — do not use as the reference for new work:** `legacy/design/*.dc.html` and the `legacy/docs/ui-audit/`
 trio (`DESIGN_INDEX.md` / `SCREEN_TREE_SPEC.md` / `CLONE_PROTOCOL.md`). Those are a pre-M3 snapshot
 (2026-06-24) from the deep-space cosmic-pixel era, superseded by the reference app above. They are
 kept for history. `SCREEN_TREE_SPEC.md`'s route table in particular is badly out of date (it lists
