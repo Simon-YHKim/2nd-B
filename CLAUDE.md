@@ -32,6 +32,51 @@ Project-specific guidance for Claude Code sessions in this repo.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
 
+## 렌즈층 재정의 (Simon 결정, 2026-08-15) — 진행 중
+
+**감사 결과 확정된 사실:** 기존 7렌즈의 숫자 7은 심리학이 아니라 **북두칠성 별 개수**에서 왔다
+(Simon 원본 메모 `git show c7f36982:260617생각정리.txt` 가 "7가지 축으로 가려고 해"로 개수를 먼저
+선언하고 "현재 북두칠성의 6번째, 7번째가 비어있음. 고민 필요"로 끝난다). 7개 중 5개의 등급이 구인이
+아니라 "행이 들어왔는가 / 몇 번 눌렀는가"를 쟀다. 상세: `docs/HANDOFF.md` 및 세션 보고서.
+
+### 새 정의 (정본)
+
+> 렌즈층은 나를 재는 층이 아니라, **세컨비가 나를 대신해 결정을 내릴 때 채워야 하는 파라미터를
+> 나에게 맞게 굴절시키고, 그 굴절이 맞았는지를 내 행동 원장으로 채점받는 층**이다.
+> 렌즈 하나 = 세컨비가 반복해서 채우는 **결정 필드 하나를 독점하는 추정기**.
+
+렌즈 자격 = 관문 5개 전부 통과. ① **슬롯**(바꾸는 필드가 코드에 실재. 프롬프트 형용사 한 줄은 불인정)
+② **반전**(값을 뒤집으면 화면이 달라진다) ③ **채점**(LLM 없이 기존 원장으로 적중 판정 가능)
+④ **관측 우위**(물은 값보다 관측한 값이 정확. 진술이 더 정확하면 렌즈가 아니라 **설정**)
+⑤ **귀속**(두 렌즈가 같은 필드를 다투지 않는다).
+
+**렌즈 3개: 때 · 크기 · 복귀.** 개수는 선언이 아니라 파생값이다. 후보 8개를 관문에 통과시킨 결과가 3이다.
+**7로 되돌리지 말 것** — 되돌리려면 탈락한 다섯 중 넷을 근거 없이 되살려야 한다.
+
+등급 L1~L3 은 "내가 나를 아는 양"이 아니라 **"이 결정을 세컨비가 혼자 정해도 되는 정도"**다
+(L1 매번 묻기 → L2 선택지 두 개 → L3 기본값 채워 오기). 오르는 유일한 경로는 예측 적중이고,
+사용자가 되돌리면 자동 강등된다.
+
+### 확정된 부수 결정
+
+- **세컨비 = 개인 매니저.** `src/lib/chat/conversation.ts` 의 `SYSTEM_PROMPT_HEADER` 가 못박은
+  "비서나 동반자, 친구가 아니라 자기 자신의 종합" 불변식을 **Simon 이 뒤집기로 승인했다(2026-08-15)**.
+  이 문장을 매니저 프레이밍으로 재작성해도 된다. 단 근거 없는 단정 금지·임상어휘 금지·과잉
+  자기지식 주장 금지는 **그대로 유효**하다(anti-anthro CI 가드는 로케일 JSON 만 스캔한다).
+- **`star_tier_history` 의 기존 7종 star_id 행은 새 렌즈로 재매핑한다**(Simon 결정: "어차피 테스트로
+  임의로 만든 것"). 폐기가 아니라 재매핑이다.
+- **북두칠성 ↔ 북극성 연속성은 렌즈와 무관하게 그대로다.** 캐논에 이미
+  `polarisGuide: "M230,131 L228,90 L140,-16"` 이 있고 이는 실제 지극성(Merak→Dubhe→Polaris)
+  경로다. `canonPolarisGuide` 로 export 되지만 **렌더하는 코드가 0건**이다. 렌즈는 별이 아니라
+  **이 선 위의 보정**이다. 새 별을 추가해 연속성을 만들려 하지 말 것.
+
+### 아직 결정되지 않은 것 (건드리지 말 것)
+
+- **미성년(14-17) 전 기능 개방**: Simon 이 "법률적 문제가 없다면" 조건으로 방향을 냈고
+  **법무 검토 보고 후 결정 대기 중**이다. 확정 전까지 미성년 게이트(prefs 클램프, RLS,
+  `reject_minor_*` 트리거, 커뮤니티 성인 한정)를 **임의로 풀지 말 것.**
+  Simon 은 "L1 고정 같은 회피책"은 명시 거부했다.
+
 ## QA test account — AI agents: sign in and test freely
 
 A shared test account is **committed** so any AI agent (local, cloud, or headless) can
@@ -180,7 +225,11 @@ The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
 | A (입력) | 북두칠성 7 별 | baseline magnitude × domain L1~L5 | The 7 stars actually drawn on home = 6 life domains (커리어·재정·관계·성장·건강·휴식) + **뮤지엄**. Brighter as the domain fills. 뮤지엄 is a curated surface pinned at L4, not a data domain |
 | link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
 
-(Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind
+> **⚠ Layer B 는 2026-08-15 재정의됐다. 아래 설명은 구버전이다.** `stars.ts` 의 심리 구인 7개는
+> 폐기 대상이고, Layer B 는 **렌즈 3개(때·크기·복귀)** 로 바뀐다. 아래 "렌즈층 재정의" 절을 읽을 것.
+> Layer A(북두칠성 7별)와 Layer C(북극성)는 **그대로**다.
+
+(구버전 설명: Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind
 북극성 — NOT rendered as stars.)
 
 **Rules:**
