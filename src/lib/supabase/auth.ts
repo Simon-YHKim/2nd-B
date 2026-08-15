@@ -690,6 +690,12 @@ export async function completeNaverOAuth(
 export interface CompleteProfileArgs {
   birthDate: string;
   locale: "en" | "ko";
+  /**
+   * What the user wants to be called (0127, L4). Optional: onboarding must not
+   * become a wall, and a nameless account still works everywhere -- the IDEN
+   * export has been falling back to 나/You since it was written.
+   */
+  displayName?: string | null;
 }
 
 export interface CompleteProfileResult {
@@ -712,12 +718,16 @@ export async function ensureUserProfile(args: CompleteProfileArgs): Promise<Comp
   if (existing) return { created: false, judgeMode: existing.judge_mode === true };
 
   const judgeMode = isJudgeEmail(user.email ?? "");
+  // Trim to null rather than storing "" — an empty string would count as a
+  // filled profile slot and light the star for someone who typed nothing.
+  const displayName = args.displayName?.trim() ? args.displayName.trim().slice(0, 40) : null;
   const { error: insertErr } = await supabase.from("users").insert({
     id: user.id,
     email: user.email ?? "",
     birth_date: args.birthDate,
     judge_mode: judgeMode,
     locale: args.locale,
+    display_name: displayName,
   });
   // C6: the auto_judge_mode BEFORE INSERT trigger overrides the client value.
   if (insertErr) {
