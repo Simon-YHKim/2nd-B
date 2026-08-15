@@ -574,6 +574,76 @@
       "state": "ready_for_review",
       "version": "32c2ec0fb049"
     },
+    "avatars/fantasy/alchemist": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/angel": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/astronaut": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/athlete": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/bard": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/cleric": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/clown": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/cyborg": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/demon": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/detective": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
     "avatars/fantasy/wizard": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
@@ -924,12 +994,145 @@
       "state": "ready_for_review",
       "version": "071dfbd7c140"
     },
+    "avatars/presets/basicChild": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicElder": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicGlasses": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicHat": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicLong": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicNeutral": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicShort": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/basicSilhouette": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/beardMan": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/bunAcc": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/capPerson": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/catEars": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/elderFace": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/glasses": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/hoodie": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/kidFace": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/longHair": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
     "avatars/presets/plain": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
       "state": "ready_for_review",
       "version": "c3f5253a8297"
+    },
+    "avatars/presets/sleepy": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/presets/smiling": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
     },
     "avatars/safety/coastGuard": {
       "batch_id": "native128-004",
@@ -1203,6 +1406,27 @@
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-006/32c2ec0fb049/master-atlas.png",
       "state": "ready_for_review",
       "version": "32c2ec0fb049"
+    },
+    "avatars/social/senior": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/social/stranger": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    "avatars/social/teammateRole": {
+      "batch_id": "native128-007",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
     },
     "avatars/transport/atc": {
       "batch_id": "native128-005",
@@ -1705,6 +1929,53 @@
     },
     {
       "asset_ids": [
+        "avatars/social/senior",
+        "avatars/social/stranger",
+        "avatars/social/teammateRole",
+        "avatars/presets/basicChild",
+        "avatars/presets/basicElder",
+        "avatars/presets/basicGlasses",
+        "avatars/presets/basicHat",
+        "avatars/presets/basicLong",
+        "avatars/presets/basicNeutral",
+        "avatars/presets/basicShort",
+        "avatars/presets/basicSilhouette",
+        "avatars/presets/beardMan",
+        "avatars/presets/bunAcc",
+        "avatars/presets/capPerson",
+        "avatars/presets/catEars",
+        "avatars/presets/elderFace",
+        "avatars/presets/glasses",
+        "avatars/presets/hoodie",
+        "avatars/presets/kidFace",
+        "avatars/presets/longHair",
+        "avatars/presets/sleepy",
+        "avatars/presets/smiling",
+        "avatars/fantasy/alchemist",
+        "avatars/fantasy/angel",
+        "avatars/fantasy/astronaut",
+        "avatars/fantasy/athlete",
+        "avatars/fantasy/bard",
+        "avatars/fantasy/cleric",
+        "avatars/fantasy/clown",
+        "avatars/fantasy/cyborg",
+        "avatars/fantasy/demon",
+        "avatars/fantasy/detective"
+      ],
+      "batch_id": "native128-007",
+      "contract_sha256": "c6f522cf9b3931833deb13069d991edea56acb0a0fd83927df3b983092de2b1c",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/manifest.json",
+      "manifest_sha256": "514af8c5ff4e8a219d9ea606b0ec4fe2c13ffa80970c212979bb8d02cad90a5a",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
+      "master_atlas_sha256": "18479c0e1ccadb8e7f1b2929c35291de98324faed4b5cfebf9a3e94b90086d7a",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "c6f522cf9b39"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -1732,8 +2003,8 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 199,
-    "native128_remaining": 604,
+    "native128_ready_or_approved": 231,
+    "native128_remaining": 572,
     "ready_asset_ids": [
       "avatars/agriculture/agronomist",
       "avatars/agriculture/beekeeper",
@@ -1817,6 +2088,16 @@
       "avatars/family/spouseRole",
       "avatars/family/uncle",
       "avatars/family/youngerSibling",
+      "avatars/fantasy/alchemist",
+      "avatars/fantasy/angel",
+      "avatars/fantasy/astronaut",
+      "avatars/fantasy/athlete",
+      "avatars/fantasy/bard",
+      "avatars/fantasy/cleric",
+      "avatars/fantasy/clown",
+      "avatars/fantasy/cyborg",
+      "avatars/fantasy/demon",
+      "avatars/fantasy/detective",
       "avatars/fantasy/wizard",
       "avatars/food/baker",
       "avatars/food/barista",
@@ -1867,7 +2148,26 @@
       "avatars/medical/surgeon",
       "avatars/medical/therapist",
       "avatars/medical/vet",
+      "avatars/presets/basicChild",
+      "avatars/presets/basicElder",
+      "avatars/presets/basicGlasses",
+      "avatars/presets/basicHat",
+      "avatars/presets/basicLong",
+      "avatars/presets/basicNeutral",
+      "avatars/presets/basicShort",
+      "avatars/presets/basicSilhouette",
+      "avatars/presets/beardMan",
+      "avatars/presets/bunAcc",
+      "avatars/presets/capPerson",
+      "avatars/presets/catEars",
+      "avatars/presets/elderFace",
+      "avatars/presets/glasses",
+      "avatars/presets/hoodie",
+      "avatars/presets/kidFace",
+      "avatars/presets/longHair",
       "avatars/presets/plain",
+      "avatars/presets/sleepy",
+      "avatars/presets/smiling",
       "avatars/safety/coastGuard",
       "avatars/safety/customs",
       "avatars/safety/dispatcher",
@@ -1907,6 +2207,9 @@
       "avatars/social/partnerRole",
       "avatars/social/rival",
       "avatars/social/roommate",
+      "avatars/social/senior",
+      "avatars/social/stranger",
+      "avatars/social/teammateRole",
       "avatars/transport/atc",
       "avatars/transport/busDriver",
       "avatars/transport/captain",
