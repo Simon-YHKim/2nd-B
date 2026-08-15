@@ -19,6 +19,7 @@ import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
+import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
@@ -415,6 +416,10 @@ export function DeepSpaceSupportDesignScreen() {
     <Shell title={t("support.title")}>
       <View style={styles.center}><SecondbHead size={104} mood="neutral" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
       <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
+
+      {/* Always-on help directory. Above the FAQ on purpose: someone who needs
+          it is not going to scroll past a list of product questions first. */}
+      <HelpDirectory />
 
       {/* FAQ (canonGaps.faqs) — tap a question to reveal its answer. */}
       <Card>
