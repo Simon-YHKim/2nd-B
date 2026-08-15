@@ -2,20 +2,27 @@
 // link the subject shared out-of-band. Everything here talks ONLY to the
 // peer-respond edge function; there is no session and no informant PII.
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useLocalSearchParams } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard, SegBtn } from "@/components/m3";
 import { m3 } from "@/lib/theme/m3";
-import { deepSpace, spacing } from "@/lib/theme/tokens";
+import { deepSpace, semantic, spacing } from "@/lib/theme/tokens";
 import { callPeerRespond } from "@/lib/peer/peer-respond";
 
 type Phase = "loading" | "form" | "done" | "withdrawn" | "expired" | "invalid" | "already";
 
 const TRAITS = ["extraversion", "conscientiousness", "agreeableness"] as const;
 type Trait = (typeof TRAITS)[number];
+
+// C10: the same floor sign-up enforces. Birth YEAR only — the coarsest signal
+// that answers the question, so an informant never hands over a full birth date
+// to a product they have no account with.
+const MIN_INFORMANT_AGE = 14;
+const CURRENT_YEAR = new Date().getFullYear();
+const MAX_BIRTH_YEAR = CURRENT_YEAR;
 
 export default function PeerInformant() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -26,8 +33,18 @@ export default function PeerInformant() {
   const [ackOverseas, setAckOverseas] = useState(false);
   const [minor, setMinor] = useState(false);
   const [guardian, setGuardian] = useState(false);
+  const [birthYear, setBirthYear] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // This page has no account and no session, so the sign-up age gate that rejects
+  // under-14 never runs on the informant. Without a year here, a 13-year-old can
+  // become a data subject in a product that publicly says it does not accept them.
+  // The client check is a courtesy; peer-respond re-derives and rejects server-side.
+  const year = Number.parseInt(birthYear, 10);
+  const yearLooksReal = Number.isInteger(year) && year >= 1900 && year <= MAX_BIRTH_YEAR;
+  const approxAge = yearLooksReal ? CURRENT_YEAR - year : null;
+  const tooYoung = approxAge != null && approxAge < MIN_INFORMANT_AGE;
 
   useEffect(() => {
     let alive = true;
@@ -51,7 +68,13 @@ export default function PeerInformant() {
     };
   }, [token]);
 
-  const complete = TRAITS.every((k) => ratings[k] != null) && ackLlm && ackOverseas && (!minor || guardian);
+  const complete =
+    TRAITS.every((k) => ratings[k] != null) &&
+    ackLlm &&
+    ackOverseas &&
+    yearLooksReal &&
+    !tooYoung &&
+    (!minor || guardian);
 
   async function submit() {
     if (!token || !complete || busy) return;
@@ -62,6 +85,7 @@ export default function PeerInformant() {
         action: "submit",
         token,
         ratings,
+        birthYear: year,
         informantIsMinor: minor,
         guardianConsent: guardian,
         llmProcessingAck: ackLlm,
@@ -153,6 +177,24 @@ export default function PeerInformant() {
           ))}
 
           <MdCard variant="outlined" style={styles.card}>
+            <Text variant="body">{t("birthYearLabel")}</Text>
+            <Text variant="caption" color="textSubtle">{t("birthYearHint")}</Text>
+            <TextInput
+              value={birthYear}
+              onChangeText={(v) => setBirthYear(v.replace(/[^0-9]/g, "").slice(0, 4))}
+              keyboardType="number-pad"
+              maxLength={4}
+              placeholder={t("birthYearPlaceholder")}
+              placeholderTextColor={semantic.textSubtle}
+              style={styles.yearInput}
+              accessibilityLabel={t("birthYearLabel")}
+            />
+            {tooYoung ? (
+              <Text variant="caption" style={styles.error}>{t("tooYoung")}</Text>
+            ) : null}
+          </MdCard>
+
+          <MdCard variant="outlined" style={styles.card}>
             <CheckRow label={t("ackLlm")} checked={ackLlm} onToggle={() => setAckLlm((v) => !v)} />
             <CheckRow label={t("ackOverseas")} checked={ackOverseas} onToggle={() => setAckOverseas((v) => !v)} />
             <CheckRow label={t("minorRow")} checked={minor} onToggle={() => setMinor((v) => !v)} />
@@ -199,5 +241,15 @@ const styles = StyleSheet.create({
   checkBox: { minWidth: 48 },
   checkLabel: { flex: 1 },
   error: { color: m3.color.error },
+  yearInput: {
+    marginTop: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: m3.color.outline,
+    borderRadius: 4,
+    color: semantic.text,
+    fontSize: 16,
+  },
   foot: { textAlign: "center", marginTop: spacing.xs },
 });
