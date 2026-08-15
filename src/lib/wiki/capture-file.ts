@@ -37,6 +37,40 @@ const DOCX_MIMES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+// Audio the user already has on disk (a recorded lecture, a voice memo taken in
+// another app, an interview). These are NOT read as text — they go to
+// transcribeAudio, exactly like the in-app recorder's output.
+//
+// This list mirrors ALLOWED_AUDIO_MIME in supabase/functions/gemini-proxy. Adding
+// a format here that the proxy rejects gives the user a picker that accepts a
+// file and then fails at the last step, so keep the two in sync.
+const AUDIO_MIMES = new Set([
+  "audio/m4a",
+  "audio/x-m4a",
+  "audio/mp4",
+  "audio/aac",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/webm",
+  "audio/ogg",
+  "audio/3gpp",
+]);
+
+/** True when this file should be transcribed rather than read. */
+export function isAudioMime(mimeType: string | null | undefined): boolean {
+  return AUDIO_MIMES.has(normalizeFileMimeType(mimeType));
+}
+
+// Derived from MAX_AUDIO_BASE64_LEN (4,100,000) in gemini-proxy: base64 inflates
+// by 4/3, so the binary ceiling is ~3,075,000 bytes. 3,000,000 sits just under it
+// with room for the encoder's padding, and is roughly a 3-minute m4a.
+//
+// This is DECIMAL MB on purpose — 3 * 1024 * 1024 looks like the same number and
+// is not: it encodes to 4,194,304 base64 chars, over the proxy cap, so every file
+// between 2.93MB and 3MB would have been accepted here and rejected there, after
+// the user had already waited through the upload. A test pins the arithmetic.
+export const MAX_AUDIO_FILE_BYTES = 3_000_000;
+
 const GENERIC_FILE_MIMES = new Set([
   "application/octet-stream",
   "binary/octet-stream",
@@ -52,6 +86,14 @@ const FILE_EXTENSION_MIMES: Record<string, string> = {
   xml: "application/xml",
   html: "text/html",
   htm: "text/html",
+  m4a: "audio/mp4",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  aac: "audio/aac",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  webm: "audio/webm",
+  "3gp": "audio/3gpp",
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
@@ -94,6 +136,7 @@ export async function pickFile(): Promise<PickedFile | null> {
       "text/csv",
       "application/json",
       "text/html",
+      "audio/*",
     ],
     copyToCacheDirectory: true,
     multiple: false,
@@ -148,6 +191,10 @@ export async function extractText(uri: string, mimeType: string, size: number): 
   if (!Number.isFinite(size) || size < 0 || size > MAX_EXTRACT_BYTES) return null;
   if (typeof globalThis.fetch !== "function") return null;
   const normalizedMimeType = normalizeFileMimeType(mimeType);
+  // Audio has no text to extract — the caller sends it to transcribeAudio. This
+  // returns null EXPLICITLY rather than falling through, so nobody later reads
+  // an m4a with res.text() and stores mojibake as the user's note.
+  if (AUDIO_MIMES.has(normalizedMimeType)) return null;
 
   try {
     if (TEXT_MIMES.has(normalizedMimeType)) {

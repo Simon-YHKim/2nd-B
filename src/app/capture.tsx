@@ -63,7 +63,7 @@ import {
   isImageOcrInvalidDataError,
   isImageOcrMissingDataError,
 } from "@/lib/wiki/capture-image";
-import { pickFile, type PickedFile } from "@/lib/wiki/capture-file";
+import { pickFile, isAudioMime, MAX_AUDIO_FILE_BYTES, type PickedFile } from "@/lib/wiki/capture-file";
 import {
   DEFAULT_CAPTURE_DRAFT_MODE,
   clearCaptureDraft,
@@ -333,6 +333,10 @@ export function CaptureLegacy() {
     pendingSharedRef.current = !!shared && sharedConsumedRef.current !== shared.key;
   }, [shared]);
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
+  // Status line under the picked-file card. Audio files take a round trip to
+  // Gemini, so the card has to say something other than "no preview available"
+  // while that runs and after it lands.
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [ocrReviewApproved, setOcrReviewApproved] = useState(false);
@@ -685,6 +689,7 @@ export function CaptureLegacy() {
 
   function resetTransientCaptureState() {
     setPickedFile(null);
+    setFileNotice(null);
     setPickedImage(null);
     setExtracting(false);
     setTagsEditable([]);
@@ -865,12 +870,73 @@ export function CaptureLegacy() {
     }
   }
 
+  // H5: an audio file dropped into 담기 goes down the SAME road as the in-app
+  // recorder — transcribe, C9-gate the transcript, then fill the body so the user
+  // reviews it before saving (propose->ratify). Before this, picking an m4a stored
+  // the string "File attachment - audio/mp4, 812345 bytes." and nothing else, so
+  // the recording the user cared about was never actually captured.
+  //
+  // One deliberate difference from the recorder: the file is NOT deleted
+  // afterwards. discardRecording exists because the recorder writes a temp file
+  // the app owns; this one is the user's own file and deleting it would be a
+  // capture tool destroying the thing it was pointed at.
+  async function transcribePickedAudio(file: PickedFile) {
+    if (!userId) return;
+    if (file.size > MAX_AUDIO_FILE_BYTES) {
+      setFileNotice(t("file.audioTooLarge", { mb: Math.floor(MAX_AUDIO_FILE_BYTES / 1_000_000) }));
+      return;
+    }
+    setExtracting(true);
+    setFileNotice(t("file.transcribing"));
+    try {
+      const { base64, mimeType } = await recordingUriToBase64(file.uri);
+      const reply = await transcribeAudio({
+        userId,
+        locale,
+        base64,
+        // Trust the picker's normalized MIME over the blob's: DocumentPicker
+        // reports a real type, while a file:// blob often comes back as
+        // application/octet-stream, which the proxy allowlist rejects.
+        mimeType: isAudioMime(file.mimeType) ? file.mimeType : mimeType,
+        minor: isMinor === true,
+      });
+      // C9 parity with the recorder: a red-zone transcript was swapped
+      // server-side for the crisis template, so route to the hotline instead of
+      // pasting that template into the note.
+      if (reply.safety?.zone === "red") {
+        setFileNotice(null);
+        setCrisis({ visible: true, hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988" });
+        return;
+      }
+      const transcript = reply.text.trim();
+      if (transcript.length === 0) {
+        setFileNotice(t("file.transcriptEmpty"));
+        return;
+      }
+      reactExpression("happy");
+      setBody((prev) => {
+        const current = prev.trim();
+        return current.length === 0 ? transcript : `${prev.trimEnd()}
+
+${transcript}`;
+      });
+      setFileNotice(t("file.transcribed"));
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[capture] file transcription failed", (e as Error).message);
+      setFileNotice(t("file.transcribeFailed"));
+    } finally {
+      setExtracting(false);
+    }
+  }
+
   async function runFilePick() {
     try {
       const f = await pickFile();
       if (!f) return;
       setPickedFile(f);
+      setFileNotice(null);
       if (f.textContent) setBody(f.textContent);
+      if (isAudioMime(f.mimeType)) await transcribePickedAudio(f);
     } catch (e) {
       if (typeof console !== "undefined") console.warn("[capture] file pick failed", (e as Error).message);
       showFeedback(
@@ -2180,6 +2246,7 @@ export function CaptureLegacy() {
                   label={t("file.pick")}
                   variant="secondary"
                   onPress={runFilePick}
+                  disabled={extracting}
                 />
               </View>
               <Text variant="caption" color="textSubtle" style={{ textAlign: "center", paddingHorizontal: spacing.md }}>
@@ -2195,7 +2262,11 @@ export function CaptureLegacy() {
               <Text variant="subtle" color="textSubtle">
                 {pickedFile.mimeType} · {(pickedFile.size / 1024).toFixed(1)} KB
               </Text>
-              {pickedFile.textContent ? (
+              {fileNotice ? (
+                <Text variant="subtle" color="textMuted" style={{ marginTop: 6 }}>
+                  {fileNotice}
+                </Text>
+              ) : pickedFile.textContent ? (
                 <Text variant="subtle" color="textMuted" style={{ marginTop: 6 }}>
                   {t("file.textExtracted")}
                 </Text>

@@ -224,7 +224,12 @@
     "selected": "선택된 파일",
     "textExtracted": "텍스트 추출됨: 본문에 채워졌어요",
     "attachedNoPreview": "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요.",
-    "dataUsageHint": "문서 업로드 시 데이터 사용료가 발생할 수 있어요. 가급적 Wi-Fi 환경을 권장해요."
+    "dataUsageHint": "문서 업로드 시 데이터 사용료가 발생할 수 있어요. 가급적 Wi-Fi 환경을 권장해요.",
+    "transcribing": "이 녹음을 글로 옮기는 중...",
+    "transcribed": "받아쓰기 완료. 본문에 넣었어요. 저장 전에 확인하고 다듬어 주세요.",
+    "transcribeFailed": "이 녹음을 글로 옮기지 못했어요. 다시 고르거나, 들은 내용을 직접 적어 주세요.",
+    "transcriptEmpty": "이 녹음에서 알아들을 수 있는 말을 찾지 못했어요.",
+    "audioTooLarge": "녹음이 너무 길어요. {{mb}}MB 미만으로 고르거나 나눠서 올려 주세요."
   },
   "tags": {
     "title": "해시태그",

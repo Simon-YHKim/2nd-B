@@ -13,6 +13,9 @@ module.exports = {
     // "platform reported no country" branch is what tests hit unless they say
     // otherwise — that is the branch the age gate must never get wrong.
     "^expo-localization$": "<rootDir>/__mocks__/expo-localization.js",
+    // expo-document-picker, same reason. The picker itself is never exercised in
+    // node; capture-file's MIME + size rules around it are.
+    "^expo-document-picker$": "<rootDir>/__mocks__/expo-document-picker.js",
   },
   testMatch: ["**/__tests__/**/*.test.ts"],
   // Nested git worktrees live in .worktrees/<branch> (full repo copies). Never
