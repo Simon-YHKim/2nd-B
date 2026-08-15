@@ -88,7 +88,7 @@
     },
     "home": {
       "polaris": "Bintang Utara",
-      "museumName": "Museum",
+      "profileName": "Profil",
       "domainName": {
         "career": "Karier",
         "finance": "Keuangan",
@@ -111,7 +111,7 @@
       "headA11y": "Tanya SecondB",
       "kind": {
         "domain": "Area",
-        "museum": "Belajar bersama"
+        "profile": "Cara orang membacamu"
       },
       "bubble": {
         "introTag": "Perkenalan",
@@ -142,10 +142,11 @@
         "recreation": {
           "line": "Apa yang membuatku bisa beristirahat?"
         },
-        "museum": {
-          "line": "Susuri jalan yang telah dilalui AI dan pelajari cara SecondB memahamimu."
+        "profile": {
+          "line": "Nama, tujuan, dan cara orang lain membacamu. Makin banyak yang bisa diperkenalkan, makin terang."
         }
-      }
+      },
+      "museumEntry": "Museum AI"
     },
     "capture": {
       "title": "Tangkap",

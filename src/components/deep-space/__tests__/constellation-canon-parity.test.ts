@@ -10,7 +10,9 @@
 // Two sets have to stay equal and nothing enforced it:
 //   1. what the home DRAWS            REV2_STARS in ConstellationHome.tsx
 //   2. what the headline AVERAGES     canon polarisBrightness.includedDomainIds
-// Museum sits in (1) but not (2) on purpose - it is a portal, not a data domain.
+// Profile sits in (1) but not (2) on purpose - it is a self-description, not a
+// life domain, and folding it into the headline would make the persona average
+// partly an average of itself.
 //
 // Render tests are blocked in this repo (RN 0.85 + jest), so this reads the
 // renderer's source the same way the other deep-space guards do. Normalize CRLF
@@ -75,19 +77,31 @@ describe("constellation home <-> canon parity", () => {
     expect(renderedPoint("POLARIS")).toEqual({ x: polaris!.x, y: polaris!.y });
   });
 
-  it("pins the museum level to the canon instead of an invented constant", () => {
-    const museum = canonStars.find((s) => s.id === "museum");
-    expect(museum?.level).toBeDefined();
-    const m = /const MUSEUM_LEVEL:\s*LadderLevel\s*=\s*(\d)/.exec(SRC);
-    expect(m).not.toBeNull();
-    expect(Number(m![1])).toBe(museum!.level);
+  // The museum star carried `level: 4` in the canon and a matching MUSEUM_LEVEL
+  // constant in the renderer, and this test used to pin the two together. Profile
+  // replaced it precisely BECAUSE a star frozen at one level is dishonest, so the
+  // guard inverts: neither side may reintroduce a fixed level for it.
+  it("refuses to let the seventh star go back to a hardcoded level", () => {
+    const profile = canonStars.find((s) => s.id === "profile");
+    expect(profile).toBeDefined();
+    expect(profile!.level).toBeUndefined();
+    expect(/const\s+\w*PROFILE\w*_LEVEL/.test(SRC)).toBe(false);
+    expect(SRC).not.toContain("MUSEUM_LEVEL");
+  });
+
+  // /museum lost its star in the same change. It is only still reachable because
+  // the corner chip went in alongside; without this the swap silently strands a
+  // whole screen, which is exactly what the two draft plans would have done.
+  it("keeps a forward entry point to the museum after it lost its star", () => {
+    expect(SRC).toContain("onMuseumPress");
+    expect(SRC).toContain("ds.home.museumEntry");
   });
 
   // The point of the whole file: the drawn set and the averaged set must differ
   // by EXACTLY the excluded home nodes, never by an accident.
   it("averages every drawn domain and nothing else", () => {
     const drawn = renderedStars().map((s) => s.id);
-    const excludedNodes = canonPolarisBrightness.excludedHomeNodeIds; // ["museum"]
+    const excludedNodes = canonPolarisBrightness.excludedHomeNodeIds; // ["profile"]
     const drawnDomains = drawn.filter((id) => !excludedNodes.includes(id));
 
     // SET equality, deliberately not order. The two orders differ on purpose and
@@ -105,8 +119,8 @@ describe("constellation home <-> canon parity", () => {
     expect([...HEADLINE_DOMAIN_IDS]).not.toContain("collect");
   });
 
-  it("draws the museum without letting it into the headline", () => {
-    expect(renderedStars().map((s) => s.id)).toContain("museum");
-    expect([...HEADLINE_DOMAIN_IDS]).not.toContain("museum");
+  it("draws the profile star without letting it into the headline", () => {
+    expect(renderedStars().map((s) => s.id)).toContain("profile");
+    expect([...HEADLINE_DOMAIN_IDS]).not.toContain("profile");
   });
 });

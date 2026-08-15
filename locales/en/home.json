@@ -88,7 +88,7 @@
     },
     "home": {
       "polaris": "North Star",
-      "museumName": "Museum",
+      "profileName": "Profile",
       "domainName": {
         "career": "Career",
         "finance": "Finance",
@@ -111,7 +111,7 @@
       "headA11y": "Ask SecondB",
       "kind": {
         "domain": "Domain",
-        "museum": "Learn together"
+        "profile": "How you read"
       },
       "bubble": {
         "introTag": "Intro",
@@ -142,10 +142,11 @@
         "recreation": {
           "line": "What lets me rest?"
         },
-        "museum": {
-          "line": "Walk the path AI has taken, and learn how SecondB understands you."
+        "profile": {
+          "line": "Your name, your goal, and how others read you. It brightens as there is more to introduce."
         }
-      }
+      },
+      "museumEntry": "AI museum"
     },
     "capture": {
       "title": "Capture",

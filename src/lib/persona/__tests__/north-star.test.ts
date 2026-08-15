@@ -111,8 +111,10 @@ describe("northStarBrightness", () => {
       expect([...HEADLINE_DOMAIN_IDS]).toEqual(canonPolarisBrightness.includedDomainIds);
       expect(HEADLINE_DOMAIN_IDS).not.toContain("collect");
       expect(canonPolarisBrightness.excludedDomainIds).toContain("collect");
-      // museum is a portal, not a domain: it has no level and never enters the mean.
-      expect(canonPolarisBrightness.excludedHomeNodeIds).toContain("museum");
+      // profile is a self-description, not a life domain: it is drawn on home but
+      // never enters the mean (folding it in would average the persona with a
+      // summary of itself).
+      expect(canonPolarisBrightness.excludedHomeNodeIds).toContain("profile");
     });
 
     it("is INVARIANT to collect at every level (the defect this closes)", () => {

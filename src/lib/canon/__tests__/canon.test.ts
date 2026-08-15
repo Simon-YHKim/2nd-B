@@ -19,9 +19,9 @@ describe("proto_rev2 canon integrity", () => {
     expect(canonCanvas).toEqual({ w: 390, h: 820 });
   });
 
-  it("registers 57 screens with unique ids", () => {
-    expect(canonScreens).toHaveLength(57);
-    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(57);
+  it("registers 58 screens with unique ids", () => {
+    expect(canonScreens).toHaveLength(58);
+    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(58);
   });
 
   it("uses only known layout kinds", () => {
@@ -63,6 +63,6 @@ describe("proto_rev2 canon integrity", () => {
     }
     expect(stats.byLayout.immersive).toBe(2);
     expect(stats.byLayout.museumLike).toBe(3);
-    expect(stats.byLayout.windowed).toBe(52);
+    expect(stats.byLayout.windowed).toBe(53);
   });
 });

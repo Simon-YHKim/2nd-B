@@ -88,7 +88,7 @@
     },
     "home": {
       "polaris": "Estrella Polar",
-      "museumName": "Museo",
+      "profileName": "Perfil",
       "domainName": {
         "career": "Carrera",
         "finance": "Finanzas",
@@ -111,7 +111,7 @@
       "headA11y": "Preguntar a SecondB",
       "kind": {
         "domain": "Dominio",
-        "museum": "Aprender juntos"
+        "profile": "Cómo te leen"
       },
       "bubble": {
         "introTag": "Presentación",
@@ -142,10 +142,11 @@
         "recreation": {
           "line": "¿Qué me permite descansar?"
         },
-        "museum": {
-          "line": "Recorre el camino que ha andado la IA y aprende cómo SecondB te entiende."
+        "profile": {
+          "line": "Tu nombre, tu meta y cómo te leen los demás. Brilla más cuando hay más que presentar."
         }
-      }
+      },
+      "museumEntry": "Museo de la IA"
     },
     "capture": {
       "title": "Capturar",

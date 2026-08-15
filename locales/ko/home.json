@@ -88,7 +88,7 @@
     },
     "home": {
       "polaris": "북극성",
-      "museumName": "뮤지엄",
+      "profileName": "프로필",
       "domainName": {
         "career": "커리어",
         "finance": "재정",
@@ -111,7 +111,7 @@
       "headA11y": "세컨비에게 물어보기",
       "kind": {
         "domain": "도메인",
-        "museum": "함께 배우기"
+        "profile": "내가 보이는 방식"
       },
       "bubble": {
         "introTag": "소개",
@@ -142,10 +142,11 @@
         "recreation": {
           "line": "무엇이 나를 쉬게 하나요?"
         },
-        "museum": {
-          "line": "AI가 걸어온 길을 거닐며, 세컨비가 나를 이해하는 원리도 함께 배워요."
+        "profile": {
+          "line": "이름과 목표, 그리고 남이 본 나. 소개할 거리가 쌓일수록 밝아져요."
         }
-      }
+      },
+      "museumEntry": "AI 뮤지엄"
     },
     "capture": {
       "title": "담기",
