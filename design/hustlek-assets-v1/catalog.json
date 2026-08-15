@@ -11,6 +11,29 @@
         "icons/error",
         "icons/tree"
       ],
+      "batch_id": "native128-000",
+      "contract_sha256": "c3f5253a82973060bbdf7647ca0cee50e6c31077d9e5197da9a25a4805468c7a",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "manifest_sha256": "783801b4e5ba6f915673db3d506fc95c670ef2b12cd8da3f61eb6c10e5992f46",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "master_atlas_sha256": "bdc428416185a77a1596ee7b26e79a99337c58edf11e3590c2d7997e84415f83",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    {
+      "asset_ids": [
+        "avatars/presets/plain",
+        "avatars/food/chef",
+        "avatars/fantasy/wizard",
+        "avatars/animals/cat",
+        "icons/camera",
+        "icons/calendar",
+        "icons/error",
+        "icons/tree"
+      ],
       "batch_id": "pilot-000",
       "contract_sha256": "ff6f76d6631462c50a417d974dc34d24b99b4edee308c4e463ad232820830781",
       "manifest_path": "design/hustlek-assets-v1/batches/pilot-000/ff6f76d66314/manifest.json",
@@ -18,15 +41,19 @@
       "master_atlas_path": "design/hustlek-assets-v1/batches/pilot-000/ff6f76d66314/master-atlas.png",
       "master_atlas_sha256": "2a6a44f3609b94aebbde0ccf5bbd728fde3e96ab3bf48a36ae68701264fd5ea8",
       "membership_sha256": "0507e17724a92595771fd9f8d0b6e5ab4c728f3a096cae1742b4318b13beaa16",
-      "state": "ready_for_review",
+      "rejection_reason": "non-chef masters were derived by low-resolution upscale",
+      "replaced_by": "native128-000",
+      "state": "rejected",
       "tier_atlas_path": "design/hustlek-assets-v1/batches/pilot-000/ff6f76d66314/tier-atlas.png",
       "tier_atlas_sha256": "35cf48e829298dfef88a95e4d9243296053b466b0fb628f850ff62fc7e82d528",
       "version": "ff6f76d66314"
     }
   ],
   "coverage": {
-    "approved": 0,
     "approved_asset_ids": [],
+    "native128_approved": 0,
+    "native128_ready_or_approved": 8,
+    "native128_remaining": 795,
     "ready_asset_ids": [
       "avatars/animals/cat",
       "avatars/fantasy/wizard",
@@ -36,9 +63,7 @@
       "icons/camera",
       "icons/error",
       "icons/tree"
-    ],
-    "ready_or_approved": 8,
-    "remaining": 795
+    ]
   },
   "inventory": {
     "aliases": 51,
@@ -48,18 +73,13 @@
   },
   "policy": {
     "aliases_reuse_canonical": true,
-    "batch_max_assets": 32,
-    "imagegen_used_for_derived_tiers": false,
+    "current_stage": "native128-master-first",
+    "low_resolution_upscale_allowed": false,
+    "lower_tier_generation": "blocked-until-all-native128-masters-approved",
     "master_size": 128,
-    "pixy_used": false,
-    "production_sizes": [
-      16,
-      32,
-      48,
-      64
-    ],
-    "resampling": "Pillow Image.Resampling.NEAREST"
+    "per_asset_imagegen_required": true,
+    "pixy_used": false
   },
-  "schema": "hustlek-asset-catalog/v1",
+  "schema": "hustlek-asset-catalog/v2",
   "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
 }

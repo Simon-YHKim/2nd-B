@@ -1,0 +1,527 @@
+{
+  "assets": [
+    {
+      "asset_id": "avatars/presets/plain",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "70a275c987e3c306b14ca4f4d5c0521d311c23f7179336b5b507bb13e9a7c36a",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art avatar master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK pixel-art \"plain person\" avatar. Image 1 is identity and silhouette reference only, not pixels to enlarge. Create new detail appropriate to a 128 grid.\nInput images: Image 1 = edit target/identity reference; Image 2 = approved chef rendering and pixel-cluster quality reference; Image 3 = broader HustleK character palette and handcrafted sprite reference.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing neutral adult bust with the same simple short brown hair, warm face, neutral expression, magenta plain shirt, head-and-shoulders crop, proportions, and padding as Image 1.\nStyle/medium: authentic handcrafted HustleK pixel art authored for a 128x128 logical grid; square hard-edged clusters; warm-charcoal outline; restrained 3-4 tone ramps per material; upper-left key light and lower-right shadow.\nNative-detail requirements: newly design readable eyebrows, eyes, nose, mouth, ears, cheek planes, hair strands/clumps, neckline, collar seam, shirt folds, shoulder volume, and sparse 1-3 logical-pixel highlights. These details must not exist merely as enlarged blocks from Image 1. Keep one coherent character identity and a stable centered silhouette.\nConstraints: every mark grid-aligned, square-edged, and integer-sized; continuous dark outline; no antialiasing, blur, gradients, translucency, glow, dithering noise, text, logo, watermark, scenery, props, hat, glasses, beard, borrowed chef clothing, or extra character. Preserve the plain-person identity and front-facing bust. Background must be uniform #00FF00 with no shadow, texture, halo, floor, or green inside the subject.",
+        "source_id": "exec-30588e9c-fe91-48d3-9c46-17865b4b0009.png",
+        "source_sha256": "96acf235395c173c2f1bbf676a13ba24cdfe059bfc0ffdbd6b9c1da0c3a8fefc",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          18,
+          5,
+          110,
+          128
+        ],
+        "components_8_neighbor": [
+          7406
+        ],
+        "decoded_rgba_sha256": "265b26e3063f1d01a1c57d85e1e76fa8c7f75cff7454d5a4c4ec8fc8b788779f",
+        "foreground_pixels": 7406,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8275666477595008,
+        "identity_alpha_iou_floor": 0.8,
+        "identity_transitions": 1040,
+        "master_transitions": 7984,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.28424072265625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.676923076923077
+      },
+      "source": {
+        "path": "export/avatars/presets/plain.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "aedc74e29ed1747cd845c854bf1ab6d6f2bad44f4b2f1f11c8cc41ebbd746c8d"
+      }
+    },
+    {
+      "asset_id": "avatars/food/chef",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": null,
+        "prompt": "Edit Image 1 into the final canonical 128-grid pixel-art chef avatar.\n\nImage 1: edit target. Preserve exactly the single front-facing chef identity, head-and-shoulders framing, toque silhouette, face proportions, neutral expression, chef coat shape, four buttons, centered placement, padding, and #00FF00 background.\nImage 2: style-only reference. Apply only its handcrafted HustleK sprite treatment: compact stepped contours, purposeful near-black ink clusters, warm peach skin ramps, ivory fabric ramps, tiny ochre highlights, and clearly separated pixel-sized shadow/highlight clusters.\n\nChange only the rendering treatment:\n- Remove every smooth gradient, blur, semitransparent edge, and vector-like softness.\n- Convert skin, hat, hair, eyes, mouth, coat, seams, and buttons to a restrained palette of flat solid colors.\n- Add sparse deliberate 1-3 logical-pixel clusters for cheek warmth, hat folds, hair shine, collar, lapels, sleeve folds, and apron depth.\n- Make the eyes and nose more characterful but still readable when reduced; keep identity symmetric overall with slight handcrafted highlight asymmetry.\n- Keep a continuous dark outline and clear face/hat, face/hair, neck/collar, and torso/background boundaries.\n- Render as if it were exactly 128x128 logical pixel art enlarged for display: every mark grid-aligned, square-edged, and integer-sized.\n\nHard invariants: no pose change, no crop change, no extra character, no prop, no glasses, no text, no logo, no watermark, no scenery. Background must remain one perfectly flat solid #00FF00 with no shadows, texture, glow, halo, or green inside the subject. No gradients, no antialiasing, no dithering noise, no 3D, no photorealism.",
+        "source_id": "exec-a082d668-ab1d-4f87-aecb-70081a99189e.png",
+        "source_sha256": "23de26e00ed859076a6ef25220cc83e01a6611ba1e83869b3b9665d486b6ba31",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          29,
+          1,
+          99,
+          127
+        ],
+        "components_8_neighbor": [
+          7085
+        ],
+        "decoded_rgba_sha256": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+        "foreground_pixels": 7085,
+        "method": "approved-native128-control",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7336039975015616,
+        "identity_alpha_iou_floor": 0.7,
+        "identity_transitions": 1224,
+        "master_transitions": 8949,
+        "native_detail_loss_floor": 0.1,
+        "native_detail_loss_ratio": 0.303466796875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.311274509803922
+      },
+      "source": {
+        "path": "export/avatars/food/chef.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "023cc3723d64a9f27483021d98fe43a71168f13753cfb206b75b0a20adc74416"
+      }
+    },
+    {
+      "asset_id": "avatars/fantasy/wizard",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a91497a284de6cd3a93dbc215b36b1ed044aca8f23299214d6db79cfae954036",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art avatar master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK pixel-art wizard avatar. Image 1 is identity/silhouette reference only, never pixels to enlarge. Image 2 is the approved chef pixel-cluster quality reference. Image 3 is the broader HustleK character reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key.\nSubject: one centered front-facing adult wizard bust preserving the tall pointed purple hat with ochre accent, warm face, neutral friendly expression, brown hair, purple robe, gold fasteners, head-and-shoulders crop, proportions, and padding.\nStyle/medium: handcrafted HustleK pixel art authored for a 128x128 logical grid; hard square clusters; warm-charcoal outline; restrained 3-4 tone ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design hat folds and brim structure, hair clumps, eyebrows, eyes, nose, mouth, ears, cheek planes, robe collar, gold clasps, fabric seams and folds, with sparse 1-3 logical-pixel highlights. Preserve the occupational/fantasy identity at 1x.\nConstraints: grid-aligned integer-sized marks; continuous dark outline; no antialiasing, blur, gradients, translucency, glow, noise, text, watermark, scenery, staff, extra props, glasses, beard, extra character, or borrowed chef clothing. Uniform #00FF00 background with no shadows, texture, halo, floor, or green inside subject.",
+        "source_id": "exec-6523132b-16e4-4f2b-9a63-a98aa27382d5.png",
+        "source_sha256": "271c70722e32128daaa65ac2922bad5b385509f953f6d6aa45f97c98b2ca6ee3",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          14,
+          2,
+          114,
+          127
+        ],
+        "components_8_neighbor": [
+          7175
+        ],
+        "decoded_rgba_sha256": "95c8a54b77233937d4feab76365319df2851246de2d142563ddc732851260643",
+        "foreground_pixels": 7175,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 23
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6905656545140652,
+        "identity_alpha_iou_floor": 0.65,
+        "identity_transitions": 1340,
+        "master_transitions": 6742,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.26837158203125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.03134328358209
+      },
+      "source": {
+        "path": "export/avatars/fantasy/wizard.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "9dbcf703750d92de6081884e1807d4b22cde98efa1d8c416a45dd6bd25231430"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/cat",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "b08cd0d1b3b382de7ea229f62aff6a7488933e5bdd58377e59e9380def376e13",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art animal avatar master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK pixel-art gray cat avatar. Image 1 is identity/silhouette reference only, not pixels to enlarge. Image 2 is approved pixel-cluster quality reference. Image 3 is broader HustleK sprite reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key.\nSubject: one centered front-facing gray cat bust preserving two pointed ears, square feline head, symmetrical eyes, small muzzle and nose, compact chest/pedestal crop, proportions, neutral alert expression, and padding from Image 1.\nStyle/medium: handcrafted HustleK pixel art for a 128x128 logical grid; hard square clusters; warm-charcoal outline; cool gray 3-4 tone fur ramp with subtle warm reflected light; upper-left light and lower-right shadow.\nNative-detail requirements: newly design ear interiors, brow planes, eye highlights, nose, split muzzle, whisker-root dots, cheek fur clusters, forehead fur, neck/chest separation, and sparse 1-3 logical-pixel highlights. Species silhouette must remain unmistakably cat.\nConstraints: grid-aligned integer-sized marks; continuous dark outline; no antialiasing, blur, gradients, translucency, glow, random dithering, text, watermark, scenery, collar, clothes, human hair, extra props, tail, paws, or extra character. Uniform #00FF00 background with no shadow, texture, halo, floor, or green inside subject.",
+        "source_id": "exec-5fde139b-1698-411a-9ea7-18ca7b70ecd8.png",
+        "source_sha256": "e142191e5255ee1f0ea92d3fa4e459f65f22038e1f8d37bce77eb4010404865a",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          25,
+          6,
+          102,
+          126
+        ],
+        "components_8_neighbor": [
+          7250
+        ],
+        "decoded_rgba_sha256": "04470a43b5b1401487b0b5ebc27d92a4b37c61e97ef4382b4fd2844ddbeb5ae8",
+        "foreground_pixels": 7250,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7628817906271859,
+        "identity_alpha_iou_floor": 0.72,
+        "identity_transitions": 940,
+        "master_transitions": 7333,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2677001953125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.801063829787234
+      },
+      "source": {
+        "path": "export/avatars/animals/cat.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "bad4874d6ac6f63f89d37b5e8761728b65a15a82c70675878791bcbdc4daa6cd"
+      }
+    },
+    {
+      "asset_id": "icons/camera",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "b9d3e5a68a8318b5469b4fe499c542e9d2e17c068b24ba84f5c688e0b6d75bde",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art object icon master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK pixel-art compact camera icon. Image 1 supplies only canonical silhouette, centered orientation, lens/aperture count, and crop; do not enlarge its pixels. Image 2 is the approved HustleK mechanical-material reference. Image 3 is the approved cluster/outline quality reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key.\nSubject: one isolated front-facing compact camera preserving the rectangular ivory body, top viewfinder hump, large centered circular lens, tiny upper-right control/window, orientation, generous margins, and no extra objects.\nStyle/medium: handcrafted HustleK pixel art authored for a 128x128 logical grid; hard square-edged clusters; warm-charcoal outline; ivory enamel, brass accents, dark metal, and deep-blue glass using restrained 3-4 tone ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design stepped body corners, shutter button, seam lines, concentric lens barrel rings, glass reflection clusters, aperture core, small screws and material highlights sized for a true 128 grid. Preserve exactly one main circular aperture.\nConstraints: grid-aligned integer-sized marks; crisp silhouette; no antialiasing, blur, gradients, translucency, glow, noise, text, logo, watermark, scenery, strap, hands, extra lens, extra camera, cast shadow, or floor. Uniform #00FF00 background with no variation and no green inside subject.",
+        "source_id": "exec-87792631-f2c1-44ec-9d94-88772804ac72.png",
+        "source_sha256": "cfd1c41a290b31691920dd29a3f34c2353b415b083e9491847be828defd5ae4b",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          12,
+          21,
+          116,
+          100
+        ],
+        "components_8_neighbor": [
+          7079
+        ],
+        "decoded_rgba_sha256": "ce069a4bab32604e4056308673a689f965e7d5c05a228fd433627c317e749d15",
+        "foreground_pixels": 7079,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 32
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6615089225208945,
+        "identity_alpha_iou_floor": 0.62,
+        "identity_transitions": 736,
+        "master_transitions": 8755,
+        "native_detail_loss_floor": 0.15,
+        "native_detail_loss_ratio": 0.208251953125,
+        "not_identity_upscale": true,
+        "transition_gain": 11.89538043478261
+      },
+      "source": {
+        "path": "export/icons/camera.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4003000f6791c3ad7e1fda1efebcad82bcdc138fe2714ed2282f307819c67215"
+      }
+    },
+    {
+      "asset_id": "icons/calendar",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "01600829e703ddc5dff6e0949155839c63f109e0af220d8071e7218846da459a",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art object icon master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK pixel-art calendar icon. Image 1 supplies only canonical silhouette, centered orientation, two top binding tabs, internal negative spaces, and crop; never enlarge its pixels. Image 2 is the approved mechanical/material reference. Image 3 is the approved cluster/outline quality reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key.\nSubject: one isolated front-facing desk/wall calendar preserving the rectangular page body, two top binder tabs, upper header band, lower date area, centered alignment, generous margins, and no extra objects.\nStyle/medium: handcrafted HustleK pixel art authored for a 128x128 logical grid; hard square clusters; warm-charcoal outline; ivory paper, brass binding and subtle cool-gray ink using restrained 3-4 tone ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design stepped page corners, layered paper edge, two distinct binding loops, header separator, an orderly small date-grid made only of abstract square cells with no numerals, inset shadows and sparse 1-3 logical-pixel highlights. Calendar identity must read at 1x.\nConstraints: grid-aligned integer-sized marks; exact centered geometry; no antialiasing, blur, gradients, translucency, glow, random noise, letters, numerals, text, logo, watermark, scenery, clock, extra page, cast shadow, or floor. Uniform #00FF00 background with no variation and no green inside subject.",
+        "source_id": "exec-53b584f7-5088-4ee3-80b8-4d4f274a0151.png",
+        "source_sha256": "c800ca0eaf248e5d8ae4eebf268814a8fe46f9d255b80955dcbc36ef01e2c7ac",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          17,
+          8,
+          110,
+          117
+        ],
+        "components_8_neighbor": [
+          9272
+        ],
+        "decoded_rgba_sha256": "3c979b3b6f48d929e68acb0fdb3d9e1469fe2d9b68eee8ad04393c1702ed376a",
+        "foreground_pixels": 9272,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 31
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.46706989247311825,
+        "identity_alpha_iou_floor": 0.44,
+        "identity_transitions": 864,
+        "master_transitions": 12140,
+        "native_detail_loss_floor": 0.4,
+        "native_detail_loss_ratio": 0.500244140625,
+        "not_identity_upscale": true,
+        "transition_gain": 14.050925925925926
+      },
+      "source": {
+        "path": "export/icons/calendar.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "69e095cd3a2a1820a0346e51491117f5f9b6fab14b62425213d3d876dc2990de"
+      }
+    },
+    {
+      "asset_id": "icons/error",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "39e4d5d7a41c605dbb5be93583968372cc18cc5b268bd2e1a13043f33bcadc33",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art status icon master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK error/status icon. Image 1 supplies the exact semantic topology only: one centered red circular badge containing one dark X. Do not enlarge its pixels. Image 2 and Image 3 are cluster, outline, and palette-quality references.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key.\nSubject: one isolated centered error badge preserving exactly one round stepped circle, exactly one bold diagonal X, balanced negative space, orientation, and generous margins.\nStyle/medium: handcrafted HustleK pixel art authored for a 128x128 logical grid; hard square clusters; warm-charcoal outline; restrained red 3-tone badge ramp with upper-left highlight and lower-right shadow; dark X stays topologically dominant.\nNative-detail requirements: newly design a controlled stepped circular contour, consistent outline thickness, slight inset rim, sparse small highlight/shadow clusters and clean X corners. At 1x it must read instantly as error, not as a physical object.\nConstraints: grid-aligned integer-sized marks; geometrically centered; exactly one circle and one X; no antialiasing, blur, gradients, translucency, glow, bevel realism, texture noise, letters, punctuation, text, logo, watermark, scenery, extra symbol, cast shadow, or floor. Uniform #00FF00 background with no variation and no green inside subject.",
+        "source_id": "exec-063596a6-48ff-4037-85f6-75c4e116c270.png",
+        "source_sha256": "cff19d942d753b80e724cb6342c8d452fe0c842450b73de1821a281ebc9a85b2",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          12,
+          12,
+          116,
+          116
+        ],
+        "components_8_neighbor": [
+          8244
+        ],
+        "decoded_rgba_sha256": "fbdd746e06f21254b12103102a7dc2a19b75511d75e4bd7b21614e81e0c09993",
+        "foreground_pixels": 8244,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7292576419213974,
+        "identity_alpha_iou_floor": 0.7,
+        "identity_transitions": 800,
+        "master_transitions": 11433,
+        "native_detail_loss_floor": 0.18,
+        "native_detail_loss_ratio": 0.2476806640625,
+        "not_identity_upscale": true,
+        "transition_gain": 14.29125
+      },
+      "source": {
+        "path": "export/icons/error.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "cd448a8a5d588b1e57f5dc17f25bdb7c30326f61fbff91b8c367f75c0be68b74"
+      }
+    },
+    {
+      "asset_id": "icons/tree",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#FF00FF",
+        "cutout_sha256": "f0d186a4fc110d8738eda94c326928273df3287c674868c70dff0d67acd5c940",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art organic icon master\nPrimary request: Redesign Image 1 as a genuinely native-detail 128x128 HustleK evergreen tree icon. Image 1 supplies only canonical single-tree silhouette, upright orientation, trunk placement, centered crop, and margins; never enlarge its pixels. Image 2 is the approved material/outline reference. Image 3 is the broader HustleK sprite reference.\nScene/backdrop: perfectly flat solid #FF00FF chroma-key because the subject is green.\nSubject: one isolated centered stylized evergreen tree preserving the pointed crown, triangular layered foliage mass, straight brown trunk, upright orientation, and generous margins. No ground or scenery.\nStyle/medium: handcrafted HustleK pixel art authored for a 128x128 logical grid; hard square clusters; warm-charcoal outline; forest-green 3-4 tone foliage ramp, warm brown bark, upper-left light and lower-right shadow.\nNative-detail requirements: newly design several readable stepped bough tiers inside the canonical triangular silhouette, clustered needle masses, small shadow pockets between branches, bark bands and sparse 1-3 logical-pixel highlights. Keep the one-tree silhouette clean and icon-like.\nConstraints: grid-aligned integer-sized marks; continuous dark outline; no antialiasing, blur, gradients, translucency, glow, random dithering, text, logo, watermark, landscape, grass, snow, fruit, ornaments, roots, extra tree, cast shadow, or floor. Uniform #FF00FF background with no variation and no magenta inside subject.",
+        "source_id": "exec-f9ff794e-4bbd-48d1-9b8e-1e82f0e02ed5.png",
+        "source_sha256": "41f354bc501493e86b37d856010939d5a37009e43662c59720693ba9e3c7da0d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          25,
+          7,
+          104,
+          122
+        ],
+        "components_8_neighbor": [
+          4384
+        ],
+        "decoded_rgba_sha256": "38f8b657ec269c2716a1ea968c5bd140f3594ba7568cd6d01feb66940c401508",
+        "foreground_pixels": 4384,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 32
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.267578125,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 368,
+        "master_transitions": 6627,
+        "native_detail_loss_floor": 0.12,
+        "native_detail_loss_ratio": 0.15838623046875,
+        "not_identity_upscale": true,
+        "transition_gain": 18.008152173913043
+      },
+      "source": {
+        "path": "export/icons/tree.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4c3e9dcc6e494e26b5d464c3ba9cfa92768d5d5f5b9d52e25db331e407c24a04"
+      }
+    }
+  ],
+  "batch_id": "native128-000",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "avatars/presets/plain",
+        "cutout_sha256": "70a275c987e3c306b14ca4f4d5c0521d311c23f7179336b5b507bb13e9a7c36a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "d4cdc685a3cd59e27441e18df5b7dc3ee49489e4ce61100054bd6934ad5ab0c5",
+        "raw_imagegen_sha256": "96acf235395c173c2f1bbf676a13ba24cdfe059bfc0ffdbd6b9c1da0c3a8fefc"
+      },
+      {
+        "asset_id": "avatars/food/chef",
+        "cutout_sha256": null,
+        "identity_size": 32,
+        "master_method": "approved-native128-control",
+        "palette_colors": 24,
+        "prompt_sha256": "948a0d2909ee7092a6d9e7546a8e3d9b2a6df5598f145901dc87154255d28887",
+        "raw_imagegen_sha256": "23de26e00ed859076a6ef25220cc83e01a6611ba1e83869b3b9665d486b6ba31"
+      },
+      {
+        "asset_id": "avatars/fantasy/wizard",
+        "cutout_sha256": "a91497a284de6cd3a93dbc215b36b1ed044aca8f23299214d6db79cfae954036",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "ad228c0aa3c56bcbd7811acea925f2677a1374fcd38670d559dd47d03fb15708",
+        "raw_imagegen_sha256": "271c70722e32128daaa65ac2922bad5b385509f953f6d6aa45f97c98b2ca6ee3"
+      },
+      {
+        "asset_id": "avatars/animals/cat",
+        "cutout_sha256": "b08cd0d1b3b382de7ea229f62aff6a7488933e5bdd58377e59e9380def376e13",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "eedb0fe7ca00cc8ee9db316d0cc11df7398e07daefe84f2217de0c8bd035814b",
+        "raw_imagegen_sha256": "e142191e5255ee1f0ea92d3fa4e459f65f22038e1f8d37bce77eb4010404865a"
+      },
+      {
+        "asset_id": "icons/camera",
+        "cutout_sha256": "b9d3e5a68a8318b5469b4fe499c542e9d2e17c068b24ba84f5c688e0b6d75bde",
+        "identity_size": 64,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 32,
+        "prompt_sha256": "f994c23ebc3bbb769089e8cf0e16b706710dbe2a9947ed14d25e00e447c30c38",
+        "raw_imagegen_sha256": "cfd1c41a290b31691920dd29a3f34c2353b415b083e9491847be828defd5ae4b"
+      },
+      {
+        "asset_id": "icons/calendar",
+        "cutout_sha256": "01600829e703ddc5dff6e0949155839c63f109e0af220d8071e7218846da459a",
+        "identity_size": 16,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 32,
+        "prompt_sha256": "363dde4700e0bd547df37d203f399f5b16d65fafb7f88d6284777a813f2abd2e",
+        "raw_imagegen_sha256": "c800ca0eaf248e5d8ae4eebf268814a8fe46f9d255b80955dcbc36ef01e2c7ac"
+      },
+      {
+        "asset_id": "icons/error",
+        "cutout_sha256": "39e4d5d7a41c605dbb5be93583968372cc18cc5b268bd2e1a13043f33bcadc33",
+        "identity_size": 64,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "9844084669efc1e0b701d194da76a637bce5a78bbcff5266542939445a927d51",
+        "raw_imagegen_sha256": "cff19d942d753b80e724cb6342c8d452fe0c842450b73de1821a281ebc9a85b2"
+      },
+      {
+        "asset_id": "icons/tree",
+        "cutout_sha256": "f0d186a4fc110d8738eda94c326928273df3287c674868c70dff0d67acd5c940",
+        "identity_size": 64,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 32,
+        "prompt_sha256": "ed2cfd011df28d0d280d861236c34d430ef7943ad56f92d4b5f5b0d325505312",
+        "raw_imagegen_sha256": "41f354bc501493e86b37d856010939d5a37009e43662c59720693ba9e3c7da0d"
+      }
+    ],
+    "batch_id": "native128-000",
+    "builder_sha256_lf": "b02d7caeb1fbc22b7dafedd484bc62c654eba07857033f9b8b2bafa00e228607",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "c3f5253a82973060bbdf7647ca0cee50e6c31077d9e5197da9a25a4805468c7a",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
