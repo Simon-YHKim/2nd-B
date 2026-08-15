@@ -1,6 +1,5 @@
 import {
   careerYearOf,
-  composeAchievementBody,
   groupCareerTimeline,
   type CareerRecordRow,
 } from "../career-timeline";
@@ -38,16 +37,6 @@ describe("career CV timeline (P4d)", () => {
     expect(groups.map((g) => g.year)).toEqual(["2024", "2020"]);
     expect(groups[0].items.map((i) => i.id)).toEqual(["d", "b"]);
     expect(groups[1].items.map((i) => i.id)).toEqual(["a", "c"]);
-  });
-
-  test("achievement body composes filled boxes only, per locale", () => {
-    expect(
-      composeAchievementBody({ title: "라인 신설 완료", role: "", impact: "UPH 12% 개선" }, "ko"),
-    ).toBe("성과: 라인 신설 완료\n임팩트: UPH 12% 개선");
-    expect(composeAchievementBody({ title: "Launch", role: "Lead", impact: "" }, "en")).toBe(
-      "Achievement: Launch\nRole: Lead",
-    );
-    expect(composeAchievementBody({ title: " ", role: "", impact: "" }, "ko")).toBe("");
   });
 
   test("empty input yields no groups", () => {

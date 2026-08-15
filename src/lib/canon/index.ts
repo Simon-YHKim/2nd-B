@@ -12,6 +12,7 @@ import navPack from "../../../public/proto/data/app/nav.json";
 import constellationPack from "../../../public/proto/data/core/constellation.json";
 import captureModesPack from "../../../public/proto/data/core/capture-modes.json";
 import museumPack from "../../../public/proto/data/screens/museum.json";
+import careerInputPack from "../../../public/proto/data/screens/careerinput.json";
 import morePack from "../../../public/proto/data/screens/more.json";
 import knowPack from "../../../public/proto/data/screens/know.json";
 import surfacesPack from "../../../public/proto/data/screens/surfaces.json";
@@ -148,6 +149,20 @@ export const canonMuseum = {
   refKo: museumPack.refKo as Record<string, string>,
   refIcon: museumPack.refIcon as Record<string, string>,
   decades: museumPack.decades as number[],
+};
+
+/** One 고용24 job-KPI suggestion chip on the 성과 입력 form. */
+export interface CanonCareerKpiSuggestion {
+  name: string;
+  /** "%" / "점" / "" — the unit shown after the value the user types. */
+  unit: string;
+}
+
+// The 성과 입력 suggestion list is CONTENT, so it lives in the canon and the
+// screen reads it from here. Copying these seven strings into the screen is how
+// the canon and the app drift apart without anything failing.
+export const canonCareerInput = {
+  suggest: careerInputPack.suggest as CanonCareerKpiSuggestion[],
 };
 
 export interface CanonImagineSeed {
