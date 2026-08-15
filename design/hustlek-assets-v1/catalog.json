@@ -1,5 +1,96 @@
 {
   "active_asset_index": {
+    "avatars/agriculture/agronomist": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/beekeeper": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/farmer": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/fisher": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/fishmonger": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/forester": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/gardener": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/hunter": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/lumberjack": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/miner": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/rancher": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/shepherd": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/agriculture/vintner": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
     "avatars/animals/cat": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
@@ -90,6 +181,139 @@
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
       "state": "ready_for_review",
       "version": "5ff10404028c"
+    },
+    "avatars/art/writer": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/accountant": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/auditor": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/banker": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/ceo": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/clerk": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/consultant": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/hr": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/judge": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/lawyer": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/marketer": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/realtor": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/receptionist": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/business/salesRep": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/construction/architect": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/construction/blacksmith": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/construction/builder": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/construction/carpenter": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    "avatars/construction/craneOp": {
+      "batch_id": "native128-003",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
     },
     "avatars/education/archaeologist": {
       "batch_id": "native128-002",
@@ -621,6 +845,53 @@
     },
     {
       "asset_ids": [
+        "avatars/art/writer",
+        "avatars/agriculture/agronomist",
+        "avatars/agriculture/beekeeper",
+        "avatars/agriculture/farmer",
+        "avatars/agriculture/fisher",
+        "avatars/agriculture/fishmonger",
+        "avatars/agriculture/forester",
+        "avatars/agriculture/gardener",
+        "avatars/agriculture/hunter",
+        "avatars/agriculture/lumberjack",
+        "avatars/agriculture/miner",
+        "avatars/agriculture/rancher",
+        "avatars/agriculture/shepherd",
+        "avatars/agriculture/vintner",
+        "avatars/business/accountant",
+        "avatars/business/auditor",
+        "avatars/business/banker",
+        "avatars/business/ceo",
+        "avatars/business/clerk",
+        "avatars/business/consultant",
+        "avatars/business/hr",
+        "avatars/business/judge",
+        "avatars/business/lawyer",
+        "avatars/business/marketer",
+        "avatars/business/realtor",
+        "avatars/business/receptionist",
+        "avatars/business/salesRep",
+        "avatars/construction/architect",
+        "avatars/construction/blacksmith",
+        "avatars/construction/builder",
+        "avatars/construction/carpenter",
+        "avatars/construction/craneOp"
+      ],
+      "batch_id": "native128-003",
+      "contract_sha256": "3657ce7e384138ce06407201c8f50fa61fe9655680cb4dd932fea55ad1d7335d",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/manifest.json",
+      "manifest_sha256": "af15ed354b5fb3ad56400e6a0d98d40609e5c3c41eb2b84aa1041cc2cc76e947",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-003/3657ce7e3841/master-atlas.png",
+      "master_atlas_sha256": "7cecae3f0f67eef646cb744a4355b722baf14b48b9453fa5ee89b58fe9def094",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "3657ce7e3841"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -648,9 +919,22 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 71,
-    "native128_remaining": 732,
+    "native128_ready_or_approved": 103,
+    "native128_remaining": 700,
     "ready_asset_ids": [
+      "avatars/agriculture/agronomist",
+      "avatars/agriculture/beekeeper",
+      "avatars/agriculture/farmer",
+      "avatars/agriculture/fisher",
+      "avatars/agriculture/fishmonger",
+      "avatars/agriculture/forester",
+      "avatars/agriculture/gardener",
+      "avatars/agriculture/hunter",
+      "avatars/agriculture/lumberjack",
+      "avatars/agriculture/miner",
+      "avatars/agriculture/rancher",
+      "avatars/agriculture/shepherd",
+      "avatars/agriculture/vintner",
       "avatars/animals/cat",
       "avatars/art/actor",
       "avatars/art/animator",
@@ -664,6 +948,25 @@
       "avatars/art/sculptor",
       "avatars/art/singer",
       "avatars/art/tattooist",
+      "avatars/art/writer",
+      "avatars/business/accountant",
+      "avatars/business/auditor",
+      "avatars/business/banker",
+      "avatars/business/ceo",
+      "avatars/business/clerk",
+      "avatars/business/consultant",
+      "avatars/business/hr",
+      "avatars/business/judge",
+      "avatars/business/lawyer",
+      "avatars/business/marketer",
+      "avatars/business/realtor",
+      "avatars/business/receptionist",
+      "avatars/business/salesRep",
+      "avatars/construction/architect",
+      "avatars/construction/blacksmith",
+      "avatars/construction/builder",
+      "avatars/construction/carpenter",
+      "avatars/construction/craneOp",
       "avatars/education/archaeologist",
       "avatars/education/astronomer",
       "avatars/education/coach",
