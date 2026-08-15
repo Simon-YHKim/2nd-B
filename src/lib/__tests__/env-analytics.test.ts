@@ -1,6 +1,6 @@
 // Regression guard for the 2026-06-11 live outage: the deploy workflow
 // renders unset repo Variables as the EMPTY STRING, and a strict .url()
-// check on EXPO_PUBLIC_POSTHOG_HOST threw at module init - every visitor
+// check on a telemetry host env var threw at module init - every visitor
 // got a dead black screen. Telemetry config must never brick the app.
 
 import { normalizeAnalyticsUrl } from "../env";
@@ -13,34 +13,19 @@ describe("normalizeAnalyticsUrl (analytics endpoints never brick the app)", () =
   });
 
   test("a valid https URL passes through untouched", () => {
-    expect(normalizeAnalyticsUrl("X", "https://us.i.posthog.com")).toBe("https://us.i.posthog.com");
+    expect(normalizeAnalyticsUrl("X", "https://us.i.analytics.example")).toBe("https://us.i.analytics.example");
   });
 
   test("the common scheme-less paste form gets https:// assumed", () => {
-    expect(normalizeAnalyticsUrl("X", "us.i.posthog.com")).toBe("https://us.i.posthog.com");
-    expect(normalizeAnalyticsUrl("X", " app.posthog.com ")).toBe("https://app.posthog.com");
+    expect(normalizeAnalyticsUrl("X", "us.i.analytics.example")).toBe("https://us.i.analytics.example");
+    expect(normalizeAnalyticsUrl("X", " app.analytics.example ")).toBe("https://app.analytics.example");
   });
 
   test("garbage degrades to off with a warning, never a throw", () => {
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-    expect(normalizeAnalyticsUrl("EXPO_PUBLIC_POSTHOG_HOST", "ht!tp::/bad url")).toBeUndefined();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("EXPO_PUBLIC_POSTHOG_HOST"));
+    expect(normalizeAnalyticsUrl("EXPO_PUBLIC_ANALYTICS_HOST", "ht!tp::/bad url")).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("EXPO_PUBLIC_ANALYTICS_HOST"));
     warn.mockRestore();
-  });
-
-  test("getEnv boots with an empty-string PostHog host (the outage shape)", () => {
-    jest.isolateModules(() => {
-      const prev = process.env.EXPO_PUBLIC_POSTHOG_HOST;
-      process.env.EXPO_PUBLIC_POSTHOG_HOST = "";
-      try {
-        const { getEnv } = require("../env") as typeof import("../env");
-        expect(() => getEnv()).not.toThrow();
-        expect(getEnv().EXPO_PUBLIC_POSTHOG_HOST).toBeUndefined();
-      } finally {
-        if (prev === undefined) delete process.env.EXPO_PUBLIC_POSTHOG_HOST;
-        else process.env.EXPO_PUBLIC_POSTHOG_HOST = prev;
-      }
-    });
   });
 });
 

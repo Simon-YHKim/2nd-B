@@ -27,6 +27,9 @@ import { DeepSpaceLoader, SecondbHead, SecondbStatusHeader } from "@/components/
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { WikiGraph } from "@/components/deep-space/WikiGraph";
 import { RecordsGraph } from "@/components/deep-space/RecordsGraph";
+import { generateSourcePage } from "@/lib/wiki/phase2";
+import { promotePendingUploads } from "@/lib/wiki/promote-pending";
+import { SOURCE_ID_PREFIX } from "@/lib/records/get-piece";
 import { SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
@@ -801,6 +804,38 @@ export function DeepSpaceRecordDetailScreen() {
     const h = setTimeout(() => setActionError(null), 5000);
     return () => clearTimeout(h);
   }, [actionError]);
+
+  // Promote a captured source into a wiki page. Until this existed the ONLY
+  // caller of generateSourcePage a production user could reach was the reasoning
+  // ratify path, and that one aborted on the first source that threw — which is
+  // why wiki_pages held 0 rows across every account while sources sat unpromoted
+  // with their bodies already stored. A source detail screen renders no actions
+  // at all today (the CTA row below is gated off for sources), so this is where
+  // it belongs.
+  const [promoting, setPromoting] = useState(false);
+  const [promoted, setPromoted] = useState(false);
+  const promoteToWiki = useCallback(async () => {
+    if (!userId || !recordId || promoting) return;
+    setPromoting(true);
+    try {
+      // Recover any body whose Storage upload never completed, exactly as the
+      // (now unreachable) legacy inbox promote did before calling phase 2.
+      await promotePendingUploads(userId).catch(() => undefined);
+      // /records sends the raw uuid and carries origin separately, but
+      // /core-brain and older links can carry the `src-` prefix. Strip it
+      // defensively: getSource would simply miss and throw SourceNotFoundError.
+      const sid = recordId.startsWith(SOURCE_ID_PREFIX)
+        ? recordId.slice(SOURCE_ID_PREFIX.length)
+        : recordId;
+      await generateSourcePage(userId, sid);
+      setPromoted(true);
+      AccessibilityInfo.announceForAccessibility(t("ds.wikiRecords.wikiPageMade"));
+    } catch {
+      reportActionError();
+    } finally {
+      setPromoting(false);
+    }
+  }, [userId, recordId, promoting, reportActionError, t]);
   // deleteRecord is a hard DB DELETE with no undo, and the trash button sits in
   // the same ctaRow as 편집/이동 - a mis-tap destroyed the record silently. The
   // confirm modal mirrors inbox's delete-confirm pattern.
@@ -1152,6 +1187,26 @@ export function DeepSpaceRecordDetailScreen() {
         </>
       ) : null}
 
+      {/* Sources get their own row: the one below is gated off for them, so a
+          source detail had zero actions. Kept as a SEPARATE sibling block on
+          purpose — records-source-detail-route.test.ts pins the exact JSX of
+          the `{isSource ? null : (` line, so it must stay byte-identical. */}
+      {isSource ? (
+      <View style={styles.ctaRow}>
+        <Pressable
+          style={styles.secondary}
+          onPress={() => void promoteToWiki()}
+          disabled={promoting || promoted}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: promoting || promoted }}
+        >
+          <Text variant="caption" style={styles.secondaryText}>
+            {promoted ? t("ds.wikiRecords.wikiPageMade") : t("ds.wikiRecords.makeWikiPage")}
+          </Text>
+        </Pressable>
+      </View>
+      ) : null}
+
       {isSource ? null : (
       <View style={styles.ctaRow}>
         {record.body && record.body.trim().length > 0 && !assessmentRoute(record) && !parseStructured(record.structured) && !editing ? (
@@ -1426,14 +1481,18 @@ export function DeepSpaceWikiScreen() {
                     <Text variant="body" style={styles.wikiBody}>{p.snippet}</Text>
                   ) : null}
                   <View style={styles.wikiBacklinkRow}>
-                    <Pressable
-                      onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: p.id } })}
-                      accessibilityRole="button"
-                      hitSlop={12}
-                      accessibilityLabel={t("wiki.backlinks", { count: p.connections })}
-                    >
-                      <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
-                    </Pressable>
+                    {/* A count, not a button. This row only renders inside the
+                        EXPANDED card, so `p.id` is the page the user is already
+                        looking at — the tap pushed a second, visually identical
+                        /wiki with the same entry open. (It used to push
+                        /record/[id] and land on "기록을 찾을 수 없어요"; #984
+                        retargeted it to /wiki, which stopped the error screen but
+                        left the destination degenerate.) The label named a
+                        destination that did not exist, so the affordance goes and
+                        the number stays. Listing the N linked pages inline is the
+                        real fix and wants its own change: `edges` and `pages` are
+                        both in scope here, so it is a disclosure, not a fetch. */}
+                    <Text variant="subtle" style={styles.wikiBacklink}>↩ {t("wiki.backlinks", { count: p.connections })}</Text>
                     {p.tags[0] ? <Text variant="caption" pixelEn style={styles.tlTag}>{p.tags[0]}</Text> : null}
                   </View>
                 </View>

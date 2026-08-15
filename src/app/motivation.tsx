@@ -169,6 +169,7 @@ function MotivationSurvey({ onComplete, onCancel, registerBackGuard }: { onCompl
           toolKey="motivation"
           title={t("ds.axisCheck.motivation.survey.title")}
           itemCount={MOTIVATION_ITEMS.length}
+          perPage={4}
           estimatedMinutes={3}
           description={t("ds.axisCheck.motivation.survey.description")}
           citation={t("ds.axisCheck.motivation.survey.citation")}

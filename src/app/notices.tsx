@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,30 +18,38 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { keepAllKo } from "@/lib/i18n/keep-all";
+import { composeNoticeCenter } from "@/lib/notices/center";
+import { renderableBlocks } from "@/lib/notices/markdown";
+import {
+  addReadId,
+  getReadIds,
+  getRevision,
+  loadPersistedReadIds,
+  mergeReadIds,
+  subscribe,
+} from "@/lib/notices/read-store";
+import { fetchNotices, fetchReadNoticeIds, markNoticeRead } from "@/lib/notices/remote";
+import type { LocalizedNoticeText, NoticeKind, ProductNotice, RemoteNotice } from "@/lib/notices/types";
+import { getAppVersion } from "@/lib/notices/version";
+import { storeUrl, updateChannel, updateNoticeMode } from "@/lib/release/update-notice";
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 
-export type NoticeKind = "patch" | "developer" | "maintenance";
-type LocalizedNoticeText = Readonly<{ ko: string; en: string }>;
+// The shapes moved to src/lib/notices/types.ts so the pure notice logic is
+// importable without pulling a screen (and its RN imports) into the node test
+// environment. Re-exported here because this module is the historical home of
+// the notice API and both consumers import from it.
+export type { LocalizedNoticeText, NoticeKind, ProductNotice };
 
-export interface ProductNotice {
-  id: string;
-  kind: NoticeKind;
-  eyebrow: LocalizedNoticeText;
-  version?: string;
-  when: LocalizedNoticeText;
-  listMeta: LocalizedNoticeText;
-  title: LocalizedNoticeText;
-  body: readonly {
-    kind: "paragraph" | "bullet";
-    text: LocalizedNoticeText;
-  }[];
-}
-
+/** Release notes baked into the binary. They describe THIS build, so they are
+ *  authored here rather than published to the notices table; anything an
+ *  operator needs to say after a release goes in the table instead
+ *  (db/migrations/0113_notices.sql, docs/OPERATIONS-NOTICES.md). */
 export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   {
     id: "patch-1.4.0",
+    sortAt: "2026-07-17T00:00:00+09:00",
     kind: "patch",
     eyebrow: { ko: "NEW", en: "NEW" },
     version: "v1.4.0",
@@ -72,6 +82,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "developer-letter-2026-07",
+    sortAt: "2026-07-14T00:00:00+09:00",
     kind: "developer",
     eyebrow: { ko: "개발자 공지", en: "DEVELOPER NOTE" },
     when: { ko: "2026.07.14 · 세컨비 팀", en: "2026.07.14 · SecondB team" },
@@ -106,6 +117,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "maintenance-2026-07-20",
+    sortAt: "2026-07-20T00:00:00+09:00",
     kind: "maintenance",
     eyebrow: { ko: "점검 안내", en: "MAINTENANCE" },
     when: { ko: "2026.07.20 · 03:00–05:00", en: "2026.07.20 · 03:00–05:00 KST" },
@@ -123,6 +135,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "patch-1.3.0",
+    sortAt: "2026-06-26T00:00:00+09:00",
     kind: "patch",
     eyebrow: { ko: "패치노트", en: "PATCH NOTES" },
     version: "v1.3.0",
@@ -141,6 +154,7 @@ export const PRODUCT_NOTICES: readonly ProductNotice[] = [
   },
   {
     id: "beta-thanks-2026-06",
+    sortAt: "2026-06-05T00:00:00+09:00",
     kind: "developer",
     eyebrow: { ko: "공지", en: "NOTE" },
     when: { ko: "2026.06.05 · 세컨비 팀", en: "2026.06.05 · SecondB team" },
@@ -209,18 +223,48 @@ async function writeSeenId(userId: string, noticeId: string): Promise<void> {
   await nativeStorage()?.setItem(key, noticeId);
 }
 
+/**
+ * The notice centre: bundled release notes plus operator-published rows from
+ * the `notices` table, merged into one list, one unread count and one popup.
+ *
+ * Everything about WHICH notice wins lives in composeNoticeCenter()
+ * (src/lib/notices/center.ts) so it can be unit-tested; this hook is just the
+ * data plumbing around it.
+ */
 export function useNoticeCenter(userId: string | null) {
-  // undefined = storage hydration in progress. It prevents an already-read
-  // notice from flashing for one frame during an Android cold start.
+  // undefined = hydration in progress, for each source independently. It
+  // prevents an already-read notice from flashing for one frame during an
+  // Android cold start, and it keeps the popup shut until BOTH the local cursor
+  // and the server read-state are known.
   const [seenId, setSeenId] = useState<string | null | undefined>(undefined);
+  const [remote, setRemote] = useState<readonly RemoteNotice[] | undefined>(undefined);
+  const [readsHydrated, setReadsHydrated] = useState(false);
+  // Read ids live in a module-level store, not in this hook: home, /settings
+  // and /notices all mount useNoticeCenter at once, and /notices is pushed OVER
+  // a still-mounted home, so a private copy left the home badge lit after the
+  // inbox cleared it. See src/lib/notices/read-store.ts.
+  const [readRevision, setReadRevision] = useState(() => getRevision());
+  useEffect(() => subscribe(() => setReadRevision(getRevision())), []);
+  const readIds = useMemo(
+    // readRevision is the dependency that matters; the store mutates in place.
+    () => new Set(getReadIds(userId)),
+    [userId, readRevision],
+  );
 
   useEffect(() => {
     if (!userId) {
       setSeenId(null);
+      // Signed out: no rows are readable (the RLS policies are TO authenticated
+      // and anon holds no grant), so do not spend a request to find that out.
+      setRemote([]);
+      setReadsHydrated(true);
       return;
     }
     let cancelled = false;
     setSeenId(undefined);
+    setRemote(undefined);
+    setReadsHydrated(false);
+
     void readSeenId(userId)
       .then((value) => {
         if (!cancelled) setSeenId(value);
@@ -228,27 +272,95 @@ export function useNoticeCenter(userId: string | null) {
       .catch(() => {
         if (!cancelled) setSeenId(null);
       });
+
+    // Both fetches already fail soft and resolve to an empty result, so a
+    // network outage hydrates to "no remote notices" rather than hanging the
+    // popup gate forever.
+    void fetchNotices().then((rows) => {
+      if (!cancelled) setRemote(rows);
+    });
+    // Local mirror first so a read recorded while offline survives the restart,
+    // then the server set. Both MERGE rather than replace, so neither can undo
+    // an optimistic markSeen that landed while they were in flight.
+    void Promise.all([loadPersistedReadIds(userId), fetchReadNoticeIds(userId)])
+      .then(([local, server]) => {
+        // Merge UNCONDITIONALLY, even when this instance was cancelled. The
+        // store is module-level and grows monotonically, so a result that lands
+        // after an unmount is still correct for every instance still mounted -
+        // and three of them mount at once (home, /settings, /notices). Dropping
+        // it on `cancelled` was a way for a read the server already knows about
+        // to never reach any render.
+        mergeReadIds(userId, local);
+        mergeReadIds(userId, server);
+        // Re-sync THIS instance's revision explicitly. mergeReadIds only
+        // notify()s when it actually changed something, so whenever another
+        // instance merged the same ids first, this one gets no notification and
+        // its readRevision stays at whatever it captured on mount - leaving a
+        // stale, empty readIds behind a hydrated gate. That is exactly the
+        // shape of the observed defect: the server row came back 200 with the
+        // right id, yet the popup, the bell dot and the inbox all still read
+        // "unread" for as long as the screen stayed open.
+        if (!cancelled) setReadRevision(getRevision());
+      })
+      .finally(() => {
+        // After the merge above, never before: hydrated is what opens the popup
+        // gate, and opening it while readIds is still empty shows an already
+        // read notice.
+        if (!cancelled) setReadsHydrated(true);
+      });
+
     return () => {
       cancelled = true;
     };
   }, [userId]);
 
+  const hydrated = seenId !== undefined && remote !== undefined && readsHydrated;
+
+  const state = useMemo(
+    () =>
+      composeNoticeCenter({
+        remote: remote ?? [],
+        remoteReadIds: readIds ?? new Set<string>(),
+        bundled: PRODUCT_NOTICES,
+        bundledSeenId: seenId ?? null,
+        appVersion: getAppVersion(),
+      }),
+    [remote, readIds, seenId],
+  );
+
   const markSeen = useCallback(
     async (noticeId: string) => {
       if (!userId) return;
-      // Only the newest ID is the unread cursor. Reading an older history item
-      // must not accidentally clear a newer announcement.
+      if (state.remoteIds.has(noticeId)) {
+        // Optimistic AND locally persisted. The write is idempotent (23505 is
+        // swallowed), and the local mirror is what makes a failed request cost
+        // only the cross-device sync of this one read: without it an offline
+        // 확인 was forgotten at the next cold start and the same major notice
+        // interrupted again, forever.
+        addReadId(userId, noticeId);
+        await markNoticeRead(userId, noticeId).catch((error: unknown) => {
+          // The two read paths in remote.ts warn on failure; this one used to
+          // swallow silently, which made the replay above undiagnosable.
+          console.warn("[notices] failed to record read", error);
+        });
+        return;
+      }
+      // Bundled notices share a single "last seen id" cursor, so only the newest
+      // one moves it. Reading an older history item must not accidentally clear
+      // a newer announcement.
       if (noticeId !== LATEST_NOTICE.id) return;
       setSeenId(noticeId);
       await writeSeenId(userId, noticeId).catch(() => undefined);
     },
-    [userId],
+    [userId, state.remoteIds],
   );
 
   return {
-    hydrated: seenId !== undefined,
-    unreadCount: seenId !== undefined && seenId !== LATEST_NOTICE.id ? 1 : 0,
-    isUnread: (noticeId: string) => noticeId === LATEST_NOTICE.id && seenId !== LATEST_NOTICE.id,
+    hydrated,
+    notices: state.notices,
+    unreadCount: hydrated ? state.unreadCount : 0,
+    popupNotice: hydrated ? state.popupNotice : null,
+    isUnread: (noticeId: string) => hydrated && state.unreadIds.has(noticeId),
     markSeen,
   };
 }
@@ -260,11 +372,20 @@ const ICON_PATH: Record<NoticeKind, string> = {
     '<path d="M4 19.5h5L19.5 9 15 4.5 4.5 15z"/><path d="m13.5 6 4.5 4.5M4 19.5l4.5-1-3.5-3.5z"/>',
   maintenance:
     '<path d="M14.7 6.3a4.2 4.2 0 0 0-5.5 5.5L3.5 17.5l3 3 5.7-5.7a4.2 4.2 0 0 0 5.5-5.5l-2.4 2.4-3-3z"/>',
+  // Operator-published kinds. major = the megaphone that is allowed to
+  // interrupt; minor = a quiet info mark that only ever sits in the list.
+  major:
+    '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
+  minor: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/>',
 };
 
 function kindColor(kind: NoticeKind): string {
   if (kind === "developer") return m3.color.tertiary;
   if (kind === "maintenance") return m3.color.error;
+  // A minor notice recedes: neutral tone, no accent colour competing with the
+  // rest of the surface. Same tier principle the constellation uses, and it
+  // keeps the screen inside its colour budget instead of adding a fourth hue.
+  if (kind === "minor") return m3.color.onSurfaceVariant;
   return m3.color.primary;
 }
 
@@ -291,6 +412,7 @@ export function NoticeDialog({
   onPrevious,
   onNext,
   showPager = true,
+  total,
 }: {
   visible: boolean;
   notice: ProductNotice;
@@ -301,6 +423,9 @@ export function NoticeDialog({
   onPrevious?: () => void;
   onNext?: () => void;
   showPager?: boolean;
+  /** Pager denominator. The list is no longer a fixed array once remote notices
+   *  are merged in, so the count comes from the caller. */
+  total?: number;
 }) {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
@@ -312,6 +437,75 @@ export function NoticeDialog({
         : "A letter from SecondB"
       : title;
   const tone = kindColor(notice.kind);
+
+  // A major notice published by the release pipeline carries the version it
+  // announces (min_app_version). Readers who already have that version get the
+  // notice as written - it introduces a feature they can go and use. Readers
+  // who do not get one extra line and an action, because for them the same text
+  // describes something they cannot find yet. Everything else (bundled notes,
+  // minor rows, notices with no floor) resolves to "feature-intro" and renders
+  // exactly as it did before. See src/lib/release/update-notice.ts.
+  const needsUpdate =
+    notice.kind === "major" &&
+    updateNoticeMode(getAppVersion(), notice.minAppVersion) === "update-prompt";
+  const updateVersion = notice.minAppVersion ?? "";
+  const reloads = updateChannel(Platform.OS) === "reload";
+  const updateHint = !needsUpdate
+    ? ""
+    : reloads
+      ? ko
+        ? `${updateVersion} 버전부터 쓸 수 있어요. 새로고침하면 최신 버전으로 바뀌어요.`
+        : `This arrives in version ${updateVersion}. Reload the page to get it.`
+      : ko
+        ? `${updateVersion} 버전부터 쓸 수 있어요. 스토어에서 앱을 업데이트해 주세요.`
+        : `This arrives in version ${updateVersion}. Update the app in the store to get it.`;
+  const confirmLabel = !needsUpdate
+    ? ko
+      ? "확인"
+      : "Done"
+    : reloads
+      ? ko
+        ? "새로고침"
+        : "Reload"
+      : ko
+        ? "업데이트"
+        : "Update";
+
+  // Acting on the prompt counts as reading it, so this calls onConfirm(): the
+  // user has been told and has been sent somewhere.
+  //
+  // What DISMISSING does is not decided here. This dialog only reports the
+  // gesture; each caller chooses what it means, and the two callers differ:
+  //
+  //   home    every route records the read - scrim, hardware back, 리스트 and
+  //           확인 all run ConstellationHome's dismissNotice(), which calls
+  //           markSeen(). The popup already interrupted the user and put the
+  //           notice on screen, so that is what read means there. Keying it off
+  //           확인 alone is what used to make one major notice re-interrupt on
+  //           every cold start, forever, for anyone whose habit is the back
+  //           button.
+  //   inbox   /notices records only on 확인, because nothing was interrupted:
+  //           the user opened the notice themselves and can leave without
+  //           acknowledging it.
+  //
+  // Pinned by "the home popup records a read on every dismissal route" in
+  // src/lib/notices/__tests__/notice-center.test.ts.
+  //
+  // onConfirm() goes FIRST because on web the action is a page reload, and
+  // markSeen()'s durable half is a POST to user_notice_reads. Issuing the
+  // request before queueing the navigation is free and gives it the whole
+  // unload window instead of a slice of it.
+  const onUpdatePress = () => {
+    onConfirm();
+    const target = storeUrl(Platform.OS);
+    if (target !== null) {
+      void Linking.openURL(target).catch(() => undefined);
+    } else if (typeof window !== "undefined" && typeof window.location?.reload === "function") {
+      // Web only. `window` also exists on native (it aliases global) but has no
+      // location, so this is a typeof check rather than a truthiness one.
+      window.location.reload();
+    }
+  };
 
   return (
     <Modal
@@ -360,7 +554,12 @@ export function NoticeDialog({
           </RNText>
 
           <ScrollView style={styles.dialogBodyScroll} contentContainerStyle={styles.dialogBody}>
-            {notice.body.map((block, blockIndex) =>
+            {/* renderableBlocks drops blocks with no text in THIS language:
+                the ko/en bodies are paired by index and padded, so an unequal
+                bullet count would otherwise show a bare "✦" with nothing after
+                it. See src/lib/notices/markdown.ts. */}
+            {renderableBlocks(notice.body, ko)
+              .map((block, blockIndex) =>
               block.kind === "bullet" ? (
                 <View key={`${notice.id}-${blockIndex}`} style={styles.bulletRow}>
                   <RNText style={[styles.bulletMark, { color: tone }]}>{"✦"}</RNText>
@@ -384,8 +583,14 @@ export function NoticeDialog({
                     : noticeText(block.text, ko)}
                 </RNText>
               ),
-            )}
+              )}
           </ScrollView>
+
+          {needsUpdate ? (
+            <RNText style={styles.updateHint} accessibilityLabel={updateHint}>
+              {ko ? keepAllKo(updateHint) : updateHint}
+            </RNText>
+          ) : null}
 
           <View style={styles.dialogActions}>
             {showPager ? <View style={styles.pager}>
@@ -399,7 +604,9 @@ export function NoticeDialog({
               >
                 <RNText style={[styles.pagerArrow, !onPrevious && styles.pagerDisabled]}>{"‹"}</RNText>
               </Pressable>
-              <RNText style={styles.pagerText}>{`${index + 1} / ${PRODUCT_NOTICES.length}`}</RNText>
+              <RNText style={styles.pagerText}>
+                {`${index + 1} / ${total ?? PRODUCT_NOTICES.length}`}
+              </RNText>
               <Pressable
                 onPress={onNext}
                 disabled={!onNext}
@@ -418,9 +625,9 @@ export function NoticeDialog({
               style={styles.dialogButton}
             />
             <MdButton
-              label={ko ? "확인" : "Done"}
+              label={confirmLabel}
               variant={notice.kind === "maintenance" ? "tonal" : "filled"}
-              onPress={onConfirm}
+              onPress={needsUpdate ? onUpdatePress : onConfirm}
               style={styles.dialogButton}
             />
           </View>
@@ -435,10 +642,19 @@ export default function NoticesScreen() {
   const { i18n } = useTranslation();
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
   const noticeCenter = useNoticeCenter(userId);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selected = selectedIndex == null ? null : PRODUCT_NOTICES[selectedIndex];
+  // Keyed by ID, not by index. `data` is bundled-only until fetchNotices()
+  // resolves and then gains the remote rows AT THE FRONT, so an index captured
+  // on tap pointed at a different notice a round trip later: the open dialog
+  // swapped its own content, and 확인 wrote a read row for a notice the user
+  // had never opened - permanently suppressing its popup, since reads are
+  // append-only with no client DELETE.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const data = useMemo(() => [...PRODUCT_NOTICES], []);
+  // Newest first: remote rows and bundled release notes interleaved by date.
+  // Composed in src/lib/notices/center.ts.
+  const data = noticeCenter.notices;
+  const selectedIndex = selectedId == null ? -1 : data.findIndex((item) => item.id === selectedId);
+  const selected = selectedIndex < 0 ? null : data[selectedIndex];
 
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
@@ -458,13 +674,13 @@ export default function NoticesScreen() {
           style={styles.noticeCard}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
-          renderItem={({ item, index }) => {
-            const unread = noticeCenter.hydrated && noticeCenter.isUnread(item.id);
+          renderItem={({ item }) => {
+            const unread = noticeCenter.isUnread(item.id);
             const title = noticeText(item.title, ko);
             const listMeta = noticeText(item.listMeta, ko);
             return (
               <Pressable
-                onPress={() => setSelectedIndex(index)}
+                onPress={() => setSelectedId(item.id)}
                 accessibilityRole="button"
                 accessibilityLabel={`${title}, ${listMeta}`}
                 style={styles.noticeRow}
@@ -496,23 +712,24 @@ export default function NoticesScreen() {
         />
       </View>
 
-      {selected && selectedIndex != null ? (
+      {selected ? (
         <NoticeDialog
           visible
           notice={selected}
           index={selectedIndex}
-          onClose={() => setSelectedIndex(null)}
-          onList={() => setSelectedIndex(null)}
+          total={data.length}
+          onClose={() => setSelectedId(null)}
+          onList={() => setSelectedId(null)}
           onConfirm={() => {
             void noticeCenter.markSeen(selected.id);
-            setSelectedIndex(null);
+            setSelectedId(null);
           }}
           onPrevious={
-            selectedIndex > 0 ? () => setSelectedIndex((value) => (value == null ? 0 : value - 1)) : undefined
+            selectedIndex > 0 ? () => setSelectedId(data[selectedIndex - 1].id) : undefined
           }
           onNext={
-            selectedIndex < PRODUCT_NOTICES.length - 1
-              ? () => setSelectedIndex((value) => (value == null ? 0 : value + 1))
+            selectedIndex < data.length - 1
+              ? () => setSelectedId(data[selectedIndex + 1].id)
               : undefined
           }
         />
@@ -669,6 +886,15 @@ const styles = StyleSheet.create({
   },
   bulletRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s2 },
   bulletMark: { fontSize: 13, lineHeight: 22 },
+  // One quiet line, not a banner: the notice body is still the message on this
+  // screen and a coloured callout would compete with it.
+  updateHint: {
+    color: m3.color.onSurfaceVariant,
+    fontFamily: fontFamilies.readable,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: m3.spacing.s3,
+  },
   dialogActions: {
     flexDirection: "row",
     alignItems: "center",

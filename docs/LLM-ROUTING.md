@@ -11,6 +11,7 @@
 3. **2-Phase**: Phase 1(현재→2026-08-17 XPRIZE 제출) = Gemini 백본 온리(C1/C2, $0 무료 티어). Phase 2(제출 후) = 3사(Gemini/OpenAI/Anthropic) 품질-우선 라우팅.
    **Phase 2 비용 게이트 = 통과 (Simon 지시, 2026-07-04 "phase2 진행하고")** — 코드는 전부 배선 완료, 활성화는 운영 스위치: ① Supabase 시크릿 `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` 세팅 ② `claude-proxy`/`openai-proxy` 배포 ③ 클라 `EXPO_PUBLIC_LLM_PHASE=2` 플립. 스위치 전까지 기본값은 Phase 1(전량 Gemini, 행동 변화 0).
    **OCR 핀 (Simon 지시, 2026-07-04 "OCR 작업은 무조건 gemini 사용하자")**: `capture_ocr`은 모든 Phase에서 무조건 Gemini — 벤더 failover 없음, 예외 없음. 기술적으로도 gemini-proxy만 이미지 inline-data를 통과시킨다. 코드 강제: `src/lib/llm/routing.ts` GEMINI_PINNED_PURPOSES + 이미지 입력 전역 Gemini 강제.
+   **OPENAI_API_KEY 핀 (Simon 결정, 2026-08-03 "Phase 2까지 보류로 확정")**: Phase 1 동안 `OPENAI_API_KEY`를 Supabase 시크릿에 **넣지 않는다**. `REASONING_PROVIDER=gemini`라 없어도 동작 차이가 0이고, 키가 없는 상태가 Phase 1의 **의도된 상태**다. 미완 항목이 아니므로 체크리스트·핸드오프·투두에 "미설정"으로 다시 올리지 말 것 — Phase 2 플립 때 위 ① 단계에서 `ANTHROPIC_API_KEY`와 함께 설정한다.
 4. **C1 유지**: 비-Gemini 벤더는 전부 Supabase 엣지 프록시 경유(claude-proxy 기존, openai-proxy는 claude-proxy 포크 ~1h 템플릿). 클라이언트에 타 벤더 SDK/키 절대 금지.
 5. **C9 유지**: lexicon 전 행 pre-classify + red 단락 + 출력 재분류/swap은 어떤 라우팅에서도 제거 불가. 시맨틱 레이어는 제거가 아니라 **복구**(§3 P0-1).
 6. **thinking 시맨틱 어댑터**: Phase 1 열은 Gemini 3.x `thinking_level`(minimal/low/medium/high) 기준. 2.5 세대로 스필오버 시 `thinkingBudget`으로 번역(minimal≈512, off=0). Phase 2 열은 각 벤더 네이티브(Anthropic adaptive+`output_config.effort`, OpenAI `reasoning_effort`). 추상 effort 1필드 + 벤더·세대별 번역 어댑터가 목표 구현.

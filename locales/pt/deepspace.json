@@ -188,7 +188,8 @@
     "navProfile": "Perfil",
     "navSettings": "Configurações",
     "navData": "Meus dados",
-    "navBeyond": "Fora do app"
+    "navBeyond": "Fora do app",
+    "navPassword": "Alterar senha"
   },
   "privacy": {
     "title": "Privacidade",
@@ -737,7 +738,7 @@
       "proFeat2": "250 conversas por dia",
       "proFeat3": "Raciocínio ilimitado",
       "comingSoon": "Em breve",
-      "disclosure": "Os planos pagos renovam automaticamente a cada mês. Cancele quando quiser antes da próxima renovação; os preços incluem impostos (VAT). Reembolso integral garantido em até 30 dias após o pagamento.",
+      "disclosure": "Os planos pagos renovam automaticamente a cada mes ate que voce cancele. Cancele quando quiser antes da proxima renovacao e os recursos pagos continuam ate o fim desse periodo; os precos incluem impostos (VAT). Reembolso integral em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre.",
       "legalTerms": "Termos de serviço",
       "legalRefund": "Política de reembolso"
     },
@@ -754,7 +755,9 @@
       "fillStar": "Preencher esta estrela",
       "fillStarBody": "Adicione informações deste domínio.",
       "secondbLinked": "Este fragmento se conecta à sua estrela '{{star}}'. {{n}} registros similares estão no mesmo período.",
-      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve."
+      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve.",
+      "makeWikiPage": "Criar página wiki",
+      "wikiPageMade": "Página wiki criada"
     },
     "inbox": {
       "title": "Alertas",

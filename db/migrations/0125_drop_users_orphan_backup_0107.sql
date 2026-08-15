@@ -1,0 +1,28 @@
+-- 0125: drop public.users_orphan_backup_0107.
+--
+-- WHAT IT HELD. 0107 (applied 2026-08-06 17:48 UTC) moved two orphaned
+-- public.users rows into this table before adding users_id_fkey, so that
+-- migration would stay reversible. Both rows carry a whole profile snapshot:
+-- email, birth_date, subscription state, total_xp, locale, privacy_prefs,
+-- reasoning_prefs and consent flags. The reason on both rows is
+-- "no matching auth.users row before adding users_id_fkey": the auth account
+-- was already gone when 0107 ran.
+--
+-- WHY IT GOES NOW. docs/legal/privacy-policy.md section 3 promises destruction
+-- without delay on withdrawal, and lists the only exceptions: contract and
+-- payment records 5 years, complaint and dispute records 3 years, advertising
+-- records 6 months, sign-in logs 3 months. Measured 2026-08-11: neither subject
+-- has a single row in revenue_events or in paddle_webhook_events, so there is no
+-- payment or contract record for the exception to attach to, and a profile
+-- snapshot is not a transaction record in the first place. Neither subject id
+-- exists in auth.users or public.users any more, so the snapshot cannot serve a
+-- live account either. The one purpose it did have, reversibility of 0107,
+-- expired when 0107 was verified in production.
+--
+-- 0113 enabled RLS with no policies and revoked the table grants, so the rows
+-- are not reachable through PostgREST today. That closed the exposure; it did
+-- not create a basis to keep the data. Holding personal data with no lawful
+-- basis is the violation, not whether it happens to be readable.
+--
+-- Two rows are destroyed. This is not reversible, and that is the point.
+drop table if exists public.users_orphan_backup_0107;

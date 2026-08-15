@@ -19,6 +19,7 @@
 // than the consent-and-cost-gated kNN layer.
 
 import { buildRecordsGraph, type GraphRecord } from "./records-graph";
+import { stripDomainTags } from "../persona/domain-stars";
 import type { WikiPageRow } from "../wiki/types";
 
 /** Structural mirror of wiki-graph-view's WikiEdge (kept local to avoid a
@@ -68,7 +69,13 @@ export function recordsToResearchGraph(
   for (const node of graph.nodes) {
     if (node.kind !== "record") continue;
     const source = byId.get(node.id);
-    const tags = (source?.tags ?? []).filter((t): t is string => typeof t === "string");
+    // Strip the domain: prefix tags. They are scaffolding the app writes on every
+    // save, not something the user chose, so leaving them in made "domain:career"
+    // the top cluster chip on almost every account — crowding out the real shared
+    // tags the clusters exist to surface. /records strips them for the same reason.
+    const tags = stripDomainTags(
+      (source?.tags ?? []).filter((t): t is string => typeof t === "string"),
+    );
     pages.push({
       id: node.id,
       user_id: "",

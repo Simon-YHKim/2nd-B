@@ -13,8 +13,8 @@
 //   <DeepSpaceLoader variant="ring" />
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
-import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
@@ -98,6 +98,34 @@ function loaderLocale(language?: string): LoaderLocale {
   const base = language?.toLowerCase().split("-")[0];
   if (base === "ko" || base === "es" || base === "pt" || base === "id") return base;
   return "en";
+}
+
+// The locale the WEB static export bakes in. `expo export` prerenders on a build
+// machine where neither localStorage nor a device locale exists, so
+// detectLanguage() falls through to "en" and this loader is the only text in the
+// prerendered body of an auth route (`/sign-in` ships exactly "Loading").
+export const STATIC_EXPORT_LOCALE: LoaderLocale = "en";
+
+/**
+ * False on the server render and on the client's FIRST paint, true afterwards.
+ *
+ * Without it the client's first paint used the detected locale while the served
+ * HTML carried the build-time one, the two texts disagreed, and React threw a
+ * hydration mismatch (#418) on every auth route — measured on the live build at
+ * /sign-in, /sign-up, /complete-profile, /consent-notice and /oauth-callback.
+ * React does not just warn there: it discards the server HTML for the route and
+ * re-renders the whole tree on the client, which is the worst thing to do to the
+ * entry screen.
+ *
+ * Native has no hydration step, so it starts true and its first paint is
+ * unchanged — no English flash on the app's own loading screen.
+ */
+function useHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(Platform.OS !== "web");
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  return hydrated;
 }
 
 // Big-Dipper (북두칠성) layout from the design canon. dim = faint star.
@@ -259,7 +287,9 @@ export function DeepSpaceLoader({
 }: DeepSpaceLoaderProps) {
   const phase = useBloom();
   const { i18n } = useTranslation();
-  const copy = LOADER_COPY[loaderLocale(i18n.language)];
+  // Match the server on the first paint, then swap to the real locale.
+  const hydrated = useHydrated();
+  const copy = LOADER_COPY[hydrated ? loaderLocale(i18n.language) : STATIC_EXPORT_LOCALE];
 
   if (variant === "analysis") {
     const headline = title ?? copy.analysisHeadline;

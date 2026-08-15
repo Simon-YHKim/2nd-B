@@ -1,11 +1,11 @@
 {
   "git": {
-    "head": "a927d07417b5c2c069d63db0a9c15665cbd52850",
+    "head": "7cc7db18dceb858438499416e86b733e80b656b9",
     "branch": "Simon-YHKim/260802_Function-Debugging",
     "dirty": true,
-    "describedAt": "2026-08-02T23:54:15+09:00"
+    "describedAt": "2026-08-09T16:53:19+09:00"
   },
-  "at": "2026-08-02T14:55:15.682Z",
+  "at": "2026-08-09T07:55:01.905Z",
   "counts": {
     "screens": 88,
     "actions": 529,
@@ -24,7 +24,7 @@
     "src/app/brightness.tsx": "684d064b4eee524a",
     "src/app/call-reflection.tsx": "a9c0d6953ef2a22c",
     "src/app/canon.tsx": "a525562e03b5d914",
-    "src/app/capture.tsx": "f4feb69dcef62cd6",
+    "src/app/capture.tsx": "329f9965ed288096",
     "src/app/career-drilldown.tsx": "80e734c60bd405e9",
     "src/app/career.tsx": "fef2251c2d87e1e8",
     "src/app/core-brain.tsx": "f5721d838ab7a4d8",
@@ -55,7 +55,7 @@
     "src/app/review.tsx": "37c6e235caf8dc8f",
     "src/app/rlss.tsx": "9d70207922e0298f",
     "src/app/secondb.tsx": "2a47f9c77c3ef1a6",
-    "src/app/settings.tsx": "984d68c836c88e32",
+    "src/app/settings.tsx": "38abdf2cca04b492",
     "src/app/share-card.tsx": "5ab8d9d9bf4f155c",
     "src/app/star/[domain].tsx": "08a76ae308064a03",
     "src/app/strengths.tsx": "8c55ae48004e486e",
@@ -161,7 +161,7 @@
     "src/lib/wiki/queries.ts": "4f51de75182732dd",
     "src/lib/wiki/template-queries.ts": "8bbeb060a2294da3",
     "src/screens/deepspace/DeepSpaceComponentsPreview.tsx": "998007bbc6f91a3d",
-    "src/screens/deepspace/DeepSpaceDesignScreens.tsx": "92643a52692ed5aa",
+    "src/screens/deepspace/DeepSpaceDesignScreens.tsx": "dc2b53afcb387c5e",
     "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx": "80109bb4712854b6",
     "src/screens/deepspace/DeepSpaceHomeScreen.tsx": "d2cf9f9986d078a7",
     "src/screens/deepspace/DeepSpaceHubDockScreen.tsx": "73e4000ab3d54ce4",
@@ -169,14 +169,14 @@
     "src/screens/deepspace/dds-consent-notice-screen.tsx": "54ef0a491d868405",
     "src/screens/deepspace/dds-import-inbox-screens.tsx": "c67af4d399440a1e",
     "src/screens/deepspace/dds-legal-doc-screen.tsx": "1fe9a6c9d238ef80",
-    "src/screens/deepspace/dds-plans-screen.tsx": "dac0b5c483610410",
-    "src/screens/deepspace/dds-wiki-records-screens.tsx": "f0839fb8262afac5",
+    "src/screens/deepspace/dds-plans-screen.tsx": "b32c06ff660579b3",
+    "src/screens/deepspace/dds-wiki-records-screens.tsx": "9f5540905b9de85f",
     "src/screens/deepspace/growth/WeeklyGrowthScreen.tsx": "4a9f57df21dd6300",
     "src/screens/deepspace/import/ImportHubScreen.tsx": "3b847a2626779317",
     "src/screens/deepspace/museum/MuseumTimelineScreen.tsx": "f132ba1b819aaf11",
     "src/screens/deepspace/onboarding/TTFVScreen.tsx": "d4c2cf5f0b8dce5a",
     "src/screens/deepspace/ops/screens.tsx": "44f7cedcc1bfa20f",
     "src/screens/deepspace/trends/TrendsScreen.tsx": "b8840c3ddc6f22be",
-    "supabase/functions/peer-respond/index.ts": "9896bc3cabad79fe"
+    "supabase/functions/peer-respond/index.ts": "e3f53c490832e72e"
   }
 }

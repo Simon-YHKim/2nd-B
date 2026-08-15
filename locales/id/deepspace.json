@@ -188,7 +188,8 @@
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
     "navData": "Dataku",
-    "navBeyond": "Di luar aplikasi"
+    "navBeyond": "Di luar aplikasi",
+    "navPassword": "Ubah kata sandi"
   },
   "privacy": {
     "title": "Privasi",
@@ -737,7 +738,7 @@
       "proFeat2": "250 obrolan sehari",
       "proFeat3": "Penalaran tanpa batas",
       "comingSoon": "Segera hadir",
-      "disclosure": "Paket berbayar diperpanjang otomatis setiap bulan. Batalkan kapan saja sebelum perpanjangan berikutnya; harga sudah termasuk PPN. Pengembalian dana penuh dijamin dalam 30 hari setelah pembayaran.",
+      "disclosure": "Paket berbayar diperpanjang otomatis setiap bulan sampai kamu membatalkannya. Batalkan kapan saja sebelum perpanjangan berikutnya dan fitur berbayar tetap aktif sampai periode itu berakhir; harga sudah termasuk PPN. Pengembalian dana penuh dalam 7 hari setelah pembayaran, selama pemakaianmu masih dalam batas yang diberikan paket gratis.",
       "legalTerms": "Ketentuan layanan",
       "legalRefund": "Kebijakan pengembalian dana"
     },
@@ -754,7 +755,9 @@
       "fillStar": "Isi bintang ini",
       "fillStarBody": "Tambahkan informasi untuk domain ini.",
       "secondbLinked": "Serpihan ini terhubung dengan bintang '{{star}}' kamu. {{n}} catatan serupa berada di rentang waktu yang sama.",
-      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera."
+      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera.",
+      "makeWikiPage": "Buat halaman wiki",
+      "wikiPageMade": "Halaman wiki dibuat"
     },
     "inbox": {
       "title": "Notifikasi",

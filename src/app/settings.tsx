@@ -5,7 +5,7 @@
 // The M3 rows are the capture-matching visuals; the sections below carry the
 // account/data/language/danger-zone behavior and localized helper copy.
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { reactExpression } from "@/lib/companion/expression";
 import {
@@ -45,6 +45,12 @@ import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { SecondbStatusHeader } from "@/components/deep-space/SecondbStatusHeader";
 import { AVAILABLE_UI_LOCALES, UI_LOCALE_META, type AvailableUiLocale } from "@/lib/i18n/locales";
 import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
+import { buildInfoLine } from "@/lib/build-info";
+import {
+  DEFAULT_WIKI_AUTO_PROMOTE,
+  getWikiAutoPromote,
+  setWikiAutoPromote,
+} from "@/lib/wiki/auto-promote";
 import { useNoticeCenter } from "@/app/notices";
 import {
   deleteAllChatUsage,
@@ -72,6 +78,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: string;
     reasoning: string;
     reasoningSub: string;
+    wikiAuto: string;
+    wikiAutoSub: string;
   }
 > = {
   en: {
@@ -80,6 +88,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Patch notes · developer news",
     reasoning: "Reasoning",
     reasoningSub: "Automatic runs · item selection",
+    wikiAuto: "Auto wiki pages",
+    wikiAutoSub: "Turn new captures into wiki pages by themselves",
   },
   ko: {
     news: "소식",
@@ -87,6 +97,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "패치노트 · 개발자 소식",
     reasoning: "리즈닝",
     reasoningSub: "자동 실행 · 자료 선택",
+    wikiAuto: "위키 자동 만들기",
+    wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만들어요",
   },
   es: {
     news: "Novedades",
@@ -94,6 +106,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Notas de versión · noticias del desarrollador",
     reasoning: "Razonamiento",
     reasoningSub: "Ejecuciones automáticas · selección de material",
+    wikiAuto: "Páginas wiki automáticas",
+    wikiAutoSub: "Convierte las capturas nuevas en páginas wiki",
   },
   pt: {
     news: "Novidades",
@@ -101,6 +115,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Notas de versão · notícias do desenvolvedor",
     reasoning: "Raciocínio",
     reasoningSub: "Execuções automáticas · seleção de material",
+    wikiAuto: "Páginas wiki automáticas",
+    wikiAutoSub: "Transforma capturas novas em páginas wiki",
   },
   id: {
     news: "Kabar baru",
@@ -108,6 +124,8 @@ const SETTINGS_SURFACE_COPY: Record<
     noticesSub: "Catatan rilis · kabar pengembang",
     reasoning: "Penalaran",
     reasoningSub: "Jalankan otomatis · pilih materi",
+    wikiAuto: "Halaman wiki otomatis",
+    wikiAutoSub: "Ubah tangkapan baru menjadi halaman wiki",
   },
 };
 
@@ -132,6 +150,8 @@ const ICON_PATHS: Record<string, string> = {
   upload_file: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
   campaign: '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
   bolt: '<path d="m13 2-8 12h6l-1 8 9-13h-6z"/>',
+  // Same 2dp stroke idiom: card outline + magnetic stripe, for 구독 관리.
+  credit_card: '<rect x="3" y="5.5" width="18" height="13" rx="2.2"/><path d="M3 10h18"/><path d="M6.5 14.5h4"/>',
 };
 
 function M3Icon({ name, color, size = 20, fill = false }: { name: string; color: string; size?: number; fill?: boolean }) {
@@ -354,6 +374,30 @@ export default function Settings() {
   const { mode, setMode } = useTheme();
   const dark = mode === "dark";
   const noticeCenter = useNoticeCenter(userId);
+
+  // Wiki auto-promotion. Server-persisted (users.reasoning_prefs.wikiAuto) so the
+  // policy does not silently differ per device — the exact failure 0093 fixed for
+  // its sibling toggle. Optimistic: the switch moves immediately and the write is
+  // fail-soft, so a network blip never eats the tap.
+  const [wikiAutoPromote, setWikiAutoPromoteState] = useState(DEFAULT_WIKI_AUTO_PROMOTE);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void getWikiAutoPromote(userId).then((v) => {
+      if (alive) setWikiAutoPromoteState(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+  const onToggleWikiAutoPromote = useCallback(
+    (next: boolean) => {
+      if (!userId) return;
+      setWikiAutoPromoteState(next);
+      void setWikiAutoPromote(userId, next);
+    },
+    [userId],
+  );
 
   const [busy, setBusy] = useState<string | null>(null);
   const [fullDeleteConfirm, setFullDeleteConfirm] = useState("");
@@ -620,6 +664,22 @@ export default function Settings() {
           />
         </M3Group>
 
+        {/* 구독 — the entry point docs/legal/refund-policy.md has named since
+            2026-07-17 ("앱 내 [설정 → 구독 관리]"). It is a link row, not a set of
+            buttons: cancel and refund are consequential enough to deserve their
+            own screen with the eligibility numbers next to them. */}
+        <M3SectionLabel action={<MdButton label={t("plans")} variant="text" onPress={() => router.push("/plans")} accessibilityLabel={t("plans")} />}>
+          {t("subscription.sectionLabel")}
+        </M3SectionLabel>
+        <M3Group>
+          <M3LinkRow
+            icon="credit_card"
+            label={t("subscription.rowLabel")}
+            sub={t("subscription.rowSub")}
+            onPress={() => router.push("/subscription")}
+          />
+        </M3Group>
+
         {/* 기능 */}
         <M3SectionLabel>{t("features")}</M3SectionLabel>
         <M3Group>
@@ -628,6 +688,18 @@ export default function Settings() {
             label={newSurfaceCopy.reasoning}
             sub={newSurfaceCopy.reasoningSub}
             onPress={() => router.push("/reasoning")}
+          />
+          <M3Divider />
+          {/* Not a placebo: the consumer is maybeAutoPromoteSource at the capture
+              save path. OFF by default on cost grounds — promotion embeds the new
+              page, one paid call per capture, and re-promoting re-bills. With it
+              off the user promotes from the source's own detail screen instead. */}
+          <M3ToggleRow
+            icon="auto_stories"
+            label={newSurfaceCopy.wikiAuto}
+            sub={newSurfaceCopy.wikiAutoSub}
+            checked={wikiAutoPromote}
+            onChange={onToggleWikiAutoPromote}
           />
           {/* No placebo controls here (audit pattern A, same rule as M3LinkRow
               above): the former 자동 분류/앱 잠금/온디바이스/통화 녹음/제안 알림/강조 색
@@ -742,6 +814,7 @@ export default function Settings() {
                 title: t("settings"),
                 items: [
                   { key: "account", label: t("account"), route: "/account" },
+                  { key: "subscription", label: t("subscription.rowLabel"), route: "/subscription" },
                   { key: "plans", label: t("plans"), route: "/plans" },
                   { key: "privacy", label: t("privacy"), route: "/privacy" },
                   { key: "permissions", label: t("permissions"), route: "/permissions" },
@@ -1048,8 +1121,14 @@ export default function Settings() {
           />
         </View>
 
+        {/* The real bundle identity, not a frozen string. This line existed to
+            answer "which bundle is this?" during an incident — the 2026-06-26
+            head-touch crash was prolonged by embedded-vs-OTA uncertainty — and a
+            hardcoded locale value ("Build 0.0.6 · OTA ota-2026-06-27a", still
+            claiming 0.0.6 on a 0.1.0 build) defeats exactly that purpose.
+            buildInfoLine() reads expo-updates, same as the account screen. */}
         <Text variant="caption" color="textMuted" style={styles.buildMarker}>
-          {t("buildInfo")}
+          {buildInfoLine()}
         </Text>
       </ScrollView>
 </KeyboardAvoidingView>

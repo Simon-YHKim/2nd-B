@@ -32,7 +32,8 @@ The concept and direction is **deep-space constellation** (a character-led home 
 canonical concept SoT is **`docs/PRD.md` (Draft v3)**; the detailed model spec is
 **`docs/CONSTELLATION-DESIGN.md`**; **`docs/CONCEPT.md`** names canonical vs legacy. Read these
 before any concept, IA, or visual decision. Canonical model = **3-layer 별자리**: A) 7 DOMAIN
-stars (커리어·재정·성장·관계·건강·휴식·담아내기 = input), B) the psychological constructs in
+stars (커리어·재정·성장·관계·건강·휴식·담아내기 = input; 담아내기 is a DATA domain that is
+NOT drawn on home, so the home constellation shows 6 domains + 뮤지엄), B) the psychological constructs in
 `stars.ts` (the hidden validation layer behind the output — NOT home stars), C) 북극성 (Polaris)
 = the aggregate output / persona synthesis (drop the "Soul Core" name) + the L1~L5 brightness
 ladder + propose->ratify.
@@ -160,7 +161,7 @@ The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
 | Layer | Node | Brightness/Glow | Notes |
 |------|------|--------------|-------|
 | C (출력) | 북극성 (Polaris) | Full brightness, max glow bloom | Root/hero — aggregate of the 7 domain stars, must be clearly dominant. Internal key `soulCoreBrightness`, display "북극성" |
-| A (입력) | 북두칠성 7 도메인 별 | baseline magnitude × domain L1~L5 | The 7 life-domain stars (커리어·재정·성장·관계·건강·휴식·담아내기). Brighter as the domain fills |
+| A (입력) | 북두칠성 7 별 | baseline magnitude × domain L1~L5 | The 7 stars actually drawn on home = 6 life domains (커리어·재정·관계·성장·건강·휴식) + **뮤지엄**. Brighter as the domain fills. 뮤지엄 is a curated surface pinned at L4, not a data domain |
 | link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
 
 (Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind

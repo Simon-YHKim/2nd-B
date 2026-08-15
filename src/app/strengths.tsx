@@ -320,6 +320,7 @@ function StrengthsSurvey({ onComplete, onCancel, registerBackGuard }: { onComple
           toolKey="strengths"
           title={copy.title}
           itemCount={STRENGTH_ITEMS.length}
+          perPage={4}
           estimatedMinutes={3}
           description={copy.description}
           citation={copy.citation}

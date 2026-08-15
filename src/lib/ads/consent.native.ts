@@ -44,9 +44,44 @@ function loadSdk(): GoogleMobileAdsModule | null {
  * published GDPR form can be exercised from anywhere; it is a no-op in
  * production bundles.
  */
+/**
+ * iOS App Tracking Transparency prompt. The build ships an
+ * NSUserTrackingUsageDescription and the App Privacy response declares Device ID
+ * used for Third-Party Advertising, but nothing ever REQUESTED authorization --
+ * so IDFA stayed zeroed and AdMob fell back to non-personalized ads, taking the
+ * compliance burden without the personalization it exists for. This asks once
+ * (iOS only; the OS remembers the answer, so repeat calls are cheap no-ops).
+ *
+ * FAIL-OPEN by contract: ATT governs ad PERSONALIZATION, not whether an ad may
+ * show at all. A denied prompt, a missing module (Expo Go / jest), or any throw
+ * must never block the ad path -- it only means non-personalized serving. That
+ * is the opposite of the UMP seam below (which fails CLOSED), and deliberately
+ * so: UMP is a legal gate, ATT is a personalization signal.
+ */
+async function ensureTrackingAuthorization(): Promise<void> {
+  if (Platform.OS !== "ios") return; // ATT is iOS-only; Android/web are no-ops
+  try {
+    // Static require so Metro bundles it (a dynamic name would not resolve on
+    // device). Added by `npx expo install expo-tracking-transparency`; until
+    // then jest/Expo Go lack it and the require throws -> caught -> no-op.
+    const att = require("expo-tracking-transparency") as {
+      requestTrackingPermissionsAsync?: () => Promise<{ status: string }>;
+    };
+    if (typeof att?.requestTrackingPermissionsAsync === "function") {
+      await att.requestTrackingPermissionsAsync();
+    }
+  } catch {
+    // fail open (see doc comment): personalization signal only, never a gate.
+  }
+}
+
 export async function ensureUmpConsent(opts?: { debugGeographyEea?: boolean }): Promise<UmpConsentResult> {
   const sdk = loadSdk();
   if (!sdk?.AdsConsent) return { canRequestAds: false };
+  // Ask for tracking authorization before the first ad request of the session,
+  // so IDFA state is established for personalized serving. Fail-open (above), so
+  // this never changes the canRequestAds gate that the UMP flow returns.
+  await ensureTrackingAuthorization();
   try {
     const { AdsConsent, AdsConsentDebugGeography } = sdk;
     await AdsConsent.requestInfoUpdate(

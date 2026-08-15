@@ -146,6 +146,7 @@ function BigFiveSurvey({ onComplete, onCancel }: { onComplete: () => void; onCan
           toolKey="bfi"
           title={t("title")}
           itemCount={BFI_ITEMS.length}
+          perPage={5}
           estimatedMinutes={8}
           description={
             locale === "ko"

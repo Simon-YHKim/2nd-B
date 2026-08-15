@@ -104,6 +104,40 @@ verify_jwt = true
 # IDOR-safety contract as delete-account. Never deploy with --no-verify-jwt.
 verify_jwt = true
 
+[functions.subscription-manage]
+# Self-serve subscription cancel + refund request (0115). verify_jwt=true so the
+# gateway validates the caller; the function acts ONLY on the caller's own
+# subscription (user_id from the JWT, and the Paddle subscription/transaction ids
+# resolved server-side from paddle_webhook_events, never from the request body).
+# It spends money at Paddle, so this is the strictest boundary in the file.
+# Never deploy with --no-verify-jwt.
+verify_jwt = true
+
+[functions.paddle-webhook]
+# Paddle sends no Supabase JWT, so the gateway must NOT demand one. The function
+# is its own auth boundary: a Paddle source-IP allowlist, then an HMAC-SHA256
+# signature over `ts:rawBody` with a 5-minute replay window, then event-id
+# idempotency in apply_billing_event. Undeclared until 0118, which meant its
+# verify_jwt was whatever the last manual deploy passed - and the CLI default is
+# TRUE, so the next redeploy without a flag would have 401'd every Paddle
+# delivery and silently stopped all billing.
+verify_jwt = false
+
+[functions.rewarded-ssv]
+# AdMob server-side verification callback: Google sends no Supabase JWT. The
+# function verifies an ECDSA signature against Google's rotating verifier keys
+# and dedupes on transaction_id. Same redeploy hazard as paddle-webhook.
+verify_jwt = false
+
+[functions.peer-respond]
+# TRUE, matching what is live (v42) and what the caller actually sends. The
+# informant has no account, but src/lib/peer/peer-respond.ts posts
+# `authorization: Bearer <anon key>`, and the publishable key IS a valid token,
+# so the gateway check passes. Declaring false here would have LOOSENED the
+# gateway on the next deploy - the opposite of the point. The real boundary is
+# inside the function: a SHA-256 comparison against a one-time invitation token.
+verify_jwt = true
+
 [functions.oauth-naver]
 # Pre-auth endpoint - the function IS the auth boundary: it validates the user
 # via Naver's OAuth and only then mints a Supabase session. (Kakao uses the

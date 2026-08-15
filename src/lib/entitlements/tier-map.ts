@@ -12,11 +12,19 @@
  *   public   DB       라벨(ko/en)              지위
  *   ──────   ──────   ─────────────────────    ─────────────────────────────
  *   free     free     별바라기 / Stargazer      무료
- *   plus     cortex   항해자   / Voyager        ₩9,900/월 — 런칭 유료 티어
- *   pro      brain    북극성   / North Star     ₩19,900/월 — 후속(준비 중)
- *   (plus)   soma     평생     / Lifetime       ₩99,000 일시불 — reasoning은
- *                                               Plus와 동일(주 7회), 채팅은
- *                                               soma 고유 캡(30/일) 유지
+ *   plus     cortex   항해자   / Voyager        런칭 유료 티어
+ *   pro      brain    북극성   / North Star     후속(준비 중)
+ *   (plus)   soma     평생     / Lifetime       판매 종료 — Simon 2026-07-29.
+ *                                               구매 경로 없음, 보유자 0명.
+ *                                               DB 티어로만 존속: 4개 live RPC
+ *                                               + users CHECK 제약이 의존해
+ *                                               제거 불가. reasoning은 Plus와
+ *                                               동일(주 7회), 채팅은 soma 고유
+ *                                               캡(30/일) 유지.
+ *
+ * 금액은 이 파일에 쓰지 않는다. 가격 정본은 src/lib/progression/pricing.ts
+ * 하나뿐이다(TIER_PRICING = 월/연 KRW·USD). 여기에 금액을 적으면 정본과
+ * 어긋나 이미 끝난 가격 결정을 다시 묻게 된다 — 2026-08-02에 실제로 그랬다.
  *
  * Reasoning caps are WEEKLY as of Phase 4 (free 주 2회 · plus 주 7회 · pro
  * 무제한 — Simon 확정 2026-07-17, 기존 월 30/60/무제한 대체). The SQL RPC
@@ -41,8 +49,10 @@ export const DB_TIER_BY_PUBLIC: Record<PublicTier, SubscriptionTier> = {
 };
 
 /**
- * DB tier -> public tier for display. soma (Lifetime) surfaces as plus:
- * it is sold as a one-time entry purchase and holds plus-level reasoning.
+ * DB tier -> public tier for display. soma surfaces as plus: the retired
+ * lifetime plan held plus-level reasoning, so any legacy row keeps rendering.
+ * No new soma rows are created — there has been no purchase path since
+ * 2026-07-29 and production holds 0 soma users (verified 2026-08-02).
  */
 export const PUBLIC_TIER_BY_DB: Record<SubscriptionTier, PublicTier> = {
   free: 'free',

@@ -479,6 +479,7 @@ export function DeepSpaceAccountDesignScreen() {
         </View>
         <Card>
           <Action label={t("account.navProfile")} onPress={() => router.push("/profile")} />
+          <Action label={t("account.navPassword")} onPress={() => router.push("/change-password")} />
           <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
           <Action label={t("account.navData")} onPress={() => router.push("/data")} />
           <Action label="IDEN" onPress={() => router.push("/iden")} />
@@ -1858,14 +1859,21 @@ export function DeepSpaceResearchScreen() {
       <Text variant="body" style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
-      ) : view.pageCount === 0 ? (
+      ) : (
+        <>
+        {/* The records half. This gate counts RECORDS; the proposal half below
+            is deliberately outside it, because proposals come from the wiki
+            track (sources -> wiki_pages) and those tables are disjoint. Bundling
+            them locked the link/clip-only user — the only user who can actually
+            have a ratifiable proposal — out of the proposal UI entirely. */}
+        {view.pageCount === 0 ? (
         <View style={styles.insightViolet}>
           <Text variant="body" style={styles.insightVioletText}>{t("research.emptyInsight")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
-      ) : (
+        ) : (
         <>
           {view.clusters.length > 0 ? (
             <View style={styles.filterRow}>
@@ -1900,9 +1908,12 @@ export function DeepSpaceResearchScreen() {
             <Pressable
               style={styles.insightViolet}
               android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              // headline.id is a WIKI PAGE id (graph-stats topHubs), not a
-              // record id — /record/[id] was a guaranteed "찾을 수 없어요".
-              onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: view.headline!.id } })}
+              // Since D-27 Phase 1c these ids come from recordsToResearchGraph,
+              // so they ARE record ids and /record/[id] is the right target. The
+              // old /wiki?focusPageId hop was correct only while the view was
+              // built from wiki_pages; against record ids the wiki screen simply
+              // finds nothing and silently declines to expand.
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.headline!.id } })}
               accessibilityRole="button"
               accessibilityLabel={view.headline.title}
             >
@@ -1922,8 +1933,8 @@ export function DeepSpaceResearchScreen() {
             <Pressable
               style={styles.insightViolet}
               android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              // surprise.fromId is wiki_links.from_page (a PAGE id) — same fix.
-              onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: view.surprise!.fromId } })}
+              // surprise.fromId is now a record id too — same reasoning as above.
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
               accessibilityRole="button"
               accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
             >
@@ -1936,7 +1947,11 @@ export function DeepSpaceResearchScreen() {
             </Pressable>
           ) : null}
 
-          {/* propose->ratify: AI proposes semantic links, the user decides. */}
+        </>
+        )}
+
+          {/* propose->ratify: AI proposes semantic links, the user decides.
+              Outside the records gate on purpose — see the note above. */}
           <Text variant="caption" pixelEn style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
           {announce ? (
             <RNText

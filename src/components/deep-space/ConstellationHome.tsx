@@ -16,7 +16,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensio
 import { router } from "expo-router";
 import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { LATEST_NOTICE, NoticeDialog, useNoticeCenter } from "@/app/notices";
+import { NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
@@ -460,11 +460,32 @@ export function ConstellationHome({
           : bubble.kind === "star"
             ? t(`ds.home.star.${bubble.id}.line`)
             : t("ds.home.bubble.intro");
+  // The popup is driven by popupNotice, NOT by unreadCount. Once the notices
+  // table exists an unread `minor` row also raises unreadCount, and minor is
+  // explicitly not allowed to interrupt - keying the gate off the count would
+  // pop a dialog for it. popupNotice already applies the precedence rules
+  // (src/lib/notices/center.ts) and is null when nothing may interrupt.
+  const autoNotice = noticeCenter.popupNotice;
   const autoNoticeVisible =
-    noticeCenter.hydrated &&
-    noticeCenter.unreadCount > 0 &&
-    coachmarksDue === false &&
-    !autoNoticeDismissed;
+    noticeCenter.hydrated && autoNotice !== null && coachmarksDue === false && !autoNoticeDismissed;
+  // The bell opens the newest UNREAD notice, falling back to the newest one
+  // when everything is read. Positional notices[0] made the bell disagree with
+  // its own dot: the dot is raised by the unread set, so tapping it could open
+  // an already-read notice and leave the dot lit with no way to clear it.
+  // Gated on `hydrated` like every other notice path - without it the bell can
+  // open the bundled release note and then re-render as an arriving remote
+  // notice under the user's finger, marking one they never saw as read.
+  const manualNotice = noticeCenter.hydrated
+    ? (noticeCenter.notices.find((notice) => noticeCenter.isUnread(notice.id)) ??
+      noticeCenter.notices[0] ??
+      null)
+    : null;
+  const shownNotice = manualNoticeVisible ? manualNotice : autoNotice;
+  const dismissNotice = () => {
+    setAutoNoticeDismissed(true);
+    setManualNoticeVisible(false);
+    if (shownNotice) void noticeCenter.markSeen(shownNotice.id);
+  };
   const reasoningMode: ReasoningBubbleMode =
     task.phase === "running" && task.resultHref === "/reasoning"
       ? "running"
@@ -789,26 +810,31 @@ export function ConstellationHome({
           </View>
         </View>
       </View>
-      <NoticeDialog
-        visible={autoNoticeVisible || manualNoticeVisible}
-        notice={LATEST_NOTICE}
-        index={0}
-        showPager={false}
-        onClose={() => {
-          setAutoNoticeDismissed(true);
-          setManualNoticeVisible(false);
-        }}
-        onList={() => {
-          setAutoNoticeDismissed(true);
-          setManualNoticeVisible(false);
-          router.push("/notices");
-        }}
-        onConfirm={() => {
-          setAutoNoticeDismissed(true);
-          setManualNoticeVisible(false);
-          void noticeCenter.markSeen(LATEST_NOTICE.id);
-        }}
-      />
+      {shownNotice ? (
+        <NoticeDialog
+          visible={autoNoticeVisible || manualNoticeVisible}
+          notice={shownNotice}
+          index={0}
+          showPager={false}
+          // Dismissing by ANY route records the read, not just 확인.
+          // The dialog interrupted the user and put the notice on screen, so
+          // that is what "read" means here. With 확인 as the only writer, a
+          // backdrop tap or Android hardware back left no row and the same
+          // major notice re-interrupted on every single cold start, forever,
+          // while docs/OPERATIONS-NOTICES.md promised the opposite and its
+          // read-count query undercounted the notice's real reach.
+          onClose={() => {
+            dismissNotice();
+          }}
+          onList={() => {
+            dismissNotice();
+            router.push("/notices");
+          }}
+          onConfirm={() => {
+            dismissNotice();
+          }}
+        />
+      ) : null}
       <ReasoningLimitSheet
         visible={limitSheetVisible}
         onClose={() => setLimitSheetVisible(false)}

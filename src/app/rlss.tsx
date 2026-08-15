@@ -147,6 +147,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
           toolKey="rlss"
           title={t("title")}
           itemCount={RLSS_ITEMS.length}
+          perPage={RLSS_ITEMS.length}
           estimatedMinutes={2}
           description={t("introDescription")}
           citation="Margolis, Schwitzgebel, Ozer & Lyubomirsky (2019) · free to use"

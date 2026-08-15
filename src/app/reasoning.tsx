@@ -278,15 +278,23 @@ async function loadSafeBatchText(
       if (item.refKind === "record") {
         return [item.key, `${item.title}\n${item.body ?? ""}`] as const;
       }
-      const source = await getSource(input.userId, item.refId);
-      if (!source) throw new Error(`No source row for id=${item.refId}`);
+      // Everything below degrades to title-only instead of throwing. These reads
+      // sit inside a Promise.all, so ONE unreadable source used to fail the whole
+      // run: every other item lost its proposals and the reserved run was
+      // refunded. A missing body is a reason to reason over less, not a reason to
+      // reason over nothing. The item still carries its title, which is what the
+      // domain classifier mostly keys on anyway.
+      const source = await getSource(input.userId, item.refId).catch(() => null);
+      if (!source) return [item.key, item.title] as const;
       // capture.ts stashes the body inline (frontmatter._body_fallback) when
       // the Storage upload didn't land — reading storage_path then 400s and
       // killed the WHOLE run (the 2026-07-18 auto-run QA failure). Honor the
       // same fallback every other body reader does (inbox, promote-pending).
+      // Fallback first so a pending row costs no doomed Storage round-trip.
       const fm = (source.frontmatter ?? {}) as Record<string, unknown>;
       const fallback = typeof fm._body_fallback === "string" ? fm._body_fallback : null;
-      const body = fallback ?? (await downloadRawClipping(source.storage_path));
+      const body =
+        fallback ?? (await downloadRawClipping(source.storage_path).catch(() => null)) ?? "";
       return [item.key, `${source.title}\n${body}`] as const;
     }),
   );
@@ -490,7 +498,20 @@ async function applyReasoningProposal(
     REASONING_RATIFIED_TAG,
     ...stripDomainTags(latestSource.tags).filter((tag) => tag !== REASONING_RATIFIED_TAG),
   ]);
-  await generateSourcePage(userId, proposal.refId);
+  // Promotion is best-effort, deliberately. The load-bearing write is the domain
+  // tag above — that is what brightens the star. Promotion used to run unguarded
+  // here, inside an apply loop that has no per-proposal try/catch, so ONE source
+  // that threw aborted the whole batch. Proposals are ordered records-first, so
+  // every record landed and the source half never did: the run stayed 'ratified'
+  // server-side and was re-offered on every mount, forever. That is why 3 of the
+  // QA account's records carry reasoning:ratified while wiki_pages is still 0.
+  try {
+    await generateSourcePage(userId, proposal.refId);
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[reasoning] wiki promotion failed; tag kept", (e as Error).message);
+    }
+  }
 }
 
 async function autoRunCanUseQuota(

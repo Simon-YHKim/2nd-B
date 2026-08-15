@@ -188,7 +188,8 @@
     "navProfile": "Profile",
     "navSettings": "Settings",
     "navData": "My data",
-    "navBeyond": "Outside the app"
+    "navBeyond": "Outside the app",
+    "navPassword": "Change password"
   },
   "privacy": {
     "title": "Privacy",
@@ -737,7 +738,7 @@
       "proFeat2": "250 chats a day",
       "proFeat3": "Unlimited reasoning",
       "comingSoon": "Coming soon",
-      "disclosure": "Paid plans renew automatically each month. Cancel anytime before the next renewal; prices include VAT. Full refund guaranteed within 30 days of payment.",
+      "disclosure": "Paid plans renew automatically each month until you cancel. Cancel anytime before the next renewal and paid features stay open until that period ends; prices include VAT. Full refund within 7 days of payment, as long as your usage has stayed within what the free plan covers.",
       "legalTerms": "Terms of Service",
       "legalRefund": "Refund policy"
     },
@@ -754,7 +755,9 @@
       "fillStar": "Fill in this star",
       "fillStarBody": "Add information for this domain.",
       "secondbLinked": "This piece links to your '{{star}}' star. {{n}} similar records sit in the same window.",
-      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon."
+      "secondbUnlinked": "This piece isn't linked to a star yet. We'll connect it soon.",
+      "makeWikiPage": "Make a wiki page",
+      "wikiPageMade": "Wiki page created"
     },
     "inbox": {
       "title": "Alerts",

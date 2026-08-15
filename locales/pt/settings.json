@@ -177,10 +177,77 @@
   "signOut": "Sair",
   "couldntSignOut": "Não foi possível sair",
   "signOutError": "Algo deu errado ao sair. Tente de novo em um instante.",
-  "buildInfo": "Compilação 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "{{n}} excluídos",
   "deletedNWiki": "{{n}} páginas wiki excluídas",
   "deletedNCaptures": "{{n}} capturas excluídas",
   "resetNDays": "{{n}} dias de uso redefinidos",
-  "wipeComplete": "Limpeza total concluída: registros {{r}} · fontes {{s}} · wiki {{w}} · uso {{u}}"
+  "wipeComplete": "Limpeza total concluída: registros {{r}} · fontes {{s}} · wiki {{w}} · uso {{u}}",
+  "subscription": {
+    "title": "Gerenciar assinatura",
+    "sectionLabel": "Assinatura",
+    "rowLabel": "Gerenciar assinatura",
+    "rowSub": "Status do pagamento, cancelamento, pedido de reembolso",
+    "currentPlan": "Plano atual",
+    "tierName": {
+      "free": "Stargazer",
+      "plus": "Voyager",
+      "pro": "North Star"
+    },
+    "judgeComp": "Os recursos pagos estao liberados sem custo nesta conta de jurado.",
+    "lastPaidOn": "Ultima cobranca: {{date}}",
+    "paymentMethod": "Forma de pagamento: {{method}}",
+    "freeBody": "Voce esta no plano gratuito, entao nao ha assinatura paga ativa.",
+    "loadFailed": "Nao foi possivel carregar os dados da assinatura.",
+    "retry": "Tentar de novo",
+    "keep": "Manter",
+    "supportLine": "Precisa de ajuda? Escreva para {{email}} e respondemos em 2 dias uteis.",
+    "viewPolicy": "Ler a politica de reembolso",
+    "viewPlans": "Ver planos",
+    "cancel": {
+      "title": "Cancelar assinatura",
+      "body": "Sua assinatura renova automaticamente ate voce cancelar. Ao cancelar, a proxima cobranca para e os recursos pagos continuam ate o fim do periodo que voce ja pagou.",
+      "cta": "Cancelar assinatura",
+      "unavailable": "Esta assinatura nao pode ser cancelada pelo app. Se voce comprou por uma loja, cancele nas configuracoes de assinatura dessa loja.",
+      "confirmTitle": "Cancelar esta assinatura?",
+      "confirmAtRenewal": "Ela nao sera renovada depois de {{date}}. Ate la os recursos pagos continuam abertos.",
+      "confirmImmediate": "Os recursos pagos fecham na hora, e o tempo restante nao e reembolsado automaticamente.",
+      "confirmCta": "Cancelar",
+      "switchToImmediate": "Cancelar imediatamente",
+      "switchToRenewal": "Cancelar na proxima renovacao",
+      "periodEnd": "o fim do periodo pago",
+      "alreadyScheduled": "Esta assinatura ja esta com a renovacao automatica desligada. Nada mais sera cobrado e os recursos pagos continuam ate o fim do periodo pago."
+    },
+    "refund": {
+      "title": "Reembolso",
+      "cta": "Pedir reembolso",
+      "confirmTitle": "Pedir um reembolso?",
+      "confirmBody": "O pedido vai para a Paddle, a vendedora registrada. Se a Paddle aprovar, o valor integral volta para a sua forma de pagamento original. Isso nao cancela a assinatura sozinho, entao cancele tambem se quiser parar as cobrancas.",
+      "confirmCta": "Enviar pedido",
+      "reason": {
+        "eligible": "Voce pode pedir o reembolso integral agora.",
+        "alreadyRequested": "Ja existe uma solicitacao de reembolso registrada para este pagamento.",
+        "usedBeyondFree": "O uso desde o pagamento passou do que o plano gratuito cobre no mesmo periodo, entao o reembolso automatico nao esta disponivel.",
+        "windowPassed": "Ja se passaram mais de {{total}} dias desde o pagamento, entao o reembolso automatico nao esta disponivel.",
+        "noPayment": "Nao ha pagamento registrado para reembolsar.",
+        "unknown": "Nao conseguimos verificar se o reembolso e possivel."
+      },
+      "window": "Janela de reembolso: faltam {{days}} de {{total}} dias",
+      "usage": "Raciocinios usados: {{used}} (o plano gratuito permite {{allowance}} no mesmo periodo)",
+      "calls": "Chamadas de IA registradas: {{calls}}",
+      "currentPolicyNote": "Reembolsavel em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre."
+    },
+    "notice": {
+      "cancelledAtRenewal": "O cancelamento ficou agendado para a proxima data de renovacao.",
+      "cancelledNow": "O cancelamento imediato foi enviado.",
+      "refundRequested": "Seu pedido de reembolso foi enviado a Paddle. A decisao chega por e-mail no endereco do recibo. Cancele a assinatura a parte se tambem quiser parar as cobrancas.",
+      "alreadyRequested": "Ja existe um pedido registrado, entao nada foi enviado duas vezes.",
+      "refundRejected": "O reembolso automatico nao esta disponivel para este pagamento.",
+      "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte.",
+      "notSubscribed": "Nao ha assinatura paga ativa para cancelar.",
+      "dryRun": "O modo de ensaio esta ligado, entao nada foi enviado para a Paddle. Fale com o suporte se voce queria enviar de verdade."
+    },
+    "autoRenewOn": "Renova automaticamente em {{date}}",
+    "cancelScheduledOn": "A renovacao automatica esta desligada. Os recursos pagos continuam ate {{date}}.",
+    "cancelScheduled": "A renovacao automatica esta desligada. Os recursos pagos continuam ate o fim do periodo pago."
+  }
 }
