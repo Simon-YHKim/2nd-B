@@ -28,7 +28,6 @@
   },
   "actions": {
     "signOutHint": "Cierra sesión y regresa a la pantalla de inicio de sesión.",
-    "crewDensityHint": "Ajusta la densidad decorativa de la tripulación del grafo a {{density}}.",
     "deleteJournalsHint": "Abre una confirmación antes de eliminar todas las entradas del diario.",
     "deleteNotesHint": "Abre una confirmación antes de eliminar todas las notas.",
     "deleteAuditHint": "Abre una confirmación antes de eliminar todas las respuestas de auditoría.",
@@ -147,8 +146,6 @@
   "integrations": "Integraciones",
   "aiMuseum": "Museo de IA",
   "routines": "Rutinas",
-  "graphCrew": "Tripulación del gráfico (decorativa)",
-  "graphCrewDesc": "Cuántos sprites de la tripulación recorren el gráfico. Escala con tu número de nodos; ajústalo de ninguno a muchos.",
   "deleteData": "Eliminar datos (zona de peligro)",
   "partialByKind": "Parcial: por tipo",
   "partialByKindDesc": "Elimina solo un tipo. Los demás tipos y tu wiki se conservan.",
@@ -180,10 +177,77 @@
   "signOut": "Cerrar sesión",
   "couldntSignOut": "No se pudo cerrar sesión",
   "signOutError": "Algo salió mal al cerrar sesión. Inténtalo de nuevo en un momento.",
-  "buildInfo": "Compilación 0.0.6 · OTA ota-2026-06-27a",
   "deletedN": "Se eliminaron {{n}}",
   "deletedNWiki": "Se eliminaron {{n}} páginas wiki",
   "deletedNCaptures": "Se eliminaron {{n}} capturas",
   "resetNDays": "Se restablecieron {{n}} días de uso",
-  "wipeComplete": "Borrado total completo: registros {{r}} · fuentes {{s}} · wiki {{w}} · uso {{u}}"
+  "wipeComplete": "Borrado total completo: registros {{r}} · fuentes {{s}} · wiki {{w}} · uso {{u}}",
+  "subscription": {
+    "title": "Gestionar suscripcion",
+    "sectionLabel": "Suscripcion",
+    "rowLabel": "Gestionar suscripcion",
+    "rowSub": "Estado del pago, cancelacion, solicitud de reembolso",
+    "currentPlan": "Plan actual",
+    "tierName": {
+      "free": "Stargazer",
+      "plus": "Voyager",
+      "pro": "North Star"
+    },
+    "judgeComp": "Las funciones de pago estan abiertas sin cargo en esta cuenta de jurado.",
+    "lastPaidOn": "Ultimo cobro: {{date}}",
+    "paymentMethod": "Metodo de pago: {{method}}",
+    "freeBody": "Estas en el plan gratuito, asi que no hay ninguna suscripcion de pago activa.",
+    "loadFailed": "No se pudieron cargar los datos de tu suscripcion.",
+    "retry": "Reintentar",
+    "keep": "Mantenerla",
+    "supportLine": "Si necesitas ayuda, escribe a {{email}} y respondemos en 2 dias habiles.",
+    "viewPolicy": "Leer la politica de reembolso",
+    "viewPlans": "Ver planes",
+    "cancel": {
+      "title": "Cancelar suscripcion",
+      "body": "Tu suscripcion se renueva automaticamente hasta que la canceles. Al cancelar se detiene el proximo cobro y conservas las funciones de pago hasta que termine el periodo que ya pagaste.",
+      "cta": "Cancelar suscripcion",
+      "unavailable": "Esta suscripcion no se puede cancelar desde la app. Si la compraste en una tienda, cancelala en los ajustes de suscripcion de esa tienda.",
+      "confirmTitle": "Cancelar esta suscripcion?",
+      "confirmAtRenewal": "No se renovara despues del {{date}}. Hasta entonces las funciones de pago siguen abiertas.",
+      "confirmImmediate": "Las funciones de pago se cierran de inmediato y el tiempo restante no se reembolsa automaticamente.",
+      "confirmCta": "Cancelar",
+      "switchToImmediate": "Cancelar de inmediato",
+      "switchToRenewal": "Cancelar en la proxima renovacion",
+      "periodEnd": "el final del periodo pagado",
+      "alreadyScheduled": "Esta suscripcion ya tiene la renovacion automatica desactivada. No se cobrara nada mas y las funciones de pago siguen abiertas hasta que termine el periodo pagado."
+    },
+    "refund": {
+      "title": "Reembolso",
+      "cta": "Solicitar reembolso",
+      "confirmTitle": "Solicitar un reembolso?",
+      "confirmBody": "La solicitud va a Paddle, el vendedor registrado. Si Paddle la aprueba, el importe completo vuelve a tu metodo de pago original. Esto no cancela la suscripcion por si solo, asi que cancelala tambien si quieres que dejen de cobrarte.",
+      "confirmCta": "Enviar solicitud",
+      "reason": {
+        "eligible": "Ahora mismo puedes solicitar un reembolso completo.",
+        "alreadyRequested": "Ya hay una solicitud de reembolso registrada para este pago.",
+        "usedBeyondFree": "El uso desde el pago supero lo que cubre el plan gratuito en el mismo periodo, asi que el reembolso automatico no esta disponible.",
+        "windowPassed": "Han pasado mas de {{total}} dias desde el pago, asi que el reembolso automatico no esta disponible.",
+        "noPayment": "No hay ningun pago registrado para reembolsar.",
+        "unknown": "No pudimos comprobar si el reembolso es posible."
+      },
+      "window": "Ventana de reembolso: quedan {{days}} de {{total}} dias",
+      "usage": "Razonamientos usados: {{used}} (el plan gratuito permite {{allowance}} en el mismo periodo)",
+      "calls": "Llamadas de IA registradas: {{calls}}",
+      "currentPolicyNote": "Reembolsable dentro de los 7 dias posteriores al pago, siempre que tu uso se haya mantenido dentro de lo que cubre el plan gratuito."
+    },
+    "notice": {
+      "cancelledAtRenewal": "La cancelacion queda programada para la proxima fecha de renovacion.",
+      "cancelledNow": "Se envio la cancelacion inmediata.",
+      "refundRequested": "Tu solicitud de reembolso fue enviada a Paddle. La decision llega por correo a la direccion del recibo. Cancela la suscripcion aparte si tambien quieres que dejen de cobrarte.",
+      "alreadyRequested": "Ya hay una solicitud registrada, asi que no se envio dos veces.",
+      "refundRejected": "El reembolso automatico no esta disponible para este pago.",
+      "contactSupport": "Esto no se puede resolver en la app ahora mismo. Escribe a soporte.",
+      "notSubscribed": "No hay ninguna suscripcion de pago activa que cancelar.",
+      "dryRun": "El modo de ensayo esta activo, asi que no se envio nada a Paddle. Escribe a soporte si querias enviarlo de verdad."
+    },
+    "autoRenewOn": "Se renueva automaticamente el {{date}}",
+    "cancelScheduledOn": "La renovacion automatica esta desactivada. Las funciones de pago siguen abiertas hasta el {{date}}.",
+    "cancelScheduled": "La renovacion automatica esta desactivada. Las funciones de pago siguen abiertas hasta que termine el periodo pagado."
+  }
 }

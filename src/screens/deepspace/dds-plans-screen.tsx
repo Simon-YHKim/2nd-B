@@ -25,6 +25,7 @@ import { TIER_PRICE_KRW, REWARD_PER_WATCH, REWARD_MONTHLY_CAP } from "@/lib/enti
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { canShowRewardedAds } from "@/lib/ads/policy";
+import { openPaddleCheckout, paddleCheckoutAvailable } from "@/lib/billing/paddle-checkout";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { Text } from "@/components/ui/Text";
@@ -299,6 +300,26 @@ export function DeepSpacePlansScreen() {
   function onStart(key: TierKey) {
     if (busy) return;
     if (key === "pro" && PRO_COMING_SOON) return; // 준비 중 — not purchasable at launch
+
+    // RevenueCat is native-only, so before this the web export - which is the
+    // live surface (GitHub Pages) - had no way to take money at all. Paddle is
+    // the Merchant-of-Record path there; native keeps RevenueCat untouched.
+    // paddleCheckoutAvailable() is false off-web and when unconfigured, so this
+    // branch simply does not exist until the price ids are set.
+    const paddleTier = key === "plus" ? "cortex" : key === "pro" ? "brain" : null;
+    if (paddleTier && paddleCheckoutAvailable(paddleTier)) {
+      setBusyAction("buy");
+      setError(null);
+      void openPaddleCheckout({ tier: paddleTier, locale: ko ? "ko" : "en" })
+        .then((r) => {
+          // The tier itself is granted server-side by paddle-webhook, never
+          // here - the client never writes entitlement.
+          if (!r.ok) setError(t("ds.plans.purchaseError"));
+        })
+        .finally(() => setBusyAction(null));
+      return;
+    }
+
     if (key === "plus" && plusPkg) void buy(plusPkg);
     else if (key === "pro" && proPkg) void buy(proPkg);
     else if (key !== "free") setError(t("ds.plans.purchaseError"));

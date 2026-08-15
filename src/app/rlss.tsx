@@ -133,10 +133,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
       if (typeof console !== "undefined") console.warn("[rlss] save failed", (e as Error).message);
       setToast({
         tone: "danger",
-        message:
-          locale === "ko"
-            ? "저장하지 못했어요. 답변은 그대로 남아 있으니 다시 시도해 주세요."
-            : "Couldn't save. Your answers are still here; please try again.",
+        message: t("saveError"),
       });
     } finally {
       setSubmitting(false);
@@ -150,12 +147,9 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
           toolKey="rlss"
           title={t("title")}
           itemCount={RLSS_ITEMS.length}
+          perPage={RLSS_ITEMS.length}
           estimatedMinutes={2}
-          description={
-            locale === "ko"
-              ? "삶 전체에 대한 만족을 재는 검증된 6문항 자기보고예요. 각 문장에 1(전혀 그렇지 않다) ~ 7(매우 그렇다)로 답해 주세요. 정답은 없고, 지금 이 순간의 느낌이면 됩니다."
-              : "A validated 6-item self-report of how satisfied you are with life as a whole. Rate each statement from 1 (strongly disagree) to 7 (strongly agree). No right answers, just how it feels right now."
-          }
+          description={t("introDescription")}
           citation="Margolis, Schwitzgebel, Ozer & Lyubomirsky (2019) · free to use"
           locale={locale}
           onStart={() => setStarted(true)}
@@ -170,9 +164,7 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
               {t("counter")}
             </Text>
             <Text variant="body" color="textMuted">
-              {locale === "ko"
-                ? "삶 전체를 떠올리며, 각 문장이 지금 당신과 얼마나 맞는지 골라주세요."
-                : "Thinking of your life as a whole, choose how well each statement fits you right now."}
+              {t("headerPrompt")}
             </Text>
           </View>
 
@@ -242,23 +234,21 @@ function RlssSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel
       <PremiumModal
         visible={exitConfirmOpen}
         onClose={() => setExitConfirmOpen(false)}
-        accessibilityLabel={locale === "ko" ? "종료 확인" : "Exit confirmation"}
+        accessibilityLabel={t("exitConfirmA11y")}
       >
-        <Text variant="heading">{locale === "ko" ? "그만두시겠어요?" : "Leave the survey?"}</Text>
+        <Text variant="heading">{t("exitTitle")}</Text>
         <Text variant="body" color="textMuted" style={{ marginVertical: spacing.sm, lineHeight: 21 }}>
-          {locale === "ko"
-            ? "정말 종료하시겠습니까? 작성 중이던 답변이 저장되지 않고 사라집니다."
-            : "Are you sure you want to exit? Your progress will not be saved."}
+          {t("exitBody")}
         </Text>
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
           <Button
-            label={locale === "ko" ? "계속하기" : "Keep going"}
+            label={t("exitKeepGoing")}
             variant="secondary"
             onPress={() => setExitConfirmOpen(false)}
             style={{ flex: 1 }}
           />
           <Button
-            label={locale === "ko" ? "종료" : "Exit"}
+            label={t("exitLeave")}
             variant="primary"
             onPress={() => {
               setExitConfirmOpen(false);

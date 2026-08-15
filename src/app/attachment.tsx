@@ -29,6 +29,7 @@ import {
   STYLE_DESCRIPTION,
   STYLE_LABEL,
   scoreEcr,
+  type AttachmentStyle,
   type EcrResponses,
 } from "@/lib/persona/attachment";
 import { QuantIntroModal } from "@/components/quant/QuantIntroModal";
@@ -37,15 +38,137 @@ import { QuantPager } from "@/components/quant/QuantPager";
 import { QuantSaveCelebration } from "@/components/quant/QuantSaveCelebration";
 import { isFirstStarChatNudged, markFirstStarChatNudged } from "@/lib/onboarding/state";
 
-const SCALE: { value: number; en: string; ko: string }[] = [
-  { value: 1, en: "Strongly disagree", ko: "전혀 아니다" },
-  { value: 2, en: "Disagree", ko: "아니다" },
-  { value: 3, en: "Slightly disagree", ko: "조금 아니다" },
-  { value: 4, en: "Neutral", ko: "보통" },
-  { value: 5, en: "Slightly agree", ko: "조금 그렇다" },
-  { value: 6, en: "Agree", ko: "그렇다" },
-  { value: 7, en: "Strongly agree", ko: "매우 그렇다" },
+type DataLocale = "en" | "ko";
+type DisplayLocale = DataLocale | "es" | "pt" | "id";
+
+const DISPLAY_LOCALES: DisplayLocale[] = ["en", "ko", "es", "pt", "id"];
+
+function displayLocaleFor(language?: string): DisplayLocale {
+  const base = language?.toLowerCase().split("-")[0] as DisplayLocale | undefined;
+  return base && DISPLAY_LOCALES.includes(base) ? base : "en";
+}
+
+const SCALE: { value: number }[] = [
+  { value: 1 },
+  { value: 2 },
+  { value: 3 },
+  { value: 4 },
+  { value: 5 },
+  { value: 6 },
+  { value: 7 },
 ];
+
+const SCALE_COPY: Record<DisplayLocale, Record<number, string>> = {
+  en: {
+    1: "Strongly disagree",
+    2: "Disagree",
+    3: "Slightly disagree",
+    4: "Neutral",
+    5: "Slightly agree",
+    6: "Agree",
+    7: "Strongly agree",
+  },
+  ko: {
+    1: "전혀 아니다",
+    2: "아니다",
+    3: "조금 아니다",
+    4: "보통",
+    5: "조금 그렇다",
+    6: "그렇다",
+    7: "매우 그렇다",
+  },
+  es: {
+    1: "Muy en desacuerdo",
+    2: "En desacuerdo",
+    3: "Algo en desacuerdo",
+    4: "Neutral",
+    5: "Algo de acuerdo",
+    6: "De acuerdo",
+    7: "Muy de acuerdo",
+  },
+  pt: {
+    1: "Discordo totalmente",
+    2: "Discordo",
+    3: "Discordo um pouco",
+    4: "Neutro",
+    5: "Concordo um pouco",
+    6: "Concordo",
+    7: "Concordo totalmente",
+  },
+  id: {
+    1: "Sangat tidak setuju",
+    2: "Tidak setuju",
+    3: "Agak tidak setuju",
+    4: "Netral",
+    5: "Agak setuju",
+    6: "Setuju",
+    7: "Sangat setuju",
+  },
+};
+
+const STYLE_LABEL_COPY: Record<DisplayLocale, Record<AttachmentStyle, string>> = {
+  en: STYLE_LABEL.en,
+  ko: STYLE_LABEL.ko,
+  es: {
+    secure: "Seguro",
+    preoccupied: "Preocupado",
+    dismissing: "Evitativo",
+    fearful: "Temeroso",
+  },
+  pt: {
+    secure: "Seguro",
+    preoccupied: "Preocupado",
+    dismissing: "Evitativo",
+    fearful: "Medroso",
+  },
+  id: {
+    secure: "Aman",
+    preoccupied: "Cemas",
+    dismissing: "Menghindar",
+    fearful: "Takut",
+  },
+};
+
+const ATTACHMENT_COPY: Record<
+  DisplayLocale,
+  {
+    summary: (style: string, anxiety: string, avoidance: string) => string;
+    current: (style: string, anxiety: string, avoidance: string) => string;
+    topic: string;
+    fromNode: string;
+  }
+> = {
+  en: {
+    summary: (style, anxiety, avoidance) => `Style: ${style} · Anxiety ${anxiety}/7 · Avoidance ${avoidance}/7`,
+    current: (style, anxiety, avoidance) => `Current style: ${style} · anx ${anxiety} · avo ${avoidance}`,
+    topic: "ECR-S Attachment style",
+    fromNode: "my relational self",
+  },
+  ko: {
+    summary: (style, anxiety, avoidance) => `애착 스타일: ${style} · 불안 ${anxiety}/7 · 회피 ${avoidance}/7`,
+    current: (style, anxiety, avoidance) => `현재 스타일: ${style} · 불안 ${anxiety} · 회피 ${avoidance}`,
+    topic: "ECR-S 애착 스타일",
+    fromNode: "관계의 나",
+  },
+  es: {
+    summary: (style, anxiety, avoidance) => `Estilo: ${style} · Ansiedad ${anxiety}/7 · Evitación ${avoidance}/7`,
+    current: (style, anxiety, avoidance) => `Estilo actual: ${style} · ansiedad ${anxiety} · evitación ${avoidance}`,
+    topic: "Estilo de apego ECR-S",
+    fromNode: "mi yo relacional",
+  },
+  pt: {
+    summary: (style, anxiety, avoidance) => `Estilo: ${style} · Ansiedade ${anxiety}/7 · Evitação ${avoidance}/7`,
+    current: (style, anxiety, avoidance) => `Estilo atual: ${style} · ansiedade ${anxiety} · evitação ${avoidance}`,
+    topic: "Estilo de apego ECR-S",
+    fromNode: "meu eu relacional",
+  },
+  id: {
+    summary: (style, anxiety, avoidance) => `Gaya: ${style} · Kecemasan ${anxiety}/7 · Penghindaran ${avoidance}/7`,
+    current: (style, anxiety, avoidance) => `Gaya saat ini: ${style} · cemas ${anxiety} · hindar ${avoidance}`,
+    topic: "Gaya kelekatan ECR-S",
+    fromNode: "diri relasional saya",
+  },
+};
 
 type Toast = { message: string; tone: "danger" | "info" | "success" };
 
@@ -56,7 +179,8 @@ type Toast = { message: string; tone: "danger" | "info" | "success" };
 function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; onCancel: () => void }) {
   const { t, i18n } = useTranslation("attachment");
   const { userId, loading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const displayLocale = displayLocaleFor(i18n.language);
+  const dataLocale: DataLocale = displayLocale === "ko" ? "ko" : "en";
 
   const [responses, setResponses] = useState<EcrResponses>({});
   const [submitting, setSubmitting] = useState(false);
@@ -106,14 +230,12 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
     if (!userId || !result.complete || !result.style) return;
     setSubmitting(true);
     try {
-      const styleLabel = STYLE_LABEL[locale][result.style];
-      const summary =
-        locale === "ko"
-          ? `애착 스타일: ${styleLabel} · 불안 ${result.anxiety.toFixed(1)}/7 · 회피 ${result.avoidance.toFixed(1)}/7`
-          : `Style: ${styleLabel} · Anxiety ${result.anxiety.toFixed(1)}/7 · Avoidance ${result.avoidance.toFixed(1)}/7`;
+      const styleLabel = STYLE_LABEL_COPY[displayLocale][result.style];
+      const anxiety = result.anxiety.toFixed(1);
+      const avoidance = result.avoidance.toFixed(1);
       await createRecord({
         userId,
-        locale,
+        locale: dataLocale,
         kind: "note",
         body: JSON.stringify({
           ecr_responses: responses,
@@ -121,9 +243,9 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
           avoidance: result.avoidance,
           style: result.style,
         }),
-        topic: locale === "ko" ? "ECR-S 애착 스타일" : "ECR-S Attachment style",
-        summary,
-        conclusion: STYLE_DESCRIPTION[locale][result.style],
+        topic: ATTACHMENT_COPY[displayLocale].topic,
+        summary: ATTACHMENT_COPY[displayLocale].summary(styleLabel, anxiety, avoidance),
+        conclusion: STYLE_DESCRIPTION[dataLocale][result.style],
         tags: ["attachment", "ecr", "assessment"],
         withFollowup: false,
       });
@@ -146,10 +268,11 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
           toolKey="ecr"
           title={t("intro.title")}
           itemCount={ECR_ITEMS.length}
+          perPage={5}
           estimatedMinutes={3}
           description={t("intro.description")}
           citation={t("intro.citation")}
-          locale={locale}
+          locale={dataLocale}
           onStart={() => setStarted(true)}
           onCancel={onCancel}
         />
@@ -163,9 +286,11 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
             </Text>
             {result.style ? (
               <Text variant="subtle" color="textMuted">
-                {locale === "ko"
-                  ? `현재 스타일: ${STYLE_LABEL[locale][result.style]} · 불안 ${result.anxiety.toFixed(1)} · 회피 ${result.avoidance.toFixed(1)}`
-                  : `Current style: ${STYLE_LABEL[locale][result.style]} · anx ${result.anxiety.toFixed(1)} · avo ${result.avoidance.toFixed(1)}`}
+                {ATTACHMENT_COPY[displayLocale].current(
+                  STYLE_LABEL_COPY[displayLocale][result.style],
+                  result.anxiety.toFixed(1),
+                  result.avoidance.toFixed(1),
+                )}
               </Text>
             ) : (
               <Text variant="body" color="textMuted">
@@ -182,23 +307,23 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
             onSubmit={handleSubmit}
             submitDisabled={!result.complete || submitting}
             submitLoading={submitting}
-            locale={locale}
+            locale={dataLocale}
             renderItem={(idx) => {
               const item = ECR_ITEMS[idx];
               const value = responses[item.id];
               return (
                 <View style={styles.itemCard}>
                   <Text variant="body" style={{ marginBottom: 2 }}>
-                    {item.id}. {locale === "ko" ? item.ko : item.en}
+                    {item.id}. {dataLocale === "ko" ? item.ko : item.en}
                   </Text>
                   <Text variant="subtle" color="textSubtle" style={{ marginBottom: spacing.xs }}>
-                    {locale === "ko" ? item.subtitleKo : item.subtitleEn}
+                    {dataLocale === "ko" ? item.subtitleKo : item.subtitleEn}
                   </Text>
                   <LikertChoiceGroup
-                    choices={SCALE.map((s) => ({ value: s.value, label: s[locale] }))}
-                    locale={locale}
+                    choices={SCALE.map((s) => ({ value: s.value, label: SCALE_COPY[displayLocale][s.value] }))}
+                    locale={dataLocale}
                     onSelect={(next) => setResponse(item.id, next)}
-                    question={`${item.id}. ${locale === "ko" ? item.ko : item.en}`}
+                    question={`${item.id}. ${dataLocale === "ko" ? item.ko : item.en}`}
                     value={value}
                   />
                   <View style={styles.scaleLegend}>
@@ -227,7 +352,7 @@ function AttachmentSurvey({ onComplete, onCancel }: { onComplete: () => void; on
               markFirstStarChatNudged();
               router.replace({
                 pathname: "/secondb",
-                params: { fromNode: locale === "ko" ? "관계의 나" : "my relational self" },
+                params: { fromNode: ATTACHMENT_COPY[displayLocale].fromNode },
               });
             } else {
               onComplete();

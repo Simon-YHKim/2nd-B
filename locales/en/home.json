@@ -1,6 +1,6 @@
 {
   "soulCore": {
-    "a11y": "Soul Core brightness"
+    "a11y": "North Star brightness"
   },
   "character": {
     "a11y": "Second Brain character"
@@ -88,7 +88,6 @@
     },
     "home": {
       "polaris": "North Star",
-      "hint": "Tap the seven stars to open your seven life areas",
       "museumName": "Museum",
       "domainName": {
         "career": "Career",
@@ -478,6 +477,33 @@
           "relatedness": {
             "name": "Relatedness",
             "note": "You move a little more when you're with others"
+          }
+        },
+        "survey": {
+          "title": "Motivation self-report",
+          "loading": "Loading…",
+          "description": "A short self-report of what moves you. Rate how well each statement fits you from 1 (not like me at all) to 6 (very much like me). No right answers, and it's an estimate, not a medical assessment.",
+          "citation": "Anchored to Self-Determination Theory (SDT) · self-report estimate",
+          "instruction": "How well does each statement fit you?",
+          "intrinsic": "Intrinsic",
+          "extrinsic": "Extrinsic",
+          "conclusion": "Self-report estimate (not a medical assessment).",
+          "saveError": "Couldn't save. Your answers are still here; please try again.",
+          "saved": "Your motivation self-report is saved.",
+          "scale": {
+            "1": "Not like me at all",
+            "2": "Unlike me",
+            "3": "Somewhat unlike me",
+            "4": "Somewhat like me",
+            "5": "Like me",
+            "6": "Very much like me"
+          },
+          "exit": {
+            "notice": "Exit confirmation",
+            "title": "Leave the survey?",
+            "body": "Are you sure you want to exit? Your progress will not be saved.",
+            "cancel": "Keep going",
+            "confirm": "Exit"
           }
         }
       },

@@ -23,7 +23,7 @@ _시행일: 2026-07-17_
 ④ 한 이용자가 복수 경로로 가입한 경우 계정 연결·통합 정책은 서비스 내 안내에 따릅니다.
 
 ### 제5조 (유료 서비스 및 결제)
-① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함: Plus ₩9,900/월 · Pro ₩19,900/월(출시 준비 중) · 연간 구독 = 월 요금×10(2개월 무료) · 평생 이용권 ₩99,000 일시불).
+① 서비스는 무료 등급과 유료 구독 등급을 제공합니다. 유료 등급의 기능·한도·가격은 결제 화면에 표시됩니다(부가세 포함: 항해자 ₩9,900/월 · 북극성 ₩19,900/월(출시 준비 중) · 연간 구독 = 월 요금×10(2개월 무료)).
 ② **결제 및 판매자**: 유료 구독의 결제는 **Paddle.com Market Limited("Paddle")가 판매자(Merchant of Record)**\로서 처리합니다. Paddle의 구매자 약관이 결제에 함께 적용됩니다.
 ③ **자동 갱신**: 유료 구독은 이용자가 취소하기 전까지 표시된 주기로 자동 갱신되며, 갱신 시점에 등록된 결제수단으로 청구됩니다. 이용자는 다음 갱신 이전 언제든 취소할 수 있습니다.
 ④ **결제수단**: 카드, KakaoPay, NaverPay 등 결제 화면에 제공되는 수단을 이용할 수 있습니다.
@@ -59,7 +59,7 @@ _시행일: 2026-07-17_
 ### 제13조 (사업자 정보 및 문의)
 - 상호: 하양 프로덕션 (개인사업자, 대표: 배소하)
 - 소재지: 경기도 안양시
-- 사업자등록번호: 발급 진행 중 (발급 즉시 본 문서에 반영합니다)
+- 사업자등록번호: 205-10-98603
 - 통신판매업 신고: 면제 사업자 (「전자상거래 등에서의 소비자보호에 관한 법률」 시행령 제11조의 신고 면제 기준에 해당)
 - 문의: kim0405@hayangzip.com (이메일 중심으로 운영합니다). 고객지원은 **영업일 기준 2일 이내** 회신을 목표로 합니다.
 
@@ -80,7 +80,7 @@ The Service is an AI-assisted personal tool that helps users accumulate records 
 (1) Users may sign up by email or social login (Google, Apple, Kakao, Naver, etc.). (2) **Age**: only users aged 14+ may register directly; children under 14 may use the Service only where verifiable guardian consent is obtained (phased per law and Company policy). (3) Users must provide accurate account information and are responsible for safeguarding their account. (4) Where one person registers via multiple methods, account-linking follows the in-Service guidance.
 
 ### 5. Paid services & billing
-(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Plus ₩9,900/mo · Pro ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free) · Lifetime ₩99,000 one-time). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
+(1) The Service offers a free tier and paid subscription tiers; features, limits, and prices are shown at checkout (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo (coming soon) · yearly = 10x monthly (2 months free)). (2) **Seller/billing**: paid subscriptions are sold and processed by **Paddle.com Market Limited ("Paddle") as Merchant of Record**; Paddle's buyer terms also apply. (3) **Auto-renewal**: subscriptions auto-renew at the shown cadence until cancelled, charging the payment method on file; you may cancel any time before the next renewal. (4) **Payment methods**: card, KakaoPay, NaverPay, and others offered at checkout.
 
 ### 6. Withdrawal & refunds
 Withdrawal, refunds, and cancellation follow the separate **[Refund & Cancellation Policy](./refund-policy.md)** and Korean e-commerce law.
@@ -106,6 +106,6 @@ The Company may change or suspend all or part of the Service for operational/tec
 ### 13. Business information & contact
 - Business name: Hayang Production (sole proprietorship, Representative: Bae Soha)
 - Location: Anyang-si, Gyeonggi-do, Republic of Korea
-- Business registration number: issuance in progress (posted here as soon as issued)
+- Business registration number: 205-10-98603
 - Mail-order business report: exempt (meets the exemption criteria of Article 11 of the Enforcement Decree of Korea's e-commerce act)
 - Contact: kim0405@hayangzip.com (email-first support). Support aims to reply **within 2 business days**.

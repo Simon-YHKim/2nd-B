@@ -40,6 +40,19 @@ describe("UMP consent seam (fail-closed)", () => {
     expect(src).not.toMatch(/from "\.\/policy"/);
   });
 
+  test("source pins: ATT is requested before the ad flow, iOS-only, and fail-open", () => {
+    const src = readFileSync(path.resolve(__dirname, "../consent.native.ts"), "utf8");
+    // ATT authorization must be requested (IDFA would otherwise stay zeroed and
+    // AdMob would serve non-personalized despite the tracking declaration).
+    expect(src).toContain("requestTrackingPermissionsAsync");
+    // iOS-only: Android/web must no-op, never prompt.
+    expect(src).toMatch(/Platform\.OS !== "ios"/);
+    // ensureUmpConsent must invoke it before returning a consent result.
+    expect(src).toContain("await ensureTrackingAuthorization()");
+    // Static require so Metro can bundle the optional native module on device.
+    expect(src).toContain('require("expo-tracking-transparency")');
+  });
+
   test("app.json carries the AdMob plugin with both app ids (decision (a): public literals)", () => {
     const appJson = JSON.parse(readFileSync(path.resolve(__dirname, "../../../../app.json"), "utf8")) as {
       expo: { plugins: Array<string | [string, Record<string, unknown>]> };

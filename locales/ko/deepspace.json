@@ -176,7 +176,7 @@
     "title": "계정",
     "status": "계정 정보는 네가 소유하고, 필요한 것만 연결해요.",
     "tip": "삭제와 내보내기는 언제든 직접 시작할 수 있어요.",
-    "joined": "{{date}} 가입 · Free plan",
+    "joined": "{{date}} 가입 · 무료 플랜",
     "labelName": "이름",
     "labelEmail": "이메일",
     "labelPassword": "비밀번호",
@@ -188,7 +188,8 @@
     "navProfile": "프로필",
     "navSettings": "설정",
     "navData": "내 데이터",
-    "navBeyond": "앱 밖에서"
+    "navBeyond": "앱 밖에서",
+    "navPassword": "비밀번호 변경"
   },
   "privacy": {
     "title": "개인정보",
@@ -332,7 +333,7 @@
     "search": "무엇이 궁금하세요?",
     "sectionStart": "시작하기",
     "q1": "북두칠성 7별은 무엇인가요?",
-    "q2": "북극성(소울코어)은 어떻게 밝아지나요?",
+    "q2": "북극성은 어떻게 밝아지나요?",
     "q3": "검사 결과는 어떻게 정확해지나요?",
     "sectionData": "데이터 · 프라이버시",
     "q4": "IDEN 파일은 무엇인가요?",
@@ -567,6 +568,7 @@
     "save": "담기",
     "opening": "펼치는 중…",
     "empty": "아직 담긴 휴식이 없어요. 요즘 나를 쉬게 하는 것부터 담아 보세요. 휴식 별이 밝아져요.",
+    "ratingLabel": "평점 {{rating}}/5",
     "category": {
       "game": "게임",
       "movie": "영화",
@@ -660,6 +662,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · 이번 주",
+    "eyebrowConstellation": "나의 별자리",
     "footerWeek": "세컨비가 함께 본 한 주",
     "starsLit": "{{count}}개 별이 빛나는 중",
     "signature": "2nd-Brain · {{count}}개 별가루"
@@ -735,7 +738,7 @@
       "proFeat2": "하루 250번 대화",
       "proFeat3": "리즈닝 무제한",
       "comingSoon": "준비 중",
-      "disclosure": "유료 플랜은 월 단위로 자동 갱신돼요. 다음 갱신일 전에 언제든 해지할 수 있고, 표시 가격은 부가세(VAT)가 포함돼 있어요. 결제일부터 30일 안에는 전액 환불을 보장해요.",
+      "disclosure": "유료 플랜은 해지할 때까지 월 단위로 자동 갱신돼요. 다음 갱신일 전에 언제든 해지할 수 있고 이미 결제한 기간이 끝날 때까지는 그대로 쓸 수 있어요. 표시 가격은 부가세(VAT)가 포함돼 있어요. 결제일부터 7일 안이고 무료 플랜 범위를 넘겨 쓰지 않았다면 전액 환불받을 수 있어요.",
       "legalTerms": "이용약관",
       "legalRefund": "환불 및 청약철회 정책"
     },
@@ -752,7 +755,9 @@
       "fillStar": "이 별 채워넣기",
       "fillStarBody": "이 영역의 정보를 직접 추가해요.",
       "secondbLinked": "이 별가루는 '{{star}}' 별과 이어져요. 비슷한 기록 {{n}}건이 같은 시간대에 모여 있어요.",
-      "secondbUnlinked": "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요."
+      "secondbUnlinked": "이 별가루는 아직 어느 별과도 이어지지 않았어요. 곧 이어드릴게요.",
+      "makeWikiPage": "위키 페이지로 만들기",
+      "wikiPageMade": "위키 페이지를 만들었어요"
     },
     "inbox": {
       "title": "알림",
@@ -799,7 +804,16 @@
       "healthErrUnavailable": "이 기기에서는 건강 앱에 연결할 수 없어요. 아무것도 기록하지 않았어요.",
       "healthErrDenied": "건강 접근이 거부돼서 아무것도 기록하지 않았어요. 기기 설정에서 허용할 수 있어요.",
       "healthErrEmpty": "오늘 반영할 건강 활동이 없어요.",
-      "healthErrFailed": "건강 데이터를 반영하지 못했어요. 잠시 후 다시 시도해 주세요."
+      "healthErrFailed": "건강 데이터를 반영하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      "summaryPieces": "별가루 {{count}}개",
+      "summaryPieces_plural": "별가루 {{count}}개",
+      "resultAdded": "{{count}}개를 정리함에 담았어요",
+      "resultAdded_plural": "{{count}}개를 정리함에 담았어요",
+      "resultDuplicate": "중복 {{count}}개",
+      "resultDuplicate_plural": "중복 {{count}}개",
+      "resultFailed": "실패 {{count}}개",
+      "a11yImportExportFile": "{{name}} 내보내기 파일 가져오기",
+      "a11yRevokeImport": "{{name}} 가져오기 철회"
     },
     "ttfv": {
       "pageTitle": "당신의 첫 별이 켜졌어요",
@@ -873,6 +887,12 @@
       "plansCta": "플랜 보기",
       "close": "닫기",
       "sameQuality": "보상은 횟수만 늘어나요. 결과 품질은 그대로예요."
+    },
+    "reasoningScreen": {
+      "autoTitle": "자동 리즈닝",
+      "autoPaused": "한도 소진 · 월요일에 자동으로 다시 시작해요",
+      "autoBody": "자료를 담을 때마다 세컨비가 바로 별을 이어요",
+      "autoNote": "자동 실행도 주간 한도를 1회씩 사용해요. 직접 실행할 1회는 항상 남겨 둬요."
     }
   },
   "beyond": {

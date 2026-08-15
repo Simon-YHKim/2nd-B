@@ -21,7 +21,7 @@
     "options": {
       "pixel": {
         "label": "Fuente pixel",
-        "sub": "Las letras pixel características del pueblo"
+        "sub": "Letras nítidas para la vista de constelación"
       },
       "readable": {
         "label": "Fuente legible",

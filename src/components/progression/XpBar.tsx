@@ -2,28 +2,22 @@
 // from useProgression(). Colors go through semantic tokens (DESIGN.md).
 
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import type { LevelProgress } from "@/lib/progression/levels";
 
-export function XpBar({ progress, locale = "ko" }: { progress: LevelProgress; locale?: "en" | "ko" }) {
+export function XpBar({ progress, locale }: { progress: LevelProgress; locale?: string }) {
+  const { t } = useTranslation("common");
+  const tOptions = locale ? { lng: locale } : undefined;
   const pct = Math.max(0, Math.min(100, Math.round(progress.progress * 100)));
   const trailing = progress.isMaxLevel
-    ? locale === "ko"
-      ? `${progress.totalXp} XP · 최고 레벨`
-      : `${progress.totalXp} XP · max level`
-    : locale === "ko"
-      ? `다음 레벨까지 ${progress.xpToNextLevel} XP`
-      : `${progress.xpToNextLevel} XP to next level`;
-  const accessibilityLabel =
-    locale === "ko"
-      ? `레벨 ${progress.level}, 경험치 진행률 ${pct}%`
-      : `Level ${progress.level}, XP progress ${pct}%`;
+    ? t("progression.maxLevelTrailing", { ...tOptions, xp: progress.totalXp })
+    : t("progression.nextLevelTrailing", { ...tOptions, xp: progress.xpToNextLevel });
+  const accessibilityLabel = t("progression.progressLabel", { ...tOptions, level: progress.level, pct });
   const accessibilityHint = progress.isMaxLevel
-    ? locale === "ko"
-      ? "이미 최고 레벨입니다."
-      : "Already at the max level."
+    ? t("progression.maxLevelHint", tOptions)
     : trailing;
 
   return (

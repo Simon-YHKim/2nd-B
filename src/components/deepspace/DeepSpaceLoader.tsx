@@ -5,16 +5,16 @@
 //   B "ring"     sync / processing       — rotating ring around the breathing head
 //   C "analysis" long star-ignition      — Big-Dipper twinkle + sweep bar, and a
 //                                          "continue in background" exit (no trap)
-// Motion is fade + breathe + rotate only (no bounce/elastic). Copy is inline
-// ko/en (no new i18n keys, WeeklyGrowthScreen pattern), so check:i18n parity is
-// unaffected. Colors come only from deepSpace.* tokens (no hex literals).
+// Motion is fade + breathe + rotate only (no bounce/elastic). Default copy uses
+// a local shipped-locale table, so check:i18n parity is unaffected. Colors come
+// only from deepSpace.* tokens (no hex literals).
 //
 //   <DeepSpaceLoader variant="dots" />
 //   <DeepSpaceLoader variant="ring" />
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
-import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
@@ -41,6 +41,92 @@ export interface DeepSpaceLoaderProps {
 }
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+type LoaderLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const LOADER_COPY: Record<LoaderLocale, {
+  analysisHeadline: string;
+  analysisHint: (etaSec: number) => string;
+  background: string;
+  ringCaption: string;
+  ringTip: string;
+  dotsCaption: string;
+}> = {
+  en: {
+    analysisHeadline: "Looking at you",
+    analysisHint: (etaSec) => `This may take a while · ~${etaSec}s`,
+    background: "Continue in background",
+    ringCaption: "Tidying up",
+    ringTip: "Just a moment",
+    dotsCaption: "Loading",
+  },
+  ko: {
+    analysisHeadline: "너를 살펴보는 중",
+    analysisHint: (etaSec) => `길어질 수 있어요 · 약 ${etaSec}초`,
+    background: "백그라운드에서 계속 · 다른 거 할게요",
+    ringCaption: "정리하는 중",
+    ringTip: "잠깐이면 돼요",
+    dotsCaption: "불러오는 중",
+  },
+  es: {
+    analysisHeadline: "Revisando tus registros",
+    analysisHint: (etaSec) => `Puede tardar un poco · ~${etaSec}s`,
+    background: "Continuar en segundo plano",
+    ringCaption: "Ordenando",
+    ringTip: "Solo un momento",
+    dotsCaption: "Cargando",
+  },
+  pt: {
+    analysisHeadline: "Analisando seus registros",
+    analysisHint: (etaSec) => `Pode levar um pouco · ~${etaSec}s`,
+    background: "Continuar em segundo plano",
+    ringCaption: "Organizando",
+    ringTip: "Só um momento",
+    dotsCaption: "Carregando",
+  },
+  id: {
+    analysisHeadline: "Membaca catatanmu",
+    analysisHint: (etaSec) => `Mungkin perlu sebentar · ~${etaSec}d`,
+    background: "Lanjutkan di latar belakang",
+    ringCaption: "Merapikan",
+    ringTip: "Sebentar saja",
+    dotsCaption: "Memuat",
+  },
+};
+
+function loaderLocale(language?: string): LoaderLocale {
+  const base = language?.toLowerCase().split("-")[0];
+  if (base === "ko" || base === "es" || base === "pt" || base === "id") return base;
+  return "en";
+}
+
+// The locale the WEB static export bakes in. `expo export` prerenders on a build
+// machine where neither localStorage nor a device locale exists, so
+// detectLanguage() falls through to "en" and this loader is the only text in the
+// prerendered body of an auth route (`/sign-in` ships exactly "Loading").
+export const STATIC_EXPORT_LOCALE: LoaderLocale = "en";
+
+/**
+ * False on the server render and on the client's FIRST paint, true afterwards.
+ *
+ * Without it the client's first paint used the detected locale while the served
+ * HTML carried the build-time one, the two texts disagreed, and React threw a
+ * hydration mismatch (#418) on every auth route — measured on the live build at
+ * /sign-in, /sign-up, /complete-profile, /consent-notice and /oauth-callback.
+ * React does not just warn there: it discards the server HTML for the route and
+ * re-renders the whole tree on the client, which is the worst thing to do to the
+ * entry screen.
+ *
+ * Native has no hydration step, so it starts true and its first paint is
+ * unchanged — no English flash on the app's own loading screen.
+ */
+function useHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(Platform.OS !== "web");
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  return hydrated;
+}
 
 // Big-Dipper (북두칠성) layout from the design canon. dim = faint star.
 const STARS = [
@@ -201,12 +287,14 @@ export function DeepSpaceLoader({
 }: DeepSpaceLoaderProps) {
   const phase = useBloom();
   const { i18n } = useTranslation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
+  // Match the server on the first paint, then swap to the real locale.
+  const hydrated = useHydrated();
+  const copy = LOADER_COPY[hydrated ? loaderLocale(i18n.language) : STATIC_EXPORT_LOCALE];
 
   if (variant === "analysis") {
-    const headline = title ?? (ko ? "너를 살펴보는 중" : "Looking at you");
-    const hint = tip ?? (ko ? `길어질 수 있어요 · 약 ${etaSec}초` : `This may take a while · ~${etaSec}s`);
-    const bg = bgLabel ?? (ko ? "백그라운드에서 계속 · 다른 거 할게요" : "Continue in background");
+    const headline = title ?? copy.analysisHeadline;
+    const hint = tip ?? copy.analysisHint(etaSec);
+    const bg = bgLabel ?? copy.background;
     return (
       <View style={[styles.wrap, styles.wrapFull]}>
         <Constellation />
@@ -229,8 +317,8 @@ export function DeepSpaceLoader({
   }
 
   if (variant === "ring") {
-    const cap = caption ?? (ko ? "정리하는 중" : "Tidying up");
-    const sub = tip ?? (ko ? "잠깐이면 돼요" : "Just a moment");
+    const cap = caption ?? copy.ringCaption;
+    const sub = tip ?? copy.ringTip;
     return (
       <View style={styles.wrap}>
         <Ring />
@@ -241,7 +329,7 @@ export function DeepSpaceLoader({
   }
 
   // A: dots
-  const cap = caption ?? title ?? (ko ? "불러오는 중" : "Loading");
+  const cap = caption ?? title ?? copy.dotsCaption;
   return (
     <View style={styles.wrap}>
       <SecondbHead size={64} mood="neutral" />

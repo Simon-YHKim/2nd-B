@@ -31,6 +31,7 @@ import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
 import { SbIcon } from "@/components/deepspace/shell/SbIcon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
+import { isAvailableUiLocale, systemLocaleFor, type AvailableUiLocale } from "@/lib/i18n/locales";
 
 /**
  * One ratifiable self-understanding insight. Static prop data for now; the real
@@ -57,6 +58,39 @@ const EVIDENCE: { qKey: string; aKey: string }[] = [
   { qKey: "ds.ttfv.evidence2.q", aKey: "ds.ttfv.evidence2.a" },
 ];
 
+const RECORD_COPY: Record<AvailableUiLocale, { prefix: string; affirm: string; soft: string }> = {
+  en: {
+    prefix: "First light",
+    affirm: "that's right",
+    soft: "feels a little different",
+  },
+  ko: {
+    prefix: "첫 통찰",
+    affirm: "맞아요",
+    soft: "조금 다르게 느껴요",
+  },
+  es: {
+    prefix: "Primera luz",
+    affirm: "es cierto",
+    soft: "se siente un poco diferente",
+  },
+  pt: {
+    prefix: "Primeira luz",
+    affirm: "faz sentido",
+    soft: "parece um pouco diferente",
+  },
+  id: {
+    prefix: "Cahaya pertama",
+    affirm: "itu benar",
+    soft: "terasa sedikit berbeda",
+  },
+};
+
+function uiLocaleFor(language: string | undefined): AvailableUiLocale {
+  const candidate = language?.toLowerCase().split("-")[0];
+  return isAvailableUiLocale(candidate) ? candidate : "en";
+}
+
 // Constellation stage (fixed box): 북극성 top-centre, the lit 관계 star bottom-
 // left, a dim third node bottom-right — the small triangle the capture shows.
 const STAGE_W = 220;
@@ -74,6 +108,7 @@ interface TTFVScreenProps {
 export function TTFVScreen({ insight }: TTFVScreenProps) {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const uiLocale = uiLocaleFor(i18n.language);
   const { userId, isMinor } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("propose");
@@ -109,14 +144,13 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
     setPhase("ratify");
     if (!userId) return;
     const phraseText = insight ? (ko ? insight.phraseKo : insight.phraseEn) : t("ds.ttfv.defaultInsight.phrase");
+    const recordCopy = RECORD_COPY[uiLocale];
     void createRecord({
       userId,
-      locale: ko ? "ko" : "en",
+      locale: systemLocaleFor(i18n.language),
       minor: isMinor === true,
       kind: "note",
-      body: ko
-        ? `첫 통찰: "${phraseText}" — ${softAnswer ? "조금 다르게 느껴요" : "맞아요"}`
-        : `First light: "${phraseText}" — ${softAnswer ? "feels a little different" : "that's right"}`,
+      body: `${recordCopy.prefix}: "${phraseText}" - ${softAnswer ? recordCopy.soft : recordCopy.affirm}`,
       withFollowup: false,
       tags: ["first_light", softAnswer ? "first_light:soft" : "first_light:affirm"],
     }).catch(() => {});

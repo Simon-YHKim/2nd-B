@@ -31,53 +31,52 @@ import { withAlpha } from "@/lib/theme/tokens";
 
 // Layer B remains hidden: this slot mirrors the prototype's compact top-bar
 // caption with the domain's own visual lens, not a psychological construct.
-const DOMAIN_HEADER_META: Record<DomainId, { ko: string; en: string }> = {
-  career: { ko: "쌓아온 길", en: "Built path" },
-  finance: { ko: "이번 달 흐름", en: "Monthly flow" },
-  growth: { ko: "기록의 시간대", en: "Record chapters" },
-  relation: { ko: "나의 사람들", en: "My people" },
-  health: { ko: "건강 기록", en: "Health records" },
-  recreation: { ko: "휴식 지도", en: "Rest map" },
-  collect: { ko: "정리 대기", en: "To organize" },
+type ShippedLocale = "en" | "ko" | "es" | "pt" | "id";
+type LocaleCopy = Record<ShippedLocale, string>;
+
+function shippedLocale(language: string | undefined): ShippedLocale {
+  const base = language?.toLowerCase().split("-")[0];
+  if (base === "ko" || base === "es" || base === "pt" || base === "id") return base;
+  return "en";
+}
+
+const DOMAIN_HEADER_META: Record<DomainId, LocaleCopy> = {
+  career: { en: "Built path", ko: "쌓아온 길", es: "Trayectoria", pt: "Caminho construído", id: "Jalur yang dibangun" },
+  finance: { en: "Monthly flow", ko: "이번 달 흐름", es: "Flujo mensual", pt: "Fluxo do mês", id: "Alur bulanan" },
+  growth: { en: "Record chapters", ko: "기록의 시간대", es: "Capítulos", pt: "Capítulos", id: "Bab catatan" },
+  relation: { en: "My people", ko: "나의 사람들", es: "Mi gente", pt: "Minhas pessoas", id: "Orang-orangku" },
+  health: { en: "Health records", ko: "건강 기록", es: "Registros de salud", pt: "Registros de saúde", id: "Catatan kesehatan" },
+  recreation: { en: "Rest map", ko: "휴식 지도", es: "Mapa de descanso", pt: "Mapa de descanso", id: "Peta istirahat" },
+  collect: { en: "To organize", ko: "정리 대기", es: "Por organizar", pt: "Para organizar", id: "Perlu dirapikan" },
 };
 
 const DOMAIN_ACTION: Record<
   DomainId,
-  { primaryKo: string; primaryEn: string; secondaryKo: string; secondaryEn: string; route: string }
+  { primary: LocaleCopy; secondary: LocaleCopy; route: string }
 > = {
   career: {
-    primaryKo: "성과 입력",
-    primaryEn: "Add achievement",
-    secondaryKo: "Drill Down",
-    secondaryEn: "Drill Down",
+    primary: { en: "Add achievement", ko: "성과 입력", es: "Añadir logro", pt: "Adicionar conquista", id: "Tambah pencapaian" },
+    secondary: { en: "Drill Down", ko: "Drill Down", es: "Profundizar", pt: "Aprofundar", id: "Gali lebih dalam" },
     route: "/career-drilldown",
   },
   finance: {
-    primaryKo: "내역 입력",
-    primaryEn: "Add entry",
-    secondaryKo: "가계 보기",
-    secondaryEn: "Open ledger",
+    primary: { en: "Add entry", ko: "내역 입력", es: "Añadir entrada", pt: "Adicionar item", id: "Tambah entri" },
+    secondary: { en: "Open ledger", ko: "가계 보기", es: "Abrir libro", pt: "Abrir livro", id: "Buka buku catatan" },
     route: "/ledger",
   },
   growth: {
-    primaryKo: "장면 담기",
-    primaryEn: "Add a moment",
-    secondaryKo: "회상하기",
-    secondaryEn: "Reflect",
+    primary: { en: "Add a moment", ko: "장면 담기", es: "Añadir momento", pt: "Adicionar momento", id: "Tambah momen" },
+    secondary: { en: "Reflect", ko: "회상하기", es: "Reflexionar", pt: "Refletir", id: "Refleksi" },
     route: "/audit",
   },
   relation: {
-    primaryKo: "사람 담기",
-    primaryEn: "Add a person",
-    secondaryKo: "사람 지도",
-    secondaryEn: "People map",
+    primary: { en: "Add a person", ko: "사람 담기", es: "Añadir persona", pt: "Adicionar pessoa", id: "Tambah orang" },
+    secondary: { en: "People map", ko: "사람 지도", es: "Mapa de personas", pt: "Mapa de pessoas", id: "Peta orang" },
     route: "/people",
   },
   health: {
-    primaryKo: "기록 담기",
-    primaryEn: "Add a record",
-    secondaryKo: "데이터 연결",
-    secondaryEn: "Connect data",
+    primary: { en: "Add a record", ko: "기록 담기", es: "Añadir registro", pt: "Adicionar registro", id: "Tambah catatan" },
+    secondary: { en: "Connect data", ko: "데이터 연결", es: "Conectar datos", pt: "Conectar dados", id: "Hubungkan data" },
     // "/import" hosts the actual device-health connect path (Health Connect /
     // HealthKit ingest into health_samples — the table this star's
     // crossSourceAgreement reads). "/import-hub"'s health FILE import lands in
@@ -86,17 +85,13 @@ const DOMAIN_ACTION: Record<
     route: "/import",
   },
   recreation: {
-    primaryKo: "휴식 담기",
-    primaryEn: "Add rest",
-    secondaryKo: "휴식 지도",
-    secondaryEn: "Rest map",
+    primary: { en: "Add rest", ko: "휴식 담기", es: "Añadir descanso", pt: "Adicionar descanso", id: "Tambah istirahat" },
+    secondary: { en: "Rest map", ko: "휴식 지도", es: "Mapa de descanso", pt: "Mapa de descanso", id: "Peta istirahat" },
     route: "/rest",
   },
   collect: {
-    primaryKo: "담기",
-    primaryEn: "Capture",
-    secondaryKo: "기록 보기",
-    secondaryEn: "See records",
+    primary: { en: "Capture", ko: "담기", es: "Capturar", pt: "Capturar", id: "Tangkap" },
+    secondary: { en: "See records", ko: "기록 보기", es: "Ver registros", pt: "Ver registros", id: "Lihat catatan" },
     route: "/records",
   },
 };
@@ -151,6 +146,7 @@ export default function DomainStarScreen() {
   const { domain } = useLocalSearchParams<{ domain: string }>();
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
+  const locale = shippedLocale(i18n.resolvedLanguage ?? i18n.language);
   const { userId, loading } = useAuth();
 
   const [rows, setRows] = useState<DomainLensRecord[] | null>(null);
@@ -187,7 +183,7 @@ export default function DomainStarScreen() {
   if (!domainId) return <Redirect href="/" />;
 
   const name = ko ? getDomainStar(domainId).nameKo : getDomainStar(domainId).nameEn;
-  const headerMeta = DOMAIN_HEADER_META[domainId][ko ? "ko" : "en"];
+  const headerMeta = DOMAIN_HEADER_META[domainId][locale];
   const action = DOMAIN_ACTION[domainId];
   const count = rows?.length ?? 0;
 
@@ -222,7 +218,7 @@ export default function DomainStarScreen() {
         <View style={s.actions}>
           <MdButton
             variant="tonal"
-            label={ko ? action.primaryKo : action.primaryEn}
+            label={action.primary[locale]}
             // med#1 (map knownBug): capturing FROM a star must carry that
             // star's domain tag — a bare /capture push let auto-classification
             // file the piece under a different star than the one the user was
@@ -232,7 +228,7 @@ export default function DomainStarScreen() {
           />
           <MdButton
             variant="outlined"
-            label={ko ? action.secondaryKo : action.secondaryEn}
+            label={action.secondary[locale]}
             onPress={() => router.push(action.route as never)}
             style={s.actionBtn}
           />

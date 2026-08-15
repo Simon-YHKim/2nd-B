@@ -13,6 +13,9 @@ const config = getDefaultConfig(__dirname);
 
 config.transformer.babelTransformerPath = require.resolve("react-native-svg-transformer/expo");
 config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== "svg");
+// Metro's defaults cover otf/ttf but not woff2, and typography.ts now requires
+// the woff2 subset on web. Without this the web export cannot resolve the font.
+config.resolver.assetExts = [...new Set([...config.resolver.assetExts, "woff2"])];
 config.resolver.sourceExts = [...config.resolver.sourceExts, "svg"];
 
 // Disable package "exports" map resolution. Several deps (@supabase/supabase-js' OTEL

@@ -5,13 +5,13 @@
 > 자동 생성 — 손으로 고치지 말고 `make-handoff.js` 로 재생성할 것.
 
 **88개 화면 · 529개 동작 · 서버/데이터 100종 · AI 14종**  
-코드 좌표 830개 전부 실제 소스와 대조: **✔ 함수까지 확인 249** · **· 파일·줄만 확인 575** · ⚠ 6
+코드 좌표 830개 전부 실제 소스와 대조: **✔ 함수까지 확인 247** · **· 파일·줄만 확인 577** · ⚠ 6
 
 **스택** — React Native + Expo Router (Expo SDK ~56) + Supabase(auth·db·rpc·edge·storage) + Gemini(gemini-proxy 엣지 함수 경유) + RevenueCat IAP. 프로덕션 UI = deep-space: src/app/*.tsx 의 상당수가 isDeepSpaceUI()(src/lib/ui-mode.ts:36, 기본값 deep-space)로 src/screens/deepspace/** · src/components/deep-space/** 에 위임한다 — src/app 의 legacy 본문은 프로덕션에서 렌더되지 않으니, 화면 수정은 코드 힌트의 (렌더: …) 파일에서 해야 빌드 통과와 화면 반영이 함께 된다. dev 전용 라우트(배포판 미개방): /trends /deepspace-home /deepspace-hub /deepspace-flowmap /deepspace-preview.
 
 ### 0. 먼저 — 이 문서가 아직 맞는지 30초 안에 확인
 
-이 지도는 커밋 `46c24da0` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
+이 지도는 커밋 `7cc7db18` (+ 커밋 안 된 변경) 의 코드를 읽고 만들었다.
 그 뒤로 코드가 바뀌었다면 아래 좌표들은 **틀린 채로 자신 있어 보인다.** 바로 확인할 것:
 
 ```bash
@@ -97,37 +97,22 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 
 ---
 
-## 3. 알려진 문제 25건
+## 3. 알려진 문제 10건
 
 손대기 전에 여기 있는지 먼저 본다. **코드 위치 = 결함이 있는 곳(화면)** — 액션이 부르는 lib(`impl`)이 아니다.
 
 | 화면 | 안 되는 것 | 증상 | 결함 위치 |
 |---|---|---|---|
-| `/inbox` | 알림 화면 열기 (로그인 확인 후 빈 목록) | 담아둔 자료가 아무리 많아도 알림 목록은 항상 비어 있어요 - 화면이 서버에서 데이터를 전혀 읽지 않고, 목… | `src/screens/deepspace/dds-import-inbox-screens.tsx:78` |
 | `/attachment` | 첫 저장 뒤 세컨비 대화로 자동 이동 | 버그(앱 전용): 앱을 껐다 켜면 '처음' 표시가 초기화돼서, 이미 한 번 안내를 받은 사람도 다음 저장 때… | `src/app/attachment.tsx:222` |
-| `/manual` | 화면 열기 | 검색창을 눌러도 글자가 입력되지 않아요 (원래 동작하지 않는 장식이에요) | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1074` |
-| `/beyond` | 알림 설정 열기 | 이 화면에서는 알림을 못 꺼요 — 설정 화면으로 넘어가야 해요 | `src/app/beyond.tsx:135` |
 | `/research` | 첫 별가루 담기 (빈 화면일 때) | 기록 화면에서 저장한 메모는 '기록(records)' 으로 들어가고, 이 화면이 세는 '위키 페이지(wiki… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1485` |
 | `/research` | 묶음 태그로 걸러 보기 | 이 칩은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePage… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385` |
 | `/research` | AI 연결 제안 받기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1385` |
 | `/research` | 연결 승인하기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1435` |
 | `/research` | 연결 제안 거절하기 | 이 버튼은 지금 빌드에서 화면에 나오지 않아요 — 위키 페이지를 만드는 경로(generateSourcePag… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:1450` |
 | `/wiki` | 원문 열어 보기 | 이 줄을 누르면 항상 '기록을 찾을 수 없어요' 빈 화면이 열려요 — 위키 페이지 id 를 기록 id 로 잘… | `src/screens/deepspace/dds-wiki-records-screens.tsx:1368` |
-| `/ipip-neo` | 검사 시작하기 | 안내 창이 안 뜨고 바로 문항이 나오면, 예전에 '다음부터 이 안내 건너뛰기'를 체크해 둔 거예요 (고장이 … | `src/app/ipip-neo.tsx:375` |
 | `/strengths` | '다음' 눌러 다음 문항 페이지로 넘어가기 | 게이트: 마지막 장이 아니면 저장 버튼 자체가 없어서, 다 답했는데도 저장을 못 찾는 것처럼 보여요 | `src/components/quant/QuantPager.tsx:122` |
-| `/digest` | 제안 줄 눌러 원본 기록 열기 (지금은 항상 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.'가 떠요) | 언제나 '기록을 찾을 수 없어요. 보관소로 돌아가 다시 열어보세요.' 화면 — 기록이 지워져서가 아니라 10… | `src/app/digest.tsx:190` |
-| `/milestones` | 목표 추가 (＋ 버튼) | 저장이 실패해도 오류 문구가 전혀 안 떠요 (조용한 실패 — screens.tsx:409-411 의 빈 ca… | `src/screens/deepspace/ops/screens.tsx:403` |
-| `/milestones` | 상태 칩 눌러 진행 상태 바꾸기 | 저장이 실패해도 오류 안내가 없어서 그냥 안 눌린 것처럼 보여요 (screens.tsx:423-425 의 빈… | `src/screens/deepspace/ops/screens.tsx:417` |
 | `/import-hub` | 가져온 데이터 삭제(철회) | 서버가 안 되면 '철회하지 못했어요'가 뜨고 목록에 그대로 남아요 | `src/screens/deepspace/import/ImportHubScreen.tsx:227` |
-| `/import-hub` | '이 기기에서만 처리' 스위치 | 스위치를 어느 쪽에 두든 저장하면 서버 업로드는 그대로 일어나요 (스위치가 동작하지 않는 버그) | `src/screens/deepspace/import/ImportHubScreen.tsx:343` |
-| `/integrations` | 소스 연결 누르기 | 가져오기를 취소하거나 뒤로 나와도 줄이 '연결됨'으로 남아, 연결되지 않은 데이터가 연결된 것처럼 보여요 | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:310` |
-| `/call-reflection` | '녹음 멈추고 분석' 누르기 — 배포본에서는 100% 실패 (다만 이 화면 자체에 들어오는 길이 없음) | 지금 배포된 앱에서는 '녹음 멈추고 분석'이 100% 실패해요. 매번 '받아 적기에 실패했어요.'만 뜨고 처… | `src/app/call-reflection.tsx:134` |
-| `/reminders` | 알림 켜기/끄기 | 스위치를 꺼도 폰 알림이 예정대로 계속 울려요 - 화면은 꺼진 것으로 보이는데 알림만 계속 와서 앱이 내 설… | `src/screens/deepspace/ops/screens.tsx:1044` |
-| `/share-card` | 화면 열기 | 내가 쓴 북극성 문장과 상관없이 카드 문장이 항상 '깊이 이해하고, 더 나답게 산다.' 로 고정돼요 (서버·… | `src/app/share-card.tsx:70` |
-| `/settings` | 다크 모드·강조색 바꾸기, '기능' 스위치 5개 켜고 끄기 | '앱 잠금'을 켜도 앱이 잠기지 않습니다 — 남에게 폰을 건네도 그대로 열립니다 (생체 인증 기능 자체가 앱… | `src/app/settings.tsx:414` |
-| `/settings` | '데이터 연동'의 연결 버튼 누르기 (Google 캘린더 · Apple 건강 · Notion) | '연결됨 · 동기화 중'이라고 표시되지만 실제 동기화는 전혀 일어나지 않습니다 (화면이 거짓말을 합니다) | `src/app/settings.tsx:415` |
 | `/settings` | '그래프 크루 (장식 로봇)' 밀도 바꾸기 (없음/적게/보통/많이) | 밀도를 '많이'로 해도 크루가 하나도 안 보입니다 — 이 설정이 붙어 있는 그래프 화면이 기본 화면에서 안 … | `src/app/settings.tsx:801` |
-| `/graph` | 화면 열자마자 개수 세어 오기 | 별의 위치·개수·이름이 전부 고정된 가짜 그림입니다. 내 글이 늘어도 별은 하나도 안 늘고 자리도 안 바뀝니… | `src/screens/deepspace/DeepSpaceDesignScreens.tsx:164` |
 
 ---
 
@@ -149,19 +134,17 @@ jq -r '.screens[].actions[] | select(.apis[]? | contains("records")) | .action' 
 jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action)  \(.ai.purpose)"' docs/flow-map.json
 ```
 
-**클릭해서 보기:** [`docs/flow-debugger.html`](docs/flow-debugger.html) — 화면별 플로우 / 시스템 플로우, 버그 신고서 생성.
-
 ---
 
 ## 6. 이 지도를 얼마나 믿어도 되나
 
 | | 수 | 뜻 |
 |---|---|---|
-| **✔** | 249 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
-| **·** | 575 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
+| **✔** | 247 | 그 줄에 **그 함수가 실제로 있음** — 출발점으로 신뢰해도 됨 |
+| **·** | 577 | 파일·줄은 실재. **대조할 함수명이 없어 그 줄이 맞는지는 확인 못 함** — 근처를 읽고 판단 |
 | **~** | 6 | 빈 줄/import/주석 — 로직은 다른 줄 |
 | **⚠** | 0 | 대조 실패 — 믿지 말 것 |
-| 위임 트랩 | 35 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
+| 위임 트랩 | 29 | 앵커가 가리키는 파일이 프로덕션에선 다른 걸 그림 |
 
 **위임 트랩 — 이 좌표를 고쳐도 화면은 안 바뀐다:**
 
@@ -178,7 +161,7 @@ jq -r '.screens[] as $s | $s.actions[] | select(.ai) | "\($s.route)  \(.action) 
 
 ```bash
 # flow-debugger 스킬 폴더에서 (scan-prompts.md "RESCAN / PATCH" 참조)
-node scripts/verify-anchors.js <graph.json> "E:\2ndB\.worktrees\flow-curation" --fix <graph.json> --strict
-node scripts/make-handoff.js <graph.json> "E:\2ndB\.worktrees\flow-curation" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
+node scripts/verify-anchors.js <graph.json> "C:\Users\202502\orca\workspaces\2ndB\260802_Function-Debugging" --fix <graph.json> --strict
+node scripts/make-handoff.js <graph.json> "C:\Users\202502\orca\workspaces\2ndB\260802_Function-Debugging" --out docs/FLOW-HANDOFF.md --json docs/flow-map.json
 ```
 

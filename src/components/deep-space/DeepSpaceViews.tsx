@@ -571,31 +571,6 @@ const DUMMY_LENS_TRAITS: LensTraits = {
   neuroticism: 39,
 };
 
-function StateToggle({ value, onChange }: { value: LensState; onChange: (s: LensState) => void }) {
-  const { t } = useTranslation("home");
-  const opts: { key: LensState; label: string }[] = [
-    { key: "filled", label: t("ds.lens.toggleFilled") },
-    { key: "empty", label: t("ds.lens.toggleEmpty") },
-    { key: "error", label: t("ds.lens.toggleError") },
-  ];
-  return (
-    <View style={styles.toggleRow}>
-      {opts.map((o) => (
-        <Pressable
-          key={o.key}
-          onPress={() => onChange(o.key)}
-          accessibilityRole="button"
-          accessibilityState={{ selected: value === o.key }}
-          accessibilityLabel={o.label}
-          style={[styles.toggleBtn, value === o.key && styles.toggleBtnOn]}
-        >
-          <Text style={styles.toggleLabel}>{o.label}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
 export function LensView({
   traits,
   hasError,
@@ -603,17 +578,15 @@ export function LensView({
   onRetry,
 }: { traits?: LensTraits | null; hasError?: boolean; onStart?: () => void; onRetry?: () => void } = {}) {
   const { t } = useTranslation("home");
-  // No prop (undefined) = design preview / Soul Core reuse: keep the manual
-  // state toggle + sample data. A provided `traits` drives the state from real
+  // No prop (undefined) = design preview / Soul Core reuse: render sample data
+  // without exposing internal state controls. A provided `traits` drives state from real
   // data: an object → filled with those scores, null → empty (no result yet).
   // `hasError` (fetch failed) takes priority over empty so the retry path shows.
   const demo = traits === undefined;
-  const [demoState, setDemoState] = useState<LensState>("filled");
-  const state: LensState = demo ? demoState : traits ? "filled" : hasError ? "error" : "empty";
+  const state: LensState = demo ? "filled" : traits ? "filled" : hasError ? "error" : "empty";
   const shown = traits ?? DUMMY_LENS_TRAITS;
   return (
     <ScrollView contentContainerStyle={styles.body}>
-      {demo ? <StateToggle value={demoState} onChange={setDemoState} /> : null}
       {state === "empty" ? (
         <View style={styles.centerState}>
           <Svg width={34} height={34} viewBox="0 0 24 24">
@@ -2252,7 +2225,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: deepSpace.cardLine,
+    borderColor: deepSpace.cardLineStrong,
     alignItems: "center",
     justifyContent: "center",
   },

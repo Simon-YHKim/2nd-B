@@ -66,6 +66,20 @@ describe("plans.json copy matches the pricing SoT", () => {
   const en = readPlans("en");
   const ko = readPlans("ko");
 
+  // 2026-08-03: locales carried a dead `soma` card named 항해자/Voyager at
+  // ₩4,900 — the same display name as the cortex card actually on sale at
+  // ₩9,900, at a different price. plans.tsx never rendered it (CARD_TIERS is
+  // free/cortex/brain) and the price checks below only walk PAID_TIERS, so it
+  // sat in a blind spot for weeks. Pin the card set itself across every locale.
+  test("every locale offers exactly free + the sellable tiers, nothing dead", () => {
+    const expected = ["free", ...PAID_TIERS];
+    for (const locale of ["en", "es", "id", "ko", "pt"]) {
+      const p = path.join(__dirname, "..", "..", "..", "..", "locales", locale, "plans.json");
+      const tiers = Object.keys(JSON.parse(fs.readFileSync(p, "utf8")).tiers);
+      expect({ locale, tiers }).toEqual({ locale, tiers: expected });
+    }
+  });
+
   test("paid tier price strings carry the SoT numbers", () => {
     for (const tier of PAID_TIERS) {
       const p = TIER_PRICING[tier];

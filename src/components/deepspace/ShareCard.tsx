@@ -4,7 +4,7 @@
 // Two variants:
 //   - "A" 통찰 카드: mono eyebrow "2ND-BRAIN · 이번 주", the insight sentence
 //     centered, 세컨비 head + "세컨비가 함께 본 한 주" footer.
-//   - "B" 별자리 카드: "MY CONSTELLATION" eyebrow, the 7 domain dots at the
+//   - "B" 별자리 카드: localized constellation eyebrow, the 7 domain dots at the
 //     prototype's fixed positions (litCount lit, rest dim) around a bright
 //     polaris core, then "N개 별이 빛나는 중" + the "2nd-Brain · N개 별가루"
 //     signature line (sb-more verbatim; the prototype hardcodes 124).
@@ -116,7 +116,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
       ) : (
         <View style={[styles.inner, { padding: 26 * k }]}>
           <Text style={[styles.eyebrow, styles.center, eyebrowColor(), { fontSize: 11 * k, letterSpacing: 11 * k * 0.18 }]}>
-            MY CONSTELLATION
+            {t("deepspace:shareCardImg.eyebrowConstellation")}
           </Text>
           <View style={{ height: 220 * k, marginTop: 6 * k }}>
             <Svg width="100%" height="100%" viewBox="0 0 330 220">

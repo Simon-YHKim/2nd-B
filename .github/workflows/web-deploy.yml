@@ -130,15 +130,27 @@ jobs:
           # consent-gated and wired since #258, but the build never injected
           # the ids, so live collection was a no-op. All optional: an unset
           # Variable keeps that tool off. Set the four Variables to activate
-          # (GA4 G-xxxx, Clarity project id, Sentry DSN, PostHog key).
+          # (GA4 G-xxxx, Clarity project id, Sentry DSN).
           EXPO_PUBLIC_GA4_MEASUREMENT_ID: ${{ vars.EXPO_PUBLIC_GA4_MEASUREMENT_ID }}
           EXPO_PUBLIC_CLARITY_PROJECT_ID: ${{ vars.EXPO_PUBLIC_CLARITY_PROJECT_ID }}
           EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
-          EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY }}
-          # PostHog needs BOTH key and host (analytics/index.ts gates on the
-          # pair) plus the posthog-js package — see docs/ADS.md before relying
-          # on it.
-          EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST }}
+          # Paddle web checkout (#1171). The web export is the only surface that can
+          # take money: RevenueCat is native-only, so a browser visitor had no payment
+          # path at all. paddleCheckoutAvailable() fails closed on any unset value, so
+          # until these five Variables exist the plans screen keeps its existing
+          # "checkout is not open yet" copy. Merging #1171 alone therefore does NOT
+          # open a payment path; this wiring plus the Variables is what does.
+          #   gh variable set EXPO_PUBLIC_PADDLE_CLIENT_TOKEN --body live_...
+          #   gh variable set EXPO_PUBLIC_PADDLE_PRICE_CORTEX_MONTHLY --body pri_...
+          # The client-side token is PUBLIC by design (Paddle > Developer Tools >
+          # Authentication) and belongs in the bundle. The webhook signing secret is
+          # NOT and never appears here: it lives in Supabase edge secrets only
+          # (repo constraint 4).
+          EXPO_PUBLIC_PADDLE_CLIENT_TOKEN: ${{ vars.EXPO_PUBLIC_PADDLE_CLIENT_TOKEN }}
+          EXPO_PUBLIC_PADDLE_PRICE_CORTEX_MONTHLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_CORTEX_MONTHLY }}
+          EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_CORTEX_YEARLY }}
+          EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_MONTHLY }}
+          EXPO_PUBLIC_PADDLE_PRICE_BRAIN_YEARLY: ${{ vars.EXPO_PUBLIC_PADDLE_PRICE_BRAIN_YEARLY }}
           # Ads (web AdSense), OFF until the Variables are set AND the
           # in-app policy passes (free adult + explicit ads consent + neutral
           # route — src/lib/ads/policy.ts). See docs/ADS.md for go-live steps.

@@ -30,6 +30,47 @@ import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-ur
 import { m3 } from "@/lib/theme/m3";
 
 type Phase = "idle" | "rec" | "stt" | "result";
+type UiLocale = "en" | "ko" | "es" | "pt" | "id";
+
+const CALL_REFLECTION_COPY: Record<
+  UiLocale,
+  {
+    loadingSub: string;
+    privacyNote: string;
+    fairText: string;
+  }
+> = {
+  en: {
+    loadingSub: "Turning speech into text. The recording is deleted shortly.",
+    privacyNote: "The original audio was never saved. Only text remains.",
+    fairText: "Only calls you're part of. Please let the other person know.",
+  },
+  ko: {
+    loadingSub: "음성을 텍스트로 바꾸고 있어요. 원본 녹음은 곧 삭제돼요.",
+    privacyNote: "원본 음성은 저장하지 않았어요. 텍스트만 남아요.",
+    fairText: "내가 낀 통화만 녹음돼요. 상대에게 녹음을 알려 주세요.",
+  },
+  es: {
+    loadingSub: "Convirtiendo la voz en texto. La grabación se eliminará pronto.",
+    privacyNote: "El audio original no se guardó. Solo queda el texto.",
+    fairText: "Solo llamadas en las que participas. Avísale a la otra persona.",
+  },
+  pt: {
+    loadingSub: "Convertendo a fala em texto. A gravação será apagada em breve.",
+    privacyNote: "O áudio original não foi salvo. Só o texto permanece.",
+    fairText: "Apenas chamadas em que você participa. Avise a outra pessoa.",
+  },
+  id: {
+    loadingSub: "Mengubah suara menjadi teks. Rekaman akan segera dihapus.",
+    privacyNote: "Audio asli tidak disimpan. Hanya teks yang tersisa.",
+    fairText: "Hanya panggilan yang kamu ikuti. Beri tahu lawan bicara.",
+  },
+};
+
+function uiLocaleFor(language: string): UiLocale {
+  const base = language.split("-")[0];
+  return base === "ko" || base === "es" || base === "pt" || base === "id" ? base : "en";
+}
 
 function hotlineFor(ko: boolean, minor: boolean): HotlineId {
   return ko ? (minor ? "KR_1388" : "KR_109") : "GLOBAL_988";
@@ -48,6 +89,7 @@ export default function CallReflection() {
   const { t, i18n } = useTranslation("capture");
   const ko = i18n.language === "ko";
   const locale = ko ? "ko" : "en";
+  const copy = CALL_REFLECTION_COPY[uiLocaleFor(i18n.language)];
   const { userId, isMinor, loading } = useAuth();
   const progression = useProgression();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -196,9 +238,7 @@ export default function CallReflection() {
       <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
         <View style={s.loadingWrap}>
           <DeepSpaceLoader variant="dots" caption={t("callReflection.transcribing")} />
-          <RNText style={s.loadingSub}>
-            {ko ? "음성을 텍스트로 바꾸고 있어요. 원본 녹음은 곧 삭제돼요." : "Turning speech into text. The recording is deleted shortly."}
-          </RNText>
+          <RNText style={s.loadingSub}>{copy.loadingSub}</RNText>
         </View>
         {crisisModal}
       </DeepSpaceScreen>
@@ -231,7 +271,7 @@ export default function CallReflection() {
             <Svg width={14} height={14} viewBox="0 0 24 24">
               <Path d="M6 10V8a6 6 0 0 1 12 0v2M5 10h14v9H5z" stroke={m3.color.onSurfaceVariant} strokeWidth={1.7} fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
-            <RNText style={s.privacyTxt}>{ko ? "원본 음성은 저장하지 않았어요. 텍스트만 남아요." : "The original audio was never saved. Only text remains."}</RNText>
+            <RNText style={s.privacyTxt}>{copy.privacyNote}</RNText>
           </View>
         </ScrollView>
         {crisisModal}
@@ -267,7 +307,7 @@ export default function CallReflection() {
                 </View>
                 <View style={s.platformRow}>
                   <View style={[s.osBadge, s.osHint]}><RNText style={s.osHintTxt}>{t("callReflection.fairBadge")}</RNText></View>
-                  <RNText style={s.platformTxt}>{ko ? "내가 낀 통화만 녹음돼요. 상대에게 녹음을 알려 주세요." : "Only calls you're part of. Please let the other person know."}</RNText>
+                  <RNText style={s.platformTxt}>{copy.fairText}</RNText>
                 </View>
               </View>
             </>

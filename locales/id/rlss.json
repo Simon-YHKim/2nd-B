@@ -2,5 +2,13 @@
   "loading": "Memuat asesmen…",
   "title": "Kepuasan Hidup (RLSS)",
   "counter": "Kepuasan Hidup · RLSS",
-  "saved": "Tersimpan · lihat di Persona kamu"
+  "saved": "Tersimpan · lihat di Persona kamu",
+  "saveError": "Gagal menyimpan. Jawabanmu masih ada di sini; coba lagi.",
+  "introDescription": "Laporan mandiri tervalidasi berisi 6 butir tentang seberapa puas kamu dengan hidup secara keseluruhan. Nilai tiap pernyataan dari 1 (sangat tidak setuju) sampai 7 (sangat setuju). Tidak ada jawaban benar, hanya yang terasa tepat saat ini.",
+  "headerPrompt": "Pikirkan hidupmu secara keseluruhan, lalu pilih seberapa cocok tiap pernyataan dengan dirimu saat ini.",
+  "exitConfirmA11y": "Konfirmasi keluar",
+  "exitTitle": "Keluar dari survei?",
+  "exitBody": "Yakin ingin keluar? Progresmu tidak akan disimpan.",
+  "exitKeepGoing": "Lanjutkan",
+  "exitLeave": "Keluar"
 }

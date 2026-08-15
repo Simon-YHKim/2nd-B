@@ -1,7 +1,7 @@
 // Aggregated C1~C12 self-check. CI runs this after all other checks pass.
 // Each check does static inspection only (no DB connection, no SDK calls).
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { JUDGE_DOMAINS } from "../src/lib/judge/domains";
@@ -593,14 +593,62 @@ results.push(
   }),
 );
 
+// C12 — pre-existing / bundled asset disclosure (rulebook §04).
+//
+// The README heading is necessary but NOT sufficient. Until 2026-08-06 this check
+// was a single grep for that heading, so it reported PASS while 226 committed
+// image files across 8 packs went entirely unmentioned in docs/ASSETS.md. A
+// disclosure gate that cannot see the thing being disclosed is not a gate.
+//
+// Pack granularity, not per-file: listing 226 filenames in a disclosure document
+// helps nobody and would make this fire on every crop. A pack is
+// `public/assets/<pack>` (the art packs sit one level deeper) or `<top>/<dir>`.
+//
+// Loose files directly under assets/ or public/ are skipped. Those are almost
+// always untracked scratch files on a developer machine, and failing a local run
+// on them trains people to disable the check. Anything inside a directory counts.
+const C12_IMAGE_RE = /\.(png|jpe?g|svg|webp|gif|avif)$/i;
+
+function c12CollectImages(rel: string, out: string[] = []): string[] {
+  if (!exists(rel)) return out;
+  for (const entry of readdirSync(join(ROOT, rel))) {
+    const child = `${rel}/${entry}`;
+    if (statSync(join(ROOT, child)).isDirectory()) c12CollectImages(child, out);
+    else if (C12_IMAGE_RE.test(entry)) out.push(child);
+  }
+  return out;
+}
+
+function c12PackOf(path: string): string | null {
+  const seg = path.split("/");
+  if (seg.length < 3) return null; // loose file directly under assets/ or public/
+  return seg[0] === "public" && seg[1] === "assets" ? seg.slice(0, 3).join("/") : seg.slice(0, 2).join("/");
+}
+
 results.push(
   check("C12", () => {
     const readme = read("README.md");
-    const ok = /pre-existing assets used/i.test(readme);
+    if (!/pre-existing assets used/i.test(readme))
+      return { id: "C12", status: "FAIL", note: "README missing required section per rulebook §04" };
+
+    if (!exists("docs/ASSETS.md")) return { id: "C12", status: "FAIL", note: "docs/ASSETS.md registry missing" };
+    const registry = read("docs/ASSETS.md");
+
+    const images = [...c12CollectImages("assets"), ...c12CollectImages("public")];
+    const packs = [...new Set(images.map(c12PackOf).filter((p): p is string => p !== null))].sort();
+    const missing = packs.filter((pack) => !registry.includes(pack));
+
+    if (missing.length > 0)
+      return {
+        id: "C12",
+        status: "FAIL",
+        note: `docs/ASSETS.md does not disclose ${missing.length} bundled asset pack(s): ${missing.join(", ")}`,
+      };
+
     return {
       id: "C12",
-      status: ok ? "PASS" : "FAIL",
-      note: ok ? "README has Pre-existing assets used section" : "README missing required section per rulebook §04",
+      status: "PASS",
+      note: `README section + docs/ASSETS.md discloses all ${packs.length} bundled asset packs (${images.length} image files)`,
     };
   }),
 );
@@ -862,6 +910,7 @@ results.push(
       capture.includes('accessibilityLabel={t("proposal.dismissLabel")}') &&
       capture.includes('accessibilityLabel={t("journal.prompt.useAsTopicLabel")}') &&
       capture.includes('accessibilityLabel={t("journal.conclusion.toggleLabel")}') &&
+      capture.includes('accessibilityLabel={t("linkClip.label")}') &&
       capture.includes("accessibilityLabel={`${label}. ${help}`}") &&
       capture.includes("accessibilityHint={help}") &&
       capture.includes("ModeGlyph mode={m} color={color} label={label}") &&
@@ -1056,8 +1105,8 @@ results.push(
       settings.includes('accessibilityHint={t("nav.dataHint")}') &&
       // (theme quick-toggle hints removed with the duplicate disclosure —
       // /theme owns theme switching; see O-R1 settings restructure.)
-      settings.includes('accessibilityHint={t("actions.crewDensityHint",') &&
-      settings.includes("density: CREW_DENSITY_LABEL[locale][d]") &&
+      // (crew-density hints removed with the control itself — CrewLayer only
+      //  renders inside NavGraph, which no production surface mounts.)
       settings.includes('accessibilityHint={t("actions.deleteJournalsHint")}') &&
       settings.includes('accessibilityHint={t("actions.deleteBfiHint")}') &&
       settings.includes('accessibilityHint={t("actions.fullWipeHint")}') &&
@@ -1084,7 +1133,8 @@ results.push(
       xpBar.includes('accessibilityRole="progressbar"') &&
       xpBar.includes("accessibilityLabel={accessibilityLabel}") &&
       xpBar.includes("accessibilityValue={{ min: 0, max: 100, now: pct, text: trailing }}") &&
-      xpBar.includes("Already at the max level.") &&
+      xpBar.includes("accessibilityHint={accessibilityHint}") &&
+      xpBar.includes('t("progression.maxLevelHint"') &&
       interview.includes("const kbHeight = useKeyboard()") &&
       interview.includes("paddingBottom: kbHeight + spacing.sm") &&
       interview.includes("minHeight: 48") &&
@@ -1332,8 +1382,6 @@ results.push(
     const en = read("locales/en/settings.json");
     const ko = read("locales/ko/settings.json");
     const requiredCode = [
-      't("actions.crewDensityHint",',
-      "density: CREW_DENSITY_LABEL[locale][d]",
       't("actions.deleteJournalsHint")',
       't("actions.deleteNotesHint")',
       't("actions.deleteAuditHint")',
@@ -2885,13 +2933,13 @@ results.push(
       conceptText.includes("Pattern Data") &&
       conceptText.includes("Log") &&
       conceptText.includes("Pattern Link") &&
-      characters.includes('en: "Soul Core navigator"') &&
+      characters.includes('en: "North Star navigator"') &&
       characters.includes('en: "Career consultant"') &&
       characters.includes('en: "Warm relationship guide"') &&
       characters.includes('en: "Life-applied wisdom sage"') &&
       characters.includes('en: "Narrative Core crew foreman"') &&
       characters.includes('en: "Trainer and curator"') &&
-      personaText.includes("central AI for the Soul Core") &&
+      personaText.includes("central AI for the North Star synthesis") &&
       personaText.includes("career consultant for work and growth") &&
       personaText.includes("inner-world patterns") &&
       personaText.includes("Not raw facts") &&

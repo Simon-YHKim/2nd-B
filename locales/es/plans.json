@@ -18,15 +18,6 @@
       "f2": "Almacenamiento privado con exportación cuando lo necesites",
       "f3": "5 chats con IA por día"
     },
-    "soma": {
-      "name": "Voyager",
-      "price": "$4.99 / mo",
-      "priceNote": "$49.90 / yr (2 meses gratis)",
-      "tagline": "IA diaria junto a tus registros",
-      "f1": "30 chats con IA por día",
-      "f2": "Todo lo de Free",
-      "f3": "El primer paso más allá del límite diario"
-    },
     "cortex": {
       "name": "Voyager",
       "price": "$9.99 / mo",

@@ -3,7 +3,7 @@
 // so the user keeps using the app uninterrupted: a rotating ring AROUND a small
 // breathing SecondB + "{task} · 백그라운드 · 약 Ns". Tap to collapse to just the
 // ring (the ▾ affordance is a real toggle, not a dead control). Non-blocking;
-// sits above the tab bar. Token-only, copy inline ko/en.
+// sits above the tab bar. Token-only, copy follows shipped locales.
 
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
@@ -16,10 +16,49 @@ import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { useTaskStatus } from "@/lib/tasks/store";
 
+const BACKGROUND_DOCK_COPY = {
+  en: {
+    background: "Background",
+    eta: (seconds: number) => `~${seconds}s`,
+    label: "Background task",
+  },
+  ko: {
+    background: "백그라운드",
+    eta: (seconds: number) => `약 ${seconds}초`,
+    label: "백그라운드 작업",
+  },
+  es: {
+    background: "En segundo plano",
+    eta: (seconds: number) => `~${seconds} s`,
+    label: "Tarea en segundo plano",
+  },
+  pt: {
+    background: "Em segundo plano",
+    eta: (seconds: number) => `~${seconds} s`,
+    label: "Tarefa em segundo plano",
+  },
+  id: {
+    background: "Latar belakang",
+    eta: (seconds: number) => `~${seconds} dtk`,
+    label: "Tugas latar belakang",
+  },
+} as const;
+
+type BackgroundDockLocale = keyof typeof BACKGROUND_DOCK_COPY;
+
+function resolveDockLocale(language?: string): BackgroundDockLocale {
+  const normalized = language?.toLowerCase() ?? "en";
+  if (normalized.startsWith("ko")) return "ko";
+  if (normalized.startsWith("es")) return "es";
+  if (normalized.startsWith("pt")) return "pt";
+  if (normalized.startsWith("id")) return "id";
+  return "en";
+}
+
 export function BackgroundTaskDock() {
   const task = useTaskStatus();
   const { i18n } = useTranslation();
-  const ko = i18n.language?.toLowerCase().startsWith("ko") ?? true;
+  const copy = BACKGROUND_DOCK_COPY[resolveDockLocale(i18n.language)];
   const spin = useRef(new Animated.Value(0)).current;
   const [collapsed, setCollapsed] = useState(false);
   const visible = task.phase === "running" && task.mode === "background";
@@ -39,15 +78,13 @@ export function BackgroundTaskDock() {
   if (!visible) return null;
 
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-  const bg = ko ? "백그라운드" : "Background";
-  const sub = task.etaSec ? `${bg} · ${ko ? `약 ${task.etaSec}초` : `~${task.etaSec}s`}` : bg;
-  const label = ko ? "백그라운드 작업" : "Background task";
+  const sub = task.etaSec ? `${copy.background} · ${copy.eta(task.etaSec)}` : copy.background;
 
   return (
     <SafeAreaView pointerEvents="box-none" style={styles.safe} edges={["bottom"]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label}
+        accessibilityLabel={copy.label}
         accessibilityState={{ expanded: !collapsed }}
         onPress={() => setCollapsed((c) => !c)}
         style={[styles.dock, collapsed ? styles.dockCollapsed : null]}

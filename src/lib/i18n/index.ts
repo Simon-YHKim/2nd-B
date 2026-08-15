@@ -4,6 +4,7 @@ import { initReactI18next } from "react-i18next";
 import enAuth from "../../../locales/en/auth.json";
 import enCapture from "../../../locales/en/capture.json";
 import enCommon from "../../../locales/en/common.json";
+import enCommunity from "../../../locales/en/community.json";
 import enConsent from "../../../locales/en/consent.json";
 import enData from "../../../locales/en/data.json";
 import enEsm from "../../../locales/en/esm.json";
@@ -28,6 +29,7 @@ import enPeer from "../../../locales/en/peer.json";
 import koAuth from "../../../locales/ko/auth.json";
 import koCapture from "../../../locales/ko/capture.json";
 import koCommon from "../../../locales/ko/common.json";
+import koCommunity from "../../../locales/ko/community.json";
 import koConsent from "../../../locales/ko/consent.json";
 import koData from "../../../locales/ko/data.json";
 import koEsm from "../../../locales/ko/esm.json";
@@ -52,6 +54,7 @@ import koPeer from "../../../locales/ko/peer.json";
 import esAuth from "../../../locales/es/auth.json";
 import esCapture from "../../../locales/es/capture.json";
 import esCommon from "../../../locales/es/common.json";
+import esCommunity from "../../../locales/es/community.json";
 import esConsent from "../../../locales/es/consent.json";
 import esData from "../../../locales/es/data.json";
 import esEsm from "../../../locales/es/esm.json";
@@ -76,6 +79,7 @@ import esPeer from "../../../locales/es/peer.json";
 import ptAuth from "../../../locales/pt/auth.json";
 import ptCapture from "../../../locales/pt/capture.json";
 import ptCommon from "../../../locales/pt/common.json";
+import ptCommunity from "../../../locales/pt/community.json";
 import ptConsent from "../../../locales/pt/consent.json";
 import ptData from "../../../locales/pt/data.json";
 import ptEsm from "../../../locales/pt/esm.json";
@@ -100,6 +104,7 @@ import ptPeer from "../../../locales/pt/peer.json";
 import idAuth from "../../../locales/id/auth.json";
 import idCapture from "../../../locales/id/capture.json";
 import idCommon from "../../../locales/id/common.json";
+import idCommunity from "../../../locales/id/community.json";
 import idConsent from "../../../locales/id/consent.json";
 import idData from "../../../locales/id/data.json";
 import idEsm from "../../../locales/id/esm.json";
@@ -219,29 +224,29 @@ import idTrinity from "../../../locales/id/trinity.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
 
-export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity"] as const;
+export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
 // Keyed by AVAILABLE_UI_LOCALES (locales.ts is the single source of truth):
 // shipping a new pack = add its bundle imports here + the code to that list,
 // and the `satisfies` below fails the build if either side is missed.
 export const resources = {
-  en: { common: enCommon, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki,
+  en: { common: enCommon, community: enCommunity, auth: enAuth, safety: enSafety, consent: enConsent, capture: enCapture, inbox: enInbox, secondb: enSecondb, plans: enPlans, wiki: enWiki,
     peer: enPeer, support: enSupport, data: enData, esm: enEsm, formats: enFormats, insights: enInsights, research: enResearch, recordDetail: enRecordDetail, theme: enTheme, import: enImport, notFound: enNotFound, ops: enOps, profile: enProfile, permissions: enPermissions, settings: enSettings, iden: enIden, home: enHome, deepspace: enDeepspace, attachment: enAttachment, audit: enAudit, "big-five": enBigFive, brightness: enBrightness, "core-brain": enCoreBrain, imagine: enImagine, interview: enInterview, "ipip-neo": enIpipNeo, manual: enManual, persona: enPersona, privacy: enPrivacy, ratifications: enRatifications, records: enRecords, review: enReview, rlss: enRlss, trinity: enTrinity },
-  ko: { common: koCommon, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki,
+  ko: { common: koCommon, community: koCommunity, auth: koAuth, safety: koSafety, consent: koConsent, capture: koCapture, inbox: koInbox, secondb: koSecondb, plans: koPlans, wiki: koWiki,
     peer: koPeer, support: koSupport, data: koData, esm: koEsm, formats: koFormats, insights: koInsights, research: koResearch, recordDetail: koRecordDetail, theme: koTheme, import: koImport, notFound: koNotFound, ops: koOps, profile: koProfile, permissions: koPermissions, settings: koSettings, iden: koIden, home: koHome, deepspace: koDeepspace, attachment: koAttachment, audit: koAudit, "big-five": koBigFive, brightness: koBrightness, "core-brain": koCoreBrain, imagine: koImagine, interview: koInterview, "ipip-neo": koIpipNeo, manual: koManual, persona: koPersona, privacy: koPrivacy, ratifications: koRatifications, records: koRecords, review: koReview, rlss: koRlss, trinity: koTrinity },
   // ES pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies on purpose: crisis and legal copy is never machine-translated
   // (gate policy 2026-06-11) - they ship localized only after human review.
-  es: { common: esCommon, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki,
+  es: { common: esCommon, community: esCommunity, auth: esAuth, safety: esSafety, consent: esConsent, capture: esCapture, inbox: esInbox, secondb: esSecondb, plans: esPlans, wiki: esWiki,
     peer: esPeer, support: esSupport, data: esData, esm: esEsm, formats: esFormats, insights: esInsights, research: esResearch, recordDetail: esRecordDetail, theme: esTheme, import: esImport, notFound: esNotFound, ops: esOps, profile: esProfile, permissions: esPermissions, settings: esSettings, iden: esIden, home: esHome, deepspace: esDeepspace, attachment: esAttachment, audit: esAudit, "big-five": esBigFive, brightness: esBrightness, "core-brain": esCoreBrain, imagine: esImagine, interview: esInterview, "ipip-neo": esIpipNeo, manual: esManual, persona: esPersona, privacy: esPrivacy, ratifications: esRatifications, records: esRecords, review: esReview, rlss: esRlss, trinity: esTrinity },
   // PT pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies by policy - localized only after human review.
-  pt: { common: ptCommon, auth: ptAuth, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki,
+  pt: { common: ptCommon, community: ptCommunity, auth: ptAuth, safety: ptSafety, consent: ptConsent, capture: ptCapture, inbox: ptInbox, secondb: ptSecondb, plans: ptPlans, wiki: ptWiki,
     peer: ptPeer, support: ptSupport, data: ptData, esm: ptEsm, formats: ptFormats, insights: ptInsights, research: ptResearch, recordDetail: ptRecordDetail, theme: ptTheme, import: ptImport, notFound: ptNotFound, ops: ptOps, profile: ptProfile, permissions: ptPermissions, settings: ptSettings, iden: ptIden, home: ptHome, deepspace: ptDeepspace, attachment: ptAttachment, audit: ptAudit, "big-five": ptBigFive, brightness: ptBrightness, "core-brain": ptCoreBrain, imagine: ptImagine, interview: ptInterview, "ipip-neo": ptIpipNeo, manual: ptManual, persona: ptPersona, privacy: ptPrivacy, ratifications: ptRatifications, records: ptRecords, review: ptReview, rlss: ptRlss, trinity: ptTrinity },
   // ID pack (O-R2 (2)-b, machine-translated + beta label). safety/consent are
   // EN copies by policy - localized only after human review.
-  id: { common: idCommon, auth: idAuth, safety: idSafety, consent: idConsent, capture: idCapture, inbox: idInbox, secondb: idSecondb, plans: idPlans, wiki: idWiki,
+  id: { common: idCommon, community: idCommunity, auth: idAuth, safety: idSafety, consent: idConsent, capture: idCapture, inbox: idInbox, secondb: idSecondb, plans: idPlans, wiki: idWiki,
     peer: idPeer, support: idSupport, data: idData, esm: idEsm, formats: idFormats, insights: idInsights, research: idResearch, recordDetail: idRecordDetail, theme: idTheme, import: idImport, notFound: idNotFound, ops: idOps, profile: idProfile, permissions: idPermissions, settings: idSettings, iden: idIden, home: idHome, deepspace: idDeepspace, attachment: idAttachment, audit: idAudit, "big-five": idBigFive, brightness: idBrightness, "core-brain": idCoreBrain, imagine: idImagine, interview: idInterview, "ipip-neo": idIpipNeo, manual: idManual, persona: idPersona, privacy: idPrivacy, ratifications: idRatifications, records: idRecords, review: idReview, rlss: idRlss, trinity: idTrinity },
 } as const satisfies Record<AvailableUiLocale, Record<Namespace, unknown>>;
 

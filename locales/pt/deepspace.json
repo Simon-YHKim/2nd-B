@@ -74,7 +74,7 @@
     "triageTitle": "{{count}} para organizar",
     "triageBody": "Marque, guarde ou exclua peças não classificadas",
     "typeText": "Texto",
-    "typeLink": "Link",
+    "typeLink": "Ligação",
     "typeVoice": "Voz",
     "typePhoto": "Foto",
     "typeUnfiled": "Não classificado",
@@ -188,7 +188,8 @@
     "navProfile": "Perfil",
     "navSettings": "Configurações",
     "navData": "Meus dados",
-    "navBeyond": "Fora do app"
+    "navBeyond": "Fora do app",
+    "navPassword": "Alterar senha"
   },
   "privacy": {
     "title": "Privacidade",
@@ -332,7 +333,7 @@
     "search": "O que te dá curiosidade?",
     "sectionStart": "Primeiros passos",
     "q1": "Quais são as 7 estrelas do Carro Maior?",
-    "q2": "Como a Estrela Polar (Núcleo da Alma) se ilumina?",
+    "q2": "Como a Estrela Polar se ilumina?",
     "q3": "Como os resultados dos testes ficam mais precisos?",
     "sectionData": "Dados · Privacidade",
     "q4": "O que é um arquivo IDEN?",
@@ -567,13 +568,14 @@
     "save": "Salvar",
     "opening": "Abrindo…",
     "empty": "Ainda não há nada aqui. Comece pelo que te recarrega nestes dias; a estrela do descanso se ilumina.",
+    "ratingLabel": "Avaliação {{rating}}/5",
     "category": {
       "game": "Jogo",
       "movie": "Filme",
       "music": "Música",
       "travel": "Viagem",
       "show": "Espetáculo",
-      "hobby": "Hobby",
+      "hobby": "Passatempo",
       "other": "Outro"
     },
     "status": {
@@ -660,6 +662,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · ESTA SEMANA",
+    "eyebrowConstellation": "MINHA CONSTELACAO",
     "footerWeek": "Uma semana vista ao lado do SecondB",
     "starsLit": "{{count}} estrelas brilhando",
     "signature": "2nd-Brain · {{count}} fagulhas de estrela"
@@ -735,7 +738,7 @@
       "proFeat2": "250 conversas por dia",
       "proFeat3": "Raciocínio ilimitado",
       "comingSoon": "Em breve",
-      "disclosure": "Os planos pagos renovam automaticamente a cada mês. Cancele quando quiser antes da próxima renovação; os preços incluem impostos (VAT). Reembolso integral garantido em até 30 dias após o pagamento.",
+      "disclosure": "Os planos pagos renovam automaticamente a cada mes ate que voce cancele. Cancele quando quiser antes da proxima renovacao e os recursos pagos continuam ate o fim desse periodo; os precos incluem impostos (VAT). Reembolso integral em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre.",
       "legalTerms": "Termos de serviço",
       "legalRefund": "Política de reembolso"
     },
@@ -743,7 +746,7 @@
       "relationships": "Relacionamentos",
       "justNow": "Agora mesmo",
       "seeEvidence": "Ver evidências ↗",
-      "tags": "Tags",
+      "tags": "Etiquetas",
       "addTag": "Adicionar tag",
       "linkedRecords": "Registros vinculados",
       "meaning": "significado",
@@ -752,7 +755,9 @@
       "fillStar": "Preencher esta estrela",
       "fillStarBody": "Adicione informações deste domínio.",
       "secondbLinked": "Este fragmento se conecta à sua estrela '{{star}}'. {{n}} registros similares estão no mesmo período.",
-      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve."
+      "secondbUnlinked": "Este fragmento ainda não está conectado a nenhuma estrela. Vamos conectá-lo em breve.",
+      "makeWikiPage": "Criar página wiki",
+      "wikiPageMade": "Página wiki criada"
     },
     "inbox": {
       "title": "Alertas",
@@ -799,7 +804,16 @@
       "healthErrUnavailable": "Este dispositivo não consegue conectar a um app de saúde. Nada foi registrado.",
       "healthErrDenied": "O acesso à saúde foi recusado, então nada foi registrado. Você pode permitir nas configurações do dispositivo.",
       "healthErrEmpty": "Nenhuma atividade de saúde para refletir hoje.",
-      "healthErrFailed": "Não foi possível refletir seus dados de saúde. Tente novamente em instantes."
+      "healthErrFailed": "Não foi possível refletir seus dados de saúde. Tente novamente em instantes.",
+      "summaryPieces": "{{count}} item",
+      "summaryPieces_plural": "{{count}} itens",
+      "resultAdded": "{{count}} adicionado à sua caixa de entrada",
+      "resultAdded_plural": "{{count}} adicionados à sua caixa de entrada",
+      "resultDuplicate": "{{count}} duplicado",
+      "resultDuplicate_plural": "{{count}} duplicados",
+      "resultFailed": "{{count}} com falha",
+      "a11yImportExportFile": "Importar arquivo de exportação de {{name}}",
+      "a11yRevokeImport": "Revogar importação de {{name}}"
     },
     "ttfv": {
       "pageTitle": "Sua primeira estrela acabou de se acender",
@@ -873,6 +887,12 @@
       "plansCta": "Ver planos",
       "close": "Fechar",
       "sameQuality": "Recompensas só adicionam execuções. A qualidade das respostas continua a mesma."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning automático",
+      "autoPaused": "Limite atingido · volta na segunda",
+      "autoBody": "SecondB conecta cada item quando você captura",
+      "autoNote": "Execuções automáticas usam uma execução semanal e sempre reservam uma para uso manual."
     }
   },
   "beyond": {

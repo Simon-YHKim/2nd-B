@@ -24,9 +24,9 @@
     "loadError": "No se pudo cargar tu repaso. Inténtalo de nuevo en un momento.",
     "retry": "Reintentar",
     "empty": "Nada que repasar aún. Guarda más y las conexiones aparecerán.",
-    "goCapture": "Ir a guardar",
+    "goCapture": "Ir a captura",
     "toReview": "{{n}} por repasar",
-    "a11yOpen": "Abrir {{title}}",
+    "a11yOpen": "Ver detalles de {{title}}",
     "dismiss": "Descartar",
     "confirm": "Confirmar",
     "band": {

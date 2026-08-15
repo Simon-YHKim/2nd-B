@@ -12,10 +12,53 @@ describe("legal document snapshots", () => {
     expect(TERMS_DOC.body).toContain("만 14세");
   });
 
-  test("refund policy carries the 30-day guarantee and cancellation section", () => {
-    expect(REFUND_DOC.body).toContain("30");
+  test("refund policy carries the money-back guarantee and cancellation section", () => {
+    expect(REFUND_DOC.body).toContain("7");
     expect(REFUND_DOC.body).toContain("환불");
     expect(REFUND_DOC.body).toContain("Money-Back");
+  });
+
+  // The 2026-09-08 revision narrowed the money-back window from 30 days to 7
+  // (the statutory 청약철회 period) AND made it CONDITIONAL on usage staying
+  // inside the free-plan range (0114 refund_eligibility enforces both).
+  // A conditional promise is only lawful with the disclosure that goes with it,
+  // so these pins keep the four load-bearing sentences from being edited away:
+  // the condition itself, the statutory basis for restricting withdrawal, the
+  // free-plan trial that basis depends on, and the fact that refunds are not
+  // shut off entirely.
+  test("refund policy states the usage condition AND the disclosures it rests on", () => {
+    expect(REFUND_DOC.body).toContain("무료 플랜이 같은 기간 제공하는 범위 안");
+    expect(REFUND_DOC.body).toContain("within what the free plan provides over the same span");
+    // 전자상거래법 제17조: the exception being relied on, and the 제6항 measures.
+    expect(REFUND_DOC.body).toContain("제17조제2항제5호");
+    expect(REFUND_DOC.body).toContain("디지털 콘텐츠의 제공이 개시된 경우");
+    expect(REFUND_DOC.body).toContain("무료 플랜을 통한 한시적 이용");
+    expect(REFUND_DOC.body).toContain("ongoing limited-use access through the free plan");
+    // Section 4 (duplicate charge / outage) survives the condition, and the
+    // 7-day statutory right survives inside the free range.
+    expect(REFUND_DOC.body).toContain("환불이 원천 차단되는 것은 아닙니다");
+    expect(REFUND_DOC.body).toContain("refunds are not shut off");
+    expect(REFUND_DOC.body).toContain("7일 청약철회권");
+    // The window itself is now 7 days, and the old 30-day promise must not
+    // survive anywhere in the refund document.
+    expect(REFUND_DOC.body).toContain("7일 이내 전액 환불");
+    expect(REFUND_DOC.body).toContain("full refund within 7 days");
+    expect(REFUND_DOC.body).not.toContain("30일 이내 전액 환불");
+    expect(REFUND_DOC.body).not.toContain("full refund within 30 days");
+    // Self-serve entry point + the honest framing of what submitting means.
+    expect(REFUND_DOC.body).toContain("[설정 → 구독 관리]");
+    expect(REFUND_DOC.body).toContain("접수 즉시 환불이 확정되는 것은 아니고");
+    expect(REFUND_DOC.body).toContain("submitting is not the same as being refunded");
+  });
+
+  // Simon decided (2026-08-11) that the revised rule applies immediately. The
+  // notice was re-issued 2026-08-09, so it is two days, not thirty - and the
+  // document therefore must NOT claim a 30-day notice it did not give. Pinning
+  // the ABSENCE is the point: a claim we cannot support is worse than none.
+  test("the effective date is stated and no notice period is claimed", () => {
+    expect(REFUND_DOC.body).toContain("개정 시행일: 2026-08-11");
+    expect(REFUND_DOC.body).not.toContain("30일 사전공지");
+    expect(REFUND_DOC.body).not.toContain("2026-09-08");
   });
 
   test("privacy policy carries the PIPA essentials (processors, statutory retention, subject rights, age floor)", () => {
@@ -25,6 +68,10 @@ describe("legal document snapshots", () => {
     expect(PRIVACY_DOC.body).toContain("5년");
     expect(PRIVACY_DOC.body).toContain("열람·정정·삭제");
     expect(PRIVACY_DOC.body).toContain("만 14세");
+    // 건강·활동 데이터(민감정보) 고지 (S1, PIPA gap fix): 수집 항목 + 민감정보 + AI 미전송.
+    expect(PRIVACY_DOC.body).toContain("민감정보");
+    expect(PRIVACY_DOC.body).toContain("건강·활동 데이터");
+    expect(PRIVACY_DOC.body).toContain("Health & activity data");
   });
 
   test("finalized 2026-07-17: no [기입]/[fill] markers remain, badge off", () => {
@@ -44,16 +91,35 @@ describe("legal document snapshots", () => {
     expect(TERMS_DOC.body).toContain("배소하");
     expect(TERMS_DOC.body).toContain("경기도 안양시");
     expect(TERMS_DOC.body).toContain("면제 사업자");
-    expect(TERMS_DOC.body).toContain("발급 진행 중"); // 사업자등록번호 pending on purpose
+    expect(TERMS_DOC.body).toContain("205-10-98603"); // 사업자등록번호, issued 2026-07-22
+    // The old "발급 진행 중" placeholder must never come back: it is a false
+    // statement to a paying customer now that the number exists.
+    expect(TERMS_DOC.body).not.toContain("발급 진행 중");
     expect(TERMS_DOC.body).toContain("₩9,900/월");
     expect(TERMS_DOC.body).toContain("₩19,900/월");
-    expect(TERMS_DOC.body).toContain("₩99,000");
-    expect(REFUND_DOC.body).toContain("30일 이내 전액 환불");
+    // Still the headline promise, now a 7-day window qualified by the usage
+    // condition pinned in the dedicated test above.
+    expect(REFUND_DOC.body).toContain("7일 이내 전액 환불");
     expect(PRIVACY_DOC.body).toContain("김양환");
     // 전화 미표기 (email-first): no phone placeholders or numbers.
     for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
       expect(doc.body).not.toMatch(/전화번호|support phone/);
     }
+  });
+
+  test("retired lifetime plan; canonical tier names (PR-2 · #1140, Simon 2026-07-29)", () => {
+    // 평생 이용권 판매 종료. 법무 문서(약관·환불정책) 어디에도 남지 않는다.
+    for (const doc of [TERMS_DOC, REFUND_DOC]) {
+      expect(doc.body).not.toContain("평생");
+      expect(doc.body).not.toContain("Lifetime");
+      expect(doc.body).not.toContain("₩99,000");
+    }
+    // 공개 티어명 = 정본 라벨(tier-map.ts): 항해자/Voyager · 북극성/North Star. 구 Plus/Pro는 제거.
+    for (const label of ["항해자", "북극성", "Voyager", "North Star"]) {
+      expect(TERMS_DOC.body).toContain(label);
+    }
+    expect(TERMS_DOC.body).not.toMatch(/\bPlus\b/);
+    expect(TERMS_DOC.body).not.toMatch(/\bPro\b/);
   });
 
   test("bodies carry no em dash (check:emdash covers src/)", () => {

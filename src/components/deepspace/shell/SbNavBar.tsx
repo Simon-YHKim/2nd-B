@@ -7,6 +7,7 @@
 import { usePathname, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { m3 } from "@/lib/theme/m3";
@@ -15,18 +16,18 @@ import { SbIcon, type SbIconName } from "./SbIcon";
 
 interface NavTab {
   id: string;
-  label: string;
+  labelKey: string;
   icon: SbIconName;
   route: Href;
 }
 
 // window.SB.NAV — 별자리 · 담기 · 세컨비 · 위키 · 설정, wired to the app routes.
 const NAV: NavTab[] = [
-  { id: "home", label: "별자리", icon: "star_shine", route: "/deepspace-home" },
-  { id: "capture", label: "담기", icon: "add_circle", route: "/capture" },
-  { id: "chat", label: "세컨비", icon: "forum", route: "/secondb" },
-  { id: "records", label: "위키", icon: "inventory_2", route: "/records" },
-  { id: "settings", label: "설정", icon: "tune", route: "/settings" },
+  { id: "home", labelKey: "ds.dock.home", icon: "star_shine", route: "/deepspace-home" },
+  { id: "capture", labelKey: "ds.dock.capture", icon: "add_circle", route: "/capture" },
+  { id: "chat", labelKey: "ds.dock.chat", icon: "forum", route: "/secondb" },
+  { id: "records", labelKey: "ds.dock.wiki", icon: "inventory_2", route: "/records" },
+  { id: "settings", labelKey: "ds.dock.settings", icon: "tune", route: "/settings" },
 ];
 
 const ROUTE_TO_ID: Record<string, string> = {
@@ -41,6 +42,7 @@ export function SbNavBar({ active }: { active?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation("home");
   const activeId = active ?? ROUTE_TO_ID[pathname] ?? "home";
 
   return (
@@ -49,13 +51,14 @@ export function SbNavBar({ active }: { active?: string }) {
         const on = n.id === activeId;
         const iconColor = on ? m3.color.onSecondaryContainer : m3.color.onSurfaceVariant;
         const labelColor = on ? m3.color.onSurface : m3.color.onSurfaceVariant;
+        const label = t(n.labelKey);
         return (
           <View key={n.id} style={styles.tab}>
             <Pressable
               onPress={() => router.push(n.route)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={n.label}
+              accessibilityLabel={label}
               android_ripple={{ color: m3.color.secondaryContainer, borderless: true }}
               style={styles.press}
             >
@@ -63,7 +66,7 @@ export function SbNavBar({ active }: { active?: string }) {
                 <SbIcon name={n.icon} size={24} fill={on} color={iconColor} />
               </View>
               <Text style={[styles.label, { color: labelColor, fontWeight: on ? "700" : "500" }]} numberOfLines={1}>
-                {n.label}
+                {label}
               </Text>
             </Pressable>
           </View>

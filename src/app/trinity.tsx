@@ -28,6 +28,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { isAvailableUiLocale, systemLocaleFor, type AvailableUiLocale } from "@/lib/i18n/locales";
 
 export type TrinityDomain = "health" | "app" | "brain" | "finance";
 
@@ -42,6 +43,26 @@ export const DOMAIN_LABEL: Record<"en" | "ko", Record<TrinityDomain, string>> = 
   en: { health: "Health", app: "App", brain: "Brain", finance: "Finance" },
   ko: { health: "건강", app: "앱", brain: "뇌", finance: "재정" },
 };
+
+const DOMAIN_LABEL_UI: Record<AvailableUiLocale, Record<TrinityDomain, string>> = {
+  en: { health: "Health", app: "App", brain: "Brain", finance: "Finance" },
+  ko: { health: "건강", app: "앱", brain: "뇌", finance: "재정" },
+  es: { health: "Salud", app: "App", brain: "Mente", finance: "Finanzas" },
+  pt: { health: "Saúde", app: "App", brain: "Mente", finance: "Finanças" },
+  id: { health: "Kesehatan", app: "App", brain: "Otak", finance: "Keuangan" },
+};
+
+const DATE_LOCALE_UI: Record<AvailableUiLocale, string> = {
+  en: "en-US",
+  ko: "ko-KR",
+  es: "es-ES",
+  pt: "pt-BR",
+  id: "id-ID",
+};
+
+function displayLocaleFor(localeTag: string): AvailableUiLocale {
+  return isAvailableUiLocale(localeTag) ? localeTag : "en";
+}
 
 export const DOMAIN_ACCENT: Record<TrinityDomain, keyof typeof semantic> = {
   health: "zoneGreen",
@@ -121,7 +142,8 @@ function computeStats(records: RecordLite[]): Record<TrinityDomain, DomainStats>
 function TrinityLegacy() {
   const { t, i18n } = useTranslation("trinity");
   const { userId, loading: authLoading } = useAuth();
-  const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
+  const displayLocale = displayLocaleFor(i18n.language);
+  const locale = systemLocaleFor(displayLocale);
 
   const [records, setRecords] = useState<RecordLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +207,8 @@ function TrinityLegacy() {
     return <Redirect href="/sign-in" />;
   }
 
-  const labels = DOMAIN_LABEL[locale];
+  const labels = DOMAIN_LABEL_UI[displayLocale];
+  const dateLocale = DATE_LOCALE_UI[displayLocale];
   const total = Object.values(stats).reduce((s, d) => s + d.count, 0);
 
   return (
@@ -253,11 +276,11 @@ function TrinityLegacy() {
                   <Text variant="subtle" color="textSubtle">
                     {s.lastEntry
                       ? locale === "ko"
-                        ? `마지막 ${new Date(s.lastEntry).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}`
-                        : `Last ${new Date(s.lastEntry).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                        ? `마지막 ${new Date(s.lastEntry).toLocaleDateString(dateLocale, { month: "short", day: "numeric" })}`
+                        : t("ds.lastEntry", { date: new Date(s.lastEntry).toLocaleDateString(dateLocale, { month: "short", day: "numeric" }) })
                       : locale === "ko"
                         ? "기록 없음"
-                        : "No entries"}
+                        : t("ds.noEntries")}
                   </Text>
                   {s.topTopics.length > 0 ? (
                     <View style={styles.cardSection}>
@@ -349,8 +372,8 @@ const DS_AREA_ORDER: TrinityDomain[] = ["health", "app", "brain", "finance"];
 function TrinityDeepSpace() {
   const { t, i18n } = useTranslation("trinity");
   const { userId, loading: authLoading } = useAuth();
-  const isKo = i18n.language === "ko";
-  const locale = (isKo ? "ko" : "en") as "en" | "ko";
+  const displayLocale = displayLocaleFor(i18n.language);
+  const locale = systemLocaleFor(displayLocale);
 
   const [records, setRecords] = useState<RecordLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -400,7 +423,8 @@ function TrinityDeepSpace() {
   useFocusRefetch(() => setReloadKey((k) => k + 1), Boolean(userId));
 
   const stats = useMemo(() => computeStats(records), [records]);
-  const labels = DOMAIN_LABEL[locale];
+  const labels = DOMAIN_LABEL_UI[displayLocale];
+  const dateLocale = DATE_LOCALE_UI[displayLocale];
   const total = DS_AREA_ORDER.reduce((sum, d) => sum + stats[d].count, 0);
 
   if (authLoading) {
@@ -480,9 +504,7 @@ function TrinityDeepSpace() {
                 const s = stats[d];
                 const active = s.count > 0;
                 const last = s.lastEntry
-                  ? (isKo
-                      ? new Date(s.lastEntry).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })
-                      : new Date(s.lastEntry).toLocaleDateString("en-US", { month: "short", day: "numeric" }))
+                  ? new Date(s.lastEntry).toLocaleDateString(dateLocale, { month: "short", day: "numeric" })
                   : null;
                 return (
                   <Pressable

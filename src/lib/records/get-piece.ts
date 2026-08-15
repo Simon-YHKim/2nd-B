@@ -20,6 +20,7 @@
 // which is exactly the kind of thing callers forget. `src-` means sources.
 
 import { getSupabaseClient } from "../supabase/client";
+import { downloadRawClipping } from "../wiki/storage";
 import { getRecordById } from "./create";
 
 export const SOURCE_ID_PREFIX = "src-";
@@ -40,6 +41,11 @@ export interface PieceDetail {
 
 export function isSourcePieceId(id: string): boolean {
   return id.startsWith(SOURCE_ID_PREFIX);
+}
+
+function sourceBodyFallback(frontmatter: Record<string, unknown> | null): string | null {
+  const body = frontmatter?._body_fallback;
+  return typeof body === "string" && body.trim().length > 0 ? body : null;
 }
 
 /**
@@ -72,7 +78,7 @@ export async function getPieceById(
   const sourceId = isSourcePieceId(id) ? id.slice(SOURCE_ID_PREFIX.length) : id;
   const { data, error } = await getSupabaseClient()
     .from("sources")
-    .select("id, kind, title, captured_at, tags")
+    .select("id, kind, title, captured_at, tags, storage_path, frontmatter")
     .eq("user_id", userId)
     .eq("id", sourceId)
     .maybeSingle();
@@ -85,7 +91,11 @@ export async function getPieceById(
     title: string | null;
     captured_at: string;
     tags: string[] | null;
+    storage_path: string;
+    frontmatter: Record<string, unknown> | null;
   };
+  const fallback = sourceBodyFallback(s.frontmatter);
+  const body = await downloadRawClipping(s.storage_path).catch(() => fallback);
   return {
     // Keep the prefixed id: it is what the route carries, and what any re-navigation needs.
     id,
@@ -93,8 +103,7 @@ export async function getPieceById(
     topic: s.title,
     summary: null,
     conclusion: null,
-    // `sources` has no body column -- a clip is its title plus its tags.
-    body: null,
+    body,
     ai_followup: null,
     tags: s.tags,
     created_at: s.captured_at,

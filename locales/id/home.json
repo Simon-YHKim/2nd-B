@@ -1,6 +1,6 @@
 {
   "soulCore": {
-    "a11y": "Kecerahan Soul Core"
+    "a11y": "Kecerahan Bintang Utara"
   },
   "character": {
     "a11y": "Karakter Second Brain"
@@ -88,7 +88,6 @@
     },
     "home": {
       "polaris": "Bintang Utara",
-      "hint": "Ketuk tujuh bintang untuk membuka tujuh area hidupmu",
       "museumName": "Museum",
       "domainName": {
         "career": "Karier",
@@ -111,7 +110,7 @@
       "inbox": "Notifikasi",
       "headA11y": "Tanya SecondB",
       "kind": {
-        "domain": "Domain",
+        "domain": "Area",
         "museum": "Belajar bersama"
       },
       "bubble": {
@@ -261,7 +260,7 @@
     },
     "recall": {
       "title": "Kenangan",
-      "tag": "NARRATIVE",
+      "tag": "NARASI",
       "eyebrow": "Masa mana yang membentuk aku yang sekarang",
       "hint": "Ketuk satu periode untuk memulai pertanyaan mendalam",
       "footer": "Pertanyaan yang berulang menaikkan keutuhan kenanganmu.",
@@ -286,7 +285,7 @@
     },
     "seen": {
       "title": "Aku di mata orang",
-      "tag": "SELF·OTHER",
+      "tag": "AKU·LAIN",
       "eyebrow": "Seberapa mirip aku yang dilihat orang dengan aku yang kulihat",
       "legendSelf": "Aku yang kulihat",
       "legendOther": "Aku yang dilihat orang",
@@ -330,7 +329,7 @@
     },
     "possible": {
       "title": "Aku di masa depan",
-      "tag": "ASPIRATION",
+      "tag": "ASPIRASI",
       "eyebrow": "Ke mana aku menuju: aku yang belum menjadi data",
       "a1Name": "Seorang pembuat",
       "a1Body": "Menjadikan mewujudkan ide sebagai pekerjaanku",
@@ -346,7 +345,7 @@
     },
     "relational": {
       "title": "Relasi",
-      "tag": "RELATIONS",
+      "tag": "RELASI",
       "eyebrow": "Aku di dalam relasi dan pengetahuan",
       "peopleHead": "Orang yang sering muncul",
       "person1": "Minjun · 24",
@@ -364,7 +363,7 @@
     },
     "values": {
       "title": "Kerja·pertumbuhan",
-      "tag": "DOMAIN",
+      "tag": "RANAH",
       "eyebrow": "Apa yang sudah kubangun di area ini",
       "domain1": "Karier",
       "domain1Count": "142 kepingan",
@@ -384,7 +383,7 @@
       "introBody": "Lempar jauh saja, tidak ada jawaban benar. Pilih cabang yang kamu suka, kita persempit jadi langkah berikutnya.",
       "sectionAngles": "Cabang yang dilempar SecondB",
       "sectionSteps": "Kandidat langkah berikutnya",
-      "toCapture": "Pindahkan ke Capture",
+      "toCapture": "Pindahkan ke Tangkap",
       "more": "Lainnya bersama SecondB"
     },
     "audit": {
@@ -421,7 +420,7 @@
         "headline": "Nilai",
         "level": "L2",
         "subtitle": "Serat tersembunyi (lapis B) · apa yang paling kamu junjung",
-        "coreLabel": "CORE VALUES",
+        "coreLabel": "NILAI INTI",
         "spectrum": "Spektrum nilai",
         "insight": "Kemandirian paling tinggi. Rangkaian catatan saat kamu memilih 'memutuskan sendiri' dalam kerja dan hubungan menopang bacaan ini.",
         "actionPrimary": "Wawancara nilai",
@@ -479,6 +478,33 @@
             "name": "Keterhubungan",
             "note": "Kamu bergerak sedikit lebih saat bersama orang lain"
           }
+        },
+        "survey": {
+          "title": "Laporan diri motivasi",
+          "loading": "Memuat…",
+          "description": "Laporan diri singkat tentang apa yang menggerakkanmu. Nilai seberapa cocok tiap kalimat denganmu dari 1 (sama sekali tidak seperti aku) sampai 6 (sangat seperti aku). Tidak ada jawaban benar; ini perkiraan.",
+          "citation": "Berpijak pada Self-Determination Theory (SDT) · perkiraan dari laporan diri",
+          "instruction": "Seberapa cocok tiap kalimat denganmu?",
+          "intrinsic": "Intrinsik",
+          "extrinsic": "Ekstrinsik",
+          "conclusion": "Perkiraan dari laporan diri.",
+          "saveError": "Tidak dapat menyimpan. Jawabanmu masih ada di sini; coba lagi.",
+          "saved": "Laporan diri motivasimu tersimpan.",
+          "scale": {
+            "1": "Sama sekali tidak seperti aku",
+            "2": "Tidak seperti aku",
+            "3": "Agak tidak seperti aku",
+            "4": "Agak seperti aku",
+            "5": "Seperti aku",
+            "6": "Sangat seperti aku"
+          },
+          "exit": {
+            "notice": "Konfirmasi keluar",
+            "title": "Keluar dari survei?",
+            "body": "Yakin ingin keluar? Progresmu tidak akan disimpan.",
+            "cancel": "Lanjutkan",
+            "confirm": "Keluar"
+          }
         }
       },
       "strengths": {
@@ -486,7 +512,7 @@
         "level": "L2",
         "confidence": "Keyakinan 66%",
         "subtitle": "Serat tersembunyi (lapis B) · yang membuatmu jadi kamu",
-        "coreLabel": "SIGNATURE STRENGTHS",
+        "coreLabel": "KEKUATAN UTAMA",
         "spectrum": "Spektrum kekuatan",
         "insight": "Rasa ingin tahumu pada hal asing tampak seperti kekuatan yang membawamu paling jauh.",
         "actionPrimary": "Manfaatkan kekuatan",

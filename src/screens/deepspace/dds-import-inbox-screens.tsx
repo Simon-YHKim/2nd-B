@@ -294,7 +294,7 @@ export function DeepSpaceImportScreen() {
           sourceKey: "file",
           name: t("ds.import.fileSource"),
           atIso: new Date().toISOString(),
-          summary: ko ? `별가루 ${tally.imported}개` : `${tally.imported} pieces`,
+          summary: t("ds.import.summaryPieces", { count: tally.imported }),
           sourceIds: createdIds,
         });
         setHistory(await getImportHistory());
@@ -514,7 +514,7 @@ export function DeepSpaceImportScreen() {
                     key={a.k}
                     variant="outlined"
                     onPress={() => void handlePickFiles()}
-                    accessibilityLabel={ko ? `${a.k} 내보내기 파일 가져오기` : `Import ${a.k} export file`}
+                    accessibilityLabel={t("ds.import.a11yImportExportFile", { name: a.k })}
                     style={s.accountCard}
                   >
                     <View style={s.accountRow}>
@@ -531,9 +531,9 @@ export function DeepSpaceImportScreen() {
           {result !== null ? (
             <MdCard variant="filled" style={s.resultCard}>
               <RNText style={[m3TextStyle("bodyMedium"), s.resultText]}>
-                {ko ? `${result.imported}개를 정리함에 담았어요` : `Added ${result.imported} to your inbox`}
-                {result.deduped > 0 ? (ko ? ` · 중복 ${result.deduped}개` : ` · ${result.deduped} duplicate`) : ""}
-                {result.failed > 0 ? (ko ? ` · 실패 ${result.failed}개` : ` · ${result.failed} failed`) : ""}
+                {t("ds.import.resultAdded", { count: result.imported })}
+                {result.deduped > 0 ? ` · ${t("ds.import.resultDuplicate", { count: result.deduped })}` : ""}
+                {result.failed > 0 ? ` · ${t("ds.import.resultFailed", { count: result.failed })}` : ""}
               </RNText>
             </MdCard>
           ) : null}
@@ -571,7 +571,7 @@ export function DeepSpaceImportScreen() {
                         icon={<Glyph name="trash" color={m3.color.error} size={16} />}
                         onPress={() => void revokeImport(h)}
                         style={s.revokeBtn}
-                        accessibilityLabel={ko ? `${h.name} 가져오기 철회` : `Revoke ${h.name} import`}
+                        accessibilityLabel={t("ds.import.a11yRevokeImport", { name: h.name })}
                       />
                     </View>
                   </MdCard>

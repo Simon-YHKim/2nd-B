@@ -18,15 +18,6 @@
       "f2": "Private account storage with export when you need it",
       "f3": "5 AI chats per day"
     },
-    "soma": {
-      "name": "Voyager",
-      "price": "$4.99 / mo",
-      "priceNote": "$49.90 / yr (2 months free)",
-      "tagline": "Daily AI alongside your records",
-      "f1": "30 AI chats per day",
-      "f2": "Everything in Free",
-      "f3": "The first step past the daily limit"
-    },
     "cortex": {
       "name": "Voyager",
       "price": "$9.99 / mo",

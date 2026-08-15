@@ -188,7 +188,8 @@
     "navProfile": "Profil",
     "navSettings": "Pengaturan",
     "navData": "Dataku",
-    "navBeyond": "Di luar aplikasi"
+    "navBeyond": "Di luar aplikasi",
+    "navPassword": "Ubah kata sandi"
   },
   "privacy": {
     "title": "Privasi",
@@ -332,7 +333,7 @@
     "search": "Apa yang ingin kamu ketahui?",
     "sectionStart": "Memulai",
     "q1": "Apa itu 7 bintang Biduk?",
-    "q2": "Bagaimana Bintang Utara (Inti Jiwa) menyala?",
+    "q2": "Bagaimana Bintang Utara menyala?",
     "q3": "Bagaimana hasil tes menjadi lebih akurat?",
     "sectionData": "Data · Privasi",
     "q4": "Apa itu berkas IDEN?",
@@ -567,8 +568,9 @@
     "save": "Simpan",
     "opening": "Membuka…",
     "empty": "Belum ada apa pun di sini. Mulai dari yang membuatmu segar akhir-akhir ini; bintang istirahat pun bersinar.",
+    "ratingLabel": "Rating {{rating}}/5",
     "category": {
-      "game": "Game",
+      "game": "Permainan",
       "movie": "Film",
       "music": "Musik",
       "travel": "Perjalanan",
@@ -660,6 +662,7 @@
   },
   "shareCardImg": {
     "eyebrowWeek": "2ND-BRAIN · MINGGU INI",
+    "eyebrowConstellation": "KONSTELASI SAYA",
     "footerWeek": "Seminggu yang dilihat bersama SecondB",
     "starsLit": "{{count}} bintang bersinar",
     "signature": "2nd-Brain · {{count}} serpihan bintang"
@@ -735,7 +738,7 @@
       "proFeat2": "250 obrolan sehari",
       "proFeat3": "Penalaran tanpa batas",
       "comingSoon": "Segera hadir",
-      "disclosure": "Paket berbayar diperpanjang otomatis setiap bulan. Batalkan kapan saja sebelum perpanjangan berikutnya; harga sudah termasuk PPN. Pengembalian dana penuh dijamin dalam 30 hari setelah pembayaran.",
+      "disclosure": "Paket berbayar diperpanjang otomatis setiap bulan sampai kamu membatalkannya. Batalkan kapan saja sebelum perpanjangan berikutnya dan fitur berbayar tetap aktif sampai periode itu berakhir; harga sudah termasuk PPN. Pengembalian dana penuh dalam 7 hari setelah pembayaran, selama pemakaianmu masih dalam batas yang diberikan paket gratis.",
       "legalTerms": "Ketentuan layanan",
       "legalRefund": "Kebijakan pengembalian dana"
     },
@@ -747,12 +750,14 @@
       "addTag": "Tambah tag",
       "linkedRecords": "Catatan tertaut",
       "meaning": "makna",
-      "edit": "Edit",
+      "edit": "Sunting",
       "move": "Pindahkan",
       "fillStar": "Isi bintang ini",
       "fillStarBody": "Tambahkan informasi untuk domain ini.",
       "secondbLinked": "Serpihan ini terhubung dengan bintang '{{star}}' kamu. {{n}} catatan serupa berada di rentang waktu yang sama.",
-      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera."
+      "secondbUnlinked": "Serpihan ini belum terhubung ke bintang mana pun. Kami akan menghubungkannya segera.",
+      "makeWikiPage": "Buat halaman wiki",
+      "wikiPageMade": "Halaman wiki dibuat"
     },
     "inbox": {
       "title": "Notifikasi",
@@ -799,7 +804,16 @@
       "healthErrUnavailable": "Perangkat ini tidak dapat terhubung ke aplikasi kesehatan. Tidak ada yang dicatat.",
       "healthErrDenied": "Akses kesehatan ditolak, jadi tidak ada yang dicatat. Kamu bisa mengizinkannya di pengaturan perangkat.",
       "healthErrEmpty": "Tidak ada aktivitas kesehatan untuk dicerminkan hari ini.",
-      "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi."
+      "healthErrFailed": "Tidak dapat mencerminkan data kesehatanmu. Coba lagi sebentar lagi.",
+      "summaryPieces": "{{count}} potongan",
+      "summaryPieces_plural": "{{count}} potongan",
+      "resultAdded": "{{count}} ditambahkan ke kotak masukmu",
+      "resultAdded_plural": "{{count}} ditambahkan ke kotak masukmu",
+      "resultDuplicate": "{{count}} duplikat",
+      "resultDuplicate_plural": "{{count}} duplikat",
+      "resultFailed": "{{count}} gagal",
+      "a11yImportExportFile": "Impor file ekspor {{name}}",
+      "a11yRevokeImport": "Cabut impor {{name}}"
     },
     "ttfv": {
       "pageTitle": "Bintang pertamamu baru saja menyala",
@@ -873,6 +887,12 @@
       "plansCta": "Lihat paket",
       "close": "Tutup",
       "sameQuality": "Hadiah hanya menambah jumlah. Kualitas jawaban tetap sama."
+    },
+    "reasoningScreen": {
+      "autoTitle": "Reasoning otomatis",
+      "autoPaused": "Batas tercapai · otomatis lanjut Senin",
+      "autoBody": "SecondB menghubungkan setiap item saat kamu menyimpannya",
+      "autoNote": "Jalankan otomatis memakai satu jatah mingguan dan selalu menyisakan satu untuk manual."
     }
   },
   "beyond": {

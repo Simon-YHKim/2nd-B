@@ -125,6 +125,8 @@ import { splitImportNotes, previewTitle } from "@/lib/wiki/import-notes";
 import { exportIden } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import { listRecentRecords } from "@/lib/records/create";
+import { recordsToResearchGraph } from "@/lib/records/records-research";
+import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
@@ -375,8 +377,8 @@ const GAPS_FACT_EN: { label: string; v: string }[] = [
   { label: "Right to delete", v: "You can remove individual items or everything, anytime." },
 ];
 const GAPS_CONCEPT_EN: { title: string; body: string }[] = [
-  { title: "Star = an area of life", body: "The seven Big Dipper stars are career, finances, growth, relationships, health, rest, and capturing. Tap a star to see yourself in that area." },
-  { title: "North Star = your whole self", body: "It gathers the seven stars into one sentence about who you are. The more evenly they brighten, the clearer it gets." },
+  { title: "Stars = areas of life", body: "The six visible home stars are career, finances, growth, relationships, health, and rest. Capturing is an invisible intake area that feeds those six stars." },
+  { title: "North Star = your whole self", body: "It brings together data from all seven areas into one sentence about who you are. Its brightness becomes clearer as the six visible stars brighten evenly." },
   { title: "Starlight is not confidence", body: "Starlight is how much you've captured; confidence is how well it's verified. If it doesn't know, it says so." },
   { title: "Ratify (propose then ratify)", body: "SecondB's estimates are only proposals. Only what you ratify with \"that's right\" is reflected in you." },
   { title: "Capturing", body: "Capture notes, links, photos, voice, and to-dos instead of letting them slip by. SecondB helps sort them." },
@@ -477,6 +479,7 @@ export function DeepSpaceAccountDesignScreen() {
         </View>
         <Card>
           <Action label={t("account.navProfile")} onPress={() => router.push("/profile")} />
+          <Action label={t("account.navPassword")} onPress={() => router.push("/change-password")} />
           <Action label={t("account.navSettings")} onPress={() => router.push("/settings")} />
           <Action label={t("account.navData")} onPress={() => router.push("/data")} />
           <Action label="IDEN" onPress={() => router.push("/iden")} />
@@ -1728,8 +1731,37 @@ const RESEARCH_SAT = [
 
 export function DeepSpaceResearchScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, authLoading, pages, edges, loading } = useWikiGraphData();
-  const view = useMemo(() => buildDeepResearchView(pages, edges), [pages, edges]);
+  // D-27 Phase 1c: the research view runs on RECORDS, the ratified node-set.
+  // It used to read useWikiGraphData(), and wiki_pages has never held a single
+  // row in production — so this screen told users with hundreds of records
+  // "아직 이어줄 기록이 없어요", which is exactly what its own copy promises not
+  // to say. recordsToResearchGraph re-expresses the records tag-graph in the
+  // shapes buildDeepResearchView already consumes, so hubs / clusters /
+  // orphans / islands all keep working, now over real data. $0: pure tag
+  // overlap, no LLM and no embeddings (the kNN layer stays consent-gated).
+  const { userId, loading: authLoading } = useAuth();
+  const [records, setRecords] = useState<GraphRecord[] | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void listRecentRecords(userId)
+      .then((rows) => {
+        if (alive) setRecords(rows as GraphRecord[]);
+      })
+      .catch(() => {
+        if (alive) setRecords([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+  const loading = userId != null && records === null;
+  const view = useMemo(() => {
+    const graph = recordsToResearchGraph(records ?? [], {
+      locale: i18n.language === "ko" ? "ko" : "en",
+    });
+    return buildDeepResearchView(graph.pages, graph.edges);
+  }, [records, i18n.language]);
   // Cluster chip selection. The research view derives from graph-stats (no
   // server-side re-cluster), so selecting a chip drives the highlight + the
   // graph's focused tag label rather than refetching.
@@ -1827,14 +1859,21 @@ export function DeepSpaceResearchScreen() {
       <Text variant="body" style={styles.lead}>{t("research.lead")}</Text>
       {loading ? (
         <GraphLoading />
-      ) : view.pageCount === 0 ? (
+      ) : (
+        <>
+        {/* The records half. This gate counts RECORDS; the proposal half below
+            is deliberately outside it, because proposals come from the wiki
+            track (sources -> wiki_pages) and those tables are disjoint. Bundling
+            them locked the link/clip-only user — the only user who can actually
+            have a ratifiable proposal — out of the proposal UI entirely. */}
+        {view.pageCount === 0 ? (
         <View style={styles.insightViolet}>
           <Text variant="body" style={styles.insightVioletText}>{t("research.emptyInsight")}</Text>
           <Pressable style={styles.primary} onPress={() => router.push("/capture")}>
             <Text variant="caption" style={styles.primaryText}>{t("wiki.addPiece")}</Text>
           </Pressable>
         </View>
-      ) : (
+        ) : (
         <>
           {view.clusters.length > 0 ? (
             <View style={styles.filterRow}>
@@ -1869,9 +1908,12 @@ export function DeepSpaceResearchScreen() {
             <Pressable
               style={styles.insightViolet}
               android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              // headline.id is a WIKI PAGE id (graph-stats topHubs), not a
-              // record id — /record/[id] was a guaranteed "찾을 수 없어요".
-              onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: view.headline!.id } })}
+              // Since D-27 Phase 1c these ids come from recordsToResearchGraph,
+              // so they ARE record ids and /record/[id] is the right target. The
+              // old /wiki?focusPageId hop was correct only while the view was
+              // built from wiki_pages; against record ids the wiki screen simply
+              // finds nothing and silently declines to expand.
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.headline!.id } })}
               accessibilityRole="button"
               accessibilityLabel={view.headline.title}
             >
@@ -1891,8 +1933,8 @@ export function DeepSpaceResearchScreen() {
             <Pressable
               style={styles.insightViolet}
               android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
-              // surprise.fromId is wiki_links.from_page (a PAGE id) — same fix.
-              onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: view.surprise!.fromId } })}
+              // surprise.fromId is now a record id too — same reasoning as above.
+              onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
               accessibilityRole="button"
               accessibilityLabel={t("research.surprise", { from: view.surprise.fromTitle, to: view.surprise.toTitle })}
             >
@@ -1905,7 +1947,11 @@ export function DeepSpaceResearchScreen() {
             </Pressable>
           ) : null}
 
-          {/* propose->ratify: AI proposes semantic links, the user decides. */}
+        </>
+        )}
+
+          {/* propose->ratify: AI proposes semantic links, the user decides.
+              Outside the records gate on purpose — see the note above. */}
           <Text variant="caption" pixelEn style={styles.tlLabel}>{t("research.proposalsLabel")}</Text>
           {announce ? (
             <RNText
