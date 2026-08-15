@@ -4,8 +4,24 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 ## Project context
 
-- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화. Build with Gemini XPRIZE (Education & Human Potential) 출품작.
-- **Deadline**: 2026-08-17 06:00 KST.
+- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
+- **Deadline**: 없음. 외부 마감에 맞춘 스코프 압축을 하지 말 것.
+
+> ### XPRIZE 는 종료됐다 (Simon 결정, 2026-08-15)
+>
+> **이 프로젝트는 더 이상 XPRIZE 출품작이 아니다.** 어떤 세션도 XPRIZE, Build with Gemini,
+> Devpost, 대회 규정집(rulebook), 심사 마감, 심사자 시연을 의사결정 근거로 삼지 말 것.
+> 다음은 전부 **무효한 판단 근거**다:
+>
+> - "마감이 N일 남았으니 축소하자" / "심사 전에 끝내야 하니" — 마감은 없다.
+> - "심사자가 보기에" / "데모에서 어떻게 보일까" — 심사자는 없다. 기준은 실사용자다.
+> - "대회 규정상 필요하다" / "학술 인용 가능해야 한다" — 규정은 적용되지 않는다.
+>   기능은 사용자에게 쓸모가 있어서 존재해야지, 인용 가능해서 존재하면 안 된다.
+>
+> 코드에 남은 대회 잔재(`src/lib/judge/domains.ts`, C6 judge mode 트리거, C12 README 절,
+> `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `gemini.ts`/`routing.ts`
+> 주석)는 **아직 제거되지 않았다.** 동작 중인 코드이므로 임의로 걷어내지 말고, 제거는 별도
+> 작업으로 Simon 과 합의해서 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
 - **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
   Expo static export to the `gh-pages` branch; live at <https://simon-yhkim.github.io/2nd-B/>, and
@@ -56,13 +72,13 @@ Never weaken these. They're enforced at code/schema/CI level:
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
 | C5 | `testimonials.consent_given_at NOT NULL`. |
-| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. |
+| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. **(대회 잔재: 코드·CI 에서는 계속 유효하니 깨뜨리지 말 것. 단 새 기능의 근거로 인용 금지 — 위 XPRIZE 블록 참조.)** |
 | C7 | i18n EN ↔ KO key parity. EN is canonical. |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair. |
 | C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
 | C10 | Age-tiered sign-up: 14-17 self-consent minors and adult users register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
 | C11 | Support SLA = 2 business days (KST). |
-| C12 | README "Pre-existing assets used" section per rulebook §04. |
+| C12 | README "Pre-existing assets used" section per rulebook §04. **(대회 잔재: 위 C6 과 동일 취급.)** |
 
 When uncertain whether a change weakens a constraint, run `npm run check:constraints`.
 
