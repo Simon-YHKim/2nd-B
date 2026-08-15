@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "scope": "single-asset semantic reducer experiment",
+  "design_mode": "128-master-semantic-compiler",
+  "imagegen_used_this_run": false,
+  "pixy_used_this_run": false,
+  "master": {
+    "path": "E:\\2ndB\\.worktrees\\hustlek-imagegen-pilot\\design\\hustlek-assets-pilot\\telescope\\128.png",
+    "file_sha256": "5825c6124ecdd6d59a82d76e51c0f1f6e52f96c5362d93e3a2818a0b0630043a",
+    "decoded_rgba_sha256": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6",
+    "provenance": {
+      "design_mode": "independent-imagegen",
+      "asset_id": "icons/telescope",
+      "logical_size": "128x128",
+      "raw_generation_id": "exec-6ffb5339-4cf5-4d28-b636-64f7969cf0b2",
+      "sibling_tier_inputs": "none",
+      "identity_reference": "PIXEL-CLAY export/icons/telescope.svg + export/icons-64/telescope.svg",
+      "style_reference": "design/hustlek-opening-v1/hustlek-opening-atlas.png",
+      "postprocess": "chroma removal; independent target-grid nearest resample; palette quantization without dithering; binary alpha",
+      "pixy_used": "false"
+    }
+  },
+  "provenance": {
+    "script": "E:\\2ndB\\.worktrees\\hustlek-imagegen-pilot\\scripts\\build-hustlek-semantic-tiers.py",
+    "script_sha256": "814ef3afe1238373fec1484683f7057cc9d20e0da11644a684b34b4f89b888fe",
+    "script_hash_normalization": "UTF-8 with LF line endings",
+    "config_sha256": "ff483bf1c8e3e1b79ccd4c4512c0a9ed488ca3cec7fdb9f03e491d797efdb8b3",
+    "python": "3.12.13",
+    "pillow": "12.3.0"
+  },
+  "reproducibility": {
+    "two_pass_decoded_rgba_match": true,
+    "first_pass": {
+      "16": "2da9411f21afbf5cbd6ebcdc621aeb7cb5bbbd770525f10b9004c22080bb6e59",
+      "32": "978478c7a4ac14c8c4fe6f30b617a076c88df21e405cf3e0b66de2c9b1607047",
+      "48": "2d49bc72c2e7362b760eea9c30571dd69f894af3d3b8b4fa6c31c88e4c20b75c",
+      "64": "59b28bc2c72b34e4826c220b5d30ec163c20cee7804552280dc8d5050cb62d2c",
+      "95": "0f26513998c2f20a93e1e6b027e27a4bcdab7ee8dbab4e852693bd943a78dd5c",
+      "128": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6"
+    },
+    "second_pass": {
+      "16": "2da9411f21afbf5cbd6ebcdc621aeb7cb5bbbd770525f10b9004c22080bb6e59",
+      "32": "978478c7a4ac14c8c4fe6f30b617a076c88df21e405cf3e0b66de2c9b1607047",
+      "48": "2d49bc72c2e7362b760eea9c30571dd69f894af3d3b8b4fa6c31c88e4c20b75c",
+      "64": "59b28bc2c72b34e4826c220b5d30ec163c20cee7804552280dc8d5050cb62d2c",
+      "95": "0f26513998c2f20a93e1e6b027e27a4bcdab7ee8dbab4e852693bd943a78dd5c",
+      "128": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6"
+    }
+  },
+  "hard_errors": [],
+  "identity_warnings": [],
+  "nearest_difference_warnings": [],
+  "palette_detail_ladder": [
+    4,
+    7,
+    7,
+    12,
+    16,
+    95
+  ],
+  "tiers": {
+    "16": {
+      "size": [
+        16,
+        16
+      ],
+      "atlas_crop": [
+        0,
+        0,
+        16,
+        16
+      ],
+      "bbox": [
+        2,
+        1,
+        14,
+        15
+      ],
+      "foreground_pixels": 60,
+      "palette_count": 4,
+      "blue_lens_pixels": 1,
+      "blue_lens_pixels_in_roi": 1,
+      "landmarks": {
+        "lens": true,
+        "mount": true,
+        "left_foot": true,
+        "center_foot": true,
+        "right_foot": true
+      },
+      "foreground_components_8_connected": 1,
+      "decoded_rgba_sha256": "2da9411f21afbf5cbd6ebcdc621aeb7cb5bbbd770525f10b9004c22080bb6e59",
+      "hard_errors": [],
+      "master_shape_iou": 0.5762334954829743,
+      "master_shape_iou_floor": 0.55,
+      "nearest_alpha_diff": 0.35294117647058826,
+      "nearest_alpha_diff_floor": 0.12,
+      "same_canvas_shape_iou": 0.6470588235294118,
+      "same_canvas_shape_iou_floor": 0.55,
+      "normalized_centroid_delta": 0.018669871794871784,
+      "normalized_centroid_delta_limit": 0.04,
+      "internal_material_boundary_edit": 0.7419354838709677,
+      "internal_material_boundary_edit_floor": 0.2,
+      "nearest_rgba_diff": 0.9852941176470589
+    },
+    "32": {
+      "size": [
+        32,
+        32
+      ],
+      "atlas_crop": [
+        128,
+        0,
+        160,
+        32
+      ],
+      "bbox": [
+        5,
+        2,
+        27,
+        30
+      ],
+      "foreground_pixels": 237,
+      "palette_count": 7,
+      "blue_lens_pixels": 8,
+      "blue_lens_pixels_in_roi": 8,
+      "landmarks": {
+        "lens": true,
+        "mount": true,
+        "left_foot": true,
+        "center_foot": true,
+        "right_foot": true,
+        "eyepiece": true
+      },
+      "foreground_components_8_connected": 1,
+      "decoded_rgba_sha256": "978478c7a4ac14c8c4fe6f30b617a076c88df21e405cf3e0b66de2c9b1607047",
+      "hard_errors": [],
+      "master_shape_iou": 0.8082845703726517,
+      "master_shape_iou_floor": 0.65,
+      "nearest_alpha_diff": 0.1729957805907173,
+      "nearest_alpha_diff_floor": 0.09,
+      "same_canvas_shape_iou": 0.8270042194092827,
+      "same_canvas_shape_iou_floor": 0.78,
+      "normalized_centroid_delta": 0.030218020752604824,
+      "normalized_centroid_delta_limit": 0.035,
+      "internal_material_boundary_edit": 0.7529880478087649,
+      "internal_material_boundary_edit_floor": 0.15,
+      "nearest_rgba_diff": 0.9746835443037974
+    },
+    "48": {
+      "size": [
+        48,
+        48
+      ],
+      "atlas_crop": [
+        256,
+        0,
+        304,
+        48
+      ],
+      "bbox": [
+        8,
+        3,
+        40,
+        45
+      ],
+      "foreground_pixels": 511,
+      "palette_count": 7,
+      "blue_lens_pixels": 24,
+      "blue_lens_pixels_in_roi": 24,
+      "landmarks": {
+        "lens": true,
+        "mount": true,
+        "left_foot": true,
+        "center_foot": true,
+        "right_foot": true,
+        "eyepiece": true
+      },
+      "foreground_components_8_connected": 1,
+      "decoded_rgba_sha256": "2d49bc72c2e7362b760eea9c30571dd69f894af3d3b8b4fa6c31c88e4c20b75c",
+      "hard_errors": [],
+      "master_shape_iou": 0.8470161035680455,
+      "master_shape_iou_floor": 0.75,
+      "nearest_alpha_diff": 0.1232876712328767,
+      "nearest_alpha_diff_floor": 0.07,
+      "same_canvas_shape_iou": 0.8767123287671232,
+      "same_canvas_shape_iou_floor": 0.84,
+      "normalized_centroid_delta": 0.016959571713959527,
+      "normalized_centroid_delta_limit": 0.025,
+      "internal_material_boundary_edit": 0.7019027484143763,
+      "internal_material_boundary_edit_floor": 0.1,
+      "nearest_rgba_diff": 0.9510763209393346
+    },
+    "64": {
+      "size": [
+        64,
+        64
+      ],
+      "atlas_crop": [
+        384,
+        0,
+        448,
+        64
+      ],
+      "bbox": [
+        10,
+        4,
+        54,
+        60
+      ],
+      "foreground_pixels": 840,
+      "palette_count": 12,
+      "blue_lens_pixels": 28,
+      "blue_lens_pixels_in_roi": 28,
+      "landmarks": {
+        "lens": true,
+        "mount": true,
+        "left_foot": true,
+        "center_foot": true,
+        "right_foot": true,
+        "eyepiece": true
+      },
+      "foreground_components_8_connected": 1,
+      "decoded_rgba_sha256": "59b28bc2c72b34e4826c220b5d30ec163c20cee7804552280dc8d5050cb62d2c",
+      "hard_errors": [],
+      "master_shape_iou": 0.8861191736383814,
+      "master_shape_iou_floor": 0.82,
+      "nearest_alpha_diff": 0.07647058823529412,
+      "nearest_alpha_diff_floor": 0.05,
+      "same_canvas_shape_iou": 0.9235294117647059,
+      "same_canvas_shape_iou_floor": 0.89,
+      "normalized_centroid_delta": 0.009657878481581339,
+      "normalized_centroid_delta_limit": 0.02,
+      "internal_material_boundary_edit": 0.6996466431095406,
+      "internal_material_boundary_edit_floor": 0.07,
+      "nearest_rgba_diff": 0.9411764705882353
+    },
+    "95": {
+      "size": [
+        95,
+        95
+      ],
+      "atlas_crop": [
+        512,
+        0,
+        607,
+        95
+      ],
+      "bbox": [
+        16,
+        6,
+        79,
+        89
+      ],
+      "foreground_pixels": 1824,
+      "palette_count": 16,
+      "blue_lens_pixels": 72,
+      "blue_lens_pixels_in_roi": 72,
+      "landmarks": {
+        "lens": true,
+        "mount": true,
+        "left_foot": true,
+        "center_foot": true,
+        "right_foot": true,
+        "eyepiece": true
+      },
+      "foreground_components_8_connected": 1,
+      "decoded_rgba_sha256": "0f26513998c2f20a93e1e6b027e27a4bcdab7ee8dbab4e852693bd943a78dd5c",
+      "hard_errors": [],
+      "master_shape_iou": 0.9233954451345756,
+      "master_shape_iou_floor": 0.9,
+      "nearest_alpha_diff": 0.047592997811816196,
+      "nearest_alpha_diff_floor": 0.025,
+      "same_canvas_shape_iou": 0.9524070021881839,
+      "same_canvas_shape_iou_floor": 0.93,
+      "normalized_centroid_delta": 0.006411908976180464,
+      "normalized_centroid_delta_limit": 0.015,
+      "internal_material_boundary_edit": 0.5366876310272537,
+      "internal_material_boundary_edit_floor": 0.04,
+      "nearest_rgba_diff": 0.8698030634573304
+    },
+    "128": {
+      "size": [
+        128,
+        128
+      ],
+      "atlas_crop": [
+        640,
+        0,
+        768,
+        128
+      ],
+      "bbox": [
+        21,
+        8,
+        107,
+        120
+      ],
+      "foreground_pixels": 3187,
+      "palette_count": 95,
+      "blue_lens_pixels": 129,
+      "blue_lens_pixels_in_roi": 95,
+      "landmarks": {
+        "lens": true,
+        "mount": true,
+        "left_foot": true,
+        "center_foot": true,
+        "right_foot": true,
+        "eyepiece": true
+      },
+      "foreground_components_8_connected": 1,
+      "decoded_rgba_sha256": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6",
+      "hard_errors": [],
+      "master_shape_iou": 1.0,
+      "nearest_alpha_diff": 0.0,
+      "nearest_rgba_diff": 0.0
+    }
+  }
+}
