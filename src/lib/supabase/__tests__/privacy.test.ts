@@ -149,3 +149,79 @@ describe("savePrivacyPrefs -> consent_changes ledger (D-3)", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+// H9: health/activity data is PIPA §23 민감정보 and the privacy policy says it is
+// processed "별도 동의를 받아". That separate consent row used to be written by
+// exactly ONE screen (the import opt-in flow); the /privacy toggle wrote a
+// consent_changes 'grant' and nothing else, so a user could turn sensitive-data
+// processing on from settings and leave no record of the consent the policy
+// promises. It is written at the save choke point now, which covers every path.
+describe("savePrivacyPrefs — sensitive-data consent record", () => {
+  beforeEach(() => {
+    __mock.from.mockClear();
+    __maybeSingle.mockReset();
+    __eqUpdate.mockReset();
+    __insert.mockReset();
+    __eqUpdate.mockResolvedValue({ error: null });
+    __insert.mockResolvedValue({ error: null });
+  });
+
+  /** The consent_records row from this save, or null if none was written. */
+  function consentRow(): Record<string, unknown> | null {
+    const call = __insert.mock.calls.find(
+      (c) => !Array.isArray(c[0]) && (c[0] as { purposes?: unknown }).purposes !== undefined,
+    );
+    return call ? (call[0] as Record<string, unknown>) : null;
+  }
+
+  test("granting health_import writes a consent_records row with the sensitive ack", async () => {
+    mockBeforeState({ health_import: false });
+    await savePrivacyPrefs("u1", { ...defaultPrivacyPrefs(), health_import: true }, { locale: "ko" });
+    expect(__mock.from).toHaveBeenCalledWith("consent_records");
+    const row = consentRow();
+    expect(row).not.toBeNull();
+    expect(row!.sensitive_data_ack).toBe(true);
+    expect(row!.purposes).toEqual(["health_import"]);
+    expect(row!.locale).toBe("ko");
+  });
+
+  test("revoking health_import does NOT write a consent row (only the change ledger)", async () => {
+    // A withdrawal is recorded as a consent_changes 'revoke'. Appending a
+    // consent_records row on the way OUT would read as a fresh grant.
+    mockBeforeState({ health_import: true });
+    await savePrivacyPrefs("u1", defaultPrivacyPrefs());
+    expect(consentRow()).toBeNull();
+    expect(__insert).toHaveBeenCalledWith([
+      { user_id: "u1", pref_key: "health_import", event_type: "revoke" },
+    ]);
+  });
+
+  test("saving with health_import already on writes nothing new", async () => {
+    // Otherwise every unrelated toggle would append another grant to an
+    // append-only ledger, and the record of when consent was actually given
+    // would be buried in duplicates.
+    mockBeforeState({ health_import: true });
+    await savePrivacyPrefs("u1", { ...defaultPrivacyPrefs(), health_import: true, ads: true });
+    expect(consentRow()).toBeNull();
+  });
+
+  test("granting a non-sensitive pref writes no consent record", async () => {
+    mockBeforeState({ ads: false });
+    await savePrivacyPrefs("u1", { ...defaultPrivacyPrefs(), ads: true });
+    expect(consentRow()).toBeNull();
+  });
+
+  test("defaults the locale rather than throwing when a caller omits it", async () => {
+    mockBeforeState({ health_import: false });
+    await savePrivacyPrefs("u1", { ...defaultPrivacyPrefs(), health_import: true });
+    expect(consentRow()!.locale).toBe("en");
+  });
+
+  test("a failed consent write never breaks the save", async () => {
+    mockBeforeState({ health_import: false });
+    __insert.mockResolvedValue({ error: new Error("consent_records unavailable") });
+    await expect(
+      savePrivacyPrefs("u1", { ...defaultPrivacyPrefs(), health_import: true }),
+    ).resolves.toBeUndefined();
+  });
+});

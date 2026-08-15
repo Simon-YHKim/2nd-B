@@ -623,13 +623,13 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated);
+      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed);
+      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;

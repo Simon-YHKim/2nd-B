@@ -12,16 +12,22 @@
 // consent AFTER the UI has actually collected it — never one the user did
 // not give.
 //
-// TODO(legal): the version constants below MUST track the published Privacy
-// Policy / Terms documents. Bump them when the notice, purposes, or documents
-// change (a bump should trigger re-consent). Align before real-user launch —
-// LEXICON_LAST_LEGAL_REVIEW is still null.
+// These version constants track the 시행일 of the published documents
+// (docs/legal/*.md, mirrored into src/lib/legal/legal-documents.ts). They had
+// drifted: the constants said 2026-06-02 while the documents shipped 2026-07-17,
+// so every consent row recorded a policy version that was never published.
+//
+// KNOWN GAP, deliberately not closed here: nothing re-asks for consent when
+// these change. They are stamped onto new rows and read by nothing else, so a
+// bump records the truth going forward but does not reach existing accounts. A
+// re-consent flow is its own piece of work, and shipping a half-version of it
+// would be worse than the gap.
 
 import { getSupabaseClient } from "./client";
 
-export const CONSENT_VERSION = "2026-06-02" as const;
-export const PRIVACY_POLICY_VERSION = "2026-06-02" as const;
-export const TERMS_VERSION = "2026-06-02" as const;
+export const CONSENT_VERSION = "2026-08-16" as const;
+export const PRIVACY_POLICY_VERSION = "2026-08-16" as const;
+export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";
 export type MinorTier = "adult" | "minor_self" | "minor_guardian";

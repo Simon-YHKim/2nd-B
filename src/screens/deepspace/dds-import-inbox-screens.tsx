@@ -23,7 +23,6 @@ import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
-import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -332,13 +331,11 @@ export function DeepSpaceImportScreen() {
     setHealthBusy(true);
     try {
       const prefs = { ...(await fetchPrivacyPrefs(userId)), health_import: true };
-      await savePrivacyPrefs(userId, prefs);
-      await recordHealthImportConsent({
-        userId,
-        ageBand: "adult",
-        minorTier: "adult",
-        locale: ko ? "ko" : "en",
-      });
+      // savePrivacyPrefs writes the sensitive-data consent row itself on the
+      // false -> true edge (H9). This screen used to write it here, which was the
+      // ONLY path that did; now that the choke point covers every path, calling
+      // it again would append a duplicate row to an append-only ledger.
+      await savePrivacyPrefs(userId, prefs, { locale: ko ? "ko" : "en" });
       setHealthPref(true);
     } catch {
       // Best-effort; the row stays in the opt-in state so the user can retry.
