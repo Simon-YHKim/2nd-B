@@ -1,4 +1,4 @@
--- 0117_community_chat.sql
+-- 0126_community_chat.sql
 -- Community chat v1 (2026-08-10 Simon direction: 7th home slot = community).
 -- Text-only rooms, two kinds: 'dm' (1:1, capped at 2 members) and 'group'
 -- (다:1, capped at 32). No voice, no media, no public directory.
