@@ -1,0 +1,65 @@
+{
+  "batches": [
+    {
+      "asset_ids": [
+        "avatars/presets/plain",
+        "avatars/food/chef",
+        "avatars/fantasy/wizard",
+        "avatars/animals/cat",
+        "icons/camera",
+        "icons/calendar",
+        "icons/error",
+        "icons/tree"
+      ],
+      "batch_id": "pilot-000",
+      "contract_sha256": "ff6f76d6631462c50a417d974dc34d24b99b4edee308c4e463ad232820830781",
+      "manifest_path": "design/hustlek-assets-v1/batches/pilot-000/ff6f76d66314/manifest.json",
+      "manifest_sha256": "5a4dc4d46cc1bcec3021a4d026f4392f531818bdfa894b055093f8eb7d6ab06a",
+      "master_atlas_path": "design/hustlek-assets-v1/batches/pilot-000/ff6f76d66314/master-atlas.png",
+      "master_atlas_sha256": "2a6a44f3609b94aebbde0ccf5bbd728fde3e96ab3bf48a36ae68701264fd5ea8",
+      "membership_sha256": "0507e17724a92595771fd9f8d0b6e5ab4c728f3a096cae1742b4318b13beaa16",
+      "state": "ready_for_review",
+      "tier_atlas_path": "design/hustlek-assets-v1/batches/pilot-000/ff6f76d66314/tier-atlas.png",
+      "tier_atlas_sha256": "35cf48e829298dfef88a95e4d9243296053b466b0fb628f850ff62fc7e82d528",
+      "version": "ff6f76d66314"
+    }
+  ],
+  "coverage": {
+    "approved": 0,
+    "approved_asset_ids": [],
+    "ready_asset_ids": [
+      "avatars/animals/cat",
+      "avatars/fantasy/wizard",
+      "avatars/food/chef",
+      "avatars/presets/plain",
+      "icons/calendar",
+      "icons/camera",
+      "icons/error",
+      "icons/tree"
+    ],
+    "ready_or_approved": 8,
+    "remaining": 795
+  },
+  "inventory": {
+    "aliases": 51,
+    "avatars": 270,
+    "icons": 533,
+    "total": 803
+  },
+  "policy": {
+    "aliases_reuse_canonical": true,
+    "batch_max_assets": 32,
+    "imagegen_used_for_derived_tiers": false,
+    "master_size": 128,
+    "pixy_used": false,
+    "production_sizes": [
+      16,
+      32,
+      48,
+      64
+    ],
+    "resampling": "Pillow Image.Resampling.NEAREST"
+  },
+  "schema": "hustlek-asset-catalog/v1",
+  "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+}

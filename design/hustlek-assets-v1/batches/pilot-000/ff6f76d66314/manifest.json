@@ -1,0 +1,1683 @@
+{
+  "assets": [
+    {
+      "asset_id": "avatars/presets/plain",
+      "category": "presets",
+      "errors": [],
+      "kind": "avatar",
+      "label_ko": "기본",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          16,
+          8,
+          112,
+          128
+        ],
+        "components_8_neighbor": [
+          8688
+        ],
+        "decoded_rgba_sha256": "308c8fa20fcfb6a9ebf32783839fa00ce8201a573459da5043f9e0457c4ca5ac",
+        "foreground_pixels": 8688,
+        "method": "svg-role-aware-hustlek-rasterization",
+        "opaque_colors": 19,
+        "transparent_holes": 0
+      },
+      "profile": "avatar-human-v1",
+      "source": {
+        "path": "export/avatars/presets/plain.svg",
+        "reference_64_path": null,
+        "reference_64_sha256": null,
+        "svg_sha256": "aedc74e29ed1747cd845c854bf1ab6d6f2bad44f4b2f1f11c8cc41ebbd746c8d"
+      },
+      "source_comparison": {
+        "alpha_iou": 1.0,
+        "comparison_size": 32,
+        "master_components": [
+          544
+        ],
+        "master_holes": 0,
+        "source_components": [
+          544
+        ],
+        "source_holes": 0
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 104,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "68a53c71c7e2285af7240ea4552493604eebcae867caea514c8026b92950a23c",
+          "bbox": [
+            2,
+            1,
+            14,
+            16
+          ],
+          "components_8_neighbor": [
+            136
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "68a53c71c7e2285af7240ea4552493604eebcae867caea514c8026b92950a23c",
+          "foreground_pixels": 136,
+          "opaque_colors": 10,
+          "transparent_holes": 0
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 72,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "01f7e7d4c5369daf3d15733f19bd4c6c9515252421dcf37b91f7b7cd9446b37e",
+          "bbox": [
+            4,
+            2,
+            28,
+            32
+          ],
+          "components_8_neighbor": [
+            544
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "01f7e7d4c5369daf3d15733f19bd4c6c9515252421dcf37b91f7b7cd9446b37e",
+          "foreground_pixels": 544,
+          "opaque_colors": 15,
+          "transparent_holes": 0
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 72,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "af6b2669e916d49bf941579e44e4cb2bc1aaa7f0fdc6f686f97021f9e44af200",
+          "bbox": [
+            6,
+            3,
+            42,
+            48
+          ],
+          "components_8_neighbor": [
+            1224
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "af6b2669e916d49bf941579e44e4cb2bc1aaa7f0fdc6f686f97021f9e44af200",
+          "foreground_pixels": 1224,
+          "opaque_colors": 15,
+          "transparent_holes": 0
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 8,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "dca728242b9f43b860b15a2a7c2bc412a05ac3c5f71b377a1f7e0a151a800d5e",
+          "bbox": [
+            8,
+            4,
+            56,
+            64
+          ],
+          "components_8_neighbor": [
+            2173
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "dca728242b9f43b860b15a2a7c2bc412a05ac3c5f71b377a1f7e0a151a800d5e",
+          "foreground_pixels": 2173,
+          "opaque_colors": 19,
+          "transparent_holes": 0
+        }
+      }
+    },
+    {
+      "asset_id": "avatars/food/chef",
+      "category": "food",
+      "errors": [],
+      "kind": "avatar",
+      "label_ko": "요리사",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          29,
+          1,
+          99,
+          127
+        ],
+        "components_8_neighbor": [
+          7085
+        ],
+        "decoded_rgba_sha256": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+        "foreground_pixels": 7085,
+        "method": "approved-raster-control-anchor",
+        "opaque_colors": 24,
+        "transparent_holes": 0
+      },
+      "profile": "avatar-human-v1",
+      "source": {
+        "path": "export/avatars/food/chef.svg",
+        "reference_64_path": null,
+        "reference_64_sha256": null,
+        "svg_sha256": "023cc3723d64a9f27483021d98fe43a71168f13753cfb206b75b0a20adc74416"
+      },
+      "source_comparison": {
+        "alpha_iou": 0.755,
+        "comparison_size": 32,
+        "master_components": [
+          455
+        ],
+        "master_holes": 0,
+        "source_components": [
+          598
+        ],
+        "source_holes": 0
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 232,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "a094a70d73c1e661ca512c489ff6395b636269a46145fd0317b1ce89502be216",
+          "bbox": [
+            4,
+            0,
+            12,
+            16
+          ],
+          "components_8_neighbor": [
+            112
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 2,
+            "changed_ratio": 0.017857142857142856,
+            "changed_targets": [
+              [
+                7,
+                13
+              ],
+              [
+                9,
+                13
+              ]
+            ],
+            "no_effect_targets": [],
+            "rgba_recolored": 2,
+            "unplanned_targets": []
+          },
+          "corrections": [
+            {
+              "op": "copy-recolor",
+              "reason": "restore-left-primary-garment-cue",
+              "region": "garment",
+              "source": [
+                6,
+                7
+              ],
+              "target": [
+                7,
+                13
+              ]
+            },
+            {
+              "op": "copy-recolor",
+              "reason": "restore-right-primary-garment-cue",
+              "region": "garment",
+              "source": [
+                6,
+                7
+              ],
+              "target": [
+                9,
+                13
+              ]
+            }
+          ],
+          "final_decoded_rgba_sha256": "82a7198fc731c926eac7916837b8da9ccd4da854b5bab6b2f9a956dce3d4b783",
+          "foreground_pixels": 112,
+          "opaque_colors": 22,
+          "transparent_holes": 0
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 200,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "1bf8ab3632c19eed3c788fe069edf55de4094ff5cb2dced0b5c9697a8b09a547",
+          "bbox": [
+            7,
+            0,
+            25,
+            32
+          ],
+          "components_8_neighbor": [
+            455
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "1bf8ab3632c19eed3c788fe069edf55de4094ff5cb2dced0b5c9697a8b09a547",
+          "foreground_pixels": 455,
+          "opaque_colors": 23,
+          "transparent_holes": 0
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 200,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "bb1d531c958614356b3a6a09df6ed6299a8ff742312aec3d7f51b82866d0bc5d",
+          "bbox": [
+            11,
+            0,
+            37,
+            48
+          ],
+          "components_8_neighbor": [
+            1022
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "bb1d531c958614356b3a6a09df6ed6299a8ff742312aec3d7f51b82866d0bc5d",
+          "foreground_pixels": 1022,
+          "opaque_colors": 23,
+          "transparent_holes": 0
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 136,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "1026f2a73ec8239749222df8b10e72bd7bbf5980a856894363cb476635f98628",
+          "bbox": [
+            14,
+            0,
+            49,
+            63
+          ],
+          "components_8_neighbor": [
+            1770
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "1026f2a73ec8239749222df8b10e72bd7bbf5980a856894363cb476635f98628",
+          "foreground_pixels": 1770,
+          "opaque_colors": 23,
+          "transparent_holes": 0
+        }
+      }
+    },
+    {
+      "asset_id": "avatars/fantasy/wizard",
+      "category": "fantasy",
+      "errors": [],
+      "kind": "avatar",
+      "label_ko": "마법사",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          16,
+          0,
+          112,
+          128
+        ],
+        "components_8_neighbor": [
+          9449
+        ],
+        "decoded_rgba_sha256": "728ee1441c1f0dbfd033d9f7bad2931abf67d0046b0738e8c72c37d0156b2461",
+        "foreground_pixels": 9449,
+        "method": "svg-role-aware-hustlek-rasterization",
+        "opaque_colors": 25,
+        "transparent_holes": 0
+      },
+      "profile": "avatar-fantasy-v1",
+      "source": {
+        "path": "export/avatars/fantasy/wizard.svg",
+        "reference_64_path": null,
+        "reference_64_sha256": null,
+        "svg_sha256": "9dbcf703750d92de6081884e1807d4b22cde98efa1d8c416a45dd6bd25231430"
+      },
+      "source_comparison": {
+        "alpha_iou": 1.0,
+        "comparison_size": 32,
+        "master_components": [
+          592
+        ],
+        "master_holes": 1,
+        "source_components": [
+          592
+        ],
+        "source_holes": 1
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 360,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "685c3a3d46557e5f665cc8dcae626a788d225933cdf904a493772e93feb24830",
+          "bbox": [
+            2,
+            1,
+            14,
+            16
+          ],
+          "components_8_neighbor": [
+            147
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "685c3a3d46557e5f665cc8dcae626a788d225933cdf904a493772e93feb24830",
+          "foreground_pixels": 147,
+          "opaque_colors": 12,
+          "transparent_holes": 1
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 328,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "ed82b52d74a7e00111efae14e8e0ffdbddc7a48eea8870c13c056e58f5fcecc8",
+          "bbox": [
+            4,
+            0,
+            28,
+            32
+          ],
+          "components_8_neighbor": [
+            592
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "ed82b52d74a7e00111efae14e8e0ffdbddc7a48eea8870c13c056e58f5fcecc8",
+          "foreground_pixels": 592,
+          "opaque_colors": 19,
+          "transparent_holes": 1
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 328,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "873306c60898ce9ab904e8ae1e19d73e0c987ab5ea42a7a5f202355ed8b8f5ed",
+          "bbox": [
+            6,
+            0,
+            42,
+            48
+          ],
+          "components_8_neighbor": [
+            1332
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "873306c60898ce9ab904e8ae1e19d73e0c987ab5ea42a7a5f202355ed8b8f5ed",
+          "foreground_pixels": 1332,
+          "opaque_colors": 21,
+          "transparent_holes": 1
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 264,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "42018363e3df7f9332c2229185c5c0762d75974a5cb4d8bba1b68e09ef559c95",
+          "bbox": [
+            8,
+            0,
+            56,
+            64
+          ],
+          "components_8_neighbor": [
+            2365
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "42018363e3df7f9332c2229185c5c0762d75974a5cb4d8bba1b68e09ef559c95",
+          "foreground_pixels": 2365,
+          "opaque_colors": 24,
+          "transparent_holes": 1
+        }
+      }
+    },
+    {
+      "asset_id": "avatars/animals/cat",
+      "category": "animals",
+      "errors": [],
+      "kind": "avatar",
+      "label_ko": "고양이",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          16,
+          8,
+          112,
+          128
+        ],
+        "components_8_neighbor": [
+          7850
+        ],
+        "decoded_rgba_sha256": "008e3fdfc12c83db3a2d7cb20d78598da4908f5d0d107bcb6ccf3a743e83b3cf",
+        "foreground_pixels": 7850,
+        "method": "svg-role-aware-hustlek-rasterization",
+        "opaque_colors": 12,
+        "transparent_holes": 0
+      },
+      "profile": "avatar-animal-v1",
+      "source": {
+        "path": "export/avatars/animals/cat.svg",
+        "reference_64_path": null,
+        "reference_64_sha256": null,
+        "svg_sha256": "bad4874d6ac6f63f89d37b5e8761728b65a15a82c70675878791bcbdc4daa6cd"
+      },
+      "source_comparison": {
+        "alpha_iou": 1.0,
+        "comparison_size": 32,
+        "master_components": [
+          492
+        ],
+        "master_holes": 0,
+        "source_components": [
+          492
+        ],
+        "source_holes": 0
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 488,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "d9a90ea612b06142f6bcbed25970a58d89d456b2578838f52bac8c24581768d8",
+          "bbox": [
+            2,
+            2,
+            14,
+            16
+          ],
+          "components_8_neighbor": [
+            124
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "d9a90ea612b06142f6bcbed25970a58d89d456b2578838f52bac8c24581768d8",
+          "foreground_pixels": 124,
+          "opaque_colors": 5,
+          "transparent_holes": 0
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 456,
+            "y": 72
+          },
+          "baseline_decoded_rgba_sha256": "f41c67fb0ad71897f1b2a41847d2be9f6fe3f9bd7c53283655e3e27638ab74b6",
+          "bbox": [
+            4,
+            2,
+            28,
+            32
+          ],
+          "components_8_neighbor": [
+            492
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "f41c67fb0ad71897f1b2a41847d2be9f6fe3f9bd7c53283655e3e27638ab74b6",
+          "foreground_pixels": 492,
+          "opaque_colors": 9,
+          "transparent_holes": 0
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 456,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "830837d09eb0821b576f96cd364d035055733626f31a013d7988313e0149dafe",
+          "bbox": [
+            6,
+            3,
+            42,
+            48
+          ],
+          "components_8_neighbor": [
+            1110
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "830837d09eb0821b576f96cd364d035055733626f31a013d7988313e0149dafe",
+          "foreground_pixels": 1110,
+          "opaque_colors": 10,
+          "transparent_holes": 0
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 392,
+            "y": 24
+          },
+          "baseline_decoded_rgba_sha256": "c5b649e7e9aa90003536dcf0423569228bb9800eeabb43fe906b9e521bb5c502",
+          "bbox": [
+            8,
+            4,
+            56,
+            64
+          ],
+          "components_8_neighbor": [
+            1965
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "c5b649e7e9aa90003536dcf0423569228bb9800eeabb43fe906b9e521bb5c502",
+          "foreground_pixels": 1965,
+          "opaque_colors": 11,
+          "transparent_holes": 0
+        }
+      }
+    },
+    {
+      "asset_id": "icons/camera",
+      "category": "devices",
+      "errors": [],
+      "kind": "icon",
+      "label_ko": "카메라",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          8,
+          16,
+          120,
+          104
+        ],
+        "components_8_neighbor": [
+          6942,
+          640
+        ],
+        "decoded_rgba_sha256": "bad3599c278f2a39b0baf2249ccee8e91ce614676c0a833fc0537deef7c5a285",
+        "foreground_pixels": 7582,
+        "method": "svg-topology-aware-hustlek-rasterization",
+        "opaque_colors": 4,
+        "transparent_holes": 2
+      },
+      "profile": "icon-object-v1",
+      "source": {
+        "path": "export/icons/camera.svg",
+        "reference_64_path": "export/icons-64/camera.svg",
+        "reference_64_sha256": "b7912e55205dae29fed9a7056c5685004909e7aee7e410d2ecdc6a19375e5c29",
+        "svg_sha256": "4003000f6791c3ad7e1fda1efebcad82bcdc138fe2714ed2282f307819c67215"
+      },
+      "source_comparison": {
+        "alpha_iou": 1.0,
+        "comparison_size": 16,
+        "master_components": [
+          105,
+          12
+        ],
+        "master_holes": 2,
+        "source_components": [
+          105,
+          12
+        ],
+        "source_holes": 2
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 104,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "ee46b863338c10ebb34f004e4f46f43c2e0528e7792cad24701c281587115def",
+          "bbox": [
+            1,
+            2,
+            15,
+            13
+          ],
+          "components_8_neighbor": [
+            105,
+            12
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "ee46b863338c10ebb34f004e4f46f43c2e0528e7792cad24701c281587115def",
+          "foreground_pixels": 117,
+          "opaque_colors": 3,
+          "transparent_holes": 2
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 72,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "464b9f77646b11ebd6197b1443a13e465dbc69a4615f267fd3e11a3b2f87943c",
+          "bbox": [
+            2,
+            4,
+            30,
+            26
+          ],
+          "components_8_neighbor": [
+            432,
+            39
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "464b9f77646b11ebd6197b1443a13e465dbc69a4615f267fd3e11a3b2f87943c",
+          "foreground_pixels": 471,
+          "opaque_colors": 3,
+          "transparent_holes": 2
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 72,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "2d8ba72868a6575d1ca865eef04dff38ef50f99c9b756530120b6673d9b55d22",
+          "bbox": [
+            3,
+            6,
+            45,
+            39
+          ],
+          "components_8_neighbor": [
+            977,
+            80
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "2d8ba72868a6575d1ca865eef04dff38ef50f99c9b756530120b6673d9b55d22",
+          "foreground_pixels": 1057,
+          "opaque_colors": 3,
+          "transparent_holes": 2
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 8,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "eca6d2c8d41e9fc3437f9778eaa0ae246f432433f0325eec05a6efad648cae06",
+          "bbox": [
+            4,
+            8,
+            60,
+            52
+          ],
+          "components_8_neighbor": [
+            1736,
+            160
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "eca6d2c8d41e9fc3437f9778eaa0ae246f432433f0325eec05a6efad648cae06",
+          "foreground_pixels": 1896,
+          "opaque_colors": 4,
+          "transparent_holes": 2
+        }
+      }
+    },
+    {
+      "asset_id": "icons/calendar",
+      "category": "data",
+      "errors": [],
+      "kind": "icon",
+      "label_ko": "달력",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          8,
+          8,
+          120,
+          120
+        ],
+        "components_8_neighbor": [
+          7900,
+          244
+        ],
+        "decoded_rgba_sha256": "12a4c2e1ce44f290e0c7f3bd38472d094fa9a1cb5dc6f6280f900c3fa941538c",
+        "foreground_pixels": 8144,
+        "method": "svg-topology-aware-hustlek-rasterization",
+        "opaque_colors": 3,
+        "transparent_holes": 1
+      },
+      "profile": "icon-rectilinear-v1",
+      "source": {
+        "path": "export/icons/calendar.svg",
+        "reference_64_path": null,
+        "reference_64_sha256": null,
+        "svg_sha256": "69e095cd3a2a1820a0346e51491117f5f9b6fab14b62425213d3d876dc2990de"
+      },
+      "source_comparison": {
+        "alpha_iou": 1.0,
+        "comparison_size": 16,
+        "master_components": [
+          124,
+          4
+        ],
+        "master_holes": 1,
+        "source_components": [
+          124,
+          4
+        ],
+        "source_holes": 1
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 232,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "b9a4cfb2da7aefeed24f938d9b7d6dfb9342eb49bac9e1f5bda6c21f7a41f2df",
+          "bbox": [
+            1,
+            1,
+            15,
+            15
+          ],
+          "components_8_neighbor": [
+            124,
+            4
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "b9a4cfb2da7aefeed24f938d9b7d6dfb9342eb49bac9e1f5bda6c21f7a41f2df",
+          "foreground_pixels": 128,
+          "opaque_colors": 2,
+          "transparent_holes": 1
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 200,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "487252c95d609c2d23e8cc50f554730eca7755617eccde2d09ae99364bc1e8a5",
+          "bbox": [
+            2,
+            2,
+            30,
+            30
+          ],
+          "components_8_neighbor": [
+            496,
+            16
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "487252c95d609c2d23e8cc50f554730eca7755617eccde2d09ae99364bc1e8a5",
+          "foreground_pixels": 512,
+          "opaque_colors": 3,
+          "transparent_holes": 1
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 200,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "997c14c369cc8228cd95f040125160988d69ad91413471b997d7fb391477a43a",
+          "bbox": [
+            3,
+            3,
+            45,
+            45
+          ],
+          "components_8_neighbor": [
+            1116,
+            36
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "997c14c369cc8228cd95f040125160988d69ad91413471b997d7fb391477a43a",
+          "foreground_pixels": 1152,
+          "opaque_colors": 3,
+          "transparent_holes": 1
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 136,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "dbba649b2a2097142a5546db06b7f9df324351caee5ca5d58fc8fb3c7009fd7e",
+          "bbox": [
+            4,
+            4,
+            60,
+            60
+          ],
+          "components_8_neighbor": [
+            1976,
+            61
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "dbba649b2a2097142a5546db06b7f9df324351caee5ca5d58fc8fb3c7009fd7e",
+          "foreground_pixels": 2037,
+          "opaque_colors": 3,
+          "transparent_holes": 1
+        }
+      }
+    },
+    {
+      "asset_id": "icons/error",
+      "category": "status",
+      "errors": [],
+      "kind": "icon",
+      "label_ko": "오류",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          12,
+          12,
+          116,
+          116
+        ],
+        "components_8_neighbor": [
+          5872
+        ],
+        "decoded_rgba_sha256": "24a18331569896da856a927b9260d759387e2d3fd7f0b12518894bcaa11c4708",
+        "foreground_pixels": 5872,
+        "method": "svg-topology-aware-hustlek-rasterization",
+        "opaque_colors": 2,
+        "transparent_holes": 0
+      },
+      "profile": "icon-ui-v1",
+      "source": {
+        "path": "export/icons/error.svg",
+        "reference_64_path": "export/icons-64/error.svg",
+        "reference_64_sha256": "a8cee225a3c1edcabbb7a7245f77c2ec49121d39ab43e51b0ed4e17a1d3d433d",
+        "svg_sha256": "cd448a8a5d588b1e57f5dc17f25bdb7c30326f61fbff91b8c367f75c0be68b74"
+      },
+      "source_comparison": {
+        "alpha_iou": 0.91,
+        "comparison_size": 16,
+        "master_components": [
+          73,
+          18
+        ],
+        "master_holes": 0,
+        "source_components": [
+          100
+        ],
+        "source_holes": 1
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 360,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "72f08b33b93304980818ba5de5f1c86179fe303970c46073a7db8a528115a981",
+          "bbox": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "components_8_neighbor": [
+            73,
+            18
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "72f08b33b93304980818ba5de5f1c86179fe303970c46073a7db8a528115a981",
+          "foreground_pixels": 91,
+          "opaque_colors": 2,
+          "transparent_holes": 0
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 328,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "be8ed5f2bd4a25a9e2467dc40c47e00694bc00713f1420420f7035a2ceddf251",
+          "bbox": [
+            3,
+            3,
+            29,
+            29
+          ],
+          "components_8_neighbor": [
+            374
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "be8ed5f2bd4a25a9e2467dc40c47e00694bc00713f1420420f7035a2ceddf251",
+          "foreground_pixels": 374,
+          "opaque_colors": 2,
+          "transparent_holes": 0
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 328,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "11f205d3c62d08a10171aca49417939f3aaf9652cf71bd2f82edcbcb276bb9f9",
+          "bbox": [
+            5,
+            5,
+            43,
+            43
+          ],
+          "components_8_neighbor": [
+            845
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "11f205d3c62d08a10171aca49417939f3aaf9652cf71bd2f82edcbcb276bb9f9",
+          "foreground_pixels": 845,
+          "opaque_colors": 2,
+          "transparent_holes": 0
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 264,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "decb06a321b195326467268859d3d5c55a48ee64f36102119615cc93e528f03e",
+          "bbox": [
+            6,
+            6,
+            58,
+            58
+          ],
+          "components_8_neighbor": [
+            1472
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "decb06a321b195326467268859d3d5c55a48ee64f36102119615cc93e528f03e",
+          "foreground_pixels": 1472,
+          "opaque_colors": 2,
+          "transparent_holes": 0
+        }
+      }
+    },
+    {
+      "asset_id": "icons/tree",
+      "category": "weather",
+      "errors": [],
+      "kind": "icon",
+      "label_ko": "나무",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          25,
+          9,
+          104,
+          112
+        ],
+        "components_8_neighbor": [
+          3351
+        ],
+        "decoded_rgba_sha256": "9f1bc3cddb8f05b8aeacf51b152701652584d0182c2b96f00f9b1297a1078741",
+        "foreground_pixels": 3351,
+        "method": "svg-topology-aware-hustlek-rasterization",
+        "opaque_colors": 3,
+        "transparent_holes": 0
+      },
+      "profile": "icon-organic-v1",
+      "source": {
+        "path": "export/icons/tree.svg",
+        "reference_64_path": "export/icons-64/tree.svg",
+        "reference_64_sha256": "235607a89baced3cf4af5979b67b5186161c0693f47491363f5f2658d3bd1e8d",
+        "svg_sha256": "4c3e9dcc6e494e26b5d464c3ba9cfa92768d5d5f5b9d52e25db331e407c24a04"
+      },
+      "source_comparison": {
+        "alpha_iou": 0.9285714285714286,
+        "comparison_size": 16,
+        "master_components": [
+          53
+        ],
+        "master_holes": 0,
+        "source_components": [
+          55
+        ],
+        "source_holes": 0
+      },
+      "tiers": {
+        "16": {
+          "atlas_crop": {
+            "h": 16,
+            "w": 16,
+            "x": 488,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "32e8ee370763bcf840d508f5b5c4904f946c6dd6d08be7f0bb6d8e8290a42381",
+          "bbox": [
+            3,
+            2,
+            13,
+            14
+          ],
+          "components_8_neighbor": [
+            53
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "32e8ee370763bcf840d508f5b5c4904f946c6dd6d08be7f0bb6d8e8290a42381",
+          "foreground_pixels": 53,
+          "opaque_colors": 2,
+          "transparent_holes": 0
+        },
+        "32": {
+          "atlas_crop": {
+            "h": 32,
+            "w": 32,
+            "x": 456,
+            "y": 200
+          },
+          "baseline_decoded_rgba_sha256": "6e94a7390e476ea27352d4df600cb3205910b4073466cc3df518721d2751df3b",
+          "bbox": [
+            6,
+            3,
+            26,
+            28
+          ],
+          "components_8_neighbor": [
+            212
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "6e94a7390e476ea27352d4df600cb3205910b4073466cc3df518721d2751df3b",
+          "foreground_pixels": 212,
+          "opaque_colors": 3,
+          "transparent_holes": 0
+        },
+        "48": {
+          "atlas_crop": {
+            "h": 48,
+            "w": 48,
+            "x": 456,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "1486f27b280dca29229f7f77dce9d05454ec3601d34d81318ec763bac96d4411",
+          "bbox": [
+            9,
+            3,
+            39,
+            42
+          ],
+          "components_8_neighbor": [
+            473
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "1486f27b280dca29229f7f77dce9d05454ec3601d34d81318ec763bac96d4411",
+          "foreground_pixels": 473,
+          "opaque_colors": 3,
+          "transparent_holes": 0
+        },
+        "64": {
+          "atlas_crop": {
+            "h": 64,
+            "w": 64,
+            "x": 392,
+            "y": 152
+          },
+          "baseline_decoded_rgba_sha256": "022a9ad880a669292dd67ca2320b167ccd2770b2c4fe96661305554b666ed04c",
+          "bbox": [
+            12,
+            4,
+            52,
+            56
+          ],
+          "components_8_neighbor": [
+            847
+          ],
+          "correction_metrics": {
+            "alpha_added": 0,
+            "alpha_iou": 1.0,
+            "alpha_removed": 0,
+            "changed_pixels": 0,
+            "changed_ratio": 0.0,
+            "changed_targets": [],
+            "no_effect_targets": [],
+            "rgba_recolored": 0,
+            "unplanned_targets": []
+          },
+          "corrections": [],
+          "final_decoded_rgba_sha256": "022a9ad880a669292dd67ca2320b167ccd2770b2c4fe96661305554b666ed04c",
+          "foreground_pixels": 847,
+          "opaque_colors": 3,
+          "transparent_holes": 0
+        }
+      }
+    }
+  ],
+  "batch_id": "pilot-000",
+  "contract": {
+    "asset_ids": [
+      "avatars/presets/plain",
+      "avatars/food/chef",
+      "avatars/fantasy/wizard",
+      "avatars/animals/cat",
+      "icons/camera",
+      "icons/calendar",
+      "icons/error",
+      "icons/tree"
+    ],
+    "batch_id": "pilot-000",
+    "builder_sha256_lf": "fb92f24e4ac25b2820359161423af620fe46ebbe93a46b9e8e6cee9c33cf6387",
+    "compiler": "hustlek-library-compiler/v1",
+    "corrections": {
+      "avatars/food/chef@16": [
+        {
+          "op": "copy-recolor",
+          "reason": "restore-left-primary-garment-cue",
+          "region": "garment",
+          "source": [
+            6,
+            7
+          ],
+          "target": [
+            7,
+            13
+          ]
+        },
+        {
+          "op": "copy-recolor",
+          "reason": "restore-right-primary-garment-cue",
+          "region": "garment",
+          "source": [
+            6,
+            7
+          ],
+          "target": [
+            9,
+            13
+          ]
+        }
+      ]
+    },
+    "imagegen_used_for_derived_tiers": false,
+    "imagegen_used_for_master": {
+      "avatars/food/chef": true,
+      "other_assets": false
+    },
+    "master_layout": {
+      "cell": 128,
+      "columns": 4
+    },
+    "master_size": 128,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e",
+    "source_manifest_sha256": "64c6f746644a3c4b8e5636011fd46d55d63cc1b6d32932eb4c8fd5368df3cb8c",
+    "style_anchors": {
+      "chef_decoded_rgba_sha256": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+      "telescope_decoded_rgba_sha256": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6"
+    },
+    "tier_packing": {
+      "16": [
+        104,
+        72
+      ],
+      "32": [
+        72,
+        72
+      ],
+      "48": [
+        72,
+        24
+      ],
+      "64": [
+        8,
+        24
+      ]
+    },
+    "tier_sizes": [
+      16,
+      32,
+      48,
+      64
+    ]
+  },
+  "contract_sha256": "ff6f76d6631462c50a417d974dc34d24b99b4edee308c4e463ad232820830781",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-asset-batch/v1",
+  "source_archive": {
+    "filename": "PIXEL-CLAY Design System.zip",
+    "sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "state": "ready_for_review",
+  "style": {
+    "chef_anchor_path": "design/hustlek-assets-pilot/avatar-chef-nearest-v1/128.png",
+    "palette": {
+      "blue": [
+        50,
+        126,
+        179
+      ],
+      "brass": [
+        248,
+        229,
+        193
+      ],
+      "brown": [
+        159,
+        104,
+        37
+      ],
+      "ink": [
+        28,
+        21,
+        19
+      ],
+      "ivory": [
+        248,
+        241,
+        233
+      ],
+      "skin": [
+        252,
+        217,
+        191
+      ]
+    },
+    "telescope_anchor_path": "design/hustlek-assets-pilot/telescope/128.png"
+  },
+  "validation": {
+    "encoded_atlas_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
