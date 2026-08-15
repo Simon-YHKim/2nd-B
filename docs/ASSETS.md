@@ -72,20 +72,31 @@ carries no third-party license obligation.
 | `public/landing/` | 7 PNG | 2026-06-15 | Landing background concepts |
 | `public/proto/` | 7 PNG | 2026-07-04 | Deep-space prototype screens |
 | `public/icons/` | 2 PNG | 2026-06-11 | PWA icons (192 / 512), derived from the app icon |
-| `assets/deepspace/` | 2 PNG | 2026-06-19 | SecondB character head (`secondb-head-front`, `secondb-head-blank`) — the canonical character asset |
+| `assets/deepspace/` | 13 PNG | 2026-06-19 | SecondB canonical head pair plus 11 Nebori style-comparison working images added during the competition window |
 | `assets/images/` | 7 PNG | 2026-05-25 | App icon, adaptive-icon layers, splash, favicon, logo glow. Seeded from the Expo template at initialisation (MIT) and replaced in-window with generated art |
 
-Total: **226 bundled image files**. `scripts/check-constraints.ts` (C12)
+Total: **237 bundled image files**. `scripts/check-constraints.ts` (C12)
 fails if any of these paths stops being mentioned in this file, so a new
 art pack cannot ship undisclosed.
 
-**In the repository but not in the build.** A further 317 images live
-under `docs/` (231: clone-audit captures, flow thumbnails, QA evidence)
-and `design/` (86: prototype renders, reference boards, app screenshots).
-These are working material — neither path is packaged into the app or the
-web export, and `src/` contains no image files at all, so the shipped set
-is exactly the 226 listed above. They were captured or generated in-window
-by the same person and tooling.
+**In the repository but not in the build.** Working images also live under
+`docs/` (clone-audit captures, flow thumbnails, QA evidence) and `design/`
+(prototype renders, reference boards, app screenshots, and reproducible art
+packs). These paths are not packaged into the app or web export, and `src/`
+contains no image files, so the shipped set remains exactly the 237 files
+listed above. The working-material count is intentionally not hard-coded so
+that adding review evidence does not make this registry stale.
+
+- `design/hustlek-opening-v1/` — added 2026-08-14. Contains the lossless
+  canonical atlas and a review GIF for the 165-frame “HustleK and opening”
+  sequence. The character, field, telescope, and Polaris art were generated
+  during the competition window from project-specific direction, normalized
+  and composed locally with Pillow, and approved through iterative visual QA.
+  No third-party game sprite or asset pack is included. The user-provided
+  portrait reference is not stored in the repository. Pixy was not used.
+  Reproduction instructions and AI handoff rules are in
+  [`HUSTLEK-OPENING.md`](./HUSTLEK-OPENING.md); the deterministic builder is
+  [`scripts/build-hustlek-opening.py`](../scripts/build-hustlek-opening.py).
 
 ## Remote images (AI Museum, /museum)
 
