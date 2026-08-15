@@ -7,6 +7,181 @@
       "state": "ready_for_review",
       "version": "c3f5253a8297"
     },
+    "avatars/art/actor": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/animator": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/artist": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/dancer": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/dj": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/filmmaker": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/illustrator": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/musician": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/photographer": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/sculptor": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/singer": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/art/tattooist": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/archaeologist": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/astronomer": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/coach": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/historian": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/kinderTeacher": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/librarian": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/principal": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/professor": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/researcher": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/scientist": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/teacher": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/translator": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/education/tutor": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
     "avatars/fantasy/wizard": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
@@ -105,6 +280,13 @@
       "state": "ready_for_review",
       "version": "071dfbd7c140"
     },
+    "avatars/it/aiEngineer": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
     "avatars/it/dataScientist": {
       "batch_id": "native128-001",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
@@ -126,12 +308,26 @@
       "state": "ready_for_review",
       "version": "071dfbd7c140"
     },
+    "avatars/it/devops": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
     "avatars/it/gamer": {
       "batch_id": "native128-001",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
       "state": "ready_for_review",
       "version": "071dfbd7c140"
+    },
+    "avatars/it/pm": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
     },
     "avatars/it/qaEngineer": {
       "batch_id": "native128-001",
@@ -140,12 +336,40 @@
       "state": "ready_for_review",
       "version": "071dfbd7c140"
     },
+    "avatars/it/securityAnalyst": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/it/streamer": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
     "avatars/it/sysadmin": {
       "batch_id": "native128-001",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
       "state": "ready_for_review",
       "version": "071dfbd7c140"
+    },
+    "avatars/it/techSupport": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    "avatars/it/uxResearcher": {
+      "batch_id": "native128-002",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
     },
     "avatars/medical/caregiver": {
       "batch_id": "native128-001",
@@ -350,6 +574,53 @@
     },
     {
       "asset_ids": [
+        "avatars/it/aiEngineer",
+        "avatars/it/devops",
+        "avatars/it/pm",
+        "avatars/it/securityAnalyst",
+        "avatars/it/streamer",
+        "avatars/it/techSupport",
+        "avatars/it/uxResearcher",
+        "avatars/education/archaeologist",
+        "avatars/education/astronomer",
+        "avatars/education/coach",
+        "avatars/education/historian",
+        "avatars/education/kinderTeacher",
+        "avatars/education/librarian",
+        "avatars/education/principal",
+        "avatars/education/professor",
+        "avatars/education/researcher",
+        "avatars/education/scientist",
+        "avatars/education/teacher",
+        "avatars/education/translator",
+        "avatars/education/tutor",
+        "avatars/art/actor",
+        "avatars/art/animator",
+        "avatars/art/artist",
+        "avatars/art/dancer",
+        "avatars/art/dj",
+        "avatars/art/filmmaker",
+        "avatars/art/illustrator",
+        "avatars/art/musician",
+        "avatars/art/photographer",
+        "avatars/art/sculptor",
+        "avatars/art/singer",
+        "avatars/art/tattooist"
+      ],
+      "batch_id": "native128-002",
+      "contract_sha256": "5ff10404028c5739b48361b394dea46b761070838f70f03893660be86b535ebd",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
+      "manifest_sha256": "017e7d7889006e148a279a81db093d32d728f4fada1c70901bc5c83d69bb6f26",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/master-atlas.png",
+      "master_atlas_sha256": "d3ac0593c2cdc82faf52400bb78761921b3ea9a1e76cf91c7dc9d160f0da8ee0",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "5ff10404028c"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -377,10 +648,35 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 39,
-    "native128_remaining": 764,
+    "native128_ready_or_approved": 71,
+    "native128_remaining": 732,
     "ready_asset_ids": [
       "avatars/animals/cat",
+      "avatars/art/actor",
+      "avatars/art/animator",
+      "avatars/art/artist",
+      "avatars/art/dancer",
+      "avatars/art/dj",
+      "avatars/art/filmmaker",
+      "avatars/art/illustrator",
+      "avatars/art/musician",
+      "avatars/art/photographer",
+      "avatars/art/sculptor",
+      "avatars/art/singer",
+      "avatars/art/tattooist",
+      "avatars/education/archaeologist",
+      "avatars/education/astronomer",
+      "avatars/education/coach",
+      "avatars/education/historian",
+      "avatars/education/kinderTeacher",
+      "avatars/education/librarian",
+      "avatars/education/principal",
+      "avatars/education/professor",
+      "avatars/education/researcher",
+      "avatars/education/scientist",
+      "avatars/education/teacher",
+      "avatars/education/translator",
+      "avatars/education/tutor",
       "avatars/fantasy/wizard",
       "avatars/food/baker",
       "avatars/food/barista",
@@ -395,12 +691,19 @@
       "avatars/food/sommelier",
       "avatars/food/sushiChef",
       "avatars/food/waiter",
+      "avatars/it/aiEngineer",
       "avatars/it/dataScientist",
       "avatars/it/designer",
       "avatars/it/dev",
+      "avatars/it/devops",
       "avatars/it/gamer",
+      "avatars/it/pm",
       "avatars/it/qaEngineer",
+      "avatars/it/securityAnalyst",
+      "avatars/it/streamer",
       "avatars/it/sysadmin",
+      "avatars/it/techSupport",
+      "avatars/it/uxResearcher",
       "avatars/medical/caregiver",
       "avatars/medical/dentist",
       "avatars/medical/doctor",
