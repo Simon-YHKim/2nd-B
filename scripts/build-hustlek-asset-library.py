@@ -448,30 +448,46 @@ def build_catalog(existing: dict[str, Any] | None, batch_entry: dict[str, Any]) 
         if entry.get("batch_id") == "pilot-000":
             entry["state"] = "rejected"
             entry["rejection_reason"] = "non-chef masters were derived by low-resolution upscale"
-            entry["replaced_by"] = batch_entry["batch_id"]
+            entry["replaced_by"] = "native128-000"
         if entry.get("batch_id") != batch_entry["batch_id"]:
             batches.append(entry)
     batches.append(batch_entry)
     batches.sort(key=lambda entry: entry["batch_id"])
-    ready_ids = sorted(
-        {
-            asset_id
-            for entry in batches
-            if entry.get("stage") == "native128-master"
-            and entry.get("state") in {"ready_for_review", "approved"}
-            for asset_id in entry["asset_ids"]
-        }
-    )
+    ready_batches = [
+        entry
+        for entry in batches
+        if entry.get("stage") == "native128-master"
+        and entry.get("state") in {"ready_for_review", "approved"}
+    ]
+    seen: set[str] = set()
+    for entry in reversed(ready_batches):
+        superseded = sorted(asset_id for asset_id in entry["asset_ids"] if asset_id in seen)
+        if superseded:
+            entry["superseded_asset_ids"] = superseded
+        else:
+            entry.pop("superseded_asset_ids", None)
+        seen.update(entry["asset_ids"])
+    active_asset_index: dict[str, dict[str, Any]] = {}
+    for entry in ready_batches:
+        superseded = set(entry.get("superseded_asset_ids", []))
+        for asset_id in entry["asset_ids"]:
+            if asset_id in superseded:
+                continue
+            active_asset_index[asset_id] = {
+                "batch_id": entry["batch_id"],
+                "version": entry["version"],
+                "state": entry["state"],
+                "manifest_path": entry["manifest_path"],
+                "master_atlas_path": entry["master_atlas_path"],
+            }
+    ready_ids = sorted(active_asset_index)
     approved_ids = sorted(
-        {
-            asset_id
-            for entry in batches
-            if entry.get("stage") == "native128-master" and entry.get("state") == "approved"
-            for asset_id in entry["asset_ids"]
-        }
+        asset_id
+        for asset_id, active in active_asset_index.items()
+        if active["state"] == "approved"
     )
     return {
-        "schema": "hustlek-asset-catalog/v2",
+        "schema": "hustlek-asset-catalog/v3",
         "source_archive_sha256": SOURCE_ARCHIVE_SHA256,
         "inventory": CANONICAL_COUNTS,
         "policy": {
@@ -490,6 +506,7 @@ def build_catalog(existing: dict[str, Any] | None, batch_entry: dict[str, Any]) 
             "ready_asset_ids": ready_ids,
             "approved_asset_ids": approved_ids,
         },
+        "active_asset_index": active_asset_index,
         "batches": batches,
     }
 

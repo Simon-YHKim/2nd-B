@@ -1,4 +1,279 @@
 {
+  "active_asset_index": {
+    "avatars/animals/cat": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    "avatars/fantasy/wizard": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    "avatars/food/baker": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/barista": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/bartender": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/brewer": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/butcher": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/chef": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/dishwasher": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/foodTruck": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/nutritionist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/patissier": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/sommelier": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/sushiChef": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/food/waiter": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/it/dataScientist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/it/designer": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/it/dev": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/it/gamer": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/it/qaEngineer": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/it/sysadmin": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/caregiver": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/dentist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/doctor": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/midwife": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/nurse": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/optometrist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/paramedic": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/pharmacist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/psychiatrist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/radiologist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/surgeon": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/therapist": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/medical/vet": {
+      "batch_id": "native128-001",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
+    },
+    "avatars/presets/plain": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    "icons/calendar": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    "icons/camera": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    "icons/error": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    },
+    "icons/tree": {
+      "batch_id": "native128-000",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "c3f5253a8297"
+    }
+  },
   "batches": [
     {
       "asset_ids": [
@@ -21,7 +296,57 @@
       "master_atlas_sha256": "bdc428416185a77a1596ee7b26e79a99337c58edf11e3590c2d7997e84415f83",
       "stage": "native128-master",
       "state": "ready_for_review",
+      "superseded_asset_ids": [
+        "avatars/food/chef"
+      ],
       "version": "c3f5253a8297"
+    },
+    {
+      "asset_ids": [
+        "avatars/food/chef",
+        "avatars/food/barista",
+        "avatars/food/baker",
+        "avatars/food/sushiChef",
+        "avatars/food/bartender",
+        "avatars/food/waiter",
+        "avatars/food/butcher",
+        "avatars/food/sommelier",
+        "avatars/food/foodTruck",
+        "avatars/food/patissier",
+        "avatars/food/brewer",
+        "avatars/food/dishwasher",
+        "avatars/food/nutritionist",
+        "avatars/medical/doctor",
+        "avatars/medical/nurse",
+        "avatars/medical/dentist",
+        "avatars/medical/surgeon",
+        "avatars/medical/pharmacist",
+        "avatars/medical/vet",
+        "avatars/medical/paramedic",
+        "avatars/medical/therapist",
+        "avatars/medical/radiologist",
+        "avatars/medical/midwife",
+        "avatars/medical/optometrist",
+        "avatars/medical/psychiatrist",
+        "avatars/medical/caregiver",
+        "avatars/it/dev",
+        "avatars/it/gamer",
+        "avatars/it/designer",
+        "avatars/it/dataScientist",
+        "avatars/it/sysadmin",
+        "avatars/it/qaEngineer"
+      ],
+      "batch_id": "native128-001",
+      "contract_sha256": "071dfbd7c14086d739c2284bb59692eb665399697cb88e0728827c733c2e674c",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
+      "manifest_sha256": "b6d7eb2f6fdb54f8c9994c9cf5bd03675bce300110ae20a7710459167f3ba762",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/master-atlas.png",
+      "master_atlas_sha256": "dad347f71ed5510b03aa4a6ec730a1c31bc13eefdd6fc0332a630513a2ae2285",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "071dfbd7c140"
     },
     {
       "asset_ids": [
@@ -52,12 +377,43 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 8,
-    "native128_remaining": 795,
+    "native128_ready_or_approved": 39,
+    "native128_remaining": 764,
     "ready_asset_ids": [
       "avatars/animals/cat",
       "avatars/fantasy/wizard",
+      "avatars/food/baker",
+      "avatars/food/barista",
+      "avatars/food/bartender",
+      "avatars/food/brewer",
+      "avatars/food/butcher",
       "avatars/food/chef",
+      "avatars/food/dishwasher",
+      "avatars/food/foodTruck",
+      "avatars/food/nutritionist",
+      "avatars/food/patissier",
+      "avatars/food/sommelier",
+      "avatars/food/sushiChef",
+      "avatars/food/waiter",
+      "avatars/it/dataScientist",
+      "avatars/it/designer",
+      "avatars/it/dev",
+      "avatars/it/gamer",
+      "avatars/it/qaEngineer",
+      "avatars/it/sysadmin",
+      "avatars/medical/caregiver",
+      "avatars/medical/dentist",
+      "avatars/medical/doctor",
+      "avatars/medical/midwife",
+      "avatars/medical/nurse",
+      "avatars/medical/optometrist",
+      "avatars/medical/paramedic",
+      "avatars/medical/pharmacist",
+      "avatars/medical/psychiatrist",
+      "avatars/medical/radiologist",
+      "avatars/medical/surgeon",
+      "avatars/medical/therapist",
+      "avatars/medical/vet",
       "avatars/presets/plain",
       "icons/calendar",
       "icons/camera",
@@ -80,6 +436,6 @@
     "per_asset_imagegen_required": true,
     "pixy_used": false
   },
-  "schema": "hustlek-asset-catalog/v2",
+  "schema": "hustlek-asset-catalog/v3",
   "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
 }
