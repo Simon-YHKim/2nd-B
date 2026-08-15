@@ -341,6 +341,7 @@ export function ConstellationHome({
   onOpsPress,
   onBellPress,
   onMuseumPress,
+  onCommunityPress,
   starLevels = {},
   northStarBrightness = 0.2,
   hasUnread = false,
@@ -355,6 +356,10 @@ export function ConstellationHome({
    *  the ONLY forward entry point to /museum in the app — the swap and this chip
    *  have to ship together or the screen goes unreachable. */
   onMuseumPress: () => void;
+  /** 커뮤니티 corner chip. Same story without the star swap as an excuse: the
+   *  screen shipped with no forward link from anywhere, so it was reachable only
+   *  by pasting an invite URL. Adults only, so the chip hides for minors. */
+  onCommunityPress: () => void;
   onBellPress: () => void;
   starLevels?: Partial<Record<HomeStarId, LadderLevel>>;
   northStarBrightness?: number;
@@ -555,6 +560,32 @@ export function ConstellationHome({
           </Svg>
         </Pressable>
       </View>
+
+      {/* 커뮤니티, beside the museum. Hidden for minors and while the age is
+          still unknown: the screen itself is adults-only and fail-closed, so an
+          affordance that always bounces would be a worse answer than no
+          affordance. */}
+      {isMinor === false ? (
+        <View style={styles.communityChip}>
+          <Pressable
+            onPress={onCommunityPress}
+            accessibilityRole="button"
+            accessibilityLabel={t("ds.home.communityEntry")}
+            hitSlop={14}
+          >
+            <Svg width={20} height={20} viewBox="0 0 24 24">
+              <Path
+                d="M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11zm7.4-.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM3 19.4c0-2.8 2.7-4.6 6-4.6s6 1.8 6 4.6M16.2 14.9c2.6.3 4.8 1.9 4.8 4.5"
+                stroke={m3.accent.bellGlyph}
+                strokeWidth={1.8}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Campaign is distinct from the inbox bell: it owns product news and
           keeps the unread signal tied to a real persisted latest-notice ID. */}
@@ -905,6 +936,19 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 4,
     left: 64,
+    zIndex: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
+    ...m3.elevation.level2,
+  },
+  communityChip: {
+    position: "absolute",
+    top: 4,
+    left: 112,
     zIndex: 8,
     width: 40,
     height: 40,

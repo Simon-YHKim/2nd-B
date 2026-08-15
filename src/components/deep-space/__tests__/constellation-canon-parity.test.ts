@@ -97,6 +97,16 @@ describe("constellation home <-> canon parity", () => {
     expect(SRC).toContain("ds.home.museumEntry");
   });
 
+  // 커뮤니티 had the same defect with no star swap to explain it: the screen
+  // shipped with no forward link from anywhere in the app, reachable only by
+  // pasting an invite URL. Same guard so it cannot happen again.
+  it("keeps a forward entry point to the community", () => {
+    expect(SRC).toContain("onCommunityPress");
+    expect(SRC).toContain("ds.home.communityEntry");
+    // Adults only, fail-closed: an unknown age must not render the affordance.
+    expect(SRC).toContain('isMinor === false ? (');
+  });
+
   // The point of the whole file: the drawn set and the averaged set must differ
   // by EXACTLY the excluded home nodes, never by an accident.
   it("averages every drawn domain and nothing else", () => {

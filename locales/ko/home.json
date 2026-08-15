@@ -146,7 +146,8 @@
           "line": "이름과 목표, 그리고 남이 본 나. 소개할 거리가 쌓일수록 밝아져요."
         }
       },
-      "museumEntry": "AI 뮤지엄"
+      "museumEntry": "AI 뮤지엄",
+      "communityEntry": "커뮤니티"
     },
     "capture": {
       "title": "담기",

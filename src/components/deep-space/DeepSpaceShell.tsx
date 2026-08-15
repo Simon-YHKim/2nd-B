@@ -115,6 +115,7 @@ export function DeepSpaceShell() {
         onOpsPress={() => router.push("/ops")}
         onBellPress={() => router.push("/inbox")}
         onMuseumPress={() => router.push("/museum")}
+        onCommunityPress={() => router.push("/community")}
         starLevels={starLevels}
         northStarBrightness={northStarBrightness}
       />
