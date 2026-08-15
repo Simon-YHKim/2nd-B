@@ -1,0 +1,497 @@
+{
+  "adjacent_tiers": {
+    "16->32": {
+      "floor": 0.87,
+      "pass": true,
+      "tight_alpha_iou": 0.8817530319735392
+    },
+    "32->48": {
+      "floor": 0.94,
+      "pass": true,
+      "tight_alpha_iou": 0.9483484814896919
+    },
+    "48->64": {
+      "floor": 0.95,
+      "pass": true,
+      "tight_alpha_iou": 0.9577402463308503
+    },
+    "64->128": {
+      "floor": 0.97,
+      "pass": true,
+      "tight_alpha_iou": 0.9788129226145755
+    }
+  },
+  "artifacts": {
+    "atlas": "design/hustlek-assets-pilot/avatar-chef-nearest-v1/chef-nearest-v1-atlas.png",
+    "atlas_canvas": [
+      640,
+      128
+    ],
+    "atlas_layout": {
+      "128": {
+        "cell": [
+          512,
+          0,
+          128,
+          128
+        ],
+        "sprite_rect": [
+          512,
+          0,
+          640,
+          128
+        ]
+      },
+      "16": {
+        "cell": [
+          0,
+          0,
+          128,
+          128
+        ],
+        "sprite_rect": [
+          56,
+          56,
+          72,
+          72
+        ]
+      },
+      "32": {
+        "cell": [
+          128,
+          0,
+          128,
+          128
+        ],
+        "sprite_rect": [
+          176,
+          48,
+          208,
+          80
+        ]
+      },
+      "48": {
+        "cell": [
+          256,
+          0,
+          128,
+          128
+        ],
+        "sprite_rect": [
+          296,
+          40,
+          344,
+          88
+        ]
+      },
+      "64": {
+        "cell": [
+          384,
+          0,
+          128,
+          128
+        ],
+        "sprite_rect": [
+          416,
+          32,
+          480,
+          96
+        ]
+      }
+    },
+    "atlas_sha256": "e95c70ae913734a92ca5f65f2f551c8a842236733d641d5a63723f0c65ce90f4",
+    "comparison": "design/hustlek-assets-pilot/avatar-chef-nearest-v1/chef-nearest-v1-comparison.png",
+    "comparison_sha256": "f8e73d64e1ea754b1497a2a0f671be419ca0182833152c1111310cbb6d84b4e0"
+  },
+  "asset": {
+    "asset_id": "avatars/food/chef",
+    "source_archive": "PIXEL-CLAY Design System.zip",
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e",
+    "source_asset": "export/avatars/food/chef.svg",
+    "source_asset_sha256": "023cc3723d64a9f27483021d98fe43a71168f13753cfb206b75b0a20adc74416",
+    "style_reference": "design/hustlek-opening-v1/hustlek-opening-atlas.png",
+    "style_reference_sha256": "2780df89aa6f1d472ec82a03610a6d7e81a20dbf9e767103cd198233e44213be"
+  },
+  "determinism": {
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_in_memory_match": true
+  },
+  "errors": [],
+  "generation_contract": {
+    "corrections": "coordinate-whitelisted baseline pixel copies only",
+    "imagegen_used_for_derived_tiers": false,
+    "imagegen_used_for_master": true,
+    "master_first": true,
+    "master_size": 128,
+    "pixy_used": false,
+    "production_sizes": [
+      16,
+      32,
+      48,
+      64
+    ],
+    "reference_sizes": [
+      128
+    ],
+    "resampling": "Pillow Image.Resampling.NEAREST",
+    "sibling_tier_inputs": false
+  },
+  "locks": {
+    "baseline_decoded_rgba_sha256": {
+      "128": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+      "16": "a094a70d73c1e661ca512c489ff6395b636269a46145fd0317b1ce89502be216",
+      "32": "1bf8ab3632c19eed3c788fe069edf55de4094ff5cb2dced0b5c9697a8b09a547",
+      "48": "bb1d531c958614356b3a6a09df6ed6299a8ff742312aec3d7f51b82866d0bc5d",
+      "64": "1026f2a73ec8239749222df8b10e72bd7bbf5980a856894363cb476635f98628"
+    },
+    "correction_manifest_sha256": "8370ed143781253c78923c4e1beedf41fb8513eca23cab2e85014c134a9b0d3e",
+    "enabled": true,
+    "tier_decoded_rgba_sha256": {
+      "128": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+      "16": "82a7198fc731c926eac7916837b8da9ccd4da854b5bab6b2f9a956dce3d4b783",
+      "32": "1bf8ab3632c19eed3c788fe069edf55de4094ff5cb2dced0b5c9697a8b09a547",
+      "48": "bb1d531c958614356b3a6a09df6ed6299a8ff742312aec3d7f51b82866d0bc5d",
+      "64": "1026f2a73ec8239749222df8b10e72bd7bbf5980a856894363cb476635f98628"
+    }
+  },
+  "master": {
+    "bbox": [
+      29,
+      1,
+      99,
+      127
+    ],
+    "decoded_rgba_sha256": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+    "file_sha256": "8eff9d7d2f3cc308412ee1db60795b4003ccbf2e4bfbf2b0668c370bbce1f884",
+    "final_prompt": "Edit Image 1 into the final canonical 128-grid pixel-art chef avatar.\n\nImage 1: edit target. Preserve exactly the single front-facing chef identity, head-and-shoulders framing, toque silhouette, face proportions, neutral expression, chef coat shape, four buttons, centered placement, padding, and #00FF00 background.\nImage 2: style-only reference. Apply only its handcrafted HustleK sprite treatment: compact stepped contours, purposeful near-black ink clusters, warm peach skin ramps, ivory fabric ramps, tiny ochre highlights, and clearly separated pixel-sized shadow/highlight clusters.\n\nChange only the rendering treatment:\n- Remove every smooth gradient, blur, semitransparent edge, and vector-like softness.\n- Convert skin, hat, hair, eyes, mouth, coat, seams, and buttons to a restrained palette of flat solid colors.\n- Add sparse deliberate 1-3 logical-pixel clusters for cheek warmth, hat folds, hair shine, collar, lapels, sleeve folds, and apron depth.\n- Make the eyes and nose more characterful but still readable when reduced; keep identity symmetric overall with slight handcrafted highlight asymmetry.\n- Keep a continuous dark outline and clear face/hat, face/hair, neck/collar, and torso/background boundaries.\n- Render as if it were exactly 128x128 logical pixel art enlarged for display: every mark grid-aligned, square-edged, and integer-sized.\n\nHard invariants: no pose change, no crop change, no extra character, no prop, no glasses, no text, no logo, no watermark, no scenery. Background must remain one perfectly flat solid #00FF00 with no shadows, texture, glow, halo, or green inside the subject. No gradients, no antialiasing, no dithering noise, no 3D, no photorealism.",
+    "foreground_pixels": 7085,
+    "imagegen_source_id": "exec-a082d668-ab1d-4f87-aecb-70081a99189e.png",
+    "imagegen_source_sha256": "23de26e00ed859076a6ef25220cc83e01a6611ba1e83869b3b9665d486b6ba31",
+    "metadata": {
+      "asset_id": "avatars/food/chef",
+      "design_mode": "hustlek-avatar-master-v1",
+      "imagegen_source": "exec-a082d668-ab1d-4f87-aecb-70081a99189e.png",
+      "master_method": "built-in ImageGen chroma-key; NEAREST 128-grid projection; 24-color opaque median-cut"
+    },
+    "opaque_colors": 24,
+    "path": "design/hustlek-assets-pilot/avatar-chef-nearest-v1/128.png"
+  },
+  "provenance": {
+    "master_preparation": "built-in ImageGen -> chroma removal -> 128px NEAREST grid projection -> 24-color opaque median-cut",
+    "script": "scripts/build-hustlek-chef-avatar-tiers.py",
+    "script_sha256_lf": "695a674d6b07887592240ee724da7831c5b98c2448f1d3dcaa5a0a93ec036ee4"
+  },
+  "result": "PASS",
+  "schema": "hustlek-avatar-nearest-validation/v1",
+  "tiers": {
+    "128": {
+      "errors": [],
+      "metrics": {
+        "baseline_decoded_rgba_sha256": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+        "bbox": [
+          29,
+          1,
+          99,
+          127
+        ],
+        "components_8_neighbor": [
+          7085
+        ],
+        "correction": {
+          "alpha_added": 0,
+          "alpha_removed": 0,
+          "baseline_bbox": [
+            29,
+            1,
+            99,
+            127
+          ],
+          "canvas_alpha_iou": 1.0,
+          "changed_pixels": 0,
+          "changed_ratio_of_baseline_foreground": 0.0,
+          "changed_targets": [],
+          "corrected_bbox": [
+            29,
+            1,
+            99,
+            127
+          ],
+          "no_effect_targets": [],
+          "planned_targets": [],
+          "rgba_recolored": 0,
+          "unplanned_targets": []
+        },
+        "final_decoded_rgba_sha256": "9956c4c6f6b7e6d0ce0accd77452a3c655e8a0ac92485d26f0cf91fe7d22a96d",
+        "foreground_pixels": 7085,
+        "opaque_colors": 24,
+        "semantic": {
+          "button_dark_pixels": [
+            20,
+            20
+          ],
+          "eye_dark_pixels": [
+            30,
+            30
+          ],
+          "garment_bright_pixels": 1730,
+          "garment_dark_pixels": 492,
+          "hat_bright_pixels": 1544,
+          "hat_dark_band_max_run": 62,
+          "mouth_dark_pixels": 21,
+          "warm_face_pixels": 1813
+        }
+      }
+    },
+    "16": {
+      "errors": [],
+      "metrics": {
+        "baseline_decoded_rgba_sha256": "a094a70d73c1e661ca512c489ff6395b636269a46145fd0317b1ce89502be216",
+        "bbox": [
+          4,
+          0,
+          12,
+          16
+        ],
+        "components_8_neighbor": [
+          112
+        ],
+        "correction": {
+          "alpha_added": 0,
+          "alpha_removed": 0,
+          "baseline_bbox": [
+            4,
+            0,
+            12,
+            16
+          ],
+          "canvas_alpha_iou": 1.0,
+          "changed_pixels": 2,
+          "changed_ratio_of_baseline_foreground": 0.017857142857142856,
+          "changed_targets": [
+            [
+              7,
+              13
+            ],
+            [
+              9,
+              13
+            ]
+          ],
+          "corrected_bbox": [
+            4,
+            0,
+            12,
+            16
+          ],
+          "no_effect_targets": [],
+          "planned_targets": [
+            [
+              7,
+              13
+            ],
+            [
+              9,
+              13
+            ]
+          ],
+          "rgba_recolored": 2,
+          "unplanned_targets": []
+        },
+        "final_decoded_rgba_sha256": "82a7198fc731c926eac7916837b8da9ccd4da854b5bab6b2f9a956dce3d4b783",
+        "foreground_pixels": 112,
+        "opaque_colors": 22,
+        "semantic": {
+          "button_dark_pixels": [
+            1,
+            1
+          ],
+          "eye_dark_pixels": [
+            1,
+            1
+          ],
+          "garment_bright_pixels": 25,
+          "garment_dark_pixels": 13,
+          "hat_bright_pixels": 27,
+          "hat_dark_band_max_run": 8,
+          "mouth_dark_pixels": 1,
+          "warm_face_pixels": 32
+        }
+      }
+    },
+    "32": {
+      "errors": [],
+      "metrics": {
+        "baseline_decoded_rgba_sha256": "1bf8ab3632c19eed3c788fe069edf55de4094ff5cb2dced0b5c9697a8b09a547",
+        "bbox": [
+          7,
+          0,
+          25,
+          32
+        ],
+        "components_8_neighbor": [
+          455
+        ],
+        "correction": {
+          "alpha_added": 0,
+          "alpha_removed": 0,
+          "baseline_bbox": [
+            7,
+            0,
+            25,
+            32
+          ],
+          "canvas_alpha_iou": 1.0,
+          "changed_pixels": 0,
+          "changed_ratio_of_baseline_foreground": 0.0,
+          "changed_targets": [],
+          "corrected_bbox": [
+            7,
+            0,
+            25,
+            32
+          ],
+          "no_effect_targets": [],
+          "planned_targets": [],
+          "rgba_recolored": 0,
+          "unplanned_targets": []
+        },
+        "final_decoded_rgba_sha256": "1bf8ab3632c19eed3c788fe069edf55de4094ff5cb2dced0b5c9697a8b09a547",
+        "foreground_pixels": 455,
+        "opaque_colors": 23,
+        "semantic": {
+          "button_dark_pixels": [
+            1,
+            2
+          ],
+          "eye_dark_pixels": [
+            2,
+            1
+          ],
+          "garment_bright_pixels": 113,
+          "garment_dark_pixels": 37,
+          "hat_bright_pixels": 103,
+          "hat_dark_band_max_run": 16,
+          "mouth_dark_pixels": 2,
+          "warm_face_pixels": 124
+        }
+      }
+    },
+    "48": {
+      "errors": [],
+      "metrics": {
+        "baseline_decoded_rgba_sha256": "bb1d531c958614356b3a6a09df6ed6299a8ff742312aec3d7f51b82866d0bc5d",
+        "bbox": [
+          11,
+          0,
+          37,
+          48
+        ],
+        "components_8_neighbor": [
+          1022
+        ],
+        "correction": {
+          "alpha_added": 0,
+          "alpha_removed": 0,
+          "baseline_bbox": [
+            11,
+            0,
+            37,
+            48
+          ],
+          "canvas_alpha_iou": 1.0,
+          "changed_pixels": 0,
+          "changed_ratio_of_baseline_foreground": 0.0,
+          "changed_targets": [],
+          "corrected_bbox": [
+            11,
+            0,
+            37,
+            48
+          ],
+          "no_effect_targets": [],
+          "planned_targets": [],
+          "rgba_recolored": 0,
+          "unplanned_targets": []
+        },
+        "final_decoded_rgba_sha256": "bb1d531c958614356b3a6a09df6ed6299a8ff742312aec3d7f51b82866d0bc5d",
+        "foreground_pixels": 1022,
+        "opaque_colors": 23,
+        "semantic": {
+          "button_dark_pixels": [
+            4,
+            4
+          ],
+          "eye_dark_pixels": [
+            4,
+            4
+          ],
+          "garment_bright_pixels": 228,
+          "garment_dark_pixels": 95,
+          "hat_bright_pixels": 227,
+          "hat_dark_band_max_run": 24,
+          "mouth_dark_pixels": 4,
+          "warm_face_pixels": 260
+        }
+      }
+    },
+    "64": {
+      "errors": [],
+      "metrics": {
+        "baseline_decoded_rgba_sha256": "1026f2a73ec8239749222df8b10e72bd7bbf5980a856894363cb476635f98628",
+        "bbox": [
+          14,
+          0,
+          49,
+          63
+        ],
+        "components_8_neighbor": [
+          1770
+        ],
+        "correction": {
+          "alpha_added": 0,
+          "alpha_removed": 0,
+          "baseline_bbox": [
+            14,
+            0,
+            49,
+            63
+          ],
+          "canvas_alpha_iou": 1.0,
+          "changed_pixels": 0,
+          "changed_ratio_of_baseline_foreground": 0.0,
+          "changed_targets": [],
+          "corrected_bbox": [
+            14,
+            0,
+            49,
+            63
+          ],
+          "no_effect_targets": [],
+          "planned_targets": [],
+          "rgba_recolored": 0,
+          "unplanned_targets": []
+        },
+        "final_decoded_rgba_sha256": "1026f2a73ec8239749222df8b10e72bd7bbf5980a856894363cb476635f98628",
+        "foreground_pixels": 1770,
+        "opaque_colors": 23,
+        "semantic": {
+          "button_dark_pixels": [
+            6,
+            4
+          ],
+          "eye_dark_pixels": [
+            6,
+            9
+          ],
+          "garment_bright_pixels": 436,
+          "garment_dark_pixels": 109,
+          "hat_bright_pixels": 379,
+          "hat_dark_band_max_run": 31,
+          "mouth_dark_pixels": 8,
+          "warm_face_pixels": 462
+        }
+      }
+    }
+  }
+}
