@@ -315,6 +315,62 @@
       "state": "ready_for_review",
       "version": "3657ce7e3841"
     },
+    "avatars/construction/electrician": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/engineer": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/factoryWorker": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/mechanic": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/painterHouse": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/plumber": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/surveyor": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/construction/welder": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
     "avatars/education/archaeologist": {
       "batch_id": "native128-002",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-002/5ff10404028c/manifest.json",
@@ -693,6 +749,174 @@
       "state": "ready_for_review",
       "version": "c3f5253a8297"
     },
+    "avatars/safety/coastGuard": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/customs": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/dispatcher": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/emt": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/firefighter": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/inspector": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/lifeguard": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/police": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/ranger": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/rescueWorker": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/securityGuard": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/sheriff": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/safety/soldier": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/barber": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/cleaner": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/courier": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/florist": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/hairstylist": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/hotelStaff": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/launderer": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/makeupArtist": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/masseur": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/nailArtist": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    "avatars/service/petGroomer": {
+      "batch_id": "native128-004",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
     "icons/calendar": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
@@ -892,6 +1116,53 @@
     },
     {
       "asset_ids": [
+        "avatars/construction/electrician",
+        "avatars/construction/engineer",
+        "avatars/construction/factoryWorker",
+        "avatars/construction/mechanic",
+        "avatars/construction/painterHouse",
+        "avatars/construction/plumber",
+        "avatars/construction/surveyor",
+        "avatars/construction/welder",
+        "avatars/safety/coastGuard",
+        "avatars/safety/customs",
+        "avatars/safety/dispatcher",
+        "avatars/safety/emt",
+        "avatars/safety/firefighter",
+        "avatars/safety/inspector",
+        "avatars/safety/lifeguard",
+        "avatars/safety/police",
+        "avatars/safety/ranger",
+        "avatars/safety/rescueWorker",
+        "avatars/safety/securityGuard",
+        "avatars/safety/sheriff",
+        "avatars/safety/soldier",
+        "avatars/service/barber",
+        "avatars/service/cleaner",
+        "avatars/service/courier",
+        "avatars/service/florist",
+        "avatars/service/hairstylist",
+        "avatars/service/hotelStaff",
+        "avatars/service/launderer",
+        "avatars/service/makeupArtist",
+        "avatars/service/masseur",
+        "avatars/service/nailArtist",
+        "avatars/service/petGroomer"
+      ],
+      "batch_id": "native128-004",
+      "contract_sha256": "d8542c353a1d7b22ce14315636362350b1d80e22770bba8991d0d1bbb217dc6b",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/manifest.json",
+      "manifest_sha256": "66e460c85e6cfa8377e0a73a9de776b41f9af8ffae46bf982d0d504aafb4be68",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-004/d8542c353a1d/master-atlas.png",
+      "master_atlas_sha256": "7afe37278877e12fd0dd623f0a58fcbf74a9345eabb6332172976d4500b20e99",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "d8542c353a1d"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -919,8 +1190,8 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 103,
-    "native128_remaining": 700,
+    "native128_ready_or_approved": 135,
+    "native128_remaining": 668,
     "ready_asset_ids": [
       "avatars/agriculture/agronomist",
       "avatars/agriculture/beekeeper",
@@ -967,6 +1238,14 @@
       "avatars/construction/builder",
       "avatars/construction/carpenter",
       "avatars/construction/craneOp",
+      "avatars/construction/electrician",
+      "avatars/construction/engineer",
+      "avatars/construction/factoryWorker",
+      "avatars/construction/mechanic",
+      "avatars/construction/painterHouse",
+      "avatars/construction/plumber",
+      "avatars/construction/surveyor",
+      "avatars/construction/welder",
       "avatars/education/archaeologist",
       "avatars/education/astronomer",
       "avatars/education/coach",
@@ -1021,6 +1300,30 @@
       "avatars/medical/therapist",
       "avatars/medical/vet",
       "avatars/presets/plain",
+      "avatars/safety/coastGuard",
+      "avatars/safety/customs",
+      "avatars/safety/dispatcher",
+      "avatars/safety/emt",
+      "avatars/safety/firefighter",
+      "avatars/safety/inspector",
+      "avatars/safety/lifeguard",
+      "avatars/safety/police",
+      "avatars/safety/ranger",
+      "avatars/safety/rescueWorker",
+      "avatars/safety/securityGuard",
+      "avatars/safety/sheriff",
+      "avatars/safety/soldier",
+      "avatars/service/barber",
+      "avatars/service/cleaner",
+      "avatars/service/courier",
+      "avatars/service/florist",
+      "avatars/service/hairstylist",
+      "avatars/service/hotelStaff",
+      "avatars/service/launderer",
+      "avatars/service/makeupArtist",
+      "avatars/service/masseur",
+      "avatars/service/nailArtist",
+      "avatars/service/petGroomer",
       "icons/calendar",
       "icons/camera",
       "icons/error",
