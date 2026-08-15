@@ -529,6 +529,7 @@
       },
       "loadError": "Não foi possível carregar seu resultado salvo. Ele continua lá. Tente novamente em instantes.",
       "retry": "Tentar de novo"
-    }
+    },
+    "plans": {}
   }
 }

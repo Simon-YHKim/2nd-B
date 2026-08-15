@@ -740,7 +740,8 @@
       "comingSoon": "Coming soon",
       "disclosure": "Paid plans renew automatically each month until you cancel. Cancel anytime before the next renewal and paid features stay open until that period ends; prices include VAT. Full refund within 7 days of payment, as long as your usage has stayed within what the free plan covers.",
       "legalTerms": "Terms of Service",
-      "legalRefund": "Refund policy"
+      "legalRefund": "Refund policy",
+      "minorPurchaseNotice": "If you are under 19, a purchase made without your legal guardian's consent can be cancelled later by you or by your guardian. We tell you this before you buy, not after."
     },
     "wikiRecords": {
       "relationships": "Relationships",
