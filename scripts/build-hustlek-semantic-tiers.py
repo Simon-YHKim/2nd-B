@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Build deterministic HustleK telescope tiers on their native pixel grids.
+"""Build deterministic HustleK telescope tiers with surgical NEAREST repair.
 
-This is deliberately not a generic image resize.  The compiler combines:
+The compiler deliberately favors identity preservation:
 
-* one semantic telescope part graph shared by every tier;
-* explicit per-tier geometry and feature plans;
-* a tier-specific palette sampled from the locked 128px identity master;
-* direct rasterization of connected pixel primitives on each target grid;
-* a plain NEAREST baseline used only after compilation for visual comparison.
+* one locked 128px master supplies geometry, detail, and color;
+* Pillow NEAREST creates every smaller target grid directly from that master;
+* a coordinate whitelist repairs only pixels proven broken after reduction;
+* untouched tiers remain byte-identical to their plain NEAREST baselines;
+* validation audits every changed pixel and caps the correction budget.
 
 The experiment writes one atlas, one visual comparison, and one JSON validation
 report.  Existing independently generated tier PNGs are read only and are never
@@ -20,7 +20,6 @@ import argparse
 import colorsys
 import hashlib
 import json
-import math
 import platform
 from collections import Counter, deque
 from pathlib import Path
@@ -40,25 +39,31 @@ MASTER_SIZE = 128
 EXPECTED_MASTER_ASSET_ID = "icons/telescope"
 EXPECTED_MASTER_RGBA_SHA256 = "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6"
 TIER_SIZES = (16, 32, 48, 64, 95, 128)
-DERIVED_SIZES = TIER_SIZES[:-1]
 ATLAS_CELL = 128
 
-ROLE_TONE_BUDGETS: dict[int, dict[str, int]] = {
-    16: {"ink": 1, "ivory": 2, "brass": 1, "lens": 1, "steel": 1},
-    32: {"ink": 1, "ivory": 3, "brass": 3, "lens": 2, "steel": 2},
-    48: {"ink": 2, "ivory": 3, "brass": 3, "lens": 3, "steel": 2},
-    64: {"ink": 2, "ivory": 4, "brass": 4, "lens": 3, "steel": 3},
-    95: {"ink": 3, "ivory": 5, "brass": 5, "lens": 4, "steel": 4},
+LENS_BLUE_PIXEL_MINIMUMS = {16: 1, 32: 3, 48: 8, 64: 14, 95: 30, 128: 30}
+BASELINE_ALPHA_IOU_FLOORS = {16: 0.94, 32: 0.98, 48: 0.985, 64: 0.99, 95: 0.995}
+CORRECTION_RATIO_LIMITS = {16: 0.08, 32: 0.03, 48: 0.02, 64: 0.015, 95: 0.01}
+ADJACENT_TIER_IOU_FLOORS = {
+    (16, 32): 0.60,
+    (32, 48): 0.78,
+    (48, 64): 0.82,
+    (64, 95): 0.85,
 }
 
-MASTER_IOU_FLOORS = {16: 0.55, 32: 0.65, 48: 0.75, 64: 0.82, 95: 0.90}
-SAME_CANVAS_IOU_FLOORS = {16: 0.55, 32: 0.78, 48: 0.84, 64: 0.89, 95: 0.93}
-CENTROID_DELTA_LIMITS = {16: 0.04, 32: 0.035, 48: 0.025, 64: 0.02, 95: 0.015}
-NEAREST_ALPHA_DIFF_FLOORS = {16: 0.12, 32: 0.09, 48: 0.07, 64: 0.05, 95: 0.025}
-INTERNAL_BOUNDARY_EDIT_FLOORS = {16: 0.20, 32: 0.15, 48: 0.10, 64: 0.07, 95: 0.04}
-PALETTE_LIMITS = {16: 12, 32: 20, 48: 32, 64: 48, 95: 72, 128: 95}
-PALETTE_MINIMUMS = {16: 4, 32: 8, 48: 9, 64: 11, 95: 12, 128: 1}
-LENS_BLUE_PIXEL_MINIMUMS = {16: 1, 32: 3, 48: 8, 64: 14, 95: 30, 128: 30}
+NEAREST_CORRECTION_PLAN: dict[int, dict[str, object]] = {
+    16: {
+        "copy_pixels": (
+            ((6, 10), (5, 11), "bridge left tripod leg"),
+            ((10, 12), (10, 13), "bridge right tripod leg"),
+        ),
+        "intent": "repair two dropped tripod connections",
+    },
+    32: {"copy_pixels": (), "intent": "NEAREST already passes; preserve exactly"},
+    48: {"copy_pixels": (), "intent": "NEAREST already passes; preserve exactly"},
+    64: {"copy_pixels": (), "intent": "NEAREST already passes; preserve exactly"},
+    95: {"copy_pixels": (), "intent": "reference tier; preserve exactly"},
+}
 
 # Coordinates were measured once from the approved 128px master.  They form the
 # semantic identity contract.  Lower tiers may merge details but cannot move or
@@ -82,7 +87,6 @@ TELESCOPE_SPEC = {
 
 
 RGBA = tuple[int, int, int, int]
-RGB = tuple[int, int, int]
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,34 +119,6 @@ def decoded_rgba_sha256(image: Image.Image) -> str:
     return sha256_bytes(image.convert("RGBA").tobytes())
 
 
-def luma(rgb: RGB) -> float:
-    red, green, blue = rgb
-    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
-
-
-def classify_role(x: int, y: int, rgba: RGBA) -> str:
-    red, green, blue, alpha = rgba
-    if alpha == 0:
-        return "transparent"
-
-    hue, saturation, value = colorsys.rgb_to_hsv(
-        red / 255.0, green / 255.0, blue / 255.0
-    )
-    hue *= 360.0
-
-    lens_left, lens_top, lens_right, lens_bottom = TELESCOPE_SPEC["lens_outer_box"]
-    in_lens = lens_left <= x < lens_right and lens_top <= y < lens_bottom
-    if in_lens and 175.0 <= hue <= 240.0 and saturation >= 0.28:
-        return "lens"
-    if value < 0.31:
-        return "ink"
-    if 18.0 <= hue <= 52.0 and saturation >= 0.48:
-        return "brass"
-    if 15.0 <= hue <= 58.0 and red >= green >= blue:
-        return "ivory"
-    return "steel"
-
-
 def validate_master(
     master: Image.Image,
     path: Path,
@@ -173,44 +149,6 @@ def validate_master(
         )
 
 
-def weighted_quantile_color(colors: Counter[RGB], quantile: float) -> RGB:
-    ordered = sorted(colors.items(), key=lambda item: (luma(item[0]), item[0]))
-    total = sum(count for _, count in ordered)
-    threshold = quantile * max(0, total - 1)
-    cumulative = 0
-    for color, count in ordered:
-        cumulative += count
-        if cumulative - 1 >= threshold:
-            return color
-    return ordered[-1][0]
-
-
-def build_tier_palette(master: Image.Image, size: int) -> dict[str, tuple[RGB, ...]]:
-    role_colors: dict[str, Counter[RGB]] = {
-        role: Counter() for role in ("ink", "ivory", "brass", "lens", "steel")
-    }
-    pixels = master.load()
-    for y in range(MASTER_SIZE):
-        for x in range(MASTER_SIZE):
-            rgba = pixels[x, y]
-            role = classify_role(x, y, rgba)
-            if role != "transparent":
-                role_colors[role][rgba[:3]] += 1
-
-    palette: dict[str, tuple[RGB, ...]] = {}
-    for role, tone_count in ROLE_TONE_BUDGETS[size].items():
-        colors = role_colors[role]
-        if not colors:
-            colors = role_colors["ink"]
-        if tone_count == 1:
-            quantiles = (0.5,)
-        else:
-            quantiles = tuple(index / (tone_count - 1) for index in range(tone_count))
-        selected = tuple(dict.fromkeys(weighted_quantile_color(colors, q) for q in quantiles))
-        palette[role] = selected
-    return palette
-
-
 def eight_connected_components(image: Image.Image) -> list[set[tuple[int, int]]]:
     size = image.width
     foreground = {
@@ -238,14 +176,6 @@ def eight_connected_components(image: Image.Image) -> list[set[tuple[int, int]]]
     return sorted(components, key=lambda component: (-len(component), min(component)))
 
 
-def darkest(palette: dict[str, tuple[RGB, ...]], role: str = "ink") -> RGBA:
-    return (*palette[role][0], 255)
-
-
-def brightest(palette: dict[str, tuple[RGB, ...]], role: str) -> RGBA:
-    return (*palette[role][-1], 255)
-
-
 def scale_point(point: tuple[int, int], size: int) -> tuple[int, int]:
     x, y = point
     return (
@@ -263,471 +193,73 @@ def scale_box(box: tuple[int, int, int, int], size: int) -> tuple[int, int, int,
     return scaled_left, scaled_top, scaled_right, scaled_bottom
 
 
-AXIS_UNIT = (12.0 / 13.0, 5.0 / 13.0)
-NORMAL_UNIT = (-5.0 / 13.0, 12.0 / 13.0)
-
-TIER_RENDER_PLAN: dict[int, dict[str, object]] = {
-    16: {
-        "tube_radii": (1.7, 1.25),
-        "lens_layers": (),
-        "leg_widths": (1, 0),
-        "bands": (0.50,),
-        "brace": False,
-        "focus": False,
-    },
-    32: {
-        "tube_radii": (2.75, 2.15),
-        "lens_layers": (
-            (2.60, 3.80),
-            (2.05, 3.15),
-            (1.45, 2.45),
-            (1.00, 1.85),
-        ),
-        "leg_widths": (2, 1),
-        "bands": (0.49,),
-        "brace": False,
-        "focus": True,
-    },
-    48: {
-        "tube_radii": (4.0, 3.15),
-        "lens_layers": (
-            (3.55, 5.20),
-            (2.75, 4.30),
-            (2.00, 3.40),
-            (1.45, 2.65),
-        ),
-        "leg_widths": (2, 1),
-        "bands": (0.43, 0.68),
-        "brace": True,
-        "focus": True,
-    },
-    64: {
-        "tube_radii": (5.25, 4.0),
-        "lens_layers": (
-            (4.45, 7.00),
-            (3.55, 5.90),
-            (2.70, 4.75),
-            (2.00, 3.65),
-        ),
-        "leg_widths": (3, 1),
-        "bands": (0.43, 0.68),
-        "brace": True,
-        "focus": True,
-    },
-    95: {
-        "tube_radii": (7.7, 5.9),
-        "lens_layers": (
-            (6.25, 10.65),
-            (5.05, 9.15),
-            (3.85, 7.55),
-            (2.60, 5.75),
-        ),
-        "leg_widths": (5, 3),
-        "bands": (0.43, 0.68),
-        "brace": True,
-        "focus": True,
-    },
-}
+def build_nearest_baseline(master: Image.Image, size: int) -> Image.Image:
+    if size == MASTER_SIZE:
+        return master.copy()
+    return master.resize((size, size), Image.Resampling.NEAREST)
 
 
-def palette_tone(
-    palette: dict[str, tuple[RGB, ...]], role: str, fraction: float
-) -> RGBA:
-    colors = palette[role]
-    index = min(len(colors) - 1, max(0, int(round(fraction * (len(colors) - 1)))))
-    return (*colors[index], 255)
+def apply_surgical_corrections(baseline: Image.Image, size: int) -> Image.Image:
+    """Apply only explicitly declared target-grid repairs to a NEAREST baseline."""
+    if baseline.size != (size, size):
+        raise ValueError(f"Baseline size {baseline.size} does not match {size}px plan")
+    result = baseline.copy()
+    plan = NEAREST_CORRECTION_PLAN.get(size, {"copy_pixels": ()})
+    for target, source, _reason in plan["copy_pixels"]:
+        if baseline.getpixel(source)[3] == 0:
+            raise ValueError(f"{size}px correction source {source} is transparent")
+        if baseline.getpixel(target)[3] != 0:
+            raise ValueError(f"{size}px correction target {target} is already occupied")
+        result.putpixel(target, baseline.getpixel(source))
+    return result
 
 
-def source_to_target_float(point: tuple[float, float], size: int) -> tuple[float, float]:
-    return (
-        (point[0] + 0.5) * size / MASTER_SIZE - 0.5,
-        (point[1] + 0.5) * size / MASTER_SIZE - 0.5,
-    )
-
-
-def round_point(point: tuple[float, float]) -> tuple[int, int]:
-    return int(math.floor(point[0] + 0.5)), int(math.floor(point[1] + 0.5))
-
-
-def offset_point(
-    point: tuple[float, float],
-    direction: tuple[float, float],
-    distance: float,
-) -> tuple[float, float]:
-    return point[0] + direction[0] * distance, point[1] + direction[1] * distance
-
-
-def tapered_polygon(
-    start: tuple[float, float],
-    end: tuple[float, float],
-    start_radius: float,
-    end_radius: float,
-) -> list[tuple[int, int]]:
-    return [
-        round_point(offset_point(start, NORMAL_UNIT, -start_radius)),
-        round_point(offset_point(end, NORMAL_UNIT, -end_radius)),
-        round_point(offset_point(end, NORMAL_UNIT, end_radius)),
-        round_point(offset_point(start, NORMAL_UNIT, start_radius)),
-    ]
-
-
-def draw_tapered_tube(
-    image: Image.Image,
+def correction_audit(
+    baseline: Image.Image,
+    corrected: Image.Image,
     size: int,
-    palette: dict[str, tuple[RGB, ...]],
-    start_source: tuple[float, float],
-    end_source: tuple[float, float],
-    start_radius: float,
-    end_radius: float,
-) -> None:
-    draw = ImageDraw.Draw(image)
-    start = source_to_target_float(start_source, size)
-    end = source_to_target_float(end_source, size)
-    ink = darkest(palette)
-    ivory_tones = palette["ivory"]
-    shadow = (*ivory_tones[0], 255)
-    base = (*ivory_tones[min(len(ivory_tones) - 1, max(1, len(ivory_tones) // 2))], 255)
-    upper_light = (*ivory_tones[-2 if len(ivory_tones) >= 4 else -1], 255)
-    light = (*ivory_tones[-1], 255)
-    border = 1.0 if size <= 64 else 1.4
-
-    draw.polygon(tapered_polygon(start, end, start_radius, end_radius), fill=ink)
-    inner_start = offset_point(start, AXIS_UNIT, max(0.75, border))
-    inner_end = offset_point(end, AXIS_UNIT, -max(0.75, border))
-    inner_start_radius = max(0.55, start_radius - border)
-    inner_end_radius = max(0.55, end_radius - border)
-    draw.polygon(
-        tapered_polygon(
-            inner_start,
-            inner_end,
-            inner_start_radius,
-            inner_end_radius,
-        ),
-        fill=shadow,
-    )
-
-    middle = [
-        round_point(offset_point(inner_start, NORMAL_UNIT, -inner_start_radius * 0.28)),
-        round_point(offset_point(inner_end, NORMAL_UNIT, -inner_end_radius * 0.28)),
-        round_point(offset_point(inner_end, NORMAL_UNIT, inner_end_radius * 0.46)),
-        round_point(offset_point(inner_start, NORMAL_UNIT, inner_start_radius * 0.46)),
-    ]
-    draw.polygon(middle, fill=base)
-    upper = [
-        round_point(offset_point(inner_start, NORMAL_UNIT, -inner_start_radius)),
-        round_point(offset_point(inner_end, NORMAL_UNIT, -inner_end_radius)),
-        round_point(offset_point(inner_end, NORMAL_UNIT, -inner_end_radius * 0.28)),
-        round_point(offset_point(inner_start, NORMAL_UNIT, -inner_start_radius * 0.28)),
-    ]
-    draw.polygon(upper, fill=upper_light)
-    if size >= 48:
-        highlight_start = offset_point(
-            inner_start, NORMAL_UNIT, -max(0.5, inner_start_radius * 0.55)
-        )
-        highlight_end = offset_point(
-            inner_end, NORMAL_UNIT, -max(0.5, inner_end_radius * 0.55)
-        )
-        draw.line((round_point(highlight_start), round_point(highlight_end)), fill=light, width=1)
-
-
-def fill_oriented_ellipse(
-    image: Image.Image,
-    center: tuple[float, float],
-    axis_radius: float,
-    normal_radius: float,
-    color: RGBA,
-) -> None:
-    if axis_radius <= 0 or normal_radius <= 0:
-        return
-    extent = int(math.ceil(max(axis_radius, normal_radius))) + 2
-    center_x, center_y = center
-    pixels = image.load()
-    for y in range(max(0, int(math.floor(center_y)) - extent), min(image.height, int(math.ceil(center_y)) + extent + 1)):
-        for x in range(max(0, int(math.floor(center_x)) - extent), min(image.width, int(math.ceil(center_x)) + extent + 1)):
-            delta_x = x - center_x
-            delta_y = y - center_y
-            along = delta_x * AXIS_UNIT[0] + delta_y * AXIS_UNIT[1]
-            normal = delta_x * NORMAL_UNIT[0] + delta_y * NORMAL_UNIT[1]
-            normalized = (along / axis_radius) ** 2 + (normal / normal_radius) ** 2
-            if normalized <= 1.0:
-                pixels[x, y] = color
-
-
-def draw_lens(
-    image: Image.Image,
-    size: int,
-    palette: dict[str, tuple[RGB, ...]],
-    layers: tuple[tuple[float, float], ...],
-) -> None:
-    center = source_to_target_float((29.0, 21.0), size)
-    ink = darkest(palette)
-    brass_dark = (*palette["brass"][0], 255)
-    brass = palette_tone(palette, "brass", 0.58)
-    brass_light = brightest(palette, "brass")
-    glass_dark = palette_tone(palette, "lens", 0.12)
-    glass = palette_tone(palette, "lens", 0.56)
-    glass_light = brightest(palette, "lens")
-
-    if size == 16:
-        # A bespoke 4x5 glyph is the smallest grid that can preserve the
-        # objective's four semantic layers without pretending to be a resize.
-        draw = ImageDraw.Draw(image)
-        outer_ink = (
-            (3, 1),
-            (4, 1),
-            (2, 2),
-            (4, 2),
-            (1, 3),
-            (4, 3),
-            (1, 4),
-            (4, 4),
-            (2, 5),
-            (3, 5),
-        )
-        brass_pixels = ((3, 2), (2, 3), (2, 4), (3, 4))
-        inner_ink = ((3, 3),)
-        draw.point(outer_ink, fill=ink)
-        draw.point(brass_pixels, fill=brass)
-        draw.point(inner_ink, fill=ink)
-        draw.point((3, 4), fill=glass)
-        draw.point((3, 2), fill=brass_light)
-        return
-
-    if len(layers) != 4:
-        raise ValueError(f"{size}px lens must declare four nested layer radii")
-    outer_radii, brass_radii, inner_radii, glass_radii = layers
-    for radii, color in (
-        (outer_radii, ink),
-        (brass_radii, brass),
-        (inner_radii, ink),
-        (glass_radii, glass),
-    ):
-        fill_oriented_ellipse(image, center, radii[0], radii[1], color)
-
-    draw = ImageDraw.Draw(image)
-    outer_axis, outer_normal = outer_radii
-    glass_axis, glass_normal = glass_radii
-    brass_highlight = offset_point(
-        offset_point(center, AXIS_UNIT, -outer_axis * 0.34),
-        NORMAL_UNIT,
-        -outer_normal * 0.70,
-    )
-    draw.point(round_point(brass_highlight), fill=brass_light)
-    if size >= 48:
-        brass_shadow = offset_point(
-            offset_point(center, AXIS_UNIT, outer_axis * 0.20),
-            NORMAL_UNIT,
-            outer_normal * 0.72,
-        )
-        draw.point(round_point(brass_shadow), fill=brass_dark)
-
-    glass_shadow = offset_point(center, NORMAL_UNIT, glass_normal * 0.48)
-    draw.point(round_point(glass_shadow), fill=glass_dark)
-    highlight = offset_point(
-        offset_point(center, AXIS_UNIT, -glass_axis * 0.22),
-        NORMAL_UNIT,
-        -glass_normal * 0.42,
-    )
-    draw.point(round_point(highlight), fill=glass_light)
-    if size >= 64:
-        second_highlight = offset_point(highlight, NORMAL_UNIT, -1.0)
-        draw.point(round_point(second_highlight), fill=glass_light)
-
-
-def draw_band(
-    image: Image.Image,
-    size: int,
-    palette: dict[str, tuple[RGB, ...]],
-    position: float,
-    tube_radius: float,
-) -> None:
-    start = source_to_target_float((33.0, 22.5), size)
-    end = source_to_target_float((80.0, 43.0), size)
-    center = (
-        start[0] + (end[0] - start[0]) * position,
-        start[1] + (end[1] - start[1]) * position,
-    )
-    half_thickness = 0.7 if size <= 48 else 1.0 if size == 64 else 1.45
-    half_span = tube_radius + (0.35 if size >= 48 else 0.0)
-    corners = [
-        offset_point(offset_point(center, AXIS_UNIT, -half_thickness), NORMAL_UNIT, -half_span),
-        offset_point(offset_point(center, AXIS_UNIT, half_thickness), NORMAL_UNIT, -half_span),
-        offset_point(offset_point(center, AXIS_UNIT, half_thickness), NORMAL_UNIT, half_span),
-        offset_point(offset_point(center, AXIS_UNIT, -half_thickness), NORMAL_UNIT, half_span),
-    ]
-    draw = ImageDraw.Draw(image)
-    draw.polygon([round_point(point) for point in corners], fill=darkest(palette))
-    if size >= 32:
-        inner_half = max(0.25, half_thickness - 0.55)
-        inner_span = max(0.5, half_span - 0.8)
-        inner = [
-            offset_point(offset_point(center, AXIS_UNIT, -inner_half), NORMAL_UNIT, -inner_span),
-            offset_point(offset_point(center, AXIS_UNIT, inner_half), NORMAL_UNIT, -inner_span),
-            offset_point(offset_point(center, AXIS_UNIT, inner_half), NORMAL_UNIT, inner_span),
-            offset_point(offset_point(center, AXIS_UNIT, -inner_half), NORMAL_UNIT, inner_span),
-        ]
-        draw.polygon(
-            [round_point(point) for point in inner],
-            fill=palette_tone(palette, "brass", 0.58),
-        )
-
-
-def draw_disc(
-    draw: ImageDraw.ImageDraw,
-    center: tuple[int, int],
-    radius: int,
-    color: RGBA,
-) -> None:
-    if radius <= 0:
-        draw.point(center, fill=color)
-        return
-    draw.ellipse(
-        (
-            center[0] - radius,
-            center[1] - radius,
-            center[0] + radius,
-            center[1] + radius,
-        ),
-        fill=color,
-    )
-
-
-def draw_tripod(
-    image: Image.Image,
-    size: int,
-    palette: dict[str, tuple[RGB, ...]],
-    plan: dict[str, object],
-) -> None:
-    draw = ImageDraw.Draw(image)
-    ink = darkest(palette)
-    leg_core = palette_tone(palette, "ivory", 0.38)
-    brass = palette_tone(palette, "brass", 0.62)
-    brass_light = brightest(palette, "brass")
-    outer_width, core_width = plan["leg_widths"]
-    apex = scale_point((63, 66), size)
-
-    for leg in TELESCOPE_SPEC["legs"]:
-        points = [scale_point(point, size) for point in leg]
-        draw.line(points, fill=ink, width=int(outer_width), joint="curve")
-        if int(core_width) > 0:
-            draw.line(points, fill=leg_core, width=int(core_width), joint="curve")
-
-    if bool(plan["brace"]):
-        brace = [scale_point(point, size) for point in TELESCOPE_SPEC["brace"]]
-        draw.line(brace, fill=ink, width=max(1, int(outer_width) - 1))
-        draw.line(brace, fill=brass, width=1)
-
-    foot_width = 1 if size <= 32 else 2 if size <= 64 else 3
-    for foot in TELESCOPE_SPEC["feet"]:
-        foot_x, foot_y = scale_point(foot, size)
-        draw.line((foot_x - foot_width, foot_y, foot_x + foot_width, foot_y), fill=ink, width=1)
-        draw.point((foot_x, foot_y), fill=brass_light)
-
-    neck_top = scale_point((65, 49), size)
-    neck_width = 1 if size == 16 else 2 if size == 32 else 3 if size <= 64 else 5
-    draw.line((neck_top, apex), fill=ink, width=neck_width)
-    if size >= 32:
-        draw.line((neck_top, apex), fill=brass, width=max(1, neck_width - 2))
-
-    mount_radius = 0 if size == 16 else 2 if size == 32 else 3 if size == 48 else 4 if size == 64 else 6
-    draw_disc(draw, apex, mount_radius, ink)
-    if size >= 32:
-        draw_disc(draw, apex, max(0, mount_radius - 1), brass)
-        draw.point(apex, fill=brass_light)
-
-    if size >= 64:
-        handle_start = scale_point((69, 61), size)
-        handle_end = scale_point((86, 70), size)
-        draw.line((handle_start, handle_end), fill=ink, width=max(1, int(outer_width) - 1))
-        draw.line((handle_start, handle_end), fill=brass, width=1)
-
-
-def draw_focus_assembly(
-    image: Image.Image,
-    size: int,
-    palette: dict[str, tuple[RGB, ...]],
-    enabled: bool,
-) -> None:
-    draw = ImageDraw.Draw(image)
-    ink = darkest(palette)
-    brass = palette_tone(palette, "brass", 0.48)
-    steel = palette_tone(palette, "steel", 0.52)
-
-    if size == 16:
-        draw.point(scale_point((84, 48), size), fill=brass)
-        return
-
-    housing_start = source_to_target_float((78.0, 43.0), size)
-    housing_end = source_to_target_float((95.0, 50.5), size)
-    outer_start = max(1.1, 5.0 * size / MASTER_SIZE)
-    outer_end = max(0.9, 3.3 * size / MASTER_SIZE)
-    draw.polygon(
-        tapered_polygon(housing_start, housing_end, outer_start, outer_end),
-        fill=ink,
-    )
-    inner_start = max(0.55, outer_start - 1.0)
-    inner_end = max(0.45, outer_end - 0.8)
-    draw.polygon(
-        tapered_polygon(housing_start, housing_end, inner_start, inner_end),
-        fill=brass,
-    )
-
-    eyepiece_start = source_to_target_float((94.0, 50.0), size)
-    eyepiece_end = source_to_target_float((105.0, 54.0), size)
-    eyepiece_radius = max(0.75, 2.8 * size / MASTER_SIZE)
-    draw.polygon(
-        tapered_polygon(
-            eyepiece_start,
-            eyepiece_end,
-            eyepiece_radius,
-            max(0.55, eyepiece_radius * 0.72),
-        ),
-        fill=ink,
-    )
-    draw.line((round_point(eyepiece_start), round_point(eyepiece_end)), fill=steel, width=1)
-
-    if not enabled:
-        return
-    knob_radius = 1 if size <= 48 else 2 if size == 64 else 3
-    for knob in ((86, 54), (92, 47)):
-        center = scale_point(knob, size)
-        draw_disc(draw, center, knob_radius, ink)
-        draw.point(center, fill=brass)
-
-
-def render_telescope_tier(
-    size: int,
-    palette: dict[str, tuple[RGB, ...]],
-) -> Image.Image:
-    """Rasterize one target grid from the telescope semantic part graph."""
-    plan = TIER_RENDER_PLAN[size]
-    result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-
-    draw_tripod(result, size, palette, plan)
-    tube_start_radius, tube_end_radius = plan["tube_radii"]
-    draw_tapered_tube(
-        result,
-        size,
-        palette,
-        (31.5, 21.5),
-        (82.0, 44.0),
-        float(tube_start_radius),
-        float(tube_end_radius),
-    )
-    for position in plan["bands"]:
-        interpolated_radius = float(tube_start_radius) + (
-            float(tube_end_radius) - float(tube_start_radius)
-        ) * float(position)
-        draw_band(result, size, palette, float(position), interpolated_radius)
-    draw_focus_assembly(result, size, palette, bool(plan["focus"]))
-    draw_lens(result, size, palette, plan["lens_layers"])
-
-    pixels = result.load()
+) -> dict[str, object]:
+    declared = {
+        tuple(target)
+        for target, _source, _reason in NEAREST_CORRECTION_PLAN.get(
+            size, {"copy_pixels": ()}
+        )["copy_pixels"]
+    }
+    actual: set[tuple[int, int]] = set()
+    added = removed = recolored = 0
     for y in range(size):
         for x in range(size):
-            red, green, blue, alpha = pixels[x, y]
-            pixels[x, y] = (red, green, blue, 255) if alpha else (0, 0, 0, 0)
-    return result
+            before = baseline.getpixel((x, y))
+            after = corrected.getpixel((x, y))
+            if before == after:
+                continue
+            actual.add((x, y))
+            if not before[3] and after[3]:
+                added += 1
+            elif before[3] and not after[3]:
+                removed += 1
+            else:
+                recolored += 1
+
+    foreground = sum(bool(value) for value in baseline.getchannel("A").get_flattened_data())
+    if actual:
+        xs = [x for x, _ in actual]
+        ys = [y for _, y in actual]
+        changed_bbox: list[int] | None = [min(xs), min(ys), max(xs) + 1, max(ys) + 1]
+    else:
+        changed_bbox = None
+    return {
+        "declared_targets": [list(point) for point in sorted(declared)],
+        "actual_changed_pixels": [list(point) for point in sorted(actual)],
+        "changed_pixel_count": len(actual),
+        "changed_bbox": changed_bbox,
+        "alpha_added": added,
+        "alpha_removed": removed,
+        "rgba_recolored": recolored,
+        "correction_ratio_vs_baseline_foreground": len(actual) / foreground if foreground else 0.0,
+        "unplanned_changes": [list(point) for point in sorted(actual - declared)],
+        "declared_but_no_effect": [list(point) for point in sorted(declared - actual)],
+    }
 
 
 def tight_normalized_alpha(image: Image.Image) -> Image.Image:
@@ -787,37 +319,13 @@ def coarse_material(rgba: RGBA) -> str:
     return "steel"
 
 
-def internal_material_boundaries(image: Image.Image) -> set[tuple[int, int, str]]:
-    pixels = image.load()
-    boundaries: set[tuple[int, int, str]] = set()
-    for y in range(image.height):
-        for x in range(image.width):
-            role = coarse_material(pixels[x, y])
-            if role == "transparent":
-                continue
-            if x + 1 < image.width:
-                neighbor = coarse_material(pixels[x + 1, y])
-                if neighbor != "transparent" and neighbor != role:
-                    boundaries.add((x, y, "horizontal"))
-            if y + 1 < image.height:
-                neighbor = coarse_material(pixels[x, y + 1])
-                if neighbor != "transparent" and neighbor != role:
-                    boundaries.add((x, y, "vertical"))
-    return boundaries
-
-
-def internal_boundary_edit_ratio(first: Image.Image, second: Image.Image) -> float:
-    first_boundaries = internal_material_boundaries(first)
-    second_boundaries = internal_material_boundaries(second)
-    union = first_boundaries | second_boundaries
-    return len(first_boundaries ^ second_boundaries) / len(union) if union else 0.0
-
-
 def rgba_diff_union(first: Image.Image, second: Image.Image) -> float:
     first_values = list(first.get_flattened_data())
     second_values = list(second.get_flattened_data())
-    union = sum(a[3] or b[3] for a, b in zip(first_values, second_values))
-    changed = sum(a != b and (a[3] or b[3]) for a, b in zip(first_values, second_values))
+    union = sum(bool(a[3] or b[3]) for a, b in zip(first_values, second_values))
+    changed = sum(
+        a != b and bool(a[3] or b[3]) for a, b in zip(first_values, second_values)
+    )
     return changed / union if union else 0.0
 
 
@@ -918,14 +426,6 @@ def validate_tier(image: Image.Image, size: int) -> list[str]:
         errors.append(f"non-binary alpha={sorted(alpha_values)}")
     if any(rgba[:3] != (0, 0, 0) for rgba in image.get_flattened_data() if rgba[3] == 0):
         errors.append("non-zero hidden RGB")
-    if color_count(image) > PALETTE_LIMITS[size]:
-        errors.append(
-            f"palette={color_count(image)}, limit={PALETTE_LIMITS[size]}"
-        )
-    if color_count(image) < PALETTE_MINIMUMS[size]:
-        errors.append(
-            f"palette={color_count(image)}, minimum={PALETTE_MINIMUMS[size]}"
-        )
     bbox = image.getchannel("A").getbbox()
     if bbox is None:
         errors.append("empty foreground")
@@ -978,22 +478,22 @@ def fit_integer_zoom(image: Image.Image, box: tuple[int, int]) -> Image.Image:
     )
 
 
-def alpha_diff_visual(derived: Image.Image, nearest: Image.Image) -> Image.Image:
-    size = derived.width
+def correction_diff_visual(corrected: Image.Image, baseline: Image.Image) -> Image.Image:
+    size = corrected.width
     result = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    derived_alpha = derived.getchannel("A")
-    nearest_alpha = nearest.getchannel("A")
     pixels = result.load()
     for y in range(size):
         for x in range(size):
-            in_derived = bool(derived_alpha.getpixel((x, y)))
-            in_nearest = bool(nearest_alpha.getpixel((x, y)))
-            if in_derived and in_nearest:
+            after = corrected.getpixel((x, y))
+            before = baseline.getpixel((x, y))
+            if after == before and after[3]:
                 pixels[x, y] = (118, 140, 157, 255)
-            elif in_derived:
+            elif after[3] and not before[3]:
                 pixels[x, y] = (52, 211, 208, 255)
-            elif in_nearest:
+            elif before[3] and not after[3]:
                 pixels[x, y] = (239, 166, 70, 255)
+            elif after != before and after[3] and before[3]:
+                pixels[x, y] = (227, 93, 184, 255)
     return result
 
 
@@ -1026,16 +526,16 @@ def build_contact_sheet(
     muted = (150, 174, 195)
     cyan = (79, 220, 223)
 
-    draw.text((44, 30), "HustleK Telescope - Native-grid Reraster Tiers v3", fill=white, font=font_title)
+    draw.text((44, 30), "HustleK Telescope - NEAREST + Surgical Repair v4", fill=white, font=font_title)
     draw.text(
         (44, 75),
-        "One semantic part graph, independently rasterized on every target pixel grid",
+        "Locked 128px identity master; only declared broken target pixels are repaired",
         fill=muted,
         font=font_body,
     )
     draw.text(
         (44, 102),
-        "Cyan = native-grid renderer only; amber = plain resize only; both shown at identical zoom",
+        "Diff: cyan added, amber removed, magenta recolored, grey unchanged foreground",
         fill=muted,
         font=font_small,
     )
@@ -1043,10 +543,10 @@ def build_contact_sheet(
     column_left = 170
     column_width = 286
     row_specs = (
-        ("Native-grid asset 1x", 155, 150),
-        ("Native-grid integer zoom", 335, 245),
+        ("Fine-tuned NEAREST asset 1x", 155, 150),
+        ("Fine-tuned NEAREST - integer zoom", 335, 245),
         ("Plain NEAREST - identical zoom", 615, 245),
-        ("Alpha structure diff", 895, 245),
+        ("Surgical correction diff", 895, 245),
     )
 
     for label, top, row_height in row_specs:
@@ -1083,7 +583,7 @@ def build_contact_sheet(
         diff_box = (left + 12, 945, left + column_width - 12, 1125)
         diff_bg = checkerboard(diff_box[2] - diff_box[0], diff_box[3] - diff_box[1], 8)
         canvas.paste(diff_bg, (diff_box[0], diff_box[1]))
-        diff = alpha_diff_visual(tiers[size], baselines[size])
+        diff = correction_diff_visual(tiers[size], baselines[size])
         diff_zoom = fit_integer_zoom(
             diff, (diff_box[2] - diff_box[0] - 8, diff_box[3] - diff_box[1] - 8)
         )
@@ -1092,17 +592,19 @@ def build_contact_sheet(
         metric = metrics[size]
         if size == 128:
             summary = f"master | {metric['palette_count']} colors"
+        elif metric["correction"]["changed_pixel_count"] == 0:
+            summary = f"exact NEAREST | 0px repair | {metric['palette_count']}c"
         else:
             summary = (
-                f"lens {metric['blue_lens_pixels']}px | "
-                f"redraw {metric['nearest_alpha_diff']:.0%} | "
+                f"repair {metric['correction']['changed_pixel_count']}px | "
+                f"preserve {metric['same_canvas_shape_iou']:.1%} | "
                 f"{metric['palette_count']}c"
             )
         draw.text((center, 1162), summary, fill=muted, font=font_small, anchor="mm")
 
     draw.text(
         (44, 1210),
-        "Derived geometry uses semantic primitives only; the locked 128px raster supplies palette tokens and identity provenance.",
+        "Production target: 16-64px. 95px and the locked 128px master remain comparison references.",
         fill=muted,
         font=font_small,
     )
@@ -1121,125 +623,158 @@ def build_validation(
     master_path: Path,
     master_metadata: dict[str, object],
     tiers: dict[int, Image.Image],
-    tier_palettes: dict[int, dict[str, tuple[RGB, ...]]],
     baselines: dict[int, Image.Image],
 ) -> dict[str, object]:
     metrics: dict[int, dict[str, object]] = {}
     hard_errors: list[str] = []
-    resize_similarity_diagnostics: list[str] = []
-    difference_warnings: list[str] = []
+    master_palette = {rgba for rgba in master.get_flattened_data() if rgba[3]}
 
     for index, size in enumerate(TIER_SIZES):
         image = tiers[size]
+        baseline = baselines[size]
         errors = validate_tier(image, size)
-        hard_errors.extend(f"{size}px: {error}" for error in errors)
+        audit = correction_audit(baseline, image, size)
+        image_palette = {rgba for rgba in image.get_flattened_data() if rgba[3]}
+        palette_subset = image_palette <= master_palette
+        if not palette_subset:
+            errors.append("output contains colors outside the locked master palette")
+        if audit["unplanned_changes"]:
+            errors.append(f"unplanned pixel changes={audit['unplanned_changes']}")
+        if audit["declared_but_no_effect"]:
+            errors.append(
+                f"declared corrections had no effect={audit['declared_but_no_effect']}"
+            )
+
         bbox = image.getchannel("A").getbbox()
+        baseline_bbox = baseline.getchannel("A").getbbox()
         metric: dict[str, object] = {
             "size": [size, size],
             "atlas_crop": [index * ATLAS_CELL, 0, index * ATLAS_CELL + size, size],
             "bbox": list(bbox) if bbox else None,
+            "baseline_bbox": list(baseline_bbox) if baseline_bbox else None,
             "foreground_pixels": foreground_count(image),
+            "baseline_foreground_pixels": foreground_count(baseline),
             "palette_count": color_count(image),
+            "palette_is_master_subset": palette_subset,
             "blue_lens_pixels": blue_pixel_count(image),
             "blue_lens_pixels_in_roi": lens_blue_pixel_count(image, size),
+            "baseline_blue_lens_pixels_in_roi": lens_blue_pixel_count(baseline, size),
             "lens_material_pixels": lens_material_counts(image, size),
             "landmarks": landmark_presence(image, size),
             "foreground_components_8_connected": len(eight_connected_components(image)),
+            "baseline_components_8_connected": len(eight_connected_components(baseline)),
+            "baseline_decoded_rgba_sha256": decoded_rgba_sha256(baseline),
             "decoded_rgba_sha256": decoded_rgba_sha256(image),
-            "hard_errors": errors,
+            "correction": audit,
         }
         if size == MASTER_SIZE:
+            if decoded_rgba_sha256(image) != decoded_rgba_sha256(master):
+                errors.append("128px passthrough differs from locked master")
             metric.update(
                 {
                     "master_shape_iou": 1.0,
                     "nearest_alpha_diff": 0.0,
+                    "same_canvas_shape_iou": 1.0,
+                    "normalized_centroid_delta": 0.0,
                     "nearest_rgba_diff": 0.0,
+                    "generation_method": "locked-master-passthrough",
                 }
             )
         else:
             shape_iou = alpha_iou(image, master)
-            nearest_alpha_diff = alpha_xor_union(image, baselines[size])
-            same_canvas_iou = canvas_alpha_iou(image, baselines[size])
-            centroid_delta = normalized_centroid_delta(image, baselines[size])
-            boundary_edit = internal_boundary_edit_ratio(image, baselines[size])
-            nearest_rgba_diff = rgba_diff_union(image, baselines[size])
+            nearest_alpha_diff = alpha_xor_union(image, baseline)
+            same_canvas_iou = canvas_alpha_iou(image, baseline)
+            centroid_delta = normalized_centroid_delta(image, baseline)
+            nearest_rgba_diff = rgba_diff_union(image, baseline)
+            correction_ratio = float(audit["correction_ratio_vs_baseline_foreground"])
             metric.update(
                 {
                     "master_shape_iou": shape_iou,
-                    "master_shape_iou_floor": MASTER_IOU_FLOORS[size],
                     "nearest_alpha_diff": nearest_alpha_diff,
-                    "nearest_alpha_diff_floor": NEAREST_ALPHA_DIFF_FLOORS[size],
                     "same_canvas_shape_iou": same_canvas_iou,
-                    "same_canvas_shape_iou_floor": SAME_CANVAS_IOU_FLOORS[size],
+                    "same_canvas_shape_iou_floor": BASELINE_ALPHA_IOU_FLOORS[size],
                     "normalized_centroid_delta": centroid_delta,
-                    "normalized_centroid_delta_limit": CENTROID_DELTA_LIMITS[size],
-                    "internal_material_boundary_edit": boundary_edit,
-                    "internal_material_boundary_edit_floor": INTERNAL_BOUNDARY_EDIT_FLOORS[size],
                     "nearest_rgba_diff": nearest_rgba_diff,
+                    "correction_ratio_limit": CORRECTION_RATIO_LIMITS[size],
+                    "generation_method": (
+                        "nearest+surgical-copy-pixels"
+                        if audit["changed_pixel_count"]
+                        else "nearest-pass-through"
+                    ),
                 }
             )
-            if shape_iou < MASTER_IOU_FLOORS[size]:
-                resize_similarity_diagnostics.append(
-                    f"{size}px native redesign vs master IoU {shape_iou:.4f}"
+            if same_canvas_iou < BASELINE_ALPHA_IOU_FLOORS[size]:
+                errors.append(
+                    f"NEAREST preservation IoU={same_canvas_iou:.4f}, "
+                    f"minimum={BASELINE_ALPHA_IOU_FLOORS[size]:.4f}"
                 )
-            if same_canvas_iou < SAME_CANVAS_IOU_FLOORS[size]:
-                resize_similarity_diagnostics.append(
-                    f"{size}px native redesign vs NEAREST IoU {same_canvas_iou:.4f}"
+            if correction_ratio > CORRECTION_RATIO_LIMITS[size]:
+                errors.append(
+                    f"correction ratio={correction_ratio:.4f}, "
+                    f"limit={CORRECTION_RATIO_LIMITS[size]:.4f}"
                 )
-            if centroid_delta > CENTROID_DELTA_LIMITS[size]:
-                resize_similarity_diagnostics.append(
-                    f"{size}px native redesign vs NEAREST centroid delta {centroid_delta:.4f}"
-                )
-            if nearest_alpha_diff < NEAREST_ALPHA_DIFF_FLOORS[size]:
-                difference_warnings.append(
-                    f"{size}px alpha edit {nearest_alpha_diff:.4f} < {NEAREST_ALPHA_DIFF_FLOORS[size]:.4f}"
-                )
-            if boundary_edit < INTERNAL_BOUNDARY_EDIT_FLOORS[size]:
-                difference_warnings.append(
-                    f"{size}px internal boundary edit {boundary_edit:.4f} < "
-                    f"{INTERNAL_BOUNDARY_EDIT_FLOORS[size]:.4f}"
-                )
+            if lens_blue_pixel_count(image, size) < lens_blue_pixel_count(baseline, size):
+                errors.append("lens blue pixels decreased from NEAREST baseline")
+            if bbox and baseline_bbox:
+                bbox_delta = max(abs(first - second) for first, second in zip(bbox, baseline_bbox))
+                metric["bbox_edge_delta_from_baseline"] = bbox_delta
+                if bbox_delta > 1:
+                    errors.append(f"bbox edge delta={bbox_delta}px, limit=1px")
+
+        metric["hard_errors"] = errors
+        hard_errors.extend(f"{size}px: {error}" for error in errors)
         metrics[size] = metric
 
     first_pass = {size: decoded_rgba_sha256(image) for size, image in tiers.items()}
     second_pass = {
-        **{
-            size: decoded_rgba_sha256(
-                render_telescope_tier(size, tier_palettes[size])
-            )
-            for size in DERIVED_SIZES
-        },
-        MASTER_SIZE: decoded_rgba_sha256(master),
+        size: decoded_rgba_sha256(
+            apply_surgical_corrections(build_nearest_baseline(master, size), size)
+        )
+        for size in TIER_SIZES
     }
     reproducible = first_pass == second_pass
     if not reproducible:
         hard_errors.append("two-pass decoded RGBA hashes differ")
 
     palette_ladder = [color_count(tiers[size]) for size in TIER_SIZES]
-    if any(current > following for current, following in zip(palette_ladder, palette_ladder[1:])):
-        hard_errors.append(f"palette detail ladder decreases: {palette_ladder}")
     lens_blue_ladder = [lens_blue_pixel_count(tiers[size], size) for size in TIER_SIZES]
     if any(current >= following for current, following in zip(lens_blue_ladder, lens_blue_ladder[1:])):
         hard_errors.append(f"lens blue detail ladder does not increase: {lens_blue_ladder}")
 
+    adjacent_tier_iou: dict[str, dict[str, object]] = {}
+    for pair, floor in ADJACENT_TIER_IOU_FLOORS.items():
+        first_size, second_size = pair
+        similarity = alpha_iou(tiers[first_size], tiers[second_size])
+        adjacent_tier_iou[f"{first_size}->{second_size}"] = {
+            "tight_shape_iou": similarity,
+            "floor": floor,
+            "pass": similarity >= floor,
+        }
+        if similarity < floor:
+            hard_errors.append(
+                f"{first_size}->{second_size} tier IoU {similarity:.4f} < {floor:.4f}"
+            )
+
     config_payload = {
         "tiers": TIER_SIZES,
-        "tone_budgets": ROLE_TONE_BUDGETS,
         "telescope_spec": TELESCOPE_SPEC,
-        "tier_render_plan": TIER_RENDER_PLAN,
+        "nearest_correction_plan": NEAREST_CORRECTION_PLAN,
+        "baseline_alpha_iou_floors": BASELINE_ALPHA_IOU_FLOORS,
+        "correction_ratio_limits": CORRECTION_RATIO_LIMITS,
     }
     script_path = Path(__file__).resolve()
-    experiment_pass = not hard_errors and not difference_warnings
+    experiment_pass = not hard_errors
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "PASS" if experiment_pass else "REVISE",
-        "scope": "single-asset target-grid rerasterization experiment",
-        "design_mode": "telescope-parametric-rerasterizer-v3",
+        "scope": "single-asset NEAREST surgical-correction experiment",
+        "production_tiers": [16, 32, 48, 64],
+        "reference_tiers": [95, 128],
+        "design_mode": "telescope-nearest-surgical-v4",
         "compiler_inputs": {
-            "geometry": "TELESCOPE_SPEC",
-            "tier_plans": "TIER_RENDER_PLAN",
-            "palette": "sampled from locked 128px master",
-            "master_raster_projection": False,
+            "identity_geometry_palette": "locked 128px master via Pillow NEAREST",
+            "corrections": "NEAREST_CORRECTION_PLAN whitelist",
+            "master_raster_projection": True,
             "sibling_tier_inputs": False,
         },
         "imagegen_used_this_run": False,
@@ -1267,23 +802,32 @@ def build_validation(
             "config_sha256": sha256_bytes(
                 json.dumps(config_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
             ),
+            "correction_manifest_sha256": sha256_bytes(
+                json.dumps(
+                    NEAREST_CORRECTION_PLAN,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ),
             "python": platform.python_version(),
             "pillow": PILLOW_VERSION,
         },
         "reproducibility": {
             "two_pass_decoded_rgba_match": reproducible,
+            "nearest_baselines": {
+                str(size): decoded_rgba_sha256(baselines[size]) for size in TIER_SIZES
+            },
             "first_pass": {str(key): value for key, value in first_pass.items()},
             "second_pass": {str(key): value for key, value in second_pass.items()},
         },
         "hard_errors": hard_errors,
         "validation_basis": (
-            "native-grid structure, semantic material presence, landmark continuity, "
-            "monotonic detail, deterministic rerender, and difference from plain NEAREST"
+            "declared-pixel-only edits, high NEAREST preservation, connected structure, "
+            "master palette, lens retention, tier consistency, and deterministic rerender"
         ),
-        "resize_similarity_diagnostics": resize_similarity_diagnostics,
-        "nearest_difference_warnings": difference_warnings,
         "palette_detail_ladder": palette_ladder,
         "lens_blue_detail_ladder": lens_blue_ladder,
+        "adjacent_tier_consistency": adjacent_tier_iou,
         "tiers": {str(key): value for key, value in metrics.items()},
     }
 
@@ -1300,22 +844,16 @@ def main() -> None:
         master = source.convert("RGBA")
     validate_master(master, master_path, master_metadata)
 
-    tier_palettes = {
-        size: build_tier_palette(master, size) for size in DERIVED_SIZES
+    baselines = {
+        size: build_nearest_baseline(master, size)
+        for size in TIER_SIZES
     }
     tiers = {
-        **{
-            size: render_telescope_tier(size, tier_palettes[size])
-            for size in DERIVED_SIZES
-        },
-        MASTER_SIZE: master.copy(),
-    }
-    baselines = {
-        size: master.resize((size, size), Image.Resampling.NEAREST)
+        size: apply_surgical_corrections(baselines[size], size)
         for size in TIER_SIZES
     }
     validation = build_validation(
-        master, master_path, master_metadata, tiers, tier_palettes, baselines
+        master, master_path, master_metadata, tiers, baselines
     )
     metrics = {int(key): value for key, value in validation["tiers"].items()}
 
@@ -1331,10 +869,11 @@ def main() -> None:
         atlas.alpha_composite(tiers[size], (index * ATLAS_CELL, 0))
 
     common_metadata = {
-        "design_mode": "telescope-parametric-rerasterizer-v3",
-        "master_raster_projection": "false",
-        "geometry_source": "TELESCOPE_SPEC + TIER_RENDER_PLAN",
-        "palette_source": "locked 128px master",
+        "design_mode": "telescope-nearest-surgical-v4",
+        "master_raster_projection": "true",
+        "geometry_source": "locked 128px master via Pillow NEAREST",
+        "correction_source": "NEAREST_CORRECTION_PLAN whitelist",
+        "palette_source": "locked 128px master; no quantization",
         "master_decoded_rgba_sha256": decoded_rgba_sha256(master),
         "master_design_mode": str(master_metadata.get("design_mode", "unknown")),
         "pixy_used_this_run": "false",
@@ -1357,7 +896,8 @@ def main() -> None:
         print(
             f"{size:>3}px colors={metric['palette_count']:>2} "
             f"lens_blue={metric['blue_lens_pixels_in_roi']:>3} "
-            f"alpha_redraw={metric['nearest_alpha_diff']:.4f}"
+            f"repair={metric['correction']['changed_pixel_count']:>2}px "
+            f"nearest_iou={metric['same_canvas_shape_iou']:.4f}"
         )
 
 
