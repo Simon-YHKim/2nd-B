@@ -17,6 +17,7 @@
     "check:crisis-parity": "tsx scripts/eval-crisis-layer-parity.ts --check",
     "check:legal-review": "tsx scripts/check-legal-review.ts",
     "check:legal-html": "tsx scripts/check-legal-html-fresh.ts",
+    "check:legal-snapshot": "tsx scripts/check-legal-snapshot-parity.ts",
     "check:llm-boundary": "tsx scripts/check-llm-import-boundary.ts",
     "check:constraints": "tsx scripts/check-constraints.ts",
     "check:definer-grants": "tsx scripts/check-definer-grants.ts",
@@ -32,7 +33,7 @@
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
     "notice:release": "tsx scripts/release-notice.ts",
-    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:i18n-untranslated && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:asset-exts && npm run check:cycles && npm run check:ota-runtime && npm test -- --ci",
+    "verify": "npm run lint && npm run type-check && npm run check:i18n && npm run check:i18n-untranslated && npm run check:lexicon && npm run check:crisis-parity && npm run check:legal-review && npm run check:legal-html && npm run check:legal-snapshot && npm run check:llm-boundary && npm run check:constraints && npm run check:definer-grants && npm run check:supabase-auth-config && npm run check:safety-consent-locale && npm run check:emdash && npm run check:anti-anthro && npm run check:mascot-voice && npm run check:asset-exts && npm run check:cycles && npm run check:ota-runtime && npm test -- --ci",
     "check:i18n-untranslated": "tsx scripts/check-i18n-untranslated.ts",
     "check:asset-exts": "tsx scripts/check-asset-exts.ts",
     "verify:web": "node scripts/verify-web-export.js"
