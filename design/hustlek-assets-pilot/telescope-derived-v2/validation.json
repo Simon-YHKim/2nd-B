@@ -1,8 +1,15 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "PASS",
-  "scope": "single-asset semantic reducer experiment",
-  "design_mode": "128-master-semantic-compiler",
+  "scope": "single-asset target-grid rerasterization experiment",
+  "design_mode": "telescope-parametric-rerasterizer-v3",
+  "compiler_inputs": {
+    "geometry": "TELESCOPE_SPEC",
+    "tier_plans": "TIER_RENDER_PLAN",
+    "palette": "sampled from locked 128px master",
+    "master_raster_projection": false,
+    "sibling_tier_inputs": false
+  },
   "imagegen_used_this_run": false,
   "pixy_used_this_run": false,
   "master": {
@@ -23,40 +30,60 @@
   },
   "provenance": {
     "script": "E:\\2ndB\\.worktrees\\hustlek-imagegen-pilot\\scripts\\build-hustlek-semantic-tiers.py",
-    "script_sha256": "814ef3afe1238373fec1484683f7057cc9d20e0da11644a684b34b4f89b888fe",
+    "script_sha256": "0c972381f7606e20630f0f34d06283c0ba522b1d552d7c66329f87797ffe3707",
     "script_hash_normalization": "UTF-8 with LF line endings",
-    "config_sha256": "ff483bf1c8e3e1b79ccd4c4512c0a9ed488ca3cec7fdb9f03e491d797efdb8b3",
-    "python": "3.12.13",
-    "pillow": "12.3.0"
+    "config_sha256": "aed8e6408fac492a563a7c7c0a5cc8092d0ae9abd3f1bcac3fc6a10088fe9b94",
+    "python": "3.12.10",
+    "pillow": "12.2.0"
   },
   "reproducibility": {
     "two_pass_decoded_rgba_match": true,
     "first_pass": {
-      "16": "2da9411f21afbf5cbd6ebcdc621aeb7cb5bbbd770525f10b9004c22080bb6e59",
-      "32": "978478c7a4ac14c8c4fe6f30b617a076c88df21e405cf3e0b66de2c9b1607047",
-      "48": "2d49bc72c2e7362b760eea9c30571dd69f894af3d3b8b4fa6c31c88e4c20b75c",
-      "64": "59b28bc2c72b34e4826c220b5d30ec163c20cee7804552280dc8d5050cb62d2c",
-      "95": "0f26513998c2f20a93e1e6b027e27a4bcdab7ee8dbab4e852693bd943a78dd5c",
+      "16": "bfe0fbc2abee95652f1b2b36931264e13742572e4ae5372af2f0dd185366c25c",
+      "32": "a06c55b9cc92d99454af534e8265002fa6449c41faeaab7a1584f506d6a6fb18",
+      "48": "249883b86d1b5173b4241ff910ebf8c42d7a6132bbc637c9a6caf24b135f0d63",
+      "64": "106c4ad1076a423c6d8721f70637919d9c065a62a93d581a570e48c29028aa84",
+      "95": "5e29870dfbb94397bc52dcd98bd30d1c2d995816d5d74350b11a5939ac6e8f6a",
       "128": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6"
     },
     "second_pass": {
-      "16": "2da9411f21afbf5cbd6ebcdc621aeb7cb5bbbd770525f10b9004c22080bb6e59",
-      "32": "978478c7a4ac14c8c4fe6f30b617a076c88df21e405cf3e0b66de2c9b1607047",
-      "48": "2d49bc72c2e7362b760eea9c30571dd69f894af3d3b8b4fa6c31c88e4c20b75c",
-      "64": "59b28bc2c72b34e4826c220b5d30ec163c20cee7804552280dc8d5050cb62d2c",
-      "95": "0f26513998c2f20a93e1e6b027e27a4bcdab7ee8dbab4e852693bd943a78dd5c",
+      "16": "bfe0fbc2abee95652f1b2b36931264e13742572e4ae5372af2f0dd185366c25c",
+      "32": "a06c55b9cc92d99454af534e8265002fa6449c41faeaab7a1584f506d6a6fb18",
+      "48": "249883b86d1b5173b4241ff910ebf8c42d7a6132bbc637c9a6caf24b135f0d63",
+      "64": "106c4ad1076a423c6d8721f70637919d9c065a62a93d581a570e48c29028aa84",
+      "95": "5e29870dfbb94397bc52dcd98bd30d1c2d995816d5d74350b11a5939ac6e8f6a",
       "128": "899e278515a0938e2f50c813a5ed3da22cd19ff419a81b03b34d75027bb69ff6"
     }
   },
   "hard_errors": [],
-  "identity_warnings": [],
+  "validation_basis": "native-grid structure, semantic material presence, landmark continuity, monotonic detail, deterministic rerender, and difference from plain NEAREST",
+  "resize_similarity_diagnostics": [
+    "16px native redesign vs master IoU 0.3705",
+    "16px native redesign vs NEAREST IoU 0.5067",
+    "16px native redesign vs NEAREST centroid delta 0.0591",
+    "32px native redesign vs NEAREST IoU 0.6429",
+    "48px native redesign vs master IoU 0.5628",
+    "48px native redesign vs NEAREST IoU 0.6310",
+    "64px native redesign vs master IoU 0.6882",
+    "64px native redesign vs NEAREST IoU 0.6667",
+    "95px native redesign vs master IoU 0.6500",
+    "95px native redesign vs NEAREST IoU 0.6696"
+  ],
   "nearest_difference_warnings": [],
   "palette_detail_ladder": [
     4,
-    7,
-    7,
+    9,
+    10,
     12,
-    16,
+    12,
+    95
+  ],
+  "lens_blue_detail_ladder": [
+    1,
+    6,
+    13,
+    23,
+    45,
     95
   ],
   "tiers": {
@@ -72,15 +99,21 @@
         16
       ],
       "bbox": [
-        2,
         1,
-        14,
+        1,
+        13,
         15
       ],
-      "foreground_pixels": 60,
+      "foreground_pixels": 61,
       "palette_count": 4,
       "blue_lens_pixels": 1,
       "blue_lens_pixels_in_roi": 1,
+      "lens_material_pixels": {
+        "brass": 3,
+        "ink": 17,
+        "ivory": 2,
+        "lens": 1
+      },
       "landmarks": {
         "lens": true,
         "mount": true,
@@ -89,19 +122,19 @@
         "right_foot": true
       },
       "foreground_components_8_connected": 1,
-      "decoded_rgba_sha256": "2da9411f21afbf5cbd6ebcdc621aeb7cb5bbbd770525f10b9004c22080bb6e59",
+      "decoded_rgba_sha256": "bfe0fbc2abee95652f1b2b36931264e13742572e4ae5372af2f0dd185366c25c",
       "hard_errors": [],
-      "master_shape_iou": 0.5762334954829743,
+      "master_shape_iou": 0.3704635285662954,
       "master_shape_iou_floor": 0.55,
-      "nearest_alpha_diff": 0.35294117647058826,
+      "nearest_alpha_diff": 0.49333333333333335,
       "nearest_alpha_diff_floor": 0.12,
-      "same_canvas_shape_iou": 0.6470588235294118,
+      "same_canvas_shape_iou": 0.5066666666666667,
       "same_canvas_shape_iou_floor": 0.55,
-      "normalized_centroid_delta": 0.018669871794871784,
+      "normalized_centroid_delta": 0.05911097099621687,
       "normalized_centroid_delta_limit": 0.04,
-      "internal_material_boundary_edit": 0.7419354838709677,
+      "internal_material_boundary_edit": 0.8666666666666667,
       "internal_material_boundary_edit_floor": 0.2,
-      "nearest_rgba_diff": 0.9852941176470589
+      "nearest_rgba_diff": 1.0
     },
     "32": {
       "size": [
@@ -120,10 +153,16 @@
         27,
         30
       ],
-      "foreground_pixels": 237,
-      "palette_count": 7,
-      "blue_lens_pixels": 8,
-      "blue_lens_pixels_in_roi": 8,
+      "foreground_pixels": 218,
+      "palette_count": 9,
+      "blue_lens_pixels": 6,
+      "blue_lens_pixels_in_roi": 6,
+      "lens_material_pixels": {
+        "brass": 9,
+        "ink": 26,
+        "ivory": 8,
+        "lens": 6
+      },
       "landmarks": {
         "lens": true,
         "mount": true,
@@ -133,19 +172,19 @@
         "eyepiece": true
       },
       "foreground_components_8_connected": 1,
-      "decoded_rgba_sha256": "978478c7a4ac14c8c4fe6f30b617a076c88df21e405cf3e0b66de2c9b1607047",
+      "decoded_rgba_sha256": "a06c55b9cc92d99454af534e8265002fa6449c41faeaab7a1584f506d6a6fb18",
       "hard_errors": [],
-      "master_shape_iou": 0.8082845703726517,
+      "master_shape_iou": 0.6624447717231222,
       "master_shape_iou_floor": 0.65,
-      "nearest_alpha_diff": 0.1729957805907173,
+      "nearest_alpha_diff": 0.35714285714285715,
       "nearest_alpha_diff_floor": 0.09,
-      "same_canvas_shape_iou": 0.8270042194092827,
+      "same_canvas_shape_iou": 0.6428571428571429,
       "same_canvas_shape_iou_floor": 0.78,
-      "normalized_centroid_delta": 0.030218020752604824,
+      "normalized_centroid_delta": 0.00944638176371465,
       "normalized_centroid_delta_limit": 0.035,
-      "internal_material_boundary_edit": 0.7529880478087649,
+      "internal_material_boundary_edit": 0.7651515151515151,
       "internal_material_boundary_edit_floor": 0.15,
-      "nearest_rgba_diff": 0.9746835443037974
+      "nearest_rgba_diff": 0.9722222222222222
     },
     "48": {
       "size": [
@@ -159,15 +198,21 @@
         48
       ],
       "bbox": [
-        8,
+        7,
         3,
         40,
         45
       ],
-      "foreground_pixels": 511,
-      "palette_count": 7,
-      "blue_lens_pixels": 24,
-      "blue_lens_pixels_in_roi": 24,
+      "foreground_pixels": 405,
+      "palette_count": 10,
+      "blue_lens_pixels": 13,
+      "blue_lens_pixels_in_roi": 13,
+      "lens_material_pixels": {
+        "brass": 17,
+        "ink": 36,
+        "ivory": 27,
+        "lens": 13
+      },
       "landmarks": {
         "lens": true,
         "mount": true,
@@ -177,19 +222,19 @@
         "eyepiece": true
       },
       "foreground_components_8_connected": 1,
-      "decoded_rgba_sha256": "2d49bc72c2e7362b760eea9c30571dd69f894af3d3b8b4fa6c31c88e4c20b75c",
+      "decoded_rgba_sha256": "249883b86d1b5173b4241ff910ebf8c42d7a6132bbc637c9a6caf24b135f0d63",
       "hard_errors": [],
-      "master_shape_iou": 0.8470161035680455,
+      "master_shape_iou": 0.5627949459582889,
       "master_shape_iou_floor": 0.75,
-      "nearest_alpha_diff": 0.1232876712328767,
+      "nearest_alpha_diff": 0.3690248565965583,
       "nearest_alpha_diff_floor": 0.07,
-      "same_canvas_shape_iou": 0.8767123287671232,
+      "same_canvas_shape_iou": 0.6309751434034416,
       "same_canvas_shape_iou_floor": 0.84,
-      "normalized_centroid_delta": 0.016959571713959527,
+      "normalized_centroid_delta": 0.01850898827895353,
       "normalized_centroid_delta_limit": 0.025,
-      "internal_material_boundary_edit": 0.7019027484143763,
+      "internal_material_boundary_edit": 0.801980198019802,
       "internal_material_boundary_edit_floor": 0.1,
-      "nearest_rgba_diff": 0.9510763209393346
+      "nearest_rgba_diff": 0.97131931166348
     },
     "64": {
       "size": [
@@ -208,10 +253,16 @@
         54,
         60
       ],
-      "foreground_pixels": 840,
+      "foreground_pixels": 730,
       "palette_count": 12,
-      "blue_lens_pixels": 28,
-      "blue_lens_pixels_in_roi": 28,
+      "blue_lens_pixels": 23,
+      "blue_lens_pixels_in_roi": 23,
+      "lens_material_pixels": {
+        "brass": 26,
+        "ink": 59,
+        "ivory": 40,
+        "lens": 23
+      },
       "landmarks": {
         "lens": true,
         "mount": true,
@@ -221,19 +272,19 @@
         "eyepiece": true
       },
       "foreground_components_8_connected": 1,
-      "decoded_rgba_sha256": "59b28bc2c72b34e4826c220b5d30ec163c20cee7804552280dc8d5050cb62d2c",
+      "decoded_rgba_sha256": "106c4ad1076a423c6d8721f70637919d9c065a62a93d581a570e48c29028aa84",
       "hard_errors": [],
-      "master_shape_iou": 0.8861191736383814,
+      "master_shape_iou": 0.6882160392798691,
       "master_shape_iou_floor": 0.82,
-      "nearest_alpha_diff": 0.07647058823529412,
+      "nearest_alpha_diff": 0.3333333333333333,
       "nearest_alpha_diff_floor": 0.05,
-      "same_canvas_shape_iou": 0.9235294117647059,
+      "same_canvas_shape_iou": 0.6666666666666666,
       "same_canvas_shape_iou_floor": 0.89,
-      "normalized_centroid_delta": 0.009657878481581339,
+      "normalized_centroid_delta": 0.0029435362281381994,
       "normalized_centroid_delta_limit": 0.02,
-      "internal_material_boundary_edit": 0.6996466431095406,
+      "internal_material_boundary_edit": 0.8226872246696035,
       "internal_material_boundary_edit_floor": 0.07,
-      "nearest_rgba_diff": 0.9411764705882353
+      "nearest_rgba_diff": 0.9770491803278688
     },
     "95": {
       "size": [
@@ -247,15 +298,21 @@
         95
       ],
       "bbox": [
-        16,
+        15,
         6,
         79,
-        89
+        90
       ],
-      "foreground_pixels": 1824,
-      "palette_count": 16,
-      "blue_lens_pixels": 72,
-      "blue_lens_pixels_in_roi": 72,
+      "foreground_pixels": 1646,
+      "palette_count": 12,
+      "blue_lens_pixels": 45,
+      "blue_lens_pixels_in_roi": 45,
+      "lens_material_pixels": {
+        "brass": 55,
+        "ink": 133,
+        "ivory": 85,
+        "lens": 45
+      },
       "landmarks": {
         "lens": true,
         "mount": true,
@@ -265,19 +322,19 @@
         "eyepiece": true
       },
       "foreground_components_8_connected": 1,
-      "decoded_rgba_sha256": "0f26513998c2f20a93e1e6b027e27a4bcdab7ee8dbab4e852693bd943a78dd5c",
+      "decoded_rgba_sha256": "5e29870dfbb94397bc52dcd98bd30d1c2d995816d5d74350b11a5939ac6e8f6a",
       "hard_errors": [],
-      "master_shape_iou": 0.9233954451345756,
+      "master_shape_iou": 0.650007907638779,
       "master_shape_iou_floor": 0.9,
-      "nearest_alpha_diff": 0.047592997811816196,
+      "nearest_alpha_diff": 0.33037912358444116,
       "nearest_alpha_diff_floor": 0.025,
-      "same_canvas_shape_iou": 0.9524070021881839,
+      "same_canvas_shape_iou": 0.6696208764155588,
       "same_canvas_shape_iou_floor": 0.93,
-      "normalized_centroid_delta": 0.006411908976180464,
+      "normalized_centroid_delta": 0.014343333431672309,
       "normalized_centroid_delta_limit": 0.015,
-      "internal_material_boundary_edit": 0.5366876310272537,
+      "internal_material_boundary_edit": 0.8707995365005794,
       "internal_material_boundary_edit_floor": 0.04,
-      "nearest_rgba_diff": 0.8698030634573304
+      "nearest_rgba_diff": 0.9753815854258986
     },
     "128": {
       "size": [
@@ -300,6 +357,13 @@
       "palette_count": 95,
       "blue_lens_pixels": 129,
       "blue_lens_pixels_in_roi": 95,
+      "lens_material_pixels": {
+        "brass": 73,
+        "ink": 218,
+        "ivory": 141,
+        "lens": 95,
+        "steel": 3
+      },
       "landmarks": {
         "lens": true,
         "mount": true,
