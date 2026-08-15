@@ -98,6 +98,17 @@ that adding review evidence does not make this registry stale.
   [`HUSTLEK-OPENING.md`](./HUSTLEK-OPENING.md); the deterministic builder is
   [`scripts/build-hustlek-opening.py`](../scripts/build-hustlek-opening.py).
 
+- `design/hustlek-assets-v1/` — added 2026-08-15 as design working material.
+  Contains a deterministic ZIP with 803 user-supplied concepts redrawn at the
+  native 16px, 32px, 48px and 64px information tiers, plus a representative
+  contact sheet. The ZIP contains 3,212 transparent RGBA PNG files, an internal
+  manifest and its validation report. It is not wired into the app or web
+  build. The source archive does not state a standalone redistribution license,
+  so shipping requires a separate rights confirmation. Reproduction and QA
+  rules are in [`HUSTLEK-ASSET-PACK.md`](./HUSTLEK-ASSET-PACK.md); the offline
+  builder is
+  [`scripts/build-hustlek-asset-pack.py`](../scripts/build-hustlek-asset-pack.py).
+
 ## Remote images (AI Museum, /museum)
 
 The AI history museum (`src/screens/deepspace/museum/AiMuseumScreen.tsx`) shows
