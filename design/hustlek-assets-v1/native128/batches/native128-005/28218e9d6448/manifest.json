@@ -1,0 +1,2015 @@
+{
+  "assets": [
+    {
+      "asset_id": "avatars/service/shopkeeper",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "65c0fecfd85f25bd873f4b1168e28ae3b0bdf860432451ea041f5040c9910c03",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Shopkeeper avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Shopkeeper identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished occupational garment construction and material-detail reference.\nIdentity anchors: preserve flat bright-blue shop cap or hair silhouette, fair skin, bright blue horizontal moustache, brown shop smock with a large golden-yellow center apron panel. Keep these unmistakable and in the same visual roles. Do not normalize the person, replace equipment, or add a prop absent from Image 1.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Shopkeeper bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose bridge and tip, mouth corners, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines throughout face, headwear or headset, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-d8977ca9-9cf8-40c4-a39e-e87beb82756c.png",
+        "source_sha256": "f9a648b9f8a6d9e1c41846f923f18b909c1203fe50b3f4459731d6fce1820ab0",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          6,
+          12,
+          122,
+          128
+        ],
+        "components_8_neighbor": [
+          8021
+        ],
+        "decoded_rgba_sha256": "bafa08987faba991b1e525b0559e43c3e9050a51dcc0ddb75357e374ad55b223",
+        "foreground_pixels": 8021,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 23
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8194474895856172,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1208,
+        "master_transitions": 6542,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2547607421875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.4155629139072845
+      },
+      "source": {
+        "path": "export/avatars/service/shopkeeper.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c8218fb21642052a35501475b1094ab83336ec4abca7fda18a96ccb64c2eb6e3"
+      }
+    },
+    {
+      "asset_id": "avatars/service/tailor",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c8cd65f7d55d3769e078c8595b4a7db0f7a5eacc8b09dd49c63a0660894e732e",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Tailor avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Tailor identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished occupational garment construction and material-detail reference.\nIdentity anchors: preserve large rectangular near-black hair frame, very dark brown skin, compact dark moustache, brown tailoring coat with a bright yellow collar band and two dark fasteners. Keep these unmistakable and in the same visual roles. Do not normalize the person, replace equipment, or add a prop absent from Image 1.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Tailor bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose bridge and tip, mouth corners, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines throughout face, headwear or headset, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-1b9c7f2f-f7b6-4dcc-a661-458008522bf0.png",
+        "source_sha256": "7d597a35cd0476f6d7f2f9560cd64d87487e68fb9153841cdb6b99219b32abb2",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          12,
+          10,
+          115,
+          128
+        ],
+        "components_8_neighbor": [
+          8145
+        ],
+        "decoded_rgba_sha256": "b00f6ea3ace8fd0b3afe0e80af21fb9c325f55e599f1205c8dda8ca50d0dbf1b",
+        "foreground_pixels": 8145,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8229356813057017,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1312,
+        "master_transitions": 7725,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.291015625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.8879573170731705
+      },
+      "source": {
+        "path": "export/avatars/service/tailor.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "10f616aaae6a26e1f32605b1d501f9c4afb7566e7176574f767fcacfbe496083"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/atc",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8bdebaf97196d7fb51191e3489f9b21fc37450c7d5863a455a71feed714210d6",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Air Traffic Controller avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Air Traffic Controller identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished occupational garment construction and material-detail reference.\nIdentity anchors: preserve peach-orange controller cap with a near-black top band, large black communications ear cups on both sides, coral boom microphone at the mouth, fair skin, slate suit, white shirt, black tie. Keep these unmistakable and in the same visual roles. Do not normalize the person, replace equipment, or add a prop absent from Image 1.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Air Traffic Controller bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose bridge and tip, mouth corners, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines throughout face, headwear or headset, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-07ec754f-90b1-4b83-9a7b-884c319f38f3.png",
+        "source_sha256": "f9b9b204cb9d82812dd5863f4412eb4435bb305c127ca1f98e47f3b7520017c1",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          11,
+          6,
+          117,
+          128
+        ],
+        "components_8_neighbor": [
+          8742
+        ],
+        "decoded_rgba_sha256": "95494d312512f4dda397ce5816065657503e4d157f91f6759a9872c1a9c709d3",
+        "foreground_pixels": 8742,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8595032734074612,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1460,
+        "master_transitions": 8516,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.3189697265625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.832876712328767
+      },
+      "source": {
+        "path": "export/avatars/transport/atc.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "bc628076c0c159a7117ac6db2a6b89a69e03150460f6d14c20a23c46495400a5"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/busDriver",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a4e6d574048ac39128205a0a9e3610866344b1c3b01e3995f4fd76804e525934",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Bus Driver avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Bus Driver identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished occupational garment construction and material-detail reference.\nIdentity anchors: preserve wide teal-green driver cap with lighter band, dark brown skin, compact dark moustache, matching teal uniform with white collar and black tie. Keep these unmistakable and in the same visual roles. Do not normalize the person, replace equipment, or add a prop absent from Image 1.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Bus Driver bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose bridge and tip, mouth corners, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines throughout face, headwear or headset, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-e4d88274-1465-4620-90f0-b1c6bde8dcfe.png",
+        "source_sha256": "9dcfb737c569287055c85f83e0fe2531c54efe50ec1b54781e86103f94428c2e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          9,
+          4,
+          119,
+          128
+        ],
+        "components_8_neighbor": [
+          8638
+        ],
+        "decoded_rgba_sha256": "16c6b61caba32c1f01c737f9fc87fa885dd67585c2a60118cd38055d6419fece",
+        "foreground_pixels": 8638,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8238501903488014,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1248,
+        "master_transitions": 9230,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.33642578125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.395833333333333
+      },
+      "source": {
+        "path": "export/avatars/transport/busDriver.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "130fc2f4e76b4f3212003febd20725da4654475f030224d75a773dc552848904"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/captain",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "eeddf28dce260970792c8efad5a68c44d49a7507e5e96b6b5ff4df51f3dcd327",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Captain avatar. Image 1 supplies the exact canonical identity, silhouette, skin, headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Captain identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished uniform construction and material-detail reference.\nIdentity anchors: preserve tall white naval captain cap with navy crown and thin gold band, enormous irregular black wraparound sunglasses with cream reflections, fair skin, navy captain coat with gold lapel panels and white shirt inset. Keep unusual eyewear or face markings exact in side, coverage, role, and color. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Captain bust. Preserve every visible anchor from Image 1 exactly in role and placement.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered headwear and hair, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, headwear, eyewear or marking, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-9508c0ec-8ae0-4738-8abb-2201d8430109.png",
+        "source_sha256": "ffe71688bc4d58d23be3e43b987a1dc224c79d21bdf0f60b44d0efd47374f093",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          12,
+          3,
+          116,
+          128
+        ],
+        "components_8_neighbor": [
+          8290
+        ],
+        "decoded_rgba_sha256": "4bef6835ab99d7e2b39be9f6f4b6c4980825d0048116fba270ec9162ed3f95af",
+        "foreground_pixels": 8290,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8441530979065341,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1440,
+        "master_transitions": 7593,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.267822265625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.272916666666666
+      },
+      "source": {
+        "path": "export/avatars/transport/captain.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "395ee10ac87f3c3f5273bec38a8b5327090356e3f5f777b1f84276dd740726c7"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/conductor",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c6f40964860ba2c02b1b51367db62ed6343418e0fd046b662aa2d939f9154896",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Train Conductor avatar. Image 1 supplies the exact canonical identity, silhouette, skin, headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Train Conductor identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished uniform construction and material-detail reference.\nIdentity anchors: preserve wide navy conductor cap with broad gold band, warm medium-brown skin, compact dark moustache, navy uniform with two square gold chest fasteners. Keep unusual eyewear or face markings exact in side, coverage, role, and color. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Train Conductor bust. Preserve every visible anchor from Image 1 exactly in role and placement.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered headwear and hair, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, headwear, eyewear or marking, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-9b9f9faf-5550-4f4b-9bfd-1955547f9f65.png",
+        "source_sha256": "c3e63d2da4927c316eea93df89ea7dc501a6c97116cd5006dd9f9ec6f3e8309f",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          15,
+          8,
+          113,
+          128
+        ],
+        "components_8_neighbor": [
+          8002
+        ],
+        "decoded_rgba_sha256": "0f11f9d293fd2b5f2991859a6ab5782e4bddfa7f30d92242ca01d1f730ffcdd2",
+        "foreground_pixels": 8002,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8515709642470206,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1160,
+        "master_transitions": 7480,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.27734375,
+        "not_identity_upscale": true,
+        "transition_gain": 6.448275862068965
+      },
+      "source": {
+        "path": "export/avatars/transport/conductor.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "044f7e34ec1888e41e31b02e66dee6887a9f39f4ba67f3e52d406adca886e8d5"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/dockWorker",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d4d2fe9acb4156428e8f2fa6d58e9e057c3b724d459bf8a436963aae549fc0ed",
+        "prompt": "Use case: identity-preserve\nAsset type: corrected canonical 128x128 HustleK pixel-art Dock Worker avatar master\nInput images: Image 1 = exact 32px identity target; Image 2 = current 128px draft to correct; Image 3 = approved HustleK face and cluster reference.\nPrimary request: Keep Image 2's native 128px pixel-art quality, golden hard hat, warm brown skin, golden shirt, white suspenders, centered front-facing crop, palette, lighting, and all garment detail. Change only the right-side facial marking so it matches Image 1.\nRequired correction: this is not a small round pirate eye patch. Restore the broad asymmetric very-dark brown facial patch from Image 1: it covers the subject's right eye and extends down the right cheek, includes the angular warm-brown highlight inside it, and connects to a narrow dark vertical strap descending along the right side. Preserve the uncovered left eye and the rest of the face.\nScene/backdrop: perfectly flat uniform #00FF00 chroma key.\nStyle/medium: authentic handcrafted HustleK pixel art authored on a 128x128 logical grid, crisp integer-aligned clusters, warm-charcoal outline, no macro-pixel enlargement.\nConstraints: change only that facial patch; no round eye patch, no text, no logo, no watermark, no prop, no antialiasing, no blur, no gradients, no shadow or texture in background, no #00FF00 inside subject.",
+        "source_id": "exec-ded5cb6a-c632-47a4-b1a3-dab720ab7632.png",
+        "source_sha256": "ceee69134f55df1c9e7e5a8503284aed79b0582d697a714d07e53157461f9191",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          11,
+          3,
+          117,
+          128
+        ],
+        "components_8_neighbor": [
+          7934
+        ],
+        "decoded_rgba_sha256": "92b71f3a159d1e7ad88dd0dd79afa8426476d91c9646898788398efaeca4b2f6",
+        "foreground_pixels": 7934,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7938781820055653,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1228,
+        "master_transitions": 8405,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.29754638671875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.844462540716612
+      },
+      "source": {
+        "path": "export/avatars/transport/dockWorker.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "794f5883992884d48f59bfc9ff7e27b8e186ff09f31b1bec6791f0e70d3821dd"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/driver",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5d680d1b9990bcbbdb449328e57170b55fe889195ce0c31398829f1b6edee54a",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Driver avatar. Image 1 supplies the exact canonical identity, silhouette, skin, headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Driver identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished uniform construction and material-detail reference.\nIdentity anchors: preserve wide periwinkle-blue driver cap with gray-blue band, fair skin, compact black moustache, matching blue uniform with two dark chest fasteners. Keep unusual eyewear or face markings exact in side, coverage, role, and color. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Driver bust. Preserve every visible anchor from Image 1 exactly in role and placement.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered headwear and hair, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, headwear, eyewear or marking, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-df653567-3cbd-4ab5-9568-e29b5af1baaa.png",
+        "source_sha256": "c92b1e5b5083fbf100776dc0c7cbdb9cfad450ea4a5b9df546581064aa259a46",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          15,
+          6,
+          113,
+          128
+        ],
+        "components_8_neighbor": [
+          8225
+        ],
+        "decoded_rgba_sha256": "9c529a1306ecd5ef4953fdefef622b897e82a1bad7b44290d696ff0efa1e3a34",
+        "foreground_pixels": 8225,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.858216164001288,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1184,
+        "master_transitions": 8307,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2991943359375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.016047297297297
+      },
+      "source": {
+        "path": "export/avatars/transport/driver.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "52fdc7ffaa9e128dd05fa3d806f68a7133fff807517f83829fc3dcab0e0e7d2c"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/flightAttendant",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5352d5ae8dc83aa7bed1f3bd298f8823719884818510d3b866956d17f55983ec",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Flight Attendant avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Flight Attendant identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved occupational workwear and material-detail reference.\nIdentity anchors: preserve small magenta flight-service pillbox cap with darker band, fair skin, full warm-brown beard and moustache, magenta uniform with a pale collar band. Keep all protective or service headgear unmistakable and in the same visual role. Do not normalize facial hair, recolor clothing, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Flight Attendant bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, helmet or cap, equipment, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-fce6e3ec-6362-4022-ba65-b1cbf14e8322.png",
+        "source_sha256": "52dca527f336c8ca4f6967962e38c36368f2164666804511c8a516ebbb479115",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 256
+        },
+        "bbox": [
+          10,
+          4,
+          119,
+          128
+        ],
+        "components_8_neighbor": [
+          8217
+        ],
+        "decoded_rgba_sha256": "9abb253ca315447716c217418654340315deff5a266d196b9c4d309896b6ad42",
+        "foreground_pixels": 8217,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8418417328834222,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1192,
+        "master_transitions": 8272,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2886962890625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.939597315436242
+      },
+      "source": {
+        "path": "export/avatars/transport/flightAttendant.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "00a35a125d98f638d36e8334036b7e87ea995452968b2431af3f638d7e2a6ca8"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/forkliftOp",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "643e714ef5d61c8930a7e9e3bb33c648352a2a05d287392e9ec2a6ee53a73789",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Forklift Operator avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Forklift Operator identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved occupational workwear and material-detail reference.\nIdentity anchors: preserve gold hard hat, large pale pink-white hearing protectors on both sides, medium-brown skin, compact black moustache, muted teal work overalls with two gold suspenders. Keep all protective or service headgear unmistakable and in the same visual role. Do not normalize facial hair, recolor clothing, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Forklift Operator bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, helmet or cap, equipment, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-2e9bd62e-242c-43c5-b2fd-424733ae739b.png",
+        "source_sha256": "84cfa3e3ca0ce5724fa272bce16c62c10df5ffd98acf8e931c400389c35467c6",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 256
+        },
+        "bbox": [
+          7,
+          3,
+          121,
+          128
+        ],
+        "components_8_neighbor": [
+          8455
+        ],
+        "decoded_rgba_sha256": "259fc683f447b3918c3a6b230c1beb0b041ab182260a8cb0e2cfc8e28c5d20c1",
+        "foreground_pixels": 8455,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7145504279537633,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1480,
+        "master_transitions": 7391,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.27825927734375,
+        "not_identity_upscale": true,
+        "transition_gain": 4.993918918918919
+      },
+      "source": {
+        "path": "export/avatars/transport/forkliftOp.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8692f0864d746c312060d42153754086a1294e5db2bb79b6194d1d11f92c0859"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/pilot",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "9b0fd69a51a04d6daacdea96ce41d26e4a0ab0baa6784734c83ce33433619c75",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Pilot avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Pilot identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved occupational workwear and material-detail reference.\nIdentity anchors: preserve white pilot cap with navy crown band and small gold center badge, pale side hair, fair skin, black moustache, navy pilot coat with white shirt and black tie. Keep all protective or service headgear unmistakable and in the same visual role. Do not normalize facial hair, recolor clothing, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Pilot bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, helmet or cap, equipment, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-bb7dc7c2-8505-4345-81e8-caa43c230ed0.png",
+        "source_sha256": "5e7e46e226a9f649a8124e782b2b351d710061f0c13200e0670d57ad09855359",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 256
+        },
+        "bbox": [
+          6,
+          2,
+          122,
+          128
+        ],
+        "components_8_neighbor": [
+          8826
+        ],
+        "decoded_rgba_sha256": "e92fae7d669fc02e5ba63aab01ae482de4f97e9dea004724da298332570a6458",
+        "foreground_pixels": 8826,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8087218045112782,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1416,
+        "master_transitions": 8747,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.3154296875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.17725988700565
+      },
+      "source": {
+        "path": "export/avatars/transport/pilot.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "568b8894408784a662353ef75a4a9e101fdd842e93551c1c437c93bac55787f0"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/rider",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1719051a45ea9764d4085654d252ffd5b5f0d6d21bc661eeaf153511c0c23012",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art transport occupation avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Rider avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, occupational cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Rider identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved occupational workwear and material-detail reference.\nIdentity anchors: preserve large salmon-red riding helmet with ear guards and lighter crown panel, fair skin, black moustache, matching red riding jacket with a wide black center panel. Keep all protective or service headgear unmistakable and in the same visual role. Do not normalize facial hair, recolor clothing, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Rider bust. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, helmet or cap, equipment, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-10b04e14-118f-40e3-a83a-ae5baee0e116.png",
+        "source_sha256": "2529c44e2631244887a9a898fa9428d488844de9126d31c485ec1102cbe96c04",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 256
+        },
+        "bbox": [
+          14,
+          4,
+          114,
+          128
+        ],
+        "components_8_neighbor": [
+          8191
+        ],
+        "decoded_rgba_sha256": "d1684664822a59758ef4f280ebf3ad195e287bb1eed10f99ffd5e187cb7a2363",
+        "foreground_pixels": 8191,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8485135989879823,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1288,
+        "master_transitions": 9247,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.31866455078125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.179347826086956
+      },
+      "source": {
+        "path": "export/avatars/transport/rider.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c8c0566310ab14cc12074f95833e30fd0014410ff08d49a2174904a978a39c5a"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/sailor",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "9f41dcea5768d092a2ad9d4899588b2f6111c829b3368c7701ce45648ee852f2",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Sailor avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, role cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Sailor identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve white sailor cap with navy horizontal band, bright red hair visible along the right side, fair skin, distinctive long black vertical nose and small gray mouth, white sailor top with navy collar band. Keep unusual facial geometry, eyewear, and headwear exact in visual role and placement. Do not normalize the face or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Sailor bust. Preserve every visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hat, eyewear or hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-d4e0c50c-9b0f-4f27-867f-175b99e4588a.png",
+        "source_sha256": "98db79d1baada45ce9ab855df64b72cf44efede894cddfc6176b4cbc3549da2f",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 384
+        },
+        "bbox": [
+          18,
+          6,
+          110,
+          128
+        ],
+        "components_8_neighbor": [
+          8366
+        ],
+        "decoded_rgba_sha256": "e2df4888bac376136a83e48d436da64fdc384ac2570e4ba912167af2b39bc462",
+        "foreground_pixels": 8366,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8425277892136682,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1264,
+        "master_transitions": 8936,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.31378173828125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.069620253164557
+      },
+      "source": {
+        "path": "export/avatars/transport/sailor.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4c1c975407e2f4a5916f5c56a295d2e087e30e3ba22127717f1e41a43800bf8d"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/taxiDriver",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "79bfbc1cd35bc24399875806ba5bf6021c96ba1241683e8345812b1a4dd6f4ee",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Taxi Driver avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, role cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Taxi Driver identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve flat black taxi cap with gray band, fair skin, small black moustache, bright yellow taxi uniform with two dark chest fasteners. Keep unusual facial geometry, eyewear, and headwear exact in visual role and placement. Do not normalize the face or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Taxi Driver bust. Preserve every visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hat, eyewear or hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-0e12559f-3768-4649-bf6e-ee069df8d79d.png",
+        "source_sha256": "e1415a5084c33533e2cd5c60a90bc6404190582513ca893f0063c252d754fc73",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 384
+        },
+        "bbox": [
+          13,
+          7,
+          114,
+          128
+        ],
+        "components_8_neighbor": [
+          8047
+        ],
+        "decoded_rgba_sha256": "b527d524aa918fd73e5152292a8c56c43e63caa033655a6f39263e6fd32954ce",
+        "foreground_pixels": 8047,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.844257883973738,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1172,
+        "master_transitions": 8172,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2838134765625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.972696245733788
+      },
+      "source": {
+        "path": "export/avatars/transport/taxiDriver.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ca2a1e55c8c54495a38ca93a5f08aafa2acdc073993c36753995adc732853424"
+      }
+    },
+    {
+      "asset_id": "avatars/transport/warehouseWorker",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "12643beb4b96412a050b8040bc74b434f455721531ae148436a822a310b1d48d",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Warehouse Worker avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, role cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Warehouse Worker identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve large boxy tan warehouse cap or helmet, vivid cyan-blue fringe across the forehead, fair skin, open dark square mouth, tan work overalls with two golden suspenders. Keep unusual facial geometry, eyewear, and headwear exact in visual role and placement. Do not normalize the face or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Warehouse Worker bust. Preserve every visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hat, eyewear or hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-9af75d43-bb5a-404c-b91a-e4ddb2257f9e.png",
+        "source_sha256": "dfe86275819375914e5e726507394c2149867f5520d5b817835de9685f12c98f",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 384
+        },
+        "bbox": [
+          15,
+          6,
+          113,
+          128
+        ],
+        "components_8_neighbor": [
+          8086
+        ],
+        "decoded_rgba_sha256": "8da3b362c79f596199f7b224ab02e51d0ec0544e58d7b54526d9b4da5233bd22",
+        "foreground_pixels": 8086,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8561429955852267,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1168,
+        "master_transitions": 7960,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2957763671875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.815068493150685
+      },
+      "source": {
+        "path": "export/avatars/transport/warehouseWorker.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6f25a8a9fd55c2c37167d9f61b6fd55a50e60810ee4ccf8719d9db1098bf0007"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/advisor",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "f122e6b7cfa2debb0947f2a7f152721b535df2c8ca43d3bc63c67a11abd3b19b",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Advisor avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, garment color roles, role cues, centered front-facing bust pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Advisor identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve very tall dark brown-black formal hat, medium-dark brown skin, enormous dark wraparound glasses with warm peach reflections, compact dark moustache, muted olive-green top. Keep unusual facial geometry, eyewear, and headwear exact in visual role and placement. Do not normalize the face or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Advisor bust. Preserve every visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes where visible, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, panels, straps, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hat, eyewear or hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, vehicle, scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-02b67dd9-a09a-450a-9ff3-267c2a9b4495.png",
+        "source_sha256": "9c22b02d93b12badbeae602f68cb1d2f3715f8a2d88d5479e3e6da58186eeae9",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 384
+        },
+        "bbox": [
+          12,
+          2,
+          116,
+          128
+        ],
+        "components_8_neighbor": [
+          7905
+        ],
+        "decoded_rgba_sha256": "b4487cc6ac6d7d02dd3b9791013646464968b9d7c0ff7ddad2b0261b10d7b99a",
+        "foreground_pixels": 7905,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8251778872468528,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1152,
+        "master_transitions": 8335,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.29803466796875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.235243055555555
+      },
+      "source": {
+        "path": "export/avatars/workplace/advisor.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4028df13d9bdfe52f3f373db328b4779a8299da88cebc8ec836199cf7a275aa1"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/boss",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "718f4c54aa7b4703494ae9d413171ca817f3dadbb907aa8cc2a188577384ca7f",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Workplace Leader avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing portrait crop, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Workplace Leader identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve tall flat-topped near-black executive hair silhouette, fair skin, very large black moustache, navy suit with white collar and strong red tie. Keep hair silhouette, facial hair, and garment hierarchy unmistakable. Do not normalize age, role, or clothing.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing head-and-shoulders Workplace Leader portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy; do not add a prop.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, multi-cluster hair or headwear, continuous warm-charcoal outline, collar or neckline, seams, fasteners, tie or badge, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-dee38206-e1e3-4d0d-bf81-c50a4e745db6.png",
+        "source_sha256": "2b1fb1b7c010cc543ddbc9fe0c2f78516166ffc20e8bec1f4b042e19235e783c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 512
+        },
+        "bbox": [
+          10,
+          2,
+          118,
+          128
+        ],
+        "components_8_neighbor": [
+          8178
+        ],
+        "decoded_rgba_sha256": "69ac3fda19e8a7cec9700c46c14f3a79aa6f382f7360f86b2c5172eaddbf01ba",
+        "foreground_pixels": 8178,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8009528851244044,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1208,
+        "master_transitions": 7092,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.265869140625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.870860927152318
+      },
+      "source": {
+        "path": "export/avatars/workplace/boss.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "266311296249eba90edf3ce49e23e4ab39330dfda3d3b9926c62f6c1b3c63739"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/client",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1140b258cebfa55b8e0d1360eda2474b7b24567bd22ea77c073b761b25545cb7",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Client avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing portrait crop, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Client identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve structured dark-brown side-part hair frame, fair skin, compact black moustache, slate-gray suit with white collar and bright blue tie. Keep hair silhouette, facial hair, and garment hierarchy unmistakable. Do not normalize age, role, or clothing.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing head-and-shoulders Client portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy; do not add a prop.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, multi-cluster hair or headwear, continuous warm-charcoal outline, collar or neckline, seams, fasteners, tie or badge, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-0cebb421-20ce-4479-b8a6-f61885a60349.png",
+        "source_sha256": "2be3c971b5abd0b9b4e2b10bd14b64c735a5a3d35b85aa2f8fe991779f682b93",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 512
+        },
+        "bbox": [
+          8,
+          8,
+          119,
+          128
+        ],
+        "components_8_neighbor": [
+          7840
+        ],
+        "decoded_rgba_sha256": "d1e86de63bfa968b5251ec4210d68cd31aacca517d5220814f991d64dbbc1d9b",
+        "foreground_pixels": 7840,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7859667916443492,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1256,
+        "master_transitions": 7891,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.27838134765625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.282643312101911
+      },
+      "source": {
+        "path": "export/avatars/workplace/client.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e20861b128ae9b20fba66dd875bf602f3d98c735f20b1203cd5509090a110f38"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/coworker",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "4d8835644278d0ae21afb9489bce3af3d721d519874193d3af51d2750f73f357",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Coworker avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing portrait crop, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Coworker identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve broad dark-brown shoulder-length hair frame, fair skin, small black moustache, muted teal workplace top with one small pale chest badge. Keep hair silhouette, facial hair, and garment hierarchy unmistakable. Do not normalize age, role, or clothing.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing head-and-shoulders Coworker portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy; do not add a prop.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, multi-cluster hair or headwear, continuous warm-charcoal outline, collar or neckline, seams, fasteners, tie or badge, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-74d2a64a-d5a4-4cb3-8bf7-d0f17529da5c.png",
+        "source_sha256": "dd6c3415d3a922879cd3e20c94d359eecdd1ee148c1e5196a8d0c5614839ece3",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 512
+        },
+        "bbox": [
+          15,
+          11,
+          114,
+          128
+        ],
+        "components_8_neighbor": [
+          8109
+        ],
+        "decoded_rgba_sha256": "bb9b63ac08f38fa7584d686152b0a85cbe10d6a8f7dbb27673116e01cd68f71a",
+        "foreground_pixels": 8109,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7108333333333333,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1328,
+        "master_transitions": 8504,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.302978515625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.403614457831325
+      },
+      "source": {
+        "path": "export/avatars/workplace/coworker.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ff3946d935a167a7b0096e21367dafe00e7808014a308be8be9ff6d5d60f5373"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/freelancer",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "60a94468627a60f0cd0fa90f6b79199de88979ae37b2e7ebdb78d343a759a82d",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Freelancer avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing portrait crop, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Freelancer identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve tall bright-blue casual cap with lighter horizontal band, brown side hair, fair skin, compact black moustache, simple bright-blue casual work top. Keep hair silhouette, facial hair, and garment hierarchy unmistakable. Do not normalize age, role, or clothing.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing head-and-shoulders Freelancer portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy; do not add a prop.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, multi-cluster hair or headwear, continuous warm-charcoal outline, collar or neckline, seams, fasteners, tie or badge, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-4e8f88de-a3bc-4f0f-aef4-5d8ac9196cc9.png",
+        "source_sha256": "b6a00ed400a47ce6a435aa207daeaa3a0dbcc530844937fa8f179fd6e025f30e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 512
+        },
+        "bbox": [
+          12,
+          2,
+          116,
+          128
+        ],
+        "components_8_neighbor": [
+          8229
+        ],
+        "decoded_rgba_sha256": "5a51e7282d7b437de24bb72552f74f6c45395b6238a6808b8c96a0ae827c5e61",
+        "foreground_pixels": 8229,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8280472636815921,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1184,
+        "master_transitions": 9334,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.32684326171875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.883445945945946
+      },
+      "source": {
+        "path": "export/avatars/workplace/freelancer.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "0ef90c63de8bc628834a78859a8ed1fc72784938ebccf0c0a8472262b9401211"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/intern",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e1d7e6de691bcd4e7bfb8169f3ef8d8536cd2e852773bcaad8704365d74d26f1",
+        "prompt": "Use case: identity-preserve\nAsset type: corrected canonical 128x128 HustleK pixel-art Intern avatar master\nInput images: Image 1 = exact 32px identity target; Image 2 = current 128px draft to correct; Image 3 = approved HustleK face and cluster reference.\nPrimary request: Keep Image 2's native 128px pixel-art quality, dark brown skin, blocky muted-green cap or hair, brown workplace top, green collar, pale chest badge, centered front-facing crop, palette, and lighting. Change only the mouth-area identity accent so it matches Image 1.\nRequired correction: restore the distinctive muted sage-green horizontal band crossing the mouth area from Image 1. It must be clearly visible as a short flat green bar centered across the lips, with the dark vertical chin or beard cluster below it. Do not replace it with ordinary lips or erase it.\nScene/backdrop: perfectly flat uniform #00FF00 chroma key.\nStyle/medium: authentic handcrafted HustleK pixel art authored on a 128x128 logical grid, crisp integer-aligned clusters, warm-charcoal outline, no macro-pixel enlargement.\nConstraints: change only the mouth-area accent; no text, logo, watermark, prop, antialiasing, blur, gradients, background shadow or texture, or #00FF00 inside subject.",
+        "source_id": "exec-975bfd38-aac8-4959-addb-ad524440d662.png",
+        "source_sha256": "d275bb20a7792d8015144aa7c42a9cbf372514badf383d8086d1a5924a657633",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 640
+        },
+        "bbox": [
+          16,
+          8,
+          112,
+          128
+        ],
+        "components_8_neighbor": [
+          7584
+        ],
+        "decoded_rgba_sha256": "f43d69877fed8b07d5107dd98ae400a30b4b513d782cfdf476f060c95c493413",
+        "foreground_pixels": 7584,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8274296094459582,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1104,
+        "master_transitions": 7935,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.27850341796875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.1875
+      },
+      "source": {
+        "path": "export/avatars/workplace/intern.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ce214023d2283a96764356c7e545c330e8698f81977c0002d7169ef833491798"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/newHire",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#FF00FF",
+        "cutout_sha256": "118652fafa2bd9cb38f776bfa8903df87c96d9f3974ab7f1bb796554947e1fba",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK New Hire avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = New Hire identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve large squared white-lavender beginner cap or hair silhouette with a narrow purple tab at the top, very fair skin, open dark square mouth, olive-green top. Keep unusual face accents, cap geometry, skin, and badge or tie hierarchy unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #FF00FF chroma-key background.\nSubject: one centered front-facing New Hire portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, badge or tie, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, headwear, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #FF00FF background with no shadow, texture, halo, floor, or #FF00FF inside subject.",
+        "source_id": "exec-401db2c7-fd50-4534-976b-0a5fb8e9224a.png",
+        "source_sha256": "f4ee8397b5d601e551e22931399b3e6afa1d90495bc0247afc9459a9846c5ebf",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 640
+        },
+        "bbox": [
+          18,
+          7,
+          110,
+          128
+        ],
+        "components_8_neighbor": [
+          7137
+        ],
+        "decoded_rgba_sha256": "cc9c999ab7d8e29904e9c27cde3e08d59d22608fba9d234434cbb083444f7efd",
+        "foreground_pixels": 7137,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7960690752101796,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1024,
+        "master_transitions": 6885,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2523193359375,
+        "not_identity_upscale": true,
+        "transition_gain": 6.7236328125
+      },
+      "source": {
+        "path": "export/avatars/workplace/newHire.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "147986a8ccbecbb2014ec6ad2e873259cf4b8b2832e0c00ae72850f140d405c1"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/recruiter",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5a91f4e230b7584bb775a34c5280dfbfba3109e741813cb3271dcaa9bcbae96a",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Recruiter avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Recruiter identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve large rectangular orange-brown hair or cap frame with lighter horizontal band, fair skin, small black moustache, golden workplace top with one small blue chest badge. Keep unusual face accents, cap geometry, skin, and badge or tie hierarchy unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Recruiter portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, badge or tie, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, headwear, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-114f77bb-febf-4095-85a9-5ca69d675177.png",
+        "source_sha256": "36f435ccd5d926569bd38561145a141d76f1e9ca48ca593e3fca2848aa584a1d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 640
+        },
+        "bbox": [
+          14,
+          8,
+          114,
+          128
+        ],
+        "components_8_neighbor": [
+          8280
+        ],
+        "decoded_rgba_sha256": "36c9c0f3f4ed627c11c41ec29c3ee6eba0db45852319b6bf8b794cc7754286af",
+        "foreground_pixels": 8280,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8329048843187661,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1192,
+        "master_transitions": 8514,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.30364990234375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.14261744966443
+      },
+      "source": {
+        "path": "export/avatars/workplace/recruiter.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "fd8a2c9df5059376e2b0b91e3f8ec2844f4c863dd6b10f38401aa4523a825a7e"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/teamLead",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "25a5c6f3f979bbcfccbe269721561bb06ad0cfde89cd953178783438985c986c",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art workplace role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Team Lead avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, workplace-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Team Lead identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished workplace garment construction and material-detail reference.\nIdentity anchors: preserve salmon-red flat cap band, large near-black rectangular hair frame, very dark brown skin, dark compact facial features, salmon-orange leadership top with gold badge, white collar, and red tie. Keep unusual face accents, cap geometry, skin, and badge or tie hierarchy unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Team Lead portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, collar, seams, fasteners, badge or tie, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, headwear, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, office scenery, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-12f5bce6-b1c2-4d34-aea9-9e294a300ade.png",
+        "source_sha256": "08c84ae4eab339aeab334e6456dc7123aedaf74d8f8cee5bb68a8de600e22f19",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 640
+        },
+        "bbox": [
+          12,
+          7,
+          116,
+          128
+        ],
+        "components_8_neighbor": [
+          8672
+        ],
+        "decoded_rgba_sha256": "dd6d84d78226ba14961707a1f0764d965bf0002918946d2f3eb9af08a77a2042",
+        "foreground_pixels": 8672,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8152946092770581,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1360,
+        "master_transitions": 8030,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2852783203125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.904411764705882
+      },
+      "source": {
+        "path": "export/avatars/workplace/teamLead.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "84eda624bea0f5ab24c519480b952c8e3d5911429a0982a01b6e29f0a3bb856a"
+      }
+    },
+    {
+      "asset_id": "avatars/workplace/veteranRole",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d87f27db7d5a79743ab5b557d0ec9e2ab52f111840732d5c74f8352376ee13a0",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Workplace Veteran avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Workplace Veteran identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve broad pale-blue and tan veteran cap with a gold horizontal band, dark brown skin, large near-black side hair blocks, compact dark moustache, golden workplace top. Keep age or role cues, unusual hair or headwear, and garment panels unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Workplace Veteran portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, apron or role panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or cap, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, baby, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-44a575e0-896f-480b-8b17-c20f09439d6e.png",
+        "source_sha256": "ac71936141cb00aeb80b1fbe7efb6ad2285b855b0d8a2806dca36b7f5134beb3",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 768
+        },
+        "bbox": [
+          6,
+          6,
+          123,
+          128
+        ],
+        "components_8_neighbor": [
+          9057
+        ],
+        "decoded_rgba_sha256": "be2e141a3ab411e246b4b3030d19ab9a67977c3411bd59b9492105d31e5f73eb",
+        "foreground_pixels": 9057,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8539899867170737,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1272,
+        "master_transitions": 7496,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.29229736328125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.8930817610062896
+      },
+      "source": {
+        "path": "export/avatars/workplace/veteranRole.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5d76e0f58faa3a66c6680927de2552f3e472bc9df6d29e0e16dd2fd37d1a154b"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/caregiverRole",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#FF00FF",
+        "cutout_sha256": "655df408821e64f4d9d3f83814253d6095923a85dea6775a9da21f9a66994cd2",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Caregiver Role avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Caregiver Role identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve tall dark-brown cap or hair crown with a lighter brown horizontal band, dark brown skin, large dark side hair blocks, compact moustache, olive-green caregiver top with one large white apron bib. Keep age or role cues, unusual hair or headwear, and garment panels unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #FF00FF chroma-key background.\nSubject: one centered front-facing Caregiver Role portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, apron or role panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or cap, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, baby, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #FF00FF background with no shadow, texture, halo, floor, or #FF00FF inside subject.",
+        "source_id": "exec-ae836516-4589-4de3-9084-723d9a371ba9.png",
+        "source_sha256": "976dc99fbc7612d21fc757f805cf5950ecb1d247bee6cd80a39226d55db9c183",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 768
+        },
+        "bbox": [
+          15,
+          4,
+          112,
+          128
+        ],
+        "components_8_neighbor": [
+          8173
+        ],
+        "decoded_rgba_sha256": "5885a4eaa0eb31050af3c53e0d39ce505cc06dc17a47698d3f0d41d89ab373a7",
+        "foreground_pixels": 8173,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8662902194758151,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1328,
+        "master_transitions": 7493,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.26739501953125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.642319277108434
+      },
+      "source": {
+        "path": "export/avatars/lifestage/caregiverRole.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c866e3c1da603bbc369cc4044d96b1ef12e9d218c9a342235ea56c4ca9128561"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/expectingParent",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "f9032da86d34482d011af452b28fdb9f8830b18b33082d7b02935f2f2c54cd27",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Expecting Parent avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Expecting Parent identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve large squared warm-gray hair frame, very fair skin, compact black moustache, purple top with a distinct pink layered neckline. Keep age or role cues, unusual hair or headwear, and garment panels unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Expecting Parent portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, apron or role panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or cap, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, baby, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-e7667bb0-c7f4-40cb-9b38-f9f397917991.png",
+        "source_sha256": "673d0ed5b192203639efa8b6a0d68facdc1414ff3924b2e0c4d00e29829ba573",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 768
+        },
+        "bbox": [
+          16,
+          8,
+          112,
+          128
+        ],
+        "components_8_neighbor": [
+          8381
+        ],
+        "decoded_rgba_sha256": "06dd305f51657a9c79475edf57e55814eacf25ca3b2a0ddc90ecd93bddaaf09c",
+        "foreground_pixels": 8381,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8510888129803587,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1296,
+        "master_transitions": 8262,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.292236328125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.375
+      },
+      "source": {
+        "path": "export/avatars/lifestage/expectingParent.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8ef8a72f7968bcd62ebe44a2b448d8fb2645d9f55cfd142ba9e632a9c45465da"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/hobbyist",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "39e81da217093a82429cca20a18422b227b2215893b68832c252b4965218ed90",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-role avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Hobbyist avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-role cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Hobbyist identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve tall slate-blue hobby cap with vivid pink brim and pink fringe across the forehead, medium-brown skin, compact dark moustache, blue-gray work top with small cyan and red craft accents. Keep age or role cues, unusual hair or headwear, and garment panels unmistakable. Do not normalize the person or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Hobbyist portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, apron or role panels, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or cap, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, extra character, extra limbs, baby, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-cc93ed2d-f345-4eab-9009-6549ef129f80.png",
+        "source_sha256": "0545004f5e93f9b8d8d0282c57896944b759281c20e2f728fc54d6606af3d58e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 768
+        },
+        "bbox": [
+          16,
+          2,
+          113,
+          128
+        ],
+        "components_8_neighbor": [
+          7826
+        ],
+        "decoded_rgba_sha256": "da78878c8bbff22f37a8f23b50227725a87d5d07155328236563a8fc494f72dd",
+        "foreground_pixels": 7826,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8218692992810387,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1136,
+        "master_transitions": 8462,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.29046630859375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.448943661971831
+      },
+      "source": {
+        "path": "export/avatars/lifestage/hobbyist.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8d64db5dc4dbb1e3d19c2ce24aece2be0e25e3f3b1f3c4fe196da8a3138b99db"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/jobSeeker",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c3fa942aad7d2ca8f0a539c33eed97f21640f0ec7755d201d54d91d2bf6918ba",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-stage avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Job Seeker avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-stage cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Job Seeker identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve wide magenta interview cap with long right brim and lighter band, fair skin, compact black moustache, magenta formal top with white collar and gray tie. Keep age, expression, accessory count, and garment hierarchy unmistakable. Do not normalize the face, add a pet or partner, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Job Seeker portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, tie or role accents, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or accessories, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, pet, spouse, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-f46fedf3-db86-4345-a97a-5e9caf4c95de.png",
+        "source_sha256": "c0b0693180b5233b259f1177b6d9f0ee870c9b225cfed26636361ef3843b40dd",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 896
+        },
+        "bbox": [
+          10,
+          4,
+          118,
+          128
+        ],
+        "components_8_neighbor": [
+          8518
+        ],
+        "decoded_rgba_sha256": "ad561a7d391c51928621fd0d7c806543a46af955f3a39b9d5f9ce29e7642bfab",
+        "foreground_pixels": 8518,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8149137222678718,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1252,
+        "master_transitions": 8938,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.3228759765625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.138977635782748
+      },
+      "source": {
+        "path": "export/avatars/lifestage/jobSeeker.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "98af47418807fac2baba0c415cc6f2148b8ebf954456c0ae0eabead9550fd793"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/newlywed",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "6a5673bf4fac1be3ab28be1256e0a9ef62dd6c965656ff1d631724417911bf85",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-stage avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Newlywed avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-stage cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Newlywed identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve tall dark-brown formal hair or headpiece with lighter brown band and long dark side panels, fair skin, distinct pink blush on both cheeks, small black moustache, golden formal top. Keep age, expression, accessory count, and garment hierarchy unmistakable. Do not normalize the face, add a pet or partner, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Newlywed portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, tie or role accents, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or accessories, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, pet, spouse, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-48e3a40d-0950-4bbf-9a71-b10f272b2a6c.png",
+        "source_sha256": "e904e77889299fe365501ffa062fb380dc187580371a6bda757e817f1bb0c91c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 896
+        },
+        "bbox": [
+          16,
+          2,
+          111,
+          128
+        ],
+        "components_8_neighbor": [
+          8210
+        ],
+        "decoded_rgba_sha256": "0514561dc54ba0d0ced31c09ea7fb9443ea2200b99c9170f9bdab9affa7e48d3",
+        "foreground_pixels": 8210,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8463611859838275,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1320,
+        "master_transitions": 7395,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.27850341796875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.6022727272727275
+      },
+      "source": {
+        "path": "export/avatars/lifestage/newlywed.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "a47be4ddaced910248a2e900fe0050751d6c9d385ad1e4100ef8ee98bf9d970e"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/petOwner",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "cc439340c9141b11ad9eaedeedc803944aee7f9dcbf1236f17708b4217831043",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-stage avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Pet Owner avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-stage cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Pet Owner identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve two tall brown animal-ear accessories with pink inner-ear tips, very dark brown skin, broad cheerful white smile and compact dark facial features, brown top with small warm-orange accents. Keep age, expression, accessory count, and garment hierarchy unmistakable. Do not normalize the face, add a pet or partner, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Pet Owner portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, tie or role accents, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or accessories, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, pet, spouse, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-44601fc8-3822-45c6-b507-894d8d758647.png",
+        "source_sha256": "6d6662d8d485d95de1a2a0779de343d2dfb1437eff5ffb96e9f34a524e9ae8c8",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 896
+        },
+        "bbox": [
+          18,
+          3,
+          110,
+          128
+        ],
+        "components_8_neighbor": [
+          7144
+        ],
+        "decoded_rgba_sha256": "f8280388ecf2bf8f62eca8dc2c942f324bf98bb4903e86541b45e6fe7febf602",
+        "foreground_pixels": 7144,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7602955557970227,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1272,
+        "master_transitions": 9042,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.30145263671875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.1084905660377355
+      },
+      "source": {
+        "path": "export/avatars/lifestage/petOwner.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "02912386fed12ebb3406ac9597ea9c0e64518e68e127efa121629a16dbfd3767"
+      }
+    },
+    {
+      "asset_id": "avatars/lifestage/retiree",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "9ea3776650a1498fd5ffd4a8764a5a875f5a6ae7f8ae7005607aecd4d9587cef",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art life-stage avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Retiree avatar. Image 1 supplies the exact canonical identity, silhouette, skin, hair or headwear, facial markings, outfit color roles, life-stage cues, centered front-facing head-and-shoulders pose, and crop only; never enlarge or trace its 32px blocks.\nInput images: Image 1 = Retiree identity/edit target; Image 2 = approved HustleK face proportions and handcrafted pixel-cluster reference; Image 3 = approved polished garment construction and material-detail reference.\nIdentity anchors: preserve short pale-gray side hair with a bare warm-peach crown, fair skin, very large horizontal black brow or moustache accent, small black mouth, salmon-orange top. Keep age, expression, accessory count, and garment hierarchy unmistakable. Do not normalize the face, add a pet or partner, or invent a prop.\nScene/backdrop: one perfectly flat solid #00FF00 chroma-key background.\nSubject: one centered front-facing Retiree portrait. Preserve every unusual visible anchor from Image 1 exactly in role, placement, and color hierarchy.\nNative-detail requirements: author directly for a 128x128 logical grid. Build compact eyes with iris highlights and lids, brows, nose and mouth clusters, ears, cheek and jaw planes, layered hair or headwear, continuous warm-charcoal outline, neckline, seams, fasteners, tie or role accents, shoulder folds, restrained 3-4 tone ramps, and sparse 1-3 logical-pixel glints. Add meaningful substructure between the old 32px grid lines across face, hair or accessories, and torso.\nStyle/medium: authentic handcrafted HustleK pixel art; crisp square clusters; warm cream, peach, charcoal palette relationships; upper-left key light and lower-right shadow.\nConstraints: every mark grid-aligned and integer-sized; no nearest-neighbor enlargement look, no 4x or 8x macro pixels, no antialiasing, blur, smooth gradients, translucency, glow, random dithering, text, logo, watermark, scenery, pet, spouse, extra character, extra limbs, chef clothing, lab coat unless present in Image 1, or borrowed reference clothing. Uniform #00FF00 background with no shadow, texture, halo, floor, or #00FF00 inside subject.",
+        "source_id": "exec-174ac29a-b33b-4b0b-93f2-4bed34c4f67f.png",
+        "source_sha256": "1b43cbf968b13e12031aaa06d4591a638adb715abce5c97d50e1a58ba14bf24f",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 896
+        },
+        "bbox": [
+          14,
+          12,
+          114,
+          128
+        ],
+        "components_8_neighbor": [
+          7696
+        ],
+        "decoded_rgba_sha256": "54d7c4224c94be0c317b153cd102f1e3770a9469d8be6491ab70abd71b1f1f86",
+        "foreground_pixels": 7696,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8099794941900205,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 984,
+        "master_transitions": 9041,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.30792236328125,
+        "not_identity_upscale": true,
+        "transition_gain": 9.1880081300813
+      },
+      "source": {
+        "path": "export/avatars/lifestage/retiree.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "69336e744f486a9e6c6f6a5854ea9fea7d8bcc1a7c0dd7323958589c9f93836f"
+      }
+    }
+  ],
+  "batch_id": "native128-005",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "avatars/service/shopkeeper",
+        "cutout_sha256": "65c0fecfd85f25bd873f4b1168e28ae3b0bdf860432451ea041f5040c9910c03",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "5f55e571233a4e83dfd49e6b1ea550f324656394b7dd1c0836cb193a3ec919a2",
+        "raw_imagegen_sha256": "f9a648b9f8a6d9e1c41846f923f18b909c1203fe50b3f4459731d6fce1820ab0"
+      },
+      {
+        "asset_id": "avatars/service/tailor",
+        "cutout_sha256": "c8cd65f7d55d3769e078c8595b4a7db0f7a5eacc8b09dd49c63a0660894e732e",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "713457eae5e27bf874e96e1a0837c6ba2a73ea60208ecab248896e190bdacaed",
+        "raw_imagegen_sha256": "7d597a35cd0476f6d7f2f9560cd64d87487e68fb9153841cdb6b99219b32abb2"
+      },
+      {
+        "asset_id": "avatars/transport/atc",
+        "cutout_sha256": "8bdebaf97196d7fb51191e3489f9b21fc37450c7d5863a455a71feed714210d6",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "3f170acd1af63062ace7860e9c533057be7321c9c1a14bec66f5b42393f7e8b1",
+        "raw_imagegen_sha256": "f9b9b204cb9d82812dd5863f4412eb4435bb305c127ca1f98e47f3b7520017c1"
+      },
+      {
+        "asset_id": "avatars/transport/busDriver",
+        "cutout_sha256": "a4e6d574048ac39128205a0a9e3610866344b1c3b01e3995f4fd76804e525934",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "4b15680cc420d792689307b662408d78c909445e265cb69dda48a80e649ae561",
+        "raw_imagegen_sha256": "9dcfb737c569287055c85f83e0fe2531c54efe50ec1b54781e86103f94428c2e"
+      },
+      {
+        "asset_id": "avatars/transport/captain",
+        "cutout_sha256": "eeddf28dce260970792c8efad5a68c44d49a7507e5e96b6b5ff4df51f3dcd327",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "599f8b7c2eb49b0e7988aa9a1f43f838bceba5627dd2d1797ff093b5dfab728f",
+        "raw_imagegen_sha256": "ffe71688bc4d58d23be3e43b987a1dc224c79d21bdf0f60b44d0efd47374f093"
+      },
+      {
+        "asset_id": "avatars/transport/conductor",
+        "cutout_sha256": "c6f40964860ba2c02b1b51367db62ed6343418e0fd046b662aa2d939f9154896",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "cbb518c992ecf7d780ccb42174c082fa762900ced33ccc5384a5113b00372dbb",
+        "raw_imagegen_sha256": "c3e63d2da4927c316eea93df89ea7dc501a6c97116cd5006dd9f9ec6f3e8309f"
+      },
+      {
+        "asset_id": "avatars/transport/dockWorker",
+        "cutout_sha256": "d4d2fe9acb4156428e8f2fa6d58e9e057c3b724d459bf8a436963aae549fc0ed",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "dd296673a7d9ac5c5f190610a0a537533adbb3db509967c615c49b83aa02895a",
+        "raw_imagegen_sha256": "ceee69134f55df1c9e7e5a8503284aed79b0582d697a714d07e53157461f9191"
+      },
+      {
+        "asset_id": "avatars/transport/driver",
+        "cutout_sha256": "5d680d1b9990bcbbdb449328e57170b55fe889195ce0c31398829f1b6edee54a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "ae240fdc12d7c5e74a99e579d413d201642646776afa8d57cd8643b166aad2fe",
+        "raw_imagegen_sha256": "c92b1e5b5083fbf100776dc0c7cbdb9cfad450ea4a5b9df546581064aa259a46"
+      },
+      {
+        "asset_id": "avatars/transport/flightAttendant",
+        "cutout_sha256": "5352d5ae8dc83aa7bed1f3bd298f8823719884818510d3b866956d17f55983ec",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "e0c3d9becc97a29a79dc73584f58c00516f1ccbaebf37216351bc725791643e9",
+        "raw_imagegen_sha256": "52dca527f336c8ca4f6967962e38c36368f2164666804511c8a516ebbb479115"
+      },
+      {
+        "asset_id": "avatars/transport/forkliftOp",
+        "cutout_sha256": "643e714ef5d61c8930a7e9e3bb33c648352a2a05d287392e9ec2a6ee53a73789",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "09bd0fe2ecbafe05d6e13f00441b37abf2c8ce183e70144db564fdffb5c9f773",
+        "raw_imagegen_sha256": "84cfa3e3ca0ce5724fa272bce16c62c10df5ffd98acf8e931c400389c35467c6"
+      },
+      {
+        "asset_id": "avatars/transport/pilot",
+        "cutout_sha256": "9b0fd69a51a04d6daacdea96ce41d26e4a0ab0baa6784734c83ce33433619c75",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "ac445b02d2d5e6ec4166e1a9be38613e80f6288ddce5865330c0649aa69ef9ed",
+        "raw_imagegen_sha256": "5e7e46e226a9f649a8124e782b2b351d710061f0c13200e0670d57ad09855359"
+      },
+      {
+        "asset_id": "avatars/transport/rider",
+        "cutout_sha256": "1719051a45ea9764d4085654d252ffd5b5f0d6d21bc661eeaf153511c0c23012",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "b038577ddc2ffbbb32c50d95dd976222c38da5ef43385f0439564926e646b183",
+        "raw_imagegen_sha256": "2529c44e2631244887a9a898fa9428d488844de9126d31c485ec1102cbe96c04"
+      },
+      {
+        "asset_id": "avatars/transport/sailor",
+        "cutout_sha256": "9f41dcea5768d092a2ad9d4899588b2f6111c829b3368c7701ce45648ee852f2",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "982a5646b3c8cf7b03953fe23e1ebab08f73c9994462ca6179b5994f7f1fca68",
+        "raw_imagegen_sha256": "98db79d1baada45ce9ab855df64b72cf44efede894cddfc6176b4cbc3549da2f"
+      },
+      {
+        "asset_id": "avatars/transport/taxiDriver",
+        "cutout_sha256": "79bfbc1cd35bc24399875806ba5bf6021c96ba1241683e8345812b1a4dd6f4ee",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "ffe5ac431f87ca271afb5d71000f822f84e83ff5bda8d7279c747f575bb6912f",
+        "raw_imagegen_sha256": "e1415a5084c33533e2cd5c60a90bc6404190582513ca893f0063c252d754fc73"
+      },
+      {
+        "asset_id": "avatars/transport/warehouseWorker",
+        "cutout_sha256": "12643beb4b96412a050b8040bc74b434f455721531ae148436a822a310b1d48d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "c2ca075b258d96232e26951aab090ebcc1f3bdc62c413196b5d18f3825931fb1",
+        "raw_imagegen_sha256": "dfe86275819375914e5e726507394c2149867f5520d5b817835de9685f12c98f"
+      },
+      {
+        "asset_id": "avatars/workplace/advisor",
+        "cutout_sha256": "f122e6b7cfa2debb0947f2a7f152721b535df2c8ca43d3bc63c67a11abd3b19b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "9a0f5b1aa47230686861f63a77bb97e535c02818225289a303ce96845e20a132",
+        "raw_imagegen_sha256": "9c22b02d93b12badbeae602f68cb1d2f3715f8a2d88d5479e3e6da58186eeae9"
+      },
+      {
+        "asset_id": "avatars/workplace/boss",
+        "cutout_sha256": "718f4c54aa7b4703494ae9d413171ca817f3dadbb907aa8cc2a188577384ca7f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "4aa609e06347d1e04039fcb7444c0bb246f41010f0bb442000495f02f3e67a02",
+        "raw_imagegen_sha256": "2b1fb1b7c010cc543ddbc9fe0c2f78516166ffc20e8bec1f4b042e19235e783c"
+      },
+      {
+        "asset_id": "avatars/workplace/client",
+        "cutout_sha256": "1140b258cebfa55b8e0d1360eda2474b7b24567bd22ea77c073b761b25545cb7",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "a9329f7761d122470e2093374f3dff9c50285c8c65a943dbda0a06f3ae1d7fd6",
+        "raw_imagegen_sha256": "2be3c971b5abd0b9b4e2b10bd14b64c735a5a3d35b85aa2f8fe991779f682b93"
+      },
+      {
+        "asset_id": "avatars/workplace/coworker",
+        "cutout_sha256": "4d8835644278d0ae21afb9489bce3af3d721d519874193d3af51d2750f73f357",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "5a07a5fa59c25a4b4fe0267400c934b269d143f973878b28adba76b69290d3ad",
+        "raw_imagegen_sha256": "dd6c3415d3a922879cd3e20c94d359eecdd1ee148c1e5196a8d0c5614839ece3"
+      },
+      {
+        "asset_id": "avatars/workplace/freelancer",
+        "cutout_sha256": "60a94468627a60f0cd0fa90f6b79199de88979ae37b2e7ebdb78d343a759a82d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "2c8f4c8824ff19a9ae34cda3a441a766ead46536ab001db03ed723d337ce8122",
+        "raw_imagegen_sha256": "b6a00ed400a47ce6a435aa207daeaa3a0dbcc530844937fa8f179fd6e025f30e"
+      },
+      {
+        "asset_id": "avatars/workplace/intern",
+        "cutout_sha256": "e1d7e6de691bcd4e7bfb8169f3ef8d8536cd2e852773bcaad8704365d74d26f1",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "b862e28de4dd3484d9491792744a204c312bb2a7e36c4c399cd40e8895dd2b03",
+        "raw_imagegen_sha256": "d275bb20a7792d8015144aa7c42a9cbf372514badf383d8086d1a5924a657633"
+      },
+      {
+        "asset_id": "avatars/workplace/newHire",
+        "cutout_sha256": "118652fafa2bd9cb38f776bfa8903df87c96d9f3974ab7f1bb796554947e1fba",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "e066f8fc65f17003b7d869084bb0630423756ccfc44c383f675a7cdd8048647d",
+        "raw_imagegen_sha256": "f4ee8397b5d601e551e22931399b3e6afa1d90495bc0247afc9459a9846c5ebf"
+      },
+      {
+        "asset_id": "avatars/workplace/recruiter",
+        "cutout_sha256": "5a91f4e230b7584bb775a34c5280dfbfba3109e741813cb3271dcaa9bcbae96a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "d258d003ba6f492feeb69f6e9966c6f315a8332303c333c24605d4d8a79b71f1",
+        "raw_imagegen_sha256": "36f435ccd5d926569bd38561145a141d76f1e9ca48ca593e3fca2848aa584a1d"
+      },
+      {
+        "asset_id": "avatars/workplace/teamLead",
+        "cutout_sha256": "25a5c6f3f979bbcfccbe269721561bb06ad0cfde89cd953178783438985c986c",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "ac4d213de55eeb64096ecfc176a0a541887c54b04b97ed803e262b0355ba3d17",
+        "raw_imagegen_sha256": "08c84ae4eab339aeab334e6456dc7123aedaf74d8f8cee5bb68a8de600e22f19"
+      },
+      {
+        "asset_id": "avatars/workplace/veteranRole",
+        "cutout_sha256": "d87f27db7d5a79743ab5b557d0ec9e2ab52f111840732d5c74f8352376ee13a0",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "63e893d0ee31c2003c5711440e9b1538cdce6a8a2c4ecd82c228da6877223d25",
+        "raw_imagegen_sha256": "ac71936141cb00aeb80b1fbe7efb6ad2285b855b0d8a2806dca36b7f5134beb3"
+      },
+      {
+        "asset_id": "avatars/lifestage/caregiverRole",
+        "cutout_sha256": "655df408821e64f4d9d3f83814253d6095923a85dea6775a9da21f9a66994cd2",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "fa9f0473200b3ca603fed852ce2fdbf41c3984789dd4203401ea5e6d7229c068",
+        "raw_imagegen_sha256": "976dc99fbc7612d21fc757f805cf5950ecb1d247bee6cd80a39226d55db9c183"
+      },
+      {
+        "asset_id": "avatars/lifestage/expectingParent",
+        "cutout_sha256": "f9032da86d34482d011af452b28fdb9f8830b18b33082d7b02935f2f2c54cd27",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "a4e96df5796fad99d60a80c2bf44cb3ea58afd8b30c80b95489cd1fde385225f",
+        "raw_imagegen_sha256": "673d0ed5b192203639efa8b6a0d68facdc1414ff3924b2e0c4d00e29829ba573"
+      },
+      {
+        "asset_id": "avatars/lifestage/hobbyist",
+        "cutout_sha256": "39e81da217093a82429cca20a18422b227b2215893b68832c252b4965218ed90",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "6dc3f943b322b06d81182136f1a3fbcb76efcf70a580e6d2869537bfdc7a6d74",
+        "raw_imagegen_sha256": "0545004f5e93f9b8d8d0282c57896944b759281c20e2f728fc54d6606af3d58e"
+      },
+      {
+        "asset_id": "avatars/lifestage/jobSeeker",
+        "cutout_sha256": "c3fa942aad7d2ca8f0a539c33eed97f21640f0ec7755d201d54d91d2bf6918ba",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "e3f5c9237c84658f0886907e5f92fbd53cf92108373422b4de64733be551231f",
+        "raw_imagegen_sha256": "c0b0693180b5233b259f1177b6d9f0ee870c9b225cfed26636361ef3843b40dd"
+      },
+      {
+        "asset_id": "avatars/lifestage/newlywed",
+        "cutout_sha256": "6a5673bf4fac1be3ab28be1256e0a9ef62dd6c965656ff1d631724417911bf85",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "1505aa5509285249c35d07d1fd6ec0c618203f8774a93aa83d87e15a7c41d2e3",
+        "raw_imagegen_sha256": "e904e77889299fe365501ffa062fb380dc187580371a6bda757e817f1bb0c91c"
+      },
+      {
+        "asset_id": "avatars/lifestage/petOwner",
+        "cutout_sha256": "cc439340c9141b11ad9eaedeedc803944aee7f9dcbf1236f17708b4217831043",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "0c5f59298fda85a3c0a35ee7a74d469b8f63c381d69db512856777caaadcaf5c",
+        "raw_imagegen_sha256": "6d6662d8d485d95de1a2a0779de343d2dfb1437eff5ffb96e9f34a524e9ae8c8"
+      },
+      {
+        "asset_id": "avatars/lifestage/retiree",
+        "cutout_sha256": "9ea3776650a1498fd5ffd4a8764a5a875f5a6ae7f8ae7005607aecd4d9587cef",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "c4d963332e767954462be153b216967b9f50103a985953fa720c4439ac439cd4",
+        "raw_imagegen_sha256": "1b43cbf968b13e12031aaa06d4591a638adb715abce5c97d50e1a58ba14bf24f"
+      }
+    ],
+    "batch_id": "native128-005",
+    "builder_sha256_lf": "9dc3a894bf3f84cc2ed72d722ed9be1b5d6224859dc91df704c07b3749dd6640",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "28218e9d6448ca90a0b091941b2e62bb0eb3cb919cfde72a4f57ca494318e35f",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}

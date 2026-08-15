@@ -651,6 +651,55 @@
       "state": "ready_for_review",
       "version": "5ff10404028c"
     },
+    "avatars/lifestage/caregiverRole": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/lifestage/expectingParent": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/lifestage/hobbyist": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/lifestage/jobSeeker": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/lifestage/newlywed": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/lifestage/petOwner": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/lifestage/retiree": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
     "avatars/medical/caregiver": {
       "batch_id": "native128-001",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-001/071dfbd7c140/manifest.json",
@@ -917,6 +966,181 @@
       "state": "ready_for_review",
       "version": "d8542c353a1d"
     },
+    "avatars/service/shopkeeper": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/service/tailor": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/atc": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/busDriver": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/captain": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/conductor": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/dockWorker": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/driver": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/flightAttendant": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/forkliftOp": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/pilot": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/rider": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/sailor": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/taxiDriver": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/transport/warehouseWorker": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/advisor": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/boss": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/client": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/coworker": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/freelancer": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/intern": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/newHire": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/recruiter": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/teamLead": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    "avatars/workplace/veteranRole": {
+      "batch_id": "native128-005",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
     "icons/calendar": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
@@ -1163,6 +1387,53 @@
     },
     {
       "asset_ids": [
+        "avatars/service/shopkeeper",
+        "avatars/service/tailor",
+        "avatars/transport/atc",
+        "avatars/transport/busDriver",
+        "avatars/transport/captain",
+        "avatars/transport/conductor",
+        "avatars/transport/dockWorker",
+        "avatars/transport/driver",
+        "avatars/transport/flightAttendant",
+        "avatars/transport/forkliftOp",
+        "avatars/transport/pilot",
+        "avatars/transport/rider",
+        "avatars/transport/sailor",
+        "avatars/transport/taxiDriver",
+        "avatars/transport/warehouseWorker",
+        "avatars/workplace/advisor",
+        "avatars/workplace/boss",
+        "avatars/workplace/client",
+        "avatars/workplace/coworker",
+        "avatars/workplace/freelancer",
+        "avatars/workplace/intern",
+        "avatars/workplace/newHire",
+        "avatars/workplace/recruiter",
+        "avatars/workplace/teamLead",
+        "avatars/workplace/veteranRole",
+        "avatars/lifestage/caregiverRole",
+        "avatars/lifestage/expectingParent",
+        "avatars/lifestage/hobbyist",
+        "avatars/lifestage/jobSeeker",
+        "avatars/lifestage/newlywed",
+        "avatars/lifestage/petOwner",
+        "avatars/lifestage/retiree"
+      ],
+      "batch_id": "native128-005",
+      "contract_sha256": "28218e9d6448ca90a0b091941b2e62bb0eb3cb919cfde72a4f57ca494318e35f",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/manifest.json",
+      "manifest_sha256": "cd18c6ca1a7e59c2a2490d83e874f287b3891187243aad96ab6bf465c50a604c",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-005/28218e9d6448/master-atlas.png",
+      "master_atlas_sha256": "6284180363a000a99398b9205b355ea56ce1f545f66a294eae9e35154cb1b222",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "28218e9d6448"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -1190,8 +1461,8 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 135,
-    "native128_remaining": 668,
+    "native128_ready_or_approved": 167,
+    "native128_remaining": 636,
     "ready_asset_ids": [
       "avatars/agriculture/agronomist",
       "avatars/agriculture/beekeeper",
@@ -1286,6 +1557,13 @@
       "avatars/it/sysadmin",
       "avatars/it/techSupport",
       "avatars/it/uxResearcher",
+      "avatars/lifestage/caregiverRole",
+      "avatars/lifestage/expectingParent",
+      "avatars/lifestage/hobbyist",
+      "avatars/lifestage/jobSeeker",
+      "avatars/lifestage/newlywed",
+      "avatars/lifestage/petOwner",
+      "avatars/lifestage/retiree",
       "avatars/medical/caregiver",
       "avatars/medical/dentist",
       "avatars/medical/doctor",
@@ -1324,6 +1602,31 @@
       "avatars/service/masseur",
       "avatars/service/nailArtist",
       "avatars/service/petGroomer",
+      "avatars/service/shopkeeper",
+      "avatars/service/tailor",
+      "avatars/transport/atc",
+      "avatars/transport/busDriver",
+      "avatars/transport/captain",
+      "avatars/transport/conductor",
+      "avatars/transport/dockWorker",
+      "avatars/transport/driver",
+      "avatars/transport/flightAttendant",
+      "avatars/transport/forkliftOp",
+      "avatars/transport/pilot",
+      "avatars/transport/rider",
+      "avatars/transport/sailor",
+      "avatars/transport/taxiDriver",
+      "avatars/transport/warehouseWorker",
+      "avatars/workplace/advisor",
+      "avatars/workplace/boss",
+      "avatars/workplace/client",
+      "avatars/workplace/coworker",
+      "avatars/workplace/freelancer",
+      "avatars/workplace/intern",
+      "avatars/workplace/newHire",
+      "avatars/workplace/recruiter",
+      "avatars/workplace/teamLead",
+      "avatars/workplace/veteranRole",
       "icons/calendar",
       "icons/camera",
       "icons/error",
