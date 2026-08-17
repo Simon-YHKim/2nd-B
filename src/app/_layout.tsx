@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { useAddressTerm } from "@/lib/persona/use-address";
 import { Stack, Redirect, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -94,6 +96,7 @@ export default function RootLayout() {
           <AuthProvider>
             <ThemedStatusBar />
             <AnalyticsConsentSync />
+            <AddressTermSync />
             <AuditWriteOutboxSync />
             {/* Big SecondB head follows touch on every screen (auto by size >= 80);
                 bubbling onTouch* so it never steals taps. Dock + Toast are global
@@ -432,6 +435,16 @@ function AnalyticsConsentSync(): null {
     }
   }, [routePath, userId, consentSyncVersion]);
 
+  return null;
+}
+
+// `{{who}}` 공급자. 로케일 문자열이 사용자를 이름으로 부르는데("허슬케이님의
+// 영역"), 그 값을 화면마다 넘기지 않고 i18next defaultVariables 로 한 번에
+// 채운다. 이름이 없으면 폴백(당신)이라 문장이 깨지지 않는다.
+function AddressTermSync(): null {
+  const { userId } = useAuth();
+  const { i18n } = useTranslation();
+  useAddressTerm(userId, i18n.language);
   return null;
 }
 

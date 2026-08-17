@@ -19,7 +19,7 @@
     "back": "뒤로",
     "myAreas": "내 영역",
     "areasSubtitle": "건강 · 앱 · 뇌 · 재정",
-    "glanceSummary": "네 영역을 한눈에 모았습니다.",
+    "glanceSummary": "{{who}}의 네 영역을 한눈에 모았습니다.",
     "emptySummary": "아직 영역에 담긴 기록이 없습니다.",
     "emptyTip": "비어 있는 영역부터 채워볼까요?",
     "loadError": "기록을 못 불러왔습니다. 잠시 후 다시 시도해 주세요.",

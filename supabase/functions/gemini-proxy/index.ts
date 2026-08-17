@@ -81,6 +81,29 @@ const MODELS_ALLOWED_EXTRA = new Set(
 function modelAllowed(model: string): boolean {
   return MODEL_PATTERN.test(model) || MODELS_ALLOWED_EXTRA.has(model);
 }
+
+// 서버가 등급 안에서 모델을 고른다 (claude-proxy 와 같은 자세).
+//
+// 클라이언트의 MODELS 상수(src/lib/llm/types.ts)는 코드라서 배포해야 바뀐다.
+// 그게 모델 세대가 바뀔 때마다 낡는 세 지점 중 하나였다. 아래 env 가 있으면
+// 배포 없이 같은 등급의 최신 모델로 갈아끼운다. scripts/refresh-models.ts 가
+// 이 값을 채운다.
+//
+// **등급은 넘나들지 않는다.** lite 를 요청했으면 lite 자리만 바뀐다. 그래야
+// 저렴해야 할 분류 호출이 조용히 비싼 모델로 승격되지 않는다.
+// 오버라이드도 같은 허용 패턴을 통과해야 한다 - env 오타가 그대로 나가지 않게.
+function serverModelFor(requested: string): string {
+  const key = requested.includes('flash-lite')
+    ? 'GEMINI_MODEL_FLASH_LITE'
+    : requested.includes('flash')
+      ? 'GEMINI_MODEL_FLASH'
+      : requested.includes('-pro')
+        ? 'GEMINI_MODEL_PRO'
+        : '';
+  if (!key) return requested;
+  const override = (Deno.env.get(key) ?? '').trim();
+  return override.length > 0 && modelAllowed(override) ? override : requested;
+}
 const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 // P0-2 (D-26 A19): embeddings — text-embedding-004 shut down 2026-01-14; the
@@ -613,6 +636,7 @@ Deno.serve(async (req: Request) => {
   }
   if (!modelAllowed(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
 
+
   // R1-A: server-side crisis classifier. Reject before any Gemini call so a
   // bypassed client cannot route red-zone USER input around C9. We scan ONLY the
   // `user` turn — the text actually forwarded to Gemini as the user message —
@@ -715,13 +739,16 @@ Deno.serve(async (req: Request) => {
   // Lookup-error (null rank) keeps the requested model — availability for an
   // unknown brain user.
   const isProClass = /-pro(\b|$|-)/.test(model);
-  const effectiveModel =
+  const downgraded =
     tierRank !== null &&
     tierRank < BRAIN_RANK &&
     isProClass &&
     !(purpose && PRO_FOR_ALL_TIERS.has(purpose))
-      ? 'gemini-2.5-flash'
+      // 다운그레이드 대상이 리터럴이면 그것도 같이 낡는다. flash 등급을 요청한
+      // 셈이니 serverModelFor 가 그 등급의 현재 모델로 풀어준다.
+      ? serverModelFor('gemini-2.5-flash')
       : model;
+  const effectiveModel = serverModelFor(downgraded);
 
   // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
   // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day

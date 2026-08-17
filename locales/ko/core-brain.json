@@ -4,7 +4,7 @@
   "loadErrorBody": "연결이 잠깐 흔들렸습니다. 별가루는 그대로 있으니 다시 시도해 주세요.",
   "tryAgain": "다시 시도하기",
   "startSecondB": "세컨비와 시작하기",
-  "sevenStars": "일곱 개의 별이 당신을 기다립니다",
+  "sevenStars": "일곱 개의 별이 {{who}}을 기다립니다",
   "threeMin": "3분이면 첫 별 하나가 켜집니다. 가까운 관계 패턴부터 같이 짚어볼까요?",
   "startRelCheck": "관계 체크 시작 · 3분",
   "leavePiece": "오늘의 별가루 남기기",

@@ -2,7 +2,7 @@
 //
 // 여기서 지키려는 것: "제일 새 모델"이 아니라 "이 등급에서 제일 새 모델"이라는 것.
 // 그 구분이 무너지면 대화 좌석이 어느 날 실험판이나 엉뚱한 티어로 건너뛴다.
-import { pickNewest } from "../refresh-models";
+import { COST_AXIS, costAxisOf, pickNewest } from "../refresh-models";
 
 // SEATS 와 같은 모양이되, 테스트가 정의를 직접 들고 있어야 회귀를 잡는다.
 const SONNET = { id: "anthropic-sonnet", vendor: "anthropic" as const, match: /^claude-sonnet-/, exclude: /preview|beta|latest/, note: "" };
@@ -52,5 +52,26 @@ describe("pickNewest", () => {
     // 낡지만, 낡는다는 사실 자체가 이 스크립트가 필요한 이유다.
     expect(pickNewest(["gpt-5.4", "gpt-5.6"], GPT)).toBe("gpt-5.6");
     expect(pickNewest(["models/gemini-3.5-flash", "models/gemini-3.7-flash"], FLASH)).toBe("models/gemini-3.7-flash");
+  });
+});
+
+// 비용 축. 자동 승격이 축을 넘나들면 요금이 튀거나 품질이 조용히 내려간다.
+describe("비용 축", () => {
+  it("모든 좌석이 정확히 한 축에만 속한다", () => {
+    const all = Object.values(COST_AXIS).flat();
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("싼 좌석과 깊은 좌석이 섞이지 않는다", () => {
+    // 분류 좌석이 프론티어로 올라가면 요금이 튀고, 종합 좌석이 lite 로
+    // 내려가면 품질이 조용히 떨어진다. 둘 다 알아채기 어렵다.
+    expect(costAxisOf("google-flash-lite")).toBe("cheap");
+    expect(costAxisOf("anthropic-opus")).toBe("deep");
+    expect(costAxisOf("openai-frontier")).toBe("deep");
+    expect(costAxisOf("anthropic-sonnet")).toBe("mid");
+  });
+
+  it("모르는 좌석은 축이 없어 승격 대상이 아니다", () => {
+    expect(costAxisOf("something-new")).toBeNull();
   });
 });

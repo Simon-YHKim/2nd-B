@@ -75,7 +75,43 @@ const SEATS: SeatClass[] = [
     exclude: /preview|exp/,
     note: "분류 등 경량 좌석",
   },
+  {
+    id: "google-pro",
+    vendor: "google",
+    match: /^models\/gemini-[\d.]+-pro$/,
+    exclude: /preview|exp|thinking/,
+    note: "깊은 분석이 필요한 Gemini 좌석",
+  },
 ];
+
+// 비용 정책 (Simon 2026-08-17): "간단한 작업은 최신이되 저렴한 모델, effort 가
+// 필요하면 고비용 모델로 상세 분석."
+//
+// 등급을 **비용 축**으로 세워둔다. 자동 승격은 같은 축 안에서만 움직인다 —
+// 분류 좌석이 어느 날 프론티어 모델로 올라가서 요금이 튀는 일이 없어야 하고,
+// 반대로 깊은 분석 좌석이 조용히 싼 모델로 내려가서 품질이 떨어져도 안 된다.
+//
+// 어느 목적이 어느 축에 있는지는 코드가 이미 갖고 있다:
+//   src/lib/llm/types.ts   PURPOSE_TIER   lite | flash | pro
+//   src/lib/llm/routing.ts PHASE2_EFFORT  low | medium | high | xhigh
+// 이 스크립트는 그 축의 **모델만** 최신으로 유지한다. 어느 목적이 어느 축인지는
+// 바꾸지 않는다. 그건 제품 결정이지 자동화가 할 일이 아니다.
+export const COST_AXIS: Readonly<Record<"cheap" | "mid" | "deep", readonly string[]>> = {
+  // 분류·태깅처럼 양이 많고 뉘앙스가 필요 없는 것
+  cheap: ["google-flash-lite"],
+  // 대화·구조화 출력처럼 상호작용하지만 깊지 않은 것
+  mid: ["anthropic-sonnet", "google-flash"],
+  // 페르소나 종합·주간 다이제스트처럼 effort 가 필요한 것
+  deep: ["anthropic-opus", "openai-frontier", "google-pro"],
+};
+
+/** 이 좌석이 속한 비용 축. 축이 없으면 승격 대상이 아니다. */
+export function costAxisOf(seatId: string): "cheap" | "mid" | "deep" | null {
+  for (const [axis, seats] of Object.entries(COST_AXIS)) {
+    if (seats.includes(seatId)) return axis as "cheap" | "mid" | "deep";
+  }
+  return null;
+}
 
 interface Discovered {
   seat: SeatClass;
@@ -257,22 +293,80 @@ async function main(): Promise<void> {
     return;
   }
 
-  // 승격 경로는 아직 배선되지 않았다. 이 스크립트는 지금 **발견과 시험까지만** 한다.
+  // ── 승격 ──────────────────────────────────────────────────────────
   //
-  // 마지막 한 걸음(Supabase 엣지 시크릿 갱신)은 운영 자격증명이 필요하고,
-  // 밤마다 프로덕션 설정을 자동으로 바꾸는 일이라 Simon 의 확인 없이 켜지 않는다.
-  // 통과한 모델을 지금 쓰려면 아래를 손으로 실행하면 된다(코드 배포 없음):
+  // 모델 선택은 서버 소유다. 그래서 승격은 **코드 배포가 아니라 엣지 시크릿
+  // 갱신**이고, 되돌리기도 같은 방식이다.
   //
-  //   supabase secrets set ANTHROPIC_PURPOSE_MODELS='{"secondb_chat":"<model>"}'
-  //   supabase secrets set GEMINI_MODELS_ALLOWED='<model>'   # 패턴 밖일 때만
-  //
-  // 배선할 때 필요한 것: SUPABASE_ACCESS_TOKEN + project ref, 그리고 실패 시
-  // 이전 값으로 되돌리는 경로. 되돌리기가 없으면 켜면 안 된다.
+  // 되돌리는 법 (한 줄): 그 좌석의 핀을 세우고 다시 돌린다.
+  //   MODEL_PIN_ANTHROPIC_OPUS=claude-opus-4-8
+  // 핀이 있으면 발견 자체를 건너뛰므로 이전 모델이 그대로 다시 쓰인다.
+  const token = (process.env.SUPABASE_ACCESS_TOKEN ?? "").trim();
+  const ref = (process.env.SUPABASE_PROJECT_REF ?? "").trim();
+
+  // 좌석 -> 시크릿 이름. 등급별로 하나씩이라 승격이 축을 넘나들 수 없다.
+  const SECRET_OF: Record<string, string> = {
+    "google-flash": "GEMINI_MODEL_FLASH",
+    "google-flash-lite": "GEMINI_MODEL_FLASH_LITE",
+    "google-pro": "GEMINI_MODEL_PRO",
+  };
+
+  const secrets: { name: string; value: string }[] = [];
+  const anthropicSeats: Record<string, string> = {};
+  for (const d of promotable) {
+    if (!d.chosen) continue;
+    const direct = SECRET_OF[d.seat.id];
+    // Google 모델 이름은 목록 API 가 "models/" 접두사를 붙여 준다. 프록시는
+    // 슬러그만 쓴다.
+    const value = d.chosen.replace(/^models\//, "");
+    if (direct) secrets.push({ name: direct, value });
+    else if (d.seat.id === "anthropic-sonnet") anthropicSeats.sonnet = value;
+    else if (d.seat.id === "anthropic-opus") anthropicSeats.opus = value;
+    else if (d.seat.id === "openai-frontier") secrets.push({ name: "OPENAI_MODEL", value });
+  }
+  // Anthropic 은 목적별 JSON 하나로 관리된다. 어느 목적이 sonnet 이고 어느 것이
+  // opus 인지는 claude-proxy 의 PURPOSE_MODEL 이 정하고, 여기서는 그 등급의
+  // **모델 이름만** 최신으로 채운다. 목적의 등급 배정은 건드리지 않는다.
+  if (anthropicSeats.sonnet || anthropicSeats.opus) {
+    const SONNET_PURPOSES = ["advisor", "secondb_chat", "gap_synthesize", "self_model_propose", "northstar_propose", "ops_recommend", "ops_daily_brief", "ttfv_first_insight"];
+    const OPUS_PURPOSES = ["persona_narrative", "axis_estimate", "persona_synthesis", "digest_weekly"];
+    const map: Record<string, string> = {};
+    if (anthropicSeats.sonnet) for (const p of SONNET_PURPOSES) map[p] = anthropicSeats.sonnet;
+    if (anthropicSeats.opus) for (const p of OPUS_PURPOSES) map[p] = anthropicSeats.opus;
+    secrets.push({ name: "ANTHROPIC_PURPOSE_MODELS", value: JSON.stringify(map) });
+  }
+
+  if (secrets.length === 0) {
+    console.log("승격할 시크릿이 없습니다.");
+    return;
+  }
+
   console.log("");
-  console.log("--apply 는 아직 배선되지 않았습니다. 발견과 시험까지만 수행했습니다.");
-  console.log("승격은 Supabase 엣지 시크릿 갱신이라 운영 자격증명이 필요합니다.");
-  console.log("위 '승격 후보'를 supabase secrets set 으로 손수 적용할 수 있습니다.");
-  process.exitCode = 0;
+  console.log("설정할 시크릿:");
+  for (const sec of secrets) console.log(`  ${sec.name}=${sec.value}`);
+
+  if (!token || !ref) {
+    // 자격증명이 없는 곳(로컬·포크 CI)에서는 실패가 아니라 안내로 끝낸다.
+    console.log("");
+    console.log("SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF 가 없어 적용하지 않았습니다.");
+    console.log("손으로 적용하려면:");
+    for (const sec of secrets) console.log(`  supabase secrets set ${sec.name}='${sec.value}' --project-ref <ref>`);
+    return;
+  }
+
+  const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/secrets`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(secrets),
+  });
+  if (!res.ok) {
+    console.error(`시크릿 적용 실패: HTTP ${res.status} ${await res.text()}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log("");
+  console.log(`적용 완료 (${secrets.length}건). 엣지 함수는 다음 호출부터 새 모델을 씁니다.`);
+  console.log("되돌리려면 그 좌석에 MODEL_PIN_<SEAT> 을 세우고 다시 실행하십시오.");
 }
 
 // 테스트에서 import 할 때는 실행하지 않는다.
