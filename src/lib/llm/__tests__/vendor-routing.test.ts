@@ -199,6 +199,20 @@ describe("D-26 vendor routing", () => {
         withPhase("2", () => expect(resolveVendorForPurpose("advisor", false)).toBe("openai"));
       });
     });
+
+    test('empty string routes identically to unset — it is the shipped default', () => {
+      // The build workflows and eas.json now pass EXPO_PUBLIC_LLM_VENDOR through
+      // with '' as the fallback, so "" is what actually reaches a production
+      // bundle. If it ever stopped meaning "no override" the nine seats would
+      // move without anyone setting anything.
+      for (const phase of ["1", "2"]) {
+        withPhase(phase, () => {
+          const unset = withVendor(undefined, () => resolveVendorForPurpose("advisor", false));
+          const empty = withVendor("", () => resolveVendorForPurpose("advisor", false));
+          expect(empty).toBe(unset);
+        });
+      }
+    });
   });
 
   describe("EXPO_PUBLIC_CHAT_VENDOR — the chat-only knob (Simon 2026-08-18)", () => {
