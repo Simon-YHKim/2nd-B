@@ -95,11 +95,42 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 | 3 | **Inferred persona / psychometric self-profile** | `personas.traits/values/patterns` (jsonb), `markdown_export`, versioned; `memorized_patterns` (0017); `self_contexts` "multiple selves" (0021) | **Profiling of a minor** **[COUNSEL]** | `db/migrations/0008_personas.sql:5`; `0021` |
 | 4 | **Experience-sampling signals (ESM)** | `esm_responses.scale_value` (Likert mood/energy), `context_tags` (who/where/activity) | Behavioural/affective trace | `db/migrations/0042_esm_responses.sql` |
 | 5 | **Knowledge graph / web clippings** | `wiki_pages`, `wiki_links` (0022), user `sources`; clip frontmatter may carry geo / tracking-token URLs | PII; egress-filtered by allowlist | `0022`; export allowlist `src/lib/wiki/export.ts:88-91` |
-| 6 | **Crisis signals** | `crisis_events`: `zone='red'`, `classifier_confidence`, `trigger_categories` (categorical), `cssrs_level` (C-SSRS 1-6), `routing_template_version`, `locale`, **`user_id_hash`** | **Highest-sensitivity inference; never raw text** | `db/migrations/0012_crisis_events.sql` |
+| 6 | **Crisis signals** | `crisis_events`: `zone='red'`, `classifier_confidence`, `trigger_categories` (categorical), `routing_template_version`, `locale`, **`user_id_hash`**. **A C-SSRS severity grade (`cssrs_level`, 1-6) was collected until 2026-08-17 and has been REMOVED** — see the note below the table | **Highest-sensitivity inference; never raw text** | `db/migrations/0012_crisis_events.sql`; removed by `0129_drop_cssrs_level.sql` |
 | 7 | **AI-decision audit telemetry** | `ai_audit_log`: `prompt_hash`, `output_hash` (hashes, **not** raw text), `model_used`, `vertex_backend`, `safety_zone`, `latency_ms` | Pseudonymised metadata | `db/migrations/0004_ai_audit_log.sql` |
 | 8 | **Usage / cost telemetry** | `chat_usage` (per-user/day count), `gemini_spend_daily` (0035) | Low-sensitivity ops | `db/migrations/0023_chat_usage.sql` |
 | 9 | **Consent ledger** | `consent_records`: `age_band`, `minor_tier`, `consent_version`, `policy/terms_version`, `purposes`, `llm_processing_ack`, `overseas_transfer_ack`, `sensitive_data_ack`, **`ip_hash`/`ua_hash`** (hashed) | Accountability record; IP/UA minimised by hashing | `db/migrations/0031_consent_records.sql`; `src/lib/auth/consent-selections.ts:16-24` |
 | 10 | **Product analytics events** (consented adults only) | `page_view`, `capture`, `secondb_session{mode,turn_count}` → GA4 / Clarity / PostHog / Sentry | Behavioural; **suppressed for minors & sub-consent-age** | `src/lib/analytics/index.ts:56,74` |
+
+> **2026-08-17 · row 6 minimisation.** `crisis_events.cssrs_level` held a C-SSRS
+> grade, i.e. a clinical suicide-severity score per account. Counsel review took
+> the position that storing it is PIPA art.23 sensitive (health) processing, and
+> that art.15(1)5 (urgent vital interests) cannot be relied on for sensitive data
+> — leaving art.23(1)1 separate consent as the only basis, which was not being
+> collected. A repository-wide check also found **no code reading the value**;
+> routing runs off `zone`. The column was dropped in `0129_drop_cssrs_level.sql`
+> (existing values went with it; 0 rows held a value at drop time). The
+> `log_crisis_event` RPC still ACCEPTS a `p_cssrs_level` argument and discards it,
+> because installed app versions still send it and changing the signature would
+> fail their crisis writes.
+>
+> The remaining row-6 fields are still treated as art.23 processing, so a separate
+> "safety notice" consent was added at sign-up in `0130_safety_notice_ack.sql`
+> (`consent_records.safety_notice_ack`). Accounts created before that date hold
+> NULL, not false: they did not decline, they were never asked.
+>
+> **OPEN — storage was minimised, processing was not.** The classifier still asks
+> the model for a C-SSRS grade and still computes one: `SafetyResult.cssrsLevel`
+> (`src/lib/llm/safety.ts:34`) is populated from the response schema, sanitised by
+> `sanitizeCssrsLevel`, and threaded through `src/lib/llm/gemini.ts` on ~11 paths.
+> It reaches no store — `crisis-events.ts` sends `p_cssrs_level: null` and the RPC
+> discards it — so nothing is retained. But *generating* a clinical severity grade
+> is itself arguably art.23 processing, which is the same reasoning that removed
+> the column. Deciding this means touching the C9 safety path, so it was not done
+> alongside the storage change. Two options when it is taken up: drop `cssrsLevel`
+> from the response schema and the result type entirely, or keep it as a transient
+> routing input and document why transient generation is acceptable. Until then the
+> honest description of row 6 is: no clinical score is **stored**; one is still
+> **derived in memory**.
 
 Note on #1: journal text is **not** sent to the chat/recommendation LLM by default — see 3.2. The crisis classifier, however, *does* read raw record text locally to triage it (`src/lib/llm/gemini.ts:273-282` `classifyRecordTextForCrisis`).
 

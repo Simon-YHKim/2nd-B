@@ -229,7 +229,6 @@ export type Database = {
         Row: {
           classifier_confidence: number | null
           created_at: string
-          cssrs_level: number | null
           id: string
           locale: string
           notes: string | null
@@ -243,7 +242,6 @@ export type Database = {
         Insert: {
           classifier_confidence?: number | null
           created_at?: string
-          cssrs_level?: number | null
           id?: string
           locale: string
           notes?: string | null
@@ -257,7 +255,6 @@ export type Database = {
         Update: {
           classifier_confidence?: number | null
           created_at?: string
-          cssrs_level?: number | null
           id?: string
           locale?: string
           notes?: string | null

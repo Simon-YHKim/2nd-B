@@ -208,12 +208,18 @@ function djb2(s: string): string {
   return (h >>> 0).toString(16);
 }
 
-// The responseSchema declares cssrsLevel only as number|null — no range. The
-// crisis ledger column is CHECK (cssrs_level BETWEEN 1 AND 6), so an off-scale
-// or fractional value would violate the CHECK inside log_crisis_event and the
-// swallowed insert error would silently drop the RED ledger row. Round
-// in-range values; map off-scale ones to null (the column is nullable) rather
-// than fabricating a C-SSRS level the model never validly produced.
+// The responseSchema declares cssrsLevel only as number|null — no range, so the
+// model can hand back an off-scale or fractional value. Round in-range values;
+// map anything else to null rather than fabricating a C-SSRS level the model
+// never validly produced.
+//
+// ⚠ 0129 위: this used to protect a DB write — crisis_events.cssrs_level carried
+// CHECK (BETWEEN 1 AND 6) and a violation would have silently dropped the RED
+// ledger row. That column is gone and log_crisis_event now discards the value,
+// so nothing here reaches storage. What survives is in-memory only: we still ASK
+// the model for a clinical suicide-severity grade and still compute one. Storage
+// was minimized; processing was not. Whether to stop generating it at all is an
+// open decision — see the note under row 6 in docs/legal/DPIA-2ndB-minors-draft.md.
 function sanitizeCssrsLevel(v: unknown): SafetyResult["cssrsLevel"] {
   if (typeof v !== "number" || !Number.isFinite(v)) return null;
   const r = Math.round(v);

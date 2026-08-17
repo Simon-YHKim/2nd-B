@@ -274,7 +274,7 @@
     <tr><td><b>self_contexts</b></td><td>다중 자아(work/parents/friends/...) — <b>INSERT 경로 없음(Phase2 skeleton)</b>, 별자리 3단계 gate</td></tr>
     <tr><td><b>esm_responses · chat_usage · xp_events</b></td><td>경험표집 / 일일 챗 카운터 / XP 원장</td></tr>
     <tr><td><b>ai_audit_log</b> C3</td><td>모든 Gemini 호출 — hash·model·safety_zone·latency. 삭제해도 user_id NULL로 증거 잔존</td></tr>
-    <tr><td><b>crisis_events</b></td><td>RED존만, 범주만 — user_id_hash·cssrs_level·trigger_categories. DENY-ALL RLS, service-role</td></tr>
+    <tr><td><b>crisis_events</b></td><td>RED존만, 범주만 — user_id_hash·trigger_categories. DENY-ALL RLS, service-role. cssrs_level(C-SSRS 등급)은 0129 로 제거됨</td></tr>
     <tr><td><b>consent_records · guardian_consents</b></td><td>불변 PIPA 동의 원장(append-only) / under-14 보호자 동의(미배포)</td></tr>
     <tr><td><b>knowledge_sources</b> C8 · <b>revenue_events</b> C4 · <b>testimonials</b> C5 · <b>ingest_log</b> · <b>clipper_templates</b></td><td>연구 출처(DOI+검증쌍) / 매출(month_bucket·related_party) / 증언(consent_given_at NOT NULL) / 드롭 원장 / 클립 포맷</td></tr>
   </table>

@@ -41,22 +41,32 @@ describe("crisis_events 최소화", () => {
     expect(src).toContain("p_routing_template_version");
   });
 
-  it("그 값을 읽는 코드가 여전히 없다", () => {
+  it("그 값을 읽거나 선언하는 코드가 여전히 없다", () => {
     // 소비자가 생기면 최소화 판단의 전제("쓸모가 없다")가 무너진다.
     // 그때는 지우는 게 아니라 동의 근거를 먼저 세워야 한다.
-    const readers: string[] = [];
+    //
+    // ⚠ 이 검사는 원래 **파일 단위**였다: 파일 어딘가에 p_cssrs_level 이 있으면
+    // 그 파일 전체가 면제됐다. 그래서 types.gen.ts 가 컬럼 선언 3줄을 0129 이후에도
+    // 들고 있었는데 verify 가 통과했다 - 같은 파일 아래쪽 RPC 파라미터가 가려준
+    // 것이다. 이제 **줄 단위**로 본다. 덕분에 types.gen.ts 예외도 필요 없어졌다.
+    const offenders: string[] = [];
+    const NL = String.fromCharCode(10);
     for (const file of walk(join(ROOT, "src"))) {
       if (file.includes("__tests__")) continue;
-      // 주석은 이 항목을 **설명하려고** 이름을 부른다(safety.ts 가 CHECK 제약을
-      // 설명한다). 실행 코드만 본다 - 앞서 다른 가드에서 똑같이 걸렸다.
+      // 주석은 이 항목을 **설명하려고** 이름을 부른다. 실행 코드만 본다 -
+      // 앞서 다른 가드에서 똑같이 걸렸다. 줄 번호가 밀리지 않도록 블록 주석은
+      // 줄바꿈만 남기고 지운다.
       const src = readFileSync(file, "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, " ")
-        .replace(new RegExp("//[^" + String.fromCharCode(10) + "]*", "g"), " ");
-      // 쓰는 쪽(p_cssrs_level)과 타입 정의는 소비가 아니다.
-      if (/\bcssrs_level\b/.test(src) && !/p_cssrs_level/.test(src) && !file.endsWith("types.gen.ts")) {
-        readers.push(file.slice(ROOT.length + 1));
-      }
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\r\n]/g, " "))
+        .replace(new RegExp("//[^" + NL + "]*", "g"), " ");
+      src.split(NL).forEach((line, i) => {
+        // 쓰는 쪽(p_cssrs_level)만 허용된다. 설치된 앱이 계속 보내기 때문에
+        // RPC 파라미터는 남겨둔 것이고, 그 값은 서버에서 버려진다.
+        if (/\bcssrs_level\b/.test(line) && !/p_cssrs_level/.test(line)) {
+          offenders.push(`${file.slice(ROOT.length + 1)}:${i + 1}`);
+        }
+      });
     }
-    expect(readers).toEqual([]);
+    expect(offenders).toEqual([]);
   });
 });
