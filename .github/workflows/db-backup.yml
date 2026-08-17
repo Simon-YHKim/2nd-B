@@ -7,7 +7,7 @@ name: DB backup (daily encrypted pg_dump)
 # access -- plaintext user data must never land in an artifact.
 #
 # Required repository secrets (Settings > Secrets and variables > Actions):
-#   SUPABASE_DB_URL        postgresql://postgres.zoacryukmdeivmolvyhj:...@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres
+#   SUPABASE_DB_URL        postgresql://postgres.zoacryukmdeivmolvyhj:...@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
 #   Copy the Session pooler URI from Supabase Connect because the Direct host is IPv6-only and GitHub-hosted runners need IPv4.
 #   BACKUP_AGE_PUBLIC_KEY  "age1..." public key (private key stays with Simon, never committed)
 #
@@ -53,8 +53,30 @@ jobs:
             echo "Missing SUPABASE_DB_URL or BACKUP_AGE_PUBLIC_KEY secret" >&2
             exit 1
           fi
+          # The secret is pasted by hand, and a copied connection string very
+          # easily carries a trailing newline. libpq then sends the dbname as
+          # "postgres" plus that newline, and the server answers: database
+          # "postgres<newline>" does not exist. That happened on 2026-08-17 and
+          # cost a whole run to diagnose, because the error names the database
+          # and says nothing about whitespace. Strip CR/LF so a stray one can
+          # never reach libpq again.
+          DB_URL="$(printf '%s' "$DB_URL" | tr -d '\r\n')"
+          AGE_PUBLIC_KEY="$(printf '%s' "$AGE_PUBLIC_KEY" | tr -d '\r\n')"
           STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-          pg_dump "$DB_URL" -Fc --no-owner -f "db-$STAMP.dump"
+          # Use the client we installed, by absolute path. The runner image ships
+          # postgresql-client-16 and /usr/bin/pg_dump keeps resolving to it even
+          # after postgresql-client-17 installs cleanly, so pg_dump aborted with
+          # "server version mismatch: server 17.6, pg_dump 16.14" while the apt
+          # log said the 17 client was installed. Picking the highest version
+          # under /usr/lib/postgresql adapts on its own when the server moves to
+          # 18, instead of going stale the way the enumerated host comment did.
+          PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$PGBIN" ]; then
+            echo "no postgresql client found under /usr/lib/postgresql" >&2
+            exit 1
+          fi
+          "$PGBIN/pg_dump" --version
+          "$PGBIN/pg_dump" "$DB_URL" -Fc --no-owner -f "db-$STAMP.dump"
           age -r "$AGE_PUBLIC_KEY" -o "db-$STAMP.dump.age" "db-$STAMP.dump"
           shred -u "db-$STAMP.dump"
           ls -lh db-*.age
