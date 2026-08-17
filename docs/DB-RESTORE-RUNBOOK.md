@@ -139,6 +139,23 @@ $env:LC_ALL = "C"   # 이거 없으면 에러 메시지가 한국어로 나오�
 만들어 실행한다. 중첩 인용부호가 조용히 망가져서 stdout·stderr 가 0바이트로 나오고
 아무 일도 일어나지 않는 것처럼 보인다.
 
+### 패스 2 는 선택이 아니다
+
+패스 1 은 `auth` 스키마의 **자식 테이블 데이터를 반드시 떨어뜨린다.** 아카이브의 데이터
+적재 순서가 `auth.identities` 를 `auth.users` 보다 먼저 놓고, `postgres` 는 슈퍼유저가
+아니라서 `--disable-triggers` 로 FK 검사를 끌 수 없다. 그래서 FK 위반으로 COPY 가 통째로
+실패한다. 패스 1 이 끝난 뒤 **같은 아카이브로 `auth` 스키마만 데이터 전용 재적재**를 한다.
+
+```powershell
+$env:LC_ALL = "C"
+& "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" --data-only -n auth `
+  -h db.<ref>.supabase.co -p 5432 -U postgres -d postgres -w `
+  E:\_drill\db.dump 2> E:\_drill\pass2.err
+```
+
+이 시점에는 `auth.users` 가 이미 들어와 있으므로 FK 가 만족된다. 이미 적재된 테이블에서는
+중복 키 에러가 새로 나지만 무시하면 된다. **판정은 아래 `auth` 대조표로 한다.**
+
 ## 7. 검증 (숫자로)
 
 에러 개수는 판정 기준이 아니다. **아래 숫자가 운영과 같은지가 기준이다.**
@@ -167,6 +184,29 @@ select
 
 `rls_tables` 가 테이블 수와 같은지 꼭 본다. RLS 가 복원되지 않으면 데이터는
 돌아왔는데 아무나 읽을 수 있는 상태가 된다.
+
+### `auth` 스키마는 따로 센다 (여기서 갈린다)
+
+`public` 이 전부 맞아도 로그인이 안 될 수 있다. `public.users` 는 우리 프로필 테이블이고,
+계정 자체는 `auth` 에 있다. **반드시 따로 센다.**
+
+```sql
+select
+ (select count(*) from auth.users)      as auth_users,
+ (select count(*) from auth.identities) as auth_identities,
+ (select count(*) from auth.mfa_factors) as auth_mfa;
+```
+
+| 항목 | 판정 |
+|---|---|
+| `auth.users` | 운영과 같아야 한다. 다르면 복원 실패다 |
+| `auth.identities` | 운영과 같아야 한다. **0 이면 소셜 로그인이 전부 끊긴 상태다** |
+| `auth.sessions` · `auth.refresh_tokens` · `auth.one_time_tokens` | 0 이어도 된다. 세션은 재로그인하면 다시 생긴다 |
+
+`auth.identities` 는 계정과 로그인 수단(google · kakao · apple · github · email)을 잇는 표다.
+이 표가 비면 `auth.users` 에 계정이 남아 있어도 소셜 로그인이 기존 계정에 다시 붙지 못한다.
+**이것이 이 runbook 에서 가장 놓치기 쉬운 지점이다.** `public` 숫자만 보고 통과로 적으면
+실제 복구 상황에서 데이터는 다 있는데 아무도 못 들어오는 상태를 통과로 판정하게 된다.
 
 ## 8. 정리 (반드시, 순서대로)
 
@@ -199,7 +239,9 @@ TOC 1,542 엔트리.
 
 ## 2026-08-17 첫 드릴 결과
 
-**통과.** 아카이브만으로 자립 복원됐다. 확장 선생성 같은 준비 단계가 필요 없었다.
+**`public` 스키마는 통과. `auth` 스키마 데이터는 패스 1 에서 일부 누락됐다.**
+아카이브만으로 스키마·확장은 자립 복원됐고 확장 선생성 같은 준비 단계는 필요 없었다.
+누락은 아카이브 결함이 아니라 적재 순서와 권한 때문이고, 패스 2 가 있는 이유다.
 
 | 항목 | 스크래치 | 운영 |
 |---|---|---|
@@ -222,22 +264,54 @@ TOC 1,542 엔트리.
 `safety_notice_ack` 존재하고 12행 전부 NULL(0130), `users.display_name`(0127),
 community 테이블 7개(0126), 건강 백스톱 트리거(0128).
 
+### `auth` 스키마 대조 (패스 1 직후)
+
+| 표 | 스크래치 | 운영 | 뜻 |
+|---|---|---|---|
+| `auth.users` | 19 | 19 | 계정은 전부 왔다 |
+| `auth.identities` | **0** | **22** | **로그인 수단 연결이 통째로 빠졌다** |
+| `auth.sessions` | 0 | 40 | 무해. 재로그인하면 다시 생긴다 |
+| `auth.refresh_tokens` | 0 | 136 | 무해 |
+| `auth.mfa_factors` | 0 | 0 | 운영도 0 |
+
+운영 `auth.identities` 22건의 provider 분포는 `email` 13 · `google` 4 · `kakao` 2 ·
+`apple` 2 · `github` 1 이다. 즉 이 상태로 서비스를 올리면 **소셜 로그인 9건이 기존 계정에
+다시 붙지 못한다.** 복원한 `auth.users` 19행 중 13행에 `encrypted_password` 가 남아 있어서
+이메일 로그인 쪽은 재료가 있지만, GoTrue 가 `email` provider 의 `identities` 행까지
+요구하는지는 실제 로그인으로 확인하지 않았다 (`UNVERIFIED`).
+
+원인은 확정했다. 스크래치에서 기존 `auth.users` 를 가리키는 `auth.identities` 행을
+트랜잭션 안에서 3건 INSERT 해보면 **성공한다**(즉시 ROLLBACK 했다). FK 자체는 만족
+가능하다는 뜻이고, 패스 1 의 실패는 순서 문제였다는 것이 증명된다. 그래서 패스 2 가
+필요하다. 패스 2 로 실제 22행이 들어오는 것까지는 이번에 확인하지 않았다(`UNVERIFIED`).
+평문 덤프를 다시 만들지 않기 위해 정리 단계를 먼저 끝냈다.
+
 ### 패스 1 에러 833건의 정체
 
 `pg_restore` 가 마지막에 `복원작업에서의 오류들이 무시되었음: 833` 을 찍는다.
-**전부 Supabase 플랫폼 소유 객체이고, 우리 `public` 스키마 객체에서 실패한 것은 0건이다.**
+전수 분류하면 아래와 같고 **합이 정확히 833 이다.** 우리 `public` 스키마 객체에서
+실패한 것은 0건이다.
 
 | 원인 | 건수 | 왜 나는가 |
 |---|---|---|
 | `must be owner of` | 433 | 전부 `auth` 스키마 테이블(`users` · `refresh_tokens` · `sessions` · `mfa_factors` · `identities` 등). `supabase_auth_admin` 소유라 `postgres` 가 못 건드린다 |
 | `relation "..." does not exist` | 123 | 처녀 DB 에 `--clean` 이 `DROP POLICY` 를 시도한다. `--if-exists` 는 **정책만** 덮고 그 정책이 붙은 테이블은 안 덮는다 |
 | `permission denied` | 118 | `extensions` 스키마 등 플랫폼 소유 |
+| `grant options cannot be granted back to your own grantor` | 91 | 덤프의 GRANT 를 되풀이할 때 나온다. 플랫폼이 이미 준 권한이다 |
 | `role "..." does not exist` | 21 | 덤프의 GRANT 대상 롤 일부가 대상에 없다 |
 | `already exists` | 14 | `auth` · `extensions` · `graphql` 등 스키마가 신규 프로젝트에 이미 있다 |
-| `must be owned by a superuser` | 12 | `CREATE EVENT TRIGGER` (`pgrst_*` · `issue_pg_*`) |
+| `function realtime.*() does not exist` | 11 | 대상 프로젝트의 `realtime` 스키마 판이 다르다. 플랫폼 소유 |
+| `cannot drop ... because other objects depend on it` | 7 | `--clean` 이 `extensions` 스키마·함수를 지우려 한다 |
+| `Non-superuser owned event trigger must execute a non-superuser owned function` | 6 | `CREATE EVENT TRIGGER` (`pgrst_*` · `issue_pg_*`) |
+| **COPY 실패: FK 위반** | **5** | **`auth` 의 `identities` · `sessions` · `refresh_tokens` · `one_time_tokens` · `mfa_amr_claims`. 위 대조표의 원인이고 유일하게 사람이 후속 조치해야 하는 항목이다** |
+| `type "..." does not exist` | 4 | 플랫폼 타입 |
 
-즉 **833 은 정상 수치다.** 이 숫자가 크게 줄거나 늘면 그때 의심한다.
-판정은 7절의 숫자로 한다.
+**개수로 판정하지 않는다.** 833 중 실제로 의미 있는 것은 FK 위반 5건이다.
+판정은 7절의 `public` 숫자와 `auth` 대조표로 한다.
+
+앞선 판에는 이 표가 6줄(합 721)로 실려 있었고 `auth` 대조표가 없었다.
+`public` 숫자만 맞으면 통과로 읽히는 문서였다. 그 상태로 실제 복구를 하면
+데이터는 다 있는데 소셜 로그인이 전부 끊긴 것을 통과로 적게 된다.
 
 ---
 
@@ -263,3 +337,10 @@ community 테이블 7개(0126), 건강 백스톱 트리거(0128).
    0바이트로 나와서 명령이 성공한 것처럼 보인다. `.cmd` 파일로 만들어 실행한다.
 6. **Windows PowerShell MCP 호출은 60초 상한이다.** 긴 작업은 백그라운드로 띄우고
    로그 파일을 폴링한다.
+7. **`public.users` 와 `auth.users` 를 같은 것으로 읽으면 안 된다.** `public.users` 는
+   우리 프로필 테이블(15행)이고 계정은 `auth.users`(19행)다. 두 숫자는 서로 다른 것이 맞다.
+   `public` 만 대조하고 통과로 적으면 `auth.identities` 누락을 못 본다.
+8. **에러 833건을 "전부 플랫폼 소유"로 뭉쳐서 넘기면 안 된다.** 그 안에 섞인 COPY 실패
+   5건이 이번 드릴에서 유일하게 사람이 후속 조치해야 하는 항목이었다. 큰 숫자를
+   정상 수치로 규정하는 순간 그 안의 소수 항목을 읽지 않게 된다. 패턴별로 세서
+   합이 총계와 맞는지 확인한다. 안 맞으면 분류가 덜 된 것이다.
