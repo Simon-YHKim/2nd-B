@@ -175,6 +175,7 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
         signup_consent_llm_processing: args.consent.llmProcessing,
         signup_consent_overseas_transfer: args.consent.overseasTransfer,
         signup_consent_sensitive_data: args.consent.sensitiveData,
+        signup_consent_safety_notice: args.consent.safetyNotice,
         signup_consent_marketing: args.consent.marketing,
       },
     },
