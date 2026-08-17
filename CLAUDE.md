@@ -118,7 +118,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 > **Anthropic 크레딧이 확인되면 그때 한 줄 바꾸면 된다.**
 >
 > **경계 모듈은 `src/lib/llm/boundary.ts` 다** (2026-08-17 `gemini.ts` 에서 개명. 함수도
-> `callLlm` → `callLlm`). **모든 LLM 호출이 지나는 단일 지점**이고 감사 기록(C3)과
+> `callGemini` → `callLlm`). **모든 LLM 호출이 지나는 단일 지점**이고 감사 기록(C3)과
 > 안전 분류(C9)가 전부 여기 걸려 있다. **지우거나 우회하지 말 것.** 벤더 선택은
 > `routing.ts` 가 한다.
 >
