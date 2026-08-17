@@ -109,6 +109,13 @@ jobs:
           # any purpose outside its allowlist, and the secondb_chat seat only
           # exists once that function is redeployed.
           EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
+          # Backbone switch for the nine reasoning seats. Unset is NOT the same as
+          # 'gemini' here: unset falls through to the phase rule (Phase 1 = Gemini),
+          # which is today's posture, so '' keeps behaviour identical. Setting this
+          # to openai/claude requires that vendor's key AND credit -- and note the
+          # seats have never served a production call, so treat a flip as a rollout,
+          # not a config tweak.
+          EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}
           # Naver social sign-up (custom OAuth via the oauth-naver edge function,
           # already in-repo). Server side confirmed live 2026-07-15 (Simon):
           # oauth-naver deployed with its secrets and the app registered at
