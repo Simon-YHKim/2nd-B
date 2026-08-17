@@ -42,6 +42,16 @@ export interface ProfileStarInput {
    * open the top tier.
    */
   outsideEntries?: number;
+  /**
+   * Filled fields of users.profile_details (0132) -- occupation, region,
+   * household, daily rhythm, work hours/days, busiest season.
+   *
+   * Counted like editedEntries because that is what they are: facts the user
+   * typed about themselves. They must NOT count as outside signal, so filling
+   * the whole form still cannot reach the top tier alone -- the star's rule is
+   * that something has to come from beyond the user's own keyboard.
+   */
+  filledDetails?: number;
 }
 
 /**
@@ -52,7 +62,8 @@ export interface ProfileStarInput {
 function toEntries(input: ProfileStarInput): DomainEntry[] {
   const fixed =
     (input.hasDisplayName ? 1 : 0) + (input.hasBirthDate ? 1 : 0) + (input.hasGoal ? 1 : 0);
-  const edited = Math.max(0, input.editedEntries ?? 0);
+  // profile_details rows are the user's own typing, same class as editedEntries.
+  const edited = Math.max(0, input.editedEntries ?? 0) + Math.max(0, input.filledDetails ?? 0);
   const outside = Math.max(0, input.outsideEntries ?? 0);
   const total = fixed + edited + outside;
   return Array.from({ length: total }, () => ({
@@ -71,7 +82,11 @@ export function profileCrossSource(input: ProfileStarInput): boolean {
     (input.hasDisplayName ? 1 : 0) +
     (input.hasBirthDate ? 1 : 0) +
     (input.hasGoal ? 1 : 0) +
-    Math.max(0, input.editedEntries ?? 0);
+    Math.max(0, input.editedEntries ?? 0) +
+    // Details are typed by the user, so they belong on the "own" side of the
+    // triangulation. Leaving them out would deny cross-source to someone whose
+    // only self-supplied signal is a filled-in profile, which is backwards.
+    Math.max(0, input.filledDetails ?? 0);
   return own >= 1 && Math.max(0, input.outsideEntries ?? 0) >= 1;
 }
 
