@@ -105,7 +105,6 @@ describe("callGemini — semantic output re-classification (A5 + round-4 H1)", (
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/\+swap:/);
     expect(crisisMock).toHaveBeenCalledTimes(1);
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("output_swap");
-    expect(crisisMock.mock.calls[0]![0]!.cssrsLevel).toBe(3);
   });
 
   test("GREEN semantic output on GREEN input ships verbatim and logs no crisis_event", async () => {

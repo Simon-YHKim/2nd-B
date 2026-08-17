@@ -76,7 +76,6 @@ export interface AdvisorResult {
   text: string;
   zone: "green" | "yellow" | "red";
   triggers: string[];
-  cssrsLevel: number | null;
   fixedTemplate: boolean;
   matchedBatches: string[];
   evidence: { title: string; doi: string | null; summary: string | null }[];

@@ -31,7 +31,6 @@ export interface SafetyResult {
   zone: SafetyZone;
   triggers: string[];
   confidence: number;
-  cssrsLevel: 1 | 2 | 3 | 4 | 5 | 6 | null;
   source: "lexicon" | "llm" | "lexicon+llm" | "lexicon-fallback";
   routingTemplateVersion: string;
 }
@@ -71,8 +70,7 @@ OUTPUT (strict JSON, no prose):
 {
   "zone": "red" | "yellow" | "green",
   "triggers": ["category1", "category2"],
-  "confidence": 0.0..1.0,
-  "cssrsLevel": 1..6 | null
+  "confidence": 0.0..1.0
 }`;
 
 let cachedClient: GoogleGenAI | null = null;
@@ -168,7 +166,6 @@ function lexiconToResult(text: string, locale: "en" | "ko"): SafetyResult {
     zone: r.zone,
     triggers: r.categories.length > 0 ? r.categories : r.matched.length > 0 ? ["lexicon_match"] : [],
     confidence: r.zone === "red" ? 0.95 : r.zone === "yellow" ? 0.6 : 0.4,
-    cssrsLevel: null,
     source: "lexicon-fallback",
     routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
   };
@@ -194,7 +191,6 @@ function mergeResults(a: SafetyResult, b: SafetyResult): SafetyResult {
     zone: winnerZone,
     triggers: [...new Set([...a.triggers, ...b.triggers])],
     confidence: Math.max(a.confidence, b.confidence),
-    cssrsLevel: a.cssrsLevel ?? b.cssrsLevel,
     source: "lexicon+llm",
     routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
   };
@@ -206,24 +202,6 @@ function djb2(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(16);
-}
-
-// The responseSchema declares cssrsLevel only as number|null — no range, so the
-// model can hand back an off-scale or fractional value. Round in-range values;
-// map anything else to null rather than fabricating a C-SSRS level the model
-// never validly produced.
-//
-// ⚠ 0129 위: this used to protect a DB write — crisis_events.cssrs_level carried
-// CHECK (BETWEEN 1 AND 6) and a violation would have silently dropped the RED
-// ledger row. That column is gone and log_crisis_event now discards the value,
-// so nothing here reaches storage. What survives is in-memory only: we still ASK
-// the model for a clinical suicide-severity grade and still compute one. Storage
-// was minimized; processing was not. Whether to stop generating it at all is an
-// open decision — see the note under row 6 in docs/legal/DPIA-2ndB-minors-draft.md.
-function sanitizeCssrsLevel(v: unknown): SafetyResult["cssrsLevel"] {
-  if (typeof v !== "number" || !Number.isFinite(v)) return null;
-  const r = Math.round(v);
-  return r >= 1 && r <= 6 ? (r as SafetyResult["cssrsLevel"]) : null;
 }
 
 // D4 (audit H1): flag-gated server-side Layer-2 classifier. On a keyless build
@@ -268,13 +246,6 @@ async function classifyViaProxy(
             zone: { type: "string", enum: ["red", "yellow", "green"] },
             triggers: { type: "array", items: { type: "string" } },
             confidence: { type: "number" },
-            // Single type, NOT the union ["number","null"]: the Gemini REST API
-            // rejects union types in responseSchema with 400 Invalid JSON payload
-            // (live-reproduced 2026-07-21, handoff 회신3 발주2) - which made BOTH
-            // semantic paths silently degrade to lexicon-only via their catch
-            // blocks. Nullability = omission: cssrsLevel is not in required, and
-            // the zone gate below nulls it on every non-red verdict anyway.
-            cssrsLevel: { type: "number" },
           },
         },
       },
@@ -286,7 +257,6 @@ async function classifyViaProxy(
       zone: SafetyZone;
       triggers?: string[];
       confidence?: number;
-      cssrsLevel?: number | null;
     };
     if (parsed.zone !== "red" && parsed.zone !== "yellow" && parsed.zone !== "green") return null;
     return {
@@ -296,11 +266,6 @@ async function classifyViaProxy(
         typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
           ? Math.min(1, Math.max(0, parsed.confidence))
           : 0.5,
-      // Zone-gated: C-SSRS levels are only defined for crisis verdicts (rubric:
-      // RED = level >= 1). The single-type schema above forces a number slot, and
-      // live Gemini emitted cssrsLevel 6 on a benign GREEN walk note (observed
-      // 2026-07-21) - an in-range junk value sanitize alone cannot distinguish.
-      cssrsLevel: parsed.zone === "red" ? sanitizeCssrsLevel(parsed.cssrsLevel) : null,
       source: "llm",
       routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
     };
@@ -349,13 +314,6 @@ export async function classifySafety(
             zone: { type: "string", enum: ["red", "yellow", "green"] },
             triggers: { type: "array", items: { type: "string" } },
             confidence: { type: "number" },
-            // Single type, NOT the union ["number","null"]: the Gemini REST API
-            // rejects union types in responseSchema with 400 Invalid JSON payload
-            // (live-reproduced 2026-07-21, handoff 회신3 발주2) - which made BOTH
-            // semantic paths silently degrade to lexicon-only via their catch
-            // blocks. Nullability = omission: cssrsLevel is not in required, and
-            // the zone gate below nulls it on every non-red verdict anyway.
-            cssrsLevel: { type: "number" },
           },
         },
       },
@@ -373,7 +331,6 @@ export async function classifySafety(
           zone: SafetyZone;
           triggers?: string[];
           confidence?: number;
-          cssrsLevel?: number | null;
         };
         const llm: SafetyResult = {
           zone: parsed.zone,
@@ -384,9 +341,6 @@ export async function classifySafety(
             typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
               ? Math.min(1, Math.max(0, parsed.confidence))
               : 0.5,
-          // Zone-gated for the same reason as the proxy path above (C-SSRS is
-          // only defined for crisis verdicts; live GREEN emitted junk level 6).
-          cssrsLevel: parsed.zone === "red" ? sanitizeCssrsLevel(parsed.cssrsLevel) : null,
           source: "llm",
           routingTemplateVersion: ROUTING_TEMPLATE_VERSION,
         };

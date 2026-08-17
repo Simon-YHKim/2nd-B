@@ -11,7 +11,6 @@ import { getSupabaseClient } from "./client";
 export interface CrisisEventInsert {
   classifierConfidence: number;
   triggerCategories: string[];
-  cssrsLevel: number | null;
   routingTemplateVersion: string;
   locale: "en" | "ko";
 }
@@ -34,10 +33,17 @@ export async function insertCrisisEvent(meta: CrisisEventInsert): Promise<void> 
     // 를 원용할 수 없어 근거가 §23①1호 별도 동의뿐이라고 본다. 지금 그 동의는
     // 받고 있지 않다.
     //
-    // 그리고 이 값을 **읽는 코드가 저장소 전체에 0건**이다(2026-08-17 확인).
+    // 그리고 이 값을 **읽는 코드가 저장소 전체에 0건**이었다(2026-08-17 확인).
     // 라우팅은 zone 이 하고, 그건 따로 남는다. 즉 쓸모는 없고 위험만 남는 항목
-    // 이라 더 쓰지 않는다. 컬럼 자체와 기존 행의 처리는 Simon 결정 사항이라
-    // 여기서 건드리지 않았다 - 파괴적이고 되돌릴 수 없다.
+    // 이라 더 쓰지 않는다.
+    //
+    // 컬럼은 0129 로 삭제됐고, 등급을 **만들어내는 것**까지 2026-08-17 코드 변경으로 끊었다 -
+    // 이제 분류기가 모델에게 등급을 요구하지 않는다(SafetyResult 에 그 필드가
+    // 없다). 즉 보낼 값이 애초에 존재하지 않는다.
+    //
+    // ⚠ 그런데도 파라미터는 계속 보낸다. 이미 설치된 앱들이 이 시그니처로
+    // 호출하고 있어서 서버 함수가 파라미터를 유지해야 하고, 여기서 인자를
+    // 빼면 이름있는 인자 집합이 달라져 RPC 가 실패한다. 서버는 받아서 버린다.
     p_cssrs_level: null,
     p_routing_template_version: meta.routingTemplateVersion,
     p_locale: meta.locale,

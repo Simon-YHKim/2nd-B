@@ -480,7 +480,6 @@ async function routeCrisis(
       {
         classifierConfidence: 0.95,
         triggerCategories: [...lexCategories, sourceTag],
-        cssrsLevel: null,
         routingTemplateVersion: "routecrisis-inline-v1",
         locale,
       },
@@ -784,7 +783,6 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
         // lexicon's conservative values.
         classifierConfidence: semantic.confidence,
         triggerCategories: [...semantic.triggers, "output_swap"],
-        cssrsLevel: semantic.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -875,7 +873,6 @@ async function advisorProxyCrisisResult(
       {
         classifierConfidence: 0.95,
         triggerCategories: [proxyTrigger],
-        cssrsLevel: null,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -886,7 +883,6 @@ async function advisorProxyCrisisResult(
     text: fixed.text,
     zone: "red",
     triggers: [proxyTrigger],
-    cssrsLevel: null,
     fixedTemplate: true,
     matchedBatches: ["crisis-detection"],
     evidence: [],
@@ -1228,7 +1224,6 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
       {
         classifierConfidence: semantic.confidence,
         triggerCategories: [...semantic.triggers, "output_swap"],
-        cssrsLevel: semantic.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1289,7 +1284,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       {
         classifierConfidence: safety.confidence,
         triggerCategories: safety.triggers,
-        cssrsLevel: safety.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1299,7 +1293,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       text: fixed.text,
       zone: "red",
       triggers: safety.triggers,
-      cssrsLevel: safety.cssrsLevel,
       fixedTemplate: true,
       matchedBatches: ["crisis-detection"],
       evidence: [],
@@ -1356,7 +1349,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       text,
       zone: safety.zone,
       triggers: safety.triggers,
-      cssrsLevel: safety.cssrsLevel,
       fixedTemplate: false,
       matchedBatches: evidence.matchedBatches,
       evidence: evidence.rows.map((r) => ({
@@ -1499,7 +1491,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       {
         classifierConfidence: outputSafety.confidence,
         triggerCategories: [...outputSafety.triggers, "output_swap"],
-        cssrsLevel: outputSafety.cssrsLevel,
         routingTemplateVersion: fixed.version,
         locale: input.locale,
       },
@@ -1509,7 +1500,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       text: fixed.text,
       zone: "red",
       triggers: [...outputSafety.triggers, "output_swap"],
-      cssrsLevel: outputSafety.cssrsLevel,
       fixedTemplate: true,
       matchedBatches: ["crisis-detection"],
       evidence: [],
@@ -1539,7 +1529,6 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     text,
     zone: finalZone,
     triggers: [...new Set([...safety.triggers, ...outputSafety.triggers])],
-    cssrsLevel: safety.cssrsLevel ?? outputSafety.cssrsLevel,
     fixedTemplate: false,
     matchedBatches: evidence.matchedBatches,
     evidence: evidence.rows.map((r) => ({

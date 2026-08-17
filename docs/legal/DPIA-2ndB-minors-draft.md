@@ -118,19 +118,30 @@ Explicitly **excluded** purposes for all users (privacy-by-design defaults OFF):
 > (`consent_records.safety_notice_ack`). Accounts created before that date hold
 > NULL, not false: they did not decline, they were never asked.
 >
-> **OPEN — storage was minimised, processing was not.** The classifier still asks
-> the model for a C-SSRS grade and still computes one: `SafetyResult.cssrsLevel`
-> (`src/lib/llm/safety.ts:34`) is populated from the response schema, sanitised by
-> `sanitizeCssrsLevel`, and threaded through `src/lib/llm/gemini.ts` on ~11 paths.
-> It reaches no store — `crisis-events.ts` sends `p_cssrs_level: null` and the RPC
-> discards it — so nothing is retained. But *generating* a clinical severity grade
-> is itself arguably art.23 processing, which is the same reasoning that removed
-> the column. Deciding this means touching the C9 safety path, so it was not done
-> alongside the storage change. Two options when it is taken up: drop `cssrsLevel`
-> from the response schema and the result type entirely, or keep it as a transient
-> routing input and document why transient generation is acceptable. Until then the
-> honest description of row 6 is: no clinical score is **stored**; one is still
-> **derived in memory**.
+> **RESOLVED 2026-08-17 — the grade is no longer generated either.** The storage
+> change above left the *processing* intact: the classifier still asked the model
+> for a C-SSRS grade, sanitised it, and threaded it through `src/lib/llm/gemini.ts`
+> on 11 paths, reaching no store. Generating a clinical severity grade is itself
+> art.23 processing on the same reasoning that removed the column, so the derivation
+> was removed too (code-only; no schema change):
+>
+> - `cssrsLevel` is gone from the classifier's **prompt contract** and from both
+>   `responseSchema` blocks, so the model is no longer asked for it.
+> - It is gone from `SafetyResult` (`src/lib/llm/safety.ts`), from `AdvisorResult`
+>   (`src/lib/llm/types.ts`), and from `CrisisEventInsert`
+>   (`src/lib/supabase/crisis-events.ts`). `sanitizeCssrsLevel` is deleted.
+> - Routing is unaffected: it runs off `zone`, and nothing ever branched on the
+>   grade — verified across the repo before removal.
+> - Tests were inverted rather than deleted, so the removal is now guarded: the
+>   response schema must not contain the key, and a grade volunteered by the model
+>   must not appear on the result.
+>
+> `p_cssrs_level` is still passed to the RPC as `null`. Installed apps call
+> `log_crisis_event` with that named-argument set; dropping the argument client-side
+> would change the signature and fail their crisis writes. The server discards it.
+>
+> Row 6 is therefore accurate as written: **no clinical score is collected, stored,
+> or derived.** What remains is the zone verdict and its categories.
 
 Note on #1: journal text is **not** sent to the chat/recommendation LLM by default — see 3.2. The crisis classifier, however, *does* read raw record text locally to triage it (`src/lib/llm/gemini.ts:273-282` `classifyRecordTextForCrisis`).
 

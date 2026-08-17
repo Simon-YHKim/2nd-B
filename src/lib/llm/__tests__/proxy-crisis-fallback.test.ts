@@ -211,7 +211,6 @@ describe("callAdvisor — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(r.fixedTemplate).toBe(true);
     expect(r.text).toMatch(/988/);
     expect(r.triggers).toContain("proxy_input_red");
-    expect(r.cssrsLevel).toBeNull();
     // Client bookkeeping is the only record (proxy never audited the 422).
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/^none-crisis-routed-proxy:/);
