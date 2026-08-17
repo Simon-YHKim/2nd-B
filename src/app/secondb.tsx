@@ -37,6 +37,7 @@ import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { chatAutosaveAllowed } from "@/lib/chat/autosave";
 import { classifyInput } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
 import {
@@ -487,8 +488,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 유일한 경로는 LLM 에게 요약을 시킨 뒤 손으로 /capture 에 옮기는 것이었다.
   // 이 버튼은 오간 말 **그대로**를 기록으로 남긴다 - LLM 호출 없음.
   //
-  // 자동 저장하지 않는 이유: 이 앱의 불변식은 propose->ratify 다. 사용자가 누르는
-  // 그 탭이 비준이고, 그래서 "결정 주체는 정보주체" 라는 법적 위치도 유지된다.
+  // ⚠ 여기 원래 "자동 저장하지 않는다" 고 적혀 있었다. 근거는 propose->ratify
+  // 불변식이었다 - 사용자가 누르는 그 탭이 비준이고, 그래서 "결정 주체는
+  // 정보주체" 라는 법적 위치(§37-2 비해당 논거)가 유지된다는 것이었다.
+  //
+  // Simon 이 2026-08-18 에 자동 저장 방향을 승인했고, 위 논거는 **버려진 것이
+  // 아니라 한 층 위로 옮겨졌다.** 비준의 단위가 "이 답변 하나" 에서 "대화를
+  // 저장하겠다는 설정" 으로 바뀐 것이다. 그 설정은:
+  //
+  //   - 기본값이 OFF 다 (privacy/prefs.ts 의 규율).
+  //   - 사용자가 /privacy 에서 직접 켠다. 그 행위가 비준이다.
+  //   - 언제든 끌 수 있고, 이미 담긴 것은 /wiki 에서 지울 수 있다.
+  //
+  // 즉 앱이 사용자 대신 정한 것은 여전히 없다. 켜지 않으면 아래 자동 경로는
+  // 돌지 않고 담기 칩만 남는다 - 예전과 같은 동작이다.
+  //
+  // 페르소나 파생(제안->비준)은 이 변경과 무관하게 그대로다. 여기서 바뀌는 것은
+  // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
   const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
   const [keeping, setKeeping] = useState<number | null>(null);
   // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
@@ -623,20 +639,53 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // pathname, tier/minor from context.
   const pathname = usePathname();
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
+  // 대화 자동 저장 동의 (chat_autosave). 같은 fetch 로 읽는다 - 왕복을 하나 더
+  // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
+  // 돌지 않는다(fail-closed). 광고 동의와 같은 자세다.
+  const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     fetchPrivacyPrefs(userId)
       .then((prefs) => {
-        if (!cancelled) setAdsConsent(prefs.ads === true);
+        if (cancelled) return;
+        setAdsConsent(prefs.ads === true);
+        setAutosaveConsent(prefs.chat_autosave === true);
       })
       .catch(() => {
-        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
+        if (cancelled) return;
+        setAdsConsent(false); // fetch failure = no rewarded entry
+        setAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
       });
     return () => {
       cancelled = true;
     };
   }, [userId]);
+
+  // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
+  //
+  // keepExchange 를 그대로 재사용한다 - 수동 경로와 자동 경로가 다른 코드를 타면
+  // 위기 안내(C9)나 dedup 같은 것이 한쪽에만 붙는 사고가 난다. 여기서는 "무엇을
+  // 담을지" 만 정하고 담는 방법은 하나로 둔다.
+  //
+  // 마지막 담을 수 있는 턴 하나만 본다. 화면에 남아 있는 과거 대화까지 소급해서
+  // 담지 않는다 - 동의를 켜기 **전에** 오간 말은 사용자가 사라질 거라 생각하고
+  // 한 말이다. 그걸 소급 저장하면 동의의 의미가 없어진다.
+  const autoKeptRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!chatAutosaveAllowed(autosaveConsent)) return;
+    if (!userId || keeping !== null) return;
+    const idx = turns.length - 1;
+    const last = turns[idx];
+    if (!last || !isKeepable(last)) return;
+    if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
+    autoKeptRef.current.add(idx);
+    void keepExchange(idx);
+    // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
+    // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns, autosaveConsent, userId]);
+
   // Capability first (Simon B-decision): a build that cannot complete a watch
   // renders no CTA at all -- policy answers WHO may watch, capability answers
   // whether THIS build can deliver.

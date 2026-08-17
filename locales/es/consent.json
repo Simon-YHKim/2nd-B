@@ -105,6 +105,10 @@
       "long_term_memory": {
         "label": "Long-term memory",
         "desc": "Let your saved entries carry over between sessions so the tool can reference them."
+      },
+      "chat_autosave": {
+        "label": "Save conversations to your wiki",
+        "desc": "Keep what you say in chat as wiki entries you can read and delete. Off means a conversation is gone once you leave the screen."
       }
     },
     "localFirstStatement": "Sharing, recommendations, and using your entries to train AI models are not features today. If any is ever added, it will be off by default and ask for your explicit consent at that point."
