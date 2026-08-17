@@ -1,13 +1,22 @@
-// ⚠ STALE (flagged 2026-07-26): this generated file predates several shipped
-// tables/RPCs -- e.g. reasoning_runs + reasoning_run_proposals + runtime_flags
-// (0092), paddle_webhook_events (0087), usage_counters.reward_consumed (0089),
-// ai_audit_log axis columns (0073/0095). The schema SoT is db/migrations, NOT this
-// file; code using the untyped tables falls back to `any`, which is why the drift
-// hasn't broken the build. Regenerate in its own PR (a large mechanical diff should
-// not ride inside a feature/security change):
+// GENERATED FILE -- do not hand-edit. Regenerate instead:
 //   supabase gen types typescript --project-id zoacryukmdeivmolvyhj > src/lib/supabase/types.gen.ts
-//   npm run type-check   # then fix any newly-surfaced type mismatches
-// See docs/RISK-REMEDIATION-260726.md (R10).
+//   npm run type-check   # then fix anything the new types newly surface
+//
+// Regenerated 2026-08-18 against the live schema. The previous checked-in copy
+// had drifted far enough to be misleading: 23 shipped tables were missing
+// entirely (community_* x8, reasoning_runs + reasoning_run_proposals, notices +
+// user_notice_reads, consent_changes, runtime_flags, paddle_webhook_events,
+// peer_invitations + peer_observations, informant_consents, ops_daily_brief,
+// rewarded_ssv_txns, billing_self_service_log, content_reports, template_blocks,
+// clipper_template_moderation). Code touching an untyped table silently fell
+// back to `any`, which is why the drift never broke the build -- and why it was
+// worth closing: the drift cost type safety without ever announcing itself.
+//
+// Nothing was removed by this regeneration; every table the old file typed is
+// still here. The one intentional deletion this cycle was crisis_events
+// .cssrs_level (0129), which prod confirms is gone.
+//
+// The schema SoT is db/migrations, NOT this file.
 
 export type Json =
   | string
@@ -29,33 +38,48 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          key_combo: string | null
           latency_ms: number
           model_used: string
           output_hash: string
           prompt_hash: string
+          purpose: string | null
+          reasoning_effort: string | null
+          reasoning_vendor: string | null
           safety_zone: Database["public"]["Enums"]["safety_zone"]
+          total_tokens: number | null
           user_id: string | null
           vertex_backend: boolean
         }
         Insert: {
           created_at?: string
           id?: string
+          key_combo?: string | null
           latency_ms: number
           model_used: string
           output_hash: string
           prompt_hash: string
+          purpose?: string | null
+          reasoning_effort?: string | null
+          reasoning_vendor?: string | null
           safety_zone: Database["public"]["Enums"]["safety_zone"]
+          total_tokens?: number | null
           user_id?: string | null
           vertex_backend: boolean
         }
         Update: {
           created_at?: string
           id?: string
+          key_combo?: string | null
           latency_ms?: number
           model_used?: string
           output_hash?: string
           prompt_hash?: string
+          purpose?: string | null
+          reasoning_effort?: string | null
+          reasoning_vendor?: string | null
           safety_zone?: Database["public"]["Enums"]["safety_zone"]
+          total_tokens?: number | null
           user_id?: string | null
           vertex_backend?: boolean
         }
@@ -69,20 +93,100 @@ export type Database = {
           },
         ]
       }
+      billing_self_service_log: {
+        Row: {
+          action: string
+          created_at: string
+          effective_from: string | null
+          eligibility: string | null
+          eligibility_detail: Json | null
+          id: string
+          outcome: string
+          paddle_adjustment_event_at: string | null
+          paddle_adjustment_event_id: string | null
+          paddle_adjustment_id: string | null
+          paddle_adjustment_status: string | null
+          paddle_subscription_id: string | null
+          paddle_transaction_id: string | null
+          provider_error: string | null
+          provider_ref: string | null
+          provider_refund_cents: number | null
+          provider_refunded_at: string | null
+          provider_status: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          effective_from?: string | null
+          eligibility?: string | null
+          eligibility_detail?: Json | null
+          id?: string
+          outcome?: string
+          paddle_adjustment_event_at?: string | null
+          paddle_adjustment_event_id?: string | null
+          paddle_adjustment_id?: string | null
+          paddle_adjustment_status?: string | null
+          paddle_subscription_id?: string | null
+          paddle_transaction_id?: string | null
+          provider_error?: string | null
+          provider_ref?: string | null
+          provider_refund_cents?: number | null
+          provider_refunded_at?: string | null
+          provider_status?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          effective_from?: string | null
+          eligibility?: string | null
+          eligibility_detail?: Json | null
+          id?: string
+          outcome?: string
+          paddle_adjustment_event_at?: string | null
+          paddle_adjustment_event_id?: string | null
+          paddle_adjustment_id?: string | null
+          paddle_adjustment_status?: string | null
+          paddle_subscription_id?: string | null
+          paddle_transaction_id?: string | null
+          provider_error?: string | null
+          provider_ref?: string | null
+          provider_refund_cents?: number | null
+          provider_refunded_at?: string | null
+          provider_status?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_self_service_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_usage: {
         Row: {
+          ad_bonus: number
           count: number
           day: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          ad_bonus?: number
           count?: number
           day: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          ad_bonus?: number
           count?: number
           day?: string
           updated_at?: string
@@ -94,6 +198,35 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clipper_template_moderation: {
+        Row: {
+          hidden_at: string | null
+          report_count: number
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          hidden_at?: string | null
+          report_count?: number
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          hidden_at?: string | null
+          report_count?: number
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clipper_template_moderation_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: true
+            referencedRelation: "clipper_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -157,6 +290,300 @@ export type Database = {
           },
         ]
       }
+      community_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_blocks_blocked_id_fkey"
+            columns: ["blocked_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_invites: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          max_uses: number
+          room_id: string
+          token_hash: string
+          used_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          max_uses?: number
+          room_id: string
+          token_hash: string
+          used_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          max_uses?: number
+          room_id?: string
+          token_hash?: string
+          used_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_invites_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "community_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_message_reports: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          reason: string
+          reporter_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          reason: string
+          reporter_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          reason?: string
+          reporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_message_reports_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "community_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_message_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          room_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          room_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          room_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "community_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_profiles: {
+        Row: {
+          alias: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_room_members: {
+        Row: {
+          joined_at: string
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          joined_at?: string
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          joined_at?: string
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "community_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_room_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_rooms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          last_message_at: string
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          last_message_at?: string
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          last_message_at?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consent_changes: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          ip_hash: string | null
+          pref_key: string
+          ua_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_hash?: string | null
+          pref_key: string
+          ua_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_hash?: string | null
+          pref_key?: string
+          ua_hash?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_changes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_records: {
         Row: {
           age_band: string
@@ -172,6 +599,7 @@ export type Database = {
           policy_version: string
           purposes: Json
           required_ack: boolean
+          safety_notice_ack: boolean | null
           sensitive_data_ack: boolean
           terms_version: string
           ua_hash: string | null
@@ -191,6 +619,7 @@ export type Database = {
           policy_version: string
           purposes?: Json
           required_ack?: boolean
+          safety_notice_ack?: boolean | null
           sensitive_data_ack?: boolean
           terms_version: string
           ua_hash?: string | null
@@ -210,6 +639,7 @@ export type Database = {
           policy_version?: string
           purposes?: Json
           required_ack?: boolean
+          safety_notice_ack?: boolean | null
           sensitive_data_ack?: boolean
           terms_version?: string
           ua_hash?: string | null
@@ -221,6 +651,45 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reporter_id: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          reporter_id: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_reports_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "clipper_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -428,6 +897,72 @@ export type Database = {
           },
         ]
       }
+      informant_consents: {
+        Row: {
+          consent_at: string
+          created_at: string
+          gdpr_lawful_basis: string
+          guardian_consent_at: string | null
+          guardian_verification_token_hash: string | null
+          id: string
+          informant_is_minor: boolean
+          invitation_id: string
+          ip_hash: string | null
+          llm_processing_ack: boolean
+          overseas_transfer_ack: boolean
+          subject_user_id: string
+          ua_hash: string | null
+          withdrawn_at: string | null
+        }
+        Insert: {
+          consent_at: string
+          created_at?: string
+          gdpr_lawful_basis?: string
+          guardian_consent_at?: string | null
+          guardian_verification_token_hash?: string | null
+          id?: string
+          informant_is_minor?: boolean
+          invitation_id: string
+          ip_hash?: string | null
+          llm_processing_ack?: boolean
+          overseas_transfer_ack?: boolean
+          subject_user_id: string
+          ua_hash?: string | null
+          withdrawn_at?: string | null
+        }
+        Update: {
+          consent_at?: string
+          created_at?: string
+          gdpr_lawful_basis?: string
+          guardian_consent_at?: string | null
+          guardian_verification_token_hash?: string | null
+          id?: string
+          informant_is_minor?: boolean
+          invitation_id?: string
+          ip_hash?: string | null
+          llm_processing_ack?: boolean
+          overseas_transfer_ack?: boolean
+          subject_user_id?: string
+          ua_hash?: string | null
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "informant_consents_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: true
+            referencedRelation: "peer_invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "informant_consents_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ingest_log: {
         Row: {
           content_hash: string | null
@@ -576,6 +1111,74 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "memorized_patterns_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          body_en: string
+          body_ko: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["notice_kind"]
+          min_app_version: string | null
+          published_at: string
+          title_en: string
+          title_ko: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          body_en: string
+          body_ko: string
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["notice_kind"]
+          min_app_version?: string | null
+          published_at?: string
+          title_en: string
+          title_ko: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          body_en?: string
+          body_ko?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["notice_kind"]
+          min_app_version?: string | null
+          published_at?: string
+          title_en?: string
+          title_ko?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: []
+      }
+      ops_daily_brief: {
+        Row: {
+          brief: Json
+          created_at: string
+          day: string
+          user_id: string
+        }
+        Insert: {
+          brief?: Json
+          created_at?: string
+          day: string
+          user_id: string
+        }
+        Update: {
+          brief?: Json
+          created_at?: string
+          day?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_daily_brief_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -858,6 +1461,158 @@ export type Database = {
           },
         ]
       }
+      paddle_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          occurred_at: string | null
+          paddle_subscription_id: string | null
+          paddle_transaction_id: string | null
+          payment_card_brand: string | null
+          payment_card_last4: string | null
+          payment_method: string | null
+          processed_at: string
+          raw_payload: Json | null
+          scheduled_cancel_at: string | null
+          stale_entitlement: boolean
+          user_id: string | null
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          occurred_at?: string | null
+          paddle_subscription_id?: string | null
+          paddle_transaction_id?: string | null
+          payment_card_brand?: string | null
+          payment_card_last4?: string | null
+          payment_method?: string | null
+          processed_at?: string
+          raw_payload?: Json | null
+          scheduled_cancel_at?: string | null
+          stale_entitlement?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          occurred_at?: string | null
+          paddle_subscription_id?: string | null
+          paddle_transaction_id?: string | null
+          payment_card_brand?: string | null
+          payment_card_last4?: string | null
+          payment_method?: string | null
+          processed_at?: string
+          raw_payload?: Json | null
+          scheduled_cancel_at?: string | null
+          stale_entitlement?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paddle_webhook_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peer_invitations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          invite_token_hash: string
+          invited_label: string | null
+          relation_kind: string
+          responded_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          invite_token_hash: string
+          invited_label?: string | null
+          relation_kind: string
+          responded_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invite_token_hash?: string
+          invited_label?: string | null
+          relation_kind?: string
+          responded_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_invitations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peer_observations: {
+        Row: {
+          created_at: string
+          id: string
+          informant_consent_id: string
+          invitation_id: string
+          ratings: Json
+          subject_user_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          informant_consent_id: string
+          invitation_id: string
+          ratings: Json
+          subject_user_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          informant_consent_id?: string
+          invitation_id?: string
+          ratings?: Json
+          subject_user_id?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_observations_informant_consent_id_fkey"
+            columns: ["informant_consent_id"]
+            isOneToOne: false
+            referencedRelation: "informant_consents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "peer_observations_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: true
+            referencedRelation: "peer_invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "peer_observations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       persona_entity: {
         Row: {
           created_at: string
@@ -1021,6 +1776,86 @@ export type Database = {
           },
         ]
       }
+      reasoning_run_proposals: {
+        Row: {
+          kind: string
+          ordinal: number
+          payload: Json
+          run_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          kind?: string
+          ordinal: number
+          payload: Json
+          run_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          kind?: string
+          ordinal?: number
+          payload?: Json
+          run_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reasoning_run_proposals_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "reasoning_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reasoning_runs: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          id: string
+          idempotency_key: string
+          item_count: number
+          month_bucket: string
+          spend: string
+          status: string
+          trigger_kind: string
+          updated_at: string
+          user_id: string
+          week_bucket: string
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          idempotency_key: string
+          item_count?: number
+          month_bucket: string
+          spend: string
+          status?: string
+          trigger_kind: string
+          updated_at?: string
+          user_id: string
+          week_bucket: string
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          idempotency_key?: string
+          item_count?: number
+          month_bucket?: string
+          spend?: string
+          status?: string
+          trigger_kind?: string
+          updated_at?: string
+          user_id?: string
+          week_bucket?: string
+        }
+        Relationships: []
+      }
       records: {
         Row: {
           ai_followup: Json | null
@@ -1028,6 +1863,7 @@ export type Database = {
           body: string
           conclusion: string | null
           created_at: string
+          embedding: string | null
           id: string
           kind: Database["public"]["Enums"]["record_kind"]
           prompt: string | null
@@ -1045,6 +1881,7 @@ export type Database = {
           body: string
           conclusion?: string | null
           created_at?: string
+          embedding?: string | null
           id?: string
           kind: Database["public"]["Enums"]["record_kind"]
           prompt?: string | null
@@ -1062,6 +1899,7 @@ export type Database = {
           body?: string
           conclusion?: string | null
           created_at?: string
+          embedding?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["record_kind"]
           prompt?: string | null
@@ -1236,6 +2074,50 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rewarded_ssv_txns: {
+        Row: {
+          granted_at: string
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rewarded_ssv_txns_user_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runtime_flags: {
+        Row: {
+          enabled: boolean
+          key: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       self_contexts: {
         Row: {
@@ -1486,6 +2368,42 @@ export type Database = {
           },
         ]
       }
+      template_blocks: {
+        Row: {
+          blocked_owner_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_owner_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_owner_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_blocks_blocked_owner_id_fkey"
+            columns: ["blocked_owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_blocks_blocker_id_fkey"
+            columns: ["blocker_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       testimonials: {
         Row: {
           approved_for_public: boolean
@@ -1532,27 +2450,69 @@ export type Database = {
       }
       usage_counters: {
         Row: {
+          chat_ad_credits: number
           month_bucket: string
           reasoning_used: number
+          reward_consumed: number
           reward_credits: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          chat_ad_credits?: number
           month_bucket: string
           reasoning_used?: number
+          reward_consumed?: number
           reward_credits?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          chat_ad_credits?: number
           month_bucket?: string
           reasoning_used?: number
+          reward_consumed?: number
           reward_credits?: number
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      user_notice_reads: {
+        Row: {
+          id: string
+          notice_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notice_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notice_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notice_reads_notice_id_fkey"
+            columns: ["notice_id"]
+            isOneToOne: false
+            referencedRelation: "notices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_notice_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users: {
         Row: {
@@ -1561,6 +2521,7 @@ export type Database = {
           coachmarks_seen: Json
           consent_share_with_judges: boolean
           created_at: string
+          display_name: string | null
           email: string
           id: string
           judge_mode: boolean
@@ -1568,6 +2529,8 @@ export type Database = {
           minor_tier: string | null
           onboarding_quest_completed_at: string | null
           privacy_prefs: Json
+          reasoning_prefs: Json
+          subscription_event_at: string | null
           subscription_expires_at: string | null
           subscription_provider: string | null
           subscription_tier: string
@@ -1580,6 +2543,7 @@ export type Database = {
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
           created_at?: string
+          display_name?: string | null
           email: string
           id: string
           judge_mode?: boolean
@@ -1587,6 +2551,8 @@ export type Database = {
           minor_tier?: string | null
           onboarding_quest_completed_at?: string | null
           privacy_prefs?: Json
+          reasoning_prefs?: Json
+          subscription_event_at?: string | null
           subscription_expires_at?: string | null
           subscription_provider?: string | null
           subscription_tier?: string
@@ -1599,6 +2565,7 @@ export type Database = {
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
           created_at?: string
+          display_name?: string | null
           email?: string
           id?: string
           judge_mode?: boolean
@@ -1606,6 +2573,8 @@ export type Database = {
           minor_tier?: string | null
           onboarding_quest_completed_at?: string | null
           privacy_prefs?: Json
+          reasoning_prefs?: Json
+          subscription_event_at?: string | null
           subscription_expires_at?: string | null
           subscription_provider?: string | null
           subscription_tier?: string
@@ -1774,10 +2743,62 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ai_audit_daily_health: {
+        Row: {
+          avg_latency_ms: number | null
+          calls: number | null
+          day: string | null
+          degraded_upstream: number | null
+          null_purpose_rows: number | null
+          purpose: string | null
+          red_rows: number | null
+          semantic_dark_rows: number | null
+          total_tokens: number | null
+          vendor: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      apply_billing_event: {
+        Args: {
+          p_amount_cents: number
+          p_card_brand?: string
+          p_card_last4?: string
+          p_currency: string
+          p_event_id: string
+          p_event_type: string
+          p_expires_at: string
+          p_is_related_party?: boolean
+          p_occurred_at: string
+          p_payment_method?: string
+          p_provider: string
+          p_relation?: Database["public"]["Enums"]["customer_relation"]
+          p_scheduled_cancel_at?: string
+          p_source?: string
+          p_subscription_id?: string
+          p_tier: string
+          p_transaction_id?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      apply_billing_refund: {
+        Args: {
+          p_adjustment_id: string
+          p_amount_cents: number
+          p_currency: string
+          p_event_id: string
+          p_event_type: string
+          p_is_full?: boolean
+          p_occurred_at: string
+          p_subscription_id: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
       award_xp: { Args: { p_action: string }; Returns: Json }
+      billing_request_role: { Args: never; Returns: string }
       bump_chat_usage: {
         Args: { p_day: string; p_user_id: string }
         Returns: number
@@ -1790,6 +2811,74 @@ export type Database = {
         Args: { p_cap: number; p_day: string; p_user_id: string }
         Returns: number
       }
+      bump_reasoning_usage_if_under_cap: {
+        Args: { p_cap: number; p_month: string; p_user_id: string }
+        Returns: number
+      }
+      bump_reward_credits_if_under_cap: {
+        Args: { p_credits: number; p_month: string; p_user_id: string }
+        Returns: number
+      }
+      cancel_reasoning_run: {
+        Args: { p_run_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      claim_billing_self_service: {
+        Args: {
+          p_action: string
+          p_effective_from: string
+          p_eligibility: string
+          p_eligibility_detail: Json
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      claim_peer_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: boolean
+      }
+      community_assert_adult: { Args: never; Returns: undefined }
+      community_create_invite: {
+        Args: { p_max_uses: number; p_room: string; p_token_hash: string }
+        Returns: string
+      }
+      community_create_room: {
+        Args: { p_kind: string; p_title: string }
+        Returns: string
+      }
+      community_ensure_profile: { Args: { p_alias: string }; Returns: string }
+      community_is_member: {
+        Args: { p_room: string; p_user: string }
+        Returns: boolean
+      }
+      community_join: { Args: { p_token: string }; Returns: string }
+      complete_reasoning_run: {
+        Args: { p_proposals: Json; p_run_id: string; p_user_id: string }
+        Returns: number
+      }
+      effective_subscription_tier: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
+      email_canonical: { Args: { p_email: string }; Returns: string }
+      fail_reasoning_run: {
+        Args: { p_code: string; p_run_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      grant_chat_ad_bonus: { Args: { p_user_id: string }; Returns: number }
+      grant_chat_ad_bonus_ssv: {
+        Args: { p_txn_id: string; p_user_id: string }
+        Returns: number
+      }
+      grant_reward_credits_ssv: {
+        Args: {
+          p_grant: number
+          p_month: string
+          p_txn_id: string
+          p_user_id: string
+        }
+        Returns: number
+      }
       level_for_xp: { Args: { xp: number }; Returns: number }
       log_ai_audit: {
         Args: {
@@ -1797,8 +2886,22 @@ export type Database = {
           p_model_used: string
           p_output_hash: string
           p_prompt_hash: string
+          p_purpose?: string
+          p_reasoning_effort?: string
+          p_reasoning_vendor?: string
           p_safety_zone: string
           p_vertex_backend: boolean
+        }
+        Returns: undefined
+      }
+      log_billing_self_service: {
+        Args: {
+          p_action: string
+          p_eligibility: string
+          p_eligibility_detail: Json
+          p_outcome: string
+          p_provider_error: string
+          p_user_id: string
         }
         Returns: undefined
       }
@@ -1811,6 +2914,25 @@ export type Database = {
           p_trigger_categories: string[]
         }
         Returns: undefined
+      }
+      mark_reasoning_proposal_applied: {
+        Args: { p_ordinal: number; p_run_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      match_records: {
+        Args: {
+          exclude_id?: string
+          match_count?: number
+          p_user_id: string
+          query_embedding: string
+        }
+        Returns: {
+          id: string
+          kind: string
+          similarity: number
+          summary: string
+          topic: string
+        }[]
       }
       match_wiki_pages: {
         Args: {
@@ -1845,8 +2967,127 @@ export type Database = {
           score: number
         }[]
       }
+      purge_ai_audit_log: { Args: { retention_days?: number }; Returns: number }
+      purge_consent_request_metadata: {
+        Args: { retention_days?: number }
+        Returns: {
+          consent_changes_scrubbed: number
+          consent_records_scrubbed: number
+        }[]
+      }
+      purge_expired_peer_invitations: {
+        Args: { retention_days?: number }
+        Returns: {
+          deleted: number
+          marked_expired: number
+        }[]
+      }
+      purge_stale_peer_observations: {
+        Args: { retention_days?: number }
+        Returns: number
+      }
+      purge_star_tier_history: {
+        Args: { retention_days?: number }
+        Returns: number
+      }
+      purge_unhandled_billing_payloads: {
+        Args: { p_retention_days?: number }
+        Returns: number
+      }
+      purge_unreflected_import_data: {
+        Args: { retention_days?: number }
+        Returns: {
+          ingest_log_deleted: number
+          sources_deleted: number
+        }[]
+      }
+      ratify_reasoning_proposals: {
+        Args: {
+          p_dismiss: number[]
+          p_ratify: number[]
+          p_run_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      record_paddle_refund_adjustment: {
+        Args: {
+          p_adjustment_id: string
+          p_event_id: string
+          p_event_type: string
+          p_occurred_at: string
+          p_status: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
+      record_unhandled_billing_event: {
+        Args: {
+          p_event_id: string
+          p_event_type: string
+          p_occurred_at: string
+          p_payload: Json
+          p_subscription_id: string
+          p_transaction_id: string
+        }
+        Returns: string
+      }
+      recover_stale_reasoning_runs: {
+        Args: { p_stale_minutes?: number; p_user_id: string }
+        Returns: number
+      }
+      refund_eligibility: { Args: { p_user_id: string }; Returns: Json }
+      refund_gemini_spend: {
+        Args: { p_day: string; p_user_id: string }
+        Returns: number
+      }
+      refund_reasoning_spend: {
+        Args: {
+          p_month: string
+          p_spend: string
+          p_user_id: string
+          p_week: string
+        }
+        Returns: undefined
+      }
+      reserve_reasoning_run: {
+        Args: {
+          p_item_count: number
+          p_key: string
+          p_trigger: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      settle_billing_self_service: {
+        Args: {
+          p_id: string
+          p_outcome: string
+          p_provider_error: string
+          p_provider_ref: string
+          p_provider_status: number
+        }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      start_reasoning_run: {
+        Args: { p_run_id: string; p_user_id: string }
+        Returns: string
+      }
+      subscription_overview: { Args: { p_user_id: string }; Returns: Json }
+      sweep_stale_billing_claims: {
+        Args: { p_older_than?: string }
+        Returns: number
+      }
+      t5_seen_aggregate: {
+        Args: never
+        Returns: {
+          avg_score: number
+          informant_count: number
+          trait: string
+        }[]
+      }
     }
     Enums: {
       customer_relation:
@@ -1856,6 +3097,7 @@ export type Database = {
         | "employee"
         | "self"
         | "unknown"
+      notice_kind: "major" | "minor"
       record_kind: "journal" | "note" | "audit_response"
       safety_zone: "green" | "yellow" | "red"
     }
@@ -1993,6 +3235,7 @@ export const Constants = {
         "self",
         "unknown",
       ],
+      notice_kind: ["major", "minor"],
       record_kind: ["journal", "note", "audit_response"],
       safety_zone: ["green", "yellow", "red"],
     },
