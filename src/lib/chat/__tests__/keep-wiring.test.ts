@@ -47,19 +47,29 @@ describe("대화 -> 위키 배선", () => {
     expect(SRC).toContain('t("keepToWiki")');
   });
 
-  it("기록을 실제로 만든다 (화면 이동이 아니라)", () => {
-    // 기존 경로는 /capture 로 넘기는 것이었다. 그건 대화를 떠나야 하고
-    // 사용자가 거기서 다시 저장해야 해서, 대부분 저장되지 않았다.
-    expect(SRC).toContain("createRecord(");
-    expect(SRC).toContain("CHAT_KEEP_TAG");
+  it("위키 클립으로 저장한다 (records 가 아니라)", () => {
+    // records 로 넣으면 담아도 아무도 다시 읽지 않는다: 대화 맥락은
+    // structured 가 있는 행만 읽고, 비서는 위키 스냅샷만 읽는다.
+    // 위키 클립이어야 exportUserWiki 가 집어가서 양쪽이 다 읽는다.
+    const handler = keepHandlerBody();
+    expect(handler).toContain("captureFromMarkdown(");
+    expect(handler).not.toContain("createRecord(");
+    expect(handler).toContain("CHAT_KEEP_TAG");
+  });
+
+  it("사용자가 쓴 지식으로 표시한다", () => {
+    // URL 에서 유추한 종류로 떨어지면 클리퍼가 남의 글처럼 분류한다.
+    expect(keepHandlerBody()).toContain('kindOverride: "self_knowledge"');
   });
 
   it("LLM 을 다시 부르지 않는다", () => {
     // 원문 그대로 담는 게 요점이다. 저장할 때 요약을 시키면 위키(원본)
     // 자리에 요약이 들어앉고, 나중에 읽는 쪽은 요약의 요약을 읽는다.
+    // captureFromMarkdown 은 dedup + 저장만 한다. 클리퍼 분류(classifyClipper)를
+    // 여기서 부르면 담을 때마다 유료 호출이 나가고, 원문 자리에 모델의 해석이
+    // 끼어든다.
     const handler = keepHandlerBody();
-    expect(handler).not.toMatch(/callGemini|sendChatMessage|callAdvisor/);
-    expect(handler).toContain("withFollowup: false");
+    expect(handler).not.toMatch(/callGemini|sendChatMessage|callAdvisor|classifyClipper/);
   });
 
   it("별 밝기를 건드리지 않는다", () => {
@@ -71,12 +81,14 @@ describe("대화 -> 위키 배선", () => {
   });
 
   it("저장 경로에도 위기 안내가 있다", () => {
-    // 이 화면의 C9 는 전송 경로에만 있었다. createRecord 는 저장할 때마다
-    // 로컬 분류를 돌리고 레드존을 followup 으로 알려주므로, 다른 저장 화면
-    // (northstar/capture)과 같이 핫라인을 띄워야 한다.
+    // 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
+    // 분류기를 직접 돌려야 다른 저장 화면과 같은 자세가 된다. 이게 없으면
+    // 안내 없는 저장 경로가 하나 생긴다.
+    const handler = keepHandlerBody();
+    expect(handler).toContain("classifyInput(");
+    expect(handler).toContain('=== "red"');
+    expect(handler).toContain("KR_1388");
     expect(SRC).toContain("keepCrisis");
-    expect(SRC).toContain('res.followup?.zone === "red"');
-    expect(SRC).toContain("KR_1388");
   });
 
   it("같은 답변을 두 번 담지 못한다", () => {

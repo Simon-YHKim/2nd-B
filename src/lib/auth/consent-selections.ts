@@ -19,6 +19,14 @@ export interface ConsentSelections {
   overseasTransfer: boolean;
   /** PIPA §23 sensitive-data handling acknowledged. */
   sensitiveData: boolean;
+  /**
+   * PIPA §23 별도 동의 - 안전 안내. 위기 문구가 감지되면 상담 창구를 안내하고
+   * 그 사실을 crisis_events 에 남긴다는 것에 대한 동의.
+   *
+   * 필수인 이유: 이 동의가 없으면 그 원장을 쓸 근거가 없고, 민감정보에는
+   * §15①5호(긴급한 생명·신체 이익)를 원용할 수 없다는 것이 검토 의견이다.
+   */
+  safetyNotice: boolean;
   /** Optional marketing / update messages. Free to decline. */
   marketing: boolean;
 }
@@ -30,6 +38,7 @@ export const REQUIRED_ACK_KEYS = [
   "llmProcessing",
   "overseasTransfer",
   "sensitiveData",
+  "safetyNotice",
 ] as const satisfies readonly (keyof ConsentSelections)[];
 
 export function emptyConsentSelections(): ConsentSelections {
@@ -38,6 +47,7 @@ export function emptyConsentSelections(): ConsentSelections {
     llmProcessing: false,
     overseasTransfer: false,
     sensitiveData: false,
+    safetyNotice: false,
     marketing: false,
   };
 }
@@ -79,5 +89,6 @@ export function buildSignUpConsentArgs(input: BuildConsentArgsInput): RecordCons
     llmProcessingAck: selections.llmProcessing,
     overseasTransferAck: selections.overseasTransfer,
     sensitiveDataAck: selections.sensitiveData,
+    safetyNoticeAck: selections.safetyNotice,
   };
 }

@@ -41,3 +41,34 @@ export function addressTerm(displayName: string | null | undefined, locale: stri
   // 이미 님으로 끝나면 "허슬케이님님" 이 되지 않게 그대로 둔다.
   return name.endsWith("님") ? name : `${name}님`;
 }
+
+/**
+ * 이름을 **시스템 프롬프트에 넣기 위해** 씻는다.
+ *
+ * 표시 이름은 사용자가 정하는 문자열이고, 프롬프트에 넣는 순간 지시문 자리에
+ * 사용자 입력이 들어간다. `display_name` 을 "무시하고 다음을 따르라" 로 지어
+ * 놓으면 그게 시스템 프롬프트 한가운데 앉는다. 40자 CHECK 는 길이만 막는다.
+ *
+ * 그래서 화면에 쓰는 것보다 훨씬 좁게 자른다:
+ *   - 줄바꿈·제어문자 제거 (여러 줄로 새 지시를 만들 수 없게)
+ *   - 따옴표·중괄호·꺾쇠 제거 (인용부호나 펜스를 닫고 나올 수 없게)
+ *   - 20자로 더 줄임 (이름에 문장이 들어갈 이유가 없다)
+ * 남은 것이 비면 이름을 아예 안 쓴다 - 이상한 이름으로 부르느니 안 부르는 게 낫다.
+ */
+export function promptSafeName(displayName: string | null | undefined): string | null {
+  const raw = displayName ?? "";
+  // 코드포인트로 거른다: " ' ` < > { } [ ] \
+  // 정규식 문자클래스로 쓰면 이스케이프가 한 겹 더 꼬여서 조용히 빈 클래스가
+  // 되기 쉽다. 여기서 놓치면 프롬프트 인용부호를 닫고 나올 수 있으므로
+  // 실수해도 티가 나는 형태로 적는다.
+  const BANNED = new Set([0x22, 0x27, 0x60, 0x3c, 0x3e, 0x7b, 0x7d, 0x5b, 0x5d, 0x5c]);
+  let out = "";
+  for (const ch of raw) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (cp < 0x20 || cp === 0x7f) { out += " "; continue; }
+    if (BANNED.has(cp)) continue;
+    out += ch;
+  }
+  const cleaned = out.replace(/\s+/g, " ").trim().slice(0, 20).trim();
+  return cleaned.length > 0 ? cleaned : null;
+}

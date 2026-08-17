@@ -67,9 +67,10 @@ function clip(text: string, max: number): string {
 /**
  * 기록 본문. 마크다운 인용으로 누가 한 말인지 남긴다.
  *
- * 서식을 붙이는 이유는 장식이 아니라 **구분**이다. 나중에 이 기록이 다시 대화
- * 맥락으로 들어갈 때(loadStructuredContext -> 프롬프트), 사용자가 쓴 문장과
- * 모델이 쓴 문장이 섞여 있으면 모델이 자기 말을 사용자의 기록으로 읽는다.
+ * 서식을 붙이는 이유는 장식이 아니라 **구분**이다. 이 글은 위키 클립으로 저장돼
+ * 다음 대화와 비서 제안의 맥락으로 다시 들어간다(exportUserWiki). 그때 사용자가
+ * 쓴 문장과 모델이 쓴 문장이 섞여 있으면, 모델이 자기가 한 말을 사용자의
+ * 기록으로 읽고 그것을 근거처럼 인용한다.
  */
 export function composeExchangeBody(
   args: { prompt: string | null; reply: string; speaker: string },
@@ -98,5 +99,30 @@ export function exchangeTopic(prompt: string | null, reply: string): string {
   return clip(source, 80);
 }
 
-/** 이 기록이 대화에서 왔음을 나타내는 태그. */
+/** 이 클립이 대화에서 왔음을 나타내는 태그. */
 export const CHAT_KEEP_TAG = "secondb_chat";
+
+/**
+ * 담은 대화를 **위키 클립**으로 만든다. `records` 가 아니라 `sources` 로 가는
+ * 이유가 이 파일에서 제일 중요한 결정이다.
+ *
+ * 처음에는 `createRecord` 로 records 에 넣었는데, 그러면 **담아도 아무도 다시
+ * 읽지 않는다**:
+ *   - 대화 맥락(`loadStructuredContext`)은 `structured` 가 있는 행만 읽는다.
+ *     담기로 만든 노트에는 그 필드가 없어서 걸러진다.
+ *   - 비서(`recommend.ts`)는 위키 스냅샷만 읽고 records 는 의도적으로 뺀다
+ *     (`export.ts` 의 "no journal in prompts" 계약 - 일기는 가장 사적인 데이터라
+ *     프롬프트에 조용히 실리면 안 된다).
+ *
+ * 위키 클립으로 만들면 `exportUserWiki` 가 집어가므로 **대화와 비서가 둘 다**
+ * 읽는다. 그리고 그 개인정보 계약에 예외를 뚫지 않아도 된다 - 담은 대화는
+ * 몰래 실리는 일기가 아니라 사용자가 눌러서 남긴 것이고, 절반은 모델이 쓴
+ * 문장이다.
+ *
+ * frontmatter 를 붙이는 이유: `buildSourcePayload` 가 제목·종류를 여기서 읽는다.
+ */
+export function exchangeMarkdown(topic: string, body: string): string {
+  // 제목에 든 따옴표가 frontmatter 를 깨뜨리지 않게.
+  const safeTitle = topic.replace(/"/g, "'").trim() || "대화";
+  return ["---", `title: "${safeTitle}"`, "---", "", body].join("\n");
+}
