@@ -75,3 +75,33 @@ describe("세컨비 정체성 프롬프트", () => {
     expect(header()).not.toMatch(/counseling|therapy|심리상담/i);
   });
 });
+
+// 이름은 시스템 프롬프트 **안**에 들어간다. 사용자가 정하는 문자열이 지시문
+// 자리에 앉는다는 뜻이라, 씻는 단계가 빠지면 그게 곧 프롬프트 주입이다.
+describe("이름 호칭", () => {
+  it("프롬프트 조립 전에 이름을 씻는다", () => {
+    expect(SRC).toContain("promptSafeName(input.displayName)");
+  });
+
+  it("씻은 값만 프롬프트에 들어간다", () => {
+    // input.displayName 이 그대로 템플릿에 들어가면 씻은 의미가 없다.
+    const assembly = SRC.slice(SRC.indexOf("const addressLine"), SRC.indexOf("const system ="));
+    expect(assembly).toContain("safeName");
+    expect(assembly).not.toContain("input.displayName");
+  });
+
+  it("이름이 없으면 그 줄을 아예 빼고, 빈칸으로 부르지 않는다", () => {
+    // "이 사람의 이름은  입니다" 같은 문장이 모델에게 가면 안 된다.
+    const assembly = SRC.slice(SRC.indexOf("const addressLine"), SRC.indexOf("const system ="));
+    expect(assembly).toContain('safeName');
+    expect(assembly).toMatch(/:\s*""/);
+  });
+
+  it("호칭 줄이 인젝션 가드보다 앞이라 가드가 뒤에서 덮는다", () => {
+    const system = SRC.slice(SRC.indexOf("const system ="));
+    const addr = system.indexOf("${addressLine}");
+    const guard = system.indexOf("${guardLine}");
+    expect(addr).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(addr);
+  });
+});

@@ -38,6 +38,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { classifyInput } from "@/lib/safety/classifier";
+import { currentDisplayName } from "@/lib/persona/use-address";
 import {
   CHAT_KEEP_TAG,
   composeExchangeBody,
@@ -762,6 +763,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             message: msg,
             locale,
             tier: progression.tier,
+            // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
+            displayName: currentDisplayName(),
             personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (greeting/limit/error) are not model

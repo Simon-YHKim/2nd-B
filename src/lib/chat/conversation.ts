@@ -16,6 +16,7 @@
 import { callGemini } from "@/lib/llm/gemini";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput } from "@/lib/safety/classifier";
+import { promptSafeName } from "@/lib/persona/address";
 import type { GeminiResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
@@ -42,6 +43,14 @@ export interface SendMessageInput {
   message: string;
   locale: "en" | "ko";
   tier: SubscriptionTier;
+  /**
+   * 사용자가 온보딩에서 넣은 표시 이름. 있으면 세컨비가 이름으로 부른다.
+   * 화면은 이미 "허슬케이님" 이라 하는데 모델만 "당신" 이라 하면 어색하다.
+   *
+   * 이 값은 **시스템 프롬프트 안**에 들어가므로, 원문이 아니라
+   * promptSafeName 을 통과한 것만 넘길 것 (지시문 자리에 들어가는 사용자 입력).
+   */
+  displayName?: string | null;
   /**
    * Optional character voice instruction (from src/lib/chat/personas.ts).
    * When the user opens chat by tapping a village companion, this keeps the
@@ -299,8 +308,20 @@ ${sanitizeUntrusted(structuredBlock)}
           )
           .join("\n")}\n</UNTRUSTED>`
       : "";
+  // 이름 호칭. 화면은 이미 "허슬케이님" 이라 부르는데 모델만 "당신" 이라 하면
+  // 한 화면에서 두 사람이 말하는 것처럼 들린다.
+  //
+  // promptSafeName 을 여기서 **다시** 부른다. 호출부가 이미 씻어서 넘기지만,
+  // 이 값은 시스템 프롬프트 안에 들어가므로 한 호출부의 실수가 곧 주입이 된다.
+  // 씻는 비용은 0 이고, 두 번 씻어도 결과는 같다.
+  const safeName = promptSafeName(input.displayName);
+  const addressLine = safeName
+    ? input.locale === "ko"
+      ? `이 사람의 이름은 ${safeName} 입니다. ${safeName}님이라고 부르세요.\n\n`
+      : `This person's name is ${safeName}. Address them as ${safeName}.\n\n`
+    : "";
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
-  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${guardLine}${modeLine}${personaLine}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
+  const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
   // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
   // happens inside callGemini; we just no longer adjust the counter

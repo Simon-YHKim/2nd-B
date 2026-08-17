@@ -22,6 +22,16 @@ export function seedAddressDefault(locale: string): void {
   applyAddress(addressTerm(null, locale));
 }
 
+// 마지막으로 읽은 표시 이름. 화면이 아니라 **프롬프트**에 쓰려는 곳
+// (세컨비 대화)이 다시 조회하지 않아도 되게 여기서 들고 있는다.
+// 값이 없으면 null - 이름을 모르는 것과 "당신" 은 다르다.
+let lastDisplayName: string | null = null;
+
+/** 지금 알고 있는 표시 이름. 로그인 전이거나 조회 실패면 null. */
+export function currentDisplayName(): string | null {
+  return lastDisplayName;
+}
+
 function applyAddress(who: string): void {
   const interp = (i18next.options.interpolation ??= {});
   interp.defaultVariables = { ...(interp.defaultVariables ?? {}), who };
@@ -40,7 +50,10 @@ export function useAddressTerm(userId: string | null, locale: string): void {
     // 언어가 바뀌면 즉시 그 언어의 기본값으로 되돌린다. 한국어에서 영어로
     // 옮겼는데 `{{who}}` 에 "허슬케이님" 이 남아 있으면 안 된다.
     applyAddress(addressTerm(null, locale));
-    if (!userId) return;
+    if (!userId) {
+      lastDisplayName = null;
+      return;
+    }
     void (async () => {
       try {
         const { data, error } = await getSupabaseClient()
@@ -50,7 +63,9 @@ export function useAddressTerm(userId: string | null, locale: string): void {
           .maybeSingle();
         if (error) throw error;
         if (!alive) return;
-        applyAddress(addressTerm((data as { display_name?: string | null } | null)?.display_name, locale));
+        const name = (data as { display_name?: string | null } | null)?.display_name ?? null;
+        lastDisplayName = name;
+        applyAddress(addressTerm(name, locale));
       } catch {
         // 폴백이 이미 들어가 있다. 조용히 둔다.
       }
