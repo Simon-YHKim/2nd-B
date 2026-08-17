@@ -51,7 +51,7 @@ import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
-import { transcribeAudio } from "@/lib/llm/gemini";
+import { transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
@@ -207,7 +207,7 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 // One chat ENGINE, two chromes (Frame pattern — the same port the interview
 // screen used). isDeepSpaceUI() only swaps the VISUAL shell (deep-space frame +
 // deepSpace.* tokens vs the legacy PremiumAppShell village skin). The send
-// handler, RAG/citation parsing, C9 -> C3 -> crisis path (callGemini via
+// handler, RAG/citation parsing, C9 -> C3 -> crisis path (callLlm via
 // sendChatMessage), modes, auth gates, analytics, and daily-limit logic are
 // byte-identical for both variants — there is NO logic fork.
 type ChatVariant = "deep-space" | "legacy";
@@ -492,7 +492,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
   const [keeping, setKeeping] = useState<number | null>(null);
   // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
-  // (sendChatMessage -> callGemini)에만 있었는데, createRecord 도 저장할 때마다
+  // (sendChatMessage -> callLlm)에만 있었는데, createRecord 도 저장할 때마다
   // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
   // (northstar, capture)은 그때 핫라인을 띄운다. 여기만 조용히 저장하면
   // 저장 경로가 안내 없는 유일한 구멍이 된다.
@@ -908,7 +908,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
   // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
   // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
-  // live entirely inside sendChatMessage -> callGemini, untouched here.
+  // live entirely inside sendChatMessage -> callLlm, untouched here.
   if (isDeepSpace) {
     const dsUsage = usedToday === null ? "..." : String(usedToday);
     const atLimit = usedToday !== null && usedToday >= limit;
@@ -1358,7 +1358,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           }}
           locale={locale}
         />
-        {/* 저장 경로의 위기 안내. 전송 경로(callGemini)는 서버가 응답을 바꿔
+        {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
             치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
             알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
         <CrisisRouter

@@ -3,7 +3,7 @@
 // C3 assertion: normal flows enqueue and flush insertAiAuditLog.
 // We mock both @google/genai and the audit helper.
 
-import type { GeminiResult } from "../types";
+import type { LlmResult } from "../types";
 
 const mockGenerateContent = jest.fn().mockResolvedValue({ text: "OK reflection" });
 
@@ -22,7 +22,7 @@ jest.mock("../../supabase/crisis-events", () => ({
   insertCrisisEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
-// callGemini now re-classifies output via classifySafety (round-4 H1). This suite
+// callLlm now re-classifies output via classifySafety (round-4 H1). This suite
 // tests audit + multimodal wiring, not the classifier, so stub it to a no-op
 // green — otherwise it would make a second (Flash) generateContent call + its own
 // audit on the Vertex client. The swap behavior is covered by gemini-output-swap.test.ts.
@@ -53,7 +53,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callGemini } from "../gemini";
+import { callLlm } from "../boundary";
 import {
   flushAuditWriteOutbox,
   getAuditWriteOutboxForTests,
@@ -63,7 +63,7 @@ import { insertAiAuditLog } from "../../supabase/audit";
 
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 
-describe("callGemini", () => {
+describe("callLlm", () => {
   beforeEach(async () => {
     await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();
@@ -72,7 +72,7 @@ describe("callGemini", () => {
   });
 
   test("C9: red-zone input short-circuits and does NOT call Gemini SDK", async () => {
-    const r: GeminiResult<string> = await callGemini({
+    const r: LlmResult<string> = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -84,7 +84,7 @@ describe("callGemini", () => {
   });
 
   test("C3: normal flow inserts audit log with vertexBackend=true", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -102,7 +102,7 @@ describe("callGemini", () => {
   test("C3: audit failure does not throw to caller", async () => {
     insertMock.mockRejectedValueOnce(new Error("db down"));
     await expect(
-      callGemini({
+      callLlm({
         userId: "u1",
         locale: "en",
         purpose: "reasoning_connect",
@@ -116,7 +116,7 @@ describe("callGemini", () => {
   });
 
   test("C3 + C9: red zone is also audited (crisis event recorded for judges)", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "ko",
       purpose: "reasoning_connect",
@@ -132,7 +132,7 @@ describe("callGemini", () => {
   });
 
   test("multimodal: image is attached as an inlineData part on the direct/Vertex path", async () => {
-    await callGemini({
+    await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "capture_ocr",
@@ -154,7 +154,7 @@ describe("callGemini", () => {
 
   test("abort signal is passed to the direct Gemini request config", async () => {
     const controller = new AbortController();
-    await callGemini({
+    await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -173,7 +173,7 @@ describe("callGemini", () => {
     controller.abort();
 
     await expect(
-      callGemini({
+      callLlm({
         userId: "u1",
         locale: "en",
         purpose: "reasoning_connect",
@@ -186,7 +186,7 @@ describe("callGemini", () => {
   });
 
   test("C9: minor flag routes KO crisis to youth 1388 + 109 (adult gets 109)", async () => {
-    const minorR = await callGemini({
+    const minorR = await callLlm({
       userId: "u1",
       locale: "ko",
       purpose: "reasoning_connect",
@@ -198,7 +198,7 @@ describe("callGemini", () => {
     expect(minorR.text).toMatch(/109/);
     expect(mockGenerateContent).not.toHaveBeenCalled();
 
-    const adultR = await callGemini({
+    const adultR = await callLlm({
       userId: "u1",
       locale: "ko",
       purpose: "reasoning_connect",

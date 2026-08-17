@@ -3,7 +3,7 @@
 // Per docs/research/batches/crisis-detection.md §"Logging policy".
 //
 // Like audit.ts, this module is restricted by ESLint + boundary script —
-// only src/lib/llm/gemini.ts may import it. Direct access would let a
+// only src/lib/llm/boundary.ts may import it. Direct access would let a
 // component bypass the wrapper's required pre-pass + fixed-template return.
 
 import { getSupabaseClient } from "./client";

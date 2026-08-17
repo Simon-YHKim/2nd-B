@@ -4,11 +4,11 @@
 // the older {track, tags, summary} classifier with a clipper-aware one.
 //
 // Pure prompt builder + parser (tested) keep the LLM-free logic a single source
-// of truth; classifyClipper is the thin orchestrator that calls callGemini
+// of truth; classifyClipper is the thin orchestrator that calls callLlm
 // (so C1/C3/C9 are enforced there). A bad-shaped reply degrades to safe
 // defaults anchored on the URL-derived kind, so a capture never fails to save.
 
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { detectClipperKind } from "./clipper-kind";
 import {
@@ -287,7 +287,7 @@ export async function classifyClipper(
   const { system, user } = buildClipperPrompt(baselineKind, trimmed, url, locale, customFormats, matchedFormat?.aiProperties);
   // Same prop-list resolution as buildClipperPrompt (matched format wins).
   const propDefs = matchedFormat?.aiProperties ?? CLIPPER_TEMPLATES[baselineKind].aiProperties;
-  const reply = await callGemini({ userId, locale, purpose: "clipper_classify", system, user, minor, signal, responseSchema: buildClipperSchema(propDefs) });
+  const reply = await callLlm({ userId, locale, purpose: "clipper_classify", system, user, minor, signal, responseSchema: buildClipperSchema(propDefs) });
   // A matched trigger is an explicit routing override, so force the kind and its
   // prop schema to the authored format rather than letting the model pick.
   const classification = parseClipperResult(reply.text, baselineKind, matchedFormat?.baseKind, matchedFormat?.aiProperties);

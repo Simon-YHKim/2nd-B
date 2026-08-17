@@ -3,7 +3,7 @@
 // with before/after, a cited rationale, and a target ladder level); the user
 // ratifies, and only ratification advances a node to L5 (실행가능). This promotes
 // the clipper-format proposal skeleton (wiki/propose-template.ts) to a self-
-// model interaction contract. Pure + lexicon-guarded here; the LLM (callGemini)
+// model interaction contract. Pure + lexicon-guarded here; the LLM (callLlm)
 // and the ratify UI live elsewhere so C1 / C3 / C9 are enforced at those sites.
 
 import { containsForbiddenLexicon } from "../safety/classifier";

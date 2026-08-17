@@ -157,7 +157,7 @@ import + Slack. 출력: 관계 정리·대상별 조언. **§5.2 프라이버시
         │              · 둘이 일치 → crossSourceAgreement → 한 단계 상승 (brightness.ts)
         │              각 구인 → TraitConfidence → ladderLevel()
         │
-[3] 페르소나 종합       callGemini(purpose=persona_synthesis)  ← C9→C3 경유
+[3] 페르소나 종합       callLlm(purpose=persona_synthesis)  ← C9→C3 경유
         │              입력: 도메인 요약 + 구인 추정 + 신뢰도
         │              출력: SelfModelProposal = 페르소나(들=역할/모자)
         │                    + 성향·장단점·강점 요약 + 조언
@@ -219,7 +219,7 @@ Golden:
 - **결정론적 도메인 요약(1단계)**: 항목 변경 시 라이브 갱신. LLM-free.
 - **LLM 페르소나 종합(3단계)**: 비싼 단계 → **게이트.** 트리거 = (a) 북극성 탭 on-demand, (b)
   도메인이 밝기 tier를 넘었을 때(실질적 새 근거). 매 turn 아님(비용 + 불안정).
-- **비용·안전**: 종합 = run당 `callGemini` 1회, 자체 purpose(`persona_synthesis`) + quota 정책.
+- **비용·안전**: 종합 = run당 `callLlm` 1회, 자체 purpose(`persona_synthesis`) + quota 정책.
   예외 없이 C9→C3→`gemini.ts`. 위기 라우팅 turn 미차감 규칙 동일.
 - **페르소나 개수(§7-b)**: 주(主) 1(최광 교차근거) + 보조, 표시 캡 3.
 
@@ -282,7 +282,7 @@ Golden:
 
 - **실명은 사용자 수동입력 또는 import만.** 추론·스크랩으로 타인 신원 생성 금지.
 - 제3자 항목은 **온디바이스 보관.** named-3rd-party 콘텐츠를 서버/Gemini로 그대로 보내지 않는다.
-- RAG/세컨비가 관계 맥락이 필요하면 **익명화**(이름 → 토큰) 후 `callGemini`.
+- RAG/세컨비가 관계 맥락이 필요하면 **익명화**(이름 → 토큰) 후 `callLlm`.
 - 구인 추정은 **"내가 관계 맺는 방식"(애착)만** — named 타인을 프로파일링하지 않는다. "이 사람은
   이렇다"가 아니라 "나는 이 관계에서 이렇게 한다".
 - 데이터 최소화 + 내-관점-한정 프레이밍을 관계 별 UI 카피에 명시.
@@ -358,7 +358,7 @@ npm run verify          # 코드 변경 시 전체 게이트 (이번 산출물�
 
 | 기존 구조 (file:line) | 새 모델 용도 | 문서 § | 검증 |
 |---|---|---|---|
-| `callGemini<T>` 단일 래퍼 (`llm/gemini.ts`, C9~L414·C3~L649) | 북극성 종합이 `purpose:'persona_synthesis'`로 그대로 경유. C9/C3/Vertex/edge/mock 무상 상속 | §3[3]·§3.4 | ✅ |
+| `callLlm<T>` 단일 래퍼 (`llm/boundary.ts`, C9~L414·C3~L649) | 북극성 종합이 `purpose:'persona_synthesis'`로 그대로 경유. C9/C3/Vertex/edge/mock 무상 상속 | §3[3]·§3.4 | ✅ |
 | `PURPOSE_TIER` + `PromptPurpose` (`llm/types.ts:11-26,133-152`) | `persona_synthesis` 추가(2줄). 미매핑 purpose는 flash 폴백 — pro 권장 | §3[3]·§6 | ✅ 부재 확인 |
 | `brightness.ts` 체인 `baseLevelFor→ladderLevel→brightnessFraction` (`:26-48`) | **그대로 재사용.** 관측밴드(1-4→L2/5-14→L3/≥15→L4) + crossSourceAgreement(+1) + ratified→L5 = 설계 그대로 | §4·§2.2 | ✅ verbatim |
 | `northStarBrightness(levels)` (`north-star.ts`) | 홈 6 도메인 평균 + all-lit 보너스. `collect` 제외, 표시명 북극성 | §3.2·§7-a | ⚠ S2 consumer/test 후속 |
@@ -378,7 +378,7 @@ npm run verify          # 코드 변경 시 전체 게이트 (이번 산출물�
 
 ## 11. 모델 사용 하네스 — 차용 + 심화
 
-**현 구조 = 단일 래퍼 + purpose 라우팅.** 모든 LLM은 `callGemini` 하나로만 들어간다(C1, ESLint +
+**현 구조 = 단일 래퍼 + purpose 라우팅.** 모든 LLM은 `callLlm` 하나로만 들어간다(C1, ESLint +
 `check-llm-import-boundary.ts` 강제). purpose 문자열이 `PURPOSE_TIER`로 모델 tier를 고른다:
 
 | tier | 모델 | 쓰임 | 기존 purpose |
@@ -401,7 +401,7 @@ clipper_classify · clipper_template_propose · import_ingest · imagine · ops_
    + `parsePersonaSynthesisProposal(raw)→SelfModelProposal|null`(JSON 추출·절단·lexicon 가드).
    정확히 `propose-self-model.ts:22-78` / `wiki/phase1.ts` 패턴.
 3. **구조화 출력 스키마**: `PHASE1_SCHEMA`(`phase1.ts:52-65`)처럼 `PERSONA_SYNTHESIS_SCHEMA`
-   정의 → `callGemini({responseSchema})` 가 파싱 가능한 `personas[]{label,evidence:{domains[],
+   정의 → `callLlm({responseSchema})` 가 파싱 가능한 `personas[]{label,evidence:{domains[],
    constructs[]},claimStrength,summary,강점,조언}` 강제. 파서가 mock·live 둘 다 관용.
 4. **RAG 주입 = `<UNTRUSTED>` 펜스 + `sanitizeUntrusted`**(`conversation.ts:73-92` INJECTION_GUARD):
    도메인 요약은 결정론적이지만 방어차원에서 펜스 안. 구인 추론 지침은 펜스 밖.
@@ -410,13 +410,13 @@ clipper_classify · clipper_template_propose · import_ingest · imagine · ops_
 6. **Mock**: `MOCK_RESPONSES`에 persona_synthesis 유효 JSON 1개 → Gemini 연결 없이 별자리 홈
    full E2E($0). C9/C3 mock에서도 실행.
 7. **무상 상속**: C2 Vertex(`vertexai:true`), C3 감사 1행 자동(`modelUsed=gemini-2.5-pro`,
-   `safetyZone`, `effort`), C9 pre/post 스왑 — 전부 callGemini 내부. **신규 세이프티/감사 코드 0.**
+   `safetyZone`, `effort`), C9 pre/post 스왑 — 전부 callLlm 내부. **신규 세이프티/감사 코드 0.**
 
 ## 12. 세컨비(비서) — 차용 + 심화
 
 **현 루프 (`sendChatMessage`, `conversation.ts:129`):** tier 쿼터 체크 → `exportUserWiki`(최대
 50페이지·본문 600자, `<UNTRUSTED>`) → 원자적 usage bump(`bumpChatUsageIfUnderCap`) →
-`callGemini(purpose:'secondb_chat', flash)` → `[[slug]]` 인용 파싱 → `{reply, used, limit}`.
+`callLlm(purpose:'secondb_chat', flash)` → `[[slug]]` 인용 파싱 → `{reply, used, limit}`.
 모드 = Analytic/Divergent(`MODE_INSTRUCTION`, 둘 다 C9→C3, 품질차 없음·횟수만 차등).
 
 **심화 — 세컨비가 새 모델을 읽는 법:**

@@ -1,6 +1,6 @@
 // LLM orchestrator for the self-model propose -> ratify loop (memo §3f). Mirrors
 // wiki/propose-template.ts: a pure prompt builder + a defensive, lexicon-guarded
-// parser, plus a thin callGemini orchestrator so C1/C3/C9 hold at the call site.
+// parser, plus a thin callLlm orchestrator so C1/C3/C9 hold at the call site.
 // The AI proposes a SelfModelProposal (diff + cited rationale + target level); it
 // NEVER writes the self-model - the user ratifies (persona/proposal.ts). The
 // parser drops any proposal that is unchanged, empty, or clinically worded.
@@ -12,7 +12,7 @@
 // trivial snippets still produced a confident "패턴이 관찰됩니다" rationale
 // (docs/handoff/ai_260721.md, sm-boundary before/after).
 
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { sanitizeUntrusted } from "../llm/untrusted";
 import type { LadderLevel } from "./brightness";
 import {
@@ -102,7 +102,7 @@ export function parseSelfModelProposal(
   return isPresentableProposal(proposal) ? proposal : null;
 }
 
-// Thin orchestrator: C1 (single wrapper) + C9/C3 are enforced inside callGemini.
+// Thin orchestrator: C1 (single wrapper) + C9/C3 are enforced inside callLlm.
 // Returns null in mock mode, on a bad reply, or when the proposal is filtered.
 export async function proposeSelfModelChange(
   userId: string,
@@ -115,7 +115,7 @@ export async function proposeSelfModelChange(
 ): Promise<SelfModelProposal | null> {
   if (evidence.trim().length === 0) return null;
   const { system, user } = buildSelfModelProposalPrompt(target, before, evidence, locale);
-  const reply = await callGemini({
+  const reply = await callLlm({
     userId,
     locale,
     purpose: "self_model_propose",

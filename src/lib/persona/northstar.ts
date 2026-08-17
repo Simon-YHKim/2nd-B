@@ -5,7 +5,7 @@
 // nothing is overwritten, the user's confirmations stack).
 //
 // The 3 suggested drafts come from the user's own recent records through
-// callGemini — honesty rules: with fewer than MIN_RECORDS_FOR_PROPOSal pieces
+// callLlm — honesty rules: with fewer than MIN_RECORDS_FOR_PROPOSal pieces
 // we return null and the screen says so instead of inventing a persona.
 // null means EXACTLY "record base too thin". A DB failure or an unusable AI
 // reply throws instead — collapsing those into null made the screen tell a
@@ -21,7 +21,7 @@
 // (docs/handoff/ai_260721.md, ns-inject before/after).
 
 import { getSupabaseClient } from "../supabase/client";
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { sanitizeUntrusted } from "../llm/untrusted";
 import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 import { createRecord, type CreatedRecord } from "../records/create";
@@ -184,7 +184,7 @@ export async function proposeNorthstarSentences(args: {
   if (count < MIN_RECORDS_FOR_PROPOSAL) return null;
 
   const { system, user } = buildNorthstarPrompt(digest, args.locale);
-  const reply = await callGemini({
+  const reply = await callLlm({
     userId: args.userId,
     locale: args.locale,
     purpose: "northstar_propose",

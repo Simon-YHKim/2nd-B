@@ -15,7 +15,7 @@
 // holds inside embedTexts (red text is never embedded); C1 holds because the
 // only model access is through the gemini.ts boundary.
 
-import { EMBED_DIM, embedTexts } from "../llm/gemini";
+import { EMBED_DIM, embedTexts } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
 
 export interface RagPage {

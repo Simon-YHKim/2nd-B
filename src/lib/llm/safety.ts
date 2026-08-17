@@ -10,7 +10,7 @@
 // Korean markers from Suicide CARE 2.0 (Na et al. 2020) are surfaced for locale='ko'.
 //
 // IMPORTANT: this module imports @google/genai. ESLint forbids it everywhere
-// except this file and src/lib/llm/gemini.ts. The Gemini wrapper composes
+// except this file and src/lib/llm/boundary.ts. The Gemini wrapper composes
 // classifySafety() at the top of every Advisor call.
 
 import { GoogleGenAI } from "@google/genai";

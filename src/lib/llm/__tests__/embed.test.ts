@@ -26,7 +26,7 @@ jest.mock("../../safety/classifier", () => ({
   crisisHotlines: () => [],
 }));
 
-import { embedTexts, EMBED_DIM } from "../gemini";
+import { embedTexts, EMBED_DIM } from "../boundary";
 
 beforeEach(() => {
   auditWrites.length = 0;

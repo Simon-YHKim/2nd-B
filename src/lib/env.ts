@@ -49,7 +49,7 @@ const schema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .default("false")
     .transform((v) => v === "true"),
-  // When true, callGemini() routes through the gemini-proxy Edge Function
+  // When true, callLlm() routes through the gemini-proxy Edge Function
   // instead of constructing a @google/genai client. This keeps the API key
   // off the client bundle — strongly recommended for Web deploys since the
   // bundle is public.

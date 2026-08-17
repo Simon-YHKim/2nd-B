@@ -3,9 +3,9 @@
 const captured: { fn: string; args: unknown[] }[] = [];
 const fixtures: Record<string, unknown> = {};
 
-jest.mock("../../llm/gemini", () => ({
-  callGemini: jest.fn((input: unknown) => {
-    captured.push({ fn: "callGemini", args: [input] });
+jest.mock("../../llm/boundary", () => ({
+  callLlm: jest.fn((input: unknown) => {
+    captured.push({ fn: "callLlm", args: [input] });
     return Promise.resolve(
       fixtures.geminiResult ?? { text: "{}", safety: { zone: "green" }, audit: { modelUsed: "mock" } },
     );
@@ -131,8 +131,8 @@ describe("buildOpsDailyBrief", () => {
     };
     const brief = await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: true });
     expect(brief.exercise_routine).toHaveLength(1);
-    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(1);
-    const g = captured.find((c) => c.fn === "callGemini")?.args[0] as { purpose: string; user: string };
+    expect(captured.filter((c) => c.fn === "callLlm")).toHaveLength(1);
+    const g = captured.find((c) => c.fn === "callLlm")?.args[0] as { purpose: string; user: string };
     expect(g.purpose).toBe("ops_daily_brief");
     expect(g.user).toContain("<UNTRUSTED>"); // snapshot fenced
     expect(upserts).toHaveLength(1);
@@ -156,7 +156,7 @@ describe("buildOpsDailyBrief", () => {
       buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: true }),
     ]);
     expect(a).toEqual(b);
-    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(1); // shared
+    expect(captured.filter((c) => c.fn === "callLlm")).toHaveLength(1); // shared
   });
 
   // 2026-07-28 regression: the six ops-home domains call in SEQUENCE, not in
@@ -171,7 +171,7 @@ describe("buildOpsDailyBrief", () => {
     const second = await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: true });
     expect(first).toEqual({});
     expect(second).toEqual({});
-    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(1);
+    expect(captured.filter((c) => c.fn === "callLlm")).toHaveLength(1);
     expect(upserts).toHaveLength(0);
   });
 
@@ -186,13 +186,13 @@ describe("buildOpsDailyBrief", () => {
       recommendationsPref: true,
       now: new Date(t0.getTime() + 91 * 1000),
     });
-    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(2);
+    expect(captured.filter((c) => c.fn === "callLlm")).toHaveLength(2);
   });
 
   test("D-2 gate: an opted-out pref builds nothing (no snapshot, no LLM)", async () => {
     const brief = await buildOpsDailyBrief({ userId: "u1", locale: "en", recommendationsPref: false });
     expect(brief).toEqual({});
-    expect(captured.filter((c) => c.fn === "callGemini")).toHaveLength(0);
+    expect(captured.filter((c) => c.fn === "callLlm")).toHaveLength(0);
     expect(captured.filter((c) => c.fn === "exportUserWiki")).toHaveLength(0);
   });
 });

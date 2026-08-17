@@ -148,7 +148,7 @@ export function dailyCapForRank(tierRank: number | null): number {
 
 // --- misc --------------------------------------------------------------------
 
-// Mirror of src/lib/llm/gemini.ts:djb2 so proxy audit rows hash prompt/output
+// Mirror of src/lib/llm/boundary.ts:djb2 so proxy audit rows hash prompt/output
 // identically to the client wrapper.
 export function djb2(s: string): string {
   let h = 5381;

@@ -13,7 +13,7 @@
 // Secrets the operator sets via the Supabase Dashboard:
 //   OPENAI_API_KEY        -- the OpenAI platform key (project-scoped key
 //                            recommended). No key = this function 500s; the
-//                            client's D-26 outage failover (callGemini /
+//                            client's D-26 outage failover (callLlm /
 //                            callAdvisor retry-once-via-gemini-proxy) then
 //                            serves the call on the Phase 1 route.
 //   OPENAI_MODEL          -- optional GLOBAL kill-switch: when set it beats

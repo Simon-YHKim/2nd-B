@@ -2,7 +2,7 @@
 //
 // C1 enforcement points:
 //   - Global rule blocks all foreign LLM SDKs and @google/genai
-//   - Overrides re-enable @google/genai inside src/lib/llm/gemini.ts only
+//   - Overrides re-enable @google/genai inside src/lib/llm/boundary.ts only
 //   - Separate override blocks direct import of src/lib/supabase/audit.ts
 //     from anywhere except sanctioned LLM-boundary modules (C3 bypass prevention)
 
@@ -84,7 +84,7 @@ export default [
   // (which is itself called only from the wrapper). The boundary script
   // `scripts/check-llm-import-boundary.ts` provides the second line of defense.
   {
-    files: ["src/lib/llm/gemini.ts", "src/lib/llm/safety.ts"],
+    files: ["src/lib/llm/boundary.ts", "src/lib/llm/safety.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -100,7 +100,7 @@ export default [
   {
     files: ["**/*.{ts,tsx}"],
     ignores: [
-      "src/lib/llm/gemini.ts",
+      "src/lib/llm/boundary.ts",
       "src/lib/llm/audit-write-outbox.ts",
       "src/lib/llm/safety.ts",
       "src/lib/supabase/audit.ts",
@@ -119,7 +119,7 @@ export default [
               // entry only matched the exact "@/lib/supabase/audit" string, so a
               // relative import slipped the C3 boundary.
               group: ["**/supabase/audit"],
-              message: "Use callGemini() — direct audit insert bypasses C3.",
+              message: "Use callLlm() — direct audit insert bypasses C3.",
             },
           ],
         },

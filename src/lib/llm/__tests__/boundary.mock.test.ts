@@ -1,5 +1,5 @@
 // C9 + C3 invariants in mock mode. Mirrors gemini.test.ts but flips
-// EXPO_PUBLIC_LLM_MODE to "mock" so callGemini takes the templated-response
+// EXPO_PUBLIC_LLM_MODE to "mock" so callLlm takes the templated-response
 // branch. Same safety contract applies: red zone short-circuits, every call
 // is audited, audit failure does not throw.
 
@@ -31,7 +31,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callGemini } from "../gemini";
+import { callLlm } from "../boundary";
 import {
   flushAuditWriteOutbox,
   getAuditWriteOutboxForTests,
@@ -43,7 +43,7 @@ import { insertCrisisEvent } from "../../supabase/crisis-events";
 const insertMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;
 const crisisMock = insertCrisisEvent as jest.MockedFunction<typeof insertCrisisEvent>;
 
-describe("callGemini (mock mode)", () => {
+describe("callLlm (mock mode)", () => {
   beforeEach(async () => {
     await resetAuditWriteOutboxForTests();
     mockGenerateContent.mockClear();
@@ -54,7 +54,7 @@ describe("callGemini (mock mode)", () => {
   });
 
   test("C9: red zone still short-circuits without producing a mock response", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -65,13 +65,13 @@ describe("callGemini (mock mode)", () => {
     expect(r.text).toMatch(/988/);
     expect(mockGenerateContent).not.toHaveBeenCalled();
     // routeCrisis must write the restricted crisis_events ledger (cycle-3 fix:
-    // every callGemini crisis interception is recorded, parity with callAdvisor).
+    // every callLlm crisis interception is recorded, parity with callAdvisor).
     expect(crisisMock).toHaveBeenCalledTimes(1);
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("input_red");
   });
 
   test("C3: green-zone mock call records audit with modelUsed prefixed mock:", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "ko",
       purpose: "audit_qa",
@@ -90,7 +90,7 @@ describe("callGemini (mock mode)", () => {
   test("C3: mock audit failure does not throw", async () => {
     insertMock.mockRejectedValueOnce(new Error("db down"));
     await expect(
-      callGemini({
+      callLlm({
         userId: "u1",
         locale: "en",
         purpose: "reasoning_connect",

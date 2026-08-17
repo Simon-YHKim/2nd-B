@@ -24,7 +24,7 @@ describe("capture submit abort contract", () => {
   test("capture forwards the submit signal into cancellable network boundaries", () => {
     const classify = readRepoFile("src/lib/wiki/classify-clipper.ts");
     const types = readRepoFile("src/lib/llm/types.ts");
-    const gemini = readRepoFile("src/lib/llm/gemini.ts");
+    const gemini = readRepoFile("src/lib/llm/boundary.ts");
     const ingest = readRepoFile("src/lib/wiki/capture.ts");
     const queries = readRepoFile("src/lib/wiki/queries.ts");
     const storage = readRepoFile("src/lib/wiki/storage.ts");
@@ -40,7 +40,7 @@ describe("capture submit abort contract", () => {
     expect(ingest).toContain("}, input.signal)");
     expect(queries).toContain("createSource(input: CreateSourceInput, signal?: AbortSignal)");
     expect(queries).toContain("query.abortSignal(signal)");
-    expect(ingest).not.toContain("callGemini");
+    expect(ingest).not.toContain("callLlm");
     expect(storage).not.toContain("signal?: AbortSignal");
     expect(storage).not.toContain("{ signal: opts.signal }");
   });

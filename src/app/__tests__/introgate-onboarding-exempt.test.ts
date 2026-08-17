@@ -13,7 +13,7 @@ import path from "node:path";
  *
  * Pin: the C10 redirect condition must exempt BOTH "(auth)" and "onboarding".
  * onboarding is a content-only carousel (no Gemini/feature path — it calls no
- * classifyInput/callGemini), so exempting it does NOT weaken C10; the profile
+ * classifyInput/callLlm), so exempting it does NOT weaken C10; the profile
  * gate still holds at "/" (DeepSpaceShell) before onboarding and on the way out.
  */
 const SRC = fs.readFileSync(path.resolve(__dirname, "..", "_layout.tsx"), "utf8");

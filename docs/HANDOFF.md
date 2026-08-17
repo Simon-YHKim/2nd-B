@@ -2586,7 +2586,7 @@ src/lib/persona/domain-stars.ts           7 생활영역 별 정의 (Layer A)
 src/lib/persona/domain-confidence.ts      밝기 = coverage + recency(opt-in now)
 src/lib/persona/load-domain-levels.ts     records+relation_people+recreation_items → 밝기, Date.now() recency 주입
 src/lib/knowledge/retrieve.ts             advisor 라우팅 + brightness→advice (DOMAIN_TO_BATCH)
-src/lib/llm/gemini.ts                     callAdvisor 가 loadDomainLevels best-effort 로드
+src/lib/llm/boundary.ts                     callAdvisor 가 loadDomainLevels best-effort 로드
 src/lib/relation/people.ts                관계 writer (createPerson 등)
 src/lib/recreation/items.ts               오락 writer (createRecreationItem 등)
 db/migrations/0058_relation_people.sql    관계 구조화 테이블 (owner RLS)

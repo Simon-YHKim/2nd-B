@@ -3,7 +3,7 @@
 //   1. Read today's chat_usage row for the user.
 //   2. Check the tier limit (free 2, Soma 30, Cortex 80, Brain 250).
 //   3. If allowed, build a system prompt with a compact wiki snapshot,
-//      call callGemini (which enforces C1/C3/C9 automatically), and
+//      call callLlm (which enforces C1/C3/C9 automatically), and
 //      atomically bump today's chat_usage.
 //   4. If blocked, return a localized upgrade hint without calling Gemini.
 //
@@ -13,11 +13,11 @@
 // raw `sources` list, which already steers the model toward the user's
 // inbox.
 
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { classifyInput } from "@/lib/safety/classifier";
 import { promptSafeName } from "@/lib/persona/address";
-import type { GeminiResult } from "@/lib/llm/types";
+import type { LlmResult } from "@/lib/llm/types";
 import type { SubscriptionTier } from "@/lib/progression/entitlements";
 
 import { CHAT_DAILY_LIMIT, checkChatLimit, kstDateToday } from "./limits";
@@ -65,7 +65,7 @@ export interface SendMessageInput {
    * (Divergent is a mode, never a safety bypass).
    */
   mode?: "analytic" | "divergent";
-  // C10 safety: minor flag forwarded to callGemini for youth crisis routing.
+  // C10 safety: minor flag forwarded to callLlm for youth crisis routing.
   minor?: boolean;
   /**
    * Prior turns of THIS conversation, oldest first (D-26 A1: 최근 6턴).
@@ -74,7 +74,7 @@ export interface SendMessageInput {
    * system channel fenced as untrusted. C9: each turn is re-classified here
    * and any red-zone turn is DROPPED before it reaches the prompt — a prior
    * crisis turn was withheld from the model when it was sent, and replaying
-   * it through the system channel (which callGemini does NOT crisis-scan)
+   * it through the system channel (which callLlm does NOT crisis-scan)
    * would silently re-egress it. Filtering at the engine, not trusting the
    * screen to pre-strip.
    */
@@ -93,7 +93,7 @@ export interface SendMessageBlocked {
 
 export interface SendMessageOk {
   status: "ok";
-  reply: GeminiResult<string>;
+  reply: LlmResult<string>;
   used: number;
   limit: number;
   remaining: number;
@@ -157,7 +157,7 @@ const SYSTEM_PROMPT_HEADER = {
 
 // SecondB conversation modes (worldview v-final). The old imagine workshop is no
 // longer a place — it is the Divergent mode here. Both modes go through the
-// same callGemini path, so C9 (classifyInput) -> C3 (ai_audit_log) hold; the
+// same callLlm path, so C9 (classifyInput) -> C3 (ai_audit_log) hold; the
 // mode only shapes the system prompt.
 const MODE_INSTRUCTION: Record<"analytic" | "divergent", { en: string; ko: string }> = {
   analytic: {
@@ -323,10 +323,10 @@ ${sanitizeUntrusted(structuredBlock)}
   const guardLine = `${INJECTION_GUARD[input.locale]}\n\n`;
   const system = `${SYSTEM_PROMPT_HEADER[input.locale]}\n\n${addressLine}${guardLine}${modeLine}${personaLine}${fencedRag}${fencedSnapshot}${fencedStructured}${fencedHistory}`;
 
-  // C1/C3/C9 are enforced by callGemini. Red-zone short-circuit still
-  // happens inside callGemini; we just no longer adjust the counter
+  // C1/C3/C9 are enforced by callLlm. Red-zone short-circuit still
+  // happens inside callLlm; we just no longer adjust the counter
   // afterwards because the bump already landed atomically above.
-  const reply = await callGemini({
+  const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
     purpose: "secondb_chat",

@@ -16,9 +16,9 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 
-const callGeminiMock = jest.fn<Promise<string>, [unknown]>();
-jest.mock("../../llm/gemini", () => ({
-  callGemini: (args: unknown) => callGeminiMock(args),
+const callLlmMock = jest.fn<Promise<string>, [unknown]>();
+jest.mock("../../llm/boundary", () => ({
+  callLlm: (args: unknown) => callLlmMock(args),
 }));
 
 const createRecordMock = jest.fn<Promise<{ id: string; followup?: { zone: string } }>, [unknown]>();
@@ -46,13 +46,13 @@ describe("proposeNorthstarSentences (null = thin base ONLY)", () => {
   it("returns null on a thin record base without spending an AI call", async () => {
     limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL - 1));
     await expect(proposeNorthstarSentences({ userId: "u", locale: "ko" })).resolves.toBeNull();
-    expect(callGeminiMock).not.toHaveBeenCalled();
+    expect(callLlmMock).not.toHaveBeenCalled();
   });
 
   it("does not count existing northstar sentences toward the base", async () => {
     limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL + 3, [NORTHSTAR_TAG]));
     await expect(proposeNorthstarSentences({ userId: "u", locale: "ko" })).resolves.toBeNull();
-    expect(callGeminiMock).not.toHaveBeenCalled();
+    expect(callLlmMock).not.toHaveBeenCalled();
   });
 
   it("THROWS on a DB read failure instead of masquerading as thin base", async () => {
@@ -64,7 +64,7 @@ describe("proposeNorthstarSentences (null = thin base ONLY)", () => {
 
   it("THROWS on an AI reply with no JSON array", async () => {
     limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL));
-    callGeminiMock.mockResolvedValue("sorry, I cannot list anything today");
+    callLlmMock.mockResolvedValue("sorry, I cannot list anything today");
     await expect(proposeNorthstarSentences({ userId: "u", locale: "en" })).rejects.toThrow(
       "unusable AI reply",
     );
@@ -72,7 +72,7 @@ describe("proposeNorthstarSentences (null = thin base ONLY)", () => {
 
   it("THROWS when the array does not hold exactly 3 sentences", async () => {
     limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL));
-    callGeminiMock.mockResolvedValue('["only one", "and two"]');
+    callLlmMock.mockResolvedValue('["only one", "and two"]');
     await expect(proposeNorthstarSentences({ userId: "u", locale: "en" })).rejects.toThrow(
       "expected 3 sentences",
     );
@@ -80,20 +80,20 @@ describe("proposeNorthstarSentences (null = thin base ONLY)", () => {
 
   it("returns 3 trimmed sentences from a good reply", async () => {
     limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL));
-    callGeminiMock.mockResolvedValue('Sure! ["a ", "b", " c"]');
+    callLlmMock.mockResolvedValue('Sure! ["a ", "b", " c"]');
     await expect(proposeNorthstarSentences({ userId: "u", locale: "en" })).resolves.toEqual([
       "a",
       "b",
       "c",
     ]);
-    expect(callGeminiMock).toHaveBeenCalledWith(expect.objectContaining({ purpose: "northstar_propose" }));
+    expect(callLlmMock).toHaveBeenCalledWith(expect.objectContaining({ purpose: "northstar_propose" }));
   });
 
-  it("passes the structured-output schema to callGemini (harness tuning ai_260721)", async () => {
+  it("passes the structured-output schema to callLlm (harness tuning ai_260721)", async () => {
     limitMock.mockResolvedValue(rows(MIN_RECORDS_FOR_PROPOSAL));
-    callGeminiMock.mockResolvedValue('{"sentences":["a","b","c"]}');
+    callLlmMock.mockResolvedValue('{"sentences":["a","b","c"]}');
     await proposeNorthstarSentences({ userId: "u", locale: "ko" });
-    const args = callGeminiMock.mock.calls[0][0] as { responseSchema?: { required?: readonly string[] } };
+    const args = callLlmMock.mock.calls[0][0] as { responseSchema?: { required?: readonly string[] } };
     expect(args.responseSchema?.required).toEqual(["sentences"]);
   });
 });

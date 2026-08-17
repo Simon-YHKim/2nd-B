@@ -27,7 +27,7 @@ import {
   type AuditMeta,
   type AdvisorResult,
   type GeminiModel,
-  type GeminiResult,
+  type LlmResult,
   type PromptInput,
   type PromptPurpose,
   type ReasoningEffort,
@@ -45,9 +45,9 @@ function djb2(s: string): string {
 // Default effort for the reasoning (pro) tier when a caller omits it.
 const DEFAULT_EFFORT: ReasoningEffort = "high";
 
-// Resolve the tier for a callGemini request. An explicit `input.model` always
+// Resolve the tier for a callLlm request. An explicit `input.model` always
 // wins (preserves every existing caller). Otherwise pick by purpose via
-// PURPOSE_TIER, falling back to "flash" — callGemini's historical default — for
+// PURPOSE_TIER, falling back to "flash" — callLlm's historical default — for
 // any purpose not in the map. callAdvisor does NOT go through here (it uses pro
 // directly), so the advisor default is unaffected.
 function resolveTier(input: { model?: GeminiModel; purpose: PromptPurpose }): GeminiModel {
@@ -406,7 +406,7 @@ function proxyCrisisSafetyResult(locale: "en" | "ko", minor = false): SafetyResu
   };
 }
 
-// C9 fallback for record saves that do NOT pass through callAdvisor/callGemini
+// C9 fallback for record saves that do NOT pass through callAdvisor/callLlm
 // at all (free-tier journal, advisor toggle off, plain notes — persona sim
 // P1-1): classify locally (zero LLM cost) and, on red, run the SAME audited
 // crisis routing as every LLM surface (ai_audit_log + crisis_events + the
@@ -416,8 +416,8 @@ export async function classifyRecordTextForCrisis(
   locale: "en" | "ko",
   userId: string,
   minor = false,
-): Promise<GeminiResult<string> | null> {
-  // Dual-locale, same as the chat input path (callGemini): catch a crisis term
+): Promise<LlmResult<string> | null> {
+  // Dual-locale, same as the chat input path (callLlm): catch a crisis term
   // written in a language other than the UI locale (a ko-UI user typing English
   // self-harm text, or vice versa). The note-save path previously used the
   // single-locale classifier, so cross-locale crisis captures were missed here
@@ -435,7 +435,7 @@ async function routeCrisis(
   minor = false,
   sourceTag = "input_red",
   opts: { recordCrisisEvent?: boolean; purpose?: string } = {},
-): Promise<GeminiResult<string>> {
+): Promise<LlmResult<string>> {
   // Same hotline set as the Advisor path (single source of truth):
   // KO adult -> 109, KO minor -> 1388 + 109, EN -> 988.
   const numbers = crisisHotlines(locale, minor).map((hl) => hl.number);
@@ -452,14 +452,14 @@ async function routeCrisis(
     safetyZone: "red" as const,
     latencyMs: 0,
     // 0095: attribute the intercepted call's purpose when the caller had one
-    // (callGemini paths); record-save scans have no PromptPurpose — NULL row.
+    // (callLlm paths); record-save scans have no PromptPurpose — NULL row.
     ...(opts.purpose ? { purpose: opts.purpose } : {}),
   };
   // C3: crisis routing MUST be audited. The whole point of audit_log is the
   // judges' ability to prove the safety classifier intercepted dangerous input.
   await writeAiAuditLog(userId, audit, "[ai_audit_log] crisis insert failed");
   // Separate restricted ledger (crisis_events), parity with callAdvisor's input-RED
-  // path. Without this every callGemini surface (chat/journal/interview/persona/
+  // path. Without this every callLlm surface (chat/journal/interview/persona/
   // import/clipper/phase1) intercepted a crisis but left NO categorical trace in the
   // restricted log. routeCrisis only has the lexicon classifier's fields, so map
   // them conservatively (RED confidence 0.95 like lexiconToResult; no C-SSRS level;
@@ -506,7 +506,7 @@ export function assertRootObjectSchema(schema: Record<string, unknown> | undefin
   }
 }
 
-export async function callGemini<T = string>(input: PromptInput): Promise<GeminiResult<T>> {
+export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult<T>> {
   throwIfAborted(input.signal);
   assertRootObjectSchema(input.responseSchema);
   // C9: pre-call classification of user input. Red zone never reaches the LLM.
@@ -524,7 +524,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
       input.minor,
       "input_red",
       { purpose: input.purpose },
-    )) as unknown as GeminiResult<T>;
+    )) as unknown as LlmResult<T>;
   }
 
   const env = getEnv();
@@ -565,7 +565,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // user-facing text below reads as ordinary product copy.
   if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
     const t0 = Date.now();
-    // 'advisor' purpose flows through callAdvisor(), not callGemini(). For
+    // 'advisor' purpose flows through callAdvisor(), not callLlm(). For
     // any unknown purpose, fall back to a generic offline-preview reply.
     const mockTable = MOCK_RESPONSES as Record<string, Record<"en" | "ko", string>>;
     const text =
@@ -650,7 +650,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
           input.minor,
           vendorCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
           { recordCrisisEvent: vendorCrisis.confirmedMarker, purpose: input.purpose },
-        )) as unknown as GeminiResult<T>;
+        )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
         console.warn(`[llm] ${primaryFn} failed for ${input.purpose} — falling back to gemini-proxy`);
@@ -679,7 +679,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
           input.minor,
           proxyCrisis.confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed",
           { recordCrisisEvent: proxyCrisis.confirmedMarker, purpose: input.purpose },
-        )) as unknown as GeminiResult<T>;
+        )) as unknown as LlmResult<T>;
       }
       throw error;
     }
@@ -736,7 +736,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
   // the swap on classifySafety (lexicon + Gemini Flash where a client key exists;
   // lexicon-only on the keyless web build, exactly like callAdvisor there). We
   // keep a cheap classifier-typed lexical result for the returned
-  // GeminiResult.safety shape, but the swap DECISION + recorded zone use the
+  // LlmResult.safety shape, but the swap DECISION + recorded zone use the
   // semantic (worst-case-merged) result.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
   const semantic = await classifySafety(text, input.locale, { userId: input.userId });
@@ -750,7 +750,7 @@ export async function callGemini<T = string>(input: PromptInput): Promise<Gemini
 
   // OUTPUT SAFETY SWAP (parity with callAdvisor). The model can emit red-zone
   // content the input classifier never saw — via injected wiki/clip context, a
-  // jailbreak, or multi-turn drift. callGemini text is rendered verbatim by every
+  // jailbreak, or multi-turn drift. callLlm text is rendered verbatim by every
   // caller (interview probe, phase1 summary, import echo, persona), so we must
   // NOT ship it. Swap in the verbatim crisis template, write an HONEST audit row
   // (real model + latency + a +swap marker so judges see the model WAS called and
@@ -942,7 +942,7 @@ const zeroVector = (): number[] => new Array<number>(EMBED_DIM).fill(0);
 /**
  * Embed texts via gemini-embedding-2 (wiki STEP 4).
  *
- * Constraints held the same way as callGemini:
+ * Constraints held the same way as callLlm:
  *   C1   only this file imports @google/genai (embedContent lives here).
  *   C9   each text is classified first; a red-zone text is NEVER embedded
  *        (zero vector) so crisis content never leaves the device for the model.
@@ -1080,7 +1080,7 @@ export interface TranscribeAudioResult {
 
 // transcribeAudio - turn a recorded voice memo into its transcript.
 //
-// Constraints held exactly like callGemini / embedTexts:
+// Constraints held exactly like callLlm / embedTexts:
 //   C1   only this file imports @google/genai (the transcription call lives here).
 //   C2   the @google/genai client is Vertex when EXPO_PUBLIC_USE_VERTEX=true
 //        (getClient()), the only permitted live egress here.
@@ -1088,7 +1088,7 @@ export interface TranscribeAudioResult {
 //   C9   the model's transcript is re-classified; a red-zone transcript is
 //        swapped for the fixed crisis template + crisis_events (input is audio,
 //        so the pre-call text classifier has nothing to scan — output gating is
-//        the C9 equivalent, mirroring callGemini's output swap).
+//        the C9 equivalent, mirroring callLlm's output swap).
 //   Cost live egress rides the spend-capped gemini-proxy when
 //        EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is on (the production path); a live
 //        API-key direct call is rejected (assertDirectEgressAllowed), so mock,
@@ -1097,7 +1097,7 @@ export interface TranscribeAudioResult {
 // NOTE (device verification PENDING): the recorder + real Gemini audio
 // transcription cannot be exercised in this environment (no microphone). Mock
 // mode is fully wired and tested; the live branch follows the same inline-data
-// client pattern as the image path in callGemini but has NOT been run on a real
+// client pattern as the image path in callLlm but has NOT been run on a real
 // recording yet.
 export async function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioResult> {
   throwIfAborted(input.signal);
@@ -1107,7 +1107,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
 
   // Offline-preview / CI / no-key: never touch the network. Returns a sensible
   // placeholder transcript so the voice flow works end-to-end offline. C3 audit
-  // + C9 output classification still run (parity with callGemini mock).
+  // + C9 output classification still run (parity with callLlm mock).
   if (env.EXPO_PUBLIC_LLM_MODE === "mock") {
     const t0 = Date.now();
     const text =
@@ -1192,7 +1192,7 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   // C9 equivalent for an audio-input call: classify the transcript. A red-zone
   // transcript is never returned verbatim — swap in the fixed crisis template,
   // write an HONEST audit row (real model + latency + a +swap marker) and a
-  // categorical crisis_event, exactly like callGemini's output swap.
+  // categorical crisis_event, exactly like callLlm's output swap.
   const lexical = classifyInput(text, input.locale, { minor: input.minor });
   const semantic = await classifySafety(text, input.locale, { userId: input.userId });
   const outputZone: "green" | "yellow" | "red" =
@@ -1374,7 +1374,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   let modelUsedForAudit: string = model;
   // When the proxy writes the audit row itself (C3 server-authoritative) it
   // returns audited:true; we then skip the client insert to avoid double-logging
-  // (parity with callGemini).
+  // (parity with callLlm).
   let proxyAudited = false;
   // Edge path when configured, OR whenever the vendor is non-Gemini
   // (server-side only). reasoningProxyFn picks the matching proxy.
@@ -1401,7 +1401,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     const primaryFn = reasoningProxyFn(reasoningProvider);
     const t0 = Date.now();
     let { data, error } = await supabase.functions.invoke(primaryFn, { body: proxyBody });
-    // D-26 outage failover (parity with callGemini): a vendor-seat failure that
+    // D-26 outage failover (parity with callLlm): a vendor-seat failure that
     // is NOT a crisis 422 retries ONCE on the Phase 1 route (gemini-proxy).
     if (error && primaryFn !== "gemini-proxy") {
       const vendorCrisis = await inspectProxyCrisisRejection(error);

@@ -18,7 +18,7 @@ equivalents commonly used in clinical contexts. User-facing copy uses
 
 ## C1 — Single LLM wrapper
 
-All LLM calls route through `src/lib/llm/gemini.ts::callGemini()`.
+All LLM calls route through `src/lib/llm/boundary.ts::callLlm()`.
 ESLint blocks imports of other LLM SDKs (OpenAI, Anthropic, Cohere,
 Mistral, Groq, xAI, Bedrock, Replicate). The same file is the only
 location allowed to import `@google/genai`.
@@ -67,7 +67,7 @@ enforced by `ks_verification_pair` CHECK.
 
 ## C9 — Safety bypass impossible
 
-`classifyInput()` runs at the top of `callGemini()`. Red-zone input
+`classifyInput()` runs at the top of `callLlm()`. Red-zone input
 short-circuits and returns hotline guidance without invoking the LLM.
 The jest suite asserts the call order via mock spy.
 

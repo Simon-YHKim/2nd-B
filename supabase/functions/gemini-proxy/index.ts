@@ -126,7 +126,7 @@ const MAX_SYSTEM_LEN = 4000;
 const UPSTREAM_DETAIL_TRUNCATE = 80;
 
 // P1 (2026-07-05): server-side mirror of the client effortToConfig ladder
-// (src/lib/llm/gemini.ts). The edge path previously pinned a flat 1024-token
+// (src/lib/llm/boundary.ts). The edge path previously pinned a flat 1024-token
 // output cap with no thinking budget, so Phase-1 pro-tier surfaces routed
 // through the proxy (advisor, imagine, journal_reflect, ops_daily_brief) got
 // zero reasoning budget and truncated large structured outputs. Mirror the
@@ -220,7 +220,7 @@ const BRAIN_RANK = TIER_RANK.brain;
 const DEFAULT_FREE_DAILY_CALL_CAP = 200;
 const DEFAULT_SUB_DAILY_CALL_CAP = 350;
 
-// Mirror of src/lib/llm/gemini.ts:djb2 so the proxy's ai_audit_log row hashes
+// Mirror of src/lib/llm/boundary.ts:djb2 so the proxy's ai_audit_log row hashes
 // prompt/output identically to the client wrapper.
 function djb2(s: string): string {
   let h = 5381;

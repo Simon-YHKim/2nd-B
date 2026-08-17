@@ -12,7 +12,7 @@
 // fill records without a vector. relatedRecordsByEmbedding reads neighbours back
 // via the match_records kNN RPC (migration 0071).
 
-import { embedTexts, EMBED_DIM } from "../llm/gemini";
+import { embedTexts, EMBED_DIM } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
 
 // D5 consent gate for records (journal) embedding — the MOST sensitive corpus.

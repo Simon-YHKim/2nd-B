@@ -45,8 +45,8 @@ jest.mock("../../supabase/client", () => ({
   }),
 }));
 
-jest.mock("../../llm/gemini", () => ({
-  callGemini: jest.fn(() =>
+jest.mock("../../llm/boundary", () => ({
+  callLlm: jest.fn(() =>
     Promise.resolve({
       text: "mock summary",
       safety: { zone: "green" },
@@ -56,13 +56,13 @@ jest.mock("../../llm/gemini", () => ({
 }));
 
 import { __test_scoreFromAnswers, buildPersona, deriveValues, instrumentLabel, isMeasuredSource, personaSummarySig, traitConfidenceFor, type AuditResponseRow } from "../build";
-import { callGemini } from "../../llm/gemini";
+import { callLlm } from "../../llm/boundary";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
   upsertCalls.length = 0;
-  (callGemini as jest.Mock).mockClear();
+  (callLlm as jest.Mock).mockClear();
 }
 
 describe("traitConfidenceFor (SOKA per-trait confidence)", () => {
@@ -140,13 +140,13 @@ describe("buildPersona", () => {
   });
 
   test("no written entries → skips LLM summary (no Barnum fabrication), honest empty message", async () => {
-    (callGemini as jest.Mock).mockClear();
+    (callLlm as jest.Mock).mockClear();
     tableFixtures["records:select"] = { data: [], error: null };
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
     const card = await buildPersona("u1", "en");
     // With zero audit/journal rows there is nothing to summarize: the LLM must
     // not be asked to invent a narrative.
-    expect(callGemini).not.toHaveBeenCalled();
+    expect(callLlm).not.toHaveBeenCalled();
     expect(card.patterns.summary).toContain("No written entries yet");
   });
 
@@ -358,7 +358,7 @@ describe("buildPersona", () => {
     tableFixtures["memorized_patterns:select"] = { data: [], error: null };
     // The LLM tries to inject fabricated scores; the wrapper output must not leak
     // into traits / starLevels (only the narrative summary slot may use it).
-    (callGemini as jest.Mock).mockResolvedValueOnce({
+    (callLlm as jest.Mock).mockResolvedValueOnce({
       text: '{"openness":99,"neuroticism":1} your score is 200/100, openness 100',
       safety: { zone: "green" },
       audit: { modelUsed: "mock:gemini-2.5-flash" },
@@ -372,7 +372,7 @@ describe("buildPersona", () => {
     expect(card.starLevels?.now).toBe(4);
     // The persona narrative call is now GUIDED: build.ts passes the honest-
     // synthesis system instruction (it was previously unguided).
-    expect(callGemini).toHaveBeenCalledWith(
+    expect(callLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         purpose: "persona_narrative",
         system: expect.stringContaining("ONLY in the entries"),
@@ -399,7 +399,7 @@ describe("buildPersona", () => {
     };
     const card = await buildPersona("u1", "en");
     expect(card.patterns.summary).toBe("cached mirror");
-    expect(callGemini).not.toHaveBeenCalled();
+    expect(callLlm).not.toHaveBeenCalled();
   });
 
   test("summary cache: stale signature re-summarizes and persists the fresh sig", async () => {
@@ -421,7 +421,7 @@ describe("buildPersona", () => {
       error: null,
     };
     const card = await buildPersona("u1", "en");
-    expect(callGemini).toHaveBeenCalledTimes(1);
+    expect(callLlm).toHaveBeenCalledTimes(1);
     expect(card.patterns.summary).toBe("mock summary");
     expect(card.patterns.__summary_sig).toBe(personaSummarySig("en", 2, "2026-01-05T00:00:00Z"));
     const personaUpsert = upsertCalls.find((u) => u.table === "personas");
@@ -439,7 +439,7 @@ describe("buildPersona", () => {
     ];
     tableFixtures["records:select"] = { data: rows, error: null };
     await buildPersona("u1", "en");
-    const arg = (callGemini as jest.Mock).mock.calls[0]![0] as { user: string };
+    const arg = (callLlm as jest.Mock).mock.calls[0]![0] as { user: string };
     expect(arg.user).not.toContain("TTTT"); // interview body excluded
     expect(arg.user).toContain("short answer");
     // Long non-interview bodies are clipped to the window cap (500 chars).

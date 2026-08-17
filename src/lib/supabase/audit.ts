@@ -1,8 +1,8 @@
 // C3: ai_audit_log INSERT helper.
-// IMPORTANT: This module is restricted to import from src/lib/llm/gemini.ts
+// IMPORTANT: This module is restricted to import from src/lib/llm/boundary.ts
 // only — enforced by ESLint (eslint.config.js) and scripts/check-llm-import-boundary.ts.
 // Direct callers from screens/components would bypass the wrapper's safety
-// classifier (C9). Use callGemini() instead.
+// classifier (C9). Use callLlm() instead.
 
 import type { AuditMeta } from "../llm/types";
 import { getSupabaseClient } from "./client";
