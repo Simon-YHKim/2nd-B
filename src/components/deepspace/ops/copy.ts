@@ -26,6 +26,18 @@ export interface OpsCopy {
   sendToApps: string;
   receivedOnly: string;
   notMedical: string;
+  /** 도구 바로가기 섹션. 허브가 자기 도구들을 링크하지 않아 만들어진 자리 -
+   *  추천 목록과 역할이 다르다(추천 = 오늘 무엇을 할까, 도구 = 어디로 갈까). */
+  toolsTitle: string;
+  toolsHint: string;
+  toolReading: string;
+  toolMilestones: string;
+  toolLedger: string;
+  toolSideProject: string;
+  toolMeals: string;
+  toolFocus: string;
+  toolSrs: string;
+  toolReminders: string;
   retry: string;
   // push sheet (B)
   whereToSend: string;
@@ -148,6 +160,16 @@ const en: OpsCopy = {
   sendToApps: "Send to my apps",
   receivedOnly: "Only the steps you accept go to your apps.",
   notMedical: "Not medical advice — ideas from your records.",
+  toolsTitle: "Your tools",
+  toolsHint: "Open one directly, without waiting for a suggestion.",
+  toolReading: "Reading",
+  toolMilestones: "Goals",
+  toolLedger: "Money check",
+  toolSideProject: "Side project",
+  toolMeals: "Meals",
+  toolFocus: "Focus timer",
+  toolSrs: "Language review",
+  toolReminders: "Reminders",
   retry: "Try again",
   whereToSend: "Where should this routine go?",
   consentOnce: "Just once. Allow calendar access.",
@@ -254,6 +276,16 @@ const ko: OpsCopy = {
   sendToApps: "내 앱으로 보내기",
   receivedOnly: "받은 걸음만 네 앱으로 나가요.",
   notMedical: "의료·진단 조언이 아니라 기록에서 뽑은 아이디어예요.",
+  toolsTitle: "내 도구",
+  toolsHint: "추천을 기다리지 않고 바로 열 수 있습니다.",
+  toolReading: "독서",
+  toolMilestones: "목표",
+  toolLedger: "가계 점검",
+  toolSideProject: "사이드 프로젝트",
+  toolMeals: "식단",
+  toolFocus: "집중 타이머",
+  toolSrs: "어학 복습",
+  toolReminders: "리마인더",
   retry: "다시 시도",
   whereToSend: "이 루틴을 어디로 보낼까요?",
   consentOnce: "처음 한 번만. 캘린더 접근을 허용할게요.",
