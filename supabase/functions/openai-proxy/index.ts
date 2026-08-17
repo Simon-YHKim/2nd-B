@@ -89,6 +89,17 @@ const PURPOSE_MODEL: Record<string, string> = {
   ops_daily_brief: 'gpt-5.4',
   digest_weekly: 'gpt-5.4',
   ttfv_first_insight: 'gpt-5.4',
+  // secondb_chat (Simon, 2026-08-18): chat moves off the Gemini backbone to
+  // OpenAI. Unlike the seats above this is NOT a reasoning seat -- it is the
+  // app's highest-volume conversational surface, so cost is controlled by the
+  // effort ceiling below ('low'), not by the model tier. The frontier id is
+  // used here only because it is the one this file already knows to be valid;
+  // a cheaper tier is the better fit for the mid cost axis and can be set with
+  // NO redeploy via OPENAI_PURPOSE_MODELS, e.g.
+  //   {"secondb_chat":"gpt-5.4-mini"}
+  // Confirm the id exists on the account before setting it -- an unknown model
+  // fails the upstream call, and this is the main chat surface.
+  secondb_chat: 'gpt-5.4',
 };
 
 function resolveModel(purpose: string): string {
@@ -127,6 +138,11 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   ops_daily_brief: 'high',
   digest_weekly: 'high',
   ttfv_first_insight: 'high',
+  // Chat is conversational, not deliberative, and it is the highest-volume
+  // surface in the app. 'low' is the real cost lever here: the client already
+  // asks for low (PHASE2_EFFORT), and this ceiling makes it a guarantee that a
+  // tampered or stale client cannot raise.
+  secondb_chat: 'low',
 };
 
 function effortToOpenAi(effort: string | null, purpose: string): string {

@@ -104,6 +104,11 @@ jobs:
           # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
           # change); flip the repo Variable to "2" to activate Phase 2 routing.
           EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
+          # Vendor for 세컨비 대화 only. Unset/"gemini" keeps today's behaviour.
+          # Deploy openai-proxy BEFORE setting this to "openai": the proxy 400s
+          # any purpose outside its allowlist, and the secondb_chat seat only
+          # exists once that function is redeployed.
+          EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
           # Naver social sign-up (custom OAuth via the oauth-naver edge function,
           # already in-repo). Server side confirmed live 2026-07-15 (Simon):
           # oauth-naver deployed with its secrets and the app registered at
