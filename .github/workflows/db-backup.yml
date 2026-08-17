@@ -63,7 +63,20 @@ jobs:
           DB_URL="$(printf '%s' "$DB_URL" | tr -d '\r\n')"
           AGE_PUBLIC_KEY="$(printf '%s' "$AGE_PUBLIC_KEY" | tr -d '\r\n')"
           STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-          pg_dump "$DB_URL" -Fc --no-owner -f "db-$STAMP.dump"
+          # Use the client we installed, by absolute path. The runner image ships
+          # postgresql-client-16 and /usr/bin/pg_dump keeps resolving to it even
+          # after postgresql-client-17 installs cleanly, so pg_dump aborted with
+          # "server version mismatch: server 17.6, pg_dump 16.14" while the apt
+          # log said the 17 client was installed. Picking the highest version
+          # under /usr/lib/postgresql adapts on its own when the server moves to
+          # 18, instead of going stale the way the enumerated host comment did.
+          PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$PGBIN" ]; then
+            echo "no postgresql client found under /usr/lib/postgresql" >&2
+            exit 1
+          fi
+          "$PGBIN/pg_dump" --version
+          "$PGBIN/pg_dump" "$DB_URL" -Fc --no-owner -f "db-$STAMP.dump"
           age -r "$AGE_PUBLIC_KEY" -o "db-$STAMP.dump.age" "db-$STAMP.dump"
           shred -u "db-$STAMP.dump"
           ls -lh db-*.age
