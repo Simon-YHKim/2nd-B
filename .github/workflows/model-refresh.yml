@@ -1,0 +1,75 @@
+name: Model refresh (nightly latest-model check)
+
+# Why: model IDs were hardcoded in three places that go stale independently -
+# the client tier map, the gemini-proxy allowlist, and the per-purpose seats.
+# Each one only announces it is stale by failing (a 400, or worse, silently
+# serving an older generation). This asks the vendors what exists, picks the
+# newest model IN EACH SEAT CLASS, and smoke-tests it before anything moves.
+#
+# STARTS IN REPORT-ONLY MODE. It prints what it would promote and changes
+# nothing. Flip to applying by setting the repository variable
+# MODEL_REFRESH_APPLY=true once the reports look right for a few days.
+#
+# Optional secrets (a missing key just skips that vendor, it is not an error):
+#   ANTHROPIC_API_KEY   list + smoke-test Claude seats
+#   OPENAI_API_KEY      list + smoke-test the reasoning seats
+#   GEMINI_API_KEY      list + smoke-test the OCR / voice seats
+#
+# Freeze one seat without touching code by setting a repo variable, e.g.
+#   MODEL_PIN_ANTHROPIC_OPUS=claude-opus-4-8
+
+on:
+  schedule:
+    - cron: "0 19 * * *" # 04:00 KST daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci --legacy-peer-deps
+
+      - name: Discover and smoke-test the newest model per seat
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MODEL_PIN_ANTHROPIC_SONNET: ${{ vars.MODEL_PIN_ANTHROPIC_SONNET }}
+          MODEL_PIN_ANTHROPIC_OPUS: ${{ vars.MODEL_PIN_ANTHROPIC_OPUS }}
+          MODEL_PIN_OPENAI_FRONTIER: ${{ vars.MODEL_PIN_OPENAI_FRONTIER }}
+          MODEL_PIN_GOOGLE_FLASH: ${{ vars.MODEL_PIN_GOOGLE_FLASH }}
+          MODEL_PIN_GOOGLE_FLASH_LITE: ${{ vars.MODEL_PIN_GOOGLE_FLASH_LITE }}
+        run: |
+          set -o pipefail
+          if [ "${{ vars.MODEL_REFRESH_APPLY }}" = "true" ]; then
+            npx tsx scripts/refresh-models.ts --apply | tee refresh.log
+          else
+            npx tsx scripts/refresh-models.ts | tee refresh.log
+          fi
+
+      - name: Publish the report to the run summary
+        if: always()
+        run: |
+          {
+            echo "## 모델 최신화"
+            echo ""
+            echo '```'
+            cat refresh.log 2>/dev/null || echo "(로그 없음)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
