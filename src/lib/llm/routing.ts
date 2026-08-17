@@ -58,9 +58,31 @@ export const GEMINI_PINNED_PURPOSES: ReadonlySet<PromptPurpose> = new Set([
 // D-26 Phase 2 vendor seats. Anthropic carries the self-understanding
 // narrative / advice surfaces (KO prose quality + anti-clinical nuance);
 // everything absent from this map stays on the Gemini backbone.
-// secondb_chat is intentionally ABSENT: it stays Gemini until claude-proxy
-// streaming lands (D-26 A1 interim — a blocking chat surface cannot take a
-// non-streaming proxy hop).
+// secondb_chat is intentionally ABSENT, but NOT for the reason this comment
+// used to give. It said chat stays Gemini "until claude-proxy streaming lands,
+// because a blocking chat surface cannot take a non-streaming proxy hop."
+// That blocker does not exist (2026-08-18 measured):
+//
+//   - callLlm returns Promise<LlmResult<T>>, not a stream, and
+//     conversation.ts awaits it exactly once (chat.ts sendChatMessage).
+//   - gemini-proxy has no streaming path -- no SSE, no ReadableStream.
+//   - the repo has NO streaming anywhere: zero hits for generateContentStream,
+//     streamGenerateContent, text/event-stream, EventSource, or getReader().
+//   - secondb.tsx renders the reply in one shot; there is no partial render.
+//
+// So chat has been taking a non-streaming proxy hop all along. Adding streaming
+// to claude-proxy would not unblock anything, because nothing is blocked.
+//
+// The real gate is money, not transport. claude-proxy already HAS the seat
+// configured (secondb_chat: 'claude-sonnet-5', effort 'low'), so moving chat is
+// a one-line addition to PHASE2_VENDOR below. What stops it today is that the
+// nine reasoning seats were re-routed off Anthropic on 2026-07-06 for an
+// exhausted credit balance (see the note in PHASE2_VENDOR). Point chat at
+// claude-proxy while that is still true and every message pays a failed hop
+// before the D-26 failover drops it back to gemini-proxy.
+//
+// Flip this when Anthropic has credits -- that is an operator fact this file
+// cannot check, so it stays a deliberate decision rather than a default.
 export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> = {
   // Reasoning backend re-routed Claude -> OpenAI on 2026-07-06: the Anthropic
   // account's credit balance was exhausted (claude-proxy returned 502
@@ -120,10 +142,11 @@ export function resolveVendorForPurpose(purpose: PromptPurpose, hasImage: boolea
   if (hasImage || GEMINI_PINNED_PURPOSES.has(purpose)) return "gemini";
 
   // Only the reasoning SEATS are vendor-switchable. Every other purpose
-  // (secondb_chat streaming, high-volume classification, interview probes)
-  // stays on the Gemini backbone regardless of the switch, so the operator can
-  // never accidentally route streaming chat or a cheap classifier through a
-  // reasoning proxy.
+  // (secondb_chat, high-volume classification, interview probes) stays on the
+  // Gemini backbone regardless of the switch, so the operator can never
+  // accidentally route chat or a cheap classifier through a reasoning proxy.
+  // ("streaming chat" here was a misnomer -- nothing in this repo streams;
+  // see the note above PHASE2_VENDOR.)
   const isSeat = purpose in PHASE2_VENDOR;
 
   // 2) EXPO_PUBLIC_LLM_VENDOR global override, when set.
