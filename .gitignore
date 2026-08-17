@@ -31,6 +31,14 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Private keys that arrive as .txt, which the *.key and *.pem patterns do not
+# catch. The age backup decryption key sat at the repo root as
+# 2ndB_backup_age_PRIVATE_KEY_260811.txt, untracked but NOT ignored. This repo
+# is public, so one stray "git add -A" would have published the key that
+# decrypts every database backup. The canonical copy belongs in a password
+# manager, outside any checkout.
+*PRIVATE_KEY*
+
 # EAS local-credentials manifest (carries the p12 password) + restored signing
 # files; written only on the ephemeral CI runner. /ios below already covers
 # ios/certs, listed explicitly for defense in depth.
