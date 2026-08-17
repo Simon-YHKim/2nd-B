@@ -76,14 +76,15 @@ supabase functions deploy openai-proxy --project-ref zoacryukmdeivmolvyhj
 
 ---
 
-## 4. 작업 C — PR #1233 머지
+## 4. 작업 C — PR #1233 머지 → **이미 완료됨. 건너뛸 것**
 
-<https://github.com/Simon-YHKim/2nd-B/pull/1233>
+<https://github.com/Simon-YHKim/2nd-B/pull/1233> — CI 7/7 그린 확인 후 머지했다.
 
-작업 A 가 끝난 **뒤에** 머지한다. CI 그린 확인.
+머지해도 **동작은 안 바뀐다.** 변수가 미설정이면 대화는 계속 Gemini 이기 때문이다.
+그게 의도된 기본값이고, 그래서 배포보다 먼저 머지해도 안전했다.
 
-**머지해도 동작은 안 바뀐다** — 변수가 미설정이면 대화는 계속 Gemini 다.
-그게 의도다(안전한 기본값).
+즉 **지금 코드에는 좌석과 스위치가 다 들어 있고, 아직 아무것도 켜지지 않은 상태**다.
+남은 건 아래 D(플립)뿐이며, 그 전에 반드시 위 A(재배포)가 끝나 있어야 한다.
 
 ---
 
