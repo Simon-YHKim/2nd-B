@@ -137,7 +137,21 @@ export function buildProposals(kind: ImportKind, content: string): ImportOutcome
     const email = parseEml(content);
     if (email && emailLooksLikeAppointment(email)) {
       summary.appointments = 1;
-      proposals.push({ id: "email-0", label: email.subject || email.from, sub: "약속 → 캘린더 후보", sensitive: false });
+      // 라벨은 **제목만** 쓴다. 예전에는 `email.subject || email.from` 이라,
+      // 제목 없는 메일이면 상대방 이메일 주소가 라벨이 되어 그대로 sources 에
+      // 저장됐다. 상대방은 우리 사용자가 아니고 동의한 적도 없다.
+      //
+      // sensitive: true 인 이유는 두 가지다. 하나는 이 제안이 **제3자 정보**를
+      // 품고 있다는 것이고, 다른 하나는 임포트 화면이 이미 이메일 타일을
+      // tier "sensitive" 로 선언해놨다는 것이다 - 화면은 민감하다고 하면서
+      // 제안은 기본 선택이던 불일치를 맞춘다.
+      // (ImportHubScreen 이 `!p.sensitive` 인 것만 기본 선택한다.)
+      proposals.push({
+        id: "email-0",
+        label: email.subject?.trim() || "제목 없는 메일",
+        sub: "약속 → 캘린더 후보",
+        sensitive: true,
+      });
     }
   } else if (kind === "youtube-history") {
     // P1: derived signals only — channel-level interest counts + one rhythm
