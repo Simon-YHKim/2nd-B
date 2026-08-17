@@ -101,9 +101,21 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 어느 벤더가 처리했는지는 `ai_audit_log.reasoning_vendor`(0095)에 남는다.
 >
 > **아직 Gemini 인데 옮겨야 할 자리:** `secondb_chat`(세컨비 대화). claude-proxy 에는
-> **이미 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데 라우팅이 안 붙어 있다** —
-> 막고 있는 것은 **claude-proxy 스트리밍 미구현** 하나뿐이다(블로킹 대화 화면이라
-> 비스트리밍 홉을 못 씀). 그것만 되면 대화는 바로 옮겨진다.
+> **이미 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데 라우팅이 안 붙어 있다.**
+>
+> ⚠ **여기 적혀 있던 "claude-proxy 스트리밍 미구현이 막고 있다"는 틀린 진단이었다
+> (2026-08-18 실측).** 이 저장소에는 **스트리밍이 아예 없다** — `callLlm` 은
+> `Promise<LlmResult<T>>` 를 돌려주고 `conversation.ts` 가 한 번 `await` 할 뿐이며,
+> gemini-proxy 에 SSE 경로가 없고, `generateContentStream`·`streamGenerateContent`·
+> `text/event-stream`·`EventSource`·`getReader()` 전부 **0건**이다. 대화 화면도 부분
+> 렌더를 하지 않는다. 즉 대화는 **이미 비스트리밍 프록시 홉을 타고 있다.**
+> 스트리밍을 구현해도 풀리는 것이 없다 — 막혀 있질 않기 때문이다.
+>
+> **진짜 게이트는 전송이 아니라 크레딧이다.** 좌석은 이미 있으니 이전은
+> `PHASE2_VENDOR` 에 한 줄 추가면 끝인데, 추론 좌석 9개가 2026-07-06 에 Anthropic
+> 크레딧 소진으로 OpenAI 로 옮겨간 상태다. 그대로 대화를 claude-proxy 로 보내면
+> 매 메시지가 실패 홉을 한 번 치고 D-26 페일오버로 gemini-proxy 에 떨어진다.
+> **Anthropic 크레딧이 확인되면 그때 한 줄 바꾸면 된다.**
 >
 > **경계 모듈은 `src/lib/llm/boundary.ts` 다** (2026-08-17 `gemini.ts` 에서 개명. 함수도
 > `callLlm` → `callLlm`). **모든 LLM 호출이 지나는 단일 지점**이고 감사 기록(C3)과
