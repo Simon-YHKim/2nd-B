@@ -105,6 +105,14 @@ export function ConsentNotice({ minor, value, onChange }: ConsentNoticeProps) {
           label={t("notice.ackSensitive")}
           onToggle={() => toggle("sensitiveData")}
         />
+        {/* PIPA 제23조 별도 동의 - 안전 안내. 위기 문구가 보이면 상담 창구를
+            안내하고 그 사실을 원장에 남긴다는 것에 대한 동의다. 별도 항목으로
+            두는 이유가 곧 "별도" 동의라는 요건이다. */}
+        <PreferenceCheckRow
+          checked={value.safetyNotice}
+          label={t("notice.ackSafety")}
+          onToggle={() => toggle("safetyNotice")}
+        />
       </View>
 
       <View style={styles.group}>

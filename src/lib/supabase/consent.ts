@@ -49,6 +49,11 @@ export interface RecordConsentArgs {
   llmProcessingAck: boolean;
   overseasTransferAck: boolean;
   sensitiveDataAck: boolean;
+  /**
+   * PIPA 제23조 별도 동의 - 안전 안내(위기 라우팅). crisis_events 행을 만드는
+   * 근거다. 0130 이전 계정은 질문받은 적이 없어 NULL 로 남는다.
+   */
+  safetyNoticeAck?: boolean | null;
   /** Hashed request metadata — never the raw IP / UA (data minimization). */
   ipHash?: string | null;
   uaHash?: string | null;
@@ -69,6 +74,7 @@ export async function recordConsent(args: RecordConsentArgs): Promise<void> {
     llm_processing_ack: args.llmProcessingAck,
     overseas_transfer_ack: args.overseasTransferAck,
     sensitive_data_ack: args.sensitiveDataAck,
+    safety_notice_ack: args.safetyNoticeAck ?? null,
     locale: args.locale,
     ip_hash: args.ipHash ?? null,
     ua_hash: args.uaHash ?? null,

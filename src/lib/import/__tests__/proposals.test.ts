@@ -132,3 +132,39 @@ describe("buildProposals: P1 kinds (youtube-history / finance-csv)", () => {
     expect(proposals[0].ledgerEntry).toEqual({ occurredOn: "2026-06-03", kind: "expense", amountKrw: 4500, label: "커피 한잔" });
   });
 });
+
+// 이메일 제안은 **상대방** 정보를 품는다. 상대방은 우리 사용자가 아니고
+// 동의한 적도 없다 (법률 검토 Q3).
+describe("이메일 제안 · 제3자 보호", () => {
+  const eml = (subject: string | null) =>
+    [
+      "From: someone@example.com",
+      "To: me@example.com",
+      ...(subject === null ? [] : [`Subject: ${subject}`]),
+      "Date: Mon, 17 Aug 2026 10:00:00 +0900",
+      "",
+      "내일 3시에 만나요",
+    ].join("\n");
+
+  it("제목이 없어도 상대방 주소를 라벨에 쓰지 않는다", () => {
+    // 예전에는 `subject || from` 이라, 제목 없는 메일이면 상대방 이메일 주소가
+    // 그대로 라벨이 되어 sources 에 저장됐다.
+    const out = buildProposals("email", eml(null));
+    const labels = out.proposals.map((p) => p.label);
+    for (const l of labels) expect(l).not.toContain("@");
+  });
+
+  it("제목이 있으면 제목을 쓴다", () => {
+    const out = buildProposals("email", eml("점심 약속"));
+    const p = out.proposals.find((x) => x.id === "email-0");
+    if (p) expect(p.label).toBe("점심 약속");
+  });
+
+  it("기본 선택되지 않는다", () => {
+    // ImportHubScreen 은 `!p.sensitive` 인 것만 기본 선택한다. 이메일 타일은
+    // 화면에서 이미 tier "sensitive" 로 선언돼 있는데 제안만 기본 선택이었다.
+    const out = buildProposals("email", eml("점심 약속"));
+    const p = out.proposals.find((x) => x.id === "email-0");
+    if (p) expect(p.sensitive).toBe(true);
+  });
+});

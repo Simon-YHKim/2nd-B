@@ -24,6 +24,7 @@
     "ackLlm": "I understand my entries are processed only when needed to generate responses I request, for automatic safety checks, and for service audit records, and only in those cases may be sent to Google Gemini, Anthropic Claude, or OpenAI.",
     "ackOverseas": "I understand encrypted service data may be processed outside my country by Google or Supabase to run the app.",
     "ackSensitive": "I understand my entries may include sensitive details, and 2nd-Brain treats them as private account data.",
+    "ackSafety": "I agree that if crisis wording appears, 2nd-Brain shows help lines and logs that it did. It is not an emergency service and does not report on my behalf.",
     "optMarketing": "Send me occasional product updates (optional).",
     "minorBanner": "You are signing up as a teen (14 to 17). High-privacy is on by default: sharing, ads, analytics, model training, and outside analysis stay off.",
     "detailLink": "View details"
@@ -46,6 +47,10 @@
     "sensitiveData": {
       "title": "How sensitive entries are handled",
       "body": "What this covers: journals and notes may naturally include sensitive details, such as health or beliefs.\nHow we handle it: we do not collect or sort it separately; everything stays encrypted, private account data. It is never made public, sold, or used for ads.\nYour choice: what you write is entirely up to you, and you can delete any entry at any time.\nIf you decline: we cannot store your entries without this acknowledgement, so sign-up cannot continue."
+    },
+    "safetyNotice": {
+      "title": "How safety routing works",
+      "body": "What this covers: if your writing contains wording that suggests a crisis, 2nd-Brain shows the relevant help lines.\nHow we handle it: we record THAT the routing happened (the trigger category, the template version, the locale) so we can check the routing still works. We do not store a clinical severity score, and we do not keep the text that triggered it.\nWhat it is not: 2nd-Brain is not an emergency service. It does not call anyone, does not report on your behalf, does not notify a guardian, school, or institution, and does not monitor you. In an emergency, contact the emergency services directly.\nYour choice: this is a separate consent under PIPA art.23 because the record is treated as health-related data.\nIf you decline: sign-up cannot continue, because we would have no basis for the safety record."
     },
     "marketing": {
       "title": "Product updates (optional)",

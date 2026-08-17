@@ -36,10 +36,13 @@ import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { createRecord } from "@/lib/records/create";
+import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { classifyInput } from "@/lib/safety/classifier";
+import { currentDisplayName } from "@/lib/persona/use-address";
 import {
   CHAT_KEEP_TAG,
   composeExchangeBody,
+  exchangeMarkdown,
   exchangeTopic,
   findPrompt,
   isKeepable,
@@ -506,20 +509,25 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     try {
       const prompt = findPrompt(turns, index);
       const speaker = isCharacterChat ? persona.name[locale] : t("title");
-      const res = await createRecord({
+      const topic = exchangeTopic(prompt, reply.text);
+      const body = composeExchangeBody({ prompt, reply: reply.text, speaker }, locale);
+      // 위키 클립으로 저장한다(records 가 아니라). 그래야 exportUserWiki 를 타고
+      // 다음 대화와 비서 제안이 이걸 읽는다 - keep-exchange.ts 의 설명 참조.
+      // captureFromMarkdown 은 LLM 을 부르지 않고, 중복 담기는 dedup 이 흡수한다.
+      await captureFromMarkdown({
         userId,
-        locale,
-        minor: isMinor === true,
-        kind: "note",
-        body: composeExchangeBody({ prompt, reply: reply.text, speaker }, locale),
-        topic: exchangeTopic(prompt, reply.text),
+        rawMd: exchangeMarkdown(topic, body),
+        // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
+        kindOverride: "self_knowledge",
         // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
         // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
-        tags: [CHAT_KEEP_TAG],
-        withFollowup: false,
+        userTags: [CHAT_KEEP_TAG],
       });
       setKeptIdx((prev) => new Set(prev).add(index));
-      if (res.followup?.zone === "red") {
+      // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
+      // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
+      // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
+      if (classifyInput(body, locale, { minor: isMinor === true }).zone === "red") {
         setKeepCrisis({
           visible: true,
           hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
@@ -755,6 +763,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             message: msg,
             locale,
             tier: progression.tier,
+            // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
+            displayName: currentDisplayName(),
             personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (greeting/limit/error) are not model
