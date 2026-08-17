@@ -36,6 +36,14 @@ import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { createRecord } from "@/lib/records/create";
+import {
+  CHAT_KEEP_TAG,
+  composeExchangeBody,
+  exchangeTopic,
+  findPrompt,
+  isKeepable,
+} from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
@@ -471,6 +479,58 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+
+  // 대화를 위키로 보내는 길 (1순위 결함). 지금까지 대화는 아무것도 남기지 않았고,
+  // 유일한 경로는 LLM 에게 요약을 시킨 뒤 손으로 /capture 에 옮기는 것이었다.
+  // 이 버튼은 오간 말 **그대로**를 기록으로 남긴다 - LLM 호출 없음.
+  //
+  // 자동 저장하지 않는 이유: 이 앱의 불변식은 propose->ratify 다. 사용자가 누르는
+  // 그 탭이 비준이고, 그래서 "결정 주체는 정보주체" 라는 법적 위치도 유지된다.
+  const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
+  const [keeping, setKeeping] = useState<number | null>(null);
+  // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
+  // (sendChatMessage -> callGemini)에만 있었는데, createRecord 도 저장할 때마다
+  // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
+  // (northstar, capture)은 그때 핫라인을 띄운다. 여기만 조용히 저장하면
+  // 저장 경로가 안내 없는 유일한 구멍이 된다.
+  const [keepCrisis, setKeepCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
+
+  async function keepExchange(index: number): Promise<void> {
+    if (!userId || keeping !== null || keptIdx.has(index)) return;
+    const reply = turns[index];
+    if (!reply || !isKeepable(reply)) return;
+    setKeeping(index);
+    try {
+      const prompt = findPrompt(turns, index);
+      const speaker = isCharacterChat ? persona.name[locale] : t("title");
+      const res = await createRecord({
+        userId,
+        locale,
+        minor: isMinor === true,
+        kind: "note",
+        body: composeExchangeBody({ prompt, reply: reply.text, speaker }, locale),
+        topic: exchangeTopic(prompt, reply.text),
+        // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
+        // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
+        tags: [CHAT_KEEP_TAG],
+        withFollowup: false,
+      });
+      setKeptIdx((prev) => new Set(prev).add(index));
+      if (res.followup?.zone === "red") {
+        setKeepCrisis({
+          visible: true,
+          hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
+        });
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
+    } finally {
+      setKeeping(null);
+    }
+  }
   // The draft now lives inside ChatComposer (keystroke isolation); the parent
   // reaches it only to prefill (quick-actions / branches) via this handle.
   const composerRef = useRef<ChatComposerHandle>(null);
@@ -956,6 +1016,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         </View>
                       </Pressable>
                     ) : null}
+                    {/* 대화를 위키로. 답변 하나를 직전 질문과 짝지어 기록으로
+                        남긴다. 화면을 떠나지 않고, LLM 도 다시 부르지 않는다.
+                        인사말·오류 문구(synthetic)에는 붙지 않는다. */}
+                    {isKeepable(turn) ? (
+                      <Pressable
+                        style={ds.keepChip}
+                        onPress={() => void keepExchange(i)}
+                        disabled={keeping !== null || keptIdx.has(i)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
+                      >
+                        <Text style={ds.keepChipText}>
+                          {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                     {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
                         the composer; 담기 = hand the branch to /capture (?text=,
                         the share-consume path). */}
@@ -1270,6 +1347,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setChatRewardVisible(false);
           }}
           locale={locale}
+        />
+        {/* 저장 경로의 위기 안내. 전송 경로(callGemini)는 서버가 응답을 바꿔
+            치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
+            알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
+        <CrisisRouter
+          visible={keepCrisis.visible}
+          hotline={keepCrisis.hotline}
+          onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
         />
       </DeepSpaceScreen>
     );
@@ -1987,6 +2072,21 @@ const ds = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   branchChipText: { color: deepSpace.textHi, fontSize: 12, fontFamily: fontFamilies.readable },
+  keepChip: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    borderRadius: deepSpaceRadii.sm,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  keepChipText: {
+    fontSize: 12,
+    color: deepSpace.textMuted,
+  },
   branchSave: {
     minWidth: 52,
     minHeight: 44,

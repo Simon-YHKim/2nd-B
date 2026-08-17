@@ -1,9 +1,11 @@
 // 커리어 CV 타임라인 (rev2 P4d): the career domain lens. Every domain:career
-// record grouped by year (an explicit year: tag from the achievement form wins
-// over the capture date), newest first, plus the structured 성과 담기 form.
-// Saves ride createRecord (C9/C3) with tags [career_achievement, domain:career,
-// year:YYYY] so the 커리어 star brightens from real, dated accomplishments.
-// 3C4P drilldown + 고용24 integration stay deferred to the rev2 prototype spec.
+// record grouped by year (an explicit year: tag from the 성과 입력 form wins over
+// the capture date), newest first.
+//
+// The form itself lives on /career-input, not inline here. This screen carried a
+// three-box version (성과 / 역할 / 임팩트 + 연도) that was a reduction of the spec in
+// sb-careerinput.jsx; the full seven-section form replaced it rather than sitting
+// beside it, because two ways to enter the same thing is how one of them rots.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -12,18 +14,13 @@ import { Redirect, router } from "expo-router";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { Field, MdButton, MdCard, YearField } from "@/components/m3";
+import { MdButton, MdCard } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { createRecord } from "@/lib/records/create";
 import { domainTagFor } from "@/lib/persona/domain-stars";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import {
-  composeAchievementBody,
-  groupCareerTimeline,
-  type CareerRecordRow,
-} from "@/lib/career/career-timeline";
+import { groupCareerTimeline, type CareerRecordRow } from "@/lib/career/career-timeline";
 
 const CAREER_TAG = domainTagFor("career");
 
@@ -41,18 +38,11 @@ async function listCareerRecords(userId: string): Promise<CareerRecordRow[]> {
 
 export default function CareerTimelineScreen() {
   const { t, i18n } = useTranslation("deepspace");
-  const { userId, loading, isMinor } = useAuth();
+  const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [rows, setRows] = useState<CareerRecordRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [title, setTitle] = useState("");
-  const [role, setRole] = useState("");
-  const [impact, setImpact] = useState("");
-  const [year, setYear] = useState("");
   // 쌓아온 길 track (rev2 11-star): 메인 = real achievements, 사이드 = official records.
   const [track, setTrack] = useState<"main" | "side">("main");
 
@@ -75,7 +65,6 @@ export default function CareerTimelineScreen() {
   }, [refresh]);
 
   const groups = useMemo(() => groupCareerTimeline(rows ?? []), [rows]);
-  const yearValid = year.trim() === "" || /^\d{4}$/.test(year.trim());
 
   if (loading) {
     return (
@@ -87,39 +76,6 @@ export default function CareerTimelineScreen() {
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
-
-  async function handleAdd() {
-    if (!userId || !title.trim() || !yearValid || saving) return;
-    setSaving(true);
-    setSaveFailed(false);
-    try {
-      const body = composeAchievementBody({ title, role, impact }, locale);
-      await createRecord({
-        userId,
-        locale,
-        minor: isMinor === true,
-        kind: "note",
-        body,
-        topic: title.trim().slice(0, 80),
-        tags: [
-          "career_achievement",
-          CAREER_TAG,
-          ...(year.trim() ? [`year:${year.trim()}`] : []),
-        ],
-      });
-      setTitle("");
-      setRole("");
-      setImpact("");
-      setYear("");
-      setAdding(false);
-      refresh();
-    } catch (e) {
-      console.warn("[career] save failed", (e as Error).message);
-      setSaveFailed(true);
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={t("deepspace:career.screenTitle")} onBack={() => router.back()}>
@@ -135,52 +91,10 @@ export default function CareerTimelineScreen() {
           />
           <MdButton
             variant="tonal"
-            label={adding ? t("deepspace:career.close") : t("deepspace:career.addAchievement")}
-            onPress={() => setAdding((v) => !v)}
+            label={t("deepspace:career.addAchievement")}
+            onPress={() => router.push("/career-input")}
           />
         </View>
-
-        {adding ? (
-          <MdCard variant="outlined" style={styles.cardPad}>
-            <Field
-              label={t("deepspace:career.fieldAchievement")}
-              value={title}
-              onChangeText={setTitle}
-              placeholder={t("deepspace:career.placeholderAchievement")}
-            />
-            <Field
-              label={t("deepspace:career.fieldRole")}
-              value={role}
-              onChangeText={setRole}
-              placeholder={t("deepspace:career.placeholderRole")}
-            />
-            <Field
-              label={t("deepspace:career.fieldImpact")}
-              value={impact}
-              onChangeText={setImpact}
-              placeholder={t("deepspace:career.placeholderImpact")}
-            />
-            <YearField
-              label={t("deepspace:career.fieldYear")}
-              value={year}
-              onChange={setYear}
-              placeholder={t("deepspace:career.placeholderYear")}
-              error={!yearValid}
-              supportingText={yearValid ? undefined : t("deepspace:career.yearError")}
-            />
-            {saveFailed ? (
-              <Text variant="caption" color="textSubtle">
-                {t("deepspace:career.saveFailed")}
-              </Text>
-            ) : null}
-            <MdButton
-              variant="filled"
-              disabled={!title.trim() || !yearValid || saving}
-              label={saving ? t("deepspace:career.saving") : t("deepspace:career.save")}
-              onPress={handleAdd}
-            />
-          </MdCard>
-        ) : null}
 
         {/* 쌓아온 길 (rev2 11-star): 메인 = 직접 담은 성과 실기록, 사이드 = 공식 이력
             (학력/병역/수상/자격/경력). 공식 이력은 연동으로 채워지는 트랙이라, mock

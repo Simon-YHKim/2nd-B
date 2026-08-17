@@ -6,6 +6,7 @@ import { View, StyleSheet, ScrollView, Linking, KeyboardAvoidingView, Platform }
 import { useTranslation } from "react-i18next";
 import { Redirect } from "expo-router";
 
+import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -68,6 +69,8 @@ function SupportLegacy() {
             onPress={() => { void Linking.openURL(`mailto:${SUPPORT_EMAIL}`); }}
           />
         </View>
+
+        <HelpDirectory />
 
         <View style={[styles.section, { borderStartColor: semantic.warning }]}>
           <Text variant="caption" color="textMuted" style={styles.eyebrow}>{t("faqLabel")}</Text>

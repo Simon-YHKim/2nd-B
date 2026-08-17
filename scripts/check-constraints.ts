@@ -1522,9 +1522,9 @@ results.push(
       "Type DELETE to enable the account deletion button.",
       "Opens a final confirmation before deleting your account and data.",
       "Starts account and data deletion.",
-      "계정을 불러오는 중이에요…",
+      "계정을 불러오는 중입니다…",
       "계정 삭제를 끝내지 못했어요.",
-      "생일을 저장하지 못했어요.",
+      "생일을 저장하지 못했습니다.",
       "계정 삭제 최종 확인",
       "계정 피드백 안내",
       "계정 삭제 확인 문구",
@@ -1538,7 +1538,7 @@ results.push(
       en.includes('"label": "Account feedback notice"') &&
       en.includes('"inputLabel": "Account deletion confirmation phrase"') &&
       en.includes('"confirmCtaHint": "Starts account and data deletion."') &&
-      ko.includes('"loading": "계정을 불러오는 중이에요…"') &&
+      ko.includes('"loading": "계정을 불러오는 중입니다…"') &&
       ko.includes('"label": "계정 피드백 안내"') &&
       ko.includes('"inputLabel": "계정 삭제 확인 문구"') &&
       ko.includes('"confirmCtaHint": "계정과 데이터 삭제를 시작합니다."') &&
@@ -1617,7 +1617,7 @@ results.push(
       read("locales/ko/inbox.json").includes("첨부된 본문 파일이") &&
       capture.includes('t("file.attachedNoPreview")') &&
       enCapture.file?.attachedNoPreview === "File attached. Text preview is not available." &&
-      koCapture.file?.attachedNoPreview === "파일이 첨부됐어요. 본문 미리보기는 지원하지 않아요." &&
+      koCapture.file?.attachedNoPreview === "파일이 첨부됐습니다. 본문 미리보기는 지원하지 않습니다." &&
       forbiddenUserLanguage.every((term) => !inbox.includes(term) && !capture.includes(term));
     return {
       id: "CaptureStorageLanguage",
@@ -1655,7 +1655,7 @@ results.push(
       en.includes('"faq"') &&
       ko.includes('"faq"') &&
       en.includes("2nd-Brain helps organize it later.") &&
-      ko.includes("정리는 나중에 2nd-Brain이 도와드려요.") &&
+      ko.includes("정리는 나중에 2nd-Brain이 도와드립니다.") &&
       forbiddenInlineCopy.every((term) => !support.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "SupportI18nCopy",
@@ -1699,7 +1699,7 @@ results.push(
       i18n.includes("data: enData") &&
       i18n.includes("data: koData") &&
       en.includes("Move and manage your records") &&
-      ko.includes("기록을 옮기고 정리해요") &&
+      ko.includes("기록을 옮기고 정리합니다") &&
       forbiddenScreenCopy.every((term) => !data.includes(term)) &&
       forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
     return {
@@ -1789,7 +1789,7 @@ results.push(
         i18n.includes("import: enImport") &&
         i18n.includes("import: koImport") &&
         en.includes("Bring outside self-knowledge into 2nd-Brain") &&
-        ko.includes("밖에 있던 자기 이해를 2nd-Brain으로 가져와요") &&
+        ko.includes("밖에 있던 자기 이해를 2nd-Brain으로 가져옵니다") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -1832,7 +1832,7 @@ results.push(
         i18n.includes("notFound: enNotFound") &&
         i18n.includes("notFound: koNotFound") &&
         en.includes("This page does not exist") &&
-        ko.includes("없는 화면이에요") &&
+        ko.includes("없는 화면입니다") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term)) &&
         forbiddenBundleCopy.every((term) => !en.includes(term) && !ko.includes(term));
       return {
@@ -2078,7 +2078,7 @@ results.push(
         en.includes('"oauthCallback"') &&
         ko.includes('"oauthCallback"') &&
         en.includes("Couldn't complete sign-in") &&
-        ko.includes("로그인을 완료하지 못했어요") &&
+        ko.includes("로그인을 완료하지 못했습니다") &&
         forbiddenScreenCopy.every((term) => !screen.includes(term));
       return {
         id: "OAuthCallbackI18nCopy",
@@ -2112,9 +2112,9 @@ results.push(
         "Could not save your profile. Please try again in a moment.",
         "로그인을 시작하지 못했어요",
         "가입을 시작하지 못했어요",
-        "로그인에 실패했어요",
-        "가입에 실패했어요",
-        "프로필 저장에 실패했어요",
+        "로그인에 실패했습니다",
+        "가입에 실패했습니다",
+        "프로필 저장에 실패했습니다",
       ];
       const screens = [signIn, signUp, completeProfile, signInHook, signUpHook].join("\n");
       const ok =
@@ -2418,7 +2418,7 @@ results.push(
       '"savedFolder": "저장 폴더"',
       '"detailsToSave": "저장할 세부 정보"',
       '"detailNamePlaceholder": "세부 정보 이름 (예: 주제 영역)"',
-      '"commonOnly": "요약, 해시태그, 관련도 같은 공통 항목만 저장해요."',
+      '"commonOnly": "요약, 해시태그, 관련도 같은 공통 항목만 저장합니다."',
     ];
     const forbidden = [
       '"Base kind"',
@@ -2490,7 +2490,7 @@ results.push(
       manual.includes("sources SecondB cites") &&
       manual.includes("세컨비의 되묻기") &&
       read("locales/en/settings.json").includes("Tune your settings") &&
-      read("locales/ko/settings.json").includes("설정을 정리해요") &&
+      read("locales/ko/settings.json").includes("설정을 정리합니다") &&
       forbiddenReadme.every((term) => !readme.includes(term)) &&
       forbiddenManual.every((term) => !manual.includes(term)) &&
       forbiddenSettings.every((term) => !settings.includes(term));
@@ -2552,7 +2552,7 @@ results.push(
       en.includes('"title": "Welcome"') &&
       en.includes('"subtitle": "Write one line a day. Later, it becomes self-knowledge."') &&
       ko.includes('"title"') &&
-      ko.includes('"subtitle": "매일 한 줄을 남기면, 나중에 자기 이해의 단서가 쌓여요."') &&
+      ko.includes('"subtitle": "매일 한 줄을 남기면, 나중에 자기 이해의 단서가 쌓입니다."') &&
       forbidden.every((term) => !screen.includes(term) && !en.includes(term) && !ko.includes(term));
     return {
       id: "SignInHeroI18nCopy",
@@ -2675,21 +2675,21 @@ results.push(
       "Delete this format?",
       "This can't be undone.",
       "Filing guide",
-      "공유 설정을 바꾸지 못했어요",
-      "형식을 삭제했어요",
-      "삭제하지 못했어요",
-      "형식을 저장했어요",
-      "저장하지 못했어요",
-      "형식을 추가했어요",
-      "형식을 불러오는 중이에요",
+      "공유 설정을 바꾸지 못했습니다",
+      "형식을 삭제했습니다",
+      "삭제하지 못했습니다",
+      "형식을 저장했습니다",
+      "저장하지 못했습니다",
+      "형식을 추가했습니다",
+      "형식을 불러오는 중입니다",
       "기본 형식",
       "분류 기준 보기",
       "눌러서 분류 기준 보기",
-      "아직 만든 형식이 없어요",
+      "아직 만든 형식이 없습니다",
       "새 형식을 제안받아",
       "형식 삭제 확인",
       "이 형식을 삭제할까요",
-      "삭제하면 되돌릴 수 없어요",
+      "삭제하면 되돌릴 수 없습니다",
     ];
     const ok =
       codeRequiredSnippets.every((snippet) => formats.includes(snippet)) &&
@@ -2724,8 +2724,8 @@ results.push(
       "형식 추가",
       "AI가 다시 쓸 수 있는",
       "AI로 정리 기준 만들기",
-      "정리 기준을 만들지 못했어요",
-      "형식을 저장하지 못했어요",
+      "정리 기준을 만들지 못했습니다",
+      "형식을 저장하지 못했습니다",
       "제안된 형식",
       "이 형식 추가",
     ];
@@ -2825,7 +2825,7 @@ results.push(
       enCommon.includes('"loading": "Loading') &&
       koCommon.includes('"close": "닫기"') &&
       koCommon.includes('"retry": "다시 시도"') &&
-      koCommon.includes('"loading": "불러오는 중이에요') &&
+      koCommon.includes('"loading": "불러오는 중입니다') &&
       feedback.includes('useTranslation("common")') &&
       feedback.includes('accessibilityLabel={t("actions.close")}') &&
       // PremiumLoadingState now renders the shared 세컨비 head loader
@@ -2836,7 +2836,7 @@ results.push(
       feedback.includes('caption={message ?? t("states.loading")}') &&
       feedback.includes('const resolvedRetryLabel = retryLabel ?? t("actions.retry")') &&
       !feedback.includes('accessibilityLabel="닫기"') &&
-      !feedback.includes('message ?? "불러오는 중이에요') &&
+      !feedback.includes('message ?? "불러오는 중입니다') &&
       !feedback.includes('retryLabel = "다시 시도"') &&
       graphBits.includes("function useCurrentLocale()") &&
       graphBits.includes("meta.name[locale]") &&

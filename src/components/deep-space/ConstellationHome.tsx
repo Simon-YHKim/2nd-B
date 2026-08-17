@@ -40,7 +40,7 @@ import { SecondbHead } from "./SecondbHead";
 import { SbStarfield } from "./SbStarfield";
 
 /** The seven visible home stars: six life domains + 뮤지엄 (sb-data STARS). */
-export type HomeStarId = DomainId | "museum";
+export type HomeStarId = DomainId | "profile";
 
 // sb-data.jsx STARS — coordinates in the 280×230 constellation box. 북극성 sits
 // above the box (y=-16); VB_TOP expands the render space upward to keep it
@@ -56,7 +56,7 @@ const REV2_STARS: { id: HomeStarId; x: number; y: number }[] = [
   { id: "growth", x: 151, y: 126 },
   { id: "health", x: 108, y: 135 },
   { id: "recreation", x: 76, y: 143 },
-  { id: "museum", x: 50, y: 187 },
+  { id: "profile", x: 50, y: 187 },
 ];
 
 // Nearest-neighbour viewBox distance per star. Each star's hit box is capped to
@@ -81,11 +81,10 @@ const NN_VIEW_DIST: Record<HomeStarId, number> = (() => {
 // Dipper outline (bowl quad + handle) and the pointer→북극성 dashed guide,
 // expressed through the star points so the lines can never drift from the dots.
 const BOWL: HomeStarId[] = ["career", "finance", "relation", "growth"];
-const HANDLE: HomeStarId[] = ["growth", "health", "recreation", "museum"];
+const HANDLE: HomeStarId[] = ["growth", "health", "recreation", "profile"];
 const GUIDE: HomeStarId[] = ["finance", "career"];
 
 // 뮤지엄 is a curated surface, not a data domain — fixed at the prototype's L4.
-const MUSEUM_LEVEL: LadderLevel = 4;
 
 // sb-home.jsx starOpacity: 0.36 + level/5 × 0.64.
 function rev2StarOpacity(level: LadderLevel): number {
@@ -341,18 +340,28 @@ export function ConstellationHome({
   onChatPress,
   onOpsPress,
   onBellPress,
+  onMuseumPress,
+  onCommunityPress,
   starLevels = {},
   northStarBrightness = 0.2,
   hasUnread = false,
 }: {
-  /** 여행하기 on a star bubble (domains → their records lens, museum → /museum). */
+  /** 여행하기 on a star bubble (domains → their records lens, profile → /profile). */
   onStarTravel: (id: HomeStarId) => void;
   onPolarisPress: () => void;
   /** Head-tap menu actions (prototype bubble buttons 챗봇 / 비서). */
   onChatPress: () => void;
   onOpsPress: () => void;
+  /** 뮤지엄 corner chip. The museum lost its home star to `profile`, so this is
+   *  the ONLY forward entry point to /museum in the app — the swap and this chip
+   *  have to ship together or the screen goes unreachable. */
+  onMuseumPress: () => void;
+  /** 커뮤니티 corner chip. Same story without the star swap as an excuse: the
+   *  screen shipped with no forward link from anywhere, so it was reachable only
+   *  by pasting an invite URL. Adults only, so the chip hides for minors. */
+  onCommunityPress: () => void;
   onBellPress: () => void;
-  starLevels?: Partial<Record<DomainId, LadderLevel>>;
+  starLevels?: Partial<Record<HomeStarId, LadderLevel>>;
   northStarBrightness?: number;
   /** Real unread signal for the inbox bell dot. Defaults false so no fake
    *  "unread" dot shows until a real unread source is wired (the inbox is
@@ -420,10 +429,10 @@ export function ConstellationHome({
     ids.map((id, i) => `${i === 0 ? "M" : "L"}${px(starAt(id).x)},${py(starAt(id).y)}`).join(" ") + (close ? " Z" : "");
 
   const levelOf = (id: HomeStarId): LadderLevel =>
-    id === "museum" ? MUSEUM_LEVEL : ((starLevels[id] ?? 1) as LadderLevel);
+    (starLevels[id] ?? 1) as LadderLevel;
   const starName = (id: HomeStarId) =>
-    id === "museum" ? t("ds.home.museumName") : t(`ds.home.domainName.${id}`);
-  const kindOf = (id: HomeStarId) => (id === "museum" ? t("ds.home.kind.museum") : t("ds.home.kind.domain"));
+    id === "profile" ? t("ds.home.profileName") : t(`ds.home.domainName.${id}`);
+  const kindOf = (id: HomeStarId) => (id === "profile" ? t("ds.home.kind.profile") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;
   // sb-home renders the head at 152×1.05 CSS px; the app asset carries more
@@ -528,6 +537,55 @@ export function ConstellationHome({
         </Pressable>
         {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
       </View>
+
+      {/* 뮤지엄 chip, sitting beside the inbox bell. Not a star any more: the AI
+          museum is a curated place you visit, and a star that never moved off a
+          hardcoded L4 was teaching the sky to lie. */}
+      <View style={styles.museumChip}>
+        <Pressable
+          onPress={onMuseumPress}
+          accessibilityRole="button"
+          accessibilityLabel={t("ds.home.museumEntry")}
+          hitSlop={14}
+        >
+          <Svg width={20} height={20} viewBox="0 0 24 24">
+            <Path
+              d="M3 9.5 12 4l9 5.5M5 10v8m4.7-8v8m4.6-8v8m4.7-8v8M3 20h18"
+              stroke={m3.accent.bellGlyph}
+              strokeWidth={1.8}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </Pressable>
+      </View>
+
+      {/* 커뮤니티, beside the museum. Hidden for minors and while the age is
+          still unknown: the screen itself is adults-only and fail-closed, so an
+          affordance that always bounces would be a worse answer than no
+          affordance. */}
+      {isMinor === false ? (
+        <View style={styles.communityChip}>
+          <Pressable
+            onPress={onCommunityPress}
+            accessibilityRole="button"
+            accessibilityLabel={t("ds.home.communityEntry")}
+            hitSlop={14}
+          >
+            <Svg width={20} height={20} viewBox="0 0 24 24">
+              <Path
+                d="M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11zm7.4-.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM3 19.4c0-2.8 2.7-4.6 6-4.6s6 1.8 6 4.6M16.2 14.9c2.6.3 4.8 1.9 4.8 4.5"
+                stroke={m3.accent.bellGlyph}
+                strokeWidth={1.8}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </Svg>
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Campaign is distinct from the inbox bell: it owns product news and
           keeps the unread signal tied to a real persisted latest-notice ID. */}
@@ -872,6 +930,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(m3.color.primaryContainer, 0.72),
+    ...m3.elevation.level2,
+  },
+  museumChip: {
+    position: "absolute",
+    top: 4,
+    left: 64,
+    zIndex: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
+    ...m3.elevation.level2,
+  },
+  communityChip: {
+    position: "absolute",
+    top: 4,
+    left: 112,
+    zIndex: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
     ...m3.elevation.level2,
   },
   bellDot: {

@@ -39,6 +39,12 @@
       "title": "북극성"
     },
     {
+      "id": "profile",
+      "component": "ProfileScreen",
+      "layout": "windowed",
+      "title": "프로필"
+    },
+    {
       "id": "star",
       "component": "StarScreen",
       "layout": "museumLike",

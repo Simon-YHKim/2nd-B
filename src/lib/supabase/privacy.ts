@@ -7,6 +7,7 @@
 // revert an optimistic toggle and surface the failure.
 
 import { getSupabaseClient } from "./client";
+import { recordHealthImportConsent } from "./consent";
 import { resolvePrivacyPrefs, PRIVACY_PREF_KEYS, type PrivacyPrefs } from "../privacy/prefs";
 
 export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
@@ -28,7 +29,16 @@ export async function fetchPrivacyPrefs(userId: string): Promise<PrivacyPrefs> {
   }
 }
 
-export async function savePrivacyPrefs(userId: string, prefs: PrivacyPrefs): Promise<void> {
+export interface SavePrivacyPrefsOptions {
+  /** Stamped onto the consent_records row when a sensitive-data pref is granted. */
+  locale?: "en" | "ko";
+}
+
+export async function savePrivacyPrefs(
+  userId: string,
+  prefs: PrivacyPrefs,
+  options: SavePrivacyPrefsOptions = {},
+): Promise<void> {
   const supabase = getSupabaseClient();
   // D-3: snapshot the before-state so we can append a consent-change row per
   // toggled key after the write. fetchPrivacyPrefs is fail-soft (never throws),
@@ -40,6 +50,29 @@ export async function savePrivacyPrefs(userId: string, prefs: PrivacyPrefs): Pro
   // change). Best-effort and never rethrows, so the change ledger can't break
   // the settings save.
   await recordConsentChanges(userId, before, prefs);
+  // H9: health/activity data is PIPA §23 민감정보, and the privacy policy says we
+  // process it "별도 동의를 받아" — under a SEPARATE consent. That consent row was
+  // only ever written by the import screen's opt-in flow; the /privacy toggle
+  // (health_import is in VISIBLE_PRIVACY_KEYS) wrote a consent_changes 'grant'
+  // and nothing else. So a user could turn sensitive-data processing on from
+  // settings and leave no record of the separate consent the policy promises.
+  //
+  // Writing it HERE rather than in the two settings screens means every current
+  // and future path through the single save choke point is covered. It is
+  // idempotent in practice: the ledger is append-only and this fires only on the
+  // false -> true edge, not on every save.
+  if (before.health_import === false && prefs.health_import === true) {
+    // Age band is not read from the client: minors cannot reach this edge at all.
+    // health_import is seeded false and clamped for minors server-side (0050) and
+    // is absent from MINOR_PROMOTABLE_KEYS, and 0128 now rejects their rows at the
+    // database. Reaching a health_import grant means an adult account.
+    await recordHealthImportConsent({
+      userId,
+      ageBand: "adult",
+      minorTier: "adult",
+      locale: options.locale ?? "en",
+    });
+  }
 }
 
 /**

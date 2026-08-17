@@ -82,6 +82,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/museum",
   // 커리어 3C4P Drill Down (P4d) — direct-render dock screen.
   "/career-drilldown",
+  // 성과 입력 (sb-careerinput) — the seven-section achievement form the timeline
+  // pushes to. Same rule as its parent: dock is the nav, no floating chip.
+  "/career-input",
   // 축 체크 3종 (P3b) — thin routes over AxisCheckScreen, so the drift guard's
   // direct-render scan doesn't see them; registered by hand like /museum.
   "/values",

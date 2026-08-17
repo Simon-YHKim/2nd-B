@@ -4,8 +4,115 @@ Project-specific guidance for Claude Code sessions in this repo.
 
 ## Project context
 
-- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화. Build with Gemini XPRIZE (Education & Human Potential) 출품작.
-- **Deadline**: 2026-08-17 06:00 KST.
+- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화.
+- **Deadline**: 없음. 외부 마감에 맞춘 스코프 압축을 하지 말 것.
+
+> ### XPRIZE 는 종료됐다 (Simon 결정, 2026-08-15)
+>
+> **이 프로젝트는 더 이상 XPRIZE 출품작이 아니다.** 어떤 세션도 XPRIZE, Build with Gemini,
+> Devpost, 대회 규정집(rulebook), 심사 마감, 심사자 시연을 의사결정 근거로 삼지 말 것.
+> 다음은 전부 **무효한 판단 근거**다:
+>
+> - "마감이 N일 남았으니 축소하자" / "심사 전에 끝내야 하니" — 마감은 없다.
+> - "심사자가 보기에" / "데모에서 어떻게 보일까" — 심사자는 없다. 기준은 실사용자다.
+> - "대회 규정상 필요하다" / "학술 인용 가능해야 한다" — 규정은 적용되지 않는다.
+>   기능은 사용자에게 쓸모가 있어서 존재해야지, 인용 가능해서 존재하면 안 된다.
+>
+> 코드에 남은 대회 잔재(`src/lib/judge/domains.ts`, C6 judge mode 트리거, C12 README 절,
+> `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `gemini.ts`/`routing.ts`
+> 주석)는 **아직 제거되지 않았다.** 동작 중인 코드이므로 임의로 걷어내지 말고, 제거는 별도
+> 작업으로 Simon 과 합의해서 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
+> ### 제품 의도 (Simon 직접 진술, 2026-08-17) — 새 세션은 이걸 먼저 읽을 것
+>
+> **"사용자와 소통해서 깊게 파악하고, 그를 기반으로 심리상담(친구 같은)·개인 비서 역할을 하게 하는 것."**
+>
+> 구조는 네 덩어리다. 이 밖의 층을 새로 발명하지 말 것:
+>
+> 1. **북두칠성 7별 = 입력** — 사용자가 자기 이야기를 카테고리별로 넣는 자리.
+> 2. **북극성 = 그 요약(페르소나)** — 입력이 모여 만들어지는 "이 사람은 이런 사람".
+> 3. **개인 비서 화면 = 활용** — 그 페르소나를 근거로 실제로 도와주는 자리(`/ops` 계열).
+> 4. **커뮤니티·채팅 = 공유** — 그 내용을 남과 나누는 자리.
+>
+> **데이터 방향 (Simon 정정, 2026-08-17). 이 방향을 뒤집지 말 것:**
+>
+> ```
+>   대화 · 입력  ──▶  LLM 위키 (상세 원문)  ──▶  상세 분석  ──▶  세컨비 발화
+>                          └──────────────▶  북극성 페르소나 (요약, 파생물)
+> ```
+>
+> - **위키가 원본이고 페르소나는 그 파생 요약이다.** 페르소나는 소스가 아니다.
+> - **LLM 은 페르소나가 아니라 기록·위키를 읽고 말한다.** 요약을 읽으면 정확도가 떨어진다.
+>   `conversation.ts` 가 이미 `exportUserWiki` + RAG 를 읽고 있고, **그게 맞는 설계다.**
+> - **"페르소나"는 LLM 이 쓸 가면이 아니다.** 사용자의 실제 생활 속에 존재하는 그 사람의
+>   모습을 대화로 알아낸 것이다. 캐릭터 설정으로 오해하지 말 것.
+>
+> **⚠ 2026-08-17 오전에 이 파일에 "대화가 페르소나를 안 읽는 것이 1순위 결함"이라고
+> 적혀 있었다. 그건 틀린 진단이었다.** 그렇게 이으면 상세 원문 대신 요약을 읽게 되어
+> 오히려 나빠진다. 그 문장을 근거로 삼지 말 것.
+>
+> **진짜 끊어진 곳은 반대 방향이다 — 대화가 위키에 아무것도 안 쓴다(실측).**
+> `src/lib/chat/conversation.ts` 에 기록/위키 쓰기 경로가 없고, `src/app/secondb.tsx` 에도
+> `createRecord`/`captureFromMarkdown` 호출이 없다. 대화를 위키로 보내는 유일한 길은
+> 제안 프롬프트 **"위키에 저장"** 한 줄뿐인데, 그건 LLM 에게 한 단락 요약을 시키고
+> 사용자가 그걸 손으로 `/capture` 에 담아야 하는 수동 경로다.
+>
+> 그래서 **"대화 기반으로 알아낸 페르소나"가 지금 구조상 성립하지 않는다.**
+> 대화가 흔적을 안 남기므로 위키도 페르소나도 대화로부터 자라지 않는다.
+> **이게 이 제품의 1순위 결함이다.**
+>
+> **"렌즈층"에 시간을 쓰기 전에 위 배선을 먼저 이을 것.** 렌즈 개수(3이냐 7이냐) 논쟁은
+> 이 배선이 없으면 무의미하다 — 세컨비가 결정을 내리는 자리가 `/ops` 루틴 추천밖에 없어서
+> "결정 필드"를 세면 전부 일정 손잡이만 나온다. 그건 설계가 아니라 증상이다.
+>
+> **"심리상담"은 단어만 금지고 기능은 금지가 아니다.** `scripts/check-forbidden-lexicon.ts`가
+> 임상 용어를 막는 건 임상 서비스라고 **주장**하지 않기 위해서다. 친구처럼 깊게 듣고 파악하는
+> **기능 자체는 제약 없음.** UI 문자열에 그 단어를 안 쓰면 된다.
+
+> ### 보고 형식 (Simon 지시, 2026-08-17) — 항상 HTML
+>
+> **Simon 에게 하는 보고는 채팅 산문이 아니라 Artifact HTML 이다.**
+> 진단·설계안·결정 요청·작업 결과 전부. 채팅에는 링크와 3~5줄 요약만 남긴다.
+> (한 줄 확인·즉답은 예외. 매번 만들라는 뜻이 아니다.)
+>
+> 그림을 최대한 쓸 것 — 인라인 SVG 다이어그램, before/after 비교, 채팅 목업, 매트릭스.
+> Simon 명시 요청: "이미지와 그래프 등등 텍스트로만 설명하지 말고 직관적으로".
+> 한국어 본문은 Pretendard 서브셋을 base64 인라인하고, 게시 전 헤드리스 Chrome 으로
+> light/dark 양쪽을 눈으로 확인한다(다크 토큰을 `[data-theme]` 안에만 정의하면
+> 시스템 기본 상태에서 깨진다). 호칭은 중립적으로.
+
+> ### LLM 정책 (Simon 결정, 2026-08-17) — 벤더가 아니라 적합성으로 고른다
+>
+> **원칙 셋.**
+>
+> 1. **제미나이를 쓰는 것은 더 이상 중요하지 않다.** "Build with Gemini"는 XPRIZE 잔재다.
+>    **그 자리에 가장 적합한 LLM 을 쓴다.** Gemini 로 남길 자리는 **OCR 과 음성 텍스트화**
+>    정도다(그 둘은 gemini-proxy 만 이미지·오디오 inline data 를 전달해서 기술적으로도 그렇다).
+> 2. **항상 최신 모델을 쓴다.** 모델 ID 를 오래 핀해두지 말 것. 모델 선택은 **서버 소유**라
+>    (claude-proxy `ANTHROPIC_MODEL` / `ANTHROPIC_PURPOSE_MODELS`, openai-proxy 동형)
+>    코드 배포 없이 env 로 올릴 수 있다. 클라이언트가 보내는 `model` 필드는 무시된다.
+> 3. **비용과 리즈닝 effort 를 자리마다 최적화한다.** 사다리는 이미 있다 —
+>    `PHASE2_EFFORT`(low/medium/high/xhigh, `src/lib/llm/routing.ts`)와
+>    `PURPOSE_TIER`(`src/lib/llm/types.ts`). 새 좌석을 추가할 때 **effort 를 반드시 명시**하고,
+>    비싼 등급은 근거를 주석으로 남길 것. 기본값으로 xhigh 를 뿌리지 말 것.
+>
+> **실측 현황(2026-08-17).** 이미 멀티벤더다. `LlmVendor = "gemini" | "claude" | "openai"`,
+> 프록시 3종 배포·키 완료. **추론 좌석 9개가 전부 OpenAI 로 나가 있다**(2026-07-06 전환,
+> Anthropic 크레딧 소진이 이유였고 코드 변경 없이 `EXPO_PUBLIC_LLM_VENDOR` 로 되돌릴 수 있다).
+> 어느 벤더가 처리했는지는 `ai_audit_log.reasoning_vendor`(0095)에 남는다.
+>
+> **아직 Gemini 인데 옮겨야 할 자리:** `secondb_chat`(세컨비 대화). claude-proxy 에는
+> **이미 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데 라우팅이 안 붙어 있다** —
+> 막고 있는 것은 **claude-proxy 스트리밍 미구현** 하나뿐이다(블로킹 대화 화면이라
+> 비스트리밍 홉을 못 씀). 그것만 되면 대화는 바로 옮겨진다.
+>
+> **하지 말 것:** `src/lib/llm/gemini.ts` 를 지우거나 우회하지 말 것. 이름만 gemini 일 뿐
+> **모든 LLM 호출이 지나는 단일 경계 모듈**이고, 감사 기록(C3)과 안전 분류(C9)가 전부
+> 여기 걸려 있다. 벤더 선택은 `routing.ts` 가 한다.
+>
+> **인용 금지:** "우리는 Gemini 앱이다" · "C2 가 Vertex 를 요구한다" · "Gemini 로 해야 한다".
+> `docs/` 아래 여러 문서(`ARCHITECTURE.md`·`LLM-ROUTING.md`·`CONSTRAINTS.md` 등)에 남은
+> Gemini 서술은 **역사 기록**이다. 충돌하면 이 절이 이긴다.
+
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
 - **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
   Expo static export to the `gh-pages` branch; live at <https://simon-yhkim.github.io/2nd-B/>, and
@@ -15,6 +122,131 @@ Project-specific guidance for Claude Code sessions in this repo.
 - **Solo build**: Simon Kim. Evenings + weekends only.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
+
+## 렌즈층 재정의 (Simon 결정, 2026-08-15) — 정의 확정, 구현 미착수 (개수 미해소)
+
+**감사 결과 확정된 사실:** 기존 7렌즈의 숫자 7은 심리학이 아니라 **북두칠성 별 개수**에서 왔다
+(Simon 원본 메모 `git show c7f36982:260617생각정리.txt` 가 "7가지 축으로 가려고 해"로 개수를 먼저
+선언하고 "현재 북두칠성의 6번째, 7번째가 비어있음. 고민 필요"로 끝난다). 7개 중 5개의 등급이 구인이
+아니라 "행이 들어왔는가 / 몇 번 눌렀는가"를 쟀다. 상세: `docs/HANDOFF.md` 및 세션 보고서.
+
+### 새 정의 (정본)
+
+> 렌즈층은 나를 재는 층이 아니라, **세컨비가 나를 대신해 결정을 내릴 때 채워야 하는 파라미터를
+> 나에게 맞게 굴절시키고, 그 굴절이 맞았는지를 내 행동 원장으로 채점받는 층**이다.
+> 렌즈 하나 = 세컨비가 반복해서 채우는 **결정 필드 하나를 독점하는 추정기**.
+
+렌즈 자격 = 관문 5개 전부 통과. ① **슬롯**(바꾸는 필드가 코드에 실재. 프롬프트 형용사 한 줄은 불인정)
+② **반전**(값을 뒤집으면 화면이 달라진다) ③ **채점**(LLM 없이 기존 원장으로 적중 판정 가능)
+④ **관측 우위**(물은 값보다 관측한 값이 정확. 진술이 더 정확하면 렌즈가 아니라 **설정**)
+⑤ **귀속**(두 렌즈가 같은 필드를 다투지 않는다).
+
+**관문 통과 결과는 3개(때 · 크기 · 복귀)였다. 그러나 Simon 이 2026-08-16 발주서 G3 에서
+`렌즈 7개`를 선택했다(추천안에서 명시적으로 [변경]).** 이 절의 나머지(렌즈의 정의, 관문 5개,
+L1~L3 자율도 등급)는 개수와 무관하게 유효하다.
+
+⚠ **미해소 긴장 — 구현 전 Simon 확인 필요.** 관문을 그대로 두고 7을 채우려면 탈락한 다섯 중
+넷을 되살려야 하는데, 그 다섯은 "행이 들어왔는가 / 몇 번 눌렀는가"를 재던 것들이다. 즉 셋 중
+하나다: ① 관문을 완화한다 ② 새 후보를 발굴해 7을 채운다 ③ 3개로 간다. **어느 쪽인지 정해지기
+전에는 렌즈 구현에 착수하지 말 것.** 개수만 7로 적어 두고 관문을 조용히 무시하는 것이 가장 나쁘다
+— 그건 감사에서 확인된 원래 문제(개수 먼저 선언, 근거는 나중)로 정확히 되돌아가는 것이다.
+
+**감사에서 확인된 사실은 결정과 무관하게 그대로다:** 원래의 7 은 심리학이 아니라 북두칠성
+별 개수에서 왔고, 7개 중 5개의 등급은 구인이 아니라 입력 횟수를 쟀다.
+
+등급 L1~L3 은 "내가 나를 아는 양"이 아니라 **"이 결정을 세컨비가 혼자 정해도 되는 정도"**다
+(L1 매번 묻기 → L2 선택지 두 개 → L3 기본값 채워 오기). 오르는 유일한 경로는 예측 적중이고,
+사용자가 되돌리면 자동 강등된다.
+
+### 확정된 부수 결정
+
+- **세컨비 = 개인 매니저.** `src/lib/chat/conversation.ts` 의 `SYSTEM_PROMPT_HEADER` 가 못박은
+  "비서나 동반자, 친구가 아니라 자기 자신의 종합" 불변식을 **Simon 이 뒤집기로 승인했다(2026-08-15)**.
+  이 문장을 매니저 프레이밍으로 재작성해도 된다. 단 근거 없는 단정 금지·임상어휘 금지·과잉
+  자기지식 주장 금지는 **그대로 유효**하다(anti-anthro CI 가드는 로케일 JSON 만 스캔한다).
+- **`star_tier_history` 의 기존 7종 star_id 행은 새 렌즈로 재매핑한다**(Simon 결정: "어차피 테스트로
+  임의로 만든 것"). 폐기가 아니라 재매핑이다.
+- **북두칠성 ↔ 북극성 연속성은 렌즈와 무관하게 그대로다.** 캐논에 이미
+  `polarisGuide: "M230,131 L228,90 L140,-16"` 이 있고 이는 실제 지극성(Merak→Dubhe→Polaris)
+  경로다. `canonPolarisGuide` 로 export 되지만 **렌더하는 코드가 0건**이다. 렌즈는 별이 아니라
+  **이 선 위의 보정**이다. 새 별을 추가해 연속성을 만들려 하지 말 것.
+
+## 미성년 개방 — 2026-08-16 결정 상태
+
+Simon 이 결정 콘솔로 항목별 판단을 냈고, 외부 법률·시장 조사(WebSearch 7주제)로 검증했다.
+
+### 확정 (그대로 진행)
+
+- **안전장치 3레인 채택.** 자살·자해 = 상담(미성년 1388→109 / 성인 109), 진행 중 신체 응급 = 119,
+  타인에 의한 급박한 위협 = 112(미성년은 1388·117 병기). **자살 레인에 112 를 붙이지 말 것.**
+  판정이 애매하면 항상 상담 레인으로 폴백. 학교폭력 117, 성폭력 1366.
+- **"범죄 낌새"는 위해(harm) 축으로 재정의.** 앱은 "누가 범죄자인가"를 판단하지 않고
+  "지금 누군가의 안전이 위험한가"만 본다. 피해 진술에만 안내, 가해 판정·자수 권유 배제.
+- **표현 규율.** UI·스토어·마케팅에서 "감지"·"보호"·"모니터링" 금지. 사실 서술만.
+  약관에 "응급 서비스가 아니며 대신 신고하지 않는다" 신설.
+- **AI 능력·자동 리즈닝은 미성년에게 그대로.** (원래 연령 불변이라 풀 것이 없다.)
+- **건강·이메일 임포트 타일 불일치는 열고 문서 정렬** 방향으로 해소.
+- **리워드 광고는 서버 연령 검증 먼저, 그다음 개방.**
+- **현행 불일치 즉시 정렬 + 동의 인프라 정비**를 개방 여부와 무관하게 진행.
+- **라벨링(검사 6종 정직성 라벨)은 보류.** 렌즈 구조·역할 확립이 우선.
+
+### 2026-08-16 F그룹 재결정 결과 (확정)
+
+- **F1 미성년 개인화 광고 → 18세 미만 차단 유지.** `src/lib/ads/policy.ts:58,95` 그대로.
+  광고 런치 시 TFAT 마이그레이션만 추가.
+- **F2 상시 녹음 → 반려.** 로드맵에서 제외. 재론 금지.
+- **F3 통화녹음 → 파일 업로드 경로로 전환.** Simon: "현재 통화녹음 파일 업로드 할 수 있는
+  상태인데, 정확하고 확실한 퍼포먼스를 낼 수 있도록 보완 작업만 하자."
+  **⚠ 사실 정정: 그 기능은 현재 없다.** `src/app/call-reflection.tsx` 는 `useAudioRecorder` 로
+  **기기 마이크 직접 녹음**(스피커폰)이고, `src/lib/import/file-read.ts` 의 `NATIVE_ACCEPT_MIME`
+  은 텍스트 계열만 받아 오디오 MIME 이 없다. 즉 보완이 아니라 **신설**이다.
+  다만 부품은 있다(`expo-document-picker` 설치됨 · `transcribeAudio` · `recordingUriToBase64`).
+  그리고 이 방식이 현재 마이크 방식보다 **법적으로 안전**하다 — 앱이 녹음하지 않으므로
+  Play 의 서드파티 통화녹음 금지와 무관해진다.
+- **F4 미성년 건강 → 별도 동의 갖추고 전부 수집.** 3종 전제: PIPA 제23조 별도 동의 UI(거부해도
+  앱 사용 가능) + **광고·분석 스택과 물리적 분리**(Apple 5.1.3(i)·Google Health Permissions 가
+  건강데이터의 광고 전용을 금지하고 우리는 성인 광고를 켠다) + 처리방침 §1 개정.
+  Q1 자문 회신이 선행 조건.
+- **F5 미성년 결제 → 열되 보호장치 갖춤.** ⚠ 단 "법정대리인 사전 동의 게이트"를 넣으면
+  Simon 의 "14세 이상 평등" 원칙과 충돌한다. 최소안(카카오 약관 제11조식 **고지**만)이
+  평등 의도와 가장 잘 맞는다. 어느 강도인지 Simon 확인 필요.
+- **F6 EU 연령 → 국가별 표 구현.** ⚠ **선결 조건: 국가 신호가 없다.**
+  `src/lib/auth/consent-age.ts:8-10,43-46` 이 스스로 적어놨다 — "does not yet collect a reliable
+  jurisdiction signal (locale en/ko is not a country)". 후보는 SIM 지역 / IP 지오 / 프로필 필드 /
+  스토어 계정 국가. 이걸 먼저 정해야 표가 의미를 갖는다. GDPR 제8조 국가별 표의 1차 출처가
+  2021년 스냅샷이라 재확인도 필요.
+
+### 외부 조사 근거 (뒤집힌 배경)
+
+- **미성년 개인화 광고**: 한국 *법률*로는 위법이 아니지만 **Google Ads 정책이 18세 미만
+  개인 맞춤 광고를 계약으로 금지**한다(2022-08-15 시행). 위반 결과는 과징금이 아니라
+  계정 정지·수익 몰수. `src/lib/ads/policy.ts:58,95` 의 fail-closed 미성년 차단을
+  **되돌리지 말 것.** 광고 런치 시 deprecated 된 TFUA/TFCD 대신 **TFAT** 을 쓴다.
+- **상시 녹음(화면 꺼도 지속)**: 통비법 제3조 위반 시 제16조 제1항 **1년 이상 10년 이하 징역,
+  벌금형 없음.** 대법원 2020도1538(2024-01-11)이 정확히 같은 구조를 유죄로 봤다.
+  게다가 iOS·Android 모두 **백그라운드에서 녹음을 시작할 수 없어** 구현 자체가 불가능하다.
+  우리 `docs/CALL-RECORDING-SPEC.md:32` 가 이미 "No ambient/mic-spy mode" 로 결론냈다.
+  **제안하지도, 착수하지도 말 것.**
+- **통화녹음**: Android 는 Play 정책상 서드파티 금지(2022-05-11), iOS 는 공개 API 부재.
+  이미 구현된 `src/app/call-reflection.tsx`(통화 직후 회고)가 이 영역의 최종 형태다.
+- **미성년 건강 "전부 수집"**: 삼성 헬스 논거는 성립하지 않는다(삼성도 민감항목은 별도 동의로
+  분리). Apple 5.1.3(i)·Google Health Permissions 가 건강데이터의 광고·분석 전용(轉用)을
+  금지하므로 광고 스택과 물리적 분리가 전제. Strava 는 16세 미만에게 심박 항목 자체를 끈다.
+
+### 지금 실제로 뚫려 있는 구멍 2건 (개방 결정과 무관하게 시정)
+
+- `src/lib/billing/`·페이월에 **`isMinor` 게이트가 없다.** 미성년이 지금 결제 가능하고,
+  민법 제5조 취소권은 제146조상 **최장 8년** 남는다(만 14세 결제 기준).
+- `src/lib/auth/consent-age.ts:55 resolveJurisdiction()` 이 **항상 "KR" 을 반환**해
+  `DIGITAL_CONSENT_AGE` 의 EU=16 값이 프로덕션에서 한 번도 쓰이지 않는다.
+  배포를 넓게 유지하기로 했으므로 EU 16세국의 14~15세가 무효 동의로 가입 가능한 상태다.
+
+### 여전히 미결 (건드리지 말 것)
+
+미성년 건강 OS 연동 · 통신/위치 임포트 · 커뮤니티 채팅 · Clarity · 미성년 결제 ·
+EU 최소 가입연령 상향. 확정 전까지 해당 게이트(prefs 클램프, RLS, `reject_minor_*` 트리거,
+커뮤니티 성인 한정)를 **임의로 풀지 말 것.** Simon 은 "L1 고정 같은 회피책"을 명시 거부했으므로
+그 방향 제안도 금지.
 
 ## QA test account — AI agents: sign in and test freely
 
@@ -35,13 +267,13 @@ before any concept, IA, or visual decision. Canonical model = **3-layer 별자�
 stars (커리어·재정·성장·관계·건강·휴식·담아내기 = input; 담아내기 is a DATA domain that is
 NOT drawn on home, so the home constellation shows 6 domains + 뮤지엄), B) the psychological constructs in
 `stars.ts` (the hidden validation layer behind the output — NOT home stars), C) 북극성 (Polaris)
-= the aggregate output / persona synthesis (drop the "Soul Core" name) + the L1~L5 brightness
+= the aggregate output / persona synthesis (drop the "Soul Core" name; **the ROUTE is `/core-brain` and it is LIVE** — the file's own header says "user-facing name is 북극성", home's Polaris tap and the deep-space `lens` dock slot both point at it. Only the *name* Core Brain / Soul Core is legacy, never the screen) + the L1~L5 brightness
 ladder + propose->ratify.
 
 **LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
 *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
 Core" name, the 5 Pattern Core layer + Pattern Tesseract, the village graph `/graph` +
-`/core-brain` + `/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
+`/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
 and the old 4-tier Visual Tier node-names** (Soul Core 128px / Pattern Core x5 / snowflake /
 crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded concept docs remain in git history.
 
@@ -51,18 +283,18 @@ Never weaken these. They're enforced at code/schema/CI level:
 
 | ID | Rule |
 |---|---|
-| C1 | All LLM calls through `src/lib/llm/gemini.ts`. ESLint blocks other LLM SDKs. |
-| C2 | `@google/genai` with `vertexai: true` when `EXPO_PUBLIC_USE_VERTEX=true`. |
+| C1 | All LLM calls go through **one boundary module** (`src/lib/llm/gemini.ts`); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
+| C2 | ~~`@google/genai` with `vertexai: true`~~ **대회 잔재. 요건 아님.** Vertex 분기는 코드에 남아 있고 CI가 존재만 확인한다. 새 기능의 근거로 인용 금지. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
 | C5 | `testimonials.consent_given_at NOT NULL`. |
-| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. |
+| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. **(대회 잔재: 코드·CI 에서는 계속 유효하니 깨뜨리지 말 것. 단 새 기능의 근거로 인용 금지 — 위 XPRIZE 블록 참조.)** |
 | C7 | i18n EN ↔ KO key parity. EN is canonical. |
 | C8 | `knowledge_sources` requires DOI/URL + verification pair. |
 | C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
 | C10 | Age-tiered sign-up: 14-17 self-consent minors and adult users register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
 | C11 | Support SLA = 2 business days (KST). |
-| C12 | README "Pre-existing assets used" section per rulebook §04. |
+| C12 | README "Pre-existing assets used" section per rulebook §04. **(대회 잔재: 위 C6 과 동일 취급.)** |
 
 When uncertain whether a change weakens a constraint, run `npm run check:constraints`.
 
@@ -164,7 +396,12 @@ The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
 | A (입력) | 북두칠성 7 별 | baseline magnitude × domain L1~L5 | The 7 stars actually drawn on home = 6 life domains (커리어·재정·관계·성장·건강·휴식) + **뮤지엄**. Brighter as the domain fills. 뮤지엄 is a curated surface pinned at L4, not a data domain |
 | link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
 
-(Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind
+> **⚠ Layer B 는 2026-08-15 재정의됐다. 아래 설명은 구버전이다.** `stars.ts` 의 심리 구인 7개는
+> 폐기 대상이고, Layer B 는 **렌즈**로 바뀐다. 개수는 2026-08-16 G3 에서 7 로 선택됐으나
+> 관문과의 긴장이 미해소다 — 아래 "렌즈층 재정의" 절을 반드시 읽을 것.
+> Layer A(북두칠성 7별)와 Layer C(북극성)는 **그대로**다.
+
+(구버전 설명: Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind
 북극성 — NOT rendered as stars.)
 
 **Rules:**

@@ -342,6 +342,18 @@ export function DeepSpacePlansScreen() {
         </View>
       </MdCard>
 
+      {/* 민법 제5조 고지. Simon 결정 2026-08-16 (G1): disclose, do not block —
+          a minor's purchase is cancellable whether or not we say so, so a gate
+          would remove their access without removing our exposure. Placed above
+          the tier cards so it is read BEFORE the contract, which is what
+          "계약 체결 전 고지" means. isMinor === true only: null (unknown age)
+          must not accuse an adult of being a minor. */}
+      {isMinor === true ? (
+        <MdCard variant="outlined" style={s.minorNotice}>
+          <Text style={s.minorNoticeText}>{t("ds.plans.minorPurchaseNotice")}</Text>
+        </MdCard>
+      ) : null}
+
       {/* tier cards */}
       <View style={s.tierList}>
         {tiers.map((tr) => {
@@ -497,6 +509,8 @@ const s = StyleSheet.create({
   honestyRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   honestyText: { flex: 1, fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onTertiaryContainer },
   honestyStrong: { fontWeight: "700", color: m3.color.onTertiaryContainer },
+  minorNotice: { padding: 14, borderWidth: 1, borderColor: m3.color.outline },
+  minorNoticeText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
   tierList: { gap: m3.spacing.s3 },
   tierCard: { padding: m3.spacing.s4, gap: 6, borderWidth: 1, borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainerLow },
   tierCardCurrent: { borderWidth: 2, borderColor: m3.color.primary, backgroundColor: m3.color.surfaceContainer },

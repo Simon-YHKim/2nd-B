@@ -141,6 +141,22 @@ export const HOTLINES = {
   // (14-17) alongside 109.
   KR_1388: { number: "1388", label: "청소년상담전화" },
   GLOBAL_988: { number: "988", label: "Suicide & Crisis Lifeline (US)" },
+
+  // Added 2026-08-16 (Simon, L2) for the always-on help directory, NOT for
+  // classifier routing. These cover harms the crisis lexicon does not detect and
+  // deliberately never will on its own: the Korean matcher has no word
+  // boundaries, so the terms that would reach these numbers ("많이 맞",
+  // "집에 가기가 무서") also reach "해풍 맞고 자란 시금치" and "성적표 나오는 날이라
+  // 집에 가기가 무서워". A static list a user opens on purpose has a false
+  // positive rate of zero, which is the only rate that is safe here.
+  //
+  // crisisHotlines() must not select these. It routes the suicide/self-harm lane
+  // only, and putting a police number on that lane tells someone reaching out
+  // for a conversation that they are a case.
+  KR_117: { number: "117", label: "학교폭력 신고상담" },
+  KR_1366: { number: "1366", label: "여성긴급전화" },
+  KR_119: { number: "119", label: "119 구급" },
+  KR_112: { number: "112", label: "112 경찰" },
 } as const;
 
 export type HotlineId = keyof typeof HOTLINES;

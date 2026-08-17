@@ -32,7 +32,6 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
-import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callGemini } from "@/lib/llm/gemini";
@@ -610,9 +609,11 @@ export function LensView({
         </View>
       ) : (
         <View>
+          {/* No level chip here. It rendered a constant string from the locale
+              file, so every account saw the same tier whether or not anything
+              had been measured. Bind a real level or show nothing. */}
           <View style={styles.filledHead}>
             <Text style={styles.pixelTitle}>{t("ds.lens.filledTitle")}</Text>
-            <Text style={styles.level}>{t("ds.lens.level")}</Text>
           </View>
           <View style={styles.traits}>
             <TraitBar label={t("ds.lens.traitOpenness")} value={shown.openness} />
@@ -620,9 +621,6 @@ export function LensView({
             <TraitBar label={t("ds.lens.traitExtraversion")} value={shown.extraversion} up={demo} />
             <TraitBar label={t("ds.lens.traitAgreeableness")} value={shown.agreeableness} />
             <TraitBar label={t("ds.lens.traitNeuroticism")} value={shown.neuroticism} />
-          </View>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightText}>{t("ds.lens.insight")}</Text>
           </View>
         </View>
       )}
@@ -738,11 +736,11 @@ export function BigFiveLensM3({
   return (
     <ScrollView contentContainerStyle={styles.bfBody}>
       <View style={styles.bfHeadRow}>
+        {/* The level chip and the confidence percent were locale constants, not
+            measurements — every account read "L4 / 64%" on an empty profile.
+            Removed rather than rebound: the real level belongs to the lens
+            rework, and a wrong number is worse than no number. */}
         <Text style={[m3TextStyle("headlineSmall"), styles.bfHeadline]}>{t("ds.lens.headline")}</Text>
-        <View style={styles.bfLevelChip}>
-          <Text style={[m3TextStyle("labelSmall"), styles.bfLevelChipText]}>{t("ds.lens.level")}</Text>
-        </View>
-        <Text style={[m3TextStyle("labelSmall"), styles.bfConfidence]}>{t("ds.lens.confidence")}</Text>
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.bfSubtitle]}>{t("ds.lens.subtitle")}</Text>
 
@@ -879,10 +877,8 @@ export function AttachmentLensM3({
   return (
     <ScrollView contentContainerStyle={styles.bfBody}>
       <View style={styles.bfHeadRow}>
+        {/* Same constant-level problem as the Big Five head. Chip removed. */}
         <Text style={[m3TextStyle("headlineSmall"), styles.bfHeadline]}>{t("ds.attachment.headline")}</Text>
-        <View style={styles.atLevelChip}>
-          <Text style={[m3TextStyle("labelSmall"), styles.atLevelChipText]}>{t("ds.attachment.level")}</Text>
-        </View>
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.bfSubtitle]}>{t("ds.attachment.subtitle")}</Text>
 
@@ -926,13 +922,10 @@ export function AttachmentLensM3({
         </View>
       </MdCard>
 
-      {/* 세컨비 insight — a single plain card (head + one message), matching the
-          capture exactly: no confidence pill, evidence link, or ratify buttons
-          on this screen. Detail lives behind the deeper ratify/interview flows. */}
-      <View style={styles.atInsightCard}>
-        <SecondbHead size={30} track={false} />
-        <Text style={[m3TextStyle("bodyMedium"), styles.atInsightText]}>{t("ds.attachment.insight")}</Text>
-      </View>
+      {/* The 세컨비 insight card is gone with its string. It was a locale
+          constant that cited evidence the account did not have ("최근 관계 기록
+          12건이 이 추정을 받쳐요"), which is a fabricated citation shown to
+          everyone. It comes back when a real per-user line exists to put here. */}
 
       <View style={styles.bfActions}>
         <MdButton

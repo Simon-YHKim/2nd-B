@@ -1,8 +1,8 @@
 {
-  "loading": "루틴을 여는 중이에요…",
+  "loading": "루틴을 여는 중입니다…",
   "hero": {
     "title": "루틴",
-    "subtitle": "한 영역만 골라요. 구체적인 다음 걸음을 받아요."
+    "subtitle": "한 영역만 고르세요. 구체적인 다음 걸음을 받습니다."
   },
   "groups": {
     "body": "몸",
@@ -35,14 +35,14 @@
     "stateAvailable": "선택 가능"
   },
   "recommend": {
-    "off": "이 계정에서는 루틴 제안이 꺼져 있어, 저장한 기록이 비공개로 유지돼요.",
+    "off": "이 계정에서는 루틴 제안이 꺼져 있어서, 저장한 기록이 비공개로 유지됩니다.",
     "cta": "다음 걸음 제안받기",
     "ctaHint": "저장한 별가루를 읽고 제안 몇 가지를 만듭니다.",
-    "working": "제안을 정리하는 중이에요…",
-    "empty": "쓸 만한 제안이 나오지 않았어요. 다시 시도하거나 다른 영역을 골라보세요.",
-    "error": "제안 만들기가 끝나지 못했어요. 별가루는 안전해요. 다시 시도해 보세요.",
-    "limit": "오늘의 무료 제안을 모두 썼어요. 내일 다시 채워져요.",
-    "disclaimerBody": "전문 조언이 아닌 아이디어와 계획이에요."
+    "working": "제안을 정리하는 중입니다…",
+    "empty": "쓸 만한 제안이 나오지 않았습니다. 다시 시도하거나 다른 영역을 골라보세요.",
+    "error": "제안 만들기를 끝내지 못했습니다. 별가루는 안전합니다. 다시 시도해 보세요.",
+    "limit": "오늘의 무료 제안을 모두 썼습니다. 내일 다시 채워집니다.",
+    "disclaimerBody": "전문 조언이 아닌 아이디어와 계획입니다."
   },
   "card": {
     "durationLabel": "{{minutes}}분",
@@ -69,15 +69,15 @@
   },
   "consent": {
     "title": "내 앱으로 보낼까요?",
-    "body": "승인한 항목을 캘린더나 공유 시트로 보내요. 이번 한 번만 묻고 계속 허용하며, 프라이버시 설정에서 언제든 끌 수 있어요.",
+    "body": "승인한 항목을 캘린더나 공유 시트로 보냅니다. 이번 한 번만 묻고 계속 허용하며, 프라이버시 설정에서 언제든 끌 수 있습니다.",
     "agree": "허용하고 계속",
     "agreeHint": "선택을 저장하고 이번 푸시를 실행합니다.",
     "later": "다음에",
-    "laterHint": "보내지 않고 닫습니다. 항목은 화면에 남아요."
+    "laterHint": "보내지 않고 닫습니다. 항목은 화면에 남습니다."
   },
   "today": {
     "heading": "오늘의 루틴",
-    "empty": "오늘 할 루틴이 없어요. 아래에서 걸음을 저장해 시작해요.",
+    "empty": "오늘 할 루틴이 없습니다. 아래에서 걸음을 저장해 시작하세요.",
     "completeA11y": "{{title}} 오늘 완료로 표시",
     "doneA11y": "{{title}} 오늘 완료",
     "streak": "{{count}}일 연속"
@@ -86,7 +86,7 @@
     "ringCount": "{{done}} / {{total}} 완료",
     "streakLabel": "일 연속",
     "patternsTitle": "이번 주 패턴 분석",
-    "patternsSub": "분석은 백그라운드로 돌아요. 계속 써도 돼요.",
+    "patternsSub": "분석은 백그라운드로 돕니다. 계속 써도 됩니다.",
     "patternsRun": "돌리기",
     "takeEyebrow": "오늘의 종합 의견",
     "toolsLabel": "비서 도구"
@@ -118,24 +118,24 @@
     }
   },
   "states": {
-    "emptyDomain": "위에서 영역을 골라 시작해요."
+    "emptyDomain": "위에서 영역을 골라 시작하세요."
   },
   "push": {
-    "savedNote": "캘린더로 보냈어요.",
-    "deniedNote": "캘린더 권한이 꺼져 있어요. 기기 설정에서 허용하면 쓸 수 있어요.",
-    "reminderSetNote": "이 기기에 리마인더를 설정했어요.",
-    "reminderDeniedNote": "알림 권한이 꺼져 있어요. 기기 설정에서 허용하면 리마인더를 쓸 수 있어요.",
-    "reminderFailedNote": "리마인더를 설정하지 못했어요. 항목의 시간을 확인하고 다시 시도해 보세요.",
-    "reminderUnavailableNote": "저장했어요. 리마인더는 설치된 앱에서만 울려서 여기서는 알림이 오지 않아요."
+    "savedNote": "캘린더로 보냈습니다.",
+    "deniedNote": "캘린더 권한이 꺼져 있습니다. 기기 설정에서 허용하면 쓸 수 있습니다.",
+    "reminderSetNote": "이 기기에 리마인더를 설정했습니다.",
+    "reminderDeniedNote": "알림 권한이 꺼져 있습니다. 기기 설정에서 허용하면 리마인더를 쓸 수 있습니다.",
+    "reminderFailedNote": "리마인더를 설정하지 못했습니다. 항목의 시간을 확인하고 다시 시도해 보세요.",
+    "reminderUnavailableNote": "저장했습니다. 리마인더는 설치된 앱에서만 울려서 여기서는 알림이 오지 않습니다."
   },
   "health": {
     "autoCompleted": "활동에서 자동 체크됨",
-    "autoCompletedHint": "기록한 운동 또는 목표를 넘긴 걸음 수로 자동 체크되었어요."
+    "autoCompletedHint": "기록한 운동 또는 목표를 넘긴 걸음 수로 자동 체크되었습니다."
   },
   "focus": {
     "title": "일일 집중",
-    "status": "집중 세션을 한 번 진행해요.",
-    "tip": "집중 블록을 끝내면 오늘의 집중 루틴이 자동으로 체크돼요.",
+    "status": "집중 세션을 한 번 진행하세요.",
+    "tip": "집중 블록을 끝내면 오늘의 집중 루틴이 자동으로 체크됩니다.",
     "phaseIdle": "준비",
     "phaseFocus": "집중",
     "phaseBreak": "휴식",
@@ -144,17 +144,17 @@
     "reset": "초기화",
     "doneToday": "오늘 끝낸 집중 세션: {{count}}",
     "alarmFocusTitle": "집중 블록 완료",
-    "alarmFocusBody": "잘했어요. 잠깐 쉬어요.",
-    "alarmFocusBodyStar": "잘했어요. {{star}} 별에 집중 1회를 담았어요.",
+    "alarmFocusBody": "잘했습니다. 잠깐 쉬어 갈 시간입니다.",
+    "alarmFocusBodyStar": "잘했습니다. {{star}} 별에 집중 1회를 담았습니다.",
     "alarmBreakTitle": "휴식 끝",
-    "alarmBreakBody": "다음 집중 블록으로 돌아가요.",
-    "subIdle": "시작할 준비가 됐어요",
-    "subFocus": "집중하고 있어요",
-    "subBreak": "잠시 쉬어가요",
+    "alarmBreakBody": "다음 집중 블록으로 돌아갑니다.",
+    "subIdle": "시작할 준비가 됐습니다",
+    "subFocus": "집중하고 있습니다",
+    "subBreak": "잠시 쉬어갑니다",
     "eyebrowFocus": "집중",
     "eyebrowBreak": "휴식",
     "completeTitle": "집중 완료",
-    "completeBody": "{{minutes}}분을 온전히 모았어요",
+    "completeBody": "{{minutes}}분을 온전히 모았습니다",
     "btnBreak": "휴식하기",
     "btnAgain": "한 번 더",
     "skip": "건너뛰기",
@@ -172,7 +172,7 @@
     "ringReady": "준비됨",
     "ringFocusing": "집중 중",
     "ringPaused": "일시정지",
-    "leadPre": "한 가지에만 집중하는 시간이에요. 끝나면 ",
+    "leadPre": "한 가지에만 집중하는 시간입니다. 끝나면 ",
     "leadStar": "{{star}} 별",
     "leadPost": "에 한 걸음.",
     "preset": "{{min}}분",
@@ -192,8 +192,8 @@
   },
   "srs": {
     "title": "언어 복습",
-    "status": "오늘의 카드를 정리해요.",
-    "tip": "오늘 복습할 카드를 모두 끝내면 언어 루틴이 자동으로 체크돼요.",
+    "status": "오늘의 카드를 정리하세요.",
+    "tip": "오늘 복습할 카드를 모두 끝내면 언어 루틴이 자동으로 체크됩니다.",
     "frontLabel": "앞면",
     "backLabel": "뒷면",
     "frontPlaceholder": "단어나 질문",
@@ -205,8 +205,8 @@
     "good": "좋음",
     "easy": "쉬움",
     "remaining": "오늘 남은 카드: {{count}}",
-    "cleared": "모두 끝냈어요. 잘했어요.",
-    "loading": "카드를 불러오는 중이에요…",
+    "cleared": "모두 끝냈습니다. 잘했습니다.",
+    "loading": "카드를 불러오는 중입니다…",
     "addCard": "카드 추가",
     "addTitle": "카드 추가",
     "save": "저장",

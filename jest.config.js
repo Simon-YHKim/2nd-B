@@ -9,6 +9,13 @@ module.exports = {
     "\\.(ttf|otf|woff|woff2|png|jpe?g|gif|svg|webp)$": "<rootDir>/__mocks__/fileMock.js",
     // expo-crypto ships ESM that ts-jest doesn't transform; map to a node-crypto mock.
     "^expo-crypto$": "<rootDir>/__mocks__/expo-crypto.js",
+    // expo-localization, same reason. Defaults to a region-less locale so the
+    // "platform reported no country" branch is what tests hit unless they say
+    // otherwise — that is the branch the age gate must never get wrong.
+    "^expo-localization$": "<rootDir>/__mocks__/expo-localization.js",
+    // expo-document-picker, same reason. The picker itself is never exercised in
+    // node; capture-file's MIME + size rules around it are.
+    "^expo-document-picker$": "<rootDir>/__mocks__/expo-document-picker.js",
   },
   testMatch: ["**/__tests__/**/*.test.ts"],
   // Nested git worktrees live in .worktrees/<branch> (full repo copies). Never

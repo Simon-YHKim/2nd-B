@@ -104,7 +104,7 @@ function PrivacyLegacy() {
       // an external_analytics opt-out applies immediately, and no stale completion
       // re-enables analytics. Each save sends the latest prefsRef at exec time.
       saveQueue.submit({
-        save: () => savePrivacyPrefs(userId, prefsRef.current),
+        save: () => savePrivacyPrefs(userId, prefsRef.current, { locale }),
         optOut: key === "external_analytics" && next === false,
         onError: () => {
           // Revert only this key off the latest state and tell the user, so a

@@ -30,5 +30,17 @@
       "question": "Apakah AI-nya aman?",
       "answer": "AI membantu mengorganisir dan menghubungkan catatanmu. Keputusan penting tetap ada di tanganmu."
     }
-  ]
+  ],
+  "help": {
+    "title": "Tempat kamu bisa mendapat bantuan",
+    "lead": "Apa pun itu, kamu tidak harus menanggungnya sendiri. Nomor-nomor ini ada kapan pun kamu perlu.",
+    "when1388": "Untuk apa pun yang mengganggumu, jika kamu remaja",
+    "when109": "Saat kamu merasa ingin melepaskan hidup",
+    "when117": "Saat ada hal berat di sekolah",
+    "when1366": "Setelah kekerasan seksual atau dalam rumah tangga",
+    "when119": "Saat tubuhmu dalam bahaya sekarang",
+    "when112": "Saat seseorang sedang mengancammu sekarang",
+    "callHint": "Ketuk untuk menelepon",
+    "foot": "Daftar ini selalu ada di sini. Aplikasi tidak membaca tulisanmu lalu memutuskan menampilkannya; ini ada agar kamu bisa datang mencarinya. Aplikasi tidak melapor atas namamu dan tidak memberi tahu wali."
+  }
 }
