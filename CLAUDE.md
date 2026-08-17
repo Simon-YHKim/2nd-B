@@ -22,6 +22,55 @@ Project-specific guidance for Claude Code sessions in this repo.
 > `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `gemini.ts`/`routing.ts`
 > 주석)는 **아직 제거되지 않았다.** 동작 중인 코드이므로 임의로 걷어내지 말고, 제거는 별도
 > 작업으로 Simon 과 합의해서 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
+> ### 제품 의도 (Simon 직접 진술, 2026-08-17) — 새 세션은 이걸 먼저 읽을 것
+>
+> **"사용자와 소통해서 깊게 파악하고, 그를 기반으로 심리상담(친구 같은)·개인 비서 역할을 하게 하는 것."**
+>
+> 구조는 네 덩어리다. 이 밖의 층을 새로 발명하지 말 것:
+>
+> 1. **북두칠성 7별 = 입력** — 사용자가 자기 이야기를 카테고리별로 넣는 자리.
+> 2. **북극성 = 그 요약(페르소나)** — 입력이 모여 만들어지는 "이 사람은 이런 사람".
+> 3. **개인 비서 화면 = 활용** — 그 페르소나를 근거로 실제로 도와주는 자리(`/ops` 계열).
+> 4. **커뮤니티·채팅 = 공유** — 그 내용을 남과 나누는 자리.
+>
+> **지금 끊어져 있는 곳(2026-08-17 실측):** `buildPersona()`(`src/lib/persona/build.ts`)가
+> 북극성 페르소나를 합성하는데 **`/core-brain` 화면 하나에서만 소비된다.**
+> 대화(`src/lib/chat/conversation.ts`)는 기록·위키·RAG만 읽고 **페르소나를 안 읽는다.**
+> 비서(`src/lib/ops/recommend.ts`)도 **안 읽는다.** 그래서 아무리 입력해도 세컨비가
+> 나를 더 아는 것처럼 굴지 못한다. **이게 이 제품의 1순위 결함이다.**
+>
+> **"렌즈층"에 시간을 쓰기 전에 위 배선을 먼저 이을 것.** 렌즈 개수(3이냐 7이냐) 논쟁은
+> 이 배선이 없으면 무의미하다 — 세컨비가 결정을 내리는 자리가 `/ops` 루틴 추천밖에 없어서
+> "결정 필드"를 세면 전부 일정 손잡이만 나온다. 그건 설계가 아니라 증상이다.
+>
+> **"심리상담"은 단어만 금지고 기능은 금지가 아니다.** `scripts/check-forbidden-lexicon.ts`가
+> 임상 용어를 막는 건 임상 서비스라고 **주장**하지 않기 위해서다. 친구처럼 깊게 듣고 파악하는
+> **기능 자체는 제약 없음.** UI 문자열에 그 단어를 안 쓰면 된다.
+
+> ### 제미나이는 더 이상 요건이 아니다 (Simon 결정, 2026-08-17)
+>
+> "Build with Gemini"는 XPRIZE 잔재다. **이 앱은 이미 멀티벤더고, 주력은 Gemini가 아니다.**
+> `src/lib/llm/routing.ts` 실측:
+>
+> - `LlmVendor = "gemini" | "claude" | "openai"`, 프록시 3종 배포·키 완료.
+> - **추론 좌석 9개가 전부 OpenAI(gpt-5.4)로 나가 있다** (`PHASE2_VENDOR`, 2026-07-06 전환).
+> - `EXPO_PUBLIC_LLM_VENDOR` 하나로 전 좌석 벤더 교체 가능. 어느 벤더가 처리했는지는
+>   `ai_audit_log.reasoning_vendor`(0095)에 남는다.
+>
+> **아직 Gemini에 묶인 자리는 셋뿐이고, 이유가 각각 다르다:**
+>
+> | 자리 | 왜 아직 Gemini인가 |
+> |---|---|
+> | `secondb_chat` (세컨비 대화) | claude-proxy 스트리밍 미구현. 블로킹 대화 화면이라 비스트리밍 홉을 못 씀 |
+> | 이미지 OCR | gemini-proxy만 image inline-data를 전달한다(다른 프록시는 텍스트 전용) |
+> | `capture_voice` (오디오 전사) | 같은 이유 — 오디오를 싣는 프록시가 gemini-proxy뿐 |
+>
+> **하지 말 것:** `src/lib/llm/gemini.ts`를 지우거나 우회하지 말 것. 그건 벤더 모듈이 아니라
+> **C1 단일 경계 모듈**이다(C3 감사·C9 안전 분류가 전부 여기 걸려 있다). 이름이 gemini.ts일
+> 뿐이고, 벤더 선택은 `routing.ts`가 한다. 지우면 OCR·음성이 죽고 감사 원장에 구멍이 난다.
+>
+> **인용 금지:** "우리는 Gemini 앱이다", "C2가 Vertex를 요구한다", "Gemini로 해야 한다".
+
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
 - **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
   Expo static export to the `gh-pages` branch; live at <https://simon-yhkim.github.io/2nd-B/>, and
@@ -176,13 +225,13 @@ before any concept, IA, or visual decision. Canonical model = **3-layer 별자�
 stars (커리어·재정·성장·관계·건강·휴식·담아내기 = input; 담아내기 is a DATA domain that is
 NOT drawn on home, so the home constellation shows 6 domains + 뮤지엄), B) the psychological constructs in
 `stars.ts` (the hidden validation layer behind the output — NOT home stars), C) 북극성 (Polaris)
-= the aggregate output / persona synthesis (drop the "Soul Core" name) + the L1~L5 brightness
+= the aggregate output / persona synthesis (drop the "Soul Core" name; **the ROUTE is `/core-brain` and it is LIVE** — the file's own header says "user-facing name is 북극성", home's Polaris tap and the deep-space `lens` dock slot both point at it. Only the *name* Core Brain / Soul Core is legacy, never the screen) + the L1~L5 brightness
 ladder + propose->ratify.
 
 **LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
 *Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul
 Core" name, the 5 Pattern Core layer + Pattern Tesseract, the village graph `/graph` +
-`/core-brain` + `/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
+`/trinity`, the v3 tesseract art, the character voices (아치/가디/루루/모모/루미),
 and the old 4-tier Visual Tier node-names** (Soul Core 128px / Pattern Core x5 / snowflake /
 crystal). Preserved behind `EXPO_PUBLIC_UI=legacy`; superseded concept docs remain in git history.
 
@@ -192,8 +241,8 @@ Never weaken these. They're enforced at code/schema/CI level:
 
 | ID | Rule |
 |---|---|
-| C1 | All LLM calls through `src/lib/llm/gemini.ts`. ESLint blocks other LLM SDKs. |
-| C2 | `@google/genai` with `vertexai: true` when `EXPO_PUBLIC_USE_VERTEX=true`. |
+| C1 | All LLM calls go through **one boundary module** (`src/lib/llm/gemini.ts`); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
+| C2 | ~~`@google/genai` with `vertexai: true`~~ **대회 잔재. 요건 아님.** Vertex 분기는 코드에 남아 있고 CI가 존재만 확인한다. 새 기능의 근거로 인용 금지. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
 | C5 | `testimonials.consent_given_at NOT NULL`. |
