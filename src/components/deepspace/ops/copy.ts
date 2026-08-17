@@ -38,6 +38,24 @@ export interface OpsCopy {
   toolFocus: string;
   toolSrs: string;
   toolReminders: string;
+  /** 오늘의 두 가지 (D6). 고른 카드와, 자리가 남았을 때의 '다음 걸음'. */
+  todayTitle: string;
+  todayHint: string;
+  todayNothing: string;
+  todayNothingHint: string;
+  todayNext: string;
+  pickRoutine: string;
+  pickMilestone: string;
+  pickReading: string;
+  pickMeals: string;
+  pickRecords: string;
+  pickEsm: string;
+  pickRoutineNext: string;
+  pickMilestoneNext: string;
+  pickReadingNext: string;
+  pickMealsNext: string;
+  pickRecordsNext: string;
+  pickEsmNext: string;
   retry: string;
   // push sheet (B)
   whereToSend: string;
@@ -170,6 +188,23 @@ const en: OpsCopy = {
   toolFocus: "Focus timer",
   toolSrs: "Language review",
   toolReminders: "Reminders",
+  todayTitle: "Today, two things",
+  todayHint: "Chosen from what you actually have on file.",
+  todayNothing: "Nothing to show yet",
+  todayNothingHint: "This stays empty on purpose. Nothing here is filled with sample data.",
+  todayNext: "Next step",
+  pickRoutine: "Routines due today",
+  pickMilestone: "Goals in progress",
+  pickReading: "What you are reading",
+  pickMeals: "This week's meals",
+  pickRecords: "Recent entries",
+  pickEsm: "How you have been feeling",
+  pickRoutineNext: "Accept one suggestion to start a routine.",
+  pickMilestoneNext: "Set a goal to track progress here.",
+  pickReadingNext: "Add a book to see it here.",
+  pickMealsNext: "Plan a week of meals to see it here.",
+  pickRecordsNext: "Save something and it shows up here.",
+  pickEsmNext: "Answer a check-in to see the pattern.",
   retry: "Try again",
   whereToSend: "Where should this routine go?",
   consentOnce: "Just once. Allow calendar access.",
@@ -286,6 +321,23 @@ const ko: OpsCopy = {
   toolFocus: "집중 타이머",
   toolSrs: "어학 복습",
   toolReminders: "리마인더",
+  todayTitle: "오늘의 두 가지",
+  todayHint: "실제로 쌓인 것 중에서 골랐습니다.",
+  todayNothing: "아직 보여드릴 게 없습니다",
+  todayNothingHint: "일부러 비워 둡니다. 여기를 예시 데이터로 채우지 않습니다.",
+  todayNext: "다음 걸음",
+  pickRoutine: "오늘 걸린 루틴",
+  pickMilestone: "진행 중인 목표",
+  pickReading: "읽던 책",
+  pickMeals: "이번 주 식단",
+  pickRecords: "최근 기록",
+  pickEsm: "요즘 컨디션",
+  pickRoutineNext: "제안 하나를 받아들이면 루틴이 시작됩니다.",
+  pickMilestoneNext: "목표를 정하면 진행이 여기 보입니다.",
+  pickReadingNext: "책을 담으면 여기 보입니다.",
+  pickMealsNext: "한 주 식단을 짜면 여기 보입니다.",
+  pickRecordsNext: "무언가 담으면 여기 나타납니다.",
+  pickEsmNext: "체크인에 답하면 흐름이 보입니다.",
   retry: "다시 시도",
   whereToSend: "이 루틴을 어디로 보낼까요?",
   consentOnce: "처음 한 번만. 캘린더 접근을 허용할게요.",

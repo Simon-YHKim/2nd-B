@@ -38,8 +38,20 @@ describe("비서 허브 ↔ 도구 배선", () => {
 
   it("도구 목록과 실제 링크 수가 같다", () => {
     // 목록에 추가해 놓고 렌더를 빼먹는 실수를 잡는다.
-    const listed = HUB.match(/route: "\/[a-z-]+"/g) ?? [];
+    //
+    // ⚠ 파일 전체에서 `route:` 를 세면 안 된다. 오늘의 두 가지(PICK_LABEL)가
+    // 같은 모양의 키를 쓰기 때문에 그렇게 세면 14가 나온다 - 실제로 그렇게
+    // 깨뜨려 봤다. OPS_TOOLS 배열 안만 본다.
+    const block = HUB.slice(HUB.indexOf("const OPS_TOOLS"));
+    const listed = block.slice(0, block.indexOf("];")).match(/route: "\/[a-z-]+"/g) ?? [];
     expect(listed).toHaveLength(TOOLS.length);
+  });
+
+  it("오늘의 두 가지가 여섯 후보를 전부 어딘가로 보낸다", () => {
+    // 카드를 눌렀는데 갈 곳이 없으면 그건 카드가 아니라 장식이다.
+    const block = HUB.slice(HUB.indexOf("const PICK_LABEL"));
+    const routes = block.slice(0, block.indexOf("};")).match(/route: "\/[a-z-]+"/g) ?? [];
+    expect(routes).toHaveLength(6);
   });
 
   it("도구 격자가 실제로 렌더된다", () => {

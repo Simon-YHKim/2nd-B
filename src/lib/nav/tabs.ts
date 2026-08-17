@@ -85,6 +85,9 @@ export const DEEP_SPACE_DOCK_PATHS = [
   // 성과 입력 (sb-careerinput) — the seven-section achievement form the timeline
   // pushes to. Same rule as its parent: dock is the nav, no floating chip.
   "/career-input",
+  // 내 생활 정보 (D2, 2026-08-18) — 프로필 별을 채우는 폼. /profile 메뉴에서
+  // 들어간다. 부모와 같은 규칙: dock 이 내비게이션이고 떠 있는 칩은 없다.
+  "/profile-details",
   // 축 체크 3종 (P3b) — thin routes over AxisCheckScreen, so the drift guard's
   // direct-render scan doesn't see them; registered by hand like /museum.
   "/values",

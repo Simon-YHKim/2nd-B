@@ -39,6 +39,8 @@ import {
   type OpsGroupId,
 } from "@/lib/ops/domains";
 import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend";
+import { loadPickCandidates } from "@/lib/ops/load-picks";
+import { pickToday, type PickId } from "@/lib/ops/today-picks";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
@@ -198,6 +200,73 @@ const OPS_TOOLS: readonly { route: string; key: keyof OpsCopy }[] = [
   { route: "/reminders", key: "toolReminders" },
 ];
 
+// --- (1a) 오늘의 두 가지 -------------------------------------------------
+//
+// cowork 개인 대시보드의 원리를 이 앱에 맞춰 재구성한 자리(Simon D6):
+// 접근할 수 있는 것을 살펴보고 → **두 개만** 고르고 → 지금 실제 데이터로 보이고
+// → 빈 자리는 **가짜로 채우지 않는다**.
+//
+// 마지막 항목이 원본과 다르다. 원본은 "샘플로 채운 것은 표시하라" 였는데 여기서는
+// 아예 넣지 않고 "무엇을 하면 채워지는지" 만 말한다 - 정직한 밝기 규칙이 그렇게
+// 요구한다. 자세한 근거는 lib/ops/today-picks.ts 헤더.
+const PICK_LABEL: Readonly<Record<PickId, { title: keyof OpsCopy; next: keyof OpsCopy; route: string }>> = {
+  routine: { title: "pickRoutine", next: "pickRoutineNext", route: "/reminders" },
+  milestone: { title: "pickMilestone", next: "pickMilestoneNext", route: "/milestones" },
+  reading: { title: "pickReading", next: "pickReadingNext", route: "/reading" },
+  meals: { title: "pickMeals", next: "pickMealsNext", route: "/meals" },
+  records: { title: "pickRecords", next: "pickRecordsNext", route: "/records" },
+  esm: { title: "pickEsm", next: "pickEsmNext", route: "/esm" },
+};
+
+function OpsTodayPicks({ userId }: { userId: string | null }) {
+  const c = useOpsCopy();
+  const picks = useAsync(async () => {
+    if (!userId) return null;
+    const candidates = await loadPickCandidates(userId);
+    return pickToday(candidates, Date.now());
+  }, [userId]);
+
+  // 로딩 중에는 자리만 비워 둔다. 스켈레톤으로 카드 모양을 그리면 잠깐이라도
+  // "무언가 있다" 로 읽히는데, 실제로 없을 수 있다.
+  if (picks.status !== "ready" || !picks.data) return null;
+  const { picks: chosen, suggestions } = picks.data;
+
+  return (
+    <View style={styles.todayWrap}>
+      <Text style={styles.todayTitle}>{c.todayTitle}</Text>
+      <Text style={styles.todayHint}>{chosen.length > 0 ? c.todayHint : c.todayNothingHint}</Text>
+      {chosen.length === 0 && suggestions.length === 0 ? (
+        <Text style={styles.todayEmpty}>{c.todayNothing}</Text>
+      ) : null}
+      {chosen.map((id) => (
+        <Pressable
+          key={id}
+          style={styles.todayCard}
+          accessibilityRole="link"
+          accessibilityLabel={String(c[PICK_LABEL[id].title])}
+          onPress={() => router.push(PICK_LABEL[id].route as Parameters<typeof router.push>[0])}
+        >
+          <Text style={styles.todayCardTitle}>{String(c[PICK_LABEL[id].title])}</Text>
+        </Pressable>
+      ))}
+      {suggestions.map((id) => (
+        // 카드가 아니라 안내다. 데이터가 있는 것처럼 보이면 안 되므로 눌러도
+        // 되지만 시각적으로 카드와 구분한다.
+        <Pressable
+          key={`next-${id}`}
+          style={styles.todayNext}
+          accessibilityRole="link"
+          accessibilityLabel={String(c[PICK_LABEL[id].next])}
+          onPress={() => router.push(PICK_LABEL[id].route as Parameters<typeof router.push>[0])}
+        >
+          <Text style={styles.todayNextTag}>{c.todayNext}</Text>
+          <Text style={styles.todayNextText}>{String(c[PICK_LABEL[id].next])}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function OpsToolsGrid() {
   const c = useOpsCopy();
   return (
@@ -320,6 +389,7 @@ export function OpsHomeScreen() {
           />
         ))
       )}
+      <OpsTodayPicks userId={userId} />
       <OpsToolsGrid />
       <OpsPushSheet
         visible={pushRec !== null}
@@ -1668,4 +1738,33 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   toolChipText: { fontSize: 13, color: deepSpace.accentSoft },
+  // 오늘의 두 가지. 카드와 "다음 걸음" 을 시각적으로 구분한다 - 후자는
+  // 데이터가 있는 것처럼 보이면 안 된다.
+  todayWrap: { gap: 6, marginTop: deepSpaceSpacing.lg },
+  todayTitle: { fontSize: 15, color: deepSpace.textHi },
+  todayHint: { fontSize: 12, color: deepSpace.textLo },
+  todayEmpty: { fontSize: 13, color: deepSpace.textLo, marginTop: 4 },
+  todayCard: {
+    minHeight: 56,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    borderRadius: deepSpaceRadii.md,
+    backgroundColor: deepSpace.card,
+    marginTop: 4,
+  },
+  todayCardTitle: { fontSize: 14, color: deepSpace.textHi },
+  todayNext: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: deepSpace.cardLine,
+    borderRadius: deepSpaceRadii.md,
+    marginTop: 4,
+  },
+  todayNextTag: { fontSize: 10, color: deepSpace.accentSoft },
+  todayNextText: { fontSize: 13, color: deepSpace.textLo },
 });

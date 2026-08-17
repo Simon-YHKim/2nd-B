@@ -19,11 +19,12 @@ import { getSupabaseClient } from "../supabase/client";
 import { type LadderLevel } from "./brightness";
 import { NORTHSTAR_TAG } from "./northstar";
 import { profileStarLevel } from "./profile-star";
+import { countFilledDetails, resolveProfileDetails } from "./profile-details";
 
 async function fetchProfileStarLevel(userId: string): Promise<LadderLevel> {
   const supabase = getSupabaseClient();
   const [userRes, goalRes, peerRes] = await Promise.all([
-    supabase.from("users").select("display_name, birth_date").eq("id", userId).maybeSingle(),
+    supabase.from("users").select("display_name, birth_date, profile_details").eq("id", userId).maybeSingle(),
     // Every northstar revision is its own row (saveNorthstar appends, it never
     // overwrites), so this count is literally "how many times they have sharpened
     // the sentence" — the closest honest proxy for tending the profile.
@@ -34,7 +35,11 @@ async function fetchProfileStarLevel(userId: string): Promise<LadderLevel> {
     supabase.from("peer_invitations").select("id").eq("user_id", userId).eq("status", "accepted"),
   ]);
 
-  const user = (userRes.data ?? {}) as { display_name?: string | null; birth_date?: string | null };
+  const user = (userRes.data ?? {}) as {
+    display_name?: string | null;
+    birth_date?: string | null;
+    profile_details?: unknown;
+  };
   const goals = ((goalRes.data ?? []) as unknown[]).length;
 
   return profileStarLevel({
@@ -46,6 +51,10 @@ async function fetchProfileStarLevel(userId: string): Promise<LadderLevel> {
     // hand a brand-new account a free tier.
     editedEntries: Math.max(0, goals - 1),
     outsideEntries: ((peerRes.data ?? []) as unknown[]).length,
+    // 0132: 생활 정보에서 채운 칸. resolveProfileDetails 를 지나므로 컬럼에
+    // 무엇이 들어 있든 계약에 맞는 것만 세어진다 - 아무 키나 넣어 별을
+    // 밝히는 길을 막는다.
+    filledDetails: countFilledDetails(resolveProfileDetails(user.profile_details)),
   });
 }
 

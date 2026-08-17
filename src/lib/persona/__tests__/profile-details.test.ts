@@ -137,3 +137,36 @@ describe("민감정보 경계", () => {
     expect(DAILY_RHYTHM_CHOICES.length).toBeGreaterThan(1);
   });
 });
+
+describe("화면 배선", () => {
+  const ROOT2 = join(__dirname, "..", "..", "..", "..");
+  const screen = readFileSync(join(ROOT2, "src", "app", "profile-details.tsx"), "utf8");
+  const loader = readFileSync(join(ROOT2, "src", "lib", "persona", "load-profile-star.ts"), "utf8");
+  const menu = readFileSync(join(ROOT2, "src", "app", "profile.tsx"), "utf8");
+
+  it("모든 항목이 화면에 렌더된다", () => {
+    // 계약에만 있고 화면에 없는 칸은 사용자가 채울 수 없다.
+    expect(screen).toContain("PROFILE_DETAIL_FIELDS.map");
+  });
+
+  it("무엇을 안 묻는지도 화면이 말한다", () => {
+    expect(screen).toContain("notSensitive");
+  });
+
+  it("저장이 좁힘을 지난다", () => {
+    const io = readFileSync(join(ROOT2, "src", "lib", "supabase", "profile-details.ts"), "utf8");
+    // 읽을 때도 쓸 때도 좁혀야 한다. 한쪽만 좁히면 그쪽으로만 안전해진다.
+    expect(io.match(/resolveProfileDetails/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("채운 칸이 별 밝기 로더까지 이어진다", () => {
+    // 폼을 만들어도 별이 안 밝아지면 D2 의 목적이 달성되지 않는다.
+    expect(loader).toContain("filledDetails: countFilledDetails(resolveProfileDetails(");
+    expect(loader).toContain("profile_details");
+  });
+
+  it("화면으로 가는 진입점이 있다", () => {
+    // 만들어 놓고 안 이으면 이번 라운드에서 고친 그 문제를 다시 만드는 것이다.
+    expect(menu).toContain('route: "/profile-details"');
+  });
+});

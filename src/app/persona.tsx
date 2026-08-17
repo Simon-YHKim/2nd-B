@@ -8,11 +8,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
-import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { MeSynthView } from "@/components/deep-space/DeepSpaceViews";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
-import { type DomainId } from "@/lib/persona/domain-stars";
 import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
 import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
 import { brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
@@ -700,45 +696,24 @@ const styles = StyleSheet.create({
   },
 });
 
-function PersonaDeepSpace() {
-  const { t, i18n } = useTranslation("home");
-  const isKo = i18n.language === "ko";
-  const { userId, loading } = useAuth();
-  // Real per-domain brightness (no-LLM loadDomainLevels, the same path the home
-  // constellation uses) so the 북극성 deck shows the user's actual star levels,
-  // not the reference prototype's fixed L3/L2 example numbers.
-  const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, number>>>({});
-  useEffect(() => {
-    if (loading || !userId) return;
-    let cancelled = false;
-    loadDomainLevels(userId)
-      .then((b) => {
-        if (!cancelled) setDomainLevels(b.domainLevels);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, loading]);
-  // 10-me: the 북극성 종합 (layer C) me screen — a windowed radius-24 card over the
-  // shared sky with an M3 top app bar titled 북극성. It lives under the 별자리 tab
-  // (reached by tapping Polaris on the constellation home), so active="home".
-  return (
-    <DeepSpaceScreen
-      active="home"
-      variant="windowed"
-      header="none"
-      title={t("ds.me.title")}
-      onBack={() => router.replace("/")}
-    >
-      <MeSynthView isKo={isKo} domainLevels={domainLevels} />
-    </DeepSpaceScreen>
-  );
-}
-
+// D4 (Simon 2026-08-18): /persona 와 /core-brain 이 같은 것을 두 번 보여주고
+// 있었다. 둘 다 buildPersona + buildCenterCards + loadDomainLevels 로 만들고,
+// 둘 다 "나의 종합" 을 제시한다. 진입점은 각각 13개와 14개였다.
+//
+// 캐논이 정한 정본은 /core-brain 이다 - 파일 헤더가 "user-facing name is 북극성"
+// 이라 적고 있고, 홈의 북극성 탭과 딥스페이스 lens 독이 둘 다 그리로 간다.
+// 그래서 딥스페이스에서는 여기가 정본으로 넘긴다. "나를 보는 자리가 어디인가"
+// 에 답이 둘이면 그건 화면이 부족한 게 아니라 많은 것이다.
+//
+// 지우지 않고 리다이렉트로 두는 이유는 이 저장소의 기존 관행과 같다
+// (jarvis → secondb, mbti → persona, journal → capture): 저장된 링크와 외부
+// 링크가 404 가 되면 안 된다.
+//
+// 레거시 스킨(EXPO_PUBLIC_UI=legacy)은 그대로 PersonaLegacy 를 쓴다. 롤백
+// 경로까지 건드릴 이유가 없다.
 export default function Persona() {
   if (isDeepSpaceUI()) {
-    return <PersonaDeepSpace />;
+    return <Redirect href="/core-brain" />;
   }
   return <PersonaLegacy />;
 }
