@@ -9,7 +9,7 @@
 //      channel — the gate scans exactly what is forwarded as the user turn).
 //   2. callAdvisor honors the proxy's `audited` flag and skips its own
 //      ai_audit_log insert when the proxy already wrote one (C3 1:1 parity with
-//      callGemini), and falls back to the client insert when it did not.
+//      callLlm), and falls back to the client insert when it did not.
 
 const mockInvoke = jest.fn();
 const mockClassifySafety = jest.fn();
@@ -57,7 +57,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callAdvisor } from "../gemini";
+import { callAdvisor } from "../boundary";
 import { insertAiAuditLog } from "../../supabase/audit";
 
 const auditMock = insertAiAuditLog as jest.MockedFunction<typeof insertAiAuditLog>;

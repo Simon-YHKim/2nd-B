@@ -4,7 +4,7 @@
 // the only place the convention can fail fast, before a Phase-2 re-seat turns
 // a Gemini-only-safe schema into a prod incident.
 
-import { assertRootObjectSchema } from "../gemini";
+import { assertRootObjectSchema } from "../boundary";
 
 describe("assertRootObjectSchema", () => {
   it("accepts OBJECT roots in either dialect casing", () => {

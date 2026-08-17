@@ -57,7 +57,7 @@ Never weaken these. They're enforced at code/schema/CI level:
 
 | ID | Rule |
 |---|---|
-| C1 | All LLM calls through `src/lib/llm/gemini.ts`. ESLint blocks other LLM SDKs. |
+| C1 | All LLM calls through `src/lib/llm/boundary.ts` (renamed from `gemini.ts` 2026-08-17; the rule is the single boundary, not the vendor). ESLint blocks other LLM SDKs. |
 | C2 | `@google/genai` with `vertexai: true` when `EXPO_PUBLIC_USE_VERTEX=true`. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |

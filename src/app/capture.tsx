@@ -74,7 +74,7 @@ import {
   type CaptureDraftMode,
   type CaptureDrafts,
 } from "@/lib/capture/draft";
-import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/gemini";
+import { classifyRecordTextForCrisis, transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { classifyClipper, type WikiTrack } from "@/lib/wiki/classify-clipper";
 import { proposeClipperTemplate, type ProposedClipperTemplate } from "@/lib/wiki/propose-template";

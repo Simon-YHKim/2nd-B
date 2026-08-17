@@ -1,12 +1,12 @@
 // Image OCR via Gemini multimodal.
 //
 // Flow: pick image (picker) → base64 (built-in) → downscale when over the
-// payload cap (P2-4) → local payload guard → callGemini({ image }) → text
+// payload cap (P2-4) → local payload guard → callLlm({ image }) → text
 // back. The Edge Function (gemini-proxy) still enforces the authoritative
 // MIME allowlist + 2.7MB base64 cap.
 
-import { callGemini } from "../llm/gemini";
-import type { GeminiResult } from "../llm/types";
+import { callLlm } from "../llm/boundary";
+import type { LlmResult } from "../llm/types";
 
 type ImageManipulatorModule = typeof import("expo-image-manipulator");
 type ImageManipulatorAction = import("expo-image-manipulator").Action;
@@ -497,7 +497,7 @@ export async function pickImageAsset(
 
 // Step 2 — run Gemini multimodal OCR on a picked image. Triggered by the
 // explicit "추출하기 / Extract text" button so the user controls when the call
-// happens. Returns the markdown transcription (C1/C3/C9 enforced in callGemini).
+// happens. Returns the markdown transcription (C1/C3/C9 enforced in callLlm).
 export async function ocrImageAsset(
   userId: string,
   locale: "en" | "ko",
@@ -507,9 +507,9 @@ export async function ocrImageAsset(
   minor = false,
 ): Promise<string> {
   const { base64: data, mimeType } = normalizeOcrImagePayload(image);
-  let reply: GeminiResult<string>;
+  let reply: LlmResult<string>;
   try {
-    reply = await callGemini({
+    reply = await callLlm({
       userId,
       locale,
       purpose: "capture_ocr",

@@ -1,6 +1,6 @@
 // Coverage helpers + next-layer planner for the drill-down interview.
 //
-// nextProbe() itself depends on callGemini and stays out of these unit
+// nextProbe() itself depends on callLlm and stays out of these unit
 // tests — we'd need to mock the LLM. The deterministic surface that
 // drives drill behavior (coverage accounting + layer selection) is
 // fully testable here, and that's what guards user experience: the LLM

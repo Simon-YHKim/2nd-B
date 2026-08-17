@@ -19,7 +19,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 >   기능은 사용자에게 쓸모가 있어서 존재해야지, 인용 가능해서 존재하면 안 된다.
 >
 > 코드에 남은 대회 잔재(`src/lib/judge/domains.ts`, C6 judge mode 트리거, C12 README 절,
-> `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `gemini.ts`/`routing.ts`
+> `db/seed.sql` 의 demo@xprize.org, `manual.tsx` 의 XPRIZE 문구, `boundary.ts`/`routing.ts`
 > 주석)는 **아직 제거되지 않았다.** 동작 중인 코드이므로 임의로 걷어내지 말고, 제거는 별도
 > 작업으로 Simon 과 합의해서 진행한다. 다만 이것들을 *새 결정의 근거*로 인용하지는 말 것.
 > ### 제품 의도 (Simon 직접 진술, 2026-08-17) — 새 세션은 이걸 먼저 읽을 것
@@ -105,9 +105,25 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 막고 있는 것은 **claude-proxy 스트리밍 미구현** 하나뿐이다(블로킹 대화 화면이라
 > 비스트리밍 홉을 못 씀). 그것만 되면 대화는 바로 옮겨진다.
 >
-> **하지 말 것:** `src/lib/llm/gemini.ts` 를 지우거나 우회하지 말 것. 이름만 gemini 일 뿐
-> **모든 LLM 호출이 지나는 단일 경계 모듈**이고, 감사 기록(C3)과 안전 분류(C9)가 전부
-> 여기 걸려 있다. 벤더 선택은 `routing.ts` 가 한다.
+> **경계 모듈은 `src/lib/llm/boundary.ts` 다** (2026-08-17 `gemini.ts` 에서 개명. 함수도
+> `callLlm` → `callLlm`). **모든 LLM 호출이 지나는 단일 지점**이고 감사 기록(C3)과
+> 안전 분류(C9)가 전부 여기 걸려 있다. **지우거나 우회하지 말 것.** 벤더 선택은
+> `routing.ts` 가 한다.
+>
+> 개명한 이유는 이름이 사실과 달라서다 — 이 모듈은 gemini·claude·openai 세 벤더를
+> 모두 태우는데 한 벤더 이름을 달고 있었고, 그 이름 때문에 "우리는 Gemini 앱"이라는
+> 오해가 세션마다 재생산됐다.
+>
+> **반대로 아직 `gemini` 인 채로 두는 것들은 일부러 그렇다:**
+>
+> - `supabase/functions/gemini-proxy` — **이름이 맞다.** claude-proxy·openai-proxy 와
+>   나란한 **벤더별** 프록시고, Gemini 는 OCR·음성 텍스트화에 계속 쓴다.
+> - `bump_gemini_spend` · `gemini_spend_daily` — 이름은 **틀렸다**(세 벤더 공용 지출
+>   한도다). 그런데 설치된 앱과 프록시 3종이 이 이름으로 호출하고, 계정 삭제·내보내기
+>   경로도 이 테이블을 참조한다. 개명은 호환 래퍼를 낀 마이그레이션이 필요한 별도 작업이다.
+>   **혼자 바꾸지 말 것.**
+> - `"gemini" | "claude" | "openai"` 같은 벤더 식별 문자열, `EMBED_MODEL` 의 실제 모델
+>   ID — 전부 실제 이름이라 그대로다.
 >
 > **인용 금지:** "우리는 Gemini 앱이다" · "C2 가 Vertex 를 요구한다" · "Gemini 로 해야 한다".
 > `docs/` 아래 여러 문서(`ARCHITECTURE.md`·`LLM-ROUTING.md`·`CONSTRAINTS.md` 등)에 남은
@@ -283,7 +299,7 @@ Never weaken these. They're enforced at code/schema/CI level:
 
 | ID | Rule |
 |---|---|
-| C1 | All LLM calls go through **one boundary module** (`src/lib/llm/gemini.ts`); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
+| C1 | All LLM calls go through **one boundary module** (`src/lib/llm/boundary.ts`, renamed from `gemini.ts` 2026-08-17); ESLint blocks vendor SDK imports anywhere else. **The rule is the single boundary, NOT the vendor** — see "제미나이는 더 이상 요건이 아니다" below. |
 | C2 | ~~`@google/genai` with `vertexai: true`~~ **대회 잔재. 요건 아님.** Vertex 분기는 코드에 남아 있고 CI가 존재만 확인한다. 새 기능의 근거로 인용 금지. |
 | C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
 | C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |

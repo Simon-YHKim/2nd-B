@@ -24,9 +24,9 @@ jest.mock("../storage", () => ({
   }),
 }));
 
-jest.mock("../../llm/gemini", () => ({
-  callGemini: jest.fn((input: unknown) => {
-    captured.push({ fn: "callGemini", args: [input] });
+jest.mock("../../llm/boundary", () => ({
+  callLlm: jest.fn((input: unknown) => {
+    captured.push({ fn: "callLlm", args: [input] });
     return Promise.resolve(
       fixtures.geminiReply ?? {
         text: "fallback mock text",
@@ -139,7 +139,7 @@ describe("runPhase1 — orchestration", () => {
     expect(captured.map((c) => c.fn)).toEqual(["getSource"]);
   });
 
-  test("happy path: getSource → downloadRawClipping → callGemini → UPDATE", async () => {
+  test("happy path: getSource → downloadRawClipping → callLlm → UPDATE", async () => {
     fixtures.source = {
       id: "s1",
       user_id: "u1",
@@ -164,7 +164,7 @@ describe("runPhase1 — orchestration", () => {
     expect(captured.map((c) => c.fn)).toEqual([
       "getSource",
       "downloadRawClipping",
-      "callGemini",
+      "callLlm",
       // Re-read the frontmatter right before the write (wave-3 concurrency fix)
       // so the pre-LLM snapshot can't clobber a concurrent frontmatter update.
       "getSource",

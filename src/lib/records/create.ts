@@ -2,14 +2,14 @@
 // optionally, calls the appropriate LLM entry for an AI follow-up.
 //
 //   kind === 'journal'        → callAdvisor (full RAG: safety + retrieve + evidence)
-//   kind === 'audit_response' → callGemini (purpose: audit_qa, lighter)
+//   kind === 'audit_response' → callLlm (purpose: audit_qa, lighter)
 //   kind === 'note'           → no AI call
 //
-// All AI calls route through src/lib/llm/gemini.ts so safety (C9) + audit (C3) hold.
+// All AI calls route through src/lib/llm/boundary.ts so safety (C9) + audit (C3) hold.
 // Every successful capture also awards quest XP (best-effort) — see award_xp RPC.
 
 import { buildMemorizedPattern } from "../knowledge/engines";
-import { callAdvisor, callGemini, classifyRecordTextForCrisis } from "../llm/gemini";
+import { callAdvisor, callLlm, classifyRecordTextForCrisis } from "../llm/boundary";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { canUsePremium, type SubscriptionTier } from "../progression/entitlements";
 import { awardXpSafe, type XpAction } from "../progression/xp";
@@ -33,7 +33,7 @@ export interface CreateRecordArgs {
   prompt?: string;
   auditPeriod?: string;
   withFollowup?: boolean;
-  // C10 safety: forwarded to callAdvisor/callGemini so a minor's crisis
+  // C10 safety: forwarded to callAdvisor/callLlm so a minor's crisis
   // routing uses the youth hotline. From AuthContext.isMinor at the call site.
   minor?: boolean;
   /**
@@ -214,7 +214,7 @@ export async function createRecord(args: CreateRecordArgs): Promise<CreatedRecor
       // the Advisor branch — a follow-up failure (rate limit, proxy error)
       // must not lose the user's typed answer.
       try {
-        const res = await callGemini({
+        const res = await callLlm({
           userId: args.userId,
           locale: args.locale,
           purpose: "audit_qa",

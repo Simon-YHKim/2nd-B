@@ -13,7 +13,7 @@ the default.
 
 Reconciled with the hard constraints:
 
-- **C1 (all LLM through `src/lib/llm/gemini.ts`; ESLint blocks other LLM SDKs).**
+- **C1 (all LLM through `src/lib/llm/boundary.ts`; ESLint blocks other LLM SDKs).**
   So a third-party harness that ships its *own* model SDK is NOT allowed. The
   harness-first rule applies to the **non-LLM** parts (algorithms, parsers, data
   clients) freely, and to the **LLM** parts as *proven patterns* (structured

@@ -52,7 +52,7 @@ results.push(
 
 results.push(
   check("C2", () => {
-    const wrapper = read("src/lib/llm/gemini.ts");
+    const wrapper = read("src/lib/llm/boundary.ts");
     const envFile = read("src/lib/env.ts");
     const ok =
       wrapper.includes("vertexai: true") &&
@@ -70,7 +70,7 @@ results.push(
 
 results.push(
   check("C3", () => {
-    const wrapper = read("src/lib/llm/gemini.ts");
+    const wrapper = read("src/lib/llm/boundary.ts");
     const auditOutbox = read("src/lib/llm/audit-write-outbox.ts");
     const sql = read("db/migrations/0004_ai_audit_log.sql");
     const ok =
@@ -528,7 +528,7 @@ results.push(
 
 results.push(
   check("C9", () => {
-    const wrapper = read("src/lib/llm/gemini.ts");
+    const wrapper = read("src/lib/llm/boundary.ts");
     // crude AST check: the input classifier (classifyInput or the dual-locale
     // classifyInputAnyLocale) must appear before generateContent.
     const classifyIdx = wrapper.search(/classifyInput(?:AnyLocale)?\(input\.user/);
@@ -655,11 +655,11 @@ results.push(
 
 // Bonus: cost cap (round-4 H4). The gemini-proxy is the only spend-capped LLM
 // egress (bump_gemini_spend, 0035/0036). Both direct @google/genai branches in
-// gemini.ts must call assertDirectEgressAllowed so a live API-key call cannot
+// boundary.ts must call assertDirectEgressAllowed so a live API-key call cannot
 // bypass the per-user/day ceiling (Vertex is the only permitted direct egress).
 results.push(
   check("Cost", () => {
-    const wrapper = read("src/lib/llm/gemini.ts");
+    const wrapper = read("src/lib/llm/boundary.ts");
     const defined = wrapper.includes("function assertDirectEgressAllowed");
     const guardCount = (wrapper.match(/assertDirectEgressAllowed\(env\)/g) ?? []).length;
     const ok = defined && guardCount >= 2;

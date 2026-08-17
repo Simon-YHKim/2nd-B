@@ -34,7 +34,7 @@ import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
@@ -1116,7 +1116,7 @@ export function SeenLensView() {
   // enough informants answered; fail-soft to the honest empty state.
   const [aggregate, setAggregate] = useState<SeenAggregateRow[]>([]);
   // T5 F4: optional LLM synthesis of the self/other gap. Only NUMBERS go in
-  // (never informant text); C1/C3/C9 ride callGemini as everywhere else, and
+  // (never informant text); C1/C3/C9 ride callLlm as everywhere else, and
   // the informant-side LLM acks are structurally guaranteed by the 0064 CHECK
   // before any observation row can exist.
   const [synth, setSynth] = useState<string | null>(null);
@@ -1159,7 +1159,7 @@ export function SeenLensView() {
         .filter((o) => otherPct.has(o.trait))
         .map((o) => o.label + ": self " + o.percent + "%, others " + otherPct.get(o.trait) + "%")
         .join("; ");
-      const res = await callGemini({
+      const res = await callLlm({
         userId,
         locale,
         purpose: "gap_synthesize",

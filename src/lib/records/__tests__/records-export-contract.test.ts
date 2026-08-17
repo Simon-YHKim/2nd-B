@@ -27,9 +27,9 @@ jest.mock("../../supabase/client", () => {
     __captures: captures,
   };
 });
-jest.mock("../../llm/gemini", () => ({
+jest.mock("../../llm/boundary", () => ({
   callAdvisor: jest.fn(),
-  callGemini: jest.fn(),
+  callLlm: jest.fn(),
   classifyRecordTextForCrisis: jest.fn().mockResolvedValue(null),
 }));
 jest.mock("../../progression/xp", () => ({ awardXpSafe: jest.fn().mockResolvedValue(undefined) }));

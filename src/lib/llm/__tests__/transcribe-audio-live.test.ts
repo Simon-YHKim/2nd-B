@@ -1,6 +1,6 @@
 // H4 (Simon 2026-08-16, K1): the transcribe LIVE path had NO tests, and the
 // source said so about itself -- "the live branch follows the same inline-data
-// client pattern as the image path in callGemini but has NOT been run on a real
+// client pattern as the image path in callLlm but has NOT been run on a real
 // recording yet". Voice capture and call reflection both ride this function, so
 // "untested" meant the app's only audio feature could be broken in production
 // while CI stayed green.
@@ -68,7 +68,7 @@ jest.mock("@google/genai", () => ({
   },
 }));
 
-import { transcribeAudio } from "../gemini";
+import { transcribeAudio } from "../boundary";
 
 /**
  * A real 16-bit mono PCM WAV, synthesised. Not a fixture and not a stub string:

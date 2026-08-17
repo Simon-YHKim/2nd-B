@@ -8,7 +8,7 @@
 // composeContextPack (pure, tested) + exportContextPack (fetcher) split.
 //
 // The AI summary is reused from the persona's already-guarded narrative
-// (persona.patterns.summary, produced via callGemini under C1/C9/C3) — this
+// (persona.patterns.summary, produced via callLlm under C1/C9/C3) — this
 // builder adds no new LLM call. Output is canonical: pass locale "en" for the
 // portable `.iden`, "ko" for a localized sheet (IDEN-SPEC §1/§7, C7 parity).
 

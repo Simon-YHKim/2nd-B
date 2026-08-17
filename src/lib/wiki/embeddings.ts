@@ -8,7 +8,7 @@
 // Populate lazily: embedAndStorePage on demand, or backfillEmbeddings to fill
 // pages that don't have a vector yet. relatedByEmbedding reads neighbours back.
 
-import { embedTexts, EMBED_DIM } from "../llm/gemini";
+import { embedTexts, EMBED_DIM } from "../llm/boundary";
 import { getSupabaseClient } from "../supabase/client";
 import { insertInferredLinks, listWikiPages, type InferredEdgeInput } from "./queries";
 import type { WikiPageRow } from "./types";

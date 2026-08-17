@@ -76,7 +76,6 @@ export interface AdvisorResult {
   text: string;
   zone: "green" | "yellow" | "red";
   triggers: string[];
-  cssrsLevel: number | null;
   fixedTemplate: boolean;
   matchedBatches: string[];
   evidence: { title: string; doi: string | null; summary: string | null }[];
@@ -138,7 +137,7 @@ export interface AuditMeta {
   reasoningProvider?: "gemini" | "claude" | "openai";
 }
 
-export interface GeminiResult<T = string> {
+export interface LlmResult<T = string> {
   text: T;
   safety: SafetyResult;
   audit: AuditMeta;
@@ -164,12 +163,12 @@ export const MODELS: Record<GeminiModel, string> = {
     "gemini-2.5-pro",
 };
 
-// Purpose -> default tier. Used by callGemini ONLY when the caller does not pass
+// Purpose -> default tier. Used by callLlm ONLY when the caller does not pass
 // an explicit `model`. An explicit `input.model` always wins. Existing callers
-// preserved: callGemini's historical default was "flash" and callAdvisor uses
+// preserved: callLlm's historical default was "flash" and callAdvisor uses
 // "pro" directly (advisor is not routed through this map), so no purpose here
 // regresses a current default. Purposes absent from the map fall back to "flash"
-// (the historical callGemini default) in purposeToTier().
+// (the historical callLlm default) in purposeToTier().
 //   lite  — classify/embed-like (cheap, high volume)
 //   flash — interactive surfaces
 //   pro   — reasoning surfaces

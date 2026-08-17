@@ -61,12 +61,13 @@ describe("classifyViaProxy wire contract (D4 seat)", () => {
     });
     await classifySafety("오늘 산책을 했다", "ko");
     const [, { body }] = invokeMock.mock.calls[0];
-    const schema = body.responseSchema as { properties: { cssrsLevel: { type: unknown } } };
-    expect(schema.properties.cssrsLevel.type).toBe("number");
+    // 2026-08-17: 등급을 아예 요구하지 않는다. 스키마에 자리가 없어야 한다.
+    const schema = body.responseSchema as { properties: Record<string, unknown> };
+    expect(Object.keys(schema.properties)).not.toContain("cssrsLevel");
     expect(JSON.stringify(body.responseSchema)).not.toContain('["number","null"]');
   });
 
-  it("nulls a junk cssrsLevel on a non-red verdict (live green emitted level 6)", async () => {
+  it("모델이 등급을 자진해서 보내와도 결과에 싣지 않는다", async () => {
     process.env.EXPO_PUBLIC_SERVER_SAFETY = "true";
     invokeMock.mockResolvedValue({
       // Verbatim shape observed live 2026-07-21 (benign walk note).
@@ -75,6 +76,8 @@ describe("classifyViaProxy wire contract (D4 seat)", () => {
     });
     const r = await classifySafety("오늘 산책을 했다", "ko");
     expect(r.zone).toBe("green");
-    expect(r.cssrsLevel).toBeNull();
+    // 스키마에서 뺐어도 모델은 여분 필드를 얹어 보낼 수 있다. 우리가
+    // 그것을 파싱해 되살리지 않는다는 것이 이 검사의 요지다.
+    expect(r).not.toHaveProperty("cssrsLevel");
   });
 });

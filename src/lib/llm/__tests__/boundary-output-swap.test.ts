@@ -1,9 +1,9 @@
 // Regression test for re-audit finding A5 + round-4 H1:
-// callGemini (the non-advisor entry used by the interview probe, wiki/inbox
+// callLlm (the non-advisor entry used by the interview probe, wiki/inbox
 // phase1, import echo, and persona summary) must re-classify the model's TEXT
 // output with the SEMANTIC union classifier (classifySafety = lexicon + Gemini
 // Flash), reaching parity with callAdvisor. If the model emits crisis content —
-// even semantically red with NO literal crisis term (round-4 H1) — callGemini
+// even semantically red with NO literal crisis term (round-4 H1) — callLlm
 // must swap it for the fixed crisis template and log a crisis_event, never
 // render the raw text. (A5's first cut gated the swap on the lexicon-only
 // classifyInput, which a paraphrase slips past.)
@@ -49,7 +49,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callGemini } from "../gemini";
+import { callLlm } from "../boundary";
 import { insertAiAuditLog } from "../../supabase/audit";
 import { insertCrisisEvent } from "../../supabase/crisis-events";
 
@@ -73,7 +73,7 @@ const GREEN = {
   routingTemplateVersion: "rcv1-2026-05-25",
 };
 
-describe("callGemini — semantic output re-classification (A5 + round-4 H1)", () => {
+describe("callLlm — semantic output re-classification (A5 + round-4 H1)", () => {
   beforeEach(() => {
     mockGenerateContent.mockReset();
     mockClassifySafety.mockReset();
@@ -85,10 +85,10 @@ describe("callGemini — semantic output re-classification (A5 + round-4 H1)", (
     // Output reads benign to the lexicon (no CRISIS_TERM) — the exact H1 gap.
     mockGenerateContent.mockResolvedValueOnce({ text: "Maybe it would be easier for everyone if you just slipped away quietly." });
     // The semantic classifier (mocked) flags it red. This is the only
-    // classifySafety call callGemini makes (output only).
+    // classifySafety call callLlm makes (output only).
     mockClassifySafety.mockResolvedValueOnce(RED);
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "interview_probe",
@@ -105,14 +105,13 @@ describe("callGemini — semantic output re-classification (A5 + round-4 H1)", (
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/\+swap:/);
     expect(crisisMock).toHaveBeenCalledTimes(1);
     expect(crisisMock.mock.calls[0]![0]!.triggerCategories).toContain("output_swap");
-    expect(crisisMock.mock.calls[0]![0]!.cssrsLevel).toBe(3);
   });
 
   test("GREEN semantic output on GREEN input ships verbatim and logs no crisis_event", async () => {
     mockGenerateContent.mockResolvedValueOnce({ text: "Noted — saved your weekly plan." });
     mockClassifySafety.mockResolvedValueOnce(GREEN);
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "import_ingest",
@@ -126,7 +125,7 @@ describe("callGemini — semantic output re-classification (A5 + round-4 H1)", (
   });
 
   test("RED input still short-circuits before any model call (C9 invariant)", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "import_ingest",

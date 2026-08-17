@@ -1,4 +1,4 @@
-// C1: only src/lib/llm/gemini.ts may import @google/genai.
+// C1: only src/lib/llm/boundary.ts may import @google/genai.
 // C3: only LLM-boundary modules may import the audit/crisis write modules.
 // ESLint enforces these too, but this script provides a single grep
 // invocation suitable for CI logs and `npm run check:constraints`.
@@ -8,16 +8,16 @@ import { join, relative, sep } from "node:path";
 
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
-const GEMINI_WRAPPER = ["src", "lib", "llm", "gemini.ts"].join("/");
+const GEMINI_WRAPPER = ["src", "lib", "llm", "boundary.ts"].join("/");
 const AUDIT_WRITE_OUTBOX = ["src", "lib", "llm", "audit-write-outbox.ts"].join("/");
 const SAFETY_LLM = ["src", "lib", "llm", "safety.ts"].join("/");
 const GEMINI_TESTS = [
   ["src", "lib", "llm", "__tests__", "audit-write-outbox.test.ts"].join("/"),
-  ["src", "lib", "llm", "__tests__", "gemini.test.ts"].join("/"),
-  ["src", "lib", "llm", "__tests__", "gemini.mock.test.ts"].join("/"),
+  ["src", "lib", "llm", "__tests__", "boundary.test.ts"].join("/"),
+  ["src", "lib", "llm", "__tests__", "boundary.mock.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "advisor-output-swap.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "advisor-edge.test.ts"].join("/"),
-  ["src", "lib", "llm", "__tests__", "gemini-output-swap.test.ts"].join("/"),
+  ["src", "lib", "llm", "__tests__", "boundary-output-swap.test.ts"].join("/"),
   ["src", "lib", "llm", "__tests__", "proxy-crisis-fallback.test.ts"].join("/"),
   // D-26 Phase 2 vendor-routing wiring suite: mocks the audit/crisis writers
   // to assert C3 rows on the claude-proxy path + outage failover (same pattern
@@ -32,8 +32,8 @@ const GEMINI_TESTS = [
 const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
   {
     name: "@google/genai (C1)",
-    // gemini.ts is the production entry, safety.ts is the in-wrapper classifier
-    // (called only from gemini.ts and from its tests). Both legitimately import the SDK.
+    // boundary.ts is the production entry, safety.ts is the in-wrapper classifier
+    // (called only from boundary.ts and from its tests). Both legitimately import the SDK.
     pattern: /from\s+["']@google\/genai["']/,
     allowed: [GEMINI_WRAPPER, SAFETY_LLM, ...GEMINI_TESTS],
   },
@@ -41,7 +41,7 @@ const importRegexes: { name: string; pattern: RegExp; allowed: string[] }[] = [
     name: "audit module (C3)",
     pattern: /from\s+["'](?:\.\.?\/)+supabase\/audit["']|from\s+["']@\/lib\/supabase\/audit["']/,
     // safety.ts audits its own client-side Flash classifier call (C3), and
-    // audit-write-outbox.ts is the queued writer used by gemini.ts.
+    // audit-write-outbox.ts is the queued writer used by boundary.ts.
     // Both are sanctioned LLM-boundary modules.
     allowed: [GEMINI_WRAPPER, AUDIT_WRITE_OUTBOX, SAFETY_LLM, ...GEMINI_TESTS],
   },

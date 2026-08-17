@@ -66,13 +66,13 @@ jq -r '.screens[] | select(.route=="/sign-in") | .rendersInProduction' docs/flow
 | `retrieveChatContext()` | `src/lib/chat/rag.ts:40` | `embedTexts` |
 | `buildIdenDoc()` | `src/lib/iden/build-iden.ts:257` | `buildPersona` |
 | `exportIden()` | `src/lib/iden/iden-export.ts:89` | `buildIdenDoc` |
-| `nextProbe()` | `src/lib/interview/probe.ts:239` | `callGemini` |
-| `callGemini()` | `src/lib/llm/gemini.ts:464` | `callAdvisor` |
-| `embedTexts()` | `src/lib/llm/gemini.ts:903` | 직접 |
-| `transcribeAudio()` | `src/lib/llm/gemini.ts:1046` | `classifySafety` |
-| `callAdvisor()` | `src/lib/llm/gemini.ts:1152` | `classifySafety` |
+| `nextProbe()` | `src/lib/interview/probe.ts:239` | `callLlm` |
+| `callLlm()` | `src/lib/llm/boundary.ts:464` | `callAdvisor` |
+| `embedTexts()` | `src/lib/llm/boundary.ts:903` | 직접 |
+| `transcribeAudio()` | `src/lib/llm/boundary.ts:1046` | `classifySafety` |
+| `callAdvisor()` | `src/lib/llm/boundary.ts:1152` | `classifySafety` |
 | `classifySafety()` | `src/lib/llm/safety.ts:254` | `insertAiAuditLog` |
-| `buildOpsDailyBrief()` | `src/lib/ops/daily-brief.ts:142` | `callGemini` |
+| `buildOpsDailyBrief()` | `src/lib/ops/daily-brief.ts:142` | `callLlm` |
 
 전체 26개: `jq '.aiHelpers | keys' docs/flow-map.json`
 

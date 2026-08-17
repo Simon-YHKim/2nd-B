@@ -21,7 +21,7 @@
 | # | 결함 | 위치 | 상태 |
 |---|---|---|---|
 | P0-1 | **prod 시맨틱 위기분류 강등**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:92` | 백로그 #1 — 잔여, 단 **부분 완화 실측(2026-07-19 S2 감사)**: ① 무음→관측 (`noteSemanticUnavailable` 세션당 1회 warn, safety.ts:117-134) ② 플래그 게이트 서버 경로 존재 — `EXPO_PUBLIC_SERVER_SAFETY=true`(클라, safety.ts:203-252) + `LLM_SERVER_SAFETY_SEAT=1`(gemini-proxy:591-593)이면 proxy `safety_classify` 좌석으로 시맨틱 분류 복구. 기본 OFF — 본복구(A18)는 위기 eval set + 세이프티 오너 승인 선행 |
-| P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/gemini.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
+| P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/boundary.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
 | P0-3 | **엣지 경유 lite 콜 400**: gemini-proxy MODELS_ALLOWED={2.5-flash, 2.5-pro}뿐 → lite 티어(clipper_classify)가 엣지 빌드에서 model_not_allowed | `supabase/functions/gemini-proxy/index.ts` | ✅ P0 레인에서 수리 — allowlist에 lite+3.x, GEMINI_MODELS_ALLOWED env, pro-클래스 패턴 핀 |
 | P0-4 | **audit_qa 시스템 프롬프트 전무** — 라이브 무유도 출력 | `src/lib/records/create.ts` | ✅ 이 브랜치에서 수정 |
 
@@ -106,7 +106,7 @@ purpose 컬럼은 free text라 과거 행은 그대로 남는다 (persona_chat 3
 | `knowledge_lookup` (#1061~#1069, /reasoning 자료 배치) | `reasoning_connect` | 동일 시기 임시 재사용 — 시기+콜 형태(JSON connections 스키마)로 구분 |
 | `embed` (gemini-proxy embed 감사행, 0095 이전) | `embed_index` | 프록시 하드코드가 클라 라벨과 달랐음 — 0095 레인에서 `embed_index`로 통일 |
 
-**클라 감사행 enrichment — 0095 (2026-07-19, QA-F2 종결)**: 0073이 추가한 `purpose`/`reasoning_vendor`/`reasoning_effort` 컬럼은 서비스롤 프록시만 채우고 네이티브 `log_ai_audit` RPC(0038) 경로는 전부 NULL이었다(mock·output-swap·crisis·직결·분류기 행 무귀속 — QA-F2). `0095_ai_audit_purpose_rpc.sql`이 RPC를 9-인자(신규 3개 DEFAULT NULL)로 재생성하고 `src/lib/supabase/audit.ts`가 `AuditMeta.purpose`/`reasoningProvider`/`effort`를 전달한다. 클라 라벨: callGemini=PromptPurpose, advisor 경로="advisor", 임베딩="embed_index", 전사="voice_transcribe", 클라 분류기="safety_classify"(A18 좌석명), record-save 위기 스캔=NULL(콜 컨텍스트 없음). **적용 순서 = 서버(0095) 먼저, 클라 머지 나중** — 역순이면 audit 쓰기가 outbox에 적체됐다가 마이그레이션 후 자동 방류. `key_combo`/`total_tokens`는 프록시 전용 유지(클라가 알 수 없는 값).
+**클라 감사행 enrichment — 0095 (2026-07-19, QA-F2 종결)**: 0073이 추가한 `purpose`/`reasoning_vendor`/`reasoning_effort` 컬럼은 서비스롤 프록시만 채우고 네이티브 `log_ai_audit` RPC(0038) 경로는 전부 NULL이었다(mock·output-swap·crisis·직결·분류기 행 무귀속 — QA-F2). `0095_ai_audit_purpose_rpc.sql`이 RPC를 9-인자(신규 3개 DEFAULT NULL)로 재생성하고 `src/lib/supabase/audit.ts`가 `AuditMeta.purpose`/`reasoningProvider`/`effort`를 전달한다. 클라 라벨: callLlm=PromptPurpose, advisor 경로="advisor", 임베딩="embed_index", 전사="voice_transcribe", 클라 분류기="safety_classify"(A18 좌석명), record-save 위기 스캔=NULL(콜 컨텍스트 없음). **적용 순서 = 서버(0095) 먼저, 클라 머지 나중** — 역순이면 audit 쓰기가 outbox에 적체됐다가 마이그레이션 후 자동 방류. `key_combo`/`total_tokens`는 프록시 전용 유지(클라가 알 수 없는 값).
 
 **목표 스키마** (서버 proxy가 정본 소유):
 ```
@@ -132,7 +132,7 @@ PURPOSE_ROUTE[purpose] = {
 **커밋 1 (Phase 1 무비용 코어)**
 1. `PURPOSE_TIER`: interview_probe pro→flash 강등, northstar_propose/axis_estimate 명시 등재 (`src/lib/llm/types.ts`)
 2. audit_qa 시스템 프롬프트 신설 (`src/lib/records/create.ts`) — P0-4
-3. capture_ocr 직결 경로 thinking off (`src/lib/llm/gemini.ts` THINKING_OFF_PURPOSES)
+3. capture_ocr 직결 경로 thinking off (`src/lib/llm/boundary.ts` THINKING_OFF_PURPOSES)
 4. SAME-QUALITY 충돌 주석 정리 + 이 문서
 
 **커밋 2 (Phase 2 배선 — Simon GO 2026-07-04)**

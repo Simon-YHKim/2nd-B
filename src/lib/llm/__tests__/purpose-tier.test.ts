@@ -6,8 +6,8 @@
 //   - the reasoning (pro) tier records the default effort "high" in the audit,
 //   - env-overridable model ids (PURPOSE_TIER + MODELS) resolve as expected.
 //
-// Asserts against the `audit` object callGemini/callAdvisor RETURN to the caller
-// (GeminiResult.audit / AdvisorResult.audit) — so this file does NOT import the
+// Asserts against the `audit` object callLlm/callAdvisor RETURN to the caller
+// (LlmResult.audit / AdvisorResult.audit) — so this file does NOT import the
 // audit/crisis-events modules (keeps it off the C3 import-boundary allowlist).
 // C3 (audit on every call) and C9 (classify-first) are exercised by the sibling
 // suites; this one is purely the tier/effort router.
@@ -56,7 +56,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callGemini, callAdvisor } from "../gemini";
+import { callLlm, callAdvisor } from "../boundary";
 import { MODELS, PURPOSE_TIER, type AuditMeta } from "../types";
 import { resetAuditWriteOutboxForTests } from "../audit-write-outbox";
 
@@ -85,7 +85,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("classify purpose routes to the lite model id", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "capture_classify",
@@ -95,7 +95,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("chat purpose routes to the flash model id", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "secondb_chat",
@@ -105,7 +105,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("reasoning purpose (reasoning_connect) routes to the pro model id", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -116,7 +116,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
 
   test("explicit model arg wins over the purpose default", async () => {
     // capture_classify defaults to lite; force pro explicitly.
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "capture_classify",
@@ -127,7 +127,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("existing-caller default preserved: mapped interactive purpose stays flash", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "ops_recommend",
@@ -137,7 +137,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("pro tier records the default effort 'high' + gemini provider in the audit", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -150,7 +150,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("an explicit effort overrides the default on the pro tier", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "reasoning_connect",
@@ -161,7 +161,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("interview_probe (demoted) routes flash and records no effort", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "interview_probe",
@@ -173,7 +173,7 @@ describe("purpose -> tier router + effort default (mock mode)", () => {
   });
 
   test("lite/flash tiers do NOT record an effort (reasoning-only field)", async () => {
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "secondb_chat",

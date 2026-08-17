@@ -1,7 +1,7 @@
 # Claude reasoning seam — owner setup
 
 Status: **wired (Option A implemented)**. The reasoning path in
-`src/lib/llm/gemini.ts` routes the pro-tier call to the `claude-proxy` Supabase
+`src/lib/llm/boundary.ts` routes the pro-tier call to the `claude-proxy` Supabase
 edge function whenever `EXPO_PUBLIC_REASONING_PROVIDER=claude`. The client stays
 SDK-free (C1); the Anthropic key lives only in the function's secrets. What
 remains for the owner: deploy the function, set its `ANTHROPIC_API_KEY` secret,
@@ -11,7 +11,7 @@ until then a live call returns `insufficient credits`).
 ## Why a seam (and why C1 is not violated)
 
 C1 (hard constraint) says: **all LLM calls route through
-`src/lib/llm/gemini.ts`, and that file is the only place allowed to import
+`src/lib/llm/boundary.ts`, and that file is the only place allowed to import
 `@google/genai`. No other LLM SDK may be imported anywhere** (ESLint +
 `scripts/check-llm-import-boundary.ts` block OpenAI/Anthropic/Cohere/etc.).
 
@@ -36,11 +36,11 @@ backend, exactly the pattern already used for Gemini.
 - `src/lib/llm/types.ts`
   - `ReasoningEffort = "low" | "high" | "xhigh" | "max"`.
   - `AuditMeta.reasoningProvider?: "gemini" | "claude"`.
-- `src/lib/llm/gemini.ts`
+- `src/lib/llm/boundary.ts`
   - `resolveReasoningProvider()` — reads `EXPO_PUBLIC_REASONING_PROVIDER` and
     returns `gemini` or `claude`. `reasoningProxyFn()` maps that to the edge
     function name (`gemini-proxy` / `claude-proxy`).
-  - `callAdvisor()` and the pro-tier `callGemini()` path call it, route to the
+  - `callAdvisor()` and the pro-tier `callLlm()` path call it, route to the
     matching proxy, and stamp the provider into the audit row.
 
 ## Option A (recommended, IMPLEMENTED) — `claude-proxy` Supabase edge function

@@ -15,7 +15,7 @@ import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { captureEvent, proposalDecided } from "@/lib/analytics";
 import {
@@ -390,7 +390,7 @@ async function produceProposals(
       input.locale === "ko"
         ? `사용자가 고른 생활 기록을 7개 생활 도메인 중 하나에 연결하세요. 심리 렌즈를 별로 만들지 말고 career, finance, growth, relation, health, recreation, collect 중 하나만 고르세요. ${INJECTION_GUARD.ko}`
         : `Connect each selected life record to one of seven life domains. Never turn psychological lenses into visible stars. Choose only career, finance, growth, relation, health, recreation, or collect. ${INJECTION_GUARD.en}`;
-    const reply = await callGemini({
+    const reply = await callLlm({
       userId: input.userId,
       locale: input.locale,
       purpose: "reasoning_connect",
@@ -438,7 +438,7 @@ async function produceProposals(
       input.locale === "ko"
         ? `사용자가 고른 자료를 7개 생활 도메인 중 하나에 연결하세요. 심리 렌즈를 별로 만들지 말고 career, finance, growth, relation, health, recreation, collect 중 하나만 고르세요. ${INJECTION_GUARD.ko}`
         : `Connect each selected source to one of seven life domains. Never turn psychological lenses into visible stars. Choose only career, finance, growth, relation, health, recreation, or collect. ${INJECTION_GUARD.en}`;
-    const reply = await callGemini({
+    const reply = await callLlm({
       userId: input.userId,
       locale: input.locale,
       purpose: "reasoning_connect",

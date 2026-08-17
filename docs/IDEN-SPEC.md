@@ -127,7 +127,7 @@ Rule: **never render a value without an honest source.** Missing → `collecting
 
 The `summary.text` is generated, so it goes through the standard guarded pipeline - it is **not** exempt:
 
-- **C1** - generated only via `src/lib/llm/gemini.ts` (no other SDK).
+- **C1** - generated only via `src/lib/llm/boundary.ts` (no other SDK).
 - **C9** - `classifyInput()` runs before the call; red zone short-circuits.
 - **C3** - `ai_audit_log` INSERT on the call (including mock).
 - **Lexicon** - output passes `src/lib/safety/lexicon.ts` post-filter. No clinical terms. (This is why Big Five's *Neuroticism* axis is surfaced as **"Sensitivity"** in IDEN - brand-safe, non-clinical, while the raw key stays standard internally.)

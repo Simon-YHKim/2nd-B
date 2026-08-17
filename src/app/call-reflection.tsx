@@ -25,7 +25,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import { createRecord } from "@/lib/records/create";
 import { composeStructured } from "@/lib/capture/structured";
-import { transcribeAudio } from "@/lib/llm/gemini";
+import { transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { m3 } from "@/lib/theme/m3";
 

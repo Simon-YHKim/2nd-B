@@ -9,7 +9,7 @@
 // "-1,700 RPD" consolidation lever.
 //
 // Boundaries kept identical to recommendForDomain:
-//   - C1/C3/C9 via callGemini (this module never touches the SDK).
+//   - C1/C3/C9 via callLlm (this module never touches the SDK).
 //   - Wiki snapshot ONLY as context (no journal records), fenced as untrusted.
 //   - The brief is the PASSIVE surface. The explicit "run again" button keeps
 //     its rich, per-domain, adherence/lens-tailored call (recommend.ts,
@@ -19,7 +19,7 @@
 //     is re-checked in recommend.ts before this runs; a brief is never built
 //     for an opted-out user.
 
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { sanitizeUntrusted } from "../llm/untrusted";
 import type { SystemLocale } from "../i18n/locales";
 import { getSupabaseClient } from "../supabase/client";
@@ -184,7 +184,7 @@ export async function buildOpsDailyBrief(input: BuildBriefInput): Promise<OpsDai
       sanitizeUntrusted(snapshot.prompt),
       "</UNTRUSTED>",
     ].join("\n");
-    const reply = await callGemini({
+    const reply = await callLlm({
       userId: input.userId,
       locale: input.locale,
       purpose: "ops_daily_brief",

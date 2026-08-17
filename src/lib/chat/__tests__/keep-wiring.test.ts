@@ -21,7 +21,7 @@ function stripComments(src: string): string {
  * keepExchange 의 **본문만** 떼어낸다. 중괄호를 세서 함수 끝에서 정확히 멈춘다.
  *
  * 처음에는 "다음 주석까지"로 잘랐는데 그 사이에 다른 함수들이 들어와서, 그
- * 함수들이 부르는 callGemini 를 이 함수가 부르는 것으로 읽었다.
+ * 함수들이 부르는 callLlm 를 이 함수가 부르는 것으로 읽었다.
  */
 function keepHandlerBody(): string {
   const start = SRC.indexOf("async function keepExchange");
@@ -69,7 +69,7 @@ describe("대화 -> 위키 배선", () => {
     // 여기서 부르면 담을 때마다 유료 호출이 나가고, 원문 자리에 모델의 해석이
     // 끼어든다.
     const handler = keepHandlerBody();
-    expect(handler).not.toMatch(/callGemini|sendChatMessage|callAdvisor|classifyClipper/);
+    expect(handler).not.toMatch(/callLlm|sendChatMessage|callAdvisor|classifyClipper/);
   });
 
   it("별 밝기를 건드리지 않는다", () => {
