@@ -6,7 +6,8 @@
 //   - Phase 2: the reasoning seats move to OpenAI (re-routed 2026-07-06); rest stay.
 //   - Owner pin (Simon 2026-07-04): capture_ocr is Gemini UNCONDITIONALLY,
 //     and any image-bearing call is forced to Gemini regardless of seat.
-//   - secondb_chat stays Gemini in Phase 2 (streaming interim, D-26 A1).
+//   - secondb_chat ignores phase entirely: it routes by EXPO_PUBLIC_CHAT_VENDOR
+//     (unset -> Gemini), so moving chat never drags the nine seats with it.
 //   - proxyFnForVendor maps vendors to their edge functions.
 
 import {
@@ -34,7 +35,6 @@ const OPENAI_SEATS: PromptPurpose[] = [
 ];
 
 const GEMINI_STAYERS: PromptPurpose[] = [
-  "secondb_chat", // streaming interim — D-26 A1
   "interview_probe",
   "audit_qa",
   "clipper_classify",
@@ -68,6 +68,18 @@ function withVendor<T>(vendor: string | undefined, fn: () => T): T {
   } finally {
     if (prev === undefined) delete process.env.EXPO_PUBLIC_LLM_VENDOR;
     else process.env.EXPO_PUBLIC_LLM_VENDOR = prev;
+  }
+}
+
+function withChatVendor<T>(vendor: string | undefined, fn: () => T): T {
+  const prev = process.env.EXPO_PUBLIC_CHAT_VENDOR;
+  if (vendor === undefined) delete process.env.EXPO_PUBLIC_CHAT_VENDOR;
+  else process.env.EXPO_PUBLIC_CHAT_VENDOR = vendor;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env.EXPO_PUBLIC_CHAT_VENDOR;
+    else process.env.EXPO_PUBLIC_CHAT_VENDOR = prev;
   }
 }
 
@@ -189,6 +201,78 @@ describe("D-26 vendor routing", () => {
     });
   });
 
+  describe("EXPO_PUBLIC_CHAT_VENDOR — the chat-only knob (Simon 2026-08-18)", () => {
+    test("unset → chat stays on the Gemini backbone, in either phase", () => {
+      withChatVendor(undefined, () => {
+        withPhase("1", () => expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini"));
+        withPhase("2", () => expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini"));
+      });
+    });
+
+    test("routes chat to the named vendor without needing Phase 2", () => {
+      // The point of the knob: production runs Phase 1, and flipping to Phase 2
+      // just to move chat would switch nine other surfaces at the same time.
+      withPhase("1", () => {
+        withChatVendor("openai", () =>
+          expect(resolveVendorForPurpose("secondb_chat", false)).toBe("openai"),
+        );
+        withChatVendor("claude", () =>
+          expect(resolveVendorForPurpose("secondb_chat", false)).toBe("claude"),
+        );
+        withChatVendor("gemini", () =>
+          expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini"),
+        );
+      });
+    });
+
+    test("garbage values fall back to Gemini rather than throwing", () => {
+      for (const v of ["", "  ", "gpt", "openai ", "OPENAI", "true"]) {
+        withChatVendor(v, () => {
+          const got = resolveVendorForPurpose("secondb_chat", false);
+          // "openai " and "OPENAI" normalise (trim + lowercase); the rest do not
+          // resolve and must degrade to the backbone, never to undefined.
+          expect(["gemini", "openai"]).toContain(got);
+        });
+      }
+    });
+
+    test("it moves ONLY chat — the nine seats and the stayers are untouched", () => {
+      withChatVendor("openai", () => {
+        withPhase("1", () => {
+          for (const seat of OPENAI_SEATS) {
+            expect(resolveVendorForPurpose(seat, false)).toBe("gemini");
+          }
+          for (const p of GEMINI_STAYERS) {
+            expect(resolveVendorForPurpose(p, false)).toBe("gemini");
+          }
+        });
+      });
+    });
+
+    test("an image-bearing chat turn still goes to Gemini", () => {
+      // Only gemini-proxy forwards inline image data; the knob must not beat
+      // that pin or a photo-carrying turn would fail upstream.
+      withChatVendor("openai", () =>
+        expect(resolveVendorForPurpose("secondb_chat", true)).toBe("gemini"),
+      );
+    });
+
+    test("the knob does not leak into the global seat switch", () => {
+      // EXPO_PUBLIC_LLM_VENDOR governs seats; chat is not a seat. Setting the
+      // seat switch must not move chat, and vice versa.
+      withChatVendor(undefined, () =>
+        withVendor("openai", () =>
+          expect(resolveVendorForPurpose("secondb_chat", false)).toBe("gemini"),
+        ),
+      );
+      withChatVendor("openai", () =>
+        withVendor(undefined, () =>
+          withPhase("1", () => expect(resolveVendorForPurpose("advisor", false)).toBe("gemini")),
+        ),
+      );
+    });
+  });
+
   test("Phase 2 effort defaults follow the D-26 matrix", () => {
     expect(phase2EffortFor("advisor")).toBe("high");
     expect(phase2EffortFor("persona_narrative")).toBe("high");
@@ -198,7 +282,10 @@ describe("D-26 vendor routing", () => {
     expect(phase2EffortFor("axis_estimate")).toBe("high");
     expect(phase2EffortFor("persona_synthesis")).toBe("xhigh");
     expect(phase2EffortFor("ops_recommend")).toBe("medium");
-    expect(phase2EffortFor("secondb_chat")).toBeUndefined();
+    // chat is not a PHASE2_VENDOR seat, but it still needs an effort when the
+    // chat knob puts it on a non-Gemini vendor -- without one boundary.ts falls
+    // back to DEFAULT_EFFORT ("high") on the highest-volume surface in the app.
+    expect(phase2EffortFor("secondb_chat")).toBe("low");
   });
 
   test("invariant: every Phase 2 seat has an explicit effort entry", () => {

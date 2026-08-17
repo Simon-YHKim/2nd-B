@@ -95,10 +95,23 @@ Project-specific guidance for Claude Code sessions in this repo.
 >    `PURPOSE_TIER`(`src/lib/llm/types.ts`). 새 좌석을 추가할 때 **effort 를 반드시 명시**하고,
 >    비싼 등급은 근거를 주석으로 남길 것. 기본값으로 xhigh 를 뿌리지 말 것.
 >
-> **실측 현황(2026-08-17).** 이미 멀티벤더다. `LlmVendor = "gemini" | "claude" | "openai"`,
-> 프록시 3종 배포·키 완료. **추론 좌석 9개가 전부 OpenAI 로 나가 있다**(2026-07-06 전환,
-> Anthropic 크레딧 소진이 이유였고 코드 변경 없이 `EXPO_PUBLIC_LLM_VENDOR` 로 되돌릴 수 있다).
-> 어느 벤더가 처리했는지는 `ai_audit_log.reasoning_vendor`(0095)에 남는다.
+> **실측 현황(2026-08-18 정정).** 멀티벤더 **배선**은 돼 있다 —
+> `LlmVendor = "gemini" | "claude" | "openai"`, 프록시 3종 배포·키 완료.
+>
+> ⚠ **여기 "추론 좌석 9개가 전부 OpenAI 로 나가 있다"고 적혀 있었는데 운영에서는 사실이
+> 아니다.** `PHASE2_VENDOR` 맵이 9좌석을 `openai` 로 **선언**하고 있을 뿐이고, 그 맵은
+> `EXPO_PUBLIC_LLM_PHASE=2` 에서만 켜지는데 **저장소 Variable 이 `1` 이다**(2026-07-05
+> 설정, `EXPO_PUBLIC_LLM_VENDOR` 는 아예 없음). Phase 1 에서 `resolveVendorForPurpose` 는
+> 전부 `gemini` 를 돌려준다.
+>
+> **원장으로 확인했다**(`ai_audit_log`, 2026-08-18): 전체 행에서 `reasoning_vendor` 가
+> **`gemini` 아닌 행이 0건**이다. `ops_recommend` 25 · `ops_daily_brief` 12 ·
+> `self_model_propose`/`northstar_propose`/`axis_estimate` 각 6 — 전부 gemini.
+> 즉 **OpenAI·Claude 로 나간 실호출은 아직 한 건도 없다.**
+>
+> 그래서 "Phase 2 를 켜면 대화만 옮겨진다"가 아니다 — **PHASE=2 를 켜는 순간 한 번도
+> 운영에서 돌아본 적 없는 9좌석이 동시에 OpenAI 로 넘어간다.** 그게 이 정정의 실질적
+> 의미다. 어느 벤더가 처리했는지는 `ai_audit_log.reasoning_vendor`(0095)에 남는다.
 >
 > **아직 Gemini 인데 옮겨야 할 자리:** `secondb_chat`(세컨비 대화). claude-proxy 에는
 > **이미 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데 라우팅이 안 붙어 있다.**
@@ -111,11 +124,27 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 렌더를 하지 않는다. 즉 대화는 **이미 비스트리밍 프록시 홉을 타고 있다.**
 > 스트리밍을 구현해도 풀리는 것이 없다 — 막혀 있질 않기 때문이다.
 >
-> **진짜 게이트는 전송이 아니라 크레딧이다.** 좌석은 이미 있으니 이전은
-> `PHASE2_VENDOR` 에 한 줄 추가면 끝인데, 추론 좌석 9개가 2026-07-06 에 Anthropic
-> 크레딧 소진으로 OpenAI 로 옮겨간 상태다. 그대로 대화를 claude-proxy 로 보내면
-> 매 메시지가 실패 홉을 한 번 치고 D-26 페일오버로 gemini-proxy 에 떨어진다.
-> **Anthropic 크레딧이 확인되면 그때 한 줄 바꾸면 된다.**
+> **[Simon 결정 2026-08-18] 대화는 Claude 가 아니라 OpenAI 로 간다.** "일단 gpt 쪽으로
+> 가는게 좋아보여. 하지만 나중에 다시 선택할 여지를 남겨두자."
+>
+> 그래서 대화에 **전용 스위치**를 뒀다 — **`EXPO_PUBLIC_CHAT_VENDOR`**
+> (`gemini`(기본·미설정) / `openai` / `claude`). `PHASE2_VENDOR` 에 넣지 않은 이유는
+> 위 정정 그대로다: 그 맵은 PHASE=2 에서만 켜지고, 그걸 켜면 대화만이 아니라 9좌석이
+> 같이 넘어간다. 목적 하나에 변수 하나면 **켜는 것도 되돌리는 것도 한 값**이고, 그게
+> Simon 이 말한 "다시 선택할 여지"다. 코드 수정 불필요.
+>
+> ⚠ **순서를 지킬 것 — 배포가 먼저, 플립이 나중.** openai-proxy 는 허용목록 밖 purpose 를
+> **아무것도 하기 전에** `400 purpose_not_seated` 로 자른다. 이 변경이 넣은
+> `secondb_chat` 좌석은 **함수를 재배포해야** 생긴다. 변수를 먼저 켜면 대화가 전부 실패한다.
+> (0127/0130 마이그레이션과 같은 함정이다.)
+>
+> 모델은 `gpt-5.4` 로 두되 **비용 조절은 effort ceiling `low`** 가 한다(대화는 추론
+> 좌석이 아니라 최다 호출 표면). 더 싼 티어는 재배포 없이 `OPENAI_PURPOSE_MODELS` 로
+> 바꿀 수 있다 — 단 모델 ID 존재 확인 후.
+>
+> Claude 로 가고 싶어지면 `EXPO_PUBLIC_CHAT_VENDOR=claude` — claude-proxy 에는
+> `secondb_chat: 'claude-sonnet-5'` 좌석이 **이미 있다.** 단 Anthropic 크레딧이 있어야
+> 한다(2026-07-06 소진 이력).
 >
 > **경계 모듈은 `src/lib/llm/boundary.ts` 다** (2026-08-17 `gemini.ts` 에서 개명. 함수도
 > `callGemini` → `callLlm`). **모든 LLM 호출이 지나는 단일 지점**이고 감사 기록(C3)과

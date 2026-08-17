@@ -45,6 +45,33 @@ export function llmVendorOverride(): LlmVendorMode | null {
   return null;
 }
 
+// EXPO_PUBLIC_CHAT_VENDOR — the one knob for 세컨비 대화 (secondb_chat).
+//   gemini (or unset) → gemini-proxy, the behaviour shipped to date
+//   openai            → openai-proxy   ← Simon's 2026-08-18 direction
+//   claude            → claude-proxy
+//
+// Why chat gets its own knob instead of joining PHASE2_VENDOR: the seats in
+// that map only activate at EXPO_PUBLIC_LLM_PHASE=2, and production is
+// **Phase 1** (repo Variable, verified 2026-08-18 — every ai_audit_log row to
+// date was served by gemini, including the nine "re-routed" seats). So flipping
+// chat by way of Phase 2 would also switch nine other surfaces that have never
+// once run in production. That is a much larger change than the one asked for.
+//
+// Simon asked to keep the choice open ("나중에 다시 선택할 여지를 남겨두자"), and
+// a single purpose with a single variable is exactly that: one value to move
+// chat between vendors, one value to put it back, no code edit, no redeploy.
+//
+// ⚠ ORDERING. openai-proxy rejects any purpose outside its allowlist with
+// 400 purpose_not_seated BEFORE doing anything else. The seat added to that
+// function in this change only exists once the function is **redeployed**.
+// Set this variable before that deploy and every chat message fails. Deploy
+// first, then flip -- the same trap as applying a migration after its client.
+export function chatVendorOverride(): LlmVendor | null {
+  const raw = (process.env.EXPO_PUBLIC_CHAT_VENDOR ?? "").trim().toLowerCase();
+  if (raw === "gemini" || raw === "claude" || raw === "openai") return raw;
+  return null;
+}
+
 // Owner directive (Simon, 2026-07-04): OCR runs on Gemini UNCONDITIONALLY —
 // every phase, no vendor failover, no exceptions. It is also technically
 // forced: only gemini-proxy forwards image inline-data (claude/openai proxies
@@ -129,6 +156,13 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   digest_weekly: "xhigh",
   ttfv_first_insight: "xhigh",
   cluster_infer: "medium",
+  // secondb_chat is not a PHASE2_VENDOR seat (it routes via
+  // EXPO_PUBLIC_CHAT_VENDOR), but it still needs an effort when that knob puts
+  // it on a non-Gemini vendor: boundary.ts falls back to DEFAULT_EFFORT ("high")
+  // otherwise, which would ask the app's highest-volume surface to reason hard
+  // on every turn. Chat is conversational, not deliberative -> low. The proxies
+  // clamp to the same ceiling server-side, so this is intent, not enforcement.
+  secondb_chat: "low",
 };
 
 /**
@@ -140,6 +174,15 @@ export function resolveVendorForPurpose(purpose: PromptPurpose, hasImage: boolea
   // 1) Image / OCR / voice pin — ALWAYS Gemini, highest priority. Beats the
   //    global switch too (only gemini-proxy forwards inline data / audio).
   if (hasImage || GEMINI_PINNED_PURPOSES.has(purpose)) return "gemini";
+
+  // 1b) Chat has its own vendor knob, independent of phase and of the seat
+  //     switch. Placed after the image/OCR pin so an image-bearing turn still
+  //     goes to Gemini (no other proxy forwards inline data), and before the
+  //     seat logic so chat never depends on Phase 2 being on. Unset → falls
+  //     through to the Gemini backbone exactly as before.
+  if (purpose === "secondb_chat") {
+    return chatVendorOverride() ?? "gemini";
+  }
 
   // Only the reasoning SEATS are vendor-switchable. Every other purpose
   // (secondb_chat, high-volume classification, interview probes) stays on the

@@ -88,6 +88,9 @@ jobs:
       # D-26 purpose-keyed routing phase. "1" = current posture (no behavior
       # change); flip the repo Variable to "2" to activate Phase 2 routing.
       EXPO_PUBLIC_LLM_PHASE: ${{ vars.EXPO_PUBLIC_LLM_PHASE || '1' }}
+      # Vendor for 세컨비 대화 only. Unset/"gemini" keeps today's behaviour.
+      # Deploy openai-proxy BEFORE setting this to "openai" -- see web-deploy.yml.
+      EXPO_PUBLIC_CHAT_VENDOR: ${{ vars.EXPO_PUBLIC_CHAT_VENDOR || 'gemini' }}
       EXPO_PUBLIC_UI: "deep-space"
       EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"
