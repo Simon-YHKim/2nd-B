@@ -33,11 +33,32 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 3. **개인 비서 화면 = 활용** — 그 페르소나를 근거로 실제로 도와주는 자리(`/ops` 계열).
 > 4. **커뮤니티·채팅 = 공유** — 그 내용을 남과 나누는 자리.
 >
-> **지금 끊어져 있는 곳(2026-08-17 실측):** `buildPersona()`(`src/lib/persona/build.ts`)가
-> 북극성 페르소나를 합성하는데 **`/core-brain` 화면 하나에서만 소비된다.**
-> 대화(`src/lib/chat/conversation.ts`)는 기록·위키·RAG만 읽고 **페르소나를 안 읽는다.**
-> 비서(`src/lib/ops/recommend.ts`)도 **안 읽는다.** 그래서 아무리 입력해도 세컨비가
-> 나를 더 아는 것처럼 굴지 못한다. **이게 이 제품의 1순위 결함이다.**
+> **데이터 방향 (Simon 정정, 2026-08-17). 이 방향을 뒤집지 말 것:**
+>
+> ```
+>   대화 · 입력  ──▶  LLM 위키 (상세 원문)  ──▶  상세 분석  ──▶  세컨비 발화
+>                          └──────────────▶  북극성 페르소나 (요약, 파생물)
+> ```
+>
+> - **위키가 원본이고 페르소나는 그 파생 요약이다.** 페르소나는 소스가 아니다.
+> - **LLM 은 페르소나가 아니라 기록·위키를 읽고 말한다.** 요약을 읽으면 정확도가 떨어진다.
+>   `conversation.ts` 가 이미 `exportUserWiki` + RAG 를 읽고 있고, **그게 맞는 설계다.**
+> - **"페르소나"는 LLM 이 쓸 가면이 아니다.** 사용자의 실제 생활 속에 존재하는 그 사람의
+>   모습을 대화로 알아낸 것이다. 캐릭터 설정으로 오해하지 말 것.
+>
+> **⚠ 2026-08-17 오전에 이 파일에 "대화가 페르소나를 안 읽는 것이 1순위 결함"이라고
+> 적혀 있었다. 그건 틀린 진단이었다.** 그렇게 이으면 상세 원문 대신 요약을 읽게 되어
+> 오히려 나빠진다. 그 문장을 근거로 삼지 말 것.
+>
+> **진짜 끊어진 곳은 반대 방향이다 — 대화가 위키에 아무것도 안 쓴다(실측).**
+> `src/lib/chat/conversation.ts` 에 기록/위키 쓰기 경로가 없고, `src/app/secondb.tsx` 에도
+> `createRecord`/`captureFromMarkdown` 호출이 없다. 대화를 위키로 보내는 유일한 길은
+> 제안 프롬프트 **"위키에 저장"** 한 줄뿐인데, 그건 LLM 에게 한 단락 요약을 시키고
+> 사용자가 그걸 손으로 `/capture` 에 담아야 하는 수동 경로다.
+>
+> 그래서 **"대화 기반으로 알아낸 페르소나"가 지금 구조상 성립하지 않는다.**
+> 대화가 흔적을 안 남기므로 위키도 페르소나도 대화로부터 자라지 않는다.
+> **이게 이 제품의 1순위 결함이다.**
 >
 > **"렌즈층"에 시간을 쓰기 전에 위 배선을 먼저 이을 것.** 렌즈 개수(3이냐 7이냐) 논쟁은
 > 이 배선이 없으면 무의미하다 — 세컨비가 결정을 내리는 자리가 `/ops` 루틴 추천밖에 없어서
@@ -47,29 +68,38 @@ Project-specific guidance for Claude Code sessions in this repo.
 > 임상 용어를 막는 건 임상 서비스라고 **주장**하지 않기 위해서다. 친구처럼 깊게 듣고 파악하는
 > **기능 자체는 제약 없음.** UI 문자열에 그 단어를 안 쓰면 된다.
 
-> ### 제미나이는 더 이상 요건이 아니다 (Simon 결정, 2026-08-17)
+> ### LLM 정책 (Simon 결정, 2026-08-17) — 벤더가 아니라 적합성으로 고른다
 >
-> "Build with Gemini"는 XPRIZE 잔재다. **이 앱은 이미 멀티벤더고, 주력은 Gemini가 아니다.**
-> `src/lib/llm/routing.ts` 실측:
+> **원칙 셋.**
 >
-> - `LlmVendor = "gemini" | "claude" | "openai"`, 프록시 3종 배포·키 완료.
-> - **추론 좌석 9개가 전부 OpenAI(gpt-5.4)로 나가 있다** (`PHASE2_VENDOR`, 2026-07-06 전환).
-> - `EXPO_PUBLIC_LLM_VENDOR` 하나로 전 좌석 벤더 교체 가능. 어느 벤더가 처리했는지는
->   `ai_audit_log.reasoning_vendor`(0095)에 남는다.
+> 1. **제미나이를 쓰는 것은 더 이상 중요하지 않다.** "Build with Gemini"는 XPRIZE 잔재다.
+>    **그 자리에 가장 적합한 LLM 을 쓴다.** Gemini 로 남길 자리는 **OCR 과 음성 텍스트화**
+>    정도다(그 둘은 gemini-proxy 만 이미지·오디오 inline data 를 전달해서 기술적으로도 그렇다).
+> 2. **항상 최신 모델을 쓴다.** 모델 ID 를 오래 핀해두지 말 것. 모델 선택은 **서버 소유**라
+>    (claude-proxy `ANTHROPIC_MODEL` / `ANTHROPIC_PURPOSE_MODELS`, openai-proxy 동형)
+>    코드 배포 없이 env 로 올릴 수 있다. 클라이언트가 보내는 `model` 필드는 무시된다.
+> 3. **비용과 리즈닝 effort 를 자리마다 최적화한다.** 사다리는 이미 있다 —
+>    `PHASE2_EFFORT`(low/medium/high/xhigh, `src/lib/llm/routing.ts`)와
+>    `PURPOSE_TIER`(`src/lib/llm/types.ts`). 새 좌석을 추가할 때 **effort 를 반드시 명시**하고,
+>    비싼 등급은 근거를 주석으로 남길 것. 기본값으로 xhigh 를 뿌리지 말 것.
 >
-> **아직 Gemini에 묶인 자리는 셋뿐이고, 이유가 각각 다르다:**
+> **실측 현황(2026-08-17).** 이미 멀티벤더다. `LlmVendor = "gemini" | "claude" | "openai"`,
+> 프록시 3종 배포·키 완료. **추론 좌석 9개가 전부 OpenAI 로 나가 있다**(2026-07-06 전환,
+> Anthropic 크레딧 소진이 이유였고 코드 변경 없이 `EXPO_PUBLIC_LLM_VENDOR` 로 되돌릴 수 있다).
+> 어느 벤더가 처리했는지는 `ai_audit_log.reasoning_vendor`(0095)에 남는다.
 >
-> | 자리 | 왜 아직 Gemini인가 |
-> |---|---|
-> | `secondb_chat` (세컨비 대화) | claude-proxy 스트리밍 미구현. 블로킹 대화 화면이라 비스트리밍 홉을 못 씀 |
-> | 이미지 OCR | gemini-proxy만 image inline-data를 전달한다(다른 프록시는 텍스트 전용) |
-> | `capture_voice` (오디오 전사) | 같은 이유 — 오디오를 싣는 프록시가 gemini-proxy뿐 |
+> **아직 Gemini 인데 옮겨야 할 자리:** `secondb_chat`(세컨비 대화). claude-proxy 에는
+> **이미 `secondb_chat: 'claude-sonnet-5'` 좌석이 설정돼 있는데 라우팅이 안 붙어 있다** —
+> 막고 있는 것은 **claude-proxy 스트리밍 미구현** 하나뿐이다(블로킹 대화 화면이라
+> 비스트리밍 홉을 못 씀). 그것만 되면 대화는 바로 옮겨진다.
 >
-> **하지 말 것:** `src/lib/llm/gemini.ts`를 지우거나 우회하지 말 것. 그건 벤더 모듈이 아니라
-> **C1 단일 경계 모듈**이다(C3 감사·C9 안전 분류가 전부 여기 걸려 있다). 이름이 gemini.ts일
-> 뿐이고, 벤더 선택은 `routing.ts`가 한다. 지우면 OCR·음성이 죽고 감사 원장에 구멍이 난다.
+> **하지 말 것:** `src/lib/llm/gemini.ts` 를 지우거나 우회하지 말 것. 이름만 gemini 일 뿐
+> **모든 LLM 호출이 지나는 단일 경계 모듈**이고, 감사 기록(C3)과 안전 분류(C9)가 전부
+> 여기 걸려 있다. 벤더 선택은 `routing.ts` 가 한다.
 >
-> **인용 금지:** "우리는 Gemini 앱이다", "C2가 Vertex를 요구한다", "Gemini로 해야 한다".
+> **인용 금지:** "우리는 Gemini 앱이다" · "C2 가 Vertex 를 요구한다" · "Gemini 로 해야 한다".
+> `docs/` 아래 여러 문서(`ARCHITECTURE.md`·`LLM-ROUTING.md`·`CONSTRAINTS.md` 등)에 남은
+> Gemini 서술은 **역사 기록**이다. 충돌하면 이 절이 이긴다.
 
 - **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
 - **Web deploy target — GitHub Pages, NOT Vercel.** `.github/workflows/web-deploy.yml` pushes the
