@@ -3,9 +3,33 @@
 `Output/2ndB_prompt_payments_260819.md` 받았다. 요청대로 **코드가 아니라 결정 문서**를 냈다.
 Simon 용 보고는 Artifact HTML 로 따로 있고, 이 문서는 콘솔이 쓸 근거·행 번호 모음이다.
 
-**결론 먼저:** A/B/C 는 배타적 선택지가 아니라 **순서**였다. 그리고 어느 쪽을 고르든
-**스키마를 먼저 고쳐야** 한다. 충돌 지점은 그쪽이 지목한 `subscription_provider` 가 아니라
-`users.subscription_event_at` 이다.
+**결론 먼저 (이게 제일 중요하다):**
+
+> **Paddle 은 카카오페이·네이버페이 정기결제를 이미 지원한다. 2025-11-19 에 열렸다.**
+> **토스페이먼츠는 카카오페이 정기결제를 못 준다** — 토스 공식 문서가 미지원이라고 명시한다.
+>
+> 즉 **토스로 옮기면 Simon 이 원한 것을 얻는 게 아니라 잃는다.**
+
+Paddle 변경 로그 원문 (`developer.paddle.com/changelog/2025/recurring-kakaopay-naverpay-subscriptions`,
+Released November 19, 2025):
+
+> "Paddle now supports recurring transactions for KakaoPay and Naver Pay, meaning customers
+> can use them to pay for subscriptions."
+> "**Previously, KakaoPay and Naver Pay were only available for one-time purchases** through
+> Paddle Checkout."
+> "If you've already turned on KakaoPay and Naver Pay for Paddle Checkout, **you don't need to
+> do anything** to start offering them for subscriptions."
+
+조건이 하나 있다. 한국 결제수단 5종 페이지가 전부 같은 문장으로 끝난다:
+
+> "Paddle Checkout only presents KakaoPay as a payment method **for items priced in South
+> Korean Won, where the customer address is in South Korea.**"
+
+**즉 USD 가격만 있으면 한국 결제수단이 하나도 안 뜬다.** 우리 대시보드에 KRW 가격이 있는지는
+저장소에서 확인 불가(가격 id 리터럴 0건, 전부 env 주입). **그쪽이 확인해 줄 것 1순위다.**
+
+그리고 어느 쪽을 고르든 **스키마를 먼저 고쳐야** 한다. 충돌 지점은 그쪽이 지목한
+`subscription_provider` 가 아니라 `users.subscription_event_at` 이다.
 
 ---
 
@@ -60,20 +84,38 @@ Simon 용 보고는 Artifact HTML 로 따로 있고, 이 문서는 콘솔이 쓸
 ```
 가격 9,900  ->  부가세 900  ->  공급가 9,000
 
-토스    수수료 337 (3.4%) + 수수료VAT 34   ->  실수령 8,630
-Paddle  수수료 1,150 (5% + $0.50@1400)     ->  실수령 7,850
-                                               차액 780/월/구독자
+토스    수수료 337 (3.4%) + 수수료VAT 34   ->  실수령 8,630   실효 4.1%
+Paddle  수수료 1,195 (5% x 9,900 + $0.50)  ->  실수령 7,805   실효 13.3%
+                                                차액 825/월/구독자
 
 1년차 고정비 330,000 (가입비 220,000 + 연관리비 110,000)
-손익분기 = 423 구독·월 = 1년 유지 구독자 약 35명
-정착 후(연관리비만) = 141 구독·월 = 약 12명
+손익분기 = 400 구독·월 = 1년 유지 구독자 약 33명
+정착 후(연관리비만) = 133 구독·월 = 약 11명
 ```
 
-Paddle 5% + $0.50 은 **표준 요율 가정이고 실계약 조건은 미확인 (`UNVERIFIED`)**. 토스 수수료는
-공식 요금 페이지 확인값(카드·간편결제 3.4% / 계좌이체 2.0%, VAT 별도)이나 **자동결제 전용
-요율은 요금 페이지에 항목이 없다 (`UNVERIFIED`)**.
+**Paddle 의 "5%" 는 5% 가 아니다.** 두 가지가 겹친다.
 
-읽는 법: **토스는 건당으로 유리하지만 구독자 35명을 1년 붙들기 전에는 고정비를 못 넘는다.**
+1. **수수료가 부가세 포함 총액에 붙는다.** API 레퍼런스: "the fee is originally calculated
+   from the transaction total". 한국은 Paddle 데이터셋에서 `tax_mode: "internal"`(세금 포함
+   표시)이므로 **정부 몫인 부가세에도 5% 를 낸다.**
+2. **건당 $0.50 고정비가 한국 가격대에서 크다.** ₩9,900 에서 고정비만 공급가의 **7.8%**.
+
+**단, Paddle 이 스스로 협상하라고 적어 뒀다.** 요금 페이지 각주(3회 반복):
+
+> "If you're selling products **under $10** or require invoicing contact us for custom pricing"
+
+₩9,900 은 약 $7 다. **우리는 Paddle 이 명시적으로 협상 대상이라고 안내하는 구간에 있고,
+공시가 5% + $0.50 이 우리 요율이 아닐 수 있다.** 결제사를 바꾸기 전에 메일 한 통이 먼저다.
+
+토스 수수료는 공식 요금 페이지 확인값(카드·간편결제 3.4% / 계좌이체 2.0%, VAT 별도)이나
+**자동결제 전용 요율은 요금 페이지에 항목이 없다 (`UNVERIFIED`)**. 환율 1,400원 가정.
+
+**정산 통화 주의:** KRW 는 Paddle 의 **payout 통화가 아니다.** 한국은
+`{"iso":"KR", "transaction_currency":"KRW", "payout_currency":"USD"}` 로 잡혀 있어 한국 판매자는
+**USD 로 받는다.** 국제 송금 건당 $15 + 통화 변환 시 최대 1.5% 마진 (`UNVERIFIED` — 한국 계좌
+수취 시 실제 적용 여부는 문서가 답하지 않는다).
+
+읽는 법: **토스는 건당으로 유리하지만 구독자 33명을 1년 붙들기 전에는 고정비를 못 넘는다.**
 지금 유료 사용자는 0명이다.
 
 **그리고 위 계산은 아래 2.5 절의 세무 리스크를 아직 안 넣은 값이다.**
@@ -303,6 +345,39 @@ destination 이 다른 서명 시크릿을 갖고 있어도 어느 경로에도 
 
 ## 6. 조사하다 나온 별건 3개
 
+### 6.0 ⚠ 지금 스토어에 올라간 앱의 실제 결함 — 이게 제일 급하다
+
+네이티브에서 `paddleCheckoutAvailable()` 은 **항상 false** 이고(Paddle 은 웹 전용,
+`paddle-checkout.ts` 가 `Platform.OS !== "web"` 에서 `unsupported_platform` 반환) RevenueCat
+패키지는 키가 없어 비어 있다(`purchases.ts` 헤더가 "SCAFFOLD ONLY" 로 자백). 그래서 유료 플랜
+버튼은 `dds-plans-screen.tsx:325` 의 마지막 분기로 떨어진다:
+
+```ts
+else if (key !== "free") setError(t("ds.plans.purchaseError"));
+```
+
+문구는 `locales/ko/deepspace.json:766` — **"결제가 완료되지 않았습니다. 다시 시도해 주세요."**
+
+**즉 가격이 적힌, 살아 있어 보이는 버튼이 100% 실패하고 재시도해도 100% 실패한다.**
+스토어 가이드라인 2.1(App Completeness) 반려 사유이고, 무엇보다 실사용자가 만나는 상태다.
+
+**고칠 재료가 이미 있다.** `locales/{ko,en}/plans.json:10-11` 에 정직한 문구가 들어 있는데
+딥스페이스 플랜 화면이 `ds.plans.*` 네임스페이스를 쓰느라 이걸 안 쓴다:
+
+> "유료 플랜은 곧 제공됩니다 / 결제는 아직 열리지 않았습니다. 가격은 확정되었고, 여기서
+> 직접 선택하기 전에는 요금이 청구되지 않습니다."
+
+**결제사 결정과 완전히 무관하다. 승인만 주면 바로 고친다.**
+
+### 6.05 한국 결제수단을 켜면 화면에 `kakao_pay` 라고 뜬다
+
+`formatPaymentMethod()` 가 `payment_method` 를 **그대로 반환**한다
+(`src/lib/billing/subscription-manage.ts:302` — `if (o.payment_method) return o.payment_method;`).
+
+Paddle 은 구 `korea_local` 을 **폐기**하고 `south_korea_local_card` · `kakao_pay` · `naver_pay`
+를 보낸다. 분기하는 코드는 없으니 **기능은 안 깨지고 표시만 깨진다.** 한국 결제수단을 켜기 전에
+매핑 한 줄이 필요하다.
+
 ### 6.1 연간 결제가 UI 에서 도달 불가능
 
 `EXPO_PUBLIC_PADDLE_PRICE_*_YEARLY` 는 빌드에 주입되고 `priceIdFor(tier, cadence)` 도 연간을
@@ -330,13 +405,36 @@ KRW 는 보조단위가 없어 "cents" 가 곧 원이다. 지금은 `/100` 하�
 
 ---
 
+## 6.5 스토어 정책 — 웹은 무관, 인앱은 2026-12-31 이후
+
+**웹에 토스를 붙이는 것은 스토어 정책과 무관하다.** 애플 3.1.3 이 직접 적어 뒀다 —
+"Developers can send communications outside of the app to their user base about purchasing
+methods other than in-app purchase." 웹 체크아웃 뒤의 결제사는 스토어에 보이지 않는다.
+
+**지금 앱은 웹 결제를 언급조차 안 한다 — 그게 잘한 것이다.** 로케일 5종 전수 검색 결과
+"웹에서" · "our website" 류 문구가 **0건**이라 anti-steering(3.1.1(a)) 노출이 없다.
+
+인앱에 한국 PG 를 넣는 것은:
+
+| 경로 | 가능 | ₩9,900 총비용 | 판단 |
+|---|---|---|---|
+| iOS 한국 (StoreKit External Purchase Entitlement) | 가능 | 애플 **26%** + PG 2~3% = **28~29%** | ❌ 소규모 15% 보다 나쁘고 **한국 전용 별도 바이너리** 필요(IAP 와 공존 불가) |
+| 안드로이드 한국, 지금 (대체 결제) | 가능 | 구글 **11%** + 토스 2~3% = **13~14%** | △ Play 15% 대비 1~2%p. 24시간 보고 의무 + 구글 선택 화면 |
+| 안드로이드 한국, **2026-12-31** 부터 | 가능 | 구글 **10%** + 토스 2~3% = **12~13%** | ✅ **그때 다시 보자.** 외부 웹링크도 그때 열린다 |
+
+전기통신사업법 제50조①9호는 **앱 마켓사업자를 규율하고 개발자에게 의무도 청구권도 주지 않는다.**
+2023-10 제안된 과징금 680억(구글 475억·애플 205억)은 **한 번도 확정된 적이 없고**,
+방송미디어통신위원회가 **2026-08-12(일주일 전) 또 의결을 미뤘다.**
+
+---
+
 ## 7. Simon 결정 대기 3건
 
-1. **A / B / C / D 중 무엇인가** (추천: **D** = Paddle 유지 + 스키마 선반영)
-   - A: 토스 도입, 한국 구독은 카드·계좌이체. 네이버페이는 매출 생긴 뒤 별도 심사로 추가 가능
-   - B: **지금 실행 불가** (신청 자격 미달)
-   - C: 구독 대신 회차권·크레딧. **카카오페이를 꼭 쓰려면 이것이 유일한 길**
-   - D: Paddle 유지 + 0133 스키마 일반화만 먼저. 외부 계약 0건
+1. **A / B / C / D 중 무엇인가** (추천: **D**)
+   - A: 토스 도입. 수수료 13.3% → 4.1%. **대가로 카카오페이 정기결제를 잃는다.**
+   - B: **지금 실행 불가** (신청 자격 미달). 되더라도 Paddle 이 이미 주는 것의 중복.
+   - C: 구독 대신 회차권·크레딧. **카카오페이 때문에 고를 이유는 사라졌다.**
+   - D: **Paddle 의 한국 결제수단을 켜고** 0133 스키마 일반화. 외부 계약 0건.
 2. **"한 사용자 = 한 provider"를 DB 로 강제할까** (추천: **강제**)
 3. **공개 문서의 "KakaoPay, NaverPay" 문장** — 사실 확인 후 필요시 수정
 
@@ -360,4 +458,44 @@ KRW 는 보조단위가 없어 "cents" 가 곧 원이다. 지금은 `/100` 하�
 번호는 쓰기 직전 `origin/main` 최댓값 +1 로 재확인하고 즉시 브랜치 push 하겠다.
 현재 `origin/main` 최댓값은 `0132` 이므로 `0133` 이다 (중복 `0092`/`0113`/`0117` 은 기존 이력).
 
-**4절의 Paddle 키 만료 감시는 결정을 안 기다려도 된다.** 시작해도 되면 말해 달라.
+---
+
+## 8. 그쪽이 확인해 줄 것 (콘솔, 브라우저 필요)
+
+**1순위 — Paddle 대시보드 두 가지.** 이게 D 안의 실행 가능 여부를 통째로 가른다.
+
+- [ ] **Paddle > Checkout > Checkout settings > General** 에서
+      `Korean local cards` · `KakaoPay` · `Naver Pay` 가 체크돼 있는가?
+- [ ] 항해자(cortex) · 북극성(brain) 플랜에 **KRW 가격이 존재하는가?**
+      (자동 환율 변환으로 생성된 KRW 가 "items priced in KRW" 조건을 만족하는지는
+      Paddle 문서가 답하지 않는다 — `UNVERIFIED`. 샌드박스 확인 권장.)
+
+**둘 중 하나라도 아니면 지금 한국 사용자에게는 결제수단이 하나도 안 뜨고 있다.**
+그리고 그 경우 약관·환불정책의 "카드, KakaoPay, NaverPay" 문장은 **프로덕션에서 거짓**이다.
+
+**2순위 — Paddle 요율 협상 메일.** $10 미만은 협상하라고 Paddle 이 스스로 안내한다.
+공시가 5% + $0.50 이 우리 요율이 아닐 수 있고, 이게 토스 검토보다 훨씬 싼 수단이다.
+
+**3순위 — 4.1 의 키 만료 감시.** 결정을 안 기다려도 된다. 시작해도 되면 말해 달라.
+
+---
+
+## 9. 약관 "등" 문제의 정확한 형태
+
+약관·환불정책이 "카드, KakaoPay, NaverPay **등**" 이라고 적는다.
+**이름을 댄 셋은 전부 사실이다** — 셋 다 Paddle 에서 구독·환불을 지원한다.
+
+**틀린 것은 "등" 이다.** 독자는 삼성페이·페이코·토스페이도 구독에 쓸 수 있다고 읽는데
+**셋 다 안 된다**:
+
+| 수단 | Paddle 일회성 | Paddle 구독 |
+|---|---|---|
+| 한국 로컬카드(22개사) · KakaoPay · Naver Pay | 지원 | **지원** |
+| 삼성페이 · 페이코 | 지원 | **미지원** (Paddle 자체 각주: "Only available for one-time payment products") |
+| 토스페이(지갑) | **Paddle 에 아예 없음** | 없음 |
+
+영문판은 "and others offered at checkout" 이라 결제 화면에 묶여 있는데 **국문판만 안 묶여 있다.**
+셋을 열거하고 "등"을 빼거나, "결제 화면에 표시되는 수단"으로 묶으면 된다.
+
+⚠ **국문 카피에 "토스" 를 쓰지 말 것.** 한국 독자는 토스페이(지갑)로 읽는데 Paddle 에 없다.
+Paddle 이 지원하는 것은 **토스뱅크 카드**(로컬카드 발급사)이고 그건 다른 것이다.
