@@ -2,6 +2,12 @@
 
 # dependencies
 node_modules/
+# ...and as a symlink. Worktrees share the canonical install by symlinking
+# node_modules (CLAUDE.md "Worktrees & branches"), and a symlink is a FILE to
+# git, so the trailing-slash pattern above does not match it. Without this line
+# every worktree shows an untracked `node_modules`, and one `git add -A` commits
+# a symlink pointing at an absolute local path.
+node_modules
 
 # git worktrees nest INSIDE this repo at .worktrees/<branch> (team rule: all
 # 2ndB worktrees live here, never as sibling folders or under Coding Infra).

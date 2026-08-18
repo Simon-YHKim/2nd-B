@@ -133,13 +133,71 @@ describe("proto_rev2 canon integrity", () => {
     ]);
   });
 
-  it("pins how many app routes the canon does not cover", () => {
+  it("names every app route the canon does not cover", () => {
     const covered = new Set(canonRoutedScreens().map((s) => s.route));
-    const uncovered = appRoutes().filter((r) => !covered.has(r));
+    const uncovered = appRoutes().filter((r) => !covered.has(r)).sort();
     // Adding a screen to src/app without a canon entry lands here. That is
-    // allowed — but it must be a decision, so the count is pinned. Raise it in
-    // the same commit that adds the route, or register the screen in the canon.
-    expect(uncovered.length).toBe(51);
+    // allowed — but it must be a decision, so the gap is pinned.
+    //
+    // 2026-08-19: this pinned a bare COUNT (`toBe(51)`) until now, which could
+    // not tell "one route removed, another added" from "nothing changed" —
+    // substitution passed silently. That is the same failure the canon route
+    // contract (#1242) was built to end, so the count became a list. Register
+    // the screen in the canon, or add its name here in the same commit.
+    expect(uncovered).toEqual([
+      "(auth)/consent-notice",
+      "(auth)/oauth-callback",
+      "(auth)/privacy-policy",
+      "(auth)/refund",
+      "(auth)/sign-up",
+      "(auth)/terms",
+      "account",
+      "beyond",
+      "brightness",
+      "canon",
+      "capture-full",
+      "career",
+      "change-password",
+      "community",
+      "community/[room]",
+      "community/join/[token]",
+      "data",
+      "deepspace-flowmap",
+      "deepspace-home",
+      "deepspace-hub",
+      "deepspace-preview",
+      "dev-screens",
+      "discover",
+      "esm",
+      "formats",
+      "graph",
+      "growth",
+      "import-hub",
+      "insights",
+      "ipip-neo",
+      "jarvis",
+      "ledger",
+      "mbti",
+      "meals",
+      "milestones",
+      "notices",
+      "onboarding",
+      "peer-invites",
+      "peer/[token]",
+      "persona",
+      "profile-details",
+      "reading",
+      "reasoning",
+      "review",
+      "rlss",
+      "side-project",
+      "srs",
+      "subscription",
+      "theme",
+      "trinity",
+      "ttfv",
+      "wiki",
+    ]);
   });
 
   it("exposes the full pack manifest", () => {
