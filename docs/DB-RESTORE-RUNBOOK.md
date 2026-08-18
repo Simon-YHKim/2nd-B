@@ -139,7 +139,7 @@ $env:LC_ALL = "C"   # 이거 없으면 에러 메시지가 한국어로 나오�
 만들어 실행한다. 중첩 인용부호가 조용히 망가져서 stdout·stderr 가 0바이트로 나오고
 아무 일도 일어나지 않는 것처럼 보인다.
 
-### 패스 2 는 선택이 아니다
+### 패스 2 는 선택이 아니고, 한 번으로 끝나지도 않는다
 
 패스 1 은 `auth` 스키마의 **자식 테이블 데이터를 반드시 떨어뜨린다.** 아카이브의 데이터
 적재 순서가 `auth.identities` 를 `auth.users` 보다 먼저 놓고, `postgres` 는 슈퍼유저가
@@ -153,8 +153,21 @@ $env:LC_ALL = "C"
   E:\_drill\db.dump 2> E:\_drill\pass2.err
 ```
 
-이 시점에는 `auth.users` 가 이미 들어와 있으므로 FK 가 만족된다. 이미 적재된 테이블에서는
-중복 키 에러가 새로 나지만 무시하면 된다. **판정은 아래 `auth` 대조표로 한다.**
+**한 번으로는 안 끝난다.** 2026-08-18 드릴에서 실측했다. 데이터 전용 패스도 아카이브의
+같은 순서를 따르기 때문에 `auth.sessions` 가 자기 자식인 `auth.refresh_tokens` ·
+`auth.mfa_amr_claims` 보다 뒤에 적재된다. 그래서 패스 2 에서 `identities` 는 살아나지만
+그 둘은 또 FK 위반으로 떨어진다. **같은 명령을 한 번 더 돌리면 그때 들어온다.**
+
+| 패스 | identities | sessions | refresh_tokens | mfa_amr_claims | 무시된 에러 |
+|---|---|---|---|---|---|
+| 1 (`--clean --if-exists`) | 0 | 0 | 0 | 0 | 833 |
+| 2 (`--data-only -n auth`) | **22** | 44 | 0 | 0 | 5 |
+| 3 (`--data-only -n auth`) | 22 | 44 | **143** | **44** | 6 |
+
+**끝났다는 신호는 에러 개수가 아니라 에러 종류다.** 남은 에러가 전부
+`duplicate key value violates unique constraint` 면 더 넣을 것이 없다는 뜻이다.
+`violates foreign key constraint` 가 하나라도 남아 있으면 **한 번 더 돌린다.**
+`permission denied for table schema_migrations` 는 플랫폼 소유라 항상 남고 무시한다.
 
 ## 7. 검증 (숫자로)
 
@@ -201,7 +214,7 @@ select
 |---|---|
 | `auth.users` | 운영과 같아야 한다. 다르면 복원 실패다 |
 | `auth.identities` | 운영과 같아야 한다. **0 이면 소셜 로그인이 전부 끊긴 상태다** |
-| `auth.sessions` · `auth.refresh_tokens` · `auth.one_time_tokens` | 0 이어도 된다. 세션은 재로그인하면 다시 생긴다 |
+| `auth.sessions` · `auth.refresh_tokens` · `auth.mfa_amr_claims` | 0 이어도 서비스는 돈다(재로그인하면 다시 생긴다). 다만 0 이면 데이터 전용 패스를 한 번 더 돌릴 여지가 남아 있다는 신호다 |
 
 `auth.identities` 는 계정과 로그인 수단(google · kakao · apple · github · email)을 잇는 표다.
 이 표가 비면 `auth.users` 에 계정이 남아 있어도 소셜 로그인이 기존 계정에 다시 붙지 못한다.
@@ -237,7 +250,7 @@ TOC 1,542 엔트리.
 
 ---
 
-## 2026-08-17 첫 드릴 결과
+## 드릴 결과 (2026-08-17 1차 · 2026-08-18 2차)
 
 **`public` 스키마는 통과. `auth` 스키마 데이터는 패스 1 에서 일부 누락됐다.**
 아카이브만으로 스키마·확장은 자립 복원됐고 확장 선생성 같은 준비 단계는 필요 없었다.
@@ -264,31 +277,31 @@ TOC 1,542 엔트리.
 `safety_notice_ack` 존재하고 12행 전부 NULL(0130), `users.display_name`(0127),
 community 테이블 7개(0126), 건강 백스톱 트리거(0128).
 
-### `auth` 스키마 대조 (패스 1 직후)
+### `auth` 스키마 대조
 
-| 표 | 스크래치 | 운영 | 뜻 |
-|---|---|---|---|
-| `auth.users` | 19 | 19 | 계정은 전부 왔다 |
-| `auth.identities` | **0** | **22** | **로그인 수단 연결이 통째로 빠졌다** |
-| `auth.sessions` | 0 | 40 | 무해. 재로그인하면 다시 생긴다 |
-| `auth.refresh_tokens` | 0 | 136 | 무해 |
-| `auth.mfa_factors` | 0 | 0 | 운영도 0 |
+2026-08-18 드릴에서 패스 3 까지 돌리고 잰 숫자다. 운영 열은 덤프를 뜬 시각(04:07 KST)이
+아니라 대조 시각(21:40 KST)이라 세션 계열은 그 사이에 늘어난다. **행 수가 같아야 하는 것은
+`users` · `identities` · `one_time_tokens` 이고, 세션 계열은 덤프 이후 증가분만큼 벌어진다.**
+
+| 표 | 패스 1 직후 | 패스 3 직후 | 운영(대조 시각) | 판정 |
+|---|---|---|---|---|
+| `auth.users` | 19 | 19 | 19 | 일치 |
+| `auth.identities` | **0** | **22** | 22 | 일치. 패스 2 가 살린다 |
+| `auth.one_time_tokens` | 0 | 3 | 3 | 일치 |
+| `auth.sessions` | 0 | 44 | 62 | 덤프 이후 증가분 |
+| `auth.refresh_tokens` | 0 | 143 | 165 | 덤프 이후 증가분 |
+| `auth.mfa_amr_claims` | 0 | 44 | 62 | 덤프 이후 증가분 |
 
 운영 `auth.identities` 22건의 provider 분포는 `email` 13 · `google` 4 · `kakao` 2 ·
-`apple` 2 · `github` 1 이다. 즉 이 상태로 서비스를 올리면 **소셜 로그인 9건이 기존 계정에
-다시 붙지 못한다.** 복원한 `auth.users` 19행 중 13행에 `encrypted_password` 가 남아 있어서
-이메일 로그인 쪽은 재료가 있지만, GoTrue 가 `email` provider 의 `identities` 행까지
-요구하는지는 실제 로그인으로 확인하지 않았다 (`UNVERIFIED`).
+`apple` 2 · `github` 1 이다. **패스 1 에서 멈추면 소셜 로그인 9건이 기존 계정에 다시 붙지
+못한다.** 그래서 패스 2 가 필수다.
 
-원인은 확정했다. 스크래치에서 기존 `auth.users` 를 가리키는 `auth.identities` 행을
-트랜잭션 안에서 3건 INSERT 해보면 **성공한다**(즉시 ROLLBACK 했다). FK 자체는 만족
-가능하다는 뜻이고, 패스 1 의 실패는 순서 문제였다는 것이 증명된다. 그래서 패스 2 가
-필요하다. 패스 2 로 실제 22행이 들어오는 것까지는 이번에 확인하지 않았다(`UNVERIFIED`).
-평문 덤프를 다시 만들지 않기 위해 정리 단계를 먼저 끝냈다.
+`sessions` 와 `mfa_amr_claims` 의 행 수가 양쪽에서 같은 값인 것(44/44, 62/62)은 두 표가
+1:1 로 붙어 있다는 뜻이고, 재적재가 중간에 쪼개지지 않았다는 방증이다.
 
-**이 항목의 주인은 콘솔 세션이다.** 다음 드릴의 첫 번째 목표로 둔다. 닫는 조건은
-패스 2 를 돌린 뒤 `auth.identities` 행 수가 운영과 같아지는 것을 실측하는 것이다.
-소유 경계는 `docs/SESSION-OWNERSHIP.md` 를 따른다.
+여전히 확인하지 않은 것: GoTrue 가 `email` provider 계정에서도 `identities` 행을 요구하는지
+(`UNVERIFIED`). 복원한 `auth.users` 19행 중 13행에 `encrypted_password` 가 남아 있어서
+이메일 로그인 쪽 재료는 있다. 실제 로그인까지는 해보지 않았다.
 
 ### 패스 1 에러 833건의 정체
 
