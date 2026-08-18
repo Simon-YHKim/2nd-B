@@ -1,0 +1,64 @@
+/* PIXEL-CLAY v4.0 · v4 shared assets: device mockups, video player, credit card, cursors
+   Source: uploads/pixel-clay-v4.html lines 1378-1440 (verbatim) */
+/* ── [7-26] 기기 목업 ── */
+.px-device{ background:var(--c01); padding:var(--s2); margin:var(--u);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--c03),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--c00) }
+.px-device__screen{ background:var(--bg); min-height:var(--s24); overflow:hidden }
+.px-device--phone{ max-width:220px; margin-inline:auto; padding:var(--s4) var(--s2) }
+.px-device--phone::before{ content:""; display:block; width:var(--s12); height:var(--s2);
+  background:var(--c00); margin:0 auto var(--s2) }
+.px-device--phone::after{ content:""; display:block; width:var(--s8); height:var(--s2);
+  background:var(--c00); margin:var(--s2) auto 0 }
+.px-device__bar{ display:flex; align-items:center; gap:var(--s2);
+  background:var(--c02); color:var(--c07); padding:var(--s1) var(--s2);
+  margin-bottom:var(--s2); font-size:var(--t-xs) }
+.px-device__bar i{ width:var(--s2); height:var(--s2); background:var(--c05) }
+.px-device__url{ flex:1; background:var(--c00); color:var(--c06);
+  padding:0 var(--s2); line-height:2; overflow:hidden; white-space:nowrap;
+  text-overflow:ellipsis }
+
+/* ── [7-27] 비디오 플레이어 ── */
+.px-video{ background:var(--c00); margin:var(--u);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-video__stage{ aspect-ratio:16/9; display:grid; place-items:center; color:var(--c07);
+  background:repeating-linear-gradient(45deg,var(--c00) 0 var(--s4),var(--c01) var(--s4) var(--s8)) }
+.px-video__big{ width:var(--s16); height:var(--s16); display:grid; place-items:center;
+  background:var(--accent); color:var(--accent-fg); border:0; cursor:pointer;
+  box-shadow:0 0 0 var(--u) var(--c08) }
+.px-video__ui{ display:flex; align-items:center; gap:var(--s2);
+  padding:var(--s2); background:var(--c01); color:var(--c07) }
+.px-video__ui .px-btn{ margin:0; min-height:40px; min-width:40px; padding:var(--s1);
+  background:var(--c02); color:var(--c07) }
+.px-video__ui .px-gauge{ flex:1; margin:0 }
+.px-video__time{ font-size:var(--t-xs); font-variant-numeric:tabular-nums }
+
+/* ── [7-28] 신용카드 ── */
+.px-credit{ width:min(320px,100%); aspect-ratio:8/5; padding:var(--s4); margin:var(--u);
+  background:repeating-linear-gradient(135deg,var(--accent) 0 var(--s8),
+    var(--accent-deep) var(--s8) var(--s16));
+  color:var(--accent-fg); display:flex; flex-direction:column; gap:var(--s2);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--accent-soft),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--accent-deep) }
+.px-credit__chip{ width:var(--s8); height:var(--s6); background:var(--warn);
+  box-shadow:inset 0 0 0 1px var(--edge),
+  inset 0 var(--s2) 0 0 var(--warn), inset var(--s2) 0 0 0 var(--warn) }
+.px-credit__no{ font-size:var(--t-lg); letter-spacing:.12em; margin-top:auto;
+  font-variant-numeric:tabular-nums }
+.px-credit__row{ display:flex; justify-content:space-between; align-items:flex-end;
+  font-size:var(--t-xs); text-transform:uppercase }
+.px-credit--dark{ background:repeating-linear-gradient(135deg,var(--c01) 0 var(--s8),
+    var(--c02) var(--s8) var(--s16)); color:var(--c07) }
+
+/* ── [7-29] 커서 15종 ── */
+.px-cursorgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+  gap:var(--s2) }
+.px-cursor{ display:flex; flex-direction:column; align-items:center; gap:var(--s2);
+  padding:var(--s3); background:var(--panel-2); font-size:var(--t-xs);
+  box-shadow:0 0 0 1px var(--edge) }
+.px-cursor svg{ image-rendering:pixelated }

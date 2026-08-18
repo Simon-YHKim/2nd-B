@@ -1,0 +1,53 @@
+/* ============================================================
+   pixel-deepspace.css — 딥스페이스 브랜드 레이어 (픽셀 번역판)
+   번들에 없는 커스텀 아이덴티티만 여기서 정의한다.
+   유일하게 허용된 리터럴 hex 정의부 (별빛·무드·성운 액센트).
+   ============================================================ */
+:root,.theme-dark{
+  --ds-space:var(--c00);--ds-space-2:var(--c01);
+  --ds-star:#CCFAFF;--ds-core:#46B6FF;--ds-polaris:#C8B6FF;
+  --ds-nebula:#A78BFA;--ds-nebula-deep:#4C3A8C;--ds-nebula-soft:#E2D6FF;
+  --sb-mood-positive:#5FF0C0;--sb-mood-neutral:#A78BFA;--sb-mood-negative:#FF7A90;
+  --ds-ember:#FF8A5B;--ds-visor:#0A1020;
+  /* 4-way hard edge (the system's border) */
+  --ds-edge:0 calc(-1*var(--u)) 0 0 var(--edge),0 var(--u) 0 0 var(--edge),calc(-1*var(--u)) 0 0 0 var(--edge),var(--u) 0 0 0 var(--edge);
+  /* raised bevel to compose with the edge */
+  --ds-bevel:inset var(--u) var(--u) 0 0 var(--bevel-hi),inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-lo);
+  --ds-scrim-mix:color-mix(in srgb,var(--scrim) 55%,transparent);
+}
+html.theme-light{
+  --ds-nebula:#7C5CE0;--ds-nebula-deep:#D9CCFF;--ds-nebula-soft:#3A2A78;
+  --ds-star:#2F5FC0;--ds-core:#2F5FC0;--ds-polaris:#7C5CE0;--ds-visor:#EAEEF5;
+}
+/* dithered scrim — the only overlay treatment (blur is banned) */
+.ds-scrim{background:
+  repeating-conic-gradient(var(--ds-scrim-mix) 0% 25%,transparent 0% 50%) 0 0/8px 8px,
+  repeating-conic-gradient(var(--ds-scrim-mix) 0% 25%,transparent 0% 50%) 4px 4px/8px 8px}
+/* floating window (windowed layout): edge only — no bevel, background stays transparent so the starfield reads through */
+.ds-window{background:var(--panel);box-shadow:var(--ds-edge)}
+[data-window].ds-window{background:color-mix(in srgb,var(--panel) 86%,transparent)}
+/* top scrim band for museumLike screens: solid ink + dithered fade tail */
+.ds-topscrim{background:var(--ds-space)}
+.ds-topscrim::after{content:"";position:absolute;left:0;right:0;top:100%;height:16px;pointer-events:none;background:
+  repeating-conic-gradient(var(--ds-space) 0% 25%,transparent 0% 50%) 0 0/8px 8px,
+  repeating-conic-gradient(var(--ds-space) 0% 25%,transparent 0% 50%) 4px 4px/8px 8px}
+/* starfield twinkle: colour swap on steps, never a fade */
+@keyframes ds-tw{0%,100%{fill:var(--c03)}50%{fill:var(--ds-star)}}
+.ds-tw{animation:ds-tw 2.4s steps(2,end) infinite}
+@keyframes ds-tw-box{0%,100%{opacity:1}50%{opacity:0}}
+.ds-tw-box{animation:ds-tw-box 1s steps(2,end) infinite}
+/* companion bob: one-unit hop */
+@keyframes sb-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(calc(-1*var(--u)))}}
+@keyframes sb-dim{0%,100%{visibility:visible}50%{visibility:visible}}
+/* bare icon button (status bar / app bar chrome) — no edge, still a legal target */
+.ds-bare,.ds-bare.px-btn{background:transparent;box-shadow:none}
+.ds-bare:active{box-shadow:none}
+@media (prefers-reduced-motion:reduce){.ds-tw,[style*="sb-bob"]{animation:none!important}}
+/* horizontal preset rail — square pixel scrollbar */
+.sb-preset-rail{scrollbar-width:thin;scrollbar-color:var(--accent) var(--sunken)}
+.sb-preset-rail::-webkit-scrollbar{height:6px}
+.sb-preset-rail::-webkit-scrollbar-track{background:var(--sunken);box-shadow:inset 0 var(--u) 0 0 var(--edge)}
+.sb-preset-rail::-webkit-scrollbar-thumb{background:var(--accent);box-shadow:inset 0 0 0 var(--u) var(--edge)}
+
+/* 페르소나 카드가 떠 있는 동안 홈 코너 버튼을 감춘다 */
+[data-sb-persona] [data-home-chrome]{display:none!important}

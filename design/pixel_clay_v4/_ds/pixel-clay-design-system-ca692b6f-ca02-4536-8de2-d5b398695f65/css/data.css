@@ -1,0 +1,115 @@
+/* PIXEL-CLAY v4.0 · data display: card, stat, avatar, badge, chip, table, accordion, timeline, list, icon, chart
+   Source: uploads/pixel-clay-v4.html lines 794-905 (verbatim) */
+/* ═══════════ COMPONENTS · DATA DISPLAY ═════════════════════════════════ */
+.px-card{ background:var(--panel); margin:var(--u); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-hi),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-lo) }
+.px-card__media{ background:var(--sunken); aspect-ratio:16/9; display:grid; place-items:center;
+  color:var(--c04); box-shadow:inset 0 calc(-1*var(--u)) 0 0 var(--edge) }
+.px-card__body{ padding:var(--s4) }
+.px-card__title{ font-family:"Galmuri14",monospace; font-size:var(--t-lg); margin:0 0 var(--s2) }
+.px-card--interactive{ cursor:pointer }
+.px-card--interactive:hover{ background:var(--panel-2) }
+.px-card--interactive:active{ transform:translateY(var(--u)) }
+.px-card--stat .px-card__body{ padding:var(--s3) var(--s4) }
+.px-stat__value{ font-family:"Galmuri14",monospace; font-size:var(--t-2xl);
+  line-height:1; font-variant-numeric:tabular-nums }
+.px-stat__label{ font-size:var(--t-xs); color:var(--fg-muted) }
+.px-stat__delta{ font-size:var(--t-xs) }
+.px-stat__delta[data-dir=up]{ color:var(--ok) } .px-stat__delta[data-dir=down]{ color:var(--danger) }
+
+.px-avatar{ width:var(--s10); height:var(--s10); flex:none; display:grid; place-items:center;
+  background:var(--accent); color:var(--accent-fg); font-size:var(--t-sm); line-height:1;
+  overflow:hidden; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-avatar--sm{ width:var(--s6); height:var(--s6); font-size:var(--t-xs) }
+.px-avatar--lg{ width:var(--s16); height:var(--s16); font-size:var(--t-lg) }
+.px-avatar-stack{ display:flex } .px-avatar-stack .px-avatar + .px-avatar{ margin-left:calc(-1*var(--s3)) }
+
+.px-badge{ display:inline-block; padding:0 var(--s2); margin:var(--u);
+  font-size:var(--t-xs); line-height:1.8;
+  background:var(--warn); color:var(--warn-fg); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-badge--ok{ background:var(--ok); color:var(--ok-fg) }
+.px-badge--info{ background:var(--info); color:var(--info-fg) }
+.px-badge--danger{ background:var(--danger); color:var(--danger-fg) }
+.px-dot{ display:inline-block; width:var(--s2); height:var(--s2); background:var(--danger) }
+.px-chip{ display:inline-flex; align-items:center; gap:var(--s2); padding:var(--u) var(--s2);
+  margin:var(--u); font-size:var(--t-xs); line-height:1.8; background:var(--panel-2); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-chip button{ border:0; background:transparent; cursor:pointer; font:inherit; color:var(--fg-muted); padding:0 }
+.px-chip button:hover{ color:var(--danger) }
+
+/* TABLE */
+.px-table-wrap{ overflow-x:auto }
+.px-table{ width:100%; border-collapse:separate; border-spacing:0; font-size:var(--t-sm) }
+.px-table th{ background:var(--accent); color:var(--accent-fg); text-align:left;
+  padding:var(--s2) var(--s3); line-height:1.6; position:sticky; top:0; white-space:nowrap }
+.px-table th[aria-sort]{ cursor:pointer }
+.px-table th[aria-sort=ascending]::after{ content:" ▲" } 
+.px-table th[aria-sort=descending]::after{ content:" ▼" }
+.px-table th[aria-sort=none]::after{ content:" ▪"; opacity:.4 }
+.px-table td{ padding:var(--s2) var(--s3); box-shadow:inset 0 calc(-1*var(--u)) 0 0 var(--edge-soft) }
+.px-table tbody tr:nth-child(even){ background:var(--panel-2) }
+.px-table tbody tr:hover{ background:var(--accent-soft); color:var(--c01) }
+@media (max-width:639px){
+  .px-table thead{ display:none }
+  .px-table tr{ display:block; margin-bottom:var(--s3); background:var(--panel) }
+  .px-table td{ display:flex; justify-content:space-between; gap:var(--s4) }
+  .px-table td::before{ content:attr(data-label); color:var(--fg-muted); font-size:var(--t-xs) }
+}
+
+/* ACCORDION — <details> 기반 */
+.px-acc{ margin:var(--u) 0; background:var(--panel); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-acc > summary{ list-style:none; cursor:pointer; padding:var(--s3) var(--s4);
+  background:var(--panel-2); display:flex; gap:var(--s3); align-items:center; line-height:1.6 }
+.px-acc > summary::-webkit-details-marker{ display:none }
+.px-acc > summary::before{ content:"[+]"; color:var(--accent); flex:none }
+.px-acc[open] > summary::before{ content:"[−]" }
+.px-acc__body{ padding:var(--s4) }
+
+/* TIMELINE */
+.px-timeline{ list-style:none; margin:0; padding:0 0 0 var(--s6); position:relative }
+.px-timeline::before{ content:""; position:absolute; left:var(--s2); top:var(--s3); bottom:var(--s3);
+  width:var(--u); background:var(--edge-soft) }
+.px-timeline li{ position:relative; padding:0 0 var(--s6) }
+.px-timeline li::before{ content:""; position:absolute; left:calc(-1*var(--s6) + var(--u));
+  top:var(--s2); width:var(--s3); height:var(--s3); background:var(--accent);
+  box-shadow:0 0 0 var(--u) var(--edge) }
+.px-timeline time{ display:block; font-size:var(--t-xs); color:var(--fg-muted) }
+
+/* LIST */
+.px-list{ list-style:none; margin:0; padding:0; background:var(--panel) }
+.px-list li{ padding:var(--s3) var(--s4); display:flex; gap:var(--s3); align-items:center;
+  box-shadow:inset 0 calc(-1*var(--u)) 0 0 var(--edge-soft) }
+.px-list li::before{ content:none }
+.px-list li:last-child{ box-shadow:none }
+.px-list li:hover{ background:var(--panel-2) }
+
+/* ICON */
+/* 소스가 16×16이므로 표시 크기는 반드시 16의 정수배여야 한다.
+   v2.0은 24px(--s6)였는데 이는 1.5배 = 비정수 배율이라 아이콘이 다시 뭉개진다.
+   타이포와 같은 이유로 아이콘 크기도 --u에서 분리한다. */
+.px-icon{ width:16px; height:16px; display:inline-block; vertical-align:middle;
+  fill:currentColor; flex:none }
+.px-icon--sm{ width:16px; height:16px }
+.px-icon--lg{ width:32px; height:32px }
+.px-icon--xl{ width:48px; height:48px }
+.px-icon--2xl{ width:64px; height:64px } /* x4 — matches .px-pavatar--xl */
+.px-icon--3xl{ width:96px; height:96px } .px-icon--4xl{ width:128px; height:128px } /* x6/x8 — 16의 정수배 */
+
+/* CHART */
+.px-chart{ display:block; width:100%; height:auto }
+.px-chart text{ font-family:"Galmuri9","Galmuri11",monospace; font-size:10px; fill:var(--fg-muted) }
+.px-legend{ display:flex; flex-wrap:wrap; gap:var(--s3); font-size:var(--t-xs); margin-top:var(--s3) }
+.px-legend i{ width:var(--s3); height:var(--s3); display:inline-block; margin-right:var(--s1) }
+
+/* CURSOR */
+.px-clickable{ cursor:pointer }

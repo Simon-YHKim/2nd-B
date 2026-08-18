@@ -366,15 +366,34 @@ The single source of truth for both runtime classification and CI scan is `src/l
 
 ## Design system
 
-> **ACTIVE MIGRATION (2026-07-01) — rev2 PRD v2.0 → Material 3.** Approved direction: the app is
-> migrating from the deep-space **cosmic-pixel** visual system to **Material 3 + deep-space**. The
-> program plan + gap analysis is `docs/REV2-MIGRATION.md` (the SoT for this migration). Concept is
-> UNCHANGED (별자리 · 북극성 · 북두칠성 7별 · 정직한 밝기 L1~L5 · propose→ratify · 세컨비); per PRD v2.0
-> "레이아웃 자유, 의미 고정" — feature purpose/interaction/data-flow/safety invariants + the 별자리 홈
-> 골격 + 세컨비 머리 에셋 are fixed. Deltas: pixel-font chrome (Galmuri/Press Start) → Roboto/Roboto
-> Mono + Pretendard; azure primary + violet tertiary; deep-space bg global; 세컨비 3 personas
-> (2nd-B/메타비/트위비); domain 6 오락 → 휴식. **Until a screen is migrated to M3, the current
-> deep-space rules below still apply to it.** `EXPO_PUBLIC_UI=legacy` cosmic-pixel stays the rollback.
+> ### ACTIVE MIGRATION (2026-08-19) — M3-deepspace → **PIXEL-CLAY v4**
+>
+> **Simon 결정 2026-08-19 (결정 콘솔 V1): 시각 방향은 PIXEL-CLAY v4 다.**
+> SoT = **`docs/PIXEL-CLAY-MIGRATION.md`**. 인수 자료 = `design/pixel_clay_v4/`
+> (프로토타입 · 디자인 시스템 번들 · 실제 화면 12장). **착수 전에
+> `design/pixel_clay_v4/REPO-NOTES.md` 를 먼저 읽을 것** — 받은 문서와 저장소가
+> 어긋나는 곳 6건과 이식 함정 5건이 실측으로 적혀 있다.
+>
+> **개념은 그대로다** (별자리 · 북극성 · 북두칠성 7별 · 정직한 밝기 L1~L5 ·
+> propose→ratify · 세컨비). 바뀌는 것은 시각 체계뿐이다 — "레이아웃 자유, 의미 고정".
+>
+> 여섯 항목이 정반대로 뒤집힌다: 폰트 Roboto/Pretendard → **Galmuri** · 라운드
+> 4~28 → **0** · 불투명도 rgba → **디더/색 밴딩** · 이징 M3 곡선 → **`steps()`** ·
+> 도형 자유 → **정수 `rect`** · 깊이 그림자/블러 → **4방향 베벨 + z-index**.
+>
+> ⚠ **이름 세 개를 갈라 부른다 (V5). "픽셀" 단독 사용 금지:**
+> **cosmic-pixel** = 폐기된 원래 스킨 (`EXPO_PUBLIC_UI=legacy` 롤백으로만 생존) ·
+> **M3-deepspace** = 지금 배포돼 있는 것, 이주의 **출발점** ·
+> **PIXEL-CLAY v4** = 이주의 **목적지**.
+> cosmic-pixel 과 PIXEL-CLAY v4 는 둘 다 픽셀아트지만 **같은 물건이 아니다.**
+> "레거시 픽셀이니까 버린다" 는 논증을 PIXEL-CLAY v4 에 적용하지 말 것.
+>
+> **이주는 아직 착수 전이다.** 화면이 PIXEL-CLAY 로 옮겨지기 전까지는 그 화면에
+> **아래의 현행 M3-deepspace 규칙이 그대로 적용된다.** 토큰을 혼자 바꾸지 말 것 —
+> `src/lib/canon/__tests__/canon-tokens.test.ts` 가 현행 팔레트 값을 박아두고 있어서
+> 캐논 JSON 과 같은 PR 에서 함께 바꿔야 한다.
+>
+> `docs/REV2-MIGRATION.md`(목적지가 M3 였던 계획)는 **이 결정으로 대체됐다.** 역사 기록이다.
 
 **Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
 

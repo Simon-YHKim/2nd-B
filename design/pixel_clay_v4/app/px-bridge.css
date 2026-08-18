@@ -1,0 +1,87 @@
+/* ============================================================
+   px-bridge.css — M3 role tokens → PIXEL-CLAY semantic tokens
+   The screens keep speaking M3 (--md-sys-color-*, .md-* type,
+   .md-interactive); this bridge resolves every call to the
+   PIXEL-CLAY token set so palette swaps + light/dark just work.
+   ============================================================ */
+:root{
+  --md-sys-color-surface:var(--bg);
+  --md-sys-color-on-surface:var(--fg);
+  --md-sys-color-surface-variant:var(--sunken);
+  --md-sys-color-on-surface-variant:var(--fg-muted);
+  --md-sys-color-surface-container-lowest:var(--panel);
+  --md-sys-color-surface-container-low:var(--panel);
+  --md-sys-color-surface-container:var(--panel);
+  --md-sys-color-surface-container-high:var(--panel-2);
+  --md-sys-color-surface-container-highest:var(--panel-2);
+  --md-sys-color-primary:var(--accent);
+  --md-sys-color-on-primary:var(--accent-fg);
+  --md-sys-color-primary-container:var(--accent-deep);
+  --md-sys-color-on-primary-container:var(--c07);
+  --md-sys-color-inverse-primary:var(--accent-deep);
+  --md-sys-color-secondary:var(--c04);
+  --md-sys-color-on-secondary:var(--c01);
+  --md-sys-color-secondary-container:var(--panel-2);
+  --md-sys-color-on-secondary-container:var(--c06);
+  --md-sys-color-tertiary:var(--ds-nebula);
+  --md-sys-color-on-tertiary:var(--c01);
+  --md-sys-color-tertiary-container:var(--ds-nebula-deep);
+  --md-sys-color-on-tertiary-container:var(--ds-nebula-soft);
+  --md-sys-color-error:var(--danger);
+  --md-sys-color-on-error:var(--danger-fg);
+  --md-sys-color-error-container:var(--danger);
+  --md-sys-color-on-error-container:var(--danger-fg);
+  --md-sys-color-outline:var(--edge-soft);
+  --md-sys-color-outline-variant:var(--edge-soft);
+  --md-sys-color-inverse-surface:var(--c07);
+  --md-sys-color-inverse-on-surface:var(--c01);
+  --md-ref-typeface-brand:var(--font-display);
+  --md-ref-typeface-plain:var(--font-ui);
+  --md-ref-typeface-mono:"GalmuriMono11",var(--font-ui);
+  /* shape: the grid has no corners */
+  --md-sys-shape-corner-none:0;--md-sys-shape-corner-extra-small:0;--md-sys-shape-corner-small:0;
+  --md-sys-shape-corner-medium:0;--md-sys-shape-corner-large:0;--md-sys-shape-corner-large-increased:0;
+  --md-sys-shape-corner-extra-large:0;--md-sys-shape-corner-extra-large-increased:0;--md-sys-shape-corner-full:0;
+  /* elevation: bevels, not shadows */
+  --md-sys-elevation-level1:var(--ds-edge);--md-sys-elevation-level2:var(--ds-edge);
+  --md-sys-elevation-level3:var(--ds-edge);--md-sys-elevation-level4:var(--ds-edge);--md-sys-elevation-level5:var(--ds-edge);
+  /* motion: steps() only */
+  --md-sys-motion-easing-emphasized:steps(3,end);
+  --md-sys-motion-easing-standard:steps(2,end);
+}
+/* ---- M3 type roles → Galmuri grid (10/12/15/24/30/45 only) ---- */
+.md-display-large{font:400 45px/1.5 var(--font-display)}
+.md-display-medium{font:400 45px/1.5 var(--font-display)}
+.md-display-small{font:400 30px/1.5 var(--font-display)}
+.md-headline-large{font:400 30px/1.5 var(--font-display)}
+.md-headline-medium{font:400 30px/1.5 var(--font-display)}
+.md-headline-small{font:400 24px/1.5 var(--font-display)}
+.md-title-large{font:700 15px/1.5 var(--font-ui)}
+.md-title-medium{font:700 15px/1.5 var(--font-ui)}
+.md-title-small{font:700 12px/1.5 var(--font-ui)}
+.md-body-large{font:400 15px/1.5 var(--font-ui)}
+.md-body-medium{font:400 12px/1.5 var(--font-ui)}
+.md-body-small{font:400 10px/1.5 var(--font-micro)}
+.md-label-large{font:700 12px/1.5 var(--font-ui)}
+.md-label-medium{font:700 10px/1.5 var(--font-micro)}
+.md-label-small{font:400 10px/1.5 var(--font-micro)}
+/* ---- state layers: dither on hover, 1-unit sink on press ---- */
+.md-interactive{position:relative}
+.md-state,.md-state-layer{position:absolute;inset:0;display:none;pointer-events:none;z-index:2;
+  background:repeating-conic-gradient(color-mix(in srgb,var(--fg) 16%,transparent) 0% 25%,transparent 0% 50%) 50%/6px 6px}
+.md-interactive:hover>.md-state,.md-interactive:hover>.md-state-layer{display:block}
+.md-interactive:active{transform:translateY(var(--u))}
+.md-interactive:focus-visible{outline:var(--u) solid var(--focus);outline-offset:var(--s1)}
+/* ---- grid bans, scoped to the phone canvas (tweaks panel stays native) ---- */
+[data-phone-frame] *,[data-phone-frame] *::before,[data-phone-frame] *::after{
+  border-radius:0!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  filter:none!important;text-shadow:none!important;
+  transition-timing-function:steps(2,end)!important;
+  animation-timing-function:steps(2,end)!important;
+}
+[data-phone-frame]{font-family:var(--font-ui)}
+/* real phones don't show a persistent scrollbar */
+[data-phone-frame] *{scrollbar-width:none;-ms-overflow-style:none}
+[data-phone-frame] *::-webkit-scrollbar{width:0;height:0;display:none}
+[data-phone-frame] input,[data-phone-frame] textarea,[data-phone-frame] button{font-family:var(--font-ui)}

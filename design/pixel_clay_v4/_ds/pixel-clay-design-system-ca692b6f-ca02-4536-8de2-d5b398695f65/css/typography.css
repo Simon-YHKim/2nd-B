@@ -1,0 +1,30 @@
+/* PIXEL-CLAY v4.0 · base typography
+   Source: uploads/pixel-clay-v4.html lines 448-476 (verbatim) */
+/* ═══════════ LAYER 5 · BASE TYPOGRAPHY ═════════════════════════════════ */
+h1,h2,h3,h4{ font-family:"Galmuri14","Galmuri11",monospace; margin:0; line-height:1.2; }
+h1{ font-size:var(--t-3xl) } h2{ font-size:var(--t-2xl) }
+h3{ font-size:var(--t-lg) }  h4{ font-size:var(--t-sm) }
+p{ margin:0 0 var(--s3) }
+a{ color:var(--accent-deep); text-decoration:none;
+   box-shadow:inset 0 calc(-1*var(--u)) 0 0 var(--accent); }
+a:hover{ background:var(--accent); color:var(--accent-fg); box-shadow:none; }
+ul,ol{ margin:0 0 var(--s3); padding-left:var(--s6) }
+ul{ list-style:none } ul > li::before{ content:"▪ "; color:var(--accent) }
+blockquote{ margin:var(--s4) 0; padding:var(--s3) var(--s4); background:var(--panel-2);
+  box-shadow:calc(-1*var(--s2)) 0 0 0 var(--accent); }
+code{ background:var(--sunken); color:var(--fg); padding:0 var(--u); font-family:inherit }
+pre{ background:var(--c00); color:var(--c07); padding:var(--s4); margin:var(--s3) var(--u);
+  overflow-x:auto; line-height:var(--lh-2); white-space:pre; }
+pre code{ background:none; padding:0 }
+kbd{ display:inline-block; padding:0 var(--s2); background:var(--panel-2); color:var(--fg);
+  line-height:1.6; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge); }
+mark{ background:var(--warn); color:var(--warn-fg) }
+small{ font-size:var(--t-xs); font-family:"Galmuri9","Galmuri11",monospace }
+.px-muted{ color:var(--fg-muted) }
+.px-mono-num{ font-variant-numeric:tabular-nums }
+/* 이중 타이포 정책 — 장문 전용. UI 크롬은 12px, 읽는 글은 24px */
+.px-prose{ font-size:var(--t-prose); line-height:1.5; max-width:52ch; }
+.px-prose h2{ font-size:var(--t-2xl); margin:var(--s8) 0 var(--s4) }
+.px-prose p{ margin:0 0 var(--s6) }

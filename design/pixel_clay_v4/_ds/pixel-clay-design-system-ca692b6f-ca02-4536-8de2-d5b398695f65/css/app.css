@@ -1,0 +1,228 @@
+/* PIXEL-CLAY v4.0 · v4 application components: cmdk, drawer, tree, v-tabs, carousel, chat, feed, notif, kanban, filterbar, toolbar, event calendar, snippet, uploads, v-steps, banner, page header
+   Source: uploads/pixel-clay-v4.html lines 1151-1377 (verbatim) */
+/* ── [7-9] ⌘K 커맨드 팔레트 ── */
+.px-cmdk{ padding:0; border:0; background:var(--panel); color:var(--fg);
+  width:min(560px,92vw); margin:10vh auto auto; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-hi),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-lo) }
+.px-cmdk::backdrop{ background:transparent }
+.px-cmdk__input{ width:100%; border:0; font:inherit; font-size:var(--t-lg);
+  padding:var(--s4); background:var(--panel-2); color:var(--fg); outline:none;
+  box-shadow:inset 0 calc(-1*var(--u)) 0 0 var(--edge) }
+.px-cmdk__list{ list-style:none; margin:0; padding:var(--s2) 0; max-height:320px; overflow-y:auto }
+.px-cmdk__list li{ display:flex; align-items:center; gap:var(--s3);
+  padding:var(--s2) var(--s4); cursor:pointer; min-height:48px }
+.px-cmdk__list li[aria-selected="true"]{ background:var(--accent); color:var(--accent-fg) }
+.px-cmdk__list li .px-kbd{ margin-left:auto }
+.px-cmdk__list li[aria-selected="true"] .px-kbd{ color:var(--accent-fg) }
+.px-cmdk__group{ padding:var(--s2) var(--s4) var(--s1); font-size:var(--t-xs);
+  color:var(--fg-muted); text-transform:uppercase; letter-spacing:.08em }
+.px-cmdk__empty{ padding:var(--s6) var(--s4); text-align:center; color:var(--fg-muted) }
+.px-cmdk__foot{ display:flex; gap:var(--s4); padding:var(--s2) var(--s4);
+  font-size:var(--t-xs); color:var(--fg-muted);
+  box-shadow:inset 0 var(--u) 0 0 var(--edge-soft) }
+
+/* ── [7-10] 드로어(slideout) ── */
+.px-drawer{ position:fixed; top:0; bottom:0; right:0; z-index:var(--z-drawer);
+  width:min(340px,88vw); background:var(--panel); color:var(--fg);
+  transform:translateX(110%); transition:transform var(--step-3);
+  display:flex; flex-direction:column; box-shadow:
+  calc(-1*var(--u)) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-hi) }
+.px-drawer--left{ right:auto; left:0; transform:translateX(-110%);
+  box-shadow:var(--u) 0 0 0 var(--edge), inset calc(-1*var(--u)) var(--u) 0 0 var(--bevel-hi) }
+.px-drawer[data-open="1"]{ transform:translateX(0) }
+.px-drawer__head{ display:flex; align-items:center; justify-content:space-between;
+  gap:var(--s3); padding:var(--s3) var(--s4); background:var(--accent); color:var(--accent-fg) }
+.px-drawer__body{ padding:var(--s4); overflow-y:auto; flex:1 }
+.px-drawer__foot{ padding:var(--s3) var(--s4); box-shadow:inset 0 var(--u) 0 0 var(--edge-soft) }
+
+/* ── [7-11] 트리뷰 ── */
+.px-tree{ list-style:none; margin:0; padding:0; font-size:var(--t-sm) }
+.px-tree ul{ list-style:none; margin:0; padding-left:var(--s6); display:none }
+.px-tree li[aria-expanded="true"] > ul{ display:block }
+.px-tree__row{ display:flex; align-items:center; gap:var(--s2); padding:var(--s1) var(--s2);
+  cursor:pointer; min-height:32px }
+.px-tree__row:hover{ background:var(--panel-2) }
+.px-tree__row[aria-current="true"]{ background:var(--accent); color:var(--accent-fg) }
+.px-tree__tg{ width:var(--s4); display:inline-flex; justify-content:center;
+  background:none; border:0; padding:0; color:inherit; cursor:pointer; line-height:0 }
+li[aria-expanded="false"] > .px-tree__row .i-open,
+li[aria-expanded="true"]  > .px-tree__row .i-closed{ display:none }
+
+/* ── [7-12] 세로 탭 ── */
+.px-tabs--v{ flex-direction:column; align-items:stretch; box-shadow:none;
+  padding-right:0; border-right:var(--u) solid var(--edge) }
+.px-tabs--v .px-tab{ text-align:left; justify-content:flex-start; box-shadow:none;
+  margin:0; display:flex; align-items:center; gap:var(--s2) }
+.px-tabs--v .px-tab[aria-selected="true"]{ background:var(--accent); color:var(--accent-fg);
+  box-shadow:var(--u) 0 0 0 var(--accent) }
+.px-tabrow{ display:flex; gap:var(--s4); align-items:flex-start }
+
+/* ── [7-13] 캐러셀 ── */
+.px-carousel{ position:relative; overflow:hidden; background:var(--sunken);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-carousel__track{ display:flex; transition:transform var(--step-3) }
+.px-carousel__slide{ flex:0 0 100%; min-height:var(--s24); display:grid;
+  place-items:center; padding:var(--s6); text-align:center }
+.px-carousel__slide p{ margin-bottom:0 }
+.px-carousel__nav{ position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:space-between; padding:0 var(--s2); pointer-events:none }
+.px-carousel__nav .px-btn{ pointer-events:auto }
+.px-carousel__dots{ position:absolute; left:0; right:0; bottom:var(--s2);
+  display:flex; gap:var(--s1); justify-content:center }
+.px-carousel__dots i{ width:var(--s2); height:var(--s2); background:var(--edge-soft) }
+.px-carousel__dots i[aria-current="true"]{ background:var(--accent) }
+
+/* ── [7-14] 채팅 ── */
+.px-chat{ display:flex; flex-direction:column; max-height:360px }
+.px-chat__log{ flex:1; overflow-y:auto; padding:var(--s3); display:flex;
+  flex-direction:column; gap:var(--s3); background:var(--sunken);
+  box-shadow:inset 0 var(--u) 0 0 var(--bevel-lo) }
+.px-chat__msg{ display:flex; gap:var(--s2); align-items:flex-end; max-width:85% }
+.px-chat__msg--me{ align-self:flex-end; flex-direction:row-reverse }
+.px-chat__bubble{ background:var(--panel-2); color:var(--fg); padding:var(--s2) var(--s3);
+  font-size:var(--t-sm); box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge),
+  0 var(--u) 0 0 var(--edge), calc(-1*var(--u)) 0 0 0 var(--edge),
+  var(--u) 0 0 0 var(--edge) }
+.px-chat__msg--me .px-chat__bubble{ background:var(--accent); color:var(--accent-fg) }
+.px-chat__meta{ font-size:var(--t-xs); color:var(--fg-muted); margin-top:var(--s1) }
+.px-chat__form{ display:flex; gap:var(--s2); padding-top:var(--s3) }
+.px-chat__form .px-input{ flex:1; margin:var(--u) 0 }
+
+/* ── [7-15] 활동 피드 ── */
+.px-feed{ list-style:none; margin:0; padding:0 }
+.px-feed li{ display:flex; gap:var(--s3); padding:var(--s3) 0; position:relative }
+.px-feed li + li{ box-shadow:0 calc(-1px) 0 0 var(--edge-soft) inset }
+.px-feed__ico{ width:var(--s8); height:var(--s8); flex:0 0 auto; display:grid;
+  place-items:center; background:var(--panel-2);
+  box-shadow:0 0 0 1px var(--edge) }
+.px-feed__ico--ok{ background:var(--ok); color:var(--ok-fg) }
+.px-feed__ico--warn{ background:var(--warn); color:var(--warn-fg) }
+.px-feed__ico--danger{ background:var(--danger); color:var(--danger-fg) }
+.px-feed__t{ font-size:var(--t-xs); color:var(--fg-muted); margin-left:auto;
+  white-space:nowrap }
+
+/* ── [7-16] 알림 센터 ── */
+.px-notif{ display:flex; flex-direction:column; max-height:320px; overflow-y:auto }
+.px-notif__item{ display:flex; gap:var(--s3); padding:var(--s3); align-items:flex-start }
+.px-notif__item + .px-notif__item{ box-shadow:inset 0 1px 0 0 var(--edge-soft) }
+.px-notif__item--unread{ background:var(--panel-2) }
+.px-notif__item--unread::before{ content:""; width:var(--s2); height:var(--s2);
+  margin-top:var(--s2); background:var(--accent); flex:0 0 auto }
+.px-notif__item:not(.px-notif__item--unread)::before{ content:""; width:var(--s2);
+  height:var(--s2); margin-top:var(--s2); background:transparent; flex:0 0 auto }
+
+/* ── [7-17] 칸반 ── */
+.px-kanban{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(200px,1fr);
+  gap:var(--s3); overflow-x:auto; align-items:start; padding-bottom:var(--s2) }
+.px-kanban__col{ background:var(--sunken); padding:var(--s2);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-kanban__head{ display:flex; align-items:center; justify-content:space-between;
+  padding:var(--s1) var(--s2) var(--s2); font-size:var(--t-sm) }
+.px-kanban__card{ background:var(--panel); padding:var(--s2) var(--s3); margin:var(--s2) var(--u);
+  font-size:var(--t-sm); cursor:grab;
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset 0 var(--u) 0 0 var(--bevel-hi) }
+.px-kanban__card:active{ cursor:grabbing }
+.px-kanban__tags{ display:flex; gap:var(--s1); margin-top:var(--s2); flex-wrap:wrap }
+
+/* ── [7-18] 필터바 ── */
+.px-filterbar{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2);
+  padding:var(--s2); background:var(--panel);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-filterbar .px-chip[aria-pressed="true"]{ background:var(--accent); color:var(--accent-fg) }
+.px-filterbar__clear{ margin-left:auto }
+
+/* ── [7-19] 툴바 ── */
+.px-toolbar{ display:flex; align-items:center; gap:var(--u); padding:var(--u);
+  background:var(--panel); flex-wrap:wrap;
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-toolbar .px-btn{ margin:0; min-height:40px }
+.px-toolbar .px-btn--icon{ min-width:40px; padding:var(--s1) }
+.px-toolbar .px-btn[aria-pressed="true"]{ background:var(--accent); color:var(--accent-fg) }
+.px-toolbar__sep{ width:var(--u); align-self:stretch; margin:var(--s1);
+  background:var(--edge-soft) }
+
+/* ── [7-20] 이벤트 캘린더 ── */
+.px-evcal{ background:var(--panel); padding:var(--s3);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-evcal__grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:var(--s1) }
+.px-evcal__dow{ font-size:var(--t-xs); color:var(--fg-muted); text-align:center;
+  padding:var(--s1) 0 }
+.px-evcal__d{ min-height:var(--s12); background:var(--panel-2); padding:var(--s1);
+  font-size:var(--t-xs); box-shadow:0 0 0 1px var(--edge-soft);
+  display:flex; flex-direction:column; gap:2px }
+.px-evcal__d--out{ opacity:.45 }
+.px-evcal__d--today{ box-shadow:0 0 0 var(--u) var(--accent) }
+.px-evcal__ev{ display:block; padding:0 var(--s1); background:var(--info);
+  color:var(--info-fg); overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
+.px-evcal__ev--ok{ background:var(--ok); color:var(--ok-fg) }
+.px-evcal__ev--warn{ background:var(--warn); color:var(--warn-fg) }
+.px-evcal__ev--danger{ background:var(--danger); color:var(--danger-fg) }
+
+/* ── [7-21] 코드 스니펫 ── */
+.px-snippet{ margin:var(--u) }
+.px-snippet__bar{ display:flex; align-items:center; gap:var(--s3);
+  background:var(--c01); color:var(--c07); padding:var(--s1) var(--s3);
+  font-size:var(--t-xs) }
+.px-snippet__bar .px-btn{ margin:0; margin-left:auto; min-height:32px;
+  padding:var(--s1) var(--s2); font-size:var(--t-xs) }
+.px-snippet pre{ margin:0 }
+
+/* ── [7-22] 파일 업로드 리스트 ── */
+.px-uplist{ list-style:none; margin:0; padding:0 }
+.px-uplist li{ display:grid; grid-template-columns:auto 1fr auto; gap:var(--s2) var(--s3);
+  align-items:center; padding:var(--s2) var(--s3); margin:var(--s2) var(--u);
+  background:var(--panel-2);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-uplist__meta{ font-size:var(--t-xs); color:var(--fg-muted) }
+.px-uplist .px-gauge{ grid-column:1 / -1; margin:0 }
+.px-uplist__ok{ color:var(--ok) } .px-uplist__err{ color:var(--danger) }
+
+/* ── [7-23] 세로 진행 스텝 ── */
+.px-vsteps{ list-style:none; margin:0; padding:0 }
+.px-vsteps li{ display:grid; grid-template-columns:var(--s6) 1fr; gap:0 var(--s3);
+  position:relative; padding-bottom:var(--s5) }
+.px-vsteps li:not(:last-child)::before{ content:""; position:absolute;
+  left:calc(var(--s3) - 1px); top:var(--s6); bottom:0; width:2px;
+  background:var(--edge-soft) }
+.px-vsteps li.is-done:not(:last-child)::before{ background:var(--accent) }
+.px-vsteps__dot{ width:var(--s6); height:var(--s6); display:grid; place-items:center;
+  background:var(--panel-2); color:var(--fg-muted); font-size:var(--t-xs);
+  box-shadow:0 0 0 1px var(--edge) }
+.is-done .px-vsteps__dot{ background:var(--accent); color:var(--accent-fg) }
+.is-now  .px-vsteps__dot{ background:var(--panel); color:var(--fg);
+  box-shadow:0 0 0 var(--u) var(--accent) }
+.px-vsteps__t{ font-size:var(--t-sm); align-self:center }
+.px-vsteps__d{ grid-column:2; font-size:var(--t-xs); color:var(--fg-muted) }
+
+/* ── [7-24] 배너 ── */
+.px-banner{ display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap;
+  padding:var(--s2) var(--s4); margin:var(--u);
+  background:var(--accent); color:var(--accent-fg);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-banner--info{ background:var(--info); color:var(--info-fg) }
+.px-banner--warn{ background:var(--warn); color:var(--warn-fg) }
+.px-banner--danger{ background:var(--danger); color:var(--danger-fg) }
+.px-banner__x{ margin-left:auto; background:none; border:0; color:inherit;
+  cursor:pointer; padding:var(--s1); line-height:0 }
+.px-banner .px-btn{ margin:0; min-height:36px; padding:var(--s1) var(--s3) }
+
+/* ── [7-25] 페이지 헤더 ── */
+.px-pagehead{ padding:var(--s4) 0 var(--s3); display:flex; flex-direction:column;
+  gap:var(--s2) }
+.px-pagehead__row{ display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap }
+.px-pagehead__title{ font-size:var(--t-xl); line-height:1.2; margin:0 }
+.px-pagehead__actions{ margin-left:auto; display:flex; gap:var(--s2) }
+.px-pagehead__desc{ color:var(--fg-muted); font-size:var(--t-sm); max-width:60ch }

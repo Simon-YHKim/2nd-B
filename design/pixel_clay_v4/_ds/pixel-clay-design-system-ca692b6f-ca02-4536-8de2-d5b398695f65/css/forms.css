@@ -1,0 +1,108 @@
+/* PIXEL-CLAY v4.0 · form components
+   Source: uploads/pixel-clay-v4.html lines 477-583 (verbatim) */
+/* ═══════════ LAYER 6 · COMPONENTS · FORM ═══════════════════════════════ */
+.px-field{ display:block; margin-bottom:var(--s4) }
+.px-label{ display:block; font-size:var(--t-sm); line-height:var(--lh-1); margin:0 0 var(--s2) var(--u) }
+.px-label[data-required]::after{ content:" *"; color:var(--danger) }
+.px-help{ display:block; font-size:var(--t-xs); color:var(--fg-muted); margin:var(--s2) 0 0 var(--u) }
+.px-error{ display:flex; gap:var(--s2); align-items:center; font-size:var(--t-xs);
+  color:var(--danger); margin:var(--s2) 0 0 var(--u) }
+.px-error::before{ content:"!"; display:grid; place-items:center; width:var(--s4); height:var(--s4);
+  background:var(--danger); color:var(--danger-fg); line-height:1; flex:none }
+
+.px-input,.px-textarea,.px-select{
+  display:block; width:100%; margin:var(--u) 0; padding:var(--pad-y) var(--s3);
+  font:inherit; font-size:var(--t-md); line-height:var(--lh-1);
+  color:var(--fg); background:var(--panel-2); border:0; border-radius:0; outline:0;
+  box-shadow:
+    0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+    calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+    inset var(--u) var(--u) 0 0 var(--bevel-lo);
+}
+.px-textarea{ line-height:var(--lh-2); resize:vertical; min-height:var(--s24) }
+.px-input::placeholder,.px-textarea::placeholder{ color:var(--fg-muted) }
+.px-input:focus,.px-textarea:focus,.px-select:focus{ outline:var(--u) solid var(--focus); outline-offset:var(--s1) }
+.px-input[readonly]{ background:var(--sunken); color:var(--fg-muted) }
+.px-input:disabled,.px-select:disabled,.px-textarea:disabled{
+  background:var(--sunken); color:var(--fg-muted); cursor:not-allowed }
+/* 검증 상태 */
+.is-invalid.px-input,.is-invalid.px-select,.is-invalid.px-textarea{ box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--danger), 0 var(--u) 0 0 var(--danger),
+  calc(-1*var(--u)) 0 0 0 var(--danger), var(--u) 0 0 0 var(--danger),
+  inset var(--u) var(--u) 0 0 var(--bevel-lo) }
+.is-valid.px-input{ box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--ok), 0 var(--u) 0 0 var(--ok),
+  calc(-1*var(--u)) 0 0 0 var(--ok), var(--u) 0 0 0 var(--ok),
+  inset var(--u) var(--u) 0 0 var(--bevel-lo) }
+
+/* SELECT — DEPRECATED. 네이티브 select는 닫힌 상태만 스타일 가능하고
+   펼침 목록은 브라우저 크롬이라 테마가 어긋납니다. .px-cselect를 쓰세요. */
+.px-select{ appearance:none; padding-right:var(--s10); cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><rect x='0' y='2' width='2' height='1'/><rect x='1' y='3' width='2' height='1'/><rect x='2' y='4' width='2' height='1'/><rect x='4' y='3' width='2' height='1'/><rect x='5' y='2' width='2' height='1'/><rect x='3' y='5' width='2' height='1'/></svg>");
+  background-repeat:no-repeat; background-position:right var(--s3) center; background-size:var(--s4) var(--s4) }
+
+/* INPUT GROUP — 접두/접미 */
+.px-igroup{ display:flex; align-items:stretch; margin:var(--u) 0 }
+.px-igroup > .px-input{ margin:0; flex:1 }
+.px-igroup__addon{ display:grid; place-items:center; padding:0 var(--s3);
+  background:var(--sunken); color:var(--fg-muted); font-size:var(--t-sm); flex:none; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+
+/* CHECKBOX / RADIO — 픽셀 시스템에서 원형 없음. 라디오는 내부 도트로 구분 */
+.px-check{ display:inline-flex; align-items:center; gap:var(--s3); cursor:pointer; margin:var(--s2) var(--u) }
+.px-check input{ position:absolute; opacity:0; width:0; height:0 }
+.px-check__box{ width:var(--s4); height:var(--s4); flex:none; background:var(--panel-2);
+  display:grid; place-items:center; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-lo) }
+.px-check__box::after{ content:""; width:var(--s2); height:var(--s2); background:transparent }
+.px-check input:checked + .px-check__box::after{ background:var(--accent) }
+.px-check input:indeterminate + .px-check__box::after{ background:var(--fg-muted); height:var(--u) }
+.px-check input:focus-visible + .px-check__box{ outline:var(--u) solid var(--focus); outline-offset:var(--s1) }
+.px-check input:disabled + .px-check__box{ background:var(--sunken) }
+.px-check--radio .px-check__box::after{ width:var(--u); height:var(--u) }
+
+/* SWITCH — 정수 이동 */
+.px-switch{ display:inline-flex; align-items:center; gap:var(--s3); cursor:pointer; margin:var(--s2) var(--u) }
+.px-switch input{ position:absolute; opacity:0; width:0; height:0 }
+.px-switch__track{ position:relative; width:var(--s12); height:var(--s6); flex:none;
+  background:var(--sunken); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-switch__thumb{ position:absolute; inset-block:0; left:0; width:var(--s6); background:var(--c04);
+  transition:transform var(--step-1), background var(--step-1); box-shadow:
+  inset var(--u) var(--u) 0 0 var(--bevel-hi),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-lo) }
+.px-switch input:checked + .px-switch__track .px-switch__thumb{
+  transform:translateX(var(--s6)); background:var(--accent) }
+.px-switch input:focus-visible + .px-switch__track{ outline:var(--u) solid var(--focus); outline-offset:var(--s1) }
+
+/* SLIDER */
+.px-range{ -webkit-appearance:none; appearance:none; width:100%; background:transparent; margin:var(--s3) 0 }
+.px-range::-webkit-slider-runnable-track{ height:var(--s3); background:var(--sunken); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge) }
+.px-range::-webkit-slider-thumb{ -webkit-appearance:none; width:var(--s4); height:var(--s6);
+  margin-top:calc(-1*var(--u) - var(--u)/2); background:var(--accent); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge); cursor:pointer }
+.px-range::-moz-range-track{ height:var(--s3); background:var(--sunken); border:var(--u) solid var(--edge) }
+.px-range::-moz-range-thumb{ width:var(--s4); height:var(--s6); border-radius:0;
+  background:var(--accent); border:var(--u) solid var(--edge); cursor:pointer }
+
+/* FILE */
+.px-file{ display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap; margin:var(--u) 0 }
+.px-file input[type=file]{ position:absolute; opacity:0; width:0; height:0 }
+.px-dropzone{ padding:var(--s8); text-align:center; background:var(--panel-2); cursor:pointer;
+  box-shadow:0 0 0 var(--u) var(--edge) inset,
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-dropzone.is-over{ background:var(--accent-soft) }
+
+/* FIELDSET */
+.px-fieldset{ border:0; margin:0 0 var(--s6); padding:var(--s4); background:var(--panel); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-fieldset legend{ padding:0 var(--s2); background:var(--accent); color:var(--accent-fg);
+  font-size:var(--t-sm); line-height:1.6 }
