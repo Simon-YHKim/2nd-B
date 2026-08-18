@@ -25,7 +25,7 @@
 
 type Vendor = "anthropic" | "openai" | "google";
 
-interface SeatClass {
+export interface SeatClass {
   /** 좌석 등급 이름. 로그와 핀 환경변수에 쓰인다. */
   id: string;
   vendor: Vendor;
@@ -38,7 +38,11 @@ interface SeatClass {
 }
 
 // 등급 정의. **여기에 버전 숫자를 적지 않는다.** 숫자를 적는 순간 다시 낡는다.
-const SEATS: SeatClass[] = [
+//
+// export 인 이유: 테스트가 **이 정의 자체**를 검사해야 하기 때문이다. 예전 테스트는
+// 같은 모양의 사본을 따로 들고 있었는데, 그러면 여기를 고쳐도 테스트는 사본을 계속
+// 통과시킨다. 2026-08-18 의 검색-모델 구멍이 정확히 그래서 테스트를 빠져나갔다.
+export const SEATS: SeatClass[] = [
   {
     id: "anthropic-sonnet",
     vendor: "anthropic",
@@ -56,9 +60,26 @@ const SEATS: SeatClass[] = [
   {
     id: "openai-frontier",
     vendor: "openai",
-    match: /^gpt-\d/,
-    // o-시리즈·mini·오디오·이미지 전용 변형은 추론 좌석이 아니다.
-    exclude: /mini|nano|audio|realtime|image|preview|turbo|instruct/,
+    // **모양을 고정하는 허용 목록이다. 금지 목록이 아니다.**
+    //
+    // 예전에는 `/^gpt-\d/` 로 문을 열어두고 exclude 로 변형을 하나씩 막았다.
+    // 금지 목록은 새 변형이 나올 때마다 조용히 열린다. 2026-08-18 dry-run
+    // (run 32135458171) 이 그 구멍을 실제로 밟았다 — 검색 전용 변형
+    // `gpt-5-search-api-2025-10-14` 가 `/^gpt-\d/` 에 걸리고 어떤 exclude 에도
+    // 안 걸려서 **추론 좌석 9개의 승격 후보로 올라왔다.**
+    //
+    // 스모크 테스트는 이걸 못 잡는다. 검색 모델도 `{"ok":true}` 는 정상적으로
+    // 뱉으므로 "시험 통과" 가 뜬다. "스모크 테스트가 있으니 안전하다"는 가정이
+    // 여기서 깨진다 — 그래서 방어선을 시험이 아니라 **모양**에 둔다.
+    //
+    //   통과: gpt-5 · gpt-5.4 · gpt-5.10 · gpt-4.1   (접미사 없는 세대 슬러그)
+    //   거절: gpt-5-search-api-… · gpt-5-codex · gpt-4o-mini · gpt-5-2025-08-07
+    //
+    // 아무것도 안 걸리면 승격이 없다 = 쓰던 모델이 그대로 남는다. 실패가 닫히는
+    // 쪽으로 떨어진다. 날짜 스냅샷을 거절하는 것도 의도다 — versionKey 주석 참조.
+    match: /^gpt-\d+(?:\.\d+)*$/,
+    // 이중 방어. match 가 언젠가 느슨해져도 전용 변형은 여기서 한 번 더 막힌다.
+    exclude: /mini|nano|audio|realtime|image|preview|turbo|instruct|search|transcribe|tts|codex/,
     note: "추론 좌석 9개",
   },
   {
@@ -121,7 +142,18 @@ interface Discovered {
   skipped?: string;
 }
 
-/** "claude-sonnet-5" / "gpt-5.6" / "gemini-3.7-flash" 에서 버전 숫자만 뽑는다. */
+/**
+ * "claude-sonnet-5" / "gpt-5.6" / "gemini-3.7-flash" 에서 버전 숫자만 뽑는다.
+ *
+ * ⚠ **이름 안의 숫자를 전부 버전으로 읽는다. 날짜도 버전이 된다.**
+ *   gpt-5-2025-08-07 -> [5, 2025, 8, 7]
+ *   gpt-5.4          -> [5, 4]
+ * 자리별로 비교하므로 둘째 자리에서 2025 > 4 가 되어 **날짜 붙은 스냅샷이 깔끔한
+ * 세대 슬러그를 항상 이긴다.** 이건 고치지 않고 좌석 쪽에서 피한다 —
+ * openai-frontier 의 match 가 접미사 없는 슬러그만 받아서 날짜 스냅샷이 애초에
+ * 후보로 들어오지 않는다. 벤더가 날짜 스냅샷만 내는 좌석을 새로 만들 거라면
+ * 그 좌석에서 이 함수를 쓰기 전에 날짜를 떼는 정규화가 먼저 필요하다.
+ */
 function versionKey(name: string): number[] {
   const nums = name.match(/\d+(?:\.\d+)*/g) ?? [];
   const flat = nums.join(".").split(".").map((n) => Number.parseInt(n, 10));
@@ -185,6 +217,20 @@ async function listModels(vendor: Vendor, key: string): Promise<string[]> {
 }
 
 /**
+ * 실패한 응답을 사람이 읽을 한 줄로 만든다.
+ *
+ * 본문을 버리고 코드만 남기면 진단이 불가능하다. 2026-08-18 로그의
+ * `anthropic-sonnet: claude-sonnet-5 - 시험 실패 (HTTP 400)` 이 그랬다 —
+ * 크레딧이 없는 것인지 모델 ID 형식이 틀린 것인지 구분할 방법이 없었고,
+ * 확인하려면 사람이 직접 curl 을 쳐야 했다. 벤더는 이유를 본문에 담아 준다.
+ */
+async function httpWhy(r: { status: number; text: () => Promise<string> }): Promise<string> {
+  const body = await r.text().catch(() => "");
+  const head = body.replace(/\s+/g, " ").trim().slice(0, 200);
+  return head ? `HTTP ${r.status} ${head}` : `HTTP ${r.status}`;
+}
+
+/**
  * 승격 전 시험. 구조화 출력을 실제로 시켜보고 스키마를 지키는지 본다.
  *
  * 이게 이 스크립트에서 제일 중요한 부분이다. "새 모델 = 더 좋은 모델"이 아니다.
@@ -201,7 +247,7 @@ async function smokeTest(vendor: Vendor, model: string, key: string): Promise<{ 
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({ model, max_tokens: 64, messages: [{ role: "user", content: ask }] }),
       });
-      if (!r.ok) return { ok: false, why: `HTTP ${r.status}` };
+      if (!r.ok) return { ok: false, why: await httpWhy(r) };
       const b = (await r.json()) as { content?: { text?: string }[] };
       const text = (b.content ?? []).map((c) => c.text ?? "").join("");
       return text.includes('"ok"') ? { ok: true, why: "구조화 출력 확인" } : { ok: false, why: `예상 밖 출력: ${text.slice(0, 60)}` };
@@ -212,7 +258,7 @@ async function smokeTest(vendor: Vendor, model: string, key: string): Promise<{ 
         headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
         body: JSON.stringify({ model, messages: [{ role: "user", content: ask }], max_completion_tokens: 64 }),
       });
-      if (!r.ok) return { ok: false, why: `HTTP ${r.status}` };
+      if (!r.ok) return { ok: false, why: await httpWhy(r) };
       const b = (await r.json()) as { choices?: { message?: { content?: string } }[] };
       const text = b.choices?.[0]?.message?.content ?? "";
       return text.includes('"ok"') ? { ok: true, why: "구조화 출력 확인" } : { ok: false, why: `예상 밖 출력: ${text.slice(0, 60)}` };
@@ -226,7 +272,7 @@ async function smokeTest(vendor: Vendor, model: string, key: string): Promise<{ 
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: ask }] }] }),
       },
     );
-    if (!r.ok) return { ok: false, why: `HTTP ${r.status}` };
+    if (!r.ok) return { ok: false, why: await httpWhy(r) };
     const b = (await r.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = (b.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
     return text.includes('"ok"') ? { ok: true, why: "구조화 출력 확인" } : { ok: false, why: `예상 밖 출력: ${text.slice(0, 60)}` };
