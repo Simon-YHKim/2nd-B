@@ -495,7 +495,7 @@
   "reviewGetProposal": "제안 받기",
   "reviewReopenProposal": "받은 제안 다시 보기",
   "reviewLoading": "불러오는 중…",
-  "reviewRecordsBehind": "이 제안의 근거가 된 기록",
+  "reviewRecordsBehind": "이 제안이 참고한 기록",
   "reviewTapCheck": "탭하면 원본 기록을 직접 확인할 수 있습니다.",
   "reviewRatifiedMoved": "승인됐습니다. 실행가능(L{{level}})으로 올라갔습니다.",
   "reviewOpenRecord": "{{title}} 기록 열기",
@@ -890,7 +890,7 @@
       "insightLead": "당신은 ",
       "insightTail": " 사람일지도 모릅니다.",
       "sub": "관계 별부터 함께 켜볼까요? 담을수록 더 또렷해집니다.",
-      "grounds": "이렇게 본 근거 2가지",
+      "grounds": "이렇게 본 이유 2가지",
       "affirm": "맞습니다",
       "differ": "조금 다릅니다",
       "consent": "어떤 답이든, 별은 {{who}}의 동의로만 밝아집니다.",
@@ -954,7 +954,7 @@
     },
     "reasoningScreen": {
       "autoTitle": "자동 리즈닝",
-      "autoPaused": "한도 소진 · 월요일에 자동으로 다시 시작합니다",
+      "autoPaused": "다 썼습니다 · 월요일에 자동으로 다시 시작합니다",
       "autoBody": "자료를 담을 때마다 세컨비가 바로 별을 잇습니다",
       "autoNote": "자동 실행도 주간 한도를 1회씩 사용합니다. 직접 실행할 1회는 항상 남겨 둡니다."
     }
