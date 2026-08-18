@@ -102,13 +102,27 @@ PIXEL-CLAY 는 그 셋을 전부 의도적으로 뒤집는다(Galmuri · radius 
 첫 번째 결정이다. 4px 로 고정하면 스크린샷과 일치하고 `--s1`…`--s8` 이 기존 `m3Spacing` 과
 같은 값이 된다.
 
-### 함정 2 — 폰트 파일이 번들에 없다
+### 함정 2 — 폰트: 번들에는 없지만 **저장소에는 이미 있다**
 
-Galmuri 5종(Galmuri14 · Galmuri11 400/700 · Galmuri9 · GalmuriMono11)이 전부
-`https://cdn.jsdelivr.net/npm/galmuri/dist/*.woff2` 에서 로드된다. **저장소에 폰트 바이너리가
-한 개도 없다.** RN 은 CDN 웹폰트를 못 쓰므로 `assets/fonts/` 에 벤더링해야 하고,
-Galmuri 는 SIL OFL 1.1 이라 **스토어 바이너리에 라이선스 고지가 따라와야 한다.**
-`.woff2` 는 RN 이 안 읽으므로 `.ttf`/`.otf` 가 필요하다.
+인수 번들 쪽은 Galmuri 5종(Galmuri14 · Galmuri11 400/700 · Galmuri9 · GalmuriMono11)이
+전부 `https://cdn.jsdelivr.net/npm/galmuri/dist/*.woff2` 에서 로드된다. RN 은 CDN 웹폰트를
+못 쓴다.
+
+**그런데 저장소는 이미 Galmuri11 을 싣고 있다** — cosmic-pixel 시절 파이프라인이 살아 있다.
+
+```
+assets/fonts/Galmuri11-subset.woff2   147KB  (웹)
+assets/fonts/Galmuri11-subset.ttf     2.5MB  (네이티브)
+src/theme/typography.ts:48-51         fontAssets.Galmuri11 로 등록
+src/app/_layout.tsx:69                useFonts(fontAssets)
+docs/ASSETS.md:39-41                  SIL OFL 1.1 고지 기재됨
+src/lib/settings/readable-font.ts:19  DEFAULT_FONT_STYLE = "pixel"   ← 기본이 픽셀이다
+```
+
+**남은 것은 나머지 3종**(Galmuri14 · Galmuri9 · GalmuriMono11)이고, 만드는 것이 아니라
+있는 파이프라인을 넓히는 일이다. 원본은 `galmuri` npm 패키지(^2.40.3).
+
+⚠ `.ttf` 가 2.5MB 다. 3종을 더하기 전에 서브셋 범위와 번들 크기를 측정할 것.
 
 ### 함정 3 — 이 시스템의 절반은 CSS 전용이다
 

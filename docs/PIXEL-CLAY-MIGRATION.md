@@ -116,16 +116,34 @@ mood: positive #5FF0C0 · neutral #A78BFA · negative #FF7A90
 **권고: 가져오지 않는다.** 배포된 프로토타입도 `midnight` 하나로 고정돼 있고,
 설정 화면에 다크모드 토글조차 없다. 팔레트는 빌드타임 상수로 둔다.
 
-### D3. Galmuri 폰트를 어떻게 넣나
+### D3. Galmuri 폰트를 어떻게 넣나 — **거의 이미 돼 있다**
 
-번들에 **폰트 바이너리가 한 개도 없다.** 5종 전부 jsDelivr CDN 에서 로드된다.
-RN 은 CDN 웹폰트를 못 쓰고 `.woff2` 도 못 읽는다.
+> ⚠ 2026-08-19 정정. 처음에 "폰트 바이너리가 한 개도 없다" 고 적었는데 그건
+> **인수 번들** 이야기고(번들은 5종 전부 jsDelivr CDN 로드가 맞다),
+> **저장소는 이미 Galmuri11 을 싣고 있다.** cosmic-pixel 시절의 픽셀 폰트
+> 파이프라인이 그대로 살아 있다.
 
-필요한 것: `.ttf`/`.otf` 벤더링 → `assets/fonts/` → `expo-font` 등록 →
-**SIL OFL 1.1 라이선스 고지**를 스토어 바이너리에 포함.
+실측:
 
-⚠ 한글 픽셀 폰트는 글리프가 많아 파일이 크다. **번들 크기와 첫 렌더 지연을 측정한 뒤**
-전면 적용할지 헤드라인만 적용할지 정한다.
+| | |
+|---|---|
+| 폰트 파일 | `assets/fonts/Galmuri11-subset.woff2` (147KB, 웹) · `.ttf` (2.5MB, 네이티브) |
+| 로드 | `src/theme/typography.ts:48-51` → `fontAssets.Galmuri11`, `_layout.tsx:69` `useFonts()` |
+| 라이선스 고지 | `docs/ASSETS.md:39-41` — **SIL OFL 1.1 이미 기재됨** |
+| 기본 본문 face | `src/lib/settings/readable-font.ts:19` — `DEFAULT_FONT_STYLE = "pixel"` |
+
+즉 **앱의 기본 본문 서체가 이미 픽셀 폰트다.** 저시력 사용자를 위한
+`readable`(Pretendard) 전환 옵션도 이미 있다.
+
+**남은 것은 Galmuri11 이 아니라 나머지 3종이다** — PIXEL-CLAY 는 Galmuri14(디스플레이) ·
+Galmuri9(10px 마이크로) · GalmuriMono11(숫자·라벨)을 함께 쓴다. 저장소에는 Galmuri11 만 있다.
+
+> **권고**: 3종을 같은 방식으로 서브셋해 추가한다(`galmuri` npm 패키지가 원본).
+> 라이선스 고지는 `docs/ASSETS.md` 한 줄 확장이면 된다. **새로 만드는 것이 아니라
+> 있는 파이프라인을 넓히는 일**이라 비용이 처음 추정보다 훨씬 작다.
+>
+> ⚠ 다만 `.ttf` 가 2.5MB 다. 3종을 더하면 네이티브 번들이 눈에 띄게 커진다 —
+> 서브셋 범위를 먼저 정하고 크기를 측정할 것.
 
 ### D4. 디더를 무엇으로 그리나
 
