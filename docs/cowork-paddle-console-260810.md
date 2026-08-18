@@ -9,6 +9,31 @@
 > 시행일 `2026-09-08` (**폐기됨**, 0122).
 > 남은 3번(샌드박스 페이로드 대조)은 후속 문서의 작업 B 로 이어진다.
 > 이력 참고용으로만 보존한다.
+>
+> **체크박스 정리 (2026-08-19, 콘솔 세션 대시보드 실측).** 배너는 "1·2번 완료"라고
+> 적어뒀는데 정작 아래 체크박스는 `[ ]` 로 남아 있어서, 콘솔이 같은 조사를 한 번 더
+> 했다. 이제 실측값으로 채웠다. 요약:
+>
+> | 항목 | 실측 (2026-08-19) |
+> |---|---|
+> | 활성 destination 의 구독 이벤트 | **6종** (아래 1번에 나열) |
+> | `adjustment.created` · `adjustment.updated` | **구독됨** |
+> | `PADDLE_API_KEY` 스코프 | **Adjustments R/W · Subscriptions R/W** |
+> | `PADDLE_API_KEY` 만료 | **2026-11-08** (오늘 기준 약 81일) |
+> | `PADDLE_API_KEY` `Last used` | **`-`** (한 번도 호출된 적 없음) |
+> | 비활성 destination 1개 | "2nd-B 구독 웹훅 (Supab...", Inactive, 4 events |
+>
+> `Last used` 가 `-` 인 것은 **고장 신호가 아니다.** `subscription-manage` 는
+> `PADDLE_SELF_SERVICE_ENABLED != '1'` 이면 Paddle 로 나가기 전에 fail-closed 되고
+> (`index.ts:285`), `PADDLE_SELF_SERVICE_DRYRUN=1` 이면 `index.ts:342` 에서
+> `callPaddle` 앞으로 되돌아간다. 거기에 유료 사용자 0명 ·
+> `billing_self_service_log` 0행이 겹쳤다. 즉 **설계대로 안 나간 것**이지 경로가
+> 깨진 것이 아니다. 다만 실호출 검증이 0회인 것은 사실이므로, 아래 3번(샌드박스
+> 대조)이 그 검증을 대신한다.
+>
+> **그래서 생기는 진짜 위험은 순서다.** 키는 11/08 에 만료되는데 기능은 아직 OFF 다.
+> 이대로면 **첫 실사용 전에 키가 먼저 죽는다.** 자세한 것은
+> `docs/cowork-reply-260819.md`.
 
 작성: Claude, 2026-08-10 (개정 2판) · 대상: **Paddle 대시보드 (브라우저 필요)** · 코드 변경 없음
 
@@ -45,8 +70,12 @@ Claude 는 Paddle 콘솔에 접근할 수 없습니다. **DB·엣지 함수·앱
 이미 있어야 하는 것: `subscription.created` · `subscription.updated` · `subscription.canceled` · `transaction.completed`
 
 **추가할 것:**
-- [ ] `adjustment.created`
-- [ ] `adjustment.updated`
+- [x] `adjustment.created` — **완료** (2026-08-19 확인)
+- [x] `adjustment.updated` — **완료** (2026-08-19 확인)
+
+활성 destination 의 이벤트는 지금 정확히 이 6종이다:
+`transaction.completed` · `subscription.created` · `subscription.updated` ·
+`subscription.canceled` · `adjustment.created` · `adjustment.updated`.
 
 > **왜 필수인가**: 환불은 Paddle **adjustment** 로 나가고, Paddle 이 심사·승인한 결과를 이 두 이벤트로
 > 알려줍니다. 구독이 안 돼 있으면 **돈은 환불되는데 앱은 모릅니다** → 유료 등급이 결제 기간 끝까지
@@ -69,8 +98,13 @@ Claude 는 Paddle 콘솔에 접근할 수 없습니다. **DB·엣지 함수·앱
 | `POST /subscriptions/{id}/cancel` | **subscription: write** |
 | `POST /adjustments` | **adjustment: write** |
 
-- [ ] 두 스코프 모두 켜져 있는지 확인
-- [ ] 없으면 추가하거나 스코프 포함해 **새 키 발급**
+- [x] 두 스코프 모두 켜져 있는지 확인 — **완료** (2026-08-19: Adjustments R/W · Subscriptions R/W)
+- [x] 없으면 추가하거나 스코프 포함해 **새 키 발급** — 불필요했다 (기존 키에 스코프가 이미 있었다)
+
+> **새로 알게 된 것 (2026-08-19): 이 키는 `2026-11-08` 에 만료된다.** 그리고
+> `Last used` 가 `-` 다. `Credential expiry check` 워크플로는 이 키를 보지 않는다.
+> 즉 지금 상태로 두면 **한 번도 안 쓰인 채로 만료되고, 만료 사실도 아무도 모른다.**
+> 감시를 어디에 붙일지는 `docs/cowork-reply-260819.md` 에 있다.
 
 > 새 키를 발급했다면 값은 **Simon 이 직접** Supabase 함수 시크릿(`PADDLE_API_KEY`)에 넣어야 합니다.
 > Claude 는 키 값에 접근하지 않습니다.
