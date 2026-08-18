@@ -54,6 +54,17 @@ function DockShell({ children, title }: { children: ReactNode; title?: string })
   );
 }
 
+// Phase 4 launch scope = Free + Plus; Pro ships later. The card stays visible
+// (price anchor + roadmap signal, Simon 확정 2026-07-17) with a "준비 중" pill and
+// no live purchase CTA.
+//
+// Module scope, not component scope: canPurchase() reads it while computing
+// showStoreNotice, which runs earlier in the render body than the old in-component
+// `const` did. A `const` cannot be read before its declaration is evaluated, so
+// leaving it below would have thrown a ReferenceError on every render of this
+// screen rather than merely being untidy.
+const PRO_COMING_SOON = true;
+
 // Format a KRW integer as ₩6,900 without a hardcoded currency literal in copy.
 function krw(n: number): string {
   return `₩${n.toLocaleString("ko-KR")}`;
@@ -261,9 +272,36 @@ export function DeepSpacePlansScreen() {
   const onStargazer = !onNorthStar && !onVoyager;
   const isCurrent: Record<TierKey, boolean> = { free: onStargazer, plus: onVoyager, pro: onNorthStar };
 
-  // Store not reachable OR no Offering configured yet: honest notice, never a
-  // dead checkout. Kept below the cards so it never disturbs the tier layout.
-  const showStoreNotice = !available || (!loading && packages.length === 0);
+  // Can this tier actually be bought RIGHT NOW, on THIS surface?
+  //
+  // There are two rails and they are mutually exclusive per platform: Paddle is
+  // web-only (paddleCheckoutAvailable returns false off-web and when the price
+  // ids are unset) and RevenueCat is native-only (purchasesAvailable stays false
+  // on web and without a platform key). Before this existed the CTA was enabled
+  // whenever the tier was not the current one, so on every surface where NEITHER
+  // rail was live the button was a priced, live-looking control that failed
+  // 100% of the time with ds.plans.purchaseError - and failed again on retry,
+  // because nothing about the state it complains about is retryable. That is a
+  // dead-end purchase flow (App Review 2.1) and, more to the point, a lie to the
+  // user. A control that cannot succeed must not look like one that can.
+  function canPurchase(key: TierKey): boolean {
+    if (key === "free") return false; // nothing to buy; the CTA is a label
+    if (key === "pro" && PRO_COMING_SOON) return false;
+    const paddleTier = key === "plus" ? "cortex" : "brain";
+    if (paddleCheckoutAvailable(paddleTier)) return true;
+    return (key === "plus" ? plusPkg : proPkg) != null;
+  }
+
+  // No rail is live for any sellable tier: say so once, plainly, instead of
+  // letting each card imply a checkout that is not there.
+  //
+  // The old condition keyed off RevenueCat alone (`!available || ...`), which
+  // made this notice ALWAYS show on web - including when Paddle checkout was
+  // configured and working - while its copy told the reader to go buy in the
+  // phone app. That advice was false in both directions: web is the only
+  // surface that can currently take money, and the native build has no live
+  // store keys at all, so it sent paying users to a dead end.
+  const showStoreNotice = !loading && !canPurchase("plus") && !canPurchase("pro");
 
   // ── Tier copy (reference PlansScreen tiers[]). Prices from TIER_PRICE_KRW so
   // display can never drift from the entitlement SoT. ──
@@ -291,11 +329,6 @@ export function DeepSpacePlansScreen() {
       feats: [t("ds.plans.proFeat1"), t("ds.plans.proFeat2"), t("ds.plans.proFeat3")],
     },
   ];
-
-  // Phase 4 launch scope = Free + Plus; Pro ships later. The card stays
-  // visible (price anchor + roadmap signal, Simon 확정 2026-07-17) with a
-  // "준비 중" pill and no live purchase CTA.
-  const PRO_COMING_SOON = true;
 
   function onStart(key: TierKey) {
     if (busy) return;
@@ -385,15 +418,15 @@ export function DeepSpacePlansScreen() {
                 ))}
               </View>
               <MdButton
-                variant={cur ? "tonal" : tr.key === "pro" && PRO_COMING_SOON ? "tonal" : "filled"}
+                variant={cur || !canPurchase(tr.key) ? "tonal" : "filled"}
                 style={s.tierBtn}
-                disabled={busy || (tr.key === "pro" && PRO_COMING_SOON)}
+                disabled={busy || cur || !canPurchase(tr.key)}
                 label={
                   cur
                     ? t("ds.plans.currentPlan")
                     : tr.key === "free"
                       ? t("ds.plans.included")
-                      : tr.key === "pro" && PRO_COMING_SOON
+                      : !canPurchase(tr.key)
                         ? t("ds.plans.comingSoon")
                         : busyAction === "buy"
                           ? t("ds.plans.purchasing")
@@ -403,7 +436,12 @@ export function DeepSpacePlansScreen() {
                 // was live but did nothing (reference no-op). It is a fact row
                 // ("기본 포함"), not an action. Pro at launch is the same kind of
                 // fact row ("준비 중") until the tier ships.
-                onPress={cur || tr.key === "free" || (tr.key === "pro" && PRO_COMING_SOON) ? undefined : () => onStart(tr.key)}
+                //
+                // canPurchase() now decides the same way for EVERY tier, so a
+                // tier with no live rail on this surface reads as "준비 중" rather
+                // than offering a purchase it cannot perform. Before this, `plus`
+                // was always live and always failed off-web.
+                onPress={cur || !canPurchase(tr.key) ? undefined : () => onStart(tr.key)}
               />
             </MdCard>
           );
