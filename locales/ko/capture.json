@@ -133,7 +133,7 @@
     "advisor": {
       "heading": "세컨비 되짚기",
       "sources": "근거",
-      "whyThis": "근거 보기",
+      "whyThis": "이유 보기",
       "evidenceFallback": "짧은 설명 없이 표시된 근거입니다."
     }
   },
