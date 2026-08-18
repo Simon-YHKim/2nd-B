@@ -1,0 +1,48 @@
+/* PIXEL-CLAY v4.0 · semantic roles, themes, responsive --u, density
+   Source: uploads/pixel-clay-v4.html lines 290-326 (verbatim) */
+/* [1-8] SEMANTIC — 역할만 정의. 팔레트를 바꿔도 이 블록은 그대로 */
+:root,.theme-light{
+  --bg:var(--c06); --panel:var(--c07); --panel-2:var(--c08); --sunken:var(--c05);
+  --fg:var(--c01); --fg-muted:var(--c03); --fg-inverse:var(--c08);
+  --edge:var(--c01); --edge-soft:var(--c05);
+  --bevel-hi:var(--c08); --bevel-lo:var(--c05);
+  --accent:var(--c09); --accent-deep:var(--c10); --accent-soft:var(--c11);
+  --ok:var(--c12); --info:var(--c13); --warn:var(--c14); --danger:var(--c15);
+  --focus:var(--c13); --scrim:var(--c00);
+  /* v4.0 차트 토큰 — PXC 엔진이 참조 */
+  --ink:var(--fg); --paper:var(--c08);
+  --chart-grid:var(--c06); --chart-axis:var(--c04);
+}
+.theme-dark{
+  --bg:var(--c00); --panel:var(--c01); --panel-2:var(--c02); --sunken:var(--c00);
+  --fg:var(--c07); --fg-muted:var(--c04); --fg-inverse:var(--c01);
+  --edge:var(--c00); --edge-soft:var(--c02);
+  --bevel-hi:var(--c03); --bevel-lo:var(--c00); --focus:var(--c11);
+  --paper:var(--c00); --chart-grid:var(--c02);
+}
+/* Auto dark. Declared on :root so the tokens register; html.theme-light re-asserts
+   the light mapping at higher specificity for anyone who opted out explicitly. */
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:var(--c00); --panel:var(--c01); --panel-2:var(--c02); --sunken:var(--c00);
+    --fg:var(--c07); --fg-muted:var(--c04); --fg-inverse:var(--c01);
+    --edge:var(--c00); --edge-soft:var(--c02);
+    --bevel-hi:var(--c03); --bevel-lo:var(--c00); --focus:var(--c11);
+    --paper:var(--c00); --chart-grid:var(--c02);
+  }
+  html.theme-light{
+    --bg:var(--c06); --panel:var(--c07); --panel-2:var(--c08); --sunken:var(--c05);
+    --fg:var(--c01); --fg-muted:var(--c03); --fg-inverse:var(--c08);
+    --edge:var(--c01); --edge-soft:var(--c05);
+    --bevel-hi:var(--c08); --bevel-lo:var(--c05); --focus:var(--c13);
+    --paper:var(--c08); --chart-grid:var(--c06);
+  }
+}
+
+/* [1-9] RESPONSIVE — --u만 축소, 타이포는 고정(가독성 보존) */
+@media (max-width:639px){  :root{ --u:2px; --pad-x:var(--s3); } }
+@media (min-width:640px) and (max-width:1279px){ :root{ --u:3px; } }
+@media (min-width:1280px){ :root{ --u:4px; } }
+
+/* [1-10] DENSITY MODE */
+[data-density="compact"]{ --pad-y:var(--s1); --pad-x:var(--s3); --gap:var(--s3); }

@@ -1,0 +1,7 @@
+/* PIXEL-CLAY v4.0 · MOTION
+   steps() only. ease / cubic-bezier / linear produce sub-pixel positions. */
+:root{
+  --step-1:60ms steps(2,end); /* @kind other */
+  --step-2:120ms steps(3,end); /* @kind other */
+  --step-3:240ms steps(6,end); /* @kind other */
+}

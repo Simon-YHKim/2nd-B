@@ -40,6 +40,7 @@ const DEV_ONLY_ROUTES = [
   "deepspace-home",
   "deepspace-hub",
   "deepspace-preview",
+  "dev-screens",
   "graph",
   "trends",
   "trinity",
@@ -77,10 +78,29 @@ describe("개발 전용 라우트", () => {
     expect(gated.sort()).toEqual([...viaComponent].sort());
   });
 
-  it("게이트는 dev 가 아니면 홈으로 보낸다", () => {
-    const src = readFileSync(join(APP, "..", "components", "ui", "DevOnlyRoute.tsx"), "utf8");
-    // fail-closed: 런타임을 모르면 감춘다. 반대로 짜면 프로덕션에 새어나간다.
-    expect(src).toContain('__DEV__ === true');
-    expect(src).toContain('<Redirect href="/" />');
+  it("게이트는 dev 도 QA 도 아니면 홈으로 보낸다", () => {
+    const route = readFileSync(join(APP, "..", "components", "ui", "DevOnlyRoute.tsx"), "utf8");
+    const gate = readFileSync(join(APP, "..", "lib", "dev", "gate.ts"), "utf8");
+
+    // 판정은 gate.ts 로 옮겼다 (2026-08-19). 설정의 진입 버튼이 라우트 게이트와
+    // **같은 판단**을 써야 눌리는데 안 열리는 버튼이 안 생긴다.
+    expect(route).toContain("isDevSurfaceEnabled()");
+    expect(route).toContain('<Redirect href="/" />');
+
+    // fail-closed 를 두 문 모두에서 강제한다. 런타임을 모르면 감춘다 —
+    // 반대로 짜면(`!== false` 같은 형태) 프로덕션에 새어나간다.
+    expect(gate).toContain("__DEV__ === true");
+    expect(gate).toContain("EXPO_PUBLIC_ALLOW_DEV_TIER === true");
+    // env 스키마가 깨져도 열리면 안 된다.
+    expect(gate).toMatch(/catch\s*\{\s*[^}]*return false;/);
+  });
+
+  it("QA 문은 이미 있는 플래그만 쓴다", () => {
+    // 새 플래그를 만들면 "배포 빌드에 하드코딩 true 가 없다" 를 강제하는 가드를
+    // 하나 더 만들어야 한다. EXPO_PUBLIC_ALLOW_DEV_TIER 는 그 가드가
+    // src/lib/progression/__tests__/dev-tier-not-live.test.ts 에 이미 있다.
+    const gate = readFileSync(join(APP, "..", "lib", "dev", "gate.ts"), "utf8");
+    const flags = [...gate.matchAll(/EXPO_PUBLIC_[A-Z_]+/g)].map((m) => m[0]);
+    expect([...new Set(flags)]).toEqual(["EXPO_PUBLIC_ALLOW_DEV_TIER"]);
   });
 });

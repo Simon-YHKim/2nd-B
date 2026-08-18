@@ -1,0 +1,65 @@
+/* PIXEL-CLAY v4.0 · custom select + pixel calendar + dropdown extras
+   Source: uploads/pixel-clay-v4.html lines 936-999 (verbatim) */
+/* ═══════════ v3.0 · PANEL BAR 오버플로 수정 ════════════════════════════ */
+.px-panel__bar{ flex-wrap:wrap; min-width:0; }
+.px-panel__bar > span:first-child{ min-width:0; overflow-wrap:anywhere; }
+
+/* ═══════════ v3.0 · CUSTOM SELECT (네이티브 드롭다운 대체) ═══════════════
+   네이티브 <select>의 펼침 목록은 브라우저 크롬이라 스타일 적용 불가 →
+   목록 자체를 직접 그린다. 날짜 피커도 같은 이유로 커스텀 구현. */
+.px-cselect{ position:relative; margin:var(--u) 0; }
+.px-cselect__btn{ width:100%; text-align:left; justify-content:space-between; margin:0; }
+.px-cselect__list{ position:absolute; top:calc(100% + var(--s2)); left:0; right:0;
+  z-index:var(--z-popover); background:var(--panel); margin:0; padding:var(--s1) 0;
+  list-style:none; max-height:var(--s24); overflow-y:auto; display:none; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-hi) }
+.px-cselect.is-open .px-cselect__list{ display:block }
+.px-cselect__list li{ padding:var(--s2) var(--s4); cursor:pointer; line-height:1.6;
+  display:flex; align-items:center; gap:var(--s2) }
+.px-cselect__list li::before{ content:none }
+.px-cselect__list li[aria-selected=true]::after{ content:"✓"; margin-left:auto; color:var(--accent-deep) }
+.px-cselect__list li:hover,.px-cselect__list li.is-active{ background:var(--accent); color:var(--accent-fg) }
+.px-cselect__list li.is-active[aria-selected=true]::after{ color:var(--accent-fg) }
+
+/* ═══════════ v3.0 · PIXEL CALENDAR (네이티브 date 피커 대체) ═════════════ */
+.px-datefield{ position:relative }
+.px-cal{ position:absolute; top:calc(100% + var(--s2)); left:0; z-index:var(--z-popover);
+  background:var(--panel); padding:var(--s3); display:none; min-width:var(--s24); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-hi) }
+.px-datefield.is-open .px-cal{ display:block }
+.px-cal__head{ display:flex; align-items:center; justify-content:space-between;
+  gap:var(--s2); margin-bottom:var(--s2) }
+.px-cal__title{ font-family:"Galmuri14",monospace; font-size:var(--t-sm) }
+.px-cal__grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:var(--u) }
+.px-cal__dow{ text-align:center; font-size:var(--t-xs); color:var(--fg-muted); line-height:2 }
+.px-cal__dow:first-child{ color:var(--danger) }
+.px-cal__d{ aspect-ratio:1; min-width:var(--s6); display:grid; place-items:center;
+  font-size:var(--t-xs); background:var(--panel-2); border:0; font-family:inherit;
+  color:var(--fg); cursor:pointer; line-height:1 }
+.px-cal__d:hover{ background:var(--accent-soft); color:var(--c01) }
+.px-cal__d.is-out{ color:var(--fg-muted); background:transparent; cursor:default }
+.px-cal__d.is-today{ box-shadow:inset 0 0 0 var(--u) var(--accent) }
+.px-cal__d[aria-selected=true]{ background:var(--accent); color:var(--accent-fg) }
+/* 네이티브 date 인디케이터 제거(브라우저 크롬 노출 차단) */
+input[type=date]::-webkit-calendar-picker-indicator{ display:none; -webkit-appearance:none }
+input[type=date]::-webkit-inner-spin-button{ display:none }
+
+/* ═══════════ v3.0 · DROPDOWN 보완 ══════════════════════════════════════ */
+.px-pop__menu li[role=separator],.px-pop__menu hr{ padding:0; height:var(--u);
+  background:var(--edge-soft); margin:var(--s2) 0; cursor:default }
+.px-pop__menu li[role=separator]:hover{ background:var(--edge-soft) }
+.px-pop__menu .px-pop__label{ padding:var(--s2) var(--s4) var(--u); font-size:var(--t-xs);
+  color:var(--fg-muted); cursor:default; text-transform:uppercase }
+.px-pop__menu .px-pop__label:hover{ background:transparent; color:var(--fg-muted) }
+.px-pop__menu li[aria-disabled=true]{ color:var(--fg-muted); cursor:not-allowed }
+.px-pop__menu li[aria-disabled=true]:hover{ background:transparent; color:var(--fg-muted) }
+.px-pop__menu li[aria-checked=true]::before{ content:"✓"; color:var(--accent-deep); margin-right:var(--s1) }
+.px-pop__menu li.is-active{ background:var(--accent); color:var(--accent-fg) }
+.px-pop__menu li .px-kbd{ margin-left:auto; color:var(--fg-muted); font-size:var(--t-xs) }
+.px-pop__menu li:hover .px-kbd,.px-pop__menu li.is-active .px-kbd{ color:inherit }
+.px-pop__menu li{ display:flex; align-items:center; gap:var(--s2) }
+.px-pop__menu--right{ left:auto; right:0 }

@@ -1,0 +1,25 @@
+/* PIXEL-CLAY v4.0 · FONTS — Galmuri (c) quiple, SIL OFL 1.1
+   The source ships the family from the jsDelivr CDN
+   (https://cdn.jsdelivr.net/npm/galmuri/dist/galmuri.css). The binaries are not
+   vendored into this project; these @font-face rules point at the same CDN files.
+   Galmuri14 = display / Galmuri11 = UI + body / Galmuri9 = micro (10px). */
+@font-face{font-family:Galmuri14;font-style:normal;font-stretch:normal;font-weight:400;font-display:swap;
+  src:local('Galmuri14 Regular'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri14.woff2') format('woff2'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri14.ttf') format('truetype')}
+@font-face{font-family:Galmuri11;font-style:normal;font-stretch:normal;font-weight:400;font-display:swap;
+  src:local('Galmuri11 Regular'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11.woff2') format('woff2'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11.ttf') format('truetype')}
+@font-face{font-family:Galmuri11;font-style:normal;font-stretch:normal;font-weight:700;font-display:swap;
+  src:local('Galmuri11 Bold'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11-Bold.woff2') format('woff2'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11-Bold.ttf') format('truetype')}
+@font-face{font-family:Galmuri9;font-style:normal;font-stretch:normal;font-weight:400;font-display:swap;
+  src:local('Galmuri9 Regular'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri9.woff2') format('woff2'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri9.ttf') format('truetype')}
+@font-face{font-family:GalmuriMono11;font-style:normal;font-stretch:normal;font-weight:400;font-display:swap;
+  src:local('GalmuriMono11 Regular'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/GalmuriMono11.woff2') format('woff2'),
+      url('https://cdn.jsdelivr.net/npm/galmuri/dist/GalmuriMono11.ttf') format('truetype')}

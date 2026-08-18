@@ -1,0 +1,44 @@
+/* PIXEL-CLAY v4.0 · layout
+   Source: uploads/pixel-clay-v4.html lines 405-447 (verbatim) */
+/* ═══════════ LAYER 4 · LAYOUT ══════════════════════════════════════════ */
+.px-container{ width:100%; max-width:1200px; margin-inline:auto; padding-inline:var(--pad-x); }
+.px-container--narrow{ max-width:760px; }
+.px-container--wide{ max-width:1440px; }
+
+/* 스택 — 수직 리듬. 자식 사이에만 간격 */
+.px-stack{ display:flex; flex-direction:column; }
+.px-stack > * + *{ margin-top:var(--gap); }
+.px-stack--sm > * + *{ margin-top:var(--s2); } .px-stack--lg > * + *{ margin-top:var(--s8); }
+
+/* 클러스터 — 수평 나열 + 자동 줄바꿈 */
+.px-cluster{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s2); }
+.px-cluster--between{ justify-content:space-between; }
+
+/* 그리드 — --cols로 열 수 제어, 모바일 1열 자동 */
+.px-grid{ display:grid; gap:var(--gap); grid-template-columns:repeat(var(--cols,12),1fr); }
+.px-grid--auto{ grid-template-columns:repeat(auto-fit,minmax(var(--min,240px),1fr)); }
+.px-col-3{ grid-column:span 3 } .px-col-4{ grid-column:span 4 }
+.px-col-6{ grid-column:span 6 } .px-col-8{ grid-column:span 8 } .px-col-12{ grid-column:span 12 }
+@media (max-width:1023px){ .px-col-3,.px-col-4,.px-col-6,.px-col-8{ grid-column:span 6 } }
+@media (max-width:639px){ [class*="px-col-"]{ grid-column:span 12 } }
+
+/* 사이드바 레이아웃 — 좁아지면 세로 적층 */
+.px-sidebar{ display:grid; grid-template-columns:minmax(180px,var(--side,240px)) 1fr; gap:var(--gap); }
+@media (max-width:1023px){ .px-sidebar{ grid-template-columns:1fr } }
+
+/* 앱 셸 — 헤더/사이드/본문/푸터 */
+.px-app{ display:grid; min-height:100vh;
+  grid-template:"h h" auto "s m" 1fr "f f" auto / minmax(0,var(--side,240px)) 1fr; }
+.px-app__header{ grid-area:h } .px-app__aside{ grid-area:s }
+.px-app__main{ grid-area:m; min-width:0 } .px-app__footer{ grid-area:f }
+@media (max-width:1023px){
+  .px-app{ grid-template:"h" auto "m" 1fr "f" auto / 1fr }
+  .px-app__aside{ display:none }
+}
+.px-center{ display:grid; place-items:center; }
+.px-divider{ height:var(--u); background:var(--edge-soft); margin:var(--s4) 0; border:0; }
+.px-divider--v{ width:var(--u); height:auto; align-self:stretch; margin:0 var(--s2); }
+.px-truncate{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.px-clamp-2{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.px-sr{ position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }

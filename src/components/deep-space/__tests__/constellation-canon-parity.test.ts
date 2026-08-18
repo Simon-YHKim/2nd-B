@@ -21,7 +21,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { canonPolarisBrightness, canonStars } from "@/lib/canon";
+import { canonConstellationLines, canonPolarisBrightness, canonPolarisGuide, canonStars } from "@/lib/canon";
 import { HEADLINE_DOMAIN_IDS } from "@/lib/persona/north-star";
 
 const SRC = readFileSync(
@@ -132,5 +132,72 @@ describe("constellation home <-> canon parity", () => {
   it("draws the profile star without letting it into the headline", () => {
     expect(renderedStars().map((s) => s.id)).toContain("profile");
     expect([...HEADLINE_DOMAIN_IDS]).not.toContain("profile");
+  });
+
+  // ── the LINES, not just the points (added 2026-08-19) ───────────────
+  //
+  // The guards above pin every star's COORDINATES against the canon, but
+  // nothing pinned the PATHS drawn between them. So the canon's `lines` and
+  // `polarisGuide` strings could be edited, or the renderer's BOWL / HANDLE /
+  // GUIDE arrays reordered, and the suite stayed green while the picture and
+  // the canon disagreed. That is the same silent-drift shape this file was
+  // created to close - it was just closed one level short.
+  //
+  // This mattered in practice: `CLAUDE.md` said the 북두칠성 -> 북극성 guide had
+  // "렌더하는 코드가 0건" and that reading survived for months, because the only
+  // thing anyone checked was whether `canonPolarisGuide` had consumers. The line
+  // is on screen (ConstellationHome.tsx:646) and always was; it just never read
+  // the canon. Pinning the STRING is what makes that checkable instead of
+  // arguable.
+
+  /** A `const NAME: HomeStarId[] = [...]` id list from the renderer source. */
+  function renderedSegment(name: string): string[] {
+    const m = new RegExp(`const ${name}:\\s*HomeStarId\\[\\]\\s*=\\s*\\[([^\\]]*)\\]`).exec(SRC);
+    expect(m).not.toBeNull();
+    return [...m![1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+  }
+
+  /**
+   * Rebuild the SVG path the renderer draws, in canon (unscaled) coordinates.
+   *
+   * `pathOf` in the component runs each point through `px`/`py`, which multiply
+   * by the responsive scale `k`. The scale is a render-time concern; the shape
+   * is not. Rebuilding from the same constants without `k` gives exactly the
+   * string the canon stores, so this can be an EQUALITY check rather than a
+   * vaguer "looks similar" one.
+   */
+  function pathFrom(ids: string[], opts: { close?: boolean; then?: { x: number; y: number } } = {}): string {
+    const at = (id: string) => {
+      const s = renderedStars().find((r) => r.id === id);
+      expect(s).toBeDefined();
+      return s!;
+    };
+    let d = ids.map((id, i) => `${i === 0 ? "M" : "L"}${at(id).x},${at(id).y}`).join(" ");
+    if (opts.then) d += ` L${opts.then.x},${opts.then.y}`;
+    if (opts.close) d += " Z";
+    return d;
+  }
+
+  it("draws the Big Dipper bowl exactly as the canon stores it", () => {
+    expect(pathFrom(renderedSegment("BOWL"), { close: true })).toBe(canonConstellationLines[0]);
+  });
+
+  it("draws the handle exactly as the canon stores it", () => {
+    expect(pathFrom(renderedSegment("HANDLE"))).toBe(canonConstellationLines[1]);
+  });
+
+  it("draws the pointer -> 북극성 guide exactly as the canon stores it", () => {
+    // The two pointer stars (Merak -> Dubhe) extended to Polaris - the real
+    // 지극성 path. `canonPolarisGuide` had zero consumers, so this is the first
+    // thing that makes the canon's copy load-bearing.
+    const guide = pathFrom(renderedSegment("GUIDE"), { then: renderedPoint("POLARIS") });
+    expect(guide).toBe(canonPolarisGuide);
+  });
+
+  it("actually renders that guide path (not just computes it)", () => {
+    // Cheap but load-bearing: if someone deletes the <Path> the coordinates
+    // above would still line up while nothing reached the screen.
+    expect(SRC).toContain("pathOf(GUIDE)");
+    expect(SRC).toMatch(/pathOf\(GUIDE\)\}\s*L\$\{px\(POLARIS\.x\)\},\$\{py\(POLARIS\.y\)\}/);
   });
 });
