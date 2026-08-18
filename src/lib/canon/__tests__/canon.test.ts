@@ -15,6 +15,7 @@ import {
   canonScreens,
   canonStars,
   canonStats,
+  canonAppOnlyScreens,
   canonUnroutedScreens,
   getCanonScreen,
 } from "../index";
@@ -54,7 +55,7 @@ describe("proto_rev2 canon integrity", () => {
 
   it("uses only known layout kinds", () => {
     for (const s of canonScreens) {
-      expect(["immersive", "museumLike", "windowed"]).toContain(s.layout);
+      expect(["immersive", "museumLike", "windowed", "gate"]).toContain(s.layout);
     }
   });
 
@@ -62,10 +63,28 @@ describe("proto_rev2 canon integrity", () => {
   // exported to `window` by some sb-*.jsx is checked by
   // design/proto_rev2/tools/validate-data.mjs (`npm run check:canon-data`),
   // which reads the prototype sources this test cannot see.
-  it("names a window component for every screen", () => {
+  it("names a window component for every screen the prototype has", () => {
     for (const s of canonScreens) {
+      if (s.appOnly) {
+        // The app has it, the prototype does not. Naming a component here
+        // would be a claim about a symbol that does not exist - which is
+        // exactly what `profile` did until 2026-08-19 and why
+        // `check:canon-data` could not join `npm run verify`.
+        expect(s.component).toBeNull();
+        continue;
+      }
       expect(s.component).toMatch(/^[A-Z][A-Za-z0-9]*$/);
     }
+  });
+
+  it("keeps both gap directions expressible and non-overlapping", () => {
+    // route: null   = prototype has it, app does not
+    // appOnly: true = app has it, prototype does not
+    // A screen cannot be both - that would mean neither side has it.
+    for (const s of canonScreens) {
+      expect(s.appOnly === true && s.route === null).toBe(false);
+    }
+    expect(canonAppOnlyScreens().map((s) => s.id).sort()).toEqual(["profile"]);
   });
 
   it("titles every non-root screen (top app bar contract)", () => {
@@ -120,6 +139,7 @@ describe("proto_rev2 canon integrity", () => {
     expect(canonUnroutedScreens().map((s) => s.id).sort()).toEqual([
       "audit-full",
       "datareview",
+      "digest",
       "dobgate",
       "domains",
       "exhibit",
@@ -167,6 +187,7 @@ describe("proto_rev2 canon integrity", () => {
       "deepspace-hub",
       "deepspace-preview",
       "dev-screens",
+      "digest",
       "discover",
       "esm",
       "formats",
@@ -208,6 +229,9 @@ describe("proto_rev2 canon integrity", () => {
     }
     expect(stats.byLayout.immersive).toBe(2);
     expect(stats.byLayout.museumLike).toBe(3);
-    expect(stats.byLayout.windowed).toBe(53);
+    // gate added 2026-08-19: the four login-flow screens moved off `windowed`,
+    // which had been claiming phone chrome they do not render.
+    expect(stats.byLayout.gate).toBe(4);
+    expect(stats.byLayout.windowed).toBe(49);
   });
 });

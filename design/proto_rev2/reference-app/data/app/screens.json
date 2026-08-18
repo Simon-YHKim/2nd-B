@@ -45,10 +45,11 @@
     },
     {
       "id": "profile",
-      "component": "ProfileScreen",
+      "component": null,
       "layout": "windowed",
       "title": "프로필",
-      "route": "profile"
+      "route": "profile",
+      "appOnly": true
     },
     {
       "id": "star",
@@ -200,7 +201,7 @@
     {
       "id": "auth",
       "component": "AuthScreen",
-      "layout": "windowed",
+      "layout": "gate",
       "title": "로그인",
       "route": "(auth)/sign-in"
     },
@@ -277,21 +278,21 @@
     {
       "id": "pwreset",
       "component": "PwResetScreen",
-      "layout": "windowed",
+      "layout": "gate",
       "title": "비밀번호 재설정",
       "route": "(auth)/reset-password"
     },
     {
       "id": "profilesetup",
       "component": "ProfileSetupScreen",
-      "layout": "windowed",
+      "layout": "gate",
       "title": "프로필 완성",
       "route": "(auth)/complete-profile"
     },
     {
       "id": "dobgate",
       "component": "DobGateScreen",
-      "layout": "windowed",
+      "layout": "gate",
       "title": "생년월일 확인",
       "route": null
     },
@@ -412,7 +413,7 @@
       "component": "DigestScreen",
       "layout": "windowed",
       "title": "주간 다이제스트",
-      "route": "digest"
+      "route": null
     }
   ]
 }
