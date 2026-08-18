@@ -1,0 +1,64 @@
+/* PIXEL-CLAY v4.0 · v4 marketing: pricing, quote, metrics, footer + reduced motion
+   Source: uploads/pixel-clay-v4.html lines 1441-1503 (verbatim) */
+/* ── [7-30] 마케팅 · 가격표 ── */
+.px-pricing{ display:grid; gap:var(--s4); grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  align-items:stretch }
+.px-plan{ background:var(--panel); padding:var(--s5); display:flex; flex-direction:column;
+  gap:var(--s3); position:relative;
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-hi),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-lo) }
+.px-plan--hot{ background:var(--panel-2);
+  box-shadow:0 calc(-1*var(--s2)) 0 0 var(--accent), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset 0 0 0 var(--u) var(--accent) }
+.px-plan__flag{ position:absolute; top:calc(-1*var(--s2)); left:50%;
+  transform:translate(-50%,-100%); background:var(--accent); color:var(--accent-fg);
+  font-size:var(--t-xs); padding:0 var(--s2); line-height:2; white-space:nowrap }
+.px-plan__price{ font-size:var(--t-2xl); line-height:1 }
+.px-plan__price small{ font-size:var(--t-xs); color:var(--fg-muted) }
+.px-plan ul{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column;
+  gap:var(--s2); font-size:var(--t-sm); flex:1 }
+.px-plan ul li{ display:flex; gap:var(--s2); align-items:center }
+.px-plan ul li.is-no{ color:var(--fg-muted) }
+.px-plan .px-btn{ margin:0 }
+
+/* ── [7-31] 마케팅 · 후기 ── */
+.px-quote{ background:var(--panel); padding:var(--s5); margin:var(--u);
+  display:flex; flex-direction:column; gap:var(--s3);
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset 0 var(--u) 0 0 var(--bevel-hi) }
+.px-quote__mark{ font-size:var(--t-2xl); line-height:.5; color:var(--accent) }
+.px-quote__text{ font-size:var(--t-sm); margin:0 }
+.px-quote__who{ display:flex; align-items:center; gap:var(--s3); margin-top:auto }
+.px-quote__who small{ display:block; color:var(--fg-muted); font-size:var(--t-xs) }
+
+/* ── [7-32] 마케팅 · 지표 ── */
+.px-metrics{ display:grid; gap:var(--s4); grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  text-align:center }
+.px-metrics__v{ font-size:var(--t-2xl); line-height:1.2; color:var(--accent-deep) }
+.theme-dark .px-metrics__v{ color:var(--accent) }
+.px-metrics__l{ font-size:var(--t-xs); color:var(--fg-muted) }
+
+/* ── [7-33] 마케팅 · 푸터 ── */
+.px-mfooter{ background:var(--panel); padding:var(--s8) var(--s6) var(--s4); margin:var(--u);
+  box-shadow:0 calc(-1*var(--s2)) 0 0 var(--accent), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-mfooter__grid{ display:grid; gap:var(--s6);
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr)) }
+.px-mfooter h4{ font-size:var(--t-sm); margin:0 0 var(--s3) }
+.px-mfooter ul{ list-style:none; margin:0; padding:0; display:flex;
+  flex-direction:column; gap:var(--s2); font-size:var(--t-sm) }
+.px-mfooter a{ color:var(--fg-muted); text-decoration:none }
+.px-mfooter a:hover{ color:var(--accent-deep); text-decoration:underline }
+.theme-dark .px-mfooter a:hover{ color:var(--accent) }
+.px-mfooter__legal{ display:flex; flex-wrap:wrap; gap:var(--s3); align-items:center;
+  margin-top:var(--s6); padding-top:var(--s3); font-size:var(--t-xs);
+  color:var(--fg-muted); box-shadow:inset 0 var(--u) 0 0 var(--edge-soft) }
+
+/* ── v4 접근성 · 모션 축소 대응 ── */
+@media (prefers-reduced-motion:reduce){
+  .px-drawer,.px-carousel__track{ transition:none }
+}

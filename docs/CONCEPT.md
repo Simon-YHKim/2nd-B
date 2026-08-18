@@ -3,6 +3,28 @@
 > Read this before any concept, IA, or visual decision. It names what is canonical
 > and what is legacy, so a session is never polluted by a superseded model.
 
+## 시각 방향 — 이름 세 개를 갈라 부른다 (Simon 결정 2026-08-19, V1 · V5)
+
+> "픽셀" 을 단독으로 쓰지 말 것. 서로 다른 세 물건을 같은 말로 부르다가 세션마다
+> 혼선이 재생산됐다. 상태 배지를 붙여 부른다.
+
+| 이름 | 상태 | 무엇인가 |
+|---|---|---|
+| **cosmic-pixel** | 🔴 폐기 | 2026-06 이전의 원래 스킨 (Cosmic Pixel Graph Village · phytoncide · 마을 그래프). `EXPO_PUBLIC_UI=legacy` 롤백으로만 생존 |
+| **M3-deepspace** | 🟡 현행 | 지금 사용자에게 배포돼 있는 것. Material 3 + 딥스페이스. 이주의 **출발점** |
+| **PIXEL-CLAY v4** | 🟢 채택 | 2026-08-18 Claude Design 산출 픽셀아트 체계. 이주의 **목적지** |
+
+**cosmic-pixel 과 PIXEL-CLAY v4 는 둘 다 픽셀아트지만 같은 물건이 아니다.**
+전자는 폐기된 스킨, 후자는 새로 설계된 체계다. "레거시 픽셀이니까 버린다" 는 논증이
+PIXEL-CLAY v4 에는 적용되지 않는다.
+
+**개념은 이 결정으로 바뀌지 않는다** — 아래 3층 별자리 모델, 북극성, propose→ratify,
+L1~L5 는 그대로다. 바뀌는 것은 시각 체계뿐이다.
+
+- 이주 SoT: `docs/PIXEL-CLAY-MIGRATION.md`
+- 인수 자료: `design/pixel_clay_v4/` (**`REPO-NOTES.md` 를 먼저 읽을 것**)
+- 대체된 계획: `docs/REV2-MIGRATION.md` (목적지가 M3 였다)
+
 ## Canonical (use this)
 
 - **Concept SoT = `docs/PRD.md` (Draft v3).** Detailed model spec = `docs/CONSTELLATION-DESIGN.md`.

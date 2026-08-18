@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko" data-palette="midnight" class="theme-dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아바타 64px 샘플 · 2ndB</title>
+<link rel="stylesheet" href="../_ds/pixel-clay-design-system-ca692b6f-ca02-4536-8de2-d5b398695f65/styles.css">
+<link rel="stylesheet" href="px-bridge.css">
+<link rel="stylesheet" href="pixel-deepspace.css">
+<style>
+body{margin:0;background:var(--ds-space);color:var(--fg);font-family:var(--font-ui);padding:32px 24px 72px}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font:400 30px/1.4 var(--font-display);color:var(--c07);margin:0 0 6px}
+.lead{font-size:12px;color:var(--fg-muted);line-height:1.7;max-width:640px;margin:0 0 8px;word-break:keep-all}
+h2{font:700 15px/1.5 var(--font-ui);color:var(--c07);margin:44px 0 4px}
+.sub{font-family:"GalmuriMono11",monospace;font-size:10px;letter-spacing:.1em;color:var(--ds-nebula);margin-bottom:14px}
+.grid{display:grid;gap:12px}
+.cell{background:var(--panel);box-shadow:var(--ds-edge);padding:12px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.cell .name{font-size:10px;font-family:var(--font-micro);color:var(--fg-muted);text-align:center;word-break:keep-all;line-height:1.3}
+.hero{display:flex;gap:20px;flex-wrap:wrap}
+.hero .cell{padding:18px}
+.ladder{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.ladder .item{display:flex;flex-direction:column;align-items:center;gap:7px}
+.ladder .cap{font-family:"GalmuriMono11",monospace;font-size:10px;color:var(--fg-muted)}
+.cmp{display:grid;grid-template-columns:64px 1fr;gap:14px 18px;align-items:center}
+.cmp .lbl{font-family:"GalmuriMono11",monospace;font-size:10px;color:var(--c05);text-align:right}
+.cmp .row{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+.note{background:var(--panel);box-shadow:var(--ds-edge);padding:14px 16px;font-size:12px;line-height:1.7;color:var(--fg-muted);word-break:keep-all;margin-top:16px}
+.note b{color:var(--c07)}
+.sw{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.sw span{width:16px;height:16px;box-shadow:0 0 0 var(--u) var(--edge)}
+a{color:var(--accent-soft)}a:hover{color:var(--c08)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>아바타 64×64 샘플</h1>
+  <p class="lead">지금 앱에 쓰는 아바타는 16×16이라 48px로 띄우면 한 칸이 3px로 뭉칩니다. 같은 규칙(정수좌표 사각형만, 곡선·안티에일리어싱 0)을 64×64 그리드로 옮겨 명암·눈동자 하이라이트·의상 디테일을 넣었습니다.</p>
+
+  <h2>기본 · 4배 확대 (256px)</h2>
+  <div class="sub">한 칸 = 4px</div>
+  <div class="hero" id="hero"></div>
+
+  <h2>16 그리드 vs 64 그리드</h2>
+  <div class="sub">같은 표시 크기에서의 밀도 차이</div>
+  <div class="cmp" id="cmp"></div>
+
+  <h2>헤어 24종</h2>
+  <div class="sub">사람 · 128px</div>
+  <div class="grid" id="hair" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+
+  <h2>동물 26종</h2>
+  <div class="sub">128px</div>
+  <div class="grid" id="animal" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+
+  <h2>직업 44종</h2>
+  <div class="sub">12개 분야 · 모자·의상·소품 · 128px</div>
+  <div class="grid" id="job" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+
+  <h2>표정 10종</h2>
+  <div class="sub">눈·입·눈썹 조합 · 128px</div>
+  <div class="grid" id="expr" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+
+  <h2>액세서리 20종</h2>
+  <div class="sub">128px</div>
+  <div class="grid" id="acc" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+
+  <h2>얼굴 디테일 14종</h2>
+  <div class="sub">128px</div>
+  <div class="grid" id="face" style="grid-template-columns:repeat(auto-fill,minmax(112px,1fr))"></div>
+
+  <h2>실제 쓰이는 크기</h2>
+  <div class="sub">스튜디오 88 · 프로필 카드 48 · 목록 32</div>
+  <div class="ladder" id="ladder"></div>
+
+  <h2>색 팔레트</h2>
+  <div class="sub">16 그리드 확장팩과 동일 계열</div>
+  <div id="pal"></div>
+
+  <div class="note">
+    <b>전량 이전 완료.</b> 헤어 24 · 액세서리 20 · 얼굴 14 · 표정 10 · 동물 26 · 직업 44 — 16 그리드 확장팩의 모든 항목이 64 그리드로 옮겨졌고, 앱의 아바타 스튜디오·프로필·설정도 이 자산을 씁니다. 기존에 저장된 16 그리드 프로필은 같은 시드로 다시 만들어집니다.
+  </div>
+</div>
+
+<script src="../_ds/pixel-clay-design-system-ca692b6f-ca02-4536-8de2-d5b398695f65/_ds_bundle.js"></script>
+<script src="pxc-ext-avatars.js"></script>
+<script src="px-avatar64.js"></script>
+<script>
+(function(){
+  var A = window.PXAvatar64;
+  var EXT = window.PXC_EXT;
+  function cell(html, name){
+    var d = document.createElement('div'); d.className = 'cell';
+    d.innerHTML = html + '<div class="name">' + name + '</div>';
+    return d;
+  }
+  /* 히어로 3종 */
+  var heroSpecs = [
+    A.spec('aria', { type:'human', hair:'wavelong', hairColor:'#5a3820', skin:'#f2c9a0', eye:'#3a2a1e', cloth:'#4d7a8c', expr:'smile', acc:'none', face:'none', job:null }),
+    A.spec('nova', { type:'human', hair:'spike', hairColor:'#3f8fbf', skin:'#e0aa78', eye:'#2f5fc0', job:'dev', expr:'neutral', acc:'none', face:'glasses' }),
+    A.spec('miso', { type:'animal', species:'fox', fur:'#e8a860', cloth:'#7d9463', expr:'smile', acc:'none' })
+  ];
+  var hero = document.getElementById('hero');
+  ['아리아 · 롱웨이브','노바 · 개발자','미소 · 여우'].forEach(function(n,i){
+    hero.appendChild(cell(A.svg(heroSpecs[i], 256), n));
+  });
+
+  /* 16 vs 64 비교 */
+  var cmp = document.getElementById('cmp');
+  var sizes = [128, 64, 48, 32];
+  var sp16 = null;
+  try { sp16 = EXT ? EXT.avatarSpec('aria') : null; } catch (e) { sp16 = null; }
+  var sp64 = A.spec('aria', { type:'human', hair:'long', hairColor:'#5a3820', skin:'#f2c9a0', eye:'#3a2a1e', cloth:'#d97757', expr:'smile', acc:'none', face:'none', job:null });
+  function cmpRow(label, render){
+    var l = document.createElement('div'); l.className='lbl'; l.textContent=label;
+    var r = document.createElement('div'); r.className='row';
+    sizes.forEach(function(s){
+      var it = document.createElement('div'); it.className='item';
+      var box = document.createElement('div');
+      box.style.cssText = 'width:'+s+'px;height:'+s+'px;background:var(--panel);box-shadow:var(--ds-edge);display:grid;place-items:center';
+      box.innerHTML = render(s);
+      var c = document.createElement('div'); c.className='cap'; c.textContent = s+'px';
+      it.appendChild(box); it.appendChild(c); r.appendChild(it);
+    });
+    cmp.appendChild(l); cmp.appendChild(r);
+  }
+  if (EXT && sp16) {
+    try {
+      cmpRow('16 그리드', function(s){
+        return '<span style="display:block;width:'+s+'px;height:'+s+'px;line-height:0">' +
+          EXT.avatarSVG(sp16).replace('<span class="px-pavatar">','<span style="display:block;width:100%;height:100%">') + '</span>';
+      });
+    } catch (e) { console.warn('16-grid sample skipped', e); }
+  }
+  cmpRow('64 그리드', function(s){ return A.svg(sp64, s); });
+
+  /* 헤어 */
+  var hairEl = document.getElementById('hair');
+  A.HAIR.forEach(function(h){
+    hairEl.appendChild(cell(A.svg(A.spec('h-'+h.id, { type:'human', hair:h.id, skin:'#f2c9a0', hairColor:'#5a3820', eye:'#3a2a1e', cloth:'#4d7a8c', expr:'neutral', job:null, acc:'none', face:'none' }), 128), h.ko));
+  });
+
+  /* 동물 */
+  var anEl = document.getElementById('animal');
+  A.ANIMAL.forEach(function(a){
+    anEl.appendChild(cell(A.svg(A.spec('a-'+a.id, { type:'animal', species:a.id, cloth:'#4d7a8c', eye:'#3a2a1e', expr:'neutral', acc:'none' }), 128), a.ko));
+  });
+
+  /* 직업 — 분야별로 묶어 표시 */
+  var jbEl = document.getElementById('job');
+  A.JOB_GROUPS.forEach(function(gp){
+    A.JOB.filter(function(j){ return j.group === gp.id; }).forEach(function(j){
+      jbEl.appendChild(cell(A.svg(A.spec('j-'+j.id, { type:'human', job:j.id, hair:'short', skin:'#f2c9a0', hairColor:'#2b211b', eye:'#3a2a1e', expr:'neutral', acc:'none', face:'none' }), 128), j.ko));
+    });
+  });
+
+  /* 액세서리 */
+  var acEl = document.getElementById('acc');
+  A.ACC.forEach(function(x){
+    acEl.appendChild(cell(A.svg(A.spec('c-'+x.id, { type:'human', acc:x.id, hair:'short', skin:'#f2c9a0', hairColor:'#5a3820', eye:'#3a2a1e', cloth:'#4d7a8c', expr:'neutral', face:'none', job:null }), 128), x.ko));
+  });
+
+  /* 얼굴 디테일 */
+  var fcEl = document.getElementById('face');
+  A.FACE.forEach(function(x){
+    fcEl.appendChild(cell(A.svg(A.spec('f-'+x.id, { type:'human', face:x.id, hair:'short', skin:'#f2c9a0', hairColor:'#5a3820', eye:'#3a2a1e', cloth:'#7d9463', expr:'neutral', acc:'none', job:null }), 128), x.ko));
+  });
+
+  /* 표정 */
+  var exEl = document.getElementById('expr');
+  A.EXPR.forEach(function(e){
+    exEl.appendChild(cell(A.svg(A.spec('e-'+e.id, { type:'human', expr:e.id, hair:'bob', skin:'#e0aa78', hairColor:'#8f4f1a', eye:'#2e7d6e', cloth:'#e0a63c', acc:'none', face:'none', job:null }), 128), e.ko));
+  });
+
+  /* 실사용 크기 */
+  var lad = document.getElementById('ladder');
+  [88, 48, 32].forEach(function(s){
+    var it = document.createElement('div'); it.className='item';
+    var box = document.createElement('div');
+    box.style.cssText = 'width:'+(s+16)+'px;height:'+(s+16)+'px;background:var(--panel-2);box-shadow:var(--ds-edge);display:grid;place-items:center';
+    box.innerHTML = A.svg(heroSpecs[0], s);
+    var c = document.createElement('div'); c.className='cap'; c.textContent=s+'px';
+    it.appendChild(box); it.appendChild(c); lad.appendChild(it);
+  });
+
+  /* 팔레트 */
+  var pal = document.getElementById('pal');
+  [['피부', A.SKIN], ['머리', A.HAIRC], ['눈', A.EYEC], ['옷', A.CLOTH], ['털', A.FUR]].forEach(function(p){
+    var row = document.createElement('div');
+    row.style.cssText = 'margin-bottom:10px';
+    row.innerHTML = '<div style="font-size:10px;font-family:var(--font-micro);color:var(--fg-muted)">'+p[0]+' '+p[1].length+'</div>' +
+      '<div class="sw">' + p[1].map(function(c){ return '<span style="background:'+c+'"></span>'; }).join('') + '</div>';
+    pal.appendChild(row);
+  });
+})();
+</script>
+</body>
+</html>
