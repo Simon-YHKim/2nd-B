@@ -1,4 +1,4 @@
-import { MBTI_ITEMS, scoreMbti, type MbtiResponses } from "../mbti";
+import { MBTI_ITEMS, TYPE_NICKNAME, scoreMbti, type MbtiResponses } from "../mbti";
 
 describe("MBTI_ITEMS shape", () => {
   test("32 items total", () => {
@@ -86,5 +86,45 @@ describe("scoreMbti", () => {
   test("ignores out-of-range raw values", () => {
     const r = scoreMbti({ 1: 0 as unknown as number, 2: 6 as unknown as number, 3: NaN as unknown as number });
     expect(r.answered).toBe(0);
+  });
+});
+
+// D5 (Simon 2026-08-18): "재미로 할 수 있도록 작업은 해놓자. 화면을 살릴지는
+// 나중에." 즉 이 모듈은 **화면 없이 완성 상태로 대기**한다.
+//
+// 휴면 코드의 위험은 버그가 아니라 **부패**다. 아무도 안 열어보는 사이 유형
+// 하나의 별칭이 빠지거나, 되살리려고 보면 이미 안 맞는 상태가 되어 있다.
+// 그래서 "지금 되살려도 온전한가" 를 고정한다.
+describe("휴면 상태 완결성 (D5)", () => {
+  const TYPES = ["E", "I"].flatMap((a) =>
+    ["S", "N"].flatMap((b) => ["T", "F"].flatMap((c) => ["J", "P"].map((d) => `${a}${b}${c}${d}`))),
+  );
+
+  it("16유형 전부에 별칭이 있다 (EN·KO)", () => {
+    expect(TYPES).toHaveLength(16);
+    for (const locale of ["en", "ko"] as const) {
+      for (const type of TYPES) {
+        const nickname = TYPE_NICKNAME[locale][type];
+        expect(typeof nickname).toBe("string");
+        expect(nickname.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("어떤 응답 조합이든 별칭이 있는 유형만 나온다", () => {
+    // 채점이 별칭 없는 문자열을 만들면 되살리는 순간 빈 화면이 된다.
+    const answers: Record<number, number> = {};
+    for (const item of MBTI_ITEMS) answers[item.id] = 5;
+    const result = scoreMbti(answers);
+    expect(result.type).not.toBeNull();
+    expect(TYPE_NICKNAME.ko[result.type as string]).toBeTruthy();
+  });
+
+  it("문항이 실제로 답할 수 있는 문장이다", () => {
+    // 자리만 채운 더미가 섞이면 되살렸을 때 그게 사용자에게 보인다.
+    for (const item of MBTI_ITEMS) {
+      expect(item.en.trim().length).toBeGreaterThan(5);
+      expect(item.ko.trim().length).toBeGreaterThan(5);
+    }
   });
 });

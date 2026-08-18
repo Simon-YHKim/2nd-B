@@ -80,7 +80,26 @@
     "empty": "오늘 할 루틴이 없습니다. 아래에서 걸음을 저장해 시작하세요.",
     "completeA11y": "{{title}} 오늘 완료로 표시",
     "doneA11y": "{{title}} 오늘 완료",
-    "streak": "{{count}}일 연속"
+    "streak": "{{count}}일 연속",
+    "title": "오늘의 두 가지",
+    "hint": "실제로 쌓인 것 중에서 골랐습니다.",
+    "nothingHint": "일부러 비워 둡니다. 여기를 예시 데이터로 채우지 않습니다.",
+    "pick": {
+      "routine": "오늘 걸린 루틴",
+      "milestone": "진행 중인 목표",
+      "reading": "읽던 책",
+      "meals": "이번 주 식단",
+      "records": "최근 기록",
+      "esm": "요즘 컨디션"
+    },
+    "next": {
+      "routine": "제안 하나를 받아들이면 루틴이 시작됩니다.",
+      "milestone": "목표를 정하면 진행이 여기 보입니다.",
+      "reading": "책을 담으면 여기 보입니다.",
+      "meals": "한 주 식단을 짜면 여기 보입니다.",
+      "records": "무언가 담으면 여기 나타납니다.",
+      "esm": "체크인에 답하면 흐름이 보입니다."
+    }
   },
   "home": {
     "ringCount": "{{done}} / {{total}} 완료",
@@ -115,6 +134,26 @@
     "callReflection": {
       "label": "통화 돌아보기",
       "sub": "말로 남기기"
+    },
+    "reading": {
+      "label": "독서",
+      "sub": "책과 메\\λaa8"
+    },
+    "milestones": {
+      "label": "목표",
+      "sub": "향하고 있는 것"
+    },
+    "ledger": {
+      "label": "가계 점검",
+      "sub": "지출을 짧게 보기"
+    },
+    "sideProject": {
+      "label": "사이드 프로젝트",
+      "sub": "일 밖에서 만드는 것"
+    },
+    "meals": {
+      "label": "식단",
+      "sub": "이번 주 계획"
     }
   },
   "states": {

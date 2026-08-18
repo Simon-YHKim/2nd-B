@@ -80,7 +80,26 @@
     "empty": "Tidak ada rutinitas untuk hari ini. Simpan langkah di bawah untuk memulai.",
     "completeA11y": "Tandai {{title}} selesai hari ini",
     "doneA11y": "{{title}} selesai hari ini",
-    "streak": "Rentetan {{count}} hari"
+    "streak": "Rentetan {{count}} hari",
+    "title": "Hari ini, dua hal",
+    "hint": "Dipilih dari yang benar-benar kamu simpan.",
+    "nothingHint": "Sengaja dibiarkan kosong. Tidak ada yang diisi data contoh.",
+    "pick": {
+      "routine": "Rutinitas hari ini",
+      "milestone": "Sasaran berjalan",
+      "reading": "Yang sedang kamu baca",
+      "meals": "Menu minggu ini",
+      "records": "Catatan terbaru",
+      "esm": "Bagaimana perasaanmu"
+    },
+    "next": {
+      "routine": "Terima satu saran untuk memulai rutinitas.",
+      "milestone": "Tetapkan sasaran untuk melihat kemajuannya.",
+      "reading": "Tambahkan buku untuk melihatnya di sini.",
+      "meals": "Susun menu sepekan untuk melihatnya.",
+      "records": "Simpan sesuatu dan akan muncul di sini.",
+      "esm": "Jawab check-in untuk melihat polanya."
+    }
   },
   "home": {
     "ringCount": "{{done}} / {{total}} selesai",
@@ -115,6 +134,26 @@
     "callReflection": {
       "label": "Refleksi panggilan",
       "sub": "Ucapkan jadi catatan"
+    },
+    "reading": {
+      "label": "Bacaan",
+      "sub": "Buku dan catatan"
+    },
+    "milestones": {
+      "label": "Sasaran",
+      "sub": "Yang sedang kamu tuju"
+    },
+    "ledger": {
+      "label": "Cek keuangan",
+      "sub": "Lihat pengeluaran sekilas"
+    },
+    "sideProject": {
+      "label": "Proyek sampingan",
+      "sub": "Yang kamu buat di luar kerja"
+    },
+    "meals": {
+      "label": "Menu makan",
+      "sub": "Rencana minggu ini"
     }
   },
   "states": {

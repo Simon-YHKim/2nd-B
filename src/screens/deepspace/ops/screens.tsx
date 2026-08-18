@@ -28,7 +28,6 @@ import {
   ProgressBar,
   useOpsCopy,
   type DomainTab,
-  type OpsCopy,
   type OpsChipTone,
   type PushOption,
 } from "@/components/deepspace/ops";
@@ -176,51 +175,15 @@ function SaveErrorBanner({ text }: { text: string }) {
   );
 }
 
-// --- (1b) 도구 바로가기 ---------------------------------------------------
+// ⚠ 이 컴포넌트는 **어떤 라우트도 렌더하지 않는다** (2026-08-18 실측).
 //
-// 이 저장소에는 비서 도구가 7개 더 있다 - focus·ledger·meals·milestones·
-// reading·side-project·srs. 전부 이 파일이나 그 이웃이 렌더하고, 파일 주석에
-// `ops domain` 태그까지 붙어 있다. 그런데 **허브가 그중 하나도 링크하지 않았다.**
-// 즉 만들어진 기능에 도달할 방법이 딥링크뿐이었다.
+// /ops 는 DeepSpaceDesignScreens.tsx 의 DeepSpaceOpsScreen 을 렌더한다. 이 파일의
+// 나머지 화면들(ReadingScreen·MilestonesScreen·LedgerScreen·SideProjectScreen·
+// MealsScreen·RemindersScreen)은 각자 라우트가 쓰지만, 이 허브만 고아다.
 //
-// 역할 구분(Simon 2026-08-18): 위의 추천 목록과 이 격자는 하는 일이 다르다.
-//   - 추천 = "오늘 무엇을 할까" (기록에서 뽑아 제안하고, 수락하면 내 앱으로)
-//   - 도구 = "어디로 갈까"      (제안을 기다리지 않고 직접 여는 자리)
-// 그래서 섹션 제목과 한 줄 설명을 붙여 두 덩어리가 섞여 보이지 않게 한다.
-const OPS_TOOLS: readonly { route: string; key: keyof OpsCopy }[] = [
-  { route: "/reading", key: "toolReading" },
-  { route: "/milestones", key: "toolMilestones" },
-  { route: "/ledger", key: "toolLedger" },
-  { route: "/side-project", key: "toolSideProject" },
-  { route: "/meals", key: "toolMeals" },
-  { route: "/focus", key: "toolFocus" },
-  { route: "/srs", key: "toolSrs" },
-  { route: "/reminders", key: "toolReminders" },
-];
-
-function OpsToolsGrid() {
-  const c = useOpsCopy();
-  return (
-    <View style={styles.toolsWrap}>
-      <Text style={styles.toolsTitle}>{c.toolsTitle}</Text>
-      <Text style={styles.toolsHint}>{c.toolsHint}</Text>
-      <View style={styles.toolsGrid}>
-        {OPS_TOOLS.map((tool) => (
-          <Pressable
-            key={tool.route}
-            style={styles.toolChip}
-            accessibilityRole="link"
-            accessibilityLabel={String(c[tool.key])}
-            onPress={() => router.push(tool.route as Parameters<typeof router.push>[0])}
-          >
-            <Text style={styles.toolChipText}>{String(c[tool.key])}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
+// 2026-08-18 에 여기에 도구 격자를 붙였다가 그대로 죽은 코드가 됐다(#1237).
+// 소스에서 grep 하면 있는 것처럼 보이지만 화면에는 없다 - 렌더 체인을 따라가지
+// 않으면 반복되는 실수다. **허브를 고치려면 DeepSpaceOpsScreen 을 고쳐야 한다.**
 export function OpsHomeScreen() {
   const c = useOpsCopy();
   const { userId, isMinor } = useAuth();
@@ -320,7 +283,6 @@ export function OpsHomeScreen() {
           />
         ))
       )}
-      <OpsToolsGrid />
       <OpsPushSheet
         visible={pushRec !== null}
         title={c.whereToSend}
@@ -1653,19 +1615,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   mealSaveText: { fontSize: 14, color: deepSpace.onMint },
-  // 도구 바로가기 (허브가 자기 도구를 링크하지 않던 것을 메운다).
-  toolsWrap: { gap: 6, marginTop: deepSpaceSpacing.lg },
-  toolsTitle: { fontSize: 15, color: deepSpace.textHi },
-  toolsHint: { fontSize: 12, color: deepSpace.textLo },
-  toolsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
-  toolChip: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
-    backgroundColor: deepSpace.card,
-  },
-  toolChipText: { fontSize: 13, color: deepSpace.accentSoft },
 });

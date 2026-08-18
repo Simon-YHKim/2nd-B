@@ -75,6 +75,8 @@ import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
+import { loadPickCandidates } from "@/lib/ops/load-picks";
+import { pickToday, type PickId, type TodayPicks } from "@/lib/ops/today-picks";
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
@@ -2189,6 +2191,16 @@ function opsNextMorningIso(now: Date = new Date()): string {
 
 type OpsRunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
 
+/** 오늘의 두 가지가 카드마다 여는 자리. 후보 여섯 개 전부 갈 곳이 있어야 한다. */
+const TODAY_ROUTE: Readonly<Record<PickId, string>> = {
+  routine: "/reminders",
+  milestone: "/milestones",
+  reading: "/reading",
+  meals: "/meals",
+  records: "/records",
+  esm: "/esm",
+};
+
 export function DeepSpaceOpsScreen() {
   const { t, i18n } = useTranslation("ops");
   const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
@@ -2198,6 +2210,25 @@ export function DeepSpaceOpsScreen() {
   const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
 
   const [group, setGroup] = useState<OpsGroupId | null>(null);
+  // 오늘의 두 가지: 여섯 소스의 존재·최신성만 훑어 두 개를 고른다(LLM 없음).
+  // null 인 동안에는 아무것도 그리지 않는다 - 카드 모양의 자리표시자는 잠깐이라도
+  // "무언가 있다" 로 읽히는데 실제로 없을 수 있다.
+  const [todayPicks, setTodayPicks] = useState<TodayPicks | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void loadPickCandidates(userId)
+      .then((c) => {
+        if (alive) setTodayPicks(pickToday(c, Date.now()));
+      })
+      .catch(() => {
+        // 실패는 카드를 감추는 방향으로 - 없는 것을 지어내지 않는다.
+        if (alive) setTodayPicks({ picks: [], suggestions: [] });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
   const [domain, setDomain] = useState<OpsDomainId | null>(null);
   const [recs, setRecs] = useState<OpsRecommendation[]>([]);
   // A grounding: adherence chip shown with the recommendations.
@@ -2393,6 +2424,15 @@ export function DeepSpaceOpsScreen() {
     // legacy home graph, and call reflection had no entry point at all.
     { icon: "book", label: t("tools.srs.label"), sub: t("tools.srs.sub"), route: "/srs" },
     { icon: "bubble", label: t("tools.callReflection.label"), sub: t("tools.callReflection.sub"), route: "/call-reflection" },
+    // 2026-08-18 (Simon D7): 같은 패턴의 두 번째 라운드. 아래 다섯은 전부
+    // 만들어져 있고 각자 라우트도 있는데 이 격자에 없어서 딥링크로만 닿았다
+    // (파일 주석에 ops domain 태그까지 붙어 있는 것들이다). 위 두 줄이 말하는
+    // "built but unreachable" 이 다섯 개 더 남아 있었다.
+    { icon: "book", label: t("tools.reading.label"), sub: t("tools.reading.sub"), route: "/reading" },
+    { icon: "badge", label: t("tools.milestones.label"), sub: t("tools.milestones.sub"), route: "/milestones" },
+    { icon: "box", label: t("tools.ledger.label"), sub: t("tools.ledger.sub"), route: "/ledger" },
+    { icon: "sparkle", label: t("tools.sideProject.label"), sub: t("tools.sideProject.sub"), route: "/side-project" },
+    { icon: "fire", label: t("tools.meals.label"), sub: t("tools.meals.sub"), route: "/meals" },
   ];
 
   return (
@@ -2576,6 +2616,38 @@ export function DeepSpaceOpsScreen() {
         </View>
       ))}
       {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
+
+      {/* 오늘의 두 가지 (Simon D6) — 접근 가능한 것 중 실제로 쌓인 것만 고른다.
+          비어 있으면 예시로 채우지 않고 "다음 걸음" 만 말한다. 근거는
+          lib/ops/today-picks.ts 헤더. */}
+      {todayPicks ? (
+        <>
+          <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("today.title")}</RNText>
+          <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>
+            {todayPicks.picks.length > 0 ? t("today.hint") : t("today.nothingHint")}
+          </RNText>
+          {todayPicks.picks.map((id: PickId) => (
+            <MdCard
+              key={id}
+              variant="filled"
+              onPress={() => router.push(TODAY_ROUTE[id] as never)}
+              accessibilityLabel={t(`today.pick.${id}`)}
+            >
+              <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{t(`today.pick.${id}`)}</RNText>
+            </MdCard>
+          ))}
+          {todayPicks.suggestions.map((id: PickId) => (
+            <MdCard
+              key={`next-${id}`}
+              variant="outlined"
+              onPress={() => router.push(TODAY_ROUTE[id] as never)}
+              accessibilityLabel={t(`today.next.${id}`)}
+            >
+              <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{t(`today.next.${id}`)}</RNText>
+            </MdCard>
+          ))}
+        </>
+      ) : null}
 
       {/* 비서 도구 — 2×2 tool grid (real routes) */}
       <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("home.toolsLabel")}</RNText>

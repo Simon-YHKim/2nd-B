@@ -1,34 +1,70 @@
 // 비서 허브가 자기 도구들을 링크하는가 (Simon 2026-08-18, D7).
 //
-// 왜 이 검사가 필요한가: 이 저장소에는 비서 도구가 8개 있는데 (focus·ledger·
-// meals·milestones·reading·side-project·srs·reminders) **허브가 그중 하나도
-// 링크하지 않았다.** 전부 만들어져 있고, 대부분 허브와 같은 파일이 렌더하고,
-// 파일 주석에 `ops domain` 태그까지 붙어 있는데, 도달할 방법이 딥링크뿐이었다.
+// ## 이 파일은 한 번 틀린 적이 있다
 //
-// "기능이 없다" 가 아니라 "이어져 있지 않다" 였다는 것이 이 라운드의 발견이고,
-// 그런 종류의 결함은 조용히 재발한다 - 화면을 리팩터링하다 섹션 하나를 지우면
-// 끝이다. 그래서 라우트 파일의 존재와 허브의 링크를 **양쪽 다** 고정한다.
+// 처음 쓴 버전은 `screens/deepspace/ops/screens.tsx` 를 읽어서 "허브가 도구를
+// 링크한다" 를 확인했다. 통과했다. **그런데 그 파일의 허브(OpsHomeScreen)는
+// 어떤 라우트도 렌더하지 않는 고아였다.** `/ops` 는
+// `DeepSpaceDesignScreens.tsx` 의 `DeepSpaceOpsScreen` 을 렌더한다.
+//
+// 즉 소스에는 있고 화면에는 없는 것을 초록불로 보고했다. 실제 브라우저로 열어
+// 보고서야 드러났다.
+//
+// 그래서 이 파일은 **파일 이름을 고정하지 않는다.** `src/app/ops.tsx` 가 실제로
+// 무엇을 렌더하는지 먼저 읽고, 그 컴포넌트가 사는 파일을 검사한다. 라우트가
+// 다른 화면을 가리키도록 바뀌면 이 검사도 따라간다.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(__dirname, "..", "..", "..", "..", "..");
-const HUB = readFileSync(join(ROOT, "src", "screens", "deepspace", "ops", "screens.tsx"), "utf8");
+const APP_OPS = readFileSync(join(ROOT, "src", "app", "ops.tsx"), "utf8");
 
-/** 허브가 링크해야 하는 비서 도구. 라우트는 실제 파일과 대조한다. */
+/**
+ * `/ops` 가 딥스페이스에서 렌더하는 컴포넌트가 사는 파일을 찾는다.
+ *
+ * 문자열로 파일 경로를 박아 두면 이 검사가 다시 거짓 초록불이 된다.
+ */
+function hubSourceFile(): string {
+  const m = APP_OPS.match(/if\s*\(isDeepSpaceUI\(\)\)\s*return\s*<(\w+)\s*\/>/);
+  if (!m) throw new Error("ops.tsx 의 딥스페이스 분기를 못 찾았다 - 구조가 바뀌었으면 이 검사를 고쳐야 한다");
+  const component = m[1];
+  const imp = APP_OPS.match(new RegExp(`import\\s*\\{[^}]*\\b${component}\\b[^}]*\\}\\s*from\\s*"([^"]+)"`));
+  if (!imp) throw new Error(`${component} 의 import 를 못 찾았다`);
+  const rel = imp[1].replace(/^@\//, "src/");
+  for (const ext of [".tsx", ".ts", "/index.tsx", "/index.ts"]) {
+    const p = join(ROOT, rel + ext);
+    if (existsSync(p)) return p;
+  }
+  throw new Error(`${rel} 의 실제 파일을 못 찾았다`);
+}
+
+const HUB = readFileSync(hubSourceFile(), "utf8");
+
+/** 허브 격자가 열어야 하는 비서 도구. */
 const TOOLS = [
+  "focus",
+  "reminders",
+  "imagine",
+  "share-card",
+  "srs",
+  "call-reflection",
   "reading",
   "milestones",
   "ledger",
   "side-project",
   "meals",
-  "focus",
-  "srs",
-  "reminders",
 ] as const;
 
+/** 오늘의 두 가지가 고를 수 있는 후보. 전부 갈 곳이 있어야 한다. */
+const PICKS = ["routine", "milestone", "reading", "meals", "records", "esm"] as const;
+
 describe("비서 허브 ↔ 도구 배선", () => {
-  it.each(TOOLS)("/%s 라우트가 실재한다", (tool) => {
-    // 링크만 있고 라우트가 없으면 죽은 링크가 된다.
+  it("검사 대상이 실제로 /ops 가 렌더하는 파일이다", () => {
+    // 이 한 줄이 이 파일의 존재 이유다.
+    expect(hubSourceFile()).toContain("DeepSpaceDesignScreens");
+  });
+
+  it.each(TOOLS)("/%s 라우트 파일이 실재한다", (tool) => {
     expect(existsSync(join(ROOT, "src", "app", `${tool}.tsx`))).toBe(true);
   });
 
@@ -36,32 +72,61 @@ describe("비서 허브 ↔ 도구 배선", () => {
     expect(HUB).toContain(`route: "/${tool}"`);
   });
 
-  it("도구 목록과 실제 링크 수가 같다", () => {
-    // 목록에 추가해 놓고 렌더를 빼먹는 실수를 잡는다.
-    const listed = HUB.match(/route: "\/[a-z-]+"/g) ?? [];
-    expect(listed).toHaveLength(TOOLS.length);
-  });
-
-  it("도구 격자가 실제로 렌더된다", () => {
-    // 배열만 있고 컴포넌트를 안 부르면 아무 일도 일어나지 않는다 - 그게 직전
-    // 상태였다.
-    expect(HUB).toContain("<OpsToolsGrid />");
-  });
-
-  it("추천과 도구가 다른 역할로 표시된다", () => {
-    // Simon: "역할구분을 확실히 하자". 제목과 한 줄 설명이 없으면 추천 카드와
-    // 같은 덩어리로 읽힌다.
-    expect(HUB).toContain("c.toolsTitle");
-    expect(HUB).toContain("c.toolsHint");
-  });
-
-  it("도구 라벨이 EN·KO 양쪽에 있다", () => {
-    const copy = readFileSync(join(ROOT, "src", "components", "deepspace", "ops", "copy.ts"), "utf8");
-    // 이 파일은 ko 를 en 모양으로 타입 고정하므로 컴파일이 parity 를 잡지만,
-    // 값이 비어 있는 것까지는 못 잡는다.
-    for (const key of ["toolsTitle", "toolsHint", "toolReading", "toolReminders"]) {
-      const hits = copy.match(new RegExp(`${key}: "[^"]+"`, "g")) ?? [];
-      expect(hits.length).toBeGreaterThanOrEqual(2); // en + ko
+  it("오늘의 두 가지가 여섯 후보 전부에 갈 곳을 준다", () => {
+    const block = HUB.slice(HUB.indexOf("const TODAY_ROUTE"));
+    const table = block.slice(0, block.indexOf("};"));
+    for (const id of PICKS) {
+      expect(table).toContain(`${id}:`);
     }
+  });
+
+  it("오늘의 두 가지가 실제로 렌더된다", () => {
+    // 상태만 두고 그리지 않으면 아무 일도 일어나지 않는다 - 그게 직전 실수였다.
+    expect(HUB).toContain("todayPicks.picks.map");
+    expect(HUB).toContain("todayPicks.suggestions.map");
+  });
+
+  it("빈 자리를 예시 데이터로 채우지 않는다", () => {
+    // 카드가 아니라 "다음 걸음" 문구를 쓴다. 원본 대시보드 원리보다 한 걸음 더
+    // 정직한 쪽 - lib/ops/today-picks.ts 헤더 참조.
+    expect(HUB).toContain("today.nothingHint");
+    expect(HUB).toContain("today.next.");
+  });
+
+  it("아이콘 이름이 실재하는 글리프다", () => {
+    // CLONE_ICON 이 Record<string, string> 이라 타입이 오타를 못 잡는다.
+    // 실제로 flag/wallet/leaf 를 썼다가 빈 아이콘이 될 뻔했다.
+    const glyphBlock = HUB.slice(HUB.indexOf("const CLONE_ICON"));
+    const known = new Set(
+      (glyphBlock.slice(0, glyphBlock.indexOf("};")).match(/^\s+(\w+):/gm) ?? []).map((x) =>
+        x.trim().replace(":", ""),
+      ),
+    );
+    const used = (HUB.match(/icon: "(\w+)"/g) ?? []).map((x) => x.replace(/icon: "|"/g, ""));
+    expect(used.length).toBeGreaterThan(0);
+    for (const glyph of used) expect(known.has(glyph)).toBe(true);
+  });
+});
+
+describe("고아 허브", () => {
+  const ORPHAN = readFileSync(join(__dirname, "..", "screens.tsx"), "utf8");
+
+  it("OpsHomeScreen 이 고아라는 사실이 파일에 적혀 있다", () => {
+    // 적어 두지 않으면 다음 사람이 여기를 고치고 화면이 안 바뀌는 이유를 다시
+    // 찾게 된다. 실제로 그렇게 한 번 잃었다.
+    expect(ORPHAN).toContain("어떤 라우트도 렌더하지 않는다");
+    expect(ORPHAN).toContain("DeepSpaceOpsScreen");
+  });
+
+  it("어떤 라우트도 OpsHomeScreen 을 렌더하지 않는다", () => {
+    // 이 전제가 바뀌면 위 경고가 거짓말이 된다.
+    const appDir = join(ROOT, "src", "app");
+    const files = require("node:fs")
+      .readdirSync(appDir)
+      .filter((f: string) => f.endsWith(".tsx"));
+    const renders = files.filter((f: string) =>
+      /<OpsHomeScreen\s*\/>/.test(readFileSync(join(appDir, f), "utf8")),
+    );
+    expect(renders).toEqual([]);
   });
 });
