@@ -340,18 +340,21 @@ KRW 는 보조단위가 없어 "cents" 가 곧 원이다. 지금은 `/100` 하�
 2. **"한 사용자 = 한 provider"를 DB 로 강제할까** (추천: **강제**)
 3. **공개 문서의 "KakaoPay, NaverPay" 문장** — 사실 확인 후 필요시 수정
 
-   고칠 곳은 **6곳이고 두 소스가 짝을 이룬다** (`check:legal-snapshot` / `check:legal-html` 이
-   둘의 일치를 강제하므로 한쪽만 고치면 CI 가 막는다):
+   **법률 문서는 사본이 3개다.** `docs/legal/*.md` 가 정본, `public/legal/*.html` 는 거기서
+   재생성, `src/lib/legal/legal-documents.ts` 는 **앱 안에서 사용자가 실제로 읽는 사본**이다.
+   가드 2개가 셋의 일치를 강제하므로(`check:legal-snapshot-parity`, `check:legal-html-fresh`)
+   하나만 고치면 CI 가 막는다.
 
-   | 문서 | 마크다운 | 번들 |
+   | 문서 | 마크다운(정본) | 앱 스냅샷 |
    |---|---|---|
    | 환불정책 KO | `docs/legal/refund-policy.md:37` | `src/lib/legal/legal-documents.ts:192` |
    | 환불정책 EN | `docs/legal/refund-policy.md:84` | `src/lib/legal/legal-documents.ts:239` |
    | 약관 KO 제9조④ | `docs/legal/terms-of-service.md:35` | `src/lib/legal/legal-documents.ts:61` |
    | 약관 EN | `docs/legal/terms-of-service.md:95` | `src/lib/legal/legal-documents.ts:121` |
 
-   법률 문서는 `locales/` JSON 이 아니라 이 TS 파일에 KO/EN 이 같이 들어 있다. **C7 5로케일
-   패리티 대상이 아니다.**
+   `public/legal/*.html` 는 `scripts/build-legal-html.mjs` 로 재생성한다.
+   법률 문서는 `locales/` JSON 이 아니라 이 TS 파일에 KO/EN 이 같이 들어 있으므로
+   **C7 5로케일 패리티 대상이 아니다.**
 
 결정이 나오면 순서는 **0133 작성(나) → dry-run·적용(콘솔) → 엣지 함수 재배포 → 변수** 다.
 번호는 쓰기 직전 `origin/main` 최댓값 +1 로 재확인하고 즉시 브랜치 push 하겠다.
