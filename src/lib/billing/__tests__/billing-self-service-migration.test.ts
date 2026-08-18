@@ -524,16 +524,35 @@ describe("0121 - a resumed subscription can be cancelled again", () => {
     expect(sql).toMatch(/IF v_user_id IS NULL AND v_sub_id IS NOT NULL THEN/);
   });
 
-  test("it is the last definition of both functions it touches", () => {
-    for (const fn of ["apply_billing_event", "subscription_overview"]) {
-      const defs = readdirSync(MIGRATIONS)
-        .filter((f) => f.endsWith(".sql"))
-        .sort()
-        .filter((f) =>
-          new RegExp(`CREATE OR REPLACE FUNCTION public\.${fn}`, "i").test(readFileSync(join(MIGRATIONS, f), "utf8")),
-        );
-      expect(defs[defs.length - 1]).toBe("0121_provider_supersedes_our_cancel.sql");
-    }
+  // Migrations apply in filename order, so the LAST file to define a function is
+  // the one prod actually runs. This pins that per function rather than as a
+  // blanket "0121 wins": 0133 took over apply_billing_event to add provider
+  // ownership, and left subscription_overview alone. A blanket assertion would
+  // have to be edited on every future change to either function, which is how a
+  // guard quietly becomes a rubber stamp.
+  test.each([
+    ["apply_billing_event", "0133_billing_provider_ownership.sql"],
+    ["subscription_overview", "0121_provider_supersedes_our_cancel.sql"],
+  ])("%s is last defined in %s", (fn, expected) => {
+    const defs = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .filter((f) =>
+        new RegExp(`CREATE OR REPLACE FUNCTION public\.${fn}`, "i").test(readFileSync(join(MIGRATIONS, f), "utf8")),
+      );
+    expect(defs[defs.length - 1]).toBe(expected);
+  });
+
+  // 0121's behaviour has to survive 0133 re-creating the function, the same way
+  // 0121 had to preserve 0109's. Assert on 0133's own text, not 0121's.
+  test("0133 carries 0121's supersede rule forward, now scoped to the user", () => {
+    const sql133 = readFileSync(join(MIGRATIONS, "0133_billing_provider_ownership.sql"), "utf8");
+    expect(sql133).toMatch(/provider_error = 'superseded_by_provider'/);
+    expect(sql133).toMatch(/AND user_id = v_user_id/);
+    expect(sql133).toMatch(/AND paddle_subscription_id = v_sub_id/);
+    // 0109's guard, still present and still the same comparison.
+    expect(sql133).toMatch(/AND \(subscription_event_at IS NULL OR v_at >= subscription_event_at\)/);
+    expect(sql133).toMatch(/SET stale_entitlement = true/);
   });
 });
 
