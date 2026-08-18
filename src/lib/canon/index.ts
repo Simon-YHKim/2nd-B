@@ -22,14 +22,34 @@ import flowsPack from "../../../public/proto/data/screens/flows.json";
 import gapsPack from "../../../public/proto/data/screens/gaps.json";
 import tokensPack from "../../../public/proto/data/app/tokens.json";
 
-export type CanonLayout = "immersive" | "museumLike" | "windowed";
+/**
+ * `gate` was added 2026-08-19. It is the login-flow shell: no phone chrome at
+ * all (no window, no app bar, no tab bar), full-screen over the star field.
+ *
+ * It is NOT an aspirational PIXEL-CLAY-only idea. The app's own auth screens
+ * already render this way — `src/app/(auth)/sign-in.tsx`,
+ * `reset-password.tsx` and `complete-profile.tsx` mount no shell and no dock.
+ * The canon simply had no word for it, so those screens were filed as
+ * `windowed`, which claimed chrome they do not have.
+ */
+export type CanonLayout = "immersive" | "museumLike" | "windowed" | "gate";
 
 export interface CanonScreen {
   id: string;
   /** Prototype component, resolved at runtime as `window[component]` by
    *  sb-app.jsx. Real on the proto side; it is NOT a React Native symbol —
-   *  use `route` to reach the app screen. */
-  component: string;
+   *  use `route` to reach the app screen.
+   *
+   *  `null` when the screen exists in the APP but has no prototype
+   *  counterpart (`appOnly`). Before this the registry had no way to say
+   *  that, so `profile` carried a `ProfileScreen` name that nothing exported
+   *  and `check:canon-data` failed on it — which is why that check could not
+   *  join `npm run verify`. */
+  component: string | null;
+  /** True when the app has this screen and the prototype does not.
+   *  The reverse direction is `route: null` (prototype has it, app does not).
+   *  Both are honest gaps, and the canon should be able to state either. */
+  appOnly?: boolean;
   layout: CanonLayout;
   root?: boolean;
   companion?: boolean;
@@ -113,6 +133,12 @@ export function canonRoutedScreens(): (CanonScreen & { route: string })[] {
 
 /** Canon screens with no app counterpart. These are prototype-only surfaces —
  *  the honest gap between the design canon and the shipped app. */
+/** Screens the app has and the prototype does not. The mirror of
+ *  `canonUnroutedScreens()`. */
+export function canonAppOnlyScreens(): CanonScreen[] {
+  return canonScreens.filter((s) => s.appOnly === true);
+}
+
 export function canonUnroutedScreens(): CanonScreen[] {
   return canonScreens.filter((s) => s.route === null);
 }
@@ -123,7 +149,7 @@ export function canonStats(): {
   byLayout: Record<CanonLayout, number>;
   packs: number;
 } {
-  const byLayout: Record<CanonLayout, number> = { immersive: 0, museumLike: 0, windowed: 0 };
+  const byLayout: Record<CanonLayout, number> = { immersive: 0, museumLike: 0, windowed: 0, gate: 0 };
   for (const s of canonScreens) byLayout[s.layout] += 1;
   return {
     screens: canonScreens.length,

@@ -45,8 +45,11 @@ else {
   for (const s of reg.screens) {
     if (ids.has(s.id)) errors.push(`duplicate screen id: ${s.id}`);
     ids.add(s.id);
-    if (!['immersive', 'museumLike', 'windowed'].includes(s.layout)) errors.push(`bad layout for ${s.id}: ${s.layout}`);
-    if (!s.component) errors.push(`no component for ${s.id}`);
+    if (!['immersive', 'museumLike', 'windowed', 'gate'].includes(s.layout)) errors.push(`bad layout for ${s.id}: ${s.layout}`);
+    // `appOnly` screens live in the app and have no prototype counterpart, so
+    // they carry no component. Everything else must name one.
+    if (!s.component && !s.appOnly) errors.push(`no component for ${s.id}`);
+    if (s.component && s.appOnly) errors.push(`appOnly screen must not name a prototype component: ${s.id}`);
   }
   if (!reg.screens.some((s) => s.root)) errors.push('no root screens');
   if (reg.canvas.w !== 390 || reg.canvas.h !== 820) errors.push(`canvas changed: ${reg.canvas.w}x${reg.canvas.h}`);
@@ -60,6 +63,9 @@ else {
     for (const id of m[1].split(/[,\s:]+/)) if (/^[A-Za-z_$][\w$]*$/.test(id)) exported.add(id);
   }
   for (const s of reg.screens) {
+    // appOnly => component is null by construction (checked above); there is
+    // nothing to look for on the prototype side.
+    if (s.appOnly) continue;
     if (!exported.has(s.component)) errors.push(`component not window-exported anywhere: ${s.component} (screen ${s.id})`);
   }
 
