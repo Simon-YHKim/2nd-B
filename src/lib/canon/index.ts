@@ -26,12 +26,22 @@ export type CanonLayout = "immersive" | "museumLike" | "windowed";
 
 export interface CanonScreen {
   id: string;
+  /** Prototype component, resolved at runtime as `window[component]` by
+   *  sb-app.jsx. Real on the proto side; it is NOT a React Native symbol —
+   *  use `route` to reach the app screen. */
   component: string;
   layout: CanonLayout;
   root?: boolean;
   companion?: boolean;
   title?: string;
   label?: string;
+  /** expo-router path under `src/app` (no extension) that implements this
+   *  screen in the app, or `null` when the app has no counterpart yet.
+   *  Added 2026-08-18: before this the registry described the prototype only
+   *  and made no checkable claim about the app, so "the canon fixes the app"
+   *  was true of the content packs but not of this list. `canon.test.ts`
+   *  now fails if a non-null route has no route module. */
+  route: string | null;
 }
 
 export interface CanonNavTab {
@@ -94,6 +104,17 @@ export function canonRoots(): CanonScreen[] {
 
 export function canonLayoutOf(id: string): CanonLayout {
   return byId.get(id)?.layout ?? "windowed";
+}
+
+/** Canon screens the app actually implements, with their route. */
+export function canonRoutedScreens(): (CanonScreen & { route: string })[] {
+  return canonScreens.filter((s): s is CanonScreen & { route: string } => typeof s.route === "string");
+}
+
+/** Canon screens with no app counterpart. These are prototype-only surfaces —
+ *  the honest gap between the design canon and the shipped app. */
+export function canonUnroutedScreens(): CanonScreen[] {
+  return canonScreens.filter((s) => s.route === null);
 }
 
 export function canonStats(): {

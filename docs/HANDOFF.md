@@ -3,7 +3,177 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-07-31 / S6 R1 감사 종료, S7 순차 머지 인계
+## Latest — 2026-08-18 / 캐논이 앱에 대해 검증 가능한 주장을 하게 만듦 + 두 PRD 대조 (Simon 회신 대기)
+
+> **새 세션은 이 블록을 먼저 읽을 것.** Simon 이 두 가지를 들고 온다:
+> ① 아래 **"결정 콘솔 V1~V6"** 에 대한 회신(`# PRD 대조 회신 (2026-08-18)` 형식)
+> ② **Claude Design 쪽 상세 PRD** 추가분.
+> 그 둘이 오기 전에는 **렌즈·시각 방향·7번째 별에 손대지 말 것.** V1 이 나머지를 막고 있다.
+
+### 어디까지 왔나
+
+- main HEAD(작업 시작 시점): `14e0767c`
+- 이번 세션 머지된 PR: #1229 #1230 #1231 #1233 #1234 #1236 #1237 #1239 #1240 #1241
+- 이 블록의 작업(캐논 개선)은 별도 PR — 아래 "이번 변경" 참조
+- 테스트: 캐논 스위트 18/18, 전체 `npm run verify` 그린
+
+### 이번 변경 — 캐논 개선 (근거 실측 기반)
+
+**출발점이 된 발견 4가지 (전부 실측):**
+
+1. **캐논 화면 등록부는 앱에 대해 아무 주장도 하지 않았다.** `screens.json` 58개 항목에
+   `route` 키가 **0개**였다. `component` 는 프로토타입의 `window[component]` 심볼이라
+   **프로토타입 기준으로는 실재**하지만(→ `sb-*.jsx`), RN 심볼이 아니다.
+   `canonScreens` 를 실제로 쓰는 앱 코드는 `src/app/canon.tsx`(개발자용 목록) **하나뿐**.
+   나머지 12개 파일은 `canonCareerInput` 같은 **콘텐츠 팩**만 쓴다 — 그건 진짜로 화면에 뿌려진다.
+   ⚠ 그래서 "캐논이 앱을 고정한다"는 **콘텐츠 팩에만 참**이었다.
+2. **캐논 데이터가 두 벌인데 동기화 장치가 0.**
+   `design/proto_rev2/reference-app/data/` (문서상 정본) 와 `public/proto/data/`
+   (`src/lib/canon` 이 **실제로 import** 하는 곳). 33개 JSON 이 HEAD 기준 전부 동일했지만
+   순전히 손으로 맞춰온 것. 문서상 정본만 고치면 **앱에 안 닿는다.**
+3. **유휴 검증기.** `design/proto_rev2/tools/validate-data.mjs` 가 존재하고 `exit 1` 도
+   제대로 하는데 **package.json·CI 어디에도 연결돼 있지 않았다.**
+4. **`CLAUDE.md` 가 가리키는 `reference-app/README.md` 가 없었다.**
+
+**한 것:**
+
+| 변경 | 내용 |
+|---|---|
+| `route` 필드 신설 | 58개 전부. **46 매핑 · 12 `null`**(프로토타입 전용). 매핑은 전부 라우트 모듈 헤더를 읽어 확인 — 이름 유추 없음 |
+| 미러 동기 | 패치를 `public/proto/data/` 에 복사 (두 벌 md5 일치 확인) |
+| `CanonScreen.route` | `string \| null` 필수 필드. `canonRoutedScreens()` / `canonUnroutedScreens()` 추가 |
+| 가드 5종 | route 명시 · 파일 실재 · 라우트 중복 금지 · 프로토타입 전용 12개 고정 · 미커버 앱 라우트 **51 핀** |
+| 미러 가드 | `canon-mirror.test.ts` — 두 트리 파일목록·내용 동일 (파싱 후 비교라 포맷·줄바꿈은 오탐 안 남) |
+| `check:canon-data` | npm 스크립트 신설 (validate-data.mjs) |
+| README | `design/proto_rev2/reference-app/README.md` 신설 |
+
+**확정된 매핑 중 이름으로는 못 맞히는 것들** (새 세션이 다시 조사하지 말 것):
+`home→index` · `chat→secondb` · `me→core-brain` · `peer→seen` · `ratify→ratifications` ·
+`callrec→call-reflection` · `trend→trends` · `share→share-card` · `hobbyinput→rest` ·
+`drilldown→career-drilldown` · `relperson→people` · `connect→integrations` ·
+`auth→(auth)/sign-in` · `pwreset→(auth)/reset-password` · `profilesetup→(auth)/complete-profile`
+
+**프로토타입 전용 12개(`route: null`)**: audit-full, datareview, dobgate, domains, exhibit,
+healthdata, healthinput, lifeinput, relcontacts, reward, triage, widget.
+→ 이건 결함이 아니라 **일부러 보이게 둔 격차**다. 화면을 만들면 route 를 채우고 핀을 내린다.
+
+**변이 검증 6/6 통과** (Simon 규칙: 100% 나오게 설계한 실증은 무효):
+route 를 없는 파일로 · route 키 삭제 · 두 화면이 한 route · 격차를 몰래 메움 ·
+캐논 미등록 화면 추가 · public 만 드리프트 → **전부 해당 가드가 정확히 발화**.
+
+### ⚠ 남은 열린 에러 1건 — 임의로 고치지 말 것
+
+```
+npm run check:canon-data
+ERROR component not window-exported anywhere: ProfileScreen (screen profile)
+```
+
+**진짜다.** 캐논의 7번째 별은 `profile`(Alkaid)인데 **프로토타입에 `ProfileScreen` 이 없다.**
+그래서 `check:canon-data` 를 **`verify` 에 넣지 않았다** — 오늘 넣으면 코드 결함이 아니라
+디자인 격차로 CI 가 빨개진다. **V2(7번째 별) 가 정해지면 그때 verify 에 편입한다.**
+
+### 두 PRD 대조 결과 (Claude Design PRD ↔ 저장소 캐논)
+
+보고서: <https://claude.ai/code/artifact/cddd820b-3ce5-4564-8117-8721082ba35c>
+
+**일치 7건** — 캔버스 390×820 · 하단 탭 5개와 순서 · propose→ratify · 한 화면 한 메시지 ·
+위기 우선/무저장/무차감 · 근거 제시 · 44px 터치. 싸우는 문서가 아니다.
+
+**충돌 3건**
+
+1. **시각 계약이 정반대.** 폰트(Galmuri↔Pretendard) · 라운드(0↔24) · 불투명도(디더↔rgba) ·
+   이징(steps()↔M3곡선) · 도형(정수rect↔자유) · 블러(금지↔elevation) — 여섯 항목 전부 반대.
+   중간값 없음. `CLAUDE.md:374` 가 승인된 이주 델타로 **"Galmuri/Press Start → Pretendard"** 를
+   적어놨고 `EXPO_PUBLIC_UI=legacy` 가 롤백. **단 PIXEL-CLAY v4 는 폐기된 cosmic-pixel 과
+   같은 물건이 아니다** — 새로 설계된 체계라 "레거시니까 버린다"로 끝낼 수 없다.
+   Claude Design PRD §21 도 스스로 "Simon 비준 대기"라고 적어뒀다.
+2. **7번째 별.** Simon D2(2026-08-18) = **개인 프로필**(구현·머지 완료, `/profile` +
+   `/profile-details`). 캐논 `constellation.json` 도 `profile`(Alkaid). **Claude Design PRD
+   §5-2 는 커뮤니티 포탈.** PRD 가 D2 이전에 쓰인 것으로 보인다.
+3. **화면 개수 정본이 셋.** 캐논 58(프로토타입 화면 수) · 실제 앱 라우트 **99**
+   (`_`/`+` 제외) · 프로토타입 92 주장.
+   ⚠ **이전 보고서에서 "앱 101"이라고 쓴 것은 부정확** — `_layout`/`+html`/`+not-found`
+   포함 수였다. 실제 화면 라우트는 99.
+
+**Claude Design PRD 에서 가져와야 할 것** (시각 방향과 무관하게 유효):
+어휘 정책 47곳(비준→확인 등) · "당연한 것은 쓰지 않는다" · 조사 자동 판정(숫자는 읽는 소리,
+한글은 종성) · 위기 화면 톤 규칙(위험색·경고 아이콘·애니메이션 금지) · 유효성 검사 순서 =
+화면 순서 · 환불 자격 없음도 산수와 함께 · **`gate` 레이아웃**(인증·가입처럼 폰 크롬 없는 화면 —
+캐논은 레이아웃 3종 고정이라 담을 자리가 없다).
+
+### Simon 회신 대기 — 결정 콘솔 V1~V6
+
+| ID | 질문 | 내가 추천한 것 | 막고 있는 것 |
+|---|---|---|---|
+| **V1** | 시각 방향 PIXEL-CLAY vs M3 | M3-deepspace 유지 + PIXEL-CLAY 규율만 흡수 | **전 화면** |
+| **V2** | 7번째 별 프로필 vs 커뮤니티 | 프로필 유지(D2대로) | 홈·캐논·`check:canon-data` verify 편입 |
+| **V3** | 캐논 58 vs 앱 99 | 캐논을 현실에 맞춰 갱신 | 등록 계약 |
+| **V4** | CD PRD 에서 지금 가져올 것 | 전부 | 카피·폼 규칙 |
+| **V5** | 레거시 이름 규칙 | `cosmic-pixel`(폐기)/`PIXEL-CLAY v4`(후보)/`M3-deepspace`(현행) 로 갈라 부르고 "픽셀" 단독 사용 금지 | 세션 간 혼선 |
+| **V6** | 나머지 미결 7건 | V1 먼저, 순차로 | — |
+
+나머지 미결 7건: 북두칠성→북극성 연결선 시안 · 대화 자동저장 기본값(현재 OFF 출시) ·
+MBTI 화면 부활 여부(D5 "나중에") · `digest` 이름 혼동(주간 vs 오늘) · 밝기 L1~L5 계산 기준 ·
+알림 정책 · EN 카피 착수 시점.
+
+### 콘솔(cowork) 대기 — 코드로 못 하는 것
+
+1. **`pixel-app/2nd-Brain.html` 실측 캡처** — 이 저장소에 없어서 **실제 화면을 한 장도 못 봤다.**
+   V1 비준하려면 두 방향을 나란히 봐야 한다. 인계 프롬프트는 위 아티팩트 §10 에 복사 버튼으로 있음.
+   확인할 것: 7번째 별이 커뮤니티인지 프로필인지 · 실제 라우트 수 · Galmuri 실렌더 여부 ·
+   border-radius 정말 전 화면 0 인지.
+2. **`0132` 마이그레이션 prod 적용** (`users.profile_details jsonb`). **미적용이다** —
+   `/profile-details` 저장이 에러 토스트로 실패하는 것을 실측 확인함(화면은 안 깨짐).
+3. **`auth_leaked_password_protection` 켜기.**
+4. **openai-proxy 재배포 → 그 다음에** `EXPO_PUBLIC_CHAT_VENDOR=openai` 플립.
+   ⚠ **순서 뒤집으면 대화가 전부 실패한다** (허용목록 밖 purpose 를 `400 purpose_not_seated` 로 자름).
+
+### Simon 소유 (외부)
+
+벤더 API 키 + `SUPABASE_ACCESS_TOKEN` 시크릿 등록 · 스크래치 프로젝트
+`ejhkatsgdjfriarlthdv` 삭제 · age 키 KeePass 보관 · 북두칠성→북극성 연결선 디자인 방향.
+
+### 적용 중인 정책 (영구)
+
+1. Simon 보고는 **항상 Artifact HTML** + 채팅엔 링크와 3~5줄 요약만. 그림 최대한.
+2. CI 그린이면 자동 머지. 단 `main` 직접 push 금지 — 항상 PR.
+3. 워크트리에서 작업. 정본 체크아웃(`E:\2ndB`) 직접 편집 금지.
+4. 검증 실증은 **변이 테스트로 가드가 무는지 확인**해야 유효 (100% 나오게 설계한 실증은 무효).
+5. 브라우저는 이름으로 죽이지 않는다 — 내가 spawn 한 PID 만.
+
+### 핵심 파일 위치
+
+```
+design/proto_rev2/reference-app/          캐논 정본 (JSON 33 + sb-*.jsx 프로토타입)
+design/proto_rev2/reference-app/README.md 캐논이 무엇이고 무엇이 아닌지 (이번에 신설)
+design/proto_rev2/tools/validate-data.mjs 프로토타입 측 검증 (npm run check:canon-data)
+public/proto/data/                        src/lib/canon 이 실제로 import 하는 미러
+src/lib/canon/index.ts                    로더 + route 헬퍼
+src/lib/canon/__tests__/canon.test.ts     앱 측 가드 (route 실재·중복·격차·51핀)
+src/lib/canon/__tests__/canon-mirror.test.ts  두 트리 동기 가드
+src/app/profile-details.tsx               7번째 별 상세 입력 (0132 미적용 상태)
+src/lib/llm/boundary.ts                   모든 LLM 호출의 단일 경계 (C1)
+```
+
+### 검증
+
+```bash
+npm run verify            # 전체
+npx jest src/lib/canon    # 캐논만 (18 tests)
+npm run check:canon-data  # 프로토타입 측 — 현재 의도된 1 error (ProfileScreen)
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# Simon 의 V1~V6 회신 + Claude Design 상세 PRD 를 받고 나서 시작할 것
+```
+
+---
+
+## 2026-07-31 / S6 R1 감사 종료, S7 순차 머지 인계
 
 ### 어디까지 왔나
 
@@ -145,7 +315,7 @@ Get-Content docs/sessions/R1/T-R1-S6-S7-02.md
 
 ---
 
-## Latest — 2026-07-26 / 커뮤니티 UGC 차단·신고 랜딩(#1131 · 0097) + Play·ASC 스토어 등록 완주 — 남은 병목은 EAS 빌드 하나
+## 2026-07-26 / 커뮤니티 UGC 차단·신고 랜딩(#1131 · 0097) + Play·ASC 스토어 등록 완주 — 남은 병목은 EAS 빌드 하나
 
 > Cowork P1(코드) ↔ P2(콘솔) 왕복 세션. 코드 2건 머지 + 양 스토어 메타데이터 사실상 완주.
 > **막힌 곳은 딱 하나: #1131 을 담은 빌드가 없다.** Android 는 fingerprint 불일치로 EAS 빌드 2회 실패,

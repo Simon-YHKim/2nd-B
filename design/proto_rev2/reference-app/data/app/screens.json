@@ -9,352 +9,410 @@
       "component": "ConstellationHome",
       "root": true,
       "layout": "immersive",
-      "label": "홈 · 별자리"
+      "label": "홈 · 별자리",
+      "route": "index"
     },
     {
       "id": "capture",
       "component": "CaptureScreen",
       "root": true,
       "layout": "windowed",
-      "companion": true
+      "companion": true,
+      "route": "capture"
     },
     {
       "id": "chat",
       "component": "ChatScreen",
       "root": true,
       "layout": "windowed",
-      "companion": true
+      "companion": true,
+      "route": "secondb"
     },
     {
       "id": "records",
       "component": "RecordsScreen",
       "root": true,
       "layout": "immersive",
-      "companion": true
+      "companion": true,
+      "route": "records"
     },
     {
       "id": "me",
       "component": "MeScreen",
       "layout": "windowed",
-      "title": "북극성"
+      "title": "북극성",
+      "route": "core-brain"
     },
     {
       "id": "profile",
       "component": "ProfileScreen",
       "layout": "windowed",
-      "title": "프로필"
+      "title": "프로필",
+      "route": "profile"
     },
     {
       "id": "star",
       "component": "StarScreen",
       "layout": "museumLike",
-      "title": "별"
+      "title": "별",
+      "route": "star/[domain]"
     },
     {
       "id": "record",
       "component": "RecordDetailScreen",
       "layout": "windowed",
-      "title": "별가루 상세"
+      "title": "별가루 상세",
+      "route": "record/[id]"
     },
     {
       "id": "interview",
       "component": "InterviewScreen",
       "layout": "windowed",
-      "title": "심층 인터뷰"
+      "title": "심층 인터뷰",
+      "route": "interview"
     },
     {
       "id": "bigfive",
       "component": "BigFiveScreen",
       "layout": "windowed",
-      "title": "검증 · Big Five"
+      "title": "검증 · Big Five",
+      "route": "big-five"
     },
     {
       "id": "audit",
       "component": "AuditScreen",
       "layout": "windowed",
-      "title": "성장 · 과거의 나"
+      "title": "성장 · 과거의 나",
+      "route": "audit"
     },
     {
       "id": "iden",
       "component": "IdenScreen",
       "layout": "windowed",
-      "title": "IDEN · 포터블 정체성"
+      "title": "IDEN · 포터블 정체성",
+      "route": "iden"
     },
     {
       "id": "connect",
       "component": "ConnectScreen",
       "layout": "windowed",
-      "title": "데이터 연동"
+      "title": "데이터 연동",
+      "route": "integrations"
     },
     {
       "id": "plans",
       "component": "PlansScreen",
       "layout": "windowed",
-      "title": "요금제"
+      "title": "요금제",
+      "route": "plans"
     },
     {
       "id": "settings",
       "component": "SettingsScreen",
       "root": true,
-      "layout": "windowed"
+      "layout": "windowed",
+      "route": "settings"
     },
     {
       "id": "museum",
       "component": "MuseumScreen",
       "layout": "museumLike",
-      "title": "AI 뮤지엄"
+      "title": "AI 뮤지엄",
+      "route": "museum"
     },
     {
       "id": "exhibit",
       "component": "MuseumDeck",
       "layout": "museumLike",
-      "title": "AI 뮤지엄"
+      "title": "AI 뮤지엄",
+      "route": null
     },
     {
       "id": "callrec",
       "component": "CallRecScreen",
       "layout": "windowed",
-      "title": "통화 녹음"
+      "title": "통화 녹음",
+      "route": "call-reflection"
     },
     {
       "id": "attachment",
       "component": "AttachmentScreen",
       "layout": "windowed",
-      "title": "애착 유형"
+      "title": "애착 유형",
+      "route": "attachment"
     },
     {
       "id": "northstar",
       "component": "NorthStarEditor",
       "layout": "windowed",
-      "title": "북극성 문장"
+      "title": "북극성 문장",
+      "route": "northstar"
     },
     {
       "id": "inbox",
       "component": "InboxScreen",
       "layout": "windowed",
-      "title": "알림"
+      "title": "알림",
+      "route": "inbox"
     },
     {
       "id": "values",
       "component": "ValuesScreen",
       "layout": "windowed",
-      "title": "가치관"
+      "title": "가치관",
+      "route": "values"
     },
     {
       "id": "ratify",
       "component": "RatifyScreen",
       "layout": "windowed",
-      "title": "승인 이력"
+      "title": "승인 이력",
+      "route": "ratifications"
     },
     {
       "id": "trend",
       "component": "GrowthTrendScreen",
       "layout": "windowed",
-      "title": "밝기 변화"
+      "title": "밝기 변화",
+      "route": "trends"
     },
     {
       "id": "motivation",
       "component": "MotivationScreen",
       "layout": "windowed",
-      "title": "동기"
+      "title": "동기",
+      "route": "motivation"
     },
     {
       "id": "strengths",
       "component": "StrengthsScreen",
       "layout": "windowed",
-      "title": "강점"
+      "title": "강점",
+      "route": "strengths"
     },
     {
       "id": "widget",
       "component": "WidgetScreen",
       "layout": "windowed",
-      "title": "앱 밖에서"
+      "title": "앱 밖에서",
+      "route": null
     },
     {
       "id": "auth",
       "component": "AuthScreen",
       "layout": "windowed",
-      "title": "로그인"
+      "title": "로그인",
+      "route": "(auth)/sign-in"
     },
     {
       "id": "ops",
       "component": "OpsScreen",
       "layout": "windowed",
-      "title": "오늘의 비서"
+      "title": "오늘의 비서",
+      "route": "ops"
     },
     {
       "id": "focus",
       "component": "FocusScreen",
       "layout": "windowed",
-      "title": "일일 집중"
+      "title": "일일 집중",
+      "route": "focus"
     },
     {
       "id": "reminders",
       "component": "RemindersScreen",
       "layout": "windowed",
-      "title": "예약 리마인더"
+      "title": "예약 리마인더",
+      "route": "reminders"
     },
     {
       "id": "import",
       "component": "ImportScreen",
       "layout": "windowed",
-      "title": "외부 가져오기"
+      "title": "외부 가져오기",
+      "route": "import"
     },
     {
       "id": "datareview",
       "component": "DataReviewScreen",
       "layout": "windowed",
-      "title": "내 데이터 리뷰"
+      "title": "내 데이터 리뷰",
+      "route": null
     },
     {
       "id": "share",
       "component": "ShareCardScreen",
       "layout": "windowed",
-      "title": "공유 카드"
+      "title": "공유 카드",
+      "route": "share-card"
     },
     {
       "id": "imagine",
       "component": "ImagineScreen",
       "layout": "windowed",
-      "title": "공상하기"
+      "title": "공상하기",
+      "route": "imagine"
     },
     {
       "id": "peer",
       "component": "PeerScreen",
       "layout": "windowed",
-      "title": "보여지는 나"
+      "title": "보여지는 나",
+      "route": "seen"
     },
     {
       "id": "triage",
       "component": "TriageScreen",
       "layout": "windowed",
-      "title": "정리함"
+      "title": "정리함",
+      "route": null
     },
     {
       "id": "research",
       "component": "ResearchScreen",
       "layout": "windowed",
-      "title": "연결 찾기"
+      "title": "연결 찾기",
+      "route": "research"
     },
     {
       "id": "pwreset",
       "component": "PwResetScreen",
       "layout": "windowed",
-      "title": "비밀번호 재설정"
+      "title": "비밀번호 재설정",
+      "route": "(auth)/reset-password"
     },
     {
       "id": "profilesetup",
       "component": "ProfileSetupScreen",
       "layout": "windowed",
-      "title": "프로필 완성"
+      "title": "프로필 완성",
+      "route": "(auth)/complete-profile"
     },
     {
       "id": "dobgate",
       "component": "DobGateScreen",
       "layout": "windowed",
-      "title": "생년월일 확인"
+      "title": "생년월일 확인",
+      "route": null
     },
     {
       "id": "permissions",
       "component": "PermissionsScreen",
       "layout": "windowed",
-      "title": "권한 관리"
+      "title": "권한 관리",
+      "route": "permissions"
     },
     {
       "id": "privacy",
       "component": "PrivacyScreen",
       "layout": "windowed",
-      "title": "개인정보 · 약관"
+      "title": "개인정보 · 약관",
+      "route": "privacy"
     },
     {
       "id": "support",
       "component": "SupportScreen",
       "layout": "windowed",
-      "title": "지원 · 공지"
+      "title": "지원 · 공지",
+      "route": "support"
     },
     {
       "id": "audit-full",
       "component": "LifeAuditScreen",
       "layout": "windowed",
-      "title": "라이프 오딧"
+      "title": "라이프 오딧",
+      "route": null
     },
     {
       "id": "domains",
       "component": "DomainDashScreen",
       "layout": "windowed",
-      "title": "내 영역"
+      "title": "내 영역",
+      "route": null
     },
     {
       "id": "lifeinput",
       "component": "DomainInputScreen",
       "layout": "windowed",
-      "title": "영역 기록"
+      "title": "영역 기록",
+      "route": null
     },
     {
       "id": "hobbyinput",
       "component": "HobbyInputScreen",
       "layout": "windowed",
-      "title": "취미·여가 기록"
+      "title": "취미·여가 기록",
+      "route": "rest"
     },
     {
       "id": "healthinput",
       "component": "HealthInputScreen",
       "layout": "windowed",
-      "title": "건강 기록"
+      "title": "건강 기록",
+      "route": null
     },
     {
       "id": "careerinput",
       "component": "CareerInputScreen",
       "layout": "windowed",
-      "title": "성과 입력"
+      "title": "성과 입력",
+      "route": "career-input"
     },
     {
       "id": "drilldown",
       "component": "DrillDownScreen",
       "layout": "windowed",
-      "title": "Drill Down"
+      "title": "Drill Down",
+      "route": "career-drilldown"
     },
     {
       "id": "relcontacts",
       "component": "RelContactsScreen",
       "layout": "windowed",
-      "title": "주소록"
+      "title": "주소록",
+      "route": null
     },
     {
       "id": "relperson",
       "component": "RelPersonScreen",
       "layout": "windowed",
-      "title": "사람 기록"
+      "title": "사람 기록",
+      "route": "people"
     },
     {
       "id": "healthdata",
       "component": "HealthDataScreen",
       "layout": "windowed",
-      "title": "건강 데이터 항목"
+      "title": "건강 데이터 항목",
+      "route": null
     },
     {
       "id": "manual",
       "component": "ManualScreen",
       "layout": "windowed",
-      "title": "사용 매뉴얼"
+      "title": "사용 매뉴얼",
+      "route": "manual"
     },
     {
       "id": "journal",
       "component": "JournalScreen",
       "layout": "windowed",
-      "title": "저널"
+      "title": "저널",
+      "route": "journal"
     },
     {
       "id": "reward",
       "component": "RewardScreen",
       "layout": "windowed",
-      "title": "담기 가속"
+      "title": "담기 가속",
+      "route": null
     },
     {
       "id": "digest",
       "component": "DigestScreen",
       "layout": "windowed",
-      "title": "주간 다이제스트"
+      "title": "주간 다이제스트",
+      "route": "digest"
     }
   ]
 }

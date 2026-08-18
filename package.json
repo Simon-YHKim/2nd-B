@@ -29,6 +29,7 @@
     "check:cycles": "tsx scripts/check-require-cycles.ts",
     "check:ota-runtime": "node scripts/check-ota-runtime.js",
     "check:flow-map-fresh": "node scripts/check-flow-map-fresh.js",
+    "check:canon-data": "node design/proto_rev2/tools/validate-data.mjs",
     "capture:screens": "node scripts/capture-screens.mjs",
     "qc:mobile-web": "node scripts/qc-mobile-web.mjs",
     "qc:mobile-web:serve": "node scripts/qc-mobile-web.mjs --serve",
