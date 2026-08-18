@@ -1,203 +1,136 @@
-﻿# AGENTS.md — 2nd-Brain project instructions
+# AGENTS.md — 2nd-Brain
 
-Project-specific guidance for Codex sessions in this repo.
+Codex 및 그 밖의 에이전트 세션용 진입 파일.
 
-## Project context
+> # ⚠ 정본은 이 파일이 아니라 **`CLAUDE.md`** 다. 작업 전에 반드시 먼저 읽어라.
+>
+> 이 파일은 요약본이 아니라 **포인터**다. 일부러 얇게 유지한다.
 
-- **What**: 2nd-Brain — *AI 시대 가장 가치있는 자산 = 나 자신* 을 데이터로 축적하고 개인 비서로 키우는 플랫폼. 세 축: (1) 알아가기 · (2) 개인 비서 기반 · (3) 공상 → 구체화. Build with Gemini XPRIZE (Education & Human Potential) 출품작.
-- **Deadline**: 2026-08-17 06:00 KST.
-- **Stack**: React Native + Expo SDK 56, TypeScript strict, Supabase (Postgres + Auth), Gemini via `@google/genai`, EAS Build, GitHub Actions.
-- **Web deploy target — GitHub Pages, NOT Vercel.** `web-deploy.yml` publishes to the `gh-pages`
-  branch (<https://simon-yhkim.github.io/2nd-B/>), and `app.json` pins `baseUrl: "/2nd-B"` to that
-  subpath. Root `vercel.json` is an unused Sprint-0 leftover.
-- **Solo build**: Simon Kim. Evenings + weekends only.
-- **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
-- **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
+## 왜 얇은가 — 2026-08-19
 
-## QA test account — AI agents: sign in and test freely
+이 파일은 원래 `CLAUDE.md` 를 통째로 복사한 것이었다(`.claude` 를 `.Codex` 로 치환한
+흔적까지 남아 있었다). 그리고 **따로 낡았다.** 2026-08-19 실측 시점에 이 파일은:
 
-A shared test account is **committed** so any AI agent (local, cloud, or headless) can
-sign in and exercise the real app during QA. **Reuse it — do not create another.**
+- `Build with Gemini XPRIZE (Education & Human Potential) 출품작` 이라고 적고 있었다.
+  → XPRIZE 는 **2026-08-15 에 종료됐다.**
+- `**Deadline**: 2026-08-17 06:00 KST` 라고 적고 있었다.
+  → **마감은 없다.** 게다가 그 날짜는 이미 지나 있었다.
+- 시각 방향을 M3 이주 이전 상태로 적고 있었다(ACTIVE MIGRATION 절 자체가 없었다).
+- 7별에 `담아내기` 를 넣고 Layer B 를 `stars.ts` 심리 구인으로 적고 있었다 —
+  둘 다 그 뒤 결정으로 바뀐 내용이다.
+- `npm run verify` 를 "lint + type-check + i18n + lexicon + boundary + constraints + jest"
+  로 적어 **`check:cycles`(무관용 게이트)를 빠뜨리고** 있었다.
 
-- **Credentials**: `.env.test` (committed at repo root) → `QA_TEST_EMAIL` / `QA_TEST_PASSWORD`.
-- **Account**: `qa.ai.b18807@example.com` — email/password sign-in, free tier, adult, `judge_mode=false`, RLS-isolated (only its own rows).
-- Disposable and non-secret (the Supabase anon key is already public). Revoke anytime by deleting the user in Supabase Auth. Real secrets (service_role, API keys, `.env`) still never go in git.
-- To test paywalled features, set `EXPO_PUBLIC_FORCE_TIER` in `.env` (e.g. `brain` unlocks everything) — the account itself stays free.
+오탈자가 아니라 **행동을 바꾸는 오정보**다. 지난 마감을 믿는 세션은 스코프를 압축하는데,
+`CLAUDE.md` 는 정확히 그 판단을 금지하고 있다. 더 나쁜 것은 이 파일이 **선택적으로**
+관리되고 있었다는 점이다 — C1 줄은 2026-08-18 에 `boundary.ts` 개명으로 갱신됐다.
+일부가 최신이면 전체가 최신처럼 보인다.
 
-## Canonical concept & direction (read first)
+**같은 사실을 두 파일이 각자 서술하면 반드시 갈라진다.** 그래서 서술을 한쪽으로 모았다.
+이 파일을 다시 `CLAUDE.md` 의 사본으로 부풀리지 말 것 — 그게 이 사고의 원인이었다.
 
-The concept and direction is **deep-space constellation** (a character-led home shell). The
-canonical concept SoT is **`docs/PRD.md` (Draft v3)**; the detailed model spec is
-**`docs/CONSTELLATION-DESIGN.md`**; **`docs/CONCEPT.md`** names canonical vs legacy. Read these
-before any concept, IA, or visual decision.
+가드: `src/lib/__tests__/agent-briefing.test.ts` 가 이 파일에 은퇴한 주장이 다시
+들어오는 것과 정본 포인터가 사라지는 것을 막는다.
 
-Canonical model = **3-layer 별자리**:
+## 지금 유효한 전제 (이것만 여기 적는다)
 
-- **A (input)** — the 7 DOMAIN stars of the 북두칠성: 커리어·재정·성장·관계·건강·휴식·담아내기.
-  These are **life domains, not psychological lenses.** They are what the home renders.
-- **B (validation)** — the psychological constructs in `src/lib/persona/stars.ts`. The hidden
-  triangulation layer behind the output. **NOT rendered as home stars.**
-- **C (output)** — **북극성 (Polaris)**: the aggregate of the 7 domain stars, the persona synthesis.
-  Plus the L1~L5 brightness ladder and propose->ratify.
+`CLAUDE.md` 를 아직 안 읽었더라도 **이 셋은 틀리면 안 되므로** 중복을 감수하고 적는다.
 
-⚠️ **"7별 = self-understanding lenses" is the DEPRECATED reading.** It conflates layers A and B and
-is the single most repeated mistake in this repo (PRD flags it as a standing risk). The 7 home stars
-are life domains. The lenses are layer B and are invisible.
+- **마감은 없다.** 외부 마감을 근거로 스코프를 줄이지 말 것.
+- **XPRIZE 는 종료됐다** (Simon 결정 2026-08-15). 심사자·규정집·마감·인용가능성을
+  판단 근거로 삼지 말 것. 단 코드에 남은 잔재(judge mode · C6 · C12)는 **동작 중이므로
+  임의로 걷어내지 말 것.**
+- **시각 방향은 PIXEL-CLAY v4** (Simon 결정 2026-08-19). SoT 는
+  `docs/PIXEL-CLAY-MIGRATION.md`, 인수 자료는 `design/pixel_clay_v4/`
+  (착수 전 `REPO-NOTES.md` 필독). M3-deepspace 는 목적지가 아니라 **출발점**이고
+  이주는 아직 착수 전이라, 옮겨지지 않은 화면에는 현행 M3 규칙이 그대로 적용된다.
 
-**LEGACY (rollback skin only, never the reference for new work):** the gameboy track, the
-*Cosmic Pixel Graph Village* system, *phytoncide* tokens, *Brain Trinity* naming, **the "Soul Core"
-name** (dropped — say 북극성), the 5 Pattern Core layer + Pattern Tesseract, the village graph, the
-v3 tesseract art, the character voices (아치/가디/루루/모모/루미), and **the old 4-tier Visual Tier
-node-names** (Soul Core 128px / Pattern Core x5 / snowflake / crystal). Preserved behind
-`EXPO_PUBLIC_UI=legacy`; superseded concept docs remain in git history.
+## 무엇을 어디서 읽나
 
-## The 12 hard constraints
-
-Never weaken these. They're enforced at code/schema/CI level:
-
-| ID | Rule |
+| 알고 싶은 것 | 파일 |
 |---|---|
-| C1 | All LLM calls through `src/lib/llm/boundary.ts` (renamed from `gemini.ts` 2026-08-17; the rule is the single boundary, not the vendor). ESLint blocks other LLM SDKs. |
-| C2 | `@google/genai` with `vertexai: true` when `EXPO_PUBLIC_USE_VERTEX=true`. |
-| C3 | `ai_audit_log` INSERT on every Gemini call (including mock + crisis). |
-| C4 | `revenue_events` has `month_bucket` + `is_related_party` + `customer_relation_type`. |
-| C5 | `testimonials.consent_given_at NOT NULL`. |
-| C6 | Judge mode auto-flag for `@xprize.org`, `@devpost.com`, `@hacker.fund`. |
-| C7 | i18n EN ↔ KO key parity. EN is canonical. |
-| C8 | `knowledge_sources` requires DOI/URL + verification pair. |
-| C9 | `classifyInput()` runs before any LLM call. Red zone short-circuits. |
-| C10 | Age-tiered sign-up: 14-17 self-consent minors and adult users register direct; under-14 needs verifiable guardian consent (PIPA §22-2/COPPA). Phased rollout; see docs/CONSTRAINTS.md. |
-| C11 | Support SLA = 2 business days (KST). |
-| C12 | README "Pre-existing assets used" section per rulebook §04. |
+| **전부 · 최신 결정 · 인용 금지 목록** | **`CLAUDE.md`** ← 먼저 |
+| 지금 어디까지 왔나 / 다음 세션이 할 일 | `docs/HANDOFF.md` |
+| 최근 결정 전문 (V1~V6) | `docs/DECISIONS-260819.md` |
+| 시각 방향과 이주 계획 | `docs/PIXEL-CLAY-MIGRATION.md` |
+| 개념 · 정본 vs 레거시 | `docs/CONCEPT.md` · `docs/PRD.md` · `docs/CONSTELLATION-DESIGN.md` |
+| 하드 제약 C1~C12 | `docs/CONSTRAINTS.md` |
+| 시각 규율 | `DESIGN.md` |
+| Android 크래시 예방 (**구조·UI·생명주기 변경 전 필독**) | `ANDROID_QA_GUIDELINES.md` |
+| 세션 간 소유 경계 | `docs/SESSION-OWNERSHIP.md` |
 
-When uncertain whether a change weakens a constraint, run `npm run check:constraints`.
+## 검증 — 푸시 전에 반드시
 
-## Vocabulary policy (blueprint §3)
+```
+npm run verify
+```
 
-This is **not** a mental-health, therapy, or wellness app. Avoid clinical terminology in all surfaces (code, UI strings, comments, docs).
+lint · type-check · i18n(EN↔KO 패리티) · lexicon · crisis-parity · legal-review ·
+LLM boundary · constraints · em dash · anti-anthro · mascot-voice · **require cycles** · jest.
 
-- **Forbidden** (CI-enforced via `scripts/check-forbidden-lexicon.ts`): mental health, therapy, counseling, diagnosis, treatment, healing, cure, 정신건강, 심리치료, 심리상담, 치유.
-- **Use instead**: self-understanding, growth, reflection, self-knowledge, 자기 이해, 성장.
+CI 는 이 명령을 **그대로** 부른다(단계 사본이 아니다). 그래서 여기 추가된 검사는 CI 에서
+자동으로 강제된다.
 
-The single source of truth for both runtime classification and CI scan is `src/lib/safety/lexicon.ts`.
+⚠ **`check:cycles` 는 래칫이 아니라 무관용 게이트다.** 저장소의 런타임 require 사이클은
+0이고 0이어야 한다 — 사이클 하나가 `lib/theme/m3` 보다 먼저 컴포넌트를 평가시키고,
+35개 파일이 `StyleSheet.create` 안에서 모듈 스코프로 `m3.*` 를 읽는다. 2026-07-03 에
+그대로 사용자에게 나갔다(#711, `/settings` 레드박스). `madge --circular` 가 10을 보고하는
+것은 `import type` 엣지를 세기 때문이고 실제 사이클은 0이다.
 
-## Design system
+## QA 테스트 계정 — 그냥 로그인해서 쓰면 된다
 
-**Read `docs/CONCEPT.md` (concept/direction) and `DESIGN.md` (visual discipline) before any visual or UI decision.** DESIGN.md's Cosmic Pixel Graph Village is the legacy skin; deep-space visuals use `deepSpace.*` tokens + `docs/deep-space-nav-contract.md`. Font, color, spacing, and aesthetic rules are defined there.
+공용 테스트 계정이 **커밋돼 있다.** 새로 만들지 말고 재사용할 것.
 
-- Do not introduce hex literals in components. Always go through `semantic.*` from `src/lib/theme/tokens.ts`.
-- Do not add gradients, glassmorphism, pill chips, or em dashes in UI strings.
-- Do not deviate from `DESIGN.md` without explicit user approval.
-- In QA mode, flag any code that doesn't match `DESIGN.md`.
+- **자격증명**: 저장소 루트의 `.env.test` → `QA_TEST_EMAIL` / `QA_TEST_PASSWORD`
+- **계정**: `qa.ai.b18807@example.com` — 이메일/비밀번호 로그인, free 등급, 성인,
+  `judge_mode=false`, RLS 로 자기 행만 본다
+- 일회용이고 비밀이 아니다(Supabase anon 키는 이미 공개). 진짜 시크릿
+  (service_role · API 키 · `.env`)은 **여전히 git 에 들어가지 않는다.**
+- 유료 기능을 보려면 `.env` 에 `EXPO_PUBLIC_FORCE_TIER` 를 세운다(예: `brain`).
+- 앱 안에서 모든 화면을 직접 열어보려면 **설정 → 개발자 → 화면 전체 목록**
+  (`/dev-screens`, 개발·QA 빌드에서만 보인다).
 
-## Android Native QA Guidelines
+## 워크트리 — 정본 체크아웃을 직접 편집하지 말 것
 
-**CRITICAL**: Always read and adhere to `ANDROID_QA_GUIDELINES.md` before making any structural, UI, lifecycle, or data management changes.
-This document contains hard-learned prevention measures for Android runtime crashes (OOM, SVG rendering locks, AsyncStorage 2MB limits) and severe UX bugs (Shine-through z-index inversion, hardware BackHandler leaks). Failure to follow it will break the Android build.
+정본은 `E:\2ndB` 의 `main` 이고 **여러 에이전트가 공유한다.** 모든 워크트리는 저장소 안
+`.worktrees/<name>` 에 둔다. 형제 폴더나 `C:\Coding Infra\_worktrees\` 아래는 금지.
+Claude · Codex · Antigravity · Grok 전부 해당한다.
 
-## Verification
+```
+git worktree add .worktrees/<name> -b <branch>     # 만들기
+git worktree remove .worktrees/<name>              # 지우기
+```
 
-`npm run verify` runs the full gauntlet: lint + type-check + i18n + lexicon + LLM boundary + constraints + jest.
+⚠ **`node_modules` 는 정본에 심링크로 공유한다. 워크트리를 지우기 전에 그 심링크를 먼저
+끊어라** — `git worktree remove --force` 는 심링크를 따라가서 공유 `node_modules` 를
+통째로 지운다(실제 사고 이력 있음).
 
-Always run `npm run verify` before pushing. CI runs the same suite plus `supabase-dry-run.yml`.
+## 절대 하지 말 것
 
-## Skill routing (SimonK Stack / gstack)
+- `.env` 커밋 (gitignore 돼 있다 — 스테이징 전에 확인)
+- `.worktrees/` 밖에 워크트리 생성
+- `main` 에 직접 push — **항상 PR**
+- 사용자 확인 없는 `git rebase -i` · `git push --force`
+- 무료 한도 영향 확인 없는 의존성 추가 ($0/월 약속)
+- LLM 호출 경로에서 안전 분류기 건너뛰기
+- `.claude/settings.local.json` 스테이징 (사용자별, gitignored)
 
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+## 하드 제약 C1~C12
 
-- Product ideas/brainstorming → `/office-hours`
-- Strategy/scope → `/plan-ceo-review`
-- Architecture → `/plan-eng-review`
-- Design system / plan review → `/design-consultation` or `/plan-design-review`
-- Full review pipeline → `/autoplan`
-- Bugs/errors → `/investigate`
-- QA / testing site behavior → `/qa` or `/qa-only`
-- Code review / diff check → `/review`
-- Visual polish → `/design-review`
-- Ship / deploy / PR → `/ship` or `/land-and-deploy`
-- Security audit → `/cso`
-- Save progress → `/checkpoint` (snapshot work state)
-- Resume context → `/checkpoint` (resume) or `/context-guardian` (recovery mode after disconnect)
+**약화 금지.** 코드·스키마·CI 로 강제된다. 전문은 `docs/CONSTRAINTS.md`,
+요약표는 `CLAUDE.md` 의 같은 절에 있다. 어떤 변경이 제약을 약화시키는지 불확실하면:
 
+```
+npm run check:constraints
+```
 
-## Visual Tier System — always enforce (Simon standing rule)
+⚠ C2(Vertex)·C6(judge mode)·C12(README rulebook 절)는 **대회 잔재**다. CI 에서는 계속
+유효하니 깨뜨리지 말되, **새 기능의 근거로 인용하지 말 것.**
 
-The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
-`docs/CONSTELLATION-DESIGN.md`). ALL visual changes must respect it. The OLD 4-tier node names
-(Soul Core 128px / Pattern Core ×5 / snowflake / crystal) are **DEPRECATED** — the tier *principle*
-(one dominant root, sub-nodes recede) carries over; the *names* do not.
+## 어휘 정책
 
-| Layer | Node | Brightness/Glow | Notes |
-|------|------|--------------|-------|
-| C (출력) | 북극성 (Polaris) | Full brightness, max glow bloom | Root/hero — aggregate of the 7 domain stars, must be clearly dominant. Internal key `soulCoreBrightness`, display "북극성" |
-| A (입력) | 북두칠성 7 도메인 별 | baseline magnitude × domain L1~L5 | The 7 life-domain stars (커리어·재정·성장·관계·건강·휴식·담아내기). Brighter as the domain fills |
-| link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
+이 앱은 정신건강·치료·웰니스 앱이 **아니다.** 임상 용어를 코드·UI 문자열·주석·문서
+어디에도 쓰지 않는다. 금지어 정본과 CI 스캔은 `src/lib/safety/lexicon.ts` 하나다
+(`scripts/check-forbidden-lexicon.ts` 가 강제).
 
-(Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind 북극성 —
-NOT rendered as stars.)
-
-**Rules:**
-- Never make a domain star (layer A) look as large/bright as 북극성 (layer C)
-- In drilldown (focused) view: tapped domain star = promoted near 북극성; others recede (scale↓, desaturation, opacity↓)
-- Link colors: ALL links = cyan (no green trunks, no violet leaves)
-- Brightness = "how much of this domain I know" (DIKW L1~L5); depth falloff and star brightness must not contradict each other
-- This hierarchy applies to size, glow intensity, opacity, animation amplitude
-
-## Information Density — one message + one graphic per screen (Simon standing rule)
-
-Too much at once is as bad as overlap. Every screen earns attention with ONE thing.
-
-- **One core message per screen** — strip the rest of the text/labels.
-- **One graphic supports it** — the visual IS the explanation. If you need explanatory text, the graphic failed → change the graphic, not add copy.
-- **Progressive disclosure** — detail appears only AFTER a tap/drilldown. First screen = the lure, detail = the catch.
-- Pairs with the touch rule (O-7): one touch should SIMPLIFY the screen, never add an overlapping layer (use a screen transition or bottom sheet, never a modal over the node). Back lives in exactly one place.
-
-## Worktrees & branches (Simon standing rule)
-
-The canonical checkout is `C:\2ndB` on `main`. ALL git worktrees live INSIDE this
-repo under `.worktrees/<name>` (gitignored). Never create a worktree as a sibling
-folder (e.g. `C:\2ndB-dev`) or under `C:\Coding Infra\_worktrees\`. This applies to
-every agent: Claude, Codex, Antigravity, Grok.
-
-- Create from the repo root: `git worktree add .worktrees/<name> -b <branch>`.
-  Remove: `git worktree remove .worktrees/<name>`. Move an existing one in:
-  `git worktree move <old-path> C:/2ndB/.worktrees/<name>`.
-- Share the install: symlink the worktree's `node_modules` to the canonical
-  `C:\2ndB\node_modules` rather than a per-worktree `npm ci`.
-- Tooling already excludes `.worktrees/` (gitignore, jest, metro, tsconfig,
-  eslint). Keep those excludes: they stop the nested copies from polluting
-  `npm run verify` and the Metro bundler.
-
-## What never to do in this repo
-
-- Commit `.env`. (gitignored — verify before staging.)
-- Create git worktrees outside `.worktrees/` (no sibling folders, none under
-  `C:\Coding Infra\_worktrees\`). See **Worktrees & branches** above.
-- Push to `main` directly. Always PR.
-- Use `git rebase -i` or `git push --force` without explicit user confirmation.
-- Add a dependency without checking the free-tier impact (blueprint §5 promises $0/mo).
-- Skip the safety classifier in any LLM call path.
-- Stage `.Codex/settings.local.json` (per-user, gitignored).
-
-<!-- context-guardian-rules:v1 -->
-## Context Guardian Rules (auto-inserted)
-
-### 작업 범위 제한
-- 한 세션에서 수정 파일 최대 5 개
-- 한 번에 하나의 기능/파일 단위로만 작업
-- 작업 완료 즉시 git commit 후 세션 종료 권고
-
-### 파일 읽기 제한
-- node_modules/, .next/, dist/, .git/ 절대 읽지 않기
-- 목적 없는 디렉토리 스캔 금지
-- 대용량 파일 (1000 줄 이상) 전체 읽기 금지 — Read offset+limit 사용
-
-### 작업 요청 방식
-- 광범위 요청은 작은 단위로 분해 후 사용자 확인
-  예: "Auth 전체 마이그레이션" → "어떤 파일부터 시작할까요?"
-- Plan 모드로 먼저 계획 수립 → 승인 후 실행
-
-### 컨텍스트 보호
-- 80% 도달 시 SESSION_RECOVERY.md 생성 + 새 세션 전환 권고
-- 90% 도달 시 즉시 작업 마무리 + 새 세션 강제
-
+대신 쓸 말: 자기 이해 · 성장 · 되돌아보기 · self-understanding · reflection.
