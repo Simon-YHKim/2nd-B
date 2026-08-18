@@ -76,7 +76,7 @@ function choiceLabelKey(field: ProfileDetailKey, value: string): string {
 
 export default function ProfileDetailsScreen() {
   const { t } = useTranslation(["deepspace"]);
-  const { userId, hasProfile } = useAuth();
+  const { userId, hasProfile, loading: authLoading } = useAuth();
   const [details, setDetails] = useState<ProfileDetails>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -114,11 +114,27 @@ export default function ProfileDetailsScreen() {
     }
   }, [userId, details, saving, t]);
 
-  if (!userId) return <Redirect href="/sign-in" />;
-  if (hasProfile === false) return <Redirect href="/complete-profile" />;
-
   const title = t("deepspace:profileDetails.screenTitle");
 
+  // ⚠ authLoading 을 **먼저** 본다. 순서가 이 화면의 버그였다.
+  //
+  // 처음엔 `!userId -> /sign-in` 을 맨 앞에 뒀는데, 인증이 해석되는 짧은 창에는
+  // userId 가 null 이라 로그인한 사용자도 /sign-in 으로 튕겼다. 그러면 sign-in 이
+  // "이미 세션이 있네" 하고 다시 밀어내고, 결국 홈 → 온보딩까지 갔다. 이 화면만
+  // 온보딩으로 새던 이유가 이것이고, 실제 브라우저로 열어 보고서야 드러났다
+  // (테스트는 소스만 읽어서 전부 초록이었다).
+  //
+  // career-input 같은 이웃 화면들이 loading 을 먼저 보는 이유가 같다.
+  if (authLoading || hasProfile !== true) {
+    return (
+      <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={title} onBack={() => router.back()}>
+        <View style={styles.center}>
+          <PremiumLoadingState message={title} />
+        </View>
+      </DeepSpaceScreen>
+    );
+  }
+  if (!userId) return <Redirect href="/sign-in" />;
   if (loading) {
     return (
       <DeepSpaceScreen active="lens" header="none" variant="museumLike" title={title} onBack={() => router.back()}>

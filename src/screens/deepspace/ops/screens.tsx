@@ -28,7 +28,6 @@ import {
   ProgressBar,
   useOpsCopy,
   type DomainTab,
-  type OpsCopy,
   type OpsChipTone,
   type PushOption,
 } from "@/components/deepspace/ops";
@@ -39,8 +38,6 @@ import {
   type OpsGroupId,
 } from "@/lib/ops/domains";
 import { recommendForDomain, type OpsRecommendation } from "@/lib/ops/recommend";
-import { loadPickCandidates } from "@/lib/ops/load-picks";
-import { pickToday, type PickId } from "@/lib/ops/today-picks";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { buildChecklistShareText, buildGoogleCalendarUrl, type OpsEventInput } from "@/lib/ops/push";
 import { searchBooks, type BookResult } from "@/lib/reading/books";
@@ -178,118 +175,15 @@ function SaveErrorBanner({ text }: { text: string }) {
   );
 }
 
-// --- (1b) 도구 바로가기 ---------------------------------------------------
+// ⚠ 이 컴포넌트는 **어떤 라우트도 렌더하지 않는다** (2026-08-18 실측).
 //
-// 이 저장소에는 비서 도구가 7개 더 있다 - focus·ledger·meals·milestones·
-// reading·side-project·srs. 전부 이 파일이나 그 이웃이 렌더하고, 파일 주석에
-// `ops domain` 태그까지 붙어 있다. 그런데 **허브가 그중 하나도 링크하지 않았다.**
-// 즉 만들어진 기능에 도달할 방법이 딥링크뿐이었다.
+// /ops 는 DeepSpaceDesignScreens.tsx 의 DeepSpaceOpsScreen 을 렌더한다. 이 파일의
+// 나머지 화면들(ReadingScreen·MilestonesScreen·LedgerScreen·SideProjectScreen·
+// MealsScreen·RemindersScreen)은 각자 라우트가 쓰지만, 이 허브만 고아다.
 //
-// 역할 구분(Simon 2026-08-18): 위의 추천 목록과 이 격자는 하는 일이 다르다.
-//   - 추천 = "오늘 무엇을 할까" (기록에서 뽑아 제안하고, 수락하면 내 앱으로)
-//   - 도구 = "어디로 갈까"      (제안을 기다리지 않고 직접 여는 자리)
-// 그래서 섹션 제목과 한 줄 설명을 붙여 두 덩어리가 섞여 보이지 않게 한다.
-const OPS_TOOLS: readonly { route: string; key: keyof OpsCopy }[] = [
-  { route: "/reading", key: "toolReading" },
-  { route: "/milestones", key: "toolMilestones" },
-  { route: "/ledger", key: "toolLedger" },
-  { route: "/side-project", key: "toolSideProject" },
-  { route: "/meals", key: "toolMeals" },
-  { route: "/focus", key: "toolFocus" },
-  { route: "/srs", key: "toolSrs" },
-  { route: "/reminders", key: "toolReminders" },
-];
-
-// --- (1a) 오늘의 두 가지 -------------------------------------------------
-//
-// cowork 개인 대시보드의 원리를 이 앱에 맞춰 재구성한 자리(Simon D6):
-// 접근할 수 있는 것을 살펴보고 → **두 개만** 고르고 → 지금 실제 데이터로 보이고
-// → 빈 자리는 **가짜로 채우지 않는다**.
-//
-// 마지막 항목이 원본과 다르다. 원본은 "샘플로 채운 것은 표시하라" 였는데 여기서는
-// 아예 넣지 않고 "무엇을 하면 채워지는지" 만 말한다 - 정직한 밝기 규칙이 그렇게
-// 요구한다. 자세한 근거는 lib/ops/today-picks.ts 헤더.
-const PICK_LABEL: Readonly<Record<PickId, { title: keyof OpsCopy; next: keyof OpsCopy; route: string }>> = {
-  routine: { title: "pickRoutine", next: "pickRoutineNext", route: "/reminders" },
-  milestone: { title: "pickMilestone", next: "pickMilestoneNext", route: "/milestones" },
-  reading: { title: "pickReading", next: "pickReadingNext", route: "/reading" },
-  meals: { title: "pickMeals", next: "pickMealsNext", route: "/meals" },
-  records: { title: "pickRecords", next: "pickRecordsNext", route: "/records" },
-  esm: { title: "pickEsm", next: "pickEsmNext", route: "/esm" },
-};
-
-function OpsTodayPicks({ userId }: { userId: string | null }) {
-  const c = useOpsCopy();
-  const picks = useAsync(async () => {
-    if (!userId) return null;
-    const candidates = await loadPickCandidates(userId);
-    return pickToday(candidates, Date.now());
-  }, [userId]);
-
-  // 로딩 중에는 자리만 비워 둔다. 스켈레톤으로 카드 모양을 그리면 잠깐이라도
-  // "무언가 있다" 로 읽히는데, 실제로 없을 수 있다.
-  if (picks.status !== "ready" || !picks.data) return null;
-  const { picks: chosen, suggestions } = picks.data;
-
-  return (
-    <View style={styles.todayWrap}>
-      <Text style={styles.todayTitle}>{c.todayTitle}</Text>
-      <Text style={styles.todayHint}>{chosen.length > 0 ? c.todayHint : c.todayNothingHint}</Text>
-      {chosen.length === 0 && suggestions.length === 0 ? (
-        <Text style={styles.todayEmpty}>{c.todayNothing}</Text>
-      ) : null}
-      {chosen.map((id) => (
-        <Pressable
-          key={id}
-          style={styles.todayCard}
-          accessibilityRole="link"
-          accessibilityLabel={String(c[PICK_LABEL[id].title])}
-          onPress={() => router.push(PICK_LABEL[id].route as Parameters<typeof router.push>[0])}
-        >
-          <Text style={styles.todayCardTitle}>{String(c[PICK_LABEL[id].title])}</Text>
-        </Pressable>
-      ))}
-      {suggestions.map((id) => (
-        // 카드가 아니라 안내다. 데이터가 있는 것처럼 보이면 안 되므로 눌러도
-        // 되지만 시각적으로 카드와 구분한다.
-        <Pressable
-          key={`next-${id}`}
-          style={styles.todayNext}
-          accessibilityRole="link"
-          accessibilityLabel={String(c[PICK_LABEL[id].next])}
-          onPress={() => router.push(PICK_LABEL[id].route as Parameters<typeof router.push>[0])}
-        >
-          <Text style={styles.todayNextTag}>{c.todayNext}</Text>
-          <Text style={styles.todayNextText}>{String(c[PICK_LABEL[id].next])}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-function OpsToolsGrid() {
-  const c = useOpsCopy();
-  return (
-    <View style={styles.toolsWrap}>
-      <Text style={styles.toolsTitle}>{c.toolsTitle}</Text>
-      <Text style={styles.toolsHint}>{c.toolsHint}</Text>
-      <View style={styles.toolsGrid}>
-        {OPS_TOOLS.map((tool) => (
-          <Pressable
-            key={tool.route}
-            style={styles.toolChip}
-            accessibilityRole="link"
-            accessibilityLabel={String(c[tool.key])}
-            onPress={() => router.push(tool.route as Parameters<typeof router.push>[0])}
-          >
-            <Text style={styles.toolChipText}>{String(c[tool.key])}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
+// 2026-08-18 에 여기에 도구 격자를 붙였다가 그대로 죽은 코드가 됐다(#1237).
+// 소스에서 grep 하면 있는 것처럼 보이지만 화면에는 없다 - 렌더 체인을 따라가지
+// 않으면 반복되는 실수다. **허브를 고치려면 DeepSpaceOpsScreen 을 고쳐야 한다.**
 export function OpsHomeScreen() {
   const c = useOpsCopy();
   const { userId, isMinor } = useAuth();
@@ -389,8 +283,6 @@ export function OpsHomeScreen() {
           />
         ))
       )}
-      <OpsTodayPicks userId={userId} />
-      <OpsToolsGrid />
       <OpsPushSheet
         visible={pushRec !== null}
         title={c.whereToSend}
@@ -1723,48 +1615,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   mealSaveText: { fontSize: 14, color: deepSpace.onMint },
-  // 도구 바로가기 (허브가 자기 도구를 링크하지 않던 것을 메운다).
-  toolsWrap: { gap: 6, marginTop: deepSpaceSpacing.lg },
-  toolsTitle: { fontSize: 15, color: deepSpace.textHi },
-  toolsHint: { fontSize: 12, color: deepSpace.textLo },
-  toolsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
-  toolChip: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
-    backgroundColor: deepSpace.card,
-  },
-  toolChipText: { fontSize: 13, color: deepSpace.accentSoft },
-  // 오늘의 두 가지. 카드와 "다음 걸음" 을 시각적으로 구분한다 - 후자는
-  // 데이터가 있는 것처럼 보이면 안 된다.
-  todayWrap: { gap: 6, marginTop: deepSpaceSpacing.lg },
-  todayTitle: { fontSize: 15, color: deepSpace.textHi },
-  todayHint: { fontSize: 12, color: deepSpace.textLo },
-  todayEmpty: { fontSize: 13, color: deepSpace.textLo, marginTop: 4 },
-  todayCard: {
-    minHeight: 56,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderWidth: 1,
-    borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
-    backgroundColor: deepSpace.card,
-    marginTop: 4,
-  },
-  todayCardTitle: { fontSize: 14, color: deepSpace.textHi },
-  todayNext: {
-    minHeight: 44,
-    justifyContent: "center",
-    paddingHorizontal: deepSpaceSpacing.md,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
-    marginTop: 4,
-  },
-  todayNextTag: { fontSize: 10, color: deepSpace.accentSoft },
-  todayNextText: { fontSize: 13, color: deepSpace.textLo },
 });

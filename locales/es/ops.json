@@ -80,7 +80,26 @@
     "empty": "No hay rutinas para hoy. Guarda un paso abajo para empezar una.",
     "completeA11y": "Marcar {{title}} como hecho hoy",
     "doneA11y": "{{title}} hecho hoy",
-    "streak": "Racha de {{count}} días"
+    "streak": "Racha de {{count}} días",
+    "title": "Hoy, dos cosas",
+    "hint": "Elegido entre lo que realmente tienes guardado.",
+    "nothingHint": "Se deja vacío a propósito. Nada aquí se rellena con datos de ejemplo.",
+    "pick": {
+      "routine": "Rutinas de hoy",
+      "milestone": "Metas en curso",
+      "reading": "Lo que estás leyendo",
+      "meals": "Comidas de esta semana",
+      "records": "Entradas recientes",
+      "esm": "Cómo te has sentido"
+    },
+    "next": {
+      "routine": "Acepta una sugerencia para empezar una rutina.",
+      "milestone": "Define una meta para ver el avance aquí.",
+      "reading": "Añade un libro para verlo aquí.",
+      "meals": "Planifica una semana de comidas para verlo aquí.",
+      "records": "Guarda algo y aparecerá aquí.",
+      "esm": "Responde un registro para ver el patrón."
+    }
   },
   "home": {
     "ringCount": "{{done}} / {{total}} hechas",
@@ -115,6 +134,26 @@
     "callReflection": {
       "label": "Reflexión de llamada",
       "sub": "Déjalo dicho"
+    },
+    "reading": {
+      "label": "Lectura",
+      "sub": "Libros y notas"
+    },
+    "milestones": {
+      "label": "Metas",
+      "sub": "Hacia lo que avanzas"
+    },
+    "ledger": {
+      "label": "Revisión de gastos",
+      "sub": "Una mirada breve"
+    },
+    "sideProject": {
+      "label": "Proyecto propio",
+      "sub": "Lo que creas fuera del trabajo"
+    },
+    "meals": {
+      "label": "Comidas",
+      "sub": "El plan de esta semana"
     }
   },
   "states": {
