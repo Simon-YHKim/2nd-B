@@ -36,6 +36,42 @@ export function comboSecretName(prefix: string, model: string, effort: string): 
   return `${prefix}_API_KEY__${modelSlug(model)}__${effort.toUpperCase()}`;
 }
 
+/**
+ * Can this string be used as an HTTP header value?
+ *
+ * Why this exists as a check rather than a trust: a header value containing a
+ * newline (or any other control character) does not warn -- `fetch` THROWS
+ * `TypeError: Failed to construct 'Request'`, before a single byte goes to the
+ * vendor. Every proxy reports a throw there as `upstream_unreachable`, which is
+ * the same thing it says when the vendor is genuinely down.
+ *
+ * On 2026-08-19 that cost about thirty minutes: the chat surface was answering
+ * 502 with a message that pointed at OpenAI, and the actual cause was a secret
+ * value with a newline inside it. A secret pasted into a dashboard keeps its
+ * line breaks, so this is a normal way for an operator to get it wrong, and the
+ * failure needs to say so.
+ *
+ * Deliberately permissive: any printable ASCII (plus space and tab) passes.
+ * The goal is to separate "this cannot be sent" from "the vendor is down",
+ * not to validate a key format -- vendors change those.
+ */
+export function isUsableHeaderValue(value: string): boolean {
+  // Character codes rather than a regex on purpose: a regex here would carry
+  // escapes, and escapes are exactly what a shell or editor round-trip mangles
+  // silently. This session already lost a guard that way -- a regex `\b` that
+  // had become a literal backspace byte, so the check matched nothing and
+  // passed forever. Arithmetic cannot be mangled into something that still
+  // parses but means less.
+  if (value.length === 0) return false;
+  for (let i = 0; i < value.length; i += 1) {
+    const c = value.charCodeAt(i);
+    const printable = c >= 0x20 && c <= 0x7e;
+    const tab = c === 0x09;
+    if (!printable && !tab) return false;
+  }
+  return true;
+}
+
 export interface ResolvedKey {
   apiKey: string;
   /** the combo secret name that was probed (for audit key_combo + fallback logs) */
