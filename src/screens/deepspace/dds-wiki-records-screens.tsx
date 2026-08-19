@@ -4,7 +4,7 @@ import { Redirect, router, useLocalSearchParams, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-import { colors, radius, spacing } from "@/theme/tokens";
+import { colors, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { reactExpression } from "@/lib/companion/expression";
@@ -637,7 +637,7 @@ const rStyles = StyleSheet.create({
     gap: 11,
     borderWidth: 1,
     borderColor: colors.soulLine,
-    borderRadius: radius.lg,
+    borderRadius: m3.shape.large,
     backgroundColor: withAlpha(deepSpace.soul, 0.1),
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
@@ -645,7 +645,7 @@ const rStyles = StyleSheet.create({
   triageIcon: {
     width: 38,
     height: 38,
-    borderRadius: radius.md,
+    borderRadius: m3.shape.medium,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(deepSpace.soul, 0.16),
@@ -669,7 +669,7 @@ const rStyles = StyleSheet.create({
     minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: m3.shape.large,
     backgroundColor: colors.cardBg,
     paddingVertical: 11,
     paddingHorizontal: 12,
@@ -677,7 +677,7 @@ const rStyles = StyleSheet.create({
   iconBox: {
     width: 40,
     height: 40,
-    borderRadius: radius.md,
+    borderRadius: m3.shape.medium,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.bgDeep,
@@ -694,7 +694,7 @@ const rStyles = StyleSheet.create({
   badge: {
     marginLeft: 8,
     backgroundColor: colors.clay,
-    borderRadius: radius.sm,
+    borderRadius: m3.shape.small,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
@@ -1285,10 +1285,10 @@ export function DeepSpaceRecordDetailScreen() {
 }
 
 const rd = StyleSheet.create({
-  assessmentCta: { alignSelf: "flex-start", marginTop: 10, minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.md, backgroundColor: colors.bgDeep },
+  assessmentCta: { alignSelf: "flex-start", marginTop: 10, minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: colors.borderHi, borderRadius: m3.shape.medium, backgroundColor: colors.bgDeep },
   assessmentCtaText: { color: colors.cyanSoft, fontSize: 12.5 },
   confirmBody: { marginTop: 8, marginBottom: 4 },
-  errorBanner: { borderWidth: 1, borderColor: colors.clay, borderRadius: radius.md, backgroundColor: colors.cardBg, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
+  errorBanner: { borderWidth: 1, borderColor: colors.clay, borderRadius: m3.shape.medium, backgroundColor: colors.cardBg, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 },
   errorBannerTxt: { color: colors.clay, fontSize: 13, lineHeight: 18 },
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 16 },
   confirmBtn: { flex: 1 },
@@ -1298,7 +1298,7 @@ const rd = StyleSheet.create({
     minHeight: 120,
     borderWidth: 1,
     borderColor: colors.borderHi,
-    borderRadius: radius.md,
+    borderRadius: m3.shape.medium,
     backgroundColor: colors.bgDeep,
     color: colors.textTitle,
     fontSize: 15,
@@ -1313,7 +1313,7 @@ const rd = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     backgroundColor: m3.color.tertiaryContainer,
-    borderRadius: radius.lg,
+    borderRadius: m3.shape.large,
     padding: spacing.md,
     marginTop: spacing.sm,
   },
@@ -1325,7 +1325,7 @@ const rd = StyleSheet.create({
   tag: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: m3.shape.small,
     paddingHorizontal: 11,
     paddingVertical: 6,
   },
@@ -1338,14 +1338,14 @@ const rd = StyleSheet.create({
     minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: m3.shape.large,
     backgroundColor: colors.cardBg,
     paddingVertical: 12,
     paddingHorizontal: 12,
   },
   linkTitle: { flex: 1, color: colors.textTitle, fontSize: 13 },
   linkChev: { color: colors.cyanSoft, fontSize: 20 },
-  semBadge: { borderWidth: 1, borderColor: colors.cyanSoft, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, opacity: 0.7 },
+  semBadge: { borderWidth: 1, borderColor: colors.cyanSoft, borderRadius: m3.shape.none, paddingHorizontal: 6, paddingVertical: 1, opacity: 0.7 },
   semBadgeTxt: { color: colors.cyanSoft, fontSize: 10, fontWeight: "700" },
 });
 

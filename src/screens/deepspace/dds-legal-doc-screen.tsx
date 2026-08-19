@@ -10,6 +10,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { AuthShell } from "./dds-auth-screens";
 import { ddsStyles as styles } from "./dds-styles";
@@ -95,7 +96,7 @@ const local = StyleSheet.create({
     alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: colors.amber,
-    borderRadius: 6,
+    borderRadius: m3.shape.none,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },

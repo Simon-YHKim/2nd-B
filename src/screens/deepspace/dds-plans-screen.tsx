@@ -622,7 +622,7 @@ const s = StyleSheet.create({
   tierHead: { flexDirection: "row", alignItems: "baseline", gap: m3.spacing.s2 },
   tierNameRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
   tierName: { fontSize: m3.type.titleLarge.size, lineHeight: m3.type.titleLarge.line, fontWeight: "500", color: m3.color.onSurface },
-  currentPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: m3.color.primary },
+  currentPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: m3.color.primary },
   currentPillText: { fontSize: 11, fontWeight: "700", color: m3.color.onPrimary },
   tierPrice: { fontSize: m3.type.titleMedium.size, lineHeight: m3.type.titleMedium.line, fontWeight: "500", color: m3.color.primary },
   tierSub: { fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, color: m3.color.onSurfaceVariant, marginTop: 2 },
