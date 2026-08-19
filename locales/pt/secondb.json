@@ -177,5 +177,9 @@
   "nSources": "{{n}} fontes",
   "captureBranch": "Guardar: {{branch}}",
   "askLens": "Pergunte ao {{lens}}…",
-  "nPieces": "{{n}} fragmentos"
+  "nPieces": "{{n}} fragmentos",
+  "chatSaveNotice": "Esta conversa não está sendo guardada",
+  "chatSaveNoticeBody": "Ative o salvamento de conversas na privacidade para mantê-la. O que foi dito antes não é salvo.",
+  "chatSaveNoticeOpen": "Abrir ajustes",
+  "chatSaveNoticeDismiss": "Fechar"
 }

@@ -177,5 +177,9 @@
   "nSources": "{{n}} sources",
   "captureBranch": "Capture: {{branch}}",
   "askLens": "Ask {{lens}}…",
-  "nPieces": "{{n}} pieces"
+  "nPieces": "{{n}} pieces",
+  "chatSaveNotice": "This conversation is not being kept",
+  "chatSaveNoticeBody": "Turn on chat saving in privacy settings to keep it. Anything said before you turn it on is not saved.",
+  "chatSaveNoticeOpen": "Open settings",
+  "chatSaveNoticeDismiss": "Dismiss"
 }
