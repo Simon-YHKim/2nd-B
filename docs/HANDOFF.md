@@ -3,7 +3,118 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-20 / 결정 콘솔 14건 전부 확정 — 이제 막힌 것이 없다
+## Latest — 2026-08-20 / 한국 결제 방향 확정 + 크레딧 원장 0134·0135 랜딩
+
+> **새 세션은 이 블록을 먼저 읽을 것.** 상세 근거: `docs/cowork-reply-260819.md`,
+> 콘솔 큐: `docs/cowork-console-260820.md`
+
+### 어디까지 왔나
+
+- main HEAD: `a227f9a5`
+- 이번 세션 머지된 PR (전부 `Simon-YHKim/Cowork-Cowork`):
+  - **#1250** `feat(billing)` — 한국 결제 회신 + `0133` 한 사용자=한 결제사 + 죽은 페이월 버튼 수정
+  - **#1256** `feat(credits)` — `0134` 크레딧 원장 (inert)
+  - **#1258** `feat(credits)` — `0135` 크레딧 이관 (원장 + 카운터 미러)
+- 테스트: `npm run verify` **466 suites / 4046 tests 그린**. CI 전부 초록(`sql` 드라이런 포함)
+- working tree: `docs/flow-debugger.html` 1개 dirty — **훅이 생성하는 파일이고 내 변경이 아니다.** 건드리지 말 것
+
+### 이번 세션에서 뒤집힌 것 (인용 금지 목록)
+
+**❌ "카카오페이·네이버페이 정기결제는 토스로 해야 한다"** → 반대다.
+**Paddle 이 2025-11-19 부터 카카오페이·네이버페이 정기결제를 지원한다.** 토스는 카카오페이
+정기결제를 **못 준다**(공식 FAQ 명시). 토스로 옮기면 원하던 걸 얻는 게 아니라 잃는다.
+
+**❌ "네이티브에도 상점을 넣는다"** → **2026-08-20 Simon 정정: 네이티브 X.**
+"면제 의도 포기 아니야. 포기하면 안돼." Apple 3.1.3(f) 면제(앱 안에 구매도 구매 유도도 없을 것)를
+**자산으로 지킨다.** 상점은 **웹 표면에만**. IAP 불필요, RevenueCat 은 키 없는 scaffold 로 유지.
+
+**❌ "billing 에 isMinor 게이트가 없다 = 뚫린 구멍"** → 2026-08-16 Simon 결정(G1)대로
+**차단 대신 고지**이고 고지 카드가 실제로 붙어 있다(`dds-plans-screen.tsx:345-353`).
+
+**❌ "2026-12-31 에 외부 웹링크가 열린다"(어디에도 없다는 뜻으로 읽히면)** → 링크아웃은
+**미국·EEA·영국·일본에 이미 있고 한국에만 없다.**
+
+### 확정된 결정 (Simon, 2026-08-19~20)
+
+| 질문 | 답 |
+|---|---|
+| 결제사 방향 | **Paddle 먼저 켜고, 토스는 그 다음** |
+| 한 사용자 = 한 결제사 DB 강제 | **강제** → `0133` |
+| 죽은 페이월 버튼 | **지금 고침** → #1250 |
+| 크레딧·상점 | **전부 구현.** 남의것 불가 · **웹에만** · 유효기간 표준 준수 |
+
+### 활성 인프라
+
+- Supabase `zoacryukmdeivmolvyhj` — **`0133`·`0134`·`0135` 운영 미적용** (콘솔 작업)
+- 마이그레이션 최댓값 `0135`. 다음은 `0136`. (중복 `0092`/`0113`/`0117` 은 기존 이력)
+- `PADDLE_API_KEY` **2026-11-08 만료**, `Last used` = `-` (한 번도 안 쓰임 — 고장 아님, fail-closed)
+- ASC App ID `6792266942` (iOS 0.1.0 "Prepare for Submission", 미출시)
+- Play Alpha 트랙 `4699963527811527343`, KR 단독, 미출시
+
+### 다음 작업 큐
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| A | **콘솔: `0133`·`0134`·`0135` 운영 적용** + Paddle 대시보드 확인 | small | ⭐ **전부 이것에 막혀 있다.** `docs/cowork-console-260820.md` |
+| B | **`0138` 환불 경로 분리** — 아래 ⚠ 참조. `0136` 보다 **먼저** | medium | ⭐ 지금 실재하는 잠재 결함 |
+| C | `0136` 구매 경로 (**웹 Paddle 만**) + **클라이언트 읽기 변경** | large | B 이후 |
+| D | `PADDLE_API_KEY` 만료 감시 (Simon 승인 대기) | small | 결정 불필요, 시작 허가만 |
+| E | 연간 결제가 UI 에서 도달 불가 (`dds-plans-screen.tsx:310-313` 이 cadence 미전달) | small | 별건 |
+
+⚠ **B 를 C 보다 먼저 해야 하는 이유.** `refund_eligibility` 가 "가장 최근
+transaction.completed"로 환불창을 잡는데 **상품을 구분하지 않는다.** 크레딧 구매가 생기는 순간
+₩4,900 팩이 ₩9,900 구독의 환불 기준점이 되고, `apply_billing_refund` 의 전액환불이
+`tier='free'` 로 등급을 회수하므로 **팩 환불이 살아 있는 구독을 날린다.** 지금은 일회성 상품이
+없어 안 터진다.
+
+⚠ **C 는 서버만으로 안 끝난다.** `0135` 의 미러가 `reward_credits` 를
+`credit_ad_earned_this_month`(**광고분만**)로 재유도하므로 **구매 크레딧은 `usage_counters` 에
+안 나타난다.** 클라이언트는 그 컬럼만 읽으므로 **50개를 사도 "0 남음"이 뜬다.**
+`getReasoningUsage` 가 `credit_balance`/`credit_available` 를 읽도록 같이 바꿔야 한다.
+
+### 적용 중인 정책 (영구)
+
+1. **CI 그린이면 자동 머지.** PR 필수, main 직접 push 금지.
+2. **마이그레이션 번호는 쓰기 직전에 `origin/main` 최댓값 +1 로 재확인**하고 즉시 브랜치 push.
+3. **엣지 함수 배포가 변수 플립보다 먼저.** `0127`/`0130` 함정.
+4. **새 `SECURITY DEFINER` 함수는 같은 파일에서 `REVOKE ... FROM anon, authenticated` 필수.**
+   Supabase 가 생성 즉시 auto-grant 한다. `check:definer-grants` 가 강제하지만 파일별 정규식이라
+   놓칠 수 있으니 시그니처별로 명시할 것.
+5. **`service_role` 판정은 `billing_request_role()` 로만.** 인라인 `current_setting` 금지(0112 사고).
+6. **로컬 DB 가 없다.** 마이그레이션 실증은 PR 의 `sql` 드라이런(0001~최신 전체 체인)이 유일하다.
+   이번 세션에 실제로 결함을 잡았다(`CREATE OR REPLACE VIEW` 컬럼 개명 거부).
+7. **Simon 보고는 Artifact HTML.** 채팅엔 링크 + 요약만.
+
+### 핵심 파일 위치
+
+```
+db/migrations/0133_billing_provider_ownership.sql   한 사용자 = 한 결제사
+db/migrations/0134_credit_ledger.sql                크레딧 원장 (inert)
+db/migrations/0135_credit_cutover.sql               이관 + 카운터 미러 + freeze
+db/migrations/rollback/0135_down.sql                수동 롤백 (번호 글롭 밖)
+docs/cowork-reply-260819.md                         한국 결제 근거·행번호 정본
+docs/cowork-console-260820.md                       콘솔 작업 큐
+src/lib/payments/purchases.ts                       RevenueCat scaffold (구독 모델, 소모품엔 틀림)
+src/screens/deepspace/dds-plans-screen.tsx          페이월 (canPurchase 로 죽은 CTA 차단)
+```
+
+### 검증
+
+```bash
+npm run verify
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git pull origin main
+cat docs/HANDOFF.md
+# A(콘솔 적용 확인) → B(0138) 순서로
+```
+
+---
+
+## 2026-08-20 / 결정 콘솔 14건 전부 확정 — 이제 막힌 것이 없다
 
 > **새 세션은 이 블록을 먼저 읽을 것.** 전문: `docs/DECISIONS-260820.md`
 
