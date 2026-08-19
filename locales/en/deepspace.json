@@ -767,6 +767,10 @@
       "restoredNone": "No previous purchase found to restore.",
       "restoreError": "Couldn't restore purchases. Try again.",
       "per": "/mo",
+      "perYear": "/yr",
+      "cadenceMonthly": "Monthly",
+      "cadenceYearly": "Yearly",
+      "cadenceSaving": "Paying yearly costs two months less.",
       "honestyLead": "Plans differ only in ",
       "honestyStrong": "counts and personas",
       "honestyTail": ". Paying more never gives you a ‘better you’.",
@@ -802,6 +806,7 @@
       "proFeat3": "Unlimited reasoning",
       "comingSoon": "Coming soon",
       "disclosure": "Paid plans renew automatically each month until you cancel. Cancel anytime before the next renewal and paid features stay open until that period ends; prices include VAT. Full refund within 7 days of payment, as long as your usage has stayed within what the free plan covers.",
+      "disclosureYearly": "Paid plans renew automatically each year until you cancel. Cancel anytime before the next renewal and paid features stay open until that period ends; prices include VAT. Full refund within 7 days of payment, as long as your usage has stayed within what the free plan covers.",
       "legalTerms": "Terms of Service",
       "legalRefund": "Refund policy",
       "minorPurchaseNotice": "If you are under 19, a purchase made without your legal guardian's consent can be cancelled later by you or by your guardian. We tell you this before you buy, not after."

@@ -21,15 +21,24 @@ import { useTranslation } from "react-i18next";
 import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
-import { TIER_PRICE_KRW, REWARD_PER_WATCH, REWARD_MONTHLY_CAP } from "@/lib/entitlements/tiers";
+import {
+  TIER_PRICE_KRW,
+  TIER_PRICE_KRW_YEARLY,
+  REWARD_PER_WATCH,
+  REWARD_MONTHLY_CAP,
+} from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, addRewardCredits } from "@/lib/entitlements/usage";
 import { canShowRewardedAds } from "@/lib/ads/policy";
-import { openPaddleCheckout, paddleCheckoutAvailable } from "@/lib/billing/paddle-checkout";
+import {
+  openPaddleCheckout,
+  paddleCheckoutAvailable,
+  type CheckoutCadence,
+} from "@/lib/billing/paddle-checkout";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { Text } from "@/components/ui/Text";
-import { MdButton, MdCard } from "@/components/m3";
+import { MdButton, MdCard, SegBtn } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -137,6 +146,22 @@ export function DeepSpacePlansScreen() {
   const [error, setError] = useState<string | null>(null);
   const available = arePurchasesAvailable();
   const [rewardVisible, setRewardVisible] = useState(false);
+
+  // Billing period. paddle-checkout has resolved a distinct price id per tier
+  // AND cadence since it was written (EXPO_PUBLIC_PADDLE_PRICE_<TIER>_YEARLY),
+  // and web-deploy already injects both, but this screen was the only consumer
+  // and never passed one - so `input.cadence ?? "monthly"` always won and the
+  // yearly price id could not be reached from anywhere in the app.
+  const [cadence, setCadence] = useState<CheckoutCadence>("monthly");
+
+  // The control appears ONLY when a yearly price id is actually configured for
+  // a sellable tier. An annual segment that resolves to "" would produce exactly
+  // the dead priced control this file already argues against, and pro is behind
+  // PRO_COMING_SOON so its price id cannot make the segment live on its own.
+  // With no yearly id set, this screen renders exactly as it did before.
+  const yearlyOffered =
+    paddleCheckoutAvailable("cortex", "yearly") ||
+    (!PRO_COMING_SOON && paddleCheckoutAvailable("brain", "yearly"));
 
   useEffect(() => {
     if (!userId) return;
@@ -288,7 +313,12 @@ export function DeepSpacePlansScreen() {
     if (key === "free") return false; // nothing to buy; the CTA is a label
     if (key === "pro" && PRO_COMING_SOON) return false;
     const paddleTier = key === "plus" ? "cortex" : "brain";
-    if (paddleCheckoutAvailable(paddleTier)) return true;
+    if (paddleCheckoutAvailable(paddleTier, cadence)) return true;
+    // The RevenueCat Offering this screen reads is monthly. Letting it answer
+    // for the yearly segment would show a yearly price on a control that
+    // charges a monthly package - a worse failure than the dead CTA, because
+    // it succeeds at the wrong thing.
+    if (cadence !== "monthly") return false;
     return (key === "plus" ? plusPkg : proPkg) != null;
   }
 
@@ -306,6 +336,13 @@ export function DeepSpacePlansScreen() {
   // ── Tier copy (reference PlansScreen tiers[]). Prices from TIER_PRICE_KRW so
   // display can never drift from the entitlement SoT. ──
   const per = t("ds.plans.per");
+  const perYear = t("ds.plans.perYear");
+  // Both figures come from the same SoT (pricing.ts via tiers.ts), so the card
+  // cannot show a yearly number Paddle is not charging.
+  const priceFor = (key: "plus" | "pro"): string =>
+    cadence === "yearly"
+      ? `${krw(TIER_PRICE_KRW_YEARLY[key])}${perYear}`
+      : `${krw(TIER_PRICE_KRW[key])}${per}`;
   const tiers: TierCopy[] = [
     {
       key: "free",
@@ -318,14 +355,14 @@ export function DeepSpacePlansScreen() {
       key: "plus",
       name: t("ds.plans.plusName"),
       sub: t("ds.plans.plusSub"),
-      price: `${krw(TIER_PRICE_KRW.plus)}${per}`,
+      price: priceFor("plus"),
       feats: [t("ds.plans.plusFeat1"), t("ds.plans.plusFeat2"), t("ds.plans.plusFeat3")],
     },
     {
       key: "pro",
       name: t("ds.plans.proName"),
       sub: t("ds.plans.proSub"),
-      price: `${krw(TIER_PRICE_KRW.pro)}${per}`,
+      price: priceFor("pro"),
       feats: [t("ds.plans.proFeat1"), t("ds.plans.proFeat2"), t("ds.plans.proFeat3")],
     },
   ];
@@ -340,10 +377,10 @@ export function DeepSpacePlansScreen() {
     // paddleCheckoutAvailable() is false off-web and when unconfigured, so this
     // branch simply does not exist until the price ids are set.
     const paddleTier = key === "plus" ? "cortex" : key === "pro" ? "brain" : null;
-    if (paddleTier && paddleCheckoutAvailable(paddleTier)) {
+    if (paddleTier && paddleCheckoutAvailable(paddleTier, cadence)) {
       setBusyAction("buy");
       setError(null);
-      void openPaddleCheckout({ tier: paddleTier, locale: ko ? "ko" : "en" })
+      void openPaddleCheckout({ tier: paddleTier, cadence, locale: ko ? "ko" : "en" })
         .then((r) => {
           // The tier itself is granted server-side by paddle-webhook, never
           // here - the client never writes entitlement.
@@ -353,6 +390,14 @@ export function DeepSpacePlansScreen() {
       return;
     }
 
+    // Native rail. canPurchase() already refuses the yearly segment here, and
+    // this repeats the refusal at the money path rather than trusting a caller:
+    // the RevenueCat package is monthly, so buying it under a yearly price would
+    // charge the wrong amount silently.
+    if (cadence !== "monthly") {
+      setError(t("ds.plans.purchaseError"));
+      return;
+    }
     if (key === "plus" && plusPkg) void buy(plusPkg);
     else if (key === "pro" && proPkg) void buy(proPkg);
     else if (key !== "free") setError(t("ds.plans.purchaseError"));
@@ -385,6 +430,24 @@ export function DeepSpacePlansScreen() {
         <MdCard variant="outlined" style={s.minorNotice}>
           <Text style={s.minorNoticeText}>{t("ds.plans.minorPurchaseNotice")}</Text>
         </MdCard>
+      ) : null}
+
+      {/* Billing period. Rendered only when a yearly price id exists, so the
+          segment can never be a control that resolves to no price. The saving
+          line states the same fact pricing.ts encodes (yearly = 10x monthly)
+          instead of a percentage nobody can check. */}
+      {yearlyOffered ? (
+        <View style={s.cadence}>
+          <SegBtn
+            segments={[
+              { key: "monthly", label: t("ds.plans.cadenceMonthly") },
+              { key: "yearly", label: t("ds.plans.cadenceYearly") },
+            ]}
+            selected={[cadence]}
+            onSelect={(k) => setCadence(k === "yearly" ? "yearly" : "monthly")}
+          />
+          <Text style={s.cadenceNote}>{t("ds.plans.cadenceSaving")}</Text>
+        </View>
       ) : null}
 
       {/* tier cards */}
@@ -453,7 +516,9 @@ export function DeepSpacePlansScreen() {
           e-commerce law + Paddle MoR checkout rules), with the documents that
           back them one tap away -- not buried behind /support. */}
       <View style={s.disclosure}>
-        <Text style={s.disclosureText}>{t("ds.plans.disclosure")}</Text>
+        <Text style={s.disclosureText}>
+          {cadence === "yearly" ? t("ds.plans.disclosureYearly") : t("ds.plans.disclosure")}
+        </Text>
         <View style={s.legalLinks}>
           <Pressable onPress={() => router.push("/terms")} accessibilityRole="link" hitSlop={8} accessibilityLabel={t("ds.plans.legalTerms")}>
             <Text style={s.legalLink}>{t("ds.plans.legalTerms")}</Text>
@@ -548,6 +613,8 @@ const s = StyleSheet.create({
   honestyText: { flex: 1, fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onTertiaryContainer },
   honestyStrong: { fontWeight: "700", color: m3.color.onTertiaryContainer },
   minorNotice: { padding: 14, borderWidth: 1, borderColor: m3.color.outline },
+  cadence: { gap: m3.spacing.s2 },
+  cadenceNote: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant, textAlign: "center" },
   minorNoticeText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
   tierList: { gap: m3.spacing.s3 },
   tierCard: { padding: m3.spacing.s4, gap: 6, borderWidth: 1, borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainerLow },
