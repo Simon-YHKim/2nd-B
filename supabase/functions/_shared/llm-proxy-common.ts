@@ -9,7 +9,9 @@
 
 // D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
 // are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
-import { pickApiKey } from './axis-key-name.ts';
+import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
+
+export { isUsableHeaderValue };
 
 // --- crisis gate (R1-A) ------------------------------------------------------
 

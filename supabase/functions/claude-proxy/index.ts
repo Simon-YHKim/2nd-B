@@ -49,6 +49,7 @@ import {
   dailyCapForRank,
   djb2,
   hasCrisisTerm,
+  isUsableHeaderValue,
   jsonResponse,
   normalizeResponseSchema,
   resolveApiKey,
@@ -326,6 +327,32 @@ Deno.serve(async (req: Request) => {
     );
   }
   const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'ANTHROPIC_API_KEY';
+
+  // A key that cannot be a header value makes `fetch` THROW, which every path
+  // below reports as `upstream_unreachable` -- indistinguishable from the vendor
+  // being down. Say what is actually wrong instead, naming the SECRET but never
+  // its value. (2026-08-19: this exact case took 30 minutes to identify.)
+  if (!isUsableHeaderValue(resolvedKey.apiKey)) {
+    // Nothing was sent upstream, so the daily-cap unit must go back -- otherwise a
+    // misconfigured secret quietly eats a user's whole allowance, one unit per
+    // attempt, while they see only an error. refund_gemini_spend (0110) floors at
+    // 0 and no-ops when there is no row, so a stray refund is safe.
+    if (spentBumped) {
+      try {
+        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+      } catch (e) {
+        console.warn('[claude-proxy] spend refund failed:', String(e).slice(0, 80));
+      }
+    }
+    console.error(
+      `[claude-proxy] ANTHROPIC_API_KEY is not usable as a header value (control character in the secret?)`,
+    );
+    return jsonResponse(req, {
+      error: 'server_misconfigured_malformed_api_key',
+      secret: keyCombo,
+    }, 500);
+  }
+
   const systemPrompt =
     systemText && systemText.length > 0 ? `${SAFETY_PREAMBLE}\n\n${systemText}` : SAFETY_PREAMBLE;
   const anthropicBody = {

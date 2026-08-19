@@ -51,7 +51,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // D-27: (vendor × model × effort) axis key attribution — the ONLY symbol this
 // live-critical $0 backbone imports from _shared (a pure env reader; no crisis/
 // auth/cap logic is migrated here — that stays inlined per the _shared note).
-import { resolveApiKey } from '../_shared/llm-proxy-common.ts';
+import { isUsableHeaderValue, resolveApiKey } from '../_shared/llm-proxy-common.ts';
 
 // P0-3 (D-26, docs/LLM-ROUTING.md): the allowlist previously held only
 // {2.5-flash, 2.5-pro}, so the client's LITE tier (clipper_classify ->
@@ -810,6 +810,32 @@ Deno.serve(async (req: Request) => {
     );
   }
   const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'GEMINI_API_KEY';
+
+  // A key that cannot be a header value makes `fetch` THROW, which every path
+  // below reports as `upstream_unreachable` -- indistinguishable from the vendor
+  // being down. Say what is actually wrong instead, naming the SECRET but never
+  // its value. (2026-08-19: this exact case took 30 minutes to identify.)
+  if (!isUsableHeaderValue(resolvedKey.apiKey)) {
+    // Nothing was sent upstream, so the daily-cap unit must go back -- otherwise a
+    // misconfigured secret quietly eats a user's whole allowance, one unit per
+    // attempt, while they see only an error. refund_gemini_spend (0110) floors at
+    // 0 and no-ops when there is no row, so a stray refund is safe.
+    if (!spendErr) {
+      try {
+        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+      } catch (e) {
+        console.warn('[gemini-proxy] spend refund failed:', String(e).slice(0, 80));
+      }
+    }
+    console.error(
+      `[gemini-proxy] GEMINI_API_KEY is not usable as a header value (control character in the secret?)`,
+    );
+    return jsonResponse(req, {
+      error: 'server_misconfigured_malformed_api_key',
+      secret: keyCombo,
+    }, 500);
+  }
+
 
   const t0 = Date.now();
   let upstream: Response;

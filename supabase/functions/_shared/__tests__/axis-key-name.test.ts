@@ -6,7 +6,7 @@
 // models + the deterministic fallback for an unknown model; (2) comboSecretName
 // format; (3) pickApiKey selecting the combo secret vs. base-key fallback.
 
-import { modelSlug, comboSecretName, pickApiKey } from '../axis-key-name';
+import { modelSlug, comboSecretName, isUsableHeaderValue, pickApiKey } from '../axis-key-name';
 
 describe('modelSlug', () => {
   test.each([
@@ -115,5 +115,45 @@ describe("기본키 폴백도 trim 한다", () => {
 
   it("빈 기본키는 빈 문자열로 남는다 (프록시의 미설정 가드가 잡도록)", () => {
     expect(pickApiKey(noEnv, "OPENAI", "gpt-5.5", "low", "   ").apiKey).toBe("");
+  });
+});
+
+// 키가 헤더로 쓸 수 있는 값인가. 이 검사가 없으면 같은 상황이
+// `502 upstream_unreachable` 로 나와서 **벤더 장애와 구분이 안 된다** —
+// 2026-08-19 에 그거 알아내는 데 30분 걸렸다.
+describe("isUsableHeaderValue", () => {
+  it("정상 키를 통과시킨다", () => {
+    expect(isUsableHeaderValue("sk-proj-AbC123_-xyz")).toBe(true);
+  });
+
+  it("제어문자가 든 값을 거른다", () => {
+    // 대시보드에 붙여넣은 시크릿이 줄바꿈을 물고 오는 것이 실제 사고 원인이었다.
+    for (const bad of ["sk-a" + String.fromCharCode(10) + "b", "sk-a" + String.fromCharCode(13) + "b", "sk-a" + String.fromCharCode(0) + "b"]) {
+      expect({ input: JSON.stringify(bad), usable: isUsableHeaderValue(bad) })
+        .toEqual({ input: JSON.stringify(bad), usable: false });
+    }
+  });
+
+  it("실제로 Headers 가 받는지와 답이 같다", () => {
+    // 문자열 규칙을 따로 정의하면 언젠가 런타임과 어긋난다. 진짜 기준에 맞춰본다.
+    const cases = ["sk-ok", "sk-a" + String.fromCharCode(10) + "b", "sk-a" + String.fromCharCode(13) + "b", "sk-tab" + String.fromCharCode(9) + "x", ""];
+    for (const v of cases) {
+      let headersAccepts = true;
+      try {
+        new Headers({ authorization: "Bearer " + v });
+      } catch {
+        headersAccepts = false;
+      }
+      // 빈 문자열은 Headers 는 받지만 우리는 거른다(키가 없다는 뜻이므로).
+      const expected = v.length === 0 ? false : headersAccepts;
+      expect({ v: JSON.stringify(v), ours: isUsableHeaderValue(v) })
+        .toEqual({ v: JSON.stringify(v), ours: expected });
+    }
+  });
+
+  it("빈 값과 공백만 있는 값을 구분한다", () => {
+    expect(isUsableHeaderValue("")).toBe(false);
+    // 공백만 있는 값은 헤더로는 되지만 키로는 무의미하다 -- 프록시의 미설정 가드가 먼저 잡는다.
+    expect(isUsableHeaderValue(" ")).toBe(true);
   });
 });
