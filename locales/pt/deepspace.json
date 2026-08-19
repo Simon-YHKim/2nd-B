@@ -767,6 +767,10 @@
       "restoredNone": "Nenhuma compra anterior encontrada para restaurar.",
       "restoreError": "Não foi possível restaurar as compras. Tente novamente.",
       "per": "/mês",
+      "perYear": "/ano",
+      "cadenceMonthly": "Mensal",
+      "cadenceYearly": "Anual",
+      "cadenceSaving": "Pagar por ano custa dois meses a menos.",
       "honestyLead": "Os planos diferem apenas ",
       "honestyStrong": "em contagens e personas",
       "honestyTail": ". Pagar mais nunca te dá um 'você melhor'.",
@@ -802,6 +806,7 @@
       "proFeat3": "Raciocínio ilimitado",
       "comingSoon": "Em breve",
       "disclosure": "Os planos pagos renovam automaticamente a cada mes ate que voce cancele. Cancele quando quiser antes da proxima renovacao e os recursos pagos continuam ate o fim desse periodo; os precos incluem impostos (VAT). Reembolso integral em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre.",
+      "disclosureYearly": "Os planos pagos renovam automaticamente a cada ano ate que voce cancele. Cancele quando quiser antes da proxima renovacao e os recursos pagos continuam ate o fim desse periodo; os precos incluem impostos (VAT). Reembolso integral em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre.",
       "legalTerms": "Termos de serviço",
       "legalRefund": "Política de reembolso",
       "minorPurchaseNotice": "Se você tem menos de 19 anos, uma compra feita sem o consentimento do seu responsável legal pode ser cancelada depois, por você ou por ele. Avisamos antes da compra, não depois."

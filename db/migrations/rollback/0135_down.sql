@@ -22,10 +22,14 @@
 -- Recoverable: every user's spendable balance, exactly, because the ledger is
 -- append-only and the mirror already expresses the same number in the old shape.
 --
--- NOT recoverable: purchased credits, if 0136 has shipped. Those have no
+-- NOT recoverable: purchased credits, once THE PURCHASE PATH has shipped.
+-- (When this file was written the purchase path was expected to be 0136. It is
+-- not: 0136 became the refund-path split, which had to land first. The guard
+-- below keys on DATA - any credit_ledger row with kind='purchase' - so the
+-- renumbering does not weaken it.) Those have no
 -- representation in usage_counters at all - it has one integer for ad credits and
--- no concept of a lot, an expiry, or a purchase. DO NOT run this file after 0136
--- is live without first deciding what happens to money people paid. The guard at
+-- no concept of a lot, an expiry, or a purchase. DO NOT run this file once purchases
+-- are live without first deciding what happens to money people paid. The guard at
 -- the top refuses in that case rather than silently deleting paid balances.
 
 BEGIN;
