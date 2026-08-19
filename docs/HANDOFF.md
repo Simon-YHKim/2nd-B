@@ -3,7 +3,165 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-20 / 환불 경로 분리(0136) · 연간 결제 · Paddle 키 만료
+## Latest — 2026-08-20 / 큐 A·B·C·D 완주 — 다음은 **P5 화면 이식**
+
+> 보고서(그림 포함): <https://claude.ai/code/artifact/26b94152-8c7d-408d-ba33-9201c562dc5a>
+
+### 어디까지 왔나
+
+- main HEAD: `f1003d7c`
+- 테스트: **473 suites 그린** (`npm run verify`, 22단계)
+- working tree: clean · 열린 PR: 0건 (내 몫)
+- 마이그레이션 최댓값: **`0136`** → 다음은 `0137`. 이번 세션은 DB 를 **안 건드렸다**
+
+**이번 세션 머지 (4건)**
+
+| PR | 무엇 |
+|---|---|
+| **#1273** | **PIXEL-CLAY 토큰 2단계** — 간격 `--u` 2px · 타입 Galmuri 격자 · 폰트 4종 벤더링 |
+| **#1275** | **프리미티브** — 잘린 모서리 베벨 · 디더 타일 · 가라앉는 누름 |
+| #1272 | 모델 승격이 좌석 밖으로 새던 것 차단 (좌석별 JSON 으로) |
+| #1274 | 프록시 기본 API 키 trim + `MODEL_PIN` 이 진짜 되돌리게 |
+
+### ⚠ Simon 확인이 필요한 것 — **1건, 운영에 영향 있음**
+
+**`OPENAI_API_KEY` 기본 시크릿 값이 헤더로 쓸 수 없는 상태다.**
+
+앞뒤 공백이 아니라 **값 안쪽**에 개행 같은 것이 있다(#1274 가 trim 을 넣고 재배포해도 여전히 실패).
+증상은 `TypeError: Failed to construct 'Request'` → 프록시가 `upstream_unreachable` 로 보고 →
+**벤더 장애처럼 보인다.**
+
+원장이 뒷받침한다: **지금까지 성공한 OpenAI 호출은 전부 콤보 키(`OPENAI_API_KEY__<MODEL>__<EFFORT>`)를
+썼다.** 기본 키 폴백은 이 프로젝트에서 한 번도 실제로 작동한 적이 없다.
+
+- **할 일**: Supabase 대시보드에서 `OPENAI_API_KEY` 를 줄바꿈 없이 한 줄로 다시 붙여넣기.
+  ⚠ **값을 요청하지 말 것 · 채팅·로그·커밋에 남기지 말 것.** 세션은 값을 본 적 없고 볼 필요도 없다.
+- **그다음**: `MODEL_PIN_OPENAI_FRONTIER` 변수를 지우고 나이틀리 1회 → `gpt-5.5` 가 정상 착석.
+  (대안: `OPENAI_API_KEY__GPT55__LOW` 콤보 키를 만들어도 된다.)
+
+**지금 상태는 안전하다** — 핀으로 `gpt-5.4` 에 되돌려 놓았고 대화는 HTTP 200 정상,
+`safety_classify` 도 nano 그대로다.
+
+### 활성 인프라 (변경분)
+
+- `MODEL_REFRESH_APPLY` = **`true`** (이번 세션에 켬)
+- `MODEL_PIN_OPENAI_FRONTIER` = **`gpt-5.4`** ← 위 문제가 풀리면 지울 것
+- `EXPO_PUBLIC_CHAT_VENDOR=openai` — **실사용 검증 완료** (아래 C 참조)
+- openai-proxy **v57 배포됨** (#1274 포함). claude/gemini-proxy 는 같은 수정이 소스에만 있고
+  **미배포** — 그쪽 기본 키도 같은 결함일 수 있으나 콤보 키가 있는 한 안 터진다
+- 나머지(Supabase 시크릿·GitHub Pages·엣지 배포 워크플로)는 그대로
+
+---
+
+### 다음 작업 큐 — **A 가 화면 이식이다**
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| **A** | **P5 — 화면별 이식** | large | ⭐ 토큰과 프리미티브가 다 섰다. 이제 화면이다 |
+| B | 격자 밖 리터럴 크기 138곳 정리 | medium | A 의 일부로 같이 해도 된다 |
+| C | 프록시 키 진단 하드닝 | small | `upstream_unreachable` 대신 `malformed_api_key` 로 (아래) |
+| D | `GEMINI_API_KEY` 를 나이틀리 시크릿에 추가 | small | **Simon 몫** (키 필요) |
+
+### A 를 시작하는 법
+
+**진입점**: `src/components/pixel/` (프리미티브) + `src/lib/theme/m3.ts` (토큰).
+
+```
+1) 화면 하나를 골라 m3TextStyle 을 쓰는지 본다.
+   쓰면 -> 타입은 이미 Galmuri 격자 위에 있다. 도형만 옮기면 된다.
+   안 쓰면 -> 리터럴 fontSize 를 격자 여섯 값(10/12/15/24/30/45)으로 먼저 옮긴다.
+2) 카드/버튼 면을 PixelSurface 로 바꾼다. 잘린 모서리가 생기는지 눈으로 확인.
+3) 반투명이 필요한 자리는 PixelDither / PixelScrim. opacity 를 쓰지 말 것.
+4) 누르는 것은 PixelPressable. 함수형 Pressable prop 금지(#680).
+```
+
+**⚠ 함정 5개 — 이걸 모르면 시간을 버린다**
+
+1. **크기가 곧 서체다.** Galmuri 는 자기 고유 크기(9→10px · 11→12px · 14→15px)의
+   **정수배에서만** 선명하다. 격자 밖 크기는 깨지지 않고 **흐려질 뿐**이라 리뷰에서 안 잡힌다.
+   `typeface.ts` 의 `faceForSize` 가 크기에서 얼굴을 정한다.
+2. **`m3.font.brand` 는 Galmuri14 가 아니라 Galmuri11 이다.** 이름만 보면 반대 같지만
+   그 138곳은 실제로 본문이고 11~14px 이다. 바꾸지 말 것.
+3. **굵기는 12px·24px 에서만 진짜다.** `galmuri` 패키지가 Bold 를 파는 얼굴은 Galmuri11 뿐이다.
+   15/30/45/10px 역할에 700 을 주면 안드로이드에서 가짜 굵기나 시스템 폰트로 떨어진다.
+4. **테두리를 `borderWidth` 로 그리지 말 것.** RN 은 모서리를 채워서 잘린 모서리 실루엣이
+   사라진다. `PixelSurface` 를 쓰고, 직접 그려야 하면 막대 4개를 양 끝에서 `u` 만큼 물린다.
+5. **디더 타일은 @2x/@3x 가 있어야 한다.** 없으면 RN 이 바이리니어로 늘려서 체커가 흐려진다 —
+   **실기기에서만 보인다.**
+
+**참조**: `docs/PIXEL-CLAY-MIGRATION.md`(SoT) · `design/pixel_clay_v4/REPO-NOTES.md`(착수 전 필독) ·
+`design/pixel_clay_v4/app/px-bridge.css`(단 아래 "브리지가 틀린 곳" 참조)
+
+**⚠ 브리지가 격자와 어긋나는 곳 4건.** `px-bridge.css` 는 크기와 서체를 따로 지정하는데
+`headline-small`(24px on Galmuri14 = 1.6배) · `title-large`/`title-medium`/`body-large`
+(15px on Galmuri11 = 1.25배)가 분수 배율이다. 번들 자신의 타입 토큰이 반대로 적고 있고
+(`--t-lg /* Galmuri14 x1 */`), **격자가 이기게 했다.** 근거는 `m3.ts` 헤더 주석에 있다.
+
+### C 를 시작하는 법 (작음, 이번 사고의 후속)
+
+프록시가 키 모양을 검사해서 `500 server_misconfigured_malformed_api_key` + **시크릿 이름만**
+(값은 절대) 돌려주게 한다. 지금은 같은 상황이 `502 upstream_unreachable` 로 나와서
+**벤더 장애와 구분이 안 된다** — 이번에 그거 알아내는 데 30분 걸렸다.
+
+### 이번 세션에서 확인된 것 (인용 가능)
+
+- **대화 벤더 전환은 실증됐다.** 클라이언트 번들(`"openai"` 리터럴) · 배포 프록시 좌석 ·
+  실호출 200 · 원장 `reasoning_vendor=openai` 네 겹 전부. 서버 소유 라우팅도 실증 —
+  `effort:"max"` + 가짜 모델을 보냈는데 원장에 `low` / `gpt-5.4` 로 남았다.
+- **`ai_audit_log` 에 gemini 아닌 행이 이번에 처음 생겼다.**
+- 나이틀리 dry-run 의 "추론 좌석 9개" 라벨은 **틀렸다** — 전역 킬스위치라 13좌석 전부였다.
+  #1272 이후로는 라벨대로 동작한다.
+
+### 적용 중인 정책 (영구)
+
+1. **보고는 항상 Artifact HTML** + 채팅엔 링크와 3~5줄 요약. 그림 최대한
+2. CI 그린이면 자동 머지. **`main` 직접 push 금지 — 항상 PR**
+3. 워크트리에서 작업. 정본 체크아웃 직접 편집 금지
+4. **가드는 변이 검증까지** — 이번 세션 27/27. **그 중 2건이 아무것도 안 지키고 있었다:**
+   정규식의 `\b` 가 셸 왕복에서 **실제 백스페이스 바이트**로 망가져 있었고, 다른 하나는
+   주석만 남아도 통과하는 `toContain` 이었다. **변이 검증이 없었으면 둘 다 못 찾는다.**
+   ⚠ 셸 heredoc 은 백슬래시를 먹는다. 정규식을 쓴 뒤 `grep -P '[\x00-\x1f]'` 로 확인할 것
+5. **개수 핀 금지** — `expect(x.length).toBe(N)` 은 치환을 못 잡는다. 이름 목록으로
+6. 브라우저는 이름으로 죽이지 않는다 — 내가 spawn 한 PID 만
+7. `docs/flow-debugger.html` 은 자동 생성물. dirty 로 떠도 **커밋하지 말고 되돌린다**
+
+### 결제 세션과의 경계
+
+`src/lib/billing` · `src/lib/entitlements` · `db/migrations` · `docs/cowork-*.md` 는
+**결제 세션 소유**다. 이번 세션은 그 중 아무것도 안 건드렸다. 다만 `src/app/subscription.tsx` 와
+`src/screens/deepspace/dds-plans-screen.tsx` 의 **간격 토큰 한 줄씩**은 고쳤다(토큰 변경의
+직접 결과 — 환불 확인 버튼 간격, 법적 링크 히트영역 겹침).
+
+### 핵심 파일 위치
+
+```
+docs/PIXEL-CLAY-MIGRATION.md        시각 이주 SoT
+design/pixel_clay_v4/REPO-NOTES.md  착수 전 필독
+src/lib/theme/m3.ts                 토큰 (이름 M3 · 값 PIXEL-CLAY). 헤더에 격자 규칙
+src/components/m3/typeface.ts       크기 -> 얼굴 리졸버
+src/components/pixel/               프리미티브 (Surface · Dither · Pressable)
+scripts/build-font-subsets.py       Galmuri 서브셋 레시피 (되살린 것)
+scripts/build-dither-tiles.py       디더 타일 생성
+scripts/refresh-models.ts           모델 최신화 (secretsFor 가 순수 함수)
+```
+
+### 검증
+
+```bash
+npm run verify    # 22단계 · 473 suites
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(P5 화면 이식)부터 시작.
+# 단, Simon 이 OPENAI_API_KEY 를 고쳤는지 먼저 확인할 것 — 위 ⚠ 절 참조
+```
+
+---
+
+## 2026-08-20 / 환불 경로 분리(0136) · 연간 결제 · Paddle 키 만료
 
 > **새 세션은 이 블록을 먼저 읽을 것.** 그림 포함 상세 보고:
 > <https://claude.ai/code/artifact/5c173f9e-8dae-43de-9fbe-a0ed70a0a5cb>
