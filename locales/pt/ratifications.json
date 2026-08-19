@@ -35,10 +35,12 @@
       "weak": "conexão fraca"
     },
     "reminder": {
-      "label": "Lembre-me às 9:00",
+      "label": "Lembrete diário às {{time}}",
       "desc": "Toca só neste aparelho. Você pode desativar quando quiser.",
       "notifBody": "Vamos revisar as conexões reunidas dos seus registros?",
-      "denied": "As notificações estão desativadas para este app. Ative-as nas Configurações."
+      "denied": "As notificações estão desativadas para este app. Ative-as nas Configurações.",
+      "timeTitle": "Horário do lembrete",
+      "timeHint": "Fica apenas neste aparelho."
     }
   }
 }
