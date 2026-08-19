@@ -79,3 +79,41 @@ describe('pickApiKey', () => {
     expect(pickApiKey(get, 'OPENAI', 'gpt-5.4', 'high', BASE).apiKey).toBe('sk-high');
   });
 });
+
+// ── 2026-08-19 회귀 ──────────────────────────────────────────────────
+//
+// 콤보 분기만 trim 하고 기본키 분기는 안 하고 있었다. 대시보드에 붙여넣은 시크릿은
+// 끝에 개행이 남고, 헤더 값의 개행은 경고가 아니라 `fetch` 가 **던진다** —
+// `TypeError: Failed to construct 'Request'`. 프록시는 그걸 `upstream_unreachable`
+// 로 보고하므로 **벤더 장애처럼 보인다.**
+//
+// 그 비대칭은 콤보 키가 있는 동안만 숨어 있었다. 나이틀리 모델 최신화가 좌석을
+// gpt-5.4 -> gpt-5.5 로 올리자 콤보 이름이 같이 바뀌었고(__GPT54__ -> __GPT55__),
+// 그 시크릿이 없으니 기본키로 떨어졌고, 대화 표면이 502 로 죽었다.
+describe("기본키 폴백도 trim 한다", () => {
+  const noEnv = () => undefined;
+
+  it("개행이 붙은 기본키를 그대로 돌려주지 않는다", () => {
+    const r = pickApiKey(noEnv, "OPENAI", "gpt-5.5", "low", "sk-test-value\n");
+    expect(r.apiKey).toBe("sk-test-value");
+    expect(r.usedCombo).toBe(false);
+  });
+
+  it("헤더 값으로 쓸 수 있는 문자열이 나온다", () => {
+    // 이 시험의 요점: 문자열 비교가 아니라 **헤더로 실제로 구성되는가**.
+    for (const dirty of ["sk-a\n", " sk-b ", "sk-c\r\n", "\tsk-d"]) {
+      const { apiKey } = pickApiKey(noEnv, "OPENAI", "gpt-5.5", "low", dirty);
+      expect(() => new Headers({ authorization: `Bearer ${apiKey}` })).not.toThrow();
+    }
+  });
+
+  it("콤보 키가 있을 때도 여전히 trim 한다", () => {
+    const r = pickApiKey((k) => (k.includes("GPT54") ? "sk-combo\n" : undefined), "OPENAI", "gpt-5.4", "low", "sk-base");
+    expect(r.apiKey).toBe("sk-combo");
+    expect(r.usedCombo).toBe(true);
+  });
+
+  it("빈 기본키는 빈 문자열로 남는다 (프록시의 미설정 가드가 잡도록)", () => {
+    expect(pickApiKey(noEnv, "OPENAI", "gpt-5.5", "low", "   ").apiKey).toBe("");
+  });
+});

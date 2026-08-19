@@ -179,7 +179,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'missing_authorization' }, 401);
   }
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  // .trim(): a secret pasted into the dashboard keeps its trailing newline, and a
+  // newline in a header value makes `fetch` THROW rather than warn. See
+  // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
+  const apiKey = (Deno.env.get('ANTHROPIC_API_KEY') ?? '').trim();
   if (!apiKey || apiKey.length === 0) {
     return jsonResponse(req, { error: 'server_misconfigured_missing_ANTHROPIC_API_KEY' }, 500);
   }
