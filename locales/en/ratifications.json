@@ -35,10 +35,12 @@
       "weak": "weak link"
     },
     "reminder": {
-      "label": "Remind me at 9:00 AM",
+      "label": "Remind me daily at {{time}}",
       "desc": "Rings on this device only. Turn it off anytime.",
       "notifBody": "Review the connections gathered from your records?",
-      "denied": "Notifications are off for this app. Turn them on in Settings."
+      "denied": "Notifications are off for this app. Turn them on in Settings.",
+      "timeTitle": "Reminder time",
+      "timeHint": "Stays on this device."
     }
   }
 }

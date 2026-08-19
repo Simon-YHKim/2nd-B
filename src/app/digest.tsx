@@ -26,7 +26,11 @@ import {
 } from "@/lib/wiki/queries";
 import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
 import {
+  DAILY_REVIEW_HOURS,
   dailyReviewSupported,
+  formatDailyReviewHour,
+  loadDailyReviewHour,
+  setDailyReviewHourPref,
   loadDailyReviewEnabled,
   scheduleDailyReview,
   cancelDailyReview,
@@ -91,9 +95,12 @@ export default function Digest() {
   const [reminderOn, setReminderOn] = useState(false);
   const [reminderBusy, setReminderBusy] = useState(false);
   const [reminderDenied, setReminderDenied] = useState(false);
+  // 알림 시각 (Simon 결정 B3). 지금까지 09:00 하드코딩이었다.
+  const [reminderHour, setReminderHour] = useState(9);
 
   useEffect(() => {
     if (!remindersOk) return;
+    void loadDailyReviewHour().then(setReminderHour);
     let cancelled = false;
     void loadDailyReviewEnabled().then((on) => {
       if (!cancelled) setReminderOn(on);
@@ -111,7 +118,7 @@ export default function Digest() {
         if (next) {
           const title = t("digest.title");
           const body = t("digest.reminder.notifBody");
-          const res = await scheduleDailyReview(9, 0, title, body);
+          const res = await scheduleDailyReview(reminderHour, 0, title, body);
           if (res === "scheduled") {
             setReminderOn(true);
             setDailyReviewEnabledPref(true);
@@ -128,6 +135,24 @@ export default function Digest() {
       }
     },
     [t],
+  );
+
+  // 시각을 바꾸면 이미 걸린 알림을 다시 건다. `scheduleDailyReview` 가 같은
+  // identifier 로 취소 후 재예약하므로 알림이 쌓이지 않는다.
+  const pickReminderHour = useCallback(
+    async (hour: number) => {
+      if (hour === reminderHour) return;
+      setReminderHour(hour);
+      setDailyReviewHourPref(hour);
+      if (!reminderOn) return;
+      setReminderBusy(true);
+      try {
+        await scheduleDailyReview(hour, 0, t("digest.title"), t("digest.reminder.notifBody"));
+      } finally {
+        setReminderBusy(false);
+      }
+    },
+    [reminderHour, reminderOn, t],
   );
 
   if (loading) return <InlineLoader />;
@@ -243,6 +268,38 @@ export default function Digest() {
                 void toggleReminder(v);
               }}
             />
+            {reminderOn ? (
+              <View style={styles.hourBox}>
+                <Text variant="caption" color="textMuted">
+                  {t("digest.reminder.timeTitle")}
+                </Text>
+                <View style={styles.hourRow}>
+                  {DAILY_REVIEW_HOURS.map((h) => {
+                    const on = h === reminderHour;
+                    return (
+                      <Pressable
+                        key={h}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={formatDailyReviewHour(h)}
+                        disabled={reminderBusy}
+                        onPress={() => {
+                          void pickReminderHour(h);
+                        }}
+                        style={[styles.hourChip, on ? styles.hourChipOn : null]}
+                      >
+                        <Text variant="caption" color={on ? "brand" : "textMuted"}>
+                          {formatDailyReviewHour(h)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text variant="caption" color="textMuted">
+                  {t("digest.reminder.timeHint")}
+                </Text>
+              </View>
+            ) : null}
             {reminderDenied ? (
               <Text variant="subtle" color="textMuted" style={styles.center}>
                 {t("digest.reminder.denied")}
@@ -263,6 +320,19 @@ const styles = StyleSheet.create({
   intro: { marginTop: 4 },
   center: { textAlign: "center" },
   reminder: { gap: 6, marginTop: deepSpaceSpacing.md },
+  hourBox: { gap: 6, marginTop: deepSpaceSpacing.xs },
+  hourRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  hourChip: {
+    // 44px 터치 타깃 (PRD 불변식). 칩이 작아 오탭이 잦은 자리다.
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    borderRadius: deepSpaceRadii.sm,
+    backgroundColor: deepSpace.card,
+  },
+  hourChipOn: { borderColor: deepSpace.accent },
   empty: { gap: deepSpaceSpacing.md, alignItems: "center", paddingVertical: deepSpaceSpacing.lg },
   row: {
     backgroundColor: deepSpace.card,
