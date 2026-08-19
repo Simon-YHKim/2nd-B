@@ -504,16 +504,16 @@ const styles = StyleSheet.create({
   // head
   headRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   headline: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
-  levelChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: m3.color.tertiaryContainer },
+  levelChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: m3.color.tertiaryContainer },
   levelChipText: { color: m3.color.onTertiaryContainer, fontFamily: m3.font.brand, fontWeight: "600" },
   confidence: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
   subtitle: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4, marginBottom: 16 },
 
   // 가치관 — CORE VALUES top-3 card
-  coreCard: { borderRadius: 16, padding: 18, backgroundColor: m3.color.primaryContainer, borderWidth: 1, borderColor: m3.color.outlineVariant },
+  coreCard: { borderRadius: m3.shape.none, padding: 18, backgroundColor: m3.color.primaryContainer, borderWidth: 1, borderColor: m3.color.outlineVariant },
   coreLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: withAlpha(m3.color.onPrimaryContainer, 0.8), marginBottom: 12 },
   coreRow: { flexDirection: "row", gap: 8 },
-  coreCell: { flex: 1, alignItems: "center", paddingVertical: 12, paddingHorizontal: 6, borderRadius: 12, backgroundColor: m3.color.surface, borderWidth: 1, borderColor: m3.color.outlineVariant },
+  coreCell: { flex: 1, alignItems: "center", paddingVertical: 12, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: m3.color.surface, borderWidth: 1, borderColor: m3.color.outlineVariant },
   coreCellFirst: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
   coreRank: { fontFamily: m3.font.mono, fontSize: 11, color: m3.color.onSurfaceVariant },
   coreRankFirst: { color: m3.color.onPrimary },
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   // 동기 — 내적 ↔ 외적 balance bar
   balanceCard: { padding: 16 },
   balanceTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginBottom: 10 },
-  balanceBar: { flexDirection: "row", height: 38, borderRadius: 10, overflow: "hidden" },
+  balanceBar: { flexDirection: "row", height: 38, borderRadius: m3.shape.none, overflow: "hidden" },
   balanceIntrinsic: { flex: 68, backgroundColor: m3.color.primary, alignItems: "center", justifyContent: "center" },
   // lineHeight (~1.38x) — the bar is overflow:hidden height 38, so a Korean
   // 내적/외적 %  numberOfLines Text with no line box gets its 받침 clipped on Android.
@@ -534,10 +534,10 @@ const styles = StyleSheet.create({
 
   // 강점 — 3 signature cards
   sigRow: { flexDirection: "row", gap: 8 },
-  sigCard: { flex: 1, padding: 14, alignItems: "center", borderRadius: 12 },
+  sigCard: { flex: 1, padding: 14, alignItems: "center", borderRadius: m3.shape.none },
   sigCardFirst: { backgroundColor: m3.color.surfaceContainerLow, borderWidth: 2, borderColor: m3.color.primary, ...m3.elevation.level1 },
   sigCardRest: { backgroundColor: m3.color.surfaceContainerHighest },
-  sigIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  sigIconBox: { width: 40, height: 40, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   sigIconBoxFirst: { backgroundColor: m3.color.primary },
   sigIconBoxRest: { backgroundColor: m3.color.secondaryContainer },
   sigName: { color: m3.color.onSurface, fontFamily: m3.font.brand, textAlign: "center" },
