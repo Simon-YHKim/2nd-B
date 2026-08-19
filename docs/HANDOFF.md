@@ -3,7 +3,132 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-20 / 한국 결제 방향 확정 + 크레딧 원장 0134·0135 랜딩
+## Latest — 2026-08-20 / 결정 14건 착지 완료 — 다음은 **화면 작업**이다
+
+### 어디까지 왔나
+
+- main HEAD: `904f1c3a`
+- 테스트: **469 suites / 4,070 tests 그린** (`npm run verify`, 22단계)
+- working tree: clean · 열린 PR: 0건 (내 몫)
+- 마이그레이션 최댓값: **`0135`** → 다음 번호는 `0136`
+  (⚠ #1265 제목에 "0136" 이 있지만 파일은 없다. 쓰기 직전 `origin/main` 최댓값 재확인할 것)
+
+**이번 세션 머지 (코딩 세션 몫 17건)**
+
+| PR | 무엇 |
+|---|---|
+| #1244 | 모델 승격 구멍 차단 — 추론 좌석 9개가 검색 전용 모델로 갈 뻔했다 |
+| #1245 | **PIXEL-CLAY v4 채택** + 인수 자료 반입 (`design/pixel_clay_v4/`, 112파일) |
+| #1246 | 설정 → 개발자 → 화면 전체 목록 (`/dev-screens`) |
+| #1247 · #1249 | `CLAUDE.md`·`AGENTS.md` 낡은 사실 정정 + 테스트로 고정 |
+| #1251 · #1255 | 캐논이 앱 라우트를 **전부** 안다 (58 → 111, `uncovered = []`) |
+| #1252 · #1253 | 조사 헬퍼 + 가드 · PRD 어휘 20곳 |
+| #1259 | **결정 14건 기록** (`docs/DECISIONS-260820.md`) |
+| **#1263** | **PIXEL-CLAY 토큰 층 1단계** — 라운드 0 · 그림자 제거 · 계단 모션 · midnight |
+| #1260 · #1262 · #1264 | 알림 시각 선택 · 대화 저장 안내 · 코드 한국어 분류 가드 |
+
+결제 세션(별도)이 같은 기간에 #1248 #1250 #1256 #1258 #1261 #1265 #1267 을 넣었다.
+
+### 활성 인프라
+
+- Supabase: `SUPABASE_PROJECT_REF` / `SUPABASE_ACCESS_TOKEN` 는 **repo secrets**.
+  엣지 배포는 `.github/workflows/deploy-edge-function.yml` (workflow_dispatch)
+- 웹: GitHub Pages (`baseUrl: /2nd-B`). **Vercel 아님**
+- 개발자 화면을 폰에서 보려면: `gh workflow run web-deploy.yml -f allow_dev_tier=true`
+- 대화 벤더: `EXPO_PUBLIC_CHAT_VENDOR=openai` (플립됨, **실사용 검증 미완**)
+
+---
+
+### 다음 작업 큐 — **A 가 화면 작업이다**
+
+| # | 작업 | 크기 | 권장 |
+|---|---|---|---|
+| **A** | **PIXEL-CLAY 토큰 층 2단계 — 간격 + 타입 + 폰트** | large | ⭐ **화면이 실제로 픽셀아트가 되는 단계.** 1단계는 라운드·색만이라 아직 M3 골격이다 |
+| B | 화면별 도형·디더 프리미티브 | large | A 다음. 정수 `rect` · 디더 타일 · press translateY |
+| C | 대화 벤더 전환 실사용 검증 | small | QA 계정으로 대화 1건 → `ai_audit_log` 확인 |
+| D | `MODEL_REFRESH_APPLY` 켜기 | small | #1244 가 선행 조건을 닫았다 (콘솔 몫) |
+
+### A 를 시작하는 법 — 읽어야 할 것과 함정
+
+**진입점**: `src/lib/theme/m3.ts` 의 `m3Spacing` · `m3Type` · `m3Font`.
+
+```
+1) src/lib/theme/__tests__/m3.test.ts 의 "아직 안 바꾼 것" 블록을 연다.
+   그 블록이 지금 `m3Spacing.s1 === 4` 를 박아두고 있다 —
+   **그걸 깨는 것이 2단계의 시작 신호**다. 깨고 나서 블록을 지운다.
+2) 목표값: --u = 2px (Simon 결정 P1)
+   s1=2 · s2=4 · s3=6 · s4=8 · s5=10 · s6=12 · s8=16
+   타입: Galmuri 10/12/15/24/30/45px 만 (PRD §2-4)
+3) 폰트 3종 추가 (P3): Galmuri14 · Galmuri9 · GalmuriMono11
+   Galmuri11 은 **이미 있다** (assets/fonts/, typography.ts:48-51, OFL 고지 완료).
+   원본은 이미 쓰는 `galmuri` npm 패키지. **서브셋 범위와 번들 크기를 먼저 잴 것**
+   (.ttf 가 2.5MB).
+```
+
+**⚠ 함정 4개 — 이걸 모르면 시간을 버린다**
+
+1. **간격과 타입은 반드시 함께 간다.** 간격만 절반으로 줄이고 16px 본문을 두면
+   화면이 조이기만 한다. 이게 1단계에서 멈춘 이유다.
+2. **인수 스크린샷 12장은 실제 폰의 두 배 크기다.** `--u:4px`(데스크톱 창)에서 찍혔다.
+   2px 로 만들면 시안보다 촘촘하게 보이는 것이 **정상**이다. 시안이 틀린 게 아니다.
+3. **`m3.*` 이름을 바꾸지 말 것.** 35개 파일이 `StyleSheet.create` 안에서 모듈
+   스코프로 읽는다(`check:cycles` 가 무관용인 이유). **값만** 갈아끼운다.
+4. **캐논 토큰은 앱 토큰과 안 묶여 있다.** 이전 문서의 "같은 PR 이어야 한다" 는
+   **틀린 경고였다**(#1263 에서 정정). `canon-tokens.test.ts` 는 rev2 프로토타입
+   미러를 자기 자신하고만 대조한다.
+
+**참조**: `docs/PIXEL-CLAY-MIGRATION.md`(SoT) · `design/pixel_clay_v4/REPO-NOTES.md`(**착수 전 필독**) ·
+`design/pixel_clay_v4/app/px-bridge.css`(웹판 브리지 — 매핑을 지어내지 말고 이걸 따를 것)
+
+### Simon 대기 2건
+
+- **C2** — age 개인키가 KeePass 에 있는지 확인
+- **D2** 는 해결됐다 — 결제 세션이 #1267 로 연간 결제 도달 문제를 고쳤다
+
+### 적용 중인 정책 (영구)
+
+1. **보고는 항상 Artifact HTML** + 채팅엔 링크와 3~5줄 요약. 그림 최대한
+2. CI 그린이면 자동 머지. **`main` 직접 push 금지 — 항상 PR**
+3. 워크트리에서 작업. 정본 체크아웃 직접 편집 금지
+4. **가드는 변이 검증까지** — 일부러 깨뜨려 그 가드가 발화하는지 확인하고 PR 에 적는다
+   ("100% 나오게 설계한 실증은 무효")
+5. **개수 핀 금지** — `expect(x.length).toBe(N)` 은 치환을 못 잡는다. 이름 목록으로
+6. 브라우저는 이름으로 죽이지 않는다 — 내가 spawn 한 PID 만
+7. `docs/flow-debugger.html` 은 자동 생성물. dirty 로 떠도 **커밋하지 말고 되돌린다**
+
+### 결제 세션과의 경계
+
+`src/lib/billing` · `src/lib/entitlements` · `db/migrations` · `docs/cowork-*.md` 는
+**결제 세션 소유**다. 건드리지 말 것. 그쪽은 지금 A1=D(Paddle 한국 결제수단) 실행 중.
+
+### 핵심 파일 위치
+
+```
+docs/DECISIONS-260820.md            결정 14건 정본
+docs/PIXEL-CLAY-MIGRATION.md        시각 이주 SoT
+design/pixel_clay_v4/REPO-NOTES.md  착수 전 필독 — 어긋나는 곳 6건 + 함정 5건
+src/lib/theme/m3.ts                 토큰 (이름 M3 · 값 PIXEL-CLAY)
+src/lib/theme/__tests__/m3.test.ts  2단계 시작 신호가 여기 있다
+src/lib/dev/screen-index.ts         앱 화면 97개 전수 (캐논과 이름 대조됨)
+src/lib/i18n/__tests__/korean-in-code.test.ts   한국어=카피 vs 규칙 분류표
+```
+
+### 검증
+
+```bash
+npm run verify    # 22단계 · 469 suites / 4,070 tests
+```
+
+### 다음 세션 시작하는 법
+
+```bash
+git fetch origin main && git pull origin main && cat docs/HANDOFF.md
+# A 작업(토큰 층 2단계 — 간격+타입+폰트)부터 시작
+```
+
+---
+
+## 2026-08-20 / 한국 결제 방향 확정 + 크레딧 원장 0134·0135 랜딩
 
 > **새 세션은 이 블록을 먼저 읽을 것.** 상세 근거: `docs/cowork-reply-260819.md`,
 > 콘솔 큐: `docs/cowork-console-260820.md`
