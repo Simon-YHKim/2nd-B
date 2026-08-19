@@ -153,7 +153,7 @@ describe("0135 - the mirror keeps deployed clients correct", () => {
   });
 
   test("a drift view exists for the mirror specifically", () => {
-    expect(sql).toMatch(/CREATE OR REPLACE VIEW public\.credit_counter_drift/);
+    expect(sql).toMatch(/CREATE VIEW public\.credit_counter_drift/);
   });
 
   test("the balance drift view compares cache to raw ledger, not to available", () => {

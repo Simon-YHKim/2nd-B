@@ -1140,7 +1140,12 @@ $cron$;
 -- every user at every expiry and stayed there until the sweep ran. A tripwire that
 -- is always ringing is off. Compare the cache to what it actually caches; expiry
 -- is credit_available()'s job.
-CREATE OR REPLACE VIEW public.credit_balance_drift AS
+--
+-- DROP first, not CREATE OR REPLACE: 0134's version had a column named `derived`
+-- and this one renames it to `ledger_total`, which CREATE OR REPLACE VIEW rejects
+-- outright ("cannot change name of view column"). Nothing depends on this view.
+DROP VIEW IF EXISTS public.credit_balance_drift;
+CREATE VIEW public.credit_balance_drift AS
   SELECT b.user_id, b.balance_available AS cached,
          COALESCE(l.total, 0) AS ledger_total,
          b.balance_available - COALESCE(l.total, 0) AS drift
@@ -1154,7 +1159,8 @@ COMMENT ON VIEW public.credit_balance_drift IS
   'Empty when healthy. Compares the cache to the raw ledger sum, NOT to credit_available: expired-but-unswept lots are credit_available''s concern, and folding them in here would leave the tripwire permanently ringing after every month boundary.';
 
 -- Does the mirror still tell deployed clients the truth?
-CREATE OR REPLACE VIEW public.credit_counter_drift AS
+DROP VIEW IF EXISTS public.credit_counter_drift;
+CREATE VIEW public.credit_counter_drift AS
   SELECT uc.user_id,
          uc.reward_credits  AS mirrored_earned,
          uc.reward_consumed AS mirrored_consumed,
