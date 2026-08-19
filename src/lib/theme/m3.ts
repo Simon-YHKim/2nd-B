@@ -1,9 +1,37 @@
-// Material 3 token foundation for the rev2 (PRD v2.0) migration — P1.
+// 토큰 기반 — **PIXEL-CLAY v4** (Simon 결정 V1 2026-08-19, 이식 결정 P1~P5 2026-08-20).
 //
-// Source of truth: the rev2 prototype `m3-theme.css` (cyan palette = "별자리 시안":
-// azure primary + violet tertiary = the 세컨비 head). The app default is the CYAN
-// DARK theme (PRD §13: "기본은 다크"). Values below are transcribed 1:1 from the
-// prototype so migrated screens match it exactly.
+// ## 이름은 M3, 값은 PIXEL-CLAY
+//
+// 이 파일의 **이름(`m3.color.primary` 같은 역할 이름)은 그대로 두고 값만 갈아끼운다.**
+// 35개 파일이 `StyleSheet.create` 안에서 모듈 스코프로 `m3.*` 를 읽기 때문에
+// (`check:cycles` 가 무관용 게이트인 이유), 이름을 바꾸면 그 전부를 건드려야 한다.
+// 인수 번들도 웹에서 정확히 같은 일을 한다 — `design/pixel_clay_v4/app/px-bridge.css`
+// 가 M3 어휘 30개를 PIXEL-CLAY 시맨틱으로 별칭한다. 이 파일은 그 브리지의 RN 판이다.
+//
+// 매핑은 지어내지 않고 그 브리지와 `_ds/tokens/{palettes,semantic}.css` 를 그대로 따랐다.
+//
+// ## 팔레트: midnight 고정 (P2)
+//
+// 번들은 45개 팔레트를 런타임 교체하지만 배포된 프로토타입은 `midnight` 하나로 고정돼
+// 있고, Simon 이 런타임 교체를 **안 가져오기로** 정했다. 그래서 여기 값은 상수다.
+//
+//   c00 #0a0e18  c01 #141b2e  c02 #232e4a  c03 #3d4866
+//   c04 #8b96b0  c05 #b0b9cc  c06 #d4dae6  c07 #eaeef5
+//   c08 #ffffff  c09 #5b8def  c10 #2f5fc0  c11 #9db8f5
+//   c12 #3fa88a  c13 #4d8fd6  c14 #e0a63c  c15 #db5b57
+//
+// dark 시맨틱(`semantic.css` `.theme-dark`):
+//   bg=c00 · panel=c01 · panel-2=c02 · sunken=c00 · fg=c07 · fg-muted=c04
+//   edge=c00 · edge-soft=c02 · bevel-hi=c03 · bevel-lo=c00 · focus=c11
+//
+// ## 아직 안 바꾼 것 — 다음 단계
+//
+// **간격(`m3Spacing`)과 타입(`m3Type`)은 그대로 두었다.** 그 둘은 레이아웃 치수를
+// 바꾸므로 함께 움직여야 한다 — PIXEL-CLAY 의 `--u:2px` 격자는 간격을 절반으로
+// 만들고 타입도 10~15px 로 내린다. 간격만 절반으로 줄이고 16px 본문을 두면 화면이
+// 조이기만 한다. 폰트 3종 추가(P3)도 같은 단계다.
+//
+// 지금 바뀐 것은 **레이아웃 치수를 건드리지 않는 것들**이다: 라운드 · 깊이 · 모션 · 색.
 //
 // ADDITIVE: this does NOT replace `tokens.ts`. Screens migrate to `m3.*` phase by
 // phase (REV2-MIGRATION.md P2+). For a migrated component, `m3.color.*` is the
@@ -12,48 +40,56 @@
 
 /** M3 color roles — cyan palette, DARK theme (the app default). */
 export const m3ColorDark = {
-  primary: "#86CFFF",
-  onPrimary: "#00344C",
-  primaryContainer: "#004C6D",
-  onPrimaryContainer: "#C8E6FF",
-  inversePrimary: "#00658F",
+  // primary = --accent(c09) / on-primary = --accent-fg(c01) / container = --accent-deep(c10)
+  primary: "#5b8def",
+  onPrimary: "#141b2e",
+  primaryContainer: "#2f5fc0",
+  onPrimaryContainer: "#eaeef5",
+  inversePrimary: "#2f5fc0",
 
-  secondary: "#B6CAD8",
-  onSecondary: "#20333E",
-  secondaryContainer: "#374955",
-  onSecondaryContainer: "#D2E5F4",
+  // secondary = c04 / on = c01 / container = panel-2(c02) / on-container = c06
+  secondary: "#8b96b0",
+  onSecondary: "#141b2e",
+  secondaryContainer: "#232e4a",
+  onSecondaryContainer: "#d4dae6",
 
-  // Tertiary = the 세컨비 head violet.
-  tertiary: "#D4BBFF",
-  onTertiary: "#3B1E72",
-  tertiaryContainer: "#523B8B",
-  onTertiaryContainer: "#EADDFF",
+  // tertiary = 세컨비 머리 보라 (--ds-nebula). 딥스페이스 브랜드 레이어의 값이라
+  // 팔레트가 아니라 pixel-deepspace.css 에서 온다.
+  tertiary: "#A78BFA",
+  onTertiary: "#141b2e",
+  tertiaryContainer: "#4C3A8C",
+  onTertiaryContainer: "#E2D6FF",
 
-  error: "#F2B8B5",
-  onError: "#601410",
-  errorContainer: "#8C1D18",
-  onErrorContainer: "#F9DEDC",
+  error: "#db5b57",
+  onError: "#141b2e",
+  errorContainer: "#db5b57",
+  onErrorContainer: "#141b2e",
 
-  background: "#0B0F14",
-  onBackground: "#DEE3E8",
-  surface: "#0B0F14",
-  onSurface: "#DEE3E8",
-  surfaceVariant: "#41484D",
-  onSurfaceVariant: "#C1C7CE",
-  surfaceDim: "#0B0F14",
-  surfaceBright: "#31353A",
+  background: "#0a0e18",
+  onBackground: "#eaeef5",
+  surface: "#0a0e18",
+  onSurface: "#eaeef5",
+  // surface-variant = --sunken(c00) / on = --fg-muted(c04)
+  surfaceVariant: "#0a0e18",
+  onSurfaceVariant: "#8b96b0",
+  surfaceDim: "#0a0e18",
+  surfaceBright: "#3d4866",
 
-  surfaceContainerLowest: "#06090D",
-  surfaceContainerLow: "#131820",
-  surfaceContainer: "#171D25",
-  surfaceContainerHigh: "#222833",
-  surfaceContainerHighest: "#2C333E",
+  // 브리지: lowest/low/container = --panel(c01), high/highest = --panel-2(c02)
+  surfaceContainerLowest: "#141b2e",
+  surfaceContainerLow: "#141b2e",
+  surfaceContainer: "#141b2e",
+  surfaceContainerHigh: "#232e4a",
+  surfaceContainerHighest: "#232e4a",
 
-  inverseSurface: "#DEE3E8",
-  inverseOnSurface: "#2D3135",
-  outline: "#8B9298",
-  outlineVariant: "#41484D",
-  surfaceTint: "#86CFFF",
+  inverseSurface: "#eaeef5",
+  inverseOnSurface: "#141b2e",
+  // ⚠ outline / outline-variant 는 브리지에서 **둘 다 --edge-soft(c02)** 다.
+  // PRD §2-2 가 명시적으로 금지한다: `C('outline')` 을 본문 텍스트에 쓰지 말 것 —
+  // 보더 전용이라 배경과 구분되지 않는다. 본문 보조는 onSurfaceVariant 를 쓴다.
+  outline: "#232e4a",
+  outlineVariant: "#232e4a",
+  surfaceTint: "#5b8def",
   scrim: "#000000",
 } as const;
 
@@ -208,15 +244,19 @@ export const m3Type = {
 
 /** M3 shape corner radii (px). */
 export const m3Shape = {
+  // PIXEL-CLAY 절대 규칙 2: `border-radius: 0` — 전 화면 강제.
+  // 브리지도 `--md-sys-shape-corner-*` 아홉 개를 전부 0 으로 만든다
+  // ("shape: the grid has no corners"). 이름을 남긴 이유는 호출부 수백 곳을
+  // 건드리지 않기 위해서다 — `full` 까지 0 이라 알약 모양도 사각이 된다.
   none: 0,
-  extraSmall: 4,
-  small: 8,
-  medium: 12,
-  large: 16,
-  largeIncreased: 20,
-  extraLarge: 28,
-  extraLargeIncreased: 32,
-  full: 9999,
+  extraSmall: 0,
+  small: 0,
+  medium: 0,
+  large: 0,
+  largeIncreased: 0,
+  extraLarge: 0,
+  extraLargeIncreased: 0,
+  full: 0,
 } as const;
 
 interface Elevation {
@@ -231,12 +271,21 @@ interface Elevation {
  * umbra; `elevation` drives Android). Dark theme uses black shadows.
  */
 export const m3Elevation = {
+  // PIXEL-CLAY 절대 규칙 3: 블러 금지. 그래서 그림자가 없다 — 깊이는 **4방향 베벨과
+  // 쌓임 순서**로만 표현한다(`_ds/tokens/elevation.css`: "There is no shadow-based
+  // elevation in this system (blur is banned)"). 브리지도 level1~5 를 전부 같은
+  // `--ds-edge` 로 만든다.
+  //
+  // 레벨 이름을 남긴 이유는 호출부를 안 건드리기 위해서다. 값은 전부 평평하다 —
+  // RN `shadowRadius` 는 블러 반경이므로 0 이 아니면 규칙 위반이다.
+  //
+  // 베벨 프리미티브는 다음 단계다(P4 와 함께). 지금은 **그림자를 없애는 것**까지다.
   level0: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
-  level1: { shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 1 },
-  level2: { shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 },
-  level3: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
-  level4: { shadowColor: "#000", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8 },
-  level5: { shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 12 },
+  level1: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  level2: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  level3: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  level4: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+  level5: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
 } as const satisfies Record<string, Elevation>;
 
 /** M3 interactive state-layer opacities (overlay currentColor at these). */
@@ -259,13 +308,24 @@ export const m3Spacing = {
 
 /** M3 motion — easing bezier control points (for Easing.bezier) + durations (ms). */
 export const m3Motion = {
+  // PIXEL-CLAY 절대 규칙 5: `steps()` 이징만. 곡선 이징은 **부분 픽셀 위치**를
+  // 만들어서 픽셀 격자가 흐려진다(`_ds/tokens/motion.css`: "ease / cubic-bezier /
+  // linear produce sub-pixel positions").
+  //
+  // 웹은 `steps(n,end)` 를 쓰고 RN 에는 `Easing.step0/step1` 밖에 없다. 그래서
+  // **베지어 배열의 모양은 유지하되 계단에 가까운 제어점**을 쓴다 — 호출부가
+  // `Easing.bezier(...m3.motion.easing.standard)` 로 쓰고 있어 배열이 아니면 깨진다.
+  // 진짜 계단 이징은 프리미티브 단계에서 `Easing.steps` 로 바꾼다.
+  //
+  // 지속시간은 번들 값(60 / 120 / 240ms)에 맞춰 내렸다. 원래 M3 값(150~500ms)은
+  // 픽셀아트에는 느리다.
   easing: {
-    standard: [0.2, 0, 0, 1],
-    emphasized: [0.2, 0, 0, 1],
-    emphasizedDecelerate: [0.05, 0.7, 0.1, 1],
-    emphasizedAccelerate: [0.3, 0, 0.8, 0.15],
+    standard: [0.99, 0, 1, 1],
+    emphasized: [0.99, 0, 1, 1],
+    emphasizedDecelerate: [0.99, 0, 1, 1],
+    emphasizedAccelerate: [0.99, 0, 1, 1],
   },
-  duration: { short3: 150, short4: 200, medium2: 300, medium4: 400, long2: 500 },
+  duration: { short3: 60, short4: 60, medium2: 120, medium4: 120, long2: 240 },
 } as const;
 
 /** The M3 token bundle. Import `m3` and read `m3.color.primary`, `m3.type.titleLarge`, etc. */

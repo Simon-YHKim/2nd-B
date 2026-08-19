@@ -188,9 +188,13 @@ M3 어휘 30개를 PIXEL-CLAY 시맨틱으로 별칭)、35개 모듈 스코프 �
 | **P5** | 화면별 도형·모션 정리 | P2~P4 |
 | **P6** | 캐논 JSON 을 PIXEL-CLAY 토큰으로 갱신 + `canon-tokens.test.ts` 갱신 | P2 |
 
-⚠ **P6 를 잊으면 CI 가 막는다.** `src/lib/canon/__tests__/canon-tokens.test.ts` 가
-현행 M3 팔레트 값(`primary #86CFFF` · `surface #0B0F14` 등)을 박아두고 있다.
-토큰을 바꾸면 캐논 JSON 과 그 테스트를 **같은 PR 에서** 함께 바꿔야 한다.
+⚠ **2026-08-20 정정 — 여기 적었던 캐논 결합은 사실이 아니었다.**
+`canon-tokens.test.ts` 는 `canonTokens`(= rev2 프로토타입의 `m3-theme.css` 미러)를
+**자기 자신하고만** 대조한다. 앱의 `m3.*` 와 캐논 토큰을 같다고 주장하는 코드는 없다.
+그래서 앱 토큰을 바꿔도 캐논 JSON 은 안 건드려도 된다 — 실제로 안 건드리고 통과했다.
+
+진짜 결합부는 **`src/lib/theme/__tests__/m3.test.ts`** 다. 그 파일이 이주 목표를
+박아두므로 토큰을 바꾸면 그 가드를 새 목표로 다시 박아야 한다.
 
 ## 5. 이 결정이 무효화하는 것
 
