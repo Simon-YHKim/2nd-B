@@ -382,5 +382,7 @@ const s = StyleSheet.create({
   ok: { color: m3.color.primary, fontSize: 14, lineHeight: 20 },
   warn: { color: m3.color.error, fontSize: 14, lineHeight: 20 },
   evidence: { gap: 2, paddingVertical: m3.spacing.s1 },
-  modalActions: { flexDirection: "row", gap: m3.spacing.s2, marginTop: m3.spacing.s2, justifyContent: "flex-end" },
+  // gap 은 s4 로 고정한다(= 이주 전과 같은 8px). 취소와 **되돌릴 수 없는 환불 실행**
+  // 사이 간격이라 밀도 규칙보다 오탭 비용이 크다.
+  modalActions: { flexDirection: "row", gap: m3.spacing.s4, marginTop: m3.spacing.s4, justifyContent: "flex-end" },
 });

@@ -36,8 +36,15 @@ libraries used under their respective licenses. The full list:
 
 - `NeoDunggeunmo-Regular.ttf`, `NeoDunggeunmoCode-Regular.ttf` —
   Neo둥근모 (Neo Dunggeunmo), SIL OFL 1.1
-- `Galmuri11-subset.ttf`, `Galmuri11-subset.woff2` — Galmuri11,
-  SIL OFL 1.1; subset derived from the `galmuri` npm package (^2.40.3)
+- `Galmuri11-subset.*`, `Galmuri11Bold-subset.*`, `Galmuri14-subset.*`,
+  `Galmuri9-subset.*`, `GalmuriMono11-subset.*` (`.ttf` native + `.woff2` web) —
+  Galmuri (c) 2019–2025 Lee Minseo (quiple), Reserved Font Name "Galmuri",
+  **SIL OFL 1.1**; subsets derived from the `galmuri` npm package (^2.40.3).
+  Rebuild with `python scripts/build-font-subsets.py` — that script carries the
+  character-set recipe and the reason for every range it keeps. Galmuri11 was
+  vendored in #282 (2026-06-08); the other four were added for PIXEL-CLAY
+  stage 2 (2026-08-20), when Galmuri became the body face rather than a title
+  face. Galmuri11 is the only face upstream ships a Bold for.
 - Press Start 2P — SIL OFL, loaded via
   `@expo-google-fonts/press-start-2p` (^0.4.1)
 - Roboto (400 / 500 / 700) — Apache-2.0, loaded via

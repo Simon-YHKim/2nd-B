@@ -24,14 +24,47 @@
 //   bg=c00 · panel=c01 · panel-2=c02 · sunken=c00 · fg=c07 · fg-muted=c04
 //   edge=c00 · edge-soft=c02 · bevel-hi=c03 · bevel-lo=c00 · focus=c11
 //
-// ## 아직 안 바꾼 것 — 다음 단계
+// ## 2단계 (2026-08-20) — 간격 · 타입 · 폰트
 //
-// **간격(`m3Spacing`)과 타입(`m3Type`)은 그대로 두었다.** 그 둘은 레이아웃 치수를
-// 바꾸므로 함께 움직여야 한다 — PIXEL-CLAY 의 `--u:2px` 격자는 간격을 절반으로
-// 만들고 타입도 10~15px 로 내린다. 간격만 절반으로 줄이고 16px 본문을 두면 화면이
-// 조이기만 한다. 폰트 3종 추가(P3)도 같은 단계다.
+// 1단계는 레이아웃 치수를 안 건드리는 것들만 바꿨다(라운드 · 깊이 · 모션 · 색).
+// 2단계가 나머지다. 셋은 **함께** 움직여야 한다 — 간격만 절반으로 줄이고 16px
+// 본문을 두면 화면이 조이기만 하고, 타입만 내리고 폰트를 안 넣으면 Galmuri 가
+// 없는 크기로 렌더된다.
 //
-// 지금 바뀐 것은 **레이아웃 치수를 건드리지 않는 것들**이다: 라운드 · 깊이 · 모션 · 색.
+//   간격  `--u` 4px -> **2px** (D1). s1..s8 이 전부 절반이 된다.
+//   타입  M3 15역할 -> Galmuri 격자 **10/12/15/24/30/45px 만**, tracking 0
+//   폰트  Galmuri 4종 추가 (14 · 9 · Mono11 · 11Bold). 11 은 원래 있었다.
+//
+// ### 크기가 곧 서체다 — 이 파일에서 제일 중요한 규칙
+//
+// Galmuri 는 비트맵 픽셀 폰트라 **자기 고유 크기의 정수배에서만 선명하다.**
+// upem 이 곧 그 크기다(100 units = 1px):
+//
+//   Galmuri9  upem 1000 -> 10px  (x1 10 · x2 20 · x3 30)
+//   Galmuri11 upem 1200 -> 12px  (x1 12 · x2 24 · x3 36)
+//   Galmuri14 upem 1500 -> 15px  (x1 15 · x2 30 · x3 45)
+//
+// 그래서 아래 `m3Type` 의 크기 여섯 개는 임의로 고른 값이 아니라 **저 정수배의
+// 합집합**이다(PRD §2-4 가 "10/12/15/24/30/45px만" 이라고 못박은 이유). 어느 역할이
+// 어느 서체로 그려질지는 `src/components/m3/typeface.ts` 가 **크기에서** 정한다.
+//
+// ⚠ 그래서 인수 번들을 그대로 옮기지 않은 곳이 네 군데 있다. `px-bridge.css` 는
+// 크기와 서체를 따로 지정하는데 그 둘이 격자에서 어긋나는 행이 있다 —
+// `headline-small` 은 24px 을 `--font-display`(Galmuri14, 1.6배)에 얹고,
+// `title-large`/`title-medium`/`body-large` 는 15px 을 `--font-ui`(Galmuri11,
+// 1.25배)에 얹는다. 번들 자신의 타입 토큰 주석이 반대로 적고 있다 —
+// `_ds/tokens/typography.css` 는 `--t-lg:15px /* Galmuri14 x1 */` ·
+// `--t-xl:24px /* Galmuri11 x2 */`, `_ds/css/typography.css:4-6` 도 h3(15px)을
+// Galmuri14 로 그린다. **격자가 이기게 했다.** 안 그러면 제일 많이 쓰는 두 크기가
+// 전부 흐려진다.
+//
+// ### 굵기는 Galmuri11 에만 있다
+//
+// `galmuri` 패키지가 Bold 를 파는 서체는 Galmuri11 하나다(dist 실측: Galmuri14 ·
+// Galmuri9 · GalmuriMono11 은 400 뿐). RN 은 얼굴이 없는 굵기를 요청하면 안드로이드에서
+// 가짜 굵기를 만들거나 시스템 폰트로 떨어지는데, 픽셀 폰트에서는 둘 다 격자를 깬다.
+// 그래서 **700 은 12px·24px(Galmuri11) 에서만** 쓴다. 15px·30px·45px·10px 역할은
+// 번들이 700 을 지시해도 여기서는 400 이다. 각 행에 이유를 적어뒀다.
 //
 // ADDITIVE: this does NOT replace `tokens.ts`. Screens migrate to `m3.*` phase by
 // phase (REV2-MIGRATION.md P2+). For a migrated component, `m3.color.*` is the
@@ -207,13 +240,27 @@ export const m3Persona = {
   twi: { accent: "#CFC4E8", soft: "#EDE7F7", softBg: "rgba(207,196,232,0.16)", glow: "rgba(245,230,190,0.55)" },
 } as const;
 
-/** Typefaces (PRD §13): Pretendard KO body + Roboto M3 chrome; Roboto Mono numerics. */
+/**
+ * Typefaces — Galmuri 픽셀 폰트 (PIXEL-CLAY 2단계). 값은 `src/theme/typography.ts`
+ * 의 `fontAssets` **키와 문자 그대로 같아야 한다** — RN 은 이 문자열로 등록된 얼굴을
+ * 찾고, 못 찾으면 조용히 시스템 폰트로 떨어진다. `typography-m3-fonts.test.ts` 가
+ * 그 짝을 지킨다.
+ *
+ * ⚠ `brand` 가 Galmuri14(디스플레이)가 **아니다.** 이름만 보면 그래야 할 것 같지만
+ * 이 저장소에서 `m3.font.brand` 는 실제로 본문 서체로 쓰인다 — 138곳 중 대부분이
+ * 11~14px 이고(실측: 13px x5 · 11 · 12.5 · 14 · 15 · 44), 15px 은 한 곳뿐이다.
+ * Galmuri14 를 여기 넣으면 그 138곳이 전부 1.25배 이하의 분수 배율로 흐려진다.
+ * 디스플레이 서체는 크기가 맞는 자리에서 `typeface.ts` 가 붙인다.
+ */
 export const m3Font = {
-  brand: "Pretendard",
-  plain: "Pretendard",
-  mono: "RobotoMono",
-  /** Roboto is the M3 chrome/label fallback; registered when the first M3 screen mounts (P2). */
-  chrome: "Roboto",
+  /** 본문·UI 기본 얼굴 (native 12px). */
+  brand: "Galmuri11",
+  plain: "Galmuri11",
+  /** 숫자·라벨 고정폭 (native 12px). */
+  mono: "GalmuriMono11",
+  /** 크롬/라벨 얼굴. 2단계 전에는 Roboto 였다. */
+  chrome: "Galmuri11",
+  /** 500 은 남겨두되 어떤 타입 역할도 쓰지 않는다 — Galmuri 에는 400/700 뿐이다. */
   weight: { regular: "400", medium: "500", bold: "700" },
 } as const;
 
@@ -223,23 +270,51 @@ interface TypeRole {
   tracking: number;
   weight: "400" | "500" | "700";
 }
-/** M3 type scale (size / line-height / letter-spacing in px, transcribed 1:1). */
+/**
+ * 타입 스케일 — Galmuri 격자 (`px-bridge.css:53-67` 의 15행을 옮긴 것).
+ *
+ * **크기**는 `px-bridge.css` 그대로다. **서체**는 크기가 정한다(파일 상단 참조).
+ * **tracking 은 전부 0** — 브리지가 `font:` 단축 속성만 쓰고 letter-spacing 을
+ * 한 번도 선언하지 않는다(= normal). 분수 자간은 글리프를 반픽셀에 앉혀서
+ * 격자를 깬다.
+ *
+ * **line 은 브리지의 1.5배를 정수로 반올림한 값**이다. RN 의 `lineHeight` 는 dp 라
+ * 분수를 주면 줄 상자가 반픽셀에 앉는다. 45x1.5=67.5 -> 68, 15x1.5=22.5 -> 23;
+ * 나머지 넷은 원래 정수다. (번들도 여기서 자기모순이다 —
+ * `_ds/tokens/typography.css:17` 은 1.5 를 12px 에서만 정수라고 정당화하고,
+ * `_ds/css/data.css:98` 은 1.5 를 픽셀아트를 다시 흐리게 만드는 배수로 지목한다.
+ * 반올림이 그 둘을 모두 만족시키는 유일한 선택이다.)
+ *
+ * ⚠ **역할 15개가 크기 6개로 접히므로 몇 쌍은 시각적으로 같아진다** —
+ * (titleSmall · labelLarge) · (titleLarge · titleMedium · bodyLarge) ·
+ * (bodySmall · labelMedium · labelSmall). 웹 브리지도 똑같이 접힌다. 새 크기를
+ * 발명해서 풀지 말 것 — PRD §2-4 가 여섯 개만 허용한다. 화면에서 역할을 갈라야
+ * 하면 크기가 아니라 **색과 자리**로 가른다(P5 몫).
+ */
 export const m3Type = {
-  displayLarge: { size: 57, line: 64, tracking: -0.25, weight: "400" },
-  displayMedium: { size: 45, line: 52, tracking: 0, weight: "400" },
-  displaySmall: { size: 36, line: 44, tracking: 0, weight: "400" },
-  headlineLarge: { size: 32, line: 40, tracking: 0, weight: "400" },
-  headlineMedium: { size: 28, line: 36, tracking: 0, weight: "400" },
-  headlineSmall: { size: 24, line: 32, tracking: 0, weight: "500" },
-  titleLarge: { size: 22, line: 28, tracking: 0, weight: "500" },
-  titleMedium: { size: 16, line: 24, tracking: 0.15, weight: "500" },
-  titleSmall: { size: 14, line: 20, tracking: 0.1, weight: "500" },
-  bodyLarge: { size: 16, line: 24, tracking: 0.5, weight: "400" },
-  bodyMedium: { size: 14, line: 20, tracking: 0.25, weight: "400" },
-  bodySmall: { size: 12, line: 16, tracking: 0.4, weight: "400" },
-  labelLarge: { size: 14, line: 20, tracking: 0.1, weight: "500" },
-  labelMedium: { size: 12, line: 16, tracking: 0.5, weight: "500" },
-  labelSmall: { size: 11, line: 16, tracking: 0.5, weight: "500" },
+  // ── Galmuri14 (native 15px) ────────────────────────────────────────
+  displayLarge: { size: 45, line: 68, tracking: 0, weight: "400" }, // x3
+  displayMedium: { size: 45, line: 68, tracking: 0, weight: "400" }, // x3
+  displaySmall: { size: 30, line: 45, tracking: 0, weight: "400" }, // x2
+  headlineLarge: { size: 30, line: 45, tracking: 0, weight: "400" }, // x2
+  headlineMedium: { size: 30, line: 45, tracking: 0, weight: "400" }, // x2
+  // ── Galmuri11 (native 12px) ────────────────────────────────────────
+  // 브리지는 24px 을 --font-display 에 얹지만 24 는 Galmuri14 의 1.6배다.
+  // 번들의 타입 토큰(`--t-xl:24px /* Galmuri11 x2 */`)이 맞는 쪽이다.
+  headlineSmall: { size: 24, line: 36, tracking: 0, weight: "400" }, // x2
+  // 15px 은 Galmuri14 x1 이고 그 얼굴에는 Bold 가 없다 -> 브리지의 700 을 400 으로.
+  titleLarge: { size: 15, line: 23, tracking: 0, weight: "400" },
+  titleMedium: { size: 15, line: 23, tracking: 0, weight: "400" },
+  // 12px = Galmuri11 x1. **여기서만 진짜 Bold 얼굴이 있다.**
+  titleSmall: { size: 12, line: 18, tracking: 0, weight: "700" },
+  bodyLarge: { size: 15, line: 23, tracking: 0, weight: "400" },
+  bodyMedium: { size: 12, line: 18, tracking: 0, weight: "400" },
+  // ── Galmuri9 (native 10px) ─────────────────────────────────────────
+  bodySmall: { size: 10, line: 15, tracking: 0, weight: "400" },
+  labelLarge: { size: 12, line: 18, tracking: 0, weight: "700" },
+  // 브리지는 700 을 지시하지만 Galmuri9 에는 Bold 얼굴이 없다.
+  labelMedium: { size: 10, line: 15, tracking: 0, weight: "400" },
+  labelSmall: { size: 10, line: 15, tracking: 0, weight: "400" },
 } as const satisfies Record<string, TypeRole>;
 
 /** M3 shape corner radii (px). */
@@ -288,6 +363,20 @@ export const m3Elevation = {
   level5: { shadowColor: "#000", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
 } as const satisfies Record<string, Elevation>;
 
+/**
+ * 최소 터치 규격(dp). `--u` 를 2px 로 내리면서 처음으로 **토큰이 필요해진** 값이다.
+ *
+ * PIXEL-CLAY 이주가 "안 바꾼다" 고 못박은 셋 중 하나가 터치 44px 이다
+ * (`docs/PIXEL-CLAY-MIGRATION.md` §6). 그런데 이 저장소는 그 44 를 프리미티브마다
+ * 리터럴로 흩뿌려 갖고 있었다(MdButton 48 · MdChip 44 · SegBtn 48 · MdNavBar 52 ·
+ * Field 56). 그래서 **그 목록에 없던 것들**(MdCard 의 press · DatePicker 의 연도 칸과
+ * 텍스트 버튼)이 간격만 절반이 되자 조용히 44 밑으로 내려갔다.
+ *
+ * 새로 바닥을 까는 자리는 이 토큰을 쓴다. 리터럴을 하나 더 늘리지 말 것 —
+ * 다음 토큰 변경 때 또 같은 방식으로 샌다. CI 에 44 를 강제하는 검사는 없다.
+ */
+export const m3MinTouch = 44;
+
 /** M3 interactive state-layer opacities (overlay currentColor at these). */
 export const m3State = {
   hover: 0.08,
@@ -295,15 +384,28 @@ export const m3State = {
   pressed: 0.1,
 } as const;
 
-/** M3 spacing (4dp grid). */
+/**
+ * 간격 — `--u = 2px` 격자 (D1, Simon 2026-08-20). 키 이름이 곧 배수다: `sN = u * N`.
+ *
+ * ⚠ 인수 스크린샷 12장은 `--u:4px`(데스크톱 창)에서 찍혔다. 2px 로 만든 화면은
+ * 그 시안보다 촘촘해 보이는 것이 **정상**이다 — 시안이 실제 폰의 두 배로 찍혀
+ * 있었던 것이다(`_ds/tokens/space.css` 의 뷰포트 분기). 되돌리려면 아래 일곱 값을
+ * 두 배로 되돌리면 된다.
+ *
+ * ⚠ **높이를 패딩만으로 만드는 자리는 44px 최소 터치 규격을 다시 재야 한다.**
+ * m3 프리미티브는 자기 높이를 리터럴로 바닥에 깔아둬서(MdButton 48 · MdChip 44 ·
+ * SegBtn 48 · MdNavBar 52 · Field 56) 안 움직이지만, `MdCard` 의 `press` 는
+ * 패딩뿐이라 그 위에 얹힌 카드가 같이 내려간다. 2단계에서 확인된 자리는
+ * `MdCard` 자체에 바닥을 깔아 막았다 — 아래 P5 목록은 `docs/HANDOFF.md` 참조.
+ */
 export const m3Spacing = {
-  s1: 4,
-  s2: 8,
-  s3: 12,
-  s4: 16,
-  s5: 20,
-  s6: 24,
-  s8: 32,
+  s1: 2,
+  s2: 4,
+  s3: 6,
+  s4: 8,
+  s5: 10,
+  s6: 12,
+  s8: 16,
 } as const;
 
 /** M3 motion — easing bezier control points (for Easing.bezier) + durations (ms). */
@@ -338,6 +440,7 @@ export const m3 = {
   shape: m3Shape,
   elevation: m3Elevation,
   state: m3State,
+  minTouch: m3MinTouch,
   spacing: m3Spacing,
   motion: m3Motion,
 } as const;
