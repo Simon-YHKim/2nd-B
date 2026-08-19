@@ -50,9 +50,36 @@ export const fontAssets = {
       ? require("../../assets/fonts/Galmuri11-subset.woff2")
       : require("../../assets/fonts/Galmuri11-subset.ttf"),
   PressStart2P: require("@expo-google-fonts/press-start-2p/400Regular/PressStart2P_400Regular.ttf"),
-  // Material 3 chrome (rev2 migration, P1b). Keys MUST equal the m3.font strings
-  // (m3.font.chrome "Roboto" / mono "RobotoMono") so migrated screens resolve them.
-  // Three weights are registered so Android renders M3 medium/bold without faux-bold.
+  // ── PIXEL-CLAY 2단계 (2026-08-20) — Galmuri 4종 추가 ────────────────
+  //
+  // 키 이름이 곧 RN 이 찾는 fontFamily 문자열이다. `m3.font.*` 와
+  // `src/components/m3/typeface.ts` 가 이 이름들을 그대로 쓴다 — 어긋나면 텍스트가
+  // 조용히 시스템 폰트로 떨어진다(`typography-m3-fonts.test.ts` 가 그 짝을 지킨다).
+  //
+  // 굵기를 별도 키로 등록하는 이유는 Roboto 때와 같다: RN 은 한 얼굴에서 선명한
+  // 굵기를 만들어내지 못한다. 다만 Bold 를 파는 Galmuri 는 11 하나뿐이라 키도
+  // 하나다.
+  //
+  // 바이너리는 `scripts/build-font-subsets.py` 가 `galmuri` 패키지에서 만든다.
+  // 크기(서브셋 .ttf 2.3~3.0MB)는 그 스크립트 헤더에 근거와 함께 적어뒀다.
+  Galmuri11Bold:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/Galmuri11Bold-subset.woff2")
+      : require("../../assets/fonts/Galmuri11Bold-subset.ttf"),
+  Galmuri14:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/Galmuri14-subset.woff2")
+      : require("../../assets/fonts/Galmuri14-subset.ttf"),
+  Galmuri9:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/Galmuri9-subset.woff2")
+      : require("../../assets/fonts/Galmuri9-subset.ttf"),
+  GalmuriMono11:
+    Platform.OS === "web"
+      ? require("../../assets/fonts/GalmuriMono11-subset.woff2")
+      : require("../../assets/fonts/GalmuriMono11-subset.ttf"),
+  // Roboto 는 남겨둔다. `m3.font` 는 더 이상 가리키지 않지만 레거시 스킨과
+  // 아직 안 옮긴 화면이 문자열로 참조할 수 있고, 지우는 것은 P5 정리 몫이다.
   Roboto: require("@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf"),
   RobotoMedium: require("@expo-google-fonts/roboto/500Medium/Roboto_500Medium.ttf"),
   RobotoBold: require("@expo-google-fonts/roboto/700Bold/Roboto_700Bold.ttf"),

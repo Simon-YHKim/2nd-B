@@ -752,7 +752,8 @@ const styles = StyleSheet.create({
   navRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: m3.spacing.s2 },
   navBtn: { padding: m3.spacing.s2, borderRadius: m3.shape.full },
   navBtnOff: { opacity: 0.38 },
-  monthLabelBtn: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s1, paddingHorizontal: m3.spacing.s2, paddingVertical: m3.spacing.s1 },
+  // minHeight: 아래 yearCell 주석 참조. 이 셋은 높이가 패딩에서만 나온다.
+  monthLabelBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", minHeight: m3.minTouch, gap: m3.spacing.s1, paddingHorizontal: m3.spacing.s2, paddingVertical: m3.spacing.s1 },
   monthLabel: { color: m3.color.onSurface },
 
   // Day grid.
@@ -769,10 +770,15 @@ const styles = StyleSheet.create({
   yearList: { maxHeight: 300, alignSelf: "stretch" },
   yearListContent: { paddingVertical: m3.spacing.s2 },
   yearCellWrap: { flex: 1, padding: m3.spacing.s1 },
-  yearCell: { paddingVertical: m3.spacing.s3, borderRadius: m3.shape.large, alignItems: "center" },
+  // ⚠ 높이가 패딩에서만 나오던 자리다. `--u` 2px 이주(2026-08-20)로 s3 가 12 -> 6 이
+  // 되면서 48 -> 36 으로 내려갔다. 게다가 numColumns={4} 그리드라 44 미만 타깃이
+  // 화면 가득 붙어 선다. 바닥을 깐다.
+  yearCell: { paddingVertical: m3.spacing.s3, borderRadius: m3.shape.large, alignItems: "center", justifyContent: "center", minHeight: m3.minTouch },
   yearCellOn: { backgroundColor: m3.color.primary },
 
   // Actions.
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: m3.spacing.s2, marginTop: m3.spacing.s3 },
-  textBtn: { paddingVertical: m3.spacing.s2, paddingHorizontal: m3.spacing.s3, borderRadius: m3.shape.full },
+  // 이 자리는 이주 **전에도** 36 이라 이미 44 미달이었다(패딩 8 x2 + 라벨 20).
+  // 이주가 28 로 더 낮추므로 여기서 같이 고친다 — 모달의 확인/취소 버튼이다.
+  textBtn: { paddingVertical: m3.spacing.s2, paddingHorizontal: m3.spacing.s3, borderRadius: m3.shape.full, minHeight: m3.minTouch, justifyContent: "center" },
 });

@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -49,6 +50,10 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
   const progression = useProgression();
   const pathname = usePathname();
   const { height } = useWindowDimensions();
+  // Modal 은 화면의 SafeAreaView 밖에서 그려진다 — 인셋을 직접 읽는다.
+  // 인셋이 0인 기기(대부분의 안드로이드)에서도 s6 만큼은 남는다.
+  const insets = useSafeAreaInsets();
+  const sheetBottom = Math.max(insets.bottom, m3.spacing.s6);
 
   const [usage, setUsage] = useState<ReasoningUsage | null>(null);
   const [watching, setWatching] = useState(false);
@@ -163,7 +168,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
           accessibilityRole="button"
           accessibilityLabel={t("ds.reasoningLimit.close")}
         />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
           <View style={styles.grabber} />
 
           <RNText style={styles.title}>{t("ds.reasoningLimit.title")}</RNText>
@@ -244,7 +249,10 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.surfaceContainerHigh,
     paddingTop: m3.spacing.s3,
     paddingHorizontal: m3.spacing.s5,
-    paddingBottom: m3.spacing.s6,
+  // ⚠ 이 시트는 `<Modal transparent statusBarTranslucent>` 안이라 화면의
+  // SafeAreaView 밖에서 그려진다. 그래서 이 paddingBottom 이 **홈 인디케이터까지의
+  // 유일한 여백**이다. `--u` 2px 이주로 s6 가 24 -> 12 가 되면 iOS 34pt 인디케이터
+  // 영역 안에 버튼이 들어간다. 인셋을 실제로 읽어서 더한다 (`sheetBottom` 참조).
   },
   grabber: {
     width: 40,
@@ -286,7 +294,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: m3.spacing.s2,
   },
-  actions: { gap: m3.spacing.s2, marginTop: m3.spacing.s5 },
+  // gap 은 s4(8)로 고정: 위가 '광고 보고 크레딧 받기', 아래가 유료 전환이라
+  // 4px 은 수익 표면에서의 오탭이 된다.
+  actions: { gap: m3.spacing.s4, marginTop: m3.spacing.s5 },
   actionButton: { width: "100%" },
   sameQuality: {
     color: withAlpha(m3.color.onSurfaceVariant, 0.8),

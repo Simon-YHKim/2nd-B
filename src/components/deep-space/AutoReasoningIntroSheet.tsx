@@ -9,6 +9,7 @@
 
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
 import { MdButton } from "@/components/m3";
@@ -91,6 +92,10 @@ function displayLocale(language: string, ko: boolean): DisplayLocale {
 export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: AutoReasoningIntroSheetProps) {
   const { i18n } = useTranslation();
   const { height } = useWindowDimensions();
+  // Modal 은 화면의 SafeAreaView 밖에서 그려진다 — 인셋을 직접 읽는다.
+  // 인셋이 0인 기기(대부분의 안드로이드)에서도 s6 만큼은 남는다.
+  const insets = useSafeAreaInsets();
+  const sheetBottom = Math.max(insets.bottom, m3.spacing.s6);
   const rise = useRef(new Animated.Value(0)).current;
   const copy = COPY[displayLocale(i18n.language, ko)];
 
@@ -116,7 +121,7 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
           accessibilityRole="button"
           accessibilityLabel={copy.close}
         />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.sheet, { paddingBottom: sheetBottom }, { transform: [{ translateY }] }]}>
           <View style={styles.grabber} />
           <RNText style={styles.title}>{copy.title}</RNText>
           <RNText style={styles.line}>{copy.groupLine}</RNText>
@@ -152,7 +157,10 @@ const styles = StyleSheet.create({
     backgroundColor: m3.color.surfaceContainerHigh,
     paddingTop: m3.spacing.s3,
     paddingHorizontal: m3.spacing.s5,
-    paddingBottom: m3.spacing.s6,
+  // ⚠ 이 시트는 `<Modal transparent statusBarTranslucent>` 안이라 화면의
+  // SafeAreaView 밖에서 그려진다. 그래서 이 paddingBottom 이 **홈 인디케이터까지의
+  // 유일한 여백**이다. `--u` 2px 이주로 s6 가 24 -> 12 가 되면 iOS 34pt 인디케이터
+  // 영역 안에 버튼이 들어간다. 인셋을 실제로 읽어서 더한다 (`sheetBottom` 참조).
   },
   grabber: {
     width: 40,
@@ -178,6 +186,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: m3.spacing.s3,
   },
-  actions: { gap: m3.spacing.s2, marginTop: m3.spacing.s5 },
+  actions: { gap: m3.spacing.s4, marginTop: m3.spacing.s5 },
   actionButton: { width: "100%" },
 });

@@ -93,16 +93,75 @@ describe("midnight 팔레트 (P2 — 런타임 교체 없음)", () => {
   });
 });
 
-describe("아직 안 바꾼 것 — 다음 단계에서 함께 움직인다", () => {
-  test("간격과 타입은 그대로다", () => {
-    // 이 둘은 레이아웃 치수를 바꾸므로 **함께** 가야 한다. PIXEL-CLAY 의 `--u:2px`
-    // 격자는 간격을 절반으로 만들고 타입도 10~15px 로 내린다. 간격만 절반으로 줄이고
-    // 16px 본문을 두면 화면이 조이기만 한다.
-    //
-    // 이 테스트가 깨지는 날 = 그 단계를 시작하는 날. 그때 이 블록을 지우면 된다.
-    expect(m3Spacing.s1).toBe(4);
-    expect(m3Type.bodyLarge).toEqual({ size: 16, line: 24, tracking: 0.5, weight: "400" });
-    expect(m3.font.brand).toBe("Pretendard");
+// 2026-08-20: 여기 "아직 안 바꾼 것" 블록이 있었다. 그 블록은 스스로 "이 테스트가
+// 깨지는 날 = 그 단계를 시작하는 날" 이라고 적어둔 트립와이어였고, 2단계가 그날이다.
+// 트립와이어를 지우고 **새 목표**를 박는다.
+describe("간격 — `--u` 2px 격자 (D1)", () => {
+  test("sN 이 정확히 u x N 이다", () => {
+    // 이름이 곧 배수라는 계약. 하나만 어긋나도 그 자리가 격자를 벗어난다.
+    const u = 2;
+    expect(m3Spacing).toEqual({
+      s1: u * 1,
+      s2: u * 2,
+      s3: u * 3,
+      s4: u * 4,
+      s5: u * 5,
+      s6: u * 6,
+      s8: u * 8,
+    });
+  });
+
+  test("전부 정수다 — 반픽셀 간격이 없다", () => {
+    const fractional = Object.entries(m3Spacing)
+      .filter(([, v]) => !Number.isInteger(v))
+      .map(([k, v]) => `${k}=${v}`);
+    expect(fractional).toEqual([]);
+  });
+
+  test("최소 터치 규격은 간격과 함께 줄어들지 않는다", () => {
+    // 이주가 안 바꾸기로 한 셋 중 하나(`PIXEL-CLAY-MIGRATION.md` §6). 간격을 절반으로
+    // 내리면서 이 값까지 따라 내려가면 화면 전체가 조용히 44 밑으로 간다.
+    expect(m3.minTouch).toBe(44);
+    expect(m3.minTouch).toBeGreaterThan(m3Spacing.s8 * 2);
+  });
+});
+
+describe("타입 — Galmuri 격자", () => {
+  test("본문이 픽셀 서체로 바뀌었다", () => {
+    expect(m3.font.brand).toBe("Galmuri11");
+    expect(m3.font.mono).toBe("GalmuriMono11");
+    // Roboto·Pretendard 는 더 이상 토큰이 가리키는 얼굴이 아니다. (`as const` 라
+    // 리터럴 비교는 컴파일이 거부한다 — 접두사로 본다.)
+    const faces: string[] = [m3.font.brand, m3.font.plain, m3.font.mono, m3.font.chrome];
+    expect(faces.filter((f) => !f.startsWith("Galmuri"))).toEqual([]);
+  });
+
+  test("bodyLarge 가 Galmuri14 x1 자리다", () => {
+    expect(m3Type.bodyLarge).toEqual({ size: 15, line: 23, tracking: 0, weight: "400" });
+  });
+
+  test("역할 이름은 그대로 15개다", () => {
+    // 개수가 아니라 이름으로 박는다 — 개수 핀은 치환을 못 잡는다. 호출부 233곳이
+    // 이 이름들을 쓰므로 이름이 사라지면 그 화면이 죽는다.
+    expect(Object.keys(m3Type).sort()).toEqual(
+      [
+        "bodyLarge",
+        "bodyMedium",
+        "bodySmall",
+        "displayLarge",
+        "displayMedium",
+        "displaySmall",
+        "headlineLarge",
+        "headlineMedium",
+        "headlineSmall",
+        "labelLarge",
+        "labelMedium",
+        "labelSmall",
+        "titleLarge",
+        "titleMedium",
+        "titleSmall",
+      ].sort()
+    );
   });
 });
 
@@ -119,10 +178,6 @@ describe("개념 층은 이주와 무관하게 그대로다", () => {
     expect(Object.keys(m3Persona).sort()).toEqual(["meta", "secondb", "twi"]);
     const accents = new Set(Object.values(m3Persona).map((p) => p.accent));
     expect(accents.size).toBe(3);
-  });
-
-  test("타입 스케일은 15개 역할을 유지한다", () => {
-    expect(Object.keys(m3Type)).toHaveLength(15);
   });
 
   test("상태 레이어 불투명도", () => {

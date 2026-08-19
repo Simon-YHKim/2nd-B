@@ -651,7 +651,10 @@ const s = StyleSheet.create({
   rewardSub: { fontSize: m3.type.labelSmall.size, lineHeight: m3.type.labelSmall.line, color: m3.color.onSurfaceVariant, marginTop: 2 },
   disclosure: { marginTop: m3.spacing.s2, gap: m3.spacing.s2 },
   disclosureText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
-  legalLinks: { flexDirection: "row", gap: m3.spacing.s4 },
+  // ⚠ gap 은 두 링크의 hitSlop(각 8) 합보다 **작으면 안 된다.** s4 가 16 -> 8 이 되면
+  // 두 히트 영역이 8px 겹치고, RN 에서는 나중 형제가 이기므로 '이용약관' 오른쪽
+  // 8px 을 눌러도 /refund 로 간다. 스크린샷에는 안 보이는 오작동이라 s8(16)로 고정한다.
+  legalLinks: { flexDirection: "row", gap: m3.spacing.s8 },
   legalLink: { fontSize: m3.type.bodySmall.size, color: m3.color.primary },
   notice: { padding: m3.spacing.s4, gap: m3.spacing.s2, borderColor: m3.color.outlineVariant, borderWidth: 1 },
   noticeTitle: { fontSize: m3.type.titleSmall.size, fontWeight: "600", color: m3.color.onSurface },
