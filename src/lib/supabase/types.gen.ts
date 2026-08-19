@@ -2,19 +2,18 @@
 //   supabase gen types typescript --project-id zoacryukmdeivmolvyhj > src/lib/supabase/types.gen.ts
 //   npm run type-check   # then fix anything the new types newly surface
 //
-// Regenerated 2026-08-18 against the live schema. The previous checked-in copy
-// had drifted far enough to be misleading: 23 shipped tables were missing
-// entirely (community_* x8, reasoning_runs + reasoning_run_proposals, notices +
-// user_notice_reads, consent_changes, runtime_flags, paddle_webhook_events,
-// peer_invitations + peer_observations, informant_consents, ops_daily_brief,
-// rewarded_ssv_txns, billing_self_service_log, content_reports, template_blocks,
-// clipper_template_moderation). Code touching an untyped table silently fell
-// back to `any`, which is why the drift never broke the build -- and why it was
-// worth closing: the drift cost type safety without ever announcing itself.
+// Regenerated 2026-08-20 against the live schema, which is now at 0137. The
+// previous copy was generated at 0132 and had gone stale in the one way that
+// matters for a generated file: it described a database that no longer exists.
+// It still declared refund_reasoning_spend, which 0135 DROPPED, and it knew
+// nothing of credit_ledger / credit_balance / credit_skus / credit_backfill_0135
+// (0134-0135), reasoning_runs.credit_entry_ids (0135),
+// paddle_webhook_events.provider / provider_conflict (0133) and .refund_review
+// (0136), or spend_credits / expire_credit_lots / credit_summary_self.
 //
-// Nothing was removed by this regeneration; every table the old file typed is
-// still here. The one intentional deletion this cycle was crisis_events
-// .cssrs_level (0129), which prod confirms is gone.
+// Drift here never breaks the build, which is exactly why it is worth closing:
+// code touching an untyped table or RPC silently falls back to `any`, so the
+// cost is type safety and the file never announces the loss.
 //
 // The schema SoT is db/migrations, NOT this file.
 
@@ -693,6 +692,166 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      credit_backfill_0135: {
+        Row: {
+          captured_at: string
+          decision: string
+          lot_id: string | null
+          month_bucket: string
+          reward_consumed_at_cutover: number
+          reward_credits_at_cutover: number
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string
+          decision: string
+          lot_id?: string | null
+          month_bucket: string
+          reward_consumed_at_cutover: number
+          reward_credits_at_cutover: number
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          decision?: string
+          lot_id?: string | null
+          month_bucket?: string
+          reward_consumed_at_cutover?: number
+          reward_credits_at_cutover?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      credit_balance: {
+        Row: {
+          balance_available: number
+          lifetime_granted: number
+          lifetime_spent: number
+          next_expiry_at: string | null
+          next_expiry_units: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_available?: number
+          lifetime_granted?: number
+          lifetime_spent?: number
+          next_expiry_at?: string | null
+          next_expiry_units?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_available?: number
+          lifetime_granted?: number
+          lifetime_spent?: number
+          next_expiry_at?: string | null
+          next_expiry_units?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_balance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_ledger: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          feature: string | null
+          id: string
+          idempotency_key: string | null
+          kind: string
+          lot_expires_at: string | null
+          lot_id: string
+          lot_opened_at: string
+          memo: string | null
+          provider: string | null
+          provider_event_id: string | null
+          sku: string | null
+          units: number
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          feature?: string | null
+          id?: string
+          idempotency_key?: string | null
+          kind: string
+          lot_expires_at?: string | null
+          lot_id: string
+          lot_opened_at: string
+          memo?: string | null
+          provider?: string | null
+          provider_event_id?: string | null
+          sku?: string | null
+          units: number
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          feature?: string | null
+          id?: string
+          idempotency_key?: string | null
+          kind?: string
+          lot_expires_at?: string | null
+          lot_id?: string
+          lot_opened_at?: string
+          memo?: string | null
+          provider?: string | null
+          provider_event_id?: string | null
+          sku?: string | null
+          units?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_skus: {
+        Row: {
+          active: boolean
+          created_at: string
+          price_krw: number
+          sku: string
+          units: number
+          validity_days: number | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          price_krw: number
+          sku: string
+          units: number
+          validity_days?: number | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          price_krw?: number
+          sku?: string
+          units?: number
+          validity_days?: number | null
+        }
+        Relationships: []
       }
       crisis_events: {
         Row: {
@@ -1472,7 +1631,10 @@ export type Database = {
           payment_card_last4: string | null
           payment_method: string | null
           processed_at: string
+          provider: string
+          provider_conflict: boolean
           raw_payload: Json | null
+          refund_review: boolean
           scheduled_cancel_at: string | null
           stale_entitlement: boolean
           user_id: string | null
@@ -1487,7 +1649,10 @@ export type Database = {
           payment_card_last4?: string | null
           payment_method?: string | null
           processed_at?: string
+          provider?: string
+          provider_conflict?: boolean
           raw_payload?: Json | null
+          refund_review?: boolean
           scheduled_cancel_at?: string | null
           stale_entitlement?: boolean
           user_id?: string | null
@@ -1502,7 +1667,10 @@ export type Database = {
           payment_card_last4?: string | null
           payment_method?: string | null
           processed_at?: string
+          provider?: string
+          provider_conflict?: boolean
           raw_payload?: Json | null
+          refund_review?: boolean
           scheduled_cancel_at?: string | null
           stale_entitlement?: boolean
           user_id?: string | null
@@ -1814,6 +1982,7 @@ export type Database = {
       reasoning_runs: {
         Row: {
           created_at: string
+          credit_entry_ids: string[] | null
           error_code: string | null
           id: string
           idempotency_key: string
@@ -1828,6 +1997,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credit_entry_ids?: string[] | null
           error_code?: string | null
           id?: string
           idempotency_key: string
@@ -1842,6 +2012,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credit_entry_ids?: string[] | null
           error_code?: string | null
           id?: string
           idempotency_key?: string
@@ -2529,6 +2700,7 @@ export type Database = {
           minor_tier: string | null
           onboarding_quest_completed_at: string | null
           privacy_prefs: Json
+          profile_details: Json
           reasoning_prefs: Json
           subscription_event_at: string | null
           subscription_expires_at: string | null
@@ -2551,6 +2723,7 @@ export type Database = {
           minor_tier?: string | null
           onboarding_quest_completed_at?: string | null
           privacy_prefs?: Json
+          profile_details?: Json
           reasoning_prefs?: Json
           subscription_event_at?: string | null
           subscription_expires_at?: string | null
@@ -2573,6 +2746,7 @@ export type Database = {
           minor_tier?: string | null
           onboarding_quest_completed_at?: string | null
           privacy_prefs?: Json
+          profile_details?: Json
           reasoning_prefs?: Json
           subscription_event_at?: string | null
           subscription_expires_at?: string | null
@@ -2758,6 +2932,47 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_balance_drift: {
+        Row: {
+          cached: number | null
+          drift: number | null
+          ledger_total: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_balance_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_counter_drift: {
+        Row: {
+          ledger_available: number | null
+          ledger_earned: number | null
+          mirrored_consumed: number | null
+          mirrored_earned: number | null
+          user_id: string | null
+        }
+        Insert: {
+          ledger_available?: never
+          ledger_earned?: never
+          mirrored_consumed?: number | null
+          mirrored_earned?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          ledger_available?: never
+          ledger_earned?: never
+          mirrored_consumed?: number | null
+          mirrored_earned?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_billing_event: {
@@ -2811,10 +3026,20 @@ export type Database = {
         Args: { p_cap: number; p_day: string; p_user_id: string }
         Returns: number
       }
-      bump_reasoning_usage_if_under_cap: {
-        Args: { p_cap: number; p_month: string; p_user_id: string }
-        Returns: number
-      }
+      bump_reasoning_usage_if_under_cap:
+        | {
+            Args: { p_cap: number; p_month: string; p_user_id: string }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_cap: number
+              p_key: string
+              p_month: string
+              p_user_id: string
+            }
+            Returns: number
+          }
       bump_reward_credits_if_under_cap: {
         Args: { p_credits: number; p_month: string; p_user_id: string }
         Returns: number
@@ -2837,6 +3062,14 @@ export type Database = {
         Args: { p_invitation_id: string }
         Returns: boolean
       }
+      clawback_credits: {
+        Args: {
+          p_memo?: string
+          p_provider: string
+          p_provider_event_id: string
+        }
+        Returns: Json
+      }
       community_assert_adult: { Args: never; Returns: undefined }
       community_create_invite: {
         Args: { p_max_uses: number; p_room: string; p_token_hash: string }
@@ -2856,11 +3089,28 @@ export type Database = {
         Args: { p_proposals: Json; p_run_id: string; p_user_id: string }
         Returns: number
       }
+      credit_ad_earned_this_month: {
+        Args: { p_at?: string; p_user_id: string }
+        Returns: number
+      }
+      credit_available: {
+        Args: { p_at?: string; p_user_id: string }
+        Returns: number
+      }
+      credit_refund_spend_internal: {
+        Args: { p_entry_id: string; p_memo?: string }
+        Returns: string
+      }
+      credit_summary_self: { Args: never; Returns: Json }
       effective_subscription_tier: {
         Args: { p_user_id: string }
         Returns: string
       }
       email_canonical: { Args: { p_email: string }; Returns: string }
+      expire_credit_lots: {
+        Args: { p_at?: string; p_limit?: number }
+        Returns: number
+      }
       fail_reasoning_run: {
         Args: { p_code: string; p_run_id: string; p_user_id: string }
         Returns: boolean
@@ -2869,6 +3119,40 @@ export type Database = {
       grant_chat_ad_bonus_ssv: {
         Args: { p_txn_id: string; p_user_id: string }
         Returns: number
+      }
+      grant_credits_free: {
+        Args: {
+          p_expires_at?: string
+          p_kind: string
+          p_memo?: string
+          p_units: number
+          p_user_id: string
+        }
+        Returns: string
+      }
+      grant_credits_free_internal: {
+        Args: {
+          p_expires_at?: string
+          p_idempotency_key?: string
+          p_kind: string
+          p_memo?: string
+          p_units: number
+          p_user_id: string
+        }
+        Returns: string
+      }
+      grant_credits_purchase: {
+        Args: {
+          p_amount_cents: number
+          p_currency: string
+          p_expires_at?: string
+          p_provider: string
+          p_provider_event_id: string
+          p_sku: string
+          p_units: number
+          p_user_id: string
+        }
+        Returns: string
       }
       grant_reward_credits_ssv: {
         Args: {
@@ -2879,6 +3163,9 @@ export type Database = {
         }
         Returns: number
       }
+      kst_month_bucket: { Args: { p_at?: string }; Returns: string }
+      kst_month_end: { Args: { p_at?: string }; Returns: string }
+      kst_month_start: { Args: { p_at?: string }; Returns: string }
       level_for_xp: { Args: { xp: number }; Returns: number }
       log_ai_audit: {
         Args: {
@@ -3036,18 +3323,17 @@ export type Database = {
         Args: { p_stale_minutes?: number; p_user_id: string }
         Returns: number
       }
+      refund_credit_spend: {
+        Args: { p_entry_id: string; p_memo?: string }
+        Returns: string
+      }
       refund_eligibility: { Args: { p_user_id: string }; Returns: Json }
       refund_gemini_spend: {
         Args: { p_day: string; p_user_id: string }
         Returns: number
       }
-      refund_reasoning_spend: {
-        Args: {
-          p_month: string
-          p_spend: string
-          p_user_id: string
-          p_week: string
-        }
+      refund_reasoning_run_spend: {
+        Args: { p_run_id: string; p_user_id: string }
         Returns: undefined
       }
       reserve_reasoning_run: {
@@ -3071,6 +3357,15 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      spend_credits: {
+        Args: {
+          p_feature: string
+          p_idempotency_key: string
+          p_units: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       start_reasoning_run: {
         Args: { p_run_id: string; p_user_id: string }
         Returns: string
@@ -3087,6 +3382,10 @@ export type Database = {
           informant_count: number
           trait: string
         }[]
+      }
+      usage_counters_mirror_credits: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
