@@ -177,5 +177,9 @@
   "nSources": "{{n}} sumber",
   "captureBranch": "Simpan: {{branch}}",
   "askLens": "Tanya {{lens}}…",
-  "nPieces": "{{n}} serpihan"
+  "nPieces": "{{n}} serpihan",
+  "chatSaveNotice": "Percakapan ini tidak disimpan",
+  "chatSaveNoticeBody": "Nyalakan penyimpanan obrolan di pengaturan privasi untuk menyimpannya. Yang diucapkan sebelumnya tidak tersimpan.",
+  "chatSaveNoticeOpen": "Buka pengaturan",
+  "chatSaveNoticeDismiss": "Tutup"
 }
