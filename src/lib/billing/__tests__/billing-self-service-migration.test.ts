@@ -456,9 +456,12 @@ describe("0119 - the surviving refund_eligibility carries BOTH sessions' fixes",
       .sort()
       .filter((f) => /CREATE OR REPLACE FUNCTION public\.refund_eligibility/i.test(readFileSync(join(MIGRATIONS, f), "utf8")));
     expect(defs.length).toBeGreaterThan(1);
-    // 0124 re-states the function to attach the decision record. It is a
-    // comment-only replay of 0122's body, pinned byte-for-byte below.
-    expect(defs[defs.length - 1]).toBe("0124_refund_eligibility_decision_record.sql");
+    // 0124 re-stated the function to attach the decision record (a comment-only
+    // replay of 0122's body, pinned byte-for-byte below). 0136 then re-stated it
+    // again to exclude one-time credit-pack transactions from the anchor, which
+    // is scope and not rule: refund-path-split-migration.test.ts proves the two
+    // bodies differ by exactly that one predicate.
+    expect(defs[defs.length - 1]).toBe("0136_refund_path_split.sql");
   });
 
   test("#1203's guard survives: a request already on file is not offered again", () => {
