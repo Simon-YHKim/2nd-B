@@ -249,3 +249,24 @@ describe("좌석 목록 표류 가드 — 엣지 프록시 원본과 대조", ()
     expect(sonnet.filter((p) => opus.includes(p))).toEqual([]);
   });
 });
+
+// 핀이 실제로 되돌리는가. 2026-08-19 이전에는 안 됐다 — 핀이 `skipped` 를 세워서
+// 좌석이 `promotable` 필터에서 통째로 빠졌고, 그래서 이미 적용된 승격이 그대로
+// 남았다. 파일 헤더와 실행 끝 안내가 둘 다 핀을 되돌리기 수단으로 말하고 있었다.
+describe("MODEL_PIN 은 되돌리기 수단이다", () => {
+  it("핀 값이 시크릿에 실제로 쓰인다", () => {
+    // 핀이 안 쓰이면 이 배열이 비고, 되돌릴 길이 없다는 뜻이다.
+    const out = secretsFor([{ seat: { id: "openai-frontier" }, chosen: "gpt-5.4" }]);
+    const map = JSON.parse(out.find((s) => s.name === "OPENAI_PURPOSE_MODELS")!.value);
+    expect(map.secondb_chat).toBe("gpt-5.4");
+  });
+
+  it("핀 좌석은 skipped 로 표시되지 않는다", async () => {
+    // `promotable` 은 `d.chosen && !d.skipped` 로 거른다. 핀이 skipped 를 세우면
+    // chosen 이 있어도 적용에서 빠진다 — 그게 원래 결함이었다.
+    const src = readFileSync(path.join(__dirname, "..", "refresh-models.ts"), "utf8");
+    const pinBlock = src.slice(src.indexOf("const pin ="), src.indexOf("const pin =") + 1600);
+    expect(pinBlock).toContain("out.push({ seat, candidates: [], chosen: pin });");
+    expect(pinBlock).not.toMatch(/chosen: pin, skipped:/);
+  });
+});

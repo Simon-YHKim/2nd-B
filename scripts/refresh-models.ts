@@ -418,8 +418,19 @@ async function main(): Promise<void> {
   for (const seat of SEATS) {
     const pin = (process.env[`MODEL_PIN_${seat.id.toUpperCase().replace(/-/g, "_")}`] ?? "").trim();
     if (pin) {
-      out.push({ seat, candidates: [], chosen: pin, skipped: `핀 고정: ${pin}` });
-      console.log(`  ${seat.id}: 핀 고정 (${pin}) - 건너뜀`);
+      // ⚠ 핀은 발견을 건너뛰지만 **적용은 건너뛰지 않는다.** 2026-08-19 이전에는
+      // `skipped` 를 세워서 `promotable` 필터(`d.chosen && !d.skipped`)가 이 좌석을
+      // 통째로 떨어뜨렸고, 그래서 시크릿이 **한 글자도 안 바뀌었다.**
+      //
+      // 이 파일 헤더와 실행 끝의 안내가 둘 다 "되돌리려면 MODEL_PIN_<SEAT> 을 세우고
+      // 다시 실행하십시오" 라고 적고 있는데, 그 상태로는 그게 **사실이 아니었다** —
+      // 이미 적용된 승격은 그대로 남고 핀은 아무것도 되돌리지 못한다. 되돌릴 길이
+      // 실제로 없다는 것을 2026-08-19 에 gpt-5.5 승격을 되돌리려다 알았다.
+      //
+      // 이제 핀은 **그 값을 쓴다.** 발견과 스모크 테스트만 건너뛴다(핀은 사람이
+      // 아는 값을 강제하는 손잡이니까). 같은 값을 다시 써도 무해하다.
+      out.push({ seat, candidates: [], chosen: pin });
+      console.log(`  ${seat.id}: 핀 고정 (${pin}) - 발견 건너뜀, 이 값을 적용`);
       continue;
     }
     const names = byVendor.get(seat.vendor);

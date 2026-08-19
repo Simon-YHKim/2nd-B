@@ -49,6 +49,23 @@ export interface ResolvedKey {
  * when its secret is present + non-empty, else fall back to the vendor base key.
  * `getEnv` is injected so this stays Deno-free + unit-testable; the Deno wrapper
  * passes (k) => Deno.env.get(k).
+ *
+ * BOTH branches trim. The combo branch always did; the base branch did not, and
+ * that asymmetry took the chat surface down in production on 2026-08-19.
+ *
+ * What happened: a dashboard-pasted secret keeps its trailing newline. While a
+ * combo key existed for the seat the trimmed branch hid it. The nightly model
+ * refresh then promoted the frontier seat gpt-5.4 -> gpt-5.5, the combo name
+ * changed with it (OPENAI_API_KEY__GPT54__LOW -> ...__GPT55__LOW), that secret
+ * did not exist, and the fallback handed back the UNTRIMMED base key. A newline
+ * in a header value is not a runtime warning -- `fetch` throws
+ * `TypeError: Failed to construct 'Request'`, which the proxy reports as
+ * `upstream_unreachable`, i.e. it looks exactly like a vendor outage.
+ *
+ * The failure is one model promotion away for EVERY vendor (all three proxies
+ * read their base key with a bare `Deno.env.get`), and the combo-key fallback
+ * exists precisely so promotions never break calls -- so it has to be the
+ * branch that is hardest to break.
  */
 export function pickApiKey(
   getEnv: (key: string) => string | undefined,
@@ -60,5 +77,5 @@ export function pickApiKey(
   const secretName = comboSecretName(prefix, model, effort);
   const combo = (getEnv(secretName) ?? '').trim();
   if (combo.length > 0) return { apiKey: combo, secretName, usedCombo: true };
-  return { apiKey: baseKey, secretName, usedCombo: false };
+  return { apiKey: (baseKey ?? '').trim(), secretName, usedCombo: false };
 }
