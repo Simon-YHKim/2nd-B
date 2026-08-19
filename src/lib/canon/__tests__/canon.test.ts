@@ -19,6 +19,7 @@ import {
   canonUnroutedScreens,
   getCanonScreen,
 } from "../index";
+import { devScreens } from "@/lib/dev/screen-index";
 
 const REPO = path.resolve(__dirname, "../../../..");
 const APP_DIR = path.join(REPO, "src/app");
@@ -48,13 +49,20 @@ describe("proto_rev2 canon integrity", () => {
     expect(canonCanvas).toEqual({ w: 390, h: 820 });
   });
 
-  it("registers 58 screens with unique ids", () => {
-    expect(canonScreens).toHaveLength(58);
-    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(58);
+  it("registers 111 screens with unique ids", () => {
+    // 58 prototype screens + 53 app-only routes registered 2026-08-19 (V3).
+    expect(canonScreens).toHaveLength(111);
+    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(111);
   });
 
-  it("uses only known layout kinds", () => {
+  it("uses only known layout kinds, and only where a layout can be known", () => {
     for (const s of canonScreens) {
+      if (s.appOnly) {
+        // No prototype => no prototype layout. Guessing one from the app's
+        // render chain reads as knowledge and is not.
+        expect({ id: s.id, layout: s.layout }).toEqual({ id: s.id, layout: undefined });
+        continue;
+      }
       expect(["immersive", "museumLike", "windowed", "gate"]).toContain(s.layout);
     }
   });
@@ -84,7 +92,9 @@ describe("proto_rev2 canon integrity", () => {
     for (const s of canonScreens) {
       expect(s.appOnly === true && s.route === null).toBe(false);
     }
-    expect(canonAppOnlyScreens().map((s) => s.id).sort()).toEqual(["profile"]);
+    // 53 app routes registered 2026-08-19 + `profile` (which already had an app
+    // screen and no prototype counterpart).
+    expect(canonAppOnlyScreens()).toHaveLength(54);
   });
 
   it("titles every non-root screen (top app bar contract)", () => {
@@ -153,7 +163,7 @@ describe("proto_rev2 canon integrity", () => {
     ]);
   });
 
-  it("names every app route the canon does not cover", () => {
+  it("covers every app route", () => {
     const covered = new Set(canonRoutedScreens().map((s) => s.route));
     const uncovered = appRoutes().filter((r) => !covered.has(r)).sort();
     // Adding a screen to src/app without a canon entry lands here. That is
@@ -164,61 +174,12 @@ describe("proto_rev2 canon integrity", () => {
     // substitution passed silently. That is the same failure the canon route
     // contract (#1242) was built to end, so the count became a list. Register
     // the screen in the canon, or add its name here in the same commit.
-    expect(uncovered).toEqual([
-      "(auth)/consent-notice",
-      "(auth)/oauth-callback",
-      "(auth)/privacy-policy",
-      "(auth)/refund",
-      "(auth)/sign-up",
-      "(auth)/terms",
-      "account",
-      "beyond",
-      "brightness",
-      "canon",
-      "capture-full",
-      "career",
-      "change-password",
-      "community",
-      "community/[room]",
-      "community/join/[token]",
-      "data",
-      "deepspace-flowmap",
-      "deepspace-home",
-      "deepspace-hub",
-      "deepspace-preview",
-      "dev-screens",
-      "digest",
-      "discover",
-      "esm",
-      "formats",
-      "graph",
-      "growth",
-      "import-hub",
-      "insights",
-      "ipip-neo",
-      "jarvis",
-      "ledger",
-      "mbti",
-      "meals",
-      "milestones",
-      "notices",
-      "onboarding",
-      "peer-invites",
-      "peer/[token]",
-      "persona",
-      "profile-details",
-      "reading",
-      "reasoning",
-      "review",
-      "rlss",
-      "side-project",
-      "srs",
-      "subscription",
-      "theme",
-      "trinity",
-      "ttfv",
-      "wiki",
-    ]);
+    expect(uncovered).toEqual([]);
+    // 2026-08-18 this pinned a bare COUNT (51). 2026-08-19 it became a 53-name
+    // list, because a count cannot tell "one route removed, another added" from
+    // "nothing changed". Now it is empty, which is a stronger contract than
+    // either: **the canon knows every route the app has.** Adding a screen to
+    // src/app without registering it here fails right here.
   });
 
   it("exposes the full pack manifest", () => {
@@ -232,6 +193,37 @@ describe("proto_rev2 canon integrity", () => {
     // gate added 2026-08-19: the four login-flow screens moved off `windowed`,
     // which had been claiming phone chrome they do not render.
     expect(stats.byLayout.gate).toBe(4);
-    expect(stats.byLayout.windowed).toBe(49);
+    // profile lost its layout 2026-08-19: it is appOnly, so it has no prototype
+    // layout to declare. 2+3+4+48 = 57 declared, 54 appOnly, 111 total.
+    expect(stats.byLayout.windowed).toBe(48);
+  });
+});
+
+// ── canon <-> 개발자 화면 목록 이름 대조 ─────────────────────────
+//
+// 2026-08-19 에 앱 라우트 53개를 캐논에 등록하면서 **앱 화면 목록이 두 곳에** 생겼다:
+// 여기(`screens.json`)와 `src/lib/dev/screen-index.ts`. 같은 목록을 두 곳이 들면
+// 갈라진다 — 이번 세션이 고친 것이 전부 그 종류의 문제였다(AGENTS.md 사본,
+// 테스트가 들고 있던 SEATS 사본, 캐논과 따로 노는 별자리 선).
+//
+// 그래서 등록할 때 제목을 **개발자 목록의 라벨에서 그대로 가져왔고**, 이 가드가
+// 둘이 계속 같은 이름을 부르는지 본다. 한쪽만 고치면 여기서 깨진다.
+//
+// 프로토타입 화면(appOnly 아님)은 대상이 아니다 — 그쪽 제목은 프로토타입의 것이고
+// 개발자 목록의 라벨과 의도적으로 다르다(루트는 제목이 아예 없다).
+describe("canon <-> 개발자 화면 목록", () => {
+  it("앱 전용 화면의 이름이 두 곳에서 같다", () => {
+    const byRoute = new Map(devScreens().map((d) => [d.file, d.label]));
+    const mismatched: string[] = [];
+    for (const s of canonAppOnlyScreens()) {
+      if (typeof s.route !== "string") continue;
+      const label = byRoute.get(s.route);
+      if (label === undefined) {
+        mismatched.push(`${s.route}: 개발자 목록에 없음`);
+        continue;
+      }
+      if (label !== s.title) mismatched.push(`${s.route}: 캐논 "${s.title}" vs 목록 "${label}"`);
+    }
+    expect(mismatched).toEqual([]);
   });
 });

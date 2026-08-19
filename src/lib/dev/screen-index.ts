@@ -200,7 +200,7 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
   {
     title: "개발자 전용",
     screens: [
-      { file: "dev-screens", href: "/dev-screens", label: "화면 전체 목록 (이 화면)", dev: true, note: "설정 → 개발자 에서 들어온다" },
+      { file: "dev-screens", href: "/dev-screens", label: "화면 전체 목록", dev: true, note: "이 화면. 설정 → 개발자 에서 들어온다" },
       { file: "canon", href: "/canon", label: "프로토 캐논", dev: true, orphan: true },
       { file: "deepspace-hub", href: "/deepspace-hub", label: "딥스페이스 허브", dev: true, orphan: true },
       { file: "deepspace-home", href: "/deepspace-home", label: "딥스페이스 홈 시안", dev: true },
