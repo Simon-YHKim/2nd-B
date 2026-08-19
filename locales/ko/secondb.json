@@ -177,5 +177,9 @@
   "nSources": "근거 · 기록 {{n}}건",
   "captureBranch": "담기: {{branch}}",
   "askLens": "{{lens}}에게 물어보기…",
-  "nPieces": "참고한 별가루 {{n}}"
+  "nPieces": "참고한 별가루 {{n}}",
+  "chatSaveNotice": "지금 이 대화는 남지 않아요",
+  "chatSaveNoticeBody": "기록으로 남기려면 개인정보 설정에서 대화 저장을 켜 주세요. 켜기 전 대화는 저장되지 않습니다.",
+  "chatSaveNoticeOpen": "설정 열기",
+  "chatSaveNoticeDismiss": "닫기"
 }

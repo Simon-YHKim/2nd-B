@@ -38,6 +38,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
 import { chatAutosaveAllowed } from "@/lib/chat/autosave";
+import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
 import { classifyInput } from "@/lib/safety/classifier";
 import { currentDisplayName } from "@/lib/persona/use-address";
 import {
@@ -643,6 +644,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
   // 돌지 않는다(fail-closed). 광고 동의와 같은 자세다.
   const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);
+  // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
+  const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -1133,6 +1136,43 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               </View>
             ) : null}
           </ScrollView>
+
+          {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
+              오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
+              있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
+          {shouldShowChatSaveNotice({
+            autosaveConsent,
+            dismissed: saveNoticeDismissed,
+            turnCount: turns.length,
+          }) ? (
+            <View style={ds.saveNotice} accessibilityRole="alert">
+              <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
+              <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
+              <View style={ds.saveNoticeRow}>
+                <Pressable
+                  onPress={() => {
+                    dismissSaveNotice();
+                    router.push("/privacy");
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chatSaveNoticeOpen")}
+                  style={ds.saveNoticeBtn}
+                >
+                  <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={dismissSaveNotice}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chatSaveNoticeDismiss")}
+                  style={ds.saveNoticeBtn}
+                >
+                  <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           {/* quick-action chips after an answer */}
           {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
@@ -2131,6 +2171,29 @@ const ds = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   branchChipText: { color: deepSpace.textHi, fontSize: 12, fontFamily: fontFamilies.readable },
+  // 대화 저장 안내 (Simon 결정 B1). 경고색을 쓰지 않는다 — 잘못한 것이 아니라
+  // 선택지를 알리는 자리다.
+  saveNotice: {
+    marginHorizontal: deepSpaceSpacing.md,
+    marginBottom: deepSpaceSpacing.xs,
+    padding: deepSpaceSpacing.md,
+    gap: 6,
+    borderRadius: deepSpaceRadii.md,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  saveNoticeTitle: { color: semantic.text, fontSize: 14, fontWeight: "600" },
+  saveNoticeBody: { color: semantic.textMuted, fontSize: 13, lineHeight: 19 },
+  saveNoticeRow: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: 2 },
+  saveNoticeBtn: {
+    // 44px 터치 타깃 (PRD 불변식)
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.sm,
+  },
+  saveNoticeBtnText: { color: deepSpace.accent, fontSize: 13, fontWeight: "600" },
+  saveNoticeDismissText: { color: semantic.textMuted, fontSize: 13 },
   keepChip: {
     alignSelf: "flex-start",
     marginTop: 8,
