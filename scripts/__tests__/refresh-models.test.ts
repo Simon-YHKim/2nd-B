@@ -9,7 +9,20 @@
 // 찾아낸 검색-모델 구멍(`gpt-5-search-api-2025-10-14` 가 추론 좌석 후보로 올라옴)이
 // 바로 그 사각지대에 있었다 — 테스트는 그때도 전부 초록이었다.
 // 이제는 실제 SEATS 를 import 해서 **배포되는 정의 자체**를 시험한다.
-import { COST_AXIS, SEATS, costAxisOf, pickNewest, type SeatClass } from "../refresh-models";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import {
+  ANTHROPIC_OPUS_PURPOSES,
+  ANTHROPIC_SONNET_PURPOSES,
+  COST_AXIS,
+  OPENAI_FRONTIER_PURPOSES,
+  SEATS,
+  costAxisOf,
+  pickNewest,
+  secretsFor,
+  type SeatClass,
+} from "../refresh-models";
 
 function seat(id: string): SeatClass {
   const found = SEATS.find((s) => s.id === id);
@@ -151,5 +164,88 @@ describe("비용 축", () => {
 
   it("모르는 좌석은 축이 없어 승격 대상이 아니다", () => {
     expect(costAxisOf("something-new")).toBeNull();
+  });
+});
+
+// ── 승격을 실제로 어떤 시크릿으로 쓰는가 ──────────────────────────────
+//
+// 위의 COST_AXIS 시험은 **무엇을 고르는지**만 본다. 2026-08-20 에 밝혀진 것은
+// 고르는 쪽이 아니라 **쓰는 쪽**이 축을 넘고 있었다는 것이다: openai-frontier
+// 승격이 `OPENAI_MODEL` 로 기록됐는데 그건 좌석값이 아니라 전역 킬스위치라서
+// openai-proxy 의 내장 좌석을 전부 덮었다. `safety_classify`(gpt-5.4-nano) 까지.
+//
+// 그래서 여기서는 선택이 아니라 **기록된 시크릿**을 시험한다.
+describe("secretsFor — 승격이 좌석 밖으로 새지 않는다", () => {
+  it("openai 승격을 전역 킬스위치로 쓰지 않는다", () => {
+    const out = secretsFor([{ seat: { id: "openai-frontier" }, chosen: "gpt-5.5" }]);
+    const names = out.map((s) => s.name);
+    expect(names).toContain("OPENAI_PURPOSE_MODELS");
+    // 이 한 줄이 회귀 방지선이다. OPENAI_MODEL 은 사람이 사고 대응으로 쓰는 손잡이지
+    // 자동 승격이 만질 것이 아니다.
+    expect(names).not.toContain("OPENAI_MODEL");
+  });
+
+  it("싼 좌석 safety_classify 를 프론티어로 끌어올리지 않는다", () => {
+    const out = secretsFor([{ seat: { id: "openai-frontier" }, chosen: "gpt-5.5" }]);
+    const map = JSON.parse(out.find((s) => s.name === "OPENAI_PURPOSE_MODELS")!.value);
+    expect(Object.keys(map)).not.toContain("safety_classify");
+  });
+
+  it("anthropic 승격은 등급별 목적에만 닿는다", () => {
+    const out = secretsFor([
+      { seat: { id: "anthropic-sonnet" }, chosen: "claude-sonnet-6" },
+      { seat: { id: "anthropic-opus" }, chosen: "claude-opus-6" },
+    ]);
+    const map = JSON.parse(out.find((s) => s.name === "ANTHROPIC_PURPOSE_MODELS")!.value);
+    expect(map.advisor).toBe("claude-sonnet-6");
+    expect(map.persona_narrative).toBe("claude-opus-6");
+    // 등급 배정 자체는 프록시가 정한다. 이 스크립트는 이름만 갈아끼운다.
+    expect(map.persona_narrative).not.toBe(map.advisor);
+  });
+
+  it("google 좌석은 좌석당 시크릿 하나이고 models/ 접두사를 벗긴다", () => {
+    const out = secretsFor([{ seat: { id: "google-flash" }, chosen: "models/gemini-3.7-flash" }]);
+    expect(out).toEqual([{ name: "GEMINI_MODEL_FLASH", value: "gemini-3.7-flash" }]);
+  });
+
+  it("승격이 없으면 아무 시크릿도 쓰지 않는다", () => {
+    expect(secretsFor([])).toEqual([]);
+    expect(secretsFor([{ seat: { id: "openai-frontier" }, chosen: null }])).toEqual([]);
+  });
+});
+
+// 목적 목록은 엣지 프록시 좌석표의 **손으로 맞춘 사본**이다. 사본은 언젠가
+// 어긋난다 — 그때 조용히 어긋나지 않게 프록시 파일을 직접 읽어 대조한다.
+// (이 저장소가 이미 배운 교훈이다: 사본을 검사하는 시험은 진짜 정의가 무엇이든
+// 통과한다. 파일 상단의 2026-08-18 회귀 주석 참조.)
+describe("좌석 목록 표류 가드 — 엣지 프록시 원본과 대조", () => {
+  function purposeModelOf(file: string): Record<string, string> {
+    const src = readFileSync(path.join(__dirname, "../..", file), "utf8");
+    const block = src.match(/const PURPOSE_MODEL: Record<string, string> = \{([\s\S]*?)\n\};/);
+    if (!block) throw new Error(`${file} 에서 PURPOSE_MODEL 을 못 찾았다`);
+    const seats: Record<string, string> = {};
+    for (const m of block[1].matchAll(/^\s*([a-z_]+):\s*'([^']+)'/gm)) seats[m[1]] = m[2];
+    if (Object.keys(seats).length === 0) throw new Error(`${file} 의 PURPOSE_MODEL 이 비었다`);
+    return seats;
+  }
+
+  it("openai: 프론티어 좌석 전부를 담고, 싼 좌석은 안 담는다", () => {
+    const seats = purposeModelOf("supabase/functions/openai-proxy/index.ts");
+    // 싼 축은 이름에 티어 접미사가 붙는다 (gpt-5.4-nano / -mini).
+    const cheap = Object.keys(seats).filter((p) => /-(nano|mini)$/.test(seats[p]));
+    const frontier = Object.keys(seats).filter((p) => !cheap.includes(p));
+    expect(cheap).toEqual(["safety_classify"]);
+    expect([...OPENAI_FRONTIER_PURPOSES].sort()).toEqual(frontier.sort());
+    for (const c of cheap) expect(OPENAI_FRONTIER_PURPOSES).not.toContain(c);
+  });
+
+  it("anthropic: sonnet·opus 목록이 프록시 좌석표와 같다", () => {
+    const seats = purposeModelOf("supabase/functions/claude-proxy/index.ts");
+    const sonnet = Object.keys(seats).filter((p) => seats[p].includes("sonnet"));
+    const opus = Object.keys(seats).filter((p) => seats[p].includes("opus"));
+    expect([...ANTHROPIC_SONNET_PURPOSES].sort()).toEqual(sonnet.sort());
+    expect([...ANTHROPIC_OPUS_PURPOSES].sort()).toEqual(opus.sort());
+    // 두 등급이 같은 목적을 다투지 않는다.
+    expect(sonnet.filter((p) => opus.includes(p))).toEqual([]);
   });
 });

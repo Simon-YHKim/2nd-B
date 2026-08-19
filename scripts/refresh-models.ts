@@ -134,6 +134,122 @@ export function costAxisOf(seatId: string): "cheap" | "mid" | "deep" | null {
   return null;
 }
 
+// ── 승격을 어떤 시크릿으로 쓰는가 ─────────────────────────────────
+//
+// ⚠ **여기가 2026-08-20 에 고쳐진 자리다. 되돌리지 말 것.**
+//
+// 이 스크립트는 "승격은 자기 비용 축 안에서만" 을 약속한다(COST_AXIS 주석).
+// 그런데 openai-frontier 만 그 약속을 **적용 단계에서** 깨고 있었다 — 승격 값을
+// `OPENAI_MODEL` 로 썼는데 그건 좌석별 값이 아니라 **전역 킬스위치**다.
+// openai-proxy 의 resolveModel() 우선순위가 이렇다:
+//
+//   OPENAI_PURPOSE_MODELS (좌석별 JSON)  >  OPENAI_MODEL (전역)  >  PURPOSE_MODEL (내장 좌석)
+//
+// 즉 `OPENAI_MODEL=gpt-5.5` 한 줄이 내장 좌석을 **전부** 덮는다. 실측 피해:
+//
+//   safety_classify : gpt-5.4-nano -> gpt-5.5   ← 싼 축 좌석이 프론티어로. C9 상
+//                                                 모든 LLM 호출 앞에서 도는 좌석이다
+//   secondb_chat    : gpt-5.4      -> gpt-5.5   ← 앱 최다 호출 표면
+//
+// 앞의 것이 정확히 COST_AXIS 주석이 "없어야 한다" 고 적어둔 사고다. 스모크
+// 테스트는 못 잡는다 — 승격된 모델 자체는 멀쩡하니까 시험은 통과한다.
+//
+// 그래서 Anthropic 쪽이 이미 하던 방식으로 맞춘다: **좌석별 JSON 으로 쓴다.**
+// 전역 킬스위치는 사람이 사고 대응으로 쓰는 손잡이로 남겨둔다.
+
+/** claude-proxy PURPOSE_MODEL 의 sonnet 좌석. 등급 배정이 아니라 **모델 이름만** 갱신한다. */
+export const ANTHROPIC_SONNET_PURPOSES = [
+  "advisor",
+  "secondb_chat",
+  "gap_synthesize",
+  "self_model_propose",
+  "northstar_propose",
+  "ops_recommend",
+  "ops_daily_brief",
+  "ttfv_first_insight",
+] as const;
+
+/** claude-proxy PURPOSE_MODEL 의 opus 좌석. */
+export const ANTHROPIC_OPUS_PURPOSES = [
+  "persona_narrative",
+  "axis_estimate",
+  "persona_synthesis",
+  "digest_weekly",
+] as const;
+
+/**
+ * openai-proxy PURPOSE_MODEL 좌석 중 **프론티어 축에 있는 것들**.
+ *
+ * `safety_classify` 는 여기 없다 — 그 좌석은 `gpt-5.4-nano`(싼 축)고, 값이 싸다는
+ * 것 자체가 그 좌석의 설계다(reasoning_effort none). 프론티어 승격이 거기 닿으면
+ * 안 된다. 목록에서 빼는 것이 그 방어선이다.
+ *
+ * ⚠ openai-proxy 의 좌석표와 **손으로 맞춰둔 사본**이다. 어긋나면
+ * `refresh-models.test.ts` 의 표류 가드가 잡는다 (프록시 파일을 직접 읽어 대조).
+ */
+export const OPENAI_FRONTIER_PURPOSES = [
+  "cluster_infer",
+  "advisor",
+  "persona_narrative",
+  "gap_synthesize",
+  "self_model_propose",
+  "northstar_propose",
+  "axis_estimate",
+  "persona_synthesis",
+  "ops_recommend",
+  "ops_daily_brief",
+  "digest_weekly",
+  "ttfv_first_insight",
+  "secondb_chat",
+] as const;
+
+/** 좌석 -> 시크릿 이름. 등급별로 하나씩이라 승격이 축을 넘나들 수 없다. */
+const SECRET_OF: Record<string, string> = {
+  "google-flash": "GEMINI_MODEL_FLASH",
+  "google-flash-lite": "GEMINI_MODEL_FLASH_LITE",
+  "google-pro": "GEMINI_MODEL_PRO",
+};
+
+/**
+ * 승격 결정 -> 설정할 엣지 시크릿. 네트워크가 없는 순수 함수라 테스트가 붙는다.
+ *
+ * 승격이 없으면 빈 배열이다. Google 은 좌석당 시크릿 하나, Anthropic·OpenAI 는
+ * 목적별 JSON 하나씩이다.
+ */
+export function secretsFor(
+  promotable: readonly { seat: { id: string }; chosen: string | null }[]
+): { name: string; value: string }[] {
+  const secrets: { name: string; value: string }[] = [];
+  const anthropic: { sonnet?: string; opus?: string } = {};
+  let openaiFrontier: string | null = null;
+
+  for (const d of promotable) {
+    if (!d.chosen) continue;
+    // Google 모델 이름은 목록 API 가 "models/" 접두사를 붙여 준다. 프록시는 슬러그만 쓴다.
+    const value = d.chosen.replace(/^models\//, "");
+    const direct = SECRET_OF[d.seat.id];
+    if (direct) secrets.push({ name: direct, value });
+    else if (d.seat.id === "anthropic-sonnet") anthropic.sonnet = value;
+    else if (d.seat.id === "anthropic-opus") anthropic.opus = value;
+    else if (d.seat.id === "openai-frontier") openaiFrontier = value;
+  }
+
+  if (anthropic.sonnet || anthropic.opus) {
+    const map: Record<string, string> = {};
+    if (anthropic.sonnet) for (const p of ANTHROPIC_SONNET_PURPOSES) map[p] = anthropic.sonnet;
+    if (anthropic.opus) for (const p of ANTHROPIC_OPUS_PURPOSES) map[p] = anthropic.opus;
+    secrets.push({ name: "ANTHROPIC_PURPOSE_MODELS", value: JSON.stringify(map) });
+  }
+
+  if (openaiFrontier) {
+    const map: Record<string, string> = {};
+    for (const p of OPENAI_FRONTIER_PURPOSES) map[p] = openaiFrontier;
+    secrets.push({ name: "OPENAI_PURPOSE_MODELS", value: JSON.stringify(map) });
+  }
+
+  return secrets;
+}
+
 interface Discovered {
   seat: SeatClass;
   /** 벤더가 알려준, 이 등급에 속하는 모델들 (최신 우선). */
@@ -350,37 +466,7 @@ async function main(): Promise<void> {
   const token = (process.env.SUPABASE_ACCESS_TOKEN ?? "").trim();
   const ref = (process.env.SUPABASE_PROJECT_REF ?? "").trim();
 
-  // 좌석 -> 시크릿 이름. 등급별로 하나씩이라 승격이 축을 넘나들 수 없다.
-  const SECRET_OF: Record<string, string> = {
-    "google-flash": "GEMINI_MODEL_FLASH",
-    "google-flash-lite": "GEMINI_MODEL_FLASH_LITE",
-    "google-pro": "GEMINI_MODEL_PRO",
-  };
-
-  const secrets: { name: string; value: string }[] = [];
-  const anthropicSeats: Record<string, string> = {};
-  for (const d of promotable) {
-    if (!d.chosen) continue;
-    const direct = SECRET_OF[d.seat.id];
-    // Google 모델 이름은 목록 API 가 "models/" 접두사를 붙여 준다. 프록시는
-    // 슬러그만 쓴다.
-    const value = d.chosen.replace(/^models\//, "");
-    if (direct) secrets.push({ name: direct, value });
-    else if (d.seat.id === "anthropic-sonnet") anthropicSeats.sonnet = value;
-    else if (d.seat.id === "anthropic-opus") anthropicSeats.opus = value;
-    else if (d.seat.id === "openai-frontier") secrets.push({ name: "OPENAI_MODEL", value });
-  }
-  // Anthropic 은 목적별 JSON 하나로 관리된다. 어느 목적이 sonnet 이고 어느 것이
-  // opus 인지는 claude-proxy 의 PURPOSE_MODEL 이 정하고, 여기서는 그 등급의
-  // **모델 이름만** 최신으로 채운다. 목적의 등급 배정은 건드리지 않는다.
-  if (anthropicSeats.sonnet || anthropicSeats.opus) {
-    const SONNET_PURPOSES = ["advisor", "secondb_chat", "gap_synthesize", "self_model_propose", "northstar_propose", "ops_recommend", "ops_daily_brief", "ttfv_first_insight"];
-    const OPUS_PURPOSES = ["persona_narrative", "axis_estimate", "persona_synthesis", "digest_weekly"];
-    const map: Record<string, string> = {};
-    if (anthropicSeats.sonnet) for (const p of SONNET_PURPOSES) map[p] = anthropicSeats.sonnet;
-    if (anthropicSeats.opus) for (const p of OPUS_PURPOSES) map[p] = anthropicSeats.opus;
-    secrets.push({ name: "ANTHROPIC_PURPOSE_MODELS", value: JSON.stringify(map) });
-  }
+  const secrets = secretsFor(promotable);
 
   if (secrets.length === 0) {
     console.log("승격할 시크릿이 없습니다.");
