@@ -50,7 +50,15 @@ export interface CanonScreen {
    *  The reverse direction is `route: null` (prototype has it, app does not).
    *  Both are honest gaps, and the canon should be able to state either. */
   appOnly?: boolean;
-  layout: CanonLayout;
+  /** The prototype's rendering contract for this screen.
+   *
+   *  **Absent on `appOnly` screens, deliberately.** This field describes how the
+   *  PROTOTYPE renders, and an appOnly screen has no prototype. Filling it in
+   *  from the app's render chain would look tidy and be a guess — the app
+   *  delegates through wrappers and loader branches, so "which shell does this
+   *  screen use" is not answerable by inspection alone. A canon that guesses is
+   *  the thing this file spent 2026-08-18/19 removing. */
+  layout?: CanonLayout;
   root?: boolean;
   companion?: boolean;
   title?: string;
@@ -122,6 +130,8 @@ export function canonRoots(): CanonScreen[] {
   return canonScreens.filter((s) => s.root);
 }
 
+/** The prototype layout for a screen. Falls back to `windowed` for unknown ids
+ *  AND for appOnly screens, which declare none — see `CanonScreen.layout`. */
 export function canonLayoutOf(id: string): CanonLayout {
   return byId.get(id)?.layout ?? "windowed";
 }
@@ -150,7 +160,9 @@ export function canonStats(): {
   packs: number;
 } {
   const byLayout: Record<CanonLayout, number> = { immersive: 0, museumLike: 0, windowed: 0, gate: 0 };
-  for (const s of canonScreens) byLayout[s.layout] += 1;
+  // Only screens that DECLARE a layout are counted. appOnly screens have none,
+  // so these numbers stay a statement about the prototype, which is what they mean.
+  for (const s of canonScreens) if (s.layout) byLayout[s.layout] += 1;
   return {
     screens: canonScreens.length,
     roots: canonRoots().length,
