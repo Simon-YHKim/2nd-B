@@ -45,7 +45,13 @@ else {
   for (const s of reg.screens) {
     if (ids.has(s.id)) errors.push(`duplicate screen id: ${s.id}`);
     ids.add(s.id);
-    if (!['immersive', 'museumLike', 'windowed', 'gate'].includes(s.layout)) errors.push(`bad layout for ${s.id}: ${s.layout}`);
+    // appOnly screens declare no layout: the field is the PROTOTYPE's rendering
+    // contract and they have no prototype. Everything else must declare one.
+    if (s.appOnly) {
+      if (s.layout) errors.push(`appOnly screen must not declare a prototype layout: ${s.id}`);
+    } else if (!['immersive', 'museumLike', 'windowed', 'gate'].includes(s.layout)) {
+      errors.push(`bad layout for ${s.id}: ${s.layout}`);
+    }
     // `appOnly` screens live in the app and have no prototype counterpart, so
     // they carry no component. Everything else must name one.
     if (!s.component && !s.appOnly) errors.push(`no component for ${s.id}`);
