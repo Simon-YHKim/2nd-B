@@ -150,6 +150,23 @@ export function lensById(id: LensId): Lens {
  * 넷은 그나마 결이 닿아서(rhythm→때, possible→크기, recall→꺼내기, seen→프로필)
  * 그렇게 뒀고 **나머지 셋은 선언 순서대로 채운 것**이다. 이 표를 근거로
  * "옛 구인이 이 렌즈였다"고 말하지 말 것.
+ *
+ * ⚠ **아직 마이그레이션으로 적용하지 않는다.** #1318 이 `0140_lens_ids.sql` 로
+ * 이 매핑을 넣었다가 **되돌렸다.** 이유:
+ *
+ *   `star_tier_history.star_id` 를 렌즈 id 로 바꾸는 순간, 그 테이블을 읽는
+ *   **18개 파일이 전부 조용히 빈손이 된다.** 읽는 쪽이 `r.star_id as StarId`
+ *   로 **검사 없이 캐스팅**한 뒤 `SELF_UNDERSTANDING_STARS` 의 id 로 조회하기
+ *   때문이다 -- 못 찾으면 예외가 아니라 기본값(L1 / 빈 객체)이 나온다. 그래서
+ *   `/growth` · `/ratifications` · `/brightness` · `/persona` · `core-brain` ·
+ *   `lens-signal` 이 **에러 없이 비어 보인다.** 타입 검사로도 안 잡힌다.
+ *
+ * 운영에 적용된 적이 없어서 피해는 없었지만, 적용 대기 중인 마이그레이션은
+ * 다음 적용 스윕에서 그냥 실행된다 -- 그게 이 저장소의 정상 절차이기 때문이다.
+ * **매핑은 유효하고 마이그레이션만 보류다.** 읽는 18개 파일이 함께 옮겨가는
+ * "Layer B 구인 폐기" 작업과 **한 PR 로** 나가야 한다.
+ *
+ * 이 규칙은 `migration-readiness.test.ts` 가 지킨다.
  */
 export const LEGACY_STAR_TO_LENS: Readonly<Record<string, LensId>> = {
   rhythm: "when",
