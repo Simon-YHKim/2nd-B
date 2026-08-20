@@ -36,6 +36,15 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/dds-wiki-records-screens.tsx",
   "src/screens/deepspace/dds-import-inbox-screens.tsx",
   "src/screens/deepspace/dds-plans-screen.tsx",
+  "src/components/deep-space/DeepSpaceViews.tsx",
+  "src/screens/deepspace/DeepSpaceHubDockScreen.tsx",
+  "src/components/deep-space/DomainStarLens.tsx",
+  "src/app/core-brain.tsx",
+  "src/screens/deepspace/ops/screens.tsx",
+  "src/screens/deepspace/museum/MuseumTimelineScreen.tsx",
+  "src/components/deepspace/ops/kit.tsx",
+  "src/screens/deepspace/DeepSpaceDesignScreens.tsx",
+  "src/components/deep-space/AxisCheck.tsx",
   "src/components/pixel/PixelSurface.tsx",
   "src/components/pixel/PixelDither.tsx",
   "src/components/pixel/PixelPressable.tsx",
@@ -45,6 +54,20 @@ const MIGRATED: readonly string[] = [
 const LITERAL_RADIUS = /borderRadius:\s*(?!0\b)([0-9][0-9.]*)/g;
 // 레거시 토큰 참조. `m3.shape.*` 는 안 걸린다.
 const LEGACY_TOKEN = /(?<![A-Za-z0-9_.])radius\.[A-Za-z0-9"'[\]]+/g;
+
+// ── 예외 하나: 기기 목업의 베젤 ────────────────────────────────────────
+//
+// `radius.phone`(38)은 화면 **안**의 도형이 아니라 화면을 담고 있는 **기기 테두리**다.
+// 인수 번들도 정확히 그렇게 갈라놨다 — `app/px-bridge.css:76` 의 라운드 금지는
+// `[data-phone-frame] *` 즉 **자손**에만 걸리고, 프레임 요소 자신
+// (`[data-phone-frame]`, 83행)에는 안 걸린다.
+//
+// 규칙 2는 캔버스 안을 다스리지 캔버스 자체를 다스리지 않는다. 실제 폰 모서리는
+// 둥글다. 이걸 각지게 만들면 픽셀아트가 아니라 그냥 틀린 그림이 된다.
+//
+// ⚠ 이름으로만 예외를 준다. 리터럴 38 은 여전히 실패한다 — 예외가 "이 값 근처면
+// 봐준다"로 번지지 않게.
+const EXEMPT_TOKEN = "radius.phone";
 
 interface Hit {
   file: string;
@@ -77,6 +100,7 @@ for (const rel of MIGRATED) {
     });
   }
   for (const m of src.matchAll(LEGACY_TOKEN)) {
+    if (m[0] === EXEMPT_TOKEN) continue; // 기기 베젤. 위 주석 참조
     hits.push({
       file: rel,
       line: lineOf(src, m.index ?? 0),

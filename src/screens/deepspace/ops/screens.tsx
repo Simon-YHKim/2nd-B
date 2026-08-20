@@ -12,6 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { DateField, MdButton, MdCard } from "@/components/m3";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import { systemLocaleFor } from "@/lib/i18n/locales";
@@ -1314,13 +1315,13 @@ const remStyles = StyleSheet.create({
   infoIcon: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderColor: deepSpace.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  infoIconHand: { width: 2, height: 8, borderRadius: 1, backgroundColor: deepSpace.accent },
+  infoIconHand: { width: 2, height: 8, borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
   infoBody: { flex: 1 },
   infoTitle: { fontSize: 15, color: deepSpace.textHi },
   infoNote: { fontSize: 12, color: deepSpace.textMid, marginTop: 2 },
@@ -1332,24 +1333,24 @@ const remStyles = StyleSheet.create({
   iconBox: {
     width: 38,
     height: 38,
-    borderRadius: 11,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.accent, 0.16),
     alignItems: "center",
     justifyContent: "center",
   },
   iconDots: { flexDirection: "row", gap: 3 },
-  iconDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: deepSpace.accentSoft },
+  iconDot: { width: 5, height: 5, borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft },
   mid: { flex: 1, minWidth: 0 },
   title: { fontSize: 14, color: deepSpace.textHi },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" },
   timePill: {
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     paddingHorizontal: 9,
     paddingVertical: 3,
     backgroundColor: withAlpha(deepSpace.accent, 0.16),
   },
   timePillText: { fontSize: 12, color: deepSpace.accentBright },
-  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: deepSpace.textLo },
+  metaDot: { width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: deepSpace.textLo },
   repeat: { fontSize: 12, color: deepSpace.textMid },
   srcChip: {
     flexDirection: "row",
@@ -1359,17 +1360,17 @@ const remStyles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.cardPressed,
   },
-  srcDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: deepSpace.soul },
+  srcDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: deepSpace.soul },
   srcText: { fontSize: 11, color: deepSpace.textMid },
-  toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
+  toggle: { width: 44, height: 26, borderRadius: m3.shape.none, justifyContent: "center", paddingHorizontal: 3 },
   // Canon reminder toggles are blue/primary (accent), not mint — matches the
   // settings + iden M3 switches (design canon 09-settings / 23-iden / 26-reminders).
   toggleOn: { backgroundColor: deepSpace.accent, alignItems: "flex-end" },
   toggleOff: { backgroundColor: deepSpace.cardPressed, alignItems: "flex-start" },
-  knob: { width: 20, height: 20, borderRadius: 10 },
+  knob: { width: 20, height: 20, borderRadius: m3.shape.none },
   knobOn: { backgroundColor: deepSpace.onAccent },
   knobOff: { backgroundColor: deepSpace.textLo },
 });
@@ -1399,7 +1400,7 @@ const styles = StyleSheet.create({
   },
   section: { gap: 8 },
   pixelLabel: { fontSize: 8, letterSpacing: 1, color: deepSpace.textLo },
-  dotSm: { width: 7, height: 7, borderRadius: 4 },
+  dotSm: { width: 7, height: 7, borderRadius: m3.shape.none },
 
   hero: {
     flexDirection: "row",
@@ -1593,7 +1594,7 @@ const styles = StyleSheet.create({
     paddingBottom: deepSpaceSpacing.xl,
     gap: deepSpaceSpacing.sm,
   },
-  sheetGrip: { width: 40, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
+  sheetGrip: { width: 40, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
   mealSheetTitle: { fontSize: 15, color: deepSpace.textHi },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {

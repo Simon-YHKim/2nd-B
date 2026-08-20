@@ -7,7 +7,7 @@ import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { colors, radius, spacing } from "@/theme/tokens";
+import { colors, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
@@ -402,7 +402,7 @@ const gap = StyleSheet.create({
   qRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   answer: { marginTop: spacing.xs },
   noticeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  tag: { borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  tag: { borderRadius: m3.shape.full, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   tagText: { color: colors.cyanSoft, fontSize: 11 },
   factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
   factText: { flex: 1, gap: 2 },
@@ -3246,8 +3246,8 @@ const cx = StyleSheet.create({
   heroBar: { marginTop: 12 },
 
   // ── routine rows ──
-  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, backgroundColor: m3.color.surfaceContainerHighest },
-  routineDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: m3.color.outline },
+  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
+  routineDot: { width: 20, height: 20, borderRadius: m3.shape.none, borderWidth: 2, borderColor: m3.color.outline },
   routineDotOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
   routineLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
   routineLabelDone: { color: m3.color.onSurfaceVariant, textDecorationLine: "line-through" },
@@ -3270,7 +3270,7 @@ const cx = StyleSheet.create({
   adviceDetail: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8, lineHeight: 22 },
   evidenceRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 14 },
   evidenceLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginRight: 2 },
-  evidenceChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 9999, backgroundColor: m3.color.surfaceContainerHighest },
+  evidenceChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
   evidenceChipText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
   adviceCta: { marginTop: 16 },
   adviceRefreshRow: { flexDirection: "row", justifyContent: "center", marginTop: 4 },
@@ -3292,7 +3292,7 @@ const cx = StyleSheet.create({
   chipScroll: { gap: 8, paddingRight: 16 },
   focusSummary: { padding: 16, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 16 },
   dotsRow: { flexDirection: "row", gap: 5 },
-  summaryDot: { width: 12, height: 12, borderRadius: 6 },
+  summaryDot: { width: 12, height: 12, borderRadius: m3.shape.none },
   summaryTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   summarySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
@@ -3302,7 +3302,7 @@ const cx = StyleSheet.create({
   consentText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
   sourceCard: { padding: 14 },
   sourceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  iconBox: { width: 42, height: 42, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   iconBoxOn: { backgroundColor: m3.color.primary },
   iconBoxOff: { backgroundColor: m3.color.surfaceContainerHighest },
   sourceName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
@@ -3321,7 +3321,7 @@ const cx = StyleSheet.create({
   signalFoot: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
   signalConf: { flex: 1, color: m3.color.tertiary, fontFamily: m3.font.brand },
   rightsCard: { padding: 4 },
-  rightsRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 10 },
+  rightsRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: m3.shape.none },
   rightsDivider: { borderTopWidth: 1, borderTopColor: m3.color.outlineVariant },
   rightsLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   rightsLabelDanger: { color: m3.color.error, fontFamily: m3.font.brand },
