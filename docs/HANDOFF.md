@@ -3,7 +3,126 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-21 / P5 화면 이식 — 규칙 2·3과 타입 격자가 **화면에서** 참이 됐다
+## Latest — 2026-08-21 00:55 KST / 벤더 재편(Gemini 폐기·Grok 추가) + XPRIZE 제거 GO + RBAC 발주
+
+> 발행: **GUI(Cowork) 콘솔 세션**. Simon 결정 5건이 2026-08-21 00:4x 에 착지했다. 이 블록이 그 결정을
+> 발주로 옮긴 정본이다. 아래 23:50 블록의 REQ-260820-03(effort 키 계층)은 **그대로 유효하며
+> 이 블록의 1번 선행 작업**이다.
+
+### Simon 결정 (2026-08-21 00:4x KST, 원문 요지)
+
+| ID | 결정 |
+|---|---|
+| 벤더 재편 | **"제미나이는 이제 필요 없어. 폐기까지 진행해줘."** 벤더는 **OpenAI · Claude · Grok** 3개로. "모두 모델은 최신(각 상황에 맞게 성능 최적화 모델 배치), effort 레벨을 달리하는 구조." |
+| Q-260820-03 | XPRIZE 코드 잔재를 **지금** 코딩 세션에 발주해 **한 PR 로 전부** 걷어낸다 → REQ-260820-04 GO |
+| Q-260819-01 | Supabase 유료(HIBP) 기능 폐기 동의. 단 **"기본적인 보안은 확보"** + **RBAC 도입** 지시 → REQ-260821-02 |
+| Q-260820-02 | DRYRUN off - **실행 완료** (아래 상태표) |
+| Q-260820-04 | effort 키 계층 유지. 대상 벤더만 OpenAI/Claude/Grok 으로 정정 (Gemini 키 4개는 만들지 않는다) |
+
+### 콘솔 상태표 (2026-08-21 00:5x 실측)
+
+| 항목 | 상태 |
+|---|---|
+| `PADDLE_SELF_SERVICE_DRYRUN` | **`0` (껐다).** `edge-flag-set.yml` 워크플로로 실행, 다이제스트 검증 완료. `subscription-manage` v20 재배포됨 |
+| `MODEL_PIN_OPENAI_FRONTIER` | `gpt-5.4` 유지. REQ-260820-03 배포 + 키 입력 전 삭제 금지 |
+| 유료 구독자 | 0명 (15명 전원 free) · 원장 0행 |
+| Play | 프로덕션 액세스 3조건 전부 충족, 신청 버튼 열림 (Simon 클릭 대기) |
+| Apple | 라이선스 계약 미수락 + 0.1.0 반려(2.1) + 유료 앱 계약 미체결 |
+
+---
+
+### REQ-260821-01 → CLI · 벤더 재편: Gemini 폐기 준비 + Grok(xAI) 추가 · ⚠ 실질 마감 2026-08-31
+
+**왜 하는가.** Simon 이 Gemini 를 벤더에서 뺐다. 마침 구글이 **2026년 9월부터 Standard 키를 거부**하는데
+새 Gemini 키는 만들지 않기로 했으므로, **9월 전에 Gemini 에서 내려오지 못하면 추론이 그냥 죽는다.**
+폐기가 결정이자 동시에 마감이다.
+
+**현재 상태 (실측, 다시 조사하지 말 것):**
+
+- `EXPO_PUBLIC_REASONING_PROVIDER=gemini` · `EXPO_PUBLIC_LLM_PHASE=1` → **추론이 지금 Gemini 로 돈다.**
+- `EXPO_PUBLIC_CHAT_VENDOR=openai` → 대화는 이미 OpenAI.
+- **gemini-proxy 만 멀티모달이다.** 이미지(OCR, base64 ≤2.6MB, jpeg/png/webp/heic/heif 5종)와
+  오디오(음성 메모 전사)를 inline 으로 받는다. **openai-proxy 에는 이미지·오디오 경로가 없다** (grep 실측).
+  카메라 OCR·음성 전사가 앱의 실기능이므로 이 대체 경로가 이 발주의 실제 난이도다.
+- xAI API 는 OpenAI 호환 형식이다. grok-proxy 신설이든 openai-proxy 일반화든 코딩 세션 판단.
+- 나이틀리(model-refresh.yml)는 현재 GEMINI_API_KEY 부재로 Gemini 좌석 3개를 매번 건너뛴다.
+
+**목표 + 완료조건 (기계 판정):**
+
+1. 추론 provider 가 Gemini 아닌 벤더로 플립되고, 실사용 1건이 `ai_audit_log` 에 새 벤더로 찍힌다.
+2. OCR·음성 전사가 대체 벤더로 동작한다 (클라이언트 계약을 유지해 서버에서 흡수하거나,
+   클라 변경이 필요하면 배포 순서를 함께 적을 것).
+3. Grok 좌석이 추가된다: 키 이름 `XAI_API_KEY` (+ REQ-260820-03 의 `XAI_API_KEY__{EFFORT}` 가
+   자동 적용되도록 프리픽스 규약 준수). 키가 없으면 그 좌석을 건너뛴다 (현행 나이틀리 패턴).
+4. model-refresh.yml 에서 Gemini 좌석 제거 + xAI 좌석 추가.
+5. `npm run verify` 그린.
+6. **Gemini 최종 폐기(시크릿 제거·AI Studio revoke·gemini-proxy 제거/동결)는 콘솔 몫이다.
+   코드에서 미리 지우지 말 것** - 플립이 운영에서 검증된 뒤 콘솔이 마무리한다.
+
+**하지 말 것:**
+
+- REQ-260820-03 보다 먼저 벤더를 늘리지 말 것. effort 계층이 먼저 들어가야 새 벤더 키가
+  처음부터 `{PREFIX}_API_KEY__{EFFORT}` 이름으로 들어간다.
+- 플립 검증 전에 GEMINI_API_KEY 참조·gemini-proxy 를 지우지 말 것 (위 6번).
+- `PURPOSE_EFFORT_MAX` 어휘(none/low/medium/high/xhigh)를 바꾸지 말 것.
+
+**비용 플래그 (Simon 손):** Anthropic 크레딧 소진 상태라 Claude 좌석 활성화에는 **크레딧 구매**가 필요하고,
+xAI 는 **신규 과금**이다. 코드는 키 부재 시 좌석 skip 으로 두고, 결제는 Simon 이 별도 결정한다.
+
+### REQ-260820-04 → CLI · XPRIZE 잔재 제거 · **GO** (보류 해제)
+
+Simon 지시: 한 PR 로 전부. 범위 (2026-08-20 23:35 실측 63파일 140회 중 동작 코드만):
+
+| 어디 | 무엇 |
+|---|---|
+| `src/lib/judge/domains.ts` | `JUDGE_DOMAINS` 3종 제거 (또는 RBAC 대체 전 임시 빈 배열 - 판단 맡김) |
+| `db/migrations/0010`·`0011` 의 judge 트리거 | 새 마이그레이션으로 드롭 (번호는 origin/main 최댓값 재확인. 지금 기준 다음 = `0138`) |
+| `db/seed.sql` | `demo@xprize.org` 교체 |
+| `src/app/manual.tsx` | 화면 문구 2곳 |
+| 테스트 2종 (`judge/domains.test.ts` 6회 · `agent-briefing.test.ts` 7회) | 동반 수정 |
+| `docs/CONSTRAINTS.md` C6·C12 | `check:constraints` 가 읽으므로 함께 개정 |
+
+- **실측 안전성: 운영 `judge_mode=true` 사용자 0명 / 15명.** comp 를 잃는 사람이 없다. 지금이 제거 적기다.
+- comp(무료 이용) 장치의 **대체는 여기서 만들지 말 것** - REQ-260821-02 의 RBAC role 기반 comp 가 받는다.
+- 주석 잔재(`boundary.ts`·`routing.ts`·`delete-account`·`.env.example`)는 이 PR 에 곁들여도 좋다.
+- 아카이브·과거 감사·과거 핸드오프는 **건드리지 않는다.**
+
+### REQ-260821-02 → CLI · RBAC + 기본 인증 보안 (설계 문서 먼저)
+
+**왜 하는가.** Simon: "supabase 의 유료 기능을 안 쓸 뿐이지 비밀번호 유출 방지, 개인 정보 유출 방지 등의
+기본적인 보안은 확보되어야 해. 그리고 RBAC 시스템을 도입해서 운영자, 개발자, 플랜별 사용자 등에게
+차별적 접근 권한을 부여하자."
+
+**더 나은 경로 (Pro 결제 없이 유출 비밀번호 차단):** HIBP range API 는 **무료·키 불필요·k-anonymity**
+(SHA-1 앞 5자리만 전송, 원문과 전체 해시가 밖으로 안 나감)다. 가입·비밀번호 변경 경로의 edge function 에서
+이 체크를 돌리면 Supabase Pro 의 leaked-password 기능과 같은 효과를 0원에 얻는다.
+Q-260819-01(3회 이월)은 이것으로 **폐기 확정**이다.
+
+**출발점 (방법은 자유):**
+
+- 역할: `admin`(운영자) · `developer` · 플랜 티어(free/voyager/polaris)는 기존 `subscription_tier` 재사용.
+  저장은 `user_roles` 테이블 또는 `users.role` + **custom access token hook** 으로 JWT 에 role 클레임 주입
+  → RLS·SECURITY DEFINER 가드가 클레임을 읽는 구조.
+- judge_mode comp 의 대체(role 기반 무료 이용 부여)를 여기 포함 - REQ-260820-04 와의 경계.
+- **`docs/RBAC-DESIGN.md` 설계 문서를 먼저 내고 Simon 컨펌 후 마이그레이션.** 지금 유료 0명·judge 0명이라
+  도입 비용이 최소인 시점이지만, 권한 체계는 되돌리기 비싸므로 설계 승인을 게이트로 둔다.
+
+**완료조건:** ① 설계 문서 PR (승인 게이트) ② 승인 후: HIBP 체크가 가입 경로에서 동작(유출 비밀번호로
+가입 시도 시 거부되는 테스트 포함) ③ role 클레임이 JWT 에 실리고 RLS 가드 1개 이상이 실제로 그것을 읽음
+④ `npm run verify` 그린.
+
+### 곁들여 · 확인 회신 3건 (Simon 질문에 대한 코드 실측 답)
+
+1. **취소 동작**: `cancel` 기본값 = `next_billing_period` → **결제한 기간 만료까지 plan 유지 후 자동 갱신 중단.**
+   Simon 이해와 일치. `immediately` 옵션도 있다.
+2. **환불은 취소에 자동으로 붙지 않는다.** 별도 액션(`refund_request`)이고, 화면은 `refund_eligibility()`
+   판정(남은 일수·사용량)을 보여주며 자격이 있을 때만 버튼이 열린다. "취소하면 요건 충족 시 환불"이 되게
+   하려면 취소 시트에서 자격자에게 환불을 함께 제안하는 **클라 변경**이 필요하다 - 원하면 별도 발주.
+3. **자동 갱신 고지**: 구독 화면 `subscription.autoRenewOn` 행(갱신일 표시) + 약관 §3 + 환불정책 §3 +
+   Paddle 체크아웃 3중 고지. 단 **"자동구독으로 할까요?" 를 따로 묻는 단계는 없다** - Paddle 구독은
+   자동 갱신이 기본이고 고지 방식이다. 가입 직전 명시 동의 단계를 원하면 별도 발주.
+
+## 2026-08-21 / P5 화면 이식 — 규칙 2·3과 타입 격자가 **화면에서** 참이 됐다
 
 > 발행: **코딩 세션**. 아래 콘솔 세션 블록들과 겹치는 내용 없음 (시각 층만 만졌다).
 > 이 세션의 앞부분(큐 A~D 완주)은 `2026-08-20 / 큐 A·B·C·D 완주` 블록에 있다.
