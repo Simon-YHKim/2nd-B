@@ -1,4 +1,5 @@
 import {
+  BACK_ARROW_HIDDEN_PATHS,
   DEEP_SPACE_DOCK_PATHS,
   PRIMARY_TAB_PATHS,
   PROFILE_CHILD_PATHS,
@@ -6,6 +7,14 @@ import {
   isPrimaryTabPath,
   isProfileChildPath,
 } from "../tabs";
+
+describe("floating back arrow hidden routes", () => {
+  test("legal documents keep only their in-screen history back", () => {
+    expect(BACK_ARROW_HIDDEN_PATHS).toEqual(
+      expect.arrayContaining(["/terms", "/refund", "/privacy-policy"]),
+    );
+  });
+});
 
 describe("primary tab routes", () => {
   test("keeps settings under profile instead of the bottom tab bar", () => {
