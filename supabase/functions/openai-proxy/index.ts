@@ -127,6 +127,29 @@ const DEFAULT_OPENAI_MODEL = 'gpt-5.4';
 const PURPOSE_MODEL: Record<string, string> = {
   cluster_infer: 'gpt-5.4',
   safety_classify: 'gpt-5.4-nano',
+  // Backbone seats (EXPO_PUBLIC_BACKBONE_VENDOR, REQ-260821-01). These nine
+  // purposes had no proxy seat anywhere but gemini-proxy, so the Gemini exit
+  // could not include them: the client switch is useless while this function
+  // answers 400 purpose_not_seated. Tiers mirror PURPOSE_TIER in
+  // src/lib/llm/types.ts, which is where their cost intent already lived --
+  // lite -> nano, flash -> mini, pro -> the frontier id.
+  //
+  // Note the shape of the risk: these are the app's HIGH-VOLUME surfaces (one
+  // classify per capture, one per clip). Seating them on the frontier model
+  // "to be safe" would be the single most expensive mistake available in this
+  // file, which is why the tier is copied from an existing decision rather
+  // than chosen fresh here.
+  capture_classify: 'gpt-5.4-nano',
+  clipper_classify: 'gpt-5.4-nano',
+  audit_qa: 'gpt-5.4-mini',
+  source_ingest: 'gpt-5.4-mini',
+  import_ingest: 'gpt-5.4-mini',
+  clipper_template_propose: 'gpt-5.4-mini',
+  interview_probe: 'gpt-5.4-mini',
+  // pro tier in PURPOSE_TIER: the deep-run connection rationale and the
+  // 공상 -> 구체화 surface. Both are user-visible reasoning, both are rare.
+  reasoning_connect: 'gpt-5.4',
+  imagine: 'gpt-5.4',
   // Phase-2 reasoning seats re-routed from Claude on 2026-07-06 (Anthropic
   // credit balance exhausted; Simon chose the OpenAI backend). The nine live
   // client reasoning purposes, all on the gpt-5.4 frontier; the inert proto-rev2
@@ -217,6 +240,19 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   // call by disabling its thinking budget for these purposes.
   capture_ocr: 'none',
   voice_transcribe: 'none',
+  // Backbone ceilings (REQ-260821-01), mirroring PURPOSE_TIER's cost intent.
+  // The two classifiers get 'none' for the same reason safety_classify does:
+  // they run once per capture and once per clip, so they are the only rows
+  // here where a wrong ceiling shows up as a bill rather than as latency.
+  capture_classify: 'none',
+  clipper_classify: 'none',
+  audit_qa: 'low',
+  source_ingest: 'low',
+  import_ingest: 'low',
+  clipper_template_propose: 'low',
+  interview_probe: 'low',
+  reasoning_connect: 'medium',
+  imagine: 'medium',
 };
 
 function effortToOpenAi(effort: string | null, purpose: string): string {
