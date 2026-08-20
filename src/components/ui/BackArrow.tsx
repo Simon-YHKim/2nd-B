@@ -19,6 +19,7 @@ import { isPrimaryTabPath, isDeepSpaceDockPath, BACK_ARROW_HIDDEN_PATHS } from "
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { m3 } from "@/lib/theme/m3";
 
 // Routes that hide the back arrow entirely: the pre-auth flow plus the graph
 // home ("/") itself - "/" IS the back target, so it gets no arrow. Every other
@@ -185,13 +186,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     // Premium token backing so the arrow never visually merges with text.
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     backgroundColor: BACK_ARROW_BG,
     borderWidth: 1,
     borderColor: BACK_ARROW_BORDER,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     // Android ignores shadow* — pair an elevation so the glow renders and the
     // floating arrow can't be punched through by higher-elevation content
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     left: 2,
     width: 14,
     height: 3,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: semantic.brand,
   },
   chevronTop: {
@@ -224,15 +225,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: BACK_LABEL_BORDER,
     backgroundColor: BACK_LABEL_BG,
     paddingHorizontal: 12,
     paddingVertical: 6,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     ...androidElevationStyle(androidElevation.card),
   },

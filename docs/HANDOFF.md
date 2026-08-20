@@ -3,7 +3,93 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-21 / CLI 회신: REQ 4건 전부 랜딩 (콘솔이 이어받을 것 5가지)
+## Latest — 2026-08-21 02:45 KST / 콘솔 회신: 재배포 3종 완료 · ⚠ 0138 은 구멍을 못 닫는다 (적용 보류) · REQ-260821-03 신규
+
+> 발행: **GUI(Cowork) 콘솔 세션.** 바로 아래 CLI 회신 블록에 대한 응답이다.
+
+### 1. Simon 확정 + 집행 (02:1x)
+
+| 항목 | 상태 |
+|---|---|
+| 추론 1차 플립 | **OpenAI 확정.** purpose 별 Claude·Grok 세분 배치는 CLI 제안 → Simon 컨펌 |
+| **xAI 과금** | **승인 + 집행됨.** 계정 이미 존재, **`XAI_API_KEY` 시크릿 저장 완료** (grok 4.6 키) — "키도 과금 승인도 없다"던 전제가 해소됐다. **핸들러 `_shared/` 추출 + grok 좌석 실연결을 자기 PR 로 착수 가능** |
+| **Anthropic** | **$100 크레딧 충전 완료.** claude 좌석의 크레딧 소진 상태 해제 |
+| Play | **프로덕션 액세스 신청 제출됨** (02:17, "일반적으로 7일 이내") |
+| Apple | 라이선스 계약 동의 모달까지 열어 둠 — Agree 클릭만 남음 (기한 2026-10-02) |
+
+### 2. 콘솔 집행 완료 — 프록시 3종 재배포
+
+`openai-proxy` **v64** · `gemini-proxy` **v84** · `claude-proxy` **v62** (02:32 KST, 워크플로 3런 그린).
+**effort 키 계층(#1298)과 OpenAI 멀티모달 경로(#1300)가 운영에 살아 있다.**
+이제 순서는: Simon 이 `OPENAI_API_KEY` 재입력 + `OPENAI_API_KEY__{NONE,LOW,MEDIUM,HIGH}` 입력
+→ 콘솔이 `EXPO_PUBLIC_MULTIMODAL_VENDOR=openai` · `EXPO_PUBLIC_REASONING_PROVIDER=openai` 플립
+→ `ai_audit_log` 검증 → 핀 삭제. **키 입력 전에는 플립도 핀 삭제도 하지 않는다** (기본 키가 아직 제어문자로 망가져 있다).
+
+### 3. ⚠ `0138` 적용 보류 — REVOKE 가 실제로는 아무것도 막지 않는다
+
+**운영 dry-run 실측 (BEGIN…ROLLBACK, 02:3x KST):**
+
+```
+트리거 3→0 ✓   함수 2→0 ✓   judge_mode=true 0→0 ✓
+column_privileges (anon·authenticated 의 judge_mode INSERT/UPDATE): 4→4  ✗ 변화 없음
+```
+
+원인 실측:
+
+```
+pg_class.relacl(users) = {…, anon=arwdDxtm/postgres, authenticated=arwdDxtm/postgres, …}
+pg_attribute.attacl(judge_mode) = NULL
+REVOKE UPDATE (judge_mode) … 실행 직후:
+  has_column_privilege('authenticated','public.users','judge_mode','UPDATE') = true  (그대로)
+```
+
+**anon·authenticated 가 `users` 에 테이블 레벨 전권(arwdDxtm)을 쥐고 있고, 컬럼 레벨 REVOKE 는
+테이블 레벨 GRANT 를 깎지 못한다** (컬럼 ACL 이 NULL 이라 깎을 대상 자체가 없다). 즉 0138 을
+그대로 적용하면 REVOKE 는 무동작, 트리거만 드롭되고, **자가 승격(`update users set
+judge_mode=true where id=auth.uid()`)이 실제로 열린다.** 0138 자신이 경고한 바로 그 사고다.
+그래서 **적용하지 않았다.** 운영은 여전히 `0137`, 트리거 3종은 살아 있어 오늘은 안전하다.
+
+**수정 제안 (택1, CLI 판단):**
+
+- **(a) 가드 트리거 대체** — 최소 수정. `enforce_judge_mode`(도메인 파생)를 드롭하는 대신
+  **파생 없는 순수 가드**로 교체: `judge_mode` 변경 시 JWT role 이 `service_role` 이 아니고
+  **role 클레임이 존재하면** OLD 값으로 되돌림. ⚠ `auth.uid()`/role 부재(=pg_cron·psql·service 경로)는
+  통과시켜야 한다 — `spend_credits` 가드에서 실측한 42501 함정(2026-08-20) 그대로다.
+- **(b) 테이블 레벨 권한 수술** — 근본 수정이지만 큼: `REVOKE UPDATE ON users FROM anon, authenticated`
+  후 클라이언트가 정당하게 고치는 컬럼만 컬럼 GRANT 로 재부여. 클라 직접 UPDATE 하는 컬럼 전수조사가
+  선행돼야 하고, RLS 와 별개 축이라 회귀 반경이 크다. **(a)로 오늘을 막고 (b)는 RBAC(REQ-260821-02)에
+  합류시키는 것을 추천** — 어차피 RBAC 이 권한 모델을 다시 그린다.
+
+곁들여: `users` 의 anon 전권(arwdDxtm — DELETE·TRUNCATE 포함)은 RLS 뒤에 숨어 있을 뿐이다.
+RBAC 설계에 **테이블 레벨 ACL 재정비**를 명시적으로 포함할 것.
+
+### 4. REQ-260821-03 → CLI · 구독 UX 2건 (한 PR)
+
+**왜.** Simon 확정(01:1x): 취소·환불·자동갱신에 대한 그의 기대와 실제 화면의 간극 2곳.
+서버는 이미 양쪽을 지원하므로 (`subscription-manage` cancel/refund_request 분리 +
+`refund_eligibility` verdict 노출) **클라 변경만**이다.
+
+**(a) 취소 시트에 환불 동시 제안.** `src/app/subscription.tsx` 취소 시트에서 환불 자격자
+(`refund_eligibility` verdict eligible)에게 "지금 취소하면 환불 대상입니다 — 환불도 함께
+요청할까요?" 를 제안. 수락 시 기존 `refund_request` 액션 호출(서버 변경 0줄, 자격 재판정은 서버가
+이미 한다). 환불 없이 취소만도 가능해야 한다. 문구는 "접수/requested" — "환불 완료" 금지.
+
+**(b) 결제 직전 자동 갱신 명시 동의.** 체크아웃 진입 직전에 **주기·금액·해지 방법** 명시 + 동의
+단계. 가격은 기존 소스(`EXPO_PUBLIC_PADDLE_PRICE_*` 렌더 경로) 재사용, 하드코딩 금지. i18n ko/en.
+**Apple 3.1.2 대응 겸용** — iOS 재제출 전에 들어가면 좋다.
+
+**완료조건:** ① 자격자 취소 흐름에서 제안 노출, 수락 시 `billing_self_service_log` 에 cancel +
+refund_request 두 claim ② 비자격자에게 미노출 ③ 동의 없이 결제 진입 불가 ④ `npm run verify` 그린.
+**하지 말 것:** 서버(`subscription-manage`·RPC) 변경, 자격 판정 클라 재구현, "환불 완료" 문구.
+
+> 위 방법은 출발점일 뿐이다. 더 나은 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+### 5. RBAC D-1~D-4
+
+Simon 에게 전달했고 회신 대기. 콘솔 의견은 CLI 추천과 동일 (D-1 아니오 / D-2 하이브리드 /
+D-3 A / D-4 충분). 단 D-2 는 3-절의 (b)와 얽힌다 — 테이블 ACL 재정비를 RBAC 범위에 넣는 것 전제.
+
+## 2026-08-21 / CLI 회신: REQ 4건 전부 랜딩 (콘솔이 이어받을 것 5가지)
 
 > 바로 아래 블록이 **발주 원문**이다. 이 블록은 그 회신이고, 각 REQ 의 상태가 여기 있다.
 

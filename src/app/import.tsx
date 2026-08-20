@@ -9,6 +9,7 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, PremiumLoadingState, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
@@ -297,7 +298,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   itemRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingHorizontal: spacing.sm },
-  itemDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  itemDot: { width: 8, height: 8, borderRadius: m3.shape.none, marginTop: 6 },
   savedActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });
