@@ -3,7 +3,161 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-20 / 운영이 main 을 따라잡았다 (0136·0137 적용) + 크로스 유저 읽기 차단
+## Latest — 2026-08-20 23:50 KST / XPRIZE 잔재 정리 + effort 전용 키 발주 (REQ-260820-03)
+
+> 발행: **GUI(Cowork) 콘솔 세션**. 바로 아래 블록(0136·0137 운영 적용)은 같은 날 같은 세션의
+> 앞 작업이고 그대로 유효하다. 이 블록은 **그 뒤에 새로 생긴 것**만 적는다.
+
+### 1. XPRIZE 는 끝났다. README 만 아직 반대로 말하고 있었다
+
+Simon 결정 **2026-08-15**. `CLAUDE.md` 와 `AGENTS.md` 에는 이미 "XPRIZE 는 종료됐다" 경고 블록이
+있는데, **`README.md` 는 여전히** `submitted to the Build with Gemini XPRIZE ... deadline
+2026-08-17 06:00 KST` **라고 적고 있었다.** 공개 파일이라 가장 시끄러운 모순이었다.
+이 PR 에서 그 세 곳을 정정한다.
+
+실측(2026-08-20 23:35 KST · `origin/main`): **63개 파일 · 140회.**
+
+| 분류 | 어떻게 하나 |
+|---|---|
+| `CLAUDE.md` · `AGENTS.md` | 이미 경고 블록이 있다. 손대지 않는다 |
+| `README.md` | **이 PR 에서 정정** (판매 문구 3곳) |
+| 동작 중인 코드 (judge mode 일체) | **건드리지 않는다** → REQ-260820-04 로 분리 |
+| 아카이브·과거 감사·과거 핸드오프 | 그대로 둔다. 그 시점의 사실이다 |
+
+**용어 정정 하나.** 이제 "제출"은 **앱스토어 심사 제출**(Google Play / App Store)을 뜻한다.
+대회 제출이 아니다. 2026-08-20 세션에서 실제로 이 혼동이 한 번 났다.
+
+### 2. REQ-260820-03 → CLI (코딩 세션) · effort 전용 키 계층
+
+**상태: 대기.** 이 요청은 2026-08-20 06:30 KST 에 작성됐지만 **파일로만 존재해서 코딩 세션에
+도달하지 못했다.** 그래서 지금 정본 통로인 이 파일에 싣는다.
+
+**왜 하는가.** Simon 지시: *"모델은 항상 최신, 하지만 리즈닝(effort) 레벨은 구분할 수 있게.
+API 키를 다시 따는 일이 없게."* 현재 스킴은 이 둘을 **동시에 만족할 수 없다.** 구조적으로 그렇다.
+
+`supabase/functions/_shared/axis-key-name.ts` 의 `pickApiKey` 는 2단이다.
+
+```
+1. {PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}   <- 이름이 모델명에서 파생된다
+2. {PREFIX}_API_KEY                          <- 기본 키
+```
+
+1단 이름이 모델명에서 파생되므로, **모델이 승격되면 이름이 같이 바뀌고 그 시크릿은 존재하지 않게
+된다.** 그 순간 모든 effort 가 2단 하나로 합쳐진다. 승격할 때마다 effort 구분이 사라지고,
+되살리려면 새 모델 이름으로 콤보 키를 다시 만들어야 한다. 그게 "다시 따는 일"의 정체다.
+
+**이미 두 벤더에서 실제로 일어났다** (`ai_audit_log.key_combo` 실측).
+
+| 시점(KST) | 좌석 | key_combo | 무슨 일 |
+|---|---|---|---|
+| 07-28~29 | `gemini-3.5-flash` | `GEMINI_API_KEY__G35FLASH__{LOW,MEDIUM,HIGH,XHIGH}` | effort 4단 구분 정상 |
+| 08-17 17:20 | `gemini-2.5-flash` | **`GEMINI_API_KEY`** | 좌석이 바뀌자 기본 키로 합쳐짐 |
+| 08-19 | `gpt-5.5` 승격 시도 | 기본 키 | 기본 키에 제어문자가 있어 502 |
+
+Gemini 는 **증상 없이** 합쳐졌고(기본 키가 멀쩡했으므로), OpenAI 는 **502 로 터졌다**(기본 키가
+망가져 있었으므로). 같은 결함의 두 얼굴이다.
+
+**무엇을 바꾸나. 파일 하나, 계층 하나.**
+
+```
+1. {PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}   기존. 특정 모델을 따로 떼고 싶을 때만
+2. {PREFIX}_API_KEY__{EFFORT}                신규. 모델이 바뀌어도 살아남는다  <-- 이것이 답
+3. {PREFIX}_API_KEY                          기본. 최후 폴백
+```
+
+```ts
+export function pickApiKey(
+  getEnv: (key: string) => string | undefined,
+  prefix: string,
+  model: string,
+  effort: string,
+  baseKey: string,
+): ResolvedKey {
+  // 1단: (모델 x effort). 기존 동작 그대로 - 이미 만들어 둔 콤보 키가 계속 이긴다.
+  const comboName = comboSecretName(prefix, model, effort);
+  const combo = (getEnv(comboName) ?? '').trim();
+  if (combo.length > 0) return { apiKey: combo, secretName: comboName, usedCombo: true };
+
+  // 2단: effort 전용. 모델명이 들어가지 않으므로 승격이 이 이름을 바꾸지 못한다.
+  const effortName = `${prefix}_API_KEY__${effort.toUpperCase()}`;
+  const byEffort = (getEnv(effortName) ?? '').trim();
+  if (byEffort.length > 0) return { apiKey: byEffort, secretName: effortName, usedCombo: true };
+
+  // 3단: 기본 키. trim 은 그대로 유지(2026-08-19 사고의 수정).
+  return { apiKey: (baseKey ?? '').trim(), secretName: comboName, usedCombo: false };
+}
+```
+
+**프록시 3종은 코드 변경 0줄.** 셋 다 `resolvedKey.usedCombo ? resolvedKey.secretName :
+'<PREFIX>_API_KEY'` 로 기록하므로 2단이 `usedCombo: true` 를 돌려주면 `key_combo` 에
+`OPENAI_API_KEY__LOW` 가 그대로 찍힌다. **다만 셋 다 재배포는 필요하다** - Deno 가 `_shared` 를
+번들하므로 공유 모듈만 고쳐도 `openai-proxy`·`gemini-proxy`·`claude-proxy` 를 다시 배포해야 한다.
+
+**effort 어휘(실측 확정).** `EFFORT_RANK = { none: 0, low: 1, medium: 2, high: 3, xhigh: 4 }`.
+`'max'` 는 클램프 **전에** `'xhigh'` 로 접힌다(세 프록시 동일). `none` 은 OpenAI 의
+`PURPOSE_EFFORT_MAX.safety_classify` 천장에서만 나온다. Gemini·Claude 에는 `none` 이 없다.
+
+**완료조건 (기계 판정).**
+
+1. `supabase/functions/_shared/__tests__/axis-key-name.test.ts` 에 추가되고 통과:
+   - 콤보 키와 effort 키가 둘 다 있으면 **콤보가 이긴다**
+   - 콤보가 없고 effort 키만 있으면 effort 키를 쓰고 `usedCombo === true`,
+     `secretName === '{PREFIX}_API_KEY__{EFFORT}'`
+   - 둘 다 없으면 기본 키 + `usedCombo === false`
+   - effort 키도 **trim** 되고, 공백만 있는 값은 부재로 취급된다
+   - `effort` 대소문자가 섞여 들어와도 이름이 대문자로 정규화된다
+   - **모델이 바뀌어도 effort 키는 계속 선택된다** (이 변경의 존재 이유를 고정하는 테스트)
+2. `npm run verify` 그린.
+3. 배포 후 실사용 1건에서 `ai_audit_log.key_combo` 가 `OPENAI_API_KEY__LOW` 형태로 찍힌다.
+4. `MODEL_PIN_OPENAI_FRONTIER` 를 지우고 승격시켰을 때 **502 가 나지 않는다.** 이것이 실제 시험이다.
+
+**하지 말 것.**
+
+- `comboSecretName()` 과 `MODEL_SLUGS` 를 바꾸지 말 것. 기존 콤보 키가 계속 이겨야 한다.
+- 3단 폴백의 `trim()` 을 빼지 말 것. 2026-08-19 장애의 수정이다.
+- `isUsableHeaderValue` 를 정규식으로 다시 쓰지 말 것. 파일 주석이 이유를 적어 뒀다.
+- 프록시 3종의 `keyCombo` 계산식을 바꾸지 말 것. 지금 형태로 2단이 자동 반영된다.
+- `usedCombo` 를 3단(기본 키)에서 `true` 로 만들지 말 것. 폴백 경고 로그가 죽는다.
+
+> 위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+**머지 뒤 순서는 콘솔이 이어받는다.** 프록시 3종 재배포 → Simon 이 벤더 키 발급·시크릿 입력 →
+그 다음에 `MODEL_PIN_OPENAI_FRONTIER` 삭제 → `model-refresh.yml` dispatch → `key_combo` 확인.
+**키 입력 전에 핀을 지우지 말 것.** 순서가 뒤집히면 승격이 다시 망가진 기본 키에 닿는다.
+
+### 3. REQ-260820-04 → CLI · XPRIZE 코드 잔재 제거 (**착수 전 Simon 합의 필요**)
+
+**상태: 보류.** 지금 손대면 안 되는 이유가 있어서 별도 요청으로 떼어 둔다.
+
+judge mode 는 **동작 중인 권한 경로**다. 같은 판정이 세 곳에 이중화돼 있다.
+
+| 어디 | 무엇 |
+|---|---|
+| `src/lib/judge/domains.ts` | `JUDGE_DOMAINS = ["xprize.org","devpost.com","hacker.fund"]` |
+| `db/migrations/0010_triggers.sql` · `0011_security_fixes.sql` | 같은 판정을 DB 트리거로 |
+| `src/lib/judge/__tests__/domains.test.ts` (6회) · `src/lib/__tests__/agent-briefing.test.ts` (7회) | 테스트 |
+| `db/seed.sql` | `demo@xprize.org` |
+| `src/app/manual.tsx` | 화면 문구 2곳 |
+| `docs/CONSTRAINTS.md` C6·C12 | `npm run check:constraints` 가 읽는다 |
+
+하나만 지우면 나머지가 어긋난다. **한 PR 안에서 코드·DB 트리거·시드·테스트·CONSTRAINTS 를 함께**
+바꿔야 하고, 그건 마이그레이션이 한 장 더 생긴다는 뜻이다. 급하지 않으므로 Simon 이 착수를
+지시할 때까지 **하지 않는다.**
+
+주석 잔재(`boundary.ts`, `routing.ts`, `delete-account/index.ts`, `.env.example`)는 위험이 0이라
+다른 작업에 곁들여 정리해도 된다.
+
+### 4. 콘솔이 들고 있는 것 (참고)
+
+| 항목 | 상태 |
+|---|---|
+| 운영 마이그레이션 | `0137`. 저장소 최댓값도 `0137` → 다음 빈 번호 **`0138`** |
+| `MODEL_PIN_OPENAI_FRONTIER` | `gpt-5.4` 로 **아직 핀 유지**. REQ-260820-03 배포 + 키 입력 전에는 지우지 않는다 |
+| `PADDLE_API_KEY_EXPIRES_AT` | `2026-11-08` 설정 완료 |
+| `PADDLE_SELF_SERVICE_DRYRUN` | **아직 `1`.** `ENABLED=1` 과 동시라 자가 취소·환불이 Paddle 에 닿지 않는다 |
+| 유료 구독자 | **0명** (실측: 15명 전원 `free`). 위 항목의 blast radius 가 오늘은 0이다 |
+
+## 2026-08-20 / 운영이 main 을 따라잡았다 (0136·0137 적용) + 크로스 유저 읽기 차단
 
 > **새 세션은 이 블록을 먼저 읽을 것.** 바로 아래 블록(큐 A~D / 화면 이식)은 **화면 세션 몫**이고
 > 그대로 유효하다. 이 블록은 **결제·DB 세션 몫**이다.
