@@ -219,12 +219,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     // Android ignores shadow* — the card is opaque (semantic.surface), so an
     // elevation gives it the matching depth instead of rendering flat.
-    elevation: 8,
+    elevation: 0,
   },
   introHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   introHeaderText: { flex: 1 },
