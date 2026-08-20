@@ -8,6 +8,7 @@
  * error, and loading states stay on the screen that owns them.
  */
 import { useRef, useState, type ReactNode } from "react";
+import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
@@ -106,7 +107,13 @@ export function PolarisDeck({ pages, isKo }: { pages: PolarisDeckPage[]; isKo: b
   );
 }
 
-const styles = StyleSheet.create({
+// 이 시트는 본문 역할(`m3TextStyle("body…")`)을 들고 있다. `StyleSheet.create`
+// 는 모듈이 로드될 때 **한 번만** 평가되므로, 그대로 두면 저시력 옵션(읽는 글)
+// 을 켜도 이 화면만 예전 얼굴로 남는다 -- 네이티브는 값 하이드레이션이 비동기라
+// 영영 안 바뀐다. 그래서 시트를 **다시 만들 수 있게** 하고 설정이 바뀔 때
+// 갈아끼운다. 화면이 다시 그려지는 것은 공유 셸(`DeepSpaceScreen`)이
+// `useFontStyle()` 을 구독하기 때문이다.
+const makeStyles = () => StyleSheet.create({
   root: { flex: 1 },
   deckHead: {
     minHeight: 54,
@@ -121,17 +128,18 @@ const styles = StyleSheet.create({
   deckTitle: {
     ...m3TextStyle("labelLarge"),
     color: m3.color.tertiary,
-    fontFamily: m3.font.brand,
     letterSpacing: 2,
   },
   deckHint: {
     ...m3TextStyle("bodySmall"),
     flexShrink: 1,
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   pageCount: {
-    ...m3TextStyle("titleMedium"),
+    // 쪽수는 자리폭이 고정된 mono 가 맞다. 다만 GalmuriMono11 은 12px 배수에서만
+    // 선명해서 titleMedium(15px)에 얹으면 1.25배로 흐려진다 -- 역할을 12px 로
+    // 내려 얼굴을 지킨다.
+    ...m3TextStyle("bodyMedium"),
     color: m3.color.onSurfaceVariant,
     fontFamily: m3.font.mono,
   },
@@ -167,4 +175,9 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     backgroundColor: m3.color.tertiary,
   },
+});
+
+let styles = makeStyles();
+subscribeFontStyle(() => {
+  styles = makeStyles();
 });
