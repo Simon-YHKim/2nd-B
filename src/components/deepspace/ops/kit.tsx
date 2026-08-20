@@ -16,6 +16,7 @@ import {
 import { router } from "expo-router";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { OPS_DOMAIN_GROUP, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
@@ -434,11 +435,11 @@ const styles = StyleSheet.create({
 
   progressTrack: {
     height: 8,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.card,
     overflow: "hidden",
   },
-  progressFill: { height: "100%", borderRadius: 4 },
+  progressFill: { height: "100%", borderRadius: m3.shape.none },
 
   actionRow: { flexDirection: "row", gap: deepSpaceSpacing.sm },
   primaryBtn: {
@@ -472,8 +473,8 @@ const styles = StyleSheet.create({
     gap: deepSpaceSpacing.sm,
   },
   recTitleRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
-  dotSm: { width: 7, height: 7, borderRadius: 4 },
+  dot: { width: 8, height: 8, borderRadius: m3.shape.none, marginTop: 6 },
+  dotSm: { width: 7, height: 7, borderRadius: m3.shape.none },
   recTitle: { flex: 1, fontSize: 15, color: deepSpace.textHi },
   recReason: { fontSize: 14, color: deepSpace.textMid },
   recChips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
@@ -494,10 +495,10 @@ const styles = StyleSheet.create({
   reminderTitle: { flex: 1, fontSize: 14, color: deepSpace.accentBright },
   reminderMeta: { flexDirection: "row", alignItems: "center", gap: 7 },
   reminderSchedule: { fontSize: 12, color: deepSpace.textLo },
-  toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
+  toggle: { width: 44, height: 26, borderRadius: m3.shape.none, justifyContent: "center", paddingHorizontal: 3 },
   toggleOn: { backgroundColor: deepSpace.mint, alignItems: "flex-end" },
   toggleOff: { backgroundColor: deepSpace.cardPressed, alignItems: "flex-start" },
-  knob: { width: 20, height: 20, borderRadius: 10 },
+  knob: { width: 20, height: 20, borderRadius: m3.shape.none },
   knobOn: { backgroundColor: deepSpace.onMint },
   knobOff: { backgroundColor: deepSpace.textLo },
   warnBtn: {
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
     paddingBottom: deepSpaceSpacing.xl,
     gap: deepSpaceSpacing.sm,
   },
-  sheetGrip: { width: 40, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
+  sheetGrip: { width: 40, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
   sheetTitle: { fontSize: 16, color: deepSpace.textHi },
   sheetSubtitle: { fontSize: 12, color: deepSpace.textLo },
   consentLine: {
