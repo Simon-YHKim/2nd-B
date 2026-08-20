@@ -19,7 +19,9 @@ name: Model refresh (nightly latest-model check)
 # Optional secrets (a missing key just skips that vendor, it is not an error):
 #   ANTHROPIC_API_KEY        list + smoke-test Claude seats
 #   OPENAI_API_KEY           list + smoke-test the reasoning seats
-#   GEMINI_API_KEY           list + smoke-test the OCR / voice seats
+#   XAI_API_KEY              list + smoke-test the Grok seat (absent today:
+#                            xAI billing is Simon's decision, so the seat is
+#                            skipped every run until a key exists)
 #   SUPABASE_ACCESS_TOKEN    apply the promotion (without it the job reports only)
 #   SUPABASE_PROJECT_REF     which project to write the secrets to
 #
@@ -57,15 +59,13 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           MODEL_PIN_ANTHROPIC_SONNET: ${{ vars.MODEL_PIN_ANTHROPIC_SONNET }}
           MODEL_PIN_ANTHROPIC_OPUS: ${{ vars.MODEL_PIN_ANTHROPIC_OPUS }}
           MODEL_PIN_OPENAI_FRONTIER: ${{ vars.MODEL_PIN_OPENAI_FRONTIER }}
-          MODEL_PIN_GOOGLE_FLASH: ${{ vars.MODEL_PIN_GOOGLE_FLASH }}
-          MODEL_PIN_GOOGLE_FLASH_LITE: ${{ vars.MODEL_PIN_GOOGLE_FLASH_LITE }}
-          MODEL_PIN_GOOGLE_PRO: ${{ vars.MODEL_PIN_GOOGLE_PRO }}
+          MODEL_PIN_XAI_FRONTIER: ${{ vars.MODEL_PIN_XAI_FRONTIER }}
         run: |
           set -o pipefail
           # Set MODEL_REFRESH_APPLY=false to fall back to report-only without
