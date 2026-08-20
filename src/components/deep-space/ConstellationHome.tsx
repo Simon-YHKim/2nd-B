@@ -33,7 +33,6 @@ import { withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { fontFamilies } from "@/theme/typography";
-import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { soulCoreOpacity } from "@/lib/persona/constellation-brightness";
 import { MdButton } from "@/components/m3";
@@ -41,8 +40,10 @@ import { ReasoningLimitSheet } from "./ReasoningLimitSheet";
 import { SecondbHead } from "./SecondbHead";
 import { SbStarfield } from "./SbStarfield";
 
-/** The seven visible home stars: six life domains + 뮤지엄 (sb-data STARS). */
-export type HomeStarId = DomainId | "profile";
+// 누가 일곱인지는 `lib/persona/home-stars.ts` 가 갖는다 (북극성 화면도 같은
+// 일곱을 보여줘야 해서 컴포넌트 밖으로 뺐다). 좌표는 여기 남는다.
+export type { HomeStarId } from "@/lib/persona/home-stars";
+import { type HomeStarId } from "@/lib/persona/home-stars";
 
 // sb-data.jsx STARS — coordinates in the 280×230 constellation box. 북극성 sits
 // above the box (y=-16); VB_TOP expands the render space upward to keep it

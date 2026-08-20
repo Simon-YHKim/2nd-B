@@ -61,5 +61,6 @@
   "areasCount": "영역 {{n}}",
   "seePieces": "참고한 별가루 {{n}}개 보기",
   "seeEvidencePieces": "참고한 별가루 {{n}}개 보기",
-  "piecesBehindSub": "세컨비와 북극성이 참고한 기록입니다."
+  "piecesBehindSub": "세컨비와 북극성이 참고한 기록입니다.",
+  "profileStar": "프로필"
 }
