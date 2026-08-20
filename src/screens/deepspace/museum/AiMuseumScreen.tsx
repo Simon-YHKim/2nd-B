@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 
 // `img` (optional): a public-domain image URL (Wikimedia Special:FilePath). It
@@ -255,12 +256,12 @@ const styles = StyleSheet.create({
 
   tabRow: { gap: 8, paddingHorizontal: deepSpaceSpacing.lg, paddingVertical: deepSpaceSpacing.md },
   tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingHorizontal: 12, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
-  tabDot: { width: 7, height: 7, borderRadius: 4 },
+  tabDot: { width: 7, height: 7, borderRadius: m3.shape.none },
   tabLabel: { fontSize: 13, color: deepSpace.textMid },
   tabLabelOn: { color: deepSpace.textHi },
 
   catHead: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: deepSpaceSpacing.lg, marginTop: 4 },
-  catDot: { width: 9, height: 9, borderRadius: 5 },
+  catDot: { width: 9, height: 9, borderRadius: m3.shape.none },
   catName: { fontSize: 19, color: deepSpace.accentBright },
   catCount: { fontSize: 8, letterSpacing: 1, color: deepSpace.text },
   catDesc: { fontSize: 13, color: deepSpace.textMid, paddingHorizontal: deepSpaceSpacing.lg, marginTop: 8, lineHeight: 20 },
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   rail: { gap: 18, paddingHorizontal: deepSpaceSpacing.lg, paddingTop: deepSpaceSpacing.md, paddingBottom: deepSpaceSpacing.sm },
   card: { width: CARD_W, borderRadius: deepSpaceRadii.lg, overflow: "hidden", borderWidth: 1, borderColor: deepSpace.cardLine, backgroundColor: deepSpace.card },
   slot: { height: 184, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: deepSpace.cardPressed, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine, padding: deepSpaceSpacing.md },
-  slotOrb: { width: 48, height: 48, borderRadius: 24, borderWidth: 1 },
+  slotOrb: { width: 48, height: 48, borderRadius: m3.shape.none, borderWidth: 1 },
   slotImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   slotHint: { fontSize: 11, color: deepSpace.textLo, textAlign: "center" },
   cardBody: { padding: deepSpaceSpacing.md, gap: 8 },

@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
 import { showRewardedAd } from "@/lib/ads/rewarded";
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
   grabber: {
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.accentSoft, 0.3),
     alignSelf: "center",
     marginBottom: 18,
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.mint, 0.3),
   },
   numBefore: { fontFamily: fontFamilies.pixelKo, fontSize: 30, color: deepSpace.accentBright },
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     marginTop: 18,
     paddingVertical: 16,
-    borderRadius: 15,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.mint,
     flexDirection: "row",
     alignItems: "center",

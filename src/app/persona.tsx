@@ -7,6 +7,7 @@ import { PremiumAppShell, PremiumErrorState, PremiumLoadingState, PremiumToast, 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { buildPersona, instrumentLabel, isMeasuredSource, type PersonaCard } from "@/lib/persona/build";
@@ -637,7 +638,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   patternRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 2 },
-  patternDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
+  patternDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: semantic.brand },
   actions: { gap: spacing.md, marginTop: spacing.md },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
   emptyScroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },

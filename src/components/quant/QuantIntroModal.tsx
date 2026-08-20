@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { CompanionSprite } from "@/components/art/CompanionSprite";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 
 export interface QuantIntroProps {
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 16,
     height: 16,
-    borderRadius: 3,
+    borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderColor: semantic.textSubtle,
   },

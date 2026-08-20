@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   grabber: {
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.color.onSurfaceVariant, 0.4),
     alignSelf: "center",
     marginBottom: m3.spacing.s4,
