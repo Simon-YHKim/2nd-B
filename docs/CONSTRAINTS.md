@@ -47,12 +47,34 @@ Toss / Stripe normalize into this table.
 `share_with_judges_flag` defaults to false. UI consent dialog returns
 both fields before insert.
 
-## C6 — Judge mode
+## C6 — Comp access is never derived from an email domain (retired auto-flag)
 
-Emails matching `@xprize.org`, `@devpost.com`, `@hacker.fund` get
-unlimited free access. Enforced client-side
-(`src/lib/judge/domains.ts`) AND server-side (`auto_judge_mode` BEFORE
-INSERT trigger). DB trigger is authoritative on disagreement.
+**Changed 2026-08-21 (REQ-260820-04).** C6 used to REQUIRE the judge auto-flag:
+`@xprize.org` / `@devpost.com` / `@hacker.fund` got unlimited free access via
+`src/lib/judge/domains.ts` and the `auto_judge_mode` trigger. The contest ended
+2026-08-15, so C6 is now the opposite rule: **that mechanism must stay gone.**
+
+- `JUDGE_DOMAINS` is empty and must remain empty.
+- `db/migrations/0138_retire_judge_auto_flag.sql` drops `auto_judge_mode()` and
+  `enforce_judge_mode()` and their three triggers, and no later migration may
+  re-create them.
+- The same migration **REVOKEs `INSERT`/`UPDATE` on `users.judge_mode` from
+  `anon` and `authenticated`**, which is the part that is not mere cleanup.
+  `effective_subscription_tier()` reads `judge_mode` as a comp to the **brain**
+  tier, and 0011's claim of a "column-level revoke" was false: measured on
+  production 2026-08-21, both client roles held `UPDATE` on that column. The
+  `enforce_judge_mode` trigger was the only thing overwriting a self-set value,
+  so dropping it without the revoke would have opened a self-escalation to the
+  top paid tier.
+- The column and the comp branch stay. Their replacement is a role-based grant
+  in the RBAC work (REQ-260821-02); until then `judge_mode` is false for
+  everyone and writable only by `service_role`.
+
+Why comp by email domain does not come back: it granted a paid entitlement from
+a string the user chooses at sign-up.
+
+Safe to retire when it was: production had **0 of 15** users with
+`judge_mode = true`.
 
 ## C7 — i18n parity
 
@@ -115,8 +137,17 @@ is Sprint 1 OPS work.
 
 ## C12 — Pre-existing assets disclosure
 
-README contains a "Pre-existing assets used" section per XPRIZE rulebook
-§04. `docs/ASSETS.md` carries the detailed registry.
+README contains a "Pre-existing assets used" section; `docs/ASSETS.md` carries
+the registry (currently 9 packs / 246 image files).
+
+**Changed 2026-08-21 (REQ-260820-04): the reason, not the rule.** This was
+written as "per XPRIZE rulebook §04", and the rulebook no longer applies. The
+constraint is kept on its own merits: the app ships third-party art and fonts
+under licences with attribution terms, the store listings restate those claims,
+and a disclosure list that nobody maintains is worse than none. The check is
+also not a formality - a grep for the README heading alone reported PASS on
+2026-08-06 while 226 committed images went entirely unlisted, so
+`check:constraints` now compares the registry against the packs on disk.
 
 ## Known platform limitations (2026-08-10)
 
