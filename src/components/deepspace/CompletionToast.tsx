@@ -11,7 +11,7 @@ import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { dismissTask, useTaskStatus } from "@/lib/tasks/store";
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     marginTop: deepSpaceSpacing.sm,
     paddingVertical: deepSpaceSpacing.sm,
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     borderWidth: 1,
     borderColor: deepSpace.mintLine,
     backgroundColor: deepSpace.bgMid,
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     backgroundColor: deepSpace.mint,
   },
   seeText: { fontSize: 12, fontWeight: "700", color: deepSpace.onMint },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: deepSpaceSpacing.md,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
   },

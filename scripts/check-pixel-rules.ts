@@ -53,6 +53,10 @@ const MIGRATED: readonly string[] = [
   "src/app/settings.tsx",
   "src/app/star/[domain].tsx",
   "src/app/trinity.tsx",
+  "src/app/digest.tsx",
+  "src/app/profile-details.tsx",
+  "src/app/secondb.tsx",
+  "src/components/deepspace/BackgroundTaskDock.tsx",
   "src/components/deep-space/AutoReasoningIntroSheet.tsx",
   "src/components/deep-space/AxisCheck.tsx",
   "src/components/deep-space/DeepSpaceLinks.tsx",
@@ -107,9 +111,20 @@ const MIGRATED: readonly string[] = [
 // 를 통과시킨다(0 뒤가 단어경계라 lookahead 가 걸린다). 게다가 그 `\b` 는 셸을
 // 거치면서 실제 백스페이스 바이트로 망가지기까지 했다. 산술은 둘 다 안 겪는다.
 const LITERAL_RADIUS = /borderRadius:\s*([0-9][0-9.]*)/g;
-// 레거시 토큰 참조(`src/theme/tokens.ts`). 그 값은 아직 9/13/18/999 다 --
-// **일부러 그대로 둔다**, cosmic-pixel 롤백 스킨이 같은 토큰을 쓰기 때문이다.
-const LEGACY_TOKEN = /(?<![A-Za-z0-9_.])radius\.[A-Za-z0-9"'[\]]+/g;
+// 반경 토큰 세트가 **세 벌**이다. 셋 다 봐야 한다.
+//
+//   radius.*          `src/theme/tokens.ts`      sm 9 / md 13 / lg 18 / pill 999
+//   deepSpaceRadii.*  `src/lib/theme/tokens.ts`  sm 9 / md 13 / lg 18 / pill 999
+//   m3.shape.*        `src/lib/theme/m3.ts`      전부 0  ← 통과하는 것
+//
+// ⚠ **2026-08-21: 이 검사에 `deepSpaceRadii` 가 빠져 있어서 가드가 거짓말을 했다.**
+// 이름이 `Radii` 라 `radius\.` 정규식에 안 걸렸고, 그래서 **PASS 라고 보고한 파일
+// 안에 둥근 모서리가 64곳** 있었다. 딥스페이스 전용 토큰인데도 값이 레거시와
+// 똑같이 9/13/18/999 라서, 이름만 보고 "딥스페이스 것이니 괜찮겠지" 하면 틀린다.
+//
+// 교훈: 가드가 PASS 를 뱉는다고 규칙이 지켜지는 게 아니다. **무엇을 안 보는지**를
+// 세어봐야 안다. 새 토큰 세트가 생기면 여기에 추가할 것.
+const LEGACY_TOKEN = /(?<![A-Za-z0-9_.])(?:radius|deepSpaceRadii)\.[A-Za-z0-9"'[\]]+/g;
 
 // 예외 하나: 기기 목업의 베젤.
 // `radius.phone`(38)은 화면 **안**의 도형이 아니라 화면을 담고 있는 기기 테두리다.
@@ -117,7 +132,7 @@ const LEGACY_TOKEN = /(?<![A-Za-z0-9_.])radius\.[A-Za-z0-9"'[\]]+/g;
 // `[data-phone-frame] *` 즉 **자손**에만 걸리고 프레임 자신(83행)에는 안 걸린다.
 // 실제 폰 모서리는 둥글다. 각지게 만들면 픽셀아트가 아니라 틀린 그림이 된다.
 // ⚠ 이름으로만 예외를 준다. 리터럴 38 은 여전히 실패한다.
-const EXEMPT_TOKEN = "radius.phone";
+const EXEMPT_TOKENS = new Set(["radius.phone", "deepSpaceRadii.phone"]);
 
 // ── 규칙 3 ─────────────────────────────────────────────────────────────
 // `shadowRadius` 는 **블러 반경**이라 0 이 아니면 곧 블러다. `elevation` 은
@@ -169,7 +184,7 @@ for (const rel of MIGRATED) {
     });
   }
   for (const m of src.matchAll(LEGACY_TOKEN)) {
-    if (m[0] === EXEMPT_TOKEN) continue;
+    if (EXEMPT_TOKENS.has(m[0])) continue;
     hits.push({
       file: rel,
       line: lineOf(src, m.index ?? 0),

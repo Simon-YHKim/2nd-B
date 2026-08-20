@@ -14,7 +14,8 @@ import { Redirect, router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
-import { deepSpace, deepSpaceSpacing, deepSpaceRadii } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -329,7 +330,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     backgroundColor: deepSpace.card,
   },
   hourChipOn: { borderColor: deepSpace.accent },
@@ -338,18 +339,18 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     padding: deepSpaceSpacing.md,
     gap: 6,
   },
   rowPressed: { opacity: 0.85 },
   band: {},
   actions: { flexDirection: "row", gap: deepSpaceSpacing.sm, justifyContent: "flex-end", marginTop: 4 },
-  btn: { minHeight: 44, paddingHorizontal: deepSpaceSpacing.md, borderRadius: deepSpaceRadii.md, alignItems: "center", justifyContent: "center" },
+  btn: { minHeight: 44, paddingHorizontal: deepSpaceSpacing.md, borderRadius: m3.shape.medium, alignItems: "center", justifyContent: "center" },
   btnGhost: { borderWidth: 1, borderColor: deepSpace.cardLine },
   btnGhostText: { color: deepSpace.textMid },
   btnPrimary: { backgroundColor: deepSpace.accent },
   btnPrimaryText: { color: deepSpace.bg },
-  cta: { minHeight: 44, paddingHorizontal: deepSpaceSpacing.lg, borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.accentSoft, alignItems: "center", justifyContent: "center" },
+  cta: { minHeight: 44, paddingHorizontal: deepSpaceSpacing.lg, borderRadius: m3.shape.medium, borderWidth: 1, borderColor: deepSpace.accentSoft, alignItems: "center", justifyContent: "center" },
   ctaText: { color: deepSpace.accentSoft },
 });
