@@ -4,26 +4,44 @@
 // a signed-out user mid-sign-up can read what they are agreeing to. Shows a
 // draft badge while the body still carries [기입] placeholders -- the screen
 // must not present an unfinished document as final (legal honesty).
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { colors, spacing } from "@/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { SegBtn } from "@/components/m3/SegBtn";
 import { Text } from "@/components/ui/Text";
 import { AuthShell } from "./dds-auth-screens";
 import { ddsStyles as styles } from "./dds-styles";
-import { parseLegalMarkdown } from "@/lib/legal/parse-legal-markdown";
+import {
+  parseLegalMarkdown,
+  splitLegalLanguageSections,
+  stripLegalDocumentIntro,
+  type LegalDocumentLanguage,
+} from "@/lib/legal/parse-legal-markdown";
 import { isDraft, type LegalDoc } from "@/lib/legal/legal-documents";
+import { systemLocaleFor } from "@/lib/i18n/locales";
 
-export function DeepSpaceLegalDocScreen({ doc, crossLinks }: {
+export function DeepSpaceLegalDocScreen({
+  doc,
+  crossLinks,
+}: {
   doc: LegalDoc;
   /** Optional sibling document links (terms / refund / privacy policy). */
   crossLinks?: Array<{ href: "/terms" | "/refund" | "/privacy-policy"; label: string }>;
 }) {
-  const { t } = useTranslation(["common"]);
-  const blocks = useMemo(() => parseLegalMarkdown(doc.body), [doc.body]);
+  const { t, i18n } = useTranslation(["common"]);
+  const [documentLanguage, setDocumentLanguage] = useState<LegalDocumentLanguage>(() =>
+    systemLocaleFor(i18n.resolvedLanguage ?? i18n.language),
+  );
+  const blocks = useMemo(() => {
+    const parsed = parseLegalMarkdown(doc.body);
+    return stripLegalDocumentIntro(parsed, doc.title);
+  }, [doc.body, doc.title]);
+  const languageSections = useMemo(() => splitLegalLanguageSections(blocks), [blocks]);
+  const visibleBlocks = languageSections?.[documentLanguage] ?? blocks;
 
   return (
     <AuthShell>
@@ -41,6 +59,17 @@ export function DeepSpaceLegalDocScreen({ doc, crossLinks }: {
         </Text>
       </View>
 
+      {languageSections ? (
+        <SegBtn
+          segments={[
+            { key: "ko", label: t("common:locale.ko") },
+            { key: "en", label: t("common:locale.en") },
+          ]}
+          selected={[documentLanguage]}
+          onSelect={(key) => setDocumentLanguage(key === "en" ? "en" : "ko")}
+        />
+      ) : null}
+
       {isDraft(doc) ? (
         <View style={local.draftBadge} accessibilityRole="text">
           <Text variant="caption" style={local.draftBadgeText}>{doc.draftBadge}</Text>
@@ -48,7 +77,7 @@ export function DeepSpaceLegalDocScreen({ doc, crossLinks }: {
       ) : null}
 
       <View style={styles.card}>
-        {blocks.map((b, i) => {
+        {visibleBlocks.map((b, i) => {
           switch (b.type) {
             case "h1":
               return (

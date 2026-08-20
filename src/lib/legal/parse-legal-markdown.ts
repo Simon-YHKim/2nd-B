@@ -9,6 +9,9 @@ export type LegalBlock =
   | { type: "p"; text: string }
   | { type: "rule" };
 
+export type LegalDocumentLanguage = "ko" | "en";
+export type LegalLanguageSections = Record<LegalDocumentLanguage, LegalBlock[]>;
+
 const HEADING_TYPES = ["h1", "h2", "h3"] as const;
 
 // Emphasis markers render as plain text (legal copy needs accuracy, not weight).
@@ -69,4 +72,54 @@ export function parseLegalMarkdown(md: string): LegalBlock[] {
   }
   flush();
   return blocks;
+}
+
+/**
+ * Removes the redundant in-body title, date metadata, and divider when the
+ * screen already renders the document title in its own header.
+ */
+export function stripLegalDocumentIntro(blocks: LegalBlock[], title: string): LegalBlock[] {
+  const first = blocks[0];
+  if (first?.type !== "h1" || first.text !== title) return blocks;
+
+  let contentStart = 1;
+  const metadata = blocks[contentStart];
+  if (metadata?.type === "p" && /^(시행일|최종 업데이트):/.test(metadata.text)) {
+    contentStart += 1;
+  }
+  if (blocks[contentStart]?.type === "rule") contentStart += 1;
+
+  return blocks.slice(contentStart);
+}
+
+/**
+ * Splits a bilingual legal document at its exact level-two language headings.
+ * Malformed or incomplete markers fail open so a document is never truncated.
+ */
+export function splitLegalLanguageSections(blocks: LegalBlock[]): LegalLanguageSections | null {
+  const koreanMarkers: number[] = [];
+  const englishMarkers: number[] = [];
+
+  blocks.forEach((block, index) => {
+    if (block.type !== "h2") return;
+    if (block.text === "한국어") koreanMarkers.push(index);
+    if (block.text === "English") englishMarkers.push(index);
+  });
+
+  if (koreanMarkers.length !== 1 || englishMarkers.length !== 1) return null;
+  const koreanStart = koreanMarkers[0];
+  const englishStart = englishMarkers[0];
+  if (koreanStart >= englishStart) return null;
+
+  const trimBoundaryRules = (section: LegalBlock[]): LegalBlock[] => {
+    let start = 0;
+    let end = section.length;
+    while (section[start]?.type === "rule") start += 1;
+    while (section[end - 1]?.type === "rule") end -= 1;
+    return section.slice(start, end);
+  };
+
+  const ko = trimBoundaryRules(blocks.slice(koreanStart + 1, englishStart));
+  const en = trimBoundaryRules(blocks.slice(englishStart + 1));
+  return ko.length > 0 && en.length > 0 ? { ko, en } : null;
 }
