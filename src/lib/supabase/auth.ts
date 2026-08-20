@@ -405,6 +405,22 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
 // break "forgot password". The caller still handles `current_password_required`
 // in case that exemption ever changes.
 export async function updatePassword(password: string, currentPassword?: string): Promise<void> {
+  // The leaked-password check belongs HERE and not in the two forms, because
+  // this function is the only place both of them pass through: the settings
+  // change AND the forgot-password reset. Sign-up already had the check
+  // (signUpWithEmail); a user could still walk a breached password in through
+  // either update path, which made the sign-up gate mostly decorative for
+  // anyone who had already registered.
+  //
+  // D-3 (Simon, 2026-08-21) chose the client check over moving auth behind an
+  // edge function. The threat model is why that holds: a tampered client that
+  // skips this harms only its own account, unlike an authz check where the
+  // victim of a bypass is someone else.
+  //
+  // isPasswordBreached fails OPEN. A network problem must not make it
+  // impossible to change your password, and the length floor plus GoTrue's own
+  // checks still apply.
+  if (await isPasswordBreached(password)) throw new BreachedPasswordError();
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.updateUser(
     currentPassword ? { password, current_password: currentPassword } : { password },
@@ -425,9 +441,14 @@ export type PasswordUpdateFailure =
   | "current_password_invalid"
   | "reauthentication_needed"
   | "weak_password"
+  | "breached_password"
   | "unknown";
 
 export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
+  // Ours, not GoTrue's: it is thrown before the request goes out and carries no
+  // `code`, so it has to be recognised by type or it would fall through to the
+  // generic "could not update" toast and read as a server problem.
+  if (error instanceof BreachedPasswordError) return "breached_password";
   const code = (error as { code?: unknown } | null)?.code;
   switch (code) {
     case "current_password_required":
