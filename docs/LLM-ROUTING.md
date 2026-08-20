@@ -194,13 +194,29 @@ PURPOSE_ROUTE[purpose] = {
 
 라우팅이 `purpose → vendor → model → clampedEffort` 를 정한 뒤, 프록시는 그 **조합 전용 키**로 벤더를 호출한다. → 벤더 청구/사용량 대시보드에서 **키별 = 조합별**로 사용량·비용이 분리 집계된다. (모든 키가 같은 결제 계정에 청구됨 — 분리는 "귀속"이지 별도 결제계정이 아니다.)
 
-**시크릿 네이밍** (env-var 안전: 대문자+언더스코어): `{PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}`
+**시크릿 네이밍** (env-var 안전: 대문자+언더스코어). **3단이고, 구체적인 것이 먼저 이긴다:**
 
-- `PREFIX` ∈ {`ANTHROPIC`, `OPENAI`, `GEMINI`}. 모델 슬러그: `claude-sonnet-5→SONNET5`, `claude-opus-4-8→OPUS48`, `gpt-5.4→GPT54`, `gpt-5.4-nano→GPT54NANO`, `gemini-2.5-flash→G25FLASH` 등. 미등록 모델은 대문자+영숫자 압축으로 자동 슬러그(코드 변경 없이 조합명 획득).
+| 단 | 이름 | 언제 쓰나 |
+|---|---|---|
+| 1 | `{PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}` | 특정 **모델의** 특정 effort 를 따로 떼고 싶을 때 |
+| 2 | `{PREFIX}_API_KEY__{EFFORT}` | **평소 이것을 쓴다.** 모델이 승격돼도 이름이 안 바뀐다 |
+| 3 | `{PREFIX}_API_KEY` | 최후 폴백 |
+
+⚠ **2단이 왜 생겼나 (REQ-260820-03).** 1단 이름은 **모델명에서 파생**된다. 그래서 좌석이
+승격되면 그 시크릿은 존재하지 않게 되고 **모든 effort 가 3단 하나로 합쳐진다.** 가정이 아니라
+`ai_audit_log.key_combo` 실측이다 — `gemini-3.5-flash` 는 07-28 에 effort 4단이 정상 분리돼
+있었는데, 08-17 좌석이 `gemini-2.5-flash` 로 옮겨가자 전부 `GEMINI_API_KEY` 로 떨어졌다.
+Gemini 는 base 키가 멀쩡해서 **증상 없이** 합쳐졌고, 08-19 OpenAI 는 base 키에 제어문자가 있어
+**502 로 터졌다.** 같은 결함의 두 얼굴이다.
+
+**그래서 새 벤더 키는 2단 이름으로 발급한다** — `OPENAI_API_KEY__LOW`, `XAI_API_KEY__HIGH` 처럼.
+1단은 이미 만들어 둔 것이 계속 이기므로 기존 키를 지울 필요는 없다.
+
+- `PREFIX` ∈ {`ANTHROPIC`, `OPENAI`, `XAI`} (+ 폐기 진행 중인 `GEMINI`). 모델 슬러그: `claude-sonnet-5→SONNET5`, `claude-opus-4-8→OPUS48`, `gpt-5.4→GPT54`, `gpt-5.4-nano→GPT54NANO`, `gemini-2.5-flash→G25FLASH` 등. 미등록 모델은 대문자+영숫자 압축으로 자동 슬러그(코드 변경 없이 조합명 획득).
 - `EFFORT` = 프록시가 실제 upstream에 보내는 **clamped effort**(대문자). `max`는 `xhigh`로 접힘.
 - **정본 구현**: `supabase/functions/_shared/axis-key-name.ts`(순수·Deno-free·단위테스트) + `llm-proxy-common.ts:resolveApiKey`(Deno env 래퍼). 각 프록시가 model+clampedEffort 계산 직후 호출.
 
-**폴백 규칙(호출 불파손)**: 조합 전용 시크릿이 없거나 비어 있으면 벤더 **BASE 키**(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`)로 폴백하고 `console.warn` 1줄. 그 호출 사용량은 base 키에 잡힌다. base 키는 반드시 유지(프록시는 base 없으면 500).
+**폴백 규칙(호출 불파손)**: 1단이 없거나 비어 있으면 **2단(effort 전용)**, 그것도 없으면 벤더 **BASE 키**(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`)로 폴백하고 `console.warn` 1줄. 그 호출 사용량은 base 키에 잡힌다. base 키는 반드시 유지(프록시는 base 없으면 500).
 
 **전체 매트릭스**(벤더별 모델 × effort ladder 전수 — Simon 결정: 모델 유동성 + 모델·리즈닝별 통계). `현재 도달` = 현 코드가 실제로 그 조합을 upstream에 보낼 수 있는지(나머지는 상한 상향/모델 이동 대비 선발급):
 
