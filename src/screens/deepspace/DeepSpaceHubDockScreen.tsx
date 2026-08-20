@@ -202,7 +202,7 @@ function Score({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, alignItems: "center", paddingHorizontal: 20, paddingTop: 40, backgroundColor: colors.bgDeep },
-  phoneShadow: { width: 320, height: 680, borderRadius: radius.phone, shadowColor: colors.bgDeep, shadowOpacity: 0.6, shadowRadius: 80, shadowOffset: { width: 0, height: 30 }, elevation: 10, backgroundColor: "transparent" },
+  phoneShadow: { width: 320, height: 680, borderRadius: radius.phone, shadowColor: colors.bgDeep, shadowOpacity: 0, shadowRadius: 0, shadowOffset: { width: 0, height: 30 }, elevation: 0, backgroundColor: "transparent" },
   phone: { position: "relative", width: "100%", height: "100%", overflow: "hidden", borderRadius: radius.phone, backgroundColor: colors.bgDeep, borderWidth: 1, borderColor: colors.borderHi },
   starField: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   microStar: { position: "absolute", width: 2, height: 2, borderRadius: m3.shape.none, backgroundColor: colors.cyanDim, opacity: 0.5 },

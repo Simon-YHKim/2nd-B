@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     borderColor: withAlpha(deepSpace.accent, 0.9),
     backgroundColor: withAlpha(deepSpace.accent, 0.08),
     shadowColor: deepSpace.accent,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   bubbleWrap: {

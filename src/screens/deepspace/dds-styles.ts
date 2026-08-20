@@ -21,7 +21,7 @@ export const ddsStyles = StyleSheet.create({ root:{flex:1,backgroundColor:colors
  paySub:{color:withAlpha(deepSpace.accentSoft,0.66),fontSize:13.5,lineHeight:21,fontFamily:fontFamilies.readable},
  payCard:{borderWidth:1,borderColor:withAlpha(deepSpace.accent,0.18),borderRadius:m3.shape.large,backgroundColor:withAlpha(deepSpace.accent,0.04),padding:spacing.md,gap:spacing.sm},
  payCardFree:{borderColor:withAlpha(deepSpace.accent,0.18),backgroundColor:withAlpha(deepSpace.accent,0.04)},
- payCardPlus:{borderWidth:1.5,borderColor:withAlpha(deepSpace.accent,0.7),backgroundColor:withAlpha(deepSpace.accent,0.08),shadowColor:deepSpace.accent,shadowOpacity:0.3,shadowRadius:18,shadowOffset:{width:0,height:8},elevation:6},
+ payCardPlus:{borderWidth:1.5,borderColor:withAlpha(deepSpace.accent,0.7),backgroundColor:withAlpha(deepSpace.accent,0.08),shadowColor:deepSpace.accent,shadowOpacity: 0,shadowRadius: 0,shadowOffset:{width:0,height:8},elevation: 0},
  payCardPro:{borderColor:withAlpha(deepSpace.soul,0.22),backgroundColor:withAlpha(deepSpace.soul,0.05)},
  payCardHead:{flexDirection:'row',alignItems:'baseline',justifyContent:'space-between'},
  payCardHeadPlus:{marginTop:spacing.xs},
