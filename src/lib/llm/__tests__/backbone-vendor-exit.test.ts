@@ -83,7 +83,10 @@ describe("the default is unchanged", () => {
   });
 
   test("an unrecognized value falls back to Gemini rather than to nothing", () => {
-    for (const junk of ["", "  ", "grok", "xai", "openai!"]) {
+    // "grok" and "xai" left this list on 2026-08-21: xai is a real vendor now,
+    // and "grok" is accepted as its alias precisely so an operator typing the
+    // product name does not get a silent fallback to Gemini.
+    for (const junk of ["", "  ", "anthropic", "openai!", "x-ai"]) {
       setEnv(ENV.backbone, junk);
       expect(backboneVendor()).toBe("gemini");
     }

@@ -144,7 +144,11 @@ export interface AuditMeta {
   // D-26 Phase 2 purpose seat (or the legacy EXPO_PUBLIC_REASONING_PROVIDER
   // seam) routed the call through claude-proxy / openai-proxy. Recorded so the
   // audit trail shows which backend produced the answer.
-  reasoningProvider?: "gemini" | "claude" | "openai";
+  // Widened for xai on 2026-08-21. Spelled out rather than importing LlmVendor
+  // because this file must not depend on routing.ts (routing imports types).
+  // The audit ledger is the only record of which vendor served a call, so a
+  // vendor the union cannot express is a vendor whose calls look like nobody's.
+  reasoningProvider?: "gemini" | "claude" | "openai" | "xai";
 }
 
 export interface LlmResult<T = string> {

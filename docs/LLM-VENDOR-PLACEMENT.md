@@ -102,32 +102,46 @@ lite → nano, flash → mini, pro → 프론티어.
 결과가 좋아진다는 **측정치가 아직 없다.** 근거가 생기면 올린다. 기본값으로 비싼 등급을
 뿌리지 않는다는 규율(CLAUDE.md) 그대로다.
 
-## 3. Grok (xAI) 에 대한 정직한 상태
+## 3. Grok (xAI) — 들어갔다 (Simon 결정 2026-08-21)
 
-**지금 Grok 은 어떤 좌석도 못 받는다.** 계정과 승인은 있지만 **서빙 경로가 없다.**
+> **이 절은 원래 "마감 전에는 넣지 말 것"이었다. Simon 이 뒤집었고("grok 투입 그냥 해"),
+> 그 결정대로 `xai-proxy` 를 만들었다.** 아래는 그때의 우려가 *어떻게 처리됐는지*이지
+> 재론이 아니다.
 
-| 있는 것 | 없는 것 |
+### 무엇이 생겼나
+
+| 있는 것 | 어디 |
 |---|---|
-| xAI 콘솔 계정 (콘솔 세션 실측) | `LlmVendor` 에 `"xai"` 값 |
-| `refresh-models.ts` 의 `xai-frontier` 좌석 (모델 ID 탐지용) | `xai-proxy` 엣지 함수 |
-| `MODEL_PIN_XAI_FRONTIER` 레버 | `proxyFnForVendor` 의 분기 |
-| 비용 승인 | `XAI_API_KEY` 입력 |
+| `xai-proxy` 엣지 함수 | `supabase/functions/xai-proxy/index.ts` |
+| `LlmVendor` 의 `"xai"` · `proxyFnForVendor` 분기 | `src/lib/llm/routing.ts` |
+| 세 스위치가 `xai` 를 받는다 | `EXPO_PUBLIC_LLM_VENDOR` · `_CHAT_VENDOR` · `_BACKBONE_VENDOR` |
+| **`grok` 별칭** | 제품명은 Grok, API·시크릿·원장은 xai 다. 별칭이 없으면 `grok` 이라 쓴 사람이 **조용히 Gemini 로 떨어진다** |
+| `XAI_API_KEY` · `MODEL_PIN_XAI_FRONTIER` · 모델 자동탐지 | 콘솔 저장 완료 · `scripts/refresh-models.ts` |
 
-즉 **`refresh-models` 가 Grok 모델 ID 를 알아내는 것과 앱이 Grok 을 호출하는 것은 다른
-일이다.** 전자는 됐고 후자는 아직이다.
+### 우려는 논쟁이 아니라 **반경**으로 처리했다
 
-**추천: 9월 마감 전에는 Grok 을 넣지 말 것.** 이유는 셋이다.
+1. **기본값으로는 아무것도 xai 로 안 간다.** 네 스위치 전부 다른 곳을 가리키는 게 기본이고,
+   `PHASE2_VENDOR` 도 여전히 `openai` 다. 도달하려면 변수를 의도적으로 바꿔야 한다.
+2. **좌석은 추론 12 + 대화 1 뿐이다.** 백본 9개는 **일부러 안 앉혔다** — 최다 호출 표면인데
+   싼 Grok 티어가 계정에서 확인되지 않았다. `EXPO_PUBLIC_BACKBONE_VENDOR=xai` 를 켜면
+   `400 purpose_not_seated` 로 **시끄럽고 공짜로** 실패한다. 프론티어에 앉혀서 "되게" 만드는 것이
+   그 파일에서 가능한 가장 비싼 실수다.
+3. **멀티모달은 xai 를 아예 안 받는다.** 그 프록시엔 이미지·오디오 경로가 없고, 첨부가 오면
+   415 로 거절한다(조용히 버리지 않는다).
 
-1. 마감이 요구하는 것은 "Gemini 를 벗어나는 것"이지 "벤더를 늘리는 것"이 아니다.
-   OpenAI 로 넷 다 옮기면 마감은 끝난다.
-2. 새 프록시는 **한 번도 운영에서 돌아본 적 없는 경로**다. 마감 직전에 그걸 켜는 것은
-   PHASE=2 를 켜서 9좌석을 동시에 미검증 경로로 넘기는 것과 같은 종류의 위험이다.
-3. Grok 이 이길 만한 자리가 아직 특정되지 않았다. 자리를 정하지 않고 프록시부터 만들면
-   "붙였으니 어디든 쓰자"가 된다.
+### ⚠ 확인 안 된 것 셋 — 전부 레버 뒤에 뒀다
 
-**Grok 을 넣는다면 순서**: ① `xai-proxy` 신설(openai-proxy 복제가 아니라 최소 좌석으로)
-② `LlmVendor` 확장 + `proxyFnForVendor` 분기 ③ 좌석 1개로 시작해 원장에서 비교
-④ 이길 때만 확대. 착수는 **Gemini 탈출이 원장으로 확인된 다음**.
+계정을 찔러볼 수 없는 상태로 썼다. 상수로 박으면 틀렸을 때 좌석 전체가 400 이라, 셋 다
+**재배포 없이 바꿀 수 있게** 했다.
+
+| 무엇 | 기본값 | 되돌리는 레버 |
+|---|---|---|
+| 모델 ID | `grok-4` | `XAI_MODEL`(전역) · `XAI_PURPOSE_MODELS`(좌석별). `refresh-models` 가 매일 씀 |
+| `reasoning_effort` | **안 보냄** | `XAI_SEND_REASONING_EFFORT=1`. xAI 는 모델에 따라 이 파라미터를 거부하는데, **미지원 파라미터는 열화가 아니라 호출 전체의 400** 이다. 안 보내도 effort 는 `max_tokens` 를 정하고 원장에도 남는다 |
+| 구조화 출력 | `json_schema` | `XAI_RESPONSE_FORMAT=json_object` 또는 `off` |
+
+**첫 실호출 전에 셋을 계정에서 확인할 것.** 확인 방법은 하나뿐이다 —
+`ai_audit_log.reasoning_vendor = 'xai'` 행이 생기는지 본다.
 
 ## 4. Claude 를 언제 넣나
 
@@ -151,7 +165,7 @@ claude-proxy 는 **이미 배포·키 완료**고 좌석표도 있다(sonnet 8 �
 |---|---|---|
 | **V-1** | 백본 9개를 OpenAI 로 옮기는 것에 동의? (안 하면 9월에 8개 표면이 죽는다) | **예.** 마감의 실질 요건이다 |
 | **V-2** | 백본 티어(nano/mini/frontier)를 위 표대로? | **예.** `PURPOSE_TIER` 의 기존 결정을 옮긴 것이다 |
-| **V-3** | Grok 을 9월 마감 전에 넣나? | **아니오.** 탈출 확인 후 좌석 1개로 실험 |
+| ~~V-3~~ | ~~Grok 을 마감 전에 넣나?~~ | **결정됨 2026-08-21: 넣는다.** 3절 참조. 남은 확인은 모델 ID·`reasoning_effort`·구조화 출력 셋뿐이고 전부 변수다 |
 | **V-4** | Claude 를 두 자리(`persona_narrative`·`persona_synthesis`)에? | **예, 단 마감 이후.** 크레딧 충전이 선행 |
 | **V-5** | pro 두 줄(`reasoning_connect`·`imagine`)의 effort 를 medium 으로? | **예.** 근거 생기면 올린다 |
 
@@ -161,8 +175,26 @@ claude-proxy 는 **이미 배포·키 완료**고 좌석표도 있다(sonnet 8 �
   백본 9개 effort 추가
 - `supabase/functions/openai-proxy/index.ts` — 백본 9좌석 + 서버 effort 상한
 - `scripts/refresh-models.ts` — pro 두 줄만 프론티어 승격 대상에 추가
+- `supabase/functions/xai-proxy/index.ts` — Grok 좌석 (추론 12 + 대화 1)
+- `.github/workflows/web-deploy.yml` · `android-release.yml` · `eas.json` —
+  **`_MULTIMODAL_VENDOR` 와 `_BACKBONE_VENDOR` 를 빌드에 전달**
 - `src/lib/llm/__tests__/backbone-vendor-exit.test.ts` — 기본값 불변 · 스위치 분리 ·
   **전 목적을 훑어 Gemini 를 못 벗어나는 목적이 0개임을 확인**
+- `src/lib/llm/__tests__/vendor-switch-reachability.test.ts` — xai 배선 + **LLM 층이 읽는
+  모든 스위치가 세 빌드 경로에 전부 전달되는지**
 
-마지막 항목이 이 작업에서 가장 값어치 있는 검사다. 목록이 아니라 **union 을 훑기** 때문에,
-나중에 목적이 추가돼도 같은 구멍이 조용히 다시 열리지 않는다.
+## 7. ⚠ 스위치 두 개가 빌드에 안 닿고 있었다 (2026-08-21 발견·시정)
+
+**`EXPO_PUBLIC_MULTIMODAL_VENDOR` 와 `EXPO_PUBLIC_BACKBONE_VENDOR` 가 어느 빌드에도
+전달되지 않았다.** `web-deploy.yml` · `android-release.yml` · `eas.json` 전부에서 빠져 있었다.
+
+Expo 는 `EXPO_PUBLIC_*` 를 **빌드 환경에서** 인라인하는데, 워크플로의 `env:` 블록은 전달할
+변수를 하나씩 나열한다(와일드카드 없음). 즉 **저장소 Variable 만 켜면 아무 일도 안 일어나고
+아무 오류도 안 난다.** 1절의 순서표 1번과 4번이 통째로 무동작이었다는 뜻이다.
+
+세 경로 모두에 추가했다. 그리고 같은 부류가 다시 생기지 않게, 테스트가 **LLM 층 소스에서
+스위치 목록을 뽑아** 세 빌드 경로 전부와 대조한다 — 목록을 손으로 적지 않으므로 나중에
+스위치가 추가돼도 자동으로 덮인다.
+
+> 이건 내가 만든 구멍이다. `_MULTIMODAL_VENDOR`(#1300)와 `_BACKBONE_VENDOR`(#1308)를
+> 넣으면서 빌드 전달을 빠뜨렸다.
