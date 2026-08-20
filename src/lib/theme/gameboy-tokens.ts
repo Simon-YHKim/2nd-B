@@ -19,7 +19,11 @@ const geometryCosmic = {
 
 const geometryDeepSpace = {
   borderWidth: 1,
-  radius: 13,
+  // PIXEL-CLAY 규칙 2 (Simon 결정 2026-08-21). 아래 주석이 "deep-space 는 매끄러운
+  // 디자인" 이라고 적고 있는데 **그 전제가 뒤집혔다** -- 이제 딥스페이스가 픽셀아트고
+  // 라운드는 전 화면 0 이다. 이 한 줄이 `gameboy.radius` 를 읽는 딥스페이스 쪽
+  // 70곳을 한 번에 옮긴다. cosmic 쪽은 원래부터 0 이라 그대로다.
+  radius: 0,
   // No hard pixel shadow (DESIGN.md: no drop shadows on dark surfaces).
   pixelShadow: {
     offsetX: 0,
@@ -44,9 +48,12 @@ export const gameboyCosmic = {
 } as const;
 
 // Deep-space build (2026-06-18, Phase 2): the Game-Boy chrome reads as the smooth
-// eye-cyan design — cyan colors AND rounded/flat geometry (radius 13, 1px border,
-// no hard pixel shadow / scanlines), so premium buttons/cards/inputs/tab bar stop
-// looking like retro pixel chrome.
+// eye-cyan design — cyan colors AND flat geometry (1px border, no hard pixel
+// shadow / scanlines).
+//
+// ⚠ 2026-08-21: 이 문단이 원래 "rounded ... (radius 13)" 이라고 적고 있었다.
+// PIXEL-CLAY 로 오면서 **그 방향이 뒤집혔다** — 딥스페이스가 이제 픽셀아트다.
+// 색은 그대로 두고 모서리만 0 이 됐다.
 const gameboyDeepSpace = {
   ...geometryDeepSpace,
   screen: "#0A0E1A",

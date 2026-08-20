@@ -16,8 +16,9 @@ import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
 import { Text } from "@/components/ui/Text";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
-import { cosmic, deepSpace, deepSpaceRadii, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { PremiumButton } from "./surfaces";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { SecondbHead } from "@/components/deepspace";
@@ -355,8 +356,8 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     backgroundColor: semantic.surfaceAlt,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   stage: {
@@ -376,8 +377,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     opacity: 0.11,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.42,
-    shadowRadius: 24,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   island: {
@@ -398,14 +399,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: semantic.border,
     shadowColor: semantic.background,
-    shadowOpacity: 0.32,
-    shadowRadius: 6,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   workerContact: {
     position: "absolute",
     height: 2,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     zIndex: CHARACTER_LAYER - 1,
     opacity: 0.56,
   },
@@ -425,8 +426,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     zIndex: SPEECH_LAYER,
     elevation: SPEECH_LAYER,
@@ -479,9 +480,9 @@ const dsStyles = StyleSheet.create({
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
     borderTopLeftRadius: 4,
-    borderTopRightRadius: deepSpaceRadii.md,
-    borderBottomRightRadius: deepSpaceRadii.md,
-    borderBottomLeftRadius: deepSpaceRadii.md,
+    borderTopRightRadius: m3.shape.medium,
+    borderBottomRightRadius: m3.shape.medium,
+    borderBottomLeftRadius: m3.shape.medium,
     paddingHorizontal: 13,
     paddingVertical: 10,
   },

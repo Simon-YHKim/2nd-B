@@ -8,6 +8,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
   },
   progressFill: { height: "100%", backgroundColor: semantic.brand },
   progressDots: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
-  progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.surfaceAlt },
+  progressDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: semantic.surfaceAlt },
   progressDotDone: { backgroundColor: semantic.brand, opacity: 0.5 },
   progressDotCurrent: { backgroundColor: semantic.brand, transform: [{ scale: 1.3 }] },
   toastWrap: {

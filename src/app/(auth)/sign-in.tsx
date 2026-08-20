@@ -23,6 +23,7 @@ import { Text } from "@/components/ui/Text";
 import { useSignInForm } from "@/lib/auth/useSignInForm";
 import { cosmicSky, radii, semantic, spacing, typography } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { m3 } from "@/lib/theme/m3";
 import { CosmicBackground, PremiumToast } from "@/components/premium";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/EyeIcon";
 import { InlineLoader } from "@/components/ui/InlineLoader";
@@ -397,7 +398,7 @@ const styles = StyleSheet.create({
     left: 2,
     width: 14,
     height: 3,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: PALETTE.brand,
   },
   authBackChevronTop: {
@@ -449,8 +450,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     shadowColor: PALETTE.accent,
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     ...androidElevationStyle(androidElevation.authForm),
   },
@@ -488,8 +489,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
     shadowColor: PALETTE.brand,
-    shadowOpacity: 0.36,
-    shadowRadius: 10,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   primaryBtnText: { color: PALETTE.bg, fontSize: typography.sizes.md, fontWeight: "700", letterSpacing: 0 },

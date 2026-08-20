@@ -13,6 +13,7 @@ import { BirthDateField } from "@/components/auth/BirthDateField";
 import { JudgeBadge } from "@/components/auth/JudgeBadge";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
 import { androidElevation, androidElevationStyle } from "@/lib/theme/gameboy-tokens";
+import { m3 } from "@/lib/theme/m3";
 import { ageInYears, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { ConsentNotice } from "@/components/consent/ConsentNotice";
 import { useSignUpForm } from "@/lib/auth/useSignUpForm";
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
     left: 2,
     width: 14,
     height: 3,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: semantic.brand,
   },
   authBackChevronTop: {
@@ -435,8 +436,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     ...androidElevationStyle(androidElevation.authForm),
   },
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
   },
   existingHelpTitle: { fontWeight: "600" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  checkDot: { width: 8, height: 8, borderRadius: 4 },
+  checkDot: { width: 8, height: 8, borderRadius: m3.shape.none },
   footer: { marginTop: spacing.xl, alignItems: "center" },
   footerRow: {
     minHeight: 44,
