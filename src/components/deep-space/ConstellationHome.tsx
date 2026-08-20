@@ -14,7 +14,9 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
-import Svg, { Circle, Defs, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, Path, Pattern, RadialGradient, Rect, Stop } from "react-native-svg";
+
+import { PixelStarSvg } from "../pixel/PixelStarSvg";
 
 import { NoticeDialog, useNoticeCenter } from "@/app/notices";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -317,22 +319,50 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
         return (
           <Fragment key={`n${i}`}>
             <Circle cx={n.x} cy={n.y} r={n.r * (3.4 + pulse)} fill="url(#ds-node)" opacity={n.depth * n.fade} />
-            <Circle
-              cx={n.x}
-              cy={n.y}
-              r={n.r * pulse}
+            <Rect
+              x={Math.round(n.x - n.r * pulse)}
+              y={Math.round(n.y - n.r * pulse)}
+              width={Math.max(1, Math.round(n.r * pulse * 2))}
+              height={Math.max(1, Math.round(n.r * pulse * 2))}
               fill={withAlpha(m3.accent.star, Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
             />
           </Fragment>
         );
       })}
-      {neural.stars.map((s, i) => (
-        <Circle key={`t${i}`} cx={s.x} cy={s.y} r={s.r} fill={withAlpha(m3.accent.star, Math.max(0, s.a))} />
-      ))}
+      {/* 배경 반짝임: PIXEL-CLAY 규칙 1 로 정수 rect. 아주 먼 별이라 광선 없이
+          점 하나로 둔다 — 여기에 4방향 광선을 달면 북두칠성 7별과 서열이
+          섞인다(Visual Tier). 빛나는 별은 앞의 7개와 북극성뿐이다. */}
+      {neural.stars.map((s, i) => {
+        const d = Math.max(1, Math.round(s.r * 2));
+        return (
+          <Rect
+            key={`t${i}`}
+            x={Math.round(s.x) - Math.floor(d / 2)}
+            y={Math.round(s.y) - Math.floor(d / 2)}
+            width={d}
+            height={d}
+            fill={withAlpha(m3.accent.star, Math.max(0, s.a))}
+          />
+        );
+      })}
       <Rect x={0} y={0} width={w} height={h} fill="url(#ds-vignette)" />
     </Svg>
   );
 });
+
+// Visual Tier 계수 (× k). constellation-polaris-dominance.test.ts 가 여기서 읽는다.
+//
+// 예전 원 반경(북극성 9/17, 도메인 별 6)을 그대로 쓰면 눈에 띄게 작아 보인다 —
+// 4방향 글린트는 같은 반경의 원반보다 채워진 면적이 훨씬 작기 때문이다. 그래서
+// **서열 비율은 그대로 두고** 전체를 약 1.35배 키웠다. 서열 자체(북극성 > 초점
+// 별 > 쉬는 별)는 아래 테스트가 계속 지킨다.
+const POLARIS_CORE_R = 12;
+const POLARIS_MID_R = 17;
+const POLARIS_HALO_R = 23;
+const DOMAIN_CORE_R = 8;
+const DOMAIN_FOCUS_MULT = 1.3;
+const DOMAIN_HALO_MULT_REST = 1.6;
+const DOMAIN_HALO_MULT_FOCUS = 1.7;
 
 export function ConstellationHome({
   onStarTravel,
@@ -618,27 +648,18 @@ export function ConstellationHome({
         <View style={{ width: boxW, height: boxH }}>
           <Svg width={boxW} height={boxH} pointerEvents="none">
             <Defs>
-              <RadialGradient id="ds-star" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={m3.accent.star} />
-                <Stop offset="0.72" stopColor={m3.accent.starCore} />
-                <Stop offset="1" stopColor={m3.accent.starCore} />
-              </RadialGradient>
-              <RadialGradient id="ds-star-glow" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={m3.accent.starCore} stopOpacity={0.95} />
-                <Stop offset="0.55" stopColor={m3.accent.starCore} stopOpacity={0.4} />
-                <Stop offset="1" stopColor={m3.accent.starCore} stopOpacity={0} />
-              </RadialGradient>
-              <RadialGradient id="ds-polaris" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={m3.accent.skyStarWhite} />
-                <Stop offset="0.48" stopColor={m3.accent.polarisSoft} />
-                <Stop offset="0.84" stopColor={m3.accent.moodNeutral} />
-                <Stop offset="1" stopColor={m3.accent.moodNeutral} />
-              </RadialGradient>
-              <RadialGradient id="ds-polaris-glow" cx="50%" cy="50%" r="50%">
-                <Stop offset="0" stopColor={m3.accent.polarisGlow} stopOpacity={0.9} />
-                <Stop offset="0.5" stopColor={m3.accent.moodNeutral} stopOpacity={0.5} />
-                <Stop offset="1" stopColor={m3.accent.moodNeutral} stopOpacity={0} />
-              </RadialGradient>
+              {/* 광채는 알파 그라디언트가 아니라 **디더**다 (PIXEL-CLAY 규칙 4:
+                  정적 불투명도 대신 디더/색 밴딩). patternUnits="userSpaceOnUse"
+                  라 타일이 SVG 원점에 고정되고, 그래서 모든 별의 디더가 같은
+                  화면 픽셀 격자 위에 놓인다 — 별마다 격자가 어긋나지 않는다. */}
+              <Pattern id="ds-dither-star" patternUnits="userSpaceOnUse" x={0} y={0} width={2} height={2}>
+                <Rect x={0} y={0} width={1} height={1} fill={m3.accent.starCore} />
+                <Rect x={1} y={1} width={1} height={1} fill={m3.accent.starCore} />
+              </Pattern>
+              <Pattern id="ds-dither-polaris" patternUnits="userSpaceOnUse" x={0} y={0} width={2} height={2}>
+                <Rect x={0} y={0} width={1} height={1} fill={m3.accent.polarisGlow} />
+                <Rect x={1} y={1} width={1} height={1} fill={m3.accent.polarisGlow} />
+              </Pattern>
             </Defs>
             <Path d={pathOf(BOWL, true)} fill="none" stroke={withAlpha(m3.accent.dipperLine, 0.34)} strokeWidth={1.2 * k} strokeLinejoin="round" />
             <Path d={pathOf(HANDLE)} fill="none" stroke={withAlpha(m3.accent.dipperLine, 0.34)} strokeWidth={1.2 * k} strokeLinejoin="round" />
@@ -649,21 +670,28 @@ export function ConstellationHome({
               strokeWidth={1 * k}
               strokeDasharray={`${2 * k} ${5 * k}`}
             />
-            {/* 북극성: 18dp dot + violet halo; brightness stays honest (soulCoreOpacity). */}
-            <Circle cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={17 * k} fill="url(#ds-polaris-glow)" opacity={0.7 * soulCoreOpacity(northStarBrightness)} />
-            <Circle cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={9 * k} fill="url(#ds-polaris)" opacity={soulCoreOpacity(northStarBrightness)} />
+            {/* 북극성: 색 밴딩 3단(디더 헤일로 -> polarisSoft -> 흰 코어). 밝기의
+                정직성(soulCoreOpacity)은 그대로다 — 그건 장식이 아니라 의미라서
+                디더로 바꾸지 않았다. */}
+            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_HALO_R * k} fill="url(#ds-dither-polaris)" opacity={0.85 * soulCoreOpacity(northStarBrightness)} />
+            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_MID_R * k} fill={m3.accent.polarisSoft} opacity={soulCoreOpacity(northStarBrightness)} />
+            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_CORE_R * k} fill={m3.accent.skyStarWhite} opacity={soulCoreOpacity(northStarBrightness)} />
             {REV2_STARS.map((s) => {
               const on = focusedId === s.id;
               const o = rev2StarOpacity(levelOf(s.id));
               // Visual Tier: a tapped (focused) domain star is promoted but must
-              // stay BELOW 북극성 (core 9k / halo 17k). focus 1.3 -> core 7.8k and
-              // glow 1.9 -> halo 14.82k, both under Polaris; resting stays 6k/13.2k.
-              // Enforced by constellation-polaris-dominance.test.ts.
-              const dotR = 6 * k * (on ? 1.3 : 1);
+              // stay BELOW 북극성. Enforced by constellation-polaris-dominance.test.ts.
+              const dotR = DOMAIN_CORE_R * k * (on ? DOMAIN_FOCUS_MULT : 1);
               return (
                 <Fragment key={s.id}>
-                  <Circle cx={px(s.x)} cy={py(s.y)} r={dotR * (on ? 1.9 : 2.2)} fill="url(#ds-star-glow)" opacity={o * (on ? 1 : 0.8)} />
-                  <Circle cx={px(s.x)} cy={py(s.y)} r={dotR} fill="url(#ds-star)" opacity={o} />
+                  <PixelStarSvg
+                    cx={px(s.x)}
+                    cy={py(s.y)}
+                    r={dotR * (on ? DOMAIN_HALO_MULT_FOCUS : DOMAIN_HALO_MULT_REST)}
+                    fill="url(#ds-dither-star)"
+                    opacity={o * (on ? 1 : 0.8)}
+                  />
+                  <PixelStarSvg cx={px(s.x)} cy={py(s.y)} r={dotR} fill={on ? m3.accent.starFocus : m3.accent.star} opacity={o} />
                 </Fragment>
               );
             })}
@@ -911,7 +939,7 @@ const styles = StyleSheet.create({
     zIndex: 8,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
@@ -924,7 +952,7 @@ const styles = StyleSheet.create({
     zIndex: 8,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(m3.color.primary, 0.42),
     alignItems: "center",
@@ -939,7 +967,7 @@ const styles = StyleSheet.create({
     zIndex: 8,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
@@ -952,7 +980,7 @@ const styles = StyleSheet.create({
     zIndex: 8,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
@@ -964,7 +992,7 @@ const styles = StyleSheet.create({
     right: 10,
     width: 7,
     height: 7,
-    borderRadius: 4,
+    borderRadius: 0,
     backgroundColor: m3.accent.alertDot,
   },
   constellationBlock: {
@@ -1014,7 +1042,7 @@ const styles = StyleSheet.create({
   bubble: {
     width: "100%",
     maxWidth: 268,
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(m3.accent.starCore, 0.34),
     backgroundColor: withAlpha(m3.accent.bubbleSurface, 0.95),
@@ -1036,8 +1064,10 @@ const styles = StyleSheet.create({
   },
   bubbleTag: {
     fontFamily: m3.font.mono,
-    fontSize: 9,
-    letterSpacing: 1.26,
+    // 격자 밖 9px 은 Galmuri 에서 조용히 흐려진다(PRD §2-4). tracking 도
+    // 정수로 -- 비트맵 얼굴은 소수 자간에서 글자마다 반 픽셀씩 밀린다.
+    fontSize: 10,
+    letterSpacing: 1,
     color: withAlpha(m3.accent.moodNeutral, 0.9),
     marginBottom: 6,
   },

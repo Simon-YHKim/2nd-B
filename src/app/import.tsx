@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   tagChip: {
     borderWidth: 1,
     borderColor: semantic.border,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
