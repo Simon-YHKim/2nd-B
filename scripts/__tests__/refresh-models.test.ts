@@ -33,8 +33,10 @@ function seat(id: string): SeatClass {
 const SONNET = seat("anthropic-sonnet");
 const OPUS = seat("anthropic-opus");
 const GPT = seat("openai-frontier");
-const FLASH = seat("google-flash");
-const FLASH_LITE = seat("google-flash-lite");
+// Gemini 좌석 3개는 2026-08-21 에 제거됐다 (REQ-260821-01). 모양 허용 목록의
+// 성질을 시험하던 자리를 xAI 좌석이 이어받는다 - 같은 성질을 같은 방식으로
+// 시험하므로 커버리지가 줄지 않는다.
+const XAI = seat("xai-frontier");
 
 describe("pickNewest", () => {
   it("등급 안에서만 최신을 고른다", () => {
@@ -99,19 +101,20 @@ describe("pickNewest", () => {
   });
 
   it("preview·exp 를 고르지 않는다", () => {
-    const all = ["models/gemini-3.5-flash", "models/gemini-4.0-flash-preview", "models/gemini-4.0-flash-exp"];
-    expect(pickNewest(all, FLASH)).toBe("models/gemini-3.5-flash");
+    const all = ["grok-4", "grok-5-beta", "grok-5-preview"];
+    expect(pickNewest(all, XAI)).toBe("grok-4");
   });
 
   it("flash 와 flash-lite 를 서로 침범하지 않는다", () => {
     // flash 패턴이 느슨하면 flash-lite 를 삼켜서 OCR 좌석이 조용히 경량 모델로 내려간다.
-    const all = ["models/gemini-3.7-flash", "models/gemini-3.9-flash-lite"];
-    expect(pickNewest(all, FLASH)).toBe("models/gemini-3.7-flash");
-    expect(pickNewest(all, FLASH_LITE)).toBe("models/gemini-3.9-flash-lite");
+    // 같은 벤더 안에서도 좌석이 자기 모양만 가져간다: grok-4-fast 는 축이 달라
+    // 프론티어 좌석에 올라오면 안 된다.
+    const all = ["grok-4", "grok-4-fast"];
+    expect(pickNewest(all, XAI)).toBe("grok-4");
   });
 
   it("등급에 아무것도 없으면 null 을 준다 (엉뚱한 것을 고르지 않는다)", () => {
-    expect(pickNewest(["gpt-5.6", "models/gemini-3.7-flash"], OPUS)).toBeNull();
+    expect(pickNewest(["gpt-5.6", "grok-4"], OPUS)).toBeNull();
     expect(pickNewest([], SONNET)).toBeNull();
   });
 
@@ -119,7 +122,7 @@ describe("pickNewest", () => {
     // 2026-08-17 기준 gpt-5.6 / gemini-3.7-flash. 이 테스트는 시간이 지나면
     // 낡지만, 낡는다는 사실 자체가 이 스크립트가 필요한 이유다.
     expect(pickNewest(["gpt-5.4", "gpt-5.6"], GPT)).toBe("gpt-5.6");
-    expect(pickNewest(["models/gemini-3.5-flash", "models/gemini-3.7-flash"], FLASH)).toBe("models/gemini-3.7-flash");
+    expect(pickNewest(["grok-4", "grok-4.1"], XAI)).toBe("grok-4.1");
   });
 });
 
@@ -156,7 +159,7 @@ describe("비용 축", () => {
   it("싼 좌석과 깊은 좌석이 섞이지 않는다", () => {
     // 분류 좌석이 프론티어로 올라가면 요금이 튀고, 종합 좌석이 lite 로
     // 내려가면 품질이 조용히 떨어진다. 둘 다 알아채기 어렵다.
-    expect(costAxisOf("google-flash-lite")).toBe("cheap");
+    expect(costAxisOf("xai-frontier")).toBe("deep");
     expect(costAxisOf("anthropic-opus")).toBe("deep");
     expect(costAxisOf("openai-frontier")).toBe("deep");
     expect(costAxisOf("anthropic-sonnet")).toBe("mid");
@@ -203,9 +206,9 @@ describe("secretsFor — 승격이 좌석 밖으로 새지 않는다", () => {
     expect(map.persona_narrative).not.toBe(map.advisor);
   });
 
-  it("google 좌석은 좌석당 시크릿 하나이고 models/ 접두사를 벗긴다", () => {
-    const out = secretsFor([{ seat: { id: "google-flash" }, chosen: "models/gemini-3.7-flash" }]);
-    expect(out).toEqual([{ name: "GEMINI_MODEL_FLASH", value: "gemini-3.7-flash" }]);
+  it("xai 좌석은 좌석당 시크릿 하나다", () => {
+    const out = secretsFor([{ seat: { id: "xai-frontier" }, chosen: "grok-4.1" }]);
+    expect(out).toEqual([{ name: "XAI_MODEL", value: "grok-4.1" }]);
   });
 
   it("승격이 없으면 아무 시크릿도 쓰지 않는다", () => {

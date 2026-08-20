@@ -23,7 +23,7 @@
 //
 // 키가 없는 벤더는 건너뛴다(에러가 아니다). CI 에서 키 없이 돌려도 통과한다.
 
-type Vendor = "anthropic" | "openai" | "google";
+type Vendor = "anthropic" | "openai" | "xai";
 
 export interface SeatClass {
   /** 좌석 등급 이름. 로그와 핀 환경변수에 쓰인다. */
@@ -83,27 +83,29 @@ export const SEATS: SeatClass[] = [
     note: "추론 좌석 9개",
   },
   {
-    id: "google-flash",
-    vendor: "google",
-    match: /^models\/gemini-[\d.]+-flash$/,
-    exclude: /preview|exp|thinking/,
-    note: "OCR·음성 전사 (gemini-proxy 만 이미지·오디오 inline data 를 전달)",
-  },
-  {
-    id: "google-flash-lite",
-    vendor: "google",
-    match: /^models\/gemini-[\d.]+-flash-lite$/,
-    exclude: /preview|exp/,
-    note: "분류 등 경량 좌석",
-  },
-  {
-    id: "google-pro",
-    vendor: "google",
-    match: /^models\/gemini-[\d.]+-pro$/,
-    exclude: /preview|exp|thinking/,
-    note: "깊은 분석이 필요한 Gemini 좌석",
+    id: "xai-frontier",
+    vendor: "xai",
+    // openai-frontier 와 같은 이유로 **모양 허용 목록**이다. 금지 목록이었으면
+    // 새 변형이 나올 때마다 조용히 열린다 (2026-08-18 gpt-5-search-api 사고).
+    //
+    //   통과: grok-4 · grok-4.1 · grok-5
+    //   거절: grok-4-fast · grok-2-vision-1212 · grok-4-0709 (날짜 스냅샷)
+    match: /^grok-\d+(?:\.\d+)*$/,
+    exclude: /mini|fast|vision|image|beta|preview|reasoning|code/,
+    note: "Grok 좌석 (키가 없으면 통째로 건너뛴다)",
   },
 ];
+
+// ── Gemini 좌석은 2026-08-21 에 제거됐다 (REQ-260821-01) ────────────────────
+//
+// google-flash / google-flash-lite / google-pro 세 좌석이 여기 있었다. Simon 이
+// 벤더에서 Gemini 를 뺐고, 구글이 2026년 9월부터 Standard 키를 거부하는데 새 키는
+// 만들지 않기로 했다. 승격시킬 좌석이 없다.
+//
+// ⚠ 이건 **나이틀리에서만** 뺀 것이다. gemini-proxy 와 GEMINI_API_KEY 참조는
+// 런타임 경로에 그대로 있다 — 발주가 "플립이 운영에서 검증되기 전에 지우지 말 것"
+// 이라고 명시했고, 최종 폐기는 콘솔 몫이다. 나이틀리는 런타임 경로가 아니라서
+// 여기서 빼도 앱이 하던 일이 바뀌지 않는다 (키가 없어 매번 건너뛰던 좌석들이다).
 
 // 비용 정책 (Simon 2026-08-17): "간단한 작업은 최신이되 저렴한 모델, effort 가
 // 필요하면 고비용 모델로 상세 분석."
@@ -118,12 +120,17 @@ export const SEATS: SeatClass[] = [
 // 이 스크립트는 그 축의 **모델만** 최신으로 유지한다. 어느 목적이 어느 축인지는
 // 바꾸지 않는다. 그건 제품 결정이지 자동화가 할 일이 아니다.
 export const COST_AXIS: Readonly<Record<"cheap" | "mid" | "deep", readonly string[]>> = {
-  // 분류·태깅처럼 양이 많고 뉘앙스가 필요 없는 것
-  cheap: ["google-flash-lite"],
+  // 분류·태깅처럼 양이 많고 뉘앙스가 필요 없는 것.
+  // ⚠ 지금 비어 있다. Gemini 좌석 제거(REQ-260821-01)로 싼 축의 유일한 좌석이
+  // 사라졌다. openai-proxy 의 safety_classify 는 gpt-5.4-nano 로 **이미 싼 축에
+  // 앉아 있지만**, 그 좌석은 PURPOSE_MODEL 안에서 고정돼 있어 이 스크립트의
+  // 승격 대상이 아니다(그래서 표류 가드가 그것을 cheap 으로 분류한다).
+  // 싼 축의 자동 승격이 필요해지면 그때 좌석을 세운다.
+  cheap: [],
   // 대화·구조화 출력처럼 상호작용하지만 깊지 않은 것
-  mid: ["anthropic-sonnet", "google-flash"],
+  mid: ["anthropic-sonnet"],
   // 페르소나 종합·주간 다이제스트처럼 effort 가 필요한 것
-  deep: ["anthropic-opus", "openai-frontier", "google-pro"],
+  deep: ["anthropic-opus", "openai-frontier", "xai-frontier"],
 };
 
 /** 이 좌석이 속한 비용 축. 축이 없으면 승격 대상이 아니다. */
@@ -211,9 +218,10 @@ export const OPENAI_FRONTIER_PURPOSES = [
 
 /** 좌석 -> 시크릿 이름. 등급별로 하나씩이라 승격이 축을 넘나들 수 없다. */
 const SECRET_OF: Record<string, string> = {
-  "google-flash": "GEMINI_MODEL_FLASH",
-  "google-flash-lite": "GEMINI_MODEL_FLASH_LITE",
-  "google-pro": "GEMINI_MODEL_PRO",
+  // grok-proxy 는 아직 없다 (아래 KEY_ENV 주석 참조). 그래도 좌석을 두는 이유는
+  // 프록시가 생기는 날 최신 Grok 모델 id 가 **이미 검증된 채로** 준비돼 있게
+  // 하려는 것이다. openai-proxy 의 OPENAI_MODEL 과 같은 전역 이름을 쓴다.
+  "xai-frontier": "XAI_MODEL",
 };
 
 /**
@@ -317,25 +325,26 @@ async function listOpenAI(key: string): Promise<string[]> {
   return (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
 }
 
-async function listGoogle(key: string): Promise<string[]> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=200`,
-  );
-  if (!res.ok) throw new Error(`google ${res.status}`);
-  const body = (await res.json()) as { models?: { name?: string }[] };
-  return (body.models ?? []).map((m) => m.name ?? "").filter(Boolean);
+// xAI is OpenAI-compatible, so the listing endpoint has the same shape.
+async function listXai(key: string): Promise<string[]> {
+  const res = await fetch("https://api.x.ai/v1/models", {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) throw new Error(`xai ${res.status}`);
+  const body = (await res.json()) as { data?: { id?: string }[] };
+  return (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
 }
 
 const KEY_ENV: Record<Vendor, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
-  google: "GEMINI_API_KEY",
+  xai: "XAI_API_KEY",
 };
 
 async function listModels(vendor: Vendor, key: string): Promise<string[]> {
   if (vendor === "anthropic") return listAnthropic(key);
   if (vendor === "openai") return listOpenAI(key);
-  return listGoogle(key);
+  return listXai(key);
 }
 
 /**
@@ -385,21 +394,18 @@ async function smokeTest(vendor: Vendor, model: string, key: string): Promise<{ 
       const text = b.choices?.[0]?.message?.content ?? "";
       return text.includes('"ok"') ? { ok: true, why: "구조화 출력 확인" } : { ok: false, why: `예상 밖 출력: ${text.slice(0, 60)}` };
     }
-    const slug = model.replace(/^models\//, "");
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${slug}:generateContent?key=${encodeURIComponent(key)}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: ask }] }] }),
-      },
-    );
+    // xAI speaks the OpenAI dialect, so the same smoke test works verbatim.
+    const r = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ model, messages: [{ role: "user", content: ask }], max_tokens: 64 }),
+    });
     if (!r.ok) return { ok: false, why: await httpWhy(r) };
-    const b = (await r.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const text = (b.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+    const b2 = (await r.json()) as { choices?: { message?: { content?: string } }[] };
+    const text = b2.choices?.[0]?.message?.content ?? "";
     return text.includes('"ok"') ? { ok: true, why: "구조화 출력 확인" } : { ok: false, why: `예상 밖 출력: ${text.slice(0, 60)}` };
   } catch (e) {
-    return { ok: false, why: (e as Error).message };
+    return { ok: false, why: String(e).slice(0, 120) };
   }
 }
 
