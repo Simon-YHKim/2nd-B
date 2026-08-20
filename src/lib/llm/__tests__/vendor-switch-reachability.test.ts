@@ -85,7 +85,47 @@ describe("a switch nobody's build passes is not a switch", () => {
 
   test.each([...ENV_KEYS])("%s reaches the native build", (key) => {
     expect(ANDROID).toContain(key);
-    expect(EAS).toContain(key);
+    // eas.json carries the ones whose default is a real vendor literal. See
+    // the LLM_VENDOR exception below for the one that cannot be.
+    if (key !== "EXPO_PUBLIC_LLM_VENDOR") expect(EAS).toContain(key);
+  });
+
+  test("eas.json holds no empty EXPO_PUBLIC_* value", () => {
+    // THE ACTUAL BUG, and it is worth more than the presence checks above.
+    // eas-cli refuses to parse an eas.json with an empty env string:
+    //   "build.preview.env.EXPO_PUBLIC_LLM_VENDOR" is not allowed to be empty
+    // That is not a warning. Every `eas build` and every `eas update` fails
+    // before doing anything, so OTA publishing and native builds were both
+    // dead from the moment #1234 added EXPO_PUBLIC_LLM_VENDOR: "" until this
+    // was found on 2026-08-21. Nobody noticed because the OTA gate skips
+    // publishing on an ordinary merge and no native build ran in between.
+    const eas = JSON.parse(EAS) as { build: Record<string, { env?: Record<string, string> }> };
+    const empties: string[] = [];
+    for (const [profile, cfg] of Object.entries(eas.build)) {
+      for (const [key, value] of Object.entries(cfg.env ?? {})) {
+        if (value === "") empties.push(`${profile}.${key}`);
+      }
+    }
+    expect(empties).toEqual([]);
+  });
+
+  test("EXPO_PUBLIC_LLM_VENDOR is absent from eas.json, deliberately", () => {
+    // The other switches default to "gemini" when unset, so writing "gemini"
+    // in eas.json is exactly equivalent. This one does NOT: unset defers to
+    // the phase rule, while "gemini" pins every seat. No non-empty literal
+    // reproduces "unset", and "" is what broke the CLI - so the key is absent,
+    // which IS unset. An operator who wants native seats on another vendor
+    // adds it with a real value.
+    const eas = JSON.parse(EAS) as { build: Record<string, { env?: Record<string, string> }> };
+    for (const cfg of Object.values(eas.build)) {
+      expect(Object.keys(cfg.env ?? {})).not.toContain("EXPO_PUBLIC_LLM_VENDOR");
+    }
+    // And the two that CAN carry a literal do carry the equivalent one.
+    for (const profile of ["preview", "production"]) {
+      const env = eas.build[profile]?.env ?? {};
+      expect(env.EXPO_PUBLIC_MULTIMODAL_VENDOR).toBe("gemini");
+      expect(env.EXPO_PUBLIC_BACKBONE_VENDOR).toBe("gemini");
+    }
   });
 
   test("every switch the LLM layer reads is passed by every build path", () => {
@@ -95,7 +135,9 @@ describe("a switch nobody's build passes is not a switch", () => {
       const gaps = [
         WEB.includes(key) ? null : "web-deploy.yml",
         ANDROID.includes(key) ? null : "android-release.yml",
-        EAS.includes(key) ? null : "eas.json",
+        // eas.json is checked separately: a key can be legitimately absent
+        // there (unset semantics) but must never be present-and-empty.
+        key === "EXPO_PUBLIC_LLM_VENDOR" || EAS.includes(key) ? null : "eas.json",
       ].filter(Boolean);
       if (gaps.length > 0) missing.push(`${key} -> ${gaps.join(", ")}`);
     }
