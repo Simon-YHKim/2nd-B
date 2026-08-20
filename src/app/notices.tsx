@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
   unreadDot: {
     width: 7,
     height: 7,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.accent.alertDot,
     flexShrink: 0,
   },

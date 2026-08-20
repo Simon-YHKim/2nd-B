@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   sub: { ...m3TextStyle("bodyMedium"), color: m3.color.onSurfaceVariant },
   hero: {
     position: "relative",
-    borderRadius: 16,
+    borderRadius: m3.shape.none,
     padding: 18,
     overflow: "hidden",
     borderWidth: 1,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   heroDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.tertiary,
     shadowColor: m3.color.tertiary,
     shadowOpacity: 0.9,

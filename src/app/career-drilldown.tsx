@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     paddingHorizontal: spacing.md,
     backgroundColor: m3.color.surfaceContainerHighest,
   },
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
   bandCode: {
     minWidth: 44,
     height: 32,
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: m3.color.tertiaryContainer,

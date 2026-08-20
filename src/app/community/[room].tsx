@@ -12,6 +12,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { REPORT_REASONS, type ReportReason } from "@/lib/wiki/moderation";
 import {
   COMMUNITY_MESSAGE_MAX,
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.text, 0.2),
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     paddingHorizontal: spacing.sm,
     paddingVertical: 10,
     color: deepSpace.text,

@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   group: { gap: spacing.sm },
   groupLabel: { marginTop: 2 },
   entry: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },
-  entryDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: withAlpha(m3.accent.starDim, 0.7) },
+  entryDot: { width: 8, height: 8, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.accent.starDim, 0.7) },
   entryDotActive: { backgroundColor: m3.accent.starCore },
   entryDotDone: { backgroundColor: m3.accent.moodPositive },
 });

@@ -1252,11 +1252,11 @@ const m3Styles = StyleSheet.create({
   rowText: { flex: 1, minWidth: 0 },
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
-  iconBadge: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  rowBadge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
+  iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
+  rowBadge: { minWidth: 24, height: 24, borderRadius: m3.shape.none, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
   rowBadgeText: { ...koType(12, 16, 0, "700"), color: m3.color.onPrimary },
-  switchTrack: { width: 52, height: 32, borderRadius: 9999, borderWidth: 2, justifyContent: "center" },
-  switchThumb: { position: "absolute", borderRadius: 9999 },
+  switchTrack: { width: 52, height: 32, borderRadius: m3.shape.none, borderWidth: 2, justifyContent: "center" },
+  switchThumb: { position: "absolute", borderRadius: m3.shape.none },
   connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
 });
 

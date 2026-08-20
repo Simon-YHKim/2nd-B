@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
     padding: 0,
     overflow: "hidden",
-    borderRadius: 22,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.22),
   },
   cardBody: { flex: 1 },
@@ -159,12 +159,12 @@ const styles = StyleSheet.create({
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.accentDim, 0.4),
   },
   dotOn: {
     width: 10,
-    borderRadius: 3,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.tertiary,
   },
 });

@@ -7,6 +7,7 @@ import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { facetRows } from "@/lib/persona/facet-rows";
 import { type BigFiveTrait } from "@/lib/persona/bfi";
 import { useTranslation } from "react-i18next";
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
   // "Excitement-Seeking"); the longest ("Achievement-Striving") wraps to a 2nd
   // line rather than truncating. KO labels are short and stay single-line.
   facetLabel: { width: 116 },
-  track: { flex: 1, height: 7, borderRadius: 4, backgroundColor: withAlpha(cosmic.mistGray, 0.18), overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 4 },
+  track: { flex: 1, height: 7, borderRadius: m3.shape.none, backgroundColor: withAlpha(cosmic.mistGray, 0.18), overflow: "hidden" },
+  fill: { height: "100%", borderRadius: m3.shape.none },
   retake: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
 });
