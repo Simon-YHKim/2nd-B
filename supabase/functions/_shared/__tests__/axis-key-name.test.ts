@@ -157,3 +157,102 @@ describe("isUsableHeaderValue", () => {
     expect(isUsableHeaderValue(" ")).toBe(true);
   });
 });
+
+// ── Tier 2: the effort-only key (REQ-260820-03) ────────────────────────────
+//
+// Why this tier exists, in one sentence: the tier-1 name is derived from the
+// MODEL, so promoting a seat renames the secret out of existence and every
+// effort level collapses onto the single base key.
+//
+// That is measured history, not a worry. From ai_audit_log.key_combo:
+// gemini-3.5-flash ran on four distinct GEMINI_API_KEY__G35FLASH__{LOW,MEDIUM,
+// HIGH,XHIGH} secrets on 07-28; when the seat moved to gemini-2.5-flash on
+// 08-17 every call fell to plain GEMINI_API_KEY. It was silent because that
+// base key was healthy. The same collapse on OpenAI on 08-19 landed on a base
+// key with a control character in it and returned 502 - the identical defect,
+// only louder.
+describe('pickApiKey - effort-only tier', () => {
+  const BASE = 'sk-base-xxxxxxxx';
+
+  test('the (model x effort) combo still wins when both exist', () => {
+    const env: Record<string, string> = {
+      OPENAI_API_KEY__GPT54__LOW: 'sk-combo',
+      OPENAI_API_KEY__LOW: 'sk-effort',
+    };
+    const r = pickApiKey((k) => env[k], 'OPENAI', 'gpt-5.4', 'low', BASE);
+    expect(r).toEqual({
+      apiKey: 'sk-combo',
+      secretName: 'OPENAI_API_KEY__GPT54__LOW',
+      usedCombo: true,
+    });
+  });
+
+  test('falls to the effort key when no combo exists, and reports that name', () => {
+    const env: Record<string, string> = { OPENAI_API_KEY__LOW: 'sk-effort' };
+    const r = pickApiKey((k) => env[k], 'OPENAI', 'gpt-5.4', 'low', BASE);
+    expect(r).toEqual({
+      apiKey: 'sk-effort',
+      // usedCombo true is what makes the proxies log this name into
+      // ai_audit_log.key_combo instead of '<PREFIX>_API_KEY'.
+      secretName: 'OPENAI_API_KEY__LOW',
+      usedCombo: true,
+    });
+  });
+
+  test('THE POINT: a model promotion does not disturb the effort key', () => {
+    const env: Record<string, string> = { OPENAI_API_KEY__LOW: 'sk-effort' };
+    const before = pickApiKey((k) => env[k], 'OPENAI', 'gpt-5.4', 'low', BASE);
+    const after = pickApiKey((k) => env[k], 'OPENAI', 'gpt-5.5', 'low', BASE);
+    expect(after.apiKey).toBe(before.apiKey);
+    expect(after.secretName).toBe('OPENAI_API_KEY__LOW');
+    expect(after.usedCombo).toBe(true);
+  });
+
+  test('different effort levels still resolve to different secrets', () => {
+    const env: Record<string, string> = {
+      ANTHROPIC_API_KEY__LOW: 'sk-low',
+      ANTHROPIC_API_KEY__XHIGH: 'sk-xhigh',
+    };
+    const low = pickApiKey((k) => env[k], 'ANTHROPIC', 'claude-sonnet-5', 'low', BASE);
+    const xhigh = pickApiKey((k) => env[k], 'ANTHROPIC', 'claude-sonnet-5', 'xhigh', BASE);
+    expect(low.apiKey).toBe('sk-low');
+    expect(xhigh.apiKey).toBe('sk-xhigh');
+  });
+
+  test('the effort key is trimmed, and a whitespace-only value counts as absent', () => {
+    const padded: Record<string, string> = { XAI_API_KEY__HIGH: '  sk-effort\n' };
+    expect(pickApiKey((k) => padded[k], 'XAI', 'grok-4', 'high', BASE).apiKey).toBe('sk-effort');
+
+    const blank: Record<string, string> = { XAI_API_KEY__HIGH: '   ' };
+    const r = pickApiKey((k) => blank[k], 'XAI', 'grok-4', 'high', BASE);
+    expect(r.usedCombo).toBe(false);
+    expect(r.apiKey).toBe(BASE);
+  });
+
+  test('effort is normalised to upper case in the secret name', () => {
+    const env: Record<string, string> = { OPENAI_API_KEY__MEDIUM: 'sk-effort' };
+    const r = pickApiKey((k) => env[k], 'OPENAI', 'gpt-5.4', 'MeDiUm', BASE);
+    expect(r.secretName).toBe('OPENAI_API_KEY__MEDIUM');
+    expect(r.apiKey).toBe('sk-effort');
+  });
+
+  test('with neither tier present it is still the base key, still trimmed, still usedCombo false', () => {
+    // usedCombo must stay false here or the proxies' base-key fallback warning
+    // goes quiet, which is how the 08-19 outage stayed invisible for so long.
+    const r = pickApiKey(() => undefined, 'OPENAI', 'gpt-5.4', 'low', '  sk-base\n');
+    expect(r).toEqual({
+      apiKey: 'sk-base',
+      secretName: 'OPENAI_API_KEY__GPT54__LOW',
+      usedCombo: false,
+    });
+  });
+
+  test('every effort in the shared vocabulary yields a distinct name', () => {
+    // none/low/medium/high/xhigh is EFFORT_RANK, and 'max' folds to 'xhigh'
+    // before clamping in all three proxies. Do not widen this vocabulary here.
+    const names = ['none', 'low', 'medium', 'high', 'xhigh'].map(
+      (e) => pickApiKey(() => undefined, 'OPENAI', 'gpt-5.4', e, 'b').secretName,
+    );
+    expect(new Set(names).size).toBe(5);
+  });
+});
