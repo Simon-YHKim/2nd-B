@@ -7,9 +7,13 @@
 // That inversion is the whole point rather than bookkeeping. Comp by email
 // domain handed out the TOP PAID TIER - effective_subscription_tier() reads
 // judge_mode and returns 'brain' - from a string the user picks at sign-up. The
-// list being empty is what makes that unreachable from the client, and 0138
-// revoked the client's write access to the column so the empty list is not the
-// only thing standing there.
+// list being empty is what makes that unreachable from the client.
+//
+// The column itself is held by a trigger in 0138, NOT by a revoke: that
+// migration's production dry run showed anon and authenticated hold table-level
+// privileges on public.users, which a column-level REVOKE cannot cut. Worth
+// knowing here, because "the column is revoked" is the sentence that would
+// make someone delete the trigger.
 //
 // The parsing behaviour is still pinned. isJudgeEmail keeps its shape while the
 // RBAC replacement (REQ-260821-02) is designed, and a future maintainer who
