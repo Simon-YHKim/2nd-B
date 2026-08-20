@@ -194,6 +194,50 @@ const SHADOW_PROPS = ["shadowRadius", "shadowOpacity", "elevation"] as const;
 const TYPE_GRID = new Set([10, 12, 15, 24, 30, 45]);
 const GALMURI_FACE = /m3\.font\.(brand|plain|mono|chrome)|fontFamilies\.(pixel|pixelKo|serifKo)/;
 
+// 역할 -> px (`m3Type`). 얼굴 -> x1 px (`typeface.ts` 의 NATIVE_PX). 여기 값을
+// 리터럴로 두는 이유는 이 스크립트가 앱 모듈을 import 하지 않기 때문이다 --
+// `m3.ts` 는 react-native 를 끌고 오고 tsx 러너에서 안 뜬다.
+// `src/lib/theme/__tests__/m3.test.ts` 가 크기 쪽을, `typeface.ts` 헤더가 얼굴
+// 쪽을 지킨다. 둘 중 하나가 바뀌면 여기도 바꿀 것.
+const ROLE_SIZE: Readonly<Record<string, number>> = {
+  displayLarge: 45, displayMedium: 45, displaySmall: 30,
+  headlineLarge: 30, headlineMedium: 30, headlineSmall: 24,
+  titleLarge: 15, titleMedium: 15, titleSmall: 12,
+  bodyLarge: 15, bodyMedium: 12, bodySmall: 10,
+  labelLarge: 12, labelMedium: 10, labelSmall: 10,
+};
+const FACE_NATIVE_PX: Readonly<Record<string, number>> = {
+  brand: 12, // Galmuri11
+  plain: 12, // Galmuri11
+  mono: 12, // GalmuriMono11
+  chrome: 12, // Galmuri11
+};
+
+/**
+ * `const X = StyleSheet.create({...})` 의 범위들. 화살표 팩토리
+ * (`const X = () => StyleSheet.create({...})`)는 **제외**한다 -- 그건 다시
+ * 평가할 수 있어서 얼어붙지 않는다.
+ */
+function frozenSheetRanges(src: string): [number, number][] {
+  const out: [number, number][] = [];
+  for (const m of src.matchAll(/StyleSheet\.create\(/g)) {
+    const at = m.index ?? 0;
+    const before = src.slice(Math.max(0, at - 12), at);
+    if (before.includes("=>")) continue;
+    let i = at + m[0].length - 1;
+    let depth = 0;
+    for (; i < src.length; i += 1) {
+      if (src[i] === "(") depth += 1;
+      else if (src[i] === ")") {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    out.push([at, i]);
+  }
+  return out;
+}
+
 interface Hit {
   file: string;
   line: number;
@@ -257,6 +301,43 @@ for (const rel of MIGRATED) {
         line: lineOf(src, (block.index ?? 0) + (m.index ?? 0)),
         text: m[0],
         why: "PRD §2-4 -- Galmuri 는 격자 밖 크기에서 흐려진다. 10/12/15/24/30/45 중 하나로",
+      });
+    }
+  }
+
+  // 얼굴이 크기를 나누는가. `m3TextStyle("role")` 스프레드 뒤에 `fontFamily` 를
+  // 덮으면 크기는 역할이, 얼굴은 오버라이드가 정하게 되어 둘이 어긋난다.
+  // 위의 격자 검사는 **크기만** 보므로 이걸 못 잡는다 -- 크기는 격자 위에
+  // 있는데 얼굴이 틀린 경우다. 실제로 core-brain/PolarisDeck 에 7곳 있었다
+  // (bodyLarge 15px 에 Galmuri11 -> 1.25배, bodySmall 10px 에 Galmuri11 -> 0.83배).
+  for (const block of src.matchAll(/\{[^{}]*\}/g)) {
+    const body = block[0];
+    const role = /m3TextStyle\("([a-zA-Z]+)"\)/.exec(body);
+    const face = /fontFamily:\s*m3\.font\.([a-z]+)/.exec(body);
+    if (!role || !face) continue;
+    const size = ROLE_SIZE[role[1]];
+    const native = FACE_NATIVE_PX[face[1]];
+    if (!size || !native || size % native === 0) continue;
+    hits.push({
+      file: rel,
+      line: lineOf(src, (block.index ?? 0) + (face.index ?? 0)),
+      text: `${role[1]}(${size}px) <- m3.font.${face[1]}(x1 ${native}px)`,
+      why: "PRD §2-4 -- 얼굴이 크기를 나누지 못한다. 오버라이드를 빼거나 역할 크기를 얼굴의 배수로",
+    });
+  }
+
+  // 본문 역할이 `StyleSheet.create` 안에 얼어붙어 있는가. 그 안은 모듈 로드 때
+  // 딱 한 번 평가되므로 저시력 옵션(읽는 글)이 그 화면에만 닿지 않는다 --
+  // 네이티브는 값이 비동기로 오기 때문에 **영영** 안 바뀐다.
+  // `() => StyleSheet.create({...})` 팩토리는 통과한다: 그건 다시 만들 수 있고,
+  // `subscribeFontStyle` 로 갈아끼우라고 그렇게 쓴 것이다.
+  for (const frozen of frozenSheetRanges(src)) {
+    for (const m of src.slice(frozen[0], frozen[1]).matchAll(/m3TextStyle\("(body[a-zA-Z]+)"\)/g)) {
+      hits.push({
+        file: rel,
+        line: lineOf(src, frozen[0] + (m.index ?? 0)),
+        text: m[0],
+        why: "저시력 옵션이 닿지 않는다 -- 본문 역할은 얼어붙은 시트 밖에 두거나 `() => StyleSheet.create` 팩토리로",
       });
     }
   }

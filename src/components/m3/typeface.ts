@@ -17,6 +17,8 @@
 // 이 파일은 **fontFamily 만 돌려주고 fontWeight 은 아예 내보내지 않는다.**
 // 굵기는 얼굴 이름 안에 들어 있다.
 import { m3, type M3TypeRole } from "@/lib/theme/m3";
+import { getFontStyle } from "@/lib/settings/readable-font";
+import { fontFamilies } from "@/theme/typography";
 
 /** 얼굴이 x1 로 선명한 크기(px). upem/100 과 같다. */
 export const NATIVE_PX = {
@@ -71,14 +73,42 @@ export function chromeFaceFor(weight: "400" | "500" | "700"): string {
   return galmuriFor(NATIVE_PX[m3.font.brand as GalmuriFace] ?? 12, weight);
 }
 
+// ── 저시력 옵션이 닿는 범위 (Simon 결정 2026-08-21, 질문 2 = A "본문만") ──────
+//
+// `readable` 을 켜면 **읽는 글만** Pretendard 로 바뀌고 크롬(라벨·버튼·칩·제목)
+// 은 Galmuri 로 남는다. 픽셀 정체성은 크롬이 지고 있고, 긴 글은 비트맵 얼굴에서
+// 가장 읽기 힘들기 때문이다. 인수 번들도 같은 선을 긋는다 -- `_ds/css/
+// typography.css` 의 이중 타이포 정책("UI 크롬"과 "읽는 글"을 나눈다).
+//
+// **왜 여기가 맞는 자리인가.** 전에는 이 옵션이 이식된 화면에서 아무 일도 안
+// 했다. `src/components/ui/Text.tsx` 가 옵션을 보긴 하는데, 이식된 화면은
+// `m3TextStyle()` 을 `style` prop 으로 넘기고 그 style 이 배열 뒤에 와서
+// **얼굴을 덮어썼다.** 그래서 스위치를 얼굴이 정해지는 자리로 옮긴다.
+const READING_ROLES: ReadonlySet<M3TypeRole> = new Set<M3TypeRole>([
+  "bodyLarge",
+  "bodyMedium",
+  "bodySmall",
+]);
+
 /**
  * RN Text style for an M3 type role. Text 스타일 배열에 펼쳐 쓴다:
  * `style={[m3TextStyle("labelLarge"), { color }]}`. 색은 호출부가 토큰으로 준다.
  *
- * `fontWeight` 을 내보내지 않는 것은 의도다 - 위 헤더 참조.
+ * `fontWeight` 을 내보내지 않는 것은 의도다 - 위 헤더 참조. 단 **읽는 글이
+ * 벡터 얼굴로 바뀐 경우는 예외**다: Galmuri 는 굵기가 얼굴 이름 안에 있지만
+ * Pretendard 는 스타일로 받아야 굵어진다.
  */
 export function m3TextStyle(role: M3TypeRole) {
   const t = m3.type[role];
+  if (READING_ROLES.has(role) && getFontStyle() === "readable") {
+    return {
+      fontFamily: fontFamilies.readable,
+      fontSize: t.size,
+      lineHeight: t.line,
+      letterSpacing: t.tracking,
+      fontWeight: t.weight,
+    };
+  }
   return {
     fontFamily: galmuriFor(t.size, t.weight),
     fontSize: t.size,

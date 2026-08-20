@@ -6,6 +6,7 @@
 // thin record base the screen says so honestly instead of inventing a persona.
 // 다른 제안 받기 re-asks; tapping a suggestion fills the editor (user always confirms).
 import { useCallback, useEffect, useState } from "react";
+import { subscribeFontStyle } from "@/lib/settings/readable-font";
 
 import { reactExpression } from "@/lib/companion/expression";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -288,7 +289,13 @@ export default function NorthstarSentence() {
   );
 }
 
-const styles = StyleSheet.create({
+// 이 시트는 본문 역할(`m3TextStyle("body…")`)을 들고 있다. `StyleSheet.create`
+// 는 모듈이 로드될 때 **한 번만** 평가되므로, 그대로 두면 저시력 옵션(읽는 글)
+// 을 켜도 이 화면만 예전 얼굴로 남는다 -- 네이티브는 값 하이드레이션이 비동기라
+// 영영 안 바뀐다. 그래서 시트를 **다시 만들 수 있게** 하고 설정이 바뀔 때
+// 갈아끼운다. 화면이 다시 그려지는 것은 공유 셸(`DeepSpaceScreen`)이
+// `useFontStyle()` 을 구독하기 때문이다.
+const makeStyles = () => StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: spacing.md },
   headline: { ...m3TextStyle("headlineSmall"), color: m3.color.onSurface, marginTop: spacing.xs },
   sub: { ...m3TextStyle("bodyMedium"), color: m3.color.onSurfaceVariant },
@@ -339,4 +346,9 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   cancelBtn: { flex: 1 },
   saveBtn: { flex: 2 },
+});
+
+let styles = makeStyles();
+subscribeFontStyle(() => {
+  styles = makeStyles();
 });

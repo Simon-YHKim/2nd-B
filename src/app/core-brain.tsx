@@ -9,6 +9,7 @@
 // 세컨비에게 이 중심으로 묻기.
 
 import { useEffect, useState, type ReactNode } from "react";
+import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -848,7 +849,13 @@ const styles = StyleSheet.create({
 });
 
 // rev2 P3a — deep-space 북극성 deck layout (the deck itself is PolarisDeck).
-const dsDeck = StyleSheet.create({
+// 이 시트는 본문 역할(`m3TextStyle("body…")`)을 들고 있다. `StyleSheet.create`
+// 는 모듈이 로드될 때 **한 번만** 평가되므로, 그대로 두면 저시력 옵션(읽는 글)
+// 을 켜도 이 화면만 예전 얼굴로 남는다 -- 네이티브는 값 하이드레이션이 비동기라
+// 영영 안 바뀐다. 그래서 시트를 **다시 만들 수 있게** 하고 설정이 바뀔 때
+// 갈아끼운다. 화면이 다시 그려지는 것은 공유 셸(`DeepSpaceScreen`)이
+// `useFontStyle()` 을 구독하기 때문이다.
+const makeDsDeck = () => StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 4 },
   roleBody: { gap: 0 },
   roleTop: {
@@ -886,18 +893,18 @@ const dsDeck = StyleSheet.create({
   domainTagText: {
     ...m3TextStyle("labelLarge"),
     color: m3.color.onTertiaryContainer,
-    fontFamily: m3.font.brand,
   },
   roleHeadline: {
     ...m3TextStyle("headlineSmall"),
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
     fontWeight: "700",
   },
   sectionEyebrow: {
+    // labelMedium 은 10px 인데 GalmuriMono11 의 x1 은 12px 이라 0.83배로 흐려진다.
+    // 크기를 지키고 얼굴을 놓는다 -- 10px 은 Galmuri9 가 x1 로 선명하게 그리고,
+    // 그건 `m3TextStyle` 이 이미 고르고 있다.
     ...m3TextStyle("labelMedium"),
     color: m3.color.tertiary,
-    fontFamily: m3.font.mono,
     letterSpacing: 3,
     marginTop: 17,
     marginBottom: 8,
@@ -905,7 +912,6 @@ const dsDeck = StyleSheet.create({
   roleDescription: {
     ...m3TextStyle("bodyLarge"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
     lineHeight: 24,
   },
   traitList: { gap: 8 },
@@ -914,7 +920,6 @@ const dsDeck = StyleSheet.create({
     ...m3TextStyle("bodyMedium"),
     width: 48,
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
   },
   traitTrack: {
     flex: 1,
@@ -941,7 +946,6 @@ const dsDeck = StyleSheet.create({
   personText: {
     ...m3TextStyle("bodyMedium"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
     lineHeight: 21,
   },
   strengthRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -960,7 +964,6 @@ const dsDeck = StyleSheet.create({
   strengthText: {
     ...m3TextStyle("labelLarge"),
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
   },
   strengthEmpty: {
     alignItems: "flex-start",
@@ -972,7 +975,6 @@ const dsDeck = StyleSheet.create({
   strengthEmptyText: {
     ...m3TextStyle("bodySmall"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   evidenceMeta: {
     flexDirection: "row",
@@ -984,7 +986,6 @@ const dsDeck = StyleSheet.create({
   evidenceText: {
     ...m3TextStyle("bodySmall"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   confidenceDots: { flexDirection: "row", gap: 5 },
   confidenceDot: {
@@ -1004,13 +1005,11 @@ const dsDeck = StyleSheet.create({
   pageHeadline: {
     ...m3TextStyle("headlineSmall"),
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
     fontWeight: "700",
   },
   pageDescription: {
     ...m3TextStyle("bodyLarge"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   validationHead: { marginTop: 16 },
   secondaryActions: {
@@ -1018,4 +1017,9 @@ const dsDeck = StyleSheet.create({
     gap: 8,
     marginTop: 12,
   },
+});
+
+let dsDeck = makeDsDeck();
+subscribeFontStyle(() => {
+  dsDeck = makeDsDeck();
 });
