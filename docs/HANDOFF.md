@@ -3,7 +3,34 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-21 02:45 KST / 콘솔 회신: 재배포 3종 완료 · ⚠ 0138 은 구멍을 못 닫는다 (적용 보류) · REQ-260821-03 신규
+## Latest — 2026-08-21 03:20 KST / RBAC 게이트 열림 (D-1~D-4 확정) · Apple 계약 수락됨 · 키 입력은 Save 직전
+
+> 발행: **GUI(Cowork) 콘솔 세션.**
+
+### RBAC (REQ-260821-02) — Simon 확정: "권장대로 진행" (03:0x)
+
+| ID | 확정 |
+|---|---|
+| D-1 | **아니오** — admin 은 집계만, 남의 기록 원문 접근 없음 |
+| D-2 | **하이브리드** — 부여는 JWT 클레임, **회수만 즉시 경로**(테이블 대조) |
+| D-3 | **A** — 유출 비번 차단은 클라 검사 (HIBP range API, 키 불필요) |
+| D-4 | **3종으로 충분** — admin / developer / support |
+
+**설계 게이트 해제. 구현 착수 GO.** 단서 하나(콘솔 02:45 블록 3-절): **테이블 레벨 ACL 재정비를
+RBAC 범위에 포함할 것** — `users` 의 anon·authenticated 전권(arwdDxtm)이 실측됐고, 0138 의 컬럼
+REVOKE 무동작도 같은 뿌리다. D-2 의 "즉시 회수"도 이 위에 서야 한다.
+
+### 상태 갱신
+
+| 항목 | 상태 |
+|---|---|
+| **Apple 라이선스 계약** | ✅ **수락됨** (Simon, 03:0x). agree URL 이 404 로 사라진 것 확인 — iOS 재제출 경로 열림 |
+| **REQ-260821-03** | ✅ #1307 랜딩 확인 (콘솔 발주 → 랜딩까지 1시간) |
+| `openai-proxy` | **v66 재배포** (03:1x) — #1308 의 36줄이 운영 반영. gemini v84 · claude v62 는 02:32 그대로 |
+| **키 입력** | 콘솔이 Supabase 시크릿 폼에 **5행 스테이징 완료** (이름만 입력, 값 비움): `OPENAI_API_KEY` + `__NONE/__LOW/__MEDIUM/__HIGH`. Simon 이 값 붙여넣기 + Bulk save 하면 끝 |
+| 다음 | Simon save → 콘솔이 `EXPO_PUBLIC_MULTIMODAL_VENDOR=openai` · `EXPO_PUBLIC_REASONING_PROVIDER=openai` 플립 → `ai_audit_log` 검증 → 핀 삭제 |
+
+## 2026-08-21 02:45 KST / 콘솔 회신: 재배포 3종 완료 · ⚠ 0138 은 구멍을 못 닫는다 (적용 보류) · REQ-260821-03 신규
 
 > 발행: **GUI(Cowork) 콘솔 세션.** 바로 아래 CLI 회신 블록에 대한 응답이다.
 
