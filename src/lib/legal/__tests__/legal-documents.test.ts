@@ -3,7 +3,11 @@
 // the markdown-lite parser must handle every construct the drafts use.
 
 import { PRIVACY_DOC, REFUND_DOC, TERMS_DOC, isDraft } from "../legal-documents";
-import { parseLegalMarkdown } from "../parse-legal-markdown";
+import {
+  parseLegalMarkdown,
+  splitLegalLanguageSections,
+  stripLegalDocumentIntro,
+} from "../parse-legal-markdown";
 
 describe("legal document snapshots", () => {
   test("terms carry the core commitments (article 1, the not-a-clinical-service disclaimer, age floor)", () => {
@@ -152,6 +156,56 @@ describe("parseLegalMarkdown", () => {
     const blocks = parseLegalMarkdown(TERMS_DOC.body);
     expect(blocks.length).toBeGreaterThan(20);
     expect(blocks.some((b) => b.type === "h3")).toBe(true);
+  });
+
+  test("removes the duplicated terms title, effective date, and divider for the route body", () => {
+    const blocks = parseLegalMarkdown(TERMS_DOC.body);
+    const visibleBlocks = stripLegalDocumentIntro(blocks, TERMS_DOC.title);
+
+    expect(visibleBlocks).toEqual(blocks.slice(3));
+    expect(visibleBlocks[0]).toEqual({ type: "h2", text: "한국어" });
+  });
+
+  test("splits the terms into complete Korean and English sections", () => {
+    const blocks = stripLegalDocumentIntro(parseLegalMarkdown(TERMS_DOC.body), TERMS_DOC.title);
+    const sections = splitLegalLanguageSections(blocks);
+
+    expect(sections).not.toBeNull();
+    if (!sections) throw new Error("Expected bilingual terms sections");
+    expect(sections.ko[0]).toEqual({ type: "h3", text: "제1조 (목적)" });
+    expect(sections.en[0]).toEqual({ type: "h3", text: "1. Purpose" });
+    expect(
+      sections.ko.some(
+        (block) => block.type === "h2" || ("text" in block && block.text === "1. Purpose"),
+      ),
+    ).toBe(false);
+    expect(
+      sections.en.some(
+        (block) => block.type === "h2" || ("text" in block && block.text === "제1조 (목적)"),
+      ),
+    ).toBe(false);
+    expect(sections.ko[sections.ko.length - 1]?.type).not.toBe("rule");
+  });
+
+  test("splits every legal route into complete Korean and English sections", () => {
+    for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
+      const blocks = stripLegalDocumentIntro(parseLegalMarkdown(doc.body), doc.title);
+      const sections = splitLegalLanguageSections(blocks);
+
+      expect(sections).not.toBeNull();
+      expect(sections?.ko.length).toBeGreaterThan(0);
+      expect(sections?.en.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("fails open when bilingual section markers are missing, duplicated, or reversed", () => {
+    expect(splitLegalLanguageSections(parseLegalMarkdown("## 한국어\n본문"))).toBeNull();
+    expect(
+      splitLegalLanguageSections(parseLegalMarkdown("## 한국어\nA\n## 한국어\nB\n## English\nC")),
+    ).toBeNull();
+    expect(
+      splitLegalLanguageSections(parseLegalMarkdown("## English\nEnglish body\n## 한국어\n한국어 본문")),
+    ).toBeNull();
   });
 
   test("renders table rows as list items and drops the alignment row", () => {
