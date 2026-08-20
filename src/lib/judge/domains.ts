@@ -15,9 +15,16 @@
 //
 // ⚠ DO NOT PUT A DOMAIN BACK HERE. Comp by email domain is exactly what was
 // retired: it granted the top paid tier from a string a user controls at
-// sign-up. 0138 revoked the client's write access to users.judge_mode for the
-// same reason. scripts/check-constraints.ts (C6) fails if this list is non-empty
-// or if the retired triggers reappear.
+// sign-up.
+//
+// 0138 keeps a trigger guarding the column for the same reason. Note what that
+// migration measured on production: the "column-level revoke" 0011 claimed does
+// not work, because anon and authenticated hold TABLE-level privileges on
+// public.users and a column REVOKE cannot cut a table GRANT. So the trigger is
+// the guard, not a backup for one. Fixing the table ACL is RBAC's job.
+//
+// scripts/check-constraints.ts (C6) fails if this list is non-empty, if the
+// email derivation returns, or if that guard leaves the trigger seat.
 
 export const JUDGE_DOMAINS: readonly string[] = [];
 
