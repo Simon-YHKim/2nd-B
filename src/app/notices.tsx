@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
   pagerText: {
     color: m3.color.onSurfaceVariant,
     fontFamily: m3.font.mono,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
   dialogButton: { minHeight: 44, paddingHorizontal: 13 },

@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   triggerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: m3.spacing.s2 },
-  triggerValue: { flex: 1, fontSize: 16, fontFamily: m3.font.brand },
+  triggerValue: { flex: 1, fontSize: 15, fontFamily: m3.font.brand },
   support: { marginTop: m3.spacing.s1, marginHorizontal: m3.spacing.s4 },
 
   // Modal shell.

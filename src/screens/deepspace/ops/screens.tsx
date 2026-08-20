@@ -1554,7 +1554,7 @@ const styles = StyleSheet.create({
     borderRadius: deepSpaceRadii.md,
   },
   quickIcon: { fontSize: 15 },
-  quickText: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentBright },
+  quickText: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 12, color: deepSpace.accentBright },
   quickTag: { fontSize: 12, color: deepSpace.mint },
 
   grid: { gap: 6 },

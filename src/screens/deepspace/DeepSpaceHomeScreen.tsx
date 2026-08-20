@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 80,
     textAlign: "center",
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: "600",
     letterSpacing: 0.2,
     fontFamily: m3.font.plain,
@@ -379,13 +379,13 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontFamily: m3.font.mono,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.3,
     marginBottom: 6,
     color: withAlpha(m3.accent.moodNeutral, 0.9),
   },
   bubbleBody: {
-    fontSize: 13.5,
+    fontSize: 15,
     lineHeight: 20,
     textAlign: "center",
     color: m3.accent.bubbleText,
@@ -407,6 +407,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 36,
   },
-  menuBtnFilledText: { fontSize: 13, fontWeight: "700", color: m3.color.onPrimary, fontFamily: m3.font.plain },
-  menuBtnTonalText: { fontSize: 13, fontWeight: "700", color: m3.color.onSecondaryContainer, fontFamily: m3.font.plain },
+  menuBtnFilledText: { fontSize: 12, fontWeight: "700", color: m3.color.onPrimary, fontFamily: m3.font.plain },
+  menuBtnTonalText: { fontSize: 12, fontWeight: "700", color: m3.color.onSecondaryContainer, fontFamily: m3.font.plain },
 });
