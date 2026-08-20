@@ -245,8 +245,8 @@ const styles = StyleSheet.create({
     height: 64,
     // soft cyan drop-shadow glow
     shadowColor: deepSpace.accent,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   title: {

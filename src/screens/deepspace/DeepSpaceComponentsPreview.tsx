@@ -46,10 +46,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderHi,
     shadowColor: colors.bgDeep,
-    shadowOpacity: 0.6,
-    shadowRadius: 80,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 30 },
-    elevation: 10,
+    elevation: 0,
   },
   statusBar: {
     position: "relative",

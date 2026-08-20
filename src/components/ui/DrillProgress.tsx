@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
   cellActive: {
     borderColor: semantic.brand,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   cellText: { fontSize: typography.sizes.xs, fontWeight: "700", fontFamily: fontFamilies.mono },
