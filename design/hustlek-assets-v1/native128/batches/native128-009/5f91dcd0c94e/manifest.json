@@ -1,0 +1,2029 @@
+{
+  "assets": [
+    {
+      "asset_id": "avatars/animals/owl",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "27dda240d14fb1751b4a2d748840cc3a2cb58030b9d805487f8a7f52dfe5fd85",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Owl animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Owl avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving owl with large round forward-facing eyes, small hooked beak, brow tufts, and layered chest feathers. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-e3ab22c4-2424-4697-8c5c-25d88ba31a4f.png",
+        "source_sha256": "d8c4dcc53598786910b7104177ba4b4e89dc70bb7e4c7bb36502fcea11233bc7",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          26,
+          8,
+          101,
+          128
+        ],
+        "components_8_neighbor": [
+          7449
+        ],
+        "decoded_rgba_sha256": "82ead1b74ce0e641bdcbec9a0e3dc18f856f8764e2a1f1a1026ce85bffacf158",
+        "foreground_pixels": 7449,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.844715250965251,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1144,
+        "master_transitions": 7324,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.25250244140625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.4020979020979025
+      },
+      "source": {
+        "path": "export/avatars/animals/owl.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "fa4910021a2f42925b29d719bd2e3696dcefc2771652f937e348c00b7a8b0573"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/panda",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "28cab44f682c37f9342a51ea3dd4c2c1ecfa6ef74f9a87639c12d7293e42c463",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Panda animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Panda avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving panda with round black ears, symmetrical black eye patches, broad white muzzle, and black shoulders. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-426fa80d-c9b3-4a8f-bb64-ec7f711f561e.png",
+        "source_sha256": "08908df302a7310a7bf4096852467839f39d070f082b1ff60fab32c66bfad62c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          13,
+          9,
+          114,
+          128
+        ],
+        "components_8_neighbor": [
+          9536
+        ],
+        "decoded_rgba_sha256": "e658b5b4a6461bbc33316e5a760b4f9576f0e595541a1841efbac5f69775f756",
+        "foreground_pixels": 9536,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8305690733935843,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1168,
+        "master_transitions": 10580,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.35858154296875,
+        "not_identity_upscale": true,
+        "transition_gain": 9.058219178082192
+      },
+      "source": {
+        "path": "export/avatars/animals/panda.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "35051de06b6721a36369e78072cb34d07bf6b9976673f784b92fd6c26da98c15"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/penguin",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "697e934c1cb348e469de6d31369ca9f21a7b2770c9265517168887594863bf40",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Penguin animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Penguin avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving penguin with dark crown, white face and belly, short orange beak, and compact flipper silhouette. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-91cd378d-ba01-4a83-b709-edc143fcd04d.png",
+        "source_sha256": "8ab3f6f36d66f7abe5fb0154468630151972ec86a6be3e5cee3c5c40561eff56",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          21,
+          21,
+          107,
+          128
+        ],
+        "components_8_neighbor": [
+          7452
+        ],
+        "decoded_rgba_sha256": "d7178a00f74d313f1c8e89e0392337f4dd37cf02d3864811838d7829fcf5a45e",
+        "foreground_pixels": 7452,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.803488086465242,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 848,
+        "master_transitions": 8843,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.285400390625,
+        "not_identity_upscale": true,
+        "transition_gain": 10.42806603773585
+      },
+      "source": {
+        "path": "export/avatars/animals/penguin.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "838d5a3c513f0e5555ce5180fb029c150c589758529876668ef76bd7a4b329cb"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/pig",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c238efb5d6870aae0ece442cc351ffca834f88cdf153313cb92f737e57792785",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Pig animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Pig avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving pig with triangular ears, pink skin, round snout with two nostrils, and soft cheek planes. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-e5791d0e-2a87-45ae-8686-f1b9b16ab379.png",
+        "source_sha256": "f1975a6f7696fe77af1abcbd1364931213d89dba5ab8f2231b266574dfdc370c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          26,
+          8,
+          102,
+          126
+        ],
+        "components_8_neighbor": [
+          7135
+        ],
+        "decoded_rgba_sha256": "592c612c9ce9c2c76878626cfde1cd373c2d06416e1562a77c2b23eea47ac521",
+        "foreground_pixels": 7135,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7719919707167316,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 964,
+        "master_transitions": 9835,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.3160400390625,
+        "not_identity_upscale": true,
+        "transition_gain": 10.202282157676349
+      },
+      "source": {
+        "path": "export/avatars/animals/pig.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "b98865f46c00044a03b95c1459f961c24b389badbfbc4a3cdfbc2c2b0ffa3cbf"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/rabbit",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "7187d5a524869ec5ba44182f0d29cdc1d8bc5482f5f0fbd125b9f813ec15a6d4",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Rabbit animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Rabbit avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving rabbit with exactly two very long upright ears, small muzzle, pink inner ears, and compact chest. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-1f2933a3-f9f0-4744-8e5d-f0e0635cf7f2.png",
+        "source_sha256": "d87cfa3b372120be9fc9d094e5c9fdc5be8de61060b7f56fbd0fa58f232f6241",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          28,
+          6,
+          100,
+          126
+        ],
+        "components_8_neighbor": [
+          6441
+        ],
+        "decoded_rgba_sha256": "76eadb1ba39387e8525bea832e2c051ec64dc234dbafbdee30717eb523f18638",
+        "foreground_pixels": 6441,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7323196605374823,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 936,
+        "master_transitions": 7164,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.25653076171875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.653846153846154
+      },
+      "source": {
+        "path": "export/avatars/animals/rabbit.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "7d38495d58aa4ed9ee5fcb5ed86fff1b5168096e5fcf51952d00958fbcd7a976"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/raccoon",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "417a354c3acdb72518663053bff5141545a3ec1645d3dbe5302df69ccf62d3c2",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Raccoon animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Raccoon avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving raccoon with rounded ears, dark eye mask, pointed muzzle, striped gray facial fur, and compact chest. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-a41b98fb-de43-4609-8420-24e093c78f16.png",
+        "source_sha256": "6df5418503a630b13cd7ee26d5bdf9c3fe5f04e3ebc00c03ead2276e555f9a8c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          20,
+          10,
+          108,
+          125
+        ],
+        "components_8_neighbor": [
+          7455
+        ],
+        "decoded_rgba_sha256": "94741b518fd2c2ef153a74cbb47020a19073dd8d3425b6e1a6326e93aecc8086",
+        "foreground_pixels": 7455,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7733425893786879,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1156,
+        "master_transitions": 7903,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.27392578125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.836505190311419
+      },
+      "source": {
+        "path": "export/avatars/animals/raccoon.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "13bcf55cabbca794765fd0f11fb55c807475e0e566e55a65ddccc37ce1acf4b3"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/sheep",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a5a8a3796d5539d647a088e4695701024db98bbb7806b8b63826814b03a05513",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Sheep animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Sheep avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving sheep with fluffy white wool cap and cheeks, dark face or muzzle, side ears, and woolly chest. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-8f8ccea8-e149-42d9-9696-cd8e6e7dde57.png",
+        "source_sha256": "7b65abb9602a7cabf77b25f12013ee5b8ed7d2093a5216f4da7e50020e3db003",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          10,
+          12,
+          118,
+          126
+        ],
+        "components_8_neighbor": [
+          7763
+        ],
+        "decoded_rgba_sha256": "99e32081efeed4ac8b130e398c1c3fdd0e9a64c65d0c2861fc69ddc75bea72a7",
+        "foreground_pixels": 7763,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7396952529790974,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 968,
+        "master_transitions": 8672,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2957763671875,
+        "not_identity_upscale": true,
+        "transition_gain": 8.958677685950413
+      },
+      "source": {
+        "path": "export/avatars/animals/sheep.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "434b2b1ed2314d91c1d82ee550693e1b6cb349c24d70829dd44715ac22a1e241"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/tiger",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1c2354ce60bfec66eb7435efd7855f2253e1b36741c0d0ebca30fcd7329fd239",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Tiger animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Tiger avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving tiger with rounded ears, orange coat, symmetrical dark stripes, feline muzzle, and white cheek accents. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-3ebd4d50-bdde-4070-877d-e306c02d1e73.png",
+        "source_sha256": "ef54f9c545b8b1a5a25da7518cdf5009b1ffc8595a5220b99f7ed722965a5931",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          21,
+          10,
+          107,
+          128
+        ],
+        "components_8_neighbor": [
+          8191
+        ],
+        "decoded_rgba_sha256": "ba1e85302e17b6eb0c012f11f4c8fbd015e1e11ab6820fc8dce7e8b151f871ba",
+        "foreground_pixels": 8191,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.799171146953405,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1100,
+        "master_transitions": 9585,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.32373046875,
+        "not_identity_upscale": true,
+        "transition_gain": 8.713636363636363
+      },
+      "source": {
+        "path": "export/avatars/animals/tiger.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "67c0a4f53eb5103a1ddfb58eb676fc6ec6d539e7dc8b837451729c7f737f8104"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/turtle",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#FF00FF",
+        "cutout_sha256": "2cba1d6c97c1009f5d457dead2dbc7781641afee319524a1189d454a2584ca19",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Turtle animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Turtle avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #FF00FF chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving turtle with rounded green head, small nostrils, neck folds, and visible shell shoulder rim. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #FF00FF background only.",
+        "source_id": "exec-553d57dd-11ad-40ff-828b-bf5fbc43c99a.png",
+        "source_sha256": "74d64f1dbe32394cb12269b9651d18971f78694653cb9f90019d6f2220272d05",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 256
+        },
+        "bbox": [
+          21,
+          20,
+          107,
+          128
+        ],
+        "components_8_neighbor": [
+          6892
+        ],
+        "decoded_rgba_sha256": "a32e200d75984a3e69235969f7a22c973e1cb91dad89006883694dc712849ad6",
+        "foreground_pixels": 6892,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7772899134040737,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1072,
+        "master_transitions": 8391,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2791748046875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.827425373134329
+      },
+      "source": {
+        "path": "export/avatars/animals/turtle.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3f76c4a50182fe4846c87f2a958e1465e558762f9fcbd6cd0638c92505e219ec"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/unicorn",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a9bd4686963b5311860e291c590f7d8161ed7684b691aa610827aa7136bbc416",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Unicorn animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Unicorn avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving unicorn with one centered horn, horse ears, long muzzle, colorful mane, and no extra horns. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-970f07db-1bf3-4d1a-831a-edc8f0d0eafb.png",
+        "source_sha256": "3a1ed3092d76cba8d247c4f35fd3d861a8597d3fffaf10b1880fe161245cef2d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 256
+        },
+        "bbox": [
+          23,
+          3,
+          103,
+          126
+        ],
+        "components_8_neighbor": [
+          7221
+        ],
+        "decoded_rgba_sha256": "1ca541a7c321f04e4c4f2ed780378885cc0fbbdf72e8b2ff8b0ba072471eb2d9",
+        "foreground_pixels": 7221,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7402876882999208,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1076,
+        "master_transitions": 8816,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2994384765625,
+        "not_identity_upscale": true,
+        "transition_gain": 8.193308550185874
+      },
+      "source": {
+        "path": "export/avatars/animals/unicorn.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e097b2a5fbe76525d523d06506c7d6270d2b1f2c6022f0a01c54cb0c91a3aec7"
+      }
+    },
+    {
+      "asset_id": "avatars/animals/wolf",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "89dfcfe3c3b91e445790fc3041090be12cf248b6bf7aeac777a7864250dccf2d",
+        "prompt": "Use case: identity-preserve\nAsset type: canonical 128x128 logical pixel-art Wolf animal avatar master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Wolf avatar. Image 1 supplies the exact species identity, silhouette, crop, color roles, and feature count; never enlarge or trace its 32px macro-blocks.\nInput images: Image 1 is the canonical identity reference. Image 2 is the approved HustleK animal-avatar quality reference. Image 3 is the approved HustleK outline and lighting reference.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no floor, shadow, gradient, texture, or scenery.\nSubject: one centered front-facing animal bust preserving wolf with tall pointed ears, long canine muzzle, gray fur, cheek ruff, and alert eyes. Keep the original head/body ratio, appendage count, palette roles, and padding.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp integer-grid clusters; continuous warm-charcoal outline; restrained 3-4 tone fur, skin, horn, shell, or feather ramps; upper-left light and lower-right shadow.\nNative-detail requirements: newly design species-specific eyes, pupils, nose or beak, muzzle, ear interiors, cheek planes, fur or feather clusters, neck and chest separation, and sparse 1-3 pixel glints.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, text, watermark, scenery, clothing, human hair, extra limbs, extra horns, extra character, or key color inside the subject. Uniform #00FF00 background only.",
+        "source_id": "exec-8313a1af-b407-44a1-ad2d-84ff755a48ec.png",
+        "source_sha256": "0a7d8215aab406400c96ab428f4f497668f0bcd4a7257a6414d1acf2792cceec",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "avatar",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 256
+        },
+        "bbox": [
+          23,
+          7,
+          105,
+          126
+        ],
+        "components_8_neighbor": [
+          7345
+        ],
+        "decoded_rgba_sha256": "cdecf207c89e1ce0e4676747560db5e0fee0ff66c33a4d288a061194ecd2aa27",
+        "foreground_pixels": 7345,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 24
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7708600023274759,
+        "identity_alpha_iou_floor": 0.6,
+        "identity_transitions": 1012,
+        "master_transitions": 7850,
+        "native_detail_loss_floor": 0.2,
+        "native_detail_loss_ratio": 0.2828369140625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.756916996047431
+      },
+      "source": {
+        "path": "export/avatars/animals/wolf.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5549e042420c1d0713587cd594a99f0f71be221d5a660147071a49927158dbe6"
+      }
+    },
+    {
+      "asset_id": "icons/alignCenter",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "dd44d6eeeb5a20fb3ac8f0c3e33126225bad560dd91f9bf329d2dd8ea652bc19",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Align Center icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving four parallel horizontal bars centered on one vertical axis, alternating long and short widths. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with a restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: design dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-b137d399-c66f-46e2-8124-2ab0108090a7.png",
+        "source_sha256": "a5d2412982b684242e9b423f35e2534fd51730a649a528e09640a9b377bafbd7",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 256
+        },
+        "bbox": [
+          13,
+          19,
+          115,
+          105
+        ],
+        "components_8_neighbor": [
+          1298,
+          1206,
+          706,
+          706
+        ],
+        "decoded_rgba_sha256": "692537c5771167d7ad3eef0b1266ec952b02d64b774c6c95329bd915ad7b4744",
+        "foreground_pixels": 3916,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.2878338278931751,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 832,
+        "master_transitions": 5368,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1922607421875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.451923076923077
+      },
+      "source": {
+        "path": "export/icons/alignCenter.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1f58d7d934ae79aa1af1745b70f738649e01f99d02939e9502f98d9106c6e8ec"
+      }
+    },
+    {
+      "asset_id": "icons/alignJustify",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "fc0bcf63f39009e5a1c21125fc233712d8c6d5dbc37373a014faa6d47b05f2af",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Align Justify icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving four parallel horizontal bars of equal width with identical left and right edges. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-0e56808b-08a6-4856-8fb5-8542700d2726.png",
+        "source_sha256": "23d1cfc1604804d251b03d004396d64e0c2ba0cb22fe41e77947bae68312d441",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 384
+        },
+        "bbox": [
+          7,
+          16,
+          121,
+          110
+        ],
+        "components_8_neighbor": [
+          1574,
+          1573,
+          1573,
+          1572
+        ],
+        "decoded_rgba_sha256": "3f6828b9cadac489f377382bda612d32558ab2030cdc0dfb0236d59b57e400c6",
+        "foreground_pixels": 6292,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.34384984025559107,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1024,
+        "master_transitions": 8283,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.30059814453125,
+        "not_identity_upscale": true,
+        "transition_gain": 8.0888671875
+      },
+      "source": {
+        "path": "export/icons/alignJustify.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "32488d6fa80ed2ae91ef4ec138e0dd8698e61f185fdb8dd3a9bf41516398a2ff"
+      }
+    },
+    {
+      "asset_id": "icons/alignLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "eb402737a0e0ff961d1e76df6f0ac6854e71772bbabb38f93233f9bd5ed66b6c",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Align Left icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving four parallel horizontal bars sharing the same left edge and alternating widths. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-bb2c395b-375d-4e95-bbd6-4a722f41652a.png",
+        "source_sha256": "0158ec6144db24fa3bad21175e88d8a040b4317ba511e2a3cb89b86524480761",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 384
+        },
+        "bbox": [
+          12,
+          19,
+          116,
+          100
+        ],
+        "components_8_neighbor": [
+          1545,
+          1545,
+          1035,
+          970
+        ],
+        "decoded_rgba_sha256": "9a16c17f8713c5bf0692978a555257ad534a6bea5fa3fd0b430aaf14c1d29f05",
+        "foreground_pixels": 5095,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.3165907456245505,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 864,
+        "master_transitions": 6996,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.24237060546875,
+        "not_identity_upscale": true,
+        "transition_gain": 8.097222222222221
+      },
+      "source": {
+        "path": "export/icons/alignLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "b89d33ffa8fff52f2300dde543d1d328698a813e55621560cf26354b588ee330"
+      }
+    },
+    {
+      "asset_id": "icons/alignRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "2f85dd4c8b8743e99156dcdefd88100ae6598032678e2682a3d876f5030b5e29",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Align Right icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving four parallel horizontal bars sharing the same right edge and alternating widths. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-0d69674a-9674-4a54-b840-afe0f9494996.png",
+        "source_sha256": "c48ac3b10a864adb3a83077ada564332dca3d4bda4a76fddcd8f0f4e3567eb07",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 384
+        },
+        "bbox": [
+          10,
+          16,
+          118,
+          110
+        ],
+        "components_8_neighbor": [
+          1616,
+          1616,
+          1077,
+          1076
+        ],
+        "decoded_rgba_sha256": "9f7adee19cb277195ed2939b9c3f03762c97f939cf4b00a27bb4af3ed3e619e7",
+        "foreground_pixels": 5385,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.39035520473606317,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 864,
+        "master_transitions": 7813,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.267578125,
+        "not_identity_upscale": true,
+        "transition_gain": 9.042824074074074
+      },
+      "source": {
+        "path": "export/icons/alignRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "61a236777120e400e25196422c8e618640805c23f4f383d2fcb253c7ba301221"
+      }
+    },
+    {
+      "asset_id": "icons/arrowDown",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ecdbd282df25aaead961b2b11ec249342d850b0c9abe50652d57bc6871181011",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Arrow Down icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving one continuous downward arrow with straight shaft and symmetric arrowhead. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-227c3d20-1e9d-42ea-8bc9-29683a58b7ac.png",
+        "source_sha256": "1d35af5dea18c01a089a3b8ea4adff1d4506dc2e63b9e817ab9189475dd2970b",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 384
+        },
+        "bbox": [
+          23,
+          11,
+          105,
+          108
+        ],
+        "components_8_neighbor": [
+          3145
+        ],
+        "decoded_rgba_sha256": "4100b01dd24d6290081cb0fe76fb77b0949569657d658d517d14ea4c2fd30abf",
+        "foreground_pixels": 3145,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6757601591361182,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 352,
+        "master_transitions": 3994,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.13909912109375,
+        "not_identity_upscale": true,
+        "transition_gain": 11.346590909090908
+      },
+      "source": {
+        "path": "export/icons/arrowDown.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e0719f37f7ca3229471ead90fcb4f471845e2427b2fdfb9755fe7de53c45fb07"
+      }
+    },
+    {
+      "asset_id": "icons/arrowDownLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "cb66e71d184e334dab87d88954bcc2f71b104afa23d9c31d8565197a65c639ce",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Arrow Down Left icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving one continuous diagonal arrow pointing exactly down-left. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-596ec325-ab39-4d5c-8c30-98d2e13e14a8.png",
+        "source_sha256": "13cd5cac9a10717d0dc7f901d033b08a824dd549ee1f99e31b2487c3aacf1390",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 512
+        },
+        "bbox": [
+          23,
+          17,
+          106,
+          98
+        ],
+        "components_8_neighbor": [
+          3214
+        ],
+        "decoded_rgba_sha256": "5035d92ae74775af255fb8fbf6d64678aeaf1bb634d37416ce406344f6b16cb3",
+        "foreground_pixels": 3214,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.48962450592885376,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 4645,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1507568359375,
+        "not_identity_upscale": true,
+        "transition_gain": 9.677083333333334
+      },
+      "source": {
+        "path": "export/icons/arrowDownLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "82b957ad36651a28c96d8e751ed25fe6a7f3edb516d6fc69e304e6b49e651885"
+      }
+    },
+    {
+      "asset_id": "icons/arrowDownRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "164fc5812b95fecbf3775b74ccce1ff90b4e94fd00d2ffc4accf93d8d9bce6fc",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Arrow Down Right icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving one continuous diagonal arrow pointing exactly down-right. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-02848cb4-a191-4e2a-8382-c8f36f5591d9.png",
+        "source_sha256": "854e87330148887dc4b2564618d4d0fe65789875e476f34af5497dad108120da",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 512
+        },
+        "bbox": [
+          20,
+          19,
+          109,
+          104
+        ],
+        "components_8_neighbor": [
+          3310
+        ],
+        "decoded_rgba_sha256": "a7f2e9a2299fabe1ceb11ac3daa53bbcd06e61ed144c7443a962dff80d6494d3",
+        "foreground_pixels": 3310,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7339371638833853,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 4229,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.14056396484375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.810416666666667
+      },
+      "source": {
+        "path": "export/icons/arrowDownRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "117f277a68bb3dbcc1b78f7e619101f774e53672bedcfa8f56f53fe345b4a018"
+      }
+    },
+    {
+      "asset_id": "icons/arrowLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "7337f9a5d0bb2c93337d22650b46841cb8854fd6428584d08abbdff649141bd2",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Arrow Left icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving one continuous left-pointing arrow with horizontal shaft and symmetric head. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-f5fae94c-c6fb-464c-b186-0caf61086b02.png",
+        "source_sha256": "bd7796848a210473796b8cc74c9f78083cd86ef1b43dfd0770f7ccd73d21eb7b",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 512
+        },
+        "bbox": [
+          17,
+          20,
+          111,
+          102
+        ],
+        "components_8_neighbor": [
+          3436
+        ],
+        "decoded_rgba_sha256": "b11e5551cbc95bde7f8b41c74e010fb48eac8cf7c075399bcb819dc337649709",
+        "foreground_pixels": 3436,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.746542478125882,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 352,
+        "master_transitions": 3613,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.118408203125,
+        "not_identity_upscale": true,
+        "transition_gain": 10.264204545454545
+      },
+      "source": {
+        "path": "export/icons/arrowLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "0f5c499fda152d30d707ffa37aa0de58b16985b00d0725ba5fcd5921d6d32388"
+      }
+    },
+    {
+      "asset_id": "icons/arrowRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d44d5971e01d2aeaf0b05a52e88a6df2fa4e60de7d172983de7b8e66e8267970",
+        "prompt": "Use case: stylized-concept\nAsset type: canonical 128x128 logical pixel-art UI glyph master\nPrimary request: Re-author Image 1 as a genuinely native-detail 128x128 HustleK Arrow Right icon. Image 1 supplies the exact topology, orientation, stroke count, silhouette, proportions, and negative space; never enlarge or trace its 16px blocks.\nInput images: Image 1 is the canonical topology reference. Images 2 and 3 are approved HustleK UI-icon pixel density, outline, and material references only.\nScene/backdrop: perfectly flat solid #00FF00 chroma-key background with no badge, tile, circle, floor, shadow, gradient, texture, or scenery.\nSubject: one centered isolated UI glyph preserving one continuous right-pointing arrow with horizontal shaft and symmetric head. Keep exact direction, element count, open spaces, alignment, and 10-15% outer margin.\nStyle/medium: handcrafted HustleK pixel art authored directly for a 128x128 logical grid; crisp staircase diagonals; uniform visual stroke weight; warm-charcoal core with restrained 4-6 tone cool-slate and ivory edge ramp; subtle upper-left highlight and lower-right edge shadow; flat topology first.\nNative-detail requirements: dense sub-16-grid stepped contours, clean one-pixel corner refinements, consistent parallel spacing, and controlled edge highlights without changing the symbol.\nConstraints: no nearest enlargement, macro pixels, antialiasing, blur, gradients, 3D extrusion, bevelled badge, glow, text, watermark, extra symbols, extra arrowheads, extra bars, rounded container, borrowed circle, or key color inside the glyph. Uniform #00FF00 background only.",
+        "source_id": "exec-1c30c990-cec0-4603-b783-b20fd8984cd2.png",
+        "source_sha256": "2bb5357b0df3820a561d4b691fab2a5b9f19c57ee5a93e0d35fb61c845d31fc3",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 512
+        },
+        "bbox": [
+          15,
+          21,
+          111,
+          102
+        ],
+        "components_8_neighbor": [
+          3094
+        ],
+        "decoded_rgba_sha256": "c7be13a0e106e47e8f706f95a1b9dc6bcbf62571d16eb4816993a01727ed1f33",
+        "foreground_pixels": 3094,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7352330068269516,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 352,
+        "master_transitions": 3976,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.13226318359375,
+        "not_identity_upscale": true,
+        "transition_gain": 11.295454545454545
+      },
+      "source": {
+        "path": "export/icons/arrowRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e7b504b92d8e4814aeef28787a0731d7e741cedae63d12eb9fca2d2b306b7444"
+      }
+    },
+    {
+      "asset_id": "icons/arrowsH",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "cd6950303a068c2147413910854e3eaa0a0ab34cdf1e1d788e34863b7e707bd8",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"arrowsH\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-458de6c4-4c2d-415c-b8bf-455b01bbe70e.png",
+        "source_sha256": "1717f3f2f8f82995c6532f7bb5a97e716d2bedbc40419a24ba71f4c7566415e5",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 640
+        },
+        "bbox": [
+          10,
+          37,
+          118,
+          91
+        ],
+        "components_8_neighbor": [
+          3500
+        ],
+        "decoded_rgba_sha256": "684270dc657da0170129baf4604d253ddb1343a0bdb3685c92d49d1fdf8d1290",
+        "foreground_pixels": 3500,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6757062146892655,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 4260,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1456298828125,
+        "not_identity_upscale": true,
+        "transition_gain": 11.09375
+      },
+      "source": {
+        "path": "export/icons/arrowsH.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6d150d2c3ec05de6cb96a821c2a674bf65adfcf76a9fde44c5a68f0db09204a7"
+      }
+    },
+    {
+      "asset_id": "icons/arrowsV",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "7f9c5806779f1a4949aec9323f29065a6c72b1d5257ad8cd647fdb9a374e9ebe",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"arrowsV\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-56c6d088-8024-447d-94e4-9c3cedcc5eec.png",
+        "source_sha256": "6dfd5c01dd311a31a3901737bf1959f94e019181c9ab8d0cba3d7fabe7d117d5",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 640
+        },
+        "bbox": [
+          41,
+          9,
+          87,
+          117
+        ],
+        "components_8_neighbor": [
+          2902
+        ],
+        "decoded_rgba_sha256": "fc825143bb005cc6edc62d87ed3585cafc71e85158a786d74e9d8c1e1a88b463",
+        "foreground_pixels": 2902,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.763305785123967,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 3354,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.11517333984375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.734375
+      },
+      "source": {
+        "path": "export/icons/arrowsV.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "2be8401d859c0622fda4c311fd27a37e8b482fdd6f7a446f118ac3a89b1abe96"
+      }
+    },
+    {
+      "asset_id": "icons/arrowUp",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "71013330c7b882953de43e7558dbdb014d16a4de96209d06d0832ce86ec4b29d",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"arrowUp\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-0d519955-ea09-4c27-905c-9a95b165891d.png",
+        "source_sha256": "5c15539b48c916172bed8bbc6661293378bc701664e0e994f4926a9442b5263a",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 640
+        },
+        "bbox": [
+          21,
+          12,
+          107,
+          113
+        ],
+        "components_8_neighbor": [
+          4323
+        ],
+        "decoded_rgba_sha256": "241b129debb4272df9cbbe3618c6f2a6cc9c5de11f59ded88ba214571347dfe7",
+        "foreground_pixels": 4323,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6178824605533958,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 352,
+        "master_transitions": 5490,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18646240234375,
+        "not_identity_upscale": true,
+        "transition_gain": 15.596590909090908
+      },
+      "source": {
+        "path": "export/icons/arrowUp.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5867a3f6968d2d353f9274d39f25d5cc3de6dd799100084eeadf313308b19319"
+      }
+    },
+    {
+      "asset_id": "icons/arrowUpLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8a641b4ce1e86635fc5efb6e7eef546d98005eeffdf5aa6f24155ae75a488fcf",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"arrowUpLeft\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-88adc957-8b6a-4760-a9c7-8b1606cbc970.png",
+        "source_sha256": "ea5532fb6bfd553564d190e6c7c61ce0361ab612d274f8086527f4a8bb341ea6",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 640
+        },
+        "bbox": [
+          18,
+          17,
+          110,
+          110
+        ],
+        "components_8_neighbor": [
+          5982
+        ],
+        "decoded_rgba_sha256": "84c75420e7b2514187663cea6ea13f0538925f6e35342dfb9a8b291a622ec107",
+        "foreground_pixels": 5982,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4399345335515548,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 5848,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.224853515625,
+        "not_identity_upscale": true,
+        "transition_gain": 12.183333333333334
+      },
+      "source": {
+        "path": "export/icons/arrowUpLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1da33fd4b8c3fd8a192bffcb10ce3bab6593803333f5e82a3249c30a34b68a58"
+      }
+    },
+    {
+      "asset_id": "icons/arrowUpRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8f7fb0c0b0bd9bcf271bdb7272c8bf3926197235c79fe9a453a806f64cd62686",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"arrowUpRight\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-faa87c02-2c28-4e7f-bd81-f7ff9affe995.png",
+        "source_sha256": "f132a2b26790037032997bdbe374db7a06b24dea300fd9176dc8a4a2d169eefd",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 768
+        },
+        "bbox": [
+          24,
+          22,
+          108,
+          105
+        ],
+        "components_8_neighbor": [
+          3955
+        ],
+        "decoded_rgba_sha256": "16809d6b5ca73cbb3bdb24000d0379c70220084689ae3f7b219341296d2d6d0c",
+        "foreground_pixels": 3955,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5695410292072323,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 4693,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16571044921875,
+        "not_identity_upscale": true,
+        "transition_gain": 9.777083333333334
+      },
+      "source": {
+        "path": "export/icons/arrowUpRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e1f9b5e09159dddf88dc3e61cbc0509df9c06eba9b21fc41fd3ac9cf5e8aa69e"
+      }
+    },
+    {
+      "asset_id": "icons/caretDown",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "6f073bb4b9c475f40b4cd4d9c9a9c4b55992a7cecb2977fdf23496355462b0b6",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"caretDown\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-1ea8b4fc-0af2-4a76-a13a-2720ed60c714.png",
+        "source_sha256": "67563272697d7e6cc23e831a82a6f0fc736ff10944433d0e426ae819e16e15cf",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 768
+        },
+        "bbox": [
+          24,
+          34,
+          104,
+          93
+        ],
+        "components_8_neighbor": [
+          2648
+        ],
+        "decoded_rgba_sha256": "11100c5d07561f43f723b6c36288388fc3faa4f98f32faa73b12b274c71640ea",
+        "foreground_pixels": 2648,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6967032967032967,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 256,
+        "master_transitions": 3221,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.109619140625,
+        "not_identity_upscale": true,
+        "transition_gain": 12.58203125
+      },
+      "source": {
+        "path": "export/icons/caretDown.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "f714dd65ae1fe4365fedbbbcd3b623aff0feffd4d99c3242f4428d2e75404140"
+      }
+    },
+    {
+      "asset_id": "icons/caretLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1545a3ba6d69c2ddd5cb504f37d93d5552fdc31e95bf3354ace0f38cc23dc177",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"caretLeft\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-ab1814b3-272f-4003-8f6e-3e1f7999c6f3.png",
+        "source_sha256": "e3c9069b8a2e5bc4a6c07e56cbcca9a71f2daee422e9293dd85817909819a6db",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 768
+        },
+        "bbox": [
+          37,
+          19,
+          88,
+          109
+        ],
+        "components_8_neighbor": [
+          2883
+        ],
+        "decoded_rgba_sha256": "de2f708a21675993b5f57e8b104460011bc14ea29891e11023fa65a67dc890d2",
+        "foreground_pixels": 2883,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6881720430107527,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 256,
+        "master_transitions": 2993,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1033935546875,
+        "not_identity_upscale": true,
+        "transition_gain": 11.69140625
+      },
+      "source": {
+        "path": "export/icons/caretLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ba7c726d8f1e402c0d616d16025b14b213ab6e620a2c50cfeb7ee6b3c65fc4de"
+      }
+    },
+    {
+      "asset_id": "icons/caretRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ac08849b06a1dc9b6fbdb5ec8498d4a93fd276109849732174684181ca7e6143",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"caretRight\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-5db3c006-7907-4caa-9e72-d678c852c8a4.png",
+        "source_sha256": "33e41613145fbb0f66f107120f39b803f047339cd70ddfbb258980b69de209f0",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 768
+        },
+        "bbox": [
+          40,
+          20,
+          88,
+          106
+        ],
+        "components_8_neighbor": [
+          2580
+        ],
+        "decoded_rgba_sha256": "db3e051cbddca9dc4a3c1f96dcc74b3efdb05dd4a2fb045582dfbb0759e57b6e",
+        "foreground_pixels": 2580,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7594448727833462,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 256,
+        "master_transitions": 3149,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.109375,
+        "not_identity_upscale": true,
+        "transition_gain": 12.30078125
+      },
+      "source": {
+        "path": "export/icons/caretRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "639dca895bfed9cd7e7d5bded6e29b4572dd9ed88f88ed89dc52426bbc448cbb"
+      }
+    },
+    {
+      "asset_id": "icons/caretUp",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "24741859444da9ab029ec615922ac911bf3cc10588ad73e881c0f96f35818a49",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"caretUp\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-4d6018f1-100a-467d-9aea-5e27da2574a0.png",
+        "source_sha256": "99a52fa30ca5f3e502128c2d0f39de7404316064cad5b22af4bebce7e95d52b2",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 896
+        },
+        "bbox": [
+          22,
+          35,
+          106,
+          91
+        ],
+        "components_8_neighbor": [
+          2926
+        ],
+        "decoded_rgba_sha256": "0fc20f32a0c5502fc0f5721aae79ff4caf0032ead3a1132243032bc4705ceb1c",
+        "foreground_pixels": 2926,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5977871786527823,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 256,
+        "master_transitions": 3312,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12255859375,
+        "not_identity_upscale": true,
+        "transition_gain": 12.9375
+      },
+      "source": {
+        "path": "export/icons/caretUp.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e9eaebe1f3e67d11a4867395c860a3078f0d8ad5434fe9d8a602824c93577c5d"
+      }
+    },
+    {
+      "asset_id": "icons/check",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "99da04976ad3cd0d4add077cdf5a0ce1db7d9efce9187191847b3d5d27f74ec3",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"check\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-6b767899-4b66-4062-abef-be75cc43d092.png",
+        "source_sha256": "951f81c0190b60e0c84a52a3ae6d3aa936e48f452cec1880997e114808a4d1b2",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 896
+        },
+        "bbox": [
+          16,
+          21,
+          112,
+          108
+        ],
+        "components_8_neighbor": [
+          3519
+        ],
+        "decoded_rgba_sha256": "ccf6356fdc3f7c626c789a6f80d48c8e651ed0ffc73a58547ec16a3164d03cc4",
+        "foreground_pixels": 3519,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.35833569204641946,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 336,
+        "master_transitions": 4130,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.142578125,
+        "not_identity_upscale": true,
+        "transition_gain": 12.291666666666666
+      },
+      "source": {
+        "path": "export/icons/check.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5dc50f0880d14a5fdba420646b2efad346ddface8b83d0565afd5515d1758e9d"
+      }
+    },
+    {
+      "asset_id": "icons/close",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c31cd513baa0b177e37678eb4404080aa77c0e8ba016bc9e4e41f9fca753d20b",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"close\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-17ded0fe-6c38-43c7-81b3-cdb4119ce1d4.png",
+        "source_sha256": "4fafca589abe7321eeba12f343d3fb5701f196aa8384c7bf85cf83aff10a3ed9",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 896
+        },
+        "bbox": [
+          23,
+          21,
+          105,
+          103
+        ],
+        "components_8_neighbor": [
+          4059
+        ],
+        "decoded_rgba_sha256": "850b28a5fb8826204f10bfd2b633eadd5c817fece2c709b737da9736fa652b22",
+        "foreground_pixels": 4059,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5568876926841204,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 560,
+        "master_transitions": 4287,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1468505859375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.6553571428571425
+      },
+      "source": {
+        "path": "export/icons/close.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "d93576a80edd01b394ce8616c92d676347984a9d05c1040665ffb3e160e3992f"
+      }
+    },
+    {
+      "asset_id": "icons/menu",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "9577105f76610dfb63c6ae6d3985807f82fdbce285c421ca40b295d9abd695b6",
+        "prompt": "Use case: stylized-concept. Create the canonical 128×128 logical pixel-art UI glyph master for \"menu\". The FIRST reference is the exact canonical identity: preserve its topology, orientation, stroke count, arrowhead count, symmetry, and negative space exactly. The other references define the approved HustleK material language only. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00), with 10–15% clear margin. Use crisp native-scale square pixel clusters, no antialiasing, no blur, no gradients, no glow. Warm-charcoal core with a restrained 4–6 tone cool-slate and ivory edge ramp; keep topology flat and immediately readable. Do not add a badge, tile, containing circle, text, extra symbol, extra arrowhead, extra bar, 3D perspective, bevel, shadow cast onto the background, or borrowed character features. This must be newly authored at 128px with genuine native detail, never a nearest-neighbor enlargement or macro-pixel copy.",
+        "source_id": "exec-a479b924-2e53-4927-8106-367d400637dd.png",
+        "source_sha256": "8b802065dbd86640bf12a1afed0cfc90ec2955c16d483cd463a9ed2ee1463968",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 896
+        },
+        "bbox": [
+          20,
+          21,
+          108,
+          102
+        ],
+        "components_8_neighbor": [
+          1712,
+          1712,
+          1712
+        ],
+        "decoded_rgba_sha256": "c1646f15e5f0d4eb49352ab7c2f140514a1f3bc40b8e4201b8ffe2f697cca855",
+        "foreground_pixels": 5136,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6650717703349283,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 672,
+        "master_transitions": 5858,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.22259521484375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.717261904761905
+      },
+      "source": {
+        "path": "export/icons/menu.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e78c43ccc7bc9b88b3ce0a39bd802cad6ac87e744d769ce9f4b3e7e1f97c1f1e"
+      }
+    }
+  ],
+  "batch_id": "native128-009",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "avatars/animals/owl",
+        "cutout_sha256": "27dda240d14fb1751b4a2d748840cc3a2cb58030b9d805487f8a7f52dfe5fd85",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "66f72245b0d7417081d79d59e2eef2e929b04595a8a93b093186bf67100bc251",
+        "raw_imagegen_sha256": "d8c4dcc53598786910b7104177ba4b4e89dc70bb7e4c7bb36502fcea11233bc7"
+      },
+      {
+        "asset_id": "avatars/animals/panda",
+        "cutout_sha256": "28cab44f682c37f9342a51ea3dd4c2c1ecfa6ef74f9a87639c12d7293e42c463",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "411aae234a337aacc8f32e13eb9c7215e2fa99dce18446bce16f1d7ebf1af6a3",
+        "raw_imagegen_sha256": "08908df302a7310a7bf4096852467839f39d070f082b1ff60fab32c66bfad62c"
+      },
+      {
+        "asset_id": "avatars/animals/penguin",
+        "cutout_sha256": "697e934c1cb348e469de6d31369ca9f21a7b2770c9265517168887594863bf40",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "d2fcb21a7190785c48e052258a2a8e4c5623582804087d5fb50a6cf051dd0e78",
+        "raw_imagegen_sha256": "8ab3f6f36d66f7abe5fb0154468630151972ec86a6be3e5cee3c5c40561eff56"
+      },
+      {
+        "asset_id": "avatars/animals/pig",
+        "cutout_sha256": "c238efb5d6870aae0ece442cc351ffca834f88cdf153313cb92f737e57792785",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "6ebcdaf74bc7a479f4b42152a60ba4d8f0488501dbe5b2ddbd0e8594c1fd13c7",
+        "raw_imagegen_sha256": "f1975a6f7696fe77af1abcbd1364931213d89dba5ab8f2231b266574dfdc370c"
+      },
+      {
+        "asset_id": "avatars/animals/rabbit",
+        "cutout_sha256": "7187d5a524869ec5ba44182f0d29cdc1d8bc5482f5f0fbd125b9f813ec15a6d4",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "880e9138a5d4d3569fd7d468779c277d8e3668ed498494e083179ed6c345725a",
+        "raw_imagegen_sha256": "d87cfa3b372120be9fc9d094e5c9fdc5be8de61060b7f56fbd0fa58f232f6241"
+      },
+      {
+        "asset_id": "avatars/animals/raccoon",
+        "cutout_sha256": "417a354c3acdb72518663053bff5141545a3ec1645d3dbe5302df69ccf62d3c2",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "405a7cb28e7d363e8a2fc95a7c20fb842235f25eb238b521405cfc92d8b2974a",
+        "raw_imagegen_sha256": "6df5418503a630b13cd7ee26d5bdf9c3fe5f04e3ebc00c03ead2276e555f9a8c"
+      },
+      {
+        "asset_id": "avatars/animals/sheep",
+        "cutout_sha256": "a5a8a3796d5539d647a088e4695701024db98bbb7806b8b63826814b03a05513",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "759924fe2a811de671ac19c0cb027762bf9150ac2093f38088bf05e9ce96949f",
+        "raw_imagegen_sha256": "7b65abb9602a7cabf77b25f12013ee5b8ed7d2093a5216f4da7e50020e3db003"
+      },
+      {
+        "asset_id": "avatars/animals/tiger",
+        "cutout_sha256": "1c2354ce60bfec66eb7435efd7855f2253e1b36741c0d0ebca30fcd7329fd239",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "b8ed68e9335d90edd1aa0f5c95f73b6afbb0a2d674072def188076e480195f81",
+        "raw_imagegen_sha256": "ef54f9c545b8b1a5a25da7518cdf5009b1ffc8595a5220b99f7ed722965a5931"
+      },
+      {
+        "asset_id": "avatars/animals/turtle",
+        "cutout_sha256": "2cba1d6c97c1009f5d457dead2dbc7781641afee319524a1189d454a2584ca19",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "afb99930beb8d432cd7b18218c37ed0ac50637add717334680eb10c1a5c9de2b",
+        "raw_imagegen_sha256": "74d64f1dbe32394cb12269b9651d18971f78694653cb9f90019d6f2220272d05"
+      },
+      {
+        "asset_id": "avatars/animals/unicorn",
+        "cutout_sha256": "a9bd4686963b5311860e291c590f7d8161ed7684b691aa610827aa7136bbc416",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "a715bb1951e6c77e97a125a1ac224734d8872c9c580dccfd5bf74a5e96dfa914",
+        "raw_imagegen_sha256": "3a1ed3092d76cba8d247c4f35fd3d861a8597d3fffaf10b1880fe161245cef2d"
+      },
+      {
+        "asset_id": "avatars/animals/wolf",
+        "cutout_sha256": "89dfcfe3c3b91e445790fc3041090be12cf248b6bf7aeac777a7864250dccf2d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 24,
+        "prompt_sha256": "0423877a7d785864b7b776c264fc4af25a2cabd1cca7e7d1aecbd93f07d03d23",
+        "raw_imagegen_sha256": "0a7d8215aab406400c96ab428f4f497668f0bcd4a7257a6414d1acf2792cceec"
+      },
+      {
+        "asset_id": "icons/alignCenter",
+        "cutout_sha256": "dd44d6eeeb5a20fb3ac8f0c3e33126225bad560dd91f9bf329d2dd8ea652bc19",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "019ee56ba9d78412cb5f6e5513c7c086a89695137718993ac20216afaef72a5b",
+        "raw_imagegen_sha256": "a5d2412982b684242e9b423f35e2534fd51730a649a528e09640a9b377bafbd7"
+      },
+      {
+        "asset_id": "icons/alignJustify",
+        "cutout_sha256": "fc0bcf63f39009e5a1c21125fc233712d8c6d5dbc37373a014faa6d47b05f2af",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "1634aab7b62fdc346cb4d944910a77d5c3ca6c299296269a46f5ddfdfda10e83",
+        "raw_imagegen_sha256": "23d1cfc1604804d251b03d004396d64e0c2ba0cb22fe41e77947bae68312d441"
+      },
+      {
+        "asset_id": "icons/alignLeft",
+        "cutout_sha256": "eb402737a0e0ff961d1e76df6f0ac6854e71772bbabb38f93233f9bd5ed66b6c",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "69d62f7e3fa54f22259e628309e6e162dce54d973f76fe94c3192891a6c9dd83",
+        "raw_imagegen_sha256": "0158ec6144db24fa3bad21175e88d8a040b4317ba511e2a3cb89b86524480761"
+      },
+      {
+        "asset_id": "icons/alignRight",
+        "cutout_sha256": "2f85dd4c8b8743e99156dcdefd88100ae6598032678e2682a3d876f5030b5e29",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "d475bada559c7593c2fbc4bb062571164675bfba85f1bb56b99c6310cc7a1f39",
+        "raw_imagegen_sha256": "c48ac3b10a864adb3a83077ada564332dca3d4bda4a76fddcd8f0f4e3567eb07"
+      },
+      {
+        "asset_id": "icons/arrowDown",
+        "cutout_sha256": "ecdbd282df25aaead961b2b11ec249342d850b0c9abe50652d57bc6871181011",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "56d78a9f73221aee2084e278188b33ce1947a81353081136ce98008c24e58c6b",
+        "raw_imagegen_sha256": "1d35af5dea18c01a089a3b8ea4adff1d4506dc2e63b9e817ab9189475dd2970b"
+      },
+      {
+        "asset_id": "icons/arrowDownLeft",
+        "cutout_sha256": "cb66e71d184e334dab87d88954bcc2f71b104afa23d9c31d8565197a65c639ce",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "0538ace92ca8556028c86b160646977e22b5ebef93cf2a254c9ed2c88dc4cdcb",
+        "raw_imagegen_sha256": "13cd5cac9a10717d0dc7f901d033b08a824dd549ee1f99e31b2487c3aacf1390"
+      },
+      {
+        "asset_id": "icons/arrowDownRight",
+        "cutout_sha256": "164fc5812b95fecbf3775b74ccce1ff90b4e94fd00d2ffc4accf93d8d9bce6fc",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "360ed7e175cbfb0b61e8c6b5a4e2a36bbeea07b2395c51072d14dd97c1a9a88b",
+        "raw_imagegen_sha256": "854e87330148887dc4b2564618d4d0fe65789875e476f34af5497dad108120da"
+      },
+      {
+        "asset_id": "icons/arrowLeft",
+        "cutout_sha256": "7337f9a5d0bb2c93337d22650b46841cb8854fd6428584d08abbdff649141bd2",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "29e33b3249afc8bbcd9ab0086c75e9c3c2e6509e921c0850cff20c9e5ce31be1",
+        "raw_imagegen_sha256": "bd7796848a210473796b8cc74c9f78083cd86ef1b43dfd0770f7ccd73d21eb7b"
+      },
+      {
+        "asset_id": "icons/arrowRight",
+        "cutout_sha256": "d44d5971e01d2aeaf0b05a52e88a6df2fa4e60de7d172983de7b8e66e8267970",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "aa8d8b1f754e69996d921d15056f037fa70606d593d92f282373fb718fb90061",
+        "raw_imagegen_sha256": "2bb5357b0df3820a561d4b691fab2a5b9f19c57ee5a93e0d35fb61c845d31fc3"
+      },
+      {
+        "asset_id": "icons/arrowsH",
+        "cutout_sha256": "cd6950303a068c2147413910854e3eaa0a0ab34cdf1e1d788e34863b7e707bd8",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "dc576ff66525043bc45dc2c94700df0a64ecfdf3903fc50d02cb5570b08bf7a3",
+        "raw_imagegen_sha256": "1717f3f2f8f82995c6532f7bb5a97e716d2bedbc40419a24ba71f4c7566415e5"
+      },
+      {
+        "asset_id": "icons/arrowsV",
+        "cutout_sha256": "7f9c5806779f1a4949aec9323f29065a6c72b1d5257ad8cd647fdb9a374e9ebe",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "4d5402a68d1e15e9fe8cb1a050fee4c3c81ed58f850a3bf9e5a91069486eb61e",
+        "raw_imagegen_sha256": "6dfd5c01dd311a31a3901737bf1959f94e019181c9ab8d0cba3d7fabe7d117d5"
+      },
+      {
+        "asset_id": "icons/arrowUp",
+        "cutout_sha256": "71013330c7b882953de43e7558dbdb014d16a4de96209d06d0832ce86ec4b29d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "6b1b3ac9172a6fd6ec4e05e096eacd7556d061a563056d5a270b8be649124fa8",
+        "raw_imagegen_sha256": "5c15539b48c916172bed8bbc6661293378bc701664e0e994f4926a9442b5263a"
+      },
+      {
+        "asset_id": "icons/arrowUpLeft",
+        "cutout_sha256": "8a641b4ce1e86635fc5efb6e7eef546d98005eeffdf5aa6f24155ae75a488fcf",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "474a8c84ae51b0a2bffbafffa68852151db920b95bf27354d3b03323ff56ff26",
+        "raw_imagegen_sha256": "ea5532fb6bfd553564d190e6c7c61ce0361ab612d274f8086527f4a8bb341ea6"
+      },
+      {
+        "asset_id": "icons/arrowUpRight",
+        "cutout_sha256": "8f7fb0c0b0bd9bcf271bdb7272c8bf3926197235c79fe9a453a806f64cd62686",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "1c762b8231fb6297dbfcd360fa261aa1d902324cb3f1cbafe361831fd9f3d595",
+        "raw_imagegen_sha256": "f132a2b26790037032997bdbe374db7a06b24dea300fd9176dc8a4a2d169eefd"
+      },
+      {
+        "asset_id": "icons/caretDown",
+        "cutout_sha256": "6f073bb4b9c475f40b4cd4d9c9a9c4b55992a7cecb2977fdf23496355462b0b6",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "12657450957bfd9ce5ddd978ec20aeda3bf53acce8436f3f7179a8dadf61fc23",
+        "raw_imagegen_sha256": "67563272697d7e6cc23e831a82a6f0fc736ff10944433d0e426ae819e16e15cf"
+      },
+      {
+        "asset_id": "icons/caretLeft",
+        "cutout_sha256": "1545a3ba6d69c2ddd5cb504f37d93d5552fdc31e95bf3354ace0f38cc23dc177",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7d932c18310991b104246fd35890465d37e6c0f6eae7bc60293490335525b74d",
+        "raw_imagegen_sha256": "e3c9069b8a2e5bc4a6c07e56cbcca9a71f2daee422e9293dd85817909819a6db"
+      },
+      {
+        "asset_id": "icons/caretRight",
+        "cutout_sha256": "ac08849b06a1dc9b6fbdb5ec8498d4a93fd276109849732174684181ca7e6143",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "42682433448ff09878262cbcc6f4c7360acb30f7e473d6725ce2beeead5efb8b",
+        "raw_imagegen_sha256": "33e41613145fbb0f66f107120f39b803f047339cd70ddfbb258980b69de209f0"
+      },
+      {
+        "asset_id": "icons/caretUp",
+        "cutout_sha256": "24741859444da9ab029ec615922ac911bf3cc10588ad73e881c0f96f35818a49",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "f72be7fd480be3eaba6bab2ec0d36668bd2017f670b4be03d75cb31e3fac0170",
+        "raw_imagegen_sha256": "99a52fa30ca5f3e502128c2d0f39de7404316064cad5b22af4bebce7e95d52b2"
+      },
+      {
+        "asset_id": "icons/check",
+        "cutout_sha256": "99da04976ad3cd0d4add077cdf5a0ce1db7d9efce9187191847b3d5d27f74ec3",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "83b6552a54592470ee02059854a9a6858c7cce1f7aeb27c3c7cf28c66e937410",
+        "raw_imagegen_sha256": "951f81c0190b60e0c84a52a3ae6d3aa936e48f452cec1880997e114808a4d1b2"
+      },
+      {
+        "asset_id": "icons/close",
+        "cutout_sha256": "c31cd513baa0b177e37678eb4404080aa77c0e8ba016bc9e4e41f9fca753d20b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "904503811823487da5ade5712a4b5f0cc97643da374dde248b735dd853ace44f",
+        "raw_imagegen_sha256": "4fafca589abe7321eeba12f343d3fb5701f196aa8384c7bf85cf83aff10a3ed9"
+      },
+      {
+        "asset_id": "icons/menu",
+        "cutout_sha256": "9577105f76610dfb63c6ae6d3985807f82fdbce285c421ca40b295d9abd695b6",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "a297a09af7f08e68486122e833af206c4d271c8c0c59c8165e8fa629c47bdfe9",
+        "raw_imagegen_sha256": "8b802065dbd86640bf12a1afed0cfc90ec2955c16d483cd463a9ed2ee1463968"
+      }
+    ],
+    "batch_id": "native128-009",
+    "builder_sha256_lf": "9dc3a894bf3f84cc2ed72d722ed9be1b5d6224859dc91df704c07b3749dd6640",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "5f91dcd0c94ee5a072dfef61908cf9bcaaed8572b0b23b5eccbc261885e52d2d",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
