@@ -1,0 +1,2023 @@
+{
+  "assets": [
+    {
+      "asset_id": "icons/bellDesk",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8a4c4387bb456c2ec088dbd67f91d90bfcfb8dbff76ed03710bb0a1224508986",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bellDesk\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-55778304-3d42-4734-9126-16e092eafcb2.png",
+        "source_sha256": "e3ab1c8bbb83a5c752d3a65662b8a887e766a79265d11158c32a899f2e6b623f",
+        "source_size": [
+          1536,
+          1024
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          16,
+          28,
+          112,
+          100
+        ],
+        "components_8_neighbor": [
+          4596
+        ],
+        "decoded_rgba_sha256": "e069217dff8ddd09dba0d3b322d351f37f3c0a1398ca827368ab9c557ac53ea9",
+        "foreground_pixels": 4596,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5932080924855492,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 320,
+        "master_transitions": 3484,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12469482421875,
+        "not_identity_upscale": true,
+        "transition_gain": 10.8875
+      },
+      "source": {
+        "path": "export/icons/bellDesk.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e3a544dcdb5277bda43ce9327732055b21e6139c09e345255d52d7affea23fc9"
+      }
+    },
+    {
+      "asset_id": "icons/bike",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ab1b0b3022e0f95fb1450b3e02962852ba8ee580cb730a11722d7cd3b42d82ed",
+        "prompt": "Use case: background-extraction. Asset type: exact pixel-art cutout. Input images: Image 1 is the exact edit target. Change only the background: delete the entire drawn white/light-gray checkerboard and output true transparent alpha pixels at every location where that checkerboard appears, including enclosed holes. Keep every non-checkerboard subject pixel exactly unchanged in color, coordinate, scale, crop, and shape. Do not recreate the checkerboard. Do not redraw or restyle the \"bike\" icon. No background color, shadow, halo, floor, antialiasing, blur, gradient, new pixel, or lost subject pixel.",
+        "source_id": "exec-3947c1ba-2697-4b65-890c-cc715ca4b858.png",
+        "source_sha256": "c79d2e7316d95a4baeb09aa4b7eb9f40456e5bace6845a5947960d2c132cbc28",
+        "source_size": [
+          1536,
+          1024
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          8,
+          27,
+          120,
+          98
+        ],
+        "components_8_neighbor": [
+          3679
+        ],
+        "decoded_rgba_sha256": "5d755deed4624c6aea7ee73ef70e935615c0069f331f7c29049efc52394f315c",
+        "foreground_pixels": 3679,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.25318590704647675,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 928,
+        "master_transitions": 4647,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.17059326171875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.007543103448276
+      },
+      "source": {
+        "path": "export/icons/bike.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "50020a0317a96cc037403885831a077c97c0e2f8fa34fbc138b050a5e9655efc"
+      }
+    },
+    {
+      "asset_id": "icons/bolt",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c7425c092a6a0bb670bb0275607ff051d79bff1b8efd3b45b497a4cb50e02b20",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bolt\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-490044e3-1bcd-402b-836a-430d19fc46c5.png",
+        "source_sha256": "7dec6f80b3e46a7cd6fe3075ca0a0fdf2b60ab438bf81464691e428b7f215064",
+        "source_size": [
+          1159,
+          1358
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          38,
+          7,
+          91,
+          120
+        ],
+        "components_8_neighbor": [
+          2791
+        ],
+        "decoded_rgba_sha256": "b3156e2e767a48c1d575d2f11d0ca87575d898890a43860606e6f3cfa65d1e25",
+        "foreground_pixels": 2791,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6190022243406419,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 3678,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12628173828125,
+        "not_identity_upscale": true,
+        "transition_gain": 9.578125
+      },
+      "source": {
+        "path": "export/icons/bolt.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "b430762221ba4d5e415d8008dbe76ca768628b6ff2bc741aba2d654675783768"
+      }
+    },
+    {
+      "asset_id": "icons/boss",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "0c4b5673325b5ee129a61a7ea17068159cb5b52d30fc3aba53f0ce7f644e88bc",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI icon topology and contrast correction. Input images: Image 1 is the exact edit target; Image 2 is the exact canonical topology reference. Primary request: Keep the exact crowned bust silhouette. Recolor only for deep-space readability: three-point crown in muted gold, head and neck in restrained warm ivory, shoulders in cool slate, all with warm-charcoal pixel outlines. Preserve transparency, crop, element count, and geometry. Preserve every unmentioned pixel-art feature, native square cluster language, 128px detail, and Image 2's open-vs-filled regions. Output one centered icon on genuine alpha transparency. No drawn checkerboard, background, shadow, halo, antialiasing, blur, glow, gradient, text, extra mark, or restyling.",
+        "source_id": "exec-fe3c211c-998a-4ed1-b063-02191b89fb25.png",
+        "source_sha256": "43eb8cd4bad945a32b408c6dd2cdaf5493e1eabee540df9cc599ddbdbe8014ad",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          24,
+          13,
+          104,
+          115
+        ],
+        "components_8_neighbor": [
+          5757
+        ],
+        "decoded_rgba_sha256": "89fcb739a7e28b0ba0cb0dfc28ecadc6d162442802d53e5efeb0e0bf3cebb3fe",
+        "foreground_pixels": 5757,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7095466826778745,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 528,
+        "master_transitions": 3622,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1424560546875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.859848484848484
+      },
+      "source": {
+        "path": "export/icons/boss.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "a348ac065f2c77a207d3fe4ee1bf52b8eeb1adb59c054e09a3f0944431eb6aa9"
+      }
+    },
+    {
+      "asset_id": "icons/bottle",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e3c207239a552aef34b31ec85660319b2338b36355764c7d9d633919446a9d0c",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bottle\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-2dd970a3-fc83-42a7-b32a-6d41911c91ed.png",
+        "source_sha256": "082d4bc70c5a3f3c43d57fe7b1a3d346f8f3fec202508d5f38143c34a28b6eae",
+        "source_size": [
+          1024,
+          1536
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          37,
+          2,
+          90,
+          117
+        ],
+        "components_8_neighbor": [
+          4305
+        ],
+        "decoded_rgba_sha256": "bab9519d32b00437316601cfc51e10380c568e1b2dbac6fddf9b036f0833e52a",
+        "foreground_pixels": 4305,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5762904140669314,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 464,
+        "master_transitions": 4538,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.17205810546875,
+        "not_identity_upscale": true,
+        "transition_gain": 9.780172413793103
+      },
+      "source": {
+        "path": "export/icons/bottle.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "34f0626b4a902cbe8c868b78e0671c35f53657f178377bcdaac2b94cd90a6722"
+      }
+    },
+    {
+      "asset_id": "icons/bow",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "97baf75e77f799d695698141a048ce728dc494cd676b9a8837891453621729d0",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bow\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-5d776261-a24b-49fc-99cf-a55581593ca0.png",
+        "source_sha256": "b7fbe0c54838b91894065ce8c21440097722e6062b79fd37c125164b6bbb5451",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          27,
+          8,
+          104,
+          120
+        ],
+        "components_8_neighbor": [
+          2428
+        ],
+        "decoded_rgba_sha256": "13be90808a18bc53b6c68059fb4a7310125459da51d1130125ad1576eaa917c4",
+        "foreground_pixels": 2428,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.25366317792578497,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 784,
+        "master_transitions": 2710,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.10302734375,
+        "not_identity_upscale": true,
+        "transition_gain": 3.4566326530612246
+      },
+      "source": {
+        "path": "export/icons/bow.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "71a8c8bd94c9ca3b5738afd4e0f5b83a21a1d285e1b8b0dfc67843246e7b28a5"
+      }
+    },
+    {
+      "asset_id": "icons/bowl",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "f5509d0e4455f7fa6dc1620580dd3263cc641fe6d603a695f2fbb640581b3738",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bowl\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-9a6846de-7ea3-456a-a5fb-4e25e7c75e4c.png",
+        "source_sha256": "39a6cdf6f9598dfe50a5602c35018119bfc5c31bff4c953f20be1ebdfe11fe5b",
+        "source_size": [
+          1536,
+          1024
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          14,
+          30,
+          114,
+          97
+        ],
+        "components_8_neighbor": [
+          4978
+        ],
+        "decoded_rgba_sha256": "c2def5897a88b305e665c65877db3dad4cb2e1768f9bd3690ecd59178a016984",
+        "foreground_pixels": 4978,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5048929663608562,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 3652,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.14697265625,
+        "not_identity_upscale": true,
+        "transition_gain": 9.510416666666666
+      },
+      "source": {
+        "path": "export/icons/bowl.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "43d3b74341a5985d87f700b9a4fd54b3fb5138de198c3b6c52ef898ca28707a1"
+      }
+    },
+    {
+      "asset_id": "icons/brain",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1285cb9275db20e55164cd49eac8801754b6d9ba072d3d6740b7f2ca69ea0622",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"brain\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-5c2869de-2490-4eea-b718-f5f7101c0697.png",
+        "source_sha256": "53924acb9d144e84be78816d40c8da482668ff6a6f288a3105db5b07e85d5b55",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          19,
+          18,
+          109,
+          109
+        ],
+        "components_8_neighbor": [
+          3162,
+          3160
+        ],
+        "decoded_rgba_sha256": "7c28d86dee462b52f1e417a0f37b5db12ef903db9d5026515b130e67189c4bd4",
+        "foreground_pixels": 6322,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6496588549391872,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 432,
+        "master_transitions": 5445,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.20159912109375,
+        "not_identity_upscale": true,
+        "transition_gain": 12.604166666666666
+      },
+      "source": {
+        "path": "export/icons/brain.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "384707300ea5ce622abcc68ffdc448d5e1562145dfcdb1c734c30e8856472a6b"
+      }
+    },
+    {
+      "asset_id": "icons/bread",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ebe52987bce6310c6bf565394e74a39e8cfc01ae195739a7a9c814b57afb8ecb",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bread\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-cdc0b0d2-ea28-473f-80d2-e2cd34448614.png",
+        "source_sha256": "078837cfcc51a52712a45fbfd6cb7b21bb05d5266d893fb9688d37bd428a32a7",
+        "source_size": [
+          1453,
+          1082
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 256
+        },
+        "bbox": [
+          16,
+          18,
+          112,
+          103
+        ],
+        "components_8_neighbor": [
+          6863
+        ],
+        "decoded_rgba_sha256": "0e6439b42424468abc6625bb2f7fb295957ba56565aebe9fb13f7b52a56a7b78",
+        "foreground_pixels": 6863,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7140744723753193,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 4133,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18157958984375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.610416666666667
+      },
+      "source": {
+        "path": "export/icons/bread.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "71d90f73effaf1d3b62c6c7c2e7243e5b51dce3607250dad0bf87cace50387e8"
+      }
+    },
+    {
+      "asset_id": "icons/breakup",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "eb14c0b86fc9d2554df9066474789642ddb70e4780feaaf53254aa4d1970b4e0",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"breakup\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-1a1bb501-0261-48ea-9ef1-44a0fcef63b9.png",
+        "source_sha256": "bd3759234c13e2a78110fd70f1809c3ee16bb39917a26dc16161209127aef1a1",
+        "source_size": [
+          1536,
+          1024
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 256
+        },
+        "bbox": [
+          20,
+          24,
+          108,
+          101
+        ],
+        "components_8_neighbor": [
+          2170,
+          2060
+        ],
+        "decoded_rgba_sha256": "2abb993065dc2928a941a0949b8acd1c07ed04c8303b70e66b93f4176c5c4d74",
+        "foreground_pixels": 4230,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6557028309605629,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 624,
+        "master_transitions": 4677,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.159912109375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.4951923076923075
+      },
+      "source": {
+        "path": "export/icons/breakup.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "153e211159b11cc35cb9989449807c4cf54c0a245f9708ccf8540ada216e64ae"
+      }
+    },
+    {
+      "asset_id": "icons/brick",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "6fad686a40a0573210890d1fafa04a9abbd6f1f2ccf014e0debacd806bb96316",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"brick\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-a8b53761-63fc-4539-acfc-f7c33e68df0c.png",
+        "source_sha256": "48a5051a5f01cca2f9bade47f2429d1de5ef1baeffe78216e4966431ceea442b",
+        "source_size": [
+          1536,
+          1024
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 256
+        },
+        "bbox": [
+          31,
+          34,
+          97,
+          90
+        ],
+        "components_8_neighbor": [
+          3610
+        ],
+        "decoded_rgba_sha256": "3b76d7a1e498078e8a7213e4aa8236fdbc409ce23164a6195687d303e0671ac4",
+        "foreground_pixels": 3610,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.23426889995473066,
+        "identity_alpha_iou_floor": 0.22,
+        "identity_transitions": 944,
+        "master_transitions": 3575,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1402587890625,
+        "not_identity_upscale": true,
+        "transition_gain": 3.7870762711864407
+      },
+      "source": {
+        "path": "export/icons/brick.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "95d7dd8ad17c51c0b8c62249a4f8b6e5e6e36893517dd9aea22017b38e9f4ddd"
+      }
+    },
+    {
+      "asset_id": "icons/broom",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "b2fed89608edfb4d53a99e553ebef407e51d5e188c735f4cb6ae577a081b84cd",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"broom\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-3550bd0d-bae6-465f-a7bf-acd72e5390d5.png",
+        "source_sha256": "b8ad115269ab371ce841007c287705d7c0e82dcd3abd159b3f7de7929e49b82f",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 256
+        },
+        "bbox": [
+          25,
+          8,
+          102,
+          119
+        ],
+        "components_8_neighbor": [
+          3419
+        ],
+        "decoded_rgba_sha256": "e62773906cac25fa53000dceb1734b4a4591003089e1db378bf72e84e11deaf6",
+        "foreground_pixels": 3419,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5410731244064577,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 448,
+        "master_transitions": 2460,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.09735107421875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.491071428571429
+      },
+      "source": {
+        "path": "export/icons/broom.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "dcb9ca72a2ac30fd165bbd45673e7839410af6b643bff54c43ebb2a0dec9c67b"
+      }
+    },
+    {
+      "asset_id": "icons/brush",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "4fc9018c45ac5aaf1ed78b6e4a8cac05c607cb6e5c27878b276adc449e388438",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"brush\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-7222582d-d4c1-4855-8816-9aa62fb66b2a.png",
+        "source_sha256": "609d5225ba7b6acbdce68902879492ab551c0e7b98e5643439824ed531421ed0",
+        "source_size": [
+          1122,
+          1402
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 384
+        },
+        "bbox": [
+          54,
+          8,
+          74,
+          115
+        ],
+        "components_8_neighbor": [
+          1452
+        ],
+        "decoded_rgba_sha256": "48ef72ebcd69becff04dce3cd0640984a8d43a90f2c969da90dd9ce2c52176d7",
+        "foreground_pixels": 1452,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6519230769230769,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 272,
+        "master_transitions": 1177,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0557861328125,
+        "not_identity_upscale": true,
+        "transition_gain": 4.327205882352941
+      },
+      "source": {
+        "path": "export/icons/brush.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "db7b5d18b00cc8a56404da7e6a94ce6eca3d1c2a2ddc5afd89dbe9ede6d2eeb3"
+      }
+    },
+    {
+      "asset_id": "icons/budget",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "bb22ec6b941b53b08a6d625dd149650b9d0ba6668f8d3e60703a763f85e56765",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"budget\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-d41e00b2-34f8-40a9-99e9-0a936e2a39f9.png",
+        "source_sha256": "446d7fe7cd90d0bbf3491fe97cd04cfb8acfed576f77d69c51493838b01d0f83",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 384
+        },
+        "bbox": [
+          12,
+          12,
+          112,
+          117
+        ],
+        "components_8_neighbor": [
+          6779,
+          1100
+        ],
+        "decoded_rgba_sha256": "a3b50cbd77f2781c706d3e227ef166d6f13929ced2681cf173576f6de4d51633",
+        "foreground_pixels": 7879,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5639125151883354,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 512,
+        "master_transitions": 9814,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.32196044921875,
+        "not_identity_upscale": true,
+        "transition_gain": 19.16796875
+      },
+      "source": {
+        "path": "export/icons/budget.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "62788ee0915d0b250b8ac59fd8edf2d5d7697081de82521450206522b8f1e843"
+      }
+    },
+    {
+      "asset_id": "icons/bug",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "07da93f70308664f68747b66501748b211def3be296bd05ce5dc4aba95829aec",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bug\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-368b3919-d889-48b7-8cac-56ad478688f1.png",
+        "source_sha256": "ea8536ef28ef4c93744f0d0489c60f95eae2b904b368ad47e0c1376262e0c4ad",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 384
+        },
+        "bbox": [
+          22,
+          12,
+          106,
+          111
+        ],
+        "components_8_neighbor": [
+          4317
+        ],
+        "decoded_rgba_sha256": "bec080e5b3e10cd79f747ca185d3dc88d19b8d257d05bf082b93e088d34569be",
+        "foreground_pixels": 4317,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5925925925925926,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 672,
+        "master_transitions": 3819,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.140869140625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.683035714285714
+      },
+      "source": {
+        "path": "export/icons/bug.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "298fe5ce8f5554f2fdb8603f2abeea3da05303c5691cc8b91de2440aaafb0684"
+      }
+    },
+    {
+      "asset_id": "icons/building",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5d8bfacd1a45bafae460d10a29f3b384b3aaa9cd541ca0d9a9c7fc578d54d15a",
+        "prompt": "Use case: background-extraction. Asset type: exact pixel-art cutout. Input images: Image 1 is the exact edit target. Change only the background: delete the entire drawn white/light-gray checkerboard and output true transparent alpha pixels at every location where that checkerboard appears, including enclosed holes. Keep every non-checkerboard subject pixel exactly unchanged in color, coordinate, scale, crop, and shape. Do not recreate the checkerboard. Do not redraw or restyle the \"building\" icon. No background color, shadow, halo, floor, antialiasing, blur, gradient, new pixel, or lost subject pixel.",
+        "source_id": "exec-9c4f072f-2dac-4a8c-b527-0e24cdfcc865.png",
+        "source_sha256": "b0e2b393f6c69ac687e1eec5e3c70ded097f1b8b1dc94ff44e2ec8dc97656dd9",
+        "source_size": [
+          1219,
+          1290
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 384
+        },
+        "bbox": [
+          31,
+          9,
+          97,
+          115
+        ],
+        "components_8_neighbor": [
+          5979
+        ],
+        "decoded_rgba_sha256": "8d1f1908e6093cbcffedc1d672ad998380c7af208d4ae0d5f8f3f6ad46d6c8d3",
+        "foreground_pixels": 5979,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5032179720704311,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 800,
+        "master_transitions": 7611,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.26153564453125,
+        "not_identity_upscale": true,
+        "transition_gain": 9.51375
+      },
+      "source": {
+        "path": "export/icons/building.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "b491ea4607620a084770ecce4e1494b303eb38c8da134ba0bb5d9ff302d4afec"
+      }
+    },
+    {
+      "asset_id": "icons/bulb",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "f856ea37baabf9f87301a46a3aa87c8e3cab4eec2188e7343c4e8ee2731210e6",
+        "prompt": "Use case: background-extraction. Asset type: exact pixel-art cutout. Input images: Image 1 is the exact edit target. Change only the background: delete the entire drawn white/light-gray checkerboard and output true transparent alpha pixels at every location where that checkerboard appears, including enclosed holes. Keep every non-checkerboard subject pixel exactly unchanged in color, coordinate, scale, crop, and shape. Do not recreate the checkerboard. Do not redraw or restyle the \"bulb\" icon. No background color, shadow, halo, floor, antialiasing, blur, gradient, new pixel, or lost subject pixel.",
+        "source_id": "exec-68b708fd-1bf1-44ab-81d4-0299c055670e.png",
+        "source_sha256": "64ca1a054874c8d8aec3180f9bc049cc0418c132f5be5084eae53589df71ba96",
+        "source_size": [
+          1247,
+          1261
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 512
+        },
+        "bbox": [
+          26,
+          9,
+          102,
+          121
+        ],
+        "components_8_neighbor": [
+          5614
+        ],
+        "decoded_rgba_sha256": "e383164d2af254e71bcb9eb16eecbb6c4d8b7aef961e346b4eef22abe58a7314",
+        "foreground_pixels": 5614,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.797686863455895,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 432,
+        "master_transitions": 6037,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.19500732421875,
+        "not_identity_upscale": true,
+        "transition_gain": 13.974537037037036
+      },
+      "source": {
+        "path": "export/icons/bulb.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "b034e0e48e28145be2fc4465ad66f6276f49937e0f3209fdced0e1ced00fd1e5"
+      }
+    },
+    {
+      "asset_id": "icons/bus",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "fbec01e1c91e9876f1b6e2171edd6080c75281948b3e9ccefa041e76ad0773cf",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"bus\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-97d7ae5a-a23d-476a-88fa-628dda303ab9.png",
+        "source_sha256": "22e94e011255bba702906f5735bd95b943fefaa098cc4dd04f36b89b75271c1a",
+        "source_size": [
+          1295,
+          1214
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 512
+        },
+        "bbox": [
+          18,
+          14,
+          110,
+          105
+        ],
+        "components_8_neighbor": [
+          5909
+        ],
+        "decoded_rgba_sha256": "33520c7ea1735196e6a329887225cbfe3cb8061874a160a01c5d4f3de3d1c765",
+        "foreground_pixels": 5909,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.545767651344549,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 736,
+        "master_transitions": 6201,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2388916015625,
+        "not_identity_upscale": true,
+        "transition_gain": 8.425271739130435
+      },
+      "source": {
+        "path": "export/icons/bus.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "eea0f210cd97099c766570cea658a3f475fe5effb827fdaa592f6f06c425103e"
+      }
+    },
+    {
+      "asset_id": "icons/cake",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5b48a4cac030f5435ddad276379b72abad55fef1448e05d4b7cd12d4416edb06",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"cake\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-db2e7279-8e8b-47a5-9370-ee530ffa9251.png",
+        "source_sha256": "f6b7f88a64129eb739ac2c3d457a0f750046553163875b0d2f87c86318b9aeed",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 512
+        },
+        "bbox": [
+          31,
+          18,
+          97,
+          103
+        ],
+        "components_8_neighbor": [
+          3202
+        ],
+        "decoded_rgba_sha256": "bdea785590f8716a6f30a6c2283fa7967678f730d0f2d2ee637cb007e6542cbb",
+        "foreground_pixels": 3202,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5211588541666666,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 400,
+        "master_transitions": 2839,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12091064453125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.0975
+      },
+      "source": {
+        "path": "export/icons/cake.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4eee622a60b34120f7d36ac49d78aa9c7b3fa09a67bcc54d97f5e6c93f54c9e3"
+      }
+    },
+    {
+      "asset_id": "icons/calligraphy",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ac28952c5d3dc8fb9c9d03d4304898e676edcbd12c512a6dfc5cc7960d1205b9",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"calligraphy\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-2175101e-021a-4074-80e4-52ecd5bbd9f2.png",
+        "source_sha256": "9d83db0c5cc953c9f9bee666800c2ca49cf2f3a4fe0897f818e05b8108cdf30b",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 512
+        },
+        "bbox": [
+          20,
+          16,
+          108,
+          108
+        ],
+        "components_8_neighbor": [
+          1268,
+          840
+        ],
+        "decoded_rgba_sha256": "8dfcaad5a0502c9d5c5d59f0fc0d6c63d618c54d2e1f97ae5afb6402fb001506",
+        "foreground_pixels": 2108,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5707821590174531,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 464,
+        "master_transitions": 1973,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.06903076171875,
+        "not_identity_upscale": true,
+        "transition_gain": 4.252155172413793
+      },
+      "source": {
+        "path": "export/icons/calligraphy.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "36679f400b966f05415e7d91cd89d0906eb6831fdf43fa43aed849d862f903ad"
+      }
+    },
+    {
+      "asset_id": "icons/campfire",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "078342d5265e767ce5d4483c78f2c8175b683ddc6d0d2f1697ec294fbec305aa",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. The small central opening inside the flame must also become transparent, not white. Preserve the \"campfire\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-474039c1-856a-433b-8664-abe459eafee0.png",
+        "source_sha256": "4be959a730511cc2f3d29d0d40d46f8c5d0a06b29fad7f7a9a63b7b759f86dd8",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 640
+        },
+        "bbox": [
+          26,
+          6,
+          101,
+          123
+        ],
+        "components_8_neighbor": [
+          5068
+        ],
+        "decoded_rgba_sha256": "4fe34f02b5f6c06e1e8386df6fb6364afefc74da0f97f68101650ebb0734a87c",
+        "foreground_pixels": 5068,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5766273705791901,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 720,
+        "master_transitions": 3732,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1478271484375,
+        "not_identity_upscale": true,
+        "transition_gain": 5.183333333333334
+      },
+      "source": {
+        "path": "export/icons/campfire.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6f83d0fa29f78cb86d18dcdcc972380339080d5f180a444980d73411fb46f397"
+      }
+    },
+    {
+      "asset_id": "icons/candle",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "cdff403b6f0113375039d8d60a6a6e96754a671fae2b6b511dca903c860af305",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"candle\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-624e7dd2-17d8-4873-86bd-7a49bbcf7005.png",
+        "source_sha256": "64e00065cbcd785563c6f55a96908209057ea19364f5a1c61739c57bce7cf90d",
+        "source_size": [
+          1024,
+          1536
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 640
+        },
+        "bbox": [
+          46,
+          3,
+          81,
+          119
+        ],
+        "components_8_neighbor": [
+          3453
+        ],
+        "decoded_rgba_sha256": "8ece90778c4c213ffa6a0cb3abddeab01e6dcde099b42ad3f19184edfb5fad11",
+        "foreground_pixels": 3453,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.735178970917226,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 336,
+        "master_transitions": 2837,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.11590576171875,
+        "not_identity_upscale": true,
+        "transition_gain": 8.443452380952381
+      },
+      "source": {
+        "path": "export/icons/candle.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1250f2699c6e785f043e6c9ea93d9d7e7a75a0051c49d853f6cd665ac68ce841"
+      }
+    },
+    {
+      "asset_id": "icons/carrot",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "28513b8c55cc8ad4706590069a88af6ef28c528b53e6f7411748578231f6139a",
+        "prompt": "Use case: background-extraction. Asset type: exact pixel-art cutout. Input images: Image 1 is the exact edit target. Change only the background: delete the entire drawn white/light-gray checkerboard and output true transparent alpha pixels at every location where that checkerboard appears, including enclosed holes. Keep every non-checkerboard subject pixel exactly unchanged in color, coordinate, scale, crop, and shape. Do not recreate the checkerboard. Do not redraw or restyle the \"carrot\" icon. No background color, shadow, halo, floor, antialiasing, blur, gradient, new pixel, or lost subject pixel.",
+        "source_id": "exec-a2a8a978-b1ab-481a-bb46-c0ae74eab30e.png",
+        "source_sha256": "de6619bc26a92055ae6130e9e526863c01290b9619692effcd3959a4c18d4e7a",
+        "source_size": [
+          1241,
+          1268
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 640
+        },
+        "bbox": [
+          43,
+          8,
+          85,
+          115
+        ],
+        "components_8_neighbor": [
+          2570
+        ],
+        "decoded_rgba_sha256": "e38d85537072b705c1ad7d74006aab3e3c96327b38cbda6bac1048140e2815fe",
+        "foreground_pixels": 2570,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6464088397790055,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 416,
+        "master_transitions": 1857,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.06890869140625,
+        "not_identity_upscale": true,
+        "transition_gain": 4.4639423076923075
+      },
+      "source": {
+        "path": "export/icons/carrot.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "844376b1cf2ffb7126e5e398595d07afe43011e6051c66f7a650b41fb6faeacb"
+      }
+    },
+    {
+      "asset_id": "icons/cart",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c902efbf01127a3a61563fda75da260a935b7f7ba8734403456729ac3d004a1a",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"cart\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-13602a23-02d0-4611-a249-7439e1a4d850.png",
+        "source_sha256": "5504eb333560b7219b88cdb86ca439a3095a695ddcea80baedaf7847d9fa94c4",
+        "source_size": [
+          1536,
+          1024
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 640
+        },
+        "bbox": [
+          19,
+          24,
+          106,
+          103
+        ],
+        "components_8_neighbor": [
+          3067
+        ],
+        "decoded_rgba_sha256": "687a1d0a86dfedac80d0be6322ea1c8923a16426047db1cb9eedb616390d22b4",
+        "foreground_pixels": 3067,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4734478719250293,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 512,
+        "master_transitions": 3906,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.13385009765625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.62890625
+      },
+      "source": {
+        "path": "export/icons/cart.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "0a0536d4000ccb6e5ee5f4008ed026a0dc94be910108e1c3333b1e711cbe9195"
+      }
+    },
+    {
+      "asset_id": "icons/chalk",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "bc58f0ab4403455e317e881336be88ffe24176482f6389d304fc3e122c57252b",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"chalk\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-fc673a27-9d49-4b42-9ecc-2c816aaf82b3.png",
+        "source_sha256": "b8f633c1b8ca2a7fcca699b5515da5289cd951471128f38d02bc120010ecc12c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 768
+        },
+        "bbox": [
+          22,
+          25,
+          106,
+          103
+        ],
+        "components_8_neighbor": [
+          1896,
+          308
+        ],
+        "decoded_rgba_sha256": "be9db85fec6bb836539f5ccaf726beed1b1f74f7a61f763bf6fdd7774849f24e",
+        "foreground_pixels": 2204,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4965986394557823,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 320,
+        "master_transitions": 2235,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.07684326171875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.984375
+      },
+      "source": {
+        "path": "export/icons/chalk.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "a9b51f505df15bc764687cc8c7ce7fa7c6b2de7a152d1b18dbe4c715a3f74aed"
+      }
+    },
+    {
+      "asset_id": "icons/chatHeart",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "379f87f13556827bd49bddf5a4fc7953c0df2d79c1a9722da93a3b98490abf17",
+        "prompt": "Use case: background-extraction. Asset type: exact pixel-art cutout. Input images: Image 1 is the exact edit target. Change only the background: delete the entire drawn white/light-gray checkerboard and output true transparent alpha pixels at every location where that checkerboard appears, including enclosed holes. Keep every non-checkerboard subject pixel exactly unchanged in color, coordinate, scale, crop, and shape. Do not recreate the checkerboard. Do not redraw or restyle the \"chatHeart\" icon. No background color, shadow, halo, floor, antialiasing, blur, gradient, new pixel, or lost subject pixel.",
+        "source_id": "exec-6dbb9656-1fe0-4088-b826-791fac7f8e63.png",
+        "source_sha256": "68d21b3ea4f079160426d4c11434fd926b676e3cc129a9a4e72057e2cf5abfc1",
+        "source_size": [
+          1390,
+          1132
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 768
+        },
+        "bbox": [
+          26,
+          24,
+          103,
+          104
+        ],
+        "components_8_neighbor": [
+          2403,
+          970
+        ],
+        "decoded_rgba_sha256": "0d74d9f4413cb62a57974ac0831dcf712f5787c29e3ff1a5e326ae97a5e66219",
+        "foreground_pixels": 3373,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4351880158972791,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 736,
+        "master_transitions": 3677,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.135498046875,
+        "not_identity_upscale": true,
+        "transition_gain": 4.9959239130434785
+      },
+      "source": {
+        "path": "export/icons/chatHeart.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5ed849f51584b31bd44ed000f09e6af785565f3293e1b8d21dd69f68b69e6367"
+      }
+    },
+    {
+      "asset_id": "icons/checkup",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "9acc3c323c3bf015f9addaffaf60b38f0b1e4aa575bf2691789c1cfcfb7974dd",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI icon topology and contrast correction. Input images: Image 1 is the exact edit target; Image 2 is the exact canonical topology reference. Primary request: Restore the canonical large inner panel as genuine alpha transparency, removing only the ivory panel fill. Keep the outer clipboard frame and top clip. Keep the exact asymmetric checkup-line motif already present, but recolor that motif to restrained ivory with warm-charcoal outline so it remains visible on a dark background. Preserve crop, holes, element count, and geometry; do not turn the motif back into a plus sign. Preserve every unmentioned pixel-art feature, native square cluster language, 128px detail, and Image 2's open-vs-filled regions. Output one centered icon on genuine alpha transparency. No drawn checkerboard, background, shadow, halo, antialiasing, blur, glow, gradient, text, extra mark, or restyling.",
+        "source_id": "exec-45b3eae7-b5c9-4548-b1bd-ffd562a43099.png",
+        "source_sha256": "410628329edca8de83de3c324a83e7ce9412707c5e9929eaf7733dbf2a5dbcd6",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 768
+        },
+        "bbox": [
+          20,
+          11,
+          107,
+          117
+        ],
+        "components_8_neighbor": [
+          4717,
+          617
+        ],
+        "decoded_rgba_sha256": "e386e14c4c955e991f63bff3c85f1e7bdbf7b7c817801e3b736a02ba7df6e391",
+        "foreground_pixels": 5334,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.44917483855536955,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 848,
+        "master_transitions": 4987,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.19439697265625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.880896226415095
+      },
+      "source": {
+        "path": "export/icons/checkup.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3e1dd5b8ad43d0bfe6c0e901598e86bf0b6f557e0d697c18061d9c7a8adca3ce"
+      }
+    },
+    {
+      "asset_id": "icons/chef",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3f767d94f2c0a2bf40fdc4024188a3a2b1b06999cff5b08445d7fd3ba08e062f",
+        "prompt": "Use case: background-extraction. Asset type: exact pixel-art cutout. Input images: Image 1 is the exact edit target. Change only the background: delete the entire drawn white/light-gray checkerboard and output true transparent alpha pixels at every location where that checkerboard appears, including enclosed holes. Keep every non-checkerboard subject pixel exactly unchanged in color, coordinate, scale, crop, and shape. Do not recreate the checkerboard. Do not redraw or restyle the \"chef\" icon. No background color, shadow, halo, floor, antialiasing, blur, gradient, new pixel, or lost subject pixel.",
+        "source_id": "exec-045d07e5-5b32-444f-adb1-9da90ffd09af.png",
+        "source_sha256": "c32c3b23cfc25efaa6fe0e92c93f4250753f687dc3d88aee79c30e532d7f4932",
+        "source_size": [
+          1295,
+          1214
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 768
+        },
+        "bbox": [
+          9,
+          10,
+          119,
+          113
+        ],
+        "components_8_neighbor": [
+          8059
+        ],
+        "decoded_rgba_sha256": "2a35684ae7ea95b127d0d0dfec1cc7e42fd43115d0d093d5bfe72de1796ff8d1",
+        "foreground_pixels": 8059,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.65179481372438,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 496,
+        "master_transitions": 9109,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.29241943359375,
+        "not_identity_upscale": true,
+        "transition_gain": 18.364919354838708
+      },
+      "source": {
+        "path": "export/icons/chef.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "813a44bc6ece093fe22fe207243d52050d715c3d139e264cea842a5ded48abee"
+      }
+    },
+    {
+      "asset_id": "icons/chest",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8c2ebb913a548974e9ddf23d5c0b56b012c5410b8b2ea79581aecc78a24dfd6d",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"chest\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-8325151b-795e-4f9d-aeab-81ce84d67315.png",
+        "source_sha256": "c7f4df12a393bfe1642fd8b21b6e30f679a726326d00aa7f7586ba6610868e88",
+        "source_size": [
+          1402,
+          1122
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 896
+        },
+        "bbox": [
+          18,
+          23,
+          110,
+          101
+        ],
+        "components_8_neighbor": [
+          6616
+        ],
+        "decoded_rgba_sha256": "160cbc9bf9f3c4ccca50a6da0db7ae3baaae88749c23bb00425eefd7dd8cca0b",
+        "foreground_pixels": 6616,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6685866194062915,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 368,
+        "master_transitions": 4134,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18890380859375,
+        "not_identity_upscale": true,
+        "transition_gain": 11.233695652173912
+      },
+      "source": {
+        "path": "export/icons/chest.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "bd9e2ce3697fa91c4ee1fb59632f57780d34ddc2b089743398688f2d1b9ca74d"
+      }
+    },
+    {
+      "asset_id": "icons/chicken",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "bf9ef3c0847b674e8da9c3117af8f58f07190b012dc76c84436e2f3f62e42d76",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"chicken\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-2c079e85-ea6f-48f3-8f1c-162a9447c69f.png",
+        "source_sha256": "e3f7d188081c249b98ce0d9d1ac2e4e68022a520ab0780726ca4673c7a93f44e",
+        "source_size": [
+          1327,
+          1185
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 896
+        },
+        "bbox": [
+          21,
+          14,
+          109,
+          117
+        ],
+        "components_8_neighbor": [
+          4788
+        ],
+        "decoded_rgba_sha256": "ee4551463753f5c4deb15fcb8f06e97f29246136a56dae4f59a1e91accb5d175",
+        "foreground_pixels": 4788,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6588802373007044,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 512,
+        "master_transitions": 4455,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.15338134765625,
+        "not_identity_upscale": true,
+        "transition_gain": 8.701171875
+      },
+      "source": {
+        "path": "export/icons/chicken.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "f53223ea81af3b1bbde49ff6eb5221d0d8f354622b9cc7f93814022a98d0a58a"
+      }
+    },
+    {
+      "asset_id": "icons/chip",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e24f34d3c6f2e5916261833f83260295f53900d6c0eec2719d15ed0d3f7be796",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"chip\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-9dee0ad0-cfef-408a-a1b4-0668aadddeed.png",
+        "source_sha256": "9caf67d6a323c676080df58afd7acfc32b771d6a42b0fb25fdaf6c4c43e7e2d8",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 896
+        },
+        "bbox": [
+          17,
+          13,
+          111,
+          113
+        ],
+        "components_8_neighbor": [
+          4968
+        ],
+        "decoded_rgba_sha256": "8ea15a937b1be441516237afa9b321606fcb0c07f34d8176d4ef96266d3ec22b",
+        "foreground_pixels": 4968,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.531763660595291,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 960,
+        "master_transitions": 4207,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1605224609375,
+        "not_identity_upscale": true,
+        "transition_gain": 4.382291666666666
+      },
+      "source": {
+        "path": "export/icons/chip.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3751836f3120d71105400cde0e641a296225b16247936e0c82e98978c01faaf7"
+      }
+    },
+    {
+      "asset_id": "icons/chopsticks",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d097512591f9f0463dffa61d51367cc3fc06255f645c21dd5591d64445b5422c",
+        "prompt": "Use case: background-extraction. Asset type: canonical game UI icon transparency correction. Input images: Image 1 is the exact edit target. Remove only every white and light-gray drawn checkerboard pixel, both outside the subject and inside any canonical hole, and replace those pixels with genuine alpha-channel transparency reaching every canvas edge. Preserve the \"chopsticks\" icon pixel-for-pixel: native square clusters, crop, scale, palette, silhouette, element count, holes, and all material detail. The final PNG must contain one centered isolated icon on actual transparent pixels, not a drawn checkerboard, white field, gray field, colored matte, shadow, halo, or floor. No antialiasing, blur, glow, gradient, recoloring, fill, extra mark, or restyling.",
+        "source_id": "exec-06b06429-bcfb-4bc8-8198-cd238032ea3b.png",
+        "source_sha256": "00681b3ab1f075e036b89d7365b1fa27ac0492884455d2e9f80fc8fc755921cf",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 896
+        },
+        "bbox": [
+          23,
+          12,
+          104,
+          117
+        ],
+        "components_8_neighbor": [
+          1157,
+          1149
+        ],
+        "decoded_rgba_sha256": "2c895b9024de8ce9d33ae6efcf6c34d26d7a2702c3280a6c5792a16afafe88c7",
+        "foreground_pixels": 2306,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.15427166564228642,
+        "identity_alpha_iou_floor": 0.14,
+        "identity_transitions": 560,
+        "master_transitions": 3144,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1085205078125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.614285714285714
+      },
+      "source": {
+        "path": "export/icons/chopsticks.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "9e5d0fd8ae19c1587effa688871306aac76a3203b3a86054915577abb5674278"
+      }
+    }
+  ],
+  "batch_id": "native128-013",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "icons/bellDesk",
+        "cutout_sha256": "8a4c4387bb456c2ec088dbd67f91d90bfcfb8dbff76ed03710bb0a1224508986",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "d551266eaa3a6dc158064490d240e7dc4d7361fc7c7348bc895e10eeaf17a6be",
+        "raw_imagegen_sha256": "e3ab1c8bbb83a5c752d3a65662b8a887e766a79265d11158c32a899f2e6b623f"
+      },
+      {
+        "asset_id": "icons/bike",
+        "cutout_sha256": "ab1b0b3022e0f95fb1450b3e02962852ba8ee580cb730a11722d7cd3b42d82ed",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "986f4549b0335b761011b2f8bfc2cf43cf46df804ffc3bc01ddd5f29ee9e9bab",
+        "raw_imagegen_sha256": "c79d2e7316d95a4baeb09aa4b7eb9f40456e5bace6845a5947960d2c132cbc28"
+      },
+      {
+        "asset_id": "icons/bolt",
+        "cutout_sha256": "c7425c092a6a0bb670bb0275607ff051d79bff1b8efd3b45b497a4cb50e02b20",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "27a4fe97f4fa2f9a74a2db36f905bd13bd0298f307eead3c3ee697b496eddb18",
+        "raw_imagegen_sha256": "7dec6f80b3e46a7cd6fe3075ca0a0fdf2b60ab438bf81464691e428b7f215064"
+      },
+      {
+        "asset_id": "icons/boss",
+        "cutout_sha256": "0c4b5673325b5ee129a61a7ea17068159cb5b52d30fc3aba53f0ce7f644e88bc",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e3f1de56d2e4b67ff8bb6298cca588f4eeff19c368fe0e7cc7d927ca13398428",
+        "raw_imagegen_sha256": "43eb8cd4bad945a32b408c6dd2cdaf5493e1eabee540df9cc599ddbdbe8014ad"
+      },
+      {
+        "asset_id": "icons/bottle",
+        "cutout_sha256": "e3c207239a552aef34b31ec85660319b2338b36355764c7d9d633919446a9d0c",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9ca1413a8286393bc94e375e411452c9cc72e70343f3fa5997a5206a484fa4c0",
+        "raw_imagegen_sha256": "082d4bc70c5a3f3c43d57fe7b1a3d346f8f3fec202508d5f38143c34a28b6eae"
+      },
+      {
+        "asset_id": "icons/bow",
+        "cutout_sha256": "97baf75e77f799d695698141a048ce728dc494cd676b9a8837891453621729d0",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "1905bedca11caf05b9d68def01932b535169d3bd7b0a5ab79a06a04d1d68934d",
+        "raw_imagegen_sha256": "b7fbe0c54838b91894065ce8c21440097722e6062b79fd37c125164b6bbb5451"
+      },
+      {
+        "asset_id": "icons/bowl",
+        "cutout_sha256": "f5509d0e4455f7fa6dc1620580dd3263cc641fe6d603a695f2fbb640581b3738",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "162c9fe95753c459a6fec40385cb430e0508a19cbdff52895fe7de19fc9e82b6",
+        "raw_imagegen_sha256": "39a6cdf6f9598dfe50a5602c35018119bfc5c31bff4c953f20be1ebdfe11fe5b"
+      },
+      {
+        "asset_id": "icons/brain",
+        "cutout_sha256": "1285cb9275db20e55164cd49eac8801754b6d9ba072d3d6740b7f2ca69ea0622",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9fb2b363a171753d5af6beb0c2d054d5f3cf3fab303f001e4271fdf3824f19cf",
+        "raw_imagegen_sha256": "53924acb9d144e84be78816d40c8da482668ff6a6f288a3105db5b07e85d5b55"
+      },
+      {
+        "asset_id": "icons/bread",
+        "cutout_sha256": "ebe52987bce6310c6bf565394e74a39e8cfc01ae195739a7a9c814b57afb8ecb",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "34fc63ab691ef34f16e1e6824b9966cd6ca411f4f9d140dd5d94b6bbe1256f24",
+        "raw_imagegen_sha256": "078837cfcc51a52712a45fbfd6cb7b21bb05d5266d893fb9688d37bd428a32a7"
+      },
+      {
+        "asset_id": "icons/breakup",
+        "cutout_sha256": "eb14c0b86fc9d2554df9066474789642ddb70e4780feaaf53254aa4d1970b4e0",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "ab7a034b2ebeeebd6a485b57faaca0b2a9c65252cc980e096507891926e2ca5c",
+        "raw_imagegen_sha256": "bd3759234c13e2a78110fd70f1809c3ee16bb39917a26dc16161209127aef1a1"
+      },
+      {
+        "asset_id": "icons/brick",
+        "cutout_sha256": "6fad686a40a0573210890d1fafa04a9abbd6f1f2ccf014e0debacd806bb96316",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "893f4a4cc8d5499190abb569c08a15e32752fa82d9918ca04a3fd89bd8f0dd6f",
+        "raw_imagegen_sha256": "48a5051a5f01cca2f9bade47f2429d1de5ef1baeffe78216e4966431ceea442b"
+      },
+      {
+        "asset_id": "icons/broom",
+        "cutout_sha256": "b2fed89608edfb4d53a99e553ebef407e51d5e188c735f4cb6ae577a081b84cd",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "546149f2b4c64905edeb7e6ec3d755f67bc5d4fbea622e9a9208d65442e518e2",
+        "raw_imagegen_sha256": "b8ad115269ab371ce841007c287705d7c0e82dcd3abd159b3f7de7929e49b82f"
+      },
+      {
+        "asset_id": "icons/brush",
+        "cutout_sha256": "4fc9018c45ac5aaf1ed78b6e4a8cac05c607cb6e5c27878b276adc449e388438",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "16fffa059a3019f5291138418d3a52a2c2a9a3ac2887a43895f4bafad506a196",
+        "raw_imagegen_sha256": "609d5225ba7b6acbdce68902879492ab551c0e7b98e5643439824ed531421ed0"
+      },
+      {
+        "asset_id": "icons/budget",
+        "cutout_sha256": "bb22ec6b941b53b08a6d625dd149650b9d0ba6668f8d3e60703a763f85e56765",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e4f302e6f0c5fa3a93045ac9ca260a0fd75fddfc77b4d6c89be70c1d31c8270d",
+        "raw_imagegen_sha256": "446d7fe7cd90d0bbf3491fe97cd04cfb8acfed576f77d69c51493838b01d0f83"
+      },
+      {
+        "asset_id": "icons/bug",
+        "cutout_sha256": "07da93f70308664f68747b66501748b211def3be296bd05ce5dc4aba95829aec",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "c514819aef0912dde76e1e344cc1435af1daabd40c6dfe1e077318ba52ac1701",
+        "raw_imagegen_sha256": "ea8536ef28ef4c93744f0d0489c60f95eae2b904b368ad47e0c1376262e0c4ad"
+      },
+      {
+        "asset_id": "icons/building",
+        "cutout_sha256": "5d8bfacd1a45bafae460d10a29f3b384b3aaa9cd541ca0d9a9c7fc578d54d15a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7c0ef640fd1b3cac8fb6d1831546243a23e4a8df6d0719d9e9a7a305bc1d4e0a",
+        "raw_imagegen_sha256": "b0e2b393f6c69ac687e1eec5e3c70ded097f1b8b1dc94ff44e2ec8dc97656dd9"
+      },
+      {
+        "asset_id": "icons/bulb",
+        "cutout_sha256": "f856ea37baabf9f87301a46a3aa87c8e3cab4eec2188e7343c4e8ee2731210e6",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "8787dd41f6b5e88378da46ba8444a892a52bffa1fe3c0ae1a94ec187093d8d53",
+        "raw_imagegen_sha256": "64ca1a054874c8d8aec3180f9bc049cc0418c132f5be5084eae53589df71ba96"
+      },
+      {
+        "asset_id": "icons/bus",
+        "cutout_sha256": "fbec01e1c91e9876f1b6e2171edd6080c75281948b3e9ccefa041e76ad0773cf",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "5f96ea3d7e9e3413ddd9aa91bec79169b3488f5c7f928cac5981969398ca6255",
+        "raw_imagegen_sha256": "22e94e011255bba702906f5735bd95b943fefaa098cc4dd04f36b89b75271c1a"
+      },
+      {
+        "asset_id": "icons/cake",
+        "cutout_sha256": "5b48a4cac030f5435ddad276379b72abad55fef1448e05d4b7cd12d4416edb06",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "925e5c72b2d578fc16df2c0fd46f4c7ca6cf87de43bb9fbc9687becfcc6c4763",
+        "raw_imagegen_sha256": "f6b7f88a64129eb739ac2c3d457a0f750046553163875b0d2f87c86318b9aeed"
+      },
+      {
+        "asset_id": "icons/calligraphy",
+        "cutout_sha256": "ac28952c5d3dc8fb9c9d03d4304898e676edcbd12c512a6dfc5cc7960d1205b9",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "876f231f5c02b602d17a9c7834a188fbeb89f694c9895c2839d0adb728b14c07",
+        "raw_imagegen_sha256": "9d83db0c5cc953c9f9bee666800c2ca49cf2f3a4fe0897f818e05b8108cdf30b"
+      },
+      {
+        "asset_id": "icons/campfire",
+        "cutout_sha256": "078342d5265e767ce5d4483c78f2c8175b683ddc6d0d2f1697ec294fbec305aa",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "255fa1b2ab84bfeec1f23fbd527a75fc2ae6c0057ba37a26040884c63684771c",
+        "raw_imagegen_sha256": "4be959a730511cc2f3d29d0d40d46f8c5d0a06b29fad7f7a9a63b7b759f86dd8"
+      },
+      {
+        "asset_id": "icons/candle",
+        "cutout_sha256": "cdff403b6f0113375039d8d60a6a6e96754a671fae2b6b511dca903c860af305",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e4242422b4f1f52b00c09f9217a2419e2c5d4342546aadc36510c72ca4e318be",
+        "raw_imagegen_sha256": "64e00065cbcd785563c6f55a96908209057ea19364f5a1c61739c57bce7cf90d"
+      },
+      {
+        "asset_id": "icons/carrot",
+        "cutout_sha256": "28513b8c55cc8ad4706590069a88af6ef28c528b53e6f7411748578231f6139a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "4699a8f82ed93aca99120ac06f270f8d41379cc6317bd7cb30af3452d3ff495f",
+        "raw_imagegen_sha256": "de6619bc26a92055ae6130e9e526863c01290b9619692effcd3959a4c18d4e7a"
+      },
+      {
+        "asset_id": "icons/cart",
+        "cutout_sha256": "c902efbf01127a3a61563fda75da260a935b7f7ba8734403456729ac3d004a1a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "ae8142f3a6c2955b5187dc85f5b2ad28d46e7d58628d49e4dbdc5ad6d9bbbc16",
+        "raw_imagegen_sha256": "5504eb333560b7219b88cdb86ca439a3095a695ddcea80baedaf7847d9fa94c4"
+      },
+      {
+        "asset_id": "icons/chalk",
+        "cutout_sha256": "bc58f0ab4403455e317e881336be88ffe24176482f6389d304fc3e122c57252b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "71d6fc8c07fabcc3597977cf36a70578f23f87ba48721ae49aa10ded65df89d4",
+        "raw_imagegen_sha256": "b8f633c1b8ca2a7fcca699b5515da5289cd951471128f38d02bc120010ecc12c"
+      },
+      {
+        "asset_id": "icons/chatHeart",
+        "cutout_sha256": "379f87f13556827bd49bddf5a4fc7953c0df2d79c1a9722da93a3b98490abf17",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "ea63ceea71b0f9aa2c4cbdd10749aa21c0dc59f70f28d9f88007d377a7fb361f",
+        "raw_imagegen_sha256": "68d21b3ea4f079160426d4c11434fd926b676e3cc129a9a4e72057e2cf5abfc1"
+      },
+      {
+        "asset_id": "icons/checkup",
+        "cutout_sha256": "9acc3c323c3bf015f9addaffaf60b38f0b1e4aa575bf2691789c1cfcfb7974dd",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "c8f97f189108db6405620233b5ca3fdc57eb80e3089ed56d1911ac4628c916fc",
+        "raw_imagegen_sha256": "410628329edca8de83de3c324a83e7ce9412707c5e9929eaf7733dbf2a5dbcd6"
+      },
+      {
+        "asset_id": "icons/chef",
+        "cutout_sha256": "3f767d94f2c0a2bf40fdc4024188a3a2b1b06999cff5b08445d7fd3ba08e062f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "a231d5a190b20e1e8ef3fe442ff24d1f4301c869d46e63b2ed6b5eaa5d022d42",
+        "raw_imagegen_sha256": "c32c3b23cfc25efaa6fe0e92c93f4250753f687dc3d88aee79c30e532d7f4932"
+      },
+      {
+        "asset_id": "icons/chest",
+        "cutout_sha256": "8c2ebb913a548974e9ddf23d5c0b56b012c5410b8b2ea79581aecc78a24dfd6d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "f06decf68dd0b2dc63ce069fc9f83a5e794001bfe10b73d841194c8d2f451911",
+        "raw_imagegen_sha256": "c7f4df12a393bfe1642fd8b21b6e30f679a726326d00aa7f7586ba6610868e88"
+      },
+      {
+        "asset_id": "icons/chicken",
+        "cutout_sha256": "bf9ef3c0847b674e8da9c3117af8f58f07190b012dc76c84436e2f3f62e42d76",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "f3ff5a3d98b2f52f3b0c1a61b18a037ffac759dd2d7116e8e8a0552c20f47b23",
+        "raw_imagegen_sha256": "e3f7d188081c249b98ce0d9d1ac2e4e68022a520ab0780726ca4673c7a93f44e"
+      },
+      {
+        "asset_id": "icons/chip",
+        "cutout_sha256": "e24f34d3c6f2e5916261833f83260295f53900d6c0eec2719d15ed0d3f7be796",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "b48986ce27fb0317bd2d4373b70945f2ffc387ddfb9eb76e62c0ba80ca17bb9e",
+        "raw_imagegen_sha256": "9caf67d6a323c676080df58afd7acfc32b771d6a42b0fb25fdaf6c4c43e7e2d8"
+      },
+      {
+        "asset_id": "icons/chopsticks",
+        "cutout_sha256": "d097512591f9f0463dffa61d51367cc3fc06255f645c21dd5591d64445b5422c",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "fe04b4be3d04bf46e9afc2a3a465bf7a4562c996f7795ff6b4b569f9f14c6d5a",
+        "raw_imagegen_sha256": "00681b3ab1f075e036b89d7365b1fa27ac0492884455d2e9f80fc8fc755921cf"
+      }
+    ],
+    "batch_id": "native128-013",
+    "builder_sha256_lf": "9dc3a894bf3f84cc2ed72d722ed9be1b5d6224859dc91df704c07b3749dd6640",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "1f350a659ff5a8acc0c1ce9bb0981abfbec95eaec878822886083eefd78115c2",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
