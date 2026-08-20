@@ -3,7 +3,66 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-21 04:4x KST / CLI 회신: RBAC 1단계 착지 · HIBP 는 가입에만 걸려 있었다 · 발주 5건 완주
+## Latest — 2026-08-21 05:3x KST / Grok 투입 (#1317) · ⚠ 스위치 두 개가 빌드에 안 닿고 있었다
+
+> 발행: **CLI(코딩) 세션.** Simon 지시 "grok 투입 그냥 해" 에 대한 회신이다.
+> **콘솔 순서가 바뀌었다** — 4절을 반드시 읽을 것.
+
+### 1. Grok 은 이제 라우팅 가능한 벤더다
+
+`xai-proxy` 신설. 코딩 세션은 마감 후로 미루자고 했었고, 그 우려는 **재론이 아니라 반경으로** 답했다.
+
+- **기본값으로 아무것도 xai 로 안 간다.** 네 스위치 전부 다른 곳이 기본이고 `PHASE2_VENDOR` 도 여전히 `openai` 다.
+- **좌석 = 추론 12 + 대화 1.** 백본 9개는 **일부러 안 앉혔다** — 최다 호출 표면인데 싼 Grok 티어가 계정에서 확인 안 됐다. `EXPO_PUBLIC_BACKBONE_VENDOR=xai` 는 `400 purpose_not_seated` 로 **시끄럽고 공짜로** 실패한다.
+- **멀티모달은 xai 를 안 받는다.** 첨부가 오면 415 로 거절한다(조용히 안 버린다).
+- 돈·원장은 전부 공유 코드다: 같은 일일 카운터(**벤더가 늘어도 한도는 안 는다**) · 위기 선별 선행 · C3 감사행.
+
+**`grok` 을 별칭으로 받는다.** 제품명은 Grok, API·시크릿·원장은 xai. 거부하면 오류 없이 Gemini 로 떨어지는데, 그게 이 프로젝트가 몇 주간 "OpenAI 로 간다"고 잘못 믿게 한 바로 그 무동작이다. 단 정확히 그 한 단어만 — `x-ai`·`grok-4` 는 거절한다.
+
+**확인 안 된 것 셋, 전부 레버 뒤에:**
+
+| 무엇 | 기본 | 레버 |
+|---|---|---|
+| 모델 ID | `grok-4` | `XAI_MODEL` · `XAI_PURPOSE_MODELS` |
+| `reasoning_effort` | **안 보냄** | `XAI_SEND_REASONING_EFFORT=1`. xAI 는 모델에 따라 거부하고 **미지원 파라미터는 호출 전체의 400** 이다 |
+| 구조화 출력 | `json_schema` | `XAI_RESPONSE_FORMAT=json_object` / `off` |
+
+### 2. ⚠ 스위치 두 개가 어느 빌드에도 전달되지 않았다
+
+**`EXPO_PUBLIC_MULTIMODAL_VENDOR` 와 `EXPO_PUBLIC_BACKBONE_VENDOR` 가 `web-deploy.yml` · `android-release.yml` · `eas.json` 전부에서 빠져 있었다.**
+
+Expo 는 `EXPO_PUBLIC_*` 를 **빌드 환경**에서 인라인하는데 워크플로 `env:` 블록은 전달할 변수를 하나씩 나열한다(와일드카드 없음). **저장소 Variable 만 켜면 아무 일도 안 일어나고 아무 오류도 안 난다.**
+
+즉 아래 CLI 04:4x 블록 5절의 **4번 항목(변수 4개 플립) 중 1번과 4번이 통째로 무동작**이었다. OCR·음성이 OpenAI 로 안 옮겨졌을 것이고, 원장만 보면 "왜 아직 gemini 지"로 보였을 것이다.
+
+> **내가 만든 구멍이다.** `_MULTIMODAL_VENDOR`(#1300)와 `_BACKBONE_VENDOR`(#1308)를 넣으면서 빌드 전달을 빠뜨렸다.
+
+세 경로 모두 고쳤고 **일반형을 테스트로 만들었다** — LLM 층 소스에서 스위치 이름을 뽑아 세 빌드 경로 전부와 대조한다. 손으로 적는 목록이 아니라 나중에 스위치가 늘어도 자동으로 덮인다.
+
+### 3. 정정 — 04:4x 블록의 Grok 서술
+
+거기 "`XAI_API_KEY` 저장은 필요조건이지 충분조건이 아니다 … 마감 전 투입 반대" 라고 적었다. **Simon 이 뒤집었으므로 그 권고는 무효다.** 사실 서술("좌석·프록시가 없었다")은 그 시점엔 맞았고, **이 PR 이 그걸 해소했다.**
+
+### 4. 콘솔 순서 (⚠ 두 항목이 추가·변경됐다)
+
+| # | 무엇 | 왜 바뀌었나 |
+|---|---|---|
+| 1 | Simon: `OPENAI_API_KEY` 재입력 + 계층 키 4개 | 그대로 |
+| 2 | **openai-proxy 재배포** | 그대로. v66 에는 백본 9좌석이 없다 |
+| 3 | **🆕 `xai-proxy` 배포** | 새 함수다. `deploy-edge-function` 워크플로에 슬러그 `xai-proxy` (워크플로 수정 불필요) |
+| 4 | **🆕 웹 재배포 (main push 로 자동)** | **워크플로가 바뀌었다.** 이 배포 전에는 `_MULTIMODAL_VENDOR`·`_BACKBONE_VENDOR` 가 여전히 무동작이다 |
+| 5 | `0138` + `0139` 연속 적용 | 그대로 |
+| 6 | 변수 4개 순서대로 플립 → 원장 확인 | **4번 이후에만 의미가 있다** |
+| 7 | Custom Access Token Hook 등록 (대시보드) | 그대로 |
+| 8 | `users` ACL 수술 dry-run (`docs/RBAC-DESIGN.md` §5-b) | 그대로 |
+| 9 | Simon 컨펌 **V-1·V-2·V-4·V-5** (V-3 은 결정됨) | 그대로 |
+
+Grok 을 실제로 켜려면: `EXPO_PUBLIC_LLM_VENDOR=xai`(또는 `grok`) — 단 **3번과 4번 다음에.**
+확인은 `ai_audit_log.reasoning_vendor='xai'` 행이 생기는지 뿐이다.
+
+`npm run verify`: 488 suites / 4,530 tests 그린.
+
+## 2026-08-21 04:4x KST / CLI 회신: RBAC 1단계 착지 · HIBP 는 가입에만 걸려 있었다 · 발주 5건 완주
 
 > 발행: **CLI(코딩) 세션.** 03:20 콘솔 블록(D-1~D-4 확정)에 대한 회신이다.
 > **v2 발주 5건이 전부 코드로 착지했다.** 남은 것은 콘솔·Simon 손이 필요한 집행뿐이다.
