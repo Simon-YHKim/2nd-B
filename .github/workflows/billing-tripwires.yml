@@ -1,0 +1,163 @@
+name: Billing tripwires
+
+# Why: the billing and credit machinery sets seven flags that mean "a person has
+# to look at this", and as of 2026-08-20 NOTHING read any of them. They were
+# written by 0109 / 0123 / 0133 / 0134 / 0135 / 0136, each with an index so the
+# rows would be easy to find, and then nobody went looking. A tripwire nobody
+# reads is not a tripwire; it is a comment.
+#
+# Two of these are money-shaped, which is why this runs daily rather than weekly:
+#   provider_conflict  a user is paying TWO providers at once. Somebody is being
+#                      charged twice right now and one side has to be refunded.
+#   stuck_claims       a self-serve cancel/refund claim has been 'pending' for
+#                      over an hour. The sweeper should have moved it; if it did
+#                      not, a person asked for their money back and nothing
+#                      happened.
+#
+# It prints COUNTS ONLY. No user id, no email, no payload. The counts say whether
+# to look; the SQL in the issue body says where. That split is deliberate: this
+# runs in CI logs that are less private than the database.
+#
+# Traps this file already accounts for, learned the hard way in db-backup.yml and
+# credential-expiry-check.yml:
+#   - NO HEREDOCS. A heredoc body sits at column 0, which ends the YAML block
+#     scalar and silently breaks the workflow. CI does not catch it.
+#   - The connection secret has been pasted with a trailing newline before
+#     (2026-08-17), which makes the server reject a database named
+#     "postgres<newline>". It is stripped below rather than trusted.
+#   - The report goes to stdout AS WELL AS the step summary, so it is readable
+#     with `gh run view <id> --log` without opening a browser.
+
+on:
+  schedule:
+    - cron: "20 20 * * *" # 05:20 KST daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read the tripwires
+        id: probe
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${DB_URL:-}" ]; then
+            echo "Missing SUPABASE_DB_URL secret" >&2
+            exit 1
+          fi
+
+          # Never echoed. Stripped because a pasted secret has carried a
+          # trailing newline before, and libpq then asks for a database whose
+          # name ends in that newline.
+          DB="$(printf '%s' "$DB_URL" | tr -d '\r\n')"
+
+          PSQL="$(ls -d /usr/lib/postgresql/*/bin/psql 2>/dev/null | sort -V | tail -1)"
+          [ -n "$PSQL" ] || PSQL="$(command -v psql || true)"
+          if [ -z "$PSQL" ]; then
+            echo "no psql on the runner" >&2
+            exit 1
+          fi
+
+          # One row, pipe separated, in the order rendered below. Counts only.
+          SQL="select
+                 (select count(*) from public.paddle_webhook_events where provider_conflict),
+                 (select count(*) from public.billing_self_service_log
+                    where outcome = 'pending' and created_at < now() - interval '1 hour'),
+                 (select count(*) from public.paddle_webhook_events where refund_review),
+                 (select count(*) from public.paddle_webhook_events where stale_entitlement),
+                 (select count(*) from public.paddle_webhook_events where raw_payload is not null),
+                 (select count(*) from public.credit_counter_drift),
+                 (select count(*) from public.credit_balance_drift);"
+
+          ROW="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "$SQL" 2>err.txt)" || {
+            echo "tripwire query failed:" >&2
+            # The error can name the host but never the password, because libpq
+            # does not print it. Still trimmed to one line out of caution.
+            head -3 err.txt >&2
+            exit 1
+          }
+
+          IFS='|' read -r CONFLICT STUCK REVIEW STALE UNHANDLED CDRIFT BDRIFT <<< "$ROW"
+
+          : > report.md
+          row () { # label, count, meaning
+            if [ "$2" = "0" ]; then
+              echo "| $1 | 0 | $3 |" >> report.md
+            else
+              echo "| **$1** | **$2** | $3 |" >> report.md
+            fi
+          }
+
+          row "provider_conflict" "$CONFLICT" "다른 결제사가 이미 소유한 사용자에게 결제 이벤트가 왔다. 두 번 청구되는 중일 수 있다"
+          row "stuck_claims"      "$STUCK"    "셀프 해지/환불 요청이 1시간 넘게 pending. 스위퍼가 못 걷어갔다"
+          row "refund_review"     "$REVIEW"   "환불을 기록만 하고 결과 처리를 사람에게 넘긴 건 (팩 부분환불 등)"
+          row "stale_entitlement" "$STALE"    "이벤트가 순서를 거슬러 도착해 등급 기록을 건너뛰었다"
+          row "unhandled_events"  "$UNHANDLED" "우리가 처리하지 않는 웹훅 이벤트의 페이로드가 보관돼 있다"
+          row "credit_counter_drift" "$CDRIFT" "usage_counters 미러가 원장과 어긋난다"
+          row "credit_balance_drift" "$BDRIFT" "credit_balance 캐시가 원장과 어긋난다"
+
+          TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT ))
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "money=$(( CONFLICT + STUCK ))" >> "$GITHUB_OUTPUT"
+
+      - name: Write the summary
+        run: |
+          set -uo pipefail
+          {
+            echo "# 결제 트립와이어 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')"
+            echo ""
+            echo "| 항목 | 건수 | 뜻 |"
+            echo "|---|---:|---|"
+            cat report.md 2>/dev/null || echo "| (읽기 실패) | | |"
+            echo ""
+            echo "전부 0 이면 조용하다. 하나라도 0 이 아니면 이슈가 열린다."
+            echo ""
+            echo "행을 직접 보려면:"
+            echo ""
+            echo '```sql'
+            echo "select event_id, event_type, occurred_at, provider, provider_conflict, refund_review, stale_entitlement"
+            echo "  from public.paddle_webhook_events"
+            echo " where provider_conflict or refund_review or stale_entitlement"
+            echo " order by occurred_at desc limit 50;"
+            echo ""
+            echo "select id, user_id, action, outcome, created_at from public.billing_self_service_log"
+            echo " where outcome = 'pending' order by created_at limit 50;"
+            echo ""
+            echo "select * from public.credit_counter_drift;"
+            echo "select * from public.credit_balance_drift;"
+            echo '```'
+          } | tee summary.md | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue when a tripwire fired
+        if: steps.probe.outputs.total != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # REQUIRED because this job has no actions/checkout. gh resolves the
+          # repo from --repo, then GH_REPO, then the git remote of the working
+          # directory - it does NOT read GITHUB_REPOSITORY. Without this, every
+          # gh call here dies with "not a git repository", which means the alarm
+          # fails exactly when it finally has something to report. Measured, not
+          # assumed: `gh issue list` from a non-git directory reproduces it.
+          GH_REPO: ${{ github.repository }}
+          MONEY: ${{ steps.probe.outputs.money }}
+        run: |
+          set -euo pipefail
+          if [ "${MONEY:-0}" != "0" ]; then
+            TITLE="결제 트립와이어: 돈이 걸린 건이 있다"
+          else
+            TITLE="결제 트립와이어: 사람이 봐야 하는 건이 있다"
+          fi
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file summary.md
+          else
+            gh issue create --title "$TITLE" --body-file summary.md --label ops || \
+            gh issue create --title "$TITLE" --body-file summary.md
+          fi
