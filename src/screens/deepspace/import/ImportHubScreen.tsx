@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
@@ -696,14 +696,14 @@ const styles = StyleSheet.create({
   sourceRow: {
     flexDirection: "row", alignItems: "center", gap: 11, minHeight: 56,
     padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card,
+    borderRadius: m3.shape.medium, backgroundColor: deepSpace.card,
   },
   sourceIcon: {
     minWidth: 28,
     textAlign: "center",
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     overflow: "hidden",
     backgroundColor: withAlpha(deepSpace.text, 0.1),
     color: deepSpace.text,
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     overflow: "hidden",
     backgroundColor: withAlpha(deepSpace.text, 0.1),
     color: deepSpace.text,
@@ -729,13 +729,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   consentTitle: { fontSize: 16, color: deepSpace.textHi },
-  block: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 6 },
+  block: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card, gap: 6 },
   blockLabel: { fontSize: 7, letterSpacing: 1, color: deepSpace.accentSoft },
   blockText: { fontSize: 14, color: deepSpace.textMid },
   chipRow: { flexDirection: "row", gap: 6 },
   toggleRow: {
     flexDirection: "row", alignItems: "center", gap: 9, minHeight: 48, paddingHorizontal: deepSpaceSpacing.md,
-    borderWidth: 1, borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg, borderRadius: deepSpaceRadii.md,
+    borderWidth: 1, borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg, borderRadius: m3.shape.medium,
   },
   toggleText: { flex: 1, fontSize: 14, color: deepSpace.accentBright },
   toggle: { width: 44, height: 26, borderRadius: m3.shape.none, justifyContent: "center", paddingHorizontal: 3 },
@@ -744,18 +744,18 @@ const styles = StyleSheet.create({
   knob: { width: 20, height: 20, borderRadius: m3.shape.none },
   knobOn: { backgroundColor: deepSpace.onMint },
   knobOff: { backgroundColor: deepSpace.textLo },
-  noteCard: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
+  noteCard: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card },
   noteText: { fontSize: 13, color: deepSpace.textLo },
 
-  primaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.mint, marginTop: 4 },
+  primaryBtn: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, backgroundColor: deepSpace.mint, marginTop: 4 },
   primaryText: { fontSize: 14, color: deepSpace.onMint },
   disabled: { opacity: 0.5 },
-  secondaryBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card, marginTop: 4 },
+  secondaryBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card, marginTop: 4 },
   secondaryText: { fontSize: 13, color: deepSpace.accentSoft },
   fine: { fontSize: 12, color: deepSpace.textLo, textAlign: "center" },
 
   pasteInput: {
-    minHeight: 160, borderWidth: 1, borderColor: deepSpace.cardLineStrong, borderRadius: deepSpaceRadii.md,
+    minHeight: 160, borderWidth: 1, borderColor: deepSpace.cardLineStrong, borderRadius: m3.shape.medium,
     padding: deepSpaceSpacing.md, color: deepSpace.textHi, fontFamily: fontFamilies.sans, fontSize: 13,
   },
 
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
   // wrap: with watches/txns the row can hold four boxes, which do not fit a
   // 320dp width single-line (review P2) -- minWidth keeps wrapped boxes even.
   summaryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  summaryBox: { flex: 1, minWidth: 68, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
+  summaryBox: { flex: 1, minWidth: 68, alignItems: "center", padding: 11, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card },
   summaryBoxDim: { opacity: 0.7 },
   summaryNum: { fontSize: 20, color: deepSpace.accentBright },
   summaryNumDim: { color: deepSpace.textLo },
@@ -772,21 +772,21 @@ const styles = StyleSheet.create({
 
   proposalRow: {
     flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48, padding: deepSpaceSpacing.sm,
-    borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card,
+    borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card,
   },
   proposalOn: { borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg },
-  check: { width: 22, height: 22, borderRadius: deepSpaceRadii.sm, borderWidth: 1, borderColor: deepSpace.cardLineStrong, alignItems: "center", justifyContent: "center" },
+  check: { width: 22, height: 22, borderRadius: m3.shape.small, borderWidth: 1, borderColor: deepSpace.cardLineStrong, alignItems: "center", justifyContent: "center" },
   checkOn: { borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg },
   checkMark: { color: deepSpace.mint, fontSize: 13 },
   proposalLabel: { fontSize: 14, color: deepSpace.accentBright },
   proposalSub: { fontSize: 12, color: deepSpace.textLo, marginTop: 1 },
 
-  historyRow: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card, gap: 7 },
+  historyRow: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card, gap: 7 },
   historyTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   historyName: { flex: 1, fontSize: 13, color: deepSpace.accentBright },
   historyTime: { fontSize: 12, color: deepSpace.textLo },
   historyBottom: { flexDirection: "row", alignItems: "center", gap: 8 },
   historySummary: { flex: 1, fontSize: 12, color: deepSpace.textMid },
-  deleteBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 10, borderWidth: 1, borderColor: deepSpace.dangerLine, borderRadius: deepSpaceRadii.sm },
+  deleteBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 10, borderWidth: 1, borderColor: deepSpace.dangerLine, borderRadius: m3.shape.small },
   deleteText: { fontSize: 12, color: deepSpace.dangerText },
 });

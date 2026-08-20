@@ -22,7 +22,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   whyFootnote: { fontSize: 11, lineHeight: 16, color: withAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
 
   answerRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", maxWidth: 320, width: "100%", marginTop: 16 },
-  answerBtn: { flex: 1, minHeight: 50, borderRadius: deepSpaceRadii.md, overflow: "hidden" },
+  answerBtn: { flex: 1, minHeight: 50, borderRadius: m3.shape.medium, overflow: "hidden" },
   // bare touch surface inside the styled wrapper (Fabric-safe)
   answerPress: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 },
   affirmBtn: { backgroundColor: deepSpace.accent },
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
   levelChipText: { fontSize: 13, fontWeight: "700", color: m3.accent.starCaption },
   ratifyTitle: { fontSize: 18, lineHeight: 26, fontWeight: "700", color: deepSpace.textHi, textAlign: "center", maxWidth: 280 },
-  enterBtn: { alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: 20, overflow: "hidden" },
+  enterBtn: { alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: m3.shape.medium, backgroundColor: deepSpace.accent, marginTop: 20, overflow: "hidden" },
 
   pressed: { opacity: 0.85 },
 });
