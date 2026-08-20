@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   content: { alignItems: "center", paddingHorizontal: 20, paddingTop: 40, paddingBottom: 40 },
   phone: { width: 320, minHeight: 680, overflow: "hidden", borderRadius: radius.phone, backgroundColor: colors.bgDeep, borderWidth: 1, borderColor: colors.borderHi, paddingBottom: 22 },
   statusBar: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 14 },
-  statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 11, lineHeight: 16 },
+  statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 12, lineHeight: 16 },
   kicker: { marginTop: spacing.md, marginHorizontal: 20, color: colors.cyanBright, fontSize: 7, lineHeight: 12, letterSpacing: 1.2 },
   title: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textTitle, fontSize: 18 },
   subtitle: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textMid, fontSize: 12.5 },

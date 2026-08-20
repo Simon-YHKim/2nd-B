@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   heroLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.2, color: m3.color.tertiary },
   heroInput: {
     fontFamily: m3.font.plain,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "600",
     lineHeight: 28,
     color: m3.color.onSurface,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   suggestLabel: {
     fontFamily: m3.font.mono,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.1,
     color: withAlpha(m3.color.onSurfaceVariant, 0.9),
     marginTop: spacing.xs,
