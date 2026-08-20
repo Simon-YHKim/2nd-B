@@ -1,0 +1,2032 @@
+{
+  "assets": [
+    {
+      "asset_id": "icons/archive",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ba068c9007490c2a0366c4a4a8db1c9877f9ad32361c567382e7a89d65ecc531",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"archive\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-3432d91a-2beb-4cb1-b60c-f3002cc6a98b.png",
+        "source_sha256": "7cb9c5f9d11ca8ad9dfb2aa3e6051c2e2ffecc1be11219ba6d0bcc0ca7f41996",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          24,
+          25,
+          104,
+          104
+        ],
+        "components_8_neighbor": [
+          6176
+        ],
+        "decoded_rgba_sha256": "01b956837c9b5010dda2266edf96e63880d02ecf7d13f281bc422f1f59b90229",
+        "foreground_pixels": 6176,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5884146341463414,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 432,
+        "master_transitions": 4334,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16729736328125,
+        "not_identity_upscale": true,
+        "transition_gain": 10.032407407407407
+      },
+      "source": {
+        "path": "export/icons/archive.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8ed337ca762aaa61d6087163c9453a1eb606da53f13fa593b822b87ed80709de"
+      }
+    },
+    {
+      "asset_id": "icons/at",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "0f185c0d9d80048d4a29daff7a6ef3354dbdc0822faf01ae180eeb8fc656983b",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"at\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-c4226fc1-7ff0-4dd8-abee-f2706baaba76.png",
+        "source_sha256": "bc6c6d1c0c8c18407c2797356c7bafecbb06202265367a9dbf0ffa2f73bdf40a",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          15,
+          12,
+          113,
+          116
+        ],
+        "components_8_neighbor": [
+          6933
+        ],
+        "decoded_rgba_sha256": "5c690ad52ade53c09b7741028bd351072aaffdf605cdb3a3977ddbd8945113ed",
+        "foreground_pixels": 6933,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.23770130156629163,
+        "identity_alpha_iou_floor": 0.23,
+        "identity_transitions": 1104,
+        "master_transitions": 7922,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.27459716796875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.175724637681159
+      },
+      "source": {
+        "path": "export/icons/at.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3925371022a079cc8257e3f356e225729cd800eadea3245a3b6ee334c8ba0895"
+      }
+    },
+    {
+      "asset_id": "icons/attach",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3e19a017d210418e4991cdbaa9f615391618e4e882a824aab9dbebb1b708b453",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"attach\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-2293311d-59ac-44d1-bd5d-e467a37e25c2.png",
+        "source_sha256": "129d16d911ce14c9d136fd637d9e7bc5deb63013008a099d612cc646c17d6a6e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          35,
+          16,
+          98,
+          113
+        ],
+        "components_8_neighbor": [
+          3980
+        ],
+        "decoded_rgba_sha256": "60b9f4bb49bfdc89f13d4a7bd2ae6b74313a277566532409800cd0aa4725f9a7",
+        "foreground_pixels": 3980,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.3890129522108084,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 560,
+        "master_transitions": 3850,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.151611328125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.875
+      },
+      "source": {
+        "path": "export/icons/attach.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4fa0c0f276c8459e9a53b6cac5d9a6b133a6bc1228484c1ed3ff7301cf50b26a"
+      }
+    },
+    {
+      "asset_id": "icons/barcode",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "34754241feca64deccd0e578e0025f94bdbdb6a20c9a7f443a507d03aa53279d",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"barcode\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-ec3519e0-4c0b-4d46-a9ef-883b05714a24.png",
+        "source_sha256": "4c6926b853b247c5f19277a62aa12fa591f8e79cd131ace02dc17515a61bc352",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          12,
+          21,
+          116,
+          107
+        ],
+        "components_8_neighbor": [
+          1360,
+          1278,
+          1274,
+          848,
+          766,
+          762
+        ],
+        "decoded_rgba_sha256": "45b617c6f0dbdf50b6d0935fd93d4013ffa21cdfe138a4418a8bbf4533dae59c",
+        "foreground_pixels": 6288,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6997742663656885,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1104,
+        "master_transitions": 7290,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.25543212890625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.603260869565218
+      },
+      "source": {
+        "path": "export/icons/barcode.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3b1f7c4007e8923afcc0c8503c51d76e2ecbd62d4a08d77d1fdeb3243e83a398"
+      }
+    },
+    {
+      "asset_id": "icons/bill",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "6a37bd2f47be7469dc449b0409ee36f6160021033db4d51c1f7617bc405b4892",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"bill\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-599b75ef-d9ed-4699-b013-73be9516a1de.png",
+        "source_sha256": "4789de76577355e446a36cec6ae9e66eb0649c13f1caf71e661626cb78427f44",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          29,
+          12,
+          99,
+          113
+        ],
+        "components_8_neighbor": [
+          6746
+        ],
+        "decoded_rgba_sha256": "367f447970953a1bdb670d49e426a4a7359a206ef886969379eb64c384586eea",
+        "foreground_pixels": 6746,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5956422018348624,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 832,
+        "master_transitions": 6926,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.242431640625,
+        "not_identity_upscale": true,
+        "transition_gain": 8.32451923076923
+      },
+      "source": {
+        "path": "export/icons/bill.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e6cb9e2a013dedd66c9c392c60a62bcfacfacfb345a629884424b4b18885ad07"
+      }
+    },
+    {
+      "asset_id": "icons/binary",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "26a9cd8548c0bb4d1750619244bd594385b22cb58bf10ced3e9fffc71f040b5a",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"binary\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-8810d4ec-b3e4-42e9-b3fd-75a6228c2e96.png",
+        "source_sha256": "9680deb350d49f1ec96efbf3dff02699baaf1317008549ea1bdcd7b40b94bb7e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          24,
+          12,
+          104,
+          113
+        ],
+        "components_8_neighbor": [
+          1322,
+          1285,
+          708,
+          698
+        ],
+        "decoded_rgba_sha256": "100d62ed9522e0f0fb62eadb1895f5cd2f011d63b8166c3277ee79c075803fbe",
+        "foreground_pixels": 4013,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7196064652143359,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 736,
+        "master_transitions": 4068,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.15380859375,
+        "not_identity_upscale": true,
+        "transition_gain": 5.5271739130434785
+      },
+      "source": {
+        "path": "export/icons/binary.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "20201fd1e766cb477fe110f23f847614cc20dd4bc138fd761310a6d31b64f979"
+      }
+    },
+    {
+      "asset_id": "icons/blackboard",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "98660314f0ca2ec09a1e47763043e6c757c3a8c24d3520f76f01132282c9e3a3",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"blackboard\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-f719c788-fa3e-4319-a529-dd4558338d7d.png",
+        "source_sha256": "dbe265155d6ccbd02f1129aee0c75ce407a04c7ff4386a06d25f280c457e80a1",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          12,
+          16,
+          116,
+          112
+        ],
+        "components_8_neighbor": [
+          8320
+        ],
+        "decoded_rgba_sha256": "011bce748d2d7ec9a31a515cbe0f02986c03807bdbf3a035eaaacd9212d9a4a9",
+        "foreground_pixels": 8320,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.527027027027027,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 928,
+        "master_transitions": 9366,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.26531982421875,
+        "not_identity_upscale": true,
+        "transition_gain": 10.092672413793103
+      },
+      "source": {
+        "path": "export/icons/blackboard.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "485f8551a3a19afa1ae97934adc2638fc20795f111991673e46981807fded00f"
+      }
+    },
+    {
+      "asset_id": "icons/blueprint",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e8f8632002c091312f91d79384789ed0ce699003fd9b49280de4f18db316f147",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"blueprint\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-d88c0861-e88f-4c5c-8fa0-e1fa85006462.png",
+        "source_sha256": "bd4e435cb71d890e0aa0a36afd2366e1e77426f7f539fab4ee755133b56b3a78",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          14,
+          24,
+          113,
+          100
+        ],
+        "components_8_neighbor": [
+          7370
+        ],
+        "decoded_rgba_sha256": "d0c3fda68e8d7b6cc45aba533f7ae7259e734e88666793caf8f2b0d6d0613cf2",
+        "foreground_pixels": 7370,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5154017857142857,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 928,
+        "master_transitions": 6476,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.212890625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.978448275862069
+      },
+      "source": {
+        "path": "export/icons/blueprint.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "cbc494b9f13aabf4f5be24173e510d64c78ae69d0ecb9a10d4bdf41874ff8a67"
+      }
+    },
+    {
+      "asset_id": "icons/book",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ad0ce7ab2fb89ccf6bbb42e4bd029be7cd3ea6d32257404f0c906e381a6e8928",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"book\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-1c7ae11b-45c8-4a89-91ef-fe1ace742a6a.png",
+        "source_sha256": "c5774baacfcf2ca1cbcde442376626885c12005b0bfc5560ac08f994f7dedf32",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 256
+        },
+        "bbox": [
+          13,
+          24,
+          115,
+          105
+        ],
+        "components_8_neighbor": [
+          7588
+        ],
+        "decoded_rgba_sha256": "7679c0733b79f796c6db19c86cc3648e5b4857db2b7499d13be9bc6909f4cf3f",
+        "foreground_pixels": 7588,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.827693677649154,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 432,
+        "master_transitions": 8020,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.280029296875,
+        "not_identity_upscale": true,
+        "transition_gain": 18.564814814814813
+      },
+      "source": {
+        "path": "export/icons/book.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "465b8206fac3acd34a378005a59afe6b46f81e4525e35693feb4620507b76e96"
+      }
+    },
+    {
+      "asset_id": "icons/bookmark",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "9bfbb4ed29e59769d447d44f276eafe62e50cf8f471b0746df2f9889122f29c8",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"bookmark\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-c2e11236-678f-4de2-996d-32bcb4e5057d.png",
+        "source_sha256": "ece431b4d3ac055291fff74884e51d3abb992472662b0724d092fc911fa8031e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 256
+        },
+        "bbox": [
+          26,
+          11,
+          102,
+          114
+        ],
+        "components_8_neighbor": [
+          6994
+        ],
+        "decoded_rgba_sha256": "2c5bd716f928157586d35f8a6fbd9ccd141a355ccf596374b440aa07714dcd3f",
+        "foreground_pixels": 6994,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8591795897948975,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 464,
+        "master_transitions": 8886,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.28704833984375,
+        "not_identity_upscale": true,
+        "transition_gain": 19.150862068965516
+      },
+      "source": {
+        "path": "export/icons/bookmark.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6c1876a8668439c4d4f94f492cbf7a39ee8ca74dd0b63e4b3aa1473ecf0becca"
+      }
+    },
+    {
+      "asset_id": "icons/braces",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "6cdda1d47ba088341a1ca2ad2282926912b020f8e1c456a53e004d77a9562904",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"braces\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-b76cc5ae-7e29-4d1d-a25d-db9407f7325d.png",
+        "source_sha256": "42afe0c21acc5eb8f0c62909b9bd91abb00f5420f56712518fe1ab044b8e44d9",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 256
+        },
+        "bbox": [
+          19,
+          17,
+          109,
+          109
+        ],
+        "components_8_neighbor": [
+          1508,
+          1447
+        ],
+        "decoded_rgba_sha256": "85280541841d09793b90134a28e7b224a2e591261d15683a88c943e32d673a1c",
+        "foreground_pixels": 2955,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6525512887953708,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 544,
+        "master_transitions": 3292,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12939453125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.051470588235294
+      },
+      "source": {
+        "path": "export/icons/braces.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6b4e8b1f5908ba9d0fee300590ccfeb3d9027fa7137ccf8ed693d1ff8a84cf78"
+      }
+    },
+    {
+      "asset_id": "icons/briefcase",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "2cc186c8542303f78a132a6fb42cac8c98d9166b932ca727ce74b7c4cc12fd94",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"briefcase\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-a19b584a-543b-4f20-8fc1-9948b81f9e72.png",
+        "source_sha256": "4b105061b22e0104607d87c65b612fa360ecbd252aa71dff1adf8940901274ab",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 256
+        },
+        "bbox": [
+          17,
+          17,
+          111,
+          110
+        ],
+        "components_8_neighbor": [
+          7639
+        ],
+        "decoded_rgba_sha256": "f17fd10d99d88fbcbf47a8e692b620ce20c2f985504c065888113b37e488593d",
+        "foreground_pixels": 7639,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6951458424031345,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 704,
+        "master_transitions": 7247,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2554931640625,
+        "not_identity_upscale": true,
+        "transition_gain": 10.294034090909092
+      },
+      "source": {
+        "path": "export/icons/briefcase.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "65c9b024dc5cb4305c424281eb433235a35347e4e314b9a2d5db962f5e3ddb89"
+      }
+    },
+    {
+      "asset_id": "icons/calculator",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c6c9b0b0b3c75b69a92dd105416a267aa01ab8b724d81387dd721163f3b7edaa",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"calculator\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-58d68376-1b29-4a16-b0f8-fefb3d0318b0.png",
+        "source_sha256": "4d408e4e6d9bec34c01720f49d6fc24e06889eb03329c9263b47f5848678bc0e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 384
+        },
+        "bbox": [
+          32,
+          16,
+          95,
+          109
+        ],
+        "components_8_neighbor": [
+          5796
+        ],
+        "decoded_rgba_sha256": "fe750b290c5b8c684d6ff6c77ab6431bdb1555da7e6db385b0ae2a34e0a33e68",
+        "foreground_pixels": 5796,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.496875,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 800,
+        "master_transitions": 4881,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18048095703125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.10125
+      },
+      "source": {
+        "path": "export/icons/calculator.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "adb774f087a25e21d3b690f9dcdcfc41a2491e8f40c5f088476a2b48128d1e5c"
+      }
+    },
+    {
+      "asset_id": "icons/calendarCheck",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "660279a03414e466f06a7e9b536a8e1e8b10e900b2a1276540f3c6e28b79062a",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"calendarCheck\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-ab88f9aa-d4ac-43e3-82c3-0ba9e539f69f.png",
+        "source_sha256": "8b3160976b3ca1bd88dc82da3378edd78a693406951b50566ee20730a240e316",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 384
+        },
+        "bbox": [
+          19,
+          9,
+          109,
+          115
+        ],
+        "components_8_neighbor": [
+          8803
+        ],
+        "decoded_rgba_sha256": "425e8ab607d65a66e0da3946bef524859199250f46f03da06e2dd9b0c72b2032",
+        "foreground_pixels": 8803,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.41691868279569894,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 896,
+        "master_transitions": 7115,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.28692626953125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.940848214285714
+      },
+      "source": {
+        "path": "export/icons/calendarCheck.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "334d303be841a502325bd70aff855ba6d036cd898a655fa29817256cc6a4f54e"
+      }
+    },
+    {
+      "asset_id": "icons/certificate",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "125dd8c15618e91de280f19e75adebe14f9855db9505073f3b5a4f94821e043a",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"certificate\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-61fcb54b-2aa7-491d-bc30-878e02f6be0f.png",
+        "source_sha256": "9b43d5b2545a767f4a20f3e4c8d26014103b418d5634c090697dceb8675db878",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 384
+        },
+        "bbox": [
+          22,
+          25,
+          106,
+          103
+        ],
+        "components_8_neighbor": [
+          5698
+        ],
+        "decoded_rgba_sha256": "3278bcd78f8b108b9598d6685dbd895252c102e9bcd3017a466fe77e11831e1b",
+        "foreground_pixels": 5698,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.32967387794639974,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 992,
+        "master_transitions": 5576,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2017822265625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.620967741935484
+      },
+      "source": {
+        "path": "export/icons/certificate.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "05f1f542514537e8df2c1b9613d1a46cf79a613826e55fd6bff5c73014c814fd"
+      }
+    },
+    {
+      "asset_id": "icons/chartBar",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "7fcc185c71e48be9f3d76e934175b2b2d60efb34033dbda0d50cca7ba222ae00",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"chartBar\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-7bd49323-adb0-4e4b-9dad-ea7902366571.png",
+        "source_sha256": "e1c7c3d78a62790becc8fd375dfd1ce364610ec6a003d26358274afcbf016b25",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 384
+        },
+        "bbox": [
+          13,
+          24,
+          112,
+          105
+        ],
+        "components_8_neighbor": [
+          4985
+        ],
+        "decoded_rgba_sha256": "6216d14fb5a23fe49beb34cb3925a0b8c12aa091f3887ca57050b2fbd56ab3b5",
+        "foreground_pixels": 4985,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5113584387864004,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 576,
+        "master_transitions": 4717,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16790771484375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.18923611111111
+      },
+      "source": {
+        "path": "export/icons/chartBar.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "f49788654f8570dc941e36b862c87d3149fa8e5ef3489717341158fc6415c50a"
+      }
+    },
+    {
+      "asset_id": "icons/chartLine",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "cc70272645157843405cecfa5b3f222f49d7dbc61c5f78db8bc1bd2286d3163b",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"chartLine\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-9ddb566b-16c7-4012-8923-ea10a47e75a9.png",
+        "source_sha256": "6b7efd1c3585870cb50b776533da332a553fdbfab1023d047da45def69bd4b47",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 512
+        },
+        "bbox": [
+          13,
+          25,
+          115,
+          104
+        ],
+        "components_8_neighbor": [
+          1368,
+          1092
+        ],
+        "decoded_rgba_sha256": "8bdaa004262fc7c09d6319aa66c6e4569bf00b8cbdc193cfcd3144455565ac21",
+        "foreground_pixels": 2460,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.19196192490745637,
+        "identity_alpha_iou_floor": 0.18,
+        "identity_transitions": 544,
+        "master_transitions": 2721,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.10076904296875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.001838235294118
+      },
+      "source": {
+        "path": "export/icons/chartLine.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "f8bd553e5685a24e3dd9d3a05f15b1d87e90339db7b6aed167c250d5a2f657fb"
+      }
+    },
+    {
+      "asset_id": "icons/chartPie",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5f593d97c169e895203e1bb85feab1f3a62865049aa97e7270581a9918542464",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"chartPie\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-5c1c8e11-949f-4a0a-9b9a-a9f227b0f6b8.png",
+        "source_sha256": "846bf6e4b64c2bcf45bce596fb99db3258b2cbb7cb865b7f3212c7181a055cd4",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 512
+        },
+        "bbox": [
+          20,
+          16,
+          108,
+          105
+        ],
+        "components_8_neighbor": [
+          5805
+        ],
+        "decoded_rgba_sha256": "bf4441d0b1bd7041adbbb54441297a478ced47cdef932eb4cacdb9e2388ec078",
+        "foreground_pixels": 5805,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6621315192743764,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 4242,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.14801025390625,
+        "not_identity_upscale": true,
+        "transition_gain": 11.046875
+      },
+      "source": {
+        "path": "export/icons/chartPie.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "9bba3559bb072c3bad659875d4cc4e9aff771b9f561586c4413bdf615af02e06"
+      }
+    },
+    {
+      "asset_id": "icons/chat",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e1163bac7b97b05798d0f318939e2f853b6a5afd829899735e443131b1b5c100",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"chat\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-005aff75-7e36-4b1b-bdda-9235fd30f151.png",
+        "source_sha256": "02caa35f3931ac1796294e8339fee2cfec799f2fd1487a5036a2c58a04dd26b2",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 512
+        },
+        "bbox": [
+          18,
+          16,
+          110,
+          112
+        ],
+        "components_8_neighbor": [
+          7030
+        ],
+        "decoded_rgba_sha256": "7607e4d7d2c54376bae8aac65e52e65418ea244df94b758e3abdef8c1005e566",
+        "foreground_pixels": 7030,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 9
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5512719643325465,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 592,
+        "master_transitions": 5023,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18121337890625,
+        "not_identity_upscale": true,
+        "transition_gain": 8.484797297297296
+      },
+      "source": {
+        "path": "export/icons/chat.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c32387166146b1112a95031b1cd3c31ad5494cc13ae43a83ade88015d77ff5b5"
+      }
+    },
+    {
+      "asset_id": "icons/checklist",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a64007e5b9330547337ab2d816b5eadece4a766344e7c1bfcc706a0483b042ea",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI checklist icon. Image 1 is the candidate to correct; Image 2 is the exact canonical identity. Remove the two gold calendar binder rings and all protrusions above the rectangular checklist. Restore Image 2's exact topology: one plain rectangular outline with no top binding, exactly two check marks on the left, and exactly two horizontal list lines on the right. Keep the outer rectangle, two rows, spacing, centered framing, and approved HustleK pixel material language. Put the isolated icon on a perfectly flat uniform #00FF00 chroma-key background reaching every edge, no shadow, gradient, texture, reflection, or floor. Crisp native-scale square pixel clusters only. No extra rows, clipboard clip, calendar header, ring, badge, text, or symbol.",
+        "source_id": "exec-38768992-ed65-4361-aeb1-4a706905ed55.png",
+        "source_sha256": "401a3da4a9fc7ecabc6257c04219ce9d549af87723fd56f90dcaad2d61053e05",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 512
+        },
+        "bbox": [
+          14,
+          18,
+          114,
+          107
+        ],
+        "components_8_neighbor": [
+          1790,
+          301,
+          279,
+          278,
+          258
+        ],
+        "decoded_rgba_sha256": "8600033398f43cd877b300a7384b225c2a03ff00d5c52b1e2468badf8129b0e0",
+        "foreground_pixels": 2906,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.29119884099963783,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1184,
+        "master_transitions": 3890,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16741943359375,
+        "not_identity_upscale": true,
+        "transition_gain": 3.285472972972973
+      },
+      "source": {
+        "path": "export/icons/checklist.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c0b3fa6d224f109229bde56b2e4d72ab824966fba9c248a990a1c41e4ec4cd21"
+      }
+    },
+    {
+      "asset_id": "icons/clipboard",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "748818175e91f598a0d95544433180274f6ded3a556892aea6e56f279df8a5a0",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"clipboard\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-dfd5dd9e-79b0-486e-9055-be973a1a7d2b.png",
+        "source_sha256": "de124b9bddd3b54f3b68af61995fd6bf2162f3727e2befe5da7b4028d74bd2ec",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 640
+        },
+        "bbox": [
+          28,
+          13,
+          100,
+          115
+        ],
+        "components_8_neighbor": [
+          6898
+        ],
+        "decoded_rgba_sha256": "0960976c43cdea4088fef208a7490ee62e9c065090fe7598227a0b05927c4abb",
+        "foreground_pixels": 6898,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.2736328125,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 672,
+        "master_transitions": 7324,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.21661376953125,
+        "not_identity_upscale": true,
+        "transition_gain": 10.898809523809524
+      },
+      "source": {
+        "path": "export/icons/clipboard.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "86f48ea6ce41e2bdd4fd3c987682c2f8f3645a4bafa0e1394e4e7e30e38aca8e"
+      }
+    },
+    {
+      "asset_id": "icons/cloud",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a03117adfb092c8d84e82f09c8e3a0abbdd10d942668e573ef33261d7320e7cc",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"cloud\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-7202ef26-d087-4215-af14-1b73d722b306.png",
+        "source_sha256": "4a8c9d7ef4b2a7c91fdd9df1477cc8ed0bf5c54e07a1b6ef1b20f0569baef46e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 640
+        },
+        "bbox": [
+          16,
+          32,
+          115,
+          94
+        ],
+        "components_8_neighbor": [
+          4453
+        ],
+        "decoded_rgba_sha256": "1a38e0f7651adc88ac0373a2e3ffcd3a634a2e666e2d14d957ae53a339e0bb07",
+        "foreground_pixels": 4453,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7461046743907311,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 304,
+        "master_transitions": 5010,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16619873046875,
+        "not_identity_upscale": true,
+        "transition_gain": 16.480263157894736
+      },
+      "source": {
+        "path": "export/icons/cloud.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "475241813e044454b8ec565d7df2ace1946306d76db55043de91b0776d896e3b"
+      }
+    },
+    {
+      "asset_id": "icons/cloudUpload",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "fb8fa5d8dc411c8117eb46346110ce8e7eba0b8578ba76a23d239f750dcc5953",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"cloudUpload\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-3753620a-63a3-47a3-8fad-2238af069ab1.png",
+        "source_sha256": "bdd1439ce4531f2f8cd3106d5dc42315f29bb963263d80d22f26ae0641c823f7",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 640
+        },
+        "bbox": [
+          14,
+          14,
+          113,
+          111
+        ],
+        "components_8_neighbor": [
+          5977
+        ],
+        "decoded_rgba_sha256": "f3cc6b771b6ba64aa6dacad0f4bc6a78248653cd28d83ad4e75b82a50aa6cc4f",
+        "foreground_pixels": 5977,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5944336954904004,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 448,
+        "master_transitions": 6441,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.21624755859375,
+        "not_identity_upscale": true,
+        "transition_gain": 14.377232142857142
+      },
+      "source": {
+        "path": "export/icons/cloudUpload.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "45fb62c49dfdaa8de3ace11705aef361da9f0bfafcb31f40fadc57a6b09a3480"
+      }
+    },
+    {
+      "asset_id": "icons/code",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e6125f1a126bea476e6e869ba84fb6250c43c743409a8e41f88f4515a8c74983",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"code\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-4c14b548-9a53-476b-8d3a-2f2e8e6ff5ed.png",
+        "source_sha256": "3cda9e03d54fd9d228dcc0d0698d86d567b7e60bbcc18739eb7201b5df073415",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 640
+        },
+        "bbox": [
+          15,
+          32,
+          113,
+          93
+        ],
+        "components_8_neighbor": [
+          3812
+        ],
+        "decoded_rgba_sha256": "49846a6efc56e5531fb9bfc94b8562e12a36a6e0e45196ea8e1d0380de6bb46e",
+        "foreground_pixels": 3812,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5179713340683573,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 688,
+        "master_transitions": 4917,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.15631103515625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.146802325581396
+      },
+      "source": {
+        "path": "export/icons/code.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "02974c1622094d3d20634e578d17d35abb003bebfa9774729e94bb1ee8772cb3"
+      }
+    },
+    {
+      "asset_id": "icons/codeWindow",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "bf2bfb27b0c32c8962960802f31c8233efee37a5ffc09d3e6866f41cb67ac03e",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"codeWindow\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-c0bc6fd9-d435-4349-8e7f-f4579d99d6b1.png",
+        "source_sha256": "58f9464757c7df5e87b76fba98296c78570d58ea3197ce3484b65a33858487f6",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 768
+        },
+        "bbox": [
+          12,
+          16,
+          116,
+          112
+        ],
+        "components_8_neighbor": [
+          9920
+        ],
+        "decoded_rgba_sha256": "63875416c806a9125fa69a1f265d58212b626090145ed7b485eeb5a7eead83a2",
+        "foreground_pixels": 9920,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4226190476190476,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1072,
+        "master_transitions": 12660,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.36846923828125,
+        "not_identity_upscale": true,
+        "transition_gain": 11.809701492537313
+      },
+      "source": {
+        "path": "export/icons/codeWindow.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "a9eedf5ce3628b3e1202438a70a84c1f168df65012b640a31d972a19c1f24fcc"
+      }
+    },
+    {
+      "asset_id": "icons/commit",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "89f5389f202d107c1afa9e3d470f78f8ef8508e46bb3ef7420fe833d2d48309f",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"commit\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-2629fd9b-5721-4e3c-8214-6c824f897a8d.png",
+        "source_sha256": "ffae5b3879ba1d0c1cb952c705dabed36f92bab158c122bd73081aed53b0a35d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 768
+        },
+        "bbox": [
+          11,
+          38,
+          117,
+          82
+        ],
+        "components_8_neighbor": [
+          1868,
+          352,
+          352
+        ],
+        "decoded_rgba_sha256": "be9cc7dd14d89000ff986d65b73fb366fa4aa8c00e1fff7ef2ee7d6ec603c2c9",
+        "foreground_pixels": 2572,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.3706030150753769,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 3362,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.11431884765625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.004166666666666
+      },
+      "source": {
+        "path": "export/icons/commit.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "d72d692ed9505da6faa44d8cc852e4b98e190095ac231911213e29adac897318"
+      }
+    },
+    {
+      "asset_id": "icons/contract",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "7fa2698654c8e4599bb2d8b4ec1b5f746c7f86fa803f75d8c903e39355b0976d",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"contract\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-c26aa132-0310-4c8a-8e06-c29a2f860501.png",
+        "source_sha256": "d24d1c9e05342e49cbe0abd47b4106afa764d53d56f313aa82252b0c77699ea0",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 768
+        },
+        "bbox": [
+          20,
+          10,
+          108,
+          116
+        ],
+        "components_8_neighbor": [
+          8997
+        ],
+        "decoded_rgba_sha256": "236404c6834cbd9022c8158c0d881870d0982410fea6d7141ff977b781509655",
+        "foreground_pixels": 8997,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5864459389549922,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 800,
+        "master_transitions": 8460,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.29345703125,
+        "not_identity_upscale": true,
+        "transition_gain": 10.575
+      },
+      "source": {
+        "path": "export/icons/contract.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ecd6a86a9537eb9e65dcf02afe4c21cf7cdf64d2c334f8da845a2d871a5fa892"
+      }
+    },
+    {
+      "asset_id": "icons/copy",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "69059a0a1e46989edbeb0c99c6a2be10a88cb05b9870384e6cb136019002383b",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"copy\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-29e65d4b-7125-4222-91bd-1d9922d7927d.png",
+        "source_sha256": "9c6aaf62d3017cb9014b5eb63e546aa2413ee43cb76902bd41c7cab3482c4aac",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 768
+        },
+        "bbox": [
+          18,
+          13,
+          110,
+          112
+        ],
+        "components_8_neighbor": [
+          8168
+        ],
+        "decoded_rgba_sha256": "3ddbc9a8cc40ecf9b28fa8fcb86fdb3a56c4cccabdc4f7ffb35ef998d521ddea",
+        "foreground_pixels": 8168,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.3564890870687632,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 832,
+        "master_transitions": 10079,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.31817626953125,
+        "not_identity_upscale": true,
+        "transition_gain": 12.114182692307692
+      },
+      "source": {
+        "path": "export/icons/copy.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8df03b859907bf6291ff287c8ef3f20ee5398d2bec3187cb7ea22a64a7022cd1"
+      }
+    },
+    {
+      "asset_id": "icons/creditCard",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "aaa1337d9dabd1419ef226a8d6a754dca6591179b4ea620c499176d0b99ed36b",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"creditCard\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-cc8dd689-38ba-4f2d-9669-7ba17bef9162.png",
+        "source_sha256": "b49071aba5e4a915901afba6fc084cccc4652d67fa6efba1353f96e0c4685f60",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 896
+        },
+        "bbox": [
+          13,
+          28,
+          114,
+          98
+        ],
+        "components_8_neighbor": [
+          6986
+        ],
+        "decoded_rgba_sha256": "27aba5d8e26de219e43f5c588cb8a80c3b6221b960376faf2d18e09dc32b3268",
+        "foreground_pixels": 6986,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 9
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5796875,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 688,
+        "master_transitions": 6196,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.20904541015625,
+        "not_identity_upscale": true,
+        "transition_gain": 9.005813953488373
+      },
+      "source": {
+        "path": "export/icons/creditCard.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "51fc32c181d412fc6d028cd0e9fb3036b8fdc03d53545ee56fdd7a19c94e6be6"
+      }
+    },
+    {
+      "asset_id": "icons/database",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "067d9ad9323d90879356e2e790895f8d5b2666edc3f00889e1c8fb6bb8308f2a",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"database\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-f6a1c632-360e-4d8e-b4b9-a17bacb226ed.png",
+        "source_sha256": "af7615d30ebdb206ac4eeca8ea6ac2bcb3c20a261441de2716c417f3748cfc34",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 896
+        },
+        "bbox": [
+          30,
+          17,
+          98,
+          107
+        ],
+        "components_8_neighbor": [
+          5700
+        ],
+        "decoded_rgba_sha256": "b9b041da24a1e829bbb10758bdacd40429eaf97aab179e207cfb45277e30e572",
+        "foreground_pixels": 5700,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5410778443113773,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 720,
+        "master_transitions": 3808,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1531982421875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.288888888888889
+      },
+      "source": {
+        "path": "export/icons/database.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5d3270f4bb991d324ceba8ef9e3d0b1c6b05ecbcaf54fd9cf38e95670c185805"
+      }
+    },
+    {
+      "asset_id": "icons/desktop",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "01c31f4cf7682810b7c0d43488f8bb6fe22b20a2d598a75157b72a7a342fa37f",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"desktop\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-0181490c-df37-46ab-ab69-707f7243a07a.png",
+        "source_sha256": "b6fd20898fb7b2defdf498f40d19f7a52b6af2008be287a1e158849c93a671c4",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 896
+        },
+        "bbox": [
+          11,
+          19,
+          117,
+          109
+        ],
+        "components_8_neighbor": [
+          5483,
+          2907
+        ],
+        "decoded_rgba_sha256": "719ad382c202dd2d557dfbf57dc08abe756c66edf6269c3dcc3041e9ef7c56ae",
+        "foreground_pixels": 8390,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5924021408332458,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 960,
+        "master_transitions": 7031,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.25439453125,
+        "not_identity_upscale": true,
+        "transition_gain": 7.323958333333334
+      },
+      "source": {
+        "path": "export/icons/desktop.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6d63faedd32a9ebb75a2a3c0a1bacabf44f15c8922061f1f2a4b71cb4ba909bb"
+      }
+    },
+    {
+      "asset_id": "icons/file",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "59ec578f78438dc916205278bc5506c91a364f4a7095a165f6db8fb58173a5d1",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI/document icon. Primary request: create a native-detail 128×128 logical pixel-art master for \"file\". Input images: Image 1 is the exact canonical identity reference; Images 2–4 are approved HustleK style references only. Preserve Image 1's visible silhouette, topology, orientation, element count, stroke count, holes, overlaps, and negative-space relationships exactly. Render one centered isolated icon on a perfectly flat solid #00FF00 chroma-key background reaching every canvas edge, with 10–15% clear margin. The background must have no shadow, gradient, texture, floor plane, reflection, or lighting variation; do not use #00FF00 in the subject. Use crisp native-scale square pixel clusters, warm-charcoal outline/core, restrained cool-slate and ivory accents, and 6–10 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, glow, cast shadow, 3D perspective, badge, tile, extra container, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change a filled region into an outline or an open region into a fill. Newly author at 128px with genuine one-pixel-scale edge and material detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-e84873b6-48d3-400c-bc0d-0e3010fafc44.png",
+        "source_sha256": "98db75f9a84f70124d39e2c09f1bbb1d9086476ae9714bcd3f09b1a8d87ebc18",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 896
+        },
+        "bbox": [
+          29,
+          17,
+          100,
+          109
+        ],
+        "components_8_neighbor": [
+          6191
+        ],
+        "decoded_rgba_sha256": "ae61ad7271673b428fb14e28a4e272d46806c73cd015ff075a9ca97f0220468a",
+        "foreground_pixels": 6191,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7060903284671532,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 6988,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.22186279296875,
+        "not_identity_upscale": true,
+        "transition_gain": 18.197916666666668
+      },
+      "source": {
+        "path": "export/icons/file.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "33c943f6493e11598c300e7ab18ecba671c8ff9681528083bfaca3e3c3c9c355"
+      }
+    }
+  ],
+  "batch_id": "native128-011",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "icons/archive",
+        "cutout_sha256": "ba068c9007490c2a0366c4a4a8db1c9877f9ad32361c567382e7a89d65ecc531",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "16b49dd90710ab1bb022bbc793e0e3ee4e0dabc75814cab24ac22811d4a41037",
+        "raw_imagegen_sha256": "7cb9c5f9d11ca8ad9dfb2aa3e6051c2e2ffecc1be11219ba6d0bcc0ca7f41996"
+      },
+      {
+        "asset_id": "icons/at",
+        "cutout_sha256": "0f185c0d9d80048d4a29daff7a6ef3354dbdc0822faf01ae180eeb8fc656983b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "a06d511bd6b4f20a5115f87fe5a4b8c57793fc94a117d448e2897f2dcec69315",
+        "raw_imagegen_sha256": "bc6c6d1c0c8c18407c2797356c7bafecbb06202265367a9dbf0ffa2f73bdf40a"
+      },
+      {
+        "asset_id": "icons/attach",
+        "cutout_sha256": "3e19a017d210418e4991cdbaa9f615391618e4e882a824aab9dbebb1b708b453",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "160d584b0533956b3ae36af4377f368d449d5522893f1e5fe7244b2dc722d7bf",
+        "raw_imagegen_sha256": "129d16d911ce14c9d136fd637d9e7bc5deb63013008a099d612cc646c17d6a6e"
+      },
+      {
+        "asset_id": "icons/barcode",
+        "cutout_sha256": "34754241feca64deccd0e578e0025f94bdbdb6a20c9a7f443a507d03aa53279d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "72679d8e8361d3aff7214a64d7f0d6a4d82b9a3e4893f2999ffbcbb0d31c3c2f",
+        "raw_imagegen_sha256": "4c6926b853b247c5f19277a62aa12fa591f8e79cd131ace02dc17515a61bc352"
+      },
+      {
+        "asset_id": "icons/bill",
+        "cutout_sha256": "6a37bd2f47be7469dc449b0409ee36f6160021033db4d51c1f7617bc405b4892",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "8e70185d5fb5f4edf6e0bd3f19c90498c4ad3338c2e4109afafedd59097cce2a",
+        "raw_imagegen_sha256": "4789de76577355e446a36cec6ae9e66eb0649c13f1caf71e661626cb78427f44"
+      },
+      {
+        "asset_id": "icons/binary",
+        "cutout_sha256": "26a9cd8548c0bb4d1750619244bd594385b22cb58bf10ced3e9fffc71f040b5a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e5fe6bed0254b273f72ab5167c9b40e79a86720a9da5145f79a224c84fe2d09c",
+        "raw_imagegen_sha256": "9680deb350d49f1ec96efbf3dff02699baaf1317008549ea1bdcd7b40b94bb7e"
+      },
+      {
+        "asset_id": "icons/blackboard",
+        "cutout_sha256": "98660314f0ca2ec09a1e47763043e6c757c3a8c24d3520f76f01132282c9e3a3",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "084567762b7b3f249c0ea2cd33a614091599f1fa3c22a6f61d76a4288d1dce89",
+        "raw_imagegen_sha256": "dbe265155d6ccbd02f1129aee0c75ce407a04c7ff4386a06d25f280c457e80a1"
+      },
+      {
+        "asset_id": "icons/blueprint",
+        "cutout_sha256": "e8f8632002c091312f91d79384789ed0ce699003fd9b49280de4f18db316f147",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7beeff53510d59ddcd05f2fb8412ff017d11d7fbe9241414e74010ccbc633437",
+        "raw_imagegen_sha256": "bd4e435cb71d890e0aa0a36afd2366e1e77426f7f539fab4ee755133b56b3a78"
+      },
+      {
+        "asset_id": "icons/book",
+        "cutout_sha256": "ad0ce7ab2fb89ccf6bbb42e4bd029be7cd3ea6d32257404f0c906e381a6e8928",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "528249167c52eea762fb81295f1b4d3e6c2ec6eda2f841d5a3038e830693cf4b",
+        "raw_imagegen_sha256": "c5774baacfcf2ca1cbcde442376626885c12005b0bfc5560ac08f994f7dedf32"
+      },
+      {
+        "asset_id": "icons/bookmark",
+        "cutout_sha256": "9bfbb4ed29e59769d447d44f276eafe62e50cf8f471b0746df2f9889122f29c8",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "bbc7d902dc8147aa69de98265104c690f45a5ad681e07005782356ed52b90b0b",
+        "raw_imagegen_sha256": "ece431b4d3ac055291fff74884e51d3abb992472662b0724d092fc911fa8031e"
+      },
+      {
+        "asset_id": "icons/braces",
+        "cutout_sha256": "6cdda1d47ba088341a1ca2ad2282926912b020f8e1c456a53e004d77a9562904",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "da7e8b3996365692e2a9072c640a86a0fee2e4d5f0e50c9f03d63cd1f91558bc",
+        "raw_imagegen_sha256": "42afe0c21acc5eb8f0c62909b9bd91abb00f5420f56712518fe1ab044b8e44d9"
+      },
+      {
+        "asset_id": "icons/briefcase",
+        "cutout_sha256": "2cc186c8542303f78a132a6fb42cac8c98d9166b932ca727ce74b7c4cc12fd94",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "76dc704857535ed786aa8539ed17981de95d631c15aac493a2c22e646926abaf",
+        "raw_imagegen_sha256": "4b105061b22e0104607d87c65b612fa360ecbd252aa71dff1adf8940901274ab"
+      },
+      {
+        "asset_id": "icons/calculator",
+        "cutout_sha256": "c6c9b0b0b3c75b69a92dd105416a267aa01ab8b724d81387dd721163f3b7edaa",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "cb24df8d5beef3c7bc9f69377be7f902f13a5e5c54362a5ea6caafdd18eb11ec",
+        "raw_imagegen_sha256": "4d408e4e6d9bec34c01720f49d6fc24e06889eb03329c9263b47f5848678bc0e"
+      },
+      {
+        "asset_id": "icons/calendarCheck",
+        "cutout_sha256": "660279a03414e466f06a7e9b536a8e1e8b10e900b2a1276540f3c6e28b79062a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "eff89a5c8e7430d2232f4dadd53b62d6ac0614158ed72638e218b6e73634b86c",
+        "raw_imagegen_sha256": "8b3160976b3ca1bd88dc82da3378edd78a693406951b50566ee20730a240e316"
+      },
+      {
+        "asset_id": "icons/certificate",
+        "cutout_sha256": "125dd8c15618e91de280f19e75adebe14f9855db9505073f3b5a4f94821e043a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "03c9ecb81f5624c61ce945c27e1278dd3d3061195ab49a5daec5b42ea84634b0",
+        "raw_imagegen_sha256": "9b43d5b2545a767f4a20f3e4c8d26014103b418d5634c090697dceb8675db878"
+      },
+      {
+        "asset_id": "icons/chartBar",
+        "cutout_sha256": "7fcc185c71e48be9f3d76e934175b2b2d60efb34033dbda0d50cca7ba222ae00",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "911928357b859724d2abe838006802f1bfa2886cf41535b1db47a097fd2ff6f7",
+        "raw_imagegen_sha256": "e1c7c3d78a62790becc8fd375dfd1ce364610ec6a003d26358274afcbf016b25"
+      },
+      {
+        "asset_id": "icons/chartLine",
+        "cutout_sha256": "cc70272645157843405cecfa5b3f222f49d7dbc61c5f78db8bc1bd2286d3163b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "58210bfe60a7ebadcac07360ba2e3c6ef61d92fa7cb6ab78124661c7d56a3854",
+        "raw_imagegen_sha256": "6b7efd1c3585870cb50b776533da332a553fdbfab1023d047da45def69bd4b47"
+      },
+      {
+        "asset_id": "icons/chartPie",
+        "cutout_sha256": "5f593d97c169e895203e1bb85feab1f3a62865049aa97e7270581a9918542464",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "caa65575ab920d17aaebd1a5d89c900c40b314dec1b65ba921ab1f5af29d8225",
+        "raw_imagegen_sha256": "846bf6e4b64c2bcf45bce596fb99db3258b2cbb7cb865b7f3212c7181a055cd4"
+      },
+      {
+        "asset_id": "icons/chat",
+        "cutout_sha256": "e1163bac7b97b05798d0f318939e2f853b6a5afd829899735e443131b1b5c100",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "ae4fca6458f2b2a248cf824521f1b3b97709bff4f63e19416920a21902d9d3e4",
+        "raw_imagegen_sha256": "02caa35f3931ac1796294e8339fee2cfec799f2fd1487a5036a2c58a04dd26b2"
+      },
+      {
+        "asset_id": "icons/checklist",
+        "cutout_sha256": "a64007e5b9330547337ab2d816b5eadece4a766344e7c1bfcc706a0483b042ea",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "6156042408b3163d764ce295ca67de60c75863b81c9646114aa9b065bee93106",
+        "raw_imagegen_sha256": "401a3da4a9fc7ecabc6257c04219ce9d549af87723fd56f90dcaad2d61053e05"
+      },
+      {
+        "asset_id": "icons/clipboard",
+        "cutout_sha256": "748818175e91f598a0d95544433180274f6ded3a556892aea6e56f279df8a5a0",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "2ab9c0605c58f65a225b29e4028af3db3b0829482e9de2011b734b450cbedbad",
+        "raw_imagegen_sha256": "de124b9bddd3b54f3b68af61995fd6bf2162f3727e2befe5da7b4028d74bd2ec"
+      },
+      {
+        "asset_id": "icons/cloud",
+        "cutout_sha256": "a03117adfb092c8d84e82f09c8e3a0abbdd10d942668e573ef33261d7320e7cc",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7a82ff723edcc6ed1eec85a45f7a99911fe12c1576b20d3f38d72ec354119ca0",
+        "raw_imagegen_sha256": "4a8c9d7ef4b2a7c91fdd9df1477cc8ed0bf5c54e07a1b6ef1b20f0569baef46e"
+      },
+      {
+        "asset_id": "icons/cloudUpload",
+        "cutout_sha256": "fb8fa5d8dc411c8117eb46346110ce8e7eba0b8578ba76a23d239f750dcc5953",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "5ee259d7bb299e774eeeaf8df96518a2ab122706d5810f48c8e9d1c61eb01a4d",
+        "raw_imagegen_sha256": "bdd1439ce4531f2f8cd3106d5dc42315f29bb963263d80d22f26ae0641c823f7"
+      },
+      {
+        "asset_id": "icons/code",
+        "cutout_sha256": "e6125f1a126bea476e6e869ba84fb6250c43c743409a8e41f88f4515a8c74983",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "49ec7ef89d14656e6afd0c7dd61386193dde2e469454f3e64030f4f1ad46d165",
+        "raw_imagegen_sha256": "3cda9e03d54fd9d228dcc0d0698d86d567b7e60bbcc18739eb7201b5df073415"
+      },
+      {
+        "asset_id": "icons/codeWindow",
+        "cutout_sha256": "bf2bfb27b0c32c8962960802f31c8233efee37a5ffc09d3e6866f41cb67ac03e",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "a6440abb9651e66cea74563b3758c12d1c6bad2d6a0ce4c26db9557b1fb6e617",
+        "raw_imagegen_sha256": "58f9464757c7df5e87b76fba98296c78570d58ea3197ce3484b65a33858487f6"
+      },
+      {
+        "asset_id": "icons/commit",
+        "cutout_sha256": "89f5389f202d107c1afa9e3d470f78f8ef8508e46bb3ef7420fe833d2d48309f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "0e31d427c45c4718e5361cbe3caaa565adc4f31f9830157d6aae590dc7cfec4e",
+        "raw_imagegen_sha256": "ffae5b3879ba1d0c1cb952c705dabed36f92bab158c122bd73081aed53b0a35d"
+      },
+      {
+        "asset_id": "icons/contract",
+        "cutout_sha256": "7fa2698654c8e4599bb2d8b4ec1b5f746c7f86fa803f75d8c903e39355b0976d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "18083de016c0b96d93b9216881464bb06555ab6479d56e79fd8aa37833c1f429",
+        "raw_imagegen_sha256": "d24d1c9e05342e49cbe0abd47b4106afa764d53d56f313aa82252b0c77699ea0"
+      },
+      {
+        "asset_id": "icons/copy",
+        "cutout_sha256": "69059a0a1e46989edbeb0c99c6a2be10a88cb05b9870384e6cb136019002383b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "06dbe9d73857472c6ecb8f16b6a583063bfaa2e1c9cea587b5ca1ba378bfaab9",
+        "raw_imagegen_sha256": "9c6aaf62d3017cb9014b5eb63e546aa2413ee43cb76902bd41c7cab3482c4aac"
+      },
+      {
+        "asset_id": "icons/creditCard",
+        "cutout_sha256": "aaa1337d9dabd1419ef226a8d6a754dca6591179b4ea620c499176d0b99ed36b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "779f8baae15c966a4e118ed0f8486c705d56198bc5fc99b6733318f32a5545d7",
+        "raw_imagegen_sha256": "b49071aba5e4a915901afba6fc084cccc4652d67fa6efba1353f96e0c4685f60"
+      },
+      {
+        "asset_id": "icons/database",
+        "cutout_sha256": "067d9ad9323d90879356e2e790895f8d5b2666edc3f00889e1c8fb6bb8308f2a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "423eb2bd52313a0a0ade5f555439a90737e5722e9fc4e11d44f4f8e71d1757dd",
+        "raw_imagegen_sha256": "af7615d30ebdb206ac4eeca8ea6ac2bcb3c20a261441de2716c417f3748cfc34"
+      },
+      {
+        "asset_id": "icons/desktop",
+        "cutout_sha256": "01c31f4cf7682810b7c0d43488f8bb6fe22b20a2d598a75157b72a7a342fa37f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "5973d59eb7a895709d13383aa4fbd4dc4af236d11cd8644d24c7c0b57e6fb6bb",
+        "raw_imagegen_sha256": "b6fd20898fb7b2defdf498f40d19f7a52b6af2008be287a1e158849c93a671c4"
+      },
+      {
+        "asset_id": "icons/file",
+        "cutout_sha256": "59ec578f78438dc916205278bc5506c91a364f4a7095a165f6db8fb58173a5d1",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "88e46112f8afa42f55796839bab1f47c8b31314e93ed361aabd260bf90e065ac",
+        "raw_imagegen_sha256": "98db75f9a84f70124d39e2c09f1bbb1d9086476ae9714bcd3f09b1a8d87ebc18"
+      }
+    ],
+    "batch_id": "native128-011",
+    "builder_sha256_lf": "9dc3a894bf3f84cc2ed72d722ed9be1b5d6224859dc91df704c07b3749dd6640",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "5d1536997ff913ad76e32c91ee23a34fd4e81fd3874477c5b8159e90a9d078e8",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
