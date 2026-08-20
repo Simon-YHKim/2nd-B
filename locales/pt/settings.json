@@ -215,7 +215,10 @@
       "switchToImmediate": "Cancelar imediatamente",
       "switchToRenewal": "Cancelar na proxima renovacao",
       "periodEnd": "o fim do periodo pago",
-      "alreadyScheduled": "Esta assinatura ja esta com a renovacao automatica desligada. Nada mais sera cobrado e os recursos pagos continuam ate o fim do periodo pago."
+      "alreadyScheduled": "Esta assinatura ja esta com a renovacao automatica desligada. Nada mais sera cobrado e os recursos pagos continuam ate o fim do periodo pago.",
+      "refundTogether": "Solicitar também um reembolso",
+      "refundOfferNote": "Você está dentro do prazo de reembolso. Solicitá-lo junto encerra o acesso pago imediatamente.",
+      "confirmWithRefundCta": "Cancelar e solicitar reembolso"
     },
     "refund": {
       "title": "Reembolso",
@@ -244,7 +247,9 @@
       "refundRejected": "O reembolso automatico nao esta disponivel para este pagamento.",
       "contactSupport": "Isso nao pode ser resolvido no app agora. Fale com o suporte.",
       "notSubscribed": "Nao ha assinatura paga ativa para cancelar.",
-      "dryRun": "O modo de ensaio esta ligado, entao nada foi enviado para a Paddle. Fale com o suporte se voce queria enviar de verdade."
+      "dryRun": "O modo de ensaio esta ligado, entao nada foi enviado para a Paddle. Fale com o suporte se voce queria enviar de verdade.",
+      "cancelledAndRefundRequested": "Cancelado e seu pedido de reembolso foi enviado. O provedor de pagamento analisa antes de qualquer movimentação.",
+      "cancelledRefundNotAccepted": "Cancelado, mas o pedido de reembolso não foi aceito. Fale com o suporte se esperava outra resposta."
     },
     "autoRenewOn": "Renova automaticamente em {{date}}",
     "cancelScheduledOn": "A renovacao automatica esta desligada. Os recursos pagos continuam ate {{date}}.",

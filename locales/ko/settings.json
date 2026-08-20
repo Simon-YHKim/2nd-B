@@ -215,7 +215,10 @@
       "switchToImmediate": "지금 바로 해지로 바꾸기",
       "switchToRenewal": "다음 갱신일 해지로 바꾸기",
       "periodEnd": "결제 기간이 끝나는 날",
-      "alreadyScheduled": "이 구독은 이미 자동 결제가 꺼져 있습니다. 더 청구되지 않고, 이미 결제한 기간이 끝날 때까지는 그대로 쓸 수 있습니다."
+      "alreadyScheduled": "이 구독은 이미 자동 결제가 꺼져 있습니다. 더 청구되지 않고, 이미 결제한 기간이 끝날 때까지는 그대로 쓸 수 있습니다.",
+      "refundTogether": "환불도 함께 요청하기",
+      "refundOfferNote": "지금은 환불 신청 대상입니다. 함께 요청하면 유료 이용이 곧바로 끝납니다.",
+      "confirmWithRefundCta": "취소하고 환불 요청"
     },
     "refund": {
       "title": "환불",
@@ -244,7 +247,9 @@
       "refundRejected": "이 결제는 앱에서 바로 환불받을 수 있는 대상이 아닙니다.",
       "contactSupport": "지금은 앱에서 처리할 수 없습니다. 지원팀에 문의해 주세요.",
       "notSubscribed": "해지할 유료 구독이 없습니다.",
-      "dryRun": "리허설 모드라서 Paddle로 전송되지 않았습니다. 실제로 요청하려면 지원팀에 문의해 주세요."
+      "dryRun": "리허설 모드라서 Paddle로 전송되지 않았습니다. 실제로 요청하려면 지원팀에 문의해 주세요.",
+      "cancelledAndRefundRequested": "구독을 취소했고 환불 요청을 접수했습니다. 실제 환불 여부는 결제사가 심사한 뒤 결정됩니다.",
+      "cancelledRefundNotAccepted": "구독은 취소됐지만 환불 요청은 접수되지 않았습니다. 예상과 다르면 문의해 주세요."
     },
     "autoRenewOn": "{{date}}에 자동 결제됩니다",
     "cancelScheduledOn": "자동 결제가 꺼져 있습니다. {{date}}까지는 그대로 쓸 수 있습니다.",

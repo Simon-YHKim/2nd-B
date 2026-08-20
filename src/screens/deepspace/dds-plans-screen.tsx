@@ -41,6 +41,7 @@ import { Text } from "@/components/ui/Text";
 import { MdButton, MdCard, SegBtn } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { RewardedSheet } from "@/components/deepspace/RewardedSheet";
+import { PremiumModal } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useProgression } from "@/lib/progression/useProgression";
 import {
@@ -146,6 +147,13 @@ export function DeepSpacePlansScreen() {
   const [error, setError] = useState<string | null>(null);
   const available = arePurchasesAvailable();
   const [rewardVisible, setRewardVisible] = useState(false);
+
+  // Pre-checkout terms gate. Both money rails run through it, so the renewal
+  // terms are stated once, in one place, rather than per rail. Apple 3.1.2
+  // wants them before the purchase on the native rail; the web rail gets the
+  // same screen because a buyer's right to read the terms is not per-platform.
+  const [pendingTier, setPendingTier] = useState<"plus" | "pro" | null>(null);
+  const [termsOk, setTermsOk] = useState(false);
 
   // Billing period. paddle-checkout has resolved a distinct price id per tier
   // AND cadence since it was written (EXPO_PUBLIC_PADDLE_PRICE_<TIER>_YEARLY),
@@ -367,9 +375,21 @@ export function DeepSpacePlansScreen() {
     },
   ];
 
+  // The CTA no longer reaches money directly. It opens the terms step, and
+  // ONLY the confirm button inside it calls beginPurchase - so there is no
+  // path to a charge that skipped the disclosure.
   function onStart(key: TierKey) {
     if (busy) return;
-    if (key === "pro" && PRO_COMING_SOON) return; // 준비 중 — not purchasable at launch
+    if (key === "free") return; // nothing to buy, nothing to disclose
+    if (key === "pro" && PRO_COMING_SOON) return;
+    setError(null);
+    setTermsOk(false);
+    setPendingTier(key);
+  }
+
+  function beginPurchase(key: TierKey) {
+    if (busy) return;
+    if (key === "pro" && PRO_COMING_SOON) return; // 준비 중, not purchasable at launch
 
     // RevenueCat is native-only, so before this the web export - which is the
     // live surface (GitHub Pages) - had no way to take money at all. Paddle is
@@ -581,6 +601,56 @@ export function DeepSpacePlansScreen() {
         </Pressable>
       ) : null}
 
+      {/* Terms before money. Cycle, amount and how to stop it, from the same
+          price source the cards render, then an explicit opt-in. The confirm
+          button is the only caller of beginPurchase in the file. */}
+      <PremiumModal
+        visible={pendingTier !== null}
+        onClose={() => setPendingTier(null)}
+        accessibilityLabel={t("ds.plans.terms.title")}
+      >
+        <Text style={s.termsTitle}>{t("ds.plans.terms.title")}</Text>
+        {pendingTier ? (
+          <>
+            <Text style={s.termsPlan}>
+              {t("ds.plans.terms.charge", {
+                plan: tiers.find((x) => x.key === pendingTier)?.name ?? "",
+                price: priceFor(pendingTier),
+              })}
+            </Text>
+            <Text style={s.termsLine}>
+              {cadence === "yearly" ? t("ds.plans.terms.cycleYearly") : t("ds.plans.terms.cycleMonthly")}
+            </Text>
+            <Text style={s.termsLine}>{t("ds.plans.terms.cancelHow")}</Text>
+            <Pressable
+              onPress={() => setTermsOk((v) => !v)}
+              style={s.termsRow}
+              hitSlop={12}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: termsOk }}
+              accessibilityLabel={t("ds.plans.terms.agree")}
+            >
+              <View style={[s.termsBox, termsOk ? s.termsBoxOn : null]} />
+              <Text style={s.termsAgree}>{t("ds.plans.terms.agree")}</Text>
+            </Pressable>
+            <View style={s.termsActions}>
+              <MdButton label={t("ds.plans.terms.back")} variant="text" onPress={() => setPendingTier(null)} />
+              {/* Disabled until the box is ticked: the gate is the point. */}
+              <MdButton
+                label={t("ds.plans.terms.cta")}
+                variant="filled"
+                disabled={!termsOk}
+                onPress={() => {
+                  const key = pendingTier;
+                  setPendingTier(null);
+                  if (key) beginPurchase(key);
+                }}
+              />
+            </View>
+          </>
+        ) : null}
+      </PremiumModal>
+
       <RewardedSheet
         visible={rewardVisible && rewardedAllowed}
         onClose={() => setRewardVisible(false)}
@@ -616,6 +686,14 @@ const s = StyleSheet.create({
   cadence: { gap: m3.spacing.s2 },
   cadenceNote: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant, textAlign: "center" },
   minorNoticeText: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant },
+  termsTitle: { fontSize: m3.type.titleMedium.size, lineHeight: m3.type.titleMedium.line, fontWeight: "600", color: m3.color.onSurface },
+  termsPlan: { fontSize: m3.type.titleSmall.size, lineHeight: m3.type.titleSmall.line, fontWeight: "600", color: m3.color.onSurface, marginTop: m3.spacing.s2 },
+  termsLine: { fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurfaceVariant, marginTop: 4 },
+  termsRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3, marginTop: m3.spacing.s3 },
+  termsBox: { width: 18, height: 18, marginTop: 2, borderWidth: 2, borderColor: m3.color.outline, backgroundColor: "transparent" },
+  termsBoxOn: { borderColor: m3.color.primary, backgroundColor: m3.color.primary },
+  termsAgree: { flex: 1, fontSize: m3.type.bodySmall.size, lineHeight: 18, color: m3.color.onSurface },
+  termsActions: { flexDirection: "row", gap: m3.spacing.s4, marginTop: m3.spacing.s4, justifyContent: "flex-end" },
   tierList: { gap: m3.spacing.s3 },
   tierCard: { padding: m3.spacing.s4, gap: 6, borderWidth: 1, borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainerLow },
   tierCardCurrent: { borderWidth: 2, borderColor: m3.color.primary, backgroundColor: m3.color.surfaceContainer },

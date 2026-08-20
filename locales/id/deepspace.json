@@ -809,7 +809,17 @@
       "disclosureYearly": "Paket berbayar diperpanjang otomatis setiap tahun sampai kamu membatalkannya. Batalkan kapan saja sebelum perpanjangan berikutnya dan fitur berbayar tetap aktif sampai periode itu berakhir; harga sudah termasuk PPN. Pengembalian dana penuh dalam 7 hari setelah pembayaran, selama pemakaianmu masih dalam batas yang diberikan paket gratis.",
       "legalTerms": "Ketentuan layanan",
       "legalRefund": "Kebijakan pengembalian dana",
-      "minorPurchaseNotice": "Jika kamu di bawah 19 tahun, pembelian tanpa persetujuan wali sah dapat dibatalkan nanti olehmu atau oleh walimu. Kami memberitahumu sebelum membeli, bukan sesudahnya."
+      "minorPurchaseNotice": "Jika kamu di bawah 19 tahun, pembelian tanpa persetujuan wali sah dapat dibatalkan nanti olehmu atau oleh walimu. Kami memberitahumu sebelum membeli, bukan sesudahnya.",
+      "terms": {
+        "agree": "Saya telah membaca ketentuan ini dan menyetujui perpanjangan otomatis.",
+        "back": "Kembali",
+        "cancelHow": "Anda dapat membatalkan kapan saja di layar langganan. Pembatalan menghentikan perpanjangan berikutnya dan akses tetap berlaku sampai periode berbayar berakhir.",
+        "charge": "{{plan}} · {{price}}",
+        "cta": "Lanjut ke pembayaran",
+        "cycleMonthly": "Diperpanjang otomatis setiap bulan sampai Anda membatalkan.",
+        "cycleYearly": "Diperpanjang otomatis setiap tahun sampai Anda membatalkan.",
+        "title": "Sebelum membayar"
+      }
     },
     "wikiRecords": {
       "relationships": "Hubungan",
