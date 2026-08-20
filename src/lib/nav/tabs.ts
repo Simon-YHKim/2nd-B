@@ -147,9 +147,9 @@ export type DeepSpaceDockPath = (typeof DEEP_SPACE_DOCK_PATHS)[number];
 // chip stacked a second, conflicting back control over that top bar.
 export const DEEP_SPACE_DOCK_PREFIXES = ["/star/", "/record/", "/community/"] as const;
 
-// Routes that hide the floating BackArrow chip ENTIRELY: the pre-auth flow,
-// auth legal documents with their own history back, the home roots, and
-// one-shot onboarding flows whose
+// Routes that hide the floating BackArrow chip ENTIRELY (not because a dock or
+// top bar replaces it, but because no back-to-home affordance belongs there):
+// the pre-auth flow, the home roots, and one-shot onboarding flows whose
 // in-screen CTA is the designed exit (/onboarding since J5, /ttfv same
 // pattern — its 시작하기 CTA router.replace("/") is the exit). Lives here (not
 // in BackArrow.tsx) so nav visibility has ONE source of truth the dock-drift
@@ -159,9 +159,6 @@ export const BACK_ARROW_HIDDEN_PATHS = [
   "/sign-up",
   "/complete-profile",
   "/oauth-callback",
-  "/terms",
-  "/refund",
-  "/privacy-policy",
   "/",
   "/onboarding",
   "/ttfv",

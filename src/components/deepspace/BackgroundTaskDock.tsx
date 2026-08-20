@@ -11,7 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { useTaskStatus } from "@/lib/tasks/store";
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     marginBottom: 78, // clears the bottom tab bar
     paddingVertical: deepSpaceSpacing.sm,
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
     backgroundColor: deepSpace.bgMid,

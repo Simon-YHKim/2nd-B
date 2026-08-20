@@ -20,7 +20,8 @@ import { Field, MdButton, MdCard, MdChip } from "@/components/m3";
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState, PremiumToast } from "@/components/premium";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import {
   PROFILE_DETAIL_FIELDS,
   PROFILE_DETAIL_TOTAL,
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
   intro: { fontSize: 14, color: deepSpace.textHi },
   progress: { fontSize: 12, color: deepSpace.accentSoft },
   notSensitive: { fontSize: 12, color: deepSpace.textLo },
-  card: { gap: 6, padding: deepSpaceSpacing.md, borderRadius: deepSpaceRadii.md },
+  card: { gap: 6, padding: deepSpaceSpacing.md, borderRadius: m3.shape.medium },
   label: { fontSize: 14, color: deepSpace.textHi },
   hint: { fontSize: 12, color: deepSpace.textLo },
   choices: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
