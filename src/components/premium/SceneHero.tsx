@@ -240,7 +240,7 @@ export function SceneHero({
                 {
                   width: islandSize * 0.92,
                   height: islandSize * 0.92,
-                  borderRadius: islandSize * 0.46,
+                  borderRadius: 0,
                   backgroundColor: accent,
                   shadowColor: accent,
                 },
@@ -265,7 +265,7 @@ export function SceneHero({
                   {
                     width: ownerGroundWidth,
                     height: ownerGroundHeight,
-                    borderRadius: ownerGroundHeight / 2,
+                    borderRadius: 0,
                     left: (ownerHaloSize - ownerGroundWidth) / 2,
                     bottom: ownerGroundBottom,
                   },
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     minHeight: 268,
-    borderRadius: radii.lg,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: semantic.border,
     backgroundColor: semantic.surfaceAlt,
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     minHeight: 68,
     justifyContent: "center",
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: semantic.brand,
     backgroundColor: semantic.surface,
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     minHeight: 52,
-    borderRadius: radii.sm,
+    borderRadius: 0,
   },
 });
 
@@ -479,7 +479,7 @@ const dsStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
-    borderTopLeftRadius: 4,
+    borderTopLeftRadius: 0,
     borderTopRightRadius: m3.shape.medium,
     borderBottomRightRadius: m3.shape.medium,
     borderBottomLeftRadius: m3.shape.medium,

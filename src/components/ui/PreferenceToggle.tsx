@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   lockedTag: {
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     paddingHorizontal: spacing.xs,
   },
   checkRow: {
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   box: {
     width: 20,
     height: 20,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: semantic.border,
     alignItems: "center",

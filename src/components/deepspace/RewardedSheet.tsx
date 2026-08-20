@@ -220,8 +220,8 @@ const styles = StyleSheet.create({
   spaceWash: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: deepSpace.bgEdge },
   veil: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: withAlpha(deepSpace.bgEdge, 0.66) },
   sheet: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderBottomLeftRadius: deepSpaceRadii.phone,
     borderBottomRightRadius: deepSpaceRadii.phone,
     borderTopWidth: 1,

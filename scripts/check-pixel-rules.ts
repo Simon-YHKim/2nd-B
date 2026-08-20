@@ -15,10 +15,15 @@
 // 래칫은 이 저장소가 보통 싫어하는 형태다(`check:cycles` 는 무관용이다). 여기서
 // 예외인 이유는 규칙이 약해서가 아니라 **작업이 아직 안 끝나서**다.
 //
-// 목록에서 일부러 빠져 있는 것 (PR #1286 참조)
-// -------------------------------------------
-//   · 개념 아트/그래프 -- 별과 노드의 도형은 별자리 은유에 대한 결정이라 따로 간다.
-//     Simon 결정 2026-08-21: 사각형이 아니라 **정수 rect 로 만든 4방향 별 모양**.
+// ⚠ **아트/그래프 제외도 2026-08-21 에 없어졌다.** 그 제외는 "별을 어느 도형으로
+// 그릴 것인가" 가 미결이라 걸어둔 것이었는데, Simon 이 답했다 -- **정수 rect 로
+// 만든 4방향 별 모양**. 그래서 별자리 홈·기록 그래프·위키 그래프·스프라이트가
+// 전부 목록에 있다. 도형 자체는 `src/components/pixel/pixel-star.ts` 다.
+//
+// 남은 예외는 **`elevation: <상수>`** 하나뿐이다. 안드로이드에서 그건 그림자가
+// 아니라 **쌓임 순서**로 쓰이고(ANDROID_QA_GUIDELINES 의 "Shine-through z-index
+// inversion"), 그걸 0 으로 만들면 규칙 3 을 지키려다 문서화된 심각한 버그를
+// 되살린다. 그래서 숫자 리터럴 elevation 만 막고 상수 elevation 은 통과시킨다.
 //
 // ⚠ **레거시 제외는 2026-08-21 에 없어졌다.** Simon 이 "레거시 스킨을 앞으로도
 // 지킬까요" 에 **안 지킨다**로 답했다 -- 배포 4곳이 전부 `deep-space` 로 못박혀
@@ -113,29 +118,52 @@ const MIGRATED: readonly string[] = [
   "src/screens/deepspace/onboarding/TTFVScreen.tsx",
   "src/screens/deepspace/ops/screens.tsx",
   "src/screens/deepspace/trends/TrendsScreen.tsx",
+  "src/components/art/CompanionSprite.tsx",
+  "src/components/art/SecondBSprite.tsx",
+  "src/components/art/SoulcoreFinalArt.tsx",
+  "src/components/deep-space/ConstellationHome.tsx",
+  "src/components/deep-space/RecordsGraph.tsx",
+  "src/components/deep-space/WikiGraph.tsx",
+  "src/components/graph/CharacterPathLayer.tsx",
+  "src/components/graph/NavGraph.tsx",
+  "src/components/pixel/PixelStarSvg.tsx",
 ];
 
 // ── 규칙 2 ─────────────────────────────────────────────────────────────
-// `borderRadius: 0` 은 통과. 그 밖의 숫자는 전부 위반.
-// 값을 뽑아 놓고 **숫자로** 0 인지 본다. "0 이 아닌 숫자" 를 정규식 lookahead 로
-// 표현하려는 시도는 두 번 다 틀렸다 -- `(?!0\b)` 도 `(?!0)` 도 `borderRadius: 0.5`
-// 를 통과시킨다(0 뒤가 단어경계라 lookahead 가 걸린다). 게다가 그 `\b` 는 셸을
-// 거치면서 실제 백스페이스 바이트로 망가지기까지 했다. 산술은 둘 다 안 겪는다.
-const LITERAL_RADIUS = /borderRadius:\s*([0-9][0-9.]*)/g;
-// 반경 토큰 세트가 **세 벌**이다. 셋 다 봐야 한다.
+// **허용 목록**으로 본다. 반경 계열 프로퍼티에 올 수 있는 값은 딱 둘이다:
+// 리터럴 `0`, 또는 `m3.shape.*`(전부 0 이고 m3.test.ts 가 그걸 지킨다).
+// 그 밖은 숫자든 토큰이든 계산식이든 전부 위반이다.
 //
-//   radius.*          `src/theme/tokens.ts`      sm 9 / md 13 / lg 18 / pill 999
-//   deepSpaceRadii.*  `src/lib/theme/tokens.ts`  sm 9 / md 13 / lg 18 / pill 999
-//   m3.shape.*        `src/lib/theme/m3.ts`      전부 0  ← 통과하는 것
+// ⚠ **금지 목록으로 하다가 두 번 뚫렸다. 그래서 허용 목록으로 뒤집었다.**
 //
-// ⚠ **2026-08-21: 이 검사에 `deepSpaceRadii` 가 빠져 있어서 가드가 거짓말을 했다.**
-// 이름이 `Radii` 라 `radius\.` 정규식에 안 걸렸고, 그래서 **PASS 라고 보고한 파일
-// 안에 둥근 모서리가 64곳** 있었다. 딥스페이스 전용 토큰인데도 값이 레거시와
-// 똑같이 9/13/18/999 라서, 이름만 보고 "딥스페이스 것이니 괜찮겠지" 하면 틀린다.
+//   1차(2026-08-21 오전) `deepSpaceRadii` 가 빠져 있었다. 이름이 `Radii` 라
+//     `radius\.` 정규식에 안 걸렸고, **PASS 라고 보고한 파일 안에 둥근 모서리가
+//     64곳** 있었다.
+//   2차(같은 날 오후) 아트/그래프를 목록에 넣으면서 다시 세어보니 **또 100곳**이
+//     PASS 뒤에 숨어 있었다. 이번 범인은 셋이다 --
+//       · `radii.*` (`src/lib/theme/tokens.ts`, sm 4 / md 8 / lg 12 / xl 16)
+//         → **세 번째 반경 토큰 세트였다.** 헤더에 "세 벌"이라고 적어놨던 것도 틀렸다.
+//       · `borderTopLeftRadius` 류 -- 정규식이 `borderRadius:` 만 봤다.
+//       · `borderRadius: islandSize * 0.46` 같은 **계산식** -- 숫자가 아니라 통과.
 //
-// 교훈: 가드가 PASS 를 뱉는다고 규칙이 지켜지는 게 아니다. **무엇을 안 보는지**를
-// 세어봐야 안다. 새 토큰 세트가 생기면 여기에 추가할 것.
-const LEGACY_TOKEN = /(?<![A-Za-z0-9_.])(?:radius|deepSpaceRadii)\.[A-Za-z0-9"'[\]]+/g;
+// 교훈은 같다: 가드가 PASS 를 뱉는다고 규칙이 지켜지는 게 아니다. **무엇을 안
+// 보는지**를 세어봐야 안다. 허용 목록이면 새 토큰 세트가 생겨도 자동으로 걸린다.
+const RADIUS_PROP =
+  /border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*([^,\n}]+)/g;
+
+/** 반경 값으로 허용되는 것: 리터럴 0, `m3.shape.*`, 그리고 기기 베젤 예외. */
+function radiusAllowed(raw: string): boolean {
+  const v = raw.trim();
+  if (v.startsWith("m3.shape.")) return true;
+  if (EXEMPT_TOKENS.has(v)) return true;
+  const n = Number(v);
+  return Number.isFinite(n) && n === 0;
+}
+
+// 반경 토큰이 **반경 프로퍼티 밖**에서 쓰이는 경우도 있다(스프레드, 변수 대입).
+// 위의 허용 목록은 프로퍼티만 보므로 이 그물을 같이 둔다.
+const LEGACY_TOKEN =
+  /(?<![A-Za-z0-9_.])(?:radius|radii|deepSpaceRadii)\.[A-Za-z0-9"'[\]]+/g;
 
 // 예외 하나: 기기 목업의 베젤.
 // `radius.phone`(38)은 화면 **안**의 도형이 아니라 화면을 담고 있는 기기 테두리다.
@@ -185,13 +213,13 @@ for (const rel of MIGRATED) {
     continue;
   }
 
-  for (const m of src.matchAll(LITERAL_RADIUS)) {
-    if (Number(m[1]) === 0) continue;
+  for (const m of src.matchAll(RADIUS_PROP)) {
+    if (radiusAllowed(m[1])) continue;
     hits.push({
       file: rel,
       line: lineOf(src, m.index ?? 0),
-      text: m[0],
-      why: "규칙 2 -- 리터럴 둥근 모서리. `m3.shape.*` 를 쓸 것 (전부 0 이고 테스트가 지킨다)",
+      text: m[0].trim(),
+      why: "규칙 2 -- 반경은 `0` 또는 `m3.shape.*` 만. 숫자·레거시 토큰·계산식 전부 불가",
     });
   }
   for (const m of src.matchAll(LEGACY_TOKEN)) {
