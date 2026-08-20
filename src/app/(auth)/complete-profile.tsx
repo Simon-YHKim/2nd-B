@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
 import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
 import { saveNorthstar } from "@/lib/persona/northstar";
-import { deepSpace, deepSpaceSpacing, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -313,11 +314,11 @@ const styles = StyleSheet.create({
     left: -80,
     right: -80,
     height: 320,
-    borderRadius: 160,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.bgGlow,
     opacity: 0.85,
   },
-  star: { position: "absolute", width: 3, height: 3, borderRadius: 2, backgroundColor: deepSpace.accentSoft, opacity: 0.7 },
+  star: { position: "absolute", width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft, opacity: 0.7 },
   starA: { top: 80, left: "20%" },
   starB: { top: 150, right: "24%", opacity: 0.5 },
   starC: { bottom: 120, left: "28%", opacity: 0.5 },
@@ -336,12 +337,12 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.bgMid, 0.5),
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     padding: deepSpaceSpacing.lg,
   },
   checklist: { gap: deepSpaceSpacing.xs, marginTop: deepSpaceSpacing.xs, marginBottom: deepSpaceSpacing.xs },
   submitButton: { alignSelf: "stretch", width: "100%" },
   toastWrap: { position: "absolute", left: deepSpaceSpacing.lg, right: deepSpaceSpacing.lg, bottom: deepSpaceSpacing.xl, alignItems: "stretch" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
-  checkDot: { width: 8, height: 8, borderRadius: 4 },
+  checkDot: { width: 8, height: 8, borderRadius: m3.shape.none },
 });

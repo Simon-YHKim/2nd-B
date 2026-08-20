@@ -9,6 +9,7 @@ import { Text } from "@/components/ui/Text";
 import { colors, radius, spacing } from "@/theme/tokens";
 import { withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 
 type CopyLocale = "en" | "ko" | "es" | "pt" | "id";
 
@@ -227,13 +228,13 @@ const styles = StyleSheet.create({
   title: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textTitle, fontSize: 18 },
   subtitle: { marginTop: spacing.xs, marginHorizontal: 20, color: colors.textMid, fontSize: 12.5 },
   grid: { paddingHorizontal: 14, paddingTop: spacing.lg, gap: spacing.md },
-  column: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.cardBg, padding: spacing.md },
+  column: { borderWidth: 1, borderColor: colors.border, borderRadius: m3.shape.medium, backgroundColor: colors.cardBg, padding: spacing.md },
   columnTitle: { fontSize: 12 },
   columnSub: { marginTop: 2, marginBottom: spacing.sm, color: colors.textLo, fontSize: 11 },
   mintText: { color: colors.mint },
   cyanText: { color: colors.cyanBright },
   soulText: { color: colors.soul },
-  chip: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.cardBg, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, marginTop: spacing.xs },
+  chip: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: m3.shape.small, backgroundColor: colors.cardBg, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, marginTop: spacing.xs },
   chipLabel: { color: colors.textTitle, fontSize: 11 },
   chipNote: { marginTop: 2, color: colors.textLo, fontSize: 10.5 },
   demoChip: { marginHorizontal: 20, marginTop: spacing.md },
