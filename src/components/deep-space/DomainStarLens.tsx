@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
   sleepCard: { padding: 16 },
   sleepBars: { height: 126, flexDirection: "row", alignItems: "flex-end", gap: 7 },
   sleepCol: { flex: 1, height: "100%", alignItems: "center", justifyContent: "flex-end", gap: 5 },
-  sleepBar: { width: "68%", minHeight: 12, borderTopLeftRadius: 5, borderTopRightRadius: 5, backgroundColor: m3.color.primary },
+  sleepBar: { width: "68%", minHeight: 12, borderTopLeftRadius: 0, borderTopRightRadius: 0, backgroundColor: m3.color.primary },
 
   restCard: { padding: 14 },
   restMap: {

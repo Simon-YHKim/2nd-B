@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   root: {
     borderLeftWidth: 3,
     borderLeftColor: semantic.brand,
-    borderRadius: radii.md,
+    borderRadius: 0,
     backgroundColor: withAlpha(cosmic.signalMint, 0.06),
     padding: spacing.md,
     gap: spacing.xs,

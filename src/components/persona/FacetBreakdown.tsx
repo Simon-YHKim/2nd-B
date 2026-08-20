@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   group: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
-    borderRadius: radii.md,
+    borderRadius: 0,
     borderWidth: 1,
     padding: spacing.md,
     gap: spacing.sm,

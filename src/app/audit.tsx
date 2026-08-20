@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: 0,
     padding: spacing.lg,
     gap: spacing.xs,
   },
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: -spacing.xs },
   introCard: {
     backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderStartColor: semantic.brand,
     borderStartWidth: 3,
     padding: spacing.sm,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 4,
     backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: semantic.brand },
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.success,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radii.sm,
+    borderRadius: 0,
   },
   completeBadgeText: {
     color: semantic.text,

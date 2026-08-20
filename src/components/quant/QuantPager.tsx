@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.sm,
     gap: spacing.xs,
     marginBottom: spacing.md,

@@ -10,7 +10,9 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import Svg, { G, Line, Text as SvgText } from "react-native-svg";
+
+import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 
 import { Text } from "@/components/ui/Text";
 import { MdChip } from "@/components/m3";
@@ -109,23 +111,40 @@ export function RecordsGraph({
             const isPolaris = node.kind === "polaris";
             const isDomain = node.kind === "domain";
             const isSelected = node.id === selectedId;
-            const r = (isPolaris ? 13 : isDomain ? 9 : 5.5) / Math.sqrt(zoom);
+            // 별(북극성·도메인)은 4방향 글린트라 같은 반경의 원반보다 채워진
+            // 면적이 훨씬 작다. 반경을 그대로 두면 기록 사각형보다 작아 보여서
+            // 서열이 뒤집힌다 — 별자리 홈과 같은 1.35배를 여기에도 준다.
+            const r = (isPolaris ? 13 * 1.35 : isDomain ? 9 * 1.35 : 5.5) / Math.sqrt(zoom);
             const fill = isPolaris ? POLARIS_COLOR : colorFor(node.domain);
             const alpha = isPolaris ? 1 : isDomain ? 0.95 : 0.8;
             const showLabel = isPolaris || isDomain || isSelected;
             return (
               <G key={node.id}>
                 {isSelected ? (
-                  <Circle cx={p.x * CANVAS} cy={p.y * CANVAS} r={r + 6} fill="none" stroke={withAlpha(m3.accent.star, 0.7)} strokeWidth={2} />
+                  <PixelNodeSvg cx={p.x * CANVAS} cy={p.y * CANVAS} r={r + 6} stroke={withAlpha(m3.accent.star, 0.7)} strokeWidth={2} />
                 ) : null}
-                <Circle
-                  cx={p.x * CANVAS}
-                  cy={p.y * CANVAS}
-                  r={r}
-                  fill={withAlpha(fill, alpha)}
-                  onPress={() => selectNode(node.id, node.kind === "record")}
-                  accessibilityLabel={node.label}
-                />
+                {/* 북극성과 도메인은 **별**로, 개별 기록은 **사각형**으로 그린다
+                    (PIXEL-CLAY 규칙 1). 기록 노드까지 광선을 달면 별자리
+                    은유가 묽어진다 -- 빛나는 것은 북극성과 7 도메인뿐이다. */}
+                {isPolaris || isDomain ? (
+                  <PixelStarSvg
+                    cx={p.x * CANVAS}
+                    cy={p.y * CANVAS}
+                    r={r}
+                    fill={withAlpha(fill, alpha)}
+                    onPress={() => selectNode(node.id, node.kind === "record")}
+                    accessibilityLabel={node.label}
+                  />
+                ) : (
+                  <PixelNodeSvg
+                    cx={p.x * CANVAS}
+                    cy={p.y * CANVAS}
+                    r={r}
+                    fill={withAlpha(fill, alpha)}
+                    onPress={() => selectNode(node.id, node.kind === "record")}
+                    accessibilityLabel={node.label}
+                  />
+                )}
                 {showLabel ? (
                   <SvgText
                     x={p.x * CANVAS}
@@ -184,18 +203,18 @@ const styles = StyleSheet.create({
   canvasWrap: {
     aspectRatio: 1,
     width: "100%",
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.accentDim, 0.22),
     backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
     overflow: "hidden",
   },
   controls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  zoomBtn: { minWidth: 44, minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.4), alignItems: "center", justifyContent: "center" },
+  zoomBtn: { minWidth: 44, minHeight: 44, borderRadius: 0, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.4), alignItems: "center", justifyContent: "center" },
   zoomBtnText: { color: deepSpace.textHi, fontSize: 18, lineHeight: 22 },
   tagChip: { flexShrink: 0 },
   hint: { flex: 1, minWidth: 0 },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, rowGap: 6 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 0 },
 });
