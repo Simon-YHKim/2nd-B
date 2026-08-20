@@ -1,6 +1,13 @@
 # RBAC + 기본 인증 보안 — 설계안 (REQ-260821-02)
 
-> **상태: Simon 승인 대기.** 이 문서가 승인 게이트다. 마이그레이션은 승인 후에 쓴다.
+> **상태: 승인됨 (Simon, 2026-08-21 03:0x "권장대로 진행"). 1단계 착지.**
+> D-1 아니오(집계만) · D-2 하이브리드(부여=클레임, 회수=테이블 대조) · D-3 A(클라 검사) ·
+> D-4 3종 충분. 네 답 모두 `db/migrations/0139_rbac_roles.sql` 에 반영됐고,
+> `src/lib/auth/__tests__/rbac-roles-migration.test.ts` 가 답마다 대응 속성을 고정한다.
+>
+> **남은 것**: HIBP 클라 검사(D-3, 별도 PR) · 훅 등록(대시보드, 콘솔 몫) ·
+> `users` 테이블 ACL 수술(아래 §5-b).
+>
 > 발주는 `docs/HANDOFF.md` 의 「2026-08-21 00:55 KST / 벤더 재편」 블록.
 
 ## 0. Simon 이 요구한 것
@@ -153,6 +160,41 @@ GET https://api.pwnedpasswords.com/range/ABCDE      -- 앞 5자리만 전송
 - **가입 이메일 확인** 이미 켜져 있음.
 
 ---
+
+## 5-b. `users` 테이블 ACL 수술 — 조사는 끝났고, 적용만 남았다
+
+콘솔이 RBAC 범위에 넣으라고 지목한 항목이다. **왜 필요한지는 실측으로 확정됐다:**
+anon·authenticated 가 `public.users` 에 `arwdDxtm`(DELETE·TRUNCATE 포함)를 쥐고 있고,
+RLS 만이 그 앞에 서 있다. `0138` 의 컬럼 REVOKE 가 무동작이었던 것도 같은 뿌리다.
+
+**전수조사는 끝났다.** 소스 스캔 결과 클라이언트가 `public.users` 에 쓰는 것은 전부:
+
+| 동작 | 컬럼 |
+|---|---|
+| INSERT | `id` · `email` · `birth_date` · `locale` · `display_name` |
+| UPDATE | `reasoning_prefs` · `birth_date` · `privacy_prefs` · `profile_details` |
+| DELETE | **없음** |
+
+`src/lib/supabase/__tests__/users-write-census.test.ts` 가 이 목록을 **소스에서 다시 계산해**
+고정한다. 새 쓰기가 생기면 그 시험이 깨진다 — 손으로 적어둔 목록이 썩는 것을 막기 위해서다.
+
+**그런데 아직 적용하지 않았다.** 저장소에서 확인할 수 없는 것이 하나 있다:
+**가입 INSERT 가 `authenticated` 로 도착하는가 `anon` 으로 도착하는가.** 이메일 확인이 켜져
+있어서, 그 시점에 세션이 아직 없으면 insert 는 anon 으로 온다. 그 상태에서 REVOKE 하면
+**모든 신규 가입이 깨진다.** 운영 dry-run 이 필요하고, 그래서 콘솔의 다음 마이그레이션이다.
+틀리면 가입 장애다.
+
+적용할 때의 문장은 이미 정해져 있다:
+
+```sql
+REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.users FROM anon, authenticated;
+REVOKE INSERT, UPDATE ON public.users FROM anon, authenticated;
+GRANT INSERT (id, email, birth_date, locale, display_name) ON public.users TO <확인된 role>;
+GRANT UPDATE (reasoning_prefs, birth_date, privacy_prefs, profile_details) ON public.users TO <확인된 role>;
+```
+
+이게 끝나면 `0138` 의 컬럼 REVOKE 2줄이 비로소 유효해지고, `judge_mode` 는 트리거가 아니라
+권한으로 닫힌다.
 
 ## 6. 도입 순서와 되돌리기
 
