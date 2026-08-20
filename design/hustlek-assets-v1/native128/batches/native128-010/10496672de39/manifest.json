@@ -1,0 +1,2040 @@
+{
+  "assets": [
+    {
+      "asset_id": "icons/chevronDown",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "dd84dffd0f18bc251f37f92ff2012faa7e9a7f61fcd04698cc407714222407c6",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"chevronDown\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-43b996ba-8f22-4b4a-8a2a-d3efe95c80f3.png",
+        "source_sha256": "9cf4e30099037699936658e9d0e7834ea2f6b8a23c135c519a66e140257bffbf",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          19,
+          35,
+          109,
+          92
+        ],
+        "components_8_neighbor": [
+          2056
+        ],
+        "decoded_rgba_sha256": "0c66e4f77fe82cf635dd72d08c178e12865859d3895ca15ecda7282cabf48486",
+        "foreground_pixels": 2056,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.45302013422818793,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 368,
+        "master_transitions": 2531,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.08636474609375,
+        "not_identity_upscale": true,
+        "transition_gain": 6.877717391304348
+      },
+      "source": {
+        "path": "export/icons/chevronDown.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "834e8911d8b200e44c1b0bfab64053856d1b27108f2a4be3569f6406deb6c902"
+      }
+    },
+    {
+      "asset_id": "icons/chevronLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "cb307fc63843baecb5ab346f3c9943ad4ca70e0adf452f0b10fc4182fe23731f",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"chevronLeft\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-7c4d37c4-f6f2-48a7-b095-d98b8560e9bc.png",
+        "source_sha256": "8f215252fb71713519037728f8e9e01975deb37530dfaa2e03945050bb79e995",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          34,
+          20,
+          81,
+          106
+        ],
+        "components_8_neighbor": [
+          1954
+        ],
+        "decoded_rgba_sha256": "c4c75c053409a7c4cdfe412e84a732ebb1c15fc637b32a3020c549366cca282f",
+        "foreground_pixels": 1954,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.404344193817878,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 336,
+        "master_transitions": 2541,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0872802734375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.5625
+      },
+      "source": {
+        "path": "export/icons/chevronLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "372fb11bd532540f017d65e4e45703ed9cfe6ad62233736aae4ae01702baef1b"
+      }
+    },
+    {
+      "asset_id": "icons/chevronRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c551ae3de3e2d37f1383a86a87619f74b0328071df75a2e54d058c8951c074ec",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"chevronRight\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-3c643397-2961-430d-8835-719fecbaf6ea.png",
+        "source_sha256": "c8a6bb8ed868e2db8f4354239bce71985e1ef084fef65cf75b65539190af3d40",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          41,
+          17,
+          96,
+          111
+        ],
+        "components_8_neighbor": [
+          1887
+        ],
+        "decoded_rgba_sha256": "70e395e5efda921be8b77aa904e6e482fdd4f788bc51a5a1747edb86b8cc6c4a",
+        "foreground_pixels": 1887,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.275648470770422,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 336,
+        "master_transitions": 2286,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0830078125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.803571428571429
+      },
+      "source": {
+        "path": "export/icons/chevronRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4de1f16b200d64ac8c5413bda35e33103c9928b1f94dde912f19b8f909eef4a5"
+      }
+    },
+    {
+      "asset_id": "icons/chevronUp",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "56b991eced4d39b3b0cabf6f3e0f0f80c4bfdbf985cd0c968fd13aa096716186",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"chevronUp\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-57bcd46d-8d2f-46b1-9b29-10c34a08467c.png",
+        "source_sha256": "6a71394369eeb6bb2682606aa9e8ccb9ad4626cef8c4b2acb744f077a695831e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          24,
+          33,
+          104,
+          89
+        ],
+        "components_8_neighbor": [
+          2217
+        ],
+        "decoded_rgba_sha256": "d2c37ba564bbbd60f26b9e76774445df8219d54b9356b36ebc846c0f67835d38",
+        "foreground_pixels": 2217,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4482620854974031,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 368,
+        "master_transitions": 2400,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0919189453125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.521739130434782
+      },
+      "source": {
+        "path": "export/icons/chevronUp.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8851661ff1a4e13751c2b273c405f73db296992318c850e9051d209201ce384e"
+      }
+    },
+    {
+      "asset_id": "icons/cornerDownRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "2bc356d9b38b14cc115772abecbb888cdf617d809405cdcab6cc9fbb46d5093f",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"cornerDownRight\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-933dc53d-281a-43ac-9403-04dd08bcf09a.png",
+        "source_sha256": "5b1abbb5b17eb7c89d6914f2c63fbb378b872ece5316acdc1b9e28f9f34134bc",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          26,
+          21,
+          116,
+          103
+        ],
+        "components_8_neighbor": [
+          2850
+        ],
+        "decoded_rgba_sha256": "819ad7aa2ca2b582a09060154786f59a763721212158d885a99f039cd542a733",
+        "foreground_pixels": 2850,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5914772727272727,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 400,
+        "master_transitions": 2624,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.103271484375,
+        "not_identity_upscale": true,
+        "transition_gain": 6.56
+      },
+      "source": {
+        "path": "export/icons/cornerDownRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ed6919d8ca2c94fea951d851e7ad4cb6a967805420582c589accc8242c705f0c"
+      }
+    },
+    {
+      "asset_id": "icons/cornerUpRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d320ff17a350be41b77047d8e4a6d8ad546c9f5d908d0ca5a7ea3061d05eaf76",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"cornerUpRight\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-740fee1f-58cd-47e8-a324-b1f24e0353b8.png",
+        "source_sha256": "319d1cc1a05341dbfaa2f8bf7e354431e582312b9a64bb191cf616da77df5d41",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          12,
+          14,
+          115,
+          115
+        ],
+        "components_8_neighbor": [
+          4339
+        ],
+        "decoded_rgba_sha256": "6342e192492d4ab4a659e2a51fa40f0fe5b5bcf19b03117abf5c7e517c02338f",
+        "foreground_pixels": 4339,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.29068074262832183,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 400,
+        "master_transitions": 3553,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.13433837890625,
+        "not_identity_upscale": true,
+        "transition_gain": 8.8825
+      },
+      "source": {
+        "path": "export/icons/cornerUpRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "43d1713c7802ba46f3ca9b2c64586a3c01a174fa1c4cd3b766086ddfc2405977"
+      }
+    },
+    {
+      "asset_id": "icons/doubleLeft",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "eae59e2e68ae148e06e8010cf59c5459a619287d885b1a7fc299b5ba8f2cea29",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"doubleLeft\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-9e468a67-653b-4bfe-b2c7-fbcb143b1948.png",
+        "source_sha256": "42a16e0b78c3fb99f4b483c040dd25e41cf13612a018de1412a2e79b7852f87e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          26,
+          23,
+          102,
+          104
+        ],
+        "components_8_neighbor": [
+          1508,
+          1487
+        ],
+        "decoded_rgba_sha256": "d488b3a4dda243de040b5c5b6eb28a164cac034023ad6317aea92f4f40727435",
+        "foreground_pixels": 2995,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5684210526315789,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 672,
+        "master_transitions": 3633,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1207275390625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.40625
+      },
+      "source": {
+        "path": "export/icons/doubleLeft.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "59c21024302d268fd3081fe70397d8c4c6a2b83cc47d711ae26b70fda80e294b"
+      }
+    },
+    {
+      "asset_id": "icons/doubleRight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c4a3b436da6e2a621b102f75a80ec71feba04ca75283ac681af79b708ebd0353",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"doubleRight\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-e91cae00-51b1-4158-a0bd-8e999e217015.png",
+        "source_sha256": "84d50d36b7b726a2409c6da06b256eaf539f1509dfdab521ea37e42b24d56e6c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          30,
+          28,
+          105,
+          95
+        ],
+        "components_8_neighbor": [
+          1446,
+          1415
+        ],
+        "decoded_rgba_sha256": "6a9819e55548f513abbe013761450addfcc144a9a3f639cad7fb12be2f50e950",
+        "foreground_pixels": 2861,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5074349442379182,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 672,
+        "master_transitions": 3639,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12725830078125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.415178571428571
+      },
+      "source": {
+        "path": "export/icons/doubleRight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "cab2aa293124a5abd3ccaba6f9e73cf6aae5c13781b58d4f37d88a9a9ce42a02"
+      }
+    },
+    {
+      "asset_id": "icons/download",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "019c89100fd81bca2846d6e54e2be6dfa919d25f032b73e30fafdebc2ebac146",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Preserve the downward arrow, and restore exactly one separate straight horizontal receiving baseline below it with a clear gap, matching Image 2. The final symbol has the arrow plus the baseline; no extra box or tray. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-c40564bd-c5a4-4b80-aaa7-aacdec13b517.png",
+        "source_sha256": "9f5a4dfcb1a6304bab6d6b054a44f70e7bc5b101892ac103a4d00d815eae0fcb",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 256
+        },
+        "bbox": [
+          27,
+          9,
+          101,
+          118
+        ],
+        "components_8_neighbor": [
+          2396,
+          1178
+        ],
+        "decoded_rgba_sha256": "76f2c685eeaacda3bb49bf60f164112c7f9c63f1a0c8da4dbd7d22d782b7c1d8",
+        "foreground_pixels": 3574,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7236064731569484,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 4147,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.15911865234375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.639583333333333
+      },
+      "source": {
+        "path": "export/icons/download.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "e2ab6aff1a23d96e24e8abf253b51d90942600e9bd3371baa79bfe986bb6ddca"
+      }
+    },
+    {
+      "asset_id": "icons/upload",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "eb1ce204a7e87ae27dc7dd0590a3802bedd5b09ce189a03d1f3d29a073238d23",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Preserve the upward arrow, and restore exactly one separate straight horizontal sending baseline below it with a clear gap, matching Image 2. The final symbol has the arrow plus the baseline; no extra box or tray. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-80a956cc-62fd-49c8-abde-583f7efa4b2c.png",
+        "source_sha256": "9b651bf17050eefa7f7f96be81cba651b235614536fef209488c9e19ba2f4dc6",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 256
+        },
+        "bbox": [
+          32,
+          7,
+          96,
+          117
+        ],
+        "components_8_neighbor": [
+          2178,
+          820
+        ],
+        "decoded_rgba_sha256": "63ba84c22cf362df62eea13ca0bf93353e0e9f39d735f16490c3edf9e8ce3d41",
+        "foreground_pixels": 2998,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7162842753217683,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 3225,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12005615234375,
+        "not_identity_upscale": true,
+        "transition_gain": 6.71875
+      },
+      "source": {
+        "path": "export/icons/upload.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1068032ecce4ff85d623bdb9f78503d9feb6ee91f38a8287ee3b73ca15da4d57"
+      }
+    },
+    {
+      "asset_id": "icons/expand",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a19a8698b847a929c1a200243fd38a36883a8209928c1f4ab1ade5d7264ba606",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"expand\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-ea5cdde8-0ccb-4653-a28f-5fb7cfc07a9c.png",
+        "source_sha256": "63b7cb41c78614500c680ee4a5ca552ab282b002f820de4ad4d5894ce70df615",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 256
+        },
+        "bbox": [
+          16,
+          16,
+          112,
+          112
+        ],
+        "components_8_neighbor": [
+          1220,
+          1220,
+          1218,
+          1217
+        ],
+        "decoded_rgba_sha256": "060c981924bfb5334ff935622825bbe1abc343684d128cf1bb02f72b93ba1100",
+        "foreground_pixels": 4875,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8270875763747454,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 640,
+        "master_transitions": 4805,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.17095947265625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.5078125
+      },
+      "source": {
+        "path": "export/icons/expand.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "135ffb9640fa941dc614f5564275bafe299fa37dd6db068c7c7b59be3f8dd462"
+      }
+    },
+    {
+      "asset_id": "icons/refresh",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "efed98a29abc1b52c405205d6e30f3ebcccc0ae1692749cc93206d57976fed25",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"refresh\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-572656e3-3a38-4fe3-b7c7-bd996a3b6866.png",
+        "source_sha256": "eeb82110a1efd0ce7490747cdc94332356561e43e767dee54a25c64d74466a57",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 256
+        },
+        "bbox": [
+          20,
+          13,
+          109,
+          109
+        ],
+        "components_8_neighbor": [
+          3458
+        ],
+        "decoded_rgba_sha256": "7d170f06571e038a890696decb29f07a896882ede70d5c14908a7543e9dc90f2",
+        "foreground_pixels": 3458,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.47483784388280026,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 704,
+        "master_transitions": 4639,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16033935546875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.589488636363637
+      },
+      "source": {
+        "path": "export/icons/refresh.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "42eedf18e03e9a0b7e4ca15f6cbed243d6a717b79e947109ab066aa0655081c4"
+      }
+    },
+    {
+      "asset_id": "icons/search",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8829c578760582ce9698228f2bffb7ac2c30eb3e51eedae4e1722114072c66f0",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"search\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-cfc328b4-28f7-438f-958b-af3cd5a600fd.png",
+        "source_sha256": "9c16e37784b7d938c3e926f59e1c9311dfb61b45d01594c0ea81f2c19217d841",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 384
+        },
+        "bbox": [
+          19,
+          17,
+          109,
+          107
+        ],
+        "components_8_neighbor": [
+          3085
+        ],
+        "decoded_rgba_sha256": "3903cbaf4aff1205bf8d1ca7929edc90ca28607f6d9842ab86c61a3bc73fe854",
+        "foreground_pixels": 3085,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.28886699507389163,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 672,
+        "master_transitions": 3461,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12139892578125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.150297619047619
+      },
+      "source": {
+        "path": "export/icons/search.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "89e364177f3fe288f6c3b00ee0b6d86ee54cabd0a7c430a20483ffc4e1b661ce"
+      }
+    },
+    {
+      "asset_id": "icons/save",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "37cd4a4021a3784bb09c573371e56f6c7b4934a3fbfa8659a264a4bbc317bb21",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Replace the open H-like silhouette with the closed front-facing floppy-disk silhouette in Image 2: one continuous outer rectangle, one top label slot, and one lower inset/opening. Do not leave the top or bottom exterior open. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-ac38ce1c-3cfb-40ee-bb9d-be85e6fbb906.png",
+        "source_sha256": "3623ca1f419cf211922dce44a988f92bbe04c0b86d828f4f7d2c3479c52745c0",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 384
+        },
+        "bbox": [
+          20,
+          18,
+          110,
+          109
+        ],
+        "components_8_neighbor": [
+          8135
+        ],
+        "decoded_rgba_sha256": "a7b8cce616a73c0019cda6d8eb30298e296b490fbe1c069fb400c69a30ac04ed",
+        "foreground_pixels": 8135,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7402068661971831,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 560,
+        "master_transitions": 8242,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.27984619140625,
+        "not_identity_upscale": true,
+        "transition_gain": 14.717857142857143
+      },
+      "source": {
+        "path": "export/icons/save.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1c55fcf04da0d3dcbd744ccd9e7cb42e2aa4cbcc97b7b43e4da37506aa06d663"
+      }
+    },
+    {
+      "asset_id": "icons/share",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3a8f1b7293e5515af8afd5d36256382312f932665951634df44a40fef8a2938f",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"share\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-ea827bdd-0329-4846-9861-0bfada938dff.png",
+        "source_sha256": "d90faa019ea1710c575b4f7b78b260ef0154576bff5a85f746ece40633992b55",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 384
+        },
+        "bbox": [
+          15,
+          14,
+          111,
+          110
+        ],
+        "components_8_neighbor": [
+          3354
+        ],
+        "decoded_rgba_sha256": "e7b84f50790468aba9ec10f25fc48f6f35dd78980b09d17f12f8cbaa42cb3ae0",
+        "foreground_pixels": 3354,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5984615384615385,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 576,
+        "master_transitions": 4971,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1651611328125,
+        "not_identity_upscale": true,
+        "transition_gain": 8.630208333333334
+      },
+      "source": {
+        "path": "export/icons/share.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "88a38b6a82a82d7a3856cbf46ff8a9bf94212009e1fd95437c59602fdf82083f"
+      }
+    },
+    {
+      "asset_id": "icons/lock",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3011c1ca254b4d1530429961781af25706868add671056384e33b3cccd785f71",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"lock\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-0adcc06c-de98-4233-8d8d-95bd29799ac9.png",
+        "source_sha256": "474f94c5c7d52833933b7ed6ff609b1b5b4de341cae642e7d323a61ceaceb8bd",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 384
+        },
+        "bbox": [
+          27,
+          14,
+          101,
+          113
+        ],
+        "components_8_neighbor": [
+          5673
+        ],
+        "decoded_rgba_sha256": "b1b3c324c329961559f0f2018df72252dcbe0b1cf11e4118fc87084df0999844",
+        "foreground_pixels": 5673,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6548711874444774,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 592,
+        "master_transitions": 6650,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.221923828125,
+        "not_identity_upscale": true,
+        "transition_gain": 11.233108108108109
+      },
+      "source": {
+        "path": "export/icons/lock.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8311e64aa4bb06531dcfbb0db7302d4fd3fd5b9fa1c36599393b7cced3c7ef36"
+      }
+    },
+    {
+      "asset_id": "icons/unlock",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "104608353ad855eebfb6bb6b1b59b59601b8fb3ba18c6145d89194b5e01150ae",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"unlock\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-b330b186-a9b9-477f-b948-c72d1b7d889a.png",
+        "source_sha256": "6adb03aa6c62356b8627ecc0e60b260a19aeddbfb8e672a2b4cb5501f6d29ad9",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 512
+        },
+        "bbox": [
+          22,
+          16,
+          106,
+          108
+        ],
+        "components_8_neighbor": [
+          3928,
+          940
+        ],
+        "decoded_rgba_sha256": "1c7e47d56c63ebd94dfc6a2219c8ea08eec2201943374861ecb4c2ab0df3c2f7",
+        "foreground_pixels": 4868,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.48741007194244607,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 512,
+        "master_transitions": 6507,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2265625,
+        "not_identity_upscale": true,
+        "transition_gain": 12.708984375
+      },
+      "source": {
+        "path": "export/icons/unlock.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "28386fd860171e6b7ac802cc375085e11a50d878ecf5bc4ece4b79a88a3a5481"
+      }
+    },
+    {
+      "asset_id": "icons/plus",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "549658ca33681e8e6cc012bd9e8cd0414f66d8489c2d3442b3a46193b72b4f1d",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"plus\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-f742108e-ac0a-45a2-b470-09d1a69b090c.png",
+        "source_sha256": "4be19f8521f3fdef4510842529e15d8e6192d961615b6fcf2b7968eeb3332b71",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 512
+        },
+        "bbox": [
+          23,
+          20,
+          105,
+          101
+        ],
+        "components_8_neighbor": [
+          2396
+        ],
+        "decoded_rgba_sha256": "c37f1dc4f6d277c03d97ac0a4e96e1e7578936c4841216f537dcb571b374dbf7",
+        "foreground_pixels": 2396,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8231186966640807,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 320,
+        "master_transitions": 2796,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0941162109375,
+        "not_identity_upscale": true,
+        "transition_gain": 8.7375
+      },
+      "source": {
+        "path": "export/icons/plus.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "01b926298528f1e2af8ef9fcaf37adb18bdbd7aca8ac82504dc97cce2aeda5e9"
+      }
+    },
+    {
+      "asset_id": "icons/minus",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "98492f0acc0efcadefefed952883e8b405f0d9162e76e8f867534f960b7f62d4",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"minus\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-9797f4da-31fd-45dc-ac2a-c951bd05cf98.png",
+        "source_sha256": "55c2f93bc448f4e38c61118aaaa48034fde91c6c3422708aa10f2f531686e685",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 512
+        },
+        "bbox": [
+          24,
+          54,
+          104,
+          73
+        ],
+        "components_8_neighbor": [
+          1508
+        ],
+        "decoded_rgba_sha256": "dc654196e9e233ccf7df81b50df524abfbbc2045c09ab7adc8600d0e5282fc3b",
+        "foreground_pixels": 1508,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8488063660477454,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 192,
+        "master_transitions": 1720,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.063232421875,
+        "not_identity_upscale": true,
+        "transition_gain": 8.958333333333334
+      },
+      "source": {
+        "path": "export/icons/minus.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "b517eabfd5f2b46cb3e8586e38939c18e34db3f58ddf01dc8f86dde44f2bc1f8"
+      }
+    },
+    {
+      "asset_id": "icons/more",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1d89d7f4ea7ddc7346440c6b0aa2de0f50306bb01c07faef12c221d7bc5eb024",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Replace the accidental arrow entirely with exactly three equal compact dots aligned horizontally and evenly spaced, matching Image 2. No shaft, arrowhead, line, container, or fourth dot. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-e8a2e764-cacf-4965-92f8-6bb3dd8b0242.png",
+        "source_sha256": "ecf91719b8c37ae9063f1d20c3f0d7df035667f8f63c65ffd6e7f8aad20082c0",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 512
+        },
+        "bbox": [
+          16,
+          56,
+          111,
+          73
+        ],
+        "components_8_neighbor": [
+          311,
+          307,
+          307
+        ],
+        "decoded_rgba_sha256": "af570f0fe3cbe24184fe98afcfd07a024765e5b307afc9b9963efd83e6c2b25f",
+        "foreground_pixels": 925,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.776495278069255,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 192,
+        "master_transitions": 1145,
+        "native_detail_loss_floor": 0.04,
+        "native_detail_loss_ratio": 0.04473876953125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.963541666666667
+      },
+      "source": {
+        "path": "export/icons/more.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8731eb7b3f1eaa0dedb1426d40b0885dd80837e09ab27d2a5fd97b91c1d9f3c2"
+      }
+    },
+    {
+      "asset_id": "icons/play",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d5890048e9864fc2a46a635d11f41cff344e556cc8d6d6ec80933fb799586056",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"play\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-1169e5b7-a2e7-48e4-9536-31127184e301.png",
+        "source_sha256": "b6a826208c7cf132c68453956a06bc337c4c97d8882f11f7facf55146b59974b",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 640
+        },
+        "bbox": [
+          37,
+          18,
+          95,
+          111
+        ],
+        "components_8_neighbor": [
+          3270
+        ],
+        "decoded_rgba_sha256": "b3b76b3829e957f3b2dfd79d06a4fe8bbdbf6651a308f476a1a42011b3d673a8",
+        "foreground_pixels": 3270,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7311776061776062,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 352,
+        "master_transitions": 3865,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.13385009765625,
+        "not_identity_upscale": true,
+        "transition_gain": 10.980113636363637
+      },
+      "source": {
+        "path": "export/icons/play.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "445724fca4d30cb883b0627281858ce5f867c0d74626a3b593c7bf8c1f14bd76"
+      }
+    },
+    {
+      "asset_id": "icons/pause",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "2dd37b805e7dd010c6a5992b63429f9e0bc136f24cc26a5d18a89054d9112a10",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"pause\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-8b32b2f0-aed5-4790-b01b-e96a80677b34.png",
+        "source_sha256": "6a30c355f76b0eb460a7ab858afae7647d7f3ba738e304ac9edfaf8123b3fdbe",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 640
+        },
+        "bbox": [
+          31,
+          19,
+          96,
+          107
+        ],
+        "components_8_neighbor": [
+          2316,
+          2311
+        ],
+        "decoded_rgba_sha256": "322a85ac6fde11f67d4a7158f94ea2f1891214fb03a6c464ab45dc4e15ebad72",
+        "foreground_pixels": 4627,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8157687770349981,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 5147,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18414306640625,
+        "not_identity_upscale": true,
+        "transition_gain": 10.722916666666666
+      },
+      "source": {
+        "path": "export/icons/pause.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "dc412cbc7d50725446a628439ee44115557b797560348db2cd774b74d94b37b1"
+      }
+    },
+    {
+      "asset_id": "icons/grid",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "61195f89bc518864f80457b23a8d2d131d52b32cb636ab5478be3beb4c0ee97f",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"grid\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-2476c372-ba78-4b99-8a56-b20c73625448.png",
+        "source_sha256": "c8df3ba8ab917068dded7a1d2749c5045f421153d79d1a1031099c8bd48c4bee",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 640
+        },
+        "bbox": [
+          16,
+          14,
+          112,
+          114
+        ],
+        "components_8_neighbor": [
+          1748,
+          1748,
+          1711,
+          1711
+        ],
+        "decoded_rgba_sha256": "1898a9770f8d43d2f66c18896e454d8f9bfb830ae91e5b01c0aa0abff8f65532",
+        "foreground_pixels": 6918,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.9003995433789954,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 640,
+        "master_transitions": 8950,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.31292724609375,
+        "not_identity_upscale": true,
+        "transition_gain": 13.984375
+      },
+      "source": {
+        "path": "export/icons/grid.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "35d3d5858d3b1b8442635aa853cd66327e04707374058ffe2488fd8a0a23ab56"
+      }
+    },
+    {
+      "asset_id": "icons/list",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "216e4a5674be04a97593561e853ea106d9d872b98c2094c4883d76b0470ac059",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"list\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-28994320-3227-4c45-b522-3965ff02bce1.png",
+        "source_sha256": "21d9a52f5415c36b2ff3c59be78d7d4301becdf108dc9e24a03c7f89d159c1a6",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 640
+        },
+        "bbox": [
+          19,
+          27,
+          109,
+          102
+        ],
+        "components_8_neighbor": [
+          1223,
+          1164,
+          1164,
+          349,
+          336,
+          336
+        ],
+        "decoded_rgba_sha256": "368e50a06fc0a8125c66f915a479a3e4dcfccc66208ea0376c760c1c12431502",
+        "foreground_pixels": 4572,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5289806795469687,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 768,
+        "master_transitions": 4751,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18194580078125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.186197916666667
+      },
+      "source": {
+        "path": "export/icons/list.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3472ae91bbff4a2793c87e13e6b3558788ad9865dc2949ab8b5ca89225ffe9d1"
+      }
+    },
+    {
+      "asset_id": "icons/listNumber",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ea81ec09e98e38295090e5dad63b27ed433e01f2bee2143bee2315ef257f6d97",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Restore the exact two-row numbered-list topology in Image 2: a visible top number 1 and a visible lower number 2 at left, each paired with one horizontal line at right. Do not replace the lower number with a dash or equals sign; no third row. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-5af8ac63-d586-4427-a925-b2ada8ba1cd9.png",
+        "source_sha256": "36b3b5a3743094b6057acab539c606fca5138dc6211c05d46cfc0909f4bbda64",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 768
+        },
+        "bbox": [
+          13,
+          18,
+          118,
+          109
+        ],
+        "components_8_neighbor": [
+          985,
+          982,
+          900,
+          768
+        ],
+        "decoded_rgba_sha256": "e6b080348e8c0dfbcc741b77e6f4fd10c8330a103729475231555cf1dccbe676",
+        "foreground_pixels": 3635,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4816732242700352,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 688,
+        "master_transitions": 4249,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16583251953125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.175872093023256
+      },
+      "source": {
+        "path": "export/icons/listNumber.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "2c5d761f3d91f4c6dd1d1e7d428ea59b550e2113551300966ec687820b305986"
+      }
+    },
+    {
+      "asset_id": "icons/sort",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e7f6631ef4586ad951ac3b520f9171214b0a7cb54e0990656bc671a78337ddbc",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"sort\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-ec6e91c2-18d6-4dcc-a33e-fff6f3050d3b.png",
+        "source_sha256": "b5c037ce0caa4606af1305666c1914b33887078a00c9419113d5e07195727503",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 768
+        },
+        "bbox": [
+          40,
+          8,
+          88,
+          117
+        ],
+        "components_8_neighbor": [
+          2724
+        ],
+        "decoded_rgba_sha256": "e9f773f871b15dd4185179f663d613c1d3fddb84e557e80a901264d9a7a9e599",
+        "foreground_pixels": 2724,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7779237844940867,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 2804,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.10650634765625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.302083333333333
+      },
+      "source": {
+        "path": "export/icons/sort.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "aee75b37e658861228b2476f1ec18fde43b8c6d02e3125bd05e1c82466627903"
+      }
+    },
+    {
+      "asset_id": "icons/bold",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8465f21fd5e5f14c34a76d8ddabbace485dd1d93e2411ed22977aaf99907f1de",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"bold\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-d2001c7c-e686-4684-a6b6-82de3e9f917b.png",
+        "source_sha256": "48d4ff178c4faa63c9717e715b29915c1d68df9e5b1c4e0693e47ce32a062e07",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 768
+        },
+        "bbox": [
+          31,
+          15,
+          103,
+          110
+        ],
+        "components_8_neighbor": [
+          5619
+        ],
+        "decoded_rgba_sha256": "1a52463580612420deb2583bf3da23a80b38cc43b0fdd0681ca8ec04d965ca54",
+        "foreground_pixels": 5619,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7624593252269224,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 544,
+        "master_transitions": 5266,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.19183349609375,
+        "not_identity_upscale": true,
+        "transition_gain": 9.680147058823529
+      },
+      "source": {
+        "path": "export/icons/bold.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3c59846d6fb3a32edc480b6d31f5fd46be837116e3c3954a68aa43305a487af0"
+      }
+    },
+    {
+      "asset_id": "icons/italic",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "132c08617df1942367d3ef7330e355c5c78f1150d8449e3b6defb4ea5b04dc51",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"italic\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-dde9f71c-05b8-415f-836e-d4914041f60c.png",
+        "source_sha256": "dc3bd011b59862072d777b208cd92fa046d5fbb1a199f4220404f1d3dad8da8d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 768
+        },
+        "bbox": [
+          32,
+          22,
+          95,
+          104
+        ],
+        "components_8_neighbor": [
+          2677
+        ],
+        "decoded_rgba_sha256": "9fadcbc20aa8e1b7aba033a41d0dc2afee76652e41351fcd159996af2ff56082",
+        "foreground_pixels": 2677,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.48736154501562057,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 400,
+        "master_transitions": 2756,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0986328125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.89
+      },
+      "source": {
+        "path": "export/icons/italic.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "68c2fe9ca125bf7e63eb4f4b547874b25f67defe4dbd9825cab6a516af12e3fe"
+      }
+    },
+    {
+      "asset_id": "icons/underline",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a44d8be22238a0f63549ef592b449b1196b52625881f8b042501f28f3fafb9db",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Restore the exact capital U glyph plus one separate horizontal underline below it, with a clear transparent gap between the U and underline. Do not merge the underline into the U baseline. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-3c81312f-5122-4983-b45c-0d051d9b76e8.png",
+        "source_sha256": "1611dc53f81cb1a756fe4335e5fd990fdc4227e030a5041357f8146ec4e07dc5",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 896
+        },
+        "bbox": [
+          35,
+          20,
+          94,
+          111
+        ],
+        "components_8_neighbor": [
+          2186,
+          756
+        ],
+        "decoded_rgba_sha256": "83da90cf00abdd2aa8c7483f54400bbb88862e896d036001ad0bc9751f8f855c",
+        "foreground_pixels": 2942,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5171923168129001,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 592,
+        "master_transitions": 3252,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.12396240234375,
+        "not_identity_upscale": true,
+        "transition_gain": 5.493243243243243
+      },
+      "source": {
+        "path": "export/icons/underline.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "ee7d7f4889c35fb5d669b36683e85066e5c9e85814117290648baf65daefa35c"
+      }
+    },
+    {
+      "asset_id": "icons/strike",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "901ca7b8ec9f6197bd4690d06dbdc99cd3f9292b207361586892c52b5a021a79",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Replace the accidental X with the exact Image 2 glyph: one narrow upright capital-I-like stem with top and bottom terminals, crossed once by a single long horizontal strike line at mid-height. No diagonal strokes. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-bc011080-573b-4fea-b9bc-49985b79b2fa.png",
+        "source_sha256": "c906b77c7c2ee9a242acaaba477c99f3f9211c30e299b4bcda4ac55be2bbe0b3",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 896
+        },
+        "bbox": [
+          15,
+          20,
+          112,
+          106
+        ],
+        "components_8_neighbor": [
+          3531
+        ],
+        "decoded_rgba_sha256": "4a4edfa41e49e60aff9d07722cdb9f1b94a06454c97e30156724288f5ce1f0c8",
+        "foreground_pixels": 3531,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7103365384615384,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 3744,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1343994140625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.8
+      },
+      "source": {
+        "path": "export/icons/strike.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "28454542a801896f29a64e4b803d6e67e5ec2c15d416432ef584e80176c53ac5"
+      }
+    },
+    {
+      "asset_id": "icons/info",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a817b8bd3b8f476c22ff191dcd267e8d019483ba6fbd513d5e8ac1b0b59a0f9e",
+        "prompt": "Use case: precise-object-edit. Asset type: canonical game UI glyph. Image 1 is the candidate to correct. Image 2 is the exact canonical identity. Restore the complete circular boundary from Image 2 around the centered lowercase information i. Preserve one dot and one stem, one enclosing circle, and transparent space between the i and circle. No badge fill. Keep one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, 10–15% margin, crisp native-scale square pixel clusters, warm-charcoal core with restrained cool-slate and ivory edge accents. Change only the stated topology error; preserve the approved HustleK pixel material language. No antialiasing, blur, gradients, glow, 3D, badge, tile, text label, or extra marks.",
+        "source_id": "exec-16499960-9b08-4fd5-885b-3dec6623d8dc.png",
+        "source_sha256": "f9e26115fc885a7c6c5e89f55f4a718ae5669a79f658f0715e222e12600e7ce7",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 896
+        },
+        "bbox": [
+          10,
+          9,
+          118,
+          118
+        ],
+        "components_8_neighbor": [
+          1845,
+          1412,
+          313
+        ],
+        "decoded_rgba_sha256": "bfb1bd523f167ed52da62bd55ff18e8902058fdd71dde08891e41c5356daae77",
+        "foreground_pixels": 3570,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.49038067949242736,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1008,
+        "master_transitions": 5183,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.18212890625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.141865079365079
+      },
+      "source": {
+        "path": "export/icons/info.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c005e33b3ae2253d0d501726aa9d28f420faa1adef1c74a8b6dd96f85f349c5e"
+      }
+    },
+    {
+      "asset_id": "icons/home",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "535800cd733cc3f1855e8462d2d8d78c03bb0e9ed2743e9dc983372223e4f1f0",
+        "prompt": "Use case: stylized-concept. Asset type: canonical game UI glyph. Create a native-detail 128×128 logical pixel-art master for \"home\". Image 1 is the exact canonical identity reference: preserve its visible topology, orientation, element count, stroke count, symmetry, holes, and negative-space relationships exactly. Images 2–4 define only the approved HustleK material language. Render one centered isolated glyph on a perfectly flat saturated green chroma-key background (#00FF00) reaching every edge, with 10–15% clear margin. Use crisp native-scale square pixel clusters, warm-charcoal core, restrained cool-slate and ivory edge accents, and 4–6 flat tones. Keep the symbol immediately legible and structurally flat. No antialiasing, blur, gradients, glow, cast shadow, 3D perspective, badge, tile, containing circle unless it exists in Image 1, text label, extra mark, extra stroke, extra node, or borrowed character feature. Do not change an open shape into a filled shape or a filled shape into an outline. Newly author it at 128px with genuine one-pixel-scale edge detail; never nearest-neighbor enlargement or macro-pixel copying.",
+        "source_id": "exec-fb83ff2a-01d4-4626-95aa-a4e040538213.png",
+        "source_sha256": "4c8c13c60e667fd1b511eb8526cb66cb619e49f60cee0f1d32896e3e10a80020",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 896
+        },
+        "bbox": [
+          18,
+          11,
+          111,
+          114
+        ],
+        "components_8_neighbor": [
+          6157
+        ],
+        "decoded_rgba_sha256": "4b01a3b37ec1f0fb6ce03c870e5bf16b3489a1b6531164a599301e9bfb203412",
+        "foreground_pixels": 6157,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8767230576441103,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 400,
+        "master_transitions": 7916,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.256591796875,
+        "not_identity_upscale": true,
+        "transition_gain": 19.79
+      },
+      "source": {
+        "path": "export/icons/home.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5a399337da0f784f2b5080c234ff75eda0024c18d0b3849fafc7150c9a94718c"
+      }
+    }
+  ],
+  "batch_id": "native128-010",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "icons/chevronDown",
+        "cutout_sha256": "dd84dffd0f18bc251f37f92ff2012faa7e9a7f61fcd04698cc407714222407c6",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "ee036a1cab00c43386c8b1bc6b00657ca5aacd85914b3cc5423ba9f171eeba6e",
+        "raw_imagegen_sha256": "9cf4e30099037699936658e9d0e7834ea2f6b8a23c135c519a66e140257bffbf"
+      },
+      {
+        "asset_id": "icons/chevronLeft",
+        "cutout_sha256": "cb307fc63843baecb5ab346f3c9943ad4ca70e0adf452f0b10fc4182fe23731f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "80414ba2a8633e033323ba537a8241f90b06a2f0fc9b87e57f1ffd859959998a",
+        "raw_imagegen_sha256": "8f215252fb71713519037728f8e9e01975deb37530dfaa2e03945050bb79e995"
+      },
+      {
+        "asset_id": "icons/chevronRight",
+        "cutout_sha256": "c551ae3de3e2d37f1383a86a87619f74b0328071df75a2e54d058c8951c074ec",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7ddf8f41dca47d82c9c85fc5875f4cb43415cedd5c77edf62d8506b3277c3780",
+        "raw_imagegen_sha256": "c8a6bb8ed868e2db8f4354239bce71985e1ef084fef65cf75b65539190af3d40"
+      },
+      {
+        "asset_id": "icons/chevronUp",
+        "cutout_sha256": "56b991eced4d39b3b0cabf6f3e0f0f80c4bfdbf985cd0c968fd13aa096716186",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "0827a1704f47c4075a1e3ab3ca93f5c4a6484176c0b727ddade71acbfffc5278",
+        "raw_imagegen_sha256": "6a71394369eeb6bb2682606aa9e8ccb9ad4626cef8c4b2acb744f077a695831e"
+      },
+      {
+        "asset_id": "icons/cornerDownRight",
+        "cutout_sha256": "2bc356d9b38b14cc115772abecbb888cdf617d809405cdcab6cc9fbb46d5093f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "11948809d706bdebe3aa4f82f9fab0865e8450c7586b6cb3466beeea23f7b379",
+        "raw_imagegen_sha256": "5b1abbb5b17eb7c89d6914f2c63fbb378b872ece5316acdc1b9e28f9f34134bc"
+      },
+      {
+        "asset_id": "icons/cornerUpRight",
+        "cutout_sha256": "d320ff17a350be41b77047d8e4a6d8ad546c9f5d908d0ca5a7ea3061d05eaf76",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7be600d075eccc6e8a5c78c54d6cdb3b3dd992674bba63a89820e94927cb32d4",
+        "raw_imagegen_sha256": "319d1cc1a05341dbfaa2f8bf7e354431e582312b9a64bb191cf616da77df5d41"
+      },
+      {
+        "asset_id": "icons/doubleLeft",
+        "cutout_sha256": "eae59e2e68ae148e06e8010cf59c5459a619287d885b1a7fc299b5ba8f2cea29",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "4c6f07e7ba587312f5ebab26f1b4da8eca4df974bcb9f339fa5d9dc4a29eaef0",
+        "raw_imagegen_sha256": "42a16e0b78c3fb99f4b483c040dd25e41cf13612a018de1412a2e79b7852f87e"
+      },
+      {
+        "asset_id": "icons/doubleRight",
+        "cutout_sha256": "c4a3b436da6e2a621b102f75a80ec71feba04ca75283ac681af79b708ebd0353",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9389721df28f715678a2b9aca029dc5a3f89541936e48db9254e1ff1271827dd",
+        "raw_imagegen_sha256": "84d50d36b7b726a2409c6da06b256eaf539f1509dfdab521ea37e42b24d56e6c"
+      },
+      {
+        "asset_id": "icons/download",
+        "cutout_sha256": "019c89100fd81bca2846d6e54e2be6dfa919d25f032b73e30fafdebc2ebac146",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "5152fc42491f21f75bd1e7c1a503d8d9b507129c216f59bff15f92458098f2f9",
+        "raw_imagegen_sha256": "9f5a4dfcb1a6304bab6d6b054a44f70e7bc5b101892ac103a4d00d815eae0fcb"
+      },
+      {
+        "asset_id": "icons/upload",
+        "cutout_sha256": "eb1ce204a7e87ae27dc7dd0590a3802bedd5b09ce189a03d1f3d29a073238d23",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "66977201a4ecb3a598c81caecda8c653960428e25b5cf6eeecfea5fa8d4bb932",
+        "raw_imagegen_sha256": "9b651bf17050eefa7f7f96be81cba651b235614536fef209488c9e19ba2f4dc6"
+      },
+      {
+        "asset_id": "icons/expand",
+        "cutout_sha256": "a19a8698b847a929c1a200243fd38a36883a8209928c1f4ab1ade5d7264ba606",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9e866135175a48624227d584b01aadabd18039f6f63d6a45381d6586117792ec",
+        "raw_imagegen_sha256": "63b7cb41c78614500c680ee4a5ca552ab282b002f820de4ad4d5894ce70df615"
+      },
+      {
+        "asset_id": "icons/refresh",
+        "cutout_sha256": "efed98a29abc1b52c405205d6e30f3ebcccc0ae1692749cc93206d57976fed25",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9daddb5b9e02f64546a490d38de77aeaa85b9ac6fc767baf5e39f83c81c562cb",
+        "raw_imagegen_sha256": "eeb82110a1efd0ce7490747cdc94332356561e43e767dee54a25c64d74466a57"
+      },
+      {
+        "asset_id": "icons/search",
+        "cutout_sha256": "8829c578760582ce9698228f2bffb7ac2c30eb3e51eedae4e1722114072c66f0",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "489b96f1efb2072eb36a4c4eaa2b4e04b5b5a833dc504edad3bd899d8334cc3c",
+        "raw_imagegen_sha256": "9c16e37784b7d938c3e926f59e1c9311dfb61b45d01594c0ea81f2c19217d841"
+      },
+      {
+        "asset_id": "icons/save",
+        "cutout_sha256": "37cd4a4021a3784bb09c573371e56f6c7b4934a3fbfa8659a264a4bbc317bb21",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "588222b45054f34f4a582a99229385d67636c383cc839b4daf7282e9f6bd5b39",
+        "raw_imagegen_sha256": "3623ca1f419cf211922dce44a988f92bbe04c0b86d828f4f7d2c3479c52745c0"
+      },
+      {
+        "asset_id": "icons/share",
+        "cutout_sha256": "3a8f1b7293e5515af8afd5d36256382312f932665951634df44a40fef8a2938f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "114bc5cc5afdc8528f7f28ea6e5303789db58cb2bdfb4bf09100e8b4e7b0d2ee",
+        "raw_imagegen_sha256": "d90faa019ea1710c575b4f7b78b260ef0154576bff5a85f746ece40633992b55"
+      },
+      {
+        "asset_id": "icons/lock",
+        "cutout_sha256": "3011c1ca254b4d1530429961781af25706868add671056384e33b3cccd785f71",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7bd324a8d5ebb75192b4c2f3036370a463b8cbd9e08d2d0aa341abbaaeae4813",
+        "raw_imagegen_sha256": "474f94c5c7d52833933b7ed6ff609b1b5b4de341cae642e7d323a61ceaceb8bd"
+      },
+      {
+        "asset_id": "icons/unlock",
+        "cutout_sha256": "104608353ad855eebfb6bb6b1b59b59601b8fb3ba18c6145d89194b5e01150ae",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "245b342925801b03b02a1289dfdb3fa89f47e7709d6af8cdfcd60e01e5833d23",
+        "raw_imagegen_sha256": "6adb03aa6c62356b8627ecc0e60b260a19aeddbfb8e672a2b4cb5501f6d29ad9"
+      },
+      {
+        "asset_id": "icons/plus",
+        "cutout_sha256": "549658ca33681e8e6cc012bd9e8cd0414f66d8489c2d3442b3a46193b72b4f1d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9e7285317855cb23916bf2582a2796fc3d227c9f13108959edbe431007068c87",
+        "raw_imagegen_sha256": "4be19f8521f3fdef4510842529e15d8e6192d961615b6fcf2b7968eeb3332b71"
+      },
+      {
+        "asset_id": "icons/minus",
+        "cutout_sha256": "98492f0acc0efcadefefed952883e8b405f0d9162e76e8f867534f960b7f62d4",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "8f8904d5469f116bbc733f47dc564ac5c3e695e4d95aea103e2364c7d08ccfea",
+        "raw_imagegen_sha256": "55c2f93bc448f4e38c61118aaaa48034fde91c6c3422708aa10f2f531686e685"
+      },
+      {
+        "asset_id": "icons/more",
+        "cutout_sha256": "1d89d7f4ea7ddc7346440c6b0aa2de0f50306bb01c07faef12c221d7bc5eb024",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "6254bfe4e5c6c1b58d10495ea9fd03a89c5677f7a9749b11a239d2a92ad1b7ce",
+        "raw_imagegen_sha256": "ecf91719b8c37ae9063f1d20c3f0d7df035667f8f63c65ffd6e7f8aad20082c0"
+      },
+      {
+        "asset_id": "icons/play",
+        "cutout_sha256": "d5890048e9864fc2a46a635d11f41cff344e556cc8d6d6ec80933fb799586056",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "0b6c28f0dab8eb74d078b320eaddb973c98b34f0aea6286011b78c970cec930a",
+        "raw_imagegen_sha256": "b6a826208c7cf132c68453956a06bc337c4c97d8882f11f7facf55146b59974b"
+      },
+      {
+        "asset_id": "icons/pause",
+        "cutout_sha256": "2dd37b805e7dd010c6a5992b63429f9e0bc136f24cc26a5d18a89054d9112a10",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e658d71a6b6ca00d998207b021222d812cdbf245152a1c6658d8a99f9dc0cf5d",
+        "raw_imagegen_sha256": "6a30c355f76b0eb460a7ab858afae7647d7f3ba738e304ac9edfaf8123b3fdbe"
+      },
+      {
+        "asset_id": "icons/grid",
+        "cutout_sha256": "61195f89bc518864f80457b23a8d2d131d52b32cb636ab5478be3beb4c0ee97f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e9e964cb827337952fde2f0916e600f748793560c89976ea57452bfda42db512",
+        "raw_imagegen_sha256": "c8df3ba8ab917068dded7a1d2749c5045f421153d79d1a1031099c8bd48c4bee"
+      },
+      {
+        "asset_id": "icons/list",
+        "cutout_sha256": "216e4a5674be04a97593561e853ea106d9d872b98c2094c4883d76b0470ac059",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "560b41d01f512e2f08907dc9afc07e68a37545bf24012303cb56c7c72baa90b1",
+        "raw_imagegen_sha256": "21d9a52f5415c36b2ff3c59be78d7d4301becdf108dc9e24a03c7f89d159c1a6"
+      },
+      {
+        "asset_id": "icons/listNumber",
+        "cutout_sha256": "ea81ec09e98e38295090e5dad63b27ed433e01f2bee2143bee2315ef257f6d97",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "837b877fd7ad14b36392364bd2a34f12109f15d0019d9bb61c307de557f9876b",
+        "raw_imagegen_sha256": "36b3b5a3743094b6057acab539c606fca5138dc6211c05d46cfc0909f4bbda64"
+      },
+      {
+        "asset_id": "icons/sort",
+        "cutout_sha256": "e7f6631ef4586ad951ac3b520f9171214b0a7cb54e0990656bc671a78337ddbc",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "8af0b15b045b4ed5f0225db521ca00b46adcfb5f9da96cfa9df01cf5dda31dee",
+        "raw_imagegen_sha256": "b5c037ce0caa4606af1305666c1914b33887078a00c9419113d5e07195727503"
+      },
+      {
+        "asset_id": "icons/bold",
+        "cutout_sha256": "8465f21fd5e5f14c34a76d8ddabbace485dd1d93e2411ed22977aaf99907f1de",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "bcfdcefd9441f4f5c8ffd8a45a0f6a40b74a368f82afa98cf2176f19dd6b4463",
+        "raw_imagegen_sha256": "48d4ff178c4faa63c9717e715b29915c1d68df9e5b1c4e0693e47ce32a062e07"
+      },
+      {
+        "asset_id": "icons/italic",
+        "cutout_sha256": "132c08617df1942367d3ef7330e355c5c78f1150d8449e3b6defb4ea5b04dc51",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "7732d4b4982b83ea681d33ffcc35ca2deddd308dc7a1ec158f9d7f734c77885a",
+        "raw_imagegen_sha256": "dc3bd011b59862072d777b208cd92fa046d5fbb1a199f4220404f1d3dad8da8d"
+      },
+      {
+        "asset_id": "icons/underline",
+        "cutout_sha256": "a44d8be22238a0f63549ef592b449b1196b52625881f8b042501f28f3fafb9db",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "8b8ada51ead925f2318c493bd02a0809fdac672c38f2038054d7678140c26b44",
+        "raw_imagegen_sha256": "1611dc53f81cb1a756fe4335e5fd990fdc4227e030a5041357f8146ec4e07dc5"
+      },
+      {
+        "asset_id": "icons/strike",
+        "cutout_sha256": "901ca7b8ec9f6197bd4690d06dbdc99cd3f9292b207361586892c52b5a021a79",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "c3c46fb307ba80af570c027a94525397e849b2f96ce9fe00a4f7179bc9d1a8ae",
+        "raw_imagegen_sha256": "c906b77c7c2ee9a242acaaba477c99f3f9211c30e299b4bcda4ac55be2bbe0b3"
+      },
+      {
+        "asset_id": "icons/info",
+        "cutout_sha256": "a817b8bd3b8f476c22ff191dcd267e8d019483ba6fbd513d5e8ac1b0b59a0f9e",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "86f12395ea7da1d4f8e1144c78bcaf056223d111fb1d9ab054b12c9ad1274a55",
+        "raw_imagegen_sha256": "f9e26115fc885a7c6c5e89f55f4a718ae5669a79f658f0715e222e12600e7ce7"
+      },
+      {
+        "asset_id": "icons/home",
+        "cutout_sha256": "535800cd733cc3f1855e8462d2d8d78c03bb0e9ed2743e9dc983372223e4f1f0",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "41ddd6558f77d56cff527ebd732480e8d6b8a314fc26bca3bc7f5a24b05c74e9",
+        "raw_imagegen_sha256": "4c8c13c60e667fd1b511eb8526cb66cb619e49f60cee0f1d32896e3e10a80020"
+      }
+    ],
+    "batch_id": "native128-010",
+    "builder_sha256_lf": "9dc3a894bf3f84cc2ed72d722ed9be1b5d6224859dc91df704c07b3749dd6640",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "10496672de39e0f85d218852923d32e60304f653bbb4993bfa414a9de7b6cbda",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
