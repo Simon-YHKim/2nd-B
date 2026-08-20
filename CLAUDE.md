@@ -208,7 +208,7 @@ Project-specific guidance for Claude Code sessions in this repo.
 - **Vision**: `docs/VISION.md` (캐치프레이즈 + 3축 모델). 모든 새 기능은 어느 축에 속하는지 PR 설명에 명시.
 - **Master blueprint**: `docs/ARCHITECTURE.md`. Hard constraints C1~C12: `docs/CONSTRAINTS.md`.
 
-## 렌즈층 재정의 (Simon 결정, 2026-08-15) — 정의 확정, 구현 미착수 (개수 미해소)
+## 렌즈층 재정의 (Simon 결정, 2026-08-15) — **개수 해소됨 2026-08-21: 7개, 착수 가능**
 
 **감사 결과 확정된 사실:** 기존 7렌즈의 숫자 7은 심리학이 아니라 **북두칠성 별 개수**에서 왔다
 (Simon 원본 메모 `git show c7f36982:260617생각정리.txt` 가 "7가지 축으로 가려고 해"로 개수를 먼저
@@ -230,11 +230,37 @@ Project-specific guidance for Claude Code sessions in this repo.
 `렌즈 7개`를 선택했다(추천안에서 명시적으로 [변경]).** 이 절의 나머지(렌즈의 정의, 관문 5개,
 L1~L3 자율도 등급)는 개수와 무관하게 유효하다.
 
-⚠ **미해소 긴장 — 구현 전 Simon 확인 필요.** 관문을 그대로 두고 7을 채우려면 탈락한 다섯 중
-넷을 되살려야 하는데, 그 다섯은 "행이 들어왔는가 / 몇 번 눌렀는가"를 재던 것들이다. 즉 셋 중
-하나다: ① 관문을 완화한다 ② 새 후보를 발굴해 7을 채운다 ③ 3개로 간다. **어느 쪽인지 정해지기
-전에는 렌즈 구현에 착수하지 말 것.** 개수만 7로 적어 두고 관문을 조용히 무시하는 것이 가장 나쁘다
-— 그건 감사에서 확인된 원래 문제(개수 먼저 선언, 근거는 나중)로 정확히 되돌아가는 것이다.
+### ✅ 개수 해소 (Simon 결정 2026-08-21) — 7개, 그리고 **착수 금지는 풀렸다**
+
+여기 있던 "미해소 긴장 / 착수하지 말 것" 문단은 **해소됐다.** 선택지 셋 중 **②(새 후보를
+발굴해 7을 채운다)** 로 갔다. 원문: *"b 로 진행하고, 마지막 7은 사용자 프로필을 띄울꺼야."*
+
+**관문은 하나도 완화하지 않았고, 탈락한 다섯도 되살리지 않았다.** 대신 조사에서 나온 사실이
+길을 열었다 — 관문을 통과한 셋(때·크기·복귀)이 하필 `OpsRecommendation` 의 필드 셋과
+정확히 같았다. 즉 **"3"은 사람을 잰 수가 아니라 세컨비가 결정을 내리는 자리가 `/ops`
+하나뿐이라는 사실의 그림자**였다. 그래서 렌즈를 `/ops` 밖으로 내보내 새 자리에서 넷을 찾았다.
+
+**정본은 문서가 아니라 코드다: `src/lib/lenses/registry.ts`.**
+`registry.test.ts` 가 관문 ①③⑤ 를 **실행 가능한 검사**로 지킨다 — 특히 ①은 각 렌즈의 필드
+선언이 지목한 소스 파일에 **실제로 있는지 읽어서** 확인하므로, 슬롯이 사라지면 빌드가 깨진다.
+
+| # | 렌즈 | 독점 필드 | 자리 | 슬롯 |
+|---|---|---|---|---|
+| 1 | 때 `when` | `startsAtIso` | `ops_recommend` | 있음 |
+| 2 | 크기 `size` | `durationMinutes` | `ops_recommend` | 있음 |
+| 3 | 복귀 `return` | `recurrence` | `ops_recommend` | 있음 |
+| 4 | 묻기 `ask` | `layer` (`DrillLayer`) | `interview_probe` · `nextLayerSuggestion` | 있음 |
+| 5 | 담기 `file` | `domain:` 태그 | `clipper_classify` · `import_ingest` | 있음 |
+| 6 | 꺼내기 `resurface` | (미정) | `digest_weekly` · `ttfv_first_insight` | **없음** |
+| 7 | **프로필** `profile` | `target` (`ProposalTarget`) | `self_model_propose` · `northstar_propose` | 있음 |
+
+⚠ **꺼내기는 아직 켜지 말 것.** `digest_weekly`/`ttfv_first_insight` 는 purpose 로 선언만 돼
+있고 `src/lib` 안에 **호출부가 0건**이다(실측 2026-08-21). **슬롯이 먼저고 렌즈가 나중이다** —
+바꿀 것이 없는 추정기를 켜는 것이 원래 7개가 저지른 실수 그 자체다.
+
+**자율도 L1~L3 은 `src/lib/lenses/autonomy.ts`.** 오르는 유일한 경로는 예측 적중(연속 3회),
+되돌리면 즉시 강등, 빗나감(miss)은 강등이 아니다. **호출 횟수로는 절대 오르지 않는다** —
+그게 감사에서 걸린 원래 문제다.
 
 **감사에서 확인된 사실은 결정과 무관하게 그대로다:** 원래의 7 은 심리학이 아니라 북두칠성
 별 개수에서 왔고, 7개 중 5개의 등급은 구인이 아니라 입력 횟수를 쟀다.
@@ -506,8 +532,9 @@ The app uses the **3-layer constellation hierarchy** (canonical = PRD §4.1 +
 | link | cyan Pattern Link | Subtle, recedes | All links = cyan (Big Dipper shape + 2-star pointer → 북극성) |
 
 > **⚠ Layer B 는 2026-08-15 재정의됐다. 아래 설명은 구버전이다.** `stars.ts` 의 심리 구인 7개는
-> 폐기 대상이고, Layer B 는 **렌즈**로 바뀐다. 개수는 2026-08-16 G3 에서 7 로 선택됐으나
-> 관문과의 긴장이 미해소다 — 아래 "렌즈층 재정의" 절을 반드시 읽을 것.
+> 폐기 대상이고, Layer B 는 **렌즈**로 바뀐다. **개수는 2026-08-21 에 7로 확정됐고 착수 금지도
+> 풀렸다** (일곱 번째 = 프로필). 정본은 `src/lib/lenses/registry.ts` 이고, 배경은 위
+> "렌즈층 재정의" 절에 있다.
 > Layer A(북두칠성 7별)와 Layer C(북극성)는 **그대로**다.
 
 (구버전 설명: Layer B = the psychological constructs in `stars.ts`, the hidden validation layer behind

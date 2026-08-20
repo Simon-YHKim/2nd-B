@@ -68,6 +68,11 @@ const KOREAN_BY_DESIGN: Record<string, string> = {
   // ── 개념 이름: 데이터에 가깝다 ──
   "src/lib/persona/domain-stars.ts": "생활 도메인 이름 (개념 정본)",
   "src/lib/persona/stars.ts": "심리 구인 이름 (개념 정본)",
+  // 렌즈 `scoring` 은 화면 카피가 아니라 **관문 ③ 의 명세**다 — "이 렌즈의 적중을
+  // LLM 없이 어떻게 재는가". registry.test.ts 가 이 문자열을 읽어 검사하고,
+  // 사람이 읽는 자리는 CLAUDE.md 지 UI 가 아니다. i18n 으로 빼면 명세와 검사가
+  // 갈라진다.
+  "src/lib/lenses/registry.ts": "렌즈 명세 (관문 ③ 채점 정의) — UI 카피 아님",
 
   // ── 한국어 폴백: 화면은 이미 i18n 을 쓰고, 이건 인자 없을 때의 기본값 ──
   "src/screens/deepspace/records-timeline.ts": "라벨 폴백 — 화면은 dsTimeLabels(t) 로 i18n 을 넘긴다",
