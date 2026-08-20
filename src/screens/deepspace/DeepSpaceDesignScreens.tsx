@@ -3241,7 +3241,7 @@ const cx = StyleSheet.create({
   heroCount: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 2 },
   heroStreak: { alignItems: "center" },
   heroStreakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 22, fontWeight: "800", color: m3.accent.alertDot },
+  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 24, fontWeight: "800", color: m3.accent.alertDot },
   heroStreakCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   heroBar: { marginTop: 12 },
 
@@ -3285,7 +3285,7 @@ const cx = StyleSheet.create({
   focusLead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginTop: 4, marginBottom: 18, lineHeight: 20 },
   ringWrap: { width: 280, height: 280, alignSelf: "center" },
   ringCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  ringTime: { fontFamily: m3.font.mono, fontSize: 56, fontWeight: "700", color: m3.color.onSurface, letterSpacing: 1 },
+  ringTime: { fontFamily: m3.font.mono, fontSize: 45, fontWeight: "700", color: m3.color.onSurface, letterSpacing: 1 },
   ringSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   chipRowCenter: { flexDirection: "row", gap: 8, justifyContent: "center", marginTop: 18 },
   controlsRow: { flexDirection: "row", gap: 10, marginTop: 18 },
@@ -3313,7 +3313,7 @@ const cx = StyleSheet.create({
   // ── datareview ──
   statGrid: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, padding: 12, alignItems: "center" },
-  statNum: { fontFamily: m3.font.mono, fontSize: 18, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
+  statNum: { fontFamily: m3.font.mono, fontSize: 15, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
   statCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2, textAlign: "center" },
   signalHead: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   signalFrom: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },

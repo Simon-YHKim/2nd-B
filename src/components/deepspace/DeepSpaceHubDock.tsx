@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fontFamilies.pixelKo,
-    fontSize: 9,
+    fontSize: 10,
     lineHeight: 13,
   },
   activeLabel: {

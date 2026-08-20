@@ -126,6 +126,20 @@ const EXEMPT_TOKEN = "radius.phone";
 // (`src/lib/theme/__tests__/m3.test.ts` 가 지킨다) 여기도 같은 기준을 쓴다.
 const SHADOW_PROPS = ["shadowRadius", "shadowOpacity", "elevation"] as const;
 
+// ── 타입 격자 (PRD §2-4) ───────────────────────────────────────────────
+// Galmuri 는 비트맵이라 **자기 고유 크기의 정수배에서만** 선명하다:
+// Galmuri9 -> 10px · Galmuri11 -> 12px · Galmuri14 -> 15px. 아래 여섯 값이 그
+// 정수배의 합집합이고, PRD 가 "10/12/15/24/30/45px만" 이라고 적은 이유다.
+//
+// 이 검사가 필요한 이유는 실패가 **조용하기 때문**이다. 격자 밖 크기는 깨지지
+// 않고 그냥 **흐려진다** -- 테스트도 스크린샷 리뷰도 못 잡는다. 2단계(#1273)가
+// 본문 얼굴을 Galmuri 로 바꾼 뒤 실제로 25개 파일 70곳이 그 상태였다.
+//
+// 스타일 객체 하나(중괄호 한 쌍) 안에서 **Galmuri 얼굴과 크기가 만나는 곳**만
+// 본다. 벡터 얼굴(Pretendard 등)에 얹힌 크기는 격자와 무관하므로 건드리지 않는다.
+const TYPE_GRID = new Set([10, 12, 15, 24, 30, 45]);
+const GALMURI_FACE = /m3\.font\.(brand|plain|mono|chrome)|fontFamilies\.(pixel|pixelKo|serifKo)/;
+
 interface Hit {
   file: string;
   line: number;
@@ -176,10 +190,26 @@ for (const rel of MIGRATED) {
       });
     }
   }
+
+  // 타입 격자: Galmuri 얼굴과 크기가 같은 스타일 객체에 있을 때만 본다.
+  for (const block of src.matchAll(/\{[^{}]*\}/g)) {
+    const body = block[0];
+    if (!GALMURI_FACE.test(body)) continue;
+    for (const m of body.matchAll(/fontSize:\s*([0-9][0-9.]*)/g)) {
+      const size = Number(m[1]);
+      if (TYPE_GRID.has(size)) continue;
+      hits.push({
+        file: rel,
+        line: lineOf(src, (block.index ?? 0) + (m.index ?? 0)),
+        text: m[0],
+        why: "PRD §2-4 -- Galmuri 는 격자 밖 크기에서 흐려진다. 10/12/15/24/30/45 중 하나로",
+      });
+    }
+  }
 }
 
 if (hits.length > 0) {
-  console.error("PIXEL-CLAY RULES FAIL  이식된 화면이 규칙 2/3 에서 되돌아갔다:");
+  console.error("PIXEL-CLAY RULES FAIL  이식된 화면이 규칙 2·3 또는 타입 격자에서 되돌아갔다:");
   for (const h of hits) {
     console.error(`  - ${h.file}:${h.line}  ${h.text}`);
     console.error(`      ${h.why}`);
@@ -188,5 +218,5 @@ if (hits.length > 0) {
 }
 
 console.log(
-  `PIXEL-CLAY RULES PASS  이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 (규칙 2·3)`,
+  `PIXEL-CLAY RULES PASS  이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 · 타입 격자 준수 (규칙 2·3 + PRD §2-4)`,
 );

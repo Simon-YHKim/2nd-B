@@ -1359,7 +1359,7 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
   settingsButtonLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
     letterSpacing: 0,
     textAlign: "center",
