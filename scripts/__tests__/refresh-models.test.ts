@@ -237,7 +237,21 @@ describe("좌석 목록 표류 가드 — 엣지 프록시 원본과 대조", ()
     // 싼 축은 이름에 티어 접미사가 붙는다 (gpt-5.4-nano / -mini).
     const cheap = Object.keys(seats).filter((p) => /-(nano|mini)$/.test(seats[p]));
     const frontier = Object.keys(seats).filter((p) => !cheap.includes(p));
-    expect(cheap).toEqual(["safety_classify"]);
+    // The cheap axis is now eight seats: the safety classifier plus the seven
+    // backbone purposes that PURPOSE_TIER already called lite or flash. Listed
+    // rather than counted, so adding a seat here is a deliberate edit.
+    expect(cheap.sort()).toEqual(
+      [
+        "audit_qa",
+        "capture_classify",
+        "clipper_classify",
+        "clipper_template_propose",
+        "import_ingest",
+        "interview_probe",
+        "safety_classify",
+        "source_ingest",
+      ].sort(),
+    );
     expect([...OPENAI_FRONTIER_PURPOSES].sort()).toEqual(frontier.sort());
     for (const c of cheap) expect(OPENAI_FRONTIER_PURPOSES).not.toContain(c);
   });

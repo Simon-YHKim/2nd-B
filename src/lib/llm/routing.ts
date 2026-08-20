@@ -72,6 +72,32 @@ export function chatVendorOverride(): LlmVendor | null {
   return null;
 }
 
+// EXPO_PUBLIC_BACKBONE_VENDOR - the LAST Gemini surface.
+//
+// The three switches above move the reasoning seats, chat, and the multimodal
+// pair. Nine purposes are in none of those groups and reached the vendor
+// through a hardcoded `return "gemini"` below, with no variable able to move
+// them: audit_qa, capture_classify, clipper_classify, clipper_template_propose,
+// imagine, import_ingest, interview_probe, reasoning_connect, source_ingest.
+// Eight of the nine have live call sites.
+//
+// That was correct while Gemini was the backbone by design. It stopped being
+// correct when Simon retired Gemini as a vendor (2026-08-21) against a hard
+// date: Google stops accepting Standard keys in September. Flipping the other
+// three switches would have left classification, interview probes, imports and
+// the deep-run rationale still calling a key that no longer works, and the
+// failure would have looked like a vendor outage rather than a missed seat.
+//
+// Default stays "gemini", so this file behaves exactly as before until the
+// variable is set. The proxy seats have to exist first - openai-proxy answers
+// 400 purpose_not_seated for anything outside its allowlist BEFORE doing
+// anything else, so this is the same deploy-then-flip ordering as chat.
+export function backboneVendor(): LlmVendor {
+  const raw = (process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "").trim().toLowerCase();
+  if (raw === "gemini" || raw === "claude" || raw === "openai") return raw;
+  return "gemini";
+}
+
 // OCR and voice memos are the two purposes that carry BINARY payloads, so they
 // can only run on a vendor whose proxy forwards them.
 //
@@ -187,6 +213,32 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   // on every turn. Chat is conversational, not deliberative -> low. The proxies
   // clamp to the same ceiling server-side, so this is intent, not enforcement.
   secondb_chat: "low",
+  // Backbone purposes (EXPO_PUBLIC_BACKBONE_VENDOR). They have no effort of
+  // their own on Gemini - the TIER is the cost control there (PURPOSE_TIER
+  // lite/flash/pro). Off Gemini the tier is gone, so the same intent has to be
+  // said in effort, or boundary.ts falls back to DEFAULT_EFFORT ("high") and a
+  // per-capture classifier starts reasoning hard on every note.
+  //
+  // The mapping is PURPOSE_TIER's own, not a new opinion:
+  //   lite  -> low     (classification-shaped, high volume, no nuance needed.
+  //                     The client vocabulary bottoms out at "low"; the real
+  //                     floor for these two is the SERVER ceiling 'none' in
+  //                     openai-proxy's PURPOSE_EFFORT_MAX, which a stale or
+  //                     tampered client cannot raise. Said in both places
+  //                     because only one of them is enforcement.)
+  //   flash -> low     (interactive, structured, not deliberative)
+  //   pro   -> medium  (reasoning; medium rather than high because these are
+  //                     the two cheapest pro rows and nothing measured yet says
+  //                     the extra depth changes the output - raise it on evidence)
+  capture_classify: "low",
+  clipper_classify: "low",
+  audit_qa: "low",
+  source_ingest: "low",
+  import_ingest: "low",
+  clipper_template_propose: "low",
+  interview_probe: "low",
+  reasoning_connect: "medium",
+  imagine: "medium",
 };
 
 /**
@@ -220,12 +272,18 @@ export function resolveVendorForPurpose(purpose: PromptPurpose, hasImage: boolea
   // 2) EXPO_PUBLIC_LLM_VENDOR global override, when set.
   const override = llmVendorOverride();
   if (override) {
-    if (!isSeat) return "gemini";
+    // The seat switch deliberately does NOT reach the backbone: an operator
+    // moving the reasoning seats must not silently re-route a cheap classifier
+    // through a reasoning proxy. The backbone has its own switch for that.
+    if (!isSeat) return backboneVendor();
     if (override === "perPurpose") return PHASE2_VENDOR[purpose] ?? "gemini";
     return override; // gemini | claude | openai — applied to every seat
   }
 
-  // 3) Unset → back-compat: Phase-1 = 100% Gemini; Phase-2 = per-seat map.
+  // 3) Unset → back-compat: Phase-1 = Gemini for the SEATS; Phase-2 = the
+  //    per-seat map. Non-seat purposes take the backbone switch instead, which
+  //    defaults to Gemini, so this line reads the same as before for them.
+  if (!isSeat) return backboneVendor();
   if (llmPhase() !== 2) return "gemini";
   return PHASE2_VENDOR[purpose] ?? "gemini";
 }
