@@ -17,13 +17,13 @@
 //
 // 목록에서 일부러 빠져 있는 것 (PR #1286 참조)
 // -------------------------------------------
-//   · 레거시 cosmic-pixel 스킨 -- `EXPO_PUBLIC_UI=legacy` 는 원래 모습을 지켜야 한다.
-//     판별은 "레거시를 import 하는가" 가 아니라 `if (isDeepSpaceUI()) return <...>`
-//     이 있는가다. 그 줄이 있으면 딥스페이스 렌더링을 남에게 넘긴 것이고 그 아래는
-//     전부 레거시 분기다.
-//   · 개념 아트/그래프 -- 별과 노드의 반경은 별자리 은유에 대한 결정이지 치환이 아니다.
-//   · 두 스킨을 함께 섬기는 공용 파일(secondb/profile/BackArrow) -- 0 으로 만들면
-//     딥스페이스는 고쳐지고 레거시 롤백이 깨진다. 모드별 값이 필요하다.
+//   · 개념 아트/그래프 -- 별과 노드의 도형은 별자리 은유에 대한 결정이라 따로 간다.
+//     Simon 결정 2026-08-21: 사각형이 아니라 **정수 rect 로 만든 4방향 별 모양**.
+//
+// ⚠ **레거시 제외는 2026-08-21 에 없어졌다.** Simon 이 "레거시 스킨을 앞으로도
+// 지킬까요" 에 **안 지킨다**로 답했다 -- 배포 4곳이 전부 `deep-space` 로 못박혀
+// 있어서 그 스킨은 어디에도 안 나가고, 지키는 대가로 20여 개 파일이 둥근 채
+// 남아 있었다. 그래서 `(auth)/*` 도 `components/premium/*` 도 이제 목록에 있다.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -33,6 +33,17 @@ const ROOT = process.cwd();
 // 이식 완료 파일. 늘어나기만 한다. 줄이려면 그 화면을 되돌린다는 뜻이므로
 // PR 에 이유를 적을 것.
 const MIGRATED: readonly string[] = [
+  "src/app/(auth)/complete-profile.tsx",
+  "src/app/(auth)/sign-in.tsx",
+  "src/app/(auth)/sign-up.tsx",
+  "src/app/audit.tsx",
+  "src/app/iden.tsx",
+  "src/app/import.tsx",
+  "src/app/insights.tsx",
+  "src/app/profile.tsx",
+  "src/components/premium/SceneHero.tsx",
+  "src/components/ui/BackArrow.tsx",
+  "src/screens/deepspace/DeepSpaceFlowMapScreen.tsx",
   "src/app/beyond.tsx",
   "src/app/brightness.tsx",
   "src/app/call-reflection.tsx",

@@ -196,6 +196,12 @@ export const ANTHROPIC_OPUS_PURPOSES = [
  */
 export const OPENAI_FRONTIER_PURPOSES = [
   "cluster_infer",
+  // Backbone seats on the pro tier (REQ-260821-01). The other seven backbone
+  // purposes are nano/mini and stay out of this list for the same reason
+  // safety_classify does: cheapness is their design, and a frontier promotion
+  // reaching a per-capture classifier is the failure this list exists to stop.
+  "reasoning_connect",
+  "imagine",
   "advisor",
   "persona_narrative",
   "gap_synthesize",
