@@ -130,33 +130,55 @@ results.push(
   // What it must prevent coming back, and why each half matters:
   //   - a comp domain in JUDGE_DOMAINS. Comp by email domain granted the TOP
   //     PAID TIER from a string the user picks at sign-up.
-  //   - the derive triggers. enforce_judge_mode() was doing double duty as the
+  //   - the email-domain DERIVATION. enforce_judge_mode() was doing double duty as the
   //     privilege guard, because the "column-level revoke" 0011's comment
   //     promised did not actually exist (measured on prod 2026-08-21: anon and
-  //     authenticated both held UPDATE on users.judge_mode). 0138 revokes it
-  //     properly, so the triggers must not return and re-derive the column.
+  //     authenticated both held UPDATE on users.judge_mode).
+  //
+  //     [!] The first draft of 0138 answered that by revoking the column and
+  //     dropping both triggers. A production dry run showed the revoke is a
+  //     NO-OP: anon/authenticated hold TABLE-level privileges on public.users,
+  //     and a column REVOKE cannot cut a table GRANT. Dropping the guard on the
+  //     strength of it would have opened self-escalation to the top paid tier.
+  //     So 0138 now REPLACES enforce_judge_mode() with a pure guard instead of
+  //     dropping it, and this check follows: the derivation must be gone, the
+  //     guard must still be sitting in the trigger seat.
   check("C6", () => {
     const libEmpty = JUDGE_DOMAINS.length === 0;
     const retire = read("db/migrations/0138_retire_judge_auto_flag.sql");
     const revoked =
       /REVOKE UPDATE \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire) &&
       /REVOKE INSERT \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire);
-    const dropped =
-      retire.includes("DROP FUNCTION IF EXISTS public.auto_judge_mode()") &&
-      retire.includes("DROP FUNCTION IF EXISTS public.enforce_judge_mode()");
+    // The INSERT-side derivation goes away outright: an INSERT has no OLD row
+    // to compare against, so there is nothing there for a guard to do.
+    const dropped = retire.includes("DROP FUNCTION IF EXISTS public.auto_judge_mode()");
+    // The UPDATE-side seat keeps a trigger, but it must no longer read the
+    // email. Checking for the ABSENCE of the derivation is the point: a check
+    // that merely asserted "a function exists" would have passed the original.
+    // Comments are stripped first, so the header may narrate the retired
+    // domains without failing the check and, more importantly, executable SQL
+    // cannot hide behind prose.
+    const retireSql = retire.replace(/^\s*--.*$/gm, "");
+    const guarded =
+      retire.includes("CREATE OR REPLACE FUNCTION public.enforce_judge_mode()") &&
+      retire.includes("CREATE TRIGGER trg_users_enforce_judge") &&
+      !/split_part\s*\(\s*NEW\.email/.test(retireSql) &&
+      !/xprize\.org|devpost\.com|hacker\.fund/.test(retireSql);
     // No LATER migration may re-create them. 0010/0011 still contain the
     // originals and are history, so only files above 0138 are scanned.
     const revived = readdirSync(join(ROOT, "db", "migrations"))
       .filter((f) => f.endsWith(".sql"))
-      .filter((f) => /^0(1[4-9]\d|[2-9]\d\d)_/.test(f))
+      // Numeric comparison rather than a filename pattern: the previous regex
+      // skipped 0139 entirely, which is the very next file anyone would write.
+      .filter((f) => Number.parseInt(f.slice(0, 4), 10) > 138)
       .filter((f) => /CREATE (OR REPLACE )?FUNCTION [^\n]*(auto|enforce)_judge_mode/.test(read(`db/migrations/${f}`)));
-    const ok = libEmpty && revoked && dropped && revived.length === 0;
+    const ok = libEmpty && revoked && dropped && guarded && revived.length === 0;
     return {
       id: "C6",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "judge comp retired: JUDGE_DOMAINS empty, 0138 revokes judge_mode writes + drops both triggers, no revival"
-        : `judge retirement incomplete: domains=${JUDGE_DOMAINS.length} revoked=${revoked} dropped=${dropped} revived=[${revived.join(", ")}]`,
+        ? "judge comp retired: JUDGE_DOMAINS empty, 0138 drops the email derivation and keeps a pure write guard, no revival"
+        : `judge retirement incomplete: domains=${JUDGE_DOMAINS.length} revoked=${revoked} dropped=${dropped} guarded=${guarded} revived=[${revived.join(", ")}]`,
     };
   }),
 );
