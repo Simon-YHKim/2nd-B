@@ -61,5 +61,6 @@
   "areasCount": "{{n}} áreas",
   "seePieces": "Ver {{n}} fragmentos",
   "seeEvidencePieces": "Ver {{n}} fragmentos de evidencia",
-  "piecesBehindSub": "Los registros en los que se apoyaron SecondB y tu Estrella Polar."
+  "piecesBehindSub": "Los registros en los que se apoyaron SecondB y tu Estrella Polar.",
+  "profileStar": "Perfil"
 }

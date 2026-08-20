@@ -23,7 +23,7 @@ import {
   SceneHero,
   StatTile,
 } from "@/components/premium";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
@@ -40,7 +40,9 @@ import {
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels, type DomainBrightness } from "@/lib/persona/load-domain-levels";
-import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
+import { getDomainStar } from "@/lib/persona/domain-stars";
+import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
@@ -127,6 +129,7 @@ function CoreBrainScreen() {
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [evidence, setEvidence] = useState<OriginShard[]>([]);
   const [domainBrightness, setDomainBrightness] = useState<DomainBrightness | null>(null);
+  const [profileLevel, setProfileLevel] = useState<LadderLevel | null>(null);
   const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
   const [building, setBuilding] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -145,16 +148,18 @@ function CoreBrainScreen() {
     setLoadError(false);
     (async () => {
       try {
-        const [ev, nextDomainBrightness, nextStrengths] = await Promise.all([
+        const [ev, nextDomainBrightness, nextStrengths, nextProfileLevel] = await Promise.all([
           loadCoreBrainEvidence(userId, locale),
           loadDomainLevels(userId).catch(() => null),
           loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
+          loadProfileStarLevel(userId).catch(() => null),
         ]);
         const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
         if (!cancelled) {
           setEvidence(ev);
           setPersona(p);
           setDomainBrightness(nextDomainBrightness);
+          setProfileLevel(nextProfileLevel);
           setStrengths(nextStrengths);
           // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
           if (p) fireCompanion("connectionFound");
@@ -309,7 +314,6 @@ function CoreBrainScreen() {
   const portrait = buildSelfPortrait({ persona }, locale);
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
-  const starLevels = persona?.starLevels;
   const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
@@ -713,23 +717,30 @@ function CoreBrainScreen() {
           />
         </Section>
 
-        {/* 5b) 나를 아는 일곱 가지 — 7 self-understanding stars (constellation) */}
-        {starLevels ? (
+        {/* 5b) 나를 아는 일곱 가지 — 홈이 그리는 그 일곱 (6 도메인 + 프로필).
+            Simon 결정 2026-08-21: 폐기되는 심리 구인 대신 도메인을 보여준다.
+            잠긴 상태(위 lockedStarRow)가 이미 도메인을 그리고 있었으므로, 이제
+            잠금 전후가 **같은 일곱**을 말한다 -- 전에는 서로 달랐다.
+            "곧" 배지는 사라졌다. 그건 엔진이 없는 구인 둘을 가리키던 것인데,
+            도메인은 일곱 다 실재한다. 없는 걸 광고하지 않게 된다. */}
+        {domainLevels ? (
           <Section title={t("sevenWays")} accent={cosmic.soulViolet}>
             <View style={styles.starRow}>
-              {SELF_UNDERSTANDING_STARS.map((star) => {
-                const v = brightnessVisual(starLevels[star.id]);
+              {HOME_STAR_IDS.map((id) => {
+                const level = id === "profile" ? profileLevel : domainLevels[id];
+                const v = brightnessVisual(level ?? 1);
+                const name =
+                  id === "profile"
+                    ? t("profileStar")
+                    : locale === "ko"
+                      ? getDomainStar(id).nameKo
+                      : getDomainStar(id).nameEn;
                 return (
-                  <View key={star.id} style={styles.starItem}>
+                  <View key={id} style={styles.starItem}>
                     <View style={[styles.starDot, { opacity: v.opacity }]} />
                     <Text variant="caption" color="textMuted" style={styles.starName}>
-                      {locale === "ko" ? star.nameKo : star.nameEn}
+                      {name}
                     </Text>
-                    {star.status === "absent" ? (
-                      <Text variant="caption" color="textSubtle" style={styles.starSoon}>
-                        {t("soon")}
-                      </Text>
-                    ) : null}
                   </View>
                 );
               })}
