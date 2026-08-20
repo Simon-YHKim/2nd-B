@@ -18,7 +18,7 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-n
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.lg,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
     backgroundColor: deepSpace.card,

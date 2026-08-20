@@ -17,7 +17,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 
@@ -251,11 +251,11 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 9, letterSpacing: 1.6, color: deepSpace.text, marginBottom: 6 },
   title: { fontSize: 24, color: deepSpace.textHi },
   subtitle: { fontSize: 13, color: deepSpace.textMid, marginTop: 6 },
-  langBtn: { minHeight: 36, paddingHorizontal: deepSpaceSpacing.md, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card },
+  langBtn: { minHeight: 36, paddingHorizontal: deepSpaceSpacing.md, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, borderWidth: 1, borderColor: deepSpace.cardLineStrong, backgroundColor: deepSpace.card },
   langText: { fontSize: 13, color: deepSpace.accentSoft },
 
   tabRow: { gap: 8, paddingHorizontal: deepSpaceSpacing.lg, paddingVertical: deepSpaceSpacing.md },
-  tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingHorizontal: 12, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },
+  tab: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44, paddingHorizontal: 12, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card },
   tabDot: { width: 7, height: 7, borderRadius: m3.shape.none },
   tabLabel: { fontSize: 13, color: deepSpace.textMid },
   tabLabelOn: { color: deepSpace.textHi },
@@ -267,14 +267,14 @@ const styles = StyleSheet.create({
   catDesc: { fontSize: 13, color: deepSpace.textMid, paddingHorizontal: deepSpaceSpacing.lg, marginTop: 8, lineHeight: 20 },
 
   rail: { gap: 18, paddingHorizontal: deepSpaceSpacing.lg, paddingTop: deepSpaceSpacing.md, paddingBottom: deepSpaceSpacing.sm },
-  card: { width: CARD_W, borderRadius: deepSpaceRadii.lg, overflow: "hidden", borderWidth: 1, borderColor: deepSpace.cardLine, backgroundColor: deepSpace.card },
+  card: { width: CARD_W, borderRadius: m3.shape.large, overflow: "hidden", borderWidth: 1, borderColor: deepSpace.cardLine, backgroundColor: deepSpace.card },
   slot: { height: 184, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: deepSpace.cardPressed, borderBottomWidth: 1, borderBottomColor: deepSpace.cardLine, padding: deepSpaceSpacing.md },
   slotOrb: { width: 48, height: 48, borderRadius: m3.shape.none, borderWidth: 1 },
   slotImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   slotHint: { fontSize: 11, color: deepSpace.textLo, textAlign: "center" },
   cardBody: { padding: deepSpaceSpacing.md, gap: 8 },
   num: { fontSize: 26, color: deepSpace.cardLineStrong },
-  dateChip: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderRadius: deepSpaceRadii.sm },
+  dateChip: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderRadius: m3.shape.small },
   dateText: { fontSize: 12 },
   cardTitle: { fontSize: 18, color: deepSpace.textHi },
   cardBodyText: { fontSize: 13, color: deepSpace.textMid, lineHeight: 20 },

@@ -33,7 +33,7 @@ import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { deepSpace, deepSpaceRadii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -1316,13 +1316,13 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   settingsButton: {
     minHeight: 48,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     overflow: "hidden",
   },

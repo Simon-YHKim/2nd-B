@@ -11,7 +11,7 @@ import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
@@ -287,33 +287,33 @@ const styles = StyleSheet.create({
 
   obsCard: {
     padding: deepSpaceSpacing.md, borderWidth: 1, borderColor: deepSpace.soulLine,
-    borderRadius: deepSpaceRadii.lg, backgroundColor: deepSpace.card, gap: deepSpaceSpacing.sm,
+    borderRadius: m3.shape.large, backgroundColor: deepSpace.card, gap: deepSpaceSpacing.sm,
   },
   obsHead: { flexDirection: "row", alignItems: "flex-start", gap: 9 },
   obsText: { flex: 1, fontSize: 14, color: deepSpace.textHi },
   reasonChip: {
     flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 44,
-    paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: deepSpaceRadii.sm,
+    paddingHorizontal: 9, paddingVertical: 5, borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: m3.shape.small,
   },
   dot: { width: 7, height: 7, borderRadius: m3.shape.none },
   reasonText: { fontSize: 12, color: deepSpace.soul },
   reasonCaret: { fontSize: 14, color: deepSpace.soul },
   obsActions: { flexDirection: "row", gap: deepSpaceSpacing.sm },
 
-  primaryBtn: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.mint },
+  primaryBtn: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, backgroundColor: deepSpace.mint },
   primaryText: { fontSize: 14, color: deepSpace.onMint },
   disabled: { opacity: 0.5 },
-  ghostBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: deepSpaceRadii.md, borderWidth: 1, borderColor: deepSpace.cardLineStrong },
+  ghostBtn: { minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: m3.shape.medium, borderWidth: 1, borderColor: deepSpace.cardLineStrong },
   ghostText: { fontSize: 14, color: deepSpace.accentSoft },
 
   dreamRow: {
     flexDirection: "row", alignItems: "center", gap: 9, minHeight: 48, paddingHorizontal: deepSpaceSpacing.md,
-    borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card,
+    borderWidth: 1, borderColor: deepSpace.soulLine, borderRadius: m3.shape.medium, backgroundColor: deepSpace.card,
   },
   dreamBadge: {
     width: 28,
     height: 22,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
