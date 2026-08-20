@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
@@ -737,10 +738,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: deepSpace.mintLine, backgroundColor: deepSpace.mintBg, borderRadius: deepSpaceRadii.md,
   },
   toggleText: { flex: 1, fontSize: 14, color: deepSpace.accentBright },
-  toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
+  toggle: { width: 44, height: 26, borderRadius: m3.shape.none, justifyContent: "center", paddingHorizontal: 3 },
   toggleOn: { backgroundColor: deepSpace.mint, alignItems: "flex-end" },
   toggleOff: { backgroundColor: deepSpace.cardPressed, alignItems: "flex-start" },
-  knob: { width: 20, height: 20, borderRadius: 10 },
+  knob: { width: 20, height: 20, borderRadius: m3.shape.none },
   knobOn: { backgroundColor: deepSpace.onMint },
   knobOff: { backgroundColor: deepSpace.textLo },
   noteCard: { padding: deepSpaceSpacing.sm, borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.card },

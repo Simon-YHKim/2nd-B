@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 
 export interface FormatSchemaInput {
   name: string;
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   propHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: spacing.xs },
-  propDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
+  propDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: semantic.brand },
   propName: { flexGrow: 1, flexShrink: 1, minWidth: 96 },
   typeChip: {
     borderRadius: radii.sm,

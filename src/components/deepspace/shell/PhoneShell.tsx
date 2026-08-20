@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   windowCard: {
     flex: 1,
     minHeight: 0,
-    borderRadius: 24,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     backgroundColor: m3.color.surface,
     borderWidth: StyleSheet.hairlineWidth,

@@ -17,6 +17,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 
 export interface DeepSpaceLinkGroup {
   /** Section heading (already locale-resolved by the caller). */
@@ -41,7 +42,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,

@@ -12,6 +12,7 @@ import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { dismissTask, useTaskStatus } from "@/lib/tasks/store";
 import { reactExpression } from "@/lib/companion/expression";
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.mintLine,
     backgroundColor: deepSpace.mintBg,

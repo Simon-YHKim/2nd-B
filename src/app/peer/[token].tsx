@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderWidth: 1,
     borderColor: m3.color.outline,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     color: semantic.text,
     fontSize: 16,
   },

@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   iconCard: {
     width: 96,
     height: 96,
-    borderRadius: 28,
+    borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(deepSpace.accent, 0.14),
@@ -271,9 +271,9 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   dots: { flex: 1, flexDirection: "row", alignItems: "center", gap: 7 },
-  dot: { height: 7, borderRadius: 9999 },
+  dot: { height: 7, borderRadius: m3.shape.none },
   nextBtn: {
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.accent,
     overflow: "hidden",
   },
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   // MdButton (accent fill, onAccent label, stadium radius, min 48, stretch).
   authBtnWrap: {
     alignSelf: "stretch",
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.accent,
     overflow: "hidden",
   },

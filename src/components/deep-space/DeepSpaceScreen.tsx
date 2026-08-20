@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   window: {
     flex: 1,
-    borderRadius: 24,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     backgroundColor: m3.color.surface,
     borderWidth: 1,

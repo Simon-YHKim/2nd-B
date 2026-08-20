@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     right: 10,
     width: 7,
     height: 7,
-    borderRadius: 3.5,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.accent.alertDot,
   },
   // Top-anchored (not flex-centered) so the dipper sits high; paddingTop matches
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingVertical: 13,
     paddingHorizontal: 16,
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(m3.accent.starCore, 0.34),
     backgroundColor: withAlpha(m3.accent.bubbleSurface, 0.95),

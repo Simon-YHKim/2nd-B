@@ -2,6 +2,7 @@ import { Pressable, TouchableOpacity, StyleSheet, Switch, View } from "react-nat
 
 import { Text } from "@/components/ui/Text";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 
 export function PreferenceSwitch({
   value,
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
   boxInner: {
     width: 10,
     height: 10,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: semantic.brand,
   },
   checkLabel: { flex: 1, lineHeight: 18 },

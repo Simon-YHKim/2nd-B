@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
   weekTxt: { color: m3.color.onSurfaceVariant, textAlign: "center" },
   weekRow: { flexDirection: "row" },
   dayCell: { flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center", padding: 2 },
-  dayInner: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  dayInner: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   daySel: { backgroundColor: m3.color.primary },
   dayToday: { borderWidth: 1, borderColor: m3.color.primary },
 

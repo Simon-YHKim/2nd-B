@@ -187,7 +187,7 @@ const s = StyleSheet.create({
   timelineLine: { position: "absolute", left: 5, top: 6, bottom: 6, width: 2, backgroundColor: m3.color.outlineVariant },
   event: { position: "relative" },
   eventGap: { paddingBottom: 16 },
-  eventDot: { position: "absolute", left: -22, top: 3, width: 12, height: 12, borderRadius: 6 },
+  eventDot: { position: "absolute", left: -22, top: 3, width: 12, height: 12, borderRadius: m3.shape.none },
   eventHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   eventStar: { color: m3.color.onSurface, fontSize: 14, fontWeight: "500" },
   eventJump: { fontFamily: m3.font.mono, fontSize: 12 },

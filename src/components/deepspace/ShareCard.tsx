@@ -81,7 +81,7 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
         {
           width: size,
           height: size,
-          borderRadius: 24 * k,
+          borderRadius: m3.shape.none * k,
           borderColor: withAlpha(m3.accent.shareEyebrow, 0.18),
         },
       ]}
