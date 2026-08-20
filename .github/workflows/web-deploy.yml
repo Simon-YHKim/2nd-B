@@ -116,6 +116,20 @@ jobs:
           # seats have never served a production call, so treat a flip as a rollout,
           # not a config tweak.
           EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}
+          # Vendor for the OCR + voice-memo seats (the two that carry binaries).
+          # Unset keeps Gemini, which is today's posture.
+          #
+          # ⚠ THIS LINE IS THE FLIP. Until 2026-08-21 the variable existed in the
+          # code and in nobody's build environment: Expo inlines EXPO_PUBLIC_*
+          # from the BUILD env, and this workflow enumerates what it passes, so
+          # setting the repo Variable alone changed nothing and reported nothing.
+          # Deploy openai-proxy BEFORE flipping this, same as chat.
+          EXPO_PUBLIC_MULTIMODAL_VENDOR: ${{ vars.EXPO_PUBLIC_MULTIMODAL_VENDOR || '' }}
+          # Vendor for the nine purposes that are neither a reasoning seat, nor
+          # chat, nor multimodal (classification, interview probes, imports, the
+          # deep-run rationale). Unset keeps Gemini. Same missing-from-the-env
+          # story as the line above; also deploy-before-flip.
+          EXPO_PUBLIC_BACKBONE_VENDOR: ${{ vars.EXPO_PUBLIC_BACKBONE_VENDOR || '' }}
           # Naver social sign-up (custom OAuth via the oauth-naver edge function,
           # already in-repo). Server side confirmed live 2026-07-15 (Simon):
           # oauth-naver deployed with its secrets and the app registered at
