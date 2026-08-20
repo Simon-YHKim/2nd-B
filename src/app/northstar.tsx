@@ -307,10 +307,10 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     backgroundColor: m3.color.tertiary,
     shadowColor: m3.color.tertiary,
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 4,
+    elevation: 0,
   },
   heroLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.2, color: m3.color.tertiary },
   heroInput: {
