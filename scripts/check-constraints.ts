@@ -171,7 +171,21 @@ results.push(
       // Numeric comparison rather than a filename pattern: the previous regex
       // skipped 0139 entirely, which is the very next file anyone would write.
       .filter((f) => Number.parseInt(f.slice(0, 4), 10) > 138)
-      .filter((f) => /CREATE (OR REPLACE )?FUNCTION [^\n]*(auto|enforce)_judge_mode/.test(read(`db/migrations/${f}`)));
+      // What must not come back is the DERIVATION, not a function name. The
+      // name check this used to be flagged 0139's enforce_judge_mode_insert(),
+      // which is a GUARD closing the INSERT path 0138 leaves open - the
+      // opposite of a revival. Matching on the behaviour is both stricter
+      // (a differently named function reading NEW.email is caught) and
+      // correct (a guard is not a revival). Comments stripped, so a migration
+      // may narrate the history without failing, and cannot hide SQL in prose.
+      .filter((f) => {
+        const sql = read(`db/migrations/${f}`).replace(/^\s*--.*$/gm, "");
+        return (
+          /CREATE (OR REPLACE )?FUNCTION [^\n]*auto_judge_mode/.test(sql) ||
+          /split_part\s*\(\s*NEW\.email/.test(sql) ||
+          /xprize\.org|devpost\.com|hacker\.fund/.test(sql)
+        );
+      });
     const ok = libEmpty && revoked && dropped && guarded && revived.length === 0;
     return {
       id: "C6",

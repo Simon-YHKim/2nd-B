@@ -198,11 +198,14 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
     id: user.id,
     email: args.email,
     birth_date: args.birthDate,
-    judge_mode: judgeMode,
     locale: args.locale ?? "en",
   });
-  // DB trigger auto_judge_mode also enforces judgeMode; the client-side
-  // value is best-effort for instant UI updates. The trigger is authoritative.
+  // judge_mode is deliberately NOT sent. It used to be, with a comment saying
+  // the auto_judge_mode trigger was authoritative - and it was, until 0138
+  // dropped that trigger as XPRIZE cleanup. Sending a column whose only
+  // remaining guard is a different trigger (0139's BEFORE INSERT) means the
+  // client is asking for a privilege and being silently corrected. Not asking
+  // is clearer, and the value defaults to false either way.
   if (insertErr) {
     // J3 (the correct-password variant): a fully-registered user re-signing-up
     // with their own password authenticates fine above, then the INSERT hits
@@ -726,11 +729,11 @@ export async function ensureUserProfile(args: CompleteProfileArgs): Promise<Comp
     id: user.id,
     email: user.email ?? "",
     birth_date: args.birthDate,
-    judge_mode: judgeMode,
     locale: args.locale,
     display_name: displayName,
   });
-  // C6: the auto_judge_mode BEFORE INSERT trigger overrides the client value.
+  // judge_mode is deliberately NOT sent here either; see the note on the other
+  // sign-up path. auto_judge_mode() no longer exists (0138).
   if (insertErr) {
     // A 23505 here has two shapes. (a) users_pkey: our own row won a
     // double-submit race -- re-probe by id and report idempotent success,
