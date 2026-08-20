@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   fieldLabel: { letterSpacing: 0 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: 2 },
   chip: {
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: semantic.border,
     paddingHorizontal: spacing.sm,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   propRow: {
     marginTop: spacing.xs,
     gap: spacing.xs,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: semantic.border,
     backgroundColor: semantic.surfaceAlt,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   propDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: semantic.brand },
   propName: { flexGrow: 1, flexShrink: 1, minWidth: 96 },
   typeChip: {
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: semantic.border,
     paddingHorizontal: spacing.xs,

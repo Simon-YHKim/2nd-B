@@ -159,7 +159,7 @@ export function SecondBFab({ fabState = "default", size = 64 }: { fabState?: Sec
         {
           width: size,
           height: size,
-          borderRadius: Math.max(14, size * 0.3),
+          borderRadius: 0,
           transform: [{ translateY: ty }],
         },
       ]}
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   chatChip: {
     position: "absolute",
-    borderRadius: 6,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(cosmic.signalMint, 0.62),
     backgroundColor: withAlpha(cosmic.space950, 0.76),
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   chatDot: {
     width: 3,
     height: 3,
-    borderRadius: 2,
+    borderRadius: 0,
     backgroundColor: cosmic.signalMint,
   },
   alertBurst: {
@@ -239,12 +239,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 14,
     height: 3,
-    borderRadius: 2,
+    borderRadius: 0,
     backgroundColor: cosmic.guardRose,
   },
   sleepDot: {
     position: "absolute",
-    borderRadius: 99,
+    borderRadius: 0,
     borderWidth: 2,
     borderColor: cosmic.signalBlue,
     opacity: 0.74,
@@ -256,13 +256,13 @@ const styles = StyleSheet.create({
     borderColor: withAlpha(cosmic.signalMint, 0.48),
     backgroundColor: withAlpha(cosmic.soulViolet, 0.16),
     shadowColor: cosmic.signalMint,
-    shadowOpacity: 0.38,
-    shadowRadius: 14,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   fabBadge: {
     position: "absolute",
-    borderRadius: 99,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(cosmic.pixelLamp, 0.86),
     backgroundColor: withAlpha(cosmic.pixelLamp, 0.24),
@@ -272,12 +272,12 @@ const styles = StyleSheet.create({
   fabBadgeCore: {
     width: 4,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 0,
     backgroundColor: cosmic.pixelLamp,
   },
   fabChatBadge: {
     position: "absolute",
-    borderRadius: 6,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(cosmic.signalMint, 0.72),
     backgroundColor: withAlpha(cosmic.space950, 0.72),

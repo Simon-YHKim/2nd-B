@@ -164,8 +164,10 @@ export function useResetPasswordForm(): UseResetPasswordForm {
       // generic fallback from being refactored away.
       const failure = passwordUpdateFailure(e);
       const message =
-        failure === "current_password_required"
-          ? t("errors.currentPasswordRequired")
+        failure === "breached_password"
+          ? t("errors.breachedPassword")
+          : failure === "current_password_required"
+            ? t("errors.currentPasswordRequired")
           : failure === "current_password_invalid"
             ? t("errors.currentPasswordInvalid")
             : failure === "reauthentication_needed"

@@ -563,11 +563,11 @@ const styles = StyleSheet.create({
   },
   flameGlow: {
     position: "absolute",
-    borderRadius: 48,
+    borderRadius: 0,
     backgroundColor: SOUL_FLAME_WARM,
     shadowColor: SOUL_FLAME_WARM,
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   pixelFlame: {
@@ -580,8 +580,8 @@ const styles = StyleSheet.create({
   flameCell: {
     position: "absolute",
     shadowColor: SOUL_FLAME_WARM,
-    shadowOpacity: 0.55,
-    shadowRadius: 3,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   snowflakeFrame: {
@@ -589,16 +589,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: SNOW_CRYSTAL_COOL,
-    shadowOpacity: 0.8,
-    shadowRadius: 9,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   snowflakeCell: {
     position: "absolute",
-    borderRadius: 1,
+    borderRadius: 0,
     shadowColor: SNOW_CRYSTAL_COOL,
-    shadowOpacity: 0.72,
-    shadowRadius: 4,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   snowflakeImage: {
