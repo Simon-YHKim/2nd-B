@@ -12,8 +12,14 @@ import { GoogleGenAI } from "@google/genai";
 
 import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
-import { multimodalVendor, phase2EffortFor, proxyFnForVendor, resolveVendorForPurpose } from "./routing";
-import type { LlmVendor } from "./routing";
+import {
+  multimodalVendor,
+  normalizeVendor,
+  phase2EffortFor,
+  proxyFnForVendor,
+  resolveVendorForPurpose,
+} from "./routing";
+import type { LlmProxyFn, LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
@@ -110,17 +116,14 @@ function resolveReasoningProvider(): LlmVendor {
   // could set EXPO_PUBLIC_REASONING_PROVIDER=openai, see no error, and still be
   // on Gemini. That silent no-op is the thing standing between this app and the
   // September deadline, so the seam now accepts every vendor it can route to.
-  if (raw === "claude" || raw === "openai") return raw;
-  return "gemini";
+  return normalizeVendor(raw) ?? "gemini";
 }
 
 // Each vendor routes to its own Supabase Edge Function; all keep the client
 // SDK-free (C1). Claude/OpenAI have no client-side path (no key on the
 // device), so a non-Gemini call ALWAYS goes through its edge function even
 // when EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off for the direct Gemini path.
-function reasoningProxyFn(
-  reasoningProvider: "gemini" | "claude" | "openai" | undefined,
-): "gemini-proxy" | "claude-proxy" | "openai-proxy" {
+function reasoningProxyFn(reasoningProvider: LlmVendor | undefined): LlmProxyFn {
   return proxyFnForVendor(reasoningProvider);
 }
 
@@ -857,7 +860,7 @@ async function advisorProxyCrisisResult(
   // The vendor whose server gate fired — threaded from callAdvisor's resolved
   // routing (Phase 2 seat or legacy seam), NOT re-derived from the env, so the
   // restricted trail attributes the catch to the proxy that actually rejected.
-  reasoningProvider: "gemini" | "claude" | "openai",
+  reasoningProvider: LlmVendor,
 ): Promise<AdvisorResult> {
   const fixed = fixedCrisisResponse(input.locale, input.minor);
   const proxyTrigger = confirmedMarker ? "proxy_input_red" : "proxy_input_red_unconfirmed";

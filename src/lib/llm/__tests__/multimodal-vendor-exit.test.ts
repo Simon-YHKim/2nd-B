@@ -48,7 +48,9 @@ describe("merging this does not move anybody", () => {
     expect(multimodalVendor()).toBe("gemini");
   });
 
-  test.each(["", "   ", "grok", "anthropic", "OPENAI_PROXY", "true"])(
+  // "grok" is no longer junk anywhere - it is the xai alias. It stays out of
+  // the multimodal switch for a different reason: that proxy carries no binary.
+  test.each(["", "   ", "anthropic", "OPENAI_PROXY", "true", "xai", "grok"])(
     "an unrecognised value (%p) falls back to Gemini rather than to nothing",
     (v) => {
       setVendor(v);
@@ -136,7 +138,10 @@ describe("the reasoning seam can actually reach OpenAI", () => {
     // variable to openai left the app on Gemini with no error anywhere - the
     // exact failure that would have made the September exit look done when it
     // was not.
-    expect(boundary).toMatch(/if \(raw === "claude" \|\| raw === "openai"\) return raw;/);
+    // The literal moved into normalizeVendor() when xai joined, so the check
+    // is now that the seam DEFERS to that one normalizer rather than keeping a
+    // second copy of the vendor list that could drift from it.
+    expect(boundary).toMatch(/return normalizeVendor\(raw\) \?\? "gemini";/);
     expect(boundary).not.toMatch(/return raw === "claude" \? "claude" : "gemini";/);
   });
 });

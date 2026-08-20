@@ -14,8 +14,31 @@
 
 import type { PromptPurpose, ReasoningEffort } from "./types";
 
-export type LlmVendor = "gemini" | "claude" | "openai";
-export type LlmProxyFn = "gemini-proxy" | "claude-proxy" | "openai-proxy";
+// xai joined on 2026-08-21 (Simon: put Grok in). The coding session had
+// recommended waiting until after the Gemini deadline; the override is
+// answered by keeping the blast radius small rather than by argument. Nothing
+// routes to xai by default - every switch below still defaults elsewhere, and
+// xai-proxy seats only the reasoning purposes plus chat, so a switch pointed at
+// it for anything else fails loudly instead of billing quietly.
+export type LlmVendor = "gemini" | "claude" | "openai" | "xai";
+export type LlmProxyFn = "gemini-proxy" | "claude-proxy" | "openai-proxy" | "xai-proxy";
+
+/**
+ * One place that turns an operator's typed value into a vendor, so the four
+ * switches cannot disagree about what they accept.
+ *
+ * `grok` maps to `xai`. The product is called Grok; the API host, the secret
+ * name and the audit ledger all say xai. An operator will type the name they
+ * know, and refusing it would fall through to Gemini with no error anywhere -
+ * exactly the silent no-op that EXPO_PUBLIC_REASONING_PROVIDER=openai used to
+ * be, and that cost this project a wrong belief about which vendor was serving.
+ */
+export function normalizeVendor(raw: string): LlmVendor | null {
+  const v = raw.trim().toLowerCase();
+  if (v === "gemini" || v === "claude" || v === "openai" || v === "xai") return v;
+  if (v === "grok") return "xai";
+  return null;
+}
 
 // A global backbone selector: a single vendor for all reasoning seats, or
 // "perPurpose" to defer to the PHASE2_VENDOR map.
@@ -40,7 +63,8 @@ export function llmPhase(): 1 | 2 {
 // 100% Gemini ($0), unchanged.
 export function llmVendorOverride(): LlmVendorMode | null {
   const raw = (process.env.EXPO_PUBLIC_LLM_VENDOR ?? "").trim().toLowerCase();
-  if (raw === "gemini" || raw === "claude" || raw === "openai") return raw;
+  const vendor = normalizeVendor(raw);
+  if (vendor) return vendor;
   if (raw === "perpurpose") return "perPurpose";
   return null;
 }
@@ -67,8 +91,7 @@ export function llmVendorOverride(): LlmVendorMode | null {
 // Set this variable before that deploy and every chat message fails. Deploy
 // first, then flip -- the same trap as applying a migration after its client.
 export function chatVendorOverride(): LlmVendor | null {
-  const raw = (process.env.EXPO_PUBLIC_CHAT_VENDOR ?? "").trim().toLowerCase();
-  if (raw === "gemini" || raw === "claude" || raw === "openai") return raw;
+  return normalizeVendor(process.env.EXPO_PUBLIC_CHAT_VENDOR ?? "");
   return null;
 }
 
@@ -92,10 +115,15 @@ export function chatVendorOverride(): LlmVendor | null {
 // variable is set. The proxy seats have to exist first - openai-proxy answers
 // 400 purpose_not_seated for anything outside its allowlist BEFORE doing
 // anything else, so this is the same deploy-then-flip ordering as chat.
+// ⚠ "xai" is accepted here and WILL be refused by the proxy. That is the
+// intended behaviour, not an oversight: the nine backbone purposes are the
+// app's highest-volume surfaces, xai-proxy has no cheap Grok tier confirmed
+// against the account, and seating them on the frontier model to make this
+// setting "work" would be the most expensive mistake available. Unseated, the
+// call answers purpose_not_seated - loud, and free. Seat them in xai-proxy when
+// a cheap tier is confirmed, and this comment stops being true.
 export function backboneVendor(): LlmVendor {
-  const raw = (process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "").trim().toLowerCase();
-  if (raw === "gemini" || raw === "claude" || raw === "openai") return raw;
-  return "gemini";
+  return normalizeVendor(process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "") ?? "gemini";
 }
 
 // OCR and voice memos are the two purposes that carry BINARY payloads, so they
@@ -128,6 +156,10 @@ export const GEMINI_PINNED_PURPOSES = MULTIMODAL_PURPOSES;
 // The console flips EXPO_PUBLIC_MULTIMODAL_VENDOR=openai AFTER redeploying.
 export function multimodalVendor(): LlmVendor {
   const raw = (process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR ?? "").trim().toLowerCase();
+  // "xai" is deliberately NOT accepted. xai-proxy has no image or audio path
+  // and refuses an attachment outright, so allowing the value here would turn a
+  // capability gap into a runtime 415 on every photo and voice memo. A vendor
+  // that cannot carry a binary is not a choice for the binary-carrying seats.
   if (raw === "openai" || raw === "gemini") return raw;
   return "gemini";
 }
@@ -296,5 +328,6 @@ export function phase2EffortFor(purpose: PromptPurpose): ReasoningEffort | undef
 export function proxyFnForVendor(vendor: LlmVendor | undefined): LlmProxyFn {
   if (vendor === "claude") return "claude-proxy";
   if (vendor === "openai") return "openai-proxy";
+  if (vendor === "xai") return "xai-proxy";
   return "gemini-proxy";
 }
