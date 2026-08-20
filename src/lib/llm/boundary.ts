@@ -12,7 +12,8 @@ import { GoogleGenAI } from "@google/genai";
 
 import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
-import { phase2EffortFor, proxyFnForVendor, resolveVendorForPurpose } from "./routing";
+import { multimodalVendor, phase2EffortFor, proxyFnForVendor, resolveVendorForPurpose } from "./routing";
+import type { LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
@@ -103,9 +104,14 @@ const THINKING_OFF_PURPOSES: ReadonlySet<PromptPurpose> = new Set(["capture_ocr"
 // docs/CLAUDE-REASONING-SETUP.md, Option A). We NEVER import an Anthropic SDK
 // here — the Claude call happens server-side in the edge function, so C1 holds.
 // The chosen provider is recorded in the audit meta.
-function resolveReasoningProvider(): "gemini" | "claude" {
+function resolveReasoningProvider(): LlmVendor {
   const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "gemini").trim().toLowerCase();
-  return raw === "claude" ? "claude" : "gemini";
+  // 'openai' used to fall through to Gemini here, which meant the operator
+  // could set EXPO_PUBLIC_REASONING_PROVIDER=openai, see no error, and still be
+  // on Gemini. That silent no-op is the thing standing between this app and the
+  // September deadline, so the seam now accepts every vendor it can route to.
+  if (raw === "claude" || raw === "openai") return raw;
+  return "gemini";
 }
 
 // Each vendor routes to its own Supabase Edge Function; all keep the client
@@ -1148,8 +1154,15 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
     // ALWAYS threw on the cost guard below (live + !USE_VERTEX), so voice
     // capture and call reflection were structurally dead in production builds.
     const supabase = getSupabaseClient();
+    // Which proxy carries the audio is a vendor decision now, not a constant.
+    // It was hardcoded to gemini-proxy because that was the only function that
+    // forwarded inline audio; openai-proxy grew a transcription path in
+    // REQ-260821-01, and Gemini is being retired. multimodalVendor() still
+    // answers "gemini" until the console flips it, so this line does not change
+    // behaviour on merge.
+    const audioFn = proxyFnForVendor(multimodalVendor());
     const t0 = Date.now();
-    const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+    const { data, error } = await supabase.functions.invoke(audioFn, {
       body: {
         user: prompt,
         model,

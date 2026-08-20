@@ -201,6 +201,12 @@ export const OPENAI_FRONTIER_PURPOSES = [
   "digest_weekly",
   "ttfv_first_insight",
   "secondb_chat",
+  // OCR reads a photo verbatim on the frontier model's vision capability
+  // (REQ-260821-01). It moved here from Gemini, so it follows promotions with
+  // its neighbours. voice_transcribe is deliberately NOT here: transcription
+  // runs on its own endpoint with its own model, so promoting a chat model for
+  // it would be a no-op that only looks like coverage.
+  "capture_ocr",
 ] as const;
 
 /** 좌석 -> 시크릿 이름. 등급별로 하나씩이라 승격이 축을 넘나들 수 없다. */
