@@ -91,12 +91,110 @@
       "state": "ready_for_review",
       "version": "3657ce7e3841"
     },
+    "avatars/animals/bear": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/bird": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
     "avatars/animals/cat": {
       "batch_id": "native128-000",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-000/c3f5253a8297/master-atlas.png",
       "state": "ready_for_review",
       "version": "c3f5253a8297"
+    },
+    "avatars/animals/cat2": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/cow": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/deer": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/dog": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/dragon": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/fox": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/frog": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/hamster": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/koala": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/lion": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/monkey": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/animals/mouse": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
     },
     "avatars/art/actor": {
       "batch_id": "native128-002",
@@ -643,6 +741,132 @@
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-007/c6f522cf9b39/master-atlas.png",
       "state": "ready_for_review",
       "version": "c6f522cf9b39"
+    },
+    "avatars/fantasy/druid": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/dwarf": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/elf": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/explorer": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/gladiator": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/king": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/knight": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/mermaid": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/monk": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/necromancer": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/ninja": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/pirate": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/robotArm": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/rogue": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/samurai": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/scholar": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/superhero": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    "avatars/fantasy/viking": {
+      "batch_id": "native128-008",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
     },
     "avatars/fantasy/wizard": {
       "batch_id": "native128-000",
@@ -1976,6 +2200,53 @@
     },
     {
       "asset_ids": [
+        "avatars/fantasy/druid",
+        "avatars/fantasy/dwarf",
+        "avatars/fantasy/elf",
+        "avatars/fantasy/explorer",
+        "avatars/fantasy/gladiator",
+        "avatars/fantasy/king",
+        "avatars/fantasy/knight",
+        "avatars/fantasy/mermaid",
+        "avatars/fantasy/monk",
+        "avatars/fantasy/necromancer",
+        "avatars/fantasy/ninja",
+        "avatars/fantasy/pirate",
+        "avatars/fantasy/robotArm",
+        "avatars/fantasy/rogue",
+        "avatars/fantasy/samurai",
+        "avatars/fantasy/scholar",
+        "avatars/fantasy/superhero",
+        "avatars/fantasy/viking",
+        "avatars/animals/bear",
+        "avatars/animals/bird",
+        "avatars/animals/cat2",
+        "avatars/animals/cow",
+        "avatars/animals/deer",
+        "avatars/animals/dog",
+        "avatars/animals/dragon",
+        "avatars/animals/fox",
+        "avatars/animals/frog",
+        "avatars/animals/hamster",
+        "avatars/animals/koala",
+        "avatars/animals/lion",
+        "avatars/animals/monkey",
+        "avatars/animals/mouse"
+      ],
+      "batch_id": "native128-008",
+      "contract_sha256": "3bb13562570a8d10c5b932ac980f027c5d02590aaf75ebbfdd81b36af249e921",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/manifest.json",
+      "manifest_sha256": "57c8437950ddd72fbfa2e3041e2dfdc5e71ea9d0507c18e747c4b24425a75cc7",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-008/3bb13562570a/master-atlas.png",
+      "master_atlas_sha256": "ae146e213b29074d979092328980bfc53bcefa662be5b9972f8c8bbac0ca52d8",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "3bb13562570a"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -2003,8 +2274,8 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 231,
-    "native128_remaining": 572,
+    "native128_ready_or_approved": 263,
+    "native128_remaining": 540,
     "ready_asset_ids": [
       "avatars/agriculture/agronomist",
       "avatars/agriculture/beekeeper",
@@ -2019,7 +2290,21 @@
       "avatars/agriculture/rancher",
       "avatars/agriculture/shepherd",
       "avatars/agriculture/vintner",
+      "avatars/animals/bear",
+      "avatars/animals/bird",
       "avatars/animals/cat",
+      "avatars/animals/cat2",
+      "avatars/animals/cow",
+      "avatars/animals/deer",
+      "avatars/animals/dog",
+      "avatars/animals/dragon",
+      "avatars/animals/fox",
+      "avatars/animals/frog",
+      "avatars/animals/hamster",
+      "avatars/animals/koala",
+      "avatars/animals/lion",
+      "avatars/animals/monkey",
+      "avatars/animals/mouse",
       "avatars/art/actor",
       "avatars/art/animator",
       "avatars/art/artist",
@@ -2098,6 +2383,24 @@
       "avatars/fantasy/cyborg",
       "avatars/fantasy/demon",
       "avatars/fantasy/detective",
+      "avatars/fantasy/druid",
+      "avatars/fantasy/dwarf",
+      "avatars/fantasy/elf",
+      "avatars/fantasy/explorer",
+      "avatars/fantasy/gladiator",
+      "avatars/fantasy/king",
+      "avatars/fantasy/knight",
+      "avatars/fantasy/mermaid",
+      "avatars/fantasy/monk",
+      "avatars/fantasy/necromancer",
+      "avatars/fantasy/ninja",
+      "avatars/fantasy/pirate",
+      "avatars/fantasy/robotArm",
+      "avatars/fantasy/rogue",
+      "avatars/fantasy/samurai",
+      "avatars/fantasy/scholar",
+      "avatars/fantasy/superhero",
+      "avatars/fantasy/viking",
       "avatars/fantasy/wizard",
       "avatars/food/baker",
       "avatars/food/barista",
