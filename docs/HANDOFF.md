@@ -3,7 +3,183 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-21 00:55 KST / 벤더 재편(Gemini 폐기·Grok 추가) + XPRIZE 제거 GO + RBAC 발주
+## Latest — 2026-08-21 02:45 KST / 콘솔 회신: 재배포 3종 완료 · ⚠ 0138 은 구멍을 못 닫는다 (적용 보류) · REQ-260821-03 신규
+
+> 발행: **GUI(Cowork) 콘솔 세션.** 바로 아래 CLI 회신 블록에 대한 응답이다.
+
+### 1. Simon 확정 + 집행 (02:1x)
+
+| 항목 | 상태 |
+|---|---|
+| 추론 1차 플립 | **OpenAI 확정.** purpose 별 Claude·Grok 세분 배치는 CLI 제안 → Simon 컨펌 |
+| **xAI 과금** | **승인 + 집행됨.** 계정 이미 존재, **`XAI_API_KEY` 시크릿 저장 완료** (grok 4.6 키) — "키도 과금 승인도 없다"던 전제가 해소됐다. **핸들러 `_shared/` 추출 + grok 좌석 실연결을 자기 PR 로 착수 가능** |
+| **Anthropic** | **$100 크레딧 충전 완료.** claude 좌석의 크레딧 소진 상태 해제 |
+| Play | **프로덕션 액세스 신청 제출됨** (02:17, "일반적으로 7일 이내") |
+| Apple | 라이선스 계약 동의 모달까지 열어 둠 — Agree 클릭만 남음 (기한 2026-10-02) |
+
+### 2. 콘솔 집행 완료 — 프록시 3종 재배포
+
+`openai-proxy` **v64** · `gemini-proxy` **v84** · `claude-proxy` **v62** (02:32 KST, 워크플로 3런 그린).
+**effort 키 계층(#1298)과 OpenAI 멀티모달 경로(#1300)가 운영에 살아 있다.**
+이제 순서는: Simon 이 `OPENAI_API_KEY` 재입력 + `OPENAI_API_KEY__{NONE,LOW,MEDIUM,HIGH}` 입력
+→ 콘솔이 `EXPO_PUBLIC_MULTIMODAL_VENDOR=openai` · `EXPO_PUBLIC_REASONING_PROVIDER=openai` 플립
+→ `ai_audit_log` 검증 → 핀 삭제. **키 입력 전에는 플립도 핀 삭제도 하지 않는다** (기본 키가 아직 제어문자로 망가져 있다).
+
+### 3. ⚠ `0138` 적용 보류 — REVOKE 가 실제로는 아무것도 막지 않는다
+
+**운영 dry-run 실측 (BEGIN…ROLLBACK, 02:3x KST):**
+
+```
+트리거 3→0 ✓   함수 2→0 ✓   judge_mode=true 0→0 ✓
+column_privileges (anon·authenticated 의 judge_mode INSERT/UPDATE): 4→4  ✗ 변화 없음
+```
+
+원인 실측:
+
+```
+pg_class.relacl(users) = {…, anon=arwdDxtm/postgres, authenticated=arwdDxtm/postgres, …}
+pg_attribute.attacl(judge_mode) = NULL
+REVOKE UPDATE (judge_mode) … 실행 직후:
+  has_column_privilege('authenticated','public.users','judge_mode','UPDATE') = true  (그대로)
+```
+
+**anon·authenticated 가 `users` 에 테이블 레벨 전권(arwdDxtm)을 쥐고 있고, 컬럼 레벨 REVOKE 는
+테이블 레벨 GRANT 를 깎지 못한다** (컬럼 ACL 이 NULL 이라 깎을 대상 자체가 없다). 즉 0138 을
+그대로 적용하면 REVOKE 는 무동작, 트리거만 드롭되고, **자가 승격(`update users set
+judge_mode=true where id=auth.uid()`)이 실제로 열린다.** 0138 자신이 경고한 바로 그 사고다.
+그래서 **적용하지 않았다.** 운영은 여전히 `0137`, 트리거 3종은 살아 있어 오늘은 안전하다.
+
+**수정 제안 (택1, CLI 판단):**
+
+- **(a) 가드 트리거 대체** — 최소 수정. `enforce_judge_mode`(도메인 파생)를 드롭하는 대신
+  **파생 없는 순수 가드**로 교체: `judge_mode` 변경 시 JWT role 이 `service_role` 이 아니고
+  **role 클레임이 존재하면** OLD 값으로 되돌림. ⚠ `auth.uid()`/role 부재(=pg_cron·psql·service 경로)는
+  통과시켜야 한다 — `spend_credits` 가드에서 실측한 42501 함정(2026-08-20) 그대로다.
+- **(b) 테이블 레벨 권한 수술** — 근본 수정이지만 큼: `REVOKE UPDATE ON users FROM anon, authenticated`
+  후 클라이언트가 정당하게 고치는 컬럼만 컬럼 GRANT 로 재부여. 클라 직접 UPDATE 하는 컬럼 전수조사가
+  선행돼야 하고, RLS 와 별개 축이라 회귀 반경이 크다. **(a)로 오늘을 막고 (b)는 RBAC(REQ-260821-02)에
+  합류시키는 것을 추천** — 어차피 RBAC 이 권한 모델을 다시 그린다.
+
+곁들여: `users` 의 anon 전권(arwdDxtm — DELETE·TRUNCATE 포함)은 RLS 뒤에 숨어 있을 뿐이다.
+RBAC 설계에 **테이블 레벨 ACL 재정비**를 명시적으로 포함할 것.
+
+### 4. REQ-260821-03 → CLI · 구독 UX 2건 (한 PR)
+
+**왜.** Simon 확정(01:1x): 취소·환불·자동갱신에 대한 그의 기대와 실제 화면의 간극 2곳.
+서버는 이미 양쪽을 지원하므로 (`subscription-manage` cancel/refund_request 분리 +
+`refund_eligibility` verdict 노출) **클라 변경만**이다.
+
+**(a) 취소 시트에 환불 동시 제안.** `src/app/subscription.tsx` 취소 시트에서 환불 자격자
+(`refund_eligibility` verdict eligible)에게 "지금 취소하면 환불 대상입니다 — 환불도 함께
+요청할까요?" 를 제안. 수락 시 기존 `refund_request` 액션 호출(서버 변경 0줄, 자격 재판정은 서버가
+이미 한다). 환불 없이 취소만도 가능해야 한다. 문구는 "접수/requested" — "환불 완료" 금지.
+
+**(b) 결제 직전 자동 갱신 명시 동의.** 체크아웃 진입 직전에 **주기·금액·해지 방법** 명시 + 동의
+단계. 가격은 기존 소스(`EXPO_PUBLIC_PADDLE_PRICE_*` 렌더 경로) 재사용, 하드코딩 금지. i18n ko/en.
+**Apple 3.1.2 대응 겸용** — iOS 재제출 전에 들어가면 좋다.
+
+**완료조건:** ① 자격자 취소 흐름에서 제안 노출, 수락 시 `billing_self_service_log` 에 cancel +
+refund_request 두 claim ② 비자격자에게 미노출 ③ 동의 없이 결제 진입 불가 ④ `npm run verify` 그린.
+**하지 말 것:** 서버(`subscription-manage`·RPC) 변경, 자격 판정 클라 재구현, "환불 완료" 문구.
+
+> 위 방법은 출발점일 뿐이다. 더 나은 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+### 5. RBAC D-1~D-4
+
+Simon 에게 전달했고 회신 대기. 콘솔 의견은 CLI 추천과 동일 (D-1 아니오 / D-2 하이브리드 /
+D-3 A / D-4 충분). 단 D-2 는 3-절의 (b)와 얽힌다 — 테이블 ACL 재정비를 RBAC 범위에 넣는 것 전제.
+
+## 2026-08-21 / CLI 회신: REQ 4건 전부 랜딩 (콘솔이 이어받을 것 5가지)
+
+> 바로 아래 블록이 **발주 원문**이다. 이 블록은 그 회신이고, 각 REQ 의 상태가 여기 있다.
+
+| REQ | 상태 | PR |
+|---|---|---|
+| **260820-03** effort 전용 키 계층 | **완료** | #1298 |
+| **260821-01** 벤더 재편 | **코드 완료.** 플립은 콘솔 | #1300(멀티모달) · #1305(좌석) |
+| **260820-04** XPRIZE 제거 | **완료** (`0138` 운영 적용 대기) | #1302 |
+| **260821-02** RBAC | **설계 문서 = 승인 게이트.** Simon 답변 4개 대기 | #1303 |
+
+- `npm run verify` **479 suites / 4,321 tests 그린** · 저장소 마이그레이션 최댓값 **`0138`**
+- 운영 마이그레이션은 **`0137`** → **`0138` 적용이 콘솔 몫**
+
+---
+
+### ⚠ 발주 전제 하나가 실측과 달랐다 — 그게 이 배치에서 제일 중요하다
+
+**`EXPO_PUBLIC_REASONING_PROVIDER=openai` 는 지금까지 조용한 무동작이었다.**
+
+```ts
+return raw === "claude" ? "claude" : "gemini";   // ← openai 가 gemini 로 떨어진다
+```
+
+콘솔이 그 변수를 플립하고 배포가 초록인 걸 보고도 **여전히 전부 Gemini** 일 수 있었다.
+완료조건 1이 "달성된 것처럼 보이면서 거짓" 이 되는 경로였다. #1300 이 고쳤다.
+
+### REQ-260821-01 — 무엇이 되고 무엇이 남았나
+
+**된 것 (코드):**
+
+- `openai-proxy` 가 **이미지**(채팅 content 배열)와 **오디오**(전사 엔드포인트, multipart, `{text}`)를
+  받는다. 상한·mime 허용목록은 `gemini-proxy` 에서 **그대로 복사** — 클라가 이미 그 숫자로 검증한다
+- `transcribeAudio` 가 더 이상 `"gemini-proxy"` 를 리터럴로 부르지 않는다
+- 나이틀리에서 Gemini 좌석 3개 제거 + xAI 좌석 추가 (키 없으면 좌석째 skip)
+
+**기본값은 여전히 Gemini 다 (의도).** 엣지 함수는 재배포 전까지 새 코드를 안 들고 있다.
+**배포가 플립보다 먼저** — `0127`/`0130` 함정.
+
+**안 한 것과 그 이유:** `grok-proxy` 를 신설하지 않았다. xAI 가 OpenAI 호환이라 신설하면
+위기 게이트·지출 상한·감사 기록 **~450줄을 복사**하게 되는데, 이 저장소의 좌석 표류 가드가
+존재하는 이유가 바로 **"사본은 언젠가 어긋난다"** 이고 오늘 그 가드가 실제로 나를 잡았다.
+옳은 모양은 핸들러를 `_shared/` 로 빼서 두 벤더를 얇은 설정으로 만드는 것이고, 그건
+**살아 있는 돈 경로의 리팩터**라 자기 PR 을 가져야 한다. 게다가 **키도 과금 승인도 없어서
+오늘은 실제 API 로 시험할 수도 없다.** xAI 과금이 승인되면 그때 추출과 함께 붙인다.
+
+### REQ-260820-04 — 삭제가 아니라 구멍 하나를 닫는 일이었다
+
+`effective_subscription_tier()` 가 `WHEN u.judge_mode THEN 'brain'` 이다. **최상위 유료 등급**이다.
+0011 주석은 "컬럼 레벨 revoke 가 있다" 고 적고 있는데 **운영 실측 결과 그 revoke 는 없다** —
+`anon`·`authenticated` 둘 다 `users.judge_mode` 에 `UPDATE` 를 갖고 있었다.
+
+즉 `enforce_judge_mode()` 는 벨트+멜빵이 아니라 **유일한 벨트**였고,
+**트리거만 드롭했으면 자가 승격이 열렸다.** `0138` 은 **revoke 를 먼저** 하고 드롭을 나중에 한다.
+
+`judge_mode` 컬럼과 comp 분기는 **일부러 남겼다** — RBAC 이 받는다.
+
+### 콘솔이 이어받을 것 (순서가 중요하다)
+
+1. **프록시 3종 재배포** (`openai`·`claude`·`gemini`). `_shared` 가 번들되므로 effort 키 계층은
+   재배포해야 산다. **그다음** Simon 이 `OPENAI_API_KEY__LOW` 같은 **2단 이름**으로 키 발급 →
+   **그다음** `MODEL_PIN_OPENAI_FRONTIER` 삭제. **키 입력 전에 핀을 지우지 말 것.**
+2. **`0138` 운영 적용.** 적용 후 `judge_mode` 컬럼 권한이 `service_role` 만 남았는지 확인.
+3. **`EXPO_PUBLIC_MULTIMODAL_VENDOR=openai`** — ⚠ **`openai-proxy` 재배포 뒤에.** 그 전에 켜면
+   OCR·음성이 `purpose_not_seated` 로 400 난다.
+4. **`OPENAI_TRANSCRIBE_MODEL` 확인.** 기본 `whisper-1` 인데 **이 프로젝트가 작동을 본 적 없는
+   유일한 모델 id** 다. 계정에서 확인하고 필요하면 변수로 고친다(재배포 불필요).
+5. **`EXPO_PUBLIC_REASONING_PROVIDER=openai`** → 실사용 1건이 `ai_audit_log` 에
+   `reasoning_vendor='openai'` 로 찍히는지 확인. **그게 완료조건 1의 판정이다.**
+
+### ⚠ Gemini 를 내리기 전에 반드시 같이 볼 것
+
+`callLlm` 의 D-26 장애 폴백이 아직 `gemini-proxy` 를 **하드코딩**한다. **오늘은 맞다.**
+`gemini-proxy` 를 폐기하는 순간 **함정이 된다** — OpenAI 좌석이 실패하면 **없는 함수로 폴백**한다.
+발주가 "플립 검증 전 Gemini 참조 삭제 금지" 라 그대로 뒀다. **폐기 작업에 이 줄을 포함시킬 것.**
+
+### Simon 답변 대기 (RBAC 게이트, #1303)
+
+| ID | 질문 | 추천 |
+|---|---|---|
+| D-1 | `admin` 이 **남의 기록 원문**을 볼 수 있어야 하나? | **아니오.** 집계만 |
+| D-2 | 역할 **회수가 즉시**여야 하나? | 부여는 JWT 클레임, 즉시 회수 경로만 테이블 |
+| D-3 | 유출 비번 차단: **클라 검사(A)** vs 서버 강제(B) | **A** (우회 피해자가 우회자 자신) |
+| D-4 | `admin`/`developer`/`support` 로 충분한가? | 충분 |
+
+**유출 비밀번호 차단은 무료로 된다** — HIBP range API 는 키 불필요·k-anonymity 다.
+**Q-260819-01(Supabase Pro)은 폐기 확정.**
+
+---
+
+## 2026-08-21 00:55 KST / 벤더 재편·XPRIZE 제거·RBAC **발주 원문** (아래 CLI 회신 참조)
 
 > 발행: **GUI(Cowork) 콘솔 세션**. Simon 결정 5건이 2026-08-21 00:4x 에 착지했다. 이 블록이 그 결정을
 > 발주로 옮긴 정본이다. 아래 23:50 블록의 REQ-260820-03(effort 키 계층)은 **그대로 유효하며

@@ -29,7 +29,11 @@
 // Request shape (same wire contract as claude-proxy):
 //   { system: string | null, user: string, model?: string (ignored),
 //     purpose?: string, effort?: 'low'|'medium'|'high'|'xhigh'|'max',
-//     responseSchema?: object (Gemini-style; normalized to JSON Schema here) }
+//     responseSchema?: object (Gemini-style; normalized to JSON Schema here),
+//     image?: { mimeType: string, data: string },   // base64, no data: prefix
+//     audio?: { mimeType: string, data: string } }  // base64 voice memo
+// An `audio` payload switches this function to the transcription endpoint; the
+// response envelope is unchanged either way.
 // Response shape (identical to gemini-proxy / claude-proxy):
 //   { text: string, modelUsed: string, latencyMs: number, audited?: boolean }
 
@@ -56,6 +60,55 @@ import {
 } from '../_shared/llm-proxy-common.ts';
 
 const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+// Transcription is a DIFFERENT endpoint with a different shape (multipart in,
+// {text} out) -- not a chat completion with an audio part. Kept separate rather
+// than folded in, because everything else about the request differs.
+const OPENAI_TRANSCRIBE_ENDPOINT = 'https://api.openai.com/v1/audio/transcriptions';
+
+// ── Multimodal (REQ-260821-01) ──────────────────────────────────────────────
+//
+// Until 2026-08-21 only gemini-proxy forwarded images and audio, so OCR and
+// voice memos were pinned to Gemini by BOTH an owner directive and a technical
+// fact. Simon retired Gemini as a vendor, and Google stops accepting Standard
+// keys in September, so the technical fact had to go first or the two features
+// die on a calendar date.
+//
+// The caps and the mime allowlists are copied from gemini-proxy deliberately:
+// the client already validates against those exact limits, so a payload that
+// was acceptable yesterday must stay acceptable today. Do not widen them here
+// without widening them there.
+const MAX_IMAGE_BASE64_LEN = 2_700_000; // ~2MB binary
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const MAX_AUDIO_BASE64_LEN = 4_100_000; // ~3MB binary ~ a 3-minute m4a memo
+const ALLOWED_AUDIO_MIME = new Set([
+  'audio/m4a', 'audio/x-m4a', 'audio/mp4', 'audio/aac', 'audio/mpeg',
+  'audio/wav', 'audio/webm', 'audio/ogg', 'audio/3gpp',
+]);
+
+// The transcription endpoint sniffs the format from the FILENAME, not from the
+// part's content-type, so the extension has to be right or a valid m4a is
+// rejected as an unsupported format.
+const AUDIO_EXT: Record<string, string> = {
+  'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/mp4': 'mp4', 'audio/aac': 'aac',
+  'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/webm': 'webm', 'audio/ogg': 'ogg',
+  'audio/3gpp': '3gp',
+};
+
+// ⚠ CONFIRM THIS ID ON THE ACCOUNT before relying on it. Every other model id
+// in this file is one the project has already seen work; this one has not been
+// exercised here, and an unknown id fails the upstream call. It is env-settable
+// so it can be corrected with NO redeploy, exactly like OPENAI_PURPOSE_MODELS.
+const DEFAULT_TRANSCRIBE_MODEL = 'whisper-1';
+function transcribeModel(): string {
+  return (Deno.env.get('OPENAI_TRANSCRIBE_MODEL') ?? '').trim() || DEFAULT_TRANSCRIBE_MODEL;
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  return out;
+}
 
 // D-26 default seat: gpt-5.4 (value frontier -- the cluster_infer seat).
 const DEFAULT_OPENAI_MODEL = 'gpt-5.4';
@@ -101,7 +154,22 @@ const PURPOSE_MODEL: Record<string, string> = {
   // Confirm the id exists on the account before setting it -- an unknown model
   // fails the upstream call, and this is the main chat surface.
   secondb_chat: 'gpt-5.4',
+  // OCR moved off Gemini (REQ-260821-01): a photo read verbatim, on the vision
+  // capability of the frontier chat model. It IS a chat seat, so it belongs
+  // here and follows frontier promotions like its neighbours.
+  capture_ocr: 'gpt-5.4',
 };
+
+// Transcription is allowed but is NOT a chat-model seat, so it deliberately
+// stays out of PURPOSE_MODEL: that table is the nightly refresher's frontier
+// seat list (scripts/refresh-models.ts, cross-checked against this file), and a
+// seat whose model id is never sent would be promoted forever to no effect.
+// The model that actually serves it is transcribeModel().
+//
+// The label is the WIRE one. transcribeAudio sends 'voice_transcribe'; the
+// routing module calls the same feature 'capture_voice'. Matching the routing
+// name here would 400 every voice memo with purpose_not_seated.
+const TRANSCRIBE_PURPOSES = new Set(['voice_transcribe']);
 
 function resolveModel(purpose: string): string {
   const raw = (Deno.env.get('OPENAI_PURPOSE_MODELS') ?? '').trim();
@@ -144,6 +212,11 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   // asks for low (PHASE2_EFFORT), and this ceiling makes it a guarantee that a
   // tampered or stale client cannot raise.
   secondb_chat: 'low',
+  // Verbatim transcription and verbatim OCR gain nothing from reasoning, and
+  // both are latency-sensitive capture surfaces. gemini-proxy makes the same
+  // call by disabling its thinking budget for these purposes.
+  capture_ocr: 'none',
+  voice_transcribe: 'none',
 };
 
 function effortToOpenAi(effort: string | null, purpose: string): string {
@@ -206,6 +279,8 @@ Deno.serve(async (req: Request) => {
     purpose?: unknown;
     effort?: unknown;
     responseSchema?: unknown;
+    image?: unknown;
+    audio?: unknown;
   };
   try {
     body = await req.json();
@@ -218,6 +293,40 @@ Deno.serve(async (req: Request) => {
   const purpose: string | null = typeof body?.purpose === 'string' ? body.purpose : null;
   const effort: string | null = typeof body?.effort === 'string' ? body.effort : null;
   const responseSchema = normalizeResponseSchema(body?.responseSchema);
+
+  // Optional image / audio attachments. Validated exactly as gemini-proxy does
+  // (mime allowlist + base64 length cap) and BEFORE any paid call, so an
+  // oversized or unexpected payload never reaches the vendor or the spend cap.
+  let imagePart: { mimeType: string; data: string } | null = null;
+  if (body?.image && typeof body.image === 'object') {
+    const o = body.image as Record<string, unknown>;
+    const mime = typeof o.mimeType === 'string' ? o.mimeType : '';
+    const data = typeof o.data === 'string' ? o.data : '';
+    if (mime && data) {
+      if (!ALLOWED_IMAGE_MIME.has(mime)) {
+        return jsonResponse(req, { error: 'image_mime_not_allowed', got: mime }, 415);
+      }
+      if (data.length > MAX_IMAGE_BASE64_LEN) {
+        return jsonResponse(req, { error: 'image_too_large', max: MAX_IMAGE_BASE64_LEN, got: data.length }, 413);
+      }
+      imagePart = { mimeType: mime, data };
+    }
+  }
+  let audioPart: { mimeType: string; data: string } | null = null;
+  if (body?.audio && typeof body.audio === 'object') {
+    const o = body.audio as Record<string, unknown>;
+    const mime = typeof o.mimeType === 'string' ? o.mimeType : '';
+    const data = typeof o.data === 'string' ? o.data : '';
+    if (mime && data) {
+      if (!ALLOWED_AUDIO_MIME.has(mime)) {
+        return jsonResponse(req, { error: 'audio_mime_not_allowed', got: mime }, 415);
+      }
+      if (data.length > MAX_AUDIO_BASE64_LEN) {
+        return jsonResponse(req, { error: 'audio_too_large', max: MAX_AUDIO_BASE64_LEN, got: data.length }, 413);
+      }
+      audioPart = { mimeType: mime, data };
+    }
+  }
 
   if (userText.length === 0) return jsonResponse(req, { error: 'user_required' }, 400);
   if (userText.length > MAX_USER_LEN) {
@@ -234,7 +343,10 @@ Deno.serve(async (req: Request) => {
   // like 'toString' / 'constructor' / '__proto__' passed this gate, then
   // resolveModel returned the inherited FUNCTION as the model and modelSlug
   // crashed (500, no CORS) AFTER the spend bump. Own-key check closes both.
-  if (!purpose || !Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose)) {
+  if (
+    !purpose ||
+    !(Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose) || TRANSCRIBE_PURPOSES.has(purpose))
+  ) {
     return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
   }
 
@@ -381,7 +493,18 @@ Deno.serve(async (req: Request) => {
     reasoning_effort: clampedEffort,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: userText },
+      // With an image the user turn becomes a content ARRAY. The image goes
+      // first, mirroring the Gemini path this replaces (and OCR guidance in
+      // general: the instruction reads better after the thing it is about).
+      imagePart
+        ? {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:${imagePart.mimeType};base64,${imagePart.data}` } },
+              { type: 'text', text: userText },
+            ],
+          }
+        : { role: 'user', content: userText },
     ],
     ...(responseSchema
       ? {
@@ -413,17 +536,41 @@ Deno.serve(async (req: Request) => {
     }
   };
 
+  // Transcription takes a different endpoint, a different body (multipart) and
+  // returns a different shape. Everything AFTER the call -- refund, audit,
+  // response envelope -- is deliberately shared, so the two paths cannot drift
+  // on the parts that touch money and the audit ledger.
+  const isTranscription = audioPart !== null;
+  const transcribeModelId = transcribeModel();
+
   const t0 = Date.now();
   let upstream: Response;
   try {
-    upstream = await fetch(OPENAI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'authorization': `Bearer ${resolvedKey.apiKey}`,
-      },
-      body: JSON.stringify(openaiBody),
-    });
+    if (isTranscription) {
+      const ext = AUDIO_EXT[audioPart!.mimeType] ?? 'm4a';
+      const form = new FormData();
+      form.append('file', new Blob([base64ToBytes(audioPart!.data)], { type: audioPart!.mimeType }), `memo.${ext}`);
+      form.append('model', transcribeModelId);
+      // Verbatim only. No prompt is sent: a prompt biases a transcript, and the
+      // caller's `user` field here is an instruction for Gemini's chat-shaped
+      // transcription path, not something a transcription endpoint should read.
+      form.append('response_format', 'json');
+      upstream = await fetch(OPENAI_TRANSCRIBE_ENDPOINT, {
+        method: 'POST',
+        // NO content-type header: fetch must set the multipart boundary itself.
+        headers: { 'authorization': `Bearer ${resolvedKey.apiKey}` },
+        body: form,
+      });
+    } else {
+      upstream = await fetch(OPENAI_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'authorization': `Bearer ${resolvedKey.apiKey}`,
+        },
+        body: JSON.stringify(openaiBody),
+      });
+    }
   } catch (e) {
     await refundOnFailure();
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
@@ -451,17 +598,24 @@ Deno.serve(async (req: Request) => {
   }
   const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
   const rawContent = choice?.message?.content;
-  const text: string = typeof rawContent === 'string' ? rawContent : '';
-  const modelUsed: string = typeof data?.model === 'string' ? data.model : openaiModel;
+  // The transcription endpoint answers { text } with no choices array, so the
+  // chat extraction below would silently yield '' for a perfectly good call.
+  const text: string = isTranscription
+    ? (typeof (data as { text?: unknown })?.text === 'string' ? ((data as { text: string }).text).trim() : '')
+    : typeof rawContent === 'string' ? rawContent : '';
+  const modelUsed: string = isTranscription
+    ? transcribeModelId
+    : typeof data?.model === 'string' ? data.model : openaiModel;
   // Content-filter terminations surface as an upstream refusal (parity with
   // claude-proxy) so callers take their fail-soft paths.
   const refused =
-    choice?.finish_reason === 'content_filter' ||
-    typeof choice?.message?.refusal === 'string';
+    !isTranscription &&
+    (choice?.finish_reason === 'content_filter' ||
+      typeof choice?.message?.refusal === 'string');
   // Truncation (finish_reason:"length"): reasoning tokens count against
   // max_completion_tokens on gpt-5.x, so a truncated reply can be a mid-JSON
   // stump or empty. Surfaced as 502, never a silent 200 (parity claude-proxy).
-  const truncated = choice?.finish_reason === 'length';
+  const truncated = !isTranscription && choice?.finish_reason === 'length';
 
   // C3: write the audit row server-side (parity with the sibling proxies).
   // D-27: usage tokens (OpenAI returns usage.total_tokens incl. reasoning).

@@ -72,15 +72,39 @@ export function chatVendorOverride(): LlmVendor | null {
   return null;
 }
 
-// Owner directive (Simon, 2026-07-04): OCR runs on Gemini UNCONDITIONALLY —
-// every phase, no vendor failover, no exceptions. It is also technically
-// forced: only gemini-proxy forwards image inline-data (claude/openai proxies
-// are text-only). capture_voice ships audio and is likewise Gemini-pinned
-// (on-device STT first, Vertex fallback — D-26 A13).
-export const GEMINI_PINNED_PURPOSES: ReadonlySet<PromptPurpose> = new Set([
+// OCR and voice memos are the two purposes that carry BINARY payloads, so they
+// can only run on a vendor whose proxy forwards them.
+//
+// History, because the name of this set used to be the reason: Simon's
+// 2026-07-04 directive pinned OCR to Gemini unconditionally, and it was ALSO
+// technically forced — gemini-proxy was the only proxy that forwarded inline
+// data. Simon retired Gemini as a vendor on 2026-08-21, and Google stops
+// accepting Standard keys in September, so the pin had to become a choice
+// instead of a fact. openai-proxy grew an image path and a transcription path
+// (REQ-260821-01); this set now says WHICH purposes are multimodal, and
+// multimodalVendor() says who serves them.
+export const MULTIMODAL_PURPOSES: ReadonlySet<PromptPurpose> = new Set([
   "capture_ocr",
   "capture_voice",
 ]);
+
+/** @deprecated Kept as an alias so nothing silently loses the pin while the
+ *  Gemini exit is in flight. Read MULTIMODAL_PURPOSES in new code. */
+export const GEMINI_PINNED_PURPOSES = MULTIMODAL_PURPOSES;
+
+// Which vendor serves the binary-carrying purposes.
+//
+// ⚠ THE DEFAULT IS DELIBERATELY STILL GEMINI. openai-proxy only gained the
+// image + transcription paths in this change, and an edge function does not
+// carry code until it is REDEPLOYED. Flipping the default here would send OCR
+// and voice memos to a function that answers `purpose_not_seated` for them
+// until the deploy lands — the same deploy-before-flip trap as 0127/0130.
+// The console flips EXPO_PUBLIC_MULTIMODAL_VENDOR=openai AFTER redeploying.
+export function multimodalVendor(): LlmVendor {
+  const raw = (process.env.EXPO_PUBLIC_MULTIMODAL_VENDOR ?? "").trim().toLowerCase();
+  if (raw === "openai" || raw === "gemini") return raw;
+  return "gemini";
+}
 
 // D-26 Phase 2 vendor seats. Anthropic carries the self-understanding
 // narrative / advice surfaces (KO prose quality + anti-clinical nuance);
@@ -171,9 +195,10 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
  * inline data).
  */
 export function resolveVendorForPurpose(purpose: PromptPurpose, hasImage: boolean): LlmVendor {
-  // 1) Image / OCR / voice pin — ALWAYS Gemini, highest priority. Beats the
-  //    global switch too (only gemini-proxy forwards inline data / audio).
-  if (hasImage || GEMINI_PINNED_PURPOSES.has(purpose)) return "gemini";
+  // 1) Anything carrying a binary goes to the multimodal vendor, and that still
+  //    beats every switch below: a text-only proxy cannot serve these at all,
+  //    so this is a capability constraint before it is a preference.
+  if (hasImage || MULTIMODAL_PURPOSES.has(purpose)) return multimodalVendor();
 
   // 1b) Chat has its own vendor knob, independent of phase and of the seat
   //     switch. Placed after the image/OCR pin so an image-bearing turn still

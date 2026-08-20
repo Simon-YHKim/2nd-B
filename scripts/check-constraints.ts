@@ -121,31 +121,42 @@ results.push(
 );
 
 results.push(
+  // C6 was "auto-flag judge emails". The contest ended 2026-08-15 and Simon
+  // ordered the remnant removed on 2026-08-21 (REQ-260820-04), so the check now
+  // guards the RETIREMENT instead of the feature. Kept as C6 rather than
+  // renumbered: the id is referenced from CLAUDE.md, AGENTS.md and past audits,
+  // and a silently reused number is worse than a retired one.
+  //
+  // What it must prevent coming back, and why each half matters:
+  //   - a comp domain in JUDGE_DOMAINS. Comp by email domain granted the TOP
+  //     PAID TIER from a string the user picks at sign-up.
+  //   - the derive triggers. enforce_judge_mode() was doing double duty as the
+  //     privilege guard, because the "column-level revoke" 0011's comment
+  //     promised did not actually exist (measured on prod 2026-08-21: anon and
+  //     authenticated both held UPDATE on users.judge_mode). 0138 revokes it
+  //     properly, so the triggers must not return and re-derive the column.
   check("C6", () => {
-    const trigger = read("db/migrations/0010_triggers.sql");
-    // Parse the ARRAY[...] literal out of auto_judge_mode() and compare its
-    // element set EXACTLY to JUDGE_DOMAINS (bidirectional), ignoring comments.
-    // The old `includes()` check passed if a domain appeared anywhere in the
-    // file (including the "keep in sync" comment) and never checked the SQL->TS
-    // direction, so a domain in only one side slipped through.
-    const fnStart = trigger.indexOf("auto_judge_mode()");
-    const arrIdx = trigger.indexOf("ARRAY[", fnStart);
-    const close = arrIdx >= 0 ? trigger.indexOf("]", arrIdx) : -1;
-    const arrayLiteral = arrIdx >= 0 && close > arrIdx ? trigger.slice(arrIdx, close) : "";
-    const sqlDomains = [...arrayLiteral.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
-    const sqlSet = new Set(sqlDomains);
-    const libSet = new Set<string>(JUDGE_DOMAINS);
-    const setEqual =
-      sqlDomains.length === libSet.size && // no SQL duplicates
-      sqlSet.size === libSet.size &&
-      [...libSet].every((d) => sqlSet.has(d));
-    const ok = setEqual && trigger.includes("BEFORE INSERT ON users");
+    const libEmpty = JUDGE_DOMAINS.length === 0;
+    const retire = read("db/migrations/0138_retire_judge_auto_flag.sql");
+    const revoked =
+      /REVOKE UPDATE \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire) &&
+      /REVOKE INSERT \(judge_mode\) ON public\.users FROM anon, authenticated/.test(retire);
+    const dropped =
+      retire.includes("DROP FUNCTION IF EXISTS public.auto_judge_mode()") &&
+      retire.includes("DROP FUNCTION IF EXISTS public.enforce_judge_mode()");
+    // No LATER migration may re-create them. 0010/0011 still contain the
+    // originals and are history, so only files above 0138 are scanned.
+    const revived = readdirSync(join(ROOT, "db", "migrations"))
+      .filter((f) => f.endsWith(".sql"))
+      .filter((f) => /^0(1[4-9]\d|[2-9]\d\d)_/.test(f))
+      .filter((f) => /CREATE (OR REPLACE )?FUNCTION [^\n]*(auto|enforce)_judge_mode/.test(read(`db/migrations/${f}`)));
+    const ok = libEmpty && revoked && dropped && revived.length === 0;
     return {
       id: "C6",
       status: ok ? "PASS" : "FAIL",
       note: ok
-        ? "judge ARRAY[] set-equals JUDGE_DOMAINS (bidirectional) + trigger present"
-        : `judge domain mismatch: SQL=[${sqlDomains.join(", ")}] lib=[${[...libSet].join(", ")}]`,
+        ? "judge comp retired: JUDGE_DOMAINS empty, 0138 revokes judge_mode writes + drops both triggers, no revival"
+        : `judge retirement incomplete: domains=${JUDGE_DOMAINS.length} revoked=${revoked} dropped=${dropped} revived=[${revived.join(", ")}]`,
     };
   }),
 );
