@@ -72,20 +72,47 @@ select * from public.credit_balance_drift;
 
 ---
 
-## 2. Paddle 대시보드 — 여전히 1순위 확인
+## 2. Paddle 대시보드 — ✅ 확인됨. **대시보드를 열 필요가 없었다**
 
-`docs/cowork-reply-260819.md` §8 그대로다. **아직 회신 못 받았다.**
+**정정 (2026-08-20, 실측).** 이 절은 "아직 회신 못 받았다 … 둘 중 하나라도 아니면 지금 한국
+사용자에게 결제수단이 하나도 안 뜨고 있다" 라고 적고 있었다. **둘 다 이미 돼 있다.**
 
-- [ ] **Paddle > Checkout > Checkout settings > General** 에서
-      `Korean local cards` · `KakaoPay` · `Naver Pay` 체크돼 있나?
-- [ ] 항해자(cortex) · 북극성(brain) 플랜에 **KRW 가격이 있나?**
+그리고 이건 사람이 대시보드를 열어야 하는 항목이 **아니었다.** `EXPO_PUBLIC_PADDLE_CLIENT_TOKEN`
+은 **공개 repo Variable** 이고, 그 토큰으로 `Paddle.PricePreview` 를 부르면 고객 브라우저가
+페이월에서 하는 것과 **똑같은 읽기**를 할 수 있다. API 키도, 로그인도, 클릭도 필요 없다.
 
-**둘 중 하나라도 아니면 지금 한국 사용자에게 결제수단이 하나도 안 뜨고 있고**, 약관·환불정책의
-"카드, KakaoPay, NaverPay" 문장이 **프로덕션에서 거짓**이다.
+### 실측 결과 (`countryCode: "KR"`)
 
-Paddle 은 한국 결제수단을 **"가격이 KRW 이고 구매자 주소가 한국일 때만"** 노출한다.
-자동 환율 변환으로 만든 KRW 가 이 조건을 만족하는지는 **문서가 답하지 않는다**(`UNVERIFIED`).
-샌드박스 한 시간이면 확인된다.
+```
+PAYMENT_METHODS: card, naver_pay, kakao_pay, south_korea_local_card, apple_pay
+CURRENCY:        KRW
+```
+
+| 상품 | Paddle 소계 | 부가세 | **Paddle 총액** | 앱 표시 |
+|---|---:|---:|---:|---:|
+| 항해자 월간 | 9,000 | 900 | **9,900** | 9,900 ✔ |
+| 항해자 연간 | 90,000 | 9,000 | **99,000** | 99,000 ✔ |
+| 북극성 월간 | 18,091 | 1,809 | **19,900** | 19,900 ✔ |
+| 북극성 연간 | 180,909 | 18,091 | **199,000** | 199,000 ✔ |
+
+- **약관·환불정책의 "카드, KakaoPay, NaverPay" 문장은 프로덕션에서 참이다.** 거짓이라는 서술을
+  인용하지 말 것.
+- 앱이 찍는 값은 **부가세 포함 총액**이고 Paddle 총액과 **원 단위까지 일치**한다.
+  페이월 고지문("표시 가격은 부가세(VAT)가 포함돼 있습니다")도 참이다.
+- 연간은 양쪽 모두 **정확히 월 10배** 이고, Paddle 의 상품명 자체가 "2개월 무료" 라고 적고 있다.
+- Paddle 이 요구하는 조건("가격이 KRW 이고 구매자 주소가 한국")은 **둘 다 충족**된다.
+  자동 환율 변환이 이 조건을 만족하는지 `UNVERIFIED` 라고 적혀 있던 것도 이걸로 해소된다.
+
+### 재측정하는 법 (누구나, 1분)
+
+`https://cdn.paddle.com/paddle/v2/paddle.js` 를 로드하고
+`Paddle.Initialize({ token: <공개 client token> })` 후
+`Paddle.PricePreview({ items:[{priceId, quantity:1}], address:{countryCode:"KR"} })`.
+`data.details.lineItems[].formattedTotals.total` 이 페이월이 찍는 값이다
+(`.subtotal` 은 **세전**이라 10% 낮게 보인다). 헤드리스 크롬으로 DOM 만 읽으면 된다.
+
+`src/lib/billing/__tests__/paddle-price-parity.test.ts` 가 이 측정값을 `pricing.ts` 와 묶어
+박아뒀다. 한쪽만 고치면 테스트가 깨진다.
 
 ---
 
