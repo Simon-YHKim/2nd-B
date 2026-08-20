@@ -809,7 +809,17 @@
       "disclosureYearly": "Os planos pagos renovam automaticamente a cada ano ate que voce cancele. Cancele quando quiser antes da proxima renovacao e os recursos pagos continuam ate o fim desse periodo; os precos incluem impostos (VAT). Reembolso integral em ate 7 dias apos o pagamento, desde que o seu uso tenha ficado dentro do que o plano gratuito cobre.",
       "legalTerms": "Termos de serviço",
       "legalRefund": "Política de reembolso",
-      "minorPurchaseNotice": "Se você tem menos de 19 anos, uma compra feita sem o consentimento do seu responsável legal pode ser cancelada depois, por você ou por ele. Avisamos antes da compra, não depois."
+      "minorPurchaseNotice": "Se você tem menos de 19 anos, uma compra feita sem o consentimento do seu responsável legal pode ser cancelada depois, por você ou por ele. Avisamos antes da compra, não depois.",
+      "terms": {
+        "agree": "Li estas condições e concordo com a renovação automática.",
+        "back": "Voltar",
+        "cancelHow": "Você pode cancelar quando quiser na tela de assinatura. Cancelar interrompe a próxima renovação e mantém o acesso até o fim do período pago.",
+        "charge": "{{plan}} · {{price}}",
+        "cta": "Continuar para o pagamento",
+        "cycleMonthly": "Renova automaticamente todo mês até você cancelar.",
+        "cycleYearly": "Renova automaticamente todo ano até você cancelar.",
+        "title": "Antes de pagar"
+      }
     },
     "wikiRecords": {
       "relationships": "Relacionamentos",

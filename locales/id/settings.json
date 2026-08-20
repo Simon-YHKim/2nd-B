@@ -215,7 +215,10 @@
       "switchToImmediate": "Batalkan sekarang juga",
       "switchToRenewal": "Batalkan saat perpanjangan berikutnya",
       "periodEnd": "akhir periode berbayar",
-      "alreadyScheduled": "Langganan ini sudah dimatikan perpanjangan otomatisnya. Tidak ada tagihan lagi, dan fitur berbayar tetap aktif sampai periode berbayar berakhir."
+      "alreadyScheduled": "Langganan ini sudah dimatikan perpanjangan otomatisnya. Tidak ada tagihan lagi, dan fitur berbayar tetap aktif sampai periode berbayar berakhir.",
+      "refundTogether": "Ajukan juga pengembalian dana",
+      "refundOfferNote": "Anda masih dalam masa pengembalian dana. Mengajukannya sekaligus langsung mengakhiri akses berbayar.",
+      "confirmWithRefundCta": "Batalkan dan ajukan pengembalian dana"
     },
     "refund": {
       "title": "Pengembalian dana",
@@ -244,7 +247,9 @@
       "refundRejected": "Pengembalian dana mandiri tidak tersedia untuk pembayaran ini.",
       "contactSupport": "Ini belum bisa ditangani di aplikasi. Silakan hubungi dukungan.",
       "notSubscribed": "Tidak ada langganan berbayar aktif yang bisa dibatalkan.",
-      "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya."
+      "dryRun": "Mode uji coba sedang aktif, jadi tidak ada yang dikirim ke Paddle. Hubungi dukungan kalau kamu memang ingin mengirimkannya.",
+      "cancelledAndRefundRequested": "Dibatalkan, dan permintaan pengembalian dana Anda telah diajukan. Penyedia pembayaran meninjaunya sebelum dana dipindahkan.",
+      "cancelledRefundNotAccepted": "Dibatalkan, tetapi permintaan pengembalian dana tidak diterima. Hubungi dukungan jika Anda mengharapkan jawaban lain."
     },
     "autoRenewOn": "Diperpanjang otomatis pada {{date}}",
     "cancelScheduledOn": "Perpanjangan otomatis dimatikan. Fitur berbayar tetap aktif sampai {{date}}.",

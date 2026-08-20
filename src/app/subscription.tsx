@@ -18,7 +18,7 @@
 //     revoked by the paddle-webhook rail, not here)
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -74,6 +74,9 @@ export default function SubscriptionScreen() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [immediate, setImmediate] = useState(false);
+  // Cancel-with-refund. Off by default: the destructive half of the pair is the
+  // refund (paid access ends at once), so it is opted INTO, never pre-ticked.
+  const [refundToo, setRefundToo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const mounted = useRef(true);
@@ -128,13 +131,37 @@ export default function SubscriptionScreen() {
     [],
   );
 
+  // The SERVER decides the verdict; the screen never re-decides it. Hoisted
+  // above the callbacks because the cancel sheet needs it too, and the
+  // render-time `refundOpen` below is this same value plus the busy guard.
+  const refundEligible = eligibility != null && canRequestRefund(eligibility);
+
   const runCancel = useCallback(() => {
+    // Read the pair decision BEFORE the sheet closes so a late state flush
+    // cannot change what the user just confirmed.
+    const alsoRefund = refundEligible && refundToo;
     setSheet(null);
     setBusy(true);
     void (async () => {
       try {
         const result = await cancelSubscription(immediate ? "immediately" : "next_billing_period");
-        applyResult(result, immediate ? "cancelledNow" : "cancelledAtRenewal");
+        // Two claims, in this order, and only when the cancel actually landed.
+        // Firing the refund after a rejected or dry-run cancel would file a
+        // claim against a subscription the server just said it could not touch.
+        if (alsoRefund && (result.outcome === "accepted" || result.outcome === "duplicate")) {
+          const refund = await requestRefund();
+          if (refund.eligibility?.status) setEligibility(refund.eligibility);
+          // The server re-judges eligibility on its own, so a refusal is
+          // possible even though the screen offered the option. Say both halves
+          // rather than letting the refund verdict speak for the cancel too.
+          const filed = refund.outcome === "accepted" || refund.outcome === "duplicate";
+          setNotice({
+            kind: filed ? "ok" : "warn",
+            key: filed ? "cancelledAndRefundRequested" : "cancelledRefundNotAccepted",
+          });
+        } else {
+          applyResult(result, immediate ? "cancelledNow" : "cancelledAtRenewal");
+        }
         // The tier itself is revoked by the webhook rail, so re-read rather than
         // assume: an accepted cancel does not mean the entitlement moved yet.
         void refreshTier();
@@ -146,7 +173,7 @@ export default function SubscriptionScreen() {
         if (mounted.current) setBusy(false);
       }
     })();
-  }, [immediate, applyResult, refreshTier, load]);
+  }, [immediate, refundEligible, refundToo, applyResult, refreshTier, load]);
 
   const runRefund = useCallback(() => {
     setSheet(null);
@@ -188,9 +215,7 @@ export default function SubscriptionScreen() {
   const method = overview ? formatPaymentMethod(overview) : null;
   const daysLeft = eligibility ? refundDaysLeft(eligibility) : null;
   const reasonKey = eligibility ? refundReasonKey(eligibility.status) : "unknown";
-  // The SERVER decides the verdict; the screen never re-decides, it only
-  // renders what came back.
-  const refundOpen = eligibility != null && canRequestRefund(eligibility) && !busy;
+  const refundOpen = refundEligible && !busy;
 
   return (
     <DeepSpaceScreen active="settings" header="none" variant="windowed" title={t("subscription.title")} onBack={() => router.back()}>
@@ -254,6 +279,7 @@ export default function SubscriptionScreen() {
                   variant="outlined"
                   onPress={() => {
                     setImmediate(false);
+                    setRefundToo(false);
                     setSheet("cancel");
                   }}
                   disabled={busy}
@@ -349,9 +375,35 @@ export default function SubscriptionScreen() {
           variant="text"
           onPress={() => setImmediate((v) => !v)}
         />
+        {/* The refund offer rides ALONG with the cancel instead of making an
+            eligible user find the refund card afterwards. The verdict is still
+            the server's - this only surfaces it at the moment it matters, and
+            the server re-judges when the claim is actually filed. */}
+        {refundEligible ? (
+          <Pressable
+            onPress={() => setRefundToo((v) => !v)}
+            style={s.offerRow}
+            hitSlop={12}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: refundToo }}
+            accessibilityLabel={t("subscription.cancel.refundTogether")}
+          >
+            <View style={[s.checkbox, refundToo ? s.checkboxOn : null]} />
+            <View style={s.offerText}>
+              <Text style={s.body}>{t("subscription.cancel.refundTogether")}</Text>
+              <Text style={s.dim}>{t("subscription.cancel.refundOfferNote")}</Text>
+            </View>
+          </Pressable>
+        ) : null}
         <View style={s.modalActions}>
           <MdButton label={t("subscription.keep")} variant="text" onPress={() => setSheet(null)} />
-          <MdButton label={t("subscription.cancel.confirmCta")} variant="filled" onPress={runCancel} />
+          {/* The label says which of the two things is about to happen. A
+              single "취소하기" over a ticked refund box would understate it. */}
+          <MdButton
+            label={refundToo && refundEligible ? t("subscription.cancel.confirmWithRefundCta") : t("subscription.cancel.confirmCta")}
+            variant="filled"
+            onPress={runCancel}
+          />
         </View>
       </PremiumModal>
 
@@ -382,6 +434,17 @@ const s = StyleSheet.create({
   ok: { color: m3.color.primary, fontSize: 14, lineHeight: 20 },
   warn: { color: m3.color.error, fontSize: 14, lineHeight: 20 },
   evidence: { gap: 2, paddingVertical: m3.spacing.s1 },
+  offerRow: { flexDirection: "row", alignItems: "flex-start", gap: m3.spacing.s3, marginTop: m3.spacing.s2 },
+  offerText: { flex: 1, gap: 2 },
+  checkbox: {
+    width: 18,
+    height: 18,
+    marginTop: 2,
+    borderWidth: 2,
+    borderColor: m3.color.outline,
+    backgroundColor: "transparent",
+  },
+  checkboxOn: { borderColor: m3.color.primary, backgroundColor: m3.color.primary },
   // gap 은 s4 로 고정한다(= 이주 전과 같은 8px). 취소와 **되돌릴 수 없는 환불 실행**
   // 사이 간격이라 밀도 규칙보다 오탭 비용이 크다.
   modalActions: { flexDirection: "row", gap: m3.spacing.s4, marginTop: m3.spacing.s4, justifyContent: "flex-end" },

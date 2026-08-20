@@ -809,7 +809,17 @@
       "disclosureYearly": "Paid plans renew automatically each year until you cancel. Cancel anytime before the next renewal and paid features stay open until that period ends; prices include VAT. Full refund within 7 days of payment, as long as your usage has stayed within what the free plan covers.",
       "legalTerms": "Terms of Service",
       "legalRefund": "Refund policy",
-      "minorPurchaseNotice": "If you are under 19, a purchase made without your legal guardian's consent can be cancelled later by you or by your guardian. We tell you this before you buy, not after."
+      "minorPurchaseNotice": "If you are under 19, a purchase made without your legal guardian's consent can be cancelled later by you or by your guardian. We tell you this before you buy, not after.",
+      "terms": {
+        "agree": "I have read these terms and agree to the automatic renewal.",
+        "back": "Go back",
+        "cancelHow": "You can cancel any time on the subscription screen. Cancelling stops the next renewal and keeps access until the paid period ends.",
+        "charge": "{{plan}} · {{price}}",
+        "cta": "Continue to payment",
+        "cycleMonthly": "Renews automatically every month until you cancel.",
+        "cycleYearly": "Renews automatically every year until you cancel.",
+        "title": "Before you pay"
+      }
     },
     "wikiRecords": {
       "relationships": "Relationships",
