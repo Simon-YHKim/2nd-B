@@ -5,9 +5,11 @@
 // under ts-jest (node). The Deno env-reading wrapper `resolveApiKey` lives in
 // ./llm-proxy-common.ts and delegates to pickApiKey() here.
 //
-// Secret naming (env-var safe: uppercase + underscore):
-//   {PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}
-//   e.g. ANTHROPIC_API_KEY__SONNET5__HIGH, OPENAI_API_KEY__GPT54__MEDIUM
+// Secret naming (env-var safe: uppercase + underscore), most specific first:
+//   1. {PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}  pin one model's effort level
+//   2. {PREFIX}_API_KEY__{EFFORT}               survives a model promotion
+//   3. {PREFIX}_API_KEY                         base key, last resort
+//   e.g. ANTHROPIC_API_KEY__SONNET5__HIGH, OPENAI_API_KEY__LOW, XAI_API_KEY
 // See docs/LLM-ROUTING.md "Axis key attribution".
 
 // Model id -> slug (stable, legible, env-var safe). An UNKNOWN model falls back
@@ -110,8 +112,29 @@ export function pickApiKey(
   effort: string,
   baseKey: string,
 ): ResolvedKey {
+  // Tier 1: (model × effort). Unchanged, and deliberately still first - a combo
+  // key someone already created must keep winning.
   const secretName = comboSecretName(prefix, model, effort);
   const combo = (getEnv(secretName) ?? '').trim();
   if (combo.length > 0) return { apiKey: combo, secretName, usedCombo: true };
+
+  // Tier 2: effort only. The model name is NOT in this secret's name, so a
+  // promotion cannot rename it out of existence - which is the whole point.
+  //
+  // Tier 1 alone could not satisfy both of Simon's requirements at once ("model
+  // always latest" AND "effort levels separable, without re-issuing keys"),
+  // because promoting the seat renames the tier-1 secret and every effort then
+  // collapses onto the single base key. That is not a hypothetical: measured in
+  // ai_audit_log.key_combo, gemini-3.5-flash had four distinct effort keys on
+  // 07-28, and when the seat moved to gemini-2.5-flash on 08-17 every call fell
+  // to GEMINI_API_KEY. It was silent there because the base key was fine; the
+  // same collapse on OpenAI two days later hit a base key with a control
+  // character in it and returned 502.
+  const effortName = `${prefix}_API_KEY__${effort.toUpperCase()}`;
+  const byEffort = (getEnv(effortName) ?? '').trim();
+  if (byEffort.length > 0) return { apiKey: byEffort, secretName: effortName, usedCombo: true };
+
+  // Tier 3: the vendor base key. trim() stays - it is the 2026-08-19 fix, and
+  // usedCombo stays false so the proxies' fallback warning still fires.
   return { apiKey: (baseKey ?? '').trim(), secretName, usedCombo: false };
 }
