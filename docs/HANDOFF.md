@@ -107,6 +107,91 @@ git fetch origin main && git pull origin main && cat docs/HANDOFF.md
 # 화면을 만질 때는 반드시 qc:mobile-web:serve 로 눈으로 확인할 것.
 ```
 
+## 2026-08-21 / 결제 감시가 생겼고, 가입 화면의 법정 동의 한 줄이 빠져 있었다
+
+> **새 세션은 이 블록을 먼저 읽을 것.** 바로 아래 블록들은 다른 세션 몫이고 그대로 유효하다.
+> 이 블록은 **결제·DB 세션 몫**이다.
+
+### 이번 세션 머지 (5건)
+
+| PR | 무엇 |
+|---|---|
+| **#1292** | **가입 화면에 `안전 안내` 동의 행이 없었다** — PIPA 제23조 별도 동의. 라이브에서 찾아 고치고 라이브에서 확인 |
+| **#1290** | **Paddle 실측** — 한국 결제수단 이미 전부 켜져 있고 가격이 원 단위까지 일치 |
+| **#1287** | 결제 트립와이어 7종 일간 감시 + **경보 자체가 못 울리던 결함**(`GH_REPO`) 수정 |
+| **#1285** | 클라이언트가 잔액을 **원장**에서 읽는다 (구매 크레딧을 못 쓰는 문제 선제 차단) |
+| #1280·#1281 | `0137` 크로스 유저 읽기 차단 · `types.gen.ts` 재생성 |
+
+- 운영 마이그레이션 **`0137`**, 미적용 0건. `npm run verify` **478 suites / 4282 tests 그린**
+
+### ⚠ #1292 — 이 저장소의 "조기 반환" 함정이 법적 결함을 숨기고 있었다
+
+`src/app/(auth)/sign-up.tsx:508` 이 `if (isDeepSpaceUI()) return <DeepSpaceSignUpDesignScreen />`
+로 끝난다. 그래서 **필수 5줄을 다 가진 `<ConsentNotice/>` 를 렌더하는 `SignUpLegacy` 는 배포되는
+화면이 아니었다.** 실제 화면에는 `safetyNotice` 행이 **아예 없었다.**
+
+양쪽으로 틀렸다:
+
+- 보이는 4줄을 하나씩 다 눌러도 `allRequiredAcksChecked` 가 막아 **제출이 영영 안 열린다**
+- **"필수 항목에 모두 동의"** 를 누르면 `setAllRequiredAcks` 가 **화면에 보인 적 없는 항목까지
+  `true` 로 동의 원장에 기록**한다 — 별도 동의는 *따로 보여주고 따로 받는 것*이 요건이라
+  이쪽이 더 나쁘다
+
+**찾은 방법을 기억할 것: 코드가 아니라 라이브 DOM 을 봤다.** 헤드리스 크롬 `--dump-dom` 으로
+`/sign-up` 을 받아 로케일 문구를 grep 했더니 형제 문구는 있고 그 문구만 없었다.
+**`role="checkbox"` 개수 세기가 가장 빠른 판별**이다 — 수정 후 **6 → 7** 로 배포 도달까지 확인했다.
+
+### ✅ Paddle 병목은 이미 풀려 있었다 — 그리고 대시보드를 열 일이 아니었다
+
+2026-08-19 부터 모든 핸드오프에 "1순위 병목"으로 실려 온 항목이다. 실측 결과:
+
+```
+PAYMENT_METHODS: card, naver_pay, kakao_pay, south_korea_local_card, apple_pay
+CURRENCY:        KRW
+항해자 9,900 / 99,000 · 북극성 19,900 / 199,000   ← 앱 표시와 원 단위까지 일치
+```
+
+**약관의 "카드, KakaoPay, NaverPay" 문장은 프로덕션에서 참이다.** 거짓이라는 서술을 인용하지 말 것.
+
+`EXPO_PUBLIC_PADDLE_CLIENT_TOKEN` 은 **공개 repo Variable** 이고, 그 토큰으로
+`Paddle.PricePreview` 를 부르면 고객 브라우저가 페이월에서 하는 것과 똑같은 읽기를 한다.
+**API 키도 로그인도 클릭도 필요 없었다.** 이 항목이 이틀간 사람 목록에 앉아 있었던 이유는
+아무도 API 를 먼저 시도하지 않아서다.
+
+⚠ **연간 price id 는 2026-08-03 부터 설정돼 있었다.** 그래서 #1267 의 주기 토글은 머지 직후
+**첫 배포에서 이미 라이브**였다. 다행히 가격은 일치한다.
+
+### 새 감시 장치 — `billing-tripwires.yml` (매일 05:20 KST)
+
+`provider_conflict` · stuck claim · `refund_review` · `stale_entitlement` ·
+unhandled payload · counter drift · balance drift **7종을 아무도 안 읽고 있었다.**
+건수만 찍고(사용자 id·페이로드 금지), 하나라도 0이 아니면 이슈를 연다. 현재 전부 0.
+**운영에 직접 dispatch 해서 7행 렌더까지 확인했다.**
+
+⚠ 곁가지로 나온 것이 더 무섭다: **`credential-expiry-check.yml` 의 이슈 생성 스텝은 배포 이래
+한 번도 안 돌았고, 돌았으면 실패했을 것이다.** checkout 이 없는 잡에서 `gh` 는
+`GITHUB_REPOSITORY` 를 안 읽어 `not a git repository` 로 죽는다. 둘 다 `GH_REPO` 를 설정했고,
+테스트가 모든 워크플로를 훑는다. `ops` 라벨도 없어서 만들어 뒀다.
+
+### Simon 대기 — 3건으로 줄었다
+
+| # | 무엇 | 왜 사람이어야 하나 |
+|---|---|---|
+| 1 | `OPENAI_API_KEY` 재입력 (값 안쪽 개행) | 시크릿 입력란 |
+| 2 | Supabase 유출 비밀번호 차단 | **토글이 아니라 Pro 플랜 비용 결정** |
+| 3 | Paddle 샌드박스 adjustment 페이로드 | 라이브 계정이라 승인 필요 |
+
+- **Paddle 대시보드 확인 2건은 위 실측으로 해소됐다.**
+- `PADDLE_API_KEY_EXPIRES_AT` 은 **이미 설정됨**(2026-08-19 21:54).
+- 육안 확인 "담기 칩" 은 구조로 확인했다 — `isKeepable` = 세컨비 답변·비합성·비어있지 않음이라
+  **모든 실제 답변에 붙는다.** 숨길 게이트가 없다.
+
+### 다음이 `0138` 구매 경로를 쓸 때
+
+`getReasoningUsage` 는 **이미 원장을 읽는다**(#1285). 서버만 쓰면 된다. 단
+**`kind='purchase'` 의 `provider_event_id` = 거래 id** (0136 계약), 그리고 user-id 를 받는
+새 RPC 를 만들지 말 것 — `credit_summary_self()` 를 읽으면 된다(0137 이 닫은 결함).
+
 ---
 
 ## 2026-08-20 23:50 KST / XPRIZE 잔재 정리 + effort 전용 키 발주 (REQ-260820-03)
