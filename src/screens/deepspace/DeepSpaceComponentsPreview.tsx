@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   statusText: {
     color: colors.textMid,
     fontFamily: fontFamilies.pixelKo,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
   body: {

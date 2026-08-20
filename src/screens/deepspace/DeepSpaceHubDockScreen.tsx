@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   microStarA: { top: 82, left: 72 },
   microStarB: { top: 108, right: 70, opacity: 0.4 },
   statusBar: { position: "relative", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 14 },
-  statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 11, lineHeight: 16 },
+  statusText: { color: colors.textMid, fontFamily: fontFamilies.pixelKo, fontSize: 12, lineHeight: 16 },
   titleRow: { position: "relative", flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: 20, paddingTop: 16 },
   back: { color: colors.textTitle, opacity: 0.7, fontSize: 18, lineHeight: 22 },
   title: { color: colors.textTitle, fontSize: 16 },

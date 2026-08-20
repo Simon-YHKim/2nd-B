@@ -1826,7 +1826,7 @@ const styles = StyleSheet.create({
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
   capBody: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
   capTitle: { color: m3.color.onSurface, fontSize: 24, lineHeight: 30, fontFamily: m3.font.brand, fontWeight: "700" },
-  capSubtitle: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 20, fontFamily: m3.font.brand, marginTop: 4 },
+  capSubtitle: { color: m3.color.onSurfaceVariant, fontSize: 15, lineHeight: 20, fontFamily: m3.font.brand, marginTop: 4 },
   capChipScroll: { marginTop: 16, marginHorizontal: -16 },
   capChipRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 4 },
   capForm: { gap: 14, marginTop: 16 },
@@ -1845,7 +1845,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   capFieldInputTall: { minHeight: 96 },
-  capMono: { fontFamily: m3.font.mono, fontSize: 13 },
+  capMono: { fontFamily: m3.font.mono, fontSize: 12 },
   capFieldRow: { flexDirection: "row", gap: 12 },
   capFieldCol: { flex: 1 },
   capHint: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
@@ -1873,7 +1873,7 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     backgroundColor: m3.color.tertiaryContainer,
   },
-  capBannerText: { flex: 1, color: m3.color.onTertiaryContainer, fontSize: 12.5, lineHeight: 18, fontFamily: m3.font.brand },
+  capBannerText: { flex: 1, color: m3.color.onTertiaryContainer, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
   capSubmit: { alignSelf: "stretch", marginTop: 14 },
   capFullWidth: { alignSelf: "stretch", marginTop: 8 },
   capErrorCard: {
@@ -1883,7 +1883,7 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     backgroundColor: m3.color.errorContainer,
   },
-  capErrorText: { color: m3.color.onErrorContainer, fontSize: 12.5, lineHeight: 18, fontFamily: m3.font.brand },
+  capErrorText: { color: m3.color.onErrorContainer, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
 
   // shared gradient button
   gButton: {
@@ -2016,7 +2016,7 @@ const styles = StyleSheet.create({
 
   // lens — filled
   filledHead: { flexDirection: "row", alignItems: "center", gap: 8 },
-  level: { color: deepSpace.mint, fontSize: 11, fontFamily: m3.font.mono },
+  level: { color: deepSpace.mint, fontSize: 12, fontFamily: m3.font.mono },
   traits: { marginTop: 16, gap: 11 },
   traitRow: { gap: 4 },
   traitHead: { flexDirection: "row", justifyContent: "space-between" },
@@ -2123,7 +2123,7 @@ const styles = StyleSheet.create({
   idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: m3.font.mono },
   idBadges: { flexDirection: "row", gap: 5 },
   idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
-  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 9, fontFamily: m3.font.mono },
+  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 10, fontFamily: m3.font.mono },
   idBadgeSigned: { backgroundColor: withAlpha(deepSpace.mint, 0.1) },
   idBadgeSignedText: { color: deepSpace.mint, fontSize: 9, fontFamily: fontFamilies.readable },
   idenRowNorth: {
@@ -2136,8 +2136,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 9,
     backgroundColor: withAlpha(deepSpace.soul, 0.06),
   },
-  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 9, fontFamily: m3.font.mono, letterSpacing: 0.8 },
-  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 9, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   idenNorthValue: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, marginTop: 5, fontFamily: fontFamilies.readable },
   idenRowFive: {
     marginTop: 7,
@@ -2154,9 +2154,9 @@ const styles = StyleSheet.create({
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
   lensHeadTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 9.5, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   lensEyebrow: { color: deepSpace.textMid, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
-  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 9.5, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
+  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
   sectionGap: { marginTop: 18 },
   footerLine: { marginTop: 18, color: withAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
 
@@ -2191,7 +2191,7 @@ const styles = StyleSheet.create({
   // seen - compare rows
   compareList: { gap: 18 },
   compareRow: { gap: 4 },
-  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
+  compareDelta: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: m3.font.mono },
   compareTrack: { height: 6, borderRadius: m3.shape.none, overflow: "hidden" },
   compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
   compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
@@ -2268,7 +2268,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: m3.font.mono },
+  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 12, fontFamily: m3.font.mono },
 
   // ── imagine (divergent seeds) — ref sb-more ImagineScreen tokens ────────────
   imgIntro: { borderRadius: m3.shape.none, overflow: "hidden", marginTop: 4 },
@@ -2372,7 +2372,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     elevation: 0,
   },
-  meCardLevel: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
+  meCardLevel: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: m3.font.mono },
   meCardName: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
   meDotRow: { flexDirection: "row", gap: 4 },
   meDot: { width: 6, height: 6, borderRadius: m3.shape.none },

@@ -1122,7 +1122,7 @@ const styles = StyleSheet.create({
   healthTop: { flexDirection: "row", alignItems: "center", gap: 14 },
   ringWrap: { width: 112, height: 112, alignItems: "center", justifyContent: "center" },
   ringText: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  ringLevel: { color: m3.color.onSurface, fontFamily: m3.font.mono, fontSize: 27, lineHeight: 32, fontWeight: "700" },
+  ringLevel: { color: m3.color.onSurface, fontFamily: m3.font.mono, fontSize: 30, lineHeight: 32, fontWeight: "700" },
   healthStats: { flex: 1, gap: 7 },
   healthStat: {
     flexDirection: "row",
