@@ -36,12 +36,14 @@ export function DeepSpaceLegalDocScreen({
   const [documentLanguage, setDocumentLanguage] = useState<LegalDocumentLanguage>(() =>
     systemLocaleFor(i18n.resolvedLanguage ?? i18n.language),
   );
-  const blocks = useMemo(() => {
-    const parsed = parseLegalMarkdown(doc.body);
-    return stripLegalDocumentIntro(parsed, doc.title);
-  }, [doc.body, doc.title]);
+  const { blocks, meta } = useMemo(
+    () => stripLegalDocumentIntro(parseLegalMarkdown(doc.body), doc.title),
+    [doc.body, doc.title],
+  );
   const languageSections = useMemo(() => splitLegalLanguageSections(blocks), [blocks]);
-  const visibleBlocks = languageSections?.[documentLanguage] ?? blocks;
+  const visibleBlocks = languageSections
+    ? [...languageSections.preamble, ...languageSections.sections[documentLanguage]]
+    : blocks;
 
   return (
     <AuthShell>
@@ -58,6 +60,10 @@ export function DeepSpaceLegalDocScreen({
           {doc.title}
         </Text>
       </View>
+
+      {meta ? (
+        <Text variant="caption" style={local.meta}>{meta}</Text>
+      ) : null}
 
       {languageSections ? (
         <SegBtn
@@ -130,6 +136,7 @@ const local = StyleSheet.create({
     paddingVertical: 2,
   },
   draftBadgeText: { color: colors.amber },
+  meta: { color: colors.textMid },
   h1: { color: colors.textTitle, fontSize: 18, marginTop: spacing.sm },
   h2: { color: colors.textTitle, fontSize: 15, marginTop: spacing.md },
   h3: { color: colors.textHi, fontSize: 13, marginTop: spacing.sm },

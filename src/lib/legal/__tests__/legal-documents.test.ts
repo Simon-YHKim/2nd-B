@@ -7,7 +7,16 @@ import {
   parseLegalMarkdown,
   splitLegalLanguageSections,
   stripLegalDocumentIntro,
+  type LegalBlock,
+  type LegalLanguageSections,
 } from "../parse-legal-markdown";
+
+/** The half of the document the language toggle is currently hiding. */
+function otherLanguageLines(split: LegalLanguageSections, showing: "ko" | "en"): string[] {
+  return split.sections[showing === "ko" ? "en" : "ko"].map((block) =>
+    block.type === "rule" ? "" : "text" in block ? block.text : "",
+  );
+}
 
 describe("legal document snapshots", () => {
   test("terms carry the core commitments (article 1, the not-a-clinical-service disclaimer, age floor)", () => {
@@ -158,20 +167,24 @@ describe("parseLegalMarkdown", () => {
     expect(blocks.some((b) => b.type === "h3")).toBe(true);
   });
 
-  test("removes the duplicated terms title, effective date, and divider for the route body", () => {
+  test("removes the duplicated terms title and divider, but hands back the effective date", () => {
     const blocks = parseLegalMarkdown(TERMS_DOC.body);
-    const visibleBlocks = stripLegalDocumentIntro(blocks, TERMS_DOC.title);
+    const intro = stripLegalDocumentIntro(blocks, TERMS_DOC.title);
 
-    expect(visibleBlocks).toEqual(blocks.slice(3));
-    expect(visibleBlocks[0]).toEqual({ type: "h2", text: "한국어" });
+    expect(intro.blocks).toEqual(blocks.slice(3));
+    expect(intro.blocks[0]).toEqual({ type: "h2", text: "한국어" });
+    // The screen is the only place this line can appear -- the header states
+    // the title and nothing else. Dropping it is how it disappeared once.
+    expect(intro.meta).toMatch(/^(시행일|최종 업데이트):/);
   });
 
   test("splits the terms into complete Korean and English sections", () => {
-    const blocks = stripLegalDocumentIntro(parseLegalMarkdown(TERMS_DOC.body), TERMS_DOC.title);
-    const sections = splitLegalLanguageSections(blocks);
+    const { blocks } = stripLegalDocumentIntro(parseLegalMarkdown(TERMS_DOC.body), TERMS_DOC.title);
+    const split = splitLegalLanguageSections(blocks);
 
-    expect(sections).not.toBeNull();
-    if (!sections) throw new Error("Expected bilingual terms sections");
+    expect(split).not.toBeNull();
+    if (!split) throw new Error("Expected bilingual terms sections");
+    const { sections } = split;
     expect(sections.ko[0]).toEqual({ type: "h3", text: "제1조 (목적)" });
     expect(sections.en[0]).toEqual({ type: "h3", text: "1. Purpose" });
     expect(
@@ -189,12 +202,49 @@ describe("parseLegalMarkdown", () => {
 
   test("splits every legal route into complete Korean and English sections", () => {
     for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
-      const blocks = stripLegalDocumentIntro(parseLegalMarkdown(doc.body), doc.title);
-      const sections = splitLegalLanguageSections(blocks);
+      const { blocks } = stripLegalDocumentIntro(parseLegalMarkdown(doc.body), doc.title);
+      const split = splitLegalLanguageSections(blocks);
 
-      expect(sections).not.toBeNull();
-      expect(sections?.ko.length).toBeGreaterThan(0);
-      expect(sections?.en.length).toBeGreaterThan(0);
+      expect(split).not.toBeNull();
+      expect(split?.sections.ko.length).toBeGreaterThan(0);
+      expect(split?.sections.en.length).toBeGreaterThan(0);
+    }
+  });
+
+  // The bug this guards: the refund policy's in-body h1 reads "Refund &
+  // Cancellation Policy" while REFUND_DOC.title reads "Refund Policy", so the
+  // intro strip never fired for it, and everything ahead of the 한국어 marker --
+  // including its 개정 시행일 -- was thrown away by the split instead. Counting
+  // sections was not enough to notice; only conservation is.
+  test("shows every line of every legal document -- nothing is silently dropped", () => {
+    const textOf = (block: LegalBlock): string =>
+      block.type === "rule" ? "" : "text" in block ? block.text : "";
+
+    for (const doc of [TERMS_DOC, REFUND_DOC, PRIVACY_DOC]) {
+      const parsed = parseLegalMarkdown(doc.body);
+      const { blocks, meta } = stripLegalDocumentIntro(parsed, doc.title);
+      const split = splitLegalLanguageSections(blocks);
+      if (!split) throw new Error(`Expected bilingual sections for ${doc.title}`);
+
+      // What each language actually puts on screen, plus the header's own parts.
+      for (const language of ["ko", "en"] as const) {
+        const onScreen = [
+          doc.title,
+          meta ?? "",
+          ...[...split.preamble, ...split.sections[language]].map(textOf),
+        ];
+
+        const missing = parsed
+          .map(textOf)
+          .filter((line) => line.length > 0)
+          // The other language's body is legitimately hidden behind the toggle,
+          // as are the two marker headings, which become the toggle's labels.
+          .filter((line) => !otherLanguageLines(split, language).includes(line))
+          .filter((line) => line !== "한국어" && line !== "English")
+          .filter((line) => !onScreen.some((shown) => shown.includes(line)));
+
+        expect(missing).toEqual([]);
+      }
     }
   });
 
