@@ -1,7 +1,8 @@
 # PIXEL-CLAY v4 인수 자료 — 저장소 쪽 주석
 
-> 이 파일만 저장소가 썼다. 나머지는 **받은 그대로** 두었다(2026-08-18 Claude Design 세션 산출물).
-> 받은 문서를 고치지 말 것 — 고쳐야 할 내용이 생기면 여기에 적는다.
+> 이 파일은 저장소가 쓴 주석이다. 나머지는 **받은 그대로** 두었다(2026-08-18 Claude Design 세션 산출물).
+> 단, `app/px-avatar64.js` 의 합성 규칙은 아래 기록대로 2026-08-21에 의도적으로 고쳤다.
+> 받은 문서를 고치지 말 것 — 추가로 고쳐야 할 내용이 생기면 여기에 적는다.
 
 ## 이게 왜 여기 있나
 
@@ -36,6 +37,24 @@ window.__sb.overlay('onboard')    // onboard | ttfv | coach
 | 7번째 별 (V2) | **프로필** — Simon 결정. 받은 PRD §5-2 는 **커뮤니티**라고 적혀 있고 그건 D2(2026-08-18) 이전에 쓰인 것이다 |
 | 화면 개수 | 프로토타입 **92** · 캐논 **58** · 앱 라우트 **97**. 셋 다 다르다 (V3) |
 | 이 번들의 코드 | **참조물이다. import 하지 않는다.** 앱은 React Native 고 이건 웹 프로토타입이다 |
+
+## 저장소가 의도적으로 고친 예외 — 아바타 합성 규칙
+
+2026-08-21 Simon 결정에 따라 `app/px-avatar64.js` 의 `ops()` 합성 규칙 두 곳을 먼저
+고쳤다. RN 이식 전에 원본 동작과 제품 결정을 분리해 검증하기 위한 변경이다.
+
+- 직업 유니폼은 기본값이지만 `wearUniform: false` 면 사용자가 고른 `cloth` 를 유지한다.
+- 직업 모자가 있더라도 귀걸이·목도리·나비넥타이·마스크는 유지한다.
+- 모자와 같은 머리 위 자리를 쓰는 15종만 `HEADTOP` 표에 따라 양보한다.
+- 모자 밑 헤어 컷, 얼굴 디테일 유지, 동물의 직업 미합성은 바꾸지 않았다.
+
+`scripts/__tests__/pixel-avatar-composition.test.ts` 가 모자 직업 32종 × 비중첩 소품
+4종 = 128조합, 머리 위 소품 15종, 옷 색 되돌리기, 직업 없음 복원, 동물 제외를 실제
+`ops()` 출력으로 검증한다.
+
+지정 보고서의 31종·124조합은 현재 정본 엔진과 1종 어긋난다. `athlete`의 `bandHat`도
+`J.hat` 함수이며 기존 조건식에서 액세서리 억제와 헤어 컷을 실제로 실행하므로, 엔진
+실측값 32종·128조합을 따른다.
 
 ## 받은 문서와 저장소가 어긋나는 곳 (실측)
 
@@ -102,27 +121,28 @@ PIXEL-CLAY 는 그 셋을 전부 의도적으로 뒤집는다(Galmuri · radius 
 첫 번째 결정이다. 4px 로 고정하면 스크린샷과 일치하고 `--s1`…`--s8` 이 기존 `m3Spacing` 과
 같은 값이 된다.
 
-### 함정 2 — 폰트: 번들에는 없지만 **저장소에는 이미 있다**
+### 함정 2 — 폰트: 번들에는 없지만 **저장소에는 5종 전부 있다**
 
 인수 번들 쪽은 Galmuri 5종(Galmuri14 · Galmuri11 400/700 · Galmuri9 · GalmuriMono11)이
 전부 `https://cdn.jsdelivr.net/npm/galmuri/dist/*.woff2` 에서 로드된다. RN 은 CDN 웹폰트를
 못 쓴다.
 
-**그런데 저장소는 이미 Galmuri11 을 싣고 있다** — cosmic-pixel 시절 파이프라인이 살아 있다.
+**저장소는 Galmuri 5종을 모두 싣고 있다.** 2026-08-20에 기존 서브셋 파이프라인을
+확장했고 `src/theme/typography.ts` 의 `fontAssets` 에 전부 등록했다.
 
 ```
-assets/fonts/Galmuri11-subset.woff2   147KB  (웹)
-assets/fonts/Galmuri11-subset.ttf     2.5MB  (네이티브)
-src/theme/typography.ts:48-51         fontAssets.Galmuri11 로 등록
+assets/fonts/Galmuri11-subset.*
+assets/fonts/Galmuri11Bold-subset.*
+assets/fonts/Galmuri14-subset.*
+assets/fonts/Galmuri9-subset.*
+assets/fonts/GalmuriMono11-subset.*
+src/theme/typography.ts               fontAssets 5종 등록
 src/app/_layout.tsx:69                useFonts(fontAssets)
-docs/ASSETS.md:39-41                  SIL OFL 1.1 고지 기재됨
+docs/ASSETS.md:39-47                  SIL OFL 1.1 고지와 서브셋 근거
 src/lib/settings/readable-font.ts:19  DEFAULT_FONT_STYLE = "pixel"   ← 기본이 픽셀이다
 ```
 
-**남은 것은 나머지 3종**(Galmuri14 · Galmuri9 · GalmuriMono11)이고, 만드는 것이 아니라
-있는 파이프라인을 넓히는 일이다. 원본은 `galmuri` npm 패키지(^2.40.3).
-
-⚠ `.ttf` 가 2.5MB 다. 3종을 더하기 전에 서브셋 범위와 번들 크기를 측정할 것.
+원본은 `galmuri` npm 패키지(^2.40.3)다. 폰트 추가 작업을 다시 발주하지 말 것.
 
 ### 함정 3 — 이 시스템의 절반은 CSS 전용이다
 

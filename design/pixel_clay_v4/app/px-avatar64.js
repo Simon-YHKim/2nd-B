@@ -175,6 +175,10 @@
     AC('facemask', '마스크', 'Mask', function () { return [[22, 30, 20, 12, '#e8f2f7'], [22, 30, 20, 2, '#c9d6de'], [18, 26, 5, 6, '#c9d6de'], [41, 26, 5, 6, '#c9d6de'], [24, 34, 16, 1, '#d4e0e8']]; }),
     AC('freckleset', '헤어밴드+핀', 'Band + pin', function (p) { return [[17, 15, 30, 3, p.cloth], [38, 11, 8, 3, '#e0a63c'], [21, 30, 4, 2, mix(p.skin, '#a8433f', 0.3)], [39, 30, 4, 2, mix(p.skin, '#a8433f', 0.3)]]; })
   ];
+  /* 직업 모자와 같은 머리 위 자리를 쓰는 소품만 양보한다. */
+  var HEADTOP = { headband:1, beanie:1, capback:1, flowerpin:1, headphone:1,
+    bandana:1, hairclip:1, halo:1, catears:1, crownsm:1, hoodup:1,
+    antenna:1, horns:1, visor:1, freckleset:1 };
 
   /* ══ 얼굴 디테일 14종 ════════════════════════════════════════════ */
   function glassesFrame(c, round) {
@@ -474,7 +478,7 @@
       return o;
     }
     var J = sp.job ? JOB_BY_ID[sp.job] : null;
-    var cloth = J ? J.cloth : sp.cloth;
+    var cloth = (J && sp.wearUniform !== false) ? J.cloth : sp.cloth;
     P.cloth = cloth;
     var H = HAIR.filter(function (h) { return h.id === sp.hair; })[0] || HAIR[0];
     o = o.concat(headBase(sp.skin));
@@ -488,7 +492,7 @@
     var F = FACE.filter(function (x) { return x.id === sp.face; })[0];
     if (F && sp.face !== 'none') o = o.concat(F.f(P));
     var A3 = ACC.filter(function (a) { return a.id === sp.acc; })[0];
-    if (A3 && sp.acc !== 'none' && !(J && J.hat)) o = o.concat(A3.f(P));
+    if (A3 && sp.acc !== 'none' && !(J && J.hat && HEADTOP[sp.acc])) o = o.concat(A3.f(P));
     return o;
   }
   function rawSVG(sp, size) {
