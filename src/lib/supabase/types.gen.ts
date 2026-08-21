@@ -2,7 +2,8 @@
 //   supabase gen types typescript --project-id zoacryukmdeivmolvyhj > src/lib/supabase/types.gen.ts
 //   npm run type-check   # then fix anything the new types newly surface
 //
-// Regenerated 2026-08-20 against the live schema, which is now at 0137. The
+// Regenerated 2026-08-20 against the live schema, which is now at 0137, then
+// forward-declared locally for 0140 users.avatar/save_profile_avatar. The
 // previous copy was generated at 0132 and had gone stale in the one way that
 // matters for a generated file: it described a database that no longer exists.
 // It still declared refund_reasoning_spend, which 0135 DROPPED, and it knew
@@ -2688,6 +2689,7 @@ export type Database = {
       users: {
         Row: {
           account_status: string
+          avatar: Json
           birth_date: string
           coachmarks_seen: Json
           consent_share_with_judges: boolean
@@ -2711,6 +2713,7 @@ export type Database = {
         }
         Insert: {
           account_status?: string
+          avatar?: Json
           birth_date: string
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
@@ -2734,6 +2737,7 @@ export type Database = {
         }
         Update: {
           account_status?: string
+          avatar?: Json
           birth_date?: string
           coachmarks_seen?: Json
           consent_share_with_judges?: boolean
@@ -3344,6 +3348,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      save_profile_avatar: {
+        Args: {
+          p_avatar: Json
+          p_occupation?: string | null
+          p_sync_occupation?: boolean
+        }
+        Returns: undefined
       }
       settle_billing_self_service: {
         Args: {
