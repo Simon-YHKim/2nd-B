@@ -3745,12 +3745,152 @@
       "state": "ready_for_review",
       "version": "9579941f963a"
     },
+    "icons/logout": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/lotus": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/lungs": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/lute": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mail": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/map": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/marriage": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/massage": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/medMask": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/medal": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/medkit": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/meeting": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/megaphone": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mentalHealth": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mentor": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
     "icons/menu": {
       "batch_id": "native128-009",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-009/5f91dcd0c94e/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-009/5f91dcd0c94e/master-atlas.png",
       "state": "ready_for_review",
       "version": "5f91dcd0c94e"
+    },
+    "icons/merge": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mic": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/microscope": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/milestone": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/milkCan": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
     },
     "icons/minus": {
       "batch_id": "native128-010",
@@ -3759,12 +3899,96 @@
       "state": "ready_for_review",
       "version": "10496672de39"
     },
+    "icons/mirror": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mom": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/moneyBag": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/monitor": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/moon": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
     "icons/more": {
       "batch_id": "native128-010",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-010/10496672de39/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-010/10496672de39/master-atlas.png",
       "state": "ready_for_review",
       "version": "10496672de39"
+    },
+    "icons/mortar": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mountain": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mouse": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/muscle": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/mute": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/nailGun": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    "icons/nailPolish": {
+      "batch_id": "native128-018",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
     },
     "icons/pause": {
       "batch_id": "native128-010",
@@ -4686,6 +4910,53 @@
     },
     {
       "asset_ids": [
+        "icons/logout",
+        "icons/lotus",
+        "icons/lungs",
+        "icons/lute",
+        "icons/mail",
+        "icons/map",
+        "icons/marriage",
+        "icons/massage",
+        "icons/medal",
+        "icons/medkit",
+        "icons/medMask",
+        "icons/meeting",
+        "icons/megaphone",
+        "icons/mentalHealth",
+        "icons/mentor",
+        "icons/merge",
+        "icons/mic",
+        "icons/microscope",
+        "icons/milestone",
+        "icons/milkCan",
+        "icons/mirror",
+        "icons/mom",
+        "icons/moneyBag",
+        "icons/monitor",
+        "icons/moon",
+        "icons/mortar",
+        "icons/mountain",
+        "icons/mouse",
+        "icons/muscle",
+        "icons/mute",
+        "icons/nailGun",
+        "icons/nailPolish"
+      ],
+      "batch_id": "native128-018",
+      "contract_sha256": "45dfe02c86f9964619302dae1e4d24fc5d57f14dc6d8df6308d50f79ef0f9f72",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/manifest.json",
+      "manifest_sha256": "0793c1b60b7ffa6b84165baabaea2b3325e10238af1f35fc1bfab0640a0aeb76",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-018/45dfe02c86f9/master-atlas.png",
+      "master_atlas_sha256": "434458e39189e53e5fa49220e16bc3d21758fa50d309218c5166bd71ca0023d0",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "45dfe02c86f9"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -4713,8 +4984,8 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 551,
-    "native128_remaining": 252,
+    "native128_ready_or_approved": 583,
+    "native128_remaining": 220,
     "ready_asset_ids": [
       "avatars/agriculture/agronomist",
       "avatars/agriculture/beekeeper",
@@ -5251,9 +5522,41 @@
       "icons/lock",
       "icons/logCut",
       "icons/login",
+      "icons/logout",
+      "icons/lotus",
+      "icons/lungs",
+      "icons/lute",
+      "icons/mail",
+      "icons/map",
+      "icons/marriage",
+      "icons/massage",
+      "icons/medMask",
+      "icons/medal",
+      "icons/medkit",
+      "icons/meeting",
+      "icons/megaphone",
+      "icons/mentalHealth",
+      "icons/mentor",
       "icons/menu",
+      "icons/merge",
+      "icons/mic",
+      "icons/microscope",
+      "icons/milestone",
+      "icons/milkCan",
       "icons/minus",
+      "icons/mirror",
+      "icons/mom",
+      "icons/moneyBag",
+      "icons/monitor",
+      "icons/moon",
       "icons/more",
+      "icons/mortar",
+      "icons/mountain",
+      "icons/mouse",
+      "icons/muscle",
+      "icons/mute",
+      "icons/nailGun",
+      "icons/nailPolish",
       "icons/pause",
       "icons/play",
       "icons/plus",
