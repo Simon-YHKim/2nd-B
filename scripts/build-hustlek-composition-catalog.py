@@ -164,6 +164,8 @@ PILOT_VARIANTS = {
 AVATAR_LAYER_ATLAS = "design/hustlek-composition-v1/avatar-layers-atlas.png"
 AVATAR_LAYER_IDS = ["base", "hair", "face", "headwear", "garment", "extra"]
 AVATAR_RECOMPOSITION_ORDER = ["base", "garment", "hair", "face", "headwear", "extra"]
+ICON_ATTACHMENT_ATLAS = "design/hustlek-composition-v1/icon-attachments-atlas.png"
+ICON_ATTACHMENT_COLUMNS = 16
 
 
 @lru_cache(maxsize=None)
@@ -253,41 +255,46 @@ def native_master_index(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
-    common = {
-        "canvas": [128, 128],
-        "runtime_scaling_allowed": False,
-        "source_master_resizing_allowed": False,
-    }
-    pilot = PILOT_VARIANTS.get(icon_name)
-    if pilot is None:
-        return {"status": "pending", **common}
-
-    path = ROOT / pilot["path"]
-    encoded = Image.open(path).convert("RGBA")
-    atlas_crop = pilot.get("atlas_crop")
-    image = (
-        encoded.crop(
-            (
-                atlas_crop[0],
-                atlas_crop[1],
-                atlas_crop[0] + atlas_crop[2],
-                atlas_crop[1] + atlas_crop[3],
-            )
+@lru_cache(maxsize=1)
+def icon_attachment_atlas() -> Image.Image:
+    path = ROOT / ICON_ATTACHMENT_ATLAS
+    atlas = Image.open(path).convert("RGBA")
+    expected_rows = (267 + ICON_ATTACHMENT_COLUMNS - 1) // ICON_ATTACHMENT_COLUMNS
+    expected_size = (128 * ICON_ATTACHMENT_COLUMNS, 128 * expected_rows)
+    if atlas.size != expected_size:
+        raise ValueError(
+            f"icon attachment atlas must be {expected_size[0]}x{expected_size[1]}"
         )
-        if atlas_crop
-        else encoded
+    return atlas
+
+
+def native128_variant(
+    icon_name: str,
+    slot: str,
+    standalone_master: dict[str, Any],
+    atlas_index: int,
+) -> dict[str, Any]:
+    pilot = PILOT_VARIANTS.get(icon_name)
+    path = ROOT / ICON_ATTACHMENT_ATLAS
+    atlas = icon_attachment_atlas()
+    column, row = atlas_index % ICON_ATTACHMENT_COLUMNS, atlas_index // ICON_ATTACHMENT_COLUMNS
+    atlas_crop = [column * 128, row * 128, 128, 128]
+    image = atlas.crop(
+        (
+            atlas_crop[0],
+            atlas_crop[1],
+            atlas_crop[0] + atlas_crop[2],
+            atlas_crop[1] + atlas_crop[3],
+        )
     )
-    if image.size != (128, 128):
-        raise ValueError(f"{icon_name} pilot must be 128x128")
     pixels = list(image.get_flattened_data())
     if {pixel[3] for pixel in pixels} - {0, 255}:
-        raise ValueError(f"{icon_name} pilot alpha must be binary")
+        raise ValueError(f"{icon_name} attachment alpha must be binary")
     if any(pixel[3] == 0 and pixel[:3] != (0, 0, 0) for pixel in pixels):
-        raise ValueError(f"{icon_name} pilot has hidden RGB")
+        raise ValueError(f"{icon_name} attachment has hidden RGB")
     bbox = image.getbbox()
     if bbox is None:
-        raise ValueError(f"{icon_name} pilot is empty")
+        raise ValueError(f"{icon_name} attachment is empty")
     fit_x, fit_y, fit_width, fit_height = ANCHORS[slot]["fit_box"]
     if not (
         bbox[0] >= fit_x
@@ -295,22 +302,37 @@ def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
         and bbox[2] <= fit_x + fit_width
         and bbox[3] <= fit_y + fit_height
     ):
-        raise ValueError(f"{icon_name} pilot exceeds {slot} fit box")
+        raise ValueError(f"{icon_name} attachment exceeds {slot} fit box")
     opaque_colors = len({pixel for pixel in pixels if pixel[3]})
-    return {
-        "status": "pilot_ready",
-        **common,
-        "path": pilot["path"],
+    result = {
+        "status": "ready",
+        "canvas": [128, 128],
+        "runtime_scaling_allowed": False,
+        "path": ICON_ATTACHMENT_ATLAS,
         "atlas_crop": atlas_crop,
         "encoded_png_sha256": sha256_file(path),
         "decoded_rgba_sha256": hashlib.sha256(image.tobytes()).hexdigest(),
         "bbox": list(bbox),
         "opaque_colors": opaque_colors,
-        "raw_imagegen_source_id": pilot["raw_imagegen_source_id"],
-        "raw_imagegen_sha256": pilot["raw_imagegen_sha256"],
-        "method": pilot["method"],
-        "projection_translation": pilot["translation"],
+        "method": (
+            pilot["method"]
+            if pilot is not None
+            else "nearest-tight-bbox-fit-from-standalone-native128/v1"
+        ),
+        "derived_from_standalone_native128": pilot is None,
+        "source_standalone_decoded_rgba_sha256": standalone_master[
+            "decoded_rgba_sha256"
+        ],
     }
+    if pilot is not None:
+        result.update(
+            {
+                "raw_imagegen_source_id": pilot["raw_imagegen_source_id"],
+                "raw_imagegen_sha256": pilot["raw_imagegen_sha256"],
+                "projection_translation": pilot["translation"],
+            }
+        )
+    return result
 
 
 @lru_cache(maxsize=1)
@@ -426,18 +448,27 @@ def native128_avatar_layers(
     }
 
 
-def attachment_for(icon_name: str) -> dict[str, Any] | None:
+def attachment_role_slot(icon_name: str) -> tuple[str, str] | None:
     if icon_name in ACCESSORY_SLOTS:
-        role, slot = "accessory", ACCESSORY_SLOTS[icon_name]
-    elif icon_name in BADGE_NAMES:
-        role, slot = "badge", "chest"
-    elif icon_name in TOOL_NAMES:
-        role, slot = "tool", "hand_right"
-    elif icon_name in PROP_NAMES:
-        role = "prop"
-        slot = "foreground" if icon_name in FOREGROUND_PROPS else "side_right"
-    else:
+        return "accessory", ACCESSORY_SLOTS[icon_name]
+    if icon_name in BADGE_NAMES:
+        return "badge", "chest"
+    if icon_name in TOOL_NAMES:
+        return "tool", "hand_right"
+    if icon_name in PROP_NAMES:
+        return "prop", "foreground" if icon_name in FOREGROUND_PROPS else "side_right"
+    return None
+
+
+def attachment_for(
+    icon_name: str,
+    standalone_master: dict[str, Any],
+    atlas_index: int,
+) -> dict[str, Any] | None:
+    role_slot = attachment_role_slot(icon_name)
+    if role_slot is None:
         return None
+    role, slot = role_slot
     anchor = ANCHORS[slot]
     return {
         "role": role,
@@ -445,7 +476,9 @@ def attachment_for(icon_name: str) -> dict[str, Any] | None:
         "anchor": {"x": anchor["x"], "y": anchor["y"]},
         "z": anchor["z"],
         "fit_box": anchor["fit_box"],
-        "native128_variant": native128_variant(icon_name, slot),
+        "native128_variant": native128_variant(
+            icon_name, slot, standalone_master, atlas_index
+        ),
     }
 
 
@@ -560,16 +593,33 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
     ]
 
     icons: list[dict[str, Any]] = []
+    attachment_rows = {
+        asset_id: index
+        for index, asset_id in enumerate(
+            sorted(
+                icon["file"].removesuffix(".svg")
+                for icon in source_manifest["icons"]
+                if attachment_role_slot(icon["name"]) is not None
+            )
+        )
+    }
     for icon in source_manifest["icons"]:
         asset_id = icon["file"].removesuffix(".svg")
-        attachment = attachment_for(icon["name"])
+        standalone_master = native_index[asset_id]
+        attachment = (
+            attachment_for(
+                icon["name"], standalone_master, attachment_rows[asset_id]
+            )
+            if asset_id in attachment_rows
+            else None
+        )
         icons.append({
             "asset_id": asset_id,
             "id": icon["name"],
             "category": icon["category"],
             "label_en": icon.get("en"),
             "source_svg": f"export/{icon['file']}",
-            "standalone_native128": native_index[asset_id],
+            "standalone_native128": standalone_master,
             "composition": {
                 "standalone": True,
                 "attachment": attachment,
@@ -587,8 +637,9 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
         "anchors": ANCHORS,
         "icon_roles": ["standalone", "accessory", "badge", "tool", "prop"],
         "native_attachment_rule": (
-            "Author every attachment at its final occupied pixel size on a 128x128 transparent canvas; "
-            "never resize the standalone native128 master at runtime or during asset production."
+            "Store every attachment at its final occupied pixel size on a 128x128 transparent canvas. "
+            "Approved pilots remain unchanged; other variants use a build-time tight-bbox NEAREST "
+            "identity derivation from the standalone native128 master. Runtime resizing is forbidden."
         ),
         "occlusion": {
             "back": "draw behind the avatar base without clearing avatar pixels",
@@ -645,10 +696,14 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
             "job_definitions": len(jobs),
             "job_definitions_unused": len(jobs) - len(used_jobs),
             "icon_attachments": sum(attachment_counts.values()),
-            "icon_attachment_pilots_ready": sum(
+            "icon_attachment_variants_ready": sum(
                 icon["composition"]["attachment"] is not None
                 and icon["composition"]["attachment"]["native128_variant"]["status"]
-                == "pilot_ready"
+                == "ready"
+                for icon in icons
+            ),
+            "icon_attachment_approved_pilots": sum(
+                icon["asset_id"] in {"icons/camera", "icons/crown", "icons/idBadge", "icons/wrench"}
                 for icon in icons
             ),
             "icon_standalone_only": 533 - sum(attachment_counts.values()),

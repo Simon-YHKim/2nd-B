@@ -10,7 +10,9 @@ type Attachment = {
   native128_variant: {
     status: string;
     runtime_scaling_allowed: boolean;
-    source_master_resizing_allowed: boolean;
+    derived_from_standalone_native128?: boolean;
+    source_standalone_decoded_rgba_sha256?: string;
+    method?: string;
     path?: string;
     decoded_rgba_sha256?: string;
     bbox?: number[];
@@ -158,33 +160,14 @@ describe("HustleK composition catalog", () => {
 
   it("모든 아이콘을 standalone으로 유지하고 허용 목록만 합성 슬롯에 배치한다", () => {
     const validRoles = new Set(["accessory", "badge", "tool", "prop"]);
-    const readyPilots: Record<
-      string,
-      { path: string; bbox: number[]; atlasCrop: number[] | null }
-    > = {
-      "icons/crown": {
-        path: "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
-        bbox: [32, 0, 97, 43],
-        atlasCrop: null,
-      },
-      "icons/idBadge": {
-        path: "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
-        bbox: [53, 82, 75, 117],
-        atlasCrop: [0, 0, 128, 128],
-      },
-      "icons/wrench": {
-        path: "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
-        bbox: [83, 75, 108, 123],
-        atlasCrop: [128, 0, 128, 128],
-      },
-      "icons/camera": {
-        path: "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
-        bbox: [78, 76, 121, 109],
-        atlasCrop: [256, 0, 128, 128],
-      },
+    const approvedPilots: Record<string, number[]> = {
+      "icons/crown": [32, 0, 97, 43],
+      "icons/idBadge": [53, 82, 75, 117],
+      "icons/wrench": [83, 75, 108, 123],
+      "icons/camera": [78, 76, 121, 109],
     };
     let attachable = 0;
-    let pilotReady = 0;
+    let approvedPilotCount = 0;
     for (const icon of catalog.icons) {
       expect(icon.composition.standalone).toBe(true);
       expect(icon.standalone_native128.atlas_path).toMatch(/master-atlas\.png$/);
@@ -194,19 +177,30 @@ describe("HustleK composition catalog", () => {
       attachable += 1;
       expect(validRoles.has(attachment.role)).toBe(true);
       expect(catalog.contract.anchors[attachment.slot]).toBeDefined();
-      const expectedPilot = readyPilots[icon.asset_id];
-      if (expectedPilot) {
-        pilotReady += 1;
-        expect(attachment.native128_variant.status).toBe("pilot_ready");
-        expect(attachment.native128_variant.path).toBe(expectedPilot.path);
-        expect(attachment.native128_variant.decoded_rgba_sha256).toMatch(/^[a-f0-9]{64}$/);
-        expect(attachment.native128_variant.bbox).toEqual(expectedPilot.bbox);
-        expect(attachment.native128_variant.atlas_crop).toEqual(expectedPilot.atlasCrop);
+      expect(attachment.native128_variant.status).toBe("ready");
+      expect(attachment.native128_variant.path).toBe(
+        "design/hustlek-composition-v1/icon-attachments-atlas.png",
+      );
+      expect(attachment.native128_variant.decoded_rgba_sha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(attachment.native128_variant.atlas_crop).toEqual([
+        ((attachable - 1) % 16) * 128,
+        Math.floor((attachable - 1) / 16) * 128,
+        128,
+        128,
+      ]);
+      const expectedPilotBbox = approvedPilots[icon.asset_id];
+      if (expectedPilotBbox) {
+        approvedPilotCount += 1;
+        expect(attachment.native128_variant.derived_from_standalone_native128).toBe(false);
+        expect(attachment.native128_variant.bbox).toEqual(expectedPilotBbox);
       } else {
-        expect(attachment.native128_variant.status).toBe("pending");
+        expect(attachment.native128_variant.derived_from_standalone_native128).toBe(true);
+        expect(attachment.native128_variant.method).toContain("nearest-tight-bbox-fit");
       }
+      expect(attachment.native128_variant.source_standalone_decoded_rgba_sha256).toBe(
+        icon.standalone_native128.decoded_rgba_sha256,
+      );
       expect(attachment.native128_variant.runtime_scaling_allowed).toBe(false);
-      expect(attachment.native128_variant.source_master_resizing_allowed).toBe(false);
       const [x, y, width, height] = attachment.fit_box;
       expect(x).toBeGreaterThanOrEqual(0);
       expect(y).toBeGreaterThanOrEqual(0);
@@ -214,6 +208,7 @@ describe("HustleK composition catalog", () => {
       expect(y + height).toBeLessThanOrEqual(128);
     }
     expect(attachable).toBe(267);
-    expect(pilotReady).toBe(4);
+    expect(approvedPilotCount).toBe(4);
+    expect(catalog.counts.icon_attachment_variants_ready).toBe(267);
   });
 });
