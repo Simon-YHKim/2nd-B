@@ -30,6 +30,8 @@ type HubCopy = {
   items: Record<string, { label: string; hint: string }>;
 };
 
+type AvatarHubCopy = Record<"character" | "role", { label: string; hint: string }>;
+
 type DeepSpaceProfileSection = "know" | "analyze";
 
 const PRIMARY_HUB_ITEMS: HubRoute[] = [
@@ -37,6 +39,13 @@ const PRIMARY_HUB_ITEMS: HubRoute[] = [
   { sectionKey: "center", key: "esm", route: "/esm", accent: semantic.brand },
   { sectionKey: "know", key: "persona", route: "/persona", accent: cosmic.soulViolet },
   { sectionKey: "analyze", key: "insights", route: "/insights", accent: cosmic.signalBlue },
+  {
+    sectionKey: "avatar",
+    key: "character",
+    route: "/profile-character",
+    accent: cosmic.signalMint,
+  },
+  { sectionKey: "avatar", key: "role", route: "/avatar", accent: cosmic.soulViolet },
   // Live QA 2026-06-11: /inbox (클립 수신함) had NO forward entry anywhere in
   // the app - the locale label existed but no surface rendered it. This row
   // is its single entry point (home -> 나 -> 받은편지함, 2 taps).
@@ -73,7 +82,14 @@ function PlanGlyph({ color }: { color: string }) {
   return (
     <Svg width={34} height={34} viewBox="0 0 34 34" accessibilityElementsHidden>
       <Path d="M8 8 L26 8 L26 26 L8 26 Z" stroke={color} strokeWidth={2} fill="none" />
-      <Path d="M12 17 L16 21 L23 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
+      <Path
+        d="M12 17 L16 21 L23 13"
+        stroke={color}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
     </Svg>
   );
 }
@@ -85,13 +101,25 @@ function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
         <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
           <Circle cx="12" cy="12" r="7" stroke={color} strokeWidth={2} fill="none" />
           <Circle cx="12" cy="12" r="2" fill={color} />
-          <Path d="M12 5 L12 2 M12 22 L12 19 M5 12 L2 12 M22 12 L19 12" stroke={color} strokeWidth={2} strokeLinecap="square" />
+          <Path
+            d="M12 5 L12 2 M12 22 L12 19 M5 12 L2 12 M22 12 L19 12"
+            stroke={color}
+            strokeWidth={2}
+            strokeLinecap="square"
+          />
         </Svg>
       );
     case "esm":
       return (
         <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M5 12 L9 16 L19 7" stroke={color} strokeWidth={2.4} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
+          <Path
+            d="M5 12 L9 16 L19 7"
+            stroke={color}
+            strokeWidth={2.4}
+            fill="none"
+            strokeLinecap="square"
+            strokeLinejoin="miter"
+          />
           <Path d="M5 19 L19 19" stroke={color} strokeWidth={2} strokeLinecap="square" />
         </Svg>
       );
@@ -99,13 +127,26 @@ function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
       return (
         <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
           <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M5 21 C6.5 16.5 9 15 12 15 C15 15 17.5 16.5 19 21" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
+          <Path
+            d="M5 21 C6.5 16.5 9 15 12 15 C15 15 17.5 16.5 19 21"
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+            strokeLinecap="square"
+          />
         </Svg>
       );
     case "insights":
       return (
         <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M5 18 L9 13 L13 15 L19 6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
+          <Path
+            d="M5 18 L9 13 L13 15 L19 6"
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+            strokeLinecap="square"
+            strokeLinejoin="miter"
+          />
           <Path d="M5 21 L19 21" stroke={color} strokeWidth={2} strokeLinecap="square" />
           <Circle cx="19" cy="6" r="2" fill={color} />
         </Svg>
@@ -114,7 +155,13 @@ function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
       return (
         <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
           <Path d="M4 7 L20 7 L20 19 L4 19 Z" stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M4 13 L9 13 L11 16 L13 16 L15 13 L20 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
+          <Path
+            d="M4 13 L9 13 L11 16 L13 16 L15 13 L20 13"
+            stroke={color}
+            strokeWidth={2}
+            fill="none"
+            strokeLinecap="square"
+          />
         </Svg>
       );
   }
@@ -129,8 +176,10 @@ export default function Profile() {
   const { userId, loading } = useAuth();
   const progression = useProgression();
   const sections = t("sections", { returnObjects: true }) as Record<string, HubCopy>;
+  const avatarHub = t("avatar.hub", { returnObjects: true }) as AvatarHubCopy;
   const deepSpaceMode = isDeepSpaceUI();
-  const [activeDeepSpaceSection, setActiveDeepSpaceSection] = useState<DeepSpaceProfileSection>("know");
+  const [activeDeepSpaceSection, setActiveDeepSpaceSection] =
+    useState<DeepSpaceProfileSection>("know");
 
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -151,7 +200,8 @@ export default function Profile() {
         const { data } = await supabase.auth.getSession();
         if (!cancelled) setEmail(data.session?.user?.email ?? null);
       } catch (e) {
-        if (typeof console !== "undefined") console.warn("[profile] getSession failed", (e as Error).message);
+        if (typeof console !== "undefined")
+          console.warn("[profile] getSession failed", (e as Error).message);
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -192,11 +242,21 @@ export default function Profile() {
         title: sections.know.label,
         items: [
           { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
+          {
+            key: "profile-character",
+            label: avatarHub.character.label,
+            route: "/profile-character",
+          },
+          { key: "avatar", label: avatarHub.role.label, route: "/avatar" },
           // D4 (2026-08-18): /persona 는 이제 /core-brain 으로 리다이렉트한다.
           // 바로 위 줄과 같은 곳으로 가는 항목이라 메뉴에서 뺐다 - 같은 자리를
           // 두 번 적어 두면 "둘이 뭐가 다르지" 를 사용자가 풀어야 한다.
           // 그 자리에 생활 정보(프로필 별을 채우는 화면)를 넣는다.
-          { key: "profile-details", label: tDeepSpace("profileDetails.screenTitle"), route: "/profile-details" },
+          {
+            key: "profile-details",
+            label: tDeepSpace("profileDetails.screenTitle"),
+            route: "/profile-details",
+          },
           { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
           { key: "trends", label: tDeepSpace("trends.title"), route: "/brightness" },
           // a2z audit 2026-07-11: /growth (주간 변화 리뷰) shipped fully
@@ -232,7 +292,8 @@ export default function Profile() {
     },
   ];
   const activeDeepSpaceGroup =
-    deepSpaceSections.find((section) => section.key === activeDeepSpaceSection)?.group ?? deepSpaceSections[0].group;
+    deepSpaceSections.find((section) => section.key === activeDeepSpaceSection)?.group ??
+    deepSpaceSections[0].group;
 
   return (
     <PremiumAppShell>
@@ -253,7 +314,11 @@ export default function Profile() {
           {/* The a11y label sits on the title view (not the whole row) so the
               back/settings buttons stay individually reachable to readers. */}
           <View style={{ flex: 1 }} accessible accessibilityLabel={profileTitle}>
-            <Text variant="caption" color="textMuted" style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceMutedText]}>
+            <Text
+              variant="caption"
+              color="textMuted"
+              style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceMutedText]}
+            >
               {t("hero.eyebrow")}
             </Text>
             <Text variant="heading" numberOfLines={1} style={deepSpaceMode && styles.deepSpaceText}>
@@ -284,13 +349,22 @@ export default function Profile() {
             <PlanGlyph color={deepSpaceMode ? semantic.deepSpaceAccent : semantic.brand} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text variant="caption" color="brand" style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceText]}>
+            <Text
+              variant="caption"
+              color="brand"
+              style={[styles.eyebrow, deepSpaceMode && styles.deepSpaceText]}
+            >
               {tPlans("current")}
             </Text>
             <Text variant="heading" style={deepSpaceMode && styles.deepSpaceText}>
               {planName}
             </Text>
-            <Text variant="subtle" color="textMuted" numberOfLines={2} style={deepSpaceMode && styles.deepSpaceMutedText}>
+            <Text
+              variant="subtle"
+              color="textMuted"
+              numberOfLines={2}
+              style={deepSpaceMode && styles.deepSpaceMutedText}
+            >
               {planTagline}
             </Text>
           </View>
@@ -318,7 +392,10 @@ export default function Profile() {
         {deepSpaceMode ? null : (
           <View style={styles.quickGrid}>
             {PRIMARY_HUB_ITEMS.map((item) => {
-              const itemCopy = sections[item.sectionKey].items[item.key];
+              const itemCopy =
+                item.sectionKey === "avatar"
+                  ? avatarHub[item.key as keyof AvatarHubCopy]
+                  : sections[item.sectionKey].items[item.key];
               return (
                 <TouchableOpacity
                   key={String(item.route)}
@@ -333,10 +410,20 @@ export default function Profile() {
                     <HubGlyph itemKey={item.key} color={item.accent} />
                   </View>
                   <View style={styles.quickChipCopy}>
-                    <Text variant="body" color="text" numberOfLines={2} style={styles.quickChipLabel}>
+                    <Text
+                      variant="body"
+                      color="text"
+                      numberOfLines={2}
+                      style={styles.quickChipLabel}
+                    >
                       {itemCopy.label}
                     </Text>
-                    <Text variant="subtle" color="textMuted" numberOfLines={2} style={styles.quickChipHint}>
+                    <Text
+                      variant="subtle"
+                      color="textMuted"
+                      numberOfLines={2}
+                      style={styles.quickChipHint}
+                    >
                       {itemCopy.hint}
                     </Text>
                   </View>

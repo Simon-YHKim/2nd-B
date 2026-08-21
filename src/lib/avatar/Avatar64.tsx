@@ -591,7 +591,7 @@ const ENGINE = (function () {
   }
   return {
     HAIR: HAIR, ACC: ACC, FACE: FACE, EXPR: EXPR, ANIMAL: ANIMAL,
-    JOB: JOB, JOB_GROUPS: JOB_GROUPS, JOB_BY_ID: JOB_BY_ID,
+    JOB: JOB, JOB_GROUPS: JOB_GROUPS, JOB_BY_ID: JOB_BY_ID, HEADTOP: Object.keys(HEADTOP),
     SKIN: SKIN, HAIRC: HAIRC, EYEC: EYEC, CLOTH: CLOTH, FUR: FUR,
     spec: spec, ops: ops
   };
@@ -605,6 +605,7 @@ export const AVATAR_ANIMALS = ENGINE.ANIMAL as readonly AvatarAnimal[];
 export const AVATAR_JOB_GROUPS = ENGINE.JOB_GROUPS as readonly AvatarJobGroup[];
 export const AVATAR_JOBS = ENGINE.JOB as readonly AvatarJob[];
 export const AVATAR_JOBS_BY_ID = ENGINE.JOB_BY_ID as Readonly<Record<string, AvatarJob>>;
+export const AVATAR_HEADTOP_ACCESSORIES = ENGINE.HEADTOP as readonly string[];
 
 export const AVATAR_SKIN_COLORS = ENGINE.SKIN as readonly string[];
 export const AVATAR_HAIR_COLORS = ENGINE.HAIRC as readonly string[];
