@@ -45,7 +45,7 @@ ANCHORS = {
     "headwear": {"x": 64, "y": 15, "z": 70, "fit_box": [28, 0, 72, 46]},
     "face": {"x": 64, "y": 55, "z": 75, "fit_box": [37, 39, 54, 32]},
     "neck": {"x": 64, "y": 82, "z": 75, "fit_box": [40, 68, 48, 34]},
-    "chest": {"x": 64, "y": 101, "z": 75, "fit_box": [49, 86, 30, 30]},
+    "chest": {"x": 64, "y": 101, "z": 75, "fit_box": [48, 82, 32, 38]},
     "back": {"x": 64, "y": 76, "z": 10, "fit_box": [29, 34, 70, 84]},
     "wrist_left": {"x": 30, "y": 101, "z": 80, "fit_box": [18, 89, 24, 24]},
     "wrist_right": {"x": 98, "y": 101, "z": 80, "fit_box": [86, 89, 24, 24]},
@@ -132,6 +132,31 @@ PILOT_VARIANTS = {
         "raw_imagegen_source_id": "exec-122c133e-0409-44d4-b894-bf25d10542b8.png",
         "raw_imagegen_sha256": "44968ff24cb0d7719fd86505b9d746d3e213a7a7c55878c5b62e26a9e889f5eb",
         "method": "per-asset-imagegen-chroma-native128-projection-translation-only",
+        "translation": [0, 0],
+    },
+    "idBadge": {
+        "path": "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+        "atlas_crop": [0, 0, 128, 128],
+        "raw_imagegen_source_id": "exec-069a6ec8-4641-402c-832f-00611a4eb793.png",
+        "raw_imagegen_sha256": "0b942d1c527572a8076973d4dae04f430e5ffe301470c367b7784497555ba8c0",
+        "method": "per-asset-imagegen-transparent-native128-projection-translation-only",
+        "translation": [0, 12],
+    },
+    "wrench": {
+        "path": "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+        "atlas_crop": [128, 0, 128, 128],
+        "raw_imagegen_source_id": "exec-1a2ff6c0-9b1a-42fe-a534-098e3f801318.png",
+        "raw_imagegen_sha256": "51c6cd34978c703cf44c318a41e55352077e76cbc82adb371339d3a9de348aa3",
+        "method": "per-asset-imagegen-chroma-native128-projection-translation-only",
+        "translation": [0, 9],
+    },
+    "camera": {
+        "path": "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+        "atlas_crop": [256, 0, 128, 128],
+        "raw_imagegen_source_id": "exec-b9c855c7-dfa2-4ee4-819e-c18228851b73.png",
+        "raw_imagegen_sha256": "3ac52681d83400a7102bf072dc38213bf109d5b68ca9a2040eb3cde7fd3b72c6",
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "translation": [0, 0],
     },
 }
 
@@ -233,7 +258,20 @@ def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
         return {"status": "pending", **common}
 
     path = ROOT / pilot["path"]
-    image = Image.open(path).convert("RGBA")
+    encoded = Image.open(path).convert("RGBA")
+    atlas_crop = pilot.get("atlas_crop")
+    image = (
+        encoded.crop(
+            (
+                atlas_crop[0],
+                atlas_crop[1],
+                atlas_crop[0] + atlas_crop[2],
+                atlas_crop[1] + atlas_crop[3],
+            )
+        )
+        if atlas_crop
+        else encoded
+    )
     if image.size != (128, 128):
         raise ValueError(f"{icon_name} pilot must be 128x128")
     pixels = list(image.get_flattened_data())
@@ -257,6 +295,7 @@ def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
         "status": "pilot_ready",
         **common,
         "path": pilot["path"],
+        "atlas_crop": atlas_crop,
         "encoded_png_sha256": sha256_file(path),
         "decoded_rgba_sha256": hashlib.sha256(image.tobytes()).hexdigest(),
         "bbox": list(bbox),
@@ -264,6 +303,7 @@ def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
         "raw_imagegen_source_id": pilot["raw_imagegen_source_id"],
         "raw_imagegen_sha256": pilot["raw_imagegen_sha256"],
         "method": pilot["method"],
+        "projection_translation": pilot["translation"],
     }
 
 
@@ -473,6 +513,12 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
             "job_definitions": len(jobs),
             "job_definitions_unused": len(jobs) - len(used_jobs),
             "icon_attachments": sum(attachment_counts.values()),
+            "icon_attachment_pilots_ready": sum(
+                icon["composition"]["attachment"] is not None
+                and icon["composition"]["attachment"]["native128_variant"]["status"]
+                == "pilot_ready"
+                for icon in icons
+            ),
             "icon_standalone_only": 533 - sum(attachment_counts.values()),
             "attachments_by_role": dict(sorted(attachment_counts.items())),
         },

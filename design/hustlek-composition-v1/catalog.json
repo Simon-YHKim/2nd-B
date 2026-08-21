@@ -18836,10 +18836,10 @@
       },
       "chest": {
         "fit_box": [
-          49,
-          86,
-          30,
-          30
+          48,
+          82,
+          32,
+          38
         ],
         "x": 64,
         "y": 101,
@@ -19028,7 +19028,7 @@
       "headwear": "draw above hair; clear hair only through an authored binary occlusion mask"
     }
   },
-  "contract_sha256": "e182feee0001617f810e44e8a18b6e74fe26b8b6479f375abd8be68708226414",
+  "contract_sha256": "d50b599d9b41056ad31e84dd23896f807f9867d720f017c26e9d7dee73bbc88d",
   "counts": {
     "aliases": 51,
     "attachments_by_role": {
@@ -19040,6 +19040,7 @@
     "avatar_job_recipes": 224,
     "avatars": 270,
     "canonical_total": 803,
+    "icon_attachment_pilots_ready": 4,
     "icon_attachments": 267,
     "icon_standalone_only": 266,
     "icons": 533,
@@ -20197,10 +20198,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -22161,13 +22162,36 @@
             57
           ],
           "native128_variant": {
+            "atlas_crop": [
+              256,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              78,
+              76,
+              121,
+              109
+            ],
             "canvas": [
               128,
               128
             ],
+            "decoded_rgba_sha256": "a70fa093803aae9c89c4b9cb1b9c20cde6bacfc9d790975f7738caa37cdda896",
+            "encoded_png_sha256": "cc17c320af2b5369aa6a4e38837285991784ac6622964bb1e226be76aa40b97a",
+            "method": "per-asset-imagegen-chroma-native128-projection",
+            "opaque_colors": 24,
+            "path": "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+            "projection_translation": [
+              0,
+              0
+            ],
+            "raw_imagegen_sha256": "3ac52681d83400a7102bf072dc38213bf109d5b68ca9a2040eb3cde7fd3b72c6",
+            "raw_imagegen_source_id": "exec-b9c855c7-dfa2-4ee4-819e-c18228851b73.png",
             "runtime_scaling_allowed": false,
             "source_master_resizing_allowed": false,
-            "status": "pending"
+            "status": "pilot_ready"
           },
           "role": "tool",
           "slot": "hand_right",
@@ -22504,10 +22528,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -24094,6 +24118,7 @@
             46
           ],
           "native128_variant": {
+            "atlas_crop": null,
             "bbox": [
               32,
               0,
@@ -24109,6 +24134,10 @@
             "method": "per-asset-imagegen-chroma-native128-projection-translation-only",
             "opaque_colors": 24,
             "path": "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
+            "projection_translation": [
+              0,
+              0
+            ],
             "raw_imagegen_sha256": "44968ff24cb0d7719fd86505b9d746d3e213a7a7c55878c5b62e26a9e889f5eb",
             "raw_imagegen_source_id": "exec-122c133e-0409-44d4-b894-bf25d10542b8.png",
             "runtime_scaling_allowed": false,
@@ -24900,10 +24929,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -25500,10 +25529,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -27043,10 +27072,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -27239,10 +27268,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -27588,19 +27617,42 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
+            "atlas_crop": [
+              0,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              53,
+              82,
+              75,
+              117
+            ],
             "canvas": [
               128,
               128
             ],
+            "decoded_rgba_sha256": "69dfe24a818302f113e2efba053519051acc682014b701b54837c32b5cf2a622",
+            "encoded_png_sha256": "cc17c320af2b5369aa6a4e38837285991784ac6622964bb1e226be76aa40b97a",
+            "method": "per-asset-imagegen-transparent-native128-projection-translation-only",
+            "opaque_colors": 18,
+            "path": "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+            "projection_translation": [
+              0,
+              12
+            ],
+            "raw_imagegen_sha256": "0b942d1c527572a8076973d4dae04f430e5ffe301470c367b7784497555ba8c0",
+            "raw_imagegen_source_id": "exec-069a6ec8-4641-402c-832f-00611a4eb793.png",
             "runtime_scaling_allowed": false,
             "source_master_resizing_allowed": false,
-            "status": "pending"
+            "status": "pilot_ready"
           },
           "role": "badge",
           "slot": "chest",
@@ -27637,10 +27689,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -27738,10 +27790,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -29368,10 +29420,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -34748,10 +34800,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -35420,10 +35472,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -35772,10 +35824,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -37295,10 +37347,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -38224,10 +38276,10 @@
             "y": 101
           },
           "fit_box": [
-            49,
-            86,
-            30,
-            30
+            48,
+            82,
+            32,
+            38
           ],
           "native128_variant": {
             "canvas": [
@@ -38925,13 +38977,36 @@
             57
           ],
           "native128_variant": {
+            "atlas_crop": [
+              128,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              83,
+              75,
+              108,
+              123
+            ],
             "canvas": [
               128,
               128
             ],
+            "decoded_rgba_sha256": "eef56351e9ae5bc38420a2afc8a58f9c12f112d4ea63274fa206712dd3909f2c",
+            "encoded_png_sha256": "cc17c320af2b5369aa6a4e38837285991784ac6622964bb1e226be76aa40b97a",
+            "method": "per-asset-imagegen-chroma-native128-projection-translation-only",
+            "opaque_colors": 16,
+            "path": "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+            "projection_translation": [
+              0,
+              9
+            ],
+            "raw_imagegen_sha256": "51c6cd34978c703cf44c318a41e55352077e76cbc82adb371339d3a9de348aa3",
+            "raw_imagegen_source_id": "exec-1a2ff6c0-9b1a-42fe-a534-098e3f801318.png",
             "runtime_scaling_allowed": false,
             "source_master_resizing_allowed": false,
-            "status": "pending"
+            "status": "pilot_ready"
           },
           "role": "tool",
           "slot": "hand_right",

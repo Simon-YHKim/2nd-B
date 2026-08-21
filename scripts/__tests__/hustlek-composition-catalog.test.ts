@@ -14,6 +14,7 @@ type Attachment = {
     path?: string;
     decoded_rgba_sha256?: string;
     bbox?: number[];
+    atlas_crop?: number[] | null;
   };
 };
 
@@ -115,7 +116,33 @@ describe("HustleK composition catalog", () => {
 
   it("모든 아이콘을 standalone으로 유지하고 허용 목록만 합성 슬롯에 배치한다", () => {
     const validRoles = new Set(["accessory", "badge", "tool", "prop"]);
+    const readyPilots: Record<
+      string,
+      { path: string; bbox: number[]; atlasCrop: number[] | null }
+    > = {
+      "icons/crown": {
+        path: "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
+        bbox: [32, 0, 97, 43],
+        atlasCrop: null,
+      },
+      "icons/idBadge": {
+        path: "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+        bbox: [53, 82, 75, 117],
+        atlasCrop: [0, 0, 128, 128],
+      },
+      "icons/wrench": {
+        path: "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+        bbox: [83, 75, 108, 123],
+        atlasCrop: [128, 0, 128, 128],
+      },
+      "icons/camera": {
+        path: "design/hustlek-composition-v1/pilot/attachment-pilots-atlas.png",
+        bbox: [78, 76, 121, 109],
+        atlasCrop: [256, 0, 128, 128],
+      },
+    };
     let attachable = 0;
+    let pilotReady = 0;
     for (const icon of catalog.icons) {
       expect(icon.composition.standalone).toBe(true);
       expect(icon.standalone_native128.atlas_path).toMatch(/master-atlas\.png$/);
@@ -125,13 +152,14 @@ describe("HustleK composition catalog", () => {
       attachable += 1;
       expect(validRoles.has(attachment.role)).toBe(true);
       expect(catalog.contract.anchors[attachment.slot]).toBeDefined();
-      if (icon.asset_id === "icons/crown") {
+      const expectedPilot = readyPilots[icon.asset_id];
+      if (expectedPilot) {
+        pilotReady += 1;
         expect(attachment.native128_variant.status).toBe("pilot_ready");
-        expect(attachment.native128_variant.path).toBe(
-          "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
-        );
+        expect(attachment.native128_variant.path).toBe(expectedPilot.path);
         expect(attachment.native128_variant.decoded_rgba_sha256).toMatch(/^[a-f0-9]{64}$/);
-        expect(attachment.native128_variant.bbox).toEqual([32, 0, 97, 43]);
+        expect(attachment.native128_variant.bbox).toEqual(expectedPilot.bbox);
+        expect(attachment.native128_variant.atlas_crop).toEqual(expectedPilot.atlasCrop);
       } else {
         expect(attachment.native128_variant.status).toBe("pending");
       }
@@ -144,5 +172,6 @@ describe("HustleK composition catalog", () => {
       expect(y + height).toBeLessThanOrEqual(128);
     }
     expect(attachable).toBe(267);
+    expect(pilotReady).toBe(4);
   });
 });
