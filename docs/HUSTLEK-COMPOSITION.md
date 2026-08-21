@@ -6,8 +6,8 @@
 
 | 구분 | 수량 | 합성 처리 |
 |---|---:|---|
-| 아바타 | 270 | `base / hair / face / headwear / garment / extra` 레시피로 복원 |
-| 아이콘 | 533 | 전부 standalone 보존, 명시적 허용 목록 267개만 attachment 후보 |
+| 아바타 | 270 | `base / hair / face / headwear / garment / extra` 네이티브 레이어 완성 |
+| 아이콘 | 533 | 전부 standalone 보존, 267개 attachment variant 완성 |
 | 아이콘 alias | 51 | 별도 이미지를 만들지 않고 canonical 아이콘 재사용 |
 | 직업 레시피 | 224 | 원본 232개 정의에 모두 존재, 미사용 기본 정의 8개는 예약 상태 |
 
@@ -15,12 +15,12 @@
 
 ## Native-first rule
 
-장착 아이콘은 독립 아이콘의 128px 마스터를 줄여 붙이지 않는다. 각 슬롯이 실제 차지할 픽셀 크기로 128×128 투명 캔버스에 새로 그린 attachment variant만 사용한다. 런타임 리사이즈와 제작 단계 리사이즈는 모두 금지한다.
+장착 아이콘은 최종 점유 크기로 배치된 128×128 투명 variant만 렌더링한다. 승인된 ImageGen 파일럿 4개는 그대로 보존하고, 나머지 263개는 사용자가 승인한 방식에 따라 standalone 128px master의 tight bbox를 슬롯 fit box에 NEAREST로 투영했다. 런타임 asset-to-asset 리사이즈는 금지한다.
 
 이 규칙은 다음 두 결과를 분리한다.
 
 - `standalone_native128`: 현재 완성된 독립 아이콘 또는 아바타 마스터
-- `native128_variant`: 아바타 anchor에 맞춰 새로 제작할 합성 전용 투명 레이어
+- `native128_variant`: 아바타 anchor에 맞춰 완성된 합성 전용 투명 레이어
 
 ## Layer order
 
@@ -53,7 +53,42 @@
 ```powershell
 python scripts/build-hustlek-composition-catalog.py
 python scripts/build-hustlek-composition-catalog.py --check
+python scripts/build-hustlek-avatar-layer-pilot.py --check
+python scripts/build-hustlek-icon-attachment-variants.py --check
+python scripts/build-hustlek-runtime-avatar-atlases.py --check
+python scripts/build-hustlek-composition-preview.py --check
 npx jest scripts/__tests__/hustlek-composition-catalog.test.ts --runInBand
 ```
 
-현재 아바타의 `pending_layers`와 대부분 아이콘의 `native128_variant.status=pending`은 의도된 상태다. 첫 headwear 파일럿 `icons/crown`은 `pilot_ready`이며 `design/hustlek-composition-v1/pilot/crown-headwear-128.png`에 보존한다. 이 파일은 bbox `(32,0)-(97,43)`, binary alpha, 24색이고 독립 왕관 마스터를 축소하지 않은 별도 ImageGen 결과다. 다음 제작 단계에서 대표 base·직업·동물과 badge/tool/prop 파일럿을 같은 방식으로 검증한 뒤 전수 생성한다.
+## Runtime usage
+
+`Avatar64`의 기존 절차형 렌더링은 기본값으로 유지된다. 네이티브 합성은 `nativeComposition`을 명시한 경우에만 활성화된다.
+
+```tsx
+<Avatar64
+  spec={fallbackSpec}
+  size={128}
+  nativeComposition={{
+    avatarAssetId: "avatars/presets/plain",
+    roleAssetId: "avatars/food/chef",
+    attachmentAssetIds: ["icons/idBadge", "icons/wrench"],
+  }}
+/>
+```
+
+- `avatarAssetId`는 정체성을 결정하는 `base + face`를 공급한다.
+- `roleAssetId`는 교체 가능한 `garment + hair + headwear + extra`를 공급한다.
+- `attachmentAssetIds`는 catalog의 `z`, `slot`, anchor 계약에 따라 합성된다.
+- 270개 아바타는 7개의 1,920×2,048 runtime atlas로 나눴다. 한 합성은 최대 두 avatar atlas와 선택적인 attachment atlas만 참조해 Android에서 34,560px 원본 atlas 전체를 로드하지 않는다.
+
+## Completed outputs
+
+| 산출물 | 상태 |
+|---|---|
+| `avatar-layers-atlas.png` | 270개 × 6레이어, 원본 master와 전수 무손실 재합성 |
+| `icon-attachments-atlas.png` | 267개 attachment, binary alpha, 런타임 scaling 없음 |
+| `runtime/avatar-runtime-00.png` ~ `06.png` | RN용 7개 분할 atlas, production layer hash와 일치 |
+| `hustlek-runtime-manifest.ts` | 270 avatar ID와 267 attachment ID의 정적 require/crop/z/slot |
+| `composition-preview.png` | identity·role·attachment 대표 조합 8개 검토 시트 |
+
+아이콘 266개는 캐릭터에 억지로 장착하지 않고 standalone 전용으로 남긴다. 따라서 “803개 전체 합성 카탈로그”는 270개 합성형 아바타, 267개 장착형 아이콘, 266개 standalone 아이콘으로 구성된다.
