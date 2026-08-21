@@ -1,0 +1,2033 @@
+{
+  "assets": [
+    {
+      "asset_id": "icons/record",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "1ac81ed612332d214b35241c8fba3b53b9c2a56f1d833f1231a08aa021b7dd73",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the record icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single solid filled circular record button with no hole, ring, text, or extra marks\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-b41b8a54-b2fb-46c5-9cfc-d20620da776c.png",
+        "source_sha256": "74e999aae68c10d5ec5bc7b670744dc10913ed649e75dfba424c2a156be5f87d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 0
+        },
+        "bbox": [
+          17,
+          17,
+          111,
+          110
+        ],
+        "components_8_neighbor": [
+          7032
+        ],
+        "decoded_rgba_sha256": "7f2bc728269746436c320bdfbc31bb49f7f17474bca235f87e91082f5dc620bd",
+        "foreground_pixels": 7032,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7281001137656428,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 320,
+        "master_transitions": 7227,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2313232421875,
+        "not_identity_upscale": true,
+        "transition_gain": 22.584375
+      },
+      "source": {
+        "path": "export/icons/record.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "418defb9402daa4828e74472de76dc51ffebf6dff180df200018f9d6680616fd"
+      }
+    },
+    {
+      "asset_id": "icons/redo",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c243064d9476542a2b2fbc02d480ac96750522f4159d1516083d535139a315ba",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the redo icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single clockwise redo arrow made from one open partial circular ring and one upper-right arrowhead pointing right\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-5e32c98c-a0a4-4ebb-ba94-3f1a2a31d63c.png",
+        "source_sha256": "d4ff7bbf54d1227773074cb417956110dcf38bf0681fb63b1d2df5918d59aafb",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 0
+        },
+        "bbox": [
+          17,
+          14,
+          113,
+          111
+        ],
+        "components_8_neighbor": [
+          4436
+        ],
+        "decoded_rgba_sha256": "ba02c362e52440841e00a0094f7dd5c5d1b936bf03e6b822353e8c2b75141c44",
+        "foreground_pixels": 4436,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.48791511102377677,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 704,
+        "master_transitions": 4601,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.17095947265625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.535511363636363
+      },
+      "source": {
+        "path": "export/icons/redo.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1e081febf55e28d49bf085092b6459abc2d1700b6db896b7b6ff852e2710f23a"
+      }
+    },
+    {
+      "asset_id": "icons/register",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d1206436e05dd0be993cba9e3f8b7a13c40e70095a6a5b140b546bca283f9acf",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the register icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single cash register with one upper display housing containing one centered horizontal aperture, plus one wider lower keypad body containing exactly six separate key apertures in a 3-by-2 grid\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-b4aa8ea2-9478-4607-9aa2-7bec7ebaf4ba.png",
+        "source_sha256": "df31b959e9986f1d3e9700f6bca781ca5d65abcce2cad8e1e91fb21311e5b399",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 0
+        },
+        "bbox": [
+          24,
+          13,
+          104,
+          110
+        ],
+        "components_8_neighbor": [
+          6547
+        ],
+        "decoded_rgba_sha256": "fc84ec4634f3a6bde6309b710100b793fff8e3aa158dd2f819e73ff8b09154c7",
+        "foreground_pixels": 6547,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5193293464331482,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 976,
+        "master_transitions": 3931,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1954345703125,
+        "not_identity_upscale": true,
+        "transition_gain": 4.027663934426229
+      },
+      "source": {
+        "path": "export/icons/register.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1ba66bc94049043918b04bf960ef08e02cb2844caf89aac5fc023fc1953a0e7f"
+      }
+    },
+    {
+      "asset_id": "icons/repeat",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3390eb7967f60ef572c1d7ae5b88568b663dcd4c16925882eb241644a15f1c7b",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the repeat icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single repeat symbol made from exactly two opposing partial circular arrows: one upper arrow sweeping right and one lower arrow sweeping left\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-f09c8a85-5d8e-4252-9e3c-22307dfa2e40.png",
+        "source_sha256": "89b09f13f48c54fd49f42430c1411473299e22daa67adca38da622cf8bd646d2",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 0
+        },
+        "bbox": [
+          16,
+          12,
+          113,
+          113
+        ],
+        "components_8_neighbor": [
+          1962,
+          1956
+        ],
+        "decoded_rgba_sha256": "3823c3ab8644766fb0daa5a2c56d1e874f43076dbdf084287518f332b2741295",
+        "foreground_pixels": 3918,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.44220614120868373,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 704,
+        "master_transitions": 3889,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1597900390625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.5241477272727275
+      },
+      "source": {
+        "path": "export/icons/repeat.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "41715bed6e98ec41f6d8168b3f26b50e0dda1fd3194ba9ff9aa7cdab4ebaca41"
+      }
+    },
+    {
+      "asset_id": "icons/resume",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5b012f07cd0c146182c4c806a060473495aff8d2814baa72227a0c4ddb6531b7",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the resume icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright resume document with one rectangular border, one solid circular profile marker near the upper area, and exactly three separated horizontal information lines below\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored transparent document interior while retaining one solid profile dot and exactly three solid information lines.",
+        "source_id": "exec-69b72889-7acb-4c55-b11f-fd7e1f2417e7.png",
+        "source_sha256": "13f96a5cb8e893fc206f54879211defbcbc0168c7621ba6ec40c22dfdff07cb9",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 128
+        },
+        "bbox": [
+          27,
+          7,
+          101,
+          121
+        ],
+        "components_8_neighbor": [
+          1531,
+          526,
+          370,
+          368,
+          368
+        ],
+        "decoded_rgba_sha256": "e4bd028eada162f72d9e5a44299c0b0bed6ad309aba6229cf3cfebc6b29384b9",
+        "foreground_pixels": 3163,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.31432192648922685,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1072,
+        "master_transitions": 4090,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.153076171875,
+        "not_identity_upscale": true,
+        "transition_gain": 3.8152985074626864
+      },
+      "source": {
+        "path": "export/icons/resume.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "675788094882fd9229d0d2cbcaf028ed4b8fb427e8b18863d3db3488e1bd9384"
+      }
+    },
+    {
+      "asset_id": "icons/ring",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "28647ce1144854685ec94dc1e9ef2b97cce178ecb648961b4777b53cc70f9796",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the ring icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright jewelry ring with one circular band and one centered faceted gemstone setting attached above it\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-5c98d27b-6fc6-4a22-89d8-4ae244787ccd.png",
+        "source_sha256": "c044cbb7ed2e42f30ad4911e314a7582c4cbb0155b02267252db97359b07f782",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 128
+        },
+        "bbox": [
+          28,
+          13,
+          100,
+          113
+        ],
+        "components_8_neighbor": [
+          2986
+        ],
+        "decoded_rgba_sha256": "c2e6dccc167f9524a088dcd0c028f001385d9960aa3b7f095b9c94d6acda2e92",
+        "foreground_pixels": 2986,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.464559150407508,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 640,
+        "master_transitions": 2966,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.127685546875,
+        "not_identity_upscale": true,
+        "transition_gain": 4.634375
+      },
+      "source": {
+        "path": "export/icons/ring.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c3d1036b93301a540d28c457b6cf634dd6a57422b612013984c26a67d19f412a"
+      }
+    },
+    {
+      "asset_id": "icons/road",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a000d2178cc5e7ca1e730f693f363fc0ea7ebb949da484bc9b24ccb2f0c79956",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the road icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single perspective road pointing upward with exactly two outward-slanting side edges and exactly three separated rectangular center dashes\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-456c5c61-7c81-424d-9212-0dc81929ce2b.png",
+        "source_sha256": "819765dc3aec8d2e30d67fe6e72c1c68f31b18cbbe0f929d1abf0f42d305ef5e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 128
+        },
+        "bbox": [
+          14,
+          8,
+          114,
+          120
+        ],
+        "components_8_neighbor": [
+          7336
+        ],
+        "decoded_rgba_sha256": "69a84296fee7aa0b0751e041ce9c88dc7af72be3575b1f5faa0a5740e114d386",
+        "foreground_pixels": 7336,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.32565304755525787,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 736,
+        "master_transitions": 7972,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.25775146484375,
+        "not_identity_upscale": true,
+        "transition_gain": 10.831521739130435
+      },
+      "source": {
+        "path": "export/icons/road.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "73025a52cdfc0ba0dac759975fe6695a0c58700c9cd866486466c809e74abb8e"
+      }
+    },
+    {
+      "asset_id": "icons/roadmap",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3c0a8c8cf183b402493e0f7e355c513ff8275640c64b49db4ae0f439404bea14",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the roadmap icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single orthogonal roadmap path with exactly two solid circular endpoints at upper-left and lower-right, three horizontal route segments, and two vertical turns\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Removed the opaque black/checker canvas while preserving two endpoints and exactly three orthogonal route segments.",
+        "source_id": "exec-e0728c42-069f-4b71-8d2f-1217589b1bdb.png",
+        "source_sha256": "e09590ce06d78a31d30d71518e2de827daa5d9a48c67f5744f62ceb87e157f70",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 128
+        },
+        "bbox": [
+          11,
+          8,
+          112,
+          109
+        ],
+        "components_8_neighbor": [
+          3680
+        ],
+        "decoded_rgba_sha256": "97e33a5759b6f89b84a774c5aa5b8548d3c08755f991e159ef3b5004241bee36",
+        "foreground_pixels": 3680,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.2695249955523928,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 752,
+        "master_transitions": 3575,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.149169921875,
+        "not_identity_upscale": true,
+        "transition_gain": 4.753989361702128
+      },
+      "source": {
+        "path": "export/icons/roadmap.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "41be9ecd4884725f665125041e4350828440976a434ecd0863923284e5cd6912"
+      }
+    },
+    {
+      "asset_id": "icons/robot",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "f191d0ffbd4cad4dfe9102b4463f70a3a4b4d23fe2a7314aaec68eeaf0a5620b",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the robot icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single front-facing robot with one short top antenna, one rectangular head-body, exactly two square eye apertures, one horizontal mouth aperture, two side arms, and two lower feet\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Removed invented arm and foot cavities; retained only two eye apertures and one mouth aperture.",
+        "source_id": "exec-dc6a1dc2-ccd2-4c31-96c7-f539f7c02fe1.png",
+        "source_sha256": "4fdbdf6ed654b3bfc010e25a17fffab433a460a2a9261718b52141c557284a8a",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 256
+        },
+        "bbox": [
+          13,
+          10,
+          115,
+          111
+        ],
+        "components_8_neighbor": [
+          6210
+        ],
+        "decoded_rgba_sha256": "44fd472be434cfe05195b8d02ca3b23ed59b19f8d0823aa23b9a7ab5d11002ca",
+        "foreground_pixels": 6210,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5386723128658613,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 752,
+        "master_transitions": 5302,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.22308349609375,
+        "not_identity_upscale": true,
+        "transition_gain": 7.050531914893617
+      },
+      "source": {
+        "path": "export/icons/robot.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3d1a755c0ad6750469d78f8d039eb3a68deac5355a538c41d485cb07a75f5bfd"
+      }
+    },
+    {
+      "asset_id": "icons/rocket",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a54233ae2d852f6dfa07ad941e634ba7cbaa9a99571bba3ecb8c659833a2a26a",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the rocket icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright rocket with pointed nose, centered body, exactly two side fins, one bottom exhaust point, and one circular window aperture\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored the single circular rocket window as transparent negative space.",
+        "source_id": "exec-d61e502b-7e84-4321-b316-399d031e7b6d.png",
+        "source_sha256": "5323cfd5e9135a73403d64c2758aeb2d64f20b7ca45a180ec716d00f859259d7",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 256
+        },
+        "bbox": [
+          37,
+          8,
+          90,
+          106
+        ],
+        "components_8_neighbor": [
+          2479
+        ],
+        "decoded_rgba_sha256": "593c59036cf9191b33ccd0fe448b3a5cfa3b7d3b2f927e438dad0c14770a2450",
+        "foreground_pixels": 2479,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5463783220427306,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 528,
+        "master_transitions": 2484,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0958251953125,
+        "not_identity_upscale": true,
+        "transition_gain": 4.704545454545454
+      },
+      "source": {
+        "path": "export/icons/rocket.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "8b831890317f3c770b4079fb9d6b42a3ed4d6434e7cb02b391ab540cd8bdcbfc"
+      }
+    },
+    {
+      "asset_id": "icons/rollingPin",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "b100b49e2dad1a942b7ed7f3e9c0c11764dd78f329d048c13663e0cf28ca5f38",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the rollingPin icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single horizontal rolling pin with one thick central roller cylinder and exactly one short handle on each side\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Removed the opaque black canvas while preserving one central roller and exactly two handles.",
+        "source_id": "exec-69ea28a5-c62b-44f5-a2eb-b42a6f022249.png",
+        "source_sha256": "b24e3ff947e14a4f9c7e937ff3243f210b394489a0bd29e62acf1a7a96d1fe63",
+        "source_size": [
+          1672,
+          941
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 256
+        },
+        "bbox": [
+          9,
+          53,
+          119,
+          75
+        ],
+        "components_8_neighbor": [
+          1880
+        ],
+        "decoded_rgba_sha256": "b8c96c8d57f108079d03973a370cfceb938d2590108539dcc16db6421f8b5c35",
+        "foreground_pixels": 1880,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6119791666666666,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 288,
+        "master_transitions": 1666,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.07501220703125,
+        "not_identity_upscale": true,
+        "transition_gain": 5.784722222222222
+      },
+      "source": {
+        "path": "export/icons/rollingPin.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "6a41e8f5560dcc2af33f7c2a248e8c84f3a62e6c4da3300fba56af02d963a3cb"
+      }
+    },
+    {
+      "asset_id": "icons/route",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "fd78c25438ca32a1554ad7e500ddbde7b0460e0ff4eb8f839753175419f567a1",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the route icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: exactly four separate disconnected route markers rising diagonally: one small solid round endpoint at lower-left, exactly two square waypoint blocks in the middle, and one larger upper-right destination pin with a short downward point; no connecting line\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Removed the invented destination-pin hole; retained exactly four disconnected solid markers with no connector line.",
+        "source_id": "exec-889d0098-868d-4636-8d2b-2e4fc95594e5.png",
+        "source_sha256": "6b8d18580d96bbd10fc720f3c5e8e9403eb7422313ad20c9e22baa1f26adac14",
+        "source_size": [
+          1295,
+          1214
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 256
+        },
+        "bbox": [
+          8,
+          8,
+          123,
+          116
+        ],
+        "components_8_neighbor": [
+          1036,
+          527,
+          370,
+          364
+        ],
+        "decoded_rgba_sha256": "84c94c8e1bbca7a0e8621a28a836a2b50ff069ed81b0657ee5e479190860e0d0",
+        "foreground_pixels": 2297,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.469089779434607,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 368,
+        "master_transitions": 2399,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.09295654296875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.519021739130435
+      },
+      "source": {
+        "path": "export/icons/route.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "42cbd01df9a60753e13311841b4a54b660013b0b19de776361da1188eef167c6"
+      }
+    },
+    {
+      "asset_id": "icons/router",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "e13fb40569ac4442a0e4e4d05e191d4cdeb66b1505f01c6dc31cf1eef16c2da1",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the router icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single network router with one wide rectangular base, exactly two vertical antennas ending in round tips, and exactly two front status apertures\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored exactly two transparent front status apertures.",
+        "source_id": "exec-29f5306d-7aa0-4622-b1e6-223e28af4cae.png",
+        "source_sha256": "bce17fd7362eab6870757392ec2951b1b0aae8fcfc0f0b897f3ca2dc0c5080c9",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 384
+        },
+        "bbox": [
+          18,
+          13,
+          110,
+          100
+        ],
+        "components_8_neighbor": [
+          3904
+        ],
+        "decoded_rgba_sha256": "25c498bcc964cc2231e9ad6ba37acf08e803ff4d8c488585b12a445fcedeb83e",
+        "foreground_pixels": 3904,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4797034945287681,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 592,
+        "master_transitions": 3426,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.13812255859375,
+        "not_identity_upscale": true,
+        "transition_gain": 5.787162162162162
+      },
+      "source": {
+        "path": "export/icons/router.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "27d577d29d8d1fcb894e9b1cf74acb627e463369a97991e0ed6c2e66fd0c036d"
+      }
+    },
+    {
+      "asset_id": "icons/ruler",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "acf3b710b5044a9ca050988dbaf21a684596c9d91db32475d0d9554c5de15db1",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the ruler icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single horizontal rectangular ruler with exactly six separated measurement notches cut downward from its top edge, alternating short and long depths\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-6b5b398a-22fa-4f05-b556-df681522fa56.png",
+        "source_sha256": "10d9586966517852254128d17bae754824b8cc6ab615a6cd9c392fc760e2b40c",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 384
+        },
+        "bbox": [
+          8,
+          44,
+          120,
+          82
+        ],
+        "components_8_neighbor": [
+          3835
+        ],
+        "decoded_rgba_sha256": "02788484d0ece2b5d31ae7890cdcaca866829635819564fd1ed4206a137ea6d0",
+        "foreground_pixels": 3835,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6257736516357206,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 544,
+        "master_transitions": 3947,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1431884765625,
+        "not_identity_upscale": true,
+        "transition_gain": 7.255514705882353
+      },
+      "source": {
+        "path": "export/icons/ruler.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1362591866e6d121c2c091150a1f13f450ce3d23a6d9d906afdb3619cc09b4cf"
+      }
+    },
+    {
+      "asset_id": "icons/rune",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "30736f63c43316fe045bb17967ba0ccee570cf5f31d1fa1a2df9295a2b31112e",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the rune icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single solid circular rune stone containing exactly three connected angular negative strokes: one vertical stem and two short diagonals branching right\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Removed invented cracks and restored exactly three connected transparent angular rune strokes.",
+        "source_id": "exec-7c298393-56a9-4f46-ae7c-8b764f19e8c1.png",
+        "source_sha256": "ed61549519e8ea6a9f85a2739ede3e461bac57121d2eb81a6398d7931fb3a8ed",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 384
+        },
+        "bbox": [
+          17,
+          7,
+          111,
+          109
+        ],
+        "components_8_neighbor": [
+          6534
+        ],
+        "decoded_rgba_sha256": "df3fe9788975d50fd743f5980432479187730ccbf2ef3c8512168add561dbacb",
+        "foreground_pixels": 6534,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.7160674008226084,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 656,
+        "master_transitions": 8626,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2667236328125,
+        "not_identity_upscale": true,
+        "transition_gain": 13.149390243902438
+      },
+      "source": {
+        "path": "export/icons/rune.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "dc09bd682d1679440141d87d6e52c553bc83515496cb2490deff0e31129d0c60"
+      }
+    },
+    {
+      "asset_id": "icons/runner",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "56aabf1fdc9ad686e727e188509332148b1e3b639157b1d95949f843943a1337",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the runner icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single right-facing running person silhouette with one round head, compact torso, one forward arm, and exactly two diagonal running legs\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-d627dd7d-d921-4092-94a6-639980573dce.png",
+        "source_sha256": "8c0d5a7861ee17b22fe286096a1dbf003dc073f9070daf1bbc810eeb59540833",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 384
+        },
+        "bbox": [
+          29,
+          14,
+          104,
+          105
+        ],
+        "components_8_neighbor": [
+          3172
+        ],
+        "decoded_rgba_sha256": "98bb6c26f7b8e6d742db6841f726a92cc872cc9404b322d932e8b6cf07d4d84c",
+        "foreground_pixels": 3172,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.35843373493975905,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 528,
+        "master_transitions": 3312,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1220703125,
+        "not_identity_upscale": true,
+        "transition_gain": 6.2727272727272725
+      },
+      "source": {
+        "path": "export/icons/runner.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "4a299490e25b31630b6a6e9495f966e84bb3e9fd22f75ac5438f710bf7e63c38"
+      }
+    },
+    {
+      "asset_id": "icons/sad",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "b177d2ffa238305c77172ce8ef31024610e8908ab9e6f987578893df0f512e32",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the sad icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single round sad face outline containing exactly two square eyes and one centered downturned mouth arc\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-f722389f-d739-4b53-b0ab-b59d394b51f8.png",
+        "source_sha256": "ca49e1238ea3a96ed04a0059f7fc502e1a8df0759f9f92577080cbbadd8f0610",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 512
+        },
+        "bbox": [
+          15,
+          15,
+          113,
+          112
+        ],
+        "components_8_neighbor": [
+          3360,
+          579,
+          195,
+          194
+        ],
+        "decoded_rgba_sha256": "da7b3a958313f1cea8e1215e392518cd1429d9b2623aa38cdfc98d503e8155df",
+        "foreground_pixels": 4328,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.14934885009697976,
+        "identity_alpha_iou_floor": 0.14,
+        "identity_transitions": 1104,
+        "master_transitions": 4710,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.184326171875,
+        "not_identity_upscale": true,
+        "transition_gain": 4.266304347826087
+      },
+      "source": {
+        "path": "export/icons/sad.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "3dc60e1dd3d5ccc77df7f138f28840f242c009c83ec548e244e3ec400198ed23"
+      }
+    },
+    {
+      "asset_id": "icons/salary",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "eb728715011711efd7bb57e15935fad948a441fd53fe98014ba59f5eede70f9c",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the salary icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single wide rectangular salary card with one central round aperture plus one compact upward tab or coin cue attached above its upper-left area\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-7dce8e3e-6391-492b-87aa-3ca45cd187c4.png",
+        "source_sha256": "acff13bfcf2a45ced0dff2c5f4f51113bc889b63397bff2614bfa7f7911d0852",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 512
+        },
+        "bbox": [
+          17,
+          14,
+          113,
+          110
+        ],
+        "components_8_neighbor": [
+          6204
+        ],
+        "decoded_rgba_sha256": "c960128edf76a1bba1418513ef4a48581004c348ca87145e37f0664e935192f2",
+        "foreground_pixels": 6204,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5703397493863842,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 704,
+        "master_transitions": 5980,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.23565673828125,
+        "not_identity_upscale": true,
+        "transition_gain": 8.494318181818182
+      },
+      "source": {
+        "path": "export/icons/salary.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "5bf7e7c02d6a0457bb83ec815fdbd4eb8ce03763265885e95e9cffe5323c02c8"
+      }
+    },
+    {
+      "asset_id": "icons/savings",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "d00b216d4ed8b80293e2bffce42d33c0f2d1d971aed2447eb60801c13dd04eff",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the savings icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single savings box with one wide rectangular lower body and one centered horizontal slot aperture, plus one separate round coin directly above\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-b07d8421-f1ed-401a-ae31-79f0ea95ec8e.png",
+        "source_sha256": "5e11edab8ce83355259721973ede828b8298efb8e36ecb2cb5f9a227b3410c6f",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 512
+        },
+        "bbox": [
+          25,
+          9,
+          104,
+          114
+        ],
+        "components_8_neighbor": [
+          4591,
+          1281
+        ],
+        "decoded_rgba_sha256": "400d01b3269ad4ed73a266b5af71501f84fd11e5ccd0b368545123ca9fb038df",
+        "foreground_pixels": 5872,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5954905381827943,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 560,
+        "master_transitions": 3855,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1546630859375,
+        "not_identity_upscale": true,
+        "transition_gain": 6.883928571428571
+      },
+      "source": {
+        "path": "export/icons/savings.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1e8ced03fd938c2665fb483c0f5d53132c4c0d1f385829525680b13a192739b4"
+      }
+    },
+    {
+      "asset_id": "icons/saw",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "8e0c5dd9d1ede5154553ca091ae80f939ce0674cca3db0d6e92d901f6dea5f00",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the saw icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single horizontal hand saw with one long blade pointing left, exactly four separated lower teeth, and one large right-side handle containing one rectangular aperture\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-7c78fdc5-153d-404d-a34f-c91fc87c0362.png",
+        "source_sha256": "a22ae32405eb86b2c8b91911f9c24c9b9a9d7b72523a3750b922bb31cb226af5",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 512
+        },
+        "bbox": [
+          9,
+          38,
+          119,
+          88
+        ],
+        "components_8_neighbor": [
+          3903
+        ],
+        "decoded_rgba_sha256": "bbd16977833c57b23cb5c437bd6c84cfeb8f3773d33a415590bb385c83a62395",
+        "foreground_pixels": 3903,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5372245384157236,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 480,
+        "master_transitions": 2705,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.11529541015625,
+        "not_identity_upscale": true,
+        "transition_gain": 5.635416666666667
+      },
+      "source": {
+        "path": "export/icons/saw.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c7b216bd14ae4f0d39802087c03a5f27639a6834513eaff37a68176406a26927"
+      }
+    },
+    {
+      "asset_id": "icons/scaleWeight",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ff927a50e97594a6a839fc4508d579142b29db6132646cd92e236b3245ce5613",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the scaleWeight icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright rectangular bathroom scale with one upper display aperture containing one centered solid indicator block\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored the transparent display field around one solid central indicator.",
+        "source_id": "exec-2e7b60c0-9866-4c9b-8465-a6fa933be5ed.png",
+        "source_sha256": "eb16e4a96d5a92d5f8172b801736b35dd0c309536a31fe68e7f3428365bf8ac0",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 640
+        },
+        "bbox": [
+          24,
+          13,
+          103,
+          115
+        ],
+        "components_8_neighbor": [
+          6983
+        ],
+        "decoded_rgba_sha256": "6ed71df115b70d43097b3a78b37a3a08297381bd29a612876b683e2df0d9fd2c",
+        "foreground_pixels": 6983,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.8461045617631984,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 544,
+        "master_transitions": 7626,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.27691650390625,
+        "not_identity_upscale": true,
+        "transition_gain": 14.018382352941176
+      },
+      "source": {
+        "path": "export/icons/scaleWeight.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "22ce9f7735e1ca51d91b5cddd76e5d1a5e3f79fec88c4ce6409ac7db1c3e5a85"
+      }
+    },
+    {
+      "asset_id": "icons/scalpel",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "a7221923b68d09a7d69d8a7747511045658d1f0548798bb27352b278c0bcbb3d",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the scalpel icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single diagonal scalpel running from lower-left to upper-right, with one narrow shaft/blade and one compact rectangular upper-right handle containing one square aperture\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-85d82b98-b69e-4794-8def-c0e4cc4be939.png",
+        "source_sha256": "f4162c20c11c674e5c5a350647b94adb0421b75a4a20831a2e1eb5d902598456",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 640
+        },
+        "bbox": [
+          15,
+          12,
+          110,
+          112
+        ],
+        "components_8_neighbor": [
+          1715
+        ],
+        "decoded_rgba_sha256": "51a0e2d4b2f14620f7b21701665b7f8a80ae70399b3516b2d8f25b63d3f4bd85",
+        "foreground_pixels": 1715,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.37749694251936405,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 352,
+        "master_transitions": 2262,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.074951171875,
+        "not_identity_upscale": true,
+        "transition_gain": 6.426136363636363
+      },
+      "source": {
+        "path": "export/icons/scalpel.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1d147397d7a807c0ff5f18739e6c7aa7da1dfbb128e483329b126ad915852135"
+      }
+    },
+    {
+      "asset_id": "icons/scanFace",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "775d10a9d3abad94b0d9590e4b38aeb6e7101709d742f98a92cdfcad6a1ab4b8",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the scanFace icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single face-scan glyph with exactly four L-shaped corner brackets, two square eye blocks, and one short horizontal mouth block\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-05523347-8736-4778-8bbd-e9851f04e2c8.png",
+        "source_sha256": "2d7740588d5240f4583534f73d627e4b5b062803c6aa7aaaf374c9e9af93748e",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 640
+        },
+        "bbox": [
+          16,
+          16,
+          112,
+          109
+        ],
+        "components_8_neighbor": [
+          508,
+          508,
+          493,
+          493,
+          432,
+          432,
+          352
+        ],
+        "decoded_rgba_sha256": "85c9899f24255783e013b411cf9c52fdcc5548e3a22ab99a002c85ecf75de763",
+        "foreground_pixels": 3218,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.1532934131736527,
+        "identity_alpha_iou_floor": 0.15,
+        "identity_transitions": 720,
+        "master_transitions": 3312,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.11700439453125,
+        "not_identity_upscale": true,
+        "transition_gain": 4.6
+      },
+      "source": {
+        "path": "export/icons/scanFace.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "c3f53811b4e4344cfe0cd3c5ef0a8bf12e2ca934b5dab2d470c26b818705b3d3"
+      }
+    },
+    {
+      "asset_id": "icons/scissors",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "15a775b4cade46200418b128bc1113ecd13e70b9bb45b45ad9b7aa6e1c30c902",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the scissors icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single scissors silhouette with exactly two circular handle rings aligned vertically at left and two crossed diagonal blades extending right\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-0bbdc74a-d958-462a-a524-3a6081c431c0.png",
+        "source_sha256": "b9fc477659bed311d4d47c4e032480fb297595747a840967df95ed39cb78f230",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 640
+        },
+        "bbox": [
+          13,
+          13,
+          120,
+          112
+        ],
+        "components_8_neighbor": [
+          4572
+        ],
+        "decoded_rgba_sha256": "84c33cb083acc375802e665dae49a0d228dfd8a35225bb6b4ea6700ee26e417a",
+        "foreground_pixels": 4572,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4247391952309985,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 880,
+        "master_transitions": 4596,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.16400146484375,
+        "not_identity_upscale": true,
+        "transition_gain": 5.222727272727273
+      },
+      "source": {
+        "path": "export/icons/scissors.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "fa87cbb8dbf1afea5c41274c2a02a8b61ef912e29f696d24d43cbddbbd98b07c"
+      }
+    },
+    {
+      "asset_id": "icons/scooter",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ba4209d875f02e196cd6f1954fac3fd7a180e7314b01e98b5a199b1beed3eb25",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the scooter icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single side-view kick scooter with exactly two round wheels, one horizontal deck, one upright steering stem on the right, and one short top handlebar\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-56a314c4-d786-493f-9f96-e226d0187d63.png",
+        "source_sha256": "2e9d6a29596af0c63153e054bc614108a02a18d6f19bbf39074293478ee7ed12",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 768
+        },
+        "bbox": [
+          16,
+          19,
+          110,
+          105
+        ],
+        "components_8_neighbor": [
+          2115
+        ],
+        "decoded_rgba_sha256": "0061e37365d3809f431a12d914817e044a84bb3248c06d35dd1f907ebcfe4166",
+        "foreground_pixels": 2115,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.5165784341042073,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 448,
+        "master_transitions": 2294,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.0965576171875,
+        "not_identity_upscale": true,
+        "transition_gain": 5.120535714285714
+      },
+      "source": {
+        "path": "export/icons/scooter.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "d8ff7cbf6832736595830c89a33e2fac5923784978a60ae04246c572df58a5d6"
+      }
+    },
+    {
+      "asset_id": "icons/screwdriver",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "c3a7bd1c30079052fa86c4e8103798d8ecf7c24f1092e220d148b0785e7c1d1e",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the screwdriver icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright screwdriver with one long narrow upper shaft and one wider lower handle containing exactly two long vertical grip apertures\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored exactly two transparent vertical handle-grip apertures.",
+        "source_id": "exec-4d1a5f60-93cb-4c9e-8be5-817002c9faf4.png",
+        "source_sha256": "8eb107461a4666f673cf559206ecb8b71c1b7d850bb980b904e48bc43a5c8cde",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 768
+        },
+        "bbox": [
+          51,
+          5,
+          78,
+          121
+        ],
+        "components_8_neighbor": [
+          1631
+        ],
+        "decoded_rgba_sha256": "c97f1e52fb3470d4eec551858eff42b8cb05de4999072996ed0e30ebcbc7ae96",
+        "foreground_pixels": 1631,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.39181791990780757,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 448,
+        "master_transitions": 1957,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.07806396484375,
+        "not_identity_upscale": true,
+        "transition_gain": 4.368303571428571
+      },
+      "source": {
+        "path": "export/icons/screwdriver.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "7dafd6b638afd27123cb47aed9bbdbe4efe23bf8820f73f3892f6e2e0409fdff"
+      }
+    },
+    {
+      "asset_id": "icons/scroll",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "77193a7cbc4804f160f53aee06f6c5c6f35ee674e68b1d9831dd6fe047b64824",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the scroll icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright scroll with one full-width top roll, one narrower central sheet, one full-width bottom roll, and exactly three horizontal line apertures in the sheet\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored exactly three transparent horizontal line apertures in the central sheet.",
+        "source_id": "exec-dfde4ee6-e8ed-4a4e-9cdc-368d4e93d856.png",
+        "source_sha256": "d7d9852433293e906fcd1cdef7004f83bebe1b1832ec3795225e1cd935ca80dd",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 768
+        },
+        "bbox": [
+          22,
+          8,
+          106,
+          117
+        ],
+        "components_8_neighbor": [
+          6673
+        ],
+        "decoded_rgba_sha256": "280b243a6f86e7a7cd8288501b63b7397fa85c2e871439722f16fee8775af1b2",
+        "foreground_pixels": 6673,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6102630342883983,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 800,
+        "master_transitions": 5845,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.2421875,
+        "not_identity_upscale": true,
+        "transition_gain": 7.30625
+      },
+      "source": {
+        "path": "export/icons/scroll.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "72face648fecdf1360e060d65a1007978c7f3d2fc7bf6e2ee355f2a5be67299d"
+      }
+    },
+    {
+      "asset_id": "icons/sdCard",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "5e194accb34a9906ab9cbc436d34059a1d313ad3e22e1b27edd799a61420589b",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the sdCard icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single upright SD memory card with one stepped clipped upper-left corner and exactly three narrow vertical contact apertures near the top\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored exactly three transparent vertical contact apertures.",
+        "source_id": "exec-070baa75-4b21-438c-845a-5e01054861e2.png",
+        "source_sha256": "4e844ce26cb88a5f5adcfb4e274926d1fe91fcb8152baa26104f460f6e4b4f04",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 768
+        },
+        "bbox": [
+          29,
+          11,
+          102,
+          119
+        ],
+        "components_8_neighbor": [
+          7023
+        ],
+        "decoded_rgba_sha256": "de45ae9f559176dc4117c9b3d5ce27a082b3b1dc09aca611c0e2e38838414408",
+        "foreground_pixels": 7023,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.790948275862069,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 528,
+        "master_transitions": 9275,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.3013916015625,
+        "not_identity_upscale": true,
+        "transition_gain": 17.56628787878788
+      },
+      "source": {
+        "path": "export/icons/sdCard.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "253c4d3e24c47c4fa363cb642ce3d0fdd00cb44c536ed03a2c3486c741d7a3f7"
+      }
+    },
+    {
+      "asset_id": "icons/seed",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "caf9caf355e8538eb8149ced91ce57f6fd4261508f52baee98d75320667c8ee7",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the seed icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single compact asymmetric seed kernel silhouette, broad and rounded at the lower-left side and tapering in stepped pixels toward an upper-right tip; no stem, leaf, sprout, pot, or extra seed\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Simplified the failed leaf-like rendering to one compact asymmetric solid seed kernel.",
+        "source_id": "exec-e58c8de0-748f-4bc8-886f-6429ee8b60bd.png",
+        "source_sha256": "fe6a01353bc3f9b91ae2939fbdba1db8c429793d434a0f85457b2ed68b3ab4cd",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 0,
+          "y": 896
+        },
+        "bbox": [
+          29,
+          19,
+          98,
+          106
+        ],
+        "components_8_neighbor": [
+          4343
+        ],
+        "decoded_rgba_sha256": "2f3a651c219444d8dd323159b40bde5fe3ee87a8c0d62520e6fa583f7a6ce54a",
+        "foreground_pixels": 4343,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.12934762173340852,
+        "identity_alpha_iou_floor": 0.12,
+        "identity_transitions": 312,
+        "master_transitions": 2855,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.09979248046875,
+        "not_identity_upscale": true,
+        "transition_gain": 9.150641025641026
+      },
+      "source": {
+        "path": "export/icons/seed.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "1682f3d91b51c1b6e1419b79a43ad7fef6769cb1e090cd86b41d660eb166fdfc"
+      }
+    },
+    {
+      "asset_id": "icons/send",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "ea8533baedeb9c9150fedfe770159bb2afd820763f6d21f7d97b7bf4676ad34b",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the send icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single solid right-pointing triangular send glyph with no inner slit, tail, text, or extra mark\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.",
+        "source_id": "exec-29f7c51c-b3c4-4214-85b7-f9c7fc2abe03.png",
+        "source_sha256": "f173311a7a3a5725669a673deac59cd8f228c16baf8808f2b74321f7bd9366ed",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 128,
+          "y": 896
+        },
+        "bbox": [
+          26,
+          10,
+          110,
+          116
+        ],
+        "components_8_neighbor": [
+          5132
+        ],
+        "decoded_rgba_sha256": "50de284ab078bf8d13659d0a5e3b5bc5123eb86859ea98cedaf59edf7180080e",
+        "foreground_pixels": 5132,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.6009144350097975,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 384,
+        "master_transitions": 5737,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1890869140625,
+        "not_identity_upscale": true,
+        "transition_gain": 14.940104166666666
+      },
+      "source": {
+        "path": "export/icons/send.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "95e8aa5b8a97a2232aa18e44bc4c33c649f0099fa5163b520423fab6e8023e02"
+      }
+    },
+    {
+      "asset_id": "icons/senior",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "3198b326688fef7805bc1d99fd4d19be49d466fc5106e95ebedbeae8925139a6",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the senior icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single front-facing senior person symbol with one solid round head above one broad bust, clipped shoulder corners, and two restrained diagonal collar or sash negative strokes\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored exactly two transparent diagonal collar strokes in the broad bust.",
+        "source_id": "exec-a5c37151-bae6-49ab-a74d-efee116d2176.png",
+        "source_sha256": "0e62da0141ce9680413a2a22346d5192f7ccfc71c7589d073951971bab9f913d",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 256,
+          "y": 896
+        },
+        "bbox": [
+          33,
+          19,
+          96,
+          101
+        ],
+        "components_8_neighbor": [
+          3441
+        ],
+        "decoded_rgba_sha256": "f3c2fd63d329166a3781208036c6d5575ed89c5b27e271854fb6a4a0dd9b5edc",
+        "foreground_pixels": 3441,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.44420329173449086,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 640,
+        "master_transitions": 2952,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.1077880859375,
+        "not_identity_upscale": true,
+        "transition_gain": 4.6125
+      },
+      "source": {
+        "path": "export/icons/senior.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "9cd5dd77e63dd231405779951a5b37b55f8b60c68876f89aca3f4349c8d94d38"
+      }
+    },
+    {
+      "asset_id": "icons/server",
+      "errors": [],
+      "imagegen": {
+        "chroma_key": "#00FF00",
+        "cutout_sha256": "b92e8b5906a64887ea0f37a3be6e49540a8dd982fa7f4b4dec8e52c7e3a86b5f",
+        "prompt": "Use case: stylized-concept\nAsset type: production 128×128 native master pixel-art UI icon\nInput images: Image 1 is the canonical identity/topology contract; Images 2–4 are HustleK style references only\nPrimary request: redraw the server icon as a genuinely newly designed native 128×128 HustleK pixel-art master, not a scaled copy\nSubject: single vertical stack of exactly three separated horizontal server units, each containing one small left indicator aperture and one right horizontal slot aperture\nScene/backdrop: genuinely transparent alpha background. Every bright-green pixel in Image 1 is background or protected negative space, never subject color. Never draw a checkerboard. If true alpha cannot be emitted, use one perfectly flat uniform #00FF00 matte reaching every canvas edge with no variation. Absolutely no black or dark background and no halo.\nStyle/medium: crisp hand-authored pixel art, warm-charcoal outline, restrained slate/ivory/muted-gold material ramps, 6–10 flat colors, hard rectangular pixel clusters, upper-left key light and lower-right shadow\nComposition/framing: one centered isolated icon, preserve Image 1 silhouette, orientation, element count, stroke count, open-vs-filled topology, holes, apertures, and negative spaces; safe margin; readable at 1×\nConstraints: native pixel detail must increase at 128px while identity stays exact; binary hard edges; no anti-aliasing; no blur; no gradients; no glow; no cast shadow; no background scene; no text; no watermark; no extra objects; no borrowed protagonist features\nPostprocess: deterministic background isolation removed only the generator's exterior neutral checker/matte and canonical background apertures; no subject geometry or color was redrawn in code.\nFinal targeted ImageGen correction: Restored one transparent indicator and one transparent slot in each of exactly three server units.",
+        "source_id": "exec-c82408f9-a8fa-4241-b60f-436d48457a28.png",
+        "source_sha256": "6c553cfd270ff155df1f5a9c59bf8f4532e5ada31fb163ed0db71a8081024a43",
+        "source_size": [
+          1254,
+          1254
+        ],
+        "source_storage": "external-imagegen-provenance-by-id-and-sha256"
+      },
+      "kind": "icon",
+      "master": {
+        "atlas_crop": {
+          "h": 128,
+          "w": 128,
+          "x": 384,
+          "y": 896
+        },
+        "bbox": [
+          24,
+          12,
+          104,
+          109
+        ],
+        "components_8_neighbor": [
+          5816
+        ],
+        "decoded_rgba_sha256": "8f20ecd080a95d197da59d8cc7f892a0e874b6efe31fc8ffd322f78ac8692b8b",
+        "foreground_pixels": 5816,
+        "method": "per-asset-imagegen-chroma-native128-projection",
+        "opaque_colors": 10
+      },
+      "native_detail_validation": {
+        "identity_alpha_iou": 0.4240032382108885,
+        "identity_alpha_iou_floor": 0.25,
+        "identity_transitions": 1104,
+        "master_transitions": 6721,
+        "native_detail_loss_floor": 0.05,
+        "native_detail_loss_ratio": 0.24371337890625,
+        "not_identity_upscale": true,
+        "transition_gain": 6.08786231884058
+      },
+      "source": {
+        "path": "export/icons/server.svg",
+        "role": "identity-and-silhouette-reference-only",
+        "svg_sha256": "bfa9dfef021ba978c365762282bc4ec912f3033bd88afee200b26e5e035b30e8"
+      }
+    }
+  ],
+  "batch_id": "native128-021",
+  "contract": {
+    "assets": [
+      {
+        "asset_id": "icons/record",
+        "cutout_sha256": "1ac81ed612332d214b35241c8fba3b53b9c2a56f1d833f1231a08aa021b7dd73",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "22cae0c3fcc18afa14da5cd3355fb9d5f695877f7145bac14f23211402eded72",
+        "raw_imagegen_sha256": "74e999aae68c10d5ec5bc7b670744dc10913ed649e75dfba424c2a156be5f87d"
+      },
+      {
+        "asset_id": "icons/redo",
+        "cutout_sha256": "c243064d9476542a2b2fbc02d480ac96750522f4159d1516083d535139a315ba",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "66b7600852bc2adf9223c0c0dc01482e77b9e649117a91fb5ec16337839f1350",
+        "raw_imagegen_sha256": "d4ff7bbf54d1227773074cb417956110dcf38bf0681fb63b1d2df5918d59aafb"
+      },
+      {
+        "asset_id": "icons/register",
+        "cutout_sha256": "d1206436e05dd0be993cba9e3f8b7a13c40e70095a6a5b140b546bca283f9acf",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "9e2804b255dc0a44fae6bf8c6c3ab3e4bfa2df21e7874c5dfd8a4f6a47d98ac6",
+        "raw_imagegen_sha256": "df31b959e9986f1d3e9700f6bca781ca5d65abcce2cad8e1e91fb21311e5b399"
+      },
+      {
+        "asset_id": "icons/repeat",
+        "cutout_sha256": "3390eb7967f60ef572c1d7ae5b88568b663dcd4c16925882eb241644a15f1c7b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "db907a601153d55822698fca98dd7122ecb4b512491b4484a98d01e55e3829d3",
+        "raw_imagegen_sha256": "89b09f13f48c54fd49f42430c1411473299e22daa67adca38da622cf8bd646d2"
+      },
+      {
+        "asset_id": "icons/resume",
+        "cutout_sha256": "5b012f07cd0c146182c4c806a060473495aff8d2814baa72227a0c4ddb6531b7",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e2830d483171830d5c2042a27ecd139804296e4f53e135f94b7c744f9a22fdf3",
+        "raw_imagegen_sha256": "13f96a5cb8e893fc206f54879211defbcbc0168c7621ba6ec40c22dfdff07cb9"
+      },
+      {
+        "asset_id": "icons/ring",
+        "cutout_sha256": "28647ce1144854685ec94dc1e9ef2b97cce178ecb648961b4777b53cc70f9796",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "3f28600c2a68db9e9f597f015928f307ace051e0ff434ac0d09dfc5ce2453e4a",
+        "raw_imagegen_sha256": "c044cbb7ed2e42f30ad4911e314a7582c4cbb0155b02267252db97359b07f782"
+      },
+      {
+        "asset_id": "icons/road",
+        "cutout_sha256": "a000d2178cc5e7ca1e730f693f363fc0ea7ebb949da484bc9b24ccb2f0c79956",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "6fe7d1a61f5e4341a81ca8ab26509ef76e9bffe34cf02470fd4e7124e7b92a20",
+        "raw_imagegen_sha256": "819765dc3aec8d2e30d67fe6e72c1c68f31b18cbbe0f929d1abf0f42d305ef5e"
+      },
+      {
+        "asset_id": "icons/roadmap",
+        "cutout_sha256": "3c0a8c8cf183b402493e0f7e355c513ff8275640c64b49db4ae0f439404bea14",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "09a97efb5d269c70cd00710f2c3f4bd4625fc2f72f0bcb7311cf59480751ae90",
+        "raw_imagegen_sha256": "e09590ce06d78a31d30d71518e2de827daa5d9a48c67f5744f62ceb87e157f70"
+      },
+      {
+        "asset_id": "icons/robot",
+        "cutout_sha256": "f191d0ffbd4cad4dfe9102b4463f70a3a4b4d23fe2a7314aaec68eeaf0a5620b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "d31a2c748935f54f6a1e58db3cf2dcce220f0a9998f3fec4cc486ac431d29acd",
+        "raw_imagegen_sha256": "4fdbdf6ed654b3bfc010e25a17fffab433a460a2a9261718b52141c557284a8a"
+      },
+      {
+        "asset_id": "icons/rocket",
+        "cutout_sha256": "a54233ae2d852f6dfa07ad941e634ba7cbaa9a99571bba3ecb8c659833a2a26a",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "c288b51d1bcf2f73fdd860529137085ab1e0f7d605279815b6037eb560802153",
+        "raw_imagegen_sha256": "5323cfd5e9135a73403d64c2758aeb2d64f20b7ca45a180ec716d00f859259d7"
+      },
+      {
+        "asset_id": "icons/rollingPin",
+        "cutout_sha256": "b100b49e2dad1a942b7ed7f3e9c0c11764dd78f329d048c13663e0cf28ca5f38",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "98c0e54686ab193e685651e4b7c6ebf7a63e77f187c14bb65e85fbd6ad65c398",
+        "raw_imagegen_sha256": "b24e3ff947e14a4f9c7e937ff3243f210b394489a0bd29e62acf1a7a96d1fe63"
+      },
+      {
+        "asset_id": "icons/route",
+        "cutout_sha256": "fd78c25438ca32a1554ad7e500ddbde7b0460e0ff4eb8f839753175419f567a1",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "d3a1a1c1e5fcbc6c01f169c401ede2f9e9499f428437827e00413c64a4182706",
+        "raw_imagegen_sha256": "6b8d18580d96bbd10fc720f3c5e8e9403eb7422313ad20c9e22baa1f26adac14"
+      },
+      {
+        "asset_id": "icons/router",
+        "cutout_sha256": "e13fb40569ac4442a0e4e4d05e191d4cdeb66b1505f01c6dc31cf1eef16c2da1",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "c58d6b2af6308ca975bf41bca0ce671e93634f2e2b6735d6c5d17d693902c7c6",
+        "raw_imagegen_sha256": "bce17fd7362eab6870757392ec2951b1b0aae8fcfc0f0b897f3ca2dc0c5080c9"
+      },
+      {
+        "asset_id": "icons/ruler",
+        "cutout_sha256": "acf3b710b5044a9ca050988dbaf21a684596c9d91db32475d0d9554c5de15db1",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "b58e260db61a4e3b7720eafb269ec064ee9133f06b419f708743875fbab3da1e",
+        "raw_imagegen_sha256": "10d9586966517852254128d17bae754824b8cc6ab615a6cd9c392fc760e2b40c"
+      },
+      {
+        "asset_id": "icons/rune",
+        "cutout_sha256": "30736f63c43316fe045bb17967ba0ccee570cf5f31d1fa1a2df9295a2b31112e",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "ba423e968db22899ec80d5f0a530523418e25deb1d0a66ea2c0858ed49991823",
+        "raw_imagegen_sha256": "ed61549519e8ea6a9f85a2739ede3e461bac57121d2eb81a6398d7931fb3a8ed"
+      },
+      {
+        "asset_id": "icons/runner",
+        "cutout_sha256": "56aabf1fdc9ad686e727e188509332148b1e3b639157b1d95949f843943a1337",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "a7a6808096758f0be01404a963f15b08a6be1c190b285fc915b196ee604dee22",
+        "raw_imagegen_sha256": "8c0d5a7861ee17b22fe286096a1dbf003dc073f9070daf1bbc810eeb59540833"
+      },
+      {
+        "asset_id": "icons/sad",
+        "cutout_sha256": "b177d2ffa238305c77172ce8ef31024610e8908ab9e6f987578893df0f512e32",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "17f3ec551ebf7b739168522f24fd63ad64cbf2042cb85cda12d552d9a57d336d",
+        "raw_imagegen_sha256": "ca49e1238ea3a96ed04a0059f7fc502e1a8df0759f9f92577080cbbadd8f0610"
+      },
+      {
+        "asset_id": "icons/salary",
+        "cutout_sha256": "eb728715011711efd7bb57e15935fad948a441fd53fe98014ba59f5eede70f9c",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e600102a0923e6dde2d3169656b86a82da67f06e489980c76fc19c38b64d4e60",
+        "raw_imagegen_sha256": "acff13bfcf2a45ced0dff2c5f4f51113bc889b63397bff2614bfa7f7911d0852"
+      },
+      {
+        "asset_id": "icons/savings",
+        "cutout_sha256": "d00b216d4ed8b80293e2bffce42d33c0f2d1d971aed2447eb60801c13dd04eff",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "a421f7f85938b43e607ca4b546495f39366abb525f970093e723d3395a63f0ad",
+        "raw_imagegen_sha256": "5e11edab8ce83355259721973ede828b8298efb8e36ecb2cb5f9a227b3410c6f"
+      },
+      {
+        "asset_id": "icons/saw",
+        "cutout_sha256": "8e0c5dd9d1ede5154553ca091ae80f939ce0674cca3db0d6e92d901f6dea5f00",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "163e1c6d7a6d8f32612bafa34ba35d2303f3246783c90586c75ceebd525659a3",
+        "raw_imagegen_sha256": "a22ae32405eb86b2c8b91911f9c24c9b9a9d7b72523a3750b922bb31cb226af5"
+      },
+      {
+        "asset_id": "icons/scaleWeight",
+        "cutout_sha256": "ff927a50e97594a6a839fc4508d579142b29db6132646cd92e236b3245ce5613",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "05c4d8141b245cde72aeee89db6e5119f1a65fe334e88bef056e906b0ef55450",
+        "raw_imagegen_sha256": "eb16e4a96d5a92d5f8172b801736b35dd0c309536a31fe68e7f3428365bf8ac0"
+      },
+      {
+        "asset_id": "icons/scalpel",
+        "cutout_sha256": "a7221923b68d09a7d69d8a7747511045658d1f0548798bb27352b278c0bcbb3d",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "addfb514b96b79f9b095758f6a3b173e098675a57d625d58000d2a068d064df2",
+        "raw_imagegen_sha256": "f4162c20c11c674e5c5a350647b94adb0421b75a4a20831a2e1eb5d902598456"
+      },
+      {
+        "asset_id": "icons/scanFace",
+        "cutout_sha256": "775d10a9d3abad94b0d9590e4b38aeb6e7101709d742f98a92cdfcad6a1ab4b8",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "69fe8660ea3cb62e0b9fb3f9bd11fbda4698ca04b934cf78963dddf29e77d2bf",
+        "raw_imagegen_sha256": "2d7740588d5240f4583534f73d627e4b5b062803c6aa7aaaf374c9e9af93748e"
+      },
+      {
+        "asset_id": "icons/scissors",
+        "cutout_sha256": "15a775b4cade46200418b128bc1113ecd13e70b9bb45b45ad9b7aa6e1c30c902",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "613c9eec7b9f536a8ceb44e94a10bd52679706dc455eed6404234d4dd03f21b7",
+        "raw_imagegen_sha256": "b9fc477659bed311d4d47c4e032480fb297595747a840967df95ed39cb78f230"
+      },
+      {
+        "asset_id": "icons/scooter",
+        "cutout_sha256": "ba4209d875f02e196cd6f1954fac3fd7a180e7314b01e98b5a199b1beed3eb25",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e6d342d2ac2bd273621722427a597aef4151de92fa496434608950b50d318852",
+        "raw_imagegen_sha256": "2e9d6a29596af0c63153e054bc614108a02a18d6f19bbf39074293478ee7ed12"
+      },
+      {
+        "asset_id": "icons/screwdriver",
+        "cutout_sha256": "c3a7bd1c30079052fa86c4e8103798d8ecf7c24f1092e220d148b0785e7c1d1e",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "070696dfa5233d23e266ff9f67e4f004da6377a1035a322cce943c76b597bf02",
+        "raw_imagegen_sha256": "8eb107461a4666f673cf559206ecb8b71c1b7d850bb980b904e48bc43a5c8cde"
+      },
+      {
+        "asset_id": "icons/scroll",
+        "cutout_sha256": "77193a7cbc4804f160f53aee06f6c5c6f35ee674e68b1d9831dd6fe047b64824",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "d5956cf2e8456f86dfbc60e82696adf7feb928c20b3acb29702de5e444b79384",
+        "raw_imagegen_sha256": "d7d9852433293e906fcd1cdef7004f83bebe1b1832ec3795225e1cd935ca80dd"
+      },
+      {
+        "asset_id": "icons/sdCard",
+        "cutout_sha256": "5e194accb34a9906ab9cbc436d34059a1d313ad3e22e1b27edd799a61420589b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "adee9b9b029d2797c22cd82b7f1d754d317fe446bcd3731df2209c7f97f24a45",
+        "raw_imagegen_sha256": "4e844ce26cb88a5f5adcfb4e274926d1fe91fcb8152baa26104f460f6e4b4f04"
+      },
+      {
+        "asset_id": "icons/seed",
+        "cutout_sha256": "caf9caf355e8538eb8149ced91ce57f6fd4261508f52baee98d75320667c8ee7",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "2d0e121f245aaa09a01f49992339e60d6284e8ff040644e7666c3d41cac77235",
+        "raw_imagegen_sha256": "fe6a01353bc3f9b91ae2939fbdba1db8c429793d434a0f85457b2ed68b3ab4cd"
+      },
+      {
+        "asset_id": "icons/send",
+        "cutout_sha256": "ea8533baedeb9c9150fedfe770159bb2afd820763f6d21f7d97b7bf4676ad34b",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "3837f898eebcecc4844baafe8f66e511094567d57764f9f27a1b5a4629c7f82e",
+        "raw_imagegen_sha256": "f173311a7a3a5725669a673deac59cd8f228c16baf8808f2b74321f7bd9366ed"
+      },
+      {
+        "asset_id": "icons/senior",
+        "cutout_sha256": "3198b326688fef7805bc1d99fd4d19be49d466fc5106e95ebedbeae8925139a6",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "e1251a575cb8660e471c92ab0bdbffd53f932000d9abfb44f3a1e9cfca4badfb",
+        "raw_imagegen_sha256": "0e62da0141ce9680413a2a22346d5192f7ccfc71c7589d073951971bab9f913d"
+      },
+      {
+        "asset_id": "icons/server",
+        "cutout_sha256": "b92e8b5906a64887ea0f37a3be6e49540a8dd982fa7f4b4dec8e52c7e3a86b5f",
+        "identity_size": 32,
+        "master_method": "per-asset-imagegen-chroma-native128-projection",
+        "palette_colors": 10,
+        "prompt_sha256": "c0773ced9313fa7c12aa6bb44b8039de0d3a48c59ed10e63bcc031b9ac7af853",
+        "raw_imagegen_sha256": "6c553cfd270ff155df1f5a9c59bf8f4532e5ada31fb163ed0db71a8081024a43"
+      }
+    ],
+    "batch_id": "native128-021",
+    "builder_sha256_lf": "9dc3a894bf3f84cc2ed72d722ed9be1b5d6224859dc91df704c07b3749dd6640",
+    "compiler": "hustlek-native128-compiler/v1",
+    "low_resolution_upscale_allowed": false,
+    "lower_tiers_generated": false,
+    "master_size": 128,
+    "per_asset_imagegen": true,
+    "pixy_used": false,
+    "source_archive_sha256": "2a5a6a14d81ca22dafd87b9b5f0547312cfac7682b95d74ae263c132b299238e"
+  },
+  "contract_sha256": "8cea01941615702d28aa3f7e89ebbd334bc11ee60dc219db666500923a86a741",
+  "errors": [],
+  "result": "PASS",
+  "schema": "hustlek-native128-batch/v1",
+  "state": "ready_for_review",
+  "validation": {
+    "encoded_atlases_reopened": true,
+    "encoded_crop_hashes_match": true,
+    "native_detail_gate": "master must lose >= configured pixel ratio when collapsed to identity grid",
+    "pillow": "12.2.0",
+    "python": "3.12.10",
+    "two_pass_deterministic": true
+  }
+}
