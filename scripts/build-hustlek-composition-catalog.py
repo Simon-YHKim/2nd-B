@@ -17,6 +17,7 @@ import subprocess
 import sys
 import zipfile
 from collections import Counter
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -160,38 +161,12 @@ PILOT_VARIANTS = {
     },
 }
 
-AVATAR_LAYER_PILOTS = {
-    "avatars/presets/plain": {
-        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        "atlas_row": 0,
-        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
-        "allow_empty": ["headwear", "extra"],
-        "profile": "plain",
-    },
-    "avatars/food/chef": {
-        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        "atlas_row": 1,
-        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
-        "allow_empty": [],
-        "profile": "job",
-    },
-    "avatars/fantasy/wizard": {
-        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        "atlas_row": 2,
-        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
-        "allow_empty": [],
-        "profile": "fantasy",
-    },
-    "avatars/animals/cat": {
-        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        "atlas_row": 3,
-        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
-        "allow_empty": ["hair", "headwear", "garment", "extra"],
-        "profile": "animal",
-    },
-}
+AVATAR_LAYER_ATLAS = "design/hustlek-composition-v1/avatar-layers-atlas.png"
+AVATAR_LAYER_IDS = ["base", "hair", "face", "headwear", "garment", "extra"]
+AVATAR_RECOMPOSITION_ORDER = ["base", "garment", "hair", "face", "headwear", "extra"]
 
 
+@lru_cache(maxsize=None)
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -338,24 +313,40 @@ def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
     }
 
 
+@lru_cache(maxsize=1)
+def avatar_layer_atlas() -> Image.Image:
+    path = ROOT / AVATAR_LAYER_ATLAS
+    atlas = Image.open(path).convert("RGBA")
+    expected_size = (128 * len(AVATAR_LAYER_IDS), 128 * 270)
+    if atlas.size != expected_size:
+        raise ValueError(
+            f"avatar layer atlas must be {expected_size[0]}x{expected_size[1]}"
+        )
+    return atlas
+
+
 def native128_avatar_layers(
-    asset_id: str, flattened_master: dict[str, Any]
+    asset_id: str,
+    flattened_master: dict[str, Any],
+    *,
+    atlas_row: int,
+    profile: str,
 ) -> dict[str, Any]:
     common = {
-        "required_layers": ["base", "hair", "face", "headwear", "garment", "extra"],
+        "required_layers": AVATAR_LAYER_IDS,
         "runtime_scaling_allowed": False,
     }
-    pilot = AVATAR_LAYER_PILOTS.get(asset_id)
-    if pilot is None:
-        return {"status": "pending_layers", **common}
-    path = ROOT / pilot["path"]
-    atlas = Image.open(path).convert("RGBA")
-    row_y = pilot["atlas_row"] * 128
-    if atlas.width != 128 * len(pilot["layer_ids"]) or atlas.height < row_y + 128:
-        raise ValueError(f"{asset_id} layer pilot atlas dimensions are invalid")
+    path = ROOT / AVATAR_LAYER_ATLAS
+    atlas = avatar_layer_atlas()
+    row_y = atlas_row * 128
     layers: dict[str, Image.Image] = {}
     layer_records: dict[str, Any] = {}
-    for index, layer_id in enumerate(pilot["layer_ids"]):
+    allowed_empty = {"hair", "headwear", "garment", "extra"} if profile == "animal" else {
+        "hair",
+        "headwear",
+        "extra",
+    }
+    for index, layer_id in enumerate(AVATAR_LAYER_IDS):
         crop = [index * 128, row_y, 128, 128]
         layer = atlas.crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3]))
         pixels = list(layer.get_flattened_data())
@@ -364,7 +355,7 @@ def native128_avatar_layers(
         if any(pixel[3] == 0 and pixel[:3] != (0, 0, 0) for pixel in pixels):
             raise ValueError(f"{asset_id}/{layer_id}: hidden RGB is forbidden")
         bbox = layer.getbbox()
-        if bbox is None and layer_id not in set(pilot["allow_empty"]):
+        if bbox is None and layer_id not in allowed_empty:
             raise ValueError(f"{asset_id}/{layer_id}: required layer is empty")
         layers[layer_id] = layer
         layer_records[layer_id] = {
@@ -373,8 +364,10 @@ def native128_avatar_layers(
             "decoded_rgba_sha256": hashlib.sha256(layer.tobytes()).hexdigest(),
             "empty": bbox is None,
         }
+    if profile != "animal" and layers["hair"].getbbox() is None and layers["headwear"].getbbox() is None:
+        raise ValueError(f"{asset_id}: both hair and headwear layers are empty")
     recomposed = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    for layer_id in ["base", "garment", "hair", "face", "headwear", "extra"]:
+    for layer_id in AVATAR_RECOMPOSITION_ORDER:
         recomposed = Image.alpha_composite(recomposed, layers[layer_id])
     recomposed_sha = hashlib.sha256(recomposed.tobytes()).hexdigest()
     if recomposed_sha != flattened_master["decoded_rgba_sha256"]:
@@ -382,6 +375,8 @@ def native128_avatar_layers(
     base_alpha = layers["base"].getchannel("A")
     face_alpha = layers["face"].getchannel("A")
     scalp_alpha = Image.alpha_composite(layers["hair"], layers["headwear"]).getchannel("A")
+    hair_alpha = layers["hair"].getchannel("A")
+    headwear_alpha = layers["headwear"].getchannel("A")
     garment_alpha = layers["garment"].getchannel("A")
     extra_alpha = layers["extra"].getchannel("A")
     underlay_overlaps = {
@@ -401,6 +396,14 @@ def native128_avatar_layers(
                 strict=True,
             )
         ),
+        "hair_under_headwear": sum(
+            bool(hair_pixel and headwear_pixel)
+            for hair_pixel, headwear_pixel in zip(
+                hair_alpha.get_flattened_data(),
+                headwear_alpha.get_flattened_data(),
+                strict=True,
+            )
+        ),
         "garment_under_extra": sum(
             bool(garment_pixel and extra_pixel)
             for garment_pixel, extra_pixel in zip(
@@ -411,12 +414,12 @@ def native128_avatar_layers(
         ),
     }
     return {
-        "status": "pilot_ready",
+        "status": "ready",
         **common,
-        "atlas_path": pilot["path"],
+        "atlas_path": AVATAR_LAYER_ATLAS,
         "encoded_atlas_sha256": sha256_file(path),
-        "method": "lossless-native128-semantic-partition-with-swap-underlays/v2",
-        "profile": pilot["profile"],
+        "method": "lossless-native128-source-recipe-partition-with-swap-underlays/v3",
+        "profile": profile,
         "underlay_overlaps": underlay_overlaps,
         "layers": layer_records,
         "recomposition_decoded_rgba_sha256": recomposed_sha,
@@ -465,6 +468,13 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
             source_avatar_items.append({**item, "kind": "animal", "catalog_group": "animals"})
         for item in source_manifest["presets"]:
             source_avatar_items.append({**item, "kind": "preset", "catalog_group": "presets"})
+
+        avatar_rows = {
+            asset_id: row
+            for row, asset_id in enumerate(
+                sorted(item["file"].removesuffix(".svg") for item in source_avatar_items)
+            )
+        }
 
         parts = source_manifest["parts"]
         palettes = parts["palettes"]
@@ -523,7 +533,10 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
                 "source_spec": spec,
                 "recipe": recipe,
                 "composable_native128": native128_avatar_layers(
-                    asset_id, flattened_master
+                    asset_id,
+                    flattened_master,
+                    atlas_row=avatar_rows[asset_id],
+                    profile="animal" if spec["type"] == "animal" else "human",
                 ),
                 "flattened_native128": flattened_master,
             })
@@ -625,8 +638,8 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
             "icons": 533,
             "aliases": len(aliases),
             "avatar_job_recipes": len(used_jobs),
-            "avatar_layer_pilots_ready": sum(
-                avatar["composable_native128"]["status"] == "pilot_ready"
+            "avatar_layers_ready": sum(
+                avatar["composable_native128"]["status"] == "ready"
                 for avatar in avatars
             ),
             "job_definitions": len(jobs),

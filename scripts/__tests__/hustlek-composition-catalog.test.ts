@@ -116,63 +116,44 @@ describe("HustleK composition catalog", () => {
     );
     expect(indices.has(16)).toBe(true);
     expect(indices.has(17)).toBe(true);
-    let ready = 0;
-    const pilotExpectations: Record<
-      string,
-      { path: string; empty: string[]; profile: string }
-    > = {
-      "avatars/presets/plain": {
-        path: "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        empty: ["extra", "headwear"],
-        profile: "plain",
-      },
-      "avatars/food/chef": {
-        path: "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        empty: [],
-        profile: "job",
-      },
-      "avatars/fantasy/wizard": {
-        path: "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        empty: [],
-        profile: "fantasy",
-      },
-      "avatars/animals/cat": {
-        path: "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        empty: ["extra", "garment", "hair", "headwear"],
-        profile: "animal",
-      },
-    };
-    for (const avatar of catalog.avatars) {
-      const expectedPilot = pilotExpectations[avatar.asset_id];
-      if (expectedPilot) {
-        ready += 1;
-        expect(avatar.composable_native128.status).toBe("pilot_ready");
-        expect(avatar.composable_native128.atlas_path).toBe(expectedPilot.path);
-        expect(avatar.composable_native128.profile).toBe(expectedPilot.profile);
-        expect(Object.keys(avatar.composable_native128.layers ?? {})).toEqual([
-          "base",
-          "extra",
-          "face",
-          "garment",
-          "hair",
-          "headwear",
+    const expectedAtlas = "design/hustlek-composition-v1/avatar-layers-atlas.png";
+    for (const [row, avatar] of catalog.avatars.entries()) {
+      expect(avatar.composable_native128.status).toBe("ready");
+      expect(avatar.composable_native128.atlas_path).toBe(expectedAtlas);
+      expect(avatar.composable_native128.profile).toBe(
+        avatar.recipe.type === "animal" ? "animal" : "human",
+      );
+      expect(Object.keys(avatar.composable_native128.layers ?? {})).toEqual([
+        "base",
+        "extra",
+        "face",
+        "garment",
+        "hair",
+        "headwear",
+      ]);
+      for (const [column, layerId] of [
+        "base",
+        "hair",
+        "face",
+        "headwear",
+        "garment",
+        "extra",
+      ].entries()) {
+        expect(avatar.composable_native128.layers?.[layerId]?.atlas_crop).toEqual([
+          column * 128,
+          row * 128,
+          128,
+          128,
         ]);
-        const emptyLayers = Object.entries(avatar.composable_native128.layers ?? {})
-          .filter(([, layer]) => layer.empty)
-          .map(([layerId]) => layerId)
-          .sort();
-        expect(emptyLayers).toEqual(expectedPilot.empty);
-        expect(avatar.composable_native128.recomposition_decoded_rgba_sha256).toBe(
-          avatar.flattened_native128.decoded_rgba_sha256,
-        );
-      } else {
-        expect(avatar.composable_native128.status).toBe("pending_layers");
       }
+      expect(avatar.composable_native128.recomposition_decoded_rgba_sha256).toBe(
+        avatar.flattened_native128.decoded_rgba_sha256,
+      );
       expect(avatar.composable_native128.runtime_scaling_allowed).toBe(false);
       expect(avatar.flattened_native128.atlas_path).toMatch(/master-atlas\.png$/);
       expect(avatar.flattened_native128.decoded_rgba_sha256).toMatch(/^[a-f0-9]{64}$/);
     }
-    expect(ready).toBe(4);
+    expect(catalog.counts.avatar_layers_ready).toBe(270);
   });
 
   it("모든 아이콘을 standalone으로 유지하고 허용 목록만 합성 슬롯에 배치한다", () => {
