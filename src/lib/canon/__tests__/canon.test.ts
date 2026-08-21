@@ -49,10 +49,10 @@ describe("proto_rev2 canon integrity", () => {
     expect(canonCanvas).toEqual({ w: 390, h: 820 });
   });
 
-  it("registers 111 screens with unique ids", () => {
-    // 58 prototype screens + 53 app-only routes registered 2026-08-19 (V3).
-    expect(canonScreens).toHaveLength(111);
-    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(111);
+  it("registers 113 screens with unique ids", () => {
+    // 58 prototype screens + 55 app-only routes (including the two avatar studios).
+    expect(canonScreens).toHaveLength(113);
+    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(113);
   });
 
   it("uses only known layout kinds, and only where a layout can be known", () => {
@@ -92,9 +92,8 @@ describe("proto_rev2 canon integrity", () => {
     for (const s of canonScreens) {
       expect(s.appOnly === true && s.route === null).toBe(false);
     }
-    // 53 app routes registered 2026-08-19 + `profile` (which already had an app
-    // screen and no prototype counterpart).
-    expect(canonAppOnlyScreens()).toHaveLength(54);
+    // 53 app routes registered 2026-08-19 + `profile` + the two avatar studios.
+    expect(canonAppOnlyScreens()).toHaveLength(56);
   });
 
   it("titles every non-root screen (top app bar contract)", () => {
@@ -193,8 +192,8 @@ describe("proto_rev2 canon integrity", () => {
     // gate added 2026-08-19: the four login-flow screens moved off `windowed`,
     // which had been claiming phone chrome they do not render.
     expect(stats.byLayout.gate).toBe(4);
-    // profile lost its layout 2026-08-19: it is appOnly, so it has no prototype
-    // layout to declare. 2+3+4+48 = 57 declared, 54 appOnly, 111 total.
+    // App-only routes have no prototype layout to declare.
+    // 2+3+4+48 = 57 declared, 56 appOnly, 113 total.
     expect(stats.byLayout.windowed).toBe(48);
   });
 });

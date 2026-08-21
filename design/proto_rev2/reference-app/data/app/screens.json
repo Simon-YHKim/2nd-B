@@ -464,6 +464,13 @@
       "route": "account"
     },
     {
+      "id": "avatar",
+      "component": null,
+      "appOnly": true,
+      "title": "직업 복장",
+      "route": "avatar"
+    },
+    {
       "id": "beyond",
       "component": null,
       "appOnly": true,
@@ -707,6 +714,13 @@
       "appOnly": true,
       "title": "내 생활 정보",
       "route": "profile-details"
+    },
+    {
+      "id": "profile-character",
+      "component": null,
+      "appOnly": true,
+      "title": "내 픽셀 캐릭터",
+      "route": "profile-character"
     },
     {
       "id": "reading",

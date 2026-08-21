@@ -165,6 +165,8 @@ export const DEV_SCREEN_GROUPS: readonly DevScreenGroup[] = [
       { file: "account", href: "/account", label: "계정", auth: true },
       { file: "profile", href: "/profile", label: "프로필", auth: true },
       { file: "profile-details", href: "/profile-details", label: "내 생활 정보", auth: true },
+      { file: "profile-character", href: "/profile-character", label: "내 픽셀 캐릭터", auth: true },
+      { file: "avatar", href: "/avatar", label: "직업 복장", auth: true },
       { file: "change-password", href: "/change-password", label: "비밀번호 변경", auth: true },
       { file: "theme", href: "/theme", label: "테마", auth: true },
       { file: "data", href: "/data", label: "데이터 관리", auth: true },
