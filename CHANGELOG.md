@@ -6,6 +6,41 @@ Conventional Commits.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-21
+
+First versioned release built for distribution: the APK is attached to the
+GitHub release rather than living behind an Expo login.
+
+### Added
+- Multi-vendor LLM routing. Four switches now cover every prompt purpose -
+  reasoning seats, chat, the two binary-carrying purposes (OCR + voice), and
+  the nine backbone purposes that previously had no switch at all. Grok (xAI)
+  joins Gemini, Claude and OpenAI as a routable vendor; nothing routes there
+  by default.
+- Roles (`admin` / `developer` / `support`) with a JWT claim and an immediate
+  revocation path, kept separate from the billing tier so a payment event can
+  never overwrite an operator role.
+- Cancelling a subscription now offers the refund in the same step for anyone
+  inside the window, and checkout states the renewal cycle, the amount and how
+  to stop it before taking payment.
+
+### Fixed
+- A signed-in user could read anyone's credit balance. The two readers are
+  replaced by an argument-less `credit_summary_self()`, so the parameter that
+  made it possible no longer exists.
+- The leaked-password check ran only on sign-up. It now sits on the shared
+  password-update path, so changing or resetting a password is covered too.
+- The sign-up screen was missing one of its required legal consent rows.
+- `judge_mode` (the retired contest comp flag) could be set by a crafted
+  client on both the insert and the update path.
+- Refunds treated credit-pack purchases as subscriptions.
+- An empty env string in `eas.json` made every EAS build and OTA publish fail
+  before starting.
+
+### Removed
+- The XPRIZE judge auto-flag, the flow-debugger tooling and its generated maps.
+
+
 ### Added
 - Ops recommendations consolidated into a once-per-day brief (D-26 A17).
   The first ops visit of the day builds ONE brief covering all life domains
