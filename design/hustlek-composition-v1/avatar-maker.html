@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HustleK Avatar Maker</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --sky: rgb(4 14 30);
+      --surface: rgb(9 27 48);
+      --surface-strong: rgb(13 38 64);
+      --surface-soft: rgb(17 45 71);
+      --line: rgb(42 88 120);
+      --line-strong: rgb(78 163 207);
+      --text: rgb(239 239 226);
+      --muted: rgb(150 179 197);
+      --cyan: rgb(93 205 235);
+      --gold: rgb(242 197 103);
+      --danger: rgb(245 132 104);
+      --focus: rgb(255 226 146);
+      font-family: Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      background: var(--sky);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background: var(--sky);
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .maker-app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .maker-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .maker-title {
+      margin: 0;
+      color: var(--gold);
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    .maker-subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .header-actions,
+    .pagination,
+    .selection-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-button,
+    .step-button,
+    .option-tile {
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .action-button {
+      min-height: 40px;
+      padding: 8px 14px;
+    }
+
+    .action-button:hover:not(:disabled),
+    .step-button:hover,
+    .option-tile:hover { border-color: var(--line-strong); }
+
+    .action-button:disabled { cursor: default; opacity: 0.38; }
+
+    .maker-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .preview-panel,
+    .editor-panel {
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--surface);
+    }
+
+    .preview-panel {
+      position: sticky;
+      top: 20px;
+      padding: 20px;
+    }
+
+    .panel-kicker {
+      color: var(--cyan);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .preview-stage {
+      display: grid;
+      place-items: center;
+      min-height: 304px;
+      margin: 12px 0 16px;
+      background: var(--surface-strong);
+      border: 1px solid var(--line);
+    }
+
+    .sprite-scene {
+      position: relative;
+      flex: 0 0 auto;
+      overflow: hidden;
+      background: var(--surface-soft);
+      image-rendering: pixelated;
+    }
+
+    .sprite-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .sprite-layer img {
+      position: absolute;
+      max-width: none;
+      image-rendering: pixelated;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .selection-line {
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .selection-line:last-of-type { border-bottom: 0; }
+
+    .selection-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .selection-value {
+      max-width: 210px;
+      overflow: hidden;
+      color: var(--text);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preview-status {
+      min-height: 20px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .editor-panel { min-height: 720px; }
+
+    .step-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step-button {
+      min-height: 58px;
+      border-width: 0 1px 0 0;
+      border-color: var(--line);
+      border-radius: 0;
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .step-button:last-child { border-right: 0; }
+
+    .step-button[aria-selected="true"] {
+      background: var(--surface-strong);
+      color: var(--gold);
+      box-shadow: inset 0 -3px 0 var(--gold);
+    }
+
+    .editor-body { padding: 18px; }
+
+    .editor-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .editor-heading h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .result-count {
+      color: var(--muted);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .control-label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .control-input,
+    .control-select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 8px 10px;
+      background: var(--sky);
+      color: var(--text);
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-auto-rows: max-content;
+      align-content: start;
+      gap: 10px;
+      min-height: 444px;
+    }
+
+    .option-tile {
+      display: grid;
+      align-content: start;
+      justify-items: center;
+      gap: 8px;
+      min-width: 0;
+      min-height: 138px;
+      padding: 9px;
+    }
+
+    .option-tile[aria-pressed="true"] {
+      border-color: var(--gold);
+      background: var(--surface-strong);
+      box-shadow: inset 0 0 0 2px var(--gold);
+    }
+
+    .option-name {
+      width: 100%;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 12px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-result {
+      grid-column: 1 / -1;
+      align-self: center;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .pagination {
+      justify-content: space-between;
+      margin-top: 16px;
+    }
+
+    .page-label {
+      color: var(--muted);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+    }
+
+    .attachment-note {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .maker-layout { grid-template-columns: 1fr; }
+      .preview-panel { position: static; }
+      .preview-stage { min-height: 280px; }
+      .option-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .maker-app { padding: 14px; }
+      .maker-header { align-items: flex-start; flex-direction: column; }
+      .filters { grid-template-columns: 1fr; }
+      .option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .step-button { min-height: 66px; padding: 8px 4px; }
+      .editor-heading { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="maker-app">
+    <header class="maker-header">
+      <div>
+        <h1 class="maker-title">아바타 만들기</h1>
+        <p class="maker-subtitle">정체성, 스타일, 소품을 순서대로 선택하세요.</p>
+      </div>
+      <div class="header-actions">
+        <button id="reset-button" class="action-button" type="button">초기화</button>
+        <button id="copy-button" class="action-button" type="button">조합 ID 복사</button>
+      </div>
+    </header>
+
+    <div class="maker-layout">
+      <aside class="preview-panel" aria-label="아바타 미리보기">
+        <div class="panel-kicker">Native 128px · 2x review</div>
+        <div id="preview-stage" class="preview-stage"></div>
+        <div class="selection-line">
+          <span class="selection-label">정체성</span>
+          <span id="identity-value" class="selection-value"></span>
+        </div>
+        <div class="selection-line">
+          <span class="selection-label">스타일</span>
+          <span id="role-value" class="selection-value"></span>
+        </div>
+        <div class="selection-line">
+          <span class="selection-label">소품</span>
+          <span id="attachment-value" class="selection-value"></span>
+        </div>
+        <p id="preview-status" class="preview-status" aria-live="polite"></p>
+      </aside>
+
+      <section class="editor-panel" aria-label="아바타 옵션">
+        <nav class="step-nav" aria-label="만들기 단계">
+          <button class="step-button" data-step="identity" type="button" role="tab">1. 정체성</button>
+          <button class="step-button" data-step="role" type="button" role="tab">2. 스타일</button>
+          <button class="step-button" data-step="attachment" type="button" role="tab">3. 소품</button>
+        </nav>
+
+        <div class="editor-body">
+          <div class="editor-heading">
+            <h2 id="step-heading"></h2>
+            <span id="result-count" class="result-count"></span>
+          </div>
+          <p id="attachment-note" class="attachment-note" hidden>소품은 최대 4개까지 동시에 선택할 수 있습니다.</p>
+          <div class="filters">
+            <label class="control-label" for="option-search">
+              검색
+              <input id="option-search" class="control-input" type="search" placeholder="chef, wizard, cat…" autocomplete="off">
+            </label>
+            <label class="control-label" for="option-filter">
+              유형
+              <select id="option-filter" class="control-select"></select>
+            </label>
+          </div>
+          <div id="option-grid" class="option-grid"></div>
+          <div class="pagination">
+            <button id="previous-button" class="action-button" type="button">이전</button>
+            <span id="page-label" class="page-label"></span>
+            <button id="next-button" class="action-button" type="button">다음</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const AVATARS = [{"assetId":"avatars/agriculture/agronomist","group":"agriculture","index":0,"kind":"job","label":"Agronomist"},{"assetId":"avatars/agriculture/beekeeper","group":"agriculture","index":1,"kind":"job","label":"Beekeeper"},{"assetId":"avatars/agriculture/farmer","group":"agriculture","index":2,"kind":"job","label":"Farmer"},{"assetId":"avatars/agriculture/fisher","group":"agriculture","index":3,"kind":"job","label":"Fisher"},{"assetId":"avatars/agriculture/fishmonger","group":"agriculture","index":4,"kind":"job","label":"Fishmonger"},{"assetId":"avatars/agriculture/forester","group":"agriculture","index":5,"kind":"job","label":"Forester"},{"assetId":"avatars/agriculture/gardener","group":"agriculture","index":6,"kind":"job","label":"Gardener"},{"assetId":"avatars/agriculture/hunter","group":"agriculture","index":7,"kind":"job","label":"Hunter"},{"assetId":"avatars/agriculture/lumberjack","group":"agriculture","index":8,"kind":"job","label":"Lumberjack"},{"assetId":"avatars/agriculture/miner","group":"agriculture","index":9,"kind":"job","label":"Miner"},{"assetId":"avatars/agriculture/rancher","group":"agriculture","index":10,"kind":"job","label":"Rancher"},{"assetId":"avatars/agriculture/shepherd","group":"agriculture","index":11,"kind":"job","label":"Shepherd"},{"assetId":"avatars/agriculture/vintner","group":"agriculture","index":12,"kind":"job","label":"Vintner"},{"assetId":"avatars/animals/bear","group":"animals","index":13,"kind":"animal","label":"Bear"},{"assetId":"avatars/animals/bird","group":"animals","index":14,"kind":"animal","label":"Bird"},{"assetId":"avatars/animals/cat","group":"animals","index":15,"kind":"animal","label":"Cat"},{"assetId":"avatars/animals/cat2","group":"animals","index":16,"kind":"animal","label":"Black cat"},{"assetId":"avatars/animals/cow","group":"animals","index":17,"kind":"animal","label":"Cow"},{"assetId":"avatars/animals/deer","group":"animals","index":18,"kind":"animal","label":"Deer"},{"assetId":"avatars/animals/dog","group":"animals","index":19,"kind":"animal","label":"Dog"},{"assetId":"avatars/animals/dragon","group":"animals","index":20,"kind":"animal","label":"Dragon"},{"assetId":"avatars/animals/fox","group":"animals","index":21,"kind":"animal","label":"Fox"},{"assetId":"avatars/animals/frog","group":"animals","index":22,"kind":"animal","label":"Frog"},{"assetId":"avatars/animals/hamster","group":"animals","index":23,"kind":"animal","label":"Hamster"},{"assetId":"avatars/animals/koala","group":"animals","index":24,"kind":"animal","label":"Koala"},{"assetId":"avatars/animals/lion","group":"animals","index":25,"kind":"animal","label":"Lion"},{"assetId":"avatars/animals/monkey","group":"animals","index":26,"kind":"animal","label":"Monkey"},{"assetId":"avatars/animals/mouse","group":"animals","index":27,"kind":"animal","label":"Mouse"},{"assetId":"avatars/animals/owl","group":"animals","index":28,"kind":"animal","label":"Owl"},{"assetId":"avatars/animals/panda","group":"animals","index":29,"kind":"animal","label":"Panda"},{"assetId":"avatars/animals/penguin","group":"animals","index":30,"kind":"animal","label":"Penguin"},{"assetId":"avatars/animals/pig","group":"animals","index":31,"kind":"animal","label":"Pig"},{"assetId":"avatars/animals/rabbit","group":"animals","index":32,"kind":"animal","label":"Rabbit"},{"assetId":"avatars/animals/raccoon","group":"animals","index":33,"kind":"animal","label":"Raccoon"},{"assetId":"avatars/animals/sheep","group":"animals","index":34,"kind":"animal","label":"Sheep"},{"assetId":"avatars/animals/tiger","group":"animals","index":35,"kind":"animal","label":"Tiger"},{"assetId":"avatars/animals/turtle","group":"animals","index":36,"kind":"animal","label":"Turtle"},{"assetId":"avatars/animals/unicorn","group":"animals","index":37,"kind":"animal","label":"Unicorn"},{"assetId":"avatars/animals/wolf","group":"animals","index":38,"kind":"animal","label":"Wolf"},{"assetId":"avatars/art/actor","group":"art","index":39,"kind":"job","label":"Actor"},{"assetId":"avatars/art/animator","group":"art","index":40,"kind":"job","label":"Animator"},{"assetId":"avatars/art/artist","group":"art","index":41,"kind":"job","label":"Artist"},{"assetId":"avatars/art/dancer","group":"art","index":42,"kind":"job","label":"Dancer"},{"assetId":"avatars/art/dj","group":"art","index":43,"kind":"job","label":"DJ"},{"assetId":"avatars/art/filmmaker","group":"art","index":44,"kind":"job","label":"Filmmaker"},{"assetId":"avatars/art/illustrator","group":"art","index":45,"kind":"job","label":"Illustrator"},{"assetId":"avatars/art/musician","group":"art","index":46,"kind":"job","label":"Musician"},{"assetId":"avatars/art/photographer","group":"art","index":47,"kind":"job","label":"Photographer"},{"assetId":"avatars/art/sculptor","group":"art","index":48,"kind":"job","label":"Sculptor"},{"assetId":"avatars/art/singer","group":"art","index":49,"kind":"job","label":"Singer"},{"assetId":"avatars/art/tattooist","group":"art","index":50,"kind":"job","label":"Tattoo artist"},{"assetId":"avatars/art/writer","group":"art","index":51,"kind":"job","label":"Writer"},{"assetId":"avatars/business/accountant","group":"business","index":52,"kind":"job","label":"Accountant"},{"assetId":"avatars/business/auditor","group":"business","index":53,"kind":"job","label":"Auditor"},{"assetId":"avatars/business/banker","group":"business","index":54,"kind":"job","label":"Banker"},{"assetId":"avatars/business/ceo","group":"business","index":55,"kind":"job","label":"CEO"},{"assetId":"avatars/business/clerk","group":"business","index":56,"kind":"job","label":"Office worker"},{"assetId":"avatars/business/consultant","group":"business","index":57,"kind":"job","label":"Consultant"},{"assetId":"avatars/business/hr","group":"business","index":58,"kind":"job","label":"HR"},{"assetId":"avatars/business/judge","group":"business","index":59,"kind":"job","label":"Judge"},{"assetId":"avatars/business/lawyer","group":"business","index":60,"kind":"job","label":"Lawyer"},{"assetId":"avatars/business/marketer","group":"business","index":61,"kind":"job","label":"Marketer"},{"assetId":"avatars/business/realtor","group":"business","index":62,"kind":"job","label":"Realtor"},{"assetId":"avatars/business/receptionist","group":"business","index":63,"kind":"job","label":"Receptionist"},{"assetId":"avatars/business/salesRep","group":"business","index":64,"kind":"job","label":"Sales rep"},{"assetId":"avatars/construction/architect","group":"construction","index":65,"kind":"job","label":"Architect"},{"assetId":"avatars/construction/blacksmith","group":"construction","index":66,"kind":"job","label":"Blacksmith"},{"assetId":"avatars/construction/builder","group":"construction","index":67,"kind":"job","label":"Builder"},{"assetId":"avatars/construction/carpenter","group":"construction","index":68,"kind":"job","label":"Carpenter"},{"assetId":"avatars/construction/craneOp","group":"construction","index":69,"kind":"job","label":"Crane operator"},{"assetId":"avatars/construction/electrician","group":"construction","index":70,"kind":"job","label":"Electrician"},{"assetId":"avatars/construction/engineer","group":"construction","index":71,"kind":"job","label":"Engineer"},{"assetId":"avatars/construction/factoryWorker","group":"construction","index":72,"kind":"job","label":"Factory worker"},{"assetId":"avatars/construction/mechanic","group":"construction","index":73,"kind":"job","label":"Mechanic"},{"assetId":"avatars/construction/painterHouse","group":"construction","index":74,"kind":"job","label":"House painter"},{"assetId":"avatars/construction/plumber","group":"construction","index":75,"kind":"job","label":"Plumber"},{"assetId":"avatars/construction/surveyor","group":"construction","index":76,"kind":"job","label":"Surveyor"},{"assetId":"avatars/construction/welder","group":"construction","index":77,"kind":"job","label":"Welder"},{"assetId":"avatars/education/archaeologist","group":"education","index":78,"kind":"job","label":"Archaeologist"},{"assetId":"avatars/education/astronomer","group":"education","index":79,"kind":"job","label":"Astronomer"},{"assetId":"avatars/education/coach","group":"education","index":80,"kind":"job","label":"Coach"},{"assetId":"avatars/education/historian","group":"education","index":81,"kind":"job","label":"Historian"},{"assetId":"avatars/education/kinderTeacher","group":"education","index":82,"kind":"job","label":"Kindergarten teacher"},{"assetId":"avatars/education/librarian","group":"education","index":83,"kind":"job","label":"Librarian"},{"assetId":"avatars/education/principal","group":"education","index":84,"kind":"job","label":"Principal"},{"assetId":"avatars/education/professor","group":"education","index":85,"kind":"job","label":"Professor"},{"assetId":"avatars/education/researcher","group":"education","index":86,"kind":"job","label":"Researcher"},{"assetId":"avatars/education/scientist","group":"education","index":87,"kind":"job","label":"Scientist"},{"assetId":"avatars/education/teacher","group":"education","index":88,"kind":"job","label":"Teacher"},{"assetId":"avatars/education/translator","group":"education","index":89,"kind":"job","label":"Translator"},{"assetId":"avatars/education/tutor","group":"education","index":90,"kind":"job","label":"Tutor"},{"assetId":"avatars/family/aunt","group":"family","index":91,"kind":"role","label":"Aunt"},{"assetId":"avatars/family/cousin","group":"family","index":92,"kind":"role","label":"Cousin"},{"assetId":"avatars/family/dad","group":"family","index":93,"kind":"role","label":"Father"},{"assetId":"avatars/family/daughter","group":"family","index":94,"kind":"role","label":"Daughter"},{"assetId":"avatars/family/grandma","group":"family","index":95,"kind":"role","label":"Grandmother"},{"assetId":"avatars/family/grandpa","group":"family","index":96,"kind":"role","label":"Grandfather"},{"assetId":"avatars/family/guardian","group":"family","index":97,"kind":"role","label":"Guardian"},{"assetId":"avatars/family/inLaw","group":"family","index":98,"kind":"role","label":"In-law"},{"assetId":"avatars/family/mom","group":"family","index":99,"kind":"role","label":"Mother"},{"assetId":"avatars/family/newborn","group":"family","index":100,"kind":"role","label":"Baby"},{"assetId":"avatars/family/olderBrother","group":"family","index":101,"kind":"role","label":"Older brother"},{"assetId":"avatars/family/olderSister","group":"family","index":102,"kind":"role","label":"Older sister"},{"assetId":"avatars/family/son","group":"family","index":103,"kind":"role","label":"Son"},{"assetId":"avatars/family/spouseRole","group":"family","index":104,"kind":"role","label":"Spouse"},{"assetId":"avatars/family/uncle","group":"family","index":105,"kind":"role","label":"Uncle"},{"assetId":"avatars/family/youngerSibling","group":"family","index":106,"kind":"role","label":"Younger sibling"},{"assetId":"avatars/fantasy/alchemist","group":"fantasy","index":107,"kind":"job","label":"Alchemist"},{"assetId":"avatars/fantasy/angel","group":"fantasy","index":108,"kind":"job","label":"Angel"},{"assetId":"avatars/fantasy/astronaut","group":"fantasy","index":109,"kind":"job","label":"Astronaut"},{"assetId":"avatars/fantasy/athlete","group":"fantasy","index":110,"kind":"job","label":"Athlete"},{"assetId":"avatars/fantasy/bard","group":"fantasy","index":111,"kind":"job","label":"Bard"},{"assetId":"avatars/fantasy/cleric","group":"fantasy","index":112,"kind":"job","label":"Cleric"},{"assetId":"avatars/fantasy/clown","group":"fantasy","index":113,"kind":"job","label":"Clown"},{"assetId":"avatars/fantasy/cyborg","group":"fantasy","index":114,"kind":"job","label":"Cyborg"},{"assetId":"avatars/fantasy/demon","group":"fantasy","index":115,"kind":"job","label":"Demon"},{"assetId":"avatars/fantasy/detective","group":"fantasy","index":116,"kind":"job","label":"Detective"},{"assetId":"avatars/fantasy/druid","group":"fantasy","index":117,"kind":"job","label":"Druid"},{"assetId":"avatars/fantasy/dwarf","group":"fantasy","index":118,"kind":"job","label":"Dwarf"},{"assetId":"avatars/fantasy/elf","group":"fantasy","index":119,"kind":"job","label":"Elf"},{"assetId":"avatars/fantasy/explorer","group":"fantasy","index":120,"kind":"job","label":"Explorer"},{"assetId":"avatars/fantasy/gladiator","group":"fantasy","index":121,"kind":"job","label":"Gladiator"},{"assetId":"avatars/fantasy/king","group":"fantasy","index":122,"kind":"job","label":"King"},{"assetId":"avatars/fantasy/knight","group":"fantasy","index":123,"kind":"job","label":"Knight"},{"assetId":"avatars/fantasy/mermaid","group":"fantasy","index":124,"kind":"job","label":"Mermaid"},{"assetId":"avatars/fantasy/monk","group":"fantasy","index":125,"kind":"job","label":"Monk"},{"assetId":"avatars/fantasy/necromancer","group":"fantasy","index":126,"kind":"job","label":"Necromancer"},{"assetId":"avatars/fantasy/ninja","group":"fantasy","index":127,"kind":"job","label":"Ninja"},{"assetId":"avatars/fantasy/pirate","group":"fantasy","index":128,"kind":"job","label":"Pirate"},{"assetId":"avatars/fantasy/robotArm","group":"fantasy","index":129,"kind":"job","label":"Robot"},{"assetId":"avatars/fantasy/rogue","group":"fantasy","index":130,"kind":"job","label":"Rogue"},{"assetId":"avatars/fantasy/samurai","group":"fantasy","index":131,"kind":"job","label":"Samurai"},{"assetId":"avatars/fantasy/scholar","group":"fantasy","index":132,"kind":"job","label":"Sage"},{"assetId":"avatars/fantasy/superhero","group":"fantasy","index":133,"kind":"job","label":"Superhero"},{"assetId":"avatars/fantasy/viking","group":"fantasy","index":134,"kind":"job","label":"Viking"},{"assetId":"avatars/fantasy/wizard","group":"fantasy","index":135,"kind":"job","label":"Wizard"},{"assetId":"avatars/food/baker","group":"food","index":136,"kind":"job","label":"Baker"},{"assetId":"avatars/food/barista","group":"food","index":137,"kind":"job","label":"Barista"},{"assetId":"avatars/food/bartender","group":"food","index":138,"kind":"job","label":"Bartender"},{"assetId":"avatars/food/brewer","group":"food","index":139,"kind":"job","label":"Brewer"},{"assetId":"avatars/food/butcher","group":"food","index":140,"kind":"job","label":"Butcher"},{"assetId":"avatars/food/chef","group":"food","index":141,"kind":"job","label":"Chef"},{"assetId":"avatars/food/dishwasher","group":"food","index":142,"kind":"job","label":"Kitchen hand"},{"assetId":"avatars/food/foodTruck","group":"food","index":143,"kind":"job","label":"Food truck cook"},{"assetId":"avatars/food/nutritionist","group":"food","index":144,"kind":"job","label":"Nutritionist"},{"assetId":"avatars/food/patissier","group":"food","index":145,"kind":"job","label":"Pâtissier"},{"assetId":"avatars/food/sommelier","group":"food","index":146,"kind":"job","label":"Sommelier"},{"assetId":"avatars/food/sushiChef","group":"food","index":147,"kind":"job","label":"Sushi chef"},{"assetId":"avatars/food/waiter","group":"food","index":148,"kind":"job","label":"Waiter"},{"assetId":"avatars/it/aiEngineer","group":"it","index":149,"kind":"job","label":"AI engineer"},{"assetId":"avatars/it/dataScientist","group":"it","index":150,"kind":"job","label":"Data scientist"},{"assetId":"avatars/it/designer","group":"it","index":151,"kind":"job","label":"Designer"},{"assetId":"avatars/it/dev","group":"it","index":152,"kind":"job","label":"Developer"},{"assetId":"avatars/it/devops","group":"it","index":153,"kind":"job","label":"DevOps"},{"assetId":"avatars/it/gamer","group":"it","index":154,"kind":"job","label":"Gamer"},{"assetId":"avatars/it/pm","group":"it","index":155,"kind":"job","label":"Product manager"},{"assetId":"avatars/it/qaEngineer","group":"it","index":156,"kind":"job","label":"QA engineer"},{"assetId":"avatars/it/securityAnalyst","group":"it","index":157,"kind":"job","label":"Security analyst"},{"assetId":"avatars/it/streamer","group":"it","index":158,"kind":"job","label":"Streamer"},{"assetId":"avatars/it/sysadmin","group":"it","index":159,"kind":"job","label":"Sysadmin"},{"assetId":"avatars/it/techSupport","group":"it","index":160,"kind":"job","label":"Tech support"},{"assetId":"avatars/it/uxResearcher","group":"it","index":161,"kind":"job","label":"UX researcher"},{"assetId":"avatars/lifestage/caregiverRole","group":"lifestage","index":162,"kind":"role","label":"Carer"},{"assetId":"avatars/lifestage/expectingParent","group":"lifestage","index":163,"kind":"role","label":"Expecting parent"},{"assetId":"avatars/lifestage/hobbyist","group":"lifestage","index":164,"kind":"role","label":"Hobbyist"},{"assetId":"avatars/lifestage/jobSeeker","group":"lifestage","index":165,"kind":"role","label":"Job seeker"},{"assetId":"avatars/lifestage/newlywed","group":"lifestage","index":166,"kind":"role","label":"Newlywed"},{"assetId":"avatars/lifestage/petOwner","group":"lifestage","index":167,"kind":"role","label":"Pet owner"},{"assetId":"avatars/lifestage/retiree","group":"lifestage","index":168,"kind":"role","label":"Retiree"},{"assetId":"avatars/lifestage/student","group":"lifestage","index":169,"kind":"role","label":"Student"},{"assetId":"avatars/lifestage/traveler","group":"lifestage","index":170,"kind":"role","label":"Traveller"},{"assetId":"avatars/lifestage/volunteerRole","group":"lifestage","index":171,"kind":"role","label":"Volunteer"},{"assetId":"avatars/medical/caregiver","group":"medical","index":172,"kind":"job","label":"Caregiver"},{"assetId":"avatars/medical/dentist","group":"medical","index":173,"kind":"job","label":"Dentist"},{"assetId":"avatars/medical/doctor","group":"medical","index":174,"kind":"job","label":"Doctor"},{"assetId":"avatars/medical/midwife","group":"medical","index":175,"kind":"job","label":"Midwife"},{"assetId":"avatars/medical/nurse","group":"medical","index":176,"kind":"job","label":"Nurse"},{"assetId":"avatars/medical/optometrist","group":"medical","index":177,"kind":"job","label":"Optometrist"},{"assetId":"avatars/medical/paramedic","group":"medical","index":178,"kind":"job","label":"Paramedic"},{"assetId":"avatars/medical/pharmacist","group":"medical","index":179,"kind":"job","label":"Pharmacist"},{"assetId":"avatars/medical/psychiatrist","group":"medical","index":180,"kind":"job","label":"Psychiatrist"},{"assetId":"avatars/medical/radiologist","group":"medical","index":181,"kind":"job","label":"Radiologist"},{"assetId":"avatars/medical/surgeon","group":"medical","index":182,"kind":"job","label":"Surgeon"},{"assetId":"avatars/medical/therapist","group":"medical","index":183,"kind":"job","label":"Therapist"},{"assetId":"avatars/medical/vet","group":"medical","index":184,"kind":"job","label":"Veterinarian"},{"assetId":"avatars/presets/basicChild","group":"presets","index":185,"kind":"preset","label":"Default child"},{"assetId":"avatars/presets/basicElder","group":"presets","index":186,"kind":"preset","label":"Default elder"},{"assetId":"avatars/presets/basicGlasses","group":"presets","index":187,"kind":"preset","label":"Default glasses"},{"assetId":"avatars/presets/basicHat","group":"presets","index":188,"kind":"preset","label":"Default cap"},{"assetId":"avatars/presets/basicLong","group":"presets","index":189,"kind":"preset","label":"Default long"},{"assetId":"avatars/presets/basicNeutral","group":"presets","index":190,"kind":"preset","label":"Default neutral"},{"assetId":"avatars/presets/basicShort","group":"presets","index":191,"kind":"preset","label":"Default short"},{"assetId":"avatars/presets/basicSilhouette","group":"presets","index":192,"kind":"preset","label":"Default silhouette"},{"assetId":"avatars/presets/beardMan","group":"presets","index":193,"kind":"preset","label":"Bearded"},{"assetId":"avatars/presets/bunAcc","group":"presets","index":194,"kind":"preset","label":"Bun + band"},{"assetId":"avatars/presets/capPerson","group":"presets","index":195,"kind":"preset","label":"Capped"},{"assetId":"avatars/presets/catEars","group":"presets","index":196,"kind":"preset","label":"Cat ears"},{"assetId":"avatars/presets/elderFace","group":"presets","index":197,"kind":"preset","label":"Elder"},{"assetId":"avatars/presets/glasses","group":"presets","index":198,"kind":"preset","label":"Glasses"},{"assetId":"avatars/presets/hoodie","group":"presets","index":199,"kind":"preset","label":"Hooded"},{"assetId":"avatars/presets/kidFace","group":"presets","index":200,"kind":"preset","label":"Child"},{"assetId":"avatars/presets/longHair","group":"presets","index":201,"kind":"preset","label":"Long hair"},{"assetId":"avatars/presets/plain","group":"presets","index":202,"kind":"preset","label":"Plain"},{"assetId":"avatars/presets/sleepy","group":"presets","index":203,"kind":"preset","label":"Sleepy"},{"assetId":"avatars/presets/smiling","group":"presets","index":204,"kind":"preset","label":"Smiling"},{"assetId":"avatars/safety/coastGuard","group":"safety","index":205,"kind":"job","label":"Coast guard"},{"assetId":"avatars/safety/customs","group":"safety","index":206,"kind":"job","label":"Customs officer"},{"assetId":"avatars/safety/dispatcher","group":"safety","index":207,"kind":"job","label":"Dispatcher"},{"assetId":"avatars/safety/emt","group":"safety","index":208,"kind":"job","label":"EMT"},{"assetId":"avatars/safety/firefighter","group":"safety","index":209,"kind":"job","label":"Firefighter"},{"assetId":"avatars/safety/inspector","group":"safety","index":210,"kind":"job","label":"Inspector"},{"assetId":"avatars/safety/lifeguard","group":"safety","index":211,"kind":"job","label":"Lifeguard"},{"assetId":"avatars/safety/police","group":"safety","index":212,"kind":"job","label":"Police"},{"assetId":"avatars/safety/ranger","group":"safety","index":213,"kind":"job","label":"Park ranger"},{"assetId":"avatars/safety/rescueWorker","group":"safety","index":214,"kind":"job","label":"Rescue worker"},{"assetId":"avatars/safety/securityGuard","group":"safety","index":215,"kind":"job","label":"Security guard"},{"assetId":"avatars/safety/sheriff","group":"safety","index":216,"kind":"job","label":"Sheriff"},{"assetId":"avatars/safety/soldier","group":"safety","index":217,"kind":"job","label":"Soldier"},{"assetId":"avatars/service/barber","group":"service","index":218,"kind":"job","label":"Barber"},{"assetId":"avatars/service/cleaner","group":"service","index":219,"kind":"job","label":"Cleaner"},{"assetId":"avatars/service/courier","group":"service","index":220,"kind":"job","label":"Courier"},{"assetId":"avatars/service/florist","group":"service","index":221,"kind":"job","label":"Florist"},{"assetId":"avatars/service/hairstylist","group":"service","index":222,"kind":"job","label":"Hairstylist"},{"assetId":"avatars/service/hotelStaff","group":"service","index":223,"kind":"job","label":"Hotel staff"},{"assetId":"avatars/service/launderer","group":"service","index":224,"kind":"job","label":"Launderer"},{"assetId":"avatars/service/makeupArtist","group":"service","index":225,"kind":"job","label":"Make-up artist"},{"assetId":"avatars/service/masseur","group":"service","index":226,"kind":"job","label":"Masseur"},{"assetId":"avatars/service/nailArtist","group":"service","index":227,"kind":"job","label":"Nail artist"},{"assetId":"avatars/service/petGroomer","group":"service","index":228,"kind":"job","label":"Pet groomer"},{"assetId":"avatars/service/shopkeeper","group":"service","index":229,"kind":"job","label":"Shopkeeper"},{"assetId":"avatars/service/tailor","group":"service","index":230,"kind":"job","label":"Tailor"},{"assetId":"avatars/social/acquaintance","group":"social","index":231,"kind":"role","label":"Acquaintance"},{"assetId":"avatars/social/bestie","group":"social","index":232,"kind":"role","label":"Best friend"},{"assetId":"avatars/social/classmate","group":"social","index":233,"kind":"role","label":"Classmate"},{"assetId":"avatars/social/fanRole","group":"social","index":234,"kind":"role","label":"Fan"},{"assetId":"avatars/social/friend","group":"social","index":235,"kind":"role","label":"Friend"},{"assetId":"avatars/social/guestRole","group":"social","index":236,"kind":"role","label":"Guest"},{"assetId":"avatars/social/hostRole","group":"social","index":237,"kind":"role","label":"Host"},{"assetId":"avatars/social/junior","group":"social","index":238,"kind":"role","label":"Junior (후배)"},{"assetId":"avatars/social/menteeRole","group":"social","index":239,"kind":"role","label":"Mentee"},{"assetId":"avatars/social/neighbor","group":"social","index":240,"kind":"role","label":"Neighbour"},{"assetId":"avatars/social/partnerRole","group":"social","index":241,"kind":"role","label":"Partner"},{"assetId":"avatars/social/rival","group":"social","index":242,"kind":"role","label":"Rival"},{"assetId":"avatars/social/roommate","group":"social","index":243,"kind":"role","label":"Roommate"},{"assetId":"avatars/social/senior","group":"social","index":244,"kind":"role","label":"Senior (선배)"},{"assetId":"avatars/social/stranger","group":"social","index":245,"kind":"role","label":"Stranger"},{"assetId":"avatars/social/teammateRole","group":"social","index":246,"kind":"role","label":"Teammate"},{"assetId":"avatars/transport/atc","group":"transport","index":247,"kind":"job","label":"Air traffic controller"},{"assetId":"avatars/transport/busDriver","group":"transport","index":248,"kind":"job","label":"Bus driver"},{"assetId":"avatars/transport/captain","group":"transport","index":249,"kind":"job","label":"Captain"},{"assetId":"avatars/transport/conductor","group":"transport","index":250,"kind":"job","label":"Train conductor"},{"assetId":"avatars/transport/dockWorker","group":"transport","index":251,"kind":"job","label":"Dock worker"},{"assetId":"avatars/transport/driver","group":"transport","index":252,"kind":"job","label":"Driver"},{"assetId":"avatars/transport/flightAttendant","group":"transport","index":253,"kind":"job","label":"Flight attendant"},{"assetId":"avatars/transport/forkliftOp","group":"transport","index":254,"kind":"job","label":"Forklift operator"},{"assetId":"avatars/transport/pilot","group":"transport","index":255,"kind":"job","label":"Pilot"},{"assetId":"avatars/transport/rider","group":"transport","index":256,"kind":"job","label":"Delivery rider"},{"assetId":"avatars/transport/sailor","group":"transport","index":257,"kind":"job","label":"Sailor"},{"assetId":"avatars/transport/taxiDriver","group":"transport","index":258,"kind":"job","label":"Taxi driver"},{"assetId":"avatars/transport/warehouseWorker","group":"transport","index":259,"kind":"job","label":"Warehouse worker"},{"assetId":"avatars/workplace/advisor","group":"workplace","index":260,"kind":"role","label":"Advisor"},{"assetId":"avatars/workplace/boss","group":"workplace","index":261,"kind":"role","label":"Boss"},{"assetId":"avatars/workplace/client","group":"workplace","index":262,"kind":"role","label":"Client"},{"assetId":"avatars/workplace/coworker","group":"workplace","index":263,"kind":"role","label":"Coworker"},{"assetId":"avatars/workplace/freelancer","group":"workplace","index":264,"kind":"role","label":"Freelancer"},{"assetId":"avatars/workplace/intern","group":"workplace","index":265,"kind":"role","label":"Intern"},{"assetId":"avatars/workplace/newHire","group":"workplace","index":266,"kind":"role","label":"New hire"},{"assetId":"avatars/workplace/recruiter","group":"workplace","index":267,"kind":"role","label":"Recruiter"},{"assetId":"avatars/workplace/teamLead","group":"workplace","index":268,"kind":"role","label":"Team lead"},{"assetId":"avatars/workplace/veteranRole","group":"workplace","index":269,"kind":"role","label":"Veteran"}];
+      const ATTACHMENTS = [{"assetId":"icons/abacus","index":0,"label":"abacus","role":"prop","slot":"side_right","z":80},{"assetId":"icons/alarm","index":1,"label":"alarm","role":"prop","slot":"side_right","z":80},{"assetId":"icons/ambulance","index":2,"label":"ambulance","role":"prop","slot":"foreground","z":90},{"assetId":"icons/anchor","index":3,"label":"anchor","role":"prop","slot":"side_right","z":80},{"assetId":"icons/anvil","index":4,"label":"anvil","role":"prop","slot":"side_right","z":80},{"assetId":"icons/apple","index":5,"label":"apple","role":"prop","slot":"side_right","z":80},{"assetId":"icons/atm","index":6,"label":"atm","role":"prop","slot":"side_right","z":80},{"assetId":"icons/axe","index":7,"label":"axe","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/axeBattle","index":8,"label":"axeBattle","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/backpack","index":9,"label":"backpack","role":"accessory","slot":"back","z":10},{"assetId":"icons/badge","index":10,"label":"badge","role":"badge","slot":"chest","z":75},{"assetId":"icons/bag","index":11,"label":"bag","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bandage","index":12,"label":"bandage","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bank","index":13,"label":"bank","role":"prop","slot":"side_right","z":80},{"assetId":"icons/banknote","index":14,"label":"banknote","role":"prop","slot":"side_right","z":80},{"assetId":"icons/basket","index":15,"label":"basket","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bath","index":16,"label":"bath","role":"prop","slot":"side_right","z":80},{"assetId":"icons/battery","index":17,"label":"battery","role":"prop","slot":"side_right","z":80},{"assetId":"icons/beachDay","index":18,"label":"beachDay","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bed","index":19,"label":"bed","role":"prop","slot":"foreground","z":90},{"assetId":"icons/beehive","index":20,"label":"beehive","role":"prop","slot":"side_right","z":80},{"assetId":"icons/beer","index":21,"label":"beer","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bellDesk","index":22,"label":"bellDesk","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bill","index":23,"label":"bill","role":"prop","slot":"side_right","z":80},{"assetId":"icons/blackboard","index":24,"label":"blackboard","role":"prop","slot":"foreground","z":90},{"assetId":"icons/blueprint","index":25,"label":"blueprint","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/bolt","index":26,"label":"bolt","role":"prop","slot":"side_right","z":80},{"assetId":"icons/book","index":27,"label":"book","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/bottle","index":28,"label":"bottle","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bow","index":29,"label":"bow","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/bowl","index":30,"label":"bowl","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bread","index":31,"label":"bread","role":"prop","slot":"side_right","z":80},{"assetId":"icons/brick","index":32,"label":"brick","role":"prop","slot":"side_right","z":80},{"assetId":"icons/briefcase","index":33,"label":"briefcase","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/broom","index":34,"label":"broom","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/brush","index":35,"label":"brush","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/building","index":36,"label":"building","role":"prop","slot":"foreground","z":90},{"assetId":"icons/bulb","index":37,"label":"bulb","role":"prop","slot":"side_right","z":80},{"assetId":"icons/bus","index":38,"label":"bus","role":"prop","slot":"foreground","z":90},{"assetId":"icons/cake","index":39,"label":"cake","role":"prop","slot":"side_right","z":80},{"assetId":"icons/calculator","index":40,"label":"calculator","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/calligraphy","index":41,"label":"calligraphy","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/camera","index":42,"label":"camera","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/campfire","index":43,"label":"campfire","role":"prop","slot":"side_right","z":80},{"assetId":"icons/candle","index":44,"label":"candle","role":"prop","slot":"side_right","z":80},{"assetId":"icons/carrot","index":45,"label":"carrot","role":"prop","slot":"side_right","z":80},{"assetId":"icons/cart","index":46,"label":"cart","role":"prop","slot":"side_right","z":80},{"assetId":"icons/certificate","index":47,"label":"certificate","role":"badge","slot":"chest","z":75},{"assetId":"icons/chalk","index":48,"label":"chalk","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/chest","index":49,"label":"chest","role":"prop","slot":"side_right","z":80},{"assetId":"icons/chicken","index":50,"label":"chicken","role":"prop","slot":"side_right","z":80},{"assetId":"icons/chip","index":51,"label":"chip","role":"prop","slot":"side_right","z":80},{"assetId":"icons/chopsticks","index":52,"label":"chopsticks","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/clapper","index":53,"label":"clapper","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/clipboard","index":54,"label":"clipboard","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/coffee","index":55,"label":"coffee","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/coin","index":56,"label":"coin","role":"prop","slot":"side_right","z":80},{"assetId":"icons/coins","index":57,"label":"coins","role":"prop","slot":"side_right","z":80},{"assetId":"icons/comb","index":58,"label":"comb","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/compass","index":59,"label":"compass","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/cone","index":60,"label":"cone","role":"prop","slot":"side_right","z":80},{"assetId":"icons/contract","index":61,"label":"contract","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/coupon","index":62,"label":"coupon","role":"prop","slot":"side_right","z":80},{"assetId":"icons/crane","index":63,"label":"crane","role":"prop","slot":"foreground","z":90},{"assetId":"icons/creditCard","index":64,"label":"creditCard","role":"prop","slot":"side_right","z":80},{"assetId":"icons/crown","index":65,"label":"crown","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/crutch","index":66,"label":"crutch","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/cutlery","index":67,"label":"cutlery","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/dagger","index":68,"label":"dagger","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/desktop","index":69,"label":"desktop","role":"prop","slot":"side_right","z":80},{"assetId":"icons/dice","index":70,"label":"dice","role":"prop","slot":"side_right","z":80},{"assetId":"icons/dna","index":71,"label":"dna","role":"prop","slot":"side_right","z":80},{"assetId":"icons/drill","index":72,"label":"drill","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/drone","index":73,"label":"drone","role":"prop","slot":"side_right","z":80},{"assetId":"icons/dumbbell","index":74,"label":"dumbbell","role":"prop","slot":"side_right","z":80},{"assetId":"icons/egg","index":75,"label":"egg","role":"prop","slot":"side_right","z":80},{"assetId":"icons/error","index":76,"label":"error","role":"badge","slot":"chest","z":75},{"assetId":"icons/extinguisher","index":77,"label":"extinguisher","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/factory","index":78,"label":"factory","role":"prop","slot":"foreground","z":90},{"assetId":"icons/film","index":79,"label":"film","role":"prop","slot":"side_right","z":80},{"assetId":"icons/fire","index":80,"label":"fire","role":"prop","slot":"side_right","z":80},{"assetId":"icons/fireHelmet","index":81,"label":"fireHelmet","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/fish","index":82,"label":"fish","role":"prop","slot":"side_right","z":80},{"assetId":"icons/fishing","index":83,"label":"fishing","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/flag","index":84,"label":"flag","role":"badge","slot":"chest","z":75},{"assetId":"icons/flask","index":85,"label":"flask","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/flower","index":86,"label":"flower","role":"prop","slot":"side_right","z":80},{"assetId":"icons/forklift","index":87,"label":"forklift","role":"prop","slot":"foreground","z":90},{"assetId":"icons/gamepad","index":88,"label":"gamepad","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/gasPump","index":89,"label":"gasPump","role":"prop","slot":"side_right","z":80},{"assetId":"icons/gavel","index":90,"label":"gavel","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/gem","index":91,"label":"gem","role":"prop","slot":"side_right","z":80},{"assetId":"icons/ghost","index":92,"label":"ghost","role":"prop","slot":"side_right","z":80},{"assetId":"icons/gift","index":93,"label":"gift","role":"prop","slot":"side_right","z":80},{"assetId":"icons/globe","index":94,"label":"globe","role":"prop","slot":"side_right","z":80},{"assetId":"icons/gradcap","index":95,"label":"gradcap","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/greenhouse","index":96,"label":"greenhouse","role":"prop","slot":"foreground","z":90},{"assetId":"icons/grill","index":97,"label":"grill","role":"prop","slot":"side_right","z":80},{"assetId":"icons/guitar","index":98,"label":"guitar","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/hairdryer","index":99,"label":"hairdryer","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/hammer","index":100,"label":"hammer","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/hammock","index":101,"label":"hammock","role":"prop","slot":"side_right","z":80},{"assetId":"icons/handcuffs","index":102,"label":"handcuffs","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/hardhat","index":103,"label":"hardhat","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/hdd","index":104,"label":"hdd","role":"prop","slot":"side_right","z":80},{"assetId":"icons/headphones","index":105,"label":"headphones","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/headset","index":106,"label":"headset","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/heart","index":107,"label":"heart","role":"badge","slot":"chest","z":75},{"assetId":"icons/helicopter","index":108,"label":"helicopter","role":"prop","slot":"foreground","z":90},{"assetId":"icons/helmet","index":109,"label":"helmet","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/helmetArmy","index":110,"label":"helmetArmy","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/help","index":111,"label":"help","role":"badge","slot":"chest","z":75},{"assetId":"icons/honey","index":112,"label":"honey","role":"prop","slot":"side_right","z":80},{"assetId":"icons/hospital","index":113,"label":"hospital","role":"prop","slot":"foreground","z":90},{"assetId":"icons/hourglass","index":114,"label":"hourglass","role":"prop","slot":"side_right","z":80},{"assetId":"icons/iceCream","index":115,"label":"iceCream","role":"prop","slot":"side_right","z":80},{"assetId":"icons/idBadge","index":116,"label":"idBadge","role":"badge","slot":"chest","z":75},{"assetId":"icons/idCard","index":117,"label":"idCard","role":"badge","slot":"chest","z":75},{"assetId":"icons/info","index":118,"label":"info","role":"badge","slot":"chest","z":75},{"assetId":"icons/iron","index":119,"label":"iron","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/ivDrip","index":120,"label":"ivDrip","role":"prop","slot":"side_right","z":80},{"assetId":"icons/journal","index":121,"label":"journal","role":"prop","slot":"side_right","z":80},{"assetId":"icons/keyCard","index":122,"label":"keyCard","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/keyboard","index":123,"label":"keyboard","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/knife","index":124,"label":"knife","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/ladder","index":125,"label":"ladder","role":"prop","slot":"side_right","z":80},{"assetId":"icons/laptop","index":126,"label":"laptop","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/ledger","index":127,"label":"ledger","role":"prop","slot":"side_right","z":80},{"assetId":"icons/level","index":128,"label":"level","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/lifeRing","index":129,"label":"lifeRing","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/lipstick","index":130,"label":"lipstick","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/logCut","index":131,"label":"logCut","role":"prop","slot":"side_right","z":80},{"assetId":"icons/lotus","index":132,"label":"lotus","role":"prop","slot":"side_right","z":80},{"assetId":"icons/lungs","index":133,"label":"lungs","role":"prop","slot":"side_right","z":80},{"assetId":"icons/lute","index":134,"label":"lute","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/map","index":135,"label":"map","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/massage","index":136,"label":"massage","role":"prop","slot":"side_right","z":80},{"assetId":"icons/medMask","index":137,"label":"medMask","role":"accessory","slot":"face","z":75},{"assetId":"icons/medal","index":138,"label":"medal","role":"badge","slot":"chest","z":75},{"assetId":"icons/medkit","index":139,"label":"medkit","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/megaphone","index":140,"label":"megaphone","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/mic","index":141,"label":"mic","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/microscope","index":142,"label":"microscope","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/milkCan","index":143,"label":"milkCan","role":"prop","slot":"side_right","z":80},{"assetId":"icons/mirror","index":144,"label":"mirror","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/moneyBag","index":145,"label":"moneyBag","role":"prop","slot":"side_right","z":80},{"assetId":"icons/mortar","index":146,"label":"mortar","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/mountain","index":147,"label":"mountain","role":"prop","slot":"side_right","z":80},{"assetId":"icons/mouse","index":148,"label":"mouse","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/nailGun","index":149,"label":"nailGun","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/nailPolish","index":150,"label":"nailPolish","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/needle","index":151,"label":"needle","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/net","index":152,"label":"net","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/note","index":153,"label":"note","role":"prop","slot":"side_right","z":80},{"assetId":"icons/package","index":154,"label":"package","role":"prop","slot":"side_right","z":80},{"assetId":"icons/paintRoller","index":155,"label":"paintRoller","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/palette","index":156,"label":"palette","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/pan","index":157,"label":"pan","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/paw","index":158,"label":"paw","role":"prop","slot":"side_right","z":80},{"assetId":"icons/pen","index":159,"label":"pen","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/pencil","index":160,"label":"pencil","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/perfume","index":161,"label":"perfume","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/phone","index":162,"label":"phone","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/piano","index":163,"label":"piano","role":"prop","slot":"side_right","z":80},{"assetId":"icons/piggy","index":164,"label":"piggy","role":"prop","slot":"side_right","z":80},{"assetId":"icons/pill","index":165,"label":"pill","role":"prop","slot":"side_right","z":80},{"assetId":"icons/plane","index":166,"label":"plane","role":"prop","slot":"foreground","z":90},{"assetId":"icons/plantPot","index":167,"label":"plantPot","role":"prop","slot":"side_right","z":80},{"assetId":"icons/popcorn","index":168,"label":"popcorn","role":"prop","slot":"side_right","z":80},{"assetId":"icons/portal","index":169,"label":"portal","role":"prop","slot":"side_right","z":80},{"assetId":"icons/portfolio","index":170,"label":"portfolio","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/potion","index":171,"label":"potion","role":"prop","slot":"side_right","z":80},{"assetId":"icons/pottery","index":172,"label":"pottery","role":"prop","slot":"side_right","z":80},{"assetId":"icons/prescription","index":173,"label":"prescription","role":"prop","slot":"side_right","z":80},{"assetId":"icons/presentation","index":174,"label":"presentation","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/printer","index":175,"label":"printer","role":"prop","slot":"side_right","z":80},{"assetId":"icons/radar","index":176,"label":"radar","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/rainbow","index":177,"label":"rainbow","role":"prop","slot":"side_right","z":80},{"assetId":"icons/ramen","index":178,"label":"ramen","role":"prop","slot":"side_right","z":80},{"assetId":"icons/razor","index":179,"label":"razor","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/receipt","index":180,"label":"receipt","role":"prop","slot":"side_right","z":80},{"assetId":"icons/register","index":181,"label":"register","role":"prop","slot":"side_right","z":80},{"assetId":"icons/resume","index":182,"label":"resume","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/ring","index":183,"label":"ring","role":"accessory","slot":"wrist_right","z":80},{"assetId":"icons/road","index":184,"label":"road","role":"prop","slot":"side_right","z":80},{"assetId":"icons/robot","index":185,"label":"robot","role":"prop","slot":"side_right","z":80},{"assetId":"icons/rocket","index":186,"label":"rocket","role":"prop","slot":"side_right","z":80},{"assetId":"icons/rollingPin","index":187,"label":"rollingPin","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/route","index":188,"label":"route","role":"prop","slot":"side_right","z":80},{"assetId":"icons/ruler","index":189,"label":"ruler","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/rune","index":190,"label":"rune","role":"prop","slot":"side_right","z":80},{"assetId":"icons/saw","index":191,"label":"saw","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/scaleWeight","index":192,"label":"scaleWeight","role":"prop","slot":"side_right","z":80},{"assetId":"icons/scalpel","index":193,"label":"scalpel","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/scissors","index":194,"label":"scissors","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/screwdriver","index":195,"label":"screwdriver","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/scroll","index":196,"label":"scroll","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/sdCard","index":197,"label":"sdCard","role":"prop","slot":"side_right","z":80},{"assetId":"icons/seed","index":198,"label":"seed","role":"prop","slot":"side_right","z":80},{"assetId":"icons/server","index":199,"label":"server","role":"prop","slot":"side_right","z":80},{"assetId":"icons/sewing","index":200,"label":"sewing","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/sheep","index":201,"label":"sheep","role":"prop","slot":"side_right","z":80},{"assetId":"icons/shieldKite","index":202,"label":"shieldKite","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/ship","index":203,"label":"ship","role":"prop","slot":"foreground","z":90},{"assetId":"icons/shoe","index":204,"label":"shoe","role":"accessory","slot":"feet","z":80},{"assetId":"icons/shovel","index":205,"label":"shovel","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/signpost","index":206,"label":"signpost","role":"prop","slot":"side_right","z":80},{"assetId":"icons/siren","index":207,"label":"siren","role":"prop","slot":"side_right","z":80},{"assetId":"icons/skillBadge","index":208,"label":"skillBadge","role":"badge","slot":"chest","z":75},{"assetId":"icons/skull","index":209,"label":"skull","role":"prop","slot":"side_right","z":80},{"assetId":"icons/sofa","index":210,"label":"sofa","role":"prop","slot":"foreground","z":90},{"assetId":"icons/speaker","index":211,"label":"speaker","role":"prop","slot":"side_right","z":80},{"assetId":"icons/spellbook","index":212,"label":"spellbook","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/spray","index":213,"label":"spray","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/sprout","index":214,"label":"sprout","role":"prop","slot":"side_right","z":80},{"assetId":"icons/staff","index":215,"label":"staff","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/stairs","index":216,"label":"stairs","role":"prop","slot":"side_right","z":80},{"assetId":"icons/stamp","index":217,"label":"stamp","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/star","index":218,"label":"star","role":"badge","slot":"chest","z":75},{"assetId":"icons/steering","index":219,"label":"steering","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/stethoscope","index":220,"label":"stethoscope","role":"accessory","slot":"neck","z":75},{"assetId":"icons/store","index":221,"label":"store","role":"prop","slot":"foreground","z":90},{"assetId":"icons/success","index":222,"label":"success","role":"badge","slot":"chest","z":75},{"assetId":"icons/sushi","index":223,"label":"sushi","role":"prop","slot":"side_right","z":80},{"assetId":"icons/sword","index":224,"label":"sword","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/syringe","index":225,"label":"syringe","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tablet","index":226,"label":"tablet","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tattooGun","index":227,"label":"tattooGun","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/taxi","index":228,"label":"taxi","role":"prop","slot":"foreground","z":90},{"assetId":"icons/tea","index":229,"label":"tea","role":"prop","slot":"side_right","z":80},{"assetId":"icons/telescope","index":230,"label":"telescope","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tent","index":231,"label":"tent","role":"prop","slot":"foreground","z":90},{"assetId":"icons/thermometer","index":232,"label":"thermometer","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tie","index":233,"label":"tie","role":"accessory","slot":"neck","z":75},{"assetId":"icons/toolbox","index":234,"label":"toolbox","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tooth","index":235,"label":"tooth","role":"prop","slot":"side_right","z":80},{"assetId":"icons/torch","index":236,"label":"torch","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tractor","index":237,"label":"tractor","role":"prop","slot":"foreground","z":90},{"assetId":"icons/trafficLight","index":238,"label":"trafficLight","role":"prop","slot":"side_right","z":80},{"assetId":"icons/train","index":239,"label":"train","role":"prop","slot":"foreground","z":90},{"assetId":"icons/tray","index":240,"label":"tray","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/tree","index":241,"label":"tree","role":"prop","slot":"side_right","z":80},{"assetId":"icons/treeRound","index":242,"label":"treeRound","role":"prop","slot":"side_right","z":80},{"assetId":"icons/trophy","index":243,"label":"trophy","role":"badge","slot":"chest","z":75},{"assetId":"icons/truck","index":244,"label":"truck","role":"prop","slot":"foreground","z":90},{"assetId":"icons/tv","index":245,"label":"tv","role":"prop","slot":"side_right","z":80},{"assetId":"icons/umbrella","index":246,"label":"umbrella","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/usb","index":247,"label":"usb","role":"prop","slot":"side_right","z":80},{"assetId":"icons/vacuum","index":248,"label":"vacuum","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/vitamins","index":249,"label":"vitamins","role":"prop","slot":"side_right","z":80},{"assetId":"icons/vrHeadset","index":250,"label":"vrHeadset","role":"accessory","slot":"face","z":75},{"assetId":"icons/wallet","index":251,"label":"wallet","role":"prop","slot":"side_right","z":80},{"assetId":"icons/wand","index":252,"label":"wand","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/warehouse","index":253,"label":"warehouse","role":"prop","slot":"foreground","z":90},{"assetId":"icons/warn","index":254,"label":"warn","role":"badge","slot":"chest","z":75},{"assetId":"icons/washer","index":255,"label":"washer","role":"prop","slot":"side_right","z":80},{"assetId":"icons/watch","index":256,"label":"watch","role":"accessory","slot":"wrist_left","z":80},{"assetId":"icons/waterGlass","index":257,"label":"waterGlass","role":"prop","slot":"side_right","z":80},{"assetId":"icons/wateringCan","index":258,"label":"wateringCan","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/webcam","index":259,"label":"webcam","role":"prop","slot":"side_right","z":80},{"assetId":"icons/wheat","index":260,"label":"wheat","role":"prop","slot":"side_right","z":80},{"assetId":"icons/wheelchair","index":261,"label":"wheelchair","role":"prop","slot":"foreground","z":90},{"assetId":"icons/whisk","index":262,"label":"whisk","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/wine","index":263,"label":"wine","role":"prop","slot":"side_right","z":80},{"assetId":"icons/wizardHat","index":264,"label":"wizardHat","role":"accessory","slot":"headwear","z":70},{"assetId":"icons/wrench","index":265,"label":"wrench","role":"tool","slot":"hand_right","z":80},{"assetId":"icons/xray","index":266,"label":"xray","role":"prop","slot":"side_right","z":80}];
+      const PAGE_SIZE = 12;
+      const CANVAS = 128;
+      const AVATARS_PER_ATLAS = 40;
+      const AVATARS_PER_ROW = 5;
+      const AVATAR_ATLAS_WIDTH = 1920;
+      const AVATAR_ATLAS_HEIGHT = 2048;
+      const ATTACHMENT_ATLAS_WIDTH = 2048;
+      const ATTACHMENT_ATLAS_HEIGHT = 2176;
+      const LAYER_INDEX = { base: 0, hair: 1, face: 2, headwear: 3, garment: 4, extra: 5 };
+      const LAYER_Z = { base: 30, garment: 40, hair: 50, face: 60, headwear: 70, extra: 90 };
+      const KIND_LABELS = { job: "직업", role: "역할", animal: "동물", preset: "프리셋" };
+      const ROLE_LABELS = { accessory: "액세서리", badge: "배지", tool: "도구", prop: "소품" };
+
+      const state = {
+        step: "identity",
+        identityId: "avatars/presets/plain",
+        roleId: null,
+        attachmentIds: [],
+        query: "",
+        filter: "all",
+        page: 0,
+      };
+
+      const avatarById = new Map(AVATARS.map((avatar) => [avatar.assetId, avatar]));
+      const attachmentById = new Map(ATTACHMENTS.map((item) => [item.assetId, item]));
+      const previewStage = document.getElementById("preview-stage");
+      const identityValue = document.getElementById("identity-value");
+      const roleValue = document.getElementById("role-value");
+      const attachmentValue = document.getElementById("attachment-value");
+      const previewStatus = document.getElementById("preview-status");
+      const stepHeading = document.getElementById("step-heading");
+      const attachmentNote = document.getElementById("attachment-note");
+      const searchInput = document.getElementById("option-search");
+      const filterSelect = document.getElementById("option-filter");
+      const resultCount = document.getElementById("result-count");
+      const optionGrid = document.getElementById("option-grid");
+      const previousButton = document.getElementById("previous-button");
+      const nextButton = document.getElementById("next-button");
+      const pageLabel = document.getElementById("page-label");
+      const copyButton = document.getElementById("copy-button");
+      const resetButton = document.getElementById("reset-button");
+      const stepButtons = Array.from(document.querySelectorAll("[data-step]"));
+
+      function humanize(value) {
+        return String(value)
+          .replace(/([a-z])([A-Z])/g, "$1 $2")
+          .replace(/[-_]/g, " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      }
+
+      function avatarLayer(avatar, layerId, z, order) {
+        const atlasIndex = Math.floor(avatar.index / AVATARS_PER_ATLAS);
+        const local = avatar.index % AVATARS_PER_ATLAS;
+        const blockX = (local % AVATARS_PER_ROW) * 3 * CANVAS;
+        const blockY = Math.floor(local / AVATARS_PER_ROW) * 2 * CANVAS;
+        const layerIndex = LAYER_INDEX[layerId];
+        return {
+          atlasHeight: AVATAR_ATLAS_HEIGHT,
+          atlasWidth: AVATAR_ATLAS_WIDTH,
+          key: `${layerId}:${avatar.assetId}`,
+          path: `runtime/avatar-runtime-${String(atlasIndex).padStart(2, "0")}.png`,
+          x: blockX + (layerIndex % 3) * CANVAS,
+          y: blockY + Math.floor(layerIndex / 3) * CANVAS,
+          z,
+          order,
+        };
+      }
+
+      function attachmentLayer(attachment, order) {
+        return {
+          atlasHeight: ATTACHMENT_ATLAS_HEIGHT,
+          atlasWidth: ATTACHMENT_ATLAS_WIDTH,
+          key: `attachment:${attachment.assetId}`,
+          path: "icon-attachments-atlas.png",
+          x: (attachment.index % 16) * CANVAS,
+          y: Math.floor(attachment.index / 16) * CANVAS,
+          z: attachment.z,
+          order,
+        };
+      }
+
+      function compositionPlan(identity, role, attachments) {
+        const layers = [
+          avatarLayer(identity, "base", LAYER_Z.base, 0),
+          avatarLayer(role, "garment", LAYER_Z.garment, 1),
+          avatarLayer(role, "hair", LAYER_Z.hair, 2),
+          avatarLayer(identity, "face", LAYER_Z.face, 3),
+          avatarLayer(role, "headwear", LAYER_Z.headwear, 4),
+          avatarLayer(role, "extra", LAYER_Z.extra, 5),
+        ];
+        attachments.forEach((attachment, index) => {
+          layers.push(attachmentLayer(attachment, 100 + index));
+        });
+        return layers.sort((left, right) => left.z - right.z || left.order - right.order);
+      }
+
+      function flattenedPlan(avatar) {
+        return ["base", "garment", "hair", "face", "headwear", "extra"]
+          .map((layerId, order) => avatarLayer(avatar, layerId, LAYER_Z[layerId], order))
+          .sort((left, right) => left.z - right.z || left.order - right.order);
+      }
+
+      function createScene(size, plan, accessibleLabel) {
+        const scale = size / CANVAS;
+        const scene = document.createElement("div");
+        scene.className = "sprite-scene";
+        scene.style.width = `${size}px`;
+        scene.style.height = `${size}px`;
+        scene.setAttribute("role", "img");
+        scene.setAttribute("aria-label", accessibleLabel);
+        plan.forEach((descriptor) => {
+          const viewport = document.createElement("span");
+          viewport.className = "sprite-layer";
+          const image = document.createElement("img");
+          image.src = descriptor.path;
+          image.alt = "";
+          image.draggable = false;
+          image.style.width = `${descriptor.atlasWidth * scale}px`;
+          image.style.height = `${descriptor.atlasHeight * scale}px`;
+          image.style.left = `${-descriptor.x * scale}px`;
+          image.style.top = `${-descriptor.y * scale}px`;
+          viewport.append(image);
+          scene.append(viewport);
+        });
+        return scene;
+      }
+
+      function renderPreview() {
+        const identity = avatarById.get(state.identityId);
+        const role = avatarById.get(state.roleId || state.identityId);
+        const attachments = state.attachmentIds.map((id) => attachmentById.get(id));
+        previewStage.replaceChildren(
+          createScene(256, compositionPlan(identity, role, attachments), "현재 아바타 조합"),
+        );
+        identityValue.textContent = identity.assetId;
+        roleValue.textContent = state.roleId ? role.assetId : "정체성과 동일";
+        attachmentValue.textContent = attachments.length
+          ? attachments.map((item) => item.assetId.replace("icons/", "")).join(", ")
+          : "선택 없음";
+      }
+
+      function filterOptions() {
+        let items;
+        if (state.step === "attachment") {
+          items = ATTACHMENTS;
+        } else if (state.step === "role") {
+          items = [{ assetId: null, label: "정체성과 동일", kind: "same", special: true }, ...AVATARS];
+        } else {
+          items = AVATARS;
+        }
+        const query = state.query.toLocaleLowerCase("en");
+        return items.filter((item) => {
+          const category = state.step === "attachment" ? item.role : item.kind;
+          const categoryMatch = state.filter === "all" || category === state.filter;
+          const text = `${item.assetId || "same"} ${item.label || ""} ${item.group || ""}`.toLocaleLowerCase("en");
+          return categoryMatch && (!query || text.includes(query));
+        });
+      }
+
+      function isSelected(item) {
+        if (state.step === "identity") return item.assetId === state.identityId;
+        if (state.step === "role") return item.assetId === state.roleId;
+        return state.attachmentIds.includes(item.assetId);
+      }
+
+      function selectOption(item) {
+        previewStatus.textContent = "";
+        if (state.step === "identity") {
+          state.identityId = item.assetId;
+        } else if (state.step === "role") {
+          state.roleId = item.assetId;
+        } else if (state.attachmentIds.includes(item.assetId)) {
+          state.attachmentIds = state.attachmentIds.filter((id) => id !== item.assetId);
+        } else if (state.attachmentIds.length < 4) {
+          state.attachmentIds = [...state.attachmentIds, item.assetId];
+        } else {
+          previewStatus.textContent = "소품은 최대 4개까지 선택할 수 있습니다.";
+        }
+        renderPreview();
+        renderOptions();
+      }
+
+      function optionPreview(item) {
+        if (item.special) {
+          const identity = avatarById.get(state.identityId);
+          return createScene(96, flattenedPlan(identity), "정체성과 동일");
+        }
+        if (state.step === "attachment") {
+          return createScene(96, [attachmentLayer(item, 0)], `${humanize(item.label)} 소품`);
+        }
+        return createScene(96, flattenedPlan(item), `${humanize(item.label)} 아바타`);
+      }
+
+      function renderOptions() {
+        const filtered = filterOptions();
+        const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        state.page = Math.min(state.page, pageCount - 1);
+        const start = state.page * PAGE_SIZE;
+        const visible = filtered.slice(start, start + PAGE_SIZE);
+        optionGrid.replaceChildren();
+        if (!visible.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-result";
+          empty.textContent = "일치하는 옵션이 없습니다.";
+          optionGrid.append(empty);
+        }
+        visible.forEach((item) => {
+          const tile = document.createElement("button");
+          tile.type = "button";
+          tile.className = "option-tile";
+          tile.setAttribute("aria-pressed", String(isSelected(item)));
+          tile.setAttribute("aria-label", `${humanize(item.label)} 선택`);
+          const label = document.createElement("span");
+          label.className = "option-name";
+          label.textContent = humanize(item.label);
+          tile.append(optionPreview(item), label);
+          tile.addEventListener("click", () => selectOption(item));
+          optionGrid.append(tile);
+        });
+        resultCount.textContent = `${filtered.length} options`;
+        pageLabel.textContent = `${state.page + 1} / ${pageCount}`;
+        previousButton.disabled = state.page === 0;
+        nextButton.disabled = state.page >= pageCount - 1;
+      }
+
+      function filterMarkup() {
+        const options = state.step === "attachment"
+          ? [["all", "전체"], ["accessory", "액세서리"], ["badge", "배지"], ["tool", "도구"], ["prop", "소품"]]
+          : [["all", "전체"], ["job", "직업"], ["role", "역할"], ["animal", "동물"], ["preset", "프리셋"]];
+        filterSelect.replaceChildren(...options.map(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          return option;
+        }));
+        filterSelect.value = state.filter;
+      }
+
+      function renderStep() {
+        const headings = {
+          identity: "얼굴과 정체성 선택",
+          role: "헤어와 의상 스타일 선택",
+          attachment: "장착할 소품 선택",
+        };
+        stepHeading.textContent = headings[state.step];
+        attachmentNote.hidden = state.step !== "attachment";
+        stepButtons.forEach((button) => {
+          button.setAttribute("aria-selected", String(button.dataset.step === state.step));
+        });
+        filterMarkup();
+        renderOptions();
+      }
+
+      function changeStep(step) {
+        state.step = step;
+        state.query = "";
+        state.filter = "all";
+        state.page = 0;
+        searchInput.value = "";
+        renderStep();
+      }
+
+      async function copyText(value) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(value);
+            return;
+          }
+        } catch {
+          // file:// previews may expose Clipboard API but reject the write.
+        }
+        const fallback = document.createElement("textarea");
+        fallback.value = value;
+        fallback.setAttribute("readonly", "");
+        document.body.append(fallback);
+        fallback.select();
+        document.execCommand("copy");
+        fallback.remove();
+      }
+
+      stepButtons.forEach((button) => {
+        button.addEventListener("click", () => changeStep(button.dataset.step));
+      });
+      searchInput.addEventListener("input", () => {
+        state.query = searchInput.value.trim();
+        state.page = 0;
+        renderOptions();
+      });
+      filterSelect.addEventListener("change", () => {
+        state.filter = filterSelect.value;
+        state.page = 0;
+        renderOptions();
+      });
+      previousButton.addEventListener("click", () => {
+        state.page = Math.max(0, state.page - 1);
+        renderOptions();
+      });
+      nextButton.addEventListener("click", () => {
+        state.page += 1;
+        renderOptions();
+      });
+      resetButton.addEventListener("click", () => {
+        state.identityId = "avatars/presets/plain";
+        state.roleId = null;
+        state.attachmentIds = [];
+        previewStatus.textContent = "기본 조합으로 초기화했습니다.";
+        renderPreview();
+        renderOptions();
+      });
+      copyButton.addEventListener("click", async () => {
+        const recipe = {
+          avatarAssetId: state.identityId,
+          ...(state.roleId ? { roleAssetId: state.roleId } : {}),
+          ...(state.attachmentIds.length ? { attachmentAssetIds: state.attachmentIds } : {}),
+        };
+        await copyText(JSON.stringify(recipe, null, 2));
+        previewStatus.textContent = "현재 조합 ID를 복사했습니다.";
+      });
+
+      renderPreview();
+      renderStep();
+    })();
+  </script>
+</body>
+</html>

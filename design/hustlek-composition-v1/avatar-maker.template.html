@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HustleK Avatar Maker</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --sky: rgb(4 14 30);
+      --surface: rgb(9 27 48);
+      --surface-strong: rgb(13 38 64);
+      --surface-soft: rgb(17 45 71);
+      --line: rgb(42 88 120);
+      --line-strong: rgb(78 163 207);
+      --text: rgb(239 239 226);
+      --muted: rgb(150 179 197);
+      --cyan: rgb(93 205 235);
+      --gold: rgb(242 197 103);
+      --danger: rgb(245 132 104);
+      --focus: rgb(255 226 146);
+      font-family: Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      background: var(--sky);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      background: var(--sky);
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .maker-app {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .maker-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .maker-title {
+      margin: 0;
+      color: var(--gold);
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    .maker-subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .header-actions,
+    .pagination,
+    .selection-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-button,
+    .step-button,
+    .option-tile {
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .action-button {
+      min-height: 40px;
+      padding: 8px 14px;
+    }
+
+    .action-button:hover:not(:disabled),
+    .step-button:hover,
+    .option-tile:hover { border-color: var(--line-strong); }
+
+    .action-button:disabled { cursor: default; opacity: 0.38; }
+
+    .maker-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .preview-panel,
+    .editor-panel {
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: var(--surface);
+    }
+
+    .preview-panel {
+      position: sticky;
+      top: 20px;
+      padding: 20px;
+    }
+
+    .panel-kicker {
+      color: var(--cyan);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .preview-stage {
+      display: grid;
+      place-items: center;
+      min-height: 304px;
+      margin: 12px 0 16px;
+      background: var(--surface-strong);
+      border: 1px solid var(--line);
+    }
+
+    .sprite-scene {
+      position: relative;
+      flex: 0 0 auto;
+      overflow: hidden;
+      background: var(--surface-soft);
+      image-rendering: pixelated;
+    }
+
+    .sprite-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .sprite-layer img {
+      position: absolute;
+      max-width: none;
+      image-rendering: pixelated;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .selection-line {
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .selection-line:last-of-type { border-bottom: 0; }
+
+    .selection-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .selection-value {
+      max-width: 210px;
+      overflow: hidden;
+      color: var(--text);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preview-status {
+      min-height: 20px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .editor-panel { min-height: 720px; }
+
+    .step-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step-button {
+      min-height: 58px;
+      border-width: 0 1px 0 0;
+      border-color: var(--line);
+      border-radius: 0;
+      background: var(--surface);
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .step-button:last-child { border-right: 0; }
+
+    .step-button[aria-selected="true"] {
+      background: var(--surface-strong);
+      color: var(--gold);
+      box-shadow: inset 0 -3px 0 var(--gold);
+    }
+
+    .editor-body { padding: 18px; }
+
+    .editor-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .editor-heading h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .result-count {
+      color: var(--muted);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .control-label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .control-input,
+    .control-select {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      padding: 8px 10px;
+      background: var(--sky);
+      color: var(--text);
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-auto-rows: max-content;
+      align-content: start;
+      gap: 10px;
+      min-height: 444px;
+    }
+
+    .option-tile {
+      display: grid;
+      align-content: start;
+      justify-items: center;
+      gap: 8px;
+      min-width: 0;
+      min-height: 138px;
+      padding: 9px;
+    }
+
+    .option-tile[aria-pressed="true"] {
+      border-color: var(--gold);
+      background: var(--surface-strong);
+      box-shadow: inset 0 0 0 2px var(--gold);
+    }
+
+    .option-name {
+      width: 100%;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 12px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-result {
+      grid-column: 1 / -1;
+      align-self: center;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .pagination {
+      justify-content: space-between;
+      margin-top: 16px;
+    }
+
+    .page-label {
+      color: var(--muted);
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 12px;
+    }
+
+    .attachment-note {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .maker-layout { grid-template-columns: 1fr; }
+      .preview-panel { position: static; }
+      .preview-stage { min-height: 280px; }
+      .option-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .maker-app { padding: 14px; }
+      .maker-header { align-items: flex-start; flex-direction: column; }
+      .filters { grid-template-columns: 1fr; }
+      .option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .step-button { min-height: 66px; padding: 8px 4px; }
+      .editor-heading { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="maker-app">
+    <header class="maker-header">
+      <div>
+        <h1 class="maker-title">아바타 만들기</h1>
+        <p class="maker-subtitle">정체성, 스타일, 소품을 순서대로 선택하세요.</p>
+      </div>
+      <div class="header-actions">
+        <button id="reset-button" class="action-button" type="button">초기화</button>
+        <button id="copy-button" class="action-button" type="button">조합 ID 복사</button>
+      </div>
+    </header>
+
+    <div class="maker-layout">
+      <aside class="preview-panel" aria-label="아바타 미리보기">
+        <div class="panel-kicker">Native 128px · 2x review</div>
+        <div id="preview-stage" class="preview-stage"></div>
+        <div class="selection-line">
+          <span class="selection-label">정체성</span>
+          <span id="identity-value" class="selection-value"></span>
+        </div>
+        <div class="selection-line">
+          <span class="selection-label">스타일</span>
+          <span id="role-value" class="selection-value"></span>
+        </div>
+        <div class="selection-line">
+          <span class="selection-label">소품</span>
+          <span id="attachment-value" class="selection-value"></span>
+        </div>
+        <p id="preview-status" class="preview-status" aria-live="polite"></p>
+      </aside>
+
+      <section class="editor-panel" aria-label="아바타 옵션">
+        <nav class="step-nav" aria-label="만들기 단계">
+          <button class="step-button" data-step="identity" type="button" role="tab">1. 정체성</button>
+          <button class="step-button" data-step="role" type="button" role="tab">2. 스타일</button>
+          <button class="step-button" data-step="attachment" type="button" role="tab">3. 소품</button>
+        </nav>
+
+        <div class="editor-body">
+          <div class="editor-heading">
+            <h2 id="step-heading"></h2>
+            <span id="result-count" class="result-count"></span>
+          </div>
+          <p id="attachment-note" class="attachment-note" hidden>소품은 최대 4개까지 동시에 선택할 수 있습니다.</p>
+          <div class="filters">
+            <label class="control-label" for="option-search">
+              검색
+              <input id="option-search" class="control-input" type="search" placeholder="chef, wizard, cat…" autocomplete="off">
+            </label>
+            <label class="control-label" for="option-filter">
+              유형
+              <select id="option-filter" class="control-select"></select>
+            </label>
+          </div>
+          <div id="option-grid" class="option-grid"></div>
+          <div class="pagination">
+            <button id="previous-button" class="action-button" type="button">이전</button>
+            <span id="page-label" class="page-label"></span>
+            <button id="next-button" class="action-button" type="button">다음</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const AVATARS = __AVATARS__;
+      const ATTACHMENTS = __ATTACHMENTS__;
+      const PAGE_SIZE = 12;
+      const CANVAS = 128;
+      const AVATARS_PER_ATLAS = 40;
+      const AVATARS_PER_ROW = 5;
+      const AVATAR_ATLAS_WIDTH = 1920;
+      const AVATAR_ATLAS_HEIGHT = 2048;
+      const ATTACHMENT_ATLAS_WIDTH = 2048;
+      const ATTACHMENT_ATLAS_HEIGHT = 2176;
+      const LAYER_INDEX = { base: 0, hair: 1, face: 2, headwear: 3, garment: 4, extra: 5 };
+      const LAYER_Z = { base: 30, garment: 40, hair: 50, face: 60, headwear: 70, extra: 90 };
+      const KIND_LABELS = { job: "직업", role: "역할", animal: "동물", preset: "프리셋" };
+      const ROLE_LABELS = { accessory: "액세서리", badge: "배지", tool: "도구", prop: "소품" };
+
+      const state = {
+        step: "identity",
+        identityId: "avatars/presets/plain",
+        roleId: null,
+        attachmentIds: [],
+        query: "",
+        filter: "all",
+        page: 0,
+      };
+
+      const avatarById = new Map(AVATARS.map((avatar) => [avatar.assetId, avatar]));
+      const attachmentById = new Map(ATTACHMENTS.map((item) => [item.assetId, item]));
+      const previewStage = document.getElementById("preview-stage");
+      const identityValue = document.getElementById("identity-value");
+      const roleValue = document.getElementById("role-value");
+      const attachmentValue = document.getElementById("attachment-value");
+      const previewStatus = document.getElementById("preview-status");
+      const stepHeading = document.getElementById("step-heading");
+      const attachmentNote = document.getElementById("attachment-note");
+      const searchInput = document.getElementById("option-search");
+      const filterSelect = document.getElementById("option-filter");
+      const resultCount = document.getElementById("result-count");
+      const optionGrid = document.getElementById("option-grid");
+      const previousButton = document.getElementById("previous-button");
+      const nextButton = document.getElementById("next-button");
+      const pageLabel = document.getElementById("page-label");
+      const copyButton = document.getElementById("copy-button");
+      const resetButton = document.getElementById("reset-button");
+      const stepButtons = Array.from(document.querySelectorAll("[data-step]"));
+
+      function humanize(value) {
+        return String(value)
+          .replace(/([a-z])([A-Z])/g, "$1 $2")
+          .replace(/[-_]/g, " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      }
+
+      function avatarLayer(avatar, layerId, z, order) {
+        const atlasIndex = Math.floor(avatar.index / AVATARS_PER_ATLAS);
+        const local = avatar.index % AVATARS_PER_ATLAS;
+        const blockX = (local % AVATARS_PER_ROW) * 3 * CANVAS;
+        const blockY = Math.floor(local / AVATARS_PER_ROW) * 2 * CANVAS;
+        const layerIndex = LAYER_INDEX[layerId];
+        return {
+          atlasHeight: AVATAR_ATLAS_HEIGHT,
+          atlasWidth: AVATAR_ATLAS_WIDTH,
+          key: `${layerId}:${avatar.assetId}`,
+          path: `runtime/avatar-runtime-${String(atlasIndex).padStart(2, "0")}.png`,
+          x: blockX + (layerIndex % 3) * CANVAS,
+          y: blockY + Math.floor(layerIndex / 3) * CANVAS,
+          z,
+          order,
+        };
+      }
+
+      function attachmentLayer(attachment, order) {
+        return {
+          atlasHeight: ATTACHMENT_ATLAS_HEIGHT,
+          atlasWidth: ATTACHMENT_ATLAS_WIDTH,
+          key: `attachment:${attachment.assetId}`,
+          path: "icon-attachments-atlas.png",
+          x: (attachment.index % 16) * CANVAS,
+          y: Math.floor(attachment.index / 16) * CANVAS,
+          z: attachment.z,
+          order,
+        };
+      }
+
+      function compositionPlan(identity, role, attachments) {
+        const layers = [
+          avatarLayer(identity, "base", LAYER_Z.base, 0),
+          avatarLayer(role, "garment", LAYER_Z.garment, 1),
+          avatarLayer(role, "hair", LAYER_Z.hair, 2),
+          avatarLayer(identity, "face", LAYER_Z.face, 3),
+          avatarLayer(role, "headwear", LAYER_Z.headwear, 4),
+          avatarLayer(role, "extra", LAYER_Z.extra, 5),
+        ];
+        attachments.forEach((attachment, index) => {
+          layers.push(attachmentLayer(attachment, 100 + index));
+        });
+        return layers.sort((left, right) => left.z - right.z || left.order - right.order);
+      }
+
+      function flattenedPlan(avatar) {
+        return ["base", "garment", "hair", "face", "headwear", "extra"]
+          .map((layerId, order) => avatarLayer(avatar, layerId, LAYER_Z[layerId], order))
+          .sort((left, right) => left.z - right.z || left.order - right.order);
+      }
+
+      function createScene(size, plan, accessibleLabel) {
+        const scale = size / CANVAS;
+        const scene = document.createElement("div");
+        scene.className = "sprite-scene";
+        scene.style.width = `${size}px`;
+        scene.style.height = `${size}px`;
+        scene.setAttribute("role", "img");
+        scene.setAttribute("aria-label", accessibleLabel);
+        plan.forEach((descriptor) => {
+          const viewport = document.createElement("span");
+          viewport.className = "sprite-layer";
+          const image = document.createElement("img");
+          image.src = descriptor.path;
+          image.alt = "";
+          image.draggable = false;
+          image.style.width = `${descriptor.atlasWidth * scale}px`;
+          image.style.height = `${descriptor.atlasHeight * scale}px`;
+          image.style.left = `${-descriptor.x * scale}px`;
+          image.style.top = `${-descriptor.y * scale}px`;
+          viewport.append(image);
+          scene.append(viewport);
+        });
+        return scene;
+      }
+
+      function renderPreview() {
+        const identity = avatarById.get(state.identityId);
+        const role = avatarById.get(state.roleId || state.identityId);
+        const attachments = state.attachmentIds.map((id) => attachmentById.get(id));
+        previewStage.replaceChildren(
+          createScene(256, compositionPlan(identity, role, attachments), "현재 아바타 조합"),
+        );
+        identityValue.textContent = identity.assetId;
+        roleValue.textContent = state.roleId ? role.assetId : "정체성과 동일";
+        attachmentValue.textContent = attachments.length
+          ? attachments.map((item) => item.assetId.replace("icons/", "")).join(", ")
+          : "선택 없음";
+      }
+
+      function filterOptions() {
+        let items;
+        if (state.step === "attachment") {
+          items = ATTACHMENTS;
+        } else if (state.step === "role") {
+          items = [{ assetId: null, label: "정체성과 동일", kind: "same", special: true }, ...AVATARS];
+        } else {
+          items = AVATARS;
+        }
+        const query = state.query.toLocaleLowerCase("en");
+        return items.filter((item) => {
+          const category = state.step === "attachment" ? item.role : item.kind;
+          const categoryMatch = state.filter === "all" || category === state.filter;
+          const text = `${item.assetId || "same"} ${item.label || ""} ${item.group || ""}`.toLocaleLowerCase("en");
+          return categoryMatch && (!query || text.includes(query));
+        });
+      }
+
+      function isSelected(item) {
+        if (state.step === "identity") return item.assetId === state.identityId;
+        if (state.step === "role") return item.assetId === state.roleId;
+        return state.attachmentIds.includes(item.assetId);
+      }
+
+      function selectOption(item) {
+        previewStatus.textContent = "";
+        if (state.step === "identity") {
+          state.identityId = item.assetId;
+        } else if (state.step === "role") {
+          state.roleId = item.assetId;
+        } else if (state.attachmentIds.includes(item.assetId)) {
+          state.attachmentIds = state.attachmentIds.filter((id) => id !== item.assetId);
+        } else if (state.attachmentIds.length < 4) {
+          state.attachmentIds = [...state.attachmentIds, item.assetId];
+        } else {
+          previewStatus.textContent = "소품은 최대 4개까지 선택할 수 있습니다.";
+        }
+        renderPreview();
+        renderOptions();
+      }
+
+      function optionPreview(item) {
+        if (item.special) {
+          const identity = avatarById.get(state.identityId);
+          return createScene(96, flattenedPlan(identity), "정체성과 동일");
+        }
+        if (state.step === "attachment") {
+          return createScene(96, [attachmentLayer(item, 0)], `${humanize(item.label)} 소품`);
+        }
+        return createScene(96, flattenedPlan(item), `${humanize(item.label)} 아바타`);
+      }
+
+      function renderOptions() {
+        const filtered = filterOptions();
+        const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+        state.page = Math.min(state.page, pageCount - 1);
+        const start = state.page * PAGE_SIZE;
+        const visible = filtered.slice(start, start + PAGE_SIZE);
+        optionGrid.replaceChildren();
+        if (!visible.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty-result";
+          empty.textContent = "일치하는 옵션이 없습니다.";
+          optionGrid.append(empty);
+        }
+        visible.forEach((item) => {
+          const tile = document.createElement("button");
+          tile.type = "button";
+          tile.className = "option-tile";
+          tile.setAttribute("aria-pressed", String(isSelected(item)));
+          tile.setAttribute("aria-label", `${humanize(item.label)} 선택`);
+          const label = document.createElement("span");
+          label.className = "option-name";
+          label.textContent = humanize(item.label);
+          tile.append(optionPreview(item), label);
+          tile.addEventListener("click", () => selectOption(item));
+          optionGrid.append(tile);
+        });
+        resultCount.textContent = `${filtered.length} options`;
+        pageLabel.textContent = `${state.page + 1} / ${pageCount}`;
+        previousButton.disabled = state.page === 0;
+        nextButton.disabled = state.page >= pageCount - 1;
+      }
+
+      function filterMarkup() {
+        const options = state.step === "attachment"
+          ? [["all", "전체"], ["accessory", "액세서리"], ["badge", "배지"], ["tool", "도구"], ["prop", "소품"]]
+          : [["all", "전체"], ["job", "직업"], ["role", "역할"], ["animal", "동물"], ["preset", "프리셋"]];
+        filterSelect.replaceChildren(...options.map(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          return option;
+        }));
+        filterSelect.value = state.filter;
+      }
+
+      function renderStep() {
+        const headings = {
+          identity: "얼굴과 정체성 선택",
+          role: "헤어와 의상 스타일 선택",
+          attachment: "장착할 소품 선택",
+        };
+        stepHeading.textContent = headings[state.step];
+        attachmentNote.hidden = state.step !== "attachment";
+        stepButtons.forEach((button) => {
+          button.setAttribute("aria-selected", String(button.dataset.step === state.step));
+        });
+        filterMarkup();
+        renderOptions();
+      }
+
+      function changeStep(step) {
+        state.step = step;
+        state.query = "";
+        state.filter = "all";
+        state.page = 0;
+        searchInput.value = "";
+        renderStep();
+      }
+
+      async function copyText(value) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(value);
+            return;
+          }
+        } catch {
+          // file:// previews may expose Clipboard API but reject the write.
+        }
+        const fallback = document.createElement("textarea");
+        fallback.value = value;
+        fallback.setAttribute("readonly", "");
+        document.body.append(fallback);
+        fallback.select();
+        document.execCommand("copy");
+        fallback.remove();
+      }
+
+      stepButtons.forEach((button) => {
+        button.addEventListener("click", () => changeStep(button.dataset.step));
+      });
+      searchInput.addEventListener("input", () => {
+        state.query = searchInput.value.trim();
+        state.page = 0;
+        renderOptions();
+      });
+      filterSelect.addEventListener("change", () => {
+        state.filter = filterSelect.value;
+        state.page = 0;
+        renderOptions();
+      });
+      previousButton.addEventListener("click", () => {
+        state.page = Math.max(0, state.page - 1);
+        renderOptions();
+      });
+      nextButton.addEventListener("click", () => {
+        state.page += 1;
+        renderOptions();
+      });
+      resetButton.addEventListener("click", () => {
+        state.identityId = "avatars/presets/plain";
+        state.roleId = null;
+        state.attachmentIds = [];
+        previewStatus.textContent = "기본 조합으로 초기화했습니다.";
+        renderPreview();
+        renderOptions();
+      });
+      copyButton.addEventListener("click", async () => {
+        const recipe = {
+          avatarAssetId: state.identityId,
+          ...(state.roleId ? { roleAssetId: state.roleId } : {}),
+          ...(state.attachmentIds.length ? { attachmentAssetIds: state.attachmentIds } : {}),
+        };
+        await copyText(JSON.stringify(recipe, null, 2));
+        previewStatus.textContent = "현재 조합 ID를 복사했습니다.";
+      });
+
+      renderPreview();
+      renderStep();
+    })();
+  </script>
+</body>
+</html>

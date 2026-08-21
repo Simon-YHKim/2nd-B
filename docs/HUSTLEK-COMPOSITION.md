@@ -57,6 +57,7 @@ python scripts/build-hustlek-avatar-layer-pilot.py --check
 python scripts/build-hustlek-icon-attachment-variants.py --check
 python scripts/build-hustlek-runtime-avatar-atlases.py --check
 python scripts/build-hustlek-composition-preview.py --check
+python scripts/build-hustlek-avatar-maker.py --check
 npx jest scripts/__tests__/hustlek-composition-catalog.test.ts --runInBand
 ```
 
@@ -90,5 +91,6 @@ npx jest scripts/__tests__/hustlek-composition-catalog.test.ts --runInBand
 | `runtime/avatar-runtime-00.png` ~ `06.png` | RN용 7개 분할 atlas, production layer hash와 일치 |
 | `hustlek-runtime-manifest.ts` | 270 avatar ID와 267 attachment ID의 정적 require/crop/z/slot |
 | `composition-preview.png` | identity·role·attachment 대표 조합 8개 검토 시트 |
+| `avatar-maker.html` | 실제 runtime atlas를 직접 표시하는 정체성·스타일·소품 선택형 검수 화면 |
 
 아이콘 266개는 캐릭터에 억지로 장착하지 않고 standalone 전용으로 남긴다. 따라서 “803개 전체 합성 카탈로그”는 270개 합성형 아바타, 267개 장착형 아이콘, 266개 standalone 아이콘으로 구성된다.
