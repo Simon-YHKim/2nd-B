@@ -1,6 +1,8 @@
 import React, { memo, useMemo } from "react";
 import Svg, { Rect as SvgRect, type SvgProps } from "react-native-svg";
 
+import type { HustleKAvatarComposition } from "@/lib/avatar/HustleKAvatar128";
+
 /**
  * PIXEL-CLAY v4의 64×64 아바타 엔진을 React Native로 옮긴 독립 스냅샷.
  *
@@ -628,6 +630,7 @@ export interface Avatar64Props extends Omit<SvgProps, "children" | "height" | "v
   spec: AvatarSpecInput | AvatarSpec;
   size?: number;
   crop?: "full" | "head";
+  nativeComposition?: HustleKAvatarComposition;
 }
 
 /**
@@ -640,6 +643,7 @@ export const Avatar64 = memo(function Avatar64({
   spec: input,
   size = AVATAR_GRID,
   crop = "full",
+  nativeComposition,
   accessibilityLabel,
   ...svgProps
 }: Avatar64Props) {
@@ -649,6 +653,21 @@ export const Avatar64 = memo(function Avatar64({
     crop === "head"
       ? `${AVATAR_HEAD_CROP.minX} ${AVATAR_HEAD_CROP.minY} ${AVATAR_HEAD_CROP.width} ${AVATAR_HEAD_CROP.height}`
       : `0 0 ${AVATAR_GRID} ${AVATAR_GRID}`;
+
+  if (nativeComposition) {
+    const NativeAvatar = (
+      require("@/lib/avatar/HustleKAvatar128") as typeof import("@/lib/avatar/HustleKAvatar128")
+    ).HustleKAvatar128;
+    return (
+      <NativeAvatar
+        composition={nativeComposition}
+        size={pixelSize}
+        crop={crop}
+        accessibilityLabel={accessibilityLabel}
+        testID={svgProps.testID}
+      />
+    );
+  }
 
   return (
     <Svg
