@@ -59,7 +59,7 @@
       "previewLabel": "최종 합성 미리보기",
       "currentOccupation": "현재 직업: {{occupation}}",
       "noOccupation": "선택한 직업 없음",
-      "customOccupation": "{{occupation}}은 맞는 복장이 없어 글자로만 유지됩니다.",
+      "customOccupation": "{{occupation}} 맞는 복장이 없어 글자로만 유지됩니다.",
       "group": "직업 분야",
       "jobs": "직업",
       "noJob": "직업 복장 없음",

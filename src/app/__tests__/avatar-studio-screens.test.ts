@@ -45,6 +45,11 @@ describe("profile character and occupational avatar screens", () => {
     expect(role).not.toContain("AVATAR_FACE_DETAILS");
   });
 
+  test("자유 텍스트 직업 안내는 한국어 조사를 런타임에 고른다", () => {
+    expect(role).toContain('withJosa(customOccupation, "은는")');
+    expect(read("locales/ko/profile.json")).not.toContain("{{occupation}}은");
+  });
+
   test("큰 미리보기와 모든 선택 칸은 최종 Avatar64 합성을 사용한다", () => {
     expect(character.match(/<Avatar64/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(role.match(/<Avatar64/g)?.length ?? 0).toBeGreaterThanOrEqual(3);

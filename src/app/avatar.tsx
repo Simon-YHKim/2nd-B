@@ -19,6 +19,7 @@ import {
 } from "@/lib/avatar/Avatar64";
 import { avatarJobForOccupation, type ProfileAvatar } from "@/lib/avatar/profile-avatar";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { withJosa } from "@/lib/i18n/josa";
 import { fetchProfileAvatar, saveProfileAvatarRole } from "@/lib/supabase/avatar";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
@@ -84,6 +85,10 @@ export default function AvatarRoleScreen() {
   );
   const mappedOccupation = avatarJobForOccupation(occupation);
   const customOccupation = occupation && !mappedOccupation ? occupation : undefined;
+  const customOccupationSubject =
+    customOccupation && language.startsWith("ko")
+      ? withJosa(customOccupation, "은는")
+      : customOccupation;
 
   const chooseJob = useCallback((jobId: string | null) => {
     setAvatar((current) => (current ? { ...current, job: jobId } : current));
@@ -219,9 +224,9 @@ export default function AvatarRoleScreen() {
                   : t("avatar.role.noOccupation")}
               </Text>
             </View>
-            {customOccupation && !avatar.job ? (
+            {customOccupationSubject && !avatar.job ? (
               <Text style={styles.notice}>
-                {t("avatar.role.customOccupation", { occupation: customOccupation })}
+                {t("avatar.role.customOccupation", { occupation: customOccupationSubject })}
               </Text>
             ) : null}
             {accessoryCovered && accessory ? (

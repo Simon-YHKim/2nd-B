@@ -134,6 +134,7 @@ function sourceFiles(dir: string): string[] {
 
 /** 이 파일이 영어 경로를 갖고 있는가 (i18n 을 쓰거나 로케일 표를 들고 있는가). */
 function hasEnglishPath(src: string): boolean {
+  if (/\ben:\s*'/.test(src)) return true;
   return /useTranslation|i18next|AvailableUiLocale|\ben:\s*[{"]|locale\s*===|isKo/.test(src);
 }
 
@@ -154,6 +155,10 @@ describe("코드에 박힌 한국어", () => {
     //   1. 사용자에게 보이는 카피다        -> i18n 으로 뺀다 (`t("...")`)
     //   2. 규칙·프롬프트·폴백이라 한국어가 맞다 -> KOREAN_BY_DESIGN 에 이유와 함께 올린다
     expect(offenders).toEqual([]);
+  });
+
+  it("단일 인용부호를 쓰는 한·영 카탈로그도 영어 경로로 인식한다", () => {
+    expect(hasEnglishPath("const item = { ko: '미소', en: 'Smile' };")).toBe(true);
   });
 
   it("면제 목록의 모든 항목이 이유를 달고 있다", () => {
