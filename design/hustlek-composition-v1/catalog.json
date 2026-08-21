@@ -24094,13 +24094,26 @@
             46
           ],
           "native128_variant": {
+            "bbox": [
+              32,
+              0,
+              97,
+              43
+            ],
             "canvas": [
               128,
               128
             ],
+            "decoded_rgba_sha256": "061a0eb9f74609e26185a3ecc2b44369487db2e8a8751d170e22ee7223db41df",
+            "encoded_png_sha256": "9528290e27d07ffa2b650728a6dc95af945e252f323ec125c4e036029442d567",
+            "method": "per-asset-imagegen-chroma-native128-projection-translation-only",
+            "opaque_colors": 24,
+            "path": "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
+            "raw_imagegen_sha256": "44968ff24cb0d7719fd86505b9d746d3e213a7a7c55878c5b62e26a9e889f5eb",
+            "raw_imagegen_source_id": "exec-122c133e-0409-44d4-b894-bf25d10542b8.png",
             "runtime_scaling_allowed": false,
             "source_master_resizing_allowed": false,
-            "status": "pending"
+            "status": "pilot_ready"
           },
           "role": "accessory",
           "slot": "headwear",

@@ -20,6 +20,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ZIP = Path(r"C:\Users\202502\Downloads\PIXEL-CLAY Design System.zip")
@@ -124,6 +126,15 @@ FOREGROUND_PROPS = {
     "store", "taxi", "tent", "tractor", "train", "truck", "warehouse", "wheelchair",
 }
 
+PILOT_VARIANTS = {
+    "crown": {
+        "path": "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
+        "raw_imagegen_source_id": "exec-122c133e-0409-44d4-b894-bf25d10542b8.png",
+        "raw_imagegen_sha256": "44968ff24cb0d7719fd86505b9d746d3e213a7a7c55878c5b62e26a9e889f5eb",
+        "method": "per-asset-imagegen-chroma-native128-projection-translation-only",
+    },
+}
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -211,6 +222,51 @@ def native_master_index(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return result
 
 
+def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
+    common = {
+        "canvas": [128, 128],
+        "runtime_scaling_allowed": False,
+        "source_master_resizing_allowed": False,
+    }
+    pilot = PILOT_VARIANTS.get(icon_name)
+    if pilot is None:
+        return {"status": "pending", **common}
+
+    path = ROOT / pilot["path"]
+    image = Image.open(path).convert("RGBA")
+    if image.size != (128, 128):
+        raise ValueError(f"{icon_name} pilot must be 128x128")
+    pixels = list(image.get_flattened_data())
+    if {pixel[3] for pixel in pixels} - {0, 255}:
+        raise ValueError(f"{icon_name} pilot alpha must be binary")
+    if any(pixel[3] == 0 and pixel[:3] != (0, 0, 0) for pixel in pixels):
+        raise ValueError(f"{icon_name} pilot has hidden RGB")
+    bbox = image.getbbox()
+    if bbox is None:
+        raise ValueError(f"{icon_name} pilot is empty")
+    fit_x, fit_y, fit_width, fit_height = ANCHORS[slot]["fit_box"]
+    if not (
+        bbox[0] >= fit_x
+        and bbox[1] >= fit_y
+        and bbox[2] <= fit_x + fit_width
+        and bbox[3] <= fit_y + fit_height
+    ):
+        raise ValueError(f"{icon_name} pilot exceeds {slot} fit box")
+    opaque_colors = len({pixel for pixel in pixels if pixel[3]})
+    return {
+        "status": "pilot_ready",
+        **common,
+        "path": pilot["path"],
+        "encoded_png_sha256": sha256_file(path),
+        "decoded_rgba_sha256": hashlib.sha256(image.tobytes()).hexdigest(),
+        "bbox": list(bbox),
+        "opaque_colors": opaque_colors,
+        "raw_imagegen_source_id": pilot["raw_imagegen_source_id"],
+        "raw_imagegen_sha256": pilot["raw_imagegen_sha256"],
+        "method": pilot["method"],
+    }
+
+
 def attachment_for(icon_name: str) -> dict[str, Any] | None:
     if icon_name in ACCESSORY_SLOTS:
         role, slot = "accessory", ACCESSORY_SLOTS[icon_name]
@@ -230,12 +286,7 @@ def attachment_for(icon_name: str) -> dict[str, Any] | None:
         "anchor": {"x": anchor["x"], "y": anchor["y"]},
         "z": anchor["z"],
         "fit_box": anchor["fit_box"],
-        "native128_variant": {
-            "status": "pending",
-            "canvas": [128, 128],
-            "runtime_scaling_allowed": False,
-            "source_master_resizing_allowed": False,
-        },
+        "native128_variant": native128_variant(icon_name, slot),
     }
 
 

@@ -56,4 +56,4 @@ python scripts/build-hustlek-composition-catalog.py --check
 npx jest scripts/__tests__/hustlek-composition-catalog.test.ts --runInBand
 ```
 
-현재 카탈로그의 `pending_layers`와 `native128_variant.status=pending`은 의도된 상태다. 다음 제작 단계에서 대표 base·직업·동물과 accessory/badge/tool/prop 각각을 네이티브 128px로 파일럿 제작한 뒤, 같은 계약으로 전수 생성한다.
+현재 아바타의 `pending_layers`와 대부분 아이콘의 `native128_variant.status=pending`은 의도된 상태다. 첫 headwear 파일럿 `icons/crown`은 `pilot_ready`이며 `design/hustlek-composition-v1/pilot/crown-headwear-128.png`에 보존한다. 이 파일은 bbox `(32,0)-(97,43)`, binary alpha, 24색이고 독립 왕관 마스터를 축소하지 않은 별도 ImageGen 결과다. 다음 제작 단계에서 대표 base·직업·동물과 badge/tool/prop 파일럿을 같은 방식으로 검증한 뒤 전수 생성한다.

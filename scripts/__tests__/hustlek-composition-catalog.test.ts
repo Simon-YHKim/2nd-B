@@ -11,6 +11,9 @@ type Attachment = {
     status: string;
     runtime_scaling_allowed: boolean;
     source_master_resizing_allowed: boolean;
+    path?: string;
+    decoded_rgba_sha256?: string;
+    bbox?: number[];
   };
 };
 
@@ -122,7 +125,16 @@ describe("HustleK composition catalog", () => {
       attachable += 1;
       expect(validRoles.has(attachment.role)).toBe(true);
       expect(catalog.contract.anchors[attachment.slot]).toBeDefined();
-      expect(attachment.native128_variant.status).toBe("pending");
+      if (icon.asset_id === "icons/crown") {
+        expect(attachment.native128_variant.status).toBe("pilot_ready");
+        expect(attachment.native128_variant.path).toBe(
+          "design/hustlek-composition-v1/pilot/crown-headwear-128.png",
+        );
+        expect(attachment.native128_variant.decoded_rgba_sha256).toMatch(/^[a-f0-9]{64}$/);
+        expect(attachment.native128_variant.bbox).toEqual([32, 0, 97, 43]);
+      } else {
+        expect(attachment.native128_variant.status).toBe("pending");
+      }
       expect(attachment.native128_variant.runtime_scaling_allowed).toBe(false);
       expect(attachment.native128_variant.source_master_resizing_allowed).toBe(false);
       const [x, y, width, height] = attachment.fit_box;
