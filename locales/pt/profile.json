@@ -11,6 +11,75 @@
     "eyebrow": "Conta",
     "emailUnavailable": "E-mail indisponível."
   },
+  "avatar": {
+    "hub": {
+      "character": {
+        "label": "Meu personagem em pixels",
+        "hint": "Escolha a aparência e as cores que representam você."
+      },
+      "role": {
+        "label": "Roupa profissional",
+        "hint": "Adicione um papel profissional ao personagem do seu perfil."
+      }
+    },
+    "character": {
+      "screenTitle": "Meu personagem em pixels",
+      "eyebrow": "Personagem do perfil",
+      "title": "Crie o personagem que se parece com você",
+      "intro": "A aparência e as cores são preferências. Elas não mudam o brilho da sua estrela.",
+      "previewLabel": "Prévia combinada final",
+      "shapeTab": "Aparência",
+      "colorTab": "Cores",
+      "type": "Tipo",
+      "human": "Pessoa",
+      "animal": "Bicho",
+      "hair": "Cabelo",
+      "expression": "Expressão",
+      "face": "Detalhe facial",
+      "accessory": "Acessório",
+      "species": "Espécie",
+      "skinColor": "Pele",
+      "hairColor": "Cor do cabelo",
+      "eyeColor": "Cor dos olhos",
+      "clothesColor": "Roupa",
+      "furColor": "Pelagem",
+      "save": "Salvar personagem",
+      "saving": "Salvando personagem...",
+      "saved": "Personagem salvo.",
+      "saveError": "Não foi possível salvar o personagem. Tente novamente.",
+      "nextRole": "Escolher roupa profissional",
+      "roleForHumanOnly": "Roupas profissionais estão disponíveis apenas para personagens humanos.",
+      "optionSelected": "{{name}}, selecionado"
+    },
+    "role": {
+      "screenTitle": "Roupa profissional",
+      "eyebrow": "Um personagem, um papel",
+      "title": "Adicione uma roupa profissional ao seu personagem",
+      "intro": "A profissão do perfil é a fonte principal. Esta tela adiciona apenas o papel visual correspondente.",
+      "previewLabel": "Prévia combinada final",
+      "currentOccupation": "Profissão atual: {{occupation}}",
+      "noOccupation": "Nenhuma profissão selecionada",
+      "customOccupation": "{{occupation}} permanece como texto porque não há uma roupa correspondente.",
+      "group": "Área profissional",
+      "jobs": "Profissões",
+      "noJob": "Sem roupa profissional",
+      "uniform": "Uniforme profissional",
+      "ownColor": "Manter minha cor",
+      "uniformHint": "Usa a cor padrão da roupa da profissão.",
+      "ownColorHint": "Mantém a cor de roupa escolhida no personagem do perfil.",
+      "covered": "{{accessory}} fica oculto porque o chapéu profissional ocupa esse espaço.",
+      "save": "Salvar roupa profissional",
+      "saving": "Salvando roupa profissional...",
+      "saved": "Roupa profissional salva.",
+      "saveError": "Não foi possível salvar a roupa profissional. Tente novamente.",
+      "animalTitle": "Personagens animais ainda não podem usar roupas profissionais",
+      "animalBody": "Uniformes para corpos animais são um projeto de recursos separado. Seu personagem permanece igual.",
+      "editCharacter": "Editar personagem do perfil",
+      "characterMissing": "Crie primeiro o personagem do seu perfil.",
+      "createCharacter": "Criar personagem do perfil",
+      "jobSelected": "{{name}}, selecionado"
+    }
+  },
   "sections": {
     "center": {
       "label": "Centro pessoal",

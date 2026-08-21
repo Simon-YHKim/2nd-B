@@ -11,6 +11,75 @@
     "eyebrow": "Account",
     "emailUnavailable": "Email unavailable."
   },
+  "avatar": {
+    "hub": {
+      "character": {
+        "label": "My pixel character",
+        "hint": "Choose the appearance and colors that represent you."
+      },
+      "role": {
+        "label": "Job outfit",
+        "hint": "Put one occupational role on your profile character."
+      }
+    },
+    "character": {
+      "screenTitle": "My pixel character",
+      "eyebrow": "Profile character",
+      "title": "Make the character that looks like you",
+      "intro": "Appearance and colors are preferences. They do not change your star brightness.",
+      "previewLabel": "Final combined preview",
+      "shapeTab": "Appearance",
+      "colorTab": "Colors",
+      "type": "Type",
+      "human": "Human",
+      "animal": "Animal",
+      "hair": "Hair",
+      "expression": "Expression",
+      "face": "Face detail",
+      "accessory": "Accessory",
+      "species": "Species",
+      "skinColor": "Skin",
+      "hairColor": "Hair color",
+      "eyeColor": "Eye color",
+      "clothesColor": "Clothes",
+      "furColor": "Fur",
+      "save": "Save character",
+      "saving": "Saving character...",
+      "saved": "Character saved.",
+      "saveError": "Could not save the character. Try again.",
+      "nextRole": "Choose a job outfit",
+      "roleForHumanOnly": "Job outfits are available for human characters only.",
+      "optionSelected": "{{name}}, selected"
+    },
+    "role": {
+      "screenTitle": "Job outfit",
+      "eyebrow": "One character, one role",
+      "title": "Add a job outfit to your character",
+      "intro": "Your profile occupation is the source of truth. This screen adds only its matching visual role.",
+      "previewLabel": "Final combined preview",
+      "currentOccupation": "Current occupation: {{occupation}}",
+      "noOccupation": "No occupation selected",
+      "customOccupation": "{{occupation}} stays as text because no matching outfit exists.",
+      "group": "Job field",
+      "jobs": "Jobs",
+      "noJob": "No job outfit",
+      "uniform": "Job uniform",
+      "ownColor": "Keep my color",
+      "uniformHint": "Uses the job's standard clothing color.",
+      "ownColorHint": "Keeps the clothing color chosen on your profile character.",
+      "covered": "{{accessory}} is hidden because the job hat uses that space.",
+      "save": "Save job outfit",
+      "saving": "Saving job outfit...",
+      "saved": "Job outfit saved.",
+      "saveError": "Could not save the job outfit. Try again.",
+      "animalTitle": "Animal characters cannot wear job outfits yet",
+      "animalBody": "Animal body uniforms are a separate asset project. Your character remains unchanged.",
+      "editCharacter": "Edit profile character",
+      "characterMissing": "Create your profile character first.",
+      "createCharacter": "Create profile character",
+      "jobSelected": "{{name}}, selected"
+    }
+  },
   "sections": {
     "center": {
       "label": "Self center",

@@ -11,6 +11,75 @@
     "eyebrow": "Akun",
     "emailUnavailable": "Email tidak tersedia."
   },
+  "avatar": {
+    "hub": {
+      "character": {
+        "label": "Karakter pikselku",
+        "hint": "Pilih tampilan dan warna yang mewakili dirimu."
+      },
+      "role": {
+        "label": "Pakaian pekerjaan",
+        "hint": "Tambahkan satu peran pekerjaan ke karakter profilmu."
+      }
+    },
+    "character": {
+      "screenTitle": "Karakter pikselku",
+      "eyebrow": "Karakter profil",
+      "title": "Buat karakter yang mirip denganmu",
+      "intro": "Tampilan dan warna adalah pilihan. Keduanya tidak mengubah kecerahan bintangmu.",
+      "previewLabel": "Pratinjau gabungan akhir",
+      "shapeTab": "Tampilan",
+      "colorTab": "Warna",
+      "type": "Jenis",
+      "human": "Manusia",
+      "animal": "Hewan",
+      "hair": "Rambut",
+      "expression": "Ekspresi",
+      "face": "Detail wajah",
+      "accessory": "Aksesori",
+      "species": "Spesies",
+      "skinColor": "Kulit",
+      "hairColor": "Warna rambut",
+      "eyeColor": "Warna mata",
+      "clothesColor": "Pakaian",
+      "furColor": "Bulu",
+      "save": "Simpan karakter",
+      "saving": "Menyimpan karakter...",
+      "saved": "Karakter disimpan.",
+      "saveError": "Karakter tidak dapat disimpan. Coba lagi.",
+      "nextRole": "Pilih pakaian pekerjaan",
+      "roleForHumanOnly": "Pakaian pekerjaan hanya tersedia untuk karakter manusia.",
+      "optionSelected": "{{name}}, dipilih"
+    },
+    "role": {
+      "screenTitle": "Pakaian pekerjaan",
+      "eyebrow": "Satu karakter, satu peran",
+      "title": "Tambahkan pakaian pekerjaan ke karaktermu",
+      "intro": "Pekerjaan di profil adalah sumber utama. Layar ini hanya menambahkan peran visual yang sesuai.",
+      "previewLabel": "Pratinjau gabungan akhir",
+      "currentOccupation": "Pekerjaan saat ini: {{occupation}}",
+      "noOccupation": "Belum memilih pekerjaan",
+      "customOccupation": "{{occupation}} tetap disimpan sebagai teks karena tidak ada pakaian yang sesuai.",
+      "group": "Bidang pekerjaan",
+      "jobs": "Pekerjaan",
+      "noJob": "Tanpa pakaian pekerjaan",
+      "uniform": "Seragam pekerjaan",
+      "ownColor": "Pertahankan warnaku",
+      "uniformHint": "Menggunakan warna pakaian standar pekerjaan.",
+      "ownColorHint": "Mempertahankan warna pakaian yang dipilih pada karakter profil.",
+      "covered": "{{accessory}} disembunyikan karena topi pekerjaan memakai tempat itu.",
+      "save": "Simpan pakaian pekerjaan",
+      "saving": "Menyimpan pakaian pekerjaan...",
+      "saved": "Pakaian pekerjaan disimpan.",
+      "saveError": "Pakaian pekerjaan tidak dapat disimpan. Coba lagi.",
+      "animalTitle": "Karakter hewan belum dapat memakai pakaian pekerjaan",
+      "animalBody": "Seragam untuk tubuh hewan adalah proyek aset terpisah. Karaktermu tetap sama.",
+      "editCharacter": "Edit karakter profil",
+      "characterMissing": "Buat karakter profilmu terlebih dahulu.",
+      "createCharacter": "Buat karakter profil",
+      "jobSelected": "{{name}}, dipilih"
+    }
+  },
   "sections": {
     "center": {
       "label": "Pusat diri",

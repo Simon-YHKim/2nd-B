@@ -11,6 +11,75 @@
     "eyebrow": "Cuenta",
     "emailUnavailable": "Correo electrónico no disponible."
   },
+  "avatar": {
+    "hub": {
+      "character": {
+        "label": "Mi personaje pixelado",
+        "hint": "Elige la apariencia y los colores que te representan."
+      },
+      "role": {
+        "label": "Atuendo profesional",
+        "hint": "Añade un rol profesional a tu personaje de perfil."
+      }
+    },
+    "character": {
+      "screenTitle": "Mi personaje pixelado",
+      "eyebrow": "Personaje de perfil",
+      "title": "Crea el personaje que se parece a ti",
+      "intro": "La apariencia y los colores son preferencias. No cambian el brillo de tu estrella.",
+      "previewLabel": "Vista previa combinada final",
+      "shapeTab": "Apariencia",
+      "colorTab": "Colores",
+      "type": "Tipo",
+      "human": "Persona",
+      "animal": "Criatura",
+      "hair": "Cabello",
+      "expression": "Expresión",
+      "face": "Detalle facial",
+      "accessory": "Accesorio",
+      "species": "Especie",
+      "skinColor": "Piel",
+      "hairColor": "Color de cabello",
+      "eyeColor": "Color de ojos",
+      "clothesColor": "Ropa",
+      "furColor": "Pelaje",
+      "save": "Guardar personaje",
+      "saving": "Guardando personaje...",
+      "saved": "Personaje guardado.",
+      "saveError": "No se pudo guardar el personaje. Inténtalo de nuevo.",
+      "nextRole": "Elegir atuendo profesional",
+      "roleForHumanOnly": "Los atuendos profesionales solo están disponibles para personajes humanos.",
+      "optionSelected": "{{name}}, seleccionado"
+    },
+    "role": {
+      "screenTitle": "Atuendo profesional",
+      "eyebrow": "Un personaje, un rol",
+      "title": "Añade un atuendo profesional a tu personaje",
+      "intro": "La profesión del perfil es la fuente principal. Esta pantalla solo añade su rol visual correspondiente.",
+      "previewLabel": "Vista previa combinada final",
+      "currentOccupation": "Profesión actual: {{occupation}}",
+      "noOccupation": "Ninguna profesión seleccionada",
+      "customOccupation": "{{occupation}} se conserva como texto porque no existe un atuendo correspondiente.",
+      "group": "Área profesional",
+      "jobs": "Profesiones",
+      "noJob": "Sin atuendo profesional",
+      "uniform": "Uniforme profesional",
+      "ownColor": "Conservar mi color",
+      "uniformHint": "Usa el color de ropa estándar de la profesión.",
+      "ownColorHint": "Conserva el color de ropa elegido en tu personaje de perfil.",
+      "covered": "{{accessory}} queda oculto porque el sombrero profesional ocupa ese espacio.",
+      "save": "Guardar atuendo",
+      "saving": "Guardando atuendo...",
+      "saved": "Atuendo profesional guardado.",
+      "saveError": "No se pudo guardar el atuendo. Inténtalo de nuevo.",
+      "animalTitle": "Los personajes animales aún no pueden usar atuendos profesionales",
+      "animalBody": "Los uniformes para cuerpos animales son un proyecto de recursos aparte. Tu personaje permanece igual.",
+      "editCharacter": "Editar personaje de perfil",
+      "characterMissing": "Primero crea tu personaje de perfil.",
+      "createCharacter": "Crear personaje de perfil",
+      "jobSelected": "{{name}}, seleccionado"
+    }
+  },
   "sections": {
     "center": {
       "label": "Centro personal",

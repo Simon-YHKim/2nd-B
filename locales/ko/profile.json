@@ -11,6 +11,75 @@
     "eyebrow": "계정",
     "emailUnavailable": "이메일 정보를 불러올 수 없습니다."
   },
+  "avatar": {
+    "hub": {
+      "character": {
+        "label": "내 픽셀 캐릭터",
+        "hint": "나를 나타내는 모양과 색을 고릅니다."
+      },
+      "role": {
+        "label": "직업 복장",
+        "hint": "프로필 캐릭터에 직업 역할 하나를 입힙니다."
+      }
+    },
+    "character": {
+      "screenTitle": "내 픽셀 캐릭터",
+      "eyebrow": "프로필 캐릭터",
+      "title": "나를 닮은 캐릭터를 만드세요",
+      "intro": "모양과 색은 취향입니다. 별의 밝기는 바뀌지 않습니다.",
+      "previewLabel": "최종 합성 미리보기",
+      "shapeTab": "모양",
+      "colorTab": "색",
+      "type": "종류",
+      "human": "사람",
+      "animal": "동물",
+      "hair": "헤어",
+      "expression": "표정",
+      "face": "얼굴 디테일",
+      "accessory": "소품",
+      "species": "동물 종류",
+      "skinColor": "피부",
+      "hairColor": "머리색",
+      "eyeColor": "눈동자색",
+      "clothesColor": "옷색",
+      "furColor": "털색",
+      "save": "캐릭터 저장",
+      "saving": "캐릭터를 저장하는 중입니다…",
+      "saved": "캐릭터를 저장했습니다.",
+      "saveError": "캐릭터를 저장하지 못했습니다. 다시 시도해 주세요.",
+      "nextRole": "직업 복장 고르기",
+      "roleForHumanOnly": "직업 복장은 사람 캐릭터에서만 사용할 수 있습니다.",
+      "optionSelected": "{{name}}, 선택됨"
+    },
+    "role": {
+      "screenTitle": "직업 복장",
+      "eyebrow": "한 캐릭터, 한 역할",
+      "title": "내 캐릭터에 직업 복장을 더하세요",
+      "intro": "프로필의 직업이 정본입니다. 이 화면은 맞는 그림 역할만 더합니다.",
+      "previewLabel": "최종 합성 미리보기",
+      "currentOccupation": "현재 직업: {{occupation}}",
+      "noOccupation": "선택한 직업 없음",
+      "customOccupation": "{{occupation}}은 맞는 복장이 없어 글자로만 유지됩니다.",
+      "group": "직업 분야",
+      "jobs": "직업",
+      "noJob": "직업 복장 없음",
+      "uniform": "직업 유니폼",
+      "ownColor": "내 색 유지",
+      "uniformHint": "직업의 기본 옷색을 사용합니다.",
+      "ownColorHint": "프로필 캐릭터에서 고른 옷색을 유지합니다.",
+      "covered": "{{accessory}} 자리는 직업 모자가 사용해 잠시 가려집니다.",
+      "save": "직업 복장 저장",
+      "saving": "직업 복장을 저장하는 중입니다…",
+      "saved": "직업 복장을 저장했습니다.",
+      "saveError": "직업 복장을 저장하지 못했습니다. 다시 시도해 주세요.",
+      "animalTitle": "동물 캐릭터는 아직 직업 복장을 입을 수 없습니다",
+      "animalBody": "동물 몸통용 유니폼은 별도 에셋 작업입니다. 현재 캐릭터는 그대로 유지됩니다.",
+      "editCharacter": "프로필 캐릭터 수정",
+      "characterMissing": "먼저 프로필 캐릭터를 만들어 주세요.",
+      "createCharacter": "프로필 캐릭터 만들기",
+      "jobSelected": "{{name}}, 선택됨"
+    }
+  },
   "sections": {
     "center": {
       "label": "나의 중심",
