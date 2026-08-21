@@ -3990,12 +3990,236 @@
       "state": "ready_for_review",
       "version": "45dfe02c86f9"
     },
+    "icons/nap": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/navigate": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/needle": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/net": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/networking": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/neutral": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/next": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/note": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/offerLetter": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/outdent": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/package": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/paintRoller": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/palette": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/pan": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/paragraph": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/party": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/password": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
     "icons/pause": {
       "batch_id": "native128-010",
       "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-010/10496672de39/manifest.json",
       "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-010/10496672de39/master-atlas.png",
       "state": "ready_for_review",
       "version": "10496672de39"
+    },
+    "icons/paw": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/pen": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/pencil": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/percent": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/perfume": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personBlock": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personCheck": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personCircle": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personRemove": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personSearch": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personSquare": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/personStar": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/phone": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/piano": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    "icons/piggy": {
+      "batch_id": "native128-019",
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
     },
     "icons/play": {
       "batch_id": "native128-010",
@@ -4957,6 +5181,53 @@
     },
     {
       "asset_ids": [
+        "icons/nap",
+        "icons/navigate",
+        "icons/needle",
+        "icons/net",
+        "icons/networking",
+        "icons/neutral",
+        "icons/next",
+        "icons/note",
+        "icons/offerLetter",
+        "icons/outdent",
+        "icons/package",
+        "icons/paintRoller",
+        "icons/palette",
+        "icons/pan",
+        "icons/paragraph",
+        "icons/party",
+        "icons/password",
+        "icons/paw",
+        "icons/pen",
+        "icons/pencil",
+        "icons/percent",
+        "icons/perfume",
+        "icons/personBlock",
+        "icons/personCheck",
+        "icons/personCircle",
+        "icons/personRemove",
+        "icons/personSearch",
+        "icons/personSquare",
+        "icons/personStar",
+        "icons/phone",
+        "icons/piano",
+        "icons/piggy"
+      ],
+      "batch_id": "native128-019",
+      "contract_sha256": "2c44cec1feef29c7c98337d2cd0221c3e699d387d1d3d4bf191188a5aa276670",
+      "imagegen_sources": "external-provenance-by-id-and-sha256",
+      "lower_tiers_generated": false,
+      "manifest_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/manifest.json",
+      "manifest_sha256": "fec81e95ee9eb190acc7f65fa95dbf9770a956ae7fdcdbcdbc2b16ba63ed59f7",
+      "master_atlas_path": "design/hustlek-assets-v1/native128/batches/native128-019/2c44cec1feef/master-atlas.png",
+      "master_atlas_sha256": "4c15a2637ec6f5cb70d855b9f83fddea5712d2598959eb729efaeee507feb13c",
+      "stage": "native128-master",
+      "state": "ready_for_review",
+      "version": "2c44cec1feef"
+    },
+    {
+      "asset_ids": [
         "avatars/presets/plain",
         "avatars/food/chef",
         "avatars/fantasy/wizard",
@@ -4984,8 +5255,8 @@
   "coverage": {
     "approved_asset_ids": [],
     "native128_approved": 0,
-    "native128_ready_or_approved": 583,
-    "native128_remaining": 220,
+    "native128_ready_or_approved": 615,
+    "native128_remaining": 188,
     "ready_asset_ids": [
       "avatars/agriculture/agronomist",
       "avatars/agriculture/beekeeper",
@@ -5557,7 +5828,39 @@
       "icons/mute",
       "icons/nailGun",
       "icons/nailPolish",
+      "icons/nap",
+      "icons/navigate",
+      "icons/needle",
+      "icons/net",
+      "icons/networking",
+      "icons/neutral",
+      "icons/next",
+      "icons/note",
+      "icons/offerLetter",
+      "icons/outdent",
+      "icons/package",
+      "icons/paintRoller",
+      "icons/palette",
+      "icons/pan",
+      "icons/paragraph",
+      "icons/party",
+      "icons/password",
       "icons/pause",
+      "icons/paw",
+      "icons/pen",
+      "icons/pencil",
+      "icons/percent",
+      "icons/perfume",
+      "icons/personBlock",
+      "icons/personCheck",
+      "icons/personCircle",
+      "icons/personRemove",
+      "icons/personSearch",
+      "icons/personSquare",
+      "icons/personStar",
+      "icons/phone",
+      "icons/piano",
+      "icons/piggy",
       "icons/play",
       "icons/plus",
       "icons/refresh",
