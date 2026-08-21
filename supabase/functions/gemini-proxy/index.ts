@@ -51,7 +51,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // D-27: (vendor × model × effort) axis key attribution — the ONLY symbol this
 // live-critical $0 backbone imports from _shared (a pure env reader; no crisis/
 // auth/cap logic is migrated here — that stays inlined per the _shared note).
-import { resolveApiKey } from '../_shared/llm-proxy-common.ts';
+import { isUsableHeaderValue, resolveApiKey } from '../_shared/llm-proxy-common.ts';
 
 // P0-3 (D-26, docs/LLM-ROUTING.md): the allowlist previously held only
 // {2.5-flash, 2.5-pro}, so the client's LITE tier (clipper_classify ->
@@ -60,17 +60,50 @@ import { resolveApiKey } from '../_shared/llm-proxy-common.ts';
 // (the free-tier RPD upgrade path) are now allowed; the client env flip
 // (EXPO_PUBLIC_MODEL_*) stays a separate, lockstep operator decision.
 // GEMINI_MODELS_ALLOWED (comma-separated env) extends without a deploy.
-const MODELS_ALLOWED = new Set([
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-pro',
-  'gemini-3.5-flash',
-  'gemini-3.1-flash-lite',
-  ...((Deno.env.get('GEMINI_MODELS_ALLOWED') ?? '')
+//
+// 2026-08-17: 열거에서 **패턴**으로 바꿨다. 열거 목록은 세대가 바뀔 때마다 조용히
+// 낡는데, 낡았다는 신호가 400 'model_not_allowed' 하나뿐이라 원인을 찾기 어렵다.
+// 실제로 이 목록은 3.5-flash 에서 멈춰 있었고 그 위 세대는 넣어도 거부됐다.
+// scripts/refresh-models.ts 가 좌석을 등급으로 선언하고 최신 모델을 발견하는데,
+// 여기가 열거였으면 발견해도 프록시가 막았을 것이다.
+//
+// 패턴은 여전히 **닫혀 있다**: gemini- 로 시작하고, 뒤가 flash/flash-lite/pro 인
+// 것만 통과한다. 임의 문자열이나 다른 벤더 이름은 통과하지 못한다. 세대 숫자만
+// 열어둔 것이지 아무 모델이나 받는 것이 아니다.
+const MODEL_PATTERN = /^gemini-\d+(?:\.\d+)?-(?:flash|flash-lite|pro)$/;
+// 패턴 밖의 모델을 한시적으로 허용해야 할 때만 쓰는 탈출구(배포 없이 확장).
+const MODELS_ALLOWED_EXTRA = new Set(
+  (Deno.env.get('GEMINI_MODELS_ALLOWED') ?? '')
     .split(',')
     .map((m) => m.trim())
-    .filter((m) => m.length > 0)),
-]);
+    .filter((m) => m.length > 0),
+);
+function modelAllowed(model: string): boolean {
+  return MODEL_PATTERN.test(model) || MODELS_ALLOWED_EXTRA.has(model);
+}
+
+// 서버가 등급 안에서 모델을 고른다 (claude-proxy 와 같은 자세).
+//
+// 클라이언트의 MODELS 상수(src/lib/llm/types.ts)는 코드라서 배포해야 바뀐다.
+// 그게 모델 세대가 바뀔 때마다 낡는 세 지점 중 하나였다. 아래 env 가 있으면
+// 배포 없이 같은 등급의 최신 모델로 갈아끼운다. scripts/refresh-models.ts 가
+// 이 값을 채운다.
+//
+// **등급은 넘나들지 않는다.** lite 를 요청했으면 lite 자리만 바뀐다. 그래야
+// 저렴해야 할 분류 호출이 조용히 비싼 모델로 승격되지 않는다.
+// 오버라이드도 같은 허용 패턴을 통과해야 한다 - env 오타가 그대로 나가지 않게.
+function serverModelFor(requested: string): string {
+  const key = requested.includes('flash-lite')
+    ? 'GEMINI_MODEL_FLASH_LITE'
+    : requested.includes('flash')
+      ? 'GEMINI_MODEL_FLASH'
+      : requested.includes('-pro')
+        ? 'GEMINI_MODEL_PRO'
+        : '';
+  if (!key) return requested;
+  const override = (Deno.env.get(key) ?? '').trim();
+  return override.length > 0 && modelAllowed(override) ? override : requested;
+}
 const GEMINI_ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 // P0-2 (D-26 A19): embeddings — text-embedding-004 shut down 2026-01-14; the
@@ -93,7 +126,7 @@ const MAX_SYSTEM_LEN = 4000;
 const UPSTREAM_DETAIL_TRUNCATE = 80;
 
 // P1 (2026-07-05): server-side mirror of the client effortToConfig ladder
-// (src/lib/llm/gemini.ts). The edge path previously pinned a flat 1024-token
+// (src/lib/llm/boundary.ts). The edge path previously pinned a flat 1024-token
 // output cap with no thinking budget, so Phase-1 pro-tier surfaces routed
 // through the proxy (advisor, imagine, journal_reflect, ops_daily_brief) got
 // zero reasoning budget and truncated large structured outputs. Mirror the
@@ -187,7 +220,7 @@ const BRAIN_RANK = TIER_RANK.brain;
 const DEFAULT_FREE_DAILY_CALL_CAP = 200;
 const DEFAULT_SUB_DAILY_CALL_CAP = 350;
 
-// Mirror of src/lib/llm/gemini.ts:djb2 so the proxy's ai_audit_log row hashes
+// Mirror of src/lib/llm/boundary.ts:djb2 so the proxy's ai_audit_log row hashes
 // prompt/output identically to the client wrapper.
 function djb2(s: string): string {
   let h = 5381;
@@ -347,7 +380,10 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: 'missing_authorization' }, 401);
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  // .trim(): a secret pasted into the dashboard keeps its trailing newline, and a
+  // newline in a header value makes `fetch` THROW rather than warn. See
+  // ../_shared/axis-key-name.ts:pickApiKey for the outage this caused.
+  const apiKey = (Deno.env.get('GEMINI_API_KEY') ?? '').trim();
   if (!apiKey || apiKey.length === 0) {
     return jsonResponse(req, { error: 'server_misconfigured_missing_GEMINI_API_KEY' }, 500);
   }
@@ -601,7 +637,8 @@ Deno.serve(async (req: Request) => {
   if (systemText && systemText.length > MAX_ASSEMBLED_LEN) {
     return jsonResponse(req, { error: 'system_too_long', max: MAX_ASSEMBLED_LEN, got: systemText.length }, 413);
   }
-  if (!MODELS_ALLOWED.has(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
+  if (!modelAllowed(model)) return jsonResponse(req, { error: 'model_not_allowed' }, 400);
+
 
   // R1-A: server-side crisis classifier. Reject before any Gemini call so a
   // bypassed client cannot route red-zone USER input around C9. We scan ONLY the
@@ -705,13 +742,16 @@ Deno.serve(async (req: Request) => {
   // Lookup-error (null rank) keeps the requested model — availability for an
   // unknown brain user.
   const isProClass = /-pro(\b|$|-)/.test(model);
-  const effectiveModel =
+  const downgraded =
     tierRank !== null &&
     tierRank < BRAIN_RANK &&
     isProClass &&
     !(purpose && PRO_FOR_ALL_TIERS.has(purpose))
-      ? 'gemini-2.5-flash'
+      // 다운그레이드 대상이 리터럴이면 그것도 같이 낡는다. flash 등급을 요청한
+      // 셈이니 serverModelFor 가 그 등급의 현재 모델로 풀어준다.
+      ? serverModelFor('gemini-2.5-flash')
       : model;
+  const effectiveModel = serverModelFor(downgraded);
 
   // Spend cap (cost backstop) — server-authoritative, BEFORE any paid upstream
   // call. bump_gemini_spend raises gemini_spend_exceeded at the per-user/day
@@ -770,6 +810,32 @@ Deno.serve(async (req: Request) => {
     );
   }
   const keyCombo = resolvedKey.usedCombo ? resolvedKey.secretName : 'GEMINI_API_KEY';
+
+  // A key that cannot be a header value makes `fetch` THROW, which every path
+  // below reports as `upstream_unreachable` -- indistinguishable from the vendor
+  // being down. Say what is actually wrong instead, naming the SECRET but never
+  // its value. (2026-08-19: this exact case took 30 minutes to identify.)
+  if (!isUsableHeaderValue(resolvedKey.apiKey)) {
+    // Nothing was sent upstream, so the daily-cap unit must go back -- otherwise a
+    // misconfigured secret quietly eats a user's whole allowance, one unit per
+    // attempt, while they see only an error. refund_gemini_spend (0110) floors at
+    // 0 and no-ops when there is no row, so a stray refund is safe.
+    if (!spendErr) {
+      try {
+        await supabaseAdmin.rpc('refund_gemini_spend', { p_user_id: userId, p_day: utcDay() });
+      } catch (e) {
+        console.warn('[gemini-proxy] spend refund failed:', String(e).slice(0, 80));
+      }
+    }
+    console.error(
+      `[gemini-proxy] GEMINI_API_KEY is not usable as a header value (control character in the secret?)`,
+    );
+    return jsonResponse(req, {
+      error: 'server_misconfigured_malformed_api_key',
+      secret: keyCombo,
+    }, 500);
+  }
+
 
   const t0 = Date.now();
   let upstream: Response;

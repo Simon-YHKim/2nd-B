@@ -5,9 +5,12 @@
 INSERT INTO users (id, email, birth_date, judge_mode, locale)
 VALUES (
   '00000000-0000-0000-0000-000000000001',
-  'demo@xprize.org',
+  'demo@example.com',
   date '1990-01-01',
-  true,
+  -- judge_mode false: the comp auto-flag was retired in 0138. A seed row that
+  -- comps itself to the brain tier would make every local run test the paid
+  -- path by accident.
+  false,
   'en'
 )
 ON CONFLICT (id) DO NOTHING;

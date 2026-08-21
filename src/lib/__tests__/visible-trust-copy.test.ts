@@ -174,7 +174,7 @@ describe("visible trust copy", () => {
     expect(ko.firstRun.hint).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("기록 보관소");
     expect(ko.saved.recordsOwnership).toContain("내보내기");
-    expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮아요");
+    expect(ko.saved.recordsOwnership).toContain("작심이틀도 괜찮습니다");
     expect(ko.saved.recordsAiOptIn).toContain("켰을 때만");
     expect(es.firstRun.hint).toContain("primer registro guardado");
     expect(es.saved.recordsOwnership).toContain("Una oración basta");

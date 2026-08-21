@@ -1,0 +1,31 @@
+/* PIXEL-CLAY v4.0 · background patterns
+   Source: uploads/pixel-clay-v4.html lines 906-935 (verbatim) */
+/* ═══════════ v3.0 · BACKGROUND PATTERNS ════════════════════════════════
+   스캔라인은 선택 사항입니다(기본값 = 민무늬). [data-bg]로 전환.
+   전부 하드스톱 그라디언트라 blur 금지 규칙을 지킵니다. */
+body{ background-attachment:fixed; }
+[data-bg="plain"] body, body{ background-image:none; }
+[data-bg="scanline"] body{
+  background-image:repeating-linear-gradient(0deg,
+    color-mix(in srgb,var(--c00) 22%,transparent) 0 1px, transparent 1px 3px); }
+[data-bg="dots"] body{
+  background-image:radial-gradient(var(--edge-soft) 1px, transparent 1px);
+  background-size:var(--s4) var(--s4); }
+[data-bg="grid"] body{
+  background-image:
+    repeating-linear-gradient(0deg,var(--edge-soft) 0 1px,transparent 1px var(--s6)),
+    repeating-linear-gradient(90deg,var(--edge-soft) 0 1px,transparent 1px var(--s6)); }
+[data-bg="checker"] body{
+  background-image:
+    linear-gradient(45deg,var(--panel) 25%,transparent 25% 75%,var(--panel) 75%),
+    linear-gradient(45deg,var(--panel) 25%,transparent 25% 75%,var(--panel) 75%);
+  background-size:var(--s8) var(--s8);
+  background-position:0 0, var(--s4) var(--s4); }
+[data-bg="diag"] body{
+  background-image:repeating-linear-gradient(45deg,
+    var(--edge-soft) 0 var(--u), transparent var(--u) var(--s4)); }
+[data-bg="brick"] body{
+  background-image:
+    repeating-linear-gradient(0deg,var(--edge-soft) 0 1px,transparent 1px var(--s6)),
+    repeating-linear-gradient(90deg,var(--edge-soft) 0 1px,transparent 1px var(--s12));
+  background-size:auto, var(--s12) var(--s12); }

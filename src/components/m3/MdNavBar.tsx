@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } fro
 
 import { m3 } from "@/lib/theme/m3";
 
-import { m3TextStyle, robotoFor } from "./typeface";
+import { chromeFaceFor, m3TextStyle } from "./typeface";
 
 export interface MdNavItem {
   key: string;
@@ -60,7 +60,7 @@ export function MdNavBar({ items, active, onSelect, bottomInset = 0, style }: Md
                   m3TextStyle("labelMedium"),
                   styles.label,
                   { color: labelColor },
-                  on && { fontFamily: robotoFor("700") },
+                  on && { fontFamily: chromeFaceFor("700") },
                 ]}
                 numberOfLines={1}
               >

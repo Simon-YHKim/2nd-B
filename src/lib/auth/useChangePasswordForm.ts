@@ -86,8 +86,10 @@ export function useChangePasswordForm(): UseChangePasswordForm {
       const failure = passwordUpdateFailure(e);
       if (failure === "reauthentication_needed") setNeedsReauth(true);
       const message =
-        failure === "current_password_invalid" || failure === "current_password_required"
-          ? t("errors.currentPasswordInvalid")
+        failure === "breached_password"
+          ? t("errors.breachedPassword")
+          : failure === "current_password_invalid" || failure === "current_password_required"
+            ? t("errors.currentPasswordInvalid")
           : failure === "reauthentication_needed"
             ? t("errors.reauthRequired")
             : failure === "weak_password"

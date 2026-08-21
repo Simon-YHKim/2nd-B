@@ -15,7 +15,7 @@ import { rewardedAdsConfigured } from "@/lib/ads/policy";
 import { remainingReasoning, reasoningCapForTier } from "@/lib/entitlements/reasoning-cap";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { getReasoningUsage, monthBucket } from "@/lib/entitlements/usage";
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { INJECTION_GUARD, sanitizeUntrusted } from "@/lib/llm/untrusted";
 import { captureEvent, proposalDecided } from "@/lib/analytics";
 import {
@@ -390,7 +390,7 @@ async function produceProposals(
       input.locale === "ko"
         ? `사용자가 고른 생활 기록을 7개 생활 도메인 중 하나에 연결하세요. 심리 렌즈를 별로 만들지 말고 career, finance, growth, relation, health, recreation, collect 중 하나만 고르세요. ${INJECTION_GUARD.ko}`
         : `Connect each selected life record to one of seven life domains. Never turn psychological lenses into visible stars. Choose only career, finance, growth, relation, health, recreation, or collect. ${INJECTION_GUARD.en}`;
-    const reply = await callGemini({
+    const reply = await callLlm({
       userId: input.userId,
       locale: input.locale,
       purpose: "reasoning_connect",
@@ -438,7 +438,7 @@ async function produceProposals(
       input.locale === "ko"
         ? `사용자가 고른 자료를 7개 생활 도메인 중 하나에 연결하세요. 심리 렌즈를 별로 만들지 말고 career, finance, growth, relation, health, recreation, collect 중 하나만 고르세요. ${INJECTION_GUARD.ko}`
         : `Connect each selected source to one of seven life domains. Never turn psychological lenses into visible stars. Choose only career, finance, growth, relation, health, recreation, or collect. ${INJECTION_GUARD.en}`;
-    const reply = await callGemini({
+    const reply = await callLlm({
       userId: input.userId,
       locale: input.locale,
       purpose: "reasoning_connect",
@@ -1499,8 +1499,8 @@ const styles = StyleSheet.create({
   rowLabel: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 15, lineHeight: 21, fontWeight: "600" },
   rowSub: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 17, marginTop: 2 },
   rowSubReward: { color: m3.color.tertiary, fontFamily: fontFamilies.readable, fontSize: 11, lineHeight: 16, marginTop: 2 },
-  switchTrack: { width: 52, height: 32, borderRadius: 16, borderWidth: 2, justifyContent: "center" },
-  switchThumb: { position: "absolute", borderRadius: 12 },
+  switchTrack: { width: 52, height: 32, borderRadius: m3.shape.none, borderWidth: 2, justifyContent: "center" },
+  switchThumb: { position: "absolute", borderRadius: m3.shape.none },
   switchThumbOn: { width: 24, height: 24, right: 2, backgroundColor: m3.color.onPrimary },
   switchThumbOff: { width: 16, height: 16, left: 7, backgroundColor: m3.color.outline },
   dimmed: { opacity: 0.5 },
@@ -1509,10 +1509,10 @@ const styles = StyleSheet.create({
   pips: { flexDirection: "row", gap: 4, maxWidth: 88, flexWrap: "wrap", justifyContent: "flex-end" },
   pip: { width: 22, height: 7, borderRadius: m3.shape.small, backgroundColor: m3.color.primary },
   pipSpent: { backgroundColor: m3.color.outlineVariant },
-  infinity: { color: m3.color.primary, fontFamily: m3.font.mono, fontSize: 28, lineHeight: 32 },
+  infinity: { color: m3.color.primary, fontFamily: m3.font.mono, fontSize: 30, lineHeight: 32 },
   sectionLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: m3.spacing.s2 },
   sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  sectionCount: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, fontSize: 11, lineHeight: 16 },
+  sectionCount: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, fontSize: 12, lineHeight: 16 },
   divider: { height: 1, marginHorizontal: m3.spacing.s3, backgroundColor: m3.color.outlineVariant },
   itemRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, paddingHorizontal: m3.spacing.s3, paddingVertical: m3.spacing.s3, backgroundColor: m3.color.surfaceContainerHighest },
   itemRowSelected: { backgroundColor: withAlpha(m3.color.primary, 0.1) },
@@ -1531,14 +1531,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 66,
     height: 66,
-    borderRadius: 33,
+    borderRadius: m3.shape.none,
     borderWidth: 2,
     borderColor: withAlpha(m3.color.primary, 0.16),
     borderTopColor: m3.color.primary,
   },
   progressTitle: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 15, lineHeight: 21, fontWeight: "700" },
-  progressTrack: { height: 6, borderRadius: 3, overflow: "hidden", backgroundColor: m3.color.outlineVariant, marginTop: m3.spacing.s4 },
-  progressFill: { height: 6, borderRadius: 3, backgroundColor: m3.color.primary },
+  progressTrack: { height: 6, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: m3.color.outlineVariant, marginTop: m3.spacing.s4 },
+  progressFill: { height: 6, borderRadius: m3.shape.none, backgroundColor: m3.color.primary },
   depletedCard: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.errorContainer, borderWidth: 1, borderColor: withAlpha(m3.color.error, 0.34) },
   depletedTitleRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
   depletedTitle: { flex: 1, color: m3.color.onErrorContainer, fontFamily: fontFamilies.readable, fontSize: 16, lineHeight: 23, fontWeight: "700" },

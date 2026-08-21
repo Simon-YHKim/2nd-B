@@ -12,6 +12,7 @@ import { Text } from "@/components/ui/Text";
 import { DateField, MdButton, MdCard } from "@/components/m3";
 import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import { systemLocaleFor } from "@/lib/i18n/locales";
@@ -175,6 +176,15 @@ function SaveErrorBanner({ text }: { text: string }) {
   );
 }
 
+// ⚠ 이 컴포넌트는 **어떤 라우트도 렌더하지 않는다** (2026-08-18 실측).
+//
+// /ops 는 DeepSpaceDesignScreens.tsx 의 DeepSpaceOpsScreen 을 렌더한다. 이 파일의
+// 나머지 화면들(ReadingScreen·MilestonesScreen·LedgerScreen·SideProjectScreen·
+// MealsScreen·RemindersScreen)은 각자 라우트가 쓰지만, 이 허브만 고아다.
+//
+// 2026-08-18 에 여기에 도구 격자를 붙였다가 그대로 죽은 코드가 됐다(#1237).
+// 소스에서 grep 하면 있는 것처럼 보이지만 화면에는 없다 - 렌더 체인을 따라가지
+// 않으면 반복되는 실수다. **허브를 고치려면 DeepSpaceOpsScreen 을 고쳐야 한다.**
 export function OpsHomeScreen() {
   const c = useOpsCopy();
   const { userId, isMinor } = useAuth();
@@ -1305,13 +1315,13 @@ const remStyles = StyleSheet.create({
   infoIcon: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderColor: deepSpace.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  infoIconHand: { width: 2, height: 8, borderRadius: 1, backgroundColor: deepSpace.accent },
+  infoIconHand: { width: 2, height: 8, borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
   infoBody: { flex: 1 },
   infoTitle: { fontSize: 15, color: deepSpace.textHi },
   infoNote: { fontSize: 12, color: deepSpace.textMid, marginTop: 2 },
@@ -1323,24 +1333,24 @@ const remStyles = StyleSheet.create({
   iconBox: {
     width: 38,
     height: 38,
-    borderRadius: 11,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.accent, 0.16),
     alignItems: "center",
     justifyContent: "center",
   },
   iconDots: { flexDirection: "row", gap: 3 },
-  iconDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: deepSpace.accentSoft },
+  iconDot: { width: 5, height: 5, borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft },
   mid: { flex: 1, minWidth: 0 },
   title: { fontSize: 14, color: deepSpace.textHi },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" },
   timePill: {
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     paddingHorizontal: 9,
     paddingVertical: 3,
     backgroundColor: withAlpha(deepSpace.accent, 0.16),
   },
   timePillText: { fontSize: 12, color: deepSpace.accentBright },
-  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: deepSpace.textLo },
+  metaDot: { width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: deepSpace.textLo },
   repeat: { fontSize: 12, color: deepSpace.textMid },
   srcChip: {
     flexDirection: "row",
@@ -1350,17 +1360,17 @@ const remStyles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.cardPressed,
   },
-  srcDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: deepSpace.soul },
+  srcDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: deepSpace.soul },
   srcText: { fontSize: 11, color: deepSpace.textMid },
-  toggle: { width: 44, height: 26, borderRadius: 13, justifyContent: "center", paddingHorizontal: 3 },
+  toggle: { width: 44, height: 26, borderRadius: m3.shape.none, justifyContent: "center", paddingHorizontal: 3 },
   // Canon reminder toggles are blue/primary (accent), not mint — matches the
   // settings + iden M3 switches (design canon 09-settings / 23-iden / 26-reminders).
   toggleOn: { backgroundColor: deepSpace.accent, alignItems: "flex-end" },
   toggleOff: { backgroundColor: deepSpace.cardPressed, alignItems: "flex-start" },
-  knob: { width: 20, height: 20, borderRadius: 10 },
+  knob: { width: 20, height: 20, borderRadius: m3.shape.none },
   knobOn: { backgroundColor: deepSpace.onAccent },
   knobOff: { backgroundColor: deepSpace.textLo },
 });
@@ -1369,7 +1379,7 @@ const remStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   saveErrBanner: {
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     backgroundColor: withAlpha(deepSpace.danger, 0.12),
     paddingVertical: deepSpaceSpacing.xs,
     paddingHorizontal: deepSpaceSpacing.sm,
@@ -1382,7 +1392,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     paddingHorizontal: deepSpaceSpacing.md,
     color: deepSpace.textHi,
     fontFamily: fontFamilies.sans,
@@ -1390,7 +1400,7 @@ const styles = StyleSheet.create({
   },
   section: { gap: 8 },
   pixelLabel: { fontSize: 8, letterSpacing: 1, color: deepSpace.textLo },
-  dotSm: { width: 7, height: 7, borderRadius: 4 },
+  dotSm: { width: 7, height: 7, borderRadius: m3.shape.none },
 
   hero: {
     flexDirection: "row",
@@ -1398,13 +1408,13 @@ const styles = StyleSheet.create({
     padding: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     backgroundColor: deepSpace.card,
   },
   cover: {
     width: 62,
     height: 88,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     backgroundColor: deepSpace.bgMid,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
@@ -1425,7 +1435,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
   bookTitle: { flex: 1, fontSize: 14, color: deepSpace.textHi },
@@ -1438,7 +1448,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
     backgroundColor: deepSpace.card,
@@ -1446,7 +1456,7 @@ const styles = StyleSheet.create({
   addRowText: { fontSize: 13, color: deepSpace.accentSoft },
 
   heatRow: { flexDirection: "row", gap: 3, marginTop: 2 },
-  heatCell: { flex: 1, height: 12, borderRadius: deepSpaceRadii.sm },
+  heatCell: { flex: 1, height: 12, borderRadius: m3.shape.small },
   heatCell0: { backgroundColor: deepSpace.card, borderWidth: 1, borderColor: deepSpace.cardLine },
   heatCell1: { backgroundColor: deepSpace.accentDim },
   heatCell2: { backgroundColor: deepSpace.accent },
@@ -1456,7 +1466,7 @@ const styles = StyleSheet.create({
     padding: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
     gap: 6,
   },
@@ -1474,7 +1484,7 @@ const styles = StyleSheet.create({
     padding: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     backgroundColor: deepSpace.card,
   },
   ledgerRow: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
@@ -1487,14 +1497,14 @@ const styles = StyleSheet.create({
   kindToggle: { flexDirection: "row", gap: deepSpaceSpacing.xs },
   kindBtn: {
     flex: 1, minHeight: 38, alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: deepSpaceRadii.md,
+    borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium,
   },
   kindBtnOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.12) },
   kindTxt: { fontSize: 13, color: deepSpace.textLo },
   kindTxtOn: { color: deepSpace.accent },
   addBtn: {
     minHeight: 44, paddingHorizontal: deepSpaceSpacing.md, alignItems: "center", justifyContent: "center",
-    borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent,
+    borderRadius: m3.shape.medium, backgroundColor: deepSpace.accent,
   },
   addBtnOff: { opacity: 0.4 },
   addBtnTxt: { fontSize: 14, color: deepSpace.bg, fontFamily: fontFamilies.sans },
@@ -1512,7 +1522,7 @@ const styles = StyleSheet.create({
     padding: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     backgroundColor: deepSpace.card,
     gap: 8,
   },
@@ -1527,7 +1537,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
   repoName: { flex: 1, fontSize: 14, color: deepSpace.textHi },
@@ -1541,10 +1551,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: deepSpace.mintLine,
     backgroundColor: deepSpace.mintBg,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
   },
   quickIcon: { fontSize: 15 },
-  quickText: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 13, color: deepSpace.accentBright },
+  quickText: { flex: 1, fontFamily: fontFamilies.pixelKo, fontSize: 12, color: deepSpace.accentBright },
   quickTag: { fontSize: 12, color: deepSpace.mint },
 
   grid: { gap: 6 },
@@ -1556,7 +1566,7 @@ const styles = StyleSheet.create({
   gridCell: {
     flex: 1,
     height: 36,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -1584,7 +1594,7 @@ const styles = StyleSheet.create({
     paddingBottom: deepSpaceSpacing.xl,
     gap: deepSpaceSpacing.sm,
   },
-  sheetGrip: { width: 40, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
+  sheetGrip: { width: 40, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.cardLineStrong, alignSelf: "center" },
   mealSheetTitle: { fontSize: 15, color: deepSpace.textHi },
   ideaChips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   ideaChip: {
@@ -1593,7 +1603,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: deepSpaceSpacing.md,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.card,
   },
   ideaChipText: { fontSize: 13, color: deepSpace.accentSoft },
@@ -1601,7 +1611,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     backgroundColor: deepSpace.mint,
     marginTop: 4,
   },

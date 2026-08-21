@@ -31,7 +31,7 @@ import { AUDIT_QUESTIONS, type Framework } from "../audit/questions";
 import type { ValueId } from "./values-survey";
 import type { StrengthId } from "./strengths-survey";
 import type { MotivationNeedKey } from "./motivation-survey";
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { personaSynthesisSystem } from "./synthesis-prompt";
 import { getSupabaseClient } from "../supabase/client";
@@ -553,7 +553,7 @@ export function personaSummarySig(
 export async function buildPersona(
   userId: string,
   locale: "en" | "ko",
-  // C10: forwarded to callGemini so a minor's crisis output-swap routes to the
+  // C10: forwarded to callLlm so a minor's crisis output-swap routes to the
   // youth hotline (KO 1388 + 109), not adult-only. Defaults to adult routing.
   minor = false,
 ): Promise<PersonaCard> {
@@ -675,8 +675,8 @@ export async function buildPersona(
       const summaryInput = picked
         .map((r, i) => `${i + 1}. Q: ${r.prompt ?? "(audit)"}\n   A: ${r.body.slice(0, MAX_SUMMARY_BODY_CHARS)}`)
         .join("\n");
-      // This still goes through callGemini, so C9 + C3 hold.
-      const summaryRes = await callGemini({
+      // This still goes through callLlm, so C9 + C3 hold.
+      const summaryRes = await callLlm({
         userId,
         locale,
         purpose: "persona_narrative",

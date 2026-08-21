@@ -7,6 +7,7 @@
 
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
+import { isDevSurfaceEnabled } from "@/lib/dev/gate";
 import { reactExpression } from "@/lib/companion/expression";
 import {
   ActivityIndicator,
@@ -32,7 +33,7 @@ import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { deepSpace, deepSpaceRadii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -80,6 +81,8 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoningSub: string;
     wikiAuto: string;
     wikiAutoSub: string;
+    devScreens: string;
+    devScreensSub: string;
   }
 > = {
   en: {
@@ -90,6 +93,8 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoningSub: "Automatic runs · item selection",
     wikiAuto: "Auto wiki pages",
     wikiAutoSub: "Turn new captures into wiki pages by themselves",
+    devScreens: "Developer",
+    devScreensSub: "Open every screen directly",
   },
   ko: {
     news: "소식",
@@ -99,6 +104,8 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoningSub: "자동 실행 · 자료 선택",
     wikiAuto: "위키 자동 만들기",
     wikiAutoSub: "새로 담은 자료를 알아서 위키 페이지로 만들어요",
+    devScreens: "개발자",
+    devScreensSub: "모든 화면에 바로 들어가기",
   },
   es: {
     news: "Novedades",
@@ -108,6 +115,8 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoningSub: "Ejecuciones automáticas · selección de material",
     wikiAuto: "Páginas wiki automáticas",
     wikiAutoSub: "Convierte las capturas nuevas en páginas wiki",
+    devScreens: "Desarrollador",
+    devScreensSub: "Abre cualquier pantalla directamente",
   },
   pt: {
     news: "Novidades",
@@ -117,6 +126,8 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoningSub: "Execuções automáticas · seleção de material",
     wikiAuto: "Páginas wiki automáticas",
     wikiAutoSub: "Transforma capturas novas em páginas wiki",
+    devScreens: "Desenvolvedor",
+    devScreensSub: "Abra qualquer tela diretamente",
   },
   id: {
     news: "Kabar baru",
@@ -126,6 +137,8 @@ const SETTINGS_SURFACE_COPY: Record<
     reasoningSub: "Jalankan otomatis · pilih materi",
     wikiAuto: "Halaman wiki otomatis",
     wikiAutoSub: "Ubah tangkapan baru menjadi halaman wiki",
+    devScreens: "Pengembang",
+    devScreensSub: "Buka layar mana pun secara langsung",
   },
 };
 
@@ -720,6 +733,24 @@ export default function Settings() {
           <M3LinkRow icon="upload_file" label={t("importData")} sub={t("importDataDesc")} onPress={() => router.push("/import-hub")} />
         </M3Group>
 
+        {/* 개발자 — 개발/QA 빌드에서만 보인다 (Simon 2026-08-19, 결정 콘솔 V2 의견).
+            앱 안 어디에서도 링크되지 않는 화면이 실제로 여럿 있어서(`/canon` ·
+            `/deepspace-*` · 딥링크 전용 두 개) 살아 있는지 확인할 방법이 없었다.
+            프로덕션에서는 이 절 자체가 렌더되지 않으므로 죽은 행이 남지 않는다. */}
+        {isDevSurfaceEnabled() ? (
+          <>
+            <M3SectionLabel>{newSurfaceCopy.devScreens}</M3SectionLabel>
+            <M3Group>
+              <M3LinkRow
+                icon="bubble_chart"
+                label={newSurfaceCopy.devScreens}
+                sub={newSurfaceCopy.devScreensSub}
+                onPress={() => router.push("/dev-screens")}
+              />
+            </M3Group>
+          </>
+        ) : null}
+
         {/* Destructive op in flight: a persistent banner explains why actions
             and sign-out are disabled, instead of letting the user escape a
             half-finished wipe by navigating away or signing out. */}
@@ -1221,11 +1252,11 @@ const m3Styles = StyleSheet.create({
   rowText: { flex: 1, minWidth: 0 },
   rowLabel: { ...koType(16, 22, 0.15, "400"), color: m3.color.onSurface },
   rowSub: { ...koType(12, 16, 0.3, "400"), color: m3.color.onSurfaceVariant, marginTop: 1 },
-  iconBadge: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  rowBadge: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
+  iconBadge: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
+  rowBadge: { minWidth: 24, height: 24, borderRadius: m3.shape.none, paddingHorizontal: 7, alignItems: "center", justifyContent: "center", backgroundColor: m3.accent.alertDot },
   rowBadgeText: { ...koType(12, 16, 0, "700"), color: m3.color.onPrimary },
-  switchTrack: { width: 52, height: 32, borderRadius: 9999, borderWidth: 2, justifyContent: "center" },
-  switchThumb: { position: "absolute", borderRadius: 9999 },
+  switchTrack: { width: 52, height: 32, borderRadius: m3.shape.none, borderWidth: 2, justifyContent: "center" },
+  switchThumb: { position: "absolute", borderRadius: m3.shape.none },
   connectBtn: { minHeight: 36, paddingHorizontal: m3.spacing.s4 },
 });
 
@@ -1242,7 +1273,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -1285,13 +1316,13 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   settingsButton: {
     minHeight: 48,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     overflow: "hidden",
   },
@@ -1328,7 +1359,7 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
   settingsButtonLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
     letterSpacing: 0,
     textAlign: "center",

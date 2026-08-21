@@ -159,8 +159,19 @@ describe("the real CHANGELOG.md", () => {
     const released = latestReleased(entries);
     expect(released?.version).toMatch(/^\d+\.\d+\.\d+$/);
 
-    // The [Unreleased] section is where a release is drafted from before it is
-    // cut, so it has to summarise to something non-empty.
-    expect(summarizeEntry(unreleasedEntry(entries)!).length).toBeGreaterThan(0);
+    // The drafting slot has to EXIST - release-notice.ts falls back to it when
+    // no version is named, and a changelog with no [Unreleased] heading gives
+    // the next change nowhere to land.
+    expect(unreleasedEntry(entries)).toBeTruthy();
+
+    // What has to summarise to something non-empty is the newest RELEASED
+    // section, because that is the one a user-facing notice is cut from
+    // (release-notice.ts: latestReleased -> summarizeEntry -> notice body).
+    //
+    // This used to assert the same thing about [Unreleased], which is wrong
+    // for one specific moment: immediately after cutting a release, that
+    // section is legitimately empty, and requiring otherwise would force a
+    // placeholder bullet whose only reader is this test.
+    expect(summarizeEntry(released!).length).toBeGreaterThan(0);
   });
 });

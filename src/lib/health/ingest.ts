@@ -21,16 +21,24 @@ import { upsertHealthSamples, type HealthSampleRow } from "../supabase/health";
 
 /**
  * Gate: may this account ingest health/activity samples? Mirrors
- * recommendationsAllowed (src/lib/ops/recommend.ts). A minor only runs when the
- * pref is explicitly true — which is impossible while server-locked OFF and
- * non-promotable — so minors never ingest. Adults run when they have opted in
- * (pref true); the OFF default means an adult who hasn't opted in is rejected.
+ * recommendationsAllowed (src/lib/ops/recommend.ts).
+ *
+ * The rule is the same for everyone — an explicit opt-in — and `isMinor` is kept
+ * in the signature because callers pass what they know and the parameter
+ * documents that minors were considered. It is deliberately NOT the thing that
+ * locks minors out: this function runs on the client, so trusting it for that
+ * would be trusting a flag the client controls. Minors are locked by the pref
+ * being seeded false and clamped server-side (0050), by health_import being
+ * absent from MINOR_PROMOTABLE_KEYS, and by the 0100/0128 database trigger that
+ * rejects their rows outright.
+ *
+ * The OFF default means an adult who has not opted in is rejected here, and
+ * since 0128, at the database too.
  */
 export function healthImportAllowed(
-  isMinor: boolean | null | undefined,
+  _isMinor: boolean | null | undefined,
   pref: boolean | null | undefined,
 ): boolean {
-  if (isMinor === true) return pref === true;
   return pref === true;
 }
 

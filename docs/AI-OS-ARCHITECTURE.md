@@ -163,7 +163,7 @@ eng review 권장은 §4-first였으나 사용자가 §1-first로 확정. 풀 �
 - `src/lib/ingest/dedup.ts` — exact-hash + MinHash-LSH(순수 함수).
 - `src/lib/wiki/phase1.ts` — PHASE1_SCHEMA 확장 + 사후 lexicon 필터.
 - `src/lib/safety/ingest-policy.ts` — 3자 클리핑 안전 정책(크라이시스 라우팅 분리, A5).
-- `src/lib/llm/gemini.ts` — purpose 추가(`ingest_pii_ner`, `ingest_normalize`), C1/C3/C9 유지.
+- `src/lib/llm/boundary.ts` — purpose 추가(`ingest_pii_ner`, `ingest_normalize`), C1/C3/C9 유지.
 - `db/migrations/0044_ingest.sql` — `ingest_log` 테이블 + `sources.{relevance_score, content_hash, dedup_of}` + 인덱스.
 - 테스트: `__tests__/ingest/*` + **A5 회귀**(자살예방 기사 클리핑 → 크라이시스 미발동), 멱등, 출력 truncate→Zod 재시도 상한, 금지어휘 사후필터 거부.
 
@@ -173,7 +173,7 @@ eng review 권장은 §4-first였으나 사용자가 §1-first로 확정. 풀 �
 - 관련성 미달은 `sources` 저장 안 함 + **`ingest_log`에 드롭 사유 기록**(ai_audit_log 아님).
 - 동일 post-scrub content_hash 재유입은 신규 행 생성 안 함(멱등).
 - 스키마 검증 실패는 N회 재시도 후 dead-letter, 부분 데이터 커밋 금지.
-- 모든 Gemini 호출(PII NER·정규화)은 mock 모드에서도 `ai_audit_log` INSERT(C3), `callGemini` 경유(C1), `classifyInput` 선행(C9 — 단 인제스트는 크라이시스 라우팅 분리).
+- 모든 Gemini 호출(PII NER·정규화)은 mock 모드에서도 `ai_audit_log` INSERT(C3), `callLlm` 경유(C1), `classifyInput` 선행(C9 — 단 인제스트는 크라이시스 라우팅 분리).
 
 ## 부록 — 핵심 출처
 

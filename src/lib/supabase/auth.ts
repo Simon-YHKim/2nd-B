@@ -175,6 +175,7 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
         signup_consent_llm_processing: args.consent.llmProcessing,
         signup_consent_overseas_transfer: args.consent.overseasTransfer,
         signup_consent_sensitive_data: args.consent.sensitiveData,
+        signup_consent_safety_notice: args.consent.safetyNotice,
         signup_consent_marketing: args.consent.marketing,
       },
     },
@@ -197,11 +198,14 @@ export async function signUpWithEmail(args: SignUpArgs): Promise<SignUpResult> {
     id: user.id,
     email: args.email,
     birth_date: args.birthDate,
-    judge_mode: judgeMode,
     locale: args.locale ?? "en",
   });
-  // DB trigger auto_judge_mode also enforces judgeMode; the client-side
-  // value is best-effort for instant UI updates. The trigger is authoritative.
+  // judge_mode is deliberately NOT sent. It used to be, with a comment saying
+  // the auto_judge_mode trigger was authoritative - and it was, until 0138
+  // dropped that trigger as XPRIZE cleanup. Sending a column whose only
+  // remaining guard is a different trigger (0139's BEFORE INSERT) means the
+  // client is asking for a privilege and being silently corrected. Not asking
+  // is clearer, and the value defaults to false either way.
   if (insertErr) {
     // J3 (the correct-password variant): a fully-registered user re-signing-up
     // with their own password authenticates fine above, then the INSERT hits
@@ -404,6 +408,22 @@ export async function verifySignUpCode(email: string, code: string): Promise<voi
 // break "forgot password". The caller still handles `current_password_required`
 // in case that exemption ever changes.
 export async function updatePassword(password: string, currentPassword?: string): Promise<void> {
+  // The leaked-password check belongs HERE and not in the two forms, because
+  // this function is the only place both of them pass through: the settings
+  // change AND the forgot-password reset. Sign-up already had the check
+  // (signUpWithEmail); a user could still walk a breached password in through
+  // either update path, which made the sign-up gate mostly decorative for
+  // anyone who had already registered.
+  //
+  // D-3 (Simon, 2026-08-21) chose the client check over moving auth behind an
+  // edge function. The threat model is why that holds: a tampered client that
+  // skips this harms only its own account, unlike an authz check where the
+  // victim of a bypass is someone else.
+  //
+  // isPasswordBreached fails OPEN. A network problem must not make it
+  // impossible to change your password, and the length floor plus GoTrue's own
+  // checks still apply.
+  if (await isPasswordBreached(password)) throw new BreachedPasswordError();
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.updateUser(
     currentPassword ? { password, current_password: currentPassword } : { password },
@@ -424,9 +444,14 @@ export type PasswordUpdateFailure =
   | "current_password_invalid"
   | "reauthentication_needed"
   | "weak_password"
+  | "breached_password"
   | "unknown";
 
 export function passwordUpdateFailure(error: unknown): PasswordUpdateFailure {
+  // Ours, not GoTrue's: it is thrown before the request goes out and carries no
+  // `code`, so it has to be recognised by type or it would fall through to the
+  // generic "could not update" toast and read as a server problem.
+  if (error instanceof BreachedPasswordError) return "breached_password";
   const code = (error as { code?: unknown } | null)?.code;
   switch (code) {
     case "current_password_required":
@@ -690,6 +715,12 @@ export async function completeNaverOAuth(
 export interface CompleteProfileArgs {
   birthDate: string;
   locale: "en" | "ko";
+  /**
+   * What the user wants to be called (0127, L4). Optional: onboarding must not
+   * become a wall, and a nameless account still works everywhere -- the IDEN
+   * export has been falling back to 나/You since it was written.
+   */
+  displayName?: string | null;
 }
 
 export interface CompleteProfileResult {
@@ -712,14 +743,18 @@ export async function ensureUserProfile(args: CompleteProfileArgs): Promise<Comp
   if (existing) return { created: false, judgeMode: existing.judge_mode === true };
 
   const judgeMode = isJudgeEmail(user.email ?? "");
+  // Trim to null rather than storing "" — an empty string would count as a
+  // filled profile slot and light the star for someone who typed nothing.
+  const displayName = args.displayName?.trim() ? args.displayName.trim().slice(0, 40) : null;
   const { error: insertErr } = await supabase.from("users").insert({
     id: user.id,
     email: user.email ?? "",
     birth_date: args.birthDate,
-    judge_mode: judgeMode,
     locale: args.locale,
+    display_name: displayName,
   });
-  // C6: the auto_judge_mode BEFORE INSERT trigger overrides the client value.
+  // judge_mode is deliberately NOT sent here either; see the note on the other
+  // sign-up path. auto_judge_mode() no longer exists (0138).
   if (insertErr) {
     // A 23505 here has two shapes. (a) users_pkey: our own row won a
     // double-submit race -- re-probe by id and report idempotent success,

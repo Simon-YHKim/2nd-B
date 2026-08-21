@@ -4,6 +4,7 @@ import { Linking, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } 
 import { Text } from "@/components/ui/Text";
 import { advisorFollowupViewModel } from "@/lib/records/followup";
 import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 
 interface AdvisorFollowupLabels {
   heading: string;
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
   root: {
     borderLeftWidth: 3,
     borderLeftColor: semantic.brand,
-    borderRadius: radii.md,
+    borderRadius: 0,
     backgroundColor: withAlpha(cosmic.signalMint, 0.06),
     padding: spacing.md,
     gap: spacing.xs,
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: m3.shape.none,
     backgroundColor: semantic.brand,
     marginTop: 7,
   },

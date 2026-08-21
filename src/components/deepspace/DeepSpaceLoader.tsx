@@ -18,7 +18,8 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-n
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   wrapFull: { flex: 1, gap: deepSpaceSpacing.lg },
 
   dotsRow: { flexDirection: "row", gap: 9, marginTop: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: deepSpace.accent },
+  dot: { width: 8, height: 8, borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
 
   headline: { fontSize: 15, color: deepSpace.textHi, textAlign: "center", marginTop: 4 },
   caption: { fontSize: 13, color: deepSpace.textMid, textAlign: "center" },
@@ -353,18 +354,18 @@ const styles = StyleSheet.create({
   barTrack: {
     width: 148,
     height: 4,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.cardLine,
     overflow: "hidden",
   },
-  barFill: { width: 66, height: 4, borderRadius: 2, backgroundColor: deepSpace.accent },
+  barFill: { width: 66, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
 
   bgBtn: {
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.lg,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
     backgroundColor: deepSpace.card,

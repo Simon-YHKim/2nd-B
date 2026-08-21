@@ -13,7 +13,7 @@
 // steered clinical verdict would have rendered verbatim
 // (docs/handoff/ai_260721.md, ax-inject before/after).
 import { getSupabaseClient } from "../supabase/client";
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { sanitizeUntrusted } from "../llm/untrusted";
 import { containsAnalysisForbidden, containsForbiddenLexicon } from "../safety/classifier";
 
@@ -120,7 +120,7 @@ export async function proposeAxisEstimate(args: {
   if (count < MIN_ANSWERS_FOR_ESTIMATE) return null;
 
   const { system, user } = buildAxisEstimatePrompt(digest, args.axisName, args.locale);
-  const reply = await callGemini({
+  const reply = await callLlm({
     userId: args.userId,
     locale: args.locale,
     purpose: "axis_estimate",

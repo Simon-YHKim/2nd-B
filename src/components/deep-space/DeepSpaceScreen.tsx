@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { useFontStyle } from "@/lib/settings/readable-font";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
@@ -76,6 +77,13 @@ export function DeepSpaceScreen({
   children: ReactNode;
 }) {
   const { t } = useTranslation("home");
+
+  // 저시력 옵션(읽는 글)을 여기서 **구독**한다. 값을 쓰지는 않는다 -- 실제로
+  // 얼굴을 고르는 것은 `m3TextStyle()` 이고 그건 훅이 아니라서 스스로 다시
+  // 그려지지 못한다. 이 한 줄이 없으면 설정을 바꾼 뒤 화면을 떠났다 돌아와야
+  // 반영된다. 딥스페이스 화면 44개가 전부 이 셸을 지나므로 구독은 여기 하나면
+  // 된다.
+  useFontStyle();
 
   // Character a11y label resolves through i18next so every shipped locale gets its
   // own string (the deep-space-shell-a11y guard pins the t() call + bans non-ASCII
@@ -208,10 +216,10 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(m3.accent.stageFloor, 0.92),
     borderBottomWidth: 1,
     borderBottomColor: m3.color.outlineVariant,
-    elevation: 6,
+    elevation: 0,
     shadowColor: m3.color.scrim,
-    shadowOpacity: 0.28,
-    shadowRadius: 9,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 3 },
   },
   // sb-app windowed: padding '12px 12px 14px' around a radius-24 surface card
@@ -224,15 +232,15 @@ const styles = StyleSheet.create({
   },
   window: {
     flex: 1,
-    borderRadius: 24,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     backgroundColor: m3.color.surface,
     borderWidth: 1,
     borderColor: withAlpha(m3.accent.windowRim, 0.16),
-    elevation: 16,
+    elevation: 0,
     shadowColor: m3.color.scrim,
-    shadowOpacity: 0.5,
-    shadowRadius: 26,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 10 },
   },
   windowBody: { flex: 1, minHeight: 0 },

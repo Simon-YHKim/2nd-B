@@ -118,6 +118,51 @@ export async function cancelDailyReview(): Promise<DailyReviewResult> {
 // the OS. OFF by default for everyone.
 const ENABLED_KEY = "ops.dailyReview.enabled.v1";
 
+// 알림 시각 (Simon 결정 B3, 2026-08-20).
+//
+// 지금까지 `digest.tsx` 가 `scheduleDailyReview(9, 0, ...)` 로 **09:00 을 하드코딩**
+// 했다. 이 함수는 처음부터 임의 시각을 받고 0-23 / 0-59 검증도 했는데, 화면이 9시만
+// 넘겼다. 9시가 안 맞는 사람에게 알림은 도움이 아니라 방해다.
+//
+// 시각만 저장한다(분은 정시 고정). 분 단위까지 고르게 하면 고르는 비용이 얻는 것보다
+// 크고, 이 알림은 "오늘 한 번 들여다보라" 는 신호지 일정이 아니다.
+const HOUR_KEY = "ops.dailyReview.hour.v1";
+
+/** 화면이 보여줄 선택지. 아침·점심·저녁 리듬에 맞춰 고른 7개. */
+export const DAILY_REVIEW_HOURS: readonly number[] = [7, 8, 9, 12, 18, 21, 22];
+
+export const DEFAULT_DAILY_REVIEW_HOUR = 9;
+
+/** 저장된 값이 깨졌거나 없으면 기본값. 알림 시각 때문에 화면이 막히면 안 된다. */
+function normalizeHour(raw: string | null): number {
+  const n = Number.parseInt(raw ?? "", 10);
+  return DAILY_REVIEW_HOURS.includes(n) ? n : DEFAULT_DAILY_REVIEW_HOUR;
+}
+
+export async function loadDailyReviewHour(): Promise<number> {
+  const local = ls();
+  if (local) return normalizeHour(local.getItem(HOUR_KEY));
+  const storage = nativeStorage();
+  if (!storage) return DEFAULT_DAILY_REVIEW_HOUR;
+  try {
+    return normalizeHour(await storage.getItem(HOUR_KEY));
+  } catch {
+    return DEFAULT_DAILY_REVIEW_HOUR;
+  }
+}
+
+export function setDailyReviewHourPref(hour: number): void {
+  const value = String(DAILY_REVIEW_HOURS.includes(hour) ? hour : DEFAULT_DAILY_REVIEW_HOUR);
+  ls()?.setItem(HOUR_KEY, value);
+  const storage = nativeStorage();
+  if (storage) void storage.setItem(HOUR_KEY, value).catch(() => undefined);
+}
+
+/** "09:00" - 로케일 분기가 필요 없는 표기. 오전/오후 표현은 언어마다 갈린다. */
+export function formatDailyReviewHour(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
+
 interface AsyncStorageLike {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;

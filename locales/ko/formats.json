@@ -3,20 +3,20 @@
     "eyebrow": "형식",
     "title": "내 클리퍼 형식",
     "subtitle": "내가 만든 형식과 커뮤니티가 공유한 형식",
-    "speech": "형식을 다듬으면 다음 자료부터 더 잘 정리돼요."
+    "speech": "형식을 다듬으면 다음 자료부터 더 잘 정리됩니다."
   },
   "mine": {
     "shared": "커뮤니티에 공유됨",
     "private": "나만 보기",
     "heading": "내 형식",
     "headingWithCount": "내 형식 ({{count}})",
-    "emptyTitle": "아직 만든 형식이 없어요",
-    "emptyBody": "캡처 중 세컨비가 제안한 형식을 저장하면 여기에 모여요."
+    "emptyTitle": "아직 만든 형식이 없습니다",
+    "emptyBody": "캡처 중 세컨비가 제안한 형식을 저장하면 여기에 모입니다."
   },
   "community": {
     "heading": "커뮤니티 형식",
     "headingWithCount": "커뮤니티 형식 ({{count}})",
-    "empty": "아직 커뮤니티에 공유된 형식이 없어요. 누군가 형식을 공유하면 여기 나타나요.",
+    "empty": "아직 커뮤니티에 공유된 형식이 없습니다. 누군가 형식을 공유하면 여기 나타납니다.",
     "blockedCount": "차단한 작성자 {{count}}명",
     "unblockAll": "차단 모두 해제"
   },
@@ -24,7 +24,7 @@
     "action": "신고·차단",
     "sheetLabel": "이 형식 신고 또는 차단",
     "title": "신고 또는 차단",
-    "body": "신고하면 내 목록에서 바로 숨겨져요. 3명이 신고하면 모두에게 숨겨져요.",
+    "body": "신고하면 내 목록에서 바로 숨겨집니다. 3명이 신고하면 모두에게 숨겨집니다.",
     "reportHeading": "어떤 이유인가요?",
     "reasons": {
       "spam": "스팸이나 광고",
@@ -34,7 +34,7 @@
       "other": "그 밖의 이유"
     },
     "blockHeading": "이 작성자 차단",
-    "blockBody": "이 작성자가 공유한 형식이 내 목록에서 보이지 않아요.",
+    "blockBody": "이 작성자가 공유한 형식이 내 목록에서 보이지 않습니다.",
     "block": "작성자 차단"
   },
   "builtIn": {
@@ -57,32 +57,32 @@
     "close": "닫기"
   },
   "loading": {
-    "formats": "형식을 불러오는 중이에요…",
-    "generic": "불러오는 중이에요…"
+    "formats": "형식을 불러오는 중입니다…",
+    "generic": "불러오는 중입니다…"
   },
   "error": {
-    "loadTitle": "형식을 불러오지 못했어요",
+    "loadTitle": "형식을 불러오지 못했습니다",
     "loadBody": "연결을 확인하고 다시 시도해 주세요.",
     "retry": "다시 시도"
   },
   "toast": {
-    "shareFailed": "공유 설정을 바꾸지 못했어요.",
-    "deleteSuccess": "형식을 삭제했어요.",
-    "deleteFailed": "삭제하지 못했어요.",
-    "saveSuccess": "형식을 저장했어요.",
-    "saveFailed": "저장하지 못했어요.",
-    "addSuccess": "형식을 추가했어요.",
-    "reportSuccess": "신고했어요. 내 목록에서 숨겼어요.",
-    "reportFailed": "신고를 보내지 못했어요.",
-    "blockSuccess": "차단했어요. 이 작성자의 형식을 숨겼어요.",
-    "blockFailed": "차단하지 못했어요.",
-    "unblockSuccess": "차단을 모두 해제했어요.",
-    "unblockFailed": "차단을 해제하지 못했어요."
+    "shareFailed": "공유 설정을 바꾸지 못했습니다.",
+    "deleteSuccess": "형식을 삭제했습니다.",
+    "deleteFailed": "삭제하지 못했습니다.",
+    "saveSuccess": "형식을 저장했습니다.",
+    "saveFailed": "저장하지 못했습니다.",
+    "addSuccess": "형식을 추가했습니다.",
+    "reportSuccess": "신고했습니다. 내 목록에서 숨겼습니다.",
+    "reportFailed": "신고를 보내지 못했습니다.",
+    "blockSuccess": "차단했습니다. 이 작성자의 형식을 숨겼습니다.",
+    "blockFailed": "차단하지 못했습니다.",
+    "unblockSuccess": "차단을 모두 해제했습니다.",
+    "unblockFailed": "차단을 해제하지 못했습니다."
   },
   "deleteModal": {
     "label": "형식 삭제 확인",
     "title": "이 형식을 삭제할까요?",
-    "body": "삭제하면 되돌릴 수 없어요."
+    "body": "삭제하면 되돌릴 수 없습니다."
   },
   "guideModal": {
     "label": "분류 기준 보기",
@@ -98,18 +98,18 @@
     "descriptionKoPlaceholder": "한 줄 설명",
     "descriptionEnPlaceholder": "영어 한 줄 설명",
     "sourceType": "자료 종류",
-    "sourceTypeHint": "저장할 때 어떤 자료로 분류할지 정해요.",
+    "sourceTypeHint": "저장할 때 어떤 자료로 분류할지 정합니다.",
     "filingArea": "분류 위치",
     "noArea": "아직 정하지 않음",
     "autoMatchLinks": "자동 연결 조건",
-    "autoMatchLinksHint": "맞는 주소를 캡처하면 이 형식으로 자동 분류돼요.",
+    "autoMatchLinksHint": "맞는 주소를 캡처하면 이 형식으로 자동 분류됩니다.",
     "addLinkRule": "조건 추가",
     "defaultTags": "기본 해시태그",
     "addTag": "해시태그 추가",
     "savedFolder": "저장 폴더",
-    "savedFolderHint": "선택 사항이에요. 예: tools/",
+    "savedFolderHint": "선택 사항입니다. 예: tools/",
     "detailsToSave": "저장할 세부 정보",
-    "detailsToSaveHint": "내용을 읽고 함께 저장할 항목이에요.",
+    "detailsToSaveHint": "내용을 읽고 함께 저장할 항목입니다.",
     "noneYet": "아직 없음",
     "detailNamePlaceholder": "세부 정보 이름 (예: 주제 영역)",
     "removeDetail": "세부 정보 삭제",
@@ -135,7 +135,7 @@
     "defaultTags": "기본 해시태그",
     "autoMatchLinks": "자동 연결 조건",
     "detailsSaved": "자료마다 저장하는 세부 항목",
-    "commonOnly": "요약, 해시태그, 관련도 같은 공통 항목만 저장해요.",
+    "commonOnly": "요약, 해시태그, 관련도 같은 공통 항목만 저장합니다.",
     "propTypes": {
       "text": "짧은 글",
       "multitext": "목록",
@@ -144,13 +144,13 @@
   },
   "add": {
     "title": "형식 추가",
-    "body": "어떤 자료를 어떻게 정리하고 싶은지 적어 주세요. 세컨비가 다시 쓸 수 있는 정리 기준을 제안해요.",
-    "placeholder": "예: 팟캐스트 에피소드 - 출연자와 핵심 주장을 정리하고 싶어요",
+    "body": "어떤 자료를 어떻게 정리하고 싶은지 적어 주세요. 세컨비가 다시 쓸 수 있는 정리 기준을 제안합니다.",
+    "placeholder": "예: 팟캐스트 에피소드 - 출연자와 핵심 주장을 정리하고 싶습니다",
     "draft": "세컨비로 정리 기준 만들기",
     "drafting": "만드는 중…",
-    "errorNeedDetail": "정리 기준을 만들지 못했어요. 더 구체적으로 적고 다시 시도해 주세요.",
-    "errorDraft": "정리 기준을 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
-    "errorSave": "형식을 저장하지 못했어요. 다시 시도해 주세요.",
+    "errorNeedDetail": "정리 기준을 만들지 못했습니다. 더 구체적으로 적고 다시 시도해 주세요.",
+    "errorDraft": "정리 기준을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "errorSave": "형식을 저장하지 못했습니다. 다시 시도해 주세요.",
     "proposedEyebrow": "제안된 형식",
     "addThis": "이 형식 추가",
     "redo": "다시",

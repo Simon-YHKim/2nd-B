@@ -47,7 +47,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callGemini, embedTexts } from "../gemini";
+import { callLlm, embedTexts } from "../boundary";
 import { insertAiAuditLog } from "../../supabase/audit";
 import { insertCrisisEvent } from "../../supabase/crisis-events";
 import { resetAuditWriteOutboxForTests } from "../audit-write-outbox";
@@ -89,7 +89,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
   test("Phase 2 seat call reaches openai-proxy with the D-26 effort", async () => {
     mockInvoke.mockResolvedValueOnce(okPayload("gpt-5.4"));
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "gap_synthesize",
@@ -113,7 +113,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     process.env.EXPO_PUBLIC_LLM_VENDOR = "claude";
     try {
       mockInvoke.mockResolvedValueOnce(okPayload("claude-sonnet-5"));
-      const r = await callGemini({ userId: "u1", locale: "en", purpose: "gap_synthesize", user: BENIGN });
+      const r = await callLlm({ userId: "u1", locale: "en", purpose: "gap_synthesize", user: BENIGN });
       expect(mockInvoke).toHaveBeenCalledTimes(1);
       expect(mockInvoke.mock.calls[0]![0]).toBe("claude-proxy");
       const audit = r.audit as AuditMeta;
@@ -130,7 +130,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
       .mockResolvedValueOnce({ data: null, error: boom })
       .mockResolvedValueOnce(okPayload("gemini-2.5-flash"));
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "gap_synthesize",
@@ -158,7 +158,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
       },
     });
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "gap_synthesize",
@@ -176,7 +176,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
     delete process.env.EXPO_PUBLIC_LLM_PHASE;
     mockInvoke.mockResolvedValueOnce(okPayload("gemini-2.5-flash"));
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "gap_synthesize",
@@ -211,7 +211,7 @@ describe("D-26 vendor routing — live edge-path wiring", () => {
   test("owner pin: capture_ocr goes to gemini-proxy even in Phase 2", async () => {
     mockInvoke.mockResolvedValueOnce(okPayload("gemini-2.5-flash"));
 
-    await callGemini({
+    await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "capture_ocr",

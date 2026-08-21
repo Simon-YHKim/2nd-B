@@ -22,7 +22,7 @@
 마스코트만 표시 레이어에서 바뀐다. 마스코트 = **세컨비** — rev2 3 페르소나(2nd-B / 메타비 / 트위비).
 
 **공상**(3축 중 "공상 → 구체화")은 별도 장소 노드가 아니라 세컨비 대화 / 공상 시드로 다뤄진다
-(`src/app/imagine.tsx`, deep-space=seeds). 모든 LLM 경로는 C9 → C3 → `src/lib/llm/gemini.ts` 안전 분류를 지킨다.
+(`src/app/imagine.tsx`, deep-space=seeds). 모든 LLM 경로는 C9 → C3 → `src/lib/llm/boundary.ts` 안전 분류를 지킨다.
 구 `/graph` · `/core-brain` · `/trinity` · `/imagine` 라우트·스크린·에셋은 `EXPO_PUBLIC_UI=legacy` 롤백용으로만 vestigial 보존.
 
 ## Seven Engines
@@ -41,15 +41,15 @@
 
 | ID | Enforced at | Files |
 |----|-------------|-------|
-| C1 | ESLint + boundary script | `eslint.config.mjs`, `scripts/check-llm-import-boundary.ts`, `src/lib/llm/gemini.ts` |
-| C2 | Env validation + wrapper branching | `src/lib/env.ts`, `src/lib/llm/gemini.ts`, `db/migrations/0004_ai_audit_log.sql` (vertex_backend col) |
-| C3 | Wrapper auto-insert + import boundary | `src/lib/llm/gemini.ts`, `src/lib/supabase/audit.ts`, `db/migrations/0004_ai_audit_log.sql` |
+| C1 | ESLint + boundary script | `eslint.config.mjs`, `scripts/check-llm-import-boundary.ts`, `src/lib/llm/boundary.ts` |
+| C2 | Env validation + wrapper branching | `src/lib/env.ts`, `src/lib/llm/boundary.ts`, `db/migrations/0004_ai_audit_log.sql` (vertex_backend col) |
+| C3 | Wrapper auto-insert + import boundary | `src/lib/llm/boundary.ts`, `src/lib/supabase/audit.ts`, `db/migrations/0004_ai_audit_log.sql` |
 | C4 | DB schema + column presence script | `db/migrations/0005_revenue_events.sql`, `scripts/check-constraints.ts` |
 | C5 | DB NOT NULL + UI consent | `db/migrations/0006_testimonials.sql`, `src/components/consent/ConsentDialog.tsx` |
 | C6 | Client whitelist + DB trigger | `src/lib/judge/domains.ts`, `db/migrations/0010_triggers.sql`, `src/components/auth/JudgeBadge.tsx` |
 | C7 | i18n setup + CI script | `src/lib/i18n/*`, `locales/{en,ko}/*`, `scripts/check-i18n-keys.ts` |
 | C8 | DB CHECK constraints | `db/migrations/0007_knowledge_sources.sql` |
-| C9 | Wrapper pre-call classification | `src/lib/llm/gemini.ts`, `src/lib/safety/classifier.ts`, jest assertion |
+| C9 | Wrapper pre-call classification | `src/lib/llm/boundary.ts`, `src/lib/safety/classifier.ts`, jest assertion |
 | C10 | UI + client guard + DB CHECK | `src/components/auth/BirthDateField.tsx`, `src/lib/supabase/auth.ts`, `db/migrations/0002_users.sql` |
 | C11 | README SLA + GitHub workflow skeleton | `README.md`, `.github/workflows/issue-sla.yml` |
 | C12 | README section | `README.md`, `docs/ASSETS.md` |
@@ -58,7 +58,7 @@
 
 ```
 User input
-  → src/lib/llm/gemini.ts::callGemini()
+  → src/lib/llm/boundary.ts::callLlm()
       → classifyInput()       # C9
       → red ?  return routeCrisis()
       → getClient()           # C2 (Vertex when configured)
@@ -122,10 +122,10 @@ All four are owner-only RLS. `users.id ON DELETE CASCADE` propagates.
 |---|---|
 | `limits.ts` | `CHAT_DAILY_LIMIT` per tier (free 2 · Soma 30 · Cortex 80 · Brain 250, monetization v2 2026-06-10) + `kstDateToday` + `checkChatLimit`. |
 | `usage.ts` | `readChatUsage` + `bumpChatUsage` (calls the `bump_chat_usage` RPC). |
-| `conversation.ts` | `sendChatMessage` — checks limit, builds RAG context bundle via `exportUserWiki`, calls `callGemini(purpose='jarvis_chat')`, bumps usage on success. Crisis-routed turns (C9 red-zone short-circuit) don't burn quota. |
+| `conversation.ts` | `sendChatMessage` — checks limit, builds RAG context bundle via `exportUserWiki`, calls `callLlm(purpose='jarvis_chat')`, bumps usage on success. Crisis-routed turns (C9 red-zone short-circuit) don't burn quota. |
 
 C1/C3/C9 are enforced automatically because every Jarvis turn goes
-through `callGemini`. The mock LLM mode returns a deterministic
+through `callLlm`. The mock LLM mode returns a deterministic
 jarvis_chat response so the full UX is exercisable end-to-end without
 a Gemini connection.
 
@@ -141,7 +141,7 @@ a Gemini connection.
 | `/capture` | URL + pasted markdown with live "Detected: \<kind\>" preview. |
 | `/inbox` | Captured sources with per-row kind chip, ingested badge, "Generate wiki page" action for unpromoted rows. |
 | `/wiki` | Wiki page browser. Tag filter chips, tap to expand body + backlinks. |
-| `/jarvis` | SecondB chat. Daily usage meter at the top. **Analytic / Divergent** mode toggle (worldview v-final): Analytic = data-grounded analysis, Divergent = data-grounded but explores radically different angles. Both route through `callGemini` (C9 → C3). |
+| `/jarvis` | SecondB chat. Daily usage meter at the top. **Analytic / Divergent** mode toggle (worldview v-final): Analytic = data-grounded analysis, Divergent = data-grounded but explores radically different angles. Both route through `callLlm` (C9 → C3). |
 
 ### What's still ahead
 

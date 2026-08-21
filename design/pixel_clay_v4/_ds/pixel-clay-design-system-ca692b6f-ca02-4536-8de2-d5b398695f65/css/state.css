@@ -1,0 +1,28 @@
+/* PIXEL-CLAY v4.0 · state screens: skeleton, empty, error, gauge
+   Source: uploads/pixel-clay-v4.html lines 767-793 (verbatim) */
+/* ═══════════ COMPONENTS · STATE SCREENS ════════════════════════════════ */
+/* SKELETON — 페이드 금지. 하드스톱 줄무늬를 steps로 이동 */
+.px-skeleton{ height:var(--s4); background:repeating-linear-gradient(90deg,
+  var(--c05) 0 var(--s4), var(--c06) var(--s4) var(--s8));
+  animation:px-skel 640ms steps(4,end) infinite }
+.px-skeleton + .px-skeleton{ margin-top:var(--s2) }
+@keyframes px-skel{ from{ background-position:0 0 } to{ background-position:var(--s8) 0 } }
+/* EMPTY / ERROR */
+.px-empty{ text-align:center; padding:var(--s12) var(--s4); color:var(--fg-muted) }
+.px-empty__icon{ color:var(--c05); margin-bottom:var(--s4) }
+.px-errpage{ text-align:center; padding:var(--s16) var(--s4) }
+.px-errpage__code{ font-family:"Galmuri14",monospace; font-size:var(--t-3xl);
+  line-height:1; color:var(--accent) }
+/* PROGRESS / GAUGE */
+.px-gauge{ height:var(--s4); background:var(--sunken); margin:var(--u) 0; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-gauge__fill{ height:100%; transition:width var(--step-2); background:
+  repeating-linear-gradient(90deg,var(--accent) 0 var(--s3),var(--accent-deep) var(--s3) calc(var(--s3)+var(--u))) }
+.px-gauge--ok .px-gauge__fill{ background:
+  repeating-linear-gradient(90deg,var(--ok) 0 var(--s3),#5f7548 var(--s3) calc(var(--s3)+var(--u))) }
+.px-gauge--danger .px-gauge__fill{ background:
+  repeating-linear-gradient(90deg,var(--danger) 0 var(--s3),#8c2f2b var(--s3) calc(var(--s3)+var(--u))) }
+/* 무한 진행(불확정) */
+.px-gauge--indet .px-gauge__fill{ width:35%; animation:px-indet 1200ms steps(6,end) infinite }
+@keyframes px-indet{ from{ margin-left:0 } to{ margin-left:65% } }

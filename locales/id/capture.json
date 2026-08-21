@@ -197,7 +197,12 @@
     "selected": "File dipilih",
     "textExtracted": "Teks diekstrak: dimasukkan ke isi",
     "attachedNoPreview": "File terlampir. Pratinjau teks tidak tersedia.",
-    "dataUsageHint": "Mengunggah file dapat memakai kuota data. Wi-Fi disarankan."
+    "dataUsageHint": "Mengunggah file dapat memakai kuota data. Wi-Fi disarankan.",
+    "transcribing": "Mengubah rekaman ini menjadi teks...",
+    "transcribed": "Selesai ditranskrip dan dimasukkan ke isi. Periksa dan sunting sebelum menyimpan.",
+    "transcribeFailed": "Rekaman itu tidak bisa diubah menjadi teks. Pilih lagi, atau ketik apa yang kamu dengar.",
+    "transcriptEmpty": "Kami tidak menangkap kata apa pun dalam rekaman itu.",
+    "audioTooLarge": "Rekaman itu terlalu panjang. Pilih yang di bawah {{mb}}MB, atau bagi menjadi beberapa bagian."
   },
   "tags": {
     "title": "Tagar",

@@ -9,6 +9,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 
 export interface QuantPagerProps {
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.sm,
     gap: spacing.xs,
     marginBottom: spacing.md,
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
   progressBarOuter: {
     height: 4,
     backgroundColor: semantic.surfaceAlt,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
   },
   progressBarInner: { height: "100%", backgroundColor: semantic.brand },

@@ -6,7 +6,7 @@
 // bracket-slice parser accepts BOTH the new {"items":[...]} envelope and the
 // legacy bare-array reply, so cached/legacy outputs keep parsing.
 
-import { assertRootObjectSchema } from "../gemini";
+import { assertRootObjectSchema } from "../boundary";
 import { INGEST_SCHEMA } from "../../wiki/import-external";
 import { buildClipperSchema } from "../../wiki/classify-clipper";
 import { PROPOSE_TEMPLATE_SCHEMA } from "../../wiki/propose-template";

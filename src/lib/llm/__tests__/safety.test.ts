@@ -77,7 +77,6 @@ describe("classifySafety (layered)", () => {
     // Lexicon thinks this is GREEN, LLM says RED. Conservative union → RED.
     const r = await classifySafety("그냥 모든 게 무의미하게 느껴져요", "ko");
     expect(r.zone).toBe("red");
-    expect(r.cssrsLevel).toBe(2);
     expect(r.source).toBe("lexicon+llm");
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
   });
@@ -128,24 +127,22 @@ describe("classifySafety (layered)", () => {
     expect(mockInsertAudit).toHaveBeenCalledTimes(1); // but the billed call IS audited
   });
 
-  test("off-scale cssrsLevel from the LLM is nulled, not passed to the crisis ledger", async () => {
+  test("모델이 등급을 보내와도 결과에 실리지 않는다 (2026-08-17 이후)", async () => {
     mockEnv.mockReturnValue(LIVE_ENV);
     mockGenerateContent.mockResolvedValueOnce({
       text: JSON.stringify({ zone: "red", triggers: ["passive_ideation"], confidence: 0.9, cssrsLevel: 0 }),
     });
-    // DB CHECK is BETWEEN 1 AND 6; a 0 would void the swallowed ledger insert.
     const r = await classifySafety("죽고 싶어요", "ko");
-    expect(r.zone).toBe("red");
-    expect(r.cssrsLevel).toBeNull();
+    expect(r.zone).toBe("red");   // 라우팅은 zone 이 한다 - 그대로다
+    expect(r).not.toHaveProperty("cssrsLevel");
   });
 
-  test("fractional in-range cssrsLevel is rounded; out-of-range confidence is clamped", async () => {
+  test("out-of-range confidence is clamped", async () => {
     mockEnv.mockReturnValue(LIVE_ENV);
     mockGenerateContent.mockResolvedValueOnce({
       text: JSON.stringify({ zone: "red", triggers: [], confidence: 1.4, cssrsLevel: 4.6 }),
     });
     const r = await classifySafety("그냥 모든 게 무의미하게 느껴져요", "ko");
-    expect(r.cssrsLevel).toBe(5);
     expect(r.confidence).toBeLessThanOrEqual(1);
   });
 

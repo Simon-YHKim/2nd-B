@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { CompanionSprite } from "@/components/art/CompanionSprite";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useTranslation } from "react-i18next";
 
 export interface QuantIntroProps {
@@ -215,15 +216,15 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.lg,
     shadowColor: cosmic.soulViolet,
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
     // Android ignores shadow* — the card is opaque (semantic.surface), so an
     // elevation gives it the matching depth instead of rendering flat.
-    elevation: 8,
+    elevation: 0,
   },
   introHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   introHeaderText: { flex: 1 },
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.sm,
     marginTop: spacing.md,
   },
@@ -242,14 +243,14 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     padding: spacing.sm,
   },
   dontShowRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
   checkbox: {
     width: 16,
     height: 16,
-    borderRadius: 3,
+    borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderColor: semantic.textSubtle,
   },

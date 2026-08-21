@@ -168,7 +168,7 @@ export function CompanionEventCue({ event, size = 84, style }: { event: Companio
         {
           width: size,
           height: size,
-          borderRadius: size * 0.28,
+          borderRadius: 0,
           borderColor: art.accent,
           shadowColor: art.accent,
         },
@@ -268,15 +268,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     backgroundColor: semantic.surfaceAlt,
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   cueGlow: {
     position: "absolute",
     width: "58%",
     height: "58%",
-    borderRadius: 99,
+    borderRadius: 0,
     opacity: 0.12,
   },
   moment: {

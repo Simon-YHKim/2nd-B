@@ -20,8 +20,9 @@ import { PremiumAppShell, PremiumLoadingState, PremiumModal, SceneHero } from "@
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { radii, semantic, spacing, typography } from "@/lib/theme/tokens";
-import { colors, radius, spacing as dsSpacing } from "@/theme/tokens";
+import { colors, spacing as dsSpacing } from "@/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { DeepSpaceLoader, SecondbStatusHeader } from "@/components/deepspace";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
@@ -542,17 +543,17 @@ function TrinityDeepSpace() {
 const ds = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bgDeep },
   stars: { ...StyleSheet.absoluteFill, overflow: "hidden" },
-  star: { position: "absolute", width: 3, height: 3, borderRadius: 2, backgroundColor: colors.cyanSoft },
+  star: { position: "absolute", width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: colors.cyanSoft },
   scroll: { padding: dsSpacing.lg, paddingBottom: 40, gap: dsSpacing.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: dsSpacing.md, marginBottom: dsSpacing.xs },
   back: { color: colors.cyanSoft, fontSize: 34, lineHeight: 38, fontFamily: fontFamilies.readable },
   title: { color: colors.textTitle, fontSize: 18 },
   subtitle: { color: colors.textLo, fontSize: 11 },
   center: { alignItems: "center", gap: dsSpacing.sm, paddingVertical: dsSpacing.lg },
-  notice: { borderWidth: 1, borderColor: colors.borderHi, borderRadius: radius.lg, backgroundColor: colors.cardBg, padding: dsSpacing.md, gap: dsSpacing.sm },
+  notice: { borderWidth: 1, borderColor: colors.borderHi, borderRadius: m3.shape.large, backgroundColor: colors.cardBg, padding: dsSpacing.md, gap: dsSpacing.sm },
   noticeBody: { color: colors.textHi, fontSize: 12.5 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  card: { width: "47%", padding: 14, borderWidth: 1, borderRadius: radius.md, backgroundColor: colors.cardBg, gap: 8 },
+  card: { width: "47%", padding: 14, borderWidth: 1, borderRadius: m3.shape.medium, backgroundColor: colors.cardBg, gap: 8 },
   cardActive: { borderColor: colors.cyan },
   cardDim: { borderStyle: "dashed", borderColor: colors.borderHi, opacity: 0.65 },
   cardName: { color: colors.textTitle, fontSize: 14 },
@@ -562,7 +563,7 @@ const ds = StyleSheet.create({
   cardNumDim: { color: colors.textLo, fontSize: 22 },
   cardUnit: { color: colors.textLo, fontSize: 10 },
   cardSub: { color: colors.cyanDim, fontSize: 9.5 },
-  primary: { alignItems: "center", justifyContent: "center", backgroundColor: colors.cyan, borderRadius: radius.md, paddingVertical: dsSpacing.md },
+  primary: { alignItems: "center", justifyContent: "center", backgroundColor: colors.cyan, borderRadius: m3.shape.medium, paddingVertical: dsSpacing.md },
   primaryText: { color: colors.bgDeep, fontSize: 13 },
 });
 
@@ -571,7 +572,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.xs },
   shellCenter: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   center: { paddingVertical: spacing.xl, alignItems: "center" },
-  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, alignItems: "center", gap: spacing.sm },
+  emptyCard: { padding: spacing.lg, backgroundColor: semantic.surfaceAlt, borderRadius: 0, alignItems: "center", gap: spacing.sm },
   emptyLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
   grid: { gap: spacing.sm },
   card: {
@@ -579,14 +580,14 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     borderWidth: 1,
     borderStartWidth: 4,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.md,
     gap: spacing.xs,
   },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
   cardEyebrow: { letterSpacing: 0, fontWeight: "700" },
   cardSection: { marginTop: spacing.xs, gap: 2 },
-  tagGuide: { backgroundColor: semantic.surfaceAlt, borderRadius: radii.md, padding: spacing.md, gap: spacing.xs },
+  tagGuide: { backgroundColor: semantic.surfaceAlt, borderRadius: 0, padding: spacing.md, gap: spacing.xs },
   actions: { gap: spacing.sm },
   modalBody: { lineHeight: 21 },
   modalActions: { flexDirection: "row", gap: spacing.sm },

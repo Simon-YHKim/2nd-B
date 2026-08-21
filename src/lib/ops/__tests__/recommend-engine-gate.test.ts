@@ -4,7 +4,7 @@
 // call site must NOT be able to leak the user's own material to Gemini. The gate
 // is fail-closed: OFF / undefined / a minor -> [] with no snapshot and no call.
 
-jest.mock("../../llm/gemini", () => ({ callGemini: jest.fn() }));
+jest.mock("../../llm/boundary", () => ({ callLlm: jest.fn() }));
 jest.mock("../../wiki/export", () => ({ exportUserWiki: jest.fn() }));
 jest.mock("../signals", () => ({ gatherAdherenceSignal: jest.fn(() => Promise.resolve("")) }));
 jest.mock("../../growth/lens-signal", () => ({ gatherLensSignal: jest.fn(() => Promise.resolve("")) }));
@@ -18,7 +18,7 @@ jest.mock("../daily-brief", () => ({
 }));
 
 import { recommendForDomain, resetOpsRecommendCacheForTests } from "../recommend";
-import { callGemini } from "../../llm/gemini";
+import { callLlm } from "../../llm/boundary";
 import { exportUserWiki } from "../../wiki/export";
 import { buildOpsDailyBrief, getOpsDailyBrief } from "../daily-brief";
 
@@ -43,30 +43,30 @@ describe("recommendForDomain engine gate (D-2)", () => {
     const out = await recommendForDomain({ ...base, recommendationsPref: pref });
     expect(out).toEqual([]);
     expect(exportUserWiki).not.toHaveBeenCalled();
-    expect(callGemini).not.toHaveBeenCalled();
+    expect(callLlm).not.toHaveBeenCalled();
   });
 
   test("a minor is blocked even if a caller forgets the UI gate", async () => {
     const out = await recommendForDomain({ ...base, minor: true, recommendationsPref: false });
     expect(out).toEqual([]);
     expect(exportUserWiki).not.toHaveBeenCalled();
-    expect(callGemini).not.toHaveBeenCalled();
+    expect(callLlm).not.toHaveBeenCalled();
   });
 
   test("adult opt-in (recommendationsPref=true) -> loads snapshot and calls the gateway", async () => {
     (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
-    (callGemini as jest.Mock).mockResolvedValue({
+    (callLlm as jest.Mock).mockResolvedValue({
       text: JSON.stringify([{ title: "Walk 10 min", reason: "you already jog weekly" }]),
     });
     const out = await recommendForDomain({ ...base, recommendationsPref: true });
     expect(exportUserWiki).toHaveBeenCalledTimes(1);
-    expect(callGemini).toHaveBeenCalledTimes(1);
+    expect(callLlm).toHaveBeenCalledTimes(1);
     expect(out).toEqual([{ title: "Walk 10 min", reason: "you already jog weekly" }]);
   });
 
   test("TTL cache: a repeat run within the TTL reuses the result (no 2nd snapshot/LLM call)", async () => {
     (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
-    (callGemini as jest.Mock).mockResolvedValue({
+    (callLlm as jest.Mock).mockResolvedValue({
       text: JSON.stringify([{ title: "Walk 10 min", reason: "you already jog weekly" }]),
     });
     const first = await recommendForDomain({ ...base, recommendationsPref: true });
@@ -74,12 +74,12 @@ describe("recommendForDomain engine gate (D-2)", () => {
     const second = await recommendForDomain({ ...base, recommendationsPref: true });
     expect(second).toEqual(first);
     expect(exportUserWiki).toHaveBeenCalledTimes(1);
-    expect(callGemini).toHaveBeenCalledTimes(1);
+    expect(callLlm).toHaveBeenCalledTimes(1);
   });
 
   test("TTL cache never bypasses the privacy gate: pref flip to OFF returns []", async () => {
     (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
-    (callGemini as jest.Mock).mockResolvedValue({
+    (callLlm as jest.Mock).mockResolvedValue({
       text: JSON.stringify([{ title: "Walk 10 min", reason: "you already jog weekly" }]),
     });
     await recommendForDomain({ ...base, recommendationsPref: true });
@@ -94,7 +94,7 @@ describe("recommendForDomain engine gate (D-2)", () => {
     const out = await recommendForDomain({ ...base, recommendationsPref: true });
     expect(out).toEqual([{ title: "Walk 15 min", reason: "from the daily brief" }]);
     expect(exportUserWiki).not.toHaveBeenCalled();
-    expect(callGemini).not.toHaveBeenCalled();
+    expect(callLlm).not.toHaveBeenCalled();
     expect(buildOpsDailyBrief).not.toHaveBeenCalled(); // brief already existed
   });
 
@@ -106,18 +106,18 @@ describe("recommendForDomain engine gate (D-2)", () => {
     const out = await recommendForDomain({ ...base, recommendationsPref: true });
     expect(out).toEqual([{ title: "Stretch", reason: "built brief" }]);
     expect(buildOpsDailyBrief).toHaveBeenCalledTimes(1);
-    expect(callGemini).not.toHaveBeenCalled(); // the build IS the day's one call
+    expect(callLlm).not.toHaveBeenCalled(); // the build IS the day's one call
   });
 
   test("A17: brief covers other domains but not this one -> self-corrects via on-demand call", async () => {
     (getOpsDailyBrief as jest.Mock).mockResolvedValue({ reading_list: [{ title: "Read", reason: "x" }] });
     (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
-    (callGemini as jest.Mock).mockResolvedValue({
+    (callLlm as jest.Mock).mockResolvedValue({
       text: JSON.stringify([{ title: "Walk", reason: "on-demand" }]),
     });
     const out = await recommendForDomain({ ...base, recommendationsPref: true });
     expect(out).toEqual([{ title: "Walk", reason: "on-demand" }]);
-    expect(callGemini).toHaveBeenCalledTimes(1); // fell through
+    expect(callLlm).toHaveBeenCalledTimes(1); // fell through
   });
 
   test("A17: an explicit forceFresh run BYPASSES the brief (rich per-domain call)", async () => {
@@ -125,12 +125,12 @@ describe("recommendForDomain engine gate (D-2)", () => {
       exercise_routine: [{ title: "cached", reason: "brief" }],
     });
     (exportUserWiki as jest.Mock).mockResolvedValue({ prompt: "wiki body" });
-    (callGemini as jest.Mock).mockResolvedValue({
+    (callLlm as jest.Mock).mockResolvedValue({
       text: JSON.stringify([{ title: "fresh", reason: "forced" }]),
     });
     const out = await recommendForDomain({ ...base, recommendationsPref: true, forceFresh: true });
     expect(out).toEqual([{ title: "fresh", reason: "forced" }]);
     expect(getOpsDailyBrief).not.toHaveBeenCalled(); // brief skipped on forceFresh
-    expect(callGemini).toHaveBeenCalledTimes(1);
+    expect(callLlm).toHaveBeenCalledTimes(1);
   });
 });

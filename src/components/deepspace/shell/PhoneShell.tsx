@@ -39,10 +39,10 @@ export interface PhoneShellProps {
 // RN takes a single shadow; the 1px rim is a hairline border in windowRim.
 const WINDOW_SHADOW = {
   shadowColor: m3.color.scrim,
-  shadowOpacity: 0.5,
-  shadowRadius: 26,
+  shadowOpacity: 0,
+  shadowRadius: 0,
   shadowOffset: { width: 0, height: 20 },
-  elevation: 16,
+  elevation: 0,
 } as const;
 
 function TopBar({ title, showBack, onBack }: { title?: string; showBack?: boolean; onBack?: () => void }) {
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   windowCard: {
     flex: 1,
     minHeight: 0,
-    borderRadius: 24,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     backgroundColor: m3.color.surface,
     borderWidth: StyleSheet.hairlineWidth,

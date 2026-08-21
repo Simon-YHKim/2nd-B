@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
   unreadDot: {
     width: 7,
     height: 7,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.accent.alertDot,
     flexShrink: 0,
   },
@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
   pagerText: {
     color: m3.color.onSurfaceVariant,
     fontFamily: m3.font.mono,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
   },
   dialogButton: { minHeight: 44, paddingHorizontal: 13 },

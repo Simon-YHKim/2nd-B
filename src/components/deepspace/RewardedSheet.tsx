@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
 import { showRewardedAd } from "@/lib/ads/rewarded";
@@ -219,8 +220,8 @@ const styles = StyleSheet.create({
   spaceWash: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: deepSpace.bgEdge },
   veil: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: withAlpha(deepSpace.bgEdge, 0.66) },
   sheet: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderBottomLeftRadius: deepSpaceRadii.phone,
     borderBottomRightRadius: deepSpaceRadii.phone,
     borderTopWidth: 1,
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
   grabber: {
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.accentSoft, 0.3),
     alignSelf: "center",
     marginBottom: 18,
@@ -244,8 +245,8 @@ const styles = StyleSheet.create({
     height: 64,
     // soft cyan drop-shadow glow
     shadowColor: deepSpace.accent,
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   title: {
@@ -278,25 +279,25 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(deepSpace.mint, 0.3),
   },
   numBefore: { fontFamily: fontFamilies.pixelKo, fontSize: 30, color: deepSpace.accentBright },
-  numAfter: { fontFamily: fontFamilies.pixelKo, fontSize: 34, color: deepSpace.mint },
+  numAfter: { fontFamily: fontFamilies.pixelKo, fontSize: 30, color: deepSpace.mint },
   // These label the two counters the user weighs before watching an ad ("left"
   // and "after +N"). At 7px they were the least legible text on the sheet even
   // though the decision hinges on them, so the size is raised while the pixel
   // face (deep-space canon) is kept; numLabel's alpha matches its mint sibling.
   numLabel: {
     fontFamily: fontFamilies.pixelEn,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.7,
     color: withAlpha(deepSpace.accentSoft, 0.7),
     marginTop: 4,
   },
   numLabelMint: {
     fontFamily: fontFamilies.pixelEn,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.7,
     color: withAlpha(deepSpace.mint, 0.7),
     marginTop: 4,
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     marginTop: 18,
     paddingVertical: 16,
-    borderRadius: 15,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.mint,
     flexDirection: "row",
     alignItems: "center",

@@ -9,10 +9,11 @@ import { Redirect, router } from "expo-router";
 import { PremiumAppShell, PremiumCard, PremiumButton, PremiumTextarea, PremiumLoadingState, SceneHero, PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { cosmic, radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { VILLAGE_UI } from "@/lib/village-ui";
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { wrapUntrusted } from "@/lib/llm/untrusted";
 import {
   buildExtractionPrompt,
@@ -90,7 +91,7 @@ function ImportExternalLegacy() {
     try {
       // Pasted third-party material is the classic injection channel — fence it
       // (was raw until 2026-07-26; INGEST_SYSTEM carries the matching guard line).
-      const reply = await callGemini({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: wrapUntrusted("import_material", raw.trim()), minor: isMinor === true, responseSchema: INGEST_SCHEMA as unknown as Record<string, unknown> });
+      const reply = await callLlm({ userId, locale, purpose: "import_ingest", system: INGEST_SYSTEM, user: wrapUntrusted("import_material", raw.trim()), minor: isMinor === true, responseSchema: INGEST_SCHEMA as unknown as Record<string, unknown> });
       setResult(parseIngestResult(reply.text, raw.trim()));
       setPhase("result");
     } catch (e) {
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
@@ -292,12 +293,12 @@ const styles = StyleSheet.create({
   tagChip: {
     borderWidth: 1,
     borderColor: semantic.border,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
   itemRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingHorizontal: spacing.sm },
-  itemDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  itemDot: { width: 8, height: 8, borderRadius: m3.shape.none, marginTop: 6 },
   savedActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   toastWrap: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.xl, alignItems: "stretch" },
 });

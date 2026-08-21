@@ -215,7 +215,10 @@
       "switchToImmediate": "Cancel immediately instead",
       "switchToRenewal": "Cancel at the next renewal instead",
       "periodEnd": "the end of the paid period",
-      "alreadyScheduled": "Auto-renewal is already off for this subscription. Nothing more will be charged, and paid features stay open until the paid period ends."
+      "alreadyScheduled": "Auto-renewal is already off for this subscription. Nothing more will be charged, and paid features stay open until the paid period ends.",
+      "refundTogether": "Also request a refund",
+      "refundOfferNote": "You are inside the refund window. Requesting it together ends paid access right away.",
+      "confirmWithRefundCta": "Cancel and request refund"
     },
     "refund": {
       "title": "Refund",
@@ -244,7 +247,9 @@
       "refundRejected": "Self-serve refund is not available for this payment.",
       "contactSupport": "This cannot be handled in the app right now. Please contact support.",
       "notSubscribed": "There is no active paid subscription to cancel.",
-      "dryRun": "Rehearsal mode is on, so nothing was sent to Paddle. Contact support if you meant to submit this."
+      "dryRun": "Rehearsal mode is on, so nothing was sent to Paddle. Contact support if you meant to submit this.",
+      "cancelledAndRefundRequested": "Cancelled, and your refund request was submitted. The payment provider reviews it before any money moves.",
+      "cancelledRefundNotAccepted": "Cancelled, but the refund request was not accepted. Contact support if you expected a different answer."
     },
     "autoRenewOn": "Renews automatically on {{date}}",
     "cancelScheduledOn": "Auto-renewal is off. Paid features stay open until {{date}}.",

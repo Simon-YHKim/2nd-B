@@ -43,10 +43,20 @@ jobs:
             email              text,
             email_confirmed_at timestamptz
           );
+          -- supabase_auth_admin is the role the JWT claim hook runs as (0139).
+          -- It was added to the migrations on 2026-08-21 but NOT to this stub,
+          -- so 0139 line 199 (`CREATE POLICY ... TO supabase_auth_admin`) died
+          -- with `role does not exist` and this job has been red on main ever
+          -- since. The fix belongs here, not in 0139: prod really does have that
+          -- role, and guarding the policy in SQL would let it be SILENTLY
+          -- SKIPPED -- which is the exact failure 0139's own comment warns about
+          -- (the hook returns an empty array and the mechanism looks like it
+          -- works while granting nothing). A red CI is the better failure.
           DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated; END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')          THEN CREATE ROLE anon;          END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role')  THEN CREATE ROLE service_role;  END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated')       THEN CREATE ROLE authenticated;       END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')                THEN CREATE ROLE anon;                END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role')        THEN CREATE ROLE service_role;        END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN CREATE ROLE supabase_auth_admin; END IF;
           END $$;
           SQL
       - name: Apply migrations in order

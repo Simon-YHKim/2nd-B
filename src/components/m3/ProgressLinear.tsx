@@ -61,7 +61,7 @@ export function ProgressLinear({ value, color, trackColor, accessibilityLabel, s
 const styles = StyleSheet.create({
   // 2 = height/2: Android mis-clips children when borderRadius exceeds the view
   // size under overflow:hidden (same trap fixed in SegBtn, device QA 2026-07-02).
-  track: { height: 4, borderRadius: 2, overflow: "hidden", width: "100%" },
-  indicator: { height: 4, borderRadius: 2 },
+  track: { height: 4, borderRadius: m3.shape.none, overflow: "hidden", width: "100%" },
+  indicator: { height: 4, borderRadius: m3.shape.none },
   indeterminate: { width: "40%" },
 });

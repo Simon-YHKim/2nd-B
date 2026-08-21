@@ -197,7 +197,12 @@
     "selected": "Arquivo selecionado",
     "textExtracted": "Texto extraído: preenchido no corpo",
     "attachedNoPreview": "Arquivo anexado. A visualização do texto não está disponível.",
-    "dataUsageHint": "O envio de arquivos pode gerar cobranca de dados. Recomenda-se Wi-Fi."
+    "dataUsageHint": "O envio de arquivos pode gerar cobranca de dados. Recomenda-se Wi-Fi.",
+    "transcribing": "Transformando esta gravação em texto...",
+    "transcribed": "Transcrito e colocado no corpo. Revise e edite antes de salvar.",
+    "transcribeFailed": "Não conseguimos transformar essa gravação em texto. Escolha de novo ou digite o que ouviu.",
+    "transcriptEmpty": "Não conseguimos distinguir nenhuma palavra nessa gravação.",
+    "audioTooLarge": "Essa gravação é longa demais. Escolha uma com menos de {{mb}}MB, ou divida em partes."
   },
   "tags": {
     "title": "Etiquetas",

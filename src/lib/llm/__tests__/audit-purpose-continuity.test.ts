@@ -22,7 +22,7 @@ jest.mock("../../supabase/client", () => ({
 const root = join(__dirname, "..", "..", "..", "..");
 const sql = readFileSync(join(root, "db", "migrations", "0095_ai_audit_purpose_rpc.sql"), "utf8");
 const auditTs = readFileSync(join(root, "src", "lib", "supabase", "audit.ts"), "utf8");
-const geminiTs = readFileSync(join(root, "src", "lib", "llm", "gemini.ts"), "utf8");
+const boundaryTs = readFileSync(join(root, "src", "lib", "llm", "boundary.ts"), "utf8");
 const safetyTs = readFileSync(join(root, "src", "lib", "llm", "safety.ts"), "utf8");
 
 describe("0095_ai_audit_purpose_rpc.sql - signature migration", () => {
@@ -116,21 +116,21 @@ describe("audit.ts - RPC mapping forwards the enrichment axes", () => {
 });
 
 describe("gemini.ts / safety.ts - every client-written audit row carries a purpose", () => {
-  test("callGemini rows (mock + output-swap + direct/fallback) attribute input.purpose", () => {
+  test("callLlm rows (mock + output-swap + direct/fallback) attribute input.purpose", () => {
     // Three audit literals: mock, output-swap, and the normal (direct path /
     // proxy-unaudited fallback) row.
-    expect(geminiTs.match(/purpose: input\.purpose,/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(boundaryTs.match(/purpose: input\.purpose,/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     // Crisis routing threads the caller's purpose through routeCrisis opts.
-    expect(geminiTs).toMatch(/opts: \{ recordCrisisEvent\?: boolean; purpose\?: string \}/);
-    expect(geminiTs.match(/purpose: input\.purpose \}/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+    expect(boundaryTs).toMatch(/opts: \{ recordCrisisEvent\?: boolean; purpose\?: string \}/);
+    expect(boundaryTs.match(/purpose: input\.purpose \}/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
   });
 
   test("embed / transcription / advisor rows use the proxy-continuity labels", () => {
-    expect(geminiTs.match(/purpose: "embed_index",/g)).toHaveLength(2);
+    expect(boundaryTs.match(/purpose: "embed_index",/g)).toHaveLength(2);
     // 3 audit rows (mock / output-swap / live) + the pre-existing proxy
     // invoke-body self-report share the label — that sharing IS the continuity.
-    expect(geminiTs.match(/purpose: "voice_transcribe",/g)).toHaveLength(4);
-    expect(geminiTs.match(/purpose: "advisor",/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
+    expect(boundaryTs.match(/purpose: "voice_transcribe",/g)).toHaveLength(4);
+    expect(boundaryTs.match(/purpose: "advisor",/g)?.length ?? 0).toBeGreaterThanOrEqual(5);
   });
 
   test("the client-side safety classifier audits under the A18 seat name", () => {

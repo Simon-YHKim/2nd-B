@@ -53,7 +53,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callAdvisor } from "../gemini";
+import { callAdvisor } from "../boundary";
 
 const GREEN = {
   zone: "green" as const,

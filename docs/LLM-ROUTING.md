@@ -21,7 +21,7 @@
 | # | 결함 | 위치 | 상태 |
 |---|---|---|---|
 | P0-1 | **prod 시맨틱 위기분류 강등**: classifySafety가 non-Vertex 라이브에서 lexicon-only로 강등 (직결 API-key 클라이언트가 spend-cap 우회라 의도적으로 null) | `src/lib/llm/safety.ts:92` | 백로그 #1 — 잔여, 단 **부분 완화 실측(2026-07-19 S2 감사)**: ① 무음→관측 (`noteSemanticUnavailable` 세션당 1회 warn, safety.ts:117-134) ② 플래그 게이트 서버 경로 존재 — `EXPO_PUBLIC_SERVER_SAFETY=true`(클라, safety.ts:203-252) + `LLM_SERVER_SAFETY_SEAT=1`(gemini-proxy:591-593)이면 proxy `safety_classify` 좌석으로 시맨틱 분류 복구. 기본 OFF — 본복구(A18)는 위기 eval set + 세이프티 오너 승인 선행 |
-| P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/gemini.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
+| P0-2 | **임베딩 라이브 경로 사망**: `text-embedding-004`는 2026-01-14 셧다운됨 | `src/lib/llm/boundary.ts` EMBED_MODEL | ✅ P0 레인에서 수리 — gemini-embedding-2(768 MRL) + proxy `op:'embed'`(웹 경로) + 배치 백필 + 0068 리셋 + 리서치 버튼 재생성 배선 |
 | P0-3 | **엣지 경유 lite 콜 400**: gemini-proxy MODELS_ALLOWED={2.5-flash, 2.5-pro}뿐 → lite 티어(clipper_classify)가 엣지 빌드에서 model_not_allowed | `supabase/functions/gemini-proxy/index.ts` | ✅ P0 레인에서 수리 — allowlist에 lite+3.x, GEMINI_MODELS_ALLOWED env, pro-클래스 패턴 핀 |
 | P0-4 | **audit_qa 시스템 프롬프트 전무** — 라이브 무유도 출력 | `src/lib/records/create.ts` | ✅ 이 브랜치에서 수정 |
 
@@ -106,7 +106,7 @@ purpose 컬럼은 free text라 과거 행은 그대로 남는다 (persona_chat 3
 | `knowledge_lookup` (#1061~#1069, /reasoning 자료 배치) | `reasoning_connect` | 동일 시기 임시 재사용 — 시기+콜 형태(JSON connections 스키마)로 구분 |
 | `embed` (gemini-proxy embed 감사행, 0095 이전) | `embed_index` | 프록시 하드코드가 클라 라벨과 달랐음 — 0095 레인에서 `embed_index`로 통일 |
 
-**클라 감사행 enrichment — 0095 (2026-07-19, QA-F2 종결)**: 0073이 추가한 `purpose`/`reasoning_vendor`/`reasoning_effort` 컬럼은 서비스롤 프록시만 채우고 네이티브 `log_ai_audit` RPC(0038) 경로는 전부 NULL이었다(mock·output-swap·crisis·직결·분류기 행 무귀속 — QA-F2). `0095_ai_audit_purpose_rpc.sql`이 RPC를 9-인자(신규 3개 DEFAULT NULL)로 재생성하고 `src/lib/supabase/audit.ts`가 `AuditMeta.purpose`/`reasoningProvider`/`effort`를 전달한다. 클라 라벨: callGemini=PromptPurpose, advisor 경로="advisor", 임베딩="embed_index", 전사="voice_transcribe", 클라 분류기="safety_classify"(A18 좌석명), record-save 위기 스캔=NULL(콜 컨텍스트 없음). **적용 순서 = 서버(0095) 먼저, 클라 머지 나중** — 역순이면 audit 쓰기가 outbox에 적체됐다가 마이그레이션 후 자동 방류. `key_combo`/`total_tokens`는 프록시 전용 유지(클라가 알 수 없는 값).
+**클라 감사행 enrichment — 0095 (2026-07-19, QA-F2 종결)**: 0073이 추가한 `purpose`/`reasoning_vendor`/`reasoning_effort` 컬럼은 서비스롤 프록시만 채우고 네이티브 `log_ai_audit` RPC(0038) 경로는 전부 NULL이었다(mock·output-swap·crisis·직결·분류기 행 무귀속 — QA-F2). `0095_ai_audit_purpose_rpc.sql`이 RPC를 9-인자(신규 3개 DEFAULT NULL)로 재생성하고 `src/lib/supabase/audit.ts`가 `AuditMeta.purpose`/`reasoningProvider`/`effort`를 전달한다. 클라 라벨: callLlm=PromptPurpose, advisor 경로="advisor", 임베딩="embed_index", 전사="voice_transcribe", 클라 분류기="safety_classify"(A18 좌석명), record-save 위기 스캔=NULL(콜 컨텍스트 없음). **적용 순서 = 서버(0095) 먼저, 클라 머지 나중** — 역순이면 audit 쓰기가 outbox에 적체됐다가 마이그레이션 후 자동 방류. `key_combo`/`total_tokens`는 프록시 전용 유지(클라가 알 수 없는 값).
 
 **목표 스키마** (서버 proxy가 정본 소유):
 ```
@@ -132,7 +132,7 @@ PURPOSE_ROUTE[purpose] = {
 **커밋 1 (Phase 1 무비용 코어)**
 1. `PURPOSE_TIER`: interview_probe pro→flash 강등, northstar_propose/axis_estimate 명시 등재 (`src/lib/llm/types.ts`)
 2. audit_qa 시스템 프롬프트 신설 (`src/lib/records/create.ts`) — P0-4
-3. capture_ocr 직결 경로 thinking off (`src/lib/llm/gemini.ts` THINKING_OFF_PURPOSES)
+3. capture_ocr 직결 경로 thinking off (`src/lib/llm/boundary.ts` THINKING_OFF_PURPOSES)
 4. SAME-QUALITY 충돌 주석 정리 + 이 문서
 
 **커밋 2 (Phase 2 배선 — Simon GO 2026-07-04)**
@@ -194,13 +194,29 @@ PURPOSE_ROUTE[purpose] = {
 
 라우팅이 `purpose → vendor → model → clampedEffort` 를 정한 뒤, 프록시는 그 **조합 전용 키**로 벤더를 호출한다. → 벤더 청구/사용량 대시보드에서 **키별 = 조합별**로 사용량·비용이 분리 집계된다. (모든 키가 같은 결제 계정에 청구됨 — 분리는 "귀속"이지 별도 결제계정이 아니다.)
 
-**시크릿 네이밍** (env-var 안전: 대문자+언더스코어): `{PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}`
+**시크릿 네이밍** (env-var 안전: 대문자+언더스코어). **3단이고, 구체적인 것이 먼저 이긴다:**
 
-- `PREFIX` ∈ {`ANTHROPIC`, `OPENAI`, `GEMINI`}. 모델 슬러그: `claude-sonnet-5→SONNET5`, `claude-opus-4-8→OPUS48`, `gpt-5.4→GPT54`, `gpt-5.4-nano→GPT54NANO`, `gemini-2.5-flash→G25FLASH` 등. 미등록 모델은 대문자+영숫자 압축으로 자동 슬러그(코드 변경 없이 조합명 획득).
+| 단 | 이름 | 언제 쓰나 |
+|---|---|---|
+| 1 | `{PREFIX}_API_KEY__{MODELSLUG}__{EFFORT}` | 특정 **모델의** 특정 effort 를 따로 떼고 싶을 때 |
+| 2 | `{PREFIX}_API_KEY__{EFFORT}` | **평소 이것을 쓴다.** 모델이 승격돼도 이름이 안 바뀐다 |
+| 3 | `{PREFIX}_API_KEY` | 최후 폴백 |
+
+⚠ **2단이 왜 생겼나 (REQ-260820-03).** 1단 이름은 **모델명에서 파생**된다. 그래서 좌석이
+승격되면 그 시크릿은 존재하지 않게 되고 **모든 effort 가 3단 하나로 합쳐진다.** 가정이 아니라
+`ai_audit_log.key_combo` 실측이다 — `gemini-3.5-flash` 는 07-28 에 effort 4단이 정상 분리돼
+있었는데, 08-17 좌석이 `gemini-2.5-flash` 로 옮겨가자 전부 `GEMINI_API_KEY` 로 떨어졌다.
+Gemini 는 base 키가 멀쩡해서 **증상 없이** 합쳐졌고, 08-19 OpenAI 는 base 키에 제어문자가 있어
+**502 로 터졌다.** 같은 결함의 두 얼굴이다.
+
+**그래서 새 벤더 키는 2단 이름으로 발급한다** — `OPENAI_API_KEY__LOW`, `XAI_API_KEY__HIGH` 처럼.
+1단은 이미 만들어 둔 것이 계속 이기므로 기존 키를 지울 필요는 없다.
+
+- `PREFIX` ∈ {`ANTHROPIC`, `OPENAI`, `XAI`} (+ 폐기 진행 중인 `GEMINI`). 모델 슬러그: `claude-sonnet-5→SONNET5`, `claude-opus-4-8→OPUS48`, `gpt-5.4→GPT54`, `gpt-5.4-nano→GPT54NANO`, `gemini-2.5-flash→G25FLASH` 등. 미등록 모델은 대문자+영숫자 압축으로 자동 슬러그(코드 변경 없이 조합명 획득).
 - `EFFORT` = 프록시가 실제 upstream에 보내는 **clamped effort**(대문자). `max`는 `xhigh`로 접힘.
 - **정본 구현**: `supabase/functions/_shared/axis-key-name.ts`(순수·Deno-free·단위테스트) + `llm-proxy-common.ts:resolveApiKey`(Deno env 래퍼). 각 프록시가 model+clampedEffort 계산 직후 호출.
 
-**폴백 규칙(호출 불파손)**: 조합 전용 시크릿이 없거나 비어 있으면 벤더 **BASE 키**(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`)로 폴백하고 `console.warn` 1줄. 그 호출 사용량은 base 키에 잡힌다. base 키는 반드시 유지(프록시는 base 없으면 500).
+**폴백 규칙(호출 불파손)**: 1단이 없거나 비어 있으면 **2단(effort 전용)**, 그것도 없으면 벤더 **BASE 키**(`ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`GEMINI_API_KEY`)로 폴백하고 `console.warn` 1줄. 그 호출 사용량은 base 키에 잡힌다. base 키는 반드시 유지(프록시는 base 없으면 500).
 
 **전체 매트릭스**(벤더별 모델 × effort ladder 전수 — Simon 결정: 모델 유동성 + 모델·리즈닝별 통계). `현재 도달` = 현 코드가 실제로 그 조합을 upstream에 보낼 수 있는지(나머지는 상한 상향/모델 이동 대비 선발급):
 

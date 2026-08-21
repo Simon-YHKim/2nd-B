@@ -46,6 +46,12 @@ describe("privacy prefs (task D)", () => {
       // recordsEmbeddingAllowed), NOT yet visible (no toggle until consent copy
       // ships) — so it is an intentional, read/enforced key, not a false promise.
       "records_embedding",
+      // chat_autosave (2026-08-18): saving a chat exchange to the wiki. It sits
+      // here because it changes RETENTION, not because anything leaves the
+      // account -- conversations are ephemeral today (no chat table exists), so
+      // turning this on makes disappearing words permanent. Enforced by
+      // chatAutosaveAllowed and visible, shipped together per D-12.
+      "chat_autosave",
     ]);
   });
 
@@ -59,14 +65,18 @@ describe("privacy prefs (task D)", () => {
     test("minors may promote only the device-local exceptions; outward keys stay locked", () => {
       for (const k of PRIVACY_PREF_KEYS) {
         const editable = isPrivacyPrefEditable(k, true);
-        expect(editable).toBe(k === "long_term_memory" || k === "ops_push");
+        expect(editable).toBe(MINOR_PROMOTABLE_KEYS.includes(k));
       }
     });
 
-    test("the minor-promotable exceptions are exactly long_term_memory and ops_push", () => {
+    test("the minor-promotable exceptions are exactly the no-outward-flow keys", () => {
       // ops_push hands an on-screen-approved item to the user's OWN device
       // calendar/share sheet (no outward data flow) - Simon, 2026-06-11.
-      expect([...MINOR_PROMOTABLE_KEYS]).toEqual(["long_term_memory", "ops_push"]);
+      // chat_autosave moves the user's own words into their own RLS-isolated
+      // wiki, deletable from /wiki - Simon, 2026-08-18. Locking minors out of it
+      // would protect nothing while making their conversations unable to feed
+      // their own persona.
+      expect([...MINOR_PROMOTABLE_KEYS]).toEqual(["long_term_memory", "ops_push", "chat_autosave"]);
     });
   });
 });

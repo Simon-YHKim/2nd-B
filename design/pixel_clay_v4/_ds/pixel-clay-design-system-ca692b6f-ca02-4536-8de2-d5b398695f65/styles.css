@@ -1,0 +1,28 @@
+/* PIXEL-CLAY v4.0 — pixel-art design system. Single entry point.
+   Import order IS the cascade order of the original source file. */
+@import "tokens/fonts.css";
+@import "tokens/space.css";
+@import "tokens/typography.css";
+@import "tokens/motion.css";
+@import "tokens/elevation.css";
+@import "tokens/palettes.css";
+@import "tokens/semantic.css";
+@import "css/reset.css";
+@import "css/primitives.css";
+@import "css/layout.css";
+@import "css/typography.css";
+@import "css/forms.css";
+@import "css/buttons.css";
+@import "css/navigation.css";
+@import "css/feedback.css";
+@import "css/state.css";
+@import "css/data.css";
+@import "css/patterns.css";
+@import "css/select-calendar.css";
+@import "css/loaders.css";
+@import "css/palette-browser.css";
+@import "css/chart.css";
+@import "css/forms-v4.css";
+@import "css/app.css";
+@import "css/media.css";
+@import "css/marketing.css";

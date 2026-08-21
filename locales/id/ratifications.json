@@ -35,10 +35,12 @@
       "weak": "koneksi lemah"
     },
     "reminder": {
-      "label": "Ingatkan aku pukul 9:00",
+      "label": "Ingatkan setiap hari pukul {{time}}",
       "desc": "Berbunyi hanya di perangkat ini. Bisa kamu matikan kapan saja.",
       "notifBody": "Yuk ulas koneksi yang terkumpul dari catatanmu?",
-      "denied": "Notifikasi untuk aplikasi ini nonaktif. Aktifkan di Pengaturan."
+      "denied": "Notifikasi untuk aplikasi ini nonaktif. Aktifkan di Pengaturan.",
+      "timeTitle": "Waktu pengingat",
+      "timeHint": "Hanya tersimpan di perangkat ini."
     }
   }
 }

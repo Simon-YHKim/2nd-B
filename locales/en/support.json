@@ -30,5 +30,17 @@
       "question": "Is the AI safe?",
       "answer": "AI helps organize and connect your notes. Important decisions stay with you."
     }
-  ]
+  ],
+  "help": {
+    "title": "Places you can get help",
+    "lead": "Whatever it is, you do not have to carry it alone. These lines are here whenever you need them.",
+    "when1388": "For anything on your mind, if you are a teen",
+    "when109": "When you feel like letting go of life",
+    "when117": "When something at school is hard",
+    "when1366": "After sexual or domestic violence",
+    "when119": "When your body is in danger right now",
+    "when112": "When someone is threatening you right now",
+    "callHint": "Tap to call",
+    "foot": "This list is always here. The app does not read your writing and decide to show it; it is here so you can come find it. The app does not report on your behalf or notify a guardian."
+  }
 }

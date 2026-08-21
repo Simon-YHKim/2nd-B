@@ -28,7 +28,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, deepSpace, deepSpaceRadii, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { canShowRewardedAds } from "@/lib/ads/policy";
@@ -36,11 +36,24 @@ import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { captureFromMarkdown } from "@/lib/wiki/capture";
+import { chatAutosaveAllowed } from "@/lib/chat/autosave";
+import { shouldShowChatSaveNotice, useChatSaveNoticeDismissed } from "@/lib/chat/save-notice";
+import { classifyInput } from "@/lib/safety/classifier";
+import { currentDisplayName } from "@/lib/persona/use-address";
+import {
+  CHAT_KEEP_TAG,
+  composeExchangeBody,
+  exchangeMarkdown,
+  exchangeTopic,
+  findPrompt,
+  isKeepable,
+} from "@/lib/chat/keep-exchange";
 import { useProgression } from "@/lib/progression/useProgression";
 import { sendChatMessage } from "@/lib/chat/conversation";
 import { writeClipboardText } from "@/lib/capture/clipboard";
 import { getWikiPage } from "@/lib/wiki/queries";
-import { transcribeAudio } from "@/lib/llm/gemini";
+import { transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
@@ -196,7 +209,7 @@ function writeIntroDismissed(kind: "today" | "permanent"): void {
 // One chat ENGINE, two chromes (Frame pattern — the same port the interview
 // screen used). isDeepSpaceUI() only swaps the VISUAL shell (deep-space frame +
 // deepSpace.* tokens vs the legacy PremiumAppShell village skin). The send
-// handler, RAG/citation parsing, C9 -> C3 -> crisis path (callGemini via
+// handler, RAG/citation parsing, C9 -> C3 -> crisis path (callLlm via
 // sendChatMessage), modes, auth gates, analytics, and daily-limit logic are
 // byte-identical for both variants — there is NO logic fork.
 type ChatVariant = "deep-space" | "legacy";
@@ -471,6 +484,78 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+
+  // 대화를 위키로 보내는 길 (1순위 결함). 지금까지 대화는 아무것도 남기지 않았고,
+  // 유일한 경로는 LLM 에게 요약을 시킨 뒤 손으로 /capture 에 옮기는 것이었다.
+  // 이 버튼은 오간 말 **그대로**를 기록으로 남긴다 - LLM 호출 없음.
+  //
+  // ⚠ 여기 원래 "자동 저장하지 않는다" 고 적혀 있었다. 근거는 propose->ratify
+  // 불변식이었다 - 사용자가 누르는 그 탭이 비준이고, 그래서 "결정 주체는
+  // 정보주체" 라는 법적 위치(§37-2 비해당 논거)가 유지된다는 것이었다.
+  //
+  // Simon 이 2026-08-18 에 자동 저장 방향을 승인했고, 위 논거는 **버려진 것이
+  // 아니라 한 층 위로 옮겨졌다.** 비준의 단위가 "이 답변 하나" 에서 "대화를
+  // 저장하겠다는 설정" 으로 바뀐 것이다. 그 설정은:
+  //
+  //   - 기본값이 OFF 다 (privacy/prefs.ts 의 규율).
+  //   - 사용자가 /privacy 에서 직접 켠다. 그 행위가 비준이다.
+  //   - 언제든 끌 수 있고, 이미 담긴 것은 /wiki 에서 지울 수 있다.
+  //
+  // 즉 앱이 사용자 대신 정한 것은 여전히 없다. 켜지 않으면 아래 자동 경로는
+  // 돌지 않고 담기 칩만 남는다 - 예전과 같은 동작이다.
+  //
+  // 페르소나 파생(제안->비준)은 이 변경과 무관하게 그대로다. 여기서 바뀌는 것은
+  // **보관**이지 앱이 사용자를 대신해 내리는 결정이 아니다.
+  const [keptIdx, setKeptIdx] = useState<Set<number>>(new Set());
+  const [keeping, setKeeping] = useState<number | null>(null);
+  // 저장 경로에도 위기 안내가 필요하다. 이 화면의 C9 는 지금까지 전송 경로
+  // (sendChatMessage -> callLlm)에만 있었는데, createRecord 도 저장할 때마다
+  // 로컬 렉시콘 분류를 돌리고 레드존을 followup 으로 알려준다. 다른 저장 화면
+  // (northstar, capture)은 그때 핫라인을 띄운다. 여기만 조용히 저장하면
+  // 저장 경로가 안내 없는 유일한 구멍이 된다.
+  const [keepCrisis, setKeepCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "GLOBAL_988",
+  });
+
+  async function keepExchange(index: number): Promise<void> {
+    if (!userId || keeping !== null || keptIdx.has(index)) return;
+    const reply = turns[index];
+    if (!reply || !isKeepable(reply)) return;
+    setKeeping(index);
+    try {
+      const prompt = findPrompt(turns, index);
+      const speaker = isCharacterChat ? persona.name[locale] : t("title");
+      const topic = exchangeTopic(prompt, reply.text);
+      const body = composeExchangeBody({ prompt, reply: reply.text, speaker }, locale);
+      // 위키 클립으로 저장한다(records 가 아니라). 그래야 exportUserWiki 를 타고
+      // 다음 대화와 비서 제안이 이걸 읽는다 - keep-exchange.ts 의 설명 참조.
+      // captureFromMarkdown 은 LLM 을 부르지 않고, 중복 담기는 dedup 이 흡수한다.
+      await captureFromMarkdown({
+        userId,
+        rawMd: exchangeMarkdown(topic, body),
+        // 사용자가 남긴 자기 지식이다. URL 에서 유추한 종류로 떨어지면 안 된다.
+        kindOverride: "self_knowledge",
+        // domain: 태그를 붙이지 않는다. 대화를 담았다고 그 영역을 더 아는 것은
+        // 아니므로 별 밝기를 건드리면 안 된다 (정직한 밝기 규칙).
+        userTags: [CHAT_KEEP_TAG],
+      });
+      setKeptIdx((prev) => new Set(prev).add(index));
+      // C9: 이 경로는 LLM 을 안 타므로 서버 분류가 걸리지 않는다. 로컬 렉시콘
+      // 분류기를 직접 돌린다(비용 0). 다른 저장 화면과 같은 자세를 유지한다 -
+      // 안내 없는 저장 경로를 하나 만들지 않기 위해서다.
+      if (classifyInput(body, locale, { minor: isMinor === true }).zone === "red") {
+        setKeepCrisis({
+          visible: true,
+          hotline: locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988",
+        });
+      }
+    } catch (e) {
+      if (typeof console !== "undefined") console.warn("[secondb] keep failed", (e as Error).message);
+    } finally {
+      setKeeping(null);
+    }
+  }
   // The draft now lives inside ChatComposer (keystroke isolation); the parent
   // reaches it only to prefill (quick-actions / branches) via this handle.
   const composerRef = useRef<ChatComposerHandle>(null);
@@ -555,20 +640,55 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // pathname, tier/minor from context.
   const pathname = usePathname();
   const [adsConsent, setAdsConsent] = useState<boolean | null>(null);
+  // 대화 자동 저장 동의 (chat_autosave). 같은 fetch 로 읽는다 - 왕복을 하나 더
+  // 만들 이유가 없다. null 은 "아직 모른다" 이고, 그 상태에서는 자동 저장이
+  // 돌지 않는다(fail-closed). 광고 동의와 같은 자세다.
+  const [autosaveConsent, setAutosaveConsent] = useState<boolean | null>(null);
+  // 대화가 남지 않는다는 사실을 한 번만 알린다 (Simon 결정 B1).
+  const { dismissed: saveNoticeDismissed, dismiss: dismissSaveNotice } = useChatSaveNoticeDismissed();
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     fetchPrivacyPrefs(userId)
       .then((prefs) => {
-        if (!cancelled) setAdsConsent(prefs.ads === true);
+        if (cancelled) return;
+        setAdsConsent(prefs.ads === true);
+        setAutosaveConsent(prefs.chat_autosave === true);
       })
       .catch(() => {
-        if (!cancelled) setAdsConsent(false); // fetch failure = no rewarded entry
+        if (cancelled) return;
+        setAdsConsent(false); // fetch failure = no rewarded entry
+        setAutosaveConsent(false); // 읽지 못하면 저장하지 않는다
       });
     return () => {
       cancelled = true;
     };
   }, [userId]);
+
+  // 자동 저장: 동의가 켜져 있으면 새로 도착한 답변을 담는다.
+  //
+  // keepExchange 를 그대로 재사용한다 - 수동 경로와 자동 경로가 다른 코드를 타면
+  // 위기 안내(C9)나 dedup 같은 것이 한쪽에만 붙는 사고가 난다. 여기서는 "무엇을
+  // 담을지" 만 정하고 담는 방법은 하나로 둔다.
+  //
+  // 마지막 담을 수 있는 턴 하나만 본다. 화면에 남아 있는 과거 대화까지 소급해서
+  // 담지 않는다 - 동의를 켜기 **전에** 오간 말은 사용자가 사라질 거라 생각하고
+  // 한 말이다. 그걸 소급 저장하면 동의의 의미가 없어진다.
+  const autoKeptRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!chatAutosaveAllowed(autosaveConsent)) return;
+    if (!userId || keeping !== null) return;
+    const idx = turns.length - 1;
+    const last = turns[idx];
+    if (!last || !isKeepable(last)) return;
+    if (autoKeptRef.current.has(idx) || keptIdx.has(idx)) return;
+    autoKeptRef.current.add(idx);
+    void keepExchange(idx);
+    // keepExchange 는 setState 로 keptIdx 를 갱신하므로 의존성에 넣으면 루프가
+    // 된다. autoKeptRef 가 중복 실행을 막는 실제 가드다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns, autosaveConsent, userId]);
+
   // Capability first (Simon B-decision): a build that cannot complete a watch
   // renders no CTA at all -- policy answers WHO may watch, capability answers
   // whether THIS build can deliver.
@@ -695,6 +815,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             message: msg,
             locale,
             tier: progression.tier,
+            // 이름으로 부르게 한다. 화면은 이미 "허슬케이님" 이라 부른다.
+            displayName: currentDisplayName(),
             personaHint: isCharacterChat ? persona.systemHint[locale] : rev2PersonaHint(rev2Persona, locale),
             // D-26 A1: last turns for thread continuity (engine clips to 6 + drops
             // red-zone turns). Synthetic lines (greeting/limit/error) are not model
@@ -838,7 +960,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // ── Deep-space chrome (real composer + real answers + citations + states) ──
   // Same engine (turns / handleSend / sendChatMessage / parseSourceCitations /
   // canSend) as the legacy branch; only the visual shell differs. Crisis/C9/C3
-  // live entirely inside sendChatMessage -> callGemini, untouched here.
+  // live entirely inside sendChatMessage -> callLlm, untouched here.
   if (isDeepSpace) {
     const dsUsage = usedToday === null ? "..." : String(usedToday);
     const atLimit = usedToday !== null && usedToday >= limit;
@@ -956,6 +1078,23 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         </View>
                       </Pressable>
                     ) : null}
+                    {/* 대화를 위키로. 답변 하나를 직전 질문과 짝지어 기록으로
+                        남긴다. 화면을 떠나지 않고, LLM 도 다시 부르지 않는다.
+                        인사말·오류 문구(synthetic)에는 붙지 않는다. */}
+                    {isKeepable(turn) ? (
+                      <Pressable
+                        style={ds.keepChip}
+                        onPress={() => void keepExchange(i)}
+                        disabled={keeping !== null || keptIdx.has(i)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={keptIdx.has(i) ? t("keptToWiki") : t("keepToWiki")}
+                      >
+                        <Text style={ds.keepChipText}>
+                          {keptIdx.has(i) ? t("keptToWiki") : keeping === i ? t("keeping") : t("keepToWiki")}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                     {/* 트위비 3-branch (P5f): next-step candidates. Tap = prefill
                         the composer; 담기 = hand the branch to /capture (?text=,
                         the share-consume path). */}
@@ -997,6 +1136,43 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
               </View>
             ) : null}
           </ScrollView>
+
+          {/* 대화가 남지 않는다는 안내. 자동 저장이 꺼져 있고, 아직 닫지 않았고,
+              오간 말이 있을 때만 한 번 뜬다. 기본값을 뒤집지 않고 선택지가
+              있다는 사실만 알린다 — 매번 띄우면 안내가 아니라 압박이다. */}
+          {shouldShowChatSaveNotice({
+            autosaveConsent,
+            dismissed: saveNoticeDismissed,
+            turnCount: turns.length,
+          }) ? (
+            <View style={ds.saveNotice} accessibilityRole="alert">
+              <Text style={ds.saveNoticeTitle}>{t("chatSaveNotice")}</Text>
+              <Text style={ds.saveNoticeBody}>{t("chatSaveNoticeBody")}</Text>
+              <View style={ds.saveNoticeRow}>
+                <Pressable
+                  onPress={() => {
+                    dismissSaveNotice();
+                    router.push("/privacy");
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chatSaveNoticeOpen")}
+                  style={ds.saveNoticeBtn}
+                >
+                  <Text style={ds.saveNoticeBtnText}>{t("chatSaveNoticeOpen")}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={dismissSaveNotice}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chatSaveNoticeDismiss")}
+                  style={ds.saveNoticeBtn}
+                >
+                  <Text style={ds.saveNoticeDismissText}>{t("chatSaveNoticeDismiss")}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
           {/* quick-action chips after an answer */}
           {turns.length > 0 && turns[turns.length - 1].role === "secondb" && !sending ? (
@@ -1270,6 +1446,14 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             setChatRewardVisible(false);
           }}
           locale={locale}
+        />
+        {/* 저장 경로의 위기 안내. 전송 경로(callLlm)는 서버가 응답을 바꿔
+            치지만, 저장은 createRecord 가 로컬 분류를 돌리고 followup 으로
+            알려준다. 다른 저장 화면과 같은 자세를 여기서도 취한다. */}
+        <CrisisRouter
+          visible={keepCrisis.visible}
+          hotline={keepCrisis.hotline}
+          onClose={() => setKeepCrisis((c) => ({ ...c, visible: false }))}
         />
       </DeepSpaceScreen>
     );
@@ -1683,7 +1867,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     ...pixelShadowStyle(),
   },
   limitLink: {
@@ -1721,7 +1905,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: gameboy.borderWidth,
   },
   modeChip: {
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
     backgroundColor: semantic.surfaceAlt,
@@ -1735,13 +1919,13 @@ const styles = StyleSheet.create({
   modeChipDivergent: { backgroundColor: cosmic.soulViolet2, borderColor: cosmic.soulViolet2 },
   modeHint: { flex: 1, minWidth: 0, marginStart: spacing.xs },
   clearChatLink: { minHeight: 44, minWidth: 44, justifyContent: "center", paddingHorizontal: spacing.xs },
-  divergentPulseDot: { width: 8, height: 8, borderRadius: gameboy.radius, backgroundColor: cosmic.soulViolet2 },
+  divergentPulseDot: { width: 8, height: 8, borderRadius: 0, backgroundColor: cosmic.soulViolet2 },
   scroll: { paddingTop: spacing.md, paddingBottom: spacing.md, gap: spacing.sm },
   empty: { paddingVertical: spacing.xl, alignItems: "center", gap: spacing.md },
   emptySecondB: {
     width: 140,
     height: 140,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
     backgroundColor: withAlpha(cosmic.soulViolet, 0.14),
@@ -1760,7 +1944,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     padding: spacing.lg,
     maxWidth: 420,
     width: "100%",
@@ -1777,7 +1961,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
   },
   modalBtnPrimary: { backgroundColor: semantic.brand },
   modalBtnSecondary: { backgroundColor: "transparent" },
@@ -1796,7 +1980,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     ...pixelShadowStyle(),
@@ -1809,7 +1993,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...pixelShadowStyle(),
@@ -1821,8 +2005,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     maxHeight: "62%",
     backgroundColor: semantic.surface,
-    borderTopLeftRadius: gameboy.radius,
-    borderTopRightRadius: gameboy.radius,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
     padding: spacing.lg,
@@ -1833,7 +2017,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: 36,
     height: 4,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     backgroundColor: semantic.border,
     marginBottom: spacing.sm,
   },
@@ -1841,7 +2025,7 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     borderWidth: gameboy.borderWidth,
     ...pixelShadowStyle(),
   },
@@ -1881,12 +2065,12 @@ const ds = StyleSheet.create({
   bannerDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     flexShrink: 0,
     shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 8,
-    shadowOpacity: 1,
-    elevation: 2,
+    shadowRadius: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   bannerTag: {
     flexShrink: 0,
@@ -1925,7 +2109,7 @@ const ds = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1.5,
   },
   lensName: { fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
@@ -1942,7 +2126,7 @@ const ds = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -1952,14 +2136,14 @@ const ds = StyleSheet.create({
   modeChipText: { color: deepSpace.textMid, fontSize: 12, fontFamily: fontFamilies.readable },
   modeChipTextOn: { color: deepSpace.onAccent, fontWeight: "700" },
   modeChipTextOnSoul: { color: deepSpace.bgEdge, fontWeight: "700" },
-  modeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: deepSpace.soul },
+  modeDot: { width: 8, height: 8, borderRadius: m3.shape.none, backgroundColor: deepSpace.soul },
   // rev2 persona chips: same metrics as modeChip; the accent border/fill comes
   // from m3.persona via rev2PersonaAccent (inline), never a literal here.
   personaChip: {
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     backgroundColor: deepSpace.card,
   },
@@ -1981,18 +2165,56 @@ const ds = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.md,
     paddingVertical: 8,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.soulLine,
     backgroundColor: deepSpace.card,
   },
   branchChipText: { color: deepSpace.textHi, fontSize: 12, fontFamily: fontFamilies.readable },
+  // 대화 저장 안내 (Simon 결정 B1). 경고색을 쓰지 않는다 — 잘못한 것이 아니라
+  // 선택지를 알리는 자리다.
+  saveNotice: {
+    marginHorizontal: deepSpaceSpacing.md,
+    marginBottom: deepSpaceSpacing.xs,
+    padding: deepSpaceSpacing.md,
+    gap: 6,
+    borderRadius: m3.shape.medium,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  saveNoticeTitle: { color: semantic.text, fontSize: 14, fontWeight: "600" },
+  saveNoticeBody: { color: semantic.textMuted, fontSize: 13, lineHeight: 19 },
+  saveNoticeRow: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: 2 },
+  saveNoticeBtn: {
+    // 44px 터치 타깃 (PRD 불변식)
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: deepSpaceSpacing.sm,
+  },
+  saveNoticeBtnText: { color: deepSpace.accent, fontSize: 13, fontWeight: "600" },
+  saveNoticeDismissText: { color: semantic.textMuted, fontSize: 13 },
+  keepChip: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    borderRadius: m3.shape.small,
+    borderWidth: 1,
+    borderColor: deepSpace.cardLine,
+    backgroundColor: deepSpace.card,
+  },
+  keepChipText: {
+    fontSize: 12,
+    color: deepSpace.textMuted,
+  },
   branchSave: {
     minWidth: 52,
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -2004,7 +2226,7 @@ const ds = StyleSheet.create({
     alignSelf: "flex-start",
     paddingVertical: 6,
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.soul, 0.3),
     backgroundColor: withAlpha(deepSpace.soul, 0.07),
@@ -2032,10 +2254,10 @@ const ds = StyleSheet.create({
     maxWidth: "100%",
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderTopLeftRadius: deepSpaceRadii.md,
-    borderTopRightRadius: deepSpaceRadii.md,
-    borderBottomRightRadius: 4,
-    borderBottomLeftRadius: deepSpaceRadii.md,
+    borderTopLeftRadius: m3.shape.medium,
+    borderTopRightRadius: m3.shape.medium,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: m3.shape.medium,
     backgroundColor: m3.color.primary,
   },
   userText: { color: m3.color.onPrimary, fontSize: 13, lineHeight: 19, fontFamily: fontFamilies.readable },
@@ -2046,10 +2268,10 @@ const ds = StyleSheet.create({
     maxWidth: "100%",
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: deepSpaceRadii.md,
-    borderBottomRightRadius: deepSpaceRadii.md,
-    borderBottomLeftRadius: deepSpaceRadii.md,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: m3.shape.medium,
+    borderBottomRightRadius: m3.shape.medium,
+    borderBottomLeftRadius: m3.shape.medium,
     borderLeftWidth: 3,
     backgroundColor: m3.color.surfaceContainerHigh,
   },
@@ -2063,7 +2285,7 @@ const ds = StyleSheet.create({
     gap: 4,
     height: 26,
     paddingHorizontal: 10,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
   },
   citeChipText: { fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
 
@@ -2074,7 +2296,7 @@ const ds = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -2101,7 +2323,7 @@ const ds = StyleSheet.create({
     height: 48,
     paddingLeft: 16,
     paddingRight: 6,
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.surfaceContainerHigh,
   },
   pillInput: {
@@ -2115,7 +2337,7 @@ const ds = StyleSheet.create({
   micBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -2130,7 +2352,7 @@ const ds = StyleSheet.create({
   sendBtn: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: m3.shape.none,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
@@ -2148,7 +2370,7 @@ const ds = StyleSheet.create({
     width: "100%",
     maxWidth: 420,
     padding: deepSpaceSpacing.lg,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.bg,
@@ -2156,13 +2378,13 @@ const ds = StyleSheet.create({
   modalEyebrow: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: fontFamilies.readable },
   modalBody: { color: deepSpace.textHi, fontSize: 13, lineHeight: 20, marginTop: deepSpaceSpacing.sm, fontFamily: fontFamilies.readable },
   modalActions: { flexDirection: "row", gap: deepSpaceSpacing.sm, marginTop: deepSpaceSpacing.md, justifyContent: "flex-end" },
-  modalBtnGhost: { minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.md, borderRadius: deepSpaceRadii.sm },
+  modalBtnGhost: { minHeight: 44, justifyContent: "center", paddingHorizontal: deepSpaceSpacing.md, borderRadius: m3.shape.small },
   modalBtnGhostText: { color: deepSpace.textMid, fontSize: 13, fontFamily: fontFamilies.readable },
   modalBtnPrimary: {
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.sm,
+    borderRadius: m3.shape.small,
     backgroundColor: deepSpace.accent,
   },
   modalBtnPrimaryText: { color: deepSpace.onAccent, fontSize: 13, fontWeight: "700", fontFamily: fontFamilies.readable },
@@ -2175,20 +2397,20 @@ const ds = StyleSheet.create({
     maxHeight: "62%",
     padding: deepSpaceSpacing.lg,
     gap: deepSpaceSpacing.sm,
-    borderTopLeftRadius: deepSpaceRadii.lg,
-    borderTopRightRadius: deepSpaceRadii.lg,
+    borderTopLeftRadius: m3.shape.large,
+    borderTopRightRadius: m3.shape.large,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.bg,
   },
-  drawerHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: deepSpace.cardLine, marginBottom: deepSpaceSpacing.sm },
+  drawerHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: m3.shape.none, backgroundColor: deepSpace.cardLine, marginBottom: deepSpaceSpacing.sm },
   drawerTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
   drawerSubtle: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, marginTop: 4, fontFamily: fontFamilies.readable },
   drawerList: { marginTop: deepSpaceSpacing.md, gap: deepSpaceSpacing.sm, paddingBottom: deepSpaceSpacing.sm },
   drawerCard: {
     paddingVertical: deepSpaceSpacing.md,
     paddingHorizontal: deepSpaceSpacing.md,
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -2199,7 +2421,7 @@ const ds = StyleSheet.create({
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: deepSpaceRadii.md,
+    borderRadius: m3.shape.medium,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     marginTop: deepSpaceSpacing.sm,

@@ -197,7 +197,12 @@
     "selected": "Archivo seleccionado",
     "textExtracted": "Texto extraído: añadido al cuerpo",
     "attachedNoPreview": "Archivo adjunto. La vista previa de texto no está disponible.",
-    "dataUsageHint": "Subir archivos puede generar cargos de datos. Se recomienda usar Wi-Fi."
+    "dataUsageHint": "Subir archivos puede generar cargos de datos. Se recomienda usar Wi-Fi.",
+    "transcribing": "Convirtiendo esta grabación en texto...",
+    "transcribed": "Transcrito: lo pusimos en el cuerpo. Revísalo y edítalo antes de guardar.",
+    "transcribeFailed": "No pudimos convertir esa grabación en texto. Elígela de nuevo o escribe lo que oíste.",
+    "transcriptEmpty": "No pudimos distinguir ninguna palabra en esa grabación.",
+    "audioTooLarge": "Esa grabación es demasiado larga. Elige una de menos de {{mb}}MB o divídela."
   },
   "tags": {
     "title": "Etiquetas",

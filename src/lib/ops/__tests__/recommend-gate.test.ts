@@ -1,7 +1,7 @@
 import { recommendationsAllowed } from "../recommend";
 
 // D-20 (PROTOCOL §36): runRecommend must call recommendationsAllowed() before
-// exportUserWiki/callGemini so a 14-17 minor's wiki snapshot never reaches the
+// exportUserWiki/callLlm so a 14-17 minor's wiki snapshot never reaches the
 // recommend LLM call ungated. `recommendations` is server-clamped OFF and
 // non-promotable for minors (privacy/prefs.ts), so a minor can never pass.
 describe("recommendationsAllowed (minor recommendations lock honored at the ops gate)", () => {

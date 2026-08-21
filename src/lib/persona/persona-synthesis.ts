@@ -2,7 +2,7 @@
 // §3): the 북극성 synthesis harness. Takes the deterministic layer-A domain
 // summaries + the layer-B construct estimates and proposes real-time persona(s)
 // (역할/모자). Mirrors propose-self-model.ts: a pure prompt builder + a defensive,
-// lexicon-guarded parser, plus a thin callGemini orchestrator so C1/C3/C9 hold.
+// lexicon-guarded parser, plus a thin callLlm orchestrator so C1/C3/C9 hold.
 //
 // Hard rules enforced here, not trusted to the model:
 //  - Grounding (C8, §3.1): a persona is kept ONLY if it cites >=1 domain AND >=1
@@ -14,7 +14,7 @@
 //  - Display cap 3 (§17-b): keep the strongest-grounded personas.
 // The synthesis NEVER writes the self-model; it is a proposal (propose->ratify).
 
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { INJECTION_GUARD, sanitizeUntrusted } from "../llm/untrusted";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { LadderLevel } from "./brightness";
@@ -244,7 +244,7 @@ export function parsePersonaSynthesis(
   return out.slice(0, PERSONA_SYNTHESIS_MAX);
 }
 
-// Thin orchestrator: C1 (single wrapper) + C9/C3 enforced inside callGemini. Returns
+// Thin orchestrator: C1 (single wrapper) + C9/C3 enforced inside callLlm. Returns
 // [] in mock mode (until a mock entry lands), on a bad reply, or when nothing is
 // grounded. The result is a PROPOSAL — the ratify bridge (persona target) lands next.
 export async function synthesizePersonas(
@@ -255,7 +255,7 @@ export async function synthesizePersonas(
 ): Promise<SynthesizedPersona[]> {
   if (input.domainSummaries.length === 0 || input.constructEstimates.length === 0) return [];
   const { system, user } = buildPersonaSynthesisPrompt(input, locale);
-  const reply = await callGemini({
+  const reply = await callLlm({
     userId,
     locale,
     purpose: "persona_synthesis",

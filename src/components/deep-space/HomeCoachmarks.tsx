@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     borderColor: withAlpha(deepSpace.accent, 0.9),
     backgroundColor: withAlpha(deepSpace.accent, 0.08),
     shadowColor: deepSpace.accent,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   bubbleWrap: {
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   bubbleTop: { top: 96 },
   bubble: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.accent, 0.35),
     backgroundColor: deepSpace.bgMid,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   nextBtn: {
     minHeight: 44,
     minWidth: 88,
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: deepSpace.accent,

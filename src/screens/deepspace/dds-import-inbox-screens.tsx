@@ -23,7 +23,6 @@ import { reactExpression } from "@/lib/companion/expression";
 import { fetchPrivacyPrefs, savePrivacyPrefs } from "@/lib/supabase/privacy";
 import { listInferredLinkDetails } from "@/lib/wiki/queries";
 import { listPeerInvites } from "@/lib/peer/invite";
-import { recordHealthImportConsent } from "@/lib/supabase/consent";
 import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -332,13 +331,11 @@ export function DeepSpaceImportScreen() {
     setHealthBusy(true);
     try {
       const prefs = { ...(await fetchPrivacyPrefs(userId)), health_import: true };
-      await savePrivacyPrefs(userId, prefs);
-      await recordHealthImportConsent({
-        userId,
-        ageBand: "adult",
-        minorTier: "adult",
-        locale: ko ? "ko" : "en",
-      });
+      // savePrivacyPrefs writes the sensitive-data consent row itself on the
+      // false -> true edge (H9). This screen used to write it here, which was the
+      // ONLY path that did; now that the choke point covers every path, calling
+      // it again would append a duplicate row to an append-only ledger.
+      await savePrivacyPrefs(userId, prefs, { locale: ko ? "ko" : "en" });
       setHealthPref(true);
     } catch {
       // Best-effort; the row stays in the opt-in state so the user can retry.
@@ -596,7 +593,7 @@ const s = StyleSheet.create({
   pageTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8, marginBottom: 12 },
   notifCard: { padding: 14 },
   notifRow: { flexDirection: "row", gap: 12 },
-  notifIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.surfaceContainer },
+  notifIcon: { width: 40, height: 40, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.surfaceContainer },
   notifHead: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   notifTitle: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
   notifTime: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
@@ -608,10 +605,10 @@ const s = StyleSheet.create({
   leadStrong: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700" },
   sectionLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 22, marginBottom: 10 },
   toggleRow: { flexDirection: "row", gap: 8 },
-  toggleBtn: { flex: 1, paddingVertical: 14, paddingHorizontal: 10, borderRadius: 14, borderWidth: 1.5, alignItems: "center", justifyContent: "center", gap: 6 },
+  toggleBtn: { flex: 1, paddingVertical: 14, paddingHorizontal: 10, borderRadius: m3.shape.none, borderWidth: 1.5, alignItems: "center", justifyContent: "center", gap: 6 },
   toggleBtnOn: { borderColor: m3.color.primary, backgroundColor: m3.color.secondaryContainer },
   toggleBtnOff: { borderColor: m3.color.outlineVariant, backgroundColor: m3.color.surfaceContainer },
-  dropZone: { borderWidth: 1.5, borderStyle: "dashed", borderColor: m3.color.outline, borderRadius: 16, paddingVertical: 28, paddingHorizontal: 16, alignItems: "center", backgroundColor: m3.color.surfaceContainer },
+  dropZone: { borderWidth: 1.5, borderStyle: "dashed", borderColor: m3.color.outline, borderRadius: m3.shape.none, paddingVertical: 28, paddingHorizontal: 16, alignItems: "center", backgroundColor: m3.color.surfaceContainer },
   dropTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8 },
   dropExt: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, marginTop: 2 },
   dropBtn: { marginTop: 14, minHeight: 44 },

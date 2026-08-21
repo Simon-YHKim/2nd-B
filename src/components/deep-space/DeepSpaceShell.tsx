@@ -14,12 +14,13 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
+import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { DeepSpaceScreen } from "./DeepSpaceScreen";
-import { ConstellationHome } from "./ConstellationHome";
+import { ConstellationHome, type HomeStarId } from "./ConstellationHome";
 import { HomeCoachmarks } from "./HomeCoachmarks";
 
 export function DeepSpaceShell() {
@@ -36,6 +37,11 @@ export function DeepSpaceShell() {
   // resolves; failure leaves it empty (never blocks).
   const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, LadderLevel>>>({});
   const [northStarBrightness, setNorthStarBrightness] = useState(0.2);
+  // The seventh star is `profile`, which is NOT a data domain and so is not part
+  // of loadDomainLevels' seven-table scan (nor of the 북극성 average — the canon
+  // excludes it by id). It gets its own small read; a failure leaves it at L1,
+  // which is the honest reading of "we could not see anything".
+  const [profileLevel, setProfileLevel] = useState<LadderLevel>(1);
 
   // Home coachmarks (Screen-Spec 04): the 4-step spotlight shows once on the
   // first home visit; 다시 보지 않기/시작하기 persist the seen flag, and the
@@ -57,6 +63,11 @@ export function DeepSpaceShell() {
         if (!alive) return;
         setDomainLevels(b.domainLevels);
         setNorthStarBrightness(b.northStarBrightness);
+      })
+      .catch(() => {});
+    loadProfileStarLevel(userId)
+      .then((level) => {
+        if (alive) setProfileLevel(level);
       })
       .catch(() => {});
     return () => {
@@ -84,21 +95,28 @@ export function DeepSpaceShell() {
   if (autoTriggerTTFV === null) return <InlineLoader />;
   if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
 
+  const starLevels: Partial<Record<HomeStarId, LadderLevel>> = {
+    ...domainLevels,
+    profile: profileLevel,
+  };
+
   return (
     <DeepSpaceScreen active="home" header="none">
       <ConstellationHome
         // 여행하기 on a domain star opens that domain's LENS (/star/<id>, the
         // rev2 11-star per-domain screen: briefing + 담기/기록 + timeline), NOT
-        // the flat wiki list. 뮤지엄 opens the AI museum; the 북극성 opens the
+        // the flat wiki list. 프로필 opens the profile hub; the 북극성 opens the
         // persona aggregate (/core-brain). Head-tap menu: 챗봇/비서 (sb-home).
         onStarTravel={(id) =>
-          id === "museum" ? router.push("/museum") : router.push(`/star/${id}`)
+          id === "profile" ? router.push("/profile") : router.push(`/star/${id}`)
         }
         onPolarisPress={() => router.push("/core-brain")}
         onChatPress={() => router.push("/secondb")}
         onOpsPress={() => router.push("/ops")}
         onBellPress={() => router.push("/inbox")}
-        starLevels={domainLevels}
+        onMuseumPress={() => router.push("/museum")}
+        onCommunityPress={() => router.push("/community")}
+        starLevels={starLevels}
         northStarBrightness={northStarBrightness}
       />
       {coachmarksDue === true && !coachmarksDismissed ? (

@@ -1,6 +1,6 @@
 # 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-07-17 · 최종 개정: 2026-07-17_
+_시행일: 2026-08-16 · 최종 개정: 2026-08-16_
 
 ---
 
@@ -12,6 +12,8 @@ _시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 - **필수(계정)**: 이메일 주소, 소셜 로그인 식별자(Google/Apple/Kakao/Naver 등), 인증 토큰.
 - **연령 확인**: 생년월일 또는 연령대(연령 등급 확인 및 아동 보호 목적).
 - **이용자 콘텐츠**: 이용자가 입력·생성한 성찰·기록 등 서비스 이용 데이터.
+- **프로필(선택)**: 표시할 이름, 목표 문장. 가입 과정에서 선택적으로 입력하며, 비워 두어도 서비스 이용에 제한이 없습니다.
+- **음성·오디오(선택)**: 이용자가 앱에서 녹음하거나 직접 고른 오디오 파일. **텍스트로 옮기는 목적으로만** 처리하며, 앱이 만든 임시 녹음 파일은 전사 직후 기기에서 삭제합니다(이용자가 고른 파일은 회사가 삭제하지 않습니다). 전사된 텍스트는 이용자 콘텐츠로 저장됩니다.
 - **자동 수집**: 서비스 이용 기록, 기기·브라우저 정보, 접속 로그, 쿠키/로컬 저장소(웹).
 - **결제 관련**: 결제는 Paddle이 처리하며, **회사는 카드번호 등 결제수단 전체 정보를 저장하지 않습니다.** 결제 상태·구독 정보 등 처리 결과만 수신합니다.
 - **건강·활동 데이터(선택·민감정보)**: 걸음 수, 운동, 수면, 심박수. 성인 이용자가 앱에서 직접 연동을 켜고 OS 건강 연결(예: Health Connect)을 승인한 경우에만 읽어 **본인 계정에만** 저장합니다. 만 14세 미만 및 14-17세 미성년자에게는 이 기능이 잠겨 있어 수집하지 않습니다.
@@ -19,7 +21,7 @@ _시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 **민감정보 처리 고지**: 위 건강·활동 데이터는 「개인정보 보호법」상 **민감정보**로 별도 동의를 받아 처리합니다. 이 데이터는 앱 내 루틴 자동 완료 표시와 이용자 본인의 건강 기록 표시("오늘의 건강 기록") 목적으로만 쓰이며, **AI(Gemini) 분석이나 외부 제3자 제공에 사용하지 않고 광고·판매에도 사용하지 않습니다.** 이용자는 언제든 열람·내보내기·삭제할 수 있습니다.
 
 ### 2. 수집·이용 목적
-회원 식별 및 계정 관리, 서비스 제공 및 개인화(AI 처리 포함), 유료 구독 결제·정산, 고객지원, 서비스 개선 및 보안, 법령상 의무 이행.
+회원 식별 및 계정 관리, 서비스 제공 및 개인화(AI 처리 포함), 음성·오디오의 텍스트 전사, 이용자 기록에 기반한 **자동화된 요약·정리·시각화**(제10조), 유료 구독 결제·정산, 고객지원, 서비스 개선 및 보안, 법령상 의무 이행.
 
 ### 3. 보유 및 이용 기간
 ① 원칙적으로 **회원 탈퇴 시 지체 없이 파기**합니다. ② 다만 관련 법령이 정한 기간 동안 보관합니다: **계약·청약철회 및 대금결제·재화공급 기록 5년, 소비자 불만·분쟁처리 기록 3년, 표시·광고 기록 6개월**(전자상거래법). 로그인 기록은 통신비밀보호법에 따라 3개월 이상 보관할 수 있습니다. ③ 위 기간 경과 또는 목적 달성 시 지체 없이 파기합니다.
@@ -35,7 +37,7 @@ _시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
 
 ### 5. 개인정보의 국외 이전
-서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보·이용자 콘텐츠·건강 및 활동 데이터, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리(단 건강·활동 데이터는 AI 처리에 사용하지 않습니다), 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
+서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보·이용자 콘텐츠·프로필·음성 및 오디오·건강 및 활동 데이터, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리(음성·오디오는 텍스트 전사를 위해 Google에 전송됩니다. 단 건강·활동 데이터는 AI 처리에 사용하지 않습니다), 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
 
 ### 6. 정보주체의 권리
 이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, kim0405@hayangzip.com 으로도 요청할 수 있습니다.
@@ -51,7 +53,13 @@ _시행일: 2026-07-17 · 최종 개정: 2026-07-17_
 - 문의: kim0405@hayangzip.com (영업일 기준 2일 이내 회신 목표)
 - 권익침해 상담: 개인정보분쟁조정위원회, 개인정보침해신고센터(privacy.kisa.or.kr) 등.
 
-### 10. 처리방침의 변경
+### 10. 자동화된 처리에 관한 안내
+① 서비스는 이용자가 남긴 기록을 바탕으로 **자동으로** 요약을 만들고, 영역별 기록량을 밝기 단계(L1~L5)로 표시하며, 전체를 한 문장으로 모아 보여줍니다.
+② **밝기와 단계는 이용자가 남긴 기록의 양과 종류를 세어 계산한 값이며, AI가 정하는 값이 아닙니다.** AI가 만드는 것은 문장이고, 숫자는 계산의 결과입니다.
+③ 이 처리는 이용자 본인에게 보여주기 위한 것이며, **채용·신용·보험·자격 등 이용자의 권리나 의무에 법적 효력을 미치는 결정에 사용되지 않고, 제3자에게 제공되지도 않습니다.**
+④ 이용자는 AI가 제안한 내용을 **승인하기 전까지 반영되지 않도록** 할 수 있고, 승인한 내용을 언제든 수정·삭제할 수 있으며, 설정에서 관련 기능을 끌 수 있습니다. 자동화된 처리에 대한 설명을 원하시면 kim0405@hayangzip.com 으로 요청하실 수 있습니다.
+
+### 11. 처리방침의 변경
 본 방침은 법령·서비스 변경에 따라 개정될 수 있으며, 개정 시 시행일·변경내용을 서비스 내 공지합니다.
 
 ---
@@ -64,6 +72,8 @@ Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gye
 - **Required (account)**: email address, social-login identifiers (Google/Apple/Kakao/Naver, etc.), authentication tokens.
 - **Age check**: date of birth or age band (for age-tier verification and child protection).
 - **User Content**: reflections/records and other usage data you input or generate.
+- **Profile (optional)**: a display name and a goal sentence, entered optionally during sign-up. Leaving them blank does not limit the Service.
+- **Voice/audio (optional)**: audio you record in the app or pick from your device. Processed **only to turn it into text**. Temporary recordings the app itself created are deleted from the device right after transcription; files you picked are never deleted by the Company. The resulting text is stored as User Content.
 - **Automatically collected**: usage logs, device/browser info, access logs, cookies/local storage (web).
 - **Payment-related**: payments are handled by Paddle; **the Company does not store full payment-instrument data (e.g., card numbers)** — it receives only processing results such as payment status and subscription info.
 - **Health & activity data (optional, sensitive)**: steps, exercise, sleep, heart rate. Read only when an adult user turns on the integration in-app and approves the OS health connection (e.g., Health Connect), and stored **only in your own account**. The feature is locked for users under 14 and for 14-17 minors, so no data is collected from them.
@@ -87,7 +97,7 @@ The Company entrusts processing as below; processors act only within the stated 
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
 
 ### 5. Overseas transfer
-The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data, User Content, and health and activity data in Section 1; the purpose is data hosting (auth/database) and AI processing (health and activity data is excluded from AI processing); transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
+The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data, User Content, profile, voice/audio, and health and activity data in Section 1; the purpose is data hosting (auth/database) and AI processing (voice/audio is sent to Google to be transcribed into text; health and activity data is excluded from AI processing); transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
 
 ### 6. Your rights
 You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact kim0405@hayangzip.com.
@@ -103,5 +113,11 @@ Access-rights management with row-level access control (RLS), TLS encryption in 
 - Contact: kim0405@hayangzip.com (aim to reply within 2 business days)
 - Remedies: Korea's Personal Information Dispute Mediation Committee, KISA privacy center (privacy.kisa.or.kr).
 
-### 10. Changes
+### 10. Automated processing
+(1) The Service **automatically** builds summaries from the records you leave, shows how much you have recorded in each area as a brightness level (L1-L5), and gathers the whole into a single sentence.
+(2) **The brightness levels are counted from the amount and kind of records you left; they are not produced by the AI.** The AI writes sentences; the numbers are the result of counting.
+(3) This processing exists to show you your own material. It is **not used for any decision with legal effect on your rights or obligations (hiring, credit, insurance, licensing) and is not provided to third parties.**
+(4) You can keep an AI suggestion from taking effect **until you approve it**, edit or delete anything you have approved, and turn the related features off in settings. To request an explanation of this automated processing, write to kim0405@hayangzip.com.
+
+### 11. Changes
 This policy may be revised per law/service changes; revisions (effective date and content) will be announced in the Service.

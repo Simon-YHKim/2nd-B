@@ -3,7 +3,7 @@
 // The gemini-proxy Edge Function is the second, server-authoritative crisis
 // gate: it rejects red-zone `user` input with HTTP 422
 // { error: "safety_red_zone" } BEFORE any Gemini call. When the client
-// lexicon missed the phrasing (proxy-only hit), callGemini/callAdvisor used
+// lexicon missed the phrasing (proxy-only hit), callLlm/callAdvisor used
 // to rethrow the raw FunctionsHttpError — the caller showed a generic
 // failure modal to a user in crisis instead of hotline routing.
 //
@@ -67,7 +67,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callAdvisor, callGemini } from "../gemini";
+import { callAdvisor, callLlm } from "../boundary";
 import { insertAiAuditLog } from "../../supabase/audit";
 import { insertCrisisEvent } from "../../supabase/crisis-events";
 
@@ -92,7 +92,7 @@ function proxy422(body: unknown): { context: { status: number; json: () => Promi
 
 const BENIGN_EN = "Today I planned my week and it felt productive.";
 
-describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
+describe("callLlm — proxy 422 crisis fallback (C9 follow-up)", () => {
   beforeEach(() => {
     mockInvoke.mockReset();
     mockClassifySafety.mockReset();
@@ -106,7 +106,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
       error: proxy422({ error: "safety_red_zone", reason: "crisis_term_detected" }),
     });
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "interview_probe",
@@ -132,7 +132,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
       error: proxy422({ error: "safety_red_zone", reason: "crisis_term_detected" }),
     });
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "ko",
       minor: true,
@@ -150,7 +150,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     mockInvoke.mockResolvedValueOnce({ data: null, error: boom });
 
     await expect(
-      callGemini({ userId: "u1", locale: "en", purpose: "interview_probe", user: BENIGN_EN }),
+      callLlm({ userId: "u1", locale: "en", purpose: "interview_probe", user: BENIGN_EN }),
     ).rejects.toBe(boom);
     expect(crisisMock).not.toHaveBeenCalled();
   });
@@ -160,7 +160,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     mockInvoke.mockResolvedValueOnce({ data: null, error: other });
 
     await expect(
-      callGemini({ userId: "u1", locale: "en", purpose: "interview_probe", user: BENIGN_EN }),
+      callLlm({ userId: "u1", locale: "en", purpose: "interview_probe", user: BENIGN_EN }),
     ).rejects.toBe(other);
     expect(crisisMock).not.toHaveBeenCalled();
   });
@@ -176,7 +176,7 @@ describe("callGemini — proxy 422 crisis fallback (C9 follow-up)", () => {
     };
     mockInvoke.mockResolvedValueOnce({ data: null, error: unreadable });
 
-    const r = await callGemini({
+    const r = await callLlm({
       userId: "u1",
       locale: "en",
       purpose: "interview_probe",
@@ -211,7 +211,6 @@ describe("callAdvisor — proxy 422 crisis fallback (C9 follow-up)", () => {
     expect(r.fixedTemplate).toBe(true);
     expect(r.text).toMatch(/988/);
     expect(r.triggers).toContain("proxy_input_red");
-    expect(r.cssrsLevel).toBeNull();
     // Client bookkeeping is the only record (proxy never audited the 422).
     expect(auditMock).toHaveBeenCalledTimes(1);
     expect(auditMock.mock.calls[0]![0]!.modelUsed).toMatch(/^none-crisis-routed-proxy:/);

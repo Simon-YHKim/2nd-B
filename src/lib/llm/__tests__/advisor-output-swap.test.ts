@@ -60,7 +60,7 @@ jest.mock("../../env", () => ({
   }),
 }));
 
-import { callAdvisor } from "../gemini";
+import { callAdvisor } from "../boundary";
 import { insertAiAuditLog } from "../../supabase/audit";
 import { insertCrisisEvent } from "../../supabase/crisis-events";
 

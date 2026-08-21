@@ -25,6 +25,7 @@ import {
 } from "@/lib/interview/probe";
 import { cosmic, semantic, typography, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+import { m3 } from "@/lib/theme/m3";
 
 interface Props {
   coverage: Coverage;
@@ -136,7 +137,7 @@ export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: P
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: semantic.surface,
-    borderRadius: 8,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: semantic.border,
     padding: 8,
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,
     aspectRatio: 1,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -161,8 +162,8 @@ const styles = StyleSheet.create({
   cellActive: {
     borderColor: semantic.brand,
     shadowColor: semantic.brand,
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
   cellText: { fontSize: typography.sizes.xs, fontWeight: "700", fontFamily: fontFamilies.mono },

@@ -9,7 +9,9 @@
 
 // D-27 axis key attribution — pure naming/resolver helpers (Deno-free, so they
 // are unit-testable under ts-jest; the Deno env read is the thin wrapper below).
-import { pickApiKey } from './axis-key-name.ts';
+import { isUsableHeaderValue, pickApiKey } from './axis-key-name.ts';
+
+export { isUsableHeaderValue };
 
 // --- crisis gate (R1-A) ------------------------------------------------------
 
@@ -148,7 +150,7 @@ export function dailyCapForRank(tierRank: number | null): number {
 
 // --- misc --------------------------------------------------------------------
 
-// Mirror of src/lib/llm/gemini.ts:djb2 so proxy audit rows hash prompt/output
+// Mirror of src/lib/llm/boundary.ts:djb2 so proxy audit rows hash prompt/output
 // identically to the client wrapper.
 export function djb2(s: string): string {
   let h = 5381;

@@ -14,6 +14,7 @@ import { computeInsights, getWeekComparison, sourceToInsightRecord, type Insight
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { VILLAGE_UI } from "@/lib/village-ui";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceInsightsScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.md,
     gap: 2,
   },
@@ -330,13 +331,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStartColor: semantic.brand,
     borderStartWidth: 3,
-    borderRadius: radii.md,
+    borderRadius: 0,
     padding: spacing.md,
     gap: spacing.xs,
   },
   cardEyebrow: { letterSpacing: 0 },
   barRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  barOuter: { flex: 1, height: 12, backgroundColor: semantic.surfaceAlt, borderRadius: 6, overflow: "hidden" },
+  barOuter: { flex: 1, height: 12, backgroundColor: semantic.surfaceAlt, borderRadius: m3.shape.none, overflow: "hidden" },
   barInner: { height: 12, backgroundColor: semantic.brand },
   kvRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   conclusionRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },

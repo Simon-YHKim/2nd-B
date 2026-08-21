@@ -30,6 +30,23 @@ export const PRIVACY_PREF_KEYS = [
   // enforcer already exists: records-embeddings.ts recordsEmbeddingAllowed reads
   // this pref and the embedding write primitives fail closed without it.
   "records_embedding",
+  // 대화 자동 저장 (Simon 2026-08-18). 세컨비와 오간 말을 위키에 자동으로 담는다.
+  //
+  // 왜 프라이버시 항목인가: **지금 대화는 휘발성이다.** 저장소에 대화 테이블이
+  // 없다(`chat_history` 는 프롬프트 펜스 라벨일 뿐 테이블이 아니다). 즉 이 스위치는
+  // 기능을 켜는 것이 아니라 **보관 기간을 바꾼다** — 사라지던 말이 남는 말이 된다.
+  // 그건 이 파일의 규율(외부 공유·프로파일링·외부 처리는 명시 동의 전까지 OFF)이
+  // 다루는 종류의 변화라서 여기에 둔다.
+  //
+  // 다만 바깥으로 나가는 것은 없다. 사용자 자신의 말이 사용자 자신의 위키로 갈
+  // 뿐이고, RLS 로 격리돼 있고, `/wiki` 에서 언제든 지울 수 있다(deleteWikiPage).
+  // 그래서 `ops_push` 와 같은 이유로 **미성년도 스스로 켤 수 있다** — 기기·계정
+  // 내부의 이동이지 외부 데이터 흐름이 아니다. 오히려 미성년만 막으면 그 사용자의
+  // 대화는 영영 페르소나에 기여하지 못해 제품이 반쪽이 된다.
+  //
+  // enforcer: src/lib/chat/autosave.ts `chatAutosaveAllowed` (D-12 정직성 규칙에
+  // 따라 토글과 enforcer 를 같이 낸다).
+  "chat_autosave",
 ] as const;
 
 export type PrivacyPrefKey = (typeof PRIVACY_PREF_KEYS)[number];
@@ -70,7 +87,16 @@ export function resolvePrivacyPrefs(stored: Record<string, unknown> | null | und
 // the user just approved on screen to their OWN device calendar/share sheet —
 // a device-local hand-off, not an outward data flow — so a minor may promote
 // it like long_term_memory.
-export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = ["long_term_memory", "ops_push"];
+// chat_autosave joins the exception list (Simon, 2026-08-18) for the same reason
+// as ops_push: nothing leaves the account. It moves the user's own words from an
+// ephemeral chat into their own RLS-isolated wiki, where /wiki can delete them.
+// Locking minors out would mean their conversations could never feed their own
+// persona -- the product's whole point -- while protecting nothing.
+export const MINOR_PROMOTABLE_KEYS: readonly PrivacyPrefKey[] = [
+  "long_term_memory",
+  "ops_push",
+  "chat_autosave",
+];
 
 // D-12 (2026-06-07 consensus): the settings UI MUST render ONLY enforced keys
 // — showing a toggle that controls nothing is a false privacy promise (which is
@@ -102,6 +128,10 @@ export const VISIBLE_PRIVACY_KEYS: readonly PrivacyPrefKey[] = [
   "ops_push",
   "health_import",
   "recommendations",
+  //   - chat_autosave (2026-08-18): enforced by chatAutosaveAllowed, which
+  //     secondb.tsx consults before writing an exchange to the wiki. Shipped
+  //     together with its enforcer per the D-12 rule above.
+  "chat_autosave",
 ];
 
 export function isPrivacyPrefEditable(key: PrivacyPrefKey, isMinor: boolean): boolean {

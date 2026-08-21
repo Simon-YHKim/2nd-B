@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   backChip: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",

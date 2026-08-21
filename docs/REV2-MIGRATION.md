@@ -1,6 +1,19 @@
 # rev2 UI Migration — Roadmap & Gap Analysis
 
-> **Status: canonical program plan (living).** Target = **PRD v2.0** (the rev2
+> ## ⛔ SUPERSEDED 2026-08-19 — 이 계획의 목적지는 더 이상 유효하지 않다
+>
+> 이 문서는 **M3-deepspace 로 가는** 이주 계획이다. Simon 이 2026-08-19 에
+> (결정 콘솔 V1) 시각 방향을 **PIXEL-CLAY v4** 로 정했으므로 목적지가 바뀌었다.
+>
+> **새 SoT: `docs/PIXEL-CLAY-MIGRATION.md`.**
+>
+> 이 문서를 새 작업의 근거로 인용하지 말 것. 특히 여기 적힌
+> "Galmuri/Press Start → Roboto/Pretendard" 델타는 **방향이 뒤집혔다.**
+>
+> 다만 M3 는 여전히 **지금 배포돼 있는 것**이고 이주의 출발점이므로, 아래의 현황
+> 서술(무엇이 어디까지 M3 로 갔는가)은 사실로서 유효하다. 폐기가 아니라 역사 기록이다.
+
+> **Status: superseded — was the canonical program plan (living).** Target = **PRD v2.0** (the rev2
 > prototype + `PRD_standalone` provided 2026-07-01). This doc is the SoT for
 > migrating the shipped app to optimally match rev2. Work lands in phased PRs;
 > update the status column as slices land.

@@ -1,14 +1,33 @@
 /**
- * Usage counters: Supabase-backed reasoning usage + rewarded credits in
- * usage_counters. Backs the reasoning caps in ./reasoning-cap.ts.
+ * Usage counters: Supabase-backed reasoning usage + spendable credits.
+ * Backs the reasoning caps in ./reasoning-cap.ts.
  *
  * Phase 4 (0089): reasoning usage is counted on KST ISO-WEEK rows
  * ('IYYY-Wnn' in the month_bucket column) — free 주 2회 · plus 주 7회 —
- * while rewarded credits stay MONTHLY ('YYYY-MM'). Once the weekly base is
- * spent, each run consumes one monthly credit (reward_consumed), so
- * `rewardCredits` here reports the AVAILABLE remainder (earned − consumed).
- * The RPC derives both buckets server-side; the strings computed here must
- * match its to_char formats (pinned by the 0089 structural test).
+ * while credits are monthly in presentation. The RPC derives both buckets
+ * server-side; the strings computed here must match its to_char formats
+ * (pinned by the 0089 structural test).
+ *
+ * ── WHERE THE CREDIT NUMBER COMES FROM (0135 / 0137) ──────────────────────
+ *
+ * usage_counters.reward_credits / reward_consumed are no longer a source of
+ * truth. 0135 moved credits into the credit_ledger and left those two columns
+ * as a trigger-maintained MIRROR, and that mirror re-derives reward_credits
+ * from ad-earned units only. It is a deliberate UNDER-report: the moment a
+ * purchased lot exists, the mirror cannot express it, so a client reading only
+ * those columns would show "0 남음" for credits the user paid for — and, worse,
+ * the depleted gate in reasoning.tsx would then refuse to spend them.
+ *
+ * So the spendable balance is read from the ledger via credit_summary_self()
+ * (0137), and the mirror is kept only as the fallback when that call fails.
+ * Preferring the ledger can never block someone who was previously allowed:
+ * the mirror is LEAST(available, ad_earned) by construction, so the ledger
+ * value is always >= the mirror value.
+ *
+ * credit_summary_self() takes NO user id — it resolves auth.uid() itself,
+ * which is what makes it safe to expose (0137 closed the cross-user read that
+ * the earlier user-id-taking readers allowed). Every caller here passes the
+ * signed-in user's id, which is also what RLS scopes the table read to.
  *
  * Reads FAIL OPEN: on any error (including the table being absent) the read
  * returns a zeroed counter so a user is never wrongly blocked. Writes fail
@@ -23,10 +42,12 @@ const TABLE = 'usage_counters';
 export interface ReasoningUsage {
   /** Reasoning runs used this KST ISO week. */
   used: number;
-  /** Rewarded credits still available this month (earned − consumed). */
+  /** Credits the user can actually spend right now, from the ledger: ad
+   *  rewards + promo + anything purchased, minus spends and expiries. */
   rewardCredits: number;
-  /** Rewarded credits EARNED this month (vs REWARD_MONTHLY_CAP) — drives the
-   *  "이번 달 보상을 모두 받았어요" state of the limit sheet (spec F). */
+  /** Credits EARNED FROM ADS this month (vs REWARD_MONTHLY_CAP) — drives the
+   *  "이번 달 보상을 모두 받았어요" state of the limit sheet (spec F). Stays
+   *  ad-scoped on purpose: a purchase must not make the ad cap look reached. */
   rewardEarned: number;
   weekBucket: string;
   monthBucket: string;
@@ -75,23 +96,44 @@ export async function getReasoningUsage(userId: string): Promise<ReasoningUsage>
   const month = monthBucket();
   const zero: ReasoningUsage = { used: 0, rewardCredits: 0, rewardEarned: 0, weekBucket: week, monthBucket: month };
   try {
-    const { data, error } = await getSupabaseClient()
-      .from(TABLE)
-      .select('month_bucket, reasoning_used, reward_credits, reward_consumed')
-      .eq('user_id', userId)
-      .in('month_bucket', [week, month]);
-    if (error) {
-      console.warn('[usage] getReasoningUsage read failed, failing open:', error.message);
+    const client = getSupabaseClient();
+    // Both in flight at once: the ledger read must not cost a round trip on a
+    // path that runs on home, the limit sheet and the paywall.
+    const [counters, summary] = await Promise.all([
+      client
+        .from(TABLE)
+        .select('month_bucket, reasoning_used, reward_credits, reward_consumed')
+        .eq('user_id', userId)
+        .in('month_bucket', [week, month]),
+      client.rpc('credit_summary_self'),
+    ]);
+    if (counters.error) {
+      console.warn('[usage] getReasoningUsage read failed, failing open:', counters.error.message);
       return zero;
     }
+    const data = counters.data;
     const weekRow = data?.find((r) => r.month_bucket === week);
     const monthRow = data?.find((r) => r.month_bucket === month);
     const earned = Number(monthRow?.reward_credits) || 0;
     const consumed = Number(monthRow?.reward_consumed) || 0;
+
+    // The mirror, kept ONLY as the fallback. It cannot represent a purchased
+    // lot, so it under-reports the moment one exists.
+    let rewardCredits = Math.max(0, earned - consumed);
+    let rewardEarned = Math.max(0, earned);
+
+    if (summary.error) {
+      console.warn('[usage] credit_summary_self failed, using the counter mirror:', summary.error.message);
+    } else {
+      const s = summary.data as { available?: number; ad_earned_this_month?: number } | null;
+      rewardCredits = Math.max(0, Number(s?.available) || 0);
+      rewardEarned = Math.max(0, Number(s?.ad_earned_this_month) || 0);
+    }
+
     return {
       used: Number(weekRow?.reasoning_used) || 0,
-      rewardCredits: Math.max(0, earned - consumed),
-      rewardEarned: Math.max(0, earned),
+      rewardCredits,
+      rewardEarned,
       weekBucket: week,
       monthBucket: month,
     };

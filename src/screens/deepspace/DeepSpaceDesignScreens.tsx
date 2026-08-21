@@ -7,7 +7,7 @@ import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { colors, radius, spacing } from "@/theme/tokens";
+import { colors, spacing } from "@/theme/tokens";
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
@@ -19,6 +19,7 @@ import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
 import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage } from "@/lib/entitlements/usage";
 import { Text } from "@/components/ui/Text";
+import { HelpDirectory } from "@/components/safety/HelpDirectory";
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { useLiteMode } from "@/lib/settings/lite-mode";
@@ -74,6 +75,8 @@ import { healthImportAllowed, ingestHealthSamples } from "@/lib/health/ingest";
 import { availableHealthSources } from "@/lib/health/registry";
 import { OPS_GROUP_IDS, domainsForGroup, type OpsDomainId, type OpsGroupId } from "@/lib/ops/domains";
 import { opsRouteForDomain } from "@/lib/ops/nav";
+import { loadPickCandidates } from "@/lib/ops/load-picks";
+import { pickToday, type PickId, type TodayPicks } from "@/lib/ops/today-picks";
 import { gatherAdherenceStats } from "@/lib/ops/signals";
 import { adherenceChip } from "@/lib/ops/grounding";
 import { recommendForDomain, recommendationsAllowed, type OpsRecommendation } from "@/lib/ops/recommend";
@@ -399,7 +402,7 @@ const gap = StyleSheet.create({
   qRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: spacing.sm },
   answer: { marginTop: spacing.xs },
   noticeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  tag: { borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  tag: { borderRadius: m3.shape.full, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: 2 },
   tagText: { color: colors.cyanSoft, fontSize: 11 },
   factRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start", paddingVertical: spacing.sm },
   factText: { flex: 1, gap: 2 },
@@ -415,6 +418,10 @@ export function DeepSpaceSupportDesignScreen() {
     <Shell title={t("support.title")}>
       <View style={styles.center}><SecondbHead size={104} mood="neutral" /><Text variant="heading" style={styles.prompt}>{t("support.prompt")}</Text></View>
       <Card>{[{label:t("support.askSecondb"),onPress:()=>router.push('/secondb')},{label:t("support.viewManual"),onPress:()=>router.push('/manual')},{label:t("support.emailUs"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com')},{label:t("support.reportBug"),onPress:()=>Linking.openURL('mailto:kim0405@hayangzip.com?subject=Bug%20report')}].map((r)=><Action key={r.label} {...r}/>)}</Card>
+
+      {/* Always-on help directory. Above the FAQ on purpose: someone who needs
+          it is not going to scroll past a list of product questions first. */}
+      <HelpDirectory />
 
       {/* FAQ (canonGaps.faqs) — tap a question to reveal its answer. */}
       <Card>
@@ -618,13 +625,13 @@ export function DeepSpacePrivacyDesignScreen() {
     }
 
     try {
-      await savePrivacyPrefs(targetUserId, updated);
+      await savePrivacyPrefs(targetUserId, updated, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       const effectiveNext = minorRef.current ? false : next;
       const committed: PrivacyPrefs = { ...updated, [key]: effectiveNext };
       // If age became unresolved/minor while an opt-in was saving, persist the
       // fail-closed value too instead of merely hiding a stale server grant.
-      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed);
+      if (effectiveNext !== next) await savePrivacyPrefs(targetUserId, committed, { locale: ko ? "ko" : "en" });
       if (!privacyMountedRef.current || activeUserRef.current !== targetUserId) return;
       prefsRef.current = committed;
       prefsUserRef.current = targetUserId;
@@ -2184,6 +2191,16 @@ function opsNextMorningIso(now: Date = new Date()): string {
 
 type OpsRunState = "idle" | "working" | "empty" | "error" | "limit" | "off";
 
+/** 오늘의 두 가지가 카드마다 여는 자리. 후보 여섯 개 전부 갈 곳이 있어야 한다. */
+const TODAY_ROUTE: Readonly<Record<PickId, string>> = {
+  routine: "/reminders",
+  milestone: "/milestones",
+  reading: "/reading",
+  meals: "/meals",
+  records: "/records",
+  esm: "/esm",
+};
+
 export function DeepSpaceOpsScreen() {
   const { t, i18n } = useTranslation("ops");
   const { userId, loading: authLoading, isMinor, hasProfile } = useAuth();
@@ -2193,6 +2210,25 @@ export function DeepSpaceOpsScreen() {
   const tEn = useMemo(() => i18n.getFixedT("en", "ops"), [i18n]);
 
   const [group, setGroup] = useState<OpsGroupId | null>(null);
+  // 오늘의 두 가지: 여섯 소스의 존재·최신성만 훑어 두 개를 고른다(LLM 없음).
+  // null 인 동안에는 아무것도 그리지 않는다 - 카드 모양의 자리표시자는 잠깐이라도
+  // "무언가 있다" 로 읽히는데 실제로 없을 수 있다.
+  const [todayPicks, setTodayPicks] = useState<TodayPicks | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void loadPickCandidates(userId)
+      .then((c) => {
+        if (alive) setTodayPicks(pickToday(c, Date.now()));
+      })
+      .catch(() => {
+        // 실패는 카드를 감추는 방향으로 - 없는 것을 지어내지 않는다.
+        if (alive) setTodayPicks({ picks: [], suggestions: [] });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
   const [domain, setDomain] = useState<OpsDomainId | null>(null);
   const [recs, setRecs] = useState<OpsRecommendation[]>([]);
   // A grounding: adherence chip shown with the recommendations.
@@ -2388,6 +2424,15 @@ export function DeepSpaceOpsScreen() {
     // legacy home graph, and call reflection had no entry point at all.
     { icon: "book", label: t("tools.srs.label"), sub: t("tools.srs.sub"), route: "/srs" },
     { icon: "bubble", label: t("tools.callReflection.label"), sub: t("tools.callReflection.sub"), route: "/call-reflection" },
+    // 2026-08-18 (Simon D7): 같은 패턴의 두 번째 라운드. 아래 다섯은 전부
+    // 만들어져 있고 각자 라우트도 있는데 이 격자에 없어서 딥링크로만 닿았다
+    // (파일 주석에 ops domain 태그까지 붙어 있는 것들이다). 위 두 줄이 말하는
+    // "built but unreachable" 이 다섯 개 더 남아 있었다.
+    { icon: "book", label: t("tools.reading.label"), sub: t("tools.reading.sub"), route: "/reading" },
+    { icon: "badge", label: t("tools.milestones.label"), sub: t("tools.milestones.sub"), route: "/milestones" },
+    { icon: "box", label: t("tools.ledger.label"), sub: t("tools.ledger.sub"), route: "/ledger" },
+    { icon: "sparkle", label: t("tools.sideProject.label"), sub: t("tools.sideProject.sub"), route: "/side-project" },
+    { icon: "fire", label: t("tools.meals.label"), sub: t("tools.meals.sub"), route: "/meals" },
   ];
 
   return (
@@ -2571,6 +2616,38 @@ export function DeepSpaceOpsScreen() {
         </View>
       ))}
       {recs.length > 0 ? <Text variant="subtle" style={styles.footerLeft}>{t("recommend.disclaimerBody")}</Text> : null}
+
+      {/* 오늘의 두 가지 (Simon D6) — 접근 가능한 것 중 실제로 쌓인 것만 고른다.
+          비어 있으면 예시로 채우지 않고 "다음 걸음" 만 말한다. 근거는
+          lib/ops/today-picks.ts 헤더. */}
+      {todayPicks ? (
+        <>
+          <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("today.title")}</RNText>
+          <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>
+            {todayPicks.picks.length > 0 ? t("today.hint") : t("today.nothingHint")}
+          </RNText>
+          {todayPicks.picks.map((id: PickId) => (
+            <MdCard
+              key={id}
+              variant="filled"
+              onPress={() => router.push(TODAY_ROUTE[id] as never)}
+              accessibilityLabel={t(`today.pick.${id}`)}
+            >
+              <RNText style={[m3TextStyle("titleSmall"), cx.toolTitle]}>{t(`today.pick.${id}`)}</RNText>
+            </MdCard>
+          ))}
+          {todayPicks.suggestions.map((id: PickId) => (
+            <MdCard
+              key={`next-${id}`}
+              variant="outlined"
+              onPress={() => router.push(TODAY_ROUTE[id] as never)}
+              accessibilityLabel={t(`today.next.${id}`)}
+            >
+              <RNText style={[m3TextStyle("labelSmall"), cx.toolSub]}>{t(`today.next.${id}`)}</RNText>
+            </MdCard>
+          ))}
+        </>
+      ) : null}
 
       {/* 비서 도구 — 2×2 tool grid (real routes) */}
       <RNText style={[m3TextStyle("titleSmall"), cx.sectionLabel]}>{t("home.toolsLabel")}</RNText>
@@ -3164,13 +3241,13 @@ const cx = StyleSheet.create({
   heroCount: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 2 },
   heroStreak: { alignItems: "center" },
   heroStreakRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 22, fontWeight: "800", color: m3.accent.alertDot },
+  heroStreakNum: { fontFamily: m3.font.mono, fontSize: 24, fontWeight: "800", color: m3.accent.alertDot },
   heroStreakCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   heroBar: { marginTop: 12 },
 
   // ── routine rows ──
-  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, backgroundColor: m3.color.surfaceContainerHighest },
-  routineDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: m3.color.outline },
+  routineRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
+  routineDot: { width: 20, height: 20, borderRadius: m3.shape.none, borderWidth: 2, borderColor: m3.color.outline },
   routineDotOn: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },
   routineLabel: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand },
   routineLabelDone: { color: m3.color.onSurfaceVariant, textDecorationLine: "line-through" },
@@ -3193,7 +3270,7 @@ const cx = StyleSheet.create({
   adviceDetail: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginTop: 8, lineHeight: 22 },
   evidenceRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 14 },
   evidenceLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginRight: 2 },
-  evidenceChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 9999, backgroundColor: m3.color.surfaceContainerHighest },
+  evidenceChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: m3.shape.none, backgroundColor: m3.color.surfaceContainerHighest },
   evidenceChipText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
   adviceCta: { marginTop: 16 },
   adviceRefreshRow: { flexDirection: "row", justifyContent: "center", marginTop: 4 },
@@ -3208,14 +3285,14 @@ const cx = StyleSheet.create({
   focusLead: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginTop: 4, marginBottom: 18, lineHeight: 20 },
   ringWrap: { width: 280, height: 280, alignSelf: "center" },
   ringCenter: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
-  ringTime: { fontFamily: m3.font.mono, fontSize: 56, fontWeight: "700", color: m3.color.onSurface, letterSpacing: 1 },
+  ringTime: { fontFamily: m3.font.mono, fontSize: 45, fontWeight: "700", color: m3.color.onSurface, letterSpacing: 1 },
   ringSub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2 },
   chipRowCenter: { flexDirection: "row", gap: 8, justifyContent: "center", marginTop: 18 },
   controlsRow: { flexDirection: "row", gap: 10, marginTop: 18 },
   chipScroll: { gap: 8, paddingRight: 16 },
   focusSummary: { padding: 16, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 16 },
   dotsRow: { flexDirection: "row", gap: 5 },
-  summaryDot: { width: 12, height: 12, borderRadius: 6 },
+  summaryDot: { width: 12, height: 12, borderRadius: m3.shape.none },
   summaryTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   summarySub: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
 
@@ -3225,7 +3302,7 @@ const cx = StyleSheet.create({
   consentText: { flex: 1, color: m3.color.onSecondaryContainer, fontFamily: m3.font.brand },
   sourceCard: { padding: 14 },
   sourceRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  iconBox: { width: 42, height: 42, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center" },
   iconBoxOn: { backgroundColor: m3.color.primary },
   iconBoxOff: { backgroundColor: m3.color.surfaceContainerHighest },
   sourceName: { color: m3.color.onSurface, fontFamily: m3.font.brand },
@@ -3236,7 +3313,7 @@ const cx = StyleSheet.create({
   // ── datareview ──
   statGrid: { flexDirection: "row", gap: 8 },
   statCard: { flex: 1, padding: 12, alignItems: "center" },
-  statNum: { fontFamily: m3.font.mono, fontSize: 18, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
+  statNum: { fontFamily: m3.font.mono, fontSize: 15, fontWeight: "700", color: m3.color.onSurface, marginTop: 6 },
   statCap: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 2, textAlign: "center" },
   signalHead: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
   signalFrom: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
@@ -3244,7 +3321,7 @@ const cx = StyleSheet.create({
   signalFoot: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 8 },
   signalConf: { flex: 1, color: m3.color.tertiary, fontFamily: m3.font.brand },
   rightsCard: { padding: 4 },
-  rightsRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: 10 },
+  rightsRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 12, borderRadius: m3.shape.none },
   rightsDivider: { borderTopWidth: 1, borderTopColor: m3.color.outlineVariant },
   rightsLabel: { color: m3.color.onSurface, fontFamily: m3.font.brand },
   rightsLabelDanger: { color: m3.color.error, fontFamily: m3.font.brand },

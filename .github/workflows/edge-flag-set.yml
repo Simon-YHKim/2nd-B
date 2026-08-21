@@ -1,0 +1,138 @@
+name: Set an edge-function flag
+
+# Why: two of the three "1 or 0" switches that control live billing behaviour
+# live in Supabase Edge Function secrets, and the only way to change them was
+# the dashboard form. That form has now eaten a value twice by accepting text
+# typed into the Name box instead of the Value box, and it shows SHA256
+# digests rather than values, so the mistake is invisible afterwards.
+#
+# This workflow exists so those switches can be flipped from a reviewed,
+# logged path instead. It is deliberately incapable of carrying a secret:
+# both the name and the value are dropdowns, the value can only ever be
+# "0" or "1", and the name has to be one of the flags listed below. An API
+# key cannot be set through here even by accident.
+#
+# Requires the SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flag:
+        description: Which flag to set (non-secret switches only)
+        required: true
+        type: choice
+        options:
+          - PADDLE_SELF_SERVICE_ENABLED
+          - PADDLE_SELF_SERVICE_DRYRUN
+      value:
+        description: 1 = on, 0 = off
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "0"
+      reason:
+        description: One line, for the run log. Why now?
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge-flag-set
+  cancel-in-progress: false
+
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to run without the token
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "SUPABASE_ACCESS_TOKEN is not set." >&2
+            exit 1
+          fi
+          if [ -z "${REF:-}" ]; then
+            echo "SUPABASE_PROJECT_REF is not set." >&2
+            exit 1
+          fi
+
+      - name: Re-check the allowlist in the shell, not just in the form
+        env:
+          FLAG: ${{ inputs.flag }}
+          VALUE: ${{ inputs.value }}
+        run: |
+          set -euo pipefail
+          case "$FLAG" in
+            PADDLE_SELF_SERVICE_ENABLED|PADDLE_SELF_SERVICE_DRYRUN) ;;
+            *)
+              echo "Refusing: $FLAG is not on the non-secret allowlist." >&2
+              echo "This workflow only sets switches whose value is 0 or 1." >&2
+              exit 1
+              ;;
+          esac
+          case "$VALUE" in
+            0|1) ;;
+            *)
+              echo "Refusing: value must be 0 or 1, got '$VALUE'." >&2
+              exit 1
+              ;;
+          esac
+          echo "will set $FLAG=$VALUE"
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Digests before
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase secrets list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" | tee before.txt
+
+      - name: Set the flag
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FLAG: ${{ inputs.flag }}
+          VALUE: ${{ inputs.value }}
+        run: |
+          set -euo pipefail
+          supabase secrets set "$FLAG=$VALUE" --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      - name: Digests after, and what to check next
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FLAG: ${{ inputs.flag }}
+          VALUE: ${{ inputs.value }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          supabase secrets list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" | tee after.txt
+          {
+            echo "## Set \`$FLAG\` = \`$VALUE\`"
+            echo ""
+            echo "Reason given: $REASON"
+            echo ""
+            echo "The dashboard only ever shows SHA256 digests, so compare the digest"
+            echo "for \`$FLAG\` between the two blocks below. If it did not change, the"
+            echo "value was already what you asked for."
+            echo ""
+            echo "UNVERIFIED: whether a running function picks the new value up without"
+            echo "a redeploy. If behaviour does not change within a minute, redeploy the"
+            echo "affected function with the \"Deploy edge function\" workflow."
+            echo ""
+            echo "### Before"
+            echo '```'
+            grep -E "NAME|$FLAG" before.txt || cat before.txt
+            echo '```'
+            echo "### After"
+            echo '```'
+            grep -E "NAME|$FLAG" after.txt || cat after.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,60 @@
+/* PIXEL-CLAY v4.0 · buttons, segment
+   Source: uploads/pixel-clay-v4.html lines 584-624 (verbatim) */
+/* ═══════════ COMPONENTS · BUTTON ═══════════════════════════════════════ */
+.px-btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--s2);
+  margin:var(--u); padding:var(--pad-y) var(--pad-x);
+  font:inherit; font-size:var(--t-md); line-height:var(--lh-1);
+  background:var(--panel-2); color:var(--fg);
+  border:0; border-radius:0; cursor:pointer; text-decoration:none; transition:none;
+  box-shadow:
+    0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+    calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+    inset var(--u) var(--u) 0 0 var(--bevel-hi),
+    inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-lo);
+}
+.px-btn:hover{ background:var(--accent-soft); color:var(--c01) }
+.px-btn:active{ transform:translateY(var(--u)); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--bevel-lo),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--bevel-hi) }
+/* Variant bevels are written out in full rather than swapping --bevel-* locally,
+   so every custom property in this system stays a design token. */
+.px-btn--primary{ background:var(--accent); color:var(--accent-fg); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--accent-soft),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--accent-deep) }
+.px-btn--primary:active{ box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 var(--accent-deep),
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 var(--accent-soft) }
+.px-btn--danger{ background:var(--danger); color:var(--danger-fg); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 #d9736d,
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 #8c2f2b }
+.px-btn--danger:active{ box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset var(--u) var(--u) 0 0 #8c2f2b,
+  inset calc(-1*var(--u)) calc(-1*var(--u)) 0 0 #d9736d }
+.px-btn--ghost{ background:transparent; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-btn--sm{ padding:var(--s1) var(--s2); font-size:var(--t-xs) }
+.px-btn--lg{ padding:var(--s3) var(--s6); font-size:var(--t-lg) }
+.px-btn--block{ display:flex; width:calc(100% - var(--s2)) }
+.px-btn[disabled],.px-btn[aria-disabled=true]{
+  background:var(--sunken); color:var(--fg-muted); cursor:not-allowed; transform:none }
+.px-btn.is-loading{ pointer-events:none; color:var(--fg-muted) }
+.px-btn-group{ display:inline-flex; gap:var(--s2) }
+/* 세그먼트 컨트롤 */
+.px-segment{ display:inline-flex; background:var(--sunken); padding:var(--u); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-segment button{ border:0; background:transparent; font:inherit; font-size:var(--t-sm);
+  padding:var(--s2) var(--s4); cursor:pointer; color:var(--fg); line-height:1 }
+.px-segment button[aria-pressed=true]{ background:var(--accent); color:var(--accent-fg) }

@@ -19,9 +19,9 @@ const RECORD_EXPORT_FIELDS = ["kind", "topic", "body", "created_at", "tags"] as 
 const RECORD_INSERT_PARITY_FIELDS = ["kind", "topic", "body", "tags"] as const;
 const RECORD_DB_DEFAULT_FIELDS = ["created_at"] as const;
 
-jest.mock("../llm/gemini", () => ({
+jest.mock("../llm/boundary", () => ({
   callAdvisor: jest.fn(),
-  callGemini: jest.fn(),
+  callLlm: jest.fn(),
   classifyRecordTextForCrisis: jest.fn().mockResolvedValue(null),
 }));
 

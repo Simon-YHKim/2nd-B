@@ -1,0 +1,7 @@
+/* PIXEL-CLAY v4.0 · Z-INDEX SCALE
+   There is no shadow-based elevation in this system (blur is banned);
+   depth is expressed by stacking order + bevel direction only. */
+:root{
+  --z-base:0;/* @kind other */ --z-raised:10;/* @kind other */ --z-sticky:100;/* @kind other */ --z-drawer:200;/* @kind other */
+  --z-overlay:300;/* @kind other */ --z-modal:400;/* @kind other */ --z-popover:500;/* @kind other */ --z-toast:600;/* @kind other */ --z-tooltip:700;/* @kind other */
+}

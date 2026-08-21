@@ -23,7 +23,11 @@ const HYGIENE_FILES = [
 ];
 
 const INTERACTIVE = ["MdButton.tsx", "SegBtn.tsx", "MdChip.tsx", "MdNavBar.tsx"];
-const TOUCH_TARGET = ["MdButton.tsx", "SegBtn.tsx", "MdChip.tsx", "Field.tsx", "MdNavBar.tsx"];
+// MdCard joined this list on 2026-08-20. It used to derive its height from
+// padding alone, so when `--u` went 4px -> 2px its interactive variant fell to
+// 32-36dp on three live surfaces before anything failed. Nothing in CI was
+// watching, because MdCard was not in this array.
+const TOUCH_TARGET = ["MdButton.tsx", "SegBtn.tsx", "MdChip.tsx", "Field.tsx", "MdNavBar.tsx", "MdCard.tsx"];
 
 describe("M3 primitive kit — token discipline", () => {
   test.each(HYGIENE_FILES)("%s consumes m3.* tokens and holds no raw color literals", (file) => {
@@ -50,7 +54,9 @@ describe("M3 primitive kit — accessibility", () => {
 
   test.each(TOUCH_TARGET)("%s declares a >=44dp touch target", (file) => {
     const src = read(file);
-    expect(src).toMatch(/minHeight:\s*(4[4-9]|[5-9]\d|\d{3})/);
+    // `m3.minTouch` is the token form of the same 44 (src/lib/theme/m3.ts); the
+    // literal form stays accepted so the older primitives need no churn.
+    expect(src).toMatch(/minHeight:\s*(m3\.minTouch|4[4-9]|[5-9]\d|\d{3})/);
   });
 });
 

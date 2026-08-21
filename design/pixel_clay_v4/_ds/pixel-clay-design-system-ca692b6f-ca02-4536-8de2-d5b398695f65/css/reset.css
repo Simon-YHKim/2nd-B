@@ -1,0 +1,49 @@
+/* PIXEL-CLAY v4.0 · reset & global
+   Source: uploads/pixel-clay-v4.html lines 328-374 (verbatim) */
+/* ═══════════ LAYER 2 · RESET & GLOBAL ═══════════════════════════════════ */
+*,*::before,*::after{ box-sizing:border-box; }
+html{
+  image-rendering:pixelated;
+  -webkit-font-smoothing:none; -moz-osx-font-smoothing:grayscale; font-smooth:never;
+  scrollbar-color:var(--accent) var(--sunken); scrollbar-width:thin;
+}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:"Galmuri11",ui-monospace,"Courier New",monospace;
+  font-size:var(--t-md); line-height:var(--lh-2);
+  /* 한글 어절 단위 줄바꿈 — 없으면 한글이 단어 중간에서 잘림 */
+  word-break:keep-all; overflow-wrap:break-word;
+}
+img,svg,canvas{ image-rendering:pixelated; max-width:100%; }
+::selection{ background:var(--accent); color:var(--accent-fg); }
+
+/* 스크롤바 — 기본 스크롤바는 픽셀 미학을 즉시 파괴하므로 반드시 교체 */
+::-webkit-scrollbar{ width:var(--s3); height:var(--s3); }
+::-webkit-scrollbar-track{ background:var(--sunken); }
+::-webkit-scrollbar-thumb{ background:var(--accent); }
+::-webkit-scrollbar-thumb:hover{ background:var(--accent-deep); }
+::-webkit-scrollbar-corner{ background:var(--sunken); }
+
+/* 포커스 — 전 인터랙티브 요소 공통 */
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{
+  outline:var(--u) solid var(--focus); outline-offset:var(--s1); outline-style:solid;
+}
+/* 터치 기기 최소 타겟 48px (=4×12, 정수 유지) */
+@media (pointer:coarse){
+  .px-btn,.px-input,.px-select,.px-textarea,.px-nav a,.px-tab,.px-page a{ min-height:48px; }
+}
+/* 모션 민감 사용자 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important; animation-iteration-count:1!important;
+    transition-duration:.01ms!important; scroll-behavior:auto!important;
+  }
+}
+/* 강제 색상 모드(Windows 고대비) */
+@media (forced-colors:active){
+  .px-frame,.px-bevel,.px-inset,.px-btn,.px-panel{ border:1px solid CanvasText; }
+}
+@media print{
+  .px-topbar,.px-toast-area,.px-scrim,.no-print{ display:none!important; }
+  body{ background:#fff; color:#000; }
+}

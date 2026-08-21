@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   mapWrap: {
     aspectRatio: 1,
     width: "100%",
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.accentDim, 0.22),
     backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
@@ -287,5 +287,5 @@ const styles = StyleSheet.create({
   },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: m3.shape.none },
 });

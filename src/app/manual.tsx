@@ -293,8 +293,8 @@ function ManualLegacy() {
 
         <Text variant="subtle" color="textSubtle" style={styles.versionFootnote}>
           {locale === "ko"
-            ? "두번째 뇌 · XPRIZE Build with Gemini · Education & Human Potential"
-            : "2nd-Brain · XPRIZE Build with Gemini · Education & Human Potential"}
+            ? "두번째 뇌 · 나를 데이터로 쌓아 개인 비서로 키우는 곳"
+            : "2nd-Brain · your own record, grown into an assistant"}
         </Text>
       </ScrollView>
     </PremiumAppShell>

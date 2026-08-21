@@ -4,12 +4,12 @@
 // stored source.kind stays valid) and adds a named format plus the semantic props
 // the classifier can fill for future material of that kind.
 //
-// Pure builder + parser (tested); proposeClipperTemplate is the thin callGemini
+// Pure builder + parser (tested); proposeClipperTemplate is the thin callLlm
 // orchestrator so C1/C3/C9 are enforced there. The parser is defensive and
 // C-vocabulary-guarded: a proposal carrying clinical/medical wording is dropped
 // (returns null) so a forbidden term can never reach the shared template store.
 
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import {
   CLIPPER_TEMPLATE_LIST,
@@ -230,6 +230,6 @@ export async function proposeClipperTemplate(
   if (trimmed.length === 0) return null;
   const baselineKind: SourceKind = url ? detectClipperKind(url) : "inbox";
   const { system, user } = buildProposeTemplatePrompt(trimmed, url, locale);
-  const reply = await callGemini({ userId, locale, purpose: "clipper_template_propose", system, user, minor, responseSchema: PROPOSE_TEMPLATE_SCHEMA as unknown as Record<string, unknown> });
+  const reply = await callLlm({ userId, locale, purpose: "clipper_template_propose", system, user, minor, responseSchema: PROPOSE_TEMPLATE_SCHEMA as unknown as Record<string, unknown> });
   return parseProposedTemplate(reply.text, baselineKind);
 }

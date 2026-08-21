@@ -1,0 +1,100 @@
+name: Deploy edge function
+
+# Why: openai-proxy / gemini-proxy / peer-respond deploys had no repeatable path.
+# The console session has no Supabase CLI and no login token, so deploys were
+# being hand-carried file by file, which risks a transcription error on a live
+# function. This deploys straight from the repo source instead.
+#
+# Requires the SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF repo secrets.
+# Without the token the job stops before touching anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      function:
+        description: Function slug under supabase/functions (e.g. openai-proxy)
+        required: true
+        type: string
+      verify_jwt:
+        description: Keep JWT verification on (leave true unless the function does its own auth)
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refuse to run without the token
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "SUPABASE_ACCESS_TOKEN is not set. Add it in Settings > Secrets and variables > Actions." >&2
+            exit 1
+          fi
+          if [ -z "${REF:-}" ]; then
+            echo "SUPABASE_PROJECT_REF is not set." >&2
+            exit 1
+          fi
+
+      - name: Check the function exists in this repo
+        run: |
+          set -euo pipefail
+          DIR="supabase/functions/${{ inputs.function }}"
+          if [ ! -f "$DIR/index.ts" ]; then
+            echo "No such function: $DIR/index.ts" >&2
+            echo "Available:" >&2
+            ls -1 supabase/functions >&2
+            exit 1
+          fi
+          echo "deploying $DIR"
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Record the version before deploying
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            | tee before.txt
+
+      - name: Deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          FLAGS=""
+          if [ "${{ inputs.verify_jwt }}" != "true" ]; then
+            FLAGS="--no-verify-jwt"
+          fi
+          supabase functions deploy "${{ inputs.function }}" \
+            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" $FLAGS
+
+      - name: Report the version after deploying
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            | tee after.txt
+          {
+            echo "## Deployed \`${{ inputs.function }}\`"
+            echo ""
+            echo "verify_jwt: \`${{ inputs.verify_jwt }}\`"
+            echo ""
+            echo "### After"
+            echo '```'
+            cat after.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

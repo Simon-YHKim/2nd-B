@@ -4,9 +4,9 @@
 > your self-knowledge base, get personalized guidance grounded in
 > validated psychology, and carry your data anywhere.
 
-A personalized learning platform for self-understanding, submitted to
-the **Build with Gemini XPRIZE** in the *Education & Human Potential*
-category. Solo build; deadline 2026-08-17 06:00 KST.
+A personalized learning platform for self-understanding. Solo build,
+shipping to Google Play and the App Store. There is no external
+deadline.
 
 [Master Blueprint](./docs/ARCHITECTURE.md) ·
 [Constraints](./docs/CONSTRAINTS.md) ·
@@ -99,7 +99,7 @@ npm test                   # jest (C9 ordering, C3 audit insertion)
 
 ## Pre-existing assets used
 
-Per XPRIZE rulebook §04: see [`docs/ASSETS.md`](./docs/ASSETS.md) for
+Asset provenance: see [`docs/ASSETS.md`](./docs/ASSETS.md) for
 the full registry. Summary: the codebase was initialized from a clean
 Expo template on 2026-05-25 with no proprietary pre-existing code
 imported. All third-party dependencies are public OSS used under their
@@ -112,12 +112,15 @@ days (KST)**. Channels:
 
 - GitHub Issues (preferred): auto-labelled `needs-triage` /
   `sla:2-business-days` on creation.
-- Devpost project page comments.
 - `support@` email (auto-responder enabled from Sprint 1).
 
-If you are an XPRIZE judge: emails from `@xprize.org`, `@devpost.com`,
-or `@hacker.fund` are auto-recognized as judge accounts on sign-up and
-receive unlimited free access (C6).
+Reviewer accounts: emails from `@xprize.org`, `@devpost.com`, or
+`@hacker.fund` are still auto-recognized on sign-up and receive
+unlimited free access (C6). That rule is left over from a contest entry
+that ended on 2026-08-15. It stays for now because the same check is
+wired into the app, a DB trigger, and the test suite at once, so it has
+to come out in one deliberate change rather than piecemeal. See
+`CLAUDE.md`.
 
 ## License
 

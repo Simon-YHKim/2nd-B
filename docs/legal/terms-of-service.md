@@ -1,6 +1,6 @@
 # 이용약관 · Terms of Service
 
-_시행일: 2026-07-17_
+_시행일: 2026-08-16 · 최종 개정: 2026-08-16_
 
 ---
 
@@ -11,6 +11,12 @@ _시행일: 2026-07-17_
 
 ### 제2조 (서비스의 성격)
 서비스는 이용자가 자신에 관한 기록을 축적하고 **자기 이해와 성장**을 돕는 AI 기반 개인 도구입니다. 서비스는 **의료·심리상담·진단·치료 서비스가 아니며**, 서비스가 제공하는 정보와 AI 산출물은 **참고용 정보**로서 전문적(의료·법률·재정) 조언을 대체하지 않습니다.
+
+### 제2조의2 (긴급 상황 및 안전 안내)
+① **서비스는 응급·구조 서비스가 아닙니다.** 생명이나 안전이 걸린 상황에서는 서비스가 아니라 **112(경찰)·119(구조·구급)** 에 직접 연락하십시오.
+② 서비스는 도움을 받을 수 있는 **상담·신고 창구의 번호를 화면에 안내**할 뿐이며, 이용자를 대신하여 **전화하거나 신고하지 않고, 제3자(보호자·학교·기관 등)에게 알리지 않으며, 이용자의 상태를 감시하지 않습니다.**
+③ 서비스는 이용자가 위험에 처했는지 판단하지 않으며, 그러한 판단을 제공한다고 표시하지 않습니다. 안내되는 창구 목록은 참고용이며, 그 기관의 운영시간·응답·처리 결과에 대해 회사는 책임지지 않습니다.
+④ 미성년 이용자에게도 동일한 안내가 제공되며, 연령을 이유로 기능을 임의로 잠그거나 보호자에게 통지하지 않습니다.
 
 ### 제3조 (약관의 효력 및 변경)
 ① 본 약관은 서비스 화면에 게시함으로써 효력이 발생합니다.
@@ -72,6 +78,12 @@ These Terms govern the rights, obligations, and responsibilities between Hayang 
 
 ### 2. Nature of the Service
 The Service is an AI-assisted personal tool that helps users accumulate records about themselves for **self-understanding and growth**. It is **not a medical, counseling, diagnostic, or treatment service**, and any information or AI output it provides is **for reference only** and does not replace professional (medical, legal, financial) advice.
+
+### 2A. Emergencies and safety information
+(1) **The Service is not an emergency or rescue service.** If life or safety is at risk, contact the emergency services directly (in Korea, **112 for police and 119 for fire/ambulance**), not this app.
+(2) The Service only **displays the phone numbers of help and reporting lines on screen.** It does **not** call or report on your behalf, does **not** notify any third party (guardian, school, institution), and does **not** monitor your condition.
+(3) The Service does not determine whether you are at risk, and does not present itself as doing so. The listed lines are provided for reference; the Company is not responsible for their hours, responsiveness, or outcomes.
+(4) Minors see the same information. The Company does not lock features or notify a guardian on the basis of age.
 
 ### 3. Effect & changes of Terms
 (1) These Terms take effect when posted in the Service. (2) The Company may amend them within the bounds of applicable law, giving prior notice of the effective date and reason; changes unfavorable to users are notified 30 days in advance.

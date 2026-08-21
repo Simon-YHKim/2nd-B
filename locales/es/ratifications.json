@@ -35,10 +35,12 @@
       "weak": "conexión débil"
     },
     "reminder": {
-      "label": "Recuérdamelo a las 9:00",
+      "label": "Recordatorio diario a las {{time}}",
       "desc": "Suena solo en este dispositivo. Puedes desactivarlo cuando quieras.",
       "notifBody": "¿Repasamos las conexiones reunidas de tus registros?",
-      "denied": "Las notificaciones están desactivadas para esta app. Actívalas en Ajustes."
+      "denied": "Las notificaciones están desactivadas para esta app. Actívalas en Ajustes.",
+      "timeTitle": "Hora del recordatorio",
+      "timeHint": "Solo en este dispositivo."
     }
   }
 }

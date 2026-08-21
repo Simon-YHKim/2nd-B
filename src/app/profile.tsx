@@ -11,6 +11,7 @@ import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useProgression } from "@/lib/progression/useProgression";
@@ -191,7 +192,11 @@ export default function Profile() {
         title: sections.know.label,
         items: [
           { key: "core-brain", label: sections.center.items.coreBrain.label, route: "/core-brain" },
-          { key: "persona", label: sections.know.items.persona.label, route: "/persona" },
+          // D4 (2026-08-18): /persona 는 이제 /core-brain 으로 리다이렉트한다.
+          // 바로 위 줄과 같은 곳으로 가는 항목이라 메뉴에서 뺐다 - 같은 자리를
+          // 두 번 적어 두면 "둘이 뭐가 다르지" 를 사용자가 풀어야 한다.
+          // 그 자리에 생활 정보(프로필 별을 채우는 화면)를 넣는다.
+          { key: "profile-details", label: tDeepSpace("profileDetails.screenTitle"), route: "/profile-details" },
           { key: "insights", label: sections.analyze.items.insights.label, route: "/insights" },
           { key: "trends", label: tDeepSpace("trends.title"), route: "/brightness" },
           // a2z audit 2026-07-11: /growth (주간 변화 리뷰) shipped fully
@@ -393,7 +398,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     ...pixelShadowStyle(),
   },
   subscriptionCard: {
@@ -404,7 +409,7 @@ const styles = StyleSheet.create({
     borderWidth: gameboy.borderWidth,
     borderStartWidth: gameboy.borderWidth,
     borderStartColor: semantic.brand,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     padding: spacing.lg,
     gap: spacing.md,
     ...pixelShadowStyle(semantic.brand),
@@ -417,7 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surfaceAlt,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     ...pixelShadowStyle(),
   },
   accountStrip: {
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
     flexBasis: "48%",
     flexGrow: 1,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     backgroundColor: semantic.surfaceAlt,
@@ -453,7 +458,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: gameboy.border,
     borderWidth: gameboy.borderWidth,
-    borderRadius: gameboy.radius,
+    borderRadius: 0,
   },
   quickChipCopy: { flex: 1, minWidth: 0, gap: 2 },
   quickChipLabel: { lineHeight: 20 },
@@ -464,7 +469,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.deepSpaceCard,
     borderColor: semantic.deepSpaceCardLine,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: m3.shape.none,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -474,7 +479,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStartWidth: 1,
     borderStartColor: semantic.deepSpaceAccent,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -482,7 +487,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.deepSpaceCard,
     borderColor: semantic.deepSpaceCardLine,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -492,7 +497,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: 4,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderColor: semantic.deepSpaceCardLine,
     backgroundColor: semantic.deepSpaceCard,
   },
@@ -501,7 +506,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: semantic.deepSpaceCardLine,
   },

@@ -1,0 +1,14 @@
+/* PIXEL-CLAY v4.0 · SPACE UNIT
+   --u is the single spatial atom: borders, gaps, padding. Never tied to type.
+   Every dimension in the system is an integer multiple of --u. */
+:root{
+  --u:4px;
+  --s1:calc(var(--u)*1);   --s2:calc(var(--u)*2);   --s3:calc(var(--u)*3);
+  --s4:calc(var(--u)*4);   --s5:calc(var(--u)*5);   --s6:calc(var(--u)*6);
+  --s8:calc(var(--u)*8);   --s10:calc(var(--u)*10); --s12:calc(var(--u)*12);
+  --s16:calc(var(--u)*16); --s20:calc(var(--u)*20); --s24:calc(var(--u)*24);
+  /* section-scale steps — layout blocks, hero bands, marketing rhythm */
+  --s32:calc(var(--u)*32); --s48:calc(var(--u)*48); --s64:calc(var(--u)*64);
+  /* density-driven aliases — swapped, never scaled, so integers survive */
+  --pad-y:var(--s2); --pad-x:var(--s4); --gap:var(--s4);
+}

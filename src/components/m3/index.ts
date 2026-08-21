@@ -9,4 +9,4 @@ export { DateField, type DateFieldProps, YearField, type YearFieldProps } from "
 export { MdNavBar, type MdNavBarProps, type MdNavItem } from "./MdNavBar";
 export { MdTopAppBar } from "./MdTopAppBar";
 export { ProgressLinear, type ProgressLinearProps } from "./ProgressLinear";
-export { robotoFor, m3TextStyle } from "./typeface";
+export { chromeFaceFor, faceForSize, galmuriFor, m3TextStyle } from "./typeface";

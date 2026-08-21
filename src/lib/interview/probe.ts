@@ -16,7 +16,7 @@
 // The LLM only classifies + drafts; coverage accounting + termination
 // signals are deterministic functions here (LLM-agnostic per C1/C9).
 
-import { callGemini } from "../llm/gemini";
+import { callLlm } from "../llm/boundary";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 
 export type LifePeriod = "childhood" | "teens" | "twenties" | "thirties" | "current";
@@ -252,7 +252,7 @@ export async function nextProbe(
   minor = false,
 ): Promise<ProbeResult> {
   const layer = nextLayerSuggestion(coverage, period);
-  const res = await callGemini({
+  const res = await callLlm({
     userId,
     locale,
     purpose: "interview_probe",

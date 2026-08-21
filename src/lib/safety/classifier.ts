@@ -61,7 +61,7 @@ function matchesTerm(haystack: string, term: string, locale: Locale): boolean {
 
 // Age-aware crisis routing — the single source of truth for WHICH hotlines a
 // (locale, minor) crisis surfaces, in display order (primary first). Both the
-// callGemini path (routeCrisis) and the Advisor path (fixedCrisisResponse) read
+// callLlm path (routeCrisis) and the Advisor path (fixedCrisisResponse) read
 // this so the numbers never drift between surfaces.
 //   KO adult -> [109]        자살예방상담전화 (109 merged 1393 in 2024-01)
 //   KO minor -> [1388, 109]  청소년전화 first, then 109

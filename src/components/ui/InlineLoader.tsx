@@ -7,6 +7,7 @@
 // load) and the head asset, so it is safe to render before app context is ready.
 
 import { StyleSheet, View } from "react-native";
+import i18next from "i18next";
 
 import { deepSpace } from "@/lib/theme/tokens";
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
@@ -14,7 +15,7 @@ import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 
 export function InlineLoader({ message }: { message?: string } = {}) {
   return (
-    <View style={styles.root} accessibilityRole="progressbar" accessibilityLabel={message ?? "불러오는 중"}>
+    <View style={styles.root} accessibilityRole="progressbar" accessibilityLabel={message ?? i18next.t("states.loading", { ns: "common", defaultValue: "Loading" })}>
       <DeepSpaceBackdrop />
       <DeepSpaceLoader variant="dots" caption={message} />
     </View>

@@ -1,0 +1,25 @@
+/* PIXEL-CLAY v4.0 · palette / background picker cards
+   Source: uploads/pixel-clay-v4.html lines 1030-1054 (verbatim) */
+/* ═══════════ v3.0 · 팔레트/배경 피커 ═══════════════════════════════════ */
+.pal-group{ margin-bottom:var(--s6) }
+.pal-group__t{ font-size:var(--t-sm); color:var(--accent-deep); margin:0 0 var(--s2) var(--u) }
+.pal-grid{ display:grid; gap:var(--s2); grid-template-columns:repeat(auto-fill,minmax(210px,1fr)) }
+.pal-card{ display:flex; flex-direction:column; gap:0; cursor:pointer; padding:0; border:0;
+  background:var(--panel-2); text-align:left; font:inherit; color:var(--fg); box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge); margin:var(--u) }
+.pal-card:hover{ background:var(--panel) }
+.pal-card[aria-pressed=true]{ box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--accent), 0 var(--u) 0 0 var(--accent),
+  calc(-1*var(--u)) 0 0 0 var(--accent), var(--u) 0 0 0 var(--accent),
+  inset 0 0 0 var(--u) var(--accent) }
+.pal-card__strip{ display:flex; height:var(--s6); width:100% }
+.pal-card__strip i{ flex:1; min-width:2px }
+.pal-card__meta{ padding:var(--s2) var(--s3); display:block; line-height:1.5 }
+.pal-card__meta b{ font-size:var(--t-sm); display:block }
+.pal-card__tags{ display:flex; gap:var(--s1); align-items:center; flex-wrap:wrap;
+  font-size:var(--t-xs); margin-top:var(--u) }
+.pal-tag{ padding:0 var(--u); line-height:1.6; background:var(--sunken); color:var(--fg) }
+.pal-tag--hw{ background:var(--ok); color:var(--ok-fg) }
+.pal-tag--std{ background:var(--info); color:var(--info-fg) }
+.pal-tag--int{ background:var(--c05); color:var(--c01) }

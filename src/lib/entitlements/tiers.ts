@@ -78,6 +78,22 @@ export const TIER_PRICE_KRW: Record<Tier, number> = {
   pro: TIER_PRICING.brain.krwMonthly,
 };
 
+/**
+ * Yearly price per tier in KRW (₩), same FIXED mapping and same SoT. free is 0.
+ *
+ * Separate from TIER_PRICE_KRW rather than a nested shape on purpose: the
+ * monthly record is read by name in several surfaces, and widening it would
+ * have made every one of those a code change for a price the caller does not
+ * ask about. A paywall showing a yearly figure must read this and nothing else,
+ * so the number on the card cannot drift from pricing.ts (which documents
+ * yearly as exactly 10x monthly: two months free).
+ */
+export const TIER_PRICE_KRW_YEARLY: Record<Tier, number> = {
+  free: 0,
+  plus: TIER_PRICING.cortex.krwYearly,
+  pro: TIER_PRICING.brain.krwYearly,
+};
+
 // ──────────────────────────────────────────────────────────────────────────
 // Rewarded watch-to-earn — earns COUNTS, never quality.
 // ──────────────────────────────────────────────────────────────────────────

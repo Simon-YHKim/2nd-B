@@ -52,7 +52,17 @@ export type PromptPurpose =
   // one. Call-site wiring (LLM digest narrative, semantic cluster rationale, TTFV
   // first-insight precompute) is a separate feature per purpose; these are the
   // routing seats they will use.
-  | "digest_weekly" // weekly two-signal causal pattern (highest-stakes claim)
+  // ⚠ UNUSED SEAT (Simon 결정 B2, 2026-08-20). 부르는 코드가 0건이다 -
+  // `digest_weekly` 로 grep 하면 이 파일 · routing.ts · 프록시 좌석 · DB enum 만
+  // 나온다. 주간 다이제스트 화면이 앱에 없기 때문이다(프로토타입에만 있다).
+  //
+  // 그런데 지우지 않는다: DB enum 여러 개(0115·0117·0119·0120·0122·0124)에 들어
+  // 있어 제거에 마이그레이션이 들고, 주간 요약은 나중에 만들 가능성이 있다.
+  // 지웠다 되살리는 비용이 그냥 두는 비용보다 크다.
+  //
+  // **이 좌석이 비용을 만들지 않는 이유**: 호출이 없으면 모델도 안 불린다.
+  // 좌석 선언은 값이 아니라 표다.
+  | "digest_weekly" // weekly two-signal causal pattern (highest-stakes claim) - UNUSED
   | "cluster_infer" // semantic wiki connection rationale (activates the OpenAI seat)
   | "ttfv_first_insight"; // first-day self-understanding, evidence-backed
 
@@ -76,7 +86,6 @@ export interface AdvisorResult {
   text: string;
   zone: "green" | "yellow" | "red";
   triggers: string[];
-  cssrsLevel: number | null;
   fixedTemplate: boolean;
   matchedBatches: string[];
   evidence: { title: string; doi: string | null; summary: string | null }[];
@@ -135,10 +144,14 @@ export interface AuditMeta {
   // D-26 Phase 2 purpose seat (or the legacy EXPO_PUBLIC_REASONING_PROVIDER
   // seam) routed the call through claude-proxy / openai-proxy. Recorded so the
   // audit trail shows which backend produced the answer.
-  reasoningProvider?: "gemini" | "claude" | "openai";
+  // Widened for xai on 2026-08-21. Spelled out rather than importing LlmVendor
+  // because this file must not depend on routing.ts (routing imports types).
+  // The audit ledger is the only record of which vendor served a call, so a
+  // vendor the union cannot express is a vendor whose calls look like nobody's.
+  reasoningProvider?: "gemini" | "claude" | "openai" | "xai";
 }
 
-export interface GeminiResult<T = string> {
+export interface LlmResult<T = string> {
   text: T;
   safety: SafetyResult;
   audit: AuditMeta;
@@ -164,12 +177,12 @@ export const MODELS: Record<GeminiModel, string> = {
     "gemini-2.5-pro",
 };
 
-// Purpose -> default tier. Used by callGemini ONLY when the caller does not pass
+// Purpose -> default tier. Used by callLlm ONLY when the caller does not pass
 // an explicit `model`. An explicit `input.model` always wins. Existing callers
-// preserved: callGemini's historical default was "flash" and callAdvisor uses
+// preserved: callLlm's historical default was "flash" and callAdvisor uses
 // "pro" directly (advisor is not routed through this map), so no purpose here
 // regresses a current default. Purposes absent from the map fall back to "flash"
-// (the historical callGemini default) in purposeToTier().
+// (the historical callLlm default) in purposeToTier().
 //   lite  — classify/embed-like (cheap, high volume)
 //   flash — interactive surfaces
 //   pro   — reasoning surfaces

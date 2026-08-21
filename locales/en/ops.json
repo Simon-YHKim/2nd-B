@@ -80,7 +80,26 @@
     "empty": "No routines due today. Save a step below to start one.",
     "completeA11y": "Mark {{title}} done for today",
     "doneA11y": "{{title}} done for today",
-    "streak": "{{count}} day streak"
+    "streak": "{{count}} day streak",
+    "title": "Today, two things",
+    "hint": "Chosen from what you actually have on file.",
+    "nothingHint": "Left empty on purpose. Nothing here is filled with sample data.",
+    "pick": {
+      "routine": "Routines due today",
+      "milestone": "Goals in progress",
+      "reading": "What you are reading",
+      "meals": "This week's meals",
+      "records": "Recent entries",
+      "esm": "How you have been feeling"
+    },
+    "next": {
+      "routine": "Accept one suggestion to start a routine.",
+      "milestone": "Set a goal to track progress here.",
+      "reading": "Add a book to see it here.",
+      "meals": "Plan a week of meals to see it here.",
+      "records": "Save something and it shows up here.",
+      "esm": "Answer a check-in to see the pattern."
+    }
   },
   "home": {
     "ringCount": "{{done}} / {{total}} done",
@@ -115,6 +134,26 @@
     "callReflection": {
       "label": "Call reflection",
       "sub": "Speak it down"
+    },
+    "reading": {
+      "label": "Reading",
+      "sub": "Books and notes"
+    },
+    "milestones": {
+      "label": "Goals",
+      "sub": "What you are working toward"
+    },
+    "ledger": {
+      "label": "Money check",
+      "sub": "A short look at spending"
+    },
+    "sideProject": {
+      "label": "Side project",
+      "sub": "What you build outside work"
+    },
+    "meals": {
+      "label": "Meals",
+      "sub": "This week's plan"
     }
   },
   "states": {

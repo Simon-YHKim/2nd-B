@@ -3,7 +3,7 @@
 // Per docs/research/batches/crisis-detection.md §"Logging policy".
 //
 // Like audit.ts, this module is restricted by ESLint + boundary script —
-// only src/lib/llm/gemini.ts may import it. Direct access would let a
+// only src/lib/llm/boundary.ts may import it. Direct access would let a
 // component bypass the wrapper's required pre-pass + fixed-template return.
 
 import { getSupabaseClient } from "./client";
@@ -11,7 +11,6 @@ import { getSupabaseClient } from "./client";
 export interface CrisisEventInsert {
   classifierConfidence: number;
   triggerCategories: string[];
-  cssrsLevel: number | null;
   routingTemplateVersion: string;
   locale: "en" | "ko";
 }
@@ -28,7 +27,24 @@ export async function insertCrisisEvent(meta: CrisisEventInsert): Promise<void> 
   const { error } = await supabase.rpc("log_crisis_event", {
     p_classifier_confidence: meta.classifierConfidence,
     p_trigger_categories: meta.triggerCategories,
-    p_cssrs_level: meta.cssrsLevel,
+    // 최소화 (법률 검토 Q4, 2026-08-17). cssrs_level 은 C-SSRS - 자살 위험도를
+    // 재는 **임상 척도**다. 그 숫자를 사람마다 저장하면 PIPA 제23조 민감정보
+    // (건강) 처리로 설계해야 하고, 검토 의견은 그 경우 §15①5호(긴급 생명·신체)
+    // 를 원용할 수 없어 근거가 §23①1호 별도 동의뿐이라고 본다. 지금 그 동의는
+    // 받고 있지 않다.
+    //
+    // 그리고 이 값을 **읽는 코드가 저장소 전체에 0건**이었다(2026-08-17 확인).
+    // 라우팅은 zone 이 하고, 그건 따로 남는다. 즉 쓸모는 없고 위험만 남는 항목
+    // 이라 더 쓰지 않는다.
+    //
+    // 컬럼은 0129 로 삭제됐고, 등급을 **만들어내는 것**까지 2026-08-17 코드 변경으로 끊었다 -
+    // 이제 분류기가 모델에게 등급을 요구하지 않는다(SafetyResult 에 그 필드가
+    // 없다). 즉 보낼 값이 애초에 존재하지 않는다.
+    //
+    // ⚠ 그런데도 파라미터는 계속 보낸다. 이미 설치된 앱들이 이 시그니처로
+    // 호출하고 있어서 서버 함수가 파라미터를 유지해야 하고, 여기서 인자를
+    // 빼면 이름있는 인자 집합이 달라져 RPC 가 실패한다. 서버는 받아서 버린다.
+    p_cssrs_level: null,
     p_routing_template_version: meta.routingTemplateVersion,
     p_locale: meta.locale,
   });

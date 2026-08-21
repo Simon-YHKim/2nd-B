@@ -9,6 +9,7 @@
 // 세컨비에게 이 중심으로 묻기.
 
 import { useEffect, useState, type ReactNode } from "react";
+import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -22,7 +23,7 @@ import {
   SceneHero,
   StatTile,
 } from "@/components/premium";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
@@ -39,7 +40,9 @@ import {
 import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-survey";
 import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels, type DomainBrightness } from "@/lib/persona/load-domain-levels";
-import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
+import { getDomainStar } from "@/lib/persona/domain-stars";
+import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
@@ -126,6 +129,7 @@ function CoreBrainScreen() {
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [evidence, setEvidence] = useState<OriginShard[]>([]);
   const [domainBrightness, setDomainBrightness] = useState<DomainBrightness | null>(null);
+  const [profileLevel, setProfileLevel] = useState<LadderLevel | null>(null);
   const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
   const [building, setBuilding] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -144,16 +148,18 @@ function CoreBrainScreen() {
     setLoadError(false);
     (async () => {
       try {
-        const [ev, nextDomainBrightness, nextStrengths] = await Promise.all([
+        const [ev, nextDomainBrightness, nextStrengths, nextProfileLevel] = await Promise.all([
           loadCoreBrainEvidence(userId, locale),
           loadDomainLevels(userId).catch(() => null),
           loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
+          loadProfileStarLevel(userId).catch(() => null),
         ]);
         const p = ev.length > 0 ? await buildPersona(userId, locale, isMinor === true) : null;
         if (!cancelled) {
           setEvidence(ev);
           setPersona(p);
           setDomainBrightness(nextDomainBrightness);
+          setProfileLevel(nextProfileLevel);
           setStrengths(nextStrengths);
           // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
           if (p) fireCompanion("connectionFound");
@@ -308,7 +314,6 @@ function CoreBrainScreen() {
   const portrait = buildSelfPortrait({ persona }, locale);
 
   const filledFields = portrait.filter((f) => f.status === "filled").length;
-  const starLevels = persona?.starLevels;
   const domainLevels: Record<DomainId, LadderLevel> | undefined = domainBrightness?.domainLevels;
 
   // Evidence drawer (§5) — shared by the deep-space deck and the legacy screen.
@@ -712,23 +717,30 @@ function CoreBrainScreen() {
           />
         </Section>
 
-        {/* 5b) 나를 아는 일곱 가지 — 7 self-understanding stars (constellation) */}
-        {starLevels ? (
+        {/* 5b) 나를 아는 일곱 가지 — 홈이 그리는 그 일곱 (6 도메인 + 프로필).
+            Simon 결정 2026-08-21: 폐기되는 심리 구인 대신 도메인을 보여준다.
+            잠긴 상태(위 lockedStarRow)가 이미 도메인을 그리고 있었으므로, 이제
+            잠금 전후가 **같은 일곱**을 말한다 -- 전에는 서로 달랐다.
+            "곧" 배지는 사라졌다. 그건 엔진이 없는 구인 둘을 가리키던 것인데,
+            도메인은 일곱 다 실재한다. 없는 걸 광고하지 않게 된다. */}
+        {domainLevels ? (
           <Section title={t("sevenWays")} accent={cosmic.soulViolet}>
             <View style={styles.starRow}>
-              {SELF_UNDERSTANDING_STARS.map((star) => {
-                const v = brightnessVisual(starLevels[star.id]);
+              {HOME_STAR_IDS.map((id) => {
+                const level = id === "profile" ? profileLevel : domainLevels[id];
+                const v = brightnessVisual(level ?? 1);
+                const name =
+                  id === "profile"
+                    ? t("profileStar")
+                    : locale === "ko"
+                      ? getDomainStar(id).nameKo
+                      : getDomainStar(id).nameEn;
                 return (
-                  <View key={star.id} style={styles.starItem}>
+                  <View key={id} style={styles.starItem}>
                     <View style={[styles.starDot, { opacity: v.opacity }]} />
                     <Text variant="caption" color="textMuted" style={styles.starName}>
-                      {locale === "ko" ? star.nameKo : star.nameEn}
+                      {name}
                     </Text>
-                    {star.status === "absent" ? (
-                      <Text variant="caption" color="textSubtle" style={styles.starSoon}>
-                        {t("soon")}
-                      </Text>
-                    ) : null}
                   </View>
                 );
               })}
@@ -809,7 +821,7 @@ const styles = StyleSheet.create({
   statRow: { flexDirection: "row", justifyContent: "space-around", gap: spacing.sm },
   starRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "space-between" },
   starItem: { width: "30%", alignItems: "center", gap: 4 },
-  starDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: cosmic.soulViolet },
+  starDot: { width: 14, height: 14, borderRadius: m3.shape.none, backgroundColor: cosmic.soulViolet },
   starName: { textAlign: "center", fontSize: 11 },
   starSoon: { textAlign: "center", fontSize: 9, letterSpacing: 1 },
   section: {
@@ -817,38 +829,44 @@ const styles = StyleSheet.create({
     borderColor: semantic.border,
     borderWidth: 1,
     borderStartWidth: 3,
-    borderRadius: radii.lg,
+    borderRadius: 0,
     padding: spacing.lg,
     gap: spacing.sm,
   },
   fieldList: { gap: spacing.xs },
   fieldRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
   fieldLabel: { letterSpacing: 0 },
-  fieldDot: { width: 8, height: 8, borderRadius: 4 },
+  fieldDot: { width: 8, height: 8, borderRadius: m3.shape.none },
   evidenceBtn: { paddingVertical: spacing.xs, minHeight: 44, justifyContent: "center" },
   emptyActions: { gap: spacing.md, marginTop: spacing.xl, width: "100%", maxWidth: 320 },
   backdrop: { flex: 1, backgroundColor: semantic.backdrop, justifyContent: "flex-end" },
   drawer: {
     backgroundColor: semantic.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderColor: semantic.border,
     borderWidth: 1,
     padding: spacing.lg,
     gap: spacing.sm,
     maxHeight: "70%",
   },
-  drawerHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, backgroundColor: semantic.border, marginBottom: spacing.sm },
+  drawerHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: m3.shape.none, backgroundColor: semantic.border, marginBottom: spacing.sm },
   sectionTitle: { letterSpacing: 0, marginBottom: spacing.xs },
   evRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs },
-  evDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.brand },
+  evDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: semantic.brand },
   // Empty-state locked constellation: Tier-1 core + a dim ring of seven stars.
   lockedConstellation: { alignItems: "center", gap: spacing.md },
   lockedStarRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "center", maxWidth: 320 },
 });
 
 // rev2 P3a — deep-space 북극성 deck layout (the deck itself is PolarisDeck).
-const dsDeck = StyleSheet.create({
+// 이 시트는 본문 역할(`m3TextStyle("body…")`)을 들고 있다. `StyleSheet.create`
+// 는 모듈이 로드될 때 **한 번만** 평가되므로, 그대로 두면 저시력 옵션(읽는 글)
+// 을 켜도 이 화면만 예전 얼굴로 남는다 -- 네이티브는 값 하이드레이션이 비동기라
+// 영영 안 바뀐다. 그래서 시트를 **다시 만들 수 있게** 하고 설정이 바뀔 때
+// 갈아끼운다. 화면이 다시 그려지는 것은 공유 셸(`DeepSpaceScreen`)이
+// `useFontStyle()` 을 구독하기 때문이다.
+const makeDsDeck = () => StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 12, paddingTop: 4, paddingBottom: 4 },
   roleBody: { gap: 0 },
   roleTop: {
@@ -860,7 +878,7 @@ const dsDeck = StyleSheet.create({
   roleGlyph: {
     width: 56,
     height: 56,
-    borderRadius: 17,
+    borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -878,7 +896,7 @@ const dsDeck = StyleSheet.create({
     minHeight: 28,
     justifyContent: "center",
     paddingHorizontal: 11,
-    borderRadius: 10,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(m3.color.tertiary, 0.45),
     backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.42),
@@ -886,18 +904,18 @@ const dsDeck = StyleSheet.create({
   domainTagText: {
     ...m3TextStyle("labelLarge"),
     color: m3.color.onTertiaryContainer,
-    fontFamily: m3.font.brand,
   },
   roleHeadline: {
     ...m3TextStyle("headlineSmall"),
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
     fontWeight: "700",
   },
   sectionEyebrow: {
+    // labelMedium 은 10px 인데 GalmuriMono11 의 x1 은 12px 이라 0.83배로 흐려진다.
+    // 크기를 지키고 얼굴을 놓는다 -- 10px 은 Galmuri9 가 x1 로 선명하게 그리고,
+    // 그건 `m3TextStyle` 이 이미 고르고 있다.
     ...m3TextStyle("labelMedium"),
     color: m3.color.tertiary,
-    fontFamily: m3.font.mono,
     letterSpacing: 3,
     marginTop: 17,
     marginBottom: 8,
@@ -905,7 +923,6 @@ const dsDeck = StyleSheet.create({
   roleDescription: {
     ...m3TextStyle("bodyLarge"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
     lineHeight: 24,
   },
   traitList: { gap: 8 },
@@ -914,16 +931,15 @@ const dsDeck = StyleSheet.create({
     ...m3TextStyle("bodyMedium"),
     width: 48,
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
   },
   traitTrack: {
     flex: 1,
     height: 8,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     backgroundColor: withAlpha(m3.color.tertiary, 0.12),
   },
-  traitFill: { height: "100%", borderRadius: 4, backgroundColor: m3.color.tertiary },
+  traitFill: { height: "100%", borderRadius: m3.shape.none, backgroundColor: m3.color.tertiary },
   traitValue: {
     ...m3TextStyle("bodyMedium"),
     width: 30,
@@ -933,7 +949,7 @@ const dsDeck = StyleSheet.create({
   },
   personCard: {
     padding: 13,
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(m3.color.tertiary, 0.16),
     backgroundColor: withAlpha(m3.color.surfaceContainerHighest, 0.52),
@@ -941,7 +957,6 @@ const dsDeck = StyleSheet.create({
   personText: {
     ...m3TextStyle("bodyMedium"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
     lineHeight: 21,
   },
   strengthRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -951,28 +966,26 @@ const dsDeck = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     paddingHorizontal: 11,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(m3.color.tertiary, 0.4),
     backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.3),
   },
-  strengthDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: m3.color.tertiary },
+  strengthDot: { width: 7, height: 7, borderRadius: m3.shape.none, backgroundColor: m3.color.tertiary },
   strengthText: {
     ...m3TextStyle("labelLarge"),
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
   },
   strengthEmpty: {
     alignItems: "flex-start",
     gap: 2,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.color.surfaceContainerHighest, 0.42),
   },
   strengthEmptyText: {
     ...m3TextStyle("bodySmall"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   evidenceMeta: {
     flexDirection: "row",
@@ -984,13 +997,12 @@ const dsDeck = StyleSheet.create({
   evidenceText: {
     ...m3TextStyle("bodySmall"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   confidenceDots: { flexDirection: "row", gap: 5 },
   confidenceDot: {
     width: 9,
     height: 9,
-    borderRadius: 5,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.color.onSurfaceVariant, 0.28),
   },
   confidenceDotOn: { backgroundColor: m3.color.tertiary },
@@ -1004,13 +1016,11 @@ const dsDeck = StyleSheet.create({
   pageHeadline: {
     ...m3TextStyle("headlineSmall"),
     color: m3.color.onSurface,
-    fontFamily: m3.font.brand,
     fontWeight: "700",
   },
   pageDescription: {
     ...m3TextStyle("bodyLarge"),
     color: m3.color.onSurfaceVariant,
-    fontFamily: m3.font.brand,
   },
   validationHead: { marginTop: 16 },
   secondaryActions: {
@@ -1018,4 +1028,9 @@ const dsDeck = StyleSheet.create({
     gap: 8,
     marginTop: 12,
   },
+});
+
+let dsDeck = makeDsDeck();
+subscribeFontStyle(() => {
+  dsDeck = makeDsDeck();
 });

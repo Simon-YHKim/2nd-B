@@ -12,7 +12,10 @@ import { PremiumToast } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { BirthDateField } from "@/components/auth/BirthDateField";
-import { deepSpace, deepSpaceSpacing, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
+import { GoalField, NameField } from "@/components/auth/ProfileIntakeFields";
+import { saveNorthstar } from "@/lib/persona/northstar";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { ageInYears, ensureUserProfile, AgeGateError, EmailInUseError, signOut, MIN_SELF_CONSENT_AGE } from "@/lib/supabase/auth";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -34,6 +37,8 @@ export default function CompleteProfile() {
   const { t, i18n } = useTranslation("auth");
   const { userId, hasProfile, loading, refresh, profileProbeFailed } = useAuth();
   const [birthDate, setBirthDate] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [goal, setGoal] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   // Judge accounts (C6) get a 900ms welcome toast before entering. The flow's
@@ -100,7 +105,7 @@ export default function CompleteProfile() {
     setSubmitting(true);
     try {
       const result = await submitCompleteProfile({
-        ensureProfile: () => ensureUserProfile({ birthDate, locale }),
+        ensureProfile: () => ensureUserProfile({ birthDate, locale, displayName }),
         // Record the consent the user just gave, awaited before navigation so
         // a web router.replace can't cancel the in-flight write (see sign-up).
         // Still best-effort: a failure logs at error level, never blocks entry.
@@ -120,6 +125,20 @@ export default function CompleteProfile() {
         isEmailInUseError: (e) => e instanceof EmailInUseError,
       });
       if (result.kind === "entered") {
+        // L4: the goal becomes the first 북극성 문장 rather than a users column,
+        // so it lands in the same ledger the /northstar screen edits and every
+        // later revision stacks on top of it instead of overwriting.
+        //
+        // Best-effort by design, and the ordering matters: this runs AFTER the
+        // profile exists and never gates entry. A failed sentence write must not
+        // strand someone outside the app over an optional field they typed once.
+        if (goal.trim() && userId) {
+          try {
+            await saveNorthstar({ userId, locale, sentence: goal, minor: isMinorAge });
+          } catch (e) {
+            console.error("[complete-profile] northstar seed failed", e);
+          }
+        }
         // The context already knows hasProfile=true (flow refreshed), so the
         // "/" guard lets the user through instead of bouncing back here — the
         // old silent Continue loop.
@@ -213,6 +232,16 @@ export default function CompleteProfile() {
         </View>
 
         <View style={styles.form}>
+          {/* 0127 / L4. Optional, and it stays optional: onboarding is where
+              people quit, and a required name buys nothing the app cannot do
+              without. Both fields feed the profile home star, so filling them
+              lights it at L2 immediately -- which is the point of asking here
+              rather than burying them in settings. */}
+          <NameField value={displayName} onChange={setDisplayName} />
+          <GoalField value={goal} onChange={setGoal} />
+
+          <View style={{ height: deepSpaceSpacing.sm }} />
+
           <BirthDateField value={birthDate} onChange={setBirthDate} />
 
           {birthDate.length > 0 ? (
@@ -285,11 +314,11 @@ const styles = StyleSheet.create({
     left: -80,
     right: -80,
     height: 320,
-    borderRadius: 160,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.bgGlow,
     opacity: 0.85,
   },
-  star: { position: "absolute", width: 3, height: 3, borderRadius: 2, backgroundColor: deepSpace.accentSoft, opacity: 0.7 },
+  star: { position: "absolute", width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft, opacity: 0.7 },
   starA: { top: 80, left: "20%" },
   starB: { top: 150, right: "24%", opacity: 0.5 },
   starC: { bottom: 120, left: "28%", opacity: 0.5 },
@@ -308,12 +337,12 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(deepSpace.bgMid, 0.5),
     borderColor: deepSpace.cardLine,
     borderWidth: 1,
-    borderRadius: deepSpaceRadii.lg,
+    borderRadius: m3.shape.large,
     padding: deepSpaceSpacing.lg,
   },
   checklist: { gap: deepSpaceSpacing.xs, marginTop: deepSpaceSpacing.xs, marginBottom: deepSpaceSpacing.xs },
   submitButton: { alignSelf: "stretch", width: "100%" },
   toastWrap: { position: "absolute", left: deepSpaceSpacing.lg, right: deepSpaceSpacing.lg, bottom: deepSpaceSpacing.xl, alignItems: "stretch" },
   checkRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },
-  checkDot: { width: 8, height: 8, borderRadius: 4 },
+  checkDot: { width: 8, height: 8, borderRadius: m3.shape.none },
 });

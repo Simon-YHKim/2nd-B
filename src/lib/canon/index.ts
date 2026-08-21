@@ -12,6 +12,7 @@ import navPack from "../../../public/proto/data/app/nav.json";
 import constellationPack from "../../../public/proto/data/core/constellation.json";
 import captureModesPack from "../../../public/proto/data/core/capture-modes.json";
 import museumPack from "../../../public/proto/data/screens/museum.json";
+import careerInputPack from "../../../public/proto/data/screens/careerinput.json";
 import morePack from "../../../public/proto/data/screens/more.json";
 import knowPack from "../../../public/proto/data/screens/know.json";
 import surfacesPack from "../../../public/proto/data/screens/surfaces.json";
@@ -21,16 +22,54 @@ import flowsPack from "../../../public/proto/data/screens/flows.json";
 import gapsPack from "../../../public/proto/data/screens/gaps.json";
 import tokensPack from "../../../public/proto/data/app/tokens.json";
 
-export type CanonLayout = "immersive" | "museumLike" | "windowed";
+/**
+ * `gate` was added 2026-08-19. It is the login-flow shell: no phone chrome at
+ * all (no window, no app bar, no tab bar), full-screen over the star field.
+ *
+ * It is NOT an aspirational PIXEL-CLAY-only idea. The app's own auth screens
+ * already render this way — `src/app/(auth)/sign-in.tsx`,
+ * `reset-password.tsx` and `complete-profile.tsx` mount no shell and no dock.
+ * The canon simply had no word for it, so those screens were filed as
+ * `windowed`, which claimed chrome they do not have.
+ */
+export type CanonLayout = "immersive" | "museumLike" | "windowed" | "gate";
 
 export interface CanonScreen {
   id: string;
-  component: string;
-  layout: CanonLayout;
+  /** Prototype component, resolved at runtime as `window[component]` by
+   *  sb-app.jsx. Real on the proto side; it is NOT a React Native symbol —
+   *  use `route` to reach the app screen.
+   *
+   *  `null` when the screen exists in the APP but has no prototype
+   *  counterpart (`appOnly`). Before this the registry had no way to say
+   *  that, so `profile` carried a `ProfileScreen` name that nothing exported
+   *  and `check:canon-data` failed on it — which is why that check could not
+   *  join `npm run verify`. */
+  component: string | null;
+  /** True when the app has this screen and the prototype does not.
+   *  The reverse direction is `route: null` (prototype has it, app does not).
+   *  Both are honest gaps, and the canon should be able to state either. */
+  appOnly?: boolean;
+  /** The prototype's rendering contract for this screen.
+   *
+   *  **Absent on `appOnly` screens, deliberately.** This field describes how the
+   *  PROTOTYPE renders, and an appOnly screen has no prototype. Filling it in
+   *  from the app's render chain would look tidy and be a guess — the app
+   *  delegates through wrappers and loader branches, so "which shell does this
+   *  screen use" is not answerable by inspection alone. A canon that guesses is
+   *  the thing this file spent 2026-08-18/19 removing. */
+  layout?: CanonLayout;
   root?: boolean;
   companion?: boolean;
   title?: string;
   label?: string;
+  /** expo-router path under `src/app` (no extension) that implements this
+   *  screen in the app, or `null` when the app has no counterpart yet.
+   *  Added 2026-08-18: before this the registry described the prototype only
+   *  and made no checkable claim about the app, so "the canon fixes the app"
+   *  was true of the content packs but not of this list. `canon.test.ts`
+   *  now fails if a non-null route has no route module. */
+  route: string | null;
 }
 
 export interface CanonNavTab {
@@ -91,8 +130,27 @@ export function canonRoots(): CanonScreen[] {
   return canonScreens.filter((s) => s.root);
 }
 
+/** The prototype layout for a screen. Falls back to `windowed` for unknown ids
+ *  AND for appOnly screens, which declare none — see `CanonScreen.layout`. */
 export function canonLayoutOf(id: string): CanonLayout {
   return byId.get(id)?.layout ?? "windowed";
+}
+
+/** Canon screens the app actually implements, with their route. */
+export function canonRoutedScreens(): (CanonScreen & { route: string })[] {
+  return canonScreens.filter((s): s is CanonScreen & { route: string } => typeof s.route === "string");
+}
+
+/** Canon screens with no app counterpart. These are prototype-only surfaces —
+ *  the honest gap between the design canon and the shipped app. */
+/** Screens the app has and the prototype does not. The mirror of
+ *  `canonUnroutedScreens()`. */
+export function canonAppOnlyScreens(): CanonScreen[] {
+  return canonScreens.filter((s) => s.appOnly === true);
+}
+
+export function canonUnroutedScreens(): CanonScreen[] {
+  return canonScreens.filter((s) => s.route === null);
 }
 
 export function canonStats(): {
@@ -101,8 +159,10 @@ export function canonStats(): {
   byLayout: Record<CanonLayout, number>;
   packs: number;
 } {
-  const byLayout: Record<CanonLayout, number> = { immersive: 0, museumLike: 0, windowed: 0 };
-  for (const s of canonScreens) byLayout[s.layout] += 1;
+  const byLayout: Record<CanonLayout, number> = { immersive: 0, museumLike: 0, windowed: 0, gate: 0 };
+  // Only screens that DECLARE a layout are counted. appOnly screens have none,
+  // so these numbers stay a statement about the prototype, which is what they mean.
+  for (const s of canonScreens) if (s.layout) byLayout[s.layout] += 1;
   return {
     screens: canonScreens.length,
     roots: canonRoots().length,
@@ -148,6 +208,20 @@ export const canonMuseum = {
   refKo: museumPack.refKo as Record<string, string>,
   refIcon: museumPack.refIcon as Record<string, string>,
   decades: museumPack.decades as number[],
+};
+
+/** One 고용24 job-KPI suggestion chip on the 성과 입력 form. */
+export interface CanonCareerKpiSuggestion {
+  name: string;
+  /** "%" / "점" / "" — the unit shown after the value the user types. */
+  unit: string;
+}
+
+// The 성과 입력 suggestion list is CONTENT, so it lives in the canon and the
+// screen reads it from here. Copying these seven strings into the screen is how
+// the canon and the app drift apart without anything failing.
+export const canonCareerInput = {
+  suggest: careerInputPack.suggest as CanonCareerKpiSuggestion[],
 };
 
 export interface CanonImagineSeed {

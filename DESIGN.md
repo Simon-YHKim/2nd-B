@@ -83,6 +83,20 @@ Polaris brightness. Museum has no domain brightness and is also excluded.
 Do not add an eighth star. The `collect` propose-to-ratify router is deferred,
 not discarded.
 
+**2026-08-16 (Simon, L5): the count stays at seven; the ROSTER may change.**
+The rule above forbids growing the constellation, and that still holds. It does
+not forbid replacing a slot. Museum leaves the sky and becomes a menu entry, and
+the seventh home star becomes **profile** — the star for editing what other
+people read about you. Two things carry over unchanged: Polaris still averages
+only the six life domains (profile is excluded exactly as museum was), and the
+drawn count is still seven.
+
+Profile is a better occupant of that slot than museum was, for a reason worth
+keeping: museum was pinned at a hardcoded L4 regardless of the account's data,
+so one of the seven stars was always lit and never meant anything. Profile earns
+its brightness from entries the user actually makes. Replacing the slot removes
+a hardcoded tier rather than adding one.
+
 ## 3. Screen identity registry
 
 One prototype identity has one production route and one canonical renderer.

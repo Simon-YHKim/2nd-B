@@ -1,0 +1,275 @@
+name: GitHub Release (APK)
+
+# Publishes a downloadable build as a GitHub Release.
+#
+# WHY THIS EXISTS. Until now the only place an installable APK lived was
+# expo.dev, behind an Expo account. Anyone Simon wanted to hand a build to had
+# to be an EAS collaborator, or be sent a signed URL by hand. A GitHub Release
+# is a plain download link with the version, the notes and the file in one
+# place.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# IT CAN REUSE A BUILD YOU ALREADY PAID FOR.
+#
+# An EAS Android build costs build minutes and ~20-40 wall-clock minutes. If a
+# build for this commit already exists (eas-preview-build.yml ran, or an
+# earlier attempt at this release), pass its id as `build_id` and this workflow
+# downloads that artifact instead of starting a second one. Leave it empty to
+# build fresh.
+#
+# The reuse path still checks the build actually FINISHED and that its
+# artifact URL exists — a queued or failed build is refused rather than
+# producing an empty release.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The version comes from app.json (expo.version), the same source
+# check:ota-runtime and the release-notice pipeline read. The tag is derived
+# from it rather than typed, so a release cannot be tagged v1.2.0 while the
+# binary inside it reports a different version — which is the failure mode that
+# makes a bug report untraceable.
+#
+# Release notes come from the matching CHANGELOG.md section when there is one.
+#
+# Requires: EXPO_TOKEN, GOOGLE_SERVICES_JSON_BASE64 (same secrets as the other
+# EAS workflows). GITHUB_TOKEN is provided by Actions.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile (preview = APK for sideloading, production = Play AAB)"
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+      build_id:
+        description: "Reuse an existing finished EAS build id instead of building (leave empty to build)"
+        required: false
+        type: string
+      draft:
+        description: "Create the release as a draft (publish it yourself afterwards)"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "Mark as a pre-release"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  # Creating a release and uploading an asset both write to the repo.
+  contents: write
+
+concurrency:
+  group: github-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # An EAS build that has to start from scratch can sit in a queue before it
+    # even compiles. Generous, because a timeout here abandons a build that is
+    # still being paid for.
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify OTA/native runtime policy
+        run: npm run check:ota-runtime
+
+      - name: Resolve version and tag
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./app.json').expo.version")"
+          CODE="$(node -p "require('./app.json').expo.android.versionCode")"
+          TAG="v$VERSION"
+          echo "version=$VERSION"     >> "$GITHUB_OUTPUT"
+          echo "version_code=$CODE"   >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"             >> "$GITHUB_OUTPUT"
+          echo "::notice title=Release::$TAG (versionCode $CODE)"
+          # Refuse to clobber. Re-releasing the same tag would silently replace
+          # a binary someone may already have installed from that link.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists. Bump expo.version in app.json, or delete the release first."
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          # The section for this version, up to the next "## [" heading. If the
+          # changelog has no entry, fall back to generated notes rather than
+          # shipping an empty body.
+          if awk -v v="## [$VERSION]" 'index($0, v) == 1 {found=1} END {exit !found}' CHANGELOG.md; then
+            awk -v v="## [$VERSION]" '
+              index($0, v) == 1 {inside=1; next}
+              inside && /^## \[/ {exit}
+              inside {print}
+            ' CHANGELOG.md > RELEASE_NOTES.md
+            echo "have_notes=true" >> "$GITHUB_OUTPUT"
+            echo "Release notes taken from CHANGELOG.md."
+          else
+            echo "have_notes=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CHANGELOG.md has no [$VERSION] section; using generated notes."
+          fi
+
+      - name: Provision google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON_BASE64 is required for EAS Android builds."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > google-services.json
+          node -e '
+            const config = require("./google-services.json");
+            const valid = (config.client || []).some(
+              (client) =>
+                client.client_info?.android_client_info?.package_name ===
+                "com.simonk.secondbrain",
+            );
+            if (!valid) throw new Error("Firebase config package mismatch");
+          '
+          echo "Real google-services.json provisioned and validated."
+
+      - name: Get the build artifact
+        id: artifact
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          BUILD_PROFILE: ${{ inputs.profile }}
+          REUSE_BUILD_ID: ${{ inputs.build_id }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required."
+            exit 1
+          fi
+
+          if [ -n "${REUSE_BUILD_ID:-}" ]; then
+            echo "Reusing existing EAS build $REUSE_BUILD_ID (no new build started)."
+            BUILD_JSON="$(npx eas-cli build:view "$REUSE_BUILD_ID" --json --non-interactive)"
+          else
+            echo "No build_id given — starting a new $BUILD_PROFILE build and waiting for it."
+            BUILD_JSON="$(npx eas-cli build \
+              --platform android \
+              --profile "$BUILD_PROFILE" \
+              --message "GitHub Release $VERSION" \
+              --non-interactive \
+              --wait \
+              --json)"
+          fi
+          printf '%s\n' "$BUILD_JSON" | head -c 4000
+
+          # eas-cli has used more than one field name for the artifact over
+          # time, and a release that quietly attached nothing would be worse
+          # than a failure. Accept either, and insist on a finished build.
+          eval "$(
+            printf '%s' "$BUILD_JSON" | node -e '
+              const fs = require("fs");
+              const payload = JSON.parse(fs.readFileSync(0, "utf8"));
+              const build = Array.isArray(payload) ? payload[0] : payload;
+              const status = String(build?.status ?? "").toUpperCase();
+              const url =
+                build?.artifacts?.applicationArchiveUrl ??
+                build?.artifacts?.buildUrl ??
+                "";
+              if (status !== "FINISHED") {
+                console.log(`echo "::error::EAS build ${build?.id ?? "?"} is ${status || "UNKNOWN"}, not FINISHED."; exit 1`);
+              } else if (!url) {
+                console.log(`echo "::error::EAS build ${build?.id} reports no artifact URL."; exit 1`);
+              } else {
+                console.log(`export BUILD_ID=${JSON.stringify(build.id)}`);
+                console.log(`export ARTIFACT_URL=${JSON.stringify(url)}`);
+              }
+            '
+          )"
+
+          case "$ARTIFACT_URL" in
+            *.aab) EXT="aab" ;;
+            *)     EXT="apk" ;;
+          esac
+          FILE="2nd-Brain-$VERSION.$EXT"
+          echo "Downloading $ARTIFACT_URL -> $FILE"
+          curl -fsSL "$ARTIFACT_URL" -o "$FILE"
+          # A truncated download is a silently broken install. Check it looks
+          # like a zip container (both APK and AAB are zips) and is not tiny.
+          SIZE="$(stat -c%s "$FILE")"
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "::error::Downloaded artifact is only $SIZE bytes — that is not a build."
+            exit 1
+          fi
+          head -c 2 "$FILE" | grep -q 'PK' || { echo "::error::Downloaded artifact is not a zip container."; exit 1; }
+          echo "file=$FILE"           >> "$GITHUB_OUTPUT"
+          echo "build_id=$BUILD_ID"   >> "$GITHUB_OUTPUT"
+          echo "size=$SIZE"           >> "$GITHUB_OUTPUT"
+          echo "::notice title=Artifact::$FILE ($SIZE bytes) from build $BUILD_ID"
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          CODE: ${{ steps.version.outputs.version_code }}
+          FILE: ${{ steps.artifact.outputs.file }}
+          BUILD_ID: ${{ steps.artifact.outputs.build_id }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          set -euo pipefail
+          {
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Build**: EAS \`$PROFILE\` · versionCode \`$CODE\` · build \`$BUILD_ID\`"
+            echo ""
+            if [ "$PROFILE" = "preview" ]; then
+              echo "The attached \`.apk\` installs directly on Android (allow install from unknown sources)."
+            else
+              echo "The attached \`.aab\` is the Play Store upload artifact and cannot be installed directly."
+            fi
+          } >> RELEASE_NOTES.md
+
+          ARGS=(release create "$TAG" "$FILE"
+                --title "2nd-Brain $VERSION"
+                --target "$GITHUB_SHA")
+          if [ "${{ inputs.draft }}" = "true" ]; then ARGS+=(--draft); fi
+          if [ "${{ inputs.prerelease }}" = "true" ]; then ARGS+=(--prerelease); fi
+          if [ "${{ steps.notes.outputs.have_notes }}" = "true" ]; then
+            ARGS+=(--notes-file RELEASE_NOTES.md)
+          else
+            ARGS+=(--generate-notes)
+          fi
+          gh "${ARGS[@]}"
+
+          URL="$(gh release view "$TAG" --json url --jq .url)"
+          echo "::notice title=Released::$URL"
+          {
+            echo "### Release published"
+            echo
+            echo "- Tag: \`$TAG\`"
+            echo "- Asset: \`$FILE\`"
+            echo "- EAS build: \`$BUILD_ID\`"
+            echo "- $URL"
+          } >> "$GITHUB_STEP_SUMMARY"

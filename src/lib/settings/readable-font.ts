@@ -78,6 +78,35 @@ function readInitialFontStyle(): FontStyle {
   return DEFAULT_FONT_STYLE;
 }
 
+/**
+ * 현재 값을 **훅 없이** 읽는다. `m3TextStyle()` 이 이걸 쓴다 -- 그 함수는 훅이
+ * 아니고, 호출부 186곳 중 165곳이 렌더 중에 평가되므로 값을 읽기만 하면 된다.
+ *
+ * 웹은 localStorage 를 동기로 읽고, 네이티브는 `useFontStyle()` 이 부팅 때
+ * 채워두는 메모리 값을 읽는다. 네이티브에서 그 하이드레이션 전이면 기본값
+ * (pixel)이라 **픽셀로 시작했다가 읽는 글로 바뀌는** 것이지, 반대가 아니다.
+ */
+export function getFontStyle(): FontStyle {
+  return readInitialFontStyle();
+}
+
+/**
+ * 값이 바뀔 때 부르는 콜백. 훅이 아니라 **모듈 수준**에서 쓰라고 있는 것이다.
+ *
+ * 왜 필요하냐면 `StyleSheet.create({...})` 는 모듈이 로드될 때 **한 번만**
+ * 평가되기 때문이다. 본문 스타일을 거기 얼려두면 설정을 바꿔도 그 화면만
+ * 예전 얼굴로 남는다 -- 웹은 부팅 때 localStorage 를 동기로 읽으니 우연히
+ * 맞지만, 네이티브는 하이드레이션이 비동기라 **영영 안 바뀐다.**
+ *
+ * 반환값은 해지 함수다. 모듈 수준 구독은 보통 해지하지 않는다(싱글턴).
+ */
+export function subscribeFontStyle(fn: (style: FontStyle) => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
 /** Persisted font-style preference + setter. Every subscriber re-renders on
  *  change so the whole app swaps faces without a reload. */
 export function useFontStyle(): { fontStyle: FontStyle; setFontStyle: (s: FontStyle) => void } {

@@ -21,7 +21,7 @@ _최종 업데이트: 2026-08-11 · 개정 시행일: 2026-08-11_
 ⑥ 디지털 콘텐츠 특성상, 이용자는 결제 시 **7일 환불 창(기간)과 위 ③의 제한에 대한 고지를 확인**한 뒤 이용을 시작합니다.
 
 ### 3. 구독 취소 및 자동 갱신
-- 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함: 항해자 ₩9,900/월 · 북극성 ₩19,900/월 · 연간 = 월 요금×10).
+- 유료 구독은 **월 단위 자동 갱신**됩니다. 가격 및 갱신 주기는 결제 화면 및 이용약관에 표시됩니다(부가세 포함: 항해자 ₩9,900/월 · 북극성 ₩19,900/월(출시 준비 중) · 연간 = 월 요금×10).
 - 이용자는 **다음 갱신일 이전 언제든 구독을 취소**할 수 있으며, 취소 시 **이미 결제한 기간의 만료일까지 유료 혜택이 유지**된 뒤 자동 갱신이 중단됩니다.
 - **즉시 해지**를 선택하면 유료 기능이 바로 종료되며, 남은 기간은 자동으로 환불되지 않습니다(위 2항의 조건을 충족하면 별도로 환불을 요청하실 수 있습니다).
 - 자동 갱신 결제도 **결제일로부터 7일 이내**이고 위 2항①의 이용량 조건을 충족하면 환불 대상입니다.
@@ -68,7 +68,7 @@ Paid subscriptions to 2nd-Brain (the "Service") are sold and processed by **Padd
 (6) As this is digital content, you confirm awareness of the 7-day refund window and of the limit in (3) at checkout before use begins.
 
 ### 3. Cancellation & auto-renewal
-- Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo · yearly = 10x monthly).
+- Paid subscriptions **auto-renew monthly**. Price and cadence are shown at checkout and in the Terms (VAT included: Voyager ₩9,900/mo · North Star ₩19,900/mo (coming soon) · yearly = 10x monthly).
 - You may **cancel any time before the next renewal**; paid benefits **continue until the end of the paid period**, then auto-renewal stops.
 - Choosing **immediate cancellation** ends paid features at once, and the remaining time is not refunded automatically (you may still request a refund separately if Section 2 applies).
 - Auto-renewal charges are also covered by the 7-day guarantee in Section 2 **if within 7 days** of that charge and the usage condition in 2(1) is met.

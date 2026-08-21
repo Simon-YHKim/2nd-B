@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     borderColor: m3.color.outline,
     // 24 = minHeight/2: Android mis-clips children when borderRadius exceeds
     // the view size under overflow:hidden (stadium silhouette preserved).
-    borderRadius: 24,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     minHeight: 48,
   },

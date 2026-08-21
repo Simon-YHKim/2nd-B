@@ -9,7 +9,9 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import Svg, { G, Line, Text as SvgText } from "react-native-svg";
+
+import { PixelNodeSvg } from "@/components/pixel/PixelStarSvg";
 
 import { Text } from "@/components/ui/Text";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
@@ -113,16 +115,17 @@ export function WikiGraph({
             return (
               <G key={node.id}>
                 {isSelected ? (
-                  <Circle
+                  <PixelNodeSvg
                     cx={node.x * CANVAS}
                     cy={node.y * CANVAS}
                     r={r + 7}
-                    fill="none"
                     stroke={withAlpha(m3.accent.star, 0.7)}
                     strokeWidth={2}
                   />
                 ) : null}
-                <Circle
+                {/* 위키 문서는 **사각형**이다. 별 모양은 북극성과 7 도메인에만
+                    쓴다 -- 문서까지 빛나면 별자리 서열이 사라진다. */}
+                <PixelNodeSvg
                   cx={node.x * CANVAS}
                   cy={node.y * CANVAS}
                   r={r}
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
   canvasWrap: {
     aspectRatio: 1,
     width: "100%",
-    borderRadius: 14,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.accentDim, 0.22),
     backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
@@ -207,7 +210,7 @@ const styles = StyleSheet.create({
   zoomBtn: {
     minWidth: 44,
     minHeight: 44,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.accentDim, 0.4),
     alignItems: "center",
@@ -217,5 +220,5 @@ const styles = StyleSheet.create({
   hint: { flex: 1, minWidth: 0 },
   legend: { flexDirection: "row", gap: 14 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendDot: { width: 8, height: 8, borderRadius: 0 },
 });

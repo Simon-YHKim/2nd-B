@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
 
   // question state
   progressBlock: { marginTop: 6, marginBottom: 4 },
-  progressBar: { height: 6, borderRadius: 3 },
+  progressBar: { height: 6, borderRadius: m3.shape.none },
   progressLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 8 },
   questionRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 20, marginBottom: 8 },
   question: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, lineHeight: 34 },

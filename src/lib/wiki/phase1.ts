@@ -14,7 +14,7 @@
 // Gemini connection. With real Gemini (live mode or via gemini-proxy
 // Edge Function) the same code path produces the structured output.
 
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { INJECTION_GUARD, wrapUntrusted } from "@/lib/llm/untrusted";
 import { getEnv } from "@/lib/env";
 
@@ -189,7 +189,7 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
   const body = await downloadRawClipping(source.storage_path);
   const env = getEnv();
 
-  const reply = await callGemini({
+  const reply = await callLlm({
     userId: input.userId,
     locale: input.locale,
     purpose: "source_ingest",
@@ -210,7 +210,7 @@ export async function runPhase1(input: RunPhase1Input): Promise<Phase1Result> {
 
   // Persist to sources.frontmatter.__phase1__ so the inbox/detail UI can
   // render it without re-running the LLM.
-  // Re-read the frontmatter immediately before writing. The multi-second callGemini
+  // Re-read the frontmatter immediately before writing. The multi-second callLlm
   // above is a wide window in which another writer (e.g. promote-pending clearing
   // _storage_pending after a successful re-upload) may have changed
   // sources.frontmatter; spreading the pre-LLM snapshot would resurrect the keys

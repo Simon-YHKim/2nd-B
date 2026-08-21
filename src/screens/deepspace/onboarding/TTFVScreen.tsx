@@ -22,7 +22,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     top: POLARIS.y - 22,
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.accent.polaris, 0.3),
   },
   starLabel: { position: "absolute", fontSize: 11, color: m3.accent.starCaption, letterSpacing: 0.6, textAlign: "center" },
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   evidenceCard: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.accent.entryTag, 0.1),
     borderWidth: 1,
     borderColor: withAlpha(m3.accent.entryTag, 0.2),
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   whyFootnote: { fontSize: 11, lineHeight: 16, color: withAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
 
   answerRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", maxWidth: 320, width: "100%", marginTop: 16 },
-  answerBtn: { flex: 1, minHeight: 50, borderRadius: deepSpaceRadii.md, overflow: "hidden" },
+  answerBtn: { flex: 1, minHeight: 50, borderRadius: m3.shape.medium, overflow: "hidden" },
   // bare touch surface inside the styled wrapper (Fabric-safe)
   answerPress: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 },
   affirmBtn: { backgroundColor: deepSpace.accent },
@@ -374,13 +374,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 7,
     paddingHorizontal: 16,
-    borderRadius: 9999,
+    borderRadius: m3.shape.none,
     backgroundColor: withAlpha(m3.accent.insightHi, 0.16),
     marginBottom: 6,
   },
   levelChipText: { fontSize: 13, fontWeight: "700", color: m3.accent.starCaption },
   ratifyTitle: { fontSize: 18, lineHeight: 26, fontWeight: "700", color: deepSpace.textHi, textAlign: "center", maxWidth: 280 },
-  enterBtn: { alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: deepSpaceRadii.md, backgroundColor: deepSpace.accent, marginTop: 20, overflow: "hidden" },
+  enterBtn: { alignSelf: "stretch", maxWidth: 320, minHeight: 52, borderRadius: m3.shape.medium, backgroundColor: deepSpace.accent, marginTop: 20, overflow: "hidden" },
 
   pressed: { opacity: 0.85 },
 });

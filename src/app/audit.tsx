@@ -8,6 +8,7 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PastMeErasView } from "@/components/deep-space/DeepSpaceViews";
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: 0,
     padding: spacing.lg,
     gap: spacing.xs,
   },
@@ -422,7 +423,7 @@ const styles = StyleSheet.create({
   charCountRow: { flexDirection: "row", justifyContent: "space-between", marginTop: -spacing.xs },
   introCard: {
     backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     borderStartColor: semantic.brand,
     borderStartWidth: 3,
     padding: spacing.sm,
@@ -432,12 +433,12 @@ const styles = StyleSheet.create({
   progressTrack: {
     height: 4,
     backgroundColor: semantic.surfaceAlt,
-    borderRadius: radii.sm,
+    borderRadius: 0,
     overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: semantic.brand },
   progressDots: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.xs },
-  progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: semantic.surfaceAlt },
+  progressDot: { width: 6, height: 6, borderRadius: m3.shape.none, backgroundColor: semantic.surfaceAlt },
   progressDotDone: { backgroundColor: semantic.brand, opacity: 0.5 },
   progressDotCurrent: { backgroundColor: semantic.brand, transform: [{ scale: 1.3 }] },
   toastWrap: {
@@ -451,7 +452,7 @@ const styles = StyleSheet.create({
     backgroundColor: semantic.success,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radii.sm,
+    borderRadius: 0,
   },
   completeBadgeText: {
     color: semantic.text,

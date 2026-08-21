@@ -14,11 +14,11 @@ jest.mock("expo-image-manipulator", () => ({
 
 import * as ImageManipulator from "expo-image-manipulator";
 
-jest.mock("../../llm/gemini", () => ({
-  callGemini: jest.fn(),
+jest.mock("../../llm/boundary", () => ({
+  callLlm: jest.fn(),
 }));
 
-import { callGemini } from "../../llm/gemini";
+import { callLlm } from "../../llm/boundary";
 import {
   IMAGE_CAMERA_PERMISSION_DENIED_ERROR,
   IMAGE_OCR_CRISIS_RESULT_ERROR,
@@ -71,7 +71,7 @@ const AVIF_IMAGE_BASE64 = Buffer.from([
   0x69, 0x66,
 ]).toString("base64");
 
-const mockCallGemini = callGemini as jest.MockedFunction<typeof callGemini>;
+const mockCallLlm = callLlm as jest.MockedFunction<typeof callLlm>;
 const imagePickerMock = ImagePicker as unknown as {
   launchCameraAsync: jest.Mock;
   launchImageLibraryAsync: jest.Mock;
@@ -94,14 +94,14 @@ function proxyHttpError(status: number, error: string): Error {
 
 describe("capture image OCR payload guards", () => {
   beforeEach(() => {
-    mockCallGemini.mockReset();
+    mockCallLlm.mockReset();
     imagePickerMock.launchCameraAsync.mockReset();
     imagePickerMock.launchImageLibraryAsync.mockReset();
     imagePickerMock.requestCameraPermissionsAsync.mockReset();
     imageManipulatorMock.manipulateAsync.mockReset();
-    mockCallGemini.mockResolvedValue({
+    mockCallLlm.mockResolvedValue({
       text: "OCR text",
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
   });
 
   test("rejects oversized base64 before calling Gemini", async () => {
@@ -112,7 +112,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("rejects whitespace-heavy raw base64 envelopes before normalization", async () => {
@@ -126,7 +126,7 @@ describe("capture image OCR payload guards", () => {
     ).rejects.toThrow(IMAGE_OCR_TOO_LARGE_ERROR);
 
     expect(normalizeOcrImageBase64Data(padded)).toBe(PNG_IMAGE_BASE64);
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("rejects unsupported image MIME before calling Gemini", async () => {
@@ -137,7 +137,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("downscales oversized picked images instead of rejecting them (P2-4)", async () => {
@@ -358,7 +358,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("rejects syntactically valid non-image base64 before calling Gemini", async () => {
@@ -369,7 +369,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("rejects truncated image signatures before calling Gemini", async () => {
@@ -380,7 +380,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("rejects declared image MIME that conflicts with the image signature", async () => {
@@ -391,7 +391,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -399,7 +399,7 @@ describe("capture image OCR payload guards", () => {
     [413, "image_too_large", IMAGE_OCR_TOO_LARGE_ERROR],
     [415, "image_mime_not_allowed", IMAGE_OCR_UNSUPPORTED_TYPE_ERROR],
   ])("maps gemini-proxy OCR image error %s/%s to the capture sentinel", async (status, marker, expected) => {
-    mockCallGemini.mockRejectedValueOnce(proxyHttpError(status as number, marker as string));
+    mockCallLlm.mockRejectedValueOnce(proxyHttpError(status as number, marker as string));
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -411,7 +411,7 @@ describe("capture image OCR payload guards", () => {
 
   test("does not remap non-image proxy errors during OCR", async () => {
     const error = proxyHttpError(400, "user_required");
-    mockCallGemini.mockRejectedValueOnce(error);
+    mockCallLlm.mockRejectedValueOnce(error);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -425,8 +425,8 @@ describe("capture image OCR payload guards", () => {
     ["llm_image_invalid_data", IMAGE_OCR_INVALID_DATA_ERROR],
     ["llm_image_too_large", IMAGE_OCR_TOO_LARGE_ERROR],
     ["llm_image_unsupported_type", IMAGE_OCR_UNSUPPORTED_TYPE_ERROR],
-  ])("maps callGemini image preflight error %s to the capture sentinel", async (marker, expected) => {
-    mockCallGemini.mockRejectedValueOnce(new Error(marker));
+  ])("maps callLlm image preflight error %s to the capture sentinel", async (marker, expected) => {
+    mockCallLlm.mockRejectedValueOnce(new Error(marker));
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -436,9 +436,9 @@ describe("capture image OCR payload guards", () => {
     ).rejects.toThrow(expected);
   });
 
-  test("does not remap non-image callGemini errors during OCR", async () => {
+  test("does not remap non-image callLlm errors during OCR", async () => {
     const error = new Error("network_down");
-    mockCallGemini.mockRejectedValueOnce(error);
+    mockCallLlm.mockRejectedValueOnce(error);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -515,7 +515,7 @@ describe("capture image OCR payload guards", () => {
       base64: `${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}`,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         image: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
       }),
@@ -546,7 +546,7 @@ describe("capture image OCR payload guards", () => {
       base64: `data:image/jpeg;base64,${JPEG_PADDED_IMAGE_BASE64_URL}`,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         image: { mimeType: "image/jpeg", data: JPEG_PADDED_IMAGE_BASE64 },
       }),
@@ -561,7 +561,7 @@ describe("capture image OCR payload guards", () => {
       base64: `data:image/jpeg;base64,${encodeURIComponent(JPEG_PADDED_IMAGE_BASE64)}`,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         image: { mimeType: "image/jpeg", data: JPEG_PADDED_IMAGE_BASE64 },
       }),
@@ -584,8 +584,8 @@ describe("capture image OCR payload guards", () => {
       }),
     ).resolves.toBe("OCR text");
 
-    expect(mockCallGemini).toHaveBeenCalledTimes(1);
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledTimes(1);
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "u1",
         locale: "ko",
@@ -596,9 +596,9 @@ describe("capture image OCR payload guards", () => {
   });
 
   test("normalizes OCR text before returning it", async () => {
-    mockCallGemini.mockResolvedValueOnce({
+    mockCallLlm.mockResolvedValueOnce({
       text: "\r\n  Clean markdown text\r\n| A | B |\r| - | - |  \r\n",
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -613,9 +613,9 @@ describe("capture image OCR payload guards", () => {
   });
 
   test("unwraps full-response OCR markdown fences but preserves real code fences", async () => {
-    mockCallGemini.mockResolvedValueOnce({
+    mockCallLlm.mockResolvedValueOnce({
       text: "```markdown\n# Machine log\n\n| tact | UPH |\n| --- | --- |\n| 42s | 85 |\n```",
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -633,9 +633,9 @@ describe("capture image OCR payload guards", () => {
   });
 
   test("removes assistant prefaces from OCR text without dropping real headings", async () => {
-    mockCallGemini.mockResolvedValueOnce({
+    mockCallLlm.mockResolvedValueOnce({
       text: "Here is the transcription:\n\n# Machine log\n- C/T: 42s",
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -660,9 +660,9 @@ describe("capture image OCR payload guards", () => {
 
   test("truncates oversized OCR text results with an explicit marker", async () => {
     const longText = `\n${"x".repeat(MAX_OCR_TEXT_CHARS + 17)}\n`;
-    mockCallGemini.mockResolvedValueOnce({
+    mockCallLlm.mockResolvedValueOnce({
       text: longText,
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
 
     const text = await ocrImageAsset("u1", "en", {
       mimeType: "image/png",
@@ -677,9 +677,9 @@ describe("capture image OCR payload guards", () => {
   });
 
   test("rejects blank OCR text results as a read failure", async () => {
-    mockCallGemini.mockResolvedValueOnce({
+    mockCallLlm.mockResolvedValueOnce({
       text: " \n\t ",
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -688,11 +688,11 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_EMPTY_RESULT_ERROR);
 
-    expect(mockCallGemini).toHaveBeenCalledTimes(1);
+    expect(mockCallLlm).toHaveBeenCalledTimes(1);
   });
 
   test("routes red-zone OCR output through a crisis sentinel instead of returning the safety template", async () => {
-    mockCallGemini.mockResolvedValueOnce({
+    mockCallLlm.mockResolvedValueOnce({
       text: "Call 988 now.",
       safety: {
         zone: "red",
@@ -700,7 +700,7 @@ describe("capture image OCR payload guards", () => {
         categories: ["crisis"],
         crisisRouting: { hotline: "GLOBAL_988", label: "988", number: "988" },
       },
-    } as Awaited<ReturnType<typeof callGemini>>);
+    } as Awaited<ReturnType<typeof callLlm>>);
 
     await expect(
       ocrImageAsset("u1", "en", {
@@ -716,7 +716,7 @@ describe("capture image OCR payload guards", () => {
       base64: JPEG_IMAGE_BASE64,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         image: { mimeType: "image/jpeg", data: JPEG_IMAGE_BASE64 },
       }),
@@ -732,7 +732,7 @@ describe("capture image OCR payload guards", () => {
       base64: `data:image/x-png;charset=utf-8;base64, ${PNG_IMAGE_BASE64.slice(0, 8)}\n${PNG_IMAGE_BASE64.slice(8)}`,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         image: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
       }),
@@ -756,7 +756,7 @@ describe("capture image OCR payload guards", () => {
       base64: `data:application/octet-stream;base64,${PNG_IMAGE_BASE64}`,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledWith(
+    expect(mockCallLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         image: { mimeType: "image/png", data: PNG_IMAGE_BASE64 },
       }),
@@ -829,7 +829,7 @@ describe("capture image OCR payload guards", () => {
       }),
     ).rejects.toThrow(IMAGE_OCR_INVALID_DATA_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("rejects known unsupported image signatures without declared MIME before calling Gemini", async () => {
@@ -848,7 +848,7 @@ describe("capture image OCR payload guards", () => {
       base64: `data:application/octet-stream;base64,${AVIF_IMAGE_BASE64}`,
     })).toThrow(IMAGE_OCR_UNSUPPORTED_TYPE_ERROR);
 
-    expect(mockCallGemini).not.toHaveBeenCalled();
+    expect(mockCallLlm).not.toHaveBeenCalled();
   });
 
   test("uses a domain-aware OCR prompt for tables, units, and uncertain text", async () => {
@@ -857,7 +857,7 @@ describe("capture image OCR payload guards", () => {
       base64: PNG_IMAGE_BASE64,
     });
 
-    const enPrompt = mockCallGemini.mock.calls[0]![0].user;
+    const enPrompt = mockCallLlm.mock.calls[0]![0].user;
     expect(enPrompt).toContain("markdown tables");
     expect(enPrompt).toContain("numeric values");
     expect(enPrompt).toContain("tact time");
@@ -874,14 +874,14 @@ describe("capture image OCR payload guards", () => {
     expect(enPrompt).toContain("brief no-text description in English");
     expect(enPrompt).toContain("Do not wrap the answer in code fences.");
 
-    mockCallGemini.mockClear();
+    mockCallLlm.mockClear();
 
     await ocrImageAsset("u1", "ko", {
       mimeType: "image/png",
       base64: PNG_IMAGE_BASE64,
     });
 
-    const koPrompt = mockCallGemini.mock.calls[0]![0].user;
+    const koPrompt = mockCallLlm.mock.calls[0]![0].user;
     expect(koPrompt).toContain("마크다운 표");
     expect(koPrompt).toContain("숫자");
     expect(koPrompt).toContain("체크박스");

@@ -166,7 +166,7 @@ SoT: `src/lib/persona/stars.ts` (`SELF_UNDERSTANDING_STARS`) — **기존 7축�
 ### 4.4 레이어 C — 북극성 (출력)
 
 북극성은 직접 입력을 받지 않고 7 도메인 데이터를 종합한다. 4단계: ① 결정론적 도메인 요약(LLM-free)
-→ ② 구인 추정(레이어 B) → ③ `callGemini(purpose='persona_synthesis')` 페르소나 종합 →
+→ ② 구인 추정(레이어 B) → ③ `callLlm(purpose='persona_synthesis')` 페르소나 종합 →
 ④ propose→ratify 사용자 승인.
 
 - **페르소나 = 역할/모자 (여럿)**: 단일 라벨 아님. 각 페르소나는 어떤 도메인 + 어떤 구인이
@@ -318,7 +318,7 @@ C9→C3→`gemini.ts`)하고, **사용자 승인**(페르소나별)만이 L5 확
 
 - 북극성 탭 → **종합 뷰**: 북극성 밝기% + 켜진 홈 6 도메인 별 요약 + 페르소나(역할/모자) 제안(구
   `/persona`·`/core-brain` 역할 흡수), 그리고 **세컨비** `/secondb` 진입 — RAG-backed chat.
-  상단 일일 사용량 미터. **Analytic / Divergent** 모드 토글. 모든 turn 이 `callGemini`(C9→C3)
+  상단 일일 사용량 미터. **Analytic / Divergent** 모드 토글. 모든 turn 이 `callLlm`(C9→C3)
   경유. 위기 라우팅 turn 은 quota 미차감.
 - 세컨비는 wiki 스냅샷 + **별자리 맥락**(7 도메인 요약 + 레이어 B 구인 추정 + 북극성 밝기,
   `exportConstellationContext` 신규)을 `<UNTRUSTED>` 펜스로 주입받아 응답. 페르소나 변경은 트렌드
@@ -370,7 +370,7 @@ C9→C3→`gemini.ts`)하고, **사용자 승인**(페르소나별)만이 L5 확
 
 | ID | 규칙 |
 |---|---|
-| C1 | 모든 LLM 호출은 `src/lib/llm/gemini.ts::callGemini()` 단일 래퍼 경유. ESLint 가 타 LLM SDK 차단. |
+| C1 | 모든 LLM 호출은 `src/lib/llm/boundary.ts::callLlm()` 단일 래퍼 경유. ESLint 가 타 LLM SDK 차단. |
 | C2 | `@google/genai` 를 `EXPO_PUBLIC_USE_VERTEX=true` 시 `vertexai: true` 로 구성. backend 기록. |
 | C3 | 성공 호출마다 `ai_audit_log` INSERT (mock·crisis 포함). audit 직접 import 차단. |
 | C4 | `revenue_events` = `month_bucket` + `is_related_party` + `customer_relation_type`. |
@@ -378,7 +378,7 @@ C9→C3→`gemini.ts`)하고, **사용자 승인**(페르소나별)만이 L5 확
 | C6 | `@xprize.org`·`@devpost.com`·`@hacker.fund` 심사자 모드 무제한. client + DB trigger 이중, DB authoritative. |
 | C7 | i18n EN↔KO 키 패리티. EN canonical. 빈 값 CI 실패. |
 | C8 | `knowledge_sources` = DOI OR URL 필수, `verified_by`/`verified_at` 쌍 강제(CHECK). |
-| C9 | `classifyInput()` 가 `callGemini` 최상단 실행. red-zone 단락 → 핫라인 안내, LLM 미호출. jest 단언. |
+| C9 | `classifyInput()` 가 `callLlm` 최상단 실행. red-zone 단락 → 핫라인 안내, LLM 미호출. jest 단언. |
 | C10 | 연령 티어 가입: 성인·14–17 자가동의 직접 / 14세 미만 보호자 검증(PIPA §22-2). DB BEFORE INSERT trigger 가 실게이트. |
 | C11 | 지원 SLA 영업일 2일(KST). README 선언 + issue-sla 워크플로. |
 | C12 | README "Pre-existing assets used" (rulebook §04) + `docs/ASSETS.md` 레지스트리. |
@@ -424,7 +424,7 @@ C9→C3→`gemini.ts`)하고, **사용자 승인**(페르소나별)만이 L5 확
 **데이터 흐름 (핵심 경로)**:
 ```
 User input
-  → callGemini()
+  → callLlm()
       → classifyInput()        # C9
       → red ? return routeCrisis()
       → getClient()            # C2 (Vertex when configured)
@@ -441,7 +441,7 @@ purpose→tier(lite 분류 / flash 인터랙티브 / pro 추론). 북극성 종�
 
 **RAG**: `sources`(8 kind) → `wiki_pages`(source/entity/concept) → `wiki_links`(`[[wikilink]]`
 엣지). 세컨비는 `exportUserWiki` + `exportConstellationContext`(신규)로 RAG context 번들을 만들어
-`callGemini(purpose='secondb_chat')` 에 주입.
+`callLlm(purpose='secondb_chat')` 에 주입.
 
 **별 측정**: `brightness.ts`(L1~L5) · `domainConfidence`(신규 어댑터, 도메인 항목수→밴드) ·
 `stars.ts`(`soulCoreBrightness` 도메인 입력 종합) · `load-star-levels.ts`(홈 마운트, LLM-free).

@@ -6,6 +6,8 @@
 
 import { ScrollView, View, StyleSheet, Platform, Linking, Pressable } from "react-native";
 
+import { DevOnlyRoute } from "@/components/ui/DevOnlyRoute";
+
 import { Text } from "@/components/ui/Text";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
 import {
@@ -18,7 +20,20 @@ import {
 
 const PROTO_URL = "https://simon-yhkim.github.io/2nd-B/proto/";
 
-export default function CanonReference() {
+// 2026-08-18 (Simon D1): 이 화면은 dev/design 보조인데 **게이트가 없어서**
+// 프로덕션에서도 직접 URL 로 열렸다. 같은 성격의 다른 화면들(graph·trinity·
+// deepspace-* ·trends)은 전부 DevOnlyRoute 뒤에 있었는데 이것만 빠져 있었다.
+// 지우지 않고 게이트를 붙인다 - 캐논이 깨졌을 때 앱 안에서 보이는 것이 이
+// 화면의 값어치이고, 그건 개발 중에만 필요하다.
+export default function CanonReferenceRoute() {
+  return (
+    <DevOnlyRoute>
+      <CanonReference />
+    </DevOnlyRoute>
+  );
+}
+
+function CanonReference() {
   const stats = canonStats();
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>

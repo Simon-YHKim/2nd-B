@@ -44,6 +44,9 @@ async function sha256Hex(input: string): Promise<string> {
 
 const TRAITS = ['extraversion', 'conscientiousness', 'agreeableness'] as const;
 
+/** C10 floor, mirroring the sign-up gate. Keep in sync with src/app/peer/[token].tsx. */
+const MIN_INFORMANT_AGE = 14;
+
 function validRatings(raw: unknown): Record<string, number> | null {
   if (raw == null || typeof raw !== 'object') return null;
   const out: Record<string, number> = {};
@@ -125,6 +128,26 @@ Deno.serve(async (req) => {
     if (body.llmProcessingAck !== true || body.overseasTransferAck !== true) {
       return jsonResponse(req, { error: 'acks_required' }, 400);
     }
+    // C10 floor. This endpoint is the ONLY server-side gate an informant passes:
+    // there is no account here, so enforce_user_age_tier() (which rejects under-14
+    // at sign-up) never sees them. Without this check the product accepts, as data
+    // subjects, exactly the age band its privacy policy says it does not accept.
+    // Year granularity is deliberate — the coarsest signal that answers the
+    // question, so we never hold an informant's full birth date.
+    const birthYear = Number(body.birthYear);
+    const nowYear = new Date().getUTCFullYear();
+    const yearLooksReal =
+      Number.isInteger(birthYear) && birthYear >= 1900 && birthYear <= nowYear;
+    if (!yearLooksReal) {
+      return jsonResponse(req, { error: 'birth_year_required' }, 400);
+    }
+    // Compare on the year alone, which reads one year YOUNGER than the true age
+    // until the birthday passes. That direction is the safe one: it can only
+    // exclude a just-turned-14, never admit a 13-year-old.
+    if (nowYear - birthYear < MIN_INFORMANT_AGE) {
+      return jsonResponse(req, { error: 'too_young' }, 403);
+    }
+
     const isMinor = body.informantIsMinor === true;
     // Decision 5 (0064 CHECK): a minor informant needs recorded guardian consent.
     if (isMinor && body.guardianConsent !== true) {

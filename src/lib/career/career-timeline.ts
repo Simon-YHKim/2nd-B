@@ -1,8 +1,11 @@
 // Career CV timeline (rev2 P4d) — pure grouping for the 커리어 lens.
 // Records tagged domain:career group by YEAR, newest first. An explicit
-// `year:YYYY` tag (written by the achievement form) wins over created_at, so
-// past accomplishments land on their real year, not the capture date.
-// 3C4P drilldown + 고용24 integration stay deferred to the rev2 prototype spec.
+// `year:YYYY` tag (written by the 성과 입력 form) wins over created_at, so past
+// accomplishments land on their real year, not the capture date.
+//
+// The body composer that used to live here served the three-box inline form and
+// went with it; lib/career/achievement-form.ts composes the full seven-section
+// entry now. 3C4P drilldown stays deferred to the rev2 prototype spec.
 
 import { kstDayKey } from "@/lib/journal/streak";
 
@@ -49,22 +52,4 @@ export function groupCareerTimeline(rows: readonly CareerRecordRow[]): CareerYea
       year,
       items: [...items].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     }));
-}
-
-/** Compose the achievement note body from the form boxes (filled lines only). */
-export function composeAchievementBody(
-  fields: { title: string; role: string; impact: string },
-  locale: "en" | "ko",
-): string {
-  const L =
-    locale === "ko"
-      ? { title: "성과", role: "역할", impact: "임팩트" }
-      : { title: "Achievement", role: "Role", impact: "Impact" };
-  return [
-    fields.title.trim() ? `${L.title}: ${fields.title.trim()}` : null,
-    fields.role.trim() ? `${L.role}: ${fields.role.trim()}` : null,
-    fields.impact.trim() ? `${L.impact}: ${fields.impact.trim()}` : null,
-  ]
-    .filter((line): line is string => line !== null)
-    .join("\n");
 }

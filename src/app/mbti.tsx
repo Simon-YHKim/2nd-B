@@ -8,9 +8,22 @@
 //
 // This route is intentionally KEPT (not deleted) as a deep-link compatibility
 // redirect, mirroring /journal → /capture and /imagine → /secondb. External or
-// saved deep links to "/mbti" must not 404; they now land on /persona, where
-// the assessment results used to surface. The whole change stays reversible:
+// saved deep links to "/mbti" must not 404. The whole change stays reversible:
 // revert this file to restore the old standalone MBTI screener.
+//
+// ⚠ Where it actually lands (corrected 2026-08-19). The old comment said
+// "/persona, where the assessment results used to surface" — true only in the
+// legacy skin. In the DEFAULT (deep-space) skin `/persona` itself redirects
+// again, so the real chain is two hops:
+//
+//     /mbti → /persona → /core-brain      (deep-space, the default)
+//     /mbti → /persona                    (EXPO_PUBLIC_UI=legacy)
+//
+// The second hop is deliberate, not an oversight. Pointing straight at
+// /core-brain would mean duplicating persona.tsx's skin branch here, and then
+// this file drifts the day that branch changes. `/persona` owns the decision;
+// this route just defers to it. One extra render frame is the price of not
+// having two places that must agree.
 
 import { Redirect } from "expo-router";
 

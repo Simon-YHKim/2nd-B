@@ -1,0 +1,32 @@
+/* PIXEL-CLAY v4.0 · chart legend + palette card v4 + chartbox
+   Source: uploads/pixel-clay-v4.html lines 1055-1085 (verbatim) */
+/* ═══════════ LAYER 7 · v4.0 COMPONENTS ══════════════════════════════════
+   Untitled UI 인벤토리 대조로 추가된 32건. 모든 색은 시맨틱 토큰만 사용,
+   모서리 0 · blur 0 · steps() 모션 · 팔레트 외 색 금지 규칙을 그대로 따릅니다. */
+
+/* ── 차트 토큰 보조(엔진 PXC가 참조) ── */
+.px-legend{ list-style:none; padding-left:0; margin:var(--s3) 0 0 }
+.px-legend li{ display:inline-flex; align-items:center; gap:var(--s2) }
+.px-legend li::before{ content:none }
+
+/* v4 리스트 컴포넌트는 전역 ▪ 마커를 끈다(기존 px-nav 등과 동일 규약) */
+.px-tree li::before, .px-feed li::before, .px-uplist li::before,
+.px-cmdk__list li::before, .px-plan ul li::before, .px-mfooter li::before{ content:none }
+.px-legend__key{ width:var(--s3); height:var(--s3); display:inline-block;
+  box-shadow:0 0 0 1px var(--edge) }
+
+/* ── 팔레트 카드 v4 보강: 매핑 스트립 + 검증 수치 ── */
+.pal-card__map{ display:flex; height:var(--s2); width:100% }
+.pal-card__map i{ flex:1; min-width:1px }
+.pal-card__stats{ display:flex; gap:var(--s2); flex-wrap:wrap; margin-top:var(--u);
+  font-size:var(--t-xs); color:var(--fg-muted) }
+.pal-card__stats span{ white-space:nowrap }
+.pal-card__stats b{ color:var(--fg); font-weight:400 }
+.pal-tag--g1{ background:var(--ok); color:var(--ok-fg) }
+.pal-tag--g2{ background:var(--sunken); color:var(--fg) }
+.pal-tag--g3{ background:var(--danger); color:var(--danger-fg) }
+
+/* ── 차트 데모 박스 ── */
+.px-chartbox{ display:flex; align-items:center; justify-content:center;
+  min-height:112px; overflow:hidden }
+.px-chartbox svg{ max-width:100%; height:auto }

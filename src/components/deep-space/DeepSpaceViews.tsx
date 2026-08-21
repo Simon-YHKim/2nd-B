@@ -32,10 +32,9 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
-import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
-import { callGemini } from "@/lib/llm/gemini";
+import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
 
 // ── shared gradient primitives ───────────────────────────────────────────────
@@ -610,9 +609,11 @@ export function LensView({
         </View>
       ) : (
         <View>
+          {/* No level chip here. It rendered a constant string from the locale
+              file, so every account saw the same tier whether or not anything
+              had been measured. Bind a real level or show nothing. */}
           <View style={styles.filledHead}>
             <Text style={styles.pixelTitle}>{t("ds.lens.filledTitle")}</Text>
-            <Text style={styles.level}>{t("ds.lens.level")}</Text>
           </View>
           <View style={styles.traits}>
             <TraitBar label={t("ds.lens.traitOpenness")} value={shown.openness} />
@@ -620,9 +621,6 @@ export function LensView({
             <TraitBar label={t("ds.lens.traitExtraversion")} value={shown.extraversion} up={demo} />
             <TraitBar label={t("ds.lens.traitAgreeableness")} value={shown.agreeableness} />
             <TraitBar label={t("ds.lens.traitNeuroticism")} value={shown.neuroticism} />
-          </View>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightText}>{t("ds.lens.insight")}</Text>
           </View>
         </View>
       )}
@@ -738,11 +736,11 @@ export function BigFiveLensM3({
   return (
     <ScrollView contentContainerStyle={styles.bfBody}>
       <View style={styles.bfHeadRow}>
+        {/* The level chip and the confidence percent were locale constants, not
+            measurements — every account read "L4 / 64%" on an empty profile.
+            Removed rather than rebound: the real level belongs to the lens
+            rework, and a wrong number is worse than no number. */}
         <Text style={[m3TextStyle("headlineSmall"), styles.bfHeadline]}>{t("ds.lens.headline")}</Text>
-        <View style={styles.bfLevelChip}>
-          <Text style={[m3TextStyle("labelSmall"), styles.bfLevelChipText]}>{t("ds.lens.level")}</Text>
-        </View>
-        <Text style={[m3TextStyle("labelSmall"), styles.bfConfidence]}>{t("ds.lens.confidence")}</Text>
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.bfSubtitle]}>{t("ds.lens.subtitle")}</Text>
 
@@ -879,10 +877,8 @@ export function AttachmentLensM3({
   return (
     <ScrollView contentContainerStyle={styles.bfBody}>
       <View style={styles.bfHeadRow}>
+        {/* Same constant-level problem as the Big Five head. Chip removed. */}
         <Text style={[m3TextStyle("headlineSmall"), styles.bfHeadline]}>{t("ds.attachment.headline")}</Text>
-        <View style={styles.atLevelChip}>
-          <Text style={[m3TextStyle("labelSmall"), styles.atLevelChipText]}>{t("ds.attachment.level")}</Text>
-        </View>
       </View>
       <Text style={[m3TextStyle("bodyMedium"), styles.bfSubtitle]}>{t("ds.attachment.subtitle")}</Text>
 
@@ -926,13 +922,10 @@ export function AttachmentLensM3({
         </View>
       </MdCard>
 
-      {/* 세컨비 insight — a single plain card (head + one message), matching the
-          capture exactly: no confidence pill, evidence link, or ratify buttons
-          on this screen. Detail lives behind the deeper ratify/interview flows. */}
-      <View style={styles.atInsightCard}>
-        <SecondbHead size={30} track={false} />
-        <Text style={[m3TextStyle("bodyMedium"), styles.atInsightText]}>{t("ds.attachment.insight")}</Text>
-      </View>
+      {/* The 세컨비 insight card is gone with its string. It was a locale
+          constant that cited evidence the account did not have ("최근 관계 기록
+          12건이 이 추정을 받쳐요"), which is a fabricated citation shown to
+          everyone. It comes back when a real per-user line exists to put here. */}
 
       <View style={styles.bfActions}>
         <MdButton
@@ -1123,7 +1116,7 @@ export function SeenLensView() {
   // enough informants answered; fail-soft to the honest empty state.
   const [aggregate, setAggregate] = useState<SeenAggregateRow[]>([]);
   // T5 F4: optional LLM synthesis of the self/other gap. Only NUMBERS go in
-  // (never informant text); C1/C3/C9 ride callGemini as everywhere else, and
+  // (never informant text); C1/C3/C9 ride callLlm as everywhere else, and
   // the informant-side LLM acks are structurally guaranteed by the 0064 CHECK
   // before any observation row can exist.
   const [synth, setSynth] = useState<string | null>(null);
@@ -1166,7 +1159,7 @@ export function SeenLensView() {
         .filter((o) => otherPct.has(o.trait))
         .map((o) => o.label + ": self " + o.percent + "%, others " + otherPct.get(o.trait) + "%")
         .join("; ");
-      const res = await callGemini({
+      const res = await callLlm({
         userId,
         locale,
         purpose: "gap_synthesize",
@@ -1833,7 +1826,7 @@ const styles = StyleSheet.create({
   // ── 담기 / Capture (M3 track, clone-audit 06-capture) ──────────────────────
   capBody: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
   capTitle: { color: m3.color.onSurface, fontSize: 24, lineHeight: 30, fontFamily: m3.font.brand, fontWeight: "700" },
-  capSubtitle: { color: m3.color.onSurfaceVariant, fontSize: 14, lineHeight: 20, fontFamily: m3.font.brand, marginTop: 4 },
+  capSubtitle: { color: m3.color.onSurfaceVariant, fontSize: 15, lineHeight: 20, fontFamily: m3.font.brand, marginTop: 4 },
   capChipScroll: { marginTop: 16, marginHorizontal: -16 },
   capChipRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 4 },
   capForm: { gap: 14, marginTop: 16 },
@@ -1843,7 +1836,7 @@ const styles = StyleSheet.create({
   capFieldInput: {
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     paddingHorizontal: 13,
     paddingVertical: 11,
     backgroundColor: m3.color.surfaceContainerHighest,
@@ -1852,7 +1845,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   capFieldInputTall: { minHeight: 96 },
-  capMono: { fontFamily: m3.font.mono, fontSize: 13 },
+  capMono: { fontFamily: m3.font.mono, fontSize: 12 },
   capFieldRow: { flexDirection: "row", gap: 12 },
   capFieldCol: { flex: 1 },
   capHint: { color: m3.color.onSurfaceVariant, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
@@ -1863,7 +1856,7 @@ const styles = StyleSheet.create({
     gap: 10,
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: m3.color.surfaceContainerHighest,
@@ -1877,25 +1870,25 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.tertiaryContainer,
   },
-  capBannerText: { flex: 1, color: m3.color.onTertiaryContainer, fontSize: 12.5, lineHeight: 18, fontFamily: m3.font.brand },
+  capBannerText: { flex: 1, color: m3.color.onTertiaryContainer, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
   capSubmit: { alignSelf: "stretch", marginTop: 14 },
   capFullWidth: { alignSelf: "stretch", marginTop: 8 },
   capErrorCard: {
     marginTop: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.errorContainer,
   },
-  capErrorText: { color: m3.color.onErrorContainer, fontSize: 12.5, lineHeight: 18, fontFamily: m3.font.brand },
+  capErrorText: { color: m3.color.onErrorContainer, fontSize: 12, lineHeight: 18, fontFamily: m3.font.brand },
 
   // shared gradient button
   gButton: {
     overflow: "hidden",
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     alignSelf: "flex-start",
     marginTop: 18,
   },
@@ -1924,7 +1917,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingVertical: 7,
     paddingHorizontal: 12,
-    borderRadius: 9,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
   },
@@ -1935,7 +1928,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     minHeight: 132,
     padding: 14,
-    borderRadius: 13,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -1948,7 +1941,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 11,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.soul, 0.3),
   },
@@ -1960,10 +1953,10 @@ const styles = StyleSheet.create({
     maxWidth: "82%",
     paddingVertical: 10,
     paddingHorizontal: 13,
-    borderTopLeftRadius: 13,
-    borderTopRightRadius: 13,
-    borderBottomRightRadius: 4,
-    borderBottomLeftRadius: 13,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 0,
     backgroundColor: withAlpha(deepSpace.accent, 0.16),
   },
   userText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
@@ -1972,10 +1965,10 @@ const styles = StyleSheet.create({
     maxWidth: "86%",
     paddingVertical: 11,
     paddingHorizontal: 13,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 13,
-    borderBottomRightRadius: 13,
-    borderBottomLeftRadius: 13,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 0,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.soul, 0.25),
     backgroundColor: withAlpha(deepSpace.soul, 0.1),
@@ -1988,7 +1981,7 @@ const styles = StyleSheet.create({
   toggleBtn: {
     paddingVertical: 5,
     paddingHorizontal: 11,
-    borderRadius: 8,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
   },
@@ -2001,21 +1994,21 @@ const styles = StyleSheet.create({
   stateMarkDim: { opacity: 0.7 },
   stateTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "700" },
   stateBody: { color: withAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
-  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
+  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
   obsTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
   obsNote: { color: withAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
   obsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
-  obsTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: withAlpha(deepSpace.text, 0.12), overflow: "hidden" },
-  obsFill: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.accentSoft },
+  obsTrack: { flex: 1, height: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.text, 0.12), overflow: "hidden" },
+  obsFill: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft },
   // T5 F3: the combined other-view bar (violet family = legendDotOther).
   obsTrackOther: { marginTop: 3 },
-  obsFillOther: { height: "100%", borderRadius: 4, backgroundColor: deepSpace.accentSoft },
+  obsFillOther: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft },
   ghostBtn: {
     marginTop: 6,
     paddingVertical: 10,
     paddingHorizontal: 18,
-    borderRadius: 11,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
   },
@@ -2023,20 +2016,20 @@ const styles = StyleSheet.create({
 
   // lens — filled
   filledHead: { flexDirection: "row", alignItems: "center", gap: 8 },
-  level: { color: deepSpace.mint, fontSize: 11, fontFamily: m3.font.mono },
+  level: { color: deepSpace.mint, fontSize: 12, fontFamily: m3.font.mono },
   traits: { marginTop: 16, gap: 11 },
   traitRow: { gap: 4 },
   traitHead: { flexDirection: "row", justifyContent: "space-between" },
   traitLabel: { color: withAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
   traitValue: { color: withAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
   traitValueUp: { color: deepSpace.mint },
-  traitTrack: { height: 7, borderRadius: 4, overflow: "hidden", backgroundColor: withAlpha(deepSpace.accent, 0.12) },
-  traitFill: { height: "100%", borderRadius: 4, overflow: "hidden" },
+  traitTrack: { height: 7, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: withAlpha(deepSpace.accent, 0.12) },
+  traitFill: { height: "100%", borderRadius: m3.shape.none, overflow: "hidden" },
   insightCard: {
     marginTop: 16,
     paddingVertical: 11,
     paddingHorizontal: 13,
-    borderRadius: 11,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.mint, 0.25),
     backgroundColor: withAlpha(deepSpace.mint, 0.05),
@@ -2050,7 +2043,7 @@ const styles = StyleSheet.create({
   bfLevelChip: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.primaryContainer,
   },
   bfLevelChipText: { color: m3.color.onPrimaryContainer, fontFamily: m3.font.brand, fontWeight: "600" },
@@ -2070,14 +2063,14 @@ const styles = StyleSheet.create({
   bfStateTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, textAlign: "center" },
   bfStateBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, textAlign: "center", marginBottom: 4 },
   // ── Attachment (애착 · ECR) result view ──
-  atLevelChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: m3.color.tertiaryContainer },
+  atLevelChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: m3.color.tertiaryContainer },
   atLevelChipText: { color: m3.color.onTertiaryContainer, fontFamily: m3.font.brand, fontWeight: "600" },
   atMapCard: { padding: 16 },
   atMap: {
     position: "relative",
     width: "100%",
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     overflow: "hidden",
     backgroundColor: m3.color.surfaceContainer,
   },
@@ -2089,17 +2082,17 @@ const styles = StyleSheet.create({
   atAxisV: { position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, backgroundColor: m3.color.outlineVariant },
   atAxisH: { position: "absolute", top: "50%", left: 0, right: 0, height: 1, backgroundColor: m3.color.outlineVariant },
   atPointWrap: { position: "absolute", width: 30, height: 30, marginLeft: -15, marginTop: -15, alignItems: "center", justifyContent: "center" },
-  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: 15, backgroundColor: withAlpha(m3.color.primary, 0.2) },
+  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.color.primary, 0.2) },
   atPoint: {
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: m3.shape.none,
     backgroundColor: m3.color.primary,
     shadowColor: m3.color.primary,
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
+    elevation: 0,
   },
   atAxisFooter: { position: "absolute", bottom: 4, alignSelf: "center", fontSize: 10, color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand },
   atResultRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, flexWrap: "wrap" },
@@ -2121,7 +2114,7 @@ const styles = StyleSheet.create({
   idCard: {
     alignItems: "center",
     paddingVertical: 12,
-    borderRadius: 13,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.soul, 0.3),
     backgroundColor: withAlpha(deepSpace.soul, 0.07),
@@ -2129,8 +2122,8 @@ const styles = StyleSheet.create({
   },
   idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: m3.font.mono },
   idBadges: { flexDirection: "row", gap: 5 },
-  idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: 5, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
-  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 9, fontFamily: m3.font.mono },
+  idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
+  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 10, fontFamily: m3.font.mono },
   idBadgeSigned: { backgroundColor: withAlpha(deepSpace.mint, 0.1) },
   idBadgeSignedText: { color: deepSpace.mint, fontSize: 9, fontFamily: fontFamilies.readable },
   idenRowNorth: {
@@ -2139,12 +2132,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderLeftWidth: 2,
     borderLeftColor: deepSpace.soul,
-    borderTopRightRadius: 9,
-    borderBottomRightRadius: 9,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
     backgroundColor: withAlpha(deepSpace.soul, 0.06),
   },
-  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 9, fontFamily: m3.font.mono, letterSpacing: 0.8 },
-  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 9, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   idenNorthValue: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, marginTop: 5, fontFamily: fontFamilies.readable },
   idenRowFive: {
     marginTop: 7,
@@ -2152,8 +2145,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderLeftWidth: 2,
     borderLeftColor: deepSpace.accent,
-    borderTopRightRadius: 9,
-    borderBottomRightRadius: 9,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
     backgroundColor: deepSpace.card,
   },
   idenFiveValue: { color: deepSpace.accentSoft, fontSize: 10, marginTop: 6, fontFamily: m3.font.mono },
@@ -2161,15 +2154,15 @@ const styles = StyleSheet.create({
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
   lensHeadTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 9.5, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   lensEyebrow: { color: deepSpace.textMid, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
-  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 9.5, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
+  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
   sectionGap: { marginTop: 18 },
   footerLine: { marginTop: 18, color: withAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
 
   // dot meter
   dotRow: { flexDirection: "row", gap: 4, marginTop: 8 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
+  dot: { width: 6, height: 6, borderRadius: m3.shape.none },
   dotOn: { backgroundColor: deepSpace.accent },
   dotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
 
@@ -2179,7 +2172,7 @@ const styles = StyleSheet.create({
     width: "48%",
     paddingVertical: 11,
     paddingHorizontal: 12,
-    borderRadius: 11,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -2190,7 +2183,7 @@ const styles = StyleSheet.create({
   // seen - legend
   legendRow: { flexDirection: "row", gap: 14, marginBottom: 16 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 2 },
+  legendDot: { width: 10, height: 10, borderRadius: m3.shape.none },
   legendDotSelf: { backgroundColor: deepSpace.accent },
   legendDotOther: { backgroundColor: deepSpace.soulDeep },
   legendLabel: { color: deepSpace.textMid, fontSize: 11, fontFamily: fontFamilies.readable },
@@ -2198,19 +2191,19 @@ const styles = StyleSheet.create({
   // seen - compare rows
   compareList: { gap: 18 },
   compareRow: { gap: 4 },
-  compareDelta: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
-  compareTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
+  compareDelta: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: m3.font.mono },
+  compareTrack: { height: 6, borderRadius: m3.shape.none, overflow: "hidden" },
   compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
   compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
-  compareFillSelf: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.accent },
-  compareFillOther: { height: "100%", borderRadius: 3, backgroundColor: deepSpace.soulDeep },
+  compareFillSelf: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
+  compareFillOther: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.soulDeep },
 
   // soul-tinted conclusion card (non-positive: violet, not mint)
   soulCard: {
     marginTop: 18,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: withAlpha(deepSpace.soul, 0.28),
     backgroundColor: withAlpha(deepSpace.soul, 0.06),
@@ -2223,7 +2216,7 @@ const styles = StyleSheet.create({
   ghostBtnFlex: {
     flex: 1,
     paddingVertical: 11,
-    borderRadius: 12,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLineStrong,
     alignItems: "center",
@@ -2233,7 +2226,7 @@ const styles = StyleSheet.create({
   // rhythm chart
   chartCard: {
     padding: 16,
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
@@ -2241,7 +2234,7 @@ const styles = StyleSheet.create({
   chartRow: { flexDirection: "row", alignItems: "flex-end", height: 120, gap: 6 },
   chartCol: { flex: 1, alignItems: "center", gap: 6 },
   chartBarTrack: { width: "100%", height: 100, justifyContent: "flex-end" },
-  chartBar: { width: "100%", borderRadius: 4, overflow: "hidden" },
+  chartBar: { width: "100%", borderRadius: m3.shape.none, overflow: "hidden" },
   chartDay: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 10, fontFamily: fontFamilies.readable },
   chartDayPeak: { color: deepSpace.accentBright },
 
@@ -2250,7 +2243,7 @@ const styles = StyleSheet.create({
   dashedCard: {
     paddingVertical: 15,
     paddingHorizontal: 16,
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderStyle: "dashed",
     borderColor: withAlpha(deepSpace.accent, 0.4),
@@ -2269,33 +2262,33 @@ const styles = StyleSheet.create({
     gap: 9,
     paddingVertical: 15,
     paddingHorizontal: 16,
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
     backgroundColor: deepSpace.card,
   },
   domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 11, fontFamily: m3.font.mono },
+  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 12, fontFamily: m3.font.mono },
 
   // ── imagine (divergent seeds) — ref sb-more ImagineScreen tokens ────────────
-  imgIntro: { borderRadius: 12, overflow: "hidden", marginTop: 4 },
+  imgIntro: { borderRadius: m3.shape.none, overflow: "hidden", marginTop: 4 },
   imgIntroRow: { flexDirection: "row", gap: 12, alignItems: "flex-start", padding: 16 },
   imgIntroCol: { flex: 1, minWidth: 0 },
   imgIntroTitle: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
   imgIntroBody: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant, marginTop: 3, fontFamily: fontFamilies.readable },
   imgSection: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: m3.color.onSurfaceVariant, marginTop: 20, marginBottom: 10, fontFamily: fontFamilies.readable },
   imgSeedList: { gap: 10 },
-  imgSeed: { borderRadius: 12, borderWidth: 1, borderColor: m3.color.outlineVariant, overflow: "hidden" },
+  imgSeed: { borderRadius: m3.shape.none, borderWidth: 1, borderColor: m3.color.outlineVariant, overflow: "hidden" },
   imgSeedOn: { borderWidth: 1.5, borderColor: m3.color.tertiary, backgroundColor: m3.color.surfaceContainerLow },
   imgSeedPress: { flexDirection: "row", gap: 12, alignItems: "flex-start", padding: 14 },
-  imgSeedIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.tertiaryContainer },
+  imgSeedIcon: { width: 38, height: 38, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.tertiaryContainer },
   imgSeedCol: { flex: 1, minWidth: 0 },
   imgSeedAngle: { fontSize: 11, lineHeight: 16, fontWeight: "700", color: m3.color.tertiary, fontFamily: fontFamilies.readable },
   imgSeedTitle: { fontSize: 14, lineHeight: 20, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
   imgSeedBody: { fontSize: 12, lineHeight: 16, color: m3.color.onSurfaceVariant, marginTop: 4, fontFamily: fontFamilies.readable },
   imgStepList: { gap: 8 },
-  imgStep: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: m3.color.outlineVariant },
-  imgStepNum: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.secondaryContainer },
+  imgStep: { flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: m3.shape.none, borderWidth: 1, borderColor: m3.color.outlineVariant },
+  imgStepNum: { width: 24, height: 24, borderRadius: m3.shape.none, alignItems: "center", justifyContent: "center", backgroundColor: m3.color.secondaryContainer },
   imgStepNumText: { fontFamily: m3.font.mono, fontSize: 12, fontWeight: "700", color: m3.color.onSecondaryContainer },
   imgStepText: { flex: 1, fontSize: 14, lineHeight: 20, color: m3.color.onSurface, fontFamily: fontFamilies.readable },
   imgBtnRow: { flexDirection: "row", gap: 8, marginTop: 16 },
@@ -2310,7 +2303,7 @@ const styles = StyleSheet.create({
   // rev2 AuditScreen era node: filled primary center + surface ring (bullseye),
   // matching sb-screens-know.jsx (bg primary, 2px surface border). The prior
   // dark-center hollow ring inverted the reference's bright core.
-  auditNode: { position: "absolute", left: -20, top: 17, width: 14, height: 14, borderRadius: 7, backgroundColor: m3.color.primary, borderWidth: 2, borderColor: m3.color.surface, zIndex: 1 },
+  auditNode: { position: "absolute", left: -20, top: 17, width: 14, height: 14, borderRadius: m3.shape.none, backgroundColor: m3.color.primary, borderWidth: 2, borderColor: m3.color.surface, zIndex: 1 },
   auditCardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   auditEraCol: { flex: 1, minWidth: 0 },
   auditEraName: { fontSize: 16, lineHeight: 24, fontWeight: "500", color: m3.color.onSurface, fontFamily: fontFamilies.readable },
@@ -2320,12 +2313,12 @@ const styles = StyleSheet.create({
   // ── 북극성 종합 / me synthesis (10-me) ──────────────────────────────────────
   meBody: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 28 },
   // layer C hero — dominant, soul (violet) identity
-  meHero: { position: "relative", borderRadius: 20, overflow: "hidden", padding: 16, marginBottom: 18 },
+  meHero: { position: "relative", borderRadius: m3.shape.none, overflow: "hidden", padding: 16, marginBottom: 18 },
   meHeroTop: { flexDirection: "row", alignItems: "center", gap: 12 },
   meOrb: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: withAlpha(deepSpace.bgEdge, 0.45),
@@ -2335,13 +2328,13 @@ const styles = StyleSheet.create({
   meOrbCore: {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.soul,
     shadowColor: deepSpace.soul,
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
+    elevation: 0,
   },
   meHeroCopy: { flex: 1, minWidth: 0 },
   meEyebrow: { color: withAlpha(deepSpace.textHi, 0.75), fontSize: 11, fontFamily: fontFamilies.readable, marginBottom: 4 },
@@ -2360,7 +2353,7 @@ const styles = StyleSheet.create({
   meCard: {
     width: "48.5%",
     minHeight: 92,
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     padding: 12,
     justifyContent: "space-between",
     backgroundColor: deepSpace.card,
@@ -2371,23 +2364,23 @@ const styles = StyleSheet.create({
   meCardDot: {
     width: 7,
     height: 7,
-    borderRadius: 4,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.accent,
     shadowColor: deepSpace.accent,
-    shadowOpacity: 0.8,
-    shadowRadius: 5,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 3,
+    elevation: 0,
   },
-  meCardLevel: { color: deepSpace.accentSoft, fontSize: 11, fontFamily: m3.font.mono },
+  meCardLevel: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: m3.font.mono },
   meCardName: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
   meDotRow: { flexDirection: "row", gap: 4 },
-  meDot: { width: 6, height: 6, borderRadius: 3 },
+  meDot: { width: 6, height: 6, borderRadius: m3.shape.none },
   meDotOn: { backgroundColor: deepSpace.accent },
   meDotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
   // layer B validation entry — soul-tinted (violet), signals the hidden layer
   meValidateCard: {
-    borderRadius: 14,
+    borderRadius: m3.shape.none,
     padding: 14,
     backgroundColor: withAlpha(deepSpace.soul, 0.08),
     borderWidth: 1,

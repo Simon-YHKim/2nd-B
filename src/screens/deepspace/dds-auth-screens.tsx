@@ -368,7 +368,10 @@ export function DeepSpaceSignInDesignScreen() {
 
 // Deep-space consent block: drives the SAME ConsentSelections state + helpers the
 // legacy ConsentNotice uses, so the C10 ledger (buildSignUpConsentArgs in the
-// hook) is byte-for-byte equivalent. Copy comes from the reviewed `consent`
+// hook) is byte-for-byte equivalent. That parity claim was FALSE for
+// safetyNotice until 2026-08-21 - the row was simply missing here while the
+// legacy component had it - and signup-required-acks.test.ts now checks the
+// claim instead of restating it. Copy comes from the reviewed `consent`
 // namespace (notice.*). Styling is deep-space tokens only.
 function ConsentCheckRow({ checked, label, emphasize, onToggle, onDetail, detailLabel }: { checked: boolean; label: string; emphasize?: boolean; onToggle: () => void; onDetail?: () => void; detailLabel?: string }) {
   return (
@@ -429,6 +432,13 @@ function DeepSpaceConsentBlock({ minor, value, onChange }: { minor: boolean; val
       <ConsentCheckRow checked={value.llmProcessing} label={t("notice.ackLlm")} onToggle={() => toggle("llmProcessing")} {...detailProps("llmProcessing")} />
       <ConsentCheckRow checked={value.overseasTransfer} label={t("notice.ackOverseas")} onToggle={() => toggle("overseasTransfer")} {...detailProps("overseasTransfer")} />
       <ConsentCheckRow checked={value.sensitiveData} label={t("notice.ackSensitive")} onToggle={() => toggle("sensitiveData")} {...detailProps("sensitiveData")} />
+      {/* PIPA 제23조 별도 동의 - 안전 안내. 별도 항목으로 서 있는 것 자체가
+          "별도" 동의라는 요건이고, 그래서 이 줄은 생략할 수 있는 줄이 아니다.
+          이 줄이 없는 동안 이 화면은 두 가지 방식으로 틀렸다: 개별로 네 줄을
+          다 눌러도 allRequiredAcksChecked 가 safetyNotice 를 요구해 제출이
+          영영 안 열렸고, "모두 동의"를 누르면 setAllRequiredAcks 가 화면에
+          보인 적 없는 항목까지 true 로 원장에 남겼다. */}
+      <ConsentCheckRow checked={value.safetyNotice} label={t("notice.ackSafety")} onToggle={() => toggle("safetyNotice")} {...detailProps("safetyNotice")} />
       <Text variant="caption" pixelEn style={styles.consentGroupLabel}>{t("notice.optionalLabel")}</Text>
       <ConsentCheckRow checked={value.marketing} label={t("notice.optMarketing")} onToggle={() => toggle("marketing")} {...detailProps("marketing")} />
     </Card>

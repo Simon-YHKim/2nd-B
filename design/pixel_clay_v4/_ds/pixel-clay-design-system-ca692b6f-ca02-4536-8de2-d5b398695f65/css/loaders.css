@@ -1,0 +1,33 @@
+/* PIXEL-CLAY v4.0 · spinner sprite, dots, pixel avatar
+   Source: uploads/pixel-clay-v4.html lines 1000-1029 (verbatim) */
+/* ═══════════ v3.0 · SPINNER (8프레임 스프라이트 방식) ═════════════════════
+   회전 transform은 45도에서 픽셀이 뭉개짐 → 8장의 프레임을 가로로 이어붙이고
+   translateX를 steps(8)로 이동. 축 정렬이 유지되므로 완벽히 선명. */
+.px-spin{ display:inline-block; overflow:hidden; width:16px; height:16px; flex:none;
+  vertical-align:middle }
+.px-spin--lg{ width:32px; height:32px }
+.px-spin__strip{ display:flex; width:800%; height:100%;
+  animation:px-spinstrip 800ms steps(8,end) infinite }
+.px-spin__strip > svg{ width:12.5%; height:100%; flex:none; fill:currentColor }
+@keyframes px-spinstrip{ from{ transform:translateX(0) } to{ transform:translateX(-100%) } }
+/* 점 3개 로딩 */
+.px-dots{ display:inline-flex; gap:var(--u); align-items:flex-end; height:var(--s4) }
+.px-dots i{ width:var(--s2); height:var(--s2); background:currentColor;
+  animation:px-dot 720ms steps(2,end) infinite }
+.px-dots i:nth-child(2){ animation-delay:120ms } .px-dots i:nth-child(3){ animation-delay:240ms }
+@keyframes px-dot{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(calc(-1*var(--s2))) } }
+
+/* ═══════════ v3.0 · PIXEL AVATAR ═══════════════════════════════════════ */
+.px-pavatar{ width:32px; height:32px; flex:none; background:var(--sunken);
+  display:block; box-shadow:
+  0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge) }
+.px-pavatar--sm{ width:16px; height:16px }
+.px-pavatar--lg{ width:48px; height:48px }
+.px-pavatar--xl{ width:64px; height:64px }
+.px-pavatar--2xl{ width:96px; height:96px }
+.px-pavatar--3xl{ width:128px; height:128px }
+.px-pavatar svg{ display:block; width:100%; height:100% }
+.avatar-cell{ display:flex; flex-direction:column; align-items:center; gap:var(--s1);
+  padding:var(--s2); font-size:9px; color:var(--fg-muted); text-align:center; cursor:pointer }
+.avatar-cell:hover{ background:var(--accent-soft); color:var(--c01) }

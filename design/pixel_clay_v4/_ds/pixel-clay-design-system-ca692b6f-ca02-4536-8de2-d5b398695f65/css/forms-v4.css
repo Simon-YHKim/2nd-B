@@ -1,0 +1,66 @@
+/* PIXEL-CLAY v4.0 · v4 form additions: tags, OTP, rating, qty, swatches, strength, counter
+   Source: uploads/pixel-clay-v4.html lines 1086-1150 (verbatim) */
+/* ── [7-1] 아이콘 버튼(정사각) ── */
+.px-btn--icon{ padding:var(--pad-y); min-width:48px; aspect-ratio:1 }
+.px-btn--icon .px-icon{ margin:0 }
+
+/* ── [7-2] 멀티셀렉트(태그 입력) ── */
+.px-tags{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--u);
+  padding:var(--s1) var(--s2); background:var(--panel-2); cursor:text;
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset 0 var(--u) 0 0 var(--bevel-lo) }
+.px-tags .px-chip{ margin:0 }
+.px-tags__x{ background:none; border:0; padding:0 var(--u); margin:0; cursor:pointer;
+  font:inherit; font-size:var(--t-xs); color:inherit; line-height:1 }
+.px-tags__x:hover{ color:var(--danger) }
+.px-tags__field{ flex:1; min-width:80px; border:0; background:none; font:inherit;
+  font-size:var(--t-sm); color:var(--fg); padding:var(--s1); outline:none; min-height:32px }
+
+/* ── [7-3] OTP / PIN ── */
+.px-otp{ display:flex; gap:var(--s2) }
+.px-otp__cell{ width:var(--s10); min-height:48px; text-align:center; font:inherit;
+  font-size:var(--t-lg); color:var(--fg); background:var(--panel-2); border:0;
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge),
+  calc(-1*var(--u)) 0 0 0 var(--edge), var(--u) 0 0 0 var(--edge),
+  inset 0 var(--u) 0 0 var(--bevel-lo) }
+.px-otp__cell:focus-visible{ outline:var(--u) solid var(--focus); outline-offset:2px }
+.px-otp__cell[data-filled="1"]{ background:var(--accent-soft); color:var(--c01) }
+
+/* ── [7-4] 별점 ── */
+.px-rate{ display:inline-flex; gap:var(--u) }
+.px-rate button{ background:none; border:0; padding:var(--u); margin:0; cursor:pointer;
+  color:var(--edge-soft); line-height:0 }
+.px-rate button[aria-pressed="true"]{ color:var(--warn) }
+.px-rate button:focus-visible{ outline:var(--u) solid var(--focus) }
+.px-rate--ro button{ cursor:default }
+
+/* ── [7-5] 수량 스테퍼 ── */
+.px-qty{ display:inline-flex; align-items:stretch }
+.px-qty .px-btn{ margin:0; min-width:48px }
+.px-qty__n{ width:var(--s16); text-align:center; font:inherit; font-size:var(--t-md);
+  color:var(--fg); background:var(--panel-2); border:0; margin:var(--u) 0;
+  box-shadow:0 calc(-1*var(--u)) 0 0 var(--edge), 0 var(--u) 0 0 var(--edge) }
+.px-qty__n:focus-visible{ outline:var(--u) solid var(--focus); outline-offset:-4px }
+
+/* ── [7-6] 컬러 피커 — 팔레트 16색 전용(임의 색 금지) ── */
+.px-swatches{ display:grid; grid-template-columns:repeat(8,var(--s8)); gap:var(--s1) }
+.px-swatch{ aspect-ratio:1; border:0; cursor:pointer; padding:0; position:relative;
+  box-shadow:0 0 0 1px var(--edge) }
+.px-swatch[aria-pressed="true"]{ box-shadow:0 0 0 var(--u) var(--edge),
+  inset 0 0 0 var(--u) var(--c08) }
+.px-swatch:focus-visible{ outline:var(--u) solid var(--focus); outline-offset:2px }
+
+/* ── [7-7] 비밀번호 강도 ── */
+.px-strength{ display:flex; gap:var(--s1); margin-top:var(--s2) }
+.px-strength i{ flex:1; height:var(--s2); background:var(--sunken);
+  box-shadow:0 0 0 1px var(--edge) }
+.px-strength[data-level="1"] i:nth-child(-n+1){ background:var(--danger) }
+.px-strength[data-level="2"] i:nth-child(-n+2){ background:var(--warn) }
+.px-strength[data-level="3"] i:nth-child(-n+3){ background:var(--info) }
+.px-strength[data-level="4"] i:nth-child(-n+4){ background:var(--ok) }
+
+/* ── [7-8] 글자수 카운터 ── */
+.px-count{ display:flex; justify-content:flex-end; font-size:var(--t-xs);
+  color:var(--fg-muted); margin-top:var(--s1) }
+.px-count.is-over{ color:var(--danger) }

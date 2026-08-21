@@ -72,9 +72,9 @@ jest.mock("../../wiki/export", () => ({
   }),
 }));
 
-jest.mock("@/lib/llm/gemini", () => ({
-  callGemini: jest.fn((input: unknown) => {
-    captured.push({ fn: "callGemini", args: [input], ret: fixtures.geminiResult });
+jest.mock("@/lib/llm/boundary", () => ({
+  callLlm: jest.fn((input: unknown) => {
+    captured.push({ fn: "callLlm", args: [input], ret: fixtures.geminiResult });
     return Promise.resolve(
       fixtures.geminiResult ?? {
         text: "ok",
@@ -109,7 +109,7 @@ describe("sendChatMessage", () => {
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("readChatUsageDetail");
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
-    expect(callNames).not.toContain("callGemini");
+    expect(callNames).not.toContain("callLlm");
     expect(callNames).not.toContain("exportUserWiki");
   });
 
@@ -131,14 +131,14 @@ describe("sendChatMessage", () => {
     expect(r.remaining).toBe(3); // 5 - 2
 
     const callNames = captured.map((c) => c.fn);
-    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callGemini"]);
+    expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki", "bumpChatUsageIfUnderCap", "callLlm"]);
 
     // System prompt was assembled from header + exportUserWiki output.
-    const geminiCall = captured.find((c) => c.fn === "callGemini");
-    const geminiArgs = geminiCall?.args[0] as { system: string; purpose: string; user: string };
-    expect(geminiArgs.purpose).toBe("secondb_chat");
-    expect(geminiArgs.user).toBe("hello");
-    expect(geminiArgs.system).toContain("SecondB"); // header
+    const geminiCall = captured.find((c) => c.fn === "callLlm");
+    const llmArgs = geminiCall?.args[0] as { system: string; purpose: string; user: string };
+    expect(llmArgs.purpose).toBe("secondb_chat");
+    expect(llmArgs.user).toBe("hello");
+    expect(llmArgs.system).toContain("SecondB"); // header
   });
 
   test("red-zone routed reply still counts toward the quota (R2 policy change)", async () => {
@@ -157,7 +157,7 @@ describe("sendChatMessage", () => {
 
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toContain("bumpChatUsageIfUnderCap");
-    expect(callNames).toContain("callGemini");
+    expect(callNames).toContain("callLlm");
   });
 
   test("does not consume quota when wiki snapshot export fails before the LLM call", async () => {
@@ -170,16 +170,16 @@ describe("sendChatMessage", () => {
     const callNames = captured.map((c) => c.fn);
     expect(callNames).toEqual(["readChatUsageDetail", "retrieveChatContext", "exportUserWiki"]);
     expect(callNames).not.toContain("bumpChatUsageIfUnderCap");
-    expect(callNames).not.toContain("callGemini");
+    expect(callNames).not.toContain("callLlm");
   });
 
   test("includes the export bundle as the system prompt context", async () => {
     fixtures.used = 0;
     fixtures.exportPrompt = "WIKI BUNDLE: pages + sources here";
     await sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" });
-    const geminiCall = captured.find((c) => c.fn === "callGemini");
-    const geminiArgs = geminiCall?.args[0] as { system: string };
-    expect(geminiArgs.system).toContain("WIKI BUNDLE: pages + sources here");
+    const geminiCall = captured.find((c) => c.fn === "callLlm");
+    const llmArgs = geminiCall?.args[0] as { system: string };
+    expect(llmArgs.system).toContain("WIKI BUNDLE: pages + sources here");
   });
 
   test("RAG hit: system carries the fenced top-k pages and export shrinks to sources-only", async () => {
@@ -188,10 +188,10 @@ describe("sendChatMessage", () => {
       { slug: "sleep-habits", title: "Sleep habits", body: "notes about sleep", similarity: 0.82 },
     ];
     await sendChatMessage({ userId: "u1", message: "how do I sleep better?", locale: "en", tier: "soma" });
-    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
-    expect(geminiArgs.system).toContain('<UNTRUSTED type="wiki_rag">');
-    expect(geminiArgs.system).toContain("[[sleep-habits]]");
-    expect(geminiArgs.system).toContain("notes about sleep");
+    const llmArgs = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
+    expect(llmArgs.system).toContain('<UNTRUSTED type="wiki_rag">');
+    expect(llmArgs.system).toContain("[[sleep-habits]]");
+    expect(llmArgs.system).toContain("notes about sleep");
     const exportOpts = captured.find((c) => c.fn === "exportUserWiki")?.args[1] as { pageLimit: number };
     expect(exportOpts.pageLimit).toBe(0); // pages come from RAG, snapshot = slim sources list
   });
@@ -200,8 +200,8 @@ describe("sendChatMessage", () => {
     fixtures.used = 0;
     fixtures.ragPages = [];
     await sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" });
-    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
-    expect(geminiArgs.system).not.toContain('type="wiki_rag"');
+    const llmArgs = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
+    expect(llmArgs.system).not.toContain('type="wiki_rag"');
     const exportOpts = captured.find((c) => c.fn === "exportUserWiki")?.args[1] as { pageLimit: number };
     expect(exportOpts.pageLimit).toBe(50);
   });
@@ -222,21 +222,21 @@ describe("sendChatMessage", () => {
       text: `turn-${i} ${i === 6 ? "x".repeat(600) : ""}`.trim(),
     }));
     await sendChatMessage({ userId: "u1", message: "and then?", locale: "en", tier: "soma", history });
-    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
-    expect(geminiArgs.system).toContain('<UNTRUSTED type="chat_history">');
-    expect(geminiArgs.system).not.toContain("turn-0"); // only the last 6 survive
-    expect(geminiArgs.system).not.toContain("turn-1");
-    expect(geminiArgs.system).toContain("User: turn-2");
-    expect(geminiArgs.system).toContain("SecondB: turn-7");
+    const llmArgs = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
+    expect(llmArgs.system).toContain('<UNTRUSTED type="chat_history">');
+    expect(llmArgs.system).not.toContain("turn-0"); // only the last 6 survive
+    expect(llmArgs.system).not.toContain("turn-1");
+    expect(llmArgs.system).toContain("User: turn-2");
+    expect(llmArgs.system).toContain("SecondB: turn-7");
     // per-turn clipping: the 600-char turn is cut to the 500 budget
-    expect(geminiArgs.system).not.toContain("x".repeat(501));
+    expect(llmArgs.system).not.toContain("x".repeat(501));
   });
 
   test("no history -> no chat_history fence", async () => {
     fixtures.used = 0;
     await sendChatMessage({ userId: "u1", message: "ping", locale: "en", tier: "soma" });
-    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
-    expect(geminiArgs.system).not.toContain('type="chat_history"');
+    const llmArgs = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
+    expect(llmArgs.system).not.toContain('type="chat_history"');
   });
 
   test("C9: a red-zone history turn is DROPPED, never re-egressed via the system channel", async () => {
@@ -249,9 +249,9 @@ describe("sendChatMessage", () => {
       { role: "user" as const, text: "오늘은 좀 나아졌어" },
     ];
     await sendChatMessage({ userId: "u1", message: "고마워", locale: "ko", tier: "soma", history });
-    const geminiArgs = captured.find((c) => c.fn === "callGemini")?.args[0] as { system: string };
-    expect(geminiArgs.system).toContain('<UNTRUSTED type="chat_history">');
-    expect(geminiArgs.system).not.toContain("자살"); // red turn dropped
-    expect(geminiArgs.system).toContain("오늘은 좀 나아졌어"); // green turn kept
+    const llmArgs = captured.find((c) => c.fn === "callLlm")?.args[0] as { system: string };
+    expect(llmArgs.system).toContain('<UNTRUSTED type="chat_history">');
+    expect(llmArgs.system).not.toContain("자살"); // red turn dropped
+    expect(llmArgs.system).toContain("오늘은 좀 나아졌어"); // green turn kept
   });
 });

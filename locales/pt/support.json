@@ -30,5 +30,17 @@
       "question": "A IA é segura?",
       "answer": "A IA ajuda a organizar e conectar suas notas. Decisões importantes ficam com você."
     }
-  ]
+  ],
+  "help": {
+    "title": "Onde você pode conseguir ajuda",
+    "lead": "Seja o que for, você não precisa carregar isso sozinho. Estas linhas estão aqui sempre que precisar.",
+    "when1388": "Para qualquer coisa na sua cabeça, se você é adolescente",
+    "when109": "Quando dá vontade de largar a vida",
+    "when117": "Quando algo na escola está difícil",
+    "when1366": "Depois de violência sexual ou doméstica",
+    "when119": "Quando seu corpo está em perigo agora",
+    "when112": "Quando alguém está te ameaçando agora",
+    "callHint": "Toque para ligar",
+    "foot": "Esta lista está sempre aqui. O app não lê o que você escreve para decidir mostrá-la; ela está aqui para você vir procurar. O app não denuncia por você nem avisa um responsável."
+  }
 }

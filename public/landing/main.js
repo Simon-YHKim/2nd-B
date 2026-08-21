@@ -907,7 +907,7 @@ function reactToChat(text) {
 }
 // O-20 #3: the prototype generates a mock SecondB *reply*, and the robot's face
 // reflects the reply's tone (its own emotion) — not the user's text directly.
-// Real reply generation/tone lives in the 2nd-B app (src/lib/llm/gemini.ts).
+// Real reply generation/tone lives in the 2nd-B app (src/lib/llm/boundary.ts).
 const MOCK_REPLIES = {
   positive: ["그 마음 참 좋다 — 꼭 기록해둘게 ㅎㅎ", "오, 좋은 순간이었네! 잊지 않게 남겨둘게."],
   negative: ["많이 힘들었겠다… 천천히 말해줘, 내가 들을게.", "그런 날도 있지. 오늘 네 마음, 잘 적어둘게."],

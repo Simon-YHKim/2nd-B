@@ -1,0 +1,232 @@
+/* PIXEL-CLAY v4.0 · 45 palettes · --c00..--c15 + *-fg
+   Source: uploads/pixel-clay-v4.html lines 59-288 (verbatim) */
+/* [1-7] PALETTES — 45종. 원본 팔레트(4~16색)를 16슬롯 시맨틱 구조로 매핑하고
+   WCAG AA를 통과하도록 명도만 보정했습니다(색상·채도 유지). 전 팔레트 AA 통과.
+   출처 표기 · HW=하드웨어 실측/사양 · STD=공식/커뮤니티 표준 · INT=미학 해석
+   주의: 원본이 4색인 팔레트(CGA·Amiga·GB)는 9단 램프를 만들기 위해 보간이 필요하므로
+   원본에 없는 중간색이 생성됩니다. 팔레트 브라우저에 충실도를 표시합니다. */
+:root,[data-palette="clay"]{ /* CLAY-16 · 미학 · INT · 기본값(맨 앞 고정 — 소스 순서 규칙) */
+  --c00:#15100d; --c01:#2b211b; --c02:#453730; --c03:#5c4a3f; --c04:#a8917d; --c05:#bda88f; --c06:#ded0b8; --c07:#f2e9d8;
+  --c08:#fffbf2; --c09:#d97757; --c10:#a24a2e; --c11:#f0a887; --c12:#7d9463; --c13:#4b7789; --c14:#e0a63c; --c15:#bf4a44;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="gameboy"]{ /* GAME BOY DMG · 하드웨어 · HW */
+  --c00:#0a1b0a; --c01:#143514; --c02:#285828; --c03:#2f5623; --c04:#74a827; --c05:#80a313; --c06:#8fb00f; --c07:#a8ce11;
+  --c08:#dff587; --c09:#8bac0f; --c10:#556a07; --c11:#d0e67d; --c12:#306230; --c13:#2c5c8c; --c14:#9bbc0f; --c15:#8c2c2c;
+  --accent-fg:var(--c01); --ok-fg:var(--c08); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="bgb"]{ /* GAME BOY (BGB) · 하드웨어 · STD */
+  --c00:#081820; --c01:#183634; --c02:#295448; --c03:#37664f; --c04:#74a779; --c05:#7eb56d; --c06:#9ece88; --c07:#bfe3ac;
+  --c08:#e0f8d0; --c09:#88c070; --c10:#66ab48; --c11:#c7ddbe; --c12:#88c070; --c13:#346856; --c14:#caae58; --c15:#d98686;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="c64"]{ /* COMMODORE 64 · 하드웨어 · HW */
+  --c00:#000000; --c01:#222222; --c02:#444444; --c03:#535353; --c04:#8b8b8b; --c05:#808080; --c06:#959595; --c07:#cacaca;
+  --c08:#ffffff; --c09:#6c5eb5; --c10:#3d3273; --c11:#bbb6d7; --c12:#9ad284; --c13:#70a4b2; --c14:#433900; --c15:#68372b;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c08); --danger-fg:var(--c08);
+}
+[data-palette="dos"]{ /* MS-DOS / EGA 16 · 하드웨어 · HW */
+  --c00:#000000; --c01:#202020; --c02:#404040; --c03:#606060; --c04:#8a8a8a; --c05:#9f9f9f; --c06:#bfbfbf; --c07:#dfdfdf;
+  --c08:#ffffff; --c09:#5555ff; --c10:#0000cc; --c11:#b6b6f7; --c12:#00aa00; --c13:#0000aa; --c14:#aa5500; --c15:#aa0000;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c08); --danger-fg:var(--c08);
+}
+[data-palette="cga"]{ /* CGA MODE 4 · 하드웨어 · HW */
+  --c00:#000000; --c01:#202020; --c02:#404040; --c03:#606060; --c04:#8a8a8a; --c05:#9f9f9f; --c06:#bfbfbf; --c07:#dfdfdf;
+  --c08:#ffffff; --c09:#ff55ff; --c10:#cc00cc; --c11:#f7b6f7; --c12:#64ce64; --c13:#55ffff; --c14:#ceb464; --c15:#d06c6c;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="zx"]{ /* ZX SPECTRUM · 하드웨어 · HW */
+  --c00:#000000; --c01:#363636; --c02:#6c6c6c; --c03:#6e6e6e; --c04:#d7d7d7; --c05:#e1e1e1; --c06:#ebebeb; --c07:#f5f5f5;
+  --c08:#ffffff; --c09:#0000ff; --c10:#000099; --c11:#9a9af4; --c12:#00d700; --c13:#0000d7; --c14:#d7d700; --c15:#d70000;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="amiga"]{ /* AMIGA WORKBENCH · 하드웨어 · HW */
+  --c00:#000000; --c01:#002040; --c02:#004080; --c03:#205b95; --c04:#9a8668; --c05:#df8215; --c06:#ffa640; --c07:#ffd29f;
+  --c08:#ffffff; --c09:#ff8800; --c10:#995200; --c11:#f3c591; --c12:#3bba3b; --c13:#0055aa; --c14:#ff8800; --c15:#ff8800;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="win95"]{ /* WINDOWS 95 · 하드웨어 · HW */
+  --c00:#000000; --c01:#000060; --c02:#004080; --c03:#1c7070; --c04:#838383; --c05:#b0b0b0; --c06:#d0d0d0; --c07:#e7e7e7;
+  --c08:#ffffff; --c09:#008080; --c10:#005252; --c11:#5aeded; --c12:#00aa00; --c13:#000080; --c14:#ffff00; --c15:#aa0000;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="teletext"]{ /* TELETEXT · 하드웨어 · HW */
+  --c00:#000000; --c01:#202020; --c02:#404040; --c03:#606060; --c04:#8a8a8a; --c05:#9f9f9f; --c06:#bfbfbf; --c07:#dfdfdf;
+  --c08:#ffffff; --c09:#ff00ff; --c10:#990099; --c11:#f391f3; --c12:#00ff00; --c13:#0000ff; --c14:#ffff00; --c15:#ff3d3d;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="mac1bit"]{ /* MACINTOSH 1-BIT · 하드웨어 · HW */
+  --c00:#000000; --c01:#2a2a2a; --c02:#555555; --c03:#5f5f5f; --c04:#959595; --c05:#a2a2a2; --c06:#bbbbbb; --c07:#dddddd;
+  --c08:#ffffff; --c09:#959595; --c10:#525252; --c11:#cebebe; --c12:#64ce64; --c13:#6499ce; --c14:#000000; --c15:#555555;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c08); --danger-fg:var(--c08);
+}
+[data-palette="msx"]{ /* MSX / TMS9918 · 하드웨어 · STD */
+  --c00:#000000; --c01:#333333; --c02:#666666; --c03:#6b6b6b; --c04:#cccccc; --c05:#d9d9d9; --c06:#e6e6e6; --c07:#f2f2f2;
+  --c08:#ffffff; --c09:#5955e0; --c10:#1d19a0; --c11:#b6b4e9; --c12:#41b549; --c13:#65dbef; --c14:#ded087; --c15:#ff897d;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="matrix"]{ /* MATRIX · 터미널 · INT */
+  --c00:#000000; --c01:#001700; --c02:#003300; --c03:#005210; --c04:#00961b; --c05:#00a41a; --c06:#00d52e; --c07:#14ff4f;
+  --c08:#9dffb0; --c09:#00ff41; --c10:#009927; --c11:#91f3aa; --c12:#003b00; --c13:#2c5c8c; --c14:#977d30; --c15:#8c2c2c;
+  --accent-fg:var(--c01); --ok-fg:var(--c08); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="amber"]{ /* AMBER CRT · 터미널 · INT */
+  --c00:#0c0700; --c01:#180e00; --c02:#341f00; --c03:#573400; --c04:#b26e00; --c05:#ac6a00; --c06:#d98800; --c07:#ffb511;
+  --c08:#ffd98a; --c09:#cc7a00; --c10:#7a4900; --c11:#f0c17b; --c12:#2d8f2d; --c13:#2c5c8c; --c14:#ffb000; --c15:#3d2400;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="phosphor"]{ /* P1 PHOSPHOR · 터미널 · INT */
+  --c00:#000700; --c01:#000f00; --c02:#001e00; --c03:#003700; --c04:#088f20; --c05:#139934; --c06:#26d940; --c07:#43ff43;
+  --c08:#b6ffb6; --c09:#33ff33; --c10:#00b800; --c11:#a7f5a7; --c12:#004400; --c13:#2c5c8c; --c14:#937a2f; --c15:#8c2c2c;
+  --accent-fg:var(--c01); --ok-fg:var(--c08); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="dracula"]{ /* DRACULA · 에디터 · STD */
+  --c00:#181920; --c01:#2f313f; --c02:#363848; --c03:#3d4051; --c04:#969ab0; --c05:#717380; --c06:#9ea0a6; --c07:#cbcccc;
+  --c08:#f8f8f2; --c09:#ff79c6; --c10:#ff5dba; --c11:#f9c5e3; --c12:#50fa7b; --c13:#8f9bbe; --c14:#ffb86c; --c15:#ff6e6e;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="nord"]{ /* NORD · 에디터 · STD */
+  --c00:#2e3440; --c01:#383e4e; --c02:#3f4758; --c03:#454e61; --c04:#a5adbe; --c05:#b5bcc9; --c06:#dee4ec; --c07:#e7eaf1;
+  --c08:#f4f6f9; --c09:#d99e8b; --c10:#93452d; --c11:#e4c8bf; --c12:#a3be8c; --c13:#92aec9; --c14:#ebcb8b; --c15:#d89fa4;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="gruvbox"]{ /* GRUVBOX · 에디터 · STD */
+  --c00:#282828; --c01:#3a3634; --c02:#4b4541; --c03:#5e554e; --c04:#aaa093; --c05:#c6b698; --c06:#dacaa5; --c07:#eddeb5;
+  --c08:#fbf1c7; --c09:#fe8019; --c10:#a74b00; --c11:#f4c39c; --c12:#8ec07c; --c13:#77a6d4; --c14:#ebdbb2; --c15:#fc7a6b;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="solarized"]{ /* SOLARIZED DARK · 에디터 · STD */
+  --c00:#002b36; --c01:#063540; --c02:#446068; --c03:#576b72; --c04:#8d9da1; --c05:#89999a; --c06:#aab3ae; --c07:#f0ead7;
+  --c08:#fdf6e3; --c09:#ec7b4c; --c10:#7d2c0a; --c11:#e7a88f; --c12:#8ea300; --c13:#48a0de; --c14:#c49500; --c15:#e87775;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="solarlight"]{ /* SOLARIZED LIGHT · 에디터 · STD */
+  --c00:#002b36; --c01:#3c555c; --c02:#5e747c; --c03:#5d6e74; --c04:#c0c8c9; --c05:#8f9e9e; --c06:#c5c9c0; --c07:#f6f1e4;
+  --c08:#fbf9f3; --c09:#f5b89f; --c10:#7d2c0a; --c11:#ecbca8; --c12:#bad600; --c13:#9ecdee; --c14:#fcbf00; --c15:#f3b7b6;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="monokai"]{ /* MONOKAI · 에디터 · STD */
+  --c00:#272822; --c01:#33322a; --c02:#414035; --c03:#48473c; --c04:#9e9b89; --c05:#7b7763; --c06:#99947b; --c07:#c6c3b1;
+  --c08:#f8f8f2; --c09:#fd971f; --c10:#aa5c00; --c11:#f3cc9e; --c12:#a6e22e; --c13:#66d9ef; --c14:#e6db74; --c15:#fb6b9f;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="tokyonight"]{ /* TOKYO NIGHT · 에디터 · STD */
+  --c00:#1a1b26; --c01:#222536; --c02:#323852; --c03:#3e4564; --c04:#848cb2; --c05:#8994bd; --c06:#a2abd2; --c07:#afb7de;
+  --c08:#c0caf5; --c09:#2ac3de; --c10:#189db5; --c11:#a1dce7; --c12:#9ece6a; --c13:#7dcfff; --c14:#e0af68; --c15:#f7768e;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="catppuccin"]{ /* CATPPUCCIN MOCHA · 에디터 · STD */
+  --c00:#1e1e2e; --c01:#2f3041; --c02:#404254; --c03:#515468; --c04:#969aae; --c05:#aeb5d0; --c06:#bfc7e4; --c07:#d2d7f1;
+  --c08:#f5e0dc; --c09:#fab387; --c10:#fb701a; --c11:#f7dbca; --c12:#a6e3a1; --c13:#89b4fa; --c14:#f9e2af; --c15:#eba0ac;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="onedark"]{ /* ONE DARK · 에디터 · STD */
+  --c00:#282c34; --c01:#383e4a; --c02:#444b5a; --c03:#4f5666; --c04:#a5abb5; --c05:#979eab; --c06:#babfca; --c07:#d0d2d8;
+  --c08:#e6e6e6; --c09:#5ab8c3; --c10:#53b8c5; --c11:#b3d8dd; --c12:#98c379; --c13:#66b1ef; --c14:#e5c07b; --c15:#e9969d;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="pico8"]{ /* PICO-8 · 픽셀아트 · HW */
+  --c00:#000000; --c01:#302c28; --c02:#5f574f; --c03:#645b68; --c04:#ad8ea0; --c05:#a29cb2; --c06:#c2c3c7; --c07:#e0dad8;
+  --c08:#fff1e8; --c09:#ff578a; --c10:#99002e; --c11:#f391ae; --c12:#00e436; --c13:#29adff; --c14:#ffa300; --c15:#ab5236;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="sweetie16"]{ /* SWEETIE 16 · 픽셀아트 · STD */
+  --c00:#1a1c2c; --c01:#262c42; --c02:#333c57; --c03:#44546e; --c04:#8398b0; --c05:#758ea4; --c06:#94b0c2; --c07:#c4d2db;
+  --c08:#f4f4f4; --c09:#41a6f6; --c10:#0468b6; --c11:#acd3f2; --c12:#38b764; --c13:#566c86; --c14:#ffcd75; --c15:#b13e53;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="slso8"]{ /* SLSO8 · 픽셀아트 · STD */
+  --c00:#0d2b45; --c01:#1e3a54; --c02:#474a64; --c03:#6f586b; --c04:#c49a91; --c05:#e2905b; --c06:#ffb46f; --c07:#ffd7a9;
+  --c08:#ffecd6; --c09:#ffaa5e; --c10:#ff7e0b; --c11:#f7d7b9; --c12:#64ce64; --c13:#203c56; --c14:#ffd4a3; --c15:#d79371;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="oil6"]{ /* OIL 6 · 픽셀아트 · STD */
+  --c00:#272744; --c01:#3c3f68; --c02:#5a5586; --c03:#715a83; --c04:#c2aabc; --c05:#cca6a6; --c06:#e7c6aa; --c07:#f5e0c4;
+  --c08:#fbf5ef; --c09:#bbaac5; --c10:#543f60; --c11:#c7bbcd; --c12:#64ce64; --c13:#494d7e; --c14:#f2d3ab; --c15:#e2a2a2;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="nyx8"]{ /* NYX8 · 픽셀아트 · STD */
+  --c00:#08141e; --c01:#0d2537; --c02:#1c354b; --c03:#3d4359; --c04:#9a849a; --c05:#8a6973; --c06:#a4807c; --c07:#cbac94;
+  --c08:#f6d6bd; --c09:#0f2a3f; --c10:#0e2c43; --c11:#649eca; --c12:#3ab93a; --c13:#20394f; --c14:#c3a38a; --c15:#f6d6bd;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="steamlords"]{ /* STEAM LORDS · 픽셀아트 · STD */
+  --c00:#170e19; --c01:#2b192b; --c02:#323a42; --c03:#503840; --c04:#6a8ea5; --c05:#597053; --c06:#708496; --c07:#aaae97;
+  --c08:#c0d1cc; --c09:#7c94a1; --c10:#718c9b; --c11:#c1cbd1; --c12:#63966a; --c13:#7d8aa2; --c14:#908c5f; --c15:#603b3a;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="icecream"]{ /* ICE CREAM GB · 픽셀아트 · STD */
+  --c00:#401f25; --c01:#803d4b; --c02:#cf6069; --c03:#d6201b; --c04:#f7b8aa; --c05:#f7a074; --c06:#fabc8c; --c07:#fef3e6;
+  --c08:#fffaf4; --c09:#7c3f58; --c10:#4b2535; --c11:#dac1cb; --c12:#8bda8b; --c13:#b1cce7; --c14:#faba92; --c15:#f5b7b9;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="kirokaze"]{ /* KIROKAZE GB · 픽셀아트 · STD */
+  --c00:#332c50; --c01:#364961; --c02:#3e6a78; --c03:#3a6b61; --c04:#8ec68c; --c05:#8ad84d; --c06:#a8e76c; --c07:#caefb0;
+  --c08:#e2f3e4; --c09:#94e344; --c10:#75cf1a; --c11:#cceaad; --c12:#94e344; --c13:#8dc1c7; --c14:#94e344; --c15:#e5abab;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="mist"]{ /* MIST GB · 픽셀아트 · STD */
+  --c00:#2d1b00; --c01:#273529; --c02:#224f52; --c03:#215d66; --c04:#48a9a7; --c05:#52aea1; --c06:#74c7ae; --c07:#9cdbb8;
+  --c08:#c4f0c2; --c09:#5ab9a8; --c10:#45ac9a; --c11:#b4d9d2; --c12:#c4f0c2; --c13:#1e606e; --c14:#c2a13e; --c15:#d88484;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="rustic"]{ /* RUSTIC GB · 픽셀아트 · STD */
+  --c00:#1b111a; --c01:#352235; --c02:#643b57; --c03:#63394e; --c04:#b68692; --c05:#a36467; --c06:#ba7b76; --c07:#dcaba2;
+  --c08:#edb4a1; --c09:#b782a2; --c10:#48283b; --c11:#c2a1b5; --c12:#43c443; --c13:#5e95cc; --c14:#edb4a1; --c15:#ba8585;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="stardew"]{ /* STARDEW · 미학 · INT */
+  --c00:#1c1410; --c01:#2f2118; --c02:#4a3223; --c03:#6b4a2f; --c04:#aa8855; --c05:#c9a877; --c06:#e8d5a8; --c07:#f5e9c8;
+  --c08:#fffcf0; --c09:#c97a2e; --c10:#8f4f1a; --c11:#e8a860; --c12:#537c36; --c13:#4694c2; --c14:#e8c33a; --c15:#b53a2a;
+  --accent-fg:var(--c01); --ok-fg:var(--c08); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="cyberpunk"]{ /* CYBERPUNK · 미학 · INT */
+  --c00:#030007; --c01:#05010d; --c02:#0d0221; --c03:#130624; --c04:#945bd2; --c05:#201038; --c06:#261447; --c07:#8898b3;
+  --c08:#cfd0e8; --c09:#ff0080; --c10:#99004d; --c11:#f391c2; --c12:#2c8c2c; --c13:#b8f0ff; --c14:#fee800; --c15:#ff3864;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="synthwave"]{ /* SYNTHWAVE · 미학 · INT */
+  --c00:#020109; --c01:#040312; --c02:#150c2e; --c03:#1c1231; --c04:#8c66bb; --c05:#29183e; --c06:#2e1a47; --c07:#9199b0;
+  --c08:#e1e0f0; --c09:#05d9e8; --c10:#00858e; --c11:#8be9f0; --c12:#2c8c2c; --c13:#d1f7ff; --c14:#f9c80e; --c15:#ff2a6d;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="vaporwave"]{ /* VAPORWAVE · 미학 · INT */
+  --c00:#2d1b4e; --c01:#463664; --c02:#5f507a; --c03:#625776; --c04:#b1a9c0; --c05:#aaa0bd; --c06:#c3bbd3; --c07:#dcd5e9;
+  --c08:#f5f0ff; --c09:#ce95ff; --c10:#7400d7; --c11:#ddbdf8; --c12:#05ffa1; --c13:#01cdfe; --c14:#fffb96; --c15:#ff80d3;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="bloodmoon"]{ /* BLOOD MOON · 미학 · INT */
+  --c00:#040202; --c01:#080304; --c02:#140809; --c03:#17090a; --c04:#bf5966; --c05:#2c0e11; --c06:#3d1216; --c07:#ad9193;
+  --c08:#f5dcdc; --c09:#a8202f; --c10:#67111b; --c11:#dd8c95; --c12:#2c8c2c; --c13:#2c5c8c; --c14:#d94141; --c15:#e8a0a0;
+  --accent-fg:var(--c08); --ok-fg:var(--c01); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="candy"]{ /* CANDY · 미학 · INT */
+  --c00:#2b1b2e; --c01:#3d2743; --c02:#5a3a5f; --c03:#6e4a73; --c04:#b08fb5; --c05:#d4b8d8; --c06:#f0dced; --c07:#faeef8;
+  --c08:#fffbfe; --c09:#e278a1; --c10:#b04570; --c11:#f5a8c4; --c12:#6bab8a; --c13:#6f9bd1; --c14:#e8b84a; --c15:#cc405a;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="midnight"]{ /* MIDNIGHT · 미학 · INT */
+  --c00:#0a0e18; --c01:#141b2e; --c02:#232e4a; --c03:#3d4866; --c04:#8b96b0; --c05:#b0b9cc; --c06:#d4dae6; --c07:#eaeef5;
+  --c08:#ffffff; --c09:#5b8def; --c10:#2f5fc0; --c11:#9db8f5; --c12:#3fa88a; --c13:#4d8fd6; --c14:#e0a63c; --c15:#db5b57;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="mono"]{ /* MONO · 미학 · INT */
+  --c00:#000000; --c01:#1a1a1a; --c02:#333333; --c03:#4d4d4d; --c04:#949494; --c05:#b3b3b3; --c06:#d9d9d9; --c07:#f0f0f0;
+  --c08:#ffffff; --c09:#333333; --c10:#000000; --c11:#858585; --c12:#4d4d4d; --c13:#333333; --c14:#858585; --c15:#1a1a1a;
+  --accent-fg:var(--c08); --ok-fg:var(--c08); --info-fg:var(--c08); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}
+[data-palette="forest"]{ /* DEEP FOREST · 미학 · INT */
+  --c00:#0d1a12; --c01:#15261b; --c02:#1f3a28; --c03:#2e5238; --c04:#679766; --c05:#7b9d6a; --c06:#a0bd89; --c07:#c7d7ae;
+  --c08:#e6eed6; --c09:#d98e3c; --c10:#8e5618; --c11:#e5c8a9; --c12:#709562; --c13:#5c91b1; --c14:#e8c33a; --c15:#cf7168;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="ocean"]{ /* DEEP OCEAN · 미학 · INT */
+  --c00:#03131f; --c01:#062739; --c02:#0a3c50; --c03:#0f556d; --c04:#3198b5; --c05:#50a1b4; --c06:#7fc0d0; --c07:#b0dde6;
+  --c08:#e0f4f7; --c09:#f2a65a; --c10:#da730c; --c11:#f1d4b7; --c12:#3fb894; --c13:#4993d3; --c14:#f0d264; --c15:#dc6969;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c01);
+}
+[data-palette="sand"]{ /* DESERT SAND · 미학 · INT */
+  --c00:#1f1508; --c01:#30220e; --c02:#4c391b; --c03:#6c542f; --c04:#a88959; --c05:#bea073; --c06:#dac196; --c07:#eedcb8;
+  --c08:#f8eed7; --c09:#d97b3c; --c10:#8e4718; --c11:#e5c1a9; --c12:#8a9a4a; --c13:#5b95ae; --c14:#e0b03c; --c15:#b8453a;
+  --accent-fg:var(--c01); --ok-fg:var(--c01); --info-fg:var(--c01); --warn-fg:var(--c01); --danger-fg:var(--c08);
+}

@@ -224,7 +224,12 @@
     "selected": "Selected file",
     "textExtracted": "Text extracted: filled into body",
     "attachedNoPreview": "File attached. Text preview is not available.",
-    "dataUsageHint": "Uploading files may incur data charges. Wi-Fi is recommended."
+    "dataUsageHint": "Uploading files may incur data charges. Wi-Fi is recommended.",
+    "transcribing": "Turning this recording into text...",
+    "transcribed": "Transcribed: filled into body. Review and edit before saving.",
+    "transcribeFailed": "Couldn't turn that recording into text. Pick it again, or type what you heard.",
+    "transcriptEmpty": "We couldn't make out any words in that recording.",
+    "audioTooLarge": "That recording is too long. Pick one under {{mb}}MB, or split it up."
   },
   "tags": {
     "title": "Hashtags",

@@ -5,12 +5,12 @@
 // (Lv1-3 core loop) is never tier-gated.
 
 const mockCallAdvisor = jest.fn();
-const mockCallGemini = jest.fn();
+const mockCallLlm = jest.fn();
 const mockClassifyRecordCrisis = jest.fn();
 
-jest.mock("../../llm/gemini", () => ({
+jest.mock("../../llm/boundary", () => ({
   callAdvisor: (...args: unknown[]) => mockCallAdvisor(...args),
-  callGemini: (...args: unknown[]) => mockCallGemini(...args),
+  callLlm: (...args: unknown[]) => mockCallLlm(...args),
   classifyRecordTextForCrisis: (...args: unknown[]) => mockClassifyRecordCrisis(...args),
 }));
 
@@ -54,7 +54,7 @@ const ADVISOR_OK = {
 describe("createRecord — Advisor premium gate", () => {
   beforeEach(() => {
     mockCallAdvisor.mockReset().mockResolvedValue(ADVISOR_OK);
-    mockCallGemini.mockReset().mockResolvedValue({ text: "ok", safety: { zone: "green" } });
+    mockCallLlm.mockReset().mockResolvedValue({ text: "ok", safety: { zone: "green" } });
     mockClassifyRecordCrisis.mockReset().mockResolvedValue(null);
     mockInsert.mockClear();
   });
@@ -175,12 +175,12 @@ describe("createRecord — Advisor premium gate", () => {
       tier: "free",
     });
 
-    expect(mockCallGemini).toHaveBeenCalledTimes(1);
+    expect(mockCallLlm).toHaveBeenCalledTimes(1);
     expect(mockCallAdvisor).not.toHaveBeenCalled();
   });
 
   test("audit_response LLM failure falls back to local crisis classification and still saves", async () => {
-    mockCallGemini.mockRejectedValueOnce(new Error("proxy down"));
+    mockCallLlm.mockRejectedValueOnce(new Error("proxy down"));
     mockClassifyRecordCrisis.mockResolvedValueOnce({
       text: "Please contact 988 now.",
     });
@@ -195,7 +195,7 @@ describe("createRecord — Advisor premium gate", () => {
       minor: false,
     });
 
-    expect(mockCallGemini).toHaveBeenCalledTimes(1);
+    expect(mockCallLlm).toHaveBeenCalledTimes(1);
     expect(mockClassifyRecordCrisis).toHaveBeenCalledWith("red zone answer", "en", "u1", false);
     expect(mockInsert).toHaveBeenCalledTimes(1);
     expect(mockInsert).toHaveBeenCalledWith(
