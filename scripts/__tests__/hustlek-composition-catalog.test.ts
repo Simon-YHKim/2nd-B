@@ -41,7 +41,16 @@ type Catalog = {
       garment: { source_palette_index: number };
       [key: string]: unknown;
     };
-    composable_native128: { status: string; runtime_scaling_allowed: boolean };
+    composable_native128: {
+      status: string;
+      runtime_scaling_allowed: boolean;
+      atlas_path?: string;
+      layers?: Record<
+        string,
+        { atlas_crop: number[]; decoded_rgba_sha256: string; empty: boolean }
+      >;
+      recomposition_decoded_rgba_sha256?: string;
+    };
     flattened_native128: { atlas_path: string; decoded_rgba_sha256: string };
   }>;
   icons: Array<{
@@ -106,12 +115,35 @@ describe("HustleK composition catalog", () => {
     );
     expect(indices.has(16)).toBe(true);
     expect(indices.has(17)).toBe(true);
+    let ready = 0;
     for (const avatar of catalog.avatars) {
-      expect(avatar.composable_native128.status).toBe("pending_layers");
+      if (avatar.asset_id === "avatars/presets/plain") {
+        ready += 1;
+        expect(avatar.composable_native128.status).toBe("pilot_ready");
+        expect(avatar.composable_native128.atlas_path).toBe(
+          "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        );
+        expect(Object.keys(avatar.composable_native128.layers ?? {})).toEqual([
+          "base",
+          "extra",
+          "face",
+          "garment",
+          "hair",
+          "headwear",
+        ]);
+        expect(avatar.composable_native128.layers?.headwear.empty).toBe(true);
+        expect(avatar.composable_native128.layers?.extra.empty).toBe(true);
+        expect(avatar.composable_native128.recomposition_decoded_rgba_sha256).toBe(
+          avatar.flattened_native128.decoded_rgba_sha256,
+        );
+      } else {
+        expect(avatar.composable_native128.status).toBe("pending_layers");
+      }
       expect(avatar.composable_native128.runtime_scaling_allowed).toBe(false);
       expect(avatar.flattened_native128.atlas_path).toMatch(/master-atlas\.png$/);
       expect(avatar.flattened_native128.decoded_rgba_sha256).toMatch(/^[a-f0-9]{64}$/);
     }
+    expect(ready).toBe(1);
   });
 
   it("모든 아이콘을 standalone으로 유지하고 허용 목록만 합성 슬롯에 배치한다", () => {

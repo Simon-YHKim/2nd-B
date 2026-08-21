@@ -14063,6 +14063,99 @@
     {
       "asset_id": "avatars/presets/plain",
       "composable_native128": {
+        "atlas_path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "encoded_atlas_sha256": "cfbdd0308894565680660a376ad34127b54098ca31acb09cb08e07d4c47491b8",
+        "hidden_scalp_pixels": 1068,
+        "layers": {
+          "base": {
+            "atlas_crop": [
+              0,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              32,
+              12,
+              96,
+              100
+            ],
+            "decoded_rgba_sha256": "bfef501bf7531f8f71756e6d955c4edf50d426f88028bc973177d9df74e33cb7",
+            "empty": false
+          },
+          "extra": {
+            "atlas_crop": [
+              640,
+              0,
+              128,
+              128
+            ],
+            "bbox": null,
+            "decoded_rgba_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31",
+            "empty": true
+          },
+          "face": {
+            "atlas_crop": [
+              256,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              41,
+              45,
+              89,
+              82
+            ],
+            "decoded_rgba_sha256": "3b72bc643f006d697855e369bb137cf274d18ac5bc8ecb255657a77852b13080",
+            "empty": false
+          },
+          "garment": {
+            "atlas_crop": [
+              512,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              18,
+              87,
+              110,
+              128
+            ],
+            "decoded_rgba_sha256": "5fd2ec1c0aad53e9cd3f9dfe3710743426961ecafdc87fb98ec12cc2136d72ea",
+            "empty": false
+          },
+          "hair": {
+            "atlas_crop": [
+              128,
+              0,
+              128,
+              128
+            ],
+            "bbox": [
+              32,
+              5,
+              96,
+              56
+            ],
+            "decoded_rgba_sha256": "6993434cdde8adb400708cf210da206ee561e1542aa90105712470fc87ff157f",
+            "empty": false
+          },
+          "headwear": {
+            "atlas_crop": [
+              384,
+              0,
+              128,
+              128
+            ],
+            "bbox": null,
+            "decoded_rgba_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31",
+            "empty": true
+          }
+        },
+        "method": "lossless-native128-semantic-partition-with-hidden-scalp-underlay/v1",
+        "recomposition_decoded_rgba_sha256": "265b26e3063f1d01a1c57d85e1e76fa8c7f75cff7454d5a4c4ec8fc8b788779f",
         "required_layers": [
           "base",
           "hair",
@@ -14072,7 +14165,7 @@
           "extra"
         ],
         "runtime_scaling_allowed": false,
-        "status": "pending_layers"
+        "status": "pilot_ready"
       },
       "flattened_native128": {
         "atlas_crop": {
@@ -19038,6 +19131,7 @@
       "tool": 95
     },
     "avatar_job_recipes": 224,
+    "avatar_layer_pilots_ready": 1,
     "avatars": 270,
     "canonical_total": 803,
     "icon_attachment_pilots_ready": 4,

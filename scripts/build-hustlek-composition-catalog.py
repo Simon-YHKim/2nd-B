@@ -160,6 +160,15 @@ PILOT_VARIANTS = {
     },
 }
 
+AVATAR_LAYER_PILOTS = {
+    "avatars/presets/plain": {
+        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
+        "hidden_scalp_pixels": 1068,
+        "method": "lossless-native128-semantic-partition-with-hidden-scalp-underlay/v1",
+    },
+}
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -307,6 +316,58 @@ def native128_variant(icon_name: str, slot: str) -> dict[str, Any]:
     }
 
 
+def native128_avatar_layers(
+    asset_id: str, flattened_master: dict[str, Any]
+) -> dict[str, Any]:
+    common = {
+        "required_layers": ["base", "hair", "face", "headwear", "garment", "extra"],
+        "runtime_scaling_allowed": False,
+    }
+    pilot = AVATAR_LAYER_PILOTS.get(asset_id)
+    if pilot is None:
+        return {"status": "pending_layers", **common}
+    path = ROOT / pilot["path"]
+    atlas = Image.open(path).convert("RGBA")
+    if atlas.size != (128 * len(pilot["layer_ids"]), 128):
+        raise ValueError(f"{asset_id} layer pilot atlas dimensions are invalid")
+    layers: dict[str, Image.Image] = {}
+    layer_records: dict[str, Any] = {}
+    for index, layer_id in enumerate(pilot["layer_ids"]):
+        crop = [index * 128, 0, 128, 128]
+        layer = atlas.crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3]))
+        pixels = list(layer.get_flattened_data())
+        if {pixel[3] for pixel in pixels} - {0, 255}:
+            raise ValueError(f"{asset_id}/{layer_id}: alpha must be binary")
+        if any(pixel[3] == 0 and pixel[:3] != (0, 0, 0) for pixel in pixels):
+            raise ValueError(f"{asset_id}/{layer_id}: hidden RGB is forbidden")
+        bbox = layer.getbbox()
+        if bbox is None and layer_id not in {"headwear", "extra"}:
+            raise ValueError(f"{asset_id}/{layer_id}: required layer is empty")
+        layers[layer_id] = layer
+        layer_records[layer_id] = {
+            "atlas_crop": crop,
+            "bbox": list(bbox) if bbox else None,
+            "decoded_rgba_sha256": hashlib.sha256(layer.tobytes()).hexdigest(),
+            "empty": bbox is None,
+        }
+    recomposed = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
+    for layer_id in ["base", "garment", "hair", "face", "headwear", "extra"]:
+        recomposed = Image.alpha_composite(recomposed, layers[layer_id])
+    recomposed_sha = hashlib.sha256(recomposed.tobytes()).hexdigest()
+    if recomposed_sha != flattened_master["decoded_rgba_sha256"]:
+        raise ValueError(f"{asset_id}: layer recomposition differs from flattened native128 master")
+    return {
+        "status": "pilot_ready",
+        **common,
+        "atlas_path": pilot["path"],
+        "encoded_atlas_sha256": sha256_file(path),
+        "method": pilot["method"],
+        "hidden_scalp_pixels": pilot["hidden_scalp_pixels"],
+        "layers": layer_records,
+        "recomposition_decoded_rgba_sha256": recomposed_sha,
+    }
+
+
 def attachment_for(icon_name: str) -> dict[str, Any] | None:
     if icon_name in ACCESSORY_SLOTS:
         role, slot = "accessory", ACCESSORY_SLOTS[icon_name]
@@ -396,6 +457,7 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
                     },
                     "extra": [],
                 }
+            flattened_master = native_index[asset_id]
             avatars.append({
                 "asset_id": asset_id,
                 "id": item["id"],
@@ -405,12 +467,10 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
                 "source_svg": f"export/{source_path}",
                 "source_spec": spec,
                 "recipe": recipe,
-                "composable_native128": {
-                    "status": "pending_layers",
-                    "required_layers": ["base", "hair", "face", "headwear", "garment", "extra"],
-                    "runtime_scaling_allowed": False,
-                },
-                "flattened_native128": native_index[asset_id],
+                "composable_native128": native128_avatar_layers(
+                    asset_id, flattened_master
+                ),
+                "flattened_native128": flattened_master,
             })
 
     prototype_jobs = load_prototype_jobs()
@@ -510,6 +570,10 @@ def build_catalog(source_zip: Path, native_catalog_path: Path) -> dict[str, Any]
             "icons": 533,
             "aliases": len(aliases),
             "avatar_job_recipes": len(used_jobs),
+            "avatar_layer_pilots_ready": sum(
+                avatar["composable_native128"]["status"] == "pilot_ready"
+                for avatar in avatars
+            ),
             "job_definitions": len(jobs),
             "job_definitions_unused": len(jobs) - len(used_jobs),
             "icon_attachments": sum(attachment_counts.values()),
