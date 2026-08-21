@@ -163,9 +163,31 @@ PILOT_VARIANTS = {
 AVATAR_LAYER_PILOTS = {
     "avatars/presets/plain": {
         "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "atlas_row": 0,
         "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
-        "hidden_scalp_pixels": 1068,
-        "method": "lossless-native128-semantic-partition-with-hidden-scalp-underlay/v1",
+        "allow_empty": ["headwear", "extra"],
+        "profile": "plain",
+    },
+    "avatars/food/chef": {
+        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "atlas_row": 1,
+        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
+        "allow_empty": [],
+        "profile": "job",
+    },
+    "avatars/fantasy/wizard": {
+        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "atlas_row": 2,
+        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
+        "allow_empty": [],
+        "profile": "fantasy",
+    },
+    "avatars/animals/cat": {
+        "path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "atlas_row": 3,
+        "layer_ids": ["base", "hair", "face", "headwear", "garment", "extra"],
+        "allow_empty": ["hair", "headwear", "garment", "extra"],
+        "profile": "animal",
     },
 }
 
@@ -328,12 +350,13 @@ def native128_avatar_layers(
         return {"status": "pending_layers", **common}
     path = ROOT / pilot["path"]
     atlas = Image.open(path).convert("RGBA")
-    if atlas.size != (128 * len(pilot["layer_ids"]), 128):
+    row_y = pilot["atlas_row"] * 128
+    if atlas.width != 128 * len(pilot["layer_ids"]) or atlas.height < row_y + 128:
         raise ValueError(f"{asset_id} layer pilot atlas dimensions are invalid")
     layers: dict[str, Image.Image] = {}
     layer_records: dict[str, Any] = {}
     for index, layer_id in enumerate(pilot["layer_ids"]):
-        crop = [index * 128, 0, 128, 128]
+        crop = [index * 128, row_y, 128, 128]
         layer = atlas.crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3]))
         pixels = list(layer.get_flattened_data())
         if {pixel[3] for pixel in pixels} - {0, 255}:
@@ -341,7 +364,7 @@ def native128_avatar_layers(
         if any(pixel[3] == 0 and pixel[:3] != (0, 0, 0) for pixel in pixels):
             raise ValueError(f"{asset_id}/{layer_id}: hidden RGB is forbidden")
         bbox = layer.getbbox()
-        if bbox is None and layer_id not in {"headwear", "extra"}:
+        if bbox is None and layer_id not in set(pilot["allow_empty"]):
             raise ValueError(f"{asset_id}/{layer_id}: required layer is empty")
         layers[layer_id] = layer
         layer_records[layer_id] = {
@@ -356,13 +379,45 @@ def native128_avatar_layers(
     recomposed_sha = hashlib.sha256(recomposed.tobytes()).hexdigest()
     if recomposed_sha != flattened_master["decoded_rgba_sha256"]:
         raise ValueError(f"{asset_id}: layer recomposition differs from flattened native128 master")
+    base_alpha = layers["base"].getchannel("A")
+    face_alpha = layers["face"].getchannel("A")
+    scalp_alpha = Image.alpha_composite(layers["hair"], layers["headwear"]).getchannel("A")
+    garment_alpha = layers["garment"].getchannel("A")
+    extra_alpha = layers["extra"].getchannel("A")
+    underlay_overlaps = {
+        "base_under_face": sum(
+            bool(base_pixel and face_pixel)
+            for base_pixel, face_pixel in zip(
+                base_alpha.get_flattened_data(),
+                face_alpha.get_flattened_data(),
+                strict=True,
+            )
+        ),
+        "base_under_scalp": sum(
+            bool(base_pixel and scalp_pixel)
+            for base_pixel, scalp_pixel in zip(
+                base_alpha.get_flattened_data(),
+                scalp_alpha.get_flattened_data(),
+                strict=True,
+            )
+        ),
+        "garment_under_extra": sum(
+            bool(garment_pixel and extra_pixel)
+            for garment_pixel, extra_pixel in zip(
+                garment_alpha.get_flattened_data(),
+                extra_alpha.get_flattened_data(),
+                strict=True,
+            )
+        ),
+    }
     return {
         "status": "pilot_ready",
         **common,
         "atlas_path": pilot["path"],
         "encoded_atlas_sha256": sha256_file(path),
-        "method": pilot["method"],
-        "hidden_scalp_pixels": pilot["hidden_scalp_pixels"],
+        "method": "lossless-native128-semantic-partition-with-swap-underlays/v2",
+        "profile": pilot["profile"],
+        "underlay_overlaps": underlay_overlaps,
         "layers": layer_records,
         "recomposition_decoded_rgba_sha256": recomposed_sha,
     }

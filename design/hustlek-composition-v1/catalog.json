@@ -1237,6 +1237,89 @@
     {
       "asset_id": "avatars/animals/cat",
       "composable_native128": {
+        "atlas_path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "encoded_atlas_sha256": "6adbc9641cde2c366225f6be4905152bdacb8b2ed2416ca0fcd61746205607e6",
+        "layers": {
+          "base": {
+            "atlas_crop": [
+              0,
+              384,
+              128,
+              128
+            ],
+            "bbox": [
+              25,
+              6,
+              102,
+              126
+            ],
+            "decoded_rgba_sha256": "ca9cc05b69e043137046b8a714f7b3ee710305695b981886fa1bf14589d0babf",
+            "empty": false
+          },
+          "extra": {
+            "atlas_crop": [
+              640,
+              384,
+              128,
+              128
+            ],
+            "bbox": null,
+            "decoded_rgba_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31",
+            "empty": true
+          },
+          "face": {
+            "atlas_crop": [
+              256,
+              384,
+              128,
+              128
+            ],
+            "bbox": [
+              34,
+              42,
+              95,
+              89
+            ],
+            "decoded_rgba_sha256": "62611714b823bc31e987d7975c473abc562888890d5f73957220dcb8b155cb67",
+            "empty": false
+          },
+          "garment": {
+            "atlas_crop": [
+              512,
+              384,
+              128,
+              128
+            ],
+            "bbox": null,
+            "decoded_rgba_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31",
+            "empty": true
+          },
+          "hair": {
+            "atlas_crop": [
+              128,
+              384,
+              128,
+              128
+            ],
+            "bbox": null,
+            "decoded_rgba_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31",
+            "empty": true
+          },
+          "headwear": {
+            "atlas_crop": [
+              384,
+              384,
+              128,
+              128
+            ],
+            "bbox": null,
+            "decoded_rgba_sha256": "de2f256064a0af797747c2b97505dc0b9f3df0de4f489eac731c23ae9ca9cc31",
+            "empty": true
+          }
+        },
+        "method": "lossless-native128-semantic-partition-with-swap-underlays/v2",
+        "profile": "animal",
+        "recomposition_decoded_rgba_sha256": "04470a43b5b1401487b0b5ebc27d92a4b37c61e97ef4382b4fd2844ddbeb5ae8",
         "required_layers": [
           "base",
           "hair",
@@ -1246,7 +1329,12 @@
           "extra"
         ],
         "runtime_scaling_allowed": false,
-        "status": "pending_layers"
+        "status": "pilot_ready",
+        "underlay_overlaps": {
+          "base_under_face": 910,
+          "base_under_scalp": 0,
+          "garment_under_extra": 0
+        }
       },
       "flattened_native128": {
         "atlas_crop": {
@@ -9373,6 +9461,109 @@
     {
       "asset_id": "avatars/fantasy/wizard",
       "composable_native128": {
+        "atlas_path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "encoded_atlas_sha256": "6adbc9641cde2c366225f6be4905152bdacb8b2ed2416ca0fcd61746205607e6",
+        "layers": {
+          "base": {
+            "atlas_crop": [
+              0,
+              256,
+              128,
+              128
+            ],
+            "bbox": [
+              30,
+              12,
+              95,
+              106
+            ],
+            "decoded_rgba_sha256": "2cc6918160a75096b78c5434a7ab23c84a58e3f834ee18b35bf3afb0fb0f01e6",
+            "empty": false
+          },
+          "extra": {
+            "atlas_crop": [
+              640,
+              256,
+              128,
+              128
+            ],
+            "bbox": [
+              49,
+              98,
+              81,
+              125
+            ],
+            "decoded_rgba_sha256": "73ea64435df6acec66cc83cde8b5a03bc87d266b451806f86dfbd95e47077b97",
+            "empty": false
+          },
+          "face": {
+            "atlas_crop": [
+              256,
+              256,
+              128,
+              128
+            ],
+            "bbox": [
+              40,
+              70,
+              91,
+              105
+            ],
+            "decoded_rgba_sha256": "a9f1922da3c8afdb8910641efcf784b41ba8f6eace767dda2ec3811f1615a6a2",
+            "empty": false
+          },
+          "garment": {
+            "atlas_crop": [
+              512,
+              256,
+              128,
+              128
+            ],
+            "bbox": [
+              20,
+              98,
+              110,
+              127
+            ],
+            "decoded_rgba_sha256": "6754b2a39ff33f9b7921886a854151331ed60a3eb83e02bc80eb85b2455bacac",
+            "empty": false
+          },
+          "hair": {
+            "atlas_crop": [
+              128,
+              256,
+              128,
+              128
+            ],
+            "bbox": [
+              31,
+              56,
+              98,
+              105
+            ],
+            "decoded_rgba_sha256": "178be83380d2bc747fb4e552006ebc54b51199b1771d5521500542a8cc6fee80",
+            "empty": false
+          },
+          "headwear": {
+            "atlas_crop": [
+              384,
+              256,
+              128,
+              128
+            ],
+            "bbox": [
+              14,
+              2,
+              114,
+              70
+            ],
+            "decoded_rgba_sha256": "d6ef5664f5689bfd7f23b4b7d547bc1a260168b927f907e2d397432bfa415f31",
+            "empty": false
+          }
+        },
+        "method": "lossless-native128-semantic-partition-with-swap-underlays/v2",
+        "profile": "fantasy",
+        "recomposition_decoded_rgba_sha256": "95c8a54b77233937d4feab76365319df2851246de2d142563ddc732851260643",
         "required_layers": [
           "base",
           "hair",
@@ -9382,7 +9573,12 @@
           "extra"
         ],
         "runtime_scaling_allowed": false,
-        "status": "pending_layers"
+        "status": "pilot_ready",
+        "underlay_overlaps": {
+          "base_under_face": 440,
+          "base_under_scalp": 2556,
+          "garment_under_extra": 191
+        }
       },
       "flattened_native128": {
         "atlas_crop": {
@@ -9793,6 +9989,109 @@
     {
       "asset_id": "avatars/food/chef",
       "composable_native128": {
+        "atlas_path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
+        "encoded_atlas_sha256": "6adbc9641cde2c366225f6be4905152bdacb8b2ed2416ca0fcd61746205607e6",
+        "layers": {
+          "base": {
+            "atlas_crop": [
+              0,
+              128,
+              128,
+              128
+            ],
+            "bbox": [
+              23,
+              12,
+              104,
+              108
+            ],
+            "decoded_rgba_sha256": "109278a9e84a682a12324220a335b2d0768ec6476a67db709b5598d1f0826d6f",
+            "empty": false
+          },
+          "extra": {
+            "atlas_crop": [
+              640,
+              128,
+              128,
+              128
+            ],
+            "bbox": [
+              50,
+              109,
+              79,
+              126
+            ],
+            "decoded_rgba_sha256": "7259fdb9f98682631f3e440d25b17df7e599ac2f3997ac2c8c71027a6b1dceff",
+            "empty": false
+          },
+          "face": {
+            "atlas_crop": [
+              256,
+              128,
+              128,
+              128
+            ],
+            "bbox": [
+              40,
+              55,
+              90,
+              89
+            ],
+            "decoded_rgba_sha256": "79aadc89c882c7ff2b9c04c44a22ec8154a75d31b93f3d16c0bcccb5fd82cf8b",
+            "empty": false
+          },
+          "garment": {
+            "atlas_crop": [
+              512,
+              128,
+              128,
+              128
+            ],
+            "bbox": [
+              18,
+              95,
+              110,
+              128
+            ],
+            "decoded_rgba_sha256": "35e73f51fae7df238d10b2e21d8754db1cd245f4eb989e81fc7c8513a9bb646d",
+            "empty": false
+          },
+          "hair": {
+            "atlas_crop": [
+              128,
+              128,
+              128,
+              128
+            ],
+            "bbox": [
+              34,
+              39,
+              93,
+              66
+            ],
+            "decoded_rgba_sha256": "b5527b11a173b434c37e9b2801591ac7d412244d9d6ed5d1b20bd50c94f86eae",
+            "empty": false
+          },
+          "headwear": {
+            "atlas_crop": [
+              384,
+              128,
+              128,
+              128
+            ],
+            "bbox": [
+              28,
+              1,
+              100,
+              46
+            ],
+            "decoded_rgba_sha256": "9809b794e077bfbce7e39e671d6b6153ede9cfd5c8b16abd12709824f2b5e695",
+            "empty": false
+          }
+        },
+        "method": "lossless-native128-semantic-partition-with-swap-underlays/v2",
+        "profile": "job",
+        "recomposition_decoded_rgba_sha256": "0bc592b24fe2b29d14a4599cd7e1ce8d574742d9919e2047acde8b3ac6ffbe2d",
         "required_layers": [
           "base",
           "hair",
@@ -9802,7 +10101,12 @@
           "extra"
         ],
         "runtime_scaling_allowed": false,
-        "status": "pending_layers"
+        "status": "pilot_ready",
+        "underlay_overlaps": {
+          "base_under_face": 331,
+          "base_under_scalp": 2012,
+          "garment_under_extra": 99
+        }
       },
       "flattened_native128": {
         "atlas_crop": {
@@ -14064,8 +14368,7 @@
       "asset_id": "avatars/presets/plain",
       "composable_native128": {
         "atlas_path": "design/hustlek-composition-v1/pilot/plain-avatar-layers-atlas.png",
-        "encoded_atlas_sha256": "cfbdd0308894565680660a376ad34127b54098ca31acb09cb08e07d4c47491b8",
-        "hidden_scalp_pixels": 1068,
+        "encoded_atlas_sha256": "6adbc9641cde2c366225f6be4905152bdacb8b2ed2416ca0fcd61746205607e6",
         "layers": {
           "base": {
             "atlas_crop": [
@@ -14080,7 +14383,7 @@
               96,
               100
             ],
-            "decoded_rgba_sha256": "bfef501bf7531f8f71756e6d955c4edf50d426f88028bc973177d9df74e33cb7",
+            "decoded_rgba_sha256": "a8a9b29fc016ab2daadee3b41147ae174a17dcf422c533fba38fb3143de0603b",
             "empty": false
           },
           "extra": {
@@ -14154,7 +14457,8 @@
             "empty": true
           }
         },
-        "method": "lossless-native128-semantic-partition-with-hidden-scalp-underlay/v1",
+        "method": "lossless-native128-semantic-partition-with-swap-underlays/v2",
+        "profile": "plain",
         "recomposition_decoded_rgba_sha256": "265b26e3063f1d01a1c57d85e1e76fa8c7f75cff7454d5a4c4ec8fc8b788779f",
         "required_layers": [
           "base",
@@ -14165,7 +14469,12 @@
           "extra"
         ],
         "runtime_scaling_allowed": false,
-        "status": "pilot_ready"
+        "status": "pilot_ready",
+        "underlay_overlaps": {
+          "base_under_face": 227,
+          "base_under_scalp": 1068,
+          "garment_under_extra": 0
+        }
       },
       "flattened_native128": {
         "atlas_crop": {
@@ -19131,7 +19440,7 @@
       "tool": 95
     },
     "avatar_job_recipes": 224,
-    "avatar_layer_pilots_ready": 1,
+    "avatar_layer_pilots_ready": 4,
     "avatars": 270,
     "canonical_total": 803,
     "icon_attachment_pilots_ready": 4,
