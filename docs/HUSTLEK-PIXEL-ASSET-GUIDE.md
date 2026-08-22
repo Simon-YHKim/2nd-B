@@ -557,15 +557,27 @@ repo root의 `SESSION_RECOVERY.md`는 작업 중 자주 갱신하는 local recov
 
 ### 16.5 새 세션의 수신 확인
 
-새 세션은 작업 전에 다음을 사용자에게 짧게 보고해야 한다.
+새 세션의 첫 단계는 읽기 전용 인수다. read-only 상태 확인 외에는 실행하지 않는다. 특히 이미지 생성, contact sheet 생성, 파일 수정, commit, catalog 변경을 금지한다.
+
+새 세션은 첫 응답에서 다음을 사용자에게 짧게 보고해야 한다.
 
 1. 읽은 정본 파일
 2. repo, branch, HEAD, clean/dirty 상태
 3. style lock과 catalog 승인 상태
 4. 인계 파일의 마지막 완료 지점
-5. 이번 세션에서 수행할 단 하나의 atomic task
+5. 이해한 핵심 제작 규칙
+6. 사용자에게 제안할 단 하나의 atomic task
+7. 실행 전에 필요한 사용자 결정
 
-보고 내용과 실제 저장소가 다르면 생성하지 말고 차이를 먼저 해결한다.
+보고 내용과 실제 저장소가 다르면 생성하지 말고 차이를 먼저 해결한다. 일치하더라도 첫 응답 뒤 반드시 멈추고 사용자의 명시적 승인을 기다린다.
+
+`읽어라`, `파악해라`, `검토해라`는 실행 승인이 아니다. 사용자가 제안된 atomic task를 명확히 승인하거나 수정 범위를 지정한 다음 메시지부터 작업할 수 있다. 모호하면 한 가지 짧은 질문으로 범위를 확정한다.
+
+첫 응답의 마지막 줄은 다음으로 고정한다.
+
+```text
+승인 대기 중 — 아직 어떤 이미지나 제작 파일도 생성·수정하지 않았습니다.
+```
 
 전용 시작 prompt는 `docs/HUSTLEK-NEW-SESSION-PROMPT.txt`에 두고, commit된 최신 상태는 `docs/HUSTLEK-SESSION-HANDOFF.md`에 둔다.
 
@@ -576,15 +588,16 @@ repo root의 `SESSION_RECOVERY.md`는 작업 중 자주 갱신하는 local recov
 3. `catalog.json`에서 `ready_for_review`와 `approved` 수를 보고한다.
 4. 작업 대상의 canonical source, alias 여부, 현재 master hash를 확인한다.
 5. 해당 종류의 style lock이 사용자 승인됐는지 확인한다.
-6. lock이 없으면 대표 샘플 1개만 만들고 bulk 생성을 중단한다.
-7. asset spec과 고정 prompt shell을 작성한다.
-8. 128px master만 생성하고 자동 검증·contact sheet를 만든다.
-9. 사용자의 1x 육안 승인을 받는다.
-10. 승인 master에서 16·32·48·64 plain NEAREST를 직접 만든다.
-11. 소실이 증명된 tier에만 whitelist correction을 적용한다.
-12. diff, hash, semantic QA, 모바일 검수까지 통과시킨다.
-13. immutable batch를 publish하고 catalog를 마지막에 갱신한다.
-14. 변경 파일, 검증 명령, commit, 남은 미승인 항목을 보고한다.
+6. 정확히 하나의 atomic task를 제안하고 사용자 승인 전까지 멈춘다.
+7. 승인 후 lock이 없으면 대표 샘플 1개만 만들고 bulk 생성을 중단한다.
+8. asset spec과 고정 prompt shell을 작성한다.
+9. 128px master만 생성하고 자동 검증·contact sheet를 만든다.
+10. 사용자의 1x 육안 승인을 받는다.
+11. 승인 master에서 16·32·48·64 plain NEAREST를 직접 만든다.
+12. 소실이 증명된 tier에만 whitelist correction을 적용한다.
+13. diff, hash, semantic QA, 모바일 검수까지 통과시킨다.
+14. immutable batch를 publish하고 catalog를 마지막에 갱신한다.
+15. 변경 파일, 검증 명령, commit, 남은 미승인 항목을 보고한다.
 
 ## 18. 새 세션에 전달할 프롬프트
 
@@ -606,6 +619,11 @@ Pixy skill, Pixy CLI, .pix, pixy.spec.json은 사용하지 마라.
 대상 asset의 source와 현재 decoded RGBA hash, 사용할 style-lock id/hash를
 먼저 보고해라. 현재 catalog의 ready_for_review 결과는 사용자 승인본으로
 간주하지 마라.
+
+이 첫 응답은 읽기 전용 인수다. 이해한 규칙과 단 하나의 atomic task를
+제안한 뒤 멈추고 사용자 승인을 기다려라. 이미지, contact sheet, 파일,
+commit, catalog를 생성·수정하지 마라. “읽어라”, “파악해라”, “검토해라”는
+작업 승인이 아니다.
 
 고정된 identity reference와 승인 style lock으로 진짜 native-detail
 128x128 master 하나를 먼저 만들어라. 1x 검수와 자동 검증을 통과하고
@@ -648,3 +666,4 @@ drift, 규칙 재탐색, 기억 의존이 발생하면 같은 중단 규칙을 �
 - [ ] context 80%, compaction 또는 style drift에서 새 생성을 중단함
 - [ ] `SESSION_RECOVERY.md`에 다음 atomic task가 하나만 기록됨
 - [ ] durable `docs/HUSTLEK-SESSION-HANDOFF.md`가 최종 recovery와 동기화됨
+- [ ] 새 세션 첫 응답이 읽기 전용으로 끝나고 사용자 승인을 기다림
