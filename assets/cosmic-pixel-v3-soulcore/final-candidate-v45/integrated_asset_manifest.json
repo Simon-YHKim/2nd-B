@@ -1,0 +1,765 @@
+{
+  "name": "Soul Core integrated final candidate set",
+  "version": "preview-45",
+  "status": "preview-only; app source assets not overwritten",
+  "style_rules": {
+    "pixel_style": "premium sharp Game Boy-inspired pixel art",
+    "detail_level": "about 30%",
+    "background_pipeline": "white-background source, local cutout, transparent PNG alpha validation"
+  },
+  "selected_sources": {
+    "soul": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\44_premium_ai_soul_core_30flame_30detail_tesseract_crisp_pixel",
+    "cores": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\39_premium_ai_voxel_tesseract_cores_30detail_crisp_pixel",
+    "semantic": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\41_premium_ai_tier_system_semantic_refinement_crisp_pixel"
+  },
+  "assets": {
+    "tier1_soul_core": [
+      {
+        "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier1_soul_core\\soul_core_96.png",
+        "size": [
+          96,
+          96
+        ],
+        "bytes": 9492,
+        "transparent_corners": true
+      },
+      {
+        "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier1_soul_core\\soul_core_128.png",
+        "size": [
+          128,
+          128
+        ],
+        "bytes": 15456,
+        "transparent_corners": true
+      },
+      {
+        "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier1_soul_core\\soul_core_256.png",
+        "size": [
+          256,
+          256
+        ],
+        "bytes": 19360,
+        "transparent_corners": true
+      },
+      {
+        "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier1_soul_core\\soul_core_384.png",
+        "size": [
+          384,
+          384
+        ],
+        "bytes": 21486,
+        "transparent_corners": true
+      },
+      {
+        "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier1_soul_core\\soul_core_preview512.png",
+        "size": [
+          512,
+          512
+        ],
+        "bytes": 23742,
+        "transparent_corners": true
+      }
+    ],
+    "tier2_pattern_cores": {
+      "bond": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\bond_core_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 8473,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\bond_core_128.png",
+          "size": [
+            128,
+            128
+          ],
+          "bytes": 9844,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\bond_core_256.png",
+          "size": [
+            256,
+            256
+          ],
+          "bytes": 12168,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\bond_core_preview384.png",
+          "size": [
+            384,
+            384
+          ],
+          "bytes": 12884,
+          "transparent_corners": true
+        }
+      ],
+      "wisdom": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\wisdom_core_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 8187,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\wisdom_core_128.png",
+          "size": [
+            128,
+            128
+          ],
+          "bytes": 9555,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\wisdom_core_256.png",
+          "size": [
+            256,
+            256
+          ],
+          "bytes": 11948,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\wisdom_core_preview384.png",
+          "size": [
+            384,
+            384
+          ],
+          "bytes": 12614,
+          "transparent_corners": true
+        }
+      ],
+      "narrative": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\narrative_core_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 7896,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\narrative_core_128.png",
+          "size": [
+            128,
+            128
+          ],
+          "bytes": 9275,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\narrative_core_256.png",
+          "size": [
+            256,
+            256
+          ],
+          "bytes": 11575,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\narrative_core_preview384.png",
+          "size": [
+            384,
+            384
+          ],
+          "bytes": 12350,
+          "transparent_corners": true
+        }
+      ],
+      "muse": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\muse_core_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 8347,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\muse_core_128.png",
+          "size": [
+            128,
+            128
+          ],
+          "bytes": 9712,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\muse_core_256.png",
+          "size": [
+            256,
+            256
+          ],
+          "bytes": 12141,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\muse_core_preview384.png",
+          "size": [
+            384,
+            384
+          ],
+          "bytes": 12887,
+          "transparent_corners": true
+        }
+      ],
+      "growth": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\growth_core_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 8472,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\growth_core_128.png",
+          "size": [
+            128,
+            128
+          ],
+          "bytes": 9977,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\growth_core_256.png",
+          "size": [
+            256,
+            256
+          ],
+          "bytes": 12524,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier2_pattern_cores\\growth_core_preview384.png",
+          "size": [
+            384,
+            384
+          ],
+          "bytes": 13287,
+          "transparent_corners": true
+        }
+      ]
+    },
+    "tier3_pattern_data": {
+      "bond": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\bond_pattern_data_48.png",
+          "size": [
+            48,
+            48
+          ],
+          "bytes": 2257,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\bond_pattern_data_64.png",
+          "size": [
+            64,
+            64
+          ],
+          "bytes": 2951,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\bond_pattern_data_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 3415,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\bond_pattern_data_preview192.png",
+          "size": [
+            192,
+            192
+          ],
+          "bytes": 4210,
+          "transparent_corners": true
+        }
+      ],
+      "wisdom": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\wisdom_pattern_data_48.png",
+          "size": [
+            48,
+            48
+          ],
+          "bytes": 2477,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\wisdom_pattern_data_64.png",
+          "size": [
+            64,
+            64
+          ],
+          "bytes": 3054,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\wisdom_pattern_data_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 3472,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\wisdom_pattern_data_preview192.png",
+          "size": [
+            192,
+            192
+          ],
+          "bytes": 4259,
+          "transparent_corners": true
+        }
+      ],
+      "narrative": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\narrative_pattern_data_48.png",
+          "size": [
+            48,
+            48
+          ],
+          "bytes": 1895,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\narrative_pattern_data_64.png",
+          "size": [
+            64,
+            64
+          ],
+          "bytes": 2528,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\narrative_pattern_data_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 2741,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\narrative_pattern_data_preview192.png",
+          "size": [
+            192,
+            192
+          ],
+          "bytes": 3491,
+          "transparent_corners": true
+        }
+      ],
+      "muse": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\muse_pattern_data_48.png",
+          "size": [
+            48,
+            48
+          ],
+          "bytes": 2024,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\muse_pattern_data_64.png",
+          "size": [
+            64,
+            64
+          ],
+          "bytes": 2686,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\muse_pattern_data_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 3005,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\muse_pattern_data_preview192.png",
+          "size": [
+            192,
+            192
+          ],
+          "bytes": 3805,
+          "transparent_corners": true
+        }
+      ],
+      "growth": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\growth_pattern_data_48.png",
+          "size": [
+            48,
+            48
+          ],
+          "bytes": 2763,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\growth_pattern_data_64.png",
+          "size": [
+            64,
+            64
+          ],
+          "bytes": 3396,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\growth_pattern_data_96.png",
+          "size": [
+            96,
+            96
+          ],
+          "bytes": 3880,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier3_pattern_data\\growth_pattern_data_preview192.png",
+          "size": [
+            192,
+            192
+          ],
+          "bytes": 4719,
+          "transparent_corners": true
+        }
+      ]
+    },
+    "tier4_logs": {
+      "work": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\work_log_64x48.png",
+          "size": [
+            64,
+            48
+          ],
+          "bytes": 2532,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\work_log_96x72.png",
+          "size": [
+            96,
+            72
+          ],
+          "bytes": 3064,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\work_log_128x96.png",
+          "size": [
+            128,
+            96
+          ],
+          "bytes": 3351,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\work_log_preview192x144.png",
+          "size": [
+            192,
+            144
+          ],
+          "bytes": 3733,
+          "transparent_corners": true
+        }
+      ],
+      "relationship": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\relationship_log_64x48.png",
+          "size": [
+            64,
+            48
+          ],
+          "bytes": 2533,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\relationship_log_96x72.png",
+          "size": [
+            96,
+            72
+          ],
+          "bytes": 3137,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\relationship_log_128x96.png",
+          "size": [
+            128,
+            96
+          ],
+          "bytes": 3356,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\relationship_log_preview192x144.png",
+          "size": [
+            192,
+            144
+          ],
+          "bytes": 3748,
+          "transparent_corners": true
+        }
+      ],
+      "knowledge": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\knowledge_log_64x48.png",
+          "size": [
+            64,
+            48
+          ],
+          "bytes": 2100,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\knowledge_log_96x72.png",
+          "size": [
+            96,
+            72
+          ],
+          "bytes": 2636,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\knowledge_log_128x96.png",
+          "size": [
+            128,
+            96
+          ],
+          "bytes": 2876,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\knowledge_log_preview192x144.png",
+          "size": [
+            192,
+            144
+          ],
+          "bytes": 3259,
+          "transparent_corners": true
+        }
+      ],
+      "love": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\love_log_64x48.png",
+          "size": [
+            64,
+            48
+          ],
+          "bytes": 2133,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\love_log_96x72.png",
+          "size": [
+            96,
+            72
+          ],
+          "bytes": 2657,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\love_log_128x96.png",
+          "size": [
+            128,
+            96
+          ],
+          "bytes": 2884,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\love_log_preview192x144.png",
+          "size": [
+            192,
+            144
+          ],
+          "bytes": 3241,
+          "transparent_corners": true
+        }
+      ],
+      "hobby": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\hobby_log_64x48.png",
+          "size": [
+            64,
+            48
+          ],
+          "bytes": 2329,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\hobby_log_96x72.png",
+          "size": [
+            96,
+            72
+          ],
+          "bytes": 2879,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\hobby_log_128x96.png",
+          "size": [
+            128,
+            96
+          ],
+          "bytes": 3220,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\tier4_logs\\hobby_log_preview192x144.png",
+          "size": [
+            192,
+            144
+          ],
+          "bytes": 3616,
+          "transparent_corners": true
+        }
+      ]
+    },
+    "pattern_links": {
+      "near": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_near_320x64.png",
+          "size": [
+            320,
+            64
+          ],
+          "bytes": 5223,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_near_640x128.png",
+          "size": [
+            640,
+            128
+          ],
+          "bytes": 6704,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_near_preview960x192.png",
+          "size": [
+            960,
+            192
+          ],
+          "bytes": 7662,
+          "transparent_corners": true
+        }
+      ],
+      "mid": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_mid_320x64.png",
+          "size": [
+            320,
+            64
+          ],
+          "bytes": 5022,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_mid_640x128.png",
+          "size": [
+            640,
+            128
+          ],
+          "bytes": 7076,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_mid_preview960x192.png",
+          "size": [
+            960,
+            192
+          ],
+          "bytes": 8075,
+          "transparent_corners": true
+        }
+      ],
+      "far": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_far_320x64.png",
+          "size": [
+            320,
+            64
+          ],
+          "bytes": 2969,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_far_640x128.png",
+          "size": [
+            640,
+            128
+          ],
+          "bytes": 4252,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_far_preview960x192.png",
+          "size": [
+            960,
+            192
+          ],
+          "bytes": 4964,
+          "transparent_corners": true
+        }
+      ],
+      "current": [
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_current_320x64.png",
+          "size": [
+            320,
+            64
+          ],
+          "bytes": 5180,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_current_640x128.png",
+          "size": [
+            640,
+            128
+          ],
+          "bytes": 6941,
+          "transparent_corners": true
+        },
+        {
+          "path": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\app-ready\\pattern_links\\pattern_link_current_preview960x192.png",
+          "size": [
+            960,
+            192
+          ],
+          "bytes": 7887,
+          "transparent_corners": true
+        }
+      ]
+    }
+  },
+  "qa": {
+    "contact_sheet": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\qa\\integrated_final_candidate_contact_sheet.png",
+    "hierarchy_preview": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\qa\\integrated_final_candidate_hierarchy_preview.png",
+    "runtime_size_overview": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\qa\\app_ready_runtime_size_overview.png",
+    "source_pass_previews": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\qa\\source_pass_previews"
+  },
+  "validation": "E:\\Hackerthon\\2nd_B\\Hackerthon_2nd B\\2nd-B\\asset_cleanup_preview\\45_integrated_soulcore_final_candidate_set\\alpha_validation_summary.json"
+}

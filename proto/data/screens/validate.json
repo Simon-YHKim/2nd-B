@@ -1,0 +1,123 @@
+{
+  "values": [
+    {
+      "k": "자율성",
+      "en": "Self-Direction",
+      "v": 78,
+      "note": "스스로 정하고 움직일 때 가장 나다워요"
+    },
+    {
+      "k": "성장",
+      "en": "Stimulation",
+      "v": 71,
+      "note": "새로움과 배움이 당신을 끌어당겨요"
+    },
+    {
+      "k": "진정성",
+      "en": "Authenticity",
+      "v": 66,
+      "note": "겉과 속이 같기를 바라요"
+    },
+    {
+      "k": "관계·돌봄",
+      "en": "Benevolence",
+      "v": 58,
+      "note": "가까운 사람을 챙기는 마음"
+    },
+    {
+      "k": "성취",
+      "en": "Achievement",
+      "v": 49,
+      "note": "해냈다는 감각을 좋아해요"
+    },
+    {
+      "k": "안정",
+      "en": "Security",
+      "v": 37,
+      "note": "예측 가능함은 우선순위가 낮아요"
+    }
+  ],
+  "ratify": [
+    {
+      "id": 1,
+      "src": "통화 녹음",
+      "icon": "mic",
+      "target": "관계 별",
+      "from": "L2",
+      "to": "L3",
+      "decision": "승인",
+      "when": "방금",
+      "note": "“사람 만나면 충전” 신호 확인"
+    },
+    {
+      "id": 2,
+      "src": "심층 인터뷰",
+      "icon": "forum",
+      "target": "외향성",
+      "from": "41",
+      "to": "47",
+      "decision": "승인",
+      "when": "1시간 전",
+      "note": "먼저 다가가는 패턴 4건"
+    },
+    {
+      "id": 3,
+      "src": "기록 분석",
+      "icon": "inventory_2",
+      "target": "리듬 별",
+      "from": "L2",
+      "to": "L3",
+      "decision": "보류",
+      "when": "오늘",
+      "note": "근거가 더 필요해요"
+    },
+    {
+      "id": 4,
+      "src": "캘린더 연동",
+      "icon": "workspaces",
+      "target": "건강 별",
+      "from": "L1",
+      "to": "L2",
+      "decision": "거절",
+      "when": "어제",
+      "note": "내가 동의하지 않은 추정"
+    },
+    {
+      "id": 5,
+      "src": "심층 인터뷰",
+      "icon": "forum",
+      "target": "애착 유형",
+      "from": "—",
+      "to": "안정형",
+      "decision": "승인",
+      "when": "2일 전",
+      "note": "ECR 12문항 응답"
+    }
+  ],
+  "decisionStyles": {
+    "승인": {
+      "c": "var(--md-sys-color-primary)",
+      "bg": "var(--md-sys-color-primary-container)",
+      "on": "var(--md-sys-color-on-primary-container)",
+      "icon": "check_circle"
+    },
+    "보류": {
+      "c": "#F7B955",
+      "bg": "rgba(247,185,85,.18)",
+      "on": "#F7B955",
+      "icon": "replay"
+    },
+    "거절": {
+      "c": "var(--md-sys-color-error)",
+      "bg": "var(--md-sys-color-error-container)",
+      "on": "var(--md-sys-color-on-error-container)",
+      "icon": "close"
+    }
+  },
+  "filters": [
+    "전체",
+    "승인",
+    "보류",
+    "거절"
+  ]
+}

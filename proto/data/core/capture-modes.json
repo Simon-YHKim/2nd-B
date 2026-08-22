@@ -1,0 +1,29 @@
+{
+  "modes": [
+    {
+      "id": "text",
+      "icon": "edit",
+      "label": "글"
+    },
+    {
+      "id": "link",
+      "icon": "link",
+      "label": "링크"
+    },
+    {
+      "id": "photo",
+      "icon": "photo_camera",
+      "label": "사진"
+    },
+    {
+      "id": "voice",
+      "icon": "mic",
+      "label": "음성"
+    },
+    {
+      "id": "todo",
+      "icon": "check_circle",
+      "label": "할 일"
+    }
+  ]
+}
