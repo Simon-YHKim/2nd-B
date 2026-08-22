@@ -1,6 +1,19 @@
-# HustleK 803 composition contract
+# HustleK composition contract — v1 legacy / v2 logical32
 
-이 문서는 PIXEL-CLAY 원본 803개를 HustleK 네이티브 128px 합성 시스템으로 옮길 때의 단일 계약이다. 기존 `design/hustlek-assets-v1`의 평면화된 128px 마스터는 독립 에셋과 정체성 참조로 보존한다. 합성용 레이어나 장착 변형으로 확대·축소해서 재사용하지 않는다.
+이 문서는 기존 PIXEL-CLAY 원본 803개의 v1 네이티브 128px 합성 상태와, 앞으로 제작할 v2 logical32 합성 규칙을 함께 기록한다. 기존 `design/hustlek-assets-v1`과 `design/hustlek-composition-v1`의 평면화된 128px 결과는 read-only legacy와 정체성 reference로 보존한다. 새 logical32 결과로 자동 변환·승인하거나 조용히 덮어쓰지 않는다.
+
+## Future authoring contract — logical32
+
+- 모든 새 아바타·아이콘·attachment·합성 layer는 32×32 논리 좌표에서 직접 설계한다.
+- ImageGen review carrier는 대응 identity reference의 물리 canvas와 aspect ratio를 그대로 유지하며 canonical이 아니다.
+- 현재 런타임의 128×128 호환 파일이 필요하면 logical32를 `NEAREST` 4×로 출력한다. 각 논리 픽셀은 정확히 같은 RGBA의 4×4 블록이어야 한다.
+- opening의 96×96 캐릭터 셀은 logical32의 3× envelope로 취급한다. 기존 승인 opening atlas와 hash는 변경하지 않는다.
+- v2 anchor, fit box, occlusion mask는 logical32 좌표로 새로 정의하고, 128px export에서는 모든 좌표를 정확히 4배한다.
+- 기존 v1 anchor에는 4의 배수가 아닌 좌표가 있으므로 4로 나누거나 반올림해 v2로 자동 이관하지 않는다.
+- 64·96·128px는 별도 디자인 tier가 아니라 2×·3×·4× 호환 출력이다. 비정수 48px는 새 기본 출력에서 제외한다.
+- v2 builder와 catalog schema가 준비되기 전에는 review-only 제작까지 허용하고 production publish는 금지한다.
+
+아래 Inventory, atlas, runtime 사용법은 현재 보존 중인 **v1 legacy의 실측 상태**다. 새 제작의 authoring 기준으로 사용하지 않는다.
 
 ## Inventory
 
@@ -13,7 +26,7 @@
 
 생성된 전수 카탈로그는 `design/hustlek-composition-v1/catalog.json`이다. 아바타 270개와 아이콘 533개 각각에 기존 native128 atlas crop과 decoded RGBA hash가 연결되어 있다.
 
-## Native-first rule
+## Legacy v1 native128 rule
 
 장착 아이콘은 최종 점유 크기로 배치된 128×128 투명 variant만 렌더링한다. 승인된 ImageGen 파일럿 4개는 그대로 보존하고, 나머지 263개는 사용자가 승인한 방식에 따라 standalone 128px master의 tight bbox를 슬롯 fit box에 NEAREST로 투영했다. 런타임 asset-to-asset 리사이즈는 금지한다.
 
@@ -49,6 +62,8 @@
 - 뒤 소품과 전경 소품은 아바타 원본 alpha를 변경하지 않는다.
 
 ## Build and check
+
+다음 명령은 기존 v1 산출물의 무결성 검사 전용이다. 새 logical32 batch를 만들거나 publish하는 데 사용하지 않는다.
 
 ```powershell
 python scripts/build-hustlek-composition-catalog.py

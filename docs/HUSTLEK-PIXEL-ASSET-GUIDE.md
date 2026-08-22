@@ -1,10 +1,12 @@
 # HustleK Pixel Asset Production Guide
 
-이 문서는 HustleK 아이콘·아바타를 다른 세션이나 다른 AI가 다시 제작해도 같은 스타일과 픽셀 제작 방식을 유지하기 위한 정본이다. 정적 에셋의 생성, 128px 마스터 승인, 저해상도 파생, 검증, 프로비넌스를 모두 이 문서로 잠근다.
+이 문서는 HustleK 아이콘·아바타를 다른 세션이나 다른 AI가 다시 제작해도 같은 스타일과 픽셀 제작 방식을 유지하기 위한 정본이다. 정적 에셋의 32px 논리 마스터 생성, 정수배 호환 출력, 검증, 프로비넌스를 모두 이 문서로 잠근다.
 
 ## 0. 현재 상태와 문서 우선순위
 
-2026-08-22 기준 `design/hustlek-assets-v1/catalog.json`에는 canonical 에셋 803개가 모두 `ready_for_review`로 등록되어 있지만 `approved`는 0개다. 즉, 현재 라이브러리는 검수 후보이지 최종 승인본이 아니다. 새 세션은 이를 임의로 승인 처리하거나 스타일 정본으로 선언하면 안 된다.
+2026-08-22 사용자 결정으로 **앞으로 새로 생성하거나 다시 그리는 모든 HustleK 정적 에셋의 논리 제작 그리드는 32×32**다. 물리 캔버스와 논리 그리드는 다르다. 검토용 ImageGen 결과는 대응 원본의 물리 크기와 비율을 유지하고, 런타임 호환 출력은 32px 논리 마스터의 정수배만 허용한다.
+
+기존 `design/hustlek-assets-v1/catalog.json`의 native128 에셋 803개는 모두 `ready_for_review`이고 `approved`는 0개다. 이 v1 라이브러리와 관련 builder·manifest·atlas는 **read-only legacy**로 동결한다. 새 32px 계약으로 자동 재분류, 변환, 승인하거나 style lock으로 승격하지 않는다. v2 제작기와 catalog migration이 준비되기 전에는 새 결과를 v1 경로에 publish하지 않는다.
 
 관련 문서가 충돌하면 다음 순서를 따른다.
 
@@ -19,37 +21,41 @@
 
 ## 1. 한 문장 원칙
 
-> 정체성은 원본에서, 그림체는 고정된 승인 reference에서 가져와 128×128 네이티브 마스터를 먼저 만들고, 16·32·48·64px는 그 마스터에서 직접 NEAREST로 파생한 뒤 증명된 소실 픽셀만 좌표 whitelist로 최소 보정한다.
+> 정체성은 원본에서, 그림체는 고정된 승인 reference에서 가져와 32×32 논리 마스터를 처음부터 직접 그리고, 64·96·128px 호환 파일은 그 마스터의 정확한 정수 2×·3×·4× NEAREST 출력으로만 만든다.
 
 이 원칙에서 벗어나는 결과는 보기 좋아도 HustleK production asset으로 승인하지 않는다.
 
 ## 2. 절대 규칙
 
-1. **128px master first**: 모든 canonical 에셋은 진짜 128×128 논리 그리드에 맞춰 새로 디자인한다.
-2. **원본은 identity reference**: 16·32·64px 원본을 128px로 확대해 마스터처럼 사용하지 않는다.
-3. **고정 style lock**: bulk 생성 전에 종류별 승인 reference와 decoded RGBA hash를 고정한다.
-4. **reference daisy-chain 금지**: 직전에 생성한 미승인 이미지를 다음 이미지의 style reference로 사용하지 않는다.
-5. **크기별 재생성 금지**: 16·32·48·64px를 이미지 모델에 각각 생성시키지 않는다.
-6. **직접 파생**: 모든 저해상도 tier는 잠긴 128px master에서 각각 직접 `NEAREST`로 만든다.
-7. **수술적 보정만 허용**: NEAREST 결과를 기본 정답으로 두고, 명시된 좌표의 픽셀만 최소 보정한다.
-8. **무안티앨리어싱**: bilinear, bicubic, LANCZOS, blur, 반투명 edge를 사용하지 않는다.
-9. **불변 프로비넌스**: source, prompt, reference, builder, master, correction plan의 hash를 기록한다.
-10. **검증 후 publish**: 모든 검증을 메모리 또는 임시 파일에서 끝낸 뒤 PASS일 때만 승인 경로에 쓴다.
-11. **Pixy 금지**: Pixy skill, Pixy CLI, `.pix`, `pixy.spec.json`을 사용하지 않는다.
-12. **런타임 확대·축소 금지**: 합성용 레이어와 attachment는 최종 128px 좌표로 미리 제작한다.
+1. **logical32 master first**: 모든 새 canonical 에셋은 진짜 32×32 논리 그리드에서 직접 디자인한다.
+2. **논리·물리 크기 분리**: ImageGen 검토 캔버스는 대응 원본의 물리 크기와 비율을 유지한다. 큰 PNG라는 이유로 64px·128px 논리 에셋으로 간주하지 않는다.
+3. **원본은 identity reference**: 기존 16·32·64·128px 결과를 축소·확대·필터 처리해 새 32px 마스터로 사용하지 않는다.
+4. **고정 style lock**: bulk 생성 전에 종류별 승인 reference와 decoded RGBA hash를 고정한다.
+5. **reference daisy-chain 금지**: 직전에 생성한 미승인 이미지를 다음 이미지의 style reference로 사용하지 않는다.
+6. **크기별 재생성 금지**: 64·96·128px를 이미지 모델에 각각 다시 그리게 하지 않는다.
+7. **정수배 직접 출력**: 64·96·128px는 잠긴 logical32 master에서 각각 직접 `NEAREST` 2×·3×·4×로 만든다. 48px는 1.5×라 기본 출력에서 제외한다.
+8. **축소 예외 최소화**: 16px가 실제로 필요할 때만 logical32에서 직접 NEAREST 축소하고, 증명된 소실 픽셀만 좌표 whitelist로 보정한다.
+9. **무안티앨리어싱**: bilinear, bicubic, LANCZOS, blur, 반투명 edge를 사용하지 않는다.
+10. **불변 프로비넌스**: source, prompt, reference, logical master, physical export, builder, correction plan의 hash를 기록한다.
+11. **검증 후 publish**: 모든 검증을 메모리 또는 임시 파일에서 끝낸 뒤 PASS일 때만 승인 경로에 쓴다.
+12. **Pixy 금지**: Pixy skill, Pixy CLI, `.pix`, `pixy.spec.json`을 사용하지 않는다.
+13. **런타임 임의 scaling 금지**: 합성용 레이어와 attachment는 logical32 좌표로 만들고 필요한 물리 캔버스에 정수배로 미리 출력한다.
+14. **v1 쓰기 금지**: 기존 native128 builder와 catalog는 검증·비교용 legacy다. 새 제작 요청이나 새 결과를 v1 batch에 쓰지 않는다.
 
 ## 3. 산출물 규격
 
-| 구분                | 규격                 | 역할                                                        |
-| ------------------- | -------------------- | ----------------------------------------------------------- |
-| canonical master    | 128×128 RGBA PNG     | 정체성·형태·팔레트·디테일의 유일한 원본                     |
-| production tiers    | 16·32·48·64 RGBA PNG | master에서 직접 파생된 실제 표시용 에셋                     |
-| composition variant | 128×128 RGBA PNG     | anchor와 z-order가 반영된 합성 전용 레이어                  |
-| production atlas    | RGBA, binary alpha   | 투명 crop을 그대로 재추출할 수 있는 raw atlas               |
-| review sheet        | RGB/RGBA preview     | checkerboard, label, integer zoom이 포함된 검수 전용 이미지 |
-| manifest            | UTF-8 JSON           | 입력·prompt·hash·검증·승인 상태 기록                        |
+| 구분                 | 규격                                  | 역할                                                        |
+| -------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| canonical master     | 32×32 RGBA PNG                        | 정체성·형태·팔레트·디테일의 유일한 논리 원본                |
+| review carrier       | 대응 원본과 같은 물리 canvas/aspect   | ImageGen 직접 재작화와 A/B 검수용, canonical 아님           |
+| compatibility export | 64·96·128 RGBA PNG                    | logical32에서 직접 만든 정확한 2×·3×·4× NEAREST 출력        |
+| compact export       | 필요할 때만 16×16 RGBA PNG            | logical32에서 직접 축소, 증명된 소실만 최소 보정             |
+| composition variant  | logical32 + 계약된 정수배 물리 canvas | anchor와 z-order가 반영된 합성 전용 레이어                  |
+| production atlas     | RGBA, binary alpha                    | 투명 crop을 그대로 재추출할 수 있는 raw atlas               |
+| review sheet         | RGB/RGBA preview                      | checkerboard, label, integer zoom이 포함된 검수 전용 이미지 |
+| manifest             | UTF-8 JSON                            | 입력·prompt·hash·논리/물리 규격·검증·승인 상태 기록         |
 
-95·96px는 실험 또는 비교 reference일 뿐 production tier가 아니다. 128px는 표시용 확대본이 아니라 master다.
+64·96·128px는 별도 디자인 tier가 아니라 32px 논리 마스터의 표시·호환 envelope다. 48px는 균일한 정수 픽셀 블록을 보존하지 못하므로 새 기본 출력에서 제외한다. 기존 v1의 48px와 native128 결과는 역사적 비교 reference일 뿐 v2 canonical이 아니다.
 
 모든 production PNG는 다음 조건을 만족해야 한다.
 
@@ -167,13 +173,13 @@ style-lock ids and hashes:
 
 alias는 별도 master를 만들지 않고 canonical target을 재사용한다.
 
-## 7. 128px Native Master 생성
+## 7. Logical32 Master 생성
 
 ### 7.1 이미지 입력 역할
 
 가능하면 입력은 세 장 이하로 고정한다.
 
-1. **Image 1, identity reference**: silhouette, 방향, crop, 핵심 부품만 제공
+1. **Image 1, identity reference**: silhouette, 방향, crop, 핵심 부품과 검토용 물리 canvas만 제공
 2. **Image 2, family style lock**: 같은 종류의 승인된 비율과 cluster 밀도 제공
 3. **Image 3, global style lock**: HustleK 공통 palette role, outline, 광원 제공
 
@@ -185,31 +191,35 @@ Image 1의 저해상도 픽셀을 확대하거나 그대로 따라 그리도록 
 
 ```text
 Use case: identity-preserve
-Asset type: canonical 128x128 logical pixel-art {avatar|icon} master
+Asset type: direct-redraw HustleK logical-32 pixel-art {avatar|icon}
 
-Primary request: Completely redraw Image 1 as a genuinely native-detail 128x128
-HustleK pixel-art {subject}. Image 1 provides identity, canonical silhouette,
-orientation, crop, and semantic anchors only. Never enlarge or trace its pixels.
-Images 2 and 3 are immutable style-only references.
+Primary request: Completely redraw Image 1 with the information budget and
+cluster density of a genuinely authored 32x32 logical HustleK pixel-art
+{subject}. Image 1 provides identity, canonical silhouette, orientation, crop,
+semantic anchors, and the physical review-canvas dimensions only. Never trace,
+pixelate, shrink, or enlarge an existing 64px or 128px result. Images 2 and 3
+are immutable style-only references.
 
 Subject: one centered {subject description}. Preserve {identity anchors},
 {negative spaces or appendage count}, orientation, proportions, and padding.
 
-Style: authentic handcrafted HustleK pixel art authored for a 128x128 logical
-grid; hard square-edged clusters; warm-charcoal outline; restrained 3-4 tone
-ramps per material; upper-left key light and lower-right shadow.
+Style: authentic handcrafted HustleK pixel art authored for a 32x32 logical
+grid; large hard square-edged clusters; warm-charcoal outline; restrained 3-4
+tone ramps per material; upper-left key light and lower-right shadow.
 
-Native detail: newly design {material and feature list} with sparse deliberate
-1-3 logical-pixel highlights. Primary identity cues must be at least 8 source
-pixels wide where possible so they survive a 16px NEAREST reduction.
+Logical detail: newly design {material and feature list} using only details that
+remain legible within 32 logical pixels. Eyes, nose, mouth, seams, highlights,
+and wrinkles use deliberate 1-2 logical-pixel clusters. Do not add sub-32-grid
+micro-detail. Primary identity cues must survive at native logical 1x.
 
 Hard constraints: every mark is grid-aligned, square-edged, and integer-sized.
-No low-resolution enlargement look. No antialiasing, blur, gradients,
+No filtered pixelation or high-resolution micro-detail. No antialiasing, blur, gradients,
 translucency, glow, random dithering, text, logo, watermark, scenery, cast
 shadow, floor, extra object, or borrowed character features.
 
 Backdrop: one perfectly flat solid {#00FF00|#FF00FF} chroma-key background,
-with no texture, halo, or key color inside the subject.
+with no texture, halo, or key color inside the subject. Preserve Image 1's
+exact physical canvas dimensions and aspect ratio for this review carrier.
 ```
 
 ### 7.3 종류별 추가 문장
@@ -237,19 +247,28 @@ with no texture, halo, or key color inside the subject.
 ### 7.5 palette
 
 - palette는 숫자보다 역할이 먼저다: outline, base, light, shadow, optional accent.
-- avatar는 보통 24색 안팎, 복합 object는 24~32색이 현재 pipeline의 참고 범위다.
+- logical32 avatar는 보통 8~16색, 복합 object는 8~20색을 참고 범위로 삼되 정체성에 필요한 역할색을 우선한다.
 - 숫자를 맞추기 위해 서로 다른 재질을 같은 색으로 뭉개지 않는다.
 - master 승인 때 한 번만 `MEDIANCUT + Dither.NONE` 같은 결정적 quantization을 사용할 수 있다.
-- 저해상도 tier마다 별도 palette 축소를 하지 않는다.
+- compatibility export마다 별도 palette 축소를 하지 않는다.
 - NEAREST baseline의 색상 수가 크다는 이유로 전역 palette limit을 강제하지 않는다.
+
+### 7.6 review carrier와 canonical의 경계
+
+- ImageGen이 큰 물리 PNG를 반환해도 그것은 `review carrier`일 뿐 logical32 master가 아니다.
+- 일반 resize, thumbnail, pixelation filter로 carrier를 32×32로 줄인 결과는 승인할 수 없다.
+- canonical은 32×32 그리드에서 cluster 좌표를 명시적으로 재구성하거나, exact 32×32 출력을 보장하는 v2 builder로 만들어야 한다.
+- v2 builder와 검증기가 준비되기 전에는 logical32 review carrier 제작·비교까지만 허용하고 production publish는 금지한다.
+- 이전 세션의 32px review strip도 이 경계를 통과하기 전에는 canonical 또는 style lock이 아니다.
 
 ## 8. Master 승인 게이트
 
-128px master는 다음을 모두 통과해야 `approved`가 될 수 있다.
+logical32 master는 다음을 모두 통과해야 `approved`가 될 수 있다. ImageGen review carrier와 canonical logical master를 같은 파일로 취급하지 않는다.
 
 ### 8.1 자동 검증
 
-- mode와 canvas가 `RGBA 128×128`
+- canonical mode와 canvas가 `RGBA 32×32`
+- review carrier의 물리 canvas와 aspect ratio가 대응 identity reference와 일치
 - binary alpha, hidden RGB 0, foreground non-empty
 - source SVG SHA-256 일치
 - raw generation과 cutout SHA-256 기록
@@ -257,56 +276,62 @@ with no texture, halo, or key color inside the subject.
 - decoded RGBA SHA-256 기록
 - two-pass post-processing 결과 동일
 - identity reference와 alpha IoU가 asset별 floor 이상
-- 원본 grid로 축소 후 다시 128로 키운 이미지와 decoded-identical하지 않음
-- collapse 비교에서 충분한 native detail loss가 측정됨
-- 원본보다 transition density가 유의미하게 증가
+- 기존 64px 또는 128px 결과를 축소·pixelation filter로 만든 provenance가 아님
+- 64·96·128 compatibility export가 logical32의 NEAREST 2×·3×·4×와 decoded RGBA byte-identical
+- logical32 안에서 필요한 silhouette와 semantic cue가 읽힘
 - 8-neighbor component와 negative-space 수가 semantic contract와 일치
 
 ### 8.2 육안 검증
 
 1. 투명 배경 1x에서 라벨 없이 정체성을 읽는다.
 2. 어두운 배경과 밝은 배경 모두에서 외곽선을 확인한다.
-3. integer 4x 또는 8x에서 cluster, stray pixel, hidden halo를 확인한다.
+3. logical32 1x와 integer 4x 또는 8x에서 cluster, stray pixel, hidden halo를 확인한다.
 4. 원본과 나란히 silhouette, 방향, crop, padding을 비교한다.
 5. style lock과 나란히 얼굴 비율, outline, 광원, material ramp를 비교한다.
-6. 16px NEAREST 임시 축소에서 dominant cue가 생존하는지 확인한다.
+6. 16px compact export가 실제 요구될 때만 임시 축소에서 dominant cue 생존을 확인한다.
 7. 같은 batch contact sheet에서 drift를 확인한다.
 
 `ready_for_review`는 자동 검증을 통과한 상태다. 사용자의 육안 승인이 있어야만 `approved`로 바꾼다.
 
-## 9. 16·32·48·64px 파생
+## 9. 64·96·128px 정수배 출력
 
 ### 9.1 유일한 baseline
 
-각 tier는 승인된 128px master에서 직접 만든다. tier를 연쇄 축소하지 않는다.
+모든 표시·호환 출력은 승인된 logical32 master에서 직접 만든다. 64·96·128px는 서로 다른 디자인 tier가 아니며, 같은 픽셀을 각각 2×·3×·4× 표시한 파일이다.
 
 ```python
 from PIL import Image
 
-master = Image.open(master_path).convert("RGBA")
-tiers = {
-    size: master.resize((size, size), Image.Resampling.NEAREST)
-    for size in (16, 32, 48, 64)
+logical32 = Image.open(master_path).convert("RGBA")
+assert logical32.size == (32, 32)
+exports = {
+    size: logical32.resize((size, size), Image.Resampling.NEAREST)
+    for size in (64, 96, 128)
 }
 ```
 
 금지 예시:
 
-- 128 → 64 → 32 → 16 연쇄 축소
-- 128 master와 무관한 16px bespoke sprite 제작
-- 각 크기를 image model에 별도 생성
-- bilinear로 축소한 뒤 sharpen 적용
-- 낮은 tier를 다시 128px로 키워 master 교체
+- 기존 64px 또는 128px 결과를 32px로 줄여 master라고 부르기
+- 기존 결과에 pixelation filter를 적용해 direct redraw라고 기록하기
+- 64·96·128px를 image model에 각각 별도 생성하기
+- 32 → 64 → 128처럼 호환 출력을 다시 입력으로 쓰기
+- 48px처럼 비정수 배율을 새 기본 출력으로 추가하기
+- bilinear, bicubic, LANCZOS, sharpen으로 블록 경계를 변형하기
 
 ### 9.2 NEAREST가 정답인 이유
 
-NEAREST는 master의 silhouette, palette, 배치, 재질 cluster를 동일한 계보로 유지한다. 각 크기를 따로 생성하면 같은 이름의 에셋이 서로 다른 캐릭터나 물체처럼 보인다. 따라서 baseline은 비교군이 아니라 identity contract다.
+NEAREST 정수 확대는 logical32 master의 silhouette, palette, 배치, 재질 cluster를 byte-exact 계보로 유지한다. 각 물리 크기를 따로 생성하면 같은 이름의 에셋이 서로 다른 캐릭터나 물체처럼 보인다. 따라서 logical32가 유일한 identity contract다.
+
+### 9.3 16px compact 예외
+
+16px 파일이 실제 런타임 요구로 확인된 경우에만 logical32에서 직접 `NEAREST`로 축소한다. 16px는 32px와 정보량이 다르므로 compatibility export가 아니라 compact derivative다. semantic cue 소실이 증명되지 않으면 보정 픽셀은 0개가 정답이다.
 
 ## 10. Surgical correction
 
 ### 10.1 허용 조건
 
-보정은 다음이 모두 참일 때만 허용한다.
+보정은 16px compact derivative에서 다음이 모두 참일 때만 허용한다. logical32 master 자체가 잘못됐으면 32px에서 다시 그리고, 64·96·128px compatibility export는 절대 보정하지 않는다.
 
 - 1x에서 정체성 cue가 실제로 소실되거나 구조가 분리됨
 - plain NEAREST의 문제 좌표를 재현할 수 있음
@@ -319,16 +344,13 @@ NEAREST는 master의 silhouette, palette, 배치, 재질 cluster를 동일한 �
 
 ### 10.2 기본 상한
 
-| tier | baseline alpha IoU 최저 | baseline foreground 대비 변경 비율 최고 |
-| ---: | ----------------------: | --------------------------------------: |
-|   16 |                   0.950 |                                   0.050 |
-|   32 |                   0.980 |                                   0.020 |
-|   48 |                   0.985 |                                   0.015 |
-|   64 |                   0.990 |                                   0.010 |
+| derivative | baseline alpha IoU 최저 | baseline foreground 대비 변경 비율 최고 |
+| ---------: | ----------------------: | --------------------------------------: |
+|       16px |                   0.950 |                                   0.050 |
 
-얇은 다리·안테나·도구처럼 구조적으로 취약한 object는 별도 승인된 category policy에서만 최대 `0.08 / 0.03 / 0.02 / 0.015`까지 완화할 수 있다. 단순히 더 예쁘게 만들고 싶다는 이유는 예외가 아니다.
+얇은 다리·안테나·도구처럼 구조적으로 취약한 object는 별도 승인된 category policy에서만 16px 변경 비율을 최대 `0.08`까지 완화할 수 있다. 단순히 더 예쁘게 만들고 싶다는 이유는 예외가 아니다.
 
-32·48·64px가 plain NEAREST로 읽히면 수정 픽셀은 0개가 정답이다. 16px도 필요한 1~수 픽셀만 보정한다.
+64·96·128px는 logical32의 정확한 정수배이므로 수정 픽셀은 항상 0개여야 한다. 16px도 필요한 1~수 픽셀만 보정한다.
 
 ### 10.3 허용 operation
 
@@ -363,11 +385,11 @@ tight-crop IoU나 인접 tier IoU는 진단값일 뿐이다. 이동·왜곡도 �
 | organic/tool | contour landmark, stem, diagonal orientation      | 잎·줄기 merge, 방향 drift       |
 | UI symbol    | center, stroke width, Euler topology              | 색은 맞지만 기호가 다른 모양    |
 
-48px는 128→48이 비정수 비율이므로 좌우 대칭 drift를 별도로 확인한다. 16px는 8-neighbor 연결을 사용하고, 대각선을 허용하지 않는 4-neighbor 강제 연결로 선을 불필요하게 두껍게 만들지 않는다.
+16px는 8-neighbor 연결을 사용하고, 대각선을 허용하지 않는 4-neighbor 강제 연결로 선을 불필요하게 두껍게 만들지 않는다. 64·96·128px는 각 논리 픽셀이 정확히 2×2·3×3·4×4 동일 RGBA 블록인지 확인한다.
 
 ## 12. 아바타 합성 규칙
 
-평면 master와 합성 layer는 별도 산출물이다. 평면 master를 분해한 여섯 layer는 다시 합성했을 때 decoded RGBA가 master와 정확히 같아야 한다.
+평면 logical32 master와 합성 layer는 별도 산출물이다. logical32 좌표에서 분해한 layer는 다시 합성했을 때 decoded RGBA가 32×32 master와 정확히 같아야 한다.
 
 |   z | layer                   | 책임                      |
 | --: | ----------------------- | ------------------------- |
@@ -386,8 +408,10 @@ tight-crop IoU나 인접 tier IoU는 진단값일 뿐이다. 이동·왜곡도 �
 - 모자 때문에 머리를 지울 때는 승인된 binary occlusion mask만 사용한다.
 - badge는 최종 garment alpha 안으로 clip한다.
 - 손 도구는 몸 위에 놓고 grip mask로 손가락만 복원한다.
-- attachment는 최종 anchor 크기의 128×128 variant로 제작한다.
-- runtime에서 standalone icon을 임의로 확대·축소해 장착하지 않는다.
+- 새 v2 anchor와 fit box는 logical32 좌표로 정의하고, 물리 128px 호환 variant는 모든 좌표를 정확히 4배해 출력한다.
+- attachment는 logical32 variant를 먼저 만들고 필요한 64·96·128px 정수배 canvas로 미리 출력한다.
+- runtime에서 standalone icon을 임의 또는 비정수 배율로 확대·축소해 장착하지 않는다.
+- 기존 v1의 128px anchor는 4의 배수가 아닌 좌표를 포함하므로 v2 logical32 anchor로 자동 나눗셈·이관하지 않는다.
 - 모든 533개 icon은 standalone으로 보존하되, 허용된 267개만 attachment로 사용한다.
 
 자세한 anchor와 occlusion 계약은 `docs/HUSTLEK-COMPOSITION.md`를 따른다.
@@ -404,14 +428,16 @@ tight-crop IoU나 인접 tier IoU는 진단값일 뿐이다. 이동·왜곡도 �
 
 ### 13.2 immutable output
 
-권장 경로:
+v2 권장 경로:
 
 ```text
-design/hustlek-assets-v1/native128/batches/<batch-id>/<contract-hash-12>/
+design/hustlek-assets-v2/logical32/batches/<batch-id>/<contract-hash-12>/
   master-atlas.png
   manifest.json
 ```
 
+- `design/hustlek-assets-v1/native128/`과 `design/hustlek-composition-v1/`은 legacy read-only다.
+- v2 builder와 schema가 준비되기 전에는 위 권장 경로를 수동 생성하거나 v1 catalog pointer를 갱신하지 않는다.
 - 기존 content-addressed 경로를 다른 bytes로 덮어쓰지 않는다.
 - 모든 검증이 끝나기 전에 catalog pointer를 갱신하지 않는다.
 - 실패 실행은 기존 PASS atlas, manifest, preview를 덮어쓰지 않는다.
@@ -428,12 +454,16 @@ design/hustlek-assets-v1/native128/batches/<batch-id>/<contract-hash-12>/
   "raw_generation_sha256": "...",
   "prompt_sha256": "...",
   "style_lock_rgba_sha256": ["..."],
-  "master_decoded_rgba_sha256": "...",
+  "logical_grid_px": 32,
+  "logical_master_decoded_rgba_sha256": "...",
+  "review_canvas_policy": "preserve-identity-reference",
+  "compatibility_exports": {"64": 2, "96": 3, "128": 4},
+  "derived_from_legacy_64_or_128": false,
   "builder_sha256_lf": "...",
   "imagegen_used_for_master": true,
-  "imagegen_used_for_derived_tiers": false,
+  "imagegen_used_for_compatibility_exports": false,
   "pixy_used": false,
-  "resampling": "Pillow Image.Resampling.NEAREST",
+  "resampling": "Pillow Image.Resampling.NEAREST integer-only",
   "correction_manifest_sha256": "...",
   "validation_result": "PASS"
 }
@@ -455,16 +485,17 @@ design/hustlek-assets-v1/native128/batches/<batch-id>/<contract-hash-12>/
 
 | 실패                             | 원인                                     | 복구                                                |
 | -------------------------------- | ---------------------------------------- | --------------------------------------------------- |
-| 크기마다 모습이 다름             | tier별 독립 생성                         | 승인 128 master에서 직접 NEAREST 재파생             |
-| 디테일이 커진 블록뿐임           | 저해상도 원본을 128로 확대               | 원본을 identity reference로만 쓰고 native128 재생성 |
+| 크기마다 모습이 다름             | 물리 크기별 독립 생성                    | 승인 logical32에서 2×·3×·4× NEAREST 재출력         |
+| 32px가 흐리거나 과도하게 세밀함  | 64/128 축소 또는 pixelation filter       | 원본을 identity로만 쓰고 logical32에서 직접 재작화  |
 | asset마다 그림체가 달라짐        | reference와 prompt가 batch마다 변함      | 고정 style-lock hash와 공통 shell로 재생성          |
 | 뒤로 갈수록 style drift          | 직전 결과를 다음 reference로 사용        | daisy-chain 폐기, 원래 lock으로 복귀                |
 | 16px에서 부품이 끊김             | sampling phase로 1px 연결 소실           | baseline 픽셀 copy whitelist로 최소 연결            |
-| 32px 이상이 다시 그려짐          | parametric semantic tier를 정답으로 사용 | plain NEAREST를 정답으로 되돌리고 0px 수정          |
+| 64·96·128px가 다시 그려짐        | compatibility export를 tier로 오해       | logical32 정수배 NEAREST로 되돌리고 0px 수정        |
 | 렌즈가 얇은 초승달처럼 보임      | 축 방향 핵심 픽셀 소실                   | master cue 폭을 재검토하거나 whitelist 최소 보정    |
 | preview만 있고 투명 asset이 없음 | label·배경이 baked된 sheet만 저장        | raw transparent atlas 또는 개별 PNG publish         |
 | 검증 FAIL인데 승인 파일이 바뀜   | 검증 전에 output overwrite               | memory/temp 검증 후 PASS에서 atomic replace         |
 | 검수 화면에서 이미지가 안 보임   | 외부 decoder·fetch 의존                  | local runtime PNG 직접 참조                         |
+| v1 catalog에 새 결과가 들어감    | legacy builder를 새 계약에 재사용        | publish 중단, v1 복원, v2 builder 준비 후 재시작    |
 | manifest와 실제 생성법이 다름    | provenance를 수동 추측                   | 실행 시점의 prompt·tool·hash를 자동 기록            |
 
 ## 16. Context Guard와 세션 교체
@@ -525,7 +556,7 @@ design/hustlek-assets-v1/native128/batches/<batch-id>/<contract-hash-12>/
 
 - 한 세션에는 한 asset family만 다룬다.
 - style-lock 단계는 대표 asset 1개만 생성하고 사용자 승인을 기다린다.
-- production 단계는 한 세션당 새 128px master 최대 4개다.
+- production 단계는 한 세션당 새 logical32 master 최대 4개다.
 - 하나의 master가 반려되면 같은 세션에서 bulk 생성을 계속하지 않는다.
 - prompt shell 또는 style lock이 바뀌면 현재 batch를 닫고 새 세션에서 새 version으로 시작한다.
 - generation, 1x 검수, manifest, commit까지를 하나의 atomic unit으로 본다.
@@ -586,15 +617,15 @@ repo root의 `SESSION_RECOVERY.md`는 작업 중 자주 갱신하는 local recov
 1. 이 문서를 끝까지 읽는다.
 2. repo, branch, `git status`, 적용되는 `AGENTS.md`를 확인한다.
 3. `catalog.json`에서 `ready_for_review`와 `approved` 수를 보고한다.
-4. 작업 대상의 canonical source, alias 여부, 현재 master hash를 확인한다.
+4. 작업 대상의 canonical source, alias 여부, 현재 v1 reference hash와 v2 logical32 master 유무를 확인한다.
 5. 해당 종류의 style lock이 사용자 승인됐는지 확인한다.
 6. 정확히 하나의 atomic task를 제안하고 사용자 승인 전까지 멈춘다.
 7. 승인 후 lock이 없으면 대표 샘플 1개만 만들고 bulk 생성을 중단한다.
 8. asset spec과 고정 prompt shell을 작성한다.
-9. 128px master만 생성하고 자동 검증·contact sheet를 만든다.
+9. 대응 원본과 같은 물리 canvas의 logical32 review carrier 하나만 만들고 자동 검증·contact sheet를 만든다.
 10. 사용자의 1x 육안 승인을 받는다.
-11. 승인 master에서 16·32·48·64 plain NEAREST를 직접 만든다.
-12. 소실이 증명된 tier에만 whitelist correction을 적용한다.
+11. 승인 logical32 master에서 필요한 64·96·128 정수배 export를 각각 직접 만든다.
+12. 16px가 실제로 필요하고 소실이 증명된 경우에만 whitelist correction을 적용한다.
 13. diff, hash, semantic QA, 모바일 검수까지 통과시킨다.
 14. immutable batch를 publish하고 catalog를 마지막에 갱신한다.
 15. 변경 파일, 검증 명령, commit, 남은 미승인 항목을 보고한다.
@@ -612,7 +643,7 @@ SESSION_RECOVERY.md가 없으면 docs/HUSTLEK-SESSION-HANDOFF.md를 사용하고
 둘 다 있으면 timestamp와 실제 저장소 상태를 대조해 더 최신 사실을 사용해라.
 
 Pixy skill, Pixy CLI, .pix, pixy.spec.json은 사용하지 마라.
-원본 16/32/64 에셋을 확대해 128 master로 사용하지 마라.
+원본이나 기존 64/128 결과를 축소·확대·pixelation filter 처리해 32 master로 사용하지 마라.
 크기별로 이미지를 따로 생성하지 마라.
 
 작업 시작 시 repo/branch/status와 catalog의 ready_for_review/approved 수,
@@ -625,19 +656,25 @@ Pixy skill, Pixy CLI, .pix, pixy.spec.json은 사용하지 마라.
 commit, catalog를 생성·수정하지 마라. “읽어라”, “파악해라”, “검토해라”는
 작업 승인이 아니다.
 
-고정된 identity reference와 승인 style lock으로 진짜 native-detail
-128x128 master 하나를 먼저 만들어라. 1x 검수와 자동 검증을 통과하고
-사용자가 승인하기 전에는 bulk 생성이나 lower tier 제작을 진행하지 마라.
+고정된 identity reference와 승인 style lock으로 진짜 logical32 master
+하나를 처음부터 직접 만들어라. ImageGen 검토 결과는 대응 원본의 물리
+canvas와 aspect ratio를 유지한다. 1x 검수와 자동 검증을 통과하고 사용자가
+승인하기 전에는 bulk 생성이나 compatibility export 제작을 진행하지 마라.
 
-승인 후 16, 32, 48, 64는 모두 잠긴 128 master에서 Pillow NEAREST로
-각각 직접 파생해라. plain NEAREST를 identity baseline으로 두고, 1x에서
-semantic cue 소실이 증명된 픽셀만 좌표 whitelist로 최소 보정해라.
-수정하지 않은 픽셀은 baseline과 byte-identical해야 한다.
+승인 후 64, 96, 128은 모두 잠긴 logical32 master에서 Pillow NEAREST
+정수 2x, 3x, 4x로 각각 직접 출력해라. 이 출력은 다시 그리는 tier가 아니다.
+16px가 실제로 필요할 때만 logical32에서 직접 축소하고, 1x에서 semantic cue
+소실이 증명된 픽셀만 좌표 whitelist로 최소 보정해라. 수정하지 않은 픽셀은
+baseline과 byte-identical해야 한다. 48px는 새 기본 출력에 포함하지 마라.
 
-RGBA 128/16/32/48/64, binary alpha, hidden RGB 0, source/prompt/reference/
-builder/master/correction hash, two-pass determinism, same-canvas diff,
+RGBA logical32와 필요한 16/64/96/128, binary alpha, hidden RGB 0,
+source/prompt/reference/logical-master/physical-export/builder/correction hash,
+64/96/128의 정수배 byte identity, two-pass determinism, same-canvas diff,
 semantic anchor, 1x 및 integer zoom 검수를 기록해라. 모든 검증이 PASS하기
 전에 기존 승인 파일이나 catalog를 덮어쓰지 마라.
+
+기존 design/hustlek-assets-v1 native128 builder와 catalog는 legacy read-only다.
+새 logical32 결과를 그 경로에 publish하지 마라.
 
 context 사용량이 70%에 도달하면 인계 초안을 만들고, 80% 또는 compaction에
 도달하면 새 생성 작업을 멈춰라. 검증·commit·SESSION_RECOVERY.md 갱신만
@@ -649,17 +686,21 @@ drift, 규칙 재탐색, 기억 의존이 발생하면 같은 중단 규칙을 �
 
 - [ ] 사용자 승인 style-lock id와 decoded RGBA hash가 고정됨
 - [ ] 원본을 identity reference로만 사용함
-- [ ] master가 진짜 128px native detail을 가짐
+- [ ] master가 진짜 32×32 logical detail로 직접 제작됨
+- [ ] review carrier가 대응 원본의 물리 canvas와 aspect ratio를 유지함
+- [ ] 기존 64/128 결과의 축소·필터 결과가 아님
 - [ ] 같은 family의 crop, 비율, outline, 광원이 일치함
 - [ ] binary alpha와 hidden RGB 0을 통과함
 - [ ] `ready_for_review`와 `approved`를 구분함
-- [ ] 16·32·48·64가 master에서 직접 NEAREST로 파생됨
+- [ ] 64·96·128이 logical32에서 직접 2×·3×·4× NEAREST로 출력됨
+- [ ] 16px는 실제 필요와 cue 소실이 증명된 경우에만 생성됨
 - [ ] correction이 좌표 whitelist와 비율 상한을 통과함
 - [ ] 1x, integer zoom, 밝은/어두운 배경에서 검수함
-- [ ] 48px 비정수 축소의 대칭 drift를 확인함
+- [ ] 새 기본 출력에 비정수 48px가 없음
 - [ ] production atlas에서 각 crop을 무손실 복원할 수 있음
 - [ ] 검수 화면이 local PNG를 실제로 로드함
-- [ ] source, prompt, reference, builder, master, tier hash가 기록됨
+- [ ] source, prompt, reference, builder, logical master, physical export hash가 기록됨
+- [ ] 기존 v1 native128 catalog와 builder가 변경되지 않음
 - [ ] 실패 실행이 승인 산출물을 변경하지 않음
 - [ ] Pixy 사용 흔적이 없음
 - [ ] context 70%에서 인계 초안을 갱신함
