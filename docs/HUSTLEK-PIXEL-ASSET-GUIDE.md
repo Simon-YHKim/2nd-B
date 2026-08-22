@@ -467,7 +467,109 @@ design/hustlek-assets-v1/native128/batches/<batch-id>/<contract-hash-12>/
 | 검수 화면에서 이미지가 안 보임   | 외부 decoder·fetch 의존                  | local runtime PNG 직접 참조                         |
 | manifest와 실제 생성법이 다름    | provenance를 수동 추측                   | 실행 시점의 prompt·tool·hash를 자동 기록            |
 
-## 16. 새 세션의 표준 작업 순서
+## 16. Context Guard와 세션 교체
+
+긴 세션에서 품질이 무너지는 직접 원인은 단순한 token 수가 아니라 다음 상태 변화다.
+
+- 최초 승인 기준보다 최근 대화의 임시 판단을 더 강하게 따름
+- compaction 뒤 reference 이미지의 역할과 승인 상태가 요약됨
+- 서로 다른 asset family의 prompt와 QA 규칙이 섞임
+- 이전 실패 원인과 현재 correction plan을 혼동함
+- 이미지 생성, 육안 판단, 코드 수정, batch publish를 한 세션에서 너무 많이 반복함
+
+따라서 컨텍스트 사용량과 상관없이 style drift 징후가 보이면 세션을 교체한다.
+
+### 16.1 단계별 중단선
+
+| 상태            | 허용 작업                        | 금지 작업                              | 필수 조치                        |
+| --------------- | -------------------------------- | -------------------------------------- | -------------------------------- |
+| 70% 이상        | 현재 asset의 검증·정리           | 새 batch, 새 family, prompt 구조 변경  | `SESSION_RECOVERY.md` 초안 갱신  |
+| 80% 이상        | 현재 atomic unit의 안전한 종료만 | 새 ImageGen 호출, 새 master, bulk 작업 | 검증·commit·인계 후 새 세션 권장 |
+| 90% 이상        | read-only 상태 확인과 인계       | 생성·편집·승인·catalog 갱신            | 즉시 중단하고 새 세션으로 전환   |
+| compaction 발생 | 완료된 결과 확인과 인계          | 기억에 의존한 계속 작업                | 80% 이상으로 간주하고 세션 교체  |
+
+플랫폼이 정확한 context 사용률을 보여주지 않으면 다음 중 하나만 발생해도 80% 이상으로 간주한다.
+
+- 대화가 자동 요약 또는 compaction되었다는 표시가 나타남
+- 처음의 reference 역할, 승인 이미지, prompt shell을 원문 없이 회상해야 함
+- 같은 규칙을 다시 찾기 위해 긴 대화 기록을 반복 탐색함
+- 미승인 결과를 승인 reference로 착각하거나 prompt가 batch 중간에 바뀜
+- 사용자가 style drift, 깨진 픽셀, 이전과 다른 그림체를 발견함
+- agent가 동일한 실패를 한 세션에서 두 번째 반복함
+
+### 16.2 중단 후 허용되는 일
+
+중단선에 도달하면 “조금만 더 생성”하지 않는다. 다음 작업만 수행한다.
+
+1. 진행 중인 tool call 결과가 있으면 raw output을 보존한다.
+2. 현재 atomic asset의 자동 검증을 끝내거나 미완료라고 명시한다.
+3. 승인 파일과 catalog가 변경되지 않았는지 확인한다.
+4. `git status`, diff, 마지막 commit을 기록한다.
+5. repo root의 `SESSION_RECOVERY.md`를 현재 사실로 갱신한다.
+6. 최종 인계 상태를 `docs/HUSTLEK-SESSION-HANDOFF.md`에 반영한다.
+7. 필요한 변경만 checkpoint commit으로 남긴다.
+8. 사용자에게 새 세션 시작을 권장하고 전용 prompt 파일을 제공한다.
+
+컨텍스트 경계 이후에는 다음을 하지 않는다.
+
+- 새 이미지 생성
+- style reference 교체
+- 새로운 보정 좌표 판단
+- 다수 asset의 승인 또는 반려
+- 실패한 validation을 우회하는 코드 수정
+- 결과를 `approved`로 승격
+
+### 16.3 한 세션의 작업 상한
+
+컨텍스트 표시가 여유로워도 다음 상한을 지킨다.
+
+- 한 세션에는 한 asset family만 다룬다.
+- style-lock 단계는 대표 asset 1개만 생성하고 사용자 승인을 기다린다.
+- production 단계는 한 세션당 새 128px master 최대 4개다.
+- 하나의 master가 반려되면 같은 세션에서 bulk 생성을 계속하지 않는다.
+- prompt shell 또는 style lock이 바뀌면 현재 batch를 닫고 새 세션에서 새 version으로 시작한다.
+- generation, 1x 검수, manifest, commit까지를 하나의 atomic unit으로 본다.
+
+4개는 목표가 아니라 상한이다. 1개에서 품질 문제가 발견되면 즉시 멈춘다.
+
+### 16.4 인계 파일 계약
+
+repo root의 `SESSION_RECOVERY.md`는 작업 중 자주 갱신하는 local recovery 파일이며 `.gitignore` 대상이다. `docs/HUSTLEK-SESSION-HANDOFF.md`는 새 worktree나 다른 환경에서도 읽을 수 있도록 commit하는 durable handoff다.
+
+세션 종료 시 local recovery의 최종 사실을 durable handoff에 반영한다. 새 세션은 durable handoff를 먼저 읽고, 같은 worktree에 더 최신 `SESSION_RECOVERY.md`가 있으면 두 파일의 timestamp와 저장소 상태를 비교한 뒤 local recovery를 우선한다.
+
+두 파일은 항상 다음을 포함한다.
+
+- worktree, branch, 시작 기준 commit, 현재 `git status`
+- 사용자의 최신 결정과 작업 목적
+- 읽어야 할 정본 문서
+- 현재 catalog의 `ready_for_review`와 `approved` 수
+- 승인된 style-lock id, 경로, decoded hash 또는 `없음`
+- 현재 atomic asset과 완료·미완료 상태
+- 이번 세션에서 변경한 파일과 commit
+- 실행한 검증과 실제 결과
+- 생성된 raw/master/tier/review 경로
+- 실패·반려·보류 항목과 이유
+- 새 세션이 수행할 정확히 하나의 다음 작업
+- 절대로 반복하거나 수행하면 안 되는 작업
+
+스크린샷이나 “이전 대화 참고”만으로 인계하지 않는다. 경로, 좌표, hash, 명령을 텍스트로 기록한다.
+
+### 16.5 새 세션의 수신 확인
+
+새 세션은 작업 전에 다음을 사용자에게 짧게 보고해야 한다.
+
+1. 읽은 정본 파일
+2. repo, branch, HEAD, clean/dirty 상태
+3. style lock과 catalog 승인 상태
+4. 인계 파일의 마지막 완료 지점
+5. 이번 세션에서 수행할 단 하나의 atomic task
+
+보고 내용과 실제 저장소가 다르면 생성하지 말고 차이를 먼저 해결한다.
+
+전용 시작 prompt는 `docs/HUSTLEK-NEW-SESSION-PROMPT.txt`에 두고, commit된 최신 상태는 `docs/HUSTLEK-SESSION-HANDOFF.md`에 둔다.
+
+## 17. 새 세션의 표준 작업 순서
 
 1. 이 문서를 끝까지 읽는다.
 2. repo, branch, `git status`, 적용되는 `AGENTS.md`를 확인한다.
@@ -484,13 +586,17 @@ design/hustlek-assets-v1/native128/batches/<batch-id>/<contract-hash-12>/
 13. immutable batch를 publish하고 catalog를 마지막에 갱신한다.
 14. 변경 파일, 검증 명령, commit, 남은 미승인 항목을 보고한다.
 
-## 17. 새 세션에 전달할 프롬프트
+## 18. 새 세션에 전달할 프롬프트
 
-아래 블록을 새 세션의 첫 요청에 붙여 넣을 수 있다.
+새 세션에서는 `docs/HUSTLEK-NEW-SESSION-PROMPT.txt`의 내용을 첫 요청으로 그대로 붙여 넣는다. 아래는 같은 계약의 축약본이다.
 
 ```text
 먼저 docs/HUSTLEK-PIXEL-ASSET-GUIDE.md를 끝까지 읽고 그 문서를
 HustleK 정적 픽셀 에셋 제작의 정본으로 사용해라.
+repo root의 SESSION_RECOVERY.md도 읽고, 채팅 기억보다 그 파일의
+경로·hash·검증·다음 작업을 우선해라.
+SESSION_RECOVERY.md가 없으면 docs/HUSTLEK-SESSION-HANDOFF.md를 사용하고,
+둘 다 있으면 timestamp와 실제 저장소 상태를 대조해 더 최신 사실을 사용해라.
 
 Pixy skill, Pixy CLI, .pix, pixy.spec.json은 사용하지 마라.
 원본 16/32/64 에셋을 확대해 128 master로 사용하지 마라.
@@ -514,9 +620,14 @@ RGBA 128/16/32/48/64, binary alpha, hidden RGB 0, source/prompt/reference/
 builder/master/correction hash, two-pass determinism, same-canvas diff,
 semantic anchor, 1x 및 integer zoom 검수를 기록해라. 모든 검증이 PASS하기
 전에 기존 승인 파일이나 catalog를 덮어쓰지 마라.
+
+context 사용량이 70%에 도달하면 인계 초안을 만들고, 80% 또는 compaction에
+도달하면 새 생성 작업을 멈춰라. 검증·commit·SESSION_RECOVERY.md 갱신만
+끝낸 뒤 새 세션을 권장해라. 정확한 context 수치가 보이지 않더라도 style
+drift, 규칙 재탐색, 기억 의존이 발생하면 같은 중단 규칙을 적용해라.
 ```
 
-## 18. 최종 승인 체크리스트
+## 19. 최종 승인 체크리스트
 
 - [ ] 사용자 승인 style-lock id와 decoded RGBA hash가 고정됨
 - [ ] 원본을 identity reference로만 사용함
@@ -533,3 +644,7 @@ semantic anchor, 1x 및 integer zoom 검수를 기록해라. 모든 검증이 PA
 - [ ] source, prompt, reference, builder, master, tier hash가 기록됨
 - [ ] 실패 실행이 승인 산출물을 변경하지 않음
 - [ ] Pixy 사용 흔적이 없음
+- [ ] context 70%에서 인계 초안을 갱신함
+- [ ] context 80%, compaction 또는 style drift에서 새 생성을 중단함
+- [ ] `SESSION_RECOVERY.md`에 다음 atomic task가 하나만 기록됨
+- [ ] durable `docs/HUSTLEK-SESSION-HANDOFF.md`가 최종 recovery와 동기화됨
