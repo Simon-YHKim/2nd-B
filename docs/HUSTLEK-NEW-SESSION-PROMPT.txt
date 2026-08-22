@@ -1,5 +1,9 @@
 HustleK 픽셀 에셋 작업을 새 세션에서 이어간다.
 
+작업 대상 worktree는 E:/2ndB/.worktrees/hustlek-imagegen-pilot 이다.
+E:/2ndB canonical main checkout이나 다른 worktree에서 파일을 수정하지 마라.
+먼저 위 경로를 작업 디렉터리로 사용하고 실제 branch를 확인해라.
+
 작업 전에 다음 파일을 순서대로 끝까지 읽어라.
 
 1. docs/HUSTLEK-PIXEL-ASSET-GUIDE.md
