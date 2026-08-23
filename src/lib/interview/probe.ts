@@ -165,6 +165,14 @@ export function incrementCoverage(c: Coverage, p: LifePeriod, l: DrillLayer): Co
   return next;
 }
 
+/** 한 칸을 되돌린다. 모델이 "그 답은 그 층에 안 닿았다"고 했을 때 쓴다.
+ *  0 아래로는 안 내려간다 -- 되돌릴 것이 없으면 그대로다. */
+export function decrementCoverage(c: Coverage, p: LifePeriod, l: DrillLayer): Coverage {
+  const next = JSON.parse(JSON.stringify(c)) as Coverage;
+  next[p][l] = Math.max(0, next[p][l] - 1);
+  return next;
+}
+
 /** Total user answers across all 25 cells. */
 export function totalTurns(c: Coverage): number {
   let t = 0;
@@ -278,6 +286,9 @@ function buildSystemPrompt(
   nextLayer: DrillLayer,
   /** 직전에 사용자가 이 층을 못 답했다. 더 깊이 가지 말고 **쉽게** 다시 물어야 한다. */
   scaffold = false,
+  /** 직전 질문이 겨냥했던 층. 모델은 직전 답이 **거기 닿았는지**를 같이 판정한다.
+   *  null 이면 아직 답이 없다(첫 질문) -- 판정할 것이 없다. */
+  askedLayer: DrillLayer | null = null,
 ): string {
   const periodLabel = PERIOD_LABEL[locale][period];
   const layerLabel = LAYER_LABEL[locale][nextLayer];
@@ -314,7 +325,15 @@ function buildSystemPrompt(
               + "모르겠다는 것을 문제 삼거나 다극지 않습니다.",
           ]
         : []),
-      "출력: 다음 질문 한 줄만. 다른 텍스트는 출력하지 않습니다.",
+      ...(askedLayer !== null
+        ? [
+            `9) 함께 판정합니다 — **사용자의 마지막 답이 ${LAYER_LABEL[locale][askedLayer]} 에 실제로 닿았습니까?**`
+              + " 닿았으면 그 층 이름을, 답을 아예 안 한 것이면(거부·되묻기·인터뷰 자체에 대한 항의·딴 이야기)"
+              + " `none` 을 `answeredLayer` 에 넣습니다. 이 판정은 **덜 후하게** 하십시오 —"
+              + " 애매하면 닿았다고 하지 말고 `none` 으로 두십시오.",
+          ]
+        : []),
+      "출력: JSON 객체 하나. `question` 에 다음 질문 한 줄, `answeredLayer` 에 위 판정.",
       INJECTION_GUARD.ko,
     ].join("\n");
   }
@@ -345,7 +364,15 @@ function buildSystemPrompt(
             + "Never treat not knowing as a problem or press them about it.",
         ]
       : []),
-    "Output: the next question on a single line. No other text.",
+    ...(askedLayer !== null
+      ? [
+          `9) Also judge: **did the user's last answer actually land in ${LAYER_LABEL[locale][askedLayer]}?**`
+            + " Put that layer's name in `answeredLayer` if it did, or `none` if they did not answer at all"
+            + " (refusal, a question back, a complaint about the interview itself, off-topic)."
+            + " Be STINGY here - when in doubt, say `none` rather than crediting it.",
+        ]
+      : []),
+    "Output: one JSON object. `question` = the next question, one line. `answeredLayer` = the judgement above.",
     INJECTION_GUARD.en,
   ].join("\n");
 }
@@ -364,6 +391,19 @@ export interface ProbeResult {
   /** The layer the next question is probing for. Caller increments coverage
    *  with this layer once the user answers. */
   layer: DrillLayer;
+  /**
+   * 직전 답이 **실제로** 어느 층에 닿았는지에 대한 모델의 판정. 닿은 데가 없으면
+   * `null`. 직전 답이 아예 없으면 `undefined`.
+   *
+   * ⚠ 이 값은 **깎는 데만 쓴다.** 3단계 프롬프트의 S1(분류)은 처음부터 있었는데
+   * 결과가 여기 안 실려서 버려지고 있었다(2026-08-24 실측). 되살리되 규율을 둔다 --
+   * 모델이 "닿았다"고 해도 그것만으로 칸을 채우지 않고, **"안 닿았다"고 할 때만**
+   * 결정론적 판정 위에 얹어 크레딧을 물린다.
+   *
+   * 이유: 밝기가 부풀면 거짓말이 되고 덜 차면 그냥 덜 찬 것이다. 모델에게 줄 수
+   * 있는 권한은 거부권까지다. `isNonAnswer`(결정론적)는 그대로 바닥으로 남는다.
+   */
+  answeredLayer?: DrillLayer | null;
 }
 
 /** Generate the next interviewer question.
@@ -388,20 +428,82 @@ export async function nextProbe(
   // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
   // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
   const layer = forceLayer ?? nextLayerSuggestion(coverage, period);
-  const res = await callLlm({
+  const askedLayer = lastAskedLayer(history);
+  const res = await callLlm<ProbeReply>({
     userId,
     locale,
     purpose: "interview_probe",
-    system: buildSystemPrompt(period, locale, layer, scaffoldStreak > 0),
+    system: buildSystemPrompt(period, locale, layer, scaffoldStreak > 0, askedLayer),
     user: buildUserPrompt(history),
     minor,
+    responseSchema: PROBE_SCHEMA,
   });
-  const cleaned = res.text.trim().split("\n")[0]?.trim() ?? "";
+  // 구조화 출력이 깨져도 화면이 멈추지 않게 원문 첫 줄로 떨어진다.
+  // 그 아래 대체 문장까지 있으니 두 겹이다.
+  // ⚠ `callLlm` 은 스키마를 줘도 **문자열**을 돌려준다. 파싱은 부르는 쪽 몫이다
+  // (`audit/axis-estimate.ts` 가 같은 관용구를 쓴다). 실측 2026-08-24: 여기서
+  // 파싱된 객체를 기대했더니 `bodyType:"string"` 이라 판정이 통째로 버려졌고,
+  // 겉으로는 그냥 "거부권이 안 걸리네" 로만 보였다.
+  const parsed = parseProbeReply(typeof res.text === "string" ? res.text : "");
+  const raw = typeof parsed?.question === "string" ? parsed.question : typeof res.text === "string" ? res.text : "";
+  const cleaned = raw.trim().split("\n")[0]?.trim() ?? "";
   return {
     question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
     zone: res.safety.zone,
     layer,
+    answeredLayer: askedLayer === null ? undefined : readAnsweredLayer(parsed),
   };
+}
+
+interface ProbeReply {
+  answeredLayer?: unknown;
+  question?: unknown;
+}
+
+/** 구조화 출력. 루트는 OBJECT 여야 한다(전사 규약, `assertRootObjectSchema`). */
+const PROBE_SCHEMA: Record<string, unknown> = {
+  type: "OBJECT",
+  properties: {
+    answeredLayer: {
+      type: "STRING",
+      enum: [...DRILL_LAYERS, "none"],
+      description:
+        "Which layer the user's LAST answer actually landed in. Use 'none' if it did not answer at all (refusal, meta-comment about the interview, off-topic).",
+    },
+    question: { type: "STRING", description: "The next interviewer question, one line." },
+  },
+  required: ["answeredLayer", "question"],
+};
+
+/** 모델 응답에서 JSON 객체를 꺼낸다. 못 꺼내면 null -- 그때는 원문을 질문으로 쓰고
+ *  판정은 없는 것으로 둔다(모르는 것과 "안 닿았다"는 다르다). */
+function parseProbeReply(text: string): ProbeReply | null {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const obj: unknown = JSON.parse(match[0]);
+    return typeof obj === "object" && obj !== null ? (obj as ProbeReply) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 직전에 인터뷰어가 **겨냥했던** 층. 없으면 null(= 아직 답이 없다). */
+function lastAskedLayer(history: readonly InterviewTurn[]): DrillLayer | null {
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const turn = history[i];
+    if (turn?.role === "user") return turn.layer ?? null;
+  }
+  return null;
+}
+
+/** 모델의 분류를 읽는다. **모르겠으면 `undefined`** -- 판단을 안 한 것과 "안 닿았다"는
+ *  다르다. 전자는 크레딧을 그대로 두고, 후자만 물린다. */
+function readAnsweredLayer(parsed: ProbeReply | null): DrillLayer | null | undefined {
+  const v = parsed?.answeredLayer;
+  if (typeof v !== "string") return undefined;
+  if (v === "none") return null;
+  return (DRILL_LAYERS as readonly string[]).includes(v) ? (v as DrillLayer) : undefined;
 }
 
 /**
