@@ -17,5 +17,8 @@
   "ratifyDeltaNote": "Suas respostas são salvas como estão. Não inventamos uma estimativa agora; suas estrelas se iluminam conforme seus registros se acumulam.",
   "progressLabel": "Pergunta {{n}} / {{total}} · Entrevista de lembranças",
   "screenerSubtitle": "Voltamos ao mesmo ponto de um jeito um pouco diferente a cada vez, para vê-lo com mais clareza.",
-  "reflectErrorBody": "Suas respostas continuam aqui. Tente novamente em um instante."
+  "reflectErrorBody": "Suas respostas continuam aqui. Tente novamente em um instante.",
+  "loopCheck.stuckLoop": "Aquilo a que você sempre volta: está lhe dizendo algo novo, ou você chega sempre à mesma conclusão?",
+  "loopCheck.friendView": "O que você diria a um amigo próximo que estivesse exatamente nesta situação?",
+  "loopCheck.setAside": "O que mudaria se você deixasse esse pensamento de lado por cinco minutos?"
 }
