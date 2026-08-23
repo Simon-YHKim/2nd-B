@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HustleK 직업·아이콘 인벤토리</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --sky: #07111f;
+        --surface: #0c2034;
+        --surface-strong: #12304a;
+        --line: #285777;
+        --text: #f4f1e8;
+        --muted: #92bdd2;
+        --cyan: #61d7ee;
+        --gold: #ffc34d;
+        --green: #68d7aa;
+        --red: #ff8074;
+        font-family: "Galmuri11", "Noto Sans KR", system-ui, sans-serif;
+        background: var(--sky);
+        color: var(--text);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background: var(--sky);
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button,
+      input,
+      select {
+        border: 1px solid var(--line);
+        border-radius: 0;
+        background: var(--surface);
+        color: var(--text);
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--gold);
+        outline-offset: 2px;
+      }
+
+      .shell {
+        width: min(1480px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      .eyebrow,
+      code,
+      .mono {
+        font-family: "Roboto Mono", ui-monospace, monospace;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--cyan);
+        font-size: 12px;
+        letter-spacing: 0.12em;
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--gold);
+        font-size: clamp(26px, 4vw, 42px);
+        font-weight: 700;
+      }
+
+      .intro {
+        max-width: 840px;
+        margin: 10px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .notice {
+        margin: 22px 0;
+        border-left: 4px solid var(--gold);
+        padding: 13px 15px;
+        background: var(--surface);
+        color: var(--text);
+        line-height: 1.55;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 1px;
+        border: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .stat {
+        min-width: 0;
+        padding: 14px;
+        background: var(--surface);
+      }
+
+      .stat strong {
+        display: block;
+        color: var(--gold);
+        font-family: "Roboto Mono", ui-monospace, monospace;
+        font-size: 24px;
+      }
+
+      .stat span {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .inventory {
+        margin-top: 22px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .tab {
+        min-height: 54px;
+        border-width: 0 1px 0 0;
+        background: var(--surface);
+        color: var(--muted);
+      }
+
+      .tab:last-child {
+        border-right: 0;
+      }
+
+      .tab[aria-selected="true"] {
+        background: var(--surface-strong);
+        color: var(--gold);
+        box-shadow: inset 0 -3px 0 var(--gold);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(170px, 230px) minmax(160px, 210px) 130px;
+        gap: 10px;
+        padding: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .field {
+        display: grid;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .field input,
+      .field select {
+        min-height: 42px;
+        width: 100%;
+        padding: 8px 10px;
+      }
+
+      .list-head,
+      .pager {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+      }
+
+      .list-head {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .list-head h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .result-summary {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-auto-rows: max-content;
+        align-content: start;
+        gap: 10px;
+        min-height: 420px;
+        padding: 16px;
+      }
+
+      .asset-card {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-width: 0;
+        min-height: 206px;
+        border: 1px solid var(--line);
+        padding: 10px;
+        background: var(--sky);
+      }
+
+      .asset-card:hover {
+        border-color: var(--cyan);
+      }
+
+      .sprite-scene,
+      .placeholder {
+        position: relative;
+        width: 96px;
+        height: 96px;
+        margin: 0 auto 10px;
+        overflow: hidden;
+        background: var(--surface-strong);
+        image-rendering: pixelated;
+      }
+
+      .sprite-scene img {
+        position: absolute;
+        max-width: none;
+        image-rendering: pixelated;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      .placeholder {
+        display: grid;
+        place-items: center;
+        border: 1px dashed var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        text-align: center;
+      }
+
+      .asset-title {
+        overflow: hidden;
+        margin: 0;
+        color: var(--text);
+        font-size: 15px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .asset-en {
+        overflow: hidden;
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .asset-id {
+        display: block;
+        overflow: hidden;
+        margin-top: 8px;
+        color: var(--cyan);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 9px;
+      }
+
+      .tag {
+        border: 1px solid var(--line);
+        padding: 3px 5px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .tag.ready {
+        border-color: var(--green);
+        color: var(--green);
+      }
+      .tag.reserved {
+        border-color: var(--red);
+        color: var(--red);
+      }
+
+      .cloth {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border: 1px solid var(--text);
+        vertical-align: -1px;
+      }
+
+      .alias-card {
+        min-height: 118px;
+        grid-template-rows: auto;
+        align-content: center;
+      }
+
+      .alias-arrow {
+        margin: 8px 0;
+        color: var(--gold);
+        font-size: 18px;
+      }
+
+      .empty {
+        grid-column: 1 / -1;
+        align-self: center;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .pager {
+        border-top: 1px solid var(--line);
+      }
+
+      .pager button,
+      .copy-button {
+        min-height: 40px;
+        padding: 8px 13px;
+      }
+
+      .pager button:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+
+      .page-label {
+        color: var(--muted);
+        font-family: "Roboto Mono", ui-monospace, monospace;
+        font-size: 12px;
+      }
+
+      .footnote {
+        margin: 16px 0 0;
+        color: var(--muted);
+        font-family: "Roboto Mono", ui-monospace, monospace;
+        font-size: 10px;
+        word-break: break-all;
+      }
+
+      @media (max-width: 1120px) {
+        .stats {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .toolbar {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100% - 20px, 720px);
+          padding-top: 18px;
+        }
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 520px) {
+        .stats,
+        .toolbar {
+          grid-template-columns: 1fr;
+        }
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          padding: 10px;
+        }
+        .asset-card {
+          min-height: 196px;
+          padding: 8px;
+        }
+        .tabs {
+          grid-template-columns: 1fr;
+        }
+        .tab {
+          border-width: 0 0 1px;
+        }
+        .tab:last-child {
+          border-bottom: 0;
+        }
+        .list-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <p class="eyebrow">HUSTLEK · LOGICAL32 MIGRATION SOURCE INVENTORY</p>
+      <h1>직업·아이콘 전체 목록</h1>
+      <p class="intro">
+        구현 대상의 실제 catalog를 기준으로 직업 정의, canonical 아이콘, alias를 모두 정리했습니다.
+        검색과 분류 필터로 이름과 ID를 확인할 수 있습니다.
+      </p>
+
+      <div class="notice">
+        <strong>상태 안내:</strong> 아래 그림은 보존 중인 v1 native128 검수 후보입니다. 새 v2
+        logical32 승인본이 아니며, 목록과 정체성 확인에만 사용합니다.
+      </div>
+
+      <section class="stats" aria-label="인벤토리 요약">
+        <div class="stat"><strong id="job-total"></strong><span>직업 정의</span></div>
+        <div class="stat"><strong id="job-used"></strong><span>아바타 recipe 사용</span></div>
+        <div class="stat"><strong id="icon-total"></strong><span>canonical 아이콘</span></div>
+        <div class="stat"><strong id="attachment-total"></strong><span>장착 가능 아이콘</span></div>
+        <div class="stat"><strong id="alias-total"></strong><span>canonical alias</span></div>
+      </section>
+
+      <section class="inventory" aria-labelledby="list-title">
+        <div class="tabs" role="tablist" aria-label="목록 종류">
+          <button class="tab" type="button" role="tab" data-tab="jobs">직업 232</button>
+          <button class="tab" type="button" role="tab" data-tab="icons">아이콘 533</button>
+          <button class="tab" type="button" role="tab" data-tab="aliases">별칭 51</button>
+        </div>
+
+        <div class="toolbar">
+          <label class="field"
+            >검색
+            <input
+              id="search"
+              type="search"
+              placeholder="의사, doctor, camera…"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field"
+            >분류
+            <select id="category"></select>
+          </label>
+          <label class="field"
+            >상태
+            <select id="status"></select>
+          </label>
+          <label class="field"
+            >표시 수
+            <select id="page-size">
+              <option value="40">40개</option>
+              <option value="80">80개</option>
+              <option value="all">전체</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="list-head">
+          <div>
+            <h2 id="list-title"></h2>
+            <div id="result-summary" class="result-summary" aria-live="polite"></div>
+          </div>
+          <button id="copy-button" class="copy-button" type="button">필터 결과 복사</button>
+        </div>
+
+        <div id="grid" class="grid"></div>
+
+        <div class="pager">
+          <button id="previous" type="button">이전</button>
+          <span id="page-label" class="page-label"></span>
+          <button id="next" type="button">다음</button>
+        </div>
+      </section>
+
+      <p class="footnote">
+        catalog SHA-256: __CATALOG_SHA256__<br />contract SHA-256: __CONTRACT_SHA256__
+      </p>
+    </main>
+
+    <script>
+      (() => {
+        const JOBS = __JOBS_JSON__;
+        const ICONS = __ICONS_JSON__;
+        const ALIASES = __ALIASES_JSON__;
+        const COUNTS = __COUNTS_JSON__;
+
+        const state = {
+          tab: "jobs",
+          query: "",
+          category: "all",
+          status: "all",
+          page: 0,
+          pageSize: 40,
+        };
+        const tabButtons = Array.from(document.querySelectorAll("[data-tab]"));
+        const search = document.getElementById("search");
+        const category = document.getElementById("category");
+        const status = document.getElementById("status");
+        const pageSize = document.getElementById("page-size");
+        const grid = document.getElementById("grid");
+        const listTitle = document.getElementById("list-title");
+        const resultSummary = document.getElementById("result-summary");
+        const previous = document.getElementById("previous");
+        const next = document.getElementById("next");
+        const pageLabel = document.getElementById("page-label");
+        const copyButton = document.getElementById("copy-button");
+
+        document.getElementById("job-total").textContent = COUNTS.jobs;
+        document.getElementById("job-used").textContent = COUNTS.jobs_used;
+        document.getElementById("icon-total").textContent = COUNTS.icons;
+        document.getElementById("attachment-total").textContent = COUNTS.attachments;
+        document.getElementById("alias-total").textContent = COUNTS.aliases;
+
+        function humanize(value) {
+          return String(value)
+            .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+            .replace(/[_-]+/g, " ")
+            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+        }
+
+        function addOptions(select, options) {
+          select.replaceChildren(
+            ...options.map(([value, label]) => {
+              const option = document.createElement("option");
+              option.value = value;
+              option.textContent = label;
+              return option;
+            }),
+          );
+        }
+
+        function activeRecords() {
+          if (state.tab === "jobs") return JOBS;
+          if (state.tab === "icons") return ICONS;
+          return ALIASES;
+        }
+
+        function searchableText(item) {
+          if (state.tab === "jobs")
+            return `${item.ko} ${item.en} ${item.id} ${item.group} ${item.groupLabel}`;
+          if (state.tab === "icons")
+            return `${item.id} ${item.label} ${item.category} ${item.categoryLabel} ${item.role || ""} ${item.slot || ""}`;
+          return `${item.id} ${item.canonicalAssetId}`;
+        }
+
+        function filteredRecords() {
+          const query = state.query.toLocaleLowerCase("ko");
+          return activeRecords().filter((item) => {
+            const categoryValue =
+              state.tab === "jobs" ? item.group : state.tab === "icons" ? item.category : "all";
+            const statusValue =
+              state.tab === "jobs"
+                ? item.used
+                  ? "used"
+                  : "reserved"
+                : state.tab === "icons"
+                  ? item.attachment
+                    ? "attachment"
+                    : "standalone"
+                  : "all";
+            return (
+              (state.category === "all" || categoryValue === state.category) &&
+              (state.status === "all" || statusValue === state.status) &&
+              (!query || searchableText(item).toLocaleLowerCase("ko").includes(query))
+            );
+          });
+        }
+
+        function sprite(descriptor, label) {
+          if (!descriptor) {
+            const placeholder = document.createElement("div");
+            placeholder.className = "placeholder";
+            placeholder.textContent = "RESERVED\nNO AVATAR";
+            return placeholder;
+          }
+          const scale = 0.75;
+          const scene = document.createElement("div");
+          scene.className = "sprite-scene";
+          scene.setAttribute("role", "img");
+          scene.setAttribute("aria-label", label);
+          const image = document.createElement("img");
+          image.src = descriptor.path;
+          image.alt = "";
+          image.loading = "lazy";
+          image.draggable = false;
+          image.style.width = `${descriptor.width * scale}px`;
+          image.style.height = `${descriptor.height * scale}px`;
+          image.style.left = `${-descriptor.crop[0] * scale}px`;
+          image.style.top = `${-descriptor.crop[1] * scale}px`;
+          scene.append(image);
+          return scene;
+        }
+
+        function tag(text, className = "") {
+          const element = document.createElement("span");
+          element.className = `tag ${className}`.trim();
+          element.textContent = text;
+          return element;
+        }
+
+        function jobCard(item) {
+          const card = document.createElement("article");
+          card.className = "asset-card";
+          card.append(sprite(item.sprite, `${item.ko} 직업 아바타`));
+          const body = document.createElement("div");
+          const title = document.createElement("h3");
+          title.className = "asset-title";
+          title.textContent = item.ko;
+          const english = document.createElement("p");
+          english.className = "asset-en";
+          english.textContent = item.en;
+          const id = document.createElement("code");
+          id.className = "asset-id";
+          id.textContent = item.id;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          const clothTag = tag("의상색");
+          const swatch = document.createElement("span");
+          swatch.className = "cloth";
+          swatch.style.backgroundColor = item.cloth;
+          clothTag.prepend(swatch, " ");
+          meta.append(
+            tag(item.groupLabel),
+            item.used ? tag(`사용 ${item.avatarCount}`, "ready") : tag("예약", "reserved"),
+            clothTag,
+          );
+          body.append(title, english, id, meta);
+          card.append(body);
+          return card;
+        }
+
+        function iconCard(item) {
+          const card = document.createElement("article");
+          card.className = "asset-card";
+          card.append(sprite(item.sprite, `${humanize(item.label)} 아이콘`));
+          const body = document.createElement("div");
+          const title = document.createElement("h3");
+          title.className = "asset-title";
+          title.textContent = humanize(item.label);
+          const english = document.createElement("p");
+          english.className = "asset-en";
+          english.textContent = item.categoryLabel;
+          const id = document.createElement("code");
+          id.className = "asset-id";
+          id.textContent = item.assetId;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.append(
+            item.attachment ? tag(`장착 ${item.role}`, "ready") : tag("standalone", "reserved"),
+            ...(item.slot ? [tag(item.slot)] : []),
+          );
+          body.append(title, english, id, meta);
+          card.append(body);
+          return card;
+        }
+
+        function aliasCard(item) {
+          const card = document.createElement("article");
+          card.className = "asset-card alias-card";
+          const alias = document.createElement("code");
+          alias.className = "asset-title";
+          alias.textContent = item.id;
+          const arrow = document.createElement("div");
+          arrow.className = "alias-arrow";
+          arrow.textContent = "↓";
+          const target = document.createElement("code");
+          target.className = "asset-id";
+          target.textContent = item.canonicalAssetId;
+          card.append(alias, arrow, target);
+          return card;
+        }
+
+        function setupFilters() {
+          if (state.tab === "jobs") {
+            const groups = [
+              ...new Map(JOBS.map((item) => [item.group, item.groupLabel])).entries(),
+            ];
+            addOptions(category, [["all", "전체 분류"], ...groups]);
+            addOptions(status, [
+              ["all", "전체 상태"],
+              ["used", "recipe 사용"],
+              ["reserved", "예약 정의"],
+            ]);
+          } else if (state.tab === "icons") {
+            const groups = [
+              ...new Map(ICONS.map((item) => [item.category, item.categoryLabel])).entries(),
+            ];
+            addOptions(category, [["all", "전체 분류"], ...groups]);
+            addOptions(status, [
+              ["all", "전체 상태"],
+              ["attachment", "장착 가능"],
+              ["standalone", "standalone 전용"],
+            ]);
+          } else {
+            addOptions(category, [["all", "전체 분류"]]);
+            addOptions(status, [["all", "canonical 재사용"]]);
+          }
+          category.disabled = state.tab === "aliases";
+          status.disabled = state.tab === "aliases";
+        }
+
+        function render() {
+          tabButtons.forEach((button) =>
+            button.setAttribute("aria-selected", String(button.dataset.tab === state.tab)),
+          );
+          const records = filteredRecords();
+          const all = state.pageSize === "all";
+          const numericPageSize = all ? Math.max(1, records.length) : Number(state.pageSize);
+          const pageCount = Math.max(1, Math.ceil(records.length / numericPageSize));
+          state.page = Math.min(state.page, pageCount - 1);
+          const start = state.page * numericPageSize;
+          const visible = records.slice(start, start + numericPageSize);
+          const titles = { jobs: "직업 정의", icons: "canonical 아이콘", aliases: "아이콘 별칭" };
+          listTitle.textContent = titles[state.tab];
+          resultSummary.textContent = `${records.length}개 일치 · 전체 ${activeRecords().length}개`;
+          grid.replaceChildren();
+          if (!visible.length) {
+            const empty = document.createElement("div");
+            empty.className = "empty";
+            empty.textContent = "일치하는 항목이 없습니다.";
+            grid.append(empty);
+          } else {
+            const renderer =
+              state.tab === "jobs" ? jobCard : state.tab === "icons" ? iconCard : aliasCard;
+            grid.append(...visible.map(renderer));
+          }
+          pageLabel.textContent = all
+            ? `전체 ${records.length}`
+            : `${state.page + 1} / ${pageCount}`;
+          previous.disabled = all || state.page === 0;
+          next.disabled = all || state.page >= pageCount - 1;
+        }
+
+        function changeTab(tab) {
+          state.tab = tab;
+          state.query = "";
+          state.category = "all";
+          state.status = "all";
+          state.page = 0;
+          search.value = "";
+          setupFilters();
+          render();
+        }
+
+        async function copyText(value) {
+          try {
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(value);
+              return;
+            }
+          } catch {}
+          const textarea = document.createElement("textarea");
+          textarea.value = value;
+          textarea.setAttribute("readonly", "");
+          document.body.append(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          textarea.remove();
+        }
+
+        tabButtons.forEach((button) =>
+          button.addEventListener("click", () => changeTab(button.dataset.tab)),
+        );
+        search.addEventListener("input", () => {
+          state.query = search.value.trim();
+          state.page = 0;
+          render();
+        });
+        category.addEventListener("change", () => {
+          state.category = category.value;
+          state.page = 0;
+          render();
+        });
+        status.addEventListener("change", () => {
+          state.status = status.value;
+          state.page = 0;
+          render();
+        });
+        pageSize.addEventListener("change", () => {
+          state.pageSize = pageSize.value;
+          state.page = 0;
+          render();
+        });
+        previous.addEventListener("click", () => {
+          state.page = Math.max(0, state.page - 1);
+          render();
+        });
+        next.addEventListener("click", () => {
+          state.page += 1;
+          render();
+        });
+        copyButton.addEventListener("click", async () => {
+          const rows = filteredRecords().map((item) => {
+            if (state.tab === "jobs")
+              return `${item.id}\t${item.ko}\t${item.en}\t${item.group}\t${item.used ? "used" : "reserved"}`;
+            if (state.tab === "icons")
+              return `${item.assetId}\t${item.category}\t${item.attachment ? `attachment:${item.role}` : "standalone"}`;
+            return `${item.id}\t${item.canonicalAssetId}`;
+          });
+          await copyText(rows.join("\n"));
+          copyButton.textContent = `${rows.length}개 복사됨`;
+          setTimeout(() => {
+            copyButton.textContent = "필터 결과 복사";
+          }, 1400);
+        });
+
+        setupFilters();
+        render();
+      })();
+    </script>
+  </body>
+</html>
