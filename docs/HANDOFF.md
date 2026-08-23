@@ -3,6 +3,38 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-24 01:2x KST / CROSSCHECK ON(배선 함정 수리) · 0142 적용 · REQ-260824-01 알림 발주 (콘솔)
+
+### 집행 결과
+
+- **Q-260823-01 = ON (Simon)**: `EXPO_PUBLIC_CROSSCHECK`가 **빌드 3경로 어디에도 배선돼 있지 않았다**(코드·테스트에만 존재 — 변수만 세우면 무동작, 지난주 스위치 사건과 동류). **#1350**으로 web-deploy·android-release에 `${{ vars.… || '0' }}` 배선(eas.json은 의도적 미접촉 — 키 부재=off, ""는 eas를 죽임) → 변수=1 → 웹 재배포 green(89ad14d8 기준). **웹은 교차검증 ON.**
+- **0142_embedding_provenance 운영 적용**: dry-run → 적용 → tail 대조 일치 → 검증(오버로드 0=fn_count 2, authenticated EXECUTE=t·anon=f). ledger last=0142. ⚠ 관찰: **backfill 대상 0행** — wiki_pages·records에 embedding NOT NULL 행이 없다. embed_index 호출(gemini-embedding-2)은 원장에 실재하는데 저장 벡터가 0 — 왜인지 UNVERIFIED(쿼리 임베딩만 하고 저장 안 하는 경로인지, 코퍼스가 아직 빈 것인지). CLI 확인 요청.
+- 참고: 0141은 여전히 schema_migrations 밖(효과는 실재) — 원장 부재만 기억.
+
+### C-4/C-3′ 검증 경위 (미완, 자동 감시로 전환)
+
+persona 화면 진입 → 캐시 재사용(서명 불변). 인터뷰 답 1턴 → **interview_probe 실LLM 전환 확인**(openai/gpt-5.4-mini/__LOW, 16:04Z) — 그러나 **records에 새 행 0건**(1턴만으로는 저장 안 됨, 저장 시점 UNVERIFIED). Simon 결정: 오늘 밤 강제 완주 안 함 → **다음 자연 record+persona 진입이 판정**(콘솔이 원장 감시, 400이면 effortToMaxTokens 조정 발주).
+
+### M-1·M-2 회신 (#1348 §2)
+
+- **M-2 해결**: 08-19 20:22Z 4건(chat·safety_nano·cluster·ops_recommend, GPT54 콤보) = **다른 실사용자**(fcd4dec5…, 06-27 가입)의 정상 앱 플로우 — 대화 1건이 40초 내 연쇄 트리거. openai쪽 안전분류 경로가 classifyViaProxy(gemini·휴면)와 별개로 실재.
+- **M-1 부분**: 현 effort 축 값들은 5.6에서 **실사용 검증됨**(smoke 통과+terra 16좌석 서빙). 미확인 잔여 = high 위 추가 enum(pro 계열)의 API 표기뿐 — sol을 high 위로 올릴 때만 필요. Playground은 이 org에서 5.6 선택이 비활성("Add credits" 표시, 원인 미확인)이라 대체 실측 경로 필요.
+
+### REQ-260824-01 → CLI: 벤더·좌석 실패의 운영자 알림
+
+**왜**: xai 403이 정확한 사례다 — refresh가 "성공"하며 xai만 조용히 빠졌고, 스킵 문구는 "키가 없어"로 뭉갰다. 운영자(Simon)는 원장을 파야만 알 수 있다.
+**완료조건**: ① refresh에서 벤더 목록 실패(403/401/5xx)·좌석 미적용이 **잡 실패 또는 명시적 알림**(GH Actions 실패 status면 충분 — Simon 이메일 수신)이 되게 ② 스킵 사유 문구를 실제 원인으로(키 부재 vs HTTP 코드 구분) ③ 엣지 런타임의 좌석 400/401/5xx 연속 발생 시 감지 경로 1개(ops_daily_brief에 벤더 오류 요약 포함 등 — 방식은 CLI 재량) ④ 저비용·무외부의존.
+**하지 말 것**: 외부 알림 SaaS 신규 도입(기존 GH/DB 경로 우선) · Gemini 접촉 · luna 좌석.
+위 방법은 출발점일 뿐이다. 더 나은 경로가 보이면 바꾸고 근거를 보고할 것.
+
+### 잔여·결정
+
+- **Q-260823-02(xai 충전)**: Simon — "여유 있을 때 충전" (그때까지 grok 좌석 스킵 유지).
+- 후보(미발주): 앱 내 Clarity 세션 녹화(RN SDK) — Simon 관심 표명, 확정 시 REQ화.
+- Sentry 실수신 확인(Simon 로그인 1회) · Apple 리뷰 답신+녹화 · Play 심사(~8/28) 대기.
+
+---
+
 ## Latest — 2026-08-23 23:5x KST / 콘솔 마감: #1348 이어받기 집행 · 5.6 티어 운영 적용 · xai 403=크레딧 0 (콘솔 세션)
 
 ### #1348 §6 콘솔 5건 — 집행 결과
