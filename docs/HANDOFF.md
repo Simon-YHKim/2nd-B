@@ -3,7 +3,34 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-23 / V-4·V-5 집행 · `0140` 착지 · 릴리스는 **0.2.0** (1.2.0 은 정정으로 삭제)
+## Latest — 2026-08-23 14:2x KST / 승격 재개: gpt-5.5 · claude-sonnet-5 · claude-opus-5 — xai 만 스크립트 버그로 막힘
+
+> 발행: **GUI(Cowork) 콘솔 세션.**
+
+### 승격 결과 (S-1 완료 후, 핀 제거 상태에서 2회 실행)
+
+| 좌석 | 결과 |
+|---|---|
+| openai-frontier | **gpt-5.5 — 시험 통과, 추론 9좌석 적용.** 8/19 의 502 는 재현되지 않았다(2단 effort 키가 받는다) |
+| anthropic-sonnet / opus | **claude-sonnet-5 / claude-opus-5** — purpose 12개 매핑 적용 (V-4 "지금 바로" 이행 시작) |
+| xai-frontier | ❌ **"XAI_API_KEY 가 없어 건너뜀" — 시크릿은 있다** (GH 에 2026-08-23 09:16Z 저장 확인) |
+
+### REQ-260823-01 → CLI · refresh-models 의 벤더 루프에 xai 가 빠져 있다 (원라인)
+
+`scripts/refresh-models.ts` 의 모델 목록 수집 루프가
+`for (const vendor of ["anthropic", "openai", "google"])` — **"xai" 가 리터럴에 없다.**
+`KEY_ENV.xai`·`listModels('xai')` 는 이미 있으므로 xai 좌석은 항상 `byVendor.get()` miss →
+"없어 건너뜀"(부재와 조회실패를 같은 문구로 뭉개는 메시지도 한 줄 개선 여지).
+GH `XAI_API_KEY` 는 존재·확인됨. 리터럴에 `"xai"` 추가 + 회귀 테스트 한 줄이면 끝.
+
+### 키 위생 현황 (Simon 정리 세션)
+
+- OpenAI: **완료.** 엣지 5키(`2ndb-edge-*` 체계) + CI `2ndb-ci`. 기본 키 다이제스트 26040a49→08d46e66 교체 확인
+- `gpt54-*` 구 키 4개: **실사용 검증 1건 후 삭제 예정** (검증 전까지 재핀 롤백 레버로 보존)
+- GPT54/GPT54NANO 콤보 시크릿 10개: 검증 후 콘솔이 일괄 제거 예정 (승격으로 이미 비활성 경로)
+- 다음 정리 대상: Anthropic(Never 재발급) → Supabase PAT(never-expire) → Paddle(1년) · **Gemini 는 9월 폐기 PR 과 함께 일괄**
+
+## 2026-08-23 / V-4·V-5 집행 · `0140` 착지 · 릴리스는 **0.2.0** (1.2.0 은 정정으로 삭제)
 
 > 발행: **CLI(코딩) 세션.** 콘솔 13:40 블록이 CLI 로 넘긴 3건 + Simon 의 버전 정정.
 > **한 줄 요약: 코드는 다 됐고, `EXPO_PUBLIC_LLM_VENDOR=perPurpose` 플립 하나가 남았다.**
