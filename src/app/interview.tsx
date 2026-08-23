@@ -47,12 +47,15 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { parsePeriodParam } from "@/lib/interview/periods";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import {
   LAYER_LABEL,
+  PERIOD_LABEL,
+  seedQuestion,
   emptyCoverage,
   incrementCoverage,
   nextMove,
@@ -87,13 +90,14 @@ export default function InterviewRoute() {
   const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
   const { period: periodParam } = useLocalSearchParams<{ period?: string }>();
-  // 라우트가 주는 시기. 옛 화면이 `?period=teens|20s` 를 받았으므로 그 링크가
-  // 죽지 않게 같은 값을 계속 받고, 엔진의 `LifePeriod` 로 옮긴다.
-  const period: LifePeriod =
-    periodParam === "teens" ? "teens" : periodParam === "20s" ? "twenties" : "current";
-  // 저장에 쓰는 값은 옛 표기 그대로다(레코드 스키마를 바꾸지 않는다).
-  const auditPeriod: "current" | "20s" | "teens" =
-    periodParam === "teens" || periodParam === "20s" ? periodParam : "current";
+  // 라우트가 주는 시기. `/audit` 이 이제 사용자가 살아온 칸을 그대로 보내므로
+  // 9개 전부를 받는다. 옛 링크(`?period=20s`)는 `parsePeriodParam` 이 계속 살린다.
+  const period: LifePeriod = parsePeriodParam(periodParam);
+  // 기록에 남기는 시기도 같은 id 로 쓴다. `records.audit_period` 는 CHECK 없는 자유
+  // 텍스트고 **지금 읽는 코드가 없다**(완료 판정은 태그가 한다). 옛 행은 `20s`·`teens`
+  // 를 담고 있어 어휘가 섞이지만, 40대 인터뷰를 `current` 로 접어 넣는 쪽이 틀린
+  // 기록을 남기므로 그쪽을 고르지 않았다.
+  const auditPeriod: string = period;
 
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const kbHeight = useKeyboard();
@@ -189,9 +193,13 @@ export default function InterviewRoute() {
   useEffect(() => {
     if (!userId || started.current) return;
     started.current = true;
-    setTurns([{ role: "interviewer", text: t("drill.opening"), layer: "fact", period }]);
+    // 시기별 씨앗 질문. 엔진이 시기마다 하나씩 갖고 있는데(`seedQuestion`) 호출부가
+    // 0건이었다. 예전 일반 문구(`drill.opening`)는 "어느 시기를 해볼까요?" 라고
+    // 되묻는 것이었는데, 시기는 이제 `/audit` 에서 고르고 오므로 질문이 중복된다.
+    // 여전히 **모델을 부르지 않는다** -- 고정 표에서 꺼낸다.
+    setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period }]);
     setPendingLayer("fact");
-  }, [userId, period, t]);
+  }, [userId, period, locale]);
 
   useEffect(() => {
     if (turns.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
@@ -335,7 +343,7 @@ export default function InterviewRoute() {
               <Text style={[m3TextStyle("labelMedium"), styles.turnLabel]}>
                 {t("drill.turnLabel", {
                   n: userTurns + 1,
-                  layer: LAYER_LABEL[locale][pendingLayer],
+                  layer: `${PERIOD_LABEL[locale][period]} · ${LAYER_LABEL[locale][pendingLayer]}`,
                 })}
               </Text>
             ) : null}

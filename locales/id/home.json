@@ -396,7 +396,19 @@
       "rangeChild": "7–12 tahun",
       "rangeTeen": "13–18 tahun",
       "rangeYoung": "19–28 tahun",
-      "rangeNow": "Saat ini"
+      "period": {
+        "childhood": "Masa kecil",
+        "teens": "Masa remaja",
+        "twenties": "Usia 20-an",
+        "thirties": "Usia 30-an",
+        "forties": "Usia 40-an",
+        "fifties": "Usia 50-an",
+        "sixties": "Usia 60-an",
+        "seventies": "Usia 70-an",
+        "current": "Sekarang"
+      },
+      "rangeSpan": "{{from}}–{{to}} tahun",
+      "rangeUnder": "Sebelum {{to}}"
     },
     "me": {
       "title": "Bintang Utara",

@@ -26,14 +26,30 @@ import {
 } from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 
-export type LifePeriod = "childhood" | "teens" | "twenties" | "thirties" | "current";
+export type LifePeriod =
+  | "childhood"
+  | "teens"
+  | "twenties"
+  | "thirties"
+  | "forties"
+  | "fifties"
+  | "sixties"
+  | "seventies"
+  | "current";
 export type DrillLayer = "fact" | "feeling" | "meaning" | "belief" | "echo";
 
+// 모든 시기. **화면이 이걸 그대로 그리면 안 된다** -- 사용자가 살아온 칸만
+// 보여주는 것이 규칙이고, 그 목록은 `periods.ts` 의 periodsForAge() 가 만든다.
+// 여기는 Coverage 행렬의 폭(= 있을 수 있는 칸 전부)일 뿐이다.
 export const LIFE_PERIODS: readonly LifePeriod[] = [
   "childhood",
   "teens",
   "twenties",
   "thirties",
+  "forties",
+  "fifties",
+  "sixties",
+  "seventies",
   "current",
 ] as const;
 
@@ -64,6 +80,10 @@ export const PERIOD_LABEL: Record<"en" | "ko", Record<LifePeriod, string>> = {
     teens: "Teens (12–19)",
     twenties: "Twenties (20–29)",
     thirties: "Thirties (30–39)",
+    forties: "Forties (40–49)",
+    fifties: "Fifties (50–59)",
+    sixties: "Sixties (60–69)",
+    seventies: "Seventies (70–79)",
     current: "Right now",
   },
   ko: {
@@ -71,6 +91,10 @@ export const PERIOD_LABEL: Record<"en" | "ko", Record<LifePeriod, string>> = {
     teens: "10대 (12–19세)",
     twenties: "20대 (20–29세)",
     thirties: "30대 (30–39세)",
+    forties: "40대 (40–49세)",
+    fifties: "50대 (50–59세)",
+    sixties: "60대 (60–69세)",
+    seventies: "70대 (70–79세)",
     current: "지금 이 시기",
   },
 };
@@ -98,6 +122,13 @@ const SEED_QUESTION: Record<"en" | "ko", Record<LifePeriod, string>> = {
     teens: "Of your high-school years, what's the moment you still come back to in your head?",
     twenties: "What's something from your twenties that you almost never tell anyone?",
     thirties: "What did you think 'being thirty' would feel like vs. how it actually went?",
+    // 40대~70대는 2026-08-24 신규. narrative-identity.md 의 Age Range Coverage 가
+    // 그 대에 붙인 성격을 결다 -- 30–49 재구성(revision), 50–64 생산성
+    // (generativity)·생애회고 시작, 65+ 본격 생애회고(Butler 전통).
+    forties: "What did you put down in your forties that you'd once thought you had to carry?",
+    fifties: "In your fifties, what did you start wanting to pass on to someone?",
+    sixties: "Looking across your life so far, which stretch feels like you lived it well?",
+    seventies: "If someone bound your life into one book, which scene belongs on the cover?",
     current: "What's the thing you'd say first if I asked, 'what's really going on for you right now?'",
   },
   ko: {
@@ -105,6 +136,10 @@ const SEED_QUESTION: Record<"en" | "ko", Record<LifePeriod, string>> = {
     teens: "고등학생 시절 중에서, 머릿속에 여전히 자주 돌아오는 한 장면은?",
     twenties: "20대에 거의 누구에게도 말하지 않은 무언가가 있다면 무엇인가요?",
     thirties: "30대가 어떨 거라고 생각했던 것과, 실제로 어땠는지를 비교해 보면?",
+    forties: "마흔 무렵에 '이건 이제 그만하자'고 내려놓은 것이 있다면 무엇이었나요?",
+    fifties: "쉰을 지나며 누군가에게 물려주고 싶어진 것이 있다면 무엇인가요?",
+    sixties: "지금까지 살아온 시간 중에 '그때 참 잘 살았다' 싶은 시기는 언제였나요?",
+    seventies: "누군가 당신의 삶을 한 권으로 묶는다면, 어느 장면이 표지에 들어가야 할까요?",
     current: "'지금 진짜로 어떻게 지내?' 라고 물으면 가장 먼저 떠오르는 한마디는?",
   },
 };
