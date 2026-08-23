@@ -100,6 +100,9 @@ jobs:
       # repo Variables silent no-ops.
       EXPO_PUBLIC_MULTIMODAL_VENDOR: ${{ vars.EXPO_PUBLIC_MULTIMODAL_VENDOR || '' }}
       EXPO_PUBLIC_BACKBONE_VENDOR: ${{ vars.EXPO_PUBLIC_BACKBONE_VENDOR || '' }}
+      # Embeddings. Unset keeps Gemini. ⚠ flipping this requires a re-index -
+      # see the note above embedVendor() in src/lib/llm/routing.ts.
+      EXPO_PUBLIC_EMBED_VENDOR: ${{ vars.EXPO_PUBLIC_EMBED_VENDOR || '' }}
       EXPO_PUBLIC_UI: "deep-space"
       EXPO_PUBLIC_CHARACTER: "fallback"
       EXPO_PUBLIC_FORCE_TIER: "off"

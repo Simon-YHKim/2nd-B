@@ -64,6 +64,25 @@ const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 // {text} out) -- not a chat completion with an audio part. Kept separate rather
 // than folded in, because everything else about the request differs.
 const OPENAI_TRANSCRIBE_ENDPOINT = 'https://api.openai.com/v1/audio/transcriptions';
+const OPENAI_EMBED_ENDPOINT = 'https://api.openai.com/v1/embeddings';
+
+// Embeddings (2026-08-24). The ONLY live path off Gemini that no vendor switch
+// reached: embedTexts invoked gemini-proxy by name, so the four routing
+// switches never touched it, and Google stops accepting Standard keys in
+// September. RAG rides on this.
+//
+// The dimension is not a preference. wiki_pages.embedding and records.embedding
+// are vector(768) in the schema, so anything else fails to store. OpenAI's
+// text-embedding-3-* family takes a `dimensions` parameter (MRL), which is why
+// this vendor can serve the existing column at all.
+//
+// ⚠ UNVERIFIED against the account: the model id below. Overridable without a
+// redeploy, same discipline as the transcription seat.
+const OPENAI_EMBED_MODEL = () =>
+  (Deno.env.get('OPENAI_EMBED_MODEL') ?? '').trim() || 'text-embedding-3-large';
+const EMBED_DIM = 768;
+const MAX_EMBED_TEXTS = 50;
+const MAX_EMBED_TEXT_LEN = 2000;
 
 // ── Multimodal (REQ-260821-01) ──────────────────────────────────────────────
 //
@@ -333,6 +352,8 @@ Deno.serve(async (req: Request) => {
   });
 
   let body: {
+    op?: unknown;
+    texts?: unknown;
     user?: unknown;
     system?: unknown;
     purpose?: unknown;
@@ -345,6 +366,128 @@ Deno.serve(async (req: Request) => {
     body = await req.json();
   } catch {
     return jsonResponse(req, { error: 'invalid_json' }, 400);
+  }
+
+  // ── op:'embed' ────────────────────────────────────────────────────────────
+  // Mirrors gemini-proxy's route deliberately: same limits, same crisis
+  // backstop, the same shared per-user/day counter (one batch = one call), its
+  // own audit row. Divergence here would show up as a quota or a safety gap
+  // rather than as an obvious bug.
+  if (body?.op === 'embed') {
+    const rawTexts = body?.texts;
+    if (!Array.isArray(rawTexts) || rawTexts.length === 0) {
+      return jsonResponse(req, { error: 'texts_required' }, 400);
+    }
+    if (rawTexts.length > MAX_EMBED_TEXTS) {
+      return jsonResponse(req, { error: 'too_many_texts', max: MAX_EMBED_TEXTS, got: rawTexts.length }, 413);
+    }
+    const texts: string[] = [];
+    for (const t of rawTexts) {
+      if (typeof t !== 'string' || t.trim().length === 0) {
+        return jsonResponse(req, { error: 'invalid_text' }, 400);
+      }
+      if (t.length > MAX_EMBED_TEXT_LEN) {
+        return jsonResponse(req, { error: 'text_too_long', max: MAX_EMBED_TEXT_LEN, got: t.length }, 413);
+      }
+      // R1-A parity. The client zero-vectors red-zone text before sending (C9);
+      // this is the bypassed-client backstop, and it must exist here too or
+      // switching vendors would quietly remove a safety layer.
+      if (hasCrisisTerm(t)) {
+        return jsonResponse(req, { error: 'safety_red_zone', reason: 'crisis_term_detected' }, 422);
+      }
+      texts.push(t);
+    }
+
+    const { error: embedSpendErr } = await supabaseAdmin.rpc('bump_gemini_spend', {
+      p_user_id: userId,
+      p_day: utcDay(),
+      p_cap: dailyCapForRank(null),
+    });
+    if (embedSpendErr) {
+      const msg = embedSpendErr.message ?? '';
+      if (msg.includes('gemini_spend_exceeded')) {
+        return jsonResponse(req, { error: 'daily_limit_exceeded' }, 429);
+      }
+      console.error('[openai-proxy][ALERT] embed spend check unavailable -- failing closed:', msg);
+      return jsonResponse(req, { error: 'spend_check_unavailable' }, 503);
+    }
+
+    const embedModel = OPENAI_EMBED_MODEL();
+    const embedKey = resolveApiKey('OPENAI', embedModel, 'none', apiKey);
+    if (!isUsableHeaderValue(embedKey.apiKey)) {
+      return jsonResponse(req, {
+        error: 'server_misconfigured_malformed_api_key',
+        secret: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
+      }, 500);
+    }
+
+    const et0 = Date.now();
+    let embedUpstream: Response;
+    try {
+      embedUpstream = await fetch(OPENAI_EMBED_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'authorization': `Bearer ${embedKey.apiKey}` },
+        // `dimensions` is what makes this vendor able to serve the existing
+        // vector(768) column at all. Without it the reply is the model's native
+        // width and every insert fails on the column type.
+        body: JSON.stringify({ model: embedModel, input: texts, dimensions: EMBED_DIM }),
+      });
+    } catch (e) {
+      return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
+    }
+    const embedLatencyMs = Date.now() - et0;
+    if (!embedUpstream.ok) {
+      const errBody = await embedUpstream.text();
+      return jsonResponse(req, {
+        error: 'upstream_error',
+        status: embedUpstream.status,
+        detail: errBody.slice(0, UPSTREAM_DETAIL_TRUNCATE),
+      }, 502);
+    }
+
+    let embedData: { data?: { embedding?: unknown; index?: unknown }[] };
+    try {
+      embedData = await embedUpstream.json();
+    } catch (_e) {
+      return jsonResponse(req, { error: 'upstream_bad_payload' }, 502);
+    }
+    // Sorted by index rather than trusted in order. The caller matches vectors
+    // to texts POSITIONALLY, so a reordered reply would attach every embedding
+    // to the wrong page - and the result would still look like a working
+    // search, just one that returns unrelated things.
+    const rows = Array.isArray(embedData?.data) ? [...embedData.data] : [];
+    rows.sort((a, b) => (Number(a?.index) || 0) - (Number(b?.index) || 0));
+    const vectors: number[][] = rows.map((r) => (Array.isArray(r?.embedding) ? (r.embedding as number[]) : []));
+    if (vectors.length !== texts.length || vectors.some((v) => v.length !== EMBED_DIM)) {
+      // Refusing beats returning a short or mis-sized batch: the caller would
+      // write whatever it got, and a wrong-width vector is a corrupt index.
+      return jsonResponse(req, {
+        error: 'embed_shape_mismatch',
+        expected: { count: texts.length, dim: EMBED_DIM },
+        got: { count: vectors.length, dim: vectors[0]?.length ?? 0 },
+      }, 502);
+    }
+
+    let embedAudited = false;
+    try {
+      const { error: auditErr } = await supabaseAdmin.from('ai_audit_log').insert({
+        user_id: userId,
+        prompt_hash: djb2(texts.join(' ')),
+        output_hash: djb2(String(vectors.length)),
+        model_used: embedModel,
+        vertex_backend: false,
+        safety_zone: 'green',
+        latency_ms: embedLatencyMs,
+        purpose: 'embed_index',
+        reasoning_vendor: 'openai',
+        key_combo: embedKey.usedCombo ? embedKey.secretName : 'OPENAI_API_KEY',
+      });
+      embedAudited = !auditErr;
+    } catch (e) {
+      console.warn('[openai-proxy] embed audit insert threw:', String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE));
+    }
+
+    return jsonResponse(req, { vectors, modelUsed: embedModel, latencyMs: embedLatencyMs, audited: embedAudited });
   }
 
   const userText: string = typeof body?.user === 'string' ? body.user : '';

@@ -126,6 +126,34 @@ export function backboneVendor(): LlmVendor {
   return normalizeVendor(process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "") ?? "gemini";
 }
 
+// EXPO_PUBLIC_EMBED_VENDOR - the last live Gemini hardcode.
+//
+// embedTexts invoked "gemini-proxy" by NAME, so it never passed through
+// resolveVendorForPurpose and none of the four switches above reached it. The
+// sweep that proves every PromptPurpose can leave Gemini could not see it
+// either: embeddings are not a PromptPurpose call. Google stops accepting
+// Standard keys in September and RAG rides on this, so it needed a way out.
+//
+// ⚠⚠ FLIPPING THIS WITHOUT A RE-INDEX SILENTLY BREAKS SEARCH, and that is not a
+// guess - this repo has already done it once. 0068's header says it plainly:
+// cosine similarity between vectors from two different models is meaningless.
+// When Google retired text-embedding-004 the fix was to NULL every stored
+// vector and rebuild. The same is true here, with one difference that makes it
+// worse: nothing records WHICH model produced a stored row, so a half-migrated
+// table cannot be told from a healthy one. Search would keep returning results,
+// just unrelated ones.
+//
+// So this switch is a capability, not a lever to pull on its own. The cutover
+// is: flip -> null the vectors -> rebuild the index. See docs/LLM-ROUTING.md.
+export function embedVendor(): LlmVendor {
+  const raw = (process.env.EXPO_PUBLIC_EMBED_VENDOR ?? "").trim().toLowerCase();
+  // gemini and openai only. claude has no embeddings API, and xai-proxy has no
+  // embed route - accepting either would turn a capability gap into a runtime
+  // 400 on every index build.
+  if (raw === "openai" || raw === "gemini") return raw;
+  return "gemini";
+}
+
 // OCR and voice memos are the two purposes that carry BINARY payloads, so they
 // can only run on a vendor whose proxy forwards them.
 //
