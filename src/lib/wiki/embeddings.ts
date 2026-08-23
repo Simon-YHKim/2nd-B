@@ -64,11 +64,24 @@ export async function storeWikiPageEmbedding(
   userId: string,
   pageId: string,
   embedding: number[],
+  /**
+   * The model that ACTUALLY produced this vector, from embedTexts' audit -
+   * not the EMBED_MODEL constant.
+   *
+   * The constant is the client's default; the proxy reports what it really
+   * used, and after EXPO_PUBLIC_EMBED_VENDOR moves off Gemini those two stop
+   * agreeing. Stamping the constant would make this column lie at exactly the
+   * moment it exists to be trusted.
+   */
+  embeddingModel: string,
 ): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("wiki_pages")
-    .update({ embedding: toVectorLiteral(embedding) })
+    // 0142: stamp the space this vector belongs to. Without it a re-index
+    // cannot tell which rows it has already done, and search cannot refuse to
+    // mix - both of which matter the moment the embedding vendor changes.
+    .update({ embedding: toVectorLiteral(embedding), embedding_model: embeddingModel })
     .eq("user_id", userId)
     .eq("id", pageId);
   if (error) throw error;
@@ -87,10 +100,10 @@ export async function embedAndStorePage(
 ): Promise<boolean> {
   const text = pageEmbeddingText(page);
   if (text.length === 0) return false;
-  const { vectors } = await embedTexts({ userId, texts: [text], locale, minor });
+  const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
   const vec = vectors[0];
   if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) return false;
-  await storeWikiPageEmbedding(userId, page.id, vec);
+  await storeWikiPageEmbedding(userId, page.id, vec, audit.modelUsed);
   return true;
 }
 
@@ -125,7 +138,7 @@ export async function backfillEmbeddings(
 
   let embedded = 0;
   try {
-    const { vectors } = await embedTexts({
+    const { vectors, audit } = await embedTexts({
       userId,
       texts: targets.map((t) => t.text),
       locale: opts.locale ?? "en",
@@ -136,7 +149,7 @@ export async function backfillEmbeddings(
       // Red-zone texts come back as zero vectors (C9) — never stored.
       if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) continue;
       try {
-        await storeWikiPageEmbedding(userId, targets[i].page.id, vec);
+        await storeWikiPageEmbedding(userId, targets[i].page.id, vec, audit.modelUsed);
         embedded += 1;
       } catch {
         // best-effort; move on

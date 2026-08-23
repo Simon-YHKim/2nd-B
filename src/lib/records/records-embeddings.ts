@@ -60,11 +60,14 @@ export async function storeRecordEmbedding(
   userId: string,
   recordId: string,
   embedding: number[],
+  /** The model that ACTUALLY produced it - see wiki/embeddings.ts. */
+  embeddingModel: string,
 ): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("records")
-    .update({ embedding: toVectorLiteral(embedding) })
+    // 0142: see the note in wiki/embeddings.ts.
+    .update({ embedding: toVectorLiteral(embedding), embedding_model: embeddingModel })
     .eq("user_id", userId)
     .eq("id", recordId);
   if (error) throw error;
@@ -80,7 +83,9 @@ export async function clearRecordEmbeddings(userId: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from("records")
-    .update({ embedding: null })
+    // Clearing the vector clears its provenance too - a model name on a row
+    // with no embedding would make the column lie about what is indexed.
+    .update({ embedding: null, embedding_model: null })
     .eq("user_id", userId)
     .not("embedding", "is", null);
   if (error) throw error;
@@ -102,10 +107,10 @@ export async function embedAndStoreRecord(
   if (!recordsEmbeddingAllowed(minor, consented)) return false;
   const text = recordEmbeddingText(record);
   if (text.length === 0) return false;
-  const { vectors } = await embedTexts({ userId, texts: [text], locale, minor });
+  const { vectors, audit } = await embedTexts({ userId, texts: [text], locale, minor });
   const vec = vectors[0];
   if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) return false;
-  await storeRecordEmbedding(userId, record.id, vec);
+  await storeRecordEmbedding(userId, record.id, vec, audit.modelUsed);
   return true;
 }
 
@@ -129,18 +134,27 @@ export async function relatedRecordsByEmbedding(
   const supabase = getSupabaseClient();
   const { data: rec, error: e1 } = await supabase
     .from("records")
-    .select("embedding")
+    .select("embedding, embedding_model")
     .eq("user_id", userId)
     .eq("id", recordId)
     .maybeSingle();
   if (e1) throw e1;
-  const embedding = (rec as { embedding: string | number[] | null } | null)?.embedding ?? null;
+  const row = rec as { embedding: string | number[] | null; embedding_model: string | null } | null;
+  const embedding = row?.embedding ?? null;
   if (!embedding) return [];
+  // NULL means the row predates 0142 and its space is unknown. Passing NULL
+  // through means "do not filter", which is the pre-0142 behaviour and the
+  // right answer for a row we cannot place.
+  const storedModel = row?.embedding_model ?? null;
   const { data, error } = await supabase.rpc("match_records", {
     p_user_id: userId,
     query_embedding: embedding,
     match_count: k,
     exclude_id: recordId,
+    // This reader uses a STORED vector as its query, so the space to match is
+    // the one that ROW is in - read from the row, not from a constant and not
+    // from a fresh embed call (there is none here).
+    p_embedding_model: storedModel,
   });
   if (error) throw error;
   return (data ?? []) as RelatedRecord[];
@@ -182,7 +196,7 @@ export async function backfillRecordEmbeddings(
 
   let embedded = 0;
   try {
-    const { vectors } = await embedTexts({
+    const { vectors, audit } = await embedTexts({
       userId,
       texts: targets.map((t) => t.text),
       locale: opts.locale ?? "en",
@@ -192,7 +206,7 @@ export async function backfillRecordEmbeddings(
       const vec = vectors[i];
       if (!vec || vec.length !== EMBED_DIM || vec.every((x) => x === 0)) continue;
       try {
-        await storeRecordEmbedding(userId, targets[i].record.id, vec);
+        await storeRecordEmbedding(userId, targets[i].record.id, vec, audit.modelUsed);
         embedded += 1;
       } catch {
         // best-effort; move on

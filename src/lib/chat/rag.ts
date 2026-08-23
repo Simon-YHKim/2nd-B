@@ -46,7 +46,7 @@ export async function retrieveChatContext(
   const k = opts.k ?? 8;
   const bodyCharLimit = opts.bodyCharLimit ?? 600;
 
-  const { vectors } = await embedTexts({
+  const { vectors, audit } = await embedTexts({
     userId,
     texts: [query],
     locale,
@@ -61,6 +61,15 @@ export async function retrieveChatContext(
     p_user_id: userId,
     query_embedding: `[${vec.join(",")}]`,
     match_count: k,
+    // 0142: only compare against vectors from the SAME model. During a
+    // re-index the table holds two spaces at once, and an unfiltered kNN would
+    // rank them together - returning confident, plausible, unrelated pages
+    // rather than an error anyone would report.
+    // The model that produced THIS query vector, not the EMBED_MODEL constant:
+    // after the vendor switch moves, the constant and the truth diverge, and
+    // filtering by the constant would compare a new-space query against
+    // old-space rows - the exact mixing this parameter exists to prevent.
+    p_embedding_model: audit.modelUsed,
   });
   if (error || !Array.isArray(data) || data.length === 0) return [];
   const neighbors = (data as { id: string; slug: string; title: string; similarity: number }[])
