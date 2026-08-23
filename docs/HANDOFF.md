@@ -397,6 +397,51 @@ Simon 정정: *"1.2.0 은 잘못 생각한 것, 0.2.0 이 맞다."* (#1325)
 
 `npm run verify` 495 suites / 4,687 tests 그린.
 
+## 2026-08-23 13:40 KST / 콘솔 집행 완료: 0138+0139 적용 · 훅 등록 · 변수 4종 플립 · V-컨펌 착지
+
+> 발행: **GUI(Cowork) 콘솔 세션.** 05:3x CLI 블록의 콘솔 순서 1~9 에 대한 집행 보고다.
+
+### 집행 결과 (05:3x 블록의 번호 그대로)
+
+| # | 무엇 | 결과 |
+|---|---|---|
+| 2·3 | openai-proxy 재배포 + **xai-proxy 첫 배포** | ✅ 08-22 18:2x, 워크플로 2런 그린. #1308·#1317 코드가 운영에 있다 |
+| 4 | 웹 재배포 (스위치 전달 픽스 포함) | ✅ 08-22 18:3x 그린 — `_MULTIMODAL_VENDOR`·`_BACKBONE_VENDOR` 가 처음으로 빌드에 실렸다 |
+| 5 | **`0138` + `0139` 연속 적용** | ✅ 08-22. dry-run 실측 후 적용: judge 트리거 `[enforce_judge, enforce_judge_insert]` 2개 · `auto_judge_mode` 0 · `user_roles` 정책 3 · RLS on · judge_true 0 · 훅 함수 빈배열 정상. **보너스 실측: `block_self_tier_change` 가 이미 클라 judge_mode UPDATE 를 42501 로 막고 있었다** — 가드는 이제 3중이다 |
+| 6 | 변수 4종 플립 | ✅ `EXPO_PUBLIC_{MULTIMODAL,LLM,BACKBONE}_VENDOR=openai` 설정(CHAT 은 이미). ⚠ **원장 검증은 미완** — 최근 30h `ai_audit_log` 0행(트래픽 자체가 없음). 첫 실사용이 판정한다 |
+| 7 | **Custom Access Token Hook 등록** | ✅ 08-23 13:3x 대시보드에서 **ENABLED** (Postgres · public.custom_access_token_hook). app_roles 클레임이 신규 토큰에 실리기 시작 |
+| 8 | `users` ACL 수술 dry-run | ✅ **아래 — GRANT 대상 확정** |
+| 9 | V-컨펌 | ✅ **아래** |
+| 1 | S-1 (Simon 키) | ❌ **여전히 미완** (08-23 13:1x 실측: `__NONE/__LOW/__MEDIUM/__HIGH` 부재, 기본 키 다이제스트 26040a49… 불변). 폼은 다시 스테이징해 둠. **핀 유지 중** |
+
+### §5-b 의 마지막 질문에 답이 나왔다 — **GRANT 대상 = `authenticated`, anon 경로는 없다**
+
+- **이메일 가입**: 클라 INSERT 가 아예 없다. `auth.users` 의 `trg_complete_verified_email_signup`
+  (**SECURITY DEFINER · owner postgres**, 0086)가 확인 전환 시 프로필 행을 만든다 — 실측으로 트리거·소유자 확인.
+- **OAuth 가입**(`ensureUserProfile`): 세션 필수 → INSERT 는 **authenticated** 로 도착.
+- **운영 dry-run** (REVOKE+GRANT 실행 후 측정, 롤백):
+  `anon[ins=f upd=f del=f sel=t]` · `auth[ins_tbl=f, ins(id·email)=t, upd(reasoning_prefs)=t, upd(judge_mode)=f, del=f, sel=t]` · `service_role 무영향` · `supabase_auth_admin ins=f`
+- supabase_auth_admin 이 f 인 것은 무해하다 — 가입 트리거가 definer(postgres)라서. **단 그 함수를 SECURITY INVOKER 로 바꾸는 순간 가입이 깨진다.** 0140 주석에 박아둘 것.
+- → **`0140`(ACL 수술) 파일 착지 GO.** §5-b 의 SQL 그대로, `<확인된 role>` = `authenticated`.
+
+### V-컨펌 (Simon, 08-23 13:0x)
+
+| ID | 답 |
+|---|---|
+| V-1 | **예** — 백본 9 를 OpenAI 로 |
+| V-2 | **예** — 티어 배치 표대로 |
+| V-4 | **⚠ "지금 바로"** — 추천("마감 이후")을 뒤집었다. $100 충전 완료가 근거. **Claude 2좌석(persona_narrative·persona_synthesis) 배치를 지금 착수하라** |
+| V-5 | **아니오 — high 유지.** pro 두 줄의 effort 를 내리지 않는다. `PURPOSE_EFFORT_MAX` 변경 금지 |
+
+### 남은 것
+
+| 누가 | 무엇 |
+|---|---|
+| Simon | **S-1**: 스테이징된 폼에 값 5개 붙여넣고 Bulk save (OpenAI 키 5개 신규 발급) |
+| 콘솔 | S-1 후: `ai_audit_log` 검증 → `MODEL_PIN_OPENAI_FRONTIER` 삭제 → 승격 시험 · `OPENAI_TRANSCRIBE_MODEL` 은 첫 음성 메모가 판정(UNVERIFIED 유지) |
+| CLI | **V-4 집행**(Claude 2좌석, 지금) · **`0140` ACL 수술 파일**(위 확정값) · 9월 Gemini 폐기 PR 에 `callLlm` 폴백 하드코딩 제거 포함 |
+
+
 ## 2026-08-21 05:3x KST / Grok 투입 (#1317) · ⚠ 스위치 두 개가 빌드에 안 닿고 있었다
 
 > 발행: **CLI(코딩) 세션.** Simon 지시 "grok 투입 그냥 해" 에 대한 회신이다.
