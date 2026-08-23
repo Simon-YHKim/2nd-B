@@ -3,6 +3,38 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-23 19:4x KST / 벤더 재편 실전 검증 통과 · 키 위생 종료 (콘솔 세션)
+
+### 확정 사실 (재확인 불필요)
+
+- **탈출 증명 완료**: 08-23 09:38Z 원장 `secondb_chat → openai / gpt-5.5-2026-04-23 / OPENAI_API_KEY__LOW / 3099ms / 700tok / green`. 첫 시도(09:26Z, 설치 앱 vc20)는 gemini로 감 — 구빌드 탓, 서버 아님. 웹 강력새로고침 후 성공. 2단 effort 키가 받음 = 승격 불변 설계 실증.
+- **OpenAI 키 위생 종료**: Supabase 콤보 10개(`OPENAI_API_KEY__GPT54__*`·`__GPT54NANO__*`) 삭제·필터 0건 검증. 플랫폼 키 6개 전부 `2ndb-*`(ci, edge-base/none/low/medium/high, 만료 Never).
+- **Anthropic 키 위생 종료**: 새 키 3개 `2ndb-edge-base`·`2ndb-edge-max`·`2ndb-ci`(만료 Never)로 전면 교체. Supabase `ANTHROPIC_API_KEY` 교체(다이제스트 35a0ad8c…) + `ANTHROPIC_API_KEY__MAX` 신규(8632270f…). 콤보 8개(`__SONNET5__*`·`__OPUS48__*`) 삭제·0건 검증. GH `ANTHROPIC_API_KEY` ← 2ndb-ci(10:27Z), model-refresh 재실행으로 sonnet·opus 스모크 통과 = CI 키 실검증. 콘솔 구키 10개(opus48×4, sonnet5×4, 2ndb-reasoning, github-model-refresh-260818-r2[9/17 만료 시한폭탄이던 것]) 전부 삭제 → 콘솔 최종 3개.
+- **Simon 결정 (08-23)**: Anthropic은 **opus 계열만, effort는 max만** 운용한다. sonnet 좌석 제거는 REQ-260823-02.
+- Anthropic API effort enum 실측(공식 docs) = low/medium/high/xhigh/**max**. 코드축(PHASE2_EFFORT)은 아직 xhigh까지.
+- ⚠ **Gemini 키·콤보·좌석은 불가침** — 구빌드 설치 앱이 지금도 gemini로 실서빙 중(09:26Z 원장 실측). 9월 폐기 PR에서 일괄.
+
+### UNVERIFIED
+
+- `2ndb-edge-base` 실호출 미검증: 콤보 삭제 후 claude 좌석은 base 키로 해석되는데 아직 claude 호출이 0건. pg_cron·GH 워크플로 어디에도 claude 트리거 없음 실측(ops_daily_brief·digest_weekly 트리거 경로 불명) — 다음 자연 호출의 원장이 판정. 401이 뜨면 base 값 재붙여넣기가 복구 경로.
+- reasoning_effort가 앱=high·웹=low로 달랐던 원인 — 미확인, 비차단.
+
+### REQ-260823-02 → CLI: effort 축 max 확장 + Anthropic opus-only 좌석 정리
+
+**왜 하는가**: Simon 확정 — Claude는 비싸므로 "사용자 전체 코퍼스를 읽는 저빈도 딥리드"에만 최고 품질(max)로 쓴다. `ANTHROPIC_API_KEY__MAX`는 이미 운영에 등록돼 있고, 코드가 max를 몰라서 못 쓰는 상태다.
+
+**완료조건**
+1. effort 축(`src/lib/llm/routing.ts`의 PHASE2_EFFORT 등)에 `max` 추가하고 anthropic-proxy가 API `effort`로 전달한다(anthropic 전용 — openai·gemini 축 불변). `_shared` 수정 시 프록시 재배포 필수.
+2. Anthropic 좌석 = opus 계열만 남긴다. sonnet 8좌석(advisor, secondb_chat, gap_synthesize, self_model_propose, northstar_propose, ops_recommend, ops_daily_brief, ttfv_first_insight)은 openai(gpt-5.5)로 이관 또는 제거. ⚠ 트레이드오프 명시: anthropic 맵에서 chat류를 빼면 OpenAI 장애 시 2차 플립 피난처가 사라진다 — 대안(chat 폴백만 opus로 유지) 포함해 판단하고 근거를 보고할 것.
+3. opus 좌석 effort 배치: persona_synthesis=max 우선. 나머지(digest_weekly·axis_estimate·persona_narrative)는 호출 빈도×단가 곡선 보고 제안.
+4. REQ-260823-01(refresh-models.ts 벤더 루프 "xai" 누락)과 같은 PR로 묶어도 된다. 오늘 10:28Z 실행에서도 `xai-frontier: XAI_API_KEY 가 없어 건너뜀` 재현 — 미랜딩 확인.
+5. 검증: model-refresh 시험 통과 + 원장에 `key_combo=ANTHROPIC_API_KEY__MAX` 1건.
+
+**하지 말 것**: Gemini 접촉 · 시크릿 값 요청 · main 직접 push.
+위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+---
+
 ## Latest — 2026-08-23 14:2x KST / 승격 재개: gpt-5.5 · claude-sonnet-5 · claude-opus-5 — xai 만 스크립트 버그로 막힘
 
 > 발행: **GUI(Cowork) 콘솔 세션.**
