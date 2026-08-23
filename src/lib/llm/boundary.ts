@@ -14,6 +14,7 @@ import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
 import {
   embedVendor,
+  failoverVendor,
   multimodalVendor,
   normalizeVendor,
   phase2EffortFor,
@@ -649,7 +650,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
     // row's outage fallback is that row's Phase 1 assignment". A crisis 422 is
     // handled below and never retried (all proxies share the same gate, so a
     // retry would just re-reject — and must not look like an outage).
-    if (error && primaryFn !== "gemini-proxy") {
+    // The retry target is a switch now, not the literal "gemini-proxy" (that
+    // key stops working in September, at which point the retry would be a
+    // guaranteed second failure that also replaces the real error). Comparing
+    // against primaryFn rather than a fixed name also generalises the old
+    // guard: retrying the proxy that just failed is not a failover.
+    const failoverTarget = failoverVendor();
+    const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
+    if (error && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       if (vendorCrisis.route) {
         return (await routeCrisis(
@@ -663,10 +671,14 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
         )) as unknown as LlmResult<T>;
       }
       if (typeof console !== "undefined") {
-        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} — falling back to gemini-proxy`);
+        console.warn(`[llm] ${primaryFn} failed for ${input.purpose} — falling back to ${failoverFn}`);
       }
-      servedByProvider = "gemini";
-      ({ data, error } = await supabase.functions.invoke("gemini-proxy", {
+      // ⚠ This must follow the target, not say "gemini". servedByProvider is
+      // what the audit row records, so a hardcoded value here would make the
+      // ledger claim Gemini served a call OpenAI served - and the ledger is the
+      // only place anyone can check which vendor did what.
+      servedByProvider = failoverTarget as LlmVendor;
+      ({ data, error } = await supabase.functions.invoke(failoverFn, {
         body: proxyBody,
         signal: input.signal,
       }));
@@ -1420,7 +1432,9 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
     let { data, error } = await supabase.functions.invoke(primaryFn, { body: proxyBody });
     // D-26 outage failover (parity with callLlm): a vendor-seat failure that
     // is NOT a crisis 422 retries ONCE on the Phase 1 route (gemini-proxy).
-    if (error && primaryFn !== "gemini-proxy") {
+    const failoverTarget = failoverVendor();
+    const failoverFn = failoverTarget === "none" ? null : proxyFnForVendor(failoverTarget);
+    if (error && failoverFn && failoverFn !== primaryFn) {
       const vendorCrisis = await inspectProxyCrisisRejection(error);
       if (vendorCrisis.route) {
         return advisorProxyCrisisResult(
@@ -1432,10 +1446,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
         );
       }
       if (typeof console !== "undefined") {
-        console.warn(`[advisor] ${primaryFn} failed — falling back to gemini-proxy`);
+        console.warn(`[advisor] ${primaryFn} failed — falling back to ${failoverFn}`);
       }
-      servedByProvider = "gemini";
-      ({ data, error } = await supabase.functions.invoke("gemini-proxy", { body: proxyBody }));
+      // See the note at the other failover site: this value is what the audit
+      // records, so it has to follow the target.
+      servedByProvider = failoverTarget as LlmVendor;
+      ({ data, error } = await supabase.functions.invoke(failoverFn, { body: proxyBody }));
     }
     latencyMs = Date.now() - t0;
     if (error) {

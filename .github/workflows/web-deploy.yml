@@ -134,6 +134,13 @@ jobs:
           # Embeddings. Unset keeps Gemini. ⚠ flipping this requires a re-index -
           # see the note above embedVendor() in src/lib/llm/routing.ts.
           EXPO_PUBLIC_EMBED_VENDOR: ${{ vars.EXPO_PUBLIC_EMBED_VENDOR || '' }}
+          # Where a failed vendor call retries. Unset keeps Gemini; 'none'
+          # disables the retry, which is the right answer once Gemini is gone
+          # and the only targets left are the one that just failed.
+          EXPO_PUBLIC_FAILOVER_VENDOR: ${{ vars.EXPO_PUBLIC_FAILOVER_VENDOR || '' }}
+          # Server-side crisis classifier vendor. Dormant unless
+          # EXPO_PUBLIC_SERVER_SAFETY is also on.
+          EXPO_PUBLIC_SAFETY_VENDOR: ${{ vars.EXPO_PUBLIC_SAFETY_VENDOR || '' }}
           # Naver social sign-up (custom OAuth via the oauth-naver edge function,
           # already in-repo). Server side confirmed live 2026-07-15 (Simon):
           # oauth-naver deployed with its secrets and the app registered at
