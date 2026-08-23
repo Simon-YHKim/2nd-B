@@ -98,7 +98,10 @@ describe("커버리지가 저장된다 (0143)", () => {
 
 describe("저장·읽기가 막지 않는다 (fail-soft)", () => {
   it("읽기 실패는 빈 행렬이다", () => {
-    expect(STORE).toContain("catch {\n    return cov;\n  }");
+    // ⚠ 개행을 **리터럴로 대조하지 않는다.** 이 저장소의 소스는 CRLF 로 체크아웃될
+    // 수 있어서 "\n" 을 박아두면 체크아웃 방식에 따라 통과했다 안 했다 한다
+    // (실제로 그렇게 깨졌다 -- 내 워크트리는 LF 였고 재체크아웃 후 CRLF 였다).
+    expect(STORE).toMatch(/catch \{\s*return cov;\s*\}/);
   });
 
   it("더할 때 저장된 값 위에 얹는다 (덮어쓰지 않는다)", () => {
