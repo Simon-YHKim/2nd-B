@@ -244,12 +244,14 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   self_model_propose: "high",
   northstar_propose: "high",
   axis_estimate: "high",
-  persona_synthesis: "xhigh",
+  // max is Anthropic-only in practice: openai-proxy folds max into xhigh, so
+  // asking for it costs nothing on the seats that stayed with OpenAI.
+  persona_synthesis: "max",
   ops_recommend: "medium",
   ops_daily_brief: "medium",
   // Proto rev2 seats: digest_weekly + ttfv_first_insight are high-stakes ->
   // xhigh; cluster_infer's rationale is lighter -> medium.
-  digest_weekly: "xhigh",
+  digest_weekly: "max",
   ttfv_first_insight: "xhigh",
   cluster_infer: "medium",
   // secondb_chat is not a PHASE2_VENDOR seat (it routes via
