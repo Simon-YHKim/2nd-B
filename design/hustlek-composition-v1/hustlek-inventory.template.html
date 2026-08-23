@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HustleK 아바타·직업·아이콘 정의 목록</title>
+    <title>HustleK 오프닝·아바타·직업·아이콘 정의 목록</title>
     <style>
       :root {
         color-scheme: dark;
@@ -102,7 +102,7 @@
 
       .stats {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(7, minmax(0, 1fr));
         gap: 1px;
         border: 1px solid var(--line);
         background: var(--line);
@@ -136,7 +136,7 @@
 
       .tabs {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         border-bottom: 1px solid var(--line);
       }
 
@@ -328,6 +328,25 @@
         align-content: center;
       }
 
+      .opening-card {
+        min-height: 0;
+        grid-template-columns: 1fr;
+      }
+
+      .opening-spec,
+      .opening-source {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .opening-spec strong,
+      .opening-source strong {
+        color: var(--gold);
+      }
+
       .alias-arrow {
         margin: 8px 0;
         color: var(--gold);
@@ -428,19 +447,20 @@
   </head>
   <body>
     <main class="shell">
-      <p class="eyebrow">HUSTLEK · LOGICAL32 MIGRATION SOURCE INVENTORY</p>
-      <h1>아바타·직업·아이콘 정의 목록</h1>
+      <p class="eyebrow">HUSTLEK · OPENING / AVATAR / ICON DEFINITION INVENTORY</p>
+      <h1>오프닝·아바타·직업·아이콘 정의 목록</h1>
       <p class="intro">
-        구현 대상의 실제 catalog와 원본 PIXEL-CLAY 명세를 결합해 이름, ID, 의미, 시각 제작 기준을
-        텍스트로 정리했습니다. 검색과 분류 필터로 원하는 정의를 바로 확인할 수 있습니다.
+        HustleK 오프닝 계약과 구현 대상 catalog, 원본 PIXEL-CLAY 명세를 결합해 이름, ID, 의미, 시각
+        제작 기준을 텍스트로 정리했습니다. 검색과 분류 필터로 원하는 정의를 바로 확인할 수 있습니다.
       </p>
 
       <div class="notice">
-        <strong>상태 안내:</strong> 아래 그림은 보존 중인 v1 native128 검수 후보입니다. 새 v2
-        logical32 승인본이 아니며, 목록과 정체성 확인에만 사용합니다.
+        <strong>아바타·아이콘 상태 안내:</strong> 목록의 그림은 보존 중인 v1 native128 검수
+        후보입니다. 새 v2 logical32 승인본이 아니며, 목록과 정체성 확인에만 사용합니다.
       </div>
 
       <section class="stats" aria-label="인벤토리 요약">
+        <div class="stat"><strong id="opening-total"></strong><span>오프닝 구성</span></div>
         <div class="stat"><strong id="avatar-total"></strong><span>실제 아바타</span></div>
         <div class="stat"><strong id="job-total"></strong><span>직업 정의</span></div>
         <div class="stat"><strong id="job-used"></strong><span>아바타 recipe 사용</span></div>
@@ -451,6 +471,7 @@
 
       <section class="inventory" aria-labelledby="list-title">
         <div class="tabs" role="tablist" aria-label="목록 종류">
+          <button class="tab" type="button" role="tab" data-tab="opening">오프닝 23</button>
           <button class="tab" type="button" role="tab" data-tab="avatars">아바타 270</button>
           <button class="tab" type="button" role="tab" data-tab="jobs">직업 232</button>
           <button class="tab" type="button" role="tab" data-tab="icons">아이콘 533</button>
@@ -509,6 +530,7 @@
 
     <script>
       (() => {
+        const OPENING = __OPENING_JSON__;
         const AVATARS = __AVATARS_JSON__;
         const JOBS = __JOBS_JSON__;
         const ICONS = __ICONS_JSON__;
@@ -516,7 +538,7 @@
         const COUNTS = __COUNTS_JSON__;
 
         const state = {
-          tab: "avatars",
+          tab: "opening",
           query: "",
           category: "all",
           status: "all",
@@ -536,6 +558,7 @@
         const pageLabel = document.getElementById("page-label");
         const copyButton = document.getElementById("copy-button");
 
+        document.getElementById("opening-total").textContent = COUNTS.opening;
         document.getElementById("avatar-total").textContent = COUNTS.avatars;
         document.getElementById("job-total").textContent = COUNTS.jobs;
         document.getElementById("job-used").textContent = COUNTS.jobs_used;
@@ -562,6 +585,7 @@
         }
 
         function activeRecords() {
+          if (state.tab === "opening") return OPENING;
           if (state.tab === "avatars") return AVATARS;
           if (state.tab === "jobs") return JOBS;
           if (state.tab === "icons") return ICONS;
@@ -569,6 +593,8 @@
         }
 
         function searchableText(item) {
+          if (state.tab === "opening")
+            return `${item.name} ${item.en} ${item.id} ${item.category} ${item.categoryLabel} ${item.definition} ${item.spec} ${item.source}`;
           if (state.tab === "avatars")
             return `${item.ko} ${item.en} ${item.id} ${item.assetId} ${item.kind} ${item.group} ${item.groupLabel} ${item.definition}`;
           if (state.tab === "jobs")
@@ -582,23 +608,27 @@
           const query = state.query.toLocaleLowerCase("ko");
           return activeRecords().filter((item) => {
             const categoryValue =
-              state.tab === "avatars" || state.tab === "jobs"
-                ? item.group
-                : state.tab === "icons"
-                  ? item.category
-                  : "all";
-            const statusValue =
-              state.tab === "avatars"
-                ? item.kind
-                : state.tab === "jobs"
-                  ? item.used
-                    ? "used"
-                    : "reserved"
+              state.tab === "opening"
+                ? item.category
+                : state.tab === "avatars" || state.tab === "jobs"
+                  ? item.group
                   : state.tab === "icons"
-                    ? item.attachment
-                      ? "attachment"
-                      : "standalone"
+                    ? item.category
                     : "all";
+            const statusValue =
+              state.tab === "opening"
+                ? "all"
+                : state.tab === "avatars"
+                  ? item.kind
+                  : state.tab === "jobs"
+                    ? item.used
+                      ? "used"
+                      : "reserved"
+                    : state.tab === "icons"
+                      ? item.attachment
+                        ? "attachment"
+                        : "standalone"
+                      : "all";
             return (
               (state.category === "all" || categoryValue === state.category) &&
               (state.status === "all" || statusValue === state.status) &&
@@ -644,6 +674,42 @@
           element.className = "asset-definition";
           element.textContent = text;
           return element;
+        }
+
+        function labeledDetail(className, label, value) {
+          const element = document.createElement("p");
+          element.className = className;
+          const strong = document.createElement("strong");
+          strong.textContent = `${label}: `;
+          element.append(strong, value);
+          return element;
+        }
+
+        function openingCard(item) {
+          const card = document.createElement("article");
+          card.className = "asset-card opening-card";
+          const title = document.createElement("h3");
+          title.className = "asset-title";
+          title.textContent = item.name;
+          const english = document.createElement("p");
+          english.className = "asset-en";
+          english.textContent = item.en;
+          const id = document.createElement("code");
+          id.className = "asset-id";
+          id.textContent = item.id;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.append(tag(item.categoryLabel, "ready"));
+          card.append(
+            title,
+            english,
+            id,
+            definition(item.definition),
+            labeledDetail("opening-spec", "규격", item.spec),
+            labeledDetail("opening-source", "출처", item.source),
+            meta,
+          );
+          return card;
         }
 
         function avatarCard(item) {
@@ -741,7 +807,13 @@
         }
 
         function setupFilters() {
-          if (state.tab === "avatars") {
+          if (state.tab === "opening") {
+            const groups = [
+              ...new Map(OPENING.map((item) => [item.category, item.categoryLabel])).entries(),
+            ];
+            addOptions(category, [["all", "전체 분류"], ...groups]);
+            addOptions(status, [["all", "전체 구성"]]);
+          } else if (state.tab === "avatars") {
             const groups = [
               ...new Map(AVATARS.map((item) => [item.group, item.groupLabel])).entries(),
             ];
@@ -778,7 +850,7 @@
             addOptions(status, [["all", "canonical 재사용"]]);
           }
           category.disabled = state.tab === "aliases";
-          status.disabled = state.tab === "aliases";
+          status.disabled = state.tab === "opening" || state.tab === "aliases";
         }
 
         function render() {
@@ -793,6 +865,7 @@
           const start = state.page * numericPageSize;
           const visible = records.slice(start, start + numericPageSize);
           const titles = {
+            opening: "HustleK 오프닝·사용 에셋 정의",
             avatars: "실제 아바타 정의",
             jobs: "직업 제작 정의",
             icons: "canonical 아이콘 정의",
@@ -808,13 +881,15 @@
             grid.append(empty);
           } else {
             const renderer =
-              state.tab === "avatars"
-                ? avatarCard
-                : state.tab === "jobs"
-                  ? jobCard
-                  : state.tab === "icons"
-                    ? iconCard
-                    : aliasCard;
+              state.tab === "opening"
+                ? openingCard
+                : state.tab === "avatars"
+                  ? avatarCard
+                  : state.tab === "jobs"
+                    ? jobCard
+                    : state.tab === "icons"
+                      ? iconCard
+                      : aliasCard;
             grid.append(...visible.map(renderer));
           }
           pageLabel.textContent = all
@@ -884,6 +959,8 @@
         });
         copyButton.addEventListener("click", async () => {
           const rows = filteredRecords().map((item) => {
+            if (state.tab === "opening")
+              return `[오프닝]\t${item.name}\t${item.en}\t${item.id}\t${item.definition}\t규격: ${item.spec}\t출처: ${item.source}`;
             if (state.tab === "avatars")
               return `[아바타]\t${item.ko}\t${item.en}\t${item.assetId}\t${item.definition}`;
             if (state.tab === "jobs")
