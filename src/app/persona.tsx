@@ -40,7 +40,7 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
   backToCapture: string;
   dimHigh: string;
   dimLow: string;
-  tools: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/mbti" | "/ipip-neo" | "/rlss"; fast?: boolean }[];
+  tools: { label: string; sub: string; route: "/audit" | "/big-five" | "/attachment" | "/ipip-neo" | "/rlss"; fast?: boolean }[];
 }> = {
   en: {
     errorBody: "Something interrupted gathering your pieces. Please try again in a moment.",
@@ -63,7 +63,6 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
       { label: "Big Five (BFI-44)", sub: "44 items · ~8 min", route: "/big-five" },
       { label: "Personality, in depth (IPIP-NEO-120)", sub: "120 items · ~15 min · 30 facets", route: "/ipip-neo" },
       { label: "Life Satisfaction / RLSS", sub: "6 items · ~2 min", route: "/rlss" },
-      { label: "MBTI", sub: "Type check-in · ~3 min", route: "/mbti" },
     ],
   },
   ko: {
@@ -87,7 +86,6 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
       { label: "Big Five (BFI-44)", sub: "44문항 · 약 8분", route: "/big-five" },
       { label: "성격 정밀검사 (IPIP-NEO-120)", sub: "120문항 · 약 15분 · facet 30개", route: "/ipip-neo" },
       { label: "삶의 만족도 / RLSS", sub: "6문항 · 약 2분", route: "/rlss" },
-      { label: "MBTI", sub: "유형 입력 · 약 3분", route: "/mbti" },
     ],
   },
   es: {
@@ -111,7 +109,6 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
       { label: "Big Five (BFI-44)", sub: "44 ítems · ~8 min", route: "/big-five" },
       { label: "Personalidad en profundidad (IPIP-NEO-120)", sub: "120 ítems · ~15 min · 30 facetas", route: "/ipip-neo" },
       { label: "Satisfacción vital / RLSS", sub: "6 ítems · ~2 min", route: "/rlss" },
-      { label: "MBTI", sub: "Registro de tipo · ~3 min", route: "/mbti" },
     ],
   },
   pt: {
@@ -135,7 +132,6 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
       { label: "Big Five (BFI-44)", sub: "44 itens · ~8 min", route: "/big-five" },
       { label: "Personalidade em profundidade (IPIP-NEO-120)", sub: "120 itens · ~15 min · 30 facetas", route: "/ipip-neo" },
       { label: "Satisfação com a vida / RLSS", sub: "6 itens · ~2 min", route: "/rlss" },
-      { label: "MBTI", sub: "Checagem de tipo · ~3 min", route: "/mbti" },
     ],
   },
   id: {
@@ -159,7 +155,6 @@ const PERSONA_COPY: Record<AvailableUiLocale, {
       { label: "Big Five (BFI-44)", sub: "44 item · ~8 mnt", route: "/big-five" },
       { label: "Kepribadian mendalam (IPIP-NEO-120)", sub: "120 item · ~15 mnt · 30 faset", route: "/ipip-neo" },
       { label: "Kepuasan hidup / RLSS", sub: "6 item · ~2 mnt", route: "/rlss" },
-      { label: "MBTI", sub: "Cek tipe · ~3 mnt", route: "/mbti" },
     ],
   },
 };
