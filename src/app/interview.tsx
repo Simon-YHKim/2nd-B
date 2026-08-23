@@ -144,13 +144,20 @@ export default function InterviewRoute() {
     (list: InterviewTurn[]): ReflectionEntry[] =>
       list
         .filter((turn) => turn.role === "user")
+        // ⚠ **"모르겠다"는 성찰 기록이 아니다** (실측 2026-08-24).
+        //
+        // 이걸 안 걸러내면 같은 표현으로 세 번 못 답했을 때 `detectLoops` 가
+        // 새로움 0 을 보고 **되묻기**를 띄운다 -- "같은 결론으로 자꾸 돌아오시나요?"
+        // 못 답한 사람에게 곱씹는다고 말하는 셈이라 정반대의 대응이다.
+        // 커버리지를 안 올리는 것과 같은 이유다: 답이 아닌 것을 답으로 세지 않는다.
+        .filter((turn) => !isNonAnswer(turn.text, locale))
         .map((turn, i) => ({
           id: `t${i}`,
           createdAt: new Date().toISOString(),
           theme: turn.period ?? period,
           text: turn.text,
         })),
-    [period],
+    [period, locale],
   );
 
   const ask = useCallback(

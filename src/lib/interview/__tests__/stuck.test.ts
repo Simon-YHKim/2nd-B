@@ -194,3 +194,20 @@ describe("⚠ 층을 정하는 곳은 하나다 (실행해서 잡은 두 번째 
     expect(SRC).toContain("const layer = forceLayer ?? nextLayerSuggestion(coverage, period);");
   });
 });
+
+describe('⚠ "모르겠다"는 성찰 기록이 아니다 (되묻기가 대신 걸리지 않게)', () => {
+  // 실측 2026-08-24: 같은 표현으로 세 번 못 답했더니 발판 대신 **되묻기**가 떴다.
+  // "같은 결론으로 자꾸 돌아오시나요?" -- 못 답한 사람에게 곱씹는다고 말하는 셈이다.
+  // 화면이 `entriesOf` 에서 비-답변을 걸러내야 `detectLoops` 가 그걸 안 본다.
+  const SCREEN = readFileSync(join(__dirname, "..", "..", "..", "app", "interview.tsx"), "utf8");
+
+  it("화면이 entriesOf 에서 비-답변을 걸러낸다", () => {
+    expect(SCREEN).toContain(".filter((turn) => !isNonAnswer(turn.text, locale))");
+  });
+
+  it("걸러내면 되묻기 기준(3편 초과)에 안 닿는다", () => {
+    const answers = ["잘 모르겠는데", "잘 모르겠는데", "잘 모르겠는데", "잘 모르겠는데"];
+    const kept = answers.filter((t) => !isNonAnswer(t, "ko"));
+    expect(kept).toHaveLength(0);
+  });
+});
