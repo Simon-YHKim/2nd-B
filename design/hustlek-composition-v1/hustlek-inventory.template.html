@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HustleK 직업·아이콘 인벤토리</title>
+    <title>HustleK 아바타·직업·아이콘 정의 목록</title>
     <style>
       :root {
         color-scheme: dark;
@@ -102,7 +102,7 @@
 
       .stats {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 1px;
         border: 1px solid var(--line);
         background: var(--line);
@@ -136,7 +136,7 @@
 
       .tabs {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         border-bottom: 1px solid var(--line);
       }
 
@@ -204,7 +204,7 @@
 
       .grid {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-auto-rows: max-content;
         align-content: start;
         gap: 10px;
@@ -214,9 +214,10 @@
 
       .asset-card {
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 14px;
         min-width: 0;
-        min-height: 206px;
+        min-height: 166px;
         border: 1px solid var(--line);
         padding: 10px;
         background: var(--sky);
@@ -231,7 +232,7 @@
         position: relative;
         width: 96px;
         height: 96px;
-        margin: 0 auto 10px;
+        margin: 0;
         overflow: hidden;
         background: var(--surface-strong);
         image-rendering: pixelated;
@@ -283,6 +284,13 @@
         white-space: nowrap;
       }
 
+      .asset-definition {
+        margin: 9px 0 0;
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.62;
+      }
+
       .meta {
         display: flex;
         flex-wrap: wrap;
@@ -316,7 +324,7 @@
 
       .alias-card {
         min-height: 118px;
-        grid-template-rows: auto;
+        grid-template-columns: 1fr;
         align-content: center;
       }
 
@@ -366,9 +374,6 @@
         .stats {
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-        .grid {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
         .toolbar {
           grid-template-columns: 1fr 1fr;
         }
@@ -383,7 +388,7 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: 1fr;
         }
       }
 
@@ -393,12 +398,17 @@
           grid-template-columns: 1fr;
         }
         .grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: 1fr;
           padding: 10px;
         }
         .asset-card {
-          min-height: 196px;
+          grid-template-columns: 1fr;
+          min-height: 0;
           padding: 8px;
+        }
+        .sprite-scene,
+        .placeholder {
+          margin: 0 auto;
         }
         .tabs {
           grid-template-columns: 1fr;
@@ -419,10 +429,10 @@
   <body>
     <main class="shell">
       <p class="eyebrow">HUSTLEK · LOGICAL32 MIGRATION SOURCE INVENTORY</p>
-      <h1>직업·아이콘 전체 목록</h1>
+      <h1>아바타·직업·아이콘 정의 목록</h1>
       <p class="intro">
-        구현 대상의 실제 catalog를 기준으로 직업 정의, canonical 아이콘, alias를 모두 정리했습니다.
-        검색과 분류 필터로 이름과 ID를 확인할 수 있습니다.
+        구현 대상의 실제 catalog와 원본 PIXEL-CLAY 명세를 결합해 이름, ID, 의미, 시각 제작 기준을
+        텍스트로 정리했습니다. 검색과 분류 필터로 원하는 정의를 바로 확인할 수 있습니다.
       </p>
 
       <div class="notice">
@@ -431,6 +441,7 @@
       </div>
 
       <section class="stats" aria-label="인벤토리 요약">
+        <div class="stat"><strong id="avatar-total"></strong><span>실제 아바타</span></div>
         <div class="stat"><strong id="job-total"></strong><span>직업 정의</span></div>
         <div class="stat"><strong id="job-used"></strong><span>아바타 recipe 사용</span></div>
         <div class="stat"><strong id="icon-total"></strong><span>canonical 아이콘</span></div>
@@ -440,6 +451,7 @@
 
       <section class="inventory" aria-labelledby="list-title">
         <div class="tabs" role="tablist" aria-label="목록 종류">
+          <button class="tab" type="button" role="tab" data-tab="avatars">아바타 270</button>
           <button class="tab" type="button" role="tab" data-tab="jobs">직업 232</button>
           <button class="tab" type="button" role="tab" data-tab="icons">아이콘 533</button>
           <button class="tab" type="button" role="tab" data-tab="aliases">별칭 51</button>
@@ -497,13 +509,14 @@
 
     <script>
       (() => {
+        const AVATARS = __AVATARS_JSON__;
         const JOBS = __JOBS_JSON__;
         const ICONS = __ICONS_JSON__;
         const ALIASES = __ALIASES_JSON__;
         const COUNTS = __COUNTS_JSON__;
 
         const state = {
-          tab: "jobs",
+          tab: "avatars",
           query: "",
           category: "all",
           status: "all",
@@ -523,6 +536,7 @@
         const pageLabel = document.getElementById("page-label");
         const copyButton = document.getElementById("copy-button");
 
+        document.getElementById("avatar-total").textContent = COUNTS.avatars;
         document.getElementById("job-total").textContent = COUNTS.jobs;
         document.getElementById("job-used").textContent = COUNTS.jobs_used;
         document.getElementById("icon-total").textContent = COUNTS.icons;
@@ -548,16 +562,19 @@
         }
 
         function activeRecords() {
+          if (state.tab === "avatars") return AVATARS;
           if (state.tab === "jobs") return JOBS;
           if (state.tab === "icons") return ICONS;
           return ALIASES;
         }
 
         function searchableText(item) {
+          if (state.tab === "avatars")
+            return `${item.ko} ${item.en} ${item.id} ${item.assetId} ${item.kind} ${item.group} ${item.groupLabel} ${item.definition}`;
           if (state.tab === "jobs")
-            return `${item.ko} ${item.en} ${item.id} ${item.group} ${item.groupLabel}`;
+            return `${item.ko} ${item.en} ${item.id} ${item.group} ${item.groupLabel} ${item.definition}`;
           if (state.tab === "icons")
-            return `${item.id} ${item.label} ${item.category} ${item.categoryLabel} ${item.role || ""} ${item.slot || ""}`;
+            return `${item.id} ${item.label} ${item.labelEn} ${item.category} ${item.categoryLabel} ${item.role || ""} ${item.slot || ""} ${item.definition}`;
           return `${item.id} ${item.canonicalAssetId}`;
         }
 
@@ -565,17 +582,23 @@
           const query = state.query.toLocaleLowerCase("ko");
           return activeRecords().filter((item) => {
             const categoryValue =
-              state.tab === "jobs" ? item.group : state.tab === "icons" ? item.category : "all";
-            const statusValue =
-              state.tab === "jobs"
-                ? item.used
-                  ? "used"
-                  : "reserved"
+              state.tab === "avatars" || state.tab === "jobs"
+                ? item.group
                 : state.tab === "icons"
-                  ? item.attachment
-                    ? "attachment"
-                    : "standalone"
+                  ? item.category
                   : "all";
+            const statusValue =
+              state.tab === "avatars"
+                ? item.kind
+                : state.tab === "jobs"
+                  ? item.used
+                    ? "used"
+                    : "reserved"
+                  : state.tab === "icons"
+                    ? item.attachment
+                      ? "attachment"
+                      : "standalone"
+                    : "all";
             return (
               (state.category === "all" || categoryValue === state.category) &&
               (state.status === "all" || statusValue === state.status) &&
@@ -616,6 +639,35 @@
           return element;
         }
 
+        function definition(text) {
+          const element = document.createElement("p");
+          element.className = "asset-definition";
+          element.textContent = text;
+          return element;
+        }
+
+        function avatarCard(item) {
+          const card = document.createElement("article");
+          card.className = "asset-card";
+          card.append(sprite(item.sprite, `${item.ko} 아바타`));
+          const body = document.createElement("div");
+          const title = document.createElement("h3");
+          title.className = "asset-title";
+          title.textContent = item.ko;
+          const english = document.createElement("p");
+          english.className = "asset-en";
+          english.textContent = item.en;
+          const id = document.createElement("code");
+          id.className = "asset-id";
+          id.textContent = item.assetId;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.append(tag(item.groupLabel), tag(item.kind, "ready"));
+          body.append(title, english, id, definition(item.definition), meta);
+          card.append(body);
+          return card;
+        }
+
         function jobCard(item) {
           const card = document.createElement("article");
           card.className = "asset-card";
@@ -642,7 +694,7 @@
             item.used ? tag(`사용 ${item.avatarCount}`, "ready") : tag("예약", "reserved"),
             clothTag,
           );
-          body.append(title, english, id, meta);
+          body.append(title, english, id, definition(item.definition), meta);
           card.append(body);
           return card;
         }
@@ -654,10 +706,10 @@
           const body = document.createElement("div");
           const title = document.createElement("h3");
           title.className = "asset-title";
-          title.textContent = humanize(item.label);
+          title.textContent = item.label;
           const english = document.createElement("p");
           english.className = "asset-en";
-          english.textContent = item.categoryLabel;
+          english.textContent = `${humanize(item.labelEn)} · ${item.categoryLabel}`;
           const id = document.createElement("code");
           id.className = "asset-id";
           id.textContent = item.assetId;
@@ -667,7 +719,7 @@
             item.attachment ? tag(`장착 ${item.role}`, "ready") : tag("standalone", "reserved"),
             ...(item.slot ? [tag(item.slot)] : []),
           );
-          body.append(title, english, id, meta);
+          body.append(title, english, id, definition(item.definition), meta);
           card.append(body);
           return card;
         }
@@ -689,7 +741,19 @@
         }
 
         function setupFilters() {
-          if (state.tab === "jobs") {
+          if (state.tab === "avatars") {
+            const groups = [
+              ...new Map(AVATARS.map((item) => [item.group, item.groupLabel])).entries(),
+            ];
+            addOptions(category, [["all", "전체 분류"], ...groups]);
+            addOptions(status, [
+              ["all", "전체 유형"],
+              ["job", "직업·판타지"],
+              ["role", "역할"],
+              ["animal", "동물"],
+              ["preset", "프리셋"],
+            ]);
+          } else if (state.tab === "jobs") {
             const groups = [
               ...new Map(JOBS.map((item) => [item.group, item.groupLabel])).entries(),
             ];
@@ -728,7 +792,12 @@
           state.page = Math.min(state.page, pageCount - 1);
           const start = state.page * numericPageSize;
           const visible = records.slice(start, start + numericPageSize);
-          const titles = { jobs: "직업 정의", icons: "canonical 아이콘", aliases: "아이콘 별칭" };
+          const titles = {
+            avatars: "실제 아바타 정의",
+            jobs: "직업 제작 정의",
+            icons: "canonical 아이콘 정의",
+            aliases: "아이콘 별칭 정의",
+          };
           listTitle.textContent = titles[state.tab];
           resultSummary.textContent = `${records.length}개 일치 · 전체 ${activeRecords().length}개`;
           grid.replaceChildren();
@@ -739,7 +808,13 @@
             grid.append(empty);
           } else {
             const renderer =
-              state.tab === "jobs" ? jobCard : state.tab === "icons" ? iconCard : aliasCard;
+              state.tab === "avatars"
+                ? avatarCard
+                : state.tab === "jobs"
+                  ? jobCard
+                  : state.tab === "icons"
+                    ? iconCard
+                    : aliasCard;
             grid.append(...visible.map(renderer));
           }
           pageLabel.textContent = all
@@ -809,11 +884,13 @@
         });
         copyButton.addEventListener("click", async () => {
           const rows = filteredRecords().map((item) => {
+            if (state.tab === "avatars")
+              return `[아바타]\t${item.ko}\t${item.en}\t${item.assetId}\t${item.definition}`;
             if (state.tab === "jobs")
-              return `${item.id}\t${item.ko}\t${item.en}\t${item.group}\t${item.used ? "used" : "reserved"}`;
+              return `[직업]\t${item.ko}\t${item.en}\t${item.id}\t${item.definition}`;
             if (state.tab === "icons")
-              return `${item.assetId}\t${item.category}\t${item.attachment ? `attachment:${item.role}` : "standalone"}`;
-            return `${item.id}\t${item.canonicalAssetId}`;
+              return `[아이콘]\t${item.label}\t${item.labelEn}\t${item.assetId}\t${item.definition}`;
+            return `[아이콘 별칭]\t${item.id}\t${item.canonicalAssetId} canonical 아이콘을 재사용하는 별칭.`;
           });
           await copyText(rows.join("\n"));
           copyButton.textContent = `${rows.length}개 복사됨`;
