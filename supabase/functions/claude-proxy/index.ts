@@ -87,6 +87,9 @@ const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
 // chat's refuge to opus, the alternative the order offered, would have made the
 // outage path the most expensive path in the system.
 const PURPOSE_MODEL: Record<string, string> = {
+  // The defender in the adversarial cross-check (REQ-260823-03). Opus at max,
+  // because its rewrite is what the user actually reads.
+  crosscheck_defend: 'claude-opus-4-8',
   persona_narrative: 'claude-opus-4-8',
   axis_estimate: 'claude-opus-4-8',
   persona_synthesis: 'claude-opus-4-8',
@@ -158,6 +161,7 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   axis_estimate: 'high',
   persona_synthesis: 'max',
   digest_weekly: 'max',
+  crosscheck_defend: 'max',
 };
 
 // Abstract effort -> Anthropic output_config.effort (native semantics),

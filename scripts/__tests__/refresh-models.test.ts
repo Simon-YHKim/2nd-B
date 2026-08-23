@@ -209,7 +209,7 @@ describe("secretsFor — 승격이 좌석 밖으로 새지 않는다", () => {
     expect(map.secondb_chat).toBeUndefined();
     // 그리고 opus 목적 넷은 전부 실려야 한다 (조용히 비는 맵이 더 나쁘다).
     expect(Object.keys(map).sort()).toEqual(
-      ["axis_estimate", "digest_weekly", "persona_narrative", "persona_synthesis"].sort(),
+      ["axis_estimate", "crosscheck_defend", "digest_weekly", "persona_narrative", "persona_synthesis"].sort(),
     );
   });
 
