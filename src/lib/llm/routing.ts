@@ -126,6 +126,50 @@ export function backboneVendor(): LlmVendor {
   return normalizeVendor(process.env.EXPO_PUBLIC_BACKBONE_VENDOR ?? "") ?? "gemini";
 }
 
+// EXPO_PUBLIC_SAFETY_VENDOR - the server-side crisis classifier's vendor.
+//
+// classifyViaProxy invoked "gemini-proxy" by name. It is dormant today
+// (EXPO_PUBLIC_SERVER_SAFETY defaults off), which is why it survived the four
+// switches unnoticed, and its September failure mode is quieter than a break:
+// the function catches everything and returns null, so a dead key means it
+// falls back to the lexicon. Turning the feature ON in September would
+// therefore APPEAR to work and do nothing - a safety layer that reports as
+// enabled while classifying nothing.
+//
+// Only gemini and openai are accepted, because only those two proxies have a
+// safety_classify seat AND the LLM_SERVER_SAFETY_SEAT exemption that lets
+// crisis text reach the classifier instead of being 422'd by the proxy's own
+// gate. Naming a proxy without both would make the classifier reject exactly
+// the messages it exists to read.
+export function safetyVendor(): LlmVendor {
+  const raw = (process.env.EXPO_PUBLIC_SAFETY_VENDOR ?? "").trim().toLowerCase();
+  if (raw === "openai" || raw === "gemini") return raw;
+  return "gemini";
+}
+
+/** Where a failed primary retries. "none" disables the retry entirely. */
+export type FailoverTarget = LlmVendor | "none";
+
+// EXPO_PUBLIC_FAILOVER_VENDOR - where the D-26 outage retry goes.
+//
+// The retry target was the literal "gemini-proxy" at both call sites. That was
+// right when Gemini was every seat's Phase 1 assignment. In September it stops
+// being right in a specific way: the retry becomes a GUARANTEED second failure
+// on a dead key, so every error costs an extra round trip and the caller ends
+// up holding Gemini's error instead of the one that actually happened.
+//
+// "none" exists because a failover with nowhere good to go is worse than no
+// failover. If Gemini is gone and the seats are on OpenAI, retrying OpenAI is
+// retrying the thing that just failed, and retrying Claude means paying opus
+// prices for an outage. Turning it off is a legitimate answer, so it is one.
+//
+// Default is "gemini", so behaviour is unchanged until an operator moves it.
+export function failoverVendor(): FailoverTarget {
+  const raw = (process.env.EXPO_PUBLIC_FAILOVER_VENDOR ?? "").trim().toLowerCase();
+  if (raw === "none") return "none";
+  return normalizeVendor(raw) ?? "gemini";
+}
+
 // EXPO_PUBLIC_EMBED_VENDOR - the last live Gemini hardcode.
 //
 // embedTexts invoked "gemini-proxy" by NAME, so it never passed through

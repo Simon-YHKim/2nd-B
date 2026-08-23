@@ -18,6 +18,7 @@ import { GoogleGenAI } from "@google/genai";
 import { getEnv } from "../env";
 import { classifyInput as lexiconClassify, crisisHotlines } from "../safety/classifier";
 import { getSupabaseClient } from "../supabase/client";
+import { proxyFnForVendor, safetyVendor } from "./routing";
 import { MODELS } from "./types";
 // C3: the Flash classifier makes a real Gemini call client-side (not via the
 // gemini-proxy), so the proxy never logs it. This module audits its own call.
@@ -221,7 +222,12 @@ async function classifyViaProxy(
     // Direct process.env read so babel-preset-expo inlines the flag at build time
     // (default undefined -> off). Do not route through getEnv (not in its schema).
     if (process.env.EXPO_PUBLIC_SERVER_SAFETY !== "true") return null;
-    const { data, error } = await getSupabaseClient().functions.invoke("gemini-proxy", {
+    // The vendor is a switch now, not a literal. See safetyVendor() for why the
+    // September failure here is quieter than a break: this function catches
+    // everything and returns null, so a dead key does not error - it silently
+    // becomes lexicon-only while the flag still reads "on".
+    const vendor = safetyVendor();
+    const { data, error } = await getSupabaseClient().functions.invoke(proxyFnForVendor(vendor), {
       body: {
         purpose: "safety_classify",
         // Config-defect fix (cowork 발주2, 2026-07-21; docs/handoff/ai_260721.md
@@ -235,7 +241,10 @@ async function classifyViaProxy(
         // deployed proxy: see the handoff's 발주2 전후 표. If a future crisis
         // eval shows the low rung hurts semantic recall, raise effort — that
         // eval is the D4 activation gate's job, not this cost fix.
-        model: MODELS.flash,
+        // Gemini-only hint. Every other proxy owns its model server-side and
+        // ignores this field, so it is sent only when it means something -
+        // openai-proxy seats safety_classify on its own cheap tier.
+        ...(vendor === "gemini" ? { model: MODELS.flash } : {}),
         effort: "low",
         system: `${SYSTEM_PROMPT}\n\nClassify the user message below. Output JSON only, no prose.`,
         user: `User message (locale=${locale}):\n"""\n${userMessage}\n"""`,
