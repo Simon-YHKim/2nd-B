@@ -87,9 +87,14 @@ describe("질문 문구가 로케일에 실재한다", () => {
       const dict = JSON.parse(
         fs.readFileSync(path.join(root, "locales", locale, "interview.json"), "utf8"),
       );
+      // ⚠ 중첩이어야 한다. i18next 는 `keySeparator` 기본값이 "." 이고 이
+      // 저장소는 그걸 끄지 않았으므로, `"loopCheck.stuckLoop"` 같은 **평면 키는
+      // 런타임에 안 풀린다.** #1331 이 평면으로 넣었고 이 테스트도 평면을
+      // 검사해서 둘이 사이좋게 틀려 있었다 -- 화면이 붙고 나서야 드러났다.
+      expect(typeof dict.loopCheck).toBe("object");
       for (const key of ["stuckLoop", "friendView", "setAside"]) {
-        expect(typeof dict[`loopCheck.${key}`]).toBe("string");
-        expect(dict[`loopCheck.${key}`].length).toBeGreaterThan(10);
+        expect(typeof dict.loopCheck[key]).toBe("string");
+        expect(dict.loopCheck[key].length).toBeGreaterThan(10);
       }
     }
   });
@@ -109,7 +114,7 @@ describe("질문 문구가 로케일에 실재한다", () => {
       "utf8",
     );
     for (const key of ["stuckLoop", "friendView", "setAside"]) {
-      expect(batch).toContain(dict[`loopCheck.${key}`]);
+      expect(batch).toContain(dict.loopCheck[key]);
     }
   });
 });

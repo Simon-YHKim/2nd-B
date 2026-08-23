@@ -235,6 +235,11 @@ function buildSystemPrompt(
       "3) 진단·조언·해석은 절대 하지 않습니다. 그저 더 듣는 다음 질문만.",
       "4) 사용자가 '그만' 같은 신호를 보내면, '여기서 멈춰도 좋아요'로 마무리합니다.",
       "5) 위기 신호(자해·자살·학대)가 보이면 즉시 한국 109(자살예방) 안내로 전환합니다.",
+      // 6·7 은 실측 후 추가(2026-08-23). 화면을 붙이고 보니 모델이 층이 바뀌어도
+      // "방금 말한 것 중에서 가장 살아 있는 느낌은?" 을 L2 와 L3 에 똑같이 냈다.
+      // 층을 내려가는 것이 이 기능의 전부인데 그러면 남는 것이 없다.
+      "6) **이미 물어본 질문을 다시 하지 않습니다.** 위 기록에 있는 질문과 같은 뜻이면 다른 각도로 묻습니다.",
+      `7) 이번 질문은 반드시 **${layerLabel}** 을 겨냥합니다 — ${layerGuide[nextLayer]}. 앞 단계로 되돌아가지 않습니다.`,
       "출력: 다음 질문 한 줄만. 다른 텍스트는 출력하지 않습니다.",
       INJECTION_GUARD.ko,
     ].join("\n");
@@ -256,6 +261,8 @@ function buildSystemPrompt(
     "3) NEVER diagnose, advise, or interpret. Just the next question that elicits more.",
     "4) If the user signals 'stop' or 'enough', close warmly: 'It's okay to pause here.'",
     "5) If you detect crisis signals (self-harm, suicide, abuse), pivot immediately to US 988 hotline guidance.",
+    "6) **Never repeat a question you already asked.** If the transcript above already covers it, come at it from a different angle.",
+    `7) This question MUST target **${layerLabel}** -- ${layerGuide[nextLayer]}. Do not fall back to an earlier layer.`,
     "Output: the next question on a single line. No other text.",
     INJECTION_GUARD.en,
   ].join("\n");
@@ -302,10 +309,58 @@ export async function nextProbe(
   });
   const cleaned = res.text.trim().split("\n")[0]?.trim() ?? "";
   return {
-    question: cleaned.length > 0
-      ? cleaned
-      : (locale === "ko" ? "조금 더 말해 줄 수 있을까요?" : "Can you say a little more about that?"),
+    question: usableQuestion(cleaned, history, layer, locale),
     zone: res.safety.zone,
     layer,
   };
 }
+
+/**
+ * 모델이 낸 줄을 그대로 쓸지 판단한다. **프롬프트만 믿지 않는다.**
+ *
+ * 실측(2026-08-23, 화면을 붙이고 처음 돌렸을 때): 층이 L2 에서 L3 으로 내려갔는데
+ * 모델이 "방금 말한 것 중에서 지금 가장 살아 있는 느낌이 드는 부분은 무엇인가요?"
+ * 를 **두 번 연속 똑같이** 냈다. 층을 내려가는 것이 이 기능의 전부라, 같은 질문이
+ * 반복되면 사용자에게는 기능이 없는 것과 같다.
+ *
+ * 프롬프트에 반복 금지 규칙을 넣었지만(6번) 규칙은 지켜질 수도 안 지켜질 수도 있다.
+ * 여기서는 **이미 물은 것과 사실상 같으면 버린다.** 그 자리에는 그 층을 겨냥한
+ * 고정 질문이 들어간다 -- 한 번 더 LLM 을 부르는 것보다 싸고 결과가 예측 가능하다.
+ */
+function usableQuestion(
+  candidate: string,
+  history: readonly InterviewTurn[],
+  layer: DrillLayer,
+  locale: "en" | "ko",
+): string {
+  const norm = (v: string) => v.replace(/\s+/g, " ").trim().toLowerCase();
+  const asked = new Set(
+    history.filter((turn) => turn.role === "interviewer").map((turn) => norm(turn.text)),
+  );
+  if (candidate.length > 0 && !asked.has(norm(candidate))) return candidate;
+  return LAYER_FALLBACK[locale][layer];
+}
+
+/**
+ * 층마다 하나씩 준비된 물음. 모델이 반복하거나 빈 줄을 낼 때만 쓴다.
+ *
+ * 결은 `docs/research/batches/self-knowledge.md` 의 reflection-promoting 목록을
+ * 따랐다 -- 장면에 닻을 내리고(L1), 몸의 감각을 묻고(L2), 지금으로 이어 붙인다(L5).
+ * 진단·조언은 없고 전부 더 듣는 질문이다.
+ */
+const LAYER_FALLBACK: Record<"en" | "ko", Record<DrillLayer, string>> = {
+  ko: {
+    fact: "그때 그 자리에 누가 있었고 무슨 일이 있었는지, 한 장면만 더 말해 줄 수 있을까요?",
+    feeling: "그 순간 몸에서는 어떤 느낌이 들었어요?",
+    meaning: "그 일이 본인에게 무엇을 보여줬다고 생각하세요?",
+    belief: "그 경험이 남긴 생각이 있다면, 본인이나 사람들에 대해 어떤 거였어요?",
+    echo: "그 생각이 요즘 어떤 선택에서 다시 나타나나요?",
+  },
+  en: {
+    fact: "Can you give me one more piece of that scene: who was there, what was happening?",
+    feeling: "What did that moment feel like in your body?",
+    meaning: "What do you think that showed you?",
+    belief: "If it left you with a belief about yourself or about people, what was it?",
+    echo: "Where does that belief show up in a choice you make now?",
+  },
+};

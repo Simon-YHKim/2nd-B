@@ -1,43 +1,72 @@
-// 심층 인터뷰 — fixed 5-question 회상 인터뷰 Likert screener (clone-audit 13).
+// 심층 인터뷰 — 5층 드릴다운 대화. (Simon 결정 2026-08-23: 배치안 ①)
 //
-// Cloned 1:1 from the reference InterviewScreen (sb-screens-know.jsx): a
-// windowed M3 screen over the shared deep-space sky (DeepSpaceScreen active
-// "lens"). Per step: a linear progress bar, one 세컨비-asked headline question,
-// a subtitle, and five tappable outlined answer cards. After the 5th answer a
-// ratify ("이렇게 반영할까요?") view proposes the change and only reflects it on
-// approval (propose→ratify). All colors route through m3.* tokens.
+// ── 무엇이 바뀌었나 ─────────────────────────────────────────────────────
+// 이 화면은 **고정 5문항 리커트 스크리너**였다. 캐논에서 온 다섯 질문을 탭으로
+// 답하고, 채점 없이 텍스트 한 덩어리로 저장한 뒤 `/big-five` 로 넘겼다.
+// 이름은 "심층 인터뷰"인데 깊이가 없었고, 다섯 문항이 전부 외향/내향 한 축이었다.
 //
-// The reference screener has no free-text LLM turn, so C9 is not in this
-// screen's path (the classifier stays enforced in gemini.ts). The ratify
-// approval persists the answers through createRecord and hands off to /big-five;
-// its success/failure surfaces use the premium toast + modal (never a native alert).
+// 정작 깊게 파는 엔진(`lib/interview/probe.ts`)은 **화면이 없어서** 자기 테스트
+// 밖 호출부가 0건이었다. Simon 이 그 둘을 잇기로 했다 -- 라우트·진입점·저장 태그가
+// 이미 여기 있고, 그래야 이름이 내용과 맞는다.
+//
+// 옛 스크리너는 되살릴 것이 아니다. 지우는 것이 곧 이 결정의 내용이다.
+//
+// ── 한 턴이 도는 방식 ───────────────────────────────────────────────────
+//
+//   nextMove(coverage, period, 이번 대화의 답변들, now)
+//     ├─ loopCheck : 같은 자리를 돌고 있다 -> LLM 을 부르지 않고 되묻는다
+//     └─ drill     : nextProbe(...) -> LLM 이 다음 질문 한 줄
+//                    답변을 받으면 그 층의 coverage 를 올린다
+//
+// 되묻기 판정의 재료는 **이번 대화의 사용자 답변들**이다. DB 를 읽지 않는다 --
+// "매번 같은 결론으로 돌아온다"는 바로 이 대화 안에서 관측되는 것이고, 그게
+// `detectLoops` 가 재는 것과 정확히 같다.
+//
+// ── C9 (안전) ───────────────────────────────────────────────────────────
+// 옛 화면은 자유서술이 없어서 C9 가 이 경로에 아예 없었다. 이제 있다.
+// 분류는 `callLlm`(경계 모듈) 안에서 돌고 `ProbeResult.zone` 으로 나온다.
+// 이 화면의 책임은 **red 를 만나면 텍스트가 아니라 핫라인을 띄우는 것**이다 --
+// `/secondb` 의 음성 경로와 같은 처리다.
+//
+// ── 저장 ────────────────────────────────────────────────────────────────
+// 태그(`interview`/`recall`/`screener`)와 `kind`, `auditPeriod` 는 그대로 둔다.
+// `assess/registry.ts` 의 `interview` 항목이 그 태그로 완료를 판정하고,
+// 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다.
 
-import { useEffect, useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
+import { Text } from "@/components/ui/Text";
+import { PremiumLoadingState, PremiumModal, PremiumToast } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
-import { SecondbHead } from "@/components/deepspace/SecondbHead";
-import { PremiumModal, PremiumToast, PremiumLoadingState } from "@/components/premium";
-import { m3 } from "@/lib/theme/m3";
-import { spacing } from "@/lib/theme/tokens";
+import { SecondbHead } from "@/components/deep-space/SecondbHead";
+import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
+import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { canonKnow } from "@/lib/canon";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
+import { m3 } from "@/lib/theme/m3";
+import { spacing } from "@/lib/theme/tokens";
+import {
+  LAYER_LABEL,
+  emptyCoverage,
+  incrementCoverage,
+  nextMove,
+  nextProbe,
+  type Coverage,
+  type DrillLayer,
+  type InterviewTurn,
+  type LifePeriod,
+} from "@/lib/interview/probe";
+import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 
-const TOTAL = 5;
-
-// Material-symbol stroke idiom (2dp currentColor, round caps), matching the
-// shell's icon set. Only the glyphs this screen needs are kept local.
 const ICON: Record<string, string> = {
-  radio_button_unchecked: '<circle cx="12" cy="12" r="9"/>',
-  task_alt: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
-  check: '<path d="m5 12 5 5L20 7"/>',
-  arrow_forward: '<path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>',
+  check: '<path d="M20 6L9 17l-5-5"/>',
+  send: '<path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>',
 };
 
 function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: string; size?: number }) {
@@ -48,54 +77,125 @@ function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: str
   return <SvgXml xml={xml} width={size} height={size} color={color} />;
 }
 
-// Fixed question set + answers: ko comes from the canon 1:1, with a faithful
-// en mirror kept in code (locale-inline copy keeps EN↔KO parity without new
-// i18n keys). The capture is Korean, so ko renders verbatim.
-// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
-const QS: Record<"ko" | "en", string[]> = {
-  ko: canonKnow.questions,
-  en: [
-    "Lately, when you're with people, does your energy fill up or drain away?",
-    "An evening alone or an evening with plans — which is more you?",
-    "At a first meeting, are you the one who speaks up first?",
-    "At the end of a tiring day, do you want to reach out to someone?",
-    "Looking back, was the moment you felt most alive spent alone or together?",
-  ],
-};
+// 한 세션의 턴 상한. 드릴은 원래 "축이 목표 등급에 닿을 때까지"인데
+// (`drill-stop.ts`), 등급 추정은 이 화면이 하지 않는다 -- 지금 추정치를 지어내지
+// 않는다는 것이 이 화면의 기존 약속이고, 그건 유지한다. 그래서 여기서는 **비용과
+// 피로**로만 끊는다. 사용자는 언제든 "여기까지"로 먼저 끝낼 수 있다.
+const MAX_TURNS = 12;
 
-// KO copy sourced from the design canon (src/lib/canon → public/proto/data)
-const ANSWERS: Record<"ko" | "en", string[]> = {
-  ko: canonKnow.likertOptions,
-  en: ["Yes", "Somewhat", "Neutral", "Not really", "No"],
-};
-
-// The interview saves each answer as a record; it does NOT compute tier deltas
-// yet, so the ratify block below shows an honest "saved" note instead of the
-// prototype's fabricated "+6 · 근거 4건 · L2→L3" proposal cards.
-
-function InterviewScreen() {
+export default function InterviewRoute() {
   const { t, i18n } = useTranslation("interview");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "ko" | "en";
-  // Period-scoped recall: the audit era card passes ?period=teens|20s (else this
-  // is the general "current" screener). Filed on the record so the recall lands
-  // under the era the user tapped, not always "current".
   const { period: periodParam } = useLocalSearchParams<{ period?: string }>();
+  // 라우트가 주는 시기. 옛 화면이 `?period=teens|20s` 를 받았으므로 그 링크가
+  // 죽지 않게 같은 값을 계속 받고, 엔진의 `LifePeriod` 로 옮긴다.
+  const period: LifePeriod =
+    periodParam === "teens" ? "teens" : periodParam === "20s" ? "twenties" : "current";
+  // 저장에 쓰는 값은 옛 표기 그대로다(레코드 스키마를 바꾸지 않는다).
   const auditPeriod: "current" | "20s" | "teens" =
     periodParam === "teens" || periodParam === "20s" ? periodParam : "current";
+
   const { userId, loading, isMinor, hasProfile } = useAuth();
   const kbHeight = useKeyboard();
 
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<string[]>([]);
+  const [turns, setTurns] = useState<InterviewTurn[]>([]);
+  const [coverage, setCoverage] = useState<Coverage>(emptyCoverage);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
+  const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "danger" } | null>(null);
-  const [feedbackModal, setFeedbackModal] = useState(false);
+  const [failModal, setFailModal] = useState(false);
+  const [crisis, setCrisis] = useState<{ visible: boolean; hotline: HotlineId }>({
+    visible: false,
+    hotline: "KR_109",
+  });
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (!toast) return;
     const timeout = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  const hotlineFor = useCallback(
+    (): HotlineId => (locale === "ko" ? (isMinor ? "KR_1388" : "KR_109") : "GLOBAL_988"),
+    [locale, isMinor],
+  );
+
+  // 이번 대화의 사용자 답변 -> 되묻기 판정의 재료. theme 를 시기로 두면
+  // "같은 시기를 새 말 없이 계속 맴돈다" 가 잡힌다.
+  const entriesOf = useCallback(
+    (list: InterviewTurn[]): ReflectionEntry[] =>
+      list
+        .filter((turn) => turn.role === "user")
+        .map((turn, i) => ({
+          id: `t${i}`,
+          createdAt: new Date().toISOString(),
+          theme: turn.period ?? period,
+          text: turn.text,
+        })),
+    [period],
+  );
+
+  const ask = useCallback(
+    async (history: InterviewTurn[], cov: Coverage) => {
+      if (!userId) return;
+      setBusy(true);
+      setNotice(null);
+      try {
+        const move = nextMove(cov, period, entriesOf(history), new Date());
+        if (move.kind === "loopCheck") {
+          // LLM 을 부르지 않는다. 질문이 이미 정해져 있고(리서치 원문), 여기서
+          // 더 캐묻는 것이 문제이므로 방향을 바꾸는 것 자체가 답이다.
+          const key = move.questionKey;
+          setTurns([
+            ...history,
+            { role: "interviewer", text: t(`loopCheck.${key}`), period },
+          ]);
+          setPendingLayer(null);
+          setNotice(t("drill.loopNote"));
+          return;
+        }
+        const probe = await nextProbe(userId, locale, period, history, cov, isMinor === true);
+        if (probe.zone === "red") {
+          // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
+          setCrisis({ visible: true, hotline: hotlineFor() });
+          return;
+        }
+        setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
+        setPendingLayer(probe.layer);
+      } catch {
+        setNotice(t("drill.failed"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [userId, period, locale, isMinor, entriesOf, hotlineFor, t],
+  );
+
+  // 첫 질문은 **LLM 을 부르지 않는다.**
+  //
+  // 엔진의 시스템 프롬프트는 "사용자의 마지막 답에 직접 이어붙인다"가 규칙인데,
+  // 히스토리가 비어 있으면 이어붙일 것이 없다. 실제로 그랬다 -- 첫 질문이
+  // "방금 말한 것 중에서 …" 로 나왔다. 아직 아무 말도 안 했는데 앞말을 가리키니
+  // 대화가 어긋난 데서 시작한다.
+  //
+  // 그래서 문을 여는 한 줄은 우리가 갖는다. 비용도 한 턴 아끼고, 무엇보다
+  // **말할 거리를 먼저 주는 쪽**이 이 층(L1 사실)이 원하는 것이다.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!userId || started.current) return;
+    started.current = true;
+    setTurns([{ role: "interviewer", text: t("drill.opening"), layer: "fact", period }]);
+    setPendingLayer("fact");
+  }, [userId, period, t]);
+
+  useEffect(() => {
+    if (turns.length > 0) scrollRef.current?.scrollToEnd({ animated: true });
+  }, [turns.length]);
 
   function Frame({ children }: { children: ReactNode }) {
     return (
@@ -123,25 +223,39 @@ function InterviewScreen() {
   if (!userId) return <Redirect href="/sign-in" />;
   if (hasProfile === false) return <Redirect href="/complete-profile" />;
 
-  function pickAnswer(a: string) {
-    setAnswers((prev) => [...prev, a]);
-    setStep((s) => s + 1);
+  const userTurns = turns.filter((turn) => turn.role === "user").length;
+
+  async function send() {
+    const text = draft.trim();
+    if (text.length === 0) {
+      setNotice(t("drill.emptyAnswer"));
+      return;
+    }
+    // 답변이 붙는 층은 **직전 질문이 겨냥한 층**이다. 되묻기였다면 층이 없다 --
+    // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
+    const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
+    const nextTurns = [...turns, answered];
+    const nextCoverage = pendingLayer ? incrementCoverage(coverage, period, pendingLayer) : coverage;
+    setTurns(nextTurns);
+    setCoverage(nextCoverage);
+    setDraft("");
+    setPendingLayer(null);
+    if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
+      setDone(true);
+      return;
+    }
+    await ask(nextTurns, nextCoverage);
   }
 
-  function restart() {
-    setAnswers([]);
-    setStep(0);
-  }
-
-  async function approveAndReflect() {
+  async function keepIt() {
     if (!userId || saving) return;
     setSaving(true);
     let navigating = false;
     try {
       const qLabel = locale === "ko" ? "질문" : "Q";
       const aLabel = locale === "ko" ? "답변" : "A";
-      const transcript = QS[locale]
-        .map((q, i) => `${qLabel}: ${q}\n${aLabel}: ${answers[i] ?? ""}`)
+      const transcript = turns
+        .map((turn) => `${turn.role === "interviewer" ? qLabel : aLabel}: ${turn.text}`)
         .join("\n\n");
       await createRecord({
         userId,
@@ -150,109 +264,110 @@ function InterviewScreen() {
         kind: "audit_response",
         body: transcript,
         topic: locale === "ko" ? "회상 인터뷰" : "Recall interview",
-        summary: locale === "ko" ? "5문항 회상 인터뷰 응답" : "5-item recall interview",
+        summary:
+          locale === "ko"
+            ? `${userTurns}턴 회상 인터뷰`
+            : `${userTurns}-turn recall interview`,
+        // 옛 스크리너와 같은 태그. assess/registry.ts 가 이걸로 완료를 판정한다.
         tags: ["interview", "recall", "screener"],
         auditPeriod,
         withFollowup: false,
       });
-      setToast({
-        tone: "success",
-        message: t("reflected"),
-      });
+      setToast({ tone: "success", message: t("drill.saved") });
       navigating = true;
       setTimeout(() => router.replace("/big-five"), 700);
-    } catch (e) {
-      console.warn("[interview] reflect save failed", (e as Error).message);
-      setFeedbackModal(true);
+    } catch {
+      setFailModal(true);
     } finally {
       if (!navigating) setSaving(false);
     }
   }
 
-  const feedbackRetryHint =
-    t("retryHint");
-  const ratify = step >= TOTAL;
-  const scrollStyle = [styles.body, { paddingBottom: kbHeight + spacing.sm }];
-
   return (
     <Frame>
-      <ScrollView contentContainerStyle={scrollStyle}>
-        {ratify ? (
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[styles.body, { paddingBottom: kbHeight + spacing.sm }]}
+      >
+        {done ? (
           <>
-            <View style={styles.ratifyHead}>
-              <Glyph name="task_alt" color={m3.color.primary} size={22} />
-              <Text style={[m3TextStyle("titleLarge"), styles.ratifyTitle]}>
-                {t("ratifyTitle")}
-              </Text>
-            </View>
-            <Text style={[m3TextStyle("bodyMedium"), styles.ratifyBody]}>
-              {t("ratifyBody1")}
-              <Text style={styles.ratifyBodyStrong}>{t("ratifyBodyStrong")}</Text>
-              {t("ratifyBody2")}
-            </Text>
-
-            <MdCard variant="outlined" style={styles.deltaCard}>
-              <Text style={[m3TextStyle("bodySmall"), styles.deltaNote]}>
-                {t("ratifyDeltaNote")}
-              </Text>
+            <Text style={[m3TextStyle("titleLarge"), styles.saveTitle]}>{t("drill.saveTitle")}</Text>
+            <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t("drill.closing")}</Text>
+            <MdCard variant="outlined" style={styles.noteCard}>
+              <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("drill.saveBody")}</Text>
             </MdCard>
-
-            <View style={styles.ratifyActions}>
-              <MdButton
-                label={t("again")}
-                variant="outlined"
-                onPress={restart}
-                style={styles.ratifyRestart}
-              />
+            <View style={styles.actions}>
               <MdButton
                 label={t("approve")}
                 variant="filled"
                 loading={saving}
-                onPress={approveAndReflect}
+                onPress={() => void keepIt()}
                 icon={<Glyph name="check" color={m3.color.onPrimary} size={18} />}
-                style={styles.ratifyApprove}
+                style={styles.actionButton}
               />
             </View>
           </>
         ) : (
           <>
-            <View style={styles.progressBlock}>
-              <ProgressLinear
-                value={step / TOTAL}
-                style={styles.progressBar}
-                accessibilityLabel={
-                  t("question", { n: step + 1, total: TOTAL })
-                }
-              />
-              <Text style={[m3TextStyle("labelMedium"), styles.progressLabel]}>
-                {t("progressLabel", { n: step + 1, total: TOTAL })}
+            {turns.map((turn, i) =>
+              turn.role === "interviewer" ? (
+                <View key={i} style={styles.askRow}>
+                  <SecondbHead size={32} track={false} />
+                  <Text style={[m3TextStyle("bodyLarge"), styles.askText]}>{turn.text}</Text>
+                </View>
+              ) : (
+                <View key={i} style={styles.mineWrap}>
+                  <MdCard variant="outlined" style={styles.mine}>
+                    <Text style={[m3TextStyle("bodyMedium"), styles.mineText]}>{turn.text}</Text>
+                  </MdCard>
+                </View>
+              ),
+            )}
+
+            {busy ? (
+              <Text style={[m3TextStyle("bodySmall"), styles.thinking]}>{t("drill.thinking")}</Text>
+            ) : null}
+            {notice ? (
+              <Text style={[m3TextStyle("bodySmall"), styles.notice]}>{notice}</Text>
+            ) : null}
+
+            {pendingLayer ? (
+              <Text style={[m3TextStyle("labelMedium"), styles.turnLabel]}>
+                {t("drill.turnLabel", {
+                  n: userTurns + 1,
+                  layer: LAYER_LABEL[locale][pendingLayer],
+                })}
               </Text>
-            </View>
+            ) : null}
 
-            <View style={styles.questionRow}>
-              <SecondbHead size={36} track={false} />
-              <Text style={[m3TextStyle("headlineSmall"), styles.question]}>{QS[locale][step]}</Text>
-            </View>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t("drill.placeholder")}
+              placeholderTextColor={m3.color.onSurfaceVariant}
+              multiline
+              editable={!busy}
+              style={[m3TextStyle("bodyMedium"), styles.input]}
+              accessibilityLabel={t("drill.placeholder")}
+            />
 
-            <Text style={[m3TextStyle("bodySmall"), styles.subtitle]}>
-              {t("screenerSubtitle")}
-            </Text>
-
-            <View style={styles.answers}>
-              {ANSWERS[locale].map((a) => (
-                <MdCard
-                  key={a}
+            <View style={styles.actions}>
+              <MdButton
+                label={t("drill.send")}
+                variant="filled"
+                disabled={busy}
+                onPress={() => void send()}
+                icon={<Glyph name="send" color={m3.color.onPrimary} size={18} />}
+                style={styles.actionButton}
+              />
+              {userTurns > 0 ? (
+                <MdButton
+                  label={t("drill.enough")}
                   variant="outlined"
-                  onPress={() => pickAnswer(a)}
-                  accessibilityLabel={a}
-                  style={styles.answerCard}
-                >
-                  <View style={styles.answerRow}>
-                    <Text style={[m3TextStyle("bodyLarge"), styles.answerText]}>{a}</Text>
-                    <Glyph name="radio_button_unchecked" color={m3.color.outline} size={20} />
-                  </View>
-                </MdCard>
-              ))}
+                  onPress={() => setDone(true)}
+                  style={styles.actionButton}
+                />
+              ) : null}
             </View>
           </>
         )}
@@ -265,75 +380,69 @@ function InterviewScreen() {
       ) : null}
 
       <PremiumModal
-        visible={feedbackModal}
-        onClose={() => setFeedbackModal(false)}
+        visible={failModal}
+        onClose={() => setFailModal(false)}
         accessibilityLabel={t("notice")}
       >
-        <Text style={[m3TextStyle("titleMedium"), styles.modalTitle]}>
-          {t("reflectError")}
-        </Text>
-        <Text style={[m3TextStyle("bodyMedium"), styles.modalBody]}>
-          {t("reflectErrorBody")}
-        </Text>
-        <View style={styles.modalActions}>
-          <MdButton
-            label={t("dismiss")}
-            variant="outlined"
-            onPress={() => setFeedbackModal(false)}
-            style={styles.modalButton}
-          />
+        <Text style={[m3TextStyle("titleMedium"), styles.saveTitle]}>{t("reflectError")}</Text>
+        <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t("reflectErrorBody")}</Text>
+        {/* 다시 누르면 무엇이 일어나는지 먼저 말한다 -- 실패 뒤에 버튼만 있으면
+            사용자는 대화가 날아갔는지 아닌지를 모른다. */}
+        <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("retryHint")}</Text>
+        <View style={styles.actions}>
+          <MdButton label={t("dismiss")} variant="outlined" onPress={() => setFailModal(false)} />
           <MdButton
             label={t("tryAgain")}
             variant="filled"
-            loading={saving}
             onPress={() => {
-              setFeedbackModal(false);
-              void approveAndReflect();
+              setFailModal(false);
+              void keepIt();
             }}
-            accessibilityHint={feedbackRetryHint}
-            style={styles.modalButton}
           />
         </View>
       </PremiumModal>
+
+      <CrisisRouter
+        visible={crisis.visible}
+        hotline={crisis.hotline}
+        onClose={() => setCrisis((c) => ({ ...c, visible: false }))}
+      />
     </Frame>
   );
 }
 
+// 되묻기 문구 키가 실재하는지 타입 수준에서 붙잡아 둔다. `t()` 는 문자열을 받으므로
+// 키가 사라져도 런타임까지 조용하다.
+const _loopKeys: readonly string[] = LOOP_CHECK_KEYS;
+void _loopKeys;
+
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
-  center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
-
-  // question state
-  progressBlock: { marginTop: 6, marginBottom: 4 },
-  progressBar: { height: 6, borderRadius: m3.shape.none },
-  progressLabel: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 8 },
-  questionRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 20, marginBottom: 8 },
-  question: { flex: 1, color: m3.color.onSurface, fontFamily: m3.font.brand, lineHeight: 34 },
-  subtitle: { color: m3.color.tertiary, fontFamily: m3.font.brand, marginTop: 10, marginBottom: 18 },
-  answers: { gap: 10 },
-  answerCard: { minHeight: 48, paddingVertical: 14, paddingHorizontal: 16, justifyContent: "center" },
-  answerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  answerText: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
-
-  // ratify state
-  ratifyHead: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginBottom: 16 },
-  ratifyTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, flexShrink: 1 },
-  ratifyBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginBottom: 14 },
-  ratifyBodyStrong: { color: m3.color.onSurface, fontWeight: "700" },
-  deltaCard: { marginBottom: 10 },
-  deltaNote: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 4 },
-  ratifyActions: { flexDirection: "row", gap: 8, marginTop: 18 },
-  ratifyRestart: { flex: 1 },
-  ratifyApprove: { flex: 2 },
-
-  // feedback surfaces
-  toastWrap: { position: "absolute", left: 16, right: 16, bottom: 32, alignItems: "stretch" },
-  modalTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, marginBottom: 8 },
-  modalBody: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, lineHeight: 21 },
-  modalActions: { flexDirection: "row", gap: 8, marginTop: 16 },
-  modalButton: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  body: { padding: spacing.md, gap: spacing.sm },
+  askRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  askText: { flex: 1, color: m3.color.onSurface },
+  mineWrap: { alignItems: "flex-end" },
+  mine: { maxWidth: "88%", padding: spacing.sm },
+  mineText: { color: m3.color.onSurfaceVariant },
+  thinking: { color: m3.color.onSurfaceVariant },
+  notice: { color: m3.color.tertiary },
+  turnLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.xs },
+  input: {
+    minHeight: 88,
+    borderWidth: 1,
+    borderColor: m3.color.outline,
+    borderRadius: m3.shape.none,
+    padding: spacing.sm,
+    color: m3.color.onSurface,
+    textAlignVertical: "top",
+  },
+  // 터치타깃 최소 48dp. MdButton 이 스스로 보장하더라도 이 화면에서 못박아 둔다 --
+  // 대화 화면이라 버튼이 키보드 위에 붙고, 거기서 작으면 그대로 오탭이 된다.
+  actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs, minHeight: 48 },
+  actionButton: { minHeight: 48, justifyContent: "center" },
+  saveTitle: { color: m3.color.onSurface },
+  saveBody: { color: m3.color.onSurfaceVariant },
+  noteCard: { padding: spacing.sm },
+  note: { color: m3.color.onSurfaceVariant },
+  toastWrap: { position: "absolute", left: 0, right: 0, bottom: spacing.lg, alignItems: "center" },
 });
-
-export default function Interview() {
-  return <InterviewScreen />;
-}

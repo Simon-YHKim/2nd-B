@@ -18,7 +18,31 @@
   "progressLabel": "Question {{n}} / {{total}} · Recall interview",
   "screenerSubtitle": "We circle the same core a little differently each time - to see it more clearly.",
   "reflectErrorBody": "Your answers are still here. Give it another try in a moment.",
-  "loopCheck.stuckLoop": "The thing you keep coming back to - is it telling you something new, or are you arriving at the same conclusion each time?",
-  "loopCheck.friendView": "What would you say to a close friend in this exact situation?",
-  "loopCheck.setAside": "What would change if you set this thought aside for five minutes?"
+  "loopCheck": {
+    "stuckLoop": "The thing you keep coming back to - is it telling you something new, or are you arriving at the same conclusion each time?",
+    "friendView": "What would you say to a close friend in this exact situation?",
+    "setAside": "What would change if you set this thought aside for five minutes?"
+  },
+  "drill": {
+    "opening": "Which stretch of your life should we start with? One scene that comes to mind is enough.",
+    "placeholder": "Write as much or as little as you like",
+    "send": "Send",
+    "thinking": "Listening…",
+    "enough": "That is enough for now",
+    "closing": "It is okay to pause here. Shall I keep what you shared today?",
+    "turnLabel": "Turn {{n}} · {{layer}}",
+    "loopNote": "Let me change direction for a moment.",
+    "failed": "Could not fetch the next question. Please try again.",
+    "emptyAnswer": "Even one line lets us keep going.",
+    "saveTitle": "Keep today’s conversation?",
+    "saveBody": "What you shared is saved as it is. No estimate is invented now; the record feeds star brightness as it accumulates.",
+    "saved": "Kept."
+  },
+  "period": {
+    "childhood": "Childhood",
+    "teens": "Teens",
+    "twenties": "Twenties",
+    "thirties": "Thirties",
+    "current": "Now"
+  }
 }
