@@ -94,6 +94,7 @@ jobs:
       # Backbone switch for the nine reasoning seats -- see web-deploy.yml. Unset
       # falls through to the phase rule, which is today's posture.
       EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}
+      EXPO_PUBLIC_CROSSCHECK: ${{ vars.EXPO_PUBLIC_CROSSCHECK || '0' }}
       # OCR + voice-memo vendor, and the backbone vendor -- see web-deploy.yml.
       # Both were absent from every build env until 2026-08-21, which made the
       # repo Variables silent no-ops.

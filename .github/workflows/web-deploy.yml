@@ -116,6 +116,7 @@ jobs:
           # seats have never served a production call, so treat a flip as a rollout,
           # not a config tweak.
           EXPO_PUBLIC_LLM_VENDOR: ${{ vars.EXPO_PUBLIC_LLM_VENDOR || '' }}
+          EXPO_PUBLIC_CROSSCHECK: ${{ vars.EXPO_PUBLIC_CROSSCHECK || '0' }}
           # Vendor for the OCR + voice-memo seats (the two that carry binaries).
           # Unset keeps Gemini, which is today's posture.
           #
