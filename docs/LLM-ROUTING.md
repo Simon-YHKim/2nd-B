@@ -1,5 +1,76 @@
 # LLM-ROUTING.md — purpose-키 모델·리즈닝 라우팅 정본
 
+> ## ⚠ 2026-08-23 현황 — 아래 D-26 본문은 **Gemini 시절 설계**다
+>
+> 본문(0~6절)은 **2026-07-04 설계 정본**이고 지금도 원칙(purpose 키 · 품질 우선 ·
+> 티어 무관)은 유효하다. 그러나 **좌석표와 벤더 서술은 낡았다.** 그 사이에 Gemini 폐기가
+> 결정됐고 좌석이 세 벤더로 갈라졌다. 이 절이 현황이고, 충돌하면 이 절이 이긴다.
+>
+> ### 스위치 네 개 — 무엇이 무엇을 움직이나
+>
+> | 스위치 | 움직이는 것 | 기본값 |
+> |---|---|---|
+> | `EXPO_PUBLIC_LLM_VENDOR` | **추론 좌석 14개.** 벤더 이름을 넣으면 **전 좌석이 그 하나로** 간다. `perPurpose` 를 넣어야 `PHASE2_VENDOR` 맵(좌석별)이 읽힌다 | 미설정 |
+> | `EXPO_PUBLIC_CHAT_VENDOR` | `secondb_chat` 하나 | 미설정 → gemini |
+> | `EXPO_PUBLIC_MULTIMODAL_VENDOR` | `capture_ocr` · `capture_voice`(바이너리를 나르는 둘) | 미설정 → gemini |
+> | `EXPO_PUBLIC_BACKBONE_VENDOR` | 나머지 9개(분류·인터뷰·임포트·딥런 근거) | 미설정 → gemini |
+>
+> **⚠ `EXPO_PUBLIC_LLM_VENDOR` 에 벤더 이름이 들어 있으면 `PHASE2_VENDOR` 는 읽히지 않는다.**
+> 좌석별 배치(Claude 2좌석, 교차검증 양측)가 전부 무동작이 된다. 좌석별 배치를 쓰려면
+> **반드시 `perPurpose`** 여야 한다. 이건 이 저장소가 실제로 밟은 함정이다.
+>
+> ### `EXPO_PUBLIC_REASONING_PROVIDER` 는 어느 축인가 — **다른 축이다. 지우지 말 것**
+>
+> 이름이 비슷해서 `*_VENDOR` 계열과 같은 축으로 오해하기 쉬운데 **아니다.**
+>
+> - `*_VENDOR` 계열 = **purpose 별 좌석 라우팅**(위 표). `resolveVendorForPurpose` 가 읽는다.
+> - `EXPO_PUBLIC_REASONING_PROVIDER` = **레거시 리즈닝 seam**. `boundary.ts` 의
+>   `resolveReasoningProvider()` 가 읽고, purpose 를 안 본다.
+>
+> **라이브 코드 참조가 여러 곳이라 삭제 금지다**(실측: `boundary.ts` · `routing.ts` ·
+> `types.ts` + 워크플로 2종 + 테스트 3종). 이 seam 때문에 **claude-proxy 는 allowlist 를
+> 두지 않는다** — 좌석에 없는 purpose 도 기본 모델로 서빙해야 하기 때문이다.
+>
+> ### 좌석 현황 (2026-08-23)
+>
+> | 벤더 | 좌석 | 모델 | 비고 |
+> |---|---|---|---|
+> | **OpenAI** | 추론 12 − Claude 2 = 10 · 대화 · 백본 9 · OCR/음성 | `gpt-5.6-terra`(일반 기본) · `-nano`/`-mini`(싼 축) | `sol` 은 교차검증 전용, 일반 라우팅 없음 |
+> | **Claude** | `persona_narrative` · `persona_synthesis` · `crosscheck_defend` | opus 계열만 | sonnet 좌석은 2026-08-23 제거. **단 미좌석 purpose 는 `DEFAULT_CLAUDE_MODEL`(sonnet)로 떨어진다** |
+> | **xAI** | 추론 12 + 대화 (라우팅되면) | `grok-4` 계열 | 기본값으로는 아무것도 안 감 |
+> | **Gemini** | 미설정 시 전부 | — | **9월 폐기 예정** |
+>
+> ### ⚠ 9월 Gemini 폐기에서 스위치로는 안 되는 두 곳 (실측 2026-08-23)
+>
+> 스위치 네 개를 다 켜도 **`gemini-proxy` 를 하드코딩한 경로가 둘 남는다.**
+> `resolveVendorForPurpose` 를 거치지 않아 벤더 스위치가 닿지 않는다:
+>
+> | 경로 | 위치 | 상태 |
+> |---|---|---|
+> | **임베딩** | `boundary.ts` 의 `op:"embed"` 호출 | **살아 있다.** 원장에 `embed_index / gemini-embedding-2` 가 2026-08-23 에도 찍힌다. RAG 가 여기 걸려 있다(실패 시 전체 위키 스냅샷으로 열화) |
+> | **서버 안전 분류** | `safety.ts` 의 `classifyViaProxy` | `EXPO_PUBLIC_SERVER_SAFETY` 기본 off 라 **휴면** |
+> | **D-26 outage failover** | `callLlm` | 폴백 대상이 `gemini-proxy` 하드코딩 |
+>
+> ### `gpt-5.4-nano`(safety 폴백) 은퇴 여부 — **원장으로 판정**
+>
+> **2026-08-19 시점에 은퇴하지 않았다.** `gpt-5.4-nano-2026-03-17` 이 그날 **4건을 실제로
+> 응답**했다(마지막 20:22). "gpt-5.4 본선 07-23 은퇴" 보도는 **본선 얘기고 nano 스냅샷 ID 는
+> 그것과 별개**다.
+>
+> 다만 **그 이후 `safety_classify` 가 LLM 에 닿은 적이 없다** — 최근 행은 전부
+> `lexicon-only`(vendor null)다. 즉 **이 좌석의 은퇴 위험은 현재 실사용으로 검증되지 않는다.**
+>
+> **은퇴해도 깨지지는 않는다**: 안전 경로는 예외를 던지지 않고 **어휘 분류로 떨어진다**
+> (`safety.ts`: *"the safety path must never throw"*). 열화지 장애가 아니다.
+>
+> *(UNVERIFIED: 08-19 의 그 4건을 **어느 호출자가** 만들었는지는 확정하지 못했다.
+> `classifyViaProxy` 는 `gemini-proxy` 로 가는데 원장은 `openai` 라 경로가 다르다.)*
+>
+> ### 이 절이 반영된 코드
+>
+> `src/lib/llm/routing.ts` · `src/lib/llm/crosscheck.ts` · `scripts/refresh-models.ts` ·
+> `supabase/functions/{openai,claude,xai}-proxy/index.ts`
+
 > **Status**: 설계 정본 (D-26, 2026-07-04). 3관점 패널(quality / cost-freetier / product-safety) → 별도 심판 병합으로 결정.
 > 허브 기록: `AI Infra/Communication/DECISIONS.md` D-26. 상세 리포트: `Output/ai-harness-routing-20260704.html` (로컬).
 > **이 문서가 `PURPOSE_TIER`(현행)와 향후 `PURPOSE_ROUTE`(목표 스키마)의 단일 SoT다.**
