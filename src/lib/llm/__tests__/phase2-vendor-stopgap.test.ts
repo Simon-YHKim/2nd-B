@@ -21,7 +21,7 @@ import type { PromptPurpose } from "../types";
 // "permanent" revert this file's header described. The stopgap is now PARTIAL,
 // so the lists are split rather than the guard being loosened: a seat drifting
 // between these two arrays is still a CI event.
-const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis"];
+const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis", "crosscheck_defend"];
 
 const STOPGAP_SEATS: PromptPurpose[] = [
   "advisor",
@@ -34,6 +34,7 @@ const STOPGAP_SEATS: PromptPurpose[] = [
   "digest_weekly",
   "ttfv_first_insight",
   "cluster_infer",
+  "crosscheck_challenge",
 ];
 
 describe("R6: Phase-2 OpenAI stopgap is pinned + reversible", () => {

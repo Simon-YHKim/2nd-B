@@ -46,7 +46,13 @@ const SONNET_SEATS_REMOVED = [
   "ttfv_first_insight",
 ] as const;
 
-const OPUS_SEATS = ["persona_narrative", "axis_estimate", "persona_synthesis", "digest_weekly"] as const;
+const OPUS_SEATS = [
+  "persona_narrative",
+  "axis_estimate",
+  "persona_synthesis",
+  "digest_weekly",
+  "crosscheck_defend",
+] as const;
 
 describe("the seat map is opus only", () => {
   test("every seated purpose is an opus model", () => {
@@ -99,10 +105,12 @@ describe("max is a real rung now", () => {
     expect(CLAUDE).toMatch(/const requested = effort && effort in EFFORT_RANK \? effort : 'high';/);
   });
 
-  test("exactly two seats are approved for it, and both are whole-corpus reads", () => {
+  test("only whole-corpus reads are approved for it", () => {
     const ceilings = proxyMap(CLAUDE, "PURPOSE_EFFORT_MAX");
     const atMax = Object.keys(ceilings).filter((p) => ceilings[p] === "max").sort();
-    expect(atMax).toEqual(["digest_weekly", "persona_synthesis"]);
+    // crosscheck_defend joined on the same rule: it rewrites a whole-corpus
+    // draft under criticism, and its rewrite is what the user reads.
+    expect(atMax).toEqual(["crosscheck_defend", "digest_weekly", "persona_synthesis"]);
     // The short-prose opus seats stay at high: frequency x unit cost is the
     // rule, and neither reads the corpus.
     expect(ceilings.persona_narrative).toBe("high");

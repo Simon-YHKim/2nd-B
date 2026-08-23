@@ -231,6 +231,12 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   digest_weekly: "openai",
   ttfv_first_insight: "openai",
   cluster_infer: "openai",
+  // The two sides of the cross-check, deliberately on different vendors. This
+  // pairing is the feature: crosscheck.ts refuses to run when they resolve to
+  // the same one, because an adversary that shares a model with its subject is
+  // not an adversary.
+  crosscheck_challenge: "openai",
+  crosscheck_defend: "claude",
 };
 
 // D-26 Phase 2 per-purpose reasoning effort. Abstract ladder; each proxy maps
@@ -252,6 +258,11 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   // Proto rev2 seats: digest_weekly + ttfv_first_insight are high-stakes ->
   // xhigh; cluster_infer's rationale is lighter -> medium.
   digest_weekly: "max",
+  // The challenger reads a whole-corpus draft and looks for what is wrong with
+  // it; the defender rewrites under that pressure and its output is what the
+  // user reads, so it gets the top rung the same way persona_synthesis does.
+  crosscheck_challenge: "high",
+  crosscheck_defend: "max",
   ttfv_first_insight: "xhigh",
   cluster_infer: "medium",
   // secondb_chat is not a PHASE2_VENDOR seat (it routes via
