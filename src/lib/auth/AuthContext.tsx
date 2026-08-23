@@ -22,6 +22,10 @@ interface AuthState {
   /** True when the profile's birth_date puts the user under 18. Null while
    *  resolving, no session, or no birth_date on file. */
   isMinor: boolean | null;
+  /** 만 나이. 같은 프로브가 이미 읽는 `birth_date` 에서 나오므로 추가
+   *  질의가 없다. 인터뷰의 시기 목록이 이걸 쓴다(`periodsForAge`).
+   *  미해결/미로그인/프로브 실패/`birth_date` 이상이면 null. */
+  age: number | null;
   /** True when the published hasProfile/isMinor came from a FAILED probe
    *  (DB error or timeout), not a server answer. hasProfile:false with this
    *  flag set means "unknown" — screens must hold + retry, never eject to
@@ -41,6 +45,7 @@ const AuthContext = createContext<AuthContextValue>({
   userId: null,
   hasProfile: null,
   isMinor: null,
+  age: null,
   profileProbeFailed: false,
   loading: true,
   refresh: async () => {},
@@ -58,9 +63,9 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     // { error } (it does not throw), and folding that into hasProfile:false
     // ejected real accounts to /complete-profile on any network blip.
     if (typeof console !== "undefined") console.log("[auth] profile probe failed", error.message);
-    return { hasProfile: false, isMinor: null, probeFailed: true };
+    return { hasProfile: false, isMinor: null, age: null, probeFailed: true };
   }
-  if (!data) return { hasProfile: false, isMinor: null };
+  if (!data) return { hasProfile: false, isMinor: null, age: null };
   if (!data.birth_date) {
     // birth_date is NOT NULL in the schema (0002_users + the 0030 server age-gate),
     // so a profile WITHOUT it is a data anomaly. Never silently route an unknown-age
@@ -68,10 +73,11 @@ async function fetchProfile(userId: string): Promise<ProfileProbe> {
     // hotline and grant adult-only data flows (the minor clamp 0033 keys off this).
     // Fail SAFE to the protective path: treat as a minor until the age is known.
     if (typeof console !== "undefined") console.warn("[auth] profile has no birth_date; routing protectively as minor");
-    return { hasProfile: true, isMinor: true };
+    return { hasProfile: true, isMinor: true, age: null };
   }
-  const isMinor = ageInYears(data.birth_date) < MINOR_AGE_CEILING;
-  return { hasProfile: true, isMinor };
+  const age = ageInYears(data.birth_date);
+  const isMinor = age < MINOR_AGE_CEILING;
+  return { hasProfile: true, isMinor, age };
 }
 
 /** Resolve a promise to `fallback` if it doesn't settle within `ms`. Guards
@@ -110,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null,
     hasProfile: null,
     isMinor: null,
+    age: null,
     profileProbeFailed: false,
     loading: true,
   });
@@ -141,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!userId) {
         lastUserIdRef.current = null;
         lastProbeRef.current = null;
-        setState({ userId: null, hasProfile: null, isMinor: null, profileProbeFailed: false, loading: false });
+        setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
         return;
       }
       // Same user we already resolved — don't flip back to loading (avoids the
@@ -152,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId,
           hasProfile: lastProbe.hasProfile,
           isMinor: lastProbe.isMinor,
+          age: lastProbe.age ?? null,
           profileProbeFailed: lastProbe.probeFailed === true,
           loading: false,
         });
@@ -171,16 +179,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId,
           hasProfile: refreshed.hasProfile,
           isMinor: refreshed.isMinor,
+          age: refreshed.age ?? null,
           profileProbeFailed: refreshed.probeFailed === true,
           loading: false,
         });
         return;
       }
       // First resolve for this user: mark loading until we know the profile.
-      setState({ userId, hasProfile: null, isMinor: null, profileProbeFailed: false, loading: true });
+      setState({ userId, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: true });
       const probe = await withTimeout(fetchProfile(userId), PROFILE_PROBE_TIMEOUT_MS, {
         hasProfile: false,
         isMinor: null,
+        age: null,
         // A timed-out FIRST probe is "unknown", not "no profile" — flag it so
         // guard screens hold on their loader instead of ejecting the account.
         probeFailed: true,
@@ -192,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId,
         hasProfile: probe.hasProfile,
         isMinor: probe.isMinor,
+        age: probe.age ?? null,
         profileProbeFailed: probe.probeFailed === true,
         loading: false,
       });
@@ -215,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // blocked CORS). Don't strand the UI in loading-forever — render
         // the unauthenticated state so the landing page becomes visible.
         if (typeof console !== "undefined") console.log("[auth] getSession failed, treating as signed out", e);
-        if (!cancelled) setState({ userId: null, hasProfile: null, isMinor: null, profileProbeFailed: false, loading: false });
+        if (!cancelled) setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
       });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       void resolveSession(session?.user.id ?? null);
@@ -251,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       lastUserIdRef.current = null;
       lastProbeRef.current = null;
-      setState({ userId: null, hasProfile: null, isMinor: null, profileProbeFailed: false, loading: false });
+      setState({ userId: null, hasProfile: null, isMinor: null, age: null, profileProbeFailed: false, loading: false });
       return;
     }
     // Timeout fallback: keep the last known-good probe for the SAME user
@@ -273,6 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userId: uid,
       hasProfile: probe.hasProfile,
       isMinor: probe.isMinor,
+      age: probe.age ?? null,
       profileProbeFailed: probe.probeFailed === true,
       loading: false,
     });

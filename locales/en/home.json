@@ -396,7 +396,20 @@
       "rangeChild": "Ages 7–12",
       "rangeTeen": "Ages 13–18",
       "rangeYoung": "Ages 19–28",
-      "rangeNow": "Right now"
+      "rangeNow": "Now",
+      "period": {
+        "childhood": "Childhood",
+        "teens": "Teens",
+        "twenties": "Twenties",
+        "thirties": "Thirties",
+        "forties": "Forties",
+        "fifties": "Fifties",
+        "sixties": "Sixties",
+        "seventies": "Seventies",
+        "current": "Right now"
+      },
+      "rangeSpan": "{{from}}–{{to}}",
+      "rangeUnder": "Before {{to}}"
     },
     "me": {
       "title": "North Star",

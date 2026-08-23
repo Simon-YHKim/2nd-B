@@ -1,7 +1,7 @@
 // 5 × 5 drill-down progress matrix for /interview.
 //
-// Rows = 5 narrative layers (FACT → ECHO), columns = 5 life periods
-// (childhood → current). Each cell shows the number of user answers
+// Rows = 5 narrative layers (FACT → ECHO), columns = 사용자가 **살아온**
+// 시기들(`periodsForAge()`). 열 수는 사람마다 다르다. Each cell shows the number of user answers
 // landed in that (period, layer) combination, brightening as the count
 // grows. The "active" cell (the one the next probe is targeting) glows
 // so the user sees where the interview is heading.
@@ -17,7 +17,6 @@ import { Text } from "@/components/ui/Text";
 import {
   DRILL_LAYERS,
   LAYER_LABEL,
-  LIFE_PERIODS,
   PERIOD_LABEL,
   type Coverage,
   type DrillLayer,
@@ -30,6 +29,12 @@ import { m3 } from "@/lib/theme/m3";
 interface Props {
   coverage: Coverage;
   locale: "en" | "ko";
+  /** 이 사용자에게 **해당되는** 시기만. `periodsForAge()` 가 만든다.
+   *
+   *  일부러 필수로 둔다. 예전에는 이 컴포넌트가 `LIFE_PERIODS` 를 그대로
+   *  그렸는데, union 이 9개로 넓어진 지금은 그러면 스물다섯 살 사용자에게
+   *  70대 칸이 보인다. 기본값을 주지 않는 것이 그 재발을 막는 유일한 방법이다. */
+  periods: readonly LifePeriod[];
   /** Period currently being interviewed — highlights that column. */
   activePeriod?: LifePeriod | null;
   /** Layer the *next* question is probing — that cell glows. */
@@ -46,9 +51,15 @@ function cellTone(count: number): { bg: string; border: string; text: string } {
 function shortPeriodLabel(p: LifePeriod, locale: "en" | "ko"): string {
   // Header strips need to fit narrow columns. Keep it punchy.
   if (locale === "ko") {
-    return { childhood: "유년", teens: "10대", twenties: "20대", thirties: "30대", current: "지금" }[p];
+    return {
+      childhood: "유년", teens: "10대", twenties: "20대", thirties: "30대",
+      forties: "40대", fifties: "50대", sixties: "60대", seventies: "70대", current: "지금",
+    }[p];
   }
-  return { childhood: "child", teens: "teens", twenties: "20s", thirties: "30s", current: "now" }[p];
+  return {
+    childhood: "child", teens: "teens", twenties: "20s", thirties: "30s",
+    forties: "40s", fifties: "50s", sixties: "60s", seventies: "70s", current: "now",
+  }[p];
 }
 
 function shortLayerLabel(l: DrillLayer, locale: "en" | "ko"): string {
@@ -56,9 +67,9 @@ function shortLayerLabel(l: DrillLayer, locale: "en" | "ko"): string {
   return LAYER_LABEL[locale][l].split(" · ")[0] ?? l;
 }
 
-export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: Props) {
+export function DrillProgress({ coverage, locale, periods, activePeriod, activeLayer }: Props) {
   const { t } = useTranslation("common");
-  const totalAnswers = LIFE_PERIODS.reduce(
+  const totalAnswers = periods.reduce(
     (sum, period) => sum + DRILL_LAYERS.reduce((layerSum, layer) => layerSum + coverage[period][layer], 0),
     0,
   );
@@ -90,7 +101,7 @@ export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: P
         <View style={[styles.cellSide, styles.headerCell]}>
           <Text style={styles.headerMicro}>{t("drillLayerPeriod")}</Text>
         </View>
-        {LIFE_PERIODS.map((p) => (
+        {periods.map((p) => (
           <View key={p} style={[styles.cell, styles.headerCell, activePeriod === p ? styles.headerCellActive : null]}>
             <Text style={[styles.headerLabel, activePeriod === p ? styles.headerLabelActive : null]}>
               {shortPeriodLabel(p, locale)}
@@ -99,7 +110,7 @@ export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: P
         ))}
       </View>
 
-      {/* 5 layer rows × 5 period columns */}
+      {/* 5 layer rows × 해당되는 시기 수만큼의 열 */}
       {DRILL_LAYERS.map((layer) => (
         <View key={layer} style={styles.row}>
           <View style={[styles.cellSide, styles.headerCell]}>
@@ -107,7 +118,7 @@ export function DrillProgress({ coverage, locale, activePeriod, activeLayer }: P
               {shortLayerLabel(layer, locale)}
             </Text>
           </View>
-          {LIFE_PERIODS.map((period) => {
+          {periods.map((period) => {
             const n = coverage[period][layer];
             const tone = cellTone(n);
             const isActive = activePeriod === period && activeLayer === layer;

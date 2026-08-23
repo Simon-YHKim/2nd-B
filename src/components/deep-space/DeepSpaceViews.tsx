@@ -12,7 +12,7 @@
  * (DESIGN.md adoption 2026-06-17). Unique SVG gradient ids via useId() so web
  * (document-global svg ids) never clashes across instances.
  */
-import { forwardRef, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
@@ -33,6 +33,7 @@ import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
+import { periodsForAge, type PeriodSlot } from "@/lib/interview/periods";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
@@ -1512,21 +1513,30 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
 // forbids (logic audit 2026-07-21, docs/handoff/logic_260721.md). No per-era
 // coverage pipeline exists yet (see RecallLensView above), so the timeline
 // shows no level at all; real levels may return WITH a real data source.
-const AUDIT_ERAS: { key: string; eraKey: string; rangeKey: string }[] = [
-  { key: "infancy", eraKey: "ds.audit.eraInfancy", rangeKey: "ds.audit.rangeInfancy" },
-  { key: "child", eraKey: "ds.audit.eraChild", rangeKey: "ds.audit.rangeChild" },
-  { key: "teen", eraKey: "ds.audit.eraTeen", rangeKey: "ds.audit.rangeTeen" },
-  { key: "young", eraKey: "ds.audit.eraYoung", rangeKey: "ds.audit.rangeYoung" },
-  { key: "now", eraKey: "ds.audit.eraNow", rangeKey: "ds.audit.rangeNow" },
-];
+// 시기 목록은 **고정이 아니라 나이에서 만든다** (Simon 결정, 2026-08-24).
+//
+// 예전에는 여기 `AUDIT_ERAS` 상수 5개(유아기/아동기/청소년기/청년기/현재)가
+// 있었고, `ERA_PERIOD` 가 그걸 엔진의 시기 3개로 접어 넣었다. 그 표가
+// **유아기·아동기·청소년기를 전부 `teens` 하나로 뾭개서**, 서로 다른 세 칸을
+// 눌러도 같은 인터뷰가 열렸다. 동시에 엔진의 `childhood`·`thirties` 는 어느
+// 화면에서도 도달할 수 없어 25칸 중 10칸이 죽어 있었다.
+//
+// 이제는 `periodsForAge()` 가 사용자가 살아온 칸만 만들고, 그 id 가 그대로
+// 인터뷰로 넘어간다. 중간 변환표는 없다 -- 사이에 표를 두는 것이 바로 그
+// 뾭개짐을 만들었던 구조다.
 
-// Map each era to the interview's period-scoped question set (AuditPeriod:
-// current | 20s | teens). Eras earlier than the teen set fall back to teens.
-const ERA_PERIOD: Record<string, string> = { infancy: "teens", child: "teens", teen: "teens", young: "20s", now: "current" };
+function eraRangeLabel(slot: PeriodSlot, t: (k: string, o?: Record<string, unknown>) => string): string {
+  if (slot.from === null || slot.to === null) return t("ds.audit.rangeNow");
+  // 첫 칸은 "12세 이전" 처럼 위쪽 경계로 읽힌다 (0부터 세는 것은 어색하다).
+  if (slot.from === 0) return t("ds.audit.rangeUnder", { to: slot.to + 1 });
+  return t("ds.audit.rangeSpan", { from: slot.from, to: slot.to });
+}
 
 export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
+  const { age } = useAuth();
   void isKo; // copy is t()-driven; prop kept for caller-convention parity
+  const slots = useMemo(() => periodsForAge(age), [age]);
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <Text style={styles.auditTitle}>{t("ds.audit.title")}</Text>
@@ -1534,18 +1544,18 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
       <View style={styles.auditTimeline}>
         <View style={styles.auditRail} />
         <View style={styles.auditEraList}>
-          {AUDIT_ERAS.map((e) => (
-            <View key={e.key} style={styles.auditEraRow}>
+          {slots.map((slot) => (
+            <View key={slot.id} style={styles.auditEraRow}>
               <View style={styles.auditNode} />
               <MdCard
                 variant="filled"
-                accessibilityLabel={t(e.eraKey)}
-                onPress={() => router.push({ pathname: "/interview", params: { period: ERA_PERIOD[e.key] ?? "current" } })}
+                accessibilityLabel={t(`ds.audit.period.${slot.id}`)}
+                onPress={() => router.push({ pathname: "/interview", params: { period: slot.id } })}
               >
                 <View style={styles.auditCardRow}>
                   <View style={styles.auditEraCol}>
-                    <Text style={styles.auditEraName}>{t(e.eraKey)}</Text>
-                    <Text style={styles.auditEraRange}>{t(e.rangeKey)}</Text>
+                    <Text style={styles.auditEraName}>{t(`ds.audit.period.${slot.id}`)}</Text>
+                    <Text style={styles.auditEraRange}>{eraRangeLabel(slot, t)}</Text>
                   </View>
                   <Svg width={20} height={20} viewBox="0 0 24 24">
                     <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />

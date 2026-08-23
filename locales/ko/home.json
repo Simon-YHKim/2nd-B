@@ -396,7 +396,20 @@
       "rangeChild": "7–12세",
       "rangeTeen": "13–18세",
       "rangeYoung": "19–28세",
-      "rangeNow": "지금"
+      "rangeNow": "지금",
+      "period": {
+        "childhood": "어린 시절",
+        "teens": "10대",
+        "twenties": "20대",
+        "thirties": "30대",
+        "forties": "40대",
+        "fifties": "50대",
+        "sixties": "60대",
+        "seventies": "70대",
+        "current": "지금"
+      },
+      "rangeSpan": "{{from}}–{{to}}세",
+      "rangeUnder": "{{to}}세 이전"
     },
     "me": {
       "title": "북극성",
