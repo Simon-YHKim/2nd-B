@@ -3,7 +3,104 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-23 19:4x KST / 벤더 재편 실전 검증 통과 · 키 위생 종료 (콘솔 세션)
+## Latest — 2026-08-23 / ⚠ **로그인이 전원 500 이었다** · 원인 = 0139 꼬리 소실 · 복구·박제 완료 (#1337)
+
+> 발행: **렌즈·도구층 세션.** `/interview` 스크린샷을 찍으려다 발견했다.
+> 진행 중이던 A~D 작업(#1327·#1328·#1330·#1331)은 그 앞에 이미 머지됐다.
+
+### 1. 무슨 일이 있었나
+
+QA 계정 로그인이 안 돼서 파봤더니 **계정 문제가 아니라 전체 사용자 로그인 장애**였다.
+
+```
+POST /auth/v1/token?grant_type=password  ->  500
+{"error_code":"unexpected_failure",
+ "msg":"Error running hook URI: pg-functions://postgres/public/custom_access_token_hook"}
+```
+
+**원인:** `0139_rbac_roles.sql` 이 **6절(Grants) 없이** 운영에 적용됐다.
+훅의 유일한 DB 접근이 `SELECT ... FROM public.user_roles` 인데
+`supabase_auth_admin` 에게 그 테이블 권한이 **0건**이었다.
+
+> ⚠ **RLS 정책만으로는 안 된다.** Postgres 는 **테이블 GRANT + 정책** 둘 다 필요하다.
+> 정책(`user_roles_select_auth_admin`)은 있었고 GRANT 만 없었다. 이 조합이 앞으로도
+> 같은 함정이 될 수 있으니 기억해둘 것.
+
+**훅 함수 EXECUTE 권한은 어디서 왔나** — 대시보드에서 Auth Hook 을 켜면 Supabase 가
+자기 스니펫을 직접 실행한다(`proacl` 이 `{postgres=X,service_role=X,supabase_auth_admin=X}`
+로 그 문서 스니펫과 정확히 같은 모양). **그 스니펫은 함수 권한만 주고 훅이 읽는 테이블
+권한은 안 준다.** 그래서 "훅은 켜졌는데 훅이 읽지 못하는" 상태가 됐다 — 두 순서 중 나쁜 쪽.
+
+### 2. 적용본과 파일을 대조하는 법 (다음에 또 의심될 때)
+
+Supabase 는 적용된 SQL 전문을 보관한다:
+
+```sql
+select name, length(statements[1]) as len, right(trim(statements[1]), 200) as tail
+from supabase_migrations.schema_migrations order by version desc;
+```
+
+0139 의 tail 이 **5절 COMMENT 다음 바로 `COMMIT;`** — 6절 19줄이 통째로 없었다.
+
+**함정 둘:**
+
+- ⚠ `ILIKE '%REVOKE %'` 로 세면 **속는다.** 0139 적용본은 그 조건이 참인데, 실행된 REVOKE
+  때문이 아니라 5절 COMMENT **문자열 안의 산문**("the column-level REVOKE cannot cut the
+  table-level GRANT") 때문이다. 줄머리(`E'\nGRANT'`)로 셀 것.
+- ⚠ **숫자 접두사로 매칭하면 틀린다.** DB 이름이 파일명과 다른 것들이 있다 —
+  `0113_notices.sql` → DB `notices`, `0092_runtime_flags.sql` ≠ DB `0092_reasoning_runs`,
+  `0117` 은 두 개. **이름으로 맞출 것.**
+
+**전수 대조 결과: 0139 하나뿐이다** (55건 대조, 나머지 전부 일치). **계통적 문제 아님.**
+
+### 3. 복구와 박제 (#1337, 0141)
+
+운영을 **먼저** 살렸다: `500 -> 200` 확인 → 실제 앱 경로로 로그인 → 토큰 디코드해서
+**클레임 `app_roles: []` 가 실제로 박히는 것**까지 확인(안 죽는 게 아니라 RBAC 이 동작한다).
+
+| | |
+|---|---|
+| `0141_rbac_grants_repair.sql` | 0139 6절 멱등 재적용 + **`COMMIT` 전 자기 end state 검증** |
+| `supabase-dry-run.yml` 새 스텝 | 전체 적용 **후** 같은 것을 검증 → 앞으로 이 권한을 없애면 **로그인이 아니라 CI 에서** 깨진다 |
+| `rollback/0141_down.sql` | 되돌리면 로그인이 죽는다는 것 + **대시보드 훅을 먼저 끄고** 돌리라는 순서 |
+
+⚠ **0141 에는 `$$` 함수 본문을 일부러 안 넣었다.** 0139 가 잘린 지점이 하필 `$$` 본문과
+이스케이프 따옴표(`0138''s`)가 몰린 5절 직후라, 복구 파일로 파서를 다시 시험하지 않는다.
+DO 블록은 검증용 하나뿐이고 맨 끝.
+
+### 4. 곁가지 — 0139 가 의도했지만 달성 못 한 것
+
+`REVOKE ... FROM PUBLIC` 은 **역할에 직접 붙은 GRANT 를 못 깎는다**(0140 이 `public.users`
+에서 고치는 그 함정과 같다). 0139 는 `GRANT SELECT ... TO authenticated` 만 의도했는데
+실제로는 authenticated 가 **INSERT/UPDATE/DELETE/TRUNCATE** 까지 들고 있었다.
+쓰기 정책이 없어 RLS 가 막고 있었지만, **정책 하나만 잘못 추가되면 사용자가 자기 역할을
+스스로 올릴 수** 있었다. 0141 에서 제거했다.
+
+최종 ACL: `authenticated=SELECT` · `supabase_auth_admin=SELECT` · `service_role=ALL` ·
+`anon` 없음. `has_app_role`/`has_app_role_now` 도 anon 에서 회수.
+
+### 5. 같이 확인된 `/interview` 실상 (Simon 질문 답)
+
+Simon: *"너가 말하는 /interview 는 어떻게 진행되게 되어 있는데?"*
+
+**고정 5문항 리커트 스크리너다.** 자유서술 턴이 없어서 C9(안전 분류기)가 이 화면 경로에
+없다(파일 헤더가 그렇게 적어놨다). 질문은 캐논(`design/proto_rev2/.../know.json`)에서 오고,
+**다섯 문항이 전부 외향/내향 한 축**이다. 채점하지 않고 `Q:/A:` 텍스트 한 덩어리로 record
+하나에 저장한 뒤 `/big-five` 로 넘긴다. 프로토타입의 "+6 · 근거 4건 · L2→L3" 제안 카드는
+**지어낸 수치라서 뺐고** 대신 정직한 문구가 들어가 있다.
+
+즉 **이름이 "심층 인터뷰"인 쪽은 얕고**, 실제로 깊게 파는 5층 엔진
+(`interview/probe.ts` + #1331 의 되묻기 층)은 **화면이 없다.**
+
+### Simon 판단 대기 — 배치 결정 하나
+
+**드릴다운 엔진을 어디에 둘 것인가.** ① `/interview` 대체 · ② 그 옆에 별도 · ③ 세컨비 대화 안.
+엔진과 되묻기 층은 준비돼 있고 **열리는 자리만 정하면 된다.**
+⚠ 자유서술이 생기면 **C9 안전 분류기가 그 화면 경로에 들어와야 한다**(지금은 없다).
+
+`npm run verify` 497 suites / 4,715 tests 그린.
+
+## 2026-08-23 19:4x KST / 벤더 재편 실전 검증 통과 · 키 위생 종료 (콘솔 세션)
 
 ### 확정 사실 (재확인 불필요)
 
@@ -35,7 +132,7 @@
 
 ---
 
-## Latest — 2026-08-23 14:2x KST / 승격 재개: gpt-5.5 · claude-sonnet-5 · claude-opus-5 — xai 만 스크립트 버그로 막힘
+## 2026-08-23 14:2x KST / 승격 재개: gpt-5.5 · claude-sonnet-5 · claude-opus-5 — xai 만 스크립트 버그로 막힘
 
 > 발행: **GUI(Cowork) 콘솔 세션.**
 
