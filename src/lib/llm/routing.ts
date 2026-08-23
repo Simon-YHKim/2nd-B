@@ -203,12 +203,26 @@ export const PHASE2_VENDOR: Readonly<Partial<Record<PromptPurpose, LlmVendor>>> 
   // Which vendor served each call is audited (ai_audit_log.reasoning_vendor, 0095).
   // Pinned + revert-verified by phase2-vendor-stopgap.test.ts (R6).
   advisor: "openai",
-  persona_narrative: "openai",
+  // V-4 (Simon, 2026-08-23): the two seats whose OUTPUT IS THE SENTENCE a user
+  // reads move to Claude's opus seat. Simon overrode the recommendation to wait
+  // until after the deadline; the $100 top-up removed the reason to wait.
+  //
+  // ⚠ THESE TWO LINES DO NOTHING ON THEIR OWN. Step 2 of
+  // resolveVendorForPurpose returns EXPO_PUBLIC_LLM_VENDOR verbatim for every
+  // seat, and the console set that to "openai" on 2026-08-23. While it holds a
+  // vendor name, this map is never read. The operator flip that makes a
+  // per-seat map mean anything is:
+  //
+  //     EXPO_PUBLIC_LLM_VENDOR=perPurpose
+  //
+  // which then sends these two to claude-proxy and the other ten to
+  // openai-proxy, exactly as spelled out below.
+  persona_narrative: "claude",
   gap_synthesize: "openai",
   self_model_propose: "openai",
   northstar_propose: "openai",
   axis_estimate: "openai",
-  persona_synthesis: "openai",
+  persona_synthesis: "claude",
   ops_recommend: "openai",
   ops_daily_brief: "openai",
   // Proto rev2 seats — digest_weekly, ttfv_first_insight, cluster_infer have no
@@ -269,8 +283,16 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   import_ingest: "low",
   clipper_template_propose: "low",
   interview_probe: "low",
-  reasoning_connect: "medium",
-  imagine: "medium",
+  // V-5 (Simon, 2026-08-23): "아니오 - high 유지." The proposal in
+  // docs/LLM-VENDOR-PLACEMENT.md was to run these two at medium; Simon refused
+  // the reduction, so they sit at high with the other pro-tier seats.
+  //
+  // Read together with the server ceiling: the client ASKS for an effort and
+  // openai-proxy CLAMPS it. Raising this to high while leaving the ceiling at
+  // medium would clamp it straight back down - the answer would look applied
+  // and change nothing. Both moved.
+  reasoning_connect: "high",
+  imagine: "high",
 };
 
 /**

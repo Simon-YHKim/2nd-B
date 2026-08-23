@@ -77,3 +77,31 @@ jobs:
           psql -h localhost -U postgres -c "\d+ revenue_events" | grep month_bucket
           psql -h localhost -U postgres -c "\d+ testimonials" | grep consent_given_at
           psql -h localhost -U postgres -c "\d+ knowledge_sources" | grep ks_must_have
+      - name: Confirm the auth hook can still read its table
+        env:
+          PGPASSWORD: postgres
+        # 2026-08-23: 0139's grants block never reached production, so the auth
+        # hook could not SELECT public.user_roles and EVERY sign-in returned 500
+        # ("Error running hook URI: ... custom_access_token_hook"). A policy
+        # alone is not enough -- Postgres needs the table GRANT too, and the
+        # migration had one only in a section that went missing.
+        #
+        # This asserts the END STATE after all migrations, so it catches the
+        # class rather than that one file: if a future migration drops or
+        # revokes this grant, the job fails here instead of in production at
+        # sign-in. 0141 carries the same assertion so a bad APPLY is caught too.
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT has_table_privilege('supabase_auth_admin', 'public.user_roles', 'SELECT') THEN
+              RAISE EXCEPTION 'auth hook cannot SELECT public.user_roles -- sign-in would 500';
+            END IF;
+            IF has_table_privilege('authenticated', 'public.user_roles', 'INSERT') THEN
+              RAISE EXCEPTION 'authenticated can INSERT into user_roles -- self-promotion path';
+            END IF;
+            IF has_table_privilege('anon', 'public.user_roles', 'SELECT') THEN
+              RAISE EXCEPTION 'anon holds SELECT on user_roles';
+            END IF;
+          END $$;
+          SQL

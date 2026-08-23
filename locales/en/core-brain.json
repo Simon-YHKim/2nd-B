@@ -62,5 +62,10 @@
   "seePieces": "See {{n}} pieces",
   "seeEvidencePieces": "See {{n}} evidence pieces",
   "piecesBehindSub": "The records SecondB and your center drew on.",
-  "profileStar": "Profile"
+  "profileStar": "Profile",
+  "selfChecks": "Self-report check-ins. Lighter, and not standardized instruments.",
+  "ipipCheck": "Personality in depth (120 items)",
+  "rlssCheck": "Life satisfaction check",
+  "auditCheck": "Life audit",
+  "interviewCheck": "Talk it through"
 }

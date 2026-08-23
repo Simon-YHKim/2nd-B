@@ -17,5 +17,8 @@
   "ratifyDeltaNote": "Your answers are saved as-is. We don't invent an estimate now - your stars brighten as records accumulate.",
   "progressLabel": "Question {{n}} / {{total}} · Recall interview",
   "screenerSubtitle": "We circle the same core a little differently each time - to see it more clearly.",
-  "reflectErrorBody": "Your answers are still here. Give it another try in a moment."
+  "reflectErrorBody": "Your answers are still here. Give it another try in a moment.",
+  "loopCheck.stuckLoop": "The thing you keep coming back to - is it telling you something new, or are you arriving at the same conclusion each time?",
+  "loopCheck.friendView": "What would you say to a close friend in this exact situation?",
+  "loopCheck.setAside": "What would change if you set this thought aside for five minutes?"
 }

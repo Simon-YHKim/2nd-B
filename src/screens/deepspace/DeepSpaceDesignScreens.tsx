@@ -46,6 +46,17 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
+import { ratifiableTargets, type RatifiableTarget } from "@/lib/persona/ratifiable";
+
+// 어떤 도구가 채운 축인지로 라벨을 고른다. Big Five 는 BFI-44 로 왔든
+// IPIP-NEO-120 으로 왔든 사용자에게는 같은 "성격" 이라 같은 문구를 쓴다.
+const AXIS_LABEL_KEY: Record<RatifiableTarget["sourceAssessmentId"], string> = {
+  bfi44: "reviewAxisNow",
+  ipipNeo120: "reviewAxisNow",
+  ecrS: "reviewAxisRelational",
+  values: "reviewAxisValues",
+};
+import type { StarId } from "@/lib/persona/stars";
 import { loadEvidenceShards } from "@/lib/persona/load-evidence-shards";
 import { type EvidenceShard } from "@/lib/persona/evidence";
 import { RatifySheet } from "@/components/persona/RatifySheet";
@@ -1612,18 +1623,38 @@ export function DeepSpaceReviewScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
-  async function generate() {
+  // 무엇을 되돌릴 수 있는가는 카드가 정한다. 예전에는 이 화면이 `"now"` 를
+  // 하드코딩해서 **Big Five 하나만** 이의를 제기할 수 있었다 -- 애착 검사와
+  // 가치 체크도 결과를 내서 페르소나에 들어가는데 되돌릴 자리가 없었다.
+  const [targets, setTargets] = useState<RatifiableTarget[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    buildPersona(userId, locale, isMinor === true)
+      .then((card) => {
+        if (active) setTargets(ratifiableTargets(card));
+      })
+      .catch(() => {
+        // 최선 노력. 실패하면 버튼이 안 뜨고, 그건 조용한 실패가 아니라
+        // "아직 되돌아볼 것이 없다" 와 같은 화면이다.
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId, locale, isMinor]);
+
+  async function generate(star: StarId) {
     if (!userId || loading) return;
     setLoading(true);
     setResult(null);
     setReceipts([]);
     try {
       const card = await buildPersona(userId, locale, isMinor === true);
-      const ctx = proposalContextForStar(card, "now");
-      setCurrentLevel(card.starLevels?.now ?? 1);
+      const ctx = proposalContextForStar(card, star);
+      setCurrentLevel(card.starLevels?.[star] ?? 1);
       setEvidenceRefs(ctx.evidenceRefs);
       setReceipts(await loadEvidenceShards(ctx.evidenceRefs, locale));
-      const p = await proposeSelfModelChange(userId, { kind: "star", star: "now" }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
+      const p = await proposeSelfModelChange(userId, { kind: "star", star }, ctx.before, ctx.evidence, 5, locale, isMinor === true);
       if (p) {
         setProposal(p);
         setSheetOpen(true);
@@ -1669,17 +1700,29 @@ export function DeepSpaceReviewScreen() {
         <Text variant="heading" style={styles.section}>{t("review.section")}</Text>
         <Text variant="body" style={styles.planFeatDim}>{t("review.body")}</Text>
       </Card>
-      <Pressable
-        style={[styles.primary, loading ? { opacity: 0.5 } : null]}
-        onPress={() => void generate()}
-        disabled={loading}
-        accessibilityRole="button"
-        accessibilityLabel={t("reviewGetProposal")}
-      >
-        <Text variant="caption" style={styles.primaryText}>
-          {loading ? (t("reviewLoading")) : t("reviewGetProposal")}
-        </Text>
-      </Pressable>
+      {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
+          앱이 지어낸 값을 사용자에게 승인시키는 꼴이 되고, 그건 propose->ratify
+          가 막으려던 바로 그 일이다. */}
+      {targets.length === 0 ? (
+        <Text variant="subtle" style={styles.footer}>{t("reviewNothingToReview")}</Text>
+      ) : (
+        targets.map((rt) => (
+          <Pressable
+            key={rt.target.kind === "star" ? rt.target.star : rt.target.kind}
+            style={[styles.primary, loading ? { opacity: 0.5 } : null]}
+            onPress={() => {
+              if (rt.target.kind === "star") void generate(rt.target.star);
+            }}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
+          >
+            <Text variant="caption" style={styles.primaryText}>
+              {loading ? t("reviewLoading") : t(AXIS_LABEL_KEY[rt.sourceAssessmentId])}
+            </Text>
+          </Pressable>
+        ))
+      )}
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
       {/* audit med#26: dismissing the sheet (backdrop/back) used to strand the
           generated proposal invisibly — the AI cost was spent and the only way

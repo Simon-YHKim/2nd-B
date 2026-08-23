@@ -62,5 +62,10 @@
   "seePieces": "Lihat {{n}} serpihan",
   "seeEvidencePieces": "Lihat {{n}} serpihan bukti",
   "piecesBehindSub": "Catatan yang menjadi acuan SecondB dan Bintang Utaramu.",
-  "profileStar": "Profil"
+  "profileStar": "Profil",
+  "selfChecks": "Isian mandiri. Lebih ringan, dan bukan instrumen terstandar.",
+  "ipipCheck": "Kepribadian mendalam (120 butir)",
+  "rlssCheck": "Kepuasan hidup",
+  "auditCheck": "Audit hidup",
+  "interviewCheck": "Bicarakan"
 }

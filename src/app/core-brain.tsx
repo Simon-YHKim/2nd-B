@@ -12,7 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { subscribeFontStyle } from "@/lib/settings/readable-font";
 import { View, StyleSheet, ScrollView, Modal, Pressable, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, type Href } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
@@ -41,6 +41,7 @@ import { STRENGTH_LABEL_EN, STRENGTH_LABEL_KO } from "@/lib/persona/strengths-su
 import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels, type DomainBrightness } from "@/lib/persona/load-domain-levels";
 import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
+import { OFFERABLE } from "@/lib/assess/registry";
 import { getDomainStar } from "@/lib/persona/domain-stars";
 import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
 import type { LadderLevel } from "@/lib/persona/brightness";
@@ -116,6 +117,11 @@ function CoreShell({ children }: { children: ReactNode }) {
     <PremiumAppShell>{children}</PremiumAppShell>
   );
 }
+
+// 출처로 가른다. `validated` 만 "검증된 검사" 문구 아래 놓는다 -- 나머지는
+// 가볍고 유용하지만 표준화된 척도가 아니고, 그 차이를 화면이 말해야 한다.
+const VALIDATED_TOOLS = OFFERABLE.filter((a) => a.provenance === "validated");
+const SELF_TOOLS = OFFERABLE.filter((a) => a.provenance !== "validated");
 
 export default function CoreBrain() {
   return <CoreBrainScreen />;
@@ -597,17 +603,31 @@ function CoreBrainScreen() {
             <Text variant="caption" color="textMuted">
               {t("validatedChecks")}
             </Text>
-            {([
-              { key: "bigfive", label: t("bigFiveCheck"), route: "/big-five" },
-              { key: "attachment", label: t("relCheck"), route: "/attachment" },
-              { key: "strengths", label: t("strengthsCheck"), route: "/strengths" },
-              { key: "values", label: t("valuesCheck"), route: "/values" },
-            ] as const).map((tool) => (
+            {/* 목록의 정본은 `src/lib/assess/registry.ts` 다. 여기 하드코딩돼
+                있을 때 두 가지가 틀어져 있었다 -- (1) "검증된 검사" 라는 문구
+                아래에 자체 제작 문항(강점·가치관)이 섞여 있었고, (2) 아홉 개
+                중 넷만 진입점이 있어서 IPIP-NEO-120 · 생활만족 · 인생점검 ·
+                대화는 이 화면에서 닿을 수 없었다. */}
+            {VALIDATED_TOOLS.map((tool) => (
               <MdButton
-                key={tool.key}
+                key={tool.id}
                 variant="outlined"
-                label={tool.label}
-                onPress={() => router.push(tool.route)}
+                label={t(tool.labelKey)}
+                onPress={() => router.push(tool.route as Href)}
+              />
+            ))}
+            {/* 자체 제작 문항은 **줄을 갈라서** 보여준다. 위 문구가 "검증된
+                검사"라고 말하는 이상, 검증되지 않은 것을 그 아래 섞으면 화면이
+                거짓말을 한다. */}
+            <Text variant="caption" color="textMuted" style={{ marginTop: spacing.sm }}>
+              {t("selfChecks")}
+            </Text>
+            {SELF_TOOLS.map((tool) => (
+              <MdButton
+                key={tool.id}
+                variant="outlined"
+                label={t(tool.labelKey)}
+                onPress={() => router.push(tool.route as Href)}
               />
             ))}
             <MdButton

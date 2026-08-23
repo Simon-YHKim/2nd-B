@@ -17,14 +17,18 @@
 import { PHASE2_VENDOR, resolveVendorForPurpose } from "../routing";
 import type { PromptPurpose } from "../types";
 
+// V-4 (Simon, 2026-08-23) moved the two prose seats to Claude, which is the
+// "permanent" revert this file's header described. The stopgap is now PARTIAL,
+// so the lists are split rather than the guard being loosened: a seat drifting
+// between these two arrays is still a CI event.
+const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis"];
+
 const STOPGAP_SEATS: PromptPurpose[] = [
   "advisor",
-  "persona_narrative",
   "gap_synthesize",
   "self_model_propose",
   "northstar_propose",
   "axis_estimate",
-  "persona_synthesis",
   "ops_recommend",
   "ops_daily_brief",
   "digest_weekly",
@@ -40,14 +44,31 @@ describe("R6: Phase-2 OpenAI stopgap is pinned + reversible", () => {
     process.env.EXPO_PUBLIC_LLM_PHASE = savedPhase;
   });
 
-  test("every Phase-2 reasoning seat is on the OpenAI stopgap", () => {
-    for (const seat of STOPGAP_SEATS) {
-      expect(PHASE2_VENDOR[seat]).toBe("openai");
-    }
-    // and no seat silently drifted onto some other vendor
+  test("the seats split exactly two ways, and cover the whole map", () => {
+    for (const seat of STOPGAP_SEATS) expect(PHASE2_VENDOR[seat]).toBe("openai");
+    for (const seat of CLAUDE_SEATS) expect(PHASE2_VENDOR[seat]).toBe("claude");
+    // No third vendor, and no seat missing from either list - the point of the
+    // original guard was that a seat cannot drift somewhere unnoticed, and that
+    // survives the split.
+    expect([...STOPGAP_SEATS, ...CLAUDE_SEATS].sort()).toEqual(Object.keys(PHASE2_VENDOR).sort());
     for (const vendor of Object.values(PHASE2_VENDOR)) {
-      expect(vendor).toBe("openai");
+      expect(["openai", "claude"]).toContain(vendor);
     }
+  });
+
+  test("⚠ the map is unreachable while EXPO_PUBLIC_LLM_VENDOR names a vendor", () => {
+    // The trap V-4 walks into. Step 2 of resolveVendorForPurpose returns the
+    // env value verbatim for every seat, and the console set it to "openai" on
+    // 2026-08-23 - so editing PHASE2_VENDOR alone changes nothing in
+    // production. Pinned as a test because "I changed the map" reads as done.
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "openai";
+    for (const seat of CLAUDE_SEATS) {
+      expect(resolveVendorForPurpose(seat, false)).toBe("openai");
+    }
+    // perPurpose is the flip that makes the map mean something.
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "perPurpose";
+    for (const seat of CLAUDE_SEATS) expect(resolveVendorForPurpose(seat, false)).toBe("claude");
+    for (const seat of STOPGAP_SEATS) expect(resolveVendorForPurpose(seat, false)).toBe("openai");
   });
 
   test("EXPO_PUBLIC_LLM_VENDOR=claude is a code-free revert for every seat", () => {

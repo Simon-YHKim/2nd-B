@@ -6,7 +6,7 @@ Conventional Commits.
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-08-21
+## [0.2.0] - 2026-08-23
 
 First versioned release built for distribution: the APK is attached to the
 GitHub release rather than living behind an Expo login.

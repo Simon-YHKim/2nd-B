@@ -22,14 +22,16 @@ import {
 } from "../routing";
 import type { PromptPurpose } from "../types";
 
+// The two prose seats went to Claude on 2026-08-23 (V-4), so "the seats" are
+// no longer one vendor. Split rather than shortened: both halves are asserted.
+const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis"];
+
 const OPENAI_SEATS: PromptPurpose[] = [
   "advisor",
-  "persona_narrative",
   "gap_synthesize",
   "self_model_propose",
   "northstar_propose",
   "axis_estimate",
-  "persona_synthesis",
   "ops_recommend",
   "ops_daily_brief",
 ];
@@ -94,17 +96,16 @@ describe("D-26 vendor routing", () => {
 
   test("Phase 1: every purpose (seats included) resolves to gemini", () => {
     withPhase(undefined, () => {
-      for (const p of [...OPENAI_SEATS, ...GEMINI_STAYERS]) {
+      for (const p of [...OPENAI_SEATS, ...CLAUDE_SEATS, ...GEMINI_STAYERS]) {
         expect(resolveVendorForPurpose(p, false)).toBe("gemini");
       }
     });
   });
 
-  test("Phase 2: the reasoning seats move to openai", () => {
+  test("Phase 2: the reasoning seats move to their per-seat vendor", () => {
     withPhase("2", () => {
-      for (const p of OPENAI_SEATS) {
-        expect(resolveVendorForPurpose(p, false)).toBe("openai");
-      }
+      for (const p of OPENAI_SEATS) expect(resolveVendorForPurpose(p, false)).toBe("openai");
+      for (const p of CLAUDE_SEATS) expect(resolveVendorForPurpose(p, false)).toBe("claude");
     });
   });
 
@@ -149,7 +150,7 @@ describe("D-26 vendor routing", () => {
     test("=gemini → 100% Gemini for every purpose, even with Phase 2 set", () => {
       withPhase("2", () =>
         withVendor("gemini", () => {
-          for (const p of [...OPENAI_SEATS, ...GEMINI_STAYERS]) {
+          for (const p of [...OPENAI_SEATS, ...CLAUDE_SEATS, ...GEMINI_STAYERS]) {
             expect(resolveVendorForPurpose(p, false)).toBe("gemini");
           }
         }),

@@ -161,7 +161,7 @@ GET https://api.pwnedpasswords.com/range/ABCDE      -- 앞 5자리만 전송
 
 ---
 
-## 5-b. `users` 테이블 ACL 수술 — 조사는 끝났고, 적용만 남았다
+## 5-b. `users` 테이블 ACL 수술 — ✅ **`0140` 착지, 운영 적용 대기**
 
 콘솔이 RBAC 범위에 넣으라고 지목한 항목이다. **왜 필요한지는 실측으로 확정됐다:**
 anon·authenticated 가 `public.users` 에 `arwdDxtm`(DELETE·TRUNCATE 포함)를 쥐고 있고,
@@ -178,19 +178,29 @@ RLS 만이 그 앞에 서 있다. `0138` 의 컬럼 REVOKE 가 무동작이었�
 `src/lib/supabase/__tests__/users-write-census.test.ts` 가 이 목록을 **소스에서 다시 계산해**
 고정한다. 새 쓰기가 생기면 그 시험이 깨진다 — 손으로 적어둔 목록이 썩는 것을 막기 위해서다.
 
-**그런데 아직 적용하지 않았다.** 저장소에서 확인할 수 없는 것이 하나 있다:
-**가입 INSERT 가 `authenticated` 로 도착하는가 `anon` 으로 도착하는가.** 이메일 확인이 켜져
-있어서, 그 시점에 세션이 아직 없으면 insert 는 anon 으로 온다. 그 상태에서 REVOKE 하면
-**모든 신규 가입이 깨진다.** 운영 dry-run 이 필요하고, 그래서 콘솔의 다음 마이그레이션이다.
-틀리면 가입 장애다.
+**마지막 질문이 콘솔 실측으로 풀렸다 (2026-08-23).** 남아 있던 것은
+**가입 INSERT 가 `authenticated` 로 오는가 `anon` 으로 오는가** 였고, 답은 **anon 경로가
+아예 없다** 였다:
 
-적용할 때의 문장은 이미 정해져 있다:
+- **이메일 가입은 클라 INSERT 가 없다.** `auth.users` 의
+  `trg_complete_verified_email_signup`(**SECURITY DEFINER · owner postgres**, 0086)이
+  확인 전환 시 프로필 행을 만든다.
+- **OAuth 가입**(`ensureUserProfile`)은 세션 필수라 **`authenticated`** 로 도착한다.
+- 운영 dry-run(실행 후 측정, 롤백): `anon[ins=f upd=f del=f sel=t]` ·
+  `auth[ins_tbl=f, ins(id·email)=t, upd(reasoning_prefs)=t, upd(judge_mode)=f, del=f]` ·
+  `service_role` 무영향.
+
+> ⚠ **`supabase_auth_admin` 이 `ins=f` 인 것은 가입 트리거가 definer 라서 무해하다.
+> 그 함수를 `SECURITY INVOKER` 로 바꾸는 순간 가입이 깨진다** — 0140 주석에 박아뒀다.
+
+**`<확인된 role>` = `authenticated`.** 아래 SQL 그대로
+`db/migrations/0140_users_table_acl.sql` 에 들어갔다:
 
 ```sql
 REVOKE DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.users FROM anon, authenticated;
 REVOKE INSERT, UPDATE ON public.users FROM anon, authenticated;
-GRANT INSERT (id, email, birth_date, locale, display_name) ON public.users TO <확인된 role>;
-GRANT UPDATE (reasoning_prefs, birth_date, privacy_prefs, profile_details) ON public.users TO <확인된 role>;
+GRANT INSERT (id, email, birth_date, locale, display_name) ON public.users TO authenticated;
+GRANT UPDATE (reasoning_prefs, birth_date, privacy_prefs, profile_details) ON public.users TO authenticated;
 ```
 
 이게 끝나면 `0138` 의 컬럼 REVOKE 2줄이 비로소 유효해지고, `judge_mode` 는 트리거가 아니라

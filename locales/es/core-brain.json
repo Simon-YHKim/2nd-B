@@ -62,5 +62,10 @@
   "seePieces": "Ver {{n}} fragmentos",
   "seeEvidencePieces": "Ver {{n}} fragmentos de evidencia",
   "piecesBehindSub": "Los registros en los que se apoyaron SecondB y tu Estrella Polar.",
-  "profileStar": "Perfil"
+  "profileStar": "Perfil",
+  "selfChecks": "Autoevaluaciones. Más ligeras y no son instrumentos estandarizados.",
+  "ipipCheck": "Personalidad a fondo (120 ítems)",
+  "rlssCheck": "Satisfacción con la vida",
+  "auditCheck": "Revisión de vida",
+  "interviewCheck": "Hablarlo"
 }

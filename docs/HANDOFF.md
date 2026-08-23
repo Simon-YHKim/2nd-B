@@ -3,7 +3,401 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-23 13:40 KST / 콘솔 집행 완료: 0138+0139 적용 · 훅 등록 · 변수 4종 플립 · V-컨펌 착지
+## Latest — 2026-08-23 20:3x KST / C-1·C-2 집행 · 0139 잘림은 콘솔 책임 · REQ-260823-03 (콘솔 세션)
+
+### 0. #1337 인지 — 콘솔이 안다
+
+0139 잘린 적용은 **콘솔 세션의 적용분이었다.** 어느 지점에서 잘렸는지(#1337의 $$·이스케이프 구간 분석)는 타당해 보이나 도구 경로의 정확한 절단 원인은 UNVERIFIED. **재발 방지를 콘솔 표준으로 채택했다**: 마이그레이션 적용 직후 ① `schema_migrations.statements` tail을 파일과 대조 ② end-state를 **호출 역할 기준으로** 검증(postgres로 함수만 돌려보는 검증은 grant 누락을 못 본다 — 이번 실패의 정확한 기전). 아래 0140에 즉시 적용했고 둘 다 통과.
+복구 상태도 재실측했다(20:3x): `supabase_auth_admin SELECT=t` · authenticated=SELECT only(ins/upd/del=f) · anon 없음 · `has_app_role` anon EXECUTE 회수 — #1337 최종 ACL과 일치. ⚠ 0141은 `schema_migrations`에 없다(다른 경로로 적용된 듯) — 효과는 실재하니 원장 부재만 기억할 것.
+
+### 1. 방금 집행 (콘솔, 20:1x~20:2x)
+
+- **C-1 완료**: `EXPO_PUBLIC_LLM_VENDOR=perPurpose`(11:11Z) + web-deploy 재배포 dispatch(run 32635825166) → V-4 발효. persona_narrative·persona_synthesis → claude-proxy(opus), 나머지 10좌석 openai 불변. 다음 persona 실행 원장에 anthropic이 찍히는지가 검증(= 새 2ndb-edge-base 키 첫 실검증 겸함).
+- **C-2 완료**: `0140_users_table_acl` 운영 적용. dry-run 재확인 → 적용 → **tail 대조 일치** + end-state 17항 전부 기대값(anon 쓰기 전차단·sel=t / authenticated ins 5컬럼·upd 4컬럼·judge_mode=f·del=f / service_role 무영향 / 가입 함수 DEFINER 유지). ledger last=`0140_users_table_acl`.
+- 발주서(CLI 08-23) 대조: S-1·핀 삭제·gpt-5.5 승격·실서빙 검증(09:38Z 원장)은 오전 완료. "콤보 502 함정"은 소멸(콤보 18개 삭제, 2단 effort 키가 실서빙 실증). C-4(#1326 착지)는 콘솔 큐 유지. S-2(드릴다운 배치)·S-3(V-5 해석) Simon 대기 — S-3은 오전 결정 기록("아니오, high 유지")과 CLI 집행이 일치, 컨펌만 남음.
+- 키 위생 종결 상세는 아래 #1336 블록 참조. Anthropic 콘솔 최종 3키(2ndb-ci/edge-max/edge-base, 만료 없음), GH ANTHROPIC_API_KEY=2ndb-ci 스모크 검증됨.
+
+### 2. Simon 결정 2건 추가 (08-23 20:0x)
+
+- **OCR = openai 유지** (gemini 예외 없음, 9월 전체 폐기 원안 그대로)
+- **gpt-5.6 배치: luna 제외. sol은 claude와 적대적 교차검증에 사용** → REQ-260823-03
+
+### 3. REQ-260823-03 → CLI: gpt-5.6 티어 인지 승격 + 배치 + Sol×Opus 교차검증
+
+**왜 하는가**: gpt-5.6은 07-09 GA(API `gpt-5.6-sol/terra/luna`, 가격 5/30·2.5/15·1/6 $/1M)인데 refresh가 08-23에도 5.5를 최신으로 선택했다 — 티어형 ID를 매칭하지 못한다(REQ-01 xai 루프 누락과 같은 부류). 그리고 Simon이 티어 활용 방침을 확정했다.
+
+**완료조건**
+1. refresh-models가 5.6 티어 ID를 인지하고 좌석별 티어 배치를 지원한다.
+2. 배치: **terra = 일반 좌석 기본값(대화·OCR 포함)** / **sol = 최고난도 + 교차검증 전용** / **luna = 사용 금지(Simon 결정)**.
+3. **적대적 교차검증 파이프라인**: 전체 코퍼스 딥리드(persona_synthesis 우선)에서 claude opus(max)와 gpt-5.6-sol이 서로의 산출을 반박·방어하는 라운드 후 합의/중재 산출. 원장에 양쪽 호출 모두 기록, 라운드 수 상한 명시, 저빈도 purpose 한정(비용 2배+).
+4. effort: 5.6의 API enum 실측(제품 라벨 light/extra/ultra high(pro)와 구분, `pro`/`max` 계열 존재 확인됨) 후 axis 매핑. 새 effort 값이 생기면 필요한 `OPENAI_API_KEY__<EFFORT>` 키 목록을 콘솔에 통보할 것(키 생성·등록은 콘솔+Simon 몫).
+5. 확인 항목: gpt-5.4-nano(safety 폴백) 은퇴 여부 — 5.4 본선 07-23 은퇴 보도 vs nano 08-19 원장 동작 실측, 상충 미해결. `EXPO_PUBLIC_REASONING_PROVIDER` vs `*_VENDOR` 축 관계 문서화(라이브 코드 17곳 참조 — 삭제 금지 실측). docs/LLM-ROUTING.md 갱신(gemini 시절 좌석표 stale).
+6. REQ-260823-01(xai 루프 — 08-23 10:28Z에도 재현)·REQ-260823-02(effort max 축+opus-only)와 같은 PR 허용. 우선순위 02 > 03 > 01.
+
+**하지 말 것**: Gemini 키·콤보·좌석 접촉(9월 일괄) · luna 좌석 생성 · 시크릿 값 요청 · main 직접 push.
+위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+---
+
+## Latest — 2026-08-23 / ⚠ **로그인이 전원 500 이었다** · 원인 = 0139 꼬리 소실 · 복구·박제 완료 (#1337)
+
+> 발행: **렌즈·도구층 세션.** `/interview` 스크린샷을 찍으려다 발견했다.
+> 진행 중이던 A~D 작업(#1327·#1328·#1330·#1331)은 그 앞에 이미 머지됐다.
+
+### 1. 무슨 일이 있었나
+
+QA 계정 로그인이 안 돼서 파봤더니 **계정 문제가 아니라 전체 사용자 로그인 장애**였다.
+
+```
+POST /auth/v1/token?grant_type=password  ->  500
+{"error_code":"unexpected_failure",
+ "msg":"Error running hook URI: pg-functions://postgres/public/custom_access_token_hook"}
+```
+
+**원인:** `0139_rbac_roles.sql` 이 **6절(Grants) 없이** 운영에 적용됐다.
+훅의 유일한 DB 접근이 `SELECT ... FROM public.user_roles` 인데
+`supabase_auth_admin` 에게 그 테이블 권한이 **0건**이었다.
+
+> ⚠ **RLS 정책만으로는 안 된다.** Postgres 는 **테이블 GRANT + 정책** 둘 다 필요하다.
+> 정책(`user_roles_select_auth_admin`)은 있었고 GRANT 만 없었다. 이 조합이 앞으로도
+> 같은 함정이 될 수 있으니 기억해둘 것.
+
+**훅 함수 EXECUTE 권한은 어디서 왔나** — 대시보드에서 Auth Hook 을 켜면 Supabase 가
+자기 스니펫을 직접 실행한다(`proacl` 이 `{postgres=X,service_role=X,supabase_auth_admin=X}`
+로 그 문서 스니펫과 정확히 같은 모양). **그 스니펫은 함수 권한만 주고 훅이 읽는 테이블
+권한은 안 준다.** 그래서 "훅은 켜졌는데 훅이 읽지 못하는" 상태가 됐다 — 두 순서 중 나쁜 쪽.
+
+### 2. 적용본과 파일을 대조하는 법 (다음에 또 의심될 때)
+
+Supabase 는 적용된 SQL 전문을 보관한다:
+
+```sql
+select name, length(statements[1]) as len, right(trim(statements[1]), 200) as tail
+from supabase_migrations.schema_migrations order by version desc;
+```
+
+0139 의 tail 이 **5절 COMMENT 다음 바로 `COMMIT;`** — 6절 19줄이 통째로 없었다.
+
+**함정 둘:**
+
+- ⚠ `ILIKE '%REVOKE %'` 로 세면 **속는다.** 0139 적용본은 그 조건이 참인데, 실행된 REVOKE
+  때문이 아니라 5절 COMMENT **문자열 안의 산문**("the column-level REVOKE cannot cut the
+  table-level GRANT") 때문이다. 줄머리(`E'\nGRANT'`)로 셀 것.
+- ⚠ **숫자 접두사로 매칭하면 틀린다.** DB 이름이 파일명과 다른 것들이 있다 —
+  `0113_notices.sql` → DB `notices`, `0092_runtime_flags.sql` ≠ DB `0092_reasoning_runs`,
+  `0117` 은 두 개. **이름으로 맞출 것.**
+
+**전수 대조 결과: 0139 하나뿐이다** (55건 대조, 나머지 전부 일치). **계통적 문제 아님.**
+
+### 3. 복구와 박제 (#1337, 0141)
+
+운영을 **먼저** 살렸다: `500 -> 200` 확인 → 실제 앱 경로로 로그인 → 토큰 디코드해서
+**클레임 `app_roles: []` 가 실제로 박히는 것**까지 확인(안 죽는 게 아니라 RBAC 이 동작한다).
+
+| | |
+|---|---|
+| `0141_rbac_grants_repair.sql` | 0139 6절 멱등 재적용 + **`COMMIT` 전 자기 end state 검증** |
+| `supabase-dry-run.yml` 새 스텝 | 전체 적용 **후** 같은 것을 검증 → 앞으로 이 권한을 없애면 **로그인이 아니라 CI 에서** 깨진다 |
+| `rollback/0141_down.sql` | 되돌리면 로그인이 죽는다는 것 + **대시보드 훅을 먼저 끄고** 돌리라는 순서 |
+
+⚠ **0141 에는 `$$` 함수 본문을 일부러 안 넣었다.** 0139 가 잘린 지점이 하필 `$$` 본문과
+이스케이프 따옴표(`0138''s`)가 몰린 5절 직후라, 복구 파일로 파서를 다시 시험하지 않는다.
+DO 블록은 검증용 하나뿐이고 맨 끝.
+
+### 4. 곁가지 — 0139 가 의도했지만 달성 못 한 것
+
+`REVOKE ... FROM PUBLIC` 은 **역할에 직접 붙은 GRANT 를 못 깎는다**(0140 이 `public.users`
+에서 고치는 그 함정과 같다). 0139 는 `GRANT SELECT ... TO authenticated` 만 의도했는데
+실제로는 authenticated 가 **INSERT/UPDATE/DELETE/TRUNCATE** 까지 들고 있었다.
+쓰기 정책이 없어 RLS 가 막고 있었지만, **정책 하나만 잘못 추가되면 사용자가 자기 역할을
+스스로 올릴 수** 있었다. 0141 에서 제거했다.
+
+최종 ACL: `authenticated=SELECT` · `supabase_auth_admin=SELECT` · `service_role=ALL` ·
+`anon` 없음. `has_app_role`/`has_app_role_now` 도 anon 에서 회수.
+
+### 5. 같이 확인된 `/interview` 실상 (Simon 질문 답)
+
+Simon: *"너가 말하는 /interview 는 어떻게 진행되게 되어 있는데?"*
+
+**고정 5문항 리커트 스크리너다.** 자유서술 턴이 없어서 C9(안전 분류기)가 이 화면 경로에
+없다(파일 헤더가 그렇게 적어놨다). 질문은 캐논(`design/proto_rev2/.../know.json`)에서 오고,
+**다섯 문항이 전부 외향/내향 한 축**이다. 채점하지 않고 `Q:/A:` 텍스트 한 덩어리로 record
+하나에 저장한 뒤 `/big-five` 로 넘긴다. 프로토타입의 "+6 · 근거 4건 · L2→L3" 제안 카드는
+**지어낸 수치라서 뺐고** 대신 정직한 문구가 들어가 있다.
+
+즉 **이름이 "심층 인터뷰"인 쪽은 얕고**, 실제로 깊게 파는 5층 엔진
+(`interview/probe.ts` + #1331 의 되묻기 층)은 **화면이 없다.**
+
+### Simon 판단 대기 — 배치 결정 하나
+
+**드릴다운 엔진을 어디에 둘 것인가.** ① `/interview` 대체 · ② 그 옆에 별도 · ③ 세컨비 대화 안.
+엔진과 되묻기 층은 준비돼 있고 **열리는 자리만 정하면 된다.**
+⚠ 자유서술이 생기면 **C9 안전 분류기가 그 화면 경로에 들어와야 한다**(지금은 없다).
+
+`npm run verify` 497 suites / 4,715 tests 그린.
+
+## 2026-08-23 19:4x KST / 벤더 재편 실전 검증 통과 · 키 위생 종료 (콘솔 세션)
+
+### 확정 사실 (재확인 불필요)
+
+- **탈출 증명 완료**: 08-23 09:38Z 원장 `secondb_chat → openai / gpt-5.5-2026-04-23 / OPENAI_API_KEY__LOW / 3099ms / 700tok / green`. 첫 시도(09:26Z, 설치 앱 vc20)는 gemini로 감 — 구빌드 탓, 서버 아님. 웹 강력새로고침 후 성공. 2단 effort 키가 받음 = 승격 불변 설계 실증.
+- **OpenAI 키 위생 종료**: Supabase 콤보 10개(`OPENAI_API_KEY__GPT54__*`·`__GPT54NANO__*`) 삭제·필터 0건 검증. 플랫폼 키 6개 전부 `2ndb-*`(ci, edge-base/none/low/medium/high, 만료 Never).
+- **Anthropic 키 위생 종료**: 새 키 3개 `2ndb-edge-base`·`2ndb-edge-max`·`2ndb-ci`(만료 Never)로 전면 교체. Supabase `ANTHROPIC_API_KEY` 교체(다이제스트 35a0ad8c…) + `ANTHROPIC_API_KEY__MAX` 신규(8632270f…). 콤보 8개(`__SONNET5__*`·`__OPUS48__*`) 삭제·0건 검증. GH `ANTHROPIC_API_KEY` ← 2ndb-ci(10:27Z), model-refresh 재실행으로 sonnet·opus 스모크 통과 = CI 키 실검증. 콘솔 구키 10개(opus48×4, sonnet5×4, 2ndb-reasoning, github-model-refresh-260818-r2[9/17 만료 시한폭탄이던 것]) 전부 삭제 → 콘솔 최종 3개.
+- **Simon 결정 (08-23)**: Anthropic은 **opus 계열만, effort는 max만** 운용한다. sonnet 좌석 제거는 REQ-260823-02.
+- Anthropic API effort enum 실측(공식 docs) = low/medium/high/xhigh/**max**. 코드축(PHASE2_EFFORT)은 아직 xhigh까지.
+- ⚠ **Gemini 키·콤보·좌석은 불가침** — 구빌드 설치 앱이 지금도 gemini로 실서빙 중(09:26Z 원장 실측). 9월 폐기 PR에서 일괄.
+
+### UNVERIFIED
+
+- `2ndb-edge-base` 실호출 미검증: 콤보 삭제 후 claude 좌석은 base 키로 해석되는데 아직 claude 호출이 0건. pg_cron·GH 워크플로 어디에도 claude 트리거 없음 실측(ops_daily_brief·digest_weekly 트리거 경로 불명) — 다음 자연 호출의 원장이 판정. 401이 뜨면 base 값 재붙여넣기가 복구 경로.
+- reasoning_effort가 앱=high·웹=low로 달랐던 원인 — 미확인, 비차단.
+
+### REQ-260823-02 → CLI: effort 축 max 확장 + Anthropic opus-only 좌석 정리
+
+**왜 하는가**: Simon 확정 — Claude는 비싸므로 "사용자 전체 코퍼스를 읽는 저빈도 딥리드"에만 최고 품질(max)로 쓴다. `ANTHROPIC_API_KEY__MAX`는 이미 운영에 등록돼 있고, 코드가 max를 몰라서 못 쓰는 상태다.
+
+**완료조건**
+1. effort 축(`src/lib/llm/routing.ts`의 PHASE2_EFFORT 등)에 `max` 추가하고 anthropic-proxy가 API `effort`로 전달한다(anthropic 전용 — openai·gemini 축 불변). `_shared` 수정 시 프록시 재배포 필수.
+2. Anthropic 좌석 = opus 계열만 남긴다. sonnet 8좌석(advisor, secondb_chat, gap_synthesize, self_model_propose, northstar_propose, ops_recommend, ops_daily_brief, ttfv_first_insight)은 openai(gpt-5.5)로 이관 또는 제거. ⚠ 트레이드오프 명시: anthropic 맵에서 chat류를 빼면 OpenAI 장애 시 2차 플립 피난처가 사라진다 — 대안(chat 폴백만 opus로 유지) 포함해 판단하고 근거를 보고할 것.
+3. opus 좌석 effort 배치: persona_synthesis=max 우선. 나머지(digest_weekly·axis_estimate·persona_narrative)는 호출 빈도×단가 곡선 보고 제안.
+4. REQ-260823-01(refresh-models.ts 벤더 루프 "xai" 누락)과 같은 PR로 묶어도 된다. 오늘 10:28Z 실행에서도 `xai-frontier: XAI_API_KEY 가 없어 건너뜀` 재현 — 미랜딩 확인.
+5. 검증: model-refresh 시험 통과 + 원장에 `key_combo=ANTHROPIC_API_KEY__MAX` 1건.
+
+**하지 말 것**: Gemini 접촉 · 시크릿 값 요청 · main 직접 push.
+위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+---
+
+## 2026-08-23 14:2x KST / 승격 재개: gpt-5.5 · claude-sonnet-5 · claude-opus-5 — xai 만 스크립트 버그로 막힘
+
+> 발행: **GUI(Cowork) 콘솔 세션.**
+
+### 승격 결과 (S-1 완료 후, 핀 제거 상태에서 2회 실행)
+
+| 좌석 | 결과 |
+|---|---|
+| openai-frontier | **gpt-5.5 — 시험 통과, 추론 9좌석 적용.** 8/19 의 502 는 재현되지 않았다(2단 effort 키가 받는다) |
+| anthropic-sonnet / opus | **claude-sonnet-5 / claude-opus-5** — purpose 12개 매핑 적용 (V-4 "지금 바로" 이행 시작) |
+| xai-frontier | ❌ **"XAI_API_KEY 가 없어 건너뜀" — 시크릿은 있다** (GH 에 2026-08-23 09:16Z 저장 확인) |
+
+### REQ-260823-01 → CLI · refresh-models 의 벤더 루프에 xai 가 빠져 있다 (원라인)
+
+`scripts/refresh-models.ts` 의 모델 목록 수집 루프가
+`for (const vendor of ["anthropic", "openai", "google"])` — **"xai" 가 리터럴에 없다.**
+`KEY_ENV.xai`·`listModels('xai')` 는 이미 있으므로 xai 좌석은 항상 `byVendor.get()` miss →
+"없어 건너뜀"(부재와 조회실패를 같은 문구로 뭉개는 메시지도 한 줄 개선 여지).
+GH `XAI_API_KEY` 는 존재·확인됨. 리터럴에 `"xai"` 추가 + 회귀 테스트 한 줄이면 끝.
+
+### 키 위생 현황 (Simon 정리 세션)
+
+- OpenAI: **완료.** 엣지 5키(`2ndb-edge-*` 체계) + CI `2ndb-ci`. 기본 키 다이제스트 26040a49→08d46e66 교체 확인
+- `gpt54-*` 구 키 4개: **실사용 검증 1건 후 삭제 예정** (검증 전까지 재핀 롤백 레버로 보존)
+- GPT54/GPT54NANO 콤보 시크릿 10개: 검증 후 콘솔이 일괄 제거 예정 (승격으로 이미 비활성 경로)
+- 다음 정리 대상: Anthropic(Never 재발급) → Supabase PAT(never-expire) → Paddle(1년) · **Gemini 는 9월 폐기 PR 과 함께 일괄**
+
+## 2026-08-23 / V-4·V-5 집행 · `0140` 착지 · 릴리스는 **0.2.0** (1.2.0 은 정정으로 삭제)
+
+> 발행: **CLI(코딩) 세션.** 콘솔 13:40 블록이 CLI 로 넘긴 3건 + Simon 의 버전 정정.
+> **한 줄 요약: 코드는 다 됐고, `EXPO_PUBLIC_LLM_VENDOR=perPurpose` 플립 하나가 남았다.**
+
+### 1. V-4 — 산문 두 좌석이 Claude 로 (#1333)
+
+`persona_narrative` · `persona_synthesis` → **claude(opus)**. 이 둘을 고른 이유는
+**출력이 곧 사용자가 읽는 문장**이라서다 — 나머지 열은 구조화 JSON 이라 벤더 차이가 안 보인다.
+
+> #### ⚠ 이것만으로는 아무 일도 안 일어난다 — 플립이 하나 더 필요하다
+>
+> `resolveVendorForPurpose` 2단계가 `EXPO_PUBLIC_LLM_VENDOR` 를 **모든 좌석에 그대로
+> 반환**한다. 콘솔이 그 값을 `openai` 로 설정해 뒀으므로 **`PHASE2_VENDOR` 는 읽히지 않는다.**
+>
+> ```
+> EXPO_PUBLIC_LLM_VENDOR=perPurpose      ← 이 플립이 있어야 맵이 의미를 갖는다
+> ```
+>
+> 그러면 두 좌석 → claude-proxy, 나머지 열 → openai-proxy. **없으면 "다 됐다"로 읽히는
+> 조용한 무동작**이라 주석이 아니라 **테스트로 박았다.**
+
+### 2. V-5 — 두 줄은 `high` 로 되돌림 (#1333)
+
+`reasoning_connect`·`imagine`. **양쪽 다** 옮겼다(클라 `PHASE2_EFFORT` + 서버
+`PURPOSE_EFFORT_MAX`) — 한쪽만 올리면 **그대로 다시 깎여 답이 무동작**이 된다.
+
+> **모호함 하나를 묻지 않고 밝힌다.** 답이 *"high 유지 … `PURPOSE_EFFORT_MAX` 변경 금지"*
+> 였는데 문자 그대로면 **모순**이다(상한이 medium 이었으니 그대로 두면 effort 도 medium).
+> 뒤 절을 **effort 어휘를 바꾸지 말라**는 서 있는 규칙으로 읽었고 어휘는 손대지 않았다.
+> **상한 값을 그대로 두라는 뜻이었다면 그 줄만 되돌리면 된다.**
+
+### 3. `0140` users ACL 수술 착지 — **운영 적용 대기** (#1333)
+
+콘솔 dry-run 이 마지막 질문에 **제3의 답**을 줬다: **anon 경로가 아예 없다.**
+`<확인된 role>` = **`authenticated`**.
+
+**이것이 `judge_mode` 를 트리거가 아니라 권한으로 붙드는 지점이다.** 트리거는 그대로 둔다 —
+최상위 유료 등급을 주는 컬럼은 벨트 하나로 부족하다(콘솔이 세 번째 가드
+`block_self_tier_change` 도 실측).
+
+GRANT 목록은 **소스 스캔과 대조**한다. 틀리면 린트 실패가 아니라 **정리처럼 보이는
+마이그레이션 뒤에 모든 OAuth 가입 또는 모든 설정 저장이 운영에서 실패**한다.
+
+> ⚠ `supabase_auth_admin` 이 `ins=f` 인 것은 가입 트리거가 definer 라서 무해하다.
+> **그 함수를 `SECURITY INVOKER` 로 바꾸면 가입이 깨지고**, 오류는 여기가 아니라 트리거를
+> 가리킨다. 0140 주석에 박아뒀다.
+
+### 4. 릴리스 — **v0.2.0** 이 정본, `v1.2.0` 은 삭제됨
+
+Simon 정정: *"1.2.0 은 잘못 생각한 것, 0.2.0 이 맞다."* (#1325)
+
+| | |
+|---|---|
+| 현재 | **<https://github.com/Simon-YHKim/2nd-B/releases/tag/v0.2.0>** · APK 83MB · versionCode **9** |
+| 삭제됨 | `v1.2.0` 릴리스·태그 (다운로드 0건이라 안전. EAS 빌드 `6b67cea8` 는 EAS 에 잔존) |
+| **versionCode 는 8→9** | 낮추거나 재사용하지 않는다. 마케팅 버전과 독립된 단조 카운터고, 8 은 지워진 빌드의 것 |
+| **APK 재사용 불가** | 이전 APK 에 `1.2.0` 이 박혀 있다. 태그와 바이너리가 어긋나는 릴리스는 워크플로가 거부한다 |
+
+**공지 의무가 사라졌다.** 0.1.0→1.2.0 은 major(공지 필요)였지만 **0.1.0→0.2.0 은 minor(불필요)**.
+`semver.ts`: **0.y.z 선상은 major 자리가 안 움직여** 의도적 1.0.0 컷이나 `--force-major` 전엔
+아무것도 major 로 안 잡힌다.
+
+**공지 초안은 폐기할 것이 없었다 — 실측 확인.** `notices` 테이블 최신 행이 **2026-08-10**
+이고 `min_app_version` 이 전부 `null` 이다. 1.2.0 공지는 **파일로도 DB 로도 나간 적이 없다.**
+
+### 5. ⚠ PR #1326 이 아직 열려 있다 (콘솔 소유)
+
+콘솔의 집행 기록(0138+0139 적용·훅 등록·플립·ACL 답)이 담긴 PR 인데 **충돌로 막혀 있고,
+그 브랜치를 다른 워크트리(`fix1301`)가 잡고 있어 건드리지 않았다.** 내용은 이 블록이
+요약해 뒀으니 유실은 없지만, **원본 기록은 소유 세션이 착지시켜야 한다.**
+
+### 6. 다음
+
+| 누가 | 무엇 |
+|---|---|
+| **Simon** | **S-1** — OpenAI 키 5개(`OPENAI_API_KEY` + `__{NONE,LOW,MEDIUM,HIGH}`). 폼 스테이징돼 있음. 이게 유일한 진짜 블로커다 |
+| **Simon** | 드릴다운 엔진 배치 결정 ① `/interview` 대체 · ② 별도 · ③ 세컨비 대화 안 |
+| **콘솔** | **`EXPO_PUBLIC_LLM_VENDOR=perPurpose`** (V-4 발효) |
+| **콘솔** | **`0140` 적용** (dry-run 은 이미 통과, 롤백까지 확인됨) |
+| **콘솔** | S-1 후 `ai_audit_log` 검증 → 핀 삭제. 최근 30h 0행이라 **첫 실사용이 판정한다** |
+| **CLI** | 9월 Gemini 폐기 — `callLlm` 의 outage failover 가 `gemini-proxy` 를 하드코딩. **플립 검증 전엔 지우지 말 것** |
+
+`npm run verify` 497 suites / 4,715 tests 그린.
+
+## 2026-08-23 / 자기이해 도구층 A~D 랜딩 · ⚠ **내가 Simon 결정을 어겼다가 철회** · 정정 3건
+
+> 발행: **렌즈·도구층 세션.** Simon 지시 `/goal 순서대로 진행해줘` 로 A → C → D → B 를 다 돌았다.
+> 감사 보고서: 아티팩트 `be654069-c912-4469-93b5-0627fbb2c0e9`.
+
+### 출발점 — Simon 질문
+
+> *"나 자신에 대해서 알아가는 방법을 리서치 한적이 있어 … 이걸 기반으로 완전하게 리스트업 되고
+> 기능이 만들어진거야? drill-down 도 있고, big five 도 있고 … 각각의 방법론들을 실전에서
+> 사용할수 있도록 질문지나 알고리즘을 완전하게 만든뒤에, 내 판단 하에 상황에 맞게 배치해서
+> 사용하려했어."*
+
+**실측 답:** 리스트업·적재는 **끝났다**(`docs/research/batches/` 40건 → `supabase/seed/`
+45파일 → `knowledge_sources` **346행**). **도구화가 고르지 않았고**, ②("상황에 맞게 배치")는
+**자리 자체가 없었다** — 도구 아홉이 아홉 라우트에 흩어져 있고 "지금 뭘 권할까"를 아는 코드가
+없었다.
+
+| | 무엇 | PR |
+|---|---|---|
+| A | 도구 레지스트리 (`src/lib/assess/registry.ts`) | #1327 |
+| C | 비준 배선 하나 → 셋 | #1328 |
+| D | MBTI = 결정에 의한 휴면 | #1330 (첫 시도 #1329 철회) |
+| B | 되묻기 층 (`interview/loop-check.ts`) | #1331 |
+
+### ⚠ 1. 내가 Simon 의 서 있는 결정을 어겼다 (머지 전 철회)
+
+`MBTI_ITEMS`·`scoreMbti` 의 **호출부가 0건**이라 죽은 코드로 보고 지우는 PR(#1329)을 냈다.
+**일부러 남겨둔 것이었다.**
+
+> **Simon D5 (2026-08-18)**: *"재미로 할 수 있도록 작업은 해놓자. 화면을 살릴지는 나중에."*
+> `docs/DECISIONS-260819.md` §D3 재확인.
+
+게다가 **내가 덮어쓴 테스트 파일에 이유가 통째로** 있었다 — `describe("휴면 상태 완결성 (D5)")`,
+*"휴면 코드의 위험은 버그가 아니라 **부패**다."* **가드와 가드가 지키던 것을 한 번에 지웠다.**
+
+**착수 전 규율 (이 저장소에서 반복됨):**
+
+1. **그 파일 헤더를 끝까지 읽는다.** 이 저장소는 "왜 이렇게 뒀는지"를 파일에 적는다.
+2. `grep -rn "<심볼>" docs/DECISIONS-*.md docs/HANDOFF.md CLAUDE.md`
+3. **휴면과 방치는 코드에서 똑같이 생겼다.** 구분해주는 건 기록뿐이다.
+
+표현도 바꿨다 — 레지스트리가 `retired`(폐기) 대신 **`dormant`(휴면)** 을 쓴다. 동작은 같지만
+`retired` 는 **지워도 된다는 허락으로 읽힌다.**
+
+같은 모양이 **하루에 세 번** 나왔다. `/mbti` 2단 리다이렉트도 `DECISIONS-260819` §D3 권고를
+따라 1단으로 줄이려다, **`mbti.tsx` 에 그 문서보다 나중 날짜로 반대 논거**(1단으로 줄이면
+`persona.tsx` 스킨 분기를 복제하게 됨)가 이미 있어서 되돌렸다.
+
+### ⚠ 2. 배포되는 화면이 거짓말을 하고 있었다 (#1327 이 고침)
+
+`/core-brain` 이 **"검증된 검사로 별을 하나씩 밝힙니다"** 를 띄우고 그 아래 **강점 체크 ·
+가치관 체크**를 걸어놨다. 그 둘은 자체 제작 문항이다 — 파일 헤더가 스스로
+*"a SHORT, positively-keyed self-report"* 라고 적고 있고 VIA·SDT 의 **어휘만** 빌렸다.
+
+그리고 목록이 하드코딩된 라우트 넷이라 **아홉 중 다섯은 진입점이 없었다** —
+**IPIP-NEO-120**(120문항 30 하위요인, 앱에서 가장 깊은 척도)이 자기를 재는 게 일인 화면에서
+닿을 수 없었다. 생활만족·동기·인생점검·대화도 마찬가지.
+
+이제 목록의 정본은 `src/lib/assess/registry.ts` 고, 검증/자체를 **갈라서** 보여준다.
+
+### 3. 비준 배선 (#1328) — 진단이 틀렸던 건
+
+"구인을 폐기하면 비준할 게 없어진다" 고 판단했는데 **전제가 틀렸다.** 비준 축이 하나뿐인 건
+구인이 죽어서가 아니라 **호출부 두 곳이 `{ kind: "star", star: "now" }` 를 박아놨기** 때문이다.
+`proposalContextForStar` 는 처음부터 세 축을 지원했고 비준 **쓰기**도 이미 범용이었다.
+
+`ratifiable.ts` 가 "근거 있는 것만" 내놓는다. **일기 텍스트 추정(`heuristic`)은 제외** —
+짐작을 비준시키면 그 짐작이 사용자 승인을 받은 사실로 굳고, 그게 propose→ratify 가 막으려던
+바로 그 일이다.
+
+### 4. B 는 질문지가 아니라 알고리즘이었다 (#1331)
+
+`docs/research/batches/self-knowledge.md` 가 스스로를 **"이 제품의 핵심에 이론·실증적으로
+가장 가까운 배치"** 라고 적고, 결론이 불편하다 — **자기성찰은 도움이 될 수도 해가 될 수도**
+있고 어떻게 하느냐가 정한다(Trapnell & Campbell 1999). 되새김과 성찰은 표면적으로 똑같아
+보이고 **순진한 기록 제품은 둘 다 부른다.** 그리고 배치가 알고리즘을 그대로 건넨다:
+
+> *"if a user revisits the same theme >3 times in 14 days without new framings, surface the
+> loop-check question **rather than continuing to invite more entry** on that theme."*
+
+`nextMove()` 가 드릴다운 엔진의 새 진입점 — **어느 층을 팔지 정하기 전에 지금 더 파는 게
+맞는지** 먼저 본다. **판정이 아니라 질문이다**(결과에 라벨 없음, 화면에 나가는 건 사용자가
+답하는 질문). 새로움은 **문자 2-gram** — 공백으로 자르면 `회사에`/`회사를` 가 다른 낱말이 되어
+반복을 놓친다. 문구 셋은 배치 원문 그대로고, 테스트가 그 파일에 여전히 있는지 확인한다.
+
+### ⚠ 5. 정정 — `/interview` 에는 드릴다운이 없다
+
+내 감사 보고서가 `/interview` 를 드릴다운으로 적었는데 **틀렸다.**
+
+- `/interview` = **고정 5문항 Likert 스크리너**, 자유서술 턴 없음
+- `interview/probe.ts` 의 5층 엔진(사실→감정→의미→신념→메아리 + `interview_probe` 좌석)
+  = **자기 테스트 밖 호출부 0건**
+
+`DECISIONS-*`·`HANDOFF` 를 확인했고 **이걸 휴면으로 두는 결정은 없다** — 미완성으로 보인다.
+그래서 #1331 은 **아직 아무도 안 부르는 엔진 안에** 들어갔다.
+
+또 하나: **VIA-IS 를 "빠진 척도"로 셌던 것도 틀렸다.** `via-strengths.md` 가 재구현을 명시적으로
+금지한다(*"Do not score the user against the VIA-IS"*, *"Reflection prompts only"*). 자체 성찰
+문항이 **맞는 형태**였다.
+
+### Simon 판단 대기 — 배치 결정 하나
+
+**드릴다운 엔진을 어디에 둘 것인가.** ① `/interview` 대체 · ② 그 옆에 별도 · ③ 세컨비 대화 안.
+엔진과 되묻기 층은 준비돼 있고 **열리는 자리만 정하면 된다.**
+
+### 다음 세션이 알아야 할 함정
+
+- **셸 heredoc 백슬래시 소실이 또 나왔다.** `\b` 가 실제 백스페이스 바이트로 들어가 정규식이
+  달라졌다. 이번엔 테스트가 실패해서 잡혔지만, 조용히 통과할 수도 있다.
+  **정규식이 든 파일은 Write/Edit 도구로 쓸 것.**
+- **가드가 자기 설명에 걸린다.** `expect(src).not.toContain("scoreMbti")` 를 썼는데 헤더가
+  무엇을 왜 지웠는지 설명하며 그 이름을 언급해서 실패했다. export 형태로 볼 것.
+- **근거 가드는 짧은 토큰으로 만들지 말 것.** `toContain("D5")` 는 그 문자열이 파일에 세 번
+  나와서 근거를 지워도 통과했다(변이 검증으로 발견). **인용문 자체**를 요구할 것.
+
+`npm run verify` 495 suites / 4,687 tests 그린.
+
+## 2026-08-23 13:40 KST / 콘솔 집행 완료: 0138+0139 적용 · 훅 등록 · 변수 4종 플립 · V-컨펌 착지
 
 > 발행: **GUI(Cowork) 콘솔 세션.** 05:3x CLI 블록의 콘솔 순서 1~9 에 대한 집행 보고다.
 
@@ -46,6 +440,7 @@
 | Simon | **S-1**: 스테이징된 폼에 값 5개 붙여넣고 Bulk save (OpenAI 키 5개 신규 발급) |
 | 콘솔 | S-1 후: `ai_audit_log` 검증 → `MODEL_PIN_OPENAI_FRONTIER` 삭제 → 승격 시험 · `OPENAI_TRANSCRIBE_MODEL` 은 첫 음성 메모가 판정(UNVERIFIED 유지) |
 | CLI | **V-4 집행**(Claude 2좌석, 지금) · **`0140` ACL 수술 파일**(위 확정값) · 9월 Gemini 폐기 PR 에 `callLlm` 폴백 하드코딩 제거 포함 |
+
 
 ## 2026-08-21 05:3x KST / Grok 투입 (#1317) · ⚠ 스위치 두 개가 빌드에 안 닿고 있었다
 

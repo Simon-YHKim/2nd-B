@@ -1071,5 +1071,9 @@
     "daysWeekends": "Fines de semana",
     "daysShift": "Por turnos",
     "daysVaries": "Varía"
-  }
+  },
+  "reviewAxisNow": "Revisar mis Cinco Grandes",
+  "reviewAxisRelational": "Revisar mi estilo de apego",
+  "reviewAxisValues": "Revisar mis valores",
+  "reviewNothingToReview": "Haz una prueba primero: aún no hay nada medido que revisar."
 }
