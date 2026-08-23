@@ -1071,5 +1071,9 @@
     "daysWeekends": "주말",
     "daysShift": "교대",
     "daysVaries": "그때그때"
-  }
+  },
+  "reviewAxisNow": "성격 다시 보기",
+  "reviewAxisRelational": "관계 패턴 다시 보기",
+  "reviewAxisValues": "가치관 다시 보기",
+  "reviewNothingToReview": "먼저 검사를 하나 해주세요. 아직 되돌아볼 측정값이 없어요."
 }
