@@ -197,8 +197,25 @@ describe("openai-proxy can serve what the client will send it", () => {
   });
 
   test("the shared money and audit path is not forked", () => {
-    // Both branches must go through one spend bump, one refund, one audit row.
-    expect((proxy.match(/from\('ai_audit_log'\)\.insert/g) ?? []).length).toBe(1);
-    expect((proxy.match(/rpc\('bump_gemini_spend'/g) ?? []).length).toBe(1);
+    // Chat and transcription must go through ONE spend bump and ONE audit row.
+    //
+    // Counted over the file minus the embed route (2026-08-24), not over the
+    // whole file. op:'embed' returns early and is a different operation with a
+    // different batch shape, so it has its own bump and its own row - exactly
+    // as gemini-proxy's embed route does. Counting globally would have made
+    // "2" look like the fork this test exists to prevent, and the honest fix
+    // is to say which half is being counted rather than to raise the number.
+    const embedStart = proxy.indexOf("body?.op === 'embed'");
+    const embedEnd = proxy.indexOf("const userText");
+    expect(embedStart).toBeGreaterThan(-1);
+    expect(embedEnd).toBeGreaterThan(embedStart);
+    const embedRoute = proxy.slice(embedStart, embedEnd);
+    const rest = proxy.slice(0, embedStart) + proxy.slice(embedEnd);
+
+    expect((rest.match(/from\('ai_audit_log'\)\.insert/g) ?? []).length).toBe(1);
+    expect((rest.match(/rpc\('bump_gemini_spend'/g) ?? []).length).toBe(1);
+    // And the embed route pays exactly once too - it must not skip the counter.
+    expect((embedRoute.match(/from\('ai_audit_log'\)\.insert/g) ?? []).length).toBe(1);
+    expect((embedRoute.match(/rpc\('bump_gemini_spend'/g) ?? []).length).toBe(1);
   });
 });

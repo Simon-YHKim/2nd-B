@@ -13,6 +13,7 @@ import { GoogleGenAI } from "@google/genai";
 import { throwIfAborted } from "../async/abort";
 import { getEnv } from "../env";
 import {
+  embedVendor,
   multimodalVendor,
   normalizeVendor,
   phase2EffortFor,
@@ -1018,7 +1019,7 @@ export async function embedTexts(input: EmbedTextsInput): Promise<EmbedTextsResu
     // live embedding route on the keyless web build. One batch = one call.
     if (toEmbed.length > 0) {
       const supabase = getSupabaseClient();
-      const { data, error } = await supabase.functions.invoke("gemini-proxy", {
+      const { data, error } = await supabase.functions.invoke(proxyFnForVendor(embedVendor()), {
         body: { op: "embed", texts: toEmbed, purpose: "embed_index" },
         signal: input.signal,
       });

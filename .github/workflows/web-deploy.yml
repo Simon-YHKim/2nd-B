@@ -131,6 +131,9 @@ jobs:
           # deep-run rationale). Unset keeps Gemini. Same missing-from-the-env
           # story as the line above; also deploy-before-flip.
           EXPO_PUBLIC_BACKBONE_VENDOR: ${{ vars.EXPO_PUBLIC_BACKBONE_VENDOR || '' }}
+          # Embeddings. Unset keeps Gemini. ⚠ flipping this requires a re-index -
+          # see the note above embedVendor() in src/lib/llm/routing.ts.
+          EXPO_PUBLIC_EMBED_VENDOR: ${{ vars.EXPO_PUBLIC_EMBED_VENDOR || '' }}
           # Naver social sign-up (custom OAuth via the oauth-naver edge function,
           # already in-repo). Server side confirmed live 2026-07-15 (Simon):
           # oauth-naver deployed with its secrets and the app registered at
