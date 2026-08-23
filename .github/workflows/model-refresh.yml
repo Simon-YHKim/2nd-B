@@ -66,6 +66,7 @@ jobs:
           MODEL_PIN_ANTHROPIC_OPUS: ${{ vars.MODEL_PIN_ANTHROPIC_OPUS }}
           MODEL_PIN_OPENAI_FRONTIER: ${{ vars.MODEL_PIN_OPENAI_FRONTIER }}
           MODEL_PIN_XAI_FRONTIER: ${{ vars.MODEL_PIN_XAI_FRONTIER }}
+          MODEL_REFRESH_ACK_FAILING: ${{ vars.MODEL_REFRESH_ACK_FAILING }}
         run: |
           set -o pipefail
           # Set MODEL_REFRESH_APPLY=false to fall back to report-only without
