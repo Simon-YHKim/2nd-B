@@ -98,6 +98,17 @@ export interface CrosscheckInput {
   locale: "en" | "ko";
   minor?: boolean;
   rounds?: number;
+  /**
+   * Appended to the defender's instructions when the draft is not prose.
+   *
+   * The whole-corpus deep reads emit structured JSON, and a defender told only
+   * to "return the rewritten claim" can reasonably answer in sentences. The
+   * caller would then parse nothing and lose the output entirely - a
+   * cross-check that destroys what it was checking. The caller still has to
+   * guard the parse (see persona-synthesis), because a prompt is a request and
+   * not a guarantee; this just stops the obvious failure.
+   */
+  outputContract?: string;
   signal?: AbortSignal;
 }
 
@@ -210,7 +221,9 @@ export async function crosscheck(input: CrosscheckInput): Promise<CrosscheckResu
     try {
       const defence = await callLlm({
         purpose: "crosscheck_defend",
-        system: DEFEND_SYSTEM,
+        system: input.outputContract ? `${DEFEND_SYSTEM}
+
+${input.outputContract}` : DEFEND_SYSTEM,
         user: [
           `EVIDENCE:\n${input.evidence}`,
           `YOUR CLAIM:\n${current}`,

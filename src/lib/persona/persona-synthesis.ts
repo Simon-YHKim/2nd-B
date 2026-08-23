@@ -15,6 +15,7 @@
 // The synthesis NEVER writes the self-model; it is a proposal (propose->ratify).
 
 import { callLlm } from "../llm/boundary";
+import { crosscheck } from "../llm/crosscheck";
 import { INJECTION_GUARD, sanitizeUntrusted } from "../llm/untrusted";
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { LadderLevel } from "./brightness";
@@ -264,5 +265,29 @@ export async function synthesizePersonas(
     responseSchema: PERSONA_SYNTHESIS_SCHEMA as unknown as Record<string, unknown>,
     minor,
   });
-  return parsePersonaSynthesis(reply.text, input);
+  const personas = parsePersonaSynthesis(reply.text, input);
+
+  // Adversarial cross-check (REQ-260823-03). Off unless an operator enables it
+  // AND the two sides resolve to different vendors; crosscheck() answers both
+  // questions itself and returns the draft untouched when either is false, so
+  // this costs nothing in the default configuration.
+  //
+  // Guarded on the way back in. The defender rewrites free-form and this
+  // surface needs parseable JSON, so a rewrite yielding FEWER grounded personas
+  // is discarded: a check that quietly deletes half of what it was checking is
+  // worse than no check, and the loss would read as a thin corpus rather than
+  // as a bug.
+  if (personas.length === 0) return personas;
+  const checked = await crosscheck({
+    draft: reply.text,
+    evidence: user,
+    purpose: "persona_synthesis",
+    userId,
+    locale,
+    minor,
+    outputContract: "Return the SAME JSON shape you were given. No prose, no commentary, JSON only.",
+  });
+  if (checked.skipped || checked.text === reply.text) return personas;
+  const revised = parsePersonaSynthesis(checked.text, input);
+  return revised.length >= personas.length ? revised : personas;
 }
