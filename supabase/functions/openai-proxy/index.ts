@@ -251,8 +251,12 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   import_ingest: 'low',
   clipper_template_propose: 'low',
   interview_probe: 'low',
-  reasoning_connect: 'medium',
-  imagine: 'medium',
+  // V-5 (Simon, 2026-08-23): refused the reduction to medium, so these keep
+  // the same high ceiling as the other pro-tier seats. The ceiling and the
+  // client-side PHASE2_EFFORT must move together - a ceiling below the request
+  // silently clamps and makes the decision a no-op.
+  reasoning_connect: 'high',
+  imagine: 'high',
 };
 
 function effortToOpenAi(effort: string | null, purpose: string): string {
