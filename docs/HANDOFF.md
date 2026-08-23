@@ -3,6 +3,42 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-23 20:3x KST / C-1·C-2 집행 · 0139 잘림은 콘솔 책임 · REQ-260823-03 (콘솔 세션)
+
+### 0. #1337 인지 — 콘솔이 안다
+
+0139 잘린 적용은 **콘솔 세션의 적용분이었다.** 어느 지점에서 잘렸는지(#1337의 $$·이스케이프 구간 분석)는 타당해 보이나 도구 경로의 정확한 절단 원인은 UNVERIFIED. **재발 방지를 콘솔 표준으로 채택했다**: 마이그레이션 적용 직후 ① `schema_migrations.statements` tail을 파일과 대조 ② end-state를 **호출 역할 기준으로** 검증(postgres로 함수만 돌려보는 검증은 grant 누락을 못 본다 — 이번 실패의 정확한 기전). 아래 0140에 즉시 적용했고 둘 다 통과.
+복구 상태도 재실측했다(20:3x): `supabase_auth_admin SELECT=t` · authenticated=SELECT only(ins/upd/del=f) · anon 없음 · `has_app_role` anon EXECUTE 회수 — #1337 최종 ACL과 일치. ⚠ 0141은 `schema_migrations`에 없다(다른 경로로 적용된 듯) — 효과는 실재하니 원장 부재만 기억할 것.
+
+### 1. 방금 집행 (콘솔, 20:1x~20:2x)
+
+- **C-1 완료**: `EXPO_PUBLIC_LLM_VENDOR=perPurpose`(11:11Z) + web-deploy 재배포 dispatch(run 32635825166) → V-4 발효. persona_narrative·persona_synthesis → claude-proxy(opus), 나머지 10좌석 openai 불변. 다음 persona 실행 원장에 anthropic이 찍히는지가 검증(= 새 2ndb-edge-base 키 첫 실검증 겸함).
+- **C-2 완료**: `0140_users_table_acl` 운영 적용. dry-run 재확인 → 적용 → **tail 대조 일치** + end-state 17항 전부 기대값(anon 쓰기 전차단·sel=t / authenticated ins 5컬럼·upd 4컬럼·judge_mode=f·del=f / service_role 무영향 / 가입 함수 DEFINER 유지). ledger last=`0140_users_table_acl`.
+- 발주서(CLI 08-23) 대조: S-1·핀 삭제·gpt-5.5 승격·실서빙 검증(09:38Z 원장)은 오전 완료. "콤보 502 함정"은 소멸(콤보 18개 삭제, 2단 effort 키가 실서빙 실증). C-4(#1326 착지)는 콘솔 큐 유지. S-2(드릴다운 배치)·S-3(V-5 해석) Simon 대기 — S-3은 오전 결정 기록("아니오, high 유지")과 CLI 집행이 일치, 컨펌만 남음.
+- 키 위생 종결 상세는 아래 #1336 블록 참조. Anthropic 콘솔 최종 3키(2ndb-ci/edge-max/edge-base, 만료 없음), GH ANTHROPIC_API_KEY=2ndb-ci 스모크 검증됨.
+
+### 2. Simon 결정 2건 추가 (08-23 20:0x)
+
+- **OCR = openai 유지** (gemini 예외 없음, 9월 전체 폐기 원안 그대로)
+- **gpt-5.6 배치: luna 제외. sol은 claude와 적대적 교차검증에 사용** → REQ-260823-03
+
+### 3. REQ-260823-03 → CLI: gpt-5.6 티어 인지 승격 + 배치 + Sol×Opus 교차검증
+
+**왜 하는가**: gpt-5.6은 07-09 GA(API `gpt-5.6-sol/terra/luna`, 가격 5/30·2.5/15·1/6 $/1M)인데 refresh가 08-23에도 5.5를 최신으로 선택했다 — 티어형 ID를 매칭하지 못한다(REQ-01 xai 루프 누락과 같은 부류). 그리고 Simon이 티어 활용 방침을 확정했다.
+
+**완료조건**
+1. refresh-models가 5.6 티어 ID를 인지하고 좌석별 티어 배치를 지원한다.
+2. 배치: **terra = 일반 좌석 기본값(대화·OCR 포함)** / **sol = 최고난도 + 교차검증 전용** / **luna = 사용 금지(Simon 결정)**.
+3. **적대적 교차검증 파이프라인**: 전체 코퍼스 딥리드(persona_synthesis 우선)에서 claude opus(max)와 gpt-5.6-sol이 서로의 산출을 반박·방어하는 라운드 후 합의/중재 산출. 원장에 양쪽 호출 모두 기록, 라운드 수 상한 명시, 저빈도 purpose 한정(비용 2배+).
+4. effort: 5.6의 API enum 실측(제품 라벨 light/extra/ultra high(pro)와 구분, `pro`/`max` 계열 존재 확인됨) 후 axis 매핑. 새 effort 값이 생기면 필요한 `OPENAI_API_KEY__<EFFORT>` 키 목록을 콘솔에 통보할 것(키 생성·등록은 콘솔+Simon 몫).
+5. 확인 항목: gpt-5.4-nano(safety 폴백) 은퇴 여부 — 5.4 본선 07-23 은퇴 보도 vs nano 08-19 원장 동작 실측, 상충 미해결. `EXPO_PUBLIC_REASONING_PROVIDER` vs `*_VENDOR` 축 관계 문서화(라이브 코드 17곳 참조 — 삭제 금지 실측). docs/LLM-ROUTING.md 갱신(gemini 시절 좌석표 stale).
+6. REQ-260823-01(xai 루프 — 08-23 10:28Z에도 재현)·REQ-260823-02(effort max 축+opus-only)와 같은 PR 허용. 우선순위 02 > 03 > 01.
+
+**하지 말 것**: Gemini 키·콤보·좌석 접촉(9월 일괄) · luna 좌석 생성 · 시크릿 값 요청 · main 직접 push.
+위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+---
+
 ## Latest — 2026-08-23 / ⚠ **로그인이 전원 500 이었다** · 원인 = 0139 꼬리 소실 · 복구·박제 완료 (#1337)
 
 > 발행: **렌즈·도구층 세션.** `/interview` 스크린샷을 찍으려다 발견했다.
