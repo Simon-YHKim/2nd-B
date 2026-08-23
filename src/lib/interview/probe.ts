@@ -17,6 +17,13 @@
 // signals are deterministic functions here (LLM-agnostic per C1/C9).
 
 import { callLlm } from "../llm/boundary";
+import {
+  detectLoops,
+  loopCheckKeyFor,
+  type LoopCheckKey,
+  type LoopFinding,
+  type ReflectionEntry,
+} from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 
 export type LifePeriod = "childhood" | "teens" | "twenties" | "thirties" | "current";
@@ -150,6 +157,39 @@ export function isPeriodComplete(c: Coverage, period: LifePeriod): boolean {
  *   3. If every layer has ≥ 1, return the layer with the *lowest* coverage
  *      to keep the period balanced even past its first pass.
  */
+/**
+ * 다음에 무엇을 할 것인가 -- **더 파기 전에 되물을 때인지 먼저 본다.**
+ *
+ * `nextLayerSuggestion` 은 "어느 층을 팔까" 만 답한다. 그런데
+ * `docs/research/batches/self-knowledge.md` 는 그 앞에 질문이 하나 더 있다고
+ * 말한다: **지금 더 파는 것이 맞는가.** 같은 주제를 새 틀 없이 반복해서 쓰고
+ * 있으면, 더 캐묻는 것은 도움이 아니라 그 고리를 굳힌다.
+ *
+ *   "surface the loop-check question rather than continuing to invite more
+ *    entry on that theme."
+ *
+ * 그래서 이 함수가 진입점이다. 되물을 것이 있으면 그것을 먼저 돌려준다.
+ */
+export type NextMove =
+  | { kind: "drill"; layer: DrillLayer }
+  | { kind: "loopCheck"; finding: LoopFinding; questionKey: LoopCheckKey };
+
+export function nextMove(
+  c: Coverage,
+  period: LifePeriod,
+  recentEntries: readonly ReflectionEntry[],
+  now: Date,
+): NextMove {
+  const loops = detectLoops(recentEntries, now);
+  if (loops.length > 0) {
+    // 가장 제자리인 것 하나만. 여러 개를 한꺼번에 들이밀면 되묻기가 아니라
+    // 지적이 된다.
+    const finding = loops[0];
+    return { kind: "loopCheck", finding, questionKey: loopCheckKeyFor(finding) };
+  }
+  return { kind: "drill", layer: nextLayerSuggestion(c, period) };
+}
+
 export function nextLayerSuggestion(c: Coverage, period: LifePeriod): DrillLayer {
   const cov = c[period];
   if (cov.fact === 0) return "fact";

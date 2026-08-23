@@ -17,5 +17,8 @@
   "ratifyDeltaNote": "Jawabanmu disimpan apa adanya. Kami tidak mengarang perkiraan sekarang; bintang-bintangmu makin terang seiring catatanmu bertambah.",
   "progressLabel": "Pertanyaan {{n}} / {{total}} · Wawancara kenangan",
   "screenerSubtitle": "Kami memutari inti yang sama dengan cara sedikit berbeda tiap kali, supaya lebih jernih terlihat.",
-  "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi."
+  "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi.",
+  "loopCheck.stuckLoop": "Hal yang terus Anda pikirkan itu, apakah memberi Anda sesuatu yang baru, atau Anda selalu sampai pada kesimpulan yang sama?",
+  "loopCheck.friendView": "Apa yang akan Anda katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
+  "loopCheck.setAside": "Apa yang berubah jika Anda menyisihkan pikiran ini selama lima menit?"
 }
