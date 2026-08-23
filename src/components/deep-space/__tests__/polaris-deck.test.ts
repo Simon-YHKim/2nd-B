@@ -35,12 +35,23 @@ describe("북극성 persona deck (P3a)", () => {
     expect(screen).toMatch(/persona\.traits\.openness/);
     expect(screen).toContain("loadLatestStrengths");
     expect(screen).toContain("loadDomainLevels");
-    for (const route of ["/big-five", "/attachment", "/strengths", "/values"]) {
-      expect(screen).toContain(`route: "${route}"`);
-    }
+    // The tool list used to be four hardcoded `route: "/…"` literals here, and
+    // this test pinned that literal form. Both moved: the list is now built from
+    // `src/lib/assess/registry.ts`, which fixed two things the hardcoding hid —
+    // only four of nine tools were reachable from this screen, and two
+    // self-authored check-ins sat under a heading that said "validated".
+    //
+    // Asserting the wiring instead of the literals is STRICTER: every offerable
+    // tool is now reachable, not just the four someone remembered to type.
+    expect(screen).toContain('from "@/lib/assess/registry"');
+    expect(screen).toContain("VALIDATED_TOOLS.map");
+    expect(screen).toContain("SELF_TOOLS.map");
     // MBTI is retired (src/app/mbti.tsx is a deep-link redirect to /persona) —
-    // the deck must not promise a screener that lands somewhere else.
+    // the deck must not promise a screener that lands somewhere else. The
+    // registry marks it `retired` so it cannot reach either list; this stays as
+    // a second lock in case someone hand-adds a button.
     expect(screen).not.toContain('route: "/mbti"');
+    expect(screen).not.toContain('push("/mbti")');
     // History surfaces hang off the hero card (P3c/P3d).
     expect(screen).toContain('router.push("/brightness")');
     expect(screen).toContain('router.push("/ratifications")');
