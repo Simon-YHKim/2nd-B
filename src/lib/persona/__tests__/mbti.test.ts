@@ -127,4 +127,28 @@ describe("휴면 상태 완결성 (D5)", () => {
       expect(item.ko.trim().length).toBeGreaterThan(5);
     }
   });
+
+  // 2026-08-23 추가. 위 describe 가 지키려던 것을 **내가 실제로 깨뜨렸다** --
+  // `MBTI_ITEMS` 와 `scoreMbti` 의 호출부를 세어보고 "0건이니 죽은 코드" 로
+  // 판단해 지우는 PR(#1329)을 냈다. 머지 전에 발견해 철회했다.
+  //
+  // 원인은 세는 방법이 아니라 **결정 기록을 안 찾아본 것**이다. 휴면은 방치일
+  // 수도 있고 결정일 수도 있는데, 코드만 보면 둘이 똑같이 생겼다. 그래서
+  // 근거를 코드 옆에 박아두고, 그게 사라지면 실패하게 한다.
+  it("D5 결정이 코드 옆에 남아 있다", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const registry = fs
+      .readFileSync(path.join(__dirname, "..", "..", "assess", "registry.ts"), "utf8")
+      .replace(/\r\n/g, "\n");
+
+    // 도구 레지스트리가 이걸 "폐기" 가 아니라 "휴면" 으로 표시해야 한다.
+    // "retired" 로 되돌아가면 다음 사람이 지워도 되는 것으로 읽는다.
+    expect(registry).toContain("dormant");
+    expect(registry).not.toContain('provenance: "retired"');
+    // 왜 남아 있는지가 적혀 있어야 한다. **인용문 자체**를 요구한다 --
+    // "D5" 라는 세 글자만 찾으면 파일 안에 우연히 남은 다른 언급으로도 통과해서
+    // 근거가 사라진 걸 못 잡는다(변이로 확인했다).
+    expect(registry).toContain("재미로 할 수 있도록 작업은 해놓자");
+  });
 });

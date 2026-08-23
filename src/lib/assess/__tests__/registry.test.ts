@@ -47,7 +47,7 @@ describe("완료 태그가 화면이 실제로 쓰는 태그와 같다", () => {
   const SOURCES = ["src/lib/persona/build.ts"];
 
   it.each(
-    ASSESSMENTS.filter((a) => a.provenance !== "retired" && a.completionTags.length > 0).map(
+    ASSESSMENTS.filter((a) => a.provenance !== "dormant" && a.completionTags.length > 0).map(
       (a) => [a.id, a] as const,
     ),
   )("%s", (id, a) => {
@@ -65,29 +65,39 @@ describe("완료 태그가 화면이 실제로 쓰는 태그와 같다", () => {
   });
 });
 
-describe("은퇴한 도구는 어디서도 권하지 않는다", () => {
-  const retired = ASSESSMENTS.filter((a) => a.provenance === "retired");
+describe("휴면 도구는 어디서도 권하지 않는다 (그러나 지우지도 않는다)", () => {
+  const dormant = ASSESSMENTS.filter((a) => a.provenance === "dormant");
 
-  it("은퇴 목록이 비어 있지 않다 (검사가 놀고 있지 않다)", () => {
-    expect(retired.length).toBeGreaterThan(0);
+  it("휴면 목록이 비어 있지 않다 (검사가 놀고 있지 않다)", () => {
+    expect(dormant.length).toBeGreaterThan(0);
   });
 
   it("OFFERABLE 에서 빠진다", () => {
-    for (const a of retired) expect(OFFERABLE.map((o) => o.id)).not.toContain(a.id);
+    for (const a of dormant) expect(OFFERABLE.map((o) => o.id)).not.toContain(a.id);
   });
 
   it("추천에서 절대 안 나온다 (아무것도 안 한 상태에서도)", () => {
     const all = recommendAssessments({}, new Date("2026-08-23T00:00:00Z"), 99);
-    for (const a of retired) expect(all.map((r) => r.id)).not.toContain(a.id);
+    for (const a of dormant) expect(all.map((r) => r.id)).not.toContain(a.id);
   });
 
-  it("은퇴한 화면은 리다이렉트다 (죽은 화면을 남겨두지 않는다)", () => {
-    for (const a of retired) {
+  it("그렇다고 모듈을 지우지는 않는다 (Simon D5)", () => {
+    // 휴면 != 폐기. MBTI 문항과 채점기는 호출부가 없어도 온전히 남아 있어야
+    // 한다 -- Simon D5 (2026-08-18) "재미로 할 수 있도록 작업은 해놓자. 화면을
+    // 살릴지는 나중에." 내가 이걸 "죽은 코드" 로 읽고 지우는 PR 을 냈다가
+    // 철회했다(#1329).
+    const mbti = read("src/lib/persona/mbti.ts");
+    expect(mbti).toContain("export const MBTI_ITEMS");
+    expect(mbti).toContain("export function scoreMbti");
+  });
+
+  it("휴면 화면은 리다이렉트다", () => {
+    for (const a of dormant) {
       expect(read(screenFor(a.route))).toContain("<Redirect");
     }
   });
 
-  it("어떤 도구 목록도 은퇴한 라우트를 안 걸어둔다", () => {
+  it("어떤 도구 목록도 휴면 라우트를 안 걸어둔다", () => {
     // 실제로 있었던 버그: MBTI 화면이 은퇴해 리다이렉트가 됐는데 `/persona` 의
     // 도구 카드가 여전히 MBTI 를 권했다. 누르면 같은 화면으로 되돌아온다 --
     // 사용자에게는 버튼이 안 먹는 것으로 보인다. 레거시 스킨에만 있어서
@@ -98,15 +108,15 @@ describe("은퇴한 도구는 어디서도 권하지 않는다", () => {
     const files = ["src/app/persona.tsx", "src/app/core-brain.tsx"];
     for (const f of files) {
       const src = read(f);
-      for (const a of retired) {
+      for (const a of dormant) {
         expect(src).not.toContain(`route: "${a.route}"`);
         expect(src).not.toContain(`push("${a.route}")`);
       }
     }
   });
 
-  it("은퇴한 도구는 라벨 키를 안 갖는다 (화면에 나올 준비를 안 한다)", () => {
-    for (const a of retired) expect(a.labelKey).toBe("");
+  it("휴면 도구는 라벨 키를 안 갖는다 (도구 목록에 나올 준비를 안 한다)", () => {
+    for (const a of dormant) expect(a.labelKey).toBe("");
   });
 });
 
@@ -249,7 +259,7 @@ describe("completionRatio", () => {
     expect(completionRatio({})).toBe(0);
   });
 
-  it("은퇴한 것은 분모에 안 들어간다", () => {
+  it("휴면은 분모에 안 들어간다", () => {
     const all: AssessmentStates = {};
     for (const a of OFFERABLE) all[a.id] = { completedAt: "2026-01-01T00:00:00Z" };
     expect(completionRatio(all)).toBe(1);

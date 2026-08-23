@@ -45,13 +45,14 @@ export type AssessmentId =
  *               self-report" 라고 적고 있다.)
  *  screener     여러 프레임워크를 얕게 훑는 자체 스크리너.
  *  llm          고정 문항이 아니라 대화로 판다.
- *  retired      은퇴. 화면이 리다이렉트다. 새 진입점을 만들지 말 것.
+ *  dormant      화면은 리다이렉트지만 **모듈은 온전히 살아 있다.** 도구 목록에
+ *               올리지 말 것. 다만 **지우지도 말 것** -- 부활 여부가 미결이다.
  *
  * ⚠ `selfAuthored` 를 `validated` 로 올리지 말 것. 리서치가 지목한 진짜 척도
  * (VIA-IS · MLQ · SDT 척도)를 **실제로 이식했을 때만** 바꾼다. 이름이 같다고
  * 같은 도구가 아니다.
  */
-export type Provenance = "validated" | "selfAuthored" | "screener" | "llm" | "retired";
+export type Provenance = "validated" | "selfAuthored" | "screener" | "llm" | "dormant";
 
 export interface Assessment {
   id: AssessmentId;
@@ -60,7 +61,7 @@ export interface Assessment {
    * 로케일이 갖는다 -- 이 파일은 한국어를 안 들고 있는다.
    */
   labelKey: string;
-  /** 앱 라우트. `retired` 면 리다이렉트한다. */
+  /** 앱 라우트. `dormant` 면 리다이렉트한다. */
   route: string;
   /** 문항 수. LLM/피어 방식이면 null. */
   items: number | null;
@@ -198,15 +199,25 @@ export const ASSESSMENTS: readonly Assessment[] = [
   },
   {
     id: "mbti",
-    labelKey: "", // 은퇴 -- 어디에도 안 나온다
+    labelKey: "", // 휴면 -- 도구 목록에 안 나온다
     route: "/mbti",
     items: null,
     minutes: 0,
-    // 은퇴. 화면은 `/persona` 로 리다이렉트한다. 리서치가 명시적으로 거른
-    // 프레임워크이기도 하다(`docs/research/README.md` 거부 체크리스트).
-    // 남아 있는 것은 딥링크 호환용 리다이렉트와, 예전 기록을 읽는
-    // `TYPE_NICKNAME` 뿐이다.
-    provenance: "retired",
+    // **휴면이지 폐기가 아니다.** 화면은 리다이렉트지만 문항 32개와 채점기는
+    // 온전히 남아 있고, 그건 방치가 아니라 결정이다 --
+    // **Simon D5 (2026-08-18): "재미로 할 수 있도록 작업은 해놓자. 화면을
+    // 살릴지는 나중에."** `docs/DECISIONS-260819.md` §D3 이 재확인한다
+    // ("부활시키지 않는다 (Simon D5 '나중에' 유지)").
+    //
+    // 그래서 도구 목록에는 안 올리되 **모듈을 지우지 말 것.**
+    // `persona/__tests__/mbti.test.ts` 가 "지금 되살려도 온전한가" 를 지킨다 --
+    // 휴면 코드의 위험은 버그가 아니라 부패이기 때문이다.
+    //
+    // 리서치가 이 프레임워크를 거부한 것과는 별개다
+    // (`docs/research/README.md` 거부 체크리스트 · assessment-landscape.md 의
+    // MBTI critique). 거부는 **측정 도구로 권하지 않는다**는 뜻이고, D5 는
+    // **재미로 해볼 수 있게 남겨둔다**는 뜻이라 서로 어긋나지 않는다.
+    provenance: "dormant",
     completionTags: ["mbti", "assessment"],
     retestDays: null,
     supersedes: [],
@@ -221,8 +232,8 @@ export function getAssessment(id: AssessmentId): Assessment {
   return found;
 }
 
-/** 지금 권할 수 있는 것들. 은퇴한 것은 절대 안 나온다. */
-export const OFFERABLE: readonly Assessment[] = ASSESSMENTS.filter((a) => a.provenance !== "retired");
+/** 지금 권할 수 있는 것들. 휴면은 절대 안 나온다. */
+export const OFFERABLE: readonly Assessment[] = ASSESSMENTS.filter((a) => a.provenance !== "dormant");
 
 // ── 추천 ──────────────────────────────────────────────────────────────
 
@@ -244,7 +255,7 @@ export interface Recommendation {
  * 다음에 권할 것들 — **싼 것부터, 안 한 것 먼저.**
  *
  * 규칙 넷:
- *  1. 은퇴한 것은 안 권한다.
+ *  1. 휴면인 것은 안 권한다.
  *  2. 상위 도구를 이미 했으면 하위는 안 권한다(IPIP-NEO-120 했으면 BFI-44 는 빼고).
  *  3. 안 한 것이 먼저, 재검이 나중. 새 정보 > 같은 정보의 갱신.
  *  4. 같은 부류 안에서는 **비용이 싼 것부터**. 12문항과 120문항을 같은 무게로
@@ -288,7 +299,7 @@ export function recommendAssessments(
   return [...fresh.sort(byCost), ...stale.sort(byCost)].slice(0, limit);
 }
 
-/** 지금까지 채워진 비율 — 진행도 표시용. 은퇴한 것은 분모에서 뺀다. */
+/** 지금까지 채워진 비율 — 진행도 표시용. 휴면은 분모에서 뺀다. */
 export function completionRatio(states: AssessmentStates): number {
   const done = OFFERABLE.filter((a) => states[a.id]?.completedAt).length;
   return OFFERABLE.length === 0 ? 0 : done / OFFERABLE.length;
