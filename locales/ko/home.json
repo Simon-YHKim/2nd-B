@@ -385,7 +385,7 @@
     },
     "audit": {
       "title": "과거의 나",
-      "subtitle": "시기를 골라 그때의 {{who}}을 다시 떠올려 보세요.",
+      "subtitle": "시기를 골라 그때의 나를 다시 떠올려 보세요.",
       "vividness": "또렷함 L{{level}}",
       "eraInfancy": "유아기",
       "eraChild": "아동기",
@@ -396,7 +396,19 @@
       "rangeChild": "7–12세",
       "rangeTeen": "13–18세",
       "rangeYoung": "19–28세",
-      "rangeNow": "지금"
+      "period": {
+        "childhood": "어린 시절",
+        "teens": "10대",
+        "twenties": "20대",
+        "thirties": "30대",
+        "forties": "40대",
+        "fifties": "50대",
+        "sixties": "60대",
+        "seventies": "70대",
+        "current": "지금"
+      },
+      "rangeSpan": "{{from}}–{{to}}세",
+      "rangeUnder": "{{to}}세 이전"
     },
     "me": {
       "title": "북극성",

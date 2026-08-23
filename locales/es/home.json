@@ -396,7 +396,19 @@
       "rangeChild": "7–12 años",
       "rangeTeen": "13–18 años",
       "rangeYoung": "19–28 años",
-      "rangeNow": "Ahora mismo"
+      "period": {
+        "childhood": "Infancia",
+        "teens": "Adolescencia",
+        "twenties": "Los 20",
+        "thirties": "Los 30",
+        "forties": "Los 40",
+        "fifties": "Los 50",
+        "sixties": "Los 60",
+        "seventies": "Los 70",
+        "current": "Ahora mismo"
+      },
+      "rangeSpan": "{{from}}–{{to}} años",
+      "rangeUnder": "Antes de los {{to}}"
     },
     "me": {
       "title": "Estrella Polar",
