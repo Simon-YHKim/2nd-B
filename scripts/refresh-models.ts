@@ -169,6 +169,79 @@ export const COST_AXIS: Readonly<Record<"cheap" | "mid" | "deep", readonly strin
   deep: ["anthropic-opus", "openai-frontier", "openai-sol", "xai-frontier"],
 };
 
+/**
+ * 벤더 목록 조회의 결과. **세 갈래를 하나로 뭉개지 않는 것이 요점**이다.
+ *
+ * 예전에는 `Map` 에 없으면 전부 "키가 없어 건너뜀" 이었다. xai 사건이 정확히 그
+ * 모양이다 — 시크릿은 **있었고** 403 이었는데, 로그는 키가 없다고 말했다. 운영자는
+ * 원장을 파야만 진짜 이유를 알 수 있었다.
+ */
+export type VendorStatus =
+  | { kind: "ok"; models: string[] }
+  | { kind: "no_key" }
+  | { kind: "list_failed"; why: string };
+
+/** 좌석 하나의 결말. 알림 판정에만 쓰는 축약형. */
+export interface SeatOutcome {
+  seat: string;
+  vendor: Vendor;
+  applied: boolean;
+  /** 적용되지 않았다면 왜. 핀으로 건너뛴 것은 여기 오지 않는다. */
+  reason?: string;
+}
+
+export interface AlertVerdict {
+  /** 잡을 빨갛게 만들 것들. 비어 있으면 성공. */
+  failures: string[];
+  /** 실패했지만 운영자가 이미 아는 것들. 로그에는 남고 잡은 안 죽인다. */
+  acknowledged: string[];
+}
+
+/**
+ * 무엇이 운영자를 깨워야 하는가 (REQ-260824-01).
+ *
+ * 판정 규칙, 그리고 각각이 규칙인 이유:
+ *
+ *   키 없음        → 알리지 않는다. 그 벤더를 안 쓰기로 한 상태고, 의도한 것을
+ *                    매일 빨갛게 만들면 아무도 안 본다.
+ *   키 있는데 실패 → **알린다.** 이게 xai 사례다. 키를 넣어둔 사람은 그게 동작한다고
+ *                    믿고 있고, 조용히 빠지면 그 믿음이 안 깨진다.
+ *   좌석 미적용    → 알린다. 시험 실패든 등급에 맞는 모델이 없든, "승격이 성공했다"는
+ *                    보고와 함께 좌석 하나가 빠지는 것이 gpt-5.6 티어 사건의 모양이었다.
+ *   핀 고정        → 알리지 않는다. 사람이 일부러 세운 값이다.
+ *
+ * ⚠ **ack 목록이 있는 이유**: xai 는 Simon 이 충전을 미루기로 한 동안 매일 실패한다.
+ * 그걸 그냥 빨갛게 두면 **항상 빨간 잡**이 되고, 항상 빨간 잡은 꺼진 잡과 같다.
+ * ack 된 것도 **로그에는 반드시 남긴다** — 조용히 잊히는 것이 원래 문제였으니까.
+ */
+export function alertsFor(
+  statuses: ReadonlyMap<Vendor, VendorStatus>,
+  outcomes: readonly SeatOutcome[],
+  acked: readonly string[],
+): AlertVerdict {
+  const ack = new Set(acked.map((a) => a.trim().toLowerCase()).filter(Boolean));
+  const failures: string[] = [];
+  const acknowledged: string[] = [];
+
+  for (const [vendor, st] of statuses) {
+    if (st.kind !== "list_failed") continue;
+    const line = `${vendor}: 모델 목록 조회 실패 - ${st.why}`;
+    (ack.has(vendor) ? acknowledged : failures).push(line);
+  }
+
+  for (const o of outcomes) {
+    if (o.applied) continue;
+    // 벤더 자체가 이미 실패로 보고됐으면 좌석마다 또 세지 않는다. 원인은 하나다.
+    const st = statuses.get(o.vendor);
+    if (st?.kind === "list_failed") continue;
+    if (st?.kind === "no_key") continue;
+    const line = `${o.seat}: 좌석 미적용 - ${o.reason ?? "사유 불명"}`;
+    (ack.has(o.vendor) ? acknowledged : failures).push(line);
+  }
+
+  return { failures, acknowledged };
+}
+
 /** 이 좌석이 속한 비용 축. 축이 없으면 승격 대상이 아니다. */
 export function costAxisOf(seatId: string): "cheap" | "mid" | "deep" | null {
   for (const [axis, seats] of Object.entries(COST_AXIS)) {
@@ -494,13 +567,24 @@ async function main(): Promise<void> {
   // ran at all, which surfaced as "XAI_API_KEY 가 없어 건너뜀" while the secret
   // was present. Listing the union's own keys removes the chance to disagree
   // with it: a vendor added to the type is iterated without a second edit.
+  // REQ-260824-01: keep WHY a vendor produced no models, not just that it did.
+  const vendorStatus = new Map<Vendor, VendorStatus>();
   for (const vendor of Object.keys(KEY_ENV) as Vendor[]) {
     const key = (process.env[KEY_ENV[vendor]] ?? "").trim();
-    if (!key) continue;
+    if (!key) {
+      vendorStatus.set(vendor, { kind: "no_key" });
+      console.log(`  ${vendor}: ${KEY_ENV[vendor]} 미설정 - 이 벤더는 건너뛴다`);
+      continue;
+    }
     try {
-      byVendor.set(vendor, await listModels(vendor, key));
+      const models = await listModels(vendor, key);
+      vendorStatus.set(vendor, { kind: "ok", models });
+      byVendor.set(vendor, models);
     } catch (e) {
-      console.log(`  ${vendor}: 목록 조회 실패 - ${(e as Error).message}`);
+      const why = (e as Error).message;
+      vendorStatus.set(vendor, { kind: "list_failed", why });
+      // 문구가 원인을 말한다. "키가 없어" 가 아니다 - 키는 있고 벤더가 거절했다.
+      console.log(`  ${vendor}: 키는 있으나 목록 조회 실패 - ${why}`);
     }
   }
 
@@ -524,8 +608,15 @@ async function main(): Promise<void> {
     }
     const names = byVendor.get(seat.vendor);
     if (!names) {
-      out.push({ seat, candidates: [], chosen: null, skipped: `${KEY_ENV[seat.vendor]} 없음` });
-      console.log(`  ${seat.id}: ${KEY_ENV[seat.vendor]} 가 없어 건너뜀`);
+      // 세 갈래를 갈라서 말한다. 이 한 줄이 xai 사건을 이틀 늦춘 원인이다:
+      // 시크릿이 멀쩡히 있는데 로그는 "키가 없어" 라고 했다.
+      const st = vendorStatus.get(seat.vendor);
+      const why =
+        st?.kind === "list_failed"
+          ? `${seat.vendor} 목록 조회 실패 (${st.why})`
+          : `${KEY_ENV[seat.vendor]} 미설정`;
+      out.push({ seat, candidates: [], chosen: null, skipped: why });
+      console.log(`  ${seat.id}: ${why} - 건너뜀`);
       continue;
     }
     const newest = pickNewest(names, seat);
@@ -538,6 +629,43 @@ async function main(): Promise<void> {
     const test = await smokeTest(seat.vendor, newest, key);
     out.push({ seat, candidates: [newest], chosen: test.ok ? newest : null, skipped: test.ok ? undefined : test.why });
     console.log(`  ${seat.id}: ${newest} - ${test.ok ? "시험 통과" : `시험 실패 (${test.why}) - 승격 안 함`}`);
+  }
+
+  // ── REQ-260824-01: 운영자에게 알린다 ─────────────────────────────────
+  //
+  // dry-run 에서도 판정한다. dry-run 만 도는 동안 벤더가 죽어 있으면 그것도
+  // 알아야 하고, "적용할 때만 확인한다"는 것은 확인하지 않는 것과 가깝다.
+  //
+  // 채널은 **GitHub Actions 의 실패 status** 다. 새 SaaS 를 들이지 말라는 제약도
+  // 있지만, 그보다 이미 Simon 에게 메일이 가는 경로가 이것뿐이다.
+  {
+    const acked = (process.env.MODEL_REFRESH_ACK_FAILING ?? "").split(",");
+    const verdict = alertsFor(
+      vendorStatus,
+      out.map((d) => ({
+        seat: d.seat.id,
+        vendor: d.seat.vendor,
+        applied: Boolean(d.chosen),
+        reason: d.skipped,
+      })),
+      acked,
+    );
+    if (verdict.acknowledged.length > 0) {
+      console.log("");
+      console.log("⚠ 알려진 실패 (MODEL_REFRESH_ACK_FAILING 으로 승인됨 - 잡은 안 죽인다):");
+      for (const a of verdict.acknowledged) console.log(`  ${a}`);
+      console.log("  이 목록이 비지 않는 한 그 벤더의 새 문제는 묻힌다. 해결되면 변수에서 빼라.");
+    }
+    if (verdict.failures.length > 0) {
+      console.log("");
+      console.log("✖ 운영자 확인 필요:");
+      for (const f of verdict.failures) console.log(`  ${f}`);
+      console.log("");
+      console.log("  의도한 것이라면 MODEL_REFRESH_ACK_FAILING 에 벤더를 넣어라 (예: xai).");
+      // 승격 자체는 계속 진행한다. 한 벤더가 죽었다고 나머지 좌석의 승격을 막으면
+      // 장애 하나가 전부를 멈추는 셈이 된다. 종료 코드로만 말한다.
+      process.exitCode = 1;
+    }
   }
 
   console.log("");

@@ -74,7 +74,14 @@ jobs:
                  (select count(*) from public.paddle_webhook_events where stale_entitlement),
                  (select count(*) from public.paddle_webhook_events where raw_payload is not null),
                  (select count(*) from public.credit_counter_drift),
-                 (select count(*) from public.credit_balance_drift);"
+                 (select count(*) from public.credit_balance_drift),
+                 (select count(*) from (
+                    select reasoning_vendor, purpose
+                      from public.ai_audit_log
+                     where model_used like '%+upstream\_%'
+                       and created_at > now() - interval '24 hours'
+                     group by 1, 2
+                    having count(*) >= 3) q);"
 
           ROW="$("$PSQL" "$DB" -Atq -F'|' -v ON_ERROR_STOP=1 -c "$SQL" 2>err.txt)" || {
             echo "tripwire query failed:" >&2
@@ -84,7 +91,7 @@ jobs:
             exit 1
           }
 
-          IFS='|' read -r CONFLICT STUCK REVIEW STALE UNHANDLED CDRIFT BDRIFT <<< "$ROW"
+          IFS='|' read -r CONFLICT STUCK REVIEW STALE UNHANDLED CDRIFT BDRIFT VENDORFAIL <<< "$ROW"
 
           : > report.md
           row () { # label, count, meaning
@@ -102,8 +109,15 @@ jobs:
           row "unhandled_events"  "$UNHANDLED" "우리가 처리하지 않는 웹훅 이벤트의 페이로드가 보관돼 있다"
           row "credit_counter_drift" "$CDRIFT" "usage_counters 미러가 원장과 어긋난다"
           row "credit_balance_drift" "$BDRIFT" "credit_balance 캐시가 원장과 어긋난다"
+          # REQ-260824-01. Counts (vendor, purpose) pairs that failed 3+ times in
+          # 24h, not raw failures: a transient 502 is not news, a seat that has
+          # been rejected all day is. Until 2026-08-24 a failing seat left NO
+          # ROW AT ALL, so this column could not have existed - the proxies
+          # returned before their audit insert and a broken vendor looked
+          # exactly like a quiet day.
+          row "vendor_seat_failing" "$VENDORFAIL" "24시간 내 3회 이상 실패한 (벤더, purpose) 조합. 좌석이 죽었거나 키가 거절당하는 중"
 
-          TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT ))
+          TOTAL=$(( CONFLICT + STUCK + REVIEW + STALE + UNHANDLED + CDRIFT + BDRIFT + VENDORFAIL ))
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
           echo "money=$(( CONFLICT + STUCK ))" >> "$GITHUB_OUTPUT"
 

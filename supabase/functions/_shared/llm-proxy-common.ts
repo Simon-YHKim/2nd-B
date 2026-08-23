@@ -226,3 +226,59 @@ export function normalizeResponseSchema(node: unknown): Record<string, unknown> 
 export function resolveApiKey(prefix: string, model: string, effort: string, baseKey: string) {
   return pickApiKey((key) => Deno.env.get(key), prefix, model, effort, baseKey);
 }
+
+// --- Upstream failure visibility (REQ-260824-01) -----------------------------
+//
+// WHY THIS EXISTS. A seat that starts returning 400/401/5xx leaves NO TRACE.
+// Every proxy returns early on an upstream failure, before its audit insert, so
+// the one table that records what the AI layer did contains only the calls that
+// worked. A vendor can reject every request for a week and ai_audit_log will
+// look like a quiet week - which is exactly what a quiet week looks like.
+//
+// The fix reuses what is already there rather than adding a table: the proxies
+// already encode outcome in `model_used` with a suffix (`+refusal`,
+// `+truncated`), so a failure is `+upstream_502` in the same field. A daily
+// query can then count them, and nothing needs a migration.
+//
+// Deliberately best-effort and silent on its own failure. This runs on a path
+// that is ALREADY failing; turning a logging problem into a second error would
+// replace a useful 502 with a confusing 500.
+//
+// ⚠ Lives in _shared, so changing it means redeploying every proxy.
+export async function auditUpstreamFailure(
+  admin: { from: (t: string) => { insert: (row: Record<string, unknown>) => Promise<{ error: unknown }> } },
+  opts: {
+    userId: string;
+    purpose: string | null;
+    model: string;
+    vendor: string;
+    /** 'upstream_502' | 'upstream_unreachable' | ... */
+    outcome: string;
+    latencyMs: number;
+    keyCombo: string;
+    promptHash: string;
+  },
+): Promise<void> {
+  try {
+    await admin.from('ai_audit_log').insert({
+      user_id: opts.userId,
+      prompt_hash: opts.promptHash,
+      // No output to hash. '0' rather than a hash of '' so a failure row is
+      // distinguishable from a successful empty completion at a glance.
+      output_hash: '0',
+      model_used: `${opts.model}+${opts.outcome}`,
+      vertex_backend: false,
+      // The call never reached a model, so it produced no content to classify.
+      // 'green' is the honest value here: not "we checked and it was safe" but
+      // "there was nothing to check".
+      safety_zone: 'green',
+      latency_ms: opts.latencyMs,
+      purpose: opts.purpose,
+      reasoning_vendor: opts.vendor,
+      key_combo: opts.keyCombo,
+      total_tokens: null,
+    });
+  } catch {
+    // See the note above: this path is already failing.
+  }
+}

@@ -47,6 +47,7 @@ import {
   SAFETY_PREAMBLE,
   TIER_RANK,
   UPSTREAM_DETAIL_TRUNCATE,
+  auditUpstreamFailure,
   corsPreflight,
   dailyCapForRank,
   djb2,
@@ -779,6 +780,13 @@ Deno.serve(async (req: Request) => {
     }
   } catch (e) {
     await refundOnFailure();
+    // REQ-260824-01: leave a trace. Without this a seat can fail every call for
+    // a week and ai_audit_log looks like a quiet week.
+    await auditUpstreamFailure(supabaseAdmin, {
+      userId, purpose, model: openaiModel, vendor: 'openai',
+      outcome: 'upstream_unreachable', latencyMs: Date.now() - t0,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, { error: 'upstream_unreachable', detail: String(e).slice(0, UPSTREAM_DETAIL_TRUNCATE) }, 502);
   }
   const latencyMs = Date.now() - t0;
@@ -786,6 +794,11 @@ Deno.serve(async (req: Request) => {
   if (!upstream.ok) {
     const errBody = await upstream.text();
     await refundOnFailure();
+    await auditUpstreamFailure(supabaseAdmin, {
+      userId, purpose, model: openaiModel, vendor: 'openai',
+      outcome: `upstream_${upstream.status}`, latencyMs,
+      keyCombo, promptHash: djb2(`${systemText ?? ''}${userText}`),
+    });
     return jsonResponse(req, {
       error: 'upstream_error',
       status: upstream.status,
