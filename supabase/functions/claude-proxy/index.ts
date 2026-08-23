@@ -70,15 +70,23 @@ const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
 // (D-26 §4 minority view: flip to sonnet-5 via ANTHROPIC_PURPOSE_MODELS if the
 // pilot rejects opus). claude-fable-5 is BANNED by verdict (30-day retention
 // requirement + refusal risk conflict with the journal-adjacent trust promise).
+// ── OPUS-ONLY as of 2026-08-23 (Simon) ──────────────────────────────────────
+// Anthropic is a specialist here, not a general-purpose vendor: it is expensive,
+// so it is spent on low-frequency deep reads of the user's whole corpus at top
+// quality. Eight sonnet seats (advisor, secondb_chat, gap_synthesize,
+// self_model_propose, northstar_propose, ops_recommend, ops_daily_brief,
+// ttfv_first_insight) were removed from this map. Those purposes route to
+// OpenAI client-side (PHASE2_VENDOR), which is where they now belong.
+//
+// ⚠ REMOVING THEM DID NOT REMOVE THE OUTAGE REFUGE, and the order assumed it
+// would. This proxy has NO ALLOWLIST by design (see resolveModel: the legacy
+// EXPO_PUBLIC_REASONING_PROVIDER seam must keep working, and that seam has 17
+// live call sites). An unseated purpose falls to DEFAULT_CLAUDE_MODEL, so
+// EXPO_PUBLIC_LLM_VENDOR=claude during an OpenAI outage still serves all
+// twelve - at sonnet price, which is the RIGHT price for an emergency. Pinning
+// chat's refuge to opus, the alternative the order offered, would have made the
+// outage path the most expensive path in the system.
 const PURPOSE_MODEL: Record<string, string> = {
-  advisor: 'claude-sonnet-5',
-  secondb_chat: 'claude-sonnet-5',
-  gap_synthesize: 'claude-sonnet-5',
-  self_model_propose: 'claude-sonnet-5',
-  northstar_propose: 'claude-sonnet-5',
-  ops_recommend: 'claude-sonnet-5',
-  ops_daily_brief: 'claude-sonnet-5',
-  ttfv_first_insight: 'claude-sonnet-5',
   persona_narrative: 'claude-opus-4-8',
   axis_estimate: 'claude-opus-4-8',
   persona_synthesis: 'claude-opus-4-8',
@@ -119,10 +127,15 @@ function resolveModel(purpose: string | null): string {
 
 // D-26 per-purpose EFFORT CEILING (server-owned -- `effort` is client-reported,
 // and price = model x effort x max_tokens, so without this clamp a tampered
-// client could run the opus seats at "max". Mirrors the verdict matrix; no
-// seat is approved for "max" at all. Unknown/unseated purposes clamp to the
-// conservative default ceiling.
-const EFFORT_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, xhigh: 3 };
+// client could run the opus seats at the top rung).
+//
+// "max" IS now approved, for two seats and no others (Simon, 2026-08-23). The
+// comment here used to say no seat was approved for it, and the rank table
+// below did not carry the rung at all - which is why effortToAnthropic folded
+// max into xhigh and ANTHROPIC_API_KEY__MAX, already registered in production,
+// could never be reached. Unknown/unseated purposes still clamp to the
+// conservative default.
+const EFFORT_RANK: Record<string, number> = { low: 0, medium: 1, high: 2, xhigh: 3, max: 4 };
 const DEFAULT_EFFORT_CEILING = 'high';
 const PURPOSE_EFFORT_MAX: Record<string, string> = {
   advisor: 'high',
@@ -133,16 +146,26 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   ops_recommend: 'medium',
   ops_daily_brief: 'medium',
   ttfv_first_insight: 'xhigh',
+  // Frequency x unit cost, which is the rule Simon gave: max is for the
+  // low-frequency reads of the WHOLE corpus, nothing else.
+  //   persona_synthesis  whole corpus, rare, and the output is 북극성 itself -> max
+  //   digest_weekly      the other whole-corpus read, weekly at most      -> max
+  //                      (still has no call site; the rung costs nothing until
+  //                       it is wired, and having it wrong later costs more)
+  //   persona_narrative  2-3 sentences, cached but mounted on three screens -> high
+  //   axis_estimate      structured estimate, not a corpus read            -> high
   persona_narrative: 'high',
   axis_estimate: 'high',
-  persona_synthesis: 'xhigh',
-  digest_weekly: 'xhigh',
+  persona_synthesis: 'max',
+  digest_weekly: 'max',
 };
 
 // Abstract effort -> Anthropic output_config.effort (native semantics),
-// clamped to the purpose ceiling. "max" folds into "xhigh" unconditionally.
+// clamped to the purpose ceiling. Anthropic's API enum is
+// low/medium/high/xhigh/max, so "max" passes through as itself now; the ceiling
+// below is what stops a client asking for it on a seat that has not earned it.
 function effortToAnthropic(effort: string | null, purpose: string | null): string {
-  const requested = effort === 'max' ? 'xhigh' : effort && effort in EFFORT_RANK ? effort : 'high';
+  const requested = effort && effort in EFFORT_RANK ? effort : 'high';
   // Own-key lookup: a bare PURPOSE_EFFORT_MAX[purpose] on a prototype key
   // (purpose='toString') returned a FUNCTION as the ceiling, so EFFORT_RANK[fn]
   // was undefined and the clamp silently returned that function as the effort.
@@ -165,6 +188,13 @@ function effortToMaxTokens(clampedEffort: string): number {
       return 4096;
     case 'xhigh':
       return 24000;
+    // ⚠ UNVERIFIED against the account: no max call has been made yet. If this
+    // exceeds the seated model's output limit the API answers 400 and the whole
+    // seat fails rather than degrading - but the first max call is exactly the
+    // ledger check this change is verified by, so a wrong number surfaces
+    // immediately rather than silently.
+    case 'max':
+      return 32000;
     case 'high':
     default:
       return 8192;

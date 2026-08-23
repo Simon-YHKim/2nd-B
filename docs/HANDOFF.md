@@ -3,6 +3,42 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-23 20:3x KST / C-1·C-2 집행 · 0139 잘림은 콘솔 책임 · REQ-260823-03 (콘솔 세션)
+
+### 0. #1337 인지 — 콘솔이 안다
+
+0139 잘린 적용은 **콘솔 세션의 적용분이었다.** 어느 지점에서 잘렸는지(#1337의 $$·이스케이프 구간 분석)는 타당해 보이나 도구 경로의 정확한 절단 원인은 UNVERIFIED. **재발 방지를 콘솔 표준으로 채택했다**: 마이그레이션 적용 직후 ① `schema_migrations.statements` tail을 파일과 대조 ② end-state를 **호출 역할 기준으로** 검증(postgres로 함수만 돌려보는 검증은 grant 누락을 못 본다 — 이번 실패의 정확한 기전). 아래 0140에 즉시 적용했고 둘 다 통과.
+복구 상태도 재실측했다(20:3x): `supabase_auth_admin SELECT=t` · authenticated=SELECT only(ins/upd/del=f) · anon 없음 · `has_app_role` anon EXECUTE 회수 — #1337 최종 ACL과 일치. ⚠ 0141은 `schema_migrations`에 없다(다른 경로로 적용된 듯) — 효과는 실재하니 원장 부재만 기억할 것.
+
+### 1. 방금 집행 (콘솔, 20:1x~20:2x)
+
+- **C-1 완료**: `EXPO_PUBLIC_LLM_VENDOR=perPurpose`(11:11Z) + web-deploy 재배포 dispatch(run 32635825166) → V-4 발효. persona_narrative·persona_synthesis → claude-proxy(opus), 나머지 10좌석 openai 불변. 다음 persona 실행 원장에 anthropic이 찍히는지가 검증(= 새 2ndb-edge-base 키 첫 실검증 겸함).
+- **C-2 완료**: `0140_users_table_acl` 운영 적용. dry-run 재확인 → 적용 → **tail 대조 일치** + end-state 17항 전부 기대값(anon 쓰기 전차단·sel=t / authenticated ins 5컬럼·upd 4컬럼·judge_mode=f·del=f / service_role 무영향 / 가입 함수 DEFINER 유지). ledger last=`0140_users_table_acl`.
+- 발주서(CLI 08-23) 대조: S-1·핀 삭제·gpt-5.5 승격·실서빙 검증(09:38Z 원장)은 오전 완료. "콤보 502 함정"은 소멸(콤보 18개 삭제, 2단 effort 키가 실서빙 실증). C-4(#1326 착지)는 콘솔 큐 유지. S-2(드릴다운 배치)·S-3(V-5 해석) Simon 대기 — S-3은 오전 결정 기록("아니오, high 유지")과 CLI 집행이 일치, 컨펌만 남음.
+- 키 위생 종결 상세는 아래 #1336 블록 참조. Anthropic 콘솔 최종 3키(2ndb-ci/edge-max/edge-base, 만료 없음), GH ANTHROPIC_API_KEY=2ndb-ci 스모크 검증됨.
+
+### 2. Simon 결정 2건 추가 (08-23 20:0x)
+
+- **OCR = openai 유지** (gemini 예외 없음, 9월 전체 폐기 원안 그대로)
+- **gpt-5.6 배치: luna 제외. sol은 claude와 적대적 교차검증에 사용** → REQ-260823-03
+
+### 3. REQ-260823-03 → CLI: gpt-5.6 티어 인지 승격 + 배치 + Sol×Opus 교차검증
+
+**왜 하는가**: gpt-5.6은 07-09 GA(API `gpt-5.6-sol/terra/luna`, 가격 5/30·2.5/15·1/6 $/1M)인데 refresh가 08-23에도 5.5를 최신으로 선택했다 — 티어형 ID를 매칭하지 못한다(REQ-01 xai 루프 누락과 같은 부류). 그리고 Simon이 티어 활용 방침을 확정했다.
+
+**완료조건**
+1. refresh-models가 5.6 티어 ID를 인지하고 좌석별 티어 배치를 지원한다.
+2. 배치: **terra = 일반 좌석 기본값(대화·OCR 포함)** / **sol = 최고난도 + 교차검증 전용** / **luna = 사용 금지(Simon 결정)**.
+3. **적대적 교차검증 파이프라인**: 전체 코퍼스 딥리드(persona_synthesis 우선)에서 claude opus(max)와 gpt-5.6-sol이 서로의 산출을 반박·방어하는 라운드 후 합의/중재 산출. 원장에 양쪽 호출 모두 기록, 라운드 수 상한 명시, 저빈도 purpose 한정(비용 2배+).
+4. effort: 5.6의 API enum 실측(제품 라벨 light/extra/ultra high(pro)와 구분, `pro`/`max` 계열 존재 확인됨) 후 axis 매핑. 새 effort 값이 생기면 필요한 `OPENAI_API_KEY__<EFFORT>` 키 목록을 콘솔에 통보할 것(키 생성·등록은 콘솔+Simon 몫).
+5. 확인 항목: gpt-5.4-nano(safety 폴백) 은퇴 여부 — 5.4 본선 07-23 은퇴 보도 vs nano 08-19 원장 동작 실측, 상충 미해결. `EXPO_PUBLIC_REASONING_PROVIDER` vs `*_VENDOR` 축 관계 문서화(라이브 코드 17곳 참조 — 삭제 금지 실측). docs/LLM-ROUTING.md 갱신(gemini 시절 좌석표 stale).
+6. REQ-260823-01(xai 루프 — 08-23 10:28Z에도 재현)·REQ-260823-02(effort max 축+opus-only)와 같은 PR 허용. 우선순위 02 > 03 > 01.
+
+**하지 말 것**: Gemini 키·콤보·좌석 접촉(9월 일괄) · luna 좌석 생성 · 시크릿 값 요청 · main 직접 push.
+위 방법은 출발점일 뿐이다. 더 효율적인 경로가 보이면 그쪽을 택하고, 왜 바꿨는지 함께 보고할 것.
+
+---
+
 ## Latest — 2026-08-23 / ⚠ **로그인이 전원 500 이었다** · 원인 = 0139 꼬리 소실 · 복구·박제 완료 (#1337)
 
 > 발행: **렌즈·도구층 세션.** `/interview` 스크린샷을 찍으려다 발견했다.
@@ -360,6 +396,51 @@ Simon 정정: *"1.2.0 은 잘못 생각한 것, 0.2.0 이 맞다."* (#1325)
   나와서 근거를 지워도 통과했다(변이 검증으로 발견). **인용문 자체**를 요구할 것.
 
 `npm run verify` 495 suites / 4,687 tests 그린.
+
+## 2026-08-23 13:40 KST / 콘솔 집행 완료: 0138+0139 적용 · 훅 등록 · 변수 4종 플립 · V-컨펌 착지
+
+> 발행: **GUI(Cowork) 콘솔 세션.** 05:3x CLI 블록의 콘솔 순서 1~9 에 대한 집행 보고다.
+
+### 집행 결과 (05:3x 블록의 번호 그대로)
+
+| # | 무엇 | 결과 |
+|---|---|---|
+| 2·3 | openai-proxy 재배포 + **xai-proxy 첫 배포** | ✅ 08-22 18:2x, 워크플로 2런 그린. #1308·#1317 코드가 운영에 있다 |
+| 4 | 웹 재배포 (스위치 전달 픽스 포함) | ✅ 08-22 18:3x 그린 — `_MULTIMODAL_VENDOR`·`_BACKBONE_VENDOR` 가 처음으로 빌드에 실렸다 |
+| 5 | **`0138` + `0139` 연속 적용** | ✅ 08-22. dry-run 실측 후 적용: judge 트리거 `[enforce_judge, enforce_judge_insert]` 2개 · `auto_judge_mode` 0 · `user_roles` 정책 3 · RLS on · judge_true 0 · 훅 함수 빈배열 정상. **보너스 실측: `block_self_tier_change` 가 이미 클라 judge_mode UPDATE 를 42501 로 막고 있었다** — 가드는 이제 3중이다 |
+| 6 | 변수 4종 플립 | ✅ `EXPO_PUBLIC_{MULTIMODAL,LLM,BACKBONE}_VENDOR=openai` 설정(CHAT 은 이미). ⚠ **원장 검증은 미완** — 최근 30h `ai_audit_log` 0행(트래픽 자체가 없음). 첫 실사용이 판정한다 |
+| 7 | **Custom Access Token Hook 등록** | ✅ 08-23 13:3x 대시보드에서 **ENABLED** (Postgres · public.custom_access_token_hook). app_roles 클레임이 신규 토큰에 실리기 시작 |
+| 8 | `users` ACL 수술 dry-run | ✅ **아래 — GRANT 대상 확정** |
+| 9 | V-컨펌 | ✅ **아래** |
+| 1 | S-1 (Simon 키) | ❌ **여전히 미완** (08-23 13:1x 실측: `__NONE/__LOW/__MEDIUM/__HIGH` 부재, 기본 키 다이제스트 26040a49… 불변). 폼은 다시 스테이징해 둠. **핀 유지 중** |
+
+### §5-b 의 마지막 질문에 답이 나왔다 — **GRANT 대상 = `authenticated`, anon 경로는 없다**
+
+- **이메일 가입**: 클라 INSERT 가 아예 없다. `auth.users` 의 `trg_complete_verified_email_signup`
+  (**SECURITY DEFINER · owner postgres**, 0086)가 확인 전환 시 프로필 행을 만든다 — 실측으로 트리거·소유자 확인.
+- **OAuth 가입**(`ensureUserProfile`): 세션 필수 → INSERT 는 **authenticated** 로 도착.
+- **운영 dry-run** (REVOKE+GRANT 실행 후 측정, 롤백):
+  `anon[ins=f upd=f del=f sel=t]` · `auth[ins_tbl=f, ins(id·email)=t, upd(reasoning_prefs)=t, upd(judge_mode)=f, del=f, sel=t]` · `service_role 무영향` · `supabase_auth_admin ins=f`
+- supabase_auth_admin 이 f 인 것은 무해하다 — 가입 트리거가 definer(postgres)라서. **단 그 함수를 SECURITY INVOKER 로 바꾸는 순간 가입이 깨진다.** 0140 주석에 박아둘 것.
+- → **`0140`(ACL 수술) 파일 착지 GO.** §5-b 의 SQL 그대로, `<확인된 role>` = `authenticated`.
+
+### V-컨펌 (Simon, 08-23 13:0x)
+
+| ID | 답 |
+|---|---|
+| V-1 | **예** — 백본 9 를 OpenAI 로 |
+| V-2 | **예** — 티어 배치 표대로 |
+| V-4 | **⚠ "지금 바로"** — 추천("마감 이후")을 뒤집었다. $100 충전 완료가 근거. **Claude 2좌석(persona_narrative·persona_synthesis) 배치를 지금 착수하라** |
+| V-5 | **아니오 — high 유지.** pro 두 줄의 effort 를 내리지 않는다. `PURPOSE_EFFORT_MAX` 변경 금지 |
+
+### 남은 것
+
+| 누가 | 무엇 |
+|---|---|
+| Simon | **S-1**: 스테이징된 폼에 값 5개 붙여넣고 Bulk save (OpenAI 키 5개 신규 발급) |
+| 콘솔 | S-1 후: `ai_audit_log` 검증 → `MODEL_PIN_OPENAI_FRONTIER` 삭제 → 승격 시험 · `OPENAI_TRANSCRIBE_MODEL` 은 첫 음성 메모가 판정(UNVERIFIED 유지) |
+| CLI | **V-4 집행**(Claude 2좌석, 지금) · **`0140` ACL 수술 파일**(위 확정값) · 9월 Gemini 폐기 PR 에 `callLlm` 폴백 하드코딩 제거 포함 |
+
 
 ## 2026-08-21 05:3x KST / Grok 투입 (#1317) · ⚠ 스위치 두 개가 빌드에 안 닿고 있었다
 

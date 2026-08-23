@@ -194,16 +194,23 @@ describe("secretsFor — 승격이 좌석 밖으로 새지 않는다", () => {
     expect(Object.keys(map)).not.toContain("safety_classify");
   });
 
-  it("anthropic 승격은 등급별 목적에만 닿는다", () => {
+  it("anthropic 승격은 opus 목적에만 닿는다 (sonnet 좌석 없음)", () => {
+    // 2026-08-23: Simon 이 Anthropic 을 opus 전용으로 확정해서 sonnet 목적 목록이
+    // 비었다. 승격 자체는 여전히 두 등급을 다 발견하지만, **쓰이는 것은 opus 뿐**이다.
     const out = secretsFor([
       { seat: { id: "anthropic-sonnet" }, chosen: "claude-sonnet-6" },
       { seat: { id: "anthropic-opus" }, chosen: "claude-opus-6" },
     ]);
     const map = JSON.parse(out.find((s) => s.name === "ANTHROPIC_PURPOSE_MODELS")!.value);
-    expect(map.advisor).toBe("claude-sonnet-6");
     expect(map.persona_narrative).toBe("claude-opus-6");
-    // 등급 배정 자체는 프록시가 정한다. 이 스크립트는 이름만 갈아끼운다.
-    expect(map.persona_narrative).not.toBe(map.advisor);
+    // 발견된 sonnet 이름이 어느 목적에도 새어 들어가지 않는다 — 이게 이 시험의 핵심이다.
+    expect(Object.values(map)).not.toContain("claude-sonnet-6");
+    expect(map.advisor).toBeUndefined();
+    expect(map.secondb_chat).toBeUndefined();
+    // 그리고 opus 목적 넷은 전부 실려야 한다 (조용히 비는 맵이 더 나쁘다).
+    expect(Object.keys(map).sort()).toEqual(
+      ["axis_estimate", "digest_weekly", "persona_narrative", "persona_synthesis"].sort(),
+    );
   });
 
   it("xai 좌석은 좌석당 시크릿 하나다", () => {
