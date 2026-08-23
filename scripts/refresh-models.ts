@@ -33,6 +33,14 @@ export interface SeatClass {
   match: RegExp;
   /** 실험판·미리보기·구세대를 걸러낸다. */
   exclude?: RegExp;
+  /**
+   * 버전이 **같을 때만** 쓰는 결승. 없으면 동점은 정렬 순서에 맡겨져 임의가 된다.
+   *
+   * 왜 필요해졌나: gpt-5.6 은 티어형 ID(`-sol`/`-terra`/`-luna`)로 나왔고
+   * versionKey 는 접미사를 안 본다 — `gpt-5.6` 과 `gpt-5.6-terra` 가 [5,6] 으로
+   * 동점이다. 그 둘은 가격도 성능도 다른데 **어느 쪽이 뽑힐지가 우연**이 된다.
+   */
+  tieBreak?: RegExp;
   /** 사람이 읽는 설명. */
   note: string;
 }
@@ -77,10 +85,36 @@ export const SEATS: SeatClass[] = [
     //
     // 아무것도 안 걸리면 승격이 없다 = 쓰던 모델이 그대로 남는다. 실패가 닫히는
     // 쪽으로 떨어진다. 날짜 스냅샷을 거절하는 것도 의도다 — versionKey 주석 참조.
-    match: /^gpt-\d+(?:\.\d+)*$/,
+    //   통과: gpt-5.6-terra   (2026-07-09 GA. 티어형 ID 의 **일반 기본값**)
+    //   거절: gpt-5.6-sol · gpt-5.6-luna
+    //
+    // 티어를 **허용 목록에 한 종류만** 넣는 것이 luna 금지(Simon 결정)의 집행
+    // 방식이다. exclude 로 막으면 그건 금지 목록이고, 새 티어가 나올 때마다
+    // 조용히 열린다 — 이 좌석이 이미 한 번 밟은 함정이다.
+    match: /^gpt-\d+(?:\.\d+)*(?:-terra)?$/,
+    // 같은 버전에 접미사 없는 것과 terra 가 둘 다 있으면 terra 가 일반 기본값이다.
+    tieBreak: /-terra$/,
     // 이중 방어. match 가 언젠가 느슨해져도 전용 변형은 여기서 한 번 더 막힌다.
-    exclude: /mini|nano|audio|realtime|image|preview|turbo|instruct|search|transcribe|tts|codex/,
-    note: "추론 좌석 9개",
+    // luna 는 match 에서 이미 못 들어오지만, 여기서 한 번 더 이름을 박아 둔다 —
+    // 금지가 정규식 한 글자에만 걸려 있으면 안 된다.
+    exclude: /mini|nano|audio|realtime|image|preview|turbo|instruct|search|transcribe|tts|codex|luna/,
+    note: "추론 좌석 9개 (일반 기본값 = terra 티어)",
+  },
+  {
+    // gpt-5.6 의 최상위 티어. **일반 좌석에는 절대 안 들어간다** (Simon 결정:
+    // sol = 최고난도 + 교차검증 전용). 그래서 openai-frontier 와 매치가 서로
+    // 겹치지 않게 갈라 놨다 — 한 좌석이 둘 다 매치하면 versionKey 가 접미사를
+    // 안 보므로 동점이 되고, 어느 티어가 일반 좌석에 앉을지가 우연이 된다.
+    //
+    // 시크릿도 목적 맵이 아니라 전용 이름 하나다. 이 모델은 purpose 로 라우팅되지
+    // 않고 교차검증 파이프라인이 명시적으로 부른다.
+    id: "openai-sol",
+    vendor: "openai",
+    //   통과: gpt-5.6-sol · gpt-6.1-sol
+    //   거절: gpt-5.6-terra · gpt-5.6-luna · gpt-5.6
+    match: /^gpt-\d+(?:\.\d+)*-sol$/,
+    exclude: /mini|nano|preview|luna/,
+    note: "교차검증 전용 좌석 (일반 라우팅 없음)",
   },
   {
     id: "xai-frontier",
@@ -129,8 +163,10 @@ export const COST_AXIS: Readonly<Record<"cheap" | "mid" | "deep", readonly strin
   cheap: [],
   // 대화·구조화 출력처럼 상호작용하지만 깊지 않은 것
   mid: ["anthropic-sonnet"],
-  // 페르소나 종합·주간 다이제스트처럼 effort 가 필요한 것
-  deep: ["anthropic-opus", "openai-frontier", "xai-frontier"],
+  // 페르소나 종합·주간 다이제스트처럼 effort 가 필요한 것.
+  // openai-sol 도 여기다 — 가장 비싼 축이고, 교차검증은 정의상 깊은 읽기다.
+  // (축이 없는 좌석은 승격 경로에서 조용히 빠진다. 그게 이 표의 존재 이유다.)
+  deep: ["anthropic-opus", "openai-frontier", "openai-sol", "xai-frontier"],
 };
 
 /** 이 좌석이 속한 비용 축. 축이 없으면 승격 대상이 아니다. */
@@ -234,6 +270,9 @@ export const OPENAI_FRONTIER_PURPOSES = [
 
 /** 좌석 -> 시크릿 이름. 등급별로 하나씩이라 승격이 축을 넘나들 수 없다. */
 const SECRET_OF: Record<string, string> = {
+  // 교차검증 파이프라인이 읽는 전용 이름. 목적 맵(OPENAI_PURPOSE_MODELS)에
+  // 넣지 않는 것이 핵심이다 — 넣는 순간 sol 이 일반 좌석으로 새어 들어간다.
+  "openai-sol": "OPENAI_CROSSCHECK_MODEL",
   // grok-proxy 는 아직 없다 (아래 KEY_ENV 주석 참조). 그래도 좌석을 두는 이유는
   // 프록시가 생기는 날 최신 Grok 모델 id 가 **이미 검증된 채로** 준비돼 있게
   // 하려는 것이다. openai-proxy 의 OPENAI_MODEL 과 같은 전역 이름을 쓴다.
@@ -320,7 +359,16 @@ function compareVersions(a: number[], b: number[]): number {
 export function pickNewest(names: readonly string[], seat: SeatClass): string | null {
   const inClass = names.filter((n) => seat.match.test(n) && !(seat.exclude?.test(n) ?? false));
   if (inClass.length === 0) return null;
-  return [...inClass].sort((x, y) => compareVersions(versionKey(x), versionKey(y)))[0];
+  return [...inClass].sort((x, y) => {
+    const byVersion = compareVersions(versionKey(x), versionKey(y));
+    if (byVersion !== 0) return byVersion;
+    // 동점일 때만. 접미사는 versionKey 에 안 잡히므로 여기서 결정하지 않으면
+    // gpt-5.6 과 gpt-5.6-terra 중 어느 쪽이 뽑힐지가 정렬 순서에 달린다.
+    if (!seat.tieBreak) return 0;
+    const xw = seat.tieBreak.test(x) ? 1 : 0;
+    const yw = seat.tieBreak.test(y) ? 1 : 0;
+    return yw - xw;
+  })[0];
 }
 
 async function listAnthropic(key: string): Promise<string[]> {
