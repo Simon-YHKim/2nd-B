@@ -1525,8 +1525,10 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
 // 인터뷰로 넘어간다. 중간 변환표는 없다 -- 사이에 표를 두는 것이 바로 그
 // 뾭개짐을 만들었던 구조다.
 
+/** 범위 줄. `current` 는 **빈 문자열**을 돌려준다 -- 이름이 이미 "지금"이라
+ *  범위까지 "지금"이면 같은 말이 두 줄 쌓인다(실측으로 확인). */
 function eraRangeLabel(slot: PeriodSlot, t: (k: string, o?: Record<string, unknown>) => string): string {
-  if (slot.from === null || slot.to === null) return t("ds.audit.rangeNow");
+  if (slot.from === null || slot.to === null) return "";
   // 첫 칸은 "12세 이전" 처럼 위쪽 경계로 읽힌다 (0부터 세는 것은 어색하다).
   if (slot.from === 0) return t("ds.audit.rangeUnder", { to: slot.to + 1 });
   return t("ds.audit.rangeSpan", { from: slot.from, to: slot.to });
@@ -1555,7 +1557,9 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
                 <View style={styles.auditCardRow}>
                   <View style={styles.auditEraCol}>
                     <Text style={styles.auditEraName}>{t(`ds.audit.period.${slot.id}`)}</Text>
-                    <Text style={styles.auditEraRange}>{eraRangeLabel(slot, t)}</Text>
+                    {eraRangeLabel(slot, t).length > 0 ? (
+                      <Text style={styles.auditEraRange}>{eraRangeLabel(slot, t)}</Text>
+                    ) : null}
                   </View>
                   <Svg width={20} height={20} viewBox="0 0 24 24">
                     <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />
