@@ -18,7 +18,31 @@
   "progressLabel": "Pertanyaan {{n}} / {{total}} · Wawancara kenangan",
   "screenerSubtitle": "Kami memutari inti yang sama dengan cara sedikit berbeda tiap kali, supaya lebih jernih terlihat.",
   "reflectErrorBody": "Jawabanmu masih ada di sini. Coba lagi sebentar lagi.",
-  "loopCheck.stuckLoop": "Hal yang terus Anda pikirkan itu, apakah memberi Anda sesuatu yang baru, atau Anda selalu sampai pada kesimpulan yang sama?",
-  "loopCheck.friendView": "Apa yang akan Anda katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
-  "loopCheck.setAside": "Apa yang berubah jika Anda menyisihkan pikiran ini selama lima menit?"
+  "loopCheck": {
+    "stuckLoop": "Hal yang terus Anda pikirkan itu, apakah memberi Anda sesuatu yang baru, atau Anda selalu sampai pada kesimpulan yang sama?",
+    "friendView": "Apa yang akan Anda katakan kepada teman dekat yang berada dalam situasi yang persis sama?",
+    "setAside": "Apa yang berubah jika Anda menyisihkan pikiran ini selama lima menit?"
+  },
+  "drill": {
+    "opening": "Mulai dari periode hidup yang mana? Satu adegan yang terlintas sudah cukup.",
+    "placeholder": "Tulis sebanyak atau sesedikit yang Anda mau",
+    "send": "Kirim",
+    "thinking": "Mendengarkan…",
+    "enough": "Cukup untuk sekarang",
+    "closing": "Tidak apa-apa berhenti di sini. Saya simpan yang Anda bagikan hari ini?",
+    "turnLabel": "Giliran {{n}} · {{layer}}",
+    "loopNote": "Saya ubah arah sejenak.",
+    "failed": "Tidak bisa mengambil pertanyaan berikutnya. Silakan coba lagi.",
+    "emptyAnswer": "Satu baris pun cukup untuk melanjutkan.",
+    "saveTitle": "Simpan percakapan hari ini?",
+    "saveBody": "Yang Anda bagikan disimpan apa adanya. Tidak ada perkiraan yang dibuat sekarang; catatan ini menyalakan bintang seiring bertambahnya.",
+    "saved": "Tersimpan."
+  },
+  "period": {
+    "childhood": "Masa kecil",
+    "teens": "Remaja",
+    "twenties": "Usia 20-an",
+    "thirties": "Usia 30-an",
+    "current": "Sekarang"
+  }
 }

@@ -18,7 +18,31 @@
   "progressLabel": "Pregunta {{n}} / {{total}} · Entrevista de recuerdos",
   "screenerSubtitle": "Damos vueltas al mismo punto de forma un poco distinta cada vez, para verlo con más claridad.",
   "reflectErrorBody": "Tus respuestas siguen aquí. Vuelve a intentarlo en un momento.",
-  "loopCheck.stuckLoop": "Eso a lo que vuelves una y otra vez: ¿te está diciendo algo nuevo, o llegas siempre a la misma conclusión?",
-  "loopCheck.friendView": "¿Qué le dirías a un buen amigo que estuviera exactamente en esta situación?",
-  "loopCheck.setAside": "¿Qué cambiaría si dejaras este pensamiento a un lado durante cinco minutos?"
+  "loopCheck": {
+    "stuckLoop": "Eso a lo que vuelves una y otra vez: ¿te está diciendo algo nuevo, o llegas siempre a la misma conclusión?",
+    "friendView": "¿Qué le dirías a un buen amigo que estuviera exactamente en esta situación?",
+    "setAside": "¿Qué cambiaría si dejaras este pensamiento a un lado durante cinco minutos?"
+  },
+  "drill": {
+    "opening": "¿Por qué etapa de tu vida empezamos? Basta con una escena que te venga a la mente.",
+    "placeholder": "Escribe lo que quieras, poco o mucho",
+    "send": "Enviar",
+    "thinking": "Escuchando…",
+    "enough": "Es suficiente por ahora",
+    "closing": "Está bien parar aquí. ¿Guardo lo que compartiste hoy?",
+    "turnLabel": "Turno {{n}} · {{layer}}",
+    "loopNote": "Voy a cambiar de dirección un momento.",
+    "failed": "No se pudo obtener la siguiente pregunta. Inténtalo de nuevo.",
+    "emptyAnswer": "Con una sola línea podemos continuar.",
+    "saveTitle": "¿Guardamos la conversación de hoy?",
+    "saveBody": "Lo que compartiste se guarda tal cual. No se inventa ninguna estimación ahora; el registro alimenta el brillo de las estrellas a medida que se acumula.",
+    "saved": "Guardado."
+  },
+  "period": {
+    "childhood": "Infancia",
+    "teens": "Adolescencia",
+    "twenties": "Veintes",
+    "thirties": "Treintas",
+    "current": "Ahora"
+  }
 }
