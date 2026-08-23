@@ -24,7 +24,7 @@ import type { PromptPurpose } from "../types";
 
 // The two prose seats went to Claude on 2026-08-23 (V-4), so "the seats" are
 // no longer one vendor. Split rather than shortened: both halves are asserted.
-const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis"];
+const CLAUDE_SEATS: PromptPurpose[] = ["persona_narrative", "persona_synthesis", "crosscheck_defend"];
 
 const OPENAI_SEATS: PromptPurpose[] = [
   "advisor",

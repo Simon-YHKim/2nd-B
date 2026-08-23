@@ -64,7 +64,13 @@ export type PromptPurpose =
   // 좌석 선언은 값이 아니라 표다.
   | "digest_weekly" // weekly two-signal causal pattern (highest-stakes claim) - UNUSED
   | "cluster_infer" // semantic wiki connection rationale (activates the OpenAI seat)
-  | "ttfv_first_insight"; // first-day self-understanding, evidence-backed
+  | "ttfv_first_insight" // first-day self-understanding, evidence-backed
+  // Adversarial cross-validation (REQ-260823-03). Two purposes rather than one
+  // because purpose IS how a call picks its vendor - one purpose could only
+  // ever reach one side, and a "debate" both halves of which run on the same
+  // model is that model agreeing with itself at double the price.
+  | "crosscheck_challenge" // gpt-5.6-sol tries to break the draft
+  | "crosscheck_defend"; // claude opus answers it and rewrites
 
 export interface AdvisorInput {
   userId: string;

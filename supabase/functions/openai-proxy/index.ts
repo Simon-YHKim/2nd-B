@@ -194,6 +194,15 @@ const PURPOSE_MODEL: Record<string, string> = {
 // name here would 400 every voice memo with purpose_not_seated.
 const TRANSCRIBE_PURPOSES = new Set(['voice_transcribe']);
 
+// The adversarial challenger (REQ-260823-03). Seated for the allowlist but kept
+// OUT of PURPOSE_MODEL on purpose, the same way voice_transcribe is: that table
+// doubles as the nightly refresher's frontier seat list, so a row there would
+// be overwritten with the terra model on the next promotion and the challenger
+// would quietly stop being sol. Its model comes from OPENAI_CROSSCHECK_MODEL,
+// which refresh-models writes from the openai-sol seat.
+const CROSSCHECK_PURPOSES = new Set(['crosscheck_challenge']);
+const DEFAULT_CROSSCHECK_MODEL = 'gpt-5.4';
+
 function resolveModel(purpose: string): string {
   const raw = (Deno.env.get('OPENAI_PURPOSE_MODELS') ?? '').trim();
   if (raw.length > 0) {
@@ -207,6 +216,13 @@ function resolveModel(purpose: string): string {
   }
   const globalOverride = (Deno.env.get('OPENAI_MODEL') ?? '').trim();
   if (globalOverride.length > 0) return globalOverride;
+  // After the global kill-switch on purpose: during a cost incident an
+  // operator setting OPENAI_MODEL must be able to pull the most expensive
+  // model in the system down too.
+  if (CROSSCHECK_PURPOSES.has(purpose)) {
+    const sol = (Deno.env.get('OPENAI_CROSSCHECK_MODEL') ?? '').trim();
+    return sol.length > 0 ? sol : DEFAULT_CROSSCHECK_MODEL;
+  }
   return PURPOSE_MODEL[purpose] ?? DEFAULT_OPENAI_MODEL;
 }
 
@@ -240,6 +256,9 @@ const PURPOSE_EFFORT_MAX: Record<string, string> = {
   // call by disabling its thinking budget for these purposes.
   capture_ocr: 'none',
   voice_transcribe: 'none',
+  // The challenger reads a whole-corpus draft looking for what is wrong with
+  // it. That is the one job here where reasoning is the product.
+  crosscheck_challenge: 'high',
   // Backbone ceilings (REQ-260821-01), mirroring PURPOSE_TIER's cost intent.
   // The two classifiers get 'none' for the same reason safety_classify does:
   // they run once per capture and once per clip, so they are the only rows
@@ -385,7 +404,11 @@ Deno.serve(async (req: Request) => {
   // crashed (500, no CORS) AFTER the spend bump. Own-key check closes both.
   if (
     !purpose ||
-    !(Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose) || TRANSCRIBE_PURPOSES.has(purpose))
+    !(
+      Object.prototype.hasOwnProperty.call(PURPOSE_MODEL, purpose) ||
+      TRANSCRIBE_PURPOSES.has(purpose) ||
+      CROSSCHECK_PURPOSES.has(purpose)
+    )
   ) {
     return jsonResponse(req, { error: 'purpose_not_seated', purpose: purpose ?? null }, 400);
   }

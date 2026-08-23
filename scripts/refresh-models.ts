@@ -228,6 +228,11 @@ export const ANTHROPIC_OPUS_PURPOSES = [
   "axis_estimate",
   "persona_synthesis",
   "digest_weekly",
+  // The defender in the adversarial cross-check. It belongs on this list so the
+  // nightly promotion carries it to the newest opus with its neighbours - a
+  // defender pinned to a stale model gradually stops being able to answer the
+  // challenger, and nothing would say so.
+  "crosscheck_defend",
 ] as const;
 
 /**
