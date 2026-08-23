@@ -1071,5 +1071,9 @@
     "daysWeekends": "Akhir pekan",
     "daysShift": "Sif",
     "daysVaries": "Berubah-ubah"
-  }
+  },
+  "reviewAxisNow": "Tinjau Big Five saya",
+  "reviewAxisRelational": "Tinjau gaya kelekatan saya",
+  "reviewAxisValues": "Tinjau nilai-nilai saya",
+  "reviewNothingToReview": "Ikuti satu tes dulu. Belum ada hasil terukur untuk ditinjau."
 }
