@@ -26,6 +26,10 @@ export function deriveStarLevels(
   // Each star is lifted to max(deterministic, ratified) so a rebuild never regresses
   // a ratification. Defaults to none, so every existing caller is unchanged.
   standingRatified: Partial<Record<StarId, LadderLevel>> = {},
+  // 회상(star2)의 **진짜** 등급. 인터뷰 커버리지에서 나온다
+  // (`persona/narrative-star.ts` -> `interview/narrative-level.ts`).
+  // null 이면 인터뷰 기록이 없다는 뜻이라 아래의 기존 신호로 떨어진다.
+  narrativeLevel: LadderLevel | null = null,
 ): Record<StarId, LadderLevel> {
   // star1 "지금의 나": trait-state confidence (BFI questionnaire vs journal
   // heuristic) mapped through the value ladder. v1 confidence is uniform across
@@ -42,11 +46,18 @@ export function deriveStarLevels(
   const values: LadderLevel =
     card.values.length >= 3 ? 3 : card.values.length >= 1 ? 2 : 1;
 
-  // star2 "회상": a narrative signal exists once observed pattern kinds surface
-  // (build.ts writes them as `top_*` keys on patterns).
-  const recall: LadderLevel = Object.keys(card.patterns).some((k) => k.startsWith("top_"))
-    ? 2
-    : 1;
+  // star2 "회상": 인터뷰가 실제로 판 (시기 x 층) 칸에서 나온다.
+  //
+  // ⚠ 2026-08-24 이전에는 `card.patterns` 에 `top_*` 키가 있는지로 정했다. 그 키는
+  // 저널 패턴 추출에서 나오는 것이라 **인터뷰와 아무 상관이 없었다** -- 회상 별이
+  // 회상을 재고 있지 않았다는 뜻이다. 정작 그걸 재려고 만든 `narrativeStarLevel` 은
+  // 호출부가 0건이었고, 이유는 커버리지가 저장되지 않았기 때문이다(0143 이 고침).
+  //
+  // 옛 신호를 **완전히 버리지는 않는다**: 인터뷰를 한 적이 없으면(null) 저널 쪽
+  // 신호로 떨어진다. 없는 것을 L1 로 단정하지 않는 것이 이 사다리의 규율이다.
+  const recall: LadderLevel =
+    narrativeLevel ??
+    (Object.keys(card.patterns).some((k) => k.startsWith("top_")) ? 2 : 1);
 
   // star4 "리듬 / ESM": momentary-state coverage from ESM check-ins (count passed
   // by the caller). stars 3 (보여지는 나 / peer) + 6 (될 수 있는 나) have no shipped

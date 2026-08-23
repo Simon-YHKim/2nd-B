@@ -42,6 +42,7 @@ import { deriveStarLevels } from "./star-levels";
 import { loadStandingRatifiedTiers } from "./load-ratified-tiers";
 import { loadEsmCount } from "./esm-count";
 import { recordStarTiers } from "./record-star-tiers";
+import { loadNarrativeStarLevel } from "./narrative-star";
 
 export interface PersonaTraits {
   openness: number;
@@ -749,7 +750,10 @@ export async function buildPersona(
   // gets persisted below, so the rebuild row reads 5->5 (no phantom "down" nudge)
   // and the ratified L5 stays lit on the home constellation.
   const standingRatified = await loadStandingRatifiedTiers(userId);
-  persona.starLevels = deriveStarLevels(persona, esmCount, standingRatified);
+  // 회상 별은 인터뷰 커버리지에서 온다(0143). 못 읽으면 null 이고, 그때는
+  // deriveStarLevels 가 기존 신호로 떨어진다 -- 빌드를 막지 않는다.
+  const narrativeLevel = await loadNarrativeStarLevel(userId);
+  persona.starLevels = deriveStarLevels(persona, esmCount, standingRatified, narrativeLevel);
   persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
   // D9 (memo §10): persist this build's tiers so detectTierShift can later spot a
   // changed tendency. Fire-and-forget + best-effort - never blocks the build.

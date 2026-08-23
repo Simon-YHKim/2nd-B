@@ -51,6 +51,7 @@ import { parsePeriodParam } from "@/lib/interview/periods";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
+import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import {
@@ -58,6 +59,8 @@ import {
   PERIOD_LABEL,
   seedQuestion,
   emptyCoverage,
+  DRILL_LAYERS,
+  LIFE_PERIODS,
   incrementCoverage,
   decrementCoverage,
   nextMove,
@@ -106,6 +109,9 @@ export default function InterviewRoute() {
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
   const [coverage, setCoverage] = useState<Coverage>(emptyCoverage);
+  /** 이 세션을 시작할 때 이미 저장돼 있던 행렬. 저장할 때 **이번에 판 만큼만**
+   *  더하기 위해 남겨둔다(0143). ref 인 이유는 렌더를 유발할 값이 아니라서다. */
+  const baseCoverage = useRef<Coverage>(emptyCoverage());
   /** 현재 층에서 연속으로 못 답한 횟수. 답하면 0 으로 돌아간다. */
   const [stuckStreak, setStuckStreak] = useState(0);
   /** 발판을 두 번 줘도 막혀서 이번 대화에서는 더 묻지 않기로 한 층들.
@@ -261,6 +267,12 @@ export default function InterviewRoute() {
     // 여전히 **모델을 부르지 않는다** -- 고정 표에서 꺼낸다.
     setTurns([{ role: "interviewer", text: seedQuestion(period, locale), layer: "fact", period }]);
     setPendingLayer("fact");
+    // 지난 세션까지 판 자리를 이어받는다. 안 그러면 매번 처음부터 다시 파고,
+    // 등급은 한 세션 안에서만 오르내린다(그게 지금까지의 상태였다).
+    void loadCoverage(userId).then((stored) => {
+      baseCoverage.current = stored;
+      setCoverage(stored);
+    });
   }, [userId, period, locale]);
 
   useEffect(() => {
@@ -367,6 +379,16 @@ export default function InterviewRoute() {
         auditPeriod,
         withFollowup: false,
       });
+      // 판 자리를 남긴다. **내용과 같은 동의 경로**다 -- 사용자가 담기로 했을
+      // 때만 쓴다. 칸 수에는 답변 원문이 없지만, 그렇다고 담지 않기로 한 대화가
+      // 별을 밝히는 것은 이 저장소의 규율과 어긋난다.
+      const delta = emptyCoverage();
+      for (const p of LIFE_PERIODS) {
+        for (const l of DRILL_LAYERS) {
+          delta[p][l] = Math.max(0, coverage[p][l] - baseCoverage.current[p][l]);
+        }
+      }
+      await addCoverage(userId, delta);
       setToast({ tone: "success", message: t("drill.saved") });
       navigating = true;
       setTimeout(() => router.replace("/big-five"), 700);
