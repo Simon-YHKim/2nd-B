@@ -1,130 +1,62 @@
-import { MBTI_ITEMS, TYPE_NICKNAME, scoreMbti, type MbtiResponses } from "../mbti";
-
-describe("MBTI_ITEMS shape", () => {
-  test("32 items total", () => {
-    expect(MBTI_ITEMS).toHaveLength(32);
-  });
-
-  test("8 items per dichotomy", () => {
-    const counts = new Map<string, number>();
-    for (const i of MBTI_ITEMS) counts.set(i.dichotomy, (counts.get(i.dichotomy) ?? 0) + 1);
-    for (const d of ["EI", "SN", "TF", "JP"]) {
-      expect(counts.get(d)).toBe(8);
-    }
-  });
-
-  test("each item has a friendly subtitle in both locales", () => {
-    for (const item of MBTI_ITEMS) {
-      expect(item.subtitleEn.length).toBeGreaterThan(10);
-      expect(item.subtitleKo.length).toBeGreaterThan(5);
-    }
-  });
-
-  test("each dichotomy has both sides covered as agreeSide", () => {
-    const ei = MBTI_ITEMS.filter((i) => i.dichotomy === "EI").map((i) => i.agreeSide);
-    expect(ei).toEqual(expect.arrayContaining(["E", "I"]));
-    const sn = MBTI_ITEMS.filter((i) => i.dichotomy === "SN").map((i) => i.agreeSide);
-    expect(sn).toEqual(expect.arrayContaining(["S", "N"]));
-    const tf = MBTI_ITEMS.filter((i) => i.dichotomy === "TF").map((i) => i.agreeSide);
-    expect(tf).toEqual(expect.arrayContaining(["T", "F"]));
-    const jp = MBTI_ITEMS.filter((i) => i.dichotomy === "JP").map((i) => i.agreeSide);
-    expect(jp).toEqual(expect.arrayContaining(["J", "P"]));
-  });
-});
-
-describe("scoreMbti", () => {
-  test("empty → no type", () => {
-    const r = scoreMbti({});
-    expect(r.complete).toBe(false);
-    expect(r.type).toBeNull();
-  });
-
-  test("partial answers → no type", () => {
-    const r = scoreMbti({ 1: 5 });
-    expect(r.complete).toBe(false);
-    expect(r.type).toBeNull();
-  });
-
-  test("all neutrals (raw=3) → tie-break gives default 'ESTJ'", () => {
-    // Ties resolve to first-listed letter (E/S/T/J in the chain).
-    const responses: MbtiResponses = {};
-    for (const i of MBTI_ITEMS) responses[i.id] = 3;
-    const r = scoreMbti(responses);
-    expect(r.complete).toBe(true);
-    expect(r.type).toBe("ESTJ");
-  });
-
-  test("all 5s on E-keyed + 1s on I-keyed → E side wins", () => {
-    // For each dichotomy, agree-with-positive-keyed lifts that side;
-    // disagree-with-opposite-keyed also lifts the same side.
-    const responses: MbtiResponses = {};
-    for (const i of MBTI_ITEMS) {
-      // Push toward I/N/F/P uniformly for variety.
-      if (i.agreeSide === "I" || i.agreeSide === "N" || i.agreeSide === "F" || i.agreeSide === "P") {
-        responses[i.id] = 5; // strongly agree → that side
-      } else {
-        responses[i.id] = 1; // strongly disagree → opposite side
-      }
-    }
-    const r = scoreMbti(responses);
-    expect(r.type).toBe("INFP");
-  });
-
-  test("complete responses with all 5s on E/S/T/J sides → ESTJ", () => {
-    const responses: MbtiResponses = {};
-    for (const i of MBTI_ITEMS) {
-      if (i.agreeSide === "E" || i.agreeSide === "S" || i.agreeSide === "T" || i.agreeSide === "J") {
-        responses[i.id] = 5;
-      } else {
-        responses[i.id] = 1;
-      }
-    }
-    const r = scoreMbti(responses);
-    expect(r.type).toBe("ESTJ");
-  });
-
-  test("ignores out-of-range raw values", () => {
-    const r = scoreMbti({ 1: 0 as unknown as number, 2: 6 as unknown as number, 3: NaN as unknown as number });
-    expect(r.answered).toBe(0);
-  });
-});
-
-// D5 (Simon 2026-08-18): "재미로 할 수 있도록 작업은 해놓자. 화면을 살릴지는
-// 나중에." 즉 이 모듈은 **화면 없이 완성 상태로 대기**한다.
+// MBTI 잔재가 **표시 전용으로만** 남아 있는가.
 //
-// 휴면 코드의 위험은 버그가 아니라 **부패**다. 아무도 안 열어보는 사이 유형
-// 하나의 별칭이 빠지거나, 되살리려고 보면 이미 안 맞는 상태가 되어 있다.
-// 그래서 "지금 되살려도 온전한가" 를 고정한다.
-describe("휴면 상태 완결성 (D5)", () => {
-  const TYPES = ["E", "I"].flatMap((a) =>
-    ["S", "N"].flatMap((b) => ["T", "F"].flatMap((c) => ["J", "P"].map((d) => `${a}${b}${c}${d}`))),
-  );
+// 이 테스트는 원래 32문항 스크리너를 채점했다. 그 스크리너는 화면이 은퇴한 뒤
+// 자기 테스트 말고 부르는 곳이 없어서 지웠고(2026-08-23), 이제 이 파일이 지키는
+// 것은 반대 방향이다: **다시 측정하는 길이 생기지 않는가.**
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-  it("16유형 전부에 별칭이 있다 (EN·KO)", () => {
-    expect(TYPES).toHaveLength(16);
-    for (const locale of ["en", "ko"] as const) {
-      for (const type of TYPES) {
-        const nickname = TYPE_NICKNAME[locale][type];
-        expect(typeof nickname).toBe("string");
-        expect(nickname.trim().length).toBeGreaterThan(0);
-      }
+import { TYPE_NICKNAME } from "../mbti";
+
+const ROOT = join(__dirname, "..", "..", "..", "..");
+const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
+
+const TYPES = [
+  "INTJ", "INTP", "ENTJ", "ENTP",
+  "INFJ", "INFP", "ENFJ", "ENFP",
+  "ISTJ", "ISFJ", "ESTJ", "ESFJ",
+  "ISTP", "ISFP", "ESTP", "ESFP",
+];
+
+describe("옛 결과를 계속 읽을 수 있다", () => {
+  // 은퇴 전에 검사를 한 사용자의 기록이 records 에 남아 있고, `/persona` ·
+  // build-iden · self-portrait 이 그걸 읽어 보여준다. 별명 표를 지우면 그
+  // 사람들 화면에서 값이 조용히 사라진다.
+  it.each(["en", "ko"] as const)("%s 별명이 16유형 전부 있다", (locale) => {
+    for (const t of TYPES) {
+      expect(typeof TYPE_NICKNAME[locale][t]).toBe("string");
+      expect(TYPE_NICKNAME[locale][t].length).toBeGreaterThan(0);
     }
   });
 
-  it("어떤 응답 조합이든 별칭이 있는 유형만 나온다", () => {
-    // 채점이 별칭 없는 문자열을 만들면 되살리는 순간 빈 화면이 된다.
-    const answers: Record<number, number> = {};
-    for (const item of MBTI_ITEMS) answers[item.id] = 5;
-    const result = scoreMbti(answers);
-    expect(result.type).not.toBeNull();
-    expect(TYPE_NICKNAME.ko[result.type as string]).toBeTruthy();
+  it("두 로케일의 키가 같다", () => {
+    expect(Object.keys(TYPE_NICKNAME.en).sort()).toEqual(Object.keys(TYPE_NICKNAME.ko).sort());
+  });
+});
+
+describe("새로 측정하는 길이 없다", () => {
+  const src = read("src/lib/persona/mbti.ts");
+
+  it("문항과 채점기가 사라졌다", () => {
+    // 되살리면 리서치가 명시적으로 거부한 프레임워크를 앱이 다시 측정하게 된다
+    // (`docs/research/README.md` 거부 체크리스트, assessment-landscape.md 의
+    // MBTI critique). 판단의 근거는 mbti.ts 헤더에 적어뒀다.
+    //
+    // ⚠ 이름을 그냥 찾으면 안 된다 -- **헤더가 무엇을 왜 지웠는지 설명하면서
+    // 그 이름들을 언급한다.** 처음에 그렇게 썼다가 자기 설명에 걸렸다.
+    // export 형태로만 본다.
+    expect(src).not.toMatch(/^export (const|function) MBTI_ITEMS\b/m);
+    expect(src).not.toMatch(/^export function scoreMbti\b/m);
   });
 
-  it("문항이 실제로 답할 수 있는 문장이다", () => {
-    // 자리만 채운 더미가 섞이면 되살렸을 때 그게 사용자에게 보인다.
-    for (const item of MBTI_ITEMS) {
-      expect(item.en.trim().length).toBeGreaterThan(5);
-      expect(item.ko.trim().length).toBeGreaterThan(5);
-    }
+  it("무엇을 남겼고 왜 남겼는지가 파일에 적혀 있다", () => {
+    // 리서치는 거부, 코드는 채택 -- 그 간극을 잇는 문장이 없던 것이 원래
+    // 문제였다. 헤더가 사라지면 다음 사람이 같은 자리에서 헤맨다.
+    expect(src).toContain("docs/research/README.md");
+    expect(src).toContain("retired");
+  });
+
+  it("화면은 리다이렉트다", () => {
+    expect(read("src/app/mbti.tsx")).toContain("<Redirect");
   });
 });
