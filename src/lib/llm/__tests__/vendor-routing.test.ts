@@ -295,7 +295,11 @@ describe("D-26 vendor routing", () => {
     expect(phase2EffortFor("self_model_propose")).toBe("high");
     expect(phase2EffortFor("northstar_propose")).toBe("high");
     expect(phase2EffortFor("axis_estimate")).toBe("high");
-    expect(phase2EffortFor("persona_synthesis")).toBe("xhigh");
+    // max, not xhigh, since 2026-08-23 (REQ-260823-02). It is the whole-corpus
+    // deep read that Simon reserved the top rung for, and it now routes to
+    // Claude - the only vendor whose proxy carries that rung. The seats that
+    // stayed on OpenAI are unaffected: openai-proxy folds max into xhigh.
+    expect(phase2EffortFor("persona_synthesis")).toBe("max");
     expect(phase2EffortFor("ops_recommend")).toBe("medium");
     // chat is not a PHASE2_VENDOR seat, but it still needs an effort when the
     // chat knob puts it on a non-Gemini vendor -- without one boundary.ts falls

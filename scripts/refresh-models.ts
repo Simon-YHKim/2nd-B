@@ -165,16 +165,26 @@ export function costAxisOf(seatId: string): "cheap" | "mid" | "deep" | null {
 // 전역 킬스위치는 사람이 사고 대응으로 쓰는 손잡이로 남겨둔다.
 
 /** claude-proxy PURPOSE_MODEL 의 sonnet 좌석. 등급 배정이 아니라 **모델 이름만** 갱신한다. */
-export const ANTHROPIC_SONNET_PURPOSES = [
-  "advisor",
-  "secondb_chat",
-  "gap_synthesize",
-  "self_model_propose",
-  "northstar_propose",
-  "ops_recommend",
-  "ops_daily_brief",
-  "ttfv_first_insight",
-] as const;
+/**
+ * EMPTY since 2026-08-23, and the emptiness is the decision.
+ *
+ * Simon: Anthropic runs opus only. The eight purposes that used to sit here
+ * (advisor, secondb_chat, gap_synthesize, self_model_propose,
+ * northstar_propose, ops_recommend, ops_daily_brief, ttfv_first_insight) were
+ * removed from claude-proxy's seat map and route to OpenAI client-side.
+ *
+ * ⚠ Kept as an empty array rather than deleted. This list feeds
+ * ANTHROPIC_PURPOSE_MODELS, which OVERRIDES the proxy's built-in seats - so if
+ * the constant were removed and the write below silently skipped, a later
+ * reader would have no way to tell "we decided not to" from "someone dropped
+ * it". The drift guard in refresh-models.test.ts asserts it against the proxy
+ * file, so this staying empty is checked rather than remembered.
+ *
+ * Note this does NOT stop sonnet being served: an unseated purpose falls to
+ * claude-proxy's DEFAULT_CLAUDE_MODEL, which is deliberately still sonnet so
+ * the EXPO_PUBLIC_LLM_VENDOR=claude outage lever stays affordable.
+ */
+export const ANTHROPIC_SONNET_PURPOSES = [] as const;
 
 /** claude-proxy PURPOSE_MODEL 의 opus 좌석. */
 export const ANTHROPIC_OPUS_PURPOSES = [
@@ -423,7 +433,15 @@ async function main(): Promise<void> {
   console.log("");
 
   const byVendor = new Map<Vendor, string[]>();
-  for (const vendor of ["anthropic", "openai", "google"] as Vendor[]) {
+  // REQ-260823-01. This read ["anthropic", "openai", "google"] as Vendor[] and
+  // the CAST is the whole bug: Vendor has said "anthropic" | "openai" | "xai"
+  // since the Grok change, so "google" was not assignable and "xai" was
+  // missing - and `as` silenced both. KEY_ENV["google"] is undefined, so
+  // process.env[undefined] is undefined and that vendor `continue`d; xai never
+  // ran at all, which surfaced as "XAI_API_KEY 가 없어 건너뜀" while the secret
+  // was present. Listing the union's own keys removes the chance to disagree
+  // with it: a vendor added to the type is iterated without a second edit.
+  for (const vendor of Object.keys(KEY_ENV) as Vendor[]) {
     const key = (process.env[KEY_ENV[vendor]] ?? "").trim();
     if (!key) continue;
     try {
