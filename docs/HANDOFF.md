@@ -3,6 +3,33 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
+## Latest — 2026-08-23 23:5x KST / 콘솔 마감: #1348 이어받기 집행 · 5.6 티어 운영 적용 · xai 403=크레딧 0 (콘솔 세션)
+
+### #1348 §6 콘솔 5건 — 집행 결과
+
+| 항목 | 결과 |
+|---|---|
+| claude-proxy·openai-proxy 재배포 | ✅ 둘 다 성공(15:17Z, 26~29s) — max 등급·교차검증 서버 절반 활성 |
+| `EXPO_PUBLIC_LLM_VENDOR=perPurpose` 유지 | ✅ 실측 확인(11:11Z 값 그대로) |
+| `OPENAI_CROSSCHECK_MODEL` | ✅ refresh가 `gpt-5.6-sol`로 설정(15:19Z) |
+| **model-refresh 티어 첫 적용** | ✅ **openai-frontier=gpt-5.6-terra(16 purpose)** · **openai-sol=gpt-5.6-sol(교차검증 전용)** · **ANTHROPIC=opus-only 5좌석**(persona_narrative·axis_estimate·persona_synthesis·digest_weekly·crosscheck_defend) — 시험 전부 통과, 적용 3건 |
+| gpt-5.6 effort enum 실측 | ⏳ 미완 — 공식 docs에서 해당 절 미노출. 다음 방법: platform.openai.com Playground(로그인 세션)에서 5.6 선택 시 effort 드롭다운 실값 읽기 |
+
+### ⚠ xai 403 — 원인 확정: 크레딧 0
+
+캐스트 픽스(#1340) 후 xai가 처음으로 실제 실행됐고 `목록 조회 실패 - xai 403`. 콘솔 실측: **xAI Billing = Credits $0.00, 결제수단 미등록, 인보이스 0** — 키 문제가 아니라 지갑이 빈 것. 키는 2개 존재(Grok 4.6 / grok, 둘 다 Last used 없음). **Q-260823-02: xAI 크레딧 충전 여부·금액 = Simon 결정**(충전+카드 등록 전엔 grok 좌석 영구 스킵. 참고: 403 시 스킵 메시지가 여전히 "키가 없어"로 뭉개짐 — 표현 수정은 선택 과제).
+
+### 오늘 마감 상태 (기타)
+
+- **Apple**: Simon이 갱신 PLA 수락 → ASC 배너 소멸 실측, **재제출 차단 해제**. 남은 병목 = 리뷰 답신(초안 유)+실기기 녹화 발송.
+- **Play**: 심사 대기(~8/28). 개발자 인증 = 완료 상태 실측(8/7자 9/30 알림은 낡은 것).
+- **Clarity 재배선 완결**: 구 ID(xb3qenit2h)는 MS 계정에 없는 유령(그간 미수신 원인) → `EXPO_PUBLIC_CLARITY_PROJECT_ID=xnzm86icuz` 교체·배포 → collect 204 실측 → **대시보드 첫 세션 반영 확인**. 가동.
+- **계측 감사**: GA4 p546045713 = A/i/W 3스트림 단일 속성 정상(Android·Web 수신 중). Firebase = GA 공급+FCM 인프라(Play 통합은 공개 후 연결). Crashlytics 미통합은 의도적(크래시=Sentry 42곳) — **Sentry 실수신 UNVERIFIED**(웹 로드 트래픽 0·대시보드 미로그인, Simon 로그인 1회 필요). AdMob 수익 배선은 공개 후 체인(스토어 연결→유닛→주입→app-ads.txt→FB 연결).
+- Anthropic auto-reload OFF 실측 — $100 실질 상한. perPurpose 후 claude 실호출 아직 0(persona 첫 실행이 C-3′ 판정).
+- **Q-260823-01: `EXPO_PUBLIC_CROSSCHECK=1` 켤지** = Simon 결정(기본 off, 해당 purpose 호출당 ~3배 비용, ready() 가드로 벤더 붕괴 차단됨).
+
+---
+
 ## Latest — 2026-08-23 / REQ 3건 완주: opus 전용·max 등급 · gpt-5.6 티어 · sol×opus 교차검증
 
 > 발행: **CLI(코딩) 세션.** 콘솔 20:2x 발주(우선순위 02 > 03 > 01)에 대한 회신.
