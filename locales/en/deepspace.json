@@ -1071,5 +1071,9 @@
     "daysWeekends": "Weekends",
     "daysShift": "Shift work",
     "daysVaries": "It varies"
-  }
+  },
+  "reviewAxisNow": "Review my Big Five",
+  "reviewAxisRelational": "Review my attachment style",
+  "reviewAxisValues": "Review my values",
+  "reviewNothingToReview": "Take one check first. There is nothing measured to review yet."
 }
