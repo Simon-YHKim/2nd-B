@@ -36,7 +36,8 @@
     "emptyAnswer": "Even one line lets us keep going.",
     "saveTitle": "Keep today’s conversation?",
     "saveBody": "What you shared is saved as it is. No estimate is invented now; the record feeds star brightness as it accumulates.",
-    "saved": "Kept."
+    "saved": "Kept.",
+    "scaffoldNote": "No problem - let's come at it another way."
   },
   "period": {
     "childhood": "Childhood",

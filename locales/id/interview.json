@@ -36,7 +36,8 @@
     "emptyAnswer": "Satu baris pun cukup untuk melanjutkan.",
     "saveTitle": "Simpan percakapan hari ini?",
     "saveBody": "Yang Anda bagikan disimpan apa adanya. Tidak ada perkiraan yang dibuat sekarang; catatan ini menyalakan bintang seiring bertambahnya.",
-    "saved": "Tersimpan."
+    "saved": "Tersimpan.",
+    "scaffoldNote": "Tidak apa-apa, kita coba dari sudut lain."
   },
   "period": {
     "childhood": "Masa kecil",

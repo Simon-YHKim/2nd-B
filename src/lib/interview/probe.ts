@@ -25,6 +25,7 @@ import {
   type ReflectionEntry,
 } from "./loop-check";
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
+import { scaffoldQuestion, shouldScaffold } from "./stuck";
 
 export type LifePeriod =
   | "childhood"
@@ -207,6 +208,9 @@ export function isPeriodComplete(c: Coverage, period: LifePeriod): boolean {
  */
 export type NextMove =
   | { kind: "drill"; layer: DrillLayer }
+  /** 사용자가 이 층을 못 답했다. **내려가지 않고** 같은 층을 더 쉬운
+   *  각도로 다시 묻는다. 그 칸은 여전히 빈 칸이다(`stuck.ts`). */
+  | { kind: "scaffold"; layer: DrillLayer }
   | { kind: "loopCheck"; finding: LoopFinding; questionKey: LoopCheckKey };
 
 export function nextMove(
@@ -214,6 +218,11 @@ export function nextMove(
   period: LifePeriod,
   recentEntries: readonly ReflectionEntry[],
   now: Date,
+  /** 직전 턴의 막힘 상태. `layer` 는 못 답한 층, `streak` 은 그 층에서
+   *  연속으로 못 답한 횟수. 없으면(null) 평소대로 내려간다. */
+  stuck: { layer: DrillLayer; streak: number } | null = null,
+  /** 발판을 다 썼는데도 막혀서 더 묻지 않기로 한 층들. */
+  abandoned: readonly DrillLayer[] = [],
 ): NextMove {
   const loops = detectLoops(recentEntries, now);
   if (loops.length > 0) {
@@ -222,21 +231,39 @@ export function nextMove(
     const finding = loops[0];
     return { kind: "loopCheck", finding, questionKey: loopCheckKeyFor(finding) };
   }
-  return { kind: "drill", layer: nextLayerSuggestion(c, period) };
+  // 되묻기보다 늦고 내려가기보다 이르다. 반복(rumination)은 안전 쪽 판단이라
+  // 먼저이고, 막힘은 그 다음이며, 둘 다 아니면 빈 칸을 찾아 내려간다.
+  if (stuck && shouldScaffold(stuck.streak)) return { kind: "scaffold", layer: stuck.layer };
+  return { kind: "drill", layer: nextLayerSuggestion(c, period, abandoned) };
 }
 
-export function nextLayerSuggestion(c: Coverage, period: LifePeriod): DrillLayer {
+export function nextLayerSuggestion(
+  c: Coverage,
+  period: LifePeriod,
+  /** 발판을 두 번 줘도 막혀서 **포기한** 층. 이번 대화에서 다시 고르지 않는다.
+   *
+   *  이게 없으면 제자리를 돌았다(실측 2026-08-24): 못 답한 칸을 일부러 안
+   *  채우는데, "가장 먼저 비어 있는 칸" 규칙이 바로 그 칸을 다시 집어서
+   *  같은 질문이 계속 나갔다. 칸은 비우되 **묻기는 멈추는** 것이 맞다. */
+  abandoned: readonly DrillLayer[] = [],
+): DrillLayer {
   const cov = c[period];
-  if (cov.fact === 0) return "fact";
+  const open = DRILL_LAYERS.filter((l) => !abandoned.includes(l));
+  // 전부 포기했으면 포기 목록을 무시한다 -- 달리 돌려줄 것이 없고,
+  // 턴 상한(MAX_TURNS)이 어차피 대화를 끝낸다.
+  const pool = open.length > 0 ? open : DRILL_LAYERS;
+
+  if (pool.includes("fact") && cov.fact === 0) return "fact";
 
   // Prefer the next *deepest* empty layer, going down the narrative.
-  const order: DrillLayer[] = ["feeling", "meaning", "belief", "echo"];
-  for (const l of order) if (cov[l] === 0) return l;
+  for (const l of ["feeling", "meaning", "belief", "echo"] as const) {
+    if (pool.includes(l) && cov[l] === 0) return l;
+  }
 
   // All non-empty. Drill into whatever is shallowest still — balance pass.
-  let best: DrillLayer = "fact";
+  let best: DrillLayer = pool[0] ?? "fact";
   let min = Infinity;
-  for (const l of DRILL_LAYERS) {
+  for (const l of pool) {
     if (cov[l] < min) {
       min = cov[l];
       best = l;
@@ -249,6 +276,8 @@ function buildSystemPrompt(
   period: LifePeriod,
   locale: "en" | "ko",
   nextLayer: DrillLayer,
+  /** 직전에 사용자가 이 층을 못 답했다. 더 깊이 가지 말고 **쉽게** 다시 물어야 한다. */
+  scaffold = false,
 ): string {
   const periodLabel = PERIOD_LABEL[locale][period];
   const layerLabel = LAYER_LABEL[locale][nextLayer];
@@ -275,6 +304,16 @@ function buildSystemPrompt(
       // 층을 내려가는 것이 이 기능의 전부인데 그러면 남는 것이 없다.
       "6) **이미 물어본 질문을 다시 하지 않습니다.** 위 기록에 있는 질문과 같은 뜻이면 다른 각도로 묻습니다.",
       `7) 이번 질문은 반드시 **${layerLabel}** 을 겨냥합니다 — ${layerGuide[nextLayer]}. 앞 단계로 되돌아가지 않습니다.`,
+      ...(scaffold
+        ? [
+            // 8 은 실측 후 추가(2026-08-24). 사용자가 "잘 모르겠는데" 라고 했는데
+            // 시스템이 더 깊은 층으로 내려갔다. 못 답한 사람에게 더 어려운 걸 묻는 꼴이다.
+            "8) **사용자가 방금 '모르겠다'고 했습니다.** 같은 단계를 더 쉬운 각도로 다시 묻습니다. "
+              + "해석을 요구하지 말고 **비교·가정·구체적인 예**로 우회합니다"
+              + "(예: '무엇을 의미했나요' → '그 일이 없었다면 뭔가 달랐을까요'). "
+              + "모르겠다는 것을 문제 삼거나 다극지 않습니다.",
+          ]
+        : []),
       "출력: 다음 질문 한 줄만. 다른 텍스트는 출력하지 않습니다.",
       INJECTION_GUARD.ko,
     ].join("\n");
@@ -298,6 +337,14 @@ function buildSystemPrompt(
     "5) If you detect crisis signals (self-harm, suicide, abuse), pivot immediately to US 988 hotline guidance.",
     "6) **Never repeat a question you already asked.** If the transcript above already covers it, come at it from a different angle.",
     `7) This question MUST target **${layerLabel}** -- ${layerGuide[nextLayer]}. Do not fall back to an earlier layer.`,
+    ...(scaffold
+      ? [
+          "8) **The user just said they don't know.** Ask the SAME layer again from an easier angle. "
+            + "Do not ask for interpretation -- go around it with a comparison, a hypothetical, or a concrete "
+            + "example (e.g. 'what did it mean' -> 'what would be different if it hadn't happened'). "
+            + "Never treat not knowing as a problem or press them about it.",
+        ]
+      : []),
     "Output: the next question on a single line. No other text.",
     INJECTION_GUARD.en,
   ].join("\n");
@@ -332,19 +379,26 @@ export async function nextProbe(
   history: InterviewTurn[],
   coverage: Coverage,
   minor = false,
+  /** 발판 모드. 0 이면 평소대로, 1 이상이면 **몇 번째 발판인지**다.
+   *  번호를 갖고 있어야 두 번째 발판이 첫 번째와 같은 문장이 되지 않는다. */
+  scaffoldStreak = 0,
+  /** 발판일 때 머물 층. 주어지면 `nextLayerSuggestion` 을 건너뛴다. */
+  forceLayer: DrillLayer | null = null,
 ): Promise<ProbeResult> {
-  const layer = nextLayerSuggestion(coverage, period);
+  // 어느 층을 물을지를 **부르는 쪽이 정할 수도 있다.** 발판이 그렇다 --
+  // 막힌 층에 그대로 머무른다. 안 주면 예전처럼 빈 칸을 찾아 내려간다.
+  const layer = forceLayer ?? nextLayerSuggestion(coverage, period);
   const res = await callLlm({
     userId,
     locale,
     purpose: "interview_probe",
-    system: buildSystemPrompt(period, locale, layer),
+    system: buildSystemPrompt(period, locale, layer, scaffoldStreak > 0),
     user: buildUserPrompt(history),
     minor,
   });
   const cleaned = res.text.trim().split("\n")[0]?.trim() ?? "";
   return {
-    question: usableQuestion(cleaned, history, layer, locale),
+    question: usableQuestion(cleaned, history, layer, locale, scaffoldStreak),
     zone: res.safety.zone,
     layer,
   };
@@ -367,13 +421,18 @@ function usableQuestion(
   history: readonly InterviewTurn[],
   layer: DrillLayer,
   locale: "en" | "ko",
+  scaffoldStreak = 0,
 ): string {
   const norm = (v: string) => v.replace(/\s+/g, " ").trim().toLowerCase();
   const asked = new Set(
     history.filter((turn) => turn.role === "interviewer").map((turn) => norm(turn.text)),
   );
   if (candidate.length > 0 && !asked.has(norm(candidate))) return candidate;
-  return LAYER_FALLBACK[locale][layer];
+  // 발판일 때 같은 층의 원래 질문을 돌려주면 방금 못 답한 그 질문을 그대로
+  // 다시 묻게 된다. 발판은 발판용 문장이 따로 있다.
+  return scaffoldStreak > 0
+    ? scaffoldQuestion(layer, locale, scaffoldStreak)
+    : LAYER_FALLBACK[locale][layer];
 }
 
 /**

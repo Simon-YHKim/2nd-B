@@ -48,6 +48,7 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { parsePeriodParam } from "@/lib/interview/periods";
+import { isNonAnswer, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { m3 } from "@/lib/theme/m3";
@@ -104,6 +105,14 @@ export default function InterviewRoute() {
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
   const [coverage, setCoverage] = useState<Coverage>(emptyCoverage);
+  /** 현재 층에서 연속으로 못 답한 횟수. 답하면 0 으로 돌아간다. */
+  const [stuckStreak, setStuckStreak] = useState(0);
+  /** 발판을 두 번 줘도 막혀서 이번 대화에서는 더 묻지 않기로 한 층들.
+   *
+   *  칸을 안 채우는 것만으로는 부족했다(실측) -- "가장 먼저 비어 있는 칸" 규칙이
+   *  바로 그 칸을 다시 집어서 같은 질문이 계속 나갔다. 밝기는 정직하게 비워두고,
+   *  묻기만 멈춘다. */
+  const [abandoned, setAbandoned] = useState<DrillLayer[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
@@ -145,12 +154,18 @@ export default function InterviewRoute() {
   );
 
   const ask = useCallback(
-    async (history: InterviewTurn[], cov: Coverage) => {
+    async (
+      history: InterviewTurn[],
+      cov: Coverage,
+      /** 직전 턴에서 못 답한 층과 그 층에서의 연속 횟수. */
+      stuck: { layer: DrillLayer; streak: number } | null = null,
+      giveUp: DrillLayer[] = [],
+    ) => {
       if (!userId) return;
       setBusy(true);
       setNotice(null);
       try {
-        const move = nextMove(cov, period, entriesOf(history), new Date());
+        const move = nextMove(cov, period, entriesOf(history), new Date(), stuck, giveUp);
         if (move.kind === "loopCheck") {
           // LLM 을 부르지 않는다. 질문이 이미 정해져 있고(리서치 원문), 여기서
           // 더 캐묻는 것이 문제이므로 방향을 바꾸는 것 자체가 답이다.
@@ -163,7 +178,18 @@ export default function InterviewRoute() {
           setNotice(t("drill.loopNote"));
           return;
         }
-        const probe = await nextProbe(userId, locale, period, history, cov, isMinor === true);
+        // 발판이면 내려가지 않고 **같은 층**을 더 쉬운 각도로 다시 묻는다.
+        //
+        // ⚠ 층은 **언제나** `move.layer` 를 넘긴다. 예전에는 발판일 때만 넘기고
+        // 평소에는 `nextProbe` 가 스스로 다시 골랐는데, 그쪽은 포기 목록을 모른다.
+        // 그래서 `nextMove` 가 "믿음으로 넘어가라"고 정해도 `nextProbe` 가 "가장 먼저
+        // 비어 있는 칸" 규칙으로 방금 포기한 의미(L3)를 도로 집었다 -- 실측 2026-08-24.
+        // 결정하는 곳은 하나여야 한다.
+        const isScaffold = move.kind === "scaffold";
+        const probe = await nextProbe(
+          userId, locale, period, history, cov, isMinor === true,
+          isScaffold && stuck ? stuck.streak : 0, move.layer,
+        );
         if (probe.zone === "red") {
           // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
           setCrisis({ visible: true, hotline: hotlineFor() });
@@ -171,6 +197,7 @@ export default function InterviewRoute() {
         }
         setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
+        if (isScaffold) setNotice(t("drill.scaffoldNote"));
       } catch {
         setNotice(t("drill.failed"));
       } finally {
@@ -243,16 +270,40 @@ export default function InterviewRoute() {
     // 그건 깊이를 판 것이 아니라 방향을 바꾼 것이므로 coverage 를 올리지 않는다.
     const answered: InterviewTurn = { role: "user", text, layer: pendingLayer ?? undefined, period };
     const nextTurns = [...turns, answered];
-    const nextCoverage = pendingLayer ? incrementCoverage(coverage, period, pendingLayer) : coverage;
+
+    // ⚠ **"모르겠다"는 칸을 채우지 않는다** (Simon 실측, 2026-08-24).
+    //
+    // 예전에는 비어 있지 않은 답이면 무조건 `incrementCoverage` 를 불렀다. 그래서
+    // "잘 모르겠는데" 가 의미(L3) 칸을 채우고, 채워졌으니 믿음(L4)으로 내려갔다.
+    // **못 판 것을 판 것으로 셀다.** 그 칸 수가 그대로 `narrativeStarLevel` 의
+    // 입력이라 등급까지 오염됐다 -- 7렌즈 감사에서 걸린 바로 그 병이다.
+    //
+    // 판정은 결정론적이고(`stuck.ts`) 보수적이다 -- 사용자가 스스로 포기를
+    // 말했을 때만 안 셀다. 밝기가 LLM 의 기분에 달려서는 안 되기 때문이다.
+    const blocked = pendingLayer !== null && isNonAnswer(text, locale);
+    const nextCoverage =
+      pendingLayer && !blocked ? incrementCoverage(coverage, period, pendingLayer) : coverage;
+    const nextStreak = blocked ? stuckStreak + 1 : 0;
+    const stuck = blocked && pendingLayer ? { layer: pendingLayer, streak: nextStreak } : null;
+    // 발판을 두 번 줘도 막햘다. 이 층은 이번 대화에서 더 묻지 않는다 -- 칸은
+    // 비운 채로. 안 그러면 비어 있다는 이유로 같은 층이 계속 다시 골라진다.
+    const nextAbandoned =
+      pendingLayer && nextStreak > MAX_SCAFFOLDS_PER_LAYER && !abandoned.includes(pendingLayer)
+        ? [...abandoned, pendingLayer]
+        : abandoned;
+
     setTurns(nextTurns);
     setCoverage(nextCoverage);
+    // 포기했으면 연속 카운터도 초기화한다 -- 다음 층은 새로 시작하는 것이 맞다.
+    setStuckStreak(nextAbandoned !== abandoned ? 0 : nextStreak);
+    setAbandoned(nextAbandoned);
     setDraft("");
     setPendingLayer(null);
     if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
       setDone(true);
       return;
     }
-    await ask(nextTurns, nextCoverage);
+    await ask(nextTurns, nextCoverage, stuck, nextAbandoned);
   }
 
   async function keepIt() {

@@ -36,7 +36,8 @@
     "emptyAnswer": "Uma linha já nos deixa continuar.",
     "saveTitle": "Guardar a conversa de hoje?",
     "saveBody": "O que você compartilhou é salvo como está. Nenhuma estimativa é inventada agora; o registro alimenta o brilho das estrelas conforme se acumula.",
-    "saved": "Guardado."
+    "saved": "Guardado.",
+    "scaffoldNote": "Tudo bem - vamos por outro caminho."
   },
   "period": {
     "childhood": "Infância",
