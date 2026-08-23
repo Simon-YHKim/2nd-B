@@ -48,7 +48,7 @@ import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { parsePeriodParam } from "@/lib/interview/periods";
-import { isNonAnswer, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
+import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { m3 } from "@/lib/theme/m3";
@@ -59,6 +59,7 @@ import {
   seedQuestion,
   emptyCoverage,
   incrementCoverage,
+  decrementCoverage,
   nextMove,
   nextProbe,
   type Coverage,
@@ -167,6 +168,8 @@ export default function InterviewRoute() {
       /** 직전 턴에서 못 답한 층과 그 층에서의 연속 횟수. */
       stuck: { layer: DrillLayer; streak: number } | null = null,
       giveUp: DrillLayer[] = [],
+      /** 방금 크레딧을 준 층. 모델이 거부하면 이 칸을 되돌린다. */
+      credited: DrillLayer | null = null,
     ) => {
       if (!userId) return;
       setBusy(true);
@@ -201,6 +204,31 @@ export default function InterviewRoute() {
           // C9: 텍스트가 아니라 핫라인. 대화는 여기서 멈춘다.
           setCrisis({ visible: true, hotline: hotlineFor() });
           return;
+        }
+        // ⚠ 모델의 **거부권**. 직전 답이 그 층에 안 닿았다고 하면 방금 준 크레딧을
+        // 물린다. 반대는 없다 — 모델이 "닿았다"고 해도 그것만으로 칸을 채우지 않는다.
+        // (`isNonAnswer` 가 이미 결정론적 바닥이고, 모델은 그 위에서 깎기만 한다.)
+        //
+        // 이렇게 두는 이유: 밝기가 **부풀면** 거짓말이 되고 **덜 차면** 그냥 덜 찬
+        // 것이다. 그래서 모델에게 줄 수 있는 권한은 여기까지다. "이게 지금
+        // 드릴다운이야??" 같은 메타 항의를 잡는 것이 이 경로다.
+        if (credited && probe.answeredLayer === null) {
+          const undone = decrementCoverage(cov, period, credited);
+          const streak = (stuck?.streak ?? 0) + 1;
+          setCoverage(undone);
+          setStuckStreak(streak);
+          if (shouldScaffold(streak)) {
+            setTurns([
+              ...history,
+              { role: "interviewer", text: scaffoldQuestion(credited, locale, streak), layer: credited, period },
+            ]);
+            setPendingLayer(credited);
+            setNotice(t("drill.scaffoldNote"));
+            return;
+          }
+          // 발판을 다 썼다. 모델이 낸 질문을 그대로 쓰되 그 층은 포기한다.
+          setAbandoned((prev) => (prev.includes(credited) ? prev : [...prev, credited]));
+          setStuckStreak(0);
         }
         setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
@@ -310,7 +338,7 @@ export default function InterviewRoute() {
       setDone(true);
       return;
     }
-    await ask(nextTurns, nextCoverage, stuck, nextAbandoned);
+    await ask(nextTurns, nextCoverage, stuck, nextAbandoned, blocked ? null : pendingLayer);
   }
 
   async function keepIt() {
