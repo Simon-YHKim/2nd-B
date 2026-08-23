@@ -48,8 +48,29 @@
 > | 경로 | 위치 | 상태 |
 > |---|---|---|
 > | ~~**임베딩**~~ | `boundary.ts` 의 `op:"embed"` 호출 | **✅ 2026-08-24 해소** — `EXPO_PUBLIC_EMBED_VENDOR` 신설 + openai-proxy 에 `op:'embed'` 좌석. **단 플립은 재색인을 동반해야 한다(아래)** |
-> | **서버 안전 분류** | `safety.ts` 의 `classifyViaProxy` | `EXPO_PUBLIC_SERVER_SAFETY` 기본 off 라 **휴면** |
-> | **D-26 outage failover** | `callLlm` | 폴백 대상이 `gemini-proxy` 하드코딩 |
+> | ~~서버 안전 분류~~ | `safety.ts` 의 `classifyViaProxy` | **✅ 2026-08-24 해소** — `EXPO_PUBLIC_SAFETY_VENDOR`(gemini·openai 만) |
+> | ~~**D-26 outage failover**~~ | `callLlm` · advisor | **✅ 2026-08-24 해소** — `EXPO_PUBLIC_FAILOVER_VENDOR`(+`none`) |
+>
+> ### ✅ 클라이언트 쪽 9월 작업은 끝났다 (2026-08-24)
+>
+> `gemini-proxy` 를 **이름으로 부르는 곳이 client 소스에 더 이상 없다.** 남은 등장은
+> `routing.ts` 의 `LlmProxyFn` 유니온과 `proxyFnForVendor` 기본값뿐이고, 그 둘은
+> **해석기 자체**지 해석기를 우회하는 곳이 아니다.
+>
+> **둘 다 9월에 시끄럽게 깨지지 않는다** — 그래서 기다려서는 못 찾는다:
+>
+> | | 죽은 키에서 벌어지는 일 |
+> |---|---|
+> | outage failover | 재시도가 **반드시 두 번째 실패**가 된다. 매 오류가 왕복을 한 번 더 쓰고 **호출자는 진짜 오류 대신 Gemini 오류를 받는다** |
+> | 안전 분류 | 예외를 다 삼키고 `null` 을 돌려주므로 **조용히 어휘 전용이 된다.** 9월에 그 기능을 켜면 **켜졌다고 보고하면서 아무것도 분류하지 않는다** |
+>
+> `EXPO_PUBLIC_FAILOVER_VENDOR` 에 **`none`** 이 있는 이유: Gemini 가 사라지면 남는 후보가
+> **방금 실패한 그 벤더**거나 **장애 중에 opus 가격을 내는 것**뿐이다. **끄는 것이 정당한
+> 답이라서 표현 가능하게** 했다.
+>
+> ⚠ `EXPO_PUBLIC_SAFETY_VENDOR` 는 **gemini·openai 만** 받는다. 좌석이 있는 것으로는
+> 부족하고 **`LLM_SERVER_SAFETY_SEAT` 면제**도 있어야 한다 — 없으면 프록시 자신의 위기
+> 게이트가 **분류기가 읽어야 할 바로 그 메시지를 422 로 막는다.**
 >
 > ### ⚠ 임베딩 벤더 전환은 **스위치 하나로 끝나지 않는다**
 >
@@ -269,7 +290,7 @@ PURPOSE_ROUTE[purpose] = {
 - **기본값(미설정/`=gemini`) = 100% Gemini($0)** — 현재 상태.
 - **롤백(즉시 $0)**: `EXPO_PUBLIC_LLM_VENDOR=gemini`.
 - 모델 선택은 서버 env(`ANTHROPIC_MODEL`/`OPENAI_MODEL` + `*_PURPOSE_MODELS`)로 이미 가능 — 클라 스위치는 벤더(프록시)만 고른다(C1).
-- outage failover(벤더 오류 → gemini-proxy 1회 재시도)는 유지 → 벤더 미펀딩이어도 fail-safe.
+- ~~outage failover(벤더 오류 → gemini-proxy 1회 재시도)는 유지~~ → **2026-08-24 정정**: 대상이 `EXPO_PUBLIC_FAILOVER_VENDOR` 가 됐다. Gemini 가 죽으면 그 재시도는 fail-safe 가 아니라 **보장된 두 번째 실패**다.
 - 테스트: `vendor-routing.test.ts`(스위치 전 분기) + `vendor-routing-live.test.ts`(=claude → claude-proxy 배선).
 
 **나중에 유료 벤더 켤 때 (전환 런북 — 지금 실행 X):**
