@@ -29,7 +29,7 @@
   "withdrawCta": "Retirar minha resposta",
   "withdrawAnytime": "Você pode retirar quando quiser abrindo este link de novo.",
   "subjectTitle": "Perguntar a quem me conhece",
-  "subjectIntro": "Envie um link de uso único. Quando três ou mais responderem, o retrato combinado aparece na sua lente Visto; você nunca vê respostas individuais.",
+  "subjectIntro": "Envie um link de uso único. Quando três ou mais responderem, o retrato combinado aparece em Como me veem; você nunca vê respostas individuais.",
   "labelField": "Apelido para esta pessoa (só você vê)",
   "kind": {
     "friend": "Amizade",
@@ -53,7 +53,7 @@
   },
   "revokeCta": "Revogar",
   "shareMessage": "Você responderia três perguntas rápidas sobre como me vê? Um minuto:",
-  "aggregateNote": "As respostas aparecem apenas como retrato combinado de três ou mais pessoas, na lente Visto.",
+  "aggregateNote": "As respostas aparecem apenas como retrato combinado de três ou mais pessoas, em Como me veem.",
   "withdrawError": "Não foi possível retirar. Sua resposta ainda está compartilhada. Tente novamente em instantes.",
   "revokeFailed": "Não foi possível revogar. O link do convite continua ativo. Tente novamente."
 }

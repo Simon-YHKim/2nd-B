@@ -1,9 +1,41 @@
-// The seven self-understanding stars (lenses) - the evidence axes whose
-// aggregate brightness IS the Soul Core (북극성) readout. Canon: CONTEXT.md
-// "The 7 self-understanding stars". Stars are evidence axes; the 5 Pattern
-// Cores are domain lenses (a separate concept). Roles / Action / Knowledge are
-// NOT stars - they are the north-star goal-tree. "지금의 나" is star 1 (a tool);
-// the Soul Core is the AGGREGATE of all seven, not itself a star.
+// ⚠ **이것은 별이 아니다 — 검증층이다.** (2026-08-24 정정)
+//
+// 파일 이름과 아래 타입 이름이 `stars` 라서 세션마다 오해가 재생산됐다. 홈
+// 별자리에 그려지는 일곱은 **`persona/seven-stars.ts`** 다(프로필·영유아기·
+// 학창시절·20대·30대 이후·직장·지금). 여기 있는 일곱은 화면에 별로 뜨지 않는다.
+//
+// ── 그럼 이건 뭔가 ─────────────────────────────────────────────────────
+//
+// **측정 도구가 붙은 심리 구인들이다.** 셋은 진짜 계기가 있다:
+//
+//   now         Big Five (BFI-44 / IPIP-NEO-120)
+//   relational  애착 (ECR-S)
+//   values      가치 프레임워크
+//
+// 그리고 그 셋이 **propose->ratify 의 근거**다(`ratifiable.ts`). 사용자가
+// "그건 아닌데요" 라고 말할 수 있는 앱의 유일한 자리가 이것들 위에 서 있다.
+// 그래서 **지우지 않는다.** 지우면 비준 루프가 근거를 잃는다.
+//
+// ⚠ 반대로 나머지 넷(recall·seen·rhythm·possible)은 2026-08-15 감사에서
+// "구인이 아니라 행이 들어왔는가를 쟀다"고 확인된 쪽이다. 새 판단의 근거로
+// 인용하지 말 것.
+//
+// ── 이름이 겹친다 ──────────────────────────────────────────────────────
+//
+// `now` 가 여기(지금의 나 = 특성 상태)에도 있고 새 별(지금 = 현재의 나를
+// 알아가는 자리)에도 있다. **글자가 같고 뜻이 다르다.** 원장
+// (`star_tier_history.star_id`)에서 둘을 가르는 것은 `seven:` 접두사다
+// (`seven-tier-history.ts`). 그 접두사를 떼면 조용히 틀린다 -- 예외도 안 나고
+// 화면도 안 죽는다.
+//
+// ── 원래 헤더 (역사 기록) ──────────────────────────────────────────────
+//
+// > The seven self-understanding stars (lenses) - the evidence axes whose
+// > aggregate brightness IS the Soul Core (북극성) readout. ... "지금의 나" is
+// > star 1 (a tool); the Soul Core is the AGGREGATE of all seven, not itself a star.
+//
+// 그 서술의 마지막 절(북극성 = 일곱의 집계)은 **더 이상 사실이 아니다.**
+// 북극성은 이제 새 별 여섯의 평균이다(`north-star.ts`, 캐논이 목록을 갖는다).
 
 import { type LadderLevel, brightnessFraction } from "./brightness";
 

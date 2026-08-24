@@ -29,7 +29,7 @@
   "withdrawCta": "Retirar mi respuesta",
   "withdrawAnytime": "Puedes retirarla cuando quieras abriendo este enlace.",
   "subjectTitle": "Preguntar a quienes me conocen",
-  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más, la imagen combinada aparece en tu lente Visto; nunca ves respuestas individuales.",
+  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más, la imagen combinada aparece en Cómo me ven; nunca ves respuestas individuales.",
   "labelField": "Apodo para esta persona (solo tú lo ves)",
   "kind": {
     "friend": "Amistad",
@@ -53,7 +53,7 @@
   },
   "revokeCta": "Revocar",
   "shareMessage": "¿Responderías tres preguntas rápidas sobre cómo me ves? Un minuto:",
-  "aggregateNote": "Las respuestas aparecen solo como imagen combinada de tres o más personas, en la lente Visto.",
+  "aggregateNote": "Las respuestas aparecen solo como imagen combinada de tres o más personas, en Cómo me ven.",
   "withdrawError": "No se pudo retirar. Tu respuesta sigue compartida. Inténtalo de nuevo en un momento.",
   "revokeFailed": "No se pudo revocar. El enlace de invitación sigue activo. Inténtalo de nuevo."
 }
