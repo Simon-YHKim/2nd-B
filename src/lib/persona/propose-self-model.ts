@@ -36,6 +36,9 @@ export const SELF_MODEL_PROPOSAL_SCHEMA = {
 
 function targetLabel(target: ProposalTarget): string {
   if (target.kind === "star") return `self-understanding star "${target.star}"`;
+  // 시기 별 — 프롬프트가 "그 시기의 나"를 요약하도록 라벨부터 가른다. 이 분기가
+  // 없으면 아래 폴백이 조용히 "philosophy sentence" 로 라벨해 제안이 엉뚱해진다.
+  if (target.kind === "sevenStar") return `life-period star "${target.star}"`;
   if (target.kind === "soulCore") return "North Star aggregate reading";
   return "north-star philosophy sentence";
 }

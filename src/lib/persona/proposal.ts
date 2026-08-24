@@ -9,11 +9,16 @@
 import { containsForbiddenLexicon } from "../safety/classifier";
 import type { LadderLevel } from "./brightness";
 import type { StarId } from "./stars";
+import type { SevenStarId } from "./seven-stars";
 
 // What a proposal can target. Internal DB keys stay frozen; this is the
 // self-model surface the AI may suggest a change to.
 export type ProposalTarget =
-  | { kind: "star"; star: StarId } // a self-understanding axis estimate
+  | { kind: "star"; star: StarId } // a self-understanding axis estimate (OLD axes — 검증층)
+  // 2026-08-25: 새 일곱 별(시기 별)의 요약 제안. 옛 kind:"star" 와 병렬로 둔다 —
+  // 옛 축 비준(검사 기반)은 그대로 살아 있고, 이쪽은 인터뷰 기반이다.
+  // ⚠ 원장에 적을 때 이 star 는 반드시 seven: 접두사를 타야 한다(recordSevenTiers).
+  | { kind: "sevenStar"; star: SevenStarId }
   | { kind: "soulCore" } // the aggregate (북극성) reading
   | { kind: "northStar" }; // the 0th-brain philosophy sentence
 

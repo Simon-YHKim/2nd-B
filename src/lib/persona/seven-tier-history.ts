@@ -28,6 +28,7 @@
 import { captureEvent, starLit } from "../analytics";
 import { getSupabaseClient } from "../supabase/client";
 import type { LadderLevel } from "./brightness";
+import { sanitizeCitations } from "./record-star-tiers";
 import { isSevenStarId, type SevenStarId } from "./seven-stars";
 
 export const SEVEN_TIER_PREFIX = "seven:";
@@ -62,6 +63,9 @@ export async function recordSevenTiers(
   userId: string,
   levels: Partial<Record<SevenStarId, LadderLevel>>,
   origin: "rebuild" | "ratify" | "interview" = "interview",
+  // 비준 인용(0060). 쓰기 경계에서 sanitize 하므로 모델이 지어낸 문자열은
+  // 원장에 도달하지 못한다 -- record-star-tiers 의 규율 그대로.
+  citations?: readonly string[],
 ): Promise<void> {
   if (!userId) return;
   const entries = Object.entries(levels) as [SevenStarId, LadderLevel][];
@@ -86,12 +90,14 @@ export async function recordSevenTiers(
       // 직전 값 없이 간다 -- 전부 기본 L1 로 본다.
     }
 
+    const cleanCitations = sanitizeCitations(citations);
     await supabase.from("star_tier_history").insert(
       entries.map(([id, level]) => ({
         user_id: userId,
         star_id: tierKey(id),
         level,
         evidence_origin: origin,
+        ...(cleanCitations ? { evidence_citations: cleanCitations } : {}),
       })),
     );
 
