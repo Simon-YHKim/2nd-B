@@ -21,16 +21,17 @@ import { captureEvent, proposalDecided } from "@/lib/analytics";
 import { RatifySheet } from "@/components/persona/RatifySheet";
 import { loadTierShifts } from "@/lib/persona/load-tier-shifts";
 import { tierShiftNudge, type TierShift } from "@/lib/persona/tier-history";
-import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
+import { resolveStarName } from "@/lib/persona/star-name";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
 import { reactExpression } from "@/lib/companion/expression";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceReviewScreen } from "@/screens/deepspace/DeepSpaceDesignScreens";
 
-function starName(id: TierShift["starId"], locale: "en" | "ko"): string {
-  const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === id);
-  return star ? (locale === "ko" ? star.nameKo : star.nameEn) : id;
-}
+// 2026-08-25 fix: the nudge used to resolve names from SELF_UNDERSTANDING_STARS
+// only, so a `seven:` ledger row leaked its raw id into the nudge sentence.
+// resolveStarName knows both systems; the seven-star branch is filled in at the
+// call site where t() is in scope.
+
 
 type ReviewCopyLocale = "en" | "ko" | "es" | "pt" | "id";
 
@@ -170,7 +171,9 @@ function ReviewScreenLegacy() {
 
   // D9 re-check nudge, evidence-aware (0060): surfaces how many real records
   // back the shifted stars. Pure helper so the string logic stays tested.
-  const nudge = tierShiftNudge(shifts, locale, starName);
+  const nudge = tierShiftNudge(shifts, locale, (id, loc) =>
+    resolveStarName(id, loc, (key) => t(`home:ds.star.${key}`)),
+  );
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
