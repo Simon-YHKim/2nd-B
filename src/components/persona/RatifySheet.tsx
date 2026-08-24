@@ -49,6 +49,9 @@ export function RatifySheet({
 
           <Text variant="subtle" color="textMuted" style={styles.rationale}>{d.rationale}</Text>
           <Text variant="caption" color="textSubtle" style={styles.note}>{d.ratifyNote}</Text>
+          {/* 저항 존중(세션 01): 제안은 거울이지 정체성이 아니다. 이 한 줄이
+              "거절해도 된다"를 명시해서, 밀어내는 것도 정당한 사용이 된다. */}
+          <Text variant="caption" color="textSubtle" style={styles.note}>{d.mirrorNote}</Text>
 
           <View style={styles.actions}>
             <Button label={d.declineLabel} variant="secondary" onPress={() => onDecision("decline")} />

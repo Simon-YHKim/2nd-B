@@ -37,7 +37,8 @@
     "saveTitle": "¿Guardamos la conversación de hoy?",
     "saveBody": "Lo que compartiste se guarda tal cual. No se inventa ninguna estimación ahora; el registro alimenta el brillo de las estrellas a medida que se acumula.",
     "saved": "Guardado.",
-    "scaffoldNote": "No pasa nada, lo vemos desde otro ángulo."
+    "scaffoldNote": "No saber está bien. \"No lo sé\" también es un dato. Probemos otro ángulo.",
+    "intro": "No hace falta pulir las respuestas. \"No lo sé\" también es un dato."
   },
   "period": {
     "childhood": "Infancia",

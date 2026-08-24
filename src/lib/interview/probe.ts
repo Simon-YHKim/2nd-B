@@ -122,16 +122,16 @@ export const LAYER_LABEL: Record<"en" | "ko", Record<DrillLayer, string>> = {
 // 시기 별에서는 "그때 어떤 사람이었나", 직장 별에서는 "일하는 나"를 묻는다.
 const SEED_QUESTION: Record<"en" | "ko", Record<LifePeriod, string>> = {
   en: {
-    infancy: "What's the earliest scene you can picture - even if it's a story your family told you?",
-    school: "Of your school years, what's the moment you still come back to in your head?",
+    infancy: "Pick one early sensation - light, a smell, a sound, how your body sat. It doesn't have to make sense. What comes up?",
+    school: "Go back to your school years: what sense arrives first? The room's smell, the sounds, the seat you sat in - anything counts.",
     twenties: "What's something from your twenties that you almost never tell anyone?",
     later: "Since turning thirty, what changed in you that you didn't expect?",
     work: "Think of a day at work you still remember. What was happening?",
     now: "What's the thing you'd say first if I asked, 'what's really going on for you right now?'",
   },
   ko: {
-    infancy: "가장 어릴 때 떠오르는 장면이 뭔가요? 가족한테 들은 이야기여도 괜찮아요.",
-    school: "학창시절 중에서, 머릿속에 여전히 자주 돌아오는 한 장면은?",
+    infancy: "아주 어릴 때의 감각 하나만 떠올려 볼까요? 빛, 냄새, 소리, 몸의 자세. 말이 안 되어도 괜찮아요.",
+    school: "학창시절로 돌아가면 먼저 오는 감각이 뭔가요? 교실 냄새, 복도의 소리, 그때 앉아 있던 자리 같은 것들요.",
     twenties: "20대에 거의 누구에게도 말하지 않은 무언가가 있다면 무엇인가요?",
     later: "서른을 넘기고 나서 생각지 못하게 달라진 것이 있다면 무엇인가요?",
     work: "아직도 기억나는 회사에서의 하루가 있다면, 그날 무슨 일이 있었나요?",

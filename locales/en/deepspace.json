@@ -491,7 +491,7 @@
   },
   "reviewNoChange": "No change to propose right now.",
   "reviewLoadError": "Couldn't load a proposal. Try again.",
-  "reviewLeftAsIs": "Left as is for now.",
+  "reviewLeftAsIs": "Folded. This proposal was not applied and leaves no record.",
   "reviewGetProposal": "Get a proposal",
   "reviewReopenProposal": "Reopen the proposal",
   "reviewLoading": "Loading…",

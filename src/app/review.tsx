@@ -48,31 +48,31 @@ const REVIEW_COPY: Record<
     lede: "Your assistant proposes a next step from your records. It applies only when you ratify.",
     loadError: "Couldn't load a proposal. Try again.",
     ratified: (level) => `Ratified - moved to actionable (L${level}).`,
-    declined: "Left as is for now.",
+    declined: "Folded. This proposal was not applied and leaves no record.",
   },
   ko: {
     lede: "비서가 기록을 보고 다음 한 걸음을 제안해요. 승인할 때만 반영돼요.",
     loadError: "제안을 불러오지 못했어요. 다시 시도해 주세요.",
     ratified: (level) => `승인됐어요 - 실행가능(L${level})으로 올라갔어요.`,
-    declined: "이번엔 그대로 둘게요.",
+    declined: "접어둘게요. 이 제안은 반영되지 않았고, 기록에 남지 않습니다.",
   },
   es: {
     lede: "Tu asistente propone un siguiente paso a partir de tus registros. Solo se aplica cuando lo ratificas.",
     loadError: "No se pudo cargar una propuesta. Inténtalo de nuevo.",
     ratified: (level) => `Ratificado - pasó a accionable (L${level}).`,
-    declined: "Se deja como está por ahora.",
+    declined: "Guardado. Esta propuesta no se aplicó y no deja registro.",
   },
   pt: {
     lede: "Seu assistente propõe um próximo passo a partir dos seus registros. Só é aplicado quando você ratifica.",
     loadError: "Não foi possível carregar uma proposta. Tente novamente.",
     ratified: (level) => `Ratificado - passou para acionável (L${level}).`,
-    declined: "Mantido como está por enquanto.",
+    declined: "Recolhido. Esta proposta não foi aplicada e não deixa registro.",
   },
   id: {
     lede: "Asisten Anda mengusulkan langkah berikutnya dari catatan Anda. Ini hanya berlaku saat Anda meratifikasinya.",
     loadError: "Tidak dapat memuat usulan. Coba lagi.",
     ratified: (level) => `Diratifikasi - naik ke dapat ditindaklanjuti (L${level}).`,
-    declined: "Dibiarkan seperti semula untuk saat ini.",
+    declined: "Disimpan. Usulan ini tidak diterapkan dan tidak meninggalkan catatan.",
   },
 };
 
