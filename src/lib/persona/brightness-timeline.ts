@@ -4,14 +4,18 @@
 // Pure and tested; the supabase read lives in load-tier-observations.ts.
 
 import type { LadderLevel } from "./brightness";
-import type { StarId } from "./stars";
+// ⚠ 별 id 는 `string` 이다. 2026-08-24 에 별 체계가 갈리면서 이 원장에는 두 벌이
+// 섞여 있다 -- 옛 자기이해 축(`now`·`recall`…)과 새 일곱(`seven:now`·`seven:school`…).
+// 여기서 어느 한쪽으로 좁히면 나머지 한쪽이 조용히 사라진다. 이 모듈들이 하는 일은
+// **id 로 묶어 주 단위로 펴는 것**뿐이라 별의 정체를 알 필요가 없다 -- 이름은
+// 화면이 `nameOf` 로 붙인다.
 import type { TierObservation } from "./tier-history";
 
 export const TIMELINE_WEEKS = 8;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface StarTimeline {
-  starId: StarId;
+  starId: string;
   /** Level at each week's end (carry-forward); null before the first observation. */
   levels: (LadderLevel | null)[];
 }
@@ -47,7 +51,7 @@ export function buildBrightnessTimeline(
   const windowEnds: number[] = Array.from({ length: weeks }, (_, i) => end - (weeks - 1 - i) * WEEK_MS);
   const weekStarts = windowEnds.map((t) => new Date(t - WEEK_MS).toISOString().slice(0, 10));
 
-  const byStar = new Map<StarId, TierObservation[]>();
+  const byStar = new Map<string, TierObservation[]>();
   for (const o of observations) {
     const arr = byStar.get(o.star_id) ?? [];
     arr.push(o);
@@ -86,7 +90,7 @@ export function buildBrightnessTimeline(
 }
 
 export interface RatificationEntry {
-  starId: StarId;
+  starId: string;
   level: LadderLevel;
   /** The star's level before this observation; null for its first record. */
   prevLevel: LadderLevel | null;
@@ -98,7 +102,7 @@ export interface RatificationEntry {
 /** Newest-first ratification log: every persisted observation with its delta. */
 export function buildRatificationLog(observations: readonly TierObservation[]): RatificationEntry[] {
   const sorted = [...observations].sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
-  const lastByStar = new Map<StarId, LadderLevel>();
+  const lastByStar = new Map<string, LadderLevel>();
   const entries: RatificationEntry[] = [];
   for (const o of sorted) {
     entries.push({

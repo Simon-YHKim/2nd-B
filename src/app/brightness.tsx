@@ -15,23 +15,24 @@ import { MdButton, MdCard, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
-import { SELF_UNDERSTANDING_STARS } from "@/lib/persona/stars";
-import type { StarId } from "@/lib/persona/stars";
+import { isSevenTierKey, resolveStarName } from "@/lib/persona/star-name";
 import { loadTierObservations } from "@/lib/persona/load-tier-observations";
 import { buildBrightnessTimeline, type BrightnessTimeline } from "@/lib/persona/brightness-timeline";
 import type { TierObservation } from "@/lib/persona/tier-history";
 import { tierShiftNudge, detectTierShift } from "@/lib/persona/tier-history";
 
-const starName = (starId: StarId, locale: "en" | "ko"): string => {
-  const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === starId);
-  return star ? (locale === "ko" ? star.nameKo : star.nameEn) : starId;
-};
+
 
 /** Level 1..5 -> cell opacity (mirrors the constellation's dim->bright ladder). */
 const CELL_OPACITY: Record<number, number> = { 1: 0.16, 2: 0.32, 3: 0.5, 4: 0.72, 5: 1 };
 
 export default function BrightnessTimelineScreen() {
   const { t, i18n } = useTranslation("brightness");
+  const { t: tHome } = useTranslation("home");
+  // 이름은 홈 별자리와 **같은 키**에서 온다. 화면마다 다른 이름을 배우면
+  // 사용자는 같은 별을 두 개로 안다.
+  const starName = (starId: string, locale: "en" | "ko") =>
+    resolveStarName(starId, locale, (key) => tHome(`ds.star.${key}`));
   const { userId, loading } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
@@ -41,7 +42,10 @@ export default function BrightnessTimelineScreen() {
     if (!userId) return;
     let alive = true;
     loadTierObservations(userId).then((rows) => {
-      if (alive) setObservations(rows);
+      // ⚠ 옛 자기이해 축의 행을 걸러낸다. 원장에는 두 체계가 섞여 있고(945건이
+      // 옛 축), 섞어서 그리면 사용자가 모르는 별 일곱 줄이 새 일곱 위에 겹친다.
+      // 지우지는 않는다 -- 안 보일 뿐이고, 은퇴는 4단계에서 한다.
+      if (alive) setObservations(rows.filter((r) => isSevenTierKey(r.star_id)));
     });
     return () => {
       alive = false;

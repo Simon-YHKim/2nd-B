@@ -20,6 +20,19 @@ describe("deep-space home brightness auth gate", () => {
   });
 
   test("the brightness effect re-fires when the session restore settles", () => {
-    expect(SRC).toMatch(/\}, \[loading, userId\]\);/);
+    // 2026-08-24: 의존 배열이 정확히 `[loading, userId]` 여야 한다고 박혀 있었다.
+    // 그러면 **다른 이유로 다시 읽는 것**을 영원히 막는다 — 인터뷰를 마치고
+    // 돌아왔을 때 밝기를 갱신하려면 방아쇠가 하나 더 필요했다. 지키려던 것은
+    // 배열의 길이가 아니라 `loading` 이 그 안에 있다는 사실이므로, 그 사실만 잰다.
+    const deps = /\}, \[([^\]]*)\]\);/.exec(SRC)?.[1] ?? "";
+    expect(deps).toContain("loading");
+    expect(deps).toContain("userId");
+  });
+
+  test("화면에 돌아올 때 다시 읽는다 (인터뷰가 판 자리가 하늘에 떠야 한다)", () => {
+    // 홈은 한 번 뜬 뒤 마운트된 채로 남는다. 이게 없으면 앱을 껐다 켜야 별이
+    // 밝아진다 — 판 보람이 없는 하늘이 된다.
+    expect(SRC).toMatch(/useFocusEffect\(/);
+    expect(SRC).toMatch(/setRefreshTick\(/);
   });
 });

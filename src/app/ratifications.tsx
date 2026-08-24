@@ -30,8 +30,8 @@ type Tx = (key: string, options?: Record<string, unknown>) => string;
 
 // Star names resolve through home:ds.home.starName.<id> (all five locales);
 // the SELF_UNDERSTANDING_STARS nameKo/nameEn pair only ever covered two.
-const starName = (starId: StarId, t: Tx): string => {
-  const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === starId);
+const starName = (starId: string, t: Tx): string => {
+  const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === (starId as StarId));
   return star ? t(`home:ds.home.starName.${star.id}`) : starId;
 };
 
