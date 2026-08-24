@@ -449,6 +449,10 @@ export default function InterviewRoute() {
           </>
         ) : (
           <>
+            {/* 세션 01 실증: 시작 규칙을 먼저 선언하면 답을 꾸미려는 압력이
+                줄어든다. "모르겠다도 데이터" -- isNonAnswer 가 처리만 하고
+                말은 안 하던 것을 여기서 말한다. */}
+            <Text style={[m3TextStyle("bodySmall"), styles.introNote]}>{t("drill.intro")}</Text>
             {turns.map((turn, i) =>
               turn.role === "interviewer" ? (
                 <View key={i} style={styles.askRow}>
@@ -565,6 +569,7 @@ const styles = StyleSheet.create({
   mine: { maxWidth: "88%", padding: spacing.sm },
   mineText: { color: m3.color.onSurfaceVariant },
   thinking: { color: m3.color.onSurfaceVariant },
+  introNote: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm, textAlign: "center" },
   notice: { color: m3.color.tertiary },
   turnLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.xs },
   input: {

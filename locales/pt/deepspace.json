@@ -491,7 +491,7 @@
   },
   "reviewNoChange": "Nenhuma mudança a propor agora.",
   "reviewLoadError": "Não conseguimos carregar uma proposta. Tente de novo.",
-  "reviewLeftAsIs": "Deixado como está por enquanto.",
+  "reviewLeftAsIs": "Recolhido. Esta proposta não foi aplicada e não deixa registro.",
   "reviewGetProposal": "Receber uma proposta",
   "reviewReopenProposal": "Reabrir a proposta",
   "reviewLoading": "Carregando…",

@@ -491,7 +491,7 @@
   },
   "reviewNoChange": "Belum ada perubahan untuk diusulkan saat ini.",
   "reviewLoadError": "Tidak dapat memuat usulan. Coba lagi.",
-  "reviewLeftAsIs": "Dibiarkan apa adanya untuk sekarang.",
+  "reviewLeftAsIs": "Disimpan. Usulan ini tidak diterapkan dan tidak meninggalkan catatan.",
   "reviewGetProposal": "Dapatkan usulan",
   "reviewReopenProposal": "Buka lagi usulan",
   "reviewLoading": "Memuat…",
