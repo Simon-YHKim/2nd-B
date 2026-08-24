@@ -1,562 +1,291 @@
-# PRD — 2nd-Brain (상세)
+# PRD — 2nd-Brain (Draft v4)
 
 > Product Requirements Document. 제품의 "무엇을·누구를 위해·어떤 기준으로" 를 한 곳에 모은
 > 단일 진입점. 구현 세부는 `docs/ARCHITECTURE.md`, 강제 조항은 `docs/CONSTRAINTS.md`,
-> 별자리 모델 상세 설계는 `docs/CONSTELLATION-DESIGN.md`.
+> 시각 이주는 `docs/PIXEL-CLAY-MIGRATION.md`. **충돌 시 저장소 루트 `CLAUDE.md` 의 최신
+> 절이 이 문서를 이긴다** — v3 시절에는 반대였는데, 그 사이 CLAUDE.md 가 결정을 먼저
+> 받아 적는 문서가 됐다.
 
 | 항목 | 값 |
 |---|---|
-| Status | Draft v3 (2026-06-25 별자리 3-레이어 정본화) |
+| Status | **Draft v4 (2026-08-25 — 일곱 한 벌 정본화)** |
 | Owner | Simon Kim (solo build) |
-| Last updated | 2026-06-25 |
-| Deadline | 2026-08-17 06:00 KST (Build with Gemini XPRIZE 제출) |
-| Track | XPRIZE — Education & Human Potential |
+| Last updated | 2026-08-25 |
+| Deadline | **없음.** XPRIZE 는 2026-08-15 종료 — 마감·심사자·규정은 무효한 판단 근거 |
+| 시각 방향 | **PIXEL-CLAY v4** (M3-deepspace 는 출발점) — `docs/PIXEL-CLAY-MIGRATION.md` |
 
-> ## 0. ⚠️ 방향 전환 (2026-06-25, Simon 결정 → 설계 완료)
+> ## 0. v3 → v4 에서 뒤집힌 것 (2026-06-25 → 2026-08-25)
 >
-> 이 PRD 는 **"core" 세계관 폐기 + 별자리 단일 모델**을 정본화한다. 핵심 두 결정:
+> v3 를 읽고 온 사람이 가장 먼저 알아야 할 네 가지. **v3 의 해당 서술은 전부 무효다.**
 >
-> 1. **core 폐기** — Soul Core 중심의 **5 Pattern Core** 계층(Bond/Wisdom/Narrative/Muse/
->    Growth + Pattern Tesseract + 마을 그래프 + `/core-brain`)을 디자인·세계관에서 제거.
->    세계관은 **별자리(북극성 + 홈의 6 도메인 별 + Museum portal)** 하나로 단일화. 북극성은
->    7 도메인 데이터를 종합하는 길잡이 별로 유지하되 **'Soul Core' 명칭은 뗀다**. 홈 헤드라인
->    밝기는 2026-07-29 Simon 결정에 따라 화면에 그리는 6 도메인만 평균한다.
-> 2. **별자리 단일 홈** — 별자리 화면이 유일한 홈/네비게이션. 별을 탭하면 해당 도메인/기능으로
->    진입. 기존 4탭 셸·마을 그래프·`/core-brain` 은 폐기하되 담기·세컨비·검사·위키·설정 등
->    **기능은 별/북극성 하위 진입점으로 재배치해 보존**한다.
->
-> **3-레이어로 설계 확정 (이 PRD §4; 상세 = `docs/CONSTELLATION-DESIGN.md` §1~§5):** 두 7축 정의
-> ("심리구인 7축" vs "삶의 도메인 7개")을 해소 — **7 도메인 = 입력·분류 모델(레이어 A)**,
-> 홈에는 그중 6 도메인만 별로 렌더하고 `collect`는 비가시 intake/routing 도메인으로 둔다. 기존
-> 심리구인은 **북극성 출력의 검증 레이어(레이어 B)**, **북극성 = 종합 출력(레이어 C)** 이다.
->
-> **문서·코드 부채 (이 전환이 아직 코드에 미반영, §15·§16):** `docs/CONCEPT.md`·`docs/VISION.md`·
-> `CLAUDE.md`(Visual Tier System)·`src/lib/assets/constellation-home.ts`(아직 북극성을 "Soul
-> Core" 로 라벨), 마을 그래프 코드, `/core-brain` 라우트, `chat/personas.ts` 캐릭터 보이스는
-> 여전히 구 모델을 담고 있다. 이 PRD 가 충돌 시 **새 정본**이며, 그들은 이 방향으로 갱신된다
-> (마이그레이션 §15 M-migrate).
+> 1. **XPRIZE 종료** (2026-08-15). 마감·트랙·심사자 모드·제출 마일스톤 전부 판단 근거에서
+>    제외. 코드 잔재(C2·C6·C12)는 §10 참조.
+> 2. **일곱은 한 벌이 됐다** (2026-08-24, #1376~#1379). 홈 별 일곱 = 생활 도메인이 아니라
+>    **나를 알아가는 자리**다. 도메인 여섯은 세컨비 대시보드로 내려갔다. §4 가 새 정본.
+> 3. **시각 목적지는 PIXEL-CLAY v4** (2026-08-19). v3 의 "픽셀아트 금지"는 cosmic-pixel
+>    레거시 스킨 이야기였고, PIXEL-CLAY 를 거부하는 근거로 인용 금지.
+> 4. **LLM 은 멀티벤더** (2026-08-17~18). 경계 모듈은 `boundary.ts`(구 gemini.ts),
+>    벤더는 자리 적합성으로 고른다. Gemini 는 OCR·음성 텍스트화 자리.
 
 ---
 
-## 1. 한 줄 요약
+## 1. 비전 (불변)
 
-**AI 시대, 가장 가치있는 자산은 "나 자신" 이다.** 2nd-Brain 은 나에 대한 데이터를 *축적* 하고,
-그 위에서 작동하는 *개인 비서로 키우며*, 떠오른 공상을 *나와 같은 결로 구체화* 하는 local-first
-개인 플랫폼이다. 임상·의료 카테고리의 앱이 아니라 **나라는 자산을 만드는 생산 도구** 다.
+**"AI 시대 가장 가치있는 자산 = 나 자신."** 나를 데이터로 축적하고 개인 비서로 키우는
+플랫폼. 세 축:
 
-포지셔닝(1줄, GTM 정본): *"당신의 생각, 당신의 Markdown, 당신의 private lab. AI는 당신이
-부를 때만 들어옵니다. local-first, 영원히 당신 것."*
+1. **알아가기** — 나를 카테고리별로 입력하고 깊게 파는 자리 (북두칠성 일곱 별)
+2. **개인 비서 기반** — 알아낸 것으로 실제로 도와주는 자리 (세컨비 · `/ops` 계열)
+3. **공상 → 구체화** — 발산을 붙잡아 실행으로 잇는 자리 (`/imagine` → 담기)
 
-추상적인 "자기 이해" 를 **밤하늘** 이라는 단일 은유로 만진다 — 삶의 도메인 별이 밝아질수록 북극성
-(종합된 나)이 더 또렷해진다.
+데이터 방향 (Simon 정정 2026-08-17, 뒤집지 말 것):
 
----
+```
+대화 · 입력 ──▶ LLM 위키 (상세 원문) ──▶ 상세 분석 ──▶ 세컨비 발화
+                     └────────────▶ 북극성 페르소나 (요약, 파생물)
+```
 
-## 2. 문제와 기회
+위키가 원본이고 페르소나는 파생 요약이다. LLM 은 페르소나가 아니라 기록·위키를 읽고
+말한다. "페르소나"는 LLM 이 쓸 가면이 아니라 대화로 알아낸 그 사람의 실제 모습이다.
 
-- **문제**: 생성형 AI 는 누구에게나 같은 답을 준다. 모두가 같은 도구를 쓰는 순간 차별화 자산은
-  도구가 아니라 그 도구에 들어가는 입력 — 나의 데이터·취향·맥락·패턴 — 인데, 정작 그 "나" 는
-  카톡·메모·사진·머릿속에 흩어져 어디에도 구조화돼 있지 않다.
-- **기회**: 쉬운 삶 데이터(도메인)를 받아 모으고, 검증된 심리학 틀로 그 데이터를 **근거로 받쳐**
-  RAG 위에서 나에게 맞춰 응답하는 개인 비서를 만든다. 데이터는 사용자 소유의 Markdown 으로 영구
-  보관(local-first) — "100년 뒤에도 읽힌다." 차별점 = **삶 데이터 → 검증된 나의 초상** (단순
-  인생 대시보드가 아니다).
-- **타이밍**: 구독 피로 + 클라우드 lock-in 거부감이 강한 PKM·자기성찰 사용자층이 "AI 는 도구,
-  주체는 나" 프레임을 적극적으로 찾고 있다 (GTM 신호, 4개+ 독립 출처 교차검증).
+## 2. 사용자와 문제
 
----
+- **주 사용자**: 자기 자신을 정리하고 싶은 개인. 한국어 우선, 5개 로케일(en·ko·es·pt·id).
+- **문제**: 자기 기록은 흩어지고(메모·대화·검사 결과), 요약은 소유되지 않으며(플랫폼
+  종속), AI 는 나를 모른 채 일반론을 말한다.
+- **답**: 기록을 한 곳에 담고(담기·인터뷰·임포트), 그 기록만을 근거로 나를 요약하며
+  (북극성, propose→ratify 로 내가 승인), 그 요약이 아니라 **원문을 읽는** 비서(세컨비)를
+  붙인다.
+- 연령: 14세 이상 자기동의 가입, 14세 미만은 법정대리인 동의(C10). 미성년 개방 상태는
+  CLAUDE.md 해당 절이 정본.
 
-## 3. 비전 · 세 축 (제품 기둥)
+## 3. 제품 구조 — 네 덩어리 (Simon 2026-08-17, 이 밖의 층을 발명하지 말 것)
 
-모든 기능·화면·PR 은 아래 세 축 중 하나에 명시적으로 속한다.
-
-| # | 축 | 정의 | 별자리에서의 위치 |
+| # | 덩어리 | 무엇 | 어디 |
 |---|---|---|---|
-| 1 | **알아가기** (자기 데이터 축적) | 삶의 도메인 입력 + 일상 기록 + LLM 인터뷰로 나에 대한 데이터를 모은다 | 홈 6 도메인 별 점등 (각 도메인 밝기 상승) + 담기 |
-| 2 | **개인 비서 기반** (RAG 위 vibe) | 축적된 데이터 위에서 나에게 맞춰 작동하는 AI '세컨비' | 북극성 진입 → 세컨비 (7 도메인·검증틀·북극성 근거로 응답) |
-| 3 | **공상 → 구체화** (미래의 나) | 떠오른 아이디어·꿈을 나와 같은 결로 펼치고 다음 한 걸음으로 떨군다 | 세컨비 Divergent 모드 + 북극성 propose→ratify (미래 페르소나) |
+| 1 | **북두칠성 일곱 별** | 입력 — 나를 알아가는 자리 | 홈 별자리 → `/me/[star]` → `/interview` |
+| 2 | **북극성** | 그 요약(페르소나) | `/core-brain` · `/northstar` · `/brightness` |
+| 3 | **세컨비** | 활용 — 페르소나 근거로 실제로 도움 | `/secondb` + 대시보드 · `/ops` 계열 |
+| 4 | **커뮤니티·공유** | 나눔 | `/community` · `/share-card` · `/peer-invites` |
 
-축의 관계: **알아가기**(도메인 별 점등·밝기 상승) → **개인 비서**(밝기·도메인·검증틀 근거로 세컨비
-응답) → **공상→구체화**(미래 페르소나 + 다음 한 걸음).
+## 4. 별자리 모델 (정본 — 2026-08-24 "일곱은 한 벌")
 
----
+### 4.1 홈 일곱 별 = 나를 알아가는 자리
 
-## 4. 정본 개념 모델 — 별자리 (3-레이어)
+코드 정본: `src/lib/persona/seven-stars.ts`. 저장소에 "일곱"이 세 벌(도메인 별 · 자기이해
+축 · 렌즈) 있어서 만든 사람도 헷갈렸고, Simon 결정으로 한 벌이 됐다.
 
-정본 방향은 **deep-space 별자리**. 별자리 홈이 단일 canonical 앱 본체다(캐릭터 보이스는 폐기,
-§4.8). 픽셀아트·게임보이 스타일 금지. **상세 설계 SoT = `docs/CONSTELLATION-DESIGN.md` §1~§5**
-(이 절은 그 요약).
-SoT 자산/좌표: `src/lib/assets/constellation-home.ts`.
-
-밤하늘 단일 은유는 3개 레이어로 작동한다:
-
-```
-A 입력   7 도메인 데이터 — 홈 별 6개(커리어·재정·성장·관계·건강·휴식)
-   ↓        담아내기(collect)는 홈에 그리지 않는 intake/routing 도메인
-B 검증   심리구인 (홈에 안 보임. 추론·근거 레이어)
-   ↓        기존 stars.ts 7축을 "별"에서 "검증틀"로 재분류. 도메인 데이터로 삼각측량
-C 출력   북극성 — 7 도메인 데이터 종합 → 실시간 페르소나 + 강점 요약
-            홈 헤드라인 밝기만 보이는 6 도메인 평균. 페르소나 변경은 propose→ratify
-```
-
-**왜 3-레이어인가 (차별점).** 레이어 A만 있으면 "인생 대시보드"다. 레이어 B(검증된 구인틀, C8
-큐레이터)가 도메인 데이터를 근거로 받쳐줘야 레이어 C가 **검증된 나의 초상**이 된다.
-
-### 4.1 별자리 구성
-
-밤하늘 단일 은유. 북극성, 6 도메인 별, Museum portal과 링크로만 구성된다.
-
-| 요소 | 정체 | 역할 |
-|---|---|---|
-| **북극성 (Polaris)** | 7 도메인 데이터를 종합하는 길잡이 별. 항상 가장 밝고 지배적 | 레이어 C 출력. 홈 밝기는 보이는 6 도메인만 집계 + 세컨비 진입 (표시명 "북극성") |
-| **홈 6 도메인 별** | 커리어·재정·성장·관계·건강·휴식 (§4.2). 각자 엔진 + L1~L5 밝기 | 레이어 A 입력. 탭 → 해당 도메인 진입 |
-| **Museum portal** | Big Dipper 기하의 마지막 슬롯을 쓰는 학습 진입점 | 도메인 아님. 밝기 없음. 북극성 계산 제외 |
-| **Pattern Link** | 별을 잇는 cyan 엣지 (Big Dipper 형태 + 포인터 2별→북극성) | 전부 cyan 단색. 시각적으로 후퇴 |
-
-> **시각 위계 (구 Visual Tier System 대체)**: 북극성(지배·최대 밝기) > 홈 6 도메인 별
-> (겉보기 등급 baseline × 도메인 밝기 L1~L5) > cyan 링크(후퇴). 구 "Soul Core 128px / Pattern
-> Core×5 82px / snowflake / crystal" 노드명은 **폐기**(§4.8). 위계 *원칙*(하나의 지배 + 하위
-> 후퇴)은 계승, *이름* 은 별자리 용어로.
-
-### 4.2 레이어 A — 7 도메인 데이터 (홈에는 6별)
-
-SoT: 신규 `DOMAIN_STARS` (Phase 4). 각 별은 4-슬롯 계약을 갖는다 — **입력**(어디서·어떻게) ·
-**출력**(조언/요약) · **리스트업**(편집 가능 + 카테고리 + 태그 = 종합의 깊이가 나오는 substrate) ·
-**검증 피드**(레이어 B 중 어떤 구인에 기여하나). 모든 입력은 PIPA·어휘정책 준수, 모든 LLM 출력은
-C9→C3→`gemini.ts`.
-
-| # | 도메인 별 | 입력(현실경로) | 기존 자산 (재사용) | 신규 |
+| # | 별 | id | 시기/주제 | 인터뷰 |
 |---|---|---|---|---|
-| 1 | **커리어** | 프로젝트·이력·업무스타일 (수동 + GitHub) | `projects/github.ts` | 이력·스타일 폼 |
-| 2 | **재정** | 자산·현금흐름·목표 (수동 먼저, 연동 후순위) | `finance/ledger.ts`·`fx.ts` | (수동 유지) |
-| 3 | **성장** (옛 회상) | 연령대별 패턴 deep drill (AI 인터뷰) | `interview/probe.ts` | 연령 타임라인 |
-| 4 | **관계** | 대상별 생각·지향 (수동 + 카톡/문자/연락처 import + Slack) | `import/kakao.ts`·`sms.ts` | peer2peer 폼 |
-| 5 | **건강** | 컨디션·생활습관 자기기록 (헬스 import + 수동) | `import/health-export.ts` | Kakao/Naver Places 안내 |
-| 6 | **휴식** | 취미·독서·경험 기록 | `reading/books.ts` | 취미 폼 |
-| 7 | **담아내기** | catch-all: 6별 못 담은 것 + 계속 추가 메모 | `import/detect.ts`·capture/wiki | 비가시 intake/routing |
+| 1 | 프로필 | `profile` | 가입 정보·기본 개인정보 | 없음 (`/profile-details` 폼) |
+| 2 | 영유아기 | `infancy` | 0~6세 | 있음 |
+| 3 | 학창시절 | `school` | **7~19세** | 있음 |
+| 4 | 20대 | `twenties` | 20~29세 | 있음 |
+| 5 | 30대 이후 | `later` | 30세~ | 있음 |
+| 6 | 직장 | `work` | 나이 무관 — 일하는 나 | 있음 |
+| 7 | 지금 | `now` | 나이 무관 — 현재의 나 | 있음 |
 
-담아내기는 7번째 데이터 도메인이지만 홈 별이 아니다. 현재는 분류되지 않은 담기의 기본 착지점이며,
-북극성 헤드라인 밝기와 홈의 all-lit 보너스에서 제외한다. `collect` 잔량을 도메인으로 이동 제안하는
-propose→ratify 라우터는 **보류**다(폐기 아님). 상세 재검토 조건은
-`CONSTELLATION-DESIGN.md` §5.1.
+- 학창시절이 7~19 인 이유: Simon 원안(7~18)은 19세가 어느 칸에도 없었다. 한국에서
+  19세는 고3·재수·대학 1학년. `interview/__tests__/periods.test.ts` 가 경계 무결성을 지킨다.
+- **겹침을 막지 않는다** (결정 1). 별을 재료로 가르지 않고 **질문의 결**로 가른다 — 같은
+  서른다섯 살 이야기라도 시기 별은 *그때 어떤 사람이었나*, 직장 별은 *일하는 나*를 묻는다.
+- **살지 않은 별은 잠근다** (`isUnlived`) — 스물다섯에게 "30대 이후"는 어둡게 두고 못
+  들어가게 한다. 나이를 모르면 막지 않는다.
+- 별자리 모양(좌표·선·바이어 이름)은 2026-08-24 개편에서 **그대로 유지**됐다 — 바뀐 것은
+  별의 뜻이지 그림이 아니다. 지극성(Merak→Dubhe)→북극성 점선도 그대로.
 
-### 4.3 레이어 B — 검증틀 (심리구인, 홈에 안 보임)
+### 4.2 밝기 = 판 만큼 (정직성 규칙, 불변 원칙 + 새 계기)
 
-SoT: `src/lib/persona/stars.ts` (`SELF_UNDERSTANDING_STARS`) — **기존 7축을 "별"에서 "북극성
-출력의 검증·추론 레이어"로 재분류**. 각 구인은 (1) 검증 측정도구 1개(고신뢰)와 (2) 복수 도메인의
-행동 보강(저신뢰 교차근거)으로 추정. 둘이 일치하면 `crossSourceAgreement` → 한 tier 상승.
+별 하나의 밝기 = 그 자리에서 다섯 층(fact→feeling→meaning→belief→echo, McAdams) 중
+몇 층을 열었는가. `interview_coverage`(0143) 가 센다. 사다리:
 
-| 구인 | 1차 측정도구 | 보강 도메인 (삼각측량) | 엔진 |
-|---|---|---|---|
-| 성실성 (Big Five C) | BFI-44 | 커리어·재정·건강·담아내기 | `persona/bfi.ts` |
-| 개방성 (Big Five O) | BFI-44 | 휴식·담아내기·성장 | `persona/bfi.ts` |
-| 외향성 (Big Five E) | BFI-44 | 관계·휴식 | `persona/bfi.ts` |
-| 우호성 (Big Five A) | BFI-44 | 관계 | `persona/bfi.ts` |
-| 정서 반응성 (Big Five) | BFI-44 | 리듬(감정 톤 변동) | `persona/bfi.ts` |
-| 애착 (불안/회피) | ECR-S | 관계 (도메인 앵커) | `persona/attachment.ts` |
-| 내러티브 정체성 | 인터뷰 코딩 | 성장 (도메인 앵커) | `interview/probe.ts` |
-| SDT 자율·유능·관계 | 간이 척도 | 커리어·재정·관계 | `audit` sdt:* 태그 |
-| VIA 강점 | 강점 태깅 | 전역 (sdt:*/via:* 태그) | `audit` via:* 태그 |
-| 가능자아 | 서술 | 성장 궤적 + 북극성 Divergent | new |
+| 열린 층 | 0 | 1 | 2~3 | 4+ | 비준 |
+|---|---|---|---|---|---|
+| 등급 | L1 | L2 | L3 | L4 | **L5** |
 
-설계 통찰: 성실성은 3~4 도메인이 동시에 보강 → 단일 측정보다 강건. **삶 도메인 행동이 구인을
-삼각측량**하는 것이 2-레이어의 수학적 이점. 신뢰도 게이트: 구인 레벨이 페르소나 주장 세기를
-통제(< L3이면 "잠정" 라벨).
+- **커버리지로는 L4 가 최대다. L5 는 비준(propose→ratify)으로만 온다.** 아무리 깊게 파도
+  자동으로 최고 등급이 되면 "네가 확인해줬다"와 "내가 계산했다"가 구분되지 않는다.
+- "모르겠다"는 칸을 채우지 않고 같은 층에서 발판(scaffold)을 준다. 대화가 저절로 별을
+  밝히지 않는다 — 커버리지는 저장에 동의한 인터뷰만 센다.
+- 밝기가 부풀면 거짓말이고 덜 차면 그냥 덜 찬 것이다. 읽기 실패 시 어둡게 둔다.
+- 프로필 별은 인터뷰가 없으므로 채운 항목 수로 밝아진다(결정 5=A, `load-profile-star.ts`).
 
-### 4.4 레이어 C — 북극성 (출력)
+### 4.3 북극성 = 페르소나 (여섯 평균, 프로필 제외)
 
-북극성은 직접 입력을 받지 않고 7 도메인 데이터를 종합한다. 4단계: ① 결정론적 도메인 요약(LLM-free)
-→ ② 구인 추정(레이어 B) → ③ `callLlm(purpose='persona_synthesis')` 페르소나 종합 →
-④ propose→ratify 사용자 승인.
+- 북극성 밝기 = **그리는 별 중 프로필을 뺀 여섯**의 평균(캐논 `polarisBrightness` 가 목록
+  소유). 프로필은 나를 *설명하는* 자리이지 *증거*가 아니라서 평균에 넣으면 페르소나가
+  부분적으로 자기 자신의 평균이 된다.
+- 화면: `/core-brain`(종합·근거 서랍) · `/northstar`(한 줄 정체성 문장 편집) ·
+  `/brightness`(8주 밝기 타임라인 — 새 일곱만 그린다).
+- "Soul Core / Core Brain" 은 **이름만** 레거시다. 라우트 `/core-brain` 은 LIVE 고
+  사용자 노출명이 북극성이다. 화면 폐기 서술(v3 §0)은 무효.
 
-- **페르소나 = 역할/모자 (여럿)**: 단일 라벨 아님. 각 페르소나는 어떤 도메인 + 어떤 구인이
-  받치는지 근거를 달고 나온다(C8). 안정성 규칙 — 매번 새로 만들지 않고 prior 대비 diff만 제안
-  (상세 `CONSTELLATION-DESIGN.md` §3.3).
-- **밝기 정직성 (핵심 규칙)**: 홈의 별 빛 = "내가 얼마나 넣었나"(도메인 커버리지). 페르소나 주장
-  세기 = "얼마나 검증됐나"(숨은 구인 신뢰도). 둘을 섞지 않는다.
-- **북극성 헤드라인 밝기** = 홈에 그리는 6 도메인(`career`, `finance`, `growth`, `relation`,
-  `health`, `recreation`) 밝기 평균 + 6별 전부 L2 이상일 때 보너스(+0.05), 1.0 상한.
-  `collect`와 Museum은 평균·보너스 판정에서 모두 제외한다. 결정론적·LLM-free.
-- **날짜 있는 제품 결정**: Simon, **2026-07-29 03:44 KST**. 보이는 별과 북극성 밝기가
-  어긋나지 않게 하는 선택이며, 7 도메인 데이터 분류·페르소나 종합 자체를 6개로 줄인 결정은 아니다.
-- **golden**: 보이는 6별=L1, `collect`=L4 → `0.2`; 보이는 6별=L2, `collect`=L1 → `0.45`;
-  QA fixture `[4,3,4,4,4,3]`, `collect`=L4 → `0.783333…`(6별 평균 `0.733333…` + 보너스).
+### 4.4 검증층 (stars.ts — 별이 아니다)
 
-### 4.5 L1~L5 밝기 사다리 (DIKW)
+`src/lib/persona/stars.ts` 의 자기이해 축 7개는 **화면에 별로 뜨지 않는 검증층**이다.
 
-하나의 서수 척도가 **밝기 = 데이터 품질 = 출처 신뢰도 = 인터뷰 드릴 정지레벨** 을 동시에 의미.
-L1 꺼짐 · L2 Data · L3 Information · L4 Knowledge · L5 Wisdom. `src/lib/persona/brightness.ts`
-(`ladderLevel`/`brightnessFraction`, 20~100%). v1 산정 = ①커버리지 + ②내적일관성(③교차검증은
-거의 공짜, ④최신성은 v1.1). 신규 `domainConfidence(entries)` 어댑터가 도메인 항목수를 기존
-`brightness.ts` 체인에 잇는다.
+- 셋(`now` 지금의 나·`relational`·`values`)은 실제 측정 도구(BFI-44/IPIP-NEO-120/ECR-S/
+  가치)가 붙어 있고 **propose→ratify 가 그 위에 서 있다. 지우지 말 것.**
+- 넷(`recall`·`seen`·`rhythm`·`possible`)은 2026-08-15 감사에서 "구인이 아니라 행 수를
+  쟀다"고 확인된 쪽 — 새 판단의 근거로 인용 금지.
+- 렌즈층(`lib/lenses/*`)은 2026-08-15~21 사이 ②를 대체하려다 2026-08-24 결정 7로
+  **휴면**. 관문 5개·자율도 L1~L3 정의는 유효하나 "렌즈"라는 말은 사용자 앞에 안 나온다.
+- ⚠ **`now` 가 두 체계에 다 있고 뜻이 다르다.** 원장(`star_tier_history`)에서 새 체계는
+  `seven:` 접두사를 단다(`seven-tier-history.ts`). 떼면 예외 없이 틀린 숫자가 뜬다.
 
-### 4.6 propose → ratify (핵심 신뢰 장치)
+### 4.5 세컨비 대시보드 = 생활 여섯 영역 (별에서 내려온 것)
 
-AI 는 자기모델을 **직접 바꾸지 못한다.** `SelfModelProposal` diff 를 제안(`propose-self-model.ts`,
-C9→C3→`gemini.ts`)하고, **사용자 승인**(페르소나별)만이 L5 확정(`proposal.ts::applyRatify`)을
-만든다. AI 가 멋대로 "너는 이런 사람" 이라 못 박지 않는다.
+커리어·재정·성장·관계·건강·휴식은 **별이 아니라 활용면**이다. 진입 = 별자리에서 세컨비
+머리 터치 → `/secondb?panel=dashboard`, 대화창 안에 여섯 영역 등급 요약이 펴진다(결정
+6=B). 한 줄을 누르면 `/star/<domain>` 상세(브리핑+담기+타임라인)가 열린다 — 이 상세
+화면들은 살아 있고, 입구만 바뀌었다. 담아내기(collect)는 대시보드에도 없다 — 생활
+영역이 아니라 데이터 통로다.
 
-### 4.7 공상 = 장소가 아니라 세컨비 대화 모드
+### 4.6 propose → ratify (불변 원칙)
 
-- **Analytic 모드** — 사용자 data 기반 분석/조언.
-- **Divergent 모드** — data 기반이되 전혀 다른 관점에서 새 가능성 탐색. UI에 "새로운 관점/가정"
-  라벨.
-- 두 모드 모두 예외 없이 **C9(classifyInput) → C3(ai_audit_log) → `gemini.ts`** 경로. 공상이
-  안전 분류를 우회하는 통로가 되어서는 안 된다.
+AI 는 자기모델을 직접 바꾸지 못한다. 제안(before/after/rationale/citations)을 만들고
+사용자가 비준해야만 반영되며, **L5 는 비준으로만** 열린다. 인용은 실존 id(`record:<id>`
+등)만 원장에 남는다(0060 sanitize).
 
-### 4.8 폐기 (Deprecated / Legacy)
+- 옛 축 비준(검사 기반): `/review` — now/relational/values, `ratifiable.ts` 가 측정 근거
+  있는 축만 후보로.
+- **새 별 비준(인터뷰 기반, 2026-08-25 개통)**: 같은 `/review` 화면 — 두 층 이상 판 시기
+  별만 후보(`seven-proposal-context.ts`, 문턱 2칸), 제안 근거는 그 시기의 인터뷰 원문,
+  승인 시 `recordSevenTiers(origin:'ratify')` 로 `seven:` 접두사를 달고 적힌다.
+- 그 밖의 비준면: `/northstar`(문장) · `/ttfv`(첫날 한 컷) · `/digest`(추론 링크 확정).
 
-롤백 스킨 `EXPO_PUBLIC_UI=legacy` + git history 로만 보존:
+### 4.7 원장 규율 (star_tier_history)
 
-| 폐기 대상 | 비고 |
-|---|---|
-| **Soul Core** (명칭) | 북극성으로 개명. 종합 readout 역할만 계승 |
-| **5 Pattern Core** + **Pattern Tesseract** | 세계관·디자인에서 제거 |
-| **마을 그래프** (`/graph`) | 별자리 홈으로 대체 |
-| **`/core-brain`** 화면 | 북극성 종합 뷰로 흡수 |
-| **Brain Trinity** (`/trinity`) | 이미 legacy |
-| **v3 tesseract 아트 트랙** | Pattern Core 전제라 폐기. 별자리 raster 가 정본 |
-| **Visual Tier System 노드명** (128/82px, snowflake, crystal) | §4.1 별자리 위계로 대체 |
-| **캐릭터 보이스** (아치·가디·루루·모모·루미, `chat/personas.ts`) | 옛 5 내부 도메인 키에 결속 → 폐기/축소(§17-j). `systemHint`만 Divergent 컬러링에 잔존 가능 |
-| 내부 도메인 키 (work/relation/knowledge/records/taste) | **데이터 레이어에선 잔존**(회귀 안전, 태그). 디자인·세계관 표면 노출 금지 |
+- 새 체계 행은 항상 `seven:` 접두사 (`seven:school` 등). 값 재매핑 마이그레이션은 쓰지
+  않았다 — id 값을 바꾸면 타입검사·테스트를 통과하면서 화면이 조용히 빈다(#1318 전례).
+- 옛 축 행은 페르소나 rebuild 가 계속 쓴다(공존 상태). 은퇴는 별도 결정 사항.
+- 두 체계를 같이 그리는 화면(`/ratifications`·`/review` 넛지)은 `star-name.ts` 의 공용
+  해석기로 이름을 붙인다 — 원시 id 노출 금지.
 
-> **주의 — 레이어 A 도메인 ≠ 내부 키.** 새 7 도메인(커리어·재정·성장·관계·건강·휴식·담아내기)은
-> 표면 모델이고, 잔존하는 내부 키(work/relation/...)는 데이터 태그일 뿐 1:1 매핑이 아니다.
+## 5. 진입 경로와 내비게이션 (결정 4·6)
 
----
-
-## 5. 목표 · 비목표
-
-### 5.1 목표 (~2026-08-17)
-
-1. **별자리 단일 홈** 으로 세 축이 한 흐름으로 동작하는 end-to-end 제품 라이브 시연 (도메인 입력 →
-   별 점등·밝기 상승 → 북극성/세컨비가 그 근거를 인용).
-2. core→별자리 마이그레이션 완료 (마을 그래프·`/core-brain` 폐기, 북극성 개명, 홈 6 도메인 별
-   진입점 재배치, 비가시 `collect` intake 유지, 레이어 B 검증 이관, 정본 문서·코드 정합 — §15).
-3. 12개 강제 조항(C1~C12) 코드·스키마·CI 100% 유지.
-4. KR-first 출시 (한국어 고품질 + 관대한 무료 티어), XPRIZE 제출 요건 충족.
-
-### 5.2 비목표 (이번 사이클)
-
-- 임상·의료 성격의 기능 일체 (카테고리 자체가 비목표 — 어휘 정책 §11 로 강제). 건강 별은
-  생활습관·컨디션 자기기록까지만(§11, 의료선).
-- 비-KR 관할 정밀 연령 게이트 (US COPPA <13, EU GDPR Art.8) — country 신호 + 법률 검토 후속.
-- 결제 실활성화 (가격·티어 확정, 스토어 IAP/SBP/KR PG 실계약 미결).
-- 재정 도메인 계좌·카드 연동 (오픈뱅킹급 민감 — 수동입력으로 시작, 연동은 XPRIZE 이후).
-- 레이어 B 풀 구현: '보여지는 나'(360 peer 타인평정)·'될 수 있는 나'(가능자아) 구인은 자리만 두고
-  후순위(absent). 관계 별의 제3자 분석은 §11 프라이버시 계약 내에서만.
-
----
-
-## 6. 성공 지표 (KPI · 제안값 — 검증 대상)
-
-| 축 / 영역 | 지표 | 제안 목표 |
-|---|---|---|
-| 활성화 | 첫 세션 내 1개 이상 도메인 입력/기록 완료율 | ≥ 60% |
-| 알아가기 | 가입 후 7일 내 홈 6 도메인 별 중 ≥ 3개 점등(L2+) | ≥ 40% |
-| 축적 | 사용자당 누적 Log(sources/records), 7일/30일 | 7일 ≥ 5 · 30일 ≥ 20 |
-| 개인 비서 | 세컨비 turn 중 RAG 근거(위키/도메인/구인) 인용 비율 | ≥ 70% |
-| 별자리 | 북극성 밝기 중앙값 (가입 후 30일) | 추적·보정 |
-| 리텐션 | D7 / D30 재방문 | D7 ≥ 30% · D30 ≥ 15% |
-| 데이터 주권 | 위키 export(MD/JSON) 사용률 | 추적 |
-| 안전 | red-zone 입력 LLM 우회 0건 (C9), 핫라인 라우팅 정확도 | 100% / 100% |
-| XPRIZE | 강제 조항 CI green, 심사자 모드 무제한 | 100% |
-
----
-
-## 7. 타깃 사용자 · 페르소나
-
-획득 우선순위 (GTM §3): (1) Obsidian/PKM 커뮤니티 — local-first + AI optional. (2) Stoic/
-자기성찰 실천가 — morning/evening review. (3) KR 자가구축 빌더 — "내가 정의한 온톨로지" 주도권.
-(4) ADHD/외부화 커뮤니티 — second-brain 실용성.
-
-연령 티어(C10): 성인(≥18) · 자가동의 미성년(14–17) 직접 가입 / 14세 미만 보호자 검증 필요
-(`pending_guardian_consent`).
-
----
-
-## 8. 기능 요구사항
-
-### 8.1 7개 엔진 (책임 단위)
-
-| # | 엔진 | 책임 | 상태(2026-06-25) |
-|---|---|---|---|
-| 1 | Capture | 일상 기록, 자유 메모, 시기 회고 Q&A, 5-mode 자재 반입 | 라이브 |
-| 2 | Inference | 도메인 요약 → 밝기 산출 + 레이어 B 구인 추정 + 북극성 종합 | 라이브 (도메인 어댑터·종합 신규) |
-| 3 | Memory (RAG) | 위키 ingest + Claude/ChatGPT 호환 MD/JSON export | 라이브 (Phase1/2 보강 진행) |
-| 4 | Advisor | 검증된 심리학에 ground 된 토글 모드 가이드 | 진행 |
-| 5 | Planner | 성향 보정 액션 플랜 + 리마인더 | v1.1 (비목표) |
-| 6 | Curator | 사람이 검증한 참조 문헌 (C8 provenance) | 진행 |
-| 7 | Safety Classifier | green/yellow/red 라우팅. 상시·우회불가 | 라이브 (C9) |
-
-### 8.2 별자리 홈 (유일한 홈)
-
-- 화면 = 밤하늘. 북극성 + 6 도메인 별 + Museum portal + cyan 링크. 자산 = `constellation-home.ts`
-  (landscape/mobile/card 3종, 별 좌표는 자산별 정규화 x/y).
-- 각 별의 밝기 = 그 도메인의 L1~L5 (마운트 시 `load-star-levels.ts` 로 Gemini 없이 표시).
-- **정보 밀도 원칙** (Simon 표준): 화면당 메시지 하나 + 그래픽 하나. 별자리 자체가 설명이다.
-- **터치 규칙** (O-7): 한 번의 탭은 화면을 *단순화* 한다 — 별 탭 → 화면 전환(또는 바텀시트)으로
-  드릴다운. 노드 위 겹치는 모달 금지. Back 은 한 곳(별자리 홈 = back-stack root).
-
-### 8.3 홈 6 도메인 별 → 기능 매핑 (새 네비게이션)
-
-별을 탭하면 그 도메인의 상세(현재 밝기·근거·입력 어포던스·"이 별을 키우는 것")로 진입한다. 검증
-측정도구(big-five/attachment/esm)는 레이어 B 진입점으로, 해당 도메인 하위 또는 북극성 종합에서
-도달한다.
-
-| 도메인 별 | 진입 기능 / 라우트 | 레이어 B 측정도구(보조 진입) | 상태 |
-|---|---|---|---|
-| 커리어 | 이력·스타일·프로젝트 (수동 + `projects/github.ts`) | (성실성·VIA → BFI `/big-five`) | 자산 일부 |
-| 재정 | 가계부 `finance/ledger.ts` + FX | (SDT 자율) | shipped(수동) |
-| 성장 | 심층 인터뷰 `/interview` (연령대 drill) · 과거의 나 `/audit` | 내러티브 코딩 | shipped |
-| 관계 | peer2peer + 카톡/문자/연락처 import | 애착 `/attachment` (ECR-S) | shipped(애착) |
-| 건강 | 헬스 import + 생활습관 수동 + Places 안내 | (SDT 신체 자율) | 자산 일부 |
-| 휴식 | 취미·독서 `reading/books.ts` | (개방성 → BFI) | shipped(독서) |
-| (레이어 B 공통) | 순간기록 `/esm` (리듬) · 참고 MBTI `/mbti`(비검증·보조) | | stub/보조 |
-
-### 8.4 북극성 → 종합 / 세컨비
-
-- 북극성 탭 → **종합 뷰**: 북극성 밝기% + 켜진 홈 6 도메인 별 요약 + 페르소나(역할/모자) 제안(구
-  `/persona`·`/core-brain` 역할 흡수), 그리고 **세컨비** `/secondb` 진입 — RAG-backed chat.
-  상단 일일 사용량 미터. **Analytic / Divergent** 모드 토글. 모든 turn 이 `callLlm`(C9→C3)
-  경유. 위기 라우팅 turn 은 quota 미차감.
-- 세컨비는 wiki 스냅샷 + **별자리 맥락**(7 도메인 요약 + 레이어 B 구인 추정 + 북극성 밝기,
-  `exportConstellationContext` 신규)을 `<UNTRUSTED>` 펜스로 주입받아 응답. 페르소나 변경은 트렌드
-  제안 → propose→ratify (비준은 쿼터 미차감).
-- "통찰" `/insights` · "참조 문헌" `/research` (RAG ground 출처, C8)는 북극성 종합 뷰 하위 보조
-  surface 로 재배치.
-
-### 8.5 상시 진입점 (별이 아닌 것)
-
-- **담기** `/capture` — 모든 입력 단일 진입(메모·일기/링크·스크랩/이미지·OCR/문서). 비가시
-  `collect` intake의 착지점이자 7 도메인 데이터 모델로 흘러가는 입구. 일기 모드는
-  streak·성찰질문 흡수, records 저장 + C9
-  crisis. 별자리 홈에서 상시 접근(떠 있는 입력 어포던스).
-- **받은항목/위키** `/inbox` · `/wiki` — 반입 sources → 위키 페이지(태그·백링크). 북극성 종합
-  또는 담기에서 진입.
-- **설정** `/settings` (계정/요금제/개인정보/권한/데이터/테마/지원/운영진단) — 코너 유틸 진입.
-
-### 8.6 인증·시스템 + 4-state
-
-- `(auth)/sign-in` · `sign-up`(birth_date, C10) · `/complete-profile` · `/onboarding`(+ 4W1H
-  기초입력 seed, 강제 아님). 가입 후 별자리 홈으로. 하드웨어 Back 은 별자리 홈으로 복귀.
-- 모든 핵심 화면은 empty/loading/error/filled 4상태 정의·구현 (`docs/ui-audit/
-  SCREEN_TREE_SPEC.md` 가 동작 정본).
-
----
-
-## 9. 정보 구조 (IA) — 별자리 단일 홈
-
-별자리(`/`)가 유일한 홈/네비게이션. 구 4탭 셸·마을 그래프·`/core-brain` 폐기. 모든 기능은 도메인
-별/북극성/상시 진입점 하위로 도달. 기존 라우트 처분:
-
-| 처분 | 라우트 |
-|---|---|
-| **KEEP — 홈 도메인 별 진입** | 커리어/재정/성장(`/interview`·`/audit`)/관계/건강/휴식 |
-| **KEEP — 레이어 B 측정도구** | `/big-five` · `/mbti`(보조) · `/attachment` · `/esm` |
-| **KEEP — 북극성 종합 하위** | `/secondb`(세컨비, Analytic/Divergent) · `/persona` · `/insights` · `/research` |
-| **KEEP — 상시/유틸** | `/capture`(비가시 `collect` intake) · `/inbox` · `/wiki` · `/settings`(+계정/요금제/개인정보/권한/데이터/테마/지원/운영진단) |
-| **KEEP — 인증/시스템** | `(auth)/*` · `/onboarding` · `/complete-profile` · `/+not-found` |
-| **DEPRECATE** | `/graph`(마을) · `/core-brain` · `/trinity` · `/journal`(→`/capture` redirect) · 구 `/imagine`(→세컨비 Divergent redirect, vestigial) |
-
-원칙: 한 라우트는 한 가지 일만 한다. 떠 있는 화면 없음. 입력은 "담기" 단일 진입. Deep-link 직접
-로드는 유지(라우트는 존재, 홈만 별자리).
-
----
-
-## 10. 비기능 요구사항 · 12개 강제 조항 (C1~C12)
-
-절대 약화 불가. 코드·스키마·CI 강제. 불확실하면 `npm run check:constraints`.
-
-| ID | 규칙 |
-|---|---|
-| C1 | 모든 LLM 호출은 `src/lib/llm/boundary.ts::callLlm()` 단일 래퍼 경유. ESLint 가 타 LLM SDK 차단. |
-| C2 | `@google/genai` 를 `EXPO_PUBLIC_USE_VERTEX=true` 시 `vertexai: true` 로 구성. backend 기록. |
-| C3 | 성공 호출마다 `ai_audit_log` INSERT (mock·crisis 포함). audit 직접 import 차단. |
-| C4 | `revenue_events` = `month_bucket` + `is_related_party` + `customer_relation_type`. |
-| C5 | `testimonials.consent_given_at` NOT NULL. `share_with_judges_flag` 기본 false. |
-| C6 | `@xprize.org`·`@devpost.com`·`@hacker.fund` 심사자 모드 무제한. client + DB trigger 이중, DB authoritative. |
-| C7 | i18n EN↔KO 키 패리티. EN canonical. 빈 값 CI 실패. |
-| C8 | `knowledge_sources` = DOI OR URL 필수, `verified_by`/`verified_at` 쌍 강제(CHECK). |
-| C9 | `classifyInput()` 가 `callLlm` 최상단 실행. red-zone 단락 → 핫라인 안내, LLM 미호출. jest 단언. |
-| C10 | 연령 티어 가입: 성인·14–17 자가동의 직접 / 14세 미만 보호자 검증(PIPA §22-2). DB BEFORE INSERT trigger 가 실게이트. |
-| C11 | 지원 SLA 영업일 2일(KST). README 선언 + issue-sla 워크플로. |
-| C12 | README "Pre-existing assets used" (rulebook §04) + `docs/ASSETS.md` 레지스트리. |
-
-기타 비기능:
-- **Android 안정성**: `ANDROID_QA_GUIDELINES.md` 준수 — OOM, SVG 렌더 락, AsyncStorage 2MB
-  한계, z-index 역전, BackHandler 누수 예방. (별자리 raster + 별 SVG 오버레이 렌더 주의.)
-- **i18n**: EN canonical, KO 패리티 (C7). **데이터 주권**: 위키 MD export. **RLS**: sources/
-  wiki_pages/wiki_links/chat_usage owner-only.
-
----
-
-## 11. 안전 · 컴플라이언스 · 어휘 정책
-
-- **이 앱은 임상·의료·웰니스 카테고리의 앱이 아니다.** 임상·병리 용어 일체는 코드·UI·주석·
-  문서(이 문서 포함) 어디서도 쓰지 않는다. 금지어 단일 정본 = `src/lib/safety/lexicon.ts`
-  (`FORBIDDEN_TERMS` + `ANALYSIS_UNIVERSAL_FORBIDDEN`), CI 게이트 =
-  `scripts/check-forbidden-lexicon.ts` (`docs/` 포함 스캔, allowlist 예외만). 대체어:
-  self-understanding, growth, reflection, self-knowledge / 자기 이해, 성장.
-- **건강 도메인 의료선**: 생활습관·컨디션 자기기록까지만. 검진결과 해석·진단·의료성 조언 = 범위
-  밖. Kakao/Naver Places 는 "가까운 전문가/기관 안내" 길안내 프레이밍(비임상).
-- **관계 도메인 제3자**: 실명 타인은 수동입력·import만, 온디바이스 보관, RAG/Gemini 전 익명화
-  (이름→토큰). 구인 추정은 "내 관계방식"만 — named 타인 프로파일링 금지 (PIPA 제3자).
-- **위기 라우팅 (C9)**: red-zone 입력은 LLM 호출 없이 핫라인 안내로 단락. KO 미성년 → 1388 +
-  109, KO 성인 → 109, EN → 988.
-- **연령·동의 (C10)**: KR-first 자가동의 14세. 14세 미만 보호자 동의 원장(`guardian_consents`).
-- **데이터 윤리**: 미성년 DPIA 초안 + 데이터 윤리/동의 리서치 트랙 유지.
-
----
-
-## 12. 기술 아키텍처 · 스택
-
-| 레이어 | 선택 |
-|---|---|
-| 앱 | React Native 0.85 + Expo SDK 56, React 19, TypeScript strict, expo-router |
-| UI | NativeWind/Tailwind, react-native-reanimated 4 + worklets, react-native-svg, FlashList |
-| LLM | `@google/genai` (Gemini), Vertex 옵션(C2), 단일 래퍼 `gemini.ts`(C1) |
-| Backend | Supabase (Postgres + Auth + Storage), owner-only RLS |
-| 결제 | react-native-purchases (RevenueCat) — 활성화 전 |
-| 빌드/배포 | EAS Build + EAS Update(OTA), Vercel(web), GitHub Actions(CI) |
-| 모니터링 | Sentry, PostHog (단계적) |
-
-**데이터 흐름 (핵심 경로)**:
 ```
-User input
-  → callLlm()
-      → classifyInput()        # C9
-      → red ? return routeCrisis()
-      → getClient()            # C2 (Vertex when configured)
-      → models.generateContent()
-      → classifyInput(output)  # output zone
-      → insertAiAuditLog()     # C3
-  ← GeminiResult { text, safety, audit }
+별자리 홈 (/)
+ ├─ 별 탭 ──────────▶ /me/<star> 요약 ──▶ /interview?period=<p> (5층 드릴다운)
+ ├─ 북극성 탭 ──────▶ /core-brain ──▶ /northstar · /brightness · /review
+ ├─ 세컨비 머리 탭 ─▶ /secondb?panel=dashboard ──▶ /star/<domain> 상세
+ ├─ 코너: 알림(/inbox) · 뮤지엄(/museum) · 커뮤니티(/community) · ops(/ops)
+ └─ dock: 별자리 · 담기(/capture) · 세컨비 · 위키(/wiki) · 설정(/settings)
 ```
 
-**LLM 하네스 (모델별 사용)**: 단일 래퍼 + purpose 라우팅. `PURPOSE_TIER`(`llm/types.ts`)가
-purpose→tier(lite 분류 / flash 인터랙티브 / pro 추론). 북극성 종합 = 신규 purpose
-`persona_synthesis`(v1 flash, §17-f) + `PERSONA_SYNTHESIS_SCHEMA`(구조화 출력) + 프롬프트빌더/
-방어적파서 패턴 재사용. mock 모드로 Gemini 없이 full UX exercisable.
+- 별을 누르면 **요약이 먼저** 열린다. 바로 인터뷰로 던지지 않는다 — 지금까지 뭘 했는지
+  볼 자리가 없으면 매번 처음부터인 기분이 된다.
+- 정보 밀도 (불변): 화면당 메시지 하나 + 그래픽 하나. 탭은 화면을 단순화하고, 모달을
+  겹치지 않으며, Back 은 한 곳.
 
-**RAG**: `sources`(8 kind) → `wiki_pages`(source/entity/concept) → `wiki_links`(`[[wikilink]]`
-엣지). 세컨비는 `exportUserWiki` + `exportConstellationContext`(신규)로 RAG context 번들을 만들어
-`callLlm(purpose='secondb_chat')` 에 주입.
+## 6. 화면 카탈로그 (2026-08-25 실측 — 사용자 화면 72)
 
-**별 측정**: `brightness.ts`(L1~L5) · `domainConfidence`(신규 어댑터, 도메인 항목수→밴드) ·
-`stars.ts`(`soulCoreBrightness` 도메인 입력 종합) · `load-star-levels.ts`(홈 마운트, LLM-free).
-**레이어 B**: 도메인→구인 삼각측량 + `crossSourceAgreement`. **종합**: `persona_synthesis` →
-`SelfModelProposal[]` → propose→ratify.
+전 라우트 등록부는 `src/lib/dev/screen-index.ts`(가드가 라우트 전수와 대조), 캐논은
+`src/lib/canon/`. 아래는 여정 순 요약 — **[신]** = 2026-08-24 개편 산물, **[갱]** = 살아
+있으나 서술·전제가 옛 구조(디자인 갱신 대상).
 
-검증 게이트: `npm run verify` = lint + type-check + i18n + lexicon + legal-review + LLM
-boundary + constraints + emdash + anti-anthro + mascot-voice + jest. push 전 필수.
+| 여정 | 화면 (라우트) |
+|---|---|
+| 가입·게이트 | `/onboarding` `/sign-up` `/sign-in` `/reset-password` `/oauth-callback` `/complete-profile` `/terms` `/privacy-policy` `/refund` `/consent-notice` `/manual` `/ttfv` |
+| 홈·별 | **[신]** `/`(일곱 별 별자리) · **[신]** `/me/[star]`(별 요약) · **[신]** `/interview`(5층 드릴다운+진행판) |
+| 북극성 | `/core-brain` · `/northstar` · **[신]** `/brightness`(8주) · **[갱]** `/review`(비준 — 시기 별 후보 추가됨) · **[갱]** `/ratifications`(이력) · `/share-card` |
+| 세컨비·활용 | **[신]** `/secondb`(+대시보드 패널) · `/ops` `/imagine` `/reasoning` `/focus` `/srs` `/reading` `/meals` `/milestones` `/side-project` `/call-reflection` `/reminders` `/digest` `/insights` |
+| 도메인 상세 | **[갱]** `/star/[domain]`(입구가 대시보드로 바뀜) · `/career` `/career-input` `/career-drilldown` `/people` `/rest` `/ledger` `/growth` |
+| 검사·검증층 | `/persona` `/big-five` `/ipip-neo` `/rlss` `/values` `/strengths` `/motivation` `/attachment` `/esm` · **[갱]** `/seen`(피어 집계) · **[갱]** `/audit` |
+| 기록·위키 | `/capture` `/capture-full` `/records` `/record/[id]` `/wiki` `/formats` `/import` `/import-hub` `/integrations` `/inbox` |
+| 공유·커뮤니티 | `/community` `/community/[room]` `/community/join/[token]` `/peer-invites` `/peer/[token]`(무계정) `/museum` |
+| 설정·계정 | `/settings` `/account` `/profile` · **[신]** `/profile-details` · `/change-password` `/theme` `/data` `/permissions` `/privacy` `/notices` `/support` `/plans` `/subscription` `/beyond` `/iden` |
 
----
+리다이렉트 스텁(`/jarvis` `/journal` `/mbti` `/discover`)과 dev 전용 8개는 카탈로그 밖.
+`/mbti` 는 dormant — 삭제도 리다이렉트도 금지(2026-08-23).
 
-## 13. 수익화 (Monetization v2 · 2026-06-10 확정)
+## 7. 시각 방향 — PIXEL-CLAY v4 (2026-08-19 확정)
 
-- **Core 영구 무료** + local Markdown + 기본 reflection. 게이트는 *AI 사용 한도만*. "내 생각을
-  저장하려면 매달 돈 내라" 금지. **어떤 티어도 더 좋은 답을 주지 않는다** — 답변 품질 전원 동일,
-  티어는 횟수·기능·히스토리 보관 기간으로만 차등.
-- **티어 / 일일 세컨비 한도**: Free 2 · Soma 30 · Cortex 80 · Brain 250 (SoT =
-  `src/lib/chat/limits.ts`). 위기 라우팅 turn 미차감. 페르소나 비준(propose→ratify) 미차감.
-- **가격**: 월 ₩4,900/9,900/19,900 · 연간 = 월×10(2개월 무료) · Soma 평생 ₩99,000. SoT =
-  `src/lib/progression/pricing.ts`. `FORCE_TIER` off 전 결제 비활성.
-- **오픈**: 별자리 방향에 맞춰 티어를 **별 테마 명칭**(별바라기 무료 · 항해자 · 북극성)으로
-  개명할지 — 가격·명칭 확정은 Simon (§17).
-- **미결 (M3)**: Apple/Google IAP + Small Business Program(15%) 우선, KR 외부 PG 후순위 +
-  PPP. 스토어 IAP 등록·SBP 가입·KR PG 실계약 미결.
+SoT = `docs/PIXEL-CLAY-MIGRATION.md`, 인수 자료 = `design/pixel_clay_v4/`(착수 전
+`REPO-NOTES.md` 필독). 개념(별자리·북극성·정직한 밝기·propose→ratify·세컨비)은 그대로,
+시각 체계만 바뀐다.
 
----
+- 절대 규칙 7: 정수 `rect` 만 · radius 0 · blur 금지(디더) · 정적 opacity 금지(밴딩/디더) ·
+  `steps()` 이징만 · 4방향 베벨 · 토큰 색만.
+- 폰트 Galmuri 4종, 팔레트 midnight 고정, 단위 `--u=2px`(D1), 별은 rect 이되 "4방향으로
+  빛나는 별 모양"(#1309), 디더=타일 이미지(D4), hover 는 버리고 `:active` press 만.
+- 이름 셋 구분: **cosmic-pixel**(폐기 스킨) ≠ **M3-deepspace**(현행/출발점) ≠
+  **PIXEL-CLAY v4**(목적지). "레거시 픽셀이니 버린다"는 논증을 목적지에 적용하지 말 것.
+- 이주 착수 전까지 화면에는 현행 M3-deepspace 규칙이 그대로 적용된다.
 
-## 14. Go-To-Market (요약 · 정본 `docs/GTM.md`)
+## 8. LLM (멀티벤더 — 벤더가 아니라 적합성)
 
-- **메시지 Primary**: "Your data. Your patterns. Your private laboratory. AI enters only when
-  you invite it."
-- **바이럴 훅**: 아침 한 줄 브리핑(vault 기반 30초 opt-in) · future-self 과거형 기록 · "패턴으로
-  나를 업그레이드".
-- **절대 피할 표현**: "AI가 당신을 학습/기억/이해", "second brain 이 다 해결" (creepy·agency
-  offload 거부).
-- **가드레일**: forbidden lexicon 준수, gamification 최소("witness has no streak"), ownership +
-  progressive disclosure. (도메인 별 점등 = 진척이되 streak/badge 가 아님.)
+- **C1 불변**: 모든 호출은 `src/lib/llm/boundary.ts` 단일 경계로. C9 분류가 선행, C3 감사
+  기록이 후행. 경계는 벤더 무관.
+- 벤더: gemini(OCR·음성 텍스트화) · openai(추론 좌석 Phase 2 선언 + 세컨비 대화
+  `EXPO_PUBLIC_CHAT_VENDOR`) · claude(좌석 준비됨) — 프록시 4종(supabase functions).
+  모델 선택은 서버 소유(env), 항상 최신 모델, 좌석마다 effort 명시.
+- 신규 좌석 추가 시: 프록시 허용목록 재배포가 클라이언트 변수 플립보다 **먼저**
+  (`purpose_not_seated` 함정).
 
----
+## 9. 안전·어휘·연령 (불변)
 
-## 15. 마일스톤 · 로드맵 (→ 2026-08-17)
+- **안전 3레인** (2026-08-16): 자살·자해=상담(미성년 1388→109/성인 109) · 진행 중 신체
+  응급=119 · 타인에 의한 급박 위협=112(미성년 1388·117 병기). 자살 레인에 112 금지,
+  애매하면 상담 레인 폴백. 학교폭력 117, 성폭력 1366.
+- **어휘 정책**: 임상 용어 금지(`lexicon.ts` 단일 정본, CI 스캔 — 이 문서도 스캔 대상이라
+  금지어는 여기에 예시로도 못 적는다). 금지는 **단어**이지 기능이 아니다 — 친구처럼 깊게
+  듣고 파악하는 기능 자체는 제약 없음(Simon 2026-08-17). "렌즈"도 사용자 표면에서
+  금지(결정 7).
+- **연령**: C10 단계별 가입. 미성년 게이트(광고·건강·커뮤니티·결제)는 CLAUDE.md 해당
+  절이 정본 — 임의 해제 금지.
 
-현재(2026-06-25) 라이브: Gemini 실연동(chat + clipper 분류, 2026-06-01 확인), 별자리 홈(실
-밝기 연결 #564), RAG ingest + 세컨비(Analytic/Divergent), 밝기 측정 시스템, 14–17 자가동의
-가입(prod 0028–0033), 수익화 v2 가격 정의. 별자리 3-레이어 설계 완료(`CONSTELLATION-DESIGN.md`).
+## 10. 강제 조항 C1~C12
 
-| 단계 | 범위 | 상태 |
-|---|---|---|
-| **M-migrate** (이번 1순위) | **core→별자리 3-레이어 정합** — 마을 그래프·`/core-brain`·`/trinity` 폐기, 북극성 개명(Soul Core 라벨 제거), `DOMAIN_STARS` + `domainConfidence` 어댑터, `stars.ts` 레이어 B 재분류, `persona_synthesis` purpose, 캐릭터 보이스 처분, `CONCEPT.md`·`VISION.md`·`CLAUDE.md`(Visual Tier)·`constellation-home.ts` 라벨 갱신, v3 tesseract 아트 종료 | 설계 완료·코드 미착수 |
-| M-now | 세 축 end-to-end(별자리 기준) + 강제 조항 green | 진행 |
-| M-RAG | Phase1(요약 + 4 reflection Q + auto-tag) · Phase2(entity/concept 추출) | 진행 |
-| M-stars | 도메인 별 점등(밝기 어댑터) + 레이어 B 삼각측량. '보여지는 나'·'될 수 있는 나' 구인은 자리만 두고 후순위 | 예정 |
-| M-auth | OAuth Kakao/Naver Edge Functions | 예정 |
-| M-pay | 결제 실활성화 (스토어 IAP/SBP/KR PG) — Simon 결정 후 | 미결 |
-| M-submit | XPRIZE 제출 패키지 (에셋 공시 C12, 심사자 모드 C6, SLA C11, README) | 예정 |
-| M-store | App Store / Play Store 제출 | 예정 |
+`docs/CONSTRAINTS.md` + CI (`npm run check:constraints`). **C2·C6·C12 는 대회 잔재** —
+코드·CI 에서는 유효하니 깨뜨리지 말되, 새 기능의 근거로 인용 금지. 나머지(C1 경계 ·
+C3 감사 · C4 매출 필드 · C5 동의 · C7 i18n 패리티 · C8 출처 검증 · C9 안전 분류 ·
+C10 연령 · C11 SLA)는 현행 요건.
 
----
+## 11. 수익화 (원칙 불변, 스택 갱신)
 
-## 16. 리스크 · 완화
+- **원칙**: Core 는 영구 무료, 게이트는 AI 호출량뿐, 어떤 티어도 "더 좋은 답"을 주지
+  않는다.
+- 티어: free / plus(항해자) / pro(북극성) — SoT `src/lib/entitlements/tier-map.ts`,
+  reasoning 캡은 주간. soma 는 판매 종료. 별테마 명칭 확정(오픈 퀘스천 아님).
+- 결제: **Paddle**(MoR, 웹훅 라이브) + 웹 전용 크레딧 상점(0133~0137). 네이티브 앱 안에
+  충전 버튼 금지(스토어 3.1.3(f)). RevenueCat/IAP 서술(v3)은 무효.
 
-| 리스크 | 영향 | 완화 |
-|---|---|---|
-| **방향 전환 미반영** (코드가 구 core 모델 유지) | 에이전트·사람 혼선, 회귀 | M-migrate 1순위 + 이 PRD 가 새 정본(§0). 내부 키만 잔존, 표면 제거 |
-| **레이어 A↔B 혼동** (도메인 별 ≠ 심리구인) | 설계 회귀, 7별 의미 충돌 재발 | 3-레이어 명시(§4) + `CONSTELLATION-DESIGN.md` SoT. 밝기 정직성 규칙 |
-| 어휘 정책 위반(임상어 유입) | 카테고리 포지셔닝·심사 | `check:lexicon` CI 차단(docs 포함) + 단일 lexicon SoT |
-| 안전 분류 우회 | 사용자 위해·치명 | C9 상시·우회불가, jest 호출순서 단언, Divergent·persona_synthesis 동일 경로 |
-| 비-KR 연령 게이트 미비 | 컴플라이언스(US/EU) | KR 룰 전 사용자 게이트 + country 신호 후속 |
-| Android 런타임 크래시 | 빌드·데모 실패 | `ANDROID_QA_GUIDELINES.md` 강제 |
-| 별 메타포 한계(프로크루스테스 침대) | 자기이해 왜곡 | 6개 홈 별은 고정 분류 아님(`collect` catch-all은 비가시 데이터 도메인), 레이어 B absent 구인은 빈 자리로 정직 노출 |
-| 제3자 프라이버시(관계 별) | PIPA 위반 | 익명화·온디바이스·내-관점만(§11) |
-| 결제 미결 | 수익화 시연 공백 | 가격·티어 확정, FORCE_TIER off 전 비활성(제출 무영향) |
-| Gemini 비용/쿼터 | 운영비·$0/mo 약속 | 일일 한도(티어), mock 모드, 위기·비준 turn 미차감, 종합 게이트(매 turn 아님) |
-| 솔로 빌드 시간(야간·주말) | 일정 | 엔진 단위 분해, worktree 격리, draft-PR + CI 자동화 |
+## 12. 스택 (실측 2026-08-25)
 
----
+- RN + Expo SDK 56, TS strict, Supabase(Postgres+Auth+Edge Functions), EAS Build.
+- **웹 배포 = GitHub Pages** (`web-deploy.yml`, `baseUrl:/2nd-B`). Vercel 은 연결만 되어
+  있고 아무것도 안 나간다.
+- 분석 = GA4 + Clarity (PostHog 는 2026-08-11 제거). 네이티브 = RNFB(성인+동의 게이트).
+- APK 배포 = GitHub Release. 백업 = 야간 age 암호화 pg_dump.
 
-## 17. 오픈 퀘스천
+## 13. 측정 (새 계기 기준)
 
-별자리 설계 결정(`CONSTELLATION-DESIGN.md` §7·§13). **CONFIRMED 2026-06-25, home brightness
-scope supplemented 2026-07-29 03:44 KST (Simon). 정본 고정.**
+XPRIZE KPI 는 전부 폐기. 새 구조의 정직한 계기:
 
-| # | 결정 | 확정값 |
-|---|---|---|
-| a | 북극성 헤드라인 밝기 산식 | **홈에 보이는 6 도메인 평균** (`collect` 제외, 2026-07-29 03:44 KST Simon 보완 결정). 구인 신뢰도는 페르소나 주장 세기만 통제 |
-| b | 페르소나(모자) 개수 상한 | 주 1 + 보조, **표시 캡 3** |
-| c | 담아내기 자동 라우팅 | **보류, 폐기 아님**. 재검토 전까지 자동 이동 없음 |
-| d | 도메인 밝기 임계 밴드 | `brightness.ts` 기존 밴드(1–4/5–14/≥15) 차용 |
-| e | 홈 기하 ↔ Big Dipper 좌표 매핑 | 6 도메인 별 + Museum portal 유지 (2026-07-29 결정) |
-| f | `persona_synthesis` tier | **v1 flash** (저렴·$0 예산), 품질 이슈 시 pro 승격 |
-| g | 페르소나 근거 저장 | **`wiki_links` `cite` relation 재사용** (스키마 무증설) |
-| h | 도메인 단위 정규화(재정 항목 ↔ github 커밋) | Phase 4 도메인별 보정계수 |
-| i | 담아내기 비준 = 이동 vs 복제 | **SourceRow 재태깅 이동** (이중계상 없음) |
-| j | 캐릭터 보이스(아치·가디·루루·모모·루미) | **폐기/축소**, `systemHint`만 잔존 |
+| 지표 | 계기 |
+|---|---|
+| 알아가기 깊이 | `interview_coverage` 열린 칸 수 (사용자·별·층별) |
+| 별 점등 | `star_lit` 이벤트 (seven: 체계) · 활성 별 수 |
+| 비준 도달 | `evidence_origin='ratify'` 행 (2026-08-25 개통 — 기준선 0) |
+| 활용 | 세컨비 대화 세션 · `/ops` 수락률 · 대시보드 진입 |
+| 소유 | 내보내기(`/iden`·`/data`) 사용 · autosave 동의율 |
 
-추가(Simon 단독): 티어 명칭 별테마 개명 + M3 결제 실계약 · 채널 예산·런치일 · country 신호 도입
-시점 · 북극성 탭 1차 목적지(종합 vs 세컨비) · '보여지는 나'(360 peer) 출시 시점.
+## 14. 남은 것 (알려진 미결 — 착수 전 Simon 확인)
 
----
+- 옛 축 원장 행 은퇴(rebuild 가 계속 쓰는 중 — Layer B 은퇴 본작업과 한 묶음).
+- 꺼내기(resurface) 개인화 — 슬롯은 live(`/digest`), 규칙이 아직 전원 동일.
+- 세컨비→허슬케이 / 앱 이름 — 하나의 네이밍 체계로 함께 결정(secondb_chat 좌석 함정).
+- 미성년 개방 미결 항목(CLAUDE.md 정본) · PIXEL-CLAY 이주 착수.
 
-## 18. 부록 — 용어 · 매핑 · 폐기
+## 15. 문서 지도 (무엇을 믿을 것인가)
 
-- **별자리** = 북극성(Polaris, 7 도메인 데이터 종합 길잡이) + 홈 6 도메인 별 + Museum portal +
-  cyan Pattern Link. SoT 자산 `constellation-home.ts`, 설계 SoT `CONSTELLATION-DESIGN.md`.
-- **레이어 A (7 데이터 도메인)** = 커리어·재정·성장·관계·건강·휴식 + 비가시 담아내기
-  (`DOMAIN_STARS`). 홈 밝기 입력은 앞의 6개뿐이다.
-- **레이어 B (검증틀)** = Big Five·내러티브·애착·SDT/VIA·가능자아·순간변동 (`stars.ts`
-  `SELF_UNDERSTANDING_STARS`, "별"→"검증 레이어"로 재분류).
-- **레이어 C (북극성)** = `soulCoreBrightness`(내부 키 유지, 표시명 "북극성") + `persona_synthesis`
-  종합 → 페르소나(역할/모자).
-- **밝기 L1~L5** = `brightness.ts` (+ 신규 `domainConfidence` 어댑터). **propose→ratify** =
-  AI 제안 → 사용자 승인만 쓰기 (`proposal.ts`).
-- **내부 키 잔존(표면 금지)**: work/relation/knowledge/records/taste 는 데이터 태그로만 유지
-  (레이어 A 도메인과 1:1 아님).
-- **폐기 목록**: Soul Core 명칭 · 5 Pattern Core · Pattern Tesseract · 마을 그래프(`/graph`) ·
-  `/core-brain` · Brain Trinity(`/trinity`) · v3 tesseract 아트 · Visual Tier 노드명 · 캐릭터
-  보이스 (§4.8).
-- **강제 조항 → 코드 맵**: `docs/ARCHITECTURE.md` "Hard Constraint to Code Map".
+| 문서 | 상태 |
+|---|---|
+| 루트 `CLAUDE.md` | **최상위 정본** (결정 로그 — 충돌 시 항상 이긴다) |
+| 이 문서 (PRD v4) | 제품 정의 정본 |
+| `docs/PIXEL-CLAY-MIGRATION.md` · `design/pixel_clay_v4/REPO-NOTES.md` | 시각 이주 정본 |
+| `src/lib/persona/seven-stars.ts` · `src/lib/canon/` | 코드가 곧 정본인 것들 |
+| `docs/CONSTELLATION-DESIGN.md` | ⚠ **역사 기록** — 6 도메인 별 골격, 2026-08-24 이전 |
+| `docs/CONCEPT.md` | 반쪽 — 시각 방향 절만 최신, Layer A 서술은 낡음 |
+| `legacy/docs/ui-audit/*` · v3 PRD | 역사 기록 |
