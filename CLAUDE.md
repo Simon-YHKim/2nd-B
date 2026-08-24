@@ -272,14 +272,23 @@ Project-specific guidance for Claude Code sessions in this repo.
 - **`lib/lenses/*`** — 휴면. 관문 5개와 자율도 L1~L3 정의가 여기 있고 그 규율은 계속 쓰인다.
   ⚠ `LensId` 에도 `profile` 이 있다. 되살리는 사람은 접두사부터 정하고 시작할 것.
 
-### 남은 것 (아직 안 함)
+### 남은 것 — 2026-08-25 갱신
 
-**아무도 L5 에 갈 수 없다.** 비준을 쓰는 곳(`review.tsx`)이 여전히 옛 축 id 로 적는다.
-접두사가 막아주므로 **틀리지는 않지만**, 새 별로 가는 비준 경로는 아직 없다.
-운영 실측(2026-08-24) `evidence_origin='ratify'` **0건** — 이전에도 아무도 도달한 적이
-없으므로 되돌아간 것은 없다.
+**L5 비준 경로는 열렸다(#1384).** 여기 "아무도 L5 에 갈 수 없다"고 적혀 있던 것은
+2026-08-25 에 해소됐다 — 두 층 이상 판 시기 별에 세컨비가 그 시기의 인터뷰 원문을
+근거로 "그때의 나" 요약을 제안하고, `/review` 에서 비준하면 `recordSevenTiers`
+(origin `ratify`, `seven:` 접두사, `record:<id>` 인용)로 원장에 남아 홈 밝기가 L5 로
+오른다. 재료는 `persona/seven-proposal-context.ts`(문턱 `SEVEN_RATIFY_MIN_CELLS=2` —
+낮추면 사건 목록으로 사람을 지어내게 된다). ⚠ 새 별 비준 쓰기에 `recordStarTiers`
+재사용 금지(옛 마일스톤 오염) — `seven-ratify-path.test.ts` 가 변이 검증으로 지킨다.
+운영 `ratify` 행 기준선 0 — 여기서부터 새 계기다.
 
-세컨비 → 허슬케이 개명은 구조가 자리 잡은 뒤로 미뤘다(Simon 명시).
+PRD 는 **Draft v4**(#1385, 2026-08-25)가 정본이다 — 일곱 한 벌·화면 카탈로그 72종·
+새 KPI. `docs/CONSTELLATION-DESIGN.md` 는 역사 기록 배너가 붙었다. Claude Design
+재발주 프롬프트는 `design/CLAUDE-DESIGN-BRIEF-260825.md`.
+
+세컨비 → 허슬케이 개명은 구조가 자리 잡은 뒤로 미뤘다(Simon 명시). 앱 이름(Polar
+Scope 검토 → 충돌 2건 검증됨, Merak 등 대안 후보)과 **한 체계로 함께** 결정한다.
 
 ---
 
