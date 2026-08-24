@@ -56,6 +56,7 @@ import { getWikiPage } from "@/lib/wiki/queries";
 import { transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
+import { DomainDashboard } from "@/components/secondb/DomainDashboard";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { holdExpression, reactExpression } from "@/lib/companion/expression";
 import { getPersona, PERSONAS } from "@/lib/chat/personas";
@@ -476,10 +477,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
   // nodeContext entry (chat pack §3/§7): a graph node passed its label.
   // character (2026-05-31): tapping a village companion opens chat in that
   // character's voice (src/lib/chat/personas.ts).
-  const params = useLocalSearchParams<{ fromNode?: string; character?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ fromNode?: string; character?: string; mode?: string; panel?: string }>();
   const fromNode = typeof params.fromNode === "string" && params.fromNode.length > 0 ? params.fromNode : null;
   const characterParam = typeof params.character === "string" && params.character.length > 0 ? params.character : null;
   const persona = useMemo(() => getPersona(characterParam), [characterParam]);
+  // 머리 탭으로 들어오면(?panel=dashboard) 대시보드를 펴고 시작한다. 캐릭터
+  // 대화에는 안 뜬다 -- 그쪽은 세컨비가 아니라 다른 화자의 자리다.
+  const [showDashboard, setShowDashboard] = useState(params.panel === "dashboard" && !characterParam);
   // Only treat it as a character chat when a real worker was passed.
   const isCharacterChat = characterParam != null && characterParam in PERSONAS;
 
@@ -1025,6 +1029,13 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* [Simon 결정 6 = B] 세컨비 머리를 터치해서 들어오면 생활 여섯
+                영역의 지금 상태가 대화 위에 펴진다. 세컨비가 말을 걸기 전에
+                자기가 뭘 알고 있는지 보이는 자리다. 접으면 그 세션 동안 안 뜬다. */}
+            {showDashboard && userId ? (
+              <DomainDashboard userId={userId} onDismiss={() => setShowDashboard(false)} />
+            ) : null}
+
             {turns.length === 0 ? (
               <View style={ds.empty}>
                 <Text style={ds.emptyTitle}>

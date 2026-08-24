@@ -564,6 +564,11 @@
       "records": "{{n}} catatan",
       "start": "Mulai",
       "continue": "Lanjutkan"
+    },
+    "dashboard": {
+      "title": "Yang kutahu tentangmu",
+      "sub": "Enam area hidupmu. Ketuk salah satu untuk melihat detailnya.",
+      "dismiss": "Sembunyikan"
     }
   }
 }

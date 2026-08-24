@@ -564,6 +564,11 @@
       "records": "{{n}} registros",
       "start": "Empezar",
       "continue": "Seguir"
+    },
+    "dashboard": {
+      "title": "Lo que sé de ti",
+      "sub": "Seis áreas de tu vida. Toca una para ver el detalle.",
+      "dismiss": "Ocultar"
     }
   }
 }
