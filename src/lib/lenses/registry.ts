@@ -110,16 +110,22 @@ export const LENSES: readonly Lens[] = [
   },
   {
     id: "resurface",
-    // ⚠ 유일하게 슬롯이 없는 렌즈다. `digest_weekly` · `ttfv_first_insight` 는
-    // purpose 로 **선언만** 돼 있고 `src/lib` 안에 호출부가 0건이다(실측
-    // 2026-08-21). 자리를 만들기 전에는 이 렌즈를 켤 수 없다 -- 켜면 바꿀 것이
-    // 없는 추정기가 되고, 그게 원래 7개가 저질렀던 실수다.
-    field: "(미정 — 무엇을 언제 다시 보여줄지)",
-    declaredIn: "",
-    anchor: "",
-    surfaces: ["digest_weekly", "ttfv_first_insight"],
-    scoring: "열었는가 닫았는가 (다시 보여준 항목의 오픈률)",
-    slot: "todo",
+    // 2026-08-24: 슬롯이 생겼다. 예전 주석은 `digest_weekly` ·
+    // `ttfv_first_insight` 를 자리로 봤는데 둘 다 purpose 선언만 있고 호출부가
+    // 0건이었다. 그래서 **자리를 다른 데서 찾았다** -- `/digest`(오늘의 정리)는
+    // 이미 추론된 링크를 다시 띄우고 사용자가 비준한다. 없던 것은 화면이 아니라
+    // **결정**이었다: 그 화면은 `confidence DESC` 로 50개를 그냥 쏟았다.
+    // 고정 규칙은 결정이 아니다 -- 사람마다 굽힐 자리가 없다.
+    //
+    // ⚠ **개인화는 아직 없다.** 지금 규칙은 모두에게 같다(대기 시간 감쇠).
+    // 슬롯이 live 라는 것은 "굽힐 필드가 코드에 있다"는 뜻이지 "렌즈가 다 됐다"가
+    // 아니다. 자율도(L1~L3)는 별개이고, 적중이 쌓여야 오른다.
+    field: "resurfaceOrder",
+    declaredIn: "src/lib/resurface/plan.ts",
+    anchor: "resurfaceOrder: readonly string[];",
+    surfaces: ["planResurface", "digest_weekly", "ttfv_first_insight"],
+    scoring: "띄운 항목을 비준했는가 / 물렸는가 / 그냥 두었는가 (ratifyLink · rejectInferredLink)",
+    slot: "live",
   },
   {
     id: "profile",

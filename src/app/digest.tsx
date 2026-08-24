@@ -19,6 +19,7 @@ import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
 import { InlineLoader } from "@/components/ui/InlineLoader";
+import { planResurface } from "@/lib/resurface/plan";
 import {
   listInferredLinkDetails,
   ratifyLink,
@@ -56,7 +57,23 @@ export default function Digest() {
     setError(false);
     try {
       const rows = await listInferredLinkDetails(userId);
-      setItems(rows);
+      // 꺼내기 슬롯이 순서를 정한다. 예전에는 신뢰도 순 50개를 그대로 쏟았고,
+      // 그러면 높은 신뢰도인데 계속 비준되지 않는 항목이 영원히 맨 위에 남는다 --
+      // 매일 같은 것을 보게 된다. 이제 대기 시간으로 감쇠시키고 앞의 몇 개만 띄운다.
+      const plan = planResurface(
+        rows.map((r) => ({
+          key: `${r.from_page}:${r.to_page}`,
+          confidence: r.confidence,
+          createdAt: r.created_at ?? null,
+        })),
+      );
+      const rank = new Map(plan.resurfaceOrder.map((k, i) => [k, i]));
+      const ordered = [...rows]
+        .sort((a, b) =>
+          (rank.get(`${a.from_page}:${a.to_page}`) ?? Number.MAX_SAFE_INTEGER) -
+          (rank.get(`${b.from_page}:${b.to_page}`) ?? Number.MAX_SAFE_INTEGER))
+        .slice(0, plan.shown);
+      setItems(ordered);
     } catch {
       // A load failure is NOT an empty list. Surface a distinct error state
       // with a retry CTA so the user can recover (spec §9).
