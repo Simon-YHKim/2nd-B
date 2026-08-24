@@ -25,11 +25,12 @@
 // 아무도 L5 에 도달한 적이 없다. 이 함수는 그 길이 열렸을 때를 위한 것이지,
 // 이미 있는 데이터를 읽는 것이 아니다.
 
-import { captureEvent, starLit } from "../analytics";
+import { activationMilestone, captureEvent, starLit } from "../analytics";
 import { getSupabaseClient } from "../supabase/client";
 import type { LadderLevel } from "./brightness";
 import { sanitizeCitations } from "./record-star-tiers";
-import { isSevenStarId, type SevenStarId } from "./seven-stars";
+import { SEVEN_STARS, isSevenStarId, type SevenStarId } from "./seven-stars";
+import { northStarBrightness, type HeadlineStarId } from "./north-star";
 
 export const SEVEN_TIER_PREFIX = "seven:";
 
@@ -104,6 +105,32 @@ export async function recordSevenTiers(
     for (const [id, level] of entries) {
       if (level > (prior.get(id) ?? 1)) {
         captureEvent(starLit({ star_id: tierKey(id), ladder_level: level, source: "journal" }));
+      }
+    }
+
+    // activation_milestone -- 옛 체계(record-star-tiers)에서 이사해 온 지표
+    // (2026-08-25, 옛 축 rebuild 쓰기 중지와 같은 PR). 일곱이 다 전달될 때만
+    // (인터뷰 저장 경로가 그렇다) 켜진 별 수가 늘었는지 본다.
+    //
+    // ⚠ 밝기 값은 soulCoreBrightness(옛 축 집계)가 아니라 북극성 규칙
+    // (northStarBrightness -- 프로필 제외 여섯 평균)이다. 이벤트 필드 이름
+    // soul_core_brightness 는 GA4 지표 연속성 때문에 유지한다 -- 이름이
+    // 아니라 값의 정의가 바뀌었고, 그게 이 이사의 내용이다.
+    if (entries.length >= 7) {
+      const LIT = 2;
+      const priorLit = SEVEN_STARS.filter((s) => (prior.get(s.id) ?? 1) >= LIT).length;
+      const nextLit = entries.filter(([, level]) => level >= LIT).length;
+      if (nextLit > priorLit) {
+        const headline: Partial<Record<HeadlineStarId, LadderLevel>> = {};
+        for (const [id, level] of entries) {
+          if (id !== "profile") headline[id as HeadlineStarId] = level;
+        }
+        captureEvent(
+          activationMilestone({
+            stars_lit_count: nextLit,
+            soul_core_brightness: northStarBrightness(headline),
+          }),
+        );
       }
     }
   } catch {
