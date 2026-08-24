@@ -27,15 +27,18 @@ L1~L5 는 그대로다. 바뀌는 것은 시각 체계뿐이다.
 
 ## Canonical (use this)
 
-- **Concept SoT = `docs/PRD.md` (Draft v3).** Detailed model spec = `docs/CONSTELLATION-DESIGN.md`.
-  This file just names canonical vs legacy.
+- **Concept SoT = `docs/PRD.md` (Draft v4, 2026-08-25).** This file just names canonical vs
+  legacy. ⚠ `docs/CONSTELLATION-DESIGN.md` 는 2026-08-24 별 개편으로 **역사 기록**이 됐다
+  (문서 머리 배너 참조).
 - **Direction: deep-space constellation.** A character-led home shell (the `EXPO_PUBLIC_UI`
   default). The constellation is the **single home / navigation**; tap a star → its domain,
   tap 북극성 → the aggregate + 세컨비. No 4-tab shell, no village graph.
 - **Canonical model = 3-layer 별자리** (PRD §4):
-  - **Layer A — input: 7 DOMAIN stars** (북두칠성). 커리어 · 재정 · 성장 · 관계 · 건강 · 휴식 ·
-    담아내기. Each = 입력 → 출력 + 리스트업(편집 가능 + 카테고리 + 태그). These are the *visible*
-    home stars.
+  - **Layer A — input: 일곱 별 = 나를 알아가는 자리** (2026-08-24 개편, 정본
+    `src/lib/persona/seven-stars.ts`): 프로필 · 영유아기(0~6) · 학창시절(7~19) · 20대 ·
+    30대 이후 · 직장 · 지금. These are the *visible* home stars. 생활 도메인 여섯
+    (커리어·재정·성장·관계·건강·휴식)은 별에서 내려가 **세컨비 대시보드**가 됐고,
+    `/star/<domain>` 상세는 그 대시보드에서 연다.
   - **Layer B — validation: psychological constructs** (`src/lib/persona/stars.ts`
     `SELF_UNDERSTANDING_STARS` — Big Five / 내러티브 / 애착 / SDT·VIA / 가능자아 / 순간변동).
     These are **NOT home stars**; they are the hidden inference layer that grounds the output
