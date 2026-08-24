@@ -85,9 +85,10 @@ describe("a switch nobody's build passes is not a switch", () => {
 
   test.each([...ENV_KEYS])("%s reaches the native build", (key) => {
     expect(ANDROID).toContain(key);
-    // eas.json carries the ones whose default is a real vendor literal. See
-    // the LLM_VENDOR exception below for the one that cannot be.
-    if (key !== "EXPO_PUBLIC_LLM_VENDOR") expect(EAS).toContain(key);
+    // eas.json carries all of them now, LLM_VENDOR included. It used to be
+    // exempt here on unset-semantics grounds; see the test below for why that
+    // exemption was the thing hiding the divergence.
+    expect(EAS).toContain(key);
   });
 
   test("eas.json holds no empty EXPO_PUBLIC_* value", () => {
@@ -109,22 +110,31 @@ describe("a switch nobody's build passes is not a switch", () => {
     expect(empties).toEqual([]);
   });
 
-  test("EXPO_PUBLIC_LLM_VENDOR is absent from eas.json, deliberately", () => {
-    // The other switches default to "gemini" when unset, so writing "gemini"
-    // in eas.json is exactly equivalent. This one does NOT: unset defers to
-    // the phase rule, while "gemini" pins every seat. No non-empty literal
-    // reproduces "unset", and "" is what broke the CLI - so the key is absent,
-    // which IS unset. An operator who wants native seats on another vendor
-    // adds it with a real value.
+  test("EXPO_PUBLIC_LLM_VENDOR is PRESENT in eas.json, with a real value", () => {
+    // This assertion used to say the opposite, and its reasoning was sound
+    // while its conclusion was wrong. The reasoning: the other switches
+    // default to "gemini", so writing "gemini" equals unset, while this one
+    // defers to the phase rule instead - no literal reproduces "unset", and ""
+    // is what broke eas-cli, so absence was the only way to say unset.
+    //
+    // All true. What it missed is that "unset" is not neutral here. Phase 1
+    // pins every reasoning seat to Gemini, so leaving the key out was not
+    // declining to have an opinion - it was choosing Gemini for all twelve,
+    // silently, in the one build path nobody can inspect after the fact.
+    //
+    // The cost surfaced on 2026-08-24: the console had moved the web to OpenAI
+    // days earlier, native was still on the phase rule, and the v0.2.0 APK on
+    // GitHub Releases was routing 100% of its AI at a key Google stops
+    // honouring in September. The ledger had been saying so since 08-23 22:31.
+    //
+    // So native states its posture out loud now. If it should differ from the
+    // web, it differs on purpose and in writing - see
+    // native-web-vendor-parity.test.ts, which is the assertion that would have
+    // caught this one.
     const eas = JSON.parse(EAS) as { build: Record<string, { env?: Record<string, string> }> };
-    for (const cfg of Object.values(eas.build)) {
-      expect(Object.keys(cfg.env ?? {})).not.toContain("EXPO_PUBLIC_LLM_VENDOR");
-    }
-    // And the two that CAN carry a literal do carry the equivalent one.
     for (const profile of ["preview", "production"]) {
       const env = eas.build[profile]?.env ?? {};
-      expect(env.EXPO_PUBLIC_MULTIMODAL_VENDOR).toBe("gemini");
-      expect(env.EXPO_PUBLIC_BACKBONE_VENDOR).toBe("gemini");
+      expect(env.EXPO_PUBLIC_LLM_VENDOR).toBeTruthy();
     }
   });
 
@@ -135,9 +145,10 @@ describe("a switch nobody's build passes is not a switch", () => {
       const gaps = [
         WEB.includes(key) ? null : "web-deploy.yml",
         ANDROID.includes(key) ? null : "android-release.yml",
-        // eas.json is checked separately: a key can be legitimately absent
-        // there (unset semantics) but must never be present-and-empty.
-        key === "EXPO_PUBLIC_LLM_VENDOR" || EAS.includes(key) ? null : "eas.json",
+        // No exemption here any more. A key absent from eas.json is a key
+        // whose native value is whatever the code happens to default to, and
+        // that default is not visible from anything an operator reads.
+        EAS.includes(key) ? null : "eas.json",
       ].filter(Boolean);
       if (gaps.length > 0) missing.push(`${key} -> ${gaps.join(", ")}`);
     }
