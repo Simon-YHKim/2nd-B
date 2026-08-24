@@ -21,18 +21,20 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
-import { SELF_UNDERSTANDING_STARS, type StarId } from "@/lib/persona/stars";
+import { starNameKey } from "@/lib/persona/star-name";
 import { loadTierObservations } from "@/lib/persona/load-tier-observations";
 import { buildRatificationLog, ratificationEmptyState, type RatificationEntry } from "@/lib/persona/brightness-timeline";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
 type Tx = (key: string, options?: Record<string, unknown>) => string;
 
-// Star names resolve through home:ds.home.starName.<id> (all five locales);
-// the SELF_UNDERSTANDING_STARS nameKo/nameEn pair only ever covered two.
+// Star names resolve through the shared two-system resolver (star-name.ts):
+// old axes -> home:ds.home.starName.<id>, new seven -> home:ds.star.<key>.
+// 2026-08-25 fix: this used to look up SELF_UNDERSTANDING_STARS directly, so a
+// `seven:` ledger row rendered as its raw id ("seven:school") in the log.
 const starName = (starId: string, t: Tx): string => {
-  const star = SELF_UNDERSTANDING_STARS.find((s) => s.id === (starId as StarId));
-  return star ? t(`home:ds.home.starName.${star.id}`) : starId;
+  const key = starNameKey(starId);
+  return key ? t(`home:${key}`) : starId;
 };
 
 function originLabel(origin: string | null, t: Tx): string {
