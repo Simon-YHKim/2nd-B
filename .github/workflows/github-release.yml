@@ -221,6 +221,12 @@ jobs:
             exit 1
           fi
           head -c 2 "$FILE" | grep -q 'PK' || { echo "::error::Downloaded artifact is not a zip container."; exit 1; }
+          # Play stops accepting updates that do not target Android 16 (API 36)
+          # from 2026-08-31. Nothing in this repo pins the target - it comes from
+          # the Expo SDK prebuild template - so the only place the answer exists
+          # is the binary we are about to publish. Read it here rather than
+          # trusting that the toolchain still does the right thing.
+          node scripts/check-apk-target-sdk.js "$FILE"
           echo "file=$FILE"           >> "$GITHUB_OUTPUT"
           echo "build_id=$BUILD_ID"   >> "$GITHUB_OUTPUT"
           echo "size=$SIZE"           >> "$GITHUB_OUTPUT"
