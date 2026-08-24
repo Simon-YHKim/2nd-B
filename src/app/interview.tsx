@@ -33,7 +33,7 @@
 // `assess/registry.ts` 의 `interview` 항목이 그 태그로 완료를 판정하고,
 // 옛 스크리너로 남긴 기록과 같은 서랍에 들어가야 한다.
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { useTranslation } from "react-i18next";
@@ -47,7 +47,8 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { parsePeriodParam } from "@/lib/interview/periods";
+import { parsePeriodParam, periodIdsForAge } from "@/lib/interview/periods";
+import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
@@ -104,7 +105,7 @@ export default function InterviewRoute() {
   // 기록을 남기므로 그쪽을 고르지 않았다.
   const auditPeriod: string = period;
 
-  const { userId, loading, isMinor, hasProfile } = useAuth();
+  const { userId, loading, isMinor, hasProfile, age } = useAuth();
   const kbHeight = useKeyboard();
 
   const [turns, setTurns] = useState<InterviewTurn[]>([]);
@@ -120,6 +121,8 @@ export default function InterviewRoute() {
    *  바로 그 칸을 다시 집어서 같은 질문이 계속 나갔다. 밝기는 정직하게 비워두고,
    *  묻기만 멈춘다. */
   const [abandoned, setAbandoned] = useState<DrillLayer[]>([]);
+  /** 이 사용자에게 해당되는 시기. 진행 행렬의 열이 된다. */
+  const coveredPeriods = useMemo(() => periodIdsForAge(age), [age]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
@@ -409,6 +412,20 @@ export default function InterviewRoute() {
           <>
             <Text style={[m3TextStyle("titleLarge"), styles.saveTitle]}>{t("drill.saveTitle")}</Text>
             <Text style={[m3TextStyle("bodyMedium"), styles.saveBody]}>{t("drill.closing")}</Text>
+            {/* 이만큼 팠다 -- 담을지 정하는 자리에서 보여준다.
+             *
+             *  대화 중에는 안 띄운다: 화면 하나에 메시지 하나라는 규율도 있고,
+             *  무엇보다 **말하는 동안 채점표를 보여주면 칸을 채우려고 말하게 된다.**
+             *  대화가 끝난 뒤에 보여주는 것이 정직한 순서다.
+             *
+             *  열은 사용자가 **살아온 시기**만(`periodIdsForAge`). LIFE_PERIODS 를
+             *  그대로 그리면 스물다섯 살에게 70대 열이 보인다. */}
+            <DrillProgress
+              coverage={coverage}
+              locale={locale}
+              periods={coveredPeriods}
+              activePeriod={period}
+            />
             <MdCard variant="outlined" style={styles.noteCard}>
               <Text style={[m3TextStyle("bodySmall"), styles.note]}>{t("drill.saveBody")}</Text>
             </MdCard>
