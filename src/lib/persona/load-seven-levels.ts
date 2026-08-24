@@ -30,6 +30,7 @@ import { DRILL_LAYERS } from "../interview/probe";
 import { SEVEN_STARS, type SevenStarId } from "./seven-stars";
 import { northStarBrightness, type HeadlineStarId } from "./north-star";
 import { loadProfileStarLevel } from "./load-profile-star";
+import { loadSevenRatified } from "./seven-tier-history";
 import type { LadderLevel } from "./brightness";
 
 /**
@@ -60,9 +61,10 @@ export async function loadSevenLevels(userId: string): Promise<SevenLevels> {
   const levels = allDim();
   if (!userId) return { starLevels: levels, northStarBrightness: northStarBrightness({}) };
 
-  const [coverage, profileLevel] = await Promise.all([
+  const [coverage, profileLevel, ratified] = await Promise.all([
     loadCoverage(userId).catch(() => null),
     loadProfileStarLevel(userId).catch(() => 1 as LadderLevel),
+    loadSevenRatified(userId).catch(() => ({})),
   ]);
 
   for (const star of SEVEN_STARS) {
@@ -74,6 +76,18 @@ export async function loadSevenLevels(userId: string): Promise<SevenLevels> {
     let cells = 0;
     for (const l of DRILL_LAYERS) if (coverage[star.period][l] > 0) cells += 1;
     levels[star.id] = levelFromCells(cells);
+  }
+
+  // 비준으로 서 있는 등급까지 끌어올린다. **내리지는 않는다** -- 계산이 낮게
+  // 나왔다고 사용자가 이미 비준한 것을 빼앗으면, 밝기가 뒤로 간 사용자는
+  // 자기가 뭘 잃었는지 알 길이 없다. 그리고 L5 는 오직 이 길로만 온다.
+  //
+  // ⚠ 이 여덟 줄은 #1377 에서 한 번 사라진 적이 있다 -- 변이 검증의 복구
+  // 명령(git checkout)이 변이만이 아니라 배선까지 되돌렸고, 배선을 박는
+  // 검사가 없어서 아무도 몰랐다. 그래서 지금은 seven-ratify-wiring.test.ts
+  // 가 이 파일에 리프트가 실재하는지를 지킨다.
+  for (const [id, level] of Object.entries(ratified) as [SevenStarId, LadderLevel][]) {
+    if (levels[id] !== undefined && level > levels[id]) levels[id] = level;
   }
 
   // 북극성은 **그리는 것만** 평균한다(캐논 polarisBrightness). 프로필은 빠진다 --
