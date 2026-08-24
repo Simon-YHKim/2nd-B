@@ -21,7 +21,7 @@ import { gatherWeeklyGrowth } from "@/lib/growth/gather";
 import { startTask } from "@/lib/tasks/store";
 import type { StarChange, WeeklyGrowth } from "@/lib/growth/weekly";
 import { createRoutineFromRecommendation } from "@/lib/ops/routines";
-import type { StarId } from "@/lib/persona/stars";
+import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
 
 // Dipper layout (design coords, viewBox 272x188), star index 1..7 → position.
@@ -35,32 +35,29 @@ const POS: ReadonlyArray<[number, number]> = [
   [232, 40],
 ];
 
-// Star → lens route (mirrors DeepSpaceHomeScreen's LENS_ROUTES). The 근거 칩
-// deep-links to the lens that explains why this star grew. Inline because the
-// home-screen map isn't exported; keep the two in sync if routes change.
-const LENS_ROUTE: Record<StarId, string> = {
-  now: "/big-five",
-  recall: "/interview",
-  seen: "/persona",
-  rhythm: "/esm",
-  relational: "/attachment",
-  possible: "/imagine",
-  values: "/audit",
-};
+// 별 탭 진입 규칙(결정 4)과 동일: 자란 별의 근거 칩은 그 별의 요약으로 간다.
+// 2026-08-25 이관 전에는 옛 축 7개가 각자 다른 렌즈 화면으로 흩어졌는데, 새
+// 일곱은 진입점이 하나라 맵이 필요 없다.
+const starRoute = (id: SevenStarId): string => `/me/${id}`;
 
 // Deterministic observation + next step per grown star (no LLM — synthesis only).
-const STEP: Record<StarId, { obsKo: string; obsEn: string; stepKo: string; stepEn: string; domain: OpsDomainId }> = {
-  now: { obsKo: "지금의 나를 자주 들여다본 한 주였어요.", obsEn: "You checked in on yourself often this week.", stepKo: "오늘 한 줄 돌아보기", stepEn: "One line of reflection today", domain: "daily_focus" },
-  recall: { obsKo: "지난 이야기를 많이 되짚었어요.", obsEn: "You revisited your story a lot.", stepKo: "기억 한 조각 적어두기", stepEn: "Note one memory", domain: "learning_goals" },
-  seen: { obsKo: "남에게 보이는 나를 살핀 한 주였어요.", obsEn: "You looked at how others see you.", stepKo: "피드백 한 번 청해보기", stepEn: "Ask for one piece of feedback", domain: "career_check" },
-  rhythm: { obsKo: "하루의 리듬이 또렷해졌어요.", obsEn: "Your daily rhythm came into focus.", stepKo: "같은 시간에 한 가지 하기", stepEn: "Do one thing at the same time", domain: "daily_focus" },
-  relational: { obsKo: "관계를 자주 떠올린 한 주였어요.", obsEn: "Relationships were on your mind.", stepKo: "한 사람에게 안부 전하기", stepEn: "Reach out to one person", domain: "home_reset" },
-  possible: { obsKo: "미래를 자주 그린 한 주였어요. 그 그림에 작은 일정 하나를 더해볼까요?", obsEn: "You pictured your future a lot. Add one small plan to it?", stepKo: "미래 계획 한 줄 적기", stepEn: "Write one future plan", domain: "learning_goals" },
-  values: { obsKo: "무엇이 중요한지 자주 돌아봤어요.", obsEn: "You reflected on what matters.", stepKo: "가치 한 가지 실천하기", stepEn: "Act on one value", domain: "career_check" },
+// 2026-08-25: 새 일곱(나를 알아가는 자리) 기준으로 재작성. 프로필만 인터뷰가
+// 없는 별이라 다음 걸음도 항목 채우기다.
+const STEP: Record<SevenStarId, { obsKo: string; obsEn: string; stepKo: string; stepEn: string; domain: OpsDomainId }> = {
+  profile: { obsKo: "내 기본 정보를 채워간 한 주였어요.", obsEn: "You filled in more of your basics this week.", stepKo: "프로필 항목 하나 채우기", stepEn: "Fill in one profile field", domain: "daily_focus" },
+  infancy: { obsKo: "가장 이른 기억을 파본 한 주였어요.", obsEn: "You dug into your earliest memories.", stepKo: "떠오른 장면 한 조각 적어두기", stepEn: "Note one scene that came up", domain: "learning_goals" },
+  school: { obsKo: "학창시절을 되짚은 한 주였어요.", obsEn: "You revisited your school years.", stepKo: "그 시절 한 장면 더 파보기", stepEn: "Dig into one more scene from then", domain: "learning_goals" },
+  twenties: { obsKo: "20대의 나를 깊게 판 한 주였어요.", obsEn: "You went deep on your twenties.", stepKo: "그때의 선택 하나 적어보기", stepEn: "Write down one choice from then", domain: "learning_goals" },
+  later: { obsKo: "서른 이후의 변화를 돌아본 한 주였어요.", obsEn: "You looked at how you changed after thirty.", stepKo: "달라진 것 한 줄 적기", stepEn: "Write one line about what changed", domain: "daily_focus" },
+  work: { obsKo: "일하는 나를 들여다본 한 주였어요.", obsEn: "You looked at yourself at work.", stepKo: "이번 주 일의 한 장면 적기", stepEn: "Note one scene from work this week", domain: "career_check" },
+  now: { obsKo: "지금의 나를 자주 들여다봤어요.", obsEn: "You checked in on yourself often.", stepKo: "오늘 한 줄 돌아보기", stepEn: "One line of reflection today", domain: "daily_focus" },
 };
 
 export function WeeklyGrowthScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  // 별 이름은 홈 별자리와 같은 키에서 온다 -- 화면마다 다른 이름 금지.
+  const { t: tHome } = useTranslation("home");
+  const starName = (id: SevenStarId) => tHome(`ds.star.${getSevenStar(id).key}`);
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
   const { userId } = useAuth();
 
@@ -152,7 +149,7 @@ export function WeeklyGrowthScreen() {
       <>
         <View style={styles.heroBox}>
           <Text variant="caption" pixelEn style={styles.heroLabel}>{t("ds.growth.thisWeeksStar")}</Text>
-          <Text variant="heading" style={styles.heroName}>{ko ? hero.nameKo : hero.nameEn}</Text>
+          <Text variant="heading" style={styles.heroName}>{starName(hero.id)}</Text>
           <Text variant="body" style={styles.heroDelta}>
             {hero.delta > 0 ? t("ds.growth.brightened").replace("{n}", String(hero.delta)) : t("ds.growth.brightestNow")}
           </Text>
@@ -212,13 +209,13 @@ export function WeeklyGrowthScreen() {
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push(LENS_ROUTE[hero.id] as never)}
+            onPress={() => router.push(starRoute(hero.id) as never)}
             hitSlop={6}
             style={styles.reasonChip}
             android_ripple={{ color: withAlpha(deepSpace.soul, 0.12) }}
           >
             <View style={[styles.dot, { backgroundColor: deepSpace.soul }]} />
-            <Text variant="caption" style={styles.reasonText}>{`${ko ? hero.nameKo : hero.nameEn} ↑ `}<RNText style={styles.reasonCaret}>›</RNText></Text>
+            <Text variant="caption" style={styles.reasonText}>{`${starName(hero.id)} ↑ `}<RNText style={styles.reasonCaret}>›</RNText></Text>
           </Pressable>
           <View style={styles.obsActions}>
             <Pressable onPress={saveStep} hitSlop={6} style={[styles.primaryBtn, saved ? styles.disabled : null]} disabled={saved}>

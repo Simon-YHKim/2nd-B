@@ -1,3 +1,5 @@
+// 2026-08-25: 검사 대상이 새 일곱(seven-stars)이다. star_id 는 gather.ts 가
+// seven: 접두사를 벗긴 뒤의 값 -- 순수 층은 원장 표기법을 모른다.
 import { buildWeeklyGrowth } from "../weekly";
 
 const NOW = new Date(2026, 5, 20); // 2026-06-20, window cutoff = 2026-06-13
@@ -12,8 +14,8 @@ describe("buildWeeklyGrowth", () => {
   test("picks the most-grown star as topStar (before vs after across the cutoff)", () => {
     const g = buildWeeklyGrowth({
       history: [
-        { star_id: "possible", level: 1, recorded_at: "2026-06-01T00:00:00.000Z" }, // before week
-        { star_id: "possible", level: 3, recorded_at: "2026-06-18T00:00:00.000Z" }, // this week
+        { star_id: "school", level: 1, recorded_at: "2026-06-01T00:00:00.000Z" }, // before week
+        { star_id: "school", level: 3, recorded_at: "2026-06-18T00:00:00.000Z" }, // this week
         { star_id: "now", level: 1, recorded_at: "2026-06-02T00:00:00.000Z" },
         { star_id: "now", level: 2, recorded_at: "2026-06-19T00:00:00.000Z" },
       ],
@@ -23,7 +25,7 @@ describe("buildWeeklyGrowth", () => {
       now: NOW,
     });
     expect(g.hasPriorWeek).toBe(true);
-    expect(g.topStar?.id).toBe("possible");
+    expect(g.topStar?.id).toBe("school");
     expect(g.topStar?.before).toBe(1);
     expect(g.topStar?.after).toBe(3);
     expect(g.topStar?.delta).toBe(2);
@@ -59,15 +61,15 @@ describe("buildWeeklyGrowth", () => {
   test("levels clamp to 1..5", () => {
     const g = buildWeeklyGrowth({
       history: [
-        { star_id: "values", level: 0, recorded_at: "2026-06-01T00:00:00.000Z" },
-        { star_id: "values", level: 9, recorded_at: "2026-06-18T00:00:00.000Z" },
+        { star_id: "work", level: 0, recorded_at: "2026-06-01T00:00:00.000Z" },
+        { star_id: "work", level: 9, recorded_at: "2026-06-18T00:00:00.000Z" },
       ],
       completions: [],
       recordsCount: 0,
       milestonesDoneThisWeek: 0,
       now: NOW,
     });
-    const v = g.stars.find((s) => s.id === "values");
+    const v = g.stars.find((s) => s.id === "work");
     expect(v?.before).toBe(1);
     expect(v?.after).toBe(5);
   });
