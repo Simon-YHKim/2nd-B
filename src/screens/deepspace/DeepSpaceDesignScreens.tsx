@@ -46,6 +46,13 @@ import { proposeSelfModelChange } from "@/lib/persona/propose-self-model";
 import { applyRatify, type RatifyDecision, type SelfModelProposal } from "@/lib/persona/proposal";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { recordStarTiers } from "@/lib/persona/record-star-tiers";
+import { recordSevenTiers } from "@/lib/persona/seven-tier-history";
+import {
+  buildSevenProposalContext,
+  sevenRatifiableTargets,
+  type SevenRatifiableTarget,
+} from "@/lib/persona/seven-proposal-context";
+import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import { ratifiableTargets, type RatifiableTarget } from "@/lib/persona/ratifiable";
 
 // 어떤 도구가 채운 축인지로 라벨을 고른다. Big Five 는 BFI-44 로 왔든
@@ -1601,6 +1608,9 @@ export function DeepSpaceDiscoverScreen() {
 
 export function DeepSpaceReviewScreen() {
   const { t, i18n } = useTranslation("deepspace");
+  // 시기 별 버튼의 이름은 홈 별자리와 **같은 키**에서 온다 -- 화면마다 다른
+  // 이름을 배우면 사용자는 같은 별을 두 개로 안다.
+  const { t: tHome } = useTranslation("home");
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
   const { userId, isMinor } = useAuth();
   // Real propose -> ratify (was a static mockup with hardcoded 61->68 and dead
@@ -1627,6 +1637,9 @@ export function DeepSpaceReviewScreen() {
   // 하드코딩해서 **Big Five 하나만** 이의를 제기할 수 있었다 -- 애착 검사와
   // 가치 체크도 결과를 내서 페르소나에 들어가는데 되돌릴 자리가 없었다.
   const [targets, setTargets] = useState<RatifiableTarget[]>([]);
+  // 시기 별 후보(2026-08-25) — 근거가 검사지가 아니라 **인터뷰**인 비준.
+  // 충분히 판 별(두 층 이상)만 온다. 이게 새 일곱 별이 L5 로 가는 유일한 길이다.
+  const [sevenTargets, setSevenTargets] = useState<SevenRatifiableTarget[]>([]);
   useEffect(() => {
     if (!userId) return;
     let active = true;
@@ -1637,6 +1650,13 @@ export function DeepSpaceReviewScreen() {
       .catch(() => {
         // 최선 노력. 실패하면 버튼이 안 뜨고, 그건 조용한 실패가 아니라
         // "아직 되돌아볼 것이 없다" 와 같은 화면이다.
+      });
+    sevenRatifiableTargets(userId)
+      .then((sts) => {
+        if (active) setSevenTargets(sts);
+      })
+      .catch(() => {
+        // 같은 원칙: 못 읽으면 후보가 없는 것과 같은 화면.
       });
     return () => {
       active = false;
@@ -1668,6 +1688,44 @@ export function DeepSpaceReviewScreen() {
     }
   }
 
+  async function generateSeven(star: SevenStarId) {
+    if (!userId || loading) return;
+    setLoading(true);
+    setResult(null);
+    setReceipts([]);
+    try {
+      const ctx = await buildSevenProposalContext(userId, star, locale);
+      if (!ctx) {
+        // 커버리지는 있는데 원문이 없으면(예: 담기 전 이탈) 제안하지 않는다 --
+        // 숫자만으로 사람을 요약하면 지어낸 값을 승인시키는 꼴이 된다.
+        setResult(t("reviewNoChange"));
+        return;
+      }
+      setCurrentLevel(ctx.currentLevel);
+      setEvidenceRefs(ctx.evidenceRefs);
+      setReceipts(await loadEvidenceShards(ctx.evidenceRefs, locale));
+      const p = await proposeSelfModelChange(
+        userId,
+        { kind: "sevenStar", star },
+        ctx.before,
+        ctx.evidence,
+        5,
+        locale,
+        isMinor === true,
+      );
+      if (p) {
+        setProposal(p);
+        setSheetOpen(true);
+      } else {
+        setResult(t("reviewNoChange"));
+      }
+    } catch {
+      setResult(t("reviewLoadError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleDecision(decision: RatifyDecision) {
     const r = applyRatify(currentLevel, decision);
     setSheetOpen(false);
@@ -1684,6 +1742,12 @@ export function DeepSpaceReviewScreen() {
         origin: "ratify",
         citations: evidenceRefs,
       });
+    }
+    if (decision === "ratify" && userId && proposal?.target.kind === "sevenStar") {
+      // ⚠ recordStarTiers 재사용 금지 -- 그쪽 마일스톤이 옛 일곱 기준이라 새 키를
+      // 넘기면 조용히 틀린 숫자가 나간다(seven-tier-history.ts 헤더). 새 별 비준은
+      // seven: 접두사를 다는 자기 경로로만 원장에 남는다. 인용 규율(0060)은 동일.
+      void recordSevenTiers(userId, { [proposal.target.star]: r.resultingLevel }, "ratify", evidenceRefs);
     }
     setResult(
       decision === "ratify"
@@ -1703,7 +1767,7 @@ export function DeepSpaceReviewScreen() {
       {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
           앱이 지어낸 값을 사용자에게 승인시키는 꼴이 되고, 그건 propose->ratify
           가 막으려던 바로 그 일이다. */}
-      {targets.length === 0 ? (
+      {targets.length === 0 && sevenTargets.length === 0 ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewNothingToReview")}</Text>
       ) : (
         targets.map((rt) => (
@@ -1723,6 +1787,23 @@ export function DeepSpaceReviewScreen() {
           </Pressable>
         ))
       )}
+      {/* 시기 별 비준(2026-08-25) -- 인터뷰로 충분히 판 별의 한 줄 요약을 제안받고
+          승인하면 그 별이 L5 로 간다. 커버리지로는 절대 못 가는 등급이라, 이
+          버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다. */}
+      {sevenTargets.map((st) => (
+        <Pressable
+          key={`seven-${st.star}`}
+          style={[styles.primary, loading ? { opacity: 0.5 } : null]}
+          onPress={() => void generateSeven(st.star)}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel={tHome(`ds.star.${getSevenStar(st.star).key}`)}
+        >
+          <Text variant="caption" style={styles.primaryText}>
+            {loading ? t("reviewLoading") : tHome(`ds.star.${getSevenStar(st.star).key}`)}
+          </Text>
+        </Pressable>
+      ))}
       {result ? <Text variant="subtle" style={styles.footer}>{result}</Text> : null}
       {/* audit med#26: dismissing the sheet (backdrop/back) used to strand the
           generated proposal invisibly — the AI cost was spent and the only way
