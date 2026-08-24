@@ -53,6 +53,8 @@ import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER 
 import { useKeyboard } from "@/lib/ui/useKeyboard";
 import { createRecord } from "@/lib/records/create";
 import { addCoverage, loadCoverage } from "@/lib/interview/coverage-store";
+import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
+import { recordSevenTiers } from "@/lib/persona/seven-tier-history";
 import { m3 } from "@/lib/theme/m3";
 import { spacing } from "@/lib/theme/tokens";
 import {
@@ -392,6 +394,11 @@ export default function InterviewRoute() {
         }
       }
       await addCoverage(userId, delta);
+      // 판 만큼 별이 밝아졌다면 그 변화를 원장에 남긴다. 남겨야 8주 그래프에
+      // 선이 생긴다 -- 지금 등급만 있으면 "밝아지고 있다"를 보여줄 수가 없다.
+      // 실패해도 조용하다(recordSevenTiers 가 삼킨다). 저장은 이미 끝났고,
+      // 기록 실패로 성공한 인터뷰를 실패로 보이게 할 이유가 없다.
+      void loadSevenLevels(userId).then((s) => recordSevenTiers(userId, s.starLevels));
       setToast({ tone: "success", message: t("drill.saved") });
       navigating = true;
       setTimeout(() => router.replace("/big-five"), 700);

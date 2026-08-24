@@ -7,8 +7,8 @@
  * Rendered only when EXPO_PUBLIC_UI=deep-space; the legacy track is untouched.
  * Keeps the post-auth gate.
  */
-import { useEffect, useState } from "react";
-import { Redirect, router } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Redirect, router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { type DomainId } from "@/lib/persona/domain-stars";
@@ -35,6 +35,8 @@ export function DeepSpaceShell() {
   // life they've mapped. Defaults to an honest empty sky (all L1) until it
   // resolves; failure leaves it empty (never blocks).
   const [northStarBrightness, setNorthStarBrightness] = useState(0.2);
+  // 화면에 돌아올 때마다 올린다. 밝기 재조회의 방아쇠다.
+  const [refreshTick, setRefreshTick] = useState(0);
   const [starLevels, setStarLevels] = useState<Partial<Record<HomeStarId, LadderLevel>>>({});
   // The seventh star is `profile`, which is NOT a data domain and so is not part
   // of loadDomainLevels' seven-table scan (nor of the 북극성 average — the canon
@@ -68,7 +70,16 @@ export function DeepSpaceShell() {
     return () => {
       alive = false;
     };
-  }, [loading, userId]);
+  }, [loading, userId, refreshTick]);
+
+  // 인터뷰를 마치고 돌아오면 다시 읽는다. 홈은 한 번 뜬 뒤 마운트된 채로 남아
+  // 있어서, 이게 없으면 **방금 판 자리가 하늘에 안 뜬다** -- 앱을 껐다 켜야
+  // 밝아지는 별은 판 보람이 없다.
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshTick((n) => n + 1);
+    }, []),
+  );
 
   if (loading) return <InlineLoader />;
   // Login wall first (Simon 2026-07-15): a signed-out visitor hits /sign-in

@@ -4,11 +4,15 @@
 // the supabase read + the nudge wiring live elsewhere.
 
 import type { LadderLevel } from "./brightness";
-import type { StarId } from "./stars";
+// ⚠ 별 id 는 `string` 이다. 2026-08-24 에 별 체계가 갈리면서 이 원장에는 두 벌이
+// 섞여 있다 -- 옛 자기이해 축(`now`·`recall`…)과 새 일곱(`seven:now`·`seven:school`…).
+// 여기서 어느 한쪽으로 좁히면 나머지 한쪽이 조용히 사라진다. 이 모듈들이 하는 일은
+// **id 로 묶어 주 단위로 펴는 것**뿐이라 별의 정체를 알 필요가 없다 -- 이름은
+// 화면이 `nameOf` 로 붙인다.
 
 // One persisted observation (matches the star_tier_history columns).
 export interface TierObservation {
-  star_id: StarId;
+  star_id: string;
   level: LadderLevel;
   recorded_at: string; // ISO timestamp; ISO strings sort chronologically
   // Evidence link (0060), null on legacy / rebuild rows. Carried through so a
@@ -18,7 +22,7 @@ export interface TierObservation {
 }
 
 export interface TierShift {
-  starId: StarId;
+  starId: string;
   from: LadderLevel;
   to: LadderLevel;
   direction: "up" | "down";
@@ -41,7 +45,7 @@ export interface TierShift {
 export function tierShiftNudge(
   shifts: readonly TierShift[],
   locale: "en" | "ko",
-  nameOf: (starId: StarId, locale: "en" | "ko") => string,
+  nameOf: (starId: string, locale: "en" | "ko") => string,
 ): string | null {
   if (shifts.length === 0) return null;
   const segs = shifts
@@ -57,7 +61,7 @@ export function tierShiftNudge(
 }
 
 export function detectTierShift(observations: readonly TierObservation[]): TierShift[] {
-  const byStar = new Map<StarId, TierObservation[]>();
+  const byStar = new Map<string, TierObservation[]>();
   for (const o of observations) {
     const arr = byStar.get(o.star_id) ?? [];
     arr.push(o);
