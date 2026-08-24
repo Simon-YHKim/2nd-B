@@ -8,6 +8,9 @@ interface Captured {
   operation: "select" | "insert" | "update" | "delete" | "upsert";
   filters: Record<string, unknown>;
   payload?: unknown;
+  /** `.select("...")` 에 넘어간 열 목록. 열이 빠지면 조용히 죽는 기능이 있어서
+   *  (꺼내기 슬롯의 `created_at`) 여기까지 기록한다. */
+  columns?: string;
 }
 
 const captured: Captured[] = [];
@@ -15,13 +18,14 @@ const captured: Captured[] = [];
 // `maybeSingle/single` (one row).
 const tableRows: Record<string, unknown[]> = {};
 
-function makeChain(table: string, op: Captured["operation"], payload?: unknown) {
-  const entry: Captured = { table, operation: op, filters: {}, payload };
+function makeChain(table: string, op: Captured["operation"], payload?: unknown, cols?: string) {
+  const entry: Captured = { table, operation: op, filters: {}, payload, columns: cols };
   captured.push(entry);
 
   const chain: Record<string, unknown> = {};
   Object.assign(chain, {
-    select(_cols?: string) {
+    select(cols?: string) {
+      if (typeof cols === "string") entry.columns = cols;
       return chain;
     },
     eq(col: string, val: unknown) {
@@ -60,7 +64,7 @@ jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from(table: string) {
       return {
-        select: () => makeChain(table, "select"),
+        select: (cols?: string) => makeChain(table, "select", undefined, cols),
         insert: (p: unknown) => makeChain(table, "insert", p),
         update: (p: unknown) => makeChain(table, "update", p),
         delete: () => makeChain(table, "delete"),
@@ -271,8 +275,32 @@ describe("propose->ratify edges (0046)", () => {
     ];
     const rows = await listInferredLinkDetails("user-1");
     expect(rows).toEqual([
-      { from_page: "p-src", to_page: "p-a", from_title: "Source", to_title: "Carl Jung", confidence: 0.8 },
+      {
+        from_page: "p-src", to_page: "p-a", from_title: "Source", to_title: "Carl Jung",
+        confidence: 0.8,
+        // 2026-08-24 신설. 꺼내기 슬롯이 대기 시간으로 순서를 굽히는 데 쓴다
+        // (`lib/resurface/plan.ts`). 행에 없으면 null 로 내려온다.
+        created_at: null,
+      },
     ]);
+  });
+
+  test("created_at 을 실제로 **조회한다** (꺼내기 슬롯의 입력)", async () => {
+    // ⚠ 이 검사는 반환값만 봐서는 안 된다. 이 파일의 가짜 클라이언트는 select 문자열을
+    // 무시하고 픽스처를 그대로 돌려주므로, 열을 빼도 반환값 검사는 통과한다
+    // (실제로 변이로 확인했다). 그래서 **쿼리에 그 열이 들어갔는지**를 본다.
+    //
+    // 이 값이 안 오면 감쇠가 늘 1 이 되어 슬롯이 조용히 신뢰도 정렬로 되돌아간다.
+    tableRows.wiki_links = [
+      { from_page: "p-src", to_page: "p-a", confidence: 0.8, created_at: "2026-01-02T03:04:05Z" },
+    ];
+    tableRows.wiki_pages = [
+      { id: "p-src", title: "Source", slug: "source" },
+      { id: "p-a", title: "Carl Jung", slug: "carl-jung" },
+    ];
+    const rows = await listInferredLinkDetails("user-1");
+    expect(rows[0].created_at).toBe("2026-01-02T03:04:05Z");
+    expect(findFirst("wiki_links", "select")?.columns).toContain("created_at");
   });
 
   test("listInferredLinkDetails falls back to slug then id for blank titles", async () => {

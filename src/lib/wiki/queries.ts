@@ -425,6 +425,8 @@ export interface InferredEdgeRow {
   from_page: string;
   to_page: string;
   confidence: number;
+  /** 이 제안이 대기하기 시작한 시각. 꺼내기 슬롯이 감쇠에 쓴다. */
+  created_at?: string | null;
 }
 
 /** The user's pending AI-proposed connections, highest-confidence first —
@@ -433,7 +435,9 @@ export async function listInferredLinks(userId: string, limit = 50): Promise<Inf
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("wiki_links")
-    .select("from_page, to_page, confidence")
+    // `created_at` 은 꺼내기 슬롯이 쓴다 -- 오래 매달린 항목을 내리는 신호다
+    // (`lib/resurface/plan.ts`). 새 테이블을 만드는 대신 이미 있는 열을 쓴다.
+    .select("from_page, to_page, confidence, created_at")
     .eq("user_id", userId)
     .eq("relation_type", "inferred")
     .order("confidence", { ascending: false })
@@ -448,6 +452,8 @@ export interface InferredLinkDetail {
   from_title: string;
   to_title: string;
   confidence: number;
+  /** 대기 시작 시각. 꺼내기 슬롯(`lib/resurface/plan.ts`)이 쓴다. */
+  created_at?: string | null;
 }
 
 /** Inferred proposals resolved to page titles, for the ratify UI. Two-step
@@ -475,6 +481,7 @@ export async function listInferredLinkDetails(userId: string, limit = 50): Promi
     from_title: titleById.get(e.from_page) ?? e.from_page,
     to_title: titleById.get(e.to_page) ?? e.to_page,
     confidence: e.confidence,
+    created_at: e.created_at ?? null,
   }));
 }
 
