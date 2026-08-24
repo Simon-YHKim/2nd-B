@@ -41,7 +41,6 @@ import { soulCoreBrightness, type StarId } from "./stars";
 import { deriveStarLevels } from "./star-levels";
 import { loadStandingRatifiedTiers } from "./load-ratified-tiers";
 import { loadEsmCount } from "./esm-count";
-import { recordStarTiers } from "./record-star-tiers";
 import { loadNarrativeStarLevel } from "./narrative-star";
 
 export interface PersonaTraits {
@@ -755,9 +754,12 @@ export async function buildPersona(
   const narrativeLevel = await loadNarrativeStarLevel(userId);
   persona.starLevels = deriveStarLevels(persona, esmCount, standingRatified, narrativeLevel);
   persona.soulCoreBrightness = soulCoreBrightness(persona.starLevels);
-  // D9 (memo §10): persist this build's tiers so detectTierShift can later spot a
-  // changed tendency. Fire-and-forget + best-effort - never blocks the build.
-  void recordStarTiers(userId, persona.starLevels, "journal", { origin: "rebuild" });
+  // 2026-08-25: 옛 축 rebuild 쓰기를 중지했다. 화면 5곳이 열릴 때마다 옛 축
+  // 7행이 원장에 쌓였는데(운영 945건), 홈 별이 새 일곱이 된 뒤로 그 행은 어떤
+  // 화면의 밝기도 움직이지 않는 유산 증식이었다. 계산(starLevels·brightness)은
+  // 페르소나/북극성 화면이 소비하므로 그대로 두고, **원장 쓰기만** 멈춘다.
+  // activation_milestone 은 recordSevenTiers(새 체계, 인터뷰 저장이 발화점)로
+  // 이사했다. 옛 축 D9 넛지는 이 시점의 마지막 행에서 동결된다 -- 의도다.
 
   // Persist for later reuse (RAG export, etc).
   await supabase

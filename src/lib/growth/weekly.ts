@@ -1,10 +1,10 @@
 // Weekly growth synthesis ("나의 변화"). PURE — no new engine: it reads what the
 // app already records (star_tier_history brightness, ops_routine_logs completions,
 // milestones, records count) and synthesizes a this-week vs last-week summary.
-// The 7 stars keep their existing constellation meaning; only brightness change
-// is expressed. No LLM, no I/O here (the gather lives in gather.ts).
+// 2026-08-25: the seven here are the NEW home stars (seven-stars.ts, ledger rows
+// carry the seven: prefix which gather.ts strips). No LLM, no I/O here.
 
-import { SELF_UNDERSTANDING_STARS, type StarId } from "../persona/stars";
+import { SEVEN_STARS, type SevenStarId } from "../persona/seven-stars";
 import { localDayKey, weekStreak } from "../ops/routines";
 
 /** Structurally compatible with persona/tier-history TierObservation. */
@@ -15,10 +15,8 @@ export interface StarObservation {
 }
 
 export interface StarChange {
-  id: StarId;
+  id: SevenStarId;
   index: number;
-  nameKo: string;
-  nameEn: string;
   before: number;
   after: number;
   delta: number;
@@ -82,10 +80,12 @@ export function buildWeeklyGrowth(input: WeeklyGrowthInput): WeeklyGrowth {
 
   const hasPriorWeek = input.history.some((o) => o.recorded_at < cutoff);
 
-  const stars: StarChange[] = SELF_UNDERSTANDING_STARS.map((s) => {
+  // 2026-08-25: 별 목록이 새 일곱(seven-stars)이다. 이름은 여기 없다 --
+  // 화면이 홈과 같은 i18n 키(ds.star.<id>)로 붙인다. 화면마다 다른 이름 금지.
+  const stars: StarChange[] = SEVEN_STARS.map((s) => {
     const after = latestLevel(input.history, s.id, () => true);
     const before = latestLevel(input.history, s.id, (o) => o.recorded_at < cutoff);
-    return { id: s.id, index: s.index, nameKo: s.nameKo, nameEn: s.nameEn, before, after, delta: after - before };
+    return { id: s.id, index: s.index, before, after, delta: after - before };
   });
 
   let topStar: StarChange | null = null;
