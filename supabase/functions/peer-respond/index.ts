@@ -43,6 +43,11 @@ async function sha256Hex(input: string): Promise<string> {
 }
 
 const TRAITS = ['extraversion', 'conscientiousness', 'agreeableness'] as const;
+// 2026-08-25: Big Five 완성(개방성·신경성). OPTIONAL 인 이유 — 구버전 앱은 3키만
+// 보낸다. 필수로 만들면 구앱 응답이 전부 400 으로 죽는다. 반대로 이 배포 전의
+// 구서버는 새 2키를 "조용히 폐기"했으므로(거부가 아니라 무음 소실), 이 함수
+// 재배포가 클라이언트 릴리스보다 반드시 먼저다.
+const OPTIONAL_TRAITS = ['openness', 'neuroticism'] as const;
 
 /** C10 floor, mirroring the sign-up gate. Keep in sync with src/app/peer/[token].tsx. */
 const MIN_INFORMANT_AGE = 14;
@@ -52,6 +57,14 @@ function validRatings(raw: unknown): Record<string, number> | null {
   const out: Record<string, number> = {};
   for (const t of TRAITS) {
     const v = (raw as Record<string, unknown>)[t];
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 5) return null;
+    out[t] = v;
+  }
+  for (const t of OPTIONAL_TRAITS) {
+    const v = (raw as Record<string, unknown>)[t];
+    if (v === undefined) continue; // 구앱: 안 보내면 그대로 3키 응답
+    // 보냈다면 형식은 지켜야 한다 — 불량 값을 조용히 버리면 응답자는 답했다고
+    // 믿는데 데이터가 없다(무음 소실의 재발). 거부해서 드러낸다.
     if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 5) return null;
     out[t] = v;
   }

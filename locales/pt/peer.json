@@ -13,7 +13,9 @@
   "trait": {
     "extraversion": "Ganha energia perto de pessoas e fala com facilidade.",
     "conscientiousness": "É organizada e conclui o que começa.",
-    "agreeableness": "É calorosa, atenciosa e fácil de conviver."
+    "agreeableness": "É calorosa, atenciosa e fácil de conviver.",
+    "openness": "É curioso e aberto a novas ideias e experiências.",
+    "neuroticism": "Tende a se preocupar e é sensível ao estresse."
   },
   "ackLlm": "Concordo que minhas respostas possam ser processadas por um sistema de IA para formar o retrato combinado.",
   "ackOverseas": "Concordo que esse processamento possa ocorrer em servidores fora do meu país.",
@@ -29,7 +31,7 @@
   "withdrawCta": "Retirar minha resposta",
   "withdrawAnytime": "Você pode retirar quando quiser abrindo este link de novo.",
   "subjectTitle": "Perguntar a quem me conhece",
-  "subjectIntro": "Envie um link de uso único. Quando três ou mais responderem, o retrato combinado aparece em Como me veem; você nunca vê respostas individuais.",
+  "subjectIntro": "Envie um link de uso único. Quando três ou mais responderem, o retrato combinado aparece em Como me veem; você nunca vê respostas individuais. Envie também para além dos amigos próximos: alguém que você conheceu há pouco ou com quem trabalhou. Olhares que não se sobrepõem dizem mais.",
   "labelField": "Apelido para esta pessoa (só você vê)",
   "kind": {
     "friend": "Amizade",
@@ -52,7 +54,7 @@
     "expired": "Expirado"
   },
   "revokeCta": "Revogar",
-  "shareMessage": "Você responderia três perguntas rápidas sobre como me vê? Um minuto:",
+  "shareMessage": "Você responderia cinco perguntas rápidas sobre como me vê? Um minuto:",
   "aggregateNote": "As respostas aparecem apenas como retrato combinado de três ou mais pessoas, em Como me veem.",
   "withdrawError": "Não foi possível retirar. Sua resposta ainda está compartilhada. Tente novamente em instantes.",
   "revokeFailed": "Não foi possível revogar. O link do convite continua ativo. Tente novamente."

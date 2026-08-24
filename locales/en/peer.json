@@ -7,13 +7,15 @@
   "alreadyNote": "You already sent your response. You can withdraw it anytime with this link.",
   "doneNote": "Thank you. Your answers join a combined view only; they are never shown individually.",
   "doneKeepLink": "Keep this link if you ever want to withdraw your response.",
-  "intro": "Someone you know is building a picture of how others experience them. Three quick questions, about one minute.",
+  "intro": "Someone you know is building a picture of how others experience them. Five quick questions, about one minute.",
   "privacyPoints": "Your answers are your own data: they are only ever shown combined with at least two other people, never one by one. You can withdraw anytime with this link.",
   "scaleHint": "1 = not at all like them, 5 = very much like them",
   "trait": {
     "extraversion": "They gain energy around people and speak up easily.",
     "conscientiousness": "They are organized and follow through on what they start.",
-    "agreeableness": "They are warm, considerate, and easy to get along with."
+    "agreeableness": "They are warm, considerate, and easy to get along with.",
+    "openness": "Is curious and open to new ideas and experiences.",
+    "neuroticism": "Tends to worry and is sensitive to stress."
   },
   "ackLlm": "I agree that my answers may be processed by an AI system to build the combined picture.",
   "ackOverseas": "I agree that this processing may happen on servers outside my country.",
@@ -29,7 +31,7 @@
   "withdrawCta": "Withdraw my response",
   "withdrawAnytime": "You can withdraw anytime by opening this link again.",
   "subjectTitle": "Ask people who know me",
-  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in Seen self; you never see individual answers.",
+  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in Seen self; you never see individual answers. Try sending it beyond close friends too: someone you met recently, or someone you have worked with. Non-overlapping viewpoints tell you more.",
   "labelField": "Nickname for this person (only you see it)",
   "kind": {
     "friend": "Friend",
@@ -52,7 +54,7 @@
     "expired": "Expired"
   },
   "revokeCta": "Revoke",
-  "shareMessage": "Would you answer three quick questions about how you see me? About a minute:",
+  "shareMessage": "Would you answer five quick questions about how you see me? About a minute:",
   "aggregateNote": "Answers appear only as a combined picture of three or more people, in Seen self.",
   "withdrawError": "Couldn't withdraw. Your response is still shared. Try again shortly.",
   "revokeFailed": "Couldn't revoke. The invitation link is still live. Try again."
