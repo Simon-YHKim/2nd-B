@@ -3,7 +3,41 @@
 > 가장 최신 섹션이 맨 위. 2026-06-16 이전 sprint 핸드오프는 [handoff/ARCHIVE-2026-05-25_to_2026-06-16.md](handoff/ARCHIVE-2026-05-25_to_2026-06-16.md) 로 아카이브됨(2026-07-03).
 > Live: <https://simon-yhkim.github.io/2nd-B/>
 
-## Latest — 2026-08-24 밤 / 릴리스 APK 교체 · ⛔ 비상탈출은 **코드 문제가 아니었다**
+## Latest — 2026-08-25 / L5 비준 경로 개통 · PRD v4 · 세션 01 대화 분석 (#1383~#1385)
+
+> 발행: CLI 코딩 세션. Simon 발주(PRD 최신화 + Claude Design 프롬프트) + 실측 후속.
+
+**세 PR 이 랜딩했다:**
+
+| PR | 무엇 |
+|---|---|
+| **#1383** | 원장 표시 결함 2건 — `/ratifications`·`/review` 넛지가 `seven:` 행을 원시 id 로 노출하던 것. 해석은 `persona/star-name.ts` 한 곳(`starNameKey` 신설) |
+| **#1384** | **새 일곱 별 L5 비준 경로 개통** — 두 층 이상 판 시기 별 → 인터뷰 원문 근거 제안(`seven-proposal-context.ts`, 문턱 2칸) → `/review` 비준 → `recordSevenTiers(origin:'ratify')`. ⚠ `recordStarTiers` 재사용 금지(마일스톤 오염) — 변이 검증 가드 있음. LLM 좌석은 `self_model_propose` 재사용 |
+| **#1385** | **PRD Draft v4** — 낡은 지점 17건 교체(일곱 한 벌·화면 카탈로그 72종·새 KPI·문서 지도). CONSTELLATION-DESIGN.md 역사 배너, CONCEPT.md 정정, `design/CLAUDE-DESIGN-BRIEF-260825.md` 신설(Claude Design 재발주 프롬프트) |
+
+**그 전에 잡은 회귀(#1381):** #1377 의 비준 리프트가 변이 검증 복구 명령(`git checkout <file>`)에
+쓸려나간 채 머지돼 있었다. 복구 + `seven-ratify-wiring.test.ts`(실행 검사)로 박음.
+**교훈: 변이 검증 복구는 git checkout 금지 — 백업 파일 복사로.**
+
+**함정 두 개 새로 확인:**
+- `npm run verify` 를 grep 파이프로 확인하면 **파이프 종료코드가 grep 의 것**이라 실패가
+  초록으로 보인다. exit 코드를 직접 확인할 것. (PRD 가 어휘 게이트 걸린 것을 CI 가 잡았다 —
+  이 문서(PRD·HANDOFF)도 lexicon 스캔 대상이라 금지어를 예시로도 못 적는다.)
+- Git Bash heredoc 은 인용해도 백슬래시·따옴표 섞인 다중행 한국어 치환을 조용히 망가뜨린다
+  (기존 메모리의 재확인) — 복잡한 치환은 Edit/Write 도구로.
+
+**세션 01 대화 분석(발주 6):** Simon 의 5월 자기분석 대화(93+턴)를 전부 읽고 기법 9건 →
+엔진 대조표로 정리(보고 아티팩트 참조). 핵심: 그 세션이 이 앱의 수작업 원형이고, "패턴
+명명 + 즉시 검증 요청" 기법의 자동화 자리가 정확히 #1384 의 비준 제안이다. '작음' 4건
+(모르겠다 선언 카피·거절 철회 카피·감각형 씨앗 질문·저항 존중 카피)은 다음 발주 후보.
+
+**미결(Simon 결정 대기):** 앱 이름(Polar Scope 충돌 2건 검증, Merak 유력 후보) + 캐릭터
+개명을 한 체계로 · 피어 질문 (a)Big Five 5완성 / (b)열린 질문(익명화 재설계 필요) ·
+꺼내기 개인화(선행 = 채점 원장) · 옛 축 은퇴 본작업.
+
+---
+
+## 2026-08-24 밤 / 릴리스 APK 교체 · ⛔ 비상탈출은 **코드 문제가 아니었다**
 
 > 발행: CLI 코딩 세션. Simon: *"27 로 올리고, 남은 작업을 진행해. 그리고 비상탈출 문제점 해결해줘"*
 
