@@ -119,6 +119,7 @@ jobs:
         run: npm run check:ota-runtime
 
       - name: Publish OTA update (EAS Update)
+        id: publish
         env:
           # eas-cli authenticates non-interactively from EXPO_TOKEN.
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -178,4 +179,37 @@ jobs:
           echo "Publishing OTA to channel '$CHANNEL' — \"$MESSAGE\""
           # --environment is required by newer eas-cli in --non-interactive mode; the
           # default EAS environments (development/preview/production) match our channels.
-          npx eas-cli update --channel "$CHANNEL" --environment "$CHANNEL" --message "$MESSAGE" --non-interactive
+          UPDATE_JSON="$(npx eas-cli update --channel "$CHANNEL" --environment "$CHANNEL" --message "$MESSAGE" --non-interactive --json)"
+          echo "$UPDATE_JSON"
+          RV="$(printf '%s' "$UPDATE_JSON" | node -e '
+            const payload = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+            const list = Array.isArray(payload) ? payload : [payload];
+            const android = list.find((u) => u.platform === "android") || list[0];
+            process.stdout.write(String(android?.runtimeVersion || ""));
+          ')"
+          echo "runtime_version=$RV" >> "$GITHUB_OUTPUT"
+
+      # An `eas update` exits 0 whether every device picks it up or none can.
+      # Reach is decided by the runtimeVersion, and the publish output never
+      # says which installed builds carry it. On 2026-08-24 an OTA carrying the
+      # vendor fix reached zero devices, because the eas.json edit that made the
+      # fix necessary is itself a fingerprint source. Never let "published"
+      # read as "delivered" again.
+      - name: Report what this OTA can actually reach
+        if: always() && steps.publish.outputs.runtime_version != ''
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          RV="${{ steps.publish.outputs.runtime_version }}"
+          CHANNEL="${{ needs.gate.outputs.channel }}"
+          BUILDS="$(npx eas-cli build:list --platform android --limit 30 --json --non-interactive 2>/dev/null || echo '[]')"
+          REPORT="$(printf '%s' "$BUILDS" | node scripts/check-ota-reach.js "$RV" "$CHANNEL")"
+          echo "$REPORT"
+          {
+            echo "### OTA reach"
+            echo
+            echo '```'
+            echo "$REPORT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
