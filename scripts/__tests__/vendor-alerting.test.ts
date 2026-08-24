@@ -16,6 +16,14 @@
 
 import { alertsFor, type VendorStatus, type SeatOutcome } from "../refresh-models";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const CR = String.fromCharCode(13);
+const WORKFLOW = readFileSync(join(process.cwd(), ".github/workflows/model-refresh.yml"), "utf8")
+  .split(CR)
+  .join("");
+
 const st = (entries: [string, VendorStatus][]) =>
   new Map(entries as [Parameters<typeof alertsFor>[0] extends ReadonlyMap<infer K, unknown> ? K : never, VendorStatus][]);
 
@@ -139,5 +147,42 @@ describe("the acknowledge list keeps the alert worth reading", () => {
       const silenced = v.failures.length === 0;
       expect(silenced).toBe(acked.some((a) => a.trim().toLowerCase() === "xai"));
     }
+  });
+});
+
+describe("the env vars the script reads reach the job that runs it", () => {
+  // This class of bug has now appeared four times in a week: a switch exists in
+  // code, is tested, is documented, and no workflow passes it - so setting the
+  // repo Variable does nothing and reports nothing. EXPO_PUBLIC_MULTIMODAL_VENDOR
+  // and EXPO_PUBLIC_BACKBONE_VENDOR, then EXPO_PUBLIC_CROSSCHECK, then this one.
+  //
+  // Guarding it from the script's own env reads rather than from a hand-written
+  // list, so a variable added later is covered without anyone editing this file.
+  //
+  // ⚠ WHAT THIS DOES NOT SEE, stated because a guard that claims more coverage
+  // than it has is the same false-completeness bug it is meant to catch: only
+  // DOT-ACCESSED literals (process.env.FOO). The script also reads
+  // process.env[KEY_ENV[vendor]] and process.env[`MODEL_PIN_${...}`], whose
+  // names are computed at runtime and cannot be resolved statically. Those are
+  // covered by the seat/vendor tests above instead - a missing MODEL_PIN or
+  // API key shows up as a seat outcome, which this file already asserts on.
+  const declared = new Set(
+    [...readFileSync(join(process.cwd(), "scripts/refresh-models.ts"), "utf8").matchAll(
+      /process\.env\.([A-Z][A-Z0-9_]+)/g,
+    )].map((m) => m[1]),
+  );
+
+  // Read from process.env by the RUNNER itself rather than passed as job env.
+  const RUNNER_PROVIDED = new Set(["GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY", "CI", "GITHUB_REPOSITORY"]);
+
+  test("the scan found the dot-accessed variables", () => {
+    // A silent zero would make the assertion below vacuously true.
+    expect(declared.size).toBeGreaterThanOrEqual(3);
+    expect(declared.has("MODEL_REFRESH_ACK_FAILING")).toBe(true);
+  });
+
+  test("every one of them is passed by model-refresh.yml", () => {
+    const missing = [...declared].filter((v) => !RUNNER_PROVIDED.has(v) && !WORKFLOW.includes(v));
+    expect(missing).toEqual([]);
   });
 });
