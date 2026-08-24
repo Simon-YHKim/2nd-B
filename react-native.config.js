@@ -16,5 +16,13 @@ module.exports = {
     "@react-native-firebase/analytics": {
       platforms: { ios: null },
     },
+    // Clarity ships an iOS pod too. The alpha track this was added for is
+    // Android, the iOS build is frozen behind the same untested
+    // useFrameworks:static question as Firebase, and the JS layer already
+    // fails closed when the native module is absent. Keeping it out of iOS
+    // autolinking leaves current iOS/EAS builds byte-identical.
+    "@microsoft/react-native-clarity": {
+      platforms: { ios: null },
+    },
   },
 };

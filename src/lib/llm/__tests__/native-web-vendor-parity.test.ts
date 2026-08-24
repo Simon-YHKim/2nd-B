@@ -44,17 +44,21 @@ const WEB_POSTURE: Record<string, string> = {
   EXPO_PUBLIC_MULTIMODAL_VENDOR: "openai",
   EXPO_PUBLIC_BACKBONE_VENDOR: "openai",
   EXPO_PUBLIC_EMBED_VENDOR: "openai",
+  // Moved out of INTENDED_DIFFERENCES on 2026-08-24: the console's alpha order
+  // asked for the current GH variables to reach the eas.json path too, naming
+  // CROSSCHECK=1 among them. Its blast radius is one purpose
+  // (CROSSCHECKABLE = persona_synthesis) at up to 2 rounds, not 3x everything.
+  EXPO_PUBLIC_CROSSCHECK: "1",
 };
 
 // Deliberate divergences, each with the reason. This list is what stops the
 // test above from being a rule nobody can follow.
 const INTENDED_DIFFERENCES: Record<string, string> = {
-  // 3x cost per call on the purposes it covers. The console left it out of
-  // eas.json on purpose so native stays off while web experiments; absence is
-  // "off" and an empty string would make eas-cli refuse the whole file.
-  EXPO_PUBLIC_CROSSCHECK: "native stays off - 3x cost, web-only trial",
   // Both still gemini in both places, so they are not a divergence yet. They
   // become one the day the September decommission moves either of them.
+  // FAILOVER in particular moves ONLY bundled with a build: editing eas.json
+  // changes the fingerprint, so a solo flip strands the builds that are out
+  // and changes nothing (docs/LLM-VENDOR-PLACEMENT.md).
   EXPO_PUBLIC_FAILOVER_VENDOR: "still gemini everywhere until the September cutover",
   EXPO_PUBLIC_SAFETY_VENDOR: "still gemini everywhere; the feature is off by default",
 };
@@ -118,5 +122,49 @@ describe("the trap that made this invisible", () => {
     const ota = read(".github/workflows/eas-update.yml");
     expect(ota).toContain("eas.json");
     expect(ota).toMatch(/EXPO_PUBLIC_/);
+  });
+});
+
+// EXPO_PUBLIC_CLARITY_PROJECT_ID is deliberately NOT committed to eas.json:
+// analytics.test.ts pins "release profiles contain no committed analytics
+// identifiers", and those ids arrive through the EAS environment named by each
+// profile's `environment` field, plus GitHub `vars` for the workflow paths.
+//
+// It was still missing where it mattered. The repo Variable had existed since
+// before native analytics did, and the EAS preview/production environments held
+// GA4 and Sentry but no Clarity id at all (measured 2026-08-24). A native
+// session-replay SDK with no project id is the worst kind of failure: it
+// initializes, records, and uploads nowhere, so absence looks like success.
+//
+// A test cannot read the EAS environment, so what it can pin is the shape:
+// the id belongs to the environment, not the file, and every profile that ships
+// must actually name an environment for that to mean anything.
+describe("analytics identifiers live in the EAS environment, not in eas.json", () => {
+  test("the Clarity id is not committed to any build profile", () => {
+    for (const [profile, cfg] of Object.entries(EAS.build)) {
+      expect(`${profile}:${"EXPO_PUBLIC_CLARITY_PROJECT_ID" in (cfg.env ?? {})}`).toBe(
+        `${profile}:false`,
+      );
+    }
+  });
+
+  test("every shipping profile names the environment that supplies it", () => {
+    // Without `environment`, eas build and eas update resolve no server-side
+    // variables at all, and the id silently stays undefined.
+    for (const profile of PROFILES) {
+      expect((EAS.build[profile] as { environment?: string })?.environment).toBe(profile);
+    }
+  });
+
+  test("the OTA job resolves that environment too", () => {
+    // The OTA mirrors eas.json's EXPO_PUBLIC_*, which by design does NOT carry
+    // the id. Only --environment brings it into the published bundle.
+    expect(read(".github/workflows/eas-update.yml")).toMatch(/--environment "\$CHANNEL"/);
+  });
+
+  test("the workflow paths pass it from repo vars", () => {
+    for (const wf of [".github/workflows/web-deploy.yml", ".github/workflows/android-release.yml"]) {
+      expect(read(wf)).toContain("EXPO_PUBLIC_CLARITY_PROJECT_ID");
+    }
   });
 });
