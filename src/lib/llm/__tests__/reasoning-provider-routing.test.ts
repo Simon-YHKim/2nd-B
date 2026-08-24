@@ -101,4 +101,30 @@ describe("reasoning provider routing (EXPO_PUBLIC_REASONING_PROVIDER)", () => {
     await runAdvisorOnce();
     expect(invokedFunctionName()).toBe("gemini-proxy");
   });
+
+  // Fold invariants (2026-08-26): the seam became the LAST rung of
+  // resolveVendorForPurpose. These two pin the rung's position in the ladder.
+
+  test("the purpose axis wins: EXPO_PUBLIC_LLM_VENDOR beats the seam", async () => {
+    process.env.EXPO_PUBLIC_REASONING_PROVIDER = "claude";
+    process.env.EXPO_PUBLIC_LLM_VENDOR = "openai";
+    try {
+      mockEnv.edge = false;
+      await runAdvisorOnce();
+      expect(invokedFunctionName()).toBe("openai-proxy");
+    } finally {
+      delete process.env.EXPO_PUBLIC_LLM_VENDOR;
+    }
+  });
+
+  test("an image-bearing call never consults the seam (multimodal pin wins)", () => {
+    process.env.EXPO_PUBLIC_REASONING_PROVIDER = "claude";
+    // Import here so the env var is set before resolution runs.
+    const { resolveVendorForPurpose } = jest.requireActual<
+      typeof import("../routing")
+    >("../routing");
+    expect(resolveVendorForPurpose("capture_ocr", true, { reasoningTier: true })).not.toBe(
+      "claude",
+    );
+  });
 });
