@@ -33,7 +33,7 @@ import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
 import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
-import { periodsForAge, type PeriodSlot } from "@/lib/interview/periods";
+import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
@@ -1527,18 +1527,24 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
 
 /** 범위 줄. `current` 는 **빈 문자열**을 돌려준다 -- 이름이 이미 "지금"이라
  *  범위까지 "지금"이면 같은 말이 두 줄 쌓인다(실측으로 확인). */
-function eraRangeLabel(slot: PeriodSlot, t: (k: string, o?: Record<string, unknown>) => string): string {
-  if (slot.from === null || slot.to === null) return "";
-  // 첫 칸은 "12세 이전" 처럼 위쪽 경계로 읽힌다 (0부터 세는 것은 어색하다).
-  if (slot.from === 0) return t("ds.audit.rangeUnder", { to: slot.to + 1 });
-  return t("ds.audit.rangeSpan", { from: slot.from, to: slot.to });
+/** 별 하나의 나이 범위 한 줄. 주제 별(직장·지금)은 나이가 없으므로 빈 문자열. */
+function starRangeLabel(
+  band: { from: number; to: number | null } | null,
+  t: (k: string, o?: Record<string, unknown>) => string,
+): string {
+  if (!band) return "";
+  if (band.to === null) return t("ds.audit.rangeFrom", { from: band.from });
+  if (band.from === 0) return t("ds.audit.rangeUnder", { to: band.to + 1 });
+  return t("ds.audit.rangeSpan", { from: band.from, to: band.to });
 }
 
 export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
   const { t } = useTranslation("home");
   const { age } = useAuth();
   void isKo; // copy is t()-driven; prop kept for caller-convention parity
-  const slots = useMemo(() => periodsForAge(age), [age]);
+  // 별 일곱 그대로. 인터뷰가 없는 프로필은 여기 목록에 안 낸다 -- 이 화면은
+  // "어느 시기를 파러 갈까" 를 고르는 자리다.
+  const stars = useMemo(() => SEVEN_STARS.filter((s) => s.period !== null), []);
   return (
     <ScrollView contentContainerStyle={styles.body}>
       <Text style={styles.auditTitle}>{t("ds.audit.title")}</Text>
@@ -1546,28 +1552,40 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
       <View style={styles.auditTimeline}>
         <View style={styles.auditRail} />
         <View style={styles.auditEraList}>
-          {slots.map((slot) => (
-            <View key={slot.id} style={styles.auditEraRow}>
-              <View style={styles.auditNode} />
-              <MdCard
-                variant="filled"
-                accessibilityLabel={t(`ds.audit.period.${slot.id}`)}
-                onPress={() => router.push({ pathname: "/interview", params: { period: slot.id } })}
-              >
-                <View style={styles.auditCardRow}>
-                  <View style={styles.auditEraCol}>
-                    <Text style={styles.auditEraName}>{t(`ds.audit.period.${slot.id}`)}</Text>
-                    {eraRangeLabel(slot, t).length > 0 ? (
-                      <Text style={styles.auditEraRange}>{eraRangeLabel(slot, t)}</Text>
-                    ) : null}
+          {stars.map((star) => {
+            // 아직 안 온 시기는 잠근다. 살지 않은 때를 물어보는 것은
+            // 지어내라는 말이다 -- 밝기의 정직성이 여기서도 우선이다.
+            const locked = isUnlived(star.id, age);
+            const range = starRangeLabel(star.ageBand, t);
+            return (
+              <View key={star.id} style={styles.auditEraRow}>
+                <View style={styles.auditNode} />
+                <MdCard
+                  variant="filled"
+                  accessibilityLabel={t(`ds.star.${star.key}`)}
+                  onPress={
+                    locked
+                      ? undefined
+                      : () => router.push({ pathname: "/interview", params: { period: star.period ?? "now" } })
+                  }
+                >
+                  <View style={[styles.auditCardRow, locked ? { opacity: 0.45 } : null]}>
+                    <View style={styles.auditEraCol}>
+                      <Text style={styles.auditEraName}>{t(`ds.star.${star.key}`)}</Text>
+                      <Text style={styles.auditEraRange}>
+                        {locked ? t("ds.audit.notYet") : range}
+                      </Text>
+                    </View>
+                    {locked ? null : (
+                      <Svg width={20} height={20} viewBox="0 0 24 24">
+                        <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />
+                      </Svg>
+                    )}
                   </View>
-                  <Svg width={20} height={20} viewBox="0 0 24 24">
-                    <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />
-                  </Svg>
-                </View>
-              </MdCard>
-            </View>
-          ))}
+                </MdCard>
+              </View>
+            );
+          })}
         </View>
       </View>
     </ScrollView>

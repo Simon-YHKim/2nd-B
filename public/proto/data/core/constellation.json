@@ -12,80 +12,81 @@
       "route": "me"
     },
     {
-      "id": "career",
+      "id": "now",
       "x": 228,
       "y": 90,
-      "domain": "커리어",
-      "kind": "도메인",
+      "kind": "나를 알아가는 자리",
       "star": "Dubhe",
       "level": 3,
-      "line": "무엇을 만들고 쌓아왔나요?",
-      "route": "star"
+      "line": "지금 진짜로 어떻게 지내고 있나요?",
+      "route": "me",
+      "label": "지금"
     },
     {
-      "id": "finance",
+      "id": "work",
       "x": 230,
       "y": 131,
-      "domain": "재정",
-      "kind": "도메인",
+      "kind": "나를 알아가는 자리",
       "star": "Merak",
       "level": 2,
-      "line": "돈은 나의 무엇을 말해주나요?",
-      "route": "star"
+      "line": "일하는 나는 어떤 사람인가요?",
+      "route": "me",
+      "label": "직장"
     },
     {
-      "id": "relation",
+      "id": "later",
       "x": 174,
       "y": 152,
-      "domain": "관계",
-      "kind": "도메인",
+      "kind": "나를 알아가는 자리",
       "star": "Phecda",
       "level": 3,
-      "line": "가까운 사람들과 나는 어떤가요?",
-      "route": "star"
+      "line": "서른을 넘기고 무엇이 달라졌나요?",
+      "route": "me",
+      "label": "30대 이후"
     },
     {
-      "id": "growth",
+      "id": "twenties",
       "x": 151,
       "y": 126,
-      "domain": "성장",
-      "kind": "도메인",
+      "kind": "나를 알아가는 자리",
       "star": "Megrez",
       "level": 3,
-      "line": "어느 시기가 지금의 나를 만들었나요?",
-      "route": "star"
+      "line": "20대의 나는 무엇을 좇았나요?",
+      "route": "me",
+      "label": "20대"
     },
     {
-      "id": "health",
+      "id": "school",
       "x": 108,
       "y": 135,
-      "domain": "건강",
-      "kind": "도메인",
+      "kind": "나를 알아가는 자리",
       "star": "Alioth",
       "level": 2,
-      "line": "요즘 내 컨디션과 리듬은요?",
-      "route": "star"
+      "line": "그 시절에서 아직 돌아오는 장면은?",
+      "route": "me",
+      "label": "학창시절"
     },
     {
-      "id": "leisure",
+      "id": "infancy",
       "x": 76,
       "y": 143,
-      "domain": "휴식",
-      "kind": "도메인",
+      "kind": "나를 알아가는 자리",
       "star": "Mizar",
       "level": 2,
-      "line": "무엇이 나를 쉬게 하나요?",
-      "route": "star"
+      "line": "가장 어릴 때 떠오르는 장면은?",
+      "route": "me",
+      "label": "영유아기"
     },
     {
       "id": "profile",
       "x": 50,
       "y": 187,
       "domain": "프로필",
-      "kind": "내가 보이는 방식",
+      "kind": "나를 알아가는 자리",
       "star": "Alkaid",
-      "line": "이름과 목표, 그리고 남이 본 나. 소개할 거리가 쌓일수록 밝아져요.",
-      "route": "profile"
+      "line": "가입할 때 넣은 기본 정보예요.",
+      "route": "me",
+      "label": "프로필"
     }
   ],
   "lines": [
@@ -96,20 +97,19 @@
   "polarisBrightness": {
     "decision": {
       "owner": "Simon",
-      "decidedAt": "2026-07-29T03:44:00+09:00",
-      "rule": "Polaris brightness averages only the six domains drawn on home."
+      "decidedAt": "2026-08-24T00:00:00+09:00",
+      "rule": "Polaris averages only the six self-knowledge stars drawn on home; profile is excluded because it describes you rather than evidencing you.",
+      "supersedes": "2026-07-29 rule (average of the six life domains) - the domains left the constellation for the dashboard."
     },
     "includedDomainIds": [
-      "career",
-      "finance",
-      "growth",
-      "relation",
-      "health",
-      "recreation"
+      "infancy",
+      "school",
+      "twenties",
+      "later",
+      "work",
+      "now"
     ],
-    "excludedDomainIds": [
-      "collect"
-    ],
+    "excludedDomainIds": [],
     "excludedHomeNodeIds": [
       "profile"
     ],
@@ -117,41 +117,41 @@
     "allLitBonus": 0.05,
     "goldens": [
       {
-        "id": "collect-does-not-inflate",
+        "id": "profile-does-not-inflate",
         "levels": {
-          "career": 1,
-          "finance": 1,
-          "growth": 1,
-          "relation": 1,
-          "health": 1,
-          "recreation": 1,
-          "collect": 4
+          "infancy": 1,
+          "school": 1,
+          "twenties": 1,
+          "later": 1,
+          "work": 1,
+          "now": 1,
+          "profile": 4
         },
         "expected": 0.2
       },
       {
-        "id": "visible-six-all-lit",
+        "id": "six-all-lit",
         "levels": {
-          "career": 2,
-          "finance": 2,
-          "growth": 2,
-          "relation": 2,
-          "health": 2,
-          "recreation": 2,
-          "collect": 1
+          "infancy": 2,
+          "school": 2,
+          "twenties": 2,
+          "later": 2,
+          "work": 2,
+          "now": 2,
+          "profile": 1
         },
         "expected": 0.45
       },
       {
-        "id": "qa-2026-07-29",
+        "id": "qa-2026-08-24",
         "levels": {
-          "career": 4,
-          "finance": 3,
-          "growth": 4,
-          "relation": 4,
-          "health": 4,
-          "recreation": 3,
-          "collect": 4
+          "infancy": 4,
+          "school": 3,
+          "twenties": 4,
+          "later": 4,
+          "work": 4,
+          "now": 3,
+          "profile": 4
         },
         "expected": 0.7833333333333333
       }

@@ -15,7 +15,7 @@
 import { getSupabaseClient } from "../supabase/client";
 import { loadCoverage } from "../interview/coverage-store";
 import { narrativeStarLevel } from "../interview/narrative-level";
-import { periodIdsForAge } from "../interview/periods";
+import { livedPeriods } from "../interview/periods";
 import { ageInYears } from "../supabase/auth";
 import type { LadderLevel } from "./brightness";
 
@@ -34,10 +34,10 @@ export async function loadNarrativeStarLevel(userId: string): Promise<LadderLeve
       loadCoverage(userId),
     ]);
     const birth = (profile as { birth_date?: string | null } | null)?.birth_date ?? null;
-    // 나이를 모르면 `periodsForAge(null)` 이 누구나 지나온 최소 집합을 준다.
-    // 분모가 작아져 등급이 후해질 수 있지만, 그 경로는 birth_date 가 NOT NULL 인
-    // 스키마에서 정상적으로는 오지 않는다.
-    const periods = periodIdsForAge(birth ? ageInYears(birth) : null);
+    // 나이를 모르면 `livedPeriods(null)` 이 여섯 전부를 준다(막지 않는 쪽).
+    // 분모가 커져 등급이 짜게 나올 수 있지만, 밝기는 부풀면 거짓말이고 덜 차면
+    // 그냥 덜 찬 것이다 -- 그 방향이 맞다.
+    const periods = livedPeriods(birth ? ageInYears(birth) : null);
     const any = periods.some((p) =>
       (["fact", "feeling", "meaning", "belief", "echo"] as const).some((l) => coverage[p][l] > 0),
     );

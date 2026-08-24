@@ -47,7 +47,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { parsePeriodParam, periodIdsForAge } from "@/lib/interview/periods";
+import { parsePeriodParam, livedPeriods } from "@/lib/interview/periods";
 import { DrillProgress } from "@/components/ui/DrillProgress";
 import { isNonAnswer, scaffoldQuestion, shouldScaffold, MAX_SCAFFOLDS_PER_LAYER } from "@/lib/interview/stuck";
 import { useKeyboard } from "@/lib/ui/useKeyboard";
@@ -122,7 +122,7 @@ export default function InterviewRoute() {
    *  묻기만 멈춘다. */
   const [abandoned, setAbandoned] = useState<DrillLayer[]>([]);
   /** 이 사용자에게 해당되는 시기. 진행 행렬의 열이 된다. */
-  const coveredPeriods = useMemo(() => periodIdsForAge(age), [age]);
+  const coveredPeriods = useMemo(() => livedPeriods(age), [age]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);

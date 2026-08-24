@@ -101,12 +101,12 @@ describe("loadDomainLevels records scan order (regression)", () => {
 describe("loadDomainLevels (cheap, no-Gemini)", () => {
   beforeEach(reset);
 
-  test("no data -> every domain L1, 북극성 0.2", async () => {
+  test("no data -> every domain L1", async () => {
     tableFixtures["records:select"] = { data: [], error: null };
-    const { domainLevels, northStarBrightness } = await loadDomainLevels("u1");
+    const { domainLevels } = await loadDomainLevels("u1");
     expect(Object.values(domainLevels)).toHaveLength(7);
     expect(Object.values(domainLevels).every((l) => l === 1)).toBe(true);
-    expect(northStarBrightness).toBeCloseTo(0.2);
+    // 북극성은 2026-08-24 부터 별 쪽(load-seven-levels)이 계산한다 -- 도메인 로더는 안 갖는다.
   });
 
   test("groups records by their domain: tag and lights each star from coverage", async () => {
@@ -143,9 +143,9 @@ describe("loadDomainLevels (cheap, no-Gemini)", () => {
       ],
       error: null,
     };
-    const { domainLevels, northStarBrightness } = await loadDomainLevels("u1");
+    const { domainLevels } = await loadDomainLevels("u1");
     expect(Object.values(domainLevels).every((l) => l === 1)).toBe(true);
-    expect(northStarBrightness).toBeCloseTo(0.2);
+    // 북극성은 2026-08-24 부터 별 쪽(load-seven-levels)이 계산한다 -- 도메인 로더는 안 갖는다.
   });
 
   test("recency is live: a long-abandoned domain dims one band (§4.5 ④)", async () => {

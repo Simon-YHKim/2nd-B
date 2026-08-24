@@ -49,10 +49,11 @@ describe("proto_rev2 canon integrity", () => {
     expect(canonCanvas).toEqual({ w: 390, h: 820 });
   });
 
-  it("registers 111 screens with unique ids", () => {
-    // 58 prototype screens + 53 app-only routes registered 2026-08-19 (V3).
-    expect(canonScreens).toHaveLength(111);
-    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(111);
+  it("registers 112 screens with unique ids", () => {
+    // 58 prototype screens + 53 app-only routes registered 2026-08-19 (V3),
+    // + `me/[star]` (별 요약, 2026-08-24 -- 홈에서 별을 누르면 여는 자리).
+    expect(canonScreens).toHaveLength(112);
+    expect(new Set(canonScreens.map((s) => s.id)).size).toBe(112);
   });
 
   it("uses only known layout kinds, and only where a layout can be known", () => {
@@ -93,8 +94,8 @@ describe("proto_rev2 canon integrity", () => {
       expect(s.appOnly === true && s.route === null).toBe(false);
     }
     // 53 app routes registered 2026-08-19 + `profile` (which already had an app
-    // screen and no prototype counterpart).
-    expect(canonAppOnlyScreens()).toHaveLength(54);
+    // screen and no prototype counterpart) + `me/[star]` (2026-08-24).
+    expect(canonAppOnlyScreens()).toHaveLength(55);
   });
 
   it("titles every non-root screen (top app bar contract)", () => {

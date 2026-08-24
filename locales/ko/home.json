@@ -408,7 +408,9 @@
         "current": "지금"
       },
       "rangeSpan": "{{from}}–{{to}}세",
-      "rangeUnder": "{{to}}세 이전"
+      "rangeUnder": "{{to}}세 이전",
+      "rangeFrom": "{{from}}세 이후",
+      "notYet": "아직 오지 않은 시기"
     },
     "me": {
       "title": "북극성",
@@ -544,6 +546,24 @@
       "loadError": "저장된 결과를 불러오지 못했습니다. 결과는 그대로 있습니다. 잠시 후 다시 시도해 주세요.",
       "retry": "다시 시도"
     },
-    "plans": {}
+    "plans": {},
+    "star": {
+      "profile": "프로필",
+      "infancy": "영유아기",
+      "school": "학창시절",
+      "twenties": "20대",
+      "later": "30대 이후",
+      "work": "직장",
+      "now": "지금",
+      "lockedBody": "아직 오지 않은 시기예요. 그때가 되면 열립니다.",
+      "profileBody": "여기는 대화하는 자리가 아니라, 가입할 때 넣으신 기본 정보예요. 채울수록 밝아집니다.",
+      "openProfile": "프로필 열기",
+      "loading": "불러오는 중…",
+      "emptyBody": "아직 아무것도 없어요. 대화로 시작하시면 됩니다.",
+      "dug": "{{total}}개 층 중 {{n}}개를 팠어요",
+      "records": "기록 {{n}}개",
+      "start": "시작하기",
+      "continue": "이어서 하기"
+    }
   }
 }

@@ -19,9 +19,9 @@ const stuck = (theme = "work"): ReflectionEntry[] =>
 describe("되물을 것이 없으면 원래대로 판다", () => {
   it("기록이 없으면 층 제안 그대로", () => {
     const c = emptyCoverage();
-    const move = nextMove(c, "current", [], NOW);
+    const move = nextMove(c, "now", [], NOW);
     expect(move.kind).toBe("drill");
-    if (move.kind === "drill") expect(move.layer).toBe(nextLayerSuggestion(c, "current"));
+    if (move.kind === "drill") expect(move.layer).toBe(nextLayerSuggestion(c, "now"));
   });
 
   it("많이 썼어도 새 틀이 있으면 판다", () => {
@@ -31,14 +31,14 @@ describe("되물을 것이 없으면 원래대로 판다", () => {
       entry("work", 2, "그 회의에서 내가 준비를 덜 했더라"),
       entry("work", 1, "다음엔 자료를 하루 전에 만들기로 했다"),
     ];
-    expect(nextMove(emptyCoverage(), "current", es, NOW).kind).toBe("drill");
+    expect(nextMove(emptyCoverage(), "now", es, NOW).kind).toBe("drill");
   });
 
   it("층 제안을 바꾸지 않는다 (기존 동작 보존)", () => {
     let c = emptyCoverage();
-    c = incrementCoverage(c, "current", "fact");
-    const move = nextMove(c, "current", [], NOW);
-    if (move.kind === "drill") expect(move.layer).toBe(nextLayerSuggestion(c, "current"));
+    c = incrementCoverage(c, "now", "fact");
+    const move = nextMove(c, "now", [], NOW);
+    if (move.kind === "drill") expect(move.layer).toBe(nextLayerSuggestion(c, "now"));
     else throw new Error("drill 이어야 한다");
   });
 });
@@ -48,13 +48,13 @@ describe("제자리를 돌면 되묻기가 앞선다", () => {
     // 이게 요점이다. 커버리지만 보면 "더 파라" 가 나오는 상황에서도, 같은
     // 주제를 새 말 없이 반복하고 있으면 더 파는 것이 도움이 아니다.
     const c = emptyCoverage();
-    expect(nextLayerSuggestion(c, "current")).toBe("fact");
-    const move = nextMove(c, "current", stuck(), NOW);
+    expect(nextLayerSuggestion(c, "now")).toBe("fact");
+    const move = nextMove(c, "now", stuck(), NOW);
     expect(move.kind).toBe("loopCheck");
   });
 
   it("어느 주제인지와 무엇을 물을지를 같이 준다", () => {
-    const move = nextMove(emptyCoverage(), "current", stuck(), NOW);
+    const move = nextMove(emptyCoverage(), "now", stuck(), NOW);
     if (move.kind !== "loopCheck") throw new Error("loopCheck 여야 한다");
     expect(move.finding.theme).toBe("work");
     expect(move.finding.entryCount).toBe(4);
@@ -64,16 +64,16 @@ describe("제자리를 돌면 되묻기가 앞선다", () => {
   it("한 번에 하나만 되묻는다", () => {
     // 여러 개를 한꺼번에 들이밀면 되묻기가 아니라 지적이 된다.
     const es = [...stuck("work"), ...stuck("money")];
-    const move = nextMove(emptyCoverage(), "current", es, NOW);
+    const move = nextMove(emptyCoverage(), "now", es, NOW);
     if (move.kind !== "loopCheck") throw new Error("loopCheck 여야 한다");
     expect(["work", "money"]).toContain(move.finding.theme);
   });
 
   it("같은 상황에서 늘 같은 결과다 (무작위가 아니다)", () => {
     const es = stuck();
-    const first = nextMove(emptyCoverage(), "current", es, NOW);
+    const first = nextMove(emptyCoverage(), "now", es, NOW);
     for (let i = 0; i < 10; i += 1) {
-      expect(nextMove(emptyCoverage(), "current", es, NOW)).toEqual(first);
+      expect(nextMove(emptyCoverage(), "now", es, NOW)).toEqual(first);
     }
   });
 });

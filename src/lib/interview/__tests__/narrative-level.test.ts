@@ -1,12 +1,12 @@
 import { emptyCoverage, incrementCoverage, type Coverage, type LifePeriod } from "../probe";
 import { narrativeStarLevel, cellsCoveredIn } from "../narrative-level";
-import { periodIdsForAge } from "../periods";
+import { livedPeriods } from "../periods";
 
 const LAYERS = ["fact", "feeling", "meaning", "belief", "echo"] as const;
 
 /** 예전 5시기 사용자. 이 벌의 판정은 **바뀌면 안 된다** — 비율 경계를 옛 절대값
  *  12/25 · 5/25 에서 그대로 옮겨왔기 때문이다. */
-const LEGACY_FIVE = ["childhood", "teens", "twenties", "thirties", "current"] as const;
+const LEGACY_FIVE = ["infancy", "school", "twenties", "later", "now"] as const;
 
 /** `periods` 안에서 앞에서부터 n칸을 하나씩 채운다. */
 function coverCells(n: number, periods: readonly LifePeriod[]): Coverage {
@@ -50,51 +50,41 @@ describe("narrativeStarLevel (회상 / star2) — 옛 5시기에서 판정이 �
 });
 
 describe("분모가 사람마다 다르다 — 이게 이번 변경의 핵심", () => {
-  test("스물다섯 살은 4시기 20칸이고, 그 안에서 꽉 채우면 L4 다", () => {
-    const P = periodIdsForAge(25);
-    expect(P).toEqual(["childhood", "teens", "twenties", "current"]);
-    // 20칸 × 0.48 = 9.6 -> 10칸부터 L4
-    expect(narrativeStarLevel(coverCells(9, P), P)).toBe(3);
-    expect(narrativeStarLevel(coverCells(10, P), P)).toBe(4);
-    expect(narrativeStarLevel(coverCells(20, P), P)).toBe(4);
+  // ⚠ 칸 수를 **박지 않는다.** 2026-08-24 에 별 구조가 바뀌면서 자리 수가 달라졌고
+  // (스물다섯 5자리·마흔여섯 6자리), 숫자를 박아뒀더니 구조가 바뀔 때마다 깨졌다.
+  // 지키려는 것은 숫자가 아니라 **"분모가 사람마다 다르다"** 는 성질이다.
+  const young = livedPeriods(25);
+  const older = livedPeriods(46);
+  const cells = (ps: readonly string[]) => ps.length * LAYERS.length;
+
+  it("아직 살지 않은 자리는 분모에 안 들어간다", () => {
+    expect(young.length).toBeLessThan(older.length);
+    expect(young).not.toContain("later"); // 스물다섯에게 30대 이후는 아직 없다
+    expect(older).toContain("later");
   });
 
-  test("마흔여섯 살은 6시기 30칸이라 같은 10칸으로는 아직 L4 가 아니다", () => {
-    const P = periodIdsForAge(46);
-    expect(P).toHaveLength(6);
-    // 30칸 × 0.48 = 14.4 -> 15칸부터
-    expect(narrativeStarLevel(coverCells(10, P), P)).toBe(3);
-    expect(narrativeStarLevel(coverCells(15, P), P)).toBe(4);
+  it("각자 자기 분모의 48% 를 채우면 L4 다", () => {
+    for (const ps of [young, older]) {
+      const need = Math.ceil(cells(ps) * 0.48);
+      expect(narrativeStarLevel(coverCells(need - 1, ps), ps)).toBeLessThan(4);
+      expect(narrativeStarLevel(coverCells(need, ps), ps)).toBe(4);
+    }
   });
 
-  test("⚠ 25 를 상수로 두면 젊은 사용자가 L4 에 못 닿는다 (이 변경이 막은 것)", () => {
-    // 스물다섯 살은 20칸이 전부다. 옛 문턱 12칸은 그 20칸의 60% 이고, 그건
-    // 마흔여섯 살에게 요구하던 48% 보다 **더 가혹하다**. 살지 않은 시기를 분모에
-    // 넣으면 어린 사용자가 구조적으로 불리해진다 -- 그걸 재현해 둔다.
-    const young = periodIdsForAge(25);
-    const older = periodIdsForAge(46);
-    const youngCells = young.length * LAYERS.length;
-    const olderCells = older.length * LAYERS.length;
-    expect(youngCells).toBe(20);
-    expect(olderCells).toBe(30);
-    // 옛 절대 문턱(12)을 그대로 쓰면 두 사람에게 요구하는 비율이 달라진다
-    expect(12 / youngCells).toBeGreaterThan(12 / olderCells);
-    // 지금은 둘 다 같은 비율을 요구한다
-    const youngNeeded = Math.ceil(youngCells * 0.48);
-    const olderNeeded = Math.ceil(olderCells * 0.48);
-    expect(narrativeStarLevel(coverCells(youngNeeded, young), young)).toBe(4);
-    expect(narrativeStarLevel(coverCells(olderNeeded, older), older)).toBe(4);
+  it("⚠ 분모를 고정하면 어린 사용자가 구조적으로 불리해진다 (이 변경이 막은 것)", () => {
+    // 같은 절대 문턱을 두 사람에게 쓰면, 자리가 적은 쪽에 더 높은 비율을 요구한다.
+    const fixed = Math.ceil(cells(older) * 0.48);
+    expect(fixed / cells(young)).toBeGreaterThan(fixed / cells(older));
   });
 
-  test("해당 없는 시기에 답이 있어도 세지 않는다", () => {
-    const P = periodIdsForAge(25); // 30대 없음
+  it("해당 없는 자리에 답이 있어도 세지 않는다", () => {
     let c = emptyCoverage();
-    for (const l of LAYERS) c = incrementCoverage(c, "thirties", l);
-    expect(cellsCoveredIn(c, P)).toBe(0);
-    expect(narrativeStarLevel(c, P)).toBe(1);
+    for (const l of LAYERS) c = incrementCoverage(c, "later", l);
+    expect(cellsCoveredIn(c, young)).toBe(0);
+    expect(narrativeStarLevel(c, young)).toBe(1);
   });
 
-  test("시기 목록이 비면 L1 (0으로 나누지 않는다)", () => {
+  it("시기 목록이 비면 L1 (0으로 나누지 않는다)", () => {
     expect(narrativeStarLevel(emptyCoverage(), [])).toBe(1);
   });
 });

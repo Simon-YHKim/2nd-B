@@ -1,6 +1,6 @@
 import { canonPolarisBrightness } from "@/lib/canon";
 
-import { HEADLINE_DOMAIN_IDS, domainStarLevels, northStarBrightness } from "../north-star";
+import { HEADLINE_STAR_IDS, domainStarLevels, northStarBrightness } from "../north-star";
 import type { DomainEntry, DomainId } from "../domain-stars";
 
 const organized = (n: number): DomainEntry[] =>
@@ -69,83 +69,71 @@ describe("domainStarLevels", () => {
   });
 });
 
-describe("northStarBrightness", () => {
-  it("all dark (L1) -> 0.2, no all-lit bonus", () => {
-    expect(northStarBrightness({})).toBeCloseTo(0.2);
+describe("northStarBrightness — 홈이 그리는 여섯 별의 평균", () => {
+  // ⚠ 2026-08-24: 구성원이 통째로 바뀌었다. 예전에는 여섯 생활 도메인이었고
+  // `collect` 가 몰래 평균에 끼는 것이 이 파일이 막던 결함이었다. 도메인이
+  // 별자리에서 내려가면서 그 자리에 **나를 알아가는 여섯**이 들어왔다.
+  //
+  // 규칙은 그대로다: **그리는 것만 평균한다.** 그래서 지켜야 할 불변식도 그대로고,
+  // 이름만 바뀌었다 -- 이제 "끼면 안 되는 것"은 `collect` 가 아니라 `profile` 이다.
+  const SIX = HEADLINE_STAR_IDS;
+  const at = (level: 1 | 2 | 3 | 4 | 5) =>
+    Object.fromEntries(SIX.map((id) => [id, level])) as Record<(typeof SIX)[number], typeof level>;
+
+  it("전부 어두우면 0.2 (L1/5)", () => {
+    expect(northStarBrightness({})).toBeCloseTo(0.2, 6);
+    expect(northStarBrightness(at(1))).toBeCloseTo(0.2, 6);
   });
 
-  it("all domains >= L2 earns the all-lit bonus", () => {
-    const all2 = Object.fromEntries(
-      (["career", "finance", "growth", "relation", "health", "recreation", "collect"] as DomainId[]).map(
-        (d) => [d, 2 as const],
-      ),
-    );
-    // mean(0.4 x7) + 0.05 = 0.45
-    expect(northStarBrightness(all2)).toBeCloseTo(0.45);
+  it("전부 L5 면 1 을 넘지 않는다", () => {
+    expect(northStarBrightness(at(5))).toBe(1);
   });
 
-  it("caps at 1.0 even when all domains are L5", () => {
-    const all5 = Object.fromEntries(
-      (["career", "finance", "growth", "relation", "health", "recreation", "collect"] as DomainId[]).map(
-        (d) => [d, 5 as const],
-      ),
-    );
-    expect(northStarBrightness(all5)).toBe(1);
+  it("넓게 켜진 쪽이 하나만 깊은 쪽을 이긴다 (전부 켜져야 보너스)", () => {
+    const oneSpike = northStarBrightness({ [SIX[0]]: 4 });
+    expect(northStarBrightness(at(2))).toBeGreaterThan(oneSpike);
   });
 
-  it("breadth beats one deep spike (no bonus until all are lit)", () => {
-    const oneSpike = northStarBrightness({ career: 4 }); // others L1, not all >=L2
-    const broad = northStarBrightness({
-      career: 2, finance: 2, growth: 2, relation: 2, health: 2, recreation: 2, collect: 2,
-    });
-    expect(broad).toBeGreaterThan(oneSpike);
+  it("한 별이라도 어두우면 보너스가 안 붙는다", () => {
+    const allLit = northStarBrightness(at(2));
+    const oneDark = northStarBrightness({ ...at(2), [SIX[0]]: 1 });
+    expect(allLit - oneDark).toBeGreaterThan(canonPolarisBrightness.allLitBonus / 2);
+  });
+});
+
+describe("평균에 들어가는 목록은 캐논이 정한다", () => {
+  it("하드코딩하지 않고 캐논에서 읽는다", () => {
+    expect([...HEADLINE_STAR_IDS]).toEqual(canonPolarisBrightness.includedDomainIds);
   });
 
-  // Replaces the old "SAME formula as soulCoreBrightness (domain axis)" assertion.
-  // It is no longer true and must not be restored: soulCoreBrightness averages the
-  // SEVEN layer-B constructs, while the headline now averages only the SIX domains
-  // the home draws (Simon 2026-07-29 03:44, canon polarisBrightness). Pinning the
-  // two together would silently drag `collect` back into the number.
-  describe("the headline input set is the canon's, not every domain", () => {
-    it("reads the included/excluded sets from the canon rather than hardcoding them", () => {
-      expect([...HEADLINE_DOMAIN_IDS]).toEqual(canonPolarisBrightness.includedDomainIds);
-      expect(HEADLINE_DOMAIN_IDS).not.toContain("collect");
-      expect(canonPolarisBrightness.excludedDomainIds).toContain("collect");
-      // profile is a self-description, not a life domain: it is drawn on home but
-      // never enters the mean (folding it in would average the persona with a
-      // summary of itself).
-      expect(canonPolarisBrightness.excludedHomeNodeIds).toContain("profile");
-    });
+  it("⚠ 프로필은 평균에 안 들어간다", () => {
+    // 나를 **설명하는** 자리이지 **증거**가 아니다. 넣으면 페르소나가 부분적으로
+    // 자기 자신의 평균이 된다.
+    expect(HEADLINE_STAR_IDS).not.toContain("profile");
+    expect(canonPolarisBrightness.excludedHomeNodeIds).toContain("profile");
+  });
 
-    it("is INVARIANT to collect at every level (the defect this closes)", () => {
-      const visible = { career: 4, finance: 3, growth: 4, relation: 4, health: 4, recreation: 3 } as const;
-      const base = northStarBrightness(visible);
-      for (const collect of [1, 2, 3, 4, 5] as const) {
-        expect(northStarBrightness({ ...visible, collect })).toBe(base);
-      }
-    });
+  it("⚠ 평균 밖의 값은 숫자를 못 움직인다 (이 파일이 원래 막던 결함)", () => {
+    const visible = Object.fromEntries(HEADLINE_STAR_IDS.map((id) => [id, 3 as const]));
+    const base = northStarBrightness(visible);
+    for (const level of [1, 2, 3, 4, 5] as const) {
+      // profile 은 타입상 들어갈 수 없지만, 런타임에 섞여 들어와도 무시돼야 한다.
+      expect(northStarBrightness({ ...visible, profile: level } as never)).toBe(base);
+    }
+  });
 
-    it("does not let collect earn the all-lit bonus on its own", () => {
-      // five visible lit, one dark, collect maxed: the bonus must NOT fire.
-      const withDarkStar = northStarBrightness({
-        career: 2, finance: 2, growth: 2, relation: 2, health: 2, recreation: 1, collect: 5,
-      });
-      const allVisibleLit = northStarBrightness({
-        career: 2, finance: 2, growth: 2, relation: 2, health: 2, recreation: 2, collect: 1,
-      });
-      expect(allVisibleLit - withDarkStar).toBeGreaterThan(canonPolarisBrightness.allLitBonus / 2);
-    });
+  it("생활 도메인은 이제 평균에 없다", () => {
+    for (const gone of ["career", "finance", "growth", "relation", "health", "recreation", "collect"]) {
+      expect(HEADLINE_STAR_IDS as readonly string[]).not.toContain(gone);
+    }
+  });
 
-    // The canon carries the expected values, so a canon edit that the code does not
-    // follow fails here instead of shipping a number nobody re-derived.
-    it.each(canonPolarisBrightness.goldens.map((g) => [g.id, g] as const))(
-      "matches the canon golden %s",
-      (_id, golden) => {
-        expect(northStarBrightness(golden.levels as Partial<Record<DomainId, 1 | 2 | 3 | 4 | 5>>)).toBeCloseTo(
-          golden.expected,
-          10,
-        );
-      },
-    );
+  it("캐논 goldens 가 실제 계산과 맞는다", () => {
+    for (const g of canonPolarisBrightness.goldens) {
+      const levels = Object.fromEntries(
+        HEADLINE_STAR_IDS.map((id) => [id, (g.levels as Record<string, number>)[id]]),
+      );
+      expect(northStarBrightness(levels as never)).toBeCloseTo(g.expected, 6);
+    }
   });
 });

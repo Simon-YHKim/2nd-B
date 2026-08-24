@@ -44,6 +44,7 @@ import { HOME_STAR_IDS } from "@/lib/persona/home-stars";
 import { OFFERABLE } from "@/lib/assess/registry";
 import { getDomainStar } from "@/lib/persona/domain-stars";
 import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
+import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { brightnessVisual, brightnessBand, type BrightnessBand } from "@/lib/persona/brightness-visual";
 import { buildCenterCards } from "@/lib/persona/center";
@@ -129,12 +130,16 @@ export default function CoreBrain() {
 
 function CoreBrainScreen() {
   const { t, i18n } = useTranslation("core-brain");
+  // 별 이름은 홈 별자리와 **같은 키**에서 읽는다 -- 두 화면이 갈라지면
+  // 사용자는 같은 별을 다른 이름으로 두 번 배우게 된다.
+  const { t: tHome } = useTranslation("home");
   const { userId, loading, hasProfile, isMinor } = useAuth();
   const locale = (i18n.language === "ko" ? "ko" : "en") as "en" | "ko";
 
   const [persona, setPersona] = useState<PersonaCard | null>(null);
   const [evidence, setEvidence] = useState<OriginShard[]>([]);
   const [domainBrightness, setDomainBrightness] = useState<DomainBrightness | null>(null);
+  const [starBrightness, setStarBrightness] = useState<number | null>(null);
   const [profileLevel, setProfileLevel] = useState<LadderLevel | null>(null);
   const [strengths, setStrengths] = useState<LoadedStrengths | null>(null);
   const [building, setBuilding] = useState(true);
@@ -154,9 +159,10 @@ function CoreBrainScreen() {
     setLoadError(false);
     (async () => {
       try {
-        const [ev, nextDomainBrightness, nextStrengths, nextProfileLevel] = await Promise.all([
+        const [ev, nextDomainBrightness, nextStars, nextStrengths, nextProfileLevel] = await Promise.all([
           loadCoreBrainEvidence(userId, locale),
           loadDomainLevels(userId).catch(() => null),
+          loadSevenLevels(userId).catch(() => null),
           loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
           loadProfileStarLevel(userId).catch(() => null),
         ]);
@@ -165,6 +171,7 @@ function CoreBrainScreen() {
           setEvidence(ev);
           setPersona(p);
           setDomainBrightness(nextDomainBrightness);
+          setStarBrightness(nextStars?.northStarBrightness ?? null);
           setProfileLevel(nextProfileLevel);
           setStrengths(nextStrengths);
           // 아치 lights up when the center surfaces a fresh connection (companion pack §3).
@@ -190,14 +197,16 @@ function CoreBrainScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const [ev, nextDomainBrightness, nextStrengths] = await Promise.all([
+        const [ev, nextDomainBrightness, nextStars, nextStrengths] = await Promise.all([
           loadCoreBrainEvidence(userId, locale),
           loadDomainLevels(userId).catch(() => null),
+          loadSevenLevels(userId).catch(() => null),
           loadLatestStrengths(getSupabaseClient(), userId).catch(() => null),
         ]);
         if (!cancelled) {
           setEvidence(ev);
           if (nextDomainBrightness) setDomainBrightness(nextDomainBrightness);
+          if (nextStars) setStarBrightness(nextStars.northStarBrightness);
           setStrengths(nextStrengths);
           setLoadError(false);
         }
@@ -386,7 +395,9 @@ function CoreBrainScreen() {
   // real persona, structured assessments, evidence count, or domain ladder.
   // The prototype's role/strength sample values are never copied.
   if (isDeepSpaceUI()) {
-    const band = brightnessBand(domainBrightness?.northStarBrightness ?? 0.2);
+    // 북극성 밝기는 이제 **별 여섯**의 평균이다(2026-08-24). 도메인 로더가
+    // 그 숫자를 더 이상 들고 있지 않으므로 별 쪽에서 읽는다.
+    const band = brightnessBand(starBrightness ?? 0.2);
     const bandLabel = locale === "ko" ? SOUL_CORE_BAND_KO[band] : SOUL_CORE_BAND_EN[band];
     const homeDomains = DOMAIN_STARS.filter((star) => star.id !== "collect");
     const topDomain = domainLevels
@@ -747,14 +758,13 @@ function CoreBrainScreen() {
           <Section title={t("sevenWays")} accent={cosmic.soulViolet}>
             <View style={styles.starRow}>
               {HOME_STAR_IDS.map((id) => {
-                const level = id === "profile" ? profileLevel : domainLevels[id];
+                // 2026-08-24: 일곱이 생활 도메인에서 **나를 알아가는 자리**로 바뀌었다.
+                // 이름은 홈 별자리와 같은 키(`ds.star.*`)에서 읽어 두 화면이 갈라지지
+                // 않게 한다. 밝기는 아직 도메인 등급을 쓰지 않는다 -- 시기별 밝기는
+                // 다음 단계(커버리지 연결)에서 붙는다.
+                const level = id === "profile" ? profileLevel : null;
                 const v = brightnessVisual(level ?? 1);
-                const name =
-                  id === "profile"
-                    ? t("profileStar")
-                    : locale === "ko"
-                      ? getDomainStar(id).nameKo
-                      : getDomainStar(id).nameEn;
+                const name = tHome(`ds.star.${id}`);
                 return (
                   <View key={id} style={styles.starItem}>
                     <View style={[styles.starDot, { opacity: v.opacity }]} />

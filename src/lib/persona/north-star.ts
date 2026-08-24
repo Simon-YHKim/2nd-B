@@ -14,7 +14,8 @@
 import { canonPolarisBrightness } from "../canon";
 import { type LadderLevel, brightnessFraction } from "./brightness";
 import { domainLevel } from "./domain-confidence";
-import { DOMAIN_STARS, isDomainId, type DomainEntry, type DomainId } from "./domain-stars";
+import { DOMAIN_STARS, type DomainEntry, type DomainId } from "./domain-stars";
+import { isSevenStarId, type SevenStarId } from "./seven-stars";
 
 // The headline's input set is NOT "every domain" — it is "every domain the home
 // actually draws", and that set lives in the canon
@@ -31,12 +32,26 @@ const CANON = canonPolarisBrightness;
 const ALL_LIT_BONUS = CANON.allLitBonus;
 const ALL_LIT_MIN_LEVEL = CANON.allLitMinimumLevel;
 
-/** The domain stars the home draws, in canon order. Excludes `collect` (a data
- *  domain that is not a home star) and never includes `museum` (a portal, not a
- *  domain, so it has no level to average). */
-export const HEADLINE_DOMAIN_IDS: readonly DomainId[] = CANON.includedDomainIds.filter(
-  (id): id is DomainId => isDomainId(id),
+/**
+ * 북극성이 평균하는 별들 — 홈이 **그리는** 자리 중 프로필을 뺀 여섯.
+ *
+ * ⚠ 2026-08-24 에 구성원이 통째로 바뀌었다. 예전에는 여섯 생활 도메인
+ * (커리어·재정·성장·관계·건강·휴식)이었는데, 그 도메인들이 별자리에서 내려가
+ * 대시보드로 갔다. 지금은 **나를 알아가는 여섯 자리**다.
+ *
+ * 규칙 자체(그리는 것만 평균한다)는 Simon 의 2026-07-29 결정 그대로다. 바뀐 것은
+ * 무엇이 그려지는가뿐이고, 이 모듈이 캐논에서 읽으므로 **숫자와 그림이 갈라질 수
+ * 없다** -- 그게 이 파일이 캐논을 읽는 이유다.
+ *
+ * 프로필은 여전히 빠진다: 나를 **설명하는** 자리이지 **증거**가 아니라서,
+ * 평균에 넣으면 페르소나가 부분적으로 자기 자신의 평균이 된다.
+ */
+export const HEADLINE_STAR_IDS: readonly HeadlineStarId[] = CANON.includedDomainIds.filter(
+  (id): id is HeadlineStarId => isSevenStarId(id) && id !== "profile",
 );
+
+/** 평균에 들어가는 별. 프로필은 제외된다. */
+export type HeadlineStarId = Exclude<SevenStarId, "profile">;
 
 export interface DomainStarOpts {
   crossSourceAgreement?: boolean;
@@ -64,13 +79,11 @@ export function domainStarLevels(
   return out;
 }
 
-/** 북극성 headline brightness 0-1 = mean of the brightnesses of the domains the
- *  home DRAWS, plus the all-lit bonus when every one of those is >= the canon's
- *  minimum. Missing domains count as L1. `collect` is excluded from both the mean
- *  and the bonus test (canon polarisBrightness.excludedDomainIds), so a domain the
- *  user cannot see can never move the number they can. */
-export function northStarBrightness(levels: Partial<Record<DomainId, LadderLevel>>): number {
-  const perStar = HEADLINE_DOMAIN_IDS.map((id) => levels[id] ?? 1) as LadderLevel[];
+/** 북극성 밝기 0~1 = 홈이 **그리는** 여섯 별 밝기의 평균 + 전부 켜졌을 때의 보너스.
+ *  없는 별은 L1 로 센다(어두운 별은 어두운 채로). 사용자가 볼 수 없는 것이
+ *  볼 수 있는 숫자를 움직이지 못한다 -- 그게 이 함수의 유일한 규율이다. */
+export function northStarBrightness(levels: Partial<Record<HeadlineStarId, LadderLevel>>): number {
+  const perStar = HEADLINE_STAR_IDS.map((id) => levels[id] ?? 1) as LadderLevel[];
   const mean = perStar.reduce((sum, l) => sum + brightnessFraction(l), 0) / perStar.length;
   const allLit = perStar.every((l) => l >= ALL_LIT_MIN_LEVEL);
   return Math.min(1, mean + (allLit ? ALL_LIT_BONUS : 0));

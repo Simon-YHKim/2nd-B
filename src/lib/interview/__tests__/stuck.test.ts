@@ -7,7 +7,7 @@
 import { emptyCoverage, incrementCoverage, nextMove, type Coverage } from "../probe";
 import { isNonAnswer, shouldScaffold, SCAFFOLD_FALLBACK, scaffoldQuestion, MAX_SCAFFOLDS_PER_LAYER } from "../stuck";
 import { narrativeStarLevel } from "../narrative-level";
-import { periodIdsForAge } from "../periods";
+import { livedPeriods } from "../periods";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -59,44 +59,44 @@ describe("막히면 같은 층에 머문다 — 더 깊이 가지 않는다", ()
   // 사실·감정은 채웠고 의미(L3)에서 막힌 상태.
   const cov: Coverage = (() => {
     let c = emptyCoverage();
-    c = incrementCoverage(c, "childhood", "fact");
-    c = incrementCoverage(c, "childhood", "feeling");
+    c = incrementCoverage(c, "infancy", "fact");
+    c = incrementCoverage(c, "infancy", "feeling");
     return c;
   })();
 
   it("막힘이 없으면 평소대로 빈 칸을 찾아 내려간다", () => {
-    const move = nextMove(cov, "childhood", [], NOW, null);
+    const move = nextMove(cov, "infancy", [], NOW, null);
     expect(move).toEqual({ kind: "drill", layer: "meaning" });
   });
 
   it("한 번 막히면 그 층을 다시 묻는다 (믿음으로 안 넘어간다)", () => {
-    const move = nextMove(cov, "childhood", [], NOW, { layer: "meaning", streak: 1 });
+    const move = nextMove(cov, "infancy", [], NOW, { layer: "meaning", streak: 1 });
     expect(move).toEqual({ kind: "scaffold", layer: "meaning" });
   });
 
   it("두 번째도 발판이다", () => {
-    const move = nextMove(cov, "childhood", [], NOW, { layer: "meaning", streak: 2 });
+    const move = nextMove(cov, "infancy", [], NOW, { layer: "meaning", streak: 2 });
     expect(move).toEqual({ kind: "scaffold", layer: "meaning" });
   });
 
   it("두 번 시도해도 막히면 그때 넘어간다", () => {
-    const move = nextMove(cov, "childhood", [], NOW, { layer: "meaning", streak: 3 });
+    const move = nextMove(cov, "infancy", [], NOW, { layer: "meaning", streak: 3 });
     expect(move.kind).toBe("drill");
   });
 
   it("⚠ 포기한 층을 다시 집지 않는다 (실행해서 잡은 제자리 돌기)", () => {
     // 실측 2026-08-24: 칸을 안 채우는 것만으로는 부족했다. "가장 먼저 비어 있는
     // 칸" 규칙이 방금 포기한 그 칸을 바로 다시 집어서, 같은 L3 질문이 계속 나왔다.
-    const noSkip = nextMove(cov, "childhood", [], NOW, { layer: "meaning", streak: 3 }, []);
+    const noSkip = nextMove(cov, "infancy", [], NOW, { layer: "meaning", streak: 3 }, []);
     expect(noSkip).toEqual({ kind: "drill", layer: "meaning" }); // ← 예전의 제자리 돌기
 
-    const skipped = nextMove(cov, "childhood", [], NOW, { layer: "meaning", streak: 3 }, ["meaning"]);
+    const skipped = nextMove(cov, "infancy", [], NOW, { layer: "meaning", streak: 3 }, ["meaning"]);
     expect(skipped).toEqual({ kind: "drill", layer: "belief" }); // ← 지금은 넘어간다
   });
 
   it("층을 전부 포기해도 멈추지 않는다 (0으로 나누듯 막히지 않게)", () => {
     const all = ["fact", "feeling", "meaning", "belief", "echo"] as const;
-    const move = nextMove(emptyCoverage(), "childhood", [], NOW, null, all);
+    const move = nextMove(emptyCoverage(), "infancy", [], NOW, null, all);
     expect(move.kind).toBe("drill");
     expect(all).toContain((move as { layer: string }).layer);
   });
@@ -155,7 +155,7 @@ describe("발판 문장은 해석을 요구하지 않는다", () => {
 });
 
 describe("⚠ 못 판 칸은 등급에도 안 잡힌다 (이 변경의 핵심)", () => {
-  const periods = periodIdsForAge(31);
+  const periods = livedPeriods(31);
 
   it("'모르겠다' 세 번은 등급을 올리지 못한다", () => {
     // 예전 동작: 세 칸이 채워져 L2~L3 이 나왔다. 지금은 아무것도 안 채운다.
@@ -170,7 +170,7 @@ describe("⚠ 못 판 칸은 등급에도 안 잡힌다 (이 변경의 핵심)",
   it("진짜 답 세 번은 등급을 올린다 (막는 것이 과하지 않다)", () => {
     let c = emptyCoverage();
     for (const l of ["fact", "feeling", "meaning"] as const) {
-      c = incrementCoverage(c, "childhood", l);
+      c = incrementCoverage(c, "infancy", l);
     }
     expect(narrativeStarLevel(c, periods)).toBeGreaterThan(1);
   });

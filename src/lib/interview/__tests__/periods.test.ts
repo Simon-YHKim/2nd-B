@@ -1,120 +1,135 @@
-// 시기 목록이 **나이에서** 나오는지. 고정 목록으로 되돌아가면 여기서 깨진다.
-import { periodsForAge, periodIdsForAge, parsePeriodParam, OLDEST_BAND_CEILING } from "../periods";
+// 자리는 **별 일곱으로 고정**이고, 이 파일이 하는 일은 하나다 —
+// **아직 살지 않은 자리를 가려낸다.**
+//
+// ⚠ 2026-08-24 에 역할이 바뀌었다. 예전에는 나이에서 시기 목록 자체를 만들어
+// 사람마다 칸 수가 달랐는데(스물다섯 4개·마흔여섯 6개), 별자리는 모양이 있어야
+// 하므로 칸은 고정이 됐다. 대신 살지 않은 별은 잠근다.
+import { livedPeriods, lockedStars, parsePeriodParam } from "../periods";
 import { LIFE_PERIODS, PERIOD_LABEL, seedQuestion, emptyCoverage } from "../probe";
+import { SEVEN_STARS, hasInterview, isUnlived } from "../../persona/seven-stars";
 
-describe("살아온 시기만 만든다", () => {
-  test("마지막은 언제나 '지금'", () => {
-    for (const age of [14, 19, 20, 25, 33, 46, 59, 71, 90]) {
-      const ids = periodIdsForAge(age);
-      expect(ids[ids.length - 1]).toBe("current");
-    }
+describe("별 일곱이 정본이다", () => {
+  it("일곱이다", () => {
+    expect(SEVEN_STARS).toHaveLength(7);
   });
 
-  test("아직 살지 않은 시기는 안 만든다", () => {
-    expect(periodIdsForAge(25)).toEqual(["childhood", "teens", "twenties", "current"]);
-    expect(periodIdsForAge(19)).toEqual(["childhood", "teens", "current"]);
-    expect(periodIdsForAge(46)).toEqual([
-      "childhood", "teens", "twenties", "thirties", "forties", "current",
+  it("Simon 이 정한 순서·이름 그대로", () => {
+    expect(SEVEN_STARS.map((s) => s.id)).toEqual([
+      "profile", "infancy", "school", "twenties", "later", "work", "now",
     ]);
   });
 
-  test("지나는 중인 시기는 오늘 나이까지 잘린다 (Simon 미리보기 그대로)", () => {
-    const at25 = periodsForAge(25);
-    expect(at25.find((s) => s.id === "twenties")).toEqual({ id: "twenties", from: 20, to: 25 });
-    const at46 = periodsForAge(46);
-    // 지나온 시기는 안 잘린다
-    expect(at46.find((s) => s.id === "thirties")).toEqual({ id: "thirties", from: 30, to: 39 });
-    // 지나는 중인 시기만 잘린다
-    expect(at46.find((s) => s.id === "forties")).toEqual({ id: "forties", from: 40, to: 46 });
+  it("인터뷰가 없는 별은 프로필 하나뿐", () => {
+    const without = SEVEN_STARS.filter((s) => !hasInterview(s.id)).map((s) => s.id);
+    expect(without).toEqual(["profile"]);
   });
 
-  test("나이를 모르면 누구나 지나온 둘 + 지금 으로만 떨어진다", () => {
-    // 살지 않은 시기를 물어보는 쪽이, 지나온 시기를 빼먹는 쪽보다 나쁘다.
-    expect(periodIdsForAge(null)).toEqual(["childhood", "teens", "current"]);
-    expect(periodIdsForAge(Number.NaN)).toEqual(["childhood", "teens", "current"]);
-    expect(periodIdsForAge(-3)).toEqual(["childhood", "teens", "current"]);
+  it("인터뷰가 있는 여섯이 LIFE_PERIODS 와 정확히 같다", () => {
+    // 하나라도 어긋나면 별을 눌렀는데 못 여는 자리가 생긴다.
+    const fromStars = SEVEN_STARS.filter((s) => s.period).map((s) => s.period);
+    expect(fromStars).toEqual([...LIFE_PERIODS]);
   });
 
-  test("가장 나이 든 칸을 넘어가면 새 칸을 만들지 않고 '지금'이 받는다", () => {
-    const at90 = periodIdsForAge(90);
-    expect(at90).toContain("seventies");
-    expect(at90[at90.length - 1]).toBe("current");
-    // 80대 칸은 없다 — union 을 무한히 늘리지 않는 것이 의도다
-    expect(new Set(at90).size).toBe(at90.length);
-    expect(periodsForAge(OLDEST_BAND_CEILING + 5).some((s) => s.from !== null && s.from >= 80)).toBe(false);
-  });
-
-  test("중복이 없고 순서가 나이순이다", () => {
-    const slots = periodsForAge(46).filter((s) => s.from !== null);
-    const froms = slots.map((s) => s.from as number);
-    expect([...froms].sort((a, b) => a - b)).toEqual(froms);
-    expect(new Set(froms).size).toBe(froms.length);
+  it("⚠ 나이 경계에 구멍이 없다", () => {
+    // Simon 원안은 영유아기(0~6) → 학창시절(7~18) → 20대 라 **19세가 비었다.**
+    // 학창시절을 7~19 로 닫았다 — 한국에서 19세는 고3·재수·대학 1학년이다.
+    const bands = SEVEN_STARS.map((s) => s.ageBand).filter((b): b is { from: number; to: number | null } => b !== null);
+    expect(bands.length).toBeGreaterThanOrEqual(4);
+    for (let i = 0; i < bands.length - 1; i += 1) {
+      const cur = bands[i], next = bands[i + 1];
+      expect(cur.to).not.toBeNull();
+      expect((cur.to as number) + 1).toBe(next.from); // 붙어 있어야 한다
+    }
+    expect(bands[bands.length - 1].to).toBeNull(); // 마지막은 위로 열려 있다
   });
 });
 
-describe("만들어진 시기는 엔진이 전부 감당한다", () => {
-  // 이게 이 파일의 진짜 계약이다. 시기를 늘려놓고 라벨이나 씨앗 질문을 빠뜨리면
-  // 화면에 undefined 가 나간다.
-  const ALL = new Set<string>();
-  for (const age of [14, 25, 35, 46, 55, 65, 75, 90, null]) {
-    for (const id of periodIdsForAge(age)) ALL.add(id);
-  }
-
-  test("전부 LIFE_PERIODS 안에 있다", () => {
-    for (const id of ALL) expect(LIFE_PERIODS).toContain(id);
+describe("아직 살지 않은 자리를 잠근다", () => {
+  it("스물다섯 살에게 30대 이후는 잠긴다", () => {
+    expect(isUnlived("later", 25)).toBe(true);
+    expect(lockedStars(25)).toEqual(["later"]);
   });
 
-  test("ko·en 라벨이 다 있다", () => {
-    for (const id of ALL) {
+  it("마흔여섯 살은 아무것도 안 잠긴다", () => {
+    expect(lockedStars(46)).toEqual([]);
+  });
+
+  it("주제 별(직장·지금)은 나이와 무관하게 언제나 열린다", () => {
+    for (const age of [14, 25, 46, 80, null]) {
+      expect(isUnlived("work", age)).toBe(false);
+      expect(isUnlived("now", age)).toBe(false);
+    }
+  });
+
+  it("나이를 모르면 막지 않는다 (막는 쪽이 더 나쁘다)", () => {
+    expect(lockedStars(null)).toEqual([]);
+    expect(livedPeriods(null)).toEqual([...LIFE_PERIODS]);
+  });
+
+  it("livedPeriods 가 잠긴 자리를 뺀다", () => {
+    expect(livedPeriods(25)).toEqual(["infancy", "school", "twenties", "work", "now"]);
+    expect(livedPeriods(46)).toEqual([...LIFE_PERIODS]);
+  });
+
+  it("열네 살에게도 20대는 잠긴다", () => {
+    expect(lockedStars(14).sort()).toEqual(["later", "twenties"]);
+  });
+});
+
+describe("여섯 자리를 엔진이 전부 감당한다", () => {
+  it("ko·en 라벨이 다 있다", () => {
+    for (const p of LIFE_PERIODS) {
       for (const loc of ["ko", "en"] as const) {
-        const label = PERIOD_LABEL[loc][id as keyof (typeof PERIOD_LABEL)["ko"]];
-        expect(typeof label).toBe("string");
-        expect(label.length).toBeGreaterThan(0);
+        expect(typeof PERIOD_LABEL[loc][p]).toBe("string");
+        expect(PERIOD_LABEL[loc][p].length).toBeGreaterThan(0);
       }
     }
   });
 
-  test("ko·en 씨앗 질문이 다 있고, 전부 질문이다", () => {
-    for (const id of ALL) {
+  it("ko·en 씨앗 질문이 다 있고 전부 질문이다", () => {
+    for (const p of LIFE_PERIODS) {
       for (const loc of ["ko", "en"] as const) {
-        const q = seedQuestion(id as never, loc);
-        expect(typeof q).toBe("string");
-        // 물음표가 있으면 된다. 끝글자로 보지 않는 이유는 기존 current(en) 가
-        // 따옴표 안에 질문을 넣어 `?'` 로 끝나기 때문이다 -- 결함이 아니다.
+        const q = seedQuestion(p, loc);
         expect(q).toContain("?");
         expect(q.length).toBeGreaterThan(15);
       }
     }
   });
 
-  test("씨앗 질문이 시기마다 서로 다르다 (돌려쓰지 않았다)", () => {
+  it("씨앗 질문이 자리마다 서로 다르다", () => {
     for (const loc of ["ko", "en"] as const) {
       const seen = LIFE_PERIODS.map((p) => seedQuestion(p, loc));
       expect(new Set(seen).size).toBe(seen.length);
     }
   });
 
-  test("Coverage 행렬이 모든 시기 칸을 갖는다", () => {
+  it("Coverage 행렬이 여섯 칸을 갖는다", () => {
     const c = emptyCoverage();
-    for (const id of ALL) expect(c[id as keyof typeof c]).toBeDefined();
+    for (const p of LIFE_PERIODS) expect(c[p]).toBeDefined();
   });
 });
 
-describe("라우트 파라미터 해석", () => {
-  test("옛 링크 ?period=20s 가 계속 산다", () => {
-    // 기록·북마크에 남아 있는 주소다. 깨뜨리지 말 것.
-    expect(parsePeriodParam("20s")).toBe("twenties");
-    expect(parsePeriodParam("teens")).toBe("teens");
+describe("옛 링크가 죽지 않는다", () => {
+  it.each([
+    ["childhood", "infancy"],
+    ["teens", "school"],
+    ["20s", "twenties"],
+    ["thirties", "later"],
+    ["forties", "later"],
+    ["seventies", "later"],
+    ["current", "now"],
+  ])("%s → %s", (from, to) => {
+    expect(parsePeriodParam(from)).toBe(to);
   });
 
-  test("새 시기가 전부 통과한다", () => {
+  it("새 이름은 그대로 통과한다", () => {
     for (const p of LIFE_PERIODS) expect(parsePeriodParam(p)).toBe(p);
   });
 
-  test("모르는 값·빈 값은 조용히 '지금'", () => {
-    expect(parsePeriodParam(undefined)).toBe("current");
-    expect(parsePeriodParam("")).toBe("current");
-    expect(parsePeriodParam("babyhood")).toBe("current");
-    expect(parsePeriodParam(["teens", "20s"])).toBe("teens");
+  it("모르는 값·빈 값은 '지금' 으로 (누구에게나 열린 자리)", () => {
+    expect(parsePeriodParam(undefined)).toBe("now");
+    expect(parsePeriodParam("")).toBe("now");
+    expect(parsePeriodParam("babyhood")).toBe("now");
+    expect(parsePeriodParam(["teens", "20s"])).toBe("school");
   });
 });

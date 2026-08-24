@@ -51,6 +51,13 @@
       "appOnly": true
     },
     {
+      "id": "star-summary",
+      "component": null,
+      "title": "별 요약",
+      "route": "me/[star]",
+      "appOnly": true
+    },
+    {
       "id": "star",
       "component": "StarScreen",
       "layout": "museumLike",
