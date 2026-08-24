@@ -29,7 +29,7 @@
   "withdrawCta": "Withdraw my response",
   "withdrawAnytime": "You can withdraw anytime by opening this link again.",
   "subjectTitle": "Ask people who know me",
-  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in your Seen lens; you never see individual answers.",
+  "subjectIntro": "Send a one-time link to people who know you. Once three or more answer, the combined picture appears in Seen self; you never see individual answers.",
   "labelField": "Nickname for this person (only you see it)",
   "kind": {
     "friend": "Friend",
@@ -53,7 +53,7 @@
   },
   "revokeCta": "Revoke",
   "shareMessage": "Would you answer three quick questions about how you see me? About a minute:",
-  "aggregateNote": "Answers appear only as a combined picture of three or more people, in the Seen lens.",
+  "aggregateNote": "Answers appear only as a combined picture of three or more people, in Seen self.",
   "withdrawError": "Couldn't withdraw. Your response is still shared. Try again shortly.",
   "revokeFailed": "Couldn't revoke. The invitation link is still live. Try again."
 }
