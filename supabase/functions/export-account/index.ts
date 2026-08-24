@@ -113,6 +113,7 @@ const EXPORT_TABLES: { table: string; fk: string }[] = [
   { table: 'testimonials', fk: 'user_id' },
   { table: 'xp_events', fk: 'user_id' },
   { table: 'star_tier_history', fk: 'user_id' },
+  { table: 'resurface_ledger', fk: 'user_id' },
   { table: 'clipper_templates', fk: 'owner_id' },
   { table: 'health_samples', fk: 'user_id' },
   { table: 'ingest_log', fk: 'user_id' },

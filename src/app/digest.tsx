@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { reactExpression } from "@/lib/companion/expression";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { planResurface } from "@/lib/resurface/plan";
+import { recordResurfaceDecision, recordResurfaceShown } from "@/lib/resurface/ledger";
 import {
   listInferredLinkDetails,
   ratifyLink,
@@ -74,6 +75,13 @@ export default function Digest() {
           (rank.get(`${b.from_page}:${b.to_page}`) ?? Number.MAX_SAFE_INTEGER))
         .slice(0, plan.shown);
       setItems(ordered);
+      // 채점 원장(0145): 오늘 실제로 뜬 것을 순위와 함께 남긴다. 이게 있어야
+      // "무시"(보여줬는데 판정 없음)가 정의되고, 개인화가 지어낸 파라미터가
+      // 아니라 데이터에서 나올 수 있다. 실패해도 화면은 그대로(fail-soft).
+      void recordResurfaceShown(
+        userId,
+        ordered.map((r, i) => ({ fromPage: r.from_page, toPage: r.to_page, rank: i })),
+      );
     } catch {
       // A load failure is NOT an empty list. Surface a distinct error state
       // with a retry CTA so the user can recover (spec §9).
@@ -94,6 +102,10 @@ export default function Digest() {
       try {
         if (confirm) await ratifyLink(userId, p.from_page, p.to_page);
         else await rejectInferredLink(userId, p.from_page, p.to_page);
+        // 판정이 성공한 뒤에만 원장에 남긴다 -- 실패한 판정을 성공으로 적으면
+        // 채점이 거짓이 된다. 거절은 wiki_links 행이 DELETE 되므로 이 원장이
+        // 유일한 흔적이다.
+        void recordResurfaceDecision(userId, p.from_page, p.to_page, confirm ? "ratified" : "rejected");
         // 승인 = the app-wide ratify wink (rejections stay face-neutral).
         if (confirm) reactExpression("wink");
         await refresh();
