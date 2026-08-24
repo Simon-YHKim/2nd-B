@@ -564,6 +564,11 @@
       "records": "{{n}} registros",
       "start": "Começar",
       "continue": "Continuar"
+    },
+    "dashboard": {
+      "title": "O que sei sobre você",
+      "sub": "Seis áreas da sua vida. Toque em uma para ver o detalhe.",
+      "dismiss": "Ocultar"
     }
   }
 }

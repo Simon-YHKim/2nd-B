@@ -116,7 +116,10 @@ export function DeepSpaceShell() {
         // `/star/[domain]` 은 남는다 -- 생활 도메인 대시보드가 계속 쓴다.
         onStarTravel={(id) => router.push(`/me/${id}`)}
         onPolarisPress={() => router.push("/core-brain")}
-        onChatPress={() => router.push("/secondb")}
+        // [Simon 결정 6 = B] 생활 여섯 영역(커리어·재정·성장·관계·건강·휴식)은
+        // 더 이상 별이 아니다. 그 대시보드로 가는 입구가 **세컨비 머리**다 --
+        // 별자리에서 머리를 터치하면 대화창이 그것을 펴 보인다.
+        onChatPress={() => router.push("/secondb?panel=dashboard")}
         onOpsPress={() => router.push("/ops")}
         onBellPress={() => router.push("/inbox")}
         onMuseumPress={() => router.push("/museum")}

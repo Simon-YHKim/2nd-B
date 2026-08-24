@@ -564,6 +564,11 @@
       "records": "{{n}} records",
       "start": "Start",
       "continue": "Keep going"
+    },
+    "dashboard": {
+      "title": "What I know about you",
+      "sub": "Six areas of your life. Tap one to see the detail.",
+      "dismiss": "Hide"
     }
   }
 }
