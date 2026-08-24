@@ -13,7 +13,9 @@
   "trait": {
     "extraversion": "Gana energía con la gente y habla con facilidad.",
     "conscientiousness": "Es organizada y termina lo que empieza.",
-    "agreeableness": "Es cálida, considerada y fácil de tratar."
+    "agreeableness": "Es cálida, considerada y fácil de tratar.",
+    "openness": "Es curioso y está abierto a nuevas ideas y experiencias.",
+    "neuroticism": "Tiende a preocuparse y es sensible al estrés."
   },
   "ackLlm": "Acepto que un sistema de IA procese mis respuestas para crear la imagen combinada.",
   "ackOverseas": "Acepto que este procesamiento pueda ocurrir en servidores fuera de mi país.",
@@ -29,7 +31,7 @@
   "withdrawCta": "Retirar mi respuesta",
   "withdrawAnytime": "Puedes retirarla cuando quieras abriendo este enlace.",
   "subjectTitle": "Preguntar a quienes me conocen",
-  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más, la imagen combinada aparece en Cómo me ven; nunca ves respuestas individuales.",
+  "subjectIntro": "Envía un enlace de un solo uso. Cuando respondan tres o más, la imagen combinada aparece en Cómo me ven; nunca ves respuestas individuales. Envíalo también más allá de tus amigos cercanos: alguien que conociste hace poco o con quien trabajaste. Las miradas que no se superponen dicen más.",
   "labelField": "Apodo para esta persona (solo tú lo ves)",
   "kind": {
     "friend": "Amistad",
@@ -52,7 +54,7 @@
     "expired": "Caducada"
   },
   "revokeCta": "Revocar",
-  "shareMessage": "¿Responderías tres preguntas rápidas sobre cómo me ves? Un minuto:",
+  "shareMessage": "¿Responderías cinco preguntas rápidas sobre cómo me ves? Un minuto:",
   "aggregateNote": "Las respuestas aparecen solo como imagen combinada de tres o más personas, en Cómo me ven.",
   "withdrawError": "No se pudo retirar. Tu respuesta sigue compartida. Inténtalo de nuevo en un momento.",
   "revokeFailed": "No se pudo revocar. El enlace de invitación sigue activo. Inténtalo de nuevo."
