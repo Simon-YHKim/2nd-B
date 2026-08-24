@@ -1,5 +1,12 @@
 # Claude reasoning seam — owner setup
 
+> **⚠ 역사 기록 (2026-08-26).** 이 문서가 말하는 seam(`EXPO_PUBLIC_REASONING_PROVIDER`)은
+> `boundary.ts` 의 별도 리졸버에서 `src/lib/llm/routing.ts` 의
+> `legacyReasoningProvider()`(purpose 축 `resolveVendorForPurpose` 의 마지막 rung)로
+> 통합됐다. purpose 축이 항상 먼저 이기며, 걷어내기 조건과 순서는
+> `docs/LLM-ROUTING.md` 의 해당 절이 정본이다. 아래 본문은 통합 이전 구조 기준의
+> 설정 절차 기록이다.
+
 Status: **wired (Option A implemented)**. The reasoning path in
 `src/lib/llm/boundary.ts` routes the pro-tier call to the `claude-proxy` Supabase
 edge function whenever `EXPO_PUBLIC_REASONING_PROVIDER=claude`. The client stays

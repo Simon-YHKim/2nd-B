@@ -80,9 +80,11 @@ const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-5';
 // OpenAI client-side (PHASE2_VENDOR), which is where they now belong.
 //
 // ⚠ REMOVING THEM DID NOT REMOVE THE OUTAGE REFUGE, and the order assumed it
-// would. This proxy has NO ALLOWLIST by design (see resolveModel: the legacy
-// EXPO_PUBLIC_REASONING_PROVIDER seam must keep working, and that seam has 17
-// live call sites). An unseated purpose falls to DEFAULT_CLAUDE_MODEL, so
+// would. This proxy has NO ALLOWLIST by design: EXPO_PUBLIC_LLM_VENDOR=claude
+// is the outage refuge, so an unseated purpose must still be served — it falls
+// to DEFAULT_CLAUDE_MODEL. (The legacy EXPO_PUBLIC_REASONING_PROVIDER seam,
+// folded into routing.ts resolveVendorForPurpose on 2026-08-26, can also send
+// unseated pro-tier purposes here until it is retired.) So
 // EXPO_PUBLIC_LLM_VENDOR=claude during an OpenAI outage still serves all
 // twelve - at sonnet price, which is the RIGHT price for an emergency. Pinning
 // chat's refuge to opus, the alternative the order offered, would have made the
