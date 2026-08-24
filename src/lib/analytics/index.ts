@@ -22,6 +22,8 @@
 
 import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 
+import { syncNativeClarity } from "./clarity-native";
+
 import { getEnv, type Env } from "../env";
 import { getSupabaseClient } from "../supabase/client";
 
@@ -344,6 +346,34 @@ function syncNativeAnalyticsCollection(enabled: boolean): void {
   nativeApplyChain = nativeApplyChain
     .then(async () => applier(await resolveNativeCollectionTarget(enabled)))
     .catch(() => {});
+}
+
+/**
+ * Native Clarity rides the SAME adult/consent decision as native Firebase, and
+ * adds the two gates Clarity needs on top: its own runtime kill-switch
+ * (clarity_enabled) and the route allow-list.
+ *
+ * On web this is a no-op - the DOM loader owns Clarity there. The split exists
+ * because the two SDKs have genuinely different controls: the web script cannot
+ * be stopped once injected, while the native SDK pauses.
+ */
+function syncNativeClarityForRoute(enabled: boolean): void {
+  if (Platform.OS === "web") return;
+  syncNativeClarity({
+    enabled: enabled && runtimeAnalyticsFlags.clarityEnabled,
+    route: currentAnalyticsRoute,
+    allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
+    projectId: clarityProjectIdForNative(),
+  });
+}
+
+/** Read the build-time project id without throwing on an invalid build env. */
+function clarityProjectIdForNative(): string | undefined {
+  try {
+    return getEnv().EXPO_PUBLIC_CLARITY_PROJECT_ID;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Test hook only: substitute the native applier (null restores the real one). */
@@ -727,6 +757,7 @@ export async function initAnalytics(opts?: { analyticsConsent?: boolean } & Anal
   // no opts, so a cold start always re-applies OFF until the server-derived
   // decision arrives through setAnalyticsConsent.
   syncNativeAnalyticsCollection(canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts));
+  syncNativeClarityForRoute(canLoadProductAnalytics(opts?.analyticsConsent ?? false, opts));
 
   let env: Env;
   try {
@@ -1082,6 +1113,9 @@ export function captureEvent(event: AnalyticsEvent): boolean {
   if (event.name === "page_view") {
     currentAnalyticsRoute = sanitizeAnalyticsRoutePath(event.props.path);
     maybeLoadClarityForRoute();
+    // Native has no injection step, so navigation is where pause/resume and the
+    // screen name are decided. A disallowed screen pauses rather than hoping.
+    syncNativeClarityForRoute(analyticsConsent);
   }
   // Re-check at most once per minute. The current event uses the last safe
   // snapshot; a newly disabled flag revokes loaded GA/Clarity immediately
