@@ -14,7 +14,9 @@ import { callPeerRespond } from "@/lib/peer/peer-respond";
 
 type Phase = "loading" | "form" | "done" | "withdrawn" | "expired" | "invalid" | "already";
 
-const TRAITS = ["extraversion", "conscientiousness", "agreeableness"] as const;
+// 2026-08-25: Big Five 완성. ⚠ 서버(peer-respond)가 5키를 받는 판으로 먼저
+// 재배포돼 있어야 한다 — 구서버는 새 2키를 400 이 아니라 **조용히 폐기**한다.
+const TRAITS = ["extraversion", "conscientiousness", "agreeableness", "openness", "neuroticism"] as const;
 type Trait = (typeof TRAITS)[number];
 
 // C10: the same floor sign-up enforces. Birth YEAR only — the coarsest signal
