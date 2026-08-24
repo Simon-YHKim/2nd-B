@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { LIFE_PERIODS } from "../probe";
-import { periodIdsForAge } from "../periods";
+import { livedPeriods } from "../periods";
 
 const SCREEN = readFileSync(
   join(__dirname, "..", "..", "..", "app", "interview.tsx"),
@@ -43,7 +43,7 @@ describe("행렬이 화면에 붙어 있다", () => {
 
 describe("⚠ 살지 않은 시기는 열이 되지 않는다", () => {
   it("화면이 나이에서 만든 목록을 넘긴다", () => {
-    expect(SCREEN).toContain("periodIdsForAge(age)");
+    expect(SCREEN).toContain("livedPeriods(age)");
     expect(SCREEN).toContain("periods={coveredPeriods}");
     // LIFE_PERIODS 를 그대로 넘기면 스물다섯 살에게 70대 열이 보인다.
     expect(SCREEN).not.toContain("periods={LIFE_PERIODS}");
@@ -64,11 +64,12 @@ describe("⚠ 살지 않은 시기는 열이 되지 않는다", () => {
   });
 
   it("나이에 따라 열 수가 달라진다", () => {
-    expect(periodIdsForAge(25)).toHaveLength(4);
-    expect(periodIdsForAge(46)).toHaveLength(6);
+    // 숫자를 박지 않는다 — 별 구조가 바뀌면 자리 수도 바뀐다.
+    expect(livedPeriods(25).length).toBeLessThan(livedPeriods(46).length);
+    expect(livedPeriods(25)).not.toContain("later");
     // 그리고 그 값들은 전부 행렬이 아는 시기여야 한다.
     for (const age of [14, 25, 46, 75]) {
-      for (const p of periodIdsForAge(age)) expect(LIFE_PERIODS).toContain(p);
+      for (const p of livedPeriods(age)) expect(LIFE_PERIODS).toContain(p);
     }
   });
 });

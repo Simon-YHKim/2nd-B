@@ -49,17 +49,11 @@ function cellTone(count: number): { bg: string; border: string; text: string } {
 }
 
 function shortPeriodLabel(p: LifePeriod, locale: "en" | "ko"): string {
-  // Header strips need to fit narrow columns. Keep it punchy.
+  // 좁은 열에 들어가야 한다. 짧게.
   if (locale === "ko") {
-    return {
-      childhood: "유년", teens: "10대", twenties: "20대", thirties: "30대",
-      forties: "40대", fifties: "50대", sixties: "60대", seventies: "70대", current: "지금",
-    }[p];
+    return { infancy: "영유아", school: "학창", twenties: "20대", later: "30대~", work: "직장", now: "지금" }[p];
   }
-  return {
-    childhood: "child", teens: "teens", twenties: "20s", thirties: "30s",
-    forties: "40s", fifties: "50s", sixties: "60s", seventies: "70s", current: "now",
-  }[p];
+  return { infancy: "0-6", school: "7-19", twenties: "20s", later: "30+", work: "work", now: "now" }[p];
 }
 
 function shortLayerLabel(l: DrillLayer, locale: "en" | "ko"): string {

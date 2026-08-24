@@ -408,7 +408,9 @@
         "current": "Agora"
       },
       "rangeSpan": "{{from}}–{{to}} anos",
-      "rangeUnder": "Antes dos {{to}}"
+      "rangeUnder": "Antes dos {{to}}",
+      "rangeFrom": "a partir dos {{from}}",
+      "notYet": "Ainda não chegou"
     },
     "me": {
       "title": "Estrela Polar",
@@ -544,6 +546,24 @@
       "loadError": "Não foi possível carregar seu resultado salvo. Ele continua lá. Tente novamente em instantes.",
       "retry": "Tentar de novo"
     },
-    "plans": {}
+    "plans": {},
+    "star": {
+      "profile": "Perfil",
+      "infancy": "Primeira infância",
+      "school": "Anos escolares",
+      "twenties": "Os 20 anos",
+      "later": "Dos 30 em diante",
+      "work": "Trabalho",
+      "now": "Agora",
+      "lockedBody": "Você ainda não chegou nesta fase. Ela abre quando chegar.",
+      "profileBody": "Aqui não é conversa - são os dados básicos que você preencheu ao entrar. Quanto mais preencher, mais brilha.",
+      "openProfile": "Abrir perfil",
+      "loading": "Carregando…",
+      "emptyBody": "Ainda não há nada aqui. Uma conversa é o caminho.",
+      "dug": "{{n}} de {{total}} camadas abertas",
+      "records": "{{n}} registros",
+      "start": "Começar",
+      "continue": "Continuar"
+    }
   }
 }

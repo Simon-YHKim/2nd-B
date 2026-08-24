@@ -408,7 +408,9 @@
         "current": "Right now"
       },
       "rangeSpan": "{{from}}–{{to}}",
-      "rangeUnder": "Before {{to}}"
+      "rangeUnder": "Before {{to}}",
+      "rangeFrom": "{{from}} and up",
+      "notYet": "Not there yet"
     },
     "me": {
       "title": "North Star",
@@ -544,6 +546,24 @@
       "loadError": "Couldn't load your saved result. It's still there. Try again shortly.",
       "retry": "Try again"
     },
-    "plans": {}
+    "plans": {},
+    "star": {
+      "profile": "Profile",
+      "infancy": "Early childhood",
+      "school": "School years",
+      "twenties": "Twenties",
+      "later": "Thirties and after",
+      "work": "Work",
+      "now": "Right now",
+      "lockedBody": "You haven't reached this stretch of life yet. It'll open when you do.",
+      "profileBody": "This one isn't a conversation - it's the basics you entered when you signed up. Fill more in and it brightens.",
+      "openProfile": "Open profile",
+      "loading": "Loading…",
+      "emptyBody": "Nothing here yet. A conversation is the way in.",
+      "dug": "{{n}} of {{total}} layers opened",
+      "records": "{{n}} records",
+      "start": "Start",
+      "continue": "Keep going"
+    }
   }
 }

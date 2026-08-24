@@ -93,28 +93,28 @@ describe("⚠ 모델은 깎기만 한다 (이 변경의 핵심 비대칭)", () =
 describe("decrementCoverage", () => {
   it("올린 것을 정확히 되돌린다", () => {
     const base = emptyCoverage();
-    const up = incrementCoverage(base, "childhood", "meaning");
-    expect(up.childhood.meaning).toBe(1);
-    expect(decrementCoverage(up, "childhood", "meaning").childhood.meaning).toBe(0);
+    const up = incrementCoverage(base, "infancy", "meaning");
+    expect(up.infancy.meaning).toBe(1);
+    expect(decrementCoverage(up, "infancy", "meaning").infancy.meaning).toBe(0);
   });
 
   it("0 아래로 안 내려간다", () => {
-    const c = decrementCoverage(emptyCoverage(), "childhood", "meaning");
-    expect(c.childhood.meaning).toBe(0);
+    const c = decrementCoverage(emptyCoverage(), "infancy", "meaning");
+    expect(c.infancy.meaning).toBe(0);
   });
 
   it("다른 칸을 건드리지 않는다", () => {
     let c = emptyCoverage();
-    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "teens", l);
-    const after = decrementCoverage(c, "teens", "meaning");
-    expect(after.teens.meaning).toBe(0);
-    for (const l of DRILL_LAYERS) if (l !== "meaning") expect(after.teens[l]).toBe(1);
-    expect(after.childhood.fact).toBe(0);
+    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "school", l);
+    const after = decrementCoverage(c, "school", "meaning");
+    expect(after.school.meaning).toBe(0);
+    for (const l of DRILL_LAYERS) if (l !== "meaning") expect(after.school[l]).toBe(1);
+    expect(after.infancy.fact).toBe(0);
   });
 
   it("원본을 바꾸지 않는다 (불변)", () => {
-    const up = incrementCoverage(emptyCoverage(), "childhood", "fact");
-    decrementCoverage(up, "childhood", "fact");
-    expect(up.childhood.fact).toBe(1);
+    const up = incrementCoverage(emptyCoverage(), "infancy", "fact");
+    decrementCoverage(up, "infancy", "fact");
+    expect(up.infancy.fact).toBe(1);
   });
 });

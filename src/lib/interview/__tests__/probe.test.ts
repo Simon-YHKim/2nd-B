@@ -32,34 +32,34 @@ describe("emptyCoverage", () => {
   test("returns a fresh object on each call (no aliasing)", () => {
     const a = emptyCoverage();
     const b = emptyCoverage();
-    a.childhood.fact = 99;
-    expect(b.childhood.fact).toBe(0);
+    a.infancy.fact = 99;
+    expect(b.infancy.fact).toBe(0);
   });
 });
 
 describe("incrementCoverage", () => {
   test("does not mutate the input", () => {
     const c = emptyCoverage();
-    const next = incrementCoverage(c, "teens", "feeling");
-    expect(c.teens.feeling).toBe(0);
-    expect(next.teens.feeling).toBe(1);
+    const next = incrementCoverage(c, "school", "feeling");
+    expect(c.school.feeling).toBe(0);
+    expect(next.school.feeling).toBe(1);
   });
 
   test("accumulates across calls", () => {
     let c = emptyCoverage();
-    c = incrementCoverage(c, "current", "echo");
-    c = incrementCoverage(c, "current", "echo");
-    c = incrementCoverage(c, "current", "echo");
-    expect(c.current.echo).toBe(3);
+    c = incrementCoverage(c, "now", "echo");
+    c = incrementCoverage(c, "now", "echo");
+    c = incrementCoverage(c, "now", "echo");
+    expect(c.now.echo).toBe(3);
   });
 });
 
 describe("totalTurns + cellsCovered", () => {
   test("counts every increment", () => {
     let c = emptyCoverage();
-    c = incrementCoverage(c, "childhood", "fact");
-    c = incrementCoverage(c, "childhood", "fact");
-    c = incrementCoverage(c, "teens", "feeling");
+    c = incrementCoverage(c, "infancy", "fact");
+    c = incrementCoverage(c, "infancy", "fact");
+    c = incrementCoverage(c, "school", "feeling");
     expect(totalTurns(c)).toBe(3);
     expect(cellsCovered(c)).toBe(2);
   });
@@ -78,33 +78,33 @@ describe("isPeriodComplete", () => {
 
   test("true when all five layers have ≥1", () => {
     let c = emptyCoverage();
-    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "thirties", l);
-    expect(isPeriodComplete(c, "thirties")).toBe(true);
+    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "later", l);
+    expect(isPeriodComplete(c, "later")).toBe(true);
   });
 
   test("scoped per period — completion in one doesn't leak to others", () => {
     let c = emptyCoverage();
-    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "childhood", l);
-    expect(isPeriodComplete(c, "childhood")).toBe(true);
-    expect(isPeriodComplete(c, "teens")).toBe(false);
+    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "infancy", l);
+    expect(isPeriodComplete(c, "infancy")).toBe(true);
+    expect(isPeriodComplete(c, "school")).toBe(false);
   });
 });
 
 describe("nextLayerSuggestion — drill strategy", () => {
   test("empty coverage → starts at FACT (can't drill what isn't introduced)", () => {
-    expect(nextLayerSuggestion(emptyCoverage(), "childhood")).toBe("fact");
+    expect(nextLayerSuggestion(emptyCoverage(), "infancy")).toBe("fact");
   });
 
   test("after FACT, picks FEELING (next deepest empty layer)", () => {
-    const c = incrementCoverage(emptyCoverage(), "childhood", "fact");
-    expect(nextLayerSuggestion(c, "childhood")).toBe("feeling");
+    const c = incrementCoverage(emptyCoverage(), "infancy", "fact");
+    expect(nextLayerSuggestion(c, "infancy")).toBe("feeling");
   });
 
   test("after FACT+FEELING, picks MEANING", () => {
     let c = emptyCoverage();
-    c = incrementCoverage(c, "teens", "fact");
-    c = incrementCoverage(c, "teens", "feeling");
-    expect(nextLayerSuggestion(c, "teens")).toBe("meaning");
+    c = incrementCoverage(c, "school", "fact");
+    c = incrementCoverage(c, "school", "feeling");
+    expect(nextLayerSuggestion(c, "school")).toBe("meaning");
   });
 
   test("drills down to BELIEF then ECHO", () => {
@@ -122,18 +122,18 @@ describe("nextLayerSuggestion — drill strategy", () => {
     // All five at 1 except FACT at 3 — balance pass should drill back to
     // whatever has the lowest count (any of the four non-FACT).
     let c = emptyCoverage();
-    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "current", l);
-    c = incrementCoverage(c, "current", "fact");
-    c = incrementCoverage(c, "current", "fact");
-    const layer = nextLayerSuggestion(c, "current");
+    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "now", l);
+    c = incrementCoverage(c, "now", "fact");
+    c = incrementCoverage(c, "now", "fact");
+    const layer = nextLayerSuggestion(c, "now");
     expect(layer).not.toBe("fact");
-    expect((c.current[layer] ?? 0)).toBe(1);
+    expect((c.now[layer] ?? 0)).toBe(1);
   });
 
   test("period scoping: only counts coverage in the asked period", () => {
     // Childhood fully covered, but we ask about teens (empty) → FACT.
     let c = emptyCoverage();
-    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "childhood", l);
-    expect(nextLayerSuggestion(c, "teens")).toBe("fact");
+    for (const l of DRILL_LAYERS) c = incrementCoverage(c, "infancy", l);
+    expect(nextLayerSuggestion(c, "school")).toBe("fact");
   });
 });

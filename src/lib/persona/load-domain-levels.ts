@@ -16,7 +16,6 @@ import { domainStarLevels, northStarBrightness } from "./north-star";
 
 export interface DomainBrightness {
   domainLevels: Record<DomainId, LadderLevel>;
-  northStarBrightness: number;
 }
 
 const DOMAIN_TAG_PREFIX = "domain:";
@@ -200,7 +199,11 @@ async function fetchDomainLevels(userId: string): Promise<DomainBrightness> {
   // dims relative to one fed today) while domain-confidence.ts / north-star.ts stay
   // pure and every other caller is unchanged.
   const domainLevels = domainStarLevels(entriesByDomain, opts, Date.now());
-  return { domainLevels, northStarBrightness: northStarBrightness(domainLevels) };
+  // ⚠ 2026-08-24: 북극성은 더 이상 도메인 평균이 아니다. 생활 도메인이 별자리에서
+  // 내려가 대시보드로 갔고, 북극성은 **나를 알아가는 여섯 별**의 평균이 됐다
+  // (`load-star-levels.ts`). 여기서 그 숫자를 같이 돌려주면 두 곳이 서로 다른
+  // 북극성을 말하게 되므로 **빼는 것이 맞다.**
+  return { domainLevels };
 }
 
 // ── Per-user TTL cache + in-flight dedup ───────────────────────────────

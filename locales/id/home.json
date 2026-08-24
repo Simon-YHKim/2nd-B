@@ -408,7 +408,9 @@
         "current": "Sekarang"
       },
       "rangeSpan": "{{from}}–{{to}} tahun",
-      "rangeUnder": "Sebelum {{to}}"
+      "rangeUnder": "Sebelum {{to}}",
+      "rangeFrom": "{{from}} ke atas",
+      "notYet": "Belum sampai ke sana"
     },
     "me": {
       "title": "Bintang Utara",
@@ -544,6 +546,24 @@
       "loadError": "Tidak dapat memuat hasil tersimpanmu. Hasilnya masih ada. Coba lagi sebentar lagi.",
       "retry": "Coba lagi"
     },
-    "plans": {}
+    "plans": {},
+    "star": {
+      "profile": "Profil",
+      "infancy": "Masa balita",
+      "school": "Masa sekolah",
+      "twenties": "Usia 20-an",
+      "later": "Usia 30 ke atas",
+      "work": "Kerja",
+      "now": "Sekarang",
+      "lockedBody": "Kamu belum sampai di masa ini. Nanti terbuka sendiri.",
+      "profileBody": "Ini bukan percakapan - ini data dasar yang kamu isi saat mendaftar. Makin lengkap, makin terang.",
+      "openProfile": "Buka profil",
+      "loading": "Memuat…",
+      "emptyBody": "Belum ada apa-apa di sini. Mulailah dengan percakapan.",
+      "dug": "{{n}} dari {{total}} lapis terbuka",
+      "records": "{{n}} catatan",
+      "start": "Mulai",
+      "continue": "Lanjutkan"
+    }
   }
 }

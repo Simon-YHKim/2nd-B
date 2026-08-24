@@ -52,13 +52,19 @@ const VBW = 280;
 const VBH = 230;
 const VB_TOP = 40;
 const POLARIS = { x: 140, y: -16 };
+// 좌표는 그대로 두고 **누가 어느 자리인지만** 바꿨다(2026-08-24). 북두칠성 모양은
+// 캐논이고, 바뀐 것은 각 자리가 무엇을 뜻하는지다.
+//
+// 손잡이 끝(50,187)이 프로필인 것도 그대로다 -- 국자에서 가장 바깥, 즉 지극성에서
+// 가장 먼 자리가 "나에 대한 기본 정보"인 편이 읽기 좋다. 나머지는 **시간 순서**로
+// 국자를 따라간다: 영유아기 → 학창시절 → 20대 → 30대 이후, 그리고 주제 둘.
 const REV2_STARS: { id: HomeStarId; x: number; y: number }[] = [
-  { id: "career", x: 228, y: 90 },
-  { id: "finance", x: 230, y: 131 },
-  { id: "relation", x: 174, y: 152 },
-  { id: "growth", x: 151, y: 126 },
-  { id: "health", x: 108, y: 135 },
-  { id: "recreation", x: 76, y: 143 },
+  { id: "now", x: 228, y: 90 },
+  { id: "work", x: 230, y: 131 },
+  { id: "later", x: 174, y: 152 },
+  { id: "twenties", x: 151, y: 126 },
+  { id: "school", x: 108, y: 135 },
+  { id: "infancy", x: 76, y: 143 },
   { id: "profile", x: 50, y: 187 },
 ];
 
@@ -83,9 +89,9 @@ const NN_VIEW_DIST: Record<HomeStarId, number> = (() => {
 
 // Dipper outline (bowl quad + handle) and the pointer→북극성 dashed guide,
 // expressed through the star points so the lines can never drift from the dots.
-const BOWL: HomeStarId[] = ["career", "finance", "relation", "growth"];
-const HANDLE: HomeStarId[] = ["growth", "health", "recreation", "profile"];
-const GUIDE: HomeStarId[] = ["finance", "career"];
+const BOWL: HomeStarId[] = ["now", "work", "later", "twenties"];
+const HANDLE: HomeStarId[] = ["twenties", "school", "infancy", "profile"];
+const GUIDE: HomeStarId[] = ["work", "now"];
 
 // 뮤지엄 is a curated surface, not a data domain — fixed at the prototype's L4.
 
@@ -461,8 +467,7 @@ export function ConstellationHome({
 
   const levelOf = (id: HomeStarId): LadderLevel =>
     (starLevels[id] ?? 1) as LadderLevel;
-  const starName = (id: HomeStarId) =>
-    id === "profile" ? t("ds.home.profileName") : t(`ds.home.domainName.${id}`);
+  const starName = (id: HomeStarId) => t(`ds.star.${id}`);
   const kindOf = (id: HomeStarId) => (id === "profile" ? t("ds.home.kind.profile") : t("ds.home.kind.domain"));
 
   const focusedId = bubble.kind === "star" ? bubble.id : null;

@@ -27,31 +27,37 @@ import {
 import { INJECTION_GUARD, wrapUntrusted } from "../llm/untrusted";
 import { scaffoldQuestion, shouldScaffold } from "./stuck";
 
+/**
+ * 인터뷰가 다루는 자리. **북두칠성 일곱 중 인터뷰가 있는 여섯과 1:1** 이다
+ * (`persona/seven-stars.ts`). 프로필 별만 인터뷰가 없다.
+ *
+ * ⚠ 2026-08-24 에 통째로 갈아엎었다. 예전에는 나이 십년 단위
+ * (childhood/teens/twenties/thirties/forties/…)였는데, 별 구조가 바뀌면서
+ * **별 = 인터뷰 자리**가 됐다. `interview_coverage` 가 0행이고 인터뷰 기록도
+ * 0건인 시점이라 옮길 데이터가 없었다 -- 바꾸기 가장 싼 때였다.
+ *
+ * 앞의 넷은 나이 구간, 뒤의 둘은 **주제**다. 주제 별은 시기와 겹칠 수 있고
+ * 그건 의도다(Simon 결정 1) -- 다르게 만드는 것은 재료가 아니라 질문의 결이다.
+ */
 export type LifePeriod =
-  | "childhood"
-  | "teens"
-  | "twenties"
-  | "thirties"
-  | "forties"
-  | "fifties"
-  | "sixties"
-  | "seventies"
-  | "current";
+  | "infancy" // 영유아기 0~6
+  | "school" // 학창시절 7~19
+  | "twenties" // 20대 20~29
+  | "later" // 30대 이후 30~
+  | "work" // 직장 — 일하는 나
+  | "now"; // 지금 — 현재의 나
 export type DrillLayer = "fact" | "feeling" | "meaning" | "belief" | "echo";
 
 // 모든 시기. **화면이 이걸 그대로 그리면 안 된다** -- 사용자가 살아온 칸만
 // 보여주는 것이 규칙이고, 그 목록은 `periods.ts` 의 periodsForAge() 가 만든다.
 // 여기는 Coverage 행렬의 폭(= 있을 수 있는 칸 전부)일 뿐이다.
 export const LIFE_PERIODS: readonly LifePeriod[] = [
-  "childhood",
-  "teens",
+  "infancy",
+  "school",
   "twenties",
-  "thirties",
-  "forties",
-  "fifties",
-  "sixties",
-  "seventies",
-  "current",
+  "later",
+  "work",
+  "now",
 ] as const;
 
 export const DRILL_LAYERS: readonly DrillLayer[] = [
@@ -77,26 +83,20 @@ export type Coverage = Record<LifePeriod, Record<DrillLayer, number>>;
 
 export const PERIOD_LABEL: Record<"en" | "ko", Record<LifePeriod, string>> = {
   en: {
-    childhood: "Childhood (under 12)",
-    teens: "Teens (12–19)",
-    twenties: "Twenties (20–29)",
-    thirties: "Thirties (30–39)",
-    forties: "Forties (40–49)",
-    fifties: "Fifties (50–59)",
-    sixties: "Sixties (60–69)",
-    seventies: "Seventies (70–79)",
-    current: "Right now",
+    infancy: "Early childhood (0-6)",
+    school: "School years (7-19)",
+    twenties: "Twenties (20-29)",
+    later: "Thirties and after (30+)",
+    work: "Work",
+    now: "Right now",
   },
   ko: {
-    childhood: "어린 시절 (12세 이전)",
-    teens: "10대 (12–19세)",
-    twenties: "20대 (20–29세)",
-    thirties: "30대 (30–39세)",
-    forties: "40대 (40–49세)",
-    fifties: "50대 (50–59세)",
-    sixties: "60대 (60–69세)",
-    seventies: "70대 (70–79세)",
-    current: "지금 이 시기",
+    infancy: "영유아기 (0~6세)",
+    school: "학창시절 (7~19세)",
+    twenties: "20대 (20~29세)",
+    later: "30대 이후 (30세~)",
+    work: "직장",
+    now: "지금",
   },
 };
 
@@ -117,31 +117,25 @@ export const LAYER_LABEL: Record<"en" | "ko", Record<DrillLayer, string>> = {
   },
 };
 
+// 문을 여는 한 줄. 시기 별은 **그때의 개인적 경험**을, 주제 별은 그 주제를 겨냥한다.
+// Simon 결정 1: 겹침은 막지 않고 **질문의 결로** 가른다 -- 같은 서른다섯 살 이야기라도
+// 시기 별에서는 "그때 어떤 사람이었나", 직장 별에서는 "일하는 나"를 묻는다.
 const SEED_QUESTION: Record<"en" | "ko", Record<LifePeriod, string>> = {
   en: {
-    childhood: "Picture yourself at 8 or 9. What's the first scene that comes up?",
-    teens: "Of your high-school years, what's the moment you still come back to in your head?",
+    infancy: "What's the earliest scene you can picture - even if it's a story your family told you?",
+    school: "Of your school years, what's the moment you still come back to in your head?",
     twenties: "What's something from your twenties that you almost never tell anyone?",
-    thirties: "What did you think 'being thirty' would feel like vs. how it actually went?",
-    // 40대~70대는 2026-08-24 신규. narrative-identity.md 의 Age Range Coverage 가
-    // 그 대에 붙인 성격을 결다 -- 30–49 재구성(revision), 50–64 생산성
-    // (generativity)·생애회고 시작, 65+ 본격 생애회고(Butler 전통).
-    forties: "What did you put down in your forties that you'd once thought you had to carry?",
-    fifties: "In your fifties, what did you start wanting to pass on to someone?",
-    sixties: "Looking across your life so far, which stretch feels like you lived it well?",
-    seventies: "If someone bound your life into one book, which scene belongs on the cover?",
-    current: "What's the thing you'd say first if I asked, 'what's really going on for you right now?'",
+    later: "Since turning thirty, what changed in you that you didn't expect?",
+    work: "Think of a day at work you still remember. What was happening?",
+    now: "What's the thing you'd say first if I asked, 'what's really going on for you right now?'",
   },
   ko: {
-    childhood: "여덟, 아홉 살 무렵의 자신을 떠올려 보세요. 가장 먼저 떠오르는 장면이 뭔가요?",
-    teens: "고등학생 시절 중에서, 머릿속에 여전히 자주 돌아오는 한 장면은?",
+    infancy: "가장 어릴 때 떠오르는 장면이 뭔가요? 가족한테 들은 이야기여도 괜찮아요.",
+    school: "학창시절 중에서, 머릿속에 여전히 자주 돌아오는 한 장면은?",
     twenties: "20대에 거의 누구에게도 말하지 않은 무언가가 있다면 무엇인가요?",
-    thirties: "30대가 어떨 거라고 생각했던 것과, 실제로 어땠는지를 비교해 보면?",
-    forties: "마흔 무렵에 '이건 이제 그만하자'고 내려놓은 것이 있다면 무엇이었나요?",
-    fifties: "쉰을 지나며 누군가에게 물려주고 싶어진 것이 있다면 무엇인가요?",
-    sixties: "지금까지 살아온 시간 중에 '그때 참 잘 살았다' 싶은 시기는 언제였나요?",
-    seventies: "누군가 당신의 삶을 한 권으로 묶는다면, 어느 장면이 표지에 들어가야 할까요?",
-    current: "'지금 진짜로 어떻게 지내?' 라고 물으면 가장 먼저 떠오르는 한마디는?",
+    later: "서른을 넘기고 나서 생각지 못하게 달라진 것이 있다면 무엇인가요?",
+    work: "아직도 기억나는 회사에서의 하루가 있다면, 그날 무슨 일이 있었나요?",
+    now: "'지금 진짜로 어떻게 지내?' 라고 물으면 가장 먼저 떠오르는 한마디는?",
   },
 };
 

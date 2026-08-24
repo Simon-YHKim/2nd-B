@@ -13,8 +13,7 @@ import { Redirect, router } from "expo-router";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { type DomainId } from "@/lib/persona/domain-stars";
 import { type LadderLevel } from "@/lib/persona/brightness";
-import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
-import { loadProfileStarLevel } from "@/lib/persona/load-profile-star";
+import { loadSevenLevels } from "@/lib/persona/load-seven-levels";
 import { InlineLoader } from "@/components/ui/InlineLoader";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useAutoTriggerTTFV } from "@/lib/onboarding/ttfv-gate";
@@ -35,13 +34,12 @@ export function DeepSpaceShell() {
   // records (grouped by their domain: tag), so the sky reflects how much of their
   // life they've mapped. Defaults to an honest empty sky (all L1) until it
   // resolves; failure leaves it empty (never blocks).
-  const [domainLevels, setDomainLevels] = useState<Partial<Record<DomainId, LadderLevel>>>({});
   const [northStarBrightness, setNorthStarBrightness] = useState(0.2);
+  const [starLevels, setStarLevels] = useState<Partial<Record<HomeStarId, LadderLevel>>>({});
   // The seventh star is `profile`, which is NOT a data domain and so is not part
   // of loadDomainLevels' seven-table scan (nor of the 북극성 average — the canon
   // excludes it by id). It gets its own small read; a failure leaves it at L1,
   // which is the honest reading of "we could not see anything".
-  const [profileLevel, setProfileLevel] = useState<LadderLevel>(1);
 
   // Home coachmarks (Screen-Spec 04): the 4-step spotlight shows once on the
   // first home visit; 다시 보지 않기/시작하기 persist the seen flag, and the
@@ -58,16 +56,13 @@ export function DeepSpaceShell() {
     // Depending on `loading` re-fires the load once the session is ready.
     if (loading || !userId) return;
     let alive = true;
-    loadDomainLevels(userId)
+    // 별 밝기와 북극성은 이제 **인터뷰가 판 칸**에서 온다(2026-08-24).
+    // 도메인 등급은 대시보드가 계속 쓰므로 따로 읽는다 -- 둘은 다른 것이 됐다.
+    loadSevenLevels(userId)
       .then((b) => {
         if (!alive) return;
-        setDomainLevels(b.domainLevels);
+        setStarLevels(b.starLevels);
         setNorthStarBrightness(b.northStarBrightness);
-      })
-      .catch(() => {});
-    loadProfileStarLevel(userId)
-      .then((level) => {
-        if (alive) setProfileLevel(level);
       })
       .catch(() => {});
     return () => {
@@ -95,10 +90,7 @@ export function DeepSpaceShell() {
   if (autoTriggerTTFV === null) return <InlineLoader />;
   if (autoTriggerTTFV) return <Redirect href="/ttfv" />;
 
-  const starLevels: Partial<Record<HomeStarId, LadderLevel>> = {
-    ...domainLevels,
-    profile: profileLevel,
-  };
+
 
   return (
     <DeepSpaceScreen active="home" header="none">
@@ -107,9 +99,11 @@ export function DeepSpaceShell() {
         // rev2 11-star per-domain screen: briefing + 담기/기록 + timeline), NOT
         // the flat wiki list. 프로필 opens the profile hub; the 북극성 opens the
         // persona aggregate (/core-brain). Head-tap menu: 챗봇/비서 (sb-home).
-        onStarTravel={(id) =>
-          id === "profile" ? router.push("/profile") : router.push(`/star/${id}`)
-        }
+        // 2026-08-24: 별을 누르면 **그 별의 요약**이 열린다(Simon 결정 4 = B).
+        // 바로 대화를 열지 않는 이유는 지금까지 뭘 했는지 볼 자리가 없으면
+        // 매번 처음부터 시작하는 기분이 되기 때문이다.
+        // `/star/[domain]` 은 남는다 -- 생활 도메인 대시보드가 계속 쓴다.
+        onStarTravel={(id) => router.push(`/me/${id}`)}
         onPolarisPress={() => router.push("/core-brain")}
         onChatPress={() => router.push("/secondb")}
         onOpsPress={() => router.push("/ops")}

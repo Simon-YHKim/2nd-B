@@ -1,0 +1,185 @@
+// 별 하나의 요약 — 홈에서 별을 누르면 여기로 온다. (Simon 결정 4 = B)
+//
+// *"그 별의 요약 → 거기서 인터뷰"*. 바로 대화를 열지 않는 이유는, 지금까지 뭘
+// 했는지 볼 자리가 없으면 사용자가 **매번 처음부터 시작하는 기분**이 되기 때문이다.
+// 그리고 화면 하나에 메시지 하나라는 규율과도 맞는다 -- 여기는 "이 별은 지금
+// 이만큼"이고, 대화는 다음 화면이다.
+//
+// ⚠ 지어내지 않는다. 기록이 없으면 "아직 없다"고 말하고 끝낸다. 추정치를 만들어
+// 보여주는 것이 이 저장소가 반복해서 걸렸던 병이다.
+//
+// 아직 살지 않은 시기(스물다섯 살의 "30대 이후")는 **잠긴다.** 살지 않은 때를
+// 물어보는 것은 지어내라는 말이다.
+import { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
+
+import { Text } from "@/components/ui/Text";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
+import { PremiumLoadingState } from "@/components/premium";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { m3 } from "@/lib/theme/m3";
+import { spacing } from "@/lib/theme/tokens";
+import {
+  SEVEN_STARS,
+  getSevenStar,
+  isSevenStarId,
+  isUnlived,
+  type SevenStarId,
+} from "@/lib/persona/seven-stars";
+import { loadCoverage } from "@/lib/interview/coverage-store";
+import { DRILL_LAYERS, LAYER_LABEL, type LifePeriod } from "@/lib/interview/probe";
+
+interface Summary {
+  /** 이 별에서 판 칸 수 (0~5). 인터뷰가 없는 별은 null. */
+  cells: number | null;
+  /** 이 별과 연결된 기록 수. */
+  records: number;
+}
+
+async function loadSummary(userId: string, period: LifePeriod | null): Promise<Summary> {
+  if (period === null) return { cells: null, records: 0 };
+  let cells = 0;
+  try {
+    const cov = await loadCoverage(userId);
+    for (const l of DRILL_LAYERS) if (cov[period][l] > 0) cells += 1;
+  } catch {
+    cells = 0;
+  }
+  let records = 0;
+  try {
+    const { count } = await getSupabaseClient()
+      .from("records")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("audit_period", period);
+    records = count ?? 0;
+  } catch {
+    records = 0;
+  }
+  return { cells, records };
+}
+
+export default function StarSummaryRoute() {
+  const { t } = useTranslation("home");
+  const { star } = useLocalSearchParams<{ star?: string }>();
+  const { userId, loading, age } = useAuth();
+  const [summary, setSummary] = useState<Summary | null>(null);
+
+  const id: SevenStarId | null =
+    typeof star === "string" && isSevenStarId(star) ? star : null;
+  const meta = id ? getSevenStar(id) : null;
+  const locked = id ? isUnlived(id, age) : false;
+
+  const load = useCallback(async () => {
+    if (!userId || !meta) return;
+    setSummary(await loadSummary(userId, meta.period));
+  }, [userId, meta]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading) return <PremiumLoadingState />;
+  if (!userId) return <Redirect href="/sign-in" />;
+  // 모르는 별 이름이면 홈으로. 옛 링크가 남아 있을 수 있다.
+  if (!id || !meta) return <Redirect href="/" />;
+
+  const name = t(`ds.star.${meta.key}`);
+  const range = meta.ageBand
+    ? meta.ageBand.to === null
+      ? t("ds.audit.rangeFrom", { from: meta.ageBand.from })
+      : meta.ageBand.from === 0
+        ? t("ds.audit.rangeUnder", { to: meta.ageBand.to + 1 })
+        : t("ds.audit.rangeSpan", { from: meta.ageBand.from, to: meta.ageBand.to })
+    : "";
+
+  return (
+    <DeepSpaceScreen active="lens" header="none" variant="windowed" title={name} onBack={() => router.back()}>
+      <ScrollView contentContainerStyle={styles.body}>
+        <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
+        {range.length > 0 ? (
+          <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
+        ) : null}
+
+        {locked ? (
+          // 아직 오지 않은 시기. 들어가지 못하게 하고 이유를 말한다.
+          <MdCard variant="outlined" style={styles.card}>
+            <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.lockedBody")}</Text>
+          </MdCard>
+        ) : meta.period === null ? (
+          // 프로필 — 인터뷰가 아니라 항목을 채우는 자리다.
+          <>
+            <MdCard variant="outlined" style={styles.card}>
+              <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.profileBody")}</Text>
+            </MdCard>
+            <MdButton
+              label={t("ds.star.openProfile")}
+              variant="filled"
+              onPress={() => router.push("/profile")}
+              style={styles.cta}
+            />
+          </>
+        ) : (
+          <>
+            <MdCard variant="outlined" style={styles.card}>
+              {summary === null ? (
+                <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.loading")}</Text>
+              ) : summary.cells === 0 && summary.records === 0 ? (
+                // 지어내지 않는다. 없으면 없다고 한다.
+                <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.emptyBody")}</Text>
+              ) : (
+                <>
+                  <Text style={[m3TextStyle("bodyMedium"), styles.line]}>
+                    {t("ds.star.dug", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })}
+                  </Text>
+                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
+                    {t("ds.star.records", { n: summary.records })}
+                  </Text>
+                </>
+              )}
+            </MdCard>
+
+            {/* 어느 층을 팠는지. 숫자가 아니라 어디가 비었는지를 보여주는 것이 요점이다. */}
+            {summary && (summary.cells ?? 0) > 0 ? (
+              <View style={styles.layers}>
+                {DRILL_LAYERS.map((l) => (
+                  <Text key={l} style={[m3TextStyle("labelSmall"), styles.layerChip]}>
+                    {LAYER_LABEL.ko[l]}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
+            <MdButton
+              label={summary && (summary.cells ?? 0) > 0 ? t("ds.star.continue") : t("ds.star.start")}
+              variant="filled"
+              onPress={() =>
+                router.push({ pathname: "/interview", params: { period: meta.period ?? "now" } })
+              }
+              style={styles.cta}
+            />
+          </>
+        )}
+      </ScrollView>
+    </DeepSpaceScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  body: { padding: spacing.lg, gap: spacing.sm },
+  title: { color: m3.color.onSurface },
+  range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
+  card: { marginTop: spacing.sm },
+  line: { color: m3.color.onSurface },
+  muted: { color: m3.color.onSurfaceVariant },
+  layers: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm },
+  layerChip: { color: m3.color.onSurfaceVariant },
+  cta: { marginTop: spacing.lg },
+});
+
+/** 라우트가 아는 별 목록. 테스트가 이걸로 전수 검사한다. */
+export const STAR_ROUTE_IDS = SEVEN_STARS.map((s) => s.id);

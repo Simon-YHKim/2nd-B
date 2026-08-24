@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { canonConstellationLines, canonPolarisBrightness, canonPolarisGuide, canonStars } from "@/lib/canon";
-import { HEADLINE_DOMAIN_IDS } from "@/lib/persona/north-star";
+import { HEADLINE_STAR_IDS } from "@/lib/persona/north-star";
 
 const SRC = readFileSync(
   join(__dirname, "..", "ConstellationHome.tsx"),
@@ -120,18 +120,18 @@ describe("constellation home <-> canon parity", () => {
     // astronomically honest, while the canon lists the logical domain order. A
     // mean does not care which order it sums. Asserting array equality here made
     // this guard fail on that harmless difference on its first run.
-    expect([...drawnDomains].sort()).toEqual([...HEADLINE_DOMAIN_IDS].sort());
+    expect([...drawnDomains].sort()).toEqual([...HEADLINE_STAR_IDS].sort());
     // and the reverse direction: nothing averaged is missing from the picture.
-    for (const id of HEADLINE_DOMAIN_IDS) expect(drawn).toContain(id);
+    for (const id of HEADLINE_STAR_IDS) expect(drawn).toContain(id);
     // `collect` is a real data domain that the home does NOT draw, so it must be
     // absent from both sides.
     expect(drawn).not.toContain("collect");
-    expect([...HEADLINE_DOMAIN_IDS]).not.toContain("collect");
+    expect([...HEADLINE_STAR_IDS]).not.toContain("collect");
   });
 
   it("draws the profile star without letting it into the headline", () => {
     expect(renderedStars().map((s) => s.id)).toContain("profile");
-    expect([...HEADLINE_DOMAIN_IDS]).not.toContain("profile");
+    expect([...HEADLINE_STAR_IDS]).not.toContain("profile");
   });
 
   // ── the LINES, not just the points (added 2026-08-19) ───────────────
