@@ -41,13 +41,32 @@ v0.2.0 APK   GitHub Releases   태그 08-23 04:25Z    "gemini" 리터럴 12개 �
 **넣는다. 다만 그것만으로는 부족하다.** `eas.json` 이 안 움직인 상태에서는 **오늘 아침 main 에서 뽑은 새 빌드도 똑같이 죽는다** — 버전만 새롭고 내용은 같은 gemini 빌드다.
 
 ```
-1. eas.json 이 새 자세를 담는다          ← #1370. 선행 조건
-2. 설치된 사본은 OTA (preview 채널)      ← 재빌드 불필요.
-                                            eas-update.yml 164~176행이
-                                            eas.json 의 EXPO_PUBLIC_* 를 미러링
-3. 알파 트랙에 새 빌드 게시              ← 1 이후 커밋에서. 14일 창 중 게시는 Play 허용
+1. eas.json 이 새 자세를 담는다       ← #1370. 나머지 전부의 선행 조건
+2. preview OTA 발행                   ← v0.2.0 APK 를 옮긴다 (eas-update.yml 164~176행)
+3. 알파 트랙에 새 빌드 게시           ← OTA 로는 안 되는 유일한 대상. 아래 참조
 4. 그 다음에야 FAILOVER 이동 → gemini-proxy 폐기
 ```
+
+**⚠ 2 와 3 은 서로를 대신하지 못한다 (EAS 실측으로 정정).** 처음에 "설치된 것은 OTA 로
+옮기면 된다"고 적었는데, `eas build:list` 를 보니 **두 산출물이 다른 채널·다른
+runtimeVersion** 에 있다:
+
+| 산출물 | 빌드 | 채널 | rv | OTA |
+|---|---|---|---|---|
+| v0.2.0 APK (GitHub Releases) | 25 (08-23) | `preview` | `fffe35e2…` | 닿을 수 있다 |
+| 알파 v20 (테스터 12+) | 20 (07-28) | **`production`** | `c1e1f6e8…` | **못 닿는다** |
+
+`runtimeVersion` 정책이 **`fingerprint`** 다(빌드 23·24·25 가 전부 다른 rv, 20·21·22 는
+같은 rv — 24→25 는 `expo.version` 만 다르다). 알파 v20 은 버전 0.1.0 에 채널도
+`production` 이라 **오늘 트리의 어떤 OTA 도 그 지문과 같아질 수 없다.**
+
+> **그리고 OTA 는 지금까지 한 번도 나간 적이 없다** — `preview` 0건 · `production` 0건.
+> #1322 이전에 `eas.json` 의 빈 문자열이 `eas update` 를 막고 있던 것과 맞는다.
+> **첫 발행이 곧 첫 검증이다.**
+
+v0.2.0 APK 에 실제로 닿는지는 오늘 트리 지문이 아직 `fffe35e2…` 인지에 달렸다.
+**로컬에서 계산하지 말 것**(정션이 지문을 깨뜨린다 — EAS 를 Linux CI 에서 제출하는 이유와
+같다). `eas-update.yml` 이 출력하는 rv 를 읽는 것이 확인 방법이다. 그 전까지 **UNVERIFIED**.
 
 ### 5. 랜딩
 
