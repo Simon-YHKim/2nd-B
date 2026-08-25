@@ -6,6 +6,57 @@ Conventional Commits.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-26
+
+The Big Dipper becomes one set of seven, the interview learns what "I don't
+know" means, and every screen that had quietly lost its bottom tab bar gets it
+back.
+
+### Added
+- The seven stars are now one thing: places where you get to know yourself
+  (profile, infancy, school years, twenties, thirties onward, work, now). The
+  six life domains moved off the home constellation and into the SecondB
+  dashboard, reached by tapping SecondB's head. Tapping a star opens its
+  summary first instead of dropping you straight into an interview.
+- Brightness can now reach L5. When you have opened at least two layers of a
+  period, SecondB proposes a "who I was then" summary built from that period's
+  own interview transcript, and ratifying it in /review records the lift.
+- The interview shows a 5xN progress matrix after a conversation ends, so the
+  layers you actually opened are visible rather than inferred.
+- Peers now answer five questions instead of three, and the "how others see me"
+  screen draws what actually arrived instead of only the three traits the
+  original model claimed were externally visible.
+- Microsoft Clarity runs on native builds, off by default and behind the same
+  analytics consent as the web.
+- A developer screen line reports the live Clarity state (consent, flags,
+  project, route, module, session) so a broken link in that chain is visible in
+  the app instead of only in a dashboard.
+
+### Changed
+- The visual surface moved to the PIXEL-CLAY midnight palette. Panels are solid
+  navy from the canonical ramp instead of a translucent cyan wash over near
+  black, so cards read as distinct surfaces. Measured against the reference
+  frames, canonical-ramp coverage went from 34% to 74% (reference 76%).
+- The privacy policy now names Google Analytics 4 and Microsoft Clarity as
+  processors and states the cross-border transfer under PIPA article 28-8(1)1,
+  with a revision history section.
+- Positioning copy across onboarding and the store surfaces matches the wording
+  Simon settled on.
+
+### Fixed
+- Sixteen screens had lost the bottom tab bar and were navigation dead ends
+  reachable only by the back control. They render the shared shell again.
+  /onboarding deliberately keeps no tab bar.
+- The reason the capture save button is disabled was only in the screen-reader
+  hint. Sighted users saw a grey button with no explanation; the sentence is
+  now on screen.
+- PDF text extraction on the web actually works. The worker handler was never
+  registered, so every PDF import silently produced nothing.
+- The home speech bubble printed raw translation keys for the six domains.
+- "I don't know" no longer counts as an answer that fills a cell. It keeps the
+  same layer open and offers a foothold instead.
+- Two ledger screens leaked the internal seven-star prefix into their labels.
+
 ## [0.2.0] - 2026-08-23
 
 First versioned release built for distribution: the APK is attached to the
