@@ -269,3 +269,41 @@ describe("what actually reaches the SDK", () => {
     __setClarityImporterForTests(null);
   });
 });
+
+// ── 플래그가 도착한 뒤에도 Clarity 가 깨어나는가 (2026-08-26) ─────────────────
+//
+// 네이티브에는 웹의 주입 단계가 없어서 Clarity 의 시작/정지는 두 곳에서만
+// 결정된다: 부팅(initAnalytics)과 화면 이동(page_view). 그런데 런타임 플래그
+// (clarity_enabled)는 **부팅 시점에 아직 없다** — 네이티브에서 그 값을 가져오는
+// 유일한 경로가 Firebase 쪽 동의 동기화 안쪽이기 때문이다. 클라이언트 기본값은
+// false 이므로, 플래그가 도착한 뒤 아무도 Clarity 를 다시 물어보지 않으면
+// **동의를 켠 그 화면에 머무는 사용자에게는 영원히 시작되지 않는다.**
+//
+// 그래서 동의 동기화 체인 끝에서 Clarity 를 한 번 더 동기화한다. 아래 두 검사는
+// 그 고리가 있는지를 소스로 확인한다 — 이 파일의 나머지처럼 SDK 를 세울 수는
+// 없다(그 경로는 analytics/index.ts 의 모듈 상태를 탄다).
+describe("동의 동기화가 끝나면 Clarity 를 다시 물어본다", () => {
+  const src = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "..", "index.ts"),
+    "utf8",
+  ) as string;
+
+  test("syncNativeAnalyticsCollection 의 체인이 applier 뒤에 Clarity 를 동기화한다", () => {
+    const start = src.indexOf("function syncNativeAnalyticsCollection");
+    expect(start).toBeGreaterThan(-1);
+    const body = src.slice(start, src.indexOf("\n}", start));
+    // applier 호출과 Clarity 재동기화가 같은 함수 안에 있고, 순서가 applier 먼저다.
+    const applierAt = body.indexOf("applier(");
+    const clarityAt = body.indexOf("syncNativeClarityForRoute");
+    expect(applierAt).toBeGreaterThan(-1);
+    expect(clarityAt).toBeGreaterThan(applierAt);
+  });
+
+  test("Clarity 재동기화가 await 뒤에 있다 (플래그가 도착한 다음이어야 의미가 있다)", () => {
+    const start = src.indexOf("function syncNativeAnalyticsCollection");
+    const body = src.slice(start, src.indexOf("\n}", start));
+    const awaitAt = body.indexOf("await applier(");
+    expect(awaitAt).toBeGreaterThan(-1);
+    expect(body.indexOf("syncNativeClarityForRoute")).toBeGreaterThan(awaitAt);
+  });
+});

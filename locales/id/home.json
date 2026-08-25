@@ -144,6 +144,24 @@
         },
         "profile": {
           "line": "Nama, tujuan, dan cara orang lain membacamu. Makin banyak yang bisa diperkenalkan, makin terang."
+        },
+        "infancy": {
+          "line": "Ingatan paling awal. Satu sensasi saja sudah cukup untuk memulai."
+        },
+        "school": {
+          "line": "Usia 7 sampai 19. Ruang kelas, teman, dirimu saat itu."
+        },
+        "twenties": {
+          "line": "Pilihan-pilihan di usia dua puluhan. Apa yang kamu pegang, apa yang kamu lepas?"
+        },
+        "later": {
+          "line": "Tiga puluhan dan sesudahnya. Yang sudah mantap dan yang masih bergerak."
+        },
+        "work": {
+          "line": "Kamu saat bekerja. Berapa pun usiamu, sosokmu di dalam pekerjaan."
+        },
+        "now": {
+          "line": "Kamu, sekarang. Ke mana pikiranmu belakangan ini?"
         }
       },
       "museumEntry": "Museum AI",

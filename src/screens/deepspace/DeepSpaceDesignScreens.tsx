@@ -823,20 +823,20 @@ export function DeepSpacePrivacyDesignScreen() {
 
       <Card>
         <Text variant="caption" style={styles.section}>
-          {ko ? "웹 사용 통계와 광고" : "Web analytics and ads"}
+          {ko ? "사용 통계와 광고" : "Usage analytics and ads"}
         </Text>
         <Text variant="body" style={styles.lead}>
           {isMinor === null
             ? ko
-              ? "생년월일을 확인한 뒤 웹 사용 통계와 광고 설정을 보여드려요."
-              : "Web analytics and ad settings appear after your birth date is confirmed."
+              ? "생년월일을 확인한 뒤 사용 통계와 광고 설정을 보여드려요."
+              : "Usage analytics and ad settings appear after your birth date is confirmed."
             : minor
             ? ko
-              ? "생년월일 기준 만 18세 미만은 웹 사용 통계와 광고가 잠겨 있어요."
-              : "Web analytics and ads are locked when the birth date shows an age under 18."
+              ? "생년월일 기준 만 18세 미만은 사용 통계와 광고가 잠겨 있어요."
+              : "Usage analytics and ads are locked when the birth date shows an age under 18."
             : ko
-              ? "선택 사항이며 현재 웹 앱에만 적용돼요. Clarity 화면 기록에는 텍스트 마스킹 설정이 필요해요."
-              : "Optional and currently web-only. Clarity screen recordings require text masking."}
+              ? "선택 사항이에요. 켜면 화면 이동과 조작 기록이 Google Analytics·Microsoft Clarity 로 전송돼요. 웹과 안드로이드 앱에 모두 적용되고, 기록·대화 같은 개인 화면에서는 수집을 멈춰요."
+              : "Optional. When on, screen navigation and interactions are sent to Google Analytics and Microsoft Clarity. This applies to both the web and the Android app, and collection pauses on personal screens such as records and chat."}
         </Text>
         {analyticsOn === null || adsOn === null ? (
           <Text variant="subtle" style={styles.footer}>
@@ -851,7 +851,7 @@ export function DeepSpacePrivacyDesignScreen() {
         ) : (
           <>
             <Toggle
-              label={ko ? "웹 사용 통계 허용" : "Allow web analytics"}
+              label={ko ? "사용 통계 허용" : "Allow usage analytics"}
               value={
                 minor
                   ? ko
@@ -859,8 +859,8 @@ export function DeepSpacePrivacyDesignScreen() {
                     : "Locked under 18"
                   : analyticsOn
                     ? ko
-                      ? "웹에서 GA4·Clarity 사용"
-                      : "GA4 and Clarity on web"
+                      ? "웹·앱에서 GA4·Clarity 사용"
+                      : "GA4 and Clarity on web and app"
                     : ko
                       ? "꺼짐"
                       : "Off"

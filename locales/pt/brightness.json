@@ -12,5 +12,6 @@
   "emptyBody": "Ainda não há histórico suficiente para desenhar. Conclua uma verificação e aprove uma proposta, e o rastro vai se acumulando aqui.",
   "honestyLine": "{{obs}} observações · {{cited}} com evidência · {{stars}} estrelas",
   "citedRatioLabel": "Proporção com evidência {{cited}} de {{obs}}",
-  "honestyCaption": "O brilho é o quanto está registrado, não certeza. As citações o tornam mais confiável."
+  "honestyCaption": "O brilho é o quanto está registrado, não certeza. As citações o tornam mais confiável.",
+  "reviewCta": "Ir revisar uma proposta"
 }
