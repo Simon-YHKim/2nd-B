@@ -144,6 +144,24 @@
         },
         "profile": {
           "line": "Your name, your goal, and how others read you. It brightens as there is more to introduce."
+        },
+        "infancy": {
+          "line": "The earliest memories. One sensation is enough to begin."
+        },
+        "school": {
+          "line": "Ages 7 to 19. Classrooms, friends, who you were then."
+        },
+        "twenties": {
+          "line": "The choices of your twenties. What did you hold on to, what did you let go?"
+        },
+        "later": {
+          "line": "Thirties and after. What settled, and what still moves."
+        },
+        "work": {
+          "line": "You at work. Whatever your age, the you that shows up in a job."
+        },
+        "now": {
+          "line": "You, now. Where has your mind been lately?"
         }
       },
       "museumEntry": "AI museum",

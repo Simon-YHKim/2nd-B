@@ -12,5 +12,6 @@
   "emptyBody": "아직 변화를 그릴 기록이 부족합니다. 점검을 마치고 제안을 승인하면 별의 궤적이 여기 쌓입니다.",
   "honestyLine": "관측 {{obs}}번 · 근거 있는 관측 {{cited}}번 · 별 {{stars}}개",
   "citedRatioLabel": "근거 비율 {{cited}}/{{obs}}",
-  "honestyCaption": "밝기는 확신이 아니라 기록의 양입니다. 근거가 붙을수록 믿을 만해집니다."
+  "honestyCaption": "밝기는 확신이 아니라 기록의 양입니다. 근거가 붙을수록 믿을 만해집니다.",
+  "reviewCta": "제안 확인하러 가기"
 }

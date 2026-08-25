@@ -12,5 +12,6 @@
   "emptyBody": "Aún no hay suficiente historial para dibujar. Termina un chequeo y aprueba una propuesta, y el rastro se irá acumulando aquí.",
   "honestyLine": "{{obs}} observaciones · {{cited}} con evidencia · {{stars}} estrellas",
   "citedRatioLabel": "Proporción con evidencia {{cited}} de {{obs}}",
-  "honestyCaption": "El brillo es cuánto hay registrado, no certeza. Las citas lo hacen más fiable."
+  "honestyCaption": "El brillo es cuánto hay registrado, no certeza. Las citas lo hacen más fiable.",
+  "reviewCta": "Ir a revisar una propuesta"
 }
