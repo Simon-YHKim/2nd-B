@@ -14,7 +14,8 @@
 //     reappear every session.
 
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, Easing, TextInput } from "react-native";
+import { AccessibilityInfo, Modal, View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Pressable, Animated, TextInput } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams, usePathname } from "expo-router";
 import {
@@ -786,8 +787,8 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     if (chatMode === "divergent" && sending && !prefersReducedMotion()) {
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(divergentPulse, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-          Animated.timing(divergentPulse, { toValue: 0.6, duration: 300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(divergentPulse, { toValue: 1, duration: 300, easing: pixelStepsFor(300), useNativeDriver: true }),
+          Animated.timing(divergentPulse, { toValue: 0.6, duration: 300, easing: pixelStepsFor(300), useNativeDriver: true }),
         ]),
       );
       loop.start();

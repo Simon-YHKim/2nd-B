@@ -5,7 +5,8 @@
 // "결과 보기" CTA is mint-filled, "나중에" is an outline. Token-only, no confetti.
 
 import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
@@ -51,7 +52,7 @@ export function CompletionToast() {
     }
     // A finished task is a happy beat — the persistent SecondB head beams too.
     reactExpression("happy");
-    Animated.timing(drop, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(drop, { toValue: 1, duration: 320, easing: pixelStepsFor(320), useNativeDriver: true }).start();
   }, [visible, drop]);
 
   if (!visible) return null;

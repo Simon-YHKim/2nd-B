@@ -6,7 +6,8 @@
 // sits above the tab bar. Token-only, copy follows shipped locales.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 import { useTranslation } from "react-i18next";
@@ -67,7 +68,7 @@ export function BackgroundTaskDock() {
   useEffect(() => {
     if (!visible) return;
     const loop = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 1400, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(spin, { toValue: 1, duration: 1400, easing: pixelStepsFor(1400), useNativeDriver: true }),
     );
     loop.start();
     return () => {

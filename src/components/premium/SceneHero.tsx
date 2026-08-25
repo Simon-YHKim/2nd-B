@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Easing,
   PanResponder,
   StyleSheet,
   View,
@@ -11,6 +10,7 @@ import {
   type ViewStyle,
   AppState,
 } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 
 import { IslandArt, type IslandId } from "@/components/art/IslandArt";
 import { WorkerSprite, type WorkerId } from "@/components/art/WorkerSprite";
@@ -149,8 +149,7 @@ export function SceneHero({
       setOwnerFacing(1);
       Animated.timing(patrol, {
         toValue: 1,
-        duration: OWNER_PATROL_MS,
-        easing: Easing.inOut(Easing.quad),
+        duration: OWNER_PATROL_MS, easing: pixelStepsFor(OWNER_PATROL_MS),
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (alive && finished) toLeft();
@@ -160,8 +159,7 @@ export function SceneHero({
       setOwnerFacing(-1);
       Animated.timing(patrol, {
         toValue: 0,
-        duration: OWNER_PATROL_MS,
-        easing: Easing.inOut(Easing.quad),
+        duration: OWNER_PATROL_MS, easing: pixelStepsFor(OWNER_PATROL_MS),
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (alive && finished) toRight();

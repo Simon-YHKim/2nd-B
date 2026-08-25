@@ -32,7 +32,8 @@
 //   static measure node  ->  tracking node (JS)  ->  bob node (native)  ->  face
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Image } from "expo-image";
 import Svg, { Circle, Path } from "react-native-svg";
 
@@ -106,8 +107,8 @@ function WhistleNote({ size, accent, reduce }: { size: number; accent: string; r
     // (see the blink note below for why mixing drivers here throws).
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(drift, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(drift, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(drift, { toValue: 1, duration: 900, easing: pixelStepsFor(900), useNativeDriver: false }),
+        Animated.timing(drift, { toValue: 0, duration: 900, easing: pixelStepsFor(900), useNativeDriver: false }),
       ]),
     );
     loop.start();
@@ -230,8 +231,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
     }
     const bobLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(bob, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 1, duration: 2000, easing: pixelStepsFor(2000), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 2000, easing: pixelStepsFor(2000), useNativeDriver: true }),
       ]),
     );
     bobLoop.start();
@@ -262,8 +263,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
           // A native blink would move that node to the native side, and the
           // SecondbHeadTrack provider's JS setValue/spring on touch/engage would then
           // throw "JS driven animation on a node moved to native" on the next touch.
-          Animated.timing(blink, { toValue: 0.08, duration: 65 * lidMs, easing: Easing.in(Easing.quad), useNativeDriver: false }),
-          Animated.timing(blink, { toValue: 1, duration: 75 * lidMs, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 0.08, duration: 65 * lidMs, easing: pixelStepsFor(65 * lidMs), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 1, duration: 75 * lidMs, easing: pixelStepsFor(75 * lidMs), useNativeDriver: false }),
         ]).start(() => {
           if (!cancelled) schedule();
         });
@@ -344,10 +345,16 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
 
   // Face geometry as canon fractions of the head size, then expression-shaped.
   const eyeW = Math.max(4, size * 0.062);
-  // Reference eyes are rounded SQUARES (the baked face of the loading logo) —
+  // Reference eyes are SQUARES (the baked face of the loading logo) —
   // height == width at h: 1; expression h-multipliers squash them into lids.
   const eyeHBase = eyeW;
-  const eyeRadius = eyeW * 0.24;
+  // PIXEL-CLAY 규칙 2 — 격자에는 모서리가 없다. 전에는 eyeW * 0.24 로 살짝
+  // 둥근 사각형이었다. 위 주석이 이미 "SQUARES" 라고 적고 있었으니, 이제
+  // 이름과 모양이 같아졌다.
+  // 발광의 한 칸: 밝은 심 둘레에 accentGlow 테두리를 두른다. RN 의 border 는
+  // 안쪽으로 그려지므로 상자를 2칸씩 키우고 그만큼 위치를 당겨, **심의 크기와
+  // 자리는 그대로** 두고 테두리만 바깥에 생기게 한다.
+  const glowBand = 2;
   const mouthW = Math.max(6, size * 0.058) * (face.mouthScale ?? 1);
   const mouthBoxH = Math.max(4, size * 0.05);
   const mouthStroke = Math.max(1.5, size * 0.012);
@@ -383,11 +390,19 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                   ]}
                 >
                   <Svg width={arcW} height={arcH}>
+                    {/* 아래: 굵은 밴드. 위: 얇은 심. 두 획이 발광을 만든다. */}
+                    <Path
+                      d={`M1 1 Q ${arcW / 2} ${arcH * 1.6} ${arcW - 1} 1`}
+                      stroke={deepSpace.accentGlow}
+                      strokeWidth={Math.max(2, size * 0.02) + 4}
+                      strokeLinecap="butt"
+                      fill="none"
+                    />
                     <Path
                       d={`M1 1 Q ${arcW / 2} ${arcH * 1.6} ${arcW - 1} 1`}
                       stroke={accent}
                       strokeWidth={Math.max(2, size * 0.02)}
-                      strokeLinecap="round"
+                      strokeLinecap="butt"
                       fill="none"
                     />
                   </Svg>
@@ -405,11 +420,10 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                 style={[
                   styles.eye,
                   {
-                    width: eyeW,
-                    height: eyeH,
-                    borderRadius: eyeRadius,
-                    left: size * cx - eyeW / 2 + gazeX,
-                    top: size * spec.top - eyeH / 2 + gazeY,
+                    width: eyeW + glowBand * 2,
+                    height: eyeH + glowBand * 2,
+                    left: size * cx - eyeW / 2 + gazeX - glowBand,
+                    top: size * spec.top - eyeH / 2 + gazeY - glowBand,
                     transform,
                     backgroundColor: accent,
                     shadowColor: accent,
@@ -430,22 +444,41 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
           >
             <Svg width={mouthW} height={mouthBoxH}>
               {face.mouth === "o" ? (
-                <Circle
-                  cx={mouthW / 2}
-                  cy={mouthBoxH / 2}
-                  r={Math.max(2, Math.min(mouthW, mouthBoxH) / 2 - 1)}
-                  stroke={deepSpace.text}
-                  strokeWidth={mouthStroke}
-                  fill="none"
-                />
+                <>
+                  <Circle
+                    cx={mouthW / 2}
+                    cy={mouthBoxH / 2}
+                    r={Math.max(2, Math.min(mouthW, mouthBoxH) / 2 - 1)}
+                    stroke={deepSpace.accentGlow}
+                    strokeWidth={mouthStroke + 4}
+                    fill="none"
+                  />
+                  <Circle
+                    cx={mouthW / 2}
+                    cy={mouthBoxH / 2}
+                    r={Math.max(2, Math.min(mouthW, mouthBoxH) / 2 - 1)}
+                    stroke={deepSpace.text}
+                    strokeWidth={mouthStroke}
+                    fill="none"
+                  />
+                </>
               ) : (
-                <Path
-                  d={mouthPath(face.mouth, mouthW, mouthBoxH)}
-                  stroke={deepSpace.text}
-                  strokeWidth={mouthStroke}
-                  strokeLinecap="round"
-                  fill={face.mouth === "open" ? deepSpace.text : "none"}
-                />
+                <>
+                  <Path
+                    d={mouthPath(face.mouth, mouthW, mouthBoxH)}
+                    stroke={deepSpace.accentGlow}
+                    strokeWidth={mouthStroke + 4}
+                    strokeLinecap="butt"
+                    fill="none"
+                  />
+                  <Path
+                    d={mouthPath(face.mouth, mouthW, mouthBoxH)}
+                    stroke={deepSpace.text}
+                    strokeWidth={mouthStroke}
+                    strokeLinecap="butt"
+                    fill={face.mouth === "open" ? deepSpace.text : "none"}
+                  />
+                </>
               )}
             </Svg>
           </View>
@@ -464,32 +497,22 @@ const styles = StyleSheet.create({
   // box-shadow halo and on Android elevation casts a rectangular outline around
   // the transparent head PNG. The eyes carry their own (circular) glow.
   wrap: { position: "relative", flexShrink: 0, alignItems: "center", justifyContent: "center" },
+  // 발광은 블러가 아니라 **한 칸 어두운 테두리**다(PIXEL-CLAY 규칙 3·6).
+  // borderWidth 는 안쪽으로 그려지므로 심(accent)은 그대로 남고 둘레만 밴드가 된다.
   eye: {
     position: "absolute",
     alignItems: "center",
     backgroundColor: deepSpace.accent,
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0.85,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
+    borderWidth: 2,
+    borderColor: deepSpace.accentGlow,
+    borderRadius: m3.shape.none,
   },
-  arcEye: {
-    position: "absolute",
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0.85,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
-  },
+  // 감은 눈(호)과 입은 선이라 테두리를 두를 수 없다. 대신 같은 선을 **두 번**
+  // 그린다 — 굵은 accentGlow 를 아래, 얇은 accent 를 위에. 픽셀아트의 발광이다.
+  arcEye: { position: "absolute" },
   mouth: {
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: deepSpace.accent,
-    shadowOpacity: 0.8,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 5,
   },
 });

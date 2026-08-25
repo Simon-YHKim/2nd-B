@@ -14,6 +14,7 @@
 
 import { createContext, useContext, useRef } from "react";
 import { Animated, Platform, StyleSheet, View, type GestureResponderEvent, type ViewStyle } from "react-native";
+import { PIXEL_STEP } from "@/lib/motion/pixel-physical";
 
 export interface SecondbTracking {
   touch: Animated.ValueXY; // window px of the active touch
@@ -37,8 +38,16 @@ export function SecondbHeadTrackProvider({
   const engage = useRef(new Animated.Value(0)).current;
   const active = useRef(false);
 
+  // PIXEL-CLAY 규칙 5 — 스프링은 연속 운동이라 계단 이징으로 바꿨다.
+  // 머리가 손을 따라 붙었다 떨어지는 반응이라 상호작용 사다리의 base(120ms/3칸)다.
+  // 이름은 spring 그대로 두었다 — 호출부가 뜻하는 바(붙기/놓기)는 안 바뀌었다.
   const spring = (to: number) =>
-    Animated.spring(engage, { toValue: to, useNativeDriver: false, friction: 7, tension: 55 }).start();
+    Animated.timing(engage, {
+      toValue: to,
+      duration: PIXEL_STEP.base.duration,
+      easing: PIXEL_STEP.base.easing,
+      useNativeDriver: false,
+    }).start();
 
   const move = (pageX: number, pageY: number) => {
     touch.setValue({ x: pageX, y: pageY });

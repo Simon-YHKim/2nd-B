@@ -14,7 +14,8 @@
 //   <DeepSpaceLoader variant="analysis" etaSec={30} onSendToBackground={sendToBackground} />
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Circle, Polyline } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
@@ -154,8 +155,8 @@ function useBloom() {
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(v, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: 1100, easing: pixelStepsFor(1100), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: 1100, easing: pixelStepsFor(1100), useNativeDriver: true }),
       ]),
     );
     loop.start();
@@ -183,7 +184,7 @@ function Ring({ size = 104, head = 58 }: { size?: number; head?: number }) {
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(spin, { toValue: 1, duration: 1300, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(spin, { toValue: 1, duration: 1300, easing: pixelStepsFor(1300), useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();
@@ -224,8 +225,8 @@ function Constellation() {
       const lo = STARS[i].dim ? 0.25 : 0.5;
       const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(v, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-          Animated.timing(v, { toValue: lo, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+          Animated.timing(v, { toValue: 1, duration: 800, easing: pixelStepsFor(800), useNativeDriver: false }),
+          Animated.timing(v, { toValue: lo, duration: 800, easing: pixelStepsFor(800), useNativeDriver: false }),
         ]),
       );
       const t = setTimeout(() => loop.start(), i * 200);
@@ -264,7 +265,7 @@ function SweepBar() {
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(x, { toValue: 1, duration: 1500, easing: pixelStepsFor(1500), useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();

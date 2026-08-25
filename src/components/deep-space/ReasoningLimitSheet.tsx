@@ -18,7 +18,8 @@
 // SAME-QUALITY invariant: the reward adds RUNS only; copy restates it.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -80,8 +81,7 @@ export function ReasoningLimitSheet({ visible, onClose, onChanged }: ReasoningLi
     rise.setValue(0);
     Animated.timing(rise, {
       toValue: 1,
-      duration: 320,
-      easing: Easing.out(Easing.cubic),
+      duration: 320, easing: pixelStepsFor(320),
       useNativeDriver: true,
     }).start();
     void refreshUsage();
