@@ -13,6 +13,8 @@
 import { Platform } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 
+import { ensurePdfWorker } from "./pdf-worker";
+
 export interface PickedFile {
   uri: string;
   name: string;
@@ -247,22 +249,21 @@ function responseContentLength(res: Response): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-// Dynamically import pdfjs-dist so the ~2MB worker bundle only loads when
-// the user actually picks a PDF. Worker is disabled (fake worker) — slower
-// for huge files but avoids the Expo Web worker-URL setup tax.
+// Dynamically import pdfjs-dist so the ~2MB bundle only loads when the user
+// actually picks a PDF. pdfjs runs on the MAIN THREAD here: ensurePdfWorker()
+// imports the worker module, which sets globalThis.pdfjsWorker, which is the
+// first thing PDFWorker looks for. No workerSrc, no Worker constructor, no
+// per-bundler worker-URL tax.
+//
+// ⚠ What used to be here did NOT work, in the quietest possible way: it assigned
+// to `pdfjs.GlobalWorkerOptions`, an ESM namespace member that bundlers export
+// getter-only. The assignment threw, the surrounding try/catch swallowed it, and
+// getDocument then died with `No "GlobalWorkerOptions.workerSrc" specified.` —
+// so extractText returned null and the screen said "couldn't read the text",
+// with nothing in the console. Reproduced on both 5.x and 6.x before the fix.
 async function extractPdfText(buf: ArrayBuffer): Promise<string | null> {
+  await ensurePdfWorker();
   const pdfjs = await import("pdfjs-dist");
-  try {
-    // Disable worker by clearing workerSrc. pdfjs falls back to fake-worker
-    // mode when no Worker constructor is reachable, which keeps Expo Web
-    // bundling simple.
-    (pdfjs as { GlobalWorkerOptions?: { workerSrc?: string } }).GlobalWorkerOptions = {
-      ...(pdfjs as { GlobalWorkerOptions?: object }).GlobalWorkerOptions,
-      workerSrc: "",
-    };
-  } catch {
-    // No-op: some builds expose it differently; getDocument will pick a default.
-  }
   const doc = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
   const pages: string[] = [];
   for (let i = 1; i <= doc.numPages; i++) {

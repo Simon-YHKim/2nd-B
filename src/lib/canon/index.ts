@@ -350,8 +350,17 @@ export const canonGaps = {
 };
 
 /* Design-token mirror generated from m3-theme.css (design/proto_rev2/tools/gen-tokens.mjs).
-   The CSS stays the token canon; this JSON lets non-CSS consumers (native theming,
-   docs, audits) read the same values without a CSS parser. */
+   The CSS stays the token canon for /proto; this JSON lets non-CSS consumers read the
+   same values without a CSS parser.
+
+   ⚠ 이것은 **앱 테마가 아니다.** 여기 있는 값은 지금 배포돼 있는 `/proto` M3
+   프로토타입(rev2)을 기술한다 — 즉 PIXEL-CLAY 이주의 **출발점 스냅샷**이다.
+   런타임 소비자는 0건이고(읽는 코드가 자기 테스트뿐), 그래서 이 값을 midnight 으로
+   갈아엎으면 얻는 것 없이 출발점 기준선만 잃는다.
+
+   **PIXEL-CLAY 쪽 정본은 `design/pixel_clay_260825/data/tokens.json`**(런타임
+   getComputedStyle 실측 157개)이고, 앱이 실제로 쓰는 값은 `src/lib/theme/m3.ts` 다.
+   셋을 한 벌로 합치려 하지 말 것 — 서로 다른 시점의 서로 다른 물건이다. */
 export const canonTokens = {
   palettes: tokensPack.palettes as Record<string, Record<string, string>>,
   root: tokensPack.root as Record<string, string>,
