@@ -250,6 +250,12 @@ export const deepSpace = {
   accentBright: "#CCFAFF", // eye inner bright highlight / pixel titles
   accentSoft: "#9FE4FF", // bright star / icon cyan
   accentDim: "#7FC9F0", // faint star / receding node cyan
+  // 발광의 **밴드**. PIXEL-CLAY 규칙 3·6 은 블러 그림자를 금지하는데, 세컨비의
+  // 눈·입은 그 블러로 빛나고 있었다(shadowRadius 6). 픽셀아트에서 빛은 흐림이
+  // 아니라 **한 칸 어두운 테두리**로 표현한다 — 이 값이 그 한 칸이다.
+  // 밝은 심(accent #46B6FF)과 패널(#141b2e) 사이의 단색이라, 흐리지 않으면서
+  // "빛이 번진다"로 읽힌다. ⚠ 알파가 아니다 — 규칙 4 도 정적 opacity 를 막는다.
+  accentGlow: "#2d6896",
   text: semantic.deepSpaceText, // cyan body text (the character's mouth color, #5FD4FF)
   textHi: "#E8F7FF", // emphasized body / speech-bubble copy
   textMuted: semantic.deepSpaceTextMuted, // rgba(95,212,255,0.62)

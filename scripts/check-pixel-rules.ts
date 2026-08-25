@@ -127,6 +127,30 @@ const MIGRATED: readonly string[] = [
   "src/components/graph/CharacterPathLayer.tsx",
   "src/components/graph/NavGraph.tsx",
   "src/components/pixel/PixelStarSvg.tsx",
+  // 2026-08-26 — 딥스페이스 표면을 전수로 편입한다. 목록 밖에 두면 가드가
+  // 안 보므로 되돌아가도 아무도 모른다. 실측: 아래 19개 중 **17개는 이미**
+  // 규칙 2·3 위반이 0건이었다 — 목록에만 없었을 뿐이다. 나머지 둘
+  // (SecondbStatusHeader 반경 4 · deepspace/SecondbHead 그림자 3+elevation 3)은
+  // 같은 PR 에서 고쳤다.
+  "src/app/deepspace-flowmap.tsx",
+  "src/app/deepspace-home.tsx",
+  "src/app/deepspace-hub.tsx",
+  "src/app/deepspace-preview.tsx",
+  "src/components/deep-space/DeepSpaceDock.tsx",
+  "src/components/deep-space/DeepSpaceShell.tsx",
+  "src/components/deep-space/SbStarfield.tsx",
+  "src/components/deep-space/SecondbHead.tsx",
+  "src/components/deep-space/SecondbStatusHeader.tsx",
+  "src/components/deepspace/DeepSpaceBackdrop.tsx",
+  "src/components/deepspace/DeepSpaceHubDock.tsx",
+  "src/components/deepspace/SecondbHead.tsx",
+  "src/components/deepspace/SecondbHeadTrack.tsx",
+  "src/components/deepspace/shell/SbIcon.tsx",
+  "src/components/deepspace/shell/SbNavBar.tsx",
+  "src/components/deepspace/shell/SbStarfield.tsx",
+  "src/components/deepspace/shell/SbStatusBar.tsx",
+  "src/screens/deepspace/dds-auth-screens.tsx",
+  "src/screens/deepspace/dds-consent-notice-screen.tsx",
 ];
 
 // ── 규칙 2 ─────────────────────────────────────────────────────────────
