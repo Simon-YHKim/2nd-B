@@ -24,8 +24,8 @@
       "hint": "Membuka layar persona."
     },
     "manual": {
-      "label": "Panduan",
-      "hint": "Membuka manual aplikasi dari halaman tidak ditemukan."
+      "label": "Panduan penggunaan",
+      "hint": "Membuka panduan penggunaan dari layar 404."
     }
   }
 }

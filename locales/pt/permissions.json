@@ -63,7 +63,7 @@
     ]
   },
   "manual": {
-    "button": "Abrir o manual",
-    "accessibilityHint": "Abre o manual a partir da tela de permissões."
+    "button": "Abrir o guia de uso",
+    "accessibilityHint": "Abre o guia de uso a partir da tela de permissões."
   }
 }

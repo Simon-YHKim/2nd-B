@@ -60,8 +60,11 @@ describe("visible trust copy", () => {
     expect(screen).toContain('<Link href="/manual" asChild>');
     expect(en).toContain('"browseBeforeCommit": "Browse first, then decide"');
     expect(ko).toContain('"browseBeforeCommit": "먼저 둘러보고 결정하기"');
-    expect(en).toContain('"manualLink": "New here? Read the 1-min manual"');
-    expect(ko).toContain('"manualLink": "이 앱이 처음이라면 안내서 보기"');
+    // 2026-08-26 Simon 결정 — 문 이름을 "사용 안내서"(EN User Guide)로 통일.
+    // 이 검사가 지키는 것은 **가입 화면 첫 화면에 안내서 링크가 있고 그 카피가
+    // 로케일에 산다**는 것이지 특정 문구가 아니다.
+    expect(en).toContain('"manualLink": "New here? Read the 1-min user guide"');
+    expect(ko).toContain('"manualLink": "이 앱이 처음이라면 사용 안내서 보기"');
   });
 
   test("auth entry copy does not promise pre-account or local-device capture", () => {

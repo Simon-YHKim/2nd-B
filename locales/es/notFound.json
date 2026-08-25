@@ -24,8 +24,8 @@
       "hint": "Abre la pantalla de persona."
     },
     "manual": {
-      "label": "Manual",
-      "hint": "Abre el manual de la app desde la página no encontrada."
+      "label": "Guía de uso",
+      "hint": "Abre la guía de uso desde la pantalla 404."
     }
   }
 }
