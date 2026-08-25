@@ -79,10 +79,16 @@ function qaCreds() {
 // 대조 대상이 아니다(앱에 대응 화면이 없거나 id 가 다른 것).
 const manifest = JSON.parse(readFileSync(path.join(KIT, 'data', 'screens.json'), 'utf8'));
 const mapPath = path.join(KIT, 'data', 'app-routes.json');
-const routeMap = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')).routes : {};
+const mapFile = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {};
+const routeMap = mapFile.routes || {};
+// 라우트는 맞는데 이 하네스로는 못 재는 화면들(로그인된 세션이면 리다이렉트되는 인증
+// 화면, 유효한 토큰이 없으면 오류 상태를 그리는 화면). 백분율을 내면 그건 디자인
+// 점수가 아니라 하네스 상태를 잰 값이라 **숫자 대신 사유를 낸다.**
+const unmeasurable = { ...(mapFile.unmeasurable || {}) };
+delete unmeasurable._note;
 const only = process.env.SCREENS ? process.env.SCREENS.split(',').map((s) => s.trim()) : null;
 const TARGETS = manifest.screens
-  .filter((s) => s.port === true && routeMap[s.id])
+  .filter((s) => s.port === true && routeMap[s.id] && !unmeasurable[s.id])
   .filter((s) => (only ? only.includes(s.id) : true));
 
 if (TARGETS.length === 0) {
@@ -100,7 +106,7 @@ mkdirSync(path.join(OUT, 'structure'), { recursive: true });
 // 흔들림은 없고, 실행 사이 픽셀 동일이 필요하면 FIXED_ISO 로 과거 시각을 준다
 // (그때는 로그인이 안 되므로 세션을 미리 넣어야 한다).
 const FIXED_TIME = process.env.FIXED_ISO ? new Date(process.env.FIXED_ISO).getTime() : Date.now();
-const report = { baseUrl: BASE_URL, shots: [], consoleErrors: [], compare: [] };
+const report = { baseUrl: BASE_URL, shots: [], consoleErrors: [], compare: [], unmeasurable: {} };
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 820 }, deviceScaleFactor: 1 });
@@ -311,6 +317,7 @@ for (const target of TARGETS) {
 }
 process.stdout.write('\n');
 
+report.unmeasurable = unmeasurable;
 writeFileSync(path.join(OUT, 'app-report.json'), JSON.stringify(report, null, 2) + '\n');
 await browser.close();
 
@@ -320,5 +327,15 @@ console.log(
 );
 for (const c of report.compare) {
   console.log(`  ${c.id.padEnd(12)} ref ${String(c.refNodes).padStart(3)} · app ${String(c.appNodes).padStart(3)} · text match ${c.textMatchPct}%`);
+}
+// 못 잰 것을 조용히 빼면 "40장 전부 쟀다"로 읽힌다. 왜 못 쟀는지 같이 말한다.
+const skipped = Object.entries(unmeasurable).filter(([id]) => !only || only.includes(id));
+if (skipped.length) {
+  console.log('');
+  console.log(`측정 불가 ${skipped.length}장 — 하네스 조건 때문이지 디자인 문제가 아니다:`);
+  for (const [id, info] of skipped) {
+    console.log(`  ${id.padEnd(12)} ${info.route} — ${info.why}`);
+    if (info.needs) console.log(`  ${''.padEnd(12)} 필요: ${info.needs}`);
+  }
 }
 process.exit(failed.length ? 1 : 0);
