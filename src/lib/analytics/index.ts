@@ -344,7 +344,16 @@ function syncNativeAnalyticsCollection(enabled: boolean): void {
   nativeApplyTarget = enabled;
   const applier = nativeApplierOverride ?? applyNativeAnalyticsCollection;
   nativeApplyChain = nativeApplyChain
-    .then(async () => applier(await resolveNativeCollectionTarget(enabled)))
+    .then(async () => {
+      await applier(await resolveNativeCollectionTarget(enabled));
+      // The flags arrived inside resolveNativeCollectionTarget. Clarity read
+      // them BEFORE that fetch (client default: both false), so without this
+      // second pass it stays paused until the user happens to navigate again -
+      // and a user who grants consent and then reads the same screen never
+      // does. Firebase gets its answer from the applier above; this is the
+      // matching line for the SDK that has its own gate.
+      syncNativeClarityForRoute(enabled);
+    })
     .catch(() => {});
 }
 
