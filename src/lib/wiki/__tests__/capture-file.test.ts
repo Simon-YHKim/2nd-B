@@ -19,7 +19,14 @@ jest.mock("expo-document-picker", () => ({
 jest.mock(
   "pdfjs-dist",
   () => ({
-    GlobalWorkerOptions: {} as { workerSrc?: string },
+    // ⚠ getter-only 다 — **이 저장소가 겪은 버그를 테스트가 가리지 않도록.**
+    // 진짜 pdfjs 는 ESM 네임스페이스라 이 속성에 대입하면 TypeError 가 난다.
+    // 예전 목은 평범한 쓰기 가능 객체여서, 프로덕션에서 던지는 대입이 테스트에서만
+    // 조용히 성공했다. 그래서 "웹 PDF 가 안 된다"가 초록 CI 뒤에 숨어 있었다.
+    // 누군가 GlobalWorkerOptions 대입을 되살리면 여기서 먼저 빨개진다.
+    get GlobalWorkerOptions(): { workerSrc?: string } {
+      return {};
+    },
     getDocument: jest.fn(() => ({
       promise: Promise.resolve({
         numPages: 2,
