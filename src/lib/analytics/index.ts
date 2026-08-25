@@ -642,6 +642,36 @@ export const CLARITY_ALLOWED_ROUTE_PREFIXES: readonly string[] = [
   "/onboarding",
 ];
 
+/**
+ * 진단 스냅샷 — Clarity 가 왜 안 켜졌는지를 **한 줄로** 볼 수 있게 게이트를 모아 준다.
+ *
+ * 이게 없으면 판정이 불가능하다: SDK 는 기본 로그를 안 남기고, 릴리스 빌드에는
+ * 콘솔이 없다. 그래서 "대시보드에 안 뜬다"만 알 뿐 **어느 고리가 끊겼는지**를 알
+ * 방법이 없었다. 각 값은 결정에 실제로 쓰이는 바로 그 변수를 읽는다.
+ *
+ * ⚠ 이 스냅샷을 보는 화면(/dev-screens)은 Clarity 허용 라우트가 **아니다**. 그래서
+ * 그 화면에 서 있는 동안 allowedRoute 는 정직하게 false 이고 capturing 도 false 다 —
+ * 그건 고장이 아니라 설계다. 켜졌는지 보려면 허용 라우트(/ 또는 /settings)에 다녀온
+ * 뒤 sessionUrl 이 생겼는지로 판단한다.
+ */
+export function clarityGateSnapshot(): {
+  consent: boolean;
+  analyticsEnabled: boolean;
+  clarityEnabled: boolean;
+  projectId: boolean;
+  route: string;
+  allowedRoute: boolean;
+} {
+  return {
+    consent: analyticsConsent,
+    analyticsEnabled: runtimeAnalyticsFlags.analyticsEnabled,
+    clarityEnabled: runtimeAnalyticsFlags.clarityEnabled,
+    projectId: Boolean(clarityProjectIdForNative()),
+    route: currentAnalyticsRoute,
+    allowedRoute: isClarityAllowedRoute(currentAnalyticsRoute),
+  };
+}
+
 export function isClarityAllowedRoute(routePath: string): boolean {
   const route = sanitizeAnalyticsRoutePath(routePath);
   return CLARITY_ALLOWED_ROUTE_PREFIXES.some((p) =>
