@@ -49,24 +49,36 @@ BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.m
 
 ## 2. 다음에 할 일 (우선순위 순, 근거는 수치)
 
-### ① 스택 화면의 하단 탭바 — 구조 결정 하나 (가장 값이 큼)
+### ① 스택 화면의 하단 탭바 — ✅ **끝났다 (2026-08-30)**
 
-레퍼런스는 **모든 화면에서 하단 탭바를 유지**한다. 앱은 push 된 화면을 `windowed` 로
-띄우며 탭바를 감춘다. 그래서 `/review` 를 비롯한 스택 화면들이 대조에서 매번 5칸
-(별자리·담기·세컨비·위키·설정)을 잃는다 — review 가 31% 에 머무는 이유의 절반이 이것이다.
+원인이 예상과 달랐다. `variant="windowed"` 는 죄가 없었다 — `DeepSpaceScreen` 은 어느
+variant 에서도 dock 을 렌더한다. 진짜 범인은 `DeepSpaceDesignScreens.tsx` 안의
+로컬 `Shell` 이었다: dock 도 SafeAreaView 도 없는 순수 View 인데 **13개 화면**이 그걸
+쓰고 있었다(옆 파일 `dds-wiki-records-screens.tsx` 의 같은 이름 컴포넌트는 진작
+고쳐져 있었다 — P5 메가파일 분할 때 한쪽만 고친 것이다).
 
-- 만지는 곳: `src/components/deep-space/DeepSpaceScreen.tsx` 의 `variant`, 그리고 그걸
-  `variant="windowed"` 로 쓰는 화면들.
-- **판정**: 바꾼 뒤 `SCREENS=review,me-star,trend` 로 재측정. 셋 다 올라야 맞다.
-- ⚠ 뒤로가기 동선이 바뀐다(ANDROID_QA_GUIDELINES 의 BackHandler 규율). 탭바를 되살리면
-  "뒤로"가 어디 있는지 한 곳으로 유지되는지 확인할 것.
+`Shell` 을 같은 파일의 `DockShell` 로 위임시켜 끝냈다. 결과:
+review 31→**69** · manual 13→**71** · insights 14→**100** · formats 14→**100** ·
+permissions/privacy/support 0→**71**.
 
-### ② 0% 인 화면들 — 대부분 **작업 대상이 아니다**
+⚠ 뒤로가기는 **바뀌지 않았다**: `DockShell` 의 `active="lens"` 는 TABS 밖이라
+탭 하이라이트도, `DeepSpaceScreen` 의 BackHandler 특례도 걸리지 않는다(기본 pop 유지).
 
-`auth · signup · privacy · privacy-policy · support · permissions · digest`
-이 화면들의 0% 는 **우리 카피가 정본**이라 그렇다(법률 문서·동의 문구·빈 계정).
-**레퍼런스에 맞추려고 문구를 바꾸지 말 것.** 대신 볼 것은 레이아웃(섹션 순서·카드
-구획)이고, 그건 캡처 두 장을 나란히 놓는 Tier 3 작업이다.
+### ② 0% 인 화면 — ⚠ **먼저 구조를 의심하고, 카피 판정은 그 다음이다** (2026-08-30 정정)
+
+이 자리에 원래 "0% 인 화면(privacy·support·permissions 등)은 우리 카피가 정본이라
+작업 대상이 아니다"라고 적혀 있었다. **절반만 맞았다.** 실측 결과 그 화면들은
+`Shell`(dock 없는 껍데기)을 쓰고 있어서 **하단 탭바 5칸을 통째로 잃고 있었다.**
+껍데기 한 줄을 고치자 0% → 71% 로 올랐다.
+
+그러니 순서는 이렇다:
+
+1. **구조부터** — 그 화면이 dock/셸을 제대로 쓰는가. 캡처를 열어 탭바·상단바가 있는지
+   눈으로 먼저 본다. 수치가 유난히 낮으면 카피가 아니라 껍데기를 의심할 것.
+2. **그 다음 카피** — 구조를 맞춘 뒤에도 남는 격차만 카피 문제다. 그중
+   법률 문서·동의 문구·빈 계정 화면(`auth · signup · privacy-policy · digest`)은
+   **우리 것이 정본**이니 레퍼런스 문구로 바꾸지 말 것.
+3. 남는 것은 레이아웃(섹션 순서·카드 구획)이고 그건 Tier 3(사람 눈)이다.
 
 ### ③ 실제로 낮은 것들 (구조가 다른 화면)
 

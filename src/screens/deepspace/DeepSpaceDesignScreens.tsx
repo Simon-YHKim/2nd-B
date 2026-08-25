@@ -249,20 +249,25 @@ function DockShell({ children, title, subtitle }: { children: ReactNode; title?:
   );
 }
 
+// Shell — 이제 DockShell 과 같은 껍데기다(= DeepSpaceScreen 안).
+//
+// 왜 바뀌었나 (2026-08-28 실측): 이 Shell 은 dock 도 SafeAreaView 도 없는 순수
+// View 였고, **13개 화면**(점검·매뉴얼·인사이트·형식·권한·개인정보·지원·테마·
+// 발견·연결 찾기·영역·복습·그래프)이 그걸 쓰고 있었다. 그래서 그 화면들에서는
+// 하단 탭바가 통째로 사라졌다 — 레퍼런스는 모든 화면에서 탭바를 유지하는데도.
+// 레퍼런스 대조에서 그 화면들이 매번 5칸(별자리·담기·세컨비·위키·설정)을 잃고
+// 있었고, /review 가 31% 에 머문 이유의 절반이 이것이었다.
+//
+// 같은 파일이 이미 갖고 있던 DockShell 이 정답 형태였고(옆 파일
+// dds-wiki-records-screens.tsx 의 Shell 은 진작 이렇게 고쳐져 있었다 — P5
+// 메가파일 분할 때 한쪽만 고쳐진 것이다), 여기서는 그쪽으로 위임만 한다.
+//
+// ⚠ active="lens" 는 TABS(home/capture/chat/wiki/settings) 밖이다. 그래서
+// (a) 어떤 탭도 잘못 하이라이트되지 않고 (b) DeepSpaceScreen 의 BackHandler
+// 특례가 걸리지 않아 **하드웨어 뒤로가기 동선이 바뀌지 않는다**(기본 pop 유지).
+// 제목은 상단 앱바가 갖는다 — 화면 안에 또 큰 제목을 두면 같은 말이 두 번 나온다.
 function Shell({ children, title, subtitle }: { children: ReactNode; title?: string; subtitle?: string }) {
-  const insets = useSafeAreaInsets();
-  return (
-    <View style={styles.root}>
-      <View pointerEvents="none" style={styles.stars}><View style={[styles.star,{left:"12%",top:42}]} /><View style={[styles.star,{right:"18%",top:118,opacity:.55}]} /><View style={[styles.star,{left:"42%",bottom:92,opacity:.5}]} /></View>
-      {/* Shell has no dock/SafeAreaView, so it must reserve BOTH insets: the top
-          was handled but the Android bottom nav-bar inset was omitted, clipping
-          bottom-anchored CTAs under the 3-button nav on edge-to-edge. */}
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 52, paddingBottom: 40 + insets.bottom }]} keyboardShouldPersistTaps="handled">
-        {title ? <View style={styles.titleRow}><View><Text variant="heading" style={styles.title}>{title}</Text>{subtitle ? <Text variant="subtle" style={styles.subtitle}>{subtitle}</Text> : null}</View></View> : null}
-        {children}
-      </ScrollView>
-    </View>
-  );
+  return <DockShell title={title} subtitle={subtitle}>{children}</DockShell>;
 }
 
 // Scroll-only body for screens that already sit inside DeepSpaceScreen (which
