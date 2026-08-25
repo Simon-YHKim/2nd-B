@@ -25,8 +25,12 @@ describe("colors", () => {
   });
 
   it("locks the brand-critical deep-space values", () => {
-    expect(colors.bgDeep).toBe("#070A13");
-    expect(colors.bgMid).toBe("#0B2142");
+    // 표면(bgDeep·bgMid)은 2026-08-30 에 캐논 midnight 램프로 옮겼다 —
+    // 이 파일의 cardBg 가 딥스페이스 디자인 화면 카드를 전부 칠하는데, 옛
+    // rgba(70,182,255,0.06) 이 화면의 27~45% 를 캐논 밖 색으로 만들고 있었다.
+    // 강조색(cyan 계열·soul·mint)은 **일부러 그대로다** — 앱 정체성 색이라 별건.
+    expect(colors.bgDeep).toBe("#0a0e18");
+    expect(colors.bgMid).toBe("#141b2e");
     expect(colors.cyan).toBe("#46B6FF");
     expect(colors.cyanBright).toBe("#5FD4FF");
     expect(colors.cyanSoft).toBe("#9FE4FF");
