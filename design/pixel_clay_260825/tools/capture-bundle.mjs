@@ -84,7 +84,12 @@ await ctx.addInitScript(`(function () {
     localStorage.setItem('sb_onboarded', '1');
     localStorage.setItem('sb_coach', '1');
     localStorage.setItem('sb_wiki_tour', '1');
-    localStorage.setItem('sb_notice_read', '[]');
+    // ⚠ 공지 팝업 게이트는 sb_notice_read 가 아니라 **sb_notice_seen** 이 연다:
+    // needsAutoPopup() 은 sb_notice_seen !== NOTICES[0].id 일 때 true 다. read 만
+    // 넣었더니 **93장 전부에 팝업이 덮여 찍혔다** — 레퍼런스 정본이 통째로 틀렸다.
+    // 최신 공지 id 는 번들 안에 있다(n_140). 번들이 갱신되면 이 값도 갱신할 것.
+    localStorage.setItem('sb_notice_read', JSON.stringify(['n_140']));
+    localStorage.setItem('sb_notice_seen', 'n_140');
     localStorage.setItem('sb_route', JSON.stringify({ root: 'home', stack: [], param: null }));
   } catch (e) {}
 })();`);
