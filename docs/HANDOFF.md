@@ -35,7 +35,8 @@
 | **#1409** | `Shell` → `DockShell` 위임 — **13 화면**이 잃고 있던 하단 탭바 | privacy/support/permissions 0%→ |
 | **#1411** | 그 이동을 내비 레지스트리에 반영(11 라우트) | 증상 없는 어긋남이라 더 위험했다 |
 | **#1414** | stage 2 — 자 수정 + `/profile`·`/import-hub` 독 + 담기 사유 노출 | profile 17→**100** · import-hub 33→**100** |
-| **#1415** | 표면 토큰을 캐논 midnight 램프로 + 새 가드 | 캐논 램프 점유율 평균 **34→62%** (ref 76%) |
+| **#1415** | 표면 토큰을 캐논 midnight 램프로 + 새 가드 | 캐논 램프 점유율 평균 34→62% |
+| **#1418** | `#0d1825` 의 정체 = **두 번째 토큰 사본** | 평균 62→**74%** (ref 76%) |
 | **#1412** | 처리방침에 GA4·Clarity 수탁사 + 국외이전 고지 | Simon 승인 |
 | #1410 · #1413 · #1416 | Clarity 관측 · QA 커버리지 시드 · MyPola | 열림 |
 
@@ -60,7 +61,7 @@
 |---|---|---|
 | `src/lib/theme/m3.ts` | midnight 이주 완료 — 단 바닥 두 값 예외 | 105 |
 | `src/lib/theme/tokens.ts` | rev2 시안/네이비, **가드 0건** → 이번에 표면만 이주 | 158 |
-| `src/theme/tokens.ts` | 같은 rev2 값의 **두 번째 사본. 아직 그대로** | 11 |
+| `src/theme/tokens.ts` | **디자인 화면의 카드를 실제로 칠하는 곳** (아래) | 11 |
 
 앞의 둘을 **동시에** import 하는 파일이 79개다.
 
@@ -72,6 +73,27 @@
 **캐논 JSON 램프 소속만** 본다. 변이 4건으로 확인(카드색·성운바닥·워시스톱 하나만·
 캐논에서 `--c02` 삭제 → 넷 다 잡힘). 기존 `constellation-home-m3` 도 거울 한쪽만
 옮긴 것을 잡아냈다 — **`deepSpace.bgMid` 와 `m3.accent.skySurface` 는 같이 움직인다.**
+
+### ⚠ `src/theme/tokens.ts` 는 잔재가 아니었다 (#1418)
+
+#1415 를 내면서 `#0d1825`(manual 45% · formats 27%)를 **"출처 미확인"** 으로 남기고,
+`src/theme/tokens.ts` 를 "정리하면 좋을 두 번째 사본"처럼 적었다. **둘 다 틀렸다.**
+
+역산: `#0d1825` = rgb(13,24,37)을 바탕 `#0a0e18` 위 알파 합성으로 풀면
+**alpha 0.06 → rgb(60,181,241) ≈ #46B6FF**, 즉 `rgba(70,182,255,0.06)`.
+픽셀 위치로 배경이 아니라 **카드**임도 확인했다(x 32~357, 창 안쪽).
+
+`src/screens/deepspace/dds-styles.ts` 가 이 파일에서 `colors` 를 읽고, 그 `ddsStyles`
+가 `DeepSpaceDesignScreens.tsx` 의 **딥스페이스 디자인 화면 전부**의 카드·경계·배경을
+칠한다(`card`·`statBox`·`searchBox`·`formatCard`·`domainCard`·`wikiPageRow` …).
+
+⚠ **파일 이름이 `src/lib/theme/tokens.ts` 와 거의 같다.** 착각하지 말 것 — 둘 다 살아
+있고 서로 다른 것을 칠한다.
+
+**이 한 파일이 표면 토큰 전체보다 크게 움직였다:** 평균 62→**74%**
+(manual 46→**92** · formats 60→**88** · insights 85→**91**). 레퍼런스 76% 에 사실상 닿았다.
+`src/theme/__tests__/theme.test.ts` 의 `bgDeep`·`bgMid` 핀도 같은 PR 에서 옮겼다
+(강조색 핀은 **일부러 그대로**).
 
 ### 일부러 안 한 것 (Simon 결정 대기)
 
