@@ -8,7 +8,8 @@
 // a modal over content; the caller's screen state stays mounted behind it.
 
 import { useEffect, useRef } from "react";
-import { Animated, Easing, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { Animated, Modal, Pressable, StyleSheet, Text as RNText, View, useWindowDimensions } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -104,8 +105,7 @@ export function AutoReasoningIntroSheet({ visible, ko, onConfirm, onClose }: Aut
     rise.setValue(0);
     Animated.timing(rise, {
       toValue: 1,
-      duration: 320,
-      easing: Easing.out(Easing.cubic),
+      duration: 320, easing: pixelStepsFor(320),
       useNativeDriver: true,
     }).start();
   }, [visible, rise]);

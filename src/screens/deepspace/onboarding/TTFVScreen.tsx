@@ -16,7 +16,8 @@
 // is cyan and recedes below it; the third node is dim. All links are cyan.
 
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -126,8 +127,8 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1200, easing: pixelStepsFor(1200), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1200, easing: pixelStepsFor(1200), useNativeDriver: true }),
       ]),
     );
     loop.start();

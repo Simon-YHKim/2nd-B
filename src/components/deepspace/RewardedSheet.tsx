@@ -17,13 +17,13 @@
 import { useEffect, useRef } from "react";
 import {
   Animated,
-  Easing,
   Modal,
   Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Path } from "react-native-svg";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
@@ -74,8 +74,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
       rise.setValue(0);
       Animated.timing(rise, {
         toValue: 1,
-        duration: 320,
-        easing: Easing.out(Easing.cubic),
+        duration: 320, easing: pixelStepsFor(320),
         useNativeDriver: true,
       }).start();
     } else {
@@ -87,8 +86,8 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
     if (!visible) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(bloom, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bloom, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(bloom, { toValue: 1, duration: 1200, easing: pixelStepsFor(1200), useNativeDriver: true }),
+        Animated.timing(bloom, { toValue: 0, duration: 1200, easing: pixelStepsFor(1200), useNativeDriver: true }),
       ]),
     );
     loop.start();

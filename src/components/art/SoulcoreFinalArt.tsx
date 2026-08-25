@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 import {
   Animated,
   AppState,
-  Easing,
   StyleSheet,
   View,
   type ImageSourcePropType,
@@ -11,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Polygon, Rect } from "react-native-svg";
 
 import { LivingAsset } from "@/components/motion/LivingAsset";
@@ -204,16 +204,16 @@ function SoulFlameFlicker({ size, active }: { size: number; active: boolean }) {
     }
     const flameLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(flicker, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(flicker, { toValue: 0.24, duration: 180, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(flicker, { toValue: 0.78, duration: 260, easing: Easing.out(Easing.sin), useNativeDriver: true }),
-        Animated.timing(flicker, { toValue: 0, duration: 300, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 1, duration: 220, easing: pixelStepsFor(220), useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 0.24, duration: 180, easing: pixelStepsFor(180), useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 0.78, duration: 260, easing: pixelStepsFor(260), useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 0, duration: 300, easing: pixelStepsFor(300), useNativeDriver: true }),
       ]),
     );
     const sparkLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(spark, { toValue: 1, duration: 780, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(spark, { toValue: 0, duration: 80, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(spark, { toValue: 1, duration: 780, easing: pixelStepsFor(780), useNativeDriver: true }),
+        Animated.timing(spark, { toValue: 0, duration: 80, easing: pixelStepsFor(80), useNativeDriver: true }),
       ]),
     );
 

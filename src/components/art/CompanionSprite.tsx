@@ -3,7 +3,8 @@
 // refined shard/tier-icon cues for the moment burst.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 
 import { ShardArt, type ShardId } from "@/components/art/IslandArt";
 import { TierIcon, type TierIconId } from "@/components/art/TierIcon";
@@ -232,11 +233,11 @@ export function CompanionMoment({ moment, style }: { moment: ActiveMoment; style
     ty.setValue(8);
     const anim = Animated.sequence([
       Animated.parallel([
-        Animated.timing(op, { toValue: 1, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(ty, { toValue: 0, duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(op, { toValue: 1, duration: 200, easing: pixelStepsFor(200), useNativeDriver: true }),
+        Animated.timing(ty, { toValue: 0, duration: 200, easing: pixelStepsFor(200), useNativeDriver: true }),
       ]),
       Animated.delay(1000),
-      Animated.timing(op, { toValue: 0, duration: 300, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(op, { toValue: 0, duration: 300, easing: pixelStepsFor(300), useNativeDriver: true }),
     ]);
     anim.start();
     return () => anim.stop();

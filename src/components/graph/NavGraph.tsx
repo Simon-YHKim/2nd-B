@@ -34,13 +34,13 @@ import {
   Animated,
   AppState,
   BackHandler,
-  Easing,
   Platform,
   Pressable,
   StyleSheet,
   View,
   useWindowDimensions,
 } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import Svg, { Line } from "react-native-svg";
 import { router, type Href } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -956,7 +956,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
         driftValues.current.set(id, v);
         const duration = 14000 + seeded(id, 6) * 6000; // 14–20s per cycle, gentler than before
         const loop = Animated.loop(
-          Animated.timing(v, { toValue: 1, duration, easing: Easing.linear, useNativeDriver: false }),
+          Animated.timing(v, { toValue: 1, duration, easing: pixelStepsFor(duration), useNativeDriver: false }),
         );
         driftLoops.current.set(id, loop);
         if (AppState.currentState === "active") loop.start();
@@ -1068,8 +1068,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
           if (v) {
             Animated.timing(v, {
               toValue: 1,
-              duration: SPAWN_REVEAL_MS,
-              easing: Easing.out(Easing.cubic),
+              duration: SPAWN_REVEAL_MS, easing: pixelStepsFor(SPAWN_REVEAL_MS),
               useNativeDriver: false, // spawnValues feed SVG opacity/scale — JS-driven only (see NavGraph native-driver note)
             }).start();
           }
@@ -1218,12 +1217,12 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
     // finished=false while it still closes over the stale (false) vis. Without
     // the guard it would unmount tier-3 nodes that should now be visible,
     // leaving them hidden until the next threshold crossing.
-    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+    Animated.timing(tier3Fade, { toValue: vis.tier3 ? 1 : 0, duration: 180, easing: pixelStepsFor(180), useNativeDriver: false })
       .start(({ finished }) => { if (finished && !vis.tier3) setTier3Mounted(false); });
   }, [vis.tier3, tier3Fade]);
   useEffect(() => {
     if (vis.tier4) setTier4Mounted(true);
-    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: false })
+    Animated.timing(tier4Fade, { toValue: vis.tier4 ? 1 : 0, duration: 180, easing: pixelStepsFor(180), useNativeDriver: false })
       .start(({ finished }) => { if (finished && !vis.tier4) setTier4Mounted(false); });
   }, [vis.tier4, tier4Fade]);
   const tierOf = (id: string): Tier =>
@@ -1255,11 +1254,11 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
       // SVG read throws "moved to native" → first-render RedBox → whole app blank.
       // (Regressed once by 45ae380f; fixed before by 84be3a8. Do not flip back to true.)
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.9, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.9, duration: 260, easing: pixelStepsFor(260), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: pixelStepsFor(420), useNativeDriver: false }),
         Animated.delay(400),
-        Animated.timing(v, { toValue: 1.6, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-        Animated.timing(v, { toValue: 1.0, duration: 420, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.6, duration: 240, easing: pixelStepsFor(240), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 420, easing: pixelStepsFor(420), useNativeDriver: false }),
       ]).start();
     }
     const t = setTimeout(() => setHighlightDataId(null), 2800);
@@ -1296,8 +1295,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
       const loop = Animated.loop(
         Animated.timing(linkSignals[k], {
           toValue: 1,
-          duration: PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE[k],
-          easing: Easing.linear,
+          duration: PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE[k], easing: pixelStepsFor(PATTERN_LINK_SIGNAL_DURATION_MS_BY_DISTANCE[k]),
           useNativeDriver: false,
         }),
       );
@@ -1338,15 +1336,13 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
       setZoomMountId(zoomIslandId);
       Animated.timing(zoomReveal, {
         toValue: 1,
-        duration: reduce ? 0 : 280,
-        easing: Easing.out(Easing.cubic),
+        duration: reduce ? 0 : 280, easing: pixelStepsFor(reduce ? 0 : 280),
         useNativeDriver: false,
       }).start();
     } else {
       Animated.timing(zoomReveal, {
         toValue: 0,
-        duration: reduce ? 0 : 200,
-        easing: Easing.in(Easing.quad),
+        duration: reduce ? 0 : 200, easing: pixelStepsFor(reduce ? 0 : 200),
         useNativeDriver: false,
       }).start(({ finished }) => {
         if (finished) setZoomMountId(null);
@@ -1358,8 +1354,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
   useEffect(() => {
     Animated.timing(drilldownReveal, {
       toValue: drilldownCoreId ? 1 : 0,
-      duration: prefersReducedMotion() ? 0 : 260,
-      easing: Easing.out(Easing.cubic),
+      duration: prefersReducedMotion() ? 0 : 260, easing: pixelStepsFor(prefersReducedMotion() ? 0 : 260),
       useNativeDriver: false,
     }).start();
   }, [drilldownCoreId, drilldownReveal]);
@@ -1379,8 +1374,8 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
       // useNativeDriver false — `v` (pulseValue) feeds an SVG transform.scale; native
       // driver here throws "moved to native" on the JS-driven SVG read (see block above).
       Animated.sequence([
-        Animated.timing(v, { toValue: 1.18, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-        Animated.timing(v, { toValue: 1.0, duration: 360, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.18, duration: 280, easing: pixelStepsFor(280), useNativeDriver: false }),
+        Animated.timing(v, { toValue: 1.0, duration: 360, easing: pixelStepsFor(360), useNativeDriver: false }),
       ]).start();
     }, PULSE_INTERVAL_MS);
     return () => clearInterval(id);
@@ -1494,7 +1489,7 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
         if (!tier4DriftOn && isDataEdge) {
           v.setValue(1);
         } else {
-          Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+          Animated.timing(v, { toValue: 1, duration: EDGE_REVEAL_MS, easing: pixelStepsFor(EDGE_REVEAL_MS), useNativeDriver: false }).start();
         }
       }
     }
@@ -2160,8 +2155,7 @@ function NodeSheet({
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
+      duration: 220, easing: pixelStepsFor(220),
       useNativeDriver: false,
     }).start();
   }, [slide, name]);
@@ -2280,8 +2274,7 @@ function DrilldownSheet({
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
-      duration: prefersReducedMotion() ? 0 : 220,
-      easing: Easing.out(Easing.cubic),
+      duration: prefersReducedMotion() ? 0 : 220, easing: pixelStepsFor(prefersReducedMotion() ? 0 : 220),
       useNativeDriver: false,
     }).start();
   }, [coreId, slide]);
@@ -2408,8 +2401,7 @@ function DataNodeSheet({
     slide.setValue(0);
     Animated.timing(slide, {
       toValue: 1,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
+      duration: 220, easing: pixelStepsFor(220),
       useNativeDriver: false,
     }).start();
   }, [slide, title]);
