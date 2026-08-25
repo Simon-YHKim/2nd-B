@@ -1,0 +1,78 @@
+{
+ "note": "Shell→DockShell 위임(하단 탭바 복구) 전후. before 는 이식 전 최초 측정치.",
+ "capturedWith": "design/pixel_clay_260825/tools/capture-app.mjs",
+ "shellFix": [
+  {
+   "id": "review",
+   "route": "/review",
+   "refNodes": 13,
+   "appNodes": 17,
+   "textMatchPct": 69,
+   "beforeShellFix": 7
+  },
+  {
+   "id": "permissions",
+   "route": "/permissions",
+   "refNodes": 7,
+   "appNodes": 10,
+   "textMatchPct": 71,
+   "beforeShellFix": 0
+  },
+  {
+   "id": "privacy",
+   "route": "/privacy",
+   "refNodes": 7,
+   "appNodes": 42,
+   "textMatchPct": 71,
+   "beforeShellFix": 0
+  },
+  {
+   "id": "support",
+   "route": "/support",
+   "refNodes": 7,
+   "appNodes": 51,
+   "textMatchPct": 71,
+   "beforeShellFix": 0
+  },
+  {
+   "id": "manual",
+   "route": "/manual",
+   "refNodes": 7,
+   "appNodes": 37,
+   "textMatchPct": 71,
+   "beforeShellFix": 13
+  },
+  {
+   "id": "me-star",
+   "route": "/me/school",
+   "refNodes": 8,
+   "appNodes": 11,
+   "textMatchPct": 75,
+   "beforeShellFix": 56
+  },
+  {
+   "id": "trend",
+   "route": "/brightness",
+   "refNodes": 8,
+   "appNodes": 11,
+   "textMatchPct": 100,
+   "beforeShellFix": 67
+  },
+  {
+   "id": "insights",
+   "route": "/insights",
+   "refNodes": 6,
+   "appNodes": 11,
+   "textMatchPct": 100,
+   "beforeShellFix": 14
+  },
+  {
+   "id": "formats",
+   "route": "/formats",
+   "refNodes": 6,
+   "appNodes": 25,
+   "textMatchPct": 100,
+   "beforeShellFix": 14
+  }
+ ]
+}
