@@ -139,7 +139,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "AI 시대 가장 가치있는 자산, 나 자신을 축적하세요.",
+    "signInLead": "AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다.",
     "signIn": "로그인",
     "createAccount": "계정 만들기",
     "signUpTitle": "시작하기",
@@ -328,7 +328,7 @@
   },
   "manual": {
     "title": "매뉴얼 · 도움말",
-    "status": "궁금한 걸 빠르게 찾아봅니다.",
+    "status": "기록은 당신 것, 요약은 당신이 승인한 것. 여기서 그 구조를 찾아봅니다.",
     "tip": "찾는 게 없으면 세컨비에게 바로 물어보세요.",
     "search": "무엇이 궁금하신가요?",
     "sectionStart": "시작하기",
@@ -777,7 +777,7 @@
       "cadenceSaving": "연간으로 결제하면 두 달치를 덜 냅니다.",
       "honestyLead": "요금은 대화·리즈닝 ",
       "honestyStrong": "횟수와 페르소나만",
-      "honestyTail": " 다릅니다. 더 비싸다고 더 ‘나은 나’를 주지 않습니다.",
+      "honestyTail": " 다릅니다. 기록도 요약도 당신 것이고, 더 비싸다고 더 ‘나은 나’를 주지 않습니다.",
       "active": "이용 중",
       "currentPlan": "현재 요금제",
       "included": "기본 포함",
@@ -1026,7 +1026,7 @@
     "authLabel": "시작하기",
     "secondbName": "세컨비",
     "authTitle": "시작할까요?",
-    "authBody": "이제 {{who}}의 별자리를 만들어볼까요.",
+    "authBody": "기록은 당신 것, 요약은 당신이 승인한 것. 이제 당신의 별자리를 만들어볼까요.",
     "next": "다음"
   },
   "trends": {

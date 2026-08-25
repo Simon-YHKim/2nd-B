@@ -139,7 +139,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "Construye tu activo más valioso en la era de la IA: tú mismo.",
+    "signInLead": "En la era de la IA, el activo eres tú. Tus registros forman tu Estrella Polar.",
     "signIn": "Iniciar sesión",
     "createAccount": "Crear cuenta",
     "signUpTitle": "Empezar",
@@ -328,7 +328,7 @@
   },
   "manual": {
     "title": "Manual · Ayuda",
-    "status": "Encuentra rápido lo que te da curiosidad.",
+    "status": "Tus registros son tuyos; el resumen es el que tú apruebas. Aquí ves cómo funciona.",
     "tip": "Si no lo encuentras, pregunta a SecondB.",
     "search": "¿Qué te da curiosidad?",
     "sectionStart": "Primeros pasos",
@@ -777,7 +777,7 @@
       "cadenceSaving": "Pagar por año cuesta dos meses menos.",
       "honestyLead": "Los planes solo se diferencian ",
       "honestyStrong": "en conteos y personas",
-      "honestyTail": ". Pagar más nunca te da un 'mejor tú'.",
+      "honestyTail": ". Tus registros y tu resumen siguen siendo tuyos; pagar más nunca te da un 'mejor tú'.",
       "active": "Activo",
       "currentPlan": "Plan actual",
       "included": "Incluido en todos los planes",
@@ -1026,7 +1026,7 @@
     "authLabel": "Inicia sesión para empezar",
     "secondbName": "SecondB",
     "authTitle": "¿Empezamos?",
-    "authBody": "Inicia sesión para retomar tu constelación en cualquier dispositivo.",
+    "authBody": "Tus registros son tuyos; el resumen es el que tú apruebas. Vamos a construir tu constelación.",
     "next": "Siguiente"
   },
   "trends": {
