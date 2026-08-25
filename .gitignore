@@ -154,3 +154,7 @@ design/proto_rev2/docs/improve-audit/
 fb_2ndb_K/
 apl_sign.txt
 .playwright-mcp/
+
+# 앱 캡처 산출물(design/pixel_clay_260825/tools/capture-app.mjs). 레퍼런스와 달리
+# 커밋하지 않는다 — 매 실행마다 새로 뜨고, 계정 상태에 따라 달라진다.
+.app-shots/
