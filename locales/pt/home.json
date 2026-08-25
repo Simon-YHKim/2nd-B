@@ -583,7 +583,10 @@
       "dug": "{{n}} de {{total}} camadas abertas",
       "records": "{{n}} registros",
       "start": "Começar",
-      "continue": "Continuar"
+      "continue": "Continuar",
+      "pageLabel": "Resumo da estrela",
+      "meter": "Brilha até onde você cava · {{n}}/{{total}} camadas",
+      "recordsLabel": "O que você guardou até agora"
     },
     "dashboard": {
       "title": "O que sei sobre você",

@@ -100,6 +100,10 @@ export default function StarSummaryRoute() {
   return (
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={name} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.body}>
+        {/* 레퍼런스는 별 이름 위에 화면 이름을 둔다 — 어느 별에 있든 "여기가 요약
+            자리"라는 것이 먼저 읽혀야 하기 때문이다(design/pixel_clay_260825
+            captures/me-star.png). */}
+        <Text style={[m3TextStyle("labelMedium"), styles.pageLabel]}>{t("ds.star.pageLabel")}</Text>
         <Text style={[m3TextStyle("headlineSmall"), styles.title]}>{name}</Text>
         {range.length > 0 ? (
           <Text style={[m3TextStyle("bodyMedium"), styles.range]}>{range}</Text>
@@ -133,8 +137,16 @@ export default function StarSummaryRoute() {
                 <Text style={[m3TextStyle("bodyMedium"), styles.muted]}>{t("ds.star.emptyBody")}</Text>
               ) : (
                 <>
+                  {/* 밝기의 규칙을 숫자 옆에 붙여 말한다. 이 한 줄이 없으면 "3/5"
+                      가 점수처럼 읽히는데, 이 앱에서 밝기는 평가가 아니라 판 양이다. */}
                   <Text style={[m3TextStyle("bodyMedium"), styles.line]}>
+                    {t("ds.star.meter", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })}
+                  </Text>
+                  <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
                     {t("ds.star.dug", { n: summary.cells ?? 0, total: DRILL_LAYERS.length })}
+                  </Text>
+                  <Text style={[m3TextStyle("labelSmall"), styles.sectionLabel]}>
+                    {t("ds.star.recordsLabel")}
                   </Text>
                   <Text style={[m3TextStyle("bodySmall"), styles.muted]}>
                     {t("ds.star.records", { n: summary.records })}
@@ -171,6 +183,8 @@ export default function StarSummaryRoute() {
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.sm },
+  pageLabel: { color: m3.color.onSurfaceVariant, marginBottom: spacing.xs },
+  sectionLabel: { color: m3.color.onSurfaceVariant, marginTop: spacing.sm },
   title: { color: m3.color.onSurface },
   range: { color: m3.color.onSurfaceVariant, marginBottom: spacing.sm },
   card: { marginTop: spacing.sm },

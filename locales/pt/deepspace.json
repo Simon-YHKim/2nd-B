@@ -418,7 +418,11 @@
     "evidence": "{{count}} registros de apoio",
     "footer": "Nada se aplica até você aprovar · cada sugestão fica nos seus registros",
     "hold": "Aguardar",
-    "approve": "Aprovar"
+    "approve": "Aprovar",
+    "rule": "Nada é aplicado até você confirmar · L5 abre só aqui",
+    "groupSeven": "Estrelas de período · com duas camadas ou mais",
+    "groupTest": "A partir dos seus testes",
+    "ledgerNote": "Toda proposta fica no histórico."
   },
   "formats": {
     "title": "Formato de exportação",

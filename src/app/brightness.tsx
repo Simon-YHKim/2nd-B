@@ -81,6 +81,11 @@ export default function BrightnessTimelineScreen() {
     <DeepSpaceScreen active="lens" header="none" variant="windowed" title={barTitle} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text variant="heading">{t("timeline")}</Text>
+        {/* 레퍼런스는 제목 밑에 범위를 한 줄로 붙이고(8주 · 별 일곱), 그 아래에
+            밝기의 규칙을 적는다. 규칙 문장이 없으면 빈 칸이 '실패'로 읽힌다 —
+            이 앱에서 빈 주는 그냥 안 판 주다(design/pixel_clay_260825/captures/trend.png). */}
+        <Text variant="caption" color="textMuted">{t("subtitle")}</Text>
+        <Text variant="body" color="textMuted">{t("rule")}</Text>
 
         {timeline === null ? (
           <PremiumLoadingState message={t("readingSky")} />

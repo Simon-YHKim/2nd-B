@@ -583,7 +583,10 @@
       "dug": "{{n}} de {{total}} capas abiertas",
       "records": "{{n}} registros",
       "start": "Empezar",
-      "continue": "Seguir"
+      "continue": "Seguir",
+      "pageLabel": "Resumen de la estrella",
+      "meter": "Brilla hasta donde excavas · {{n}}/{{total}} capas",
+      "recordsLabel": "Lo que has guardado hasta ahora"
     },
     "dashboard": {
       "title": "Lo que sé de ti",

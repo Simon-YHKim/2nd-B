@@ -418,7 +418,11 @@
     "evidence": "{{count}} catatan pendukung",
     "footer": "Tidak ada yang berlaku sampai kamu menyetujui · tiap saran tersimpan di catatanmu",
     "hold": "Tahan",
-    "approve": "Setujui"
+    "approve": "Setujui",
+    "rule": "Tidak ada yang berlaku sampai kamu konfirmasi · L5 hanya terbuka di sini",
+    "groupSeven": "Bintang periode · yang digali dua lapis atau lebih",
+    "groupTest": "Dari tes kamu",
+    "ledgerNote": "Setiap usulan tercatat di riwayat."
   },
   "formats": {
     "title": "Format ekspor",

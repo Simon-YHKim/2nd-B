@@ -13,5 +13,7 @@
   "honestyLine": "관측 {{obs}}번 · 근거 있는 관측 {{cited}}번 · 별 {{stars}}개",
   "citedRatioLabel": "근거 비율 {{cited}}/{{obs}}",
   "honestyCaption": "밝기는 확신이 아니라 기록의 양입니다. 근거가 붙을수록 믿을 만해집니다.",
-  "reviewCta": "제안 확인하러 가기"
+  "reviewCta": "제안 확인하러 가기",
+  "subtitle": "8주 · 별 일곱",
+  "rule": "밝기는 판 만큼만 올라가요. 빈 주는 빈 대로 둡니다."
 }

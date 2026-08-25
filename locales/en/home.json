@@ -583,7 +583,10 @@
       "dug": "{{n}} of {{total}} layers opened",
       "records": "{{n}} records",
       "start": "Start",
-      "continue": "Keep going"
+      "continue": "Keep going",
+      "pageLabel": "Star summary",
+      "meter": "It brightens as far as you dig · {{n}}/{{total}} layers",
+      "recordsLabel": "What you have kept so far"
     },
     "dashboard": {
       "title": "What I know about you",
