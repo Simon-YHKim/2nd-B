@@ -4,7 +4,8 @@
 // the main village workers.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View, AppState, type ViewStyle } from "react-native";
+import { Animated, StyleSheet, View, AppState, type ViewStyle } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 
 import { ShardArt } from "@/components/art/IslandArt";
 import { TierIcon } from "@/components/art/TierIcon";
@@ -34,8 +35,8 @@ function useFloat(enabled: boolean) {
     if (!enabled || prefersReducedMotion()) return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(ty, { toValue: -4, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(ty, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(ty, { toValue: -4, duration: 1300, easing: pixelStepsFor(1300), useNativeDriver: true }),
+        Animated.timing(ty, { toValue: 0, duration: 1300, easing: pixelStepsFor(1300), useNativeDriver: true }),
       ]),
     );
     if (AppState.currentState === "active") {

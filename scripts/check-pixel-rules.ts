@@ -2,6 +2,7 @@
 //
 //   규칙 2  `border-radius: 0`, 전 화면 강제
 //   규칙 3  블러 금지 (그림자 대신 4방향 베벨 + 쌓임 순서)
+//   규칙 5  계단 이징만 (곡선 이징·스프링 금지)
 //
 // 두 규칙을 한 파일에 둔 이유: 둘 다 "이식된 화면이 되돌아가지 않는가" 를 묻는
 // 같은 질문이고, 목록도 같다. 따로 두면 목록이 두 벌이 되어 어긋난다.
@@ -172,6 +173,18 @@ const MIGRATED: readonly string[] = [
 //
 // 교훈은 같다: 가드가 PASS 를 뱉는다고 규칙이 지켜지는 게 아니다. **무엇을 안
 // 보는지**를 세어봐야 안다. 허용 목록이면 새 토큰 세트가 생겨도 자동으로 걸린다.
+// ── 규칙 5 — 계단 이징만 ────────────────────────────────────────────────────
+//
+// React Native 의 Easing 에는 CSS 의 steps() 가 없다. 그래서 저장소가 직접 만든
+// `pixelSteps` / `pixelStepsFor` (src/lib/motion/pixel-physical.ts) 를 쓴다.
+// 여기서 막는 것은 **연속 이징으로 되돌아가는 것**이다.
+//
+// ⚠ `useNativeDriver` 는 성능 플래그지 이징이 아니다 — 막지 않는다.
+// ⚠ `Easing.step0` / `Easing.step1` 은 이미 계단이라 통과시킨다.
+const CURVED_EASING =
+  /\bEasing\.(?!step0\b|step1\b)(?:inOut|in|out)\(|\bEasing\.(?:linear|ease|quad|cubic|sin|circle|exp|bounce|elastic|back|bezier|poly)\b/g;
+const SPRING_ANIM = /\b(?:withSpring|Animated\.spring)\s*\(/g;
+
 const RADIUS_PROP =
   /border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*([^,\n}]+)/g;
 
@@ -290,6 +303,22 @@ for (const rel of MIGRATED) {
       why: "규칙 2 -- 반경은 `0` 또는 `m3.shape.*` 만. 숫자·레거시 토큰·계산식 전부 불가",
     });
   }
+  for (const m of src.matchAll(CURVED_EASING)) {
+    hits.push({
+      file: rel,
+      line: lineOf(src, m.index ?? 0),
+      text: m[0],
+      why: "규칙 5 -- 곡선 이징. `pixelSteps(n)` 또는 `pixelStepsFor(ms)` 를 쓸 것 (lib/motion/pixel-physical)",
+    });
+  }
+  for (const m of src.matchAll(SPRING_ANIM)) {
+    hits.push({
+      file: rel,
+      line: lineOf(src, m.index ?? 0),
+      text: m[0],
+      why: "규칙 5 -- 스프링은 연속 운동이다. 계단 이징 + Animated.timing 으로",
+    });
+  }
   for (const m of src.matchAll(LEGACY_TOKEN)) {
     if (EXEMPT_TOKENS.has(m[0])) continue;
     hits.push({
@@ -368,7 +397,7 @@ for (const rel of MIGRATED) {
 }
 
 if (hits.length > 0) {
-  console.error("PIXEL-CLAY RULES FAIL  이식된 화면이 규칙 2·3 또는 타입 격자에서 되돌아갔다:");
+  console.error("PIXEL-CLAY RULES FAIL  이식된 화면이 규칙 2·3·5 또는 타입 격자에서 되돌아갔다:");
   for (const h of hits) {
     console.error(`  - ${h.file}:${h.line}  ${h.text}`);
     console.error(`      ${h.why}`);
@@ -377,5 +406,5 @@ if (hits.length > 0) {
 }
 
 console.log(
-  `PIXEL-CLAY RULES PASS  이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 · 타입 격자 준수 (규칙 2·3 + PRD §2-4)`,
+  `PIXEL-CLAY RULES PASS  이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 · 곡선 이징 0건 · 타입 격자 준수 (규칙 2·3·5 + PRD §2-4)`,
 );

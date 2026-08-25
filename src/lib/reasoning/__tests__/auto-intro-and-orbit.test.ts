@@ -41,8 +41,21 @@ describe("spec A — first-ON consumption-rules sheet", () => {
 describe("spec D — constant-speed orbit ring while running", () => {
   test("the ring spins at constant speed, never scaled to progress", () => {
     expect(reasoning).toContain("일정 속도의 궤도 진행 링");
-    expect(reasoning).toContain("Easing.linear");
     expect(reasoning).toContain("styles.orbitRing");
+    // 링은 **진행률이 아니라 시간**으로 돈다. 그것을 지키는 방법은 두 가지다:
+    //  (1) 이징이 등속이어야 한다 — 예전에는 Easing.linear 였고, PIXEL-CLAY 규칙 5
+    //      (계단 이징만) 이후에는 pixelStepsFor(duration) 다. 둘 다 등속이고,
+    //      뒤엣것은 칸으로 끊길 뿐 빨라지거나 느려지지 않는다.
+    //  (2) toValue 가 진행률에서 오면 안 된다 — 상수 1 이어야 한다.
+    // 리터럴 하나를 박으면 규칙이 움직일 때마다 이 검사가 거짓으로 깨진다.
+    // 그래서 **불변식**을 본다.
+    const orbitTiming = /Animated\.timing\(orbit, \{([^}]*)\}/.exec(reasoning);
+    expect(orbitTiming).not.toBeNull();
+    const args = orbitTiming![1];
+    expect(args).toContain("toValue: 1");
+    expect(args).toMatch(/easing: (pixelStepsFor\(|Easing\.linear)/);
+    // ⚠ 'duration' 안에 'ratio' 가 들어 있다. 낱말 경계를 잡지 않으면 자기 자신에게 걸린다.
+    expect(args).not.toMatch(/(progress|ratio|pct|percent)/i);
   });
 
   test("the determinate percent bar is gated to the done phase", () => {

@@ -12,7 +12,8 @@
 // Prototype source of truth: rev2 `sb-museum.jsx` (geometry MZ + mzPlace, data
 // 1:1 in museum-timeline-data.ts). Deep-space track only.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, PanResponder, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { Animated, PanResponder, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import Svg, { Line, Path } from "react-native-svg";
 import { SvgXml } from "react-native-svg";
@@ -89,8 +90,7 @@ export function MuseumTimelineScreen() {
     sheetAnim.setValue(0);
     Animated.timing(sheetAnim, {
       toValue: 1,
-      duration: 240,
-      easing: Easing.out(Easing.cubic),
+      duration: 240, easing: pixelStepsFor(240),
       useNativeDriver: true,
     }).start();
   }, [selId, sheetAnim]);

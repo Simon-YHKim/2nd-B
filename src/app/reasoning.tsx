@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, FlatList, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { Animated, FlatList, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { SvgXml } from "react-native-svg";
@@ -718,7 +719,7 @@ export default function ReasoningScreen() {
     if (phase !== "running") return;
     orbit.setValue(0);
     const loop = Animated.loop(
-      Animated.timing(orbit, { toValue: 1, duration: 2400, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(orbit, { toValue: 1, duration: 2400, easing: pixelStepsFor(2400), useNativeDriver: true }),
     );
     loop.start();
     return () => loop.stop();

@@ -32,7 +32,8 @@
 //   static measure node  ->  tracking node (JS)  ->  bob node (native)  ->  face
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Image } from "expo-image";
 import Svg, { Circle, Path } from "react-native-svg";
 
@@ -106,8 +107,8 @@ function WhistleNote({ size, accent, reduce }: { size: number; accent: string; r
     // (see the blink note below for why mixing drivers here throws).
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(drift, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(drift, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(drift, { toValue: 1, duration: 900, easing: pixelStepsFor(900), useNativeDriver: false }),
+        Animated.timing(drift, { toValue: 0, duration: 900, easing: pixelStepsFor(900), useNativeDriver: false }),
       ]),
     );
     loop.start();
@@ -230,8 +231,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
     }
     const bobLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(bob, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 1, duration: 2000, easing: pixelStepsFor(2000), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 2000, easing: pixelStepsFor(2000), useNativeDriver: true }),
       ]),
     );
     bobLoop.start();
@@ -262,8 +263,8 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
           // A native blink would move that node to the native side, and the
           // SecondbHeadTrack provider's JS setValue/spring on touch/engage would then
           // throw "JS driven animation on a node moved to native" on the next touch.
-          Animated.timing(blink, { toValue: 0.08, duration: 65 * lidMs, easing: Easing.in(Easing.quad), useNativeDriver: false }),
-          Animated.timing(blink, { toValue: 1, duration: 75 * lidMs, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 0.08, duration: 65 * lidMs, easing: pixelStepsFor(65 * lidMs), useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 1, duration: 75 * lidMs, easing: pixelStepsFor(75 * lidMs), useNativeDriver: false }),
         ]).start(() => {
           if (!cancelled) schedule();
         });
