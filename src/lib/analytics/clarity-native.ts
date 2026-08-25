@@ -53,6 +53,10 @@ export type ClarityApi = {
   resume: () => Promise<boolean>;
   consent: (adsStorage: boolean, analyticsStorage: boolean) => Promise<boolean>;
   setCurrentScreenName: (screenName: string | null) => Promise<boolean>;
+  // 진단용. SDK 에 실제로 있는 함수지만(index.d.ts:61,179) 이 모듈이 쓰지 않으므로
+  // optional 로 둔다 — 테스트가 넘기는 가짜 api 가 이걸 안 가져도 깨지지 않는다.
+  isPaused?: () => Promise<boolean>;
+  getCurrentSessionUrl?: () => Promise<string | undefined>;
 };
 
 type NativeModuleLookup = (name: string) => unknown;
@@ -177,6 +181,44 @@ async function apply(decision: ClarityDecision): Promise<void> {
 export function syncNativeClarity(decision: ClarityDecision): void {
   if (Platform.OS === "web") return;
   chain = chain.then(() => apply(decision)).catch(() => {});
+}
+
+/**
+ * 진단: SDK 가 **실제로** 어떤 상태인지 물어본다. 우리 모듈의 내부 플래그가 아니라
+ * SDK 쪽 대답이라, "우리는 켰다고 생각하는데 SDK 는 멎어 있다" 를 가려낼 수 있다.
+ *
+ * 이 함수는 아무것도 시작하지 않는다 — 네이티브 모듈이 없으면 null 을 돌려주고,
+ * SDK 를 새로 import 하지도 않는다(이미 로드된 경우에만 답한다). 개발자 화면에서만
+ * 부른다.
+ */
+export async function probeNativeClarity(): Promise<{
+  modulePresent: boolean;
+  initialized: boolean;
+  capturing: boolean;
+  lastScreenName: string | null;
+  sdkPaused: boolean | null;
+  sessionUrl: string | null;
+}> {
+  const modulePresent = hasNativeClarityModule();
+  const base = { modulePresent, initialized, capturing, lastScreenName };
+  if (!modulePresent || !initialized) {
+    return { ...base, sdkPaused: null, sessionUrl: null };
+  }
+  const api = await loadClarity();
+  if (!api) return { ...base, sdkPaused: null, sessionUrl: null };
+  let sdkPaused: boolean | null = null;
+  let sessionUrl: string | null = null;
+  try {
+    sdkPaused = api.isPaused ? await api.isPaused() : null;
+  } catch {
+    sdkPaused = null;
+  }
+  try {
+    sessionUrl = api.getCurrentSessionUrl ? (await api.getCurrentSessionUrl()) ?? null : null;
+  } catch {
+    sessionUrl = null;
+  }
+  return { ...base, sdkPaused, sessionUrl };
 }
 
 /** Test hook only: substitute the SDK (null restores the real import). */
