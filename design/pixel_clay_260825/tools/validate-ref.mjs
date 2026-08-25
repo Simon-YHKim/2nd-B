@@ -15,6 +15,10 @@
  *   4. tokens.json 이 런타임 추출본이고 앵커 값을 갖는다(--u:2px 등) — CSS 텍스트
  *      정규식으로 뜨면 --u 가 4px 로 나온다(실측). 그 사고를 여기서 잡는다.
  *   5. nav.json 의 키가 캡처한 화면의 부분집합이다
+ *   6. app-routes.json 이 **거짓 수치를 만들 수 없는 모양**인지 — 한 앱 라우트에
+ *      레퍼런스 id 가 둘 이상 붙으면 그중 하나는 반드시 다른 화면과 대조된다
+ *      (실측 2026-08-26: record/records 가 둘 다 /records 라 record 71% 가 거짓이었다).
+ *      unmeasurable/unmapped 항목은 사유(why)가 필수 — 사유 없는 제외는 은폐다.
  *
  * 실행: node design/pixel_clay_260825/tools/validate-ref.mjs
  */
@@ -95,6 +99,40 @@ if (existsSync(navPath)) {
   const nav = JSON.parse(readFileSync(navPath, 'utf8'));
   for (const id of Object.keys(nav)) {
     if (!wantedSet.has(id)) note(`nav.json 에 매니페스트 밖 화면: ${id}`);
+  }
+}
+
+// 6. app-routes — 거짓 수치를 만들 수 있는 모양인가
+const routesPath = path.join(ROOT, 'data', 'app-routes.json');
+if (existsSync(routesPath)) {
+  const rf = JSON.parse(readFileSync(routesPath, 'utf8'));
+  const routes = rf.routes ?? {};
+
+  // 한 라우트에 id 가 둘 이상 = 그중 하나는 다른 화면과 대조된다.
+  const byRoute = new Map();
+  for (const [id, route] of Object.entries(routes)) {
+    if (!byRoute.has(route)) byRoute.set(route, []);
+    byRoute.get(route).push(id);
+  }
+  for (const [route, ids] of byRoute) {
+    if (ids.length > 1) {
+      note(`app-routes: ${route} 에 id 가 ${ids.length}개 (${ids.join(', ')}) — 한 화면을 서로 다른 레퍼런스 프레임에 대조하게 된다. 하나만 남기고 나머지는 unmapped 로 사유와 함께 옮길 것`);
+    }
+  }
+
+  // 매핑된 id 는 매니페스트에 있어야 한다.
+  for (const id of Object.keys(routes)) {
+    if (!seen.has(id)) note(`app-routes: ${id} 가 screens.json 에 없다`);
+  }
+
+  // 제외는 사유가 근거다. 사유 없는 제외는 그냥 숨긴 것이다.
+  for (const key of ['unmeasurable', 'unmapped']) {
+    for (const [id, info] of Object.entries(rf[key] ?? {})) {
+      if (id === '_note') continue;
+      if (!seen.has(id)) note(`app-routes.${key}: ${id} 가 screens.json 에 없다`);
+      if (!info || !info.why) note(`app-routes.${key}: ${id} 에 why 가 없다 — 왜 못 재는지 적지 않으면 다음 사람이 없는 결함을 쫓는다`);
+      if (routes[id]) note(`app-routes: ${id} 가 routes 와 ${key} 에 동시에 있다`);
+    }
   }
 }
 
