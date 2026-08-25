@@ -1,0 +1,328 @@
+{
+ "note": "앱 캡처 대조 리포트(capture-app.mjs). PNG 는 커밋하지 않고 이 수치만 남긴다. text match = 레퍼런스 텍스트 노드 중 앱에도 있는 비율 — 픽셀 동일이 아니라 \"같은 말을 하고 있는가\"의 눈금이다.",
+ "capturedWith": "design/pixel_clay_260825/tools/capture-app.mjs",
+ "baseUrl": "(local expo web export served under /2nd-B)",
+ "consoleErrors": 2,
+ "compare": [
+  {
+   "id": "auth",
+   "route": "/sign-in",
+   "refNodes": 12,
+   "appNodes": 19,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "permissions",
+   "route": "/permissions",
+   "refNodes": 8,
+   "appNodes": 5,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "privacy",
+   "route": "/privacy",
+   "refNodes": 8,
+   "appNodes": 37,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "support",
+   "route": "/support",
+   "refNodes": 8,
+   "appNodes": 49,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "digest",
+   "route": "/digest",
+   "refNodes": 10,
+   "appNodes": 4,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "signup",
+   "route": "/sign-up",
+   "refNodes": 3,
+   "appNodes": 19,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "privacy-policy",
+   "route": "/privacy-policy",
+   "refNodes": 7,
+   "appNodes": 45,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "digest-today",
+   "route": "/digest",
+   "refNodes": 8,
+   "appNodes": 4,
+   "textMatched": 0,
+   "textMatchPct": 0
+  },
+  {
+   "id": "review",
+   "route": "/review",
+   "refNodes": 14,
+   "appNodes": 9,
+   "textMatched": 1,
+   "textMatchPct": 7
+  },
+  {
+   "id": "peer-token",
+   "route": "/peer/sample",
+   "refNodes": 9,
+   "appNodes": 2,
+   "textMatched": 1,
+   "textMatchPct": 11
+  },
+  {
+   "id": "manual",
+   "route": "/manual",
+   "refNodes": 8,
+   "appNodes": 32,
+   "textMatched": 1,
+   "textMatchPct": 13
+  },
+  {
+   "id": "insights",
+   "route": "/insights",
+   "refNodes": 7,
+   "appNodes": 6,
+   "textMatched": 1,
+   "textMatchPct": 14
+  },
+  {
+   "id": "formats",
+   "route": "/formats",
+   "refNodes": 7,
+   "appNodes": 20,
+   "textMatched": 1,
+   "textMatchPct": 14
+  },
+  {
+   "id": "profile",
+   "route": "/profile",
+   "refNodes": 7,
+   "appNodes": 14,
+   "textMatched": 1,
+   "textMatchPct": 14
+  },
+  {
+   "id": "import-hub",
+   "route": "/import-hub",
+   "refNodes": 12,
+   "appNodes": 49,
+   "textMatched": 4,
+   "textMatchPct": 33
+  },
+  {
+   "id": "capture-full",
+   "route": "/capture-full",
+   "refNodes": 19,
+   "appNodes": 24,
+   "textMatched": 9,
+   "textMatchPct": 47
+  },
+  {
+   "id": "me-star",
+   "route": "/me/school",
+   "refNodes": 9,
+   "appNodes": 10,
+   "textMatched": 5,
+   "textMatchPct": 56
+  },
+  {
+   "id": "peer-invites",
+   "route": "/peer-invites",
+   "refNodes": 12,
+   "appNodes": 31,
+   "textMatched": 7,
+   "textMatchPct": 58
+  },
+  {
+   "id": "record",
+   "route": "/records",
+   "refNodes": 8,
+   "appNodes": 74,
+   "textMatched": 5,
+   "textMatchPct": 63
+  },
+  {
+   "id": "trend",
+   "route": "/brightness",
+   "refNodes": 9,
+   "appNodes": 9,
+   "textMatched": 6,
+   "textMatchPct": 67
+  },
+  {
+   "id": "peer",
+   "route": "/seen",
+   "refNodes": 9,
+   "appNodes": 20,
+   "textMatched": 6,
+   "textMatchPct": 67
+  },
+  {
+   "id": "account",
+   "route": "/account",
+   "refNodes": 9,
+   "appNodes": 23,
+   "textMatched": 6,
+   "textMatchPct": 67
+  },
+  {
+   "id": "records",
+   "route": "/records",
+   "refNodes": 7,
+   "appNodes": 74,
+   "textMatched": 5,
+   "textMatchPct": 71
+  },
+  {
+   "id": "star",
+   "route": "/star/career",
+   "refNodes": 7,
+   "appNodes": 43,
+   "textMatched": 5,
+   "textMatchPct": 71
+  },
+  {
+   "id": "import",
+   "route": "/import",
+   "refNodes": 8,
+   "appNodes": 21,
+   "textMatched": 6,
+   "textMatchPct": 75
+  },
+  {
+   "id": "northstar",
+   "route": "/northstar",
+   "refNodes": 9,
+   "appNodes": 13,
+   "textMatched": 7,
+   "textMatchPct": 78
+  },
+  {
+   "id": "ratify",
+   "route": "/ratifications",
+   "refNodes": 9,
+   "appNodes": 84,
+   "textMatched": 7,
+   "textMatchPct": 78
+  },
+  {
+   "id": "home",
+   "route": "/",
+   "refNodes": 6,
+   "appNodes": 19,
+   "textMatched": 5,
+   "textMatchPct": 83
+  },
+  {
+   "id": "capture",
+   "route": "/capture",
+   "refNodes": 6,
+   "appNodes": 23,
+   "textMatched": 5,
+   "textMatchPct": 83
+  },
+  {
+   "id": "chat",
+   "route": "/secondb",
+   "refNodes": 6,
+   "appNodes": 19,
+   "textMatched": 5,
+   "textMatchPct": 83
+  },
+  {
+   "id": "settings",
+   "route": "/settings",
+   "refNodes": 6,
+   "appNodes": 58,
+   "textMatched": 5,
+   "textMatchPct": 83
+  },
+  {
+   "id": "reasoning",
+   "route": "/reasoning",
+   "refNodes": 6,
+   "appNodes": 131,
+   "textMatched": 5,
+   "textMatchPct": 83
+  },
+  {
+   "id": "me",
+   "route": "/core-brain",
+   "refNodes": 7,
+   "appNodes": 21,
+   "textMatched": 6,
+   "textMatchPct": 86
+  },
+  {
+   "id": "interview",
+   "route": "/interview",
+   "refNodes": 7,
+   "appNodes": 10,
+   "textMatched": 6,
+   "textMatchPct": 86
+  },
+  {
+   "id": "notices",
+   "route": "/notices",
+   "refNodes": 7,
+   "appNodes": 27,
+   "textMatched": 6,
+   "textMatchPct": 86
+  },
+  {
+   "id": "growth",
+   "route": "/growth",
+   "refNodes": 7,
+   "appNodes": 10,
+   "textMatched": 6,
+   "textMatchPct": 86
+  },
+  {
+   "id": "subscription",
+   "route": "/subscription",
+   "refNodes": 7,
+   "appNodes": 11,
+   "textMatched": 6,
+   "textMatchPct": 86
+  },
+  {
+   "id": "plans",
+   "route": "/plans",
+   "refNodes": 8,
+   "appNodes": 38,
+   "textMatched": 7,
+   "textMatchPct": 88
+  },
+  {
+   "id": "ops",
+   "route": "/ops",
+   "refNodes": 8,
+   "appNodes": 47,
+   "textMatched": 7,
+   "textMatchPct": 88
+  },
+  {
+   "id": "museum",
+   "route": "/museum",
+   "refNodes": 20,
+   "appNodes": 108,
+   "textMatched": 19,
+   "textMatchPct": 95
+  }
+ ]
+}

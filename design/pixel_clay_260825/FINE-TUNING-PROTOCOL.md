@@ -94,11 +94,40 @@ BASE_URL=http://localhost:8973 node design/pixel_clay_260825/tools/capture-bundl
 - 끝나면 npm run verify 가 초록이어야 한다.
 ```
 
+## 앱 쪽 캡처 — 이제 있다 (2026-08-28)
+
+`tools/capture-app.mjs` 가 우리 앱을 **같은 눈금**(390×820)으로 찍고 레퍼런스와 대조한다.
+결과는 `data/app-compare.json`(수치만 커밋, PNG 는 `.app-shots/` 로 gitignore).
+
+```bash
+node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
+source /tmp/webenv.sh && npx expo export --platform web --output-dir <dist>
+# <root>/2nd-B -> <dist> 정션을 만들고 그 부모를 SPA 폴백으로 서빙
+npx http-server <root> -p 8979 -s --proxy "http://localhost:8979/2nd-B/index.html?"
+BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.mjs
+```
+
+**이 도구가 밟은 함정 다섯**(주석에 다시 적혀 있다):
+
+1. **baseUrl 이 `/2nd-B`** — dist 를 그냥 서빙하면 에셋이 404 나고 "Unexpected token '<'" 만 남는다.
+2. **`/2nd-B/index.html` 이 아니라 `/2nd-B/`** — 라우터가 `.html` 경로를 not-found 로 그린다.
+3. **시각을 고정하면 로그인이 깨진다** — 고정 시각이 토큰 발급보다 뒤면 세션이 만료로
+   보여 **모든 화면이 로그인 월로 찍힌다**(캡처는 성공, 대조만 0%). 기본값은 '지금'.
+4. **깊이 6 컷은 앱에 안 맞는다** — RN-web 은 View 를 겹겹이 싸서 글자가 8~12 depth 에
+   있다. 앱은 24까지 본다(대조는 텍스트 집합이라 비대칭이 문제되지 않는다).
+5. **온보딩은 매 이동마다 다시 뜬다** — 완료 표시가 계정 상태에 있어 한 번 건너뛰는
+   것으로는 홈이 영영 안 찍힌다. 화면마다 확인해서 밀어낸다.
+
+**text match 의 뜻**: 레퍼런스 화면의 텍스트 노드 중 앱에도 있는 비율. **픽셀 동일이
+아니라 "같은 말을 하고 있는가"의 눈금**이다. 낮다고 곧 나쁜 것이 아니다 — 레퍼런스가
+목업 데이터를 쓰는 화면(digest·insights)은 원래 안 맞고, 카피가 다른 화면(privacy·
+support)은 우리 문서가 정본이다. **읽는 법: 같은 화면의 수치가 이식 전후로 오르는가.**
+
 ## 이 키트가 답하지 못하는 것 (한계를 먼저 적는다)
 
-1. **앱 쪽 자동 캡처가 없다.** 레퍼런스는 93장이 있는데 앱은 0장이다. 그래서 지금
-   가능한 것은 "레퍼런스가 무엇인지"의 고정이지 "얼마나 닮았는지"의 자동 측정이 아니다.
-   앱 캡처 파이프라인(웹 export → 헤드리스 순회)은 다음 단계 작업이다.
+1. **픽셀 비교는 여전히 없다.** 앱 캡처가 생겨 구조·텍스트 대조는 가능해졌지만, SSIM
+   같은 픽셀 지표는 이 저장소에서 의미가 약하다(RN-web 렌더와 번들 DOM 은 애초에 다른
+   엔진이다). 여백·손맛은 Tier 3(사람 눈)으로 남는다.
    ⚠ 메모리 인덱스에 있던 "recapture CI 가 렌더를 검증한다"는 서술은 **이 저장소
    현황이 아니다** — `.github/workflows` 에 screenshot/playwright 히트 0건이다.
 2. **번들은 목업이다.** 데이터가 가짜라 화면에 뜬 숫자·문장은 레퍼런스가 아니다.
