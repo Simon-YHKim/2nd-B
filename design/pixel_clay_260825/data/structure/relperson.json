@@ -1,0 +1,315 @@
+{
+ "tag": "div",
+ "cls": [],
+ "box": [
+  390,
+  820
+ ],
+ "kids": [
+  {
+   "tag": "div",
+   "cls": [],
+   "box": [
+    382,
+    812
+   ],
+   "kids": [
+    {
+     "tag": "div",
+     "cls": [],
+     "box": [
+      382,
+      42
+     ],
+     "kids": [
+      {
+       "tag": "div",
+       "cls": [],
+       "box": [
+        382,
+        42
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          30,
+          24
+         ],
+         "text": "12 : 34"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tag": "div",
+     "cls": [],
+     "box": [
+      382,
+      690
+     ],
+     "kids": [
+      {
+       "tag": "div",
+       "cls": [
+        "ds-window"
+       ],
+       "box": [
+        358,
+        664
+       ],
+       "kids": [
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          358,
+          56
+         ],
+         "kids": [
+          {
+           "tag": "span",
+           "cls": [
+            "md-title-large"
+           ],
+           "box": [
+            66,
+            23
+           ],
+           "text": "사람 기록"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tag": "div",
+     "cls": [],
+     "box": [
+      382,
+      80
+     ],
+     "kids": [
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          36,
+          16
+         ],
+         "text": "별자리"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          24,
+          16
+         ],
+         "text": "담기"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          36,
+          16
+         ],
+         "text": "세컨비"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          24,
+          16
+         ],
+         "text": "위키"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          24,
+          16
+         ],
+         "text": "설정"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tag": "div",
+     "cls": [
+      "ds-scrim"
+     ],
+     "box": [
+      382,
+      812
+     ],
+     "kids": [
+      {
+       "tag": "div",
+       "cls": [
+        "ds-window"
+       ],
+       "box": [
+        320,
+        279
+       ],
+       "kids": [
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          284,
+          44
+         ],
+         "kids": [
+          {
+           "tag": "span",
+           "cls": [],
+           "box": [
+            236,
+            44
+           ],
+           "kids": [
+            {
+             "tag": "span",
+             "cls": [],
+             "box": [
+              236,
+              20
+             ],
+             "text": "2026.07.17 · 패치노트"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          284,
+          23
+         ],
+         "text": "리즈닝이 더 똑똑해졌어요"
+        },
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          284,
+          48
+         ],
+         "kids": [
+          {
+           "tag": "span",
+           "cls": [],
+           "box": [
+            80,
+            48
+           ],
+           "kids": [
+            {
+             "tag": "button",
+             "cls": [
+              "px-btn",
+              "px-btn--ghost",
+              "px-btn--sm"
+             ],
+             "box": [
+              38,
+              44
+             ],
+             "text": "리스트"
+            },
+            {
+             "tag": "button",
+             "cls": [
+              "px-btn",
+              "px-btn--primary",
+              "px-btn--sm"
+             ],
+             "box": [
+              28,
+              44
+             ],
+             "text": "확인"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
