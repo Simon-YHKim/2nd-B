@@ -10,7 +10,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
@@ -18,6 +17,7 @@ import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SecondbStatusHeader } from "@/components/deepspace";
 import { MetaChip, OpsState, OpsStatusChip, ProgressBar, type OpsChipTone } from "@/components/deepspace/ops";
 import { enqueueAutoReasoningSource } from "@/app/reasoning";
@@ -361,8 +361,15 @@ export function ImportHubScreen() {
 
   const back = () => (step === "hub" ? router.back() : setStep("hub"));
 
+  // 하단 탭바를 공용 셸에서 받는다(2026-08-30). 이 화면은 자기 SafeAreaView 로
+  // 프레임을 직접 세우느라 독이 통째로 없었다 — 레퍼런스 import-hub 프레임의
+  // 미매칭 글자 5개가 정확히 그 독 라벨이었다(카피 문제가 아니었다).
+  //
+  // ⚠ active="capture" 는 하이라이트용이고 pathname 이 /capture 가 아니라서
+  // DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례는 걸리지 않는다.
+  // 단계 안의 뒤로(‹ → back())와 하드웨어 뒤로 동선은 그대로다.
   return (
-    <SafeAreaView style={styles.frame} edges={["top", "bottom"]}>
+    <DeepSpaceScreen active="capture" header="none">
       <View style={styles.glow} pointerEvents="none" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <SecondbStatusHeader text={t("hubBubble")} tip={t("hubTip")} />
@@ -384,7 +391,7 @@ export function ImportHubScreen() {
         {step === "review" && outcome ? renderReview(outcome) : null}
         {step === "history" ? renderHistory() : null}
       </ScrollView>
-    </SafeAreaView>
+    </DeepSpaceScreen>
   );
 
   function renderHub() {
@@ -681,7 +688,6 @@ function COPY(ko: boolean): Record<string, string> {
 }
 
 const styles = StyleSheet.create({
-  frame: { flex: 1, backgroundColor: deepSpace.bg },
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 220, backgroundColor: deepSpace.bgGlow, opacity: 0.5 },
   scroll: { padding: deepSpaceSpacing.lg, paddingBottom: 40, gap: deepSpaceSpacing.md },
   titleRow: { flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm },

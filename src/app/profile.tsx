@@ -1,13 +1,14 @@
 // Profile hub. Route structure and accents stay in code; all user-facing hub
 // labels and hints live in the profile locale namespace.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, semantic, spacing } from "@/lib/theme/tokens";
@@ -43,10 +44,33 @@ const PRIMARY_HUB_ITEMS: HubRoute[] = [
   { sectionKey: "account", key: "inbox", route: "/inbox", accent: cosmic.signalMint },
 ];
 
-// M3 back arrow (same path as MdTopAppBar) — the deep-space profile renders
-// PremiumAppShell with no dock, no tab bar (PremiumTabBar returns null in
-// deep-space) and a hidden floating chip (isPrimaryTabPath), so without this
-// leading control the screen was a navigation dead end on iOS.
+// Frame — 이 화면의 껍데기. 딥스페이스에서는 공용 셸을 쓴다.
+//
+// 왜 생겼나(2026-08-30): `/account` 는 딥스페이스에서 전용 화면으로 **갈아탔는데**
+// (`account.tsx:395` 의 이른 return) `/profile` 은 갈아타지 않았다. 딥스페이스
+// 색만 덧칠한 채 레거시 PremiumAppShell 위에 그대로 서 있었고, 그 셸에는 하단
+// 탭바가 없다 — 레퍼런스 profile 프레임의 글자 6개 중 5개가 바로 그 독이다.
+// 그래서 대조 점수 17%는 카피 문제가 아니라 **껍데기가 통째로 빠진 것**이었다.
+//
+// 전체 전환(전용 딥스페이스 화면 신설)은 별건이다. 여기서는 껍데기만 공용으로
+// 돌린다 — 안은 손대지 않는다.
+//
+// ⚠ active="account" 는 TABS(home·capture·chat·wiki·settings) 밖이다. 그래서
+// 어떤 탭도 잘못 켜지지 않고, DeepSpaceScreen 의 하드웨어 뒤로가기 특례(루트 탭
+// → 홈)도 걸리지 않는다. 화면 자체의 뒤로가기(아래 BackGlyph)가 유일한 뒤로다.
+function Frame({ children }: { children: ReactNode }) {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="account" header="none">
+        {children}
+      </DeepSpaceScreen>
+    );
+  }
+  return <PremiumAppShell>{children}</PremiumAppShell>;
+}
+
+// M3 back arrow (same path as MdTopAppBar) — 딥스페이스 profile 은 위 Frame 의
+// 독으로 탭 이동은 되지만 상단 앱바가 없다. 이 컨트롤이 유일한 '뒤로'다.
 function BackGlyph({ color }: { color: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" accessibilityElementsHidden>
@@ -163,11 +187,11 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <PremiumAppShell>
+      <Frame>
         <View style={styles.center}>
           <PremiumLoadingState message={t("loading")} />
         </View>
-      </PremiumAppShell>
+      </Frame>
     );
   }
   if (!userId) return <Redirect href="/sign-in" />;
@@ -235,7 +259,7 @@ export default function Profile() {
     deepSpaceSections.find((section) => section.key === activeDeepSpaceSection)?.group ?? deepSpaceSections[0].group;
 
   return (
-    <PremiumAppShell>
+    <Frame>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.topBar}>
           {deepSpaceMode ? (
@@ -377,7 +401,7 @@ export default function Profile() {
           </View>
         ) : null}
       </ScrollView>
-    </PremiumAppShell>
+    </Frame>
   );
 }
 

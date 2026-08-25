@@ -2329,6 +2329,17 @@ ${transcript}`;
                   : t("submit")}
               </Text>
             </Pressable>
+            {/* 버튼이 꺼진 **이유**를 눈에도 보여준다(2026-08-30).
+                여태 이 문장은 accessibilityHint 로만 있었다 — 스크린리더는 듣는데
+                보는 사람은 회색 버튼만 보고 왜 안 눌리는지 알 길이 없었다.
+                새 문구를 만들지 않는다: 위 submitAccessibilityHint 가 이미 모드별로
+                맞는 문장을 5개 로케일에서 고르고 있으므로 그것을 그대로 그린다.
+                눌리는 상태에서는 undefined 라 아무것도 그려지지 않는다. */}
+            {submitAccessibilityHint ? (
+              <Text variant="caption" color="textMuted" style={styles.submitReason}>
+                {submitAccessibilityHint}
+              </Text>
+            ) : null}
           </View>
 
           {/* 최근 조각 (recent pieces): the already-fetched records rows as a
@@ -2783,6 +2794,8 @@ const styles = StyleSheet.create({
   tagAddHash: { color: semantic.brand, fontSize: typography.sizes.sm, fontWeight: "700" },
   tagAddInput: { flex: 1, fontSize: typography.sizes.sm, paddingVertical: 2, minWidth: 64 },
   submitRow: { gap: spacing.sm, marginTop: spacing.sm },
+  // 버튼이 꺼진 이유 한 줄. 버튼 바로 아래, 가운데.
+  submitReason: { textAlign: "center" },
   recentCard: {
     backgroundColor: semantic.surface,
     borderColor: semantic.border,
