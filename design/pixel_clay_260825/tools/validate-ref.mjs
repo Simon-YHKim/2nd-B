@@ -1,0 +1,108 @@
+#!/usr/bin/env node
+/**
+ * validate-ref.mjs — 레퍼런스 키트가 스스로 모순되지 않는지 본다. 브라우저 없음.
+ *
+ * `npm run verify` 안에서 도는 유일한 레퍼런스 게이트다(캡처는 Playwright 가 필요해
+ * verify 에 넣지 않는다 — CI 가 브라우저를 안 갖는다). 여기서 막는 것은 하나다:
+ * **키트가 조용히 낡는 것.** 매니페스트에 화면을 추가하고 캡처를 안 뜨거나, 캡처만
+ * 지우거나, port 플래그를 사유 없이 뒤집는 일이 소리 없이 지나가면 이 키트는
+ * 판정 근거가 아니라 장식이 된다.
+ *
+ * 검사:
+ *   1. screens.json 형식 — id 중복 없음, port 는 true|false|'deferred', false/deferred 는 사유 필수
+ *   2. capture:true 인 화면마다 captures/<id>.png 와 data/structure/<id>.json 존재
+ *   3. 산출물에 매니페스트에 없는 고아가 없다
+ *   4. tokens.json 이 런타임 추출본이고 앵커 값을 갖는다(--u:2px 등) — CSS 텍스트
+ *      정규식으로 뜨면 --u 가 4px 로 나온다(실측). 그 사고를 여기서 잡는다.
+ *   5. nav.json 의 키가 캡처한 화면의 부분집합이다
+ *
+ * 실행: node design/pixel_clay_260825/tools/validate-ref.mjs
+ */
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.join(HERE, '..');
+const fail = [];
+const note = (m) => fail.push(m);
+
+const manifestPath = path.join(ROOT, 'data', 'screens.json');
+if (!existsSync(manifestPath)) {
+  console.error('FAIL design-ref: data/screens.json 이 없다');
+  process.exit(1);
+}
+const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+const screens = manifest.screens ?? [];
+
+// 1. 매니페스트 형식
+const seen = new Set();
+for (const s of screens) {
+  if (!s.id || typeof s.id !== 'string') note(`id 없는 항목: ${JSON.stringify(s)}`);
+  if (seen.has(s.id)) note(`id 중복: ${s.id}`);
+  seen.add(s.id);
+  if (![true, false, 'deferred'].includes(s.port)) note(`${s.id}: port 는 true|false|'deferred' 여야 한다 (${s.port})`);
+  if (s.port !== true && !s.reason) note(`${s.id}: port=${s.port} 인데 사유가 없다 — 이식 금지/보류는 이유가 근거다`);
+}
+if (!manifest.phone || manifest.phone.width !== 390 || manifest.phone.height !== 820) {
+  note('phone 이 390x820 이 아니다 — 캡처 계약이 바뀌면 대조가 무의미해진다');
+}
+
+// 2·3. 산출물 대조
+const capDir = path.join(ROOT, 'captures');
+const structDir = path.join(ROOT, 'data', 'structure');
+const wanted = screens.filter((s) => s.capture !== false).map((s) => s.id);
+for (const id of wanted) {
+  if (!existsSync(path.join(capDir, `${id}.png`))) note(`캡처 없음: captures/${id}.png (매니페스트에 있는 화면)`);
+  if (!existsSync(path.join(structDir, `${id}.json`))) note(`구조 없음: data/structure/${id}.json`);
+}
+const wantedSet = new Set(wanted);
+if (existsSync(capDir)) {
+  for (const f of readdirSync(capDir)) {
+    if (!f.endsWith('.png')) continue;
+    const id = f.slice(0, -4);
+    if (!wantedSet.has(id)) note(`고아 캡처: captures/${f} — 매니페스트에 없는 화면`);
+  }
+}
+
+// 4. 토큰 앵커 — 런타임 추출본인지
+const tokPath = path.join(ROOT, 'data', 'tokens.json');
+if (!existsSync(tokPath)) {
+  note('data/tokens.json 이 없다');
+} else {
+  const tok = JSON.parse(readFileSync(tokPath, 'utf8'));
+  const v = tok.vars ?? {};
+  if (tok.palette !== 'midnight') note(`팔레트가 midnight 이 아니다: ${tok.palette}`);
+  // --u 는 이 키트가 존재하는 이유 그 자체다: 스타일시트 꼬리 재정의가 이겨 2px 인데
+  // 정규식 추출기는 4px 를 뽑는다. 4px 가 잡히면 추출 경로가 잘못된 것이다.
+  if (v['--u'] !== '2px') note(`--u 가 2px 이 아니다(${v['--u']}) — CSS 텍스트에서 뜬 값일 수 있다. 런타임 추출만 정본`);
+  for (const [k, expected] of [
+    ['--ds-star', '#CCFAFF'],
+    ['--ds-core', '#46B6FF'],
+    ['--ds-polaris', '#C8B6FF'],
+    ['--c00', '#0a0e18'],
+  ]) {
+    if ((v[k] ?? '').toLowerCase() !== expected.toLowerCase()) {
+      note(`토큰 앵커 불일치 ${k}: ${v[k]} (기대 ${expected})`);
+    }
+  }
+  if (Object.keys(v).length < 100) note(`토큰이 ${Object.keys(v).length}개뿐 — 런타임 전수 추출이 아닐 수 있다`);
+}
+
+// 5. nav
+const navPath = path.join(ROOT, 'data', 'nav.json');
+if (existsSync(navPath)) {
+  const nav = JSON.parse(readFileSync(navPath, 'utf8'));
+  for (const id of Object.keys(nav)) {
+    if (!wantedSet.has(id)) note(`nav.json 에 매니페스트 밖 화면: ${id}`);
+  }
+}
+
+if (fail.length) {
+  console.error(`FAIL design-ref (${fail.length})`);
+  for (const m of fail) console.error('  - ' + m);
+  console.error('  → 캡처를 다시 뜨려면: npx http-server design/pixel_clay_260825 -p 8973 -s &');
+  console.error('    BASE_URL=http://localhost:8973 node design/pixel_clay_260825/tools/capture-bundle.mjs');
+  process.exit(1);
+}
+console.log(`OK design-ref: 화면 ${screens.length} (이식 ${screens.filter((s) => s.port === true).length} · 보류 ${screens.filter((s) => s.port === 'deferred').length} · 제외 ${screens.filter((s) => s.port === false).length}) · 캡처/구조 대조 통과 · 토큰 앵커 통과`);

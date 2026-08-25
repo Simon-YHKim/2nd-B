@@ -1,0 +1,574 @@
+{
+ "note": "레퍼런스 번들(app-offline.html)의 화면 목록과 이식 범위. 캡처·구조·네비 산출물의 유일한 목록이다 — 도구에 목록을 두 벌로 적지 말 것.",
+ "source": "design/pixel_clay_260825/app-offline.html · 라우터 sb-app.jsx(1c6d1aec) ScreenBody switch 93 case",
+ "phone": {
+  "width": 390,
+  "height": 820
+ },
+ "screens": [
+  {
+   "id": "home",
+   "port": true,
+   "stage": 1,
+   "capture": true
+  },
+  {
+   "id": "capture",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "chat",
+   "port": true,
+   "stage": 1,
+   "capture": true
+  },
+  {
+   "id": "records",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "me",
+   "port": true,
+   "stage": 1,
+   "capture": true
+  },
+  {
+   "id": "star",
+   "port": true,
+   "stage": 1,
+   "capture": true,
+   "param": {
+    "domain": "career"
+   }
+  },
+  {
+   "id": "record",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "interview",
+   "port": true,
+   "stage": 1,
+   "capture": true
+  },
+  {
+   "id": "me-star",
+   "port": true,
+   "stage": 1,
+   "capture": true,
+   "param": {
+    "star": "school"
+   }
+  },
+  {
+   "id": "bigfive",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "audit",
+   "port": false,
+   "reason": "옛 시기표 ERAS(13-18/19-28)를 쓴다 — 새 SEVEN 과 두 벌이 된다",
+   "capture": true
+  },
+  {
+   "id": "iden",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "connect",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "plans",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "settings",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "museum",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "callrec",
+   "port": false,
+   "reason": "F3 결정(파일 업로드 전환)·Play 정책과 충돌하는 마이크 실녹음 플로",
+   "capture": true
+  },
+  {
+   "id": "attachment",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "northstar",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "inbox",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "values",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "ratify",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "trend",
+   "port": true,
+   "stage": 1,
+   "capture": true
+  },
+  {
+   "id": "motivation",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "strengths",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "widget",
+   "port": "deferred",
+   "reason": "앱 밖 표면",
+   "capture": true
+  },
+  {
+   "id": "auth",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "ops",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "focus",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "reminders",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "import",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "datareview",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "share",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "imagine",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "peer",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "pwreset",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "profilesetup",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "dobgate",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "permissions",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "privacy",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "support",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "audit-full",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "domains",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "lifeinput",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "hobbyinput",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "healthinput",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "careerinput",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "drilldown",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "relcontacts",
+   "port": "deferred",
+   "reason": "물리 그래프 계열",
+   "capture": true
+  },
+  {
+   "id": "relperson",
+   "port": "deferred",
+   "reason": "물리 그래프 계열",
+   "capture": true
+  },
+  {
+   "id": "healthdata",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "manual",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "reward",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "digest",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "reasoning",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "notices",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "signup",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "consent-notice",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "terms",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "privacy-policy",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "refund",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "notfound",
+   "port": false,
+   "reason": "레퍼런스 내부 상태 화면",
+   "capture": true
+  },
+  {
+   "id": "ipip-neo",
+   "port": "deferred",
+   "reason": "검증층 화면 — 일곱 이식 뒤",
+   "capture": true
+  },
+  {
+   "id": "esm",
+   "port": "deferred",
+   "reason": "검증층 화면 — 일곱 이식 뒤",
+   "capture": true
+  },
+  {
+   "id": "insights",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "research",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "discover",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "capture-full",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "formats",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "import-hub",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "wiki",
+   "port": "deferred",
+   "reason": "물리 그래프 — RN 재작성 비용이 커서 토큰·일곱 이후로",
+   "capture": true
+  },
+  {
+   "id": "srs",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "review",
+   "port": true,
+   "stage": 1,
+   "capture": true
+  },
+  {
+   "id": "digest-today",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "career",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "milestones",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "ledger",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "side-project",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "growth",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "reading",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "meals",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "peer-invites",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "community",
+   "port": false,
+   "reason": "고아 라우트 — 번들에도 진입이 0건이고 헤더 주석만 옛 결정(2026-08-10)에 남아 있다",
+   "capture": true
+  },
+  {
+   "id": "account",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "profile",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "subscription",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "theme",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "rlss",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "peer-token",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  },
+  {
+   "id": "rest",
+   "port": false,
+   "reason": "대조용 CompareShell 화면(레퍼런스 내부 실험)",
+   "capture": true
+  },
+  {
+   "id": "people",
+   "port": false,
+   "reason": "대조용 CompareShell 화면(레퍼런스 내부 실험)",
+   "capture": true
+  },
+  {
+   "id": "crisis",
+   "port": false,
+   "reason": "데모 화면. 실제 위기 경로는 분류기 red-zone 단락이 소유한다",
+   "capture": true
+  },
+  {
+   "id": "applock",
+   "port": true,
+   "stage": 2,
+   "capture": true
+  }
+ ]
+}

@@ -1,0 +1,380 @@
+{
+  "baseUrl": "http://localhost:8973",
+  "capturedAt": "2026-08-25T03:34:00.000Z",
+  "consoleErrors": [],
+  "pageErrors": [],
+  "shots": [
+    {
+      "id": "home",
+      "ok": true
+    },
+    {
+      "id": "capture",
+      "ok": true
+    },
+    {
+      "id": "chat",
+      "ok": true
+    },
+    {
+      "id": "records",
+      "ok": true
+    },
+    {
+      "id": "me",
+      "ok": true
+    },
+    {
+      "id": "star",
+      "ok": true
+    },
+    {
+      "id": "record",
+      "ok": true
+    },
+    {
+      "id": "interview",
+      "ok": true
+    },
+    {
+      "id": "me-star",
+      "ok": true
+    },
+    {
+      "id": "bigfive",
+      "ok": true
+    },
+    {
+      "id": "audit",
+      "ok": true
+    },
+    {
+      "id": "iden",
+      "ok": true
+    },
+    {
+      "id": "connect",
+      "ok": true
+    },
+    {
+      "id": "plans",
+      "ok": true
+    },
+    {
+      "id": "settings",
+      "ok": true
+    },
+    {
+      "id": "museum",
+      "ok": true
+    },
+    {
+      "id": "callrec",
+      "ok": true
+    },
+    {
+      "id": "attachment",
+      "ok": true
+    },
+    {
+      "id": "northstar",
+      "ok": true
+    },
+    {
+      "id": "inbox",
+      "ok": true
+    },
+    {
+      "id": "values",
+      "ok": true
+    },
+    {
+      "id": "ratify",
+      "ok": true
+    },
+    {
+      "id": "trend",
+      "ok": true
+    },
+    {
+      "id": "motivation",
+      "ok": true
+    },
+    {
+      "id": "strengths",
+      "ok": true
+    },
+    {
+      "id": "widget",
+      "ok": true
+    },
+    {
+      "id": "auth",
+      "ok": true
+    },
+    {
+      "id": "ops",
+      "ok": true
+    },
+    {
+      "id": "focus",
+      "ok": true
+    },
+    {
+      "id": "reminders",
+      "ok": true
+    },
+    {
+      "id": "import",
+      "ok": true
+    },
+    {
+      "id": "datareview",
+      "ok": true
+    },
+    {
+      "id": "share",
+      "ok": true
+    },
+    {
+      "id": "imagine",
+      "ok": true
+    },
+    {
+      "id": "peer",
+      "ok": true
+    },
+    {
+      "id": "pwreset",
+      "ok": true
+    },
+    {
+      "id": "profilesetup",
+      "ok": true
+    },
+    {
+      "id": "dobgate",
+      "ok": true
+    },
+    {
+      "id": "permissions",
+      "ok": true
+    },
+    {
+      "id": "privacy",
+      "ok": true
+    },
+    {
+      "id": "support",
+      "ok": true
+    },
+    {
+      "id": "audit-full",
+      "ok": true
+    },
+    {
+      "id": "domains",
+      "ok": true
+    },
+    {
+      "id": "lifeinput",
+      "ok": true
+    },
+    {
+      "id": "hobbyinput",
+      "ok": true
+    },
+    {
+      "id": "healthinput",
+      "ok": true
+    },
+    {
+      "id": "careerinput",
+      "ok": true
+    },
+    {
+      "id": "drilldown",
+      "ok": true
+    },
+    {
+      "id": "relcontacts",
+      "ok": true
+    },
+    {
+      "id": "relperson",
+      "ok": true
+    },
+    {
+      "id": "healthdata",
+      "ok": true
+    },
+    {
+      "id": "manual",
+      "ok": true
+    },
+    {
+      "id": "reward",
+      "ok": true
+    },
+    {
+      "id": "digest",
+      "ok": true
+    },
+    {
+      "id": "reasoning",
+      "ok": true
+    },
+    {
+      "id": "notices",
+      "ok": true
+    },
+    {
+      "id": "signup",
+      "ok": true
+    },
+    {
+      "id": "consent-notice",
+      "ok": true
+    },
+    {
+      "id": "terms",
+      "ok": true
+    },
+    {
+      "id": "privacy-policy",
+      "ok": true
+    },
+    {
+      "id": "refund",
+      "ok": true
+    },
+    {
+      "id": "notfound",
+      "ok": true
+    },
+    {
+      "id": "ipip-neo",
+      "ok": true
+    },
+    {
+      "id": "esm",
+      "ok": true
+    },
+    {
+      "id": "insights",
+      "ok": true
+    },
+    {
+      "id": "research",
+      "ok": true
+    },
+    {
+      "id": "discover",
+      "ok": true
+    },
+    {
+      "id": "capture-full",
+      "ok": true
+    },
+    {
+      "id": "formats",
+      "ok": true
+    },
+    {
+      "id": "import-hub",
+      "ok": true
+    },
+    {
+      "id": "wiki",
+      "ok": true
+    },
+    {
+      "id": "srs",
+      "ok": true
+    },
+    {
+      "id": "review",
+      "ok": true
+    },
+    {
+      "id": "digest-today",
+      "ok": true
+    },
+    {
+      "id": "career",
+      "ok": true
+    },
+    {
+      "id": "milestones",
+      "ok": true
+    },
+    {
+      "id": "ledger",
+      "ok": true
+    },
+    {
+      "id": "side-project",
+      "ok": true
+    },
+    {
+      "id": "growth",
+      "ok": true
+    },
+    {
+      "id": "reading",
+      "ok": true
+    },
+    {
+      "id": "meals",
+      "ok": true
+    },
+    {
+      "id": "peer-invites",
+      "ok": true
+    },
+    {
+      "id": "community",
+      "ok": true
+    },
+    {
+      "id": "account",
+      "ok": true
+    },
+    {
+      "id": "profile",
+      "ok": true
+    },
+    {
+      "id": "subscription",
+      "ok": true
+    },
+    {
+      "id": "theme",
+      "ok": true
+    },
+    {
+      "id": "rlss",
+      "ok": true
+    },
+    {
+      "id": "peer-token",
+      "ok": true
+    },
+    {
+      "id": "rest",
+      "ok": true
+    },
+    {
+      "id": "people",
+      "ok": true
+    },
+    {
+      "id": "crisis",
+      "ok": true
+    },
+    {
+      "id": "applock",
+      "ok": true
+    }
+  ]
+}

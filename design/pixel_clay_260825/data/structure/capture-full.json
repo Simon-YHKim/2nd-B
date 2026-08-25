@@ -1,0 +1,505 @@
+{
+ "tag": "div",
+ "cls": [],
+ "box": [
+  390,
+  820
+ ],
+ "kids": [
+  {
+   "tag": "div",
+   "cls": [],
+   "box": [
+    382,
+    812
+   ],
+   "kids": [
+    {
+     "tag": "div",
+     "cls": [],
+     "box": [
+      382,
+      42
+     ],
+     "kids": [
+      {
+       "tag": "div",
+       "cls": [],
+       "box": [
+        382,
+        42
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          30,
+          24
+         ],
+         "text": "12 : 34"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tag": "div",
+     "cls": [],
+     "box": [
+      382,
+      732
+     ],
+     "kids": [
+      {
+       "tag": "div",
+       "cls": [],
+       "box": [
+        382,
+        732
+       ],
+       "kids": [
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          382,
+          48
+         ],
+         "kids": [
+          {
+           "tag": "span",
+           "cls": [],
+           "box": [
+            130,
+            44
+           ],
+           "kids": [
+            {
+             "tag": "span",
+             "cls": [],
+             "box": [
+              130,
+              20
+             ],
+             "text": "01. 별가루 담기"
+            },
+            {
+             "tag": "span",
+             "cls": [],
+             "box": [
+              130,
+              24
+             ],
+             "text": "기록과 자료를 저장해요"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          382,
+          546
+         ],
+         "kids": [
+          {
+           "tag": "div",
+           "cls": [],
+           "box": [
+            350,
+            32
+           ],
+           "kids": [
+            {
+             "tag": "span",
+             "cls": [
+              "md-label-medium"
+             ],
+             "box": [
+              69,
+              15
+             ],
+             "text": "어디로 갈까요?"
+            }
+           ]
+          },
+          {
+           "tag": "div",
+           "cls": [],
+           "box": [
+            350,
+            24
+           ],
+           "kids": [
+            {
+             "tag": "button",
+             "cls": [],
+             "box": [
+              30,
+              14
+             ],
+             "text": "더보기"
+            }
+           ]
+          },
+          {
+           "tag": "div",
+           "cls": [
+            "px-frame"
+           ],
+           "box": [
+            346,
+            125
+           ],
+           "kids": [
+            {
+             "tag": "div",
+             "cls": [
+              "md-label-medium"
+             ],
+             "box": [
+              322,
+              15
+             ],
+             "text": "오늘의 성찰 질문"
+            },
+            {
+             "tag": "div",
+             "cls": [],
+             "box": [
+              322,
+              24
+             ],
+             "text": "오늘 나를 가장 살아있게 한 순간은 언제였나요?"
+            }
+           ]
+          },
+          {
+           "tag": "div",
+           "cls": [
+            "md-body-small"
+           ],
+           "box": [
+            350,
+            15
+           ],
+           "text": "기록한 날: 12일 (오늘은 선택이에요)"
+          },
+          {
+           "tag": "div",
+           "cls": [
+            "md-label-medium"
+           ],
+           "box": [
+            350,
+            15
+           ],
+           "text": "최근 별가루"
+          },
+          {
+           "tag": "div",
+           "cls": [],
+           "box": [
+            350,
+            14
+           ],
+           "kids": [
+            {
+             "tag": "button",
+             "cls": [],
+             "box": [
+              80,
+              14
+             ],
+             "text": "내 형식 관리하기"
+            },
+            {
+             "tag": "button",
+             "cls": [],
+             "box": [
+              65,
+              14
+             ],
+             "text": "외부 가져오기"
+            },
+            {
+             "tag": "button",
+             "cls": [],
+             "box": [
+              55,
+              14
+             ],
+             "text": "사용 안내서"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          382,
+          94
+         ],
+         "kids": [
+          {
+           "tag": "div",
+           "cls": [
+            "md-body-small"
+           ],
+           "box": [
+            350,
+            15
+           ],
+           "text": "내용을 적으면 담기가 켜져요."
+          },
+          {
+           "tag": "button",
+           "cls": [
+            "px-btn",
+            "px-btn--primary",
+            "px-btn--block"
+           ],
+           "box": [
+            346,
+            44
+           ],
+           "text": "담기"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tag": "div",
+     "cls": [],
+     "box": [
+      382,
+      80
+     ],
+     "kids": [
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          36,
+          16
+         ],
+         "text": "별자리"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          24,
+          16
+         ],
+         "text": "담기"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          36,
+          16
+         ],
+         "text": "세컨비"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          24,
+          16
+         ],
+         "text": "위키"
+        }
+       ]
+      },
+      {
+       "tag": "button",
+       "cls": [
+        "md-interactive"
+       ],
+       "box": [
+        76,
+        72
+       ],
+       "kids": [
+        {
+         "tag": "span",
+         "cls": [],
+         "box": [
+          24,
+          16
+         ],
+         "text": "설정"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tag": "div",
+     "cls": [
+      "ds-scrim"
+     ],
+     "box": [
+      382,
+      812
+     ],
+     "kids": [
+      {
+       "tag": "div",
+       "cls": [
+        "ds-window"
+       ],
+       "box": [
+        320,
+        279
+       ],
+       "kids": [
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          284,
+          44
+         ],
+         "kids": [
+          {
+           "tag": "span",
+           "cls": [],
+           "box": [
+            236,
+            44
+           ],
+           "kids": [
+            {
+             "tag": "span",
+             "cls": [],
+             "box": [
+              236,
+              20
+             ],
+             "text": "2026.07.17 · 패치노트"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          284,
+          23
+         ],
+         "text": "리즈닝이 더 똑똑해졌어요"
+        },
+        {
+         "tag": "div",
+         "cls": [],
+         "box": [
+          284,
+          48
+         ],
+         "kids": [
+          {
+           "tag": "span",
+           "cls": [],
+           "box": [
+            80,
+            48
+           ],
+           "kids": [
+            {
+             "tag": "button",
+             "cls": [
+              "px-btn",
+              "px-btn--ghost",
+              "px-btn--sm"
+             ],
+             "box": [
+              38,
+              44
+             ],
+             "text": "리스트"
+            },
+            {
+             "tag": "button",
+             "cls": [
+              "px-btn",
+              "px-btn--primary",
+              "px-btn--sm"
+             ],
+             "box": [
+              28,
+              44
+             ],
+             "text": "확인"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
