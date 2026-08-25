@@ -70,13 +70,22 @@ BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.m
 
 | # | 규칙 | 남은 위반 | 상태 |
 |---|---|---|---|
+| 2 | 라운드 0 | **0** (이식 목록 108파일 기준) | ✅ **끝. 가드가 붙든다** |
+| 3 | 블러 금지 → 디더 스크림 | **0** (동상) | ✅ **끝. 가드가 붙든다** |
+| 5 | 모션 — 계단 이징만 | **0** (동상) | ✅ **끝. 가드가 붙든다** |
 | 7 | 색 — 토큰만 | **0** (토큰 파일 밖 7건은 `records-graph-layout.ts` 의 도메인 색) | ✅ 사실상 끝 |
-| 3 | 블러 금지 → 디더 스크림 | **1** (`DeepSpaceScreen.tsx`) | ✅ 거의 끝 |
-| 6 | 입체 — 4방향 베벨 | **9, 한 파일** (`SecondbHead.tsx`) | ✅ 거의 끝 |
-| 2 | 라운드 0 | **14** (`SecondbStatusHeader` 4 · kit 2 · …) | ✅ 거의 끝 |
-| 5 | 모션 — `steps()` 만 | **46 / 11파일** (`SecondbHead` 12 · `DeepSpaceLoader` 11) | 중간 |
-| 1 | 도형 — 정수 `rect` 만 | **135 / 21파일** (`DeepSpaceViews` 22 · `DeepSpaceDock` 18) | 큰 덩어리 |
-| 4 | 불투명도 → 색 밴딩/디더 | **358 / 38파일** (`DeepSpaceViews` 61 · `lib/theme/tokens.ts` 50) | 큰 덩어리 |
+| 6 | 입체 — 4방향 베벨 | **0** (`SecondbHead` 의 블러 발광을 밴딩으로) | ✅ 끝 |
+| 1 | 도형 — 정수 `rect` 만 | **약 290 / 23파일** (탭 아이콘 9개 완료) | 큰 덩어리 |
+| 4 | 불투명도 → 색 밴딩/디더 | **약 340 / 37파일** (토큰층 14개 완료) | 큰 덩어리 |
+
+**2026-08-26 배치에서 규칙 2·3·5·6·7 이 끝났다.** 남은 것은 1 과 4 둘이다.
+
+⚠ **규칙 2·3·5 는 이제 `check:pixel-rules` 가 막는다**(verify 안). 이식 목록
+108파일에서 둥근 모서리·블러·곡선 이징이 되살아나면 CI 가 실패한다. 목록은
+늘어나기만 한다 — 새 딥스페이스 파일을 만들면 목록에 올릴 것.
+
+⚠ **규칙 1·4 는 아직 가드가 없다.** 위반이 0 이 된 뒤에 켜야 래칫이 성립한다 —
+지금 켜면 이식 완료로 선언된 화면이 전부 빨개진다.
 
 ### ⚠ 세는 방법을 틀리면 없는 일이 산더미로 보인다
 
@@ -87,19 +96,33 @@ BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.m
 
 **그래서 "0 이 아닌 값을 실제로 만드는 참조"만 세야 한다.** 위 표는 그렇게 센 값이다.
 
-### 무엇이 남았는지의 정확한 모양
+### 무엇이 남았는지의 정확한 모양 (2026-08-26 갱신)
 
-- **규칙 1 은 아이콘이다.** `DeepSpaceDock.tsx` 의 탭 아이콘 5개가 가장 크다 —
-  이제 **16화면에 다 나오기 때문**이다(#1409·#1414·#1419). 레퍼런스는 `<path>`·
-  `<circle>` 이 **0건**이고 정수 `rect` + `shape-rendering='crispEdges'` 로만 그린다
-  (`app-offline.html` 실측: rect 25 · svg 3 · path 0 · circle 0).
-- **규칙 4 는 토큰이 먼저다.** `lib/theme/tokens.ts` 의 50건이 정의 자리이고,
-  거기를 고치면 호출부가 따라온다. 컴포넌트부터 손대면 같은 값을 38곳에서 고치게 된다.
+- **규칙 1 은 아이콘이다. 탭 아이콘 아홉 개는 끝났다**(#1425) — 좌표 정본은
+  `src/components/pixel/pixel-glyphs.ts` 이고 검사 41건이 짝수 격자를 지킨다.
+  ⚠ **내가 센 135건은 틀렸다.** 아이콘을 SVG **마크업 문자열**로 들고 `SvgXml`
+  에 넘기는 레지스트리가 따로 있어서 소문자 `<path>` 가 grep 에 안 잡혔다.
+  문자열까지 세면 **304건 / 24파일**이었다. 남은 큰 곳:
+  `shell/SbIcon`(32) · `dds-import-inbox-screens`(25) · `DeepSpaceViews`(47).
+  **`glyphMarkup()` 이 같은 배열을 문자열로 내주므로 두 벌을 만들지 말 것.**
+  레퍼런스는 `<path>`·`<circle>` 이 **0건**이고 정수 `rect` +
+  `shape-rendering='crispEdges'` 로만 그린다(`app-offline.html` 실측).
+- **규칙 4 는 토큰층이 끝났다**(#1426, 14개). 남은 340건 중 **230건이
+  `withAlpha(` 호출부**라 자리마다 **어떤 바탕 위에 얹히는지**를 봐야 한다 —
+  한 번에 밀 수 있는 일이 아니다. 큰 곳: `DeepSpaceViews`(54) ·
+  `MuseumTimelineScreen`(28) · `dds-styles`(19) · `ConstellationHome`(18).
+  ⚠ **모달 스크림(`backdrop`·`backdropStrong`)은 알파로 남겨 뒀다** — 뒤가
+  비쳐야 하는 자리라 단색으로 굳히면 화면을 가린다. 그 자리의 답은 디더이고
+  `components/pixel/PixelScrim` 이 이미 있다.
+  ⚠ **PIXEL-CLAY 프리미티브 4종은 만들어졌는데 쓰는 파일이 2개다.**
+  도구가 없는 게 아니라 채택이 안 됐다.
 - **규칙 3/4 의 디더를 레퍼런스에서 그대로 베낄 수 없다.** 레퍼런스는 CSS
-  `repeating-conic-gradient(color-mix(...) 0% 25%, transparent 0% 50%) 50%/6px 6px`
-  로 구현했는데 **React Native 에 `conic-gradient` 도 `color-mix` 도 없다.**
-  결정 D4 가 이미 "작은 타일 이미지 반복"으로 정해 뒀다 — 그쪽으로 갈 것.
-  (누름 반응은 레퍼런스가 `transform: translateY(var(--u))` = 1유닛 가라앉기다.)
+  `repeating-conic-gradient` + `color-mix` 인데 **RN 에 둘 다 없다.**
+  결정 D4 가 "작은 타일 이미지 반복"으로 정해 뒀고, **`PixelDither`/`PixelScrim`
+  이 그것을 이미 구현해 두었다**(밀도별 @2x/@3x 타일까지). 새로 만들지 말 것.
+- **규칙 5 의 계단 이징도 이미 있다** — `lib/motion/pixel-physical.ts` 의
+  `pixelSteps(n)` · `PIXEL_STEP`(60/2 · 120/3 · 240/6) · `pixelStepsFor(ms)`.
+  RN 의 `Easing` 에는 CSS `steps()` 가 없어서 직접 만든 것이다.
 - **폰트(D3)는 토큰 층에서 끝났다.** `m3Font` 는 전부 Galmuri 이고 4종 다 로드된다
   (`src/theme/typography.ts`). 다만 레퍼런스는 역할을 넷으로 가른다 —
   `--font-display: Galmuri14` · `--font-ui: Galmuri11` · `--font-micro: Galmuri9` ·
