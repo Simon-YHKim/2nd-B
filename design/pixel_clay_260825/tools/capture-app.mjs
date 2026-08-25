@@ -244,6 +244,13 @@ async function digest() {
   });
 }
 
+// ⚠ 앱은 한국어 줄바꿈을 다듬으려고 글자 사이에 **워드 조이너(U+2060)** 를 심는다
+// (src/lib/i18n/keep-all.ts). 눈에는 안 보이지만 문자열 비교에는 잡혀서, 같은 문장이
+// 레퍼런스와 다르다고 나온다 — import-hub 의 '무엇을 들여올까요?' 처럼 앱에 글자
+// 그대로 있는 문장이 미매칭으로 세어졌다. 비교 전에 지운다(제로폭 문자 일괄).
+const INVISIBLE = /[⁠​‌‍﻿]/g;
+const norm = (t) => t.replace(INVISIBLE, "");
+
 // 레퍼런스 프레임에만 있는 기기 크롬(가짜 상태바 시계 등)은 대조에서 뺀다.
 // 앱에는 원래 없는 것이라, 두면 모든 화면이 영구히 한 칸씩 깎인다.
 const CHROME = [/^\d{1,2}\s*[:.]\s*\d{2}$/];
@@ -253,7 +260,7 @@ const isChrome = (t) => CHROME.some((re) => re.test(t));
 function flatten(node, out = []) {
   if (!node) return out;
   if (node.text && !isChrome(node.text)) {
-    out.push({ text: node.text, w: node.box?.[0] ?? 0, h: node.box?.[1] ?? 0 });
+    out.push({ text: norm(node.text), w: node.box?.[0] ?? 0, h: node.box?.[1] ?? 0 });
   }
   for (const k of node.kids ?? []) flatten(k, out);
   return out;
