@@ -149,7 +149,10 @@ export const m3Accent = {
   skyText: "#5FD4FF",
   skyTextHi: "#E8F7FF",
   /** Mid-navy wash behind the constellation glow disc. */
-  skySurface: "#0B2142",
+  // 캐논 --c01. tokens.ts 의 `deepSpace.bgMid` 와 **같은 값이어야 한다** —
+  // constellation-home-m3 가드가 두 거울을 묶어 두고 있고, 실제로 이 표면 그룹을
+  // 옮길 때 그 가드가 한쪽만 바뀐 것을 잡아냈다.
+  skySurface: "#141b2e",
   /** App-wide deepest background behind the nebula (m3-theme.css `body`). */
   spaceBody: "#05070B",
   /** Dark ink placed on a bright persona-accent fill (chat send/mic glyph). */
@@ -158,10 +161,17 @@ export const m3Accent = {
   // ---- rev2 constellation home (reference-app sb-home.jsx / sb-app.jsx).
   // Values transcribed 1:1 from the prototype; alpha is applied at the callsite
   // via withAlpha so each token stays a plain hex.
+  // ⚠ 이 둘은 2026-08-30 에 캐논 바닥(--c00 #0a0e18)으로 올렸다. 원래 값은
+  // rev2 프로토타입에서 1:1 로 옮긴 #060912 / #070A13 인데, 둘 다 PIXEL-CLAY
+  // midnight 램프보다 **어둡다.** 그런데 이 둘이 화면에서 가장 넓은 색이다
+  // (SbStarfield 의 바닥 + 홈 무대 + windowed 스크림). 실측: 앱 스크린샷의
+  // 최대 면적 색이 #080b15(=cosmicBase 위 성운 워시)로 20~53% 였고, 같은
+  // 레퍼런스 프레임의 최대 면적 색은 #232e4a 였다. 램프 밖 바닥이 화면 전체를
+  // 캐논에서 끌어내리고 있었다.
   /** Cosmic base under every sky layer (sb-app SB_COSMIC base). */
-  cosmicBase: "#060912",
+  cosmicBase: "#0a0e18",
   /** Home stage radial floor (sb-home stage gradient end / vignette base). */
-  stageFloor: "#070A13",
+  stageFloor: "#0a0e18",
   /** Home stage radial center wash rgb(26,72,120) (used at .5 alpha). */
   stageGlow: "#1A4878",
   /** SB_COSMIC nebula washes: blue rgb(40,86,150) / violet rgb(120,96,210). */

@@ -122,9 +122,10 @@ export const lightSky = {
 // and the entry screens swap in with no edits. Legacy keeps the cosmic / sky-blue
 // values for rollback.
 const skyDeepSpace = {
-  bg: "#0A0E1A",
-  surface: "rgba(70,182,255,0.07)",
-  border: "rgba(70,182,255,0.24)",
+  // 표면 그룹 — 위 semanticDeepSpace 와 같은 캐논 램프를 쓴다(c00/c01/c02).
+  bg: "#0a0e18",
+  surface: "#141b2e",
+  border: "#232e4a",
   text: "#E8F7FF",
   textMuted: "rgba(159,228,255,0.80)",
   textSubtle: "rgba(159,228,255,0.55)",
@@ -199,10 +200,15 @@ export const semanticCosmic = {
 // The legacy build (EXPO_PUBLIC_UI=legacy) keeps the cosmic tones; cosmic stays
 // exported for tests + the legacy track.
 const semanticDeepSpace = {
-  background: "#0A0E1A",
-  surface: "rgba(11,33,66,0.84)", // deep-navy panel (bgMid), keeps card substance
-  surfaceAlt: "rgba(16,40,76,0.70)",
-  border: "rgba(70,182,255,0.24)",
+  // PIXEL-CLAY 표면 그룹 (2026-08-30). 캐논 midnight 램프의 c00~c02 단색이다
+  // (design/pixel_clay_260825/data/tokens.json 의 --c00/--c01/--c02).
+  // 전에는 투명 네이비 위에 시안을 6% 얹는 방식이라 패널이 배경과 거의 구분되지
+  // 않았다 — 레퍼런스 프레임에서 #232e4a 가 화면의 38~47% 를 차지하는데 앱
+  // 스크린샷 상위 5색에는 한 번도 안 나왔다(실측 2026-08-30). 패널 층이 없었다.
+  background: "#0a0e18",
+  surface: "#141b2e",
+  surfaceAlt: "#232e4a",
+  border: "#232e4a",
   backdrop: "rgba(0,0,0,0.6)",
   backdropStrong: "rgba(2,4,10,0.78)",
   text: "#E8F7FF",
@@ -216,13 +222,13 @@ const semanticDeepSpace = {
   success: "#5FF0C0",
   warning: "#FFD166",
   danger: "#FF7A90",
-  deepSpaceBg: "#0A0E1A",
+  deepSpaceBg: "#0a0e18",
   deepSpaceAccent: "#46B6FF",
   deepSpaceText: "#5FD4FF",
   deepSpaceTextMuted: "rgba(95,212,255,0.62)",
-  deepSpaceCard: "rgba(70,182,255,0.06)",
-  deepSpaceCardPressed: "rgba(70,182,255,0.12)",
-  deepSpaceCardLine: "rgba(70,182,255,0.24)",
+  deepSpaceCard: "#141b2e",
+  deepSpaceCardPressed: "#232e4a",
+  deepSpaceCardLine: "#232e4a",
 } as const;
 
 // Active palette for this build. UI_MODE is the build-time EXPO_PUBLIC_UI flag.
@@ -235,9 +241,11 @@ export const semantic = UI_MODE === "deep-space" ? semanticDeepSpace : semanticC
 // untouched. danger keeps a functional exception.
 export const deepSpace = {
   bg: semantic.deepSpaceBg, // deep-space body (tinted near-black, never pure black)
-  bgEdge: "#070A13", // darker frame edges / deepest space
-  bgMid: "#0B2142", // mid-navy stop for the screen-edge space wash (design handoff 2026-06-17)
-  bgGlow: "rgba(26,72,120,0.40)", // top light-source glow over the body
+  bgEdge: "#0a0e18", // 캐논 --c00. 전에는 #070A13 로 캐논보다 더 어두운 자기
+  // 값이었고, 그것이 앱 스크린샷에서 가장 넓은 색이었다(20~53%).
+  bgMid: "#141b2e", // 캐논 --c01. 화면 가장자리 우주 워시의 중간 스톱.
+  bgGlow: "#232e4a", // 캐논 --c02. 상단 광원. PIXEL-CLAY 는 불투명도 대신 색
+  // 밴딩을 쓰므로 반투명 파랑 대신 램프의 한 칸을 그대로 쓴다.
   accent: semantic.deepSpaceAccent, // eye outer cyan = primary accent (#46B6FF)
   accentBright: "#CCFAFF", // eye inner bright highlight / pixel titles
   accentSoft: "#9FE4FF", // bright star / icon cyan
@@ -295,7 +303,11 @@ export const deepSpaceGradients = {
   progress: ["#46B6FF", "#5FD4FF"], // trait / progress bar fill
   soulCore: ["#C8B6FF", "#8B7BD8"], // 북극성 orb (radial: center -> edge)
   idenSend: ["#8B7BD8", "#A78BFA"], // "AI에 전달" violet action
-  screenBg: ["rgba(26,72,120,0.40)", "rgba(11,33,66,0.24)", "#070A13"], // space wash (top -> bottom)
+  // 우주 워시(위→아래). 캐논 midnight 램프 c02→c01→c00 세 칸이다.
+  // ⚠ 아직 **그라디언트 구조는 남아 있다.** PIXEL-CLAY 는 그라디언트 대신
+  // 디더/색 밴딩을 요구하므로 이건 색만 맞춘 중간 단계다 — 밴딩으로 바꾸는
+  // 것은 토큰이 아니라 컴포넌트 변경이라 별건으로 남긴다.
+  screenBg: ["#232e4a", "#141b2e", "#0a0e18"],
 } as const;
 
 // Same-shape light palette. Returned by useThemePalette() when the active
