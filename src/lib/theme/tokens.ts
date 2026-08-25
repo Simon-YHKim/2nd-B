@@ -127,8 +127,8 @@ const skyDeepSpace = {
   surface: "#141b2e",
   border: "#232e4a",
   text: "#E8F7FF",
-  textMuted: "rgba(159,228,255,0.80)",
-  textSubtle: "rgba(159,228,255,0.55)",
+  textMuted: "#83bcd5",
+  textSubtle: "#608aa1",
   brand: "#46B6FF",
   accent: "#5FD4FF",
 } as const;
@@ -185,7 +185,7 @@ export const semanticCosmic = {
   deepSpaceBg: "#0A0E1A",
   deepSpaceAccent: "#46B6FF",
   deepSpaceText: "#5FD4FF",
-  deepSpaceTextMuted: "rgba(95,212,255,0.62)",
+  deepSpaceTextMuted: "#428eb0",
   deepSpaceCard: "rgba(70,182,255,0.06)",
   deepSpaceCardPressed: "rgba(70,182,255,0.12)",
   deepSpaceCardLine: "rgba(70,182,255,0.24)",
@@ -212,8 +212,8 @@ const semanticDeepSpace = {
   backdrop: "rgba(0,0,0,0.6)",
   backdropStrong: "rgba(2,4,10,0.78)",
   text: "#E8F7FF",
-  textMuted: "rgba(159,228,255,0.80)",
-  textSubtle: "rgba(159,228,255,0.55)",
+  textMuted: "#83bcd5",
+  textSubtle: "#608aa1",
   brand: "#46B6FF", // eye-cyan primary accent
   zoneGreen: "#5FF0C0",
   zoneYellow: "#FFD166",
@@ -225,7 +225,7 @@ const semanticDeepSpace = {
   deepSpaceBg: "#0a0e18",
   deepSpaceAccent: "#46B6FF",
   deepSpaceText: "#5FD4FF",
-  deepSpaceTextMuted: "rgba(95,212,255,0.62)",
+  deepSpaceTextMuted: "#428eb0",
   deepSpaceCard: "#141b2e",
   deepSpaceCardPressed: "#232e4a",
   deepSpaceCardLine: "#232e4a",
@@ -259,37 +259,37 @@ export const deepSpace = {
   text: semantic.deepSpaceText, // cyan body text (the character's mouth color, #5FD4FF)
   textHi: "#E8F7FF", // emphasized body / speech-bubble copy
   textMuted: semantic.deepSpaceTextMuted, // rgba(95,212,255,0.62)
-  textMid: "rgba(159,228,255,0.80)", // secondary body
-  textLo: "rgba(159,228,255,0.55)", // tertiary / captions
+  textMid: "#83bcd5", // secondary body
+  textLo: "#608aa1", // tertiary / captions
   card: semantic.deepSpaceCard, // rgba(70,182,255,0.06)
   cardPressed: semantic.deepSpaceCardPressed, // rgba(70,182,255,0.12)
   cardLine: semantic.deepSpaceCardLine, // rgba(70,182,255,0.24) (default border)
-  cardLineStrong: "rgba(70,182,255,0.30)", // emphasized / focused border
+  cardLineStrong: "#234a6d", // emphasized / focused border
   // Soul / 북극성 / AI presence (violet).
   soul: "#C8B6FF", // Soul Core bright fill / north-star
   soulDeep: "#8B7BD8", // Soul Core deep edge (orb radial outer)
-  soulLine: "rgba(167,139,250,0.50)", // constellation links / soul borders
+  soulLine: "#5e5394", // constellation links / soul borders
   // Mint — TIP labels, positive deltas, trust/level signals.
   mint: "#5FF0C0",
-  mintLine: "rgba(95,240,192,0.35)", // mint border (active/positive chips)
-  mintBg: "rgba(95,240,192,0.08)", // mint fill (active chips, consent line)
+  mintLine: "#2e6661", // mint border (active/positive chips)
+  mintBg: "#1a2c3a", // mint fill (active chips, consent line)
   onMint: "#04241C", // dark text on a mint-filled CTA
   onAccent: "#04101E", // dark text on an accent-filled CTA
   // Warning — needs-attention (permission needed, rate-limited). Functional only.
   warning: "#FFC478",
-  warningLine: "rgba(255,196,120,0.35)",
-  warningBg: "rgba(255,196,120,0.06)",
+  warningLine: "#665648",
+  warningBg: "#222532",
   // Danger — overdue / error states. Functional only.
   dangerText: "#FF9B9B",
-  dangerLine: "rgba(255,150,150,0.30)",
-  dangerBg: "rgba(255,120,120,0.05)",
+  dangerLine: "#5a404d",
+  dangerBg: "#202032",
   danger: cosmic.guardRose, // functional-color exception only
   // Auth provider pill — the white "Apple/Google로 계속" surface from the auth
   // canon (sb-surfaces AuthScreen). White is a brand-provider requirement, not a
   // decorative fill, so it is exempt from the cyan-only palette like `danger`.
   providerLightBg: "#FFFFFF", // white provider pill surface (Apple / Google)
   providerLightFg: "#111318", // near-black label/glyph on the white pill
-  providerLightLine: "rgba(180,205,255,0.16)", // hairline edge on the white pill
+  providerLightLine: "#f3f7ff", // hairline edge on the white pill
 } as const;
 
 // Deep-space radius + spacing scales (design handoff 2026-06-17). Softer/rounder
