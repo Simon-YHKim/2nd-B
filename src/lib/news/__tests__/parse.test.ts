@@ -130,3 +130,64 @@ describe("parseFeed (RSS is the ground truth; reshape only, never invent)", () =
     expect(items[0].url).toBe("https://e.com/top");
   });
 });
+
+// ── Dependabot #1 (fast-xml-parser XMLBuilder injection) 의 dismiss 근거 ──────
+//
+// 그 권고의 취약 표면은 **XMLBuilder** 다(CDATA/주석 인젝션). 이 저장소는 XML 을
+// 읽기만 하고 만들지 않아서 도달 경로가 없고, 그래서 5.x 메이저 승급 대신
+// dismiss 했다(Simon 승인 2026-08-26). 문제는 그 근거가 **코드가 변하면 조용히
+// 무너진다**는 것이다 — 누군가 XML 을 생성하는 코드를 넣는 순간 dismiss 는 거짓이
+// 되는데 아무도 모른다.
+//
+// 그래서 근거를 검사로 박는다. 이 테스트가 빨개지면 할 일은 테스트를 고치는 것이
+// 아니라 **fast-xml-parser 를 5.7.0+ 로 올리고 이 알림을 재평가**하는 것이다.
+describe("fast-xml-parser: 우리는 읽기만 한다 (dismiss 근거 가드)", () => {
+  const SRC_ROOTS = ["src", "supabase/functions"];
+
+  function walk(dir: string, out: string[] = []): string[] {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return out;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name === "node_modules" || e.name === ".worktrees") continue;
+        walk(full, out);
+      } else if (/\.(ts|tsx)$/.test(e.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  test("XMLBuilder 를 import 하거나 인스턴스화하는 곳이 없다", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const root = path.join(__dirname, "..", "..", "..", "..");
+    const offenders: string[] = [];
+    for (const rel of SRC_ROOTS) {
+      for (const file of walk(path.join(root, rel))) {
+        // 이 테스트 파일 자신은 문자열로 이름을 적으므로 제외한다.
+        if (file.endsWith(path.join("__tests__", "parse.test.ts"))) continue;
+        const src = fs.readFileSync(file, "utf8");
+        if (/\bXMLBuilder\b/.test(src) || /\bnew\s+XMLBuilder\b/.test(src)) {
+          offenders.push(path.relative(root, file));
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("parse.ts 는 XMLParser 만 들여온다", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const src = fs.readFileSync(path.join(__dirname, "..", "parse.ts"), "utf8");
+    expect(src).toContain('import { XMLParser } from "fast-xml-parser"');
+    expect(src).not.toContain("XMLBuilder");
+  });
+});

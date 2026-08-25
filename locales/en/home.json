@@ -305,7 +305,9 @@
       "emptyTitleResponses": "Responses from {{count}} people are in",
       "emptyTitleNoPeers": "No peer responses to compare yet",
       "emptyBodyFinishBigFive": "Finish your own Big Five check and you'll see the me you see beside the me they see.",
-      "emptyBodySendSurvey": "Send a short survey to someone close, and you'll see the me you see beside the me others see."
+      "emptyBodySendSurvey": "Send a short survey to someone close, and you'll see the me you see beside the me others see.",
+      "peerOnlyTitle": "Only the people around you answered these",
+      "peerOnlyNote": "Openness and emotional sensitivity are hard to read from outside, so these are what your people reported, not a claim about you."
     },
     "rhythm": {
       "title": "Rhythm",
