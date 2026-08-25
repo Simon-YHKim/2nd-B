@@ -139,7 +139,10 @@ export const m3Accent = {
   /** 북극성 orb radial edge (pairs with `polaris` as the center stop). */
   polarisEdge: "#8B7BD8",
   /** Pointer link toward 북극성 (soul violet, pre-multiplied 50%). */
-  polarisLine: "rgba(167,139,250,0.50)",
+  // 규칙 4(정적 opacity 금지) — 패널(#141b2e) 위에서 이 알파가 만들던 바로 그 색.
+  // ⚠ tokens.ts 의 `deepSpace.soulLine` 과 **같은 값이어야 한다** —
+  // constellation-home-m3 가드가 둘을 묶고 있고, 실제로 한쪽만 옮긴 것을 잡아냈다.
+  polarisLine: "#5e5394",
   moodPositive: "#5FF0C0",
   moodNeutral: "#A78BFA",
   moodNegative: "#FF7A90",
