@@ -139,7 +139,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "Build up your most valuable asset in the AI era: yourself.",
+    "signInLead": "In the AI era, the asset is you. Your records add up to your North Star.",
     "signIn": "Sign in",
     "createAccount": "Create account",
     "signUpTitle": "Get started",
@@ -328,7 +328,7 @@
   },
   "manual": {
     "title": "Manual · Help",
-    "status": "Find what you're curious about, fast.",
+    "status": "The records are yours; the summary is what you approve. Find how that works here.",
     "tip": "If you can't find it, just ask SecondB.",
     "search": "What are you curious about?",
     "sectionStart": "Getting started",
@@ -777,7 +777,7 @@
       "cadenceSaving": "Paying yearly costs two months less.",
       "honestyLead": "Plans differ only in ",
       "honestyStrong": "counts and personas",
-      "honestyTail": ". Paying more never gives you a ‘better you’.",
+      "honestyTail": ". Your records and your summary stay yours; paying more never gives you a ‘better you’.",
       "active": "Active",
       "currentPlan": "Current plan",
       "included": "Included in every plan",
@@ -1026,7 +1026,7 @@
     "authLabel": "Get started",
     "secondbName": "SecondB",
     "authTitle": "Ready to begin?",
-    "authBody": "Let's start building your constellation.",
+    "authBody": "The records are yours; the summary is what you approve. Let us build your constellation.",
     "next": "Next"
   },
   "trends": {

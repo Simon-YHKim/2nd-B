@@ -6,9 +6,25 @@
 
 ## 1. 한 줄 포지셔닝
 
-**"당신의 생각, 당신의 Markdown, 당신의 private lab. AI는 당신이 부를 때만 들어옵니다. local-first, 영원히 당신 것."**
+> **⚠ 2026-08-26 갱신.** 아래 한 줄이 정본이다. 그 밑의 취소선 문장은 **역사 기록**이며,
+> 전제(local-first Markdown vault)가 이 제품과 다르다 — 이 앱은 Supabase 클라우드에
+> 저장한다. 그 문장을 근거로 새 카피를 제안하지 말 것.
 
-핵심 차별: (1) 데이터 주권(local Markdown, 100년 뒤에도 읽힘) (2) AI는 보조 도구이고 주체는 사용자 (3) 구독 피로 없는 관대한 무료.
+**"AI 시대의 자산은 나 자신. 기록이 쌓여 나의 북극성이 됩니다."**
+_(EN: "In the AI era, the asset is you. Your records add up to your North Star.")_
+
+**상시 서브라인: "기록은 당신 것, 요약은 당신이 승인한 것."**
+_(EN: "The records are yours; the summary is what you approve.")_
+
+핵심 차별: (1) **편집권** — 세컨비가 쓰는 요약은 제안이고, 남길지는 사용자가 정한다
+(propose→ratify) (2) **정직한 밝기** — 별은 아는 만큼만 밝고, 맨 위 등급은 승인해야 켜진다
+(3) 구독 피로 없는 관대한 무료.
+
+이 세 줄이 제품 동작과 1:1로 맞는지가 카피의 유일한 기준이다. 편집권은 `/review`,
+정직한 밝기는 `interview_coverage` 와 L5 비준 경로가 실물이다.
+
+~~"당신의 생각, 당신의 Markdown, 당신의 private lab. AI는 당신이 부를 때만 들어옵니다.
+local-first, 영원히 당신 것."~~ (역사 기록: 데이터 주권/local Markdown 전제)
 
 ## 2. 메시징 원칙
 
