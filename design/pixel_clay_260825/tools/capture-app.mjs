@@ -244,17 +244,10 @@ async function digest() {
   });
 }
 
-// 레퍼런스 프레임에만 있는 기기 크롬(가짜 상태바 시계 등)은 대조에서 뺀다.
-// 앱에는 원래 없는 것이라, 두면 모든 화면이 영구히 한 칸씩 깎인다.
-const CHROME = [/^\d{1,2}\s*[:.]\s*\d{2}$/];
-const isChrome = (t) => CHROME.some((re) => re.test(t));
-
 /** 다이제스트를 (텍스트, 박스) 목록으로 눌러 편다 — 트리 모양이 달라도 견줄 수 있게. */
 function flatten(node, out = []) {
   if (!node) return out;
-  if (node.text && !isChrome(node.text)) {
-    out.push({ text: node.text, w: node.box?.[0] ?? 0, h: node.box?.[1] ?? 0 });
-  }
+  if (node.text) out.push({ text: node.text, w: node.box?.[0] ?? 0, h: node.box?.[1] ?? 0 });
   for (const k of node.kids ?? []) flatten(k, out);
   return out;
 }
