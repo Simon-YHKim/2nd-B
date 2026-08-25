@@ -258,7 +258,7 @@ export const PRIVACY_DOC: LegalDoc = {
   draftBadge: "초안 · Draft",
   body: `# 개인정보처리방침 · Privacy Policy
 
-_시행일: 2026-08-16 · 최종 개정: 2026-08-16_
+_시행일: 2026-08-30 · 최종 개정: 2026-08-30_
 
 ---
 
@@ -293,9 +293,13 @@ _시행일: 2026-08-16 · 최종 개정: 2026-08-16_
 | Google (Gemini API, \`@google/genai\`) | AI 처리(입력 데이터 분석·생성) | AI 기능 제공 목적 |
 | Paddle (Paddle.com Market Ltd.) | 결제 처리(판매자/Merchant of Record) | 결제·환불·세금 처리 |
 | 소셜 로그인 제공자 (Google/Apple/Kakao/Naver 등) | 인증 | 이용자가 선택한 로그인 수단 |
+| Google (Google Analytics 4) | 서비스 이용 통계 | 이용자가 사용 통계에 동의한 경우에만. 기본값은 꺼짐 |
+| Microsoft (Microsoft Clarity) | 화면 이동·조작 기록 | 이용자가 사용 통계에 동의한 경우에만. 기본값은 꺼짐. 기록·대화 등 개인 화면에서는 수집을 멈춥니다 |
 
 ### 5. 개인정보의 국외 이전
 서비스는 위 수탁사(예: Supabase, Google)의 국외 서버를 이용할 수 있어 개인정보가 국외(예: 미국 등)로 이전·처리될 수 있습니다. 이전 항목은 제1조의 계정 정보·이용자 콘텐츠·프로필·음성 및 오디오·건강 및 활동 데이터, 목적은 데이터 보관(인증·데이터베이스 호스팅)과 AI 처리(음성·오디오는 텍스트 전사를 위해 Google에 전송됩니다. 단 건강·활동 데이터는 AI 처리에 사용하지 않습니다), 시점·방법은 서비스 이용 시 암호화(TLS)된 네트워크 전송, 보유기간은 제3조의 보유·이용 기간과 같습니다. 이용자는 회원가입 시 본 방침의 고지·동의 절차를 통해 이에 동의합니다.
+
+사용 통계(Google Analytics 4·Microsoft Clarity)는 **이용자가 설정에서 켠 경우에만** 국외로 이전됩니다. 이전받는 자는 Google LLC(미국)와 Microsoft Corporation(미국), 이전 항목은 화면 이동·조작 기록과 기기·브라우저 정보이며 기록 본문·대화 내용은 포함하지 않습니다. 이전 목적은 서비스 이용 통계 확인, 시점·방법은 해당 화면을 볼 때 암호화(TLS)된 네트워크 전송, 보유기간은 각 사업자의 설정에 따릅니다(Google Analytics 4 는 계정에 설정된 기간, 최대 14개월. Microsoft Clarity 는 녹화 30일, 히트맵 등 집계 9개월). 이 이전은 「개인정보 보호법」 제28조의8 제1항 제1호에 따라 **이용자의 별도 동의**를 근거로 하며, 설정에서 끄면 이후 전송이 중단됩니다. 사용 통계에 동의하지 않아도 서비스를 이용하는 데 제한이 없습니다.
 
 ### 6. 정보주체의 권리
 이용자(및 법정대리인)는 언제든 개인정보 **열람·정정·삭제·처리정지**를 요구할 수 있습니다. 서비스는 앱 내에서 **계정 삭제 및 데이터 내보내기** 기능을 제공하며, kim0405@hayangzip.com 으로도 요청할 수 있습니다.
@@ -318,7 +322,13 @@ _시행일: 2026-08-16 · 최종 개정: 2026-08-16_
 ④ 이용자는 AI가 제안한 내용을 **승인하기 전까지 반영되지 않도록** 할 수 있고, 승인한 내용을 언제든 수정·삭제할 수 있으며, 설정에서 관련 기능을 끌 수 있습니다. 자동화된 처리에 대한 설명을 원하시면 kim0405@hayangzip.com 으로 요청하실 수 있습니다.
 
 ### 11. 처리방침의 변경
-본 방침은 법령·서비스 변경에 따라 개정될 수 있으며, 개정 시 시행일·변경내용을 서비스 내 공지합니다.
+본 방침은 법령·서비스 변경에 따라 개정될 수 있으며, 개정 시 시행일·변경내용을 서비스 내 공지합니다. 변경 전후를 비교할 수 있도록 개정 이력을 아래 제12조에 남깁니다.
+
+### 12. 개정 이력
+| 시행일 | 변경 내용 |
+|---|---|
+| 2026-08-30 | 제4조 수탁사에 Google Analytics 4·Microsoft Clarity 추가(이용자가 사용 통계에 동의한 경우에만 처리). 제5조에 두 수탁사의 국외 이전 고지 신설(별도 동의 근거·이전 항목·보유기간 명시). |
+| 2026-08-16 | 최초 시행. |
 
 ---
 
@@ -333,7 +343,7 @@ Hayang Production (sole proprietorship, Representative: Bae Soha; Anyang-si, Gye
 - **Profile (optional)**: a display name and a goal sentence, entered optionally during sign-up. Leaving them blank does not limit the Service.
 - **Voice/audio (optional)**: audio you record in the app or pick from your device. Processed **only to turn it into text**. Temporary recordings the app itself created are deleted from the device right after transcription; files you picked are never deleted by the Company. The resulting text is stored as User Content.
 - **Automatically collected**: usage logs, device/browser info, access logs, cookies/local storage (web).
-- **Payment-related**: payments are handled by Paddle; **the Company does not store full payment-instrument data (e.g., card numbers)** - it receives only processing results such as payment status and subscription info.
+- **Payment-related**: payments are handled by Paddle; **the Company does not store full payment-instrument data (e.g., card numbers)**; it receives only processing results such as payment status and subscription info.
 - **Health & activity data (optional, sensitive)**: steps, exercise, sleep, heart rate. Read only when an adult user turns on the integration in-app and approves the OS health connection (e.g., Health Connect), and stored **only in your own account**. The feature is locked for users under 14 and for 14-17 minors, so no data is collected from them.
 
 **Sensitive-data notice**: the health and activity data above is **sensitive data** under Korea's PIPA and is processed with separate consent. It is used only for in-app routine auto-completion and to show your own health records ("Today's health records"); it is **not sent to AI (Gemini), not shared with external third parties, and never used for advertising or sale.** You may view, export, or delete it at any time.
@@ -353,9 +363,13 @@ The Company entrusts processing as below; processors act only within the stated 
 | Google (Gemini API, \`@google/genai\`) | AI processing (analyze/generate on input) | To provide AI features |
 | Paddle (Paddle.com Market Ltd.) | Payment processing (Merchant of Record) | Payments/refunds/tax |
 | Social-login providers (Google/Apple/Kakao/Naver, etc.) | Authentication | Login method you choose |
+| Google (Google Analytics 4) | Service usage statistics | Only if you turn usage statistics on. Off by default |
+| Microsoft (Microsoft Clarity) | Screen navigation and interaction records | Only if you turn usage statistics on. Off by default. Collection pauses on personal screens such as records and chat |
 
 ### 5. Overseas transfer
 The Service may use processors' overseas servers (e.g., Supabase, Google), so personal data may be transferred to and processed abroad (e.g., the United States). The transferred items are the account data, User Content, profile, voice/audio, and health and activity data in Section 1; the purpose is data hosting (auth/database) and AI processing (voice/audio is sent to Google to be transcribed into text; health and activity data is excluded from AI processing); transfers occur over TLS-encrypted connections as you use the Service; retention follows Section 3. Users consent through the notice-and-consent step at sign-up.
+
+Usage statistics (Google Analytics 4 and Microsoft Clarity) are transferred abroad **only if you turn them on in settings**. The recipients are Google LLC (United States) and Microsoft Corporation (United States); the transferred items are screen navigation and interaction records plus device/browser information, and they do not include the body of your records or your conversations. The purpose is to see how the Service is used; transfers occur over TLS-encrypted connections while you view those screens; retention follows each provider (Google Analytics 4: the period set on the account, up to 14 months. Microsoft Clarity: recordings 30 days, aggregates such as heatmaps 9 months). This transfer rests on **your separate consent** under Article 28-8(1)1 of Korea's PIPA, and turning it off in settings stops further transfers. Declining usage statistics does not limit your use of the Service.
 
 ### 6. Your rights
 You (and legal representatives) may request **access, correction, deletion, or suspension of processing** at any time. The Service provides **in-app account deletion and data export**, and you may also contact kim0405@hayangzip.com.
@@ -378,7 +392,14 @@ Access-rights management with row-level access control (RLS), TLS encryption in 
 (4) You can keep an AI suggestion from taking effect **until you approve it**, edit or delete anything you have approved, and turn the related features off in settings. To request an explanation of this automated processing, write to kim0405@hayangzip.com.
 
 ### 11. Changes
-This policy may be revised per law/service changes; revisions (effective date and content) will be announced in the Service.`,
+This policy may be revised per law/service changes; revisions (effective date and content) will be announced in the Service. A revision history is kept in Section 12 so you can compare what changed.
+
+### 12. Revision history
+| Effective | What changed |
+|---|---|
+| 2026-08-30 | Added Google Analytics 4 and Microsoft Clarity to the processors in Section 4 (processed only if you turn usage statistics on). Added an overseas-transfer notice for both in Section 5 (legal basis, transferred items, retention). |
+| 2026-08-16 | Initial version. |
+`,
 };
 
 export function isDraft(doc: LegalDoc): boolean {
