@@ -147,6 +147,8 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/seen",
   "/beyond",
   "/trends",
+  // 오늘의 정리 — 2026-08-30 에 공용 셸로 옮겨 독을 되찾았다(#1409 계열 16번째).
+  "/digest",
   // /import-hub — 2026-08-30 부터 **실제로 독을 그린다**(DeepSpaceScreen 경유).
   // 그 전까지는 자기 SafeAreaView 로 프레임을 직접 세워 독이 없었고, 이 줄은
   // "독은 없지만 자기 뒤로 버튼이 있으니 떠 있는 칩은 물러나라"는 뜻이었다.
