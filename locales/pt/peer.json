@@ -45,6 +45,7 @@
   "createError": "Não foi possível criar o link. Tente de novo.",
   "pendingCap": "Você atingiu o limite de convites abertos. Revogue um para enviar outro.",
   "privacyLine": "O link funciona uma vez, expira em 14 dias e não guarda contatos.",
+  "sentTitle": "Convites enviados",
   "emptyList": "Nenhum convite ainda. Comece com alguém que conhece você bem.",
   "status": {
     "pending": "Aguardando",

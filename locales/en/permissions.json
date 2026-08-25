@@ -63,7 +63,7 @@
     ]
   },
   "manual": {
-    "button": "Open the manual",
-    "accessibilityHint": "Opens the manual from the permissions screen."
+    "button": "Open the user guide",
+    "accessibilityHint": "Opens the user guide from the permissions screen."
   }
 }

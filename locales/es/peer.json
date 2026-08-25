@@ -45,6 +45,7 @@
   "createError": "No se pudo crear el enlace. Intenta de nuevo.",
   "pendingCap": "Alcanzaste el límite de invitaciones abiertas. Revoca una para enviar otra.",
   "privacyLine": "El enlace funciona una vez, caduca en 14 días y no guarda contactos.",
+  "sentTitle": "Invitaciones enviadas",
   "emptyList": "Aún no hay invitaciones. Empieza con alguien que te conozca bien.",
   "status": {
     "pending": "En espera",

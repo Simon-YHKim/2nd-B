@@ -119,6 +119,10 @@ export default function PeerInvites() {
           <Text variant="caption" color="textSubtle">{t("privacyLine")}</Text>
         </MdCard>
 
+        {/* 보낸 초대 목록. 레퍼런스 프레임에는 이 구획에 제목이 있는데 앱에는
+            없었다 — 목록만 덩그러니 떠서 위의 만들기 카드와 경계가 없었다. */}
+        <Text variant="caption" color="textSubtle" style={styles.sectionTitle}>{t("sentTitle")}</Text>
+
         {invites === null ? (
           <Text variant="caption" color="textSubtle">{t("loading")}</Text>
         ) : invites.length === 0 ? (
@@ -169,6 +173,8 @@ const styles = StyleSheet.create({
   actionErr: { color: deepSpace.dangerText, marginTop: 4 },
   scroll: { padding: spacing.lg, gap: spacing.md, paddingBottom: 40 },
   card: { padding: spacing.md, gap: spacing.sm },
+  // 목록 구획 제목 — 만들기 카드와 보낸 목록 사이의 경계.
+  sectionTitle: { marginTop: spacing.sm },
   rowCard: { padding: spacing.md, gap: spacing.xs },
   rowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   rowLabel: { flex: 1 },
