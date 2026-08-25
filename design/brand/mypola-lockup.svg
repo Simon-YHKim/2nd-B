@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" width="640" height="300" role="img" aria-label="mypola">
+  <title>mypola — 별자리 결합 (표장 시안 2)</title>
+  <desc>
+    별자리 도형 + 워드마크. 도형 좌표는 mypola-constellation.svg 와 같고, 그것은
+    저장소 캐논(design/proto_rev2/reference-app/data/core/constellation.json)에서
+    1:1 로 옮긴 것이라 "쓰고 있는 표장"과 "출원하는 표장"이 같다.
+
+    ⚠ 글자는 아직 &lt;text&gt; 다. 출원본은 아웃라인 변환 필수 — README.md 참조.
+    ⚠ 이 결합안이 문자 `Pola` 의 선등록을 피하게 해 준다고 **기대하지 말 것.**
+       대법원 2017. 2. 9. 선고 2015후1690 판결이 요부 판단에 '거래실정'을 넣는데,
+       앱의 거래실정은 스토어 검색과 구전 호칭이라 결국 불리는 것은 문자다.
+       도형은 보조이고, 통과해야 하는 것은 워드마크다.
+  </desc>
+  <g fill="currentColor">
+    <!-- 별자리: 원좌표(x 50..230, y -16..187)를 0.62 배로 줄이고 좌상단으로 옮겼다. -->
+    <g transform="translate(18,34) scale(0.62) translate(-50,16)">
+      <g fill="none" stroke="currentColor" stroke-width="3.2" opacity="0.55">
+        <path d="M228,90 L230,131 L174,152 L151,126 Z" />
+        <path d="M151,126 L108,135 L76,143 L50,187" />
+        <path d="M230,131 L228,90 L140,-16" stroke-dasharray="6 8" opacity="0.75" />
+      </g>
+      <rect x="131" y="-19" width="18" height="6" /><rect x="137" y="-25" width="6" height="18" />
+      <rect x="223" y="88" width="10" height="4" /><rect x="226" y="85" width="4" height="10" />
+      <rect x="225" y="129" width="10" height="4" /><rect x="228" y="126" width="4" height="10" />
+      <rect x="169" y="150" width="10" height="4" /><rect x="172" y="147" width="4" height="10" />
+      <rect x="146" y="124" width="10" height="4" /><rect x="149" y="121" width="4" height="10" />
+      <rect x="103" y="133" width="10" height="4" /><rect x="106" y="130" width="4" height="10" />
+      <rect x="71" y="141" width="10" height="4" /><rect x="74" y="138" width="4" height="10" />
+      <rect x="45" y="185" width="10" height="4" /><rect x="48" y="182" width="4" height="10" />
+    </g>
+    <text x="188" y="196" font-family="Galmuri11, 'Galmuri11 Bold', monospace" font-weight="700"
+          font-size="84" letter-spacing="1.6">mypola</text>
+  </g>
+</svg>
