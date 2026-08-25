@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="420" height="120" role="img" aria-label="mypola">
+  <title>mypola — 워드마크 단독 (표장 시안 1)</title>
+  <desc>
+    ⚠ 이 파일은 **검토용**이지 출원본이 아니다. 글자가 아직 &lt;text&gt; 라서 Galmuri11 Bold
+    가 설치되지 않은 곳에서는 다른 글꼴로 그려진다. 출원본은 반드시 글자를 **아웃라인
+    패스로 변환**해서 내야 한다 — 상표는 "그 모양"을 등록하는 것이고, 심사관 화면에서
+    글꼴이 대체되면 등록된 모양과 쓰는 모양이 달라진다.
+    자세한 것은 같은 폴더의 README.md 를 볼 것.
+  </desc>
+  <rect width="420" height="120" fill="none" />
+  <text x="16" y="86" font-family="Galmuri11, 'Galmuri11 Bold', monospace" font-weight="700"
+        font-size="72" letter-spacing="1.4" fill="currentColor">mypola</text>
+</svg>

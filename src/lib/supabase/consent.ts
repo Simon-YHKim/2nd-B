@@ -26,7 +26,11 @@
 import { getSupabaseClient } from "./client";
 
 export const CONSENT_VERSION = "2026-08-16" as const;
-export const PRIVACY_POLICY_VERSION = "2026-08-16" as const;
+// 2026-08-30 개정(제4조 수탁사에 GA4·Clarity 추가, 제5조 국외이전 고지 신설)에
+// 맞춰 올린다. 이걸 안 올리면 그날 이후 가입자의 원장에 '08-16 판에 동의했다'고
+// 남는데, 정작 화면에는 08-30 판이 떠 있다 — 원장이 거짓이 된다.
+// ⚠ 위 주석대로 이 값을 올려도 **기존 계정에는 닿지 않는다.** 재동의 흐름은 별도 작업이다.
+export const PRIVACY_POLICY_VERSION = "2026-08-30" as const;
 export const TERMS_VERSION = "2026-08-16" as const;
 
 export type ConsentAgeBand = "minor_self" | "adult";
