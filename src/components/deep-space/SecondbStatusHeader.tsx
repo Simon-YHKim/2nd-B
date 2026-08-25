@@ -1,8 +1,9 @@
 /**
  * STEP 3 — <SecondbStatusHeader /> : the per-screen status bar from
  * legacy/design/prototype.dc.html. Left = small SecondbHead; right = a speech bubble
- * (tail on the left, radius 4/13/13/13) carrying the current `text` plus a TIP
- * line. Every deep-space screen lays this at the top and injects its own copy.
+ * (tail on the left, square corners since the PIXEL-CLAY rule-2 pass) carrying the
+ * current `text` plus a TIP line. Every deep-space screen lays this at the top and
+ * injects its own copy.
  *
  * Colors come only from deepSpace.* tokens (DESIGN.md: no hex/rgba literals in
  * components). Korean body copy uses Pretendard (readable); the TIP eyebrow uses
@@ -17,7 +18,7 @@ import { StyleSheet, View } from "react-native";
 import { usePathname } from "expo-router";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
-import type { M3Persona } from "@/lib/theme/m3";
+import { m3, type M3Persona } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { backArrowVisible } from "@/components/ui/BackArrow";
@@ -80,10 +81,10 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
     borderWidth: 1,
     borderColor: deepSpace.cardLine,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 13,
-    borderBottomRightRadius: 13,
-    borderBottomLeftRadius: 13,
+    // PIXEL-CLAY 절대 규칙 2 — 격자에는 모서리가 없다. 전에는 왼쪽 위만 4 이고
+    // 나머지가 13 이라 "꼬리 쪽만 각진 둥근 말풍선"이었다. 말풍선이라는 것은
+    // 아래 `tail` 삼각형이 말해 주므로, 반경 없이도 무엇인지 읽힌다.
+    borderRadius: m3.shape.none,
     paddingVertical: 10,
     paddingHorizontal: 13,
   },
