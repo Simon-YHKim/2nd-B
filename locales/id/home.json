@@ -305,7 +305,9 @@
       "emptyTitleResponses": "Tanggapan dari {{count}} orang sudah masuk",
       "emptyTitleNoPeers": "Belum ada tanggapan dari orang lain untuk dibandingkan",
       "emptyBodyFinishBigFive": "Selesaikan pemeriksaan Big Five milikmu dan kamu akan melihat aku yang kamu lihat bersanding dengan aku yang mereka lihat.",
-      "emptyBodySendSurvey": "Kirim survei singkat ke orang terdekat, dan kamu bisa melihat aku yang kamu lihat bersanding dengan aku yang orang lain lihat."
+      "emptyBodySendSurvey": "Kirim survei singkat ke orang terdekat, dan kamu bisa melihat aku yang kamu lihat bersanding dengan aku yang orang lain lihat.",
+      "peerOnlyTitle": "Hanya dijawab oleh orang-orang di sekitarmu",
+      "peerOnlyNote": "Keterbukaan dan kepekaan emosi sulit dibaca dari luar, jadi ini adalah laporan orang-orangmu, bukan pernyataan tentang dirimu."
     },
     "rhythm": {
       "title": "Ritme",

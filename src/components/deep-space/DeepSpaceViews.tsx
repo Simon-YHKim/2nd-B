@@ -32,7 +32,8 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import { loadLatestBfi } from "@/lib/persona/build";
 import { getDomainStar, type DomainId } from "@/lib/persona/domain-stars";
 import { STYLE_LABEL, type AttachmentStyle } from "@/lib/persona/attachment";
-import { observableSelf, type ObservableTrait } from "@/lib/persona/observable-self";
+import type { BfiMeans } from "@/lib/persona/observable-self";
+import { buildSeenRows, seenGapLines, type SeenRow } from "@/lib/persona/seen-rows";
 import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
@@ -1102,17 +1103,38 @@ export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
 
 // ── 보여지는 나 / Seen (SELF·OTHER) ──────────────────────────────────────────
 
+/** One trait row: self bar, and the peers' bar when they actually answered it. */
+function SeenBarRow({ row }: { row: SeenRow }) {
+  return (
+    <View style={styles.obsRow}>
+      <Text style={styles.obsLabel}>{row.label}</Text>
+      {row.selfPercent !== null ? (
+        <View style={styles.obsTrack}>
+          <View style={[styles.obsFill, { width: `${row.selfPercent}%` }]} />
+        </View>
+      ) : null}
+      {row.otherPercent !== null ? (
+        <View style={[styles.obsTrack, styles.obsTrackOther]}>
+          <View style={[styles.obsFillOther, { width: `${row.otherPercent}%` }]} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function SeenLensView() {
   const { t, i18n } = useTranslation("home");
   const isKo = i18n.language === "ko";
   const locale = isKo ? "ko" : "en";
   const { userId } = useAuth();
-  // SOKA-grounded "observable self": the part of the user's OWN Big Five that reads
-  // most from outside (extraversion/conscientiousness/agreeableness). This is NOT a
-  // claim about what specific others think -- that needs the peer-review data the
-  // empty state below still asks for. It just gives the lens honest, grounded content
-  // from data the user already has, instead of a bare empty screen.
-  const [observable, setObservable] = useState<ObservableTrait[]>([]);
+  // The user's OWN Big Five means, kept RAW. The rows this screen draws are built
+  // by buildSeenRows (lib, unit-tested): it keeps the SOKA-grounded observable
+  // three as their own section and adds a second section for traits that only the
+  // peer aggregate carries (openness/neuroticism, live since the 5-question peer
+  // survey). Keeping the means here rather than the derived三 is what lets the
+  // second section show a self bar next to the peers' — the old code discarded the
+  // means inside observableSelf() and the new traits had nothing to compare to.
+  const [means, setMeans] = useState<BfiMeans | null>(null);
   // T5 F3: the combined other-view (t5_seen_aggregate, min-N 3). Empty until
   // enough informants answered; fail-soft to the honest empty state.
   const [aggregate, setAggregate] = useState<SeenAggregateRow[]>([]);
@@ -1133,33 +1155,31 @@ export function SeenLensView() {
         if (!cancelled) setAggregate([]);
       });
     loadLatestBfi(getSupabaseClient(), userId)
-      .then((means) => {
-        if (!cancelled) setObservable(observableSelf(means, locale));
+      .then((loaded) => {
+        if (!cancelled) setMeans(loaded);
       })
       .catch(() => {
-        if (!cancelled) setObservable([]);
+        if (!cancelled) setMeans(null);
       });
     return () => {
       cancelled = true;
     };
   }, [userId, locale]);
 
-  // 보여지는 나 needs peer-review responses to compare self vs other. No
-  // peer-review data source exists yet (no table / lib path collects it), so
-  // there are no real numbers to show: render the honest empty state plus the
-  // existing survey/share CTAs, never fabricated self/other bars.
-  const otherPct = new Map(aggregate.map((r) => [r.trait, Math.round(((r.avg_score - 1) / 4) * 100)]));
-  const informantCount = aggregate.length > 0 ? Math.max(...aggregate.map((r) => r.informant_count)) : 0;
-  const hasGap = aggregate.length > 0 && observable.length > 0;
+  // Rows come from the lib, not from a loop over the self-report: whatever the
+  // peers actually answered gets drawn, and whatever they did not stays absent.
+  // (Peer traits below min-N are not in `aggregate` at all — the RPC gates per
+  // key since 0146, so a partial set is the normal answer, not a bug.)
+  const rows = buildSeenRows(means, aggregate, locale);
+  const { hasGap, informantCount } = rows;
+  // No Big Five of their own: the panel is peer answers end to end.
+  const peersLead = rows.observable.length === 0 && rows.peerOnly.length > 0;
 
   async function synthesizeGap() {
     if (!userId || synthBusy) return;
     setSynthBusy(true);
     try {
-      const lines = observable
-        .filter((o) => otherPct.has(o.trait))
-        .map((o) => o.label + ": self " + o.percent + "%, others " + otherPct.get(o.trait) + "%")
-        .join("; ");
+      const lines = seenGapLines(rows);
       const res = await callLlm({
         userId,
         locale,
@@ -1191,27 +1211,41 @@ export function SeenLensView() {
           <Text style={styles.legendLabel}>{t("ds.seen.legendOther")}</Text>
         </View>
       </View>
-      {observable.length > 0 ? (
+      {rows.observable.length > 0 || rows.peerOnly.length > 0 ? (
         <View style={styles.obsPanel}>
-          <Text style={styles.obsTitle}>{hasGap ? t("ds.seen.obsTitleGap") : t("ds.seen.obsTitleSolo")}</Text>
-          <Text style={styles.obsNote}>{t("ds.seen.obsNote")}</Text>
+          {/* Title has to match what the panel actually holds. With no Big Five of
+              their own the user sees ONLY peer answers, and calling that "the part
+              of you most visible from outside" would attribute peer data to their
+              self-report. peersLead covers that case. */}
+          <Text style={styles.obsTitle}>
+            {hasGap
+              ? t("ds.seen.obsTitleGap")
+              : peersLead
+                ? t("ds.seen.peerOnlyTitle")
+                : t("ds.seen.obsTitleSolo")}
+          </Text>
+          {rows.observable.length > 0 ? <Text style={styles.obsNote}>{t("ds.seen.obsNote")}</Text> : null}
+          {peersLead ? <Text style={styles.obsNote}>{t("ds.seen.peerOnlyNote")}</Text> : null}
           {hasGap ? (
             <Text style={styles.obsNote}>
               {t("ds.seen.combinedNote", { count: informantCount })}
             </Text>
           ) : null}
-          {observable.map((o) => (
-            <View key={o.trait} style={styles.obsRow}>
-              <Text style={styles.obsLabel}>{o.label}</Text>
-              <View style={styles.obsTrack}>
-                <View style={[styles.obsFill, { width: `${o.percent}%` }]} />
-              </View>
-              {otherPct.has(o.trait) ? (
-                <View style={[styles.obsTrack, styles.obsTrackOther]}>
-                  <View style={[styles.obsFillOther, { width: `${otherPct.get(o.trait) ?? 0}%` }]} />
-                </View>
-              ) : null}
-            </View>
+          {rows.observable.map((r) => (
+            <SeenBarRow key={r.trait} row={r} />
+          ))}
+          {/* Traits only the peers answered. Kept in their own section because the
+              SOKA claim above ("reads most from outside") covers three traits, not
+              five — folding these in would make that sentence untrue. When the
+              peers ARE the whole panel the divider is noise, so it is skipped. */}
+          {rows.peerOnly.length > 0 && !peersLead ? (
+            <>
+              <Text style={styles.obsSubTitle}>{t("ds.seen.peerOnlyTitle")}</Text>
+              <Text style={styles.obsNote}>{t("ds.seen.peerOnlyNote")}</Text>
+            </>
+          ) : null}
+          {rows.peerOnly.map((r) => (
+            <SeenBarRow key={r.trait} row={r} />
           ))}
           {hasGap ? (
             synth ? (
@@ -2028,6 +2062,9 @@ const styles = StyleSheet.create({
   stateBody: { color: withAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
   obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
   obsTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
+  // Section divider for peer-only traits: same family as obsTitle but quieter, so
+  // the SOKA three stay the lead and these read as an addition, not a rival claim.
+  obsSubTitle: { color: withAlpha(deepSpace.text, 0.8), fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
   obsNote: { color: withAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
   obsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },

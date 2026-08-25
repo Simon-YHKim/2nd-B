@@ -305,7 +305,9 @@
       "emptyTitleResponses": "Já chegaram respostas de {{count}} pessoas",
       "emptyTitleNoPeers": "Ainda não há respostas de outros para comparar",
       "emptyBodyFinishBigFive": "Conclua seu próprio teste Big Five e você verá o eu que vê ao lado do eu que os outros veem.",
-      "emptyBodySendSurvey": "Envie uma pesquisa curta a alguém próximo e você poderá ver o eu que vê ao lado do eu que os outros veem."
+      "emptyBodySendSurvey": "Envie uma pesquisa curta a alguém próximo e você poderá ver o eu que vê ao lado do eu que os outros veem.",
+      "peerOnlyTitle": "Respondido apenas pelas suas pessoas",
+      "peerOnlyNote": "Abertura e sensibilidade emocional são difíceis de ler de fora; isto é o que as suas pessoas relataram, não uma afirmação sobre você."
     },
     "rhythm": {
       "title": "Ritmo",

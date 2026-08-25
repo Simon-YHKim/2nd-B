@@ -305,7 +305,9 @@
       "emptyTitleResponses": "Ya llegaron respuestas de {{count}} personas",
       "emptyTitleNoPeers": "Aún no hay respuestas de otros para comparar",
       "emptyBodyFinishBigFive": "Completa tu propio chequeo Big Five y verás el yo que ves junto al yo que ven.",
-      "emptyBodySendSurvey": "Envía una encuesta breve a alguien cercano y podrás ver el yo que ves junto al yo que ven los demás."
+      "emptyBodySendSurvey": "Envía una encuesta breve a alguien cercano y podrás ver el yo que ves junto al yo que ven los demás.",
+      "peerOnlyTitle": "Solo respondido por tus allegados",
+      "peerOnlyNote": "La apertura y la sensibilidad emocional son difíciles de leer desde fuera; esto es lo que reportaron tus allegados, no una afirmación sobre ti."
     },
     "rhythm": {
       "title": "Ritmo",
