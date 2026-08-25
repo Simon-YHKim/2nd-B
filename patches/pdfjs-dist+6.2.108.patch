@@ -1,8 +1,8 @@
 diff --git a/node_modules/pdfjs-dist/build/pdf.mjs b/node_modules/pdfjs-dist/build/pdf.mjs
-index 3b08593..ab7f8e8 100644
+index 184f0cf..3bfa2a4 100644
 --- a/node_modules/pdfjs-dist/build/pdf.mjs
 +++ b/node_modules/pdfjs-dist/build/pdf.mjs
-@@ -15752,10 +15752,7 @@ class PDFWorker {
+@@ -16199,10 +16199,7 @@ class PDFWorker {
        if (this.#mainThreadWorkerMessageHandler) {
          return this.#mainThreadWorkerMessageHandler;
        }
