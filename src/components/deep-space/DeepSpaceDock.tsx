@@ -2,15 +2,17 @@
  * STEP 4 — <DeepSpaceDock /> : the bottom 5-tab dock from
  * legacy/design/prototype.dc.html (홈 ✦ · 담기 ✎ · 세컨비 💬 · 나 ◐ · IDEN 🪪). The
  * design used emoji placeholders; per DESIGN.md (emoji-as-decoration banned) the
- * glyphs are redrawn as small inline SVG marks tinted with deepSpace.* tokens.
+ * glyphs are drawn as **integer rects** (PIXEL-CLAY rule 1) tinted with the
+ * caller's color. The coordinates live in components/pixel/pixel-glyphs.ts.
  *
  * The active tab brightens (full opacity + cyan label); the rest recede. Labels
  * are injected by the caller (already locale-resolved) so no copy lives here.
  */
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { PIXEL_GLYPHS, GLYPH_BOX } from "@/components/pixel/pixel-glyphs";
 import { fontFamilies } from "@/theme/typography";
 
 // Primary dock tabs (rev2 sb-data NAV): 별자리/담기/세컨비/위키/설정.
@@ -24,72 +26,29 @@ export interface DockItem {
   accessibilityLabel: string;
 }
 
+/**
+ * 탭 아이콘 — **정수 rect 만**(PIXEL-CLAY 절대 규칙 1).
+ *
+ * 좌표는 여기 없다. `components/pixel/pixel-glyphs.ts` 가 정본이고, 문자열
+ * 마크업으로 그리는 레지스트리(`shell/SbIcon`)도 같은 배열을 읽는다 — 전에는
+ * 같은 아이콘이 JSX 와 문자열 두 벌로 있어서 한쪽만 고쳐지곤 했다.
+ *
+ * ⚠ `size` 는 24 의 정수배(24 · 48)일 때 셀이 기기 픽셀에 정확히 떨어진다.
+ * 다른 값이면 SVG 가 알아서 스케일하지만 경계가 흐려질 수 있다. 지금 살아 있는
+ * 호출부(DeepSpaceScreen:115)는 24 를 넘긴다.
+ */
 export function TabIcon({ tab, color, size = 18 }: { tab: DeepSpaceTab; color: string; size?: number }) {
-  switch (tab) {
-    case "home": // 별자리 — star_shine (rev2 sb-data NAV)
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M12 3c.5 3.8 2.7 6 6.5 6.5-3.8.5-6 2.7-6.5 6.5-.5-3.8-2.7-6-6.5-6.5 3.8-.5 6-2.7 6.5-6.5Z" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      );
-    case "capture": // 담기 — add_circle (rev2 sb-data NAV)
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Circle cx={12} cy={12} r={8.4} stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M12 8.2v7.6M8.2 12h7.6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" />
-        </Svg>
-      );
-    case "chat": // 세컨비 — forum (rev2 sb-data NAV)
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M3 5h12v8H7l-4 3.2z" stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
-          <Path d="M8 13.2V15h9l3 2.4V9.5h-2.5" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      );
-    case "ops": // 비서 — recommendation/routine list
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M5 7h14M5 12h14M5 17h9" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
-        </Svg>
-      );
-    case "wiki": // 위키 — inventory_2 (rev2 sb-data NAV)
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M3.5 7.5h17V20h-17z" stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
-          <Path d="M3.5 7.5 5.5 4h13l2 3.5M12 7.5v4M9.5 11.5h5" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      );
-    case "account": // 나 — person
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Circle cx={12} cy={8} r={3.5} stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" />
-        </Svg>
-      );
-    case "lens": // half-lit circle = 나
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M12 3a9 9 0 0 1 0 18z" fill={color} />
-        </Svg>
-      );
-    case "iden": // id card
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M3 6h18v12H3z" stroke={color} strokeWidth={2} fill="none" />
-          <Circle cx={8.5} cy={11} r={2} fill={color} />
-          <Path d="M13 9h5M13 13h5" stroke={color} strokeWidth={2} strokeLinecap="round" />
-        </Svg>
-      );
-    case "settings": // 설정 — tune (rev2 sb-data NAV, 2-track)
-      return (
-        <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path d="M4 7h9M17.5 7H20M4 17h2.5M11 17h9" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
-          <Circle cx={15.5} cy={7} r={2.3} stroke={color} strokeWidth={2} fill="none" />
-          <Circle cx={8.5} cy={17} r={2.3} stroke={color} strokeWidth={2} fill="none" />
-        </Svg>
-      );
-  }
+  const rects = PIXEL_GLYPHS[tab];
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`}>
+      {/* 축에 정렬된 정수 rect 라 안티에일리어싱이 생길 여지가 없다 —
+          crispEdges 를 따로 켤 필요가 없고, react-native-svg 의 Svg 는
+          그 prop 을 받지도 않는다(문자열 마크업 쪽은 켜 둔다). */}
+      {rects.map((g, i) => (
+        <Rect key={i} x={g.x} y={g.y} width={g.w} height={g.h} fill={color} />
+      ))}
+    </Svg>
+  );
 }
 
 export function DeepSpaceDock({
