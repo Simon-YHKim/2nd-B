@@ -147,9 +147,11 @@ export const DEEP_SPACE_DOCK_PATHS = [
   "/seen",
   "/beyond",
   "/trends",
-  // /import-hub renders no dock but carries its own step-aware in-screen back
-  // button (hub → router.back(), history → hub), which the floating chip
-  // (→ home) contradicted; the chip yields to the in-screen control.
+  // /import-hub — 2026-08-30 부터 **실제로 독을 그린다**(DeepSpaceScreen 경유).
+  // 그 전까지는 자기 SafeAreaView 로 프레임을 직접 세워 독이 없었고, 이 줄은
+  // "독은 없지만 자기 뒤로 버튼이 있으니 떠 있는 칩은 물러나라"는 뜻이었다.
+  // 이제는 이름 그대로다. 단계 안의 뒤로(‹)는 그대로 남아 있고, 그것이 이
+  // 화면의 유일한 뒤로다(독은 뒤로가 아니라 탭 이동).
   "/import-hub",
 ] as const;
 
