@@ -94,9 +94,138 @@ export const PIXEL_GLYPHS = {
     r(2, 6, 20, 2), r(2, 16, 20, 2),
     r(14, 4, 4, 6), r(6, 14, 4, 6),
   ],
+  // ── 문자열 레지스트리(shell/SbIcon)에서 온 글리프 ──────────────────────
+  //
+  // 전에는 `'<path d="M12 3c…"/>'` 같은 SVG **마크업 문자열**로 있었다. 소문자라
+  // `<Path` grep 에 안 잡혀서 규칙 1 위반 집계에서 통째로 빠졌다(135 → 실제 304).
+  // 이제 좌표는 여기 하나고, `glyphMarkup()` 이 문자열이 필요한 쪽에 직렬화해 준다.
+  //
+  // ⚠ star_shine · add_circle · forum · inventory_2 · tune 다섯은 위의 탭 글리프와
+  //   **같은 아이콘**이었다(문자열이 글자까지 같았다). 아래 ALIAS 로 잇는다.
+
+  /** 세 덩이 — 관계·군집. 원 셋이 크기가 다른 사각 셋이 된다. */
+  bubbleChart: [r(4, 6, 8, 8), r(14, 4, 4, 4), r(14, 12, 6, 6)],
+
+  /**
+   * 전구 — 알아차림.
+   * ⚠ 처음 그린 것은 속 빈 사각 + 아래 두 줄이라 **병처럼** 읽혔다(글리프 시트로
+   * 확인). 채운 몸통에 좌우 볼록을 붙여 둥글게 읽히도록 고쳤다.
+   */
+  lightbulb: [
+    r(8, 2, 8, 10), r(6, 4, 2, 6), r(16, 4, 2, 6),
+    r(10, 12, 4, 2), r(8, 14, 8, 2), r(10, 18, 4, 2),
+  ],
+
+  /** 학사모 — 학창시절. 마름모를 계단으로. */
+  school: [
+    r(10, 2, 4, 2), r(6, 4, 12, 2), r(2, 6, 20, 2), r(6, 8, 12, 2), r(10, 10, 4, 2),
+    r(6, 12, 2, 6), r(16, 12, 2, 6), r(8, 18, 8, 2),
+  ],
+
+  /** 앞으로. */
+  arrowForward: [
+    r(2, 10, 14, 4),
+    r(14, 6, 2, 2), r(16, 8, 2, 2), r(18, 10, 2, 4), r(16, 14, 2, 2), r(14, 16, 2, 2),
+  ],
+
+  /** 뒤로 — 앞으로의 좌우 대칭. */
+  arrowBack: [
+    r(8, 10, 14, 4),
+    r(8, 6, 2, 2), r(6, 8, 2, 2), r(4, 10, 2, 4), r(6, 14, 2, 2), r(8, 16, 2, 2),
+  ],
+
+  /** 확인 — 2px 계단 체크. */
+  check: [
+    r(4, 12, 2, 2), r(6, 14, 2, 2), r(8, 16, 2, 2),
+    r(10, 14, 2, 2), r(12, 12, 2, 2), r(14, 10, 2, 2), r(16, 8, 2, 2), r(18, 6, 2, 2),
+  ],
+
+  /** 과녁 — 동심 사각 링 셋. */
+  target: [
+    r(2, 2, 20, 2), r(2, 20, 20, 2), r(2, 4, 2, 16), r(20, 4, 2, 16),
+    r(6, 6, 12, 2), r(6, 16, 12, 2), r(6, 8, 2, 8), r(16, 8, 2, 8),
+    r(10, 10, 4, 4),
+  ],
+
+  /** 펼치기(아래). */
+  expandMore: [
+    r(4, 8, 2, 2), r(6, 10, 2, 2), r(8, 12, 2, 2), r(10, 14, 4, 2),
+    r(14, 12, 2, 2), r(16, 10, 2, 2), r(18, 8, 2, 2),
+  ],
+
+  /** 접기(위) — 펼치기의 상하 대칭. */
+  expandLess: [
+    r(4, 14, 2, 2), r(6, 12, 2, 2), r(8, 10, 2, 2), r(10, 8, 4, 2),
+    r(14, 10, 2, 2), r(16, 12, 2, 2), r(18, 14, 2, 2),
+  ],
+
+  /** 오름세 — 계단 + 화살촉. */
+  trendingUp: [
+    r(2, 16, 4, 2), r(6, 14, 4, 2), r(10, 10, 4, 2), r(14, 6, 4, 2),
+    r(16, 2, 6, 2), r(20, 2, 2, 6),
+  ],
+
+  /** 신호 세기 — 막대 셋. */
+  signalBars: [r(4, 16, 4, 4), r(10, 10, 4, 10), r(16, 4, 4, 16)],
+
+  /** 무선 — 두 호와 점. 호는 가로 막대로 폭만 줄인다. */
+  wifi: [r(4, 6, 16, 2), r(8, 12, 8, 2), r(10, 18, 4, 4)],
+
+  /** 배터리 — 이미 rect 였다. rx 만 사라졌다. */
+  battery: [
+    r(2, 8, 16, 2), r(2, 14, 16, 2), r(2, 10, 2, 4), r(16, 10, 2, 4),
+    r(20, 10, 2, 4),
+    r(4, 10, 12, 4),
+  ],
+
+  /** 알림 — 종. */
+  notifications: [
+    r(10, 2, 4, 2), r(8, 4, 8, 2), r(6, 6, 12, 8), r(4, 14, 16, 2),
+    r(10, 18, 4, 2),
+  ],
+
+  /** 오늘 — 달력. */
+  today: [
+    r(6, 2, 2, 4), r(16, 2, 2, 4),
+    r(2, 4, 20, 2), r(2, 18, 20, 2), r(2, 6, 2, 12), r(20, 6, 2, 12),
+    r(2, 8, 20, 2),
+    r(6, 12, 4, 4),
+  ],
 } as const satisfies Record<string, readonly PixelRect[]>;
 
 export type PixelGlyphName = keyof typeof PIXEL_GLYPHS;
+
+/**
+ * 문자열 레지스트리(`shell/SbIcon`)가 쓰던 이름 → 글리프.
+ *
+ * 다섯은 탭 글리프와 **같은 아이콘**이라 그쪽을 가리킨다 — 전에는 같은 좌표가
+ * 두 벌 있었고, 한쪽만 고쳐지곤 했다.
+ */
+export const GLYPH_ALIAS = {
+  star_shine: "home",
+  add_circle: "capture",
+  forum: "chat",
+  inventory_2: "wiki",
+  tune: "settings",
+  bubble_chart: "bubbleChart",
+  lightbulb: "lightbulb",
+  school: "school",
+  arrow_forward: "arrowForward",
+  arrow_back: "arrowBack",
+  check: "check",
+  target: "target",
+  expand_more: "expandMore",
+  expand_less: "expandLess",
+  trending_up: "trendingUp",
+  signal_cellular_alt: "signalBars",
+  wifi: "wifi",
+  battery_full: "battery",
+  notifications: "notifications",
+  today: "today",
+} as const satisfies Record<string, PixelGlyphName>;
+
+export type GlyphAliasName = keyof typeof GLYPH_ALIAS;
+
 
 /**
  * 같은 배열을 SVG 마크업 문자열로. `SvgXml` 에 넘기는 레지스트리가 쓴다 —

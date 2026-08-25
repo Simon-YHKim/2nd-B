@@ -7,15 +7,16 @@
 //  ② 상자를 넘지 않는다. 넘으면 잘려서 아이콘이 뜻을 잃는다.
 //  ③ 문자열 직렬화가 배열과 **같은 것**을 낸다. 두 벌이 갈라지는 것이 이
 //    파일을 만든 이유다.
-import { PIXEL_GLYPHS, GLYPH_BOX, glyphMarkup, isOnGrid, type PixelGlyphName } from "../pixel-glyphs";
+import { PIXEL_GLYPHS, GLYPH_ALIAS, GLYPH_BOX, glyphMarkup, isOnGrid, type PixelGlyphName } from "../pixel-glyphs";
 
 const NAMES = Object.keys(PIXEL_GLYPHS) as PixelGlyphName[];
 
 describe("픽셀 글리프", () => {
-  it("아홉 개가 다 있다 (독 탭 + 2차 자리)", () => {
-    expect(NAMES.sort()).toEqual(
-      ["account", "capture", "chat", "home", "iden", "lens", "ops", "settings", "wiki"].sort(),
-    );
+  it("독 탭 아홉이 다 있다 (2차 자리 포함)", () => {
+    // 개수를 박지 않는다 — 글리프는 늘어난다. **탭이 빠지지 않았는지**만 본다.
+    for (const need of ["account", "capture", "chat", "home", "iden", "lens", "ops", "settings", "wiki"]) {
+      expect(NAMES).toContain(need);
+    }
   });
 
   it.each(NAMES)("%s — 좌표가 짝수 격자 위에 있다", (name) => {
@@ -68,5 +69,34 @@ describe("문자열 직렬화 — 두 벌이 갈라지지 않는다", () => {
 
   it("색을 그대로 싣는다 — 아이콘이 배경색을 알 필요가 없다(규칙 7)", () => {
     expect(glyphMarkup("ops", "#5b8def")).toContain('fill="#5b8def"');
+  });
+});
+
+describe("별칭 — 문자열 레지스트리가 쓰던 이름", () => {
+  const ALIASES = Object.keys(GLYPH_ALIAS) as (keyof typeof GLYPH_ALIAS)[];
+
+  it("SbIcon 의 스무 개 이름이 전부 이어져 있다", () => {
+    // 옛 ICON_PATHS 의 키 전부. 하나라도 빠지면 그 아이콘이 안 그려진다.
+    for (const need of [
+      "star_shine", "bubble_chart", "lightbulb", "school", "arrow_forward", "check",
+      "target", "expand_more", "expand_less", "trending_up", "add_circle", "forum",
+      "inventory_2", "tune", "signal_cellular_alt", "wifi", "battery_full",
+      "notifications", "arrow_back", "today",
+    ]) {
+      expect(ALIASES).toContain(need);
+    }
+  });
+
+  it.each(ALIASES)("%s — 가리키는 글리프가 실재한다", (a) => {
+    expect(PIXEL_GLYPHS[GLYPH_ALIAS[a]]).toBeDefined();
+    expect(PIXEL_GLYPHS[GLYPH_ALIAS[a]].length).toBeGreaterThan(0);
+  });
+
+  it("다섯은 탭 글리프를 **재사용**한다 — 두 벌을 만들지 않는다", () => {
+    expect(GLYPH_ALIAS.star_shine).toBe("home");
+    expect(GLYPH_ALIAS.add_circle).toBe("capture");
+    expect(GLYPH_ALIAS.forum).toBe("chat");
+    expect(GLYPH_ALIAS.inventory_2).toBe("wiki");
+    expect(GLYPH_ALIAS.tune).toBe("settings");
   });
 });
