@@ -12,5 +12,6 @@
   "emptyBody": "Not enough history to draw yet. Finish a check and ratify a proposal, and the trail builds up here.",
   "honestyLine": "{{obs}} observations · {{cited}} cited · {{stars}} stars",
   "citedRatioLabel": "Cited ratio {{cited}} of {{obs}}",
-  "honestyCaption": "Brightness is how much is on record, not certainty. Citations make it trustworthy."
+  "honestyCaption": "Brightness is how much is on record, not certainty. Citations make it trustworthy.",
+  "reviewCta": "Go review a proposal"
 }

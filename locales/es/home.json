@@ -144,6 +144,24 @@
         },
         "profile": {
           "line": "Tu nombre, tu meta y cómo te leen los demás. Brilla más cuando hay más que presentar."
+        },
+        "infancy": {
+          "line": "Los primeros recuerdos. Basta una sensación para empezar."
+        },
+        "school": {
+          "line": "De los 7 a los 19 años. Aulas, amigos, quien eras entonces."
+        },
+        "twenties": {
+          "line": "Las decisiones de tus veinte. ¿Qué conservaste y qué soltaste?"
+        },
+        "later": {
+          "line": "Los treinta en adelante. Lo que se asentó y lo que aún se mueve."
+        },
+        "work": {
+          "line": "Tú en el trabajo. Sin importar la edad, quien aparece en el empleo."
+        },
+        "now": {
+          "line": "Tú, ahora. ¿Dónde ha estado tu cabeza últimamente?"
         }
       },
       "museumEntry": "Museo de la IA",

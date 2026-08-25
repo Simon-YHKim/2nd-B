@@ -177,6 +177,15 @@ export default function BrightnessTimelineScreen() {
                 label={t("ratLog")}
                 onPress={() => router.push("/ratifications")}
               />
+              {/* L5 는 확인(propose→ratify)으로만 열리는데, 배포되는 deep-space UI
+                  에서 /review 로 가는 문이 한 곳도 없었다 (core-brain 의 버튼은
+                  legacy 스킨 분기 안에 있다). 밝기를 보고 있는 자리가 "그럼 더
+                  올리려면?" 이 나오는 자리라 여기에 문을 낸다. */}
+              <MdButton
+                variant="text"
+                label={t("reviewCta")}
+                onPress={() => router.push("/review")}
+              />
             </MdCard>
           </>
         )}
