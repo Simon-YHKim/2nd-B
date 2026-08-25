@@ -36,6 +36,21 @@ export function isProfileChildPath(pathname: string): boolean {
 // (EXPO_PUBLIC_UI=legacy) uses PremiumAppShell with no dock, so the chip stays —
 // callers MUST gate this list behind isDeepSpaceUI().
 export const DEEP_SPACE_DOCK_PATHS = [
+  // 2026-08-30: 이 열한 라우트는 DeepSpaceDesignScreens 의 로컬 `Shell` 을 쓰는데,
+  // 그 Shell 이 dock 없는 순수 View 였다가 DockShell(=DeepSpaceScreen) 로 위임되면서
+  // **독을 갖게 됐다.** 레지스트리를 같이 안 옮기면 여기 목록은 화면과 반대를 말하고,
+  // 그 거짓이 뜬 back 칩 중복(이 목록이 막으려던 바로 그 버그)으로 돌아온다.
+  "/discover",
+  "/formats",
+  "/insights",
+  "/manual",
+  "/permissions",
+  "/privacy",
+  "/research",
+  "/review",
+  "/srs",
+  "/support",
+  "/theme",
   "/audit",
   "/esm",
   "/core-brain",
