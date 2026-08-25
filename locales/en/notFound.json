@@ -24,8 +24,8 @@
       "hint": "Opens the persona screen."
     },
     "manual": {
-      "label": "Manual",
-      "hint": "Opens the app manual from the not-found page."
+      "label": "User Guide",
+      "hint": "Opens the user guide from the 404 screen."
     }
   }
 }
