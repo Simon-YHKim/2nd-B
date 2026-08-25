@@ -41,8 +41,12 @@ describe("deep-space dock routes", () => {
     // dock is its nav, so the floating back arrow must hide there too.
     expect(isDeepSpaceDockPath("/settings")).toBe(true);
 
-    // Stack routes without a dock keep the floating back arrow.
-    expect(isDeepSpaceDockPath("/privacy")).toBe(false);
+    // /privacy 는 2026-08-30 에 독을 갖게 됐다 — Shell 이 DockShell 로 위임되면서
+    // 열한 화면이 함께 옮겨왔다. 독이 있으면 뜬 back 칩은 중복이라 숨어야 한다.
+    expect(isDeepSpaceDockPath("/privacy")).toBe(true);
+
+    // 독이 없는 스택 라우트는 여전히 뜬 back 칩을 쓴다(dev 갤러리).
+    expect(isDeepSpaceDockPath("/deepspace-hub")).toBe(false);
   });
 
   test("covers the delegated/multiline dock screens the 4th drift shipped unregistered", () => {
