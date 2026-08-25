@@ -59,7 +59,7 @@ const SLIDE_EN: { tag: string; title: string; body: string }[] = [
   {
     tag: "Learning together",
     title: "Learn how the\nAI works, too",
-    body: "See how SecondB understands you: the AI Museum unpacks the how in a simple, playful way.",
+    body: "What SecondB writes about you is a proposal; you decide what stays. The AI Museum unpacks how it works, simply.",
   },
 ];
 

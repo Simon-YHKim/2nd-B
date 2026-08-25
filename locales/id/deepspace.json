@@ -139,7 +139,7 @@
   },
   "auth": {
     "appName": "2nd-Brain",
-    "signInLead": "Bangun asetmu yang paling berharga di era AI: dirimu sendiri.",
+    "signInLead": "Di era AI, asetnya adalah kamu. Catatanmu menumpuk menjadi Bintang Utaramu.",
     "signIn": "Masuk",
     "createAccount": "Buat akun",
     "signUpTitle": "Mulai",
@@ -328,7 +328,7 @@
   },
   "manual": {
     "title": "Manual · Bantuan",
-    "status": "Temukan yang kamu ingin tahu dengan cepat.",
+    "status": "Catatanmu milikmu; ringkasannya yang kamu setujui. Temukan cara kerjanya di sini.",
     "tip": "Kalau tidak ketemu, langsung tanya SecondB.",
     "search": "Apa yang ingin kamu ketahui?",
     "sectionStart": "Memulai",
@@ -773,7 +773,7 @@
       "cadenceSaving": "Bayar tahunan lebih hemat dua bulan.",
       "honestyLead": "Paket hanya berbeda ",
       "honestyStrong": "dalam jumlah dan persona",
-      "honestyTail": ". Membayar lebih tidak pernah memberi Anda 'diri yang lebih baik'.",
+      "honestyTail": ". Catatan dan ringkasanmu tetap milikmu; membayar lebih tidak pernah memberi 'diri yang lebih baik'.",
       "active": "Aktif",
       "currentPlan": "Paket saat ini",
       "included": "Termasuk di semua paket",
@@ -1022,7 +1022,7 @@
     "authLabel": "Masuk untuk memulai",
     "secondbName": "SecondB",
     "authTitle": "Siap memulai?",
-    "authBody": "Masuk untuk melanjutkan rasi bintangmu di perangkat mana pun.",
+    "authBody": "Catatanmu milikmu; ringkasannya yang kamu setujui. Sekarang mari bangun rasi bintangmu.",
     "next": "Berikutnya"
   },
   "trends": {

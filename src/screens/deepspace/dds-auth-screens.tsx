@@ -254,6 +254,10 @@ export function DeepSpaceSignInDesignScreen() {
         <SecondbHead size={72} mood="neutral" />
         <Text variant="caption" pixelEn style={styles.authBrand}>{t("deepspace:auth.brandLabel")}</Text>
         <Text variant="heading" style={styles.authTitle}>{t("deepspace:auth.signInTitle")}</Text>
+        {/* 비로그인 웹 진입의 첫 화면이 여기다(/ → /sign-in 리다이렉트). 이 앱이
+            무엇인지 말하는 자리가 인사말 하나뿐이었는데, 정작 그 문장을 담은
+            auth.signInLead 는 5로케일에 다 있으면서 렌더하는 곳이 0건인 고아였다. */}
+        <Text variant="body" style={styles.authSub}>{t("deepspace:auth.signInLead")}</Text>
         <Text variant="body" style={styles.authSub}>{t("deepspace:auth.signInEncrypt")}</Text>
       </View>
 
