@@ -5,7 +5,7 @@
 // records so you confirm what is true. No LLM call here: it only reads the
 // already-stored inferred links and writes the user's verdict.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -14,6 +14,8 @@ import { Redirect, router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
+import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
+import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -189,7 +191,7 @@ export default function Digest() {
   if (!userId) return <Redirect href="/sign-in" />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <Frame>
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.header}>
           <SecondbHead size={48} mood="neutral" />
@@ -338,6 +340,34 @@ export default function Digest() {
           </View>
         ) : null}
       </ScrollView>
+    </Frame>
+  );
+}
+
+// Frame — 이 화면의 껍데기. 딥스페이스에서는 공용 셸을 쓴다(2026-08-30).
+//
+// `/digest`("오늘의 정리")는 자기 SafeAreaView 로 프레임을 세우느라 **하단 탭바가
+// 없었다.** #1409·#1414 가 같은 결함으로 15장을 고쳤는데 이 화면이 16번째다 —
+// 라우트 전수 조사에서 `SafeAreaView` 로 프레임을 세우면서 `DeepSpaceScreen` 을
+// 안 쓰는 곳은 셋이었고(digest · onboarding · review), review 는 딥스페이스에서
+// 전용 화면으로 갈아타고 있었고(review.tsx:219) onboarding 은 **일부러** 독이 없다
+// (첫 실행 흐름에서 탭으로 빠져나가면 안 된다). 남은 하나가 여기였다.
+//
+// 진입 경로가 둘 있는 실제 화면이다 — 임포트 수신함과 허브 독.
+//
+// ⚠ active="lens" 는 TABS 밖이라 어떤 탭도 잘못 하이라이트되지 않고,
+// DeepSpaceScreen 의 '루트 탭 → 홈' 하드웨어 뒤로가기 특례도 걸리지 않는다.
+function Frame({ children }: { children: ReactNode }) {
+  if (isDeepSpaceUI()) {
+    return (
+      <DeepSpaceScreen active="lens" header="none">
+        {children}
+      </DeepSpaceScreen>
+    );
+  }
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      {children}
     </SafeAreaView>
   );
 }
