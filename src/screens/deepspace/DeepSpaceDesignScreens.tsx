@@ -1760,6 +1760,10 @@ export function DeepSpaceReviewScreen() {
     <Shell title={t("review.title")}>
       <SecondbStatusHeader text={t("review.status")} tip={t("review.tip")} />
       <Text variant="body" style={styles.lead}>{t("review.lead")}</Text>
+      {/* 이 화면의 규칙을 맨 위에 한 줄로 둔다. 확인해야만 반영된다는 것과, L5 가
+          여기서만 열린다는 것 — 둘 다 이 화면에 온 이유다
+          (design/pixel_clay_260825/captures/review.png). */}
+      <Text variant="caption" style={styles.footer}>{t("review.rule")}</Text>
       <Card>
         <Text variant="heading" style={styles.section}>{t("review.section")}</Text>
         <Text variant="body" style={styles.planFeatDim}>{t("review.body")}</Text>
@@ -1767,6 +1771,9 @@ export function DeepSpaceReviewScreen() {
       {/* 측정된 근거가 있는 축마다 하나씩. 근거 없는 축을 비준 대상으로 내밀면
           앱이 지어낸 값을 사용자에게 승인시키는 꼴이 되고, 그건 propose->ratify
           가 막으려던 바로 그 일이다. */}
+      {targets.length > 0 ? (
+        <Text variant="caption" style={styles.section}>{t("review.groupTest")}</Text>
+      ) : null}
       {targets.length === 0 && sevenTargets.length === 0 ? (
         <Text variant="subtle" style={styles.footer}>{t("reviewNothingToReview")}</Text>
       ) : (
@@ -1790,6 +1797,9 @@ export function DeepSpaceReviewScreen() {
       {/* 시기 별 비준(2026-08-25) -- 인터뷰로 충분히 판 별의 한 줄 요약을 제안받고
           승인하면 그 별이 L5 로 간다. 커버리지로는 절대 못 가는 등급이라, 이
           버튼들이 새 일곱 별의 유일한 L5 경로다. 이름은 홈과 같은 키에서 읽는다. */}
+      {sevenTargets.length > 0 ? (
+        <Text variant="caption" style={styles.section}>{t("review.groupSeven")}</Text>
+      ) : null}
       {sevenTargets.map((st) => (
         <Pressable
           key={`seven-${st.star}`}
@@ -1843,6 +1853,9 @@ export function DeepSpaceReviewScreen() {
           </View>
         </Card>
       ) : null}
+      {/* 거절도 승인도 이력에 남는다는 것을 화면 끝에서 한 번 더 말한다 —
+          되돌릴 수 있다는 확신이 있어야 사람이 솔직하게 아니라고 한다. */}
+      <Text variant="subtle" style={styles.footer}>{t("review.ledgerNote")}</Text>
       <RatifySheet proposal={proposal} locale={locale} visible={sheetOpen} onDecision={handleDecision} onClose={() => setSheetOpen(false)} />
     </Shell>
   );

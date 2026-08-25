@@ -418,7 +418,11 @@
     "evidence": "근거 기록 {{count}}건",
     "footer": "승인해야만 반영됩니다 · 모든 제안은 기록에 남습니다",
     "hold": "보류",
-    "approve": "승인"
+    "approve": "승인",
+    "rule": "확인해야만 반영돼요 · L5는 여기서만 열려요",
+    "groupSeven": "시기 별 후보 · 두 층 이상 판 별",
+    "groupTest": "검사 기반 후보",
+    "ledgerNote": "모든 제안은 이력에 남아요."
   },
   "formats": {
     "title": "내보내기 형식",

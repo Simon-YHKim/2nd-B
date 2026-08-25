@@ -1,0 +1,55 @@
+{
+ "note": "stage 1 이식 전후 대조. before 는 이식 전(그리고 기기 크롬 제외 전) 수치라 절대 비교가 아니라 방향으로 읽을 것.",
+ "capturedWith": "design/pixel_clay_260825/tools/capture-app.mjs",
+ "stage1": [
+  {
+   "id": "home",
+   "route": "/",
+   "refNodes": 5,
+   "appNodes": 19,
+   "textMatchPct": 100,
+   "beforeStage1": 83
+  },
+  {
+   "id": "chat",
+   "route": "/secondb",
+   "refNodes": 5,
+   "appNodes": 19,
+   "textMatchPct": 100,
+   "beforeStage1": 83
+  },
+  {
+   "id": "interview",
+   "route": "/interview",
+   "refNodes": 6,
+   "appNodes": 10,
+   "textMatchPct": 100,
+   "beforeStage1": 86
+  },
+  {
+   "id": "me-star",
+   "route": "/me/school",
+   "refNodes": 8,
+   "appNodes": 11,
+   "textMatchPct": 75,
+   "beforeStage1": 56
+  },
+  {
+   "id": "trend",
+   "route": "/brightness",
+   "refNodes": 8,
+   "appNodes": 11,
+   "textMatchPct": 100,
+   "beforeStage1": 67
+  },
+  {
+   "id": "review",
+   "route": "/review",
+   "refNodes": 13,
+   "appNodes": 12,
+   "textMatchPct": 31,
+   "beforeStage1": 7
+  }
+ ],
+ "legend": "textMatchPct = 레퍼런스 텍스트 노드 중 앱에도 있는 비율(기기 크롬 제외)."
+}

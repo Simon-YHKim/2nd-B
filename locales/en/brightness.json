@@ -13,5 +13,7 @@
   "honestyLine": "{{obs}} observations · {{cited}} cited · {{stars}} stars",
   "citedRatioLabel": "Cited ratio {{cited}} of {{obs}}",
   "honestyCaption": "Brightness is how much is on record, not certainty. Citations make it trustworthy.",
-  "reviewCta": "Go review a proposal"
+  "reviewCta": "Go review a proposal",
+  "subtitle": "8 weeks · seven stars",
+  "rule": "Brightness rises only as far as you dug. Empty weeks stay empty."
 }

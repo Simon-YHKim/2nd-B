@@ -583,7 +583,10 @@
       "dug": "{{n}} dari {{total}} lapis terbuka",
       "records": "{{n}} catatan",
       "start": "Mulai",
-      "continue": "Lanjutkan"
+      "continue": "Lanjutkan",
+      "pageLabel": "Ringkasan bintang",
+      "meter": "Menyala sejauh kamu menggali · {{n}}/{{total}} lapis",
+      "recordsLabel": "Yang sudah kamu simpan"
     },
     "dashboard": {
       "title": "Yang kutahu tentangmu",

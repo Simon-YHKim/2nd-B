@@ -418,7 +418,11 @@
     "evidence": "{{count}} supporting records",
     "footer": "Nothing applies until you approve · every suggestion stays in your records",
     "hold": "Hold",
-    "approve": "Approve"
+    "approve": "Approve",
+    "rule": "Nothing applies until you confirm · L5 opens only here",
+    "groupSeven": "Period stars · dug two layers or more",
+    "groupTest": "From your assessments",
+    "ledgerNote": "Every proposal stays in the log."
   },
   "formats": {
     "title": "Export format",

@@ -13,5 +13,7 @@
   "honestyLine": "{{obs}} observaciones · {{cited}} con evidencia · {{stars}} estrellas",
   "citedRatioLabel": "Proporción con evidencia {{cited}} de {{obs}}",
   "honestyCaption": "El brillo es cuánto hay registrado, no certeza. Las citas lo hacen más fiable.",
-  "reviewCta": "Ir a revisar una propuesta"
+  "reviewCta": "Ir a revisar una propuesta",
+  "subtitle": "8 semanas · siete estrellas",
+  "rule": "El brillo sube solo hasta donde excavaste. Las semanas vacías quedan vacías."
 }

@@ -418,7 +418,11 @@
     "evidence": "{{count}} registros de respaldo",
     "footer": "Nada se aplica hasta que lo apruebes · cada sugerencia queda en tus registros",
     "hold": "Esperar",
-    "approve": "Aprobar"
+    "approve": "Aprobar",
+    "rule": "Nada se aplica hasta que lo confirmes · L5 solo se abre aquí",
+    "groupSeven": "Estrellas de época · con dos capas o más",
+    "groupTest": "A partir de tus pruebas",
+    "ledgerNote": "Cada propuesta queda en el historial."
   },
   "formats": {
     "title": "Formato de exportación",
