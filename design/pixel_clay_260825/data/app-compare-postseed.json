@@ -1,0 +1,46 @@
+{
+ "note": "Shell 수정(#1409) + QA 시드 이후 실측. 같은 번들을 서빙한 채 DB 만 바꿔 잰 값이라, 오른 만큼이 정확히 데이터 탓이었다는 뜻이다.",
+ "capturedWith": "design/pixel_clay_260825/tools/capture-app.mjs",
+ "afterSeed": [
+  {
+   "id": "home",
+   "route": "/",
+   "refNodes": 5,
+   "appNodes": 19,
+   "textMatched": 5,
+   "textMatchPct": 100
+  },
+  {
+   "id": "interview",
+   "route": "/interview",
+   "refNodes": 6,
+   "appNodes": 10,
+   "textMatched": 6,
+   "textMatchPct": 100
+  },
+  {
+   "id": "me-star",
+   "route": "/me/school",
+   "refNodes": 8,
+   "appNodes": 19,
+   "textMatched": 7,
+   "textMatchPct": 88
+  },
+  {
+   "id": "trend",
+   "route": "/brightness",
+   "refNodes": 8,
+   "appNodes": 11,
+   "textMatched": 8,
+   "textMatchPct": 100
+  },
+  {
+   "id": "review",
+   "route": "/review",
+   "refNodes": 13,
+   "appNodes": 20,
+   "textMatched": 12,
+   "textMatchPct": 92
+  }
+ ]
+}
