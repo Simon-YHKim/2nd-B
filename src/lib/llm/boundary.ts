@@ -16,12 +16,11 @@ import {
   embedVendor,
   failoverVendor,
   multimodalVendor,
-  normalizeVendor,
   phase2EffortFor,
   proxyFnForVendor,
   resolveVendorForPurpose,
 } from "./routing";
-import type { LlmProxyFn, LlmVendor } from "./routing";
+import type { LlmVendor } from "./routing";
 import { retrieveEvidence } from "../knowledge/retrieve";
 import { loadDomainLevels } from "../persona/load-domain-levels";
 import { classifyInput, classifyInputAnyLocale, crisisHotlines, type SafetyResult } from "../safety/classifier";
@@ -106,28 +105,11 @@ function effortToConfig(effort: ReasoningEffort): {
 // the edge proxy pins its own generationConfig server-side.
 const THINKING_OFF_PURPOSES: ReadonlySet<PromptPurpose> = new Set(["capture_ocr"]);
 
-// Reasoning provider seam (C1-SAFE). EXPO_PUBLIC_REASONING_PROVIDER selects the
-// backend for the reasoning (pro) path. Default "gemini"; "claude" routes the
-// pro-tier call through the claude-proxy Edge Function (see
-// docs/CLAUDE-REASONING-SETUP.md, Option A). We NEVER import an Anthropic SDK
-// here — the Claude call happens server-side in the edge function, so C1 holds.
-// The chosen provider is recorded in the audit meta.
-function resolveReasoningProvider(): LlmVendor {
-  const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "gemini").trim().toLowerCase();
-  // 'openai' used to fall through to Gemini here, which meant the operator
-  // could set EXPO_PUBLIC_REASONING_PROVIDER=openai, see no error, and still be
-  // on Gemini. That silent no-op is the thing standing between this app and the
-  // September deadline, so the seam now accepts every vendor it can route to.
-  return normalizeVendor(raw) ?? "gemini";
-}
-
-// Each vendor routes to its own Supabase Edge Function; all keep the client
-// SDK-free (C1). Claude/OpenAI have no client-side path (no key on the
-// device), so a non-Gemini call ALWAYS goes through its edge function even
-// when EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION is off for the direct Gemini path.
-function reasoningProxyFn(reasoningProvider: LlmVendor | undefined): LlmProxyFn {
-  return proxyFnForVendor(reasoningProvider);
-}
+// The legacy reasoning seam (EXPO_PUBLIC_REASONING_PROVIDER) used to live here
+// as a second resolver consulted after resolveVendorForPurpose. It is now the
+// last rung INSIDE resolveVendorForPurpose (routing.ts, opts.reasoningTier) so
+// vendor choice has exactly one owner. C1 still holds: the seam only swaps the
+// edge-function NAME — no vendor SDK is imported client-side, ever.
 
 let cachedClient: GoogleGenAI | null = null;
 let cachedClientVertex = false;
@@ -545,8 +527,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
   const model = MODELS[tier];
   // D-26 Phase 2: purpose-keyed vendor seat (EXPO_PUBLIC_LLM_PHASE=2). The
   // proxy owns the actual model id; image-bearing calls and the OCR/voice
-  // pins always stay Gemini. Phase 1 (default) resolves "gemini" everywhere.
-  const vendorSeat = resolveVendorForPurpose(input.purpose, input.image != null);
+  // pins always stay Gemini. Phase 1 (default) resolves "gemini" everywhere —
+  // except that on the reasoning (pro) tier the legacy
+  // EXPO_PUBLIC_REASONING_PROVIDER seam gets the last word (routing.ts).
+  const vendorSeat = resolveVendorForPurpose(input.purpose, input.image != null, {
+    reasoningTier: tier === "pro",
+  });
   // effort applies on the reasoning (pro) tier, and on non-Gemini vendor seats
   // (the proxy maps it to the vendor's native reasoning ladder). On Gemini
   // lite/flash it stays undefined so the audit row doesn't imply a reasoning
@@ -557,14 +543,12 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       : vendorSeat !== "gemini"
         ? input.effort ?? phase2EffortFor(input.purpose) ?? DEFAULT_EFFORT
         : undefined;
-  // Vendor for the call: a Phase 2 seat wins; otherwise the legacy pro-tier
-  // reasoning-provider seam (EXPO_PUBLIC_REASONING_PROVIDER) applies.
+  // Vendor for the call. vendorSeat already folded in the legacy pro-tier seam
+  // (last rung of resolveVendorForPurpose), so this is now just: record the
+  // vendor whenever it is non-Gemini, and on the pro tier record "gemini"
+  // explicitly (audit parity — pro rows always carry a reasoning_vendor).
   const reasoningProvider =
-    vendorSeat !== "gemini"
-      ? vendorSeat
-      : tier === "pro"
-        ? resolveReasoningProvider()
-        : undefined;
+    vendorSeat !== "gemini" ? vendorSeat : tier === "pro" ? ("gemini" as const) : undefined;
   // Which backend actually served the answer — reassigned when the D-26
   // outage failover drops a vendor seat back to the Gemini Phase 1 route.
   // Audit rows record THIS, not the intended seat (C3 honesty).
@@ -614,7 +598,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
 
   // Route through an edge function when configured, OR whenever the vendor is
   // non-Gemini (Claude/OpenAI have no client-side path — the keys live only in
-  // their proxies). reasoningProxyFn picks the matching function.
+  // their proxies). proxyFnForVendor picks the matching function.
   if (
     env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION ||
     (reasoningProvider != null && reasoningProvider !== "gemini")
@@ -639,7 +623,7 @@ export async function callLlm<T = string>(input: PromptInput): Promise<LlmResult
       // vendor's native ladder server-side and clamps per purpose.
       ...(effort ? { effort } : {}),
     };
-    const primaryFn = reasoningProxyFn(reasoningProvider);
+    const primaryFn = proxyFnForVendor(reasoningProvider);
     const t0 = Date.now();
     let { data, error } = await supabase.functions.invoke(primaryFn, {
       body: proxyBody,
@@ -1281,12 +1265,12 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   const env = getEnv();
   const promptHash = djb2(input.userMessage);
   // Advisor is the reasoning (pro) path: honor effort (default high). Vendor:
-  // the D-26 Phase 2 advisor seat (claude, when EXPO_PUBLIC_LLM_PHASE=2) wins;
-  // otherwise the legacy C1-safe reasoning-provider seam applies. Recorded in
-  // every advisor audit row (C3).
+  // resolveVendorForPurpose with reasoningTier — the D-26 Phase 2 advisor seat
+  // wins, and the legacy seam is its last rung (routing.ts). Recorded in every
+  // advisor audit row (C3).
   const effort: ReasoningEffort = input.effort ?? DEFAULT_EFFORT;
-  const advisorSeat = resolveVendorForPurpose("advisor", false);
-  const reasoningProvider = advisorSeat !== "gemini" ? advisorSeat : resolveReasoningProvider();
+  const advisorSeat = resolveVendorForPurpose("advisor", false, { reasoningTier: true });
+  const reasoningProvider = advisorSeat;
 
   // Layer 1+2 safety: lexicon backstop + Gemini Flash classifier (semantic).
   const safety = await classifySafety(input.userMessage, input.locale, { userId: input.userId });
@@ -1406,7 +1390,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
   // (parity with callLlm).
   let proxyAudited = false;
   // Edge path when configured, OR whenever the vendor is non-Gemini
-  // (server-side only). reasoningProxyFn picks the matching proxy.
+  // (server-side only). proxyFnForVendor picks the matching proxy.
   if (env.EXPO_PUBLIC_LLM_VIA_EDGE_FUNCTION || reasoningProvider !== "gemini") {
     const supabase = getSupabaseClient();
     // The curated RAG prompt rides in `system` (trusted, NOT crisis-scanned —
@@ -1427,7 +1411,7 @@ export async function callAdvisor(input: AdvisorInput): Promise<AdvisorResult> {
       // server-side and clamps per purpose. The tier cap stays the ceiling.
       effort,
     };
-    const primaryFn = reasoningProxyFn(reasoningProvider);
+    const primaryFn = proxyFnForVendor(reasoningProvider);
     const t0 = Date.now();
     let { data, error } = await supabase.functions.invoke(primaryFn, { body: proxyBody });
     // D-26 outage failover (parity with callLlm): a vendor-seat failure that
