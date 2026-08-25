@@ -31,21 +31,11 @@ const APP_DIR = path.resolve(__dirname, "../../../app");
 // floating BackArrow chip. Keep each entry justified — an unjustified entry
 // here recreates the double-back-control bug this guard exists to prevent.
 const NON_DOCK_ROUTES = new Set<string>([
-  // Shell-wrapped design sub-screens (DeepSpaceDesignScreens.tsx `Shell`):
-  // a bare radius window with NO dock and NO top bar that reserves
-  // insets.top + 52 headroom precisely so the floating chip can sit there —
-  // the chip IS their back affordance.
-  "/discover",
-  "/formats",
-  "/insights",
-  "/manual",
-  "/permissions",
-  "/privacy",
-  "/research",
-  "/review",
-  "/srs",
-  "/support",
-  "/theme",
+  // (2026-08-30) Shell-wrapped design sub-screens USED to live here: that
+  // `Shell` was a bare window with no dock, so the floating chip was their only
+  // back affordance. It now delegates to DockShell, so those eleven routes have
+  // a dock AND a top bar — they moved into DEEP_SPACE_DOCK_PATHS and the chip
+  // hides itself there. Do not add them back without checking the screen.
   // Dev-facing mock phone-frame galleries (own ScrollView, no dock): the chip
   // is their only way back.
   "/deepspace-flowmap",
