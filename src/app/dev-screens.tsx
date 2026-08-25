@@ -12,6 +12,7 @@
 // 읽기 전용이다. 데이터를 만들지도 지우지도 않고, LLM 을 부르지 않는다.
 // 하는 일은 `router.push` 하나뿐이다.
 
+import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { ScrollView, View, StyleSheet, Platform, Pressable } from "react-native";
 
@@ -19,6 +20,8 @@ import { DevOnlyRoute } from "@/components/ui/DevOnlyRoute";
 import { Text } from "@/components/ui/Text";
 import { DEV_SCREEN_GROUPS, devScreens, orphanScreens, type DevScreen } from "@/lib/dev/screen-index";
 import { semantic, spacing, radii } from "@/lib/theme/tokens";
+import { clarityGateSnapshot } from "@/lib/analytics";
+import { probeNativeClarity } from "@/lib/analytics/clarity-native";
 
 export default function DevScreensRoute() {
   return (
@@ -92,6 +95,8 @@ function DevScreenIndex() {
         </Text>
       </View>
 
+      <ClarityStatusRow />
+
       <Text variant="caption" style={styles.section}>
         정상 경로로는 못 들어가는 화면
       </Text>
@@ -117,6 +122,55 @@ function DevScreenIndex() {
         </View>
       ))}
     </ScrollView>
+  );
+}
+
+/**
+ * Clarity 상태 한 줄 — "왜 대시보드에 안 뜨는가" 를 앱 안에서 판정하기 위한 자리.
+ *
+ * SDK 는 기본 로그를 안 남기고 릴리스 빌드에는 콘솔이 없어서, 지금까지는 대시보드에
+ * 안 뜬다는 것만 알 뿐 **어느 고리가 끊겼는지** 알 방법이 없었다. 게이트 값을 전부
+ * 한 줄에 편다.
+ *
+ * ⚠ 읽는 법: 이 화면(/dev-screens)은 Clarity **허용 라우트가 아니다.** 그래서 여기
+ * 서 있는 동안 route/allowed 는 false 이고 capturing 도 false 인 것이 정상이다.
+ * 판정은 허용 라우트(/ 또는 /settings)를 다녀온 뒤 **session** 이 생겼는지로 한다.
+ */
+function ClarityStatusRow() {
+  const [line, setLine] = useState<string>("...");
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const g = clarityGateSnapshot();
+      const p = await probeNativeClarity();
+      if (!alive) return;
+      setLine(
+        [
+          `consent=${g.consent}`,
+          `flags=${g.analyticsEnabled}/${g.clarityEnabled}`,
+          `projectId=${g.projectId}`,
+          `route=${g.route}${g.allowedRoute ? "(allowed)" : "(not-allowed)"}`,
+          `module=${p.modulePresent}`,
+          `init=${p.initialized}`,
+          `capturing=${p.capturing}`,
+          `sdkPaused=${p.sdkPaused === null ? "?" : p.sdkPaused}`,
+          `session=${p.sessionUrl ? "yes" : "no"}`,
+        ].join(" · "),
+      );
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (
+    <View style={styles.card}>
+      <Text variant="caption">Clarity 상태</Text>
+      <Text variant="subtle" style={styles.why}>
+        이 화면은 허용 라우트가 아니라 여기서는 capturing=false 가 정상입니다. 홈이나
+        설정을 다녀온 뒤 session 이 yes 로 바뀌는지로 판정하세요.
+      </Text>
+      <Text variant="subtle">{line}</Text>
+    </View>
   );
 }
 
