@@ -131,7 +131,9 @@ describe("transcribeAudio no longer names a vendor", () => {
 });
 
 describe("the reasoning seam can actually reach OpenAI", () => {
-  const boundary = readFileSync(join(__dirname, "..", "boundary.ts"), "utf8");
+  // The seam moved from boundary.ts into routing.ts (legacyReasoningProvider,
+  // the last rung of resolveVendorForPurpose) — the invariant follows the code.
+  const routing = readFileSync(join(__dirname, "..", "routing.ts"), "utf8");
 
   test("EXPO_PUBLIC_REASONING_PROVIDER=openai is no longer a silent no-op", () => {
     // It used to read `raw === "claude" ? "claude" : "gemini"`, so setting the
@@ -141,8 +143,11 @@ describe("the reasoning seam can actually reach OpenAI", () => {
     // The literal moved into normalizeVendor() when xai joined, so the check
     // is now that the seam DEFERS to that one normalizer rather than keeping a
     // second copy of the vendor list that could drift from it.
-    expect(boundary).toMatch(/return normalizeVendor\(raw\) \?\? "gemini";/);
-    expect(boundary).not.toMatch(/return raw === "claude" \? "claude" : "gemini";/);
+    const seamStart = routing.indexOf("export function legacyReasoningProvider");
+    expect(seamStart).toBeGreaterThan(-1);
+    const seam = routing.slice(seamStart, routing.indexOf("}", seamStart) + 1);
+    expect(seam).toMatch(/return normalizeVendor\(raw\) \?\? "gemini";/);
+    expect(seam).not.toMatch(/return raw === "claude" \? "claude" : "gemini";/);
   });
 });
 

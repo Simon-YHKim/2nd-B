@@ -19,17 +19,29 @@
 > 좌석별 배치(Claude 2좌석, 교차검증 양측)가 전부 무동작이 된다. 좌석별 배치를 쓰려면
 > **반드시 `perPurpose`** 여야 한다. 이건 이 저장소가 실제로 밟은 함정이다.
 >
-> ### `EXPO_PUBLIC_REASONING_PROVIDER` 는 어느 축인가 — **다른 축이다. 지우지 말 것**
+> ### `EXPO_PUBLIC_REASONING_PROVIDER` 는 어느 축인가 — **purpose 축의 마지막 rung 이다 (2026-08-26 통합)**
 >
-> 이름이 비슷해서 `*_VENDOR` 계열과 같은 축으로 오해하기 쉬운데 **아니다.**
+> 예전에는 `boundary.ts` 의 별도 리졸버(`resolveReasoningProvider`)가 읽는 **다른 축**이었다.
+> 2026-08-26 에 `routing.ts` 의 `legacyReasoningProvider()` 로 접혀 들어가,
+> `resolveVendorForPurpose(purpose, hasImage, { reasoningTier })` 의 **마지막 rung** 이 됐다:
 >
-> - `*_VENDOR` 계열 = **purpose 별 좌석 라우팅**(위 표). `resolveVendorForPurpose` 가 읽는다.
-> - `EXPO_PUBLIC_REASONING_PROVIDER` = **레거시 리즈닝 seam**. `boundary.ts` 의
->   `resolveReasoningProvider()` 가 읽고, purpose 를 안 본다.
+> - purpose 축(멀티모달 핀 → chat 스위치 → 좌석/백본)이 **항상 먼저** 이기고,
+> - 그 전부가 `gemini` 를 돌려준 **pro 티어 호출에서만** 이 변수가 상담된다.
+> - 이미지 동반 호출은 멀티모달 핀에서 끝나므로 **seam 에 절대 닿지 않는다**
+>   (구 구조의 잠재 결함 — pro+image 조합이 텍스트 프록시로 갈 수 있었다 — 을 통합이 봉합).
 >
-> **라이브 코드 참조가 여러 곳이라 삭제 금지다**(실측: `boundary.ts` · `routing.ts` ·
-> `types.ts` + 워크플로 2종 + 테스트 3종). 이 seam 때문에 **claude-proxy 는 allowlist 를
-> 두지 않는다** — 좌석에 없는 purpose 도 기본 모델로 서빙해야 하기 때문이다.
+> 이 통합은 **값 변경 0건**(동작 보존)이며 `reasoning-provider-routing.test.ts` 가
+> 무수정 초록으로 그것을 증명한다. **아직 삭제는 금지다** — `vendor-switch-reachability.test.ts`
+> 가 eas.json + 배포 워크플로 2종의 3중 배선을 강제한다. **걷어내기 조건 3개**:
+> ⓐ 웹·네이티브 모두 pro 경로에서 purpose 축이 gemini 를 반환하지 않는 posture 확인
+> (또는 9월 Gemini 폐기 완료·검증) ⓑ GH Variables 실값이 축 결과와 동치 확인
+> ⓒ `ai_audit_log` 에서 advisor·reasoning_connect·imagine 행의 `reasoning_vendor` 관측 무이상.
+> 그때 원자적 1 PR 로: routing.ts rung 삭제 → reachability ENV_KEYS 에서 키 제거 →
+> 관련 테스트 폐기 → 워크플로 2종·eas.json 에서 **키 자체 삭제**(빈 문자열 금지 — eas 전면 사망)
+> → 배포 후 `gh variable delete`.
+>
+> claude-proxy 의 no-allowlist 는 유지된다 — 근거는 이제 seam 이 아니라
+> `EXPO_PUBLIC_LLM_VENDOR=claude` outage refuge(미좌석 purpose 도 sonnet 으로 서빙)다.
 >
 > ### 좌석 현황 (2026-08-23)
 >

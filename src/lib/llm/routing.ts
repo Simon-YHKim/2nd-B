@@ -380,17 +380,52 @@ export const PHASE2_EFFORT: Readonly<Partial<Record<PromptPurpose, ReasoningEffo
   imagine: "high",
 };
 
+// Legacy reasoning seam (EXPO_PUBLIC_REASONING_PROVIDER), folded in from
+// boundary.ts (2026-08-26). It survives as the LAST rung of the purpose axis:
+// consulted only when every rung above resolved "gemini" AND the caller is on
+// the reasoning (pro) tier. The purpose axis therefore always wins — this is
+// the behaviour boundary.ts had (`vendorSeat !== "gemini" ? vendorSeat : ...`),
+// now stated in one resolver instead of two. Removal conditions live in
+// docs/LLM-ROUTING.md; until then vendor-switch-reachability.test.ts keeps the
+// env key wired through eas.json + both deploy workflows.
+export function legacyReasoningProvider(): LlmVendor {
+  const raw = (process.env.EXPO_PUBLIC_REASONING_PROVIDER ?? "gemini").trim().toLowerCase();
+  // 'openai' used to fall through to Gemini here, which meant the operator
+  // could set EXPO_PUBLIC_REASONING_PROVIDER=openai, see no error, and still be
+  // on Gemini. The seam accepts every vendor normalizeVendor can route to.
+  return normalizeVendor(raw) ?? "gemini";
+}
+
 /**
  * Resolve the vendor seat for a call. Image-bearing calls are ALWAYS Gemini
  * (belt-and-suspenders on top of the pinned set — no other proxy forwards
  * inline data).
+ *
+ * opts.reasoningTier marks a reasoning (pro) tier call: when the purpose axis
+ * resolves "gemini", the legacy EXPO_PUBLIC_REASONING_PROVIDER seam gets the
+ * last word for those calls only.
  */
-export function resolveVendorForPurpose(purpose: PromptPurpose, hasImage: boolean): LlmVendor {
+export function resolveVendorForPurpose(
+  purpose: PromptPurpose,
+  hasImage: boolean,
+  opts?: { reasoningTier?: boolean },
+): LlmVendor {
   // 1) Anything carrying a binary goes to the multimodal vendor, and that still
   //    beats every switch below: a text-only proxy cannot serve these at all,
-  //    so this is a capability constraint before it is a preference.
+  //    so this is a capability constraint before it is a preference. Returning
+  //    here also keeps the legacy reasoning seam away from image calls — a
+  //    text-only proxy cannot carry inline data, so the seam must never
+  //    re-route one (latent defect in the old two-resolver split; no live
+  //    call site paired model:"pro" with an image, so behaviour is unchanged).
   if (hasImage || MULTIMODAL_PURPOSES.has(purpose)) return multimodalVendor();
 
+  const resolved = resolveTextVendor(purpose);
+  // Last rung: the legacy pro-tier seam, only when the axis said "gemini".
+  if (resolved === "gemini" && opts?.reasoningTier) return legacyReasoningProvider();
+  return resolved;
+}
+
+function resolveTextVendor(purpose: PromptPurpose): LlmVendor {
   // 1b) Chat has its own vendor knob, independent of phase and of the seat
   //     switch. Placed after the image/OCR pin so an image-bearing turn still
   //     goes to Gemini (no other proxy forwards inline data), and before the
