@@ -45,6 +45,7 @@
   "createError": "Could not create the link. Try again.",
   "pendingCap": "You have reached the limit of open invitations. Revoke one to send another.",
   "privacyLine": "The link works once, expires in 14 days, and stores no contact info.",
+  "sentTitle": "Invites sent",
   "emptyList": "No invitations yet. Start with one person who knows you well.",
   "status": {
     "pending": "Waiting",
