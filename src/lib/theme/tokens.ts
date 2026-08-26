@@ -257,7 +257,13 @@ const semanticDeepSpace = {
   text: "#E8F7FF",
   textMuted: "#83bcd5",
   textSubtle: "#608aa1",
-  brand: "#46B6FF", // eye-cyan primary accent
+  // UI 전역 강조색. 레퍼런스 `--accent` 와 같은 값이다.
+  //
+  // ⚠ 전에는 시안 #46B6FF 로, **별 심과 같은 색**이었다. 그래서 버튼·테두리·
+  //   글자 같은 평범한 UI 가 별과 구분이 안 됐다. 레퍼런스는 둘을 가른다 —
+  //   `--accent`(파랑, 번들에서 64회)와 `--ds-core`(시안, 4회·딥스페이스 심 전용).
+  //   별 심은 `m3.accent.starCore` 가 이미 따로 들고 있고 그쪽은 시안 그대로다.
+  brand: "#5b8def",
   zoneGreen: "#5FF0C0",
   zoneYellow: "#FFD166",
   zoneRed: "#FF7A90",
