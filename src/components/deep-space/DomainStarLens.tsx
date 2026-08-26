@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
@@ -33,7 +33,18 @@ import { layoutPeopleMap } from "@/lib/relation/people-map-layout";
 import { listRecreationItems, type RecreationItem } from "@/lib/recreation/items";
 import { listRecentSamples, type HealthSampleRow } from "@/lib/supabase/health";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { ringCells, stepLine } from "@/components/pixel/pixel-line";
+import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+
+/**
+ * 관계 지도의 색 — 원래 `withAlpha(…)` 였다. 미리 합성해 불투명 색으로 둔다
+ * (PIXEL-CLAY 규칙 4). 바닥은 이 지도가 앉은 카드 배경이다.
+ */
+const LENS_MAP_GROUND = m3.color.surfaceContainerLow;
+const LENS_RING_FILL = flattenAlpha(m3.accent.starDim, 0.16, LENS_MAP_GROUND);
+const lensLinkFill = (c: string) => flattenAlpha(c, 0.28, LENS_MAP_GROUND);
+const lensNodeFill = (c: string) => flattenAlpha(c, 0.92, LENS_MAP_GROUND);
 
 export interface DomainLensRecord {
   id: string;
@@ -673,29 +684,26 @@ function RelationLens({ people, locale }: { people: Person[] | undefined; locale
         style={styles.mapCard}
       >
         <Svg width="100%" height="100%" viewBox="0 0 1000 1000">
-          {[160, 310, 460].map((radius) => (
-            <Circle
-              key={radius}
-              cx={500}
-              cy={500}
-              r={radius}
-              fill="none"
-              stroke={withAlpha(m3.accent.starDim, 0.16)}
-              strokeWidth={2}
-            />
-          ))}
-          {nodes.map((node) => (
-            <Line
-              key={`line-${node.id}`}
-              x1={500}
-              y1={500}
-              x2={node.x * 1000}
-              y2={node.y * 1000}
-              stroke={withAlpha(RELATION_COLOR[node.kind], 0.28)}
-              strokeWidth={3}
-            />
-          ))}
-          <Circle cx={500} cy={500} r={32} fill={m3.accent.polaris} />
+          {/* 거리 고리 — 원이었다. 셀 격자 위에서는 **사각 링**이 정직하다
+              (원을 셀로 근사하면 계단이 지저분해진다). 규칙 1·4. */}
+          {[160, 310, 460].map((radius) =>
+            ringCells(500, 500, radius, 8).map((p, i) => (
+              <Rect key={`r${radius}-${i}`} x={p.x} y={p.y} width={8} height={8} fill={LENS_RING_FILL} />
+            )),
+          )}
+          {nodes.map((node) =>
+            stepLine(500, 500, node.x * 1000, node.y * 1000, 8).map((p, i) => (
+              <Rect
+                key={`line-${node.id}-${i}`}
+                x={p.x}
+                y={p.y}
+                width={8}
+                height={8}
+                fill={lensLinkFill(RELATION_COLOR[node.kind])}
+              />
+            )),
+          )}
+          <PixelStarSvg cx={500} cy={500} r={32} fill={m3.accent.polaris} />
           <SvgText x={500} y={560} fill={m3.color.onSurface} fontSize={30} textAnchor="middle">
             {lensCopy(locale, "relation.me")}
           </SvgText>
@@ -703,11 +711,11 @@ function RelationLens({ people, locale }: { people: Person[] | undefined; locale
             const radius = 16 + node.closeness * 3;
             return (
               <G key={node.id}>
-                <Circle
+                <PixelNodeSvg
                   cx={node.x * 1000}
                   cy={node.y * 1000}
                   r={radius}
-                  fill={withAlpha(RELATION_COLOR[node.kind], 0.92)}
+                  fill={lensNodeFill(RELATION_COLOR[node.kind])}
                 />
                 <SvgText
                   x={node.x * 1000}
@@ -793,7 +801,6 @@ function HealthLens({
   const recent = samples ?? [];
   const coverage = Math.max(0, Math.min(1, ((level ?? 1) - 1) / 4));
   const radius = 43;
-  const circumference = 2 * Math.PI * radius;
   const latestByMetric = new Map<string, HealthSampleRow>();
   for (const sample of recent) {
     if (!latestByMetric.has(sample.metric_type)) latestByMetric.set(sample.metric_type, sample);
@@ -808,27 +815,23 @@ function HealthLens({
       <MdCard variant="outlined" style={styles.healthCard}>
         <View style={styles.healthTop}>
           <View style={styles.ringWrap}>
+            {/* 진행 링 — `strokeDasharray` 였다. 셀에서 진행은 테두리를 도는
+                칸 중 앞에서부터 n칸이다(규칙 1). 12시에서 시계방향으로 돈다. */}
             <Svg width={112} height={112} viewBox="0 0 112 112">
-              <Circle
-                cx={56}
-                cy={56}
-                r={radius}
-                fill="none"
-                stroke={m3.color.surfaceContainerHighest}
-                strokeWidth={10}
-              />
-              <Circle
-                cx={56}
-                cy={56}
-                r={radius}
-                fill="none"
-                stroke={m3.color.primary}
-                strokeWidth={10}
-                strokeLinecap="round"
-                strokeDasharray={`${coverage * circumference} ${circumference}`}
-                rotation={-90}
-                origin="56, 56"
-              />
+              {(() => {
+                const cells = ringCells(56, 56, radius, 10);
+                const lit = Math.round(cells.length * Math.max(0, Math.min(1, coverage)));
+                return cells.map((p, i) => (
+                  <Rect
+                    key={i}
+                    x={p.x}
+                    y={p.y}
+                    width={10}
+                    height={10}
+                    fill={i < lit ? m3.color.primary : m3.color.surfaceContainerHighest}
+                  />
+                ));
+              })()}
             </Svg>
             <View style={styles.ringText}>
               <RNText style={styles.ringLevel}>{`L${level ?? 1}`}</RNText>

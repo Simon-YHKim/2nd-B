@@ -23,7 +23,8 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
@@ -106,6 +107,17 @@ interface TTFVScreenProps {
   insight?: TTFVInsight;
 }
 
+/**
+ * 별 발광 색 — 원래 `opacity` 로 겹쳐 만들던 것을 **미리 합성해 둔다**(규칙 4).
+ * 바닥은 이 무대가 앉은 딥스페이스 바닥색이다.
+ */
+const TTFV_GROUND = deepSpace.bgEdge;
+const TTFV_DIM_FILL = flattenAlpha(deepSpace.accentDim, 0.5, TTFV_GROUND);
+const TTFV_HALO_FILL = flattenAlpha(deepSpace.accent, 0.16, TTFV_GROUND);
+const TTFV_MID_FILL = flattenAlpha(deepSpace.accentSoft, 0.34, TTFV_GROUND);
+const TTFV_POLARIS_HALO = flattenAlpha(m3.accent.polaris, 0.14, TTFV_GROUND);
+const TTFV_POLARIS_MID = flattenAlpha(m3.accent.polaris, 0.26, TTFV_GROUND);
+
 export function TTFVScreen({ insight }: TTFVScreenProps) {
   const { t, i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
@@ -184,18 +196,21 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
             <Line x1={POLARIS.x} y1={POLARIS.y} x2={DIM.x} y2={DIM.y} stroke={deepSpace.cardLine} strokeWidth={1} />
             <Line x1={GWANGE.x} y1={GWANGE.y} x2={DIM.x} y2={DIM.y} stroke={deepSpace.cardLine} strokeWidth={1} strokeDasharray="3 5" />
 
+            {/* 별은 원이 아니라 **4방향으로 빛나는 rect 별**이다(Simon 결정 2026-08-21,
+                PIXEL-CLAY 규칙 1). 발광은 알파를 겹치던 것 → 미리 합성한 색 층
+                (규칙 4). 밝기의 층위(Tier)는 그대로다 — 북극성이 가장 크고 밝다. */}
             {/* Tier: receding third node. */}
-            <Circle cx={DIM.x} cy={DIM.y} r={3.4} fill={deepSpace.accentDim} opacity={0.5} />
+            <PixelStarSvg cx={DIM.x} cy={DIM.y} r={3.4} fill={TTFV_DIM_FILL} />
 
-            {/* Tier A: the lit 관계 star (cyan, soft bloom). Brightens on ratify. */}
-            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 15 : 11} fill={deepSpace.accent} opacity={0.16} />
-            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 9 : 7} fill={deepSpace.accentSoft} opacity={0.34} />
-            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 5.2 : 4.2} fill={deepSpace.accentBright} />
+            {/* Tier A: the lit star (cyan, soft bloom). Brightens on ratify. */}
+            <PixelStarSvg cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 15 : 11} fill={TTFV_HALO_FILL} />
+            <PixelStarSvg cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 9 : 7} fill={TTFV_MID_FILL} />
+            <PixelStarSvg cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 5.2 : 4.2} fill={deepSpace.accentBright} />
 
             {/* Tier C: 북극성 — dominant, white core + violet bloom. */}
-            <Circle cx={POLARIS.x} cy={POLARIS.y} r={16} fill={m3.accent.polaris} opacity={0.14} />
-            <Circle cx={POLARIS.x} cy={POLARIS.y} r={9} fill={m3.accent.polaris} opacity={0.26} />
-            <Circle cx={POLARIS.x} cy={POLARIS.y} r={6} fill={deepSpace.textHi} />
+            <PixelStarSvg cx={POLARIS.x} cy={POLARIS.y} r={16} fill={TTFV_POLARIS_HALO} />
+            <PixelStarSvg cx={POLARIS.x} cy={POLARIS.y} r={9} fill={TTFV_POLARIS_MID} />
+            <PixelStarSvg cx={POLARIS.x} cy={POLARIS.y} r={6} fill={deepSpace.textHi} />
           </Svg>
           <Text variant="caption" style={[styles.starLabel, styles.polarisLabel]}>{t("home:ds.home.polaris")}</Text>
           <Text variant="caption" numberOfLines={1} style={[styles.starLabel, styles.gwangeLabel]}>{star}</Text>

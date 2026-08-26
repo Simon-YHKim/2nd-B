@@ -7,13 +7,18 @@
 import { Redirect, router } from "expo-router";
 import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Defs, LinearGradient, Path, Stop } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canonSurfaces } from "@/lib/canon";
 import { m3 } from "@/lib/theme/m3";
+import { flattenAlpha } from "@/lib/theme/tokens";
+import { stepPolyline } from "@/components/pixel/pixel-line";
+
+/** 그래프 아래 면 — 그라디언트였다. 미리 합성한 색 한 겹으로(규칙 4). */
+const TREND_AREA_FILL = flattenAlpha(m3.color.primary, 0.32, m3.color.surface);
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 // Overall brightness over 8 weeks (0..100), transcribed 1:1 from the reference.
@@ -25,17 +30,33 @@ const PAD = 6;
 const MAX = 70;
 const MIN = 20;
 
-function chartPaths() {
+/**
+ * 추세 그래프를 **정수 셀**로 만든다 (PIXEL-CLAY 규칙 1).
+ *
+ * 전에는 선이 `<Path>` 이고 아래 면이 그라디언트 `fill` 이었다. 픽셀에서는
+ * 선이 셀 계단이고, 아래 면은 **각 x 칸마다 바닥까지 세운 기둥**이다 —
+ * 그라디언트 대신 미리 합성한 색 한 겹이 채운다(규칙 4).
+ */
+const CHART_CELL = 3;
+
+function chartCells() {
   const pts = SERIES.map((v, i) => {
     const x = PAD + (i / (SERIES.length - 1)) * (W - PAD * 2);
     const y = PAD + (1 - (v - MIN) / (MAX - MIN)) * (H - PAD * 2);
-    return [x, y] as const;
+    return [x, y] as [number, number];
   });
-  const line = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
-  const last = pts[pts.length - 1];
-  const first = pts[0];
-  const area = `${line} L${last[0].toFixed(1)} ${H} L${first[0].toFixed(1)} ${H} Z`;
-  return { line, area, last };
+  const line = stepPolyline(pts, CHART_CELL);
+  // 면: 선 아래를 기둥으로 채운다. x 칸마다 가장 높은(작은 y) 선 셀부터 바닥까지.
+  const topByX = new Map<number, number>();
+  for (const c of line) {
+    const cur = topByX.get(c.x);
+    if (cur === undefined || c.y < cur) topByX.set(c.x, c.y);
+  }
+  const area: { x: number; y: number }[] = [];
+  for (const [x, top] of topByX) {
+    for (let y = top + CHART_CELL; y < H; y += CHART_CELL) area.push({ x, y });
+  }
+  return { line, area, last: pts[pts.length - 1] };
 }
 
 export function TrendsScreen() {
@@ -46,7 +67,7 @@ export function TrendsScreen() {
   if (loading) return null;
   if (!userId) return <Redirect href="/sign-in" />;
 
-  const { line, area, last } = chartPaths();
+  const { line, area, last } = chartCells();
 
   // [label, was, now]. Amber when the star did NOT rise (건강 2→2).
   // KO copy sourced from the design canon (src/lib/canon → public/proto/data);
@@ -104,15 +125,13 @@ export function TrendsScreen() {
             </View>
           </View>
           <Svg viewBox={`0 0 ${W} ${H}`} width="100%" height={124} preserveAspectRatio="none" accessible accessibilityLabel={`${t("trends.overall")}, ${t("trends.delta8w")}`}>
-            <Defs>
-              <LinearGradient id="sbTrend" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={m3.color.primary} stopOpacity={0.32} />
-                <Stop offset="100%" stopColor={m3.color.primary} stopOpacity={0} />
-              </LinearGradient>
-            </Defs>
-            <Path d={area} fill="url(#sbTrend)" />
-            <Path d={line} fill="none" stroke={m3.color.primary} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-            <Circle cx={last[0]} cy={last[1]} r={4.5} fill={m3.color.primary} stroke={m3.color.surface} strokeWidth={2} />
+            {area.map((p, i) => (
+              <Rect key={`a${i}`} x={p.x} y={p.y} width={CHART_CELL} height={CHART_CELL} fill={TREND_AREA_FILL} />
+            ))}
+            {line.map((p, i) => (
+              <Rect key={`l${i}`} x={p.x} y={p.y} width={CHART_CELL} height={CHART_CELL} fill={m3.color.primary} />
+            ))}
+            <Rect x={last[0] - 4} y={last[1] - 4} width={8} height={8} fill={m3.color.primary} />
           </Svg>
           <View style={s.axisRow}>
             {xLabels.map((l, i) => (

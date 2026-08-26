@@ -102,6 +102,32 @@ export function stepQuad(
   return dedupe(cells);
 }
 
+/**
+ * 진행률 링 — **사각 테두리**를 도는 셀 목록.
+ *
+ * `<Circle strokeDasharray>` 로 그리던 원형 진행 표시를 대신한다. 12시에서
+ * 시작해 시계방향으로 돈다 — 앞에서부터 n칸을 칠하면 그게 진행률이다.
+ *
+ * ⚠ 원을 셀로 근사하지 않고 **사각으로 바꾼다.** 24~60px 링에서 원을 셀로
+ *   놓으면 계단이 지저분하고, 픽셀아트에서 진행 표시는 원래 사각 테두리다.
+ */
+export function ringCells(cx: number, cy: number, r: number, cell: number): LineCell[] {
+  const c = Math.max(1, Math.round(cell));
+  const x0 = cx - r;
+  const x1 = cx + r;
+  const y0 = cy - r;
+  const y1 = cy + r;
+  // 12시 → 오른쪽 위 → 오른쪽 아래 → 왼쪽 아래 → 왼쪽 위 → 12시.
+  const out = [
+    ...stepLine(cx, y0, x1, y0, c),
+    ...stepLine(x1, y0, x1, y1, c),
+    ...stepLine(x1, y1, x0, y1, c),
+    ...stepLine(x0, y1, x0, y0, c),
+    ...stepLine(x0, y0, cx, y0, c),
+  ];
+  return dedupe(out);
+}
+
 /** 여러 점을 잇는 꺾은선. `<Polyline>` 이 하던 일. */
 export function stepPolyline(pts: readonly (readonly [number, number])[], cell: number): LineCell[] {
   const cells: LineCell[] = [];

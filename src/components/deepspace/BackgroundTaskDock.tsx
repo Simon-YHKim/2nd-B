@@ -9,7 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
+import { ringCells } from "@/components/pixel/pixel-line";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing } from "@/lib/theme/tokens";
@@ -93,18 +94,15 @@ export function BackgroundTaskDock() {
       >
         <View style={styles.ringWrap}>
           <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
+            {/* 진행 링 — 사각 테두리를 도는 칸 중 앞 4분의 1을 칠한다(규칙 1). */}
             <Svg width={30} height={30}>
-              <Circle cx={15} cy={15} r={12} fill="none" stroke={deepSpace.cardLine} strokeWidth={2.5} />
-              <Circle
-                cx={15}
-                cy={15}
-                r={12}
-                fill="none"
-                stroke={deepSpace.accent}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeDasharray="20 56"
-              />
+              {(() => {
+                const cells = ringCells(15, 15, 12, 3);
+                const lit = Math.max(1, Math.round(cells.length * 0.25));
+                return cells.map((p, i) => (
+                  <Rect key={i} x={p.x} y={p.y} width={3} height={3} fill={i < lit ? deepSpace.accent : deepSpace.cardLine} />
+                ));
+              })()}
             </Svg>
           </Animated.View>
           <SecondbHead size={18} mood="neutral" />

@@ -7,15 +7,28 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
+import Svg, { G, Rect, Text as SvgText } from "react-native-svg";
 
 import { Text } from "@/components/ui/Text";
 import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdCard, MdChip, SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { ringCells, stepLine } from "@/components/pixel/pixel-line";
+import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+
+/**
+ * 관계 지도 색 — 원래 `withAlpha(…)` 였다. 미리 합성해 둔다(PIXEL-CLAY 규칙 4).
+ * 바닥은 이 지도가 앉은 카드 배경이다.
+ */
+const PEOPLE_GROUND = m3.color.surfaceContainerLow;
+const PEOPLE_RING_FILL = flattenAlpha(m3.accent.starDim, 0.16, PEOPLE_GROUND);
+const PEOPLE_ME_FILL = flattenAlpha(m3.accent.polaris, 0.9, PEOPLE_GROUND);
+const PEOPLE_SEL_FILL = flattenAlpha(m3.accent.star, 0.75, PEOPLE_GROUND);
+const peopleLinkFill = (c: string) => flattenAlpha(c, 0.22, PEOPLE_GROUND);
+const peopleNodeFill = (c: string) => flattenAlpha(c, 0.92, PEOPLE_GROUND);
 import { createPerson, listPeople, type Person, type RelationKind } from "@/lib/relation/people";
 import { layoutPeopleMap, RELATION_SECTORS } from "@/lib/relation/people-map-layout";
 
@@ -168,29 +181,18 @@ export default function PeopleMapScreen() {
               viewBox={`0 0 ${CANVAS} ${CANVAS}`}
               accessibilityLabel={t("deepspace:people.mapTitle")}
             >
-              {[0.16, 0.31, 0.46].map((r) => (
-                <Circle
-                  key={r}
-                  cx={CANVAS / 2}
-                  cy={CANVAS / 2}
-                  r={r * CANVAS}
-                  fill="none"
-                  stroke={withAlpha(m3.accent.starDim, 0.16)}
-                  strokeWidth={1}
-                />
-              ))}
-              {nodes.map((node) => (
-                <Line
-                  key={`l-${node.id}`}
-                  x1={CANVAS / 2}
-                  y1={CANVAS / 2}
-                  x2={node.x * CANVAS}
-                  y2={node.y * CANVAS}
-                  stroke={withAlpha(KIND_COLOR[node.kind], 0.22)}
-                  strokeWidth={1.2}
-                />
-              ))}
-              <Circle cx={CANVAS / 2} cy={CANVAS / 2} r={26} fill={withAlpha(m3.accent.polaris, 0.9)} />
+              {/* 거리 고리 — 원이었다. 셀 격자 위에서는 사각 링이 정직하다(규칙 1). */}
+              {[0.16, 0.31, 0.46].map((r) =>
+                ringCells(CANVAS / 2, CANVAS / 2, r * CANVAS, 4).map((p, i) => (
+                  <Rect key={`r${r}-${i}`} x={p.x} y={p.y} width={4} height={4} fill={PEOPLE_RING_FILL} />
+                )),
+              )}
+              {nodes.map((node) =>
+                stepLine(CANVAS / 2, CANVAS / 2, node.x * CANVAS, node.y * CANVAS, 4).map((p, i) => (
+                  <Rect key={`l-${node.id}-${i}`} x={p.x} y={p.y} width={4} height={4} fill={peopleLinkFill(KIND_COLOR[node.kind])} />
+                )),
+              )}
+              <PixelStarSvg cx={CANVAS / 2} cy={CANVAS / 2} r={26} fill={PEOPLE_ME_FILL} />
               <SvgText
                 x={CANVAS / 2}
                 y={CANVAS / 2 + 52}
@@ -205,21 +207,16 @@ export default function PeopleMapScreen() {
                 const r = 14 + node.closeness * 2.4;
                 return (
                   <G key={node.id}>
-                    {isSel ? (
-                      <Circle
-                        cx={node.x * CANVAS}
-                        cy={node.y * CANVAS}
-                        r={r + 9}
-                        fill="none"
-                        stroke={withAlpha(m3.accent.star, 0.75)}
-                        strokeWidth={3}
-                      />
-                    ) : null}
-                    <Circle
+                    {isSel
+                      ? ringCells(node.x * CANVAS, node.y * CANVAS, r + 9, 3).map((p, i) => (
+                          <Rect key={`sel${i}`} x={p.x} y={p.y} width={3} height={3} fill={PEOPLE_SEL_FILL} />
+                        ))
+                      : null}
+                    <PixelNodeSvg
                       cx={node.x * CANVAS}
                       cy={node.y * CANVAS}
                       r={r}
-                      fill={withAlpha(KIND_COLOR[node.kind], 0.92)}
+                      fill={peopleNodeFill(KIND_COLOR[node.kind])}
                       onPress={() => setSelectedId((prev) => (prev === node.id ? null : node.id))}
                     />
                     <SvgText

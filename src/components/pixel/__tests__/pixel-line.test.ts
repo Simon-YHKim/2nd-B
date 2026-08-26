@@ -3,7 +3,7 @@
 // 이 계산이 틀리면 증상이 조용하다 — 화면은 뜨고 선도 보이는데 반 픽셀씩
 // 어긋나 흐려진다. 그게 규칙 1 이 없애려는 것 그 자체라, 눈으로는 잡기 어렵고
 // 검사로 잡아야 한다.
-import { stepLine, stepQuad, stepPolyline } from "../pixel-line";
+import { stepLine, stepQuad, stepPolyline, ringCells } from "../pixel-line";
 
 const onGrid = (cells: { x: number; y: number }[], cell: number) =>
   cells.every((c) => Number.isInteger(c.x / cell) && Number.isInteger(c.y / cell));
@@ -58,6 +58,28 @@ describe("픽셀 선", () => {
     expect(has(0, 0)).toBe(true);
     expect(has(30, 30)).toBe(true);
     expect(has(60, 0)).toBe(true);
+  });
+
+  it("진행률 링은 12시에서 시작해 시계방향으로 한 바퀴 돈다", () => {
+    const cells = ringCells(30, 30, 12, 3);
+    // 시작은 12시(위 가운데).
+    expect(cells[0].y).toBe(cells.reduce((m, c) => Math.min(m, c.y), Infinity));
+    expect(cells[0].x).toBeGreaterThan(cells.reduce((m, c) => Math.min(m, c.x), Infinity));
+    // 네 변을 모두 지난다 — 한 변이라도 빠지면 진행률이 100%에 안 닿는다.
+    const minX = Math.min(...cells.map((c) => c.x));
+    const maxX = Math.max(...cells.map((c) => c.x));
+    const minY = Math.min(...cells.map((c) => c.y));
+    const maxY = Math.max(...cells.map((c) => c.y));
+    for (const [ax, ay] of [
+      [minX, minY],
+      [maxX, minY],
+      [minX, maxY],
+      [maxX, maxY],
+    ]) {
+      expect(cells.some((c) => c.x === ax && c.y === ay)).toBe(true);
+    }
+    // 겹치지 않는다 — 겹치면 그 칸만 진해 보인다.
+    expect(new Set(cells.map((c) => c.x + "," + c.y)).size).toBe(cells.length);
   });
 
   it("셀 크기가 1보다 작아도 격자를 만든다", () => {

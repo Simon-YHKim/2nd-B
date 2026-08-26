@@ -16,7 +16,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import Svg, { Circle, Polyline } from "react-native-svg";
+import Svg, { Circle, Rect } from "react-native-svg";
+import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
@@ -191,23 +192,20 @@ function Ring({ size = 104, head = 58 }: { size?: number; head?: number }) {
   }, [spin]);
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   const r = size / 2 - 4;
-  const circ = 2 * Math.PI * r;
-  const arc = circ * 0.25;
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
       <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate }] }]}>
+        {/* 진행 링 — `<Circle strokeDasharray>` 였다. 셀에서 진행은 **테두리를
+            도는 칸 중 앞에서부터 n칸**이다(PIXEL-CLAY 규칙 1). 원을 셀로 근사하면
+            계단이 지저분해서 사각 테두리로 바꿨다 — 픽셀아트의 진행 표시가 원래 그렇다. */}
         <Svg width={size} height={size}>
-          <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={deepSpace.cardLine} strokeWidth={4} />
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            fill="none"
-            stroke={deepSpace.accent}
-            strokeWidth={4}
-            strokeLinecap="round"
-            strokeDasharray={`${arc} ${circ - arc}`}
-          />
+          {(() => {
+            const cells = ringCells(size / 2, size / 2, r, 4);
+            const lit = Math.max(1, Math.round(cells.length * 0.25));
+            return cells.map((p, i) => (
+              <Rect key={i} x={p.x} y={p.y} width={4} height={4} fill={i < lit ? deepSpace.accent : deepSpace.cardLine} />
+            ));
+          })()}
         </Svg>
       </Animated.View>
       <SecondbHead size={head} mood="neutral" />
@@ -240,12 +238,13 @@ function Constellation() {
   }, [vals]);
   return (
     <Svg width={180} height={140} viewBox="0 0 180 140">
-      <Polyline
-        points="28,104 60,86 96,94 116,68 150,76 162,44 168,96"
-        fill="none"
-        stroke={deepSpace.cardLine}
-        strokeWidth={1}
-      />
+      {/* 별을 잇는 선 — `<Polyline>` 이었다. 같은 점을 셀 계단으로 잇는다. */}
+      {stepPolyline(
+        [[28, 104], [60, 86], [96, 94], [116, 68], [150, 76], [162, 44], [168, 96]],
+        2,
+      ).map((p, i) => (
+        <Rect key={`ln${i}`} x={p.x} y={p.y} width={2} height={2} fill={deepSpace.cardLine} />
+      ))}
       {STARS.map((s, i) => (
         <AnimatedCircle
           key={i}
