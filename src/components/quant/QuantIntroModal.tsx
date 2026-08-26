@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Modal, View, StyleSheet, Pressable } from "react-native";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { Text } from "@/components/ui/Text";
@@ -114,6 +115,11 @@ export function QuantIntroModal({
   return (
     <Modal visible={true} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
+      {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로 가린다
+          (PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <PixelScrim />
+      </View>
         <View
           style={styles.card}
           accessibilityViewIsModal
@@ -205,7 +211,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: semantic.backdropStrong,
     justifyContent: "center",
     alignItems: "center",
     padding: spacing.lg,

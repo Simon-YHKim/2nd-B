@@ -13,6 +13,7 @@ import { useCallback } from "react";
 import { Modal, View, StyleSheet, Pressable, Linking } from "react-native";
 import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { WorkerSprite } from "@/components/art/WorkerSprite";
@@ -63,6 +64,13 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
         accessibilityRole="alert"
         accessibilityLabel={t("red.noticeLabel")}
       >
+        {/* 모달 스크림은 **디더**다. 바탕을 모르는 자리라(모달은 어느 화면 위에도
+            뜬다) `flattenAlpha` 를 쓸 수 없다 — 규칙 4 가 정확히 이 경우를 위해
+            "평탄화 말고 디더"라고 못박고 있다. 타일은 4×4 중 12픽셀이 캐논 바닥색,
+            4픽셀 투명이라 반투명이 한 픽셀도 없다. */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <PixelScrim />
+        </View>
         <View style={styles.card}>
           <View style={styles.hotlineBadge}>
             <Text variant="subtle" style={styles.hotlineBadgeText}>
@@ -119,7 +127,6 @@ export function CrisisRouter({ visible, hotline, onClose }: CrisisRouterProps) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: semantic.backdrop,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
