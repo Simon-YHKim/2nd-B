@@ -38,6 +38,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   browserLaunchOptions,
+  CaptureContractError,
+  captureFailureCodes,
   digestPage,
   makeCaptureInitScript,
   previewEnvLines,
@@ -219,7 +221,7 @@ for (const target of TARGETS) {
       pageErrorCount: activeShot.pageErrorCount,
     });
     if (failureCodes.length) {
-      throw new Error(`capture contract failed: ${failureCodes.join(',')}`);
+      throw new CaptureContractError(failureCodes);
     }
     writeFileSync(
       path.join(OUT, 'structure', `${target.id}.json`),
@@ -244,8 +246,8 @@ for (const target of TARGETS) {
     }
     report.shots.push({ id: target.id, route, ok: true });
     process.stdout.write(target.id + ' ');
-  } catch {
-    report.shots.push({ id: target.id, route, ok: false, error: 'capture-contract-failed' });
+  } catch (error) {
+    report.shots.push({ id: target.id, route, ok: false, failureCodes: captureFailureCodes(error) });
     process.stdout.write(target.id + '(FAIL) ');
   } finally {
     activeShot = null;

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import vm from 'node:vm';
 import * as scoreModule from '../score.mjs';
+import * as contractModule from '../capture-app-contract.mjs';
 
 import {
   browserLaunchOptions,
@@ -105,6 +107,74 @@ test('capture init script sets the real intro/onboarding keys and installs persi
   assert.match(script, /DOMContentLoaded/);
   assert.doesNotMatch(script, /localStorage\.setItem\('secondB_intro_played_v1'/);
   assert.doesNotMatch(script, /sb_onboarded/);
+});
+
+test('capture init script marks the canonical home coachmarks key at the fixed ISO', () => {
+  const fixedTime = Date.UTC(2026, 7, 27, 7, 0, 0);
+  const local = new Map();
+  const session = new Map();
+  const document = {
+    readyState: 'complete',
+    querySelector: () => null,
+    createElement: () => ({ setAttribute() {}, textContent: '' }),
+    head: { appendChild() {} },
+    documentElement: { appendChild() {} },
+  };
+  const context = {
+    Date,
+    Math: Object.create(Math),
+    document,
+    localStorage: { setItem: (key, value) => local.set(key, value) },
+    sessionStorage: { setItem: (key, value) => session.set(key, value) },
+  };
+  context.window = context;
+
+  vm.runInNewContext(makeCaptureInitScript(fixedTime), context);
+
+  assert.equal(
+    local.get('onboarding.coachmarks.home.v1.seenAt'),
+    new Date(fixedTime).toISOString(),
+  );
+});
+
+test('known capture failures become safe enum codes without retaining messages or URLs', async () => {
+  assert.equal(typeof contractModule.captureFailureCodes, 'function');
+
+  let routeFailure;
+  try {
+    validateFinalUrl(
+      'http://localhost:8977',
+      '/persona',
+      'http://localhost:8977/2nd-B/sign-in?token=must-not-survive',
+    );
+  } catch (error) {
+    routeFailure = error;
+  }
+  assert.deepEqual(contractModule.captureFailureCodes(routeFailure), ['unexpected-final-route']);
+
+  let settleFailure;
+  let tick = 0;
+  try {
+    await waitForSettledPage(
+      {
+        evaluate: async () => ({ len: 0, loading: true }),
+        waitForTimeout: async () => {},
+      },
+      { maxMs: 25, pollMs: 0, now: () => tick++ * 10 },
+    );
+  } catch (error) {
+    settleFailure = error;
+  }
+  assert.deepEqual(contractModule.captureFailureCodes(settleFailure), ['page-not-settled']);
+
+  const combined = new contractModule.CaptureContractError(['asset-404', 'page-error']);
+  assert.deepEqual(contractModule.captureFailureCodes(combined), ['asset-404', 'page-error']);
+
+  const unknown = contractModule.captureFailureCodes(
+    new Error('https://secret.invalid/path?token=must-not-survive'),
+  );
+  assert.deepEqual(unknown, ['capture-failed']);
+  assert.equal(JSON.stringify(unknown).includes('must-not-survive'), false);
 });
 
 test('final URL validation accepts only the exact requested /2nd-B route', () => {

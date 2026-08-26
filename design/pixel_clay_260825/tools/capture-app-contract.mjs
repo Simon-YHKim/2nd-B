@@ -36,6 +36,38 @@ export function browserLaunchOptions(env) {
   return env.BROWSER_PATH ? { executablePath: env.BROWSER_PATH } : {};
 }
 
+const SAFE_CAPTURE_FAILURE_CODES = new Set([
+  'asset-404',
+  'page-error',
+  'unexpected-final-route',
+  'unexpected-final-origin',
+  'page-not-settled',
+  'capture-failed',
+]);
+
+const SAFE_CAPTURE_FAILURE_MESSAGES = {
+  'unexpected-final-route': 'unexpected final route',
+  'unexpected-final-origin': 'unexpected final origin',
+  'page-not-settled': 'page did not settle',
+};
+
+export class CaptureContractError extends Error {
+  constructor(codes) {
+    const requested = Array.isArray(codes) ? codes : [codes];
+    const safeCodes = requested.filter((code) => SAFE_CAPTURE_FAILURE_CODES.has(code));
+    const normalized = safeCodes.length ? safeCodes : ['capture-failed'];
+    super(SAFE_CAPTURE_FAILURE_MESSAGES[normalized[0]] ?? normalized[0]);
+    this.name = 'CaptureContractError';
+    this.codes = normalized;
+  }
+}
+
+export function captureFailureCodes(error) {
+  const candidates = Array.isArray(error?.codes) ? error.codes : [error?.code];
+  const safeCodes = candidates.filter((code) => SAFE_CAPTURE_FAILURE_CODES.has(code));
+  return safeCodes.length ? [...new Set(safeCodes)] : ['capture-failed'];
+}
+
 export function makeCaptureInitScript(fixedTime) {
   if (!Number.isFinite(fixedTime)) throw new Error('FIXED_ISO must be a valid date');
   return `(function () {
@@ -56,8 +88,10 @@ export function makeCaptureInitScript(fixedTime) {
   var seed = 42;
   Math.random = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   try {
+    var fixedIso = new RealDate(FIXED).toISOString();
     sessionStorage.setItem('secondB_intro_played_v1', '1');
-    localStorage.setItem('onboarding.cosmicPixel.v2.completedAt', new RealDate(FIXED).toISOString());
+    localStorage.setItem('onboarding.cosmicPixel.v2.completedAt', fixedIso);
+    localStorage.setItem('onboarding.coachmarks.home.v1.seenAt', fixedIso);
   } catch (e) {}
   var freezeMotion = function () {
     if (document.querySelector('style[data-capture-motion-freeze]')) return;
@@ -79,13 +113,13 @@ function normalizedPath(pathname) {
 export function validateFinalUrl(baseUrl, route, finalUrl) {
   const base = new URL(baseUrl);
   const actual = new URL(finalUrl);
-  if (actual.origin !== base.origin) throw new Error('unexpected final origin');
+  if (actual.origin !== base.origin) throw new CaptureContractError('unexpected-final-origin');
 
   const routeUrl = new URL(String(route), 'http://route.invalid');
   const suffix = routeUrl.pathname === '/' ? '/' : `/${routeUrl.pathname.replace(/^\/+/, '')}`;
   const expectedPath = normalizedPath(`/2nd-B${suffix}`);
   if (normalizedPath(actual.pathname) !== expectedPath) {
-    throw new Error('unexpected final route');
+    throw new CaptureContractError('unexpected-final-route');
   }
 }
 
@@ -124,7 +158,7 @@ export async function waitForSettledPage(
     lastLen = info.len;
     await page.waitForTimeout(pollMs);
   }
-  throw new Error('page did not settle');
+  throw new CaptureContractError('page-not-settled');
 }
 
 export function digestPage(root = document.body) {
