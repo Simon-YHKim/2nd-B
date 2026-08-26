@@ -3,7 +3,7 @@ import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollVie
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Rect, SvgXml } from "react-native-svg";
+import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -11,11 +11,19 @@ import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+
+/**
+ * `/graph`(개발 전용 화면)의 노드 지도 색.
+ * 원래 `opacity` 로 만들던 것을 미리 합성해 둔다(PIXEL-CLAY 규칙 4).
+ */
+const GRAPH_ME_FILL = flattenAlpha(colors.soul, 0.95, m3.accent.stageFloor);
+const GRAPH_NODE_FILL = flattenAlpha(colors.cyan, 0.22, m3.accent.stageFloor);
+const GRAPH_DOT_FILL = flattenAlpha(colors.cyanSoft, 0.75, m3.accent.stageFloor);
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
@@ -325,7 +333,7 @@ export function DeepSpaceGraphDesignScreen() {
   const clusters = [
     { x: 63, y: 135, t: t("graph.clRecords"), route: "/records" as const }, { x: 136, y: 92, t: t("graph.clRelations"), route: "/research" as const }, { x: 219, y: 134, t: t("graph.clKnowledge"), route: "/wiki" as const }, { x: 106, y: 226, t: t("graph.clTaste"), route: "/trinity" as const }, { x: 207, y: 225, t: t("graph.clGrowth"), route: "/growth" as const },
   ];
-  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><View style={styles.graphStage}><Svg width={300} height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</View></Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><View style={styles.graphStage}><Svg width={300} height={310} viewBox="0 0 300 310">{clusters.map((c,i)=>stepLine(150,160,c.x,c.y,3).map((p,j)=><Rect key={'l'+i+'-'+j} x={p.x} y={p.y} width={3} height={3} fill={colors.borderHi}/>))}<PixelStarSvg cx={150} cy={160} r={34} fill={GRAPH_ME_FILL} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><PixelNodeSvg key={'c'+i} cx={c.x} cy={c.y} r={22} fill={GRAPH_NODE_FILL} onPress={() => router.push(c.route)}/>) }<PixelStarSvg cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><PixelStarSvg key={i} cx={x} cy={70+i*30%190} r={4} fill={GRAPH_DOT_FILL}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</View></Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
 // rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.

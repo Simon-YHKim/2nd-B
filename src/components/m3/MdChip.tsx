@@ -9,7 +9,7 @@
 // styles back onto the Pressable.
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 import { m3 } from "@/lib/theme/m3";
 
@@ -62,9 +62,7 @@ export function MdChip({
             (reference sb-data.jsx MdChip renders the same 18dp check when selected). */}
         {on ? (
           <View style={styles.icon}>
-            <Svg width={18} height={18} viewBox="0 0 24 24">
-              <Path d="M5 12.5 10 17 19 7" stroke={fg} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            </Svg>
+            <PixelGlyph name="check" color={fg} size={18} />
           </View>
         ) : icon ? (
           <View style={styles.icon}>{icon}</View>
@@ -80,9 +78,7 @@ export function MdChip({
             accessibilityLabel={removeAccessibilityLabel}
             style={styles.close}
           >
-            <Svg width={16} height={16} viewBox="0 0 24 24">
-              <Path d="M6 6l12 12M18 6L6 18" stroke={fg} strokeWidth={2} strokeLinecap="round" />
-            </Svg>
+            <PixelGlyph name="close" color={fg} size={16} />
           </Pressable>
         ) : null}
       </Pressable>

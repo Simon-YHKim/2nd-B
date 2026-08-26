@@ -25,7 +25,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useTranslation } from "react-i18next";
-import Svg, { Path } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 import { m3 } from "@/lib/theme/m3";
 import { withAlpha } from "@/lib/theme/tokens";
@@ -172,10 +172,11 @@ function useDateLabels(): DateLabels {
 // ---------------------------------------------------------------------------
 // Glyphs (inline SVG, no asset load — mirrors ui/EyeIcon.tsx).
 // ---------------------------------------------------------------------------
-const CHEVRON_PATH: Record<"left" | "right" | "down", string> = {
-  left: "M15 6l-6 6 6 6",
-  right: "M9 6l6 6-6 6",
-  down: "M6 9l6 6 6-6",
+/** 꺾쇠 방향 → 정본 글리프 이름. 좌표는 `pixel-glyphs.ts` 가 갖는다. */
+const CHEVRON_GLYPH: Record<"left" | "right" | "down", "chevron_left" | "chevron_right" | "expand_more"> = {
+  left: "chevron_left",
+  right: "chevron_right",
+  down: "expand_more",
 };
 
 function Chevron({
@@ -188,18 +189,13 @@ function Chevron({
   color: string;
 }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Path d={CHEVRON_PATH[direction]} />
-    </Svg>
+    <PixelGlyph name={CHEVRON_GLYPH[direction]} color={color} size={size} />
   );
 }
 
 function CalendarGlyph({ size = 20, color }: { size?: number; color: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M7 3v3M17 3v3" />
-      <Path d="M4 8h16M5 6h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1Z" />
-    </Svg>
+    <PixelGlyph name="calendar_today" color={color} size={size} />
   );
 }
 

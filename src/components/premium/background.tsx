@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname } from "expo-router";
-import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Circle, Line } from "react-native-svg";
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop, Line } from "react-native-svg";
 import ReAnimated, {
   cancelAnimation,
   Easing as ReEasing,
@@ -28,6 +28,7 @@ import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { backArrowVisible, isTabPath } from "@/components/ui/BackArrow";
 import { TAB_BAR_HEIGHT } from "./tab-bar";
 import { starField } from "./star-field";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 
 /**
  * Subtle static star grain, sized to the given box. Decorative.
@@ -47,6 +48,16 @@ import { starField } from "./star-field";
  * `starField()` 는 순수 함수고 검사가 출력을 박아두고 있어 **건드리지 않았다.**
  * 양자화는 그리는 자리에서 한다 — 반지름은 정수 셀로, 불투명도는 3단 색 밴딩.
  */
+/**
+ * 북두칠성 별 색 — 원래 `fillOpacity` 로 만들던 것. 미리 합성해 둔다(규칙 4).
+ * 바닥은 이 배경이 칠하는 우주 바탕색이다.
+ */
+const DIPPER_LIT_FILL = flattenAlpha(deepSpace.accentBright, 0.8, cosmic.space950);
+const DIPPER_DIM_FILL = flattenAlpha(cosmic.mistGray, 0.32, cosmic.space950);
+const ALCOR_FILL = flattenAlpha(cosmic.moonWhite, 0.2, cosmic.space950);
+const DIPPER_GLOW_LIT = flattenAlpha(deepSpace.accent, 0.28, cosmic.space950);
+const DIPPER_GLOW_DIM = flattenAlpha(cosmic.mistGray, 0.05, cosmic.space950);
+
 const GRAIN_BANDS = [0.16, 0.34, 0.62];
 const GRAIN_COLOR = GRAIN_BANDS.map((a) => flattenAlpha(cosmic.moonWhite, a, cosmic.space950));
 
@@ -191,29 +202,24 @@ export function ConstellationLayer({ width, height }: { width: number; height: n
           );
         })}
 
-        {/* Star cores. */}
+        {/* Star cores — 원이었다. 4방향 rect 별로(PIXEL-CLAY 규칙 1), 흐린 정도는
+            `fillOpacity` 가 아니라 미리 합성한 색으로(규칙 4).
+            ⚠ 레거시 파일이지만 `/capture-full` 이 이 셸을 재사용해서 화면에 나온다. */}
         {DIPPER_POINTS.map((p, i) => {
           const lit = litByStar.get(p.name) ?? false;
           return (
-            <Circle
+            <PixelStarSvg
               key={`c${i}`}
               cx={px(p.x)}
               cy={py(p.y)}
               r={pr(p.r) * (lit ? 0.82 : 0.5)}
-              fill={lit ? deepSpace.accentBright : cosmic.mistGray}
-              fillOpacity={lit ? 0.8 : 0.32}
+              fill={lit ? DIPPER_LIT_FILL : DIPPER_DIM_FILL}
             />
           );
         })}
 
         {/* Alcor companion — always faint, decorative. */}
-        <Circle
-          cx={px(ALCOR.x)}
-          cy={py(ALCOR.y)}
-          r={pr(ALCOR.r)}
-          fill={cosmic.moonWhite}
-          fillOpacity={0.2}
-        />
+        <PixelStarSvg cx={px(ALCOR.x)} cy={py(ALCOR.y)} r={pr(ALCOR.r)} fill={ALCOR_FILL} />
       </Svg>
 
       {/* Additive glow group — the only animated piece (one shared breath).
@@ -235,16 +241,17 @@ export function ConstellationLayer({ width, height }: { width: number; height: n
               );
             })}
           </Defs>
+          {/* 발광 — RadialGradient 원이었다. 픽셀에서는 **한 겹 큰 별**이다. */}
           {DIPPER_POINTS.map((p, i) => {
             const lit = litByStar.get(p.name) ?? false;
             const glow = pr(p.r) * (lit ? 5 : 2.4);
             return (
-              <Circle
+              <PixelStarSvg
                 key={`gl${i}`}
                 cx={px(p.x)}
                 cy={py(p.y)}
                 r={glow}
-                fill={`url(#starGlow${i})`}
+                fill={lit ? DIPPER_GLOW_LIT : DIPPER_GLOW_DIM}
               />
             );
           })}

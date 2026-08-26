@@ -62,10 +62,10 @@ describe("캐논 아이콘 이름 ↔ 픽셀 글리프", () => {
 
   it("그림 없는 이름의 수는 줄기만 한다", () => {
     const missing = names.filter((n) => !drawn(n));
-    // 2026-08-26 기준선. **이 숫자를 올리지 말 것** — 올린다는 것은 캐논에
+    // 2026-08-26 기준선(62 → 56, 규칙 1 이주 중 여섯을 더 그렸다). **올리지 말 것** — 올린다는 것은 캐논에
     // 이름을 새로 넣으면서 글리프를 안 그렸다는 뜻이고, 그러면 그 자리에
     // 대체 표시가 뜬다. 글리프를 그려서 내리는 것이 유일한 정당한 변경이다.
-    const BASELINE = 62;
+    const BASELINE = 56;
     expect(missing.length).toBeLessThanOrEqual(BASELINE);
   });
 

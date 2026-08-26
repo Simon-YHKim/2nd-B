@@ -7,7 +7,7 @@
 import { StyleSheet, View, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, router, type Href } from "expo-router";
-import Svg, { Circle, Line, Path } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 import { Text } from "@/components/ui/Text";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
@@ -43,66 +43,19 @@ const TABS: Tab[] = [
 // lockstep. TABS above must list these same hrefs (labels/icons live here).
 const TAB_PATHS = new Set<string>(PRIMARY_TAB_PATHS);
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+//
+// ⚠ 레거시 스킨의 탭바지만 **`/capture-full` 이 이 셸을 재사용해서 딥스페이스
+//   화면에도 나온다.** 레거시라고 두면 그 화면에만 곡선 아이콘이 남는다.
+const LEGACY_TAB_GLYPH: Record<TabId, "hub" | "capture" | "forum" | "person"> = {
+  graph: "hub",
+  capture: "capture",
+  secondb: "forum",
+  profile: "person",
+};
+
 function TabIcon({ id, color }: { id: TabId; color: string }) {
-  const sw = 1.8;
-  switch (id) {
-    case "graph":
-      return (
-        <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Line x1="6" y1="6" x2="11" y2="12" stroke={color} strokeWidth={sw} />
-          <Line x1="16" y1="6" x2="11" y2="12" stroke={color} strokeWidth={sw} />
-          <Line x1="11" y1="12" x2="8" y2="17" stroke={color} strokeWidth={sw} />
-          <Circle cx="11" cy="12" r="2.6" fill={color} />
-          <Circle cx="6" cy="6" r="1.8" fill={color} />
-          <Circle cx="16" cy="6" r="1.8" fill={color} />
-          <Circle cx="8" cy="17" r="1.6" fill={color} />
-        </Svg>
-      );
-    case "capture":
-      // 담기 — drop a piece into a tray (down arrow into an open box).
-      return (
-        <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Line x1="11" y1="3" x2="11" y2="12" stroke={color} strokeWidth={sw} />
-          <Path
-            d="M7 9 L11 13 L15 9"
-            stroke={color}
-            strokeWidth={sw}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Path
-            d="M4 14 L4 18 L18 18 L18 14"
-            stroke={color}
-            strokeWidth={sw}
-            fill="none"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      );
-    case "secondb":
-      // 세컨비 — a chat speech bubble with two dots.
-      return (
-        <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Path
-            d="M4 5 L18 5 L18 13 L9 13 L6 16 L6 13 L4 13 Z"
-            stroke={color}
-            strokeWidth={sw}
-            fill="none"
-            strokeLinejoin="round"
-          />
-          <Circle cx="9" cy="9" r="1.1" fill={color} />
-          <Circle cx="13" cy="9" r="1.1" fill={color} />
-        </Svg>
-      );
-    case "profile":
-      return (
-        <Svg width={22} height={22} viewBox="0 0 22 22">
-          <Circle cx="11" cy="8" r="3.2" stroke={color} strokeWidth={sw} fill="none" />
-          <Path d="M5 18 C5 13.5 17 13.5 17 18" stroke={color} strokeWidth={sw} fill="none" />
-        </Svg>
-      );
-  }
+  return <PixelGlyph name={LEGACY_TAB_GLYPH[id]} color={color} size={22} />;
 }
 
 /** Height of the bar's content (excludes the safe-area inset). */

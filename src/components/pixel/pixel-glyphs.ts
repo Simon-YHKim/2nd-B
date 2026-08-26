@@ -608,6 +608,23 @@ export const PIXEL_GLYPHS = {
     r(2, 8, 4, 4), r(2, 14, 4, 4),
     r(18, 8, 4, 4), r(18, 14, 4, 4),
   ],
+  /** 눈 — 비밀번호 보기. 사각 눈꺼풀 + 동공. */
+  visibility: [
+    r(4, 8, 16, 2), r(2, 10, 2, 4), r(20, 10, 2, 4), r(4, 14, 16, 2),
+    r(10, 10, 4, 4),
+  ],
+
+  /** 눈 가림 — 같은 눈에 대각선 하나. */
+  visibilityOff: [
+    r(4, 8, 16, 2), r(2, 10, 2, 4), r(20, 10, 2, 4), r(4, 14, 16, 2),
+    r(4, 4, 2, 2), r(8, 8, 2, 2), r(12, 12, 2, 2), r(16, 16, 2, 2), r(18, 18, 2, 2),
+  ],
+
+  /** 왼쪽 꺾쇠. */
+  chevronLeft: [
+    r(14, 4, 2, 2), r(12, 6, 2, 2), r(10, 8, 2, 2), r(8, 10, 2, 4),
+    r(10, 14, 2, 2), r(12, 16, 2, 2), r(14, 18, 2, 2),
+  ],
 } as const satisfies Record<string, readonly PixelRect[]>;
 
 export type PixelGlyphName = keyof typeof PIXEL_GLYPHS;
@@ -712,6 +729,10 @@ export const GLYPH_ALIAS = {
   close: "close",
   account_balance: "accountBalance",
   groups: "groups",
+  visibility: "visibility",
+  visibility_off: "visibilityOff",
+  chevron_left: "chevronLeft",
+  chevron_down: "expandMore",
   group: "groups",
   // 같은 아이콘의 다른 이름들.
   person: "account",

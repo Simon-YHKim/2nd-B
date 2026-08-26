@@ -1,5 +1,6 @@
-// check:pixel-rules -- PIXEL-CLAY 절대 규칙 2와 3을 이식된 화면에서 지킨다.
+// check:pixel-rules -- PIXEL-CLAY 절대 규칙을 지킨다.
 //
+//   규칙 1  정수 rect 만 (곡선 도형 금지) — **전 소스 무관용**
 //   규칙 2  `border-radius: 0`, 전 화면 강제
 //   규칙 3  블러 금지 (그림자 대신 4방향 베벨 + 쌓임 순서)
 //   규칙 5  계단 이징만 (곡선 이징·스프링 금지)
@@ -31,8 +32,8 @@
 // 있어서 그 스킨은 어디에도 안 나가고, 지키는 대가로 20여 개 파일이 둥근 채
 // 남아 있었다. 그래서 `(auth)/*` 도 `components/premium/*` 도 이제 목록에 있다.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 
 const ROOT = process.cwd();
 
@@ -184,6 +185,62 @@ const MIGRATED: readonly string[] = [
 const CURVED_EASING =
   /\bEasing\.(?!step0\b|step1\b)(?:inOut|in|out)\(|\bEasing\.(?:linear|ease|quad|cubic|sin|circle|exp|bounce|elastic|back|bezier|poly)\b/g;
 const SPRING_ANIM = /\b(?:withSpring|Animated\.spring)\s*\(/g;
+
+// ── 규칙 1 — 정수 rect 만 (무관용) ────────────────────────────────────────
+//
+// 2026-08-26 에 닫혔다. 40개 라우트를 실제로 띄워 DOM 의 곡선 원소를 센 결과가
+// **4,852 → 0** 이다. 그래서 이 규칙만은 래칫이 아니라 **무관용 게이트**다 —
+// 목록이 아니라 `src/` 전체를 훑는다.
+//
+// ⚠ 자를 두 번 고쳤다. 처음에는 `<Path` 같은 JSX 원소만 셌는데, 같은 곡선이
+//   `'<path d="…"/>'` 라는 **문자열**로도 있었다(SvgXml). 소문자라 안 걸렸고
+//   그래서 320건을 121건으로 세고 있었다. 여기서는 대소문자 둘 다 본다.
+//
+// ⚠ **주석은 걷어내고 센다.** 이주 과정을 적은 문장 안에 `<Path>`·`<Circle>`
+//   이라는 글자가 많이 들어 있어서, 안 걷으면 기록을 지워야 통과하게 된다.
+const CURVE_EL = /<(Path|Circle|Ellipse|Polyline|Polygon|path|circle|ellipse|polyline|polygon)\b/g;
+
+/** 줄주석과 블록주석을 공백으로 지운다(줄 수는 유지해 줄번호가 안 밀린다). */
+function stripComments(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+}
+
+/**
+ * 규칙 1 예외. **줄이려면 그 자리를 rect 로 옮긴다는 뜻이다.**
+ * 늘리려면 PR 에 이유를 적을 것 — 지금 셋 다 "규칙 이주의 대상이 아니다" 다.
+ */
+const RULE1_EXEMPT: readonly { prefix: string; why: string }[] = [
+  {
+    prefix: "src/app/deepspace-home.tsx",
+    why: "DevOnlyRoute — 사용자에게 안 보인다",
+  },
+  {
+    prefix: "src/screens/deepspace/DeepSpaceHomeScreen.tsx",
+    why: "DevOnlyRoute(/deepspace-home)가 렌더하는 화면",
+  },
+  {
+    prefix: "src/screens/deepspace/dds-auth-screens.tsx",
+    why: "Apple·네이버 등 **브랜드 마크**. 로고를 픽셀로 다시 그리는 것은 상표 문제지 규칙 이주가 아니다",
+  },
+  {
+    prefix: "src/lib/iden/render-html.ts",
+    why:
+      "앱 화면이 아니라 **사용자가 내려받는 HTML 문서**를 만든다. 앱 밖에서 열리는 산출물이라 " +
+      "앱의 시각 체계를 따르지 않는다 — 여기를 픽셀로 바꾸는 것은 별도 결정이다",
+  },
+  {
+    prefix: "src/components/persona/TraitRadar.tsx",
+    why:
+      "호출부 0건. 지우지 않는 이유는 저장소 규율이다(휴면은 결정일 수 있다) — " +
+      "되살릴 때 규칙 1 부터 지키면 된다",
+  },
+  {
+    prefix: "src/components/art/SoulcoreFinalArt.tsx",
+    why: "v3 아트(플래그로 꺼져 있고 레거시 마을 그래프만 쓴다). 폐기 대상이라 이주하지 않는다",
+  },
+];
 
 const RADIUS_PROP =
   /border(?:Top|Bottom)?(?:Left|Right|Start|End)?Radius\s*:\s*([^,\n}]+)/g;
@@ -396,8 +453,41 @@ for (const rel of MIGRATED) {
   }
 }
 
+// ── 규칙 1 실행 — 이식 목록이 아니라 `src/` 전체 ─────────────────────────
+//
+// 목록을 안 쓰는 이유: 이 규칙은 닫혔다. 40개 라우트를 실제로 띄워 DOM 의
+// 곡선 원소를 센 결과가 4,852 → 0 이다(2026-08-26). 새 파일이 곡선을 들고
+// 들어오는 것을 막는 것이 이 게이트의 일이다.
+function walkTsx(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir)) {
+    const full = join(dir, e);
+    if (statSync(full).isDirectory()) {
+      if (e === "node_modules" || e === "__tests__" || e === "__mocks__") continue;
+      walkTsx(full, out);
+    } else if (e.endsWith(".tsx") || e.endsWith(".ts")) out.push(full);
+  }
+  return out;
+}
+
+for (const abs of walkTsx(join(ROOT, "src"))) {
+  const rel = relative(ROOT, abs).split(sep).join("/");
+  const exempt = RULE1_EXEMPT.find((x) => rel.startsWith(x.prefix));
+  if (exempt) continue;
+  const bare = stripComments(readFileSync(abs, "utf8"));
+  for (const m of bare.matchAll(CURVE_EL)) {
+    hits.push({
+      file: rel,
+      line: lineOf(bare, m.index ?? 0),
+      text: m[0],
+      why:
+        "규칙 1 -- 곡선 도형. 아이콘은 `PixelGlyph`, 선은 `pixel-line.ts`(stepLine/stepQuad/ringCells), " +
+        "별은 `PixelStarSvg` 를 쓸 것. 화면 실측으로 0 건이 된 규칙이라 래칫이 아니라 무관용이다",
+    });
+  }
+}
+
 if (hits.length > 0) {
-  console.error("PIXEL-CLAY RULES FAIL  이식된 화면이 규칙 2·3·5 또는 타입 격자에서 되돌아갔다:");
+  console.error("PIXEL-CLAY RULES FAIL  규칙 1(전 소스) 또는 규칙 2·3·5·타입 격자(이식 화면)에서 되돌아갔다:");
   for (const h of hits) {
     console.error(`  - ${h.file}:${h.line}  ${h.text}`);
     console.error(`      ${h.why}`);
@@ -406,5 +496,5 @@ if (hits.length > 0) {
 }
 
 console.log(
-  `PIXEL-CLAY RULES PASS  이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 · 곡선 이징 0건 · 타입 격자 준수 (규칙 2·3·5 + PRD §2-4)`,
+  `PIXEL-CLAY RULES PASS  규칙 1 곡선 도형 0건(src 전체) · 이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 · 곡선 이징 0건 · 타입 격자 준수`,
 );
