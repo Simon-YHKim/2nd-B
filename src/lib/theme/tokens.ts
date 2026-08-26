@@ -443,11 +443,19 @@ export const spacing = {
   xxl: 32,
 } as const;
 
+// PIXEL-CLAY 절대 규칙 2: `border-radius: 0` — 전 화면 강제.
+//
+// 이름을 남긴 이유는 `m3Shape` 과 같다 — 호출부 96곳(37파일)을 건드리지
+// 않기 위해서다. 값만 0 으로 내린다.
+//
+// ⚠ 이 세트가 **세 번째 반경 토큰**이었다. 가드가 허용 목록으로 바뀜 뒤에도
+//   값은 4/8/12/16 로 남아 있어서, 규칙 2 위반 252건 중 대부분이 여기서 나왔다.
+//   `/support` 의 8px 라운드도 이 `md` 다.
 export const radii = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  xl: 0,
 } as const;
 
 export const typography = {
