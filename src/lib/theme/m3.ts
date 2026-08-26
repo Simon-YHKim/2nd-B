@@ -441,6 +441,55 @@ function flatten(hex: string, alpha: number, ground: string): string {
  */
 const DISABLED_ALPHA = 0.38;
 
+/**
+ * 별 밝기 사다리 (PIXEL-CLAY 절대 규칙 4 · Simon 결정 2026-08-27).
+ *
+ * 홈의 별은 "내가 나를 얼마나 알아냈나"를 밝기로 보여준다. **장식이 아니라
+ * 의미**라서 값을 새로 고르지 않았다. 지금까지 알파가 내던 값을 그대로 미리
+ * 합성해 **불투명 색 다섯 개**로 만든다. 결과 픽셀이 같아야 이주지 변경이 아니다.
+ *
+ * 사다리 분수는 프로토타입(sb-home.jsx)의 것이다: `0.36 + L / 5 * 0.64`.
+ * L1 부터 L5 까지 다섯 값이고, 원래 이산적이었으므로 5단 밴딩에 **손실이 없다.**
+ *
+ * ⚠ **바탕은 하늘 바닥**(`m3ColorDark.surface`, 무대 바닥과 같은 값)이다.
+ *   별은 하늘 위에 놓인다. 성운 워시가 지나가는 자리에서는 한 단계 어긋날 수
+ *   있는데, 워시 자체가 캐논 램프 안이라 눈에 띄는 차이는 아니다.
+ *
+ * ⚠ 배열 색인은 **0 부터**다. `LADDER[level - 1]` 로 읽을 것.
+ */
+const LADDER_FRACTIONS = [1, 2, 3, 4, 5].map((l) => 0.36 + (l / 5) * 0.64);
+
+function ladderOf(hex: string): readonly string[] {
+  return LADDER_FRACTIONS.map((f) => flatten(hex, f, m3ColorDark.surface));
+}
+
+export const m3StarLadder = {
+  /** 도메인 별의 심 (평상시). */
+  rest: ladderOf(m3Accent.star),
+  /** 도메인 별의 심 (탭해서 초점이 간 상태). */
+  focus: ladderOf(m3Accent.starFocus),
+  /** 북극성 중간층. */
+  polarisMid: ladderOf(m3Accent.polarisSoft),
+  /** 북극성 심. */
+  polarisCore: ladderOf(m3Accent.skyStarWhite),
+} as const;
+
+/**
+ * 0..1 집계 밝기를 사다리 한 칸(1..5)으로 떨어뜨린다.
+ *
+ * ⚠ 북극성은 원래 **연속값**이었다. Simon 결정으로 5단 밴딩을 택했고,
+ *   그래서 미세한 변화는 사라진다 ("감수한다"고 명시). 도메인 별과 달리
+ *   여기는 **손실이 있는** 변환이라는 것을 알고 쓸 것.
+ *
+ * 바닥이 1 인 이유: 밝기 0 인 새 사용자에게도 북극성은 보여야 한다. 옛
+ * `soulCoreOpacity` 도 0.6 을 바닥으로 깔았다.
+ */
+export function m3BrightnessBand(brightness: number): 1 | 2 | 3 | 4 | 5 {
+  const b = Number.isNaN(brightness) ? 0 : Math.min(1, Math.max(0, brightness));
+  const band = Math.round(b * 4) + 1;
+  return band as 1 | 2 | 3 | 4 | 5;
+}
+
 export const m3Disabled = {
   /** 비활성 채움 버튼의 바탕. */
   primary: flatten(m3ColorDark.primary, DISABLED_ALPHA, m3ColorDark.surface),
@@ -515,6 +564,7 @@ export const m3 = {
   elevation: m3Elevation,
   state: m3State,
   disabled: m3Disabled,
+  starLadder: m3StarLadder,
   minTouch: m3MinTouch,
   spacing: m3Spacing,
   motion: m3Motion,
