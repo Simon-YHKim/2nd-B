@@ -192,7 +192,7 @@
     "navPassword": "Change password"
   },
   "privacy": {
-    "title": "Privacy",
+    "title": "Privacy & terms",
     "status": "Records are used only to support your self-understanding.",
     "tip": "Sensitive choices are always shown and confirmed first.",
     "lead": "Adjust how your data is used, yourself.",
@@ -339,6 +339,7 @@
     "q4": "What is an IDEN file?",
     "q5": "Where is my data stored?",
     "askDirect": "Ask SecondB directly",
+    "replayCoachmarks": "Replay the home guide",
     "conceptsTitle": "Core concepts"
   },
   "plans": {
@@ -369,7 +370,7 @@
     "restoredNone": "No previous purchase found to restore."
   },
   "permissions": {
-    "title": "Permissions",
+    "title": "Manage permissions",
     "status": "To save better, I request only the permissions needed.",
     "tip": "You can turn them off anytime.",
     "notif": "Notifications",
