@@ -45,7 +45,8 @@ import { PremiumCard, PremiumButton, PremiumLoadingState, TAB_BAR_HEIGHT } from 
 import { ShardArt } from "@/components/art/IslandArt";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha, semantic, spacing, typography, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { captureFromMarkdown } from "@/lib/wiki/capture";
@@ -2415,6 +2416,23 @@ function HashtagAdder({ onAdd }: { onAdd: (s: string) => void }) {
   );
 }
 
+// 저장 버튼의 상태색 (PIXEL-CLAY 절대 규칙 4).
+//
+// ⚠ **바탕 선언**: 이 버튼은 자기 배경이 없는 행(`submitRow`) 안에 있어서
+//   화면 바닥 위에 바로 앉는다. 딥스페이스 트랙에서 그 바닥은 M3 표면이다
+//   (`DeepSpaceScreen` 이 본문에 칠하는 값). `flattenAlpha` 는 바탕이 틀리면
+//   알파를 그냥 두는 것보다 나쁘므로, 바꾸는 사람은 여기부터 다시 잴 것.
+//
+// ⚠ 이 파일은 `/capture`(레거시 본문)와 `/capture-full`(딥스페이스 셸) **둘 다**
+//   그린다. 배포되는 것은 딥스페이스 쪽이라 그 바닥을 기준으로 삼았다.
+const CAPTURE_BTN_GROUND = m3.color.surface;
+const CAPTURE_BTN_DISABLED_BG = flattenAlpha(cosmic.space900, 0.86, CAPTURE_BTN_GROUND);
+const CAPTURE_BTN_DISABLED_BORDER = flattenAlpha(cosmic.mistGray, 0.36, CAPTURE_BTN_GROUND);
+// 비활성 글자는 화면 바닥이 아니라 **비활성 버튼의 배경** 위에 앉는다. 한 겹 더 들어간다.
+const CAPTURE_BTN_DISABLED_INK = flattenAlpha(cosmic.moonWhite, 0.72, CAPTURE_BTN_DISABLED_BG);
+// 눌림: 옛 `opacity: 0.9` 가 내던 값을 색으로. 버튼 자신이 semantic.brand 로 차 있다.
+const CAPTURE_BTN_PRESSED = flattenAlpha(semantic.brand, 0.9, CAPTURE_BTN_GROUND);
+
 const styles = StyleSheet.create({
   center: { flex: 1, minHeight: 360, alignItems: "center", justifyContent: "center" },
   captureFlash: { position: "absolute", bottom: 40, right: 20 },
@@ -2753,6 +2771,9 @@ const styles = StyleSheet.create({
   },
   // Save button: solid primary with a clear pressed beat (scale, no
   // bounce per DESIGN.md) so the action feels deliberate.
+  //
+  // 상태색은 미리 합성한다 (PIXEL-CLAY 절대 규칙 4: 정적 불투명도 금지).
+  // 바탕 선언은 이 시트 위쪽 CAPTURE_BTN_GROUND 에 있다.
   tossBtn: {
     alignSelf: "stretch",
     backgroundColor: semantic.brand,
@@ -2764,11 +2785,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...pixelShadowStyle(semantic.brand),
   },
-  tossBtnPressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
+  // 눌림은 **크기**로 남기고 흐림은 색으로 바꾼다. 눌림 상태에서 글자까지
+  // 함께 흐려지던 것이 옛 `opacity` 였으므로 전경도 같이 낸다.
+  tossBtnPressed: { transform: [{ scale: 0.97 }], backgroundColor: CAPTURE_BTN_PRESSED, borderColor: CAPTURE_BTN_PRESSED },
   tossBtnDisabled: {
-    backgroundColor: withAlpha(cosmic.space900, 0.86),
-    borderColor: withAlpha(cosmic.mistGray, 0.36),
+    backgroundColor: CAPTURE_BTN_DISABLED_BG,
+    borderColor: CAPTURE_BTN_DISABLED_BORDER,
   },
   tossBtnText: { color: semantic.background, fontSize: typography.sizes.md, fontWeight: "700", fontFamily: CAPTURE_LABEL_FONT },
-  tossBtnTextDisabled: { color: withAlpha(cosmic.moonWhite, 0.72) },
+  tossBtnTextDisabled: { color: CAPTURE_BTN_DISABLED_INK },
 });
