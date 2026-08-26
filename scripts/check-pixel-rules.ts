@@ -174,6 +174,44 @@ const MIGRATED: readonly string[] = [
 //
 // 교훈은 같다: 가드가 PASS 를 뱉는다고 규칙이 지켜지는 게 아니다. **무엇을 안
 // 보는지**를 세어봐야 안다. 허용 목록이면 새 토큰 세트가 생겨도 자동으로 걸린다.
+// ── 규칙 4 — 정적 불투명도 금지 ─────────────────────────────────────────────
+//
+// **이 가드는 2026-08-27 까지 없었다.** 규칙 1·2·3·5·6 은 있었는데 4 만 없어서,
+// 고쳐도 다시 늘어나는 것을 아무도 못 봤다.
+//
+// 무엇을 막는가: `opacity: 0.38` 처럼 **값이 박힌** 반투명. 대신 `flattenAlpha`
+// 로 미리 합성하거나(바탕을 알 때) 디더를 쓴다(바탕이 애매할 때).
+//
+// ⚠ **동적 불투명도는 막지 않는다.** `opacity={fadeAnim}` 은 화면 전환이고
+//   규칙 5(이징) 소관이다. 섞어서 세면 "고칠 수 없는 위반"이 목록을 채워
+//   가드가 못 쓰게 된다. 그래서 값이 숫자 리터럴인 것만 본다.
+//
+// ⚠ 주석은 반드시 걷는다. 이 저장소에서 주석 때문에 난 거짓 양성이 이 세션에만
+//   네 번이다 — 이주 메모에 `opacity` 라는 낱말이 널려 있다.
+const NUM_LIT = String.raw`(?:0?\.\d+|0|1(?:\.0+)?)`;
+
+/** `opacity: 0.38` — StyleSheet 안의 정적 값. */
+const OPACITY_STYLE = new RegExp(String.raw`\bopacity\s*:\s*(${NUM_LIT})\b`, "g");
+/** `opacity={0.4}` · `opacity="0.4"` — JSX(주로 react-native-svg). */
+const OPACITY_JSX = new RegExp(String.raw`\bopacity=(?:\{\s*${NUM_LIT}\s*\}|"${NUM_LIT}")`, "g");
+/** `fillOpacity` · `strokeOpacity` — SVG 전용 알파. */
+const OPACITY_SVG = new RegExp(
+  String.raw`\b(?:fill|stroke)Opacity=(?:\{\s*${NUM_LIT}\s*\}|"${NUM_LIT}")`,
+  "g",
+);
+/** 리터럴 `rgba(r,g,b,a)` — a 가 1 미만이면 반투명이다. */
+const RGBA_LIT = /\brgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*0?\.\d+\s*\)/g;
+/** `withAlpha(...)` 호출 — 렌더 때 섞으므로 미리 합성한 것과 다르다. */
+const WITH_ALPHA = /\bwithAlpha\s*\(/g;
+
+const RULE4_PATTERNS: readonly { re: RegExp; why: string }[] = [
+  { re: OPACITY_STYLE, why: "규칙 4 -- 정적 불투명도. `flattenAlpha(색, 알파, 바탕)` 으로 미리 합성하거나 디더를 쓸 것" },
+  { re: OPACITY_JSX, why: "규칙 4 -- JSX 정적 불투명도. 미리 합성한 색을 fill 로 넘길 것" },
+  { re: OPACITY_SVG, why: "규칙 4 -- SVG fill/stroke 알파. 미리 합성하거나 디더 패턴을 쓸 것" },
+  { re: RGBA_LIT, why: "규칙 4 -- 리터럴 rgba 알파. 미리 합성한 hex 로 바꿀 것" },
+  { re: WITH_ALPHA, why: "규칙 4 -- `withAlpha` 는 렌더 때 섞는다. `flattenAlpha` 로 바탕을 명시해 미리 합성할 것" },
+];
+
 // ── 규칙 5 — 계단 이징만 ────────────────────────────────────────────────────
 //
 // React Native 의 Easing 에는 CSS 의 steps() 가 없다. 그래서 저장소가 직접 만든
@@ -366,6 +404,17 @@ for (const rel of RULE_SCOPE) {
     continue;
   }
 
+  // 규칙 4 — 주석을 걷고 본다.
+  {
+    const bare4 = stripComments(src);
+    for (const { re, why } of RULE4_PATTERNS) {
+      re.lastIndex = 0;
+      for (const m of bare4.matchAll(re)) {
+        hits.push({ file: rel, line: lineOf(bare4, m.index ?? 0), text: m[0].trim(), why });
+      }
+    }
+  }
+
   for (const m of src.matchAll(RADIUS_PROP)) {
     if (radiusAllowed(m[1])) continue;
     hits.push({
@@ -513,7 +562,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 340;
+const RATCHET_BASELINE = 635;
 
 const rule1Hits = hits.filter((h) => h.why.startsWith("규칙 1"));
 const ratchetHits = hits.filter((h) => !h.why.startsWith("규칙 1"));
@@ -529,7 +578,7 @@ if (rule1Hits.length > 0) {
 if (ratchetHits.length > RATCHET_BASELINE) {
   const grew = ratchetHits.length - RATCHET_BASELINE;
   console.error(
-    `PIXEL-CLAY RULES FAIL  규칙 2·3·5 위반이 ${grew}건 늘었다 ` +
+    `PIXEL-CLAY RULES FAIL  규칙 2·3·4·5 위반이 ${grew}건 늘었다 ` +
       `(기준선 ${RATCHET_BASELINE} -> ${ratchetHits.length}).`,
   );
   console.error("  기존 빚은 그대로 둬도 되지만 **새로 늘리는 것**은 막는다.");
@@ -543,7 +592,7 @@ if (ratchetHits.length > RATCHET_BASELINE) {
 
 if (ratchetHits.length < RATCHET_BASELINE) {
   console.error(
-    `PIXEL-CLAY RULES FAIL  규칙 2·3·5 위반이 ${RATCHET_BASELINE - ratchetHits.length}건 줄었다 ` +
+    `PIXEL-CLAY RULES FAIL  규칙 2·3·4·5 위반이 ${RATCHET_BASELINE - ratchetHits.length}건 줄었다 ` +
       `(기준선 ${RATCHET_BASELINE} -> ${ratchetHits.length}). 좋은 일이다 — ` +
       `scripts/check-pixel-rules.ts 의 RATCHET_BASELINE 을 ${ratchetHits.length} 로 내리고 다시 올릴 것.`,
   );
@@ -555,5 +604,5 @@ if (rule1Hits.length > 0 || ratchetHits.length !== RATCHET_BASELINE) {
 }
 
 console.log(
-  `PIXEL-CLAY RULES PASS  규칙 1 곡선 0건(src 전체, 무관용) · 규칙 2·3·5 는 src 전체에서 ${RATCHET_BASELINE}건 래칫(늘지도 줄지도 않음) · 이식 목록 ${MIGRATED.length}개`,
+  `PIXEL-CLAY RULES PASS  규칙 1 곡선 0건(src 전체, 무관용) · 규칙 2·3·4·5 는 src 전체에서 ${RATCHET_BASELINE}건 래칫(늘지도 줄지도 않음) · 이식 목록 ${MIGRATED.length}개`,
 );
