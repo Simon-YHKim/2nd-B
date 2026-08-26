@@ -19,7 +19,7 @@ import { router } from "expo-router";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { canonCaptureModes } from "@/lib/canon";
-import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceGradients, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph, PixelGlyphRects } from "@/components/pixel/PixelGlyph";
 import { canonGlyph, type AnyGlyphName, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
@@ -40,6 +40,16 @@ import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.card` — 이 화면들의 내용은 거의 전부 딥스페이스 카드 위에 얹힌다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const dsAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.card);
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
@@ -873,7 +883,7 @@ export function AttachmentLensM3({
           <Svg style={StyleSheet.absoluteFill}>
             <Defs>
               <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={withAlpha(m3.color.primaryContainer, 0.33)} />
+                <Stop offset="0" stopColor={dsAlpha(m3.color.primaryContainer, 0.33)} />
                 <Stop offset="1" stopColor={m3.color.surfaceContainer} />
               </LinearGradient>
             </Defs>
@@ -1429,7 +1439,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
                 accessibilityRole="button"
                 accessibilityLabel={c.title}
                 accessibilityState={{ selected: on }}
-                android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                android_ripple={{ color: dsAlpha(m3.color.tertiary, 0.12) }}
                 onPress={() => setPicked(on ? null : s.ko.angle)}
                 style={styles.imgSeedPress}
               >
@@ -1459,7 +1469,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
                 accessibilityLabel={step}
                 onPress={() => router.push({ pathname: "/capture", params: { text: step } })}
                 style={styles.imgStep}
-                android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
+                android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
               >
                 <View style={styles.imgStepNum}>
                   <Text style={styles.imgStepNumText}>{i + 1}</Text>
@@ -1777,7 +1787,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.toConstellation")}
           onPress={() => router.replace("/")}
-          android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
+          android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.toConstellation")}</Text>
         </Pressable>
@@ -1813,7 +1823,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.viewValidation")}
           onPress={() => router.push("/big-five")}
-          android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
+          android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.viewValidation")}</Text>
         </Pressable>
@@ -1918,7 +1928,7 @@ const styles = StyleSheet.create({
   // 담기 4W1H boxes (canon track, rev2 P4a).
   captureModeToggle: { marginTop: 14, alignSelf: "stretch" },
   fourwCol: { gap: 10, marginTop: 12 },
-  fourwLabel: { color: withAlpha(deepSpace.text, 0.75), fontSize: 12, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  fourwLabel: { color: dsAlpha(deepSpace.text, 0.75), fontSize: 12, fontFamily: fontFamilies.readable, marginBottom: 4 },
   fourwLabelRequired: { color: deepSpace.textHi },
   fourwInput: { minHeight: 48, marginTop: 0 },
   fourwInputTall: { minHeight: 84 },
@@ -1955,9 +1965,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.3),
+    borderColor: dsAlpha(deepSpace.soul, 0.3),
   },
-  noteText: { color: withAlpha(deepSpace.soul, 0.85), fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
+  noteText: { color: dsAlpha(deepSpace.soul, 0.85), fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
 
   // chat
   userBubble: {
@@ -1969,7 +1979,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
     borderBottomLeftRadius: 0,
-    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+    backgroundColor: dsAlpha(deepSpace.accent, 0.16),
   },
   userText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
   aiBubble: {
@@ -1982,8 +1992,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     borderBottomLeftRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.25),
-    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+    borderColor: dsAlpha(deepSpace.soul, 0.25),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.1),
   },
   aiText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
   evidenceRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, alignSelf: "flex-start" },
@@ -2005,16 +2015,16 @@ const styles = StyleSheet.create({
   stateMark: { fontSize: 34, color: deepSpace.accentSoft },
   stateMarkDim: { opacity: 0.7 },
   stateTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "700" },
-  stateBody: { color: withAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
-  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
+  stateBody: { color: dsAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
+  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: dsAlpha(deepSpace.accentSoft, 0.3), backgroundColor: dsAlpha(deepSpace.accentSoft, 0.06) },
   obsTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
   // Section divider for peer-only traits: same family as obsTitle but quieter, so
   // the SOKA three stay the lead and these read as an addition, not a rival claim.
-  obsSubTitle: { color: withAlpha(deepSpace.text, 0.8), fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
-  obsNote: { color: withAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  obsSubTitle: { color: dsAlpha(deepSpace.text, 0.8), fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
+  obsNote: { color: dsAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
   obsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
-  obsTrack: { flex: 1, height: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.text, 0.12), overflow: "hidden" },
+  obsLabel: { color: dsAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
+  obsTrack: { flex: 1, height: 6, borderRadius: m3.shape.none, backgroundColor: dsAlpha(deepSpace.text, 0.12), overflow: "hidden" },
   obsFill: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft },
   // T5 F3: the combined other-view bar (violet family = legendDotOther).
   obsTrackOther: { marginTop: 3 },
@@ -2035,10 +2045,10 @@ const styles = StyleSheet.create({
   traits: { marginTop: 16, gap: 11 },
   traitRow: { gap: 4 },
   traitHead: { flexDirection: "row", justifyContent: "space-between" },
-  traitLabel: { color: withAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
-  traitValue: { color: withAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
+  traitLabel: { color: dsAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
+  traitValue: { color: dsAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
   traitValueUp: { color: deepSpace.mint },
-  traitTrack: { height: 7, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: withAlpha(deepSpace.accent, 0.12) },
+  traitTrack: { height: 7, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: dsAlpha(deepSpace.accent, 0.12) },
   traitFill: { height: "100%", borderRadius: m3.shape.none, overflow: "hidden" },
   insightCard: {
     marginTop: 16,
@@ -2046,8 +2056,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.mint, 0.25),
-    backgroundColor: withAlpha(deepSpace.mint, 0.05),
+    borderColor: dsAlpha(deepSpace.mint, 0.25),
+    backgroundColor: dsAlpha(deepSpace.mint, 0.05),
   },
   insightText: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
 
@@ -2097,7 +2107,7 @@ const styles = StyleSheet.create({
   atAxisV: { position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, backgroundColor: m3.color.outlineVariant },
   atAxisH: { position: "absolute", top: "50%", left: 0, right: 0, height: 1, backgroundColor: m3.color.outlineVariant },
   atPointWrap: { position: "absolute", width: 30, height: 30, marginLeft: -15, marginTop: -15, alignItems: "center", justifyContent: "center" },
-  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.color.primary, 0.2) },
+  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: m3.shape.none, backgroundColor: dsAlpha(m3.color.primary, 0.2) },
   atPoint: {
     width: 18,
     height: 18,
@@ -2131,15 +2141,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.3),
-    backgroundColor: withAlpha(deepSpace.soul, 0.07),
+    borderColor: dsAlpha(deepSpace.soul, 0.3),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.07),
     gap: 7,
   },
   idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: m3.font.mono },
   idBadges: { flexDirection: "row", gap: 5 },
-  idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
-  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 10, fontFamily: m3.font.mono },
-  idBadgeSigned: { backgroundColor: withAlpha(deepSpace.mint, 0.1) },
+  idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: dsAlpha(deepSpace.soul, 0.14) },
+  idBadgeText: { color: dsAlpha(deepSpace.soul, 0.8), fontSize: 10, fontFamily: m3.font.mono },
+  idBadgeSigned: { backgroundColor: dsAlpha(deepSpace.mint, 0.1) },
   idBadgeSignedText: { color: deepSpace.mint, fontSize: 9, fontFamily: fontFamilies.readable },
   idenRowNorth: {
     marginTop: 12,
@@ -2149,10 +2159,10 @@ const styles = StyleSheet.create({
     borderLeftColor: deepSpace.soul,
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: withAlpha(deepSpace.soul, 0.06),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.06),
   },
-  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
-  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKey: { color: dsAlpha(deepSpace.soul, 0.65), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKeyCyan: { color: dsAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   idenNorthValue: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, marginTop: 5, fontFamily: fontFamilies.readable },
   idenRowFive: {
     marginTop: 7,
@@ -2169,17 +2179,17 @@ const styles = StyleSheet.create({
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
   lensHeadTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  lensTag: { marginLeft: "auto", color: dsAlpha(deepSpace.accent, 0.55), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   lensEyebrow: { color: deepSpace.textMid, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
-  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
+  pixelHint: { color: dsAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
   sectionGap: { marginTop: 18 },
-  footerLine: { marginTop: 18, color: withAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
+  footerLine: { marginTop: 18, color: dsAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
 
   // dot meter
   dotRow: { flexDirection: "row", gap: 4, marginTop: 8 },
   dot: { width: 6, height: 6, borderRadius: m3.shape.none },
   dotOn: { backgroundColor: deepSpace.accent },
-  dotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
+  dotOff: { backgroundColor: dsAlpha(deepSpace.accent, 0.25) },
 
   // recall grid
   grid2: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 9 },
@@ -2193,7 +2203,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   gridName: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  gridAge: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 9.5, marginTop: 3, fontFamily: fontFamilies.readable },
+  gridAge: { color: dsAlpha(deepSpace.accentSoft, 0.5), fontSize: 9.5, marginTop: 3, fontFamily: fontFamilies.readable },
 
   // seen - legend
   legendRow: { flexDirection: "row", gap: 14, marginBottom: 16 },
@@ -2208,8 +2218,8 @@ const styles = StyleSheet.create({
   compareRow: { gap: 4 },
   compareDelta: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: m3.font.mono },
   compareTrack: { height: 6, borderRadius: m3.shape.none, overflow: "hidden" },
-  compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
-  compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
+  compareTrackSelf: { backgroundColor: dsAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
+  compareTrackOther: { backgroundColor: dsAlpha(deepSpace.soul, 0.16) },
   compareFillSelf: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
   compareFillOther: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.soulDeep },
 
@@ -2220,8 +2230,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.28),
-    backgroundColor: withAlpha(deepSpace.soul, 0.06),
+    borderColor: dsAlpha(deepSpace.soul, 0.28),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.06),
   },
   soulCardText: { color: deepSpace.textHi, fontSize: 12, lineHeight: 19, fontFamily: fontFamilies.readable },
 
@@ -2250,7 +2260,7 @@ const styles = StyleSheet.create({
   chartCol: { flex: 1, alignItems: "center", gap: 6 },
   chartBarTrack: { width: "100%", height: 100, justifyContent: "flex-end" },
   chartBar: { width: "100%", borderRadius: m3.shape.none, overflow: "hidden" },
-  chartDay: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 10, fontFamily: fontFamilies.readable },
+  chartDay: { color: dsAlpha(deepSpace.accentSoft, 0.5), fontSize: 10, fontFamily: fontFamilies.readable },
   chartDayPeak: { color: deepSpace.accentBright },
 
   // possible - dashed cards
@@ -2261,10 +2271,10 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: withAlpha(deepSpace.accent, 0.4),
-    backgroundColor: withAlpha(deepSpace.accent, 0.03),
+    borderColor: dsAlpha(deepSpace.accent, 0.4),
+    backgroundColor: dsAlpha(deepSpace.accent, 0.03),
   },
-  dashedCardOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.08) },
+  dashedCardOn: { borderColor: deepSpace.accent, backgroundColor: dsAlpha(deepSpace.accent, 0.08) },
   dashedName: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600", marginBottom: 5 },
   dashedBody: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable },
 
@@ -2283,7 +2293,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 12, fontFamily: m3.font.mono },
+  domainCount: { color: dsAlpha(deepSpace.accentSoft, 0.6), fontSize: 12, fontFamily: m3.font.mono },
 
   // ── imagine (divergent seeds) — ref sb-more ImagineScreen tokens ────────────
   imgIntro: { borderRadius: m3.shape.none, overflow: "hidden", marginTop: 4 },
@@ -2336,9 +2346,9 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(deepSpace.bgEdge, 0.45),
+    backgroundColor: dsAlpha(deepSpace.bgEdge, 0.45),
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.55),
+    borderColor: dsAlpha(deepSpace.soul, 0.55),
   },
   meOrbCore: {
     width: 16,
@@ -2352,16 +2362,16 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   meHeroCopy: { flex: 1, minWidth: 0 },
-  meEyebrow: { color: withAlpha(deepSpace.textHi, 0.75), fontSize: 11, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  meEyebrow: { color: dsAlpha(deepSpace.textHi, 0.75), fontSize: 11, fontFamily: fontFamilies.readable, marginBottom: 4 },
   meHeadline: { color: deepSpace.textHi, fontSize: 19, lineHeight: 25, fontFamily: fontFamilies.readable, fontWeight: "700" },
   meHeroFoot: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 14 },
   meHeroMeta: { gap: 6 },
-  meMetaLabel: { color: withAlpha(deepSpace.textHi, 0.8), fontSize: 11, fontFamily: fontFamilies.readable },
+  meMetaLabel: { color: dsAlpha(deepSpace.textHi, 0.8), fontSize: 11, fontFamily: fontFamilies.readable },
   meRefine: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 6 },
   meRefineLabel: { color: deepSpace.textHi, fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
   // section head shared by the domain grid + validation entry
   meSectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  meSectionTitle: { color: withAlpha(deepSpace.text, 0.85), fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
+  meSectionTitle: { color: dsAlpha(deepSpace.text, 0.85), fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
   meLink: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600" },
   // layer A domain grid — receding cyan cards
   meGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 9, marginBottom: 18 },
@@ -2392,14 +2402,14 @@ const styles = StyleSheet.create({
   meDotRow: { flexDirection: "row", gap: 4 },
   meDot: { width: 6, height: 6, borderRadius: m3.shape.none },
   meDotOn: { backgroundColor: deepSpace.accent },
-  meDotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
+  meDotOff: { backgroundColor: dsAlpha(deepSpace.accent, 0.25) },
   // layer B validation entry — soul-tinted (violet), signals the hidden layer
   meValidateCard: {
     borderRadius: m3.shape.none,
     padding: 14,
-    backgroundColor: withAlpha(deepSpace.soul, 0.08),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.08),
     borderWidth: 1,
     borderColor: deepSpace.soulLine,
   },
-  meValidateText: { color: withAlpha(deepSpace.textHi, 0.85), fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
+  meValidateText: { color: dsAlpha(deepSpace.textHi, 0.85), fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
 });

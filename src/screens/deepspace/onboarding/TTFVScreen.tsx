@@ -23,7 +23,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
@@ -34,6 +34,16 @@ import { SbIcon } from "@/components/deepspace/shell/SbIcon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { isAvailableUiLocale, systemLocaleFor, type AvailableUiLocale } from "@/lib/i18n/locales";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.bgEdge` — TTFV 무대 바닥.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const ttfvAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgEdge);
 
 /**
  * One ratifiable self-understanding insight. Static prop data for now; the real
@@ -240,9 +250,9 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
                 style={styles.whyToggle}
                 hitSlop={8}
               >
-                <SbIcon name="target" size={15} color={withAlpha(deepSpace.accentSoft, 0.85)} />
+                <SbIcon name="target" size={15} color={ttfvAlpha(deepSpace.accentSoft, 0.85)} />
                 <Text variant="caption" style={styles.whyToggleText}>{t("ds.ttfv.grounds")}</Text>
-                <SbIcon name={showWhy ? "expand_less" : "expand_more"} size={16} color={withAlpha(deepSpace.accentSoft, 0.85)} />
+                <SbIcon name={showWhy ? "expand_less" : "expand_more"} size={16} color={ttfvAlpha(deepSpace.accentSoft, 0.85)} />
               </Pressable>
               {showWhy ? (
                 <View style={styles.whyBody}>
@@ -343,7 +353,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.accent.polaris, 0.3),
+    backgroundColor: ttfvAlpha(m3.accent.polaris, 0.3),
   },
   starLabel: { position: "absolute", fontSize: 11, color: m3.accent.starCaption, letterSpacing: 0.6, textAlign: "center" },
   polarisLabel: { left: 0, right: 0, top: POLARIS.y + 14 },
@@ -358,31 +368,31 @@ const styles = StyleSheet.create({
 
   whyWrap: { alignSelf: "stretch", alignItems: "center", maxWidth: 320, width: "100%", marginTop: 6 },
   whyToggle: { flexDirection: "row", alignItems: "center", gap: 6 },
-  whyToggleText: { fontSize: 13, fontWeight: "600", color: withAlpha(deepSpace.accentSoft, 0.85) },
+  whyToggleText: { fontSize: 13, fontWeight: "600", color: ttfvAlpha(deepSpace.accentSoft, 0.85) },
   whyBody: { alignSelf: "stretch", gap: 8, marginTop: 10 },
   evidenceCard: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.accent.entryTag, 0.1),
+    backgroundColor: ttfvAlpha(m3.accent.entryTag, 0.1),
     borderWidth: 1,
-    borderColor: withAlpha(m3.accent.entryTag, 0.2),
+    borderColor: ttfvAlpha(m3.accent.entryTag, 0.2),
     gap: 3,
   },
   evidenceQ: { fontSize: 10, letterSpacing: 0.4, color: m3.accent.entryTag },
   evidenceA: { fontSize: 13, color: m3.accent.shareInkSoft },
-  whyFootnote: { fontSize: 11, lineHeight: 16, color: withAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
+  whyFootnote: { fontSize: 11, lineHeight: 16, color: ttfvAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
 
   answerRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", maxWidth: 320, width: "100%", marginTop: 16 },
   answerBtn: { flex: 1, minHeight: 50, borderRadius: m3.shape.medium, overflow: "hidden" },
   // bare touch surface inside the styled wrapper (Fabric-safe)
   answerPress: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 },
   affirmBtn: { backgroundColor: deepSpace.accent },
-  differBtn: { borderWidth: 1, borderColor: withAlpha(m3.accent.starCaption, 0.4), backgroundColor: "transparent" },
+  differBtn: { borderWidth: 1, borderColor: ttfvAlpha(m3.accent.starCaption, 0.4), backgroundColor: "transparent" },
   affirmText: { fontSize: 15, color: deepSpace.onAccent },
   differText: { fontSize: 15, color: m3.accent.starCaption },
 
-  consent: { fontSize: 13, color: withAlpha(m3.accent.consentFootnote, 0.5), textAlign: "center", marginTop: 12, maxWidth: 280 },
+  consent: { fontSize: 13, color: ttfvAlpha(m3.accent.consentFootnote, 0.5), textAlign: "center", marginTop: 12, maxWidth: 280 },
 
   levelChip: {
     flexDirection: "row",
@@ -391,7 +401,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.accent.insightHi, 0.16),
+    backgroundColor: ttfvAlpha(m3.accent.insightHi, 0.16),
     marginBottom: 6,
   },
   levelChipText: { fontSize: 13, fontWeight: "700", color: m3.accent.starCaption },

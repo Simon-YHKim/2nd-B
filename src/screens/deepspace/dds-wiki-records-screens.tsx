@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 import { colors, spacing } from "@/theme/tokens";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
@@ -45,6 +45,16 @@ import { buildDeepWikiView, recencyLabel, type RecencyLabels, type WikiEdge } fr
 import { buildRecordsTimeline, relatedByTag, type TimelineLabels, type TimelineRecord } from "./records-timeline";
 import { relatedRecordsByEmbedding, recordsEmbeddingAllowed } from "@/lib/records/records-embeddings";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.card` — 위키·기록 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const wrAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.card);
 
 type Tx = (key: string, options?: Record<string, unknown>) => string;
 function dsTimeLabels(t: Tx): TimelineLabels {
@@ -233,7 +243,7 @@ const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }:
   // text, so TalkBack heard only the title and never the time label, tags, or the
   // 미분류 badge. Without it, RN concatenates the children in render order.
   return (
-    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r)} accessibilityRole="button">
+    <Pressable style={rStyles.card} android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r)} accessibilityRole="button">
       <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
       <View style={rStyles.body}>
         <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
@@ -464,7 +474,7 @@ export function DeepSpaceRecordsScreen() {
       {domainWriter ? (
         <Pressable
           style={rStyles.triageCard}
-          android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+          android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }}
           onPress={() => router.push(domainWriter)}
           accessibilityRole="button"
           accessibilityLabel={t("ds.wikiRecords.fillStar")}
@@ -479,7 +489,7 @@ export function DeepSpaceRecordsScreen() {
 
       <Pressable
         style={rStyles.triageCard}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }}
         // med#5: the card counts UNFILED pieces, but it used to route to
         // /inbox (알림), which has no triage UI — the promised sorting is this
         // list's own 미분류 filter, one tap away on the same screen.
@@ -613,7 +623,7 @@ const rStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.soulLine,
     borderRadius: m3.shape.large,
-    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+    backgroundColor: wrAlpha(deepSpace.soul, 0.1),
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
@@ -623,7 +633,7 @@ const rStyles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(deepSpace.soul, 0.16),
+    backgroundColor: wrAlpha(deepSpace.soul, 0.16),
   },
   triageCol: { flex: 1, gap: 2 },
   triageTitle: { color: colors.textTitle, fontSize: 13.5, fontWeight: "700" },
@@ -1144,7 +1154,7 @@ export function DeepSpaceRecordDetailScreen() {
                 <Pressable
                   key={r.id}
                   style={rd.linkCard}
-                  android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                  android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }}
                   onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
                   accessibilityRole="button"
                   accessibilityLabel={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}

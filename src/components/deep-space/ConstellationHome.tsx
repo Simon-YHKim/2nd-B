@@ -29,7 +29,7 @@ import { weeklyBaseRemaining } from "@/lib/reasoning/remaining-copy";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useTaskStatus } from "@/lib/tasks/store";
-import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { stepPolyline, stepQuad } from "@/components/pixel/pixel-line";
@@ -46,6 +46,16 @@ import { SbStarfield } from "./SbStarfield";
 // 일곱을 보여줘야 해서 컴포넌트 밖으로 뺐다). 좌표는 여기 남는다.
 export type { HomeStarId } from "@/lib/persona/home-stars";
 import { type HomeStarId } from "@/lib/persona/home-stars";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 별자리 홈은 무대 바닥 위다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const homeAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 // sb-data.jsx STARS — coordinates in the 280×230 constellation box. 북극성 sits
 // above the box (y=-16); VB_TOP expands the render space upward to keep it
@@ -107,7 +117,7 @@ const LINK_CELL = 3;
 const NEURAL_CELL = 2;
 
 /**
- * 선 색 — 원래 `withAlpha(…, 0.34)` 였다. 미리 합성해 불투명 색으로 둔다(규칙 4).
+ * 선 색 — 원래 `homeAlpha(…, 0.34)` 였다. 미리 합성해 불투명 색으로 둔다(규칙 4).
  * 바닥은 별자리 상자가 앉은 무대 바닥색이다.
  */
 const DIPPER_LINK_FILL = flattenAlpha(m3.accent.dipperLine, 0.34, m3.accent.stageFloor);
@@ -362,7 +372,7 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
               y={Math.round(n.y - n.r * pulse)}
               width={Math.max(1, Math.round(n.r * pulse * 2))}
               height={Math.max(1, Math.round(n.r * pulse * 2))}
-              fill={withAlpha(m3.accent.star, Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
+              fill={homeAlpha(m3.accent.star, Math.min(0.5, (0.26 + 0.26 * n.depth) * pulse) * n.fade)}
             />
           </Fragment>
         );
@@ -379,7 +389,7 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
             y={Math.round(s.y) - Math.floor(d / 2)}
             width={d}
             height={d}
-            fill={withAlpha(m3.accent.star, Math.max(0, s.a))}
+            fill={homeAlpha(m3.accent.star, Math.max(0, s.a))}
           />
         );
       })}
@@ -950,7 +960,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
+    backgroundColor: homeAlpha(m3.accent.bellSurface, 0.7),
     ...m3.elevation.level2,
   },
   noticeBell: {
@@ -962,10 +972,10 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.primary, 0.42),
+    borderColor: homeAlpha(m3.color.primary, 0.42),
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(m3.color.primaryContainer, 0.72),
+    backgroundColor: homeAlpha(m3.color.primaryContainer, 0.72),
     ...m3.elevation.level2,
   },
   museumChip: {
@@ -978,7 +988,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
+    backgroundColor: homeAlpha(m3.accent.bellSurface, 0.7),
     ...m3.elevation.level2,
   },
   communityChip: {
@@ -991,7 +1001,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(m3.accent.bellSurface, 0.7),
+    backgroundColor: homeAlpha(m3.accent.bellSurface, 0.7),
     ...m3.elevation.level2,
   },
   bellDot: {
@@ -1016,7 +1026,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 80,
     textAlign: "center",
-    color: withAlpha(m3.accent.starLabel, 0.78),
+    color: homeAlpha(m3.accent.starLabel, 0.78),
     fontWeight: "600",
     letterSpacing: 0.2,
     fontFamily: fontFamilies.readable,
@@ -1025,7 +1035,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 120,
     textAlign: "center",
-    color: withAlpha(m3.accent.polarisSoft, 0.92),
+    color: homeAlpha(m3.accent.polarisSoft, 0.92),
     fontWeight: "600",
     letterSpacing: 0.2,
     fontFamily: fontFamilies.readable,
@@ -1052,8 +1062,8 @@ const styles = StyleSheet.create({
     maxWidth: 268,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(m3.accent.starCore, 0.34),
-    backgroundColor: withAlpha(m3.accent.bubbleSurface, 0.95),
+    borderColor: homeAlpha(m3.accent.starCore, 0.34),
+    backgroundColor: homeAlpha(m3.accent.bubbleSurface, 0.95),
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignItems: "center",
@@ -1064,10 +1074,10 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: 12,
     height: 12,
-    backgroundColor: withAlpha(m3.accent.bubbleSurface, 0.95),
+    backgroundColor: homeAlpha(m3.accent.bubbleSurface, 0.95),
     borderLeftWidth: 1,
     borderTopWidth: 1,
-    borderColor: withAlpha(m3.accent.starCore, 0.34),
+    borderColor: homeAlpha(m3.accent.starCore, 0.34),
     transform: [{ rotate: "45deg" }],
   },
   bubbleTag: {
@@ -1076,7 +1086,7 @@ const styles = StyleSheet.create({
     // 정수로 -- 비트맵 얼굴은 소수 자간에서 글자마다 반 픽셀씩 밀린다.
     fontSize: 10,
     letterSpacing: 1,
-    color: withAlpha(m3.accent.moodNeutral, 0.9),
+    color: homeAlpha(m3.accent.moodNeutral, 0.9),
     marginBottom: 6,
   },
   bubbleTitle: {

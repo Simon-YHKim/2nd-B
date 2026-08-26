@@ -34,8 +34,18 @@ import type { LocalizedNoticeText, NoticeKind, ProductNotice, RemoteNotice } fro
 import { getAppVersion } from "@/lib/notices/version";
 import { storeUrl, updateChannel, updateNoticeMode } from "@/lib/release/update-notice";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.color.surfaceContainerLow` — 공지 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const ntcAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
 // The shapes moved to src/lib/notices/types.ts so the pure notice logic is
 // importable without pulling a screen (and its RN imports) into the node test
@@ -515,14 +525,14 @@ export function NoticeDialog({
             <View
               style={[
                 styles.dialogIcon,
-                { backgroundColor: withAlpha(tone, 0.13), borderColor: withAlpha(tone, 0.32) },
+                { backgroundColor: ntcAlpha(tone, 0.13), borderColor: ntcAlpha(tone, 0.32) },
               ]}
             >
               <NoticeGlyph kind={notice.kind} size={22} />
             </View>
             <View style={styles.headerCopy}>
               <View style={styles.tags}>
-                <View style={[styles.tag, { borderColor: withAlpha(tone, 0.52) }]}>
+                <View style={[styles.tag, { borderColor: ntcAlpha(tone, 0.52) }]}>
                   <RNText style={[styles.tagText, { color: tone }]}>
                     {noticeText(notice.eyebrow, ko)}
                   </RNText>
@@ -676,7 +686,7 @@ export default function NoticesScreen() {
                 <View
                   style={[
                     styles.rowIcon,
-                    { backgroundColor: withAlpha(kindColor(item.kind), 0.12) },
+                    { backgroundColor: ntcAlpha(kindColor(item.kind), 0.12) },
                   ]}
                 >
                   <NoticeGlyph kind={item.kind} />
@@ -805,10 +815,10 @@ const styles = StyleSheet.create({
     paddingBottom: m3.spacing.s4,
     backgroundColor: m3.color.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.primary, 0.18),
+    borderColor: ntcAlpha(m3.color.primary, 0.18),
     ...m3.elevation.level3,
   },
-  dialogMaintenance: { borderColor: withAlpha(m3.color.error, 0.3) },
+  dialogMaintenance: { borderColor: ntcAlpha(m3.color.error, 0.3) },
   dialogHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   dialogIcon: {
     width: 40,

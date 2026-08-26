@@ -14,10 +14,20 @@ import Svg, { G, Line, Text as SvgText } from "react-native-svg";
 import { PixelNodeSvg } from "@/components/pixel/PixelStarSvg";
 
 import { Text } from "@/components/ui/Text";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import type { WikiPageKind } from "@/lib/wiki/types";
 import { layoutWikiGraph, type GraphEdge } from "@/lib/wiki/graph-layout";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 위키 그래프는 무대 바닥 위다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const wgAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 const CANVAS = 1000;
 const LABELED_HUBS = 8;
@@ -102,7 +112,7 @@ export function WikiGraph({
                 y1={a.y * CANVAS}
                 x2={b.x * CANVAS}
                 y2={b.y * CANVAS}
-                stroke={withAlpha(m3.accent.starDim, 0.3)}
+                stroke={wgAlpha(m3.accent.starDim, 0.3)}
                 strokeWidth={1.2 / zoom + 0.6}
               />
             );
@@ -119,7 +129,7 @@ export function WikiGraph({
                     cx={node.x * CANVAS}
                     cy={node.y * CANVAS}
                     r={r + 7}
-                    stroke={withAlpha(m3.accent.star, 0.7)}
+                    stroke={wgAlpha(m3.accent.star, 0.7)}
                     strokeWidth={2}
                   />
                 ) : null}
@@ -129,14 +139,14 @@ export function WikiGraph({
                   cx={node.x * CANVAS}
                   cy={node.y * CANVAS}
                   r={r}
-                  fill={withAlpha(KIND_COLOR[page.kind], node.degree > 0 ? 0.9 : 0.45)}
+                  fill={wgAlpha(KIND_COLOR[page.kind], node.degree > 0 ? 0.9 : 0.45)}
                   onPress={() => selectNode(node.id)}
                 />
                 {hubIds.has(node.id) || isSelected ? (
                   <SvgText
                     x={node.x * CANVAS}
                     y={node.y * CANVAS - r - 6}
-                    fill={withAlpha(m3.accent.skyTextHi, 0.85)}
+                    fill={wgAlpha(m3.accent.skyTextHi, 0.85)}
                     fontSize={13 / Math.sqrt(zoom) + 5}
                     textAnchor="middle"
                   >
@@ -202,8 +212,8 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accentDim, 0.22),
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
+    borderColor: wgAlpha(deepSpace.accentDim, 0.22),
+    backgroundColor: wgAlpha(deepSpace.bgMid, 0.35),
     overflow: "hidden",
   },
   controls: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -212,7 +222,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accentDim, 0.4),
+    borderColor: wgAlpha(deepSpace.accentDim, 0.4),
     alignItems: "center",
     justifyContent: "center",
   },

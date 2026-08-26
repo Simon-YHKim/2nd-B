@@ -57,8 +57,18 @@ import { getSource, updateSourceTags } from "@/lib/wiki/queries";
 import { downloadRawClipping } from "@/lib/wiki/storage";
 import { dismissTask, sendToBackground, startTask, useTaskStatus } from "@/lib/tasks/store";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.color.surfaceContainerLow` — 리즈닝 화면의 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const rsnAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 const REASONING_RATIFIED_TAG = "reasoning:ratified";
 const MAX_SELECTION = 5;
 
@@ -1481,12 +1491,12 @@ export default function ReasoningScreen() {
 }
 
 const styles = StyleSheet.create({
-  frame: { flex: 1, backgroundColor: withAlpha(m3.color.background, 0.36) },
+  frame: { flex: 1, backgroundColor: rsnAlpha(m3.color.background, 0.36) },
   list: { paddingHorizontal: m3.spacing.s4, paddingBottom: 120 },
   headerStack: { gap: m3.spacing.s4, paddingTop: m3.spacing.s2, paddingBottom: m3.spacing.s3 },
   card: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.surfaceContainerHighest },
   toggleRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
-  leadIcon: { width: 40, height: 40, borderRadius: m3.shape.medium, alignItems: "center", justifyContent: "center", backgroundColor: withAlpha(m3.color.primary, 0.12) },
+  leadIcon: { width: 40, height: 40, borderRadius: m3.shape.medium, alignItems: "center", justifyContent: "center", backgroundColor: rsnAlpha(m3.color.primary, 0.12) },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 15, lineHeight: 21, fontWeight: "600" },
   rowSub: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 17, marginTop: 2 },
@@ -1497,7 +1507,7 @@ const styles = StyleSheet.create({
   switchThumbOff: { width: 16, height: 16, left: 7, backgroundColor: m3.color.outline },
   dimmed: { opacity: 0.5 },
   autoNote: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 11, lineHeight: 17, marginTop: m3.spacing.s3 },
-  quota: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, borderRadius: m3.shape.large, paddingHorizontal: m3.spacing.s4, paddingVertical: m3.spacing.s3, backgroundColor: m3.color.surfaceContainerHigh, borderWidth: 1, borderColor: withAlpha(m3.color.primary, 0.16) },
+  quota: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, borderRadius: m3.shape.large, paddingHorizontal: m3.spacing.s4, paddingVertical: m3.spacing.s3, backgroundColor: m3.color.surfaceContainerHigh, borderWidth: 1, borderColor: rsnAlpha(m3.color.primary, 0.16) },
   pips: { flexDirection: "row", gap: 4, maxWidth: 88, flexWrap: "wrap", justifyContent: "flex-end" },
   pip: { width: 22, height: 7, borderRadius: m3.shape.small, backgroundColor: m3.color.primary },
   pipSpent: { backgroundColor: m3.color.outlineVariant },
@@ -1507,16 +1517,16 @@ const styles = StyleSheet.create({
   sectionCount: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.mono, fontSize: 12, lineHeight: 16 },
   divider: { height: 1, marginHorizontal: m3.spacing.s3, backgroundColor: m3.color.outlineVariant },
   itemRow: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: m3.spacing.s3, paddingHorizontal: m3.spacing.s3, paddingVertical: m3.spacing.s3, backgroundColor: m3.color.surfaceContainerHighest },
-  itemRowSelected: { backgroundColor: withAlpha(m3.color.primary, 0.1) },
+  itemRowSelected: { backgroundColor: rsnAlpha(m3.color.primary, 0.1) },
   checkbox: { width: 22, height: 22, borderRadius: m3.shape.small, borderWidth: 2, borderColor: m3.color.outline, alignItems: "center", justifyContent: "center" },
   checkboxOn: { borderColor: m3.color.primary, backgroundColor: m3.color.primary },
-  itemIcon: { width: 38, height: 38, borderRadius: m3.shape.medium, alignItems: "center", justifyContent: "center", backgroundColor: withAlpha(m3.color.primary, 0.1) },
-  itemIconDone: { backgroundColor: withAlpha(m3.accent.moodPositive, 0.14) },
+  itemIcon: { width: 38, height: 38, borderRadius: m3.shape.medium, alignItems: "center", justifyContent: "center", backgroundColor: rsnAlpha(m3.color.primary, 0.1) },
+  itemIconDone: { backgroundColor: rsnAlpha(m3.accent.moodPositive, 0.14) },
   itemTitle: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 14, lineHeight: 20, fontWeight: "500" },
   itemMeta: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 11, lineHeight: 16, marginTop: 3 },
   runningText: { color: m3.color.primary },
   doneText: { color: m3.accent.moodPositive },
-  progressCard: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.surfaceContainerHigh, borderWidth: 1, borderColor: withAlpha(m3.color.primary, 0.24) },
+  progressCard: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.surfaceContainerHigh, borderWidth: 1, borderColor: rsnAlpha(m3.color.primary, 0.24) },
   progressHead: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s3 },
   orbitWrap: { width: 68, height: 68, alignItems: "center", justifyContent: "center" },
   orbitRing: {
@@ -1525,23 +1535,23 @@ const styles = StyleSheet.create({
     height: 66,
     borderRadius: m3.shape.none,
     borderWidth: 2,
-    borderColor: withAlpha(m3.color.primary, 0.16),
+    borderColor: rsnAlpha(m3.color.primary, 0.16),
     borderTopColor: m3.color.primary,
   },
   progressTitle: { color: m3.color.onSurface, fontFamily: fontFamilies.readable, fontSize: 15, lineHeight: 21, fontWeight: "700" },
   progressTrack: { height: 6, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: m3.color.outlineVariant, marginTop: m3.spacing.s4 },
   progressFill: { height: 6, borderRadius: m3.shape.none, backgroundColor: m3.color.primary },
-  depletedCard: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.errorContainer, borderWidth: 1, borderColor: withAlpha(m3.color.error, 0.34) },
+  depletedCard: { borderRadius: m3.shape.large, padding: m3.spacing.s4, backgroundColor: m3.color.errorContainer, borderWidth: 1, borderColor: rsnAlpha(m3.color.error, 0.34) },
   depletedTitleRow: { flexDirection: "row", alignItems: "center", gap: m3.spacing.s2 },
   depletedTitle: { flex: 1, color: m3.color.onErrorContainer, fontFamily: fontFamilies.readable, fontSize: 16, lineHeight: 23, fontWeight: "700" },
   depletedBody: { color: m3.color.onErrorContainer, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 18, marginTop: m3.spacing.s3 },
   depletedActions: { flexDirection: "column", gap: m3.spacing.s2, marginTop: m3.spacing.s4 },
   flexButton: { flex: 1, paddingHorizontal: m3.spacing.s2 },
-  errorCard: { borderRadius: m3.shape.medium, padding: m3.spacing.s3, backgroundColor: withAlpha(m3.color.error, 0.12) },
+  errorCard: { borderRadius: m3.shape.medium, padding: m3.spacing.s3, backgroundColor: rsnAlpha(m3.color.error, 0.12) },
   errorText: { color: m3.color.error, fontFamily: fontFamilies.readable, fontSize: 12, lineHeight: 18 },
   empty: { minHeight: 180, alignItems: "center", justifyContent: "center", gap: m3.spacing.s4, paddingHorizontal: m3.spacing.s6 },
   emptyTitle: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 14, lineHeight: 21, textAlign: "center" },
-  runBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: m3.spacing.s4, paddingTop: m3.spacing.s3, paddingBottom: m3.spacing.s3, backgroundColor: withAlpha(m3.color.surfaceContainerLow, 0.98), borderTopWidth: 1, borderTopColor: m3.color.outlineVariant, ...m3.elevation.level3 },
+  runBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: m3.spacing.s4, paddingTop: m3.spacing.s3, paddingBottom: m3.spacing.s3, backgroundColor: rsnAlpha(m3.color.surfaceContainerLow, 0.98), borderTopWidth: 1, borderTopColor: m3.color.outlineVariant, ...m3.elevation.level3 },
   runButton: { width: "100%" },
   runHint: { color: m3.color.onSurfaceVariant, fontFamily: fontFamilies.readable, fontSize: 10, lineHeight: 15, textAlign: "center", marginTop: 4 },
 });

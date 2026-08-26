@@ -215,9 +215,13 @@ export const semanticCosmic = {
   deepSpaceAccent: "#46B6FF",
   deepSpaceText: "#5FD4FF",
   deepSpaceTextMuted: "#428eb0",
-  deepSpaceCard: "rgba(70,182,255,0.06)",
-  deepSpaceCardPressed: "rgba(70,182,255,0.12)",
-  deepSpaceCardLine: "rgba(70,182,255,0.24)",
+  // ⚠ 셋 다 원래 `rgba(70,182,255, …)` 였다. **딥스페이스 카드는 이 토큰 하나로
+  // 칠해지므로, 여기 알파 하나가 화면 수백 곳의 반투명이 된다** — 규칙 4에서
+  // 가장 큰 단일 지렛대였다. 바닥은 딥스페이스 무대 바닥(#0a0e18)이고, 카드는
+  // 언제나 그 위에 얹히므로 미리 합성한 값이 렌더 결과와 같다.
+  deepSpaceCard: "#0e1826", // = rgba(70,182,255,0.06) over #0a0e18
+  deepSpaceCardPressed: "#112234", // = rgba(70,182,255,0.12) over #0a0e18
+  deepSpaceCardLine: "#18364f", // = rgba(70,182,255,0.24) over #0a0e18
 } as const;
 
 // Cyan global pivot (2026-06-18): the deep-space build maps the SAME semantic

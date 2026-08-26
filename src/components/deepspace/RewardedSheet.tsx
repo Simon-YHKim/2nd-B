@@ -27,7 +27,7 @@ import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
@@ -35,6 +35,16 @@ import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
 import { showRewardedAd } from "@/lib/ads/rewarded";
 import { useAuth } from "@/lib/auth/AuthContext";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.bgMid` — 보상 시트의 표면.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const rwAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
 
 const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-front.png");
 
@@ -207,7 +217,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
   // faint dimmed deep-space backdrop behind the veil
   spaceWash: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: deepSpace.bgEdge },
-  veil: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: withAlpha(deepSpace.bgEdge, 0.66) },
+  veil: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: rwAlpha(deepSpace.bgEdge, 0.66) },
   sheet: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
@@ -224,7 +234,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(deepSpace.accentSoft, 0.3),
+    backgroundColor: rwAlpha(deepSpace.accentSoft, 0.3),
     alignSelf: "center",
     marginBottom: 18,
   },
@@ -249,7 +259,7 @@ const styles = StyleSheet.create({
   sub: {
     textAlign: "center",
     fontSize: 13,
-    color: withAlpha(deepSpace.accentSoft, 0.66),
+    color: rwAlpha(deepSpace.accentSoft, 0.66),
     marginTop: 10,
     lineHeight: 21,
     paddingHorizontal: 6,
@@ -269,7 +279,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(deepSpace.mint, 0.3),
+    backgroundColor: rwAlpha(deepSpace.mint, 0.3),
   },
   numBefore: { fontFamily: fontFamilies.pixelKo, fontSize: 30, color: deepSpace.accentBright },
   numAfter: { fontFamily: fontFamilies.pixelKo, fontSize: 30, color: deepSpace.mint },
@@ -281,14 +291,14 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.pixelEn,
     fontSize: 12,
     letterSpacing: 0.7,
-    color: withAlpha(deepSpace.accentSoft, 0.7),
+    color: rwAlpha(deepSpace.accentSoft, 0.7),
     marginTop: 4,
   },
   numLabelMint: {
     fontFamily: fontFamilies.pixelEn,
     fontSize: 12,
     letterSpacing: 0.7,
-    color: withAlpha(deepSpace.mint, 0.7),
+    color: rwAlpha(deepSpace.mint, 0.7),
     marginTop: 4,
   },
   ctaBtn: {
@@ -304,7 +314,7 @@ const styles = StyleSheet.create({
   },
   ctaText: { fontFamily: fontFamilies.pixelKo, fontSize: 15, fontWeight: "700", color: deepSpace.onMint },
   laterBtn: { minHeight: 44, marginTop: 9, alignItems: "center", justifyContent: "center" },
-  laterText: { fontSize: 13, color: withAlpha(deepSpace.accentSoft, 0.55) },
+  laterText: { fontSize: 13, color: rwAlpha(deepSpace.accentSoft, 0.55) },
   privacy: {
     textAlign: "center",
     // Consent/privacy disclosure (ads only to consenting adults, never on
@@ -312,7 +322,7 @@ const styles = StyleSheet.create({
     // de-emphasized fine print. Was fontSize 11 @ 0.4 alpha (below AA contrast);
     // raised to 12 @ 0.7 so it reads as reassurance rather than disclaimer.
     fontSize: 12,
-    color: withAlpha(deepSpace.accentSoft, 0.7),
+    color: rwAlpha(deepSpace.accentSoft, 0.7),
     marginTop: 14,
     lineHeight: 18,
   },
