@@ -2246,7 +2246,11 @@ results.push(
         '"resetSentBody": "If an account exists for {{email}}',
         '"resetPassword"',
         '"expiredBody": "This screen needs the secure session',
-        '"manualLink": "New here? Read the 1-min manual"',
+        // 2026-08-26 Simon 결정 — 문 이름을 "사용 안내서"(EN User Guide)로 통일.
+        // EN "Manual" 이 명사/형용사를 겸해서 KO/ES/PT/ID 가 전부 "수동 입력"으로
+        // 오역했고, 그 항목의 목적지는 /manual 즉 안내서였다. 이 검사가 지키는 것은
+        // **카피가 화면이 아니라 로케일에 산다**는 것이지 특정 문구가 아니다.
+        '"manualLink": "New here? Read the 1-min user guide"',
         '"existingAccountBody": "If this email is already registered',
       ];
       const koLocaleRequired = [
@@ -2260,7 +2264,7 @@ results.push(
         '"resetSentBody": "{{email}} 계정이 있다면',
         '"resetPassword"',
         '"expiredBody": "이 화면은 재설정 이메일의 보안 세션',
-        '"manualLink": "이 앱이 처음이라면 안내서 보기"',
+        '"manualLink": "이 앱이 처음이라면 사용 안내서 보기"',
         '"existingAccountBody": "이 이메일로 가입된 계정이 있다면',
       ];
       const forbiddenScreenCopy = [
@@ -2273,13 +2277,13 @@ results.push(
         "Password reset instructions are shown below.",
         "Forgot password?",
         "Email support@2nd-brain.app from your account address",
-        "New here? Read the 1-min manual",
+        "New here? Read the 1-min user guide",
         "확인하는 중…",
         "세컨비 입장 이미지",
         "비밀번호 입력값을 화면에 표시합니다.",
         "비밀번호를 잊으셨나요?",
         "가입 이메일 주소로 support@2nd-brain.app",
-        "이 앱이 처음이라면 안내서 보기",
+        "이 앱이 처음이라면 사용 안내서 보기",
       ];
       const ok =
         codeRequired.every((snippet) => screens.includes(snippet)) &&

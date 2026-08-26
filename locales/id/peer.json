@@ -45,6 +45,7 @@
   "createError": "Gagal membuat tautan. Coba lagi.",
   "pendingCap": "Batas undangan terbuka tercapai. Cabut satu untuk mengirim yang baru.",
   "privacyLine": "Tautan berlaku sekali, kedaluwarsa dalam 14 hari, dan tidak menyimpan kontak.",
+  "sentTitle": "Undangan terkirim",
   "emptyList": "Belum ada undangan. Mulai dari satu orang yang mengenalmu dengan baik.",
   "status": {
     "pending": "Menunggu",

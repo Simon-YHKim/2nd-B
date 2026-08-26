@@ -63,7 +63,7 @@
     ]
   },
   "manual": {
-    "button": "Buka manual",
-    "accessibilityHint": "Membuka manual dari layar izin."
+    "button": "Buka panduan penggunaan",
+    "accessibilityHint": "Membuka panduan penggunaan dari layar izin."
   }
 }
