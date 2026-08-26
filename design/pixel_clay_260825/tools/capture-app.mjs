@@ -113,13 +113,11 @@ if (TARGETS.length === 0) {
 mkdirSync(OUT, { recursive: true });
 mkdirSync(path.join(OUT, 'structure'), { recursive: true });
 
-// ⚠ 시각을 고정하면 **로그인이 조용히 깨진다.** Supabase 세션 토큰의 만료를
-// Date.now() 로 재는데, 고정 시각이 발급 시점보다 뒤면 토큰이 이미 만료된 것으로
-// 보여 매 화면이 로그인 월로 튕긴다(실측: 여섯 화면이 전부 sign-in 으로 찍혔다).
-// 그래서 기본값은 '지금'이다 — 한 번의 실행 안에서는 고정이라 화면 사이 시각
-// 흔들림은 없고, 실행 사이 픽셀 동일이 필요하면 FIXED_ISO 로 과거 시각을 준다
-// (그때는 로그인이 안 되므로 세션을 미리 넣어야 한다).
-const FIXED_TIME = process.env.FIXED_ISO ? new Date(process.env.FIXED_ISO).getTime() : Date.now();
+// FIXED_ISO 는 onboarding/coachmark 완료 marker 에만 쓰인다. 브라우저 Date 와
+// Math.random 은 정적 export 와 hydration 결과가 같도록 원래 구현을 유지한다.
+const STORAGE_MARKER_TIME = process.env.FIXED_ISO
+  ? new Date(process.env.FIXED_ISO).getTime()
+  : Date.now();
 const report = {
   baseUrl: new URL(BASE_URL).origin,
   shots: [],
@@ -130,7 +128,7 @@ const report = {
 
 const browser = await chromium.launch(browserLaunchOptions(process.env));
 const ctx = await browser.newContext({ viewport: { width: 390, height: 820 }, deviceScaleFactor: 1 });
-await ctx.addInitScript(makeCaptureInitScript(FIXED_TIME));
+await ctx.addInitScript(makeCaptureInitScript(STORAGE_MARKER_TIME));
 
 const page = await ctx.newPage();
 page.on('console', (m) => {
@@ -160,7 +158,7 @@ if (page.url().includes('/sign-in')) {
 // 찍히는데, 캡처는 6/6 성공으로 보이고 대조 수치만 0% 가 된다 — 가장 오래 헤매게
 // 만드는 실패 모양이라 여기서 크게 실패시킨다.
 if (page.url().includes('/sign-in')) {
-  console.error('FAIL: still on /sign-in after login — creds or clock. 캡처를 중단한다.');
+  console.error('FAIL: still on /sign-in after login — credentials or auth state. 캡처를 중단한다.');
   await browser.close();
   process.exit(2);
 }

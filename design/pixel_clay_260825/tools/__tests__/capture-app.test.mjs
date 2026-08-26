@@ -109,20 +109,24 @@ test('capture init script sets the real intro/onboarding keys and installs persi
   assert.doesNotMatch(script, /sb_onboarded/);
 });
 
-test('capture init script marks the canonical home coachmarks key at the fixed ISO', () => {
+test('capture init script marks storage and freezes motion without replacing Date or Math.random', () => {
   const fixedTime = Date.UTC(2026, 7, 27, 7, 0, 0);
   const local = new Map();
   const session = new Map();
+  const appended = [];
+  const stableRandom = () => 0.314159;
+  const stableMath = Object.create(Math);
+  stableMath.random = stableRandom;
   const document = {
     readyState: 'complete',
     querySelector: () => null,
     createElement: () => ({ setAttribute() {}, textContent: '' }),
-    head: { appendChild() {} },
-    documentElement: { appendChild() {} },
+    head: { appendChild: (node) => appended.push(node) },
+    documentElement: { appendChild: (node) => appended.push(node) },
   };
   const context = {
     Date,
-    Math: Object.create(Math),
+    Math: stableMath,
     document,
     localStorage: { setItem: (key, value) => local.set(key, value) },
     sessionStorage: { setItem: (key, value) => session.set(key, value) },
@@ -131,10 +135,16 @@ test('capture init script marks the canonical home coachmarks key at the fixed I
 
   vm.runInNewContext(makeCaptureInitScript(fixedTime), context);
 
-  assert.equal(
-    local.get('onboarding.coachmarks.home.v1.seenAt'),
-    new Date(fixedTime).toISOString(),
-  );
+  const fixedIso = new Date(fixedTime).toISOString();
+  assert.equal(context.Date, Date);
+  assert.equal(context.Date.now, Date.now);
+  assert.equal(context.Math.random, stableRandom);
+  assert.equal(context.Math.random(), 0.314159);
+  assert.equal(session.get('secondB_intro_played_v1'), '1');
+  assert.equal(local.get('onboarding.cosmicPixel.v2.completedAt'), fixedIso);
+  assert.equal(local.get('onboarding.coachmarks.home.v1.seenAt'), fixedIso);
+  assert.equal(appended.length, 1);
+  assert.match(appended[0].textContent, /animation-play-state: paused !important/);
 });
 
 test('known capture failures become safe enum codes without retaining messages or URLs', async () => {

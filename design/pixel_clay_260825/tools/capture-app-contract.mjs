@@ -68,30 +68,17 @@ export function captureFailureCodes(error) {
   return safeCodes.length ? [...new Set(safeCodes)] : ['capture-failed'];
 }
 
-export function makeCaptureInitScript(fixedTime) {
-  if (!Number.isFinite(fixedTime)) throw new Error('FIXED_ISO must be a valid date');
+export function makeCaptureInitScript(markerTime) {
+  if (!Number.isFinite(markerTime)) throw new Error('FIXED_ISO must be a valid date');
+  const markerDate = new Date(markerTime);
+  if (Number.isNaN(markerDate.getTime())) throw new Error('FIXED_ISO must be a valid date');
+  const markerIso = markerDate.toISOString();
   return `(function () {
-  var FIXED = ${fixedTime};
-  var RealDate = Date;
-  var FakeDate = function (a, b, c, d, e, f, g) {
-    if (!(this instanceof FakeDate)) return new RealDate(FIXED).toString();
-    switch (arguments.length) {
-      case 0: return new RealDate(FIXED);
-      case 1: return new RealDate(a);
-      default: return new RealDate(a, b, c, d || 0, e || 0, f || 0, g || 0);
-    }
-  };
-  FakeDate.now = function () { return FIXED; };
-  FakeDate.parse = RealDate.parse; FakeDate.UTC = RealDate.UTC;
-  FakeDate.prototype = RealDate.prototype;
-  window.Date = FakeDate;
-  var seed = 42;
-  Math.random = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  var markerIso = ${JSON.stringify(markerIso)};
   try {
-    var fixedIso = new RealDate(FIXED).toISOString();
     sessionStorage.setItem('secondB_intro_played_v1', '1');
-    localStorage.setItem('onboarding.cosmicPixel.v2.completedAt', fixedIso);
-    localStorage.setItem('onboarding.coachmarks.home.v1.seenAt', fixedIso);
+    localStorage.setItem('onboarding.cosmicPixel.v2.completedAt', markerIso);
+    localStorage.setItem('onboarding.coachmarks.home.v1.seenAt', markerIso);
   } catch (e) {}
   var freezeMotion = function () {
     if (document.querySelector('style[data-capture-motion-freeze]')) return;
