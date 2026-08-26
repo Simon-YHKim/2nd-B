@@ -22,7 +22,7 @@ import { DOMAIN_STARS, type DomainId } from "@/lib/persona/domain-stars";
 import { loadDomainLevels } from "@/lib/persona/load-domain-levels";
 import type { LadderLevel } from "@/lib/persona/brightness";
 import { m3 } from "@/lib/theme/m3";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing, withAlpha } from "@/lib/theme/tokens";
 
 // 담아내기(collect)는 생활 영역이 아니라 **데이터가 흘러드는 통로**다. 홈에도
 // 그려진 적이 없고, 여기서도 한 칸을 차지하면 나머지 여섯과 다른 것을 같은
@@ -97,11 +97,15 @@ export function DomainDashboard({ userId, onDismiss }: { userId: string; onDismi
   );
 }
 
+// 바탕은 이 대시보드의 카드 배경이다 (PIXEL-CLAY 규칙 4).
+const DASH_CARD_BORDER = flattenAlpha(deepSpace.accent, 0.24, deepSpace.card);
+const DASH_TRACK_BG = flattenAlpha(deepSpace.accent, 0.1, deepSpace.card);
+
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accent, 0.24),
-    borderRadius: 12,
+    borderColor: DASH_CARD_BORDER,
+    borderRadius: m3.shape.none,
     backgroundColor: deepSpace.card,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -115,7 +119,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   // 이름 칸만 고정폭이다. 막대가 남은 폭을 flex 로 나눠 가져야 좁은 화면에서 안 넘친다.
   name: { width: 68, fontSize: m3.type.bodySmall.size, lineHeight: m3.type.bodySmall.line, color: m3.color.onSurface },
-  track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: withAlpha(deepSpace.accent, 0.1), overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 4 },
+  // 규칙 2(라운드 0) + 규칙 4(정적 반투명 금지). 막대 바탕은 카드 위에 앉는다.
+  track: { flex: 1, height: 8, borderRadius: m3.shape.none, backgroundColor: DASH_TRACK_BG, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: m3.shape.none },
   level: { width: 22, textAlign: "right", fontSize: m3.type.labelSmall.size, lineHeight: m3.type.labelSmall.line, color: m3.color.onSurfaceVariant },
 });
