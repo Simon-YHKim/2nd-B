@@ -24,13 +24,13 @@ import {
   View,
 } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
-import Svg, { Path } from "react-native-svg";
 import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 
 import { deepSpace, deepSpaceRadii, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { REWARD_PER_WATCH } from "@/lib/entitlements/tiers";
 import { Text } from "@/components/ui/Text";
 import { showRewardedAd } from "@/lib/ads/rewarded";
@@ -170,15 +170,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
               <Text style={styles.numLabel}>{C.remaining}</Text>
             </View>
 
-            <Svg width={34} height={16} viewBox="0 0 34 16" fill="none">
-              <Path
-                d="M2 8h26m0 0l-6-5m6 5l-6 5"
-                stroke={withAlpha(deepSpace.accentSoft, 0.5)}
-                strokeWidth={1.4}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
+            <PixelGlyph name="arrow_forward" color={deepSpace.accentSoft} size={16} />
 
             <View style={styles.counterCol}>
               <View style={styles.afterStack}>
@@ -196,9 +188,7 @@ export function RewardedSheet({ visible, onClose, remaining, onEarned, locale, k
             accessibilityRole="button"
             accessibilityLabel={C.cta}
           >
-            <Svg width={15} height={15} viewBox="0 0 16 16" fill="none">
-              <Path d="M5 3.5v9l7-4.5z" fill={deepSpace.onMint} />
-            </Svg>
+            <PixelGlyph name="play_arrow" color={deepSpace.onMint} size={15} />
             <Text style={styles.ctaText}>{C.cta}</Text>
           </Pressable>
 

@@ -32,6 +32,7 @@ import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
 import { cosmic, deepSpace, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
@@ -76,7 +77,6 @@ import {
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
-import Svg, { Path } from "react-native-svg";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
@@ -105,36 +105,16 @@ const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko:
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
-// M3 glyphs (Material Symbols geometry, viewBox 0 -960 960 960) used by the
-// reference ChatScreen input bar + citation chips. Kept as tiny static SVGs
-// (ANDROID_QA: no animated SVG, low node count) so the round send / mic / cite
-// affordances match the prototype without a font-icon dependency.
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 Material Symbols 기하(viewBox 0 -960 960 960)를 그대로 옮긴 곡선 셋이었다.
 function IconSend({ color, size = 22 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 -960 960 960">
-      <Path d="M120-160v-240l320-80-320-80v-240l760 320-760 320Z" fill={color} />
-    </Svg>
-  );
+  return <PixelGlyph name="send" color={color} size={size} />;
 }
 function IconMic({ color, size = 22 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 -960 960 960">
-      <Path
-        d="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Zm-40 320v-123q-104-14-172-93t-68-184h80q0 83 58.5 141.5T480-360q83 0 141.5-58.5T680-560h80q0 105-68 184t-172 93v123h-80Z"
-        fill={color}
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="mic" color={color} size={size} />;
 }
 function IconCite({ color, size = 13 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 -960 960 960">
-      <Path
-        d="M280-240q-83 0-141.5-58.5T80-440q0-83 58.5-141.5T280-640q83 0 141.5 58.5T480-440q0 83-58.5 141.5T280-240Zm400-160q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM560-40q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Z"
-        fill={color}
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="link" color={color} size={size} />;
 }
 
 interface ChatTurn {

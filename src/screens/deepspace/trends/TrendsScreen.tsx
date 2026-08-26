@@ -14,6 +14,7 @@ import { MdButton, MdCard, ProgressLinear } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canonSurfaces } from "@/lib/canon";
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 // Overall brightness over 8 weeks (0..100), transcribed 1:1 from the reference.
 // KO copy sourced from the design canon (src/lib/canon → public/proto/data)
@@ -98,10 +99,7 @@ export function TrendsScreen() {
           <View style={s.chartHead}>
             <RNText style={s.chartLabel}>{t("trends.overall")}</RNText>
             <View style={s.deltaRow}>
-              <Svg width={15} height={11} viewBox="0 0 15 11">
-                <Path d="M1 9 L6 4 L9 7 L14 2" stroke={m3.color.primary} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                <Path d="M14 2 L14 5 M14 2 L11 2" stroke={m3.color.primary} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
+              <PixelGlyph name="trending_up" color={m3.color.primary} size={16} />
               <RNText style={s.delta}>{t("trends.delta8w")}</RNText>
             </View>
           </View>
