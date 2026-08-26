@@ -25,12 +25,37 @@
 const BUILD_LIMIT = 30;
 
 /**
+ * 한 빌드가 어느 채널에 묶여 있는가.
+ *
+ * ⚠ **이 함수가 없어서 이 파일은 한 번도 작동한 적이 없었다(2026-08-26 발견).**
+ *
+ * 전에는 `b.channel` 을 읽었는데, `eas-cli build:list --json` 은 그런 필드를
+ * 내지 않는다. 실제 출력은 이렇게 생겼다(v0.4.0 빌드 로그에서 그대로 보는 값):
+ *
+ *     "status": "FINISHED",
+ *     "updateChannel": { "id": "019ef866-…", "name": "preview" },
+ *     "buildProfile": "preview",
+ *     "appVersion": "0.4.0",
+ *
+ * 그래서 `b.channel` 은 언제나 `undefined` 였고, 채널 필터는 항상 빈 배열을 내고,
+ * 판정은 항상 `no-builds` 였다 — 즉 도달 보고가 **빌드가 몇 대가 있든**
+ * "아직 빌드가 없다, 아무것도 좀초되지 않았다" 를 찍어 왔다.
+ *
+ * 검사가 못 잡은 이유는 **픽스쳐가 코드와 같은 이름을 지어낸 탓**이다
+ * (`scripts/__tests__/ota-reach.test.ts` 가 `channel` 을 가진 객체를 만들었다).
+ * 픽스쳐는 항상 자기 코드와 동의한다 — 현실과 맞춰본 적이 없으면.
+ */
+function channelOf(b) {
+  return b?.updateChannel?.name ?? b?.channel ?? null;
+}
+
+/**
  * @param {string} runtimeVersion  the runtimeVersion `eas update` reported
  * @param {string} channel         the channel it published to
  * @param {Array<object>} builds   `eas build:list --json` output
  */
 function reachOf(runtimeVersion, channel, builds) {
-  const onChannel = builds.filter((b) => b.channel === channel);
+  const onChannel = builds.filter((b) => channelOf(b) === channel);
   const reached = onChannel.filter((b) => b.runtimeVersion === runtimeVersion);
 
   // Stranded = installed-and-usable builds on this channel that this update
@@ -86,7 +111,7 @@ function render({ reached, stranded, verdict }, runtimeVersion, channel) {
   return lines.join("\n");
 }
 
-module.exports = { reachOf, render, describe, BUILD_LIMIT };
+module.exports = { reachOf, render, describe, channelOf, BUILD_LIMIT };
 
 if (require.main === module) {
   const [, , runtimeVersion, channel] = process.argv;
