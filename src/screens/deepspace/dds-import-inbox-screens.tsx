@@ -12,7 +12,8 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
@@ -36,30 +37,13 @@ import {
 } from "@/lib/import/history";
 import { deleteSourcesByIds } from "@/lib/records/delete-bulk";
 
-// Material-symbol stroke glyphs, transcribed to match the reference icons. Same
-// SvgXml approach as the connect/datareview CloneIcon kit.
-const GLYPH: Record<string, string> = {
-  sparkle: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3Z"/>',
-  calendar: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/>',
-  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
-  box: '<path d="M4 8.5 12 5l8 3.5V17l-8 3.5L4 17z"/><path d="M4 8.5 12 12l8-3.5M12 12v8.5"/>',
-  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"/>',
-  arrow_forward: '<path d="M5 12h13M13 6l6 6-6 6"/>',
-  link: '<path d="M9.5 14.5 14.5 9.5"/><path d="M11 6.5 12.5 5a3.5 3.5 0 0 1 5 5L16 11.5"/><path d="M13 17.5 11.5 19a3.5 3.5 0 0 1-5-5L8 12.5"/>',
-  cloud_upload: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.2A3.4 3.4 0 0 1 17 18H7Z"/><path d="M12 20v-7M9.5 15 12 12.5 14.5 15"/>',
-  attach_file: '<path d="M16 7 8.5 14.5a2.5 2.5 0 0 0 3.5 3.5L19 11a4.5 4.5 0 0 0-6.4-6.4L5.5 11.6a6.5 6.5 0 0 0 9.2 9.2L20 15.5"/>',
-  memory: '<rect x="7" y="7" width="10" height="10" rx="1.5"/><rect x="10" y="10" width="4" height="4"/><path d="M9.5 4v3M14.5 4v3M9.5 17v3M14.5 17v3M4 9.5h3M4 14.5h3M17 9.5h3M17 14.5h3"/>',
-  lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
-  bubble: '<circle cx="9" cy="10" r="4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="15.5" cy="15.5" r="3"/>',
-  description: '<path d="M14 3v5h5"/><path d="M14 3H6v18h12V8z"/><path d="M9 12h6M9 15.5h6"/>',
-  event: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9.5h16M8 3v4M16 3v4"/><rect x="7" y="12.5" width="4" height="3.5" rx="0.8"/>',
-  favorite: '<path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 9-2 4.5 4.5 0 0 1 9 2c-2 4.5-9 9-9 9Z"/>',
-  trash: '<path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/>',
-};
-
-function Glyph({ name, color, size = 20 }: { name: keyof typeof GLYPH; color: string; size?: number }) {
-  const xml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${GLYPH[name]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+//
+// 원래 이 자리에 `GLYPH` 라는 열여섯 개짜리 문자열 SVG 레지스트리가 있었다.
+// 저장소에서 **여섯 번째**였고, 열여섯 중 열넷이 다른 레지스트리에도 있는
+// 아이콘을 각자 다른 곡선으로 그리고 있었다.
+function Glyph({ name, color, size = 20 }: { name: string; color: string; size?: number }) {
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 function Loading() {
@@ -95,7 +79,7 @@ export function DeepSpaceInboxScreen() {
 }
 
 type InboxItem = {
-  icon: keyof typeof GLYPH;
+  icon: AnyGlyphName;
   accent: string;
   title: string;
   body: string;
@@ -401,13 +385,13 @@ export function DeepSpaceImportScreen() {
     }
   }
 
-  const consents: { icon: keyof typeof GLYPH; label: string; note: string }[] = [
+  const consents: { icon: AnyGlyphName; label: string; note: string }[] = [
     { icon: "cloud_upload", label: t("ds.import.consentSourceLabel"), note: t("ds.import.consentSourceNote") },
     { icon: "memory", label: t("ds.import.consentDeviceLabel"), note: t("ds.import.consentDeviceNote") },
     { icon: "lock", label: t("ds.import.consentRevocableLabel"), note: t("ds.import.consentRevocableNote") },
   ];
 
-  const accounts: { k: string; icon: keyof typeof GLYPH; health?: boolean }[] = [
+  const accounts: { k: string; icon: AnyGlyphName; health?: boolean }[] = [
     { k: "ChatGPT", icon: "bubble" },
     { k: "Notion", icon: "description" },
     { k: t("ds.import.providerGoogleCalendar"), icon: "event" },

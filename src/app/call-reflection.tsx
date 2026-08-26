@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import Svg, { Path } from "react-native-svg";
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -28,6 +27,7 @@ import { composeStructured } from "@/lib/capture/structured";
 import { transcribeAudio } from "@/lib/llm/boundary";
 import { discardRecording, recordingUriToBase64 } from "@/lib/audio/recording-uri";
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 type Phase = "idle" | "rec" | "stt" | "result";
 type UiLocale = "en" | "ko" | "es" | "pt" | "id";
@@ -78,10 +78,7 @@ function hotlineFor(ko: boolean, minor: boolean): HotlineId {
 
 function MicGlyph({ color, size = 52 }: { color: string; size?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z" fill={color} />
-      <Path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M8.5 20.5h7" stroke={color} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
+    <PixelGlyph name="mic" color={color} size={size} />
   );
 }
 
@@ -251,10 +248,7 @@ export default function CallReflection() {
       <DeepSpaceScreen active="home" variant="windowed" header="none" title={t("callReflection.title")} onBack={() => router.back()}>
         <ScrollView contentContainerStyle={s.resultScroll} showsVerticalScrollIndicator={false}>
           <View style={s.resultHead}>
-            <Svg width={22} height={22} viewBox="0 0 24 24">
-              <Path d="M12 3a9 9 0 1 0 9 9" stroke={m3.color.primary} strokeWidth={1.9} fill="none" strokeLinecap="round" />
-              <Path d="M8.4 12.2l2.5 2.5L20 6" stroke={m3.color.primary} strokeWidth={1.9} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
+            <PixelGlyph name="task_alt" color={m3.color.primary} size={22} />
             <RNText style={s.resultTitle}>{t("callReflection.transcribed")}</RNText>
           </View>
 
@@ -268,9 +262,7 @@ export default function CallReflection() {
             <MdButton variant="filled" label={t("callReflection.approve")} loading={busy} onPress={() => void approve()} style={s.btnFlex2} />
           </View>
           <View style={s.privacyRow}>
-            <Svg width={14} height={14} viewBox="0 0 24 24">
-              <Path d="M6 10V8a6 6 0 0 1 12 0v2M5 10h14v9H5z" stroke={m3.color.onSurfaceVariant} strokeWidth={1.7} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </Svg>
+            <PixelGlyph name="lock" color={m3.color.onSurfaceVariant} size={16} />
             <RNText style={s.privacyTxt}>{copy.privacyNote}</RNText>
           </View>
         </ScrollView>

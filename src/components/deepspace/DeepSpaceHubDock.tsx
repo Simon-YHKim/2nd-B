@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
 
 import { colors, spacing } from "@/theme/tokens";
 import { withAlpha } from "@/lib/theme/tokens";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { fontFamilies } from "@/theme/typography";
 
 export type DeepSpaceHubTab = "capture" | "secondb" | "trend" | "review";
@@ -20,37 +20,16 @@ const DOCK_ITEMS: DockItem[] = [
   { key: "review", label: "점검", accessibilityLabel: "점검 탭" },
 ];
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+const HUB_DOCK_GLYPH: Record<DeepSpaceHubTab, "add_circle" | "forum" | "target" | "task_alt"> = {
+  capture: "add_circle",
+  secondb: "forum",
+  trend: "target",
+  review: "task_alt",
+};
+
 function HubDockIcon({ tab, color }: { tab: DeepSpaceHubTab; color: string }) {
-  switch (tab) {
-    case "capture":
-      return (
-        <Svg width={18} height={18} viewBox="0 0 24 24">
-          <Circle cx={12} cy={12} r={8} stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M12 8v8M8 12h8" stroke={color} strokeWidth={2} strokeLinecap="round" fill="none" />
-        </Svg>
-      );
-    case "secondb":
-      return (
-        <Svg width={18} height={18} viewBox="0 0 24 24">
-          <Path d="M4 6h12v8H8l-4 3z" stroke={color} strokeWidth={2} fill="none" strokeLinejoin="round" />
-          <Path d="M9 14.5V16h8l3 2.4V10h-2.4" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      );
-    case "trend":
-      return (
-        <Svg width={18} height={18} viewBox="0 0 24 24">
-          <Circle cx={12} cy={12} r={8.5} stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill={color} opacity={0.35} />
-        </Svg>
-      );
-    case "review":
-      return (
-        <Svg width={18} height={18} viewBox="0 0 24 24">
-          <Circle cx={12} cy={12} r={8.5} stroke={color} strokeWidth={2} fill="none" />
-          <Path d="m8 12.3 2.6 2.6L16.5 9" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      );
-  }
+  return <PixelGlyph name={HUB_DOCK_GLYPH[tab]} color={color} size={18} />;
 }
 
 interface DeepSpaceHubDockProps {

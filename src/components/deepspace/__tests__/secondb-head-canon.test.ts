@@ -27,7 +27,15 @@ describe("SecondB head canon", () => {
     // The 13-expression geometry moved to lib/companion/faces.ts (FACES) — the
     // head must render FROM it: per-eye specs, six mouth kinds, gaze offsets.
     expect(canonHead).toMatch(/FACES\[/);
-    expect(canonHead).toMatch(/function mouthPath/);
+    // 입 모양을 만드는 함수. 이름이 `mouthPath` 에서 `mouthCells` 로 바뀌었다 —
+    // PIXEL-CLAY 규칙 1 이주로 SVG 곡선(`d`)이 아니라 **정수 셀**을 돌려주기
+    // 때문이다. 붙드는 것은 이름이 아니라 "입 모양이 표정마다 만들어진다" 이므로
+    // 둘 다 받는다.
+    expect(canonHead).toMatch(/function mouth(Path|Cells)/);
+    // 여섯 종류가 모두 살아 있는가 — 하나라도 빠지면 그 표정이 조용히 무표정이 된다.
+    for (const kind of ["smile", "frown", "open", "smirk", '"o"', "flat"]) {
+      expect(canonHead).toContain(kind);
+    }
     expect(canonHead).toMatch(/face\.eyes\[i\]/);
     expect(canonHead).toMatch(/face\.mouth/);
   });

@@ -17,13 +17,23 @@ import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, usePathname, type Href } from "expo-router";
 
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { useFontStyle } from "@/lib/settings/readable-font";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 import { MdNavBar, MdTopAppBar } from "@/components/m3";
 import { SecondbStatusHeader } from "./SecondbStatusHeader";
 import { SbStarfield } from "./SbStarfield";
 import { TabIcon, type DeepSpaceTab } from "./DeepSpaceDock";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 공용 셸의 틀은 무대 바닥 위다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const shellAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 const TAB_ROUTE: Record<DeepSpaceTab, Href> = {
   home: "/",
@@ -199,7 +209,7 @@ const styles = StyleSheet.create({
   spaceWash: { ...StyleSheet.absoluteFill, overflow: "hidden" },
   body: {
     flex: 1,
-    backgroundColor: withAlpha(deepSpace.bgEdge, 0.5),
+    backgroundColor: shellAlpha(deepSpace.bgEdge, 0.5),
   },
   floatingHeader: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 6 },
   // Content clears the ~56dp bar zone (no blur, so "under the scrim" would
@@ -213,7 +223,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 7,
-    backgroundColor: withAlpha(m3.accent.stageFloor, 0.92),
+    backgroundColor: shellAlpha(m3.accent.stageFloor, 0.92),
     borderBottomWidth: 1,
     borderBottomColor: m3.color.outlineVariant,
     elevation: 0,
@@ -236,7 +246,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: m3.color.surface,
     borderWidth: 1,
-    borderColor: withAlpha(m3.accent.windowRim, 0.16),
+    borderColor: shellAlpha(m3.accent.windowRim, 0.16),
     elevation: 0,
     shadowColor: m3.color.scrim,
     shadowOpacity: 0,

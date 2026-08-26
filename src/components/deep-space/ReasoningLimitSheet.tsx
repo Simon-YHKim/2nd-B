@@ -35,8 +35,18 @@ import { addRewardCredits, getReasoningUsage, type ReasoningUsage } from "@/lib/
 import { monthLabelFor } from "@/lib/reasoning/remaining-copy";
 import { useProgression } from "@/lib/progression/useProgression";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.bgMid` — 시트 표면.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const rlAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgMid);
 
 export interface ReasoningLimitSheetProps {
   visible: boolean;
@@ -258,7 +268,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.color.onSurfaceVariant, 0.4),
+    backgroundColor: rlAlpha(m3.color.onSurfaceVariant, 0.4),
     alignSelf: "center",
     marginBottom: m3.spacing.s4,
   },
@@ -299,7 +309,7 @@ const styles = StyleSheet.create({
   actions: { gap: m3.spacing.s4, marginTop: m3.spacing.s5 },
   actionButton: { width: "100%" },
   sameQuality: {
-    color: withAlpha(m3.color.onSurfaceVariant, 0.8),
+    color: rlAlpha(m3.color.onSurfaceVariant, 0.8),
     fontFamily: fontFamilies.readable,
     fontSize: 11,
     lineHeight: 16,

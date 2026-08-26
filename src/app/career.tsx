@@ -18,9 +18,19 @@ import { MdButton, MdCard } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { domainTagFor } from "@/lib/persona/domain-stars";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { groupCareerTimeline, type CareerRecordRow } from "@/lib/career/career-timeline";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.color.surfaceContainerLow` — 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const carAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
 const CAREER_TAG = domainTagFor("career");
 
@@ -205,17 +215,17 @@ const styles = StyleSheet.create({
   cardPad: { padding: spacing.md, gap: spacing.sm },
   pathHead: { marginTop: spacing.xs },
   trackRow: { flexDirection: "row", gap: spacing.sm },
-  trackTab: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: m3.shape.none, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.35) },
-  trackTabOn: { backgroundColor: withAlpha(m3.accent.starCore, 0.18), borderColor: withAlpha(m3.accent.starCore, 0.5) },
-  trackTxt: { color: withAlpha(m3.accent.skyTextHi, 0.7) },
+  trackTab: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: m3.shape.none, borderWidth: 1, borderColor: carAlpha(deepSpace.accentDim, 0.35) },
+  trackTabOn: { backgroundColor: carAlpha(m3.accent.starCore, 0.18), borderColor: carAlpha(m3.accent.starCore, 0.5) },
+  trackTxt: { color: carAlpha(m3.accent.skyTextHi, 0.7) },
   trackTxtOn: { color: m3.accent.skyTextHi },
   sideBlock: { gap: spacing.sm },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  credChip: { paddingVertical: 6, paddingHorizontal: 11, borderRadius: m3.shape.none, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.3) },
+  credChip: { paddingVertical: 6, paddingHorizontal: 11, borderRadius: m3.shape.none, borderWidth: 1, borderColor: carAlpha(deepSpace.accentDim, 0.3) },
   yearBlock: { gap: spacing.sm },
   yearRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  yearLabel: { color: withAlpha(m3.accent.skyTextHi, 0.9) },
-  yearLine: { flex: 1, height: 1, backgroundColor: withAlpha(deepSpace.accentDim, 0.25) },
+  yearLabel: { color: carAlpha(m3.accent.skyTextHi, 0.9) },
+  yearLine: { flex: 1, height: 1, backgroundColor: carAlpha(deepSpace.accentDim, 0.25) },
   entry: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, padding: spacing.md },
   entryDot: { width: 8, height: 8, borderRadius: m3.shape.none, marginTop: 6, backgroundColor: m3.accent.starCore },
 });

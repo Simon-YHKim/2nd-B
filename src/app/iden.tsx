@@ -9,7 +9,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Platform, Share, Pressable } from "react-native";
-import Svg, { Path, Rect as SvgRect, Circle as SvgCircle } from "react-native-svg";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
@@ -27,6 +26,7 @@ import { exportIden, type IdenExport } from "@/lib/iden/iden-export";
 import { buildIdenDoc } from "@/lib/iden/build-iden";
 import type { IdenDoc } from "@/lib/iden/types";
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { MdButton, MdChip } from "@/components/m3";
 import { VILLAGE_UI } from "@/lib/village-ui";
 
@@ -296,11 +296,7 @@ function IdenExportScreenDeepSpace() {
           {/* file hero (rev2: tertiary-container plate, badge tile, mono filename) */}
           <View style={dsIden.hero}>
             <View style={dsIden.heroTile}>
-              <Svg width={30} height={30} viewBox="0 0 24 24">
-                <SvgRect x={3} y={5} width={18} height={14} rx={2.5} stroke={m3.color.onTertiaryContainer} strokeWidth={1.8} fill="none" />
-                <SvgCircle cx={9} cy={11} r={2.2} fill={m3.color.onTertiaryContainer} />
-                <Path d="M6.2 16.4c.5-1.6 1.6-2.4 2.8-2.4s2.3.8 2.8 2.4M14.5 9.5h4M14.5 13h4" stroke={m3.color.onTertiaryContainer} strokeWidth={1.6} strokeLinecap="round" fill="none" />
-              </Svg>
+              <PixelGlyph name="badge" color={m3.color.onTertiaryContainer} size={30} />
             </View>
             <Text style={dsIden.heroName}>{data!.name}</Text>
             <View style={dsIden.heroChips}>
@@ -308,9 +304,7 @@ function IdenExportScreenDeepSpace() {
                 <Text style={dsIden.versionChipText}>{`v${data!.version}`}</Text>
               </View>
               <View style={dsIden.localChip}>
-                <Svg width={12} height={12} viewBox="0 0 24 24">
-                  <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onPrimary} />
-                </Svg>
+                <PixelGlyph name="lock" color={m3.color.onSurfaceVariant} size={13} />
                 <Text style={dsIden.localChipText}>{t("ds.signed")}</Text>
               </View>
             </View>
@@ -406,9 +400,7 @@ function IdenExportScreenDeepSpace() {
             </Text>
           ) : null}
           <View style={dsIden.lockRow}>
-            <Svg width={14} height={14} viewBox="0 0 24 24">
-              <Path d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z" fill={m3.color.onSurfaceVariant} />
-            </Svg>
+            <PixelGlyph name="lock" color={m3.color.onSurfaceVariant} size={13} />
             <Text style={dsIden.lockText}>
               {IDEN_LOCK_COPY[uiLocale]}
             </Text>

@@ -29,9 +29,10 @@ import { Text } from "@/components/ui/Text";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, deepSpace, deepSpaceSpacing, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, deepSpace, deepSpaceSpacing, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
@@ -76,7 +77,6 @@ import {
   type Rev2PersonaId,
 } from "@/lib/chat/rev2-personas";
 import { m3 } from "@/lib/theme/m3";
-import Svg, { Path } from "react-native-svg";
 import { formatSourceCitationLabel, parseSourceCitations } from "@/lib/chat/sources";
 import { parseTwiBranches } from "@/lib/chat/twi-branches";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
@@ -95,6 +95,16 @@ import type { SubscriptionTier } from "@/lib/progression/entitlements";
 import { captureEvent, secondBSession, aiLimitHit } from "@/lib/analytics";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.color.surfaceContainerLow` — 대화 화면 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const sbAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
+
 // Quick-action chips offered under an answer (chat pack §8). Each prefills
 // the composer with a short follow-up in the village voice; the user sends.
 const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko: string; en: string } }[] = [
@@ -105,36 +115,16 @@ const QUICK_ACTIONS: { ko: string; en: string; mode?: "divergent"; prompt: { ko:
   { ko: "다시 짧게", en: "Shorter", prompt: { ko: "더 짧게 한 문장으로 말해줘.", en: "Say that again, shorter. One sentence." } },
 ];
 
-// M3 glyphs (Material Symbols geometry, viewBox 0 -960 960 960) used by the
-// reference ChatScreen input bar + citation chips. Kept as tiny static SVGs
-// (ANDROID_QA: no animated SVG, low node count) so the round send / mic / cite
-// affordances match the prototype without a font-icon dependency.
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 Material Symbols 기하(viewBox 0 -960 960 960)를 그대로 옮긴 곡선 셋이었다.
 function IconSend({ color, size = 22 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 -960 960 960">
-      <Path d="M120-160v-240l320-80-320-80v-240l760 320-760 320Z" fill={color} />
-    </Svg>
-  );
+  return <PixelGlyph name="send" color={color} size={size} />;
 }
 function IconMic({ color, size = 22 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 -960 960 960">
-      <Path
-        d="M480-400q-50 0-85-35t-35-85v-240q0-50 35-85t85-35q50 0 85 35t35 85v240q0 50-35 85t-85 35Zm-40 320v-123q-104-14-172-93t-68-184h80q0 83 58.5 141.5T480-360q83 0 141.5-58.5T680-560h80q0 105-68 184t-172 93v123h-80Z"
-        fill={color}
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="mic" color={color} size={size} />;
 }
 function IconCite({ color, size = 13 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 -960 960 960">
-      <Path
-        d="M280-240q-83 0-141.5-58.5T80-440q0-83 58.5-141.5T280-640q83 0 141.5 58.5T480-440q0 83-58.5 141.5T280-240Zm400-160q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM560-40q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Z"
-        fill={color}
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="link" color={color} size={size} />;
 }
 
 interface ChatTurn {
@@ -372,7 +362,7 @@ const ChatComposer = memo(
               value={draft}
               onChangeText={setDraft}
               placeholder={t("askLens", { lens: lensName })}
-              placeholderTextColor={withAlpha(deepSpace.text, 0.45)}
+              placeholderTextColor={sbAlpha(deepSpace.text, 0.45)}
               style={ds.pillInput}
               accessibilityLabel={t("inputA11y")}
               onSubmitEditing={submit}
@@ -400,7 +390,7 @@ const ChatComposer = memo(
             <Pressable
               onPress={() => void handleMicPress()}
               disabled={voicePhase === "transcribing"}
-              style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: withAlpha(lensAccent, 0.18) }]}
+              style={[ds.micBtn, voicePhase === "recording" && { backgroundColor: sbAlpha(lensAccent, 0.18) }]}
               hitSlop={6}
               accessibilityRole="button"
               accessibilityLabel={voicePhase === "recording" ? t("voice.stop") : t("voiceInput")}
@@ -409,7 +399,7 @@ const ChatComposer = memo(
               {voicePhase === "transcribing" ? (
                 <ActivityIndicator size="small" color={lensAccent} />
               ) : (
-                <IconMic color={voicePhase === "recording" ? lensAccent : withAlpha(deepSpace.text, 0.6)} size={22} />
+                <IconMic color={voicePhase === "recording" ? lensAccent : sbAlpha(deepSpace.text, 0.6)} size={22} />
               )}
             </Pressable>
           </View>
@@ -973,9 +963,9 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
     // the selected persona's accent / soft fill / on-soft ink / glow. Character
     // chat (legacy roster) keeps the canonical cyan.
     const lensAccent = isCharacterChat ? deepSpace.accent : rev2PersonaAccent(rev2Persona);
-    const lensSoftBg = isCharacterChat ? withAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
+    const lensSoftBg = isCharacterChat ? sbAlpha(deepSpace.accent, 0.16) : rev2PersonaSoftBg(rev2Persona);
     const lensOnSoft = isCharacterChat ? deepSpace.accentBright : rev2PersonaOnSoft(rev2Persona);
-    const lensGlow = isCharacterChat ? withAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
+    const lensGlow = isCharacterChat ? sbAlpha(deepSpace.accent, 0.5) : rev2PersonaGlow(rev2Persona);
     const lensName = isCharacterChat ? persona.name[locale] : rev2PersonaLensName(rev2Persona, locale);
     const inkOnAccent = m3.accent.onAccentInk; // reference send/mic glyph ink on the accent fill
     return (
@@ -1940,7 +1930,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     borderWidth: gameboy.borderWidth,
     borderColor: gameboy.border,
-    backgroundColor: withAlpha(cosmic.soulViolet, 0.14),
+    backgroundColor: sbAlpha(cosmic.soulViolet, 0.14),
     alignItems: "center",
     justifyContent: "center",
     ...pixelShadowStyle(cosmic.signalMint),
@@ -2240,8 +2230,8 @@ const ds = StyleSheet.create({
     paddingHorizontal: deepSpaceSpacing.md,
     borderRadius: m3.shape.small,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.3),
-    backgroundColor: withAlpha(deepSpace.soul, 0.07),
+    borderColor: sbAlpha(deepSpace.soul, 0.3),
+    backgroundColor: sbAlpha(deepSpace.soul, 0.07),
   },
   contextPillText: { color: deepSpace.textHi, fontSize: 11, fontFamily: fontFamilies.readable },
 
@@ -2249,7 +2239,7 @@ const ds = StyleSheet.create({
   empty: { paddingVertical: 56, alignItems: "center", gap: 10 },
   emptyTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.pixelKo },
   emptyBody: {
-    color: withAlpha(deepSpace.text, 0.6),
+    color: sbAlpha(deepSpace.text, 0.6),
     fontSize: 12,
     lineHeight: 19,
     textAlign: "center",
@@ -2358,7 +2348,7 @@ const ds = StyleSheet.create({
   voiceNotice: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    color: withAlpha(deepSpace.text, 0.75),
+    color: sbAlpha(deepSpace.text, 0.75),
   },
   // separate 48px round send button (reference): accent fill when canSend.
   sendBtn: {
@@ -2373,7 +2363,7 @@ const ds = StyleSheet.create({
 
   modalBackdrop: {
     flex: 1,
-    backgroundColor: withAlpha(deepSpace.bgEdge, 0.8),
+    backgroundColor: sbAlpha(deepSpace.bgEdge, 0.8),
     alignItems: "center",
     justifyContent: "center",
     padding: deepSpaceSpacing.lg,

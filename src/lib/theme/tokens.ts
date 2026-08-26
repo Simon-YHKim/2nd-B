@@ -75,6 +75,35 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * `withAlpha` 의 짝 — 반투명을 **미리 합성해 불투명 색 하나로** 만든다.
+ *
+ * PIXEL-CLAY 절대 규칙 4(정적 불투명도 금지 → 색 밴딩)가 요구하는 계산이다.
+ * `withAlpha(c, 0.4)` 가 렌더 때 배경과 섞이는 것을, 여기서는 **미리** 섞어
+ * 리터럴 하나로 만든다. 결과가 같은 픽셀이면 왜 규칙인가 하면 — 알파는
+ * 아래 깔린 것이 무엇이냐에 따라 결과가 달라지고(겹치면 색이 미끄러진다),
+ * 픽셀아트는 색이 **셀 수 있는 몇 개**여야 하기 때문이다.
+ *
+ * ⚠ `ground` 를 정확히 넘겨야 한다. 실제로 뒤에 깔린 색과 다르면 결과가
+ *   미묘하게 틀리고, 그건 알파를 쓰는 것보다 나쁘다(틀린 걸 박제한 셈).
+ */
+export function flattenAlpha(hex: string, alpha: number, ground: string): string {
+  const parse = (v: string): [number, number, number] => {
+    const h = v.replace("#", "");
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    return [
+      parseInt(full.slice(0, 2), 16),
+      parseInt(full.slice(2, 4), 16),
+      parseInt(full.slice(4, 6), 16),
+    ];
+  };
+  const a = Math.max(0, Math.min(1, alpha));
+  const fg = parse(hex);
+  const bg = parse(ground);
+  const mix = fg.map((c, i) => Math.round(c * a + bg[i] * (1 - a)));
+  return "#" + mix.map((c) => c.toString(16).padStart(2, "0")).join("");
+}
+
 const darkSkyLegacy = {
   bg: "#02040A",
   surface: "rgba(255,255,255,0.04)",
@@ -186,9 +215,13 @@ export const semanticCosmic = {
   deepSpaceAccent: "#46B6FF",
   deepSpaceText: "#5FD4FF",
   deepSpaceTextMuted: "#428eb0",
-  deepSpaceCard: "rgba(70,182,255,0.06)",
-  deepSpaceCardPressed: "rgba(70,182,255,0.12)",
-  deepSpaceCardLine: "rgba(70,182,255,0.24)",
+  // ⚠ 셋 다 원래 `rgba(70,182,255, …)` 였다. **딥스페이스 카드는 이 토큰 하나로
+  // 칠해지므로, 여기 알파 하나가 화면 수백 곳의 반투명이 된다** — 규칙 4에서
+  // 가장 큰 단일 지렛대였다. 바닥은 딥스페이스 무대 바닥(#0a0e18)이고, 카드는
+  // 언제나 그 위에 얹히므로 미리 합성한 값이 렌더 결과와 같다.
+  deepSpaceCard: "#0e1826", // = rgba(70,182,255,0.06) over #0a0e18
+  deepSpaceCardPressed: "#112234", // = rgba(70,182,255,0.12) over #0a0e18
+  deepSpaceCardLine: "#18364f", // = rgba(70,182,255,0.24) over #0a0e18
 } as const;
 
 // Cyan global pivot (2026-06-18): the deep-space build maps the SAME semantic

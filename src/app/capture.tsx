@@ -35,7 +35,6 @@ import {
 } from "expo-audio";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 
 import { PremiumAppShell, PremiumModal } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -103,6 +102,8 @@ import { checkGate } from "@/lib/progression/gates";
 import { canUsePremium, checkUsage } from "@/lib/progression/entitlements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { enqueueAutoReasoningRecord, enqueueAutoReasoningSource } from "@/app/reasoning";
 import { maybeAutoPromoteSource } from "@/lib/wiki/auto-promote";
@@ -141,8 +142,6 @@ const CAPTURE_MODES: Mode[] = ["journal", "memo", "fourw", "linkclip", "ocr", "v
 const BASIC_CAPTURE_MODES: Mode[] = ["journal"];
 
 const TRACK_OPTIONS: WikiTrack[] = ["daily", "pro"];
-const X_PATH = "M 4 4 L 12 12 M 12 4 L 4 12";
-const CHECK_PATH = "M 3 7 L 7 11 L 13 5";
 
 // Voice recording phases drive the record/stop control + indicator.
 type VoicePhase = "idle" | "recording" | "transcribing";
@@ -150,108 +149,38 @@ type VoicePhase = "idle" | "recording" | "transcribing";
 // recordingUriToBase64 now lives in src/lib/audio/recording-uri.ts (shared with
 // the call-reflection recorder). Imported above.
 
-function PathGlyph({ path, color, size = 16 }: { path: string; color: string; size?: number }) {
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+//
+// ⚠ 이 파일의 아이콘은 **`/capture` 에서는 안 그려진다**(딥스페이스는 CaptureView
+//   로 일찍 반환한다). 그런데 **`/capture-full` 이 `CaptureLegacy` 를 딥스페이스
+//   셸 안에 넣어 재사용한다** — 그래서 화면에는 실제로 그려진다. 소스만 보고
+//   "레거시라 안 그려진다"고 판단하면 틀린다(2026-08-26 에 실제로 틀렸다).
+
+/** 담기 모드별 아이콘. */
+const MODE_GLYPH: Record<Mode, string> = {
+  journal: "bedtime",
+  memo: "edit",
+  linkclip: "link",
+  ocr: "photo_camera",
+  voice: "mic",
+  todo: "task_alt",
+  fourw: "grid",
+  file: "description",
+};
+
+function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 16 16" accessibilityElementsHidden>
-      <Path
-        d={path}
-        stroke={color}
-        strokeWidth={2}
-        fill="none"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-      />
-    </Svg>
+    <View style={styles.modeGlyph} accessibilityLabel={label}>
+      <PixelGlyph name={canonGlyph(MODE_GLYPH[mode])} color={color} size={24} />
+    </View>
   );
 }
 
-function ModeGlyph({ mode, color, label }: { mode: Mode; color: string; label: string }) {
-  const sw = 1.8;
-  switch (mode) {
-    case "journal":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Path d="M14 4 A8 8 0 1 0 14 20 A6 6 0 1 1 14 4 Z" fill={color} />
-        </Svg>
-      );
-    case "memo":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Path d="M7 17 L8 13 L16 5 L19 8 L11 16 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
-          <Line x1="13.5" y1="7.5" x2="16.5" y2="10.5" stroke={color} strokeWidth={sw} />
-          <Line x1="6" y1="20" x2="18" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-        </Svg>
-      );
-    case "linkclip":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Path d="M9.5 14.5 L14.5 9.5" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-          <Path d="M10 8 L8.5 8 C6.5 8 5 9.5 5 11.5 C5 13.5 6.5 15 8.5 15 L10 15" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
-          <Path d="M14 9 L15.5 9 C17.5 9 19 10.5 19 12.5 C19 14.5 17.5 16 15.5 16 L14 16" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
-        </Svg>
-      );
-    case "ocr":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Rect x="5" y="8" width="14" height="10" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
-          <Path d="M9 8 L10 6 L14 6 L15 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
-          <Circle cx="12" cy="13" r="2.4" stroke={color} strokeWidth={sw} fill="none" />
-          <Path d="M4 5 L4 3 L7 3 M17 3 L20 3 L20 5 M4 19 L4 21 L7 21 M17 21 L20 21 L20 19" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
-        </Svg>
-      );
-    case "voice":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Rect x="9.5" y="4" width="5" height="9" rx="2.5" stroke={color} strokeWidth={sw} fill="none" />
-          <Path d="M7 11.5 C7 14.5 9.2 16.5 12 16.5 C14.8 16.5 17 14.5 17 11.5" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
-          <Line x1="12" y1="16.5" x2="12" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-          <Line x1="9" y1="20" x2="15" y2="20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-        </Svg>
-      );
-    case "todo":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Rect x="5" y="5" width="14" height="14" rx="2" stroke={color} strokeWidth={sw} fill="none" />
-          <Path d="M8.5 12 L11 14.5 L15.5 9" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </Svg>
-      );
-    case "fourw":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Rect x="4.5" y="4.5" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
-          <Rect x="13" y="4.5" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
-          <Rect x="4.5" y="13" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
-          <Rect x="13" y="13" width="6.5" height="6.5" rx="1.5" stroke={color} strokeWidth={sw} fill="none" />
-        </Svg>
-      );
-    case "file":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" style={styles.modeGlyph} accessibilityLabel={label}>
-          <Path d="M7 4 L14 4 L18 8 L18 20 L7 20 Z" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
-          <Path d="M14 4 L14 8 L18 8" stroke={color} strokeWidth={sw} fill="none" strokeLinejoin="round" />
-          <Line x1="9" y1="12" x2="15" y2="12" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-          <Line x1="9" y1="15" x2="14" y2="15" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-        </Svg>
-      );
-  }
-}
-
 function TrackGlyph({ id, color }: { id: WikiTrack; color: string }) {
-  const sw = 1.8;
-  if (id === "daily") {
-    return (
-      <Svg width={16} height={16} viewBox="0 0 16 16" style={styles.trackGlyph}>
-        <Path d="M3 7.4 L8 3.2 L13 7.4" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M5 7.2 L5 13 L11 13 L11 7.2" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </Svg>
-    );
-  }
   return (
-    <Svg width={16} height={16} viewBox="0 0 16 16" style={styles.trackGlyph}>
-      <Path d="M5.3 6.1 L5.3 4.8 C5.3 4.1 5.8 3.6 6.5 3.6 L9.5 3.6 C10.2 3.6 10.7 4.1 10.7 4.8 L10.7 6.1" stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" />
-      <Rect x="3" y="6" width="10" height="6.8" rx="1.2" stroke={color} strokeWidth={sw} fill="none" />
-      <Line x1="3" y1="9.1" x2="13" y2="9.1" stroke={color} strokeWidth={sw} strokeLinecap="round" />
-    </Svg>
+    <View style={styles.trackGlyph}>
+      <PixelGlyph name={id === "daily" ? "house" : "briefcase"} color={color} size={16} />
+    </View>
   );
 }
 
@@ -1930,7 +1859,7 @@ ${transcript}`;
                   accessibilityLabel={t("journal.advisor.label")}
                 >
                   <View style={[styles.advisorCheck, askAdvisor && styles.advisorCheckOn]}>
-                    {askAdvisor ? <PathGlyph path={CHECK_PATH} color={semantic.background} size={16} /> : null}
+                    {askAdvisor ? <PixelGlyph name="check" color={semantic.background} size={16} /> : null}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text variant="subtle" color={askAdvisor ? "brand" : "textMuted"}>
@@ -2119,7 +2048,7 @@ ${transcript}`;
                 accessibilityLabel={t("todo.doneToggle")}
               >
                 <View style={[styles.advisorCheck, todoDone && styles.advisorCheckOn]}>
-                  {todoDone ? <PathGlyph path={CHECK_PATH} color={semantic.background} size={16} /> : null}
+                  {todoDone ? <PixelGlyph name="check" color={semantic.background} size={16} /> : null}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text variant="subtle" color={todoDone ? "brand" : "textMuted"}>
@@ -2296,7 +2225,7 @@ ${transcript}`;
                   >
                     <View style={styles.tagChipContent}>
                       <Text style={styles.tagChipText}>#{tag}</Text>
-                      <PathGlyph path={X_PATH} color={semantic.brand} size={14} />
+                      <PixelGlyph name="close" color={semantic.brand} size={14} />
                     </View>
                   </Pressable>
                 ))}

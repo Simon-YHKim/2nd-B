@@ -16,11 +16,21 @@ import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 
 import { Text } from "@/components/ui/Text";
 import { MdChip } from "@/components/m3";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import type { RecordsGraph as RecordsGraphData } from "@/lib/records/records-graph";
 import { initialTagLinksVisible, linkEdgeCount } from "@/lib/records/records-graph";
 import { DOMAIN_COLOR, layoutRecordsGraph } from "@/lib/records/records-graph-layout";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 기록 그래프는 무대 바닥 위다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const rgAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 const CANVAS = 1000;
 const ZOOMS = [1, 1.6, 2.6] as const;
@@ -94,10 +104,10 @@ export function RecordsGraph({
                 y2={b.y * CANVAS}
                 stroke={
                   link
-                    ? withAlpha(m3.accent.star, 0.42)
+                    ? rgAlpha(m3.accent.star, 0.42)
                     : e.kind === "branch"
-                      ? withAlpha(colorFor(dom), 0.28)
-                      : withAlpha(m3.accent.starDim, 0.22)
+                      ? rgAlpha(colorFor(dom), 0.28)
+                      : rgAlpha(m3.accent.starDim, 0.22)
                 }
                 strokeWidth={(link ? 1.4 : 1) / zoom + 0.5}
                 strokeDasharray={link ? `${5 / zoom + 2},${4 / zoom + 2}` : undefined}
@@ -121,7 +131,7 @@ export function RecordsGraph({
             return (
               <G key={node.id}>
                 {isSelected ? (
-                  <PixelNodeSvg cx={p.x * CANVAS} cy={p.y * CANVAS} r={r + 6} stroke={withAlpha(m3.accent.star, 0.7)} strokeWidth={2} />
+                  <PixelNodeSvg cx={p.x * CANVAS} cy={p.y * CANVAS} r={r + 6} stroke={rgAlpha(m3.accent.star, 0.7)} strokeWidth={2} />
                 ) : null}
                 {/* 북극성과 도메인은 **별**로, 개별 기록은 **사각형**으로 그린다
                     (PIXEL-CLAY 규칙 1). 기록 노드까지 광선을 달면 별자리
@@ -131,7 +141,7 @@ export function RecordsGraph({
                     cx={p.x * CANVAS}
                     cy={p.y * CANVAS}
                     r={r}
-                    fill={withAlpha(fill, alpha)}
+                    fill={rgAlpha(fill, alpha)}
                     onPress={() => selectNode(node.id, node.kind === "record")}
                     accessibilityLabel={node.label}
                   />
@@ -140,7 +150,7 @@ export function RecordsGraph({
                     cx={p.x * CANVAS}
                     cy={p.y * CANVAS}
                     r={r}
-                    fill={withAlpha(fill, alpha)}
+                    fill={rgAlpha(fill, alpha)}
                     onPress={() => selectNode(node.id, node.kind === "record")}
                     accessibilityLabel={node.label}
                   />
@@ -149,7 +159,7 @@ export function RecordsGraph({
                   <SvgText
                     x={p.x * CANVAS}
                     y={p.y * CANVAS - r - 5}
-                    fill={withAlpha(m3.accent.skyTextHi, isDomain || isPolaris ? 0.9 : 0.8)}
+                    fill={rgAlpha(m3.accent.skyTextHi, isDomain || isPolaris ? 0.9 : 0.8)}
                     fontSize={(isPolaris || isDomain ? 15 : 12) / Math.sqrt(zoom) + 4}
                     fontWeight={isDomain || isPolaris ? "700" : "400"}
                     textAnchor="middle"
@@ -205,12 +215,12 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accentDim, 0.22),
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
+    borderColor: rgAlpha(deepSpace.accentDim, 0.22),
+    backgroundColor: rgAlpha(deepSpace.bgMid, 0.35),
     overflow: "hidden",
   },
   controls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  zoomBtn: { minWidth: 44, minHeight: 44, borderRadius: 0, borderWidth: 1, borderColor: withAlpha(deepSpace.accentDim, 0.4), alignItems: "center", justifyContent: "center" },
+  zoomBtn: { minWidth: 44, minHeight: 44, borderRadius: 0, borderWidth: 1, borderColor: rgAlpha(deepSpace.accentDim, 0.4), alignItems: "center", justifyContent: "center" },
   zoomBtnText: { color: deepSpace.textHi, fontSize: 18, lineHeight: 22 },
   tagChip: { flexShrink: 0 },
   hint: { flex: 1, minWidth: 0 },

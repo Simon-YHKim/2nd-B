@@ -16,11 +16,13 @@ import { forwardRef, useEffect, useId, useMemo, useRef, useState, type ReactNode
 import { AccessibilityInfo, type DimensionValue, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
-import Svg, { Defs, LinearGradient, Path, Rect, Stop, SvgXml } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { canonCaptureModes } from "@/lib/canon";
-import { deepSpace, deepSpaceGradients, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceGradients, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph, PixelGlyphRects } from "@/components/pixel/PixelGlyph";
+import { canonGlyph, type AnyGlyphName, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
@@ -38,6 +40,16 @@ import { SEVEN_STARS, isUnlived } from "@/lib/persona/seven-stars";
 import { loadSeenAggregate, type SeenAggregateRow } from "@/lib/peer/invite";
 import { callLlm } from "@/lib/llm/boundary";
 import { IMAGINE_SEEDS, type ImagineSeedIcon } from "./imagine-seeds";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.card` — 이 화면들의 내용은 거의 전부 딥스페이스 카드 위에 얹힌다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const dsAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.card);
 
 // ── shared gradient primitives ───────────────────────────────────────────────
 
@@ -116,43 +128,29 @@ function Chip({ label }: { label: string }) {
 
 // ── 담기 / Capture ───────────────────────────────────────────────────────────
 
-// Material-Symbols glyphs the 담기 screen needs, transcribed 1:1 from the
-// reference-app ICON_SVG (sb-data.jsx) — same stroke idiom as SbIcon (2dp
-// currentColor, round caps). Kept local so the shell's SbIcon set stays lean.
-const CAPTURE_ICON_INNER: Record<string, string> = {
-  edit: '<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>',
-  link: '<path d="M9 15 15 9" transform="rotate(0 12 12)"/><path d="M8.5 12H6.5a3 3 0 1 1 0-6h3M15.5 6h2a3 3 0 1 1 0 6h-3" transform="rotate(45 12 12)"/>',
-  photo_camera: '<rect x="3" y="7.5" width="18" height="12.5" rx="2.4"/><circle cx="12" cy="13.7" r="3.3"/><path d="M8.5 7.5 10 4.5h4l1.5 3"/>',
-  mic: '<rect x="9.4" y="3.5" width="5.2" height="11" rx="2.6"/><path d="M6 11.2a6 6 0 0 0 12 0M12 17.2V20.5"/>',
-  check_circle: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
-  check: '<path d="M5 12.5 10 17 19 7"/>',
-  edit_note: '<path d="M4 7h12M4 12h7M4 17h5M14.5 16l4.2-4.2 2.5 2.5L17 18.5h-2.5z"/>',
-  calendar_today: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/>',
-  north_east: '<path d="M7 17 17 7M9 7h8v8"/>',
-  person: '<circle cx="12" cy="8" r="3.7"/><path d="M5.4 20c0-3.6 3-5.8 6.6-5.8s6.6 2.2 6.6 5.8"/>',
-  bolt: '<path d="M13 3 5 13.2h5L10.5 21l8.5-10.8H13z"/>',
-  auto_awesome: '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
-  radio_unchecked: '<circle cx="12" cy="12" r="8"/>',
-  add: '<path d="M12 5v14M5 12h14"/>',
-  trending_up: '<path d="M4 16 10 10l3.5 3.5L20 7"/><path d="M15.5 7H20v4.5"/>',
-  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
-  chevron_right: '<path d="m9 6 6 6-6 6"/>',
-  replay: '<path d="M5 12a7 7 0 1 0 2-4.9M7 3v4h4"/>',
-};
+// 담기 화면이 쓰는 아이콘 **이름 목록**. 그림은 `pixel-glyphs` 정본에서 온다.
+//
+// 원래 여기에 열여덟 개짜리 문자열 SVG 레지스트리(`CAPTURE_ICON_INNER`)가 있었다.
+// 저장소에서 **네 번째** 레지스트리였고, 앞의 셋과 마찬가지로 소문자 마크업이라
+// 규칙 1 위반 집계에 안 잡혔다. 열여덟 중 열둘은 다른 레지스트리와 **같은
+// 아이콘**이었다 — 그래서 손댈 때마다 다섯 벌 중 한 벌만 고쳐지곤 했다.
+const CAPTURE_ICON_NAMES = [
+  "edit", "link", "photo_camera", "mic", "check_circle", "check", "edit_note",
+  "calendar_today", "north_east", "person", "bolt", "auto_awesome",
+  "radio_unchecked", "add", "trending_up", "forum", "chevron_right", "replay",
+] as const satisfies readonly GlyphAliasName[];
 
-function CaptureIcon({ name, color, size = 18 }: { name: keyof typeof CAPTURE_ICON_INNER; color: string; size?: number }) {
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-    `${CAPTURE_ICON_INNER[name]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+type CaptureIconName = (typeof CAPTURE_ICON_NAMES)[number];
+
+function CaptureIcon({ name, color, size = 18 }: { name: AnyGlyphName; color: string; size?: number }) {
+  return <PixelGlyph name={name} color={color} size={size} />;
 }
 
 // A W4H1 field: leading icon + label, then a filled input box (reference Field
 // in sb-screens-core.jsx). All colors route through m3.* (this screen is on the
 // migrated M3 track — no cosmic tokens, no hex literals).
 const CaptureField = forwardRef<TextInput, {
-  icon: keyof typeof CAPTURE_ICON_INNER;
+  icon: AnyGlyphName;
   label: string;
   hint: string;
   value: string;
@@ -195,8 +193,13 @@ const CaptureField = forwardRef<TextInput, {
 type CaptureMode = "text" | "link" | "photo" | "voice" | "todo";
 // Mode ids + icons sourced from the design canon (src/lib/canon → public/proto/data);
 // labels stay on the i18n path (t("ds.capture.modes." + id)) below.
-const CAPTURE_MODE_ROW: { id: CaptureMode; icon: keyof typeof CAPTURE_ICON_INNER }[] =
-  canonCaptureModes.map((m) => ({ id: m.id as CaptureMode, icon: m.icon }));
+//
+// ⚠ 아이콘 **이름은 캐논이 주고 그림은 코드가 갖는다.** 캐논이 아직 안 그린
+// 이름을 부르면 예외가 아니라 **빈 아이콘**이 뜬다 — 그래서 이름을 확인하고
+// 없으면 눈에 보이는 대체 표시로 떨어진다. 어느 이름이 대체로 떨어지는지는
+// `canon-icon-names.test.ts` 가 세어서 박아둔다(줄기만 하고 늘지는 않는다).
+const CAPTURE_MODE_ROW: { id: CaptureMode; icon: AnyGlyphName }[] =
+  canonCaptureModes.map((m) => ({ id: m.id as CaptureMode, icon: canonGlyph(m.icon) }));
 
 export function CaptureView() {
   const { t, i18n } = useTranslation("home");
@@ -590,9 +593,7 @@ export function LensView({
     <ScrollView contentContainerStyle={styles.body}>
       {state === "empty" ? (
         <View style={styles.centerState}>
-          <Svg width={34} height={34} viewBox="0 0 24 24">
-            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-          </Svg>
+          <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
           <Text style={styles.stateTitle}>{t("ds.lens.emptyTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.emptyBody")}</Text>
           <GradientButton label={t("ds.lens.emptyCta")} onPress={onStart} />
@@ -600,8 +601,7 @@ export function LensView({
       ) : state === "error" ? (
         <View style={styles.centerState}>
           <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <Path d="M12 3l9 16H3z" fill="none" stroke={deepSpace.accentSoft} strokeWidth={2} strokeLinejoin="round" />
-            <Path d="M12 9v5M12 16.5v.5" stroke={deepSpace.accentSoft} strokeWidth={2} strokeLinecap="round" />
+            <PixelGlyphRects name="warning" color={deepSpace.accentSoft} />
           </Svg>
           <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
@@ -703,9 +703,7 @@ export function BigFiveLensM3({
     return (
       <ScrollView contentContainerStyle={styles.bfBody}>
         <View style={styles.bfCenterState}>
-          <Svg width={34} height={34} viewBox="0 0 24 24">
-            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={m3.color.primary} />
-          </Svg>
+          <PixelGlyph name="star" color={m3.color.primary} size={34} />
           <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.lens.emptyTitle")}</Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.lens.emptyBody")}</Text>
           <MdButton
@@ -724,8 +722,7 @@ export function BigFiveLensM3({
       <ScrollView contentContainerStyle={styles.bfBody}>
         <View style={styles.bfCenterState}>
           <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <Path d="M12 3l9 16H3z" fill="none" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinejoin="round" />
-            <Path d="M12 9v5M12 16.5v.5" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinecap="round" />
+            <PixelGlyphRects name="warning" color={m3.color.onSurfaceVariant} />
           </Svg>
           <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.lens.errorTitle")}</Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.lens.errorBody")}</Text>
@@ -840,9 +837,7 @@ export function AttachmentLensM3({
     return (
       <ScrollView contentContainerStyle={styles.bfBody}>
         <View style={styles.bfCenterState}>
-          <Svg width={34} height={34} viewBox="0 0 24 24">
-            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={m3.color.primary} />
-          </Svg>
+          <PixelGlyph name="star" color={m3.color.primary} size={34} />
           <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.attachment.emptyTitle")}</Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.attachment.emptyBody")}</Text>
           <MdButton
@@ -861,8 +856,7 @@ export function AttachmentLensM3({
       <ScrollView contentContainerStyle={styles.bfBody}>
         <View style={styles.bfCenterState}>
           <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <Path d="M12 3l9 16H3z" fill="none" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinejoin="round" />
-            <Path d="M12 9v5M12 16.5v.5" stroke={m3.color.onSurfaceVariant} strokeWidth={2} strokeLinecap="round" />
+            <PixelGlyphRects name="warning" color={m3.color.onSurfaceVariant} />
           </Svg>
           <Text style={[m3TextStyle("titleMedium"), styles.bfStateTitle]}>{t("ds.attachment.errorTitle")}</Text>
           <Text style={[m3TextStyle("bodyMedium"), styles.bfStateBody]}>{t("ds.attachment.errorBody")}</Text>
@@ -889,7 +883,7 @@ export function AttachmentLensM3({
           <Svg style={StyleSheet.absoluteFill}>
             <Defs>
               <LinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={withAlpha(m3.color.primaryContainer, 0.33)} />
+                <Stop offset="0" stopColor={dsAlpha(m3.color.primaryContainer, 0.33)} />
                 <Stop offset="1" stopColor={m3.color.surfaceContainer} />
               </LinearGradient>
             </Defs>
@@ -994,8 +988,7 @@ export function IdenView({
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.centerState}>
           <Svg width={32} height={32} viewBox="0 0 24 24" opacity={0.7}>
-            <Path d="M12 3l9 16H3z" fill="none" stroke={deepSpace.accentSoft} strokeWidth={2} strokeLinejoin="round" />
-            <Path d="M12 9v5M12 16.5v.5" stroke={deepSpace.accentSoft} strokeWidth={2} strokeLinecap="round" />
+            <PixelGlyphRects name="warning" color={deepSpace.accentSoft} />
           </Svg>
           <Text style={styles.stateTitle}>{t("ds.lens.errorTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.lens.errorBody")}</Text>
@@ -1010,9 +1003,7 @@ export function IdenView({
     return (
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.centerState}>
-          <Svg width={34} height={34} viewBox="0 0 24 24">
-            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-          </Svg>
+          <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
           <Text style={styles.stateTitle}>{t("ds.iden.emptyTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.iden.emptyBody")}</Text>
           <GradientButton
@@ -1091,9 +1082,7 @@ export function RecallLensView({ isKo }: { isKo?: boolean } = {}) {
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.recall.title")} tag={t("ds.recall.tag")} eyebrow={t("ds.recall.eyebrow")} />
       <View style={styles.centerState}>
-        <Svg width={34} height={34} viewBox="0 0 24 24">
-          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-        </Svg>
+        <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
         <Text style={styles.stateTitle}>{t("ds.recall.emptyTitle")}</Text>
         <Text style={styles.stateBody}>{t("ds.recall.emptyBody")}</Text>
       </View>
@@ -1268,9 +1257,7 @@ export function SeenLensView() {
       ) : null}
       {hasGap ? null : (
       <View style={styles.centerState}>
-        <Svg width={34} height={34} viewBox="0 0 24 24">
-          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-        </Svg>
+        <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
         {/* Two honest empty states: when the aggregate IS in but the user has no
             Big Five self-report, saying "no peer responses" would misattribute the
             missing half (live QA 2026-07-03: 3 responses in, copy claimed none). */}
@@ -1315,9 +1302,7 @@ export function RhythmLensView({ isKo, onLogNow }: { isKo?: boolean; onLogNow?: 
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.rhythm.title")} tag={t("ds.rhythm.tag")} eyebrow={t("ds.rhythm.eyebrow")} />
       <View style={styles.centerState}>
-        <Svg width={34} height={34} viewBox="0 0 24 24">
-          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-        </Svg>
+        <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
         <Text style={styles.stateTitle}>{t("ds.rhythm.emptyTitle")}</Text>
         <Text style={styles.stateBody}>{t("ds.rhythm.emptyBody")}</Text>
       </View>
@@ -1358,9 +1343,7 @@ export function PossibleLensView({
       <LensHead title={t("ds.possible.title")} tag={t("ds.possible.tag")} eyebrow={t("ds.possible.eyebrow")} />
       {cards.length === 0 ? (
         <View style={styles.centerState}>
-          <Svg width={34} height={34} viewBox="0 0 24 24">
-            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-          </Svg>
+          <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
           <Text style={styles.stateTitle}>{t("ds.possible.emptyTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.possible.emptyBody")}</Text>
         </View>
@@ -1418,20 +1401,9 @@ export function PossibleLensView({
 // Inline Material-glyph approximations (the app has no icon font — TabIcon /
 // ModeGlyph precedent). Small single-path marks, not pixel icon art.
 function ImagineGlyph({ kind, color, size = 19 }: { kind: ImagineSeedIcon; color: string; size?: number }) {
-  const paths: Record<ImagineSeedIcon, string> = {
-    // open_in_full: outward diagonal arrows ("확장")
-    expand: "M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10L21 11z",
-    // cached: circular arrows ("반전")
-    cached:
-      "M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z",
-    // hub: center node + three spokes ("연결")
-    hub: "M12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM5 4a2 2 0 100 4 2 2 0 000-4zm14 0a2 2 0 100 4 2 2 0 000-4zm-7 12.5l-.9 3.1a2 2 0 102 0l-.9-3.1h-.2zM6.4 7.6l3.2 2.6.9-1.1-3.2-2.6-.9 1.1zm11.2 0l-.9-1.1-3.2 2.6.9 1.1 3.2-2.6z",
-  };
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d={paths[kind]} fill={color} />
-    </Svg>
-  );
+  // 세 모양 전부 정본에 이미 있다 — 곡선 path 를 따로 들고 있을 이유가 없었다.
+  const glyph = { expand: `expand`, cached: `refresh`, hub: `hub` } as const;
+  return <PixelGlyph name={glyph[kind]} color={color} size={size} />;
 }
 
 export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
@@ -1445,12 +1417,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
       <View style={styles.imgIntro}>
         <GradientFill colors={[m3.color.tertiaryContainer, m3.color.surfaceContainerLow]} radius={12} diagonal />
         <View style={styles.imgIntroRow}>
-          <Svg width={24} height={24} viewBox="0 0 24 24">
-            <Path
-              d="M9 21h6v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17a1 1 0 001 1h6a1 1 0 001-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"
-              fill={m3.color.tertiary}
-            />
-          </Svg>
+          <PixelGlyph name="lightbulb" color={m3.color.tertiary} size={24} />
           <View style={styles.imgIntroCol}>
             <Text style={styles.imgIntroTitle}>{t("ds.imagine.title")}</Text>
             <Text style={styles.imgIntroBody}>{t("ds.imagine.introBody")}</Text>
@@ -1472,7 +1439,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
                 accessibilityRole="button"
                 accessibilityLabel={c.title}
                 accessibilityState={{ selected: on }}
-                android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                android_ripple={{ color: dsAlpha(m3.color.tertiary, 0.12) }}
                 onPress={() => setPicked(on ? null : s.ko.angle)}
                 style={styles.imgSeedPress}
               >
@@ -1484,12 +1451,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
                   <Text style={styles.imgSeedTitle}>{c.title}</Text>
                   <Text style={styles.imgSeedBody}>{c.body}</Text>
                 </View>
-                <Svg width={20} height={20} viewBox="0 0 24 24">
-                  <Path
-                    d={on ? "M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z" : "M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"}
-                    fill={m3.color.onSurfaceVariant}
-                  />
-                </Svg>
+                <PixelGlyph name={on ? "expand_less" : "expand_more"} color={m3.color.onSurfaceVariant} size={20} />
               </Pressable>
             </View>
           );
@@ -1507,7 +1469,7 @@ export function ImagineDivergentView({ isKo = true }: { isKo?: boolean } = {}) {
                 accessibilityLabel={step}
                 onPress={() => router.push({ pathname: "/capture", params: { text: step } })}
                 style={styles.imgStep}
-                android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
+                android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
               >
                 <View style={styles.imgStepNum}>
                   <Text style={styles.imgStepNumText}>{i + 1}</Text>
@@ -1611,9 +1573,7 @@ export function PastMeErasView({ isKo }: { isKo?: boolean } = {}) {
                       </Text>
                     </View>
                     {locked ? null : (
-                      <Svg width={20} height={20} viewBox="0 0 24 24">
-                        <Path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" fill={m3.color.onSurfaceVariant} />
-                      </Svg>
+                      <PixelGlyph name="chevron_right" color={m3.color.onSurfaceVariant} size={20} />
                     )}
                   </View>
                 </MdCard>
@@ -1640,9 +1600,7 @@ export function RelationalLensView({ isKo, onAddData }: { isKo?: boolean; onAddD
     <ScrollView contentContainerStyle={styles.body}>
       <LensHead title={t("ds.relational.title")} tag={t("ds.relational.tag")} eyebrow={t("ds.relational.eyebrow")} />
       <View style={styles.centerState}>
-        <Svg width={34} height={34} viewBox="0 0 24 24">
-          <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-        </Svg>
+        <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
         <Text style={styles.stateTitle}>{t("ds.relational.emptyTitle")}</Text>
         <Text style={styles.stateBody}>{t("ds.relational.emptyBody")}</Text>
       </View>
@@ -1718,9 +1676,7 @@ export function ValuesLensView({
         </View>
       ) : !demo && real.length === 0 ? (
         <View style={styles.centerState}>
-          <Svg width={34} height={34} viewBox="0 0 24 24">
-            <Path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill={deepSpace.accentSoft} />
-          </Svg>
+          <PixelGlyph name="star" color={deepSpace.accentSoft} size={34} />
           <Text style={styles.stateTitle}>{t("ds.values.emptyTitle")}</Text>
           <Text style={styles.stateBody}>{t("ds.values.emptyBody")}</Text>
         </View>
@@ -1831,7 +1787,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.toConstellation")}
           onPress={() => router.replace("/")}
-          android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
+          android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.toConstellation")}</Text>
         </Pressable>
@@ -1867,7 +1823,7 @@ export function MeSynthView({ isKo, domainLevels }: { isKo?: boolean; domainLeve
           accessibilityRole="button"
           accessibilityLabel={t("ds.me.viewValidation")}
           onPress={() => router.push("/big-five")}
-          android_ripple={{ color: withAlpha(deepSpace.accentSoft, 0.12) }}
+          android_ripple={{ color: dsAlpha(deepSpace.accentSoft, 0.12) }}
         >
           <Text style={styles.meLink}>{t("ds.me.viewValidation")}</Text>
         </Pressable>
@@ -1972,7 +1928,7 @@ const styles = StyleSheet.create({
   // 담기 4W1H boxes (canon track, rev2 P4a).
   captureModeToggle: { marginTop: 14, alignSelf: "stretch" },
   fourwCol: { gap: 10, marginTop: 12 },
-  fourwLabel: { color: withAlpha(deepSpace.text, 0.75), fontSize: 12, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  fourwLabel: { color: dsAlpha(deepSpace.text, 0.75), fontSize: 12, fontFamily: fontFamilies.readable, marginBottom: 4 },
   fourwLabelRequired: { color: deepSpace.textHi },
   fourwInput: { minHeight: 48, marginTop: 0 },
   fourwInputTall: { minHeight: 84 },
@@ -2009,9 +1965,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.3),
+    borderColor: dsAlpha(deepSpace.soul, 0.3),
   },
-  noteText: { color: withAlpha(deepSpace.soul, 0.85), fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
+  noteText: { color: dsAlpha(deepSpace.soul, 0.85), fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
 
   // chat
   userBubble: {
@@ -2023,7 +1979,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
     borderBottomLeftRadius: 0,
-    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+    backgroundColor: dsAlpha(deepSpace.accent, 0.16),
   },
   userText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
   aiBubble: {
@@ -2036,8 +1992,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 0,
     borderBottomLeftRadius: 0,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.25),
-    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+    borderColor: dsAlpha(deepSpace.soul, 0.25),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.1),
   },
   aiText: { color: deepSpace.textHi, fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
   evidenceRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, alignSelf: "flex-start" },
@@ -2059,16 +2015,16 @@ const styles = StyleSheet.create({
   stateMark: { fontSize: 34, color: deepSpace.accentSoft },
   stateMarkDim: { opacity: 0.7 },
   stateTitle: { color: deepSpace.accentBright, fontSize: 15, fontFamily: fontFamilies.readable, fontWeight: "700" },
-  stateBody: { color: withAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
-  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: withAlpha(deepSpace.accentSoft, 0.3), backgroundColor: withAlpha(deepSpace.accentSoft, 0.06) },
+  stateBody: { color: dsAlpha(deepSpace.text, 0.6), fontSize: 12, lineHeight: 19, textAlign: "center", fontFamily: fontFamilies.readable },
+  obsPanel: { gap: 8, marginBottom: 16, padding: 14, borderRadius: m3.shape.none, borderWidth: 1, borderColor: dsAlpha(deepSpace.accentSoft, 0.3), backgroundColor: dsAlpha(deepSpace.accentSoft, 0.06) },
   obsTitle: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
   // Section divider for peer-only traits: same family as obsTitle but quieter, so
   // the SOKA three stay the lead and these read as an addition, not a rival claim.
-  obsSubTitle: { color: withAlpha(deepSpace.text, 0.8), fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
-  obsNote: { color: withAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  obsSubTitle: { color: dsAlpha(deepSpace.text, 0.8), fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600", marginTop: 10 },
+  obsNote: { color: dsAlpha(deepSpace.text, 0.55), fontSize: 11, lineHeight: 16, fontFamily: fontFamilies.readable, marginBottom: 4 },
   obsRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  obsLabel: { color: withAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
-  obsTrack: { flex: 1, height: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.text, 0.12), overflow: "hidden" },
+  obsLabel: { color: dsAlpha(deepSpace.text, 0.85), fontSize: 12, width: 64, fontFamily: fontFamilies.readable },
+  obsTrack: { flex: 1, height: 6, borderRadius: m3.shape.none, backgroundColor: dsAlpha(deepSpace.text, 0.12), overflow: "hidden" },
   obsFill: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accentSoft },
   // T5 F3: the combined other-view bar (violet family = legendDotOther).
   obsTrackOther: { marginTop: 3 },
@@ -2089,10 +2045,10 @@ const styles = StyleSheet.create({
   traits: { marginTop: 16, gap: 11 },
   traitRow: { gap: 4 },
   traitHead: { flexDirection: "row", justifyContent: "space-between" },
-  traitLabel: { color: withAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
-  traitValue: { color: withAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
+  traitLabel: { color: dsAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
+  traitValue: { color: dsAlpha(deepSpace.text, 0.7), fontSize: 11, fontFamily: fontFamilies.readable },
   traitValueUp: { color: deepSpace.mint },
-  traitTrack: { height: 7, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: withAlpha(deepSpace.accent, 0.12) },
+  traitTrack: { height: 7, borderRadius: m3.shape.none, overflow: "hidden", backgroundColor: dsAlpha(deepSpace.accent, 0.12) },
   traitFill: { height: "100%", borderRadius: m3.shape.none, overflow: "hidden" },
   insightCard: {
     marginTop: 16,
@@ -2100,8 +2056,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.mint, 0.25),
-    backgroundColor: withAlpha(deepSpace.mint, 0.05),
+    borderColor: dsAlpha(deepSpace.mint, 0.25),
+    backgroundColor: dsAlpha(deepSpace.mint, 0.05),
   },
   insightText: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, fontFamily: fontFamilies.readable },
 
@@ -2151,7 +2107,7 @@ const styles = StyleSheet.create({
   atAxisV: { position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, backgroundColor: m3.color.outlineVariant },
   atAxisH: { position: "absolute", top: "50%", left: 0, right: 0, height: 1, backgroundColor: m3.color.outlineVariant },
   atPointWrap: { position: "absolute", width: 30, height: 30, marginLeft: -15, marginTop: -15, alignItems: "center", justifyContent: "center" },
-  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.color.primary, 0.2) },
+  atPointHalo: { position: "absolute", width: 30, height: 30, borderRadius: m3.shape.none, backgroundColor: dsAlpha(m3.color.primary, 0.2) },
   atPoint: {
     width: 18,
     height: 18,
@@ -2185,15 +2141,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.3),
-    backgroundColor: withAlpha(deepSpace.soul, 0.07),
+    borderColor: dsAlpha(deepSpace.soul, 0.3),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.07),
     gap: 7,
   },
   idName: { color: deepSpace.accentBright, fontSize: 12, fontFamily: m3.font.mono },
   idBadges: { flexDirection: "row", gap: 5 },
-  idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: withAlpha(deepSpace.soul, 0.14) },
-  idBadgeText: { color: withAlpha(deepSpace.soul, 0.8), fontSize: 10, fontFamily: m3.font.mono },
-  idBadgeSigned: { backgroundColor: withAlpha(deepSpace.mint, 0.1) },
+  idBadge: { paddingVertical: 2, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: dsAlpha(deepSpace.soul, 0.14) },
+  idBadgeText: { color: dsAlpha(deepSpace.soul, 0.8), fontSize: 10, fontFamily: m3.font.mono },
+  idBadgeSigned: { backgroundColor: dsAlpha(deepSpace.mint, 0.1) },
   idBadgeSignedText: { color: deepSpace.mint, fontSize: 9, fontFamily: fontFamilies.readable },
   idenRowNorth: {
     marginTop: 12,
@@ -2203,10 +2159,10 @@ const styles = StyleSheet.create({
     borderLeftColor: deepSpace.soul,
     borderTopRightRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: withAlpha(deepSpace.soul, 0.06),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.06),
   },
-  idenKey: { color: withAlpha(deepSpace.soul, 0.65), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
-  idenKeyCyan: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKey: { color: dsAlpha(deepSpace.soul, 0.65), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  idenKeyCyan: { color: dsAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   idenNorthValue: { color: deepSpace.accentBright, fontSize: 11.5, lineHeight: 18, marginTop: 5, fontFamily: fontFamilies.readable },
   idenRowFive: {
     marginTop: 7,
@@ -2223,17 +2179,17 @@ const styles = StyleSheet.create({
   // ── star-lens shared head ──────────────────────────────────────────────────
   lensHead: { gap: 6, marginBottom: 16 },
   lensHeadTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  lensTag: { marginLeft: "auto", color: withAlpha(deepSpace.accent, 0.55), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
+  lensTag: { marginLeft: "auto", color: dsAlpha(deepSpace.accent, 0.55), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8 },
   lensEyebrow: { color: deepSpace.textMid, fontSize: 12.5, lineHeight: 18, fontFamily: fontFamilies.readable },
-  pixelHint: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
+  pixelHint: { color: dsAlpha(deepSpace.accentSoft, 0.6), fontSize: 10, fontFamily: m3.font.mono, letterSpacing: 0.8, marginBottom: 12 },
   sectionGap: { marginTop: 18 },
-  footerLine: { marginTop: 18, color: withAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
+  footerLine: { marginTop: 18, color: dsAlpha(deepSpace.accentSoft, 0.55), fontSize: 11, lineHeight: 17, textAlign: "center", fontFamily: fontFamilies.readable },
 
   // dot meter
   dotRow: { flexDirection: "row", gap: 4, marginTop: 8 },
   dot: { width: 6, height: 6, borderRadius: m3.shape.none },
   dotOn: { backgroundColor: deepSpace.accent },
-  dotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
+  dotOff: { backgroundColor: dsAlpha(deepSpace.accent, 0.25) },
 
   // recall grid
   grid2: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 9 },
@@ -2247,7 +2203,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   gridName: { color: deepSpace.accentBright, fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  gridAge: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 9.5, marginTop: 3, fontFamily: fontFamilies.readable },
+  gridAge: { color: dsAlpha(deepSpace.accentSoft, 0.5), fontSize: 9.5, marginTop: 3, fontFamily: fontFamilies.readable },
 
   // seen - legend
   legendRow: { flexDirection: "row", gap: 14, marginBottom: 16 },
@@ -2262,8 +2218,8 @@ const styles = StyleSheet.create({
   compareRow: { gap: 4 },
   compareDelta: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: m3.font.mono },
   compareTrack: { height: 6, borderRadius: m3.shape.none, overflow: "hidden" },
-  compareTrackSelf: { backgroundColor: withAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
-  compareTrackOther: { backgroundColor: withAlpha(deepSpace.soul, 0.16) },
+  compareTrackSelf: { backgroundColor: dsAlpha(deepSpace.accent, 0.16), marginBottom: 4 },
+  compareTrackOther: { backgroundColor: dsAlpha(deepSpace.soul, 0.16) },
   compareFillSelf: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.accent },
   compareFillOther: { height: "100%", borderRadius: m3.shape.none, backgroundColor: deepSpace.soulDeep },
 
@@ -2274,8 +2230,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.28),
-    backgroundColor: withAlpha(deepSpace.soul, 0.06),
+    borderColor: dsAlpha(deepSpace.soul, 0.28),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.06),
   },
   soulCardText: { color: deepSpace.textHi, fontSize: 12, lineHeight: 19, fontFamily: fontFamilies.readable },
 
@@ -2304,7 +2260,7 @@ const styles = StyleSheet.create({
   chartCol: { flex: 1, alignItems: "center", gap: 6 },
   chartBarTrack: { width: "100%", height: 100, justifyContent: "flex-end" },
   chartBar: { width: "100%", borderRadius: m3.shape.none, overflow: "hidden" },
-  chartDay: { color: withAlpha(deepSpace.accentSoft, 0.5), fontSize: 10, fontFamily: fontFamilies.readable },
+  chartDay: { color: dsAlpha(deepSpace.accentSoft, 0.5), fontSize: 10, fontFamily: fontFamilies.readable },
   chartDayPeak: { color: deepSpace.accentBright },
 
   // possible - dashed cards
@@ -2315,10 +2271,10 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: withAlpha(deepSpace.accent, 0.4),
-    backgroundColor: withAlpha(deepSpace.accent, 0.03),
+    borderColor: dsAlpha(deepSpace.accent, 0.4),
+    backgroundColor: dsAlpha(deepSpace.accent, 0.03),
   },
-  dashedCardOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.08) },
+  dashedCardOn: { borderColor: deepSpace.accent, backgroundColor: dsAlpha(deepSpace.accent, 0.08) },
   dashedName: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600", marginBottom: 5 },
   dashedBody: { color: deepSpace.textMid, fontSize: 12, lineHeight: 18, fontFamily: fontFamilies.readable },
 
@@ -2337,7 +2293,7 @@ const styles = StyleSheet.create({
     backgroundColor: deepSpace.card,
   },
   domainLabel: { color: deepSpace.accentBright, fontSize: 14, fontFamily: fontFamilies.readable, fontWeight: "600" },
-  domainCount: { color: withAlpha(deepSpace.accentSoft, 0.6), fontSize: 12, fontFamily: m3.font.mono },
+  domainCount: { color: dsAlpha(deepSpace.accentSoft, 0.6), fontSize: 12, fontFamily: m3.font.mono },
 
   // ── imagine (divergent seeds) — ref sb-more ImagineScreen tokens ────────────
   imgIntro: { borderRadius: m3.shape.none, overflow: "hidden", marginTop: 4 },
@@ -2390,9 +2346,9 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(deepSpace.bgEdge, 0.45),
+    backgroundColor: dsAlpha(deepSpace.bgEdge, 0.45),
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.soul, 0.55),
+    borderColor: dsAlpha(deepSpace.soul, 0.55),
   },
   meOrbCore: {
     width: 16,
@@ -2406,16 +2362,16 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   meHeroCopy: { flex: 1, minWidth: 0 },
-  meEyebrow: { color: withAlpha(deepSpace.textHi, 0.75), fontSize: 11, fontFamily: fontFamilies.readable, marginBottom: 4 },
+  meEyebrow: { color: dsAlpha(deepSpace.textHi, 0.75), fontSize: 11, fontFamily: fontFamilies.readable, marginBottom: 4 },
   meHeadline: { color: deepSpace.textHi, fontSize: 19, lineHeight: 25, fontFamily: fontFamilies.readable, fontWeight: "700" },
   meHeroFoot: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 14 },
   meHeroMeta: { gap: 6 },
-  meMetaLabel: { color: withAlpha(deepSpace.textHi, 0.8), fontSize: 11, fontFamily: fontFamilies.readable },
+  meMetaLabel: { color: dsAlpha(deepSpace.textHi, 0.8), fontSize: 11, fontFamily: fontFamilies.readable },
   meRefine: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 6 },
   meRefineLabel: { color: deepSpace.textHi, fontSize: 12, fontWeight: "600", fontFamily: fontFamilies.readable },
   // section head shared by the domain grid + validation entry
   meSectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  meSectionTitle: { color: withAlpha(deepSpace.text, 0.85), fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
+  meSectionTitle: { color: dsAlpha(deepSpace.text, 0.85), fontSize: 13, fontFamily: fontFamilies.readable, fontWeight: "600" },
   meLink: { color: deepSpace.accentSoft, fontSize: 12, fontFamily: fontFamilies.readable, fontWeight: "600" },
   // layer A domain grid — receding cyan cards
   meGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: 9, marginBottom: 18 },
@@ -2446,14 +2402,14 @@ const styles = StyleSheet.create({
   meDotRow: { flexDirection: "row", gap: 4 },
   meDot: { width: 6, height: 6, borderRadius: m3.shape.none },
   meDotOn: { backgroundColor: deepSpace.accent },
-  meDotOff: { backgroundColor: withAlpha(deepSpace.accent, 0.25) },
+  meDotOff: { backgroundColor: dsAlpha(deepSpace.accent, 0.25) },
   // layer B validation entry — soul-tinted (violet), signals the hidden layer
   meValidateCard: {
     borderRadius: m3.shape.none,
     padding: 14,
-    backgroundColor: withAlpha(deepSpace.soul, 0.08),
+    backgroundColor: dsAlpha(deepSpace.soul, 0.08),
     borderWidth: 1,
     borderColor: deepSpace.soulLine,
   },
-  meValidateText: { color: withAlpha(deepSpace.textHi, 0.85), fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
+  meValidateText: { color: dsAlpha(deepSpace.textHi, 0.85), fontSize: 12.5, lineHeight: 19, fontFamily: fontFamilies.readable },
 });

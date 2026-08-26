@@ -23,7 +23,7 @@ import {
   SceneHero,
   StatTile,
 } from "@/components/premium";
-import { cosmic, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha, semantic, spacing } from "@/lib/theme/tokens";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { PolarisDeck, type PolarisDeckPage } from "@/components/deep-space/PolarisDeck";
@@ -54,6 +54,16 @@ import { CompanionMoment, useCompanionMoment } from "@/components/art/CompanionS
 import { IslandArt } from "@/components/art/IslandArt";
 import { CORE_VILLAGE_UI } from "@/lib/village-ui";
 import { useFocusRefetch } from "@/lib/nav/use-focus-refetch";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.color.surfaceContainerLow` — 북극성 화면의 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const coreAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
 
 // D-25: Polaris brightness shows as a qualitative band, never a raw %.
 const SOUL_CORE_BAND_KO: Record<BrightnessBand, string> = { dim: "흐릿", fair: "보통", bright: "밝음" };
@@ -912,8 +922,8 @@ const makeDsDeck = () => StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.tertiary, 0.55),
-    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.5),
+    borderColor: coreAlpha(m3.color.tertiary, 0.55),
+    backgroundColor: coreAlpha(m3.color.tertiaryContainer, 0.5),
   },
   roleGlyphText: {
     ...m3TextStyle("headlineSmall"),
@@ -928,8 +938,8 @@ const makeDsDeck = () => StyleSheet.create({
     paddingHorizontal: 11,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.tertiary, 0.45),
-    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.42),
+    borderColor: coreAlpha(m3.color.tertiary, 0.45),
+    backgroundColor: coreAlpha(m3.color.tertiaryContainer, 0.42),
   },
   domainTagText: {
     ...m3TextStyle("labelLarge"),
@@ -967,7 +977,7 @@ const makeDsDeck = () => StyleSheet.create({
     height: 8,
     borderRadius: m3.shape.none,
     overflow: "hidden",
-    backgroundColor: withAlpha(m3.color.tertiary, 0.12),
+    backgroundColor: coreAlpha(m3.color.tertiary, 0.12),
   },
   traitFill: { height: "100%", borderRadius: m3.shape.none, backgroundColor: m3.color.tertiary },
   traitValue: {
@@ -981,8 +991,8 @@ const makeDsDeck = () => StyleSheet.create({
     padding: 13,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.tertiary, 0.16),
-    backgroundColor: withAlpha(m3.color.surfaceContainerHighest, 0.52),
+    borderColor: coreAlpha(m3.color.tertiary, 0.16),
+    backgroundColor: coreAlpha(m3.color.surfaceContainerHighest, 0.52),
   },
   personText: {
     ...m3TextStyle("bodyMedium"),
@@ -998,8 +1008,8 @@ const makeDsDeck = () => StyleSheet.create({
     paddingHorizontal: 11,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.tertiary, 0.4),
-    backgroundColor: withAlpha(m3.color.tertiaryContainer, 0.3),
+    borderColor: coreAlpha(m3.color.tertiary, 0.4),
+    backgroundColor: coreAlpha(m3.color.tertiaryContainer, 0.3),
   },
   strengthDot: { width: 7, height: 7, borderRadius: m3.shape.none, backgroundColor: m3.color.tertiary },
   strengthText: {
@@ -1011,7 +1021,7 @@ const makeDsDeck = () => StyleSheet.create({
     gap: 2,
     padding: 12,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.color.surfaceContainerHighest, 0.42),
+    backgroundColor: coreAlpha(m3.color.surfaceContainerHighest, 0.42),
   },
   strengthEmptyText: {
     ...m3TextStyle("bodySmall"),
@@ -1033,7 +1043,7 @@ const makeDsDeck = () => StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.color.onSurfaceVariant, 0.28),
+    backgroundColor: coreAlpha(m3.color.onSurfaceVariant, 0.28),
   },
   confidenceDotOn: { backgroundColor: m3.color.tertiary },
   roleActions: {

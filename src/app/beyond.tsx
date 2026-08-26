@@ -10,30 +10,38 @@
 import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 function PlusGlyph({ color, size = 22 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
+  return <PixelGlyph name="add" color={color} size={size} />;
 }
 function MicGlyph({ color, size = 22 }: { color: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3z" fill={color} />
-      <Path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M8.5 20.5h7" stroke={color} strokeWidth={1.7} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
+  return <PixelGlyph name="mic" color={color} size={size} />;
 }
+
+/**
+ * 오늘의 별 발광 — 동심원 셋이었다.
+ *
+ * 규칙 1(정수 rect)·4(정적 불투명도 금지)를 함께 지키려면 **동심 사각 셋**에
+ * 미리 합성한 색을 쓴다. 알파로 겹쳐 만들던 번짐을 색 층으로 바꾼 것이고,
+ * 그게 픽셀아트가 발광을 표현하는 방식이다.
+ * 바닥은 이 위젯이 앉은 `MdCard variant="filled"` 의 배경색이다.
+ */
+const STAR_GLOW_GROUND = m3.color.surfaceContainerHighest;
+const STAR_GLOW = [
+  { inset: 6, fill: flattenAlpha(m3.color.primary, 0.18, STAR_GLOW_GROUND) },
+  { inset: 17, fill: flattenAlpha(m3.color.primary, 0.45, STAR_GLOW_GROUND) },
+  { inset: 25, fill: m3.color.primary },
+];
 
 export default function BeyondScreen() {
   const { t } = useTranslation("deepspace");
@@ -69,9 +77,9 @@ export default function BeyondScreen() {
             </View>
             <View style={s.starGlowWrap}>
               <Svg width={64} height={64} viewBox="0 0 64 64">
-                <Circle cx={32} cy={32} r={26} fill={withAlpha(m3.color.primary, 0.18)} />
-                <Circle cx={32} cy={32} r={15} fill={withAlpha(m3.color.primary, 0.45)} />
-                <Circle cx={32} cy={32} r={7} fill={m3.color.primary} />
+                {STAR_GLOW.map((g) => (
+                  <Rect key={g.inset} x={g.inset} y={g.inset} width={64 - g.inset * 2} height={64 - g.inset * 2} fill={g.fill} />
+                ))}
               </Svg>
             </View>
             <RNText style={s.widgetStarName}>{t("beyond.brightestStar")}</RNText>

@@ -17,9 +17,19 @@ import { useTranslation } from "react-i18next";
 import { Text } from "@/components/ui/Text";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { markCoachmarksSeen } from "@/lib/onboarding/coachmarks-gate";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 코치마크는 홈 무대 위다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const cmAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 interface Step {
   /** Spotlight ring center + radius, as fractions of the viewport. */
@@ -127,14 +137,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: withAlpha(deepSpace.bgEdge, 0.72),
+    backgroundColor: cmAlpha(deepSpace.bgEdge, 0.72),
     zIndex: 40,
   },
   ring: {
     position: "absolute",
     borderWidth: 2,
-    borderColor: withAlpha(deepSpace.accent, 0.9),
-    backgroundColor: withAlpha(deepSpace.accent, 0.08),
+    borderColor: cmAlpha(deepSpace.accent, 0.9),
+    backgroundColor: cmAlpha(deepSpace.accent, 0.08),
     shadowColor: deepSpace.accent,
     shadowOpacity: 0,
     shadowRadius: 0,
@@ -154,16 +164,16 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accent, 0.35),
+    borderColor: cmAlpha(deepSpace.accent, 0.35),
     backgroundColor: deepSpace.bgMid,
     padding: spacing.md,
     gap: 6,
   },
-  stepCount: { fontFamily: m3.font.mono, fontSize: 10, color: withAlpha(deepSpace.accentSoft, 0.7) },
+  stepCount: { fontFamily: m3.font.mono, fontSize: 10, color: cmAlpha(deepSpace.accentSoft, 0.7) },
   bubbleText: { fontSize: 15, lineHeight: 22, color: deepSpace.textHi, fontWeight: "600" },
   btnRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },
   ghostBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
-  ghostText: { fontSize: 12.5, color: withAlpha(deepSpace.accentSoft, 0.8) },
+  ghostText: { fontSize: 12.5, color: cmAlpha(deepSpace.accentSoft, 0.8) },
   nextBtn: {
     minHeight: 44,
     minWidth: 88,

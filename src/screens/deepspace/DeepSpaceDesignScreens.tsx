@@ -3,16 +3,27 @@ import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollVie
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
+import Svg, { Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, spacing } from "@/theme/tokens";
+import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
+import { ringCells, stepLine } from "@/components/pixel/pixel-line";
+import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+
+/**
+ * `/graph`(개발 전용 화면)의 노드 지도 색.
+ * 원래 `opacity` 로 만들던 것을 미리 합성해 둔다(PIXEL-CLAY 규칙 4).
+ */
+const GRAPH_ME_FILL = flattenAlpha(colors.soul, 0.95, m3.accent.stageFloor);
+const GRAPH_NODE_FILL = flattenAlpha(colors.cyan, 0.22, m3.accent.stageFloor);
+const GRAPH_DOT_FILL = flattenAlpha(colors.cyanSoft, 0.75, m3.accent.stageFloor);
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
@@ -323,7 +334,7 @@ export function DeepSpaceGraphDesignScreen() {
   const clusters = [
     { x: 63, y: 135, t: t("graph.clRecords"), route: "/records" as const }, { x: 136, y: 92, t: t("graph.clRelations"), route: "/research" as const }, { x: 219, y: 134, t: t("graph.clKnowledge"), route: "/wiki" as const }, { x: 106, y: 226, t: t("graph.clTaste"), route: "/trinity" as const }, { x: 207, y: 225, t: t("graph.clGrowth"), route: "/growth" as const },
   ];
-  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><View style={styles.graphStage}><Svg width={300} height={310} viewBox="0 0 300 310"><Circle cx={150} cy={160} r={34} fill={colors.soul} opacity={.95} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><Line key={'l'+i} x1={150} y1={160} x2={c.x} y2={c.y} stroke={colors.borderHi} strokeWidth={1.4}/>) }{clusters.map((c,i)=><Circle key={'c'+i} cx={c.x} cy={c.y} r={22} fill={colors.cyan} opacity={.22} onPress={() => router.push(c.route)}/>) }<Circle cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><Circle key={i} cx={x} cy={70+i*30%190} r={4} fill={colors.cyanSoft} opacity={.75}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</View></Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
+  return <Shell title={t("graph.title")} subtitle={t("graph.subtitle", { nodes: nodeCount, edges: edgeCount })}><SecondbStatusHeader text={t("graph.status")} tip={t("graph.tip")} /><Card style={styles.graphCard}><View style={styles.graphStage}><Svg width={300} height={310} viewBox="0 0 300 310">{clusters.map((c,i)=>stepLine(150,160,c.x,c.y,3).map((p,j)=><Rect key={'l'+i+'-'+j} x={p.x} y={p.y} width={3} height={3} fill={colors.borderHi}/>))}<PixelStarSvg cx={150} cy={160} r={34} fill={GRAPH_ME_FILL} onPress={() => router.push('/account')}/>{clusters.map((c,i)=><PixelNodeSvg key={'c'+i} cx={c.x} cy={c.y} r={22} fill={GRAPH_NODE_FILL} onPress={() => router.push(c.route)}/>) }<PixelStarSvg cx={150} cy={160} r={9} fill={colors.textHi} onPress={() => router.push('/account')}/>{[42,86,118,244,257,188,72].map((x,i)=><PixelStarSvg key={i} cx={x} cy={70+i*30%190} r={4} fill={GRAPH_DOT_FILL}/>)}</Svg><Text variant="caption" style={styles.centerCaption}>{t("graph.me")}</Text>{clusters.map((c)=><Pressable key={c.t} onPress={() => router.push(c.route)} accessibilityRole="button" accessibilityLabel={c.t} style={{position:'absolute',left:c.x-18,top:c.y+23}}><Text variant="body" style={[styles.clusterLabel,{position:'relative'}]}>{c.t}</Text></Pressable>)}</View></Card><View style={styles.ctaRow}><Pressable style={styles.primary} onPress={() => router.push('/records')}><Text variant="caption" style={styles.primaryText}>{t("graph.viewClusters")}</Text></Pressable><Pressable style={styles.secondary} onPress={() => router.push('/research')}><Text variant="caption" style={styles.secondaryText}>{t("graph.findConnections")}</Text></Pressable></View></Shell>;
 }
 
 // rev2 clone (28-connect / reference ConnectScreen): a windowed 데이터 연동 list.
@@ -335,7 +346,7 @@ export function DeepSpaceGraphDesignScreen() {
 // which directly contradicted this very comment.
 export function DeepSpaceIntegrationsScreen() {
   const { t } = useTranslation("deepspace");
-  const sources: { id: string; icon: keyof typeof CLONE_ICON; k: string; sub: string; route: "/import-hub" | "/capture" }[] = [
+  const sources: { id: string; icon: CloneIconName; k: string; sub: string; route: "/import-hub" | "/capture" }[] = [
     { id: "cal", icon: "forum", k: t("connect.sources.cal.name"), sub: t("connect.sources.cal.sub"), route: "/import-hub" },
     { id: "health", icon: "bedtime", k: t("connect.sources.health.name"), sub: t("connect.sources.health.sub"), route: "/import-hub" },
     { id: "notion", icon: "book", k: "Notion", sub: t("connect.sources.notion.sub"), route: "/import-hub" },
@@ -414,8 +425,8 @@ const GAPS_CONCEPT_EN: { title: string; body: string }[] = [
 
 // Map a canon Material-symbol icon name to a local CLONE_ICON glyph, falling
 // back to a sensible sparkle when a name has no glyph yet.
-function gapGlyph(name: string): keyof typeof CLONE_ICON {
-  return (name in CLONE_ICON ? name : "sparkle") as keyof typeof CLONE_ICON;
+function gapGlyph(name: string): CloneIconName {
+  return (CLONE_ICON.has(name) ? name : "sparkle") as CloneIconName;
 }
 
 // Token-only styles for the gaps-pack sections (FAQ / notices / facts / concepts).
@@ -1230,7 +1241,7 @@ export function DeepSpaceInsightsScreen() {
           children - which is the full card content. */}
       <Pressable
         onPress={() => router.push("/records")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1258,7 +1269,7 @@ export function DeepSpaceInsightsScreen() {
       </Pressable>
       <Pressable
         onPress={() => router.push("/research")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1271,7 +1282,7 @@ export function DeepSpaceInsightsScreen() {
           implemented feature nobody could reach (audit pattern B). */}
       <Pressable
         onPress={() => router.push("/discover")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1294,7 +1305,7 @@ export function DeepSpaceInsightsScreen() {
 export function DeepSpaceDataDesignScreen() {
   const { i18n } = useTranslation("deepspace");
   const ko = i18n.language?.toLowerCase().startsWith("ko") ?? false;
-  const rights: { icon: keyof typeof CLONE_ICON; label: string; sub: string; route: string; danger?: boolean }[] = [
+  const rights: { icon: CloneIconName; label: string; sub: string; route: string; danger?: boolean }[] = [
     { icon: "download", label: ko ? "내 데이터 전체 내보내기" : "Export all my data", sub: ko ? "IDEN · 원문 · 파생 신호" : "IDEN, raw, derived signals", route: "/iden" },
     { icon: "cloud_off", label: ko ? "파생 신호만 초기화" : "Reset derived signals only", sub: ko ? "원문은 두고 추정만 지우기" : "Keep raw, clear inferences", route: "/privacy" },
     { icon: "trash", label: ko ? "계정·데이터 영구 삭제" : "Delete account and data", sub: ko ? "되돌릴 수 없어요" : "This cannot be undone", route: "/privacy", danger: true },
@@ -1597,7 +1608,7 @@ export function DeepSpaceDiscoverScreen() {
         <Pressable
           key={r.tag}
           onPress={() => router.push({ pathname: "/capture", params: { tag: r.tag } })}
-          android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+          android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
           accessibilityRole="button"
           accessibilityLabel={`${r.tag} ${t("discover.cardDelta", { recent: r.recent, prior: r.prior })}`}
         >
@@ -2051,14 +2062,17 @@ export function DeepSpaceResearchScreen() {
             </View>
           ) : null}
           <View style={styles.researchGraph}>
+            {/* 별과 링크 — 원과 선이었다. 셀 격자로 옮긴다(PIXEL-CLAY 규칙 1). */}
             <Svg width="100%" height={118} viewBox="0 0 260 118">
+              {satellites.map((s, i) =>
+                stepLine(135, 62, s.cx, s.cy, 2).map((p, j) => (
+                  <Rect key={`l${i}-${j}`} x={p.x} y={p.y} width={2} height={2} fill={s.stroke} />
+                )),
+              )}
               {satellites.map((s, i) => (
-                <Line key={`l${i}`} x1={135} y1={62} x2={s.cx} y2={s.cy} stroke={s.stroke} strokeWidth={1} />
+                <PixelNodeSvg key={`c${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} />
               ))}
-              {satellites.map((s, i) => (
-                <Circle key={`c${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} />
-              ))}
-              <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
+              <PixelStarSvg cx={135} cy={62} r={8} fill={colors.textTitle} />
             </Svg>
             <Text variant="caption" style={styles.graphTag}>
               {view.clusters.length > 0
@@ -2069,7 +2083,7 @@ export function DeepSpaceResearchScreen() {
           {view.headline !== null ? (
             <Pressable
               style={styles.insightViolet}
-              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+              android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
               // Since D-27 Phase 1c these ids come from recordsToResearchGraph,
               // so they ARE record ids and /record/[id] is the right target. The
               // old /wiki?focusPageId hop was correct only while the view was
@@ -2094,7 +2108,7 @@ export function DeepSpaceResearchScreen() {
           {view.surprise !== null ? (
             <Pressable
               style={styles.insightViolet}
-              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+              android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
               // surprise.fromId is now a record id too — same reasoning as above.
               onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
               accessibilityRole="button"
@@ -2136,7 +2150,7 @@ export function DeepSpaceResearchScreen() {
                 <View key={key} style={styles.opsStep}>
                   <Pressable
                     style={[styles.mapRow, { minHeight: 44 }]}
-                    android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                    android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
                     onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: p.from_page } })}
                     accessibilityRole="button"
                     accessibilityLabel={`${p.from_title} ↔ ${p.to_title}`}
@@ -2569,7 +2583,7 @@ export function DeepSpaceOpsScreen() {
   const pct = totalR > 0 ? doneR / totalR : 0;
   const HERO_R = 22;
   const HERO_C = 2 * Math.PI * HERO_R;
-  const opsTools: { icon: keyof typeof CLONE_ICON; label: string; sub: string; route: string }[] = [
+  const opsTools: { icon: CloneIconName; label: string; sub: string; route: string }[] = [
     { icon: "timer", label: t("tools.focus.label"), sub: t("tools.focus.sub"), route: "/focus" },
     { icon: "schedule", label: t("tools.reminders.label"), sub: t("tools.reminders.sub"), route: "/reminders" },
     { icon: "lightbulb", label: t("tools.imagine.label"), sub: t("tools.imagine.sub"), route: "/imagine" },
@@ -2605,10 +2619,15 @@ export function DeepSpaceOpsScreen() {
       {/* hero — today's routine ring (real counts + streak) */}
       <MdCard variant="elevated" style={cx.opsHero}>
         <View style={cx.heroRow}>
+          {/* 진행 링 — 테두리를 도는 칸 중 앞에서부터 n칸(규칙 1). */}
           <Svg width={58} height={58} viewBox="0 0 58 58">
-            <Circle cx={29} cy={29} r={HERO_R} fill="none" stroke={m3.color.surfaceVariant} strokeWidth={6} />
-            <Circle cx={29} cy={29} r={HERO_R} fill="none" stroke={m3.color.primary} strokeWidth={6} strokeLinecap="round"
-              strokeDasharray={HERO_C} strokeDashoffset={HERO_C * (1 - pct)} originX={29} originY={29} rotation={-90} />
+            {(() => {
+              const cells = ringCells(29, 29, HERO_R, 6);
+              const lit = Math.round(cells.length * Math.max(0, Math.min(1, pct)));
+              return cells.map((p, i) => (
+                <Rect key={i} x={p.x} y={p.y} width={6} height={6} fill={i < lit ? m3.color.primary : m3.color.surfaceVariant} />
+              ));
+            })()}
           </Svg>
           <View style={cx.flex1}>
             <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{t("today.heading")}</RNText>
@@ -3055,21 +3074,22 @@ export function DeepSpaceFocusScreen() {
       {/* timer ring */}
       <View style={cx.ringWrap}>
         <Svg width={280} height={280} viewBox="0 0 280 280">
-          <Circle cx={140} cy={140} r={RING_R} fill="none" stroke={m3.color.surfaceContainerHighest} strokeWidth={14} />
-          <Circle
-            cx={140}
-            cy={140}
-            r={RING_R}
-            fill="none"
-            stroke={m3.color.primary}
-            strokeWidth={14}
-            strokeLinecap="round"
-            strokeDasharray={RING_C}
-            strokeDashoffset={dashoffset}
-            originX={140}
-            originY={140}
-            rotation={-90}
-          />
+          {/* 타이머 링 — 테두리를 도는 칸. 남은 비율만큼 앞에서부터 칠한다(규칙 1). */}
+          {(() => {
+            const cells = ringCells(140, 140, RING_R, 14);
+            const left = RING_C > 0 ? 1 - dashoffset / RING_C : 0;
+            const lit = Math.round(cells.length * Math.max(0, Math.min(1, left)));
+            return cells.map((p, i) => (
+              <Rect
+                key={i}
+                x={p.x}
+                y={p.y}
+                width={14}
+                height={14}
+                fill={i < lit ? m3.color.primary : m3.color.surfaceContainerHighest}
+              />
+            ));
+          })()}
         </Svg>
         <View style={cx.ringCenter}>
           <RNText style={cx.ringTime}>{clock}</RNText>
@@ -3330,55 +3350,47 @@ export {
   DeepSpaceResetPasswordDesignScreen,
 } from "./dds-auth-screens";
 
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `colors.bgDeep` — 이 파일의 화면들은 `dds-styles` 와 같은 바닥을 쓴다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const ddsAlpha2 = (c: string, a: number): string => flattenAlpha(c, a, colors.bgDeep);
+
 // ──────────────────────────────────────────────────────────────────────────
 // rev2 M3 clone kit (24-ops / 25-focus / 28-connect / 30-datareview). Shared
 // Material-symbol stroke glyphs + a local stylesheet, transcribed 1:1 from the
 // reference-app screens. All colors route through m3.* tokens (no hex literals).
-const CLONE_ICON: Record<string, string> = {
-  fire: '<path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 1 .5 2 1.5 2 .8 0 1-.8.5-2C11 8 12 6 12 3Z"/>',
-  sparkle: '<path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3Z"/>',
-  trending_up: '<path d="M4 15l5-5 3 3 6-6"/><path d="M14 7h5v5"/>',
-  timer: '<circle cx="12" cy="13" r="7.5"/><path d="M12 13V9M9.5 3.5h5"/>',
-  schedule: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
-  lightbulb: '<path d="M9.2 18h5.6M10 21h4M8.4 14.6A5.6 5.6 0 1 1 17 10a5.4 5.4 0 0 1-1.6 3.9c-.6.6-.9 1-.9 1.7v.4h-5v-.4c0-.7-.3-1.1-.9-1.7Z"/>',
-  share: '<path d="M12 3v11M8.5 6.5 12 3l3.5 3.5"/><path d="M6 12v7h12v-7"/>',
-  check: '<path d="M5 12.5 10 17 19 7"/>',
-  // rev2 FocusScreen glyphs (sb-data.jsx ICON_SVG). play_arrow is rendered filled
-  // (reference sb-more.jsx uses it filled); the reference's own ICON_SVG omits
-  // play_arrow so its render falls back to `workspaces` (3 circles) — an upstream
-  // glyph gap, not a design choice, so we honor the declared intent (a play mark).
-  play_arrow: '<path d="M9 6.5v11l9-5.5z"/>',
-  pause: '<path d="M9 5v14M15 5v14"/>',
-  replay: '<path d="M6 12a6 6 0 1 0 1.8-4.3M7 4v4h4"/>',
-  star_shine: '<path d="M12 3c.5 3.8 2.7 6 6.5 6.5-3.8.5-6 2.7-6.5 6.5-.5-3.8-2.7-6-6.5-6.5 3.8-.5 6-2.7 6.5-6.5Z"/>',
-  refresh: '<path d="M5 12a7 7 0 0 1 12-5M19 4.5v4h-4"/><path d="M19 12a7 7 0 0 1-12 5M5 19.5v-4h4"/>',
-  lock: '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
-  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
-  bedtime: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
-  book: '<path d="M12 6.5C10.5 5 8 4.5 5 5v12c3-.5 5.5 0 7 1.5 1.5-1.5 4-2 7-1.5V5c-3-.5-5.5 0-7 1.5Z"/><path d="M12 6.5v12"/>',
-  camera: '<rect x="3.5" y="7.5" width="17" height="12" rx="2.5"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7.5l1.2-2h3.6L15 7.5"/>',
-  bubble: '<circle cx="9" cy="10" r="4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="15.5" cy="15.5" r="3"/>',
-  box: '<path d="M4 8.5 12 5l8 3.5V17l-8 3.5L4 17z"/><path d="M4 8.5 12 12l8-3.5M12 12v8.5"/>',
-  hub: '<circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="6" r="1.8"/><circle cx="19" cy="6" r="1.8"/><circle cx="5" cy="18" r="1.8"/><circle cx="19" cy="18" r="1.8"/><path d="M10.3 10.6 6.3 7.2M13.7 10.6l4-3.4M10.3 13.4l-4 3.4M13.7 13.4l4 3.4"/>',
-  cloud_sync: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 9.5 1.2A3.4 3.4 0 0 1 17 18z"/><path d="M10 14.5l1.5 1.5 3-3"/>',
-  arrow_forward: '<path d="M5 12h13M13 6l6 6-6 6"/>',
-  trash: '<path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/>',
-  download: '<path d="M12 4v10M8 11l4 4 4-4"/><path d="M5 19h14"/>',
-  cloud_off: '<path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 8.5-.5M18 12a3.4 3.4 0 0 1-1 6H9"/><path d="M4 4l16 16"/>',
-  chevron_right: '<path d="M9 5l7 7-7 7"/>',
-  // gaps-pack canon glyphs (privacyFacts / manualConcepts icon names).
-  badge: '<rect x="3.5" y="6" width="17" height="12" rx="2"/><circle cx="9" cy="11" r="1.9"/><path d="M6 15.4a3 3 0 0 1 6 0"/><path d="M14.5 10.5h3.5M14.5 13.5h2.5"/>',
-  inbox: '<path d="M5 5h14l1.5 8v6H3.5v-6z"/><path d="M3.5 13H8l1.5 2.5h5L16 13h4.5"/>',
-  delete: '<path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/>',
-  auto_awesome: '<path d="M11 3l1.6 4.2L16.8 9l-4.2 1.8L11 15l-1.6-4.2L5.2 9l4.2-1.8L11 3Z"/><path d="M18 14l.7 1.8 1.8.7-1.8.7L18 19l-.7-1.8-1.8-.7 1.8-.7z"/>',
-  workspaces: '<circle cx="12" cy="7" r="3"/><circle cx="6.5" cy="16" r="3"/><circle cx="17.5" cy="16" r="3"/>',
-  bubble_chart: '<circle cx="9" cy="10" r="4"/><circle cx="16.5" cy="8" r="2.4"/><circle cx="15.5" cy="15.5" r="3"/>',
-  task_alt: '<circle cx="12" cy="12" r="8.5"/><path d="M8 12l3 3 5-6"/>',
-};
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+//
+// 원래 이 자리에 34개짜리 SVG **문자열 레지스트리**가 있었다. 저장소의 세 번째이자
+// 마지막 문자열 레지스트리였고(앞의 둘: `SbIcon.ts` 의 `ICON_PATHS`, `DeepSpaceDock`
+// 의 `TabIcon`), 전부 곡선 `<path>` 라 PIXEL-CLAY 절대 규칙 1(정수 rect 만)을
+// 정면으로 어겼다. 소문자 마크업이라 `<Path` 로 grep 하는 위반 집계에서도 통째로
+// 빠져 있었다 — 셋을 합쳐 135 로 세던 것이 실제로는 304 였다.
+//
+// 여기 남는 것은 **이름 목록**뿐이다: 이 화면들이 어떤 아이콘을 쓰는지의 기록이고,
+// `satisfies` 가 그 이름이 정본에 실재하는지를 컴파일 때 확인한다(빠지면 빌드가
+// 깨진다 — 화면에서 아이콘이 조용히 사라지는 대신).
+const CLONE_ICON_NAMES = [
+  "fire", "sparkle", "trending_up", "timer", "schedule", "lightbulb", "share", "check",
+  "play_arrow", "pause", "replay", "star_shine", "refresh", "lock", "forum", "bedtime",
+  "book", "camera", "bubble", "box", "hub", "cloud_sync", "arrow_forward", "trash",
+  "download", "cloud_off", "chevron_right", "badge", "inbox", "delete", "auto_awesome",
+  "workspaces", "bubble_chart", "task_alt",
+] as const satisfies readonly GlyphAliasName[];
 
-function CloneIcon({ name, color, size = 20, fill = false }: { name: keyof typeof CLONE_ICON; color: string; size?: number; fill?: boolean }) {
-  const paint = fill ? 'fill="currentColor" stroke="none"' : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
-  const xml = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ${paint}>${CLONE_ICON[name]}</svg>`;
+type CloneIconName = (typeof CLONE_ICON_NAMES)[number];
+const CLONE_ICON: ReadonlySet<string> = new Set(CLONE_ICON_NAMES);
+
+function CloneIcon({ name, color, size = 20 }: { name: CloneIconName; color: string; size?: number; fill?: boolean }) {
+  // `fill` 은 받기만 하고 아무 일도 하지 않는다. 전에는 채움/선을 갈랐지만 rect
+  // 글리프는 언제나 채워져 있어 그 구분이 없어졌다(강조는 색이 한다). 호출부
+  // 스무 곳을 건드리지 않으려고 prop 만 남겼다 — `SbIcon` 과 같은 처리다.
+  const xml = glyphMarkup(GLYPH_ALIAS[name], "currentColor");
   return <SvgXml xml={xml} width={size} height={size} color={color} />;
 }
 

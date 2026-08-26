@@ -23,7 +23,8 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { m3 } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { Text } from "@/components/ui/Text";
@@ -33,6 +34,16 @@ import { SbIcon } from "@/components/deepspace/shell/SbIcon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createRecord } from "@/lib/records/create";
 import { isAvailableUiLocale, systemLocaleFor, type AvailableUiLocale } from "@/lib/i18n/locales";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.bgEdge` — TTFV 무대 바닥.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const ttfvAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.bgEdge);
 
 /**
  * One ratifiable self-understanding insight. Static prop data for now; the real
@@ -105,6 +116,17 @@ type Phase = "propose" | "ratify";
 interface TTFVScreenProps {
   insight?: TTFVInsight;
 }
+
+/**
+ * 별 발광 색 — 원래 `opacity` 로 겹쳐 만들던 것을 **미리 합성해 둔다**(규칙 4).
+ * 바닥은 이 무대가 앉은 딥스페이스 바닥색이다.
+ */
+const TTFV_GROUND = deepSpace.bgEdge;
+const TTFV_DIM_FILL = flattenAlpha(deepSpace.accentDim, 0.5, TTFV_GROUND);
+const TTFV_HALO_FILL = flattenAlpha(deepSpace.accent, 0.16, TTFV_GROUND);
+const TTFV_MID_FILL = flattenAlpha(deepSpace.accentSoft, 0.34, TTFV_GROUND);
+const TTFV_POLARIS_HALO = flattenAlpha(m3.accent.polaris, 0.14, TTFV_GROUND);
+const TTFV_POLARIS_MID = flattenAlpha(m3.accent.polaris, 0.26, TTFV_GROUND);
 
 export function TTFVScreen({ insight }: TTFVScreenProps) {
   const { t, i18n } = useTranslation("deepspace");
@@ -184,18 +206,21 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
             <Line x1={POLARIS.x} y1={POLARIS.y} x2={DIM.x} y2={DIM.y} stroke={deepSpace.cardLine} strokeWidth={1} />
             <Line x1={GWANGE.x} y1={GWANGE.y} x2={DIM.x} y2={DIM.y} stroke={deepSpace.cardLine} strokeWidth={1} strokeDasharray="3 5" />
 
+            {/* 별은 원이 아니라 **4방향으로 빛나는 rect 별**이다(Simon 결정 2026-08-21,
+                PIXEL-CLAY 규칙 1). 발광은 알파를 겹치던 것 → 미리 합성한 색 층
+                (규칙 4). 밝기의 층위(Tier)는 그대로다 — 북극성이 가장 크고 밝다. */}
             {/* Tier: receding third node. */}
-            <Circle cx={DIM.x} cy={DIM.y} r={3.4} fill={deepSpace.accentDim} opacity={0.5} />
+            <PixelStarSvg cx={DIM.x} cy={DIM.y} r={3.4} fill={TTFV_DIM_FILL} />
 
-            {/* Tier A: the lit 관계 star (cyan, soft bloom). Brightens on ratify. */}
-            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 15 : 11} fill={deepSpace.accent} opacity={0.16} />
-            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 9 : 7} fill={deepSpace.accentSoft} opacity={0.34} />
-            <Circle cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 5.2 : 4.2} fill={deepSpace.accentBright} />
+            {/* Tier A: the lit star (cyan, soft bloom). Brightens on ratify. */}
+            <PixelStarSvg cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 15 : 11} fill={TTFV_HALO_FILL} />
+            <PixelStarSvg cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 9 : 7} fill={TTFV_MID_FILL} />
+            <PixelStarSvg cx={GWANGE.x} cy={GWANGE.y} r={phase === "ratify" ? 5.2 : 4.2} fill={deepSpace.accentBright} />
 
             {/* Tier C: 북극성 — dominant, white core + violet bloom. */}
-            <Circle cx={POLARIS.x} cy={POLARIS.y} r={16} fill={m3.accent.polaris} opacity={0.14} />
-            <Circle cx={POLARIS.x} cy={POLARIS.y} r={9} fill={m3.accent.polaris} opacity={0.26} />
-            <Circle cx={POLARIS.x} cy={POLARIS.y} r={6} fill={deepSpace.textHi} />
+            <PixelStarSvg cx={POLARIS.x} cy={POLARIS.y} r={16} fill={TTFV_POLARIS_HALO} />
+            <PixelStarSvg cx={POLARIS.x} cy={POLARIS.y} r={9} fill={TTFV_POLARIS_MID} />
+            <PixelStarSvg cx={POLARIS.x} cy={POLARIS.y} r={6} fill={deepSpace.textHi} />
           </Svg>
           <Text variant="caption" style={[styles.starLabel, styles.polarisLabel]}>{t("home:ds.home.polaris")}</Text>
           <Text variant="caption" numberOfLines={1} style={[styles.starLabel, styles.gwangeLabel]}>{star}</Text>
@@ -225,9 +250,9 @@ export function TTFVScreen({ insight }: TTFVScreenProps) {
                 style={styles.whyToggle}
                 hitSlop={8}
               >
-                <SbIcon name="target" size={15} color={withAlpha(deepSpace.accentSoft, 0.85)} />
+                <SbIcon name="target" size={15} color={ttfvAlpha(deepSpace.accentSoft, 0.85)} />
                 <Text variant="caption" style={styles.whyToggleText}>{t("ds.ttfv.grounds")}</Text>
-                <SbIcon name={showWhy ? "expand_less" : "expand_more"} size={16} color={withAlpha(deepSpace.accentSoft, 0.85)} />
+                <SbIcon name={showWhy ? "expand_less" : "expand_more"} size={16} color={ttfvAlpha(deepSpace.accentSoft, 0.85)} />
               </Pressable>
               {showWhy ? (
                 <View style={styles.whyBody}>
@@ -328,7 +353,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.accent.polaris, 0.3),
+    backgroundColor: ttfvAlpha(m3.accent.polaris, 0.3),
   },
   starLabel: { position: "absolute", fontSize: 11, color: m3.accent.starCaption, letterSpacing: 0.6, textAlign: "center" },
   polarisLabel: { left: 0, right: 0, top: POLARIS.y + 14 },
@@ -343,31 +368,31 @@ const styles = StyleSheet.create({
 
   whyWrap: { alignSelf: "stretch", alignItems: "center", maxWidth: 320, width: "100%", marginTop: 6 },
   whyToggle: { flexDirection: "row", alignItems: "center", gap: 6 },
-  whyToggleText: { fontSize: 13, fontWeight: "600", color: withAlpha(deepSpace.accentSoft, 0.85) },
+  whyToggleText: { fontSize: 13, fontWeight: "600", color: ttfvAlpha(deepSpace.accentSoft, 0.85) },
   whyBody: { alignSelf: "stretch", gap: 8, marginTop: 10 },
   evidenceCard: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.accent.entryTag, 0.1),
+    backgroundColor: ttfvAlpha(m3.accent.entryTag, 0.1),
     borderWidth: 1,
-    borderColor: withAlpha(m3.accent.entryTag, 0.2),
+    borderColor: ttfvAlpha(m3.accent.entryTag, 0.2),
     gap: 3,
   },
   evidenceQ: { fontSize: 10, letterSpacing: 0.4, color: m3.accent.entryTag },
   evidenceA: { fontSize: 13, color: m3.accent.shareInkSoft },
-  whyFootnote: { fontSize: 11, lineHeight: 16, color: withAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
+  whyFootnote: { fontSize: 11, lineHeight: 16, color: ttfvAlpha(m3.accent.starCaption, 0.6), textAlign: "center", marginTop: 2 },
 
   answerRow: { flexDirection: "row", gap: 10, alignSelf: "stretch", maxWidth: 320, width: "100%", marginTop: 16 },
   answerBtn: { flex: 1, minHeight: 50, borderRadius: m3.shape.medium, overflow: "hidden" },
   // bare touch surface inside the styled wrapper (Fabric-safe)
   answerPress: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 50 },
   affirmBtn: { backgroundColor: deepSpace.accent },
-  differBtn: { borderWidth: 1, borderColor: withAlpha(m3.accent.starCaption, 0.4), backgroundColor: "transparent" },
+  differBtn: { borderWidth: 1, borderColor: ttfvAlpha(m3.accent.starCaption, 0.4), backgroundColor: "transparent" },
   affirmText: { fontSize: 15, color: deepSpace.onAccent },
   differText: { fontSize: 15, color: m3.accent.starCaption },
 
-  consent: { fontSize: 13, color: withAlpha(m3.accent.consentFootnote, 0.5), textAlign: "center", marginTop: 12, maxWidth: 280 },
+  consent: { fontSize: 13, color: ttfvAlpha(m3.accent.consentFootnote, 0.5), textAlign: "center", marginTop: 12, maxWidth: 280 },
 
   levelChip: {
     flexDirection: "row",
@@ -376,7 +401,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(m3.accent.insightHi, 0.16),
+    backgroundColor: ttfvAlpha(m3.accent.insightHi, 0.16),
     marginBottom: 6,
   },
   levelChipText: { fontSize: 13, fontWeight: "700", color: m3.accent.starCaption },

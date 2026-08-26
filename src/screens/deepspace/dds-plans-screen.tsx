@@ -15,10 +15,10 @@
 // untouched). The rewarded row tops up COUNTS only, never quality.
 // ──────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
 import {
@@ -80,39 +80,21 @@ function krw(n: number): string {
   return `₩${n.toLocaleString("ko-KR")}`;
 }
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 function LockIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
-      <Path
-        d="M7 10V8a5 5 0 0 1 10 0v2h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h1zm2 0h6V8a3 3 0 0 0-6 0v2z"
-        fill={color}
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="lock" color={color} size={20} />;
 }
 
 function CheckIcon({ color }: { color: string }) {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
-      <Path d="M4.5 12.5l4.5 4.5 10.5-11" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </Svg>
-  );
+  return <PixelGlyph name="check" color={color} size={16} />;
 }
 
 function BoltIcon({ color }: { color: string }) {
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24">
-      <Path d="M13 2L4.5 13.5H11l-1 8.5L19.5 10.5H13z" fill={color} />
-    </Svg>
-  );
+  return <PixelGlyph name="bolt" color={color} size={22} />;
 }
 
 function ChevronRight({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
-      <Path d="M9 6l6 6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </Svg>
-  );
+  return <PixelGlyph name="chevron_right" color={color} size={20} />;
 }
 
 type TierKey = "free" | "plus" | "pro";

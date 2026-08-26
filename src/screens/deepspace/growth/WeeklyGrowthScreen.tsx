@@ -7,11 +7,13 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
-import Svg, { Circle, Polyline, Text as SvgText } from "react-native-svg";
+import Svg, { Rect, Text as SvgText } from "react-native-svg";
+import { ringCells, stepPolyline } from "@/components/pixel/pixel-line";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
 import { MetaChip, OpsFrame, OpsState } from "@/components/deepspace/ops";
@@ -25,6 +27,19 @@ import { getSevenStar, type SevenStarId } from "@/lib/persona/seven-stars";
 import type { OpsDomainId } from "@/lib/ops/domains";
 
 // Dipper layout (design coords, viewBox 272x188), star index 1..7 → position.
+/** 그래프 선·링을 놓는 셀 크기. 원래 굵기가 1~1.2 라 2가 가장 가깝다. */
+const GROWTH_CELL = 2;
+
+/**
+ * 원래 `opacity` 로 만들던 색들 — 미리 합성해 둔다(PIXEL-CLAY 규칙 4).
+ * 바닥은 이 그래프가 앉은 카드 배경이다.
+ */
+const GROWTH_GROUND = deepSpace.bgMid;
+const GROWTH_LAST_FILL = flattenAlpha(deepSpace.accentDim, 0.4, GROWTH_GROUND);
+const GROWTH_FIRST_FILL = GROWTH_LAST_FILL;
+const GROWTH_HERO_HALO = flattenAlpha(deepSpace.soul, 0.16, GROWTH_GROUND);
+const GROWTH_HERO_MID = flattenAlpha(deepSpace.soul, 0.3, GROWTH_GROUND);
+
 const POS: ReadonlyArray<[number, number]> = [
   [44, 150],
   [84, 128],
@@ -157,12 +172,10 @@ export function WeeklyGrowthScreen() {
 
         <View style={styles.svgWrap}>
           <Svg viewBox="0 0 272 188" width="100%" height="100%">
-            <Polyline
-              points={POS.map((p) => p.join(",")).join(" ")}
-              fill="none"
-              stroke={deepSpace.cardLineStrong}
-              strokeWidth={1.2}
-            />
+            {/* 별을 잇는 선 — `<Polyline>` 이었다. 같은 점을 셀 계단으로(규칙 1). */}
+            {stepPolyline(POS, GROWTH_CELL).map((p, i) => (
+              <Rect key={`ln${i}`} x={p.x} y={p.y} width={GROWTH_CELL} height={GROWTH_CELL} fill={deepSpace.cardLineStrong} />
+            ))}
             {g.stars.map((s, i) => {
               const [cx, cy] = POS[i] ?? [0, 0];
               const isHero = s.id === hero.id;
@@ -170,12 +183,14 @@ export function WeeklyGrowthScreen() {
               const r = isHero ? 4.5 : 2.5 + s.after * 0.5;
               return (
                 <React.Fragment key={s.id}>
-                  {/* last week = hollow */}
-                  <Circle cx={cx} cy={cy} r={isHero ? 5 : 4} fill="none" stroke={deepSpace.accentDim} strokeWidth={1} opacity={0.4} />
-                  {/* this week = filled */}
-                  {isHero ? <Circle cx={cx} cy={cy} r={13} fill={deepSpace.soul} opacity={0.16} /> : null}
-                  {isHero ? <Circle cx={cx} cy={cy} r={8} fill={deepSpace.soul} opacity={0.3} /> : null}
-                  <Circle cx={cx} cy={cy} r={r} fill={color} />
+                  {/* 지난주 = 빈 사각 링 · 이번주 = 채운 별. 원을 셀로 근사하지
+                      않는다(규칙 1). 발광은 미리 합성한 색 층이다(규칙 4). */}
+                  {ringCells(cx, cy, isHero ? 5 : 4, 2).map((p, i) => (
+                    <Rect key={`h${i}`} x={p.x} y={p.y} width={2} height={2} fill={GROWTH_LAST_FILL} />
+                  ))}
+                  {isHero ? <PixelStarSvg cx={cx} cy={cy} r={13} fill={GROWTH_HERO_HALO} /> : null}
+                  {isHero ? <PixelStarSvg cx={cx} cy={cy} r={8} fill={GROWTH_HERO_MID} /> : null}
+                  <PixelStarSvg cx={cx} cy={cy} r={r} fill={color} />
                   {isHero && s.delta > 0 ? (
                     <SvgText x={cx + 16} y={cy - 6} fill={deepSpace.mint} fontSize={9}>{`+${s.delta}`}</SvgText>
                   ) : null}
@@ -249,10 +264,14 @@ export function WeeklyGrowthScreen() {
     return (
       <View style={styles.firstWeek}>
         <Svg viewBox="0 0 272 188" width="100%" height={150}>
-          <Polyline points={POS.map((p) => p.join(",")).join(" ")} fill="none" stroke={deepSpace.cardLine} strokeWidth={1.2} />
-          {POS.map(([cx, cy], i) => (
-            <Circle key={i} cx={cx} cy={cy} r={4} fill="none" stroke={deepSpace.accentDim} strokeWidth={1} opacity={0.4} />
+          {stepPolyline(POS, GROWTH_CELL).map((p, i) => (
+            <Rect key={`fl${i}`} x={p.x} y={p.y} width={GROWTH_CELL} height={GROWTH_CELL} fill={deepSpace.cardLine} />
           ))}
+          {POS.map(([cx, cy], i) =>
+            ringCells(cx, cy, 4, 2).map((p, j) => (
+              <Rect key={`fr${i}-${j}`} x={p.x} y={p.y} width={2} height={2} fill={GROWTH_FIRST_FILL} />
+            )),
+          )}
         </Svg>
         <Text variant="heading" style={styles.firstTitle}>{t("ds.growth.firstTitle")}</Text>
         <Text variant="body" style={styles.firstBody}>{t("ds.growth.firstBody")}</Text>

@@ -21,10 +21,21 @@
 import { Fragment } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { PixelStarSvg } from "@/components/pixel/PixelStarSvg";
+
+/**
+ * 공유 카드의 별 색 — 발광은 `RadialGradient` 였다. 픽셀에서 발광은
+ * **한 겹 큰 별을 어두운 색으로** 깔아 만든다(규칙 1·4).
+ * 바닥은 카드 배경이다.
+ */
+const SHARE_GROUND = m3.accent.shareBgTop;
+const SHARE_LIT_HALO = flattenAlpha(m3.accent.shareStarOn, 0.3, SHARE_GROUND);
+const SHARE_POLARIS_HALO = flattenAlpha(m3.accent.polarisSoft, 0.35, SHARE_GROUND);
+const SHARE_STAR_OFF = flattenAlpha(m3.accent.shareEyebrow, 0.4, SHARE_GROUND);
 import { fontFamilies } from "@/theme/typography";
 
 const headFront = require("../../../assets/deepspace/secondb-head-front.png");
@@ -136,18 +147,20 @@ export function ShareCard({ variant, insight, pieceCount, litCount = 4, size = B
                 const cy = (s.y / 100) * 220;
                 return (
                   <Fragment key={`s${i}`}>
-                    {on ? <Circle cx={cx} cy={cy} r={14} fill="url(#share-lit)" /> : null}
-                    <Circle
+                    {/* 별은 원이 아니라 4방향 rect 별이다(규칙 1). 켜진 별의
+                        발광은 그라디언트가 아니라 **한 겹 큰 별**이다. */}
+                    {on ? <PixelStarSvg cx={cx} cy={cy} r={14} fill={SHARE_LIT_HALO} /> : null}
+                    <PixelStarSvg
                       cx={cx}
                       cy={cy}
                       r={on ? 5.5 : 3}
-                      fill={on ? m3.accent.shareStarOn : withAlpha(m3.accent.shareEyebrow, 0.4)}
+                      fill={on ? m3.accent.shareStarOn : SHARE_STAR_OFF}
                     />
                   </Fragment>
                 );
               })}
-              <Circle cx={165} cy={110} r={20} fill="url(#share-polaris)" />
-              <Circle cx={165} cy={110} r={8} fill={m3.accent.shareInk} />
+              <PixelStarSvg cx={165} cy={110} r={20} fill={SHARE_POLARIS_HALO} />
+              <PixelStarSvg cx={165} cy={110} r={8} fill={m3.accent.shareInk} />
             </Svg>
           </View>
           <View style={{ marginTop: 6 * k, alignItems: "center" }}>

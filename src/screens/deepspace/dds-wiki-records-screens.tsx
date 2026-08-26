@@ -5,7 +5,9 @@ import { useTranslation } from "react-i18next";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 import { colors, spacing } from "@/theme/tokens";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
 import { reactExpression } from "@/lib/companion/expression";
 import {
@@ -43,6 +45,16 @@ import { buildDeepWikiView, recencyLabel, type RecencyLabels, type WikiEdge } fr
 import { buildRecordsTimeline, relatedByTag, type TimelineLabels, type TimelineRecord } from "./records-timeline";
 import { relatedRecordsByEmbedding, recordsEmbeddingAllowed } from "@/lib/records/records-embeddings";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `deepSpace.card` — 위키·기록 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const wrAlpha = (c: string, a: number): string => flattenAlpha(c, a, deepSpace.card);
 
 type Tx = (key: string, options?: Record<string, unknown>) => string;
 function dsTimeLabels(t: Tx): TimelineLabels {
@@ -147,12 +159,9 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
   return <View style={chipStyle}>{inner}</View>;
 }
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 function TrashGlyph() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
-      <Path d="M4 7h16M10 7V5h4v2M7 7l1 13h8l1-13M10 11v6M14 11v6" stroke={colors.clay} strokeWidth={1.7} fill="none" strokeLinecap="round" />
-    </Svg>
-  );
+  return <PixelGlyph name="trash" color={colors.clay} size={16} />;
 }
 
 // rev2 위키(records) — display type derived from a record's kind/tags/body so the
@@ -208,44 +217,22 @@ function recordRouteParamsById(id: string, records: readonly RecordsTimelineReco
 
 // Static Material-symbol-style glyphs (inline SVG, no animation) — Android-safe
 // per ANDROID_QA_GUIDELINES (no rAF, no dynamic SVG churn).
+/**
+ * 기록 종류별 아이콘. 다섯 종류가 각각 인라인 곡선이었다.
+ *
+ * 문자열 레지스트리가 아니라 JSX 였던 탓에 레지스트리 스캔에 안 잡혔고,
+ * **화면 DOM 을 세고 나서야** 드러났다.
+ */
+const TYPE_GLYPH: Record<string, string> = {
+  text: "edit_note",
+  link: "link",
+  voice: "mic",
+  photo: "photo_camera",
+  todo: "task_alt",
+};
+
 function TypeGlyph({ type }: { type: RType }) {
-  const s = colors.cyanSoft;
-  const p = { stroke: s, strokeWidth: 1.7, fill: "none" as const, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  return (
-    <Svg width={19} height={19} viewBox="0 0 24 24">
-      {type === "text" && (
-        <>
-          <Path {...p} d="M4 6.5h11M4 11h11M4 15.5h7" />
-          <Path {...p} d="M15.4 15.6l3.1-3.1a1.4 1.4 0 0 1 2 2l-3.1 3.1-2.7.7z" />
-        </>
-      )}
-      {type === "link" && (
-        <>
-          <Path {...p} d="M9.2 14.8l5.6-5.6" />
-          <Path {...p} d="M8.6 10.6l-2 2a3 3 0 0 0 4.2 4.2l2-2" />
-          <Path {...p} d="M15.4 13.4l2-2a3 3 0 0 0-4.2-4.2l-2 2" />
-        </>
-      )}
-      {type === "voice" && (
-        <>
-          <Rect {...p} x={9.5} y={3.5} width={5} height={9.5} rx={2.5} />
-          <Path {...p} d="M6.5 11a5.5 5.5 0 0 0 11 0M12 16.5V20M9.2 20h5.6" />
-        </>
-      )}
-      {type === "photo" && (
-        <>
-          <Path {...p} d="M4 8.5h3l1.4-2h7.2L18 8.5h2a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z" />
-          <Circle {...p} cx={12} cy={13.5} r={3} />
-        </>
-      )}
-      {type === "todo" && (
-        <>
-          <Circle {...p} cx={12} cy={12} r={8} />
-          <Path {...p} d="M8.4 12.2l2.5 2.5 4.6-5" />
-        </>
-      )}
-    </Svg>
-  );
+  return <PixelGlyph name={canonGlyph(TYPE_GLYPH[type] ?? "article")} color={colors.cyanSoft} size={19} />;
 }
 
 const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }: { r: RecordsTimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: (record: RecordsTimelineRecord) => void }) {
@@ -256,7 +243,7 @@ const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }:
   // text, so TalkBack heard only the title and never the time label, tags, or the
   // 미분류 badge. Without it, RN concatenates the children in render order.
   return (
-    <Pressable style={rStyles.card} android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r)} accessibilityRole="button">
+    <Pressable style={rStyles.card} android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }} onPress={() => onPress(r)} accessibilityRole="button">
       <View style={rStyles.iconBox}><TypeGlyph type={type} /></View>
       <View style={rStyles.body}>
         <RNText numberOfLines={1} style={rStyles.title}>{title}</RNText>
@@ -487,7 +474,7 @@ export function DeepSpaceRecordsScreen() {
       {domainWriter ? (
         <Pressable
           style={rStyles.triageCard}
-          android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+          android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }}
           onPress={() => router.push(domainWriter)}
           accessibilityRole="button"
           accessibilityLabel={t("ds.wikiRecords.fillStar")}
@@ -502,7 +489,7 @@ export function DeepSpaceRecordsScreen() {
 
       <Pressable
         style={rStyles.triageCard}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }}
         // med#5: the card counts UNFILED pieces, but it used to route to
         // /inbox (알림), which has no triage UI — the promised sorting is this
         // list's own 미분류 filter, one tap away on the same screen.
@@ -511,9 +498,7 @@ export function DeepSpaceRecordsScreen() {
         accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
       >
         <View style={rStyles.triageIcon}>
-          <Svg width={20} height={20} viewBox="0 0 24 24">
-            <Path d="M3 13h4l2 3h6l2-3h4M5 6h14l1 7v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4z" stroke={colors.soul} strokeWidth={1.7} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-          </Svg>
+          <PixelGlyph name="inbox" color={colors.soul} size={20} />
         </View>
         <View style={rStyles.triageCol}>
           <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
@@ -638,7 +623,7 @@ const rStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.soulLine,
     borderRadius: m3.shape.large,
-    backgroundColor: withAlpha(deepSpace.soul, 0.1),
+    backgroundColor: wrAlpha(deepSpace.soul, 0.1),
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
@@ -648,7 +633,7 @@ const rStyles = StyleSheet.create({
     borderRadius: m3.shape.medium,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(deepSpace.soul, 0.16),
+    backgroundColor: wrAlpha(deepSpace.soul, 0.16),
   },
   triageCol: { flex: 1, gap: 2 },
   triageTitle: { color: colors.textTitle, fontSize: 13.5, fontWeight: "700" },
@@ -1169,7 +1154,7 @@ export function DeepSpaceRecordDetailScreen() {
                 <Pressable
                   key={r.id}
                   style={rd.linkCard}
-                  android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                  android_ripple={{ color: wrAlpha(m3.color.tertiary, 0.12) }}
                   onPress={() => router.push({ pathname: "/record/[id]", params: { id: r.id } })}
                   accessibilityRole="button"
                   accessibilityLabel={recordTitle(r as DetailRecord, t("recordDetail.kindFallback"))}

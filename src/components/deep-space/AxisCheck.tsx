@@ -23,7 +23,8 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { router } from "expo-router";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph, type AnyGlyphName } from "@/components/pixel/pixel-glyphs";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
@@ -38,29 +39,19 @@ import { STRENGTH_ROW_KEY, type StrengthId } from "@/lib/persona/strengths-surve
 import { MOTIVATION_ROW_KEY, type MotivationNeedKey } from "@/lib/persona/motivation-survey";
 
 // Material-symbol stroke idiom (2dp currentColor, round caps), matching the
-// shell's CaptureIcon set. Only the glyphs the strengths lens needs are kept
-// local so the shared icon set stays lean.
-const ICON: Record<string, string> = {
-  lightbulb:
-    '<path d="M9.2 18h5.6M10 21h4M8.4 14.6A5.6 5.6 0 1 1 17 10a5.4 5.4 0 0 1-1.6 3.9c-.6.6-.9 1-.9 1.7v.4h-5v-.4c0-.7-.3-1.1-.9-1.7Z"/>',
-  trending_up: '<path d="M4 16 10 10l3.5 3.5L20 7"/><path d="M15.5 7H20v4.5"/>',
-  task_alt: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
-  forum: '<path d="M3 5.5h11v7H8l-3.5 3z"/><path d="M8.5 13v1.4a2 2 0 0 0 2 2h5.7l3.3 2.6v-7.6a2 2 0 0 0-2-2H16"/>',
-  auto_awesome:
-    '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
-};
-
-function LensIcon({ name, color, size = 20 }: { name: keyof typeof ICON; color: string; size?: number }) {
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-    `${ICON[name]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열둘 번째).
+//
+// ⚠ 파일 주석이 스스로 "공유 아이콘 세트를 가볍게 두려고 여기 따로 둔다" 고
+// 적고 있었다. 다섯 중 다섯이 전부 다른 레지스트리에도 있는 아이콘이었으니,
+// 가벼워진 것은 없고 벌 수만 늘었다.
+function LensIcon({ name, color, size = 20 }: { name: string; color: string; size?: number }) {
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 // Sibling-check action pair (reference bottom buttons): a tonal primary + an
 // outlined secondary. Routes are the real app screens.
-const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: keyof typeof ICON; secondaryRoute: string }> = {
+const ACTIONS: Record<AxisCheckId, { primaryRoute: string; primaryIcon: AnyGlyphName; secondaryRoute: string }> = {
   values: { primaryRoute: "/interview", primaryIcon: "forum", secondaryRoute: "/big-five" },
   motivation: { primaryRoute: "/strengths", primaryIcon: "auto_awesome", secondaryRoute: "/big-five" },
   strengths: { primaryRoute: "/secondb", primaryIcon: "forum", secondaryRoute: "/motivation" },

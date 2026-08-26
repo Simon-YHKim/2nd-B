@@ -195,9 +195,28 @@ describe("constellation home <-> canon parity", () => {
   });
 
   it("actually renders that guide path (not just computes it)", () => {
-    // Cheap but load-bearing: if someone deletes the <Path> the coordinates
+    // Cheap but load-bearing: if someone deletes the drawing the coordinates
     // above would still line up while nothing reached the screen.
-    expect(SRC).toContain("pathOf(GUIDE)");
-    expect(SRC).toMatch(/pathOf\(GUIDE\)\}\s*L\$\{px\(POLARIS\.x\)\},\$\{py\(POLARIS\.y\)\}/);
+    //
+    // ⚠ 이 검사는 원래 `pathOf(GUIDE)}L${px(POLARIS.x)}…` 라는 **JSX 표현식을
+    //   글자 그대로** 박고 있었다. PIXEL-CLAY 규칙 1 이주로 선이 `<Path>` 에서
+    //   정수 `<Rect>` 셀로 바뀌자 깨졌다 — 검사가 붙들던 것이 "그려진다"가
+    //   아니라 "그 문법으로 그려진다"였다는 뜻이다.
+    //
+    //   지금 붙드는 것: GUIDE 와 POLARIS 좌표가 **셀을 만드는 호출에 들어가고**,
+    //   그 셀이 화면 원소로 나간다. 문법이 또 바뀌어도 뜻은 안 바뀐다.
+    const call = /cellsOf\(\s*\[\.\.\.GUIDE\]\s*,\s*false\s*,\s*\[px\(POLARIS\.x\), py\(POLARIS\.y\)\]\s*\)/;
+    expect(SRC).toMatch(call);
+    // 그 결과가 실제로 렌더된다 — 계산만 하고 버리면 화면에는 아무것도 없다.
+    expect(SRC).toMatch(/GUIDE_LINK_FILL/);
+    expect(SRC).toMatch(/fill=\{GUIDE_LINK_FILL\}/);
+  });
+
+  it("draws the dipper outline too — bowl과 handle이 화면에 나간다", () => {
+    // 위 두 검사는 좌표가 캐논과 같은지만 본다. 그 좌표로 만든 셀이 렌더에
+    // 닿는지는 별개다(가이드선과 같은 이유로 따로 확인한다).
+    expect(SRC).toMatch(/cellsOf\(BOWL, true\)/);
+    expect(SRC).toMatch(/cellsOf\(HANDLE\)/);
+    expect(SRC).toMatch(/fill=\{DIPPER_LINK_FILL\}/);
   });
 });

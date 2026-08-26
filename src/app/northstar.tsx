@@ -12,7 +12,9 @@ import { reactExpression } from "@/lib/companion/expression";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
-import Svg, { Defs, RadialGradient, Rect, Stop, SvgXml } from "react-native-svg";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -33,22 +35,11 @@ import { remainingReasoning } from "@/lib/entitlements/reasoning-cap";
 import { getReasoningUsage, incrementReasoningUsage } from "@/lib/entitlements/usage";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 
-// Minimal Material-Symbols-style glyphs the editor needs, rendered as inline SVG
-// (same technique as AxisCheck's LensIcon). Stroke-only, colored via `color`.
-const ICON: Record<string, string> = {
-  check_circle: '<circle cx="12" cy="12" r="8.4"/><path d="m8.4 12 2.5 2.6 4.7-5.2"/>',
-  auto_awesome:
-    '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
-  replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v3.6h3.6"/>',
-  check: '<path d="M5 12.5 10 17.5 19 7"/>',
-};
 
-function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: string; size?: number }) {
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-    `${ICON[name]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열 번째).
+function Glyph({ name, color, size = 20 }: { name: string; color: string; size?: number }) {
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 export default function NorthstarSentence() {

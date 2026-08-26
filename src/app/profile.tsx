@@ -5,7 +5,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, type Href } from "expo-router";
-import Svg, { Circle, Path } from "react-native-svg";
 
 import { PremiumAppShell, PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
@@ -17,6 +16,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { useProgression } from "@/lib/progression/useProgression";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 
 interface HubRoute {
@@ -72,76 +73,30 @@ function Frame({ children }: { children: ReactNode }) {
 // M3 back arrow (same path as MdTopAppBar) — 딥스페이스 profile 은 위 Frame 의
 // 독으로 탭 이동은 되지만 상단 앱바가 없다. 이 컨트롤이 유일한 '뒤로'다.
 function BackGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" accessibilityElementsHidden>
-      <Path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z" fill={color} />
-    </Svg>
-  );
+  return <PixelGlyph name="arrow_back" color={color} size={22} />;
 }
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 여기 있던 여섯 개는 인라인 JSX 곡선이었다(문자열 레지스트리가 아니라서
+// 레지스트리 스캔에도 안 잡혔다). DOM 실측이 화면에서 잡아냈다.
 function SettingsGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={22} height={22} viewBox="0 0 22 22" accessibilityElementsHidden>
-      <Circle cx="11" cy="11" r="3" stroke={color} strokeWidth={1.8} fill="none" />
-      <Path
-        d="M11 3 L11 5 M11 17 L11 19 M3 11 L5 11 M17 11 L19 11 M5.4 5.4 L6.8 6.8 M15.2 15.2 L16.6 16.6 M16.6 5.4 L15.2 6.8 M6.8 15.2 L5.4 16.6"
-        stroke={color}
-        strokeWidth={1.8}
-        strokeLinecap="square"
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="settings" color={color} size={22} />;
 }
 
 function PlanGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={34} height={34} viewBox="0 0 34 34" accessibilityElementsHidden>
-      <Path d="M8 8 L26 8 L26 26 L8 26 Z" stroke={color} strokeWidth={2} fill="none" />
-      <Path d="M12 17 L16 21 L23 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
-    </Svg>
-  );
+  return <PixelGlyph name="task_alt" color={color} size={34} />;
 }
 
+/** 허브 항목별 아이콘. 모르는 키는 일반 표시로 떨어진다. */
+const HUB_GLYPH: Record<string, string> = {
+  coreBrain: "target",
+  esm: "check",
+  persona: "person",
+  insights: "trending_up",
+};
+
 function HubGlyph({ itemKey, color }: { itemKey: string; color: string }) {
-  switch (itemKey) {
-    case "coreBrain":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Circle cx="12" cy="12" r="7" stroke={color} strokeWidth={2} fill="none" />
-          <Circle cx="12" cy="12" r="2" fill={color} />
-          <Path d="M12 5 L12 2 M12 22 L12 19 M5 12 L2 12 M22 12 L19 12" stroke={color} strokeWidth={2} strokeLinecap="square" />
-        </Svg>
-      );
-    case "esm":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M5 12 L9 16 L19 7" stroke={color} strokeWidth={2.4} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
-          <Path d="M5 19 L19 19" stroke={color} strokeWidth={2} strokeLinecap="square" />
-        </Svg>
-      );
-    case "persona":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M5 21 C6.5 16.5 9 15 12 15 C15 15 17.5 16.5 19 21" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
-        </Svg>
-      );
-    case "insights":
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M5 18 L9 13 L13 15 L19 6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" strokeLinejoin="miter" />
-          <Path d="M5 21 L19 21" stroke={color} strokeWidth={2} strokeLinecap="square" />
-          <Circle cx="19" cy="6" r="2" fill={color} />
-        </Svg>
-      );
-    default:
-      return (
-        <Svg width={24} height={24} viewBox="0 0 24 24" accessibilityElementsHidden>
-          <Path d="M4 7 L20 7 L20 19 L4 19 Z" stroke={color} strokeWidth={2} fill="none" />
-          <Path d="M4 13 L9 13 L11 16 L13 16 L15 13 L20 13" stroke={color} strokeWidth={2} fill="none" strokeLinecap="square" />
-        </Svg>
-      );
-  }
+  return <PixelGlyph name={canonGlyph(HUB_GLYPH[itemKey] ?? "inbox")} color={color} size={24} />;
 }
 
 export default function Profile() {
