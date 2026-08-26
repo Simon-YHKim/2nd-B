@@ -41,6 +41,7 @@ import { DeepSpaceShell } from "@/components/deep-space/DeepSpaceShell";
 import { DeepSpaceLinks } from "@/components/deep-space/DeepSpaceLinks";
 import { NavGraph, type DataNode } from "@/components/graph/NavGraph";
 import { SecondBSprite } from "@/components/art/SecondBSprite";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import { IslandArt } from "@/components/art/IslandArt";
 import { useOnboardingComplete } from "@/lib/onboarding/state";
 import { useCoreHintDismissed } from "@/lib/onboarding/core-hint";
@@ -560,6 +561,11 @@ export function GraphScreen() {
           style={[styles.emptyGraphBackdrop, { opacity: contentOpacity, paddingBottom: Math.max(88, insets.bottom + 64) }]}
           pointerEvents="auto"
         >
+          {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로
+              가린다(PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <PixelScrim />
+          </View>
           <View style={styles.emptyGraphCard}>
             <View style={styles.emptyGraphIntro}>
               <View
@@ -855,7 +861,6 @@ const styles = StyleSheet.create({
   emptyGraphBackdrop: {
     ...(StyleSheet.absoluteFill as object),
     zIndex: 100,
-    backgroundColor: semantic.backdrop,
     alignItems: "center",
     justifyContent: "flex-end",
     paddingBottom: 88,

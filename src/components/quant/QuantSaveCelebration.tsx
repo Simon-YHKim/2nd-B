@@ -6,6 +6,7 @@
 
 import { useEffect, useRef } from "react";
 import { Modal, View, StyleSheet } from "react-native";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 
 import { Text } from "@/components/ui/Text";
 import { CompanionMoment } from "@/components/art/CompanionSprite";
@@ -36,6 +37,11 @@ export function QuantSaveCelebration({ message, onDone }: { message: string; onD
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onDone}>
       <View style={styles.scrim} accessibilityRole="alert" accessibilityLabel={message}>
+      {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로 가린다
+          (PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <PixelScrim />
+      </View>
         <CompanionMoment moment={MOMENT} />
         <Text variant="body" color="text" style={styles.message}>
           {message}
@@ -48,7 +54,6 @@ export function QuantSaveCelebration({ message, onDone }: { message: string; onD
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
-    backgroundColor: semantic.backdropStrong,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,

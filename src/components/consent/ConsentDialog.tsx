@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { Modal, View, StyleSheet, Pressable, Switch } from "react-native";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import { useTranslation } from "react-i18next";
 import { radii, semantic, spacing } from "@/lib/theme/tokens";
 import { Text } from "@/components/ui/Text";
@@ -42,6 +43,11 @@ export function ConsentDialog({ visible, onSubmit, onDecline }: ConsentDialogPro
         accessibilityRole="button"
         accessibilityLabel={t("testimonial.decline")}
       >
+        {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로
+            가린다(PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <PixelScrim />
+        </View>
         <Pressable
           style={styles.card}
           onPress={(e) => e.stopPropagation()}
@@ -84,7 +90,6 @@ export function ConsentDialog({ visible, onSubmit, onDecline }: ConsentDialogPro
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: semantic.backdrop,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,

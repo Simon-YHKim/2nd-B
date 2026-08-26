@@ -33,6 +33,7 @@ import { cosmic, deepSpace, deepSpaceSpacing, flattenAlpha, semantic, spacing } 
 import { fontFamilies } from "@/theme/typography";
 import { isDeepSpaceUI } from "@/lib/ui-mode";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelScrim } from "@/components/pixel/PixelDither";
 import { canShowRewardedAds } from "@/lib/ads/policy";
 import { canCompleteRewardedWatch } from "@/lib/ads/rewarded";
 import { fetchPrivacyPrefs } from "@/lib/supabase/privacy";
@@ -1727,6 +1728,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           accessibilityLabel={t("closeIntro")}
           accessibilityHint={t("closeIntroHint")}
         >
+          {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로
+              가린다(PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <PixelScrim />
+          </View>
           <Pressable
             style={styles.modalCard}
             onPress={(e) => e.stopPropagation()}
@@ -1779,6 +1785,11 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
           accessibilityLabel={t("closeReferenced")}
           accessibilityHint={t("closeReferencedHint")}
         >
+          {/* 모달 스크림은 디더다 — 바탕을 모르는 자리라 평탄화가 아니라 격자로
+              가린다(PIXEL-CLAY 규칙 4). 반투명이 한 픽셀도 없다. */}
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <PixelScrim />
+          </View>
           <Pressable
             style={styles.drawer}
             onPress={(e) => e.stopPropagation()}
@@ -1944,7 +1955,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: semantic.backdrop,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
