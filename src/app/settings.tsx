@@ -24,7 +24,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { useTranslation } from "react-i18next";
 import { Redirect, router } from "expo-router";
 
@@ -142,38 +143,20 @@ const SETTINGS_SURFACE_COPY: Record<
   },
 };
 
-// ── M3 toggle-card kit (rev2 clone) ─────────────────────────────────────────
-// Icons: 1:1 stroke idiom from reference-app sb-data.jsx ICON_SVG (currentColor
-// stroke 2dp; 1.4dp + fill when `fill`).
-const ICON_PATHS: Record<string, string> = {
-  bedtime: '<path d="M20 14.2A8 8 0 1 1 10.2 4.4 6.8 6.8 0 0 0 20 14.2Z"/>',
-  auto_awesome:
-    '<path d="M11 3c.4 3.2 2.3 5.1 5.5 5.5-3.2.4-5.1 2.3-5.5 5.5-.4-3.2-2.3-5.1-5.5-5.5C8.7 8.1 10.6 6.2 11 3Z"/><path d="M18 13c.2 1.5 1 2.3 2.5 2.5-1.5.2-2.3 1-2.5 2.5-.2-1.5-1-2.3-2.5-2.5 1.5-.2 2.3-1 2.5-2.5Z"/>',
-  bubble_chart: '<circle cx="9" cy="10" r="4"/><circle cx="17" cy="8" r="2.3"/><circle cx="16.4" cy="15.6" r="3"/>',
-  lock: '<rect x="5" y="10.5" width="14" height="9.5" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
-  badge:
-    '<rect x="3" y="6" width="18" height="13" rx="2.2"/><path d="M9.5 4h5v2.8h-5z"/><circle cx="9" cy="12.5" r="1.8"/><path d="M14 11.5h4M14 14.5h4M6.2 16.3h6.5"/>',
-  mic: '<rect x="9.4" y="3.5" width="5.2" height="11" rx="2.6"/><path d="M6 11.2a6 6 0 0 0 12 0M12 17.2V20.5"/>',
-  forum: '<path d="M3 5h12v8H7l-4 3.2z"/><path d="M8 13.2V15h9l3 2.4V9.5h-2.5"/>',
-  auto_stories:
-    '<path d="M12 6.2C9.8 4.8 6.8 4.4 4 5v12.5c2.8-.6 5.8-.2 8 1.2 2.2-1.4 5.2-1.8 8-1.2V5c-2.8-.6-5.8-.2-8 1.2Z"/><path d="M12 6.2v12.5"/>',
-  check: '<path d="M5 12.5 10 17 19 7"/>',
-  chevron_right: '<path d="m9 18 6-6-6-6"/>',
-  sync_alt: '<path d="m8 3-4 4 4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
-  upload_file: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
-  campaign: '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
-  bolt: '<path d="m13 2-8 12h6l-1 8 9-13h-6z"/>',
-  // Same 2dp stroke idiom: card outline + magnetic stripe, for 구독 관리.
-  credit_card: '<rect x="3" y="5.5" width="18" height="13" rx="2.2"/><path d="M3 10h18"/><path d="M6.5 14.5h4"/>',
-};
-
-function M3Icon({ name, color, size = 20, fill = false }: { name: string; color: string; size?: number; fill?: boolean }) {
-  const inner = ICON_PATHS[name] ?? ICON_PATHS.auto_awesome;
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="${fill ? "currentColor" : "none"}" stroke="currentColor" stroke-width="${fill ? 1.4 : 2}" ` +
-    `stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+// ── M3 toggle-card kit (rev2 clone) ───────────────────────────────────────
+//
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 이 자리에 `ICON_PATHS` 라는 열다섯 개짜리 문자열 SVG 레지스트리가 있었다.
+// 저장소에서 **다섯 번째**였고, 열다섯 중 열셋이 다른 레지스트리와 같은 아이콘을
+// 각자 다른 곡선으로 그리고 있었다(같은 `bedtime` 이 네 벌 있었다).
+//
+// `name` 을 좁은 union 으로 두지 않는 이유: 이 화면은 설정 행 정의에서 이름을
+// 받아 오고 그중 일부는 캐논에서 온다. 모르는 이름이 오면 예외 대신 눈에 보이는
+// 대체 표시로 떨어지는 편이 낫다 — `canonGlyph()` 가 그 판단을 한 곳에서 한다.
+function M3Icon({ name, color, size = 20 }: { name: string; color: string; size?: number; fill?: boolean }) {
+  // `fill` 은 받기만 하고 아무 일도 하지 않는다. 전에는 채움/선을 갈랐지만 rect
+  // 글리프는 언제나 채워져 있어 그 구분이 없어졌다(강조는 색이 한다).
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 // M3 Switch (1:1 from reference-app MdSwitch): 52×32 track, 2dp border, thumb

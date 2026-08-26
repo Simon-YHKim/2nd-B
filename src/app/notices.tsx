@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
@@ -365,19 +366,6 @@ export function useNoticeCenter(userId: string | null) {
   };
 }
 
-const ICON_PATH: Record<NoticeKind, string> = {
-  patch:
-    '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
-  developer:
-    '<path d="M4 19.5h5L19.5 9 15 4.5 4.5 15z"/><path d="m13.5 6 4.5 4.5M4 19.5l4.5-1-3.5-3.5z"/>',
-  maintenance:
-    '<path d="M14.7 6.3a4.2 4.2 0 0 0-5.5 5.5L3.5 17.5l3 3 5.7-5.7a4.2 4.2 0 0 0 5.5-5.5l-2.4 2.4-3-3z"/>',
-  // Operator-published kinds. major = the megaphone that is allowed to
-  // interrupt; minor = a quiet info mark that only ever sits in the list.
-  major:
-    '<path d="M4 6.5h3l8-3v17l-8-3H4z"/><path d="M7 17.5 8.5 21h3L10 18"/><path d="M18 8v8"/>',
-  minor: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/>',
-};
 
 function kindColor(kind: NoticeKind): string {
   if (kind === "developer") return m3.color.tertiary;
@@ -393,13 +381,13 @@ function noticeText(text: LocalizedNoticeText, ko: boolean): string {
   return ko ? text.ko : text.en;
 }
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 여덟 번째).
+//
+// ⚠ `patch` 와 `major` 는 **글자까지 같은 곡선**이었다 — 확성기 하나를 두 이름으로
+// 들고 있었던 셈이다. 정본에서는 별칭 둘이 같은 그림을 가리킨다.
 function NoticeGlyph({ kind, size = 22 }: { kind: NoticeKind; size?: number }) {
-  const color = kindColor(kind);
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">` +
-    `${ICON_PATH[kind]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+  return <PixelGlyph name={canonGlyph(kind)} color={kindColor(kind)} size={size} />;
 }
 
 export function NoticeDialog({

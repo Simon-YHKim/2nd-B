@@ -16,7 +16,8 @@ import { Animated, PanResponder, Pressable, ScrollView, StyleSheet, View, type N
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import Svg, { Line, Path } from "react-native-svg";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
@@ -40,28 +41,17 @@ import {
 } from "./museum-timeline-data";
 
 // Material-Symbols glyphs the detail sheet needs (prototype refIcon set +
-// south/north_east for 배경/영향 + open_in_new trailing mark), redrawn in the
-// app's inline-SVG idiom (2dp currentColor strokes, round caps) — same pattern
-// as DeepSpaceViews' CAPTURE_ICON_INNER. `link` is the prototype fallback for
-// unknown ref kinds.
-const MUSEUM_GLYPH_INNER: Record<string, string> = {
-  article: '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/>',
-  devices: '<path d="M4.5 17.5v-9A1.8 1.8 0 0 1 6.3 6.7H17.5"/><path d="M2.5 17.5H13"/><rect x="15.5" y="9.5" width="6" height="10.5" rx="1.6"/>',
-  event: '<rect x="4" y="5.5" width="16" height="15" rx="2.2"/><path d="M4 10h16M8 3.5v4M16 3.5v4"/><circle cx="14.8" cy="15.2" r="1.7"/>',
-  movie: '<rect x="3" y="5.5" width="18" height="13.5" rx="2"/><path d="m4.5 5.5 2.4 4.2m2.7-4.2 2.4 4.2m2.7-4.2 2.4 4.2M3 9.7h18"/>',
-  link: '<path d="M9.8 14.2 14.2 9.8"/><path d="m11.2 7.4 1.5-1.5a3.3 3.3 0 0 1 4.7 4.7l-1.6 1.6M12.8 16.6l-1.5 1.5a3.3 3.3 0 0 1-4.7-4.7l1.6-1.6"/>',
-  south: '<path d="M12 4.5v15M6.5 14l5.5 5.5L17.5 14"/>',
-  north_east: '<path d="M7 17 17 7M9 7h8v8"/>',
-  open_in_new: '<path d="M13.5 4.5H19.5v6M19.5 4.5l-8 8"/><path d="M16.5 13.5V18a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V9A1.5 1.5 0 0 1 6 7.5h4.5"/>',
-};
-
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+//
+// 원래 이 자리에 `MUSEUM_GLYPH_INNER` 라는 여덟 개짜리 문자열 SVG 레지스트리가
+// 있었다. 저장소에서 **일곱 번째**였고, 파일 주석이 스스로 "DeepSpaceViews 의
+// CAPTURE_ICON_INNER 와 같은 방식" 이라고 적고 있었다 — 같은 방식을 복제하는 것이
+// 문제라는 것을 아무도 몰랐다는 뜻이다.
+//
+// 모르는 ref 종류는 `link` 로 떨어지던 것이 기존 동작이었다. `canonGlyph()` 는
+// 그 자리를 일반 대체 표시로 바꾸는데, "링크"라고 단정하지 않는 편이 더 정직하다.
 function MuseumGlyph({ name, color, size = 17 }: { name: string; color: string; size?: number }) {
-  const inner = MUSEUM_GLYPH_INNER[name] ?? MUSEUM_GLYPH_INNER.link;
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-    `${inner}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 // KO copy sourced from the design canon (src/lib/canon → public/proto/data)

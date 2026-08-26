@@ -3,7 +3,8 @@ import { Animated, FlatList, Pressable, StyleSheet, Text as RNText, View } from 
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
@@ -617,29 +618,19 @@ export function enqueueAutoReasoningSource(args: {
   });
 }
 
-const ICONS = {
-  notes: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
-  link: '<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/>',
-  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/>',
-  task: '<path d="M5 4h14v16H5z"/><path d="m8 12 2.2 2.2L16 8.5"/>',
-  bolt: '<path d="m13 2-8 12h6l-1 8 9-13h-6z"/>',
-  check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
-};
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 아홉 번째).
 function Glyph({
   name,
   color = m3.color.onSurfaceVariant,
   size = 20,
 }: {
-  name: keyof typeof ICONS;
+  name: string;
   color?: string;
   size?: number;
 }) {
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">` +
-    `${ICONS[name]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 function relativeTime(iso: string, ko: boolean): string {

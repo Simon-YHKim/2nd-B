@@ -35,7 +35,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { SvgXml } from "react-native-svg";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { useTranslation } from "react-i18next";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 
@@ -75,17 +76,10 @@ import {
 } from "@/lib/interview/probe";
 import { LOOP_CHECK_KEYS, type ReflectionEntry } from "@/lib/interview/loop-check";
 
-const ICON: Record<string, string> = {
-  check: '<path d="M20 6L9 17l-5-5"/>',
-  send: '<path d="M4 12h15"/><path d="M13 6l6 6-6 6"/>',
-};
-
-function Glyph({ name, color, size = 20 }: { name: keyof typeof ICON; color: string; size?: number }) {
-  const xml =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-    `${ICON[name]}</svg>`;
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
+// 원래 이 자리에 문자열 SVG 레지스트리가 있었다(저장소에서 열하나 번째).
+function Glyph({ name, color, size = 20 }: { name: string; color: string; size?: number }) {
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
 
 // 한 세션의 턴 상한. 드릴은 원래 "축이 목표 등급에 닿을 때까지"인데
