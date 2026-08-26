@@ -8,7 +8,9 @@
  * radial washes + a static port of its neural field over the shared SbStarfield.
  *
  * Star brightness stays live (starLevels/northStarBrightness from
- * loadDomainLevels); the opacity curve is the prototype's 0.36 + L/5×0.64.
+ * loadDomainLevels). 밝기는 **알파가 아니라 색과 디더 밀도**로 난다
+ * (PIXEL-CLAY 규칙 4 · Simon 결정 2026-08-27). 프로토타입의 곱셈
+ * 0.36 + L/5×0.64 는 m3.starLadder 안에 미리 합성돼 있다.
  */
 import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,13 +32,17 @@ import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useTaskStatus } from "@/lib/tasks/store";
 import { flattenAlpha } from "@/lib/theme/tokens";
-import { m3 } from "@/lib/theme/m3";
+import { m3, m3BrightnessBand } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { stepPolyline, stepQuad } from "@/components/pixel/pixel-line";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { fontFamilies } from "@/theme/typography";
 import { type LadderLevel } from "@/lib/persona/brightness";
-import { soulCoreOpacity } from "@/lib/persona/constellation-brightness";
+import {
+  DITHER_TILE,
+  LADDER_ON_CELLS,
+  ladderDitherCells,
+} from "@/components/pixel/pixel-dither-cells";
 import { MdButton } from "@/components/m3";
 import { ReasoningLimitSheet } from "./ReasoningLimitSheet";
 import { SecondbHead } from "./SecondbHead";
@@ -125,9 +131,16 @@ const GUIDE_LINK_FILL = flattenAlpha(m3.accent.moodNeutral, 0.45, m3.accent.stag
 
 // 뮤지엄 is a curated surface, not a data domain — fixed at the prototype's L4.
 
-// sb-home.jsx starOpacity: 0.36 + level/5 × 0.64.
-function rev2StarOpacity(level: LadderLevel): number {
-  return 0.36 + (level / 5) * 0.64;
+// 밝기는 이제 **알파가 아니라 색과 디더 밀도**로 표현한다
+// (PIXEL-CLAY 절대 규칙 4 · Simon 결정 2026-08-27 "전부 디더 5단").
+//
+// 옛 `rev2StarOpacity` 가 내던 값(0.36 + L/5 × 0.64)은 사라진 게 아니라
+// `m3.starLadder` 안에 **미리 합성돼** 있다. 심 색은 그 다섯 값과 같은
+// 픽셀이고, 광채는 같은 다섯 단을 디더 밀도로 낸다.
+//
+// ⚠ 사다리 배열은 0 부터라 `level - 1` 로 읽는다.
+function ladderIndex(level: LadderLevel): number {
+  return Math.max(0, Math.min(4, level - 1));
 }
 
 type BubbleState =
@@ -446,6 +459,9 @@ export function ConstellationHome({
    *  canon-seeded today, so there is no honest unread count yet). */
   hasUnread?: boolean;
 }) {
+  // 북극성 밝기(0..1 연속)를 사다리 한 칸으로 떨어뜨린다.
+  // ⚠ 손실이 있는 변환이다 — Simon 결정 2026-08-27 에서 감수하기로 한 부분.
+  const polarisBand = m3BrightnessBand(northStarBrightness);
   const { t, i18n } = useTranslation("home");
   const { userId, isMinor } = useAuth();
   const reasoningCopy = HOME_REASONING_COPY[homeReasoningLocale(i18n.language)];
@@ -668,14 +684,41 @@ export function ConstellationHome({
                   정적 불투명도 대신 디더/색 밴딩). patternUnits="userSpaceOnUse"
                   라 타일이 SVG 원점에 고정되고, 그래서 모든 별의 디더가 같은
                   화면 픽셀 격자 위에 놓인다 — 별마다 격자가 어긋나지 않는다. */}
-              <Pattern id="ds-dither-star" patternUnits="userSpaceOnUse" x={0} y={0} width={2} height={2}>
-                <Rect x={0} y={0} width={1} height={1} fill={m3.accent.starCore} />
-                <Rect x={1} y={1} width={1} height={1} fill={m3.accent.starCore} />
-              </Pattern>
-              <Pattern id="ds-dither-polaris" patternUnits="userSpaceOnUse" x={0} y={0} width={2} height={2}>
-                <Rect x={0} y={0} width={1} height={1} fill={m3.accent.polarisGlow} />
-                <Rect x={1} y={1} width={1} height={1} fill={m3.accent.polarisGlow} />
-              </Pattern>
+              {/* 사다리 다섯 단을 **디더 밀도**로 낸다. 전에는 50% 체커 하나에
+                  `opacity` 를 얹어 밝기를 표현했는데, 그 alpha 가 규칙 4 위반이었다.
+                  이제 밀도가 밝기다 — 켜는 칸이 3·6·9·12·16 (16칸 중)으로 오른다.
+                  `patternUnits="userSpaceOnUse"` 라 타일이 SVG 원점에 고정되고,
+                  그래서 모든 별의 디더가 같은 화면 픽셀 격자 위에 놓인다. */}
+              {LADDER_ON_CELLS.map((_, i) => (
+                <Pattern
+                  key={`star-l${i}`}
+                  id={`ds-star-l${i}`}
+                  patternUnits="userSpaceOnUse"
+                  x={0}
+                  y={0}
+                  width={DITHER_TILE}
+                  height={DITHER_TILE}
+                >
+                  {ladderDitherCells(i + 1).map((c, j) => (
+                    <Rect key={j} x={c.x} y={c.y} width={1} height={1} fill={m3.accent.starCore} />
+                  ))}
+                </Pattern>
+              ))}
+              {LADDER_ON_CELLS.map((_, i) => (
+                <Pattern
+                  key={`pol-l${i}`}
+                  id={`ds-polaris-l${i}`}
+                  patternUnits="userSpaceOnUse"
+                  x={0}
+                  y={0}
+                  width={DITHER_TILE}
+                  height={DITHER_TILE}
+                >
+                  {ladderDitherCells(i + 1).map((c, j) => (
+                    <Rect key={j} x={c.x} y={c.y} width={1} height={1} fill={m3.accent.polarisGlow} />
+                  ))}
+                </Pattern>
+              ))}
             </Defs>
             {[...cellsOf(BOWL, true), ...cellsOf(HANDLE)].map((p, i) => (
               <Rect key={`dip${i}`} x={p.x} y={p.y} width={LINK_CELL} height={LINK_CELL} fill={DIPPER_LINK_FILL} />
@@ -688,15 +731,17 @@ export function ConstellationHome({
               .map((p, i) => (
                 <Rect key={`gd${i}`} x={p.x} y={p.y} width={LINK_CELL} height={LINK_CELL} fill={GUIDE_LINK_FILL} />
               ))}
-            {/* 북극성: 색 밴딩 3단(디더 헤일로 -> polarisSoft -> 흰 코어). 밝기의
-                정직성(soulCoreOpacity)은 그대로다 — 그건 장식이 아니라 의미라서
-                디더로 바꾸지 않았다. */}
-            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_HALO_R * k} fill="url(#ds-dither-polaris)" opacity={0.85 * soulCoreOpacity(northStarBrightness)} />
-            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_MID_R * k} fill={m3.accent.polarisSoft} opacity={soulCoreOpacity(northStarBrightness)} />
-            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_CORE_R * k} fill={m3.accent.skyStarWhite} opacity={soulCoreOpacity(northStarBrightness)} />
+            {/* 북극성: 색 밴딩 3단(디더 헤일로 -> polarisSoft -> 흰 코어).
+                ⚠ 여기는 원래 **연속값**이었다. `soulCoreOpacity(0..1)` 을 그대로
+                alpha 로 썼다. Simon 결정 2026-08-27 로 5단 밴딩을 택했고,
+                그래서 미세한 밝기 변화는 사라진다("감수한다"고 명시).
+                도메인 별과 달리 여기는 **손실이 있는** 변환이다. */}
+            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_HALO_R * k} fill={`url(#ds-polaris-l${polarisBand - 1})`} />
+            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_MID_R * k} fill={m3.starLadder.polarisMid[polarisBand - 1]} />
+            <PixelStarSvg cx={px(POLARIS.x)} cy={py(POLARIS.y)} r={POLARIS_CORE_R * k} fill={m3.starLadder.polarisCore[polarisBand - 1]} />
             {REV2_STARS.map((s) => {
               const on = focusedId === s.id;
-              const o = rev2StarOpacity(levelOf(s.id));
+              const li = ladderIndex(levelOf(s.id));
               // Visual Tier: a tapped (focused) domain star is promoted but must
               // stay BELOW 북극성. Enforced by constellation-polaris-dominance.test.ts.
               const dotR = DOMAIN_CORE_R * k * (on ? DOMAIN_FOCUS_MULT : 1);
@@ -706,10 +751,14 @@ export function ConstellationHome({
                     cx={px(s.x)}
                     cy={py(s.y)}
                     r={dotR * (on ? DOMAIN_HALO_MULT_FOCUS : DOMAIN_HALO_MULT_REST)}
-                    fill="url(#ds-dither-star)"
-                    opacity={o * (on ? 1 : 0.8)}
+                    fill={`url(#ds-star-l${li})`}
                   />
-                  <PixelStarSvg cx={px(s.x)} cy={py(s.y)} r={dotR} fill={on ? m3.accent.starFocus : m3.accent.star} opacity={o} />
+                  <PixelStarSvg
+                    cx={px(s.x)}
+                    cy={py(s.y)}
+                    r={dotR}
+                    fill={on ? m3.starLadder.focus[li] : m3.starLadder.rest[li]}
+                  />
                 </Fragment>
               );
             })}
@@ -780,8 +829,9 @@ export function ConstellationHome({
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={starName(s.id)}
-                  // Level (the brightness signal) is otherwise conveyed by opacity
-                  // alone; expose it so a blind user hears the domain's progress.
+                  // Level (the brightness signal) is otherwise conveyed by the
+                  // colour band + dither density alone; expose it so a blind
+                  // user hears the domain's progress.
                   accessibilityValue={{ min: 1, max: 5, now: levelOf(s.id) }}
                   style={StyleSheet.absoluteFill}
                 />
