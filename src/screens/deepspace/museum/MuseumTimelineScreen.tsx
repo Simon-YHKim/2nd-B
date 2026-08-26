@@ -17,6 +17,7 @@ import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
 import Svg, { Line, Rect } from "react-native-svg";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { PixelDither } from "@/components/pixel/PixelDither";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { stepQuad, type LineCell } from "@/components/pixel/pixel-line";
 import { router } from "expo-router";
@@ -296,7 +297,12 @@ export function MuseumTimelineScreen() {
                   ]}
                 >
                   {/* bottom scrim so the title stays legible over the plate */}
-                  <View pointerEvents="none" style={styles.nodeScrim} />
+                  {/* 넘치는 글을 가리는 층. 원래 `rgba(surface, 0.72)` 한 겹이었다 —
+                      **픽셀아트는 흐리게 하지 않고 디더로 가린다**(규칙 4). 75% 체커 하나로
+                      비슷한 어둡기를 내되 반투명은 한 픽셀도 없다. */}
+                  <View pointerEvents="none" style={styles.nodeScrim}>
+                    <PixelDither density={75} style={mzScrimTint} />
+                  </View>
                   {/* sb-museum small node: year (mono) + title only — no sub line */}
                   <Text style={[styles.nodeYear, { color: lane.accent }]}>{e.ylabel}</Text>
                   <Text style={styles.nodeTitle} numberOfLines={1}>{e.title}</Text>
@@ -502,6 +508,9 @@ export function MuseumTimelineScreen() {
 }
 
 const SHEET_SURFACE = m3.color.surfaceContainerLow;
+
+/** 디더 타일을 노드 표면색으로 물들인다 — 체커의 검은 칸이 카드색이 된다. */
+const mzScrimTint = { tintColor: SHEET_SURFACE } as const;
 const MUSEUM_TEXT_STRONG = m3.accent.shareInk;
 const MUSEUM_TEXT_BODY = m3.accent.shareInkSoft;
 const MUSEUM_TEXT_LONG = mzAlpha(m3.accent.consentFootnote, 0.72);
@@ -574,7 +583,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     justifyContent: "space-between",
   },
-  nodeScrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: "62%", backgroundColor: withAlpha(SHEET_SURFACE, 0.72) },
+  nodeScrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: "62%", overflow: "hidden" },
   nodeHere: { shadowColor: MZ_LANES.ai.accent, shadowOpacity: 0, shadowRadius: 0, shadowOffset: { width: 0, height: 0 }, elevation: 0 },
   nodeNow: { position: "absolute", top: 7, right: 9, fontFamily: m3.font.mono, fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   nodeYear: { fontFamily: m3.font.mono, fontSize: 10 },

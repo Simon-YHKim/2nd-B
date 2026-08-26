@@ -13,7 +13,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text as RNText, TextInput, Vi
 import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-import { deepSpace, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 import { Text } from "@/components/ui/Text";
@@ -43,6 +43,13 @@ import { getEnv } from "@/lib/env";
 import { getGoogleAccessToken } from "@/lib/google/gisToken";
 import { fetchCalendarEvents, googleEventsToIcs, GOOGLE_CALENDAR_READONLY_SCOPE } from "@/lib/google/calendar";
 import { fetchTasks, googleTasksToOutcome, GOOGLE_TASKS_READONLY_SCOPE } from "@/lib/google/tasks";
+
+/**
+ * 이 화면의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 들여오기 허브는 무대 바닥 위에 카드를 놓는다.
+ */
+const impAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 type Tier = "critical" | "sensitive" | "normal";
 type Mode = "file" | "connector";
@@ -429,8 +436,8 @@ export function ImportHubScreen() {
                     // sensitivity hierarchy beyond the status chip. Token-based
                     // tint of the existing TIER_COLOR (no raw hex).
                     {
-                      backgroundColor: withAlpha(TIER_COLOR[s.tier], 0.05),
-                      borderColor: withAlpha(TIER_COLOR[s.tier], 0.25),
+                      backgroundColor: impAlpha(TIER_COLOR[s.tier], 0.05),
+                      borderColor: impAlpha(TIER_COLOR[s.tier], 0.25),
                     },
                   ]}
                   disabled={locked}
@@ -711,7 +718,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: m3.shape.small,
     overflow: "hidden",
-    backgroundColor: withAlpha(deepSpace.text, 0.1),
+    backgroundColor: impAlpha(deepSpace.text, 0.1),
     color: deepSpace.text,
     fontSize: 11,
     fontFamily: fontFamilies.mono,
@@ -728,7 +735,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: m3.shape.small,
     overflow: "hidden",
-    backgroundColor: withAlpha(deepSpace.text, 0.1),
+    backgroundColor: impAlpha(deepSpace.text, 0.1),
     color: deepSpace.text,
     fontSize: 11,
     fontFamily: fontFamilies.mono,
