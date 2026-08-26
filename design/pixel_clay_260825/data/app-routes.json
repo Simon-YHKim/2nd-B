@@ -36,7 +36,34 @@
   "permissions": "/permissions",
   "formats": "/formats",
   "wiki": "/wiki",
-  "northstar": "/northstar"
+  "northstar": "/northstar",
+  "bigfive": "/big-five",
+  "iden": "/iden",
+  "connect": "/integrations",
+  "attachment": "/attachment",
+  "inbox": "/inbox",
+  "values": "/values",
+  "motivation": "/motivation",
+  "strengths": "/strengths",
+  "focus": "/focus",
+  "reminders": "/reminders",
+  "datareview": "/data",
+  "share": "/share-card",
+  "imagine": "/imagine",
+  "careerinput": "/career-input",
+  "drilldown": "/career-drilldown",
+  "consent-notice": "/consent-notice",
+  "research": "/research",
+  "discover": "/discover",
+  "srs": "/srs",
+  "career": "/career",
+  "milestones": "/milestones",
+  "ledger": "/ledger",
+  "side-project": "/side-project",
+  "reading": "/reading",
+  "meals": "/meals",
+  "theme": "/theme",
+  "rlss": "/rlss"
  },
  "unmeasurable": {
   "_note": "라우트는 맞다. 그런데 capture-app 의 조건(로그인된 QA 세션·유효한 토큰 없음) 때문에 앱이 다른 화면을 그린다. 백분율을 내면 그것은 디자인 점수가 아니라 하네스 상태를 잰 값이다. 그래서 대조에서 제외하고 사유를 출력한다. 여기서 빼려면 하네스가 그 조건을 만들 수 있게 된 뒤에 뺄 것. 이 항목들은 routes 에 두지 않는다 — routes 는 **실제로 재는 것**의 목록이고, 여기 route 필드가 매핑을 보존한다. 하네스가 조건을 만들 수 있게 되면 routes 로 옮긴다.",
@@ -54,6 +81,26 @@
    "route": "/peer/sample",
    "why": "'sample' 은 실제 토큰이 아니라 앱이 '유효하지 않은 링크입니다' 를 그린다(13%).",
    "needs": "살아 있는 초대 토큰"
+  },
+  "pwreset": {
+   "route": "/reset-password",
+   "why": "레퍼런스는 이메일·인증코드 요청 상태지만 로그인된 QA 세션은 비밀번호 설정 단계를 그린다.",
+   "needs": "로그아웃 세션"
+  },
+  "profilesetup": {
+   "route": "/complete-profile",
+   "why": "현재 QA 계정은 프로필이 완성되어 홈으로 리다이렉트된다.",
+   "needs": "인증됐지만 users 프로필이 없는 fixture"
+  },
+  "dobgate": {
+   "route": "/complete-profile",
+   "why": "생년월일 gate는 complete-profile 내부 상태이며 기본 QA 세션에서는 도달할 수 없다.",
+   "needs": "미완성 프로필 fixture와 DOB 단계 선택"
+  },
+  "reward": {
+   "route": "/plans",
+   "why": "독립 라우트가 아니라 plans 내부 rewarded sheet 상태라 기본 라우트 캡처와 같은 DOM을 찍으면 안 된다.",
+   "needs": "성인 free-tier·rewarded build·광고 동의 후 sheet 열기"
   }
  },
  "unmapped": {
@@ -72,6 +119,46 @@
    "was": "/privacy-policy",
    "why": "레퍼런스 privacy-policy 프레임은 문서가 아니라 \"정책 및 약관\" **목차**다(글자 6개 중 5개가 하단 독). 앱에는 그 목차 화면이 없다 — 약관·처리방침·환불이 각각 독립 문서로만 있다(/terms · /privacy-policy · /refund). 게다가 앱의 /privacy-policy 는 (auth) 그룹이라 가입 전에도 열리고, 그래서 하단 독이 **없는 것이 맞다**. 문서를 목차 프레임에 대조하니 0% 가 나왔다.",
    "needs": "목차 화면을 만들지 여부는 제품 결정이다 — Simon 판단 전까지 매핑하지 않는다"
+  },
+  "audit-full": {
+   "was": "/audit",
+   "why": "레퍼런스는 라이프 오딧이지만 현재 deep-space /audit 는 과거의 나 ERAS 화면이다.",
+   "needs": "라이프 오딧과 과거의 나를 구분하는 제품 라우트"
+  },
+  "lifeinput": {
+   "was": "/capture-full",
+   "why": "레퍼런스는 구조화 영역 선택기이고 capture-full 은 범용 담기 화면이라 같은 DOM을 재사용하면 거짓 대조가 된다.",
+   "needs": "구조화 영역 기록 화면 또는 명시적 제품 결정"
+  },
+  "hobbyinput": {
+   "was": "/rest",
+   "why": "레퍼런스는 새 브리프 판과 기존 앱을 나란히 놓은 설계 비교 화면이다.",
+   "needs": "없음 — 이식 대상 제품 화면이 아니다"
+  },
+  "healthinput": {
+   "was": "/star/health",
+   "why": "레퍼런스는 데일리 건강 입력 폼이고 star/health 는 도메인 lens 다.",
+   "needs": "건강 입력 폼의 독립 라우트 또는 harness 상태"
+  },
+  "healthdata": {
+   "was": "/integrations",
+   "why": "레퍼런스는 실제 건강 데이터 수집 현황을 주장하지만 현재 제품에는 해당 연동이 없다.",
+   "needs": "실제 건강 연동 구현과 정직한 상태 데이터"
+  },
+  "terms": {
+   "was": "/terms",
+   "why": "레퍼런스는 정책 목차이고 앱 route 는 이용약관 본문이다.",
+   "needs": "정책 목차 화면을 만들지 여부에 대한 제품 결정"
+  },
+  "refund": {
+   "was": "/refund",
+   "why": "레퍼런스는 정책 목차이고 앱 route 는 환불 정책 본문이다.",
+   "needs": "정책 목차 화면을 만들지 여부에 대한 제품 결정"
+  },
+  "applock": {
+   "was": "/settings",
+   "why": "실제 앱 잠금 기능과 독립 route 가 없으며 무효 설정 토글도 제거됐다.",
+   "needs": "실제 앱 잠금 기능과 사용자 인증 화면"
   }
  }
 }
