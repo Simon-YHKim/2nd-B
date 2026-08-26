@@ -24,7 +24,8 @@ import { useTranslation } from "react-i18next";
 
 import { Text } from "@/components/ui/Text";
 import { HOTLINES, type HotlineId } from "@/lib/safety/lexicon";
-import { radii, semantic, spacing } from "@/lib/theme/tokens";
+import { semantic, spacing } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 
 /**
  * Order is deliberate: counselling first, emergency last. Someone scanning this
@@ -97,7 +98,10 @@ const styles = StyleSheet.create({
   wrap: {
     borderWidth: 1,
     borderColor: semantic.border,
-    borderRadius: radii.md,
+    // PIXEL-CLAY 절대 규칙 2 — 라운드 0. 화면 실측에서 40개 라우트를 통틀어
+    // **둥근 모서리가 여기 하나만** 남아 있었다(`/support`). 이 컴포넌트가
+    // 이식 목록 밖(`components/safety/*`)이라 소스 가드가 못 봤다.
+    borderRadius: m3.shape.none,
     padding: spacing.md,
     marginTop: spacing.md,
   },
