@@ -11,7 +11,8 @@ import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, spacing, flattenAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import {
   createPeerInvite,
   listPeerInvites,
@@ -166,7 +167,9 @@ export default function PeerInvites() {
 function statusStyle(status: PeerInvitation["status"]) {
   if (status === "accepted") return { color: deepSpace.mint };
   if (status === "pending") return { color: deepSpace.accentSoft };
-  return { color: withAlpha(deepSpace.text, 0.45) };
+  // 지나간 초대의 흐린 글자. 바탕은 딥스페이스 본문 바닥이다
+  // (이 화면은 상태 글자에 자기 배경을 두지 않는다).
+  return { color: flattenAlpha(deepSpace.text, 0.45, m3.accent.stageFloor) };
 }
 
 const styles = StyleSheet.create({

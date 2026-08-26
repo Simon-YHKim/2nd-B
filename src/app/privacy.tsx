@@ -15,7 +15,7 @@ import { Redirect } from "expo-router";
 import { PremiumAppShell, PremiumLoadingState, SceneHero } from "@/components/premium";
 import { Text } from "@/components/ui/Text";
 import { PreferenceToggleRow } from "@/components/ui/PreferenceToggle";
-import { cosmic, radii, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, radii, semantic, spacing, flattenAlpha } from "@/lib/theme/tokens";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   VISIBLE_PRIVACY_KEYS,
@@ -217,7 +217,8 @@ const styles = StyleSheet.create({
   saveError: { paddingHorizontal: spacing.xs },
   trustNote: {
     backgroundColor: semantic.surface,
-    borderColor: withAlpha(cosmic.signalMint, 0.34),
+    // 바탕은 바로 윗줄의 자기 배경이다 (PIXEL-CLAY 규칙 4: 정적 반투명 금지).
+    borderColor: flattenAlpha(cosmic.signalMint, 0.34, semantic.surface),
     borderWidth: 1,
     borderRadius: radii.md,
     padding: spacing.md,

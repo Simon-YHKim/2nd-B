@@ -17,7 +17,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { m3 } from "@/lib/theme/m3";
-import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 // 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
@@ -37,6 +37,11 @@ function MicGlyph({ color, size = 22 }: { color: string; size?: number }) {
  * 바닥은 이 위젯이 앉은 `MdCard variant="filled"` 의 배경색이다.
  */
 const STAR_GLOW_GROUND = m3.color.surfaceContainerHighest;
+
+// 잠금화면 목업은 **다른 카드** 위다 (`MdCard variant="outlined"`, 배경 surface).
+// 같은 파일 안에서도 바탕이 갈리므로 따로 선언한다. 틀린 바탕으로 평탄화하면
+// 색이 조용히 어긋나고, 그건 알파를 그냥 두는 것보다 나쁘다.
+const LOCK_CARD_GROUND = m3.color.surface;
 const STAR_GLOW = [
   { inset: 6, fill: flattenAlpha(m3.color.primary, 0.18, STAR_GLOW_GROUND) },
   { inset: 17, fill: flattenAlpha(m3.color.primary, 0.45, STAR_GLOW_GROUND) },
@@ -167,8 +172,8 @@ const s = StyleSheet.create({
   widgetCard: { flex: 1, padding: 14, borderRadius: m3.shape.none, gap: 8 },
   starWidget: { alignItems: "center" },
   widgetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", alignSelf: "stretch" },
-  widgetKicker: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1, color: withAlpha(m3.color.onSurface, 0.8) },
-  tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.color.onSurface, 0.1) },
+  widgetKicker: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1, color: flattenAlpha(m3.color.onSurface, 0.8, STAR_GLOW_GROUND) },
+  tag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: flattenAlpha(m3.color.onSurface, 0.1, STAR_GLOW_GROUND) },
   tagTxt: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 0.6, color: m3.color.onSurfaceVariant },
   starGlowWrap: { alignItems: "center", justifyContent: "center", marginVertical: 4 },
   widgetStarName: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700", fontSize: 15, textAlign: "center" },
@@ -182,9 +187,9 @@ const s = StyleSheet.create({
   captureBtnGhost: { borderWidth: 1, borderColor: m3.color.outlineVariant },
 
   lockCard: { alignItems: "center", paddingVertical: 20, borderRadius: m3.shape.none, gap: 4 },
-  lockTag: { position: "absolute", top: 10, right: 10, paddingHorizontal: 7, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.color.onSurface, 0.1) },
+  lockTag: { position: "absolute", top: 10, right: 10, paddingHorizontal: 7, paddingVertical: 2, borderRadius: m3.shape.none, backgroundColor: flattenAlpha(m3.color.onSurface, 0.1, LOCK_CARD_GROUND) },
   lockTime: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "300", fontSize: 45, letterSpacing: 1 },
-  notifCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 12, padding: 12, borderRadius: m3.shape.none, backgroundColor: withAlpha(m3.color.onSurface, 0.06), alignSelf: "stretch" },
+  notifCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginTop: 12, padding: 12, borderRadius: m3.shape.none, backgroundColor: flattenAlpha(m3.color.onSurface, 0.06, LOCK_CARD_GROUND), alignSelf: "stretch" },
   notifBody: { flex: 1, gap: 2 },
   notifTitle: { color: m3.color.onSurface, fontFamily: m3.font.brand, fontWeight: "700", fontSize: 12 },
   notifText: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, fontSize: 12, lineHeight: 18 },
