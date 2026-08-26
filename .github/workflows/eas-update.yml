@@ -207,6 +207,14 @@ jobs:
           #   **실패해도 빈 목록**이 되고, 도달 보고는 그걸 "채널에 빌드가 없다"로
           #   렌더한다 — **없는 것과 못 본 것을 구분할 수 없었다.**
           #   이 저장소가 반복해서 데인 모양 그대로다(검사가 침묵하면 초록불로 읽힌다).
+          #
+          # ⚠ `npx eas-cli` 는 버전이 고정돼 있지 않다 — 매번 최신본을 받는다.
+          #   22.x 가 `channel`→`updateChannel.name`, `runtimeVersion`→`runtime.version`
+          #   으로 **두 필드를 함께 개명**했고, 그 탓에 2026-08-26 도달 보고가
+          #   방금 띄운 빌드를 "좌초"로 찍었다. 그래서 어떤 버전이 이 보고를
+          #   냈는지 **기록에 남긴다** — 다음에 모양이 또 바뀌면 이 줄이 범인을 짚는다.
+          CLI_VER="$(npx eas-cli --version 2>/dev/null | head -1 || echo unknown)"
+          echo "eas-cli: $CLI_VER"
           set +e
           BUILDS="$(npx eas-cli build:list --platform android --limit 30 --json --non-interactive 2>build-list.err)"
           LIST_CODE=$?
@@ -235,4 +243,6 @@ jobs:
             echo '```'
             echo "$REPORT"
             echo '```'
+            echo
+            echo "<sub>이 보고를 낸 CLI: \`$CLI_VER\` — 출력 필드 이름이 버전마다 다르다.</sub>"
           } >> "$GITHUB_STEP_SUMMARY"

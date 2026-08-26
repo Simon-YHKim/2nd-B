@@ -27,26 +27,42 @@ const BUILD_LIMIT = 30;
 /**
  * 한 빌드가 어느 채널에 묶여 있는가.
  *
- * ⚠ **이 함수가 없어서 이 파일은 한 번도 작동한 적이 없었다(2026-08-26 발견).**
+ * ⚠ **CLI 버전마다 모양이 다르다. 그리고 CI 는 버전을 고정하지 않는다.**
  *
- * 전에는 `b.channel` 을 읽었는데, `eas-cli build:list --json` 은 그런 필드를
- * 내지 않는다. 실제 출력은 이렇게 생겼다(v0.4.0 빌드 로그에서 그대로 보는 값):
+ * 워크플로우는 `npx eas-cli` 를 쓴다 — 매번 **최신본**을 받아온다. 그래서
+ * 로컬과 CI 가 서로 다른 모양을 보며, **다음 릴리스에 또 바뀔 수 있다.**
+ * 둘 다 실측이다(2026-08-26, 같은 빌드 33 을 두 버전으로 조회해 대조):
  *
- *     "status": "FINISHED",
- *     "updateChannel": { "id": "019ef866-…", "name": "preview" },
- *     "buildProfile": "preview",
- *     "appVersion": "0.4.0",
+ *     eas-cli 21.0.2 →  "channel": "preview",
+ *                        "runtimeVersion": "c2806751…",
+ *                        "fingerprint": { "hash": "c2806751…" }
  *
- * 그래서 `b.channel` 은 언제나 `undefined` 였고, 채널 필터는 항상 빈 배열을 내고,
- * 판정은 항상 `no-builds` 였다 — 즉 도달 보고가 **빌드가 몇 대가 있든**
- * "아직 빌드가 없다, 아무것도 좀초되지 않았다" 를 찍어 왔다.
+ *     eas-cli 22.4.0 →  "updateChannel": { "id": "019ef866…", "name": "preview" },
+ *                        "runtime": { "id": "01a03c85…", "version": "c2806751…" },
+ *                        "fingerprint": { "hash": "c2806751…" }
  *
- * 검사가 못 잡은 이유는 **픽스쳐가 코드와 같은 이름을 지어낸 탓**이다
- * (`scripts/__tests__/ota-reach.test.ts` 가 `channel` 을 가진 객체를 만들었다).
- * 픽스쳐는 항상 자기 코드와 동의한다 — 현실과 맞춰본 적이 없으면.
+ * 즉 **두 필드가 함께 개명됐다** — `channel` 과 `runtimeVersion` 둘 다.
+ * 한쪽만 고치면 더 나쁜 일이 난다: 채널은 잡히는데 런타임을 못 읽어
+ * **모든 빌드가 "좌초됨"으로** 보고된다. 2026-08-26 에 실제로 그랬다 —
+ * 도달 보고가 방금 때린 v0.4.0 빌드를 "좌초" 로 찍었다.
+ *
+ * 검사가 못 잡은 이유는 **픽스처가 코드와 같은 이름을 지어낸 탓**이다.
+ * 픽스처는 항상 자기 코드와 동의한다 — 현실과 맞춰본 적이 없으면. 그래서
+ * 검사는 이제 **두 버전의 진짜 출력을 그대로 박은** 픽스처로 돌린다.
  */
 function channelOf(b) {
   return b?.updateChannel?.name ?? b?.channel ?? null;
+}
+
+/**
+ * 한 빌드가 어느 런타임(=지문)을 지니고 있는가. 읽을 수 없으면 `null`.
+ *
+ * 위 `channelOf` 와 같은 이유로 세 자리를 본다. 반환값 `null` 은
+ * "다른 값을 지닌다" 와 **같은 값이 아니다** — 못 읽은 빌드를 좌초로 세면
+ * 검사가 모르는 것을 아는 척 하게 된다. 호출부가 그 둘을 갈라 다룬다.
+ */
+function runtimeOf(b) {
+  return b?.runtimeVersion || b?.runtime?.version || b?.fingerprint?.hash || null;
 }
 
 /**
@@ -56,31 +72,50 @@ function channelOf(b) {
  */
 function reachOf(runtimeVersion, channel, builds) {
   const onChannel = builds.filter((b) => channelOf(b) === channel);
-  const reached = onChannel.filter((b) => b.runtimeVersion === runtimeVersion);
+  const reached = onChannel.filter((b) => runtimeOf(b) === runtimeVersion);
 
   // Stranded = installed-and-usable builds on this channel that this update
   // cannot land on. Errored builds never reached a device, so they are not
   // stranded; counting them would inflate every report.
-  const stranded = onChannel.filter(
-    (b) => b.runtimeVersion !== runtimeVersion && b.status === "FINISHED",
-  );
+  //
+  // ⚠ 런타임을 **못 읽은** 빌드는 여기 넣지 않는다. 그것까지 좌초로 세면
+  //   필드 이름이 바뀌기만 해도 "전부 좌초" 라는 확신에 찬 오답이 나온다.
+  const finished = onChannel.filter((b) => b.status === "FINISHED");
+  const stranded = finished.filter((b) => {
+    const rv = runtimeOf(b);
+    return rv !== null && rv !== runtimeVersion;
+  });
+  const unreadable = finished.filter((b) => runtimeOf(b) === null);
 
   return {
     reached: reached.map(describe),
     stranded: stranded.map(describe),
+    unreadable: unreadable.map(describe),
     // The distinction that matters: nothing on this channel at all, versus
-    // builds exist and none of them match.
+    // builds exist and none of them match — versus **we could not tell**.
     verdict:
-      reached.length > 0 ? "reaches" : onChannel.length === 0 ? "no-builds" : "reaches-nothing",
+      reached.length > 0
+        ? "reaches"
+        : onChannel.length === 0
+          ? "no-builds"
+          : unreadable.length > 0
+            ? "unknown"
+            : "reaches-nothing",
   };
 }
 
 function describe(b) {
   const v = [b.appVersion, b.appBuildVersion].filter(Boolean).join(" · build ");
-  return `${v || b.id} (${b.buildProfile || "?"}, ${String(b.runtimeVersion || "").slice(0, 8)}…)`;
+  const rv = runtimeOf(b);
+  return `${v || b.id} (${b.buildProfile || "?"}, ${rv ? `${rv.slice(0, 8)}…` : "runtime 읽기 실패"})`;
 }
 
-function render({ reached, stranded, verdict }, runtimeVersion, channel) {
+/**
+ * @param {{reached: string[], stranded: string[], unreadable?: string[], verdict: string}} result
+ * @param {string} runtimeVersion
+ * @param {string} channel
+ */
+function render({ reached, stranded, unreadable = [], verdict }, runtimeVersion, channel) {
   const lines = [];
   const short = `${String(runtimeVersion).slice(0, 8)}…`;
 
@@ -90,6 +125,15 @@ function render({ reached, stranded, verdict }, runtimeVersion, channel) {
   } else if (verdict === "no-builds") {
     lines.push(`OTA reach: no builds exist on channel '${channel}' yet.`);
     lines.push(`  This update is waiting for the first one. Nothing is stranded.`);
+  } else if (verdict === "unknown") {
+    lines.push(`OTA reach: UNKNOWN — 도달을 판단할 수 없다.`);
+    lines.push(
+      `  '${channel}' 의 빌드 ${unreadable.length}개에서 런타임을 읽지 못했다 — eas-cli 가`,
+    );
+    lines.push(`  필드 이름을 또 바꿨을 가능성이 높다(워크플로우가 버전을 고정하지 않는다).`);
+    lines.push(`  이것은 "아무것도 못 받는다" 와 **다른 상황**이다. 업데이트 자체는 발행됐다.`);
+    lines.push(`  scripts/check-ota-reach.js 의 runtimeOf() 에 새 모양을 더할 것.`);
+    for (const u of unreadable.slice(0, 5)) lines.push(`    ?  ${u}`);
   } else {
     lines.push(`OTA reach: NOTHING. No build on '${channel}' carries ${short}.`);
     lines.push(`  The update published fine and no device can pick it up.`);
@@ -111,7 +155,7 @@ function render({ reached, stranded, verdict }, runtimeVersion, channel) {
   return lines.join("\n");
 }
 
-module.exports = { reachOf, render, describe, channelOf, BUILD_LIMIT };
+module.exports = { reachOf, render, describe, channelOf, runtimeOf, BUILD_LIMIT };
 
 if (require.main === module) {
   const [, , runtimeVersion, channel] = process.argv;
@@ -132,6 +176,11 @@ if (require.main === module) {
   }
   const result = reachOf(runtimeVersion, channel, Array.isArray(builds) ? builds : []);
   console.log(render(result, runtimeVersion, channel));
+  if (result.verdict === "unknown") {
+    console.log(
+      `::warning title=OTA reach unknown::'${channel}' 의 빌드에서 런타임을 읽지 못했다. eas-cli 출력 모양이 바뀌었을 수 있다 — scripts/check-ota-reach.js 의 runtimeOf() 를 볼 것.`,
+    );
+  }
   if (result.verdict === "reaches-nothing") {
     console.log(
       `::warning title=OTA reached nothing::No build on '${channel}' carries runtimeVersion ${runtimeVersion}. The update is published but undeliverable until a build with that fingerprint ships.`,
