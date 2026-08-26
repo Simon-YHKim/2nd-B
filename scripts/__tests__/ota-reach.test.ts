@@ -11,7 +11,7 @@
 // The publish still exits 0 and prints a dashboard link. That is why this has to
 // be checked rather than noticed.
 
-import { channelOf, reachOf, render } from "../check-ota-reach";
+import { channelOf, reachOf, render, runtimeOf } from "../check-ota-reach";
 
 const build = (
   appBuildVersion: number,
@@ -94,7 +94,10 @@ describe("it survives the shapes the CLI actually returns", () => {
     const partial = { appBuildVersion: 9, channel: "preview", status: "FINISHED" };
     const r = reachOf(PUBLISHED_RV, "preview", [partial as never]);
     expect(r.reached).toEqual([]);
-    expect(r.verdict).toBe("reaches-nothing");
+    // ⚠ 2026-08-26 에 여기가 `reaches-nothing` 이었다. 그 판정은 **틀렸는데
+    //   확신에 차 있어서** 더 나빴다 — 읽지 못한 것을 "안 맞는다" 로 단정한다.
+    //   `reached` 가 비어야 한다는 이 검사의 원래 의도는 위 줄에 그대로 있다.
+    expect(r.verdict).toBe("unknown");
   });
 
   test("a build missing its version still gets described rather than dropped", () => {
@@ -105,55 +108,136 @@ describe("it survives the shapes the CLI actually returns", () => {
   });
 });
 
-// ── 픽스처가 현실과 같은 모양인가 (2026-08-26) ────────────────────────────
+// ── 픽스처가 현실과 같은 모양인가 (2026-08-26) ────────────────────
 //
-// ⚠ 이 파일은 **초록불인 채로 1년 가까이 틀려 있었다.** 위의 `build()` 헬퍼가
-//   `channel: string` 을 가진 객체를 만드는데, `eas-cli build:list --json` 은
-//   그런 필드를 내지 않는다. 실제 출력은 `updateChannel: { id, name }` 이다.
+// ⚠ 이 파일은 **초록불인 채 두 번 틀렸다.** 둘 다 같은 원인이다 —
+//   픽스처를 **지어냈기 때문**이다.
 //
-//   그래서 `reachOf` 의 채널 필터는 언제나 빈 배열을 냈고, 도달 보고는
-//   **빌드가 몇 대가 있든** "아직 빌드가 없다" 를 찍어 왔다. 2026-08-24 사고
-//   뒤에 만든 안전망이 한 번도 작동한 적이 없었던 셈이다.
+//   1차: 위의 `build()` 헬퍼가 `channel: string` 을 낸다. eas-cli 22.x 는
+//         `updateChannel: { id, name }` 을 낸다. 채널 필터가 항상 빈 배열을 냈다.
 //
-//   픽스처는 항상 자기 코드와 동의한다 — 현실과 맞춰본 적이 없으면.
-//   그래서 아래 값은 **v0.4.0 빌드 로그에서 그대로 옮긴 것**이다.
-describe("실제 eas-cli 출력 모양", () => {
-  // 2026-08-26 v0.4.0 릴리즈 빌드 로그에서 그대로 옮겼다
-  // (GitHub Actions run 32933720629, "Get the build artifact" 스텝).
-  const REAL_CLI_BUILD = {
+//   2차: 1차를 고치면서 만든 `REAL_CLI_BUILD` 가 **하이브리드**였다 —
+//         22.x 의 `updateChannel` 과 21.x 의 `runtimeVersion` 을 한 객체에 섞었다.
+//         그 조합은 **어느 버전에도 없다.** 그래서 검사는 초록인데 CI 는
+//         방금 때린 v0.4.0 빌드를 "좌초" 로 찍었다.
+//
+//   그래서 이제 지어내지 않는다. 아래 둘은 **같은 빌드(33)를 두 버전으로
+//   조회해 그대로 옮긴 값**이다. 다시 보려면:
+//
+//     npx eas-cli@21.0.2 build:list --platform android --limit 1 --json --non-interactive
+//     npx eas-cli@22.4.0 build:list --platform android --limit 1 --json --non-interactive
+describe("실제 eas-cli 출력 모양 — 두 버전", () => {
+  // eas-cli 21.0.2 (로컬 devDependency 가 깔아 주는 버전)
+  const V21 = {
+    status: "FINISHED",
+    channel: "preview",
+    buildProfile: "preview",
+    appVersion: "0.4.0",
+    appBuildVersion: "33",
+    runtimeVersion: "c28067519b5576eaa29279c7e3b4ce9707623812",
+    fingerprint: {
+      id: "01a03c85-4b56-784f-9f10-a1e3414bf47a",
+      hash: "c28067519b5576eaa29279c7e3b4ce9707623812",
+    },
+  };
+
+  // eas-cli 22.4.0 — **CI 가 실제로 받는 버전**.
+  // 워크플로우가 `npx eas-cli` 로 부르므로 버전이 고정돼 있지 않다.
+  const V22 = {
     status: "FINISHED",
     updateChannel: { id: "019ef866-55fc-719b-bfea-dfa91ee86bf4", name: "preview" },
     buildProfile: "preview",
     appVersion: "0.4.0",
-    appBuildVersion: 11,
-    runtimeVersion: "c28067519b5576eaa29279c7e3b4ce9707623812",
+    appBuildVersion: "33",
+    runtime: {
+      id: "01a03c85-4b50-7fbb-863d-e092a924342f",
+      version: "c28067519b5576eaa29279c7e3b4ce9707623812",
+    },
+    fingerprint: {
+      id: "01a03c85-4b56-784f-9f10-a1e3414bf47a",
+      hash: "c28067519b5576eaa29279c7e3b4ce9707623812",
+    },
   };
 
-  test("채널을 updateChannel.name 에서 읽는다 — CLI 에 b.channel 은 없다", () => {
-    expect(channelOf(REAL_CLI_BUILD)).toBe("preview");
-    // 이 단언이 이 파일의 요점이다: 옛 코드는 여기서 undefined 를 봤다.
-    expect((REAL_CLI_BUILD as Record<string, unknown>).channel).toBeUndefined();
+  const RV = "c28067519b5576eaa29279c7e3b4ce9707623812";
+
+  test("두 버전은 서로 없는 필드를 쓴다 — 이게 이 파일의 요점이다", () => {
+    // 하이브리드 픽스처를 다시 지어내면 여기서 빨간불이 된다.
+    expect((V21 as Record<string, unknown>).updateChannel).toBeUndefined();
+    expect((V21 as Record<string, unknown>).runtime).toBeUndefined();
+    expect((V22 as Record<string, unknown>).channel).toBeUndefined();
+    expect((V22 as Record<string, unknown>).runtimeVersion).toBeUndefined();
   });
 
-  test("실제 모양에서 도달을 옳게 판정한다", () => {
-    const r = reachOf(REAL_CLI_BUILD.runtimeVersion, "preview", [REAL_CLI_BUILD] as never);
+  test.each([
+    ["21.0.2", V21],
+    ["22.4.0", V22],
+  ])("%s 모양에서 채널과 런타임을 둘 다 읽는다", (_v, b) => {
+    expect(channelOf(b as never)).toBe("preview");
+    expect(runtimeOf(b as never)).toBe(RV);
+  });
+
+  test.each([
+    ["21.0.2", V21],
+    ["22.4.0", V22],
+  ])("%s 모양에서 도달을 옳게 판정한다", (_v, b) => {
+    const r = reachOf(RV, "preview", [b] as never);
     expect(r.verdict).toBe("reaches");
     expect(r.reached).toHaveLength(1);
+    expect(r.stranded).toHaveLength(0);
   });
 
-  test("실제 모양에서 좌초도 옳게 판정한다", () => {
-    const r = reachOf("0".repeat(40), "preview", [REAL_CLI_BUILD] as never);
+  test.each([
+    ["21.0.2", V21],
+    ["22.4.0", V22],
+  ])("%s 모양에서 좌초도 옳게 판정한다", (_v, b) => {
+    const r = reachOf("0".repeat(40), "preview", [b] as never);
     expect(r.verdict).toBe("reaches-nothing");
     expect(r.stranded).toHaveLength(1);
   });
+});
 
-  test("옛 모양(b.channel)도 계속 읽는다 — 되돌리는 게 목적이 아니다", () => {
-    expect(channelOf({ channel: "preview" } as never)).toBe("preview");
+// ── 모르는 것을 아는 척 하지 않는다 ─────────────────────────────
+//
+// 2026-08-26 사고의 진짜 모양은 이것이었다: 채널은 읽혔는데 런타임을
+// 못 읽어서 **모든 빌드가 좌초로** 보고됐다. 그건 틀린 답이 아니라
+// **틀렸는데 확신에 차 있는** 답이라 더 나쁘다 — 그 보고를 믿고
+// 빌드를 다시 뜨게 된다.
+describe("런타임을 못 읽으면 좌초가 아니라 판단 불가다", () => {
+  const UNKNOWN_SHAPE = {
+    status: "FINISHED",
+    updateChannel: { name: "preview" },
+    buildProfile: "preview",
+    appVersion: "9.9.9",
+    appBuildVersion: "99",
+    // 다음 버전이 또 개명한 자리. runtimeVersion·runtime·fingerprint 셋 다 없다.
+    runtimeDigest: { value: "ffffffffffffffffffffffffffffffffffffffff" },
+  };
+
+  test("좌초 목록에 넣지 않는다", () => {
+    const r = reachOf("c2806751", "preview", [UNKNOWN_SHAPE] as never);
+    expect(r.stranded).toHaveLength(0);
   });
 
-  test("채널을 모르는 빌드는 어느 채널에도 안 속한다", () => {
-    expect(channelOf({} as never)).toBeNull();
-    const r = reachOf("aaa", "preview", [{ status: "FINISHED", runtimeVersion: "aaa" }] as never);
-    expect(r.verdict).toBe("no-builds");
+  test("판정은 reaches-nothing 이 아니라 unknown 이다", () => {
+    const r = reachOf("c2806751", "preview", [UNKNOWN_SHAPE] as never);
+    expect(r.verdict).toBe("unknown");
+    expect(r.unreadable).toHaveLength(1);
+  });
+
+  test("보고문이 모른다고 말한다 — 아무것도 못 받는다고 하지 않는다", () => {
+    const r = reachOf("c2806751", "preview", [UNKNOWN_SHAPE] as never);
+    const text = render(r, "c2806751", "preview");
+    expect(text).toContain("UNKNOWN");
+    expect(text).not.toContain("NOTHING");
+    // 사람이 뭐를 고쳐야 하는지까지 적혀 있어야 한다.
+    expect(text).toContain("runtimeOf()");
+  });
+
+  test("읽힐 때는 여전히 평소대로 판정한다 — 과잉 발동 금지", () => {
+    const ok = { status: "FINISHED", channel: "preview", runtimeVersion: "b".repeat(40) };
+    const r = reachOf("a".repeat(40), "preview", [ok] as never);
+    expect(r.verdict).toBe("reaches-nothing");
+    expect(r.unreadable).toHaveLength(0);
   });
 });
