@@ -151,6 +151,7 @@ import type { GraphRecord } from "@/lib/records/records-graph";
 import { listSourcePieces } from "@/lib/records/source-pieces";
 import { summarizeWeeklyInsights, weeklyDomainFocus } from "@/lib/insights/weekly";
 import type { SourceRow, WikiPageRow } from "@/lib/wiki/types";
+import { resetCoachmarks } from "@/lib/onboarding/coachmarks-gate";
 import {
   buildDeepResearchView,
   buildDomainsView,
@@ -1409,6 +1410,18 @@ export function DeepSpaceManualScreen() {
         <Action label={t("manual.q4")} onPress={() => router.push("/support")} />
         <Action label={t("manual.q5")} onPress={() => router.push("/support")} />
         <Action label={t("manual.askDirect")} onPress={() => router.push('/secondb')} />
+        {/* 홈 코치마크 다시 보기 — 레퍼런스가 안내서에 두는 줄이다.
+            같은 기능이 `/settings` 에도 있고 **거기 것을 없애지 않았다**. 설정에서
+            "리셋"을 찾는 것과 안내서에서 "다시 보기"를 찾는 것은 다른 행동이라
+            문이 둘인 편이 맞다. 동작은 하나다 — 본 표시를 지우고 홈으로 돌아가면
+            다음 홈 방문에서 4단계 가이드가 다시 재생된다. */}
+        <Action
+          label={t("manual.replayCoachmarks")}
+          onPress={() => {
+            resetCoachmarks();
+            router.replace("/");
+          }}
+        />
       </Card>
 
       {/* 핵심 개념 / Core concepts (canonGaps.manualConcepts) — icon + title + body. */}
