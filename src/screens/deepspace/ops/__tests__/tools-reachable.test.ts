@@ -16,6 +16,8 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
+import { GLYPH_ALIAS } from "@/components/pixel/pixel-glyphs";
+
 const ROOT = join(__dirname, "..", "..", "..", "..", "..");
 const APP_OPS = readFileSync(join(ROOT, "src", "app", "ops.tsx"), "utf8");
 
@@ -94,17 +96,16 @@ describe("비서 허브 ↔ 도구 배선", () => {
   });
 
   it("아이콘 이름이 실재하는 글리프다", () => {
-    // CLONE_ICON 이 Record<string, string> 이라 타입이 오타를 못 잡는다.
     // 실제로 flag/wallet/leaf 를 썼다가 빈 아이콘이 될 뻔했다.
-    const glyphBlock = HUB.slice(HUB.indexOf("const CLONE_ICON"));
-    const known = new Set(
-      (glyphBlock.slice(0, glyphBlock.indexOf("};")).match(/^\s+(\w+):/gm) ?? []).map((x) =>
-        x.trim().replace(":", ""),
-      ),
-    );
+    //
+    // 원래 이 검사는 소스에서 `CLONE_ICON` **객체의 키를 긁어서** 대조했다.
+    // 아이콘이 픽셀 글리프 정본으로 옮겨가면서 그 객체가 이름 배열이 되자
+    // 검사가 깨졌다 — 검사가 붙들고 있던 것이 뜻이 아니라 **모양**이었다는 뜻이다.
+    // 이제는 소스 모양 대신 `GLYPH_ALIAS` 를 **실제로 import 해서** 본다.
+    // 정본이 옮겨 다녀도 따라가고, 대조 대상도 더 정확하다.
     const used = (HUB.match(/icon: "(\w+)"/g) ?? []).map((x) => x.replace(/icon: "|"/g, ""));
     expect(used.length).toBeGreaterThan(0);
-    for (const glyph of used) expect(known.has(glyph)).toBe(true);
+    for (const glyph of used) expect(Object.keys(GLYPH_ALIAS)).toContain(glyph);
   });
 });
 

@@ -5,6 +5,8 @@
 //
 // 실행: SHEET_OUT=<경로> npx jest glyph-sheet.emit
 // SHEET_OUT 이 없으면 아무것도 쓰지 않고 지나간다(CI 에서 조용하다).
+//
+// SHEET_ONLY=a,b,c 를 주면 그 이름만 뽑는다 — 고친 몇 개만 다시 볼 때 쓴다.
 import { writeFileSync } from "node:fs";
 
 import { PIXEL_GLYPHS, GLYPH_ALIAS, glyphMarkup } from "../pixel-glyphs";
@@ -12,8 +14,13 @@ import { PIXEL_GLYPHS, GLYPH_ALIAS, glyphMarkup } from "../pixel-glyphs";
 describe("글리프 시트", () => {
   it("SHEET_OUT 이 있으면 한 장으로 뽑는다", () => {
     const out = process.env.SHEET_OUT;
-    const names = Object.keys(GLYPH_ALIAS) as (keyof typeof GLYPH_ALIAS)[];
-    expect(names.length).toBeGreaterThan(0);
+    const only = (process.env.SHEET_ONLY ?? "")
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+    const all = Object.keys(GLYPH_ALIAS) as (keyof typeof GLYPH_ALIAS)[];
+    const names = only.length ? all.filter((n) => only.includes(n)) : all;
+    expect(all.length).toBeGreaterThan(0);
     if (!out) return;
 
     const cells = names
