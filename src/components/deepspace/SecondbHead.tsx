@@ -35,9 +35,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Image } from "expo-image";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Rect } from "react-native-svg";
 
 import { deepSpace } from "@/lib/theme/tokens";
+import { stepLine, stepQuad, type LineCell } from "@/components/pixel/pixel-line";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import { subscribeExpression, subscribeHold, type Expression } from "@/lib/companion/expression";
@@ -71,28 +72,74 @@ const HEAD_IMAGE = require("../../../assets/deepspace/secondb-head-blank.png");
 /** Heads at or above this size are "big" and track by default. */
 const BIG_HEAD_MIN = 80;
 
-// Mouth as an SVG curve, six kinds (faces.ts picks per expression):
-//   smile ◡ · flat — · frown ◠ · open (filled happy D) · o (whistle/surprise
-//   ring, drawn as a Circle) · smirk (one-sided curl, the 잘난척 mouth).
-function mouthPath(kind: MouthKind, w: number, h: number): string {
+// 입은 여섯 가지(faces.ts 가 표정마다 고른다):
+//   smile ◡ · flat — · frown ◠ · open (웃는 D, 채움) · o (휘파람/놀람, 링) ·
+//   smirk (한쪽만 올라간 잘난척 입).
+//
+// ## 곡선에서 셀로 (PIXEL-CLAY 규칙 1)
+//
+// 전에는 `<Path d="M… Q…">` 한 줄이었다. 이제 같은 곡선을 **정수 셀**로 놓는다.
+// ⚠ 표정은 이 캐릭터의 전부라 셀 크기를 획 굵기(`mouthStroke`)에 맞춘다 —
+//   더 크게 잡으면 웃는 입과 무표정이 구분이 안 된다.
+function mouthCells(kind: MouthKind, w: number, h: number, cell: number): LineCell[] {
   const midY = h / 2;
   const depth = h * 0.62;
   switch (kind) {
     case "smile":
-      return `M1 ${midY - depth / 2} Q ${w / 2} ${midY + depth} ${w - 1} ${midY - depth / 2}`;
+      return stepQuad(1, midY - depth / 2, w / 2, midY + depth, w - 1, midY - depth / 2, cell);
     case "frown":
-      return `M1 ${midY + depth / 2} Q ${w / 2} ${midY - depth} ${w - 1} ${midY + depth / 2}`;
-    case "open":
-      // Closed area: straight top lip, round lower lip — an open laugh.
-      return `M1 ${midY - depth / 2} L ${w - 1} ${midY - depth / 2} Q ${w / 2} ${midY + depth * 1.5} 1 ${midY - depth / 2} Z`;
+      return stepQuad(1, midY + depth / 2, w / 2, midY - depth, w - 1, midY + depth / 2, cell);
+    case "open": {
+      // 벌린 입 — 윤곽이 아니라 **채운 덩어리**다. 위는 곧고 아래가 둥글다.
+      const out: LineCell[] = [];
+      const top = midY - depth / 2;
+      const rows = Math.max(2, Math.round((depth * 1.4) / cell));
+      for (let i = 0; i < rows; i += 1) {
+        const t = i / rows;
+        const half = (w / 2 - 1) * (1 - t * t);
+        out.push(...stepLine(w / 2 - half, top + i * cell, w / 2 + half, top + i * cell, cell));
+      }
+      return out;
+    }
     case "smirk":
-      // Flat from the left, curling up only on the right.
-      return `M1 ${midY + depth * 0.15} Q ${w * 0.62} ${midY + depth * 0.35} ${w - 1} ${midY - depth * 0.7}`;
-    case "o": // rendered as a Circle, path unused — keep a fallback line
+      return stepQuad(1, midY + depth * 0.15, w * 0.62, midY + depth * 0.35, w - 1, midY - depth * 0.7, cell);
+    case "o": {
+      // 휘파람 — 사각 링. 원을 셀로 놓으면 이 크기에서 그냥 사각이 된다.
+      const r = Math.max(cell, Math.min(w, h) / 2 - 1);
+      const x0 = w / 2 - r;
+      const y0 = h / 2 - r;
+      const x1 = w / 2 + r;
+      const y1 = h / 2 + r;
+      return [
+        ...stepLine(x0, y0, x1, y0, cell),
+        ...stepLine(x1, y0, x1, y1, cell),
+        ...stepLine(x1, y1, x0, y1, cell),
+        ...stepLine(x0, y1, x0, y0, cell),
+      ];
+    }
     case "flat":
     default:
-      return `M1 ${midY} L ${w - 1} ${midY}`;
+      return stepLine(1, midY, w - 1, midY, cell);
   }
+}
+
+/**
+ * 발광 + 심 두 겹을 셀로 그린다.
+ *
+ * 전에는 같은 path 를 굵은 획·얇은 획으로 두 번 그려 발광을 만들었다.
+ * rect 로는 **큰 셀 아래에 작은 셀**을 겹치는 것이 같은 일을 한다.
+ */
+function GlowCells({ cells, cell, glow, core }: { cells: LineCell[]; cell: number; glow: string; core: string }) {
+  return (
+    <>
+      {cells.map((p, i) => (
+        <Rect key={`g${i}`} x={p.x - cell} y={p.y - cell} width={cell * 3} height={cell * 3} fill={glow} />
+      ))}
+      {cells.map((p, i) => (
+        <Rect key={`c${i}`} x={p.x} y={p.y} width={cell} height={cell} fill={core} />
+      ))}
+    </>
+  );
 }
 
 /** Tiny cyan eighth-note that floats beside the mouth while whistling. */
@@ -126,9 +173,12 @@ function WhistleNote({ size, accent, reduce }: { size: number; accent: string; r
         transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [1.5, -2.5] }) }],
       }}
     >
+      {/* 8분음표 — 기둥 + 깃발 + 머리. 곡선이었던 것을 셀 넷으로. */}
       <Svg width={noteSize} height={noteSize} viewBox="0 0 10 10">
-        <Path d="M4 8 L4 2 Q6.4 1.2 8 2.6" stroke={accent} strokeWidth={1.6} strokeLinecap="round" fill="none" />
-        <Circle cx={3.1} cy={8.1} r={1.9} fill={accent} />
+        <Rect x={4} y={2} width={1.4} height={6} fill={accent} />
+        <Rect x={5.4} y={1.4} width={2.6} height={1.4} fill={accent} />
+        <Rect x={6.6} y={2.8} width={1.4} height={1.4} fill={accent} />
+        <Rect x={1.6} y={6.6} width={3.4} height={3} fill={accent} />
       </Svg>
     </Animated.View>
   );
@@ -390,20 +440,12 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
                   ]}
                 >
                   <Svg width={arcW} height={arcH}>
-                    {/* 아래: 굵은 밴드. 위: 얇은 심. 두 획이 발광을 만든다. */}
-                    <Path
-                      d={`M1 1 Q ${arcW / 2} ${arcH * 1.6} ${arcW - 1} 1`}
-                      stroke={deepSpace.accentGlow}
-                      strokeWidth={Math.max(2, size * 0.02) + 4}
-                      strokeLinecap="butt"
-                      fill="none"
-                    />
-                    <Path
-                      d={`M1 1 Q ${arcW / 2} ${arcH * 1.6} ${arcW - 1} 1`}
-                      stroke={accent}
-                      strokeWidth={Math.max(2, size * 0.02)}
-                      strokeLinecap="butt"
-                      fill="none"
+                    {/* 아래: 굵은 셀. 위: 작은 셀. 두 겹이 발광을 만든다. */}
+                    <GlowCells
+                      cells={stepQuad(1, 1, arcW / 2, arcH * 1.6, arcW - 1, 1, Math.max(2, size * 0.02))}
+                      cell={Math.max(2, size * 0.02)}
+                      glow={deepSpace.accentGlow}
+                      core={accent}
                     />
                   </Svg>
                 </View>
@@ -443,43 +485,13 @@ export function SecondbHead({ mood = "neutral", persona, size = 48, track, acces
             ]}
           >
             <Svg width={mouthW} height={mouthBoxH}>
-              {face.mouth === "o" ? (
-                <>
-                  <Circle
-                    cx={mouthW / 2}
-                    cy={mouthBoxH / 2}
-                    r={Math.max(2, Math.min(mouthW, mouthBoxH) / 2 - 1)}
-                    stroke={deepSpace.accentGlow}
-                    strokeWidth={mouthStroke + 4}
-                    fill="none"
-                  />
-                  <Circle
-                    cx={mouthW / 2}
-                    cy={mouthBoxH / 2}
-                    r={Math.max(2, Math.min(mouthW, mouthBoxH) / 2 - 1)}
-                    stroke={deepSpace.text}
-                    strokeWidth={mouthStroke}
-                    fill="none"
-                  />
-                </>
-              ) : (
-                <>
-                  <Path
-                    d={mouthPath(face.mouth, mouthW, mouthBoxH)}
-                    stroke={deepSpace.accentGlow}
-                    strokeWidth={mouthStroke + 4}
-                    strokeLinecap="butt"
-                    fill="none"
-                  />
-                  <Path
-                    d={mouthPath(face.mouth, mouthW, mouthBoxH)}
-                    stroke={deepSpace.text}
-                    strokeWidth={mouthStroke}
-                    strokeLinecap="butt"
-                    fill={face.mouth === "open" ? deepSpace.text : "none"}
-                  />
-                </>
-              )}
+              {/* 여섯 표정 전부 같은 길로 간다 — `o` 도 링 셀이라 분기가 필요 없다. */}
+              <GlowCells
+                cells={mouthCells(face.mouth, mouthW, mouthBoxH, mouthStroke)}
+                cell={mouthStroke}
+                glow={deepSpace.accentGlow}
+                core={deepSpace.text}
+              />
             </Svg>
           </View>
 

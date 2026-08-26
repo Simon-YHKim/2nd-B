@@ -569,6 +569,32 @@ export const PIXEL_GLYPHS = {
     r(2, 16, 2, 4), r(2, 20, 8, 2),
   ],
 
+  // ── 인라인 JSX 로 그려지던 것들(레지스트리 스캔에 안 잡히던 자리) ──────────
+
+  /** 사각 넷 — 4W1H 처럼 칸이 나뉜 것. */
+  grid: [r(4, 4, 6, 6), r(14, 4, 6, 6), r(4, 14, 6, 6), r(14, 14, 6, 6)],
+
+  /** 집 — 일상 트랙. */
+  house: [
+    r(10, 2, 4, 2), r(8, 4, 8, 2), r(6, 6, 12, 2), r(4, 8, 16, 2),
+    r(6, 10, 2, 10), r(16, 10, 2, 10), r(6, 20, 12, 2),
+    r(10, 14, 4, 6),
+  ],
+
+  /** 가방 — 일 트랙. */
+  briefcase: [
+    r(8, 2, 8, 2), r(8, 4, 2, 2), r(14, 4, 2, 2),
+    r(2, 6, 20, 2), r(2, 20, 20, 2), r(2, 8, 2, 12), r(20, 8, 2, 12),
+    r(2, 12, 20, 2),
+  ],
+
+  /** 닫기 — X. */
+  close: [
+    r(4, 4, 2, 2), r(6, 6, 2, 2), r(8, 8, 2, 2), r(10, 10, 4, 4),
+    r(14, 8, 2, 2), r(16, 6, 2, 2), r(18, 4, 2, 2),
+    r(14, 14, 2, 2), r(16, 16, 2, 2), r(18, 18, 2, 2),
+    r(8, 14, 2, 2), r(6, 16, 2, 2), r(4, 18, 2, 2),
+  ],
 } as const satisfies Record<string, readonly PixelRect[]>;
 
 export type PixelGlyphName = keyof typeof PIXEL_GLYPHS;
@@ -666,6 +692,11 @@ export const GLYPH_ALIAS = {
   // 별은 새로 그리지 않는다 — 홈 탭 글리프와 **같은 그림**이다. 좌표를
   // 복붙하면 그 순간 두 벌이 되고, `pixel-glyphs.test.ts` 가 그걸 막는다.
   star: "home",
+  grid: "grid",
+  grid_on: "grid",
+  house: "house",
+  briefcase: "briefcase",
+  close: "close",
   // 같은 아이콘의 다른 이름들.
   person: "account",
   photo_camera: "camera",
