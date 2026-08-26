@@ -142,6 +142,13 @@ interface ChatTurn {
 
 type ChatMode = "analytic" | "divergent";
 
+// 잠긴 페르소나 칩 — 옛 `opacity: 0.6` 이 테두리와 글자 둘을 함께 덮었다.
+// 컨테이너만 흐리면 글자가 그대로 남아 **잠긴 것이 안 잠긴 것보다 또렷해진다.**
+// 바탕은 칩이 앉는 딥스페이스 본문 바닥이다 (PIXEL-CLAY 규칙 4).
+const LOCKED_CHIP_GROUND = m3.accent.stageFloor;
+const LOCKED_CHIP_BORDER = flattenAlpha(m3.color.outlineVariant, 0.6, LOCKED_CHIP_GROUND);
+const LOCKED_CHIP_INK = flattenAlpha(m3.color.onSurfaceVariant, 0.6, LOCKED_CHIP_GROUND);
+
 const INTRO_DISMISS_KEY = "secondB_intro_dismissed_v1";
 
 // Web keeps localStorage; native goes through AsyncStorage (same split as
@@ -1236,7 +1243,7 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                       ds.lensBtn,
                       { borderColor: on ? accent : m3.color.outlineVariant },
                       on ? { backgroundColor: rev2PersonaSoftBg(id) } : null,
-                      locked ? { opacity: 0.6 } : null,
+                      locked ? { borderColor: LOCKED_CHIP_BORDER } : null,
                     ]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on, disabled: locked }}
@@ -1246,10 +1253,10 @@ function SecondBChatBody({ variant }: { variant: ChatVariant }) {
                         : `${rev2PersonaLensName(id, locale)} · ${rev2PersonaRole(id, locale)}`
                     }
                   >
-                    <Text style={[ds.lensName, { color: on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
+                    <Text style={[ds.lensName, { color: locked ? LOCKED_CHIP_INK : on ? rev2PersonaOnSoft(id) : m3.color.onSurfaceVariant }]}>
                       {rev2PersonaLensName(id, locale)}
                     </Text>
-                    <Text style={[ds.lensTag, { color: on ? accent : m3.color.onSurfaceVariant }]}>
+                    <Text style={[ds.lensTag, { color: locked ? LOCKED_CHIP_INK : on ? accent : m3.color.onSurfaceVariant }]}>
                       {locked ? lockPlan : rev2PersonaTag(id, locale)}
                     </Text>
                   </Pressable>

@@ -34,7 +34,7 @@ import { Text } from "@/components/ui/Text";
 import { Input } from "@/components/ui/Input";
 import { MdButton } from "@/components/m3";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
-import { deepSpace, semantic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, semantic, spacing, withAlpha, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -1354,5 +1354,11 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalButton: { flex: 1 },
   crewRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
-  buildMarker: { marginTop: spacing.md, textAlign: "center", opacity: 0.6 },
+  // 빌드 표식은 무대 바닥 위의 글자다. `opacity` 대신 흐려진 색을 미리 만든다
+  // (PIXEL-CLAY 규칙 4).
+  buildMarker: {
+    marginTop: spacing.md,
+    textAlign: "center",
+    color: flattenAlpha(m3.color.onSurfaceVariant, 0.6, m3.accent.stageFloor),
+  },
 });

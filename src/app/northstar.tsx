@@ -22,7 +22,7 @@ import { MdButton, MdCard, m3TextStyle } from "@/components/m3";
 import { CrisisRouter } from "@/components/safety/CrisisRouter";
 import type { HotlineId } from "@/lib/safety/lexicon";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { spacing, withAlpha } from "@/lib/theme/tokens";
+import { spacing, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import {
   MIN_RECORDS_FOR_PROPOSAL,
@@ -197,7 +197,7 @@ export default function NorthstarSentence() {
           onChangeText={setDraft}
           multiline
           placeholder={t("ds.northstar.placeholder")}
-          placeholderTextColor={withAlpha(m3.color.onSurface, 0.4)}
+          placeholderTextColor={flattenAlpha(m3.color.onSurface, 0.4, NORTHSTAR_GROUND)}
           style={styles.heroInput}
         />
       </View>
@@ -286,6 +286,11 @@ export default function NorthstarSentence() {
 // 영영 안 바뀐다. 그래서 시트를 **다시 만들 수 있게** 하고 설정이 바뀔 때
 // 갈아끼운다. 화면이 다시 그려지는 것은 공유 셸(`DeepSpaceScreen`)이
 // `useFontStyle()` 을 구독하기 때문이다.
+// hero 는 배경색이 없다 — 방사 그라디언트(nsHero) 워시가 무대 바닥 위에 깔린다.
+// 워시가 캐논 램프 안이라 **지배적 바탕은 무대 바닥**이고, 여기에 못박는다.
+// (텍스트와 테두리는 디더로 못 만든다 — 스크림이 아니라 선과 글자다.)
+const NORTHSTAR_GROUND = m3.accent.stageFloor;
+
 const makeStyles = () => StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32, gap: spacing.md },
   headline: { ...m3TextStyle("headlineSmall"), color: m3.color.onSurface, marginTop: spacing.xs },
@@ -296,7 +301,7 @@ const makeStyles = () => StyleSheet.create({
     padding: 18,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: withAlpha(m3.color.tertiary, 0.3),
+    borderColor: flattenAlpha(m3.color.tertiary, 0.3, NORTHSTAR_GROUND),
   },
   heroLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
   heroDot: {
@@ -323,7 +328,7 @@ const makeStyles = () => StyleSheet.create({
     fontFamily: m3.font.mono,
     fontSize: 12,
     letterSpacing: 1.1,
-    color: withAlpha(m3.color.onSurfaceVariant, 0.9),
+    color: flattenAlpha(m3.color.onSurfaceVariant, 0.9, NORTHSTAR_GROUND),
     marginTop: spacing.xs,
   },
   suggestList: { gap: spacing.sm },

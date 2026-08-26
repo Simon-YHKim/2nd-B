@@ -14,7 +14,7 @@ import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { Field, MdButton, MdCard, MdChip, SegBtn } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { deepSpace, flattenAlpha, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
@@ -28,6 +28,13 @@ const PEOPLE_RING_FILL = flattenAlpha(m3.accent.starDim, 0.16, PEOPLE_GROUND);
 const PEOPLE_ME_FILL = flattenAlpha(m3.accent.polaris, 0.9, PEOPLE_GROUND);
 const PEOPLE_SEL_FILL = flattenAlpha(m3.accent.star, 0.75, PEOPLE_GROUND);
 const peopleLinkFill = (c: string) => flattenAlpha(c, 0.22, PEOPLE_GROUND);
+
+// 지도 상자의 바탕과 테두리. 상자는 카드 위에 앉는다.
+const PEOPLE_MAP_BG = flattenAlpha(deepSpace.bgMid, 0.35, PEOPLE_GROUND);
+const PEOPLE_MAP_BORDER = flattenAlpha(deepSpace.accentDim, 0.22, PEOPLE_GROUND);
+// 지도 **안**의 글자는 카드가 아니라 위 상자 위에 앉는다. 한 겹 더 들어간 바탕이다.
+const PEOPLE_MAP_TEXT = flattenAlpha(m3.accent.skyTextHi, 0.8, PEOPLE_MAP_BG);
+const PEOPLE_MAP_TEXT_HI = flattenAlpha(m3.accent.skyTextHi, 0.85, PEOPLE_MAP_BG);
 const peopleNodeFill = (c: string) => flattenAlpha(c, 0.92, PEOPLE_GROUND);
 import { createPerson, listPeople, type Person, type RelationKind } from "@/lib/relation/people";
 import { layoutPeopleMap, RELATION_SECTORS } from "@/lib/relation/people-map-layout";
@@ -196,7 +203,7 @@ export default function PeopleMapScreen() {
               <SvgText
                 x={CANVAS / 2}
                 y={CANVAS / 2 + 52}
-                fill={withAlpha(m3.accent.skyTextHi, 0.8)}
+                fill={PEOPLE_MAP_TEXT}
                 fontSize={26}
                 textAnchor="middle"
               >
@@ -222,7 +229,7 @@ export default function PeopleMapScreen() {
                     <SvgText
                       x={node.x * CANVAS}
                       y={node.y * CANVAS - r - 8}
-                      fill={withAlpha(m3.accent.skyTextHi, 0.85)}
+                      fill={PEOPLE_MAP_TEXT_HI}
                       fontSize={24}
                       textAnchor="middle"
                     >
@@ -278,8 +285,8 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: m3.shape.none,
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accentDim, 0.22),
-    backgroundColor: withAlpha(deepSpace.bgMid, 0.35),
+    borderColor: PEOPLE_MAP_BORDER,
+    backgroundColor: PEOPLE_MAP_BG,
     overflow: "hidden",
   },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
