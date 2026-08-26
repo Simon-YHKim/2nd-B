@@ -6,6 +6,46 @@ Conventional Commits.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-26
+
+Every curve on screen becomes a square. The app's visual system finishes its
+move to PIXEL-CLAY: icons, constellation links, charts, progress rings and
+SecondB's own face are now drawn from integer rectangles instead of vector
+paths, and translucency is pre-composited into countable colors instead of
+being blended at render time.
+
+### Changed
+- Icons are drawn from one place. Twelve separate icon registries across the
+  codebase were collapsed into a single set of 85 pixel glyphs; the same icon
+  used to be drawn twelve different ways, and two of them were literally the
+  same curve under two names.
+- Constellation links, the museum timeline's connectors, the growth and trend
+  charts, and every progress ring are now stepped cells rather than curves.
+  Dashed lines become every-third-cell; a progress ring fills cells around a
+  square border; a gradient area fill becomes a column per step.
+- SecondB's face keeps all six mouth shapes and its glow, rebuilt from
+  rectangles. The glow is a larger cell behind a smaller one rather than two
+  stroke widths.
+- Translucent colors are pre-composited against their known background instead
+  of being alpha-blended at draw time. Where the background genuinely is not
+  knowable — scrims over arbitrary content — a dither pattern replaces the
+  alpha.
+- Screen titles now say what the screens hold: 권한 → 권한 관리,
+  개인정보 → 개인정보 · 약관. The manual's door is 사용 안내서 in every
+  language, replacing a "Manual" that had been mistranslated as "manual entry".
+
+### Added
+- The manual can replay the home coachmarks, matching the reference design.
+  The same control stays in Settings.
+- A guard that fails the build if a curved shape returns anywhere in `src`,
+  and one that counts how many icon names the design canon asks for without a
+  glyph behind them.
+
+### Fixed
+- Star brightness on the home constellation keeps its meaning: the opacity
+  ladder that encodes L1~L5 was deliberately left as-is rather than flattened,
+  because there it is data and not decoration.
+
 ## [0.3.0] - 2026-08-26
 
 The Big Dipper becomes one set of seven, the interview learns what "I don't
