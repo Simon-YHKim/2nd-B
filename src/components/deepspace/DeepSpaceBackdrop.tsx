@@ -7,9 +7,9 @@
 // loading surfaces, which read off-canon against the cyan deep-space identity.
 
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
-import { deepSpace } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 
 // Fractional positions (x,y in 0..1) so the field scales to any viewport.
 const STARS = [
@@ -35,9 +35,21 @@ export function DeepSpaceBackdrop() {
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill={deepSpace.bgEdge} />
         <Rect x="0" y="0" width={width} height={height} fill="url(#ds-backdrop-glow)" />
-        {STARS.map((s, i) => (
-          <Circle key={i} cx={s.x * width} cy={s.y * height} r={s.r} fill={deepSpace.accentSoft} fillOpacity={s.o} />
-        ))}
+        {/* 별 — 원이 아니라 정수 rect 다(PIXEL-CLAY 규칙 1). 흐린 정도는
+            `fillOpacity` 가 아니라 **미리 합성한 색**이 낸다(규칙 4). */}
+        {STARS.map((s, i) => {
+          const size = s.r < 1.2 ? 2 : 3;
+          return (
+            <Rect
+              key={i}
+              x={Math.round(s.x * width - size / 2)}
+              y={Math.round(s.y * height - size / 2)}
+              width={size}
+              height={size}
+              fill={flattenAlpha(deepSpace.accentSoft, s.o, deepSpace.bgEdge)}
+            />
+          );
+        })}
       </Svg>
     </View>
   );

@@ -12,7 +12,7 @@ import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";
@@ -60,9 +60,21 @@ function AuthBackdrop() {
         </Defs>
         <Rect x="0" y="0" width={width} height={height} fill={deepSpace.bgEdge} />
         <Rect x="0" y="0" width={width} height={height} fill="url(#auth-top-glow)" />
-        {AUTH_STARS.map((s, i) => (
-          <Circle key={i} cx={s.x * width} cy={s.y * height} r={s.r} fill={deepSpace.accentSoft} fillOpacity={s.o} />
-        ))}
+        {/* 별 — 원이 아니라 정수 rect 다(PIXEL-CLAY 규칙 1). 흐린 정도는
+            `fillOpacity` 가 아니라 **미리 합성한 색**이 낸다(규칙 4). */}
+        {AUTH_STARS.map((s, i) => {
+          const size = s.r < 1.2 ? 2 : 3;
+          return (
+            <Rect
+              key={i}
+              x={Math.round(s.x * width - size / 2)}
+              y={Math.round(s.y * height - size / 2)}
+              width={size}
+              height={size}
+              fill={flattenAlpha(deepSpace.accentSoft, s.o, deepSpace.bgEdge)}
+            />
+          );
+        })}
       </Svg>
     </View>
   );

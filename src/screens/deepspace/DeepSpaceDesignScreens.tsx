@@ -3,12 +3,14 @@ import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollVie
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from "expo-audio";
 import { Redirect, router } from "expo-router";
 import { useTranslation } from "react-i18next";
-import Svg, { Circle, Line, Path, SvgXml } from "react-native-svg";
+import Svg, { Circle, Line, Rect, SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { colors, spacing } from "@/theme/tokens";
 import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
+import { ringCells, stepLine } from "@/components/pixel/pixel-line";
+import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
@@ -2039,14 +2041,17 @@ export function DeepSpaceResearchScreen() {
             </View>
           ) : null}
           <View style={styles.researchGraph}>
+            {/* 별과 링크 — 원과 선이었다. 셀 격자로 옮긴다(PIXEL-CLAY 규칙 1). */}
             <Svg width="100%" height={118} viewBox="0 0 260 118">
+              {satellites.map((s, i) =>
+                stepLine(135, 62, s.cx, s.cy, 2).map((p, j) => (
+                  <Rect key={`l${i}-${j}`} x={p.x} y={p.y} width={2} height={2} fill={s.stroke} />
+                )),
+              )}
               {satellites.map((s, i) => (
-                <Line key={`l${i}`} x1={135} y1={62} x2={s.cx} y2={s.cy} stroke={s.stroke} strokeWidth={1} />
+                <PixelNodeSvg key={`c${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} />
               ))}
-              {satellites.map((s, i) => (
-                <Circle key={`c${i}`} cx={s.cx} cy={s.cy} r={s.r} fill={s.fill} />
-              ))}
-              <Circle cx={135} cy={62} r={8} fill={colors.textTitle} />
+              <PixelStarSvg cx={135} cy={62} r={8} fill={colors.textTitle} />
             </Svg>
             <Text variant="caption" style={styles.graphTag}>
               {view.clusters.length > 0
@@ -2593,10 +2598,15 @@ export function DeepSpaceOpsScreen() {
       {/* hero — today's routine ring (real counts + streak) */}
       <MdCard variant="elevated" style={cx.opsHero}>
         <View style={cx.heroRow}>
+          {/* 진행 링 — 테두리를 도는 칸 중 앞에서부터 n칸(규칙 1). */}
           <Svg width={58} height={58} viewBox="0 0 58 58">
-            <Circle cx={29} cy={29} r={HERO_R} fill="none" stroke={m3.color.surfaceVariant} strokeWidth={6} />
-            <Circle cx={29} cy={29} r={HERO_R} fill="none" stroke={m3.color.primary} strokeWidth={6} strokeLinecap="round"
-              strokeDasharray={HERO_C} strokeDashoffset={HERO_C * (1 - pct)} originX={29} originY={29} rotation={-90} />
+            {(() => {
+              const cells = ringCells(29, 29, HERO_R, 6);
+              const lit = Math.round(cells.length * Math.max(0, Math.min(1, pct)));
+              return cells.map((p, i) => (
+                <Rect key={i} x={p.x} y={p.y} width={6} height={6} fill={i < lit ? m3.color.primary : m3.color.surfaceVariant} />
+              ));
+            })()}
           </Svg>
           <View style={cx.flex1}>
             <RNText style={[m3TextStyle("labelMedium"), cx.heroLabel]}>{t("today.heading")}</RNText>
@@ -3043,21 +3053,22 @@ export function DeepSpaceFocusScreen() {
       {/* timer ring */}
       <View style={cx.ringWrap}>
         <Svg width={280} height={280} viewBox="0 0 280 280">
-          <Circle cx={140} cy={140} r={RING_R} fill="none" stroke={m3.color.surfaceContainerHighest} strokeWidth={14} />
-          <Circle
-            cx={140}
-            cy={140}
-            r={RING_R}
-            fill="none"
-            stroke={m3.color.primary}
-            strokeWidth={14}
-            strokeLinecap="round"
-            strokeDasharray={RING_C}
-            strokeDashoffset={dashoffset}
-            originX={140}
-            originY={140}
-            rotation={-90}
-          />
+          {/* 타이머 링 — 테두리를 도는 칸. 남은 비율만큼 앞에서부터 칠한다(규칙 1). */}
+          {(() => {
+            const cells = ringCells(140, 140, RING_R, 14);
+            const left = RING_C > 0 ? 1 - dashoffset / RING_C : 0;
+            const lit = Math.round(cells.length * Math.max(0, Math.min(1, left)));
+            return cells.map((p, i) => (
+              <Rect
+                key={i}
+                x={p.x}
+                y={p.y}
+                width={14}
+                height={14}
+                fill={i < lit ? m3.color.primary : m3.color.surfaceContainerHighest}
+              />
+            ));
+          })()}
         </Svg>
         <View style={cx.ringCenter}>
           <RNText style={cx.ringTime}>{clock}</RNText>

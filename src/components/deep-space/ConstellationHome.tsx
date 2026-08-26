@@ -14,7 +14,7 @@ import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
-import Svg, { Circle, Defs, Path, Pattern, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, Pattern, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { PixelStarSvg } from "../pixel/PixelStarSvg";
 
@@ -32,7 +32,7 @@ import { useTaskStatus } from "@/lib/tasks/store";
 import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
-import { stepPolyline } from "@/components/pixel/pixel-line";
+import { stepPolyline, stepQuad } from "@/components/pixel/pixel-line";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { fontFamilies } from "@/theme/typography";
 import { type LadderLevel } from "@/lib/persona/brightness";
@@ -102,6 +102,9 @@ const GUIDE: HomeStarId[] = ["work", "now"];
  * 규칙을 지키느라 그림을 망가뜨리지 않기 위한 값이다(`SbStarfield` 와 같은 판단).
  */
 const LINK_CELL = 3;
+
+/** 신경망 링크를 놓는 셀. 원래 굵기가 1 안팎이라 2가 맞다. */
+const NEURAL_CELL = 2;
 
 /**
  * 선 색 — 원래 `withAlpha(…, 0.34)` 였다. 미리 합성해 불투명 색으로 둔다(규칙 4).
@@ -328,21 +331,32 @@ const NeuralFieldBackdrop = memo(function NeuralFieldBackdrop({ w, h }: { w: num
         </RadialGradient>
       </Defs>
       <Rect x={0} y={0} width={w} height={h} fill="url(#ds-stage)" />
-      {neural.links.map((l, i) => (
-        <Path
-          key={`l${i}`}
-          d={`M${l.ax},${l.ay} Q${l.mx},${l.my} ${l.bx},${l.by}`}
-          fill="none"
-          stroke={withAlpha(m3.accent.starCore, l.a)}
-          strokeWidth={l.wln}
-          strokeLinecap="round"
-        />
-      ))}
+      {/* 신경망 링크 — 2차 베지에 곡선이었다. 셀 계단으로(PIXEL-CLAY 규칙 1).
+          알파는 미리 합성한다(규칙 4) — 바닥은 무대 바닥색이다. */}
+      {neural.links.map((l, i) =>
+        stepQuad(l.ax, l.ay, l.mx, l.my, l.bx, l.by, NEURAL_CELL).map((p, j) => (
+          <Rect
+            key={`l${i}-${j}`}
+            x={p.x}
+            y={p.y}
+            width={NEURAL_CELL}
+            height={NEURAL_CELL}
+            fill={flattenAlpha(m3.accent.starCore, l.a, m3.accent.stageFloor)}
+          />
+        )),
+      )}
       {neural.nodes.map((n, i) => {
         const pulse = 0.72 + Math.sin(n.phase) * 0.24;
         return (
           <Fragment key={`n${i}`}>
-            <Circle cx={n.x} cy={n.y} r={n.r * (3.4 + pulse)} fill="url(#ds-node)" opacity={n.depth * n.fade} />
+            {/* 노드 발광 — RadialGradient 원이었다. 한 겹 큰 사각으로(규칙 1·4). */}
+            <Rect
+              x={Math.round(n.x - n.r * (3.4 + pulse))}
+              y={Math.round(n.y - n.r * (3.4 + pulse))}
+              width={Math.max(2, Math.round(n.r * (3.4 + pulse) * 2))}
+              height={Math.max(2, Math.round(n.r * (3.4 + pulse) * 2))}
+              fill={flattenAlpha(m3.accent.star, 0.3 * n.depth * n.fade, m3.accent.stageFloor)}
+            />
             <Rect
               x={Math.round(n.x - n.r * pulse)}
               y={Math.round(n.y - n.r * pulse)}
