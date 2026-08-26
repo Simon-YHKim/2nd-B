@@ -27,7 +27,7 @@
  *
  * Env: BASE_URL(필수, /2nd-B 를 서빙하는 루트) · OUT(기본 .app-shots, gitignore)
  *      SCREENS(쉼표 id) · QA_EMAIL/QA_PASSWORD(기본은 .env.test 에서 읽음)
- *      PW_PATH(Playwright 모듈 경로)
+ *      PW_PATH(Playwright 모듈 경로) · BROWSER_PATH(Chromium 실행 파일, 선택)
  *
  * ⚠ 산출 PNG 는 저장소에 커밋하지 않는다(레퍼런스 93장이 이미 3.4MB). 커밋하는 것은
  * 리포트 JSON 하나뿐이고, 그것도 기본 경로는 OUT 아래다 — 필요할 때만 옮긴다.
@@ -36,6 +36,16 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  browserLaunchOptions,
+  digestPage,
+  makeCaptureInitScript,
+  previewEnvLines,
+  resolvePlaywright,
+  shotFailureCodes,
+  validateFinalUrl,
+  waitForSettledPage,
+} from './capture-app-contract.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -47,11 +57,7 @@ const REPO = path.join(KIT, '..', '..');
 if (process.argv.includes('--print-env')) {
   const eas = JSON.parse(readFileSync(path.join(REPO, 'eas.json'), 'utf8'));
   const env = eas.build?.preview?.env ?? {};
-  const wanted = ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'];
-  const lines = wanted
-    .filter((k) => env[k])
-    .map((k) => `export ${k}="${env[k]}"`)
-    .concat(['export EXPO_PUBLIC_UI=deep-space', 'export EXPO_PUBLIC_ALLOW_DEV_TIER=true']);
+  const lines = previewEnvLines(env);
   process.stdout.write(lines.join('\n') + '\n');
   process.exit(0);
 }
@@ -62,8 +68,14 @@ if (!BASE_URL) {
   process.exit(1);
 }
 const OUT = process.env.OUT || path.join(REPO, '.app-shots');
-const PW_PATH = process.env.PW_PATH || 'C:/Users/202502/AppData/Roaming/npm/node_modules/playwright';
-const { chromium } = require(PW_PATH);
+let playwright;
+try {
+  playwright = resolvePlaywright(require, process.env);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+const chromium = playwright.chromium ?? playwright.default.chromium;
 
 // QA 계정: 커밋된 .env.test 가 정본(CLAUDE.md — 새로 만들지 말 것).
 function qaCreds() {
@@ -106,37 +118,29 @@ mkdirSync(path.join(OUT, 'structure'), { recursive: true });
 // 흔들림은 없고, 실행 사이 픽셀 동일이 필요하면 FIXED_ISO 로 과거 시각을 준다
 // (그때는 로그인이 안 되므로 세션을 미리 넣어야 한다).
 const FIXED_TIME = process.env.FIXED_ISO ? new Date(process.env.FIXED_ISO).getTime() : Date.now();
-const report = { baseUrl: BASE_URL, shots: [], consoleErrors: [], compare: [], unmeasurable: {} };
+const report = {
+  baseUrl: new URL(BASE_URL).origin,
+  shots: [],
+  consoleErrorCount: 0,
+  compare: [],
+  unmeasurable: {},
+};
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(browserLaunchOptions(process.env));
 const ctx = await browser.newContext({ viewport: { width: 390, height: 820 }, deviceScaleFactor: 1 });
-await ctx.addInitScript(`(function () {
-  var FIXED = ${FIXED_TIME};
-  var RealDate = Date;
-  var FakeDate = function (a, b, c, d, e, f, g) {
-    if (!(this instanceof FakeDate)) return new RealDate(FIXED).toString();
-    switch (arguments.length) {
-      case 0: return new RealDate(FIXED);
-      case 1: return new RealDate(a);
-      default: return new RealDate(a, b, c, d || 0, e || 0, f || 0, g || 0);
-    }
-  };
-  FakeDate.now = function () { return FIXED; };
-  FakeDate.parse = RealDate.parse; FakeDate.UTC = RealDate.UTC;
-  FakeDate.prototype = RealDate.prototype;
-  window.Date = FakeDate;
-  var seed = 42;
-  Math.random = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  try {
-    // 온보딩·코치마크는 클릭으로 넘기지 않는다(안 먹는 경우가 있다) — 저장 키로 연다.
-    localStorage.setItem('secondB_intro_played_v1', '1');
-    localStorage.setItem('sb_onboarded', '1');
-  } catch (e) {}
-})();`);
+await ctx.addInitScript(makeCaptureInitScript(FIXED_TIME));
 
 const page = await ctx.newPage();
 page.on('console', (m) => {
-  if (m.type() === 'error') report.consoleErrors.push(m.text().slice(0, 300));
+  if (m.type() === 'error') report.consoleErrorCount += 1;
+});
+let activeShot = null;
+page.on('response', (response) => {
+  if (!activeShot) return;
+  activeShot.responses.push({ url: response.url(), status: response.status() });
+});
+page.on('pageerror', () => {
+  if (activeShot) activeShot.pageErrorCount += 1;
 });
 
 const { email, password } = qaCreds();
@@ -158,38 +162,6 @@ if (page.url().includes('/sign-in')) {
   await browser.close();
   process.exit(2);
 }
-/** 온보딩을 끝까지 밀어낸다. 건너뛰기가 없으면 '다음'을 눌러 마지막까지 간다. */
-async function passOnboarding(p) {
-  for (let i = 0; i < 8; i += 1) {
-    if (!p.url().includes('/onboarding')) return;
-    let clicked = false;
-    for (const label of ['건너뛰기', 'Skip', '시작하기', 'Get started', '다음', 'Next']) {
-      const el = p.locator(`text=${label}`).first();
-      if ((await el.count()) > 0) {
-        try {
-          await el.click({ timeout: 3000 });
-          clicked = true;
-        } catch {
-          /* 다음 라벨로 */
-        }
-        if (clicked) break;
-      }
-    }
-    if (!clicked) return;
-    await p.waitForTimeout(1200);
-  }
-}
-
-if (page.url().includes('/onboarding')) {
-  // 온보딩이 뜨면 건너뛴다. 캡처 대상이 아니고, 여기 갇히면 전부 같은 화면이 찍힌다.
-  await passOnboarding(page);
-  await settle(page);
-}
-
-await page.addStyleTag({
-  content: '*, *::before, *::after { animation-play-state: paused !important; transition: none !important; }',
-});
-
 /**
  * 화면이 자리 잡을 때까지 기다린다.
  *
@@ -197,26 +169,6 @@ await page.addStyleTag({
  * 차례로 읽어서, 실측상 첫 실행에서 여섯 화면이 전부 "영차영차! 별가루 한 줌"
  * (로딩 문구)으로 찍혔다. 그래서 로딩 문구가 사라지고 본문이 자랄 때까지 본다.
  */
-async function settle(p, maxMs = 20000) {
-  const started = Date.now();
-  let lastLen = -1;
-  let stable = 0;
-  while (Date.now() - started < maxMs) {
-    const info = await p.evaluate(() => {
-      const t = document.body.innerText || '';
-      return { len: t.length, loading: /영차영차|불러오는|Loading|읽는 중/.test(t) };
-    });
-    if (!info.loading && info.len > 40) {
-      // 두 번 연속 같은 길이면 렌더가 멎은 것으로 본다.
-      if (info.len === lastLen && ++stable >= 2) return;
-    } else {
-      stable = 0;
-    }
-    lastLen = info.len;
-    await p.waitForTimeout(700);
-  }
-}
-
 /**
  * 앱 DOM 을 훑는다.
  *
@@ -227,27 +179,7 @@ async function settle(p, maxMs = 20000) {
  * 대조는 트리 모양이 아니라 **텍스트 집합**으로 하므로 이 비대칭은 문제가 안 된다.
  */
 async function digest() {
-  return page.evaluate(() => {
-    const walk = (el, depth) => {
-      if (depth > 24) return null;
-      const r = el.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) return null;
-      const own = [...el.childNodes]
-        .filter((n) => n.nodeType === 3)
-        .map((n) => n.textContent.trim())
-        .filter(Boolean)
-        .join(' ');
-      const kids = [...el.children].map((c) => walk(c, depth + 1)).filter(Boolean);
-      if (!own && kids.length === 0) return null;
-      return {
-        tag: el.tagName.toLowerCase(),
-        box: [Math.round(r.width), Math.round(r.height)],
-        ...(own ? { text: own.slice(0, 120) } : {}),
-        ...(kids.length ? { kids } : {}),
-      };
-    };
-    return walk(document.body, 0);
-  });
+  return page.evaluate(digestPage);
 }
 
 // ⚠ 앱은 한국어 줄바꿈을 다듬으려고 글자 사이에 **워드 조이너(U+2060)** 를 심는다
@@ -274,19 +206,21 @@ function flatten(node, out = []) {
 
 for (const target of TARGETS) {
   const route = routeMap[target.id];
+  activeShot = { responses: [], pageErrorCount: 0 };
   try {
     await page.goto(`${BASE_URL}/2nd-B${route}`, { waitUntil: 'load', timeout: 60000 });
-    await settle(page);
-    // ⚠ 온보딩은 **매 이동마다 다시 뜬다.** 완료 표시가 이 세션의 localStorage 가
-    // 아니라 계정 상태에 걸려 있어서, 루프 앞에서 한 번 건너뛰는 것으로는 홈이
-    // 영영 안 찍힌다(실측: home 이 온보딩으로 찍혀 대조 0%). 화면마다 확인한다.
-    if (page.url().includes('/onboarding') && !route.includes('onboarding')) {
-      await passOnboarding(page);
-      await page.goto(`${BASE_URL}/2nd-B${route}`, { waitUntil: 'load', timeout: 60000 });
-      await settle(page);
-    }
+    await waitForSettledPage(page);
     await page.screenshot({ path: path.join(OUT, `${target.id}.png`) });
     const appDigest = await digest();
+    validateFinalUrl(BASE_URL, route, page.url());
+    const failureCodes = shotFailureCodes({
+      baseUrl: BASE_URL,
+      responses: activeShot.responses,
+      pageErrorCount: activeShot.pageErrorCount,
+    });
+    if (failureCodes.length) {
+      throw new Error(`capture contract failed: ${failureCodes.join(',')}`);
+    }
     writeFileSync(
       path.join(OUT, 'structure', `${target.id}.json`),
       JSON.stringify(appDigest, null, 1) + '\n',
@@ -310,9 +244,11 @@ for (const target of TARGETS) {
     }
     report.shots.push({ id: target.id, route, ok: true });
     process.stdout.write(target.id + ' ');
-  } catch (e) {
-    report.shots.push({ id: target.id, route, ok: false, error: String(e).slice(0, 200) });
+  } catch {
+    report.shots.push({ id: target.id, route, ok: false, error: 'capture-contract-failed' });
     process.stdout.write(target.id + '(FAIL) ');
+  } finally {
+    activeShot = null;
   }
 }
 process.stdout.write('\n');
@@ -323,7 +259,7 @@ await browser.close();
 
 const failed = report.shots.filter((s) => !s.ok);
 console.log(
-  `app captures ${report.shots.length - failed.length}/${report.shots.length} · console errors ${report.consoleErrors.length}`,
+  `app captures ${report.shots.length - failed.length}/${report.shots.length} · console errors ${report.consoleErrorCount}`,
 );
 for (const c of report.compare) {
   console.log(`  ${c.id.padEnd(12)} ref ${String(c.refNodes).padStart(3)} · app ${String(c.appNodes).padStart(3)} · text match ${c.textMatchPct}%`);

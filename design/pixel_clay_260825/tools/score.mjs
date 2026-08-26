@@ -347,11 +347,11 @@ function descendantText(node) {
   return normText(parts.join(' '));
 }
 
-function flattenInteractive(node, output = []) {
+export function flattenInteractive(node, output = []) {
   if (!node) return output;
   if (node.tag === 'button' || node.tag === 'a' || node.interactive === true) {
     output.push({
-      text: descendantText(node),
+      text: normText(node.interactiveText ?? descendantText(node)),
       to: node.to ?? node.href ?? node.route ?? null,
       interactive: true,
     });
