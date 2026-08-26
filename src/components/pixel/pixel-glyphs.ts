@@ -759,8 +759,18 @@ export type AnyGlyphName = PixelGlyphName | GlyphAliasName;
  * (정본 이름)를 넘기든 같은 그림에 닿아야 한다. 그러지 않으면 이주 도중
  * 파일마다 어느 쪽 이름을 쓰는지가 갈려 다시 두 벌이 된다.
  */
+/**
+ * ⚠ `in` 이 아니라 `Object.hasOwn` 을 쓰는 이유: `"__proto__" in GLYPH_ALIAS`
+ *   는 **참**이다(프로토타입 체인). 그러면 이름이 아닌 객체가 돌아와 다음
+ *   색인이 `undefined` 가 되고 그리는 자리에서 죽는다. 캐논 JSON 값이 그대로
+ *   흘러드는 함수라 이름을 고를 수 있는 쓰기 주체가 우리만은 아니다.
+ */
+function ownAlias(name: string): PixelGlyphName | null {
+  return Object.hasOwn(GLYPH_ALIAS, name) ? GLYPH_ALIAS[name as GlyphAliasName] : null;
+}
+
 export function resolveGlyph(name: AnyGlyphName): PixelGlyphName {
-  return (name in GLYPH_ALIAS ? GLYPH_ALIAS[name as GlyphAliasName] : name) as PixelGlyphName;
+  return (ownAlias(name) ?? name) as PixelGlyphName;
 }
 
 /**
@@ -775,8 +785,9 @@ export function resolveGlyph(name: AnyGlyphName): PixelGlyphName {
  *   그림을 안 그리면 검사가 깨진다.
  */
 export function canonGlyph(name: string): PixelGlyphName {
-  if (name in GLYPH_ALIAS) return GLYPH_ALIAS[name as GlyphAliasName];
-  if (name in PIXEL_GLYPHS) return name as PixelGlyphName;
+  const alias = ownAlias(name);
+  if (alias) return alias;
+  if (Object.hasOwn(PIXEL_GLYPHS, name)) return name as PixelGlyphName;
   return "sparkle";
 }
 

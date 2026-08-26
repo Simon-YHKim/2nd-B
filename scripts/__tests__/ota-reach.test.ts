@@ -11,7 +11,7 @@
 // The publish still exits 0 and prints a dashboard link. That is why this has to
 // be checked rather than noticed.
 
-import { reachOf, render } from "../check-ota-reach";
+import { channelOf, reachOf, render } from "../check-ota-reach";
 
 const build = (
   appBuildVersion: number,
@@ -102,5 +102,58 @@ describe("it survives the shapes the CLI actually returns", () => {
       { id: "abc-123", channel: "preview", status: "FINISHED", runtimeVersion: "0".repeat(40) } as never,
     ]);
     expect(r.stranded[0]).toContain("abc-123");
+  });
+});
+
+// ── 픽스처가 현실과 같은 모양인가 (2026-08-26) ────────────────────────────
+//
+// ⚠ 이 파일은 **초록불인 채로 1년 가까이 틀려 있었다.** 위의 `build()` 헬퍼가
+//   `channel: string` 을 가진 객체를 만드는데, `eas-cli build:list --json` 은
+//   그런 필드를 내지 않는다. 실제 출력은 `updateChannel: { id, name }` 이다.
+//
+//   그래서 `reachOf` 의 채널 필터는 언제나 빈 배열을 냈고, 도달 보고는
+//   **빌드가 몇 대가 있든** "아직 빌드가 없다" 를 찍어 왔다. 2026-08-24 사고
+//   뒤에 만든 안전망이 한 번도 작동한 적이 없었던 셈이다.
+//
+//   픽스처는 항상 자기 코드와 동의한다 — 현실과 맞춰본 적이 없으면.
+//   그래서 아래 값은 **v0.4.0 빌드 로그에서 그대로 옮긴 것**이다.
+describe("실제 eas-cli 출력 모양", () => {
+  // 2026-08-26 v0.4.0 릴리즈 빌드 로그에서 그대로 옮겼다
+  // (GitHub Actions run 32933720629, "Get the build artifact" 스텝).
+  const REAL_CLI_BUILD = {
+    status: "FINISHED",
+    updateChannel: { id: "019ef866-55fc-719b-bfea-dfa91ee86bf4", name: "preview" },
+    buildProfile: "preview",
+    appVersion: "0.4.0",
+    appBuildVersion: 11,
+    runtimeVersion: "c28067519b5576eaa29279c7e3b4ce9707623812",
+  };
+
+  test("채널을 updateChannel.name 에서 읽는다 — CLI 에 b.channel 은 없다", () => {
+    expect(channelOf(REAL_CLI_BUILD)).toBe("preview");
+    // 이 단언이 이 파일의 요점이다: 옛 코드는 여기서 undefined 를 봤다.
+    expect((REAL_CLI_BUILD as Record<string, unknown>).channel).toBeUndefined();
+  });
+
+  test("실제 모양에서 도달을 옳게 판정한다", () => {
+    const r = reachOf(REAL_CLI_BUILD.runtimeVersion, "preview", [REAL_CLI_BUILD] as never);
+    expect(r.verdict).toBe("reaches");
+    expect(r.reached).toHaveLength(1);
+  });
+
+  test("실제 모양에서 좌초도 옳게 판정한다", () => {
+    const r = reachOf("0".repeat(40), "preview", [REAL_CLI_BUILD] as never);
+    expect(r.verdict).toBe("reaches-nothing");
+    expect(r.stranded).toHaveLength(1);
+  });
+
+  test("옛 모양(b.channel)도 계속 읽는다 — 되돌리는 게 목적이 아니다", () => {
+    expect(channelOf({ channel: "preview" } as never)).toBe("preview");
+  });
+
+  test("채널을 모르는 빌드는 어느 채널에도 안 속한다", () => {
+    expect(channelOf({} as never)).toBeNull();
+    const r = reachOf("aaa", "preview", [{ status: "FINISHED", runtimeVersion: "aaa" }] as never);
+    expect(r.verdict).toBe("no-builds");
   });
 });

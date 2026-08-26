@@ -203,8 +203,31 @@ jobs:
           set -euo pipefail
           RV="${{ steps.publish.outputs.runtime_version }}"
           CHANNEL="${{ needs.gate.outputs.channel }}"
-          BUILDS="$(npx eas-cli build:list --platform android --limit 30 --json --non-interactive 2>/dev/null || echo '[]')"
+          # ⚠ 이 줄은 전에 `2>/dev/null || echo '[]'` 이었다. 그러면 조회가
+          #   **실패해도 빈 목록**이 되고, 도달 보고는 그걸 "채널에 빌드가 없다"로
+          #   렌더한다 — **없는 것과 못 본 것을 구분할 수 없었다.**
+          #   이 저장소가 반복해서 데인 모양 그대로다(검사가 침묵하면 초록불로 읽힌다).
+          set +e
+          BUILDS="$(npx eas-cli build:list --platform android --limit 30 --json --non-interactive 2>build-list.err)"
+          LIST_CODE=$?
+          set -e
+          if [ "$LIST_CODE" -ne 0 ] || [ -z "$BUILDS" ]; then
+            echo "::warning title=OTA reach::eas build:list 가 실패했다(exit $LIST_CODE). 도달을 판단할 수 없다 — \"빌드 없음\" 과 다르다."
+            {
+              echo "### OTA reach"
+              echo
+              echo "⚠ **판단 불가** — 설치된 빌드 목록을 조회하지 못했다(exit $LIST_CODE)."
+              echo "이것은 \"채널에 빌드가 없다\" 와 **다른 상황**이다. 업데이트 자체는 발행됐다."
+              echo
+              echo '```'
+              head -c 2000 build-list.err || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            rm -f build-list.err
+            exit 0
+          fi
           REPORT="$(printf '%s' "$BUILDS" | node scripts/check-ota-reach.js "$RV" "$CHANNEL")"
+          rm -f build-list.err
           echo "$REPORT"
           {
             echo "### OTA reach"
