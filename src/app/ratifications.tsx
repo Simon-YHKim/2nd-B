@@ -20,6 +20,7 @@ import { PremiumLoadingState } from "@/components/premium";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, MdChip } from "@/components/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { m3 } from "@/lib/theme/m3";
 import { starNameKey } from "@/lib/persona/star-name";
 import { loadTierObservations } from "@/lib/persona/load-tier-observations";
@@ -60,26 +61,13 @@ function relativeTime(iso: string, t: Tx): string {
   return iso.slice(0, 10);
 }
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 function StarGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
-      <Path
-        d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.9 6.6 19.7l1.2-6L3.3 9.3l6.1-.7z"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </Svg>
-  );
+  return <PixelGlyph name="star" color={color} size={18} />;
 }
 
 function CheckIcon({ color }: { color: string }) {
-  return (
-    <Svg width={13} height={13} viewBox="0 0 24 24">
-      <Path d="M4.5 12.5l4.5 4.5 10.5-11" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </Svg>
-  );
+  return <PixelGlyph name="check" color={color} size={13} />;
 }
 
 export default function RatificationLogScreen() {

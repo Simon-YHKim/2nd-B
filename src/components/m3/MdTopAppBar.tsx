@@ -7,9 +7,9 @@
 // touch surface with an android_ripple state layer.
 import { useEffect, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
 
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { registerOwnBack } from "@/lib/nav/own-back";
 
 import { m3TextStyle } from "./typeface";
@@ -40,12 +40,7 @@ export function MdTopAppBar({
           hitSlop={8}
           style={styles.backPress}
         >
-          <Svg width={24} height={24} viewBox="0 0 24 24">
-            <Path
-              d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"
-              fill={m3.color.onSurface}
-            />
-          </Svg>
+          <PixelGlyph name="arrow_back" color={m3.color.onSurface} size={24} />
         </Pressable>
       </View>
       <Text style={[m3TextStyle("titleLarge"), styles.title]} numberOfLines={1}>

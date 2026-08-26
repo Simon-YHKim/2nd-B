@@ -6,6 +6,8 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 
 import { colors, spacing } from "@/theme/tokens";
 import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { canonGlyph } from "@/components/pixel/pixel-glyphs";
 import { m3 } from "@/lib/theme/m3";
 import { reactExpression } from "@/lib/companion/expression";
 import {
@@ -147,12 +149,9 @@ export function FilterChip({ label, active, violet, onPress }: { label: string; 
   return <View style={chipStyle}>{inner}</View>;
 }
 
+// 아이콘 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이다.
 function TrashGlyph() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24">
-      <Path d="M4 7h16M10 7V5h4v2M7 7l1 13h8l1-13M10 11v6M14 11v6" stroke={colors.clay} strokeWidth={1.7} fill="none" strokeLinecap="round" />
-    </Svg>
-  );
+  return <PixelGlyph name="trash" color={colors.clay} size={16} />;
 }
 
 // rev2 위키(records) — display type derived from a record's kind/tags/body so the
@@ -208,44 +207,22 @@ function recordRouteParamsById(id: string, records: readonly RecordsTimelineReco
 
 // Static Material-symbol-style glyphs (inline SVG, no animation) — Android-safe
 // per ANDROID_QA_GUIDELINES (no rAF, no dynamic SVG churn).
+/**
+ * 기록 종류별 아이콘. 다섯 종류가 각각 인라인 곡선이었다.
+ *
+ * 문자열 레지스트리가 아니라 JSX 였던 탓에 레지스트리 스캔에 안 잡혔고,
+ * **화면 DOM 을 세고 나서야** 드러났다.
+ */
+const TYPE_GLYPH: Record<string, string> = {
+  text: "edit_note",
+  link: "link",
+  voice: "mic",
+  photo: "photo_camera",
+  todo: "task_alt",
+};
+
 function TypeGlyph({ type }: { type: RType }) {
-  const s = colors.cyanSoft;
-  const p = { stroke: s, strokeWidth: 1.7, fill: "none" as const, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  return (
-    <Svg width={19} height={19} viewBox="0 0 24 24">
-      {type === "text" && (
-        <>
-          <Path {...p} d="M4 6.5h11M4 11h11M4 15.5h7" />
-          <Path {...p} d="M15.4 15.6l3.1-3.1a1.4 1.4 0 0 1 2 2l-3.1 3.1-2.7.7z" />
-        </>
-      )}
-      {type === "link" && (
-        <>
-          <Path {...p} d="M9.2 14.8l5.6-5.6" />
-          <Path {...p} d="M8.6 10.6l-2 2a3 3 0 0 0 4.2 4.2l2-2" />
-          <Path {...p} d="M15.4 13.4l2-2a3 3 0 0 0-4.2-4.2l-2 2" />
-        </>
-      )}
-      {type === "voice" && (
-        <>
-          <Rect {...p} x={9.5} y={3.5} width={5} height={9.5} rx={2.5} />
-          <Path {...p} d="M6.5 11a5.5 5.5 0 0 0 11 0M12 16.5V20M9.2 20h5.6" />
-        </>
-      )}
-      {type === "photo" && (
-        <>
-          <Path {...p} d="M4 8.5h3l1.4-2h7.2L18 8.5h2a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z" />
-          <Circle {...p} cx={12} cy={13.5} r={3} />
-        </>
-      )}
-      {type === "todo" && (
-        <>
-          <Circle {...p} cx={12} cy={12} r={8} />
-          <Path {...p} d="M8.4 12.2l2.5 2.5 4.6-5" />
-        </>
-      )}
-    </Svg>
-  );
+  return <PixelGlyph name={canonGlyph(TYPE_GLYPH[type] ?? "article")} color={colors.cyanSoft} size={19} />;
 }
 
 const RecordCard = memo(function RecordCard({ r, type, time, unfiled, onPress }: { r: RecordsTimelineRecord; type: RType; time?: string; unfiled: boolean; onPress: (record: RecordsTimelineRecord) => void }) {
@@ -511,9 +488,7 @@ export function DeepSpaceRecordsScreen() {
         accessibilityLabel={t("records.triageTitle", { count: unfiledCount })}
       >
         <View style={rStyles.triageIcon}>
-          <Svg width={20} height={20} viewBox="0 0 24 24">
-            <Path d="M3 13h4l2 3h6l2-3h4M5 6h14l1 7v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4z" stroke={colors.soul} strokeWidth={1.7} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-          </Svg>
+          <PixelGlyph name="inbox" color={colors.soul} size={20} />
         </View>
         <View style={rStyles.triageCol}>
           <RNText style={rStyles.triageTitle}>{t("records.triageTitle", { count: unfiledCount })}</RNText>
