@@ -15,12 +15,22 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 
 import { SbIcon } from "./SbIcon";
 import { SbNavBar } from "./SbNavBar";
 import { SbStarfield } from "./SbStarfield";
 import { SbStatusBar } from "./SbStatusBar";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 폰 셸의 테두리도 무대 바닥 위다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const phoneAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 export type PhoneShellVariant = "immersive" | "museumLike" | "windowed";
 
@@ -126,7 +136,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: m3.color.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: withAlpha(m3.accent.windowRim, 0.16),
+    borderColor: phoneAlpha(m3.accent.windowRim, 0.16),
     ...WINDOW_SHADOW,
   },
   windowBody: { flex: 1, minHeight: 0 },
@@ -137,7 +147,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 7,
     paddingTop: 34,
-    backgroundColor: withAlpha(m3.accent.stageFloor, 0.9),
+    backgroundColor: phoneAlpha(m3.accent.stageFloor, 0.9),
     borderBottomWidth: 1,
     borderBottomColor: m3.color.outlineVariant,
   },

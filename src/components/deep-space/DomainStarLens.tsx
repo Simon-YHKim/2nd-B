@@ -33,12 +33,22 @@ import { layoutPeopleMap } from "@/lib/relation/people-map-layout";
 import { listRecreationItems, type RecreationItem } from "@/lib/recreation/items";
 import { listRecentSamples, type HealthSampleRow } from "@/lib/supabase/health";
 import { m3 } from "@/lib/theme/m3";
-import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha } from "@/lib/theme/tokens";
 import { ringCells, stepLine } from "@/components/pixel/pixel-line";
 import { PixelNodeSvg, PixelStarSvg } from "@/components/pixel/PixelStarSvg";
 
 /**
- * 관계 지도의 색 — 원래 `withAlpha(…)` 였다. 미리 합성해 불투명 색으로 둔다
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.color.surfaceContainerLow` — 렌즈 카드 배경.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const lensAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.color.surfaceContainerLow);
+
+/**
+ * 관계 지도의 색 — 원래 `lensAlpha(…)` 였다. 미리 합성해 불투명 색으로 둔다
  * (PIXEL-CLAY 규칙 4). 바닥은 이 지도가 앉은 카드 배경이다.
  */
 const LENS_MAP_GROUND = m3.color.surfaceContainerLow;
@@ -1098,7 +1108,7 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     borderWidth: 1,
     borderColor: m3.color.outlineVariant,
-    backgroundColor: withAlpha(m3.color.surfaceContainerLow, 0.9),
+    backgroundColor: lensAlpha(m3.color.surfaceContainerLow, 0.9),
     overflow: "hidden",
   },
   mapFoot: { color: m3.color.onSurfaceVariant, fontFamily: m3.font.brand, marginTop: 8 },

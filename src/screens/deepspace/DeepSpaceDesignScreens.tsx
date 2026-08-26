@@ -23,7 +23,7 @@ import { ddsStyles as styles } from "./dds-styles";
 import { canonGaps, canonMore } from "@/lib/canon";
 import { reactExpression } from "@/lib/companion/expression";
 import { kstDateToday } from "@/lib/chat/limits";
-import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { MdButton, MdCard, MdChip, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { TIER_PRICE_KRW } from "@/lib/entitlements/tiers";
@@ -1240,7 +1240,7 @@ export function DeepSpaceInsightsScreen() {
           children - which is the full card content. */}
       <Pressable
         onPress={() => router.push("/records")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1268,7 +1268,7 @@ export function DeepSpaceInsightsScreen() {
       </Pressable>
       <Pressable
         onPress={() => router.push("/research")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1281,7 +1281,7 @@ export function DeepSpaceInsightsScreen() {
           implemented feature nobody could reach (audit pattern B). */}
       <Pressable
         onPress={() => router.push("/discover")}
-        android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+        android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
         accessibilityRole="button"
       >
         <Card>
@@ -1595,7 +1595,7 @@ export function DeepSpaceDiscoverScreen() {
         <Pressable
           key={r.tag}
           onPress={() => router.push({ pathname: "/capture", params: { tag: r.tag } })}
-          android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+          android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
           accessibilityRole="button"
           accessibilityLabel={`${r.tag} ${t("discover.cardDelta", { recent: r.recent, prior: r.prior })}`}
         >
@@ -2070,7 +2070,7 @@ export function DeepSpaceResearchScreen() {
           {view.headline !== null ? (
             <Pressable
               style={styles.insightViolet}
-              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+              android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
               // Since D-27 Phase 1c these ids come from recordsToResearchGraph,
               // so they ARE record ids and /record/[id] is the right target. The
               // old /wiki?focusPageId hop was correct only while the view was
@@ -2095,7 +2095,7 @@ export function DeepSpaceResearchScreen() {
           {view.surprise !== null ? (
             <Pressable
               style={styles.insightViolet}
-              android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+              android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
               // surprise.fromId is now a record id too — same reasoning as above.
               onPress={() => router.push({ pathname: "/record/[id]", params: { id: view.surprise!.fromId } })}
               accessibilityRole="button"
@@ -2137,7 +2137,7 @@ export function DeepSpaceResearchScreen() {
                 <View key={key} style={styles.opsStep}>
                   <Pressable
                     style={[styles.mapRow, { minHeight: 44 }]}
-                    android_ripple={{ color: withAlpha(m3.color.tertiary, 0.12) }}
+                    android_ripple={{ color: ddsAlpha2(m3.color.tertiary, 0.12) }}
                     onPress={() => router.push({ pathname: "/wiki", params: { focusPageId: p.from_page } })}
                     accessibilityRole="button"
                     accessibilityLabel={`${p.from_title} ↔ ${p.to_title}`}
@@ -3336,6 +3336,16 @@ export {
   DeepSpaceSignUpDesignScreen,
   DeepSpaceResetPasswordDesignScreen,
 } from "./dds-auth-screens";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `colors.bgDeep` — 이 파일의 화면들은 `dds-styles` 와 같은 바닥을 쓴다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const ddsAlpha2 = (c: string, a: number): string => flattenAlpha(c, a, colors.bgDeep);
 
 // ──────────────────────────────────────────────────────────────────────────
 // rev2 M3 clone kit (24-ops / 25-focus / 28-connect / 30-datareview). Shared

@@ -12,7 +12,7 @@ import Svg, { Circle, Defs, Line, Path, RadialGradient, Rect, Stop } from "react
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
-import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { fontFamilies } from "@/theme/typography";
 import { Text } from "@/components/ui/Text";

@@ -11,9 +11,20 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Rect } from "react-native-svg";
 
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
 import { PIXEL_GLYPHS, GLYPH_BOX } from "@/components/pixel/pixel-glyphs";
 import { fontFamilies } from "@/theme/typography";
+
+/**
+ * 이 파일의 반투명 색은 **미리 합성한다** — PIXEL-CLAY 절대 규칙 4.
+ *
+ * 바닥: `m3.accent.stageFloor` — 독은 무대 바닥 위에 얹힌다.
+ *
+ * ⚠ 스크림·백드롭은 여기 안 거친다. 아래 깔린 것을 모르는 채 덮는 층이라
+ *   미리 합성할 수 없고, 규칙 4가 그 자리에 요구하는 것은 **디더**다.
+ */
+const dockAlpha = (c: string, a: number): string => flattenAlpha(c, a, m3.accent.stageFloor);
 
 // Primary dock tabs (rev2 sb-data NAV): 별자리/담기/세컨비/위키/설정.
 // "ops"/"lens"/"iden"/"account" remain valid values so existing 2nd-tier callsites
@@ -66,7 +77,7 @@ export function DeepSpaceDock({
     <View style={[styles.dock, { paddingBottom: 16 + bottomInset }]}>
       {items.map((item) => {
         const on = item.key === active;
-        const color = on ? deepSpace.text : withAlpha(deepSpace.accentSoft, 0.55);
+        const color = on ? deepSpace.text : dockAlpha(deepSpace.accentSoft, 0.55);
         return (
           <Pressable
             key={item.key}
@@ -98,7 +109,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 4,
     borderTopWidth: 1,
-    borderTopColor: withAlpha(deepSpace.accent, 0.12),
+    borderTopColor: dockAlpha(deepSpace.accent, 0.12),
     backgroundColor: deepSpace.bgEdge,
   },
   tab: { flex: 1, alignItems: "center", gap: 3, minHeight: 44, justifyContent: "center" },
