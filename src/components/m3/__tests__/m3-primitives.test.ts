@@ -11,6 +11,51 @@ function read(file: string): string {
   return readFileSync(path.join(M3_DIR, file), "utf8");
 }
 
+/**
+ * 주석을 걷는다. 아래 위생 검사(hex 리터럴 / rgba / theme-tokens import /
+ * em dash)는 **코드**를 겨냥한 것인데, 주석까지 보면 규칙을 설명하는 문장이
+ * 그 규칙에 걸린다.
+ *
+ * 2026-08-27 에 실제로 그랬다: MdButton 의 비활성 색을 미리 합성하면서
+ * "왜 여기서 `theme/tokens` 를 import 하지 않는가"를 주석으로 적었더니
+ * `theme/tokens` 금지 검사가 그 문장을 잡았고, 바탕색 값을 적은 문장은
+ * hex 리터럴 검사에 걸렸다. 즉 **가드가 자기 근거를 적지 못하게 막고 있었다.**
+ *
+ * 문자열 리터럴은 살린다 (지우면 코드 안의 진짜 위반을 놓친다).
+ */
+function stripComments(src: string): string {
+  let out = "";
+  let mode: "code" | "line" | "block" | "sq" | "dq" | "tpl" = "code";
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    const d = src[i + 1];
+    if (mode === "code") {
+      if (c === "/" && d === "/") { mode = "line"; i++; out += "  "; continue; }
+      if (c === "/" && d === "*") { mode = "block"; i++; out += "  "; continue; }
+      if (c === "'") mode = "sq";
+      else if (c === '"') mode = "dq";
+      else if (c === "`") mode = "tpl";
+      out += c;
+      continue;
+    }
+    if (mode === "line") {
+      if (c === "\n") { mode = "code"; out += c; } else out += " ";
+      continue;
+    }
+    if (mode === "block") {
+      if (c === "*" && d === "/") { mode = "code"; i++; out += "  "; continue; }
+      out += c === "\n" ? "\n" : " ";
+      continue;
+    }
+    if (c === "\\") { out += c + (d ?? ""); i++; continue; }
+    if ((mode === "sq" && c === "'") || (mode === "dq" && c === '"') || (mode === "tpl" && c === "`")) {
+      mode = "code";
+    }
+    out += c;
+  }
+  return out;
+}
+
 const HYGIENE_FILES = [
   "MdButton.tsx",
   "SegBtn.tsx",
@@ -31,7 +76,10 @@ const TOUCH_TARGET = ["MdButton.tsx", "SegBtn.tsx", "MdChip.tsx", "Field.tsx", "
 
 describe("M3 primitive kit — token discipline", () => {
   test.each(HYGIENE_FILES)("%s consumes m3.* tokens and holds no raw color literals", (file) => {
-    const src = read(file);
+    const raw = read(file);
+    // 위생 검사는 코드만 본다. 주석까지 보면 규칙을 설명하는 문장이 그 규칙에
+    // 걸린다 (stripComments 의 주석 참조).
+    const src = stripComments(raw);
     expect(src).toMatch(/from ["']@\/lib\/theme\/m3["']/);
     expect(src).toContain("m3.");
     // no hex color literals — everything routes through m3.* (DESIGN.md rule)
@@ -40,7 +88,7 @@ describe("M3 primitive kit — token discipline", () => {
     expect(src).not.toMatch(/rgba\(/);
     // no legacy cosmic-pixel skin imports (m3 track is the point of P1b)
     expect(src).not.toMatch(/theme\/tokens|theme\/gameboy/);
-    // no em dashes anywhere (DESIGN.md)
+    // no em dashes in USER-FACING code. 주석의 em dash 는 걷힌 뒤라 안 걸린다.
     expect(src).not.toContain("—");
   });
 });

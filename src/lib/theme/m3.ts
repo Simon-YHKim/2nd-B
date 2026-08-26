@@ -398,6 +398,67 @@ export const m3State = {
 } as const;
 
 /**
+ * 반투명을 **미리 합성해** 불투명 색 하나로 만든다 (PIXEL-CLAY 절대 규칙 4).
+ *
+ * `lib/theme/tokens.ts` 의 `flattenAlpha` 와 같은 계산인데 여기 한 벌 더 있는
+ * 이유는 경계 때문이다: `m3-primitives.test.ts` 가 M3 프리미티브의
+ * `theme/tokens` import 를 막는다. m3 트랙은 자족해야 한다는 규율이고,
+ * 그 규율을 깨는 대신 합성을 이쪽으로 가져왔다.
+ *
+ * ⚠ `ground` 가 실제로 뒤에 깔린 색과 달라지면 결과가 미묘하게 틀리고,
+ *   그건 알파를 그냥 두는 것보다 나쁘다. 호출부는 바탕을 명시할 것.
+ */
+function flatten(hex: string, alpha: number, ground: string): string {
+  const parse = (v: string): [number, number, number] => {
+    const h = v.replace("#", "");
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    return [
+      parseInt(full.slice(0, 2), 16),
+      parseInt(full.slice(2, 4), 16),
+      parseInt(full.slice(4, 6), 16),
+    ];
+  };
+  const a = Math.max(0, Math.min(1, alpha));
+  const fg = parse(hex);
+  const bg = parse(ground);
+  const mix = fg.map((c, i) => Math.round(a * c + (1 - a) * bg[i]));
+  return `#${mix.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * M3 비활성 상태의 **불투명** 색.
+ *
+ * 전에는 프리미티브마다 `opacity: 0.38` 한 줄이었다. `MdButton` 의 그 한 줄이
+ * 2026-08-27 화면 실측에서 **네 라우트에 여섯 번** 나타났다. 규칙 4 는 정적
+ * 불투명도를 금하므로 값을 미리 합성해 색으로 만든다.
+ *
+ * ⚠ **바탕은 `m3ColorDark.surface`** 다. 프리미티브는 카드/시트 위에 앉지 무대
+ *   바닥에 직접 앉지 않는다. 더 어두운 바닥 위에 놓이는 호출부가 생기면 그
+ *   화면에서 값을 다시 재고 이 주석을 고칠 것.
+ *
+ * 컨테이너와 전경을 **둘 다** 낸다. 컨테이너만 바꾸고 전경을 그대로 두면
+ * 비활성이 활성보다 또렷해진다 (옛 `opacity` 는 글자까지 함께 덮었다).
+ */
+const DISABLED_ALPHA = 0.38;
+
+export const m3Disabled = {
+  /** 비활성 채움 버튼의 바탕. */
+  primary: flatten(m3ColorDark.primary, DISABLED_ALPHA, m3ColorDark.surface),
+  /** 비활성 채움 버튼의 글자. */
+  onPrimary: flatten(m3ColorDark.onPrimary, DISABLED_ALPHA, m3ColorDark.surface),
+  /** 비활성 톤 버튼의 바탕. */
+  secondaryContainer: flatten(m3ColorDark.secondaryContainer, DISABLED_ALPHA, m3ColorDark.surface),
+  /** 비활성 톤 버튼의 글자. */
+  onSecondaryContainer: flatten(m3ColorDark.onSecondaryContainer, DISABLED_ALPHA, m3ColorDark.surface),
+  /** 비활성 외곽선. */
+  outline: flatten(m3ColorDark.outline, DISABLED_ALPHA, m3ColorDark.surface),
+  /** 비활성 elevated 바탕. */
+  surfaceContainerLow: flatten(m3ColorDark.surfaceContainerLow, DISABLED_ALPHA, m3ColorDark.surface),
+  /** 표면 위 비활성 잉크 (아웃라인/텍스트 변형의 글자). */
+  onSurface: flatten(m3ColorDark.onSurface, DISABLED_ALPHA, m3ColorDark.surface),
+} as const;
+
+/**
  * 간격 — `--u = 2px` 격자 (D1, Simon 2026-08-20). 키 이름이 곧 배수다: `sN = u * N`.
  *
  * ⚠ 인수 스크린샷 12장은 `--u:4px`(데스크톱 창)에서 찍혔다. 2px 로 만든 화면은
@@ -453,6 +514,7 @@ export const m3 = {
   shape: m3Shape,
   elevation: m3Elevation,
   state: m3State,
+  disabled: m3Disabled,
   minTouch: m3MinTouch,
   spacing: m3Spacing,
   motion: m3Motion,
