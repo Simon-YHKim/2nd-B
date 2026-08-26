@@ -192,7 +192,7 @@
     "navPassword": "Alterar senha"
   },
   "privacy": {
-    "title": "Privacidade",
+    "title": "Privacidade e termos",
     "status": "Os registros são usados apenas para apoiar seu autoconhecimento.",
     "tip": "Escolhas sensíveis são sempre mostradas e confirmadas primeiro.",
     "lead": "Ajuste você mesmo como seus dados são usados.",
@@ -369,7 +369,7 @@
     "restoredNone": "Nenhuma compra anterior encontrada para restaurar."
   },
   "permissions": {
-    "title": "Permissões",
+    "title": "Gerenciar permissões",
     "status": "Para salvar melhor, peço apenas as permissões necessárias.",
     "tip": "Você pode desativá-las quando quiser.",
     "notif": "Notificações",

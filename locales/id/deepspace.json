@@ -192,7 +192,7 @@
     "navPassword": "Ubah kata sandi"
   },
   "privacy": {
-    "title": "Privasi",
+    "title": "Privasi & ketentuan",
     "status": "Catatan hanya digunakan untuk mendukung pemahaman dirimu.",
     "tip": "Pilihan sensitif selalu ditampilkan dan dikonfirmasi lebih dulu.",
     "lead": "Atur sendiri bagaimana datamu digunakan.",
@@ -369,7 +369,7 @@
     "restoredNone": "Tidak ada pembelian sebelumnya untuk dipulihkan."
   },
   "permissions": {
-    "title": "Izin",
+    "title": "Kelola izin",
     "status": "Agar bisa menyimpan lebih baik, aku hanya meminta izin yang diperlukan.",
     "tip": "Kamu bisa mematikannya kapan saja.",
     "notif": "Notifikasi",
