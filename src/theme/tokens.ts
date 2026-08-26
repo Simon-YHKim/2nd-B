@@ -26,12 +26,16 @@ export const colors = {
   cyanSoft: "#9FE4FF",
   cyanDim: "#7FC9F0",
   textHi: "#E8F7FF",
-  textMid: "rgba(159,228,255,0.80)",
-  textLo: "rgba(159,228,255,0.55)",
+  // ⚠ 넷 다 원래 `rgba(…)` 였다. **이 파일이 딥스페이스 디자인 화면 전부의
+  // 카드와 글자를 칠하므로**, 여기 알파 하나가 화면 수십 곳의 반투명이 된다
+  // (실측: `textLo` 하나가 59곳). 바닥은 이 토큰들이 얹히는 카드(`cardBg`,
+  // 캐논 --c01)다 — PIXEL-CLAY 절대 규칙 4.
+  textMid: "#83bcd5", // = rgba(159,228,255,0.80) over #141b2e
+  textLo: "#608aa1", // = rgba(159,228,255,0.55) over #141b2e
   textTitle: "#CCFAFF",
   soul: "#C8B6FF",
   soulDeep: "#8B7BD8",
-  soulLine: "rgba(167,139,250,0.50)",
+  soulLine: "#5e5394", // = rgba(167,139,250,0.50) over #141b2e
   mint: "#5FF0C0",
   border: "#232e4a", // 캐논 --c02
   borderHi: "#3d4866", // 캐논 --c03
@@ -45,8 +49,8 @@ export const colors = {
   rule: "#232e4a",
   ruleSoft: "#1b2440",
   ink: "#E8F7FF",
-  ink2: "rgba(159,228,255,0.80)",
-  ink3: "rgba(159,228,255,0.55)",
+  ink2: "#83bcd5", // textMid 와 같은 값(별칭)
+  ink3: "#608aa1", // textLo 와 같은 값(별칭)
   pine: "#46B6FF",
   pineDeep: "#141b2e",
   pineSoft: "#7FC9F0",
