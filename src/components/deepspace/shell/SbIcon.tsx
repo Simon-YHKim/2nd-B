@@ -10,9 +10,8 @@
 //   (1) 소문자 마크업이라 규칙 1 위반 집계에서 통째로 빠졌다(135 → 실제 304).
 //   (2) 다섯 글리프가 TabIcon 과 글자까지 같은 두 벌이었다.
 
-import { SvgXml } from "react-native-svg";
-
-import { GLYPH_ALIAS, glyphMarkup, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
+import { canonGlyph, type GlyphAliasName } from "@/components/pixel/pixel-glyphs";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 
 // 좌표는 여기 없다 — `components/pixel/pixel-glyphs.ts` 가 정본이고
 // `glyphMarkup()` 이 문자열로 직렬화해 준다(PIXEL-CLAY 절대 규칙 1: 정수 rect 만).
@@ -37,6 +36,15 @@ export interface SbIconProps {
 }
 
 export function SbIcon({ name, color, size = 24 }: SbIconProps) {
-  const xml = glyphMarkup(GLYPH_ALIAS[name], "currentColor");
-  return <SvgXml xml={xml} width={size} height={size} color={color} />;
+  // ⚠ `canonGlyph` 를 지나는 이유: 이 컴포넌트에 **타입이 못 막는 이름이 들어온다.**
+  //
+  //   `src/app/onboarding.tsx:66` 이 캐논 JSON 값을 `s.icon as SbIconName` 으로
+  //   **검사 없이 캐스팅**해서 넘긴다. 전에는 여기서 `GLYPH_ALIAS[name]` 이
+  //   `undefined` 가 되고 `glyphMarkup` 이 `PIXEL_GLYPHS[undefined].map(...)` 을
+  //   부르며 **TypeError** 로 죽었다 — 그것도 **새 사용자의 첫 화면**에서.
+  //
+  //   지금 캐논의 네 이름은 전부 그려져 있어 사고는 안 났지만, 캐논에 아이콘
+  //   이름 한 줄을 더하는 것만으로 온보딩이 죽는 상태였다. 아이콘이 없는 것과
+  //   화면이 죽는 것은 다른 값이다.
+  return <PixelGlyph name={canonGlyph(name)} color={color} size={size} />;
 }
