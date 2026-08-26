@@ -29,8 +29,10 @@ import { weeklyBaseRemaining } from "@/lib/reasoning/remaining-copy";
 import { useCoachmarksGate } from "@/lib/onboarding/coachmarks-gate";
 import { useProgression } from "@/lib/progression/useProgression";
 import { useTaskStatus } from "@/lib/tasks/store";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
+import { PixelGlyph } from "@/components/pixel/PixelGlyph";
+import { stepPolyline } from "@/components/pixel/pixel-line";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import { fontFamilies } from "@/theme/typography";
 import { type LadderLevel } from "@/lib/persona/brightness";
@@ -92,6 +94,21 @@ const NN_VIEW_DIST: Record<HomeStarId, number> = (() => {
 const BOWL: HomeStarId[] = ["now", "work", "later", "twenties"];
 const HANDLE: HomeStarId[] = ["twenties", "school", "infancy", "profile"];
 const GUIDE: HomeStarId[] = ["work", "now"];
+
+/**
+ * 별을 잇는 선을 놓는 셀 크기.
+ *
+ * 3px 인 이유: 원래 굵기가 1.2 라 1px 셀로 놓으면 대각선이 점선처럼 끊긴다.
+ * 규칙을 지키느라 그림을 망가뜨리지 않기 위한 값이다(`SbStarfield` 와 같은 판단).
+ */
+const LINK_CELL = 3;
+
+/**
+ * 선 색 — 원래 `withAlpha(…, 0.34)` 였다. 미리 합성해 불투명 색으로 둔다(규칙 4).
+ * 바닥은 별자리 상자가 앉은 무대 바닥색이다.
+ */
+const DIPPER_LINK_FILL = flattenAlpha(m3.accent.dipperLine, 0.34, m3.accent.stageFloor);
+const GUIDE_LINK_FILL = flattenAlpha(m3.accent.moodNeutral, 0.45, m3.accent.stageFloor);
 
 // 뮤지엄 is a curated surface, not a data domain — fixed at the prototype's L4.
 
@@ -462,8 +479,13 @@ export function ConstellationHome({
   const px = (x: number) => x * u;
   const py = (y: number) => (y + VB_TOP) * u;
   const starAt = (id: HomeStarId) => REV2_STARS.find((s) => s.id === id)!;
-  const pathOf = (ids: HomeStarId[], close = false) =>
-    ids.map((id, i) => `${i === 0 ? "M" : "L"}${px(starAt(id).x)},${py(starAt(id).y)}`).join(" ") + (close ? " Z" : "");
+  // 별을 잇는 선. 전에는 `M…L…` path 한 줄이었고 이제 **정수 셀 목록**이다
+  // (PIXEL-CLAY 규칙 1). 좌표 계산(px/py)은 그대로라 선이 지나는 자리는 안 바뀐다.
+  const cellsOf = (ids: HomeStarId[], close = false, extra?: [number, number]) => {
+    const pts = ids.map((id) => [px(starAt(id).x), py(starAt(id).y)] as [number, number]);
+    if (extra) pts.push(extra);
+    return stepPolyline(close ? [...pts, pts[0]] : pts, LINK_CELL);
+  };
 
   const levelOf = (id: HomeStarId): LadderLevel =>
     (starLevels[id] ?? 1) as LadderLevel;
@@ -560,16 +582,7 @@ export function ConstellationHome({
           accessibilityLabel={t("ds.home.inbox")}
           hitSlop={14}
         >
-          <Svg width={20} height={20} viewBox="0 0 24 24">
-            <Path
-              d="M12 3a6 6 0 0 0-6 6v3.2l-1.6 2.8a.8.8 0 0 0 .7 1.2h13.8a.8.8 0 0 0 .7-1.2L18 12.2V9a6 6 0 0 0-6-6zM9.8 18a2.3 2.3 0 0 0 4.4 0"
-              stroke={m3.accent.bellGlyph}
-              strokeWidth={1.8}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
+          <PixelGlyph name="notifications" color={m3.accent.bellGlyph} size={20} />
         </Pressable>
         {hasUnread ? <View pointerEvents="none" style={styles.bellDot} /> : null}
       </View>
@@ -584,16 +597,7 @@ export function ConstellationHome({
           accessibilityLabel={t("ds.home.museumEntry")}
           hitSlop={14}
         >
-          <Svg width={20} height={20} viewBox="0 0 24 24">
-            <Path
-              d="M3 9.5 12 4l9 5.5M5 10v8m4.7-8v8m4.6-8v8m4.7-8v8M3 20h18"
-              stroke={m3.accent.bellGlyph}
-              strokeWidth={1.8}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
+          <PixelGlyph name="account_balance" color={m3.accent.bellGlyph} size={20} />
         </Pressable>
       </View>
 
@@ -609,16 +613,7 @@ export function ConstellationHome({
             accessibilityLabel={t("ds.home.communityEntry")}
             hitSlop={14}
           >
-            <Svg width={20} height={20} viewBox="0 0 24 24">
-              <Path
-                d="M9 11a3.2 3.2 0 1 0 0-6.4A3.2 3.2 0 0 0 9 11zm7.4-.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2zM3 19.4c0-2.8 2.7-4.6 6-4.6s6 1.8 6 4.6M16.2 14.9c2.6.3 4.8 1.9 4.8 4.5"
-                stroke={m3.accent.bellGlyph}
-                strokeWidth={1.8}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
+            <PixelGlyph name="groups" color={m3.accent.bellGlyph} size={20} />
           </Pressable>
         </View>
       ) : null}
@@ -635,16 +630,7 @@ export function ConstellationHome({
           accessibilityLabel={reasoningCopy.notices}
           hitSlop={14}
         >
-          <Svg width={20} height={20} viewBox="0 0 24 24">
-            <Path
-              d="M4 6.5h3l8-3v17l-8-3H4zM7 17.5 8.5 21h3L10 18M18 8v8"
-              stroke={m3.color.primary}
-              strokeWidth={1.8}
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
+          <PixelGlyph name="campaign" color={m3.color.primary} size={20} />
         </Pressable>
         {noticeCenter.unreadCount > 0 ? <View pointerEvents="none" style={styles.bellDot} /> : null}
       </View>
@@ -667,15 +653,17 @@ export function ConstellationHome({
                 <Rect x={1} y={1} width={1} height={1} fill={m3.accent.polarisGlow} />
               </Pattern>
             </Defs>
-            <Path d={pathOf(BOWL, true)} fill="none" stroke={withAlpha(m3.accent.dipperLine, 0.34)} strokeWidth={1.2 * k} strokeLinejoin="round" />
-            <Path d={pathOf(HANDLE)} fill="none" stroke={withAlpha(m3.accent.dipperLine, 0.34)} strokeWidth={1.2 * k} strokeLinejoin="round" />
-            <Path
-              d={`${pathOf(GUIDE)} L${px(POLARIS.x)},${py(POLARIS.y)}`}
-              fill="none"
-              stroke={withAlpha(m3.accent.moodNeutral, 0.45)}
-              strokeWidth={1 * k}
-              strokeDasharray={`${2 * k} ${5 * k}`}
-            />
+            {[...cellsOf(BOWL, true), ...cellsOf(HANDLE)].map((p, i) => (
+              <Rect key={`dip${i}`} x={p.x} y={p.y} width={LINK_CELL} height={LINK_CELL} fill={DIPPER_LINK_FILL} />
+            ))}
+            {/* 지극성 안내선 — 원래 `strokeDasharray` 점선이었다. 셀에서 점선은
+                **한 칸 건너 하나만 그리는 것**이다. 선이 캐논과 같은 두 별
+                (work→now→북극성)을 지나는 것은 그대로다. */}
+            {cellsOf([...GUIDE], false, [px(POLARIS.x), py(POLARIS.y)])
+              .filter((_, i) => i % 3 === 0)
+              .map((p, i) => (
+                <Rect key={`gd${i}`} x={p.x} y={p.y} width={LINK_CELL} height={LINK_CELL} fill={GUIDE_LINK_FILL} />
+              ))}
             {/* 북극성: 색 밴딩 3단(디더 헤일로 -> polarisSoft -> 흰 코어). 밝기의
                 정직성(soulCoreOpacity)은 그대로다 — 그건 장식이 아니라 의미라서
                 디더로 바꾸지 않았다. */}

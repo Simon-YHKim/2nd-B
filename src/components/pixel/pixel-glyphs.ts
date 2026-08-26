@@ -595,6 +595,19 @@ export const PIXEL_GLYPHS = {
     r(14, 14, 2, 2), r(16, 16, 2, 2), r(18, 18, 2, 2),
     r(8, 14, 2, 2), r(6, 16, 2, 2), r(4, 18, 2, 2),
   ],
+  /** 신전 — 지붕 + 기둥 넷. 뮤지엄 입구. */
+  accountBalance: [
+    r(10, 2, 4, 2), r(6, 4, 12, 2), r(2, 6, 20, 2),
+    r(4, 10, 2, 8), r(9 - 1, 10, 2, 8), r(14, 10, 2, 8), r(18, 10, 2, 8),
+    r(2, 18, 20, 2),
+  ],
+
+  /** 사람 셋 — 커뮤니티. 가운데가 크고 양옆이 작다. */
+  groups: [
+    r(9 - 1, 4, 6, 6), r(6, 12, 12, 6),
+    r(2, 8, 4, 4), r(2, 14, 4, 4),
+    r(18, 8, 4, 4), r(18, 14, 4, 4),
+  ],
 } as const satisfies Record<string, readonly PixelRect[]>;
 
 export type PixelGlyphName = keyof typeof PIXEL_GLYPHS;
@@ -697,6 +710,9 @@ export const GLYPH_ALIAS = {
   house: "house",
   briefcase: "briefcase",
   close: "close",
+  account_balance: "accountBalance",
+  groups: "groups",
+  group: "groups",
   // 같은 아이콘의 다른 이름들.
   person: "account",
   photo_camera: "camera",
