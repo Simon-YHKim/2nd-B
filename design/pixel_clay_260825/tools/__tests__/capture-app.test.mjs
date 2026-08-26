@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 import * as scoreModule from '../score.mjs';
 import * as contractModule from '../capture-app-contract.mjs';
 
@@ -14,6 +16,29 @@ import {
   validateFinalUrl,
   waitForSettledPage,
 } from '../capture-app-contract.mjs';
+
+const CAPTURE_CLI = fileURLToPath(new URL('../capture-app.mjs', import.meta.url));
+
+test('capture URL join keeps exactly one base subpath with or without trailing slash', () => {
+  assert.equal(typeof scoreModule.resolveHostedAppUrl, 'function');
+  assert.equal(scoreModule.resolveHostedAppUrl('http://localhost:8977', '/'), 'http://localhost:8977/2nd-B/');
+  assert.equal(scoreModule.resolveHostedAppUrl('http://localhost:8977/', '/settings'), 'http://localhost:8977/2nd-B/settings');
+  assert.equal(scoreModule.resolveHostedAppUrl('http://localhost:8977/2nd-B/', '/settings'), 'http://localhost:8977/2nd-B/settings');
+  assert.throws(
+    () => scoreModule.resolveHostedAppUrl('http://localhost:8977/preview/', '/settings'),
+    /BASE_URL path must be root or \/2nd-B/,
+  );
+});
+
+test('capture CLI rejects deferred, false, unknown, unmeasurable, and unmapped selections before browser startup', () => {
+  for (const id of ['wiki', 'audit', 'missing-test-id', 'pwreset', 'domains']) {
+    const env = { ...process.env, SCREENS: id };
+    delete env.BASE_URL;
+    const result = spawnSync(process.execPath, [CAPTURE_CLI], { env, encoding: 'utf8' });
+    assert.equal(result.status, 2, `${id}: ${result.stderr}`);
+    assert.match(result.stderr, /invalid screen selection/i, id);
+  }
+});
 
 test('preview env emits every string EXPO_PUBLIC value without logging non-public values', () => {
   const lines = previewEnvLines({

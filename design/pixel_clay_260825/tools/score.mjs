@@ -28,20 +28,94 @@ const round2 = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const normText = (value) => String(value ?? '').replace(INVISIBLE, '').replace(/\s+/g, ' ').trim();
 
-function countDataEntries(value) {
-  return Object.keys(value ?? {}).filter((key) => key !== '_note').length;
+const CLASSIFICATION_CATEGORIES = ['routes', 'unmeasurable', 'unmapped'];
+
+function isSafeAppRoute(value) {
+  return typeof value === 'string'
+    && /^\/(?!\/)/.test(value)
+    && !value.includes('#')
+    && !/\s/.test(value);
+}
+
+function hasNonEmptyWhy(value) {
+  return value != null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && typeof value.why === 'string'
+    && value.why.trim().length > 0;
+}
+
+export function resolveHostedAppUrl(baseUrl, route) {
+  if (!isSafeAppRoute(route)) throw new Error(`unsafe app route: ${String(route)}`);
+  const target = new URL(baseUrl);
+  const routeUrl = new URL(route, 'https://route.invalid');
+  const basePath = target.pathname.replace(/\/+$/, '');
+  if (basePath && basePath !== '/2nd-B') {
+    throw new Error('BASE_URL path must be root or /2nd-B');
+  }
+  const suffix = routeUrl.pathname === '/' ? '/' : `/${routeUrl.pathname.replace(/^\/+/, '')}`;
+  target.pathname = `/2nd-B${suffix}`;
+  target.search = routeUrl.search;
+  target.hash = '';
+  return target.href;
+}
+
+export function validateManifestClassification(screens, routesFile) {
+  const screenById = new Map(screens.map((screen) => [screen.id, screen]));
+  const memberships = new Map();
+  const errors = [];
+  const categoryCounts = {};
+
+  for (const category of CLASSIFICATION_CATEGORIES) {
+    const ids = Object.keys(routesFile?.[category] ?? {}).filter((id) => id !== '_note');
+    categoryCounts[category] = ids.length;
+    for (const id of ids) {
+      memberships.set(id, [...(memberships.get(id) ?? []), category]);
+      const payload = routesFile[category][id];
+      const payloadValid = category === 'routes' ? isSafeAppRoute(payload) : hasNonEmptyWhy(payload);
+      if (!payloadValid) errors.push({ code: 'invalid-payload', id, category });
+      const screen = screenById.get(id);
+      if (!screen) errors.push({ code: 'unknown-id', id, category });
+      else if (screen.port !== true) {
+        errors.push({ code: 'non-port-true-id', id, category, port: screen.port });
+      }
+    }
+  }
+
+  const portTrue = screens.filter((screen) => screen.port === true);
+  for (const screen of portTrue) {
+    const categories = memberships.get(screen.id) ?? [];
+    if (categories.length === 0) errors.push({ code: 'missing-port-true', id: screen.id });
+    else if (categories.length > 1) errors.push({ code: 'duplicate-id', id: screen.id, categories });
+  }
+  errors.sort((left, right) => (
+    `${left.code}:${left.id}:${left.category ?? ''}`.localeCompare(
+      `${right.code}:${right.id}:${right.category ?? ''}`,
+    )
+  ));
+
+  return {
+    valid: errors.length === 0,
+    classifiedPortTrue: portTrue.filter((screen) => (memberships.get(screen.id) ?? []).length === 1).length,
+    categoryCounts,
+    errors,
+  };
 }
 
 export function deriveManifestStats(screens, routesFile) {
+  const classification = validateManifestClassification(screens, routesFile);
   return {
     total: screens.length,
     portTrue: screens.filter((screen) => screen.port === true).length,
     portFalse: screens.filter((screen) => screen.port === false).length,
     deferred: screens.filter((screen) => screen.port === 'deferred').length,
     stage1: screens.filter((screen) => screen.port === true && screen.stage === 1).map((screen) => screen.id),
-    mapped: countDataEntries(routesFile?.routes),
-    unmeasurable: countDataEntries(routesFile?.unmeasurable),
-    unmapped: countDataEntries(routesFile?.unmapped),
+    mapped: classification.categoryCounts.routes,
+    unmeasurable: classification.categoryCounts.unmeasurable,
+    unmapped: classification.categoryCounts.unmapped,
+    classifiedPortTrue: classification.classifiedPortTrue,
+    classificationValid: classification.valid,
+    classificationErrors: classification.errors,
   };
 }
 
@@ -229,9 +303,17 @@ function normalizeRoute(value) {
 }
 
 export function scoreNavigation(declared, actual) {
-  const rawExpected = declared ?? [];
+  const rawExpected = Array.isArray(declared) ? declared : [];
   if (rawExpected.length === 0) {
-    return { score: AXIS_MAX.D, max: AXIS_MAX.D, ratio: 1, matched: 0, declared: 0, measurable: true, deductions: [] };
+    return {
+      score: 0,
+      max: AXIS_MAX.D,
+      ratio: 0,
+      matched: 0,
+      declared: 0,
+      measurable: false,
+      deductions: ['navigation destination contract is missing or empty'],
+    };
   }
   const expected = rawExpected.map((entry) => ({
     label: normText(entry?.label),
@@ -277,6 +359,34 @@ export function scoreNavigation(declared, actual) {
     measurable: true,
     deductions,
   };
+}
+
+export function validateNavigationContract(screens, navFile) {
+  const contract = navFile != null && typeof navFile === 'object' && !Array.isArray(navFile)
+    ? navFile
+    : {};
+  const errors = [];
+  for (const screen of screens.filter((item) => item.port === true)) {
+    if (!Object.hasOwn(contract, screen.id)) {
+      errors.push({ code: 'missing-navigation-id', id: screen.id });
+      continue;
+    }
+    const edges = contract[screen.id];
+    if (!Array.isArray(edges) || edges.length === 0) {
+      errors.push({ code: 'empty-navigation-id', id: screen.id });
+      continue;
+    }
+    if (edges.some((edge) => (
+      edge == null
+      || typeof edge !== 'object'
+      || !normText(edge.label)
+      || !normalizeRoute(edge.to)
+    ))) {
+      errors.push({ code: 'invalid-navigation-entry', id: screen.id });
+    }
+  }
+  errors.sort((left, right) => `${left.code}:${left.id}`.localeCompare(`${right.code}:${right.id}`));
+  return { valid: errors.length === 0, errors };
 }
 
 export function scoreCopy(textMatchPct) {
@@ -395,10 +505,31 @@ function mergeRouteMetrics(route, maps) {
 export function buildScoreReport({ appOut, curvesFile, radiusFile, alphaFile, screensFilter }) {
   const screensFile = readJson(path.join(KIT, 'data', 'screens.json'), { screens: [] });
   const routesFile = readJson(path.join(KIT, 'data', 'app-routes.json'), {});
-  const navFile = readJson(
-    path.join(KIT, 'data', 'nav-routes.json'),
-    readJson(path.join(KIT, 'data', 'nav.json'), {}),
-  );
+  const manifest = deriveManifestStats(screensFile.screens, routesFile);
+  const only = screensFilter ? new Set(screensFilter.split(',').map((id) => id.trim()).filter(Boolean)) : null;
+  if (!manifest.classificationValid) {
+    return {
+      schemaVersion: 1,
+      manifest,
+      scoring: {
+        threshold: 98,
+        axes: AXIS_MAX,
+        navigationContract: 'not evaluated: invalid manifest classification',
+      },
+      inputs: {
+        appOut: path.resolve(appOut),
+        curvesFile: curvesFile ? path.resolve(curvesFile) : null,
+        radiusFile: radiusFile ? path.resolve(radiusFile) : null,
+        alphaFile: alphaFile ? path.resolve(alphaFile) : null,
+      },
+      selection: { requested: only ? [...only] : null, unknownScreens: [], targetCount: 0 },
+      scores: [],
+    };
+  }
+  const navRoutesPath = path.join(KIT, 'data', 'nav-routes.json');
+  const navSource = existsSync(navRoutesPath) ? 'data/nav-routes.json' : 'data/nav.json';
+  const navFile = readJson(navRoutesPath, readJson(path.join(KIT, 'data', 'nav.json'), {}));
+  const navigationContract = validateNavigationContract(screensFile.screens, navFile);
   const tokens = readJson(path.join(KIT, 'data', 'tokens.json'), {});
   const deviationsFile = readJson(path.join(KIT, 'data', 'deviations.json'), { deviations: [] });
   const appReport = readJson(path.join(appOut, 'app-report.json'), { compare: [] });
@@ -409,7 +540,6 @@ export function buildScoreReport({ appOut, curvesFile, radiusFile, alphaFile, sc
     rowsByRoute(radiusFile, ['round', 'blur']),
     rowsByRoute(alphaFile, ['alpha']),
   ];
-  const only = screensFilter ? new Set(screensFilter.split(',').map((id) => id.trim()).filter(Boolean)) : null;
   const known = new Set(
     screensFile.screens
       .filter((screen) => screen.port === true && routesFile.routes?.[screen.id])
@@ -443,7 +573,7 @@ export function buildScoreReport({ appOut, curvesFile, radiusFile, alphaFile, sc
         palette,
         refStructure,
         appStructure,
-        declaredNav: navFile[screen.id] ?? [],
+        declaredNav: navigationContract.valid ? navFile[screen.id] : null,
         actualNav: flattenInteractive(appStructure),
         textMatchPct: copyById.get(screen.id),
       }, deviationsFile.deviations ?? []);
@@ -455,13 +585,15 @@ export function buildScoreReport({ appOut, curvesFile, radiusFile, alphaFile, sc
 
   return {
     schemaVersion: 1,
-    manifest: deriveManifestStats(screensFile.screens, routesFile),
+    manifest,
     scoring: {
       threshold: 98,
       axes: AXIS_MAX,
-      navigationContract: existsSync(path.join(KIT, 'data', 'nav-routes.json'))
-        ? 'data/nav-routes.json'
-        : 'missing: nav.json has labels only, so D fails closed',
+      navigationContract: navigationContract.valid
+        ? navSource
+        : `invalid: ${navSource} does not provide a non-empty {label,to} contract for every port:true id`,
+      navigationContractValid: navigationContract.valid,
+      navigationContractErrors: navigationContract.errors,
     },
     inputs: {
       appOut: path.resolve(appOut),
@@ -475,6 +607,7 @@ export function buildScoreReport({ appOut, curvesFile, radiusFile, alphaFile, sc
 }
 
 export function reportExitCode(report) {
+  if (report?.manifest?.classificationValid !== true) return 2;
   const selection = report?.selection;
   const scores = Array.isArray(report?.scores) ? report.scores : [];
   if (!selection || !Number.isInteger(selection.targetCount) || selection.targetCount <= 0) return 2;
@@ -502,7 +635,6 @@ async function main() {
       alphaFile: args.alpha ? path.resolve(args.alpha) : null,
       screensFilter: args.screens,
     });
-    writeFileSync(path.resolve(args.out), `${JSON.stringify(report, null, 2)}\n`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
@@ -510,8 +642,22 @@ async function main() {
   }
   const exitCode = reportExitCode(report);
   if (exitCode === 2) {
-    console.error(`invalid screen selection: ${report.selection.unknownScreens.join(', ') || 'no targets'}`);
+    if (report.manifest?.classificationValid === false) {
+      const errors = report.manifest.classificationErrors
+        .map(({ code, id }) => `${code}:${id}`)
+        .join(', ');
+      console.error(`invalid manifest classification: ${errors}`);
+    } else {
+      console.error(`invalid screen selection: ${report.selection.unknownScreens.join(', ') || 'no targets'}`);
+    }
     process.exitCode = 2;
+    return;
+  }
+  try {
+    writeFileSync(path.resolve(args.out), `${JSON.stringify(report, null, 2)}\n`);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
     return;
   }
   const completed = report.scores.filter((row) => row.error == null);

@@ -48,6 +48,7 @@ import {
   validateFinalUrl,
   waitForSettledPage,
 } from './capture-app-contract.mjs';
+import { resolveHostedAppUrl, validateManifestClassification } from './score.mjs';
 
 const require = createRequire(import.meta.url);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -62,6 +63,38 @@ if (process.argv.includes('--print-env')) {
   const lines = previewEnvLines(env);
   process.stdout.write(lines.join('\n') + '\n');
   process.exit(0);
+}
+
+const manifest = JSON.parse(readFileSync(path.join(KIT, 'data', 'screens.json'), 'utf8'));
+const mapPath = path.join(KIT, 'data', 'app-routes.json');
+const mapFile = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {};
+const routeMap = mapFile.routes || {};
+const classification = validateManifestClassification(manifest.screens, mapFile);
+if (!classification.valid) {
+  const errors = classification.errors.map(({ code, id }) => `${code}:${id}`).join(', ');
+  console.error(`invalid manifest classification: ${errors}`);
+  process.exit(2);
+}
+
+const unmeasurable = { ...(mapFile.unmeasurable || {}) };
+delete unmeasurable._note;
+const only = process.env.SCREENS
+  ? [...new Set(process.env.SCREENS.split(',').map((screen) => screen.trim()).filter(Boolean))]
+  : null;
+const targetIds = new Set(
+  manifest.screens.filter((screen) => screen.port === true && routeMap[screen.id]).map((screen) => screen.id),
+);
+const invalidSelection = only ? only.filter((id) => !targetIds.has(id)) : [];
+if (invalidSelection.length) {
+  console.error(`invalid screen selection: ${invalidSelection.join(', ')}`);
+  process.exit(2);
+}
+const TARGETS = manifest.screens
+  .filter((screen) => targetIds.has(screen.id))
+  .filter((screen) => (only ? only.includes(screen.id) : true));
+if (TARGETS.length === 0) {
+  console.error('invalid screen selection: no targets');
+  process.exit(2);
 }
 
 const BASE_URL = process.env.BASE_URL;
@@ -89,26 +122,9 @@ function qaCreds() {
   return { email: get('QA_TEST_EMAIL'), password: get('QA_TEST_PASSWORD') };
 }
 
-// 화면 목록은 키트의 매니페스트 + 앱 라우트 매핑. 매핑이 없는 번들 화면은 아직
-// 대조 대상이 아니다(앱에 대응 화면이 없거나 id 가 다른 것).
-const manifest = JSON.parse(readFileSync(path.join(KIT, 'data', 'screens.json'), 'utf8'));
-const mapPath = path.join(KIT, 'data', 'app-routes.json');
-const mapFile = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {};
-const routeMap = mapFile.routes || {};
 // 라우트는 맞는데 이 하네스로는 못 재는 화면들(로그인된 세션이면 리다이렉트되는 인증
 // 화면, 유효한 토큰이 없으면 오류 상태를 그리는 화면). 백분율을 내면 그건 디자인
 // 점수가 아니라 하네스 상태를 잰 값이라 **숫자 대신 사유를 낸다.**
-const unmeasurable = { ...(mapFile.unmeasurable || {}) };
-delete unmeasurable._note;
-const only = process.env.SCREENS ? process.env.SCREENS.split(',').map((s) => s.trim()) : null;
-const TARGETS = manifest.screens
-  .filter((s) => s.port === true && routeMap[s.id] && !unmeasurable[s.id])
-  .filter((s) => (only ? only.includes(s.id) : true));
-
-if (TARGETS.length === 0) {
-  console.error('no targets — data/app-routes.json 에 번들 id -> 앱 경로 매핑이 필요하다');
-  process.exit(1);
-}
 
 mkdirSync(OUT, { recursive: true });
 mkdirSync(path.join(OUT, 'structure'), { recursive: true });
@@ -144,7 +160,7 @@ page.on('pageerror', () => {
 });
 
 const { email, password } = qaCreds();
-await page.goto(`${BASE_URL}/2nd-B/`, { waitUntil: 'load', timeout: 90000 });
+await page.goto(resolveHostedAppUrl(BASE_URL, '/'), { waitUntil: 'load', timeout: 90000 });
 await page.waitForTimeout(2500);
 
 // 로그인 월이면 QA 계정으로 통과한다. 이미 세션이 있으면 그냥 지나간다.
@@ -208,7 +224,7 @@ for (const target of TARGETS) {
   const route = routeMap[target.id];
   activeShot = { responses: [], pageErrorCount: 0 };
   try {
-    await page.goto(`${BASE_URL}/2nd-B${route}`, { waitUntil: 'load', timeout: 60000 });
+    await page.goto(resolveHostedAppUrl(BASE_URL, route), { waitUntil: 'load', timeout: 60000 });
     await waitForSettledPage(page);
     await page.screenshot({ path: path.join(OUT, `${target.id}.png`) });
     const appDigest = await digest();

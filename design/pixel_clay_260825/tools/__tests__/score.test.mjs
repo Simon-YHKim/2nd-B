@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import * as scoreModule from '../score.mjs';
 
 import {
   deriveManifestStats,
@@ -42,7 +43,7 @@ test('manifest counts and Stage 1 ids are derived from data instead of constants
   const routes = {
     routes: { home: '/', later: '/later' },
     unmeasurable: { _note: 'metadata', chat: { route: '/chat', why: 'fixture' } },
-    unmapped: { _note: 'metadata', wait: { why: 'fixture' } },
+    unmapped: { _note: 'metadata' },
   };
 
   assert.deepEqual(deriveManifestStats(screens, routes), {
@@ -53,8 +54,66 @@ test('manifest counts and Stage 1 ids are derived from data instead of constants
     stage1: ['home', 'chat'],
     mapped: 2,
     unmeasurable: 1,
-    unmapped: 1,
+    unmapped: 0,
+    classifiedPortTrue: 3,
+    classificationValid: true,
+    classificationErrors: [],
   });
+});
+
+test('manifest classification rejects missing, duplicate, deferred, false, and unknown ids', () => {
+  const screens = [
+    { id: 'home', port: true },
+    { id: 'later', port: true },
+    { id: 'skip', port: false },
+    { id: 'wait', port: 'deferred' },
+  ];
+  const routes = {
+    routes: { home: '/', wait: '/wait' },
+    unmeasurable: { ghost: { route: '/ghost', why: 'fixture' } },
+    unmapped: { home: { why: 'duplicate fixture' }, skip: { why: 'false fixture' } },
+  };
+
+  const stats = deriveManifestStats(screens, routes);
+  assert.equal(stats.classificationValid, false);
+  assert.equal(stats.classifiedPortTrue, 0);
+  assert.deepEqual(
+    stats.classificationErrors.map(({ code, id }) => `${code}:${id}`),
+    [
+      'duplicate-id:home',
+      'missing-port-true:later',
+      'non-port-true-id:skip',
+      'non-port-true-id:wait',
+      'unknown-id:ghost',
+    ],
+  );
+});
+
+test('manifest classification rejects unsafe routes and empty hold reasons', () => {
+  const screens = [
+    { id: 'empty', port: true },
+    { id: 'external', port: true },
+    { id: 'hash', port: true },
+    { id: 'unmeasurable', port: true },
+    { id: 'unmapped', port: true },
+  ];
+  const stats = deriveManifestStats(screens, {
+    routes: { empty: '', external: 'https://example.test/path', hash: '/settings#account' },
+    unmeasurable: { unmeasurable: { route: '/sign-in', why: '   ' } },
+    unmapped: { unmapped: 'not-an-object' },
+  });
+
+  assert.equal(stats.classificationValid, false);
+  assert.deepEqual(
+    stats.classificationErrors.map(({ code, id }) => `${code}:${id}`),
+    [
+      'invalid-payload:empty',
+      'invalid-payload:external',
+      'invalid-payload:hash',
+      'invalid-payload:unmapped',
+      'invalid-payload:unmeasurable',
+    ],
+  );
 });
 
 test('A subtracts six points for every rendered DOM violation', () => {
@@ -212,12 +271,84 @@ test('D preserves origin and hash boundaries instead of treating external URLs a
   assert.equal(exactHash.score, 15);
 });
 
+test('D fails closed for a missing or empty navigation contract', () => {
+  for (const declared of [undefined, null, []]) {
+    const result = scoreNavigation(declared, []);
+    assert.equal(result.score, 0);
+    assert.equal(result.measurable, false);
+    assert.match(result.deductions.join(' '), /contract/i);
+  }
+});
+
+test('navigation contract validation rejects one missing or empty port:true id', () => {
+  assert.equal(typeof scoreModule.validateNavigationContract, 'function');
+  const screens = [
+    { id: 'home', port: true },
+    { id: 'chat', port: true },
+    { id: 'wait', port: 'deferred' },
+  ];
+  const full = {
+    home: [{ label: '담기', to: '/capture' }],
+    chat: [{ label: '홈', to: '/' }],
+  };
+  assert.equal(scoreModule.validateNavigationContract(screens, full).valid, true);
+
+  const missing = structuredClone(full);
+  delete missing.chat;
+  assert.deepEqual(
+    scoreModule.validateNavigationContract(screens, missing).errors.map(({ code, id }) => `${code}:${id}`),
+    ['missing-navigation-id:chat'],
+  );
+
+  const empty = structuredClone(full);
+  empty.chat = [];
+  assert.deepEqual(
+    scoreModule.validateNavigationContract(screens, empty).errors.map(({ code, id }) => `${code}:${id}`),
+    ['empty-navigation-id:chat'],
+  );
+});
+
 test('CLI report exit contract distinguishes success, score failure, and invalid selection', () => {
-  assert.equal(reportExitCode({ selection: { targetCount: 1, unknownScreens: [] }, scores: [{ automaticPass: true }] }), 0);
-  assert.equal(reportExitCode({ selection: { targetCount: 1, unknownScreens: [] }, scores: [{ automaticPass: false }] }), 1);
-  assert.equal(reportExitCode({ selection: { targetCount: 1, unknownScreens: [] }, scores: [{ error: 'damaged capture' }] }), 1);
-  assert.equal(reportExitCode({ selection: { targetCount: 0, unknownScreens: [] }, scores: [] }), 2);
-  assert.equal(reportExitCode({ selection: { targetCount: 1, unknownScreens: ['typo'] }, scores: [] }), 2);
+  const validManifest = { classificationValid: true };
+  assert.equal(reportExitCode({ manifest: validManifest, selection: { targetCount: 1, unknownScreens: [] }, scores: [{ automaticPass: true }] }), 0);
+  assert.equal(reportExitCode({ manifest: validManifest, selection: { targetCount: 1, unknownScreens: [] }, scores: [{ automaticPass: false }] }), 1);
+  assert.equal(reportExitCode({ manifest: validManifest, selection: { targetCount: 1, unknownScreens: [] }, scores: [{ error: 'damaged capture' }] }), 1);
+  assert.equal(reportExitCode({ manifest: validManifest, selection: { targetCount: 0, unknownScreens: [] }, scores: [] }), 2);
+  assert.equal(reportExitCode({ manifest: validManifest, selection: { targetCount: 1, unknownScreens: ['typo'] }, scores: [] }), 2);
+  assert.equal(reportExitCode({ manifest: { classificationValid: false }, selection: { targetCount: 1, unknownScreens: [] }, scores: [{ automaticPass: true }] }), 2);
+});
+
+test('scorer rejects deferred, false, unknown, unmeasurable, and unmapped selections before scoring', () => {
+  for (const id of ['wiki', 'audit', 'missing-test-id', 'pwreset', 'domains']) {
+    const report = buildScoreReport({
+      appOut: os.tmpdir(),
+      curvesFile: null,
+      radiusFile: null,
+      alphaFile: null,
+      screensFilter: id,
+    });
+    assert.equal(reportExitCode(report), 2, id);
+    assert.deepEqual(report.selection.unknownScreens, [id], id);
+    assert.deepEqual(report.scores, [], id);
+  }
+});
+
+test('score CLI preserves an existing output file when selection is invalid', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-score-sentinel-'));
+  const out = path.join(dir, 'score.json');
+  try {
+    writeFileSync(out, 'sentinel-output');
+    const result = spawnSync(process.execPath, [
+      SCORE_CLI,
+      '--app-out', dir,
+      '--out', out,
+      '--screens', 'wiki',
+    ], { encoding: 'utf8' });
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(readFileSync(out, 'utf8'), 'sentinel-output');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('valid deviations exempt their axis, empty reasons do not and trigger a penalty', () => {
@@ -227,8 +358,8 @@ test('valid deviations exempt their axis, empty reasons do not and trigger a pen
     palette: new Set(['#000000']),
     refStructure: { tag: 'body', box: [100, 100], text: 'a' },
     appStructure: { tag: 'body', box: [100, 100], text: 'a' },
-    declaredNav: [],
-    actualNav: [],
+    declaredNav: [{ label: '홈', to: '/' }],
+    actualNav: [{ text: '홈', to: '/', interactive: true }],
     textMatchPct: 100,
   };
   const valid = scoreScreen('home', base, [
@@ -279,6 +410,11 @@ test('report builder scores a real manifest screen from capture and DOM artifact
       Object.fromEntries(['total', 'portTrue', 'portFalse', 'deferred'].map((key) => [key, report.manifest[key]])),
       { total: 93, portTrue: 80, portFalse: 7, deferred: 6 },
     );
+    assert.equal(report.manifest.classificationValid, true);
+    assert.equal(report.manifest.classifiedPortTrue, 80);
+    assert.equal(report.manifest.mapped + report.manifest.unmeasurable + report.manifest.unmapped, 80);
+    assert.equal(report.scoring.navigationContractValid, false);
+    assert.match(report.scoring.navigationContract, /invalid/i);
     assert.equal(report.scores.length, 1);
     assert.equal(report.scores[0].A, 30);
     assert.equal(report.scores[0].B, 25);
