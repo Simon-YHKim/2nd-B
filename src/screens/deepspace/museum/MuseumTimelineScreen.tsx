@@ -11,19 +11,20 @@
 //
 // Prototype source of truth: rev2 `sb-museum.jsx` (geometry MZ + mzPlace, data
 // 1:1 in museum-timeline-data.ts). Deep-space track only.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, PanResponder, Pressable, ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { useTranslation } from "react-i18next";
-import Svg, { Line, Path } from "react-native-svg";
+import Svg, { Line, Rect } from "react-native-svg";
 import { PixelGlyph } from "@/components/pixel/PixelGlyph";
 import { canonGlyph } from "@/components/pixel/pixel-glyphs";
+import { stepQuad, type LineCell } from "@/components/pixel/pixel-line";
 import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton } from "@/components/m3";
-import { deepSpace, spacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, spacing, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { canonMuseum } from "@/lib/canon";
 import {
@@ -88,7 +89,7 @@ export function MuseumTimelineScreen() {
   // Connectors: dedupe rel pairs, color by the earlier (source) node's lane.
   const connectors = useMemo(() => {
     const seen = new Set<string>();
-    const out: { key: string; d: string; accent: string; a: string; b: string }[] = [];
+    const out: { key: string; cells: LineCell[]; accent: string; a: string; b: string }[] = [];
     for (const e of MUSEUM) {
       for (const rid of e.rel) {
         const key = [e.id, rid].sort().join("~");
@@ -102,8 +103,14 @@ export function MuseumTimelineScreen() {
         const bx = pb.x + MZ.NODE_W / 2;
         const src = e.year <= other.year ? e : other;
         // Both stems meet the axis — bow the curve through the axis midpoint.
-        const d = `M ${ax} ${MZ.AXIS} Q ${(ax + bx) / 2} ${MZ.AXIS + (pa.y < MZ.AXIS === pb.y < MZ.AXIS ? (pa.y < MZ.AXIS ? -34 : 34) : 0)} ${bx} ${MZ.AXIS}`;
-        out.push({ key, d, accent: MZ_LANES[src.lane].accent, a: e.id, b: rid });
+        //
+        // 공식은 그대로다. 바뀐 것은 **그리는 방법**이다 — 2차 베지에 하나를
+        // `<Path>` 로 놓던 것을 정수 셀 계단으로 바꾸었다(규칙 1).
+        // 셀은 2px — 원래 굵기가 1.2 라 1px 로 놓으면 끊겨 보인다.
+        const cx = (ax + bx) / 2;
+        const cy = MZ.AXIS + (pa.y < MZ.AXIS === pb.y < MZ.AXIS ? (pa.y < MZ.AXIS ? -34 : 34) : 0);
+        const cells = stepQuad(ax, MZ.AXIS, cx, cy, bx, MZ.AXIS, MZ_LINK_CELL);
+        out.push({ key, cells, accent: MZ_LANES[src.lane].accent, a: e.id, b: rid });
       }
     }
     return out;
@@ -230,7 +237,17 @@ export function MuseumTimelineScreen() {
               {/* connectors */}
               {connectors.map((c) => {
                 const active = selId === c.a || selId === c.b;
-                return <Path key={c.key} d={c.d} stroke={c.accent} strokeWidth={active ? 2.2 : 1.2} opacity={active ? 0.95 : 0.4} fill="none" />;
+                // 선을 굵게/진하게 하던 `strokeWidth`·`opacity` 대신, 셀 크기와
+                // **미리 합성한 색**으로 강조를 표현한다(규칙 1·4).
+                const w = active ? MZ_LINK_CELL * 2 : MZ_LINK_CELL;
+                const fill = active ? c.accent : mzDimLink(c.accent);
+                return (
+                  <Fragment key={c.key}>
+                    {c.cells.map((p, i) => (
+                      <Rect key={i} x={p.x} y={p.y} width={w} height={w} fill={fill} />
+                    ))}
+                  </Fragment>
+                );
               })}
               {/* stems */}
               {MUSEUM.map((e) => {
@@ -482,6 +499,21 @@ const MUSEUM_TEXT_CAUSE = withAlpha(m3.accent.shareInkSoft, 0.82);
 const MUSEUM_FAINT_WASH = withAlpha(m3.accent.skyStarWhite, 0.02);
 const MUSEUM_REF_WASH = withAlpha(m3.accent.skyStarWhite, 0.03);
 const MUSEUM_REF_BORDER = withAlpha(m3.accent.skyStarWhite, 0.08);
+/**
+ * 연결선을 놓는 셀 크기. 원래 굵기가 1.2 라 2px 이다 — 1px 로 놓으면
+ * 대각선이 점선처럼 끊겨 보인다.
+ */
+const MZ_LINK_CELL = 2;
+
+/**
+ * 연결선의 흰림 색 — 원래 `opacity={0.4}` 이 하던 일.
+ * 미리 합성해 불투명 색 하나로 만든다(규칙 4).
+ * 바닥은 무지엄 무대 바닥색이다.
+ */
+function mzDimLink(accent: string): string {
+  return flattenAlpha(accent, 0.4, m3.accent.stageFloor);
+}
+
 const MUSEUM_OPEN_ICON = withAlpha(m3.accent.skyStarWhite, 0.32);
 const MUSEUM_GRID_LINE = withAlpha(m3.accent.entryTag, 0.09);
 const MUSEUM_AXIS_LINE = withAlpha(m3.accent.entryTag, 0.35);

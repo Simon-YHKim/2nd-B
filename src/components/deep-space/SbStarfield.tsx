@@ -38,6 +38,7 @@ import { StyleSheet } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { flattenAlpha } from "@/lib/theme/tokens";
+import { stepPolyline, type LineCell } from "@/components/pixel/pixel-line";
 import { m3 } from "@/lib/theme/m3";
 
 const SKY_W = 390;
@@ -120,49 +121,20 @@ const SKY_CONST: { c: string; o: number; pts: [number, number][] }[] = [
   { c: m3.accent.skyConstD, o: 0.34, pts: [[252, 470], [300, 500], [286, 558], [332, 540]] },
 ];
 
-/** 별자리 선 한 칸. 대각선을 정수 셀로 놓는다. */
-type LinkCell = { x: number; y: number };
-
 /**
- * 두 점 사이를 **정수 셀 계단**으로 잇는다(브레젠험).
+ * 별자리 선을 놓는 셀 크기.
  *
- * `<Polyline>` 한 줄이 하던 일을 셀 여러 개가 대신한다. 셀 크기를 3px 로 두는
- * 이유: 원래 선 굵기가 0.7 이라 1px 셀로 놓으면 점선처럼 끊겨 보이고, 그건
- * 규칙이 아니라 그냥 망가진 그림이다.
+ * 3px 인 이유: 원래 선 굵기가 0.7 이라 1px 셀로 놓으면 점선처럼 끊겨 보이고,
+ * 그건 규칙이 아니라 그냥 망가진 그림이다.
+ *
+ * 계단 계산 자체는 `components/pixel/pixel-line.ts` 가 한다 — 뮤지엄 연결선도
+ * 같은 계산을 쓴다. 화면마다 따로 만들면 격자가 안 맞는다.
  */
 const LINK_CELL = 3;
-function stepLine(a: [number, number], b: [number, number]): LinkCell[] {
-  const out: LinkCell[] = [];
-  let x0 = Math.round(a[0] / LINK_CELL);
-  let y0 = Math.round(a[1] / LINK_CELL);
-  const x1 = Math.round(b[0] / LINK_CELL);
-  const y1 = Math.round(b[1] / LINK_CELL);
-  const dx = Math.abs(x1 - x0);
-  const dy = -Math.abs(y1 - y0);
-  const sx = x0 < x1 ? 1 : -1;
-  const sy = y0 < y1 ? 1 : -1;
-  let err = dx + dy;
-  // 안전 상한 — 좌표가 이상해도 무한 루프로 화면을 멈추지 않는다.
-  for (let guard = 0; guard < 4000; guard += 1) {
-    out.push({ x: x0 * LINK_CELL, y: y0 * LINK_CELL });
-    if (x0 === x1 && y0 === y1) break;
-    const e2 = 2 * err;
-    if (e2 >= dy) {
-      err += dy;
-      x0 += sx;
-    }
-    if (e2 <= dx) {
-      err += dx;
-      y0 += sy;
-    }
-  }
-  return out;
-}
 
 /** 네 별자리를 미리 셀로 펼쳐 둔다 — 렌더마다 다시 계산하지 않는다. */
 const SKY_CONST_CELLS = SKY_CONST.map((cn) => {
-  const cells: LinkCell[] = [];
-  for (let i = 0; i + 1 < cn.pts.length; i += 1) cells.push(...stepLine(cn.pts[i], cn.pts[i + 1]));
+  const cells: LineCell[] = stepPolyline(cn.pts, LINK_CELL);
   return {
     // 선과 꼭짓점은 밝기가 다르다(원본도 0.32 : 0.8 이었다). 둘 다 미리 합성한다.
     line: flattenAlpha(cn.c, 0.32 * cn.o, m3.accent.cosmicBase),
