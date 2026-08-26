@@ -342,7 +342,22 @@ interface Hit {
 const hits: Hit[] = [];
 const lineOf = (src: string, index: number): number => src.slice(0, index).split("\n").length;
 
-for (const rel of MIGRATED) {
+/**
+ * 규칙 2·3·5 를 **`src/` 전체**에서 본다 (2026-08-27 승격).
+ *
+ * 전에는 `MIGRATED` 목록 안에서만 봤다. 그래서 목록 밖에 새 위반이 생기면
+ * 아무 일도 안 일어났고, "PASS" 가 "규칙이 지켜진다"를 뜻하지 않았다.
+ * 화면 실측에서 이 세 규칙이 사실상 0 이라(곡선 0 · 라운드 1 · 블러 0) 승격
+ * 비용이 낮아진 시점에 목록을 걷는다.
+ *
+ * ⚠ 목록을 지우지는 않았다. `MIGRATED` 는 규칙 6(타입 격자)이 아직 쓰고,
+ *   무엇이 언제 이식됐는지의 기록이기도 하다.
+ */
+const RULE_SCOPE: readonly string[] = walkTsx(join(ROOT, "src")).map((p) =>
+  p.slice(ROOT.length + 1).split(sep).join("/"),
+);
+
+for (const rel of RULE_SCOPE) {
   let src: string;
   try {
     src = readFileSync(join(ROOT, rel), "utf8");
@@ -486,15 +501,59 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
   }
 }
 
-if (hits.length > 0) {
-  console.error("PIXEL-CLAY RULES FAIL  규칙 1(전 소스) 또는 규칙 2·3·5·타입 격자(이식 화면)에서 되돌아갔다:");
-  for (const h of hits) {
+// ── 승격 (2026-08-27): 규칙 2·3·5 가 `src/` 전체를 본다 ────────────────────
+//
+// 전에는 `MIGRATED` 114개 안에서만 봤다. 그래서 **목록 밖에 새 위반이 생기면
+// 아무 일도 안 일어났고**, PASS 가 "규칙이 지켜진다"를 뜻하지 않았다.
+//
+// ⚠ 그런데 목록을 걷고 세어보니 **342건**이었다. 브리프가 말한 "구멍 3건"이
+//   아니다. 전부 무관용으로 걸면 아무도 머지를 못 하므로 **래칫**으로 건다:
+//   지금 수를 기준선으로 박고 **늘어나면 실패**한다. 목록의 구멍은 닫히고,
+//   기존 빚은 줄여 나갈 때마다 기준선을 내린다.
+//
+// ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
+//   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
+const RATCHET_BASELINE = 340;
+
+const rule1Hits = hits.filter((h) => h.why.startsWith("규칙 1"));
+const ratchetHits = hits.filter((h) => !h.why.startsWith("규칙 1"));
+
+if (rule1Hits.length > 0) {
+  console.error("PIXEL-CLAY RULES FAIL  규칙 1(곡선)은 무관용이다:");
+  for (const h of rule1Hits) {
     console.error(`  - ${h.file}:${h.line}  ${h.text}`);
     console.error(`      ${h.why}`);
   }
+}
+
+if (ratchetHits.length > RATCHET_BASELINE) {
+  const grew = ratchetHits.length - RATCHET_BASELINE;
+  console.error(
+    `PIXEL-CLAY RULES FAIL  규칙 2·3·5 위반이 ${grew}건 늘었다 ` +
+      `(기준선 ${RATCHET_BASELINE} -> ${ratchetHits.length}).`,
+  );
+  console.error("  기존 빚은 그대로 둬도 되지만 **새로 늘리는 것**은 막는다.");
+  console.error("  줄인 경우에는 scripts/check-pixel-rules.ts 의 RATCHET_BASELINE 을 같이 내릴 것.");
+  for (const h of ratchetHits.slice(0, 40)) {
+    console.error(`  - ${h.file}:${h.line}  ${h.text}`);
+    console.error(`      ${h.why}`);
+  }
+  if (ratchetHits.length > 40) console.error(`  ... 그리고 ${ratchetHits.length - 40}건 더`);
+}
+
+if (ratchetHits.length < RATCHET_BASELINE) {
+  console.error(
+    `PIXEL-CLAY RULES FAIL  규칙 2·3·5 위반이 ${RATCHET_BASELINE - ratchetHits.length}건 줄었다 ` +
+      `(기준선 ${RATCHET_BASELINE} -> ${ratchetHits.length}). 좋은 일이다 — ` +
+      `scripts/check-pixel-rules.ts 의 RATCHET_BASELINE 을 ${ratchetHits.length} 로 내리고 다시 올릴 것.`,
+  );
+  console.error("  내리지 않으면 다음 사람이 그만큼 되돌려도 안 걸린다.");
+}
+
+if (rule1Hits.length > 0 || ratchetHits.length !== RATCHET_BASELINE) {
   process.exit(1);
 }
 
 console.log(
-  `PIXEL-CLAY RULES PASS  규칙 1 곡선 도형 0건(src 전체) · 이식된 ${MIGRATED.length}개 파일에 둥근 모서리 0건 · 블러 0건 · 곡선 이징 0건 · 타입 격자 준수`,
+  `PIXEL-CLAY RULES PASS  규칙 1 곡선 0건(src 전체, 무관용) · 규칙 2·3·5 는 src 전체에서 ${RATCHET_BASELINE}건 래칫(늘지도 줄지도 않음) · 이식 목록 ${MIGRATED.length}개`,
 );
