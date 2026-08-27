@@ -56,7 +56,8 @@ export const gameboyCosmic = {
 // 색은 그대로 두고 모서리만 0 이 됐다.
 const gameboyDeepSpace = {
   ...geometryDeepSpace,
-  screen: "#0A0E1A",
+  // ⚠ 캐논 midnight 램프의 `--c00`. 원래 `#0A0E1A` 로 2 만큼 어긋나 있었다.
+  screen: "#0A0E18",
   ink: "#E8F7FF",
   accent: "#46B6FF",
   power: "#5FF0C0",

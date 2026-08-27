@@ -27,12 +27,15 @@ import { UI_MODE } from "../ui-mode";
  * 객체를 정의하는 중이라 자기 자신을 못 가리켜서 리터럴로 둔다.
  * ⚠ 어긋나면 조용히 틀린 색이 나온다. `theme-tokens.test.ts` 가 둘을 묶는다.
  */
-const FX_GROUND = "#070A18";
+const FX_GROUND = "#0A0E18";
 
 export const cosmic = {
   // Deep space backgrounds — pure black is forbidden; bg uses the
   // deepest ink instead.
-  space950: "#070A18", // Deep Space Ink — primary bg
+  // ⚠ 캐논 midnight 램프의 `--c00`. 원래 `#070A18`(램프보다 5 어두움)이었다 —
+  //   B축(램프 면적)에서 이 한 값이 화면의 8.3% 를 밖으로 끌어내리고 있었다.
+  //   거리 5/255 라 눈에 띄지 않으면서 램프에 든다.
+  space950: "#0A0E18", // Deep Space Ink — primary bg (캐논 --c00)
   space900: "#0D1530", // Night Navy
   space800: "#16213E", // Graph Slate — surface
   space700: "#243056",
@@ -230,7 +233,8 @@ export const semanticCosmic = {
   success: cosmic.signalMint,
   warning: cosmic.pixelLamp,
   danger: cosmic.guardRose,
-  deepSpaceBg: "#0A0E1A",
+  // ⚠ 캐논 `--c00`. 원래 `#0A0E1A` 로 2 만큼 어긋나 있었다.
+  deepSpaceBg: "#0A0E18",
   deepSpaceAccent: "#46B6FF",
   deepSpaceText: "#5FD4FF",
   deepSpaceTextMuted: "#428eb0",
