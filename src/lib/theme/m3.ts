@@ -244,13 +244,34 @@ export const m3Accent = {
 // bloom under the persona status dot (reference CHAT_MODES.glow). Values
 // transcribed 1:1 from reference-app/sb-data.jsx CHAT_MODES so the chat surface
 // recolors per selected lens exactly like the prototype.
+// ⚠ `softBg` · `glow` 는 **미리 합성한 불투명 색**이다(PIXEL-CLAY 규칙 4).
+//   레퍼런스는 `rgba(...)` 로 적고 있지만 알파는 아래 깔린 것에 따라 결과가
+//   달라진다. 여기서 바탕은 대화 표면(`m3ColorDark.surface`)이다 — 칩과 배너가
+//   그 위에 앉는다.
+const PERSONA_GROUND = m3ColorDark.surface;
+
 export const m3Persona = {
   /** 2nd-B (공감) — empathetic main lens. */
-  secondb: { accent: "#A78BFA", soft: "#E2D6FF", softBg: "rgba(167,139,250,0.16)", glow: "rgba(167,139,250,0.5)" },
+  secondb: {
+    accent: "#A78BFA",
+    soft: "#E2D6FF",
+    softBg: flatten("#A78BFA", 0.16, PERSONA_GROUND),
+    glow: flatten("#A78BFA", 0.5, PERSONA_GROUND),
+  },
   /** 메타비 / Meta-B (객관) — objective mirror. */
-  meta: { accent: "#46B6FF", soft: "#BFE7FF", softBg: "rgba(70,182,255,0.16)", glow: "rgba(70,182,255,0.5)" },
+  meta: {
+    accent: "#46B6FF",
+    soft: "#BFE7FF",
+    softBg: flatten("#46B6FF", 0.16, PERSONA_GROUND),
+    glow: flatten("#46B6FF", 0.5, PERSONA_GROUND),
+  },
   /** 트위비 / Twi-B — creative wild-card (Divergent). */
-  twi: { accent: "#CFC4E8", soft: "#EDE7F7", softBg: "rgba(207,196,232,0.16)", glow: "rgba(245,230,190,0.55)" },
+  twi: {
+    accent: "#CFC4E8",
+    soft: "#EDE7F7",
+    softBg: flatten("#CFC4E8", 0.16, PERSONA_GROUND),
+    glow: flatten("#F5E6BE", 0.55, PERSONA_GROUND),
+  },
 } as const;
 
 /**
