@@ -188,7 +188,14 @@ const MIGRATED: readonly string[] = [
 //
 // ⚠ 주석은 반드시 걷는다. 이 저장소에서 주석 때문에 난 거짓 양성이 이 세션에만
 //   네 번이다 — 이주 메모에 `opacity` 라는 낱말이 널려 있다.
-const NUM_LIT = String.raw`(?:0?\.\d+|0|1(?:\.0+)?)`;
+// ⚠ **0 과 1 은 위반이 아니다** (2026-08-28 정정). 원래 이 패턴은 `0` 과 `1` 도
+//   잡았는데, `opacity: 1` 은 완전 불투명이라 미리 합성할 것이 아예 없고
+//   (`flattenAlpha(c, 1, 바탕)` 은 `c` 를 그대로 돌려준다), `opacity: 0` 은
+//   안 보이는 것이라 섞일 색 자체가 없다. 둘 다 잡으면 고칠 수 없는 위반이
+//   목록을 채워 가드가 못 쓰게 된다 — 규칙 5(동적 불투명도)를 뺀 이유와 같다.
+//   그래서 **소수점이 있고 그 뒤에 0 아닌 숫자가 하나라도 있는** 값만 본다.
+//   실측: `1` 2건 · `0` 1건이 이 정정으로 빠진다(진짜 반투명 76건은 그대로).
+const NUM_LIT = String.raw`(?:0?\.0*[1-9]\d*)`;
 
 /** `opacity: 0.38` — StyleSheet 안의 정적 값. */
 const OPACITY_STYLE = new RegExp(String.raw`\bopacity\s*:\s*(${NUM_LIT})\b`, "g");
@@ -203,6 +210,40 @@ const OPACITY_SVG = new RegExp(
 const RGBA_LIT = /\brgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*0?\.\d+\s*\)/g;
 /** `withAlpha(...)` 호출 — 렌더 때 섞으므로 미리 합성한 것과 다르다. */
 const WITH_ALPHA = /\bwithAlpha\s*\(/g;
+
+/**
+ * `android_ripple={{ ... }}` 의 범위들. 그 안의 알파는 규칙 4에서 뺀다.
+ *
+ * ⚠ **편의 면제가 아니다.** 안드로이드의 리플은 `RippleDrawable` 이 **누른 지점에서
+ * 퍼져 나가며 사라지는 애니메이션**으로 직접 그린다. 색을 불투명하게 미리 합성하면
+ * 누르는 순간 표면 전체가 그 색으로 덮인다 — 고치는 게 아니라 망가뜨리는 것이다.
+ *
+ * 이건 이 가드가 처음부터 `opacity={fadeAnim}`(동적 불투명도)을 빼둔 것과 **같은
+ * 부류**다: 값이 아니라 시간에 걸린 효과라서 미리 합성이라는 개념이 성립하지 않는다.
+ * 섞어서 세면 "고칠 수 없는 위반"이 목록을 채워 가드를 못 쓰게 만든다.
+ *
+ * 실측(2026-08-28): 이 제외로 13건이 빠진다. 남은 규칙 4 는 전부 미리 합성이
+ * 가능하거나 화면 이주가 필요한 것들이다.
+ */
+function rippleRanges(src: string): [number, number][] {
+  const out: [number, number][] = [];
+  const open = /android_ripple\s*=\s*\{/g;
+  for (const m of src.matchAll(open)) {
+    const start = (m.index ?? 0) + m[0].length - 1; // 여는 `{`
+    let depth = 0;
+    for (let i = start; i < src.length; i++) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          out.push([m.index ?? 0, i + 1]);
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
 
 const RULE4_PATTERNS: readonly { re: RegExp; why: string }[] = [
   { re: OPACITY_STYLE, why: "규칙 4 -- 정적 불투명도. `flattenAlpha(색, 알파, 바탕)` 으로 미리 합성하거나 디더를 쓸 것" },
@@ -448,10 +489,14 @@ for (const rel of RULE_SCOPE) {
   // 규칙 4 — 주석을 걷고 본다.
   {
     const bare4 = stripComments(src);
+    const rippleSpans = rippleRanges(bare4);
     for (const { re, why } of RULE4_PATTERNS) {
       re.lastIndex = 0;
       for (const m of bare4.matchAll(re)) {
-        hits.push({ file: rel, line: lineOf(bare4, m.index ?? 0), text: m[0].trim(), why });
+        const at = m.index ?? 0;
+        // ⚠ `android_ripple` 안의 알파는 **미리 합성할 수 없다** — 아래 설명 참조.
+        if (rippleSpans.some(([s, e]) => at >= s && at < e)) continue;
+        hits.push({ file: rel, line: lineOf(bare4, at), text: m[0].trim(), why });
       }
     }
   }
@@ -617,7 +662,19 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 193;
+// 342 → 333 → 315 → 202 → 193 → **165** (2026-08-28).
+//
+// 이번에 내려간 28건의 출처 — **절반은 고친 것이고 절반은 잘못 세던 것이다.**
+//
+//   고친 것 12건: `complete-profile` 5 · `DrillProgress` 5 · `settings` 2
+//                 (전부 `flattenAlpha` 로 바탕을 명시해 미리 합성)
+//   잘못 세던 것 16건: `opacity: 0`·`1` 3건(위 NUM_LIT 정정) ·
+//                      `android_ripple` 13건(위 rippleRanges 참조)
+//
+// 변이 검증 둘 다 통과:
+//   · `opacity: 1`·`0`·`1.0` → 그대로 · `opacity: 0.37`·`.05` → +2
+//   · 리플 안 알파 → 그대로 · 리플 밖 알파(같은 줄이어도) → +1
+const RATCHET_BASELINE = 165;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
