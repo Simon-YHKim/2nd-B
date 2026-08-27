@@ -800,6 +800,7 @@ export function makeCaptureInitScript(markerTime) {
   var markerIso = ${JSON.stringify(markerIso)};
   try {
     sessionStorage.setItem('secondB_intro_played_v1', '1');
+    localStorage.setItem('secondB_intro_dismissed_v1', 'permanent');
     localStorage.setItem('onboarding.cosmicPixel.v2.completedAt', markerIso);
     localStorage.setItem('onboarding.ttfv.v1.seenAt', markerIso);
     localStorage.setItem('onboarding.coachmarks.home.v1.seenAt', markerIso);

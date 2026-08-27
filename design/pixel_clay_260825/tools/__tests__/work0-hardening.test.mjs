@@ -97,6 +97,7 @@ test('capture init freezes Date and seeded randomness while marking gates as see
   assert.match(initScript, /onboarding\.cosmicPixel\.v2\.completedAt/);
   assert.match(initScript, /onboarding\.ttfv\.v1\.seenAt/);
   assert.match(initScript, /onboarding\.coachmarks\.home\.v1\.seenAt/);
+  assert.match(initScript, /secondB_intro_dismissed_v1/);
   assert.match(initScript, /2026-08-27T00:00:00\.000Z/);
   assert.doesNotMatch(initScript, /window\.Date = FakeDate/);
   assert.match(determinismScript, /window\.Date = FakeDate/);
@@ -151,7 +152,17 @@ test('capture init freezes Date and seeded randomness while marking gates as see
       new Date(2026, 0, 2, 3, 4, 5, 6).getTime(),
     ],
   );
+  assert.equal(first.values.get('secondB_intro_played_v1'), '1');
+  assert.equal(first.values.get('secondB_intro_dismissed_v1'), 'permanent');
+  assert.equal(
+    first.values.get('onboarding.cosmicPixel.v2.completedAt'),
+    '2026-08-27T00:00:00.000Z',
+  );
   assert.equal(first.values.get('onboarding.ttfv.v1.seenAt'), '2026-08-27T00:00:00.000Z');
+  assert.equal(
+    first.values.get('onboarding.coachmarks.home.v1.seenAt'),
+    '2026-08-27T00:00:00.000Z',
+  );
 });
 
 test('A axis DOM audit counts backdrop blur and partial SVG opacity only', async () => {
