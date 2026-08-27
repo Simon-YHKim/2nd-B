@@ -146,10 +146,27 @@ const IN_PAGE = () => {
 async function scoreOne(page, id, route) {
   await page.goto(BASE + '/2nd-B' + route, { waitUntil: 'load' });
   await page.waitForTimeout(2400);
-  for (const label of ['다시 보지 않기', '건너뛰기']) {
-    const b = page.getByText(label, { exact: false });
-    if (await b.count()) { await b.first().click().catch(() => {}); await page.waitForTimeout(900); break; }
-  }
+  // ⚠ **화면을 덤는 것을 먼저 치운다.** 코치마크만 닫고 있었더니 `/secondb` 가
+  //   "안녕하세요, 세컨비입니다" 소개 모달이 덤인 채로 채점됐다 — 밴드가 5개로
+  //   잡혀 C축이 3.8/20 이었는데 그건 대화 화면이 아니라 **모달**을 잴 값이다.
+  //   하마터면 구조 차이로 보고할 뻔했다.
+  //
+  //   ⚠ 닫기 라벨에 **화면 고유의 버튼을 넣지 말 것** — 그걸 누르면 채점 대상이
+  //     아니라 다음 화면을 재게 된다. 여기 있는 것은 전부 "덤개를 닫는" 말이다.
+  const DISMISS = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
+  for (let pass = 0; pass < 3; pass++) {
+    let clicked = false;
+    for (const label of DISMISS) {
+      const b = page.getByText(label, { exact: false });
+      if (await b.count()) {
+        await b.first().click().catch(() => {});
+        await page.waitForTimeout(800);
+        clicked = true;
+        break;
+      }
+    }
+    if (!clicked) break;
+  }
   await page.waitForTimeout(500);
   const app = await page.evaluate(IN_PAGE_SRC);
 
