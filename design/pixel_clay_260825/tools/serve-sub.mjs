@@ -51,8 +51,9 @@ createServer(async (req, res) => {
   let file = await tryFile(join(DIST, safe));
   // 확장자 없는 경로(라우트)는 `.html` 도 시도한다 — expo export 가 라우트별 html 을 낸다.
   if (!file && !extname(safe)) file = await tryFile(join(DIST, safe + '.html'));
-  // 그래도 없으면 SPA 폴백. ⚠ 루트가 아니라 **dist 의** index.html 이다.
-  if (!file) file = await tryFile(join(DIST, 'index.html'));
+  // 확장자가 없는 앱 route만 SPA 폴백한다. 누락된 JS/CSS/image asset을
+  // index.html 200으로 위장하면 Work 0 캡처가 고장 난 export를 정상으로 오인한다.
+  if (!file && !extname(safe)) file = await tryFile(join(DIST, 'index.html'));
 
   if (!file) { res.writeHead(404); res.end('not found'); return; }
   // Work 0 attestation rejects a proof served without its file mtime.

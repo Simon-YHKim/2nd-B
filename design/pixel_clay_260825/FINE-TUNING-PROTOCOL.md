@@ -166,7 +166,8 @@ stdout으로 내보낸다. 위 할당·파이프는 값을 화면에 찍지 않�
 실행 중 browser version도 package에 고정된 Chromium과 정확히 같아야 한다. **직접
 `npx expo export`하는 구 절차는 폐기됐다.** receipt/proof 없는 export, mock, 로그인 월,
 `/2nd-B` 에셋 404 결과는 유효하지 않다.
-`serve-sub.mjs`는 proof freshness 검증에 필요한 파일 mtime 기반 `Last-Modified`를 보낸다.
+`serve-sub.mjs`는 proof freshness 검증에 필요한 파일 mtime 기반 `Last-Modified`를 보내고,
+누락된 JS/CSS/image asset은 `index.html` 200으로 폴백하지 않고 404로 닫는다.
 
 **이 도구가 밟은 함정 다섯**(현재 계약과 함께 여기서 관리한다):
 
