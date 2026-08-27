@@ -22,6 +22,13 @@
 // cross-reference the doc 1:1.
 import { UI_MODE } from "../ui-mode";
 
+/**
+ * 합성 FX 토큰들이 앉는 바탕. `cosmic.space950` 과 **같은 값**이어야 한다 —
+ * 객체를 정의하는 중이라 자기 자신을 못 가리켜서 리터럴로 둔다.
+ * ⚠ 어긋나면 조용히 틀린 색이 나온다. `theme-tokens.test.ts` 가 둘을 묶는다.
+ */
+const FX_GROUND = "#070A18";
+
 export const cosmic = {
   // Deep space backgrounds — pure black is forbidden; bg uses the
   // deepest ink instead.
@@ -50,12 +57,19 @@ export const cosmic = {
   // Composite FX tokens — merged from the asset pack's
   // 2ndb-cosmic-pixel-tokens.css so code references named tokens instead
   // of inline rgba(). Edge / panel / glow surfaces of the graph village.
-  edgeDefault: "rgba(141,152,184,0.28)", // --edge-default
+  // ⚠ **미리 합성한 색이다** (PIXEL-CLAY 절대 규칙 4 — 정적 반투명 금지).
+  //   원래 `rgba(...)` 리터럴이었고, **토큰 정의 자체가 알파를 들고 있어서**
+  //   이걸 쓰는 화면이 전부 반투명을 그렸다(`/esm` 의 카드 바탕이 `panelBg` 였다).
+  //
+  //   바탕은 `FX_GROUND`(= 가장 깊은 배경). 다른 바탕 위에 놓이는 자리가 생기면
+  //   그 자리에서 따로 잴 것 — 바탕이 틀리면 알파를 그냥 두는 것보다 나쁘다.
+  //   값은 손으로 계산하지 않는다. 손계산은 틀려도 아무도 모른다.
+  edgeDefault: flattenAlpha("#8D98B8", 0.28, FX_GROUND), // --edge-default
   edgeRecent: "#FFD166", // --edge-recent (= pixelLamp)
-  panelBg: "rgba(13,21,48,0.9)", // --panel-bg
-  panelBorder: "rgba(141,152,184,0.34)", // --panel-border
-  coreGlow: "rgba(167,139,250,0.42)", // --core-glow
-  mintGlow: "rgba(114,242,199,0.34)", // --mint-glow
+  panelBg: flattenAlpha("#0D1530", 0.9, FX_GROUND), // --panel-bg
+  panelBorder: flattenAlpha("#8D98B8", 0.34, FX_GROUND), // --panel-border
+  coreGlow: flattenAlpha("#A78BFA", 0.42, FX_GROUND), // --core-glow
+  mintGlow: flattenAlpha("#72F2C7", 0.34, FX_GROUND), // --mint-glow
   skyDriftBlue: "#1E88EE",
   skyDriftViolet: "#8F70F0",
   skyDriftCyan: "#00FFFF",
