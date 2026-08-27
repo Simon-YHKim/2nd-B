@@ -207,7 +207,9 @@
     "last7": "Last 7 days",
     "thirdParty": "Third-party sharing",
     "none": "0 items",
-    "footer": "The default is local-first. External transfers proceed only after your confirmation."
+    "footer": "The default is local-first. External transfers proceed only after your confirmation.",
+    "dataReview": "My data review",
+    "open": "Open"
   },
   "support": {
     "title": "Support",
@@ -409,9 +411,9 @@
   },
   "review": {
     "title": "Review",
-    "status": "If you've changed, we review the constellation together.",
+    "status": "If you've changed, we check the star together.",
     "tip": "Nothing applies until you approve.",
-    "lead": "If you've changed, review the constellation together",
+    "lead": "If you've changed, check the star together",
     "section": "SecondB's suggestion",
     "body": "Recent records suggest your extraversion has risen. Raise the star's brightness?",
     "now": "Now",

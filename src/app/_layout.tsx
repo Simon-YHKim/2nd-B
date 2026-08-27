@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAddressTerm } from "@/lib/persona/use-address";
-import { Stack, Redirect, useSegments } from "expo-router";
+import {
+  Stack,
+  Redirect,
+  useSegments,
+  // ⚠ 라우터의 **네비게이션 테마**다. 화면 팔레트(`@/lib/theme/ThemeContext`)와
+  //   다른 물건이라 이름을 갈라 부른다. 아래 ThemedStack 주석 참조.
+  ThemeProvider as NavThemeProvider,
+  DarkTheme as NavDarkTheme,
+} from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -169,16 +177,38 @@ export default function RootLayout() {
 function ThemedStack({ children }: { children: React.ReactNode }) {
   const palette = useThemePalette();
   const transition = pixelStackTransition();
+  // ⚠ **`contentStyle` 만으로는 뒤가 안 칠해진다.**
+  //
+  // 그건 각 화면의 내용 컨테이너만 칠한다. 그 바깥의 네비게이션 루트 뷰는
+  // 라우터의 **기본 테마**를 쓰는데, 그 기본값이 `rgb(242, 242, 242)`(밝은 회색)다.
+  // 그래서 어두운 앱 뒤에 전면(390x820) 밝은 판이 **두 겹** 깔려 있었다.
+  //
+  // 실측으로 걸렸다: 채점기 B축(캐논 램프 면적)에서 `#f2f2f2` 하나가 여섯 화면
+  // 전부에서 **12.3~12.4%** 를 먹고 있었다. 화면마다 값이 같아서 화면 탓이 아니라
+  // 셸 탓임이 드러났다. 눈으로는 잘 안 보인다 — 앱이 그 위를 거의 다 덮기 때문에
+  // 로딩 순간·전환 틈·오버스크롤에서만 새어 나온다.
+  //
+  // 팔레트는 항상 어두운 값이다(아래 ForceDark 주석). `card` 도 같이 맞춰야
+  // 헤더·카드 기본값이 흰색으로 남지 않는다.
+  const navTheme = useMemo(
+    () => ({
+      ...NavDarkTheme,
+      colors: { ...NavDarkTheme.colors, background: palette.background, card: palette.background },
+    }),
+    [palette.background],
+  );
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        ...transition,
-        contentStyle: { backgroundColor: palette.background },
-      }}
-    >
-      {children}
-    </Stack>
+    <NavThemeProvider value={navTheme}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          ...transition,
+          contentStyle: { backgroundColor: palette.background },
+        }}
+      >
+        {children}
+      </Stack>
+    </NavThemeProvider>
   );
 }
 

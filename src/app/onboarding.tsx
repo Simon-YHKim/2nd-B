@@ -21,11 +21,18 @@ import { InlineLoader } from "@/components/ui/InlineLoader";
 import { SecondbHead } from "@/components/deep-space/SecondbHead";
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
 import { SbIcon, type SbIconName } from "@/components/deepspace/shell/SbIcon";
-import { deepSpace, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { m3 } from "@/lib/theme/m3";
 import { canonFlows } from "@/lib/canon";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { markOnboardingComplete, useOnboardingComplete } from "@/lib/onboarding/state";
+
+// ⚠ **바탕 선언** (PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+//   이 화면의 바닥은 `deepSpace.bgEdge` 다 — 아래 `root` 가 그렇게 깔고 있다.
+//   바탕이 틀리면 알파를 그대로 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 재야 한다.
+const OB_GROUND = deepSpace.bgEdge;
+const obAlpha = (c: string, a: number): string => flattenAlpha(c, a, OB_GROUND);
+
 
 interface Slide {
   icon: SbIconName;
@@ -172,6 +179,7 @@ export default function Onboarding() {
               accessibilityHint={authHint}
               onPress={goToAuth}
               style={styles.authPress}
+              // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이다.
               android_ripple={{ color: withAlpha(deepSpace.onAccent, 0.12) }}
             >
               <Text variant="body" style={styles.authText}>{authLabel}</Text>
@@ -188,7 +196,7 @@ export default function Onboarding() {
                   styles.dot,
                   i === step
                     ? { width: 22, backgroundColor: deepSpace.accent }
-                    : { width: 7, backgroundColor: withAlpha(m3.accent.skyStarWhite, 0.45) },
+                    : { width: 7, backgroundColor: obAlpha(m3.accent.skyStarWhite, 0.45) },
                 ]}
               />
             ))}
@@ -202,6 +210,7 @@ export default function Onboarding() {
               accessibilityHint={nextHint}
               onPress={() => setStep((s) => s + 1)}
               style={styles.nextPress}
+              // ⚠ 리플은 **남긴다** — 정적 반투명이 아니라 터치 순간의 물결이다.
               android_ripple={{ color: withAlpha(deepSpace.onAccent, 0.12) }}
             >
               <Text variant="caption" style={styles.nextText}>{t("onboarding.next")}</Text>
@@ -226,7 +235,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     minHeight: 44,
   },
-  skip: { color: withAlpha(deepSpace.accentSoft, 0.7), fontSize: 14 },
+  skip: { color: obAlpha(deepSpace.accentSoft, 0.7), fontSize: 14 },
 
   hero: {
     flex: 1,
@@ -240,9 +249,9 @@ const styles = StyleSheet.create({
     borderRadius: m3.shape.none,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: withAlpha(deepSpace.accent, 0.14),
+    backgroundColor: obAlpha(deepSpace.accent, 0.14),
     borderWidth: 1,
-    borderColor: withAlpha(deepSpace.accent, 0.3),
+    borderColor: obAlpha(deepSpace.accent, 0.3),
   },
   tag: {
     color: m3.accent.entryTag,
@@ -258,7 +267,7 @@ const styles = StyleSheet.create({
   },
   body: {
     maxWidth: 270,
-    color: withAlpha(m3.accent.entryBody, 0.72),
+    color: obAlpha(m3.accent.entryBody, 0.72),
     fontSize: 16,
     lineHeight: 23,
     textAlign: "center",

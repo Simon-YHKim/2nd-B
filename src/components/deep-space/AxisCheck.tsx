@@ -30,7 +30,7 @@ import { DeepSpaceScreen } from "@/components/deep-space/DeepSpaceScreen";
 import { MdButton, MdCard, ProgressLinear, m3TextStyle } from "@/components/m3";
 import { SecondbHead } from "@/components/deepspace/SecondbHead";
 import { m3 } from "@/lib/theme/m3";
-import { withAlpha } from "@/lib/theme/tokens";
+import { flattenAlpha, withAlpha } from "@/lib/theme/tokens";
 import { keepAllKo } from "@/lib/i18n/keep-all";
 import type { AxisCheckId } from "@/lib/audit/axis-checks";
 import type { LoadedValues, LoadedStrengths, LoadedMotivation } from "@/lib/persona/build";
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
 
   // 가치관 — CORE VALUES top-3 card
   coreCard: { borderRadius: m3.shape.none, padding: 18, backgroundColor: m3.color.primaryContainer, borderWidth: 1, borderColor: m3.color.outlineVariant },
-  coreLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: withAlpha(m3.color.onPrimaryContainer, 0.8), marginBottom: 12 },
+  coreLabel: { fontFamily: m3.font.mono, fontSize: 10, letterSpacing: 1.4, color: flattenAlpha(m3.color.onPrimaryContainer, 0.8, m3.color.primaryContainer), marginBottom: 12 },
   coreRow: { flexDirection: "row", gap: 8 },
   coreCell: { flex: 1, alignItems: "center", paddingVertical: 12, paddingHorizontal: 6, borderRadius: m3.shape.none, backgroundColor: m3.color.surface, borderWidth: 1, borderColor: m3.color.outlineVariant },
   coreCellFirst: { backgroundColor: m3.color.primary, borderColor: m3.color.primary },

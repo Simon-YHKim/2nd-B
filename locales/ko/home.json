@@ -583,7 +583,7 @@
       "dug": "{{total}}개 층 중 {{n}}개를 팠어요",
       "records": "기록 {{n}}개",
       "start": "시작하기",
-      "continue": "이어서 하기",
+      "continue": "이어가기",
       "pageLabel": "별 요약",
       "meter": "판 만큼 밝아져요 · {{n}}/{{total}} 층",
       "recordsLabel": "지금까지 담은 것"

@@ -383,7 +383,7 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
 });
 
 test('D axis accepts only visibly painted descendant text, never aria-only labels', async () => {
-  const { digestPage, inspectRenderedPixelRules, scoreNavigation } = await contract();
+  const { digestPage, inspectRenderedPixelRules, scoreNavigationLabels } = await contract();
   const style = {
     display: 'block',
     visibility: 'visible',
@@ -448,7 +448,7 @@ test('D axis accepts only visibly painted descendant text, never aria-only label
     { width: 390, height: 820 },
   );
   assert.equal(
-    scoreNavigation([{ label: '설정', to: '/settings' }], inspected.interactive).score,
+    scoreNavigationLabels(['설정'], inspected.texts, inspected.groups).score,
     15,
   );
   assert.deepEqual(
@@ -472,17 +472,21 @@ test('D axis accepts only visibly painted descendant text, never aria-only label
   }
 });
 
-test('E copy coverage uses normalized exact matches and preserves duplicate denominator', async () => {
+test('E copy coverage uses visible leaf and group text with item exemptions', async () => {
   const { scoreCopyCoverage } = await contract();
   const result = scoreCopyCoverage(
-    ['설정', '계정 설정', '설정', '워드\u2060조이너'],
-    ['계정 설정 안내', '설정', '워드조이너'],
+    ['설정', '계정 설정', '설정', '워드\u2060조이너', '면제 문장'],
+    ['설정', '워드조이너'],
+    ['계정 설정 안내'],
+    ['면제 문장'],
   );
   assert.deepEqual(result, {
-    matched: 3,
+    matched: 4,
     total: 4,
-    ratio: 0.75,
-    score: 7.5,
+    ratio: 1,
+    score: 10,
+    exempted: 1,
+    missing: [],
   });
 });
 
@@ -849,16 +853,54 @@ test('final URL validation is exact for origin, canonical path, query, and hash'
   }
 });
 
-test('D axis requires both rendered label and exact destination', async () => {
-  const { scoreNavigation } = await contract();
-  const declared = [{ label: '설정', to: '/settings' }];
+test('D axis scores nav.json labels and removes only exempted items from its denominator', async () => {
+  const { scoreNavigationLabels } = await contract();
+  const declared = ['설정', '계정 설정…', '새 대화'];
+  const result = scoreNavigationLabels(declared, ['설정'], ['계정 설정 안내'], ['새 대화']);
 
-  assert.equal(scoreNavigation(declared, [{ label: '설정', to: '/settings' }]).score, 15);
-  assert.equal(scoreNavigation(declared, [{ label: '설정', to: '/' }]).score, 0);
-  assert.equal(scoreNavigation(declared, [{ label: '설정', to: null }]).score, 0);
-  const missing = scoreNavigation(['설정'], [{ label: '설정', to: '/settings' }]);
-  assert.equal(missing.score, 0);
-  assert.equal(missing.measurable, false);
+  assert.equal(result.score, 15);
+  assert.equal(result.measurable, true);
+  assert.equal(result.declared, 3);
+  assert.equal(result.measured, 2);
+  assert.equal(result.exempted, 1);
+  assert.deepEqual(result.missing, []);
+
+  const missing = scoreNavigationLabels(declared, ['설정'], [], ['새 대화']);
+  assert.equal(missing.score, 7.5);
+  assert.deepEqual(missing.missing, ['계정 설정…']);
+  assert.equal(scoreNavigationLabels(null, ['설정']).score, null);
+});
+
+test('C stays unmeasured while totals renormalize and unexpected missing axes fail the gate', async () => {
+  const { isAutomaticPass, renormalizeScores } = await contract();
+  const complete = renormalizeScores({ A: 30, B: 25, C: null, D: 15, E: 10 });
+  assert.deepEqual(complete, {
+    scores: { A: 30, B: 25, C: null, D: 15, E: 10 },
+    total: 100,
+    unmeasured: ['C'],
+  });
+  assert.equal(isAutomaticPass(complete.total, complete.unmeasured), true);
+
+  const missingD = renormalizeScores({ A: 30, B: 25, C: null, D: null, E: 10 });
+  assert.deepEqual(missingD.unmeasured, ['C', 'D']);
+  assert.equal(isAutomaticPass(missingD.total, missingD.unmeasured), false);
+  assert.equal(isAutomaticPass(100, ['C'], ['A']), false);
+});
+
+test('deviations distinguish whole-axis review from item-only denominator exclusions', async () => {
+  const { exempt, exemptItems } = await contract();
+  const deviations = {
+    deviations: [
+      { screen: 'chat', axis: 'D', items: ['새 대화'], why: '상태 뒤에 숨은 목적지' },
+      { screen: 'chat', axis: 'E', why: '사람 눈 검토가 필요한 전체 축' },
+      { screen: 'chat', axis: 'A', why: '' },
+    ],
+  };
+
+  assert.deepEqual(exemptItems('chat', 'D', deviations), ['새 대화']);
+  assert.equal(exempt('chat', 'D', deviations), false);
+  assert.equal(exempt('chat', 'E', deviations), true);
+  assert.equal(exempt('chat', 'A', deviations), false);
 });
 
 test('capture health emits only safe enum codes and never raw error data', async () => {
@@ -1085,6 +1127,7 @@ test('B axis counts actual non-transparent PNG pixels against the token ramp', a
   assert.equal(result.inRampPixels, 2);
   assert.equal(result.ratio, 2 / 3);
   assert.equal(result.score, 25 * (2 / 3));
+  assert.deepEqual(result.offTop, [{ hex: '#0000ff', pixels: 1 }]);
 });
 
 test('C axis uses shallow structure order, count, and relative-height components', async () => {

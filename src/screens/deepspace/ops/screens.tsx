@@ -10,7 +10,7 @@ import { router } from "expo-router";
 
 import { Text } from "@/components/ui/Text";
 import { DateField, MdButton, MdCard } from "@/components/m3";
-import { deepSpace, deepSpaceRadii, deepSpaceSpacing, withAlpha } from "@/lib/theme/tokens";
+import { deepSpace, deepSpaceRadii, deepSpaceSpacing, flattenAlpha } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -76,6 +76,22 @@ import {
 import { getGithubUsername, setGithubUsername } from "@/lib/projects/github-link";
 import { monthDelta, prevMonthKey } from "@/lib/finance/trend";
 import { trendChip } from "@/lib/ops/grounding";
+
+// ── 이 화면들의 바탕 (PIXEL-CLAY 절대 규칙 4) ────────────────────────
+//
+// ⚠ **바탕 선언**: ops 화면들은 딥스페이스 스테이지 위에 앉는다 — 스테이지가
+//   `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다.
+//   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 잴 것.
+//
+// ⚠ 이 선언은 **파일 머리**에 있어야 한다. 스타일시트 블록이 여러 개라, 한 블록
+//   앞에 두면 그보다 앞선 블록이 선언 전에 쓴다(TS2448).
+const OPS_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const opsAlpha = (c: string, a: number): string => flattenAlpha(c, a, OPS_GROUND);
+
+/** 비활성 `추가` 버튼 — 원래 `opacity: 0.4` 가 하던 일. 바탕과 글자가 **한 벌**이다. */
+const ADD_OFF_BG = flattenAlpha(deepSpace.accent, 0.4, OPS_GROUND);
+const ADD_OFF_FG = flattenAlpha(deepSpace.bg, 0.4, ADD_OFF_BG);
+
 
 // --- tiny async helper -------------------------------------------------
 
@@ -798,7 +814,7 @@ export function LedgerScreen() {
             disabled={!canAdd}
             style={[styles.addBtn, !canAdd && styles.addBtnOff]}
           >
-            <Text variant="caption" style={styles.addBtnTxt}>{c.addEntry}</Text>
+            <Text variant="caption" style={[styles.addBtnTxt, !canAdd && styles.addBtnTxtOff]}>{c.addEntry}</Text>
           </Pressable>
         </View>
       </View>
@@ -1334,7 +1350,7 @@ const remStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: m3.shape.none,
-    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+    backgroundColor: opsAlpha(deepSpace.accent, 0.16),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1347,7 +1363,7 @@ const remStyles = StyleSheet.create({
     borderRadius: m3.shape.none,
     paddingHorizontal: 9,
     paddingVertical: 3,
-    backgroundColor: withAlpha(deepSpace.accent, 0.16),
+    backgroundColor: opsAlpha(deepSpace.accent, 0.16),
   },
   timePillText: { fontSize: 12, color: deepSpace.accentBright },
   metaDot: { width: 3, height: 3, borderRadius: m3.shape.none, backgroundColor: deepSpace.textLo },
@@ -1380,7 +1396,7 @@ const remStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   saveErrBanner: {
     borderRadius: m3.shape.small,
-    backgroundColor: withAlpha(deepSpace.danger, 0.12),
+    backgroundColor: opsAlpha(deepSpace.danger, 0.12),
     paddingVertical: deepSpaceSpacing.xs,
     paddingHorizontal: deepSpaceSpacing.sm,
     marginBottom: deepSpaceSpacing.xs,
@@ -1499,14 +1515,17 @@ const styles = StyleSheet.create({
     flex: 1, minHeight: 38, alignItems: "center", justifyContent: "center",
     borderWidth: 1, borderColor: deepSpace.cardLine, borderRadius: m3.shape.medium,
   },
-  kindBtnOn: { borderColor: deepSpace.accent, backgroundColor: withAlpha(deepSpace.accent, 0.12) },
+  kindBtnOn: { borderColor: deepSpace.accent, backgroundColor: opsAlpha(deepSpace.accent, 0.12) },
   kindTxt: { fontSize: 13, color: deepSpace.textLo },
   kindTxtOn: { color: deepSpace.accent },
   addBtn: {
     minHeight: 44, paddingHorizontal: deepSpaceSpacing.md, alignItems: "center", justifyContent: "center",
     borderRadius: m3.shape.medium, backgroundColor: deepSpace.accent,
   },
-  addBtnOff: { opacity: 0.4 },
+  // ⚠ 비활성은 **미리 합성한 색 한 쌍**이다(규칙 4). 바탕만 흐리게 하고 글자를
+  //   그대로 두면 어두운 글자가 흐린 바탕 위에서 오히려 더 튄다.
+  addBtnOff: { backgroundColor: ADD_OFF_BG },
+  addBtnTxtOff: { color: ADD_OFF_FG },
   addBtnTxt: { fontSize: 14, color: deepSpace.bg, fontFamily: fontFamilies.sans },
   entryRow: {
     flexDirection: "row", alignItems: "center", gap: deepSpaceSpacing.sm,

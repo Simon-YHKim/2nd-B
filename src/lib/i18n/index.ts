@@ -223,6 +223,7 @@ import idRlss from "../../../locales/id/rlss.json";
 import idTrinity from "../../../locales/id/trinity.json";
 import { detectLanguage, loadNativeLanguagePreference, saveLanguagePreference } from "./languageDetector";
 import { isAvailableUiLocale, type AvailableUiLocale } from "./locales";
+import { seedAddressDefault } from "@/lib/persona/use-address";
 
 export const NAMESPACES = ["common", "auth", "safety", "consent", "capture", "community", "inbox", "secondb", "plans", "wiki", "support", "data", "esm", "formats", "insights", "research", "recordDetail", "theme", "import", "notFound", "ops", "profile", "permissions", "settings", "iden", "home", "deepspace", "peer", "attachment", "audit", "big-five", "brightness", "core-brain", "imagine", "interview", "ipip-neo", "manual", "persona", "privacy", "ratifications", "records", "review", "rlss", "trinity"] as const;
 export type Namespace = (typeof NAMESPACES)[number];
@@ -265,6 +266,17 @@ export function initI18n(): typeof i18next {
     interpolation: { escapeValue: false },
     compatibilityJSON: "v3",
   });
+  // ⚠ `{{who}}` 의 폴백을 **여기서 동기적으로** 심는다.
+  //
+  //   공급자(`useAddressTerm`, `_layout.tsx`)는 `useEffect` 라 **첫 렌더 뒤**에 돌고,
+  //   값을 넣는 방식이 i18next 의 `defaultVariables` 를 변형하는 것이라 이미 그려진
+  //   `t()` 결과를 다시 그리지 않는다. 그래서 그 화면이 재렌더되지 않으면
+  //   화면에 `여기는 {{who}}의 공간입니다.` 가 **그대로 찍힌다** — 실제로 `/account`
+  //   에서 그랬다(P1 채점의 DOM 텍스트 대조에서 잡혔다).
+  //
+  //   폴백을 넣는 것이지 이름을 지어내는 것이 아니다. 로그인 뒤 실제 이름은
+  //   기존 공급자가 덮어쓴다.
+  seedAddressDefault(i18next.language);
   // Persist whenever the user (or any code path) flips the active language,
   // and keep the web document language in sync (screen readers pick their
   // voice from <html lang>; the static export defaults to "ko"). Both stay

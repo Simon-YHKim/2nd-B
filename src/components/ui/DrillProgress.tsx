@@ -22,7 +22,7 @@ import {
   type DrillLayer,
   type LifePeriod,
 } from "@/lib/interview/probe";
-import { cosmic, semantic, typography, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha, semantic, typography } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { m3 } from "@/lib/theme/m3";
 
@@ -41,11 +41,23 @@ interface Props {
   activeLayer?: DrillLayer | null;
 }
 
+// PIXEL-CLAY 규칙 4 — 정적 반투명 금지. 밝기 사다리를 **미리 합성**해 둔다.
+//
+// 바탕이 둘이다:
+//   · 칸 배경 → `wrap` 의 `semantic.surface` 위에 얹힌다.
+//   · 칸 테두리 → RN 은 테두리를 요소 **안쪽**에 그리므로 바탕은 그 칸의
+//     배경색이다. 화면 색으로 합성하면 사다리 중간 단이 어긋난다.
+const CELL_BG_1 = flattenAlpha(cosmic.signalBlue, 0.18, semantic.surface);
+const CELL_BG_2 = flattenAlpha(cosmic.signalBlue, 0.32, semantic.surface);
+const CELL_BG_3 = flattenAlpha(cosmic.signalBlue, 0.55, semantic.surface);
+const CELL_LINE_1 = flattenAlpha(cosmic.signalBlue, 0.35, CELL_BG_1);
+const CELL_LINE_2 = flattenAlpha(cosmic.signalBlue, 0.55, CELL_BG_2);
+
 function cellTone(count: number): { bg: string; border: string; text: string } {
   if (count <= 0) return { bg: semantic.surfaceAlt, border: semantic.border, text: semantic.textSubtle };
-  if (count === 1) return { bg: withAlpha(cosmic.signalBlue, 0.18), border: withAlpha(cosmic.signalBlue, 0.35), text: cosmic.signalBlue };
-  if (count === 2) return { bg: withAlpha(cosmic.signalBlue, 0.32), border: withAlpha(cosmic.signalBlue, 0.55), text: semantic.text };
-  return { bg: withAlpha(cosmic.signalBlue, 0.55), border: cosmic.signalBlue, text: semantic.text };
+  if (count === 1) return { bg: CELL_BG_1, border: CELL_LINE_1, text: cosmic.signalBlue };
+  if (count === 2) return { bg: CELL_BG_2, border: CELL_LINE_2, text: semantic.text };
+  return { bg: CELL_BG_3, border: cosmic.signalBlue, text: semantic.text };
 }
 
 function shortPeriodLabel(p: LifePeriod, locale: "en" | "ko"): string {

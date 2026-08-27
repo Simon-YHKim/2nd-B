@@ -10,9 +10,22 @@ import { Text } from "@/components/ui/Text";
 import { DeepSpaceLoader } from "@/components/deepspace/DeepSpaceLoader";
 import { V3_DATA_ART, V3_LOG_ART } from "@/lib/assets/soulcore-v3";
 import { gameboy, pixelShadowStyle } from "@/lib/theme/gameboy-tokens";
-import { cosmic, spacing, withAlpha } from "@/lib/theme/tokens";
+import { m3 } from "@/lib/theme/m3";
+import { cosmic, deepSpace, flattenAlpha, spacing } from "@/lib/theme/tokens";
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { PremiumButton } from "./surfaces";
+
+// ── 이 파일의 바탕 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
+//
+// ⚠ **바탕 선언**: 상태 표면·토스트는 딥스페이스 스테이지 위에 앉는다 —
+//   스테이지가 `m3.accent.stageFloor` 를 0.92 로 깔고 그 아래가 `deepSpace.bgEdge` 다.
+//   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 잴 것.
+//
+// ⚠ 이 파일은 **거의 모든 화면이 쓴다**(로딩·빈·오류 상태, 토스트).
+//   한 곳을 고치면 여러 화면이 같이 오른다.
+const FB_GROUND = flattenAlpha(m3.accent.stageFloor, 0.92, deepSpace.bgEdge);
+const fbAlpha = (c: string, a: number): string => flattenAlpha(c, a, FB_GROUND);
+
 
 type FeedbackStateKind = "empty" | "error";
 
@@ -170,11 +183,12 @@ function FeedbackStateAsset({ kind }: { kind: FeedbackStateKind }) {
 
   return (
     <View
-      style={[styles.stateAssetShell, { borderColor: tone, backgroundColor: withAlpha(tone, 0.08), shadowColor: glow }]}
+      style={[styles.stateAssetShell, { borderColor: tone, backgroundColor: fbAlpha(tone, 0.08), shadowColor: glow }]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <View style={[styles.stateAssetGlow, { borderColor: withAlpha(glow, 0.7) }]} />
+      {/* 0.7 × 0.45 — 예전의 테두리 알파와 상자 불투명도를 한 번에 합성한 값이다. */}
+      <View style={[styles.stateAssetGlow, { borderColor: fbAlpha(glow, 0.7 * 0.45) }]} />
       <Asset width={42} height={42} />
       {kind === "error" ? <View style={[styles.stateAssetFault, { backgroundColor: cosmic.guardRose }]} /> : null}
     </View>
@@ -217,7 +231,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: withAlpha(cosmic.space950, 0.8),
+    backgroundColor: fbAlpha(cosmic.space950, 0.8),
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -239,7 +253,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderWidth: gameboy.borderWidth,
     borderRadius: gameboy.radius,
-    backgroundColor: withAlpha(cosmic.space900, 0.96),
+    backgroundColor: fbAlpha(cosmic.space900, 0.96),
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...pixelShadowStyle(),
@@ -263,7 +277,9 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: gameboy.radius,
     borderWidth: gameboy.borderWidth,
-    opacity: 0.45,
+    // ⚠ 원래 `opacity: 0.45` 였다(규칙 4). 이 상자는 **테두리만 있는 빈 상자**라
+    //   상자의 불투명도 대신 **테두리 색**을 흐리게 하면 결과가 같다.
+    //   테두리 색은 렌더 때 `fbAlpha(glow, 0.7 * 0.45)` 로 주어진다.
   },
   stateAssetFault: {
     position: "absolute",
@@ -276,7 +292,7 @@ const styles = StyleSheet.create({
   safety: {
     borderWidth: gameboy.borderWidth,
     borderColor: cosmic.guardRose,
-    backgroundColor: withAlpha(cosmic.guardRose, 0.08),
+    backgroundColor: fbAlpha(cosmic.guardRose, 0.08),
     borderRadius: gameboy.radius,
     padding: spacing.lg,
     gap: spacing.xs,

@@ -53,7 +53,15 @@ describe("PremiumButton disabled accessibility", () => {
   test("disabled PremiumButton stays on the Pressable path with announced state", () => {
     const source = readRepoFile("src/components/premium/surfaces.tsx");
 
-    expect(source).toContain("const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.72);");
+    // ⚠ **옛 소스 줄을 글자 그대로 박지 않는다.**
+    //   여기 `const BTN_DISABLED_FG = withAlpha(cosmic.moonWhite, 0.72);` 가 박혀
+    //   있었는데, 그 줄의 뜻은 "비활성 글자색은 opacity 가 아니라 **색**으로 준다"다.
+    //   리터럴로 박아두면 **더 나은 구현으로 바꿔도 깨진다** — 실제로 규칙 4
+    //   (정적 반투명 금지)에 맞춰 미리 합성하는 `surfAlpha` 로 옮기자 깨졌다.
+    //   그래서 뜻만 남기고 표현을 푼다.
+    expect(source).toMatch(/const BTN_DISABLED_FG = \w*[Aa]lpha\(cosmic\.moonWhite, 0\.72[,)]/);
+    // 비활성은 **opacity 로 흐리게 하지 않는다** — 그러면 글자가 바탕보다 또렷해진다.
+    expect(source).not.toMatch(/BTN_DISABLED_\w+\s*=\s*\{[^}]*opacity/);
     expect(source).not.toMatch(/if\s*\(isDisabled\)\s*{\s*return\s*\(\s*<View/s);
     expect(source).toContain("disabled={isDisabled}");
     expect(source).toContain("accessibilityState={{ ...accessibilityState, disabled: !!isDisabled, busy: !!loading }}");

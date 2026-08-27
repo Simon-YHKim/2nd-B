@@ -12,7 +12,12 @@ describe("Cosmic Pixel palette", () => {
   });
 
   test("deep space backgrounds match the handoff spec", () => {
-    expect(cosmic.space950).toBe("#070A18");
+    // ⚠ `space950` 은 2026-08-27 에 **캐논 midnight 램프의 `--c00`**(#0A0E18)로 옮겼다.
+    //   원래 `#070A18` 은 그 램프보다 5 만큼 어두워 B축(램프 면적)에서 화면의 8.3% 를
+    //   밖으로 끌어내리고 있었다. 근거: #1304(Simon 2026-08-21) — 레거시 스킨도
+    //   규칙을 지킨다. 검사의 **뜻**(배경이 정본 사양과 같다)은 그대로고, 정본이
+    //   cosmic-pixel 핸드오프에서 PIXEL-CLAY 램프로 옮겨졌을 뿐이다.
+    expect(cosmic.space950).toBe("#0A0E18");
     expect(cosmic.space900).toBe("#0D1530");
     expect(cosmic.space800).toBe("#16213E");
   });

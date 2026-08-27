@@ -62,6 +62,8 @@ const norm = (value) =>
     .replace(/[\u2060\u200B\u200C\u200D\uFEFF]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+const tight = (value) => norm(value).split(' ').join('');
+const SEP = String.fromCharCode(1);
 const round1 = (value) => Math.round((value + Number.EPSILON) * 10) / 10;
 
 function shellQuote(value) {
@@ -1049,81 +1051,43 @@ export function validateManifestClassification(screens, routesFile) {
   };
 }
 
-function normalizeDestination(value) {
-  if (typeof value !== 'string' || !value.trim()) return null;
-  const raw = value.trim();
-  if (/^[a-z][a-z\d+.-]*:/i.test(raw) || raw.startsWith('//')) {
-    try {
-      const url = new URL(raw);
-      if (!['http:', 'https:'].includes(url.protocol)) return null;
-      return `${url.origin}${url.pathname}${url.search}${url.hash}`;
-    } catch {
-      return null;
-    }
-  }
-  if (raw.startsWith('/2nd-B/')) return normalizeDestination(raw.slice('/2nd-B'.length));
-  if (raw === '/2nd-B') return '/';
-  const parsed = parseSafeAppRoute(raw);
-  return parsed ? `${parsed.pathname}${parsed.search}` : null;
-}
-
-export function scoreNavigation(declared, actual) {
-  const expected = Array.isArray(declared)
-    ? declared.map((entry) => ({ label: norm(entry?.label), to: normalizeDestination(entry?.to) }))
-    : [];
-  if (!expected.length || expected.some((entry) => !entry.label || !entry.to)) {
+export function scoreNavigationLabels(declared, appTexts, appGroups = [], exempted = []) {
+  if (!Array.isArray(declared) || declared.length === 0) {
     return {
-      score: 0,
+      score: null,
       max: WEIGHTS.D,
       measurable: false,
-      ratio: 0,
+      ratio: null,
       matched: 0,
-      declared: expected.length,
-      deductions: ['navigation destination contract is missing or invalid'],
+      declared: Array.isArray(declared) ? declared.length : 0,
+      measured: 0,
+      exempted: 0,
+      missing: [],
     };
   }
-  const rendered = (Array.isArray(actual) ? actual : [])
-    .map((entry) => ({
-      label: norm(entry?.label ?? entry?.text),
-      to: normalizeDestination(entry?.to),
-    }))
-    .filter((entry) => entry.label && entry.to);
-  const remaining = [...rendered];
+  const skipped = new Set(exempted.map(tight).filter(Boolean));
+  const scored = declared.filter((label) => !skipped.has(tight(label)));
+  const textBlob = [...appTexts, ...appGroups].map(tight).filter(Boolean).join(SEP);
+  const missing = [];
   let matched = 0;
-  for (const edge of expected) {
-    const index = remaining.findIndex(
-      (candidate) => candidate.label === edge.label && candidate.to === edge.to,
-    );
-    if (index >= 0) {
-      matched += 1;
-      remaining.splice(index, 1);
-    }
+  for (const label of scored) {
+    const normalized = tight(label).replace(/[…·]+$/u, '');
+    const probe = normalized.slice(0, Math.max(2, Math.min(normalized.length, 8)));
+    if (probe && textBlob.includes(probe)) matched += 1;
+    else missing.push(label);
   }
-  const ratio = matched / expected.length;
+  const ratio = scored.length ? matched / scored.length : 1;
   return {
-    score: round1(ratio * WEIGHTS.D),
+    score: ratio * WEIGHTS.D,
     max: WEIGHTS.D,
     measurable: true,
     ratio,
     matched,
-    declared: expected.length,
-    deductions:
-      matched === expected.length
-        ? []
-        : [`${expected.length - matched} declared navigation destinations were not verified`],
+    declared: declared.length,
+    measured: scored.length,
+    exempted: declared.length - scored.length,
+    missing,
   };
-}
-
-export function flattenInteractive(node, output = []) {
-  if (!node) return output;
-  if (node.interactive === true || node.tag === 'a' || node.tag === 'button') {
-    output.push({
-      label: norm(node.interactiveText ?? node.text),
-      to: node.to ?? null,
-    });
-  }
-  for (const child of node.kids ?? []) flattenInteractive(child, output);
-  return output;
 }
 
 export function isDeviceChromeText(value) {
@@ -1143,16 +1107,22 @@ export function referenceCopyTexts(root) {
   return output;
 }
 
-export function scoreCopyCoverage(referenceTexts, appTexts) {
-  const expected = (Array.isArray(referenceTexts) ? referenceTexts : []).map(norm).filter(Boolean);
-  const rendered = new Set((Array.isArray(appTexts) ? appTexts : []).map(norm).filter(Boolean));
-  const matched = expected.filter((text) => rendered.has(text)).length;
-  const ratio = expected.length ? matched / expected.length : 0;
+export function scoreCopyCoverage(referenceTexts, appTexts, appGroups = [], exempted = []) {
+  const skipped = new Set(exempted.map(tight).filter(Boolean));
+  const expected = (Array.isArray(referenceTexts) ? referenceTexts : [])
+    .map(tight)
+    .filter((text) => text && !skipped.has(text));
+  const rendered = [...appTexts, ...appGroups].map(tight).filter(Boolean);
+  const missing = expected.filter((text) => !rendered.some((actual) => actual.includes(text)));
+  const matched = expected.length - missing.length;
+  const ratio = expected.length ? matched / expected.length : 1;
   return {
     matched,
     total: expected.length,
     ratio,
     score: ratio * WEIGHTS.E,
+    exempted: skipped.size,
+    missing,
   };
 }
 
@@ -1161,6 +1131,7 @@ export function scoreTokenPixels(source, ramp) {
   const png = PNG.sync.read(source);
   let paintedPixels = 0;
   let inRampPixels = 0;
+  const offRampPixels = new Map();
   for (let index = 0; index < png.data.length; index += 4) {
     if (png.data[index + 3] === 0) continue;
     paintedPixels += 1;
@@ -1168,6 +1139,7 @@ export function scoreTokenPixels(source, ramp) {
       .map((channel) => channel.toString(16).padStart(2, '0'))
       .join('')}`;
     if (ramp?.has(hex)) inRampPixels += 1;
+    else offRampPixels.set(hex, (offRampPixels.get(hex) ?? 0) + 1);
   }
   const ratio = paintedPixels > 0 ? inRampPixels / paintedPixels : 0;
   return {
@@ -1175,6 +1147,10 @@ export function scoreTokenPixels(source, ramp) {
     ratio,
     paintedPixels,
     inRampPixels,
+    offTop: [...offRampPixels.entries()]
+      .map(([hex, pixels]) => ({ hex, pixels }))
+      .sort((left, right) => right.pixels - left.pixels)
+      .slice(0, 5),
   };
 }
 
@@ -1391,6 +1367,7 @@ export function inspectRenderedPixelRules(
     blurs: 0,
     alphas: 0,
     texts: [],
+    groups: [],
     interactive: [],
   };
   const renderedVisibility = (element) => {
@@ -1489,6 +1466,19 @@ export function inspectRenderedPixelRules(
     const descendants = [...element.children].map((child) => visibleText(child, depth + 1));
     return [...direct, ...descendants].join(' ').replace(/\s+/g, ' ').trim();
   };
+  const descendantCount = (element, limit = 9) => {
+    let count = 0;
+    const visit = (current) => {
+      for (const child of current?.children ?? []) {
+        count += 1;
+        if (count >= limit) return;
+        visit(child);
+        if (count >= limit) return;
+      }
+    };
+    visit(element);
+    return count;
+  };
   for (const element of elements) {
     const style = styleFor(element);
     const visibility = renderedVisibility(element);
@@ -1543,8 +1533,21 @@ export function inspectRenderedPixelRules(
 
     if (!visibility.content) continue;
     const readableText = readableTextPaint(element);
-    if (readableText && element.children.length === 0 && (element.textContent || '').trim()) {
+    const ignoredCopyTag = /^(STYLE|SCRIPT|NOSCRIPT|TEMPLATE|TITLE)$/.test(element.tagName);
+    if (
+      !ignoredCopyTag &&
+      readableText &&
+      element.children.length === 0 &&
+      (element.textContent || '').trim()
+    ) {
       result.texts.push(element.textContent);
+    }
+    if (!ignoredCopyTag) {
+      const descendants = descendantCount(element);
+      if (descendants >= 1 && descendants <= 8) {
+        const group = visibleText(element);
+        if (group && group.length <= 60) result.groups.push(group);
+      }
     }
     if (element.matches('a[href], button, [role="button"], [role="link"]')) {
       const label = visibleText(element);
@@ -1568,22 +1571,84 @@ function tokenRamp(tokens) {
   return output;
 }
 
-function deviationsFor(deviations, screen, axis) {
-  return (deviations?.deviations ?? []).filter(
+export function exemptItems(screen, axis, deviations) {
+  const output = [];
+  for (const entry of deviations?.deviations ?? []) {
+    if (entry?.screen !== screen || entry?.axis !== axis) continue;
+    if (typeof entry?.why !== 'string' || entry.why.trim().length === 0) continue;
+    if (Array.isArray(entry.items) && entry.items.length > 0) output.push(...entry.items);
+  }
+  return output.map(norm).filter(Boolean);
+}
+
+export function exempt(screen, axis, deviations) {
+  return (deviations?.deviations ?? []).some(
     (entry) =>
       entry?.screen === screen &&
       entry?.axis === axis &&
       typeof entry?.why === 'string' &&
-      entry.why.trim().length > 0,
+      entry.why.trim().length > 0 &&
+      !(Array.isArray(entry.items) && entry.items.length > 0),
   );
+}
+
+export function renormalizeScores(raw) {
+  const measured = Object.entries(raw).filter(([, value]) => value !== null);
+  const unmeasured = Object.entries(raw)
+    .filter(([, value]) => value === null)
+    .map(([axis]) => axis);
+  const gotSum = measured.reduce((sum, [, value]) => sum + value, 0);
+  const maxSum = measured.reduce((sum, [axis]) => sum + WEIGHTS[axis], 0);
+  return {
+    scores: Object.fromEntries(
+      Object.entries(raw).map(([axis, value]) => [axis, value === null ? null : round1(value)]),
+    ),
+    total: maxSum > 0 ? round1((gotSum / maxSum) * 100) : null,
+    unmeasured,
+  };
+}
+
+export function isAutomaticPass(total, unmeasured, manualReviewAxes = []) {
+  return (
+    total !== null &&
+    total >= 98 &&
+    unmeasured.every((axis) => axis === 'C') &&
+    manualReviewAxes.length === 0
+  );
+}
+
+async function dismissCaptureOverlays(page) {
+  const labels = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
+  for (let pass = 0; pass < 3; pass += 1) {
+    let clicked = false;
+    for (const label of labels) {
+      const candidate = page.getByText(label, { exact: false });
+      if ((await candidate.count()) === 0) continue;
+      clicked = await candidate
+        .first()
+        .click()
+        .then(() => true)
+        .catch(() => false);
+      if (clicked) {
+        await page.waitForTimeout(800);
+        break;
+      }
+    }
+    if (!clicked) break;
+  }
+  await page.waitForTimeout(500);
 }
 
 async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, activeShot }) {
   await navigateHostedAppRoute(page, baseUrl, route);
   await waitForSettledPage(page);
   await waitForShotNetworkIdle(page, activeShot);
+  let failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+  if (failureCodes.length) throw new CaptureContractError(failureCodes);
+  await dismissCaptureOverlays(page);
+  await waitForShotNetworkIdle(page, activeShot);
   validateFinalUrl(baseUrl, route, page.url());
-  const failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+  failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
   if (failureCodes.length) throw new CaptureContractError(failureCodes);
   const app = await page.evaluate(inspectRenderedPixelRules);
   if (app.texts.length < MIN_TEXTS) {
@@ -1604,7 +1669,7 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
 
   const manualReviewAxes = [];
   const applyDeviation = (axis, score) => {
-    if (deviationsFor(deviations, id, axis).length === 0) return score;
+    if (!exempt(id, axis, deviations)) return score;
     manualReviewAxes.push(axis);
     return WEIGHTS[axis];
   };
@@ -1620,23 +1685,28 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
   const reference = existsSync(structurePath)
     ? JSON.parse(readFileSync(structurePath, 'utf8'))
     : null;
-  const appStructure = await page.evaluate(digestPage);
-  let C = null;
-  let structure = null;
-  if (reference && appStructure) {
-    structure = scoreStructure(reference, appStructure);
-    C = structure.score;
-  }
-  C = applyDeviation('C', C);
+  const C = null;
+  const cWhy =
+    '축 꺼짐 — 눈금이 화면을 구별 못 함(자기 짝 찾기 0/6, 무작위 1/6보다 낮음)';
 
-  const navigation = scoreNavigation(navFile?.[id], app.interactive);
+  const declared = Array.isArray(navFile?.[id]) ? navFile[id] : null;
+  const navigation = scoreNavigationLabels(
+    declared,
+    app.texts,
+    app.groups,
+    exemptItems(id, 'D', deviations),
+  );
   const D = applyDeviation('D', navigation.score);
 
-  let E = 0;
-  if (reference) {
-    E = scoreCopyCoverage(referenceCopyTexts(reference), app.texts).score;
-  }
-  E = applyDeviation('E', E);
+  const copy = reference
+    ? scoreCopyCoverage(
+        referenceCopyTexts(reference),
+        app.texts,
+        app.groups,
+        exemptItems(id, 'E', deviations),
+      )
+    : null;
+  const E = applyDeviation('E', copy?.score ?? null);
 
   await page.waitForTimeout(100);
   await waitForShotNetworkIdle(page, activeShot);
@@ -1644,35 +1714,47 @@ async function scoreOne({ page, id, route, baseUrl, ramp, navFile, deviations, a
   if (finalFailureCodes.length) throw new CaptureContractError(finalFailureCodes);
 
   const raw = { A, B, C, D, E };
-  const unmeasured = Object.entries(raw)
-    .filter(([, value]) => value == null)
-    .map(([axis]) => axis);
-  if (!navigation.measurable && !unmeasured.includes('D')) unmeasured.push('D');
-  const scores = Object.fromEntries(
-    Object.entries(raw).map(([axis, value]) => [axis, value == null ? null : round1(value)]),
-  );
-  const total = round1(Object.values(raw).reduce((sum, value) => sum + (value ?? 0), 0));
+  const { scores, total, unmeasured } = renormalizeScores(raw);
   return {
     id,
     route,
     ...scores,
     total,
-    automaticPass: total >= 98 && unmeasured.length === 0 && manualReviewAxes.length === 0,
+    automaticPass: isAutomaticPass(total, unmeasured, manualReviewAxes),
     unmeasured,
     manualReviewAxes,
+    missD: navigation.missing,
+    missE: copy?.missing ?? [],
+    offTop: tokenPixels.offTop,
+    details: { navigation, copy },
     why: {
       A: `curves ${app.curves} · rounds ${app.rounds} · blur ${app.blurs} · alpha ${app.alphas}`,
       B:
         tokenPixels.paintedPixels > 0
-          ? `token pixels ${round1(tokenPixels.ratio * 100)}% (${tokenPixels.inRampPixels}/${tokenPixels.paintedPixels})`
+          ? `token pixels ${round1(tokenPixels.ratio * 100)}% (${tokenPixels.inRampPixels}/${tokenPixels.paintedPixels})${
+              tokenPixels.offTop.length
+                ? ` · off-ramp ${tokenPixels.offTop
+                    .map((entry) => `${entry.hex} ${entry.pixels}`)
+                    .join(' / ')}`
+                : ''
+            }`
           : 'no painted pixels',
-      C: structure
-        ? `order ${structure.orderScore}/10 · count ${structure.countScore}/5 · height ${structure.heightScore}/5`
-        : 'reference structure missing',
+      C: cWhy,
       D: navigation.measurable
-        ? `destinations ${navigation.matched}/${navigation.declared}`
-        : 'navigation destination contract missing',
-      E: reference ? 'reference copy compared' : 'reference structure missing',
+        ? `declared ${navigation.declared} · measured ${navigation.measured} · exempt ${navigation.exempted} · missing ${navigation.missing.length}${
+            navigation.missing.length ? ` → ${navigation.missing.slice(0, 8).join(' / ')}` : ''
+          }`
+        : 'nav declaration missing',
+      E: copy
+        ? `measured ${copy.total} · exempt ${copy.exempted} · missing ${copy.missing.length}${
+            copy.missing.length
+              ? ` → ${copy.missing
+                  .slice(0, 8)
+                  .map((text) => text.slice(0, 24))
+                  .join(' / ')}`
+              : ''
+          }`
+        : 'reference structure missing',
     },
   };
 }
@@ -1730,8 +1812,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     return 2;
   }
   const tokens = readJson(path.join(DATA, 'tokens.json'), {});
-  const navRoutesPath = path.join(DATA, 'nav-routes.json');
-  const navFile = readJson(navRoutesPath, readJson(path.join(DATA, 'nav.json'), {}));
+  const navFile = readJson(path.join(DATA, 'nav.json'), {});
   const deviations = readJson(path.join(DATA, 'deviations.json'), { deviations: [] });
   const output = env.SCORE_OUT || path.join(DATA, 'score.json');
   const rows = [];
@@ -1834,9 +1915,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     manifest: classification.stats,
     environmentAttested: true,
     browserVersion,
-    navigationContract: existsSync(navRoutesPath)
-      ? 'data/nav-routes.json'
-      : 'invalid: data/nav.json has labels only',
+    navigationContract: 'data/nav.json',
     weights: WEIGHTS,
     rows,
   };

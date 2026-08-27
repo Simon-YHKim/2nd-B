@@ -80,10 +80,11 @@ export function LivingAsset({
 
   const animatedStyle = enabled && !reduced
     ? {
-        opacity: progress.interpolate({
-          inputRange: [0, 0.5, 1],
-          outputRange: [motion.opacityMin, 1, motion.opacityMin],
-        }),
+        // ⚠ **불투명도로 숨쉬지 않는다** (PIXEL-CLAY 규칙 4).
+        //   예전에는 `opacity` 를 0.94~1 사이로 흘렸는데, 그 진폭은 거의 안 보이면서
+        //   순간값이 소수가 되어 정적 반투명과 같은 문제를 만들었다
+        //   (`/capture-full` 의 A축에 끝까지 남은 한 건이 이것이었다).
+        //   살아있는 느낌은 아래의 **떠오름(translateY)과 맥박(scale)** 이 낸다.
         transform: [
           {
             translateY: progress.interpolate({

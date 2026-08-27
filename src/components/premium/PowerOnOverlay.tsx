@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, useWindowDimensions } from "react-native";
+import { Animated, StyleSheet, useWindowDimensions } from "react-native";
 
 import { prefersReducedMotion } from "@/lib/motion/signature";
 import { gameboy } from "@/lib/theme/gameboy-tokens";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha } from "@/lib/theme/tokens";
 
 import { POWER_ON_STORAGE_KEY, powerOnStartState } from "./power-on-state";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 
 export const POWER_ON_SWEEP_MS = 180;
 const POWER_ON_FADE_MS = 120;
@@ -69,13 +70,14 @@ export function PowerOnOverlay() {
       Animated.timing(sweep, {
         toValue: 1,
         duration: POWER_ON_SWEEP_MS,
-        easing: Easing.linear,
+        // ⚠ 계단 이징(규칙 5). 등속을 칸으로 나눠도 등속이다 — 마디만 생긴다.
+        easing: pixelStepsFor(POWER_ON_SWEEP_MS),
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
         duration: POWER_ON_FADE_MS,
-        easing: Easing.out(Easing.quad),
+        easing: pixelStepsFor(POWER_ON_FADE_MS),
         useNativeDriver: true,
       }),
     ]);
@@ -121,8 +123,8 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: SCANLINE_HEIGHT,
-    backgroundColor: gameboy.accent,
-    opacity: 0.95,
+    // ⚠ 미리 합성한 색(규칙 4). 바탕은 이 오버레이의 배경(`cosmic.space950`)이다.
+    backgroundColor: flattenAlpha(gameboy.accent, 0.95, cosmic.space950),
     shadowColor: gameboy.accent,
     shadowOpacity: 1,
     shadowRadius: 0,
