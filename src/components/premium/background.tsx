@@ -126,6 +126,11 @@ const DIPPER_LINKS: [number, number][] = [
 // Alcor — the faint companion beside Mizar (double star). Decorative only.
 const ALCOR: DipperPoint = { name: "Alcor", x: 174, y: 101, r: 1.35 };
 
+/** 숨쉰기 한 주기. */
+const BREATH_MS = 3200;
+/** 그 주기를 나누는 칸 수. 칸당 40ms ≈ 25fps — 픽셀 애니메이션의 프레임 감각. */
+const BREATH_STEPS = Math.round(BREATH_MS / 40);
+
 // Animate the additive glow GROUP's opacity (one shared "breath") via a
 // reanimated View wrapping an Svg — avoids per-star animated SVG props and the
 // associated Hermes/native-prop surface area.
@@ -164,9 +169,20 @@ export function ConstellationLayer({ width, height }: { width: number; height: n
       breath.value = 1;
       return;
     }
-    // Slow, low-frequency pulse — sky ambience, not a UI tell. Soft ease only.
+    // Slow, low-frequency pulse — sky ambience, not a UI tell.
+    //
+    // ⚠ **계단으로 숨쉰다** (PIXEL-CLAY 규칙 5 — 곱선 이징 금지).
+    //   원래 `ReEasing.inOut(ReEasing.quad)` 였다. 사라지는 것이 아니라
+    //   **마디가 생긴다** — 같은 3200ms 동안 같은 폭으로 움직이되 칸으로 간다.
+    //
+    // 칸수는 칸당 시간에서 유도한다(`lib/motion/pixel-physical` 의 `PIXEL_STEP_MS` 와
+    // 같은 생각) — 3200 / 40 = 80 칸. 주기 동작이라 상호작용보다 촌촌하게 둔다.
+    //
+    // ⚠ 이 숨쉰기가 `/capture-full` 의 A축을 18/30 으로 긎고 있었다. 측정마다
+    //   값이 달라져(0.869621 · 0.927655) "측정 불안정"처럼 보였는데,
+    //   사실은 **끝나지 않는 애니메이션**이었다.
     breath.value = withRepeat(
-      withTiming(1, { duration: 3200, easing: ReEasing.inOut(ReEasing.quad) }),
+      withTiming(1, { duration: BREATH_MS, easing: ReEasing.steps(BREATH_STEPS, true) }),
       -1,
       true,
     );

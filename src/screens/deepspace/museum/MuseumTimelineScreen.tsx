@@ -244,7 +244,9 @@ export function MuseumTimelineScreen() {
                 <Line key={dy} x1={mzX(dy)} y1={0} x2={mzX(dy)} y2={MZ.TH} stroke={MUSEUM_GRID_LINE} strokeWidth={1} />
               ))}
               <Line x1={0} y1={MZ.AXIS} x2={MZ_CANVAS_W} y2={MZ.AXIS} stroke={MUSEUM_AXIS_LINE} strokeWidth={1.4} />
-              <Line x1={mzX(2026)} y1={0} x2={mzX(2026)} y2={MZ.TH} stroke={MZ_LANES.ai.accent} strokeWidth={1} strokeDasharray="3 6" opacity={0.7} />
+              {/* ⚠ 오늘 표시선은 **미리 합성한 색**이다(규칙 4). 이 파일은 이미 `mzDimLink` 로
+                  같은 일을 하고 있었는데 이 한 줄만 opacity 로 남아 있었다. */}
+              <Line x1={mzX(2026)} y1={0} x2={mzX(2026)} y2={MZ.TH} stroke={MZ_TODAY_LINE} strokeWidth={1} strokeDasharray="3 6" />
               {/* connectors */}
               {connectors.map((c) => {
                 const active = selId === c.a || selId === c.b;
@@ -533,6 +535,8 @@ function mzDimLink(accent: string): string {
   return flattenAlpha(accent, 0.4, m3.accent.stageFloor);
 }
 
+/** 오늘(2026) 표시선 — 원래 `opacity={0.7}` 이 하던 일. 바닥은 무대 바닥색이다. */
+const MZ_TODAY_LINE = flattenAlpha(MZ_LANES.ai.accent, 0.7, m3.accent.stageFloor);
 const MUSEUM_OPEN_ICON = mzAlpha(m3.accent.skyStarWhite, 0.32);
 const MUSEUM_GRID_LINE = mzAlpha(m3.accent.entryTag, 0.09);
 const MUSEUM_AXIS_LINE = mzAlpha(m3.accent.entryTag, 0.35);

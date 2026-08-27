@@ -238,6 +238,30 @@ const SPRING_ANIM = /\b(?:withSpring|Animated\.spring)\s*\(/g;
 //   이라는 글자가 많이 들어 있어서, 안 걷으면 기록을 지워야 통과하게 된다.
 const CURVE_EL = /<(Path|Circle|Ellipse|Polyline|Polygon|path|circle|ellipse|polyline|polygon)\b/g;
 
+/**
+ * 곡선 도형을 **감싼 별칭**. 실측으로 걸렸다 — `/rlss` 화면에 원이 그려지는데
+ * 가드는 "곡선 0건" 이라고 말했다. 범인은 이것이었다:
+ *
+ *     const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+ *     <AnimatedCircle cx cy r />
+ *
+ * `<Circle` 을 찾는 정규식은 `<AnimatedCircle` 에 안 걸린다.
+ *
+ * ⚠ "이름이 곡선 이름으로 끝나면 잡는다" 로 넓히지 않았다 — `LearningPath` 같은
+ *   멀쩡한 컴포넌트가 걸려 무관용 규칙이 오작동한다. **그 파일 안에서 실제로
+ *   선언된 별칭만** 추적한다.
+ */
+const CURVE_ALIAS_DECL =
+  /const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*[A-Za-z0-9_.]*\(\s*(Path|Circle|Ellipse|Polyline|Polygon)\s*\)/g;
+
+/** 이 파일이 선언한 곡선 별칭들의 JSX 사용을 찾는 정규식. 없으면 null. */
+function curveAliasPattern(bare: string): RegExp | null {
+  const names = new Set<string>();
+  for (const m of bare.matchAll(CURVE_ALIAS_DECL)) names.add(m[1]);
+  if (names.size === 0) return null;
+  return new RegExp("<(" + [...names].join("|") + ")\\b", "g");
+}
+
 /** 줄주석과 블록주석을 공백으로 지운다(줄 수는 유지해 줄번호가 안 밀린다). */
 function stripComments(src: string): string {
   return src
@@ -565,6 +589,20 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
         "별은 `PixelStarSvg` 를 쓸 것. 화면 실측으로 0 건이 된 규칙이라 래칫이 아니라 무관용이다",
     });
   }
+  // 별칭으로 감싼 곡선 도형도 같이 본다(위 `curveAliasPattern` 주석 참조).
+  const aliasRe = curveAliasPattern(bare);
+  if (aliasRe) {
+    for (const m of bare.matchAll(aliasRe)) {
+      hits.push({
+        file: rel,
+        line: lineOf(bare, m.index ?? 0),
+        text: m[0],
+        why:
+          "규칙 1 -- 곡선 도형. 아이콘은 `PixelGlyph`, 선은 `pixel-line.ts`(stepLine/stepQuad/ringCells), " +
+          "별은 `PixelStarSvg` 를 쓸 것. 화면 실측으로 0 건이 된 규칙이라 래칫이 아니라 무관용이다",
+      });
+    }
+  }
 }
 
 // ── 승격 (2026-08-27): 규칙 2·3·5 가 `src/` 전체를 본다 ────────────────────
@@ -579,7 +617,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 290;
+const RATCHET_BASELINE = 281;
 
 // 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
 // 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
