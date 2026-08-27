@@ -384,6 +384,12 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
   }, [ready, readyAtMs]);
 
   const plan = openingStateAt({ elapsedMs, readyAtMs, tapAtMs, reducedMotion });
+  const phase: "typing" | "ready" | "zooming" =
+    plan.phase === "ready"
+      ? "ready"
+      : plan.phase === "exiting" || plan.phase === "done"
+        ? "zooming"
+        : "typing";
 
   useEffect(() => {
     if (!plan.shouldContinue) return;
@@ -413,10 +419,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{
-        busy: plan.phase === "story" || plan.phase === "waiting-ready",
-        disabled: plan.phase === "exiting" || plan.phase === "done",
-      }}
+      accessibilityState={{ busy: phase !== "ready", disabled: phase === "zooming" }}
     >
       <OpeningStage frame={plan.frame} />
       {plan.phase === "ready" ? <Text style={styles.hint}>{t("loadingGate.hint")}</Text> : null}
