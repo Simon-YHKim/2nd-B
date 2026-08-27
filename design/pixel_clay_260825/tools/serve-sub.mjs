@@ -55,7 +55,13 @@ createServer(async (req, res) => {
   if (!file) file = await tryFile(join(DIST, 'index.html'));
 
   if (!file) { res.writeHead(404); res.end('not found'); return; }
+  // Work 0 attestation rejects a proof served without its file mtime.
+  const metadata = await stat(file);
   const body = await readFile(file);
-  res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream' });
+  res.writeHead(200, {
+    'cache-control': 'no-store',
+    'content-type': TYPES[extname(file)] || 'application/octet-stream',
+    'last-modified': metadata.mtime.toUTCString(),
+  });
   res.end(body);
 }).listen(PORT, () => console.log('serving ' + DIST + ' at http://localhost:' + PORT + BASE + '/'));
