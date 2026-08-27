@@ -37,7 +37,7 @@ import { pixelStepsFor } from "@/lib/motion/pixel-physical";
 import { Image } from "expo-image";
 import Svg, { Rect } from "react-native-svg";
 
-import { deepSpace } from "@/lib/theme/tokens";
+import { deepSpace, flattenAlpha } from "@/lib/theme/tokens";
 import { stepLine, stepQuad, type LineCell } from "@/components/pixel/pixel-line";
 import { m3, type M3Persona } from "@/lib/theme/m3";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
@@ -142,6 +142,10 @@ function GlowCells({ cells, cell, glow, core }: { cells: LineCell[]; cell: numbe
   );
 }
 
+// ⚠ 원이 아니라 **사각**이다. 곡선 도형을 감싼 별칭은 가드가 추적한다
+//   (`check:pixel-rules` 의 `curveAliasPattern`) — Rect 는 걸리지 않는다.
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
 /** Tiny cyan eighth-note that floats beside the mouth while whistling. */
 function WhistleNote({ size, accent, reduce }: { size: number; accent: string; reduce: boolean }) {
   const drift = useRef(new Animated.Value(0)).current;
@@ -162,6 +166,11 @@ function WhistleNote({ size, accent, reduce }: { size: number; accent: string; r
     return () => loop.stop();
   }, [drift, reduce]);
   const noteSize = Math.max(7, size * 0.1);
+  // 어두운 쪽·밝은 쪽을 **화면 배경 위에 미리 합성**해 둔다. 음표는 그 위에 떠 있다.
+  const noteFill = drift.interpolate({
+    inputRange: [0, 1],
+    outputRange: [flattenAlpha(accent, 0.45, deepSpace.bg), flattenAlpha(accent, 0.95, deepSpace.bg)],
+  });
   return (
     <Animated.View
       pointerEvents="none"
@@ -169,16 +178,18 @@ function WhistleNote({ size, accent, reduce }: { size: number; accent: string; r
         position: "absolute",
         left: size * 0.66,
         top: size * 0.56,
-        opacity: drift.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.95] }),
+        // ⚠ **불투명도를 쓰지 않는다**(규칙 4). 예전에는 opacity 를 0.45↔0.95 로
+        //   흘렸는데, 픽셀아트에서 밝기는 투명도가 아니라 **색**이다. 아래 `fill` 이
+        //   미리 합성한 두 색 사이를 오간다. 떠오르는 움직임은 그대로 둔다.
         transform: [{ translateY: drift.interpolate({ inputRange: [0, 1], outputRange: [1.5, -2.5] }) }],
       }}
     >
       {/* 8분음표 — 기둥 + 깃발 + 머리. 곡선이었던 것을 셀 넷으로. */}
       <Svg width={noteSize} height={noteSize} viewBox="0 0 10 10">
-        <Rect x={4} y={2} width={1.4} height={6} fill={accent} />
-        <Rect x={5.4} y={1.4} width={2.6} height={1.4} fill={accent} />
-        <Rect x={6.6} y={2.8} width={1.4} height={1.4} fill={accent} />
-        <Rect x={1.6} y={6.6} width={3.4} height={3} fill={accent} />
+        <AnimatedRect x={4} y={2} width={1.4} height={6} fill={noteFill} />
+        <AnimatedRect x={5.4} y={1.4} width={2.6} height={1.4} fill={noteFill} />
+        <AnimatedRect x={6.6} y={2.8} width={1.4} height={1.4} fill={noteFill} />
+        <AnimatedRect x={1.6} y={6.6} width={3.4} height={3} fill={noteFill} />
       </Svg>
     </Animated.View>
   );
