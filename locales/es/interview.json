@@ -39,7 +39,8 @@
     "saved": "Guardado.",
     "scaffoldNote": "No saber está bien. \"No lo sé\" también es un dato. Probemos otro ángulo.",
     "intro": "No hace falta pulir las respuestas. \"No lo sé\" también es un dato.",
-    "dontKnow": "No estoy seguro"
+    "dontKnow": "No estoy seguro",
+    "openerHint": "Tócalo para empezar y edítalo"
   },
   "period": {
     "childhood": "Infancia",

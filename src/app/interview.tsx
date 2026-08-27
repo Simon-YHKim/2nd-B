@@ -122,6 +122,8 @@ export default function InterviewRoute() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingLayer, setPendingLayer] = useState<DrillLayer | null>(null);
+  /** 이번 질문에 딸린 **말문 후보**. 누르면 보내지 않고 입력창을 채운다. */
+  const [openers, setOpeners] = useState<string[]>([]);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -190,6 +192,8 @@ export default function InterviewRoute() {
             { role: "interviewer", text: t(`loopCheck.${key}`), period },
           ]);
           setPendingLayer(null);
+          // 되묻기에는 말문 후보를 달지 않는다 — 그건 새 질문이 아니라 확인이다.
+          setOpeners([]);
           setNotice(t("drill.loopNote"));
           return;
         }
@@ -237,6 +241,7 @@ export default function InterviewRoute() {
         }
         setTurns([...history, { role: "interviewer", text: probe.question, layer: probe.layer, period }]);
         setPendingLayer(probe.layer);
+        setOpeners(probe.openers);
         if (isScaffold) setNotice(t("drill.scaffoldNote"));
       } catch {
         setNotice(t("drill.failed"));
@@ -347,6 +352,7 @@ export default function InterviewRoute() {
     setStuckStreak(nextAbandoned !== abandoned ? 0 : nextStreak);
     setAbandoned(nextAbandoned);
     setDraft("");
+    setOpeners([]);
     setPendingLayer(null);
     if (nextTurns.filter((turn) => turn.role === "user").length >= MAX_TURNS) {
       setDone(true);
@@ -489,6 +495,22 @@ export default function InterviewRoute() {
                 ⚠ 알약(pill)이 아니라 사각이다. PIXEL-CLAY 는 라운드 0 이다. */}
             {pendingLayer && !busy ? (
               <View style={styles.answerChips}>
+                {/* ⚠ 말문 후보는 **보내지 않고 입력창을 채운다.**
+                    모델이 쓴 문장이 그대로 기록으로 남으면, 이 제품이 모으려는
+                    "그 사람이 실제로 한 말" 이 아니라 "모델이 그럴듯하게 지어낸 말"
+                    이 위키에 쌓인다. 고쳐 쓰라고 놓는 첫머리다. */}
+                {openers.map((o) => (
+                  <Pressable
+                    key={o}
+                    onPress={() => setDraft(o)}
+                    style={styles.answerChip}
+                    accessibilityRole="button"
+                    accessibilityLabel={o}
+                    accessibilityHint={t("drill.openerHint")}
+                  >
+                    <Text style={[m3TextStyle("labelMedium"), styles.answerChipText]}>{o}</Text>
+                  </Pressable>
+                ))}
                 <Pressable
                   onPress={() => void send(t("drill.dontKnow"))}
                   style={styles.answerChip}

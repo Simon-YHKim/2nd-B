@@ -39,7 +39,8 @@
     "saved": "Guardado.",
     "scaffoldNote": "Não saber tudo bem. \"Não sei\" também é um dado. Vamos por outro ângulo.",
     "intro": "Não precisa polir as respostas. \"Não sei\" também é um dado.",
-    "dontKnow": "Não sei"
+    "dontKnow": "Não sei",
+    "openerHint": "Toque para começar e edite"
   },
   "period": {
     "childhood": "Infância",

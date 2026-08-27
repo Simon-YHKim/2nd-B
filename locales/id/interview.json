@@ -39,7 +39,8 @@
     "saved": "Tersimpan.",
     "scaffoldNote": "Tidak tahu itu tidak apa-apa. \"Tidak tahu\" juga data. Mari coba sudut lain.",
     "intro": "Tak perlu memoles jawabanmu. \"Tidak tahu\" juga data.",
-    "dontKnow": "Belum tahu"
+    "dontKnow": "Belum tahu",
+    "openerHint": "Ketuk untuk memulai, lalu ubah"
   },
   "period": {
     "childhood": "Masa kecil",

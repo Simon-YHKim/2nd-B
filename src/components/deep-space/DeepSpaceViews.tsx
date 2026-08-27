@@ -2099,7 +2099,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: m3.color.surfaceContainer,
   },
-  atQuad: { position: "absolute", color: m3.color.onSurfaceVariant, opacity: 0.7, fontFamily: m3.font.brand },
+  // ⚠ 사분면 라벨(안정·몰입·회피·혼란)은 **미리 합성한 색**이다
+  //   (PIXEL-CLAY 규칙 4 — 정적 반투명 금지). 바탕은 바로 위 `atMap` 의
+  //   `surfaceContainer` 다. 지도 배경을 바꾸면 이 값도 같이 다시 잴 것.
+  //   실측으로 걸렸다: `/attachment` 화면의 A축이 6/30 이었고 그 넷이 전부 이거였다.
+  atQuad: {
+    position: "absolute",
+    color: flattenAlpha(m3.color.onSurfaceVariant, 0.7, m3.color.surfaceContainer),
+    fontFamily: m3.font.brand,
+  },
   atQuadTop: { top: 8 },
   atQuadBottom: { bottom: 8 },
   atQuadLeft: { left: 10 },

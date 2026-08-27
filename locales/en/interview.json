@@ -39,7 +39,8 @@
     "saved": "Kept.",
     "scaffoldNote": "Not knowing is fine. \"I don't know\" is data too. Let's come at it another way.",
     "intro": "No need to polish your answers. \"I don't know\" is data too.",
-    "dontKnow": "I'm not sure"
+    "dontKnow": "I'm not sure",
+    "openerHint": "Tap to start writing, then edit it"
   },
   "period": {
     "childhood": "Childhood",
