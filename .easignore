@@ -16,6 +16,12 @@ coverage/
 .env.local
 .env*.local
 
+# EAS CLI reads local signing credentials before creating the project archive
+# and uploads them through its dedicated credential channel. Never duplicate
+# the password-bearing manifest or private signing material in that archive.
+credentials.json
+ios/certs/
+
 # Large local build artifacts
 ios-sim-build.tar.gz
 ios-sim-extract/

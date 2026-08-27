@@ -14,6 +14,12 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
+      # The deterministic HustleK atlas verifier executes the repository's
+      # pinned Pillow toolchain through uv. Keep clean CI runners equivalent
+      # to the documented local verification command.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: "0.11.19"
       - run: npm ci --legacy-peer-deps
       # a2z audit 2026-07-11: this job used to hand-copy the verify steps and
       # had drifted — check:legal-review, check:anti-anthro and
