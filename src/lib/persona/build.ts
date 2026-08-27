@@ -540,6 +540,37 @@ const MAX_SUMMARY_INPUT_CHARS = 7400;
 // so the cache signature keeps moving as records are added.
 const MAX_PERSONA_ROWS = 1000;
 
+/**
+ * Read only the measured evidence needed to decide which `/review` actions can
+ * be offered. Unlike `buildPersona`, this never calls the LLM, derives star
+ * levels, or writes a persona row. Opening a screen must not spend money or
+ * mutate the user's model before they choose an action.
+ */
+export async function loadPersonaRatifiableSignals(
+  userId: string,
+): Promise<Pick<PersonaCard, "traitsSource" | "attachment" | "values">> {
+  const supabase = getSupabaseClient();
+  const [recordsResult, ipip, bfi, attachment] = await Promise.all([
+    supabase
+      .from("records")
+      .select("prompt")
+      .eq("user_id", userId)
+      .eq("kind", "audit_response")
+      .order("created_at", { ascending: false })
+      .limit(MAX_PERSONA_ROWS),
+    loadLatestIpip(supabase, userId),
+    loadLatestBfi(supabase, userId),
+    loadLatestAttachment(supabase, userId),
+  ]);
+  if (recordsResult.error) throw recordsResult.error;
+
+  return {
+    traitsSource: ipip ? "ipip" : bfi ? "bfi" : "heuristic",
+    attachment,
+    values: deriveValues(recordsResult.data ?? []),
+  };
+}
+
 /** Staleness signature for the cached narrative summary. Pure (exported for
  *  tests). Any new/removed record or locale switch changes it. */
 export function personaSummarySig(
@@ -779,7 +810,7 @@ export async function buildPersona(
   return persona;
 }
 
-export function deriveValues(rows: AuditResponseRow[]): string[] {
+export function deriveValues(rows: Pick<AuditResponseRow, "prompt">[]): string[] {
   // Frameworks of questions the user actually answered, ranked by how many of
   // each framework's questions they answered (descending). values[0] is then
   // the framework they engaged most — matching the "most-frequented" / top-fuel

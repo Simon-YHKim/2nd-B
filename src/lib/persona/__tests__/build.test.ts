@@ -1,6 +1,8 @@
 // Tests for buildPersona() (records:select fixtures are in DB order: created_at DESC - buildPersona fetches newest-first and reverses) — verifies that MBTI and ECR-S records are surfaced
 // into the PersonaCard, and that traitsSource flips from "heuristic" to "tipi"
 // when a TIPI assessment exists. Supabase calls are mocked per-table.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 interface QueryResult {
   data: unknown;
@@ -9,6 +11,7 @@ interface QueryResult {
 
 const tableFixtures: Record<string, QueryResult> = {};
 const upsertCalls: { table: string; payload: unknown; opts: unknown }[] = [];
+const selectCalls: { table: string; columns: string }[] = [];
 
 function chainable(result: QueryResult) {
   // Thenable terminus so `await` works regardless of which chain step ends.
@@ -36,7 +39,10 @@ function chainable(result: QueryResult) {
 jest.mock("../../supabase/client", () => ({
   getSupabaseClient: () => ({
     from: (table: string) => ({
-      select: () => chainable(tableFixtures[`${table}:select`] ?? { data: [], error: null }),
+      select: (columns: string) => {
+        selectCalls.push({ table, columns });
+        return chainable(tableFixtures[`${table}:select`] ?? { data: [], error: null });
+      },
       upsert: (payload: unknown, opts: unknown) => {
         upsertCalls.push({ table, payload, opts });
         return Promise.resolve({ data: null, error: null });
@@ -55,13 +61,24 @@ jest.mock("../../llm/boundary", () => ({
   ),
 }));
 
-import { __test_scoreFromAnswers, buildPersona, deriveValues, instrumentLabel, isMeasuredSource, personaSummarySig, traitConfidenceFor, type AuditResponseRow } from "../build";
+import {
+  __test_scoreFromAnswers,
+  buildPersona,
+  deriveValues,
+  instrumentLabel,
+  isMeasuredSource,
+  loadPersonaRatifiableSignals,
+  personaSummarySig,
+  traitConfidenceFor,
+  type AuditResponseRow,
+} from "../build";
 import { callLlm } from "../../llm/boundary";
 import { AUDIT_QUESTIONS } from "../../audit/questions";
 
 function reset() {
   for (const k of Object.keys(tableFixtures)) delete tableFixtures[k];
   upsertCalls.length = 0;
+  selectCalls.length = 0;
   (callLlm as jest.Mock).mockClear();
 }
 
@@ -119,6 +136,89 @@ describe("deriveValues", () => {
 
   test("returns empty when nothing was answered", () => {
     expect(deriveValues(answer([]))).toEqual([]);
+  });
+});
+
+describe("loadPersonaRatifiableSignals", () => {
+  beforeEach(reset);
+
+  test("reads only the evidence needed by /review without an LLM call or persona write", async () => {
+    tableFixtures["records:select"] = {
+      data: [
+        {
+          id: "evidence-1",
+          prompt: AUDIT_QUESTIONS[0].prompt.en,
+          body: JSON.stringify({
+            domains: {
+              openness: 5,
+              conscientiousness: 4,
+              extraversion: 3,
+              agreeableness: 2,
+              neuroticism: 1,
+            },
+            scores: {
+              openness: 1,
+              conscientiousness: 1,
+              extraversion: 1,
+              agreeableness: 1,
+              neuroticism: 1,
+            },
+            facets: { imagination: 5 },
+            style: "secure",
+            anxiety: 2,
+            avoidance: 2,
+          }),
+          created_at: "2026-08-28T00:00:00Z",
+          tags: [],
+        },
+      ],
+      error: null,
+    };
+
+    const signals = await loadPersonaRatifiableSignals("u1");
+
+    expect(signals.traitsSource).toBe("ipip");
+    expect(signals.attachment?.style).toBe("secure");
+    expect(signals.values).toContain(AUDIT_QUESTIONS[0].framework);
+    expect(selectCalls).toContainEqual({ table: "records", columns: "prompt" });
+    expect(callLlm).not.toHaveBeenCalled();
+    expect(upsertCalls).toEqual([]);
+  });
+
+  test("propagates a records read failure instead of showing a false empty state", async () => {
+    tableFixtures["records:select"] = { data: null, error: { message: "offline" } };
+
+    await expect(loadPersonaRatifiableSignals("u1")).rejects.toMatchObject({ message: "offline" });
+    expect(callLlm).not.toHaveBeenCalled();
+    expect(upsertCalls).toEqual([]);
+  });
+
+  test("review mount keeps candidate reads independent and defers buildPersona to user actions", () => {
+    const root = join(__dirname, "..", "..", "..", "..");
+    const source = readFileSync(
+      join(root, "src/screens/deepspace/DeepSpaceDesignScreens.tsx"),
+      "utf8",
+    );
+    const reviewStart = source.indexOf("export function DeepSpaceReviewScreen");
+    const mountStart = source.indexOf("useEffect(() => {", reviewStart);
+    const generateStart = source.indexOf("async function generate", mountStart);
+    const wrapper = source.slice(reviewStart, mountStart);
+    const mount = source.slice(mountStart, generateStart);
+
+    expect(wrapper).toContain("<DeepSpaceReviewSession");
+    expect(wrapper).toContain("key={sessionKey}");
+    expect(wrapper).toContain('userId ?? "signed-out"');
+    expect(mount).toContain("loadPersonaRatifiableSignals(userId)");
+    expect(mount).toContain("Promise.allSettled");
+    expect(mount).toContain('legacyResult.status === "fulfilled"');
+    expect(mount).toContain('sevenResult.status === "fulfilled"');
+    expect(mount).not.toContain("buildPersona(");
+    const actions = source.slice(generateStart);
+    expect(
+      actions.match(/if \(!userId \|\| isMinor === null \|\| loading\) return;/g),
+    ).toHaveLength(2);
+    expect(actions).toContain("buildPersona(userId, locale, isMinor === true)");
+    expect(actions.match(/disabled=\{loading \|\| isMinor === null\}/g)).toHaveLength(2);
   });
 });
 
