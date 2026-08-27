@@ -40,6 +40,30 @@
   필요하다: `gh workflow run eas-preview-build.yml` → 새 APK → 폰에 설치.
   그 뒤로는 지문이 다시 바뀌기 전까지 OTA 가 다시 통한다.
 
+### ⛔ 그 빌드는 **지금 못 뜬다 — EAS 무료 플랜 할당량 소진** (2026-08-28 실측)
+
+`eas-preview-build.yml` 을 돌렸고(run 33122536870, `9a31a28f`) **실패했다.**
+코드 문제가 아니다:
+
+```
+This account has used its Android builds from the Free plan this month,
+which will reset in 4 days (on Tue Sep 01 2026)
+Run eas billing:subscribe starter --account simon_k to upgrade to the Starter plan.
+```
+
+**길은 둘뿐이고 둘 다 Simon 이 정할 일이다:**
+
+1. **2026-09-01 까지 기다린다** — 무료 할당량이 초기화된다. 그때 다시 돌리면 된다.
+2. **EAS Starter 로 올린다** — `eas billing:subscribe starter --account simon_k`.
+   유료다. **AI 가 임의로 결제하지 않는다.**
+
+⚠ 실패하기 전에 `versionCode` 가 **원격에서 35 → 36 으로 이미 올라갔다**
+(`version source: remote`). 다음 성공 빌드는 37 이 된다. 번호가 하나 비는 것뿐이라
+해가 되진 않지만, 릴리스 노트에서 36 을 찾다가 헤매지 말 것.
+
+⚠ 그동안 **웹은 정상이다.** GitHub Pages 배포는 지문과 무관하므로
+<https://simon-yhkim.github.io/2nd-B/> 에서 이번 작업을 볼 수 있다.
+
 
 
 ### ⚠ 새 세션이 **가장 먼저** 할 일 — 작업이 아니라 설명이다
