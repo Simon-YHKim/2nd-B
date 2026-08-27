@@ -72,8 +72,21 @@ function shellQuote(value) {
 
 export function previewPublicEnv(previewEnv) {
   const env = { ...previewEnv };
-  if ([...WORK0_RESERVED_ENV].some((key) => Object.hasOwn(env, key))) {
+  const suppliedPublicEntries = Object.entries(env).filter(([key]) => /^EXPO_PUBLIC_/i.test(key));
+  if (
+    Object.keys(env).some((key) => WORK0_RESERVED_ENV.has(key.toUpperCase()))
+  ) {
     throw new Error('invalid preview env: work0 attestation keys are reserved');
+  }
+  if (
+    suppliedPublicEntries.some(
+      ([key, value]) =>
+        !/^EXPO_PUBLIC_[A-Z0-9_]+$/.test(key) ||
+        typeof value !== 'string' ||
+        /[\u0000\r\n]/.test(value),
+    )
+  ) {
+    throw new Error('invalid preview env: public keys require canonical shell-safe strings');
   }
   const missing = REQUIRED_PREVIEW_ENV.filter(
     (key) => typeof env[key] !== 'string' || env[key].trim().length === 0,
@@ -314,7 +327,7 @@ export function validateCaptureEnvReceipt(receipt, previewEnv, runtimeEnv, now =
   const expected = captureExportEnv(previewEnv, receipt);
   const actual = Object.fromEntries(
     Object.entries(runtimeEnv ?? {})
-      .filter(([key, value]) => key.startsWith('EXPO_PUBLIC_') && typeof value === 'string')
+      .filter(([key, value]) => /^EXPO_PUBLIC_/i.test(key) && typeof value === 'string')
       .sort(([left], [right]) => left.localeCompare(right)),
   );
   const exactRuntimeEnv = JSON.stringify(actual) === JSON.stringify(expected);
@@ -864,8 +877,43 @@ export function digestPage(root = document.body) {
     return (
       normalized === 'transparent' ||
       normalized === 'none' ||
-      /rgba?\([^)]*(?:,|\/)\s*0(?:\.0+)?\s*\)$/.test(normalized)
+      /^rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(normalized) ||
+      /^(?:rgb|rgba)\([^)]*\/\s*0(?:\.0+)?%?\s*\)$/.test(normalized)
     );
+  };
+  const opaqueRgb = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (!/^rgba?\(/.test(normalized)) return null;
+    const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
+    if (components.length < 3) return null;
+    const hasAlpha = normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
+    if (hasAlpha) {
+      const token = components[3] ?? '1';
+      const alpha = token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
+      if (!Number.isFinite(alpha) || alpha < 1) return null;
+    }
+    return components
+      .slice(0, 3)
+      .map((token) => {
+        const value = token.endsWith('%') ? (Number(token.slice(0, -1)) / 100) * 255 : Number(token);
+        return Math.round(value);
+      })
+      .join(',');
+  };
+  const readableTextPaint = (element, style, paint) => {
+    if (transparentPaint(paint)) return false;
+    const foreground = opaqueRgb(paint);
+    if (!foreground || (style.textShadow && style.textShadow !== 'none')) return true;
+    for (let current = element; current; current = current.parentElement) {
+      const currentStyle = current === element ? style : getComputedStyle(current);
+      const backgroundPaint = currentStyle.backgroundColor;
+      if (transparentPaint(backgroundPaint)) continue;
+      const background = opaqueRgb(backgroundPaint);
+      return !background || background !== foreground;
+    }
+    return true;
   };
   const renderedRect = (element, isRoot = false) => {
     const rect = element.getBoundingClientRect?.();
@@ -944,7 +992,7 @@ export function digestPage(root = document.body) {
     const textPaint = ['text', 'tspan'].includes(tag)
       ? style.fill
       : style.webkitTextFillColor || style.color;
-    const readableText = !transparentPaint(textPaint);
+    const readableText = readableTextPaint(element, style, textPaint);
     const own = (readableText ? [...element.childNodes] : [])
       .filter((node) => node.nodeType === 3)
       .map((node) => node.textContent.trim())
@@ -1358,8 +1406,30 @@ export function inspectRenderedPixelRules(
     return (
       normalized === 'transparent' ||
       normalized === 'none' ||
-      /rgba?\([^)]*(?:,|\/)\s*0(?:\.0+)?\s*\)$/.test(normalized)
+      /^rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(normalized) ||
+      /^(?:rgb|rgba)\([^)]*\/\s*0(?:\.0+)?%?\s*\)$/.test(normalized)
     );
+  };
+  const opaqueRgb = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (!/^rgba?\(/.test(normalized)) return null;
+    const components = normalized.match(/[+-]?(?:\d+\.?\d*|\.\d+)%?/g) ?? [];
+    if (components.length < 3) return null;
+    const hasAlpha = normalized.includes('/') || (normalized.startsWith('rgba(') && components.length > 3);
+    if (hasAlpha) {
+      const token = components[3] ?? '1';
+      const alpha = token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
+      if (!Number.isFinite(alpha) || alpha < 1) return null;
+    }
+    return components
+      .slice(0, 3)
+      .map((token) => {
+        const value = token.endsWith('%') ? (Number(token.slice(0, -1)) / 100) * 255 : Number(token);
+        return Math.round(value);
+      })
+      .join(',');
   };
   const result = {
     curves: 0,
@@ -1452,7 +1522,17 @@ export function inspectRenderedPixelRules(
     const paint = ['text', 'tspan'].includes(tag)
       ? style.fill
       : style.webkitTextFillColor || style.color || style.fill;
-    return !transparentPaint(paint);
+    if (transparentPaint(paint)) return false;
+    const foreground = opaqueRgb(paint);
+    if (!foreground || (style.textShadow && style.textShadow !== 'none')) return true;
+    for (let current = element; current; current = current.parentElement) {
+      const currentStyle = current === element ? style : styleFor(current);
+      const backgroundPaint = currentStyle.backgroundColor;
+      if (transparentPaint(backgroundPaint)) continue;
+      const background = opaqueRgb(backgroundPaint);
+      return !background || background !== foreground;
+    }
+    return true;
   };
   const visibleText = (element, depth = 0) => {
     if (depth > 24) return '';

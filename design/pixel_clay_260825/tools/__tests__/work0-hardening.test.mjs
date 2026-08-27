@@ -18,7 +18,7 @@ async function contract() {
 }
 
 test('preview export rejects incomplete or mock env and shell-quotes public values', async () => {
-  const { previewEnvLines } = await contract();
+  const { previewEnvLines, previewPublicEnv } = await contract();
 
   assert.throws(() => previewEnvLines({}), /preview env/i);
   assert.throws(
@@ -48,6 +48,26 @@ test('preview export rejects incomplete or mock env and shell-quotes public valu
         'EXPO_PUBLIC_BAD;echo': 'unsafe',
       }),
     /shell-safe/i,
+  );
+  assert.throws(
+    () =>
+      previewPublicEnv({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+        EXPO_PUBLIC_LLM_MODE: 'live',
+        expo_public_force_tier: 'brain',
+      }),
+    /shell-safe|canonical/i,
+  );
+  assert.throws(
+    () =>
+      previewPublicEnv({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://project.supabase.co',
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+        EXPO_PUBLIC_LLM_MODE: 'live',
+        expo_public_work0_receipt_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      }),
+    /reserved|canonical/i,
   );
 
   const lines = previewEnvLines({
@@ -265,6 +285,24 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     { ...visibleStyle, color: 'rgba(255, 255, 255, 0)' },
     root,
   );
+  const redText = makeElement(
+    'red-visible',
+    rect(120, 300, 100, 20),
+    { ...visibleStyle, color: 'rgb(255, 0, 0)' },
+    root,
+  );
+  const slashTransparentText = makeElement(
+    'slash-alpha-hidden',
+    rect(230, 300, 100, 20),
+    { ...visibleStyle, color: 'rgb(255 0 0 / 0)' },
+    root,
+  );
+  const sameColorText = makeElement(
+    'same-paint-hidden',
+    rect(120, 325, 120, 20),
+    { ...visibleStyle, color: 'rgb(17, 17, 17)', backgroundColor: 'rgb(17, 17, 17)' },
+    root,
+  );
   const filteredParent = makeElement(
     '',
     rect(0, 0, 200, 100),
@@ -335,6 +373,9 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     partial,
     roundedSliver,
     transparentText,
+    redText,
+    slashTransparentText,
+    sameColorText,
     filteredParent,
     clipPathParent,
     nearTransparentParent,
@@ -351,6 +392,9 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
       partial,
       roundedSliver,
       transparentText,
+      redText,
+      slashTransparentText,
+      sameColorText,
       filterHidden,
       clipPathHidden,
       nearTransparent,
@@ -359,7 +403,7 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     (element) => element.style,
     { width: 390, height: 820 },
   );
-  assert.deepEqual(inspected.texts, ['visible', 'partial']);
+  assert.deepEqual(inspected.texts, ['visible', 'partial', 'red-visible']);
   assert.deepEqual(inspected.interactive, []);
   assert.equal(inspected.rounds, 1);
 
@@ -371,7 +415,7 @@ test('rendered audits exclude transparent, offscreen, and fully clipped DOM', as
     const digest = digestPage(root);
     assert.deepEqual(
       digest.kids.map((child) => child.text),
-      ['visible', 'partial'],
+      ['visible', 'partial', 'red-visible'],
     );
     assert.deepEqual(digest.kids[1].box, [50, 20]);
   } finally {
@@ -664,6 +708,16 @@ test('live export receipt binds the full public env and a unique served proof', 
         receipt,
         preview,
         { ...runtime, EXPO_PUBLIC_LLM_MODE: 'mock' },
+        printedAt + 1000,
+      ),
+    /environment-attestation/,
+  );
+  assert.throws(
+    () =>
+      validateCaptureEnvReceipt(
+        receipt,
+        preview,
+        { ...runtime, expo_public_force_tier: 'brain' },
         printedAt + 1000,
       ),
     /environment-attestation/,
@@ -1505,7 +1559,7 @@ test('capture --export-web disables dotenv and atomically publishes an attested 
         "const path = require('node:path');",
         "const index = process.argv.indexOf('--output-dir');",
         'const output = process.argv[index + 1];',
-        "if (process.env.EXPO_NO_DOTENV !== '1' || process.env.EXPO_PUBLIC_ROGUE) process.exit(41);",
+        "if (process.env.EXPO_NO_DOTENV !== '1' || process.env.EXPO_PUBLIC_ROGUE || process.env.expo_public_mixed_case_rogue || process.env.EXPO_PUBLIC_MIXED_CASE_ROGUE) process.exit(41);",
         "if (process.argv.filter((arg) => arg === '--clear').length !== 1) process.exit(42);",
         "const jsDir = path.join(output, '_expo', 'static', 'js', 'web');",
         'fs.mkdirSync(jsDir, { recursive: true });',
@@ -1521,6 +1575,7 @@ test('capture --export-web disables dotenv and atomically publishes an attested 
       EAS_FILE: easFile,
       EXPO_CLI_PATH: fakeExpo,
       EXPO_PUBLIC_ROGUE: 'must-be-removed',
+      expo_public_mixed_case_rogue: 'must-also-be-removed',
     };
     const success = spawnSync(process.execPath, [CAPTURE_CLI, '--export-web'], {
       cwd: REPO,

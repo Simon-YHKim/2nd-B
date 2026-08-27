@@ -140,7 +140,7 @@ function exportWebFromReceipt(env) {
     : require.resolve('expo/bin/cli');
   if (!existsSync(expoCli)) throw new CaptureContractError('capture-failed');
   const cleanRuntime = Object.fromEntries(
-    Object.entries(env).filter(([key]) => !key.startsWith('EXPO_PUBLIC_')),
+    Object.entries(env).filter(([key]) => !/^EXPO_PUBLIC_/i.test(key)),
   );
   const result = spawnSync(
     process.execPath,
