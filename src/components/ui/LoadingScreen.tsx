@@ -15,12 +15,13 @@
 //     same scale 4 + opacity 1 frame so the handoff is seamless.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, useWindowDimensions } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, useWindowDimensions } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import { DeepSpaceBackdrop } from "@/components/deepspace/DeepSpaceBackdrop";
 import { PixelSpriteSheet } from "@/components/pixel/PixelSpriteSheet";
-import { deepSpace, typography } from "@/lib/theme/tokens";
+import { pixelStepsFor } from "@/lib/motion/pixel-physical";
+import { deepSpace, flattenAlpha, typography } from "@/lib/theme/tokens";
 
 // 오프닝 스프라이트 시트. `scripts/build-opening-strip.py` 가 **승인된 아틀라스**에서
 // 만든다 — 새 그림이 아니라 원본 픽셀이다. 격자 모양은 그 스크립트의 출력과 맞춰야 한다.
@@ -292,29 +293,29 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       Animated.timing(opacity, {
         toValue: 1,
         duration: ENTER_READY_MS,
-        easing: Easing.out(Easing.cubic),
+        easing: pixelStepsFor(ENTER_READY_MS),
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
         toValue: 1.05,
         duration: ENTER_READY_MS,
-        easing: Easing.out(Easing.cubic),
+        easing: pixelStepsFor(ENTER_READY_MS),
         useNativeDriver: true,
       }),
       Animated.timing(hintOpacity, {
         toValue: 1,
         duration: ENTER_READY_MS,
-        easing: Easing.out(Easing.cubic),
+        easing: pixelStepsFor(ENTER_READY_MS),
         useNativeDriver: true,
       }),
     ]).start(() => {
       // Heartbeat — gentle, two-stage pulse.
       Animated.loop(
         Animated.sequence([
-          Animated.timing(scale, { toValue: 1.15, duration: PULSE_PERIOD_MS / 4, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1.05, duration: PULSE_PERIOD_MS / 4, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1.10, duration: PULSE_PERIOD_MS / 4, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1.05, duration: PULSE_PERIOD_MS / 4, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.15, duration: PULSE_PERIOD_MS / 4, easing: pixelStepsFor(PULSE_PERIOD_MS / 4), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.05, duration: PULSE_PERIOD_MS / 4, easing: pixelStepsFor(PULSE_PERIOD_MS / 4), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.10, duration: PULSE_PERIOD_MS / 4, easing: pixelStepsFor(PULSE_PERIOD_MS / 4), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.05, duration: PULSE_PERIOD_MS / 4, easing: pixelStepsFor(PULSE_PERIOD_MS / 4), useNativeDriver: true }),
         ]),
       ).start();
     });
@@ -338,7 +339,7 @@ export function LoadingScreen({ ready = true, onContinue }: Props = {}) {
       Animated.timing(scale, {
         toValue: 4,
         duration: ZOOM_MS,
-        easing: Easing.in(Easing.cubic),
+        easing: pixelStepsFor(ZOOM_MS),
         useNativeDriver: true,
       }),
       Animated.timing(hintOpacity, {
@@ -443,7 +444,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     minHeight: 22,
   },
-  caret: { color: deepSpace.mint, opacity: 0.85 },
+  // ⚠ 캐럿은 **미리 합성한 색**이다(PIXEL-CLAY 규칙 4 — 정적 반투명 금지).
+  //   바탕은 이 화면의 바닥인 `deepSpace.bg` 다(아래 `root` 참조). 바탕이 틀리면
+  //   알파를 그냥 두는 것보다 나쁘니 옮기는 사람은 여기부터 다시 잴 것.
+  caret: { color: flattenAlpha(deepSpace.mint, 0.85, deepSpace.bg) },
   hint: {
     color: deepSpace.soul,
     fontSize: typography.sizes.sm,

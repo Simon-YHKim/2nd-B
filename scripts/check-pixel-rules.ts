@@ -579,8 +579,44 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 333;
+const RATCHET_BASELINE = 316;
 
+// 래칫이 통과해도 **남은 빚이 어디 있는지** 볼 수 있어야 한다. 수만 보면 고칠 곳을
+// 모른다(채점기 D·E·B 축도 이름을 붙이고 나서야 고칠 것이 드러났다).
+//
+//     PIXEL_RULES_LIST=1 npx tsx scripts/check-pixel-rules.ts
+//
+// 기본은 조용하다 — CI 로그를 300줄 넘게 채우지 않기 위해서다.
+if (process.env.PIXEL_RULES_LIST === "1") {
+  const byFile = new Map<string, number>();
+  for (const h of hits.filter((x) => !x.why.startsWith("규칙 1"))) {
+    byFile.set(h.file, (byFile.get(h.file) ?? 0) + 1);
+  }
+  const ranked = [...byFile.entries()].sort((a, b) => b[1] - a[1]);
+  console.log(`\n규칙 2·3·4·5 남은 빚: ${hits.filter((x) => !x.why.startsWith("규칙 1")).length}건 · 파일 ${ranked.length}개`);
+  for (const [file, n] of ranked) console.log(`  ${String(n).padStart(4)}  ${file}`);
+  const byRule = new Map<string, number>();
+  for (const h of hits.filter((x) => !x.why.startsWith("규칙 1"))) {
+    const key = h.why.slice(0, 5);
+    byRule.set(key, (byRule.get(key) ?? 0) + 1);
+  }
+  console.log("\n규칙별:");
+  for (const [rule, n] of [...byRule.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${String(n).padStart(4)}  ${rule}`);
+  }
+  // 한 파일만 줄 단위로 보고 싶을 때: PIXEL_RULES_FILE=<경로조각>
+  const only = process.env.PIXEL_RULES_FILE;
+  if (only) {
+    console.log(`
+${only} 상세:`);
+    for (const h of hits.filter((x) => !x.why.startsWith("규칙 1") && x.file.includes(only))) {
+      console.log(`  ${h.file}:${h.line}`);
+      console.log(`      ${h.why}`);
+      console.log(`      ${h.text.trim().slice(0, 110)}`);
+    }
+  }
+  console.log("");
+}
 const rule1Hits = hits.filter((h) => h.why.startsWith("규칙 1"));
 const ratchetHits = hits.filter((h) => !h.why.startsWith("규칙 1"));
 
