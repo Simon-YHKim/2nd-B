@@ -472,6 +472,40 @@ test('D axis accepts only visibly painted descendant text, never aria-only label
   }
 });
 
+test('capture and score share the same overlay dismissal contract before evidence collection', async () => {
+  const { dismissCaptureOverlays } = await contract();
+  assert.equal(typeof dismissCaptureOverlays, 'function');
+  const clicks = [];
+  let dismissed = false;
+  const page = {
+    getByText(label) {
+      return {
+        async count() {
+          return label === '알겠습니다' && !dismissed ? 1 : 0;
+        },
+        first() {
+          return {
+            async click() {
+              dismissed = true;
+              clicks.push(label);
+            },
+          };
+        },
+      };
+    },
+    async waitForTimeout() {},
+  };
+
+  await dismissCaptureOverlays(page);
+  assert.deepEqual(clicks, ['알겠습니다']);
+
+  const captureSource = readFileSync(CAPTURE_CLI, 'utf8');
+  assert.match(
+    captureSource,
+    /waitForSettledPage\(page\);[\s\S]*dismissCaptureOverlays\(page\);[\s\S]*validateFinalUrl[\s\S]*page\.evaluate\(digestPage\)/,
+  );
+});
+
 test('E copy coverage uses visible leaf and group text with item exemptions', async () => {
   const { scoreCopyCoverage } = await contract();
   const result = scoreCopyCoverage(

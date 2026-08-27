@@ -1617,7 +1617,7 @@ export function isAutomaticPass(total, unmeasured, manualReviewAxes = []) {
   );
 }
 
-async function dismissCaptureOverlays(page) {
+export async function dismissCaptureOverlays(page) {
   const labels = ['다시 보지 않기', '건너뛰기', '알겠습니다', '오늘은 그만 보겠습니다'];
   for (let pass = 0; pass < 3; pass += 1) {
     let clicked = false;

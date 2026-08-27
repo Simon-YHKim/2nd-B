@@ -30,6 +30,7 @@ import {
   createShotHealth,
   createShotNetworkTracker,
   digestPage,
+  dismissCaptureOverlays,
   fillQaLogin,
   isDeviceChromeText,
   loadCaptureEnvAttestation,
@@ -361,8 +362,12 @@ export async function main(args = process.argv.slice(2), env = process.env) {
         await navigateHostedAppRoute(page, baseUrl, route);
         await waitForSettledPage(page);
         await waitForShotNetworkIdle(page, activeShot);
+        let failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+        if (failureCodes.length) throw new CaptureContractError(failureCodes);
+        await dismissCaptureOverlays(page);
+        await waitForShotNetworkIdle(page, activeShot);
         validateFinalUrl(baseUrl, route, page.url());
-        const failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
+        failureCodes = shotFailureCodes({ baseUrl, ...activeShot });
         if (failureCodes.length) throw new CaptureContractError(failureCodes);
 
         const digest = await page.evaluate(digestPage);
