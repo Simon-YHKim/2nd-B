@@ -113,6 +113,34 @@ jobs:
             exit 1
           fi
 
+          PRE_SUBMIT_PLAN="$RUNNER_TEMP/eas-pre-submit-plan.txt"
+          node scripts/check-eas-ios-submit.js verify-build "$BUILD_ID" "$MAIN_SHA" "$PRE_SUBMIT_PLAN"
+          PRE_SUBMIT_ACTION=""
+          PRE_SUBMIT_ID=""
+          while IFS='=' read -r KEY VALUE; do
+            case "$KEY" in
+              action) PRE_SUBMIT_ACTION="$VALUE" ;;
+              submission_id) PRE_SUBMIT_ID="$VALUE" ;;
+            esac
+          done < "$PRE_SUBMIT_PLAN"
+          case "$PRE_SUBMIT_ACTION" in
+            noop|resume)
+              {
+                echo "action=$PRE_SUBMIT_ACTION"
+                echo "submission_id=$PRE_SUBMIT_ID"
+              } >> "$GITHUB_OUTPUT"
+              echo "Submission state changed before scheduling; reusing $PRE_SUBMIT_ID"
+              exit 0
+              ;;
+            schedule) ;;
+            *)
+              echo "::error title=EAS iOS submit gate::pre-submit-plan-invalid"
+              exit 1
+              ;;
+          esac
+
+          # Residual risk: EAS has no atomic conditional-submit operation or idempotency key,
+          # so this immediate authenticated readback cannot exclude an external client race.
           SUBMIT_OUTPUT="$RUNNER_TEMP/eas-submit-output.txt"
           if ! npx --yes "eas-cli@${EAS_CLI_VERSION}" submit \
             --platform ios \
@@ -125,11 +153,14 @@ jobs:
             exit 1
           fi
           SUBMISSION_ID="$(node scripts/check-eas-ios-submit.js extract "$SUBMIT_OUTPUT")"
-          echo "submission_id=$SUBMISSION_ID" >> "$GITHUB_OUTPUT"
+          {
+            echo "action=resume"
+            echo "submission_id=$SUBMISSION_ID"
+          } >> "$GITHUB_OUTPUT"
           echo "Submission scheduled: $SUBMISSION_ID"
 
       - name: Poll scheduled or resumed submission
-        if: steps.submission_plan.outputs.action != 'noop'
+        if: (steps.schedule.outputs.action || steps.submission_plan.outputs.action) != 'noop'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_ID: ${{ steps.main_gate.outputs.build_id }}
@@ -173,10 +204,10 @@ jobs:
           exit 1
 
       - name: Report prior successful submission
-        if: steps.submission_plan.outputs.action == 'noop'
+        if: (steps.schedule.outputs.action || steps.submission_plan.outputs.action) == 'noop'
         env:
           BUILD_ID: ${{ steps.main_gate.outputs.build_id }}
-          SUBMISSION_ID: ${{ steps.submission_plan.outputs.submission_id }}
+          SUBMISSION_ID: ${{ steps.schedule.outputs.submission_id || steps.submission_plan.outputs.submission_id }}
         run: |
           set -euo pipefail
           echo "Submission already finished: $SUBMISSION_ID"

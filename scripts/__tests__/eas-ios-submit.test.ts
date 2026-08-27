@@ -124,6 +124,51 @@ describe("workflow supply-chain and scheduling gates", () => {
     expect(workflow).not.toMatch(/\bcat\s+[^<]/);
     expect(workflow).not.toContain("set -x");
   });
+
+  test("performs two authenticated provenance reads before a new submit", () => {
+    const reads = [...workflow.matchAll(/check-eas-ios-submit\.js verify-build/g)];
+    expect(reads).toHaveLength(2);
+
+    const submit = workflow.indexOf('npx --yes "eas-cli@${EAS_CLI_VERSION}" submit \\');
+    expect(reads[1].index).toBeLessThan(submit);
+  });
+
+  test("fails if main advances before the final authenticated readback", () => {
+    const schedule = workflow.indexOf("- name: Schedule submission exactly once");
+    const mainFailure = workflow.indexOf("main-advanced-before-schedule", schedule);
+    const finalReadback = workflow.indexOf("check-eas-ios-submit.js verify-build", mainFailure);
+    const submit = workflow.indexOf('npx --yes "eas-cli@${EAS_CLI_VERSION}" submit \\', schedule);
+
+    expect(schedule).toBeGreaterThan(-1);
+    expect(mainFailure).toBeGreaterThan(schedule);
+    expect(finalReadback).toBeGreaterThan(mainFailure);
+    expect(submit).toBeGreaterThan(finalReadback);
+    expect(workflow.slice(mainFailure, finalReadback)).toMatch(/main-advanced[\s\S]*exit 1/);
+  });
+
+  test("reuses a submission discovered by the pre-submit readback", () => {
+    const schedule = workflow.slice(
+      workflow.indexOf("- name: Schedule submission exactly once"),
+      workflow.indexOf("- name: Poll scheduled or resumed submission"),
+    );
+
+    expect(schedule).toContain('PRE_SUBMIT_PLAN="$RUNNER_TEMP/eas-pre-submit-plan.txt"');
+    expect(schedule).toContain(
+      'check-eas-ios-submit.js verify-build "$BUILD_ID" "$MAIN_SHA" "$PRE_SUBMIT_PLAN"',
+    );
+    expect(schedule).toMatch(/noop\|resume\)[\s\S]*echo "action=\$PRE_SUBMIT_ACTION"[\s\S]*exit 0/);
+    expect(schedule.indexOf("verify-build")).toBeLessThan(schedule.indexOf(" submit \\"));
+  });
+
+  test("polls or reports the effective pre-submit decision without scheduling a duplicate", () => {
+    expect(workflow).toContain(
+      "steps.schedule.outputs.action || steps.submission_plan.outputs.action",
+    );
+    expect(workflow).toContain(
+      "steps.schedule.outputs.submission_id || steps.submission_plan.outputs.submission_id",
+    );
+    expect(workflow).toContain("EAS has no atomic conditional-submit operation or idempotency key");
+  });
 });
 
 describe("repository configuration", () => {
