@@ -16,7 +16,23 @@ import Svg, { Polygon, Rect } from "react-native-svg";
 import { LivingAsset } from "@/components/motion/LivingAsset";
 import { useReducedMotionPref } from "@/lib/motion/use-reduced-motion";
 import type { PatternDataColorKey } from "@/lib/graph/pattern-data-color";
-import { cosmic } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha } from "@/lib/theme/tokens";
+
+// ── 보석 면의 색 (PIXEL-CLAY 절대 규칙 4) ────────────────────────────
+//
+// 면마다 `opacity` 를 달아 음영을 만들고 있었다. 알파로 쌓은 깊이는 겹칠수록 색이
+// 미끄러지는데, 픽셀아트는 **셀 수 있는 몇 개의 색**으로 깊이를 낸다.
+// 그래서 각 면의 톤을 그 알파값으로 **미리 합성**해 불투명 색 하나로 만든다.
+//
+// ⚠ **바탕 선언**: 이 아트가 앉는 바닥은 `cosmic.space950`(화면 기본 배경)이다.
+//   면들이 서로 겹치는 곳은 옛 알파 합성과 완전히 같지는 않다 — 알파는 아래 깔린
+//   면과 섞였고 여기서는 바닥과 섞는다. **그 차이가 규칙이 없애려는 것**이다
+//   (겹침에 따라 색이 달라지는 것).
+//
+// ⚠ 이 파일은 레거시 스킨이라 배포에 안 실린다(모든 배포가 deep-space 고정).
+//   그래도 면제가 아니다 — #1304 의 "레거시를 지키지 않는다"는 **규칙을 적용한다**는 뜻이다.
+const ART_GROUND = cosmic.space950;
+const artFlat = (c: string, a: number): string => flattenAlpha(c, a, ART_GROUND);
 
 const PIXELATED = { imageRendering: "pixelated" } as unknown as ImageStyle;
 const SOUL_FLAME_HOT = cosmic.moonWhite;
@@ -114,27 +130,30 @@ const V10_PATTERN_DATA_PALETTE: Record<PatternDataColorKey, Record<PatternVector
   black: { shadow: cosmic.space950, base: cosmic.space700, mid: cosmic.lineDim, hot: cosmic.mistGray, glint: cosmic.moonWhite },
 };
 
-const V10_PATTERN_DATA_FACETS: readonly { points: string; tone: PatternVectorTone; opacity?: number }[] = [
-  { points: "48,5 76,19 90,48 74,79 48,91 22,79 6,48 20,19", tone: "shadow", opacity: 0.86 },
-  { points: "48,11 72,23 83,48 68,73 48,84 28,73 13,48 24,23", tone: "base", opacity: 0.9 },
-  { points: "48,11 72,23 55,43 48,48 41,43 24,23", tone: "mid", opacity: 0.78 },
-  { points: "13,48 41,43 48,48 28,73", tone: "base", opacity: 0.74 },
-  { points: "83,48 55,43 48,48 68,73", tone: "hot", opacity: 0.74 },
-  { points: "28,73 48,48 68,73 48,84", tone: "mid", opacity: 0.7 },
-  { points: "41,43 48,11 55,43 48,48", tone: "glint", opacity: 0.72 },
+// ⚠ 필드 이름이 `opacity` 에서 `mix` 로 바뀌었다. 이제 이 숫자는 렌더 불투명도가
+//   아니라 **바탕과 섞는 비율**이다(위 `artFlat`). 이름이 사실과 달라지면
+//   다음 사람이 알파로 되돌린다.
+const V10_PATTERN_DATA_FACETS: readonly { points: string; tone: PatternVectorTone; mix?: number }[] = [
+  { points: "48,5 76,19 90,48 74,79 48,91 22,79 6,48 20,19", tone: "shadow", mix: 0.86 },
+  { points: "48,11 72,23 83,48 68,73 48,84 28,73 13,48 24,23", tone: "base", mix: 0.9 },
+  { points: "48,11 72,23 55,43 48,48 41,43 24,23", tone: "mid", mix: 0.78 },
+  { points: "13,48 41,43 48,48 28,73", tone: "base", mix: 0.74 },
+  { points: "83,48 55,43 48,48 68,73", tone: "hot", mix: 0.74 },
+  { points: "28,73 48,48 68,73 48,84", tone: "mid", mix: 0.7 },
+  { points: "41,43 48,11 55,43 48,48", tone: "glint", mix: 0.72 },
 ];
 
-const V10_PATTERN_DATA_PIXELS: readonly { x: number; y: number; size: number; tone: PatternVectorTone; opacity?: number }[] = [
-  { x: 45, y: 18, size: 6, tone: "glint", opacity: 0.9 },
-  { x: 33, y: 28, size: 5, tone: "hot", opacity: 0.82 },
-  { x: 58, y: 29, size: 5, tone: "glint", opacity: 0.76 },
-  { x: 24, y: 45, size: 6, tone: "mid", opacity: 0.82 },
-  { x: 67, y: 45, size: 6, tone: "hot", opacity: 0.8 },
-  { x: 39, y: 54, size: 5, tone: "glint", opacity: 0.7 },
-  { x: 52, y: 58, size: 5, tone: "mid", opacity: 0.74 },
-  { x: 45, y: 72, size: 6, tone: "base", opacity: 0.8 },
-  { x: 14, y: 38, size: 4, tone: "hot", opacity: 0.65 },
-  { x: 78, y: 38, size: 4, tone: "glint", opacity: 0.65 },
+const V10_PATTERN_DATA_PIXELS: readonly { x: number; y: number; size: number; tone: PatternVectorTone; mix?: number }[] = [
+  { x: 45, y: 18, size: 6, tone: "glint", mix: 0.9 },
+  { x: 33, y: 28, size: 5, tone: "hot", mix: 0.82 },
+  { x: 58, y: 29, size: 5, tone: "glint", mix: 0.76 },
+  { x: 24, y: 45, size: 6, tone: "mid", mix: 0.82 },
+  { x: 67, y: 45, size: 6, tone: "hot", mix: 0.8 },
+  { x: 39, y: 54, size: 5, tone: "glint", mix: 0.7 },
+  { x: 52, y: 58, size: 5, tone: "mid", mix: 0.74 },
+  { x: 45, y: 72, size: 6, tone: "base", mix: 0.8 },
+  { x: 14, y: 38, size: 4, tone: "hot", mix: 0.65 },
+  { x: 78, y: 38, size: 4, tone: "glint", mix: 0.65 },
 ];
 
 export function hasFinalCoreArt(id: string): id is FinalCoreId {
@@ -463,18 +482,17 @@ function V10PatternDataVector({
       importantForAccessibility="no-hide-descendants"
     >
       <Svg width={size} height={size} viewBox="0 0 96 96" focusable={false}>
-        <Rect x={28} y={8} width={40} height={80} fill={palette.shadow} opacity={0.1} />
-        <Rect x={8} y={28} width={80} height={40} fill={palette.shadow} opacity={0.1} />
+        <Rect x={28} y={8} width={40} height={80} fill={artFlat(palette.shadow, 0.1)} />
+        <Rect x={8} y={28} width={80} height={40} fill={artFlat(palette.shadow, 0.1)} />
         {V10_PATTERN_DATA_FACETS.map((facet, index) => (
           <Polygon
             key={`${facet.points}-${index}`}
             points={facet.points}
-            fill={palette[facet.tone]}
-            opacity={facet.opacity ?? 1}
+            fill={artFlat(palette[facet.tone], facet.mix ?? 1)}
           />
         ))}
-        <Rect x={22} y={22} width={52} height={52} fill="none" stroke={palette.glint} strokeWidth={2} opacity={0.36} />
-        <Rect x={30} y={30} width={36} height={36} fill="none" stroke={palette.hot} strokeWidth={2} opacity={0.42} />
+        <Rect x={22} y={22} width={52} height={52} fill="none" stroke={artFlat(palette.glint, 0.36)} strokeWidth={2} />
+        <Rect x={30} y={30} width={36} height={36} fill="none" stroke={artFlat(palette.hot, 0.42)} strokeWidth={2} />
         {V10_PATTERN_DATA_PIXELS.map((pixel, index) => (
           <Rect
             key={`${pixel.x}-${pixel.y}-${index}`}
@@ -482,8 +500,7 @@ function V10PatternDataVector({
             y={pixel.y}
             width={pixel.size}
             height={pixel.size}
-            fill={palette[pixel.tone]}
-            opacity={pixel.opacity ?? 1}
+            fill={artFlat(palette[pixel.tone], pixel.mix ?? 1)}
           />
         ))}
       </Svg>

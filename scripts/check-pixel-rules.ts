@@ -579,7 +579,7 @@ for (const abs of walkTsx(join(ROOT, "src"))) {
 //
 // ⚠ 기준선을 **올리지 말 것.** 올려야 한다면 그건 규칙을 되돌린 것이다.
 //   줄었을 때만 내린다(줄인 PR 이 같이 내린다).
-const RATCHET_BASELINE = 382;
+const RATCHET_BASELINE = 339;
 
 const rule1Hits = hits.filter((h) => h.why.startsWith("규칙 1"));
 const ratchetHits = hits.filter((h) => !h.why.startsWith("규칙 1"));

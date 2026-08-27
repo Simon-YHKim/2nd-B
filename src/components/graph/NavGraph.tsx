@@ -56,7 +56,7 @@ import ReAnimated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import { Text } from "@/components/ui/Text";
-import { cosmic, semantic, withAlpha } from "@/lib/theme/tokens";
+import { cosmic, flattenAlpha, semantic } from "@/lib/theme/tokens";
 import { fontFamilies } from "@/theme/typography";
 import { useConnectionGlow } from "@/components/motion/useSignatureMotion";
 import { prefersReducedMotion } from "@/lib/motion/signature";
@@ -128,19 +128,33 @@ const SPAWN_STAGGER_TIER4_MS = 35;
 const SPAWN_TIER_GAP_MS = 110;
 const SPAWN_REVEAL_MS = 320;
 const EDGE_REVEAL_MS = 260;
-const GRAPH_SPACE_BACKDROP = withAlpha(cosmic.space950, 0.55);
-const GRAPH_SPACE_BACKDROP_SOFT = withAlpha(cosmic.space950, 0.36);
-const GRAPH_TAG_BG = withAlpha(cosmic.space950, 0.86);
-const GRAPH_PANEL_BG = withAlpha(cosmic.space950, 0.97);
-const GRAPH_PANEL_BG_SOFT = withAlpha(cosmic.space900, 0.72);
-const GRAPH_CONTROL_BG = withAlpha(cosmic.space900, 0.92);
-const GRAPH_MINT_SURFACE = withAlpha(cosmic.signalMint, 0.1);
-const GRAPH_MINT_SURFACE_FAINT = withAlpha(cosmic.signalMint, 0.08);
-const GRAPH_MINT_BORDER = withAlpha(cosmic.signalMint, 0.5);
-const GRAPH_MINT_BORDER_SOFT = withAlpha(cosmic.signalMint, 0.4);
-const GRAPH_MINT_HANDLE = withAlpha(cosmic.signalMint, 0.52);
-const GRAPH_VIOLET_BORDER = withAlpha(cosmic.soulViolet, 0.44);
-const GRAPH_DIM_BORDER = withAlpha(cosmic.mistGray, 0.42);
+// ── 그래프 층의 색 (PIXEL-CLAY 절대 규칙 4) ──────────────────────────
+//
+// 전부 `withAlpha` 였다. 알파는 아래 깔린 것이 무엇이냐에 따라 결과가 달라지고
+// 겹치면 색이 미끄러지는데, 픽셀아트는 색이 **셀 수 있는 몇 개**여야 한다.
+//
+// ⚠ **바탕 선언**: 이 화면의 바닥은 `cosmic.bg`(= `space950`)다. 그래프는
+//   전면 오버레이(`StyleSheet.absoluteFill`)로 그 위에 바로 앉는다.
+//   바탕이 틀리면 알파를 그냥 두는 것보다 나쁘므로, 옮기는 사람은 여기부터 다시 잴 것.
+//
+// ⚠ 이 파일은 레거시 스킨이라 배포에 안 실린다(모든 배포가 deep-space 고정).
+//   그래도 면제가 아니다 — #1304 의 "레거시를 지키지 않는다"는 **규칙을 적용한다**는 뜻이다.
+const GRAPH_GROUND = cosmic.space950;
+const graphAlpha = (c: string, a: number): string => flattenAlpha(c, a, GRAPH_GROUND);
+
+const GRAPH_SPACE_BACKDROP = graphAlpha(cosmic.space950, 0.55);
+const GRAPH_SPACE_BACKDROP_SOFT = graphAlpha(cosmic.space950, 0.36);
+const GRAPH_TAG_BG = graphAlpha(cosmic.space950, 0.86);
+const GRAPH_PANEL_BG = graphAlpha(cosmic.space950, 0.97);
+const GRAPH_PANEL_BG_SOFT = graphAlpha(cosmic.space900, 0.72);
+const GRAPH_CONTROL_BG = graphAlpha(cosmic.space900, 0.92);
+const GRAPH_MINT_SURFACE = graphAlpha(cosmic.signalMint, 0.1);
+const GRAPH_MINT_SURFACE_FAINT = graphAlpha(cosmic.signalMint, 0.08);
+const GRAPH_MINT_BORDER = graphAlpha(cosmic.signalMint, 0.5);
+const GRAPH_MINT_BORDER_SOFT = graphAlpha(cosmic.signalMint, 0.4);
+const GRAPH_MINT_HANDLE = graphAlpha(cosmic.signalMint, 0.52);
+const GRAPH_VIOLET_BORDER = graphAlpha(cosmic.soulViolet, 0.44);
+const GRAPH_DIM_BORDER = graphAlpha(cosmic.mistGray, 0.42);
 
 function shuffleInPlace<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -318,7 +332,7 @@ function focusChromeFor(id: string): { shadowColor: string } {
 function labelChromeFor(id: string): { borderColor: string; shadowColor: string } {
   const accent = accentForGraphId(id);
   return {
-    borderColor: withAlpha(accent, id === "records" ? 0.52 : 0.48),
+    borderColor: graphAlpha(accent, id === "records" ? 0.52 : 0.48),
     shadowColor: accent,
   };
 }
@@ -1532,7 +1546,8 @@ function NavGraphComponent({ locale, dataNodes, highlightId, glowNodeId, onFirst
   // O-7.1: in drilldown the non-selected nodes must fully recede (opacity ≤0.15)
   // so one touch SIMPLIFIES the screen — only the focused core + its data read.
   // Outside drilldown, the lighter 0.28 dim keeps context for tap-to-relate.
-  const dimStyleFor = (id: string): { opacity: number } | null => {
+  // 반환 타입이 `{ opacity }` 였다 — 흐림을 색으로 옮기면서 같이 바뀐다.
+  const dimStyleFor = (id: string): { backgroundColor: string } | null => {
     if (!dimFor(id)) return null;
     return drilldownCoreId != null ? styles.recededHard : styles.dimmed;
   };
@@ -2167,14 +2182,14 @@ function NodeSheet({
         styles.sheet,
         {
           bottom: safeBottom,
-          borderColor: withAlpha(accent, character === "momo" ? 0.5 : 0.44),
+          borderColor: graphAlpha(accent, character === "momo" ? 0.5 : 0.44),
           shadowColor: accent,
           opacity: slide as never,
           transform: [{ translateY }],
         },
       ]}
     >
-      <View style={[styles.sheetHandle, { backgroundColor: withAlpha(accent, 0.52) }]} />
+      <View style={[styles.sheetHandle, { backgroundColor: graphAlpha(accent, 0.52) }]} />
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           {/* 아치 — connection guide, appears on the highlight moment (§9) */}
@@ -2294,14 +2309,14 @@ function DrilldownSheet({
         styles.drilldownSheet,
         {
           bottom: safeBottom,
-          borderColor: withAlpha(accent, character === "momo" ? 0.5 : 0.44),
+          borderColor: graphAlpha(accent, character === "momo" ? 0.5 : 0.44),
           shadowColor: accent,
           opacity: slide as never,
           transform: [{ translateY }],
         },
       ]}
     >
-      <View style={[styles.sheetHandle, { backgroundColor: withAlpha(accent, 0.52) }]} />
+      <View style={[styles.sheetHandle, { backgroundColor: graphAlpha(accent, 0.52) }]} />
       <View style={styles.sheetHead}>
         <View style={styles.sheetTitleRow}>
           <WorkerSprite id={character} size={32} />
@@ -2313,8 +2328,8 @@ function DrilldownSheet({
           style={[
             styles.drilldownBack,
             {
-              borderColor: withAlpha(accent, 0.4),
-              backgroundColor: withAlpha(accent, 0.08),
+              borderColor: graphAlpha(accent, 0.4),
+              backgroundColor: graphAlpha(accent, 0.08),
             },
           ]}
           accessibilityRole="button"
@@ -2562,10 +2577,11 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
   },
-  dimmed: { opacity: 0.28 },
+  // 물러난 노드는 흐리는 대신 **바탕에 가까운 색**으로 낸다(규칙 4).
+  dimmed: { backgroundColor: graphAlpha(cosmic.space900, 0.28) },
   // O-7.1: drilldown recede — non-selected nodes nearly vanish so one touch
   // simplifies the screen (Simon: 겹침·가림 제로).
-  recededHard: { opacity: 0.12 },
+  recededHard: { backgroundColor: graphAlpha(cosmic.space900, 0.12) },
   // Node bottom sheet (§7) — screen-fixed, slides up from the bottom.
   sheet: {
     position: "absolute",
