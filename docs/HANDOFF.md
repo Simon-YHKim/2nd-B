@@ -5,8 +5,42 @@
 
 ## Latest — 2026-08-28 / 자가 두 번 틀렸다 — P1 채점 37/64, 래칫 165, 그리고 **결정 넷이 대기 중**
 
-> 발행: CLI 코딩 세션(PIXEL-CLAY P1 측정 트랙). 브랜치 `Simon-YHKim/p1-deviations`, PR **#1456 열려 있음**(머지 안 됨).
+> 발행: CLI 코딩 세션(PIXEL-CLAY P1 측정 트랙).
 > 보고서(Artifact): <https://claude.ai/code/artifact/feffd35e-c652-44cc-b0f8-a9a7fb50dafa>
+>
+> **갱신 2026-08-28: PR #1456 머지됨(`9afcc482`), OTA 발행됨 — 그러나 도달 0.** 아래 §OTA 참조.
+
+## ⚠ OTA 는 발행됐지만 **어떤 기기에도 안 닿았다** — 새 EAS 빌드가 필요하다
+
+`gh workflow run eas-update.yml`(run 33092014063) 은 **성공**했다. 그런데 도달 보고가
+`OTA reach: NOTHING. No build on 'preview' carries 81be7b98….` 다.
+
+**"발행됨"을 "도달함"으로 읽지 말 것.** `eas update` 는 한 대도 못 받아도 0 으로 끝난다.
+
+### 무엇이 지문을 움직였나 (실측)
+
+로컬에서 커밋마다 `@expo/fingerprint` 를 다시 떴다:
+
+| 커밋 | 지문 | |
+|---|---|---|
+| `8ff452ec` #1455 | `0bccbba5…` | 기준 |
+| `99a6881a` #1458 · `7f7a622b` #1459 | `0bccbba5…` | 안 움직였다 |
+| **`2c9d3941` #1460** | **`b2cbfc87…`** | ← **여기서 build 35 가 좌초했다.** 바꾼 파일은 `.easignore` **하나뿐**인데, 그 파일이 EAS 가 보는 파일 집합을 바꾸므로 지문 소스다 |
+| **`9afcc482` #1456** | **`fbd41747…`** | 또 움직였다 — `package.json` 에 `design:structure` **스크립트 한 줄**을 더한 것 때문 |
+
+⚠ **`package.json` 의 `scripts` 한 줄도 지문을 움직인다.** `@expo/fingerprint` 는
+`package.json` 을 통째로 해시한다. "의존성을 안 건드렸으니 OTA 로 간다"는 **틀린 추론**이다.
+
+⚠ 그리고 #1456 을 되돌려도 소용없다 — **#1460 이 이미 좌초시킨 뒤**였다.
+
+### 그래서 지금 상태
+
+- 웹(GitHub Pages)에는 이 작업이 **반영된다** — `web-deploy.yml` 은 지문과 무관하다.
+- **설치된 preview APK(build 35, 0.6.0)에는 안 간다.** 받으려면 **새 EAS preview 빌드**가
+  필요하다: `gh workflow run eas-preview-build.yml` → 새 APK → 폰에 설치.
+  그 뒤로는 지문이 다시 바뀌기 전까지 OTA 가 다시 통한다.
+
+
 
 ### ⚠ 새 세션이 **가장 먼저** 할 일 — 작업이 아니라 설명이다
 
