@@ -911,6 +911,17 @@ test('browser executable is explicit and exists before Playwright launch', async
   });
 });
 
+test('path identity follows the target platform case rules', async () => {
+  const { samePlatformPath } = await contract();
+
+  assert.equal(
+    samePlatformPath('C:\\Work0\\Receipt.json', 'c:\\work0\\receipt.JSON', 'win32'),
+    true,
+  );
+  assert.equal(samePlatformPath('/Work0/Receipt.json', '/work0/receipt.json', 'linux'), false);
+  assert.equal(samePlatformPath('/Work0/Receipt.json', '/Work0/Receipt.json', 'darwin'), true);
+});
+
 test('hosted app URLs accept only canonical in-app paths', async () => {
   const { navigateHostedAppRoute, resolveHostedAppUrl } = await contract();
 
@@ -1399,6 +1410,37 @@ test('score CLI rejects an unknown selection before output and preserves a senti
     });
     assert.equal(result.status, 2, result.stderr);
     assert.equal(readFileSync(out, 'utf8'), 'sentinel-output');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('score main classifies malformed input manifests as invalid input', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), '2ndb-work0-invalid-manifest-'));
+  const manifests = {
+    'screens.json': JSON.stringify({ screens: [{ id: 'home', port: true, stage: 1 }] }),
+    'app-routes.json': JSON.stringify({ routes: { home: '/' }, unmeasurable: {}, unmapped: {} }),
+    'tokens.json': JSON.stringify({}),
+    'nav.json': JSON.stringify({ home: ['홈'] }),
+    'deviations.json': JSON.stringify({ deviations: [] }),
+  };
+  try {
+    const { main } = await contract();
+    for (const malformed of Object.keys(manifests)) {
+      for (const [name, body] of Object.entries(manifests)) {
+        writeFileSync(path.join(dir, name), body);
+      }
+      writeFileSync(path.join(dir, malformed), '{');
+      const errors = [];
+      const originalError = console.error;
+      console.error = (...values) => errors.push(values.join(' '));
+      try {
+        assert.equal(await main([], {}, dir), 2, malformed);
+      } finally {
+        console.error = originalError;
+      }
+      assert.match(errors.join('\n'), /invalid input manifest/i, malformed);
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

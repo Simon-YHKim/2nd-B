@@ -12,7 +12,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 import { PNG } from 'pngjs';
 
@@ -68,6 +68,15 @@ const round1 = (value) => Math.round((value + Number.EPSILON) * 10) / 10;
 
 function shellQuote(value) {
   return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+export function samePlatformPath(left, right, platform = process.platform) {
+  const pathApi = platform === 'win32' ? path.win32 : path.posix;
+  const leftPath = pathApi.resolve(left);
+  const rightPath = pathApi.resolve(right);
+  return platform === 'win32'
+    ? leftPath.toLowerCase() === rightPath.toLowerCase()
+    : leftPath === rightPath;
 }
 
 export function previewPublicEnv(previewEnv) {
@@ -191,7 +200,7 @@ export function browserLaunchOptions(env = {}, chromium) {
     throw new Error('BROWSER_PATH must name an existing browser executable');
   }
   const managedExecutable = path.resolve(chromium?.executablePath?.() ?? '');
-  if (!managedExecutable || executablePath.toLowerCase() !== managedExecutable.toLowerCase()) {
+  if (!managedExecutable || !samePlatformPath(executablePath, managedExecutable)) {
     throw new Error('BROWSER_PATH must match the pinned Playwright Chromium executable');
   }
   return { executablePath };
@@ -2003,9 +2012,22 @@ async function loginForQa(page, baseUrl, runtimeEnv) {
   await fillQaLogin(page, { baseUrl, email, password, env: runtimeEnv });
 }
 
-export async function main(args = process.argv.slice(2), env = process.env) {
-  const screensFile = readJson(path.join(DATA, 'screens.json'), { screens: [] });
-  const routesFile = readJson(path.join(DATA, 'app-routes.json'), {});
+export async function main(args = process.argv.slice(2), env = process.env, dataDir = DATA) {
+  let screensFile;
+  let routesFile;
+  let tokens;
+  let navFile;
+  let deviations;
+  try {
+    screensFile = readJson(path.join(dataDir, 'screens.json'), { screens: [] });
+    routesFile = readJson(path.join(dataDir, 'app-routes.json'), {});
+    tokens = readJson(path.join(dataDir, 'tokens.json'), {});
+    navFile = readJson(path.join(dataDir, 'nav.json'), {});
+    deviations = readJson(path.join(dataDir, 'deviations.json'), { deviations: [] });
+  } catch {
+    console.error('invalid input manifest');
+    return 2;
+  }
   const classification = validateManifestClassification(screensFile.screens, routesFile);
   if (!classification.valid) {
     console.error('invalid manifest classification');
@@ -2044,9 +2066,6 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     console.error('environment attestation failed');
     return 2;
   }
-  const tokens = readJson(path.join(DATA, 'tokens.json'), {});
-  const navFile = readJson(path.join(DATA, 'nav.json'), {});
-  const deviations = readJson(path.join(DATA, 'deviations.json'), { deviations: [] });
   const output = env.SCORE_OUT || path.join(DATA, 'score.json');
   const rows = [];
   let markerTime;
@@ -2160,5 +2179,5 @@ export async function main(args = process.argv.slice(2), env = process.env) {
 }
 
 const invoked =
-  process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+  process.argv[1] && samePlatformPath(process.argv[1], fileURLToPath(import.meta.url));
 if (invoked) process.exitCode = await main();
