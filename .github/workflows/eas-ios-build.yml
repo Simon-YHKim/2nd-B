@@ -1,61 +1,21 @@
 name: EAS iOS Build (IPA)
 
-# iOS twin of eas-preview-build.yml (EAS Android Build). Produces the iOS
-# release artifact with EAS-managed signing:
-#   preview    -> internal-distribution IPA (ad hoc; installable only on
-#                 devices registered with the Apple team)
-#   production -> App Store IPA (TestFlight / App Store Connect via
-#                 `eas submit -p ios` afterwards; submit.production.ios in
-#                 eas.json already pins ascAppId 6792266942 / team 7CP84WS5C6)
-#
-# FIREBASE CONFIG -- two delivery paths for the SAME file (run-1 lesson,
-# 2026-07-19, Actions run 29673670150): `eas build` resolves the app config
-# ON THIS RUNNER before uploading the archive, and the Expo Google config
-# plugin readFileSync's app.json's ios.googleServicesFile at that moment.
-# EAS file-type env vars only materialize on the EAS BUILDER, so without a
-# runner-side copy config resolution dies with ENOENT (exactly how run #1
-# failed, before any slot was consumed). Therefore:
-#   - runner: the "Provision GoogleService-Info.plist" step below restores
-#     the plist from the GitHub secret GOOGLE_SERVICE_INFO_PLIST_BASE64 and
-#     validates BUNDLE_ID. It runs for BOTH profiles -- config resolution
-#     always happens, so it must not be production-gated.
-#   - builder: the EAS file-type env var GOOGLE_SERVICE_INFO_PLIST provides
-#     the same file there (registered in all three environments).
-# app.config.js splits the two automatically:
-#   process.env.GOOGLE_SERVICE_INFO_PLIST ?? config.ios?.googleServicesFile
-# (env unset on the runner -> ./GoogleService-Info.plist fallback; env path
-# on the builder). .easignore does not exclude the plist, so the restored
-# file also rides the build archive, mirroring the Android twin's
-# google-services.json handling. The file stays out of git
-# (.gitignore **/GoogleService-Info.plist).
-#
-# SIGNING (production, decided 2026-07-19): LOCAL credentials, no Apple login.
-# The remote EAS-managed path is blocked: Apple's fastlane login 2FA rejects
-# the account's phone verification (web login works, fastlane does not), and
-# retrying risks an account lock. So nothing in this workflow ever talks to
-# Apple. The distribution certificate (.p12) and the App Store provisioning
-# profile ("2ndB App Store Distribution", com.simonk.secondbrain, both expire
-# 2027-07-19) were issued on the Apple Developer WEB portal and live only in
-# GitHub secrets: IOS_DIST_P12_BASE64 / IOS_PROVISIONING_PROFILE_BASE64 /
-# IOS_DIST_P12_PASSWORD. The provision step below restores them and writes
-# credentials.json (gitignored; the runner is ephemeral, secret values are
-# never echoed), and eas.json build.production.ios.credentialsSource="local"
-# makes eas-cli read exactly those files.
-#   docs: https://docs.expo.dev/app-signing/local-credentials/
-# The ASC API key already stored on EAS (Key ID MCNQH5N3US) is for
-# `eas submit -p ios` only and stays untouched by this flow.
-# NOTE: the preview (ad hoc) iOS profile still uses REMOTE credentials and
-# would hit the same Apple-auth wall -- production is the supported iOS
-# profile for now.
-#
-# Build slots: every run consumes an EAS build slot -- trigger only after the
-# owner confirms (workflow_dispatch keeps this human-gated by construction).
+# Production uses the repository's local-credentials contract. The certificate
+# and provisioning profile are decoded only on the ephemeral runner, checked
+# before submission, and never printed. A green job means the EAS build itself
+# is FINISHED and its IPA metadata is bound to this exact commit.
+# Run 29673670150 proved that app.config.js is resolved on this runner before
+# upload, while an EAS file variable materializes only on the remote builder.
+# GoogleService-Info.plist is therefore restored locally and deliberately kept
+# in the project archive. Expo documents that Firebase config file as public
+# project configuration, not signing material. The merged .easignore contract
+# excludes credentials.json and ios/certs/ while retaining that public config.
 
 on:
   workflow_dispatch:
     inputs:
       profile:
-        description: "EAS build profile (preview = internal ad-hoc IPA, production = App Store IPA)"
+        description: "EAS build profile (preview = ad hoc IPA, production = App Store IPA)"
         required: true
         type: choice
         options:
@@ -66,6 +26,10 @@ on:
         description: "Build message shown in EAS"
         required: false
         default: "Firebase-enabled iOS release"
+      reuse_build_id:
+        description: "Existing EAS build id to recover/verify without starting another build"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -74,18 +38,42 @@ concurrency:
   group: eas-ios-build-${{ github.ref }}-${{ inputs.profile }}
   cancel-in-progress: false
 
+env:
+  EAS_CLI_VERSION: "22.6.0"
+  IOS_BUNDLE_ID: "com.simonk.secondbrain"
+  APPLE_TEAM_ID: "7CP84WS5C6"
+
 jobs:
-  submit:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 360
+    environment: ${{ inputs.profile == 'production' && 'production' || 'preview' }}
     outputs:
-      build_id: ${{ steps.submit_build.outputs.build_id }}
+      build_id: ${{ steps.build.outputs.build_id }}
+      app_version: ${{ steps.build.outputs.app_version }}
+      build_number: ${{ steps.build.outputs.build_number }}
+      runtime_version: ${{ steps.build.outputs.runtime_version }}
+      ipa_sha256: ${{ steps.build.outputs.ipa_sha256 }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout exact build commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Require current main for production
+        if: ${{ inputs.profile == 'production' }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::Production iOS builds can only target refs/heads/main."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::Production iOS build commit is not the current origin/main head."
+            exit 1
+          fi
 
       - name: Setup Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -96,11 +84,7 @@ jobs:
       - name: Verify OTA/native runtime policy
         run: npm run check:ota-runtime
 
-      # Runner-side Firebase config for app-config resolution (see the
-      # FIREBASE CONFIG header note). Mirrors the Android twin's
-      # "Provision google-services.json" step. Deliberately NOT gated on the
-      # profile: config resolution happens for preview and production alike.
-      - name: Provision GoogleService-Info.plist
+      - name: Provision and validate GoogleService-Info.plist
         env:
           GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
         run: |
@@ -109,24 +93,19 @@ jobs:
             echo "::error::GOOGLE_SERVICE_INFO_PLIST_BASE64 is required for EAS iOS builds."
             exit 1
           fi
-          printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -d > GoogleService-Info.plist
-          if [ ! -s GoogleService-Info.plist ]; then
-            echo "::error::GoogleService-Info.plist decoded empty; check the secret."
-            exit 1
-          fi
+          printf '%s' "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 --decode > GoogleService-Info.plist
+          test -s GoogleService-Info.plist
           node -e '
-            const fs = require("fs");
+            const fs = require("node:fs");
+            const expected = require("./app.json").expo.ios.bundleIdentifier;
+            if (process.env.IOS_BUNDLE_ID !== expected) throw new Error("workflow iOS bundle id differs from app.json");
             const xml = fs.readFileSync("GoogleService-Info.plist", "utf8");
-            const m = xml.match(/<key>BUNDLE_ID<\/key>\s*<string>([^<]+)<\/string>/);
-            if (m?.[1] !== "com.simonk.secondbrain") {
-              throw new Error(`Firebase iOS config bundle mismatch: ${m?.[1] ?? "missing"}`);
-            }
+            const id = /<key>BUNDLE_ID<\/key>\s*<string>([^<]+)<\/string>/.exec(xml)?.[1];
+            if (id !== expected) throw new Error("Firebase iOS bundle id mismatch");
           '
-          echo "Real GoogleService-Info.plist provisioned and validated."
+          echo "GOOGLE_SERVICE_INFO_PLIST=$GITHUB_WORKSPACE/GoogleService-Info.plist" >> "$GITHUB_ENV"
 
-      # Mirrors the Android GOOGLE_SERVICES_JSON_BASE64 restore pattern; see
-      # the SIGNING header note. Values flow env -> file only, never echoed.
-      - name: Provision iOS signing credentials (local credentialsSource)
+      - name: Preflight production certificate and provisioning profile
         if: ${{ inputs.profile == 'production' }}
         env:
           IOS_DIST_P12_BASE64: ${{ secrets.IOS_DIST_P12_BASE64 }}
@@ -134,85 +113,549 @@ jobs:
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
         run: |
           set -euo pipefail
-          for v in IOS_DIST_P12_BASE64 IOS_PROVISIONING_PROFILE_BASE64 IOS_DIST_P12_PASSWORD; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::$v is required for production iOS builds (local credentialsSource)."
+          for name in IOS_DIST_P12_BASE64 IOS_PROVISIONING_PROFILE_BASE64 IOS_DIST_P12_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is required for production local signing."
               exit 1
             fi
           done
           mkdir -p ios/certs
-          printf '%s' "$IOS_DIST_P12_BASE64" | base64 -d > ios/certs/dist.p12
-          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d > ios/certs/profile.mobileprovision
-          for f in ios/certs/dist.p12 ios/certs/profile.mobileprovision; do
-            if [ ! -s "$f" ]; then
-              echo "::error::$f decoded empty; check the corresponding secret."
-              exit 1
-            fi
-          done
-          # credentials.json is written via node so the password is
-          # JSON-escaped regardless of special characters.
-          node -e '
-            const fs = require("fs");
-            fs.writeFileSync(
-              "credentials.json",
-              JSON.stringify(
-                {
-                  ios: {
-                    provisioningProfilePath: "ios/certs/profile.mobileprovision",
-                    distributionCertificate: {
-                      path: "ios/certs/dist.p12",
-                      password: process.env.IOS_DIST_P12_PASSWORD,
-                    },
-                  },
-                },
-                null,
-                2,
-              ) + "\n",
-            );
-          '
-          chmod 600 credentials.json ios/certs/dist.p12 ios/certs/profile.mobileprovision
-          echo "Local iOS signing credentials provisioned for the production profile."
+          printf '%s' "$IOS_DIST_P12_BASE64" | base64 --decode > ios/certs/dist.p12
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > ios/certs/profile.mobileprovision
+          chmod 600 ios/certs/dist.p12 ios/certs/profile.mobileprovision
+          test -s ios/certs/dist.p12
+          test -s ios/certs/profile.mobileprovision
 
-      - name: Submit EAS iOS build
-        id: submit_build
+          # Validate password, private-key presence/match, expiry, and team.
+          openssl pkcs12 -in ios/certs/dist.p12 \
+            -passin env:IOS_DIST_P12_PASSWORD -clcerts -nokeys \
+            -out "$RUNNER_TEMP/ios-distribution.pem" 2> "$RUNNER_TEMP/p12.err"
+          openssl pkcs12 -in ios/certs/dist.p12 \
+            -passin env:IOS_DIST_P12_PASSWORD -nocerts -nodes 2> "$RUNNER_TEMP/p12-key.err" \
+            | openssl pkey -pubout > "$RUNNER_TEMP/ios-private-public.pem" 2> "$RUNNER_TEMP/pkey.err"
+          openssl x509 -in "$RUNNER_TEMP/ios-distribution.pem" -pubkey -noout \
+            > "$RUNNER_TEMP/ios-certificate-public.pem"
+          if ! cmp --silent "$RUNNER_TEMP/ios-private-public.pem" "$RUNNER_TEMP/ios-certificate-public.pem"; then
+            echo "::error::Distribution certificate does not match the private key in the P12."
+            exit 1
+          fi
+          openssl x509 -in "$RUNNER_TEMP/ios-distribution.pem" -noout -checkend 1209600
+          openssl x509 -in "$RUNNER_TEMP/ios-distribution.pem" -outform der \
+            -out "$RUNNER_TEMP/ios-distribution.der"
+          CERT_SUBJECT="$(openssl x509 -in "$RUNNER_TEMP/ios-distribution.pem" -noout -subject -nameopt RFC2253)"
+          if ! printf '%s' "$CERT_SUBJECT" | grep -Fq "OU=$APPLE_TEAM_ID"; then
+            echo "::error::Distribution certificate Apple team mismatch."
+            exit 1
+          fi
+          CERT_EXPIRES="$(openssl x509 -in "$RUNNER_TEMP/ios-distribution.pem" -noout -enddate | cut -d= -f2-)"
+
+          # A mobileprovision is a CMS envelope containing an XML plist.
+          openssl smime -inform der -verify -noverify \
+            -in ios/certs/profile.mobileprovision \
+            -out "$RUNNER_TEMP/profile.plist" 2> "$RUNNER_TEMP/profile.err"
+          export PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          export CERT_DER="$RUNNER_TEMP/ios-distribution.der"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const xml = fs.readFileSync(process.env.PROFILE_PLIST, "utf8");
+          const value = (key, tag = "string") =>
+            new RegExp(`<key>${key}<\\/key>\\s*<${tag}>([^<]+)<\\/${tag}>`).exec(xml)?.[1];
+          const arrayValues = (key, tag = "string") => {
+            const body = new RegExp(`<key>${key}<\\/key>\\s*<array>([\\s\\S]*?)<\\/array>`).exec(xml)?.[1] ?? "";
+            return [...body.matchAll(new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, "g"))]
+              .map((match) => match[1].replace(/\\s+/g, ""));
+          };
+          const applicationId = value("application-identifier");
+          const teamId = value("com.apple.developer.team-identifier") ?? arrayValues("TeamIdentifier")[0];
+          const expires = value("ExpirationDate", "date");
+          const getTaskAllow = /<key>get-task-allow<\/key>\s*<true\s*\/>/.test(xml);
+          const aps = value("aps-environment");
+          const hasDevices = /<key>ProvisionedDevices<\/key>/.test(xml);
+          const provisionsAllDevices = /<key>ProvisionsAllDevices<\/key>\s*<true\s*\/>/.test(xml);
+          const expectedCertificate = fs.readFileSync(process.env.CERT_DER).toString("base64");
+          const profileCertificates = arrayValues("DeveloperCertificates", "data");
+          const expectedAppId = `${process.env.APPLE_TEAM_ID}.${process.env.IOS_BUNDLE_ID}`;
+          if (applicationId !== expectedAppId) throw new Error("provisioning profile application-identifier mismatch");
+          if (teamId !== process.env.APPLE_TEAM_ID) throw new Error("provisioning profile team mismatch");
+          if (!expires || Date.parse(expires) - Date.now() < 14 * 24 * 60 * 60 * 1000) {
+            throw new Error("provisioning profile expires in less than 14 days or has no readable expiry");
+          }
+          if (getTaskAllow) throw new Error("production profile permits debugger attachment (get-task-allow=true)");
+          if (hasDevices || provisionsAllDevices) throw new Error("production profile is ad hoc or enterprise, not App Store distribution");
+          if (!profileCertificates.includes(expectedCertificate)) throw new Error("provisioning profile does not contain the supplied distribution certificate");
+          if (aps && aps !== "production") throw new Error("production profile has a non-production push entitlement");
+          process.stdout.write(`profile expires ${expires}\n`);
+          NODE
+
+          node -e '
+            const fs = require("node:fs");
+            fs.writeFileSync("credentials.json", JSON.stringify({
+              ios: {
+                provisioningProfilePath: "ios/certs/profile.mobileprovision",
+                distributionCertificate: {
+                  path: "ios/certs/dist.p12",
+                  password: process.env.IOS_DIST_P12_PASSWORD,
+                },
+              },
+            }, null, 2) + "\n");
+          '
+          chmod 600 credentials.json
+          echo "Certificate expiry verified: $CERT_EXPIRES"
+
+      - name: Prove the archive excludes signing secrets but keeps Firebase config
+        if: ${{ inputs.profile == 'production' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "::error::EXPO_TOKEN is required to inspect the production archive."
+            exit 1
+          fi
+          ARCHIVE_DIR="$RUNNER_TEMP/eas-ios-archive-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          if [ -e "$ARCHIVE_DIR" ]; then
+            echo "::error::Archive inspection target already exists."
+            exit 1
+          fi
+          npx --yes "eas-cli@$EAS_CLI_VERSION" build:inspect \
+            --platform ios \
+            --profile production \
+            --stage archive \
+            --output "$ARCHIVE_DIR"
+          export ARCHIVE_DIR
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const root = process.env.ARCHIVE_DIR;
+          const forbidden = [
+            /(^|\/)credentials\.json$/,
+            /(^|\/)ios\/certs(?:\/|$)/,
+          ];
+          let hasFirebaseConfig = false;
+          const pending = [root];
+          while (pending.length) {
+            const directory = pending.pop();
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const absolute = path.join(directory, entry.name);
+              const relative = path.relative(root, absolute).split(path.sep).join("/");
+              if (forbidden.some((pattern) => pattern.test(relative))) {
+                throw new Error("EAS project archive contains forbidden local signing material");
+              }
+              if (/(^|\/)GoogleService-Info\.plist$/.test(relative)) hasFirebaseConfig = true;
+              if (entry.isDirectory()) pending.push(absolute);
+            }
+          }
+          if (!hasFirebaseConfig) {
+            throw new Error("EAS project archive is missing the required Firebase iOS config");
+          }
+          process.stdout.write("Archive excludes signing material and contains the Firebase iOS config.\n");
+          NODE
+
+      - name: Build, wait, and verify completed EAS metadata
+        id: build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           BUILD_MESSAGE: ${{ inputs.message }}
           BUILD_PROFILE: ${{ inputs.profile }}
+          REUSE_BUILD_ID: ${{ inputs.reuse_build_id }}
+          EXPECTED_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [ -z "${EXPO_TOKEN:-}" ]; then
             echo "::error::EXPO_TOKEN is required for EAS iOS builds."
             exit 1
           fi
-          if [ "$BUILD_PROFILE" != "preview" ] && [ "$BUILD_PROFILE" != "production" ]; then
-            echo "::error::Unsupported EAS build profile '$BUILD_PROFILE'."
+          case "$BUILD_PROFILE" in preview|production) ;; *) exit 1 ;; esac
+
+          FINAL="$RUNNER_TEMP/eas-ios-final.json"
+          if [ -n "${REUSE_BUILD_ID:-}" ]; then
+            if ! printf '%s' "$REUSE_BUILD_ID" | grep -qE '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'; then
+              echo "::error::reuse_build_id is not a UUID."
+              exit 1
+            fi
+            BUILD_ID="$REUSE_BUILD_ID"
+            echo "Recovering existing EAS iOS build; no new paid build will be started."
+          else
+            EXISTING="$RUNNER_TEMP/eas-ios-existing.json"
+            BUILD_ID=""
+            for lookup_attempt in 1 2 3 4 5; do
+              npx --yes "eas-cli@$EAS_CLI_VERSION" build:list \
+                --platform ios \
+                --build-profile "$BUILD_PROFILE" \
+                --git-commit-hash "$EXPECTED_COMMIT" \
+                --limit 50 \
+                --json \
+                --non-interactive > "$EXISTING"
+              BUILD_ID="$(node - "$EXISTING" <<'NODE'
+          const fs = require("node:fs");
+          const config = require("./app.json").expo;
+          const value = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const builds = Array.isArray(value) ? value : [];
+          const allowed = new Set(["NEW", "IN_QUEUE", "IN_PROGRESS", "FINISHED"]);
+          const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const sha = /^[0-9a-f]{40}$/i;
+          const query = `
+            query BuildProvenance($buildId: ID!) {
+              builds {
+                byId(buildId: $buildId) {
+                  id
+                  isGitWorkingTreeDirty
+                  gitCommitHash
+                }
+              }
+            }
+          `;
+          const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+          async function buildProvenance(buildId) {
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 15_000);
+              try {
+                const response = await fetch("https://api.expo.dev/graphql", {
+                  method: "POST",
+                  headers: {
+                    authorization: `Bearer ${process.env.EXPO_TOKEN}`,
+                    "content-type": "application/json",
+                  },
+                  body: JSON.stringify({ query, variables: { buildId } }),
+                  signal: controller.signal,
+                });
+                if (!response.ok) throw new Error("http");
+                let payload;
+                try {
+                  payload = await response.json();
+                } catch {
+                  throw new Error("json");
+                }
+                if (
+                  payload?.errors !== undefined &&
+                  (!Array.isArray(payload.errors) || payload.errors.length > 0)
+                ) {
+                  throw new Error("graphql");
+                }
+                const provenance = payload?.data?.builds?.byId;
+                if (!provenance) throw new Error("missing");
+                return provenance;
+              } catch {
+                if (attempt === 3) throw new Error("candidate provenance unavailable");
+                await wait(attempt * 1_000);
+              } finally {
+                clearTimeout(timer);
+              }
+            }
+            throw new Error("candidate provenance unavailable");
+          }
+
+          async function selectAuthenticatedCleanCandidate() {
+            const expectedCommit = String(process.env.EXPECTED_COMMIT || "").toLowerCase();
+            if (!sha.test(expectedCommit)) throw new Error("workflow commit is malformed");
+            const candidates = builds.filter((build) => {
+              const project = build?.app ?? build?.project;
+              const status = String(build?.status || "").toUpperCase().replaceAll("-", "_");
+              return allowed.has(status) &&
+                project?.id === config.extra?.eas?.projectId &&
+                String(build?.platform).toUpperCase() === "IOS" &&
+                build?.buildProfile === process.env.BUILD_PROFILE &&
+                build?.appIdentifier === config.ios?.bundleIdentifier;
+            }).sort((a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0));
+            for (const candidate of candidates) {
+              if (!uuid.test(candidate?.id || "")) throw new Error("candidate id is malformed");
+              const provenance = await buildProvenance(candidate.id);
+              if (String(provenance?.id).toLowerCase() !== candidate.id.toLowerCase()) {
+                throw new Error("candidate id mismatch");
+              }
+              const commit = String(provenance?.gitCommitHash || "").toLowerCase();
+              if (
+                provenance?.isGitWorkingTreeDirty === false &&
+                sha.test(commit) &&
+                commit === expectedCommit
+              ) {
+                process.stdout.write(candidate.id);
+                return;
+              }
+            }
+          }
+
+          selectAuthenticatedCleanCandidate().catch(() => {
+            console.error("iOS build candidate provenance lookup failed closed.");
+            process.exitCode = 1;
+          });
+          NODE
+              )"
+              if [ -n "$BUILD_ID" ]; then break; fi
+              if [ "$lookup_attempt" -lt 5 ]; then sleep 5; fi
+            done
+            if [ -n "$BUILD_ID" ]; then
+               echo "Found an authenticated clean EAS iOS candidate for this commit."
+            else
+              SUBMISSION="$RUNNER_TEMP/eas-ios-submission.json"
+              npx --yes "eas-cli@$EAS_CLI_VERSION" build \
+                --platform ios \
+                --profile "$BUILD_PROFILE" \
+                --message "$BUILD_MESSAGE" \
+                --non-interactive \
+                --no-wait \
+                --json > "$SUBMISSION"
+              BUILD_ID="$(node - "$SUBMISSION" <<'NODE'
+          const fs = require("node:fs");
+          const value = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const build = Array.isArray(value) ? value[0] : value;
+          if (!build?.id) throw new Error("EAS submission returned no build id");
+          process.stdout.write(build.id);
+          NODE
+              )"
+            fi
+          fi
+          if ! printf '%s' "$BUILD_ID" | grep -qE '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'; then
+            echo "::error::EAS iOS build id is missing or malformed."
             exit 1
           fi
-          BUILD_JSON="$(npx eas-cli build \
-            --platform ios \
-            --profile "$BUILD_PROFILE" \
-            --message "$BUILD_MESSAGE" \
-            --non-interactive \
-            --no-wait \
-            --json)"
-          printf '%s\n' "$BUILD_JSON"
-          BUILD_ID="$(
-            printf '%s' "$BUILD_JSON" | node -e '
-              const fs = require("fs");
-              const payload = JSON.parse(fs.readFileSync(0, "utf8"));
-              const build = Array.isArray(payload) ? payload[0] : payload;
-              if (!build?.id) process.exit(1);
-              process.stdout.write(build.id);
-            '
-          )"
           echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
           BUILD_URL="https://expo.dev/accounts/simon_k/projects/2nd-brain/builds/$BUILD_ID"
-          echo "::notice title=EAS iOS build submitted::$BUILD_PROFILE build: $BUILD_URL"
+          echo "::notice::EAS iOS recovery id: $BUILD_ID"
+          printf -- '- Recovery build id: `%s` · %s\n' "$BUILD_ID" "$BUILD_URL" >> "$GITHUB_STEP_SUMMARY"
+
+          DEADLINE=$((SECONDS + 19800))
+          while true; do
+            npx --yes "eas-cli@$EAS_CLI_VERSION" build:view "$BUILD_ID" --json > "$FINAL"
+            STATUS="$(node - "$FINAL" <<'NODE'
+          const fs = require("node:fs");
+          const value = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const build = Array.isArray(value) ? value[0] : value;
+          process.stdout.write(String(build?.status || "MISSING").toUpperCase().replaceAll("-", "_"));
+          NODE
+            )"
+            case "$STATUS" in
+              FINISHED) break ;;
+              NEW|IN_QUEUE|IN_PROGRESS) ;;
+              ERRORED|CANCELED|PENDING_CANCEL)
+                echo "::error::EAS iOS build $BUILD_ID ended with status $STATUS."
+                exit 1
+                ;;
+              *)
+                echo "::error::EAS iOS build $BUILD_ID returned unknown status $STATUS."
+                exit 1
+                ;;
+            esac
+            if [ "$SECONDS" -ge "$DEADLINE" ]; then
+              echo "::error::Wait exceeded 330 minutes; rerun with reuse_build_id=$BUILD_ID."
+              exit 1
+            fi
+            sleep 30
+          done
+          export BUILD_ID FINAL
+          node <<'NODE' > "$RUNNER_TEMP/eas-ios-verified.json"
+          const fs = require("node:fs");
+          const config = require("./app.json").expo;
+          const fail = (message) => { throw new Error(`completed iOS build rejected: ${message}`); };
+          const query = `
+            query BuildProvenance($buildId: ID!) {
+              builds {
+                byId(buildId: $buildId) {
+                  id
+                  isGitWorkingTreeDirty
+                  gitCommitHash
+                }
+              }
+            }
+          `;
+          const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+          async function fetchBuildProvenance(buildId) {
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 15_000);
+              try {
+                const response = await fetch("https://api.expo.dev/graphql", {
+                  method: "POST",
+                  headers: {
+                    authorization: `Bearer ${process.env.EXPO_TOKEN}`,
+                    "content-type": "application/json",
+                  },
+                  body: JSON.stringify({ query, variables: { buildId } }),
+                  signal: controller.signal,
+                });
+                if (!response.ok) throw new Error("http");
+                let payload;
+                try {
+                  payload = await response.json();
+                } catch {
+                  throw new Error("json");
+                }
+                if (
+                  payload?.errors !== undefined &&
+                  (!Array.isArray(payload.errors) || payload.errors.length > 0)
+                ) {
+                  throw new Error("graphql");
+                }
+                const build = payload?.data?.builds?.byId;
+                if (!build) throw new Error("missing");
+                return build;
+              } catch {
+                if (attempt === 3) fail("authenticated Expo GraphQL provenance is unavailable");
+                await wait(attempt * 1_000);
+              } finally {
+                clearTimeout(timer);
+              }
+            }
+            fail("authenticated Expo GraphQL provenance is unavailable");
+          }
+
+          async function main() {
+            const value = JSON.parse(fs.readFileSync(process.env.FINAL, "utf8"));
+            const b = Array.isArray(value) ? value[0] : value;
+            const expectedProfile = process.env.BUILD_PROFILE;
+            const project = b?.app ?? b?.project;
+            if (String(b?.id).toLowerCase() !== process.env.BUILD_ID.toLowerCase()) fail("id changed between submit and view");
+            if (project?.id !== config.extra?.eas?.projectId) fail("project id mismatch");
+            if (project?.slug !== config.slug || project?.ownerAccount?.name !== config.owner) fail("project identity mismatch");
+            if (String(b?.platform).toUpperCase() !== "IOS") fail("platform mismatch");
+            if (String(b?.status).toUpperCase() !== "FINISHED") fail(`status is ${b?.status || "missing"}`);
+            if (b?.buildProfile !== expectedProfile) fail("profile mismatch");
+            if (b?.appIdentifier !== config.ios?.bundleIdentifier) fail("iOS bundle identifier mismatch");
+            if (b?.appVersion !== config.version) fail("appVersion mismatch");
+            if (!/^[1-9][0-9]*$/.test(String(b?.appBuildVersion || ""))) fail("remote buildNumber missing");
+            if ((b?.updateChannel?.name ?? b?.channel) !== expectedProfile) fail("update channel mismatch");
+            if (b?.isForIosSimulator === true) fail("simulator build cannot be released as IPA");
+            const url = b?.artifacts?.applicationArchiveUrl ?? b?.artifacts?.buildUrl;
+            let parsed;
+            try { parsed = new URL(url); } catch { fail("artifact URL missing"); }
+            if (parsed.protocol !== "https:" || !parsed.pathname.toLowerCase().endsWith(".ipa")) fail("artifact metadata is not IPA");
+            const runtimeVersion = String(b?.runtime?.version ?? b?.runtimeVersion ?? "").toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(runtimeVersion)) fail("runtimeVersion is not a fingerprint hash");
+
+            const provenance = await fetchBuildProvenance(process.env.BUILD_ID);
+            if (String(provenance.id).toLowerCase() !== process.env.BUILD_ID.toLowerCase()) {
+              fail("authenticated build id mismatch");
+            }
+            if (provenance.isGitWorkingTreeDirty !== false) {
+              fail("authenticated source working tree was dirty or provenance is missing");
+            }
+            const gitCommitHash = String(provenance.gitCommitHash || "").toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(gitCommitHash) || gitCommitHash !== process.env.EXPECTED_COMMIT.toLowerCase()) {
+              fail("authenticated git commit mismatch");
+            }
+
+            process.stdout.write(JSON.stringify({
+              id: b.id,
+              appVersion: b.appVersion,
+              appBuildVersion: String(b.appBuildVersion),
+              runtimeVersion,
+              artifactUrl: url,
+            }));
+          }
+
+          main().catch((error) => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
+
+          APP_VERSION="$(node -p "require('$RUNNER_TEMP/eas-ios-verified.json').appVersion")"
+          BUILD_NUMBER="$(node -p "require('$RUNNER_TEMP/eas-ios-verified.json').appBuildVersion")"
+          RUNTIME_VERSION="$(node -p "require('$RUNNER_TEMP/eas-ios-verified.json').runtimeVersion")"
+          IPA_URL="$(node -p "require('$RUNNER_TEMP/eas-ios-verified.json').artifactUrl")"
+          IPA_FILE="2nd-Brain-v$APP_VERSION-build$BUILD_NUMBER-${GITHUB_SHA:0:12}.ipa"
+          curl --fail --silent --show-error --location --retry 3 "$IPA_URL" --output "$IPA_FILE"
+          IPA_SIZE="$(stat -c%s "$IPA_FILE")"
+          if [ "$IPA_SIZE" -lt 1000000 ]; then
+            echo "::error::Downloaded IPA is only $IPA_SIZE bytes."
+            exit 1
+          fi
+          if ! unzip -tqq "$IPA_FILE"; then
+            echo "::error::Downloaded IPA is not a valid ZIP archive."
+            exit 1
+          fi
+
+          export IPA_FILE APP_VERSION BUILD_NUMBER IOS_BUNDLE_ID APPLE_TEAM_ID BUILD_PROFILE
+          python3 <<'PY' > "$RUNNER_TEMP/ipa-info.json"
+          import json
+          import os
+          import plistlib
+          import re
+          import zipfile
+
+          with zipfile.ZipFile(os.environ["IPA_FILE"]) as archive:
+              names = archive.namelist()
+              infos = [name for name in names if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", name)]
+              profiles = [name for name in names if re.fullmatch(r"Payload/[^/]+\.app/embedded\.mobileprovision", name)]
+              if len(infos) != 1:
+                  raise SystemExit(f"IPA contains {len(infos)} top-level app Info.plist files")
+              if len(profiles) != 1:
+                  raise SystemExit(f"IPA contains {len(profiles)} embedded provisioning profiles")
+              info = plistlib.loads(archive.read(infos[0]))
+              expected = {
+                  "CFBundleIdentifier": os.environ["IOS_BUNDLE_ID"],
+                  "CFBundleShortVersionString": os.environ["APP_VERSION"],
+                  "CFBundleVersion": os.environ["BUILD_NUMBER"],
+              }
+              for key, value in expected.items():
+                  if str(info.get(key, "")) != value:
+                      raise SystemExit(f"IPA {key} mismatch")
+              print(json.dumps({"profileEntry": profiles[0]}))
+          PY
+          PROFILE_ENTRY="$(node -p "require('$RUNNER_TEMP/ipa-info.json').profileEntry")"
+          unzip -p "$IPA_FILE" "$PROFILE_ENTRY" > "$RUNNER_TEMP/embedded.mobileprovision"
+          openssl smime -inform der -verify -noverify \
+            -in "$RUNNER_TEMP/embedded.mobileprovision" \
+            -out "$RUNNER_TEMP/embedded-profile.plist" 2> "$RUNNER_TEMP/embedded-profile.err"
+          export EMBEDDED_PROFILE_PLIST="$RUNNER_TEMP/embedded-profile.plist"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const xml = fs.readFileSync(process.env.EMBEDDED_PROFILE_PLIST, "utf8");
+          const value = (key, tag = "string") =>
+            new RegExp(`<key>${key}<\\/key>\\s*<${tag}>([^<]+)<\\/${tag}>`).exec(xml)?.[1];
+          const arrayValue = (key) =>
+            new RegExp(`<key>${key}<\\/key>\\s*<array>\\s*<string>([^<]+)<\\/string>`).exec(xml)?.[1];
+          const arrayValues = (key, tag = "string") => {
+            const body = new RegExp(`<key>${key}<\\/key>\\s*<array>([\\s\\S]*?)<\\/array>`).exec(xml)?.[1] ?? "";
+            return [...body.matchAll(new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, "g"))]
+              .map((match) => match[1].replace(/\\s+/g, ""));
+          };
+          const expectedAppId = `${process.env.APPLE_TEAM_ID}.${process.env.IOS_BUNDLE_ID}`;
+          const applicationId = value("application-identifier");
+          const teamId = value("com.apple.developer.team-identifier") ?? arrayValue("TeamIdentifier");
+          const expires = value("ExpirationDate", "date");
+          const aps = value("aps-environment");
+          if (applicationId !== expectedAppId) throw new Error("embedded IPA application-identifier mismatch");
+          if (teamId !== process.env.APPLE_TEAM_ID) throw new Error("embedded IPA team identifier mismatch");
+          if (!expires || Date.parse(expires) <= Date.now()) throw new Error("embedded IPA provisioning profile is expired or unreadable");
+          const hasProvisionedDevices =
+            /<key>ProvisionedDevices<\/key>\s*<array>\s*<string>[^<]+<\/string>/.test(xml);
+          const provisionsAllDevices =
+            /<key>ProvisionsAllDevices<\/key>\s*<true\s*\/>/.test(xml);
+          const getTaskAllow = /<key>get-task-allow<\/key>\s*<true\s*\/>/.test(xml);
+          const getTaskAllowDenied = /<key>get-task-allow<\/key>\s*<false\s*\/>/.test(xml);
+          if (process.env.BUILD_PROFILE === "production") {
+            if (getTaskAllow) throw new Error("embedded production IPA permits debugger attachment");
+            if (hasProvisionedDevices) throw new Error("embedded production IPA uses an ad hoc profile");
+            if (provisionsAllDevices) throw new Error("embedded production IPA uses an enterprise profile");
+            if (aps && aps !== "production") throw new Error("embedded production IPA has a non-production push entitlement");
+            const certificate = fs.readFileSync(`${process.env.RUNNER_TEMP}/ios-distribution.der`).toString("base64");
+            if (!arrayValues("DeveloperCertificates", "data").includes(certificate)) {
+              throw new Error("embedded production IPA was not signed with the preflighted distribution certificate");
+            }
+          } else {
+            if (!hasProvisionedDevices || provisionsAllDevices || getTaskAllow || !getTaskAllowDenied) {
+              throw new Error("embedded preview IPA is not ad hoc distribution");
+            }
+          }
+          NODE
+          IPA_HASH="$(sha256sum "$IPA_FILE" | awk '{print $1}')"
+
           {
-            echo "### EAS iOS build submitted"
+            echo "app_version=$APP_VERSION"
+            echo "build_number=$BUILD_NUMBER"
+            echo "runtime_version=$RUNTIME_VERSION"
+            echo "ipa_sha256=$IPA_HASH"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### EAS iOS build completed and verified"
             echo
-            echo "- Profile: \`$BUILD_PROFILE\`"
-            echo "- Artifact: IPA ($([ "$BUILD_PROFILE" = "production" ] && echo 'App Store distribution' || echo 'internal ad hoc'))"
+            echo "- Profile: \`$BUILD_PROFILE\` · artifact \`IPA\`"
+            echo "- App version: \`$APP_VERSION\` · remote buildNumber \`$BUILD_NUMBER\`"
+            echo "- Runtime: \`$RUNTIME_VERSION\`"
+            echo "- IPA SHA-256: \`$IPA_HASH\` (Info.plist + embedded profile verified)"
             echo "- Build: $BUILD_URL"
           } >> "$GITHUB_STEP_SUMMARY"

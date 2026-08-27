@@ -81,19 +81,25 @@ structure: 93 (93 이어야 함)
 
 ### 앱을 띄워 대조할 수 있는가 (UI/UX 작업만 해당)
 
-```bash
-node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
-source /tmp/webenv.sh && npx expo export --platform web --output-dir /tmp/dist
-# <root>/2nd-B -> /tmp/dist 정션을 만들고 그 부모를 SPA 폴백으로 서빙
-npx http-server <root> -p 8979 -s --proxy "http://localhost:8979/2nd-B/index.html?"
-BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.mjs
-```
+정본 명령과 종료코드 판정은
+`design/pixel_clay_260825/FINE-TUNING-PROTOCOL.md`의 **앱 쪽 캡처** 절차다. Windows에서는
+한 PowerShell 프로세스 안에서 다음 순서를 지킨다.
 
-⚠ **`--print-env` 를 건너뛰지 마라.** `EXPO_PUBLIC_*` 를 안 넘기면 앱이 **에러 없이
-조용히 mock 으로** 돈다. 대조 수치가 전부 거짓이 된다.
+1. `node node_modules/playwright-core/cli.js install chromium`으로 package/lock에 고정된
+   managed Chromium을 설치한다.
+2. `chromium.executablePath()`의 결과를 출력하지 않고 `BROWSER_PATH`에 넣는다.
+3. 기존 Process의 `EXPO_PUBLIC_*` 이름을 값 출력 없이 모두 제거한다. 그다음
+   `capture-app.mjs --print-env=json`의 JSON을 변수로 받아 각 값을 **Process 환경에만**
+   적용한다. JSON이나 환경값은 터미널·로그·보고서에 출력하지 않는다.
+4. `capture-app.mjs --export-web`으로 새 경로에 attested export를 만든다. 이 명령은 dotenv를
+   끄고 임시 staging을 같은 부모에 만든 뒤 완성본만 atomic rename하며, receipt와 전체 파일
+   hash proof를 묶는다.
+5. 파일 mtime 기반 `Last-Modified`를 보내는 `tools/serve-sub.mjs`로 그 export를
+   `/2nd-B/`에 서빙한 뒤 같은 PowerShell에서 `capture-app.mjs`와 `score.mjs`를 실행한다.
 
-⚠ `baseUrl` 이 `/2nd-B` 다. dist 를 그냥 서빙하면 에셋이 404 나고
-`Unexpected token '<'` 만 남는다. 그리고 `/2nd-B/index.html` 이 아니라 `/2nd-B/` 로 열 것.
+⚠ **직접 `npx expo export`를 실행하는 구 절차는 폐기됐다.** receipt/proof가 없는 export,
+managed Chromium과 정확히 일치하지 않는 `BROWSER_PATH`, mock 실행, 로그인 월, 에셋 404는
+유효한 Work 0 검증이 아니다.
 
 ---
 
@@ -134,9 +140,14 @@ BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.m
   규칙 3 블러     0                   — 목록 기반 가드
   규칙 4 반투명   56                  — **가드 없음**
 
-레퍼런스 범위:
-  프레임 93 = port:true 86 + port:false 7(사유 기록됨, 손대지 말 것)
-  그중 앱 라우트로 **매핑된 것은 35개뿐**이다.
+레퍼런스 범위와 Stage 1은 캐시된 문장 대신 현재 manifest에서 매번 산출한다.
+
+```powershell
+node --input-type=module -e "import fs from 'node:fs'; const s=JSON.parse(fs.readFileSync('design/pixel_clay_260825/data/screens.json','utf8')).screens; console.log(JSON.stringify({total:s.length,portTrue:s.filter(x=>x.port===true).length,portFalse:s.filter(x=>x.port===false).length,deferred:s.filter(x=>x.port==='deferred').length,stage1:s.filter(x=>x.port===true&&x.stage===1).map(x=>x.id)},null,2));"
+```
+
+`port:false`와 `deferred`는 사유를 확인하고 건드리지 않는다. 측정 대상 route 수도
+`data/app-routes.json`과 현재 분류 결과에서 산출하며 과거 숫자를 복사하지 않는다.
 
 ## 목표
 
@@ -166,7 +177,7 @@ BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.m
 
 ## 루프
 
-stage 1 의 8화면부터, 화면 하나씩:
+`data/screens.json`에서 `stage === 1`로 산출한 화면부터, 화면 하나씩:
   확인 → 개선 → 검증(점수 + npm run verify) → 98 미만이면 반복.
   같은 화면을 3회 고쳐도 안 오르면 멈추고 사유를 적어라.
   ⚠ 안 오르는 화면은 대개 카피가 아니라 **구조나 하네스**가 원인이다.
@@ -196,8 +207,9 @@ design/pixel_clay_260825/data/deviations.json 에 {screen, axis, what, why} 를 
 3. 앱이 심는 워드 조이너 U+2060 이 문자열 비교를 깨뜨려 **있는 문장을 없다고** 셌다.
    비교 전에 정규화해라.
 4. EXPO_PUBLIC_* 를 안 넘기고 export 하면 앱이 조용히 mock 으로 돈다.
-5. 캡처 시각을 고정하지 마라. 고정 시각이 토큰 발급보다 뒤면 세션이 만료로 보여
-   **모든 화면이 로그인 월로** 찍힌다(캡처는 성공, 대조만 0%).
+5. auth·hydration 전에는 시각을 고정하지 마라. 도구가 둘을 실제 시각으로 끝낸 뒤
+   receipt `printedAt`(또는 명시한 `FIXED_ISO`)으로 Date/random을 고정한다. 페이지 시작부터
+   별도 고정 시각을 주입하면 모든 화면이 로그인 월로 찍힐 수 있다.
 6. baseUrl 이 /2nd-B 이고, /2nd-B/index.html 이 아니라 /2nd-B/ 로 열어야 한다.
 7. 온보딩은 매 이동마다 다시 뜬다. 화면마다 밀어내야 한다.
 8. 낮은 점수를 곧장 카피 부족으로 읽지 마라. 구조를 먼저 의심해라.
@@ -249,7 +261,8 @@ design/pixel_clay_260825/data/deviations.json 에 {screen, axis, what, why} 를 
    1× 와 nearest-neighbor 4× 로 육안 검토하라. 특히 F55–80(회전·접안) 경계.
 4. src/components/ui/LoadingScreen.tsx 를 읽고 지금 트윈을 표로 적어라.
 5. 앱을 띄워 지금 오프닝을 녹화하라.
-   ⚠ capture-app.mjs --print-env 로 env 를 넘길 것. 안 넘기면 조용히 mock 으로 돈다.
+   ⚠ 위 Work 0 정본 절차의 `--print-env=json` → Process 환경 적용 → `--export-web`
+   receipt/proof를 그대로 쓸 것. mock 결과는 유효하지 않다.
 
 ## 보고할 것
 
@@ -357,8 +370,8 @@ P2 의 금지 목록 전부 그대로. 더해서:
 | §1 검증이 ❌ | `main` 이 아니거나 pull 이 안 됨 | `git checkout main && git pull origin main` |
 | captures 가 93 이 아님 | 얕은 클론(`--depth`) | 전체 클론으로 다시 |
 | `npm ci` 실패 | peer 의존성 | `npm ci --legacy-peer-deps` (이 저장소는 이게 정상이다) |
-| 대조 수치가 전부 0% | `EXPO_PUBLIC_*` 미전달 → mock | `capture-app.mjs --print-env` 를 반드시 통과시킬 것 |
-| 모든 화면이 로그인 화면 | 캡처 시각 고정 | 시각을 고정하지 말 것(기본값 '지금') |
+| 대조 수치가 전부 0% | 환경 attestation 실패·mock | 위 `--print-env=json` → Process 환경 → `--export-web` receipt/proof 계약부터 다시 확인 |
+| 모든 화면이 로그인 화면 | auth 전 별도 시각 고정 | 도구가 auth 후 receipt `printedAt`/`FIXED_ISO`를 적용하게 둘 것 |
 
 ---
 

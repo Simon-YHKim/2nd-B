@@ -48,19 +48,20 @@ manual·digest-today 71` · `peer·account 75` · `records·star 83` · `import 
 # 레퍼런스를 다시 뜰 일은 거의 없다(번들이 바뀔 때만):
 npx http-server design/pixel_clay_260825 -p 8973 -s &
 BASE_URL=http://localhost:8973 node design/pixel_clay_260825/tools/capture-bundle.mjs
-
-# 앱 대조 — 이쪽을 매 작업마다 돌린다:
-node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
-source /tmp/webenv.sh && npx expo export --platform web --output-dir /tmp/webdist
-mkdir -p /tmp/webroot && ln -s /tmp/webdist /tmp/webroot/2nd-B    # Windows: mklink /J
-npx http-server /tmp/webroot -p 8979 -s --proxy "http://localhost:8979/2nd-B/index.html?" &
-BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.mjs
-# 일부만: SCREENS=review,me-star node ...
 ```
 
-**5분 안에 숫자가 안 나오면 도구 헤더의 "밟은 함정 다섯"을 먼저 읽을 것.** 전부 실제로
-겪은 것이고, 특히 3번(시각 고정 → 로그인 붕괴)은 캡처가 6/6 성공으로 보이면서 대조만
-0% 가 되는 모양이라 원인을 찾는 데 가장 오래 걸린다.
+앱 대조는 `FINE-TUNING-PROTOCOL.md`의 **앱 쪽 캡처** PowerShell 블록을 그대로 실행한다.
+그 절차가 managed `playwright-core` Chromium 설치와 exact `BROWSER_PATH`,
+기존 Process `EXPO_PUBLIC_*`의 비출력 제거, `--print-env=json`의 Process 환경 적용,
+`--export-web`의 fresh atomic staging·
+receipt/proof, attested export 서빙, 한 화면 `capture-app.mjs` → `score.mjs` 순서를 한 계약으로
+묶는다. **직접 `npx expo export`하거나 receipt/proof 없는 dist를 재사용하는 구 절차는
+폐기됐다.**
+
+**5분 안에 숫자가 안 나오면 `FINE-TUNING-PROTOCOL.md`의 "밟은 함정 다섯"을 먼저 읽을 것.** 전부 실제로
+겪은 것이고, 특히 3번(auth 전 별도 시각 고정 → 로그인 붕괴)은 캡처가 6/6 성공으로
+보이면서 대조만 0%가 되는 모양이라 원인을 찾는 데 가장 오래 걸린다. 도구가 auth 뒤에
+receipt `printedAt`/`FIXED_ISO`를 적용하게 둔다.
 
 ## 1-A. 일곱 절대 규칙 — 코드가 지금 어디인가 (2026-08-26 실측)
 

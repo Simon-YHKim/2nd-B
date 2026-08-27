@@ -97,22 +97,85 @@ BASE_URL=http://localhost:8973 node design/pixel_clay_260825/tools/capture-bundl
 ## 앱 쪽 캡처 — 이제 있다 (2026-08-28)
 
 `tools/capture-app.mjs` 가 우리 앱을 **같은 눈금**(390×820)으로 찍고 레퍼런스와 대조한다.
-결과는 `data/app-compare.json`(수치만 커밋, PNG 는 `.app-shots/` 로 gitignore).
+캡처 PNG·DOM과 채점 JSON은 아래의 실행별 `Output/` 경로에 먼저 쓰고, 검토한 기준선 JSON만
+별도 커밋한다.
 
-```bash
-node design/pixel_clay_260825/tools/capture-app.mjs --print-env > /tmp/webenv.sh
-source /tmp/webenv.sh && npx expo export --platform web --output-dir <dist>
-# <root>/2nd-B -> <dist> 정션을 만들고 그 부모를 SPA 폴백으로 서빙
-npx http-server <root> -p 8979 -s --proxy "http://localhost:8979/2nd-B/index.html?"
-BASE_URL=http://localhost:8979 node design/pixel_clay_260825/tools/capture-app.mjs
+Windows 정본 절차는 아래와 같다. **한 PowerShell 프로세스 안에서** 실행하고,
+`$work0Env`나 `EXPO_PUBLIC_*` 값을 출력·복사·보고하지 않는다.
+
+```powershell
+$tool = 'design/pixel_clay_260825/tools/capture-app.mjs'
+$score = 'design/pixel_clay_260825/tools/score.mjs'
+$runId = [guid]::NewGuid().ToString('N')
+$env:CAPTURE_ENV_RECEIPT = Join-Path $PWD "Output/work0-env-$runId.json"
+$env:CAPTURE_EXPORT_DIR = Join-Path $PWD "Output/work0-live-export-$runId"
+$env:OUT = Join-Path $PWD "Output/work0-live-captures-$runId"
+$env:SCORE_OUT = Join-Path $PWD "Output/work0-score-$runId.json"
+
+node node_modules/playwright-core/cli.js install chromium
+if ($LASTEXITCODE -ne 0) { throw 'managed Chromium install failed' }
+
+$env:BROWSER_PATH = node --input-type=module -e "import { chromium } from 'playwright-core'; process.stdout.write(chromium.executablePath())"
+if ($LASTEXITCODE -ne 0) { throw 'managed Chromium path lookup failed' }
+
+[Environment]::GetEnvironmentVariables('Process').Keys | Where-Object {
+  [string]$_ -like 'EXPO_PUBLIC_*'
+} | ForEach-Object {
+  Remove-Item -LiteralPath ('Env:' + [string]$_) -ErrorAction Stop
+}
+$work0Env = node $tool --print-env=json | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'preview environment attestation failed' }
+$work0Env.PSObject.Properties | ForEach-Object {
+  [Environment]::SetEnvironmentVariable($_.Name, [string]$_.Value, 'Process')
+}
+
+node $tool --export-web
+if ($LASTEXITCODE -ne 0) { throw 'attested web export failed' }
+
+$server = Start-Process -FilePath (Get-Command node).Source `
+  -ArgumentList @('design/pixel_clay_260825/tools/serve-sub.mjs', $env:CAPTURE_EXPORT_DIR, '8979') `
+  -PassThru -WindowStyle Hidden
+try {
+  Start-Sleep -Seconds 1
+  $env:BASE_URL = 'http://127.0.0.1:8979'
+  $manifest = Get-Content 'design/pixel_clay_260825/data/screens.json' -Raw | ConvertFrom-Json
+  $screenIds = @($manifest.screens | Where-Object {
+    $_.port -is [bool] -and $_.port -eq $true -and $_.stage -eq 1
+  } | Select-Object -First 1 -ExpandProperty id)
+  if ($screenIds.Count -ne 1) { throw 'no Stage 1 screen selected' }
+  $env:SCREENS = $screenIds -join ','
+
+  node $tool
+  if ($LASTEXITCODE -ne 0) { throw 'capture failed' }
+  node $score @screenIds
+  if ($LASTEXITCODE -ne 0) { throw 'score failed or the selected screen is below 98' }
+} finally {
+  Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
+}
 ```
 
-**이 도구가 밟은 함정 다섯**(주석에 다시 적혀 있다):
+`--print-env=json`은 `eas.json`의 실제 `preview.env`를 검증해 schema 2 receipt를 쓰고 JSON을
+stdout으로 내보낸다. 위 할당·파이프는 값을 화면에 찍지 않고 같은 Process 환경에 적용한다.
+`--export-web`은 dotenv를 끄고, 기존 목적지 덮어쓰기를 거부하며, 같은 부모의 fresh staging을
+완성한 뒤 atomic rename한다. 결과의 `work0-export-attestation.json`에는 receipt와 모든 export
+파일·inline script hash가 들어간다. 캡처와 채점은 이 proof를 서버에서 다시 대조한다.
+적용 전 기존 Process의 `EXPO_PUBLIC_*` 이름을 값 출력 없이 모두 지우므로 dirty shell의
+추가 변수가 exact-runtime-env 검증에 섞이지 않는다.
+
+`BROWSER_PATH`는 설치된 `playwright-core`의 `chromium.executablePath()`와 정확히 같아야 하고
+실행 중 browser version도 package에 고정된 Chromium과 정확히 같아야 한다. **직접
+`npx expo export`하는 구 절차는 폐기됐다.** receipt/proof 없는 export, mock, 로그인 월,
+`/2nd-B` 에셋 404 결과는 유효하지 않다.
+`serve-sub.mjs`는 proof freshness 검증에 필요한 파일 mtime 기반 `Last-Modified`를 보내고,
+누락된 JS/CSS/image asset은 `index.html` 200으로 폴백하지 않고 404로 닫는다.
+
+**이 도구가 밟은 함정 다섯**(현재 계약과 함께 여기서 관리한다):
 
 1. **baseUrl 이 `/2nd-B`** — dist 를 그냥 서빙하면 에셋이 404 나고 "Unexpected token '<'" 만 남는다.
 2. **`/2nd-B/index.html` 이 아니라 `/2nd-B/`** — 라우터가 `.html` 경로를 not-found 로 그린다.
-3. **시각을 고정하면 로그인이 깨진다** — 고정 시각이 토큰 발급보다 뒤면 세션이 만료로
-   보여 **모든 화면이 로그인 월로 찍힌다**(캡처는 성공, 대조만 0%). 기본값은 '지금'.
+3. **auth·hydration 전에 시각을 고정하면 로그인이 깨진다.** 도구는 둘을 실제 시각으로
+   끝낸 뒤에만 기본 receipt `printedAt`으로 Date/random을 고정한다. `FIXED_ISO`도 같은
+   auth 이후 단계에만 적용된다. 페이지 시작부터 별도 시각 고정 코드를 주입하지 않는다.
 4. **깊이 6 컷은 앱에 안 맞는다** — RN-web 은 View 를 겹겹이 싸서 글자가 8~12 depth 에
    있다. 앱은 24까지 본다(대조는 텍스트 집합이라 비대칭이 문제되지 않는다).
 5. **온보딩은 매 이동마다 다시 뜬다** — 완료 표시가 계정 상태에 있어 한 번 건너뛰는
@@ -132,5 +195,6 @@ support)은 우리 문서가 정본이다. **읽는 법: 같은 화면의 수치
    현황이 아니다** — `.github/workflows` 에 screenshot/playwright 히트 0건이다.
 2. **번들은 목업이다.** 데이터가 가짜라 화면에 뜬 숫자·문장은 레퍼런스가 아니다.
    레이아웃과 연결이 레퍼런스고, 값은 저장소 실물에서 온다.
-3. **93화면 중 80이 port:true 지만 순번이 있다.** stage 1 은 일곱 한 벌과 그 진입
-   경로 8화면이다. 한꺼번에 옮기면 어디서 깨졌는지 못 찾는다.
+3. **범위와 순번은 `data/screens.json`에서 매번 산출한다.** `port === true`만 이식 후보이고,
+   `stage === 1`인 화면부터 한 화면씩 진행한다. 과거 문서의 80/86 같은 숫자를 복사하면
+   `deferred`를 포함하는 순간 다시 충돌한다.
